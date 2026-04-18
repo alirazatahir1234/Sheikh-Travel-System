@@ -154,3 +154,4 @@
 /Users/alirazatahir/Projects/Sheikh-Travel-System/Backend/SheikhTravelSystem.Tests/obj/Debug/net10.0/SheikhTravelSystem.Tests.pdb
 /Users/alirazatahir/Projects/Sheikh-Travel-System/Backend/SheikhTravelSystem.Tests/obj/Debug/net10.0/SheikhTravelSystem.Tests.genruntimeconfig.cache
 /Users/alirazatahir/Projects/Sheikh-Travel-System/Backend/SheikhTravelSystem.Tests/obj/Debug/net10.0/ref/SheikhTravelSystem.Tests.dll
+/Users/alirazatahir/Projects/Sheikh-Travel-System/Backend/SheikhTravelSystem.Tests/obj/Debug/net10.0/SheikhTravelSystem.Tests.sourcelink.json

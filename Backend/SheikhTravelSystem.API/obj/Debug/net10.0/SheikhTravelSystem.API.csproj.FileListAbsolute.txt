@@ -91,3 +91,4 @@
 /Users/alirazatahir/Projects/Sheikh-Travel-System/Backend/SheikhTravelSystem.API/obj/Debug/net10.0/SheikhTravelSystem.API.pdb
 /Users/alirazatahir/Projects/Sheikh-Travel-System/Backend/SheikhTravelSystem.API/obj/Debug/net10.0/SheikhTravelSystem.API.genruntimeconfig.cache
 /Users/alirazatahir/Projects/Sheikh-Travel-System/Backend/SheikhTravelSystem.API/obj/Debug/net10.0/ref/SheikhTravelSystem.API.dll
+/Users/alirazatahir/Projects/Sheikh-Travel-System/Backend/SheikhTravelSystem.API/obj/Debug/net10.0/SheikhTravelSystem.API.sourcelink.json

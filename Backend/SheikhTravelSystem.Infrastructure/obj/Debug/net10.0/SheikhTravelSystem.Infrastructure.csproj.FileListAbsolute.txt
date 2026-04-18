@@ -15,3 +15,4 @@
 /Users/alirazatahir/Projects/Sheikh-Travel-System/Backend/SheikhTravelSystem.Infrastructure/obj/Debug/net10.0/refint/SheikhTravelSystem.Infrastructure.dll
 /Users/alirazatahir/Projects/Sheikh-Travel-System/Backend/SheikhTravelSystem.Infrastructure/obj/Debug/net10.0/SheikhTravelSystem.Infrastructure.pdb
 /Users/alirazatahir/Projects/Sheikh-Travel-System/Backend/SheikhTravelSystem.Infrastructure/obj/Debug/net10.0/ref/SheikhTravelSystem.Infrastructure.dll
+/Users/alirazatahir/Projects/Sheikh-Travel-System/Backend/SheikhTravelSystem.Infrastructure/obj/Debug/net10.0/SheikhTravelSystem.Infrastructure.sourcelink.json
