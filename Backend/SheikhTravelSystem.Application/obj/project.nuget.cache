@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "dgSpecHash": "lvhI54yyQAU=",
+  "dgSpecHash": "jqwXGYmiO5s=",
   "success": true,
   "projectFilePath": "/Users/alirazatahir/Projects/Sheikh-Travel-System/Backend/SheikhTravelSystem.Application/SheikhTravelSystem.Application.csproj",
   "expectedPackageFiles": [
@@ -13,5 +13,15 @@
     "/Users/alirazatahir/.nuget/packages/microsoft.extensions.dependencyinjection.abstractions/10.0.0/microsoft.extensions.dependencyinjection.abstractions.10.0.0.nupkg.sha512",
     "/Users/alirazatahir/.nuget/packages/microsoft.extensions.primitives/9.0.1/microsoft.extensions.primitives.9.0.1.nupkg.sha512"
   ],
-  "logs": []
+  "logs": [
+    {
+      "code": "NU1900",
+      "level": "Warning",
+      "message": "Error occurred while getting package vulnerability data: Unable to load the service index for source https://api.nuget.org/v3/index.json.",
+      "projectPath": "/Users/alirazatahir/Projects/Sheikh-Travel-System/Backend/SheikhTravelSystem.Application/SheikhTravelSystem.Application.csproj",
+      "warningLevel": 1,
+      "filePath": "/Users/alirazatahir/Projects/Sheikh-Travel-System/Backend/SheikhTravelSystem.Application/SheikhTravelSystem.Application.csproj",
+      "targetGraphs": []
+    }
+  ]
 }

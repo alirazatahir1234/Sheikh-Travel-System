@@ -651,3 +651,141 @@ describe('BookingFormComponent', () => {
   });
 });
 ```
+
+---
+
+## Security practices
+
+### .NET and Angular
+
+* Never store secrets in source control. Use environment variables, secret stores, or user-secrets for local development.
+* Validate and authorize every sensitive action on the server, even if the UI already hides restricted buttons.
+* Prefer least-privilege access for database users and service accounts.
+* Redact sensitive fields (tokens, passwords, CNIC, payment data) from logs and error responses.
+* Keep dependencies updated and patch known vulnerabilities quickly.
+
+```csharp
+// Program.cs - secure defaults
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer();
+
+builder.Services.AddAuthorization();
+
+// Require auth by default (override only where needed)
+builder.Services.AddControllers(options =>
+{
+    options.Filters.Add(new AuthorizeFilter());
+});
+```
+
+```typescript
+// auth.interceptor.ts - attach token centrally (single source of truth)
+export const authInterceptor: HttpInterceptorFn = (req, next) => {
+  const token = localStorage.getItem('access_token');
+  const authReq = token
+    ? req.clone({ setHeaders: { Authorization: `Bearer ${token}` } })
+    : req;
+  return next(authReq);
+};
+```
+
+---
+
+## Async and cancellation
+
+### .NET
+
+* Pass `CancellationToken` through handlers, repositories, and HTTP/database calls.
+* Avoid blocking async flows (`.Result`, `.Wait()`), which can cause deadlocks and thread starvation.
+* Use `Task.WhenAll` for independent I/O operations to reduce total latency.
+
+```csharp
+public async Task<BookingResponse> Handle(GetBookingByIdQuery query, CancellationToken ct)
+{
+    const string sql = "SELECT Id, PassengerName, TotalPrice, Status FROM Bookings WHERE Id = @Id";
+    var booking = await _connection.QuerySingleOrDefaultAsync<BookingResponse>(
+        new CommandDefinition(sql, new { query.Id }, cancellationToken: ct));
+
+    if (booking is null)
+        throw new NotFoundException($"Booking with Id {query.Id} was not found.");
+
+    return booking;
+}
+```
+
+---
+
+## Transaction and idempotency practices
+
+### .NET
+
+* Wrap multi-step write operations in a transaction.
+* Design create endpoints to be idempotent where possible (for retries/timeouts).
+* Use unique constraints to enforce invariants at the database level.
+
+```csharp
+await using var transaction = await _connection.BeginTransactionAsync(ct);
+try
+{
+    // Step 1: create booking
+    // Step 2: create payment record
+    // Step 3: update seat inventory
+
+    await transaction.CommitAsync(ct);
+}
+catch
+{
+    await transaction.RollbackAsync(ct);
+    throw;
+}
+```
+
+---
+
+## Performance practices
+
+### .NET and Angular
+
+* Measure before optimizing. Use profiling/tracing for hotspots.
+* Cache stable reference data (routes, vehicle types) with explicit expiration.
+* In API queries, return only required columns and always paginate list endpoints.
+* For Angular, use `OnPush` change detection and `trackBy` in long lists.
+
+```typescript
+@Component({
+  // ...
+  changeDetection: ChangeDetectionStrategy.OnPush
+})
+export class BookingListComponent {
+  trackByBookingId = (_: number, item: Booking) => item.id;
+}
+```
+
+---
+
+## Configuration and environment management
+
+### .NET and Angular
+
+* Keep environment-specific values in config files per environment and secret managers.
+* Fail fast on missing required settings at startup.
+* Use typed options in .NET and typed environment contracts in Angular.
+
+```csharp
+builder.Services.AddOptions<JwtOptions>()
+    .Bind(builder.Configuration.GetSection("Jwt"))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+```
+
+---
+
+## CI quality gates
+
+### Pull request minimum checks
+
+* Build passes for backend and frontend.
+* Unit tests pass and no flaky tests are ignored.
+* Lint/format checks pass.
+* No high/critical security vulnerabilities in dependency scan.
+* New endpoints include validation, error handling, and at least one automated test.

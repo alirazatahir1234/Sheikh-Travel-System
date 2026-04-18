@@ -1,0 +1,64 @@
+# Build output
+[Bb]in/
+[Oo]bj/
+out/
+*.dll
+*.exe
+*.pdb
+*.mdb
+*.ilk
+*.exp
+*.lib
+*.so
+*.dylib
+
+# User-specific files
+*.user
+*.rsuser
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Test and coverage results
+TestResults/
+*.trx
+*.coverage
+*.coveragexml
+coverage/
+coverage-report/
+
+# NuGet and package artifacts
+*.nupkg
+*.snupkg
+packages/
+
+# Logs and temp files
+*.log
+logs/
+tmp/
+temp/
+
+# Environment and secrets
+.env
+.env.*
+appsettings.Development.json
+appsettings.Local.json
+secrets.json
+
+# Database and local data artifacts
+*.db
+*.sqlite
+*.sqlite3
+
+# IDE and editor folders
+.vs/
+.vscode/
+.idea/
+
+# ReSharper / Rider
+_ReSharper*/
+*.DotSettings.user
+
+# OS generated files
+.DS_Store
+Thumbs.db

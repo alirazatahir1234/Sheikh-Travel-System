@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("SheikhTravelSystem.Domain")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+2a08089f63f7568f14b147018ffd9ead3e4fc320")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+a8a4caf25c8e9183a5335f82a1569009968f0379")]
 [assembly: System.Reflection.AssemblyProductAttribute("SheikhTravelSystem.Domain")]
 [assembly: System.Reflection.AssemblyTitleAttribute("SheikhTravelSystem.Domain")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

@@ -1,0 +1,1282 @@
+{
+  "info": {
+    "_postman_id": "8f0b86b0-a9f6-4d59-b1d9-6e31be42ea55",
+    "name": "SheikhTravelSystem API",
+    "description": "Complete Postman collection for SheikhTravelSystem API. Login first to auto-save accessToken/refreshToken.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{accessToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5082"
+    },
+    {
+      "key": "accessToken",
+      "value": ""
+    },
+    {
+      "key": "refreshToken",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "var json = pm.response.json();",
+                  "if (json && json.data) {",
+                  "    if (json.data.accessToken) pm.collectionVariables.set('accessToken', json.data.accessToken);",
+                  "    if (json.data.refreshToken) pm.collectionVariables.set('refreshToken', json.data.refreshToken);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@sheikhtravel.com\",\n  \"password\": \"Admin@123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Refresh Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json && json.data && json.data.accessToken) pm.collectionVariables.set('accessToken', json.data.accessToken);",
+                  "if (json && json.data && json.data.refreshToken) pm.collectionVariables.set('refreshToken', json.data.refreshToken);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/refresh-token",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "refresh-token"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/logout",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "logout"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Bookings",
+      "item": [
+        {
+          "name": "Get All Bookings",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/bookings?page=1&pageSize=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "bookings"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "pageSize",
+                  "value": "20"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Booking By Id",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/bookings/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "bookings",
+                "1"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Booking",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"booking\": {\n    \"customerId\": 1,\n    \"routeId\": 1,\n    \"pickupTime\": \"2026-12-25T10:00:00Z\",\n    \"passengerCount\": 3,\n    \"totalAmount\": 7500,\n    \"notes\": \"Airport pickup\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/bookings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "bookings"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update Booking Status",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": 1,\n  \"status\": 2\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/bookings/1/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "bookings",
+                "1",
+                "status"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Assign Driver",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bookingId\": 1,\n  \"driverId\": 1\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/bookings/1/assign-driver",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "bookings",
+                "1",
+                "assign-driver"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Assign Vehicle",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bookingId\": 1,\n  \"vehicleId\": 1\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/bookings/1/assign-vehicle",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "bookings",
+                "1",
+                "assign-vehicle"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Customers",
+      "item": [
+        {
+          "name": "Get All Customers",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/customers?page=1&pageSize=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "customers"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "pageSize",
+                  "value": "20"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Customer",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customer\": {\n    \"fullName\": \"Ahmed Ali\",\n    \"phone\": \"03001234567\",\n    \"email\": \"ahmed@example.com\",\n    \"address\": \"Lahore\",\n    \"cnic\": \"12345-1234567-1\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/customers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "customers"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update Customer",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": 1,\n  \"customer\": {\n    \"fullName\": \"Ahmed Ali Updated\",\n    \"phone\": \"03001234567\",\n    \"email\": \"ahmed@example.com\",\n    \"address\": \"Lahore\",\n    \"cnic\": \"12345-1234567-1\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/customers/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "customers",
+                "1"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Dashboard",
+      "item": [
+        {
+          "name": "Get Dashboard Summary",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/dashboard/summary",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "dashboard",
+                "summary"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Drivers",
+      "item": [
+        {
+          "name": "Get All Drivers",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/drivers?page=1&pageSize=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "drivers"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "pageSize",
+                  "value": "20"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Driver",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"driver\": {\n    \"fullName\": \"Hassan Khan\",\n    \"phone\": \"03009876543\",\n    \"licenseNumber\": \"DL-123456\",\n    \"licenseExpiryDate\": \"2028-12-31T00:00:00Z\",\n    \"cnic\": \"35202-1234567-1\",\n    \"address\": \"Islamabad\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/drivers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "drivers"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update Driver",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": 1,\n  \"driver\": {\n    \"fullName\": \"Hassan Khan\",\n    \"phone\": \"03009876543\",\n    \"licenseNumber\": \"DL-123456\",\n    \"licenseExpiryDate\": \"2028-12-31T00:00:00Z\",\n    \"cnic\": \"35202-1234567-1\",\n    \"address\": \"Islamabad\",\n    \"status\": 1,\n    \"isActive\": true\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/drivers/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "drivers",
+                "1"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "FuelLogs",
+      "item": [
+        {
+          "name": "Get All Fuel Logs",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/fuellogs?page=1&pageSize=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "fuellogs"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "pageSize",
+                  "value": "20"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Fuel Log",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fuelLog\": {\n    \"vehicleId\": 1,\n    \"driverId\": 1,\n    \"liters\": 25,\n    \"pricePerLiter\": 280,\n    \"odometerReading\": 125000,\n    \"fuelType\": 1,\n    \"fuelDate\": \"2026-04-18T00:00:00Z\",\n    \"station\": \"PSO\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/fuellogs",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "fuellogs"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Maintenance",
+      "item": [
+        {
+          "name": "Get All Maintenance",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/maintenance?page=1&pageSize=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "maintenance"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "pageSize",
+                  "value": "20"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Maintenance",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"maintenance\": {\n    \"vehicleId\": 1,\n    \"description\": \"Oil change\",\n    \"cost\": 4500,\n    \"maintenanceDate\": \"2026-04-18T00:00:00Z\",\n    \"nextDueDate\": \"2026-10-18T00:00:00Z\",\n    \"serviceProvider\": \"Honda Service Center\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/maintenance",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "maintenance"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Notifications",
+      "item": [
+        {
+          "name": "Get Notifications",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/notifications?page=1&pageSize=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "notifications"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "pageSize",
+                  "value": "20"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Mark Notifications Read",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "[1, 2, 3]"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/notifications/read",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "notifications",
+                "read"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Payments",
+      "item": [
+        {
+          "name": "Get All Payments",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/payments?page=1&pageSize=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "payments"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "pageSize",
+                  "value": "20"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Payment Report",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/payments/report?fromDate=2026-01-01T00:00:00Z&toDate=2026-12-31T23:59:59Z",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "payments",
+                "report"
+              ],
+              "query": [
+                {
+                  "key": "fromDate",
+                  "value": "2026-01-01T00:00:00Z"
+                },
+                {
+                  "key": "toDate",
+                  "value": "2026-12-31T23:59:59Z"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Payment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"payment\": {\n    \"bookingId\": 1,\n    \"amount\": 3000,\n    \"paymentMethod\": \"Cash\",\n    \"transactionReference\": \"TRX-0001\",\n    \"notes\": \"Advance\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/payments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "payments"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Pricing",
+      "item": [
+        {
+          "name": "Calculate Price",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"request\": {\n    \"routeId\": 1,\n    \"vehicleId\": 1,\n    \"fuelPrice\": 280,\n    \"driverCost\": 2500,\n    \"maintenanceCost\": 500,\n    \"profitMargin\": 1000\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/pricing/calculate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "pricing",
+                "calculate"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reports",
+      "item": [
+        {
+          "name": "Booking Report",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/reports/bookings?fromDate=2026-01-01T00:00:00Z&toDate=2026-12-31T23:59:59Z",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "reports",
+                "bookings"
+              ],
+              "query": [
+                {
+                  "key": "fromDate",
+                  "value": "2026-01-01T00:00:00Z"
+                },
+                {
+                  "key": "toDate",
+                  "value": "2026-12-31T23:59:59Z"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Revenue Report",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/reports/revenue?fromDate=2026-01-01T00:00:00Z&toDate=2026-12-31T23:59:59Z",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "reports",
+                "revenue"
+              ],
+              "query": [
+                {
+                  "key": "fromDate",
+                  "value": "2026-01-01T00:00:00Z"
+                },
+                {
+                  "key": "toDate",
+                  "value": "2026-12-31T23:59:59Z"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Vehicle Profit Report",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/reports/vehicle-profit?fromDate=2026-01-01T00:00:00Z&toDate=2026-12-31T23:59:59Z&vehicleId=1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "reports",
+                "vehicle-profit"
+              ],
+              "query": [
+                {
+                  "key": "fromDate",
+                  "value": "2026-01-01T00:00:00Z"
+                },
+                {
+                  "key": "toDate",
+                  "value": "2026-12-31T23:59:59Z"
+                },
+                {
+                  "key": "vehicleId",
+                  "value": "1"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Driver Performance Report",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/reports/driver-performance?fromDate=2026-01-01T00:00:00Z&toDate=2026-12-31T23:59:59Z",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "reports",
+                "driver-performance"
+              ],
+              "query": [
+                {
+                  "key": "fromDate",
+                  "value": "2026-01-01T00:00:00Z"
+                },
+                {
+                  "key": "toDate",
+                  "value": "2026-12-31T23:59:59Z"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Routes",
+      "item": [
+        {
+          "name": "Get All Routes",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/routes?page=1&pageSize=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "routes"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "pageSize",
+                  "value": "20"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Route",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"route\": {\n    \"source\": \"Lahore\",\n    \"destination\": \"Islamabad\",\n    \"distance\": 375,\n    \"basePrice\": 8000\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/routes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "routes"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update Route",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": 1,\n  \"route\": {\n    \"source\": \"Lahore\",\n    \"destination\": \"Islamabad\",\n    \"distance\": 375,\n    \"basePrice\": 8500,\n    \"isActive\": true\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/routes/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "routes",
+                "1"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Tracking",
+      "item": [
+        {
+          "name": "Update Location",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"location\": {\n    \"vehicleId\": 1,\n    \"driverId\": 1,\n    \"bookingId\": 1,\n    \"latitude\": 31.5204,\n    \"longitude\": 74.3587,\n    \"speed\": 55\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/tracking/location",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "tracking",
+                "location"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Live Tracking",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/tracking/live",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "tracking",
+                "live"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Tracking History",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/tracking/history/1?from=2026-04-17T00:00:00Z&to=2026-04-18T23:59:59Z",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "tracking",
+                "history",
+                "1"
+              ],
+              "query": [
+                {
+                  "key": "from",
+                  "value": "2026-04-17T00:00:00Z"
+                },
+                {
+                  "key": "to",
+                  "value": "2026-04-18T23:59:59Z"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Users (Admin Only)",
+      "item": [
+        {
+          "name": "Get All Users",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/users?page=1&pageSize=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "users"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "pageSize",
+                  "value": "20"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user\": {\n    \"fullName\": \"Dispatcher One\",\n    \"email\": \"dispatcher1@sheikhtravel.com\",\n    \"password\": \"StrongPass1!\",\n    \"phone\": \"03001112222\",\n    \"role\": 2\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/users",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "users"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update User",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": 1,\n  \"user\": {\n    \"fullName\": \"Dispatcher One Updated\",\n    \"email\": \"dispatcher1@sheikhtravel.com\",\n    \"phone\": \"03001112222\",\n    \"role\": 2,\n    \"isActive\": true\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/users/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "1"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Delete User",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{baseUrl}}/api/users/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "1"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Vehicles",
+      "item": [
+        {
+          "name": "Get All Vehicles",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/vehicles?page=1&pageSize=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "vehicles"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "pageSize",
+                  "value": "20"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Vehicle By Id",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/vehicles/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "vehicles",
+                "1"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Vehicle",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"vehicle\": {\n    \"name\": \"Toyota Hiace\",\n    \"registrationNumber\": \"LEA-1234\",\n    \"model\": \"High Roof\",\n    \"year\": 2022,\n    \"seatingCapacity\": 14,\n    \"fuelAverage\": 9.5,\n    \"fuelType\": 2,\n    \"currentMileage\": 45000,\n    \"insuranceExpiryDate\": \"2027-12-31T00:00:00Z\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/vehicles",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "vehicles"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update Vehicle",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": 1,\n  \"vehicle\": {\n    \"name\": \"Toyota Hiace\",\n    \"registrationNumber\": \"LEA-1234\",\n    \"model\": \"High Roof\",\n    \"year\": 2022,\n    \"seatingCapacity\": 14,\n    \"fuelAverage\": 9.8,\n    \"fuelType\": 2,\n    \"currentMileage\": 46000,\n    \"insuranceExpiryDate\": \"2027-12-31T00:00:00Z\",\n    \"status\": 1\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/vehicles/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "vehicles",
+                "1"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Delete Vehicle",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{baseUrl}}/api/vehicles/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "vehicles",
+                "1"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
