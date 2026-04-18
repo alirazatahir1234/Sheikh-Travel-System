@@ -22,7 +22,8 @@
         ],
         "sources": {
           "/Users/alirazatahir/.nuget/packages": {},
-          "/usr/local/share/dotnet/library-packs": {}
+          "/usr/local/share/dotnet/library-packs": {},
+          "https://api.nuget.org/v3/index.json": {}
         },
         "frameworks": {
           "net10.0": {
@@ -387,7 +388,8 @@
         ],
         "sources": {
           "/Users/alirazatahir/.nuget/packages": {},
-          "/usr/local/share/dotnet/library-packs": {}
+          "/usr/local/share/dotnet/library-packs": {},
+          "https://api.nuget.org/v3/index.json": {}
         },
         "frameworks": {
           "net10.0": {
@@ -722,7 +724,8 @@
         ],
         "sources": {
           "/Users/alirazatahir/.nuget/packages": {},
-          "/usr/local/share/dotnet/library-packs": {}
+          "/usr/local/share/dotnet/library-packs": {},
+          "https://api.nuget.org/v3/index.json": {}
         },
         "frameworks": {
           "net10.0": {
@@ -1238,7 +1241,8 @@
         ],
         "sources": {
           "/Users/alirazatahir/.nuget/packages": {},
-          "/usr/local/share/dotnet/library-packs": {}
+          "/usr/local/share/dotnet/library-packs": {},
+          "https://api.nuget.org/v3/index.json": {}
         },
         "frameworks": {
           "net10.0": {
