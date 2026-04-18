@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="SheikhTravelSystem.API/SheikhTravelSystem.API.csproj" />
+  <Project Path="SheikhTravelSystem.Application/SheikhTravelSystem.Application.csproj" />
+  <Project Path="SheikhTravelSystem.Domain/SheikhTravelSystem.Domain.csproj" />
+  <Project Path="SheikhTravelSystem.Infrastructure/SheikhTravelSystem.Infrastructure.csproj" />
+  <Project Path="SheikhTravelSystem.Tests/SheikhTravelSystem.Tests.csproj" />
+</Solution>

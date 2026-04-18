@@ -1,0 +1,15 @@
+/Users/alirazatahir/Projects/Sheikh-Travel-System/Backend/SheikhTravelSystem.Application/obj/Debug/net10.0/SheikhTravelSystem.Application.csproj.AssemblyReference.cache
+/Users/alirazatahir/Projects/Sheikh-Travel-System/Backend/SheikhTravelSystem.Application/obj/Debug/net10.0/SheikhTravelSystem.Application.GeneratedMSBuildEditorConfig.editorconfig
+/Users/alirazatahir/Projects/Sheikh-Travel-System/Backend/SheikhTravelSystem.Application/obj/Debug/net10.0/SheikhTravelSystem.Application.AssemblyInfoInputs.cache
+/Users/alirazatahir/Projects/Sheikh-Travel-System/Backend/SheikhTravelSystem.Application/obj/Debug/net10.0/SheikhTravelSystem.Application.AssemblyInfo.cs
+/Users/alirazatahir/Projects/Sheikh-Travel-System/Backend/SheikhTravelSystem.Application/obj/Debug/net10.0/SheikhTravelSystem.Application.csproj.CoreCompileInputs.cache
+/Users/alirazatahir/Projects/Sheikh-Travel-System/Backend/SheikhTravelSystem.Application/bin/Debug/net10.0/SheikhTravelSystem.Application.deps.json
+/Users/alirazatahir/Projects/Sheikh-Travel-System/Backend/SheikhTravelSystem.Application/bin/Debug/net10.0/SheikhTravelSystem.Application.dll
+/Users/alirazatahir/Projects/Sheikh-Travel-System/Backend/SheikhTravelSystem.Application/bin/Debug/net10.0/SheikhTravelSystem.Application.pdb
+/Users/alirazatahir/Projects/Sheikh-Travel-System/Backend/SheikhTravelSystem.Application/bin/Debug/net10.0/SheikhTravelSystem.Domain.dll
+/Users/alirazatahir/Projects/Sheikh-Travel-System/Backend/SheikhTravelSystem.Application/bin/Debug/net10.0/SheikhTravelSystem.Domain.pdb
+/Users/alirazatahir/Projects/Sheikh-Travel-System/Backend/SheikhTravelSystem.Application/obj/Debug/net10.0/SheikhTr.0912F2AF.Up2Date
+/Users/alirazatahir/Projects/Sheikh-Travel-System/Backend/SheikhTravelSystem.Application/obj/Debug/net10.0/SheikhTravelSystem.Application.dll
+/Users/alirazatahir/Projects/Sheikh-Travel-System/Backend/SheikhTravelSystem.Application/obj/Debug/net10.0/refint/SheikhTravelSystem.Application.dll
+/Users/alirazatahir/Projects/Sheikh-Travel-System/Backend/SheikhTravelSystem.Application/obj/Debug/net10.0/SheikhTravelSystem.Application.pdb
+/Users/alirazatahir/Projects/Sheikh-Travel-System/Backend/SheikhTravelSystem.Application/obj/Debug/net10.0/ref/SheikhTravelSystem.Application.dll

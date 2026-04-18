@@ -1,0 +1,17 @@
+{
+  "version": 2,
+  "dgSpecHash": "lvhI54yyQAU=",
+  "success": true,
+  "projectFilePath": "/Users/alirazatahir/Projects/Sheikh-Travel-System/Backend/SheikhTravelSystem.Application/SheikhTravelSystem.Application.csproj",
+  "expectedPackageFiles": [
+    "/Users/alirazatahir/.nuget/packages/dapper/2.0.35/dapper.2.0.35.nupkg.sha512",
+    "/Users/alirazatahir/.nuget/packages/fluentvalidation/11.9.2/fluentvalidation.11.9.2.nupkg.sha512",
+    "/Users/alirazatahir/.nuget/packages/mediatr/11.1.0/mediatr.11.1.0.nupkg.sha512",
+    "/Users/alirazatahir/.nuget/packages/mediatr.contracts/1.0.1/mediatr.contracts.1.0.1.nupkg.sha512",
+    "/Users/alirazatahir/.nuget/packages/mediatr.extensions.microsoft.dependencyinjection/11.1.0/mediatr.extensions.microsoft.dependencyinjection.11.1.0.nupkg.sha512",
+    "/Users/alirazatahir/.nuget/packages/microsoft.extensions.configuration.abstractions/9.0.1/microsoft.extensions.configuration.abstractions.9.0.1.nupkg.sha512",
+    "/Users/alirazatahir/.nuget/packages/microsoft.extensions.dependencyinjection.abstractions/10.0.0/microsoft.extensions.dependencyinjection.abstractions.10.0.0.nupkg.sha512",
+    "/Users/alirazatahir/.nuget/packages/microsoft.extensions.primitives/9.0.1/microsoft.extensions.primitives.9.0.1.nupkg.sha512"
+  ],
+  "logs": []
+}
