@@ -1,0 +1,8 @@
+.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 12px;
+  h2 { margin: 0; }
+  .date-filters { display: flex; align-items: center; gap: 12px; }
+  .date-field { width: 160px; }
+}
+.charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.chart-card canvas { max-height: 320px; }
+@media (max-width: 768px) { .charts-grid { grid-template-columns: 1fr; } }

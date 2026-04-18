@@ -1,0 +1,20 @@
+.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; h2 { margin: 0; } }
+.wizard-stepper { background: transparent; }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; margin-top: 16px; }
+.span-2 { grid-column: span 2; }
+.full-width { width: 100%; }
+.step-actions { display: flex; gap: 12px; justify-content: flex-end; margin-top: 16px; }
+.assign-section { padding: 16px 0; }
+
+.price-card {
+  margin: 16px 0;
+  .price-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #eee;
+    &.total { font-weight: 700; font-size: 1.1rem; color: #1a237e; border-bottom: none; padding-top: 10px; }
+  }
+}
+
+.confirm-card {
+  max-width: 500px;
+  mat-card-title { display: flex; align-items: center; gap: 8px; }
+  .confirm-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee; }
+}

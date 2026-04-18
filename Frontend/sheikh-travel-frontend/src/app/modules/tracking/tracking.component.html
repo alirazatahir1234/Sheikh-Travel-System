@@ -1,0 +1,22 @@
+<div class="tracking-layout">
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <h3>Vehicle Locations</h3>
+      <mat-spinner *ngIf="loading" diameter="20"></mat-spinner>
+    </div>
+    <mat-list>
+      <mat-list-item *ngFor="let loc of locations" (click)="focusVehicle(loc)" class="vehicle-item">
+        <mat-icon matListItemIcon color="primary">directions_bus</mat-icon>
+        <span matListItemTitle>{{ loc.vehicleName }}</span>
+        <span matListItemLine>{{ loc.registrationNumber }}</span>
+        <span matListItemLine class="last-updated">{{ loc.lastUpdated | date:'shortTime' }}</span>
+      </mat-list-item>
+      <div *ngIf="!loading && locations.length === 0" class="empty-state">
+        No active vehicles
+      </div>
+    </mat-list>
+    <p class="refresh-hint">Auto-refreshes every 30s</p>
+  </div>
+
+  <div id="tracking-map" class="map-container"></div>
+</div>

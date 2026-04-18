@@ -1,0 +1,51 @@
+<div class="page-header">
+  <h2>{{ isEdit ? 'Edit Route' : 'Add Route' }}</h2>
+  <button mat-button routerLink="/routes"><mat-icon>arrow_back</mat-icon> Back</button>
+</div>
+
+<mat-card class="form-card">
+  <mat-card-content>
+    <form [formGroup]="form" (ngSubmit)="submit()">
+      <div class="form-grid">
+        <mat-form-field appearance="outline" class="span-2">
+          <mat-label>Route Name</mat-label>
+          <input matInput formControlName="name" placeholder="Karachi - Lahore Express">
+          <mat-error *ngIf="form.get('name')?.hasError('required')">Required</mat-error>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Origin</mat-label>
+          <input matInput formControlName="origin" placeholder="Karachi">
+          <mat-icon matPrefix>location_on</mat-icon>
+          <mat-error *ngIf="form.get('origin')?.hasError('required')">Required</mat-error>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Destination</mat-label>
+          <input matInput formControlName="destination" placeholder="Lahore">
+          <mat-icon matPrefix>flag</mat-icon>
+          <mat-error *ngIf="form.get('destination')?.hasError('required')">Required</mat-error>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Distance (km)</mat-label>
+          <input matInput type="number" formControlName="distanceKm" min="0.1" step="0.1">
+          <mat-error *ngIf="form.get('distanceKm')?.hasError('required')">Required</mat-error>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Estimated Duration (minutes)</mat-label>
+          <input matInput type="number" formControlName="estimatedMinutes" min="1">
+          <mat-error *ngIf="form.get('estimatedMinutes')?.hasError('required')">Required</mat-error>
+        </mat-form-field>
+      </div>
+
+      <div class="actions">
+        <button mat-button type="button" routerLink="/routes">Cancel</button>
+        <button mat-raised-button color="primary" type="submit" [disabled]="loading">
+          {{ isEdit ? 'Update' : 'Create' }}
+        </button>
+      </div>
+    </form>
+  </mat-card-content>
+</mat-card>

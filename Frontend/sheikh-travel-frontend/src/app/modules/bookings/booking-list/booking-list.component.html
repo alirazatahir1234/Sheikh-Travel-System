@@ -1,0 +1,71 @@
+<div class="page-header">
+  <h2>Bookings</h2>
+  <button mat-raised-button color="primary" routerLink="/bookings/new">
+    <mat-icon>add</mat-icon> New Booking
+  </button>
+</div>
+
+<mat-card>
+  <mat-card-content>
+    <div class="filters">
+      <mat-form-field appearance="outline">
+        <mat-label>Filter by Status</mat-label>
+        <mat-select [(value)]="selectedStatus" (selectionChange)="load()">
+          <mat-option *ngFor="let s of statusOptions; trackBy: trackByValue" [value]="s.value">{{ s.label }}</mat-option>
+        </mat-select>
+      </mat-form-field>
+    </div>
+
+    <div *ngIf="loading" class="loading"><mat-spinner diameter="36"></mat-spinner></div>
+    <div *ngIf="error" class="error-message"><mat-icon>error</mat-icon> {{ error }}</div>
+
+    <table mat-table [dataSource]="dataSource" *ngIf="!loading && !error" class="full-width">
+      <ng-container matColumnDef="bookingNumber">
+        <th mat-header-cell *matHeaderCellDef>Booking #</th>
+        <td mat-cell *matCellDef="let b"><strong>{{ b.bookingNumber }}</strong></td>
+      </ng-container>
+      <ng-container matColumnDef="customerName">
+        <th mat-header-cell *matHeaderCellDef>Customer</th>
+        <td mat-cell *matCellDef="let b">{{ b.customerName }}</td>
+      </ng-container>
+      <ng-container matColumnDef="routeName">
+        <th mat-header-cell *matHeaderCellDef>Route</th>
+        <td mat-cell *matCellDef="let b">{{ b.routeName }}</td>
+      </ng-container>
+      <ng-container matColumnDef="pickupTime">
+        <th mat-header-cell *matHeaderCellDef>Pickup</th>
+        <td mat-cell *matCellDef="let b">{{ b.pickupTime | date:'short' }}</td>
+      </ng-container>
+      <ng-container matColumnDef="passengerCount">
+        <th mat-header-cell *matHeaderCellDef>Passengers</th>
+        <td mat-cell *matCellDef="let b">{{ b.passengerCount }}</td>
+      </ng-container>
+      <ng-container matColumnDef="totalAmount">
+        <th mat-header-cell *matHeaderCellDef>Amount</th>
+        <td mat-cell *matCellDef="let b">PKR {{ b.totalAmount | number }}</td>
+      </ng-container>
+      <ng-container matColumnDef="status">
+        <th mat-header-cell *matHeaderCellDef>Status</th>
+        <td mat-cell *matCellDef="let b">
+          <span class="status-badge" [style.background]="getStatusColor(b.status) + '20'"
+            [style.color]="getStatusColor(b.status)">{{ b.status }}</span>
+        </td>
+      </ng-container>
+      <ng-container matColumnDef="actions">
+        <th mat-header-cell *matHeaderCellDef>Actions</th>
+        <td mat-cell *matCellDef="let b">
+          <button mat-icon-button color="primary" (click)="view(b.id)" matTooltip="View">
+            <mat-icon>visibility</mat-icon>
+          </button>
+        </td>
+      </ng-container>
+
+      <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+      <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+    </table>
+
+    <mat-paginator [length]="totalCount" [pageSizeOptions]="[10,25,50]"
+      (page)="load($event.pageIndex + 1, $event.pageSize)">
+    </mat-paginator>
+  </mat-card-content>
+</mat-card>

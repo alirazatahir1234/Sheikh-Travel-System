@@ -1,0 +1,37 @@
+<div class="page-header">
+  <h2>Booking Detail</h2>
+  <button mat-button routerLink="/bookings"><mat-icon>arrow_back</mat-icon> Back to List</button>
+</div>
+
+<div *ngIf="loading" class="loading"><mat-spinner diameter="40"></mat-spinner></div>
+<div *ngIf="error" class="error-message"><mat-icon>error</mat-icon> {{ error }}</div>
+
+<div *ngIf="booking && !loading">
+  <mat-card class="detail-card">
+    <mat-card-header>
+      <mat-card-title>{{ booking.bookingNumber }}</mat-card-title>
+      <mat-card-subtitle>
+        <span class="status-badge" [style.background]="getColor(booking.status) + '20'"
+          [style.color]="getColor(booking.status)">{{ booking.status }}</span>
+      </mat-card-subtitle>
+    </mat-card-header>
+    <mat-card-content>
+      <div class="detail-grid">
+        <div class="detail-item"><label>Customer</label><span>{{ booking.customerName }}</span></div>
+        <div class="detail-item"><label>Route</label><span>{{ booking.routeName }}</span></div>
+        <div class="detail-item"><label>Pickup Time</label><span>{{ booking.pickupTime | date:'medium' }}</span></div>
+        <div class="detail-item"><label>Passengers</label><span>{{ booking.passengerCount }}</span></div>
+        <div class="detail-item"><label>Total Amount</label><span>PKR {{ booking.totalAmount | number }}</span></div>
+        <div class="detail-item"><label>Vehicle</label><span>{{ booking.vehicleName || '—' }}</span></div>
+        <div class="detail-item"><label>Driver</label><span>{{ booking.driverName || '—' }}</span></div>
+        <div class="detail-item"><label>Notes</label><span>{{ booking.notes || '—' }}</span></div>
+      </div>
+    </mat-card-content>
+    <mat-card-actions *ngIf="getNextStatuses().length > 0">
+      <span class="action-label">Update Status:</span>
+      <button mat-raised-button *ngFor="let s of getNextStatuses(); trackBy: trackByStatus"
+        [style.background]="getColor(s)" style="color: white; margin-left: 8px"
+        (click)="updateStatus(s)">{{ s }}</button>
+    </mat-card-actions>
+  </mat-card>
+</div>

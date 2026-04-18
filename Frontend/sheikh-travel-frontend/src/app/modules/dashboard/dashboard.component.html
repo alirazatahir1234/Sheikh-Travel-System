@@ -1,0 +1,31 @@
+<div class="page-header">
+  <h2>Dashboard</h2>
+  <p>Welcome back! Here's your system overview.</p>
+</div>
+
+<div class="stats-grid" *ngIf="!loading; else spinner">
+  <div *ngIf="error" class="error-message">
+    <mat-icon>warning</mat-icon> {{ error }}
+  </div>
+  <mat-card *ngFor="let card of statCards; trackBy: trackByKey" class="stat-card" [style.border-left-color]="card.color">
+    <mat-card-content>
+      <div class="stat-row">
+        <div>
+          <p class="stat-label">{{ card.label }}</p>
+          <p class="stat-value">
+            {{ card.prefix || '' }}{{ getValue(card.key) | number }}
+          </p>
+        </div>
+        <div class="stat-icon" [style.background]="card.color + '20'">
+          <mat-icon [style.color]="card.color">{{ card.icon }}</mat-icon>
+        </div>
+      </div>
+    </mat-card-content>
+  </mat-card>
+</div>
+
+<ng-template #spinner>
+  <div class="loading">
+    <mat-spinner diameter="40"></mat-spinner>
+  </div>
+</ng-template>

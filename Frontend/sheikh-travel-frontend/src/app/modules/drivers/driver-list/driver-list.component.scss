@@ -1,0 +1,7 @@
+.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; h2 { margin: 0; } }
+.search-field { width: 100%; margin-bottom: 16px; }
+.full-width { width: 100%; }
+.loading { display: flex; justify-content: center; padding: 40px; }
+.chip-active { background: #e8f5e9 !important; color: #2e7d32 !important; }
+.chip-inactive { background: #ffebee !important; color: #c62828 !important; }
+.expiring { color: #f57f17; font-weight: 600; }

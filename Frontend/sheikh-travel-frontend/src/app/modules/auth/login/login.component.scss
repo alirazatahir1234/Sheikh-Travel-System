@@ -1,0 +1,36 @@
+.login-container {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #1a237e 0%, #283593 50%, #3949ab 100%);
+}
+
+.login-card {
+  width: 420px;
+  padding: 16px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.3) !important;
+  border-radius: 12px !important;
+
+  .logo {
+    text-align: center;
+    width: 100%;
+    padding: 16px 0;
+
+    mat-icon {
+      font-size: 48px;
+      width: 48px;
+      height: 48px;
+      color: #1a237e;
+    }
+    h1 { margin: 8px 0 4px; font-size: 1.8rem; color: #1a237e; }
+    p  { margin: 0; color: #666; }
+  }
+
+  form { display: flex; flex-direction: column; gap: 8px; padding-top: 16px; }
+}
+
+.full-width  { width: 100%; }
+.login-btn   { height: 48px; font-size: 1rem; margin-top: 8px; }
+
+mat-spinner { display: inline-block; margin: 0 auto; }

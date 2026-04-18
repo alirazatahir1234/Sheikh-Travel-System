@@ -1,0 +1,64 @@
+<div class="page-header">
+  <h2>Drivers</h2>
+  <button mat-raised-button color="primary" routerLink="/drivers/new">
+    <mat-icon>add</mat-icon> Add Driver
+  </button>
+</div>
+
+<mat-card>
+  <mat-card-content>
+    <mat-form-field appearance="outline" class="search-field">
+      <mat-label>Search drivers...</mat-label>
+      <mat-icon matPrefix>search</mat-icon>
+      <input matInput (keyup)="applyFilter($event)">
+    </mat-form-field>
+
+    <div *ngIf="loading" class="loading"><mat-spinner diameter="36"></mat-spinner></div>
+    <div *ngIf="error" class="error-message"><mat-icon>error</mat-icon> {{ error }}</div>
+
+    <table mat-table [dataSource]="dataSource" *ngIf="!loading && !error" class="full-width">
+      <ng-container matColumnDef="fullName">
+        <th mat-header-cell *matHeaderCellDef>Name</th>
+        <td mat-cell *matCellDef="let d">{{ d.fullName }}</td>
+      </ng-container>
+      <ng-container matColumnDef="phone">
+        <th mat-header-cell *matHeaderCellDef>Phone</th>
+        <td mat-cell *matCellDef="let d">{{ d.phone }}</td>
+      </ng-container>
+      <ng-container matColumnDef="licenseNumber">
+        <th mat-header-cell *matHeaderCellDef>License</th>
+        <td mat-cell *matCellDef="let d">{{ d.licenseNumber }}</td>
+      </ng-container>
+      <ng-container matColumnDef="licenseExpiryDate">
+        <th mat-header-cell *matHeaderCellDef>Expiry</th>
+        <td mat-cell *matCellDef="let d">
+          <span [class.expiring]="isLicenseExpiring(d.licenseExpiryDate)">
+            {{ d.licenseExpiryDate | date:'mediumDate' }}
+          </span>
+        </td>
+      </ng-container>
+      <ng-container matColumnDef="isActive">
+        <th mat-header-cell *matHeaderCellDef>Status</th>
+        <td mat-cell *matCellDef="let d">
+          <mat-chip [class]="d.isActive ? 'chip-active' : 'chip-inactive'">
+            {{ d.isActive ? 'Active' : 'Inactive' }}
+          </mat-chip>
+        </td>
+      </ng-container>
+      <ng-container matColumnDef="actions">
+        <th mat-header-cell *matHeaderCellDef>Actions</th>
+        <td mat-cell *matCellDef="let d">
+          <button mat-icon-button color="primary" (click)="edit(d.id)"><mat-icon>edit</mat-icon></button>
+          <button mat-icon-button color="warn" (click)="delete(d.id)"><mat-icon>delete</mat-icon></button>
+        </td>
+      </ng-container>
+
+      <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+      <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+    </table>
+
+    <mat-paginator [length]="totalCount" [pageSizeOptions]="[10,25,50]"
+      (page)="load($event.pageIndex + 1, $event.pageSize)">
+    </mat-paginator>
+  </mat-card-content>
+</mat-card>

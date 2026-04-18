@@ -1,0 +1,5 @@
+.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; h2 { margin: 0; } }
+.form-card { max-width: 700px; }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; }
+.span-2 { grid-column: span 2; }
+.actions { display: flex; gap: 12px; justify-content: flex-end; margin-top: 16px; }

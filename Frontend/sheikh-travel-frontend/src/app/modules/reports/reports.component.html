@@ -1,0 +1,32 @@
+<div class="page-header">
+  <h2>Reports</h2>
+  <div class="date-filters">
+    <mat-form-field appearance="outline" class="date-field">
+      <mat-label>From</mat-label>
+      <input matInput type="date" [(ngModel)]="fromDate">
+    </mat-form-field>
+    <mat-form-field appearance="outline" class="date-field">
+      <mat-label>To</mat-label>
+      <input matInput type="date" [(ngModel)]="toDate">
+    </mat-form-field>
+    <button mat-raised-button color="primary" (click)="loadReports()">
+      <mat-icon>refresh</mat-icon> Load
+    </button>
+  </div>
+</div>
+
+<div class="charts-grid">
+  <mat-card class="chart-card">
+    <mat-card-header><mat-card-title>Revenue by Period</mat-card-title></mat-card-header>
+    <mat-card-content>
+      <canvas #revenueChart></canvas>
+    </mat-card-content>
+  </mat-card>
+
+  <mat-card class="chart-card">
+    <mat-card-header><mat-card-title>Bookings by Status</mat-card-title></mat-card-header>
+    <mat-card-content>
+      <canvas #statusChart></canvas>
+    </mat-card-content>
+  </mat-card>
+</div>

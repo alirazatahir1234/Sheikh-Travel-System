@@ -1,0 +1,147 @@
+<div class="page-header">
+  <h2>New Booking</h2>
+  <button mat-button routerLink="/bookings"><mat-icon>arrow_back</mat-icon> Back</button>
+</div>
+
+<div *ngIf="loadingData" class="loading"><mat-spinner diameter="36"></mat-spinner></div>
+<div *ngIf="error" class="error-message"><mat-icon>error</mat-icon> {{ error }}</div>
+
+<mat-stepper linear #stepper class="wizard-stepper" *ngIf="!loadingData && !error">
+
+  <!-- STEP 1: Trip Details -->
+  <mat-step [stepControl]="step1Form" label="Trip Details">
+    <form [formGroup]="step1Form">
+      <div class="form-grid">
+        <mat-form-field appearance="outline">
+          <mat-label>Customer ID</mat-label>
+          <input matInput type="number" formControlName="customerId">
+          <mat-error>Required</mat-error>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Pickup Date & Time</mat-label>
+          <input matInput type="datetime-local" formControlName="pickupTime">
+          <mat-error>Required</mat-error>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Route</mat-label>
+          <mat-select formControlName="routeId">
+            <mat-option *ngFor="let r of routes; trackBy: trackById" [value]="r.id">{{ r.name }}</mat-option>
+          </mat-select>
+          <mat-error>Required</mat-error>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Vehicle</mat-label>
+          <mat-select formControlName="vehicleId">
+            <mat-option *ngFor="let v of vehicles; trackBy: trackById" [value]="v.id">{{ v.name }} ({{ v.registrationNumber }})</mat-option>
+          </mat-select>
+          <mat-error>Required</mat-error>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Passengers</mat-label>
+          <input matInput type="number" formControlName="passengerCount" min="1">
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Fuel Price (PKR/L)</mat-label>
+          <input matInput type="number" formControlName="fuelPricePerLiter">
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Driver Allowance (PKR)</mat-label>
+          <input matInput type="number" formControlName="driverAllowance">
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Toll Charges (PKR)</mat-label>
+          <input matInput type="number" formControlName="tollCharges">
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Other Charges (PKR)</mat-label>
+          <input matInput type="number" formControlName="otherCharges">
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="span-2">
+          <mat-label>Notes</mat-label>
+          <textarea matInput formControlName="notes" rows="2"></textarea>
+        </mat-form-field>
+      </div>
+
+      <div class="price-section" *ngIf="priceBreakdown">
+        <mat-card class="price-card">
+          <mat-card-header><mat-card-title>Price Breakdown</mat-card-title></mat-card-header>
+          <mat-card-content>
+            <div class="price-row"><span>Fuel Cost</span><span>PKR {{ priceBreakdown.fuelCost | number:'1.0-0' }}</span></div>
+            <div class="price-row"><span>Driver Allowance</span><span>PKR {{ priceBreakdown.driverAllowance | number:'1.0-0' }}</span></div>
+            <div class="price-row"><span>Toll Charges</span><span>PKR {{ priceBreakdown.tollCharges | number:'1.0-0' }}</span></div>
+            <div class="price-row"><span>Other</span><span>PKR {{ priceBreakdown.otherCharges | number:'1.0-0' }}</span></div>
+            <div class="price-row total"><span>Total</span><span>PKR {{ priceBreakdown.totalAmount | number:'1.0-0' }}</span></div>
+          </mat-card-content>
+        </mat-card>
+      </div>
+
+      <div class="step-actions">
+        <button mat-button type="button" (click)="calculatePrice()" [disabled]="calculating">
+          <mat-spinner *ngIf="calculating" diameter="16"></mat-spinner>
+          Calculate Price
+        </button>
+        <button mat-raised-button color="primary" matStepperNext type="button"
+          [disabled]="step1Form.invalid || !priceBreakdown" (click)="createBooking()">
+          Next: Assign Driver
+        </button>
+      </div>
+    </form>
+  </mat-step>
+
+  <!-- STEP 2: Assign Driver -->
+  <mat-step [stepControl]="step2Form" label="Assign Driver">
+    <form [formGroup]="step2Form">
+      <div class="assign-section">
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Assign Driver (optional)</mat-label>
+          <mat-select formControlName="driverId">
+            <mat-option [value]="null">-- Skip --</mat-option>
+            <mat-option *ngFor="let d of drivers; trackBy: trackById" [value]="d.id">{{ d.fullName }} – {{ d.phone }}</mat-option>
+          </mat-select>
+        </mat-form-field>
+      </div>
+
+      <div class="step-actions">
+        <button mat-button matStepperPrevious>Back</button>
+        <button mat-raised-button color="primary" matStepperNext type="button">Next: Confirm</button>
+      </div>
+    </form>
+  </mat-step>
+
+  <!-- STEP 3: Confirm -->
+  <mat-step label="Confirm">
+    <div class="confirm-section" *ngIf="createdBooking">
+      <mat-card class="confirm-card">
+        <mat-card-header>
+          <mat-card-title>
+            <mat-icon color="primary">check_circle</mat-icon>
+            Booking Created!
+          </mat-card-title>
+        </mat-card-header>
+        <mat-card-content>
+          <div class="confirm-row"><strong>Booking #</strong><span>{{ createdBooking.bookingNumber }}</span></div>
+          <div class="confirm-row"><strong>Route</strong><span>{{ createdBooking.routeName }}</span></div>
+          <div class="confirm-row"><strong>Pickup</strong><span>{{ createdBooking.pickupTime | date:'medium' }}</span></div>
+          <div class="confirm-row"><strong>Passengers</strong><span>{{ createdBooking.passengerCount }}</span></div>
+          <div class="confirm-row"><strong>Total Amount</strong><span>PKR {{ createdBooking.totalAmount | number }}</span></div>
+        </mat-card-content>
+      </mat-card>
+    </div>
+
+    <div class="step-actions">
+      <button mat-button matStepperPrevious>Back</button>
+      <button mat-raised-button color="primary" (click)="assignAndFinish()">
+        <mat-icon>done_all</mat-icon> Finish
+      </button>
+    </div>
+  </mat-step>
+</mat-stepper>
