@@ -17,14 +17,16 @@ public class GetLiveTrackingQueryHandler(IDbConnectionFactory dbFactory)
 
         // Get latest position for each vehicle (within last 10 minutes)
         var tracking = await connection.QueryAsync<TrackingDto>(
-            @"SELECT t.Id, t.VehicleId, t.DriverId, t.BookingId, t.Latitude, t.Longitude, t.Speed, t.Timestamp
-              FROM VehicleTracking t
-              INNER JOIN (
-                  SELECT VehicleId, MAX(Timestamp) AS MaxTimestamp
-                  FROM VehicleTracking
-                  WHERE Timestamp > DATEADD(MINUTE, -10, GETUTCDATE()) AND IsDeleted = 0
-                  GROUP BY VehicleId
-              ) latest ON t.VehicleId = latest.VehicleId AND t.Timestamp = latest.MaxTimestamp");
+            new CommandDefinition(
+                @"SELECT t.Id, t.VehicleId, t.DriverId, t.BookingId, t.Latitude, t.Longitude, t.Speed, t.Timestamp
+                  FROM VehicleTracking t
+                  INNER JOIN (
+                      SELECT VehicleId, MAX(Timestamp) AS MaxTimestamp
+                      FROM VehicleTracking
+                      WHERE Timestamp > DATEADD(MINUTE, -10, GETUTCDATE()) AND IsDeleted = 0
+                      GROUP BY VehicleId
+                  ) latest ON t.VehicleId = latest.VehicleId AND t.Timestamp = latest.MaxTimestamp",
+                cancellationToken: cancellationToken));
 
         return ApiResponse<List<TrackingDto>>.SuccessResponse(tracking.ToList());
     }
@@ -44,11 +46,13 @@ public class GetTrackingHistoryQueryHandler(IDbConnectionFactory dbFactory)
         var toDate = request.ToDate ?? DateTime.UtcNow;
 
         var history = await connection.QueryAsync<TrackingDto>(
-            @"SELECT Id, VehicleId, DriverId, BookingId, Latitude, Longitude, Speed, Timestamp
-              FROM VehicleTracking
-              WHERE VehicleId = @VehicleId AND Timestamp BETWEEN @FromDate AND @ToDate AND IsDeleted = 0
-              ORDER BY Timestamp DESC",
-            new { request.VehicleId, FromDate = fromDate, ToDate = toDate });
+            new CommandDefinition(
+                @"SELECT Id, VehicleId, DriverId, BookingId, Latitude, Longitude, Speed, Timestamp
+                  FROM VehicleTracking
+                  WHERE VehicleId = @VehicleId AND Timestamp BETWEEN @FromDate AND @ToDate AND IsDeleted = 0
+                  ORDER BY Timestamp DESC",
+                new { request.VehicleId, FromDate = fromDate, ToDate = toDate },
+                cancellationToken: cancellationToken));
 
         return ApiResponse<List<TrackingDto>>.SuccessResponse(history.ToList());
     }

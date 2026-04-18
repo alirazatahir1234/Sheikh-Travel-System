@@ -14,7 +14,10 @@ public class DriversController : BaseApiController
 
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateDriverCommand command)
-        => Ok(await Mediator.Send(command));
+    {
+        var result = await Mediator.Send(command);
+        return Created(string.Empty, result);
+    }
 
     [HttpPut("{id}")]
     public async Task<IActionResult> Update(int id, [FromBody] UpdateDriverCommand command)

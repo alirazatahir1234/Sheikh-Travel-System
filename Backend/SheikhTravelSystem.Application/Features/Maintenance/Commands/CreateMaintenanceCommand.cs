@@ -29,17 +29,19 @@ public class CreateMaintenanceCommandHandler(IDbConnectionFactory dbFactory)
         var dto = request.Maintenance;
 
         var id = await connection.ExecuteScalarAsync<int>(
-            @"INSERT INTO Maintenance (VehicleId, Description, Cost, MaintenanceDate, NextDueDate,
-              Status, ServiceProvider, CreatedAt, IsDeleted)
-              VALUES (@VehicleId, @Description, @Cost, @MaintenanceDate, @NextDueDate,
-              @Status, @ServiceProvider, @CreatedAt, 0);
-              SELECT SCOPE_IDENTITY();",
-            new
-            {
-                dto.VehicleId, dto.Description, dto.Cost, dto.MaintenanceDate,
-                dto.NextDueDate, Status = (int)MaintenanceStatus.Scheduled,
-                dto.ServiceProvider, CreatedAt = DateTime.UtcNow
-            });
+            new CommandDefinition(
+                @"INSERT INTO Maintenance (VehicleId, Description, Cost, MaintenanceDate, NextDueDate,
+                  Status, ServiceProvider, CreatedAt, IsDeleted)
+                  VALUES (@VehicleId, @Description, @Cost, @MaintenanceDate, @NextDueDate,
+                  @Status, @ServiceProvider, @CreatedAt, 0);
+                  SELECT SCOPE_IDENTITY();",
+                new
+                {
+                    dto.VehicleId, dto.Description, dto.Cost, dto.MaintenanceDate,
+                    dto.NextDueDate, Status = (int)MaintenanceStatus.Scheduled,
+                    dto.ServiceProvider, CreatedAt = DateTime.UtcNow
+                },
+                cancellationToken: cancellationToken));
 
         return ApiResponse<int>.SuccessResponse(id, "Maintenance record created successfully.");
     }

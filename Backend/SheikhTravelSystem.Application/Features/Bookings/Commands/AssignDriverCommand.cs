@@ -18,8 +18,10 @@ public class AssignDriverCommandHandler(IDbConnectionFactory dbFactory)
 
         // Verify booking exists and is in valid state
         var bookingStatus = await connection.ExecuteScalarAsync<int?>(
-            "SELECT Status FROM Bookings WHERE Id = @Id AND IsDeleted = 0",
-            new { Id = request.BookingId });
+            new CommandDefinition(
+                "SELECT Status FROM Bookings WHERE Id = @Id AND IsDeleted = 0",
+                new { Id = request.BookingId },
+                cancellationToken: cancellationToken));
 
         if (bookingStatus is null)
             throw new NotFoundException("Booking", request.BookingId);
@@ -29,8 +31,10 @@ public class AssignDriverCommandHandler(IDbConnectionFactory dbFactory)
 
         // Verify driver exists and is available
         var driverStatus = await connection.ExecuteScalarAsync<int?>(
-            "SELECT Status FROM Drivers WHERE Id = @Id AND IsDeleted = 0 AND IsActive = 1",
-            new { Id = request.DriverId });
+            new CommandDefinition(
+                "SELECT Status FROM Drivers WHERE Id = @Id AND IsDeleted = 0 AND IsActive = 1",
+                new { Id = request.DriverId },
+                cancellationToken: cancellationToken));
 
         if (driverStatus is null)
             throw new NotFoundException("Driver", request.DriverId);
@@ -40,32 +44,38 @@ public class AssignDriverCommandHandler(IDbConnectionFactory dbFactory)
 
         // Check for double booking - driver already assigned to active trip at same time
         var booking = await connection.QuerySingleAsync<(DateTime PickupTime, DateTime? DropoffTime)>(
-            "SELECT PickupTime, DropoffTime FROM Bookings WHERE Id = @Id",
-            new { Id = request.BookingId });
+            new CommandDefinition(
+                "SELECT PickupTime, DropoffTime FROM Bookings WHERE Id = @Id",
+                new { Id = request.BookingId },
+                cancellationToken: cancellationToken));
 
         var driverConflict = await connection.ExecuteScalarAsync<bool>(
-            @"SELECT CASE WHEN EXISTS(
-                SELECT 1 FROM Bookings
-                WHERE DriverId = @DriverId AND IsDeleted = 0
-                AND Status IN (@Confirmed, @Started)
-                AND Id != @BookingId
-                AND PickupTime < DATEADD(HOUR, 4, @PickupTime)
-                AND DATEADD(HOUR, 4, PickupTime) > @PickupTime
-              ) THEN 1 ELSE 0 END",
-            new
-            {
-                request.DriverId, request.BookingId,
-                Confirmed = (int)BookingStatus.Confirmed,
-                Started = (int)BookingStatus.Started,
-                booking.PickupTime
-            });
+            new CommandDefinition(
+                @"SELECT CASE WHEN EXISTS(
+                    SELECT 1 FROM Bookings
+                    WHERE DriverId = @DriverId AND IsDeleted = 0
+                    AND Status IN (@Confirmed, @Started)
+                    AND Id != @BookingId
+                    AND PickupTime < DATEADD(HOUR, 4, @PickupTime)
+                    AND DATEADD(HOUR, 4, PickupTime) > @PickupTime
+                  ) THEN 1 ELSE 0 END",
+                new
+                {
+                    request.DriverId, request.BookingId,
+                    Confirmed = (int)BookingStatus.Confirmed,
+                    Started = (int)BookingStatus.Started,
+                    booking.PickupTime
+                },
+                cancellationToken: cancellationToken));
 
         if (driverConflict)
             return ApiResponse<bool>.FailResponse("Driver has a conflicting booking at this time.");
 
         await connection.ExecuteAsync(
-            "UPDATE Bookings SET DriverId = @DriverId, UpdatedAt = @Now WHERE Id = @Id",
-            new { request.DriverId, Now = DateTime.UtcNow, Id = request.BookingId });
+            new CommandDefinition(
+                "UPDATE Bookings SET DriverId = @DriverId, UpdatedAt = @Now WHERE Id = @Id",
+                new { request.DriverId, Now = DateTime.UtcNow, Id = request.BookingId },
+                cancellationToken: cancellationToken));
 
         return ApiResponse<bool>.SuccessResponse(true, "Driver assigned successfully.");
     }

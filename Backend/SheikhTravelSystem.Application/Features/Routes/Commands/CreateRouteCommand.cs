@@ -29,10 +29,12 @@ public class CreateRouteCommandHandler(IDbConnectionFactory dbFactory)
         var dto = request.Route;
 
         var id = await connection.ExecuteScalarAsync<int>(
-            @"INSERT INTO Routes (Source, Destination, Distance, BasePrice, IsActive, CreatedAt, IsDeleted)
-              VALUES (@Source, @Destination, @Distance, @BasePrice, 1, @CreatedAt, 0);
-              SELECT SCOPE_IDENTITY();",
-            new { dto.Source, dto.Destination, dto.Distance, dto.BasePrice, CreatedAt = DateTime.UtcNow });
+            new CommandDefinition(
+                @"INSERT INTO Routes (Source, Destination, Distance, BasePrice, IsActive, CreatedAt, IsDeleted)
+                  VALUES (@Source, @Destination, @Distance, @BasePrice, 1, @CreatedAt, 0);
+                  SELECT SCOPE_IDENTITY();",
+                new { dto.Source, dto.Destination, dto.Distance, dto.BasePrice, CreatedAt = DateTime.UtcNow },
+                cancellationToken: cancellationToken));
 
         return ApiResponse<int>.SuccessResponse(id, "Route created successfully.");
     }

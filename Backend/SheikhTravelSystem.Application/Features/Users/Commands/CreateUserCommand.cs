@@ -31,8 +31,10 @@ public class CreateUserCommandHandler(IDbConnectionFactory dbFactory, IPasswordH
         var dto = request.User;
 
         var exists = await connection.ExecuteScalarAsync<bool>(
-            "SELECT CASE WHEN EXISTS(SELECT 1 FROM Users WHERE Email = @Email AND IsDeleted = 0) THEN 1 ELSE 0 END",
-            new { dto.Email });
+            new CommandDefinition(
+                "SELECT CASE WHEN EXISTS(SELECT 1 FROM Users WHERE Email = @Email AND IsDeleted = 0) THEN 1 ELSE 0 END",
+                new { dto.Email },
+                cancellationToken: cancellationToken));
 
         if (exists)
             throw new ConflictException($"User with email '{dto.Email}' already exists.");
@@ -40,10 +42,12 @@ public class CreateUserCommandHandler(IDbConnectionFactory dbFactory, IPasswordH
         var passwordHash = passwordHasher.Hash(dto.Password);
 
         var id = await connection.ExecuteScalarAsync<int>(
-            @"INSERT INTO Users (FullName, Email, PasswordHash, Phone, Role, IsActive, CreatedAt, IsDeleted)
-              VALUES (@FullName, @Email, @PasswordHash, @Phone, @Role, 1, @CreatedAt, 0);
-              SELECT SCOPE_IDENTITY();",
-            new { dto.FullName, dto.Email, PasswordHash = passwordHash, dto.Phone, Role = (int)dto.Role, CreatedAt = DateTime.UtcNow });
+            new CommandDefinition(
+                @"INSERT INTO Users (FullName, Email, PasswordHash, Phone, Role, IsActive, CreatedAt, IsDeleted)
+                  VALUES (@FullName, @Email, @PasswordHash, @Phone, @Role, 1, @CreatedAt, 0);
+                  SELECT SCOPE_IDENTITY();",
+                new { dto.FullName, dto.Email, PasswordHash = passwordHash, dto.Phone, Role = (int)dto.Role, CreatedAt = DateTime.UtcNow },
+                cancellationToken: cancellationToken));
 
         return ApiResponse<int>.SuccessResponse(id, "User created successfully.");
     }

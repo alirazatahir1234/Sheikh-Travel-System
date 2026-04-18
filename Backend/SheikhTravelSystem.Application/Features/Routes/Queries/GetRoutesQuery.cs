@@ -17,14 +17,18 @@ public class GetRoutesQueryHandler(IDbConnectionFactory dbFactory)
         var offset = (request.Page - 1) * request.PageSize;
 
         var routes = await connection.QueryAsync<RouteDto>(
-            @"SELECT Id, Source, Destination, Distance, BasePrice, IsActive, CreatedAt
-              FROM Routes WHERE IsDeleted = 0
-              ORDER BY CreatedAt DESC
-              OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY",
-            new { Offset = offset, request.PageSize });
+            new CommandDefinition(
+                @"SELECT Id, Source, Destination, Distance, BasePrice, IsActive, CreatedAt
+                  FROM Routes WHERE IsDeleted = 0
+                  ORDER BY CreatedAt DESC
+                  OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY",
+                new { Offset = offset, request.PageSize },
+                cancellationToken: cancellationToken));
 
         var totalCount = await connection.ExecuteScalarAsync<int>(
-            "SELECT COUNT(*) FROM Routes WHERE IsDeleted = 0");
+            new CommandDefinition(
+                "SELECT COUNT(*) FROM Routes WHERE IsDeleted = 0",
+                cancellationToken: cancellationToken));
 
         var result = new PagedResult<RouteDto>
         {

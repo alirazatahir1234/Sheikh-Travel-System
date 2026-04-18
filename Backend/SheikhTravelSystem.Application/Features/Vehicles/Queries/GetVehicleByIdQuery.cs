@@ -17,10 +17,12 @@ public class GetVehicleByIdQueryHandler(IDbConnectionFactory dbFactory)
         using var connection = dbFactory.CreateConnection();
 
         var vehicle = await connection.QuerySingleOrDefaultAsync<VehicleDto>(
-            @"SELECT Id, Name, RegistrationNumber, Model, Year, SeatingCapacity, FuelAverage,
-              FuelType, CurrentMileage, InsuranceExpiryDate, Status, CreatedAt
-              FROM Vehicles WHERE Id = @Id AND IsDeleted = 0",
-            new { request.Id });
+            new CommandDefinition(
+                @"SELECT Id, Name, RegistrationNumber, Model, Year, SeatingCapacity, FuelAverage,
+                  FuelType, CurrentMileage, InsuranceExpiryDate, Status, CreatedAt
+                  FROM Vehicles WHERE Id = @Id AND IsDeleted = 0",
+                new { request.Id },
+                cancellationToken: cancellationToken));
 
         if (vehicle is null)
             throw new NotFoundException("Vehicle", request.Id);

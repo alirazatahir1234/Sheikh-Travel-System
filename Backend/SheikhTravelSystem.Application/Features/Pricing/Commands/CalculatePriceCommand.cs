@@ -32,15 +32,19 @@ public class CalculatePriceCommandHandler(IDbConnectionFactory dbFactory)
         var req = request.Request;
 
         var route = await connection.QuerySingleOrDefaultAsync<(decimal Distance, decimal BasePrice)?>
-            ("SELECT Distance, BasePrice FROM Routes WHERE Id = @Id AND IsDeleted = 0",
-            new { Id = req.RouteId });
+            (new CommandDefinition(
+                "SELECT Distance, BasePrice FROM Routes WHERE Id = @Id AND IsDeleted = 0",
+                new { Id = req.RouteId },
+                cancellationToken: cancellationToken));
 
         if (route is null)
             throw new NotFoundException("Route", req.RouteId);
 
         var fuelAverage = await connection.ExecuteScalarAsync<decimal?>(
-            "SELECT FuelAverage FROM Vehicles WHERE Id = @Id AND IsDeleted = 0",
-            new { Id = req.VehicleId });
+            new CommandDefinition(
+                "SELECT FuelAverage FROM Vehicles WHERE Id = @Id AND IsDeleted = 0",
+                new { Id = req.VehicleId },
+                cancellationToken: cancellationToken));
 
         if (fuelAverage is null || fuelAverage <= 0)
             throw new NotFoundException("Vehicle", req.VehicleId);

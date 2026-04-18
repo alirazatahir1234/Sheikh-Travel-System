@@ -28,14 +28,16 @@ public class UpdateLocationCommandHandler(IDbConnectionFactory dbFactory)
         var dto = request.Location;
 
         await connection.ExecuteAsync(
-            @"INSERT INTO VehicleTracking (VehicleId, DriverId, BookingId, Latitude, Longitude, Speed, Timestamp, CreatedAt, IsDeleted)
-              VALUES (@VehicleId, @DriverId, @BookingId, @Latitude, @Longitude, @Speed, @Timestamp, @CreatedAt, 0)",
-            new
-            {
-                dto.VehicleId, dto.DriverId, dto.BookingId,
-                dto.Latitude, dto.Longitude, dto.Speed,
-                Timestamp = DateTime.UtcNow, CreatedAt = DateTime.UtcNow
-            });
+            new CommandDefinition(
+                @"INSERT INTO VehicleTracking (VehicleId, DriverId, BookingId, Latitude, Longitude, Speed, Timestamp, CreatedAt, IsDeleted)
+                  VALUES (@VehicleId, @DriverId, @BookingId, @Latitude, @Longitude, @Speed, @Timestamp, @CreatedAt, 0)",
+                new
+                {
+                    dto.VehicleId, dto.DriverId, dto.BookingId,
+                    dto.Latitude, dto.Longitude, dto.Speed,
+                    Timestamp = DateTime.UtcNow, CreatedAt = DateTime.UtcNow
+                },
+                cancellationToken: cancellationToken));
 
         return ApiResponse<bool>.SuccessResponse(true, "Location updated.");
     }

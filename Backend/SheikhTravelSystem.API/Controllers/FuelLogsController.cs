@@ -14,5 +14,8 @@ public class FuelLogsController : BaseApiController
 
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateFuelLogCommand command)
-        => Ok(await Mediator.Send(command));
+    {
+        var result = await Mediator.Send(command);
+        return Created(string.Empty, result);
+    }
 }

@@ -18,7 +18,10 @@ public class BookingsController : BaseApiController
 
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateBookingCommand command)
-        => Ok(await Mediator.Send(command));
+    {
+        var result = await Mediator.Send(command);
+        return CreatedAtAction(nameof(GetById), new { id = result.Data }, result);
+    }
 
     [HttpPut("{id}/status")]
     public async Task<IActionResult> UpdateStatus(int id, [FromBody] UpdateBookingStatusCommand command)

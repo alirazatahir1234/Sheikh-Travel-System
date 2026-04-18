@@ -17,15 +17,19 @@ public class GetFuelLogsQueryHandler(IDbConnectionFactory dbFactory)
         var offset = (request.Page - 1) * request.PageSize;
 
         var logs = await connection.QueryAsync<FuelLogDto>(
-            @"SELECT Id, VehicleId, DriverId, Liters, PricePerLiter, TotalCost,
-              OdometerReading, FuelType, FuelDate, Station, CreatedAt
-              FROM FuelLogs WHERE IsDeleted = 0
-              ORDER BY FuelDate DESC
-              OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY",
-            new { Offset = offset, request.PageSize });
+            new CommandDefinition(
+                @"SELECT Id, VehicleId, DriverId, Liters, PricePerLiter, TotalCost,
+                  OdometerReading, FuelType, FuelDate, Station, CreatedAt
+                  FROM FuelLogs WHERE IsDeleted = 0
+                  ORDER BY FuelDate DESC
+                  OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY",
+                new { Offset = offset, request.PageSize },
+                cancellationToken: cancellationToken));
 
         var totalCount = await connection.ExecuteScalarAsync<int>(
-            "SELECT COUNT(*) FROM FuelLogs WHERE IsDeleted = 0");
+            new CommandDefinition(
+                "SELECT COUNT(*) FROM FuelLogs WHERE IsDeleted = 0",
+                cancellationToken: cancellationToken));
 
         var result = new PagedResult<FuelLogDto>
         {

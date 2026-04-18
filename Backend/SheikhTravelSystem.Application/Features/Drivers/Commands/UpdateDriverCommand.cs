@@ -32,29 +32,35 @@ public class UpdateDriverCommandHandler(IDbConnectionFactory dbFactory)
         var dto = request.Driver;
 
         var exists = await connection.ExecuteScalarAsync<bool>(
-            "SELECT CASE WHEN EXISTS(SELECT 1 FROM Drivers WHERE Id = @Id AND IsDeleted = 0) THEN 1 ELSE 0 END",
-            new { request.Id });
+            new CommandDefinition(
+                "SELECT CASE WHEN EXISTS(SELECT 1 FROM Drivers WHERE Id = @Id AND IsDeleted = 0) THEN 1 ELSE 0 END",
+                new { request.Id },
+                cancellationToken: cancellationToken));
 
         if (!exists)
             throw new NotFoundException("Driver", request.Id);
 
         var licenseConflict = await connection.ExecuteScalarAsync<bool>(
-            "SELECT CASE WHEN EXISTS(SELECT 1 FROM Drivers WHERE LicenseNumber = @License AND Id != @Id AND IsDeleted = 0) THEN 1 ELSE 0 END",
-            new { License = dto.LicenseNumber, request.Id });
+            new CommandDefinition(
+                "SELECT CASE WHEN EXISTS(SELECT 1 FROM Drivers WHERE LicenseNumber = @License AND Id != @Id AND IsDeleted = 0) THEN 1 ELSE 0 END",
+                new { License = dto.LicenseNumber, request.Id },
+                cancellationToken: cancellationToken));
 
         if (licenseConflict)
             throw new ConflictException($"License '{dto.LicenseNumber}' is already in use.");
 
         await connection.ExecuteAsync(
-            @"UPDATE Drivers SET FullName = @FullName, Phone = @Phone, LicenseNumber = @LicenseNumber,
-              LicenseExpiryDate = @LicenseExpiryDate, CNIC = @CNIC, Address = @Address,
-              Status = @Status, IsActive = @IsActive, UpdatedAt = @UpdatedAt WHERE Id = @Id",
-            new
-            {
-                dto.FullName, dto.Phone, dto.LicenseNumber, dto.LicenseExpiryDate,
-                dto.CNIC, dto.Address, Status = (int)dto.Status, dto.IsActive,
-                UpdatedAt = DateTime.UtcNow, request.Id
-            });
+            new CommandDefinition(
+                @"UPDATE Drivers SET FullName = @FullName, Phone = @Phone, LicenseNumber = @LicenseNumber,
+                  LicenseExpiryDate = @LicenseExpiryDate, CNIC = @CNIC, Address = @Address,
+                  Status = @Status, IsActive = @IsActive, UpdatedAt = @UpdatedAt WHERE Id = @Id",
+                new
+                {
+                    dto.FullName, dto.Phone, dto.LicenseNumber, dto.LicenseExpiryDate,
+                    dto.CNIC, dto.Address, Status = (int)dto.Status, dto.IsActive,
+                    UpdatedAt = DateTime.UtcNow, request.Id
+                },
+                cancellationToken: cancellationToken));
 
         return ApiResponse<bool>.SuccessResponse(true, "Driver updated successfully.");
     }

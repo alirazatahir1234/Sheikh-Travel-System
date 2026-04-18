@@ -30,17 +30,19 @@ public class CreateFuelLogCommandHandler(IDbConnectionFactory dbFactory)
         var totalCost = dto.Liters * dto.PricePerLiter;
 
         var id = await connection.ExecuteScalarAsync<int>(
-            @"INSERT INTO FuelLogs (VehicleId, DriverId, Liters, PricePerLiter, TotalCost,
-              OdometerReading, FuelType, FuelDate, Station, CreatedAt, IsDeleted)
-              VALUES (@VehicleId, @DriverId, @Liters, @PricePerLiter, @TotalCost,
-              @OdometerReading, @FuelType, @FuelDate, @Station, @CreatedAt, 0);
-              SELECT SCOPE_IDENTITY();",
-            new
-            {
-                dto.VehicleId, dto.DriverId, dto.Liters, dto.PricePerLiter, TotalCost = totalCost,
-                dto.OdometerReading, FuelType = (int)dto.FuelType, dto.FuelDate,
-                dto.Station, CreatedAt = DateTime.UtcNow
-            });
+            new CommandDefinition(
+                @"INSERT INTO FuelLogs (VehicleId, DriverId, Liters, PricePerLiter, TotalCost,
+                  OdometerReading, FuelType, FuelDate, Station, CreatedAt, IsDeleted)
+                  VALUES (@VehicleId, @DriverId, @Liters, @PricePerLiter, @TotalCost,
+                  @OdometerReading, @FuelType, @FuelDate, @Station, @CreatedAt, 0);
+                  SELECT SCOPE_IDENTITY();",
+                new
+                {
+                    dto.VehicleId, dto.DriverId, dto.Liters, dto.PricePerLiter, TotalCost = totalCost,
+                    dto.OdometerReading, FuelType = (int)dto.FuelType, dto.FuelDate,
+                    dto.Station, CreatedAt = DateTime.UtcNow
+                },
+                cancellationToken: cancellationToken));
 
         return ApiResponse<int>.SuccessResponse(id, "Fuel log created successfully.");
     }

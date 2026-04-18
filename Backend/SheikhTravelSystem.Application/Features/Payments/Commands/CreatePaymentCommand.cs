@@ -30,17 +30,21 @@ public class CreatePaymentCommandHandler(IDbConnectionFactory dbFactory)
         var dto = request.Payment;
 
         var booking = await connection.QuerySingleOrDefaultAsync<(decimal TotalAmount, int Status)?>
-            ("SELECT TotalAmount, Status FROM Bookings WHERE Id = @Id AND IsDeleted = 0",
-            new { Id = dto.BookingId });
+            (new CommandDefinition(
+                "SELECT TotalAmount, Status FROM Bookings WHERE Id = @Id AND IsDeleted = 0",
+                new { Id = dto.BookingId },
+                cancellationToken: cancellationToken));
 
         if (booking is null)
             throw new NotFoundException("Booking", dto.BookingId);
 
         // Calculate total already paid
         var totalPaid = await connection.ExecuteScalarAsync<decimal>(
-            @"SELECT ISNULL(SUM(Amount), 0) FROM Payments
-              WHERE BookingId = @BookingId AND Status IN (@Paid, @Partial) AND IsDeleted = 0",
-            new { dto.BookingId, Paid = (int)PaymentStatus.Paid, Partial = (int)PaymentStatus.PartiallyPaid });
+            new CommandDefinition(
+                @"SELECT ISNULL(SUM(Amount), 0) FROM Payments
+                  WHERE BookingId = @BookingId AND Status IN (@Paid, @Partial) AND IsDeleted = 0",
+                new { dto.BookingId, Paid = (int)PaymentStatus.Paid, Partial = (int)PaymentStatus.PartiallyPaid },
+                cancellationToken: cancellationToken));
 
         var remaining = booking.Value.TotalAmount - totalPaid;
 
@@ -52,15 +56,17 @@ public class CreatePaymentCommandHandler(IDbConnectionFactory dbFactory)
             : PaymentStatus.PartiallyPaid;
 
         var id = await connection.ExecuteScalarAsync<int>(
-            @"INSERT INTO Payments (BookingId, Amount, PaymentMethod, Status, PaymentDate, TransactionReference, Notes, CreatedAt, IsDeleted)
-              VALUES (@BookingId, @Amount, @PaymentMethod, @Status, @PaymentDate, @TransactionReference, @Notes, @CreatedAt, 0);
-              SELECT SCOPE_IDENTITY();",
-            new
-            {
-                dto.BookingId, dto.Amount, dto.PaymentMethod,
-                Status = (int)paymentStatus, PaymentDate = DateTime.UtcNow,
-                dto.TransactionReference, dto.Notes, CreatedAt = DateTime.UtcNow
-            });
+            new CommandDefinition(
+                @"INSERT INTO Payments (BookingId, Amount, PaymentMethod, Status, PaymentDate, TransactionReference, Notes, CreatedAt, IsDeleted)
+                  VALUES (@BookingId, @Amount, @PaymentMethod, @Status, @PaymentDate, @TransactionReference, @Notes, @CreatedAt, 0);
+                  SELECT SCOPE_IDENTITY();",
+                new
+                {
+                    dto.BookingId, dto.Amount, dto.PaymentMethod,
+                    Status = (int)paymentStatus, PaymentDate = DateTime.UtcNow,
+                    dto.TransactionReference, dto.Notes, CreatedAt = DateTime.UtcNow
+                },
+                cancellationToken: cancellationToken));
 
         return ApiResponse<int>.SuccessResponse(id, "Payment recorded successfully.");
     }

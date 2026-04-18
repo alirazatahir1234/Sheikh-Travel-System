@@ -17,14 +17,18 @@ public class GetUsersQueryHandler(IDbConnectionFactory dbFactory)
         var offset = (request.Page - 1) * request.PageSize;
 
         var users = await connection.QueryAsync<UserDto>(
-            @"SELECT Id, FullName, Email, Phone, Role, IsActive, CreatedAt
-              FROM Users WHERE IsDeleted = 0
-              ORDER BY CreatedAt DESC
-              OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY",
-            new { Offset = offset, request.PageSize });
+            new CommandDefinition(
+                @"SELECT Id, FullName, Email, Phone, Role, IsActive, CreatedAt
+                  FROM Users WHERE IsDeleted = 0
+                  ORDER BY CreatedAt DESC
+                  OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY",
+                new { Offset = offset, request.PageSize },
+                cancellationToken: cancellationToken));
 
         var totalCount = await connection.ExecuteScalarAsync<int>(
-            "SELECT COUNT(*) FROM Users WHERE IsDeleted = 0");
+            new CommandDefinition(
+                "SELECT COUNT(*) FROM Users WHERE IsDeleted = 0",
+                cancellationToken: cancellationToken));
 
         var result = new PagedResult<UserDto>
         {

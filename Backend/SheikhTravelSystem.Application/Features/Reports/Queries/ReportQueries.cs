@@ -19,22 +19,24 @@ public class GetBookingReportQueryHandler(IDbConnectionFactory dbFactory)
         var to = request.ToDate ?? DateTime.UtcNow;
 
         var report = await connection.QuerySingleAsync<BookingReportDto>(
-            @"SELECT
-                COUNT(*) AS TotalBookings,
-                SUM(CASE WHEN Status = @Completed THEN 1 ELSE 0 END) AS Completed,
-                SUM(CASE WHEN Status = @Cancelled THEN 1 ELSE 0 END) AS Cancelled,
-                SUM(CASE WHEN Status = @Pending THEN 1 ELSE 0 END) AS Pending,
-                SUM(CASE WHEN Status = @Started THEN 1 ELSE 0 END) AS Active
-              FROM Bookings
-              WHERE CreatedAt BETWEEN @From AND @To AND IsDeleted = 0",
-            new
-            {
-                Completed = (int)BookingStatus.Completed,
-                Cancelled = (int)BookingStatus.Cancelled,
-                Pending = (int)BookingStatus.Pending,
-                Started = (int)BookingStatus.Started,
-                From = from, To = to
-            });
+            new CommandDefinition(
+                @"SELECT
+                    COUNT(*) AS TotalBookings,
+                    SUM(CASE WHEN Status = @Completed THEN 1 ELSE 0 END) AS Completed,
+                    SUM(CASE WHEN Status = @Cancelled THEN 1 ELSE 0 END) AS Cancelled,
+                    SUM(CASE WHEN Status = @Pending THEN 1 ELSE 0 END) AS Pending,
+                    SUM(CASE WHEN Status = @Started THEN 1 ELSE 0 END) AS Active
+                  FROM Bookings
+                  WHERE CreatedAt BETWEEN @From AND @To AND IsDeleted = 0",
+                new
+                {
+                    Completed = (int)BookingStatus.Completed,
+                    Cancelled = (int)BookingStatus.Cancelled,
+                    Pending = (int)BookingStatus.Pending,
+                    Started = (int)BookingStatus.Started,
+                    From = from, To = to
+                },
+                cancellationToken: cancellationToken));
 
         return ApiResponse<BookingReportDto>.SuccessResponse(report);
     }
@@ -52,16 +54,22 @@ public class GetRevenueReportQueryHandler(IDbConnectionFactory dbFactory)
         var to = request.ToDate ?? DateTime.UtcNow;
 
         var totalRevenue = await connection.ExecuteScalarAsync<decimal>(
-            "SELECT ISNULL(SUM(Amount), 0) FROM Payments WHERE Status = @Paid AND PaymentDate BETWEEN @From AND @To AND IsDeleted = 0",
-            new { Paid = (int)PaymentStatus.Paid, From = from, To = to });
+            new CommandDefinition(
+                "SELECT ISNULL(SUM(Amount), 0) FROM Payments WHERE Status = @Paid AND PaymentDate BETWEEN @From AND @To AND IsDeleted = 0",
+                new { Paid = (int)PaymentStatus.Paid, From = from, To = to },
+                cancellationToken: cancellationToken));
 
         var fuelExpense = await connection.ExecuteScalarAsync<decimal>(
-            "SELECT ISNULL(SUM(TotalCost), 0) FROM FuelLogs WHERE FuelDate BETWEEN @From AND @To AND IsDeleted = 0",
-            new { From = from, To = to });
+            new CommandDefinition(
+                "SELECT ISNULL(SUM(TotalCost), 0) FROM FuelLogs WHERE FuelDate BETWEEN @From AND @To AND IsDeleted = 0",
+                new { From = from, To = to },
+                cancellationToken: cancellationToken));
 
         var maintenanceCost = await connection.ExecuteScalarAsync<decimal>(
-            "SELECT ISNULL(SUM(Cost), 0) FROM Maintenance WHERE MaintenanceDate BETWEEN @From AND @To AND IsDeleted = 0",
-            new { From = from, To = to });
+            new CommandDefinition(
+                "SELECT ISNULL(SUM(Cost), 0) FROM Maintenance WHERE MaintenanceDate BETWEEN @From AND @To AND IsDeleted = 0",
+                new { From = from, To = to },
+                cancellationToken: cancellationToken));
 
         var report = new RevenueReportDto(totalRevenue, fuelExpense, maintenanceCost, totalRevenue - fuelExpense - maintenanceCost);
         return ApiResponse<RevenueReportDto>.SuccessResponse(report);
@@ -81,19 +89,21 @@ public class GetVehicleProfitQueryHandler(IDbConnectionFactory dbFactory)
         var to = request.ToDate ?? DateTime.UtcNow;
 
         var results = await connection.QueryAsync<VehicleProfitDto>(
-            @"SELECT v.Id AS VehicleId, v.Name AS VehicleName,
-              ISNULL(SUM(p.Amount), 0) AS Revenue,
-              ISNULL((SELECT SUM(fl.TotalCost) FROM FuelLogs fl WHERE fl.VehicleId = v.Id AND fl.FuelDate BETWEEN @From AND @To AND fl.IsDeleted = 0), 0) AS FuelCost,
-              ISNULL((SELECT SUM(m.Cost) FROM Maintenance m WHERE m.VehicleId = v.Id AND m.MaintenanceDate BETWEEN @From AND @To AND m.IsDeleted = 0), 0) AS MaintenanceCost,
-              ISNULL(SUM(p.Amount), 0)
-                - ISNULL((SELECT SUM(fl.TotalCost) FROM FuelLogs fl WHERE fl.VehicleId = v.Id AND fl.FuelDate BETWEEN @From AND @To AND fl.IsDeleted = 0), 0)
-                - ISNULL((SELECT SUM(m.Cost) FROM Maintenance m WHERE m.VehicleId = v.Id AND m.MaintenanceDate BETWEEN @From AND @To AND m.IsDeleted = 0), 0) AS Profit
-              FROM Vehicles v
-              LEFT JOIN Bookings b ON b.VehicleId = v.Id AND b.IsDeleted = 0 AND b.CreatedAt BETWEEN @From AND @To
-              LEFT JOIN Payments p ON p.BookingId = b.Id AND p.Status = @Paid AND p.IsDeleted = 0
-              WHERE v.IsDeleted = 0 AND (@VehicleId IS NULL OR v.Id = @VehicleId)
-              GROUP BY v.Id, v.Name",
-            new { From = from, To = to, Paid = (int)PaymentStatus.Paid, request.VehicleId });
+            new CommandDefinition(
+                @"SELECT v.Id AS VehicleId, v.Name AS VehicleName,
+                  ISNULL(SUM(p.Amount), 0) AS Revenue,
+                  ISNULL((SELECT SUM(fl.TotalCost) FROM FuelLogs fl WHERE fl.VehicleId = v.Id AND fl.FuelDate BETWEEN @From AND @To AND fl.IsDeleted = 0), 0) AS FuelCost,
+                  ISNULL((SELECT SUM(m.Cost) FROM Maintenance m WHERE m.VehicleId = v.Id AND m.MaintenanceDate BETWEEN @From AND @To AND m.IsDeleted = 0), 0) AS MaintenanceCost,
+                  ISNULL(SUM(p.Amount), 0)
+                    - ISNULL((SELECT SUM(fl.TotalCost) FROM FuelLogs fl WHERE fl.VehicleId = v.Id AND fl.FuelDate BETWEEN @From AND @To AND fl.IsDeleted = 0), 0)
+                    - ISNULL((SELECT SUM(m.Cost) FROM Maintenance m WHERE m.VehicleId = v.Id AND m.MaintenanceDate BETWEEN @From AND @To AND m.IsDeleted = 0), 0) AS Profit
+                  FROM Vehicles v
+                  LEFT JOIN Bookings b ON b.VehicleId = v.Id AND b.IsDeleted = 0 AND b.CreatedAt BETWEEN @From AND @To
+                  LEFT JOIN Payments p ON p.BookingId = b.Id AND p.Status = @Paid AND p.IsDeleted = 0
+                  WHERE v.IsDeleted = 0 AND (@VehicleId IS NULL OR v.Id = @VehicleId)
+                  GROUP BY v.Id, v.Name",
+                new { From = from, To = to, Paid = (int)PaymentStatus.Paid, request.VehicleId },
+                cancellationToken: cancellationToken));
 
         return ApiResponse<List<VehicleProfitDto>>.SuccessResponse(results.ToList());
     }
@@ -112,16 +122,18 @@ public class GetDriverPerformanceQueryHandler(IDbConnectionFactory dbFactory)
         var to = request.ToDate ?? DateTime.UtcNow;
 
         var results = await connection.QueryAsync<DriverPerformanceDto>(
-            @"SELECT d.Id AS DriverId, d.FullName AS DriverName,
-              COUNT(b.Id) AS TotalTrips,
-              SUM(CASE WHEN b.Status = @Completed THEN 1 ELSE 0 END) AS CompletedTrips,
-              ISNULL(SUM(CASE WHEN b.Status = @Completed THEN b.TotalAmount ELSE 0 END), 0) AS TotalRevenue
-              FROM Drivers d
-              LEFT JOIN Bookings b ON b.DriverId = d.Id AND b.IsDeleted = 0 AND b.CreatedAt BETWEEN @From AND @To
-              WHERE d.IsDeleted = 0
-              GROUP BY d.Id, d.FullName
-              ORDER BY CompletedTrips DESC",
-            new { Completed = (int)BookingStatus.Completed, From = from, To = to });
+            new CommandDefinition(
+                @"SELECT d.Id AS DriverId, d.FullName AS DriverName,
+                  COUNT(b.Id) AS TotalTrips,
+                  SUM(CASE WHEN b.Status = @Completed THEN 1 ELSE 0 END) AS CompletedTrips,
+                  ISNULL(SUM(CASE WHEN b.Status = @Completed THEN b.TotalAmount ELSE 0 END), 0) AS TotalRevenue
+                  FROM Drivers d
+                  LEFT JOIN Bookings b ON b.DriverId = d.Id AND b.IsDeleted = 0 AND b.CreatedAt BETWEEN @From AND @To
+                  WHERE d.IsDeleted = 0
+                  GROUP BY d.Id, d.FullName
+                  ORDER BY CompletedTrips DESC",
+                new { Completed = (int)BookingStatus.Completed, From = from, To = to },
+                cancellationToken: cancellationToken));
 
         return ApiResponse<List<DriverPerformanceDto>>.SuccessResponse(results.ToList());
     }

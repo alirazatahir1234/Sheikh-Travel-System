@@ -14,30 +14,28 @@ public class GetDashboardSummaryQueryHandler(IDbConnectionFactory dbFactory)
 {
     public async Task<ApiResponse<DashboardSummaryDto>> Handle(GetDashboardSummaryQuery request, CancellationToken cancellationToken)
     {
-        using var connection = dbFactory.CreateConnection();
+        async Task<T> Scalar<T>(string sql, object? param = null)
+        {
+            using var conn = dbFactory.CreateConnection();
+            return await conn.ExecuteScalarAsync<T>(new CommandDefinition(sql, param, cancellationToken: cancellationToken));
+        }
 
-        var totalVehicles = await connection.ExecuteScalarAsync<int>(
-            "SELECT COUNT(*) FROM Vehicles WHERE IsDeleted = 0");
+        var totalVehiclesTask     = Scalar<int>("SELECT COUNT(*) FROM Vehicles WHERE IsDeleted = 0");
+        var activeTripsTask       = Scalar<int>("SELECT COUNT(*) FROM Bookings WHERE Status = @Status AND IsDeleted = 0", new { Status = (int)BookingStatus.Started });
+        var totalRevenueTask      = Scalar<decimal>("SELECT ISNULL(SUM(Amount), 0) FROM Payments WHERE Status = @Status AND IsDeleted = 0", new { Status = (int)PaymentStatus.Paid });
+        var pendingBookingsTask   = Scalar<int>("SELECT COUNT(*) FROM Bookings WHERE Status = @Status AND IsDeleted = 0", new { Status = (int)BookingStatus.Pending });
+        var fuelExpenseTask       = Scalar<decimal>("SELECT ISNULL(SUM(TotalCost), 0) FROM FuelLogs WHERE IsDeleted = 0");
+        var maintenanceExpenseTask = Scalar<decimal>("SELECT ISNULL(SUM(Cost), 0) FROM Maintenance WHERE IsDeleted = 0");
 
-        var activeTrips = await connection.ExecuteScalarAsync<int>(
-            "SELECT COUNT(*) FROM Bookings WHERE Status = @Status AND IsDeleted = 0",
-            new { Status = (int)BookingStatus.Started });
+        await Task.WhenAll(totalVehiclesTask, activeTripsTask, totalRevenueTask, pendingBookingsTask, fuelExpenseTask, maintenanceExpenseTask);
 
-        var totalRevenue = await connection.ExecuteScalarAsync<decimal>(
-            "SELECT ISNULL(SUM(Amount), 0) FROM Payments WHERE Status = @Status AND IsDeleted = 0",
-            new { Status = (int)PaymentStatus.Paid });
-
-        var pendingBookings = await connection.ExecuteScalarAsync<int>(
-            "SELECT COUNT(*) FROM Bookings WHERE Status = @Status AND IsDeleted = 0",
-            new { Status = (int)BookingStatus.Pending });
-
-        var fuelExpense = await connection.ExecuteScalarAsync<decimal>(
-            "SELECT ISNULL(SUM(TotalCost), 0) FROM FuelLogs WHERE IsDeleted = 0");
-
-        var maintenanceExpense = await connection.ExecuteScalarAsync<decimal>(
-            "SELECT ISNULL(SUM(Cost), 0) FROM Maintenance WHERE IsDeleted = 0");
-
-        var netProfit = totalRevenue - fuelExpense - maintenanceExpense;
+        var totalVehicles      = totalVehiclesTask.Result;
+        var activeTrips        = activeTripsTask.Result;
+        var totalRevenue       = totalRevenueTask.Result;
+        var pendingBookings    = pendingBookingsTask.Result;
+        var fuelExpense        = fuelExpenseTask.Result;
+        var maintenanceExpense = maintenanceExpenseTask.Result;
+        var netProfit          = totalRevenue - fuelExpense - maintenanceExpense;
 
         var summary = new DashboardSummaryDto(totalVehicles, activeTrips, totalRevenue, pendingBookings, fuelExpense, netProfit);
         return ApiResponse<DashboardSummaryDto>.SuccessResponse(summary);

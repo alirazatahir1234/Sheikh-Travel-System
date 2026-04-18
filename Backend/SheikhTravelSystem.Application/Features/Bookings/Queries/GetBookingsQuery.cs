@@ -18,22 +18,26 @@ public class GetBookingsQueryHandler(IDbConnectionFactory dbFactory)
         var offset = (request.Page - 1) * request.PageSize;
 
         var bookings = await connection.QueryAsync<BookingDto>(
-            @"SELECT b.Id, b.CustomerId, c.FullName AS CustomerName, b.RouteId,
-              r.Source + ' -> ' + r.Destination AS RouteDescription,
-              b.VehicleId, v.Name AS VehicleName, b.DriverId, d.FullName AS DriverName,
-              b.PickupTime, b.DropoffTime, b.PassengerCount, b.TotalAmount, b.Status, b.Notes, b.CreatedAt
-              FROM Bookings b
-              LEFT JOIN Customers c ON b.CustomerId = c.Id
-              LEFT JOIN Routes r ON b.RouteId = r.Id
-              LEFT JOIN Vehicles v ON b.VehicleId = v.Id
-              LEFT JOIN Drivers d ON b.DriverId = d.Id
-              WHERE b.IsDeleted = 0
-              ORDER BY b.CreatedAt DESC
-              OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY",
-            new { Offset = offset, request.PageSize });
+            new CommandDefinition(
+                @"SELECT b.Id, b.CustomerId, c.FullName AS CustomerName, b.RouteId,
+                  r.Source + ' -> ' + r.Destination AS RouteDescription,
+                  b.VehicleId, v.Name AS VehicleName, b.DriverId, d.FullName AS DriverName,
+                  b.PickupTime, b.DropoffTime, b.PassengerCount, b.TotalAmount, b.Status, b.Notes, b.CreatedAt
+                  FROM Bookings b
+                  LEFT JOIN Customers c ON b.CustomerId = c.Id
+                  LEFT JOIN Routes r ON b.RouteId = r.Id
+                  LEFT JOIN Vehicles v ON b.VehicleId = v.Id
+                  LEFT JOIN Drivers d ON b.DriverId = d.Id
+                  WHERE b.IsDeleted = 0
+                  ORDER BY b.CreatedAt DESC
+                  OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY",
+                new { Offset = offset, request.PageSize },
+                cancellationToken: cancellationToken));
 
         var totalCount = await connection.ExecuteScalarAsync<int>(
-            "SELECT COUNT(*) FROM Bookings WHERE IsDeleted = 0");
+            new CommandDefinition(
+                "SELECT COUNT(*) FROM Bookings WHERE IsDeleted = 0",
+                cancellationToken: cancellationToken));
 
         var result = new PagedResult<BookingDto>
         {
@@ -57,17 +61,19 @@ public class GetBookingByIdQueryHandler(IDbConnectionFactory dbFactory)
         using var connection = dbFactory.CreateConnection();
 
         var booking = await connection.QuerySingleOrDefaultAsync<BookingDto>(
-            @"SELECT b.Id, b.CustomerId, c.FullName AS CustomerName, b.RouteId,
-              r.Source + ' -> ' + r.Destination AS RouteDescription,
-              b.VehicleId, v.Name AS VehicleName, b.DriverId, d.FullName AS DriverName,
-              b.PickupTime, b.DropoffTime, b.PassengerCount, b.TotalAmount, b.Status, b.Notes, b.CreatedAt
-              FROM Bookings b
-              LEFT JOIN Customers c ON b.CustomerId = c.Id
-              LEFT JOIN Routes r ON b.RouteId = r.Id
-              LEFT JOIN Vehicles v ON b.VehicleId = v.Id
-              LEFT JOIN Drivers d ON b.DriverId = d.Id
-              WHERE b.Id = @Id AND b.IsDeleted = 0",
-            new { request.Id });
+            new CommandDefinition(
+                @"SELECT b.Id, b.CustomerId, c.FullName AS CustomerName, b.RouteId,
+                  r.Source + ' -> ' + r.Destination AS RouteDescription,
+                  b.VehicleId, v.Name AS VehicleName, b.DriverId, d.FullName AS DriverName,
+                  b.PickupTime, b.DropoffTime, b.PassengerCount, b.TotalAmount, b.Status, b.Notes, b.CreatedAt
+                  FROM Bookings b
+                  LEFT JOIN Customers c ON b.CustomerId = c.Id
+                  LEFT JOIN Routes r ON b.RouteId = r.Id
+                  LEFT JOIN Vehicles v ON b.VehicleId = v.Id
+                  LEFT JOIN Drivers d ON b.DriverId = d.Id
+                  WHERE b.Id = @Id AND b.IsDeleted = 0",
+                new { request.Id },
+                cancellationToken: cancellationToken));
 
         if (booking is null)
             throw new NotFoundException("Booking", request.Id);

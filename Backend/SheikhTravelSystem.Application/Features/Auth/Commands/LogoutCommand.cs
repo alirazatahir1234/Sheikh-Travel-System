@@ -18,8 +18,10 @@ public class LogoutCommandHandler(IDbConnectionFactory dbFactory, ICurrentUserSe
         using var connection = dbFactory.CreateConnection();
 
         await connection.ExecuteAsync(
-            "UPDATE Users SET RefreshToken = NULL, RefreshTokenExpiryTime = NULL WHERE Id = @UserId",
-            new { UserId = userId });
+            new CommandDefinition(
+                "UPDATE Users SET RefreshToken = NULL, RefreshTokenExpiryTime = NULL WHERE Id = @UserId",
+                new { UserId = userId },
+                cancellationToken: cancellationToken));
 
         return ApiResponse<bool>.SuccessResponse(true, "Logged out successfully.");
     }

@@ -17,15 +17,19 @@ public class GetMaintenanceQueryHandler(IDbConnectionFactory dbFactory)
         var offset = (request.Page - 1) * request.PageSize;
 
         var records = await connection.QueryAsync<MaintenanceDto>(
-            @"SELECT Id, VehicleId, Description, Cost, MaintenanceDate, NextDueDate,
-              Status, ServiceProvider, CreatedAt
-              FROM Maintenance WHERE IsDeleted = 0
-              ORDER BY MaintenanceDate DESC
-              OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY",
-            new { Offset = offset, request.PageSize });
+            new CommandDefinition(
+                @"SELECT Id, VehicleId, Description, Cost, MaintenanceDate, NextDueDate,
+                  Status, ServiceProvider, CreatedAt
+                  FROM Maintenance WHERE IsDeleted = 0
+                  ORDER BY MaintenanceDate DESC
+                  OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY",
+                new { Offset = offset, request.PageSize },
+                cancellationToken: cancellationToken));
 
         var totalCount = await connection.ExecuteScalarAsync<int>(
-            "SELECT COUNT(*) FROM Maintenance WHERE IsDeleted = 0");
+            new CommandDefinition(
+                "SELECT COUNT(*) FROM Maintenance WHERE IsDeleted = 0",
+                cancellationToken: cancellationToken));
 
         var result = new PagedResult<MaintenanceDto>
         {

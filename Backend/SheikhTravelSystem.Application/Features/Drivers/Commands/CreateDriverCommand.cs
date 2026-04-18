@@ -31,22 +31,26 @@ public class CreateDriverCommandHandler(IDbConnectionFactory dbFactory)
         var dto = request.Driver;
 
         var exists = await connection.ExecuteScalarAsync<bool>(
-            "SELECT CASE WHEN EXISTS(SELECT 1 FROM Drivers WHERE LicenseNumber = @License AND IsDeleted = 0) THEN 1 ELSE 0 END",
-            new { License = dto.LicenseNumber });
+            new CommandDefinition(
+                "SELECT CASE WHEN EXISTS(SELECT 1 FROM Drivers WHERE LicenseNumber = @License AND IsDeleted = 0) THEN 1 ELSE 0 END",
+                new { License = dto.LicenseNumber },
+                cancellationToken: cancellationToken));
 
         if (exists)
             throw new ConflictException($"Driver with license '{dto.LicenseNumber}' already exists.");
 
         var id = await connection.ExecuteScalarAsync<int>(
-            @"INSERT INTO Drivers (FullName, Phone, LicenseNumber, LicenseExpiryDate, CNIC, Address, Status, IsActive, CreatedAt, IsDeleted)
-              VALUES (@FullName, @Phone, @LicenseNumber, @LicenseExpiryDate, @CNIC, @Address, @Status, 1, @CreatedAt, 0);
-              SELECT SCOPE_IDENTITY();",
-            new
-            {
-                dto.FullName, dto.Phone, dto.LicenseNumber, dto.LicenseExpiryDate,
-                dto.CNIC, dto.Address, Status = (int)Domain.Enums.DriverStatus.Available,
-                CreatedAt = DateTime.UtcNow
-            });
+            new CommandDefinition(
+                @"INSERT INTO Drivers (FullName, Phone, LicenseNumber, LicenseExpiryDate, CNIC, Address, Status, IsActive, CreatedAt, IsDeleted)
+                  VALUES (@FullName, @Phone, @LicenseNumber, @LicenseExpiryDate, @CNIC, @Address, @Status, 1, @CreatedAt, 0);
+                  SELECT SCOPE_IDENTITY();",
+                new
+                {
+                    dto.FullName, dto.Phone, dto.LicenseNumber, dto.LicenseExpiryDate,
+                    dto.CNIC, dto.Address, Status = (int)Domain.Enums.DriverStatus.Available,
+                    CreatedAt = DateTime.UtcNow
+                },
+                cancellationToken: cancellationToken));
 
         return ApiResponse<int>.SuccessResponse(id, "Driver created successfully.");
     }

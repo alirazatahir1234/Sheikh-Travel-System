@@ -17,15 +17,19 @@ public class GetPaymentsQueryHandler(IDbConnectionFactory dbFactory)
         var offset = (request.Page - 1) * request.PageSize;
 
         var payments = await connection.QueryAsync<PaymentDto>(
-            @"SELECT Id, BookingId, Amount, PaymentMethod, Status, PaymentDate,
-              TransactionReference, Notes, CreatedAt
-              FROM Payments WHERE IsDeleted = 0
-              ORDER BY CreatedAt DESC
-              OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY",
-            new { Offset = offset, request.PageSize });
+            new CommandDefinition(
+                @"SELECT Id, BookingId, Amount, PaymentMethod, Status, PaymentDate,
+                  TransactionReference, Notes, CreatedAt
+                  FROM Payments WHERE IsDeleted = 0
+                  ORDER BY CreatedAt DESC
+                  OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY",
+                new { Offset = offset, request.PageSize },
+                cancellationToken: cancellationToken));
 
         var totalCount = await connection.ExecuteScalarAsync<int>(
-            "SELECT COUNT(*) FROM Payments WHERE IsDeleted = 0");
+            new CommandDefinition(
+                "SELECT COUNT(*) FROM Payments WHERE IsDeleted = 0",
+                cancellationToken: cancellationToken));
 
         var result = new PagedResult<PaymentDto>
         {

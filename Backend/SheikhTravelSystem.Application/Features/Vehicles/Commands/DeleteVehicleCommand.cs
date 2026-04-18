@@ -16,15 +16,19 @@ public class DeleteVehicleCommandHandler(IDbConnectionFactory dbFactory)
         using var connection = dbFactory.CreateConnection();
 
         var exists = await connection.ExecuteScalarAsync<bool>(
-            "SELECT CASE WHEN EXISTS(SELECT 1 FROM Vehicles WHERE Id = @Id AND IsDeleted = 0) THEN 1 ELSE 0 END",
-            new { request.Id });
+            new CommandDefinition(
+                "SELECT CASE WHEN EXISTS(SELECT 1 FROM Vehicles WHERE Id = @Id AND IsDeleted = 0) THEN 1 ELSE 0 END",
+                new { request.Id },
+                cancellationToken: cancellationToken));
 
         if (!exists)
             throw new NotFoundException("Vehicle", request.Id);
 
         await connection.ExecuteAsync(
-            "UPDATE Vehicles SET IsDeleted = 1, UpdatedAt = @UpdatedAt WHERE Id = @Id",
-            new { UpdatedAt = DateTime.UtcNow, request.Id });
+            new CommandDefinition(
+                "UPDATE Vehicles SET IsDeleted = 1, UpdatedAt = @UpdatedAt WHERE Id = @Id",
+                new { UpdatedAt = DateTime.UtcNow, request.Id },
+                cancellationToken: cancellationToken));
 
         return ApiResponse<bool>.SuccessResponse(true, "Vehicle deleted successfully.");
     }

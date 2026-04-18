@@ -18,5 +18,8 @@ public class PaymentsController : BaseApiController
 
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreatePaymentCommand command)
-        => Ok(await Mediator.Send(command));
+    {
+        var result = await Mediator.Send(command);
+        return Created(string.Empty, result);
+    }
 }

@@ -1,6 +1,7 @@
 using Dapper;
 using FluentValidation;
 using MediatR;
+using Microsoft.Extensions.Logging;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Exceptions;
 using SheikhTravelSystem.Application.Common.Interfaces;
@@ -19,7 +20,7 @@ public class UpdateBookingStatusCommandValidator : AbstractValidator<UpdateBooki
     }
 }
 
-public class UpdateBookingStatusCommandHandler(IDbConnectionFactory dbFactory)
+public class UpdateBookingStatusCommandHandler(IDbConnectionFactory dbFactory, ILogger<UpdateBookingStatusCommandHandler> logger)
     : IRequestHandler<UpdateBookingStatusCommand, ApiResponse<bool>>
 {
     public async Task<ApiResponse<bool>> Handle(UpdateBookingStatusCommand request, CancellationToken cancellationToken)
@@ -27,8 +28,10 @@ public class UpdateBookingStatusCommandHandler(IDbConnectionFactory dbFactory)
         using var connection = dbFactory.CreateConnection();
 
         var currentStatus = await connection.ExecuteScalarAsync<int?>(
-            "SELECT Status FROM Bookings WHERE Id = @Id AND IsDeleted = 0",
-            new { request.Id });
+            new CommandDefinition(
+                "SELECT Status FROM Bookings WHERE Id = @Id AND IsDeleted = 0",
+                new { request.Id },
+                cancellationToken: cancellationToken));
 
         if (currentStatus is null)
             throw new NotFoundException("Booking", request.Id);
@@ -50,15 +53,18 @@ public class UpdateBookingStatusCommandHandler(IDbConnectionFactory dbFactory)
             return ApiResponse<bool>.FailResponse($"Cannot transition from {current} to {request.Status}.");
 
         await connection.ExecuteAsync(
-            @"UPDATE Bookings SET Status = @Status, UpdatedAt = @UpdatedAt,
-              DropoffTime = CASE WHEN @Status = @CompletedStatus THEN @Now ELSE DropoffTime END
-              WHERE Id = @Id",
-            new
-            {
-                Status = (int)request.Status, UpdatedAt = DateTime.UtcNow,
-                CompletedStatus = (int)BookingStatus.Completed, Now = DateTime.UtcNow, request.Id
-            });
+            new CommandDefinition(
+                @"UPDATE Bookings SET Status = @Status, UpdatedAt = @UpdatedAt,
+                  DropoffTime = CASE WHEN @Status = @CompletedStatus THEN @Now ELSE DropoffTime END
+                  WHERE Id = @Id",
+                new
+                {
+                    Status = (int)request.Status, UpdatedAt = DateTime.UtcNow,
+                    CompletedStatus = (int)BookingStatus.Completed, Now = DateTime.UtcNow, request.Id
+                },
+                cancellationToken: cancellationToken));
 
+        logger.LogInformation("Booking {BookingId} status transitioned from {From} to {To}", request.Id, current, request.Status);
         return ApiResponse<bool>.SuccessResponse(true, $"Booking status updated to {request.Status}.");
     }
 }

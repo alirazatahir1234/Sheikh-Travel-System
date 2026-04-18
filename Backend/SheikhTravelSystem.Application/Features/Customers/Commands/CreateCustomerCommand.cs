@@ -27,10 +27,12 @@ public class CreateCustomerCommandHandler(IDbConnectionFactory dbFactory)
         var dto = request.Customer;
 
         var id = await connection.ExecuteScalarAsync<int>(
-            @"INSERT INTO Customers (FullName, Phone, Email, Address, CNIC, IsActive, CreatedAt, IsDeleted)
-              VALUES (@FullName, @Phone, @Email, @Address, @CNIC, 1, @CreatedAt, 0);
-              SELECT SCOPE_IDENTITY();",
-            new { dto.FullName, dto.Phone, dto.Email, dto.Address, dto.CNIC, CreatedAt = DateTime.UtcNow });
+            new CommandDefinition(
+                @"INSERT INTO Customers (FullName, Phone, Email, Address, CNIC, IsActive, CreatedAt, IsDeleted)
+                  VALUES (@FullName, @Phone, @Email, @Address, @CNIC, 1, @CreatedAt, 0);
+                  SELECT SCOPE_IDENTITY();",
+                new { dto.FullName, dto.Phone, dto.Email, dto.Address, dto.CNIC, CreatedAt = DateTime.UtcNow },
+                cancellationToken: cancellationToken));
 
         return ApiResponse<int>.SuccessResponse(id, "Customer created successfully.");
     }

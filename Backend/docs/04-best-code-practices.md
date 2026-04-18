@@ -8,6 +8,51 @@
 * Prefer clarity over cleverness.
 * Avoid duplication.
 * Make intent obvious through naming.
+* Keep public contracts stable and versioned when needed.
+* Favor composition over inheritance unless inheritance is clearly justified.
+* Make behavior deterministic (avoid hidden side effects).
+* Fail fast on invalid state; fail safely on external dependency issues.
+
+---
+
+## Additional high-value practices
+
+### Security and secrets
+
+* Never log secrets, tokens, passwords, or PII.
+* Keep secrets in environment variables / secure vaults, never in source code.
+* Validate and sanitize all external inputs (query, body, headers, route params).
+* Apply least-privilege access for DB users, service accounts, and API permissions.
+* Use HTTPS everywhere and enforce secure headers at the API boundary.
+
+### Async, cancellation, and resilience (.NET)
+
+* Pass `CancellationToken` through handlers, repositories, and external calls.
+* Use timeouts and retry policies for transient failures (e.g., HTTP/database connectivity).
+* Do not block async flows (`.Result`, `.Wait()`); use `await` end-to-end.
+* Distinguish transient vs permanent errors and return appropriate status codes.
+
+### Performance and scalability
+
+* Measure first (profiling/metrics), optimize second.
+* Avoid N+1 query patterns; batch and project only required fields.
+* Paginate any endpoint that can grow unbounded.
+* Cache expensive, frequently read data with clear invalidation strategy.
+
+### Configuration and environment management
+
+* Keep environment-specific settings out of code.
+* Use strongly typed config objects with startup validation.
+* Provide safe defaults and explicit overrides for production.
+* Document required environment variables in project docs.
+
+### Pull request and review checklist
+
+* Is the change small, focused, and reversible?
+* Are edge cases and failure paths covered by tests?
+* Is the API contract backward-compatible?
+* Are logs useful and free of sensitive data?
+* Are migrations/config changes included when needed?
 
 ---
 
@@ -377,19 +422,40 @@ var bookings = await _connection.QueryAsync(sql);
 ### .NET — Consistent response structure
 
 ```csharp
-// Standard API response wrapper
-public class ApiResponse<T>
+// Standard API response wrapper (generic)
+public sealed class ApiResponse<T>
 {
-    public bool Success { get; set; }
-    public T? Data { get; set; }
-    public string? Message { get; set; }
+    public bool Success { get; init; }
+    public T? Data { get; init; }
+    public string Message { get; init; } = string.Empty;
+    public string? TraceId { get; init; }
+    public ApiError? Error { get; init; }
+
+    public static ApiResponse<T> Ok(T data, string message = "Request completed successfully.", string? traceId = null)
+        => new() { Success = true, Data = data, Message = message, TraceId = traceId };
+
+    public static ApiResponse<T> Fail(string code, string message, int statusCode, IEnumerable<string>? details = null, string? traceId = null)
+        => new()
+        {
+            Success = false,
+            Message = message,
+            TraceId = traceId,
+            Error = new ApiError
+            {
+                Code = code,
+                Message = message,
+                StatusCode = statusCode,
+                Details = details?.ToList() ?? []
+            }
+        };
 }
 
-public class ApiErrorResponse
+public sealed class ApiError
 {
-    public string Message { get; set; } = string.Empty;
-    public int StatusCode { get; set; }
-    public List<string>? Errors { get; set; }
+    public string Code { get; init; } = string.Empty;
+    public string Message { get; init; } = string.Empty;
+    public int StatusCode { get; init; }
+    public List<string> Details { get; init; } = [];
 }
 
 public class PagedResult<T>
@@ -406,14 +472,20 @@ public class PagedResult<T>
 public async Task<IActionResult> GetAll([FromQuery] int page = 1, [FromQuery] int pageSize = 20)
 {
     var result = await _mediator.Send(new GetBookingsQuery(page, pageSize));
-    return Ok(new ApiResponse<PagedResult<BookingListItem>> { Success = true, Data = result });
+    return Ok(ApiResponse<PagedResult<BookingListItem>>.Ok(
+        result,
+        traceId: HttpContext.TraceIdentifier
+    ));
 }
 
 [HttpGet("{id}")]
 public async Task<IActionResult> GetById(int id)
 {
     var result = await _mediator.Send(new GetBookingByIdQuery(id));
-    return Ok(new ApiResponse<BookingResponse> { Success = true, Data = result });
+    return Ok(ApiResponse<BookingResponse>.Ok(
+        result,
+        traceId: HttpContext.TraceIdentifier
+    ));
 }
 ```
 
@@ -423,8 +495,17 @@ public async Task<IActionResult> GetById(int id)
 // api-response.model.ts
 export interface ApiResponse<T> {
   success: boolean;
-  data: T;
-  message?: string;
+  data: T | null;
+  message: string;
+  traceId?: string;
+  error?: ApiError;
+}
+
+export interface ApiError {
+  code: string;
+  message: string;
+  statusCode: number;
+  details: string[];
 }
 
 export interface PagedResult<T> {
@@ -444,22 +525,87 @@ export class BookingService {
   getAll(page = 1, pageSize = 20): Observable<PagedResult<Booking>> {
     return this.http.get<ApiResponse<PagedResult<Booking>>>(this.apiUrl, {
       params: { page: page.toString(), pageSize: pageSize.toString() }
-    }).pipe(map(res => res.data));
+    }).pipe(
+      map(res => {
+        if (!res.success || !res.data) {
+          throw new Error(res.error?.message ?? res.message);
+        }
+        return res.data;
+      })
+    );
   }
 
   getById(id: number): Observable<Booking> {
     return this.http.get<ApiResponse<Booking>>(`${this.apiUrl}/${id}`).pipe(
-      map(res => res.data)
+      map(res => {
+        if (!res.success || !res.data) {
+          throw new Error(res.error?.message ?? res.message);
+        }
+        return res.data;
+      })
     );
   }
 
   create(request: CreateBookingRequest): Observable<BookingCreatedResponse> {
     return this.http.post<ApiResponse<BookingCreatedResponse>>(this.apiUrl, request).pipe(
-      map(res => res.data)
+      map(res => {
+        if (!res.success || !res.data) {
+          throw new Error(res.error?.message ?? res.message);
+        }
+        return res.data;
+      })
     );
   }
 }
 ```
+
+### Generic API response model to use across the whole application
+
+Use one shared response contract for all endpoints (success and error) so frontend, backend, logging, and monitoring stay consistent.
+
+```csharp
+public sealed class ApiResponse<T>
+{
+    public bool Success { get; init; }
+    public T? Data { get; init; }
+    public string Message { get; init; } = string.Empty;
+    public string? TraceId { get; init; }
+    public ApiError? Error { get; init; }
+}
+
+public sealed class ApiError
+{
+    public string Code { get; init; } = string.Empty;   // e.g. "VALIDATION_ERROR"
+    public string Message { get; init; } = string.Empty;
+    public int StatusCode { get; init; }                // e.g. 400, 404, 500
+    public List<string> Details { get; init; } = [];
+}
+```
+
+```typescript
+export interface ApiResponse<T> {
+  success: boolean;
+  data: T | null;
+  message: string;
+  traceId?: string;
+  error?: ApiError;
+}
+
+export interface ApiError {
+  code: string;
+  message: string;
+  statusCode: number;
+  details: string[];
+}
+```
+
+**Recommended rules:**
+
+* Always return `ApiResponse<T>` from API endpoints.
+* Set `traceId` from the request context for debugging and support.
+* Use stable error `code` values (do not depend on raw exception text).
+* For validation errors, return `code = "VALIDATION_ERROR"` with field-level details.
+* Keep `message` user-safe; keep technical details in logs.
 
 ---
 
@@ -651,141 +797,3 @@ describe('BookingFormComponent', () => {
   });
 });
 ```
-
----
-
-## Security practices
-
-### .NET and Angular
-
-* Never store secrets in source control. Use environment variables, secret stores, or user-secrets for local development.
-* Validate and authorize every sensitive action on the server, even if the UI already hides restricted buttons.
-* Prefer least-privilege access for database users and service accounts.
-* Redact sensitive fields (tokens, passwords, CNIC, payment data) from logs and error responses.
-* Keep dependencies updated and patch known vulnerabilities quickly.
-
-```csharp
-// Program.cs - secure defaults
-builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer();
-
-builder.Services.AddAuthorization();
-
-// Require auth by default (override only where needed)
-builder.Services.AddControllers(options =>
-{
-    options.Filters.Add(new AuthorizeFilter());
-});
-```
-
-```typescript
-// auth.interceptor.ts - attach token centrally (single source of truth)
-export const authInterceptor: HttpInterceptorFn = (req, next) => {
-  const token = localStorage.getItem('access_token');
-  const authReq = token
-    ? req.clone({ setHeaders: { Authorization: `Bearer ${token}` } })
-    : req;
-  return next(authReq);
-};
-```
-
----
-
-## Async and cancellation
-
-### .NET
-
-* Pass `CancellationToken` through handlers, repositories, and HTTP/database calls.
-* Avoid blocking async flows (`.Result`, `.Wait()`), which can cause deadlocks and thread starvation.
-* Use `Task.WhenAll` for independent I/O operations to reduce total latency.
-
-```csharp
-public async Task<BookingResponse> Handle(GetBookingByIdQuery query, CancellationToken ct)
-{
-    const string sql = "SELECT Id, PassengerName, TotalPrice, Status FROM Bookings WHERE Id = @Id";
-    var booking = await _connection.QuerySingleOrDefaultAsync<BookingResponse>(
-        new CommandDefinition(sql, new { query.Id }, cancellationToken: ct));
-
-    if (booking is null)
-        throw new NotFoundException($"Booking with Id {query.Id} was not found.");
-
-    return booking;
-}
-```
-
----
-
-## Transaction and idempotency practices
-
-### .NET
-
-* Wrap multi-step write operations in a transaction.
-* Design create endpoints to be idempotent where possible (for retries/timeouts).
-* Use unique constraints to enforce invariants at the database level.
-
-```csharp
-await using var transaction = await _connection.BeginTransactionAsync(ct);
-try
-{
-    // Step 1: create booking
-    // Step 2: create payment record
-    // Step 3: update seat inventory
-
-    await transaction.CommitAsync(ct);
-}
-catch
-{
-    await transaction.RollbackAsync(ct);
-    throw;
-}
-```
-
----
-
-## Performance practices
-
-### .NET and Angular
-
-* Measure before optimizing. Use profiling/tracing for hotspots.
-* Cache stable reference data (routes, vehicle types) with explicit expiration.
-* In API queries, return only required columns and always paginate list endpoints.
-* For Angular, use `OnPush` change detection and `trackBy` in long lists.
-
-```typescript
-@Component({
-  // ...
-  changeDetection: ChangeDetectionStrategy.OnPush
-})
-export class BookingListComponent {
-  trackByBookingId = (_: number, item: Booking) => item.id;
-}
-```
-
----
-
-## Configuration and environment management
-
-### .NET and Angular
-
-* Keep environment-specific values in config files per environment and secret managers.
-* Fail fast on missing required settings at startup.
-* Use typed options in .NET and typed environment contracts in Angular.
-
-```csharp
-builder.Services.AddOptions<JwtOptions>()
-    .Bind(builder.Configuration.GetSection("Jwt"))
-    .ValidateDataAnnotations()
-    .ValidateOnStart();
-```
-
----
-
-## CI quality gates
-
-### Pull request minimum checks
-
-* Build passes for backend and frontend.
-* Unit tests pass and no flaky tests are ignored.
-* Lint/format checks pass.
-* No high/critical security vulnerabilities in dependency scan.
-* New endpoints include validation, error handling, and at least one automated test.

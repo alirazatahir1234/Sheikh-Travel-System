@@ -30,25 +30,29 @@ public class CreateVehicleCommandHandler(IDbConnectionFactory dbFactory)
         var dto = request.Vehicle;
 
         var exists = await connection.ExecuteScalarAsync<bool>(
-            "SELECT CASE WHEN EXISTS(SELECT 1 FROM Vehicles WHERE RegistrationNumber = @Reg AND IsDeleted = 0) THEN 1 ELSE 0 END",
-            new { Reg = dto.RegistrationNumber });
+            new CommandDefinition(
+                "SELECT CASE WHEN EXISTS(SELECT 1 FROM Vehicles WHERE RegistrationNumber = @Reg AND IsDeleted = 0) THEN 1 ELSE 0 END",
+                new { Reg = dto.RegistrationNumber },
+                cancellationToken: cancellationToken));
 
         if (exists)
             throw new ConflictException($"Vehicle with registration '{dto.RegistrationNumber}' already exists.");
 
         var id = await connection.ExecuteScalarAsync<int>(
-            @"INSERT INTO Vehicles (Name, RegistrationNumber, Model, Year, SeatingCapacity, FuelAverage, FuelType,
-              CurrentMileage, InsuranceExpiryDate, Status, CreatedAt, IsDeleted)
-              VALUES (@Name, @RegistrationNumber, @Model, @Year, @SeatingCapacity, @FuelAverage, @FuelType,
-              @CurrentMileage, @InsuranceExpiryDate, @Status, @CreatedAt, 0);
-              SELECT SCOPE_IDENTITY();",
-            new
-            {
-                dto.Name, dto.RegistrationNumber, dto.Model, dto.Year, dto.SeatingCapacity,
-                dto.FuelAverage, FuelType = (int)dto.FuelType, dto.CurrentMileage,
-                dto.InsuranceExpiryDate, Status = (int)Domain.Enums.VehicleStatus.Available,
-                CreatedAt = DateTime.UtcNow
-            });
+            new CommandDefinition(
+                @"INSERT INTO Vehicles (Name, RegistrationNumber, Model, Year, SeatingCapacity, FuelAverage, FuelType,
+                  CurrentMileage, InsuranceExpiryDate, Status, CreatedAt, IsDeleted)
+                  VALUES (@Name, @RegistrationNumber, @Model, @Year, @SeatingCapacity, @FuelAverage, @FuelType,
+                  @CurrentMileage, @InsuranceExpiryDate, @Status, @CreatedAt, 0);
+                  SELECT SCOPE_IDENTITY();",
+                new
+                {
+                    dto.Name, dto.RegistrationNumber, dto.Model, dto.Year, dto.SeatingCapacity,
+                    dto.FuelAverage, FuelType = (int)dto.FuelType, dto.CurrentMileage,
+                    dto.InsuranceExpiryDate, Status = (int)Domain.Enums.VehicleStatus.Available,
+                    CreatedAt = DateTime.UtcNow
+                },
+                cancellationToken: cancellationToken));
 
         return ApiResponse<int>.SuccessResponse(id, "Vehicle created successfully.");
     }

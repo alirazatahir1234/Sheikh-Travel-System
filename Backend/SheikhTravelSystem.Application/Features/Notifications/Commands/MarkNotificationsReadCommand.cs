@@ -18,14 +18,18 @@ public class MarkNotificationsReadCommandHandler(IDbConnectionFactory dbFactory)
         if (request.NotificationIds is { Count: > 0 })
         {
             await connection.ExecuteAsync(
-                "UPDATE Notifications SET IsRead = 1 WHERE UserId = @UserId AND Id IN @Ids",
-                new { request.UserId, Ids = request.NotificationIds });
+                new CommandDefinition(
+                    "UPDATE Notifications SET IsRead = 1 WHERE UserId = @UserId AND Id IN @Ids",
+                    new { request.UserId, Ids = request.NotificationIds },
+                    cancellationToken: cancellationToken));
         }
         else
         {
             await connection.ExecuteAsync(
-                "UPDATE Notifications SET IsRead = 1 WHERE UserId = @UserId AND IsRead = 0",
-                new { request.UserId });
+                new CommandDefinition(
+                    "UPDATE Notifications SET IsRead = 1 WHERE UserId = @UserId AND IsRead = 0",
+                    new { request.UserId },
+                    cancellationToken: cancellationToken));
         }
 
         return ApiResponse<bool>.SuccessResponse(true, "Notifications marked as read.");

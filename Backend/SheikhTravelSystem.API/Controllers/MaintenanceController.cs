@@ -14,5 +14,8 @@ public class MaintenanceController : BaseApiController
 
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateMaintenanceCommand command)
-        => Ok(await Mediator.Send(command));
+    {
+        var result = await Mediator.Send(command);
+        return Created(string.Empty, result);
+    }
 }

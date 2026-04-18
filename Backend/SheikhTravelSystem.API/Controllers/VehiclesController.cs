@@ -18,7 +18,10 @@ public class VehiclesController : BaseApiController
 
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateVehicleCommand command)
-        => Ok(await Mediator.Send(command));
+    {
+        var result = await Mediator.Send(command);
+        return CreatedAtAction(nameof(GetById), new { id = result.Data }, result);
+    }
 
     [HttpPut("{id}")]
     public async Task<IActionResult> Update(int id, [FromBody] UpdateVehicleCommand command)

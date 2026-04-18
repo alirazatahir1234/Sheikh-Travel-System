@@ -18,16 +18,20 @@ public class GetNotificationsQueryHandler(IDbConnectionFactory dbFactory)
         var offset = (request.Page - 1) * request.PageSize;
 
         var notifications = await connection.QueryAsync<NotificationDto>(
-            @"SELECT Id, UserId, Title, Message, Type, IsRead, ReferenceId, CreatedAt
-              FROM Notifications
-              WHERE (UserId = @UserId OR UserId IS NULL) AND IsDeleted = 0
-              ORDER BY CreatedAt DESC
-              OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY",
-            new { request.UserId, Offset = offset, request.PageSize });
+            new CommandDefinition(
+                @"SELECT Id, UserId, Title, Message, Type, IsRead, ReferenceId, CreatedAt
+                  FROM Notifications
+                  WHERE (UserId = @UserId OR UserId IS NULL) AND IsDeleted = 0
+                  ORDER BY CreatedAt DESC
+                  OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY",
+                new { request.UserId, Offset = offset, request.PageSize },
+                cancellationToken: cancellationToken));
 
         var totalCount = await connection.ExecuteScalarAsync<int>(
-            "SELECT COUNT(*) FROM Notifications WHERE (UserId = @UserId OR UserId IS NULL) AND IsDeleted = 0",
-            new { request.UserId });
+            new CommandDefinition(
+                "SELECT COUNT(*) FROM Notifications WHERE (UserId = @UserId OR UserId IS NULL) AND IsDeleted = 0",
+                new { request.UserId },
+                cancellationToken: cancellationToken));
 
         var result = new PagedResult<NotificationDto>
         {

@@ -17,8 +17,10 @@ public class AssignVehicleCommandHandler(IDbConnectionFactory dbFactory)
         using var connection = dbFactory.CreateConnection();
 
         var bookingStatus = await connection.ExecuteScalarAsync<int?>(
-            "SELECT Status FROM Bookings WHERE Id = @Id AND IsDeleted = 0",
-            new { Id = request.BookingId });
+            new CommandDefinition(
+                "SELECT Status FROM Bookings WHERE Id = @Id AND IsDeleted = 0",
+                new { Id = request.BookingId },
+                cancellationToken: cancellationToken));
 
         if (bookingStatus is null)
             throw new NotFoundException("Booking", request.BookingId);
@@ -27,8 +29,10 @@ public class AssignVehicleCommandHandler(IDbConnectionFactory dbFactory)
             return ApiResponse<bool>.FailResponse("Can only assign vehicle to pending or confirmed bookings.");
 
         var vehicleStatus = await connection.ExecuteScalarAsync<int?>(
-            "SELECT Status FROM Vehicles WHERE Id = @Id AND IsDeleted = 0",
-            new { Id = request.VehicleId });
+            new CommandDefinition(
+                "SELECT Status FROM Vehicles WHERE Id = @Id AND IsDeleted = 0",
+                new { Id = request.VehicleId },
+                cancellationToken: cancellationToken));
 
         if (vehicleStatus is null)
             throw new NotFoundException("Vehicle", request.VehicleId);
@@ -38,32 +42,38 @@ public class AssignVehicleCommandHandler(IDbConnectionFactory dbFactory)
 
         // Check for double booking
         var booking = await connection.QuerySingleAsync<(DateTime PickupTime, DateTime? DropoffTime)>(
-            "SELECT PickupTime, DropoffTime FROM Bookings WHERE Id = @Id",
-            new { Id = request.BookingId });
+            new CommandDefinition(
+                "SELECT PickupTime, DropoffTime FROM Bookings WHERE Id = @Id",
+                new { Id = request.BookingId },
+                cancellationToken: cancellationToken));
 
         var vehicleConflict = await connection.ExecuteScalarAsync<bool>(
-            @"SELECT CASE WHEN EXISTS(
-                SELECT 1 FROM Bookings
-                WHERE VehicleId = @VehicleId AND IsDeleted = 0
-                AND Status IN (@Confirmed, @Started)
-                AND Id != @BookingId
-                AND PickupTime < DATEADD(HOUR, 4, @PickupTime)
-                AND DATEADD(HOUR, 4, PickupTime) > @PickupTime
-              ) THEN 1 ELSE 0 END",
-            new
-            {
-                request.VehicleId, request.BookingId,
-                Confirmed = (int)BookingStatus.Confirmed,
-                Started = (int)BookingStatus.Started,
-                booking.PickupTime
-            });
+            new CommandDefinition(
+                @"SELECT CASE WHEN EXISTS(
+                    SELECT 1 FROM Bookings
+                    WHERE VehicleId = @VehicleId AND IsDeleted = 0
+                    AND Status IN (@Confirmed, @Started)
+                    AND Id != @BookingId
+                    AND PickupTime < DATEADD(HOUR, 4, @PickupTime)
+                    AND DATEADD(HOUR, 4, PickupTime) > @PickupTime
+                  ) THEN 1 ELSE 0 END",
+                new
+                {
+                    request.VehicleId, request.BookingId,
+                    Confirmed = (int)BookingStatus.Confirmed,
+                    Started = (int)BookingStatus.Started,
+                    booking.PickupTime
+                },
+                cancellationToken: cancellationToken));
 
         if (vehicleConflict)
             return ApiResponse<bool>.FailResponse("Vehicle has a conflicting booking at this time.");
 
         await connection.ExecuteAsync(
-            "UPDATE Bookings SET VehicleId = @VehicleId, UpdatedAt = @Now WHERE Id = @Id",
-            new { request.VehicleId, Now = DateTime.UtcNow, Id = request.BookingId });
+            new CommandDefinition(
+                "UPDATE Bookings SET VehicleId = @VehicleId, UpdatedAt = @Now WHERE Id = @Id",
+                new { request.VehicleId, Now = DateTime.UtcNow, Id = request.BookingId },
+                cancellationToken: cancellationToken));
 
         return ApiResponse<bool>.SuccessResponse(true, "Vehicle assigned successfully.");
     }
