@@ -3,6 +3,7 @@ using FluentValidation;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
 using SheikhTravelSystem.Application.Common.Behaviors;
+using SheikhTravelSystem.Application.Common.Interfaces;
 
 namespace SheikhTravelSystem.Application;
 
@@ -12,16 +13,34 @@ namespace SheikhTravelSystem.Application;
 public static class DependencyInjection
 {
     /// <summary>
-    /// Adds MediatR, FluentValidation, and validation pipeline behavior.
+    /// Adds MediatR, FluentValidation, and pipeline behaviors.
     /// </summary>
     public static IServiceCollection AddApplication(this IServiceCollection services)
     {
         var assembly = Assembly.GetExecutingAssembly();
 
-        services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(assembly));
-        services.AddValidatorsFromAssembly(assembly);
+        services.AddMediatR(assembly);
+        RegisterValidators(services, assembly);
+        services.AddTransient(typeof(IPipelineBehavior<,>), typeof(RequestLoggingBehavior<,>));
         services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
 
         return services;
+    }
+
+    private static void RegisterValidators(IServiceCollection services, Assembly assembly)
+    {
+        var validatorType = typeof(IValidator<>);
+        var validators = assembly.GetTypes()
+            .Where(t => !t.IsAbstract && !t.IsGenericTypeDefinition
+                && t.GetInterfaces().Any(i => i.IsGenericType && i.GetGenericTypeDefinition() == validatorType));
+
+        foreach (var validator in validators)
+        {
+            foreach (var iface in validator.GetInterfaces()
+                .Where(i => i.IsGenericType && i.GetGenericTypeDefinition() == validatorType))
+            {
+                services.AddTransient(iface, validator);
+            }
+        }
     }
 }

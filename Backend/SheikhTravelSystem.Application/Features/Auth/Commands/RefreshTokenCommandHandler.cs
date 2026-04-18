@@ -35,7 +35,7 @@ public class RefreshTokenCommandHandler(
 
         var accessToken = jwtTokenService.GenerateAccessToken(user);
         var newRefreshToken = jwtTokenService.GenerateRefreshToken();
-        var expiryDays = configuration.GetValue("JwtSettings:RefreshTokenExpiryDays", 7);
+        var expiryDays = int.TryParse(configuration["JwtSettings:RefreshTokenExpiryDays"], out var days) ? days : 7;
 
         await connection.ExecuteAsync(
             new CommandDefinition(

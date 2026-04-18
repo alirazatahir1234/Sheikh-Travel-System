@@ -31,6 +31,19 @@ coverage-report/
 *.nupkg
 *.snupkg
 packages/
+*.nuget.dgspec.json
+project.assets.json
+project.nuget.cache
+*.csproj.nuget.g.props
+*.csproj.nuget.g.targets
+*.csproj.AssemblyReference.cache
+
+# Source generator and compile caches
+*.AssemblyInfo.cs
+*.AssemblyInfoInputs.cache
+*.assets.cache
+*.CoreCompileInputs.cache
+*.sourcelink.json
 
 # Logs and temp files
 *.log
