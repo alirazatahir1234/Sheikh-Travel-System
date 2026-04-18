@@ -5,8 +5,14 @@ using SheikhTravelSystem.Application.Common.Exceptions;
 
 namespace SheikhTravelSystem.API.Middleware;
 
+/// <summary>
+/// Catches unhandled exceptions and returns consistent API error responses.
+/// </summary>
 public class GlobalExceptionMiddleware(RequestDelegate next, ILogger<GlobalExceptionMiddleware> logger)
 {
+    /// <summary>
+    /// Invokes the next middleware and centralizes exception handling.
+    /// </summary>
     public async Task InvokeAsync(HttpContext context)
     {
         try
@@ -23,6 +29,7 @@ public class GlobalExceptionMiddleware(RequestDelegate next, ILogger<GlobalExcep
     {
         logger.LogError(exception, "Unhandled exception: {Message}", exception.Message);
 
+        // Map domain/application exceptions to client-safe status codes/messages.
         var (statusCode, message) = exception switch
         {
             NotFoundException => (HttpStatusCode.NotFound, exception.Message),

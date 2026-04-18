@@ -3,10 +3,16 @@ using MediatR;
 
 namespace SheikhTravelSystem.Application.Common.Behaviors;
 
+/// <summary>
+/// Runs FluentValidation validators before request handlers are executed.
+/// </summary>
 public class ValidationBehavior<TRequest, TResponse>(IEnumerable<IValidator<TRequest>> validators)
     : IPipelineBehavior<TRequest, TResponse>
     where TRequest : IRequest<TResponse>
 {
+    /// <summary>
+    /// Validates the request and short-circuits the pipeline on failures.
+    /// </summary>
     public async Task<TResponse> Handle(TRequest request, RequestHandlerDelegate<TResponse> next, CancellationToken cancellationToken)
     {
         if (!validators.Any())

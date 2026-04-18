@@ -7,8 +7,14 @@ using SheikhTravelSystem.Application.Features.Notifications.Queries;
 namespace SheikhTravelSystem.API.Controllers;
 
 [Authorize]
+/// <summary>
+/// Manages user notification operations.
+/// </summary>
 public class NotificationsController : BaseApiController
 {
+    /// <summary>
+    /// Gets paged notifications for the current user.
+    /// </summary>
     [HttpGet]
     public async Task<IActionResult> GetAll([FromQuery] int page = 1, [FromQuery] int pageSize = 20)
     {
@@ -16,6 +22,9 @@ public class NotificationsController : BaseApiController
         return Ok(await Mediator.Send(new GetNotificationsQuery(userId, page, pageSize)));
     }
 
+    /// <summary>
+    /// Marks notifications as read for the current user.
+    /// </summary>
     [HttpPut("read")]
     public async Task<IActionResult> MarkRead([FromBody] List<int>? notificationIds)
     {

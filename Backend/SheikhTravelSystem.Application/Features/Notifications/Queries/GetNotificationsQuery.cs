@@ -6,12 +6,21 @@ using SheikhTravelSystem.Application.Features.Notifications.DTOs;
 
 namespace SheikhTravelSystem.Application.Features.Notifications.Queries;
 
+/// <summary>
+/// Retrieves paged notifications for a user, including broadcast notifications.
+/// </summary>
 public record GetNotificationsQuery(int UserId, int Page = 1, int PageSize = 20)
     : IRequest<ApiResponse<PagedResult<NotificationDto>>>;
 
+/// <summary>
+/// Handles notification list retrieval.
+/// </summary>
 public class GetNotificationsQueryHandler(IDbConnectionFactory dbFactory)
     : IRequestHandler<GetNotificationsQuery, ApiResponse<PagedResult<NotificationDto>>>
 {
+    /// <summary>
+    /// Returns user notifications ordered by creation date descending.
+    /// </summary>
     public async Task<ApiResponse<PagedResult<NotificationDto>>> Handle(GetNotificationsQuery request, CancellationToken cancellationToken)
     {
         using var connection = dbFactory.CreateConnection();

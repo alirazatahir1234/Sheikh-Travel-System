@@ -8,8 +8,14 @@ using SheikhTravelSystem.Application.Features.Pricing.DTOs;
 
 namespace SheikhTravelSystem.Application.Features.Pricing.Commands;
 
+/// <summary>
+/// Calculates price breakdown for a route/vehicle request.
+/// </summary>
 public record CalculatePriceCommand(CalculatePriceRequest Request) : IRequest<ApiResponse<PriceBreakdown>>;
 
+/// <summary>
+/// Validates price calculation inputs.
+/// </summary>
 public class CalculatePriceCommandValidator : AbstractValidator<CalculatePriceCommand>
 {
     public CalculatePriceCommandValidator()
@@ -23,9 +29,15 @@ public class CalculatePriceCommandValidator : AbstractValidator<CalculatePriceCo
     }
 }
 
+/// <summary>
+/// Computes booking price components from route and vehicle data.
+/// </summary>
 public class CalculatePriceCommandHandler(IDbConnectionFactory dbFactory)
     : IRequestHandler<CalculatePriceCommand, ApiResponse<PriceBreakdown>>
 {
+    /// <summary>
+    /// Applies pricing formula and returns a detailed breakdown.
+    /// </summary>
     public async Task<ApiResponse<PriceBreakdown>> Handle(CalculatePriceCommand request, CancellationToken cancellationToken)
     {
         using var connection = dbFactory.CreateConnection();

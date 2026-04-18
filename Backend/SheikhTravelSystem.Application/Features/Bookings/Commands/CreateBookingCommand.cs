@@ -10,8 +10,14 @@ using SheikhTravelSystem.Domain.Enums;
 
 namespace SheikhTravelSystem.Application.Features.Bookings.Commands;
 
+/// <summary>
+/// Creates a new booking from the provided booking DTO.
+/// </summary>
 public record CreateBookingCommand(CreateBookingDto Booking) : IRequest<ApiResponse<int>>;
 
+/// <summary>
+/// Validates booking creation inputs.
+/// </summary>
 public class CreateBookingCommandValidator : AbstractValidator<CreateBookingCommand>
 {
     public CreateBookingCommandValidator()
@@ -25,9 +31,15 @@ public class CreateBookingCommandValidator : AbstractValidator<CreateBookingComm
     }
 }
 
+/// <summary>
+/// Handles booking creation and prerequisite checks.
+/// </summary>
 public class CreateBookingCommandHandler(IDbConnectionFactory dbFactory, ILogger<CreateBookingCommandHandler> logger)
     : IRequestHandler<CreateBookingCommand, ApiResponse<int>>
 {
+    /// <summary>
+    /// Validates related entities and inserts the booking record.
+    /// </summary>
     public async Task<ApiResponse<int>> Handle(CreateBookingCommand request, CancellationToken cancellationToken)
     {
         using var connection = dbFactory.CreateConnection();

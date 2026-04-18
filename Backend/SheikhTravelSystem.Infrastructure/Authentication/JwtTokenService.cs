@@ -9,14 +9,21 @@ using SheikhTravelSystem.Domain.Entities;
 
 namespace SheikhTravelSystem.Infrastructure.Authentication;
 
+/// <summary>
+/// Generates signed JWT access tokens and secure refresh tokens.
+/// </summary>
 public class JwtTokenService(IConfiguration configuration) : IJwtTokenService
 {
+    /// <summary>
+    /// Builds an access token from configured JWT settings and user claims.
+    /// </summary>
     public string GenerateAccessToken(User user)
     {
         var jwtSettings = configuration.GetSection("JwtSettings");
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(
             jwtSettings["Secret"] ?? throw new InvalidOperationException("JWT Secret not configured.")));
 
+        // Keep claims minimal and stable because clients and policies rely on them.
         var claims = new List<Claim>
         {
             new(ClaimTypes.NameIdentifier, user.Id.ToString()),
@@ -39,6 +46,9 @@ public class JwtTokenService(IConfiguration configuration) : IJwtTokenService
         return new JwtSecurityTokenHandler().WriteToken(token);
     }
 
+    /// <summary>
+    /// Creates a random, high-entropy token suitable for refresh workflows.
+    /// </summary>
     public string GenerateRefreshToken()
     {
         var randomBytes = new byte[64];

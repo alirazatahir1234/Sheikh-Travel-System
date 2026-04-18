@@ -7,14 +7,21 @@ using SheikhTravelSystem.Domain.Enums;
 
 namespace SheikhTravelSystem.Application.Features.Reports.Queries;
 
+/// <summary>
+/// Requests booking KPI report for a date range.
+/// </summary>
 public record GetBookingReportQuery(DateTime? FromDate, DateTime? ToDate) : IRequest<ApiResponse<BookingReportDto>>;
 
+/// <summary>
+/// Builds booking KPI aggregates.
+/// </summary>
 public class GetBookingReportQueryHandler(IDbConnectionFactory dbFactory)
     : IRequestHandler<GetBookingReportQuery, ApiResponse<BookingReportDto>>
 {
     public async Task<ApiResponse<BookingReportDto>> Handle(GetBookingReportQuery request, CancellationToken cancellationToken)
     {
         using var connection = dbFactory.CreateConnection();
+        // Default to recent 1-month window when filters are not provided.
         var from = request.FromDate ?? DateTime.UtcNow.AddMonths(-1);
         var to = request.ToDate ?? DateTime.UtcNow;
 
@@ -42,8 +49,14 @@ public class GetBookingReportQueryHandler(IDbConnectionFactory dbFactory)
     }
 }
 
+/// <summary>
+/// Requests revenue/cost summary report for a date range.
+/// </summary>
 public record GetRevenueReportQuery(DateTime? FromDate, DateTime? ToDate) : IRequest<ApiResponse<RevenueReportDto>>;
 
+/// <summary>
+/// Builds revenue and expense aggregates.
+/// </summary>
 public class GetRevenueReportQueryHandler(IDbConnectionFactory dbFactory)
     : IRequestHandler<GetRevenueReportQuery, ApiResponse<RevenueReportDto>>
 {
@@ -76,9 +89,15 @@ public class GetRevenueReportQueryHandler(IDbConnectionFactory dbFactory)
     }
 }
 
+/// <summary>
+/// Requests vehicle-level profitability report for a date range.
+/// </summary>
 public record GetVehicleProfitQuery(DateTime? FromDate, DateTime? ToDate, int? VehicleId)
     : IRequest<ApiResponse<List<VehicleProfitDto>>>;
 
+/// <summary>
+/// Computes profitability grouped by vehicle.
+/// </summary>
 public class GetVehicleProfitQueryHandler(IDbConnectionFactory dbFactory)
     : IRequestHandler<GetVehicleProfitQuery, ApiResponse<List<VehicleProfitDto>>>
 {
@@ -109,9 +128,15 @@ public class GetVehicleProfitQueryHandler(IDbConnectionFactory dbFactory)
     }
 }
 
+/// <summary>
+/// Requests driver performance report for a date range.
+/// </summary>
 public record GetDriverPerformanceQuery(DateTime? FromDate, DateTime? ToDate)
     : IRequest<ApiResponse<List<DriverPerformanceDto>>>;
 
+/// <summary>
+/// Computes trip completion and revenue metrics per driver.
+/// </summary>
 public class GetDriverPerformanceQueryHandler(IDbConnectionFactory dbFactory)
     : IRequestHandler<GetDriverPerformanceQuery, ApiResponse<List<DriverPerformanceDto>>>
 {

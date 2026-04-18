@@ -421,6 +421,12 @@ var bookings = await _connection.QueryAsync(sql);
 
 ### .NET — Consistent response structure
 
+**Controller action style rule (Commands + Queries):**
+
+* Always assign mediator output to `var result` before returning.
+* Use block-bodied actions for readability, logging hooks, and future extension.
+* Avoid expression-bodied controller actions such as `=> Ok(await Mediator.Send(query));`.
+
 ```csharp
 // Standard API response wrapper (generic)
 public sealed class ApiResponse<T>
@@ -486,6 +492,21 @@ public async Task<IActionResult> GetById(int id)
         result,
         traceId: HttpContext.TraceIdentifier
     ));
+}
+
+// Preferred style for all endpoints (including query events)
+[HttpGet]
+public async Task<IActionResult> GetAll([FromQuery] GetFuelLogsQuery query)
+{
+    var result = await Mediator.Send(query);
+    return Ok(result);
+}
+
+[HttpPost]
+public async Task<IActionResult> Create([FromBody] CreateFuelLogCommand command)
+{
+    var result = await Mediator.Send(command);
+    return Created(string.Empty, result);
 }
 ```
 

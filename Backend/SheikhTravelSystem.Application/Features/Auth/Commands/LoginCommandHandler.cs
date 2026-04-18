@@ -8,6 +8,9 @@ using SheikhTravelSystem.Domain.Entities;
 
 namespace SheikhTravelSystem.Application.Features.Auth.Commands;
 
+/// <summary>
+/// Authenticates users and issues access/refresh tokens.
+/// </summary>
 public class LoginCommandHandler(
     IDbConnectionFactory dbFactory,
     IPasswordHasher passwordHasher,
@@ -15,6 +18,9 @@ public class LoginCommandHandler(
     IConfiguration configuration,
     ILogger<LoginCommandHandler> logger) : IRequestHandler<LoginCommand, ApiResponse<LoginResponse>>
 {
+    /// <summary>
+    /// Validates credentials and persists a new refresh token for the user.
+    /// </summary>
     public async Task<ApiResponse<LoginResponse>> Handle(LoginCommand request, CancellationToken cancellationToken)
     {
         using var connection = dbFactory.CreateConnection();

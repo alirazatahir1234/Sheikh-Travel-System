@@ -7,11 +7,17 @@ using SheikhTravelSystem.Domain.Entities;
 
 namespace SheikhTravelSystem.Application.Features.Auth.Commands;
 
+/// <summary>
+/// Rotates refresh tokens and returns a new access token pair.
+/// </summary>
 public class RefreshTokenCommandHandler(
     IDbConnectionFactory dbFactory,
     IJwtTokenService jwtTokenService,
     IConfiguration configuration) : IRequestHandler<RefreshTokenCommand, ApiResponse<LoginResponse>>
 {
+    /// <summary>
+    /// Validates the provided refresh token and issues replacement tokens.
+    /// </summary>
     public async Task<ApiResponse<LoginResponse>> Handle(RefreshTokenCommand request, CancellationToken cancellationToken)
     {
         using var connection = dbFactory.CreateConnection();

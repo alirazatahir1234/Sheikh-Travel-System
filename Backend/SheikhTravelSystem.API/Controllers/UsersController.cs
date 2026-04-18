@@ -6,12 +6,21 @@ using SheikhTravelSystem.Application.Features.Users.Queries;
 namespace SheikhTravelSystem.API.Controllers;
 
 [Authorize(Roles = "Admin")]
+/// <summary>
+/// Manages user administration endpoints.
+/// </summary>
 public class UsersController : BaseApiController
 {
+    /// <summary>
+    /// Gets users using filter and pagination criteria.
+    /// </summary>
     [HttpGet]
     public async Task<IActionResult> GetAll([FromQuery] GetUsersQuery query)
         => Ok(await Mediator.Send(query));
 
+    /// <summary>
+    /// Creates a new user account.
+    /// </summary>
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateUserCommand command)
     {
@@ -19,10 +28,16 @@ public class UsersController : BaseApiController
         return Created(string.Empty, result);
     }
 
+    /// <summary>
+    /// Updates an existing user by identifier.
+    /// </summary>
     [HttpPut("{id}")]
     public async Task<IActionResult> Update(int id, [FromBody] UpdateUserCommand command)
         => Ok(await Mediator.Send(command with { Id = id }));
 
+    /// <summary>
+    /// Deletes a user by identifier.
+    /// </summary>
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(int id)
         => Ok(await Mediator.Send(new DeleteUserCommand(id)));
