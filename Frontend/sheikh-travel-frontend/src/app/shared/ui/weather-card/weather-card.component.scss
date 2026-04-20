@@ -1,0 +1,32 @@
+:host { display: block; }
+
+.w-body {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 0;
+}
+
+.w-temp {
+  display: flex; align-items: flex-start; gap: 4px;
+  color: var(--stb-text);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+
+  .w-value { font-size: 3rem; line-height: 1; }
+  .w-deg   { font-size: 1.1rem; margin-top: 6px; color: var(--stb-text-muted); }
+}
+
+.w-side { text-align: right; }
+
+.w-icon {
+  color: var(--stb-cat-amber);
+  font-size: 42px; width: 42px; height: 42px;
+}
+.w-cond {
+  font-weight: 600;
+  color: var(--stb-text);
+  font-size: .9rem;
+}
+.w-date { font-size: .75rem; }

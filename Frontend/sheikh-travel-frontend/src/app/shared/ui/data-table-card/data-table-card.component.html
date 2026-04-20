@@ -1,0 +1,37 @@
+<stb-info-card [title]="title" [icon]="icon">
+  <ng-container actions>
+    <button mat-button color="primary" (click)="action.emit()">
+      <mat-icon>open_in_new</mat-icon>
+      <span>{{ actionLabel }}</span>
+    </button>
+  </ng-container>
+
+  <div class="stb-dt" *ngIf="rows?.length; else empty">
+    <table>
+      <thead>
+        <tr>
+          <th *ngFor="let c of columns"
+              [style.width]="c.width"
+              [style.textAlign]="c.align || 'left'">
+            {{ c.header }}
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let row of rows" (click)="rowClick.emit(row)">
+          <td *ngFor="let c of columns"
+              [style.textAlign]="c.align || 'left'">
+            {{ valueFor(row, c) }}
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <ng-template #empty>
+    <div class="stb-empty">
+      <mat-icon>folder_open</mat-icon>
+      <span>{{ emptyMessage }}</span>
+    </div>
+  </ng-template>
+</stb-info-card>

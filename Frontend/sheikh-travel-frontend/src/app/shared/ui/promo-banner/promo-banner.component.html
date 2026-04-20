@@ -1,0 +1,13 @@
+<div class="stb-promo" [attr.data-gradient]="gradient">
+  <div class="p-text">
+    <h3>{{ title }}</h3>
+    <p>{{ subtitle }}</p>
+    <button mat-flat-button color="primary" class="p-cta" (click)="cta.emit()">
+      <mat-icon>play_arrow</mat-icon>
+      <span>{{ ctaLabel }}</span>
+    </button>
+  </div>
+  <div class="p-art">
+    <mat-icon>{{ icon }}</mat-icon>
+  </div>
+</div>

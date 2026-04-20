@@ -2,6 +2,7 @@ import { NgModule } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
+
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -22,17 +23,51 @@ import { MatMenuModule } from '@angular/material/menu';
 import { MatBadgeModule } from '@angular/material/badge';
 import { MatListModule } from '@angular/material/list';
 import { MatStepperModule } from '@angular/material/stepper';
+import { MatSidenavModule } from '@angular/material/sidenav';
+import { MatDividerModule } from '@angular/material/divider';
+
+import {
+  InfoCardComponent,
+  GreetingBannerComponent,
+  QuickLaunchGridComponent,
+  StatTileComponent,
+  TaskListCardComponent,
+  DataTableCardComponent,
+  ArticleLinksCardComponent,
+  PrayerTimesCardComponent,
+  WeatherCardComponent,
+  PromoBannerComponent
+} from './ui';
 
 const MATERIAL = [
   MatButtonModule, MatCardModule, MatFormFieldModule, MatInputModule,
   MatTableModule, MatPaginatorModule, MatSortModule, MatIconModule,
   MatDialogModule, MatSnackBarModule, MatSelectModule, MatProgressSpinnerModule,
   MatChipsModule, MatTooltipModule, MatDatepickerModule, MatNativeDateModule,
-  MatMenuModule, MatBadgeModule, MatListModule, MatStepperModule
+  MatMenuModule, MatBadgeModule, MatListModule, MatStepperModule,
+  MatSidenavModule, MatDividerModule,
+];
+
+const UI = [
+  InfoCardComponent,
+  GreetingBannerComponent,
+  QuickLaunchGridComponent,
+  StatTileComponent,
+  TaskListCardComponent,
+  DataTableCardComponent,
+  ArticleLinksCardComponent,
+  PrayerTimesCardComponent,
+  WeatherCardComponent,
+  PromoBannerComponent,
 ];
 
 @NgModule({
+  declarations: [...UI],
   imports: [CommonModule, ReactiveFormsModule, FormsModule, RouterModule, ...MATERIAL],
-  exports: [CommonModule, ReactiveFormsModule, FormsModule, RouterModule, ...MATERIAL]
+  exports: [
+    CommonModule, ReactiveFormsModule, FormsModule, RouterModule,
+    ...MATERIAL,
+    ...UI,
+  ]
 })
 export class SharedModule {}

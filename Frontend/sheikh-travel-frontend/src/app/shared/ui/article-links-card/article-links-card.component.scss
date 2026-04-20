@@ -1,0 +1,33 @@
+:host { display: block; }
+
+.stb-articles {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+
+  li {
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px 4px;
+    border-bottom: 1px dashed var(--stb-border);
+    cursor: pointer;
+    color: var(--stb-text);
+    font-size: .9rem;
+    transition: background .1s ease;
+
+    &:last-child { border-bottom: 0; }
+    &:hover { background: var(--stb-surface-alt); }
+
+    mat-icon:first-child {
+      color: var(--stb-primary);
+      font-size: 18px; width: 18px; height: 18px;
+    }
+    .a-title { flex: 1 1 auto; }
+    .a-chevron { color: var(--stb-text-soft); font-size: 18px; width: 18px; height: 18px; }
+  }
+}
+
+.stb-empty {
+  display: flex; flex-direction: column; align-items: center;
+  padding: 32px 0; color: var(--stb-text-soft); gap: 6px; font-size: .85rem;
+  mat-icon { font-size: 32px; width: 32px; height: 32px; }
+}

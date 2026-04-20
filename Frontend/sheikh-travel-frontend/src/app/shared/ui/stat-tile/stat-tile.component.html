@@ -1,0 +1,13 @@
+<div class="stb-stat">
+  <div class="st-text">
+    <div class="st-label">{{ label }}</div>
+    <div class="st-value">
+      <mat-spinner *ngIf="loading" diameter="18"></mat-spinner>
+      <ng-container *ngIf="!loading">{{ prefix }}{{ value }}{{ suffix }}</ng-container>
+    </div>
+    <div class="st-hint stb-muted" *ngIf="hint">{{ hint }}</div>
+  </div>
+  <div class="st-icon" [ngClass]="'stb-accent-' + color">
+    <mat-icon>{{ icon }}</mat-icon>
+  </div>
+</div>

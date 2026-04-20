@@ -1,0 +1,40 @@
+<stb-info-card [title]="title" [icon]="icon">
+  <ng-container actions *ngIf="filters?.length">
+    <mat-chip-listbox [value]="activeFilter">
+      <mat-chip-option *ngFor="let f of filters"
+                       [value]="f"
+                       (selectionChange)="$event.selected && filterChange.emit(f)">
+        {{ f }}
+      </mat-chip-option>
+    </mat-chip-listbox>
+  </ng-container>
+
+  <ul class="stb-tasks" *ngIf="tasks?.length; else empty">
+    <li *ngFor="let t of tasks; trackBy: trackById"
+        class="task" [class.done]="t.done">
+      <label class="cb">
+        <input type="checkbox" [checked]="!!t.done" (change)="toggle.emit(t)"/>
+        <span class="box"><mat-icon>check</mat-icon></span>
+      </label>
+
+      <div class="task-body">
+        <div class="t-title">{{ t.title }}</div>
+        <div class="t-sub stb-muted" *ngIf="t.subtitle">{{ t.subtitle }}</div>
+      </div>
+
+      <div class="t-meta" *ngIf="t.meta || t.avatarInitials || t.avatarUrl">
+        <img *ngIf="t.avatarUrl; else initials" [src]="t.avatarUrl" alt="" class="avatar" />
+        <ng-template #initials>
+          <span *ngIf="t.avatarInitials" class="avatar">{{ t.avatarInitials }}</span>
+        </ng-template>
+        <span class="meta-text" *ngIf="t.meta">{{ t.meta }}</span>
+      </div>
+    </li>
+  </ul>
+  <ng-template #empty>
+    <div class="stb-empty">
+      <mat-icon>inbox</mat-icon>
+      <span>{{ emptyMessage }}</span>
+    </div>
+  </ng-template>
+</stb-info-card>

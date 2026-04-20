@@ -535,7 +535,7 @@ public class DatabaseSeeder(
             new { Action = "Create", EntityName = "Customer", EntityId = (int?)1, OldValues = (string?)null, NewValues = "{\"FullName\":\"Ahmed Khan\"}",  UserId = "seeder", IpAddress = "127.0.0.1" },
             new { Action = "Create", EntityName = "Vehicle",  EntityId = (int?)1, OldValues = (string?)null, NewValues = "{\"Name\":\"Toyota Hiace\"}",    UserId = "seeder", IpAddress = "127.0.0.1" },
             new { Action = "Create", EntityName = "Booking",  EntityId = (int?)1, OldValues = (string?)null, NewValues = "{\"Status\":2}",                 UserId = "seeder", IpAddress = "127.0.0.1" },
-            new { Action = "Update", EntityName = "Booking",  EntityId = (int?)3, OldValues = "{\"Status\":2}", NewValues = "{\"Status\":4}",              UserId = "seeder", IpAddress = "127.0.0.1" }
+            new { Action = "Update", EntityName = "Booking",  EntityId = (int?)3, OldValues = (string?)"{\"Status\":2}", NewValues = "{\"Status\":4}",      UserId = "seeder", IpAddress = "127.0.0.1" }
         };
 
         await connection.ExecuteAsync(new CommandDefinition(

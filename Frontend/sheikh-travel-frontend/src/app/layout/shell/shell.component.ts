@@ -14,14 +14,14 @@ interface NavItem {
 })
 export class ShellComponent {
   navItems: NavItem[] = [
-    { label: 'Dashboard',     icon: 'dashboard',         route: '/dashboard' },
-    { label: 'Vehicles',      icon: 'directions_bus',    route: '/vehicles' },
-    { label: 'Drivers',       icon: 'person',            route: '/drivers' },
-    { label: 'Routes',        icon: 'route',             route: '/routes' },
-    { label: 'Bookings',      icon: 'book_online',       route: '/bookings' },
-    { label: 'Payments',      icon: 'payments',          route: '/payments' },
-    { label: 'Reports',       icon: 'bar_chart',         route: '/reports' },
-    { label: 'Tracking',      icon: 'location_on',       route: '/tracking' },
+    { label: 'Dashboard', icon: 'dashboard',      route: '/dashboard' },
+    { label: 'Bookings',  icon: 'confirmation_number', route: '/bookings' },
+    { label: 'Vehicles',  icon: 'directions_bus', route: '/vehicles' },
+    { label: 'Drivers',   icon: 'badge',          route: '/drivers' },
+    { label: 'Routes',    icon: 'alt_route',      route: '/routes' },
+    { label: 'Tracking',  icon: 'my_location',    route: '/tracking' },
+    { label: 'Payments',  icon: 'account_balance_wallet', route: '/payments' },
+    { label: 'Reports',   icon: 'insights',       route: '/reports' },
   ];
 
   currentUser$: AuthService['currentUser$'];
@@ -30,11 +30,12 @@ export class ShellComponent {
     this.currentUser$ = auth.currentUser$;
   }
 
-  trackByRoute(_index: number, item: NavItem): string {
-    return item.route;
-  }
+  trackByRoute(_i: number, item: NavItem): string { return item.route; }
 
-  logout(): void {
-    this.auth.logout();
+  logout(): void { this.auth.logout(); }
+
+  initials(fullName?: string | null): string {
+    if (!fullName) return '?';
+    return fullName.split(' ').map(p => p[0]).slice(0, 2).join('').toUpperCase();
   }
 }

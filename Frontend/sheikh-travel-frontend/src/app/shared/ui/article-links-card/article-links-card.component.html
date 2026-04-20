@@ -1,0 +1,16 @@
+<stb-info-card [title]="title" [icon]="icon">
+  <ul class="stb-articles" *ngIf="articles?.length; else empty">
+    <li *ngFor="let a of articles; trackBy: trackById"
+        (click)="open.emit(a)">
+      <mat-icon>{{ a.icon || 'north_east' }}</mat-icon>
+      <span class="a-title">{{ a.title }}</span>
+      <mat-icon class="a-chevron">chevron_right</mat-icon>
+    </li>
+  </ul>
+  <ng-template #empty>
+    <div class="stb-empty">
+      <mat-icon>library_books</mat-icon>
+      <span>{{ emptyMessage }}</span>
+    </div>
+  </ng-template>
+</stb-info-card>
