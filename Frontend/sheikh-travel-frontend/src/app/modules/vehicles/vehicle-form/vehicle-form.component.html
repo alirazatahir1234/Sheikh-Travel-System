@@ -21,6 +21,16 @@
         </mat-form-field>
 
         <mat-form-field appearance="outline">
+          <mat-label>Model</mat-label>
+          <input matInput formControlName="model" placeholder="High Roof">
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Year</mat-label>
+          <input matInput type="number" formControlName="year" placeholder="2022">
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
           <mat-label>Seating Capacity</mat-label>
           <input matInput type="number" formControlName="seatingCapacity" min="1">
           <mat-error *ngIf="form.get('seatingCapacity')?.hasError('required')">Required</mat-error>
@@ -32,6 +42,33 @@
           <input matInput type="number" formControlName="fuelAverage" min="0.1" step="0.1">
           <mat-error *ngIf="form.get('fuelAverage')?.hasError('required')">Required</mat-error>
           <mat-error *ngIf="form.get('fuelAverage')?.hasError('min')">Must be greater than 0</mat-error>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Fuel Type</mat-label>
+          <mat-select formControlName="fuelType">
+            <mat-option *ngFor="let ft of fuelTypes" [value]="ft">{{ fuelTypeLabel(ft) }}</mat-option>
+          </mat-select>
+          <mat-error *ngIf="form.get('fuelType')?.hasError('required')">Required</mat-error>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Current Mileage (km)</mat-label>
+          <input matInput type="number" formControlName="currentMileage" min="0">
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Insurance Expiry</mat-label>
+          <input matInput [matDatepicker]="picker" formControlName="insuranceExpiryDate">
+          <mat-datepicker-toggle matSuffix [for]="picker"></mat-datepicker-toggle>
+          <mat-datepicker #picker></mat-datepicker>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" *ngIf="isEdit">
+          <mat-label>Status</mat-label>
+          <mat-select formControlName="status">
+            <mat-option *ngFor="let s of vehicleStatuses" [value]="s">{{ statusLabel(s) }}</mat-option>
+          </mat-select>
         </mat-form-field>
       </div>
 

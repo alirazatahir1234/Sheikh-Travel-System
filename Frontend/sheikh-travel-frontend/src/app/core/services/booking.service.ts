@@ -1,12 +1,12 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable, map } from 'rxjs';
+import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import {
   Booking, CreateBookingRequest, AssignDriverRequest,
   AssignVehicleRequest, UpdateBookingStatusRequest
 } from '../models/booking.model';
-import { ApiResponse, PagedResult } from '../models/common.model';
+import { PagedResult } from '../models/common.model';
 import { PriceCalculationRequest, PriceBreakdown } from '../models/pricing.model';
 
 @Injectable({ providedIn: 'root' })
@@ -26,19 +26,19 @@ export class BookingService {
   }
 
   create(request: CreateBookingRequest): Observable<Booking> {
-    return this.http.post<ApiResponse<Booking>>(this.base, request).pipe(map(res => res.data));
+    return this.http.post<Booking>(this.base, request);
   }
 
   assignDriver(request: AssignDriverRequest): Observable<boolean> {
-    return this.http.post<ApiResponse<boolean>>(`${this.base}/assign-driver`, request).pipe(map(res => res.data));
+    return this.http.post<boolean>(`${this.base}/assign-driver`, request);
   }
 
   assignVehicle(request: AssignVehicleRequest): Observable<boolean> {
-    return this.http.post<ApiResponse<boolean>>(`${this.base}/assign-vehicle`, request).pipe(map(res => res.data));
+    return this.http.post<boolean>(`${this.base}/assign-vehicle`, request);
   }
 
   updateStatus(request: UpdateBookingStatusRequest): Observable<boolean> {
-    return this.http.patch<ApiResponse<boolean>>(`${this.base}/${request.bookingId}/status`, request).pipe(map(res => res.data));
+    return this.http.patch<boolean>(`${this.base}/${request.bookingId}/status`, request);
   }
 
   calculatePrice(request: PriceCalculationRequest): Observable<PriceBreakdown> {

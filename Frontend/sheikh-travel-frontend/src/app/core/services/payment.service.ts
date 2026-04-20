@@ -1,9 +1,9 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable, map } from 'rxjs';
+import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { Payment, CreatePaymentRequest } from '../models/payment.model';
-import { ApiResponse, PagedResult } from '../models/common.model';
+import { PagedResult } from '../models/common.model';
 
 @Injectable({ providedIn: 'root' })
 export class PaymentService {
@@ -21,6 +21,6 @@ export class PaymentService {
   }
 
   create(request: CreatePaymentRequest): Observable<Payment> {
-    return this.http.post<ApiResponse<Payment>>(this.base, request).pipe(map(res => res.data));
+    return this.http.post<Payment>(this.base, request);
   }
 }

@@ -1,9 +1,9 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable, map } from 'rxjs';
+import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { Driver, CreateDriverRequest, UpdateDriverRequest } from '../models/driver.model';
-import { ApiResponse, PagedResult } from '../models/common.model';
+import { PagedResult } from '../models/common.model';
 
 @Injectable({ providedIn: 'root' })
 export class DriverService {
@@ -21,14 +21,14 @@ export class DriverService {
   }
 
   create(request: CreateDriverRequest): Observable<Driver> {
-    return this.http.post<ApiResponse<Driver>>(this.base, request).pipe(map(res => res.data));
+    return this.http.post<Driver>(this.base, request);
   }
 
   update(request: UpdateDriverRequest): Observable<Driver> {
-    return this.http.put<ApiResponse<Driver>>(`${this.base}/${request.id}`, request).pipe(map(res => res.data));
+    return this.http.put<Driver>(`${this.base}/${request.id}`, request);
   }
 
   delete(id: number): Observable<boolean> {
-    return this.http.delete<ApiResponse<boolean>>(`${this.base}/${id}`).pipe(map(res => res.data));
+    return this.http.delete<boolean>(`${this.base}/${id}`);
   }
 }

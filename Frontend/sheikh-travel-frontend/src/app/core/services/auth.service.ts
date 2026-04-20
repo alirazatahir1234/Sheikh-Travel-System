@@ -1,9 +1,9 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { BehaviorSubject, Observable, tap } from 'rxjs';
+import { BehaviorSubject, Observable, map, tap } from 'rxjs';
 import { Router } from '@angular/router';
 import { environment } from '../../../environments/environment';
-import { LoginRequest, LoginResponse } from '../models/auth.model';
+import { LoginRequest, LoginResponse, LoginResponseDto } from '../models/auth.model';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
@@ -17,20 +17,20 @@ export class AuthService {
   constructor(private http: HttpClient, private router: Router) {}
 
   login(request: LoginRequest): Observable<LoginResponse> {
-    return this.http.post<LoginResponse>(`${environment.apiUrl}/auth/login`, request).pipe(
-      tap(response => {
-        localStorage.setItem(this.tokenKey, response.accessToken);
-        localStorage.setItem(this.refreshKey, response.refreshToken);
-        localStorage.setItem(this.userKey, JSON.stringify(response));
-        this.currentUserSubject.next(response);
-      })
-    );
+    return this.http
+      .post<LoginResponseDto>(`${environment.apiUrl}/auth/login`, request)
+      .pipe(
+        map(dto => this.normalize(dto)),
+        tap(user => this.persistSession(user))
+      );
   }
 
   logout(): void {
     const refreshToken = this.getRefreshToken();
     if (refreshToken) {
-      this.http.post(`${environment.apiUrl}/auth/logout`, { refreshToken }).subscribe();
+      this.http.post(`${environment.apiUrl}/auth/logout`, { refreshToken }).subscribe({
+        error: () => { /* swallow — we still want to clear local state. */ }
+      });
     }
     localStorage.removeItem(this.tokenKey);
     localStorage.removeItem(this.refreshKey);
@@ -40,16 +40,14 @@ export class AuthService {
   }
 
   refreshToken(): Observable<LoginResponse> {
-    return this.http.post<LoginResponse>(`${environment.apiUrl}/auth/refresh`, {
-      refreshToken: this.getRefreshToken()
-    }).pipe(
-      tap(response => {
-        localStorage.setItem(this.tokenKey, response.accessToken);
-        localStorage.setItem(this.refreshKey, response.refreshToken);
-        localStorage.setItem(this.userKey, JSON.stringify(response));
-        this.currentUserSubject.next(response);
+    return this.http
+      .post<LoginResponseDto>(`${environment.apiUrl}/auth/refresh-token`, {
+        refreshToken: this.getRefreshToken()
       })
-    );
+      .pipe(
+        map(dto => this.normalize(dto)),
+        tap(user => this.persistSession(user))
+      );
   }
 
   getToken(): string | null {
@@ -73,8 +71,30 @@ export class AuthService {
     return user?.roles?.includes(role) ?? false;
   }
 
+  /** Backend sends a single `role` string; normalize to `roles[]` for the rest of the app. */
+  private normalize(dto: LoginResponseDto): LoginResponse {
+    if (!dto?.accessToken) {
+      throw new Error('Authentication failed.');
+    }
+    return {
+      accessToken:  dto.accessToken,
+      refreshToken: dto.refreshToken,
+      fullName:     dto.fullName,
+      roles:        dto.role ? [dto.role] : [],
+    };
+  }
+
+  private persistSession(user: LoginResponse): void {
+    localStorage.setItem(this.tokenKey,   user.accessToken);
+    localStorage.setItem(this.refreshKey, user.refreshToken);
+    localStorage.setItem(this.userKey,    JSON.stringify(user));
+    this.currentUserSubject.next(user);
+  }
+
   private getStoredUser(): LoginResponse | null {
     const stored = localStorage.getItem(this.userKey);
-    return stored ? JSON.parse(stored) : null;
+    if (!stored) return null;
+    try { return JSON.parse(stored) as LoginResponse; }
+    catch { return null; }
   }
 }

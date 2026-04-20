@@ -1,64 +1,198 @@
 <div class="page-header">
   <h2>Vehicles</h2>
-  <button mat-raised-button color="primary" routerLink="/vehicles/new">
-    <mat-icon>add</mat-icon> Add Vehicle
-  </button>
+  <div class="page-actions">
+    <button mat-stroked-button
+            [matMenuTriggerFor]="exportMenu"
+            [disabled]="!dataSource.data.length">
+      <mat-icon>download</mat-icon>
+      Export
+      <mat-icon class="chevron">expand_more</mat-icon>
+    </button>
+    <mat-menu #exportMenu="matMenu">
+      <button mat-menu-item (click)="exportExcel()">
+        <mat-icon>description</mat-icon>
+        <span>Export as Excel (.xlsx)</span>
+      </button>
+      <button mat-menu-item (click)="exportPdf()">
+        <mat-icon>picture_as_pdf</mat-icon>
+        <span>Export as PDF</span>
+      </button>
+    </mat-menu>
+
+    <button mat-raised-button color="primary" routerLink="/vehicles/new">
+      <mat-icon>add</mat-icon> Add Vehicle
+    </button>
+  </div>
 </div>
 
-<mat-card>
+<mat-card class="filters-card">
   <mat-card-content>
-    <mat-form-field appearance="outline" class="search-field">
-      <mat-label>Search vehicles...</mat-label>
-      <mat-icon matPrefix>search</mat-icon>
-      <input matInput (keyup)="applyFilter($event)">
-    </mat-form-field>
+    <!-- Smart filters: search + quick selects + range, plus a one-click clear. -->
+    <div class="filter-toolbar">
+      <mat-form-field appearance="outline" class="search-field">
+        <mat-icon matPrefix>search</mat-icon>
+        <mat-label>Search name, registration, model, year…</mat-label>
+        <input matInput [(ngModel)]="filters.search" (ngModelChange)="applyFilters()">
+        <button *ngIf="filters.search" mat-icon-button matSuffix
+                aria-label="Clear search"
+                (click)="filters.search=''; applyFilters()">
+          <mat-icon>close</mat-icon>
+        </button>
+      </mat-form-field>
 
+      <mat-form-field appearance="outline" class="compact">
+        <mat-label>Fuel Type</mat-label>
+        <mat-select [(value)]="filters.fuelType" (selectionChange)="applyFilters()">
+          <mat-option value="ALL">All</mat-option>
+          <mat-option *ngFor="let ft of fuelTypes" [value]="ft">{{ fuelTypeLabel(ft) }}</mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="compact">
+        <mat-label>Insurance</mat-label>
+        <mat-select [(value)]="filters.insurance" (selectionChange)="applyFilters()">
+          <mat-option *ngFor="let opt of insuranceOptions" [value]="opt.value">{{ opt.label }}</mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <div class="range">
+        <span class="range-label">Seats</span>
+        <mat-form-field appearance="outline" class="compact-num">
+          <mat-label>Min</mat-label>
+          <input matInput type="number" min="1"
+                 [(ngModel)]="filters.seatsMin"
+                 (ngModelChange)="applyFilters()">
+        </mat-form-field>
+        <span class="range-dash">–</span>
+        <mat-form-field appearance="outline" class="compact-num">
+          <mat-label>Max</mat-label>
+          <input matInput type="number" min="1"
+                 [(ngModel)]="filters.seatsMax"
+                 (ngModelChange)="applyFilters()">
+        </mat-form-field>
+      </div>
+
+      <button mat-stroked-button
+              class="clear-btn"
+              *ngIf="activeFilterCount > 0"
+              (click)="resetFilters()">
+        <mat-icon>filter_alt_off</mat-icon>
+        Clear
+        <span class="badge">{{ activeFilterCount }}</span>
+      </button>
+    </div>
+
+    <!-- Status quick-filter strip with live counts per bucket. -->
+    <div class="status-strip">
+      <div *ngFor="let chip of statusChips"
+           class="status-pill"
+           [class.active]="filters.status === chip.value"
+           (click)="setStatus(chip.value)">
+        <span class="dot" [class]="chip.value !== 'ALL' ? statusChipClass(chip.value) : 'chip-muted'"></span>
+        <span class="label">{{ chip.label }}</span>
+        <span class="count">{{ chip.count }}</span>
+      </div>
+    </div>
+  </mat-card-content>
+</mat-card>
+
+<mat-card class="table-card">
+  <mat-card-content>
     <div *ngIf="loading" class="loading"><mat-spinner diameter="36"></mat-spinner></div>
     <div *ngIf="error" class="error-message"><mat-icon>error</mat-icon> {{ error }}</div>
 
-    <table mat-table [dataSource]="dataSource" *ngIf="!loading && !error" class="full-width">
-      <ng-container matColumnDef="name">
-        <th mat-header-cell *matHeaderCellDef>Name</th>
-        <td mat-cell *matCellDef="let v">{{ v.name }}</td>
-      </ng-container>
-      <ng-container matColumnDef="registrationNumber">
-        <th mat-header-cell *matHeaderCellDef>Registration</th>
-        <td mat-cell *matCellDef="let v">{{ v.registrationNumber }}</td>
-      </ng-container>
-      <ng-container matColumnDef="seatingCapacity">
-        <th mat-header-cell *matHeaderCellDef>Seats</th>
-        <td mat-cell *matCellDef="let v">{{ v.seatingCapacity }}</td>
-      </ng-container>
-      <ng-container matColumnDef="fuelAverage">
-        <th mat-header-cell *matHeaderCellDef>Fuel Avg (km/L)</th>
-        <td mat-cell *matCellDef="let v">{{ v.fuelAverage }}</td>
-      </ng-container>
-      <ng-container matColumnDef="isActive">
-        <th mat-header-cell *matHeaderCellDef>Status</th>
-        <td mat-cell *matCellDef="let v">
-          <mat-chip [class]="v.isActive ? 'chip-active' : 'chip-inactive'">
-            {{ v.isActive ? 'Active' : 'Inactive' }}
-          </mat-chip>
-        </td>
-      </ng-container>
-      <ng-container matColumnDef="actions">
-        <th mat-header-cell *matHeaderCellDef>Actions</th>
-        <td mat-cell *matCellDef="let v">
-          <button mat-icon-button color="primary" (click)="edit(v.id)" matTooltip="Edit">
-            <mat-icon>edit</mat-icon>
-          </button>
-          <button mat-icon-button (click)="toggleStatus(v.id)" matTooltip="Toggle Status">
-            <mat-icon>{{ v.isActive ? 'toggle_on' : 'toggle_off' }}</mat-icon>
-          </button>
-          <button mat-icon-button color="warn" (click)="delete(v.id)" matTooltip="Delete">
-            <mat-icon>delete</mat-icon>
-          </button>
-        </td>
-      </ng-container>
+    <div class="results-meta" *ngIf="!loading && !error">
+      Showing <strong>{{ dataSource.data.length }}</strong> of {{ allVehicles.length || totalCount }}
+      <span *ngIf="activeFilterCount > 0"> · {{ activeFilterCount }} filter{{ activeFilterCount > 1 ? 's' : '' }} applied</span>
+    </div>
 
-      <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-      <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
-    </table>
+    <div class="empty-state" *ngIf="!loading && !error && dataSource.data.length === 0">
+      <mat-icon>search_off</mat-icon>
+      <p>No vehicles match the current filters.</p>
+      <button mat-stroked-button color="primary" (click)="resetFilters()" *ngIf="activeFilterCount > 0">
+        Clear filters
+      </button>
+    </div>
+
+    <div class="table-scroll" *ngIf="!loading && !error && dataSource.data.length > 0">
+      <table mat-table [dataSource]="dataSource" class="full-width">
+        <ng-container matColumnDef="name">
+          <th mat-header-cell *matHeaderCellDef>Name</th>
+          <td mat-cell *matCellDef="let v">{{ v.name }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="registrationNumber">
+          <th mat-header-cell *matHeaderCellDef>Registration</th>
+          <td mat-cell *matCellDef="let v">{{ v.registrationNumber }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="model">
+          <th mat-header-cell *matHeaderCellDef>Model</th>
+          <td mat-cell *matCellDef="let v">{{ v.model || '—' }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="year">
+          <th mat-header-cell *matHeaderCellDef>Year</th>
+          <td mat-cell *matCellDef="let v">{{ v.year || '—' }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="seatingCapacity">
+          <th mat-header-cell *matHeaderCellDef>Seats</th>
+          <td mat-cell *matCellDef="let v">{{ v.seatingCapacity }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="fuelAverage">
+          <th mat-header-cell *matHeaderCellDef>Fuel Avg (km/L)</th>
+          <td mat-cell *matCellDef="let v">{{ v.fuelAverage }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="fuelType">
+          <th mat-header-cell *matHeaderCellDef>Fuel Type</th>
+          <td mat-cell *matCellDef="let v">{{ fuelTypeLabel(v.fuelType) }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="currentMileage">
+          <th mat-header-cell *matHeaderCellDef class="num">Mileage (km)</th>
+          <td mat-cell *matCellDef="let v" class="num">{{ v.currentMileage | number }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="insuranceExpiryDate">
+          <th mat-header-cell *matHeaderCellDef>Insurance Expiry</th>
+          <td mat-cell *matCellDef="let v">
+            <span [class.expired]="isExpired(v.insuranceExpiryDate)">
+              {{ v.insuranceExpiryDate ? (v.insuranceExpiryDate | date:'mediumDate') : '—' }}
+            </span>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="status">
+          <th mat-header-cell *matHeaderCellDef>Status</th>
+          <td mat-cell *matCellDef="let v">
+            <mat-chip [class]="statusChipClass(v.status)">{{ statusLabel(v.status) }}</mat-chip>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="createdAt">
+          <th mat-header-cell *matHeaderCellDef>Created</th>
+          <td mat-cell *matCellDef="let v">{{ v.createdAt | date:'mediumDate' }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="actions">
+          <th mat-header-cell *matHeaderCellDef class="sticky-right">Actions</th>
+          <td mat-cell *matCellDef="let v" class="sticky-right">
+            <button mat-icon-button color="primary" (click)="edit(v.id)" matTooltip="Edit">
+              <mat-icon>edit</mat-icon>
+            </button>
+            <button mat-icon-button color="warn" (click)="delete(v.id)" matTooltip="Delete">
+              <mat-icon>delete</mat-icon>
+            </button>
+          </td>
+        </ng-container>
+
+        <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+        <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+      </table>
+    </div>
 
     <mat-paginator [length]="totalCount" [pageSizeOptions]="[10,25,50]"
       (page)="load($event.pageIndex + 1, $event.pageSize)">

@@ -3,6 +3,7 @@ import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { environment } from '../../../../environments/environment';
 
 @Component({
   selector: 'app-login',
@@ -13,6 +14,7 @@ export class LoginComponent {
   form: FormGroup;
   loading = false;
   hidePassword = true;
+  readonly year = new Date().getFullYear();
 
   constructor(
     private fb: FormBuilder,
@@ -20,9 +22,14 @@ export class LoginComponent {
     private router: Router,
     private snackBar: MatSnackBar
   ) {
+    // Pre-fill with the dev admin in non-production builds so we don't type it every time.
+    const devDefaults = environment.production
+      ? { email: '', password: '' }
+      : { email: 'admin@sheikhtravel.com', password: 'Admin@123' };
+
     this.form = this.fb.group({
-      email: ['', [Validators.required, Validators.email]],
-      password: ['', Validators.required]
+      email: [devDefaults.email, [Validators.required, Validators.email]],
+      password: [devDefaults.password, Validators.required]
     });
 
     if (this.auth.isLoggedIn()) {
@@ -35,9 +42,10 @@ export class LoginComponent {
     this.loading = true;
     this.auth.login(this.form.value).subscribe({
       next: () => this.router.navigate(['/dashboard']),
-      error: () => {
+      error: err => {
         this.loading = false;
-        this.snackBar.open('Invalid email or password', 'Close', { duration: 3000 });
+        const message = err?.error?.message || err?.message || 'Invalid email or password';
+        this.snackBar.open(message, 'Close', { duration: 4000 });
       }
     });
   }

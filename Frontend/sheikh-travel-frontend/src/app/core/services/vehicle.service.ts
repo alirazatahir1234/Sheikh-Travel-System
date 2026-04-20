@@ -1,9 +1,9 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable, map } from 'rxjs';
+import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { Vehicle, CreateVehicleRequest, UpdateVehicleRequest } from '../models/vehicle.model';
-import { ApiResponse, PagedResult } from '../models/common.model';
+import { PagedResult } from '../models/common.model';
 
 @Injectable({ providedIn: 'root' })
 export class VehicleService {
@@ -21,18 +21,18 @@ export class VehicleService {
   }
 
   create(request: CreateVehicleRequest): Observable<Vehicle> {
-    return this.http.post<ApiResponse<Vehicle>>(this.base, request).pipe(map(res => res.data));
+    return this.http.post<Vehicle>(this.base, request);
   }
 
   update(request: UpdateVehicleRequest): Observable<Vehicle> {
-    return this.http.put<ApiResponse<Vehicle>>(`${this.base}/${request.id}`, request).pipe(map(res => res.data));
+    return this.http.put<Vehicle>(`${this.base}/${request.id}`, request);
   }
 
   delete(id: number): Observable<boolean> {
-    return this.http.delete<ApiResponse<boolean>>(`${this.base}/${id}`).pipe(map(res => res.data));
+    return this.http.delete<boolean>(`${this.base}/${id}`);
   }
 
   toggleStatus(id: number): Observable<boolean> {
-    return this.http.patch<ApiResponse<boolean>>(`${this.base}/${id}/toggle-status`, {}).pipe(map(res => res.data));
+    return this.http.patch<boolean>(`${this.base}/${id}/toggle-status`, {});
   }
 }

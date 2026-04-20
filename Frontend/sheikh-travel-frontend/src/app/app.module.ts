@@ -7,6 +7,7 @@ import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './app.component';
 import { LayoutModule } from './layout/layout.module';
 import { AuthInterceptor } from './core/interceptors/auth.interceptor';
+import { ApiEnvelopeInterceptor } from './core/interceptors/api-envelope.interceptor';
 
 @NgModule({
   declarations: [AppComponent],
@@ -18,7 +19,8 @@ import { AuthInterceptor } from './core/interceptors/auth.interceptor';
     LayoutModule
   ],
   providers: [
-    { provide: HTTP_INTERCEPTORS, useClass: AuthInterceptor, multi: true }
+    { provide: HTTP_INTERCEPTORS, useClass: AuthInterceptor, multi: true },
+    { provide: HTTP_INTERCEPTORS, useClass: ApiEnvelopeInterceptor, multi: true }
   ],
   bootstrap: [AppComponent]
 })
