@@ -63,6 +63,7 @@ Controllers/
  BookingsController.cs
  CustomersController.cs
  DashboardController.cs
+ DevController.cs
  DriversController.cs
  FuelLogsController.cs
  MaintenanceController.cs

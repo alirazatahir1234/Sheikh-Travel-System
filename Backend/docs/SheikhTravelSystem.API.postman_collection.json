@@ -126,6 +126,46 @@
           }
         },
         {
+          "name": "Get Current User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "var json = pm.response.json();",
+                  "if (json && json.data) {",
+                  "    pm.test('Has user fields', function () {",
+                  "        pm.expect(json.data).to.have.property('email');",
+                  "        pm.expect(json.data).to.have.property('fullName');",
+                  "        pm.expect(json.data).to.have.property('role');",
+                  "    });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "me"
+              ]
+            }
+          }
+        },
+        {
           "name": "Logout",
           "request": {
             "method": "POST",

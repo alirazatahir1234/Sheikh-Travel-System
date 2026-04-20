@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using SheikhTravelSystem.Application.Features.Auth.Commands;
+using SheikhTravelSystem.Application.Features.Auth.Queries;
 
 namespace SheikhTravelSystem.API.Controllers;
 
@@ -34,4 +35,12 @@ public class AuthController : BaseApiController
     [Authorize]
     public async Task<IActionResult> Logout()
         => Ok(await Mediator.Send(new LogoutCommand()));
+
+    /// <summary>
+    /// Returns the authenticated user's profile (requires Bearer token).
+    /// </summary>
+    [HttpGet("me")]
+    [Authorize]
+    public async Task<IActionResult> GetCurrentUser()
+        => Ok(await Mediator.Send(new GetCurrentUserQuery()));
 }

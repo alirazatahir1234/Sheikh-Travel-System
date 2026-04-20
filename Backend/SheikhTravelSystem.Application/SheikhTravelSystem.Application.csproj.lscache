@@ -64,6 +64,7 @@ Common/
  Exceptions/CustomExceptions.cs
  Interfaces/
   ICurrentUserService.cs
+  IDatabaseSeeder.cs
   IDbConnectionFactory.cs
   IJwtTokenService.cs
   IPasswordHasher.cs
@@ -76,81 +77,83 @@ Features/Auth/Commands/
  LogoutCommand.cs
  RefreshTokenCommand.cs
  RefreshTokenCommandHandler.cs
-Features/Bookings/Commands/
- AssignDriverCommand.cs
- AssignVehicleCommand.cs
- CreateBookingCommand.cs
- UpdateBookingStatusCommand.cs
-Features/Bookings/
- DTOs/BookingDtos.cs
- Queries/GetBookingsQuery.cs
-Features/Customers/Commands/
- CreateCustomerCommand.cs
- UpdateCustomerCommand.cs
-Features/Customers/
- DTOs/CustomerDtos.cs
- Queries/GetCustomersQuery.cs
-Features/Dashboard/
- DTOs/DashboardDtos.cs
- Queries/GetDashboardSummaryQuery.cs
-Features/Drivers/Commands/
- CreateDriverCommand.cs
- UpdateDriverCommand.cs
-Features/Drivers/
- DTOs/DriverDtos.cs
- Queries/GetDriversQuery.cs
-Features/FuelLogs/
- Commands/CreateFuelLogCommand.cs
- DTOs/FuelLogDtos.cs
- Queries/GetFuelLogsQuery.cs
-Features/Maintenance/
- Commands/CreateMaintenanceCommand.cs
- DTOs/MaintenanceDtos.cs
- Queries/GetMaintenanceQuery.cs
-Features/Notifications/
- Commands/MarkNotificationsReadCommand.cs
- DTOs/NotificationDtos.cs
- Queries/GetNotificationsQuery.cs
-Features/Payments/
- Commands/CreatePaymentCommand.cs
- DTOs/PaymentDtos.cs
- Queries/
-  GetPaymentReportQuery.cs
-  GetPaymentsQuery.cs
-Features/Pricing/
- Commands/CalculatePriceCommand.cs
- DTOs/PricingDtos.cs
-Features/Reports/
- DTOs/ReportDtos.cs
- Queries/ReportQueries.cs
-Features/Routes/Commands/
- CreateRouteCommand.cs
- UpdateRouteCommand.cs
-Features/Routes/
- DTOs/RouteDtos.cs
- Queries/GetRoutesQuery.cs
-Features/Tracking/
- Commands/UpdateLocationCommand.cs
- DTOs/TrackingDtos.cs
- Queries/GetTrackingQuery.cs
-Features/Users/Commands/
- CreateUserCommand.cs
- DeleteUserCommand.cs
- ResetUserPasswordCommand.cs
- UpdateUserCommand.cs
- UpdateUserStatusCommand.cs
-Features/Users/
- DTOs/UserDtos.cs
- Queries/GetUsersQuery.cs
-Features/Vehicles/Commands/
- CreateVehicleCommand.cs
- DeleteVehicleCommand.cs
- UpdateVehicleCommand.cs
-Features/Vehicles/
- DTOs/VehicleDtos.cs
- Queries/
-  GetVehicleByIdQuery.cs
-  GetVehiclesQuery.cs
+Features/
+ Auth/Queries/GetCurrentUserQuery.cs
+ Bookings/Commands/
+  AssignDriverCommand.cs
+  AssignVehicleCommand.cs
+  CreateBookingCommand.cs
+  UpdateBookingStatusCommand.cs
+ Bookings/
+  DTOs/BookingDtos.cs
+  Queries/GetBookingsQuery.cs
+ Customers/Commands/
+  CreateCustomerCommand.cs
+  UpdateCustomerCommand.cs
+ Customers/
+  DTOs/CustomerDtos.cs
+  Queries/GetCustomersQuery.cs
+ Dashboard/
+  DTOs/DashboardDtos.cs
+  Queries/GetDashboardSummaryQuery.cs
+ Drivers/Commands/
+  CreateDriverCommand.cs
+  UpdateDriverCommand.cs
+ Drivers/
+  DTOs/DriverDtos.cs
+  Queries/GetDriversQuery.cs
+ FuelLogs/
+  Commands/CreateFuelLogCommand.cs
+  DTOs/FuelLogDtos.cs
+  Queries/GetFuelLogsQuery.cs
+ Maintenance/
+  Commands/CreateMaintenanceCommand.cs
+  DTOs/MaintenanceDtos.cs
+  Queries/GetMaintenanceQuery.cs
+ Notifications/
+  Commands/MarkNotificationsReadCommand.cs
+  DTOs/NotificationDtos.cs
+  Queries/GetNotificationsQuery.cs
+ Payments/
+  Commands/CreatePaymentCommand.cs
+  DTOs/PaymentDtos.cs
+  Queries/
+   GetPaymentReportQuery.cs
+   GetPaymentsQuery.cs
+ Pricing/
+  Commands/CalculatePriceCommand.cs
+  DTOs/PricingDtos.cs
+ Reports/
+  DTOs/ReportDtos.cs
+  Queries/ReportQueries.cs
+ Routes/Commands/
+  CreateRouteCommand.cs
+  UpdateRouteCommand.cs
+ Routes/
+  DTOs/RouteDtos.cs
+  Queries/GetRoutesQuery.cs
+ Tracking/
+  Commands/UpdateLocationCommand.cs
+  DTOs/TrackingDtos.cs
+  Queries/GetTrackingQuery.cs
+ Users/Commands/
+  CreateUserCommand.cs
+  DeleteUserCommand.cs
+  ResetUserPasswordCommand.cs
+  UpdateUserCommand.cs
+  UpdateUserStatusCommand.cs
+ Users/
+  DTOs/UserDtos.cs
+  Queries/GetUsersQuery.cs
+ Vehicles/Commands/
+  CreateVehicleCommand.cs
+  DeleteVehicleCommand.cs
+  UpdateVehicleCommand.cs
+ Vehicles/
+  DTOs/VehicleDtos.cs
+  Queries/
+   GetVehicleByIdQuery.cs
+   GetVehiclesQuery.cs
 obj/Debug/net10.0/
  .NETCoreApp,Version=v10.0.AssemblyAttributes.cs
  SheikhTravelSystem.Application.AssemblyInfo.cs

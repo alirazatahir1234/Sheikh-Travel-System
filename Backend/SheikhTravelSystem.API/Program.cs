@@ -7,6 +7,7 @@ using Microsoft.OpenApi.Models;
 using Serilog;
 using SheikhTravelSystem.API.Middleware;
 using SheikhTravelSystem.Application;
+using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Infrastructure;
 using SheikhTravelSystem.Infrastructure.SignalR;
 
@@ -92,6 +93,21 @@ builder.Services.AddSwaggerGen(c =>
 });
 
 var app = builder.Build();
+
+// Seed baseline data on startup (idempotent — only fills empty tables).
+using (var scope = app.Services.CreateScope())
+{
+    try
+    {
+        var seeder = scope.ServiceProvider.GetRequiredService<IDatabaseSeeder>();
+        await seeder.SeedAsync();
+    }
+    catch (Exception ex)
+    {
+        var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+        logger.LogError(ex, "Database seeding failed at startup.");
+    }
+}
 
 // Middleware pipeline
 app.UseMiddleware<GlobalExceptionMiddleware>();

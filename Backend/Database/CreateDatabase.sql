@@ -245,13 +245,14 @@ CREATE TABLE AuditLogs (
 
 -- =============================================
 -- Seed Admin User (password: Admin@123)
--- Generate a real hash using BCrypt before production use
+-- Login uses Email (no separate Username column). FullName is the display name.
+-- PasswordHash: BCrypt work factor 12, matches BcryptPasswordHasher in the API
 -- =============================================
 INSERT INTO Users (FullName, Email, PasswordHash, Phone, Role, IsActive)
 VALUES (
     'System Admin',
     'admin@sheikhtravel.com',
-    '$2a$12$LJ3m4ys3uz0n6gMGKxNLKe8h8K5Zx5x5x5x5x5x5x5x5x5x5x5x',
+    '$2a$12$rEQCd6VbrekNPFaxT5f8pO5lZ78BlfKdcFrkhYN1sltX2Tk4iHCX2',
     '03001234567',
     1,
     1
