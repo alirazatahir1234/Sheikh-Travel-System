@@ -125,6 +125,40 @@ public async Task<IActionResult> Create([FromBody] CreateBookingCommand command)
 }
 ```
 
+**Example — .NET: Outbound REST calls must use Refit, not raw `HttpClient`**
+
+```csharp
+// BAD — raw HttpClient inside a handler: untyped, no retry, leaks transport concerns
+public class ChargeCardHandler : IRequestHandler<ChargeCardCommand, ChargeResult>
+{
+    private readonly HttpClient _http;
+    public ChargeCardHandler(HttpClient http) => _http = http;
+
+    public async Task<ChargeResult> Handle(ChargeCardCommand cmd, CancellationToken ct)
+    {
+        var res = await _http.PostAsJsonAsync("/v1/charges", cmd, ct);
+        res.EnsureSuccessStatusCode();
+        return (await res.Content.ReadFromJsonAsync<ChargeResult>(cancellationToken: ct))!;
+    }
+}
+
+// GOOD — Refit interface describes the contract; handler stays focused on behavior
+public interface IPaymentGatewayApi
+{
+    [Post("/v1/charges")]
+    Task<ChargeResult> ChargeAsync([Body] ChargeCardCommand cmd, CancellationToken ct);
+}
+
+public class ChargeCardHandler : IRequestHandler<ChargeCardCommand, ChargeResult>
+{
+    private readonly IPaymentGatewayApi _payments;
+    public ChargeCardHandler(IPaymentGatewayApi payments) => _payments = payments;
+
+    public Task<ChargeResult> Handle(ChargeCardCommand cmd, CancellationToken ct)
+        => _payments.ChargeAsync(cmd, ct);
+}
+```
+
 **Example — Angular: HTTP and business logic must live in services, not components**
 
 ```typescript
@@ -478,6 +512,51 @@ public class CreateBookingHandlerTests
 }
 ```
 
+**Example — .NET: Mocking a Refit external client**
+
+Refit interfaces mock like any other interface — no `HttpMessageHandler` plumbing, no test servers.
+
+```csharp
+public class ChargeCardHandlerTests
+{
+    private readonly Mock<IPaymentGatewayApi> _payments = new();
+    private readonly ChargeCardHandler _handler;
+
+    public ChargeCardHandlerTests() => _handler = new ChargeCardHandler(_payments.Object);
+
+    [Fact]
+    public async Task Handle_ForwardsCommandToGateway_AndReturnsResult()
+    {
+        var cmd = new ChargeCardCommand { BookingId = 42, Amount = 1500m };
+        var expected = new ChargeResult { Id = "ch_123", Status = "succeeded" };
+
+        _payments
+            .Setup(p => p.ChargeAsync(cmd, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(expected);
+
+        var result = await _handler.Handle(cmd, CancellationToken.None);
+
+        Assert.Equal("ch_123", result.Id);
+        _payments.Verify(p => p.ChargeAsync(cmd, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task Handle_GatewayRejects_ThrowsBusinessRuleException()
+    {
+        _payments
+            .Setup(p => p.ChargeAsync(It.IsAny<ChargeCardCommand>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(await ApiException.Create(
+                new HttpRequestMessage(HttpMethod.Post, "/v1/charges"),
+                HttpMethod.Post,
+                new HttpResponseMessage(HttpStatusCode.UnprocessableEntity),
+                new RefitSettings()));
+
+        await Assert.ThrowsAsync<BusinessRuleException>(() =>
+            _handler.Handle(new ChargeCardCommand { Amount = 1 }, CancellationToken.None));
+    }
+}
+```
+
 **Example — Angular: Jasmine test for a service**
 
 ```typescript
@@ -551,6 +630,7 @@ Use when the change can break functionality, architecture, security, or data int
 * "This SQL uses string concatenation — must use parameterized queries with Dapper."
 * "Business logic in the controller — move to the CQRS handler."
 * "This endpoint has no `[Authorize]` attribute — anyone can access it."
+* "Raw `HttpClient` used for an outbound REST call — define a Refit interface instead."
 * "The Angular component calls `HttpClient` directly — use a service."
 
 ### Should-fix
@@ -583,6 +663,7 @@ Before approving, confirm:
 * No hardcoded secrets or API keys
 * No SQL injection risk (all Dapper queries parameterized)
 * No broken dependency between layers (controller → handler → repository)
+* Outbound REST calls go through a Refit interface (not raw `HttpClient` / `IHttpClientFactory`) with timeouts and retry policy registered
 * Tests are added or updated (xUnit for .NET, Jasmine/Karma for Angular)
 * Naming is consistent (`PascalCase` for .NET, `camelCase` for Angular/TypeScript)
 * Code follows project standards (Clean Architecture, standalone components, typed models)

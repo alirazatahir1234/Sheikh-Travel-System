@@ -32,6 +32,99 @@
 * Do not block async flows (`.Result`, `.Wait()`); use `await` end-to-end.
 * Distinguish transient vs permanent errors and return appropriate status codes.
 
+### External HTTP calls (.NET) — use Refit
+
+For any outbound REST API call (payment gateway, SMS/email provider, mapping/geocoding service, partner APIs, etc.) declare a **typed Refit interface** and let Refit generate the client. Raw `HttpClient` / `IHttpClientFactory` should not appear inside handlers or services.
+
+**Why Refit over raw `HttpClient`:**
+
+* The wire contract lives in an interface — callers are strongly typed end-to-end.
+* Request building (routes, query strings, headers, body, auth) is declarative.
+* Responses deserialize automatically; errors surface as `ApiException` with the response body intact.
+* Trivial to mock in tests — just implement the interface, no `HttpMessageHandler` gymnastics.
+* Integrates cleanly with `IHttpClientFactory`, Polly (timeouts/retries/circuit-breaker), and DI.
+
+```csharp
+// 1. Declare the external API as an interface (Infrastructure layer)
+public interface ISmsGatewayApi
+{
+    [Post("/v1/messages")]
+    Task<SendSmsResponse> SendAsync([Body] SendSmsRequest request, CancellationToken ct);
+
+    [Get("/v1/messages/{id}")]
+    Task<SmsStatusResponse> GetStatusAsync(string id, CancellationToken ct);
+}
+
+public sealed record SendSmsRequest(string To, string Body);
+public sealed record SendSmsResponse(string Id, string Status);
+public sealed record SmsStatusResponse(string Id, string Status, DateTime SentAt);
+
+// 2. Register once in Program.cs / DependencyInjection.cs
+builder.Services
+    .AddRefitClient<ISmsGatewayApi>()
+    .ConfigureHttpClient((sp, c) =>
+    {
+        var opts = sp.GetRequiredService<IOptions<SmsGatewayOptions>>().Value;
+        c.BaseAddress = new Uri(opts.BaseUrl);
+        c.DefaultRequestHeaders.Add("Authorization", $"Bearer {opts.ApiKey}");
+        c.Timeout = TimeSpan.FromSeconds(10);
+    })
+    .AddTransientHttpErrorPolicy(p =>
+        p.WaitAndRetryAsync(3, attempt => TimeSpan.FromMilliseconds(200 * Math.Pow(2, attempt))));
+
+// 3. Inject the interface — NOT HttpClient — into your handler
+public sealed class NotifyBookingConfirmedHandler(ISmsGatewayApi sms, ILogger<NotifyBookingConfirmedHandler> logger)
+    : INotificationHandler<BookingConfirmedEvent>
+{
+    public async Task Handle(BookingConfirmedEvent notification, CancellationToken ct)
+    {
+        try
+        {
+            var res = await sms.SendAsync(
+                new SendSmsRequest(notification.PhoneNumber, $"Your booking #{notification.BookingId} is confirmed."),
+                ct);
+
+            logger.LogInformation("SMS {SmsId} queued for booking {BookingId}", res.Id, notification.BookingId);
+        }
+        catch (ApiException ex) when (ex.StatusCode is HttpStatusCode.BadRequest or HttpStatusCode.UnprocessableEntity)
+        {
+            logger.LogWarning(ex, "SMS gateway rejected payload for booking {BookingId}", notification.BookingId);
+            throw new BusinessRuleException("Unable to send booking SMS.");
+        }
+    }
+}
+```
+
+**Bad:**
+
+```csharp
+// BAD — raw HttpClient, string-concatenated URL, manual JSON, swallowed failure mode
+public class NotifyBookingConfirmedHandler
+{
+    private readonly HttpClient _http;
+    public NotifyBookingConfirmedHandler(HttpClient http) => _http = http;
+
+    public async Task SendAsync(string phone, string message)
+    {
+        var payload = new StringContent($"{{\"to\":\"{phone}\",\"body\":\"{message}\"}}", Encoding.UTF8, "application/json");
+        var res = await _http.PostAsync("/v1/messages", payload); // ❌ no CancellationToken, no typed result, no retry
+        res.EnsureSuccessStatusCode();                             // ❌ loses response body on failure
+    }
+}
+```
+
+**Rules:**
+
+* Every external REST dependency gets its own Refit interface in `Infrastructure/ExternalClients/` (or a dedicated integration project).
+* Register with `AddRefitClient<T>()` + `ConfigureHttpClient` for base URL, auth, and timeout.
+* Attach Polly policies for retries, circuit-breakers, and timeouts — do not hand-roll them.
+* Put secrets in configuration/secret store; bind with strongly typed options (`IOptions<T>`).
+* Always accept and forward `CancellationToken` in the interface signatures.
+* Handle `Refit.ApiException` explicitly for known non-success paths; let truly unexpected errors bubble to the global handler.
+* Mock in tests by implementing the interface (or using `Moq.Mock<ISmsGatewayApi>`) — never spin up `HttpMessageHandler` mocks.
+
+> Scope note — this guidance is for **.NET outbound HTTP calls**. The Angular frontend continues to use Angular's `HttpClient` through typed services + interceptors (see the "Typed API service pattern" section below); Refit does not exist in the Angular/TypeScript ecosystem.
+
 ### Performance and scalability
 
 * Measure first (profiling/metrics), optimize second.
