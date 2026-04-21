@@ -23,6 +23,19 @@ export interface DashboardStats {
   completedBookings: number;
 }
 
+/**
+ * Mirrors SheikhTravelSystem.Application.Features.Dashboard.DTOs.DashboardSummaryDto.
+ * This is the *real* shape returned by GET /api/dashboard/summary.
+ */
+export interface DashboardSummary {
+  totalVehicles: number;
+  activeTrips: number;
+  totalRevenue: number;
+  pendingBookings: number;
+  fuelExpense: number;
+  netProfit: number;
+}
+
 export interface RevenueReport {
   period: string;
   totalRevenue: number;

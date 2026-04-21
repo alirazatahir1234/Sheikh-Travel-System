@@ -1,0 +1,13 @@
+<stb-info-card [title]="info.city + ' Weather'" icon="wb_sunny">
+  <div class="w-body">
+    <div class="w-temp">
+      <span class="w-value">{{ info.temperatureC }}</span>
+      <span class="w-deg">°C</span>
+    </div>
+    <div class="w-side">
+      <mat-icon class="w-icon">{{ iconName }}</mat-icon>
+      <div class="w-cond">{{ info.condition }}</div>
+      <div class="w-date stb-muted" *ngIf="info.dateLabel">{{ info.dateLabel }}</div>
+    </div>
+  </div>
+</stb-info-card>

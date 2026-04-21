@@ -1,0 +1,21 @@
+<article class="stb-info-card"
+         [class.is-ghost]="ghost"
+         [class.p-compact]="padding === 'compact'"
+         [class.p-none]="padding === 'none'">
+  <header class="ic-head" *ngIf="title || icon">
+    <div class="ic-title">
+      <mat-icon *ngIf="icon" class="ic-icon">{{ icon }}</mat-icon>
+      <div class="ic-titles">
+        <h3 *ngIf="title">{{ title }}</h3>
+        <p *ngIf="subtitle" class="stb-muted">{{ subtitle }}</p>
+      </div>
+    </div>
+    <div class="ic-actions">
+      <ng-content select="[actions]"></ng-content>
+    </div>
+  </header>
+
+  <div class="ic-body">
+    <ng-content></ng-content>
+  </div>
+</article>

@@ -36,6 +36,20 @@ public class UsersController : BaseApiController
         => Ok(await Mediator.Send(command with { Id = id }));
 
     /// <summary>
+    /// Activates or deactivates a user account.
+    /// </summary>
+    [HttpPut("{id}/status")]
+    public async Task<IActionResult> UpdateStatus(int id, [FromBody] UpdateUserStatusCommand command)
+        => Ok(await Mediator.Send(command with { Id = id }));
+
+    /// <summary>
+    /// Resets a user's password and returns a temporary password.
+    /// </summary>
+    [HttpPost("{id}/reset-password")]
+    public async Task<IActionResult> ResetPassword(int id)
+        => Ok(await Mediator.Send(new ResetUserPasswordCommand(id)));
+
+    /// <summary>
     /// Deletes a user by identifier.
     /// </summary>
     [HttpDelete("{id}")]

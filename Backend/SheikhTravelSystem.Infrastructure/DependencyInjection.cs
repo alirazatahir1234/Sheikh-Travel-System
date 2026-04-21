@@ -14,6 +14,7 @@ public static class DependencyInjection
         services.AddSingleton<IPasswordHasher, BcryptPasswordHasher>();
         services.AddSingleton<IJwtTokenService, JwtTokenService>();
         services.AddScoped<ICurrentUserService, CurrentUserService>();
+        services.AddScoped<IDatabaseSeeder, DatabaseSeeder>();
         services.AddHttpContextAccessor();
         services.AddSignalR();
 

@@ -1,35 +1,72 @@
-<mat-sidenav-container class="app-container">
-  <mat-sidenav mode="side" opened class="sidenav">
-    <div class="brand">
-      <mat-icon>flight_takeoff</mat-icon>
-      <span>Sheikh Travel</span>
+<div class="stb-shell">
+  <!-- Rail sidebar -->
+  <aside class="stb-rail">
+    <div class="stb-brand" routerLink="/dashboard" matTooltip="Sheikh Travel" matTooltipPosition="right">
+      <div class="logo-circle"><mat-icon>flight_takeoff</mat-icon></div>
     </div>
-    <mat-nav-list>
-      <a mat-list-item *ngFor="let item of navItems; trackBy: trackByRoute" [routerLink]="item.route" routerLinkActive="active">
-        <mat-icon matListItemIcon>{{ item.icon }}</mat-icon>
-        <span matListItemTitle>{{ item.label }}</span>
-      </a>
-    </mat-nav-list>
-  </mat-sidenav>
 
-  <mat-sidenav-content>
-    <mat-toolbar color="primary" class="toolbar">
-      <span class="spacer"></span>
-      <ng-container *ngIf="currentUser$ | async as user">
-        <span class="user-name">{{ user.fullName }}</span>
-        <button mat-icon-button [matMenuTriggerFor]="userMenu">
-          <mat-icon>account_circle</mat-icon>
-        </button>
-        <mat-menu #userMenu="matMenu">
-          <button mat-menu-item (click)="logout()">
-            <mat-icon>logout</mat-icon>
-            <span>Logout</span>
-          </button>
-        </mat-menu>
-      </ng-container>
-    </mat-toolbar>
-    <div class="content">
-      <router-outlet></router-outlet>
+    <nav class="stb-rail-nav">
+      <a *ngFor="let item of navItems; trackBy: trackByRoute"
+         [routerLink]="item.route"
+         routerLinkActive="active"
+         [matTooltip]="item.label"
+         matTooltipPosition="right"
+         class="stb-rail-link">
+        <mat-icon>{{ item.icon }}</mat-icon>
+      </a>
+    </nav>
+
+    <div class="stb-rail-foot">
+      <a class="stb-rail-link" matTooltip="Settings" matTooltipPosition="right">
+        <mat-icon>settings</mat-icon>
+      </a>
+      <a class="stb-rail-link" matTooltip="Logout" matTooltipPosition="right" (click)="logout()">
+        <mat-icon>logout</mat-icon>
+      </a>
     </div>
-  </mat-sidenav-content>
-</mat-sidenav-container>
+  </aside>
+
+  <!-- Main area -->
+  <section class="stb-main">
+    <header class="stb-topbar">
+      <div class="stb-search">
+        <mat-icon>search</mat-icon>
+        <input type="text" placeholder="Search bookings, vehicles, drivers…" />
+      </div>
+
+      <div class="stb-topbar-actions">
+        <button mat-icon-button class="stb-icon-btn" matTooltip="Help">
+          <mat-icon>help_outline</mat-icon>
+        </button>
+        <button mat-icon-button class="stb-icon-btn" matTooltip="Notifications"
+                [matBadge]="3" matBadgeColor="warn" matBadgeSize="small">
+          <mat-icon>notifications_none</mat-icon>
+        </button>
+
+        <ng-container *ngIf="currentUser$ | async as user; else guestBtn">
+          <button mat-button [matMenuTriggerFor]="userMenu" class="stb-user-chip">
+            <div class="avatar">{{ initials(user.fullName) }}</div>
+            <div class="user-meta">
+              <div class="name">{{ user.fullName }}</div>
+              <div class="role">{{ (user.roles && user.roles[0]) || 'Member' }}</div>
+            </div>
+            <mat-icon>expand_more</mat-icon>
+          </button>
+          <mat-menu #userMenu="matMenu" xPosition="before">
+            <button mat-menu-item><mat-icon>account_circle</mat-icon><span>Profile</span></button>
+            <button mat-menu-item><mat-icon>settings</mat-icon><span>Settings</span></button>
+            <mat-divider></mat-divider>
+            <button mat-menu-item (click)="logout()"><mat-icon>logout</mat-icon><span>Logout</span></button>
+          </mat-menu>
+        </ng-container>
+        <ng-template #guestBtn>
+          <a mat-stroked-button routerLink="/auth/login">Sign in</a>
+        </ng-template>
+      </div>
+    </header>
+
+    <main class="stb-content">
+      <router-outlet></router-outlet>
+    </main>
+  </section>
+</div>

@@ -1,0 +1,20 @@
+<stb-info-card [title]="title" icon="mosque">
+  <ng-container actions>
+    <span class="pt-city"><mat-icon>location_on</mat-icon>{{ city }}</span>
+  </ng-container>
+
+  <div class="pt-top">
+    <div class="pt-upcoming">
+      <div class="stb-muted">Upcoming</div>
+      <div class="pt-name">{{ upcomingName }}</div>
+    </div>
+    <div class="pt-time">{{ upcomingTime }}</div>
+  </div>
+
+  <ul class="pt-list" *ngIf="!compact && times?.length">
+    <li *ngFor="let p of times">
+      <span>{{ p.name }}</span>
+      <span class="stb-muted">{{ p.time }}</span>
+    </li>
+  </ul>
+</stb-info-card>

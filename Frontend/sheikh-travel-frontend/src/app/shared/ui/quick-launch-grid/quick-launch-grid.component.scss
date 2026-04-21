@@ -1,0 +1,52 @@
+:host { display: block; }
+
+.stb-quicklaunch {
+  background: var(--stb-surface);
+  border-radius: var(--stb-radius);
+  box-shadow: var(--stb-shadow);
+  padding: 18px 22px;
+}
+
+.ql-row {
+  display: flex;
+  gap: 22px;
+  flex-wrap: wrap;
+}
+
+.ql-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-width: 64px;
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+  transition: transform .15s ease;
+
+  &:hover { transform: translateY(-2px); }
+}
+
+.ql-bubble {
+  width: 44px; height: 44px;
+  border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 6px 16px rgba(15, 23, 42, .08);
+
+  mat-icon { font-size: 22px; width: 22px; height: 22px; color: #fff; }
+
+  /* Make sure .is-solid overrides the tinted background when both classes apply. */
+  &.is-solid.stb-accent-blue   { background: var(--stb-cat-blue) !important; }
+  &.is-solid.stb-accent-green  { background: var(--stb-cat-green) !important; }
+  &.is-solid.stb-accent-teal   { background: var(--stb-cat-teal) !important; }
+  &.is-solid.stb-accent-purple { background: var(--stb-cat-purple) !important; }
+  &.is-solid.stb-accent-orange { background: var(--stb-cat-orange) !important; }
+  &.is-solid.stb-accent-rose   { background: var(--stb-cat-rose) !important; }
+  &.is-solid.stb-accent-amber  { background: var(--stb-cat-amber) !important; }
+  &.is-solid.stb-accent-sky    { background: var(--stb-cat-sky) !important; }
+}
+
+.ql-label {
+  font-size: .72rem;
+  color: var(--stb-text-muted);
+}

@@ -1,0 +1,18 @@
+<div class="stb-greeting">
+  <h1 class="g-title">
+    Good {{ timeOfDay }},
+    <span class="g-name">{{ userName }}!</span>
+  </h1>
+  <p class="g-sub" *ngIf="notificationsCount > 0; else noNotif">
+    <mat-icon>notifications_active</mat-icon>
+    You have new
+    <a class="g-link">{{ notificationsCount }} {{ subject }}</a>
+    received today.
+  </p>
+  <ng-template #noNotif>
+    <p class="g-sub">
+      <mat-icon>check_circle</mat-icon>
+      You're all caught up — no new {{ subject }} today.
+    </p>
+  </ng-template>
+</div>

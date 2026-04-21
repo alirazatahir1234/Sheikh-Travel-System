@@ -1,0 +1,17 @@
+<div class="stb-quicklaunch">
+  <h4 class="stb-section-title" *ngIf="title">{{ title }}</h4>
+  <div class="ql-row">
+    <a *ngFor="let app of apps; trackBy: trackById"
+       class="ql-tile"
+       [routerLink]="app.route || null"
+       (click)="launch.emit(app)"
+       [matTooltip]="app.label"
+       matTooltipPosition="below">
+      <span class="ql-bubble is-solid"
+            [ngClass]="'stb-accent-' + app.color">
+        <mat-icon>{{ app.icon }}</mat-icon>
+      </span>
+      <span class="ql-label">{{ app.label }}</span>
+    </a>
+  </div>
+</div>

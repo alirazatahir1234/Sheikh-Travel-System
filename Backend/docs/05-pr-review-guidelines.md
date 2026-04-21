@@ -85,6 +85,48 @@ public async Task<IActionResult> Create([FromBody] CreateBookingCommand command)
 }
 ```
 
+**Example — .NET: Flag raw `HttpClient` usage for external REST calls**
+
+```csharp
+// REVIEW FLAG — outbound REST call should be declared as a Refit interface,
+// not assembled with HttpClient inside the handler
+public class SendReceiptHandler : IRequestHandler<SendReceiptCommand>
+{
+    private readonly HttpClient _http; // ❌ raw transport leaked into handler
+
+    public async Task Handle(SendReceiptCommand cmd, CancellationToken ct)
+    {
+        var res = await _http.PostAsJsonAsync("/v1/email", cmd, ct); // ❌ no retry, no typed error
+        res.EnsureSuccessStatusCode();
+    }
+}
+
+// CORRECT — declare the contract once, inject the interface
+public interface IEmailGatewayApi
+{
+    [Post("/v1/email")]
+    Task SendAsync([Body] SendReceiptCommand cmd, CancellationToken ct);
+}
+
+public class SendReceiptHandler : IRequestHandler<SendReceiptCommand>
+{
+    private readonly IEmailGatewayApi _email; // ✅ typed, mockable, resilience configured at registration
+
+    public Task Handle(SendReceiptCommand cmd, CancellationToken ct) => _email.SendAsync(cmd, ct);
+}
+
+// Registration (Program.cs / Infrastructure DI)
+builder.Services
+    .AddRefitClient<IEmailGatewayApi>()
+    .ConfigureHttpClient((sp, c) =>
+    {
+        var o = sp.GetRequiredService<IOptions<EmailGatewayOptions>>().Value;
+        c.BaseAddress = new Uri(o.BaseUrl);
+        c.Timeout = TimeSpan.FromSeconds(10);
+    })
+    .AddTransientHttpErrorPolicy(p => p.WaitAndRetryAsync(3, a => TimeSpan.FromMilliseconds(200 * a)));
+```
+
 **Example — Angular: Flag direct HTTP calls in components**
 
 ```typescript
@@ -237,6 +279,8 @@ Use when:
 * tests are missing for critical business rules
 * `any` type is used instead of proper interfaces in Angular
 * component calls `HttpClient` directly instead of using a service
+* a .NET handler or service calls an external REST API with raw `HttpClient` / `IHttpClientFactory` instead of a Refit interface
+* the Refit client is registered without a timeout, retry policy, or strongly typed options for its base URL and credentials
 
 ### Comment only
 

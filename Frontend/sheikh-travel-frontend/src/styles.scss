@@ -1,8 +1,91 @@
 @import '@angular/material/prebuilt-themes/indigo-pink.css';
 @import 'leaflet/dist/leaflet.css';
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+/* ======================================================================
+   Sheikh Travel – Design Tokens
+   ====================================================================== */
+:root {
+  /* Brand */
+  --stb-primary:        #1B7F75;
+  --stb-primary-600:    #177066;
+  --stb-primary-50:     #E8F4F2;
+  --stb-accent:         #4C6EF5;
+
+  /* Surfaces */
+  --stb-bg:             #EDF0F2;
+  --stb-surface:        #FFFFFF;
+  --stb-surface-alt:    #F6F8FA;
+  --stb-border:         #E5E9EF;
+  --stb-border-strong:  #D5DBE3;
+
+  /* Text */
+  --stb-text:           #0F172A;
+  --stb-text-muted:     #64748B;
+  --stb-text-soft:      #94A3B8;
+
+  /* Status */
+  --stb-success:        #10B981;
+  --stb-warning:        #F59E0B;
+  --stb-danger:         #EF4444;
+  --stb-info:           #3B82F6;
+
+  /* Category palette (for chips / quick-launch tiles) */
+  --stb-cat-blue:       #4C6EF5;
+  --stb-cat-green:      #10B981;
+  --stb-cat-teal:       #14B8A6;
+  --stb-cat-purple:     #8B5CF6;
+  --stb-cat-orange:     #F97316;
+  --stb-cat-rose:       #F43F5E;
+  --stb-cat-amber:      #F59E0B;
+  --stb-cat-sky:        #0EA5E9;
+
+  /* Radii + shadows */
+  --stb-radius-sm:      10px;
+  --stb-radius:         16px;
+  --stb-radius-lg:      20px;
+  --stb-shadow-sm:      0 1px 2px rgba(15, 23, 42, 0.04);
+  --stb-shadow:         0 2px 8px rgba(15, 23, 42, 0.06);
+  --stb-shadow-lg:      0 10px 30px rgba(15, 23, 42, 0.08);
+
+  /* Layout */
+  --stb-sidenav-w:      240px;
+  --stb-sidenav-rail-w: 72px;
+  --stb-topbar-h:       68px;
+}
 
 * { box-sizing: border-box; }
-body { margin: 0; font-family: Roboto, sans-serif; background: #f5f5f5; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: var(--stb-bg);
+  font-family: 'Inter', Roboto, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  color: var(--stb-text);
+  -webkit-font-smoothing: antialiased;
+}
+
+a { color: inherit; }
+
+/* ---------- Generic helpers reused across modules ---------- */
+.stb-card {
+  background: var(--stb-surface);
+  border-radius: var(--stb-radius);
+  box-shadow: var(--stb-shadow);
+  padding: 20px;
+}
+
+.stb-muted   { color: var(--stb-text-muted); }
+.stb-soft    { color: var(--stb-text-soft); }
+.stb-bold    { font-weight: 700; }
+
+.stb-section-title {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0 0 12px;
+  color: var(--stb-text);
+}
 
 .error-message {
   display: flex;
@@ -12,9 +95,53 @@ body { margin: 0; font-family: Roboto, sans-serif; background: #f5f5f5; }
   margin: 8px 0;
   color: #c62828;
   background: #ffebee;
-  border-radius: 4px;
+  border-radius: var(--stb-radius-sm);
   font-size: 14px;
 
   mat-icon { font-size: 20px; width: 20px; height: 20px; }
 }
 
+/* ---------- Accent palette helpers (used by shared UI widgets) ---------- */
+.stb-accent-blue   { color: var(--stb-cat-blue);   background: rgba(76, 110, 245, .12); }
+.stb-accent-green  { color: var(--stb-cat-green);  background: rgba(16, 185, 129, .12); }
+.stb-accent-teal   { color: var(--stb-cat-teal);   background: rgba(20, 184, 166, .12); }
+.stb-accent-purple { color: var(--stb-cat-purple); background: rgba(139, 92, 246, .12); }
+.stb-accent-orange { color: var(--stb-cat-orange); background: rgba(249, 115, 22, .12); }
+.stb-accent-rose   { color: var(--stb-cat-rose);   background: rgba(244, 63, 94,  .12); }
+.stb-accent-amber  { color: var(--stb-cat-amber);  background: rgba(245, 158, 11, .14); }
+.stb-accent-sky    { color: var(--stb-cat-sky);    background: rgba(14, 165, 233, .12); }
+
+.stb-accent-blue.is-solid,
+.stb-accent-green.is-solid,
+.stb-accent-teal.is-solid,
+.stb-accent-purple.is-solid,
+.stb-accent-orange.is-solid,
+.stb-accent-rose.is-solid,
+.stb-accent-amber.is-solid,
+.stb-accent-sky.is-solid { color: #fff; }
+.stb-accent-blue.is-solid   { background: var(--stb-cat-blue); }
+.stb-accent-green.is-solid  { background: var(--stb-cat-green); }
+.stb-accent-teal.is-solid   { background: var(--stb-cat-teal); }
+.stb-accent-purple.is-solid { background: var(--stb-cat-purple); }
+.stb-accent-orange.is-solid { background: var(--stb-cat-orange); }
+.stb-accent-rose.is-solid   { background: var(--stb-cat-rose); }
+.stb-accent-amber.is-solid  { background: var(--stb-cat-amber); }
+.stb-accent-sky.is-solid    { background: var(--stb-cat-sky); }
+
+/* ---------- Material density tweaks to match design ---------- */
+.mat-mdc-card {
+  border-radius: var(--stb-radius) !important;
+  box-shadow: var(--stb-shadow) !important;
+  background: var(--stb-surface) !important;
+}
+
+.mat-toolbar.mat-primary {
+  background: var(--stb-surface);
+  color: var(--stb-text);
+}
+
+/* Material list item active helper (used by shell) */
+.mat-mdc-list-item.active .mdc-list-item__content,
+.mat-mdc-list-item.active {
+  color: var(--stb-primary) !important;
+}

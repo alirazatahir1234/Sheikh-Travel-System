@@ -1,0 +1,44 @@
+:host { display: block; }
+
+.pt-city {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: .8rem; color: var(--stb-text-muted);
+  mat-icon { font-size: 16px; width: 16px; height: 16px; }
+}
+
+.pt-top {
+  background: linear-gradient(135deg, #E8F4F2 0%, #DDF3EE 100%);
+  border-radius: var(--stb-radius-sm);
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.pt-upcoming .pt-name {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--stb-primary);
+}
+
+.pt-time {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: var(--stb-primary);
+  letter-spacing: -0.01em;
+}
+
+.pt-list {
+  list-style: none;
+  padding: 0;
+  margin: 14px 0 0;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px 16px;
+
+  li {
+    display: flex; justify-content: space-between;
+    font-size: .82rem;
+    padding: 4px 0;
+  }
+}

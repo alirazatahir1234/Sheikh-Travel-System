@@ -1,31 +1,99 @@
-<div class="page-header">
-  <h2>Dashboard</h2>
-  <p>Welcome back! Here's your system overview.</p>
-</div>
+<div class="dash">
 
-<div class="stats-grid" *ngIf="!loading; else spinner">
+  <!-- Greeting + notifications -->
+  <stb-greeting-banner
+    [userName]="userName"
+    [notificationsCount]="3"
+    subject="notifications">
+  </stb-greeting-banner>
+
   <div *ngIf="error" class="error-message">
     <mat-icon>warning</mat-icon> {{ error }}
   </div>
-  <mat-card *ngFor="let card of statCards; trackBy: trackByKey" class="stat-card" [style.border-left-color]="card.color">
-    <mat-card-content>
-      <div class="stat-row">
-        <div>
-          <p class="stat-label">{{ card.label }}</p>
-          <p class="stat-value">
-            {{ card.prefix || '' }}{{ getValue(card.key) | number }}
-          </p>
-        </div>
-        <div class="stat-icon" [style.background]="card.color + '20'">
-          <mat-icon [style.color]="card.color">{{ card.icon }}</mat-icon>
-        </div>
-      </div>
-    </mat-card-content>
-  </mat-card>
-</div>
 
-<ng-template #spinner>
-  <div class="loading">
-    <mat-spinner diameter="40"></mat-spinner>
+  <!-- Row 1: Quick launch (full width) -->
+  <stb-quick-launch-grid
+    class="cell cell-quick"
+    title="Recent used apps"
+    [apps]="quickApps">
+  </stb-quick-launch-grid>
+
+  <!-- Row 2: KPI tiles -->
+  <div class="stats-row">
+    <stb-stat-tile *ngFor="let s of stats"
+      [label]="s.label"
+      [value]="s.value"
+      [hint]="s.hint"
+      [icon]="s.icon"
+      [color]="s.color"
+      [loading]="loading">
+    </stb-stat-tile>
   </div>
-</ng-template>
+
+  <!-- Row 3: Two task list cards + weather -->
+  <div class="row-3">
+    <stb-task-list-card
+      class="c-todo"
+      title="To do"
+      icon="task_alt"
+      [tasks]="todoTasks"
+      (toggle)="onTaskToggle($event)"
+      emptyMessage="No bookings waiting for your review.">
+    </stb-task-list-card>
+
+    <stb-task-list-card
+      class="c-assigned"
+      title="Assignments"
+      icon="assignment_ind"
+      [tasks]="assignedTasks"
+      [filters]="assignedFilters"
+      [activeFilter]="assignedFilter"
+      (filterChange)="onAssignedFilter($event)"
+      (toggle)="onTaskToggle($event)"
+      emptyMessage="No trips are currently assigned.">
+    </stb-task-list-card>
+
+    <stb-weather-card class="c-weather" [info]="weather"></stb-weather-card>
+  </div>
+
+  <!-- Row 4: Recent bookings + prayer times -->
+  <div class="row-4">
+    <stb-data-table-card
+      class="c-recent"
+      title="Recent bookings"
+      icon="confirmation_number"
+      actionLabel="View all"
+      [columns]="recentColumns"
+      [rows]="recentBookings"
+      emptyMessage="No recent bookings.">
+    </stb-data-table-card>
+
+    <stb-prayer-times-card
+      class="c-prayer"
+      upcomingName="Dhuhr"
+      upcomingTime="12:21 PM"
+      city="Sharjah"
+      [times]="prayerTimes">
+    </stb-prayer-times-card>
+  </div>
+
+  <!-- Row 5: Articles + Promo banner -->
+  <div class="row-5">
+    <stb-article-links-card
+      class="c-articles"
+      title="Popular articles"
+      [articles]="articles"
+      (open)="onArticleOpen($event)">
+    </stb-article-links-card>
+
+    <stb-promo-banner
+      class="c-promo"
+      gradient="teal"
+      icon="directions_bus"
+      title="Smart fleet scheduling"
+      subtitle="Get more out of the Sheikh Travel platform. Explore the guided booking wizard and automate driver assignments."
+      ctaLabel="Take a tour"
+      (cta)="onPromoCta()">
+    </stb-promo-banner>
+  </div>
+</div>

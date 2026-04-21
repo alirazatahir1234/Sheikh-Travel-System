@@ -2,14 +2,15 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { DashboardStats, RevenueReport, BookingReport } from '../models/common.model';
+import { DashboardSummary, RevenueReport, BookingReport } from '../models/common.model';
 
 @Injectable({ providedIn: 'root' })
 export class DashboardService {
   constructor(private http: HttpClient) {}
 
-  getStats(): Observable<DashboardStats> {
-    return this.http.get<DashboardStats>(`${environment.apiUrl}/dashboard/stats`);
+  /** GET /api/dashboard/summary (envelope is unwrapped by ApiEnvelopeInterceptor). */
+  getSummary(): Observable<DashboardSummary> {
+    return this.http.get<DashboardSummary>(`${environment.apiUrl}/dashboard/summary`);
   }
 
   getRevenueReport(from: string, to: string): Observable<RevenueReport[]> {

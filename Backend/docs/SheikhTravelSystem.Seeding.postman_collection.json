@@ -1,0 +1,152 @@
+{
+  "info": {
+    "_postman_id": "seed-collection-001",
+    "name": "SheikhTravelSystem — Seeding",
+    "description": "Seed or reset the development database. Run Login first to get accessToken if needed, then call Seed or Reseed.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5082"
+    },
+    {
+      "key": "accessToken",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "1 — Login (get token)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "var json = pm.response.json();",
+              "if (json.data && json.data.accessToken) {",
+              "    pm.collectionVariables.set('accessToken', json.data.accessToken);",
+              "    console.log('accessToken saved:', json.data.accessToken);",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"admin@sheikhtravel.com\",\n  \"password\": \"Admin@123\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/login",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "auth", "login"]
+        },
+        "description": "Authenticates as admin and saves the accessToken into collection variable automatically."
+      }
+    },
+    {
+      "name": "2 — Seed (populate empty tables)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/dev/seed",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "dev", "seed"]
+        },
+        "description": "Runs the idempotent seeder. Only inserts into tables that are empty — safe to call multiple times."
+      }
+    },
+    {
+      "name": "3 — Reseed (wipe + reseed)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/dev/reseed",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "dev", "reseed"]
+        },
+        "description": "DESTRUCTIVE: deletes all seeded rows and reseeds from scratch. Resets identity counters to 1."
+      }
+    },
+    {
+      "name": "— Verify: List Customers",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/customers",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "customers"]
+        }
+      }
+    },
+    {
+      "name": "— Verify: List Vehicles",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/vehicles",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "vehicles"]
+        }
+      }
+    },
+    {
+      "name": "— Verify: List Drivers",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/drivers",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "drivers"]
+        }
+      }
+    },
+    {
+      "name": "— Verify: List Routes",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/routes",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "routes"]
+        }
+      }
+    },
+    {
+      "name": "— Verify: List Bookings",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/bookings",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "bookings"]
+        }
+      }
+    }
+  ]
+}

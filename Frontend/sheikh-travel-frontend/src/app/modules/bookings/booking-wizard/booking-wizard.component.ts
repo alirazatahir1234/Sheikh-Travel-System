@@ -8,7 +8,7 @@ import { RouteService } from '../../../core/services/route.service';
 import { VehicleService } from '../../../core/services/vehicle.service';
 import { DriverService } from '../../../core/services/driver.service';
 import { Route } from '../../../core/models/route.model';
-import { Vehicle } from '../../../core/models/vehicle.model';
+import { Vehicle, VehicleStatus } from '../../../core/models/vehicle.model';
 import { Driver } from '../../../core/models/driver.model';
 import { PriceBreakdown } from '../../../core/models/pricing.model';
 import { Booking } from '../../../core/models/booking.model';
@@ -67,8 +67,8 @@ export class BookingWizardComponent implements OnInit {
     }).subscribe({
       next: ({ routes, vehicles, drivers }) => {
         this.routes = routes.items;
-        this.vehicles = vehicles.items.filter(v => v.isActive);
-        this.drivers = drivers.items.filter(d => d.isActive);
+        this.vehicles = vehicles.items.filter(v => v.status !== VehicleStatus.Retired);
+        this.drivers = drivers.items.filter(d => d.isActive !== false);
         this.loadingData = false;
       },
       error: () => {
