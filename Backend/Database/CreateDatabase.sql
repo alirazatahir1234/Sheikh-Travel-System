@@ -94,9 +94,11 @@ CREATE TABLE Drivers (
 -- =============================================
 CREATE TABLE Routes (
     Id INT IDENTITY(1,1) PRIMARY KEY,
+    Name NVARCHAR(200) NULL,
     Source NVARCHAR(200) NOT NULL,
     Destination NVARCHAR(200) NOT NULL,
     Distance DECIMAL(10,2) NOT NULL DEFAULT 0,
+    EstimatedMinutes INT NULL,
     BasePrice DECIMAL(18,2) NOT NULL DEFAULT 0,
     IsActive BIT NOT NULL DEFAULT 1,
     CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),

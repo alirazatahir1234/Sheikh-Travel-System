@@ -19,6 +19,13 @@ public class RoutesController : BaseApiController
         => Ok(await Mediator.Send(query));
 
     /// <summary>
+    /// Gets a single route by identifier.
+    /// </summary>
+    [HttpGet("{id}")]
+    public async Task<IActionResult> GetById(int id)
+        => Ok(await Mediator.Send(new GetRouteByIdQuery(id)));
+
+    /// <summary>
     /// Creates a new route.
     /// </summary>
     [HttpPost]
@@ -34,4 +41,11 @@ public class RoutesController : BaseApiController
     [HttpPut("{id}")]
     public async Task<IActionResult> Update(int id, [FromBody] UpdateRouteCommand command)
         => Ok(await Mediator.Send(command with { Id = id }));
+
+    /// <summary>
+    /// Soft-deletes a route by identifier.
+    /// </summary>
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> Delete(int id)
+        => Ok(await Mediator.Send(new DeleteRouteCommand(id)));
 }

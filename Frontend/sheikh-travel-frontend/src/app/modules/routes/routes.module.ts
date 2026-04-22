@@ -1,5 +1,6 @@
 import { NgModule } from '@angular/core';
 import { RouterModule, Routes } from '@angular/router';
+import { GoogleMapsModule } from '@angular/google-maps';
 import { SharedModule } from '../../shared/shared.module';
 import { RouteListComponent } from './route-list/route-list.component';
 import { RouteFormComponent } from './route-form/route-form.component';
@@ -12,6 +13,6 @@ const routes: Routes = [
 
 @NgModule({
   declarations: [RouteListComponent, RouteFormComponent],
-  imports: [SharedModule, RouterModule.forChild(routes)]
+  imports: [SharedModule, GoogleMapsModule, RouterModule.forChild(routes)]
 })
 export class RoutesModule {}

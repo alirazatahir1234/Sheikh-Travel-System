@@ -5,39 +5,109 @@
 
 <mat-card class="form-card">
   <mat-card-content>
+    <div class="maps-banner" *ngIf="!mapsConfigured">
+      <mat-icon>info</mat-icon>
+      <span>
+        Google Maps is not configured. Add your API key to
+        <code>src/environments/environment.ts</code> (<code>googleMapsApiKey</code>) to enable
+        place search and auto-calculated distance/duration. You can still enter values manually.
+      </span>
+    </div>
+    <div class="maps-banner error" *ngIf="mapsError">
+      <mat-icon>error_outline</mat-icon>
+      <span>{{ mapsError }}</span>
+    </div>
+
     <form [formGroup]="form" (ngSubmit)="submit()">
       <div class="form-grid">
         <mat-form-field appearance="outline" class="span-2">
           <mat-label>Route Name</mat-label>
-          <input matInput formControlName="name" placeholder="Karachi - Lahore Express">
-          <mat-error *ngIf="form.get('name')?.hasError('required')">Required</mat-error>
+          <input matInput formControlName="name" placeholder="Karachi - Lahore Express" maxlength="200">
         </mat-form-field>
 
         <mat-form-field appearance="outline">
           <mat-label>Origin</mat-label>
-          <input matInput formControlName="origin" placeholder="Karachi">
           <mat-icon matPrefix>location_on</mat-icon>
-          <mat-error *ngIf="form.get('origin')?.hasError('required')">Required</mat-error>
+          <input #originInput
+                 matInput
+                 formControlName="source"
+                 placeholder="Start typing a city or address"
+                 autocomplete="off"
+                 (blur)="scheduleRecompute()">
+          <mat-error *ngIf="form.get('source')?.hasError('required')">Required</mat-error>
         </mat-form-field>
 
         <mat-form-field appearance="outline">
           <mat-label>Destination</mat-label>
-          <input matInput formControlName="destination" placeholder="Lahore">
           <mat-icon matPrefix>flag</mat-icon>
+          <input #destinationInput
+                 matInput
+                 formControlName="destination"
+                 placeholder="Start typing a city or address"
+                 autocomplete="off"
+                 (blur)="scheduleRecompute()">
           <mat-error *ngIf="form.get('destination')?.hasError('required')">Required</mat-error>
         </mat-form-field>
 
         <mat-form-field appearance="outline">
           <mat-label>Distance (km)</mat-label>
-          <input matInput type="number" formControlName="distanceKm" min="0.1" step="0.1">
-          <mat-error *ngIf="form.get('distanceKm')?.hasError('required')">Required</mat-error>
+          <input matInput type="number" formControlName="distance" min="0.1" step="0.1">
+          <mat-hint *ngIf="computedDistanceText">From Google Maps: {{ computedDistanceText }}</mat-hint>
+          <mat-error *ngIf="form.get('distance')?.hasError('required')">Required</mat-error>
         </mat-form-field>
 
         <mat-form-field appearance="outline">
           <mat-label>Estimated Duration (minutes)</mat-label>
           <input matInput type="number" formControlName="estimatedMinutes" min="1">
-          <mat-error *ngIf="form.get('estimatedMinutes')?.hasError('required')">Required</mat-error>
+          <mat-hint *ngIf="computedDurationText">From Google Maps: {{ computedDurationText }}</mat-hint>
         </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Base Price (PKR)</mat-label>
+          <input matInput type="number" formControlName="basePrice" min="0" step="50">
+          <mat-icon matPrefix>payments</mat-icon>
+          <mat-hint *ngIf="computedBasePriceText">{{ computedBasePriceText }}. You can override.</mat-hint>
+          <mat-hint *ngIf="!computedBasePriceText && mapsReady">Will be auto-calculated once a route is computed.</mat-hint>
+          <mat-error *ngIf="form.get('basePrice')?.hasError('required')">Required</mat-error>
+        </mat-form-field>
+
+        <div class="active-toggle" *ngIf="isEdit">
+          <mat-slide-toggle formControlName="isActive" color="primary">Active</mat-slide-toggle>
+        </div>
+      </div>
+
+      <div class="map-wrapper" *ngIf="mapsConfigured">
+        <div class="map-header">
+          <span class="title">Route preview</span>
+          <span class="status" *ngIf="calculating">
+            <mat-spinner diameter="16"></mat-spinner> Calculating...
+          </span>
+          <span class="status success" *ngIf="!calculating && computedDistanceText && computedDurationText">
+            <mat-icon>check_circle</mat-icon>
+            {{ computedDistanceText }} · {{ computedDurationText }}
+          </span>
+        </div>
+
+        <div class="map-canvas" *ngIf="mapsReady; else mapLoading">
+          <google-map
+            height="340px"
+            width="100%"
+            [center]="mapCenter"
+            [zoom]="mapZoom"
+            [options]="mapOptions">
+            <map-directions-renderer
+              *ngIf="directionsResult"
+              [directions]="directionsResult"
+              [options]="rendererOptions">
+            </map-directions-renderer>
+          </google-map>
+        </div>
+        <ng-template #mapLoading>
+          <div class="map-placeholder">
+            <mat-spinner diameter="24"></mat-spinner>
+            <span>Loading map...</span>
+          </div>
+        </ng-template>
       </div>
 
       <div class="actions">

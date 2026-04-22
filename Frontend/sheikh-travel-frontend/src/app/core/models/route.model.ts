@@ -1,21 +1,33 @@
 export interface Route {
   id: number;
-  name: string;
-  origin: string;
+  name?: string | null;
+  source: string;
   destination: string;
-  distanceKm: number;
-  estimatedMinutes: number;
+  distance: number;
+  estimatedMinutes?: number | null;
+  basePrice: number;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface CreateRouteDto {
+  name?: string | null;
+  source: string;
+  destination: string;
+  distance: number;
+  estimatedMinutes?: number | null;
+  basePrice: number;
+}
+
+export interface UpdateRouteDto extends CreateRouteDto {
   isActive: boolean;
 }
 
 export interface CreateRouteRequest {
-  name: string;
-  origin: string;
-  destination: string;
-  distanceKm: number;
-  estimatedMinutes: number;
+  route: CreateRouteDto;
 }
 
-export interface UpdateRouteRequest extends CreateRouteRequest {
+export interface UpdateRouteRequest {
   id: number;
+  route: UpdateRouteDto;
 }

@@ -1,5 +1,135 @@
-.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; h2 { margin: 0; } }
-.form-card { max-width: 700px; }
-.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; }
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  h2 { margin: 0; }
+}
+
+.form-card { max-width: 880px; }
+
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 16px;
+}
+
 .span-2 { grid-column: span 2; }
-.actions { display: flex; gap: 12px; justify-content: flex-end; margin-top: 16px; }
+
+.active-toggle {
+  display: flex;
+  align-items: center;
+  padding: 8px 4px 24px;
+}
+
+.actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
+.maps-banner {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 10px 14px;
+  margin-bottom: 18px;
+  border-radius: 8px;
+  background: #f1f5f9;
+  color: #334155;
+  font-size: 13px;
+  line-height: 1.4;
+
+  code {
+    background: rgba(15, 23, 42, 0.08);
+    padding: 0 4px;
+    border-radius: 3px;
+    font-size: 12px;
+  }
+
+  mat-icon {
+    flex-shrink: 0;
+    color: #0284c7;
+  }
+
+  &.error {
+    background: #fef2f2;
+    color: #991b1b;
+    mat-icon { color: #dc2626; }
+  }
+}
+
+.map-wrapper {
+  margin: 8px 0 24px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #f8fafc;
+}
+
+.map-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #ffffff;
+
+  .title {
+    font-weight: 600;
+    font-size: 13px;
+    color: #334155;
+  }
+
+  .status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: #64748b;
+
+    &.success {
+      color: #1B7F75;
+      font-weight: 500;
+    }
+
+    mat-icon {
+      font-size: 16px;
+      width: 16px;
+      height: 16px;
+    }
+  }
+}
+
+.map-canvas {
+  width: 100%;
+  height: 340px;
+
+  &.hidden { display: none; }
+}
+
+.map-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  height: 340px;
+  color: #64748b;
+  font-size: 13px;
+}
+
+/* Google Places dropdown needs to float above Material dialogs/overlays. */
+::ng-deep .pac-container {
+  z-index: 10000 !important;
+  font-family: Inter, Roboto, sans-serif;
+  border-radius: 8px;
+  margin-top: 4px;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.12);
+}
+
+@media (max-width: 720px) {
+  .form-grid { grid-template-columns: 1fr; }
+  .span-2 { grid-column: span 1; }
+  .map-canvas, .map-placeholder { height: 260px; }
+}

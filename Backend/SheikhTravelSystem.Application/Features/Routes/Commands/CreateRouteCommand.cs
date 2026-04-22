@@ -13,9 +13,13 @@ public class CreateRouteCommandValidator : AbstractValidator<CreateRouteCommand>
 {
     public CreateRouteCommandValidator()
     {
+        RuleFor(x => x.Route.Name).MaximumLength(200);
         RuleFor(x => x.Route.Source).NotEmpty().MaximumLength(200);
         RuleFor(x => x.Route.Destination).NotEmpty().MaximumLength(200);
         RuleFor(x => x.Route.Distance).GreaterThan(0);
+        RuleFor(x => x.Route.EstimatedMinutes)
+            .GreaterThan(0)
+            .When(x => x.Route.EstimatedMinutes.HasValue);
         RuleFor(x => x.Route.BasePrice).GreaterThanOrEqualTo(0);
     }
 }
@@ -30,10 +34,15 @@ public class CreateRouteCommandHandler(IDbConnectionFactory dbFactory)
 
         var id = await connection.ExecuteScalarAsync<int>(
             new CommandDefinition(
-                @"INSERT INTO Routes (Source, Destination, Distance, BasePrice, IsActive, CreatedAt, IsDeleted)
-                  VALUES (@Source, @Destination, @Distance, @BasePrice, 1, @CreatedAt, 0);
+                @"INSERT INTO Routes (Name, Source, Destination, Distance, EstimatedMinutes, BasePrice, IsActive, CreatedAt, IsDeleted)
+                  VALUES (@Name, @Source, @Destination, @Distance, @EstimatedMinutes, @BasePrice, 1, @CreatedAt, 0);
                   SELECT SCOPE_IDENTITY();",
-                new { dto.Source, dto.Destination, dto.Distance, dto.BasePrice, CreatedAt = DateTime.UtcNow },
+                new
+                {
+                    dto.Name, dto.Source, dto.Destination, dto.Distance,
+                    dto.EstimatedMinutes, dto.BasePrice,
+                    CreatedAt = DateTime.UtcNow
+                },
                 cancellationToken: cancellationToken));
 
         return ApiResponse<int>.SuccessResponse(id, "Route created successfully.");

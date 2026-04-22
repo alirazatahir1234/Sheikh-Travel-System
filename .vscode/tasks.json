@@ -18,36 +18,77 @@
       }
     },
     {
-        "label": "build",
-        "command": "dotnet",
-        "type": "process",
-        "args": [
-            "build",
-            "/property:GenerateFullPaths=true",
-            "/consoleloggerparameters:NoSummary;ForceNoAlign"
-        ],
-        "problemMatcher": "$msCompile"
+      "label": "build",
+      "command": "dotnet",
+      "type": "process",
+      "args": [
+        "build",
+        "/property:GenerateFullPaths=true",
+        "/consoleloggerparameters:NoSummary;ForceNoAlign"
+      ],
+      "problemMatcher": "$msCompile"
     },
     {
-        "label": "publish",
-        "command": "dotnet",
-        "type": "process",
-        "args": [
-            "publish",
-            "/property:GenerateFullPaths=true",
-            "/consoleloggerparameters:NoSummary;ForceNoAlign"
-        ],
-        "problemMatcher": "$msCompile"
+      "label": "publish",
+      "command": "dotnet",
+      "type": "process",
+      "args": [
+        "publish",
+        "/property:GenerateFullPaths=true",
+        "/consoleloggerparameters:NoSummary;ForceNoAlign"
+      ],
+      "problemMatcher": "$msCompile"
     },
     {
-        "label": "watch",
-        "command": "dotnet",
-        "type": "process",
-        "args": [
-            "watch",
-            "run"
-        ],
-        "problemMatcher": "$msCompile"
+      "label": "watch",
+      "command": "dotnet",
+      "type": "process",
+      "args": [
+        "watch",
+        "run"
+      ],
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "Run API (http 5082) — build + run",
+      "type": "shell",
+      "command": "dotnet run --project \"${workspaceFolder}/Backend/SheikhTravelSystem.API/SheikhTravelSystem.API.csproj\" --launch-profile http",
+      "problemMatcher": "$msCompile",
+      "group": "none",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "focus": true
+      }
+    },
+    {
+      "label": "Run Angular (http 4200)",
+      "type": "shell",
+      "command": "npm start",
+      "options": {
+        "cwd": "${workspaceFolder}/Frontend/sheikh-travel-frontend"
+      },
+      "isBackground": true,
+      "problemMatcher": {
+        "owner": "angular",
+        "pattern": { "regexp": "^$" },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": ".",
+          "endsPattern": "Application bundle generation complete|bundle generation complete"
+        }
+      },
+      "group": "none",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    },
+    {
+      "label": "API: free port 5082 (stops any process on 5082, macOS/Linux)",
+      "type": "shell",
+      "command": "kill -9 $(lsof -ti :5082) 2>/dev/null && echo 'Stopped process listening on 5082.' || echo 'Port 5082 was already free.'",
+      "group": "none"
     }
   ]
 }

@@ -5,7 +5,11 @@
 
 <mat-card class="form-card">
   <mat-card-content>
-    <form [formGroup]="form" (ngSubmit)="submit()">
+    <div class="panel-loading" *ngIf="loadingDriver">
+      <mat-spinner diameter="40"></mat-spinner>
+      <span>Loading driver…</span>
+    </div>
+    <form [formGroup]="form" (ngSubmit)="submit()" [class.dimmed]="loadingDriver && isEdit">
       <div class="form-grid">
         <mat-form-field appearance="outline">
           <mat-label>Full Name</mat-label>
@@ -42,6 +46,17 @@
           <mat-label>Address (optional)</mat-label>
           <textarea matInput formControlName="address" rows="2"></textarea>
         </mat-form-field>
+
+        <mat-form-field appearance="outline" *ngIf="isEdit">
+          <mat-label>Status</mat-label>
+          <mat-select formControlName="status">
+            <mat-option *ngFor="let s of statuses" [value]="s">{{ statusLabel(s) }}</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <div class="active-toggle" *ngIf="isEdit">
+          <mat-slide-toggle formControlName="isActive" color="primary">Active</mat-slide-toggle>
+        </div>
       </div>
 
       <div class="actions">

@@ -20,12 +20,12 @@ export class RouteService {
     return this.http.get<Route>(`${this.base}/${id}`);
   }
 
-  create(request: CreateRouteRequest): Observable<Route> {
-    return this.http.post<Route>(this.base, request);
+  create(request: CreateRouteRequest): Observable<number> {
+    return this.http.post<number>(this.base, request);
   }
 
-  update(request: UpdateRouteRequest): Observable<Route> {
-    return this.http.put<Route>(`${this.base}/${request.id}`, request);
+  update(request: UpdateRouteRequest): Observable<boolean> {
+    return this.http.put<boolean>(`${this.base}/${request.id}`, request);
   }
 
   delete(id: number): Observable<boolean> {

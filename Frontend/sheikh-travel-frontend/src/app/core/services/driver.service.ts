@@ -20,12 +20,12 @@ export class DriverService {
     return this.http.get<Driver>(`${this.base}/${id}`);
   }
 
-  create(request: CreateDriverRequest): Observable<Driver> {
-    return this.http.post<Driver>(this.base, request);
+  create(request: CreateDriverRequest): Observable<number> {
+    return this.http.post<number>(this.base, request);
   }
 
-  update(request: UpdateDriverRequest): Observable<Driver> {
-    return this.http.put<Driver>(`${this.base}/${request.id}`, request);
+  update(request: UpdateDriverRequest): Observable<boolean> {
+    return this.http.put<boolean>(`${this.base}/${request.id}`, request);
   }
 
   delete(id: number): Observable<boolean> {

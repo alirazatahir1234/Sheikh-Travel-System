@@ -15,9 +15,13 @@ public class UpdateRouteCommandValidator : AbstractValidator<UpdateRouteCommand>
     public UpdateRouteCommandValidator()
     {
         RuleFor(x => x.Id).GreaterThan(0);
+        RuleFor(x => x.Route.Name).MaximumLength(200);
         RuleFor(x => x.Route.Source).NotEmpty().MaximumLength(200);
         RuleFor(x => x.Route.Destination).NotEmpty().MaximumLength(200);
         RuleFor(x => x.Route.Distance).GreaterThan(0);
+        RuleFor(x => x.Route.EstimatedMinutes)
+            .GreaterThan(0)
+            .When(x => x.Route.EstimatedMinutes.HasValue);
         RuleFor(x => x.Route.BasePrice).GreaterThanOrEqualTo(0);
     }
 }
@@ -41,9 +45,15 @@ public class UpdateRouteCommandHandler(IDbConnectionFactory dbFactory)
 
         await connection.ExecuteAsync(
             new CommandDefinition(
-                @"UPDATE Routes SET Source = @Source, Destination = @Destination, Distance = @Distance,
-                  BasePrice = @BasePrice, IsActive = @IsActive, UpdatedAt = @UpdatedAt WHERE Id = @Id",
-                new { dto.Source, dto.Destination, dto.Distance, dto.BasePrice, dto.IsActive, UpdatedAt = DateTime.UtcNow, request.Id },
+                @"UPDATE Routes SET Name = @Name, Source = @Source, Destination = @Destination,
+                  Distance = @Distance, EstimatedMinutes = @EstimatedMinutes, BasePrice = @BasePrice,
+                  IsActive = @IsActive, UpdatedAt = @UpdatedAt WHERE Id = @Id",
+                new
+                {
+                    dto.Name, dto.Source, dto.Destination, dto.Distance,
+                    dto.EstimatedMinutes, dto.BasePrice, dto.IsActive,
+                    UpdatedAt = DateTime.UtcNow, request.Id
+                },
                 cancellationToken: cancellationToken));
 
         return ApiResponse<bool>.SuccessResponse(true, "Route updated successfully.");

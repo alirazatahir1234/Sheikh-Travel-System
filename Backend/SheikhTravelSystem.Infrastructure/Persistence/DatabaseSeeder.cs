@@ -19,6 +19,8 @@ public class DatabaseSeeder(
     {
         using var connection = dbFactory.CreateConnection();
 
+        await EnsureSchemaEvolutionAsync(connection, cancellationToken);
+
         await SeedUsersAsync(connection, cancellationToken);
         await SeedCustomersAsync(connection, cancellationToken);
         await SeedVehiclesAsync(connection, cancellationToken);
@@ -230,6 +232,31 @@ public class DatabaseSeeder(
     }
 
     // ---------------------------------------------------------------------
+    // Schema evolution — idempotent ALTER statements for existing databases.
+    // Safe to run on every startup: each step checks COL_LENGTH before acting.
+    // ---------------------------------------------------------------------
+    private async Task EnsureSchemaEvolutionAsync(System.Data.IDbConnection connection, CancellationToken ct)
+    {
+        var statements = new[]
+        {
+            "IF COL_LENGTH('Routes', 'Name') IS NULL ALTER TABLE Routes ADD Name NVARCHAR(200) NULL;",
+            "IF COL_LENGTH('Routes', 'EstimatedMinutes') IS NULL ALTER TABLE Routes ADD EstimatedMinutes INT NULL;"
+        };
+
+        foreach (var sql in statements)
+        {
+            try
+            {
+                await connection.ExecuteAsync(new CommandDefinition(sql, cancellationToken: ct));
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Schema evolution step failed: {Sql}", sql);
+            }
+        }
+    }
+
+    // ---------------------------------------------------------------------
     // Routes
     // ---------------------------------------------------------------------
     private async Task SeedRoutesAsync(System.Data.IDbConnection connection, CancellationToken ct)
@@ -238,20 +265,20 @@ public class DatabaseSeeder(
 
         var rows = new[]
         {
-            new { Source = "Lahore",    Destination = "Islamabad", Distance = 375m,  BasePrice = 6500m },
-            new { Source = "Lahore",    Destination = "Karachi",   Distance = 1200m, BasePrice = 18000m },
-            new { Source = "Islamabad", Destination = "Peshawar",  Distance = 190m,  BasePrice = 4000m },
-            new { Source = "Karachi",   Destination = "Hyderabad", Distance = 165m,  BasePrice = 3500m },
-            new { Source = "Lahore",    Destination = "Multan",    Distance = 340m,  BasePrice = 6000m },
-            new { Source = "Islamabad", Destination = "Murree",    Distance = 65m,   BasePrice = 2500m }
+            new { Name = "Lahore \u2013 Islamabad Express",  Source = "Lahore",    Destination = "Islamabad", Distance = 375m,  EstimatedMinutes = 270, BasePrice = 6500m },
+            new { Name = "Lahore \u2013 Karachi Overnight", Source = "Lahore",    Destination = "Karachi",   Distance = 1200m, EstimatedMinutes = 900, BasePrice = 18000m },
+            new { Name = "Islamabad \u2013 Peshawar",       Source = "Islamabad", Destination = "Peshawar",  Distance = 190m,  EstimatedMinutes = 150, BasePrice = 4000m },
+            new { Name = "Karachi \u2013 Hyderabad",        Source = "Karachi",   Destination = "Hyderabad", Distance = 165m,  EstimatedMinutes = 140, BasePrice = 3500m },
+            new { Name = "Lahore \u2013 Multan",            Source = "Lahore",    Destination = "Multan",    Distance = 340m,  EstimatedMinutes = 240, BasePrice = 6000m },
+            new { Name = "Islamabad \u2013 Murree",         Source = "Islamabad", Destination = "Murree",    Distance = 65m,   EstimatedMinutes = 90,  BasePrice = 2500m }
         };
 
         await connection.ExecuteAsync(new CommandDefinition(
-            @"INSERT INTO Routes (Source, Destination, Distance, BasePrice, IsActive, CreatedAt, CreatedBy, IsDeleted)
-              VALUES (@Source, @Destination, @Distance, @BasePrice, 1, @CreatedAt, 'seeder', 0);",
+            @"INSERT INTO Routes (Name, Source, Destination, Distance, EstimatedMinutes, BasePrice, IsActive, CreatedAt, CreatedBy, IsDeleted)
+              VALUES (@Name, @Source, @Destination, @Distance, @EstimatedMinutes, @BasePrice, 1, @CreatedAt, 'seeder', 0);",
             rows.Select(r => new
             {
-                r.Source, r.Destination, r.Distance, r.BasePrice,
+                r.Name, r.Source, r.Destination, r.Distance, r.EstimatedMinutes, r.BasePrice,
                 CreatedAt = DateTime.UtcNow
             }),
             cancellationToken: ct));

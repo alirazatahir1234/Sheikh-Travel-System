@@ -19,6 +19,13 @@ public class DriversController : BaseApiController
         => Ok(await Mediator.Send(query));
 
     /// <summary>
+    /// Gets a single driver by identifier.
+    /// </summary>
+    [HttpGet("{id:int}")]
+    public async Task<IActionResult> GetById(int id)
+        => Ok(await Mediator.Send(new GetDriverByIdQuery(id)));
+
+    /// <summary>
     /// Creates a new driver.
     /// </summary>
     [HttpPost]
@@ -34,4 +41,11 @@ public class DriversController : BaseApiController
     [HttpPut("{id}")]
     public async Task<IActionResult> Update(int id, [FromBody] UpdateDriverCommand command)
         => Ok(await Mediator.Send(command with { Id = id }));
+
+    /// <summary>
+    /// Soft-deletes a driver by identifier.
+    /// </summary>
+    [HttpDelete("{id:int}")]
+    public async Task<IActionResult> Delete(int id)
+        => Ok(await Mediator.Send(new DeleteDriverCommand(id)));
 }

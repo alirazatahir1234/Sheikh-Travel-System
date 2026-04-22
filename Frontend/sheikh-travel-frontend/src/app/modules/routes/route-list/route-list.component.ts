@@ -11,7 +11,7 @@ import { Route } from '../../../core/models/route.model';
   styleUrls: ['./route-list.component.scss']
 })
 export class RouteListComponent implements OnInit {
-  displayedColumns = ['name', 'origin', 'destination', 'distanceKm', 'estimatedMinutes', 'isActive', 'actions'];
+  displayedColumns = ['name', 'source', 'destination', 'distance', 'estimatedMinutes', 'basePrice', 'isActive', 'actions'];
   dataSource = new MatTableDataSource<Route>();
   loading = true;
   error: string | null = null;
@@ -42,5 +42,14 @@ export class RouteListComponent implements OnInit {
 
   applyFilter(event: Event): void {
     this.dataSource.filter = (event.target as HTMLInputElement).value.trim().toLowerCase();
+  }
+
+  formatDuration(minutes?: number | null): string {
+    if (minutes == null) return '—';
+    const h = Math.floor(minutes / 60);
+    const m = minutes % 60;
+    if (h === 0) return `${m}m`;
+    if (m === 0) return `${h}h`;
+    return `${h}h ${m}m`;
   }
 }

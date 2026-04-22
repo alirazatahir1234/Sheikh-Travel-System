@@ -25,6 +25,7 @@ import { MatListModule } from '@angular/material/list';
 import { MatStepperModule } from '@angular/material/stepper';
 import { MatSidenavModule } from '@angular/material/sidenav';
 import { MatDividerModule } from '@angular/material/divider';
+import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 
 import {
   InfoCardComponent,
@@ -45,7 +46,7 @@ const MATERIAL = [
   MatDialogModule, MatSnackBarModule, MatSelectModule, MatProgressSpinnerModule,
   MatChipsModule, MatTooltipModule, MatDatepickerModule, MatNativeDateModule,
   MatMenuModule, MatBadgeModule, MatListModule, MatStepperModule,
-  MatSidenavModule, MatDividerModule,
+  MatSidenavModule, MatDividerModule, MatSlideToggleModule,
 ];
 
 const UI = [

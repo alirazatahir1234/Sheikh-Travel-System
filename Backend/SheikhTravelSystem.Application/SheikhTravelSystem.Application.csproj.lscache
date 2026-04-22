@@ -98,10 +98,13 @@ Features/
   Queries/GetDashboardSummaryQuery.cs
  Drivers/Commands/
   CreateDriverCommand.cs
+  DeleteDriverCommand.cs
   UpdateDriverCommand.cs
  Drivers/
   DTOs/DriverDtos.cs
-  Queries/GetDriversQuery.cs
+  Queries/
+   GetDriverByIdQuery.cs
+   GetDriversQuery.cs
  FuelLogs/
   Commands/CreateFuelLogCommand.cs
   DTOs/FuelLogDtos.cs
@@ -128,10 +131,13 @@ Features/
   Queries/ReportQueries.cs
  Routes/Commands/
   CreateRouteCommand.cs
+  DeleteRouteCommand.cs
   UpdateRouteCommand.cs
  Routes/
   DTOs/RouteDtos.cs
-  Queries/GetRoutesQuery.cs
+  Queries/
+   GetRouteByIdQuery.cs
+   GetRoutesQuery.cs
  Tracking/
   Commands/UpdateLocationCommand.cs
   DTOs/TrackingDtos.cs

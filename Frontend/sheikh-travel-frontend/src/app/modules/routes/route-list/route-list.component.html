@@ -19,23 +19,27 @@
     <table mat-table [dataSource]="dataSource" *ngIf="!loading && !error" class="full-width">
       <ng-container matColumnDef="name">
         <th mat-header-cell *matHeaderCellDef>Route Name</th>
-        <td mat-cell *matCellDef="let r">{{ r.name }}</td>
+        <td mat-cell *matCellDef="let r">{{ r.name || '—' }}</td>
       </ng-container>
-      <ng-container matColumnDef="origin">
+      <ng-container matColumnDef="source">
         <th mat-header-cell *matHeaderCellDef>From</th>
-        <td mat-cell *matCellDef="let r">{{ r.origin }}</td>
+        <td mat-cell *matCellDef="let r">{{ r.source }}</td>
       </ng-container>
       <ng-container matColumnDef="destination">
         <th mat-header-cell *matHeaderCellDef>To</th>
         <td mat-cell *matCellDef="let r">{{ r.destination }}</td>
       </ng-container>
-      <ng-container matColumnDef="distanceKm">
+      <ng-container matColumnDef="distance">
         <th mat-header-cell *matHeaderCellDef>Distance (km)</th>
-        <td mat-cell *matCellDef="let r">{{ r.distanceKm }}</td>
+        <td mat-cell *matCellDef="let r">{{ r.distance | number:'1.0-1' }}</td>
       </ng-container>
       <ng-container matColumnDef="estimatedMinutes">
-        <th mat-header-cell *matHeaderCellDef>Duration (min)</th>
-        <td mat-cell *matCellDef="let r">{{ r.estimatedMinutes }}</td>
+        <th mat-header-cell *matHeaderCellDef>Duration</th>
+        <td mat-cell *matCellDef="let r">{{ formatDuration(r.estimatedMinutes) }}</td>
+      </ng-container>
+      <ng-container matColumnDef="basePrice">
+        <th mat-header-cell *matHeaderCellDef>Base Price</th>
+        <td mat-cell *matCellDef="let r">{{ r.basePrice | number:'1.0-0' }}</td>
       </ng-container>
       <ng-container matColumnDef="isActive">
         <th mat-header-cell *matHeaderCellDef>Status</th>

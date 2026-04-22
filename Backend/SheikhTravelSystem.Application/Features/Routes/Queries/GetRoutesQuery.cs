@@ -18,7 +18,7 @@ public class GetRoutesQueryHandler(IDbConnectionFactory dbFactory)
 
         var routes = await connection.QueryAsync<RouteDto>(
             new CommandDefinition(
-                @"SELECT Id, Source, Destination, Distance, BasePrice, IsActive, CreatedAt
+                @"SELECT Id, Name, Source, Destination, Distance, EstimatedMinutes, BasePrice, IsActive, CreatedAt
                   FROM Routes WHERE IsDeleted = 0
                   ORDER BY CreatedAt DESC
                   OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY",
