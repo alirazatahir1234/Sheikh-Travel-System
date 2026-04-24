@@ -11,33 +11,187 @@
   <!-- STEP 1: Trip Details -->
   <mat-step [stepControl]="step1Form" label="Trip Details">
     <form [formGroup]="step1Form">
-      <div class="form-grid">
+
+      <!-- Customer mode toggle -->
+      <div class="mode-toggle">
+        <div class="mode-label">Customer</div>
+        <div class="mode-pills" role="tablist">
+          <button type="button"
+                  role="tab"
+                  class="mode-pill"
+                  [class.active]="customerMode === 'EXISTING'"
+                  (click)="setCustomerMode('EXISTING')">
+            <mat-icon>person_search</mat-icon>
+            Existing customer
+          </button>
+          <button type="button"
+                  role="tab"
+                  class="mode-pill"
+                  [class.active]="customerMode === 'NEW'"
+                  (click)="setCustomerMode('NEW')">
+            <mat-icon>person_add</mat-icon>
+            New customer
+          </button>
+        </div>
+      </div>
+
+      <!-- Existing customer picker -->
+      <div class="form-grid" *ngIf="customerMode === 'EXISTING'">
+        <mat-form-field appearance="outline" class="span-2 search-control">
+          <mat-label>Search customer by name, phone, CNIC or email</mat-label>
+          <mat-icon matPrefix>search</mat-icon>
+          <input matInput
+                 formControlName="customerSearch"
+                 [matAutocomplete]="customerAuto"
+                 placeholder="Start typing…">
+          <button *ngIf="step1Form.value.customerId"
+                  mat-icon-button matSuffix
+                  type="button"
+                  aria-label="Clear selection"
+                  (click)="clearCustomer()">
+            <mat-icon>close</mat-icon>
+          </button>
+          <mat-autocomplete #customerAuto="matAutocomplete"
+                            [displayWith]="customerDisplay"
+                            (optionSelected)="onCustomerSelected($event.option.value)">
+            <mat-option *ngFor="let c of filteredCustomers$ | async; trackBy: trackById"
+                        [value]="c">
+              <div class="option-row">
+                <div class="option-avatar">{{ (c.fullName || '?').charAt(0) | uppercase }}</div>
+                <div class="option-meta">
+                  <span class="option-title">{{ c.fullName }}</span>
+                  <span class="option-sub">
+                    {{ c.phone }}
+                    <span *ngIf="c.email"> · {{ c.email }}</span>
+                    <span *ngIf="c.cnic"> · {{ c.cnic }}</span>
+                  </span>
+                </div>
+              </div>
+            </mat-option>
+            <mat-option *ngIf="(filteredCustomers$ | async)?.length === 0" [disabled]="true">
+              No customers found — switch to “New customer” to create one.
+            </mat-option>
+          </mat-autocomplete>
+          <mat-hint *ngIf="!step1Form.value.customerId">Pick a customer from the list.</mat-hint>
+          <mat-error *ngIf="step1Form.get('customerId')?.hasError('required')">Required</mat-error>
+        </mat-form-field>
+      </div>
+
+      <!-- New customer inline form -->
+      <div class="form-grid" *ngIf="customerMode === 'NEW'">
         <mat-form-field appearance="outline">
-          <mat-label>Customer ID</mat-label>
-          <input matInput type="number" formControlName="customerId">
-          <mat-error>Required</mat-error>
+          <mat-label>Full name</mat-label>
+          <input matInput formControlName="newFullName" autocomplete="name">
+          <mat-error *ngIf="step1Form.get('newFullName')?.hasError('required')">Required</mat-error>
         </mat-form-field>
 
         <mat-form-field appearance="outline">
-          <mat-label>Pickup Date & Time</mat-label>
-          <input matInput type="datetime-local" formControlName="pickupTime">
-          <mat-error>Required</mat-error>
+          <mat-label>Phone</mat-label>
+          <input matInput formControlName="newPhone" placeholder="+92-300-1234567" autocomplete="tel">
+          <mat-error *ngIf="step1Form.get('newPhone')?.hasError('required')">Required</mat-error>
         </mat-form-field>
 
         <mat-form-field appearance="outline">
+          <mat-label>Email (optional)</mat-label>
+          <input matInput formControlName="newEmail" type="email" autocomplete="email">
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>CNIC (optional)</mat-label>
+          <input matInput formControlName="newCnic" placeholder="XXXXX-XXXXXXX-X">
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="span-2">
+          <mat-label>Address (optional)</mat-label>
+          <textarea matInput formControlName="newAddress" rows="2"></textarea>
+        </mat-form-field>
+
+        <div class="new-hint span-2" *ngIf="creatingCustomer">
+          <mat-spinner diameter="16"></mat-spinner>
+          <span>Creating customer…</span>
+        </div>
+      </div>
+
+      <!-- Trip fields -->
+      <div class="form-grid trip-grid">
+
+        <mat-form-field appearance="outline">
+          <mat-label>Pickup date</mat-label>
+          <input matInput [matDatepicker]="pickupDatePicker" formControlName="pickupTime" placeholder="Choose date">
+          <mat-datepicker-toggle matSuffix [for]="pickupDatePicker"></mat-datepicker-toggle>
+          <mat-datepicker #pickupDatePicker></mat-datepicker>
+          <mat-hint>Calendar selects date only</mat-hint>
+          <mat-error *ngIf="step1Form.get('pickupTime')?.hasError('required')">Required</mat-error>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Pickup time</mat-label>
+          <input matInput type="time" formControlName="pickupTimeClock">
+          <mat-hint>Time is included in booking</mat-hint>
+          <mat-error *ngIf="step1Form.get('pickupTimeClock')?.hasError('required')">Required</mat-error>
+        </mat-form-field>
+
+        <div class="pickup-summary span-2" *ngIf="step1Form.value.pickupTime">
+          Pickup date &amp; time: {{ step1Form.value.pickupTime | date:'mediumDate' }} {{ step1Form.value.pickupTimeClock }}
+        </div>
+
+        <mat-form-field appearance="outline" class="search-control">
           <mat-label>Route</mat-label>
-          <mat-select formControlName="routeId">
-            <mat-option *ngFor="let r of routes; trackBy: trackById" [value]="r.id">{{ r.name }}</mat-option>
-          </mat-select>
-          <mat-error>Required</mat-error>
+          <mat-icon matPrefix>alt_route</mat-icon>
+          <input matInput
+                 formControlName="routeSearch"
+                 [matAutocomplete]="routeAuto"
+                 placeholder="Search by name, origin or destination">
+          <mat-autocomplete #routeAuto="matAutocomplete"
+                            [displayWith]="routeDisplay"
+                            (optionSelected)="onRouteSelected($event.option.value)">
+            <mat-option *ngFor="let r of filteredRoutes$ | async; trackBy: trackById"
+                        [value]="r">
+              <div class="option-row">
+                <mat-icon class="option-icon">alt_route</mat-icon>
+                <div class="option-meta">
+                  <span class="option-title">{{ r.name || (r.source + ' → ' + r.destination) }}</span>
+                  <span class="option-sub">{{ r.source }} → {{ r.destination }} · {{ r.distance | number:'1.0-1' }} km</span>
+                </div>
+              </div>
+            </mat-option>
+            <mat-option *ngIf="(filteredRoutes$ | async)?.length === 0" [disabled]="true">
+              No routes match your search.
+            </mat-option>
+          </mat-autocomplete>
+          <mat-error *ngIf="step1Form.get('routeId')?.hasError('required')">Required</mat-error>
         </mat-form-field>
 
-        <mat-form-field appearance="outline">
+        <mat-form-field appearance="outline" class="search-control">
           <mat-label>Vehicle</mat-label>
-          <mat-select formControlName="vehicleId">
-            <mat-option *ngFor="let v of vehicles; trackBy: trackById" [value]="v.id">{{ v.name }} ({{ v.registrationNumber }})</mat-option>
-          </mat-select>
-          <mat-error>Required</mat-error>
+          <mat-icon matPrefix>directions_bus</mat-icon>
+          <input matInput
+                 formControlName="vehicleSearch"
+                 [matAutocomplete]="vehicleAuto"
+                 placeholder="Search by name, reg # or model">
+          <mat-autocomplete #vehicleAuto="matAutocomplete"
+                            [displayWith]="vehicleDisplay"
+                            (optionSelected)="onVehicleSelected($event.option.value)">
+            <mat-option *ngFor="let v of filteredVehicles$ | async; trackBy: trackById"
+                        [value]="v">
+              <div class="option-row">
+                <mat-icon class="option-icon">directions_bus</mat-icon>
+                <div class="option-meta">
+                  <span class="option-title">{{ v.name }}</span>
+                  <span class="option-sub">
+                    {{ v.registrationNumber }}
+                    <span *ngIf="v.model"> · {{ v.model }}</span>
+                    <span *ngIf="v.seatingCapacity"> · {{ v.seatingCapacity }} seats</span>
+                    <span> · {{ vehicleStatusLabel(v.status) }}</span>
+                  </span>
+                </div>
+              </div>
+            </mat-option>
+            <mat-option *ngIf="(filteredVehicles$ | async)?.length === 0" [disabled]="true">
+              No vehicles match your search.
+            </mat-option>
+          </mat-autocomplete>
+          <mat-error *ngIf="step1Form.get('vehicleId')?.hasError('required')">Required</mat-error>
         </mat-form-field>
 
         <mat-form-field appearance="outline">
@@ -52,7 +206,25 @@
 
         <mat-form-field appearance="outline">
           <mat-label>Driver Allowance (PKR)</mat-label>
-          <input matInput type="number" formControlName="driverAllowance">
+          <input matInput type="number" formControlName="driverAllowance"
+                 (input)="onDriverAllowanceManualInput()">
+          <button *ngIf="allowanceOverridden && allowanceResult?.matchedAnyRule"
+                  mat-icon-button matSuffix type="button"
+                  (click)="useSuggestedAllowance()"
+                  matTooltip="Re-apply suggested allowance">
+            <mat-icon>restart_alt</mat-icon>
+          </button>
+          <mat-hint *ngIf="allowanceCalculating">
+            <mat-spinner diameter="12"></mat-spinner> Calculating…
+          </mat-hint>
+          <mat-hint *ngIf="!allowanceCalculating && allowanceResult?.matchedAnyRule">
+            Suggested by rule
+            <strong>“{{ allowanceResult?.appliedRuleName }}”</strong>
+            — {{ allowanceResult?.formulaExplanation }}<span *ngIf="allowanceOverridden"> · manually overridden</span>
+          </mat-hint>
+          <mat-hint *ngIf="!allowanceCalculating && allowanceResult && !allowanceResult.matchedAnyRule">
+            No active rule matched — enter manually.
+          </mat-hint>
         </mat-form-field>
 
         <mat-form-field appearance="outline">
@@ -85,12 +257,16 @@
       </div>
 
       <div class="step-actions">
-        <button mat-button type="button" (click)="calculatePrice()" [disabled]="calculating">
+        <button mat-button type="button"
+                (click)="calculatePrice()"
+                [disabled]="calculating || !step1Form.value.routeId || !step1Form.value.vehicleId">
           <mat-spinner *ngIf="calculating" diameter="16"></mat-spinner>
           Calculate Price
         </button>
         <button mat-raised-button color="primary" matStepperNext type="button"
-          [disabled]="step1Form.invalid || !priceBreakdown" (click)="createBooking()">
+                [disabled]="loading || creatingCustomer || !priceBreakdown"
+                (click)="createBooking()">
+          <mat-spinner *ngIf="loading" diameter="16"></mat-spinner>
           Next: Assign Driver
         </button>
       </div>
@@ -129,6 +305,7 @@
         </mat-card-header>
         <mat-card-content>
           <div class="confirm-row"><strong>Booking #</strong><span>{{ createdBooking.bookingNumber }}</span></div>
+          <div class="confirm-row"><strong>Customer</strong><span>{{ createdBooking.customerName }}</span></div>
           <div class="confirm-row"><strong>Route</strong><span>{{ createdBooking.routeName }}</span></div>
           <div class="confirm-row"><strong>Pickup</strong><span>{{ createdBooking.pickupTime | date:'medium' }}</span></div>
           <div class="confirm-row"><strong>Passengers</strong><span>{{ createdBooking.passengerCount }}</span></div>

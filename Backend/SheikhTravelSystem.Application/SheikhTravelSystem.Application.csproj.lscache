@@ -89,13 +89,26 @@ Features/
   Queries/GetBookingsQuery.cs
  Customers/Commands/
   CreateCustomerCommand.cs
+  DeleteCustomerCommand.cs
   UpdateCustomerCommand.cs
  Customers/
   DTOs/CustomerDtos.cs
-  Queries/GetCustomersQuery.cs
+  Queries/
+   GetCustomerByIdQuery.cs
+   GetCustomersQuery.cs
  Dashboard/
   DTOs/DashboardDtos.cs
   Queries/GetDashboardSummaryQuery.cs
+ DriverAllowance/Commands/
+  CreateDriverAllowanceRuleCommand.cs
+  DeleteDriverAllowanceRuleCommand.cs
+  UpdateDriverAllowanceRuleCommand.cs
+ DriverAllowance/
+  DTOs/DriverAllowanceRuleDtos.cs
+  Queries/
+   CalculateDriverAllowanceQuery.cs
+   GetDriverAllowanceRuleByIdQuery.cs
+   GetDriverAllowanceRulesQuery.cs
  Drivers/Commands/
   CreateDriverCommand.cs
   DeleteDriverCommand.cs
@@ -150,7 +163,9 @@ Features/
   UpdateUserStatusCommand.cs
  Users/
   DTOs/UserDtos.cs
-  Queries/GetUsersQuery.cs
+  Queries/
+   GetUserByIdQuery.cs
+   GetUsersQuery.cs
  Vehicles/Commands/
   CreateVehicleCommand.cs
   DeleteVehicleCommand.cs

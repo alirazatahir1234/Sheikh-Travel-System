@@ -63,6 +63,7 @@ Entities/
  Booking.cs
  Customer.cs
  Driver.cs
+ DriverAllowanceRule.cs
  FuelLog.cs
  Maintenance.cs
  Notification.cs

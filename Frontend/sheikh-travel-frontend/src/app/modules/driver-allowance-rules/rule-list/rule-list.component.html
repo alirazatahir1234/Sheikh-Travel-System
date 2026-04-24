@@ -1,0 +1,94 @@
+<div class="page-header">
+  <div>
+    <h2>Driver Allowance Rules</h2>
+    <p class="page-sub">
+      Rules are evaluated in ascending priority order — the first match wins.
+      Inactive rules are skipped.
+    </p>
+  </div>
+  <div class="header-actions">
+    <button mat-stroked-button (click)="load()">
+      <mat-icon>refresh</mat-icon> Refresh
+    </button>
+    <button mat-raised-button color="primary" routerLink="new">
+      <mat-icon>add</mat-icon> New Rule
+    </button>
+  </div>
+</div>
+
+<div *ngIf="loading" class="loading"><mat-spinner diameter="32"></mat-spinner></div>
+
+<mat-card *ngIf="!loading" class="table-card">
+  <table mat-table [dataSource]="dataSource" class="rule-table">
+
+    <ng-container matColumnDef="priority">
+      <th mat-header-cell *matHeaderCellDef>Priority</th>
+      <td mat-cell *matCellDef="let r">
+        <span class="priority-pill">{{ r.priority }}</span>
+      </td>
+    </ng-container>
+
+    <ng-container matColumnDef="name">
+      <th mat-header-cell *matHeaderCellDef>Name</th>
+      <td mat-cell *matCellDef="let r">
+        <div class="cell-main">{{ r.name }}</div>
+        <div *ngIf="r.notes" class="cell-sub">{{ r.notes }}</div>
+      </td>
+    </ng-container>
+
+    <ng-container matColumnDef="calculationType">
+      <th mat-header-cell *matHeaderCellDef>Type</th>
+      <td mat-cell *matCellDef="let r">{{ typeLabel(r.calculationType) }}</td>
+    </ng-container>
+
+    <ng-container matColumnDef="value">
+      <th mat-header-cell *matHeaderCellDef>Value</th>
+      <td mat-cell *matCellDef="let r">
+        <strong>{{ r.value | number:'1.0-2' }}</strong>
+        <span class="cell-sub"> {{ unit(r.calculationType) }}</span>
+      </td>
+    </ng-container>
+
+    <ng-container matColumnDef="distance">
+      <th mat-header-cell *matHeaderCellDef>Distance filter</th>
+      <td mat-cell *matCellDef="let r">{{ distanceRange(r) }}</td>
+    </ng-container>
+
+    <ng-container matColumnDef="routeFilter">
+      <th mat-header-cell *matHeaderCellDef>Route filter</th>
+      <td mat-cell *matCellDef="let r">{{ r.routeFilter || '—' }}</td>
+    </ng-container>
+
+    <ng-container matColumnDef="isActive">
+      <th mat-header-cell *matHeaderCellDef>Active</th>
+      <td mat-cell *matCellDef="let r">
+        <span class="status-pill" [class.ok]="r.isActive" [class.off]="!r.isActive">
+          {{ r.isActive ? 'Active' : 'Inactive' }}
+        </span>
+      </td>
+    </ng-container>
+
+    <ng-container matColumnDef="actions">
+      <th mat-header-cell *matHeaderCellDef class="col-actions">Actions</th>
+      <td mat-cell *matCellDef="let r" class="col-actions">
+        <button mat-icon-button color="primary" (click)="edit(r.id)" aria-label="Edit">
+          <mat-icon>edit</mat-icon>
+        </button>
+        <button mat-icon-button color="warn" (click)="delete(r)" aria-label="Delete">
+          <mat-icon>delete</mat-icon>
+        </button>
+      </td>
+    </ng-container>
+
+    <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+    <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+
+    <tr class="empty-row" *matNoDataRow>
+      <td [attr.colspan]="displayedColumns.length">
+        No rules configured yet — add one to enable automatic driver allowance calculation.
+      </td>
+    </tr>
+  </table>
+
+  <mat-paginator [pageSize]="10" [pageSizeOptions]="[10, 25, 50]" showFirstLastButtons></mat-paginator>
+</mat-card>

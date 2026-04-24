@@ -1,67 +1,192 @@
 <div class="page-header">
   <h2>Routes</h2>
-  <button mat-raised-button color="primary" routerLink="/routes/new">
-    <mat-icon>add</mat-icon> Add Route
-  </button>
+  <div class="page-actions">
+    <button mat-stroked-button
+            [matMenuTriggerFor]="exportMenu"
+            [disabled]="!dataSource.data.length">
+      <mat-icon>download</mat-icon>
+      Export
+      <mat-icon class="chevron">expand_more</mat-icon>
+    </button>
+    <mat-menu #exportMenu="matMenu">
+      <button mat-menu-item (click)="exportExcel()">
+        <mat-icon>description</mat-icon>
+        <span>Export as Excel (.xlsx)</span>
+      </button>
+      <button mat-menu-item (click)="exportPdf()">
+        <mat-icon>picture_as_pdf</mat-icon>
+        <span>Export as PDF</span>
+      </button>
+    </mat-menu>
+
+    <button mat-stroked-button color="primary" (click)="openBulkAdd()">
+      <mat-icon>playlist_add</mat-icon> Bulk Add
+    </button>
+
+    <button mat-raised-button color="primary" routerLink="/routes/new">
+      <mat-icon>add</mat-icon> Add Route
+    </button>
+  </div>
 </div>
 
-<mat-card>
+<mat-card class="filters-card">
   <mat-card-content>
-    <mat-form-field appearance="outline" class="search-field">
-      <mat-label>Search routes...</mat-label>
-      <mat-icon matPrefix>search</mat-icon>
-      <input matInput (keyup)="applyFilter($event)">
-    </mat-form-field>
+    <div class="filter-toolbar">
+      <mat-form-field appearance="outline" class="search-field">
+        <mat-icon matPrefix>search</mat-icon>
+        <mat-label>Search name, origin, destination…</mat-label>
+        <input matInput [(ngModel)]="filters.search" (ngModelChange)="applyFilters()">
+        <button *ngIf="filters.search" mat-icon-button matSuffix
+                aria-label="Clear search"
+                (click)="filters.search=''; applyFilters()">
+          <mat-icon>close</mat-icon>
+        </button>
+      </mat-form-field>
 
+      <mat-form-field appearance="outline" class="compact">
+        <mat-label>Active</mat-label>
+        <mat-select [(value)]="filters.active" (selectionChange)="applyFilters()">
+          <mat-option *ngFor="let opt of activeOptions" [value]="opt.value">{{ opt.label }}</mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="compact">
+        <mat-label>Price</mat-label>
+        <mat-select [(value)]="filters.price" (selectionChange)="applyFilters()">
+          <mat-option *ngFor="let opt of priceOptions" [value]="opt.value">{{ opt.label }}</mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <button mat-stroked-button
+              class="clear-btn"
+              *ngIf="activeFilterCount > 0"
+              (click)="resetFilters()">
+        <mat-icon>filter_alt_off</mat-icon>
+        Clear
+        <span class="badge">{{ activeFilterCount }}</span>
+      </button>
+    </div>
+
+    <div class="status-strip">
+      <div *ngFor="let chip of distanceChips"
+           class="status-pill"
+           [class.active]="filters.distance === chip.value"
+           (click)="setDistance(chip.value)">
+        <span class="dot"></span>
+        <span class="label">{{ chip.label }}</span>
+        <span class="count">{{ chip.count }}</span>
+      </div>
+    </div>
+  </mat-card-content>
+</mat-card>
+
+<div class="bulk-bar" *ngIf="selection.hasValue()">
+  <div class="bulk-info">
+    <mat-icon>check_circle</mat-icon>
+    <span><strong>{{ selection.selected.length }}</strong> route{{ selection.selected.length > 1 ? 's' : '' }} selected</span>
+  </div>
+  <div class="bulk-actions">
+    <button mat-stroked-button (click)="selection.clear()">Clear</button>
+    <button mat-raised-button color="warn" (click)="bulkDelete()" [disabled]="deleting">
+      <mat-icon>delete</mat-icon>
+      Delete selected
+    </button>
+  </div>
+</div>
+
+<mat-card class="table-card">
+  <mat-card-content>
     <div *ngIf="loading" class="loading"><mat-spinner diameter="36"></mat-spinner></div>
     <div *ngIf="error" class="error-message"><mat-icon>error</mat-icon> {{ error }}</div>
 
-    <table mat-table [dataSource]="dataSource" *ngIf="!loading && !error" class="full-width">
-      <ng-container matColumnDef="name">
-        <th mat-header-cell *matHeaderCellDef>Route Name</th>
-        <td mat-cell *matCellDef="let r">{{ r.name || '—' }}</td>
-      </ng-container>
-      <ng-container matColumnDef="source">
-        <th mat-header-cell *matHeaderCellDef>From</th>
-        <td mat-cell *matCellDef="let r">{{ r.source }}</td>
-      </ng-container>
-      <ng-container matColumnDef="destination">
-        <th mat-header-cell *matHeaderCellDef>To</th>
-        <td mat-cell *matCellDef="let r">{{ r.destination }}</td>
-      </ng-container>
-      <ng-container matColumnDef="distance">
-        <th mat-header-cell *matHeaderCellDef>Distance (km)</th>
-        <td mat-cell *matCellDef="let r">{{ r.distance | number:'1.0-1' }}</td>
-      </ng-container>
-      <ng-container matColumnDef="estimatedMinutes">
-        <th mat-header-cell *matHeaderCellDef>Duration</th>
-        <td mat-cell *matCellDef="let r">{{ formatDuration(r.estimatedMinutes) }}</td>
-      </ng-container>
-      <ng-container matColumnDef="basePrice">
-        <th mat-header-cell *matHeaderCellDef>Base Price</th>
-        <td mat-cell *matCellDef="let r">{{ r.basePrice | number:'1.0-0' }}</td>
-      </ng-container>
-      <ng-container matColumnDef="isActive">
-        <th mat-header-cell *matHeaderCellDef>Status</th>
-        <td mat-cell *matCellDef="let r">
-          <mat-chip [class]="r.isActive ? 'chip-active' : 'chip-inactive'">
-            {{ r.isActive ? 'Active' : 'Inactive' }}
-          </mat-chip>
-        </td>
-      </ng-container>
-      <ng-container matColumnDef="actions">
-        <th mat-header-cell *matHeaderCellDef>Actions</th>
-        <td mat-cell *matCellDef="let r">
-          <button mat-icon-button color="primary" (click)="edit(r.id)"><mat-icon>edit</mat-icon></button>
-          <button mat-icon-button color="warn" (click)="delete(r.id)"><mat-icon>delete</mat-icon></button>
-        </td>
-      </ng-container>
+    <div class="results-meta" *ngIf="!loading && !error">
+      Showing <strong>{{ dataSource.data.length }}</strong> of {{ allRoutes.length || totalCount }}
+      <span *ngIf="activeFilterCount > 0"> · {{ activeFilterCount }} filter{{ activeFilterCount > 1 ? 's' : '' }} applied</span>
+    </div>
 
-      <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-      <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
-    </table>
+    <div class="empty-state" *ngIf="!loading && !error && dataSource.data.length === 0">
+      <mat-icon>search_off</mat-icon>
+      <p>No routes match the current filters.</p>
+      <button mat-stroked-button color="primary" (click)="resetFilters()" *ngIf="activeFilterCount > 0">
+        Clear filters
+      </button>
+    </div>
 
-    <mat-paginator [length]="totalCount" [pageSizeOptions]="[10,25,50]"
+    <div class="table-scroll" *ngIf="!loading && !error && dataSource.data.length > 0">
+      <table mat-table [dataSource]="dataSource" class="full-width">
+        <ng-container matColumnDef="select">
+          <th mat-header-cell *matHeaderCellDef>
+            <mat-checkbox (change)="$event ? masterToggle() : null"
+                          [checked]="selection.hasValue() && isAllSelected()"
+                          [indeterminate]="selection.hasValue() && !isAllSelected()">
+            </mat-checkbox>
+          </th>
+          <td mat-cell *matCellDef="let r">
+            <mat-checkbox (click)="$event.stopPropagation()"
+                          (change)="$event ? selection.toggle(r) : null"
+                          [checked]="selection.isSelected(r)">
+            </mat-checkbox>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="name">
+          <th mat-header-cell *matHeaderCellDef>Route Name</th>
+          <td mat-cell *matCellDef="let r">{{ r.name || '—' }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="source">
+          <th mat-header-cell *matHeaderCellDef>From</th>
+          <td mat-cell *matCellDef="let r">{{ r.source }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="destination">
+          <th mat-header-cell *matHeaderCellDef>To</th>
+          <td mat-cell *matCellDef="let r">{{ r.destination }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="distance">
+          <th mat-header-cell *matHeaderCellDef>Distance (km)</th>
+          <td mat-cell *matCellDef="let r">{{ formatKm(r.distance) }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="estimatedMinutes">
+          <th mat-header-cell *matHeaderCellDef>Duration</th>
+          <td mat-cell *matCellDef="let r">{{ formatDuration(r.estimatedMinutes) }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="basePrice">
+          <th mat-header-cell *matHeaderCellDef>Base Price</th>
+          <td mat-cell *matCellDef="let r">{{ formatPrice(r.basePrice) }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="isActive">
+          <th mat-header-cell *matHeaderCellDef>Status</th>
+          <td mat-cell *matCellDef="let r">
+            <mat-chip [class]="r.isActive ? 'chip-active' : 'chip-inactive'">
+              {{ r.isActive ? 'Active' : 'Inactive' }}
+            </mat-chip>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="actions">
+          <th mat-header-cell *matHeaderCellDef class="sticky-right">Actions</th>
+          <td mat-cell *matCellDef="let r" class="sticky-right">
+            <button mat-icon-button color="primary" (click)="edit(r.id)" matTooltip="Edit">
+              <mat-icon>edit</mat-icon>
+            </button>
+            <button mat-icon-button color="warn" (click)="delete(r.id)" matTooltip="Delete">
+              <mat-icon>delete</mat-icon>
+            </button>
+          </td>
+        </ng-container>
+
+        <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+        <tr mat-row *matRowDef="let row; columns: displayedColumns;"
+            [class.row-selected]="selection.isSelected(row)"></tr>
+      </table>
+    </div>
+
+    <mat-paginator [length]="totalCount" [pageSizeOptions]="[10,25,50,100]"
       (page)="load($event.pageIndex + 1, $event.pageSize)">
     </mat-paginator>
   </mat-card-content>

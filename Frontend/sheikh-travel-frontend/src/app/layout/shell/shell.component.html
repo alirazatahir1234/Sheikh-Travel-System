@@ -35,7 +35,7 @@
       </div>
 
       <div class="stb-topbar-actions">
-        <button mat-icon-button class="stb-icon-btn" matTooltip="Help">
+        <button mat-icon-button class="stb-icon-btn stb-topbar-help" matTooltip="Help">
           <mat-icon>help_outline</mat-icon>
         </button>
         <button mat-icon-button class="stb-icon-btn" matTooltip="Notifications"
@@ -47,8 +47,10 @@
           <button mat-button [matMenuTriggerFor]="userMenu" class="stb-user-chip">
             <div class="avatar">{{ initials(user.fullName) }}</div>
             <div class="user-meta">
-              <div class="name">{{ user.fullName }}</div>
-              <div class="role">{{ (user.roles && user.roles[0]) || 'Member' }}</div>
+              <div class="name" [matTooltip]="user.fullName ?? ''" matTooltipShowDelay="300">{{ user.fullName }}</div>
+              <div class="role" [matTooltip]="(user.roles && user.roles[0]) || 'Member'" matTooltipShowDelay="300">
+                {{ (user.roles && user.roles[0]) || 'Member' }}
+              </div>
             </div>
             <mat-icon>expand_more</mat-icon>
           </button>

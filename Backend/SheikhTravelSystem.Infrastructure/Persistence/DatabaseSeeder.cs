@@ -33,6 +33,7 @@ public class DatabaseSeeder(
         await SeedNotificationsAsync(connection, cancellationToken);
         await SeedVehicleTrackingAsync(connection, cancellationToken);
         await SeedAuditLogsAsync(connection, cancellationToken);
+        await SeedDriverAllowanceRulesAsync(connection, cancellationToken);
 
         logger.LogInformation("Database seeding complete.");
     }
@@ -240,7 +241,26 @@ public class DatabaseSeeder(
         var statements = new[]
         {
             "IF COL_LENGTH('Routes', 'Name') IS NULL ALTER TABLE Routes ADD Name NVARCHAR(200) NULL;",
-            "IF COL_LENGTH('Routes', 'EstimatedMinutes') IS NULL ALTER TABLE Routes ADD EstimatedMinutes INT NULL;"
+            "IF COL_LENGTH('Routes', 'EstimatedMinutes') IS NULL ALTER TABLE Routes ADD EstimatedMinutes INT NULL;",
+            @"IF OBJECT_ID('DriverAllowanceRules', 'U') IS NULL
+              CREATE TABLE DriverAllowanceRules (
+                Id              INT IDENTITY(1,1) PRIMARY KEY,
+                Name            NVARCHAR(150)   NOT NULL,
+                CalculationType INT             NOT NULL,
+                Value           DECIMAL(18, 4)  NOT NULL,
+                Priority        INT             NOT NULL DEFAULT 100,
+                MinDistanceKm   DECIMAL(18, 2)  NULL,
+                MaxDistanceKm   DECIMAL(18, 2)  NULL,
+                VehicleFuelType INT             NULL,
+                RouteFilter     NVARCHAR(200)   NULL,
+                IsActive        BIT             NOT NULL DEFAULT 1,
+                Notes           NVARCHAR(500)   NULL,
+                CreatedAt       DATETIME2       NOT NULL DEFAULT SYSUTCDATETIME(),
+                UpdatedAt       DATETIME2       NULL,
+                CreatedBy       NVARCHAR(100)   NULL,
+                UpdatedBy       NVARCHAR(100)   NULL,
+                IsDeleted       BIT             NOT NULL DEFAULT 0
+              );"
         };
 
         foreach (var sql in statements)
@@ -576,6 +596,55 @@ public class DatabaseSeeder(
             cancellationToken: ct));
 
         logger.LogInformation("Seeded {Count} audit log entries", rows.Length);
+    }
+
+    // ---------------------------------------------------------------------
+    // Driver Allowance Rules
+    // ---------------------------------------------------------------------
+    private async Task SeedDriverAllowanceRulesAsync(System.Data.IDbConnection connection, CancellationToken ct)
+    {
+        if (await TableHasRowsAsync(connection, "DriverAllowanceRules", ct)) return;
+
+        // CalculationType ids must match Domain.Enums.AllowanceCalculationType.
+        var rows = new[]
+        {
+            new { Name = "Long-haul profit share (≥ 500km)", CalculationType = 4, Value = 35m,   Priority = 10,
+                  MinDistanceKm = (decimal?)500m, MaxDistanceKm = (decimal?)null,
+                  VehicleFuelType = (int?)null,  RouteFilter = (string?)null,
+                  Notes = "35% of trip profit for long-haul routes." },
+
+            new { Name = "Standard per-km rate",             CalculationType = 2, Value = 15m,   Priority = 50,
+                  MinDistanceKm = (decimal?)null, MaxDistanceKm = (decimal?)null,
+                  VehicleFuelType = (int?)null,  RouteFilter = (string?)null,
+                  Notes = "PKR 15/km for any route." },
+
+            new { Name = "Per-day overnight allowance",      CalculationType = 3, Value = 2500m, Priority = 80,
+                  MinDistanceKm = (decimal?)null, MaxDistanceKm = (decimal?)null,
+                  VehicleFuelType = (int?)null,  RouteFilter = (string?)null,
+                  Notes = "PKR 2,500 per trip day." },
+
+            new { Name = "Fallback fixed allowance",         CalculationType = 1, Value = 1500m, Priority = 1000,
+                  MinDistanceKm = (decimal?)null, MaxDistanceKm = (decimal?)null,
+                  VehicleFuelType = (int?)null,  RouteFilter = (string?)null,
+                  Notes = "PKR 1,500 fixed — applies when no other rule matches." }
+        };
+
+        await connection.ExecuteAsync(new CommandDefinition(
+            @"INSERT INTO DriverAllowanceRules
+                (Name, CalculationType, Value, Priority, MinDistanceKm, MaxDistanceKm,
+                 VehicleFuelType, RouteFilter, IsActive, Notes, CreatedAt, CreatedBy, IsDeleted)
+              VALUES
+                (@Name, @CalculationType, @Value, @Priority, @MinDistanceKm, @MaxDistanceKm,
+                 @VehicleFuelType, @RouteFilter, 1, @Notes, @CreatedAt, 'seeder', 0);",
+            rows.Select(r => new
+            {
+                r.Name, r.CalculationType, r.Value, r.Priority,
+                r.MinDistanceKm, r.MaxDistanceKm, r.VehicleFuelType, r.RouteFilter, r.Notes,
+                CreatedAt = DateTime.UtcNow
+            }),
+            cancellationToken: ct));
+
+        logger.LogInformation("Seeded {Count} driver allowance rules", rows.Length);
     }
 
     // ---------------------------------------------------------------------

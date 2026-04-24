@@ -1,0 +1,54 @@
+<div class="page-header">
+  <h2>{{ isEdit ? 'Edit Customer' : 'Add Customer' }}</h2>
+  <button mat-button routerLink="/customers"><mat-icon>arrow_back</mat-icon> Back</button>
+</div>
+
+<mat-card class="form-card">
+  <mat-card-content>
+    <div class="panel-loading" *ngIf="loadingCustomer">
+      <mat-spinner diameter="40"></mat-spinner>
+      <span>Loading customer…</span>
+    </div>
+
+    <form [formGroup]="form" (ngSubmit)="submit()" [class.dimmed]="loadingCustomer && isEdit">
+      <div class="form-grid">
+        <mat-form-field appearance="outline">
+          <mat-label>Full Name</mat-label>
+          <input matInput formControlName="fullName" autocomplete="name">
+          <mat-error *ngIf="form.get('fullName')?.hasError('required')">Required</mat-error>
+          <mat-error *ngIf="form.get('fullName')?.hasError('maxlength')">Too long</mat-error>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Phone</mat-label>
+          <input matInput formControlName="phone" placeholder="+92-300-1234567" autocomplete="tel">
+          <mat-error *ngIf="form.get('phone')?.hasError('required')">Required</mat-error>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Email (optional)</mat-label>
+          <input matInput formControlName="email" type="email" autocomplete="email">
+          <mat-error *ngIf="form.get('email')?.hasError('email')">Invalid email</mat-error>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>CNIC (optional)</mat-label>
+          <input matInput formControlName="cnic" placeholder="XXXXX-XXXXXXX-X">
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="span-2">
+          <mat-label>Address (optional)</mat-label>
+          <textarea matInput formControlName="address" rows="2"></textarea>
+        </mat-form-field>
+      </div>
+
+      <div class="actions">
+        <button mat-button type="button" routerLink="/customers">Cancel</button>
+        <button mat-raised-button color="primary" type="submit" [disabled]="loading">
+          <mat-spinner *ngIf="loading" diameter="18"></mat-spinner>
+          {{ isEdit ? 'Update' : 'Create' }}
+        </button>
+      </div>
+    </form>
+  </mat-card-content>
+</mat-card>

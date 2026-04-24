@@ -64,6 +64,7 @@ Controllers/
  CustomersController.cs
  DashboardController.cs
  DevController.cs
+ DriverAllowanceRulesController.cs
  DriversController.cs
  FuelLogsController.cs
  MaintenanceController.cs

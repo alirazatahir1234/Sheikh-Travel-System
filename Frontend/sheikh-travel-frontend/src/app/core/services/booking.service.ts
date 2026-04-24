@@ -30,15 +30,18 @@ export class BookingService {
   }
 
   assignDriver(request: AssignDriverRequest): Observable<boolean> {
-    return this.http.post<boolean>(`${this.base}/assign-driver`, request);
+    // Backend: PUT /api/bookings/{id}/assign-driver, body { driverId }
+    return this.http.put<boolean>(`${this.base}/${request.bookingId}/assign-driver`, { driverId: request.driverId });
   }
 
   assignVehicle(request: AssignVehicleRequest): Observable<boolean> {
-    return this.http.post<boolean>(`${this.base}/assign-vehicle`, request);
+    // Backend: PUT /api/bookings/{id}/assign-vehicle, body { vehicleId }
+    return this.http.put<boolean>(`${this.base}/${request.bookingId}/assign-vehicle`, { vehicleId: request.vehicleId });
   }
 
   updateStatus(request: UpdateBookingStatusRequest): Observable<boolean> {
-    return this.http.patch<boolean>(`${this.base}/${request.bookingId}/status`, request);
+    // Backend: PUT /api/bookings/{id}/status
+    return this.http.put<boolean>(`${this.base}/${request.bookingId}/status`, request);
   }
 
   calculatePrice(request: PriceCalculationRequest): Observable<PriceBreakdown> {

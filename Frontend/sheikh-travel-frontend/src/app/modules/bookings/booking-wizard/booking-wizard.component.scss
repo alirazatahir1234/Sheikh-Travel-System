@@ -1,20 +1,199 @@
 .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; h2 { margin: 0; } }
 .wizard-stepper { background: transparent; }
-.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; margin-top: 16px; }
-.span-2 { grid-column: span 2; }
+
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 16px;
+  margin-top: 16px;
+
+  .span-2 { grid-column: span 2; }
+
+  @media (max-width: 640px) {
+    grid-template-columns: 1fr;
+    .span-2 { grid-column: span 1; }
+  }
+}
+
+.trip-grid { margin-top: 8px; }
+.pickup-summary {
+  margin-top: 2px;
+  margin-bottom: 6px;
+  font-size: 13px;
+  color: var(--stb-text-muted, #64748B);
+}
+
 .full-width { width: 100%; }
-.step-actions { display: flex; gap: 12px; justify-content: flex-end; margin-top: 16px; }
+.step-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-top: 16px;
+
+  button[disabled] mat-spinner { margin-right: 8px; }
+}
 .assign-section { padding: 16px 0; }
+.loading { display: flex; justify-content: center; padding: 40px; }
+.error-message {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 16px;
+  color: var(--stb-danger, #c62828);
+  background: #ffebee;
+  border-radius: 8px;
+  margin: 16px 0;
+}
+
+/* ======================================================================
+   Existing / New customer toggle
+   ====================================================================== */
+
+.mode-toggle {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin: 8px 0 4px;
+
+  .mode-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--stb-text-muted, #64748B);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .mode-pills {
+    display: inline-flex;
+    padding: 4px;
+    gap: 4px;
+    background: var(--stb-surface-alt, #F1F5F9);
+    border-radius: 999px;
+  }
+
+  .mode-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    border: none;
+    background: transparent;
+    color: var(--stb-text-muted, #475569);
+    border-radius: 999px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    transition: all .15s ease;
+
+    mat-icon { font-size: 18px; width: 18px; height: 18px; }
+
+    &:hover { color: var(--stb-text, #0F172A); }
+
+    &.active {
+      background: #fff;
+      color: var(--stb-primary, #1B7F75);
+      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+      font-weight: 600;
+    }
+  }
+}
+
+.new-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0 12px;
+  color: var(--stb-text-muted, #64748B);
+  font-size: 13px;
+}
+
+/* ======================================================================
+   Autocomplete option rows
+   ====================================================================== */
+
+.search-control {
+  mat-icon[matPrefix] {
+    margin-right: 8px;
+    color: var(--stb-text-muted, #64748B);
+  }
+}
+
+.option-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 0;
+
+  .option-avatar {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: var(--stb-primary, #1B7F75);
+    color: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 12px;
+    flex-shrink: 0;
+  }
+
+  .option-icon {
+    color: var(--stb-primary, #1B7F75);
+    flex-shrink: 0;
+  }
+
+  .option-meta {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+
+    .option-title {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--stb-text, #0F172A);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .option-sub {
+      font-size: 12px;
+      color: var(--stb-text-muted, #64748B);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+  }
+}
+
+/* ======================================================================
+   Price card + confirm
+   ====================================================================== */
 
 .price-card {
   margin: 16px 0;
-  .price-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #eee;
-    &.total { font-weight: 700; font-size: 1.1rem; color: #1a237e; border-bottom: none; padding-top: 10px; }
+  .price-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 0;
+    border-bottom: 1px solid #eee;
+    &.total {
+      font-weight: 700;
+      font-size: 1.1rem;
+      color: var(--stb-primary, #1B7F75);
+      border-bottom: none;
+      padding-top: 10px;
+    }
   }
 }
 
 .confirm-card {
-  max-width: 500px;
+  max-width: 520px;
   mat-card-title { display: flex; align-items: center; gap: 8px; }
-  .confirm-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee; }
+  .confirm-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid #eee;
+  }
 }

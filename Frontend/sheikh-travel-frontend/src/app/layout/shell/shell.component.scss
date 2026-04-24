@@ -73,16 +73,24 @@
 }
 
 .stb-topbar {
-  height: var(--stb-topbar-h);
+  min-height: var(--stb-topbar-h);
   background: var(--stb-surface);
   border-bottom: 1px solid var(--stb-border);
-  padding: 0 24px;
-  display: flex; align-items: center; gap: 16px;
+  padding: 8px 16px 8px 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
   position: sticky; top: 0; z-index: 4;
+  /* Two-line user label + mat-badge should stay inside the bar, not under the border. */
+  box-sizing: border-box;
+  overflow-x: hidden;
+  overflow-y: visible;
 }
 
 .stb-search {
-  flex: 0 1 520px;
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 520px;
   height: 42px;
   background: var(--stb-surface-alt);
   border: 1px solid var(--stb-border);
@@ -105,32 +113,68 @@
 
 .stb-topbar-actions {
   margin-left: auto;
-  display: flex; align-items: center; gap: 8px;
+  min-width: 0;
+  flex: 0 1 auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .stb-icon-btn {
   color: var(--stb-text-muted);
+  flex: 0 0 auto;
+  /* Keep matBadge dot over the icon without stretching the top bar row. */
+  overflow: visible;
   &:hover { color: var(--stb-text); }
 }
 
 .stb-user-chip {
   display: inline-flex !important;
   align-items: center;
-  gap: 10px;
-  padding: 4px 8px 4px 4px !important;
-  height: 48px;
+  align-self: center;
+  gap: 8px;
+  padding: 4px 4px 4px 4px !important;
+  min-height: 40px;
+  height: auto;
+  max-width: min(260px, calc(100vw - 9rem));
+  /* MDC text buttons default to 64px min — allow shrinking in tight headers. */
+  min-width: 0 !important;
   border-radius: 999px !important;
+  /* Let the label column shrink so text ellipses instead of escaping the bar. */
+  line-height: 1.2;
 
   .avatar {
-    width: 38px; height: 38px; border-radius: 50%;
+    width: 36px;
+    height: 36px;
+    flex: 0 0 auto;
+    border-radius: 50%;
     background: linear-gradient(135deg, var(--stb-primary) 0%, #34B0A4 100%);
-    color: #fff; font-weight: 600; font-size: .85rem;
+    color: #fff; font-weight: 600; font-size: 0.8rem;
     display: flex; align-items: center; justify-content: center;
   }
   .user-meta {
-    text-align: left; line-height: 1.1;
-    .name { font-size: .85rem; font-weight: 600; color: var(--stb-text); }
-    .role { font-size: .72rem; color: var(--stb-text-muted); }
+    text-align: left;
+    min-width: 0;
+    flex: 1 1 auto;
+    .name, .role {
+      display: block;
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .name  { font-size: 0.8rem; font-weight: 600; color: var(--stb-text); }
+    .role  { font-size: 0.7rem;  color: var(--stb-text-muted); margin-top: 1px; }
+  }
+
+  > mat-icon:last-of-type {
+    flex: 0 0 auto;
+    width: 20px;
+    height: 20px;
+    font-size: 20px;
+    line-height: 20px;
+    color: var(--stb-text-muted);
+    margin-right: 2px;
   }
 }
 
@@ -142,5 +186,12 @@
 
 @media (max-width: 900px) {
   .stb-user-chip .user-meta { display: none; }
-  .stb-search { flex: 1; }
+  .stb-user-chip { max-width: none; }
+  .stb-search { flex: 1 1 auto; }
+}
+
+@media (max-width: 600px) {
+  .stb-topbar { padding-left: 12px; padding-right: 8px; gap: 8px; }
+  .stb-search input { font-size: 0.875rem; }
+  .stb-topbar-actions .stb-topbar-help { display: none; }
 }

@@ -51,7 +51,8 @@
   /* Layout */
   --stb-sidenav-w:      240px;
   --stb-sidenav-rail-w: 72px;
-  --stb-topbar-h:       68px;
+  /* At least this tall; content (two-line user chip) may expand slightly. */
+  --stb-topbar-h:       72px;
 }
 
 * { box-sizing: border-box; }

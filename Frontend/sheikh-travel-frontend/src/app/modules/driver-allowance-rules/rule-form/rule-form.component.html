@@ -1,0 +1,96 @@
+<div class="page-header">
+  <h2>{{ isEdit ? 'Edit' : 'New' }} Driver Allowance Rule</h2>
+  <button mat-button routerLink="/driver-allowance-rules">
+    <mat-icon>arrow_back</mat-icon> Back
+  </button>
+</div>
+
+<div *ngIf="loading" class="loading"><mat-spinner diameter="32"></mat-spinner></div>
+
+<mat-card *ngIf="!loading" class="form-card">
+  <form [formGroup]="form" (ngSubmit)="submit()">
+
+    <div class="form-grid">
+      <mat-form-field appearance="outline" class="span-2">
+        <mat-label>Rule name</mat-label>
+        <input matInput formControlName="name" maxlength="150" placeholder="e.g. Long-haul profit share (≥ 500km)">
+        <mat-error *ngIf="form.get('name')?.hasError('required')">Required</mat-error>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Calculation type</mat-label>
+        <mat-select formControlName="calculationType">
+          <mat-option *ngFor="let t of calculationTypes" [value]="t">
+            {{ typeLabel(t) }}
+          </mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Value ({{ unit(form.value.calculationType) }})</mat-label>
+        <input matInput type="number" formControlName="value" min="0">
+        <mat-hint>
+          <ng-container [ngSwitch]="form.value.calculationType">
+            <span *ngSwitchCase="1">Flat amount in PKR</span>
+            <span *ngSwitchCase="2">Rate per kilometer (PKR/km)</span>
+            <span *ngSwitchCase="3">Rate per day (PKR/day)</span>
+            <span *ngSwitchCase="4">Percent of trip profit (0–100)</span>
+          </ng-container>
+        </mat-hint>
+        <mat-error *ngIf="form.get('value')?.hasError('required')">Required</mat-error>
+        <mat-error *ngIf="form.get('value')?.hasError('min')">Must be ≥ 0</mat-error>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Priority</mat-label>
+        <input matInput type="number" formControlName="priority" min="0">
+        <mat-hint>Lower number = evaluated first</mat-hint>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Active</mat-label>
+        <mat-select formControlName="isActive">
+          <mat-option [value]="true">Active</mat-option>
+          <mat-option [value]="false">Inactive</mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Min distance (km, optional)</mat-label>
+        <input matInput type="number" formControlName="minDistanceKm" min="0">
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Max distance (km, optional)</mat-label>
+        <input matInput type="number" formControlName="maxDistanceKm" min="0">
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Vehicle fuel type (optional)</mat-label>
+        <mat-select formControlName="vehicleFuelType">
+          <mat-option [value]="null">Any</mat-option>
+          <mat-option *ngFor="let f of fuelTypes" [value]="f">{{ fuelLabel(f) }}</mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Route filter (optional)</mat-label>
+        <input matInput formControlName="routeFilter" placeholder="e.g. Karachi">
+        <mat-hint>Matches any route whose name/source/destination contains this text</mat-hint>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="span-2">
+        <mat-label>Notes (optional)</mat-label>
+        <textarea matInput formControlName="notes" rows="2"></textarea>
+      </mat-form-field>
+    </div>
+
+    <div class="actions">
+      <button mat-button type="button" routerLink="/driver-allowance-rules">Cancel</button>
+      <button mat-raised-button color="primary" type="submit" [disabled]="submitting || form.invalid">
+        <mat-spinner *ngIf="submitting" diameter="16"></mat-spinner>
+        {{ isEdit ? 'Save Changes' : 'Create Rule' }}
+      </button>
+    </div>
+  </form>
+</mat-card>

@@ -62,3 +62,23 @@ public enum FuelType
     Diesel = 2,
     CNG = 3
 }
+
+/// <summary>
+/// Strategy used when computing a driver allowance from business rules.
+/// New strategies are additive — controllers, validators, and the evaluator
+/// must switch on every defined value.
+/// </summary>
+public enum AllowanceCalculationType
+{
+    /// <summary>Flat amount regardless of distance/time/profit.</summary>
+    FixedAmount = 1,
+
+    /// <summary>`Rate × Distance (km)`.</summary>
+    PerKm = 2,
+
+    /// <summary>`Rate × Trip Days` (defaults to 1 if no explicit trip length).</summary>
+    PerDay = 3,
+
+    /// <summary>`(Percent/100) × Profit`, where profit is supplied by the caller.</summary>
+    ProfitPercent = 4
+}

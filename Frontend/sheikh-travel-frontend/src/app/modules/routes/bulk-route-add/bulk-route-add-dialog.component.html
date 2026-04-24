@@ -1,0 +1,99 @@
+<h2 mat-dialog-title>
+  <mat-icon>playlist_add</mat-icon>
+  Bulk add routes
+</h2>
+
+<mat-dialog-content class="dialog-body">
+  <p class="hint">
+    Paste one route per line. Columns (comma, tab, or <code>|</code> separated):
+    <strong>Name, Origin, Destination, Distance (km), Duration (min), Base Price</strong>.
+    Name and Duration are optional — leave them blank when unknown.
+  </p>
+
+  <div class="toolbar">
+    <button mat-stroked-button type="button" (click)="useSample()">
+      <mat-icon>auto_awesome</mat-icon>
+      Use sample
+    </button>
+    <button mat-stroked-button type="button" (click)="parse()" [disabled]="!input.trim()">
+      <mat-icon>check_circle</mat-icon>
+      Validate
+    </button>
+    <span class="spacer"></span>
+    <span *ngIf="parsed.length > 0" class="summary">
+      <span class="ok">{{ validCount }} valid</span>
+      <span class="sep" *ngIf="invalidCount > 0">·</span>
+      <span class="err" *ngIf="invalidCount > 0">{{ invalidCount }} invalid</span>
+    </span>
+  </div>
+
+  <mat-form-field appearance="outline" class="input-field">
+    <mat-label>Route rows</mat-label>
+    <textarea matInput rows="8"
+              [(ngModel)]="input"
+              (ngModelChange)="parse()"
+              placeholder="Lahore – Multan, Lahore, Multan, 340, 240, 6000"></textarea>
+  </mat-form-field>
+
+  <div class="preview" *ngIf="parsed.length > 0">
+    <table class="preview-table">
+      <thead>
+        <tr>
+          <th class="col-row">#</th>
+          <th>Name</th>
+          <th>Origin</th>
+          <th>Destination</th>
+          <th class="num">Distance</th>
+          <th class="num">Duration</th>
+          <th class="num">Base price</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let row of parsed"
+            [class.invalid]="row.error"
+            [class.submitted]="row.submitted"
+            [class.failed]="row.submissionError">
+          <td class="col-row">{{ row.rowNumber }}</td>
+
+          <ng-container *ngIf="row.dto; else brokenRow">
+            <td>{{ row.dto.name || '—' }}</td>
+            <td>{{ row.dto.source }}</td>
+            <td>{{ row.dto.destination }}</td>
+            <td class="num">{{ row.dto.distance }}</td>
+            <td class="num">{{ row.dto.estimatedMinutes ?? '—' }}</td>
+            <td class="num">{{ row.dto.basePrice }}</td>
+            <td>
+              <span class="pill ok" *ngIf="row.submitted">Created</span>
+              <span class="pill err" *ngIf="row.submissionError" [title]="row.submissionError">Failed</span>
+              <span class="pill pending" *ngIf="!row.submitted && !row.submissionError">Ready</span>
+            </td>
+          </ng-container>
+
+          <ng-template #brokenRow>
+            <td colspan="6" class="error-cell" [title]="row.raw">
+              <mat-icon>error</mat-icon>
+              {{ row.error }}
+            </td>
+            <td><span class="pill err">Invalid</span></td>
+          </ng-template>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end" class="dialog-actions">
+  <button mat-button type="button" (click)="cancel()" [disabled]="submitting">Cancel</button>
+  <button mat-button color="primary" type="button" (click)="closeWithSummary()"
+          *ngIf="parsed.length > 0 && !submitting && (validCount === 0 || invalidCount === parsed.length)">
+    Close
+  </button>
+  <button mat-raised-button color="primary" type="button"
+          (click)="submit()"
+          [disabled]="submitting || validCount === 0">
+    <mat-icon *ngIf="!submitting">cloud_upload</mat-icon>
+    <mat-spinner *ngIf="submitting" diameter="18" class="inline-spinner"></mat-spinner>
+    {{ submitting ? 'Creating…' : 'Create ' + validCount + ' route' + (validCount === 1 ? '' : 's') }}
+  </button>
+</mat-dialog-actions>

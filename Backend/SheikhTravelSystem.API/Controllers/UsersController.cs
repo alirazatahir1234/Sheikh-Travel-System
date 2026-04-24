@@ -19,6 +19,13 @@ public class UsersController : BaseApiController
         => Ok(await Mediator.Send(query));
 
     /// <summary>
+    /// Gets a single user by identifier.
+    /// </summary>
+    [HttpGet("{id:int}")]
+    public async Task<IActionResult> GetById(int id)
+        => Ok(await Mediator.Send(new GetUserByIdQuery(id)));
+
+    /// <summary>
     /// Creates a new user account.
     /// </summary>
     [HttpPost]

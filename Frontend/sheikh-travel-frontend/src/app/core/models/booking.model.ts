@@ -19,13 +19,19 @@ export interface Booking {
   createdAt: string;
 }
 
-export interface CreateBookingRequest {
+/** Matches backend CreateBookingDto (CustomerId, RouteId, PickupTime, PassengerCount, TotalAmount, Notes). */
+export interface CreateBookingDto {
   customerId: number;
   routeId: number;
   pickupTime: string;
   passengerCount: number;
   totalAmount: number;
-  notes?: string;
+  notes?: string | null;
+}
+
+/** Envelope sent on POST /api/bookings — backend expects `{ booking: CreateBookingDto }`. */
+export interface CreateBookingRequest {
+  booking: CreateBookingDto;
 }
 
 export interface AssignDriverRequest {

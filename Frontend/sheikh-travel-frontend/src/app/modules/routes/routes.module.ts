@@ -4,6 +4,7 @@ import { GoogleMapsModule } from '@angular/google-maps';
 import { SharedModule } from '../../shared/shared.module';
 import { RouteListComponent } from './route-list/route-list.component';
 import { RouteFormComponent } from './route-form/route-form.component';
+import { BulkRouteAddDialogComponent } from './bulk-route-add/bulk-route-add-dialog.component';
 
 const routes: Routes = [
   { path: '', component: RouteListComponent },
@@ -12,7 +13,7 @@ const routes: Routes = [
 ];
 
 @NgModule({
-  declarations: [RouteListComponent, RouteFormComponent],
+  declarations: [RouteListComponent, RouteFormComponent, BulkRouteAddDialogComponent],
   imports: [SharedModule, GoogleMapsModule, RouterModule.forChild(routes)]
 })
 export class RoutesModule {}

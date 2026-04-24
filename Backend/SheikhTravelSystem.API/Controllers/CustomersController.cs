@@ -19,6 +19,13 @@ public class CustomersController : BaseApiController
         => Ok(await Mediator.Send(query));
 
     /// <summary>
+    /// Gets a single customer by identifier.
+    /// </summary>
+    [HttpGet("{id:int}")]
+    public async Task<IActionResult> GetById(int id)
+        => Ok(await Mediator.Send(new GetCustomerByIdQuery(id)));
+
+    /// <summary>
     /// Creates a new customer.
     /// </summary>
     [HttpPost]
@@ -31,7 +38,14 @@ public class CustomersController : BaseApiController
     /// <summary>
     /// Updates an existing customer by identifier.
     /// </summary>
-    [HttpPut("{id}")]
+    [HttpPut("{id:int}")]
     public async Task<IActionResult> Update(int id, [FromBody] UpdateCustomerCommand command)
         => Ok(await Mediator.Send(command with { Id = id }));
+
+    /// <summary>
+    /// Soft-deletes a customer by identifier.
+    /// </summary>
+    [HttpDelete("{id:int}")]
+    public async Task<IActionResult> Delete(int id)
+        => Ok(await Mediator.Send(new DeleteCustomerCommand(id)));
 }

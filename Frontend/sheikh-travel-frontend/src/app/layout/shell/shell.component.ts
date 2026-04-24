@@ -18,10 +18,13 @@ export class ShellComponent {
     { label: 'Bookings',  icon: 'confirmation_number', route: '/bookings' },
     { label: 'Vehicles',  icon: 'directions_bus', route: '/vehicles' },
     { label: 'Drivers',   icon: 'badge',          route: '/drivers' },
+    { label: 'Customers', icon: 'group',          route: '/customers' },
     { label: 'Routes',    icon: 'alt_route',      route: '/routes' },
     { label: 'Tracking',  icon: 'my_location',    route: '/tracking' },
     { label: 'Payments',  icon: 'account_balance_wallet', route: '/payments' },
     { label: 'Reports',   icon: 'insights',       route: '/reports' },
+    { label: 'Allowance Rules', icon: 'rule',     route: '/driver-allowance-rules' },
+    { label: 'Users',     icon: 'manage_accounts', route: '/users' },
   ];
 
   currentUser$: AuthService['currentUser$'];

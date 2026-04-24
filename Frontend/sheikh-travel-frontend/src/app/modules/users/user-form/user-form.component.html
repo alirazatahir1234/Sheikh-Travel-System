@@ -1,0 +1,97 @@
+<div class="page-header">
+  <h2>{{ isEdit ? 'Edit User' : 'Add New User' }}</h2>
+  <button mat-button routerLink="/users">
+    <mat-icon>arrow_back</mat-icon> Back
+  </button>
+</div>
+
+<div *ngIf="loading" class="loading"><mat-spinner diameter="32"></mat-spinner></div>
+
+<mat-card *ngIf="!loading" class="form-card">
+  <form [formGroup]="form" (ngSubmit)="submit()">
+
+    <div class="form-grid">
+      <!-- Full Name -->
+      <mat-form-field appearance="outline" class="span-2">
+        <mat-label>Full Name</mat-label>
+        <input matInput formControlName="fullName" placeholder="e.g. Ahmed Khan">
+        <mat-icon matPrefix>person</mat-icon>
+        <mat-error *ngIf="form.get('fullName')?.hasError('required')">Required</mat-error>
+        <mat-error *ngIf="form.get('fullName')?.hasError('maxlength')">Max 100 characters</mat-error>
+      </mat-form-field>
+
+      <!-- Email -->
+      <mat-form-field appearance="outline">
+        <mat-label>Email</mat-label>
+        <input matInput formControlName="email" type="email" placeholder="email@example.com">
+        <mat-icon matPrefix>email</mat-icon>
+        <mat-error *ngIf="form.get('email')?.hasError('required')">Required</mat-error>
+        <mat-error *ngIf="form.get('email')?.hasError('email')">Invalid email format</mat-error>
+      </mat-form-field>
+
+      <!-- Phone -->
+      <mat-form-field appearance="outline">
+        <mat-label>Phone</mat-label>
+        <input matInput formControlName="phone" placeholder="03001234567">
+        <mat-icon matPrefix>phone</mat-icon>
+        <mat-error *ngIf="form.get('phone')?.hasError('required')">Required</mat-error>
+      </mat-form-field>
+
+      <!-- Password (only for new users) -->
+      <mat-form-field appearance="outline" *ngIf="!isEdit">
+        <mat-label>Password</mat-label>
+        <input matInput formControlName="password"
+               [type]="hidePassword ? 'password' : 'text'"
+               placeholder="Min 6 characters">
+        <mat-icon matPrefix>lock</mat-icon>
+        <button mat-icon-button matSuffix type="button" (click)="hidePassword = !hidePassword">
+          <mat-icon>{{ hidePassword ? 'visibility_off' : 'visibility' }}</mat-icon>
+        </button>
+        <mat-error *ngIf="form.get('password')?.hasError('required')">Required</mat-error>
+        <mat-error *ngIf="form.get('password')?.hasError('minlength')">Min 6 characters</mat-error>
+        <mat-hint>User will use this to log in</mat-hint>
+      </mat-form-field>
+
+      <!-- Role -->
+      <mat-form-field appearance="outline" [class.span-2]="isEdit">
+        <mat-label>Role</mat-label>
+        <mat-select formControlName="role">
+          <mat-option *ngFor="let r of roles" [value]="r">
+            <div class="role-option">
+              <span class="role-name">{{ roleLabel(r) }}</span>
+              <span class="role-desc">{{ roleDescription(r) }}</span>
+            </div>
+          </mat-option>
+        </mat-select>
+        <mat-icon matPrefix>badge</mat-icon>
+        <mat-hint>Determines what the user can access</mat-hint>
+      </mat-form-field>
+
+      <!-- Active Status (only for edit) -->
+      <div class="status-toggle" *ngIf="isEdit">
+        <mat-slide-toggle formControlName="isActive" color="primary">
+          Account is {{ form.value.isActive ? 'Active' : 'Inactive' }}
+        </mat-slide-toggle>
+        <p class="toggle-hint">Inactive users cannot log in</p>
+      </div>
+    </div>
+
+    <!-- Role explanation card -->
+    <mat-card class="role-info-card" *ngIf="form.value.role">
+      <mat-icon>info</mat-icon>
+      <div>
+        <strong>{{ roleLabel(form.value.role) }} Role</strong>
+        <p>{{ roleDescription(form.value.role) }}</p>
+      </div>
+    </mat-card>
+
+    <div class="actions">
+      <button mat-button type="button" routerLink="/users">Cancel</button>
+      <button mat-raised-button color="primary" type="submit"
+              [disabled]="submitting || form.invalid">
+        <mat-spinner *ngIf="submitting" diameter="16"></mat-spinner>
+        {{ isEdit ? 'Save Changes' : 'Create User' }}
+      </button>
+    </div>
+  </form>
+</mat-card>

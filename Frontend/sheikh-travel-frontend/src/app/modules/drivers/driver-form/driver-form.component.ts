@@ -128,7 +128,7 @@ export class DriverFormComponent implements OnInit, OnDestroy {
       address: this.readStrOrEmpty(r, 'address', 'Address'),
       status: this.coerceStatus(this.readAny(r, 'status', 'Status')),
       isActive: Boolean(
-        (r as Driver).isActive ?? r['IsActive'] ?? true
+        (r as unknown as Driver).isActive ?? r['IsActive'] ?? true
       )
     });
   }
