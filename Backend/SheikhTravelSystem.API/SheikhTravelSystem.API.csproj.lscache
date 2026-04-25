@@ -58,6 +58,7 @@ TemporaryDependencyNodeTargetIdentifier=net10.0
 
 [sourceFiles]
 Controllers/
+ AuditLogsController.cs
  AuthController.cs
  BaseApiController.cs
  BookingsController.cs

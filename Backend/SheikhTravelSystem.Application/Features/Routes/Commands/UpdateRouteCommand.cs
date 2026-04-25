@@ -8,7 +8,12 @@ using SheikhTravelSystem.Application.Features.Routes.DTOs;
 
 namespace SheikhTravelSystem.Application.Features.Routes.Commands;
 
-public record UpdateRouteCommand(int Id, UpdateRouteDto Route) : IRequest<ApiResponse<bool>>;
+public record UpdateRouteCommand(int Id, UpdateRouteDto Route) : IRequest<ApiResponse<bool>>, IAuditableCommand
+{
+    public string AuditAction => "Update";
+    public string AuditEntityName => "Route";
+    public int? AuditEntityId => Id;
+}
 
 public class UpdateRouteCommandValidator : AbstractValidator<UpdateRouteCommand>
 {

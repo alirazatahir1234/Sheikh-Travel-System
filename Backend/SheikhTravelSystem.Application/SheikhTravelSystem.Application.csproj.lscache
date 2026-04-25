@@ -59,10 +59,13 @@ TemporaryDependencyNodeTargetIdentifier=net10.0
 Common/
  ApiResponse.cs
  Behaviors/
+  AuditLoggingBehavior.cs
   RequestLoggingBehavior.cs
   ValidationBehavior.cs
  Exceptions/CustomExceptions.cs
  Interfaces/
+  IAuditableCommand.cs
+  IAuditService.cs
   ICurrentUserService.cs
   IDatabaseSeeder.cs
   IDbConnectionFactory.cs
@@ -70,6 +73,9 @@ Common/
   IPasswordHasher.cs
  Pagination.cs
 DependencyInjection.cs
+Features/AuditLogs/
+ DTOs/AuditLogDtos.cs
+ Queries/GetAuditLogsQuery.cs
 Features/Auth/Commands/
  LoginCommand.cs
  LoginCommandHandler.cs
@@ -122,8 +128,10 @@ Features/
   Commands/CreateFuelLogCommand.cs
   DTOs/FuelLogDtos.cs
   Queries/GetFuelLogsQuery.cs
+ Maintenance/Commands/
+  CreateMaintenanceCommand.cs
+  UpdateMaintenanceStatusCommand.cs
  Maintenance/
-  Commands/CreateMaintenanceCommand.cs
   DTOs/MaintenanceDtos.cs
   Queries/GetMaintenanceQuery.cs
  Notifications/
@@ -156,9 +164,11 @@ Features/
   DTOs/TrackingDtos.cs
   Queries/GetTrackingQuery.cs
  Users/Commands/
+  ChangePasswordCommand.cs
   CreateUserCommand.cs
   DeleteUserCommand.cs
   ResetUserPasswordCommand.cs
+  UpdateProfileCommand.cs
   UpdateUserCommand.cs
   UpdateUserStatusCommand.cs
  Users/

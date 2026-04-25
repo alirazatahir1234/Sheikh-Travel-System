@@ -24,3 +24,15 @@ export interface VehicleLocation {
   longitude: number;
   lastUpdated: string;
 }
+
+/** DTO returned by backend /tracking/live endpoint */
+export interface TrackingDto {
+  id: number;
+  vehicleId: number;
+  driverId?: number;
+  bookingId?: number;
+  latitude: number;
+  longitude: number;
+  speed: number;
+  timestamp: string;
+}

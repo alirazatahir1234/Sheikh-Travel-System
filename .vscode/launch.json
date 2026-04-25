@@ -14,7 +14,7 @@
       "name": "Launch SheikhTravelSystem.API (CoreCLR, http 5082)",
       "type": "coreclr",
       "request": "launch",
-      "preLaunchTask": "build-api",
+      "preLaunchTask": "free-and-build-api",
       "program": "${workspaceFolder}/Backend/SheikhTravelSystem.API/bin/Debug/net10.0/SheikhTravelSystem.API.dll",
       "args": [],
       "cwd": "${workspaceFolder}/Backend/SheikhTravelSystem.API",

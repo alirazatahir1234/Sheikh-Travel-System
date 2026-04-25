@@ -66,6 +66,7 @@ obj/Debug/net10.0/
  SheikhTravelSystem.Infrastructure.AssemblyInfo.cs
  SheikhTravelSystem.Infrastructure.GlobalUsings.g.cs
 Persistence/
+ AuditService.cs
  DatabaseSeeder.cs
  SqlConnectionFactory.cs
 SignalR/TrackingHub.cs

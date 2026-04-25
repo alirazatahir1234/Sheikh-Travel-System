@@ -13,7 +13,12 @@ namespace SheikhTravelSystem.Application.Features.Bookings.Commands;
 /// <summary>
 /// Creates a new booking from the provided booking DTO.
 /// </summary>
-public record CreateBookingCommand(CreateBookingDto Booking) : IRequest<ApiResponse<int>>;
+public record CreateBookingCommand(CreateBookingDto Booking) : IRequest<ApiResponse<int>>, IAuditableCommand
+{
+    public string AuditAction => "Create";
+    public string AuditEntityName => "Booking";
+    public int? AuditEntityId => null;
+}
 
 /// <summary>
 /// Validates booking creation inputs.

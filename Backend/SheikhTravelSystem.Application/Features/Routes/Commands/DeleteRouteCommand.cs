@@ -6,7 +6,12 @@ using SheikhTravelSystem.Application.Common.Interfaces;
 
 namespace SheikhTravelSystem.Application.Features.Routes.Commands;
 
-public record DeleteRouteCommand(int Id) : IRequest<ApiResponse<bool>>;
+public record DeleteRouteCommand(int Id) : IRequest<ApiResponse<bool>>, IAuditableCommand
+{
+    public string AuditAction => "Delete";
+    public string AuditEntityName => "Route";
+    public int? AuditEntityId => Id;
+}
 
 public class DeleteRouteCommandHandler(IDbConnectionFactory dbFactory)
     : IRequestHandler<DeleteRouteCommand, ApiResponse<bool>>

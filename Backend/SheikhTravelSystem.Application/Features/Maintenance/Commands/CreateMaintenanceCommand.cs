@@ -8,7 +8,12 @@ using SheikhTravelSystem.Domain.Enums;
 
 namespace SheikhTravelSystem.Application.Features.Maintenance.Commands;
 
-public record CreateMaintenanceCommand(CreateMaintenanceDto Maintenance) : IRequest<ApiResponse<int>>;
+public record CreateMaintenanceCommand(CreateMaintenanceDto Maintenance) : IRequest<ApiResponse<int>>, IAuditableCommand
+{
+    public string AuditAction => "Create";
+    public string AuditEntityName => "Maintenance";
+    public int? AuditEntityId => null;
+}
 
 public class CreateMaintenanceCommandValidator : AbstractValidator<CreateMaintenanceCommand>
 {

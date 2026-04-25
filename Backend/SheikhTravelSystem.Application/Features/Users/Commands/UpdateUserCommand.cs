@@ -8,7 +8,12 @@ using SheikhTravelSystem.Application.Features.Users.DTOs;
 
 namespace SheikhTravelSystem.Application.Features.Users.Commands;
 
-public record UpdateUserCommand(int Id, UpdateUserDto User) : IRequest<ApiResponse<bool>>;
+public record UpdateUserCommand(int Id, UpdateUserDto User) : IRequest<ApiResponse<bool>>, IAuditableCommand
+{
+    public string AuditAction => "Update";
+    public string AuditEntityName => "User";
+    public int? AuditEntityId => Id;
+}
 
 public class UpdateUserCommandValidator : AbstractValidator<UpdateUserCommand>
 {

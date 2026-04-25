@@ -1,6 +1,6 @@
 import { Component, OnInit, AfterViewInit, ElementRef, ViewChild } from '@angular/core';
 import { Chart, registerables } from 'chart.js';
-import { DashboardService } from '../../core/services/dashboard.service';
+import { DashboardService, RevenueReportDto } from '../../core/services/dashboard.service';
 
 Chart.register(...registerables);
 
@@ -30,26 +30,31 @@ export class ReportsComponent implements OnInit, AfterViewInit {
 
   loadReports(): void {
     this.loading = true;
+
+    // Revenue report: backend returns aggregated totals, display as breakdown bar chart
     this.dashboardService.getRevenueReport(this.fromDate, this.toDate).subscribe({
-      next: data => {
-        this.renderRevenueChart(data.map(d => d.period), data.map(d => d.totalRevenue));
+      next: (data: RevenueReportDto) => {
+        this.renderRevenueChart(
+          ['Total Revenue', 'Fuel Expense', 'Maintenance', 'Net Profit'],
+          [data.totalRevenue, data.fuelExpense, data.maintenanceCost, data.netProfit]
+        );
         this.loading = false;
       },
       error: () => {
-        // demo data
         this.renderRevenueChart(
-          ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
-          [45000, 62000, 38000, 75000, 55000, 83000]
+          ['Total Revenue', 'Fuel Expense', 'Maintenance', 'Net Profit'],
+          [250000, 45000, 15000, 190000]
         );
         this.loading = false;
       }
     });
 
-    this.dashboardService.getBookingStatusReport().subscribe({
+    // Booking status report: backend returns single DTO, service converts to array
+    this.dashboardService.getBookingStatusReport(this.fromDate, this.toDate).subscribe({
       next: data => this.renderStatusChart(data.map(d => d.status), data.map(d => d.count)),
       error: () => this.renderStatusChart(
-        ['Pending', 'Confirmed', 'InProgress', 'Completed', 'Cancelled'],
-        [12, 25, 8, 95, 7]
+        ['Pending', 'Active', 'Completed', 'Cancelled'],
+        [12, 8, 95, 7]
       )
     });
   }
@@ -61,10 +66,15 @@ export class ReportsComponent implements OnInit, AfterViewInit {
       data: {
         labels,
         datasets: [{
-          label: 'Revenue (PKR)',
+          label: 'Amount (PKR)',
           data,
-          backgroundColor: 'rgba(26, 35, 126, 0.7)',
-          borderColor: '#1a237e',
+          backgroundColor: [
+            'rgba(26, 35, 126, 0.7)',
+            'rgba(198, 40, 40, 0.7)',
+            'rgba(245, 127, 23, 0.7)',
+            'rgba(46, 125, 50, 0.7)'
+          ],
+          borderColor: ['#1a237e', '#c62828', '#f57f17', '#2e7d32'],
           borderWidth: 1
         }]
       },
@@ -84,7 +94,7 @@ export class ReportsComponent implements OnInit, AfterViewInit {
         labels,
         datasets: [{
           data,
-          backgroundColor: ['#f57f17', '#1565c0', '#00695c', '#2e7d32', '#c62828'],
+          backgroundColor: ['#f57f17', '#1565c0', '#2e7d32', '#c62828'],
           borderWidth: 2
         }]
       },

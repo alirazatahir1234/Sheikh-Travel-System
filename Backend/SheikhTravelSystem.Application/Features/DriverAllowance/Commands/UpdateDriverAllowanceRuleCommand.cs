@@ -9,8 +9,12 @@ using SheikhTravelSystem.Domain.Enums;
 
 namespace SheikhTravelSystem.Application.Features.DriverAllowance.Commands;
 
-public record UpdateDriverAllowanceRuleCommand(int Id, UpdateDriverAllowanceRuleDto Rule)
-    : IRequest<ApiResponse<bool>>;
+public record UpdateDriverAllowanceRuleCommand(int Id, UpdateDriverAllowanceRuleDto Rule) : IRequest<ApiResponse<bool>>, IAuditableCommand
+{
+    public string AuditAction => "Update";
+    public string AuditEntityName => "DriverAllowanceRule";
+    public int? AuditEntityId => Id;
+}
 
 public class UpdateDriverAllowanceRuleCommandValidator
     : AbstractValidator<UpdateDriverAllowanceRuleCommand>

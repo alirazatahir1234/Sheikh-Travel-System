@@ -8,7 +8,12 @@ using SheikhTravelSystem.Application.Features.Vehicles.DTOs;
 
 namespace SheikhTravelSystem.Application.Features.Vehicles.Commands;
 
-public record CreateVehicleCommand(CreateVehicleDto Vehicle) : IRequest<ApiResponse<int>>;
+public record CreateVehicleCommand(CreateVehicleDto Vehicle) : IRequest<ApiResponse<int>>, IAuditableCommand
+{
+    public string AuditAction => "Create";
+    public string AuditEntityName => "Vehicle";
+    public int? AuditEntityId => null;
+}
 
 public class CreateVehicleCommandValidator : AbstractValidator<CreateVehicleCommand>
 {

@@ -7,7 +7,12 @@ using SheikhTravelSystem.Domain.Enums;
 
 namespace SheikhTravelSystem.Application.Features.Bookings.Commands;
 
-public record AssignVehicleCommand(int BookingId, int VehicleId) : IRequest<ApiResponse<bool>>;
+public record AssignVehicleCommand(int BookingId, int VehicleId) : IRequest<ApiResponse<bool>>, IAuditableCommand
+{
+    public string AuditAction => "AssignVehicle";
+    public string AuditEntityName => "Booking";
+    public int? AuditEntityId => BookingId;
+}
 
 public class AssignVehicleCommandHandler(IDbConnectionFactory dbFactory)
     : IRequestHandler<AssignVehicleCommand, ApiResponse<bool>>

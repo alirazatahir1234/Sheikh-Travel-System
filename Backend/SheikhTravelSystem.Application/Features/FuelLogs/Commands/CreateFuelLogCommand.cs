@@ -7,7 +7,12 @@ using SheikhTravelSystem.Application.Features.FuelLogs.DTOs;
 
 namespace SheikhTravelSystem.Application.Features.FuelLogs.Commands;
 
-public record CreateFuelLogCommand(CreateFuelLogDto FuelLog) : IRequest<ApiResponse<int>>;
+public record CreateFuelLogCommand(CreateFuelLogDto FuelLog) : IRequest<ApiResponse<int>>, IAuditableCommand
+{
+    public string AuditAction => "Create";
+    public string AuditEntityName => "FuelLog";
+    public int? AuditEntityId => null;
+}
 
 public class CreateFuelLogCommandValidator : AbstractValidator<CreateFuelLogCommand>
 {

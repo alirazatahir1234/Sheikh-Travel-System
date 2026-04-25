@@ -10,7 +10,12 @@ namespace SheikhTravelSystem.Application.Features.Users.Commands;
 /// <summary>
 /// Updates user activation status.
 /// </summary>
-public record UpdateUserStatusCommand(int Id, bool IsActive) : IRequest<ApiResponse<bool>>;
+public record UpdateUserStatusCommand(int Id, bool IsActive) : IRequest<ApiResponse<bool>>, IAuditableCommand
+{
+    public string AuditAction => "UpdateStatus";
+    public string AuditEntityName => "User";
+    public int? AuditEntityId => Id;
+}
 
 /// <summary>
 /// Validates user status update request.

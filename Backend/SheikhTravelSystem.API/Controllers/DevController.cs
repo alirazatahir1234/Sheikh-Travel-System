@@ -1,3 +1,4 @@
+using Dapper;
 using Microsoft.AspNetCore.Mvc;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Interfaces;
@@ -10,7 +11,7 @@ namespace SheikhTravelSystem.API.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/dev")]
-public class DevController(IDatabaseSeeder seeder, IWebHostEnvironment env) : ControllerBase
+public class DevController(IDatabaseSeeder seeder, IDbConnectionFactory dbFactory, IPasswordHasher passwordHasher, IWebHostEnvironment env) : ControllerBase
 {
     /// <summary>
     /// Runs the idempotent seeder against empty tables.
@@ -34,5 +35,26 @@ public class DevController(IDatabaseSeeder seeder, IWebHostEnvironment env) : Co
 
         await seeder.ResetAndSeedAsync(cancellationToken);
         return Ok(ApiResponse<string>.SuccessResponse("ok", "Database wiped and reseeded."));
+    }
+
+    /// <summary>
+    /// Resets admin password to Pass@123 and ensures user is active.
+    /// </summary>
+    [HttpPost("reset-admin")]
+    public async Task<IActionResult> ResetAdmin(CancellationToken cancellationToken)
+    {
+        if (!env.IsDevelopment()) return NotFound();
+
+        using var connection = dbFactory.CreateConnection();
+        const string newPassword = "Pass@123";
+        var hash = passwordHasher.Hash(newPassword);
+
+        var affected = await connection.ExecuteAsync(
+            new CommandDefinition(
+                "UPDATE Users SET PasswordHash = @Hash, IsActive = 1, IsDeleted = 0 WHERE Email = @Email",
+                new { Hash = hash, Email = "admin@sheikhtravel.com" },
+                cancellationToken: cancellationToken));
+
+        return Ok(ApiResponse<string>.SuccessResponse($"Updated {affected} row(s). Admin password is now: {newPassword}"));
     }
 }

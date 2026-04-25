@@ -7,7 +7,12 @@ using SheikhTravelSystem.Application.Features.Routes.DTOs;
 
 namespace SheikhTravelSystem.Application.Features.Routes.Commands;
 
-public record CreateRouteCommand(CreateRouteDto Route) : IRequest<ApiResponse<int>>;
+public record CreateRouteCommand(CreateRouteDto Route) : IRequest<ApiResponse<int>>, IAuditableCommand
+{
+    public string AuditAction => "Create";
+    public string AuditEntityName => "Route";
+    public int? AuditEntityId => null;
+}
 
 public class CreateRouteCommandValidator : AbstractValidator<CreateRouteCommand>
 {

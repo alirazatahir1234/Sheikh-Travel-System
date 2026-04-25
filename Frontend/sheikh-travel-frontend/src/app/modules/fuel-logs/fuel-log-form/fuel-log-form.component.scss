@@ -1,0 +1,98 @@
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  h2 { margin: 0; }
+}
+
+.loading { display: flex; justify-content: center; padding: 48px 0; }
+
+.form-card { padding: 24px; max-width: 700px; }
+
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 16px;
+
+  .span-2 { grid-column: span 2; }
+
+  @media (max-width: 600px) {
+    grid-template-columns: 1fr;
+    .span-2 { grid-column: span 1; }
+  }
+}
+
+.total-cost-display {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 8px 16px;
+  background: var(--stb-primary-50, #E8F4F2);
+  border-radius: 8px;
+  margin-bottom: 16px;
+
+  .label {
+    font-size: 12px;
+    color: var(--stb-text-muted, #64748B);
+  }
+  .value {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--stb-primary, #1B7F75);
+  }
+}
+
+.info-icon {
+  cursor: help;
+  color: var(--stb-text-muted, #64748B);
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  margin-left: 4px;
+
+  &:hover {
+    color: var(--stb-primary, #1B7F75);
+  }
+}
+
+// Google Places Autocomplete dropdown styling
+:host ::ng-deep .pac-container {
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  border: 1px solid #E2E8F0;
+  font-family: inherit;
+  margin-top: 4px;
+  z-index: 10000;
+
+  .pac-item {
+    padding: 10px 14px;
+    cursor: pointer;
+    font-size: 14px;
+    border-top: 1px solid #F1F5F9;
+
+    &:first-child { border-top: none; }
+
+    &:hover, &.pac-item-selected {
+      background: var(--stb-primary-50, #E8F4F2);
+    }
+
+    .pac-icon {
+      margin-right: 10px;
+    }
+
+    .pac-item-query {
+      font-weight: 600;
+      color: var(--stb-text, #0F172A);
+    }
+  }
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 24px;
+
+  button[disabled] mat-spinner { margin-right: 8px; }
+}

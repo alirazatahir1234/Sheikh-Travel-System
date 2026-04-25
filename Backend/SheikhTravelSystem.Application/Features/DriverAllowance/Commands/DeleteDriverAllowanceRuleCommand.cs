@@ -6,7 +6,12 @@ using SheikhTravelSystem.Application.Common.Interfaces;
 
 namespace SheikhTravelSystem.Application.Features.DriverAllowance.Commands;
 
-public record DeleteDriverAllowanceRuleCommand(int Id) : IRequest<ApiResponse<bool>>;
+public record DeleteDriverAllowanceRuleCommand(int Id) : IRequest<ApiResponse<bool>>, IAuditableCommand
+{
+    public string AuditAction => "Delete";
+    public string AuditEntityName => "DriverAllowanceRule";
+    public int? AuditEntityId => Id;
+}
 
 public class DeleteDriverAllowanceRuleCommandHandler(IDbConnectionFactory dbFactory)
     : IRequestHandler<DeleteDriverAllowanceRuleCommand, ApiResponse<bool>>

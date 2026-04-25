@@ -6,7 +6,12 @@ using SheikhTravelSystem.Application.Common.Interfaces;
 
 namespace SheikhTravelSystem.Application.Features.Vehicles.Commands;
 
-public record DeleteVehicleCommand(int Id) : IRequest<ApiResponse<bool>>;
+public record DeleteVehicleCommand(int Id) : IRequest<ApiResponse<bool>>, IAuditableCommand
+{
+    public string AuditAction => "Delete";
+    public string AuditEntityName => "Vehicle";
+    public int? AuditEntityId => Id;
+}
 
 public class DeleteVehicleCommandHandler(IDbConnectionFactory dbFactory)
     : IRequestHandler<DeleteVehicleCommand, ApiResponse<bool>>

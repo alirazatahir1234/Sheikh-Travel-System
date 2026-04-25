@@ -29,9 +29,35 @@
   <!-- Main area -->
   <section class="stb-main">
     <header class="stb-topbar">
-      <div class="stb-search">
+      <div class="stb-search" [class.active]="showSearchResults">
         <mat-icon>search</mat-icon>
-        <input type="text" placeholder="Search bookings, vehicles, drivers…" />
+        <input type="text"
+               placeholder="Search bookings, vehicles, drivers…"
+               [ngModel]="searchQuery"
+               (ngModelChange)="onSearchInput($event)"
+               (focus)="onSearchFocus()"
+               (blur)="onSearchBlur()"
+               autocomplete="off" />
+        <mat-spinner *ngIf="searchLoading" diameter="18" class="search-spinner"></mat-spinner>
+
+        <div class="search-dropdown" *ngIf="showSearchResults">
+          <div *ngIf="searchResults.length === 0 && !searchLoading" class="search-empty">
+            <mat-icon>search_off</mat-icon>
+            <span>No results found for "{{ searchQuery }}"</span>
+          </div>
+
+          <div *ngFor="let result of searchResults" class="search-result"
+               (mousedown)="navigateToResult(result)">
+            <div class="result-icon" [attr.data-type]="result.type">
+              <mat-icon>{{ result.icon }}</mat-icon>
+            </div>
+            <div class="result-content">
+              <div class="result-title">{{ result.title }}</div>
+              <div class="result-subtitle">{{ result.subtitle }}</div>
+            </div>
+            <span class="result-type">{{ getResultTypeLabel(result.type) }}</span>
+          </div>
+        </div>
       </div>
 
       <div class="stb-topbar-actions">
@@ -39,9 +65,49 @@
           <mat-icon>help_outline</mat-icon>
         </button>
         <button mat-icon-button class="stb-icon-btn" matTooltip="Notifications"
-                [matBadge]="3" matBadgeColor="warn" matBadgeSize="small">
+                [matMenuTriggerFor]="notifMenu"
+                [matBadge]="(unreadCount$ | async) || null"
+                [matBadgeHidden]="!(unreadCount$ | async)"
+                matBadgeColor="warn" matBadgeSize="small">
           <mat-icon>notifications_none</mat-icon>
         </button>
+
+        <mat-menu #notifMenu="matMenu" class="notif-menu" xPosition="before">
+          <div class="notif-header" (click)="$event.stopPropagation()">
+            <span class="notif-title">Notifications</span>
+            <button mat-button color="primary" (click)="markAllAsRead()"
+                    *ngIf="(unreadCount$ | async) as count">
+              Mark all read
+            </button>
+          </div>
+
+          <div class="notif-list" (click)="$event.stopPropagation()">
+            <ng-container *ngIf="notifications$ | async as notifications">
+              <div *ngIf="notifications.length === 0" class="notif-empty">
+                <mat-icon>notifications_off</mat-icon>
+                <span>No notifications</span>
+              </div>
+
+              <div *ngFor="let n of notifications; trackBy: trackByNotifId"
+                   class="notif-item" [class.unread]="!n.isRead"
+                   (click)="onNotificationClick(n)">
+                <div class="notif-icon" [style.background-color]="getNotifColor(n.type) + '20'"
+                     [style.color]="getNotifColor(n.type)">
+                  <mat-icon>{{ getNotifIcon(n.type) }}</mat-icon>
+                </div>
+                <div class="notif-content">
+                  <div class="notif-item-title">{{ n.title }}</div>
+                  <div class="notif-message">{{ n.message }}</div>
+                  <div class="notif-time">{{ formatTimeAgo(n.createdAt) }}</div>
+                </div>
+                <button mat-icon-button class="notif-mark" *ngIf="!n.isRead"
+                        (click)="markAsRead(n, $event)" matTooltip="Mark as read">
+                  <mat-icon>check_circle_outline</mat-icon>
+                </button>
+              </div>
+            </ng-container>
+          </div>
+        </mat-menu>
 
         <ng-container *ngIf="currentUser$ | async as user; else guestBtn">
           <button mat-button [matMenuTriggerFor]="userMenu" class="stb-user-chip">
@@ -55,8 +121,8 @@
             <mat-icon>expand_more</mat-icon>
           </button>
           <mat-menu #userMenu="matMenu" xPosition="before">
-            <button mat-menu-item><mat-icon>account_circle</mat-icon><span>Profile</span></button>
-            <button mat-menu-item><mat-icon>settings</mat-icon><span>Settings</span></button>
+            <button mat-menu-item (click)="goToProfile()"><mat-icon>account_circle</mat-icon><span>Profile</span></button>
+            <button mat-menu-item (click)="goToSettings()"><mat-icon>settings</mat-icon><span>Settings</span></button>
             <mat-divider></mat-divider>
             <button mat-menu-item (click)="logout()"><mat-icon>logout</mat-icon><span>Logout</span></button>
           </mat-menu>

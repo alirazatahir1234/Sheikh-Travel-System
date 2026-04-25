@@ -15,6 +15,7 @@ public static class DependencyInjection
         services.AddSingleton<IJwtTokenService, JwtTokenService>();
         services.AddScoped<ICurrentUserService, CurrentUserService>();
         services.AddScoped<IDatabaseSeeder, DatabaseSeeder>();
+        services.AddScoped<IAuditService, AuditService>();
         services.AddHttpContextAccessor();
         services.AddSignalR();
 

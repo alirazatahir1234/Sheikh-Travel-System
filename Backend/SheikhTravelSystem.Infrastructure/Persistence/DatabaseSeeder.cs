@@ -107,13 +107,16 @@ public class DatabaseSeeder(
     // ---------------------------------------------------------------------
     private async Task SeedUsersAsync(System.Data.IDbConnection connection, CancellationToken ct)
     {
+        // Default password for all seeded users
+        const string defaultPassword = "Pass@123";
+
         // Admin may already exist from CreateDatabase.sql; insert only missing emails.
         var seedUsers = new[]
         {
-            new { FullName = "System Admin",  Email = "admin@sheikhtravel.com",      Password = "Admin@123",      Phone = "03001234567", Role = (int)UserRole.Admin },
-            new { FullName = "Ops Dispatcher", Email = "dispatcher@sheikhtravel.com", Password = "Dispatcher@123", Phone = "03011234567", Role = (int)UserRole.Dispatcher },
-            new { FullName = "Field Driver",   Email = "driver@sheikhtravel.com",     Password = "Driver@123",     Phone = "03021234567", Role = (int)UserRole.Driver },
-            new { FullName = "Finance Team",   Email = "accountant@sheikhtravel.com", Password = "Accountant@123", Phone = "03031234567", Role = (int)UserRole.Accountant }
+            new { FullName = "System Admin",  Email = "admin@sheikhtravel.com",      Password = defaultPassword, Phone = "03001234567", Role = (int)UserRole.Admin },
+            new { FullName = "Ops Dispatcher", Email = "dispatcher@sheikhtravel.com", Password = defaultPassword, Phone = "03011234567", Role = (int)UserRole.Dispatcher },
+            new { FullName = "Field Driver",   Email = "driver@sheikhtravel.com",     Password = defaultPassword, Phone = "03021234567", Role = (int)UserRole.Driver },
+            new { FullName = "Finance Team",   Email = "accountant@sheikhtravel.com", Password = defaultPassword, Phone = "03031234567", Role = (int)UserRole.Accountant }
         };
 
         foreach (var u in seedUsers)
@@ -123,7 +126,19 @@ public class DatabaseSeeder(
                 new { u.Email },
                 cancellationToken: ct));
 
-            if (exists) continue;
+            if (exists)
+            {
+                // Update existing admin password to ensure it matches the default
+                if (u.Email == "admin@sheikhtravel.com")
+                {
+                    await connection.ExecuteAsync(new CommandDefinition(
+                        "UPDATE Users SET PasswordHash = @PasswordHash WHERE Email = @Email",
+                        new { PasswordHash = passwordHasher.Hash(u.Password), u.Email },
+                        cancellationToken: ct));
+                    logger.LogInformation("Updated password for {Email}", u.Email);
+                }
+                continue;
+            }
 
             await connection.ExecuteAsync(new CommandDefinition(
                 @"INSERT INTO Users (FullName, Email, PasswordHash, Phone, Role, IsActive, CreatedAt, CreatedBy, IsDeleted)

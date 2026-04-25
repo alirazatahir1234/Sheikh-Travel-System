@@ -8,7 +8,12 @@ using SheikhTravelSystem.Application.Features.Users.DTOs;
 
 namespace SheikhTravelSystem.Application.Features.Users.Commands;
 
-public record CreateUserCommand(CreateUserDto User) : IRequest<ApiResponse<int>>;
+public record CreateUserCommand(CreateUserDto User) : IRequest<ApiResponse<int>>, IAuditableCommand
+{
+    public string AuditAction => "Create";
+    public string AuditEntityName => "User";
+    public int? AuditEntityId => null;
+}
 
 public class CreateUserCommandValidator : AbstractValidator<CreateUserCommand>
 {

@@ -1,0 +1,154 @@
+<div class="page-header">
+  <div>
+    <h2>Maintenance Records</h2>
+    <p class="page-sub">Track service history and scheduled maintenance</p>
+  </div>
+  <div class="header-actions">
+    <button mat-stroked-button (click)="load()">
+      <mat-icon>refresh</mat-icon> Refresh
+    </button>
+    <button mat-raised-button color="primary" routerLink="new">
+      <mat-icon>build</mat-icon> Schedule Maintenance
+    </button>
+  </div>
+</div>
+
+<!-- Summary Cards -->
+<div class="summary-row">
+  <mat-card class="summary-card scheduled">
+    <mat-icon>schedule</mat-icon>
+    <div class="summary-content">
+      <span class="summary-value">{{ scheduledCount }}</span>
+      <span class="summary-label">Scheduled</span>
+    </div>
+  </mat-card>
+  <mat-card class="summary-card expense">
+    <mat-icon>payments</mat-icon>
+    <div class="summary-content">
+      <span class="summary-value">PKR {{ formatNumber(totalCost) }}</span>
+      <span class="summary-label">Total Maintenance Cost</span>
+    </div>
+  </mat-card>
+</div>
+
+<!-- Filters -->
+<mat-card class="filter-card">
+  <div class="filter-row">
+    <mat-form-field appearance="outline" class="search-field">
+      <mat-label>Search</mat-label>
+      <input matInput [ngModel]="searchTerm" (ngModelChange)="onSearch($event)"
+             placeholder="Vehicle, description, provider…">
+      <mat-icon matPrefix>search</mat-icon>
+      <button *ngIf="searchTerm" mat-icon-button matSuffix (click)="onSearch('')">
+        <mat-icon>close</mat-icon>
+      </button>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Status</mat-label>
+      <mat-select [ngModel]="statusFilter" (ngModelChange)="onStatusChange($event)">
+        <mat-option value="ALL">All Statuses</mat-option>
+        <mat-option *ngFor="let s of statuses" [value]="s">{{ statusLabel(s) }}</mat-option>
+      </mat-select>
+    </mat-form-field>
+
+    <button mat-stroked-button (click)="clearFilters()" matTooltip="Clear filters">
+      <mat-icon>filter_alt_off</mat-icon>
+    </button>
+
+    <span class="spacer"></span>
+
+    <button mat-stroked-button [matMenuTriggerFor]="exportMenu">
+      <mat-icon>download</mat-icon> Export
+    </button>
+    <mat-menu #exportMenu="matMenu">
+      <button mat-menu-item (click)="exportExcel()">
+        <mat-icon>table_chart</mat-icon> Excel (.xlsx)
+      </button>
+      <button mat-menu-item (click)="exportPdf()">
+        <mat-icon>picture_as_pdf</mat-icon> PDF
+      </button>
+    </mat-menu>
+  </div>
+</mat-card>
+
+<!-- Loading -->
+<div *ngIf="loading" class="loading"><mat-spinner diameter="32"></mat-spinner></div>
+
+<!-- Table -->
+<mat-card *ngIf="!loading" class="table-card">
+  <div class="table-container">
+    <table mat-table [dataSource]="dataSource" class="maint-table">
+
+      <ng-container matColumnDef="maintenanceDate">
+        <th mat-header-cell *matHeaderCellDef>Date</th>
+        <td mat-cell *matCellDef="let r">{{ r.maintenanceDate | date:'mediumDate' }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="vehicle">
+        <th mat-header-cell *matHeaderCellDef>Vehicle</th>
+        <td mat-cell *matCellDef="let r">
+          <div class="cell-main">{{ r.vehicleName }}</div>
+          <div class="cell-sub">{{ r.vehicleRegistration }}</div>
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="description">
+        <th mat-header-cell *matHeaderCellDef>Description</th>
+        <td mat-cell *matCellDef="let r">{{ r.description }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="status">
+        <th mat-header-cell *matHeaderCellDef>Status</th>
+        <td mat-cell *matCellDef="let r">
+          <span class="status-chip" [attr.data-status]="r.status">{{ statusLabel(r.status) }}</span>
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="cost">
+        <th mat-header-cell *matHeaderCellDef class="num">Cost (PKR)</th>
+        <td mat-cell *matCellDef="let r" class="num cost">{{ r.cost | number:'1.0-0' }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="serviceProvider">
+        <th mat-header-cell *matHeaderCellDef>Provider</th>
+        <td mat-cell *matCellDef="let r">{{ r.serviceProvider || '—' }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="nextDueDate">
+        <th mat-header-cell *matHeaderCellDef>Next Due</th>
+        <td mat-cell *matCellDef="let r">{{ r.nextDueDate ? (r.nextDueDate | date:'mediumDate') : '—' }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="actions">
+        <th mat-header-cell *matHeaderCellDef></th>
+        <td mat-cell *matCellDef="let r">
+          <button mat-icon-button [matMenuTriggerFor]="actionsMenu"
+                  matTooltip="Actions" *ngIf="r.status !== 3">
+            <mat-icon>more_vert</mat-icon>
+          </button>
+          <mat-menu #actionsMenu="matMenu">
+            <button mat-menu-item *ngIf="r.status === 1" (click)="updateStatus(r, 2)">
+              <mat-icon>play_arrow</mat-icon> Start Work
+            </button>
+            <button mat-menu-item *ngIf="r.status === 2" (click)="updateStatus(r, 3)">
+              <mat-icon>check</mat-icon> Mark Completed
+            </button>
+          </mat-menu>
+          <mat-icon *ngIf="r.status === 3" class="done-icon" matTooltip="Completed">check_circle</mat-icon>
+        </td>
+      </ng-container>
+
+      <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+      <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+
+      <tr class="empty-row" *matNoDataRow>
+        <td [attr.colspan]="displayedColumns.length">
+          No maintenance records found. Schedule a maintenance to get started.
+        </td>
+      </tr>
+    </table>
+  </div>
+
+  <mat-paginator [pageSize]="10" [pageSizeOptions]="[10, 25, 50]" showFirstLastButtons></mat-paginator>
+</mat-card>

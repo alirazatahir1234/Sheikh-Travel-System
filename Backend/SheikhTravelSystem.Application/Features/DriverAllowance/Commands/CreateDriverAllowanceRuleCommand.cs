@@ -8,8 +8,12 @@ using SheikhTravelSystem.Domain.Enums;
 
 namespace SheikhTravelSystem.Application.Features.DriverAllowance.Commands;
 
-public record CreateDriverAllowanceRuleCommand(CreateDriverAllowanceRuleDto Rule)
-    : IRequest<ApiResponse<int>>;
+public record CreateDriverAllowanceRuleCommand(CreateDriverAllowanceRuleDto Rule) : IRequest<ApiResponse<int>>, IAuditableCommand
+{
+    public string AuditAction => "Create";
+    public string AuditEntityName => "DriverAllowanceRule";
+    public int? AuditEntityId => null;
+}
 
 public class CreateDriverAllowanceRuleCommandValidator
     : AbstractValidator<CreateDriverAllowanceRuleCommand>

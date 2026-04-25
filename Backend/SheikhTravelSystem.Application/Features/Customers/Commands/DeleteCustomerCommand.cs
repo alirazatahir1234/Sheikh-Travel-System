@@ -9,7 +9,12 @@ namespace SheikhTravelSystem.Application.Features.Customers.Commands;
 /// <summary>
 /// Soft-deletes a customer by identifier (sets IsDeleted = 1).
 /// </summary>
-public record DeleteCustomerCommand(int Id) : IRequest<ApiResponse<bool>>;
+public record DeleteCustomerCommand(int Id) : IRequest<ApiResponse<bool>>, IAuditableCommand
+{
+    public string AuditAction => "Delete";
+    public string AuditEntityName => "Customer";
+    public int? AuditEntityId => Id;
+}
 
 public class DeleteCustomerCommandHandler(IDbConnectionFactory dbFactory)
     : IRequestHandler<DeleteCustomerCommand, ApiResponse<bool>>

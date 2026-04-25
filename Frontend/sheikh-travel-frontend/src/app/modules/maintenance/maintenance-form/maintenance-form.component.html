@@ -1,0 +1,78 @@
+<div class="page-header">
+  <h2>Schedule Maintenance</h2>
+  <button mat-button routerLink="/maintenance">
+    <mat-icon>arrow_back</mat-icon> Back
+  </button>
+</div>
+
+<div *ngIf="loading" class="loading"><mat-spinner diameter="32"></mat-spinner></div>
+
+<mat-card *ngIf="!loading" class="form-card">
+  <form [formGroup]="form" (ngSubmit)="submit()">
+
+    <div class="form-grid">
+      <!-- Vehicle -->
+      <mat-form-field appearance="outline">
+        <mat-label>Vehicle</mat-label>
+        <mat-select formControlName="vehicleId">
+          <mat-option *ngFor="let v of vehicles" [value]="v.id">
+            {{ v.name }} ({{ v.registrationNumber }})
+          </mat-option>
+        </mat-select>
+        <mat-icon matPrefix>directions_bus</mat-icon>
+        <mat-error *ngIf="form.get('vehicleId')?.hasError('required')">Required</mat-error>
+      </mat-form-field>
+
+      <!-- Cost -->
+      <mat-form-field appearance="outline">
+        <mat-label>Estimated Cost</mat-label>
+        <input matInput type="number" formControlName="cost" min="0">
+        <span matSuffix>PKR</span>
+        <mat-error *ngIf="form.get('cost')?.hasError('required')">Required</mat-error>
+        <mat-error *ngIf="form.get('cost')?.hasError('min')">Cannot be negative</mat-error>
+      </mat-form-field>
+
+      <!-- Maintenance Date -->
+      <mat-form-field appearance="outline">
+        <mat-label>Scheduled Date</mat-label>
+        <input matInput [matDatepicker]="datePicker" formControlName="maintenanceDate">
+        <mat-datepicker-toggle matSuffix [for]="datePicker"></mat-datepicker-toggle>
+        <mat-datepicker #datePicker></mat-datepicker>
+        <mat-error *ngIf="form.get('maintenanceDate')?.hasError('required')">Required</mat-error>
+      </mat-form-field>
+
+      <!-- Next Due Date -->
+      <mat-form-field appearance="outline">
+        <mat-label>Next Due Date (optional)</mat-label>
+        <input matInput [matDatepicker]="nextPicker" formControlName="nextDueDate">
+        <mat-datepicker-toggle matSuffix [for]="nextPicker"></mat-datepicker-toggle>
+        <mat-datepicker #nextPicker></mat-datepicker>
+        <mat-hint>For recurring maintenance</mat-hint>
+      </mat-form-field>
+
+      <!-- Service Provider -->
+      <mat-form-field appearance="outline">
+        <mat-label>Service Provider (optional)</mat-label>
+        <input matInput formControlName="serviceProvider" placeholder="e.g. Toyota Authorized">
+        <mat-icon matPrefix>store</mat-icon>
+      </mat-form-field>
+
+      <!-- Description (full width) -->
+      <mat-form-field appearance="outline" class="span-2">
+        <mat-label>Description</mat-label>
+        <textarea matInput formControlName="description" rows="3"
+                  placeholder="e.g. Oil change, brake pads replacement"></textarea>
+        <mat-error *ngIf="form.get('description')?.hasError('required')">Required</mat-error>
+      </mat-form-field>
+    </div>
+
+    <div class="actions">
+      <button mat-button type="button" routerLink="/maintenance">Cancel</button>
+      <button mat-raised-button color="primary" type="submit"
+              [disabled]="submitting || form.invalid">
+        <mat-spinner *ngIf="submitting" diameter="16"></mat-spinner>
+        Schedule Maintenance
+      </button>
+    </div>
+  </form>
+</mat-card>

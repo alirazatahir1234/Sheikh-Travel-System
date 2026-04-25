@@ -29,6 +29,7 @@ import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatRadioModule } from '@angular/material/radio';
+import { MatTabsModule } from '@angular/material/tabs';
 
 import {
   InfoCardComponent,
@@ -50,7 +51,7 @@ const MATERIAL = [
   MatChipsModule, MatTooltipModule, MatDatepickerModule, MatNativeDateModule,
   MatMenuModule, MatBadgeModule, MatListModule, MatStepperModule,
   MatSidenavModule, MatDividerModule, MatSlideToggleModule, MatCheckboxModule,
-  MatAutocompleteModule, MatRadioModule,
+  MatAutocompleteModule, MatRadioModule, MatTabsModule,
 ];
 
 const UI = [

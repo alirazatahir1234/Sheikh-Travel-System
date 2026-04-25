@@ -9,7 +9,12 @@ using SheikhTravelSystem.Domain.Enums;
 
 namespace SheikhTravelSystem.Application.Features.Bookings.Commands;
 
-public record UpdateBookingStatusCommand(int Id, BookingStatus Status) : IRequest<ApiResponse<bool>>;
+public record UpdateBookingStatusCommand(int Id, BookingStatus Status) : IRequest<ApiResponse<bool>>, IAuditableCommand
+{
+    public string AuditAction => "Update";
+    public string AuditEntityName => "Booking";
+    public int? AuditEntityId => Id;
+}
 
 public class UpdateBookingStatusCommandValidator : AbstractValidator<UpdateBookingStatusCommand>
 {

@@ -1,0 +1,93 @@
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 16px;
+  margin-bottom: 20px;
+
+  h2 { margin: 0; }
+  .page-sub { margin: 4px 0 0; color: var(--stb-text-muted, #64748B); font-size: 13px; }
+  .header-actions { display: inline-flex; gap: 8px; }
+}
+
+.summary-row {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.summary-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  min-width: 180px;
+
+  mat-icon {
+    font-size: 28px;
+    width: 28px;
+    height: 28px;
+  }
+
+  &.scheduled mat-icon { color: #3B82F6; }
+  &.expense mat-icon   { color: #F59E0B; }
+
+  .summary-content { display: flex; flex-direction: column; }
+  .summary-value   { font-size: 1.25rem; font-weight: 700; color: var(--stb-text, #0F172A); }
+  .summary-label   { font-size: 12px; color: var(--stb-text-muted, #64748B); }
+}
+
+.filter-card { margin-bottom: 16px; padding: 12px 16px; }
+
+.filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+
+  .search-field { flex: 1 1 220px; min-width: 180px; }
+  mat-form-field { margin-bottom: -1.25em; }
+  .spacer { flex: 1; }
+}
+
+.loading { display: flex; justify-content: center; padding: 48px 0; }
+
+.table-card { padding: 0; overflow: hidden; }
+.table-container { overflow-x: auto; }
+.maint-table { width: 100%; min-width: 900px; }
+
+.cell-main { font-weight: 500; }
+.cell-sub  { font-size: 12px; color: var(--stb-text-muted, #64748B); }
+
+.num { text-align: right; }
+.cost { font-weight: 600; color: var(--stb-text, #0F172A); }
+
+.status-chip {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  background: #E2E8F0;
+  color: #334155;
+
+  &[data-status="1"] { background: #DBEAFE; color: #1E40AF; } /* Scheduled */
+  &[data-status="2"] { background: #FEF3C7; color: #92400E; } /* In Progress */
+  &[data-status="3"] { background: #DCFCE7; color: #166534; } /* Completed */
+}
+
+.done-icon {
+  color: #16A34A;
+}
+
+.empty-row td {
+  text-align: center;
+  color: var(--stb-text-muted, #64748B);
+  padding: 32px 12px;
+}
+
+@media (max-width: 640px) {
+  .filter-row { flex-direction: column; align-items: stretch; }
+  .summary-row { flex-direction: column; }
+}

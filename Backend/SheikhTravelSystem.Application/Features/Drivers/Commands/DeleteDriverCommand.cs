@@ -6,7 +6,12 @@ using SheikhTravelSystem.Application.Common.Interfaces;
 
 namespace SheikhTravelSystem.Application.Features.Drivers.Commands;
 
-public record DeleteDriverCommand(int Id) : IRequest<ApiResponse<bool>>;
+public record DeleteDriverCommand(int Id) : IRequest<ApiResponse<bool>>, IAuditableCommand
+{
+    public string AuditAction => "Delete";
+    public string AuditEntityName => "Driver";
+    public int? AuditEntityId => Id;
+}
 
 public class DeleteDriverCommandHandler(IDbConnectionFactory dbFactory)
     : IRequestHandler<DeleteDriverCommand, ApiResponse<bool>>

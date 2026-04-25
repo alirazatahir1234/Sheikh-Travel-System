@@ -27,4 +27,11 @@ public class MaintenanceController : BaseApiController
         var result = await Mediator.Send(command);
         return Created(string.Empty, result);
     }
+
+    /// <summary>
+    /// Updates the status of a maintenance record.
+    /// </summary>
+    [HttpPut("{id}/status")]
+    public async Task<IActionResult> UpdateStatus(int id, [FromBody] UpdateMaintenanceStatusCommand command)
+        => Ok(await Mediator.Send(command with { Id = id }));
 }

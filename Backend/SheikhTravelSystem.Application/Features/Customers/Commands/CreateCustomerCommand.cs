@@ -7,7 +7,12 @@ using SheikhTravelSystem.Application.Features.Customers.DTOs;
 
 namespace SheikhTravelSystem.Application.Features.Customers.Commands;
 
-public record CreateCustomerCommand(CreateCustomerDto Customer) : IRequest<ApiResponse<int>>;
+public record CreateCustomerCommand(CreateCustomerDto Customer) : IRequest<ApiResponse<int>>, IAuditableCommand
+{
+    public string AuditAction => "Create";
+    public string AuditEntityName => "Customer";
+    public int? AuditEntityId => null;
+}
 
 public class CreateCustomerCommandValidator : AbstractValidator<CreateCustomerCommand>
 {

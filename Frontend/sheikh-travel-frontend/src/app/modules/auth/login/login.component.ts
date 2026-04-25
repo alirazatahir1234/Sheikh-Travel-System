@@ -25,7 +25,7 @@ export class LoginComponent {
     // Pre-fill with the dev admin in non-production builds so we don't type it every time.
     const devDefaults = environment.production
       ? { email: '', password: '' }
-      : { email: 'admin@sheikhtravel.com', password: 'Admin@123' };
+      : { email: 'admin@sheikhtravel.com', password: 'Pass@123' };
 
     this.form = this.fb.group({
       email: [devDefaults.email, [Validators.required, Validators.email]],

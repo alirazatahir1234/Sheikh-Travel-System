@@ -8,7 +8,12 @@ using SheikhTravelSystem.Application.Features.Drivers.DTOs;
 
 namespace SheikhTravelSystem.Application.Features.Drivers.Commands;
 
-public record CreateDriverCommand(CreateDriverDto Driver) : IRequest<ApiResponse<int>>;
+public record CreateDriverCommand(CreateDriverDto Driver) : IRequest<ApiResponse<int>>, IAuditableCommand
+{
+    public string AuditAction => "Create";
+    public string AuditEntityName => "Driver";
+    public int? AuditEntityId => null;
+}
 
 public class CreateDriverCommandValidator : AbstractValidator<CreateDriverCommand>
 {

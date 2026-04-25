@@ -89,6 +89,15 @@
       "type": "shell",
       "command": "kill -9 $(lsof -ti :5082) 2>/dev/null && echo 'Stopped process listening on 5082.' || echo 'Port 5082 was already free.'",
       "group": "none"
+    },
+    {
+      "label": "free-and-build-api",
+      "dependsOrder": "sequence",
+      "dependsOn": [
+        "API: free port 5082 (stops any process on 5082, macOS/Linux)",
+        "build-api"
+      ],
+      "group": "none"
     }
   ]
 }

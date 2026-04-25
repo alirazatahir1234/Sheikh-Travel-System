@@ -8,7 +8,12 @@ using SheikhTravelSystem.Application.Features.Vehicles.DTOs;
 
 namespace SheikhTravelSystem.Application.Features.Vehicles.Commands;
 
-public record UpdateVehicleCommand(int Id, UpdateVehicleDto Vehicle) : IRequest<ApiResponse<bool>>;
+public record UpdateVehicleCommand(int Id, UpdateVehicleDto Vehicle) : IRequest<ApiResponse<bool>>, IAuditableCommand
+{
+    public string AuditAction => "Update";
+    public string AuditEntityName => "Vehicle";
+    public int? AuditEntityId => Id;
+}
 
 public class UpdateVehicleCommandValidator : AbstractValidator<UpdateVehicleCommand>
 {

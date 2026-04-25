@@ -6,7 +6,12 @@ using SheikhTravelSystem.Application.Common.Interfaces;
 
 namespace SheikhTravelSystem.Application.Features.Users.Commands;
 
-public record DeleteUserCommand(int Id) : IRequest<ApiResponse<bool>>;
+public record DeleteUserCommand(int Id) : IRequest<ApiResponse<bool>>, IAuditableCommand
+{
+    public string AuditAction => "Delete";
+    public string AuditEntityName => "User";
+    public int? AuditEntityId => Id;
+}
 
 public class DeleteUserCommandHandler(IDbConnectionFactory dbFactory)
     : IRequestHandler<DeleteUserCommand, ApiResponse<bool>>

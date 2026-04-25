@@ -48,3 +48,20 @@ export interface BookingReport {
   count: number;
   percentage: number;
 }
+
+/** Backend BookingReportDto from /api/reports/bookings */
+export interface BookingReportDto {
+  totalBookings: number;
+  completed: number;
+  cancelled: number;
+  pending: number;
+  active: number;
+}
+
+/** Backend RevenueReportDto from /api/reports/revenue */
+export interface RevenueReportDto {
+  totalRevenue: number;
+  fuelExpense: number;
+  maintenanceCost: number;
+  netProfit: number;
+}

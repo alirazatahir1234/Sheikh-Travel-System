@@ -62,4 +62,35 @@ public class UsersController : BaseApiController
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(int id)
         => Ok(await Mediator.Send(new DeleteUserCommand(id)));
+
+}
+
+/// <summary>
+/// Self-service profile endpoints accessible by any authenticated user.
+/// Separated from UsersController to avoid Admin role requirement.
+/// </summary>
+[Authorize]
+[ApiController]
+[Route("api/users")]
+public class ProfileController : BaseApiController
+{
+    /// <summary>
+    /// Updates the current user's profile (own account only).
+    /// </summary>
+    [HttpPut("profile")]
+    public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileCommand command)
+    {
+        var userId = int.Parse(User.FindFirst("userId")!.Value);
+        return Ok(await Mediator.Send(command with { UserId = userId }));
+    }
+
+    /// <summary>
+    /// Changes the current user's password (own account only).
+    /// </summary>
+    [HttpPut("change-password")]
+    public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordCommand command)
+    {
+        var userId = int.Parse(User.FindFirst("userId")!.Value);
+        return Ok(await Mediator.Send(command with { UserId = userId }));
+    }
 }

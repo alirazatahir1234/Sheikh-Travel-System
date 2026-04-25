@@ -21,7 +21,11 @@ const routes: Routes = [
       { path: 'reports', loadChildren: () => import('./modules/reports/reports.module').then(m => m.ReportsModule) },
       { path: 'tracking', loadChildren: () => import('./modules/tracking/tracking.module').then(m => m.TrackingModule) },
       { path: 'driver-allowance-rules', loadChildren: () => import('./modules/driver-allowance-rules/driver-allowance-rules.module').then(m => m.DriverAllowanceRulesModule) },
-      { path: 'users', loadChildren: () => import('./modules/users/users.module').then(m => m.UsersModule) }
+      { path: 'users', loadChildren: () => import('./modules/users/users.module').then(m => m.UsersModule) },
+      { path: 'fuel-logs', loadChildren: () => import('./modules/fuel-logs/fuel-logs.module').then(m => m.FuelLogsModule) },
+      { path: 'maintenance', loadChildren: () => import('./modules/maintenance/maintenance.module').then(m => m.MaintenanceModule) },
+      { path: 'audit-logs', loadChildren: () => import('./modules/audit-logs/audit-logs.module').then(m => m.AuditLogsModule) },
+      { path: 'profile', loadChildren: () => import('./modules/profile/profile.module').then(m => m.ProfileModule) }
     ]
   },
   { path: '**', redirectTo: 'dashboard' }

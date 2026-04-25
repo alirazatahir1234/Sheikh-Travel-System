@@ -236,7 +236,7 @@ CREATE TABLE AuditLogs (
     EntityId INT,
     OldValues NVARCHAR(MAX),
     NewValues NVARCHAR(MAX),
-    UserId NVARCHAR(100),
+    UserId INT,
     IpAddress NVARCHAR(50),
     CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
     UpdatedAt DATETIME2,

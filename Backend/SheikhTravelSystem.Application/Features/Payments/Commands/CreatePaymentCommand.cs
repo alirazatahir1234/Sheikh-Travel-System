@@ -9,7 +9,12 @@ using SheikhTravelSystem.Domain.Enums;
 
 namespace SheikhTravelSystem.Application.Features.Payments.Commands;
 
-public record CreatePaymentCommand(CreatePaymentDto Payment) : IRequest<ApiResponse<int>>;
+public record CreatePaymentCommand(CreatePaymentDto Payment) : IRequest<ApiResponse<int>>, IAuditableCommand
+{
+    public string AuditAction => "Create";
+    public string AuditEntityName => "Payment";
+    public int? AuditEntityId => null;
+}
 
 public class CreatePaymentCommandValidator : AbstractValidator<CreatePaymentCommand>
 {

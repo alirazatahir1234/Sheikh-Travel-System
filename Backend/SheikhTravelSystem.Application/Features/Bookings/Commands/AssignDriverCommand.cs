@@ -7,7 +7,12 @@ using SheikhTravelSystem.Domain.Enums;
 
 namespace SheikhTravelSystem.Application.Features.Bookings.Commands;
 
-public record AssignDriverCommand(int BookingId, int DriverId) : IRequest<ApiResponse<bool>>;
+public record AssignDriverCommand(int BookingId, int DriverId) : IRequest<ApiResponse<bool>>, IAuditableCommand
+{
+    public string AuditAction => "AssignDriver";
+    public string AuditEntityName => "Booking";
+    public int? AuditEntityId => BookingId;
+}
 
 public class AssignDriverCommandHandler(IDbConnectionFactory dbFactory)
     : IRequestHandler<AssignDriverCommand, ApiResponse<bool>>

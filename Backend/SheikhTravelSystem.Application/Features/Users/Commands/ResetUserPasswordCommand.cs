@@ -11,7 +11,12 @@ namespace SheikhTravelSystem.Application.Features.Users.Commands;
 /// <summary>
 /// Resets a user's password and returns a temporary password.
 /// </summary>
-public record ResetUserPasswordCommand(int Id) : IRequest<ApiResponse<ResetUserPasswordResponse>>;
+public record ResetUserPasswordCommand(int Id) : IRequest<ApiResponse<ResetUserPasswordResponse>>, IAuditableCommand
+{
+    public string AuditAction => "ResetPassword";
+    public string AuditEntityName => "User";
+    public int? AuditEntityId => Id;
+}
 
 /// <summary>
 /// Response payload for password reset operation.

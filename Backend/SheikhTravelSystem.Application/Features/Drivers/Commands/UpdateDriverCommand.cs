@@ -8,7 +8,12 @@ using SheikhTravelSystem.Application.Features.Drivers.DTOs;
 
 namespace SheikhTravelSystem.Application.Features.Drivers.Commands;
 
-public record UpdateDriverCommand(int Id, UpdateDriverDto Driver) : IRequest<ApiResponse<bool>>;
+public record UpdateDriverCommand(int Id, UpdateDriverDto Driver) : IRequest<ApiResponse<bool>>, IAuditableCommand
+{
+    public string AuditAction => "Update";
+    public string AuditEntityName => "Driver";
+    public int? AuditEntityId => Id;
+}
 
 public class UpdateDriverCommandValidator : AbstractValidator<UpdateDriverCommand>
 {
