@@ -26,17 +26,28 @@ public class CreatePaymentCommandValidator : AbstractValidator<CreatePaymentComm
     }
 }
 
-public class CreatePaymentCommandHandler(IDbConnectionFactory dbFactory)
+public class CreatePaymentCommandHandler(IDbConnectionFactory dbFactory, INotificationService notificationService)
     : IRequestHandler<CreatePaymentCommand, ApiResponse<int>>
 {
+    /// <summary>
+    /// Dapper maps to a POCO reliably. Do not use nullable ValueTuple here — it can deserialize as null
+    /// even when a row exists, causing false NotFoundException on valid booking ids.
+    /// </summary>
+    private sealed class BookingRowForPayment
+    {
+        public decimal TotalAmount { get; set; }
+        public int Status { get; set; }
+        public string? BookingNumber { get; set; }
+    }
+
     public async Task<ApiResponse<int>> Handle(CreatePaymentCommand request, CancellationToken cancellationToken)
     {
         using var connection = dbFactory.CreateConnection();
         var dto = request.Payment;
 
-        var booking = await connection.QuerySingleOrDefaultAsync<(decimal TotalAmount, int Status)?>
-            (new CommandDefinition(
-                "SELECT TotalAmount, Status FROM Bookings WHERE Id = @Id AND IsDeleted = 0",
+        var booking = await connection.QuerySingleOrDefaultAsync<BookingRowForPayment>(
+            new CommandDefinition(
+                "SELECT TotalAmount, Status, BookingNumber FROM Bookings WHERE Id = @Id AND IsDeleted = 0",
                 new { Id = dto.BookingId },
                 cancellationToken: cancellationToken));
 
@@ -51,12 +62,12 @@ public class CreatePaymentCommandHandler(IDbConnectionFactory dbFactory)
                 new { dto.BookingId, Paid = (int)PaymentStatus.Paid, Partial = (int)PaymentStatus.PartiallyPaid },
                 cancellationToken: cancellationToken));
 
-        var remaining = booking.Value.TotalAmount - totalPaid;
+        var remaining = booking.TotalAmount - totalPaid;
 
         if (dto.Amount > remaining)
             return ApiResponse<int>.FailResponse($"Payment amount exceeds remaining balance of {remaining:F2}.");
 
-        var paymentStatus = (totalPaid + dto.Amount) >= booking.Value.TotalAmount
+        var paymentStatus = (totalPaid + dto.Amount) >= booking.TotalAmount
             ? PaymentStatus.Paid
             : PaymentStatus.PartiallyPaid;
 
@@ -72,6 +83,15 @@ public class CreatePaymentCommandHandler(IDbConnectionFactory dbFactory)
                     dto.TransactionReference, dto.Notes, CreatedAt = DateTime.UtcNow
                 },
                 cancellationToken: cancellationToken));
+
+        // Create notification for payment received
+        var bookingNumber = booking.BookingNumber ?? $"#{dto.BookingId}";
+        await notificationService.CreateForAllAsync(
+            $"Payment Received: {bookingNumber}",
+            $"PKR {dto.Amount:N0} received via {dto.PaymentMethod}. Status: {paymentStatus}",
+            NotificationType.PaymentReceived,
+            id,
+            cancellationToken);
 
         return ApiResponse<int>.SuccessResponse(id, "Payment recorded successfully.");
     }

@@ -65,3 +65,43 @@ export interface RevenueReportDto {
   maintenanceCost: number;
   netProfit: number;
 }
+
+/** Backend VehicleProfitDto from /api/reports/vehicle-profit */
+export interface VehicleProfitDto {
+  vehicleId: number;
+  vehicleName: string;
+  revenue: number;
+  fuelCost: number;
+  maintenanceCost: number;
+  profit: number;
+}
+
+/** Backend DriverPerformanceDto from /api/reports/driver-performance */
+export interface DriverPerformanceDto {
+  driverId: number;
+  driverName: string;
+  totalTrips: number;
+  completedTrips: number;
+  totalRevenue: number;
+}
+
+/** Backend PaymentDto used inside PaymentReportDto */
+export interface PaymentReportItemDto {
+  id: number;
+  bookingId: number;
+  amount: number;
+  paymentMethod: string;
+  status: number;
+  paymentDate: string;
+  transactionReference?: string;
+  notes?: string;
+  createdAt: string;
+}
+
+/** Backend PaymentReportDto from /api/payments/report */
+export interface PaymentReportDto {
+  totalReceived: number;
+  totalPending: number;
+  totalTransactions: number;
+  recentPayments: PaymentReportItemDto[];
+}

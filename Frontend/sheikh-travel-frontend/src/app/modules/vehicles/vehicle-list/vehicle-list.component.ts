@@ -2,6 +2,7 @@ import { Component, OnInit, ViewChild } from '@angular/core';
 import { MatTableDataSource } from '@angular/material/table';
 import { MatPaginator } from '@angular/material/paginator';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { MatDialog } from '@angular/material/dialog';
 import { Router } from '@angular/router';
 import { DatePipe, DecimalPipe } from '@angular/common';
 import { VehicleService } from '../../../core/services/vehicle.service';
@@ -10,6 +11,7 @@ import {
   Vehicle, VehicleStatus, VehicleStatusLabels,
   FuelType, FuelTypeLabels
 } from '../../../core/models/vehicle.model';
+import { ConfirmDialogComponent, ConfirmDialogData } from '../../../shared/components/confirm-dialog/confirm-dialog.component';
 
 type InsuranceFilter = 'ALL' | 'VALID' | 'EXPIRING' | 'EXPIRED';
 
@@ -68,6 +70,7 @@ export class VehicleListComponent implements OnInit {
     private vehicleService: VehicleService,
     private router: Router,
     private snackBar: MatSnackBar,
+    private dialog: MatDialog,
     private exportService: ExportService,
     private datePipe: DatePipe,
     private decimalPipe: DecimalPipe
@@ -77,7 +80,7 @@ export class VehicleListComponent implements OnInit {
 
   // ---------- Data loading ---------------------------------------------------
 
-  load(page = 1, pageSize = 50): void {
+  load(page = 1, pageSize = 500): void {
     this.loading = true;
     this.error = null;
     this.vehicleService.getAll(page, pageSize).subscribe({
@@ -95,6 +98,11 @@ export class VehicleListComponent implements OnInit {
 
   applyFilters(): void {
     this.dataSource.data = this.allVehicles.filter(v => this.matches(v));
+    setTimeout(() => {
+      if (this.paginator) {
+        this.dataSource.paginator = this.paginator;
+      }
+    });
   }
 
   setStatus(value: VehicleStatus | 'ALL'): void {
@@ -137,10 +145,22 @@ export class VehicleListComponent implements OnInit {
   edit(id: number): void { this.router.navigate(['/vehicles', id, 'edit']); }
 
   delete(id: number): void {
-    if (!confirm('Delete this vehicle?')) return;
-    this.vehicleService.delete(id).subscribe({
-      next: () => { this.snackBar.open('Deleted', 'Close', { duration: 2000 }); this.load(); },
-      error: () => this.snackBar.open('Delete failed', 'Close', { duration: 3000 })
+    const dialogRef = this.dialog.open(ConfirmDialogComponent, {
+      width: '400px',
+      data: {
+        title: 'Delete Vehicle',
+        message: 'Are you sure you want to delete this vehicle?',
+        confirmText: 'Delete',
+        confirmColor: 'warn'
+      } as ConfirmDialogData
+    });
+
+    dialogRef.afterClosed().subscribe(confirmed => {
+      if (!confirmed) return;
+      this.vehicleService.delete(id).subscribe({
+        next: () => { this.snackBar.open('Deleted', 'Close', { duration: 2000 }); this.load(); },
+        error: () => this.snackBar.open('Delete failed', 'Close', { duration: 3000 })
+      });
     });
   }
 

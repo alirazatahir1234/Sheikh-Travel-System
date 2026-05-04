@@ -2,7 +2,6 @@ using Dapper;
 using FluentValidation;
 using MediatR;
 using SheikhTravelSystem.Application.Common;
-using SheikhTravelSystem.Application.Common.Exceptions;
 using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Application.Features.Pricing.DTOs;
 
@@ -22,10 +21,11 @@ public class CalculatePriceCommandValidator : AbstractValidator<CalculatePriceCo
     {
         RuleFor(x => x.Request.RouteId).GreaterThan(0);
         RuleFor(x => x.Request.VehicleId).GreaterThan(0);
-        RuleFor(x => x.Request.FuelPrice).GreaterThan(0);
-        RuleFor(x => x.Request.DriverCost).GreaterThanOrEqualTo(0);
-        RuleFor(x => x.Request.MaintenanceCost).GreaterThanOrEqualTo(0);
-        RuleFor(x => x.Request.ProfitMargin).GreaterThanOrEqualTo(0);
+        RuleFor(x => x.Request.FuelPricePerLiter).GreaterThan(0);
+        RuleFor(x => x.Request.DriverAllowance).GreaterThanOrEqualTo(0);
+        RuleFor(x => x.Request.TollCharges).GreaterThanOrEqualTo(0);
+        // Allow negative values for discount/adjustment (e.g. -500).
+        RuleFor(x => x.Request.OtherCharges).GreaterThanOrEqualTo(-1_000_000);
     }
 }
 
@@ -45,35 +45,38 @@ public class CalculatePriceCommandHandler(IDbConnectionFactory dbFactory)
 
         var route = await connection.QuerySingleOrDefaultAsync<(decimal Distance, decimal BasePrice)?>
             (new CommandDefinition(
-                "SELECT Distance, BasePrice FROM Routes WHERE Id = @Id AND IsDeleted = 0",
+                "SELECT Distance, BasePrice FROM Routes WHERE Id = @Id",
                 new { Id = req.RouteId },
                 cancellationToken: cancellationToken));
 
         if (route is null)
-            throw new NotFoundException("Route", req.RouteId);
+            return ApiResponse<PriceBreakdown>.FailResponse("Selected route was not found. Please reselect the route.");
 
         var fuelAverage = await connection.ExecuteScalarAsync<decimal?>(
             new CommandDefinition(
-                "SELECT FuelAverage FROM Vehicles WHERE Id = @Id AND IsDeleted = 0",
+                "SELECT FuelAverage FROM Vehicles WHERE Id = @Id",
                 new { Id = req.VehicleId },
                 cancellationToken: cancellationToken));
 
         if (fuelAverage is null || fuelAverage <= 0)
-            throw new NotFoundException("Vehicle", req.VehicleId);
+            return ApiResponse<PriceBreakdown>.FailResponse("Selected vehicle was not found or has invalid fuel average.");
 
-        // Formula: FuelCost = (Distance / FuelAverage) × FuelPrice
-        var fuelCost = (route.Value.Distance / fuelAverage.Value) * req.FuelPrice;
-        var total = fuelCost + req.DriverCost + req.MaintenanceCost + req.ProfitMargin;
+        // Formula: FuelCost = (Distance / FuelAverage) × FuelPricePerLiter × TripMultiplier
+        // TripMultiplier = 2 for round trips (driver must return), 1 for one-way
+        var tripMultiplier = req.IsRoundTrip ? 2.0m : 1.0m;
+        var fuelCost = (route.Value.Distance / fuelAverage.Value) * req.FuelPricePerLiter * tripMultiplier;
+        var total = fuelCost + req.DriverAllowance + req.TollCharges + req.OtherCharges;
 
         var breakdown = new PriceBreakdown(
             Distance: route.Value.Distance,
             FuelAverage: fuelAverage.Value,
-            FuelPrice: req.FuelPrice,
+            FuelPricePerLiter: req.FuelPricePerLiter,
             FuelCost: Math.Round(fuelCost, 2),
-            DriverCost: req.DriverCost,
-            MaintenanceCost: req.MaintenanceCost,
-            ProfitMargin: req.ProfitMargin,
-            TotalAmount: Math.Round(total, 2));
+            DriverAllowance: req.DriverAllowance,
+            TollCharges: req.TollCharges,
+            OtherCharges: req.OtherCharges,
+            TotalAmount: Math.Round(total, 2),
+            IsRoundTrip: req.IsRoundTrip);
 
         return ApiResponse<PriceBreakdown>.SuccessResponse(breakdown, "Price calculated successfully.");
     }

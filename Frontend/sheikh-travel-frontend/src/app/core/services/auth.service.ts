@@ -81,10 +81,12 @@ export class AuthService {
       refreshToken: dto.refreshToken,
       fullName:     dto.fullName,
       roles:        dto.role ? [dto.role] : [],
+      email:        dto.email,
+      phoneNumber:  dto.phoneNumber,
     };
   }
 
-  private persistSession(user: LoginResponse): void {
+  persistSession(user: LoginResponse): void {
     localStorage.setItem(this.tokenKey,   user.accessToken);
     localStorage.setItem(this.refreshKey, user.refreshToken);
     localStorage.setItem(this.userKey,    JSON.stringify(user));

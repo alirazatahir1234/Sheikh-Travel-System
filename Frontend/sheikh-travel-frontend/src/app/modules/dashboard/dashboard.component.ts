@@ -1,10 +1,12 @@
-import { Component, OnInit } from '@angular/core';
-import { forkJoin, of } from 'rxjs';
-import { catchError, map } from 'rxjs/operators';
+import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Router } from '@angular/router';
+import { forkJoin, of, Observable, Subject, interval } from 'rxjs';
+import { catchError, map, takeUntil } from 'rxjs/operators';
 
 import { DashboardService } from '../../core/services/dashboard.service';
 import { BookingService } from '../../core/services/booking.service';
 import { AuthService } from '../../core/services/auth.service';
+import { NotificationService } from '../../core/services/notification.service';
 import { DashboardSummary } from '../../core/models/common.model';
 import { Booking } from '../../core/models/booking.model';
 
@@ -18,12 +20,15 @@ import {
   templateUrl: './dashboard.component.html',
   styleUrls: ['./dashboard.component.scss']
 })
-export class DashboardComponent implements OnInit {
+export class DashboardComponent implements OnInit, OnDestroy {
   loading = true;
   error: string | null = null;
 
   userName = 'there';
   summary: DashboardSummary | null = null;
+  
+  unreadCount$: Observable<number>;
+  private destroy$ = new Subject<void>();
 
   /** Quick-launch tiles match the Sheikh Travel modules (from the Postman collection). */
   quickApps: QuickLaunchApp[] = [
@@ -55,7 +60,7 @@ export class DashboardComponent implements OnInit {
     { key: 'pickupTime',    header: 'Pickup', cell: r => this.formatDate(r.pickupTime) },
     { key: 'status',        header: 'Status' },
     { key: 'totalAmount',   header: 'Amount', align: 'right',
-      cell: r => 'AED ' + (r.totalAmount || 0).toLocaleString() },
+      cell: r => 'PKR ' + (r.totalAmount || 0).toLocaleString() },
   ];
   recentBookings: Booking[] = [];
 
@@ -68,32 +73,50 @@ export class DashboardComponent implements OnInit {
     { id: 5, title: 'Running the monthly revenue report',      icon: 'insights' },
   ];
 
-  /** Prayer times — ready to be wired to a live feed later. */
+  /** Prayer times (Islamabad, Pakistan) — replace with a live API when available. */
   prayerTimes: PrayerTime[] = [
-    { name: 'Fajr',    time: '05:12 AM' },
-    { name: 'Dhuhr',   time: '12:21 PM' },
-    { name: 'Asr',     time: '03:42 PM' },
-    { name: 'Maghrib', time: '06:19 PM' },
-    { name: 'Isha',    time: '07:49 PM' },
+    { name: 'Fajr',    time: '04:10 AM' },
+    { name: 'Dhuhr',   time: '12:05 PM' },
+    { name: 'Asr',     time: '03:50 PM' },
+    { name: 'Maghrib', time: '06:20 PM' },
+    { name: 'Isha',    time: '07:45 PM' },
   ];
 
-  /** Weather demo values for the Sharjah HQ. */
+  /** Weather demo values for Pakistan (illustrative). */
   weather: WeatherInfo = {
-    city: 'Sharjah',
-    temperatureC: 36,
-    condition: 'Sunny',
+    city: 'Pakistan',
+    temperatureC: 32,
+    condition: 'Partly cloudy',
     dateLabel: new Date().toDateString()
   };
 
   constructor(
     private dashboard: DashboardService,
     private bookings: BookingService,
-    private auth: AuthService
-  ) {}
+    private auth: AuthService,
+    private notificationService: NotificationService,
+    private router: Router
+  ) {
+    this.unreadCount$ = this.notificationService.unreadCount;
+  }
 
   ngOnInit(): void {
     this.userName = this.auth.getCurrentUser()?.fullName?.split(' ')[0] ?? 'there';
 
+    this.loadDashboardData();
+
+    // Auto-refresh every 60 seconds
+    interval(60000).pipe(takeUntil(this.destroy$)).subscribe(() => {
+      this.loadDashboardData();
+    });
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
+  private loadDashboardData(): void {
     forkJoin({
       summary: this.dashboard.getSummary().pipe(catchError(() => of(this.fallbackSummary()))),
       recent:  this.bookings.getAll(1, 8).pipe(
@@ -169,7 +192,7 @@ export class DashboardComponent implements OnInit {
   }
 
   private money(v: number): string {
-    return 'AED ' + (v || 0).toLocaleString();
+    return 'PKR ' + (v || 0).toLocaleString();
   }
 
   private formatDate(iso: string): string {
@@ -187,4 +210,25 @@ export class DashboardComponent implements OnInit {
   onAssignedFilter(f: string): void { this.assignedFilter = f; }
   onArticleOpen(_a: ArticleLink): void { /* TODO: open help article */ }
   onPromoCta(): void { /* TODO: wire to onboarding flow */ }
+  
+  onStatClick(key: string): void {
+    const routes: Record<string, string> = {
+      activeTrips: '/bookings',
+      pendingBookings: '/bookings',
+      totalVehicles: '/vehicles',
+      totalRevenue: '/reports',
+      fuelExpense: '/fuel-logs',
+      netProfit: '/reports'
+    };
+    const route = routes[key];
+    if (route) this.router.navigate([route]);
+  }
+
+  onRecentBookingClick(booking: Booking): void {
+    this.router.navigate(['/bookings', booking.id]);
+  }
+
+  onViewAllBookings(): void {
+    this.router.navigate(['/bookings']);
+  }
 }

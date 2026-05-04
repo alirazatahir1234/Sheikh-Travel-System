@@ -1,0 +1,41 @@
+<div class="dt-picker-wrapper">
+  <div class="dt-picker-inputs">
+    <!-- Date Picker -->
+    <mat-form-field appearance="outline" class="dt-field date-field">
+      <mat-label>Date</mat-label>
+      <mat-icon matPrefix>calendar_today</mat-icon>
+      <input matInput [matDatepicker]="datePicker"
+             (change)="onDateChange($event)"
+             [value]="selectedDate | date:'yyyy-MM-dd'"
+             placeholder="Select date">
+      <mat-datepicker-toggle matSuffix [for]="datePicker"></mat-datepicker-toggle>
+      <mat-datepicker #datePicker></mat-datepicker>
+    </mat-form-field>
+
+    <!-- Time Picker -->
+    <mat-form-field appearance="outline" class="dt-field time-field">
+      <mat-label>Time</mat-label>
+      <mat-icon matPrefix>access_time</mat-icon>
+      <input matInput type="time"
+             (change)="onTimeChange($event)"
+             [value]="selectedTime"
+             placeholder="Select time">
+    </mat-form-field>
+
+    <!-- Confirm Button -->
+    <button mat-icon-button
+            type="button"
+            class="dt-confirm-btn"
+            [disabled]="!isSelectionValid()"
+            (click)="confirmSelection()"
+            matTooltip="Confirm date and time">
+      <mat-icon>check_circle</mat-icon>
+    </button>
+  </div>
+
+  <!-- Display Value -->
+  <div class="dt-display" *ngIf="getDisplayValue()">
+    <mat-icon>event_available</mat-icon>
+    <span>{{ getDisplayValue() }}</span>
+  </div>
+</div>

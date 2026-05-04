@@ -3,10 +3,18 @@ using MediatR;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Application.Features.Payments.DTOs;
+using SheikhTravelSystem.Domain.Enums;
 
 namespace SheikhTravelSystem.Application.Features.Payments.Queries;
 
-public record GetPaymentsQuery(int Page = 1, int PageSize = 20) : IRequest<ApiResponse<PagedResult<PaymentDto>>>;
+public record GetPaymentsQuery(
+    int Page = 1,
+    int PageSize = 20,
+    int? BookingId = null,
+    PaymentStatus? Status = null,
+    DateTime? DateFrom = null,
+    DateTime? DateTo = null
+) : IRequest<ApiResponse<PagedResult<PaymentDto>>>;
 
 public class GetPaymentsQueryHandler(IDbConnectionFactory dbFactory)
     : IRequestHandler<GetPaymentsQuery, ApiResponse<PagedResult<PaymentDto>>>
@@ -16,29 +24,41 @@ public class GetPaymentsQueryHandler(IDbConnectionFactory dbFactory)
         using var connection = dbFactory.CreateConnection();
         var offset = (request.Page - 1) * request.PageSize;
 
-        var payments = await connection.QueryAsync<PaymentDto>(
-            new CommandDefinition(
-                @"SELECT Id, BookingId, Amount, PaymentMethod, Status, PaymentDate,
-                  TransactionReference, Notes, CreatedAt
-                  FROM Payments WHERE IsDeleted = 0
-                  ORDER BY CreatedAt DESC
-                  OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY",
-                new { Offset = offset, request.PageSize },
-                cancellationToken: cancellationToken));
+        var where = "WHERE p.IsDeleted = 0";
+        if (request.BookingId.HasValue)      where += " AND p.BookingId = @BookingId";
+        if (request.Status.HasValue)         where += " AND p.Status = @Status";
+        if (request.DateFrom.HasValue)       where += " AND p.PaymentDate >= @DateFrom";
+        if (request.DateTo.HasValue)         where += " AND p.PaymentDate < @DateTo";
 
-        var totalCount = await connection.ExecuteScalarAsync<int>(
-            new CommandDefinition(
-                "SELECT COUNT(*) FROM Payments WHERE IsDeleted = 0",
-                cancellationToken: cancellationToken));
+        var sql = $@"SELECT p.Id, p.BookingId, p.Amount, p.PaymentMethod, p.Status, p.PaymentDate,
+                     p.TransactionReference, p.Notes, p.CreatedAt
+                     FROM Payments p {where}
+                     ORDER BY p.CreatedAt DESC
+                     OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY";
 
-        var result = new PagedResult<PaymentDto>
+        var countSql = $"SELECT COUNT(*) FROM Payments p {where}";
+
+        var parameters = new
         {
-            Items = payments.ToList(),
-            TotalCount = totalCount,
-            Page = request.Page,
-            PageSize = request.PageSize
+            request.BookingId,
+            Status   = request.Status.HasValue   ? (int?)request.Status.Value : null,
+            request.DateFrom,
+            DateTo   = request.DateTo.HasValue   ? (DateTime?)request.DateTo.Value.Date.AddDays(1) : null,
+            Offset   = offset,
+            request.PageSize
         };
 
-        return ApiResponse<PagedResult<PaymentDto>>.SuccessResponse(result);
+        var payments = await connection.QueryAsync<PaymentDto>(
+            new CommandDefinition(sql, parameters, cancellationToken: cancellationToken));
+        var totalCount = await connection.ExecuteScalarAsync<int>(
+            new CommandDefinition(countSql, parameters, cancellationToken: cancellationToken));
+
+        return ApiResponse<PagedResult<PaymentDto>>.SuccessResponse(new PagedResult<PaymentDto>
+        {
+            Items      = payments.ToList(),
+            TotalCount = totalCount,
+            Page       = request.Page,
+            PageSize   = request.PageSize
+        });
     }
 }

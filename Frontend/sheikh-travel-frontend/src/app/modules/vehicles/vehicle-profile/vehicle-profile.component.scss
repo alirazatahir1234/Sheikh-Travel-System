@@ -1,0 +1,106 @@
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  h2 { margin: 0; }
+  .header-actions { display: flex; gap: 12px; }
+}
+
+.loading { display: flex; justify-content: center; padding: 60px; }
+.error-message { display: flex; align-items: center; gap: 8px; padding: 16px; background: #fef2f2; color: #991b1b; border-radius: 8px; }
+
+.profile-container {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  max-width: 1200px;
+}
+
+.info-card {
+  .vehicle-icon {
+    font-size: 40px;
+    width: 48px;
+    height: 48px;
+    background: #e3f2fd;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #1565c0;
+  }
+
+  .info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 16px;
+    margin-top: 16px;
+  }
+
+  .info-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    .label { font-size: 0.8rem; color: #64748b; }
+    .value { font-size: 1rem; font-weight: 500; }
+  }
+
+  .status-chip {
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 0.85rem;
+    &.active { background: #dcfce7; color: #166534; }
+    &:not(.active) { background: #fef2f2; color: #991b1b; }
+  }
+}
+
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+.stat-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px;
+
+  mat-icon {
+    font-size: 32px;
+    width: 32px;
+    height: 32px;
+    color: #1976d2;
+  }
+
+  .stat-content {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .stat-value { font-size: 1.25rem; font-weight: 600; color: #1e293b; }
+  .stat-label { font-size: 0.85rem; color: #64748b; }
+}
+
+.data-card {
+  mat-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    mat-card-title { font-size: 1.1rem; }
+  }
+
+  table { width: 100%; }
+  .text-right { text-align: right; }
+
+  .status-badge { font-weight: 500; }
+
+  a { color: #1976d2; text-decoration: none; &:hover { text-decoration: underline; } }
+}
+
+.empty-state {
+  padding: 24px;
+  text-align: center;
+  color: #64748b;
+}

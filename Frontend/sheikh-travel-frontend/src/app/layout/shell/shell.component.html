@@ -6,7 +6,7 @@
     </div>
 
     <nav class="stb-rail-nav">
-      <a *ngFor="let item of navItems; trackBy: trackByRoute"
+      <a *ngFor="let item of (navItems$ | async) ?? []; trackBy: trackByRoute"
          [routerLink]="item.route"
          routerLinkActive="active"
          [matTooltip]="item.label"
@@ -17,7 +17,7 @@
     </nav>
 
     <div class="stb-rail-foot">
-      <a class="stb-rail-link" matTooltip="Settings" matTooltipPosition="right">
+      <a class="stb-rail-link" matTooltip="Settings" matTooltipPosition="right" (click)="goToSettings()">
         <mat-icon>settings</mat-icon>
       </a>
       <a class="stb-rail-link" matTooltip="Logout" matTooltipPosition="right" (click)="logout()">
@@ -60,8 +60,16 @@
         </div>
       </div>
 
+      <div class="stb-local-time" *ngIf="timeDisplay$ | async as t" [matTooltip]="localTimeTooltip(t)">
+        <mat-icon class="stb-local-time-icon" aria-hidden="true">schedule</mat-icon>
+        <div class="stb-local-time-text">
+          <span class="stb-local-time-clock">{{ t.time }}</span>
+          <span class="stb-local-time-sub" [title]="t.cityLine">{{ t.cityLine }}<ng-container *ngIf="t.offsetAndAbbr"> · {{ t.offsetAndAbbr }}</ng-container></span>
+        </div>
+      </div>
+
       <div class="stb-topbar-actions">
-        <button mat-icon-button class="stb-icon-btn stb-topbar-help" matTooltip="Help">
+        <button mat-icon-button class="stb-icon-btn stb-topbar-help" matTooltip="Help" (click)="openHelp()">
           <mat-icon>help_outline</mat-icon>
         </button>
         <button mat-icon-button class="stb-icon-btn" matTooltip="Notifications"
@@ -113,7 +121,7 @@
           <button mat-button [matMenuTriggerFor]="userMenu" class="stb-user-chip">
             <div class="avatar">{{ initials(user.fullName) }}</div>
             <div class="user-meta">
-              <div class="name" [matTooltip]="user.fullName ?? ''" matTooltipShowDelay="300">{{ user.fullName }}</div>
+              <div class="name" [matTooltip]="user.fullName" matTooltipShowDelay="300">{{ user.fullName }}</div>
               <div class="role" [matTooltip]="(user.roles && user.roles[0]) || 'Member'" matTooltipShowDelay="300">
                 {{ (user.roles && user.roles[0]) || 'Member' }}
               </div>

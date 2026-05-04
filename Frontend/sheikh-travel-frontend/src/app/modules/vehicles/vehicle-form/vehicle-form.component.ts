@@ -75,23 +75,26 @@ export class VehicleFormComponent implements OnInit {
 
     this.loading = true;
     const f = this.form.value;
+    const fuelType = this.normalizeEnumValue<FuelType>(f.fuelType, FuelType, FuelType.Petrol);
 
     const baseDto: CreateVehicleDto = {
       name:                f.name.trim(),
       registrationNumber:  f.registrationNumber.trim(),
       model:               f.model || null,
-      year:                f.year || null,
+      year:                this.toNullableNumber(f.year),
       seatingCapacity:     Number(f.seatingCapacity),
       fuelAverage:         Number(f.fuelAverage),
-      fuelType:            Number(f.fuelType),
+      fuelType,
       currentMileage:      Number(f.currentMileage ?? 0),
       insuranceExpiryDate: f.insuranceExpiryDate ? new Date(f.insuranceExpiryDate).toISOString() : null
     };
 
+    const status = this.normalizeEnumValue<VehicleStatus>(f.status, VehicleStatus, VehicleStatus.Available);
+
     const obs = this.isEdit
       ? this.vehicleService.update({
           id: this.vehicleId!,
-          vehicle: { ...baseDto, status: Number(f.status) } as UpdateVehicleDto
+          vehicle: { ...baseDto, status } as UpdateVehicleDto
         })
       : this.vehicleService.create({ vehicle: baseDto });
 
@@ -116,5 +119,26 @@ export class VehicleFormComponent implements OnInit {
       return Array.isArray(first) ? first[0] : String(first);
     }
     return payload?.title || err.message || 'Operation failed';
+  }
+
+  private toNullableNumber(value: unknown): number | null {
+    const n = Number(value);
+    return Number.isFinite(n) ? n : null;
+  }
+
+  private normalizeEnumValue<T extends number>(
+    value: unknown,
+    enumType: Record<string, string | number>,
+    fallback: T
+  ): T {
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return value as T;
+    }
+    if (typeof value === 'string') {
+      const asNumber = Number(value);
+      if (Number.isFinite(asNumber)) return asNumber as T;
+      if (value in enumType) return enumType[value] as T;
+    }
+    return fallback;
   }
 }

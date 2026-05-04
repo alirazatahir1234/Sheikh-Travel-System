@@ -50,7 +50,13 @@ public class LoginCommandHandler(
                 cancellationToken: cancellationToken));
 
         logger.LogInformation("User {Email} logged in successfully", request.Email);
-        var response = new LoginResponse(accessToken, refreshToken, user.FullName, user.Role.ToString());
+        var response = new LoginResponse(
+            accessToken,
+            refreshToken,
+            user.FullName,
+            user.Role.ToString(),
+            user.Email,
+            user.Phone);
         return ApiResponse<LoginResponse>.SuccessResponse(response, "Login successful.");
     }
 }

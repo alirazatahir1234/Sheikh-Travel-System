@@ -16,7 +16,19 @@ export class FuelLogService {
     return this.http.get<PagedResult<FuelLog>>(this.base, { params });
   }
 
+  getById(id: number): Observable<FuelLog> {
+    return this.http.get<FuelLog>(`${this.base}/${id}`);
+  }
+
   create(request: CreateFuelLogRequest): Observable<number> {
     return this.http.post<number>(this.base, request);
+  }
+
+  update(id: number, request: CreateFuelLogRequest): Observable<boolean> {
+    return this.http.put<boolean>(`${this.base}/${id}`, request);
+  }
+
+  delete(id: number): Observable<boolean> {
+    return this.http.delete<boolean>(`${this.base}/${id}`);
   }
 }

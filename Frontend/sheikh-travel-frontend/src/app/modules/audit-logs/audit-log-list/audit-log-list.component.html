@@ -3,9 +3,22 @@
     <h2>Audit Logs</h2>
     <p class="page-sub">System activity trail for compliance and debugging</p>
   </div>
-  <button mat-stroked-button (click)="load()">
-    <mat-icon>refresh</mat-icon> Refresh
-  </button>
+  <div class="header-actions">
+    <button mat-stroked-button [matMenuTriggerFor]="exportMenu">
+      <mat-icon>download</mat-icon> Export
+    </button>
+    <mat-menu #exportMenu="matMenu">
+      <button mat-menu-item (click)="exportExcel()">
+        <mat-icon>table_chart</mat-icon> Excel (.xlsx)
+      </button>
+      <button mat-menu-item (click)="exportPdf()">
+        <mat-icon>picture_as_pdf</mat-icon> PDF
+      </button>
+    </mat-menu>
+    <button mat-stroked-button (click)="load()">
+      <mat-icon>refresh</mat-icon> Refresh
+    </button>
+  </div>
 </div>
 
 <!-- Filters -->

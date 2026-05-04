@@ -2,6 +2,7 @@ import { Component, OnInit, ViewChild } from '@angular/core';
 import { MatTableDataSource } from '@angular/material/table';
 import { MatPaginator } from '@angular/material/paginator';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { MatDialog } from '@angular/material/dialog';
 import { Router } from '@angular/router';
 import { DatePipe, DecimalPipe } from '@angular/common';
 import { forkJoin } from 'rxjs';
@@ -14,6 +15,7 @@ import {
   MaintenanceStatusLabels
 } from '../../../core/models/maintenance.model';
 import { Vehicle } from '../../../core/models/vehicle.model';
+import { ConfirmDialogComponent, ConfirmDialogData } from '../../../shared/components/confirm-dialog/confirm-dialog.component';
 
 @Component({
   selector: 'app-maintenance-list',
@@ -31,6 +33,7 @@ export class MaintenanceListComponent implements OnInit {
 
   searchTerm = '';
   statusFilter: MaintenanceStatus | 'ALL' = 'ALL';
+  overdueFilter: 'ALL' | 'OVERDUE' | 'UPCOMING' = 'ALL';
 
   readonly statuses = [
     MaintenanceStatus.Scheduled,
@@ -40,6 +43,8 @@ export class MaintenanceListComponent implements OnInit {
 
   totalCost = 0;
   scheduledCount = 0;
+  overdueCount = 0;
+  upcomingCount = 0;
 
   @ViewChild(MatPaginator) paginator!: MatPaginator;
 
@@ -49,6 +54,7 @@ export class MaintenanceListComponent implements OnInit {
     private exportService: ExportService,
     private router: Router,
     private snackBar: MatSnackBar,
+    private dialog: MatDialog,
     private datePipe: DatePipe,
     private decimalPipe: DecimalPipe
   ) {}
@@ -87,6 +93,23 @@ export class MaintenanceListComponent implements OnInit {
       filtered = filtered.filter(r => r.status === this.statusFilter);
     }
 
+    if (this.overdueFilter !== 'ALL') {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const in7Days = new Date(today);
+      in7Days.setDate(in7Days.getDate() + 7);
+      
+      if (this.overdueFilter === 'OVERDUE') {
+        filtered = filtered.filter(r => r.nextDueDate && new Date(r.nextDueDate) < today);
+      } else if (this.overdueFilter === 'UPCOMING') {
+        filtered = filtered.filter(r => 
+          r.nextDueDate && 
+          new Date(r.nextDueDate) >= today && 
+          new Date(r.nextDueDate) <= in7Days
+        );
+      }
+    }
+
     if (this.searchTerm.trim()) {
       const q = this.searchTerm.trim().toLowerCase();
       filtered = filtered.filter(r =>
@@ -98,13 +121,25 @@ export class MaintenanceListComponent implements OnInit {
     }
 
     this.dataSource.data = filtered;
-    this.calculateSummary(filtered);
+    this.calculateSummary(this.allRecords);
     setTimeout(() => (this.dataSource.paginator = this.paginator));
   }
 
   calculateSummary(list: Maintenance[]): void {
     this.totalCost = list.reduce((sum, r) => sum + r.cost, 0);
     this.scheduledCount = list.filter(r => r.status === MaintenanceStatus.Scheduled).length;
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const in7Days = new Date(today);
+    in7Days.setDate(in7Days.getDate() + 7);
+    
+    this.overdueCount = list.filter(r => r.nextDueDate && new Date(r.nextDueDate) < today).length;
+    this.upcomingCount = list.filter(r => 
+      r.nextDueDate && 
+      new Date(r.nextDueDate) >= today && 
+      new Date(r.nextDueDate) <= in7Days
+    ).length;
   }
 
   onSearch(term: string): void {
@@ -117,10 +152,31 @@ export class MaintenanceListComponent implements OnInit {
     this.applyFilters();
   }
 
+  onOverdueFilterChange(filter: 'ALL' | 'OVERDUE' | 'UPCOMING'): void {
+    this.overdueFilter = filter;
+    this.applyFilters();
+  }
+
   clearFilters(): void {
     this.searchTerm = '';
     this.statusFilter = 'ALL';
+    this.overdueFilter = 'ALL';
     this.applyFilters();
+  }
+
+  isOverdue(r: Maintenance): boolean {
+    if (!r.nextDueDate) return false;
+    return new Date(r.nextDueDate) < new Date();
+  }
+
+  isUpcoming(r: Maintenance): boolean {
+    if (!r.nextDueDate) return false;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const in7Days = new Date(today);
+    in7Days.setDate(in7Days.getDate() + 7);
+    const dueDate = new Date(r.nextDueDate);
+    return dueDate >= today && dueDate <= in7Days;
   }
 
   statusLabel(s: MaintenanceStatus): string {
@@ -139,6 +195,34 @@ export class MaintenanceListComponent implements OnInit {
         this.applyFilters();
       },
       error: () => this.snackBar.open('Failed to update status.', 'Close', { duration: 3000 })
+    });
+  }
+
+  editRecord(record: Maintenance): void {
+    this.router.navigate(['/maintenance', record.id, 'edit']);
+  }
+
+  deleteRecord(record: Maintenance): void {
+    const dialogRef = this.dialog.open(ConfirmDialogComponent, {
+      width: '400px',
+      data: {
+        title: 'Delete Maintenance Record',
+        message: `Delete maintenance record for ${record.vehicleName}?`,
+        confirmText: 'Delete',
+        confirmColor: 'warn'
+      } as ConfirmDialogData
+    });
+
+    dialogRef.afterClosed().subscribe(confirmed => {
+      if (!confirmed) return;
+      this.maintenanceService.delete(record.id).subscribe({
+        next: () => {
+          this.snackBar.open('Maintenance record deleted.', 'Close', { duration: 2000 });
+          this.allRecords = this.allRecords.filter(r => r.id !== record.id);
+          this.applyFilters();
+        },
+        error: () => this.snackBar.open('Failed to delete record.', 'Close', { duration: 3000 })
+      });
     });
   }
 

@@ -2,6 +2,7 @@ import { Component, OnInit, ViewChild } from '@angular/core';
 import { MatTableDataSource } from '@angular/material/table';
 import { MatPaginator } from '@angular/material/paginator';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { MatDialog } from '@angular/material/dialog';
 import { Router } from '@angular/router';
 import { DatePipe } from '@angular/common';
 import { DriverService } from '../../../core/services/driver.service';
@@ -11,6 +12,7 @@ import {
   DriverStatus,
   DriverStatusLabels
 } from '../../../core/models/driver.model';
+import { ConfirmDialogComponent, ConfirmDialogData } from '../../../shared/components/confirm-dialog/confirm-dialog.component';
 
 type LicenseFilter = 'ALL' | 'VALID' | 'EXPIRING' | 'EXPIRED';
 type ActiveFilter  = 'ALL' | 'ACTIVE' | 'INACTIVE';
@@ -70,6 +72,7 @@ export class DriverListComponent implements OnInit {
     private driverService: DriverService,
     private router: Router,
     private snackBar: MatSnackBar,
+    private dialog: MatDialog,
     private exportService: ExportService,
     private datePipe: DatePipe
   ) {}
@@ -78,7 +81,7 @@ export class DriverListComponent implements OnInit {
 
   // ---------- Data loading ---------------------------------------------------
 
-  load(page = 1, pageSize = 50): void {
+  load(page = 1, pageSize = 500): void {
     this.loading = true;
     this.error = null;
     this.driverService.getAll(page, pageSize).subscribe({
@@ -96,6 +99,11 @@ export class DriverListComponent implements OnInit {
 
   applyFilters(): void {
     this.dataSource.data = this.allDrivers.filter(d => this.matches(d));
+    setTimeout(() => {
+      if (this.paginator) {
+        this.dataSource.paginator = this.paginator;
+      }
+    });
   }
 
   setStatus(value: DriverStatus | 'ALL'): void {
@@ -136,10 +144,22 @@ export class DriverListComponent implements OnInit {
   edit(id: number): void { this.router.navigate(['/drivers', id, 'edit']); }
 
   delete(id: number): void {
-    if (!confirm('Delete this driver?')) return;
-    this.driverService.delete(id).subscribe({
-      next: () => { this.snackBar.open('Deleted', 'Close', { duration: 2000 }); this.load(); },
-      error: () => this.snackBar.open('Delete failed', 'Close', { duration: 3000 })
+    const dialogRef = this.dialog.open(ConfirmDialogComponent, {
+      width: '400px',
+      data: {
+        title: 'Delete Driver',
+        message: 'Are you sure you want to delete this driver?',
+        confirmText: 'Delete',
+        confirmColor: 'warn'
+      } as ConfirmDialogData
+    });
+
+    dialogRef.afterClosed().subscribe(confirmed => {
+      if (!confirmed) return;
+      this.driverService.delete(id).subscribe({
+        next: () => { this.snackBar.open('Deleted', 'Close', { duration: 2000 }); this.load(); },
+        error: () => this.snackBar.open('Delete failed', 'Close', { duration: 3000 })
+      });
     });
   }
 

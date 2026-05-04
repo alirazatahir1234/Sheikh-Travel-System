@@ -8,9 +8,9 @@ import { PrayerTime } from '../ui.types';
 })
 export class PrayerTimesCardComponent {
   @Input() title = 'Prayer Times';
-  @Input() city = 'Sharjah';
+  @Input() city = 'Islamabad, Pakistan';
   @Input() upcomingName = 'Dhuhr';
-  @Input() upcomingTime = '12:21 PM';
+  @Input() upcomingTime = '12:05 PM';
   @Input() times: PrayerTime[] = [];
   @Input() compact = false;
 }

@@ -1,5 +1,5 @@
 <div class="page-header">
-  <h2>Schedule Maintenance</h2>
+  <h2>{{ pageTitle }}</h2>
   <button mat-button routerLink="/maintenance">
     <mat-icon>arrow_back</mat-icon> Back
   </button>
@@ -71,7 +71,7 @@
       <button mat-raised-button color="primary" type="submit"
               [disabled]="submitting || form.invalid">
         <mat-spinner *ngIf="submitting" diameter="16"></mat-spinner>
-        Schedule Maintenance
+        {{ editMode ? 'Update' : 'Schedule' }} Maintenance
       </button>
     </div>
   </form>

@@ -4,6 +4,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { DatePipe } from '@angular/common';
 import { AuditLogService, AuditLogFilter } from '../../../core/services/audit-log.service';
 import { UserService } from '../../../core/services/user.service';
+import { ExportService, ExportColumn } from '../../../core/services/export.service';
 import { AuditLog, AuditActions, AuditEntities } from '../../../core/models/audit-log.model';
 import { User } from '../../../core/models/user.model';
 
@@ -39,6 +40,7 @@ export class AuditLogListComponent implements OnInit {
   constructor(
     private auditLogService: AuditLogService,
     private userService: UserService,
+    private exportService: ExportService,
     private snackBar: MatSnackBar,
     private datePipe: DatePipe
   ) {}
@@ -126,5 +128,34 @@ export class AuditLogListComponent implements OnInit {
     const newVals = this.parseValues(log.newValues);
     if (!newVals) return [];
     return Object.keys(newVals).slice(0, 3);
+  }
+
+  exportExcel(): void {
+    const columns: ExportColumn<AuditLog>[] = [
+      { header: 'Date/Time', accessor: row => this.datePipe.transform(row.createdAt, 'medium') || '' },
+      { header: 'User', accessor: row => row.userName ?? '' },
+      { header: 'Action', accessor: row => row.action },
+      { header: 'Entity', accessor: row => row.entityName },
+      { header: 'Entity ID', accessor: row => row.entityId ?? '' },
+      { header: 'IP Address', accessor: row => row.ipAddress ?? '' }
+    ];
+    this.exportService.exportExcel(this.logs, columns, {
+      filename: 'audit-logs',
+      sheetName: 'Audit Logs'
+    });
+  }
+
+  exportPdf(): void {
+    const columns: ExportColumn<AuditLog>[] = [
+      { header: 'Date', accessor: row => this.datePipe.transform(row.createdAt, 'medium') || '' },
+      { header: 'User', accessor: row => row.userName ?? '' },
+      { header: 'Action', accessor: row => row.action },
+      { header: 'Entity', accessor: row => row.entityName },
+      { header: 'IP', accessor: row => row.ipAddress ?? '' }
+    ];
+    this.exportService.exportPdf(this.logs, columns, {
+      filename: 'audit-logs',
+      title: 'Audit Logs Report'
+    });
   }
 }

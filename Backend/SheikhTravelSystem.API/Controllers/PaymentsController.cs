@@ -19,6 +19,20 @@ public class PaymentsController : BaseApiController
         => Ok(await Mediator.Send(query));
 
     /// <summary>
+    /// Gets a single payment with full booking/customer details.
+    /// </summary>
+    [HttpGet("{id:int}")]
+    public async Task<IActionResult> GetById(int id)
+        => Ok(await Mediator.Send(new GetPaymentByIdQuery(id)));
+
+    /// <summary>
+    /// Gets payments for a specific booking.
+    /// </summary>
+    [HttpGet("booking/{bookingId:int}")]
+    public async Task<IActionResult> GetByBooking(int bookingId)
+        => Ok(await Mediator.Send(new GetPaymentsByBookingQuery(bookingId)));
+
+    /// <summary>
     /// Gets payment report data.
     /// </summary>
     [HttpGet("report")]
@@ -34,4 +48,11 @@ public class PaymentsController : BaseApiController
         var result = await Mediator.Send(command);
         return Created(string.Empty, result);
     }
+
+    /// <summary>
+    /// Updates the status of a payment (e.g. mark as Refunded).
+    /// </summary>
+    [HttpPut("{id:int}/status")]
+    public async Task<IActionResult> UpdateStatus(int id, [FromBody] UpdatePaymentStatusCommand command)
+        => Ok(await Mediator.Send(command with { Id = id }));
 }

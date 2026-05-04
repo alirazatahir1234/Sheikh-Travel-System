@@ -98,10 +98,22 @@ export class ProfilePageComponent implements OnInit {
       next: () => {
         this.savingProfile = false;
         this.snackBar.open('Profile updated successfully.', 'Close', { duration: 2000 });
-        // Update local user
+        
+        // Update local user and persist to session
         if (this.currentUser) {
           this.currentUser.fullName = fullName;
           this.currentUser.phoneNumber = phoneNumber;
+        }
+        
+        // Update the auth session so the header refreshes
+        const current = this.auth.getCurrentUser();
+        if (current) {
+          const updated = {
+            ...current,
+            fullName,
+            phoneNumber: phoneNumber || undefined
+          };
+          this.auth.persistSession(updated);
         }
       },
       error: (err: HttpErrorResponse) => {

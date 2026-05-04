@@ -1,0 +1,52 @@
+<div class="pps" [class.pps--detailed]="variant === 'detailed'" [class.pps--compact]="variant === 'compact'">
+
+  <div class="pps-type-row">
+    <span class="pps-label">Payment type</span>
+    <span class="pps-value">{{ planLabel }}</span>
+  </div>
+
+  <div class="pps-badge-row">
+    <span class="pps-muted">Payment status</span>
+    <span class="pps-badge" [ngClass]="badgeClass()">{{ statusLabel }}</span>
+  </div>
+
+  <div class="pps-grid">
+    <div class="pps-cell">
+      <span class="pps-muted">Total amount</span>
+      <strong>PKR {{ total | number:'1.0-0' }}</strong>
+    </div>
+    <div class="pps-cell">
+      <span class="pps-muted">You pay now</span>
+      <strong>PKR {{ paidNow | number:'1.0-0' }}</strong>
+    </div>
+    <div class="pps-cell" [class.pps-cell--danger]="showRemainingAlert()">
+      <span class="pps-muted">Remaining balance</span>
+      <strong>PKR {{ remaining | number:'1.0-0' }}</strong>
+    </div>
+  </div>
+
+  <div class="pps-workflow" *ngIf="variant === 'detailed'">
+    <span class="pps-muted">Booking payment workflow</span>
+    <span>{{ workflowLabel }}</span>
+  </div>
+
+  <div class="pps-alert" *ngIf="variant === 'compact' && showRemainingAlert() && paymentPlan !== 'PAY_LATER'">
+    <mat-icon>info</mat-icon>
+    <span>Remaining balance must be cleared before the trip date.</span>
+  </div>
+
+  <div class="pps-alert pps-alert--later" *ngIf="variant === 'compact' && paymentPlan === 'PAY_LATER'">
+    <mat-icon>schedule</mat-icon>
+    <span>No payment now — full amount remains due per policy before departure.</span>
+  </div>
+
+  <div class="pps-callout" *ngIf="variant === 'detailed'" [ngClass]="'pps-callout--' + message.severity">
+    <mat-icon *ngIf="message.severity === 'success'">check_circle</mat-icon>
+    <mat-icon *ngIf="message.severity === 'warning'">warning</mat-icon>
+    <mat-icon *ngIf="message.severity === 'info'">schedule</mat-icon>
+    <div class="pps-callout-text">
+      <div class="pps-callout-headline">{{ message.headline }}</div>
+      <div class="pps-callout-detail">{{ message.detail }}</div>
+    </div>
+  </div>
+</div>

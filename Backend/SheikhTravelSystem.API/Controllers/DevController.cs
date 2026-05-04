@@ -57,4 +57,46 @@ public class DevController(IDatabaseSeeder seeder, IDbConnectionFactory dbFactor
 
         return Ok(ApiResponse<string>.SuccessResponse($"Updated {affected} row(s). Admin password is now: {newPassword}"));
     }
+
+    /// <summary>
+    /// Adds BookingNumber column to Bookings table and backfills existing rows. Idempotent.
+    /// </summary>
+    [HttpPost("migrate-booking-number")]
+    public async Task<IActionResult> MigrateBookingNumber(CancellationToken cancellationToken)
+    {
+        if (!env.IsDevelopment()) return NotFound();
+
+        using var connection = dbFactory.CreateConnection();
+
+        // Add column if not already present
+        var columnExists = await connection.ExecuteScalarAsync<int>(
+            new CommandDefinition(
+                "SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'Bookings' AND COLUMN_NAME = 'BookingNumber'",
+                cancellationToken: cancellationToken));
+
+        if (columnExists == 0)
+        {
+            await connection.ExecuteAsync(
+                new CommandDefinition(
+                    "ALTER TABLE Bookings ADD BookingNumber NVARCHAR(20) NOT NULL DEFAULT ''",
+                    cancellationToken: cancellationToken));
+        }
+
+        // Backfill existing rows that have an empty BookingNumber
+        var rows = await connection.QueryAsync<int>(
+            new CommandDefinition("SELECT Id FROM Bookings WHERE BookingNumber = '' OR BookingNumber IS NULL",
+            cancellationToken: cancellationToken));
+
+        foreach (var id in rows)
+        {
+            var year = DateTime.UtcNow.Year;
+            await connection.ExecuteAsync(
+                new CommandDefinition(
+                    "UPDATE Bookings SET BookingNumber = @BN WHERE Id = @Id",
+                    new { BN = $"BK-{year}-{id:D4}", Id = id },
+                    cancellationToken: cancellationToken));
+        }
+
+        return Ok(ApiResponse<string>.SuccessResponse("ok", $"Migration complete. Backfilled {rows.Count()} rows."));
+    }
 }

@@ -19,6 +19,13 @@ public class FuelLogsController : BaseApiController
         => Ok(await Mediator.Send(query));
 
     /// <summary>
+    /// Gets a fuel log by identifier.
+    /// </summary>
+    [HttpGet("{id:int}")]
+    public async Task<IActionResult> GetById(int id)
+        => Ok(await Mediator.Send(new GetFuelLogByIdQuery(id)));
+
+    /// <summary>
     /// Creates a new fuel log entry.
     /// </summary>
     [HttpPost]
@@ -27,4 +34,18 @@ public class FuelLogsController : BaseApiController
         var result = await Mediator.Send(command);
         return Created(string.Empty, result);
     }
+
+    /// <summary>
+    /// Updates an existing fuel log entry.
+    /// </summary>
+    [HttpPut("{id:int}")]
+    public async Task<IActionResult> Update(int id, [FromBody] UpdateFuelLogCommand command)
+        => Ok(await Mediator.Send(command with { Id = id }));
+
+    /// <summary>
+    /// Deletes a fuel log entry.
+    /// </summary>
+    [HttpDelete("{id:int}")]
+    public async Task<IActionResult> Delete(int id)
+        => Ok(await Mediator.Send(new DeleteFuelLogCommand(id)));
 }

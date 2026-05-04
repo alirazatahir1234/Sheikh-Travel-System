@@ -25,7 +25,7 @@ export class PaymentFormComponent {
       bookingId: [null, [Validators.required, Validators.min(1)]],
       amount: [null, [Validators.required, Validators.min(1)]],
       paymentMethod: ['Cash', Validators.required],
-      referenceNumber: ['']
+      transactionReference: ['']
     });
   }
 

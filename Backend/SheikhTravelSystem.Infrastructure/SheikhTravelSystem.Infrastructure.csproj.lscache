@@ -69,6 +69,7 @@ Persistence/
  AuditService.cs
  DatabaseSeeder.cs
  SqlConnectionFactory.cs
+Services/NotificationService.cs
 SignalR/TrackingHub.cs
 
 [metadataReferences]

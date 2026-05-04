@@ -15,18 +15,250 @@
   </div>
 </div>
 
-<div class="charts-grid">
-  <mat-card class="chart-card">
-    <mat-card-header><mat-card-title>Revenue by Period</mat-card-title></mat-card-header>
-    <mat-card-content>
-      <canvas #revenueChart></canvas>
-    </mat-card-content>
-  </mat-card>
+<mat-tab-group animationDuration="200ms" (selectedTabChange)="onTabChange($event)" [(selectedIndex)]="selectedTabIndex">
 
-  <mat-card class="chart-card">
-    <mat-card-header><mat-card-title>Bookings by Status</mat-card-title></mat-card-header>
-    <mat-card-content>
-      <canvas #statusChart></canvas>
-    </mat-card-content>
-  </mat-card>
-</div>
+  <!-- ══ Tab 1: Revenue & Bookings ══════════════════════════════════════════ -->
+  <mat-tab label="Revenue & Bookings">
+    <div class="tab-content">
+      <div class="charts-grid">
+        <mat-card class="chart-card">
+          <mat-card-header><mat-card-title>Revenue Breakdown</mat-card-title></mat-card-header>
+          <mat-card-content>
+            <canvas #revenueChart></canvas>
+          </mat-card-content>
+        </mat-card>
+
+        <mat-card class="chart-card">
+          <mat-card-header><mat-card-title>Bookings by Status</mat-card-title></mat-card-header>
+          <mat-card-content>
+            <canvas #statusChart></canvas>
+          </mat-card-content>
+        </mat-card>
+      </div>
+    </div>
+  </mat-tab>
+
+  <!-- ══ Tab 2: Vehicle Profit ══════════════════════════════════════════════ -->
+  <mat-tab label="Vehicle Profit">
+    <div class="tab-content">
+      <div *ngIf="loadingVehicleProfit" class="loading-row"><mat-spinner diameter="36"></mat-spinner></div>
+
+      <ng-container *ngIf="!loadingVehicleProfit">
+        <div *ngIf="vehicleProfitRows.length === 0" class="empty-state">
+          <mat-icon>directions_car</mat-icon>
+          <p>No vehicle profit data for the selected period.</p>
+        </div>
+
+        <ng-container *ngIf="vehicleProfitRows.length > 0">
+          <div class="export-row">
+            <button mat-stroked-button [matMenuTriggerFor]="vehicleExportMenu">
+              <mat-icon>download</mat-icon> Export
+            </button>
+            <mat-menu #vehicleExportMenu="matMenu">
+              <button mat-menu-item (click)="exportVehicleProfitExcel()">
+                <mat-icon>table_chart</mat-icon> Excel (.xlsx)
+              </button>
+              <button mat-menu-item (click)="exportVehicleProfitPdf()">
+                <mat-icon>picture_as_pdf</mat-icon> PDF
+              </button>
+            </mat-menu>
+          </div>
+          <mat-card class="chart-card full-width-chart">
+            <mat-card-header><mat-card-title>Revenue vs Costs per Vehicle</mat-card-title></mat-card-header>
+            <mat-card-content><canvas #vehicleProfitChart></canvas></mat-card-content>
+          </mat-card>
+
+          <mat-card class="table-card">
+            <mat-card-content>
+              <table mat-table [dataSource]="vehicleProfitRows" class="full-width">
+                <ng-container matColumnDef="vehicleName">
+                  <th mat-header-cell *matHeaderCellDef>Vehicle</th>
+                  <td mat-cell *matCellDef="let r"><strong>{{ r.vehicleName }}</strong></td>
+                </ng-container>
+                <ng-container matColumnDef="revenue">
+                  <th mat-header-cell *matHeaderCellDef>Revenue</th>
+                  <td mat-cell *matCellDef="let r" class="amount">PKR {{ r.revenue | number:'1.0-0' }}</td>
+                </ng-container>
+                <ng-container matColumnDef="fuelCost">
+                  <th mat-header-cell *matHeaderCellDef>Fuel Cost</th>
+                  <td mat-cell *matCellDef="let r" class="amount expense">PKR {{ r.fuelCost | number:'1.0-0' }}</td>
+                </ng-container>
+                <ng-container matColumnDef="maintenanceCost">
+                  <th mat-header-cell *matHeaderCellDef>Maintenance</th>
+                  <td mat-cell *matCellDef="let r" class="amount expense">PKR {{ r.maintenanceCost | number:'1.0-0' }}</td>
+                </ng-container>
+                <ng-container matColumnDef="profit">
+                  <th mat-header-cell *matHeaderCellDef>Net Profit</th>
+                  <td mat-cell *matCellDef="let r">
+                    <span [class.profit-positive]="r.profit >= 0" [class.profit-negative]="r.profit < 0">
+                      PKR {{ r.profit | number:'1.0-0' }}
+                    </span>
+                  </td>
+                </ng-container>
+                <tr mat-header-row *matHeaderRowDef="vehicleProfitCols"></tr>
+                <tr mat-row *matRowDef="let row; columns: vehicleProfitCols;"></tr>
+              </table>
+            </mat-card-content>
+          </mat-card>
+        </ng-container>
+      </ng-container>
+    </div>
+  </mat-tab>
+
+  <!-- ══ Tab 3: Driver Performance ══════════════════════════════════════════ -->
+  <mat-tab label="Driver Performance">
+    <div class="tab-content">
+      <div *ngIf="loadingDrivers" class="loading-row"><mat-spinner diameter="36"></mat-spinner></div>
+
+      <ng-container *ngIf="!loadingDrivers">
+        <div *ngIf="driverRows.length === 0" class="empty-state">
+          <mat-icon>person</mat-icon>
+          <p>No driver performance data for the selected period.</p>
+        </div>
+
+        <ng-container *ngIf="driverRows.length > 0">
+          <div class="export-row">
+            <button mat-stroked-button [matMenuTriggerFor]="driverExportMenu">
+              <mat-icon>download</mat-icon> Export
+            </button>
+            <mat-menu #driverExportMenu="matMenu">
+              <button mat-menu-item (click)="exportDriverPerformanceExcel()">
+                <mat-icon>table_chart</mat-icon> Excel (.xlsx)
+              </button>
+              <button mat-menu-item (click)="exportDriverPerformancePdf()">
+                <mat-icon>picture_as_pdf</mat-icon> PDF
+              </button>
+            </mat-menu>
+          </div>
+          <mat-card class="chart-card full-width-chart">
+            <mat-card-header><mat-card-title>Trips per Driver</mat-card-title></mat-card-header>
+            <mat-card-content><canvas #driverChart></canvas></mat-card-content>
+          </mat-card>
+
+          <mat-card class="table-card">
+            <mat-card-content>
+              <table mat-table [dataSource]="driverRows" class="full-width">
+                <ng-container matColumnDef="driverName">
+                  <th mat-header-cell *matHeaderCellDef>Driver</th>
+                  <td mat-cell *matCellDef="let r"><strong>{{ r.driverName }}</strong></td>
+                </ng-container>
+                <ng-container matColumnDef="totalTrips">
+                  <th mat-header-cell *matHeaderCellDef>Total Trips</th>
+                  <td mat-cell *matCellDef="let r">{{ r.totalTrips }}</td>
+                </ng-container>
+                <ng-container matColumnDef="completedTrips">
+                  <th mat-header-cell *matHeaderCellDef>Completed</th>
+                  <td mat-cell *matCellDef="let r">
+                    <span class="profit-positive">{{ r.completedTrips }}</span>
+                    <span class="completion-rate" *ngIf="r.totalTrips > 0">
+                      ({{ (r.completedTrips / r.totalTrips * 100) | number:'1.0-0' }}%)
+                    </span>
+                  </td>
+                </ng-container>
+                <ng-container matColumnDef="totalRevenue">
+                  <th mat-header-cell *matHeaderCellDef>Revenue Generated</th>
+                  <td mat-cell *matCellDef="let r" class="amount">PKR {{ r.totalRevenue | number:'1.0-0' }}</td>
+                </ng-container>
+                <tr mat-header-row *matHeaderRowDef="driverCols"></tr>
+                <tr mat-row *matRowDef="let row; columns: driverCols;"></tr>
+              </table>
+            </mat-card-content>
+          </mat-card>
+        </ng-container>
+      </ng-container>
+    </div>
+  </mat-tab>
+
+  <!-- ══ Tab 4: Payment Report ══════════════════════════════════════════════ -->
+  <mat-tab label="Payment Report">
+    <div class="tab-content">
+      <div *ngIf="loadingPayments" class="loading-row"><mat-spinner diameter="36"></mat-spinner></div>
+
+      <ng-container *ngIf="!loadingPayments && paymentReport">
+        <div class="export-row" *ngIf="paymentReport.recentPayments.length > 0">
+          <button mat-stroked-button [matMenuTriggerFor]="paymentExportMenu">
+            <mat-icon>download</mat-icon> Export
+          </button>
+          <mat-menu #paymentExportMenu="matMenu">
+            <button mat-menu-item (click)="exportPaymentReportExcel()">
+              <mat-icon>table_chart</mat-icon> Excel (.xlsx)
+            </button>
+            <button mat-menu-item (click)="exportPaymentReportPdf()">
+              <mat-icon>picture_as_pdf</mat-icon> PDF
+            </button>
+          </mat-menu>
+        </div>
+        
+        <!-- KPI cards -->
+        <div class="kpi-row">
+          <mat-card class="kpi-card kpi-success">
+            <mat-icon>check_circle</mat-icon>
+            <div>
+              <div class="kpi-label">Total Received</div>
+              <div class="kpi-value">PKR {{ paymentReport.totalReceived | number:'1.0-0' }}</div>
+            </div>
+          </mat-card>
+          <mat-card class="kpi-card kpi-warning">
+            <mat-icon>schedule</mat-icon>
+            <div>
+              <div class="kpi-label">Pending / Partial</div>
+              <div class="kpi-value">PKR {{ paymentReport.totalPending | number:'1.0-0' }}</div>
+            </div>
+          </mat-card>
+          <mat-card class="kpi-card kpi-info">
+            <mat-icon>receipt_long</mat-icon>
+            <div>
+              <div class="kpi-label">Total Transactions</div>
+              <div class="kpi-value">{{ paymentReport.totalTransactions }}</div>
+            </div>
+          </mat-card>
+        </div>
+
+        <!-- Recent payments table -->
+        <mat-card class="table-card">
+          <mat-card-header><mat-card-title>Recent Payments</mat-card-title></mat-card-header>
+          <mat-card-content>
+            <div *ngIf="paymentReport.recentPayments.length === 0" class="empty-state">
+              <mat-icon>payments</mat-icon><p>No payments in the selected period.</p>
+            </div>
+            <table mat-table [dataSource]="paymentReport.recentPayments" *ngIf="paymentReport.recentPayments.length > 0" class="full-width">
+              <ng-container matColumnDef="paymentDate">
+                <th mat-header-cell *matHeaderCellDef>Date</th>
+                <td mat-cell *matCellDef="let p">{{ p.paymentDate | date:'mediumDate' }}</td>
+              </ng-container>
+              <ng-container matColumnDef="bookingId">
+                <th mat-header-cell *matHeaderCellDef>Booking #</th>
+                <td mat-cell *matCellDef="let p">{{ p.bookingId }}</td>
+              </ng-container>
+              <ng-container matColumnDef="amount">
+                <th mat-header-cell *matHeaderCellDef>Amount</th>
+                <td mat-cell *matCellDef="let p" class="amount">PKR {{ p.amount | number:'1.0-0' }}</td>
+              </ng-container>
+              <ng-container matColumnDef="paymentMethod">
+                <th mat-header-cell *matHeaderCellDef>Method</th>
+                <td mat-cell *matCellDef="let p">{{ p.paymentMethod }}</td>
+              </ng-container>
+              <ng-container matColumnDef="status">
+                <th mat-header-cell *matHeaderCellDef>Status</th>
+                <td mat-cell *matCellDef="let p">
+                  <span class="status-badge"
+                    [style.background]="paymentStatusColor(p.status) + '22'"
+                    [style.color]="paymentStatusColor(p.status)">
+                    {{ paymentStatusLabel(p.status) }}
+                  </span>
+                </td>
+              </ng-container>
+              <tr mat-header-row *matHeaderRowDef="paymentCols"></tr>
+              <tr mat-row *matRowDef="let row; columns: paymentCols;"></tr>
+            </table>
+          </mat-card-content>
+        </mat-card>
+      </ng-container>
+
+      <div *ngIf="!loadingPayments && !paymentReport" class="empty-state">
+        <mat-icon>payments</mat-icon><p>Could not load payment report.</p>
+      </div>
+    </div>
+  </mat-tab>
+
+</mat-tab-group>

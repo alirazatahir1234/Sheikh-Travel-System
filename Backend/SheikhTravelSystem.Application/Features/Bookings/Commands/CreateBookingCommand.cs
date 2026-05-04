@@ -39,7 +39,10 @@ public class CreateBookingCommandValidator : AbstractValidator<CreateBookingComm
 /// <summary>
 /// Handles booking creation and prerequisite checks.
 /// </summary>
-public class CreateBookingCommandHandler(IDbConnectionFactory dbFactory, ILogger<CreateBookingCommandHandler> logger)
+public class CreateBookingCommandHandler(
+    IDbConnectionFactory dbFactory,
+    INotificationService notificationService,
+    ILogger<CreateBookingCommandHandler> logger)
     : IRequestHandler<CreateBookingCommand, ApiResponse<int>>
 {
     /// <summary>
@@ -60,14 +63,14 @@ public class CreateBookingCommandHandler(IDbConnectionFactory dbFactory, ILogger
         if (!customerExists)
             throw new NotFoundException("Customer", dto.CustomerId);
 
-        // Verify route exists
-        var routeExists = await connection.ExecuteScalarAsync<bool>(
+        // Verify route exists and get name
+        var routeName = await connection.QuerySingleOrDefaultAsync<string>(
             new CommandDefinition(
-                "SELECT CASE WHEN EXISTS(SELECT 1 FROM Routes WHERE Id = @Id AND IsDeleted = 0) THEN 1 ELSE 0 END",
+                "SELECT Source + ' → ' + Destination FROM Routes WHERE Id = @Id AND IsDeleted = 0",
                 new { Id = dto.RouteId },
                 cancellationToken: cancellationToken));
 
-        if (!routeExists)
+        if (routeName == null)
             throw new NotFoundException("Route", dto.RouteId);
 
         var id = await connection.ExecuteScalarAsync<int>(
@@ -83,7 +86,23 @@ public class CreateBookingCommandHandler(IDbConnectionFactory dbFactory, ILogger
                 },
                 cancellationToken: cancellationToken));
 
-        logger.LogInformation("Booking {BookingId} created for customer {CustomerId} on route {RouteId}", id, dto.CustomerId, dto.RouteId);
+        // Generate and store the booking number (e.g. BK-2025-0001)
+        var bookingNumber = $"BK-{DateTime.UtcNow.Year}-{id:D4}";
+        await connection.ExecuteAsync(
+            new CommandDefinition(
+                "UPDATE Bookings SET BookingNumber = @BookingNumber WHERE Id = @Id",
+                new { BookingNumber = bookingNumber, Id = id },
+                cancellationToken: cancellationToken));
+
+        // Create notification for all admin/dispatcher users
+        await notificationService.CreateForAllAsync(
+            $"New Booking: {bookingNumber}",
+            $"A new booking has been created for {routeName}. Pickup: {dto.PickupTime:g}",
+            NotificationType.BookingCreated,
+            id,
+            cancellationToken);
+
+        logger.LogInformation("Booking {BookingId} ({BookingNumber}) created for customer {CustomerId} on route {RouteId}", id, bookingNumber, dto.CustomerId, dto.RouteId);
         return ApiResponse<int>.SuccessResponse(id, "Booking created successfully.");
     }
 }

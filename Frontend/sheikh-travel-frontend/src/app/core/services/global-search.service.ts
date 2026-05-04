@@ -5,9 +5,15 @@ import { VehicleService } from './vehicle.service';
 import { DriverService } from './driver.service';
 import { CustomerService } from './customer.service';
 import { BookingService } from './booking.service';
+import { RouteService } from './route.service';
+import { PaymentService } from './payment.service';
+import { FuelLogService } from './fuel-log.service';
+import { MaintenanceService } from './maintenance.service';
+
+export type SearchResultType = 'booking' | 'vehicle' | 'driver' | 'customer' | 'route' | 'payment' | 'fuel_log' | 'maintenance';
 
 export interface SearchResult {
-  type: 'booking' | 'vehicle' | 'driver' | 'customer';
+  type: SearchResultType;
   id: number;
   title: string;
   subtitle: string;
@@ -21,7 +27,11 @@ export class GlobalSearchService {
     private vehicleService: VehicleService,
     private driverService: DriverService,
     private customerService: CustomerService,
-    private bookingService: BookingService
+    private bookingService: BookingService,
+    private routeService: RouteService,
+    private paymentService: PaymentService,
+    private fuelLogService: FuelLogService,
+    private maintenanceService: MaintenanceService
   ) {}
 
   search(query: string): Observable<SearchResult[]> {
@@ -35,9 +45,13 @@ export class GlobalSearchService {
       vehicles: this.vehicleService.getAll(1, 100).pipe(catchError(() => of({ items: [] }))),
       drivers: this.driverService.getAll(1, 100).pipe(catchError(() => of({ items: [] }))),
       customers: this.customerService.getAll(1, 100).pipe(catchError(() => of({ items: [] }))),
-      bookings: this.bookingService.getAll(1, 100).pipe(catchError(() => of({ items: [] })))
+      bookings: this.bookingService.getAll(1, 100).pipe(catchError(() => of({ items: [] }))),
+      routes: this.routeService.getAll(1, 100).pipe(catchError(() => of({ items: [] }))),
+      payments: this.paymentService.getAll(1, 100).pipe(catchError(() => of({ items: [] }))),
+      fuelLogs: this.fuelLogService.getAll(1, 100).pipe(catchError(() => of({ items: [] }))),
+      maintenance: this.maintenanceService.getAll(1, 100).pipe(catchError(() => of({ items: [] })))
     }).pipe(
-      map(({ vehicles, drivers, customers, bookings }) => {
+      map(({ vehicles, drivers, customers, bookings, routes, payments, fuelLogs, maintenance }) => {
         const results: SearchResult[] = [];
 
         // Search vehicles
@@ -47,7 +61,7 @@ export class GlobalSearchService {
             v.registrationNumber?.toLowerCase().includes(q) ||
             v.model?.toLowerCase().includes(q)
           )
-          .slice(0, 5)
+          .slice(0, 4)
           .forEach(v => {
             results.push({
               type: 'vehicle',
@@ -55,7 +69,7 @@ export class GlobalSearchService {
               title: v.name || 'Unnamed Vehicle',
               subtitle: v.registrationNumber || '',
               icon: 'directions_bus',
-              route: `/vehicles/${v.id}/edit`
+              route: `/vehicles/${v.id}`
             });
           });
 
@@ -66,7 +80,7 @@ export class GlobalSearchService {
             d.licenseNumber?.toLowerCase().includes(q) ||
             d.phone?.toLowerCase().includes(q)
           )
-          .slice(0, 5)
+          .slice(0, 4)
           .forEach(d => {
             results.push({
               type: 'driver',
@@ -74,7 +88,7 @@ export class GlobalSearchService {
               title: d.fullName || 'Unnamed Driver',
               subtitle: d.licenseNumber || d.phone || '',
               icon: 'badge',
-              route: `/drivers/${d.id}/edit`
+              route: `/drivers/${d.id}`
             });
           });
 
@@ -85,7 +99,7 @@ export class GlobalSearchService {
             c.email?.toLowerCase().includes(q) ||
             c.phone?.toLowerCase().includes(q)
           )
-          .slice(0, 5)
+          .slice(0, 4)
           .forEach(c => {
             results.push({
               type: 'customer',
@@ -93,7 +107,7 @@ export class GlobalSearchService {
               title: c.fullName || 'Unnamed Customer',
               subtitle: c.email || c.phone || '',
               icon: 'person',
-              route: `/customers/${c.id}/edit`
+              route: `/customers/${c.id}`
             });
           });
 
@@ -101,22 +115,98 @@ export class GlobalSearchService {
         bookings.items
           .filter(b =>
             b.id?.toString().includes(q) ||
+            b.bookingNumber?.toLowerCase().includes(q) ||
             b.customerName?.toLowerCase().includes(q) ||
             b.routeName?.toLowerCase().includes(q)
           )
-          .slice(0, 5)
+          .slice(0, 4)
           .forEach(b => {
             results.push({
               type: 'booking',
               id: b.id,
-              title: `Booking #${b.id}`,
+              title: b.bookingNumber || `Booking #${b.id}`,
               subtitle: b.customerName || b.routeName || '',
               icon: 'confirmation_number',
               route: `/bookings/${b.id}`
             });
           });
 
-        return results.slice(0, 15);
+        // Search routes
+        routes.items
+          .filter(r =>
+            r.name?.toLowerCase().includes(q) ||
+            r.source?.toLowerCase().includes(q) ||
+            r.destination?.toLowerCase().includes(q)
+          )
+          .slice(0, 3)
+          .forEach(r => {
+            results.push({
+              type: 'route',
+              id: r.id,
+              title: r.name || 'Unnamed Route',
+              subtitle: `${r.source || ''} → ${r.destination || ''}`,
+              icon: 'alt_route',
+              route: `/routes/${r.id}/edit`
+            });
+          });
+
+        // Search payments
+        payments.items
+          .filter(p =>
+            p.id?.toString().includes(q) ||
+            p.bookingId?.toString().includes(q) ||
+            p.transactionReference?.toLowerCase().includes(q)
+          )
+          .slice(0, 3)
+          .forEach(p => {
+            results.push({
+              type: 'payment',
+              id: p.id,
+              title: `Payment #${p.id}`,
+              subtitle: `PKR ${p.amount?.toLocaleString() || '0'} - Booking #${p.bookingId}`,
+              icon: 'payment',
+              route: `/payments`
+            });
+          });
+
+        // Search fuel logs
+        fuelLogs.items
+          .filter(f =>
+            f.vehicleName?.toLowerCase().includes(q) ||
+            f.driverName?.toLowerCase().includes(q)
+          )
+          .slice(0, 3)
+          .forEach(f => {
+            results.push({
+              type: 'fuel_log',
+              id: f.id,
+              title: `Fuel: ${f.vehicleName || 'Vehicle'}`,
+              subtitle: `${f.liters}L - PKR ${f.totalCost?.toLocaleString() || '0'}`,
+              icon: 'local_gas_station',
+              route: `/fuel-logs/${f.id}/edit`
+            });
+          });
+
+        // Search maintenance
+        maintenance.items
+          .filter(m =>
+            m.vehicleName?.toLowerCase().includes(q) ||
+            m.description?.toLowerCase().includes(q) ||
+            m.serviceProvider?.toLowerCase().includes(q)
+          )
+          .slice(0, 3)
+          .forEach(m => {
+            results.push({
+              type: 'maintenance',
+              id: m.id,
+              title: `Maintenance: ${m.vehicleName || 'Vehicle'}`,
+              subtitle: m.description || m.serviceProvider || '',
+              icon: 'build',
+              route: `/maintenance/${m.id}/edit`
+            });
+          });
+
+        return results.slice(0, 20);
       })
     );
   }

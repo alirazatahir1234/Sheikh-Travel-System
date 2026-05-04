@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SheikhTravelSystem.Application.Features.Pricing.Commands;
+using SheikhTravelSystem.Application.Features.Pricing.DTOs;
 
 namespace SheikhTravelSystem.API.Controllers;
 
@@ -14,6 +15,6 @@ public class PricingController : BaseApiController
     /// Calculates booking price from the provided pricing command.
     /// </summary>
     [HttpPost("calculate")]
-    public async Task<IActionResult> Calculate([FromBody] CalculatePriceCommand command)
-        => Ok(await Mediator.Send(command));
+    public async Task<IActionResult> Calculate([FromBody] CalculatePriceRequest request)
+        => Ok(await Mediator.Send(new CalculatePriceCommand(request)));
 }

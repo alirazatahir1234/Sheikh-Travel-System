@@ -12,6 +12,8 @@ export interface LoginResponseDto {
   refreshToken: string;
   fullName: string;
   role: string;
+  email?: string;
+  phoneNumber?: string;
 }
 
 /**
@@ -24,9 +26,9 @@ export interface LoginResponse {
   refreshToken: string;
   fullName: string;
   roles: string[];
-  /** Optional — only present if the backend grows richer claims later. */
   userId?: number;
   email?: string;
+  phoneNumber?: string;
 }
 
 export interface RefreshTokenRequest {

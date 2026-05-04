@@ -8,9 +8,9 @@ import { WeatherInfo } from '../ui.types';
 })
 export class WeatherCardComponent {
   @Input() info: WeatherInfo = {
-    city: 'Sharjah',
-    temperatureC: 36,
-    condition: 'Sunny',
+    city: 'Pakistan',
+    temperatureC: 32,
+    condition: 'Partly cloudy',
     dateLabel: undefined
   };
 

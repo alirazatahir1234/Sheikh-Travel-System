@@ -44,6 +44,9 @@ import {
   PromoBannerComponent
 } from './ui';
 
+import { ConfirmDialogComponent } from './components/confirm-dialog/confirm-dialog.component';
+import { HelpDialogComponent } from './components/help-dialog/help-dialog.component';
+
 const MATERIAL = [
   MatButtonModule, MatCardModule, MatFormFieldModule, MatInputModule,
   MatTableModule, MatPaginatorModule, MatSortModule, MatIconModule,
@@ -68,12 +71,14 @@ const UI = [
 ];
 
 @NgModule({
-  declarations: [...UI],
+  declarations: [...UI, ConfirmDialogComponent, HelpDialogComponent],
   imports: [CommonModule, ReactiveFormsModule, FormsModule, RouterModule, ...MATERIAL],
   exports: [
     CommonModule, ReactiveFormsModule, FormsModule, RouterModule,
     ...MATERIAL,
     ...UI,
+    ConfirmDialogComponent,
+    HelpDialogComponent,
   ]
 })
 export class SharedModule {}

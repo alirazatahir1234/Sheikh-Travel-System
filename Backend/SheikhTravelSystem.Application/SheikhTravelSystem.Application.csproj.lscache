@@ -70,6 +70,7 @@ Common/
   IDatabaseSeeder.cs
   IDbConnectionFactory.cs
   IJwtTokenService.cs
+  INotificationService.cs
   IPasswordHasher.cs
  Pagination.cs
 DependencyInjection.cs
@@ -89,6 +90,7 @@ Features/
   AssignDriverCommand.cs
   AssignVehicleCommand.cs
   CreateBookingCommand.cs
+  UpdateBookingCommand.cs
   UpdateBookingStatusCommand.cs
  Bookings/
   DTOs/BookingDtos.cs
@@ -124,25 +126,38 @@ Features/
   Queries/
    GetDriverByIdQuery.cs
    GetDriversQuery.cs
+ FuelLogs/Commands/
+  CreateFuelLogCommand.cs
+  DeleteFuelLogCommand.cs
+  UpdateFuelLogCommand.cs
  FuelLogs/
-  Commands/CreateFuelLogCommand.cs
   DTOs/FuelLogDtos.cs
-  Queries/GetFuelLogsQuery.cs
+  Queries/
+   GetFuelLogByIdQuery.cs
+   GetFuelLogsQuery.cs
  Maintenance/Commands/
   CreateMaintenanceCommand.cs
+  DeleteMaintenanceCommand.cs
+  UpdateMaintenanceCommand.cs
   UpdateMaintenanceStatusCommand.cs
  Maintenance/
   DTOs/MaintenanceDtos.cs
-  Queries/GetMaintenanceQuery.cs
+  Queries/
+   GetMaintenanceByIdQuery.cs
+   GetMaintenanceQuery.cs
  Notifications/
   Commands/MarkNotificationsReadCommand.cs
   DTOs/NotificationDtos.cs
   Queries/GetNotificationsQuery.cs
+ Payments/Commands/
+  CreatePaymentCommand.cs
+  UpdatePaymentStatusCommand.cs
  Payments/
-  Commands/CreatePaymentCommand.cs
   DTOs/PaymentDtos.cs
   Queries/
+   GetPaymentByIdQuery.cs
    GetPaymentReportQuery.cs
+   GetPaymentsByBookingQuery.cs
    GetPaymentsQuery.cs
  Pricing/
   Commands/CalculatePriceCommand.cs
@@ -179,6 +194,7 @@ Features/
  Vehicles/Commands/
   CreateVehicleCommand.cs
   DeleteVehicleCommand.cs
+  ToggleVehicleStatusCommand.cs
   UpdateVehicleCommand.cs
  Vehicles/
   DTOs/VehicleDtos.cs

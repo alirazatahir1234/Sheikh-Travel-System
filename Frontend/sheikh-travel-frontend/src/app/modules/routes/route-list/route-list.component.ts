@@ -91,7 +91,7 @@ export class RouteListComponent implements OnInit {
 
   // ---------- Data loading ---------------------------------------------------
 
-  load(page = 1, pageSize = 100): void {
+  load(page = 1, pageSize = 500): void {
     this.loading = true;
     this.error = null;
     this.selection.clear();
@@ -111,6 +111,11 @@ export class RouteListComponent implements OnInit {
   applyFilters(): void {
     this.dataSource.data = this.allRoutes.filter(r => this.matches(r));
     this.selection.clear();
+    setTimeout(() => {
+      if (this.paginator) {
+        this.dataSource.paginator = this.paginator;
+      }
+    });
   }
 
   setDistance(value: DistanceFilter): void {

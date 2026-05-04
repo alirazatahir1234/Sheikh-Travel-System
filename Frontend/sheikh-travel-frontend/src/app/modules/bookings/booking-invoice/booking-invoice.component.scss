@@ -1,0 +1,143 @@
+/* ── Screen controls ── */
+.screen-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  padding: 0 8px;
+}
+
+.loading { display: flex; justify-content: center; padding: 60px; }
+.error-msg { color: #c62828; padding: 16px; text-align: center; }
+
+/* ── Invoice Card ── */
+.invoice {
+  max-width: 760px;
+  margin: 0 auto;
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 40px 56px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.08);
+  font-family: 'Roboto', sans-serif;
+}
+
+/* Header */
+.invoice-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 24px;
+}
+.company-logo-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.logo-icon { font-size: 40px; width: 40px; height: 40px; color: #1565c0; }
+.company-name { margin: 0; font-size: 1.5rem; font-weight: 700; color: #1565c0; }
+.company-tagline { margin: 4px 0 0; color: #888; font-size: 0.85rem; }
+.invoice-title-block { text-align: right; }
+.invoice-title { margin: 0; font-size: 1.4rem; font-weight: 800; color: #333; letter-spacing: 2px; }
+.invoice-number { margin: 4px 0 0; font-size: 1rem; font-weight: 600; color: #1565c0; }
+.invoice-date { margin: 4px 0 0; color: #888; font-size: 0.85rem; }
+
+.invoice-divider { border: none; border-top: 1px solid #e0e0e0; margin: 20px 0; }
+
+/* Info section */
+.info-section { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+.section-label { margin: 0 0 8px; font-size: 0.75rem; font-weight: 700; color: #888; letter-spacing: 1.5px; text-transform: uppercase; }
+.customer-name { font-size: 1rem; font-weight: 600; color: #333; margin: 0; }
+.trip-row { display: flex; gap: 8px; font-size: 0.88rem; margin-bottom: 4px; }
+.trip-row span:first-child { color: #888; min-width: 90px; }
+.trip-row span:last-child { color: #333; font-weight: 500; }
+
+/* Services Table */
+.services-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 4px 0;
+}
+.services-table th {
+  text-align: left;
+  border-bottom: 2px solid #1565c0;
+  padding: 8px 4px;
+  font-size: 0.8rem;
+  color: #555;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.services-table th.text-center { text-align: center; }
+.services-table th.text-right,
+.services-table td.text-right { text-align: right; }
+.services-table td.text-center { text-align: center; }
+.services-table tbody td {
+  padding: 12px 4px;
+  border-bottom: 1px solid #f0f0f0;
+  font-size: 0.9rem;
+  color: #333;
+}
+.services-table tfoot td {
+  padding: 8px 4px;
+  font-size: 0.9rem;
+  color: #555;
+}
+.services-table tfoot .subtotal-row td {
+  border-top: 1px solid #e0e0e0;
+}
+.services-table tfoot .paid-row .paid-amount { color: #2e7d32; }
+.services-table tfoot .balance-row td {
+  border-top: 2px solid #1565c0;
+  font-size: 1.05rem;
+  color: #1a237e;
+}
+.services-table tfoot .balance-zero td { color: #2e7d32; }
+
+/* Payment History */
+.payment-history { margin-top: 8px; }
+.payment-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 8px;
+  font-size: 0.85rem;
+}
+.payment-table th {
+  text-align: left;
+  padding: 6px 4px;
+  border-bottom: 1px solid #ccc;
+  color: #666;
+  font-size: 0.8rem;
+}
+.payment-table td {
+  padding: 6px 4px;
+  border-bottom: 1px solid #f5f5f5;
+  color: #444;
+}
+.payment-table .text-right { text-align: right; }
+.status-cell[data-status="Paid"]          { color: #2e7d32; font-weight: 600; }
+.status-cell[data-status="PartiallyPaid"] { color: #f57f17; font-weight: 600; }
+.status-cell[data-status="Pending"]       { color: #1565c0; font-weight: 600; }
+.status-cell[data-status="Refunded"]      { color: #c62828; font-weight: 600; }
+
+/* Footer */
+.invoice-footer {
+  text-align: center;
+  color: #666;
+  font-size: 0.88rem;
+}
+.notes-block { margin-bottom: 12px; color: #555; font-style: italic; }
+.footer-sub { font-size: 0.75rem; color: #999; margin: 4px 0; }
+.footer-date { font-size: 0.75rem; color: #bbb; margin-top: 8px; }
+
+/* ── Print styles ── */
+@media print {
+  .screen-controls { display: none !important; }
+  .invoice {
+    border: none;
+    box-shadow: none;
+    max-width: 100%;
+    padding: 0;
+    margin: 0;
+  }
+  @page { margin: 15mm; }
+}

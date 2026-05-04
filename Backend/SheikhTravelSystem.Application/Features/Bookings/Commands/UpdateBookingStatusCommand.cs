@@ -9,7 +9,7 @@ using SheikhTravelSystem.Domain.Enums;
 
 namespace SheikhTravelSystem.Application.Features.Bookings.Commands;
 
-public record UpdateBookingStatusCommand(int Id, BookingStatus Status) : IRequest<ApiResponse<bool>>, IAuditableCommand
+public record UpdateBookingStatusCommand(int Id, BookingStatus Status, string? CancellationReason = null) : IRequest<ApiResponse<bool>>, IAuditableCommand
 {
     public string AuditAction => "Update";
     public string AuditEntityName => "Booking";
@@ -43,7 +43,7 @@ public class UpdateBookingStatusCommandHandler(IDbConnectionFactory dbFactory, I
 
         var current = (BookingStatus)currentStatus.Value;
 
-        // Validate status transitions
+        // Validate status transitions - allow Started -> Cancelled for emergency cancellation
         var valid = (current, request.Status) switch
         {
             (BookingStatus.Pending, BookingStatus.Confirmed) => true,
@@ -51,20 +51,27 @@ public class UpdateBookingStatusCommandHandler(IDbConnectionFactory dbFactory, I
             (BookingStatus.Confirmed, BookingStatus.Started) => true,
             (BookingStatus.Confirmed, BookingStatus.Cancelled) => true,
             (BookingStatus.Started, BookingStatus.Completed) => true,
+            (BookingStatus.Started, BookingStatus.Cancelled) => true,
             _ => false
         };
 
         if (!valid)
             return ApiResponse<bool>.FailResponse($"Cannot transition from {current} to {request.Status}.");
 
+        // Require reason for cancellation
+        if (request.Status == BookingStatus.Cancelled && string.IsNullOrWhiteSpace(request.CancellationReason))
+            return ApiResponse<bool>.FailResponse("Cancellation reason is required.");
+
         await connection.ExecuteAsync(
             new CommandDefinition(
                 @"UPDATE Bookings SET Status = @Status, UpdatedAt = @UpdatedAt,
+                  CancellationReason = @CancellationReason,
                   DropoffTime = CASE WHEN @Status = @CompletedStatus THEN @Now ELSE DropoffTime END
                   WHERE Id = @Id",
                 new
                 {
                     Status = (int)request.Status, UpdatedAt = DateTime.UtcNow,
+                    CancellationReason = request.CancellationReason,
                     CompletedStatus = (int)BookingStatus.Completed, Now = DateTime.UtcNow, request.Id
                 },
                 cancellationToken: cancellationToken));

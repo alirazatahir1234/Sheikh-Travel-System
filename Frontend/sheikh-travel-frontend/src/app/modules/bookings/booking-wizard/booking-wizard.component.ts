@@ -1,12 +1,14 @@
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
+import { MatStepper } from '@angular/material/stepper';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Observable, Subject, forkJoin, of } from 'rxjs';
-import { map, startWith, switchMap, takeUntil } from 'rxjs/operators';
+import { finalize, map, startWith, switchMap, takeUntil, tap } from 'rxjs/operators';
 
 import { BookingService } from '../../../core/services/booking.service';
+import { PaymentService } from '../../../core/services/payment.service';
 import { RouteService } from '../../../core/services/route.service';
 import { VehicleService } from '../../../core/services/vehicle.service';
 import { DriverService } from '../../../core/services/driver.service';
@@ -19,7 +21,9 @@ import { Driver } from '../../../core/models/driver.model';
 import { Customer, CreateCustomerDto } from '../../../core/models/customer.model';
 import { PriceBreakdown } from '../../../core/models/pricing.model';
 import { Booking } from '../../../core/models/booking.model';
+import { PaymentMethod } from '../../../core/models/payment.model';
 import { CalculateDriverAllowanceResponse } from '../../../core/models/driver-allowance-rule.model';
+import { PaymentPlan } from '../../../shared/utils/booking-payment-plan.util';
 
 type CustomerMode = 'EXISTING' | 'NEW';
 
@@ -29,8 +33,14 @@ type CustomerMode = 'EXISTING' | 'NEW';
   styleUrls: ['./booking-wizard.component.scss']
 })
 export class BookingWizardComponent implements OnInit, OnDestroy {
-  step1Form: FormGroup;
-  step2Form: FormGroup;
+  @ViewChild('stepper') stepper?: MatStepper;
+
+  step1Form!: FormGroup;
+  /** Driver assignment only. */
+  step2Form!: FormGroup;
+  /** Payment plan and payment fields. */
+  step3Form!: FormGroup;
+  minPickupDateTime = '';
 
   routes: Route[]        = [];
   vehicles: Vehicle[]    = [];
@@ -45,22 +55,28 @@ export class BookingWizardComponent implements OnInit, OnDestroy {
   createdBooking: Booking | null = null;
 
   loading = false;
+  /** True while assign-driver + payment API calls run from Confirm. */
+  finishing = false;
   calculating = false;
   loadingData = true;
   creatingCustomer = false;
   error: string | null = null;
 
   customerMode: CustomerMode = 'EXISTING';
+  readonly paymentMethods: PaymentMethod[] = ['Cash', 'Card', 'BankTransfer', 'Online'];
 
   allowanceCalculating = false;
   allowanceResult: CalculateDriverAllowanceResponse | null = null;
   allowanceOverridden = false;
+
+  selectedVehicle: Vehicle | null = null;
 
   private readonly destroy$ = new Subject<void>();
 
   constructor(
     private fb: FormBuilder,
     private bookingService: BookingService,
+    private paymentService: PaymentService,
     private routeService: RouteService,
     private vehicleService: VehicleService,
     private driverService: DriverService,
@@ -76,13 +92,14 @@ export class BookingWizardComponent implements OnInit, OnDestroy {
       routeSearch:       [''],
       vehicleId:         [null, Validators.required],
       vehicleSearch:     [''],
-      pickupTime:        [null, Validators.required],
-      pickupTimeClock:   [this.getDefaultPickupClock(), Validators.required],
+      pickupTime:        [this.getDefaultPickupDateTime(), Validators.required],
+      pickupTimeClock:   [''],  // kept for backward compat, not actively used
       passengerCount:    [1, [Validators.required, Validators.min(1)]],
       fuelPricePerLiter: [270, [Validators.required, Validators.min(0)]],
       driverAllowance:   [0],
       tollCharges:       [0],
       otherCharges:      [0],
+      isRoundTrip:       [false],
       notes:             [''],
 
       newFullName: [''],
@@ -95,11 +112,21 @@ export class BookingWizardComponent implements OnInit, OnDestroy {
     this.step2Form = this.fb.group({
       driverId: [null]
     });
+
+    this.step3Form = this.fb.group({
+      paymentPlan: ['FULL' as PaymentPlan, Validators.required],
+      partialAmount: [null],
+      paymentMethod: ['Cash' as PaymentMethod, Validators.required],
+      paymentMethodName: [''],
+      transactionReference: [''],
+      paymentNotes: ['']
+    });
   }
 
   // ---------- Lifecycle ------------------------------------------------------
 
   ngOnInit(): void {
+    this.minPickupDateTime = this.getMinPickupDateTime();
     forkJoin({
       routes:    this.routeService.getAll(1, 200),
       vehicles:  this.vehicleService.getAll(1, 500),
@@ -114,9 +141,9 @@ export class BookingWizardComponent implements OnInit, OnDestroy {
         this.wireAutocompleteStreams();
         this.loadingData = false;
       },
-      error: () => {
+      error: (err: unknown) => {
         this.loadingData = false;
-        this.error = 'Failed to load booking data. Please try again.';
+        this.error = this.describeBookingWizardLoadError(err);
       }
     });
   }
@@ -126,20 +153,47 @@ export class BookingWizardComponent implements OnInit, OnDestroy {
     this.destroy$.complete();
   }
 
+  private describeBookingWizardLoadError(err: unknown): string {
+    if (err instanceof HttpErrorResponse && err.status === 0) {
+      return 'Cannot reach the API (connection refused). Start the backend from Backend/SheikhTravelSystem.API with: dotnet run --launch-profile http — then refresh this page.';
+    }
+    return 'Failed to load booking data. Please try again.';
+  }
+
   // ---------- Autocomplete wiring -------------------------------------------
 
   private wireAutocompleteStreams(): void {
     this.filteredCustomers$ = this.step1Form.get('customerSearch')!.valueChanges.pipe(
+      tap(value => {
+        if (typeof value === 'string') {
+          this.step1Form.patchValue({ customerId: null }, { emitEvent: false });
+        }
+      }),
       startWith(''),
       map(value => this.filterCustomers(typeof value === 'string' ? value : ''))
     );
 
     this.filteredRoutes$ = this.step1Form.get('routeSearch')!.valueChanges.pipe(
+      tap(value => {
+        if (typeof value === 'string') {
+          this.step1Form.patchValue({ routeId: null }, { emitEvent: false });
+          this.priceBreakdown = null;
+          this.allowanceResult = null;
+        }
+      }),
       startWith(''),
       map(value => this.filterRoutes(typeof value === 'string' ? value : ''))
     );
 
     this.filteredVehicles$ = this.step1Form.get('vehicleSearch')!.valueChanges.pipe(
+      tap(value => {
+        if (typeof value === 'string') {
+          this.step1Form.patchValue({ vehicleId: null }, { emitEvent: false });
+          this.selectedVehicle = null;
+          this.priceBreakdown = null;
+          this.allowanceResult = null;
+        }
+      }),
       startWith(''),
       map(value => this.filterVehicles(typeof value === 'string' ? value : ''))
     );
@@ -214,6 +268,7 @@ export class BookingWizardComponent implements OnInit, OnDestroy {
   }
 
   onVehicleSelected(vehicle: Vehicle): void {
+    this.selectedVehicle = vehicle;
     this.step1Form.patchValue({ vehicleId: vehicle.id, vehicleSearch: vehicle });
     this.priceBreakdown = null;
     this.refreshDriverAllowance();
@@ -227,15 +282,17 @@ export class BookingWizardComponent implements OnInit, OnDestroy {
    */
   refreshDriverAllowance(): void {
     const f = this.step1Form.value;
-    if (!f.routeId || !f.vehicleId) {
+    const routeId = this.resolveRouteId();
+    const vehicleId = this.resolveVehicleId();
+    if (!routeId || !vehicleId) {
       this.allowanceResult = null;
       return;
     }
 
     this.allowanceCalculating = true;
     this.allowanceRuleService.calculate({
-      routeId:   f.routeId,
-      vehicleId: f.vehicleId,
+      routeId,
+      vehicleId,
       tripDays:  1
     }).pipe(takeUntil(this.destroy$)).subscribe({
       next: result => {
@@ -307,21 +364,40 @@ export class BookingWizardComponent implements OnInit, OnDestroy {
 
   calculatePrice(): void {
     const f = this.step1Form.value;
-    if (!f.routeId || !f.vehicleId) return;
+    const routeId = this.resolveRouteId();
+    const vehicleId = this.resolveVehicleId();
+    if (!routeId || !vehicleId) {
+      this.priceBreakdown = null;
+      this.snackBar.open('Please select route and vehicle from the suggestions.', 'Close', { duration: 3200 });
+      return;
+    }
+    const routeExists = this.routes.some(r => r.id === routeId);
+    const vehicleExists = this.vehicles.some(v => v.id === vehicleId);
+    if (!routeExists || !vehicleExists) {
+      this.priceBreakdown = null;
+      this.snackBar.open('Please select route and vehicle from the suggestions.', 'Close', { duration: 3200 });
+      return;
+    }
     this.calculating = true;
     this.bookingService.calculatePrice({
-      routeId:            f.routeId,
-      vehicleId:          f.vehicleId,
-      passengerCount:     f.passengerCount,
-      fuelPricePerLiter:  f.fuelPricePerLiter,
-      driverAllowance:    f.driverAllowance,
-      tollCharges:        f.tollCharges,
-      otherCharges:       f.otherCharges
+      routeId,
+      vehicleId,
+      fuelPricePerLiter: f.fuelPricePerLiter ?? 270,
+      driverAllowance:   f.driverAllowance   ?? 0,
+      tollCharges:       f.tollCharges        ?? 0,
+      otherCharges:      f.otherCharges       ?? 0,
+      isRoundTrip:       f.isRoundTrip        ?? false
     }).subscribe({
       next: p => { this.priceBreakdown = p; this.calculating = false; },
-      error: () => {
+      error: (err: HttpErrorResponse) => {
         this.calculating = false;
-        this.snackBar.open('Failed to calculate price.', 'Close', { duration: 3000 });
+        const fallback = this.buildLocalPriceBreakdown(routeId, vehicleId);
+        if (fallback) {
+          this.priceBreakdown = fallback;
+          this.snackBar.open('Calculated locally (server unavailable).', 'Close', { duration: 2800 });
+          return;
+        }
+        this.snackBar.open(this.extractError(err) || 'Failed to calculate price.', 'Close', { duration: 3500 });
       }
     });
   }
@@ -349,13 +425,20 @@ export class BookingWizardComponent implements OnInit, OnDestroy {
           }
         });
       })
-    ).subscribe({
-      next: booking => {
-        this.createdBooking = booking;
+    ).pipe(
+      takeUntil(this.destroy$),
+      switchMap((newId: number) => {
         const vehicleId = this.step1Form.value.vehicleId;
-        if (vehicleId) {
-          this.bookingService.assignVehicle({ bookingId: booking.id, vehicleId }).subscribe();
-        }
+        const assign$ = vehicleId
+          ? this.bookingService.assignVehicle({ bookingId: newId, vehicleId })
+          : of(true as unknown as boolean);
+        return assign$.pipe(
+          switchMap(() => this.bookingService.getById(newId))
+        );
+      })
+    ).subscribe({
+      next: fullBooking => {
+        this.createdBooking = fullBooking;
         this.loading = false;
       },
       error: (err: HttpErrorResponse) => {
@@ -412,6 +495,12 @@ export class BookingWizardComponent implements OnInit, OnDestroy {
       return false;
     }
 
+    const pickupIso = this.combineDateAndTime(this.step1Form.value.pickupTime, this.step1Form.value.pickupTimeClock);
+    if (!this.isPickupInFuture(pickupIso)) {
+      this.snackBar.open('Pickup time must be in the future.', 'Close', { duration: 3200 });
+      return false;
+    }
+
     if (!this.priceBreakdown) {
       this.snackBar.open('Calculate the price before continuing.', 'Close', { duration: 3000 });
       return false;
@@ -432,43 +521,243 @@ export class BookingWizardComponent implements OnInit, OnDestroy {
     return true;
   }
 
-  // ---------- Step 2 --------------------------------------------------------
+  // ---------- Step 2 / 3: Driver & payment ------------------------------------
+
+  /**
+   * True when payment choices allow leaving the Payment step or tapping Finish.
+   * Partial plan requires a positive amount strictly below the booking total.
+   */
+  canProceedToConfirm(): boolean {
+    const plan = this.step3Form.value.paymentPlan as PaymentPlan;
+    if (plan === 'PAY_LATER' || plan === 'FULL') return true;
+    const total = this.totalBookingAmount;
+    const amt = Number(this.step3Form.value.partialAmount);
+    return Number.isFinite(amt) && amt > 0 && amt < total;
+  }
 
   assignAndFinish(): void {
-    if (!this.createdBooking) return;
-    const driverId = this.step2Form.value.driverId;
+    if (!this.createdBooking) {
+      this.snackBar.open('Create the booking from Trip Details first (use Next: Assign Driver).', 'Close', { duration: 4000 });
+      return;
+    }
+    if (!this.canProceedToConfirm()) {
+      this.snackBar.open(
+        'Partial payment requires an amount greater than 0 and less than the total. Go back to Payment to fix it.',
+        'Close',
+        { duration: 5000 }
+      );
+      this.goToPaymentStep();
+      return;
+    }
 
-    const after = () => {
-      this.snackBar.open('Booking created successfully!', 'Close', { duration: 3000 });
+    const driverId = this.step2Form.value.driverId;
+    const paymentPlan = this.step3Form.value.paymentPlan as PaymentPlan;
+
+    const afterSuccess = () => {
+      this.snackBar.open('Booking saved. Payment and driver updates are complete.', 'Close', { duration: 3200 });
       this.router.navigate(['/bookings']);
     };
 
-    if (driverId) {
-      this.bookingService.assignDriver({ bookingId: this.createdBooking.id, driverId })
-        .subscribe({ next: after, error: () => after() });
-    } else {
-      after();
+    const assignment$ = driverId
+      ? this.bookingService.assignDriver({ bookingId: this.createdBooking.id, driverId })
+      : of(true as unknown as boolean);
+
+    this.finishing = true;
+    assignment$
+      .pipe(
+        takeUntil(this.destroy$),
+        switchMap(() => {
+          if (paymentPlan === 'PAY_LATER') return of(null);
+
+          const totalAmount = this.totalBookingAmount;
+          const paymentMethod = this.step3Form.value.paymentMethod as PaymentMethod;
+          const amount = paymentPlan === 'FULL'
+            ? totalAmount
+            : Number(this.step3Form.value.partialAmount ?? 0);
+          const paymentMethodName = (this.step3Form.value.paymentMethodName || '').trim();
+          const paymentNotes = (this.step3Form.value.paymentNotes || '').trim();
+          const composedNotes = [paymentMethodName ? `Method Name: ${paymentMethodName}` : '', paymentNotes]
+            .filter(Boolean)
+            .join(' | ');
+
+          if (paymentPlan === 'PARTIAL') {
+            if (!Number.isFinite(amount) || amount <= 0) {
+              this.snackBar.open('Enter a valid partial payment amount.', 'Close', { duration: 3200 });
+              return of('BLOCKED' as const);
+            }
+            if (amount >= totalAmount) {
+              this.snackBar.open('Partial payment must be less than total amount.', 'Close', { duration: 3200 });
+              return of('BLOCKED' as const);
+            }
+          }
+
+          return this.paymentService.create({
+            bookingId: this.createdBooking!.id,
+            amount,
+            paymentMethod,
+            transactionReference: (this.step3Form.value.transactionReference || '').trim() || undefined,
+            notes: composedNotes || undefined
+          });
+        }),
+        finalize(() => {
+          this.finishing = false;
+        })
+      )
+      .subscribe({
+        next: result => {
+          if (result === 'BLOCKED') {
+            this.goToPaymentStep();
+            return;
+          }
+          afterSuccess();
+        },
+        error: (err: unknown) => {
+          const msg = err instanceof HttpErrorResponse
+            ? this.extractError(err)
+            : 'Could not complete driver assignment or payment. Please try again.';
+          this.snackBar.open(msg, 'Close', { duration: 5500 });
+        }
+      });
+  }
+
+  /** Payment step index in the linear stepper (Trip=0, Driver=1, Payment=2, Confirm=3). */
+  private goToPaymentStep(): void {
+    const s = this.stepper;
+    if (!s) return;
+    Promise.resolve().then(() => {
+      s.selectedIndex = 2;
+    });
+  }
+
+  selectPaymentPlan(plan: PaymentPlan): void {
+    this.step3Form.patchValue({ paymentPlan: plan });
+    if (plan !== 'PARTIAL') {
+      this.step3Form.patchValue({ partialAmount: null });
     }
+  }
+
+  paymentDescription(plan: PaymentPlan): string {
+    switch (plan) {
+      case 'FULL':
+        return 'Collect the complete booking amount now and close payment.';
+      case 'PARTIAL':
+        return 'Collect part of the amount now and settle the remaining balance later.';
+      default:
+        return 'Skip payment for now. Booking will be created without an initial payment.';
+    }
+  }
+
+  get totalBookingAmount(): number {
+    return Number(this.createdBooking?.totalAmount ?? this.priceBreakdown?.totalAmount ?? 0);
+  }
+
+  /** Confirm step: server name if already assigned, else driver chosen in step 2. */
+  getConfirmDriverDisplay(): string {
+    const name = this.createdBooking?.driverName?.trim();
+    if (name) return name;
+    const id = this.step2Form?.value?.driverId as number | null | undefined;
+    if (!id) return '— Not assigned yet —';
+    return this.drivers.find(d => d.id === id)?.fullName ?? '—';
   }
 
   // ---------- Misc ----------------------------------------------------------
 
   trackById(_index: number, item: { id: number }): number { return item.id; }
 
-  private getDefaultPickupClock(): string {
-    const now = new Date();
-    const hh = String(now.getHours()).padStart(2, '0');
-    const mm = String(now.getMinutes()).padStart(2, '0');
-    return `${hh}:${mm}`;
+  absVal(n: number): number { return Math.abs(n ?? 0); }
+
+  openDateTimePicker(input: HTMLInputElement): void {
+    if (input.showPicker) {
+      input.showPicker();
+    } else {
+      input.focus();
+    }
   }
 
-  private combineDateAndTime(dateValue: Date | string | null, timeValue: string | null): string {
-    const date = dateValue ? new Date(dateValue) : new Date();
-    const [hours, minutes] = (timeValue || '09:00').split(':').map(v => Number(v));
+  private getDefaultPickupDateTime(): string {
+    const now = new Date();
+    // Keep default safely in the future to satisfy backend validation.
+    now.setMinutes(now.getMinutes() + 30, 0, 0);
+    // Format as 'YYYY-MM-DDTHH:mm' (datetime-local input value)
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+  }
 
-    const merged = new Date(date);
-    merged.setHours(Number.isFinite(hours) ? hours : 9, Number.isFinite(minutes) ? minutes : 0, 0, 0);
-    return merged.toISOString();
+  private getMinPickupDateTime(): string {
+    const now = new Date();
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+  }
+
+  private combineDateAndTime(dateValue: Date | string | null, _timeValue: string | null): string {
+    // datetime-local produces 'YYYY-MM-DDTHH:mm' — parse as local time
+    if (typeof dateValue === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(dateValue)) {
+      return new Date(dateValue).toISOString();
+    }
+    // Fallback: legacy Date object path
+    const date = dateValue ? new Date(dateValue) : new Date();
+    return date.toISOString();
+  }
+
+  private isPickupInFuture(pickupIso: string): boolean {
+    const pickupTime = new Date(pickupIso).getTime();
+    if (!Number.isFinite(pickupTime)) return false;
+    // Small buffer avoids race-condition with server-time checks.
+    const threshold = Date.now() + 60_000;
+    return pickupTime > threshold;
+  }
+
+  private buildLocalPriceBreakdown(routeId: number, vehicleId: number): PriceBreakdown | null {
+    const route = this.routes.find(r => r.id === routeId);
+    const vehicle = this.vehicles.find(v => v.id === vehicleId);
+    if (!route || !vehicle || !vehicle.fuelAverage || vehicle.fuelAverage <= 0) return null;
+
+    const fuelPricePerLiter = Number(this.step1Form.value.fuelPricePerLiter ?? 270);
+    const driverAllowance = Number(this.step1Form.value.driverAllowance ?? 0);
+    const tollCharges = Number(this.step1Form.value.tollCharges ?? 0);
+    const otherCharges = Number(this.step1Form.value.otherCharges ?? 0);
+    const isRoundTrip = !!this.step1Form.value.isRoundTrip;
+    const tripMultiplier = isRoundTrip ? 2 : 1;
+
+    const fuelCost = (route.distance / vehicle.fuelAverage) * fuelPricePerLiter * tripMultiplier;
+    const totalAmount = fuelCost + driverAllowance + tollCharges + otherCharges;
+    return {
+      distance: route.distance,
+      fuelAverage: vehicle.fuelAverage,
+      fuelPricePerLiter,
+      fuelCost: Number(fuelCost.toFixed(2)),
+      driverAllowance,
+      tollCharges,
+      otherCharges,
+      totalAmount: Number(totalAmount.toFixed(2)),
+      isRoundTrip
+    };
+  }
+
+  private resolveRouteId(): number | null {
+    const rawId = this.step1Form.value.routeId;
+    const fromControl = Number(rawId);
+    if (Number.isInteger(fromControl) && fromControl > 0) return fromControl;
+
+    const selectedRoute = this.step1Form.value.routeSearch as Route | string | null | undefined;
+    if (selectedRoute && typeof selectedRoute === 'object' && Number.isInteger(selectedRoute.id) && selectedRoute.id > 0) {
+      this.step1Form.patchValue({ routeId: selectedRoute.id }, { emitEvent: false });
+      return selectedRoute.id;
+    }
+    return null;
+  }
+
+  private resolveVehicleId(): number | null {
+    const rawId = this.step1Form.value.vehicleId;
+    const fromControl = Number(rawId);
+    if (Number.isInteger(fromControl) && fromControl > 0) return fromControl;
+
+    const selectedVehicle = this.step1Form.value.vehicleSearch as Vehicle | string | null | undefined;
+    if (selectedVehicle && typeof selectedVehicle === 'object' && Number.isInteger(selectedVehicle.id) && selectedVehicle.id > 0) {
+      this.step1Form.patchValue({ vehicleId: selectedVehicle.id }, { emitEvent: false });
+      return selectedVehicle.id;
+    }
+    return null;
   }
 
   private extractError(err: HttpErrorResponse): string {

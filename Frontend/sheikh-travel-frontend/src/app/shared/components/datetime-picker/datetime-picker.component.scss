@@ -1,0 +1,74 @@
+.dt-picker-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.dt-picker-inputs {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+
+  @media (max-width: 600px) {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+.dt-field {
+  flex: 1;
+
+  &.date-field { flex: 1.2; }
+  &.time-field { flex: 0.8; }
+}
+
+.dt-confirm-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 4px;
+  background: linear-gradient(135deg, #1B7F75 0%, #149487 100%);
+  color: #fff;
+  transition: all 0.2s ease;
+
+  mat-icon {
+    font-size: 24px;
+    width: 24px;
+    height: 24px;
+  }
+
+  &:hover:not(:disabled) {
+    transform: scale(1.08);
+    box-shadow: 0 4px 12px rgba(27, 127, 117, 0.3);
+  }
+
+  &:disabled {
+    background: #e0e0e0;
+    color: #9e9e9e;
+    cursor: not-allowed;
+  }
+}
+
+.dt-display {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: #e8f5e9;
+  border-radius: 8px;
+  border-left: 3px solid #2e7d32;
+  font-size: 13px;
+  color: #2e7d32;
+
+  mat-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+  }
+
+  span {
+    font-weight: 500;
+  }
+}

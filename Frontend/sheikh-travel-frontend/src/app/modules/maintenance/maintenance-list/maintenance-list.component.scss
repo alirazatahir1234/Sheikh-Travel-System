@@ -22,7 +22,13 @@
   align-items: center;
   gap: 12px;
   padding: 16px 20px;
-  min-width: 180px;
+  min-width: 140px;
+  cursor: pointer;
+  transition: box-shadow 0.2s, border-color 0.2s;
+  border: 2px solid transparent;
+
+  &:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+  &.active { border-color: #3B82F6; }
 
   mat-icon {
     font-size: 28px;
@@ -31,7 +37,9 @@
   }
 
   &.scheduled mat-icon { color: #3B82F6; }
-  &.expense mat-icon   { color: #F59E0B; }
+  &.overdue mat-icon   { color: #DC2626; }
+  &.upcoming mat-icon  { color: #F59E0B; }
+  &.expense mat-icon   { color: #10B981; }
 
   .summary-content { display: flex; flex-direction: column; }
   .summary-value   { font-size: 1.25rem; font-weight: 700; color: var(--stb-text, #0F172A); }
@@ -85,6 +93,20 @@
   text-align: center;
   color: var(--stb-text-muted, #64748B);
   padding: 32px 12px;
+}
+
+.overdue-cell { color: #DC2626; font-weight: 500; }
+.upcoming-cell { color: #F59E0B; }
+
+.due-icon {
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
+  vertical-align: middle;
+  margin-left: 4px;
+  
+  &.overdue { color: #DC2626; }
+  &.upcoming { color: #F59E0B; }
 }
 
 @media (max-width: 640px) {

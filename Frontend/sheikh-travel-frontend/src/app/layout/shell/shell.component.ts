@@ -1,6 +1,7 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { Router } from '@angular/router';
-import { Subject, debounceTime, distinctUntilChanged, switchMap, of } from 'rxjs';
+import { Subject, debounceTime, distinctUntilChanged, switchMap, of, Observable, Subscription, map } from 'rxjs';
+import { MatDialog } from '@angular/material/dialog';
 import { AuthService } from '../../core/services/auth.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { GlobalSearchService, SearchResult } from '../../core/services/global-search.service';
@@ -10,11 +11,14 @@ import {
   NotificationTypeIcons,
   NotificationTypeColors
 } from '../../core/models/notification.model';
+import { HelpDialogComponent } from '../../shared/components/help-dialog/help-dialog.component';
+import { LocalTimeContextService, LocalTimeDisplay } from '../../core/services/local-time-context.service';
 
 interface NavItem {
   label: string;
   icon: string;
   route: string;
+  adminOnly?: boolean;
 }
 
 @Component({
@@ -22,8 +26,8 @@ interface NavItem {
   templateUrl: './shell.component.html',
   styleUrls: ['./shell.component.scss']
 })
-export class ShellComponent implements OnInit {
-  navItems: NavItem[] = [
+export class ShellComponent implements OnInit, OnDestroy {
+  private allNavItems: NavItem[] = [
     { label: 'Dashboard', icon: 'dashboard',      route: '/dashboard' },
     { label: 'Bookings',  icon: 'confirmation_number', route: '/bookings' },
     { label: 'Vehicles',  icon: 'directions_bus', route: '/vehicles' },
@@ -35,11 +39,12 @@ export class ShellComponent implements OnInit {
     { label: 'Tracking',  icon: 'my_location',    route: '/tracking' },
     { label: 'Payments',  icon: 'account_balance_wallet', route: '/payments' },
     { label: 'Reports',   icon: 'insights',       route: '/reports' },
-    { label: 'Allowance Rules', icon: 'rule',     route: '/driver-allowance-rules' },
-    { label: 'Users',     icon: 'manage_accounts', route: '/users' },
-    { label: 'Audit Logs', icon: 'history',   route: '/audit-logs' },
+    { label: 'Allowance Rules', icon: 'rule',     route: '/driver-allowance-rules', adminOnly: true },
+    { label: 'Users',     icon: 'manage_accounts', route: '/users', adminOnly: true },
+    { label: 'Audit Logs', icon: 'history',       route: '/audit-logs', adminOnly: true },
   ];
 
+  navItems$!: Observable<NavItem[]>;
   currentUser$: AuthService['currentUser$'];
   unreadCount$!: NotificationService['unreadCount'];
   notifications$!: NotificationService['notifications'];
@@ -50,25 +55,51 @@ export class ShellComponent implements OnInit {
   searchLoading = false;
   showSearchResults = false;
   private searchSubject = new Subject<string>();
+  private searchSub?: Subscription;
+  private sessionSub?: Subscription;
+  timeDisplay$: Observable<LocalTimeDisplay>;
 
   constructor(
     private auth: AuthService,
     private notificationService: NotificationService,
     private globalSearch: GlobalSearchService,
-    private router: Router
+    private localTime: LocalTimeContextService,
+    private router: Router,
+    private dialog: MatDialog
   ) {
     this.currentUser$ = auth.currentUser$;
     this.unreadCount$ = notificationService.unreadCount;
     this.notifications$ = notificationService.notifications;
+    this.timeDisplay$ = this.localTime.clockDisplay$();
+
+    // Filter nav items based on user role
+    this.navItems$ = this.currentUser$.pipe(
+      map(user => {
+        const isAdmin = user?.roles?.includes('Admin') ?? false;
+        return this.allNavItems.filter(item => !item.adminOnly || isAdmin);
+      })
+    );
   }
 
   ngOnInit(): void {
-    this.notificationService.startPolling(60000);
+    this.sessionSub = this.auth.currentUser$.subscribe(user => {
+      if (user && this.auth.getToken()) {
+        queueMicrotask(() => this.notificationService.startPolling(60000));
+      } else {
+        this.notificationService.reset();
+      }
+    });
     this.initSearch();
   }
 
+  ngOnDestroy(): void {
+    this.sessionSub?.unsubscribe();
+    this.searchSub?.unsubscribe();
+    this.notificationService.reset();
+  }
+
   private initSearch(): void {
-    this.searchSubject.pipe(
+    this.searchSub = this.searchSubject.pipe(
       debounceTime(300),
       distinctUntilChanged(),
       switchMap(query => {
@@ -113,7 +144,11 @@ export class ShellComponent implements OnInit {
       booking: 'Booking',
       vehicle: 'Vehicle',
       driver: 'Driver',
-      customer: 'Customer'
+      customer: 'Customer',
+      route: 'Route',
+      payment: 'Payment',
+      fuel_log: 'Fuel Log',
+      maintenance: 'Maintenance'
     };
     return labels[type] || type;
   }
@@ -189,5 +224,16 @@ export class ShellComponent implements OnInit {
     if (diffHours < 24) return `${diffHours}h ago`;
     if (diffDays < 7) return `${diffDays}d ago`;
     return date.toLocaleDateString();
+  }
+
+  openHelp(): void {
+    this.dialog.open(HelpDialogComponent, {
+      width: '600px',
+      maxHeight: '80vh'
+    });
+  }
+
+  localTimeTooltip(t: LocalTimeDisplay): string {
+    return [t.timeZoneId, t.dateLine, t.offsetAndAbbr].filter(Boolean).join(' · ');
   }
 }

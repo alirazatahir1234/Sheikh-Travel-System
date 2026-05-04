@@ -19,6 +19,13 @@ public class MaintenanceController : BaseApiController
         => Ok(await Mediator.Send(query));
 
     /// <summary>
+    /// Gets a maintenance record by identifier.
+    /// </summary>
+    [HttpGet("{id:int}")]
+    public async Task<IActionResult> GetById(int id)
+        => Ok(await Mediator.Send(new GetMaintenanceByIdQuery(id)));
+
+    /// <summary>
     /// Creates a new maintenance record.
     /// </summary>
     [HttpPost]
@@ -29,9 +36,23 @@ public class MaintenanceController : BaseApiController
     }
 
     /// <summary>
+    /// Updates an existing maintenance record.
+    /// </summary>
+    [HttpPut("{id:int}")]
+    public async Task<IActionResult> Update(int id, [FromBody] UpdateMaintenanceCommand command)
+        => Ok(await Mediator.Send(command with { Id = id }));
+
+    /// <summary>
     /// Updates the status of a maintenance record.
     /// </summary>
     [HttpPut("{id}/status")]
     public async Task<IActionResult> UpdateStatus(int id, [FromBody] UpdateMaintenanceStatusCommand command)
         => Ok(await Mediator.Send(command with { Id = id }));
+
+    /// <summary>
+    /// Deletes a maintenance record.
+    /// </summary>
+    [HttpDelete("{id:int}")]
+    public async Task<IActionResult> Delete(int id)
+        => Ok(await Mediator.Send(new DeleteMaintenanceCommand(id)));
 }

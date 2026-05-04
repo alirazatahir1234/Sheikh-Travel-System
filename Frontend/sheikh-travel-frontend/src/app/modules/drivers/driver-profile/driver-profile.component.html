@@ -1,0 +1,124 @@
+<div class="page-header">
+  <h2>Driver Profile</h2>
+  <div class="header-actions">
+    <button mat-stroked-button routerLink="/drivers">
+      <mat-icon>arrow_back</mat-icon> Back to List
+    </button>
+    <button mat-raised-button color="primary" (click)="editDriver()" *ngIf="driver">
+      <mat-icon>edit</mat-icon> Edit Driver
+    </button>
+  </div>
+</div>
+
+<div *ngIf="loading" class="loading"><mat-spinner diameter="40"></mat-spinner></div>
+<div *ngIf="error" class="error-message"><mat-icon>error</mat-icon> {{ error }}</div>
+
+<div *ngIf="driver && !loading" class="profile-container">
+  <!-- Driver Info Card -->
+  <mat-card class="info-card">
+    <mat-card-header>
+      <mat-icon mat-card-avatar class="driver-icon">badge</mat-icon>
+      <mat-card-title>{{ driver.fullName }}</mat-card-title>
+      <mat-card-subtitle>{{ driver.phone }}</mat-card-subtitle>
+    </mat-card-header>
+    <mat-card-content>
+      <div class="info-grid">
+        <div class="info-item">
+          <span class="label">CNIC</span>
+          <span class="value">{{ driver.cnic || '—' }}</span>
+        </div>
+        <div class="info-item">
+          <span class="label">License Number</span>
+          <span class="value">{{ driver.licenseNumber || '—' }}</span>
+        </div>
+        <div class="info-item">
+          <span class="label">License Expiry</span>
+          <span class="value" [class.warning]="licenseExpiringSoon">
+            {{ driver.licenseExpiryDate ? (driver.licenseExpiryDate | date:'mediumDate') : '—' }}
+            <mat-icon *ngIf="licenseExpiringSoon" class="warning-icon" matTooltip="License expiring soon!">warning</mat-icon>
+          </span>
+        </div>
+        <div class="info-item">
+          <span class="label">Joined</span>
+          <span class="value">{{ driver.createdAt | date:'mediumDate' }}</span>
+        </div>
+        <div class="info-item">
+          <span class="label">Status</span>
+          <span class="value status-chip" [class.active]="driver.isActive">
+            {{ driver.isActive ? 'Active' : 'Inactive' }}
+          </span>
+        </div>
+      </div>
+    </mat-card-content>
+  </mat-card>
+
+  <!-- Stats Cards -->
+  <div class="stats-row">
+    <mat-card class="stat-card">
+      <mat-icon>confirmation_number</mat-icon>
+      <div class="stat-content">
+        <span class="stat-value">{{ totalTrips }}</span>
+        <span class="stat-label">Total Trips</span>
+      </div>
+    </mat-card>
+    <mat-card class="stat-card">
+      <mat-icon>check_circle</mat-icon>
+      <div class="stat-content">
+        <span class="stat-value">{{ completedTrips }}</span>
+        <span class="stat-label">Completed</span>
+      </div>
+    </mat-card>
+    <mat-card class="stat-card">
+      <mat-icon>trending_up</mat-icon>
+      <div class="stat-content">
+        <span class="stat-value">{{ completionRate }}%</span>
+        <span class="stat-label">Completion Rate</span>
+      </div>
+    </mat-card>
+    <mat-card class="stat-card">
+      <mat-icon>payments</mat-icon>
+      <div class="stat-content">
+        <span class="stat-value">PKR {{ totalRevenue | number:'1.0-0' }}</span>
+        <span class="stat-label">Total Revenue</span>
+      </div>
+    </mat-card>
+  </div>
+
+  <!-- Recent Bookings -->
+  <mat-card class="data-card">
+    <mat-card-header>
+      <mat-card-title>Recent Bookings</mat-card-title>
+    </mat-card-header>
+    <mat-card-content>
+      <table mat-table [dataSource]="recentBookings" *ngIf="recentBookings.length > 0">
+        <ng-container matColumnDef="bookingNumber">
+          <th mat-header-cell *matHeaderCellDef>Booking #</th>
+          <td mat-cell *matCellDef="let b">
+            <a [routerLink]="['/bookings', b.id]">{{ b.bookingNumber || '#' + b.id }}</a>
+          </td>
+        </ng-container>
+        <ng-container matColumnDef="customerName">
+          <th mat-header-cell *matHeaderCellDef>Customer</th>
+          <td mat-cell *matCellDef="let b">{{ b.customerName }}</td>
+        </ng-container>
+        <ng-container matColumnDef="pickupTime">
+          <th mat-header-cell *matHeaderCellDef>Pickup</th>
+          <td mat-cell *matCellDef="let b">{{ b.pickupTime | date:'short' }}</td>
+        </ng-container>
+        <ng-container matColumnDef="totalAmount">
+          <th mat-header-cell *matHeaderCellDef class="text-right">Amount</th>
+          <td mat-cell *matCellDef="let b" class="text-right">PKR {{ b.totalAmount | number:'1.0-0' }}</td>
+        </ng-container>
+        <ng-container matColumnDef="status">
+          <th mat-header-cell *matHeaderCellDef>Status</th>
+          <td mat-cell *matCellDef="let b">
+            <span class="status-badge" [style.color]="getStatusColor(b.status)">{{ b.status }}</span>
+          </td>
+        </ng-container>
+        <tr mat-header-row *matHeaderRowDef="bookingColumns"></tr>
+        <tr mat-row *matRowDef="let row; columns: bookingColumns;"></tr>
+      </table>
+      <div *ngIf="recentBookings.length === 0" class="empty-state">No bookings assigned to this driver yet.</div>
+    </mat-card-content>
+  </mat-card>
+</div>

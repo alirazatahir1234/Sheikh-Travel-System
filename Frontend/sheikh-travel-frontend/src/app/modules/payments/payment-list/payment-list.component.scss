@@ -1,4 +1,19 @@
-.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; h2 { margin: 0; } }
+.page-header {
+  display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;
+  h2 { margin: 0; }
+}
+.header-actions { display: flex; gap: 8px; align-items: center; }
+.filter-card { margin-bottom: 16px; }
+.filter-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  align-items: end;
+}
+.filter-field { width: 100%; }
+.filter-actions { display: flex; gap: 8px; align-items: center; padding-bottom: 4px; }
 .full-width { width: 100%; }
 .loading { display: flex; justify-content: center; padding: 40px; }
+.error-message { color: #c62828; padding: 12px; display: flex; align-items: center; gap: 8px; }
+.no-data { text-align: center; color: #666; padding: 24px; }
 .status-badge { padding: 4px 10px; border-radius: 12px; font-size: 0.8rem; font-weight: 600; }

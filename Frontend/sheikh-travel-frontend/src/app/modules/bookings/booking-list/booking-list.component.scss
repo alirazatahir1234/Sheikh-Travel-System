@@ -1,5 +1,35 @@
 .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; h2 { margin: 0; } }
+.header-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+
+  button mat-spinner {
+    display: inline-block;
+    margin-right: 6px;
+    vertical-align: middle;
+  }
+}
+
+.select-col {
+  width: 52px;
+  padding-left: 8px !important;
+  text-align: center;
+}
 .full-width { width: 100%; }
 .loading { display: flex; justify-content: center; padding: 40px; }
-.filters { margin-bottom: 12px; }
+.filters {
+  margin-bottom: 12px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+  align-items: center;
+}
+.smart-filters {
+  display: flex;
+  gap: 8px;
+  margin: 4px 0 14px;
+  flex-wrap: wrap;
+}
 .status-badge { padding: 4px 10px; border-radius: 12px; font-size: 0.8rem; font-weight: 600; }

@@ -2,7 +2,6 @@ using System.Globalization;
 using Dapper;
 using MediatR;
 using SheikhTravelSystem.Application.Common;
-using SheikhTravelSystem.Application.Common.Exceptions;
 using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Application.Features.DriverAllowance.DTOs;
 using SheikhTravelSystem.Domain.Enums;
@@ -33,8 +32,10 @@ public class CalculateDriverAllowanceQueryHandler(IDbConnectionFactory dbFactory
         CalculateDriverAllowanceQuery request, CancellationToken cancellationToken)
     {
         var req = request.Request;
-        if (req.RouteId <= 0) throw new ArgumentException("RouteId is required.", nameof(request));
-        if (req.VehicleId <= 0) throw new ArgumentException("VehicleId is required.", nameof(request));
+        if (req.RouteId <= 0)
+            return ApiResponse<CalculateDriverAllowanceResponse>.FailResponse("Route is required for allowance calculation.");
+        if (req.VehicleId <= 0)
+            return ApiResponse<CalculateDriverAllowanceResponse>.FailResponse("Vehicle is required for allowance calculation.");
 
         using var connection = dbFactory.CreateConnection();
 
@@ -44,7 +45,19 @@ public class CalculateDriverAllowanceQueryHandler(IDbConnectionFactory dbFactory
                 new { Id = req.RouteId },
                 cancellationToken: cancellationToken));
 
-        if (route is null) throw new NotFoundException("Route", req.RouteId);
+        if (route is null)
+        {
+            return ApiResponse<CalculateDriverAllowanceResponse>.SuccessResponse(
+                new CalculateDriverAllowanceResponse(
+                    Amount: 0,
+                    AppliedRuleId: null,
+                    AppliedRuleName: null,
+                    AppliedRuleType: null,
+                    AppliedRuleValue: null,
+                    FormulaExplanation: "Route not found; allowance set to 0.",
+                    MatchedAnyRule: false),
+                "Route not found for allowance calculation.");
+        }
 
         var vehicleFuelType = await connection.ExecuteScalarAsync<int?>(
             new CommandDefinition(
@@ -52,7 +65,19 @@ public class CalculateDriverAllowanceQueryHandler(IDbConnectionFactory dbFactory
                 new { Id = req.VehicleId },
                 cancellationToken: cancellationToken));
 
-        if (vehicleFuelType is null) throw new NotFoundException("Vehicle", req.VehicleId);
+        if (vehicleFuelType is null)
+        {
+            return ApiResponse<CalculateDriverAllowanceResponse>.SuccessResponse(
+                new CalculateDriverAllowanceResponse(
+                    Amount: 0,
+                    AppliedRuleId: null,
+                    AppliedRuleName: null,
+                    AppliedRuleType: null,
+                    AppliedRuleValue: null,
+                    FormulaExplanation: "Vehicle not found; allowance set to 0.",
+                    MatchedAnyRule: false),
+                "Vehicle not found for allowance calculation.");
+        }
 
         var rules = (await connection.QueryAsync<DriverAllowanceRuleDto>(
             new CommandDefinition(

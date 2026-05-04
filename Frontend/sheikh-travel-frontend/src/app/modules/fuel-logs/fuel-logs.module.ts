@@ -6,7 +6,8 @@ import { FuelLogFormComponent } from './fuel-log-form/fuel-log-form.component';
 
 const routes: Routes = [
   { path: '', component: FuelLogListComponent },
-  { path: 'new', component: FuelLogFormComponent }
+  { path: 'new', component: FuelLogFormComponent },
+  { path: ':id/edit', component: FuelLogFormComponent }
 ];
 
 @NgModule({

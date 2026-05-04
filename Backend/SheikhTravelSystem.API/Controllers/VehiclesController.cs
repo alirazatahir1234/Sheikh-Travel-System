@@ -48,4 +48,11 @@ public class VehiclesController : BaseApiController
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(int id)
         => Ok(await Mediator.Send(new DeleteVehicleCommand(id)));
+
+    /// <summary>
+    /// Toggles vehicle status between Available and Retired.
+    /// </summary>
+    [HttpPatch("{id}/toggle-status")]
+    public async Task<IActionResult> ToggleStatus(int id)
+        => Ok(await Mediator.Send(new ToggleVehicleStatusCommand(id)));
 }

@@ -1,4 +1,4 @@
-export type BookingStatus = 'Pending' | 'Confirmed' | 'InProgress' | 'Completed' | 'Cancelled';
+export type BookingStatus = 'Pending' | 'Confirmed' | 'Started' | 'Completed' | 'Cancelled';
 
 export interface Booking {
   id: number;
@@ -34,6 +34,23 @@ export interface CreateBookingRequest {
   booking: CreateBookingDto;
 }
 
+/** Matches backend UpdateBookingDto. */
+export interface UpdateBookingDto {
+  customerId: number;
+  routeId: number;
+  pickupTime: string;
+  passengerCount: number;
+  totalAmount: number;
+  vehicleId?: number | null;
+  driverId?: number | null;
+  notes?: string | null;
+}
+
+/** Envelope sent on PUT /api/bookings/:id — backend expects `{ booking: UpdateBookingDto }`. */
+export interface UpdateBookingRequest {
+  booking: UpdateBookingDto;
+}
+
 export interface AssignDriverRequest {
   bookingId: number;
   driverId: number;
@@ -47,4 +64,5 @@ export interface AssignVehicleRequest {
 export interface UpdateBookingStatusRequest {
   bookingId: number;
   status: BookingStatus;
+  cancellationReason?: string;
 }

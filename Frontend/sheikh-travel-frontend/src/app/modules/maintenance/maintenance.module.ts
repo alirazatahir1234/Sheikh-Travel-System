@@ -6,7 +6,8 @@ import { MaintenanceFormComponent } from './maintenance-form/maintenance-form.co
 
 const routes: Routes = [
   { path: '', component: MaintenanceListComponent },
-  { path: 'new', component: MaintenanceFormComponent }
+  { path: 'new', component: MaintenanceFormComponent },
+  { path: ':id/edit', component: MaintenanceFormComponent }
 ];
 
 @NgModule({

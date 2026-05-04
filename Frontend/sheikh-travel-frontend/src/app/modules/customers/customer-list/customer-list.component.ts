@@ -75,7 +75,7 @@ export class CustomerListComponent implements OnInit {
 
   // ---------- Data loading ---------------------------------------------------
 
-  load(page = 1, pageSize = 100): void {
+  load(page = 1, pageSize = 500): void {
     this.loading = true;
     this.error = null;
     this.selection.clear();
@@ -95,6 +95,11 @@ export class CustomerListComponent implements OnInit {
   applyFilters(): void {
     this.dataSource.data = this.allCustomers.filter(c => this.matches(c));
     this.selection.clear();
+    setTimeout(() => {
+      if (this.paginator) {
+        this.dataSource.paginator = this.paginator;
+      }
+    });
   }
 
   setRecency(value: RecencyFilter): void {

@@ -25,12 +25,22 @@
   mat-list { overflow-y: auto; flex: 1; }
 
   .vehicle-item {
-    cursor: pointer;
     &:hover { background: #f5f5f5; }
+    
+    .clickable { cursor: pointer; &:hover { color: #3B82F6; } }
+    .profile-btn { 
+      position: absolute; 
+      right: 4px; 
+      top: 50%; 
+      transform: translateY(-50%);
+      opacity: 0.5;
+      &:hover { opacity: 1; }
+    }
   }
 
   .last-updated { font-size: 0.75rem; color: #999; }
-  .empty-state { padding: 20px; text-align: center; color: #999; }
+  .empty-state { padding: 20px; text-align: center; color: #999; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .error-state { padding: 20px; text-align: center; color: #c62828; display: flex; flex-direction: column; align-items: center; gap: 8px; }
   .refresh-hint { padding: 8px 16px; font-size: 0.75rem; color: #bbb; text-align: center; margin: 0; }
 }
 
@@ -41,3 +51,31 @@
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);
   min-height: 400px;
 }
+
+// History panel
+.history-card {
+  margin-top: 20px;
+
+  mat-card-title {
+    display: flex; align-items: center; gap: 8px;
+    mat-icon { font-size: 20px; width: 20px; height: 20px; }
+  }
+}
+
+.history-filters {
+  display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 16px;
+  mat-form-field { min-width: 200px; }
+}
+
+.history-loading { display: flex; justify-content: center; padding: 24px; }
+
+.history-error {
+  display: flex; align-items: center; gap: 8px; color: #c62828; padding: 12px 0;
+}
+
+.history-empty {
+  display: flex; align-items: center; gap: 8px; color: #999; padding: 24px 0;
+  mat-icon { font-size: 24px; width: 24px; height: 24px; }
+}
+
+.history-table { width: 100%; }

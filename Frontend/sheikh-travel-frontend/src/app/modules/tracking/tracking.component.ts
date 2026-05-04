@@ -1,7 +1,10 @@
 import { Component, OnInit, OnDestroy, AfterViewInit } from '@angular/core';
+import { Router } from '@angular/router';
 import * as L from 'leaflet';
 import { TrackingService } from '../../core/services/tracking.service';
-import { VehicleLocation } from '../../core/models/tracking.model';
+import { VehicleService } from '../../core/services/vehicle.service';
+import { VehicleLocation, TrackingDto } from '../../core/models/tracking.model';
+import { Vehicle } from '../../core/models/vehicle.model';
 
 // Fix Leaflet default icon path issue with Angular
 const iconDefault = L.icon({
@@ -26,9 +29,29 @@ export class TrackingComponent implements OnInit, AfterViewInit, OnDestroy {
   loading = true;
   private refreshInterval?: ReturnType<typeof setInterval>;
 
-  constructor(private trackingService: TrackingService) {}
+  // History panel
+  vehicles: Vehicle[] = [];
+  selectedVehicleId: number | null = null;
+  historyFrom = new Date(new Date().setHours(0, 0, 0, 0)).toISOString().slice(0, 16);
+  historyTo = new Date().toISOString().slice(0, 16);
+  historyRows: TrackingDto[] = [];
+  loadingHistory = false;
+  historyError = '';
+  historyCols = ['timestamp', 'latitude', 'longitude', 'speed'];
+  showHistory = false;
 
-  ngOnInit(): void {}
+  constructor(
+    private trackingService: TrackingService,
+    private vehicleService: VehicleService,
+    private router: Router
+  ) {}
+
+  ngOnInit(): void {
+    this.vehicleService.getAll(1, 500).subscribe({
+      next: r => { this.vehicles = r.items; },
+      error: () => {}
+    });
+  }
 
   ngAfterViewInit(): void {
     this.initMap();
@@ -53,38 +76,62 @@ export class TrackingComponent implements OnInit, AfterViewInit, OnDestroy {
     }).addTo(this.map);
   }
 
+  error: string | null = null;
+
   private loadLocations(): void {
     this.trackingService.getAllVehicleLocations().subscribe({
       next: locs => {
         this.locations = locs;
         this.loading = false;
+        this.error = null;
         this.updateMarkers(locs);
       },
       error: () => {
         this.loading = false;
-        // Demo markers around Pakistan
-        const demoLocs: VehicleLocation[] = [
-          { vehicleId: 1, vehicleName: 'Coaster #1', registrationNumber: 'KHI-001', latitude: 24.8607, longitude: 67.0011, lastUpdated: new Date().toISOString() },
-          { vehicleId: 2, vehicleName: 'Hiace #2',   registrationNumber: 'LHR-002', latitude: 31.5204, longitude: 74.3587, lastUpdated: new Date().toISOString() },
-          { vehicleId: 3, vehicleName: 'Bus #3',     registrationNumber: 'ISB-003', latitude: 33.6844, longitude: 73.0479, lastUpdated: new Date().toISOString() }
-        ];
-        this.locations = demoLocs;
-        this.updateMarkers(demoLocs);
+        this.error = 'Failed to load tracking data. No vehicles are currently being tracked.';
+        this.locations = [];
+        this.updateMarkers([]);
       }
     });
   }
 
   private updateMarkers(locs: VehicleLocation[]): void {
+    const currentIds = new Set(locs.map(l => l.vehicleId));
+
+    this.markers.forEach((marker, vehicleId) => {
+      if (!currentIds.has(vehicleId)) {
+        marker.remove();
+        this.markers.delete(vehicleId);
+      }
+    });
+
     locs.forEach(loc => {
-      const popup = `<b>${loc.vehicleName}</b><br>${loc.registrationNumber}<br>Last: ${new Date(loc.lastUpdated).toLocaleString()}`;
+      const popupContent = `
+        <div style="min-width:150px">
+          <b>${loc.vehicleName}</b><br>
+          ${loc.registrationNumber}<br>
+          <small>Last: ${new Date(loc.lastUpdated).toLocaleString()}</small><br>
+          <a href="javascript:void(0)" class="vehicle-profile-link" data-vehicle-id="${loc.vehicleId}" style="color:#3B82F6;font-weight:500;text-decoration:none">
+            View Profile →
+          </a>
+        </div>
+      `;
       if (this.markers.has(loc.vehicleId)) {
         this.markers.get(loc.vehicleId)!
           .setLatLng([loc.latitude, loc.longitude])
-          .setPopupContent(popup);
+          .setPopupContent(popupContent);
       } else {
         const marker = L.marker([loc.latitude, loc.longitude])
-          .bindPopup(popup)
+          .bindPopup(popupContent)
           .addTo(this.map);
+        
+        marker.on('popupopen', () => {
+          const link = document.querySelector(`a[data-vehicle-id="${loc.vehicleId}"]`);
+          if (link) {
+            link.addEventListener('click', () => this.goToVehicleProfile(loc.vehicleId));
+          }
+        });
+        
         this.markers.set(loc.vehicleId, marker);
       }
     });
@@ -93,5 +140,25 @@ export class TrackingComponent implements OnInit, AfterViewInit, OnDestroy {
   focusVehicle(loc: VehicleLocation): void {
     this.map.setView([loc.latitude, loc.longitude], 12);
     this.markers.get(loc.vehicleId)?.openPopup();
+  }
+
+  goToVehicleProfile(vehicleId: number): void {
+    this.router.navigate(['/vehicles', vehicleId]);
+  }
+
+  loadHistory(): void {
+    if (!this.selectedVehicleId) return;
+    this.loadingHistory = true;
+    this.historyError = '';
+    this.historyRows = [];
+    this.showHistory = true;
+    this.trackingService.getHistory(
+      this.selectedVehicleId,
+      new Date(this.historyFrom),
+      new Date(this.historyTo)
+    ).subscribe({
+      next: rows => { this.historyRows = rows; this.loadingHistory = false; },
+      error: () => { this.historyError = 'Could not load tracking history.'; this.loadingHistory = false; }
+    });
   }
 }

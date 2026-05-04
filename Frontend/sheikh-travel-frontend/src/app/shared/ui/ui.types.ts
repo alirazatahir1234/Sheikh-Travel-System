@@ -32,7 +32,7 @@ export interface TaskItem {
   title: string;
   subtitle?: string;
   done?: boolean;
-  meta?: string;         // right-aligned meta (e.g. "Sharjah HR Director")
+  meta?: string;         // right-aligned meta (e.g. "Lahore HR Director")
   avatarUrl?: string;
   avatarInitials?: string;
 }

@@ -1,14 +1,14 @@
 import { Component, OnInit, AfterViewInit, ViewChild, ElementRef, OnDestroy, NgZone } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, ActivatedRoute } from '@angular/router';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { HttpErrorResponse } from '@angular/common/http';
-import { forkJoin } from 'rxjs';
+import { forkJoin, Observable } from 'rxjs';
 import { FuelLogService } from '../../../core/services/fuel-log.service';
 import { VehicleService } from '../../../core/services/vehicle.service';
 import { DriverService } from '../../../core/services/driver.service';
 import { GoogleMapsLoaderService } from '../../../core/services/google-maps-loader.service';
-import { FuelType, FuelTypeLabels, CreateFuelLogDto } from '../../../core/models/fuel-log.model';
+import { FuelType, FuelTypeLabels, CreateFuelLogDto, FuelLog } from '../../../core/models/fuel-log.model';
 import { Vehicle } from '../../../core/models/vehicle.model';
 import { Driver } from '../../../core/models/driver.model';
 
@@ -25,6 +25,10 @@ export class FuelLogFormComponent implements OnInit, AfterViewInit, OnDestroy {
   vehicles: Vehicle[] = [];
   drivers: Driver[] = [];
 
+  editMode = false;
+  editId: number | null = null;
+  pageTitle = 'Record Fuel Purchase';
+
   readonly fuelTypes = [FuelType.Petrol, FuelType.Diesel, FuelType.CNG];
 
   @ViewChild('stationInput') stationInput!: ElementRef<HTMLInputElement>;
@@ -39,6 +43,7 @@ export class FuelLogFormComponent implements OnInit, AfterViewInit, OnDestroy {
     private driverService: DriverService,
     private mapsLoader: GoogleMapsLoaderService,
     private router: Router,
+    private route: ActivatedRoute,
     private snackBar: MatSnackBar,
     private ngZone: NgZone
   ) {
@@ -56,6 +61,13 @@ export class FuelLogFormComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   ngOnInit(): void {
+    const idParam = this.route.snapshot.paramMap.get('id');
+    if (idParam) {
+      this.editMode = true;
+      this.editId = +idParam;
+      this.pageTitle = 'Edit Fuel Log';
+    }
+
     forkJoin({
       vehicles: this.vehicleService.getAll(1, 500),
       drivers: this.driverService.getAll(1, 500)
@@ -63,11 +75,39 @@ export class FuelLogFormComponent implements OnInit, AfterViewInit, OnDestroy {
       next: ({ vehicles, drivers }) => {
         this.vehicles = vehicles.items;
         this.drivers = drivers.items.filter(d => d.isActive !== false);
-        this.loading = false;
+
+        if (this.editMode && this.editId) {
+          this.loadExisting(this.editId);
+        } else {
+          this.loading = false;
+        }
       },
       error: () => {
         this.loading = false;
         this.snackBar.open('Failed to load data.', 'Close', { duration: 3000 });
+      }
+    });
+  }
+
+  private loadExisting(id: number): void {
+    this.fuelLogService.getById(id).subscribe({
+      next: (log: FuelLog) => {
+        this.form.patchValue({
+          vehicleId:       log.vehicleId,
+          driverId:        log.driverId,
+          fuelType:        log.fuelType,
+          liters:          log.liters,
+          pricePerLiter:   log.pricePerLiter,
+          odometerReading: log.odometerReading,
+          fuelDate:        new Date(log.fuelDate),
+          station:         log.station ?? ''
+        });
+        this.loading = false;
+      },
+      error: () => {
+        this.loading = false;
+        this.snackBar.open('Failed to load fuel log.', 'Close', { duration: 3000 });
+        this.router.navigate(['/fuel-logs']);
       }
     });
   }
@@ -137,10 +177,15 @@ export class FuelLogFormComponent implements OnInit, AfterViewInit, OnDestroy {
       station:         (f.station || '').trim() || null
     };
 
-    this.fuelLogService.create({ fuelLog: payload }).subscribe({
+    const request$: Observable<unknown> = this.editMode && this.editId
+      ? this.fuelLogService.update(this.editId, { fuelLog: payload })
+      : this.fuelLogService.create({ fuelLog: payload });
+
+    request$.subscribe({
       next: () => {
         this.submitting = false;
-        this.snackBar.open('Fuel log recorded successfully.', 'Close', { duration: 2000 });
+        const msg = this.editMode ? 'Fuel log updated successfully.' : 'Fuel log recorded successfully.';
+        this.snackBar.open(msg, 'Close', { duration: 2000 });
         this.router.navigate(['/fuel-logs']);
       },
       error: (err: HttpErrorResponse) => {

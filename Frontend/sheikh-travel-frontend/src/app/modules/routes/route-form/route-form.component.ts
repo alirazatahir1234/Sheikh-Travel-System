@@ -88,13 +88,31 @@ export class RouteFormComponent implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
+  private routeParamSub: Subscription | null = null;
+
   ngOnInit(): void {
-    const id = this.route.snapshot.paramMap.get('id');
-    if (id) {
-      this.isEdit = true;
-      this.routeId = +id;
-      this.routeService.getById(this.routeId).subscribe({
-        next: (r) => this.form.patchValue({
+    this.routeParamSub = this.route.paramMap.subscribe(params => {
+      const id = params.get('id');
+      if (id) {
+        this.isEdit = true;
+        this.routeId = +id;
+        this.loadRoute(this.routeId);
+      } else {
+        this.isEdit = false;
+        this.routeId = null;
+        this.form.reset({ name: '', source: '', destination: '', distance: null, estimatedMinutes: null, basePrice: 0, isActive: true });
+        this.directionsResult = null;
+        this.computedDistanceText = '';
+        this.computedDurationText = '';
+        this.computedBasePriceText = '';
+      }
+    });
+  }
+
+  private loadRoute(id: number): void {
+    this.routeService.getById(id).subscribe({
+      next: (r) => {
+        this.form.patchValue({
           name: r.name ?? '',
           source: r.source,
           destination: r.destination,
@@ -102,10 +120,17 @@ export class RouteFormComponent implements OnInit, AfterViewInit, OnDestroy {
           estimatedMinutes: r.estimatedMinutes ?? null,
           basePrice: r.basePrice ?? 0,
           isActive: r.isActive
-        }),
-        error: () => this.snackBar.open('Failed to load route.', 'Close', { duration: 3000 })
-      });
-    }
+        });
+        this.computedDistanceText = r.distance ? `${r.distance} km` : '';
+        this.computedDurationText = r.estimatedMinutes ? `${r.estimatedMinutes} min` : '';
+        this.computedBasePriceText = r.basePrice ? `PKR ${r.basePrice.toLocaleString('en-PK')}` : '';
+        
+        if (this.mapsReady && r.source && r.destination) {
+          this.scheduleRecompute();
+        }
+      },
+      error: () => this.snackBar.open('Failed to load route.', 'Close', { duration: 3000 })
+    });
   }
 
   async ngAfterViewInit(): Promise<void> {
@@ -127,7 +152,16 @@ export class RouteFormComponent implements OnInit, AfterViewInit, OnDestroy {
     try {
       await this.mapsLoader.importLibrary('places');
       await this.mapsLoader.importLibrary('routes');
-      this.zone.run(() => this.attachAutocomplete());
+      this.zone.run(() => {
+        this.attachAutocomplete();
+        
+        // If editing and we have source/destination already, compute the route to show on map
+        const source = this.form.get('source')?.value;
+        const destination = this.form.get('destination')?.value;
+        if (this.isEdit && source && destination) {
+          this.scheduleRecompute();
+        }
+      });
     } catch {
       this.mapsError = 'Could not load Google Maps libraries (places/routes).';
       this.cdr.markForCheck();
@@ -139,6 +173,7 @@ export class RouteFormComponent implements OnInit, AfterViewInit, OnDestroy {
     this.placesListeners.forEach((l) => l.remove());
     this.placesListeners = [];
     this.directionsSub?.unsubscribe();
+    this.routeParamSub?.unsubscribe();
   }
 
   private attachAutocomplete(): void {

@@ -113,6 +113,7 @@ CREATE TABLE Routes (
 -- =============================================
 CREATE TABLE Bookings (
     Id INT IDENTITY(1,1) PRIMARY KEY,
+    BookingNumber NVARCHAR(20) NOT NULL DEFAULT '',
     CustomerId INT NOT NULL REFERENCES Customers(Id),
     RouteId INT REFERENCES Routes(Id),
     VehicleId INT REFERENCES Vehicles(Id),

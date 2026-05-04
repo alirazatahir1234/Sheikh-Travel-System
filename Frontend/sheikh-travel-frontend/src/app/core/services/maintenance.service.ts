@@ -21,11 +21,23 @@ export class MaintenanceService {
     return this.http.get<PagedResult<Maintenance>>(this.base, { params });
   }
 
+  getById(id: number): Observable<Maintenance> {
+    return this.http.get<Maintenance>(`${this.base}/${id}`);
+  }
+
   create(request: CreateMaintenanceRequest): Observable<number> {
     return this.http.post<number>(this.base, request);
   }
 
+  update(id: number, request: CreateMaintenanceRequest): Observable<boolean> {
+    return this.http.put<boolean>(`${this.base}/${id}`, request);
+  }
+
   updateStatus(request: UpdateMaintenanceStatusRequest): Observable<boolean> {
     return this.http.put<boolean>(`${this.base}/${request.id}/status`, { status: request.status });
+  }
+
+  delete(id: number): Observable<boolean> {
+    return this.http.delete<boolean>(`${this.base}/${id}`);
   }
 }

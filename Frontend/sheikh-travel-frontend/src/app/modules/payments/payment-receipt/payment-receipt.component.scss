@@ -1,0 +1,99 @@
+/* ── Screen styles ── */
+.screen-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  padding: 0 8px;
+}
+
+.loading { display: flex; justify-content: center; padding: 60px; }
+.error-msg { color: #c62828; padding: 16px; text-align: center; }
+
+/* ── Receipt Card ── */
+.receipt {
+  max-width: 680px;
+  margin: 0 auto;
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 40px 48px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.08);
+  font-family: 'Roboto', sans-serif;
+}
+
+.receipt-header {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.company-logo .logo-icon { font-size: 48px; width: 48px; height: 48px; color: #1565c0; }
+.company-name { margin: 0; font-size: 1.6rem; font-weight: 700; color: #1565c0; }
+.company-tagline { margin: 2px 0 0; color: #666; font-size: 0.85rem; }
+.receipt-title-block { text-align: right; }
+.receipt-title { margin: 0; font-size: 1.1rem; font-weight: 700; color: #333; letter-spacing: 1px; }
+.receipt-number { margin: 4px 0 0; color: #666; font-size: 0.9rem; }
+
+.receipt-divider { border: none; border-top: 1px solid #e0e0e0; margin: 20px 0; }
+
+.receipt-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.meta-row { display: flex; gap: 8px; }
+.meta-label { color: #888; font-size: 0.85rem; min-width: 70px; }
+.meta-value { font-size: 0.9rem; font-weight: 500; color: #333; }
+
+.amount-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 4px 0;
+}
+.amount-table th {
+  text-align: left; border-bottom: 2px solid #1565c0;
+  padding: 8px 4px; font-size: 0.85rem; color: #555;
+}
+.amount-table th.text-right, .amount-table td.text-right { text-align: right; }
+.amount-table tbody td {
+  padding: 10px 4px; border-bottom: 1px solid #f0f0f0;
+  font-size: 0.9rem; color: #333;
+}
+.amount-table tfoot .total-row td {
+  padding: 10px 4px; border-top: 2px solid #1565c0;
+  font-size: 1rem; color: #1a237e;
+}
+.amount-table tfoot .balance-row td {
+  padding: 4px; font-size: 0.85rem; color: #888;
+}
+
+.payment-details { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.detail-row { display: flex; gap: 8px; }
+.detail-label { color: #888; font-size: 0.85rem; min-width: 120px; }
+.detail-value { font-size: 0.9rem; font-weight: 500; color: #333; }
+.status-chip[data-status="Paid"]          { color: #2e7d32; }
+.status-chip[data-status="PartiallyPaid"] { color: #f57f17; }
+.status-chip[data-status="Pending"]       { color: #1565c0; }
+.status-chip[data-status="Refunded"]      { color: #c62828; }
+
+.receipt-footer {
+  text-align: center;
+  margin-top: 24px;
+  border-top: 1px dashed #ccc;
+  padding-top: 16px;
+  color: #555;
+  font-size: 0.9rem;
+}
+.footer-sub { font-size: 0.75rem; color: #999; margin: 4px 0; }
+.footer-date { font-size: 0.75rem; color: #bbb; margin-top: 8px; }
+
+/* ── Print styles ── */
+@media print {
+  .screen-controls { display: none !important; }
+  .receipt {
+    border: none;
+    box-shadow: none;
+    max-width: 100%;
+    padding: 20px;
+    margin: 0;
+  }
+  @page { margin: 15mm; }
+}

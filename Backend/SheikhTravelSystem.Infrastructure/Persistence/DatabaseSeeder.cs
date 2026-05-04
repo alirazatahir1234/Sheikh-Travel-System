@@ -257,6 +257,7 @@ public class DatabaseSeeder(
         {
             "IF COL_LENGTH('Routes', 'Name') IS NULL ALTER TABLE Routes ADD Name NVARCHAR(200) NULL;",
             "IF COL_LENGTH('Routes', 'EstimatedMinutes') IS NULL ALTER TABLE Routes ADD EstimatedMinutes INT NULL;",
+            "IF COL_LENGTH('Bookings', 'CancellationReason') IS NULL ALTER TABLE Bookings ADD CancellationReason NVARCHAR(500) NULL;",
             @"IF OBJECT_ID('DriverAllowanceRules', 'U') IS NULL
               CREATE TABLE DriverAllowanceRules (
                 Id              INT IDENTITY(1,1) PRIMARY KEY,

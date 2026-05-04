@@ -5,7 +5,7 @@ import { map } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 import { DashboardSummary, BookingReportDto, RevenueReportDto, BookingReport } from '../models/common.model';
 
-export { RevenueReportDto } from '../models/common.model';
+export type { RevenueReportDto } from '../models/common.model';
 
 @Injectable({ providedIn: 'root' })
 export class DashboardService {

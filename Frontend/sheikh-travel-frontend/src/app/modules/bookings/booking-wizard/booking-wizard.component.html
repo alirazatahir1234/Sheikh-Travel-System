@@ -11,258 +11,418 @@
   <!-- STEP 1: Trip Details -->
   <mat-step [stepControl]="step1Form" label="Trip Details">
     <form [formGroup]="step1Form">
+      <div class="step1-layout">
 
-      <!-- Customer mode toggle -->
-      <div class="mode-toggle">
-        <div class="mode-label">Customer</div>
-        <div class="mode-pills" role="tablist">
-          <button type="button"
-                  role="tab"
-                  class="mode-pill"
-                  [class.active]="customerMode === 'EXISTING'"
-                  (click)="setCustomerMode('EXISTING')">
-            <mat-icon>person_search</mat-icon>
-            Existing customer
-          </button>
-          <button type="button"
-                  role="tab"
-                  class="mode-pill"
-                  [class.active]="customerMode === 'NEW'"
-                  (click)="setCustomerMode('NEW')">
-            <mat-icon>person_add</mat-icon>
-            New customer
-          </button>
-        </div>
-      </div>
+        <!-- ──────── LEFT: Form Sections ──────── -->
+        <div class="step1-form">
 
-      <!-- Existing customer picker -->
-      <div class="form-grid" *ngIf="customerMode === 'EXISTING'">
-        <mat-form-field appearance="outline" class="span-2 search-control">
-          <mat-label>Search customer by name, phone, CNIC or email</mat-label>
-          <mat-icon matPrefix>search</mat-icon>
-          <input matInput
-                 formControlName="customerSearch"
-                 [matAutocomplete]="customerAuto"
-                 placeholder="Start typing…">
-          <button *ngIf="step1Form.value.customerId"
-                  mat-icon-button matSuffix
-                  type="button"
-                  aria-label="Clear selection"
-                  (click)="clearCustomer()">
-            <mat-icon>close</mat-icon>
-          </button>
-          <mat-autocomplete #customerAuto="matAutocomplete"
-                            [displayWith]="customerDisplay"
-                            (optionSelected)="onCustomerSelected($event.option.value)">
-            <mat-option *ngFor="let c of filteredCustomers$ | async; trackBy: trackById"
-                        [value]="c">
-              <div class="option-row">
-                <div class="option-avatar">{{ (c.fullName || '?').charAt(0) | uppercase }}</div>
-                <div class="option-meta">
-                  <span class="option-title">{{ c.fullName }}</span>
-                  <span class="option-sub">
-                    {{ c.phone }}
-                    <span *ngIf="c.email"> · {{ c.email }}</span>
-                    <span *ngIf="c.cnic"> · {{ c.cnic }}</span>
+          <!-- Section 1: Customer -->
+          <div class="form-section">
+            <div class="section-header">
+              <span class="section-icon-wrap primary-icon"><mat-icon>person</mat-icon></span>
+              <span class="section-title">Customer</span>
+              <span class="section-badge required-badge">Required</span>
+            </div>
+
+            <div class="mode-toggle">
+              <div class="mode-pills" role="tablist">
+                <button type="button" role="tab" class="mode-pill"
+                        [class.active]="customerMode === 'EXISTING'"
+                        (click)="setCustomerMode('EXISTING')">
+                  <mat-icon>person_search</mat-icon> Existing customer
+                </button>
+                <button type="button" role="tab" class="mode-pill"
+                        [class.active]="customerMode === 'NEW'"
+                        (click)="setCustomerMode('NEW')">
+                  <mat-icon>person_add</mat-icon> New customer
+                </button>
+              </div>
+            </div>
+
+            <!-- Existing customer picker -->
+            <div class="form-grid" *ngIf="customerMode === 'EXISTING'">
+              <mat-form-field appearance="outline" class="span-2 search-control">
+                <mat-label>Search customer by name, phone, CNIC or email</mat-label>
+                <mat-icon matPrefix>search</mat-icon>
+                <input matInput
+                       formControlName="customerSearch"
+                       [matAutocomplete]="customerAuto"
+                       placeholder="Start typing…">
+                <button *ngIf="step1Form.value.customerId"
+                        mat-icon-button matSuffix type="button"
+                        aria-label="Clear selection"
+                        (click)="clearCustomer()">
+                  <mat-icon>close</mat-icon>
+                </button>
+                <mat-autocomplete #customerAuto="matAutocomplete"
+                                  [displayWith]="customerDisplay"
+                                  (optionSelected)="onCustomerSelected($event.option.value)">
+                  <mat-option *ngFor="let c of filteredCustomers$ | async; trackBy: trackById" [value]="c">
+                    <div class="option-row">
+                      <div class="option-avatar">{{ (c.fullName || '?').charAt(0) | uppercase }}</div>
+                      <div class="option-meta">
+                        <span class="option-title">{{ c.fullName }}</span>
+                        <span class="option-sub">
+                          {{ c.phone }}
+                          <span *ngIf="c.email"> · {{ c.email }}</span>
+                          <span *ngIf="c.cnic"> · {{ c.cnic }}</span>
+                        </span>
+                      </div>
+                    </div>
+                  </mat-option>
+                  <mat-option *ngIf="(filteredCustomers$ | async)?.length === 0" [disabled]="true">
+                    No customers found — switch to "New customer" to create one.
+                  </mat-option>
+                </mat-autocomplete>
+                <mat-hint *ngIf="!step1Form.value.customerId">Pick a customer from the list.</mat-hint>
+                <mat-error *ngIf="step1Form.get('customerId')?.hasError('required')">Customer is required</mat-error>
+              </mat-form-field>
+            </div>
+
+            <!-- New customer inline form -->
+            <div class="form-grid" *ngIf="customerMode === 'NEW'">
+              <mat-form-field appearance="outline">
+                <mat-label>Full name</mat-label>
+                <mat-icon matPrefix>person_outline</mat-icon>
+                <input matInput formControlName="newFullName" autocomplete="name">
+                <mat-error *ngIf="step1Form.get('newFullName')?.hasError('required')">Required</mat-error>
+              </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>Phone</mat-label>
+                <mat-icon matPrefix>phone</mat-icon>
+                <input matInput formControlName="newPhone" placeholder="+92-300-1234567" autocomplete="tel">
+                <mat-error *ngIf="step1Form.get('newPhone')?.hasError('required')">Required</mat-error>
+              </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>Email (optional)</mat-label>
+                <mat-icon matPrefix>email</mat-icon>
+                <input matInput formControlName="newEmail" type="email" autocomplete="email">
+              </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>CNIC (optional)</mat-label>
+                <mat-icon matPrefix>badge</mat-icon>
+                <input matInput formControlName="newCnic" placeholder="XXXXX-XXXXXXX-X">
+              </mat-form-field>
+              <mat-form-field appearance="outline" class="span-2">
+                <mat-label>Address (optional)</mat-label>
+                <mat-icon matPrefix>location_on</mat-icon>
+                <textarea matInput formControlName="newAddress" rows="2"></textarea>
+              </mat-form-field>
+              <div class="new-hint span-2" *ngIf="creatingCustomer">
+                <mat-spinner diameter="16"></mat-spinner>
+                <span>Creating customer…</span>
+              </div>
+            </div>
+          </div><!-- /section customer -->
+
+          <!-- Section 2: Schedule -->
+          <div class="form-section">
+            <div class="section-header">
+              <span class="section-icon-wrap schedule-icon"><mat-icon>schedule</mat-icon></span>
+              <span class="section-title">Schedule</span>
+              <span class="section-badge required-badge">Required</span>
+            </div>
+            <div class="dt-field-wrap">
+              <label class="dt-label">
+                <mat-icon>event</mat-icon> Pickup date &amp; time
+                <span class="dt-required">*</span>
+              </label>
+              <input #dtInput
+                     class="dt-input"
+                     type="datetime-local"
+                     [min]="minPickupDateTime"
+                     formControlName="pickupTime"
+                     (click)="openDateTimePicker(dtInput)">
+              <div class="dt-error"
+                   *ngIf="step1Form.get('pickupTime')?.invalid && step1Form.get('pickupTime')?.touched">
+                Pickup date &amp; time is required
+              </div>
+            </div>
+
+            <div class="pickup-summary" *ngIf="step1Form.value.pickupTime">
+              <mat-icon>event_available</mat-icon>
+              Booking scheduled for:
+              <strong>{{ step1Form.value.pickupTime | date:'EEEE, MMMM d, y, h:mm a' }}</strong>
+            </div>
+
+            <div class="round-trip-row">
+              <mat-slide-toggle formControlName="isRoundTrip" color="primary">
+                Round Trip
+              </mat-slide-toggle>
+              <span class="round-trip-hint" *ngIf="step1Form.value.isRoundTrip">
+                <mat-icon>info_outline</mat-icon>
+                Fuel cost is doubled — driver returns after drop-off
+              </span>
+            </div>
+          </div><!-- /section schedule -->
+
+          <!-- Section 3: Trip Details -->
+          <div class="form-section">
+            <div class="section-header">
+              <span class="section-icon-wrap trip-icon"><mat-icon>alt_route</mat-icon></span>
+              <span class="section-title">Trip Details</span>
+              <span class="section-badge required-badge">Required</span>
+            </div>
+            <div class="form-grid trip-grid">
+              <mat-form-field appearance="outline" class="search-control">
+                <mat-label>Route</mat-label>
+                <mat-icon matPrefix>alt_route</mat-icon>
+                <input matInput formControlName="routeSearch"
+                       [matAutocomplete]="routeAuto"
+                       placeholder="Search by name, origin or destination">
+                <mat-autocomplete #routeAuto="matAutocomplete"
+                                  [displayWith]="routeDisplay"
+                                  (optionSelected)="onRouteSelected($event.option.value)">
+                  <mat-option *ngFor="let r of filteredRoutes$ | async; trackBy: trackById" [value]="r">
+                    <div class="option-row">
+                      <mat-icon class="option-icon">alt_route</mat-icon>
+                      <div class="option-meta">
+                        <span class="option-title">{{ r.name || (r.source + ' → ' + r.destination) }}</span>
+                        <span class="option-sub">{{ r.source }} → {{ r.destination }} · {{ r.distance | number:'1.0-1' }} km</span>
+                      </div>
+                    </div>
+                  </mat-option>
+                  <mat-option *ngIf="(filteredRoutes$ | async)?.length === 0" [disabled]="true">No routes match your search.</mat-option>
+                </mat-autocomplete>
+                <mat-error *ngIf="step1Form.get('routeId')?.hasError('required')">Route is required</mat-error>
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="search-control">
+                <mat-label>Vehicle</mat-label>
+                <mat-icon matPrefix>directions_bus</mat-icon>
+                <input matInput formControlName="vehicleSearch"
+                       [matAutocomplete]="vehicleAuto"
+                       placeholder="Search by name, reg # or model">
+                <mat-autocomplete #vehicleAuto="matAutocomplete"
+                                  [displayWith]="vehicleDisplay"
+                                  (optionSelected)="onVehicleSelected($event.option.value)">
+                  <mat-option *ngFor="let v of filteredVehicles$ | async; trackBy: trackById" [value]="v">
+                    <div class="option-row">
+                      <mat-icon class="option-icon">directions_bus</mat-icon>
+                      <div class="option-meta">
+                        <span class="option-title">{{ v.name }}</span>
+                        <span class="option-sub">
+                          {{ v.registrationNumber }}
+                          <span *ngIf="v.model"> · {{ v.model }}</span>
+                          <span *ngIf="v.seatingCapacity"> · {{ v.seatingCapacity }} seats</span>
+                          <span> · {{ vehicleStatusLabel(v.status) }}</span>
+                        </span>
+                      </div>
+                    </div>
+                  </mat-option>
+                  <mat-option *ngIf="(filteredVehicles$ | async)?.length === 0" [disabled]="true">No vehicles match your search.</mat-option>
+                </mat-autocomplete>
+                <mat-error *ngIf="step1Form.get('vehicleId')?.hasError('required')">Vehicle is required</mat-error>
+              </mat-form-field>
+
+              <mat-form-field appearance="outline">
+                <mat-label>Passengers</mat-label>
+                <mat-icon matPrefix>group</mat-icon>
+                <input matInput type="number" formControlName="passengerCount" min="1">
+                <mat-hint *ngIf="selectedVehicle?.seatingCapacity">
+                  Vehicle capacity: {{ selectedVehicle!.seatingCapacity }} seats
+                </mat-hint>
+                <mat-error *ngIf="step1Form.get('passengerCount')?.hasError('required')">Required</mat-error>
+              </mat-form-field>
+
+              <mat-form-field appearance="outline">
+                <mat-label>Fuel Price (PKR/L)</mat-label>
+                <mat-icon matPrefix>local_gas_station</mat-icon>
+                <input matInput type="number" formControlName="fuelPricePerLiter">
+                <mat-hint>Pre-filled with current market rate — update if needed</mat-hint>
+              </mat-form-field>
+
+              <div class="capacity-warning span-2"
+                   *ngIf="selectedVehicle?.seatingCapacity && step1Form.value.passengerCount > selectedVehicle!.seatingCapacity!">
+                <mat-icon>warning</mat-icon>
+                <span>Passenger count ({{ step1Form.value.passengerCount }}) exceeds vehicle capacity
+                  ({{ selectedVehicle!.seatingCapacity }} seats). Please adjust.</span>
+              </div>
+            </div>
+          </div><!-- /section trip -->
+
+          <!-- Section 4: Charges -->
+          <div class="form-section">
+            <div class="section-header">
+              <span class="section-icon-wrap charges-icon"><mat-icon>payments</mat-icon></span>
+              <span class="section-title">Charges</span>
+              <span class="section-badge info-badge">
+                <mat-icon>auto_awesome</mat-icon> Auto-calculated
+              </span>
+            </div>
+            <div class="form-grid">
+              <!-- Driver Allowance -->
+              <mat-form-field appearance="outline" class="span-2"
+                              [class.calculated-field]="!allowanceOverridden && !!allowanceResult?.matchedAnyRule">
+                <mat-label>Driver Allowance (PKR)</mat-label>
+                <mat-icon matPrefix>badge</mat-icon>
+                <input matInput type="number" formControlName="driverAllowance"
+                       [readonly]="!allowanceOverridden && !!allowanceResult?.matchedAnyRule"
+                       (input)="onDriverAllowanceManualInput()">
+                <mat-spinner *ngIf="allowanceCalculating" matSuffix diameter="16"></mat-spinner>
+                <span *ngIf="!allowanceCalculating && !allowanceOverridden && allowanceResult?.matchedAnyRule"
+                      matSuffix class="auto-chip">
+                  <mat-icon>auto_awesome</mat-icon>Auto
+                </span>
+                <button *ngIf="!allowanceCalculating && !allowanceOverridden && allowanceResult?.matchedAnyRule"
+                        mat-icon-button matSuffix type="button"
+                        (click)="allowanceOverridden = true"
+                        matTooltip="Override and enter manually">
+                  <mat-icon>edit</mat-icon>
+                </button>
+                <button *ngIf="allowanceOverridden && allowanceResult?.matchedAnyRule"
+                        mat-icon-button matSuffix type="button"
+                        (click)="useSuggestedAllowance()"
+                        matTooltip="Reset to rule-suggested value">
+                  <mat-icon>restart_alt</mat-icon>
+                </button>
+                <mat-hint *ngIf="!allowanceCalculating && allowanceResult?.matchedAnyRule">
+                  Auto-calculated by rule <strong>"{{ allowanceResult?.appliedRuleName }}"</strong>
+                  — {{ allowanceResult?.formulaExplanation }}
+                  <em *ngIf="allowanceOverridden"> · manually overridden</em>
+                </mat-hint>
+                <mat-hint *ngIf="!allowanceCalculating && allowanceResult && !allowanceResult.matchedAnyRule">
+                  No active rule matched — enter amount manually.
+                </mat-hint>
+              </mat-form-field>
+
+              <!-- Toll Charges -->
+              <mat-form-field appearance="outline">
+                <mat-label>Toll Charges (PKR)</mat-label>
+                <mat-icon matPrefix>toll</mat-icon>
+                <input matInput type="number" formControlName="tollCharges" min="0">
+                <mat-hint>Optional</mat-hint>
+              </mat-form-field>
+
+              <!-- Discount / Adjustment (was: Other Charges) -->
+              <mat-form-field appearance="outline">
+                <mat-label>Discount / Adjustment (PKR)</mat-label>
+                <mat-icon matPrefix>tune</mat-icon>
+                <input matInput type="number" formControlName="otherCharges">
+                <mat-hint>
+                  <span *ngIf="step1Form.value.otherCharges < 0" class="discount-hint">
+                    <mat-icon>arrow_downward</mat-icon> Discount applied
                   </span>
-                </div>
-              </div>
-            </mat-option>
-            <mat-option *ngIf="(filteredCustomers$ | async)?.length === 0" [disabled]="true">
-              No customers found — switch to “New customer” to create one.
-            </mat-option>
-          </mat-autocomplete>
-          <mat-hint *ngIf="!step1Form.value.customerId">Pick a customer from the list.</mat-hint>
-          <mat-error *ngIf="step1Form.get('customerId')?.hasError('required')">Required</mat-error>
-        </mat-form-field>
-      </div>
-
-      <!-- New customer inline form -->
-      <div class="form-grid" *ngIf="customerMode === 'NEW'">
-        <mat-form-field appearance="outline">
-          <mat-label>Full name</mat-label>
-          <input matInput formControlName="newFullName" autocomplete="name">
-          <mat-error *ngIf="step1Form.get('newFullName')?.hasError('required')">Required</mat-error>
-        </mat-form-field>
-
-        <mat-form-field appearance="outline">
-          <mat-label>Phone</mat-label>
-          <input matInput formControlName="newPhone" placeholder="+92-300-1234567" autocomplete="tel">
-          <mat-error *ngIf="step1Form.get('newPhone')?.hasError('required')">Required</mat-error>
-        </mat-form-field>
-
-        <mat-form-field appearance="outline">
-          <mat-label>Email (optional)</mat-label>
-          <input matInput formControlName="newEmail" type="email" autocomplete="email">
-        </mat-form-field>
-
-        <mat-form-field appearance="outline">
-          <mat-label>CNIC (optional)</mat-label>
-          <input matInput formControlName="newCnic" placeholder="XXXXX-XXXXXXX-X">
-        </mat-form-field>
-
-        <mat-form-field appearance="outline" class="span-2">
-          <mat-label>Address (optional)</mat-label>
-          <textarea matInput formControlName="newAddress" rows="2"></textarea>
-        </mat-form-field>
-
-        <div class="new-hint span-2" *ngIf="creatingCustomer">
-          <mat-spinner diameter="16"></mat-spinner>
-          <span>Creating customer…</span>
-        </div>
-      </div>
-
-      <!-- Trip fields -->
-      <div class="form-grid trip-grid">
-
-        <mat-form-field appearance="outline">
-          <mat-label>Pickup date</mat-label>
-          <input matInput [matDatepicker]="pickupDatePicker" formControlName="pickupTime" placeholder="Choose date">
-          <mat-datepicker-toggle matSuffix [for]="pickupDatePicker"></mat-datepicker-toggle>
-          <mat-datepicker #pickupDatePicker></mat-datepicker>
-          <mat-hint>Calendar selects date only</mat-hint>
-          <mat-error *ngIf="step1Form.get('pickupTime')?.hasError('required')">Required</mat-error>
-        </mat-form-field>
-
-        <mat-form-field appearance="outline">
-          <mat-label>Pickup time</mat-label>
-          <input matInput type="time" formControlName="pickupTimeClock">
-          <mat-hint>Time is included in booking</mat-hint>
-          <mat-error *ngIf="step1Form.get('pickupTimeClock')?.hasError('required')">Required</mat-error>
-        </mat-form-field>
-
-        <div class="pickup-summary span-2" *ngIf="step1Form.value.pickupTime">
-          Pickup date &amp; time: {{ step1Form.value.pickupTime | date:'mediumDate' }} {{ step1Form.value.pickupTimeClock }}
-        </div>
-
-        <mat-form-field appearance="outline" class="search-control">
-          <mat-label>Route</mat-label>
-          <mat-icon matPrefix>alt_route</mat-icon>
-          <input matInput
-                 formControlName="routeSearch"
-                 [matAutocomplete]="routeAuto"
-                 placeholder="Search by name, origin or destination">
-          <mat-autocomplete #routeAuto="matAutocomplete"
-                            [displayWith]="routeDisplay"
-                            (optionSelected)="onRouteSelected($event.option.value)">
-            <mat-option *ngFor="let r of filteredRoutes$ | async; trackBy: trackById"
-                        [value]="r">
-              <div class="option-row">
-                <mat-icon class="option-icon">alt_route</mat-icon>
-                <div class="option-meta">
-                  <span class="option-title">{{ r.name || (r.source + ' → ' + r.destination) }}</span>
-                  <span class="option-sub">{{ r.source }} → {{ r.destination }} · {{ r.distance | number:'1.0-1' }} km</span>
-                </div>
-              </div>
-            </mat-option>
-            <mat-option *ngIf="(filteredRoutes$ | async)?.length === 0" [disabled]="true">
-              No routes match your search.
-            </mat-option>
-          </mat-autocomplete>
-          <mat-error *ngIf="step1Form.get('routeId')?.hasError('required')">Required</mat-error>
-        </mat-form-field>
-
-        <mat-form-field appearance="outline" class="search-control">
-          <mat-label>Vehicle</mat-label>
-          <mat-icon matPrefix>directions_bus</mat-icon>
-          <input matInput
-                 formControlName="vehicleSearch"
-                 [matAutocomplete]="vehicleAuto"
-                 placeholder="Search by name, reg # or model">
-          <mat-autocomplete #vehicleAuto="matAutocomplete"
-                            [displayWith]="vehicleDisplay"
-                            (optionSelected)="onVehicleSelected($event.option.value)">
-            <mat-option *ngFor="let v of filteredVehicles$ | async; trackBy: trackById"
-                        [value]="v">
-              <div class="option-row">
-                <mat-icon class="option-icon">directions_bus</mat-icon>
-                <div class="option-meta">
-                  <span class="option-title">{{ v.name }}</span>
-                  <span class="option-sub">
-                    {{ v.registrationNumber }}
-                    <span *ngIf="v.model"> · {{ v.model }}</span>
-                    <span *ngIf="v.seatingCapacity"> · {{ v.seatingCapacity }} seats</span>
-                    <span> · {{ vehicleStatusLabel(v.status) }}</span>
+                  <span *ngIf="step1Form.value.otherCharges > 0" class="charge-hint">
+                    <mat-icon>arrow_upward</mat-icon> Extra charge added
                   </span>
-                </div>
+                  <span *ngIf="!step1Form.value.otherCharges">
+                    Negative = discount (e.g. -100), positive = extra charge
+                  </span>
+                </mat-hint>
+              </mat-form-field>
+            </div>
+          </div><!-- /section charges -->
+
+          <!-- Section 5: Notes -->
+          <div class="form-section notes-section">
+            <div class="section-header">
+              <span class="section-icon-wrap notes-icon"><mat-icon>notes</mat-icon></span>
+              <span class="section-title">Notes</span>
+              <span class="section-badge optional-badge">Optional</span>
+            </div>
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>Additional notes or instructions</mat-label>
+              <textarea matInput formControlName="notes" rows="3"
+                        placeholder="e.g. passenger has special luggage, pick up from main entrance…"></textarea>
+            </mat-form-field>
+          </div><!-- /section notes -->
+
+        </div><!-- /step1-form -->
+
+        <!-- ──────── RIGHT: Pricing Sidebar ──────── -->
+        <div class="pricing-sidebar">
+
+          <div class="sidebar-card">
+            <div class="sidebar-header">
+              <mat-icon>receipt_long</mat-icon>
+              <span>Price Summary</span>
+            </div>
+            <div class="sidebar-body">
+              <div class="summary-row">
+                <span class="summary-label"><mat-icon>local_gas_station</mat-icon> Fuel Cost
+                  <span class="round-trip-badge" *ngIf="priceBreakdown?.isRoundTrip">×2 Round Trip</span>
+                </span>
+                <span class="summary-value">
+                  {{ priceBreakdown ? ('PKR ' + (priceBreakdown.fuelCost | number:'1.0-0')) : '—' }}
+                </span>
               </div>
-            </mat-option>
-            <mat-option *ngIf="(filteredVehicles$ | async)?.length === 0" [disabled]="true">
-              No vehicles match your search.
-            </mat-option>
-          </mat-autocomplete>
-          <mat-error *ngIf="step1Form.get('vehicleId')?.hasError('required')">Required</mat-error>
-        </mat-form-field>
+              <div class="summary-row">
+                <span class="summary-label"><mat-icon>badge</mat-icon> Driver Allowance</span>
+                <span class="summary-value">PKR {{ (step1Form.value.driverAllowance || 0) | number:'1.0-0' }}</span>
+              </div>
+              <div class="summary-row">
+                <span class="summary-label"><mat-icon>toll</mat-icon> Toll Charges</span>
+                <span class="summary-value">PKR {{ (step1Form.value.tollCharges || 0) | number:'1.0-0' }}</span>
+              </div>
+              <div class="summary-row" *ngIf="step1Form.value.otherCharges && step1Form.value.otherCharges !== 0">
+                <span class="summary-label">
+                  <mat-icon>tune</mat-icon>
+                  {{ step1Form.value.otherCharges < 0 ? 'Discount' : 'Extra Charges' }}
+                </span>
+                <span class="summary-value"
+                      [class.discount-value]="step1Form.value.otherCharges < 0"
+                      [class.extra-value]="step1Form.value.otherCharges > 0">
+                  {{ step1Form.value.otherCharges < 0 ? '−' : '+' }}
+                  PKR {{ absVal(step1Form.value.otherCharges) | number:'1.0-0' }}
+                </span>
+              </div>
 
-        <mat-form-field appearance="outline">
-          <mat-label>Passengers</mat-label>
-          <input matInput type="number" formControlName="passengerCount" min="1">
-        </mat-form-field>
+              <div class="summary-divider"></div>
 
-        <mat-form-field appearance="outline">
-          <mat-label>Fuel Price (PKR/L)</mat-label>
-          <input matInput type="number" formControlName="fuelPricePerLiter">
-        </mat-form-field>
+              <div class="summary-row total-row">
+                <span>Total Amount</span>
+                <span class="total-value">
+                  {{ priceBreakdown ? ('PKR ' + (priceBreakdown.totalAmount | number:'1.0-0')) : '—' }}
+                </span>
+              </div>
 
-        <mat-form-field appearance="outline">
-          <mat-label>Driver Allowance (PKR)</mat-label>
-          <input matInput type="number" formControlName="driverAllowance"
-                 (input)="onDriverAllowanceManualInput()">
-          <button *ngIf="allowanceOverridden && allowanceResult?.matchedAnyRule"
-                  mat-icon-button matSuffix type="button"
-                  (click)="useSuggestedAllowance()"
-                  matTooltip="Re-apply suggested allowance">
-            <mat-icon>restart_alt</mat-icon>
-          </button>
-          <mat-hint *ngIf="allowanceCalculating">
-            <mat-spinner diameter="12"></mat-spinner> Calculating…
-          </mat-hint>
-          <mat-hint *ngIf="!allowanceCalculating && allowanceResult?.matchedAnyRule">
-            Suggested by rule
-            <strong>“{{ allowanceResult?.appliedRuleName }}”</strong>
-            — {{ allowanceResult?.formulaExplanation }}<span *ngIf="allowanceOverridden"> · manually overridden</span>
-          </mat-hint>
-          <mat-hint *ngIf="!allowanceCalculating && allowanceResult && !allowanceResult.matchedAnyRule">
-            No active rule matched — enter manually.
-          </mat-hint>
-        </mat-form-field>
+              <div class="calc-hint" *ngIf="!priceBreakdown">
+                <mat-icon>info_outline</mat-icon>
+                Select route &amp; vehicle, then click Calculate
+              </div>
+            </div>
+            <div class="sidebar-actions">
+              <button mat-flat-button color="primary" type="button" class="calc-btn"
+                      (click)="calculatePrice()"
+                      [disabled]="calculating || !step1Form.value.routeId || !step1Form.value.vehicleId">
+                <mat-spinner *ngIf="calculating" diameter="16"></mat-spinner>
+                <mat-icon *ngIf="!calculating">calculate</mat-icon>
+                {{ calculating ? 'Calculating…' : (priceBreakdown ? 'Recalculate' : 'Calculate Price') }}
+              </button>
+            </div>
+          </div><!-- /sidebar-card -->
 
-        <mat-form-field appearance="outline">
-          <mat-label>Toll Charges (PKR)</mat-label>
-          <input matInput type="number" formControlName="tollCharges">
-        </mat-form-field>
+          <!-- Booking Checklist -->
+          <div class="sidebar-checklist">
+            <div class="checklist-title">Booking Checklist</div>
+            <div class="check-item"
+                 [class.done]="step1Form.value.customerId || (customerMode === 'NEW' && step1Form.value.newFullName)">
+              <mat-icon>{{ (step1Form.value.customerId || (customerMode === 'NEW' && step1Form.value.newFullName)) ? 'check_circle' : 'radio_button_unchecked' }}</mat-icon>
+              <span>Customer selected</span>
+            </div>
+            <div class="check-item" [class.done]="step1Form.value.pickupTime">
+              <mat-icon>{{ step1Form.value.pickupTime ? 'check_circle' : 'radio_button_unchecked' }}</mat-icon>
+              <span>Pickup scheduled</span>
+            </div>
+            <div class="check-item" [class.done]="step1Form.value.routeId">
+              <mat-icon>{{ step1Form.value.routeId ? 'check_circle' : 'radio_button_unchecked' }}</mat-icon>
+              <span>Route selected</span>
+            </div>
+            <div class="check-item" [class.done]="step1Form.value.vehicleId">
+              <mat-icon>{{ step1Form.value.vehicleId ? 'check_circle' : 'radio_button_unchecked' }}</mat-icon>
+              <span>Vehicle assigned</span>
+            </div>
+            <div class="check-item" [class.done]="!!priceBreakdown">
+              <mat-icon>{{ priceBreakdown ? 'check_circle' : 'radio_button_unchecked' }}</mat-icon>
+              <span>Price calculated</span>
+            </div>
+          </div><!-- /sidebar-checklist -->
 
-        <mat-form-field appearance="outline">
-          <mat-label>Other Charges (PKR)</mat-label>
-          <input matInput type="number" formControlName="otherCharges">
-        </mat-form-field>
-
-        <mat-form-field appearance="outline" class="span-2">
-          <mat-label>Notes</mat-label>
-          <textarea matInput formControlName="notes" rows="2"></textarea>
-        </mat-form-field>
-      </div>
-
-      <div class="price-section" *ngIf="priceBreakdown">
-        <mat-card class="price-card">
-          <mat-card-header><mat-card-title>Price Breakdown</mat-card-title></mat-card-header>
-          <mat-card-content>
-            <div class="price-row"><span>Fuel Cost</span><span>PKR {{ priceBreakdown.fuelCost | number:'1.0-0' }}</span></div>
-            <div class="price-row"><span>Driver Allowance</span><span>PKR {{ priceBreakdown.driverAllowance | number:'1.0-0' }}</span></div>
-            <div class="price-row"><span>Toll Charges</span><span>PKR {{ priceBreakdown.tollCharges | number:'1.0-0' }}</span></div>
-            <div class="price-row"><span>Other</span><span>PKR {{ priceBreakdown.otherCharges | number:'1.0-0' }}</span></div>
-            <div class="price-row total"><span>Total</span><span>PKR {{ priceBreakdown.totalAmount | number:'1.0-0' }}</span></div>
-          </mat-card-content>
-        </mat-card>
-      </div>
+        </div><!-- /pricing-sidebar -->
+      </div><!-- /step1-layout -->
 
       <div class="step-actions">
-        <button mat-button type="button"
-                (click)="calculatePrice()"
-                [disabled]="calculating || !step1Form.value.routeId || !step1Form.value.vehicleId">
-          <mat-spinner *ngIf="calculating" diameter="16"></mat-spinner>
-          Calculate Price
-        </button>
         <button mat-raised-button color="primary" matStepperNext type="button"
                 [disabled]="loading || creatingCustomer || !priceBreakdown"
                 (click)="createBooking()">
@@ -276,24 +436,118 @@
   <!-- STEP 2: Assign Driver -->
   <mat-step [stepControl]="step2Form" label="Assign Driver">
     <form [formGroup]="step2Form">
-      <div class="assign-section">
-        <mat-form-field appearance="outline" class="full-width">
-          <mat-label>Assign Driver (optional)</mat-label>
-          <mat-select formControlName="driverId">
-            <mat-option [value]="null">-- Skip --</mat-option>
-            <mat-option *ngFor="let d of drivers; trackBy: trackById" [value]="d.id">{{ d.fullName }} – {{ d.phone }}</mat-option>
-          </mat-select>
-        </mat-form-field>
+      <div class="assign-section driver-step">
+        <div class="form-section driver-assign-card">
+          <div class="section-header">
+            <span class="section-icon-wrap primary-icon"><mat-icon>person_pin</mat-icon></span>
+            <span class="section-title">Assign driver</span>
+            <span class="section-badge optional-badge">Optional</span>
+          </div>
+          <p class="driver-step-hint">Select who will operate this trip. You can skip and assign later from the booking detail page.</p>
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Driver</mat-label>
+            <mat-icon matPrefix>person_pin</mat-icon>
+            <mat-select formControlName="driverId">
+              <mat-option [value]="null">— Skip for now —</mat-option>
+              <mat-option *ngFor="let d of drivers; trackBy: trackById" [value]="d.id">{{ d.fullName }} – {{ d.phone }}</mat-option>
+            </mat-select>
+          </mat-form-field>
+        </div>
       </div>
-
       <div class="step-actions">
         <button mat-button matStepperPrevious>Back</button>
-        <button mat-raised-button color="primary" matStepperNext type="button">Next: Confirm</button>
+        <button mat-raised-button color="primary" matStepperNext type="button">Next: Payment</button>
       </div>
     </form>
   </mat-step>
 
-  <!-- STEP 3: Confirm -->
+  <!-- STEP 3: Payment -->
+  <mat-step [stepControl]="step3Form" label="Payment">
+    <form [formGroup]="step3Form">
+      <div class="assign-section payment-step">
+        <div class="payment-card">
+          <div class="payment-card-title">Payment Options</div>
+          <div class="payment-card-subtitle">Choose how this booking should be paid.</div>
+
+          <div class="payment-plan-grid">
+            <button type="button" class="payment-plan-btn"
+                    [class.active]="step3Form.value.paymentPlan === 'FULL'"
+                    (click)="selectPaymentPlan('FULL')">
+              <span class="plan-title">Full Payment</span>
+              <span class="plan-desc">{{ paymentDescription('FULL') }}</span>
+            </button>
+            <button type="button" class="payment-plan-btn"
+                    [class.active]="step3Form.value.paymentPlan === 'PARTIAL'"
+                    (click)="selectPaymentPlan('PARTIAL')"
+                    matTooltip="Partial payment secures the booking; the remaining balance must be cleared before departure.">
+              <span class="plan-title">Partial Payment</span>
+              <span class="plan-desc">{{ paymentDescription('PARTIAL') }}</span>
+            </button>
+            <button type="button" class="payment-plan-btn"
+                    [class.active]="step3Form.value.paymentPlan === 'PAY_LATER'"
+                    (click)="selectPaymentPlan('PAY_LATER')">
+              <span class="plan-title">Pay Later</span>
+              <span class="plan-desc">{{ paymentDescription('PAY_LATER') }}</span>
+            </button>
+          </div>
+
+          <div class="payment-meta-row">
+            <span>Total Booking Amount</span>
+            <strong>PKR {{ totalBookingAmount | number:'1.0-0' }}</strong>
+          </div>
+
+          <stb-payment-plan-summary
+            [paymentPlan]="step3Form.value.paymentPlan"
+            [totalAmount]="totalBookingAmount"
+            [partialAmount]="step3Form.value.partialAmount"
+            variant="compact">
+          </stb-payment-plan-summary>
+
+          <div class="payment-fields" *ngIf="step3Form.value.paymentPlan !== 'PAY_LATER'">
+            <mat-form-field appearance="outline">
+              <mat-label>Payment Method</mat-label>
+              <mat-select formControlName="paymentMethod">
+                <mat-option *ngFor="let m of paymentMethods" [value]="m">{{ m }}</mat-option>
+              </mat-select>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline">
+              <mat-label>Payment Method Name</mat-label>
+              <input matInput formControlName="paymentMethodName" placeholder="e.g. JazzCash, HBL Account, POS Machine">
+              <mat-hint>Optional display name for this payment mode.</mat-hint>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" *ngIf="step3Form.value.paymentPlan === 'PARTIAL'"
+                matTooltip="Amount must be greater than zero and less than the total booking amount.">
+              <mat-label>Partial Amount (PKR)</mat-label>
+              <input matInput type="number" formControlName="partialAmount" min="1">
+              <mat-hint>Must be less than total amount.</mat-hint>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline">
+              <mat-label>Transaction Reference (optional)</mat-label>
+              <input matInput formControlName="transactionReference" placeholder="Bank slip / Txn ID">
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>Payment Notes (optional)</mat-label>
+              <textarea matInput formControlName="paymentNotes" rows="2"></textarea>
+            </mat-form-field>
+          </div>
+        </div>
+      </div>
+      <div class="step-actions">
+        <button mat-button matStepperPrevious>Back</button>
+        <button mat-raised-button color="primary" matStepperNext type="button"
+                [disabled]="!canProceedToConfirm()"
+                matTooltip="For partial payment, enter an amount greater than 0 and less than the total.">
+          Next: Confirm
+        </button>
+      </div>
+    </form>
+  </mat-step>
+
+  <!-- STEP 4: Confirm -->
   <mat-step label="Confirm">
     <div class="confirm-section" *ngIf="createdBooking">
       <mat-card class="confirm-card">
@@ -302,23 +556,40 @@
             <mat-icon color="primary">check_circle</mat-icon>
             Booking Created!
           </mat-card-title>
+          <mat-card-subtitle class="confirm-subtitle">
+            Your booking is already saved. Finish applies the driver (if selected) and payment choice, then returns you to the bookings list.
+          </mat-card-subtitle>
         </mat-card-header>
         <mat-card-content>
           <div class="confirm-row"><strong>Booking #</strong><span>{{ createdBooking.bookingNumber }}</span></div>
           <div class="confirm-row"><strong>Customer</strong><span>{{ createdBooking.customerName }}</span></div>
+          <div class="confirm-row"><strong>Driver</strong><span>{{ getConfirmDriverDisplay() }}</span></div>
           <div class="confirm-row"><strong>Route</strong><span>{{ createdBooking.routeName }}</span></div>
           <div class="confirm-row"><strong>Pickup</strong><span>{{ createdBooking.pickupTime | date:'medium' }}</span></div>
           <div class="confirm-row"><strong>Passengers</strong><span>{{ createdBooking.passengerCount }}</span></div>
-          <div class="confirm-row"><strong>Total Amount</strong><span>PKR {{ createdBooking.totalAmount | number }}</span></div>
+          <div class="confirm-divider"></div>
+          <stb-payment-plan-summary
+            [paymentPlan]="step3Form.value.paymentPlan"
+            [totalAmount]="totalBookingAmount"
+            [partialAmount]="step3Form.value.partialAmount"
+            variant="detailed">
+          </stb-payment-plan-summary>
         </mat-card-content>
       </mat-card>
     </div>
-
-    <div class="step-actions">
-      <button mat-button matStepperPrevious>Back</button>
-      <button mat-raised-button color="primary" (click)="assignAndFinish()">
-        <mat-icon>done_all</mat-icon> Finish
-      </button>
+    <div class="step-actions confirm-finish-actions">
+      <p class="finish-blocked-hint" *ngIf="!canProceedToConfirm()">
+        Partial payment needs an amount greater than 0 and less than the total. Tap <strong>Finish</strong> to jump to Payment and fix it, or use <strong>Back</strong>.
+      </p>
+      <div class="finish-row">
+        <button mat-button matStepperPrevious [disabled]="finishing">Back</button>
+        <button mat-raised-button color="primary" (click)="assignAndFinish()" [disabled]="finishing">
+          <mat-spinner *ngIf="finishing" diameter="18"></mat-spinner>
+          <mat-icon *ngIf="!finishing">done_all</mat-icon>
+          Finish
+        </button>
+      </div>
     </div>
   </mat-step>
+
 </mat-stepper>

@@ -1,15 +1,15 @@
 export interface PriceCalculationRequest {
   routeId: number;
   vehicleId: number;
-  passengerCount: number;
-  fuelPricePerLiter?: number;
-  driverAllowance?: number;
-  tollCharges?: number;
-  otherCharges?: number;
+  fuelPricePerLiter: number;
+  driverAllowance: number;
+  tollCharges: number;
+  otherCharges: number;
+  isRoundTrip?: boolean;
 }
 
 export interface PriceBreakdown {
-  distanceKm: number;
+  distance: number;
   fuelAverage: number;
   fuelPricePerLiter: number;
   fuelCost: number;
@@ -17,4 +17,5 @@ export interface PriceBreakdown {
   tollCharges: number;
   otherCharges: number;
   totalAmount: number;
+  isRoundTrip?: boolean;
 }

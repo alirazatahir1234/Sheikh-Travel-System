@@ -1,5 +1,6 @@
 using System.Text;
 using System.Threading.RateLimiting;
+using Dapper;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
@@ -70,7 +71,10 @@ builder.Services.AddCors(options =>
 });
 
 // Controllers & Swagger
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(opts =>
+        opts.JsonSerializerOptions.Converters.Add(
+            new System.Text.Json.Serialization.JsonStringEnumConverter()));
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
@@ -93,6 +97,44 @@ builder.Services.AddSwaggerGen(c =>
 });
 
 var app = builder.Build();
+
+// Run database migrations before seeding
+using (var scope = app.Services.CreateScope())
+{
+    try
+    {
+        var dbFactory = scope.ServiceProvider.GetRequiredService<IDbConnectionFactory>();
+        var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+        
+        using var connection = dbFactory.CreateConnection();
+        
+        // Add BookingNumber column if missing
+        var columnExists = await connection.ExecuteScalarAsync<int>(
+            "SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'Bookings' AND COLUMN_NAME = 'BookingNumber'");
+        
+        if (columnExists == 0)
+        {
+            logger.LogInformation("Adding BookingNumber column to Bookings table...");
+            await connection.ExecuteAsync("ALTER TABLE Bookings ADD BookingNumber NVARCHAR(20) NOT NULL DEFAULT ''");
+            
+            // Backfill existing rows
+            var rows = await connection.QueryAsync<int>("SELECT Id FROM Bookings WHERE BookingNumber = '' OR BookingNumber IS NULL");
+            foreach (var id in rows)
+            {
+                var year = DateTime.UtcNow.Year;
+                await connection.ExecuteAsync(
+                    "UPDATE Bookings SET BookingNumber = @BN WHERE Id = @Id",
+                    new { BN = $"BK-{year}-{id:D4}", Id = id });
+            }
+            logger.LogInformation("BookingNumber column added and backfilled for {Count} rows.", rows.Count());
+        }
+    }
+    catch (Exception ex)
+    {
+        var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+        logger.LogError(ex, "Database migration failed at startup.");
+    }
+}
 
 // Seed baseline data on startup (idempotent — only fills empty tables).
 using (var scope = app.Services.CreateScope())

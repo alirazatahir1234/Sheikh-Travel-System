@@ -1,5 +1,5 @@
 <div class="page-header">
-  <h2>Record Fuel Purchase</h2>
+  <h2>{{ pageTitle }}</h2>
   <button mat-button routerLink="/fuel-logs">
     <mat-icon>arrow_back</mat-icon> Back
   </button>
@@ -103,7 +103,7 @@
       <button mat-raised-button color="primary" type="submit"
               [disabled]="submitting || form.invalid">
         <mat-spinner *ngIf="submitting" diameter="16"></mat-spinner>
-        Record Fuel Log
+        {{ editMode ? 'Update' : 'Record' }} Fuel Log
       </button>
     </div>
   </form>

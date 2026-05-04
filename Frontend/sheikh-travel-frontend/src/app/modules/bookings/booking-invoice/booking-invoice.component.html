@@ -1,0 +1,124 @@
+<!-- Screen controls -->
+<div class="screen-controls">
+  <button mat-button (click)="back()"><mat-icon>arrow_back</mat-icon> Back to Booking</button>
+  <button mat-raised-button color="primary" (click)="print()">
+    <mat-icon>print</mat-icon> Print Invoice
+  </button>
+</div>
+
+<div *ngIf="loading" class="loading"><mat-spinner diameter="36"></mat-spinner></div>
+<div *ngIf="error" class="error-msg">{{ error }}</div>
+
+<!-- Invoice Body -->
+<div class="invoice" *ngIf="booking && !loading">
+  <!-- Header -->
+  <div class="invoice-header">
+    <div class="company-block">
+      <div class="company-logo-row">
+        <mat-icon class="logo-icon">directions_bus</mat-icon>
+        <h1 class="company-name">Sheikh Travel</h1>
+      </div>
+      <p class="company-tagline">Premium Travel Services</p>
+    </div>
+    <div class="invoice-title-block">
+      <h2 class="invoice-title">INVOICE</h2>
+      <p class="invoice-number">{{ booking.bookingNumber || 'BK-' + booking.id }}</p>
+      <p class="invoice-date">{{ invoiceDate | date:'longDate' }}</p>
+    </div>
+  </div>
+
+  <div class="invoice-divider"></div>
+
+  <!-- Bill To & Trip Info -->
+  <div class="info-section">
+    <div class="bill-to">
+      <h3 class="section-label">BILL TO</h3>
+      <p class="customer-name">{{ booking.customerName }}</p>
+    </div>
+    <div class="trip-info">
+      <h3 class="section-label">TRIP DETAILS</h3>
+      <div class="trip-row"><span>Route:</span><span>{{ booking.routeName || '—' }}</span></div>
+      <div class="trip-row"><span>Pickup:</span><span>{{ booking.pickupTime | date:'medium' }}</span></div>
+      <div class="trip-row"><span>Passengers:</span><span>{{ booking.passengerCount }}</span></div>
+      <div class="trip-row" *ngIf="booking.vehicleName">
+        <span>Vehicle:</span><span>{{ booking.vehicleName }}</span>
+      </div>
+      <div class="trip-row" *ngIf="booking.driverName">
+        <span>Driver:</span><span>{{ booking.driverName }}</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="invoice-divider"></div>
+
+  <!-- Services Table -->
+  <table class="services-table">
+    <thead>
+      <tr>
+        <th>Description</th>
+        <th class="text-center">Passengers</th>
+        <th class="text-right">Total</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Travel Service – {{ booking.routeName || 'Booking ' + (booking.bookingNumber || '#' + booking.id) }}</td>
+        <td class="text-center">{{ booking.passengerCount }}</td>
+        <td class="text-right">PKR {{ booking.totalAmount | number:'1.0-0' }}</td>
+      </tr>
+    </tbody>
+    <tfoot>
+      <tr class="subtotal-row">
+        <td colspan="2" class="text-right">Subtotal</td>
+        <td class="text-right">PKR {{ booking.totalAmount | number:'1.0-0' }}</td>
+      </tr>
+      <tr class="paid-row" *ngIf="totalPaid > 0">
+        <td colspan="2" class="text-right">Amount Paid</td>
+        <td class="text-right paid-amount">– PKR {{ totalPaid | number:'1.0-0' }}</td>
+      </tr>
+      <tr class="balance-row" [class.balance-zero]="balanceDue <= 0">
+        <td colspan="2" class="text-right"><strong>{{ balanceDue > 0 ? 'BALANCE DUE' : 'FULLY PAID' }}</strong></td>
+        <td class="text-right">
+          <strong>PKR {{ (balanceDue > 0 ? balanceDue : 0) | number:'1.0-0' }}</strong>
+        </td>
+      </tr>
+    </tfoot>
+  </table>
+
+  <!-- Payment History -->
+  <div *ngIf="payments.length > 0" class="payment-history">
+    <div class="invoice-divider"></div>
+    <h3 class="section-label">PAYMENT HISTORY</h3>
+    <table class="payment-table">
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Method</th>
+          <th>Reference</th>
+          <th class="text-right">Amount</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let p of payments">
+          <td>{{ p.paymentDate | date:'mediumDate' }}</td>
+          <td>{{ p.paymentMethod }}</td>
+          <td>{{ p.transactionReference || '—' }}</td>
+          <td class="text-right">PKR {{ p.amount | number:'1.0-0' }}</td>
+          <td [attr.data-status]="p.status" class="status-cell">{{ p.status }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="invoice-divider"></div>
+
+  <div class="invoice-footer">
+    <div *ngIf="booking.notes" class="notes-block">
+      <strong>Notes:</strong> {{ booking.notes }}
+    </div>
+    <p>Thank you for choosing Sheikh Travel. We look forward to serving you again.</p>
+    <p class="footer-sub">This is a computer-generated invoice. For queries, contact Sheikh Travel.</p>
+    <p class="footer-date">Generated: {{ invoiceDate | date:'medium' }}</p>
+  </div>
+</div>

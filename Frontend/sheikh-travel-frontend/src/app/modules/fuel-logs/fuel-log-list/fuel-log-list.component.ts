@@ -2,6 +2,7 @@ import { Component, OnInit, ViewChild } from '@angular/core';
 import { MatTableDataSource } from '@angular/material/table';
 import { MatPaginator } from '@angular/material/paginator';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { MatDialog } from '@angular/material/dialog';
 import { Router } from '@angular/router';
 import { DatePipe, DecimalPipe } from '@angular/common';
 import { forkJoin } from 'rxjs';
@@ -12,6 +13,7 @@ import { ExportService, ExportColumn } from '../../../core/services/export.servi
 import { FuelLog, FuelType, FuelTypeLabels } from '../../../core/models/fuel-log.model';
 import { Vehicle } from '../../../core/models/vehicle.model';
 import { Driver } from '../../../core/models/driver.model';
+import { ConfirmDialogComponent, ConfirmDialogData } from '../../../shared/components/confirm-dialog/confirm-dialog.component';
 
 @Component({
   selector: 'app-fuel-log-list',
@@ -20,7 +22,7 @@ import { Driver } from '../../../core/models/driver.model';
   providers: [DatePipe, DecimalPipe]
 })
 export class FuelLogListComponent implements OnInit {
-  displayedColumns = ['fuelDate', 'vehicle', 'driver', 'fuelType', 'liters', 'pricePerLiter', 'totalCost', 'odometer', 'station'];
+  displayedColumns = ['fuelDate', 'vehicle', 'driver', 'fuelType', 'liters', 'pricePerLiter', 'totalCost', 'odometer', 'station', 'actions'];
 
   dataSource = new MatTableDataSource<FuelLog>();
   loading = true;
@@ -46,6 +48,7 @@ export class FuelLogListComponent implements OnInit {
     private exportService: ExportService,
     private router: Router,
     private snackBar: MatSnackBar,
+    private dialog: MatDialog,
     private datePipe: DatePipe,
     private decimalPipe: DecimalPipe
   ) {}
@@ -132,6 +135,34 @@ export class FuelLogListComponent implements OnInit {
 
   formatNumber(n: number, digits = '1.0-0'): string {
     return this.decimalPipe.transform(n, digits) ?? '0';
+  }
+
+  editLog(log: FuelLog): void {
+    this.router.navigate(['/fuel-logs', log.id, 'edit']);
+  }
+
+  deleteLog(log: FuelLog): void {
+    const dialogRef = this.dialog.open(ConfirmDialogComponent, {
+      width: '400px',
+      data: {
+        title: 'Delete Fuel Log',
+        message: `Delete fuel log for ${log.vehicleName} on ${this.datePipe.transform(log.fuelDate, 'mediumDate')}?`,
+        confirmText: 'Delete',
+        confirmColor: 'warn'
+      } as ConfirmDialogData
+    });
+
+    dialogRef.afterClosed().subscribe(confirmed => {
+      if (!confirmed) return;
+      this.fuelLogService.delete(log.id).subscribe({
+        next: () => {
+          this.snackBar.open('Fuel log deleted.', 'Close', { duration: 2000 });
+          this.allLogs = this.allLogs.filter(l => l.id !== log.id);
+          this.applyFilters();
+        },
+        error: () => this.snackBar.open('Failed to delete fuel log.', 'Close', { duration: 3000 })
+      });
+    });
   }
 
   exportExcel(): void {
