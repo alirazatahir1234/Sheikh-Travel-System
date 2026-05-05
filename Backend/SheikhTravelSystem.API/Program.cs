@@ -76,6 +76,7 @@ builder.Services.AddCors(options =>
     options.AddPolicy("AllowFrontendClients", policy =>
         policy
             .WithOrigins(
+                "https://sheikh-travel-system.vercel.app",
                 "http://localhost:4200",
                 "http://127.0.0.1:4200",
                 "http://localhost:4300",
