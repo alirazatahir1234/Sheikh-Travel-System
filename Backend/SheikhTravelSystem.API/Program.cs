@@ -75,12 +75,32 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontendClients", policy =>
         policy
-            .WithOrigins(
-                "https://sheikh-travel-system.vercel.app",
-                "http://localhost:4200",
-                "http://127.0.0.1:4200",
-                "http://localhost:4300",
-                "http://127.0.0.1:4300")
+            .SetIsOriginAllowed(origin =>
+            {
+                if (string.IsNullOrWhiteSpace(origin))
+                {
+                    return false;
+                }
+
+                if (origin is "https://sheikh-travel-system.vercel.app"
+                    or "http://localhost:4200"
+                    or "http://127.0.0.1:4200"
+                    or "http://localhost:4300"
+                    or "http://127.0.0.1:4300")
+                {
+                    return true;
+                }
+
+                if (Uri.TryCreate(origin, UriKind.Absolute, out var uri))
+                {
+                    // Allow Vercel preview deployments for this frontend project.
+                    return uri.Scheme == Uri.UriSchemeHttps
+                        && uri.Host.EndsWith(".vercel.app", StringComparison.OrdinalIgnoreCase)
+                        && uri.Host.Contains("sheikh-travel-system", StringComparison.OrdinalIgnoreCase);
+                }
+
+                return false;
+            })
             .AllowAnyMethod()
             .AllowAnyHeader());
 });
