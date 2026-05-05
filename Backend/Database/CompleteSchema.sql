@@ -7,10 +7,10 @@
 -- Column names match C# entity properties exactly for Dapper mapping
 -- =============================================
 
-CREATE DATABASE SheikhTravelSystemDb;
+CREATE DATABASE free-sql-db-9224829;
 GO
 
-USE SheikhTravelSystemDb;
+USE free-sql-db-9224829;
 GO
 
 -- =============================================

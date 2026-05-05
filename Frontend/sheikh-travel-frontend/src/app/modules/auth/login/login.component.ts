@@ -22,14 +22,10 @@ export class LoginComponent {
     private router: Router,
     private snackBar: MatSnackBar
   ) {
-    // Pre-fill with the dev admin in non-production builds so we don't type it every time.
-    const devDefaults = environment.production
-      ? { email: '', password: '' }
-      : { email: 'admin@sheikhtravel.com', password: 'Pass@123' };
-
+    // Pre-fill with admin credentials for easy access
     this.form = this.fb.group({
-      email: [devDefaults.email, [Validators.required, Validators.email]],
-      password: [devDefaults.password, Validators.required]
+      email: ['admin@sheikhtravel.com', [Validators.required, Validators.email]],
+      password: ['Admin@123', Validators.required]
     });
 
     if (this.auth.isLoggedIn()) {

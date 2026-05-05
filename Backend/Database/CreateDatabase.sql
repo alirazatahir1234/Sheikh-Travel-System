@@ -2,9 +2,9 @@
 -- SQL Server
 -- Column names match C# entity properties exactly for Dapper mapping
 
-CREATE DATABASE SheikhTravelSystem;
+CREATE DATABASE free-sql-db-9224829;
 GO
-USE SheikhTravelSystem;
+USE free-sql-db-9224829;
 GO
 
 -- =============================================
