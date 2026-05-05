@@ -1,0 +1,25 @@
+services:
+  api:
+    build:
+      context: ./Backend
+      dockerfile: SheikhTravelSystem.API/Dockerfile
+    container_name: sheikh-api
+    expose:
+      - "5082"
+    networks:
+      - sheikh-network
+
+  admin:
+    build:
+      context: ./Frontend/sheikh-travel-frontend
+      dockerfile: Dockerfile
+    container_name: sheikh-admin
+    ports:
+      - "4200:80"
+    depends_on:
+      - api
+    networks:
+      - sheikh-network
+
+networks:
+  sheikh-network:
