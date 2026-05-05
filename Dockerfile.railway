@@ -1,0 +1,19 @@
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+WORKDIR /src
+
+COPY Backend/SheikhTravelSystem.API/SheikhTravelSystem.API.csproj Backend/SheikhTravelSystem.API/
+COPY Backend/SheikhTravelSystem.Application/SheikhTravelSystem.Application.csproj Backend/SheikhTravelSystem.Application/
+COPY Backend/SheikhTravelSystem.Infrastructure/SheikhTravelSystem.Infrastructure.csproj Backend/SheikhTravelSystem.Infrastructure/
+COPY Backend/SheikhTravelSystem.Domain/SheikhTravelSystem.Domain.csproj Backend/SheikhTravelSystem.Domain/
+RUN dotnet restore Backend/SheikhTravelSystem.API/SheikhTravelSystem.API.csproj
+
+COPY Backend/. Backend/
+WORKDIR /src/Backend/SheikhTravelSystem.API
+RUN dotnet publish -c Release -o /app/publish /p:UseAppHost=false
+
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
+WORKDIR /app
+COPY --from=build /app/publish .
+
+EXPOSE 8080
+ENTRYPOINT ["sh", "-c", "ASPNETCORE_URLS=http://+:${PORT:-8080} dotnet SheikhTravelSystem.API.dll"]
