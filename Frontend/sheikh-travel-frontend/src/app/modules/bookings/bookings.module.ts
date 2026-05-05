@@ -3,6 +3,8 @@ import { RouterModule, Routes } from '@angular/router';
 import { SharedModule } from '../../shared/shared.module';
 import { MatStepperModule } from '@angular/material/stepper';
 import { PaymentPlanSummaryComponent } from '../../shared/components/payment-plan-summary/payment-plan-summary.component';
+import { BookingStatusBannerComponent } from '../../shared/components/booking-status-banner/booking-status-banner.component';
+import { BookingLedgerPaymentSummaryComponent } from '../../shared/components/booking-ledger-payment-summary/booking-ledger-payment-summary.component';
 import { BookingListComponent } from './booking-list/booking-list.component';
 import { BookingWizardComponent } from './booking-wizard/booking-wizard.component';
 import { BookingDetailComponent } from './booking-detail/booking-detail.component';
@@ -19,6 +21,13 @@ const routes: Routes = [
 
 @NgModule({
   declarations: [BookingListComponent, BookingWizardComponent, BookingDetailComponent, BookingEditComponent, BookingInvoiceComponent],
-  imports: [SharedModule, MatStepperModule, PaymentPlanSummaryComponent, RouterModule.forChild(routes)]
+  imports: [
+    SharedModule,
+    MatStepperModule,
+    PaymentPlanSummaryComponent,
+    BookingStatusBannerComponent,
+    BookingLedgerPaymentSummaryComponent,
+    RouterModule.forChild(routes)
+  ]
 })
 export class BookingsModule {}

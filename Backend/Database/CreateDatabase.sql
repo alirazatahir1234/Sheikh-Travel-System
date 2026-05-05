@@ -143,6 +143,7 @@ CREATE TABLE Payments (
     PaymentDate DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
     TransactionReference NVARCHAR(200),
     Notes NVARCHAR(1000),
+    ReceiptImageData NVARCHAR(MAX) NULL,       -- optional data URL / proof image (e.g. bank transfer screenshot)
     CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
     UpdatedAt DATETIME2,
     CreatedBy NVARCHAR(100),

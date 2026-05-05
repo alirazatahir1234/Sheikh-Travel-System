@@ -9,12 +9,15 @@
 .loading { display: flex; justify-content: center; padding: 60px; }
 .error-message { display: flex; align-items: center; gap: 8px; padding: 16px; background: #fef2f2; color: #991b1b; border-radius: 8px; margin-bottom: 16px; }
 
+.detail-page {
+  max-width: 1200px;
+}
+
 .detail-container {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 24px;
-  max-width: 1200px;
-  
+
   @media (max-width: 900px) {
     grid-template-columns: 1fr;
   }

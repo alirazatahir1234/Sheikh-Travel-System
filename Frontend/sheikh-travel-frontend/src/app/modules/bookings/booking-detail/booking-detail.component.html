@@ -2,7 +2,7 @@
   <h2>Booking Detail</h2>
   <div class="header-actions">
     <button mat-button routerLink="/bookings"><mat-icon>arrow_back</mat-icon> Back to List</button>
-    <button mat-stroked-button *ngIf="booking"
+    <button mat-stroked-button *ngIf="booking && canPrintInvoice()"
             [routerLink]="['/bookings', booking.id, 'invoice']">
       <mat-icon>description</mat-icon> Print Invoice
     </button>
@@ -16,7 +16,14 @@
 <div *ngIf="loading" class="loading"><mat-spinner diameter="40"></mat-spinner></div>
 <div *ngIf="error" class="error-message"><mat-icon>error</mat-icon> {{ error }}</div>
 
-<div *ngIf="booking && !loading" class="detail-container">
+<div *ngIf="booking && !loading" class="detail-page">
+  <stb-booking-status-banner
+    [status]="booking.status"
+    [totalPaid]="totalPaid"
+    [totalAmount]="booking.totalAmount">
+  </stb-booking-status-banner>
+
+  <div class="detail-container">
   <!-- Booking Info Card -->
   <mat-card class="detail-card">
     <mat-card-header>
@@ -109,21 +116,11 @@
       <mat-card-title>Payment History</mat-card-title>
     </mat-card-header>
     <mat-card-content>
-      <!-- Payment Summary -->
-      <div class="payment-summary">
-        <div class="summary-item">
-          <span class="summary-label">Total Amount</span>
-          <span class="summary-value">PKR {{ booking.totalAmount | number:'1.0-0' }}</span>
-        </div>
-        <div class="summary-item paid">
-          <span class="summary-label">Paid</span>
-          <span class="summary-value">PKR {{ totalPaid | number:'1.0-0' }}</span>
-        </div>
-        <div class="summary-item" [class.due]="balanceDue > 0" [class.refund]="balanceDue < 0">
-          <span class="summary-label">{{ balanceDue >= 0 ? 'Balance Due' : 'Overpaid' }}</span>
-          <span class="summary-value">PKR {{ (balanceDue < 0 ? -balanceDue : balanceDue) | number:'1.0-0' }}</span>
-        </div>
-      </div>
+      <stb-booking-ledger-payment-summary
+        [bookingId]="booking.id"
+        [totalAmount]="booking.totalAmount"
+        [totalPaid]="totalPaid">
+      </stb-booking-ledger-payment-summary>
 
       <!-- Payment List -->
       <div class="payment-list" *ngIf="payments.length > 0">
@@ -160,10 +157,11 @@
         <span>No payments recorded yet</span>
       </div>
     </mat-card-content>
-    <mat-card-actions>
+    <mat-card-actions *ngIf="canRecordPayment()">
       <button mat-raised-button color="primary" [routerLink]="['/payments/new']" [queryParams]="{bookingId: booking.id}">
         <mat-icon>add</mat-icon> Record Payment
       </button>
     </mat-card-actions>
   </mat-card>
+  </div>
 </div>

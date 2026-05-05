@@ -1,0 +1,232 @@
+<div class="space-y-6">
+  <div>
+    <h1 class="text-2xl font-bold tracking-tight text-slate-900">Book a ride</h1>
+    <p class="mt-1 text-sm text-slate-600">Simple steps — no admin clutter.</p>
+  </div>
+
+  @if (routesError()) {
+    <p class="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">{{ routesError() }}</p>
+  }
+  @if (vehiclesError()) {
+    <p class="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">{{ vehiclesError() }}</p>
+  }
+  @if (catalogLoading()) {
+    <p class="text-sm text-slate-500">Loading routes and vehicles…</p>
+  }
+  @if (apiError() && !confirmation()) {
+    <p class="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">{{ apiError() }}</p>
+  }
+
+  @if (confirmation()) {
+    <div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 shadow-card">
+      <h2 class="text-lg font-bold text-emerald-950">Booking received</h2>
+      <p class="mt-2 text-sm text-emerald-900">Thank you. Reference <strong>{{ confirmation()!.bookingNumber }}</strong></p>
+      <p class="mt-1 text-sm text-emerald-900">
+        Estimated trip total: <strong>PKR {{ confirmation()!.totalAmount | number : '1.2-2' }}</strong>
+      </p>
+      <div class="mt-4 flex flex-wrap gap-2">
+        <a
+          routerLink="/bookings"
+          class="inline-flex rounded-xl bg-primary-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-primary-700"
+          >View my bookings</a
+        >
+        <a
+          routerLink="/dashboard"
+          class="inline-flex rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 ring-1 ring-slate-200 hover:bg-slate-50"
+          >Dashboard</a
+        >
+      </div>
+    </div>
+  } @else {
+    <div class="flex items-center gap-2 text-xs font-medium text-slate-500">
+      @for (i of [0, 1, 2]; track i) {
+        <span
+          class="rounded-full px-2 py-0.5"
+          [class.bg-primary-600]="step() >= i"
+          [class.text-white]="step() >= i"
+          [class.bg-slate-200]="step() < i"
+          >{{ i + 1 }}</span
+        >
+      }
+      <span class="text-slate-700">{{ stepLabel() }}</span>
+    </div>
+
+    <form [formGroup]="form" class="space-y-6">
+      @if (step() === 0) {
+        <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-card space-y-4">
+          <h2 class="text-sm font-semibold text-slate-800">Route & schedule</h2>
+          <label class="block text-xs font-semibold uppercase text-slate-500">Route</label>
+          <select
+            formControlName="routeId"
+            class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm"
+            [class.opacity-60]="catalogLoading() || routes().length === 0"
+          >
+            <option [ngValue]="null">
+              {{ routes().length === 0 ? 'No routes available' : 'Select route' }}
+            </option>
+            @for (r of routes(); track r.id) {
+              <option [ngValue]="r.id">{{ routeOptionLabel(r) }}</option>
+            }
+          </select>
+          <label class="block text-xs font-semibold uppercase text-slate-500">Vehicle preference</label>
+          <select
+            formControlName="vehicleId"
+            class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm"
+            [class.opacity-60]="catalogLoading() || vehicles().length === 0"
+          >
+            <option [ngValue]="null">
+              {{ vehicles().length === 0 ? 'No vehicles available' : 'Select vehicle' }}
+            </option>
+            @for (v of vehicles(); track v.id) {
+              <option [ngValue]="v.id">{{ vehicleOptionLabel(v) }}</option>
+            }
+          </select>
+          <label class="block text-xs font-semibold uppercase text-slate-500">Pickup date & time</label>
+          <input
+            type="datetime-local"
+            formControlName="pickupLocal"
+            [min]="pickupDatetimeMin"
+            class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm"
+          />
+          @if (form.controls.pickupLocal.touched && form.controls.pickupLocal.hasError('pickupPast')) {
+            <p class="mt-1 text-xs font-medium text-rose-600">Pickup must be today or later.</p>
+          }
+          <label class="flex items-center gap-2 text-sm font-medium text-slate-800">
+            <input type="checkbox" formControlName="isRoundTrip" class="size-4 rounded border-slate-300" />
+            Round trip
+          </label>
+          @if (selectedRoute(); as sr) {
+            <div class="pt-1">
+              <p class="mb-2 text-xs font-semibold uppercase text-slate-500">Route preview</p>
+              <app-route-preview-map [source]="sr.source" [destination]="sr.destination" />
+            </div>
+          }
+          <div class="flex flex-wrap gap-2">
+            <button
+              type="button"
+              (click)="getEstimate()"
+              [disabled]="!canEstimate()"
+              class="rounded-xl bg-primary-800 px-4 py-2.5 text-sm font-semibold text-white hover:bg-primary-900 disabled:opacity-50"
+            >
+              {{ estimateBusy() ? 'Calculating…' : 'Get price estimate' }}
+            </button>
+          </div>
+          @if (estimate()) {
+            <div class="rounded-xl bg-slate-50 p-3 text-sm text-slate-700">
+              <p class="font-semibold text-slate-900">Estimate: PKR {{ estimate()!.totalAmount | number : '1.2-2' }}</p>
+              <p class="text-xs text-slate-500">Includes route base + fuel estimate.</p>
+            </div>
+          }
+          <button
+            type="button"
+            (click)="nextFromStep0()"
+            class="w-full rounded-xl bg-primary-600 py-3 text-sm font-bold text-white shadow-lg shadow-primary-600/20 hover:bg-primary-700"
+          >
+            Next: Passengers
+          </button>
+        </div>
+      }
+
+      @if (step() === 1) {
+        <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-card space-y-4">
+          <h2 class="text-sm font-semibold text-slate-800">Passengers & contact</h2>
+          <label class="block text-xs font-semibold uppercase text-slate-500">Passengers</label>
+          <input
+            type="number"
+            formControlName="passengerCount"
+            min="1"
+            [attr.max]="maxPassengers()"
+            class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm"
+          />
+          @if (selectedVehicle()) {
+            <p class="text-xs text-slate-500">Max {{ maxPassengers() }} for selected vehicle.</p>
+          }
+          <label class="block text-xs font-semibold uppercase text-slate-500">Full name</label>
+          <input type="text" formControlName="fullName" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm" />
+          <label class="block text-xs font-semibold uppercase text-slate-500">Phone</label>
+          <input type="tel" formControlName="phone" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm" />
+          <label class="block text-xs font-semibold uppercase text-slate-500">Email (optional)</label>
+          <input type="email" formControlName="email" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm" />
+          <label class="block text-xs font-semibold uppercase text-slate-500">Notes (optional)</label>
+          <textarea formControlName="notes" rows="2" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm"></textarea>
+          <div class="flex gap-2">
+            <button type="button" (click)="back()" class="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-800">Back</button>
+            <button
+              type="button"
+              (click)="nextFromStep1()"
+              class="flex-1 rounded-xl bg-primary-600 py-2.5 text-sm font-bold text-white hover:bg-primary-700"
+            >
+              Next: Payment
+            </button>
+          </div>
+        </div>
+      }
+
+      @if (step() === 2) {
+        <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-card space-y-4">
+          <h2 class="text-sm font-semibold text-slate-800">Payment</h2>
+          <p class="text-sm text-slate-600">Trip total: <strong>PKR {{ estimate()!.totalAmount | number : '1.2-2' }}</strong></p>
+
+          <div class="space-y-3">
+            <label
+              class="flex cursor-pointer gap-3 rounded-xl border p-3 transition"
+              [class.border-primary-500]="form.controls.paymentPlan.value === 'full'"
+              [class.bg-primary-50]="form.controls.paymentPlan.value === 'full'"
+              [class.border-slate-200]="form.controls.paymentPlan.value !== 'full'"
+            >
+              <input type="radio" formControlName="paymentPlan" value="full" class="mt-1 size-4" />
+              <div>
+                <p class="font-semibold text-slate-900">Full payment</p>
+                <p class="text-xs text-slate-600">Pay the full amount now (marked paid).</p>
+              </div>
+            </label>
+            <label
+              class="flex cursor-pointer gap-3 rounded-xl border p-3 transition"
+              [class.border-primary-500]="form.controls.paymentPlan.value === 'partial'"
+              [class.bg-primary-50]="form.controls.paymentPlan.value === 'partial'"
+              [class.border-slate-200]="form.controls.paymentPlan.value !== 'partial'"
+            >
+              <input type="radio" formControlName="paymentPlan" value="partial" class="mt-1 size-4" />
+              <div class="flex-1">
+                <p class="font-semibold text-slate-900">Partial payment</p>
+                <p class="text-xs text-slate-600">Pay part now; remainder due later.</p>
+                @if (form.controls.paymentPlan.value === 'partial') {
+                  <input
+                    type="number"
+                    formControlName="partialAmount"
+                    class="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                    placeholder="Amount (PKR)"
+                  />
+                }
+              </div>
+            </label>
+            <label
+              class="flex cursor-pointer gap-3 rounded-xl border p-3 transition"
+              [class.border-primary-500]="form.controls.paymentPlan.value === 'payLater'"
+              [class.bg-primary-50]="form.controls.paymentPlan.value === 'payLater'"
+              [class.border-slate-200]="form.controls.paymentPlan.value !== 'payLater'"
+            >
+              <input type="radio" formControlName="paymentPlan" value="payLater" class="mt-1 size-4" />
+              <div>
+                <p class="font-semibold text-slate-900">Pay later</p>
+                <p class="text-xs text-slate-600">No payment recorded now — pay before pickup.</p>
+              </div>
+            </label>
+          </div>
+
+          <div class="flex gap-2">
+            <button type="button" (click)="back()" class="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold">Back</button>
+            <button
+              type="button"
+              (click)="submit()"
+              [disabled]="submitBusy()"
+              class="flex-1 rounded-xl bg-primary-600 py-2.5 text-sm font-bold text-white disabled:opacity-50"
+            >
+              {{ submitBusy() ? 'Sending…' : 'Confirm booking' }}
+            </button>
+          </div>
+        </div>
+      }
+    </form>
+  }
+</div>

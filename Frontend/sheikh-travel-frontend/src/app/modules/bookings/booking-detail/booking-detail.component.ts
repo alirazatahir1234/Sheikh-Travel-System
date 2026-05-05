@@ -24,7 +24,6 @@ export class BookingDetailComponent implements OnInit {
   error: string | null = null;
 
   totalPaid = 0;
-  balanceDue = 0;
 
   vehicles: Vehicle[] = [];
   drivers: Driver[] = [];
@@ -78,7 +77,6 @@ export class BookingDetailComponent implements OnInit {
     this.totalPaid = this.payments
       .filter(p => p.status === 'Paid' || p.status === 'PartiallyPaid')
       .reduce((sum, p) => sum + p.amount, 0);
-    this.balanceDue = (this.booking?.totalAmount ?? 0) - this.totalPaid;
   }
 
   getNextStatuses(): BookingStatus[] {
@@ -139,6 +137,17 @@ export class BookingDetailComponent implements OnInit {
   canEdit(): boolean {
     if (!this.booking) return false;
     return this.booking.status !== 'Completed' && this.booking.status !== 'Cancelled';
+  }
+
+  /** Invoice / print — not offered for cancelled bookings. */
+  canPrintInvoice(): boolean {
+    return !!this.booking && this.booking.status !== 'Cancelled';
+  }
+
+  /** Recording new payments — not when trip is done or booking cancelled. */
+  canRecordPayment(): boolean {
+    if (!this.booking) return false;
+    return this.booking.status !== 'Cancelled' && this.booking.status !== 'Completed';
   }
 
   openReassignPanel(): void {

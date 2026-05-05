@@ -1,0 +1,27 @@
+<div class="ledger-summary">
+  <div class="ledger-summary-header">
+    <span class="ledger-title">Payment summary</span>
+    <span class="ledger-badge" [ngClass]="badgeClass()">{{ statusLabel() }}</span>
+  </div>
+  <div class="ledger-grid">
+    <div class="ledger-cell">
+      <span class="ledger-label">Total amount</span>
+      <strong>PKR {{ totalAmount | number:'1.0-0' }}</strong>
+    </div>
+    <div class="ledger-cell ledger-paid">
+      <span class="ledger-label">Paid</span>
+      <strong>PKR {{ totalPaid | number:'1.0-0' }}</strong>
+    </div>
+    <div class="ledger-cell" [class.ledger-due]="balanceDue > 0.009" [class.ledger-over]="balanceDue < -0.009">
+      <span class="ledger-label">{{ balanceDue < -0.009 ? 'Overpaid' : 'Remaining' }}</span>
+      <strong>PKR {{ (balanceDue < 0 ? -balanceDue : balanceDue) | number:'1.0-0' }}</strong>
+    </div>
+  </div>
+  <div class="ledger-cta" *ngIf="balanceDue > 0.009">
+    <button mat-flat-button color="warn" type="button"
+            [routerLink]="['/payments/new']" [queryParams]="payRemainingQuery()">
+      <mat-icon>payment</mat-icon>
+      Pay remaining amount
+    </button>
+  </div>
+</div>

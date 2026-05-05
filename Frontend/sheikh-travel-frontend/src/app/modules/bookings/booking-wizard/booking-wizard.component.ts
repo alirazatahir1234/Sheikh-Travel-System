@@ -24,6 +24,10 @@ import { Booking } from '../../../core/models/booking.model';
 import { PaymentMethod } from '../../../core/models/payment.model';
 import { CalculateDriverAllowanceResponse } from '../../../core/models/driver-allowance-rule.model';
 import { PaymentPlan } from '../../../shared/utils/booking-payment-plan.util';
+import {
+  extractTransactionReferenceFromFileName,
+  extractTransactionReferenceFromReceiptOcrText
+} from '../../../shared/utils/transaction-reference-extract.util';
 
 type CustomerMode = 'EXISTING' | 'NEW';
 
@@ -63,7 +67,17 @@ export class BookingWizardComponent implements OnInit, OnDestroy {
   error: string | null = null;
 
   customerMode: CustomerMode = 'EXISTING';
-  readonly paymentMethods: PaymentMethod[] = ['Cash', 'Card', 'BankTransfer', 'Online'];
+  readonly paymentMethods: PaymentMethod[] = ['Cash', 'Card', 'BankTransfer'];
+
+  /** Bank transfer: optional proof image (JPEG data URL after compression). */
+  bankTransferReceiptDataUrl: string | null = null;
+  bankTransferReceiptFileName: string | null = null;
+  bankTransferReceiptCompressing = false;
+  /** True while Tesseract is reading the slip to suggest a reference. */
+  bankTransferReceiptOcrBusy = false;
+  /** User picked a PDF (reference from file name only; no image payload). */
+  bankTransferReceiptIsPdf = false;
+  private readonly bankTransferReceiptMaxBytes = 15 * 1024 * 1024;
 
   allowanceCalculating = false;
   allowanceResult: CalculateDriverAllowanceResponse | null = null;
@@ -121,6 +135,17 @@ export class BookingWizardComponent implements OnInit, OnDestroy {
       transactionReference: [''],
       paymentNotes: ['']
     });
+
+    this.step3Form.get('paymentMethod')!.valueChanges
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(m => {
+        if (m !== 'BankTransfer') this.clearBankTransferReceiptPreview();
+      });
+    this.step3Form.get('paymentPlan')!.valueChanges
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(p => {
+        if (p === 'PAY_LATER') this.clearBankTransferReceiptPreview();
+      });
   }
 
   // ---------- Lifecycle ------------------------------------------------------
@@ -529,10 +554,13 @@ export class BookingWizardComponent implements OnInit, OnDestroy {
    */
   canProceedToConfirm(): boolean {
     const plan = this.step3Form.value.paymentPlan as PaymentPlan;
-    if (plan === 'PAY_LATER' || plan === 'FULL') return true;
-    const total = this.totalBookingAmount;
-    const amt = Number(this.step3Form.value.partialAmount);
-    return Number.isFinite(amt) && amt > 0 && amt < total;
+    if (plan === 'PAY_LATER') return true;
+    if (plan === 'PARTIAL') {
+      const total = this.totalBookingAmount;
+      const amt = Number(this.step3Form.value.partialAmount);
+      if (!Number.isFinite(amt) || amt <= 0 || amt >= total) return false;
+    }
+    return true;
   }
 
   assignAndFinish(): void {
@@ -591,12 +619,17 @@ export class BookingWizardComponent implements OnInit, OnDestroy {
             }
           }
 
+          const receiptImageData =
+            paymentMethod === 'BankTransfer' && this.bankTransferReceiptDataUrl
+              ? this.bankTransferReceiptDataUrl
+              : undefined;
           return this.paymentService.create({
             bookingId: this.createdBooking!.id,
             amount,
             paymentMethod,
             transactionReference: (this.step3Form.value.transactionReference || '').trim() || undefined,
-            notes: composedNotes || undefined
+            notes: composedNotes || undefined,
+            receiptImageData
           });
         }),
         finalize(() => {
@@ -633,6 +666,172 @@ export class BookingWizardComponent implements OnInit, OnDestroy {
     this.step3Form.patchValue({ paymentPlan: plan });
     if (plan !== 'PARTIAL') {
       this.step3Form.patchValue({ partialAmount: null });
+    }
+    if (plan === 'PAY_LATER') this.clearBankTransferReceiptPreview();
+  }
+
+  clearBankTransferReceiptPreview(): void {
+    this.bankTransferReceiptDataUrl = null;
+    this.bankTransferReceiptFileName = null;
+    this.bankTransferReceiptIsPdf = false;
+  }
+
+  onBankTransferReceiptDrop(ev: DragEvent): void {
+    ev.preventDefault();
+    const file = ev.dataTransfer?.files?.item(0);
+    if (file) void this.ingestBankTransferReceiptFile(file);
+  }
+
+  onBankTransferReceiptFileSelected(ev: Event): void {
+    const input = ev.target as HTMLInputElement;
+    const file = input.files?.item(0);
+    input.value = '';
+    if (file) void this.ingestBankTransferReceiptFile(file);
+  }
+
+  private async ingestBankTransferReceiptFile(file: File): Promise<void> {
+    if (file.size > this.bankTransferReceiptMaxBytes) {
+      this.snackBar.open('File must be 15 MB or smaller.', 'Close', { duration: 4000 });
+      return;
+    }
+
+    if (file.type === 'application/pdf') {
+      this.bankTransferReceiptDataUrl = null;
+      this.bankTransferReceiptIsPdf = true;
+      this.bankTransferReceiptFileName = file.name;
+      this.applyTransactionReferenceFromFileNameOnly(file.name, 'PDF');
+      return;
+    }
+
+    if (!file.type.startsWith('image/')) {
+      this.snackBar.open('Please choose an image (JPEG, PNG, WebP) or a PDF.', 'Close', { duration: 3500 });
+      return;
+    }
+
+    this.bankTransferReceiptIsPdf = false;
+    this.bankTransferReceiptCompressing = true;
+    try {
+      this.bankTransferReceiptDataUrl = await this.compressImageToJpegDataUrl(file);
+      this.bankTransferReceiptFileName = file.name;
+      this.applyTransactionReferenceFromUpload(file, this.bankTransferReceiptDataUrl);
+    } catch {
+      this.snackBar.open('Could not process that image.', 'Close', { duration: 3500 });
+      this.clearBankTransferReceiptPreview();
+    } finally {
+      this.bankTransferReceiptCompressing = false;
+    }
+  }
+
+  private getTransactionReferenceTrimmed(): string {
+    return String(this.step3Form.get('transactionReference')?.value ?? '').trim();
+  }
+
+  /** Fill reference from slip file name (works for e.g. TRANSACTION_RECEIPT_ABC123.pdf). */
+  private applyTransactionReferenceFromFileNameOnly(fileName: string, sourceLabel: string): void {
+    const fromName = extractTransactionReferenceFromFileName(fileName);
+    if (!fromName) {
+      this.snackBar.open(
+        'Could not detect a reference from the file name. Enter it manually or upload a clear screenshot.',
+        'Close',
+        { duration: 4500 }
+      );
+      return;
+    }
+    if (!this.getTransactionReferenceTrimmed()) {
+      this.step3Form.patchValue({ transactionReference: fromName });
+      this.snackBar.open(`Transaction reference filled from ${sourceLabel} file name.`, 'Close', { duration: 3000 });
+    }
+  }
+
+  /** File name first, then optional OCR on the image data URL. */
+  private applyTransactionReferenceFromUpload(file: File, imageDataUrl: string): void {
+    const fromName = extractTransactionReferenceFromFileName(file.name);
+    if (fromName && !this.getTransactionReferenceTrimmed()) {
+      this.step3Form.patchValue({ transactionReference: fromName });
+      this.snackBar.open('Transaction reference filled from file name.', 'Close', { duration: 2500 });
+    }
+    void this.maybeFillReferenceFromReceiptOcr(imageDataUrl, fromName);
+  }
+
+  private async maybeFillReferenceFromReceiptOcr(
+    imageDataUrl: string,
+    fromFileName: string | null
+  ): Promise<void> {
+    this.bankTransferReceiptOcrBusy = true;
+    try {
+      const { createWorker } = await import('tesseract.js');
+      const worker = await createWorker('eng');
+      const { data } = await worker.recognize(imageDataUrl);
+      await worker.terminate();
+      const ocrRef = extractTransactionReferenceFromReceiptOcrText(data.text);
+      const current = this.getTransactionReferenceTrimmed();
+      if (ocrRef && !current) {
+        this.step3Form.patchValue({ transactionReference: ocrRef });
+        this.snackBar.open('Transaction reference filled from receipt scan.', 'Close', { duration: 2800 });
+        return;
+      }
+      if (
+        ocrRef &&
+        fromFileName &&
+        current.toUpperCase() === fromFileName.toUpperCase() &&
+        ocrRef.toUpperCase() !== current.toUpperCase()
+      ) {
+        this.step3Form.patchValue({ transactionReference: ocrRef });
+        this.snackBar.open('Transaction reference updated from receipt scan.', 'Close', { duration: 2800 });
+      }
+    } catch {
+      /* OCR is best-effort; filename hint may still be enough */
+    } finally {
+      this.bankTransferReceiptOcrBusy = false;
+    }
+  }
+
+  private compressImageToJpegDataUrl(file: File, maxDim = 1280, quality = 0.82): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        try {
+          let { width, height } = img;
+          if (width > maxDim || height > maxDim) {
+            if (width >= height) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            } else {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            reject(new Error('Canvas unsupported'));
+            return;
+          }
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', quality));
+        } catch (e) {
+          reject(e);
+        }
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        reject(new Error('Image load failed'));
+      };
+      img.src = url;
+    });
+  }
+
+  /** Display text for payment method radios (API value stays Cash | Card | BankTransfer). */
+  paymentMethodLabel(method: PaymentMethod): string {
+    switch (method) {
+      case 'BankTransfer':
+        return 'Bank transfer';
+      default:
+        return method;
     }
   }
 

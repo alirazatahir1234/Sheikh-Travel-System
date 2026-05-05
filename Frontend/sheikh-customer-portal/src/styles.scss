@@ -1,0 +1,128 @@
+@import '@angular/material/prebuilt-themes/indigo-pink.css';
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+/* ======================================================================
+   Sheikh Travel – Design Tokens (aligned with sheikh-travel-frontend)
+   ====================================================================== */
+:root {
+  /* Brand */
+  --stb-primary: #1b7f75;
+  --stb-primary-600: #177066;
+  --stb-primary-50: #e8f4f2;
+  --stb-accent: #4c6ef5;
+
+  /* Surfaces */
+  --stb-bg: #edf0f2;
+  --stb-surface: #ffffff;
+  --stb-surface-alt: #f6f8fa;
+  --stb-border: #e5e9ef;
+  --stb-border-strong: #d5dbe3;
+
+  /* Text */
+  --stb-text: #0f172a;
+  --stb-text-muted: #64748b;
+  --stb-text-soft: #94a3b8;
+
+  /* Status */
+  --stb-success: #10b981;
+  --stb-warning: #f59e0b;
+  --stb-danger: #ef4444;
+  --stb-info: #3b82f6;
+
+  /* Category palette */
+  --stb-cat-blue: #4c6ef5;
+  --stb-cat-green: #10b981;
+  --stb-cat-teal: #14b8a6;
+  --stb-cat-purple: #8b5cf6;
+  --stb-cat-orange: #f97316;
+  --stb-cat-rose: #f43f5e;
+  --stb-cat-amber: #f59e0b;
+  --stb-cat-sky: #0ea5e9;
+
+  /* Radii + shadows */
+  --stb-radius-sm: 10px;
+  --stb-radius: 16px;
+  --stb-radius-lg: 20px;
+  --stb-shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --stb-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+  --stb-shadow-lg: 0 10px 30px rgba(15, 23, 42, 0.08);
+
+  /* Layout (admin shell parity) */
+  --stb-sidenav-w: 240px;
+  --stb-sidenav-rail-w: 72px;
+  --stb-topbar-h: 72px;
+}
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    @apply antialiased;
+    font-family:
+      'Inter',
+      Roboto,
+      -apple-system,
+      BlinkMacSystemFont,
+      'Segoe UI',
+      sans-serif;
+    color: var(--stb-text);
+    background: var(--stb-bg);
+  }
+
+  body {
+    @apply m-0 min-h-screen;
+  }
+}
+
+/* ---------- Shared utility classes (match admin app) ---------- */
+.stb-card {
+  background: var(--stb-surface);
+  border-radius: var(--stb-radius);
+  box-shadow: var(--stb-shadow);
+  padding: 20px;
+}
+
+.stb-muted {
+  color: var(--stb-text-muted);
+}
+
+.stb-soft {
+  color: var(--stb-text-soft);
+}
+
+.stb-bold {
+  font-weight: 700;
+}
+
+.stb-section-title {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0 0 12px;
+  color: var(--stb-text);
+}
+
+.error-message {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  margin: 8px 0;
+  color: #c62828;
+  background: #ffebee;
+  border-radius: var(--stb-radius-sm);
+  font-size: 14px;
+}
+
+/* ---------- Material density tweaks (match admin app) ---------- */
+.mat-mdc-card {
+  border-radius: var(--stb-radius) !important;
+  box-shadow: var(--stb-shadow) !important;
+  background: var(--stb-surface) !important;
+}
+
+.mat-toolbar.mat-primary {
+  background: var(--stb-surface);
+  color: var(--stb-text);
+}

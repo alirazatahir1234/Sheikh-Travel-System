@@ -21,7 +21,8 @@ public class GetPaymentByIdQueryHandler(IDbConnectionFactory dbFactory)
                 @"SELECT p.Id, p.BookingId, b.BookingNumber, c.FullName AS CustomerName,
                   r.Source + ' -> ' + r.Destination AS RouteName,
                   p.Amount, p.PaymentMethod, p.Status, p.PaymentDate,
-                  p.TransactionReference, p.Notes, p.CreatedAt, b.TotalAmount AS TotalBookingAmount
+                  p.TransactionReference, p.Notes, p.CreatedAt, b.TotalAmount AS TotalBookingAmount,
+                  p.ReceiptImageData
                   FROM Payments p
                   INNER JOIN Bookings b ON p.BookingId = b.Id
                   LEFT JOIN Customers c ON b.CustomerId = c.Id

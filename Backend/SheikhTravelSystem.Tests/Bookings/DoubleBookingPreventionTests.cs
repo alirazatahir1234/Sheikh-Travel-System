@@ -132,18 +132,20 @@ public class DoubleBookingPreventionTests
     public void BookingDto_ShouldHoldAllFields()
     {
         var pickupTime = DateTime.UtcNow.AddHours(2);
+        var createdAt = DateTime.UtcNow;
         var dto = new BookingDto(
-            Id: 1, CustomerId: 2, CustomerName: "Ali", RouteId: 3,
-            RouteDescription: "Karachi -> Lahore", VehicleId: 4, VehicleName: "Bus A",
+            Id: 1, BookingNumber: "BK-001", CustomerId: 2, CustomerName: "Ali", RouteId: 3,
+            RouteName: "Karachi -> Lahore", VehicleId: 4, VehicleName: "Bus A",
             DriverId: 5, DriverName: "Ahmed", PickupTime: pickupTime,
             DropoffTime: null, PassengerCount: 10, TotalAmount: 5000m,
-            Status: BookingStatus.Pending, Notes: null, CreatedAt: DateTime.UtcNow);
+            Status: BookingStatus.Pending, Notes: null, CreatedAt: createdAt);
 
         dto.Id.Should().Be(1);
+        dto.BookingNumber.Should().Be("BK-001");
         dto.CustomerId.Should().Be(2);
         dto.CustomerName.Should().Be("Ali");
         dto.RouteId.Should().Be(3);
-        dto.RouteDescription.Should().Be("Karachi -> Lahore");
+        dto.RouteName.Should().Be("Karachi -> Lahore");
         dto.VehicleId.Should().Be(4);
         dto.DriverId.Should().Be(5);
         dto.PickupTime.Should().Be(pickupTime);

@@ -7,7 +7,12 @@
       "request": "launch",
       "projectPath": "${workspaceFolder}/Backend/SheikhTravelSystem.API/SheikhTravelSystem.API.csproj",
       "env": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "ASPNETCORE_URLS": "http://127.0.0.1:5082"
+      },
+      "serverReadyAction": {
+        "action": "openExternally",
+        "pattern": "\\bNow listening on:\\s+(https?://\\S+)"
       }
     },
     {
@@ -31,11 +36,29 @@
     },
     {
       "name": "Launch Angular Frontend (http 4200)",
-      "type": "chrome",
+      "type": "pwa-chrome",
       "request": "launch",
       "preLaunchTask": "Run Angular (http 4200)",
       "url": "http://localhost:4200",
+      "runtimeExecutable": "/Applications/Brave Browser.app/Contents/MacOS/Brave Browser",
       "webRoot": "${workspaceFolder}/Frontend/sheikh-travel-frontend",
+      "sourceMaps": true,
+      "sourceMapPathOverrides": {
+        "webpack:/*": "${webRoot}/*",
+        "/./*": "${webRoot}/*",
+        "/src/*": "${webRoot}/*",
+        "/*": "*",
+        "/./~/*": "${webRoot}/node_modules/*"
+      }
+    },
+    {
+      "name": "Launch Customer Portal (http 4300)",
+      "type": "pwa-chrome",
+      "request": "launch",
+      "preLaunchTask": "Run Customer Portal (http 4300)",
+      "url": "http://localhost:4300",
+      "runtimeExecutable": "/Applications/Brave Browser.app/Contents/MacOS/Brave Browser",
+      "webRoot": "${workspaceFolder}/Frontend/sheikh-customer-portal",
       "sourceMaps": true,
       "sourceMapPathOverrides": {
         "webpack:/*": "${webRoot}/*",
@@ -50,10 +73,29 @@
     {
       "name": "Launch Full Stack (API + Angular)",
       "configurations": [
-        "Launch SheikhTravelSystem.API (CoreCLR, http 5082)",
+        "Launch SheikhTravelSystem.API (.NET)",
         "Launch Angular Frontend (http 4200)"
       ],
-      "stopAll": true,
+      "stopAll": false,
+      "preLaunchTask": "API: free port 5082 (stops any process on 5082, macOS/Linux)"
+    },
+    {
+      "name": "Launch Full Stack (API + Customer Portal)",
+      "configurations": [
+        "Launch SheikhTravelSystem.API (.NET)",
+        "Launch Customer Portal (http 4300)"
+      ],
+      "stopAll": false,
+      "preLaunchTask": "API: free port 5082 (stops any process on 5082, macOS/Linux)"
+    },
+    {
+      "name": "Launch Full Stack (API + Admin + Customer)",
+      "configurations": [
+        "Launch SheikhTravelSystem.API (.NET)",
+        "Launch Angular Frontend (http 4200)",
+        "Launch Customer Portal (http 4300)"
+      ],
+      "stopAll": false,
       "preLaunchTask": "API: free port 5082 (stops any process on 5082, macOS/Linux)"
     }
   ]

@@ -97,13 +97,15 @@ public class PaymentStatusLogicTests
             Amount: 3000m,
             PaymentMethod: "Cash",
             TransactionReference: "TXN123",
-            Notes: "Half payment");
+            Notes: "Half payment",
+            ReceiptImageData: null);
 
         dto.BookingId.Should().Be(5);
         dto.Amount.Should().Be(3000m);
         dto.PaymentMethod.Should().Be("Cash");
         dto.TransactionReference.Should().Be("TXN123");
         dto.Notes.Should().Be("Half payment");
+        dto.ReceiptImageData.Should().BeNull();
     }
 
     [Fact]
@@ -151,7 +153,7 @@ public class PaymentStatusLogicTests
     [Fact]
     public void CreatePaymentCommand_ShouldWrapDto()
     {
-        var dto = new CreatePaymentDto(1, 500m, "Cash", null, null);
+        var dto = new CreatePaymentDto(1, 500m, "Cash", null, null, null);
         var cmd = new CreatePaymentCommand(dto);
         cmd.Payment.Should().Be(dto);
     }

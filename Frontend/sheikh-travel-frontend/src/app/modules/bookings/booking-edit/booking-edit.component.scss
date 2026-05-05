@@ -8,6 +8,34 @@
 
 .loading { display: flex; justify-content: center; padding: 60px; }
 
+.edit-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  font-size: 14px;
+  line-height: 1.45;
+
+  mat-icon {
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+}
+
+.edit-notice-danger {
+  background: #ffebee;
+  color: #b71c1c;
+  border: 1px solid #ffcdd2;
+}
+
+.edit-notice-info {
+  background: #e3f2fd;
+  color: #0d47a1;
+  border: 1px solid #bbdefb;
+}
+
 .form-card {
   max-width: 800px;
 

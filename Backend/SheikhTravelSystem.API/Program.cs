@@ -39,7 +39,8 @@ builder.Services.AddAuthentication(options =>
         ValidIssuer = jwtSettings["Issuer"],
         ValidAudience = jwtSettings["Audience"],
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings["Secret"]!)),
-        ClockSkew = TimeSpan.Zero
+        // Small skew avoids noisy 401s when the access token just crossed expiry and the client is refreshing.
+        ClockSkew = TimeSpan.FromMinutes(2)
     };
 });
 
@@ -61,13 +62,26 @@ builder.Services.AddRateLimiter(options =>
         opt.Window = TimeSpan.FromMinutes(1);
         opt.QueueLimit = 0;
     });
+    options.AddFixedWindowLimiter("portal", opt =>
+    {
+        opt.PermitLimit = 40;
+        opt.Window = TimeSpan.FromMinutes(1);
+        opt.QueueLimit = 0;
+    });
 });
 
 // CORS
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAll", policy =>
-        policy.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());
+    options.AddPolicy("AllowFrontendClients", policy =>
+        policy
+            .WithOrigins(
+                "http://localhost:4200",
+                "http://127.0.0.1:4200",
+                "http://localhost:4300",
+                "http://127.0.0.1:4300")
+            .AllowAnyMethod()
+            .AllowAnyHeader());
 });
 
 // Controllers & Swagger
@@ -161,7 +175,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-app.UseCors("AllowAll");
+app.UseCors("AllowFrontendClients");
 app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();

@@ -8,6 +8,14 @@
 <div *ngIf="loading" class="loading"><mat-spinner diameter="32"></mat-spinner></div>
 
 <mat-card *ngIf="!loading" class="form-card">
+  <div *ngIf="editBlocked" class="edit-notice edit-notice-danger" role="alert">
+    <mat-icon>block</mat-icon>
+    <span>This booking is cancelled or completed and cannot be modified.</span>
+  </div>
+  <div *ngIf="notesOnlyMode && !editBlocked" class="edit-notice edit-notice-info" role="status">
+    <mat-icon>info</mat-icon>
+    <span>Only notes can be edited for this booking.</span>
+  </div>
   <form [formGroup]="form" (ngSubmit)="submit()">
     <div class="form-grid">
       <!-- Customer -->
@@ -89,7 +97,7 @@
     <div class="actions">
       <button mat-button type="button" [routerLink]="['/bookings', bookingId]">Cancel</button>
       <button mat-raised-button color="primary" type="submit"
-              [disabled]="submitting || form.invalid">
+              [disabled]="submitting || form.invalid || editBlocked">
         <mat-spinner *ngIf="submitting" diameter="16"></mat-spinner>
         Update Booking
       </button>

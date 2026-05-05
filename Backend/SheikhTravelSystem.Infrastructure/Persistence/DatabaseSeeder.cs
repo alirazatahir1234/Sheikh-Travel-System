@@ -257,6 +257,8 @@ public class DatabaseSeeder(
         {
             "IF COL_LENGTH('Routes', 'Name') IS NULL ALTER TABLE Routes ADD Name NVARCHAR(200) NULL;",
             "IF COL_LENGTH('Routes', 'EstimatedMinutes') IS NULL ALTER TABLE Routes ADD EstimatedMinutes INT NULL;",
+            "IF COL_LENGTH('Vehicles', 'Model') IS NULL ALTER TABLE Vehicles ADD Model NVARCHAR(100) NULL;",
+            "IF COL_LENGTH('Vehicles', 'Year') IS NULL ALTER TABLE Vehicles ADD [Year] INT NULL;",
             "IF COL_LENGTH('Bookings', 'CancellationReason') IS NULL ALTER TABLE Bookings ADD CancellationReason NVARCHAR(500) NULL;",
             @"IF OBJECT_ID('DriverAllowanceRules', 'U') IS NULL
               CREATE TABLE DriverAllowanceRules (
@@ -415,8 +417,8 @@ public class DatabaseSeeder(
         }
 
         await connection.ExecuteAsync(new CommandDefinition(
-            @"INSERT INTO Payments (BookingId, Amount, PaymentMethod, Status, PaymentDate, TransactionReference, Notes, CreatedAt, CreatedBy, IsDeleted)
-              VALUES (@BookingId, @Amount, @PaymentMethod, @Status, @PaymentDate, @TransactionReference, @Notes, @CreatedAt, 'seeder', 0);",
+            @"INSERT INTO Payments (BookingId, Amount, PaymentMethod, Status, PaymentDate, TransactionReference, Notes, ReceiptImageData, CreatedAt, CreatedBy, IsDeleted)
+              VALUES (@BookingId, @Amount, @PaymentMethod, @Status, @PaymentDate, @TransactionReference, @Notes, NULL, @CreatedAt, 'seeder', 0);",
             payments,
             cancellationToken: ct));
 

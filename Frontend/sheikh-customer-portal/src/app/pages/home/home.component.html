@@ -1,0 +1,195 @@
+<div class="landing">
+  <div class="aurora" aria-hidden="true"></div>
+
+  <header class="nav">
+    <a class="brand" routerLink="/">Sheikh Travel</a>
+    <nav class="nav-links">
+      <a routerLink="/" fragment="destinations">Destinations</a>
+      <a routerLink="/" fragment="stories">Stories</a>
+      <a routerLink="/book">Book a ride</a>
+      <a class="btn-ghost" routerLink="/" fragment="trip-planner">Trip planner</a>
+    </nav>
+  </header>
+
+  <section class="hero">
+    <div class="hero-copy">
+      <p class="eyebrow">Curated journeys · Private transport</p>
+      <h1>Go where the world feels <span class="gradient-text">most alive</span></h1>
+      <p class="lede">
+        Aurora-lit skies, coastlines that hum with color, and a concierge team that stitches every transfer into
+        one unforgettable arc.
+      </p>
+      <div class="hero-cta">
+        <a class="btn primary" routerLink="/book">Start your booking</a>
+        <a class="btn secondary" routerLink="/" fragment="trip-planner">Plan a custom route</a>
+      </div>
+      <dl class="hero-stats">
+        <div>
+          <dt>Destinations</dt>
+          <dd>40+</dd>
+        </div>
+        <div>
+          <dt>Avg. response</dt>
+          <dd>&lt; 15m</dd>
+        </div>
+        <div>
+          <dt>Travelers rated</dt>
+          <dd>4.9★</dd>
+        </div>
+      </dl>
+    </div>
+    <div class="hero-panel glass">
+      <p class="panel-label">Live booking pulse</p>
+      <div class="pulse-row">
+        <span class="dot"></span>
+        <span>3 routes trending this week</span>
+      </div>
+      <ul class="mini-itinerary">
+        <li>
+          <span class="chip" style="--c: #38bdf8">Sky</span>
+          <div>
+            <strong>Santorini caldera</strong>
+            <small>Private van · sunset slot held</small>
+          </div>
+        </li>
+        <li>
+          <span class="chip" style="--c: #f59e0b">Sun</span>
+          <div>
+            <strong>Marrakech medina</strong>
+            <small>Driver on standby · 2 stops</small>
+          </div>
+        </li>
+        <li>
+          <span class="chip" style="--c: #a78bfa">Night</span>
+          <div>
+            <strong>Kyoto bamboo grove</strong>
+            <small>Early access · quiet hours</small>
+          </div>
+        </li>
+      </ul>
+      <a class="panel-link" routerLink="/book">Open full booking preview →</a>
+    </div>
+  </section>
+
+  <section class="section" id="destinations">
+    <div class="section-head">
+      <h2>Destination showcase</h2>
+      <p>Vibrant palettes inspired by the places themselves — not stock travel beige.</p>
+    </div>
+    <div class="grid-dest">
+      @for (d of destinations; track d.name) {
+        <article class="dest-card" [style.--accent]="d.accent">
+          <div class="dest-media">
+            <img [src]="d.image" [alt]="d.name + ' scenery'" loading="lazy" width="900" height="600" />
+            <span class="dest-tag">{{ d.tag }}</span>
+          </div>
+          <div class="dest-body">
+            <h3>{{ d.name }}</h3>
+            <p class="muted">{{ d.region }}</p>
+            <div class="dest-foot">
+              <span class="price">{{ d.from }}</span>
+              <a routerLink="/book" class="link">Reserve transport</a>
+            </div>
+          </div>
+        </article>
+      }
+    </div>
+  </section>
+
+  <section class="section split" id="booking-preview">
+    <div>
+      <h2>Booking preview</h2>
+      <p class="muted wide">
+        Pick your route, vehicle, and pickup window — we surface transparent pricing before you commit. Real
+        availability, no bait-and-switch totals.
+      </p>
+      <ul class="checklist">
+        <li>Route-aware fuel estimates</li>
+        <li>Round-trip toggles in one flow</li>
+        <li>Instant booking number on submit</li>
+      </ul>
+      <a class="btn primary" routerLink="/book">Continue to live booking</a>
+    </div>
+    <div class="preview-card glass">
+      <div class="preview-header">
+        <span>Preview</span>
+        <span class="pill">Secure</span>
+      </div>
+      <div class="preview-rows">
+        <div>
+          <span class="label">Route</span>
+          <span class="value">City ↔ Airport express</span>
+        </div>
+        <div>
+          <span class="label">Vehicle</span>
+          <span class="value">Executive van · 6 seats</span>
+        </div>
+        <div>
+          <span class="label">Pickup</span>
+          <span class="value">Tomorrow · 06:40</span>
+        </div>
+        <div class="preview-total">
+          <span class="label">Estimated total</span>
+          <span class="value glow">$186.40</span>
+        </div>
+      </div>
+      <p class="preview-note">Actual totals are calculated from your selections in the booking tool.</p>
+    </div>
+  </section>
+
+  <section class="section" id="stories">
+    <div class="section-head">
+      <h2>Traveler testimonials</h2>
+      <p>Proof from people who chase color, comfort, and clarity.</p>
+    </div>
+    <div class="grid-testimonials">
+      @for (t of testimonials; track t.name) {
+        <figure class="quote-card glass">
+          <blockquote>“{{ t.quote }}”</blockquote>
+          <figcaption>
+            <span class="avatar">{{ t.initials }}</span>
+            <div>
+              <strong>{{ t.name }}</strong>
+              <span class="muted">{{ t.trip }}</span>
+            </div>
+          </figcaption>
+        </figure>
+      }
+    </div>
+  </section>
+
+  <section class="section cta-band" id="trip-planner">
+    <div class="cta-inner glass">
+      <div>
+        <p class="eyebrow">Trip planner</p>
+        <h2>Sketch dates, pace, and must-see stops — we build the transfers around you.</h2>
+        <p class="muted">
+          Tell us how you like to move: slow mornings, midnight flights, family gear, or surprise detours. We
+          reply with a routed plan and vehicle match.
+        </p>
+      </div>
+      <div class="planner-form">
+        <label>
+          <span>Where to first?</span>
+          <input type="text" placeholder="City, region, or vibe" />
+        </label>
+        <label>
+          <span>When?</span>
+          <input type="text" placeholder="Flexible in June / exact dates" />
+        </label>
+        <label>
+          <span>Party & pace</span>
+          <input type="text" placeholder="2 adults · relaxed · coastal" />
+        </label>
+        <a routerLink="/book" class="btn primary full">Request a tailored plan</a>
+        <p class="fineprint">This preview captures intent — finalize routes and pricing with our team.</p>
+      </div>
+    </div>
+  </section>
+
+  <footer class="footer">
+    <span>© {{ year }} Sheikh Travel</span>
+    <a routerLink="/book">Book</a>
+    <a routerLink="/" fragment="destinations">Explore</a>
+  </footer>
+</div>

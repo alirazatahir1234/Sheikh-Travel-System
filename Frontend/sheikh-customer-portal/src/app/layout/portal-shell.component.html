@@ -1,0 +1,113 @@
+<div class="stb-shell">
+  <aside class="stb-rail" aria-label="Main navigation">
+    <div
+      class="stb-brand"
+      routerLink="/dashboard"
+      matTooltip="Sheikh Travel · Customer portal"
+      matTooltipPosition="right"
+    >
+      <div class="logo-circle"><mat-icon>flight_takeoff</mat-icon></div>
+    </div>
+
+    <nav class="stb-rail-nav">
+      @for (item of navItems; track item.route) {
+        <a
+          [routerLink]="item.route"
+          routerLinkActive="active"
+          [routerLinkActiveOptions]="{ exact: item.exact }"
+          [matTooltip]="item.label"
+          matTooltipPosition="right"
+          class="stb-rail-link"
+        >
+          <mat-icon>{{ item.icon }}</mat-icon>
+        </a>
+      }
+    </nav>
+
+    <div class="stb-rail-foot">
+      <a
+        routerLink="/help"
+        routerLinkActive="active"
+        [routerLinkActiveOptions]="{ exact: true }"
+        class="stb-rail-link"
+        matTooltip="API &amp; help"
+        matTooltipPosition="right"
+      >
+        <mat-icon>description</mat-icon>
+      </a>
+      <a
+        routerLink="/profile"
+        routerLinkActive="active"
+        [routerLinkActiveOptions]="{ exact: true }"
+        class="stb-rail-link"
+        matTooltip="Profile"
+        matTooltipPosition="right"
+      >
+        <mat-icon>account_circle</mat-icon>
+      </a>
+    </div>
+  </aside>
+
+  <section class="stb-main">
+    <header class="stb-topbar">
+      <div class="stb-search">
+        <mat-icon>search</mat-icon>
+        <input
+          type="text"
+          placeholder="Search your bookings, payments…"
+          [(ngModel)]="searchQuery"
+          (keydown.enter)="onSearchEnter()"
+          autocomplete="off"
+        />
+      </div>
+
+      @if (timeDisplay(); as t) {
+        <div class="stb-local-time">
+          <mat-icon class="stb-local-time-icon" aria-hidden="true">schedule</mat-icon>
+          <div class="stb-local-time-text">
+            <span class="stb-local-time-clock">{{ t.time }}</span>
+            <span class="stb-local-time-sub">{{ t.sub }}</span>
+          </div>
+        </div>
+      }
+
+      <div class="stb-topbar-actions">
+        <a mat-icon-button class="stb-icon-btn stb-topbar-help" matTooltip="Help" routerLink="/help">
+          <mat-icon>help_outline</mat-icon>
+        </a>
+
+        @if (session.hasSession()) {
+          <button mat-button type="button" [matMenuTriggerFor]="userMenu" class="stb-user-chip">
+            <div class="avatar">{{ initials(session.fullName()) }}</div>
+            <div class="user-meta">
+              <div class="name">{{ session.fullName() || 'Guest' }}</div>
+              <div class="role">Customer</div>
+            </div>
+            <mat-icon>expand_more</mat-icon>
+          </button>
+          <mat-menu #userMenu="matMenu" xPosition="before">
+            <button mat-menu-item type="button" routerLink="/profile">
+              <mat-icon>account_circle</mat-icon>
+              <span>Profile</span>
+            </button>
+            <button mat-menu-item type="button" routerLink="/bookings">
+              <mat-icon>confirmation_number</mat-icon>
+              <span>My bookings</span>
+            </button>
+            <mat-divider />
+            <button mat-menu-item type="button" (click)="clearSession()">
+              <mat-icon>logout</mat-icon>
+              <span>Clear session</span>
+            </button>
+          </mat-menu>
+        } @else {
+          <a mat-stroked-button routerLink="/profile">Sign in</a>
+        }
+      </div>
+    </header>
+
+    <main class="stb-content">
+      <router-outlet />
+    </main>
+  </section>
+</div>

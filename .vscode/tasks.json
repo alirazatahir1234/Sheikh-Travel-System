@@ -64,9 +64,32 @@
     {
       "label": "Run Angular (http 4200)",
       "type": "shell",
-      "command": "npm start",
+      "command": "kill -9 $(lsof -ti :4200) 2>/dev/null; npm start",
       "options": {
         "cwd": "${workspaceFolder}/Frontend/sheikh-travel-frontend"
+      },
+      "isBackground": true,
+      "problemMatcher": {
+        "owner": "angular",
+        "pattern": { "regexp": "^$" },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": ".",
+          "endsPattern": "Application bundle generation complete|bundle generation complete"
+        }
+      },
+      "group": "none",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    },
+    {
+      "label": "Run Customer Portal (http 4300)",
+      "type": "shell",
+      "command": "kill -9 $(lsof -ti :4300) 2>/dev/null; npm start",
+      "options": {
+        "cwd": "${workspaceFolder}/Frontend/sheikh-customer-portal"
       },
       "isBackground": true,
       "problemMatcher": {

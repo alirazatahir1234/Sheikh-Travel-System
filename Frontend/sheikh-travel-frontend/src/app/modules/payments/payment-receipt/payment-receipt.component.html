@@ -94,6 +94,12 @@
     </div>
   </div>
 
+  <div class="receipt-photo-block" *ngIf="payment.receiptImageData">
+    <div class="receipt-divider"></div>
+    <p class="receipt-photo-title">Payment proof attachment</p>
+    <img class="receipt-photo-img" [src]="payment.receiptImageData" alt="Payment proof">
+  </div>
+
   <div class="receipt-footer">
     <p>Thank you for choosing Sheikh Travel!</p>
     <p class="footer-sub">This is a computer-generated receipt and does not require a signature.</p>

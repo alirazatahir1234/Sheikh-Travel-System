@@ -1,0 +1,52 @@
+.stb-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 14px 18px;
+  border-radius: 10px;
+  margin-bottom: 20px;
+  border: 1px solid transparent;
+}
+
+.stb-banner-icon {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  font-size: 28px;
+}
+
+.stb-banner-title {
+  font-weight: 700;
+  font-size: 1.05rem;
+  margin-bottom: 4px;
+}
+
+.stb-banner-subtitle {
+  font-size: 0.9rem;
+  line-height: 1.45;
+  opacity: 0.95;
+}
+
+.stb-banner--success {
+  background: #e8f5e9;
+  border-color: #a5d6a7;
+  color: #1b5e20;
+}
+
+.stb-banner--warning {
+  background: #fff8e1;
+  border-color: #ffe082;
+  color: #e65100;
+}
+
+.stb-banner--danger {
+  background: #ffebee;
+  border-color: #ef9a9a;
+  color: #b71c1c;
+}
+
+.stb-banner--info {
+  background: #e3f2fd;
+  border-color: #90caf9;
+  color: #0d47a1;
+}

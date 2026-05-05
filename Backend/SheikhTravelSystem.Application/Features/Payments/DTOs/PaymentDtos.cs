@@ -12,11 +12,13 @@ public record PaymentDetailDto(
     string? RouteName, decimal Amount, string PaymentMethod,
     PaymentStatus Status, DateTime PaymentDate,
     string? TransactionReference, string? Notes, DateTime CreatedAt,
-    decimal TotalBookingAmount);
+    decimal TotalBookingAmount,
+    string? ReceiptImageData);
 
 public record CreatePaymentDto(
     int BookingId, decimal Amount, string PaymentMethod,
-    string? TransactionReference, string? Notes);
+    string? TransactionReference, string? Notes,
+    string? ReceiptImageData);
 
 public record PaymentReportDto(
     decimal TotalReceived, decimal TotalPending, int TotalTransactions,

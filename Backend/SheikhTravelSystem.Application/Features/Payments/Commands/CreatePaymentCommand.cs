@@ -73,14 +73,16 @@ public class CreatePaymentCommandHandler(IDbConnectionFactory dbFactory, INotifi
 
         var id = await connection.ExecuteScalarAsync<int>(
             new CommandDefinition(
-                @"INSERT INTO Payments (BookingId, Amount, PaymentMethod, Status, PaymentDate, TransactionReference, Notes, CreatedAt, IsDeleted)
-                  VALUES (@BookingId, @Amount, @PaymentMethod, @Status, @PaymentDate, @TransactionReference, @Notes, @CreatedAt, 0);
+                @"INSERT INTO Payments (BookingId, Amount, PaymentMethod, Status, PaymentDate, TransactionReference, Notes, ReceiptImageData, CreatedAt, IsDeleted)
+                  VALUES (@BookingId, @Amount, @PaymentMethod, @Status, @PaymentDate, @TransactionReference, @Notes, @ReceiptImageData, @CreatedAt, 0);
                   SELECT SCOPE_IDENTITY();",
                 new
                 {
                     dto.BookingId, dto.Amount, dto.PaymentMethod,
                     Status = (int)paymentStatus, PaymentDate = DateTime.UtcNow,
-                    dto.TransactionReference, dto.Notes, CreatedAt = DateTime.UtcNow
+                    dto.TransactionReference, dto.Notes,
+                    dto.ReceiptImageData,
+                    CreatedAt = DateTime.UtcNow
                 },
                 cancellationToken: cancellationToken));
 

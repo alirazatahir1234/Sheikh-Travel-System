@@ -40,7 +40,14 @@ export class NotificationService {
       return of(this.emptyPaged(page, pageSize));
     }
     const params = new HttpParams().set('page', page).set('pageSize', pageSize);
-    return this.http.get<PagedResult<Notification>>(this.base, { params });
+    return this.http.get<PagedResult<Notification>>(this.base, { params }).pipe(
+      catchError(err => {
+        if (err instanceof HttpErrorResponse && err.status === 401) {
+          this.onUnauthorized(err);
+        }
+        return of(this.emptyPaged(page, pageSize));
+      })
+    );
   }
 
   markAsRead(ids?: number[]): Observable<boolean> {
@@ -65,12 +72,7 @@ export class NotificationService {
       this.unreadCount$.next(0);
       return;
     }
-    this.getAll(1, 50).pipe(
-      catchError(err => {
-        this.onUnauthorized(err);
-        return of(this.emptyPaged(1, 50));
-      })
-    ).subscribe(res => {
+    this.getAll(1, 50).subscribe(res => {
       this.notifications$.next(res.items);
       this.unreadCount$.next(res.items.filter(n => !n.isRead).length);
     });
@@ -101,10 +103,6 @@ export class NotificationService {
           return of(this.emptyPaged(1, 50));
         }
         return this.getAll(1, 50);
-      }),
-      catchError(err => {
-        this.onUnauthorized(err);
-        return of(this.emptyPaged(1, 50));
       })
     ).subscribe(res => {
       this.notifications$.next(res.items);

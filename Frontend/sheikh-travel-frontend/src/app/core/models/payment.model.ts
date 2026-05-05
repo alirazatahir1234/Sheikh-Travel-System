@@ -27,6 +27,8 @@ export interface PaymentDetail {
   paymentDate: string;
   createdAt: string;
   totalBookingAmount: number;
+  /** Data URL (e.g. JPEG) for optional payment proof (e.g. bank transfer screenshot). */
+  receiptImageData?: string | null;
 }
 
 export interface CreatePaymentRequest {
@@ -35,6 +37,8 @@ export interface CreatePaymentRequest {
   paymentMethod: PaymentMethod;
   transactionReference?: string;
   notes?: string;
+  /** Optional compressed image (data URL), e.g. bank transfer proof. */
+  receiptImageData?: string | null;
 }
 
 export interface UpdatePaymentStatusRequest {

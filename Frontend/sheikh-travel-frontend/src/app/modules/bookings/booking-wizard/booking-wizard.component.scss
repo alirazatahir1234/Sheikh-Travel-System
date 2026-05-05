@@ -423,6 +423,172 @@ mat-form-field.calculated-field {
   gap: 0 12px;
 }
 
+.payment-method-field {
+  grid-column: 1 / -1;
+  padding: 12px 14px 14px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  background: #fafafa;
+}
+
+.payment-method-heading {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.6);
+  margin-bottom: 10px;
+  letter-spacing: 0.02em;
+}
+
+.req-star {
+  color: #c62828;
+  text-decoration: none;
+  font-weight: 700;
+}
+
+.payment-method-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+  align-items: center;
+}
+
+.payment-method-radio {
+  margin: 0;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.bank-transfer-receipt-strip {
+  grid-column: 1 / -1;
+  margin-top: 4px;
+}
+
+.bank-transfer-receipt-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.6);
+  margin-bottom: 8px;
+}
+
+.bank-transfer-receipt-sub {
+  margin: 0 0 10px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: rgba(0, 0, 0, 0.55);
+}
+
+.optional-tag {
+  font-weight: 500;
+  color: rgba(0, 0, 0, 0.45);
+}
+
+.bank-transfer-receipt-drop {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 56px;
+  padding: 10px 14px;
+  border: 2px dashed #00897b;
+  border-radius: 8px;
+  background: rgba(0, 137, 123, 0.06);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+
+  mat-icon {
+    color: #00695c;
+  }
+
+  &:hover:not(.is-busy) {
+    background: rgba(0, 137, 123, 0.1);
+    border-color: #00695c;
+  }
+
+  &:focus-visible {
+    outline: 2px solid #00897b;
+    outline-offset: 2px;
+  }
+
+  &.is-busy {
+    cursor: wait;
+    opacity: 0.85;
+  }
+}
+
+.bank-transfer-receipt-hint {
+  font-size: 13px;
+  color: rgba(0, 0, 0, 0.7);
+}
+
+.bank-transfer-receipt-preview {
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.bank-transfer-receipt-preview-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.bank-transfer-receipt-filename {
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.65);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bank-transfer-receipt-img {
+  display: block;
+  width: 100%;
+  max-height: 220px;
+  object-fit: contain;
+  border-radius: 6px;
+  background: #f5f5f5;
+}
+
+.bank-transfer-receipt-ocr {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+  font-size: 13px;
+  color: rgba(0, 0, 0, 0.65);
+}
+
+.bank-transfer-receipt-pdf-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 0 0;
+  font-size: 13px;
+  color: rgba(0, 0, 0, 0.7);
+  line-height: 1.4;
+
+  .pdf-icon {
+    color: #c62828;
+    flex-shrink: 0;
+  }
+}
+
 @media (max-width: 900px) {
   .payment-plan-grid { grid-template-columns: 1fr; }
   .payment-fields { grid-template-columns: 1fr; }

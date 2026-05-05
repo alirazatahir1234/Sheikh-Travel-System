@@ -3,13 +3,17 @@ import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ActivatedRoute, Router } from '@angular/router';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { forkJoin } from 'rxjs';
+import { forkJoin, of } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 import { BookingService } from '../../../core/services/booking.service';
 import { RouteService } from '../../../core/services/route.service';
 import { CustomerService } from '../../../core/services/customer.service';
 import { VehicleService } from '../../../core/services/vehicle.service';
 import { DriverService } from '../../../core/services/driver.service';
+import { PaymentService } from '../../../core/services/payment.service';
 import { Booking, UpdateBookingDto } from '../../../core/models/booking.model';
+import { Payment } from '../../../core/models/payment.model';
+import { calculateLedgerRemaining } from '../../../shared/utils/booking-ledger.util';
 import { Route } from '../../../core/models/route.model';
 import { Customer } from '../../../core/models/customer.model';
 import { Vehicle } from '../../../core/models/vehicle.model';
@@ -26,6 +30,12 @@ export class BookingEditComponent implements OnInit {
   submitting = false;
   bookingId: number | null = null;
   booking: Booking | null = null;
+  /** Ledger total (Paid + PartiallyPaid) for edit-mode rules. */
+  totalPaid = 0;
+  /** Cancelled / completed — no edits. */
+  editBlocked = false;
+  /** Confirmed (paid up) or in progress — notes only. */
+  notesOnlyMode = false;
 
   customers: Customer[] = [];
   routes: Route[] = [];
@@ -41,6 +51,7 @@ export class BookingEditComponent implements OnInit {
     private customerService: CustomerService,
     private vehicleService: VehicleService,
     private driverService: DriverService,
+    private paymentService: PaymentService,
     private snackBar: MatSnackBar
   ) {
     this.form = this.fb.group({
@@ -60,13 +71,17 @@ export class BookingEditComponent implements OnInit {
 
     forkJoin({
       booking: this.bookingService.getById(this.bookingId),
+      payments: this.paymentService.getByBookingId(this.bookingId).pipe(catchError(() => of([] as Payment[]))),
       customers: this.customerService.getAll(1, 500),
       routes: this.routeService.getAll(1, 500),
       vehicles: this.vehicleService.getAll(1, 500),
       drivers: this.driverService.getAll(1, 500)
     }).subscribe({
-      next: ({ booking, customers, routes, vehicles, drivers }) => {
+      next: ({ booking, payments, customers, routes, vehicles, drivers }) => {
         this.booking = booking;
+        this.totalPaid = payments
+          .filter(p => p.status === 'Paid' || p.status === 'PartiallyPaid')
+          .reduce((sum, p) => sum + p.amount, 0);
         this.customers = customers.items;
         this.routes = routes.items;
         this.vehicles = vehicles.items;
@@ -84,6 +99,7 @@ export class BookingEditComponent implements OnInit {
           notes: booking.notes ?? ''
         });
 
+        this.applyEditModeRules();
         this.loading = false;
       },
       error: () => {
@@ -94,14 +110,40 @@ export class BookingEditComponent implements OnInit {
     });
   }
 
+  private applyEditModeRules(): void {
+    if (!this.booking) return;
+
+    this.editBlocked = false;
+    this.notesOnlyMode = false;
+    this.form.enable();
+
+    if (this.booking.status === 'Cancelled' || this.booking.status === 'Completed') {
+      this.editBlocked = true;
+      this.form.disable();
+      return;
+    }
+
+    const balance = calculateLedgerRemaining(this.booking.totalAmount, this.totalPaid);
+    const paidUp = balance <= 0.009;
+
+    if (this.booking.status === 'Started' || (this.booking.status === 'Confirmed' && paidUp)) {
+      this.notesOnlyMode = true;
+      ['customerId', 'routeId', 'pickupTime', 'passengerCount', 'totalAmount', 'vehicleId', 'driverId'].forEach(name => {
+        this.form.get(name)?.disable({ emitEvent: false });
+      });
+      this.form.get('notes')?.enable({ emitEvent: false });
+    }
+  }
+
   submit(): void {
-    if (this.form.invalid || !this.bookingId) {
+    if (this.editBlocked || !this.bookingId) return;
+    if (this.form.invalid) {
       this.form.markAllAsTouched();
       return;
     }
 
     this.submitting = true;
-    const f = this.form.value;
+    const f = this.form.getRawValue();
 
     const dto: UpdateBookingDto = {
       customerId: f.customerId,

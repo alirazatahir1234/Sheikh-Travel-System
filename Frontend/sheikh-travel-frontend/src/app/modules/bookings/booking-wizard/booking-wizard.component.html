@@ -504,12 +504,51 @@
           </stb-payment-plan-summary>
 
           <div class="payment-fields" *ngIf="step3Form.value.paymentPlan !== 'PAY_LATER'">
-            <mat-form-field appearance="outline">
-              <mat-label>Payment Method</mat-label>
-              <mat-select formControlName="paymentMethod">
-                <mat-option *ngFor="let m of paymentMethods" [value]="m">{{ m }}</mat-option>
-              </mat-select>
-            </mat-form-field>
+            <div class="payment-method-field">
+              <span class="payment-method-heading">Payment method <abbr title="required" class="req-star">*</abbr></span>
+              <mat-radio-group formControlName="paymentMethod" class="payment-method-group" color="primary">
+                <mat-radio-button *ngFor="let m of paymentMethods" [value]="m" class="payment-method-radio">
+                  {{ paymentMethodLabel(m) }}
+                </mat-radio-button>
+              </mat-radio-group>
+            </div>
+
+            <div class="bank-transfer-receipt-strip" *ngIf="step3Form.value.paymentMethod === 'BankTransfer'">
+              <span class="bank-transfer-receipt-label">Transfer proof <span class="optional-tag">optional</span></span>
+              <p class="bank-transfer-receipt-sub">We try to read the <strong>transaction reference</strong> from the file name and from the slip image (OCR).</p>
+              <input #bankTransferReceiptFileInput type="file" accept="image/jpeg,image/png,image/webp,application/pdf" class="visually-hidden"
+                     (change)="onBankTransferReceiptFileSelected($event)">
+              <div class="bank-transfer-receipt-drop"
+                   role="button" tabindex="0"
+                   [class.is-busy]="bankTransferReceiptCompressing || bankTransferReceiptOcrBusy"
+                   (click)="!bankTransferReceiptCompressing && !bankTransferReceiptOcrBusy && bankTransferReceiptFileInput.click()"
+                   (keydown.enter)="!bankTransferReceiptCompressing && !bankTransferReceiptOcrBusy && bankTransferReceiptFileInput.click(); $event.preventDefault()"
+                   (keydown.space)="$event.preventDefault(); !bankTransferReceiptCompressing && !bankTransferReceiptOcrBusy && bankTransferReceiptFileInput.click()"
+                   (dragover)="$event.preventDefault()"
+                   (drop)="onBankTransferReceiptDrop($event)">
+                <mat-spinner *ngIf="bankTransferReceiptCompressing" diameter="28"></mat-spinner>
+                <ng-container *ngIf="!bankTransferReceiptCompressing">
+                  <mat-icon>upload_file</mat-icon>
+                  <span *ngIf="!bankTransferReceiptDataUrl && !bankTransferReceiptIsPdf" class="bank-transfer-receipt-hint">Tap or drop a screenshot, photo, or PDF receipt</span>
+                  <span *ngIf="bankTransferReceiptDataUrl || bankTransferReceiptIsPdf" class="bank-transfer-receipt-hint">Drop another file to replace</span>
+                </ng-container>
+              </div>
+              <div class="bank-transfer-receipt-ocr" *ngIf="bankTransferReceiptOcrBusy">
+                <mat-spinner diameter="20"></mat-spinner>
+                <span>Scanning slip for transaction reference…</span>
+              </div>
+              <div class="bank-transfer-receipt-preview" *ngIf="(bankTransferReceiptDataUrl || bankTransferReceiptIsPdf) && !bankTransferReceiptCompressing">
+                <div class="bank-transfer-receipt-preview-head">
+                  <span class="bank-transfer-receipt-filename">{{ bankTransferReceiptFileName }}</span>
+                  <button mat-stroked-button type="button" color="warn" (click)="clearBankTransferReceiptPreview()">Remove</button>
+                </div>
+                <img *ngIf="bankTransferReceiptDataUrl" [src]="bankTransferReceiptDataUrl" alt="Bank transfer proof preview" class="bank-transfer-receipt-img">
+                <div *ngIf="bankTransferReceiptIsPdf && !bankTransferReceiptDataUrl" class="bank-transfer-receipt-pdf-card">
+                  <mat-icon class="pdf-icon">picture_as_pdf</mat-icon>
+                  <span>PDF attached — reference is taken from the file name when it matches common patterns.</span>
+                </div>
+              </div>
+            </div>
 
             <mat-form-field appearance="outline">
               <mat-label>Payment Method Name</mat-label>

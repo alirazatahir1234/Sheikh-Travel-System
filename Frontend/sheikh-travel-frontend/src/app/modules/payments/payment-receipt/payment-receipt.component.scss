@@ -85,6 +85,27 @@
 .footer-sub { font-size: 0.75rem; color: #999; margin: 4px 0; }
 .footer-date { font-size: 0.75rem; color: #bbb; margin-top: 8px; }
 
+.receipt-photo-block {
+  margin-top: 8px;
+}
+
+.receipt-photo-title {
+  margin: 0 0 10px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.receipt-photo-img {
+  display: block;
+  max-width: 100%;
+  max-height: 280px;
+  object-fit: contain;
+  border-radius: 6px;
+  border: 1px solid #e0e0e0;
+  background: #fafafa;
+}
+
 /* ── Print styles ── */
 @media print {
   .screen-controls { display: none !important; }
