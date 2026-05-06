@@ -28,17 +28,53 @@ public class GetNotificationsQueryHandler(IDbConnectionFactory dbFactory)
 
         var notifications = await connection.QueryAsync<NotificationDto>(
             new CommandDefinition(
-                @"SELECT Id, UserId, Title, Message, Type, IsRead, ReferenceId, CreatedAt
-                  FROM Notifications
-                  WHERE (UserId = @UserId OR UserId IS NULL) AND IsDeleted = 0
-                  ORDER BY CreatedAt DESC
-                  OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY",
+                @"IF COL_LENGTH('Notifications', 'IsDeleted') IS NOT NULL
+                  BEGIN
+                    SELECT
+                        Id,
+                        UserId,
+                        Title,
+                        [Message] AS [Message],
+                        CASE WHEN COL_LENGTH('Notifications', 'Type') IS NOT NULL THEN [Type] ELSE 0 END AS [Type],
+                        CASE WHEN COL_LENGTH('Notifications', 'IsRead') IS NOT NULL THEN [IsRead] ELSE CAST(0 AS BIT) END AS [IsRead],
+                        CASE WHEN COL_LENGTH('Notifications', 'ReferenceId') IS NOT NULL THEN [ReferenceId] ELSE NULL END AS [ReferenceId],
+                        CreatedAt
+                    FROM Notifications
+                    WHERE (UserId = @UserId OR UserId IS NULL) AND IsDeleted = 0
+                    ORDER BY CreatedAt DESC
+                    OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY;
+                  END
+                  ELSE
+                  BEGIN
+                    SELECT
+                        Id,
+                        UserId,
+                        Title,
+                        [Message] AS [Message],
+                        CASE WHEN COL_LENGTH('Notifications', 'Type') IS NOT NULL THEN [Type] ELSE 0 END AS [Type],
+                        CASE WHEN COL_LENGTH('Notifications', 'IsRead') IS NOT NULL THEN [IsRead] ELSE CAST(0 AS BIT) END AS [IsRead],
+                        CASE WHEN COL_LENGTH('Notifications', 'ReferenceId') IS NOT NULL THEN [ReferenceId] ELSE NULL END AS [ReferenceId],
+                        CreatedAt
+                    FROM Notifications
+                    WHERE (UserId = @UserId OR UserId IS NULL)
+                    ORDER BY CreatedAt DESC
+                    OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY;
+                  END",
                 new { request.UserId, Offset = offset, request.PageSize },
                 cancellationToken: cancellationToken));
 
         var totalCount = await connection.ExecuteScalarAsync<int>(
             new CommandDefinition(
-                "SELECT COUNT(*) FROM Notifications WHERE (UserId = @UserId OR UserId IS NULL) AND IsDeleted = 0",
+                @"IF COL_LENGTH('Notifications', 'IsDeleted') IS NOT NULL
+                  BEGIN
+                    SELECT COUNT(*) FROM Notifications
+                    WHERE (UserId = @UserId OR UserId IS NULL) AND IsDeleted = 0;
+                  END
+                  ELSE
+                  BEGIN
+                    SELECT COUNT(*) FROM Notifications
+                    WHERE (UserId = @UserId OR UserId IS NULL);
+                  END",
                 new { request.UserId },
                 cancellationToken: cancellationToken));
 
