@@ -417,8 +417,16 @@ public class DatabaseSeeder(
         }
 
         await connection.ExecuteAsync(new CommandDefinition(
-            @"INSERT INTO Payments (BookingId, Amount, PaymentMethod, Status, PaymentDate, TransactionReference, Notes, ReceiptImageData, CreatedAt, CreatedBy, IsDeleted)
-              VALUES (@BookingId, @Amount, @PaymentMethod, @Status, @PaymentDate, @TransactionReference, @Notes, NULL, @CreatedAt, 'seeder', 0);",
+            @"IF COL_LENGTH('Payments', 'ReceiptImageData') IS NOT NULL
+              BEGIN
+                INSERT INTO Payments (BookingId, Amount, PaymentMethod, Status, PaymentDate, TransactionReference, Notes, ReceiptImageData, CreatedAt, CreatedBy, IsDeleted)
+                VALUES (@BookingId, @Amount, @PaymentMethod, @Status, @PaymentDate, @TransactionReference, @Notes, NULL, @CreatedAt, 'seeder', 0);
+              END
+              ELSE
+              BEGIN
+                INSERT INTO Payments (BookingId, Amount, PaymentMethod, Status, PaymentDate, TransactionReference, Notes, CreatedAt, CreatedBy, IsDeleted)
+                VALUES (@BookingId, @Amount, @PaymentMethod, @Status, @PaymentDate, @TransactionReference, @Notes, @CreatedAt, 'seeder', 0);
+              END",
             payments,
             cancellationToken: ct));
 
