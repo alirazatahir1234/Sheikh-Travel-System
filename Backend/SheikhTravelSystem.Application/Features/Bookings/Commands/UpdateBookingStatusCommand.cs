@@ -64,15 +64,31 @@ public class UpdateBookingStatusCommandHandler(IDbConnectionFactory dbFactory, I
 
         await connection.ExecuteAsync(
             new CommandDefinition(
-                @"UPDATE Bookings SET Status = @Status, UpdatedAt = @UpdatedAt,
-                  CancellationReason = @CancellationReason,
-                  DropoffTime = CASE WHEN @Status = @CompletedStatus THEN @Now ELSE DropoffTime END
-                  WHERE Id = @Id",
+                @"IF COL_LENGTH('Bookings', 'CancellationReason') IS NOT NULL
+                  BEGIN
+                    UPDATE Bookings
+                    SET Status = @Status,
+                        UpdatedAt = @UpdatedAt,
+                        CancellationReason = @CancellationReason,
+                        DropoffTime = CASE WHEN @Status = @CompletedStatus THEN @Now ELSE DropoffTime END
+                    WHERE Id = @Id;
+                  END
+                  ELSE
+                  BEGIN
+                    UPDATE Bookings
+                    SET Status = @Status,
+                        UpdatedAt = @UpdatedAt,
+                        DropoffTime = CASE WHEN @Status = @CompletedStatus THEN @Now ELSE DropoffTime END
+                    WHERE Id = @Id;
+                  END",
                 new
                 {
-                    Status = (int)request.Status, UpdatedAt = DateTime.UtcNow,
+                    Status = (int)request.Status,
+                    UpdatedAt = DateTime.UtcNow,
                     CancellationReason = request.CancellationReason,
-                    CompletedStatus = (int)BookingStatus.Completed, Now = DateTime.UtcNow, request.Id
+                    CompletedStatus = (int)BookingStatus.Completed,
+                    Now = DateTime.UtcNow,
+                    request.Id
                 },
                 cancellationToken: cancellationToken));
 
