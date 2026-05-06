@@ -22,7 +22,7 @@ public class GetPaymentByIdQueryHandler(IDbConnectionFactory dbFactory)
                   r.Source + ' -> ' + r.Destination AS RouteName,
                   p.Amount, p.PaymentMethod, p.Status, p.PaymentDate,
                   p.TransactionReference, p.Notes, p.CreatedAt, b.TotalAmount AS TotalBookingAmount,
-                  CASE WHEN COL_LENGTH('Payments', 'ReceiptImageData') IS NOT NULL THEN p.ReceiptImageData ELSE NULL END AS ReceiptImageData
+                  p.ReceiptImageData
                   FROM Payments p
                   INNER JOIN Bookings b ON p.BookingId = b.Id
                   LEFT JOIN Customers c ON b.CustomerId = c.Id

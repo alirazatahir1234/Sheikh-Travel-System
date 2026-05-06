@@ -73,16 +73,8 @@ public class CreatePaymentCommandHandler(IDbConnectionFactory dbFactory, INotifi
 
         var id = await connection.ExecuteScalarAsync<int>(
             new CommandDefinition(
-                @"IF COL_LENGTH('Payments', 'ReceiptImageData') IS NOT NULL
-                  BEGIN
-                    INSERT INTO Payments (BookingId, Amount, PaymentMethod, Status, PaymentDate, TransactionReference, Notes, ReceiptImageData, CreatedAt, IsDeleted)
-                    VALUES (@BookingId, @Amount, @PaymentMethod, @Status, @PaymentDate, @TransactionReference, @Notes, @ReceiptImageData, @CreatedAt, 0);
-                  END
-                  ELSE
-                  BEGIN
-                    INSERT INTO Payments (BookingId, Amount, PaymentMethod, Status, PaymentDate, TransactionReference, Notes, CreatedAt, IsDeleted)
-                    VALUES (@BookingId, @Amount, @PaymentMethod, @Status, @PaymentDate, @TransactionReference, @Notes, @CreatedAt, 0);
-                  END
+                @"INSERT INTO Payments (BookingId, Amount, PaymentMethod, Status, PaymentDate, TransactionReference, Notes, ReceiptImageData, CreatedAt, IsDeleted)
+                  VALUES (@BookingId, @Amount, @PaymentMethod, @Status, @PaymentDate, @TransactionReference, @Notes, @ReceiptImageData, @CreatedAt, 0);
                   SELECT SCOPE_IDENTITY();",
                 new
                 {
