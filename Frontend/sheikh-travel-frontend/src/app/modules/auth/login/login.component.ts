@@ -25,7 +25,7 @@ export class LoginComponent {
     // Pre-fill with admin credentials for easy access
     this.form = this.fb.group({
       email: ['admin@sheikhtravel.com', [Validators.required, Validators.email]],
-      password: ['Admin@123', Validators.required]
+      password: ['Pass@123', Validators.required]
     });
 
     if (this.auth.isLoggedIn()) {
