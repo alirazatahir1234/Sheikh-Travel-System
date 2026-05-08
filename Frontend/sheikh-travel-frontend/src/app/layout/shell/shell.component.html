@@ -1,8 +1,27 @@
 <div class="stb-shell">
   <!-- Rail sidebar -->
-  <aside class="stb-rail">
-    <div class="stb-brand" routerLink="/dashboard" matTooltip="Sheikh Travel" matTooltipPosition="right">
-      <div class="logo-circle"><mat-icon>flight_takeoff</mat-icon></div>
+  <aside class="stb-rail"
+         [class.is-expanded]="sidebarExpanded"
+         [class.is-pinned]="isSidebarPinned"
+         (mouseenter)="onSidebarEnter()"
+         (mouseleave)="onSidebarLeave()">
+    <div class="stb-brand-row">
+      <div class="stb-brand" routerLink="/dashboard" matTooltip="Sheikh Travel" [matTooltipDisabled]="sidebarExpanded" matTooltipPosition="right">
+        <div class="logo-circle"><mat-icon>flight_takeoff</mat-icon></div>
+        <div class="brand-text" *ngIf="sidebarExpanded">
+          <div class="brand-title">Sheikh</div>
+          <div class="brand-sub">Travel System</div>
+        </div>
+      </div>
+
+      <button *ngIf="sidebarExpanded"
+              mat-icon-button
+              type="button"
+              class="stb-pin-btn"
+              [attr.aria-label]="isSidebarPinned ? 'Unpin sidebar' : 'Pin sidebar'"
+              (click)="toggleSidebarPin()">
+        <mat-icon>{{ isSidebarPinned ? 'push_pin' : 'chevron_left' }}</mat-icon>
+      </button>
     </div>
 
     <nav class="stb-rail-nav">
@@ -10,19 +29,64 @@
          [routerLink]="item.route"
          routerLinkActive="active"
          [matTooltip]="item.label"
+         [matTooltipDisabled]="sidebarExpanded"
+         matTooltipShowDelay="200"
          matTooltipPosition="right"
          class="stb-rail-link">
         <mat-icon>{{ item.icon }}</mat-icon>
+        <span class="stb-link-label" *ngIf="sidebarExpanded">{{ item.label }}</span>
       </a>
     </nav>
 
     <div class="stb-rail-foot">
-      <a class="stb-rail-link" matTooltip="Settings" matTooltipPosition="right" (click)="goToSettings()">
+      <button class="stb-rail-link"
+              type="button"
+              [matMenuTriggerFor]="notifMenu"
+              matTooltip="Notifications"
+              [matTooltipDisabled]="sidebarExpanded"
+              matTooltipShowDelay="200"
+              matTooltipPosition="right"
+              [matBadge]="(unreadCount$ | async) || null"
+              [matBadgeHidden]="!(unreadCount$ | async)"
+              matBadgeColor="warn"
+              matBadgeSize="small">
+        <mat-icon>notifications_none</mat-icon>
+        <span class="stb-link-label" *ngIf="sidebarExpanded">Notifications</span>
+      </button>
+
+      <button class="stb-rail-link"
+              type="button"
+              matTooltip="Settings"
+              [matTooltipDisabled]="sidebarExpanded"
+              matTooltipShowDelay="200"
+              matTooltipPosition="right"
+              (click)="goToSettings()">
         <mat-icon>settings</mat-icon>
-      </a>
-      <a class="stb-rail-link" matTooltip="Logout" matTooltipPosition="right" (click)="logout()">
+        <span class="stb-link-label" *ngIf="sidebarExpanded">Settings</span>
+      </button>
+
+      <button class="stb-rail-link"
+              type="button"
+              matTooltip="Logout"
+              [matTooltipDisabled]="sidebarExpanded"
+              matTooltipShowDelay="200"
+              matTooltipPosition="right"
+              (click)="logout()">
         <mat-icon>logout</mat-icon>
-      </a>
+        <span class="stb-link-label" *ngIf="sidebarExpanded">Logout</span>
+      </button>
+
+      <button *ngIf="sidebarExpanded && (currentUser$ | async) as user"
+              class="stb-rail-profile"
+              type="button"
+              (click)="goToProfile()">
+        <div class="avatar">{{ initials(user.fullName) }}</div>
+        <div class="meta">
+          <div class="name">{{ user.fullName }}</div>
+          <div class="role">{{ (user.roles && user.roles[0]) || 'Member' }}</div>
+        </div>
+        <mat-icon>expand_more</mat-icon>
+      </button>
     </div>
   </aside>
 

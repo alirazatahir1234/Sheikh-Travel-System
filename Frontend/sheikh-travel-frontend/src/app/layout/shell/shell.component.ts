@@ -54,6 +54,8 @@ export class ShellComponent implements OnInit, OnDestroy {
   searchResults: SearchResult[] = [];
   searchLoading = false;
   showSearchResults = false;
+  isSidebarPinned = false;
+  isSidebarHovering = false;
   private searchSubject = new Subject<string>();
   private searchSub?: Subscription;
   private sessionSub?: Subscription;
@@ -131,6 +133,22 @@ export class ShellComponent implements OnInit, OnDestroy {
     setTimeout(() => {
       this.showSearchResults = false;
     }, 200);
+  }
+
+  get sidebarExpanded(): boolean {
+    return this.isSidebarPinned || this.isSidebarHovering;
+  }
+
+  onSidebarEnter(): void {
+    this.isSidebarHovering = true;
+  }
+
+  onSidebarLeave(): void {
+    this.isSidebarHovering = false;
+  }
+
+  toggleSidebarPin(): void {
+    this.isSidebarPinned = !this.isSidebarPinned;
   }
 
   navigateToResult(result: SearchResult): void {
