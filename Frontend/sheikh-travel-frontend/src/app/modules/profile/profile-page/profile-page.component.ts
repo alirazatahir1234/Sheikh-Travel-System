@@ -45,7 +45,7 @@ export class ProfilePageComponent implements OnInit {
     });
 
     this.passwordForm = this.fb.group({
-      currentPassword: ['', Validators.required],
+      currentPassword: ['Admin@123', Validators.required],
       newPassword: ['', [Validators.required, Validators.minLength(6)]],
       confirmPassword: ['', Validators.required]
     }, { validators: this.passwordMatchValidator });
