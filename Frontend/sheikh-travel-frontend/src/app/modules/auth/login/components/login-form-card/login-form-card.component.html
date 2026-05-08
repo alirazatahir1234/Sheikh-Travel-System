@@ -14,7 +14,7 @@
 
   <article class="auth-card">
     <div class="card-logo">
-      <img src="/brand/sheikh-logo.svg" alt="Sheikh Travel logo" />
+      <img src="/brand/sheikh-logo.png" alt="Sheikh Travel logo" />
     </div>
 
     <header class="ac-head">
@@ -60,23 +60,11 @@
 
       <button mat-flat-button type="submit" class="full-width ac-submit" [disabled]="loading || form.invalid">
         <mat-spinner *ngIf="loading" diameter="20" class="ac-spinner"></mat-spinner>
-        <span *ngIf="!loading">Sign in</span>
+        <span *ngIf="!loading" class="submit-label">
+          <span>Sign in</span>
+          <mat-icon>arrow_forward</mat-icon>
+        </span>
       </button>
-
-      <div class="ac-divider">
-        <span>or continue with</span>
-      </div>
-
-      <div class="social-grid">
-        <button mat-stroked-button type="button" (click)="socialLoginClick.emit('google')">
-          <span class="social-mark google">G</span>
-          <span>Google</span>
-        </button>
-        <button mat-stroked-button type="button" (click)="socialLoginClick.emit('microsoft')">
-          <span class="social-mark microsoft"></span>
-          <span>Microsoft</span>
-        </button>
-      </div>
 
       <p class="ac-help">
         Need help?
