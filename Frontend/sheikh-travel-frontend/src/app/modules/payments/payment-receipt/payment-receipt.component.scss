@@ -29,7 +29,12 @@
   gap: 16px;
   margin-bottom: 24px;
 }
-.company-logo .logo-icon { font-size: 48px; width: 48px; height: 48px; color: #1565c0; }
+.company-logo .logo-image {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+  display: block;
+}
 .company-name { margin: 0; font-size: 1.6rem; font-weight: 700; color: #1565c0; }
 .company-tagline { margin: 2px 0 0; color: #666; font-size: 0.85rem; }
 .receipt-title-block { text-align: right; }

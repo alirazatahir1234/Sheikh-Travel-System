@@ -34,7 +34,12 @@
   align-items: center;
   gap: 10px;
 }
-.logo-icon { font-size: 40px; width: 40px; height: 40px; color: #1565c0; }
+.logo-image {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  display: block;
+}
 .company-name { margin: 0; font-size: 1.5rem; font-weight: 700; color: #1565c0; }
 .company-tagline { margin: 4px 0 0; color: #888; font-size: 0.85rem; }
 .invoice-title-block { text-align: right; }

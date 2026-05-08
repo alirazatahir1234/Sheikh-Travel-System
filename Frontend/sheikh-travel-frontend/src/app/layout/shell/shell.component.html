@@ -7,7 +7,9 @@
          (mouseleave)="onSidebarLeave()">
     <div class="stb-brand-row">
       <div class="stb-brand" routerLink="/dashboard" matTooltip="Sheikh Travel" [matTooltipDisabled]="sidebarExpanded" matTooltipPosition="right">
-        <div class="logo-circle"><mat-icon>flight_takeoff</mat-icon></div>
+        <div class="logo-circle">
+          <img src="/brand/sheikh-logo.svg" alt="Sheikh Travel logo" />
+        </div>
         <div class="brand-text" *ngIf="sidebarExpanded">
           <div class="brand-title">Sheikh</div>
           <div class="brand-sub">Travel System</div>
