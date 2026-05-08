@@ -1,80 +1,19 @@
-<section class="auth-page">
-  <!-- Brand / hero panel -->
-  <aside class="auth-brand">
-    <div class="brand-head">
-      <span class="brand-logo">
-        <img src="/brand/sheikh-logo.svg" alt="Sheikh Travel logo">
-      </span>
-      <span class="brand-name">Sheikh Travel</span>
-    </div>
+<section class="auth-page" [class.light-mode]="!darkMode">
+  <app-login-hero [year]="year"></app-login-hero>
 
-    <div class="brand-copy">
-      <h1>Move smarter.<br/>Travel further.</h1>
-      <p>
-        One platform to manage your bookings, vehicles, drivers and
-        routes — designed for busy travel operations.
-      </p>
-    </div>
-
-    <ul class="brand-points">
-      <li><mat-icon>confirmation_number</mat-icon><span>End-to-end booking workflow</span></li>
-      <li><mat-icon>my_location</mat-icon><span>Live vehicle tracking &amp; trip history</span></li>
-      <li><mat-icon>insights</mat-icon><span>Revenue, fuel and profitability reports</span></li>
-    </ul>
-
-    <div class="brand-foot">© {{ year }} Sheikh Travel · All rights reserved</div>
-
-    <div class="brand-glow a"></div>
-    <div class="brand-glow b"></div>
-  </aside>
-
-  <!-- Form side -->
-  <div class="auth-form-side">
-    <article class="auth-card">
-      <header class="ac-head">
-        <h2>Welcome back</h2>
-        <p>Sign in to your Sheikh Travel workspace.</p>
-      </header>
-
-      <form [formGroup]="form" (ngSubmit)="submit()" class="ac-form">
-        <mat-form-field appearance="outline" class="full-width">
-          <mat-label>Email address</mat-label>
-          <input matInput type="email" formControlName="email" autocomplete="off"
-                 placeholder="you@sheikhtravel.com">
-          <mat-icon matPrefix>mail_outline</mat-icon>
-          <mat-error *ngIf="form.get('email')?.hasError('required')">Email is required</mat-error>
-          <mat-error *ngIf="form.get('email')?.hasError('email')">Enter a valid email address</mat-error>
-        </mat-form-field>
-
-        <mat-form-field appearance="outline" class="full-width">
-          <mat-label>Password</mat-label>
-          <input matInput [type]="hidePassword ? 'password' : 'text'"
-                 formControlName="password" autocomplete="new-password">
-          <mat-icon matPrefix>lock_outline</mat-icon>
-          <button mat-icon-button matSuffix type="button"
-                  (click)="hidePassword = !hidePassword"
-                  [attr.aria-label]="hidePassword ? 'Show password' : 'Hide password'">
-            <mat-icon>{{ hidePassword ? 'visibility_off' : 'visibility' }}</mat-icon>
-          </button>
-          <mat-error *ngIf="form.get('password')?.hasError('required')">Password is required</mat-error>
-        </mat-form-field>
-
-        <div class="ac-row">
-          <a class="ac-link" tabindex="0">Forgot password?</a>
-        </div>
-
-        <button mat-flat-button color="primary"
-                type="submit"
-                class="full-width ac-submit"
-                [disabled]="loading || form.invalid">
-          <mat-spinner *ngIf="loading" diameter="20" class="ac-spinner"></mat-spinner>
-          <span *ngIf="!loading">Sign in</span>
-        </button>
-
-        <p class="ac-help stb-muted">
-          Need help? Contact your administrator.
-        </p>
-      </form>
-    </article>
-  </div>
+  <app-login-form-card
+    [form]="form"
+    [loading]="loading"
+    [hidePassword]="hidePassword"
+    [rememberMe]="rememberMe"
+    [selectedLanguage]="selectedLanguage"
+    [darkMode]="darkMode"
+    (hidePasswordChange)="hidePassword = $event"
+    (rememberMeChange)="rememberMe = $event"
+    (submitLogin)="submit()"
+    (forgotPasswordClick)="forgotPassword()"
+    (themeToggle)="toggleTheme()"
+    (socialLoginClick)="socialLogin($event)"
+  >
+  </app-login-form-card>
 </section>

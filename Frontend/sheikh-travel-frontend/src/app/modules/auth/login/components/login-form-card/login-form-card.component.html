@@ -1,0 +1,87 @@
+<div class="auth-form-side" [class.light-mode]="!darkMode">
+  <div class="auth-toolbar">
+    <button mat-stroked-button class="toolbar-btn" type="button">
+      <mat-icon>language</mat-icon>
+      <span>{{ selectedLanguage }}</span>
+      <mat-icon>expand_more</mat-icon>
+    </button>
+
+    <button mat-stroked-button class="toolbar-btn" (click)="themeToggle.emit()" type="button">
+      <mat-icon>{{ darkMode ? 'dark_mode' : 'light_mode' }}</mat-icon>
+      <span>{{ darkMode ? 'Dark mode' : 'Light mode' }}</span>
+    </button>
+  </div>
+
+  <article class="auth-card">
+    <div class="card-logo">
+      <img src="/brand/sheikh-logo.svg" alt="Sheikh Travel logo" />
+    </div>
+
+    <header class="ac-head">
+      <h2>Welcome back</h2>
+      <p>Sign in to your Sheikh Travel workspace</p>
+    </header>
+
+    <form [formGroup]="form" (ngSubmit)="submitLogin.emit()" class="ac-form">
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Email address</mat-label>
+        <input matInput type="email" formControlName="email" autocomplete="username" />
+        <mat-icon matPrefix>mail_outline</mat-icon>
+        <mat-error *ngIf="form.get('email')?.hasError('required')">Email is required</mat-error>
+        <mat-error *ngIf="form.get('email')?.hasError('email')">Enter a valid email address</mat-error>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Password</mat-label>
+        <input matInput [type]="hidePassword ? 'password' : 'text'" formControlName="password" autocomplete="current-password" />
+        <mat-icon matPrefix>lock_outline</mat-icon>
+        <button
+          mat-icon-button
+          matSuffix
+          type="button"
+          (click)="togglePassword()"
+          [attr.aria-label]="hidePassword ? 'Show password' : 'Hide password'"
+        >
+          <mat-icon>{{ hidePassword ? 'visibility_off' : 'visibility' }}</mat-icon>
+        </button>
+        <mat-error *ngIf="form.get('password')?.hasError('required')">Password is required</mat-error>
+      </mat-form-field>
+
+      <div class="ac-row">
+        <mat-checkbox
+          [ngModel]="rememberMe"
+          (ngModelChange)="rememberMeChange.emit($event)"
+          [ngModelOptions]="{ standalone: true }"
+        >
+          Remember me
+        </mat-checkbox>
+        <button type="button" class="ac-link" (click)="forgotPasswordClick.emit()">Forgot password?</button>
+      </div>
+
+      <button mat-flat-button type="submit" class="full-width ac-submit" [disabled]="loading || form.invalid">
+        <mat-spinner *ngIf="loading" diameter="20" class="ac-spinner"></mat-spinner>
+        <span *ngIf="!loading">Sign in</span>
+      </button>
+
+      <div class="ac-divider">
+        <span>or continue with</span>
+      </div>
+
+      <div class="social-grid">
+        <button mat-stroked-button type="button" (click)="socialLoginClick.emit('google')">
+          <span class="social-mark google">G</span>
+          <span>Google</span>
+        </button>
+        <button mat-stroked-button type="button" (click)="socialLoginClick.emit('microsoft')">
+          <span class="social-mark microsoft"></span>
+          <span>Microsoft</span>
+        </button>
+      </div>
+
+      <p class="ac-help">
+        Need help?
+        <button type="button" class="ac-link" (click)="forgotPasswordClick.emit()">Contact your administrator.</button>
+      </p>
+    </form>
+  </article>
+</div>
