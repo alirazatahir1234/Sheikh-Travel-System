@@ -1,11 +1,16 @@
 .auth-brand {
   position: relative;
   overflow: hidden;
-  padding: 38px 42px;
+  padding: 38px 42px min(200px, 22vh);
   isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  min-height: 100vh;
   background: #041f24;
   border-right: 1px solid rgba(120, 251, 237, 0.16);
-  height: 100%;
+  height: auto;
 }
 
 .bg-photo {
@@ -14,19 +19,21 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: center;
   opacity: 0.26;
   z-index: 0;
 }
 
 .world-map {
   position: absolute;
-  top: 84px;
-  left: 104px;
-  width: min(700px, 90%);
-  opacity: 0.3;
+  top: 64px;
+  left: 56px;
+  width: min(760px, 94%);
+  opacity: 0.72;
   mix-blend-mode: screen;
-  z-index: 1;
-  filter: saturate(1.15) drop-shadow(0 0 28px rgba(26, 245, 212, 0.24));
+  z-index: 2;
+  pointer-events: none;
+  filter: saturate(1.2) contrast(1.08) drop-shadow(0 0 32px rgba(26, 245, 212, 0.34));
 }
 
 .cinematic-overlay {
@@ -125,20 +132,19 @@
 
 .brand-head {
   position: relative;
-  z-index: 3;
+  z-index: 4;
   display: flex;
   align-items: center;
   gap: 12px;
+  align-self: flex-start;
+  width: 100%;
+  max-width: 100%;
 }
 
 .brand-logo {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
-  padding: 5px;
-  background: rgba(255, 255, 255, 0.12);
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
+  width: 96px;
+  height: 96px;
+  flex-shrink: 0;
 
   img {
     width: 100%;
@@ -166,16 +172,20 @@
 
 .brand-copy {
   position: relative;
-  z-index: 3;
-  max-width: 530px;
-  margin: 56px 0 24px;
+  z-index: 4;
+  align-self: flex-start;
+  max-width: min(560px, 100%);
+  margin: 32px 0 28px;
+  text-align: left;
 
   h1 {
     margin: 0 0 16px;
     font-size: clamp(3.1rem, 4.9vw, 5.625rem);
-    line-height: 1.02;
-    font-weight: 900;
-    letter-spacing: -0.06em;
+    font-family: 'Inter', 'Satoshi', 'Plus Jakarta Sans', 'Segoe UI', sans-serif;
+    line-height: 1;
+    font-weight: 800;
+    letter-spacing: -2px;
+    text-align: left;
     text-shadow: 0 14px 34px rgba(0, 0, 0, 0.35);
   }
 
@@ -189,6 +199,7 @@
     font-size: 1.12rem;
     line-height: 1.7;
     opacity: 0.9;
+    text-align: left;
   }
 }
 
@@ -196,16 +207,16 @@
   position: absolute;
   top: 160px;
   right: 36px;
-  z-index: 4;
+  z-index: 6;
   display: flex;
   align-items: center;
   gap: 12px;
-  border-radius: 18px;
+  border-radius: 22px;
   padding: 14px 16px;
-  background: rgba(7, 35, 40, 0.7);
-  border: 1px solid rgba(178, 255, 248, 0.24);
-  backdrop-filter: blur(14px);
-  box-shadow: 0 24px 42px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.09);
+  background: rgba(7, 35, 40, 0.62);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 0 20px rgba(0, 255, 255, 0.15), 0 18px 34px rgba(0, 0, 0, 0.32);
   animation: floatCard 6s ease-in-out infinite;
 
   h4 {
@@ -235,24 +246,33 @@
   border-radius: 10px;
   display: grid;
   place-items: center;
-  background: rgba(244, 198, 122, 0.2);
+  background: rgba(244, 198, 122, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 0 14px rgba(0, 255, 255, 0.28), inset 0 0 8px rgba(255, 255, 255, 0.08);
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: rgba(200, 255, 246, 0.95);
+  line-height: 1;
 }
 
 .stats-grid {
   position: relative;
-  z-index: 3;
+  z-index: 5;
+  align-self: flex-start;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
   max-width: 540px;
+  width: 100%;
+  margin-bottom: 8px;
 }
 
 .stat-card {
   border-radius: 16px;
   padding: 16px;
-  background: linear-gradient(160deg, rgba(7, 72, 75, 0.65), rgba(4, 51, 55, 0.35));
-  border: 1px solid rgba(142, 248, 231, 0.2);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 18px 38px rgba(0, 0, 0, 0.34);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(0, 255, 255, 0.15);
+  box-shadow: 0 0 20px rgba(0, 255, 255, 0.08), inset 0 0 10px rgba(255, 255, 255, 0.03);
   transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
   backdrop-filter: blur(8px);
   animation: floatCard 7s ease-in-out infinite;
@@ -303,22 +323,44 @@
 
 .brand-vehicle {
   position: absolute;
-  bottom: 8px;
+  bottom: 0;
   left: 0;
   right: 0;
-  height: 300px;
+  height: min(38vh, 360px);
   z-index: 2;
   pointer-events: none;
 }
 
+.brand-vehicle::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(
+    to bottom,
+    rgba(42, 240, 197, 0.14) 0%,
+    rgba(42, 240, 197, 0.05) 28%,
+    transparent 55%
+  );
+}
+
 .scene-city {
   position: absolute;
-  right: 42px;
-  bottom: 54px;
-  width: 460px;
-  max-width: 64%;
-  opacity: 0.82;
-  filter: drop-shadow(0 14px 30px rgba(4, 31, 36, 0.75));
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  object-fit: cover;
+  object-position: center 48%;
+  opacity: 1;
+  filter:
+    brightness(1.22)
+    contrast(1.1)
+    saturate(1.1)
+    drop-shadow(0 -6px 28px rgba(26, 245, 212, 0.32));
+  transform: scale(1.03);
+  transform-origin: center bottom;
 }
 
 .scene-road {
@@ -326,40 +368,17 @@
   left: 0;
   right: 0;
   bottom: 0;
-  height: 132px;
-  background:
-    linear-gradient(to top, rgba(0, 0, 0, 0.66), transparent),
-    radial-gradient(circle at 35% 86%, rgba(255, 203, 124, 0.2), transparent 35%);
-}
-
-.fleet {
-  position: absolute;
-  bottom: 4px;
-  object-fit: contain;
-  filter: drop-shadow(0 28px 58px rgba(0, 0, 0, 0.82));
-  animation: floatVehicle 7.2s ease-in-out infinite;
-}
-
-.fleet.bus {
-  width: 340px;
-  height: auto;
-  left: 120px;
-}
-
-.fleet.van {
-  width: 185px;
-  height: auto;
-  left: 390px;
-  bottom: 16px;
-  opacity: 0.95;
-  animation-delay: 0.8s;
+  z-index: 3;
+  height: 100px;
+  background: linear-gradient(to top, rgba(4, 31, 36, 0.95) 0%, rgba(4, 31, 36, 0.35) 42%, transparent 100%);
+  pointer-events: none;
 }
 
 .brand-foot {
   position: absolute;
   left: 42px;
   bottom: 10px;
-  z-index: 3;
+  z-index: 7;
   font-size: 0.74rem;
   opacity: 0.78;
 }
@@ -368,7 +387,7 @@
   position: absolute;
   left: 42px;
   bottom: 40px;
-  z-index: 3;
+  z-index: 7;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -468,7 +487,7 @@
   }
 
   .brand-copy {
-    margin: 36px 0 22px;
+    margin: 24px 0 18px;
 
     p {
       font-size: 0.95rem;
@@ -501,11 +520,6 @@
 @keyframes floatCard {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-5px); }
-}
-
-@keyframes floatVehicle {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-3px); }
 }
 
 @keyframes floatParticle {

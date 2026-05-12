@@ -1,45 +1,20 @@
 <aside class="auth-brand">
   <img
     class="bg-photo"
-    src="assets/login/world-map.png"
-    alt="Night city and world network"
+    src="/assets/login/world-map.png"
+    alt=""
+    aria-hidden="true"
   />
-  <img class="world-map" src="assets/login/world-map.png" alt="World map" />
+  <img class="world-map" src="/assets/login/world-map.png" alt="" aria-hidden="true" />
   <div class="cinematic-overlay"></div>
   <div class="depth-layer one"></div>
   <div class="depth-layer two"></div>
 
   <svg class="route-svg" viewBox="0 0 560 360" aria-hidden="true">
-    <defs>
-      <filter id="routeGlow">
-        <feGaussianBlur stdDeviation="3" result="blurred" />
-        <feMerge>
-          <feMergeNode in="blurred" />
-          <feMergeNode in="SourceGraphic" />
-        </feMerge>
-      </filter>
-    </defs>
-
     <path id="routePath" class="route-path" d="M40 70C130 130 185 270 280 205C380 136 430 50 520 145" />
     <circle class="gps-point p1" cx="40" cy="70" r="7" />
     <circle class="gps-point p2" cx="280" cy="205" r="7" />
     <circle class="gps-point p3" cx="520" cy="145" r="7" />
-
-    <g id="car1">
-      <rect width="20" height="11" rx="3" fill="#f4c67a" filter="url(#routeGlow)" />
-    </g>
-
-    <g id="car2">
-      <rect width="20" height="11" rx="3" fill="#ffffff" filter="url(#routeGlow)" />
-    </g>
-
-    <animateMotion href="#car1" dur="8s" repeatCount="indefinite" rotate="auto">
-      <mpath href="#routePath" />
-    </animateMotion>
-
-    <animateMotion href="#car2" dur="12s" repeatCount="indefinite" rotate="auto-reverse">
-      <mpath href="#routePath" />
-    </animateMotion>
   </svg>
 
   <div class="particles" aria-hidden="true">
@@ -48,7 +23,7 @@
 
   <div class="brand-head">
     <span class="brand-logo">
-      <img src="/brand/sheikh-logo.png" alt="Sheikh Travel logo" />
+      <img src="/brand/sts-login-logo.png" alt="Sheikh Travel logo" />
     </span>
     <div class="brand-title-wrap">
       <span class="brand-name">Sheikh Travel</span>
@@ -70,7 +45,7 @@
       <h4>Live Tracking</h4>
       <p>42 Vehicles Online</p>
     </div>
-    <div class="live-icon">🚐</div>
+    <div class="live-icon" aria-hidden="true">◉</div>
   </article>
 
   <div class="stats-grid">
@@ -109,10 +84,8 @@
   </div>
 
   <div class="brand-vehicle">
-    <img class="scene-city" src="assets/login/city.png" alt="City skyline" />
+    <img class="scene-city" src="/assets/login/dubai-skyline.png" alt="Dubai skyline at night" />
     <div class="scene-road"></div>
-    <img class="fleet bus" src="assets/login/bus.png" alt="Luxury bus" />
-    <img class="fleet van" src="assets/login/van.png" alt="Luxury van" />
   </div>
 
   <div class="brand-security">

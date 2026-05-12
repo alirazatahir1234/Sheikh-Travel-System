@@ -77,12 +77,9 @@
   margin-bottom: 16px;
 
   img {
-    width: 62px;
-    height: 62px;
-    border-radius: 12px;
-    padding: 4px;
-    background: rgba(255, 255, 255, 0.12);
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    width: 116px;
+    height: 116px;
+    object-fit: contain;
   }
 }
 
