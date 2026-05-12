@@ -14,10 +14,7 @@ export class LoginComponent implements OnInit {
   loading = false;
   hidePassword = true;
   rememberMe = true;
-  selectedLanguage = 'EN';
-  darkMode = true;
   readonly year = new Date().getFullYear();
-  readonly languages = ['EN', 'AR'];
 
   constructor(
     private fb: FormBuilder,
@@ -72,9 +69,5 @@ export class LoginComponent implements OnInit {
     this.snackBar.open(`${provider[0].toUpperCase()}${provider.slice(1)} login is not configured yet.`, 'Close', {
       duration: 3000
     });
-  }
-
-  toggleTheme(): void {
-    this.darkMode = !this.darkMode;
   }
 }

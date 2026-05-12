@@ -1,32 +1,26 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-self: stretch;
+  width: 100%;
+  min-height: 100%;
+  box-sizing: border-box;
+}
+
+@media (max-width: 992px) {
+  :host {
+    min-height: 0;
+  }
+}
+
 .auth-form-side {
   padding: 24px 28px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-}
-
-.auth-toolbar {
-  width: min(560px, 100%);
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  margin-bottom: 18px;
-}
-
-.toolbar-btn {
-  border-radius: 12px !important;
-  border-color: rgba(136, 240, 227, 0.26) !important;
-  color: #b9f9f1 !important;
-  background: rgba(255, 255, 255, 0.04) !important;
-  padding-inline: 10px !important;
-  backdrop-filter: blur(8px);
-}
-
-.light-mode .toolbar-btn {
-  color: #175f64 !important;
-  border-color: rgba(20, 126, 126, 0.24) !important;
-  background: rgba(255, 255, 255, 0.7) !important;
+  width: 100%;
 }
 
 .auth-card {
@@ -65,12 +59,6 @@
   pointer-events: none;
 }
 
-.light-mode .auth-card {
-  background: rgba(255, 255, 255, 0.66);
-  border-color: rgba(20, 136, 134, 0.24);
-  box-shadow: 0 20px 46px rgba(29, 76, 80, 0.16);
-}
-
 .card-logo {
   display: flex;
   justify-content: center;
@@ -99,16 +87,6 @@
   p {
     margin: 7px 0 0;
     color: rgba(228, 255, 251, 0.84);
-  }
-}
-
-.light-mode .ac-head {
-  h2 {
-    color: #0f3641;
-  }
-
-  p {
-    color: #3f6268;
   }
 }
 
@@ -144,19 +122,6 @@
   ::ng-deep .mat-mdc-form-field-icon-prefix,
   ::ng-deep .mat-mdc-form-field-icon-suffix {
     color: #ffffff !important;
-  }
-}
-
-.light-mode .ac-form {
-  ::ng-deep .mat-mdc-input-element,
-  ::ng-deep .mdc-floating-label {
-    color: #18444b !important;
-  }
-
-  ::ng-deep .mdc-notched-outline__leading,
-  ::ng-deep .mdc-notched-outline__notch,
-  ::ng-deep .mdc-notched-outline__trailing {
-    border-color: rgba(30, 120, 120, 0.26) !important;
   }
 }
 
@@ -201,10 +166,6 @@
   }
 }
 
-.light-mode .ac-link {
-  color: #0e7770;
-}
-
 .ac-submit {
   height: 54px;
   border-radius: 14px !important;
@@ -240,10 +201,6 @@
   font-size: 0.85rem;
 }
 
-.light-mode .ac-help {
-  color: #416870;
-}
-
 .ac-spinner {
   display: inline-block;
 }
@@ -257,18 +214,9 @@
     align-items: center;
     padding: 20px 16px 30px;
   }
-
-  .auth-toolbar {
-    width: min(560px, 100%);
-  }
 }
 
 @media (max-width: 640px) {
-  .auth-toolbar {
-    justify-content: center;
-    flex-wrap: wrap;
-  }
-
   .auth-card {
     border-radius: 24px;
     padding: 26px 18px 22px;

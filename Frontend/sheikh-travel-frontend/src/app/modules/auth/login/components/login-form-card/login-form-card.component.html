@@ -1,17 +1,4 @@
-<div class="auth-form-side" [class.light-mode]="!darkMode">
-  <div class="auth-toolbar">
-    <button mat-stroked-button class="toolbar-btn" type="button">
-      <mat-icon>language</mat-icon>
-      <span>{{ selectedLanguage }}</span>
-      <mat-icon>expand_more</mat-icon>
-    </button>
-
-    <button mat-stroked-button class="toolbar-btn" (click)="themeToggle.emit()" type="button">
-      <mat-icon>{{ darkMode ? 'dark_mode' : 'light_mode' }}</mat-icon>
-      <span>{{ darkMode ? 'Dark mode' : 'Light mode' }}</span>
-    </button>
-  </div>
-
+<div class="auth-form-side">
   <article class="auth-card">
     <div class="card-logo">
       <img src="/brand/sts-login-logo.png" alt="Sheikh Travel logo" />

@@ -1,4 +1,4 @@
-<section class="auth-page" [class.light-mode]="!darkMode">
+<section class="auth-page">
   <app-login-hero [year]="year"></app-login-hero>
 
   <app-login-form-card
@@ -6,13 +6,10 @@
     [loading]="loading"
     [hidePassword]="hidePassword"
     [rememberMe]="rememberMe"
-    [selectedLanguage]="selectedLanguage"
-    [darkMode]="darkMode"
     (hidePasswordChange)="hidePassword = $event"
     (rememberMeChange)="rememberMe = $event"
     (submitLogin)="submit()"
     (forgotPasswordClick)="forgotPassword()"
-    (themeToggle)="toggleTheme()"
     (socialLoginClick)="socialLogin($event)"
   >
   </app-login-form-card>

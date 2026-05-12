@@ -11,14 +11,11 @@ export class LoginFormCardComponent {
   @Input() loading = false;
   @Input() hidePassword = true;
   @Input() rememberMe = true;
-  @Input() selectedLanguage = 'EN';
-  @Input() darkMode = true;
 
   @Output() hidePasswordChange = new EventEmitter<boolean>();
   @Output() rememberMeChange = new EventEmitter<boolean>();
   @Output() submitLogin = new EventEmitter<void>();
   @Output() forgotPasswordClick = new EventEmitter<void>();
-  @Output() themeToggle = new EventEmitter<void>();
   @Output() socialLoginClick = new EventEmitter<'google' | 'microsoft'>();
 
   togglePassword(): void {
