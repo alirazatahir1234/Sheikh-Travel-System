@@ -82,6 +82,10 @@ export class BookingWizardComponent implements OnInit, OnDestroy {
   allowanceCalculating = false;
   allowanceResult: CalculateDriverAllowanceResponse | null = null;
   allowanceOverridden = false;
+  cnicOcrBusy = false;
+  cnicUploadBusy = false;
+  cnicPreviewDataUrl: string | null = null;
+  cnicFileName: string | null = null;
 
   selectedVehicle: Vehicle | null = null;
 
@@ -106,6 +110,7 @@ export class BookingWizardComponent implements OnInit, OnDestroy {
       routeSearch:       [''],
       vehicleId:         [null, Validators.required],
       vehicleSearch:     [''],
+      driverRequired:    [true],
       pickupTime:        [this.getDefaultPickupDateTime(), Validators.required],
       pickupTimeClock:   [''],  // kept for backward compat, not actively used
       passengerCount:    [1, [Validators.required, Validators.min(1)]],
@@ -299,6 +304,17 @@ export class BookingWizardComponent implements OnInit, OnDestroy {
     this.refreshDriverAllowance();
   }
 
+  setDriverRequired(required: boolean): void {
+    this.step1Form.patchValue({ driverRequired: required });
+    if (!required) {
+      this.allowanceOverridden = false;
+      this.allowanceResult = null;
+      this.step1Form.patchValue({ driverAllowance: 0 });
+    } else {
+      this.refreshDriverAllowance();
+    }
+  }
+
   /**
    * Asks the backend to evaluate the configured driver allowance rules for the
    * current route + vehicle. If a rule matches and the user hasn't manually
@@ -306,6 +322,13 @@ export class BookingWizardComponent implements OnInit, OnDestroy {
    * applied rule metadata is always stored so the UI can explain it.
    */
   refreshDriverAllowance(): void {
+    if (!this.step1Form.value.driverRequired) {
+      this.allowanceResult = null;
+      this.allowanceOverridden = false;
+      this.step1Form.patchValue({ driverAllowance: 0 });
+      return;
+    }
+
     const f = this.step1Form.value;
     const routeId = this.resolveRouteId();
     const vehicleId = this.resolveVehicleId();
@@ -403,12 +426,19 @@ export class BookingWizardComponent implements OnInit, OnDestroy {
       this.snackBar.open('Please select route and vehicle from the suggestions.', 'Close', { duration: 3200 });
       return;
     }
+    const driverAllowanceAmount = this.step1Form.value.driverRequired
+      ? (f.driverAllowance ?? 0)
+      : 0;
+    if (!this.step1Form.value.driverRequired && f.driverAllowance !== 0) {
+      this.step1Form.patchValue({ driverAllowance: 0 });
+    }
+
     this.calculating = true;
     this.bookingService.calculatePrice({
       routeId,
       vehicleId,
       fuelPricePerLiter: f.fuelPricePerLiter ?? 270,
-      driverAllowance:   f.driverAllowance   ?? 0,
+      driverAllowance:   driverAllowanceAmount,
       tollCharges:       f.tollCharges        ?? 0,
       otherCharges:      f.otherCharges       ?? 0,
       isRoundTrip:       f.isRoundTrip        ?? false
@@ -689,6 +719,137 @@ export class BookingWizardComponent implements OnInit, OnDestroy {
     if (file) void this.ingestBankTransferReceiptFile(file);
   }
 
+  onCnicFileSelected(ev: Event): void {
+    const input = ev.target as HTMLInputElement;
+    const file = input.files?.item(0);
+    input.value = '';
+    if (file) void this.ingestCnicFile(file);
+  }
+
+  onCnicDrop(ev: DragEvent): void {
+    ev.preventDefault();
+    const file = ev.dataTransfer?.files?.item(0);
+    if (file) void this.ingestCnicFile(file);
+  }
+
+  private async ingestCnicFile(file: File): Promise<void> {
+    if (file.size > this.bankTransferReceiptMaxBytes) {
+      this.snackBar.open('CNIC file must be 15 MB or smaller.', 'Close', { duration: 3500 });
+      return;
+    }
+
+    // OCR path currently supports images. PDFs are accepted for future backend OCR flow.
+    if (file.type === 'application/pdf') {
+      this.cnicFileName = file.name;
+      this.cnicPreviewDataUrl = null;
+      this.snackBar.open('PDF uploaded. OCR is currently supported for image CNIC files.', 'Close', { duration: 4500 });
+      return;
+    }
+
+    if (!file.type.startsWith('image/')) {
+      this.snackBar.open('Please upload CNIC as JPG, PNG, WebP, or PDF.', 'Close', { duration: 3500 });
+      return;
+    }
+
+    this.customerMode = 'NEW';
+    this.updateCustomerValidators();
+    this.cnicUploadBusy = true;
+    try {
+      const imageDataUrl = await this.compressImageToJpegDataUrl(file, 1600, 0.9);
+      this.cnicPreviewDataUrl = imageDataUrl;
+      this.cnicFileName = file.name;
+      await this.extractAndApplyCnicData(imageDataUrl);
+    } catch {
+      this.snackBar.open('Could not process CNIC image. Try a clearer file.', 'Close', { duration: 3500 });
+    } finally {
+      this.cnicUploadBusy = false;
+    }
+  }
+
+  private async extractAndApplyCnicData(imageDataUrl: string): Promise<void> {
+    this.cnicOcrBusy = true;
+    try {
+      const { createWorker } = await import('tesseract.js');
+      const worker = await createWorker('eng');
+      const { data } = await worker.recognize(imageDataUrl);
+      await worker.terminate();
+
+      const extracted = this.parseCnicOcrText(data.text || '');
+      this.applyCnicExtraction(extracted);
+    } catch {
+      this.snackBar.open('OCR failed. You can still fill fields manually.', 'Close', { duration: 3500 });
+    } finally {
+      this.cnicOcrBusy = false;
+    }
+  }
+
+  private parseCnicOcrText(text: string): { fullName?: string; cnic?: string; address?: string } {
+    const normalized = text.replace(/\r/g, '\n');
+    const lines = normalized.split('\n').map(l => l.trim()).filter(Boolean);
+
+    const cnicMatch =
+      normalized.match(/\b\d{5}-\d{7}-\d\b/) ||
+      normalized.match(/\b\d{13}\b/);
+    const cnic = cnicMatch?.[0]
+      ? (cnicMatch[0].includes('-')
+        ? cnicMatch[0]
+        : `${cnicMatch[0].slice(0, 5)}-${cnicMatch[0].slice(5, 12)}-${cnicMatch[0].slice(12)}`)
+      : undefined;
+
+    const ignoreTokens = ['islamic republic', 'national identity', 'pakistan', 'card', 'father', 'husband', 'date of birth', 'gender'];
+    let fullName: string | undefined;
+    for (const line of lines) {
+      const lower = line.toLowerCase();
+      if (line.length < 3 || line.length > 50) continue;
+      if (/\d/.test(line)) continue;
+      if (ignoreTokens.some(t => lower.includes(t))) continue;
+      if (/^[A-Z][A-Z\s.]+$/.test(line) || /^[A-Z][a-z]+(?:\s+[A-Z][a-z]+)+$/.test(line)) {
+        fullName = line.replace(/\s+/g, ' ').trim();
+        break;
+      }
+    }
+
+    let address: string | undefined;
+    const addressLine = lines.find(l => /address|addr/i.test(l));
+    if (addressLine) {
+      address = addressLine.replace(/address[:\s-]*/i, '').trim();
+    }
+
+    return { fullName, cnic, address };
+  }
+
+  private applyCnicExtraction(extracted: { fullName?: string; cnic?: string; address?: string }): void {
+    const patch: Record<string, string> = {};
+    if (extracted.fullName) patch['newFullName'] = extracted.fullName;
+    if (extracted.cnic) patch['newCnic'] = extracted.cnic;
+    if (extracted.address) patch['newAddress'] = extracted.address;
+
+    if (Object.keys(patch).length > 0) {
+      this.step1Form.patchValue(patch);
+    }
+
+    if (extracted.cnic) {
+      const existing = this.customers.find(c => (c.cnic || '').trim() === extracted.cnic);
+      if (existing) {
+        this.setCustomerMode('EXISTING');
+        this.onCustomerSelected(existing);
+        this.snackBar.open('Existing customer found by CNIC and loaded.', 'Close', { duration: 3500 });
+        return;
+      }
+    }
+
+    const filled = [
+      extracted.fullName ? 'name' : '',
+      extracted.cnic ? 'CNIC' : '',
+      extracted.address ? 'address' : ''
+    ].filter(Boolean);
+    if (filled.length > 0) {
+      this.snackBar.open(`CNIC OCR filled: ${filled.join(', ')}. Please verify before saving.`, 'Close', { duration: 4000 });
+    } else {
+      this.snackBar.open('No reliable CNIC fields found. Please fill manually.', 'Close', { duration: 3500 });
+    }
+  }
+
   private async ingestBankTransferReceiptFile(file: File): Promise<void> {
     if (file.size > this.bankTransferReceiptMaxBytes) {
       this.snackBar.open('File must be 15 MB or smaller.', 'Close', { duration: 4000 });
@@ -912,7 +1073,9 @@ export class BookingWizardComponent implements OnInit, OnDestroy {
     if (!route || !vehicle || !vehicle.fuelAverage || vehicle.fuelAverage <= 0) return null;
 
     const fuelPricePerLiter = Number(this.step1Form.value.fuelPricePerLiter ?? 270);
-    const driverAllowance = Number(this.step1Form.value.driverAllowance ?? 0);
+    const driverAllowance = this.step1Form.value.driverRequired
+      ? Number(this.step1Form.value.driverAllowance ?? 0)
+      : 0;
     const tollCharges = Number(this.step1Form.value.tollCharges ?? 0);
     const otherCharges = Number(this.step1Form.value.otherCharges ?? 0);
     const isRoundTrip = !!this.step1Form.value.isRoundTrip;

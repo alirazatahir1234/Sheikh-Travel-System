@@ -21,7 +21,35 @@
             <div class="section-header">
               <span class="section-icon-wrap primary-icon"><mat-icon>person</mat-icon></span>
               <span class="section-title">Customer</span>
+              <input
+                #cnicFileInput
+                type="file"
+                accept="image/jpeg,image/png,image/webp,application/pdf"
+                class="visually-hidden"
+                (change)="onCnicFileSelected($event)">
+              <button
+                mat-stroked-button
+                type="button"
+                class="upload-cnic-btn"
+                (click)="cnicFileInput.click()"
+                [disabled]="cnicUploadBusy || cnicOcrBusy">
+                <mat-icon>upload_file</mat-icon>
+                {{ cnicUploadBusy || cnicOcrBusy ? 'Reading CNIC…' : 'Upload CNIC' }}
+              </button>
               <span class="section-badge required-badge">Required</span>
+            </div>
+
+            <div class="cnic-drop-zone"
+                 [class.is-busy]="cnicUploadBusy || cnicOcrBusy"
+                 (dragover)="$event.preventDefault()"
+                 (drop)="onCnicDrop($event)">
+              <mat-icon>{{ cnicOcrBusy ? 'manage_search' : 'badge' }}</mat-icon>
+              <span *ngIf="!cnicOcrBusy">Drag &amp; drop CNIC image/PDF here, or use Upload CNIC.</span>
+              <span *ngIf="cnicOcrBusy">Reading CNIC and auto-filling fields…</span>
+            </div>
+
+            <div class="cnic-preview" *ngIf="cnicFileName">
+              <strong>CNIC file:</strong> {{ cnicFileName }}
             </div>
 
             <div class="mode-toggle">
@@ -164,6 +192,30 @@
               <span class="section-badge required-badge">Required</span>
             </div>
             <div class="form-grid trip-grid">
+              <div class="span-2">
+                <label class="driver-required-label">Driver Required?</label>
+                <div class="driver-required-toggle" role="tablist" aria-label="Driver requirement">
+                  <button
+                    type="button"
+                    role="tab"
+                    class="driver-mode-btn"
+                    [class.active]="step1Form.value.driverRequired"
+                    (click)="setDriverRequired(true)">
+                    <mat-icon>person_pin</mat-icon>
+                    With Driver
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    class="driver-mode-btn"
+                    [class.active]="!step1Form.value.driverRequired"
+                    (click)="setDriverRequired(false)">
+                    <mat-icon>drive_eta</mat-icon>
+                    Self Drive
+                  </button>
+                </div>
+              </div>
+
               <mat-form-field appearance="outline" class="search-control">
                 <mat-label>Route</mat-label>
                 <mat-icon matPrefix>alt_route</mat-icon>
@@ -252,7 +304,7 @@
             </div>
             <div class="form-grid">
               <!-- Driver Allowance -->
-              <mat-form-field appearance="outline" class="span-2"
+              <mat-form-field *ngIf="step1Form.value.driverRequired" appearance="outline" class="span-2"
                               [class.calculated-field]="!allowanceOverridden && !!allowanceResult?.matchedAnyRule">
                 <mat-label>Driver Allowance (PKR)</mat-label>
                 <mat-icon matPrefix>badge</mat-icon>
@@ -284,7 +336,22 @@
                 <mat-hint *ngIf="!allowanceCalculating && allowanceResult && !allowanceResult.matchedAnyRule">
                   No active rule matched — enter amount manually.
                 </mat-hint>
+                <mat-hint align="end">
+                  Flexible: use 0 for self-drive, or enter allowance for with-driver.
+                </mat-hint>
               </mat-form-field>
+
+              <div *ngIf="!step1Form.value.driverRequired" class="self-drive-card span-2">
+                <div class="self-drive-title">
+                  <mat-icon>check_circle</mat-icon>
+                  Self Drive Selected
+                </div>
+                <ul>
+                  <li>Customer drives vehicle</li>
+                  <li>Driver allowance is automatically set to PKR 0</li>
+                  <li>Fuel, toll, and other charges still apply</li>
+                </ul>
+              </div>
 
               <!-- Toll Charges -->
               <mat-form-field appearance="outline">
@@ -348,8 +415,13 @@
                 </span>
               </div>
               <div class="summary-row">
-                <span class="summary-label"><mat-icon>badge</mat-icon> Driver Allowance</span>
-                <span class="summary-value">PKR {{ (step1Form.value.driverAllowance || 0) | number:'1.0-0' }}</span>
+                <span class="summary-label">
+                  <mat-icon>badge</mat-icon>
+                  {{ step1Form.value.driverRequired ? 'Driver Allowance' : 'Self Drive' }}
+                </span>
+                <span class="summary-value">
+                  {{ step1Form.value.driverRequired ? ('PKR ' + ((step1Form.value.driverAllowance || 0) | number:'1.0-0')) : 'No driver charges' }}
+                </span>
               </div>
               <div class="summary-row">
                 <span class="summary-label"><mat-icon>toll</mat-icon> Toll Charges</span>
