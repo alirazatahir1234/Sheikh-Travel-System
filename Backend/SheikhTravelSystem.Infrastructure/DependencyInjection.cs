@@ -4,6 +4,7 @@ using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Infrastructure.Authentication;
 using SheikhTravelSystem.Infrastructure.Persistence;
 using SheikhTravelSystem.Infrastructure.Services;
+using SheikhTravelSystem.Infrastructure.Services.Ocr;
 
 namespace SheikhTravelSystem.Infrastructure;
 
@@ -18,6 +19,14 @@ public static class DependencyInjection
         services.AddScoped<IDatabaseSeeder, DatabaseSeeder>();
         services.AddScoped<IAuditService, AuditService>();
         services.AddScoped<INotificationService, NotificationService>();
+        services.Configure<OcrOptions>(configuration.GetSection(OcrOptions.SectionName));
+        services.Configure<TranslatorOptions>(configuration.GetSection(TranslatorOptions.SectionName));
+        services.AddHttpClient("PaddleOcr");
+        services.AddHttpClient("AzureTranslator");
+        services.AddSingleton<IUrduToEnglishTranslator, AzureUrduToEnglishTranslator>();
+        services.AddScoped<PaddleOcrProvider>();
+        services.AddScoped<AzureDocumentIntelligenceProvider>();
+        services.AddScoped<IIdentityOcrService, HybridIdentityOcrService>();
         services.AddHttpContextAccessor();
         services.AddSignalR();
 

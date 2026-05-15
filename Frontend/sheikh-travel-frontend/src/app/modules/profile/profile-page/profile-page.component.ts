@@ -5,6 +5,8 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { AuthService } from '../../../core/services/auth.service';
 import { environment } from '../../../../environments/environment';
+import { OcrSettingsService } from '../../../core/services/ocr-settings.service';
+import { OcrMode } from '../../../core/models/ocr.model';
 
 interface ProfileUser {
   fullName: string;
@@ -25,17 +27,25 @@ export class ProfilePageComponent implements OnInit {
   selectedTab = 0;
   savingProfile = false;
   changingPassword = false;
+  savingOcrSettings = false;
   hideCurrentPassword = true;
   hideNewPassword = true;
   hideConfirmPassword = true;
 
   currentUser: ProfileUser | null = null;
+  ocrSettingsForm: FormGroup;
+  readonly ocrModes: Array<{ value: OcrMode; label: string }> = [
+    { value: 'HYBRID', label: 'Hybrid Mode (Recommended)' },
+    { value: 'PADDLE_ONLY', label: 'PaddleOCR Only' },
+    { value: 'AZURE_ONLY', label: 'Azure Only' }
+  ];
 
   constructor(
     private fb: FormBuilder,
     private route: ActivatedRoute,
     private http: HttpClient,
     private auth: AuthService,
+    private ocrSettingsService: OcrSettingsService,
     private snackBar: MatSnackBar
   ) {
     this.profileForm = this.fb.group({
@@ -49,13 +59,36 @@ export class ProfilePageComponent implements OnInit {
       newPassword: ['', [Validators.required, Validators.minLength(6)]],
       confirmPassword: ['', Validators.required]
     }, { validators: this.passwordMatchValidator });
+
+    this.ocrSettingsForm = this.fb.group({
+      mode: ['HYBRID', Validators.required],
+      confidenceThreshold: [70, [Validators.required, Validators.min(1), Validators.max(100)]],
+      enableFallback: [true],
+      saveRawOcr: [true],
+      azureEnabled: [true],
+      paddleEnabled: [true],
+      azureTimeoutSeconds: [5, [Validators.required, Validators.min(1), Validators.max(30)]]
+    });
   }
 
   ngOnInit(): void {
     this.route.queryParams.subscribe(params => {
-      if (params['tab'] === 'settings') {
+      if (params['tab'] === 'settings' || params['tab'] === 'security') {
         this.selectedTab = 1;
+      } else if (params['tab'] === 'ocr') {
+        this.selectedTab = 2;
       }
+    });
+
+    const settings = this.ocrSettingsService.getSettings();
+    this.ocrSettingsForm.patchValue({
+      mode: settings.mode,
+      confidenceThreshold: settings.confidenceThreshold,
+      enableFallback: settings.enableFallback,
+      saveRawOcr: settings.saveRawOcr,
+      azureEnabled: settings.azureEnabled,
+      paddleEnabled: settings.paddleEnabled,
+      azureTimeoutSeconds: 5
     });
 
     this.auth.currentUser$.subscribe(user => {
@@ -147,6 +180,28 @@ export class ProfilePageComponent implements OnInit {
         this.snackBar.open(this.extractError(err), 'Close', { duration: 4000 });
       }
     });
+  }
+
+  saveOcrSettings(): void {
+    if (this.ocrSettingsForm.invalid) {
+      this.ocrSettingsForm.markAllAsTouched();
+      return;
+    }
+
+    this.savingOcrSettings = true;
+    const value = this.ocrSettingsForm.getRawValue();
+    this.ocrSettingsService.saveSettings({
+      mode: value.mode,
+      confidenceThreshold: Number(value.confidenceThreshold),
+      enableFallback: !!value.enableFallback,
+      saveRawOcr: !!value.saveRawOcr,
+      azureEnabled: !!value.azureEnabled,
+      paddleEnabled: !!value.paddleEnabled
+    });
+    setTimeout(() => {
+      this.savingOcrSettings = false;
+      this.snackBar.open('OCR settings saved.', 'Close', { duration: 2200 });
+    }, 250);
   }
 
   private extractError(err: HttpErrorResponse): string {

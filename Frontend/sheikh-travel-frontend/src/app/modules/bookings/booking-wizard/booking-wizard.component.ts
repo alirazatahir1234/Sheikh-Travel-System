@@ -4,7 +4,7 @@ import { Router } from '@angular/router';
 import { MatStepper } from '@angular/material/stepper';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Observable, Subject, forkJoin, of } from 'rxjs';
+import { Observable, Subject, firstValueFrom, forkJoin, of } from 'rxjs';
 import { finalize, map, startWith, switchMap, takeUntil, tap } from 'rxjs/operators';
 
 import { BookingService } from '../../../core/services/booking.service';
@@ -14,6 +14,8 @@ import { VehicleService } from '../../../core/services/vehicle.service';
 import { DriverService } from '../../../core/services/driver.service';
 import { CustomerService } from '../../../core/services/customer.service';
 import { DriverAllowanceRuleService } from '../../../core/services/driver-allowance-rule.service';
+import { OcrService } from '../../../core/services/ocr.service';
+import { OcrSettingsService } from '../../../core/services/ocr-settings.service';
 
 import { Route } from '../../../core/models/route.model';
 import { Vehicle, VehicleStatusLabels } from '../../../core/models/vehicle.model';
@@ -23,6 +25,14 @@ import { PriceBreakdown } from '../../../core/models/pricing.model';
 import { Booking } from '../../../core/models/booking.model';
 import { PaymentMethod } from '../../../core/models/payment.model';
 import { CalculateDriverAllowanceResponse } from '../../../core/models/driver-allowance-rule.model';
+import { OcrExtractResult } from '../../../core/models/ocr.model';
+import {
+  compressCnicImageToJpeg,
+  enrichCnicParsedFromCombinedRaw,
+  mergeCnicSideAddresses,
+  parseCnicDocumentOcrText,
+  type CnicOcrParsedFields
+} from '../../../core/utils/cnic-document-ocr.util';
 import { PaymentPlan } from '../../../shared/utils/booking-payment-plan.util';
 import {
   extractTransactionReferenceFromFileName,
@@ -84,8 +94,22 @@ export class BookingWizardComponent implements OnInit, OnDestroy {
   allowanceOverridden = false;
   cnicOcrBusy = false;
   cnicUploadBusy = false;
-  cnicPreviewDataUrl: string | null = null;
-  cnicFileName: string | null = null;
+  cnicFrontPreviewDataUrl: string | null = null;
+  cnicBackPreviewDataUrl: string | null = null;
+  cnicFrontFileName: string | null = null;
+  cnicBackFileName: string | null = null;
+  cnicOcrProvider: string | null = null;
+  cnicOcrConfidence: number | null = null;
+  cnicOcrFallbackUsed: boolean | null = null;
+
+  private cnicFrontExtracted: CnicOcrParsedFields | null = null;
+  private cnicBackExtracted: CnicOcrParsedFields | null = null;
+  private cnicFrontOcrRawText: string | null = null;
+  private cnicBackOcrRawText: string | null = null;
+  private cnicBackendMetaFront: { ocrEngine: string; confidence: number | null; fallbackUsed: boolean | null } | null = null;
+  private cnicBackendMetaBack: { ocrEngine: string; confidence: number | null; fallbackUsed: boolean | null } | null = null;
+  private cnicOrientedFrontFile: File | null = null;
+  private cnicOrientedBackFile: File | null = null;
 
   selectedVehicle: Vehicle | null = null;
 
@@ -100,6 +124,8 @@ export class BookingWizardComponent implements OnInit, OnDestroy {
     private driverService: DriverService,
     private customerService: CustomerService,
     private allowanceRuleService: DriverAllowanceRuleService,
+    private ocrService: OcrService,
+    private ocrSettingsService: OcrSettingsService,
     private router: Router,
     private snackBar: MatSnackBar
   ) {
@@ -285,6 +311,7 @@ export class BookingWizardComponent implements OnInit, OnDestroy {
   // ---------- Option selection ----------------------------------------------
 
   onCustomerSelected(customer: Customer): void {
+    this.clearCnicUploadState();
     this.step1Form.patchValue({
       customerId:     customer.id,
       customerSearch: customer
@@ -370,6 +397,7 @@ export class BookingWizardComponent implements OnInit, OnDestroy {
   }
 
   clearCustomer(): void {
+    this.clearCnicUploadState();
     this.step1Form.patchValue({ customerId: null, customerSearch: '' });
   }
 
@@ -380,12 +408,31 @@ export class BookingWizardComponent implements OnInit, OnDestroy {
     this.updateCustomerValidators();
 
     if (mode === 'EXISTING') {
+      this.clearCnicUploadState();
       this.step1Form.patchValue({
         newFullName: '', newPhone: '', newEmail: '', newCnic: '', newAddress: ''
       });
     } else {
       this.clearCustomer();
     }
+  }
+
+  private clearCnicUploadState(): void {
+    this.cnicFrontFileName = null;
+    this.cnicBackFileName = null;
+    this.cnicFrontPreviewDataUrl = null;
+    this.cnicBackPreviewDataUrl = null;
+    this.cnicFrontExtracted = null;
+    this.cnicBackExtracted = null;
+    this.cnicFrontOcrRawText = null;
+    this.cnicBackOcrRawText = null;
+    this.cnicBackendMetaFront = null;
+    this.cnicBackendMetaBack = null;
+    this.cnicOcrProvider = null;
+    this.cnicOcrConfidence = null;
+    this.cnicOcrFallbackUsed = null;
+    this.cnicOrientedFrontFile = null;
+    this.cnicOrientedBackFile = null;
   }
 
   private updateCustomerValidators(): void {
@@ -719,63 +766,144 @@ export class BookingWizardComponent implements OnInit, OnDestroy {
     if (file) void this.ingestBankTransferReceiptFile(file);
   }
 
-  onCnicFileSelected(ev: Event): void {
+  onCnicFileSelected(side: 'front' | 'back', ev: Event): void {
     const input = ev.target as HTMLInputElement;
     const file = input.files?.item(0);
     input.value = '';
-    if (file) void this.ingestCnicFile(file);
+    if (file) void this.ingestCnicFile(side, file);
   }
 
-  onCnicDrop(ev: DragEvent): void {
+  onCnicDrop(side: 'front' | 'back', ev: DragEvent): void {
     ev.preventDefault();
-    const file = ev.dataTransfer?.files?.item(0);
-    if (file) void this.ingestCnicFile(file);
+    const dt = ev.dataTransfer;
+    if (!dt?.files?.length) return;
+
+    const imageFiles: File[] = [];
+    for (let i = 0; i < dt.files.length; i++) {
+      const f = dt.files.item(i);
+      if (
+        f &&
+        (f.type === 'image/jpeg' ||
+          f.type === 'image/jpg' ||
+          f.type === 'image/png' ||
+          f.type === 'image/webp' ||
+          (!f.type && /\.(jpe?g|png|webp)$/i.test(f.name || '')))
+      ) {
+        imageFiles.push(f);
+      }
+    }
+
+    if (imageFiles.length >= 2) {
+      void this.ingestCnicPair(imageFiles[0], imageFiles[1]);
+      return;
+    }
+
+    const file = dt.files.item(0);
+    if (file) void this.ingestCnicFile(side, file);
   }
 
-  private async ingestCnicFile(file: File): Promise<void> {
-    if (file.size > this.bankTransferReceiptMaxBytes) {
-      this.snackBar.open('CNIC file must be 15 MB or smaller.', 'Close', { duration: 3500 });
-      return;
-    }
-
-    // OCR path currently supports images. PDFs are accepted for future backend OCR flow.
-    if (file.type === 'application/pdf') {
-      this.cnicFileName = file.name;
-      this.cnicPreviewDataUrl = null;
-      this.snackBar.open('PDF uploaded. OCR is currently supported for image CNIC files.', 'Close', { duration: 4500 });
-      return;
-    }
-
-    if (!file.type.startsWith('image/')) {
-      this.snackBar.open('Please upload CNIC as JPG, PNG, WebP, or PDF.', 'Close', { duration: 3500 });
-      return;
-    }
-
-    this.customerMode = 'NEW';
-    this.updateCustomerValidators();
+  private async ingestCnicPair(frontFile: File, backFile: File): Promise<void> {
     this.cnicUploadBusy = true;
     try {
-      const imageDataUrl = await this.compressImageToJpegDataUrl(file, 1600, 0.9);
-      this.cnicPreviewDataUrl = imageDataUrl;
-      this.cnicFileName = file.name;
-      await this.extractAndApplyCnicData(imageDataUrl);
-    } catch {
-      this.snackBar.open('Could not process CNIC image. Try a clearer file.', 'Close', { duration: 3500 });
+      await this.ingestCnicFile('front', frontFile);
+      await this.ingestCnicFile('back', backFile);
+      this.snackBar.open('Processed CNIC front and back. Please verify all fields.', 'Close', { duration: 4000 });
     } finally {
       this.cnicUploadBusy = false;
     }
   }
 
-  private async extractAndApplyCnicData(imageDataUrl: string): Promise<void> {
+  private async ingestCnicFile(side: 'front' | 'back', file: File): Promise<void> {
+    if (file.size > this.bankTransferReceiptMaxBytes) {
+      this.snackBar.open('CNIC file must be 15 MB or smaller.', 'Close', { duration: 3500 });
+      return;
+    }
+
+    const isCnicPhoto =
+      file.type === 'image/jpeg' ||
+      file.type === 'image/jpg' ||
+      file.type === 'image/png' ||
+      file.type === 'image/webp' ||
+      (!file.type && /\.(jpe?g|png|webp)$/i.test(file.name || ''));
+    if (!isCnicPhoto) {
+      this.snackBar.open('Please upload CNIC as a JPG, PNG, or WebP photo (not PDF).', 'Close', { duration: 4000 });
+      return;
+    }
+
+    this.customerMode = 'NEW';
+    this.updateCustomerValidators();
+
+    const ownBusy = !this.cnicUploadBusy;
+    if (ownBusy) this.cnicUploadBusy = true;
+    try {
+      const { dataUrl, jpegFile } = await compressCnicImageToJpeg(file, 1600, 0.9);
+      if (side === 'front') {
+        this.cnicFrontPreviewDataUrl = dataUrl;
+        this.cnicFrontFileName = file.name;
+        this.cnicOrientedFrontFile = jpegFile;
+      } else {
+        this.cnicBackPreviewDataUrl = dataUrl;
+        this.cnicBackFileName = file.name;
+        this.cnicOrientedBackFile = jpegFile;
+      }
+      await this.extractAndMergeCnicSide(side, jpegFile, dataUrl);
+    } catch {
+      this.snackBar.open('Could not process CNIC image. Try a clearer file.', 'Close', { duration: 3500 });
+    } finally {
+      if (ownBusy) this.cnicUploadBusy = false;
+    }
+  }
+
+  private async extractAndMergeCnicSide(side: 'front' | 'back', ocrFile: File, imageDataUrl: string): Promise<void> {
     this.cnicOcrBusy = true;
     try {
-      const { createWorker } = await import('tesseract.js');
-      const worker = await createWorker('eng');
-      const { data } = await worker.recognize(imageDataUrl);
-      await worker.terminate();
+      if (side === 'front') {
+        this.cnicBackendMetaFront = null;
+      } else {
+        this.cnicBackendMetaBack = null;
+      }
 
-      const extracted = this.parseCnicOcrText(data.text || '');
-      this.applyCnicExtraction(extracted);
+      const { extracted, backendResult, usedTesseract, ocrRawText } = await this.runOcrOnCnicImage(ocrFile, imageDataUrl, side);
+
+      if (side === 'front') {
+        this.cnicFrontExtracted = extracted;
+        this.cnicFrontOcrRawText = ocrRawText ?? null;
+      } else {
+        this.cnicBackExtracted = extracted;
+        this.cnicBackOcrRawText = ocrRawText ?? null;
+      }
+
+      if (backendResult) {
+        const ocrEngine =
+          (backendResult.ocrEngine || backendResult.provider || 'OCR').trim() || 'OCR';
+        const confidence = Number(backendResult.confidence ?? 0);
+        const meta = {
+          ocrEngine,
+          confidence: Number.isFinite(confidence) ? Math.max(0, Math.round(confidence)) : null,
+          fallbackUsed: backendResult.fallbackUsed ?? null
+        };
+        if (side === 'front') {
+          this.cnicBackendMetaFront = meta;
+        } else {
+          this.cnicBackendMetaBack = meta;
+        }
+      }
+
+      this.refreshMergedCnicOcrDisplay();
+      const merged = this.mergeCnicSides(this.cnicFrontExtracted, this.cnicBackExtracted);
+      const filled = enrichCnicParsedFromCombinedRaw(merged, this.cnicFrontOcrRawText, this.cnicBackOcrRawText);
+      this.applyCnicExtraction(filled, false);
+
+      if (backendResult) {
+        const sideLabel = side === 'front' ? 'Front' : 'Back';
+        this.snackBar.open(`${sideLabel}: OCR completed`, 'Close', { duration: 2200 });
+      } else if (usedTesseract) {
+        this.snackBar.open(
+          `${side === 'front' ? 'Front' : 'Back'}: CNIC OCR completed using frontend fallback.`,
+          'Close',
+          { duration: 3200 }
+        );
+      }
     } catch {
       this.snackBar.open('OCR failed. You can still fill fields manually.', 'Close', { duration: 3500 });
     } finally {
@@ -783,44 +911,159 @@ export class BookingWizardComponent implements OnInit, OnDestroy {
     }
   }
 
-  private parseCnicOcrText(text: string): { fullName?: string; cnic?: string; address?: string } {
-    const normalized = text.replace(/\r/g, '\n');
-    const lines = normalized.split('\n').map(l => l.trim()).filter(Boolean);
-
-    const cnicMatch =
-      normalized.match(/\b\d{5}-\d{7}-\d\b/) ||
-      normalized.match(/\b\d{13}\b/);
-    const cnic = cnicMatch?.[0]
-      ? (cnicMatch[0].includes('-')
-        ? cnicMatch[0]
-        : `${cnicMatch[0].slice(0, 5)}-${cnicMatch[0].slice(5, 12)}-${cnicMatch[0].slice(12)}`)
-      : undefined;
-
-    const ignoreTokens = ['islamic republic', 'national identity', 'pakistan', 'card', 'father', 'husband', 'date of birth', 'gender'];
-    let fullName: string | undefined;
-    for (const line of lines) {
-      const lower = line.toLowerCase();
-      if (line.length < 3 || line.length > 50) continue;
-      if (/\d/.test(line)) continue;
-      if (ignoreTokens.some(t => lower.includes(t))) continue;
-      if (/^[A-Z][A-Z\s.]+$/.test(line) || /^[A-Z][a-z]+(?:\s+[A-Z][a-z]+)+$/.test(line)) {
-        fullName = line.replace(/\s+/g, ' ').trim();
-        break;
+  private async runOcrOnCnicImage(
+    ocrFile: File,
+    imageDataUrl: string,
+    side: 'front' | 'back'
+  ): Promise<{
+    extracted: CnicOcrParsedFields;
+    backendResult: OcrExtractResult | null;
+    usedTesseract: boolean;
+    ocrRawText?: string;
+  }> {
+    const settings = this.ocrSettingsService.getSettings();
+    try {
+      const backend = await firstValueFrom(this.ocrService.extractFromDocument(ocrFile, settings));
+      let extracted = this.ocrResultToExtracted(backend);
+      if (backend.rawText?.trim()) {
+        const fromRaw = parseCnicDocumentOcrText(backend.rawText, side);
+        extracted = {
+          fullName: extracted.fullName || fromRaw.fullName,
+          fatherName: extracted.fatherName || fromRaw.fatherName,
+          cnic: extracted.cnic || fromRaw.cnic,
+          address: mergeCnicSideAddresses(fromRaw.address, extracted.address),
+          phone: extracted.phone || fromRaw.phone,
+          email: extracted.email || fromRaw.email,
+          gender: extracted.gender || fromRaw.gender,
+          dateOfBirth: extracted.dateOfBirth || fromRaw.dateOfBirth,
+          nationality: extracted.nationality || fromRaw.nationality
+        };
       }
+      const ocrRawText = (backend.rawText || '').trim() || undefined;
+      if (
+        extracted.fullName ||
+        extracted.fatherName ||
+        extracted.cnic ||
+        extracted.address ||
+        extracted.phone ||
+        extracted.email ||
+        extracted.gender ||
+        extracted.dateOfBirth ||
+        extracted.nationality ||
+        ocrRawText
+      ) {
+        return {
+          extracted,
+          backendResult: backend,
+          usedTesseract: false,
+          ocrRawText
+        };
+      }
+    } catch {
+      // Continue to frontend OCR fallback.
     }
 
-    let address: string | undefined;
-    const addressLine = lines.find(l => /address|addr/i.test(l));
-    if (addressLine) {
-      address = addressLine.replace(/address[:\s-]*/i, '').trim();
-    }
+    const { createWorker } = await import('tesseract.js');
+    const worker = await createWorker('eng');
+    const { data } = await worker.recognize(imageDataUrl);
+    await worker.terminate();
 
-    return { fullName, cnic, address };
+    const extracted = parseCnicDocumentOcrText(data.text || '', side);
+    return {
+      extracted,
+      backendResult: null,
+      usedTesseract: true,
+      ocrRawText: (data.text || '').trim() || undefined
+    };
   }
 
-  private applyCnicExtraction(extracted: { fullName?: string; cnic?: string; address?: string }): void {
+  private ocrResultToExtracted(result: OcrExtractResult | null | undefined): CnicOcrParsedFields {
+    if (!result) return {};
+    const rawDob = (result.dateOfBirth ?? '').toString().trim();
+    const dateOfBirth = rawDob.length >= 10 ? rawDob.slice(0, 10) : rawDob || undefined;
+    return {
+      fullName: (result.fullName || '').trim() || undefined,
+      fatherName: (result.fatherName || '').trim() || undefined,
+      cnic: ((result.identityNumber || result.cnic || '').trim()) || undefined,
+      address: (result.address || '').trim() || undefined,
+      gender: (result.gender || '').trim() || undefined,
+      dateOfBirth,
+      nationality: (result.nationality || '').trim() || undefined
+    };
+  }
+
+  private mergeCnicSides(front: CnicOcrParsedFields | null, back: CnicOcrParsedFields | null): CnicOcrParsedFields {
+    if (!this.sideHasCnicData(front) && !this.sideHasCnicData(back)) return {};
+    const fullName = (() => {
+      const nameF = (front?.fullName || '').trim();
+      const nameB = (back?.fullName || '').trim();
+      if (nameF && nameB) return nameF.length >= nameB.length ? nameF : nameB;
+      return nameF || nameB || undefined;
+    })();
+    const cnicRaw = (front?.cnic || back?.cnic || '').trim() || undefined;
+    const addrF = (front?.address || '').trim();
+    const addrB = (back?.address || '').trim();
+    const address = mergeCnicSideAddresses(addrF || undefined, addrB || undefined);
+    const phone = (front?.phone || back?.phone || '').trim() || undefined;
+    const email = (front?.email || back?.email || '').trim() || undefined;
+    const pickLonger = (a?: string, b?: string) => {
+      const x = (a || '').trim();
+      const y = (b || '').trim();
+      if (!x) return y || undefined;
+      if (!y) return x || undefined;
+      return x.length >= y.length ? x : y;
+    };
+    const fatherName = pickLonger(front?.fatherName, back?.fatherName);
+    const gender = (front?.gender || back?.gender || '').trim() || undefined;
+    const dateOfBirth = (front?.dateOfBirth || back?.dateOfBirth || '').trim() || undefined;
+    const nationality = (front?.nationality || back?.nationality || '').trim() || undefined;
+    return { fullName, cnic: cnicRaw, address, phone, email, fatherName, gender, dateOfBirth, nationality };
+  }
+
+  private refreshMergedCnicOcrDisplay(): void {
+    const hasFront = this.sideHasCnicData(this.cnicFrontExtracted);
+    const hasBack = this.sideHasCnicData(this.cnicBackExtracted);
+    const metas = [this.cnicBackendMetaFront, this.cnicBackendMetaBack].filter(
+      (m): m is NonNullable<typeof m> => m != null
+    );
+
+    if (hasFront && hasBack) {
+      const engines = metas.map((m) => m.ocrEngine).filter(Boolean);
+      const uniq = [...new Set(engines)];
+      this.cnicOcrProvider = uniq.length <= 1 ? uniq[0] ?? 'Hybrid' : 'Hybrid';
+    } else if (metas.length > 0) {
+      this.cnicOcrProvider = metas[0].ocrEngine;
+    } else {
+      this.cnicOcrProvider = hasFront || hasBack ? 'Frontend OCR' : null;
+    }
+
+    const confidences = metas.map((m) => m.confidence).filter((c): c is number => c != null && Number.isFinite(c));
+    this.cnicOcrConfidence = confidences.length
+      ? Math.round(confidences.reduce((a, b) => a + b, 0) / confidences.length)
+      : null;
+
+    const fallbacks = metas.map((m) => m.fallbackUsed).filter((f) => f != null);
+    this.cnicOcrFallbackUsed = fallbacks.length ? fallbacks.some(Boolean) : null;
+  }
+
+  private sideHasCnicData(e: CnicOcrParsedFields | null): boolean {
+    return !!(
+      e &&
+      ((e.fullName || '').trim() ||
+        (e.fatherName || '').trim() ||
+        (e.cnic || '').trim() ||
+        (e.address || '').trim() ||
+        (e.gender || '').trim() ||
+        (e.dateOfBirth || '').trim() ||
+        (e.nationality || '').trim())
+    );
+  }
+
+  private applyCnicExtraction(extracted: CnicOcrParsedFields, showSummaryToast: boolean): void {
     const patch: Record<string, string> = {};
     if (extracted.fullName) patch['newFullName'] = extracted.fullName;
+    if (extracted.phone) patch['newPhone'] = extracted.phone;
+    if (extracted.email) patch['newEmail'] = extracted.email;
     if (extracted.cnic) patch['newCnic'] = extracted.cnic;
     if (extracted.address) patch['newAddress'] = extracted.address;
 
@@ -840,13 +1083,17 @@ export class BookingWizardComponent implements OnInit, OnDestroy {
 
     const filled = [
       extracted.fullName ? 'name' : '',
+      extracted.phone ? 'phone' : '',
+      extracted.email ? 'email' : '',
       extracted.cnic ? 'CNIC' : '',
       extracted.address ? 'address' : ''
     ].filter(Boolean);
-    if (filled.length > 0) {
-      this.snackBar.open(`CNIC OCR filled: ${filled.join(', ')}. Please verify before saving.`, 'Close', { duration: 4000 });
-    } else {
-      this.snackBar.open('No reliable CNIC fields found. Please fill manually.', 'Close', { duration: 3500 });
+    if (showSummaryToast) {
+      if (filled.length > 0) {
+        this.snackBar.open(`CNIC OCR filled: ${filled.join(', ')}. Please verify before saving.`, 'Close', { duration: 4000 });
+      } else {
+        this.snackBar.open('No reliable CNIC fields found. Please fill manually.', 'Close', { duration: 3500 });
+      }
     }
   }
 

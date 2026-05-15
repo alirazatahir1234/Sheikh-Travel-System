@@ -11,34 +11,343 @@
     </div>
 
     <form [formGroup]="form" (ngSubmit)="submit()" [class.dimmed]="loadingCustomer && isEdit">
-      <div class="form-grid">
-        <mat-form-field appearance="outline">
+      <div class="cnic-section-head">
+        <h3 class="cnic-section-title">CNIC (optional)</h3>
+        <button
+          mat-stroked-button
+          type="button"
+          class="cnic-clear-scans-btn"
+          *ngIf="cnicFrontFileName || cnicBackFileName || cnicOcrProvider"
+          (click)="clearCnicScans()"
+          [disabled]="cnicUploadBusy || cnicOcrBusy || loadingCustomer">
+          Clear CNIC scans
+        </button>
+      </div>
+      <p class="cnic-intro">
+        Upload clear front and back photos of the CNIC. Customer details will be filled automatically.
+      </p>
+
+      <input
+        #cnicUnifiedInput
+        type="file"
+        multiple
+        accept="image/jpeg,image/jpg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
+        class="visually-hidden"
+        (change)="onCnicUnifiedInputChange($event)">
+      <input
+        #cnicReplaceInput
+        type="file"
+        accept="image/jpeg,image/jpg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
+        class="visually-hidden"
+        (change)="onCnicReplaceInputChange($event)">
+
+      <div
+        class="cnic-unified"
+        [class.is-drag]="cnicUnifiedDragOver"
+        [class.is-busy]="cnicUploadBusy || cnicOcrBusy">
+        <button
+          type="button"
+          class="cnic-unified-zone"
+          (click)="cnicUnifiedInput.click()"
+          (keydown.enter)="cnicUnifiedInput.click()"
+          (dragover)="onCnicUnifiedDragOver($event)"
+          (dragleave)="onCnicUnifiedDragLeave($event)"
+          (drop)="onCnicUnifiedDrop($event)"
+          [disabled]="cnicUploadBusy || cnicOcrBusy || loadingCustomer">
+          <mat-icon class="cnic-unified-icon">cloud_upload</mat-icon>
+          <span class="cnic-unified-title">Upload CNIC front &amp; back</span>
+          <span class="cnic-unified-sub">Drag and drop here, or click to browse.</span>
+          <span class="cnic-unified-formats">Supported: JPG · PNG · WebP</span>
+        </button>
+      </div>
+
+      <div class="cnic-live-progress" *ngIf="cnicUploadBusy || cnicOcrBusy || cnicSyntheticProgress > 0">
+        <div class="cnic-synthetic-bar" *ngIf="cnicSyntheticProgress > 0">
+          <div class="cnic-synthetic-bar-fill" [style.width.%]="cnicSyntheticProgress"></div>
+        </div>
+        <div class="cnic-pipeline-live" *ngIf="cnicPipelineStepLabel">{{ cnicPipelineStepLabel }}</div>
+        <div class="cnic-live-row" *ngIf="cnicUploadBusy || cnicOcrBusy">
+          <mat-spinner diameter="18"></mat-spinner>
+          <span *ngIf="cnicOcrBusy">Extracting CNIC details and translating the address when needed…</span>
+          <span *ngIf="!cnicOcrBusy && cnicUploadBusy">Preparing your images…</span>
+        </div>
+      </div>
+
+      <div class="cnic-alert cnic-alert--success" *ngIf="cnicLastOcrSuccessMessage" role="status">
+        <mat-icon>check_circle</mat-icon>
+        <span>{{ cnicLastOcrSuccessMessage }}</span>
+      </div>
+
+      <div class="cnic-alert cnic-alert--error" *ngIf="cnicLastOcrInlineError" role="alert">
+        <mat-icon>error_outline</mat-icon>
+        <div class="cnic-alert-body">
+          <span>{{ cnicLastOcrInlineError }}</span>
+          <button
+            mat-stroked-button
+            type="button"
+            class="cnic-alert-retry"
+            *ngIf="showCnicRetryOcr"
+            (click)="retryCnicOcr()"
+            [disabled]="cnicUploadBusy || cnicOcrBusy || loadingCustomer">
+            <mat-icon>refresh</mat-icon>
+            Retry OCR
+          </button>
+        </div>
+      </div>
+
+      <div class="cnic-detect-hint" *ngIf="cnicBackMissingHint && !cnicUploadBusy && !cnicOcrBusy">
+        <mat-icon>info</mat-icon>
+        <span>Back side not added yet — upload it for a more complete read (address and other lines).</span>
+      </div>
+
+      <div class="cnic-thumbs-row" *ngIf="cnicFrontFileName || cnicBackFileName">
+        <div class="cnic-thumb-wrap" *ngIf="cnicFrontFileName">
+          <div class="cnic-thumb-head">
+            <span class="cnic-thumb-badge">Front side</span>
+            <span class="side-ocr-pill" *ngIf="cnicFrontSideUi !== 'empty'" [ngClass]="'pill-' + cnicFrontSideUi">{{ cnicSideStatusLabel('front') }}</span>
+          </div>
+          <button
+            type="button"
+            class="cnic-thumb-card cnic-thumb-card--front"
+            *ngIf="cnicFrontDisplayUrl; else frontHold"
+            (click)="openCnicLightbox(cnicFrontDisplayUrl!)">
+            <div class="cnic-thumb-frame">
+              <img [src]="cnicFrontDisplayUrl" alt="CNIC front">
+            </div>
+          </button>
+          <ng-template #frontHold>
+            <div class="cnic-thumb-card cnic-thumb-card--front cnic-thumb-card--hold">
+              <div class="cnic-thumb-frame cnic-thumb-frame--hold">
+                <mat-spinner diameter="28"></mat-spinner>
+                <span class="cnic-thumb-hold-name">{{ cnicFrontFileName }}</span>
+                <span class="cnic-thumb-hold-hint">Preparing preview…</span>
+              </div>
+            </div>
+          </ng-template>
+          <div class="cnic-thumb-actions">
+            <button
+              mat-stroked-button
+              type="button"
+              class="cnic-thumb-replace"
+              (click)="startReplaceCnicSide('front', cnicReplaceInput)"
+              [disabled]="cnicUploadBusy || cnicOcrBusy || loadingCustomer">
+              Replace
+            </button>
+            <button
+              mat-button
+              type="button"
+              class="cnic-thumb-remove"
+              (click)="removeCnicSide('front')"
+              [disabled]="cnicUploadBusy || cnicOcrBusy || loadingCustomer">
+              Remove
+            </button>
+          </div>
+        </div>
+
+        <div class="cnic-thumb-wrap" *ngIf="cnicBackFileName">
+          <div class="cnic-thumb-head">
+            <span class="cnic-thumb-badge">Back side</span>
+            <span class="side-ocr-pill" *ngIf="cnicBackSideUi !== 'empty'" [ngClass]="'pill-' + cnicBackSideUi">{{ cnicSideStatusLabel('back') }}</span>
+          </div>
+          <button
+            type="button"
+            class="cnic-thumb-card cnic-thumb-card--back"
+            *ngIf="cnicBackDisplayUrl; else backHold"
+            (click)="openCnicLightbox(cnicBackDisplayUrl!)">
+            <div class="cnic-thumb-frame">
+              <img [src]="cnicBackDisplayUrl" alt="CNIC back">
+            </div>
+          </button>
+          <ng-template #backHold>
+            <div class="cnic-thumb-card cnic-thumb-card--back cnic-thumb-card--hold">
+              <div class="cnic-thumb-frame cnic-thumb-frame--hold">
+                <mat-spinner diameter="28"></mat-spinner>
+                <span class="cnic-thumb-hold-name">{{ cnicBackFileName }}</span>
+                <span class="cnic-thumb-hold-hint">Preparing preview…</span>
+              </div>
+            </div>
+          </ng-template>
+          <div class="cnic-thumb-actions">
+            <button
+              mat-stroked-button
+              type="button"
+              class="cnic-thumb-replace"
+              (click)="startReplaceCnicSide('back', cnicReplaceInput)"
+              [disabled]="cnicUploadBusy || cnicOcrBusy || loadingCustomer">
+              Replace
+            </button>
+            <button
+              mat-button
+              type="button"
+              class="cnic-thumb-remove"
+              (click)="removeCnicSide('back')"
+              [disabled]="cnicUploadBusy || cnicOcrBusy || loadingCustomer">
+              Remove
+            </button>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          class="cnic-thumb-placeholder"
+          *ngIf="cnicFrontFileName && !cnicBackFileName"
+          (click)="cnicUnifiedInput.click()"
+          [disabled]="cnicUploadBusy || cnicOcrBusy || loadingCustomer">
+          <mat-icon>add_a_photo</mat-icon>
+          <span>Add back side</span>
+          <span class="hint">Improves address and other details</span>
+        </button>
+      </div>
+
+      <div class="ocr-progress-card" *ngIf="cnicFrontFileName || cnicBackFileName || cnicOcrProvider">
+        <div class="ocr-progress-title">Processing status</div>
+        <ul class="ocr-progress-list">
+          <li
+            *ngFor="let s of cnicOcrProgressSteps"
+            [class.is-done]="s.state === 'done'"
+            [class.is-active]="s.state === 'active'"
+            [class.is-pending]="s.state === 'pending'">
+            <span class="ocr-step-icon-wrap">
+              <mat-icon *ngIf="s.state === 'done'" class="ocr-step-icon--done">check_circle</mat-icon>
+              <mat-spinner *ngIf="s.state === 'active'" diameter="18" class="ocr-step-spinner"></mat-spinner>
+              <mat-icon *ngIf="s.state === 'pending'" class="ocr-step-icon--pending">radio_button_unchecked</mat-icon>
+            </span>
+            <span class="ocr-step-label">{{ s.label }}</span>
+          </li>
+        </ul>
+      </div>
+
+      <div class="ocr-info-card" *ngIf="cnicOcrProvider">
+        <div class="ocr-done">
+          <mat-icon>check_circle</mat-icon>
+          <span>OCR completed</span>
+        </div>
+
+        <div class="ocr-warn-banner" *ngIf="cnicOcrLowConfidence">
+          <mat-icon>warning</mat-icon>
+          <div>
+            <strong>Low OCR confidence ({{ cnicOcrConfidence !== null ? (cnicOcrConfidence + '%') : '—' }})</strong>
+            <span *ngIf="cnicOcrAzureMerge"> — Azure refinement was applied because the primary read was below {{ cnicOcrConfidenceThreshold ?? 70 }}% or incomplete.</span>
+            <span *ngIf="!cnicOcrAzureMerge && cnicOcrErrorRecovery"> — Azure was unavailable; PaddleOCR-only result. Please verify all fields.</span>
+            <span *ngIf="!cnicOcrAzureMerge && !cnicOcrErrorRecovery && cnicOcrSecondaryEngine"> — {{ cnicOcrSecondaryEngine }}</span>
+            <div class="ocr-warn-sub">Please verify every extracted value before saving.</div>
+          </div>
+        </div>
+
+        <div class="ocr-engine-badges">
+          <span class="engine-chip engine-chip--hybrid" *ngIf="cnicOcrProvider === 'Hybrid'">Hybrid</span>
+          <span class="engine-chip engine-chip--paddle" *ngIf="cnicOcrProvider === 'PaddleOCR'">PaddleOCR</span>
+          <span class="engine-chip engine-chip--azure" *ngIf="cnicOcrProvider === 'Azure AI'">Azure AI</span>
+          <span class="engine-chip engine-chip--neutral" *ngIf="cnicOcrProvider === 'Frontend OCR'">Frontend OCR</span>
+          <span class="engine-chip engine-chip--muted" *ngIf="cnicOcrProvider && cnicOcrProvider !== 'Hybrid' && cnicOcrProvider !== 'PaddleOCR' && cnicOcrProvider !== 'Azure AI' && cnicOcrProvider !== 'Frontend OCR'">{{ cnicOcrProvider }}</span>
+          <span class="engine-chip engine-chip--muted" *ngIf="cnicOcrPrimaryEngine">Primary: {{ cnicOcrPrimaryEngine }}</span>
+          <span class="engine-chip engine-chip--muted" *ngIf="cnicOcrSecondaryEngine">Secondary: {{ cnicOcrSecondaryEngine }}</span>
+        </div>
+
+        <div class="ocr-accuracy-row">
+          <span class="label">OCR accuracy</span>
+          <div class="ocr-accuracy-bar-wrap" *ngIf="cnicOcrConfidence !== null">
+            <div class="ocr-accuracy-bar" [style.width.%]="cnicOcrConfidence"></div>
+          </div>
+          <span class="ocr-accuracy-val">{{ cnicOcrConfidence !== null ? (cnicOcrConfidence + '%') : '—' }}</span>
+        </div>
+
+        <div class="ocr-stats-line">
+          <span>Fields filled on form: <strong>{{ cnicOcrFieldsFilledCount }}</strong> / {{ cnicOcrFieldTotal }}</span>
+        </div>
+
+        <div class="ocr-translation-line" *ngIf="cnicOcrAddressTranslated === true">
+          <mat-icon>translate</mat-icon>
+          <span>Permanent address translated to English</span>
+        </div>
+        <div class="ocr-translation-line ocr-translation-line--muted" *ngIf="cnicOcrAddressTranslated === false">
+          <mat-icon>info</mat-icon>
+          <span>Address translation was not applied (no Urdu permanent-address block detected, or translator returned empty).</span>
+        </div>
+
+        <div class="ocr-info-grid">
+          <span class="label">Pipeline</span><span>{{ cnicOcrProvider }}</span>
+          <span class="label">Avg. confidence</span>
+          <span>{{ cnicOcrConfidence !== null ? (cnicOcrConfidence + '%') : '—' }}</span>
+          <span class="label">Threshold</span>
+          <span>{{ (cnicOcrConfidenceThreshold ?? 70) + '%' }}</span>
+        </div>
+      </div>
+
+      <div class="ocr-verify-card" *ngIf="cnicOcrProvider && cnicOcrVerificationRows.length">
+        <div class="ocr-verify-title">Verification checklist</div>
+        <ul class="ocr-verify-list">
+          <li *ngFor="let row of cnicOcrVerificationRows" [class.is-ok]="row.ok" [class.is-warn]="!row.ok">
+            <mat-icon>{{ row.ok ? 'task_alt' : 'error_outline' }}</mat-icon>
+            <span>{{ row.label }}</span>
+            <span class="ocr-verify-status">{{ row.ok ? 'OK' : 'Needs input' }}</span>
+          </li>
+        </ul>
+      </div>
+
+      <div class="form-grid" [class.ocr-form-grid-busy]="cnicOcrBusy">
+        <mat-form-field appearance="outline" [class.ocr-field-shimmer]="cnicOcrBusy" [class.ocr-field-glow]="ocrJustFilled('fullName')">
           <mat-label>Full Name</mat-label>
           <input matInput formControlName="fullName" autocomplete="name">
+          <mat-hint *ngIf="cnicOcrProvider && cnicOcrLowConfidence && !form.get('fullName')?.value" class="field-warn-hint">
+            Not detected — please type manually (low-confidence OCR).
+          </mat-hint>
           <mat-error *ngIf="form.get('fullName')?.hasError('required')">Required</mat-error>
           <mat-error *ngIf="form.get('fullName')?.hasError('maxlength')">Too long</mat-error>
         </mat-form-field>
 
-        <mat-form-field appearance="outline">
+        <mat-form-field appearance="outline" [class.ocr-field-shimmer]="cnicOcrBusy" [class.ocr-field-glow]="ocrJustFilled('fatherOrHusbandName')">
+          <mat-label>Father / Husband name (optional)</mat-label>
+          <input matInput formControlName="fatherOrHusbandName" autocomplete="additional-name">
+          <mat-hint *ngIf="cnicOcrProvider && cnicOcrLowConfidence && !form.get('fatherOrHusbandName')?.value" class="field-warn-hint">
+            Not detected — verify from card if needed.
+          </mat-hint>
+          <mat-error *ngIf="form.get('fatherOrHusbandName')?.hasError('maxlength')">Too long</mat-error>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" [class.ocr-field-shimmer]="cnicOcrBusy" [class.ocr-field-glow]="ocrJustFilled('phone')">
           <mat-label>Phone</mat-label>
           <input matInput formControlName="phone" placeholder="+92-300-1234567" autocomplete="tel">
           <mat-error *ngIf="form.get('phone')?.hasError('required')">Required</mat-error>
         </mat-form-field>
 
-        <mat-form-field appearance="outline">
+        <mat-form-field appearance="outline" [class.ocr-field-shimmer]="cnicOcrBusy" [class.ocr-field-glow]="ocrJustFilled('email')">
           <mat-label>Email (optional)</mat-label>
           <input matInput formControlName="email" type="email" autocomplete="email">
           <mat-error *ngIf="form.get('email')?.hasError('email')">Invalid email</mat-error>
         </mat-form-field>
 
-        <mat-form-field appearance="outline">
+        <mat-form-field appearance="outline" [class.ocr-field-shimmer]="cnicOcrBusy" [class.ocr-field-glow]="ocrJustFilled('cnic')">
           <mat-label>CNIC (optional)</mat-label>
           <input matInput formControlName="cnic" placeholder="XXXXX-XXXXXXX-X">
         </mat-form-field>
 
-        <mat-form-field appearance="outline" class="span-2">
-          <mat-label>Address (optional)</mat-label>
+        <mat-form-field appearance="outline" [class.ocr-field-shimmer]="cnicOcrBusy" [class.ocr-field-glow]="ocrJustFilled('gender')">
+          <mat-label>Gender (optional)</mat-label>
+          <mat-select formControlName="gender">
+            <mat-option value="">—</mat-option>
+            <mat-option value="Male">Male</mat-option>
+            <mat-option value="Female">Female</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" [class.ocr-field-shimmer]="cnicOcrBusy" [class.ocr-field-glow]="ocrJustFilled('dateOfBirth')">
+          <mat-label>Date of birth (optional)</mat-label>
+          <input matInput type="date" formControlName="dateOfBirth">
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" [class.ocr-field-shimmer]="cnicOcrBusy" [class.ocr-field-glow]="ocrJustFilled('nationality')">
+          <mat-label>Nationality (optional)</mat-label>
+          <input matInput formControlName="nationality" placeholder="e.g. Pakistani">
+          <mat-error *ngIf="form.get('nationality')?.hasError('maxlength')">Too long</mat-error>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="span-2" [class.ocr-field-shimmer]="cnicOcrBusy" [class.ocr-field-glow]="ocrJustFilled('address')">
+          <mat-label>Address (optional, English)</mat-label>
           <textarea matInput formControlName="address" rows="2"></textarea>
+          <mat-hint *ngIf="cnicOcrProvider && cnicOcrLowConfidence && !form.get('address')?.value" class="field-warn-hint">
+            Address missing — check back side image or enter manually.
+          </mat-hint>
         </mat-form-field>
       </div>
 
@@ -52,3 +361,12 @@
     </form>
   </mat-card-content>
 </mat-card>
+
+<div class="cnic-lightbox" *ngIf="cnicLightboxUrl" (click)="closeCnicLightbox()">
+  <button type="button" class="cnic-lightbox-close" mat-icon-button (click)="closeCnicLightbox(); $event.stopPropagation()">
+    <mat-icon>close</mat-icon>
+  </button>
+  <div class="cnic-lightbox-inner" (click)="$event.stopPropagation()">
+    <img [src]="cnicLightboxUrl" alt="Enlarged CNIC preview">
+  </div>
+</div>

@@ -18,7 +18,8 @@ public class GetCustomersQueryHandler(IDbConnectionFactory dbFactory)
 
         var customers = await connection.QueryAsync<CustomerDto>(
             new CommandDefinition(
-                @"SELECT Id, FullName, Phone, Email, Address, CNIC, IsActive, CreatedAt
+                @"SELECT Id, FullName, Phone, Email, Address, CNIC, IsActive, CreatedAt,
+                  FatherOrHusbandName, Gender, DateOfBirth, Nationality
                   FROM Customers WHERE IsDeleted = 0
                   ORDER BY CreatedAt DESC
                   OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY",

@@ -21,35 +21,93 @@
             <div class="section-header">
               <span class="section-icon-wrap primary-icon"><mat-icon>person</mat-icon></span>
               <span class="section-title">Customer</span>
-              <input
-                #cnicFileInput
-                type="file"
-                accept="image/jpeg,image/png,image/webp,application/pdf"
-                class="visually-hidden"
-                (change)="onCnicFileSelected($event)">
-              <button
-                mat-stroked-button
-                type="button"
-                class="upload-cnic-btn"
-                (click)="cnicFileInput.click()"
-                [disabled]="cnicUploadBusy || cnicOcrBusy">
-                <mat-icon>upload_file</mat-icon>
-                {{ cnicUploadBusy || cnicOcrBusy ? 'Reading CNIC…' : 'Upload CNIC' }}
-              </button>
               <span class="section-badge required-badge">Required</span>
             </div>
 
-            <div class="cnic-drop-zone"
-                 [class.is-busy]="cnicUploadBusy || cnicOcrBusy"
-                 (dragover)="$event.preventDefault()"
-                 (drop)="onCnicDrop($event)">
-              <mat-icon>{{ cnicOcrBusy ? 'manage_search' : 'badge' }}</mat-icon>
-              <span *ngIf="!cnicOcrBusy">Drag &amp; drop CNIC image/PDF here, or use Upload CNIC.</span>
-              <span *ngIf="cnicOcrBusy">Reading CNIC and auto-filling fields…</span>
+            <p class="cnic-wizard-intro">Optional: upload clear JPG, PNG, or WebP photos of the CNIC front and back to autofill customer fields (PDF not supported).</p>
+
+            <div class="cnic-sides-grid">
+              <div class="cnic-side">
+                <div class="cnic-side-header">
+                  <span class="cnic-side-label">Front</span>
+                  <input
+                    #cnicFrontInput
+                    type="file"
+                    accept="image/jpeg,image/jpg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
+                    class="visually-hidden"
+                    (change)="onCnicFileSelected('front', $event)">
+                  <button
+                    mat-stroked-button
+                    type="button"
+                    class="upload-cnic-btn"
+                    (click)="cnicFrontInput.click()"
+                    [disabled]="cnicUploadBusy || cnicOcrBusy">
+                    <mat-icon>upload_file</mat-icon>
+                    Upload
+                  </button>
+                </div>
+                <div
+                  class="cnic-drop-zone"
+                  [class.is-busy]="cnicUploadBusy || cnicOcrBusy"
+                  (dragover)="$event.preventDefault()"
+                  (drop)="onCnicDrop('front', $event)">
+                  <mat-icon>{{ cnicOcrBusy ? 'manage_search' : 'contact_emergency' }}</mat-icon>
+                  <span *ngIf="!cnicOcrBusy">Drop front image</span>
+                  <span *ngIf="cnicOcrBusy">Reading…</span>
+                </div>
+                <div class="cnic-preview" *ngIf="cnicFrontFileName">
+                  <strong>File:</strong> {{ cnicFrontFileName }}
+                </div>
+              </div>
+
+              <div class="cnic-side">
+                <div class="cnic-side-header">
+                  <span class="cnic-side-label">Back</span>
+                  <input
+                    #cnicBackInput
+                    type="file"
+                    accept="image/jpeg,image/jpg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
+                    class="visually-hidden"
+                    (change)="onCnicFileSelected('back', $event)">
+                  <button
+                    mat-stroked-button
+                    type="button"
+                    class="upload-cnic-btn"
+                    (click)="cnicBackInput.click()"
+                    [disabled]="cnicUploadBusy || cnicOcrBusy">
+                    <mat-icon>upload_file</mat-icon>
+                    Upload
+                  </button>
+                </div>
+                <div
+                  class="cnic-drop-zone"
+                  [class.is-busy]="cnicUploadBusy || cnicOcrBusy"
+                  (dragover)="$event.preventDefault()"
+                  (drop)="onCnicDrop('back', $event)">
+                  <mat-icon>{{ cnicOcrBusy ? 'manage_search' : 'assignment_ind' }}</mat-icon>
+                  <span *ngIf="!cnicOcrBusy">Drop back image</span>
+                  <span *ngIf="cnicOcrBusy">Reading…</span>
+                </div>
+                <div class="cnic-preview" *ngIf="cnicBackFileName">
+                  <strong>File:</strong> {{ cnicBackFileName }}
+                </div>
+              </div>
             </div>
 
-            <div class="cnic-preview" *ngIf="cnicFileName">
-              <strong>CNIC file:</strong> {{ cnicFileName }}
+            <p class="cnic-pair-hint wizard-cnic-pair-hint">
+              <mat-icon class="cnic-pair-hint-icon">layers</mat-icon>
+              Or drag <strong>two images</strong> onto either zone (first = front, second = back).
+            </p>
+
+            <div class="ocr-info-card" *ngIf="cnicOcrProvider">
+              <div class="ocr-info-title">OCR Information</div>
+              <div class="ocr-info-grid">
+                <span class="label">Provider</span><span>{{ cnicOcrProvider }}</span>
+                <span class="label">Confidence</span>
+                <span>{{ cnicOcrConfidence !== null ? (cnicOcrConfidence + '%') : 'N/A' }}</span>
+                <span class="label">Fallback</span>
+                <span>{{ cnicOcrFallbackUsed === null ? 'N/A' : (cnicOcrFallbackUsed ? 'Yes' : 'No') }}</span>
+              </div>
             </div>
 
             <div class="mode-toggle">

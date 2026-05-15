@@ -21,7 +21,8 @@ public class GetCustomerByIdQueryHandler(IDbConnectionFactory dbFactory)
 
         var customer = await connection.QuerySingleOrDefaultAsync<CustomerDto>(
             new CommandDefinition(
-                @"SELECT Id, FullName, Phone, Email, Address, CNIC, IsActive, CreatedAt
+                @"SELECT Id, FullName, Phone, Email, Address, CNIC, IsActive, CreatedAt,
+                  FatherOrHusbandName, Gender, DateOfBirth, Nationality
                   FROM Customers WHERE Id = @Id AND IsDeleted = 0",
                 new { request.Id },
                 cancellationToken: cancellationToken));

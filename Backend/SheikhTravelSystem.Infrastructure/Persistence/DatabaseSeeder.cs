@@ -175,8 +175,8 @@ public class DatabaseSeeder(
         };
 
         await connection.ExecuteAsync(new CommandDefinition(
-            @"INSERT INTO Customers (FullName, Phone, Email, Address, CNIC, IsActive, CreatedAt, CreatedBy, IsDeleted)
-              VALUES (@FullName, @Phone, @Email, @Address, @CNIC, 1, @CreatedAt, 'seeder', 0);",
+            @"INSERT INTO Customers (FullName, Phone, Email, Address, CNIC, FatherOrHusbandName, Gender, DateOfBirth, Nationality, IsActive, CreatedAt, CreatedBy, IsDeleted)
+              VALUES (@FullName, @Phone, @Email, @Address, @CNIC, NULL, NULL, NULL, NULL, 1, @CreatedAt, 'seeder', 0);",
             rows.Select(r => new
             {
                 r.FullName, r.Phone, r.Email, r.Address, r.CNIC,
@@ -260,6 +260,10 @@ public class DatabaseSeeder(
             "IF COL_LENGTH('Vehicles', 'Model') IS NULL ALTER TABLE Vehicles ADD Model NVARCHAR(100) NULL;",
             "IF COL_LENGTH('Vehicles', 'Year') IS NULL ALTER TABLE Vehicles ADD [Year] INT NULL;",
             "IF COL_LENGTH('Bookings', 'CancellationReason') IS NULL ALTER TABLE Bookings ADD CancellationReason NVARCHAR(500) NULL;",
+            "IF COL_LENGTH('Customers', 'FatherOrHusbandName') IS NULL ALTER TABLE Customers ADD FatherOrHusbandName NVARCHAR(200) NULL;",
+            "IF COL_LENGTH('Customers', 'Gender') IS NULL ALTER TABLE Customers ADD Gender NVARCHAR(20) NULL;",
+            "IF COL_LENGTH('Customers', 'DateOfBirth') IS NULL ALTER TABLE Customers ADD DateOfBirth DATE NULL;",
+            "IF COL_LENGTH('Customers', 'Nationality') IS NULL ALTER TABLE Customers ADD Nationality NVARCHAR(120) NULL;",
             @"IF OBJECT_ID('DriverAllowanceRules', 'U') IS NULL
               CREATE TABLE DriverAllowanceRules (
                 Id              INT IDENTITY(1,1) PRIMARY KEY,

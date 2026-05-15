@@ -28,7 +28,7 @@
          routerLinkActive="active"
          [matTooltip]="item.label"
          [matTooltipDisabled]="sidebarExpanded"
-         matTooltipShowDelay="200"
+         matTooltipShowDelay="600"
          matTooltipPosition="right"
          class="stb-rail-link">
         <mat-icon>{{ item.icon }}</mat-icon>
@@ -42,7 +42,7 @@
               [matMenuTriggerFor]="notifMenu"
               matTooltip="Notifications"
               [matTooltipDisabled]="sidebarExpanded"
-              matTooltipShowDelay="200"
+              matTooltipShowDelay="600"
               matTooltipPosition="right"
               [matBadge]="(unreadCount$ | async) || null"
               [matBadgeHidden]="!(unreadCount$ | async)"
@@ -56,7 +56,7 @@
               type="button"
               matTooltip="Settings"
               [matTooltipDisabled]="sidebarExpanded"
-              matTooltipShowDelay="200"
+              matTooltipShowDelay="600"
               matTooltipPosition="right"
               (click)="goToSettings()">
         <mat-icon>settings</mat-icon>
@@ -67,7 +67,7 @@
               type="button"
               matTooltip="Logout"
               [matTooltipDisabled]="sidebarExpanded"
-              matTooltipShowDelay="200"
+              matTooltipShowDelay="600"
               matTooltipPosition="right"
               (click)="logout()">
         <mat-icon>logout</mat-icon>

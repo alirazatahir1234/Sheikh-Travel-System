@@ -5,6 +5,10 @@ export interface Customer {
   email?: string | null;
   address?: string | null;
   cnic?: string | null;
+  fatherOrHusbandName?: string | null;
+  gender?: string | null;
+  dateOfBirth?: string | null;
+  nationality?: string | null;
   isActive: boolean;
   createdAt: string;
 }
@@ -15,6 +19,10 @@ export interface CreateCustomerDto {
   email?: string | null;
   address?: string | null;
   cnic?: string | null;
+  fatherOrHusbandName?: string | null;
+  gender?: string | null;
+  dateOfBirth?: string | null;
+  nationality?: string | null;
 }
 
 export interface UpdateCustomerDto extends CreateCustomerDto {}

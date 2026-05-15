@@ -92,6 +92,30 @@
   }
 }
 
+.section-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--stb-text-muted, #64748B);
+  margin-bottom: 10px;
+}
+
+.ocr-mode-group {
+  margin-bottom: 14px;
+}
+
+.ocr-radio-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ocr-toggle-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 14px;
+  margin-top: 8px;
+}
+
 @media (max-width: 600px) {
   .profile-header {
     flex-direction: column;
@@ -100,5 +124,9 @@
 
   .header-info h2 {
     font-size: 1.25rem;
+  }
+
+  .ocr-toggle-grid {
+    grid-template-columns: 1fr;
   }
 }

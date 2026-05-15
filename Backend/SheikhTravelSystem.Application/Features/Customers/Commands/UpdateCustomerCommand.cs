@@ -22,6 +22,9 @@ public class UpdateCustomerCommandValidator : AbstractValidator<UpdateCustomerCo
         RuleFor(x => x.Id).GreaterThan(0);
         RuleFor(x => x.Customer.FullName).NotEmpty().MaximumLength(100);
         RuleFor(x => x.Customer.Phone).NotEmpty();
+        RuleFor(x => x.Customer.FatherOrHusbandName).MaximumLength(200).When(x => !string.IsNullOrEmpty(x.Customer.FatherOrHusbandName));
+        RuleFor(x => x.Customer.Gender).MaximumLength(20).When(x => !string.IsNullOrEmpty(x.Customer.Gender));
+        RuleFor(x => x.Customer.Nationality).MaximumLength(120).When(x => !string.IsNullOrEmpty(x.Customer.Nationality));
     }
 }
 
@@ -42,11 +45,37 @@ public class UpdateCustomerCommandHandler(IDbConnectionFactory dbFactory)
         if (!exists)
             throw new NotFoundException("Customer", request.Id);
 
+        if (!string.IsNullOrWhiteSpace(dto.CNIC))
+        {
+            var conflict = await connection.ExecuteScalarAsync<int?>(
+                new CommandDefinition(
+                    @"SELECT TOP 1 Id FROM Customers WHERE CNIC = @CNIC AND IsDeleted = 0 AND Id <> @Id",
+                    new { dto.CNIC, request.Id },
+                    cancellationToken: cancellationToken));
+            if (conflict.HasValue)
+                return ApiResponse<bool>.FailResponse("Another customer already uses this CNIC.");
+        }
+
         await connection.ExecuteAsync(
             new CommandDefinition(
                 @"UPDATE Customers SET FullName = @FullName, Phone = @Phone, Email = @Email,
-                  Address = @Address, CNIC = @CNIC, UpdatedAt = @UpdatedAt WHERE Id = @Id",
-                new { dto.FullName, dto.Phone, dto.Email, dto.Address, dto.CNIC, UpdatedAt = DateTime.UtcNow, request.Id },
+                  Address = @Address, CNIC = @CNIC,
+                  FatherOrHusbandName = @FatherOrHusbandName, Gender = @Gender, DateOfBirth = @DateOfBirth, Nationality = @Nationality,
+                  UpdatedAt = @UpdatedAt WHERE Id = @Id",
+                new
+                {
+                    dto.FullName,
+                    dto.Phone,
+                    dto.Email,
+                    dto.Address,
+                    dto.CNIC,
+                    dto.FatherOrHusbandName,
+                    dto.Gender,
+                    dto.DateOfBirth,
+                    dto.Nationality,
+                    UpdatedAt = DateTime.UtcNow,
+                    request.Id
+                },
                 cancellationToken: cancellationToken));
 
         return ApiResponse<bool>.SuccessResponse(true, "Customer updated successfully.");
