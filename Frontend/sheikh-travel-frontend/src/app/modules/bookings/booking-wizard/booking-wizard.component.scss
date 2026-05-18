@@ -921,12 +921,16 @@ mat-form-field.calculated-field {
   }
 }
 
-.sidebar-card {
+.sidebar-card,
+.sidebar-checklist {
   background: #fff;
   border-radius: 12px;
   border: 1px solid #e8ecf0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.sidebar-card {
   overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 
 .sidebar-header {
@@ -1032,11 +1036,7 @@ mat-form-field.calculated-field {
    Booking Checklist
    ====================================================================== */
 .sidebar-checklist {
-  background: #fff;
-  border-radius: 12px;
-  border: 1px solid #e8ecf0;
   padding: 14px 16px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
 .checklist-title {
