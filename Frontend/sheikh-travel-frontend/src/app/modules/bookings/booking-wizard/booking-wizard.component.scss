@@ -121,8 +121,6 @@
 }
 
 .upload-cnic-btn {
-  margin-left: 12px;
-  margin-right: 8px;
   height: 32px;
   border-color: #cbd5e1;
   color: #0f766e;
@@ -133,11 +131,6 @@
     width: 16px;
     height: 16px;
   }
-}
-
-.cnic-side-header .upload-cnic-btn {
-  margin-left: 0;
-  margin-right: 0;
 }
 
 .cnic-wizard-intro {
@@ -190,10 +183,6 @@
   height: 16px;
   flex-shrink: 0;
   color: #0f766e;
-}
-
-.wizard-cnic-pair-hint {
-  margin-bottom: 8px;
 }
 
 .cnic-drop-zone {
@@ -369,10 +358,6 @@
   vertical-align: middle;
 }
 
-/* ======================================================================
-   Native datetime-local wrapper
-   (mat-form-field intercepts pointer events and blocks the picker)
-   ====================================================================== */
 .dt-field-wrap {
   display: flex;
   flex-direction: column;
@@ -453,9 +438,6 @@
   }
 }
 
-/* ======================================================================
-   Calculated / read-only field
-   ====================================================================== */
 mat-form-field.calculated-field {
   ::ng-deep .mat-mdc-text-field-wrapper {
     background-color: #f0f7ff !important;
