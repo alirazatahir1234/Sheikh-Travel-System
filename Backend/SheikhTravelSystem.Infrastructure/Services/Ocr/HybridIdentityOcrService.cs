@@ -80,7 +80,7 @@ public class HybridIdentityOcrService : IIdentityOcrService
         {
             _logger.LogWarning(ex, "Azure Document Intelligence failed for {FileName}. Using Paddle OCR result.", fileName);
             if (!allowPolicyFallback)
-                throw;
+                _logger.LogWarning("OCR fallback is disabled by policy; returning Paddle result anyway to avoid failing the request.");
             return await PostProcessAsync(paddle with { FallbackUsed = true }, cancellationToken);
         }
     }
@@ -93,23 +93,23 @@ public class HybridIdentityOcrService : IIdentityOcrService
     private async Task<IdentityOcrResult> PostProcessAsync(IdentityOcrResult r, CancellationToken cancellationToken)
     {
         var raw = r.RawText ?? string.Empty;
-        var guessedName = CnicRawTextIdentityParser.GuessLatinNameFromRaw(raw);
+        var guessedName = SafeParseHeuristic(() => CnicRawTextIdentityParser.GuessLatinNameFromRaw(raw), "full name");
         var fullName = PickHolderOrFatherName(r.FullName, guessedName);
-        var guessedFather = CnicRawTextIdentityParser.GuessFatherNameFromRaw(raw);
+        var guessedFather = SafeParseHeuristic(() => CnicRawTextIdentityParser.GuessFatherNameFromRaw(raw), "father name");
         var father = PickHolderOrFatherName(r.FatherName, guessedFather);
         var nationality = string.IsNullOrWhiteSpace(r.Nationality)
-            ? CnicRawTextIdentityParser.GuessNationalityFromRaw(raw)
+            ? SafeParseHeuristic(() => CnicRawTextIdentityParser.GuessNationalityFromRaw(raw), "nationality")
             : r.Nationality;
         var dob = string.IsNullOrWhiteSpace(r.DateOfBirth)
-            ? CnicRawTextIdentityParser.GuessDateOfBirthFromRaw(raw)
+            ? SafeParseHeuristic(() => CnicRawTextIdentityParser.GuessDateOfBirthFromRaw(raw), "date of birth")
             : r.DateOfBirth;
         var gender = string.IsNullOrWhiteSpace(r.Gender)
-            ? CnicRawTextIdentityParser.GuessGenderFromRaw(raw)
+            ? SafeParseHeuristic(() => CnicRawTextIdentityParser.GuessGenderFromRaw(raw), "gender")
             : r.Gender;
 
         var addr = r.Address;
         var addressTranslated = false;
-        var permUrdu = CnicRawTextIdentityParser.ExtractPermanentUrduForTranslation(raw);
+        var permUrdu = SafeParseHeuristic(() => CnicRawTextIdentityParser.ExtractPermanentUrduForTranslation(raw), "permanent address");
         if (!string.IsNullOrWhiteSpace(permUrdu))
         {
             var en = await _translator.TranslateUrduToEnglishAsync(permUrdu, cancellationToken);
@@ -119,7 +119,7 @@ public class HybridIdentityOcrService : IIdentityOcrService
                 addressTranslated = true;
             }
             else
-                addr = CnicRawTextIdentityParser.GuessAddressFromRaw(raw) ?? addr;
+                addr = SafeParseHeuristic(() => CnicRawTextIdentityParser.GuessAddressFromRaw(raw), "address") ?? addr;
         }
         else if (!string.IsNullOrWhiteSpace(addr) && CnicRawTextIdentityParser.ContainsArabicScript(addr))
         {
@@ -130,7 +130,7 @@ public class HybridIdentityOcrService : IIdentityOcrService
                 addressTranslated = true;
             }
             else
-                addr = CnicRawTextIdentityParser.GuessAddressFromRaw(raw) ?? addr;
+                addr = SafeParseHeuristic(() => CnicRawTextIdentityParser.GuessAddressFromRaw(raw), "address") ?? addr;
         }
 
         return r with
@@ -143,6 +143,20 @@ public class HybridIdentityOcrService : IIdentityOcrService
             Gender = gender,
             AddressTranslated = addressTranslated
         };
+    }
+
+    /// <summary>Heuristic regex parsing must never fail the OCR request.</summary>
+    private string? SafeParseHeuristic(Func<string?> parse, string fieldLabel)
+    {
+        try
+        {
+            return parse();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "CNIC heuristic parsing failed for {Field}; continuing with structured OCR fields.", fieldLabel);
+            return null;
+        }
     }
 
     /// <summary>Prefer raw-text heuristics when Azure maps a label or junk into a person field.</summary>

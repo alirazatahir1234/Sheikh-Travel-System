@@ -11,10 +11,12 @@ namespace SheikhTravelSystem.API.Controllers;
 public class OcrController : BaseApiController
 {
     private readonly IIdentityOcrService _ocrService;
+    private readonly ILogger<OcrController> _logger;
 
-    public OcrController(IIdentityOcrService ocrService)
+    public OcrController(IIdentityOcrService ocrService, ILogger<OcrController> logger)
     {
         _ocrService = ocrService;
+        _logger = logger;
     }
 
     [HttpPost("extract-identity")]
@@ -54,13 +56,26 @@ public class OcrController : BaseApiController
             }
         }
 
-        await using var stream = file.OpenReadStream();
-        var result = await _ocrService.ExtractAsync(stream, file.FileName, parsedRequest, cancellationToken);
-        var api = IdentityOcrApiMapper.ToApiResponse(
-            result,
-            parsedRequest.Mode,
-            parsedRequest.IncludeRawText,
-            parsedRequest.ConfidenceThreshold);
-        return Ok(api);
+        try
+        {
+            await using var stream = file.OpenReadStream();
+            var result = await _ocrService.ExtractAsync(stream, file.FileName ?? "upload.jpg", parsedRequest, cancellationToken);
+            var api = IdentityOcrApiMapper.ToApiResponse(
+                result,
+                parsedRequest.Mode,
+                parsedRequest.IncludeRawText,
+                parsedRequest.ConfidenceThreshold);
+            return Ok(api);
+        }
+        catch (InvalidOperationException ex) when (ex.Message.Contains("Azure OCR", StringComparison.OrdinalIgnoreCase))
+        {
+            _logger.LogWarning(ex, "OCR extract-identity: Azure is not configured.");
+            return StatusCode(StatusCodes.Status503ServiceUnavailable, "CNIC OCR is temporarily unavailable (Azure not configured).");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "OCR extract-identity failed for {FileName}.", file.FileName);
+            return StatusCode(StatusCodes.Status503ServiceUnavailable, "CNIC OCR failed. Try a clearer photo or enter details manually.");
+        }
     }
 }

@@ -431,7 +431,7 @@ public static class CnicRawTextIdentityParser
         // NADRA back sometimes has والد کا نام (father's name) in Urdu only.
         var urduFather = Regex.Match(
             rawText,
-            @"(?u)(?:والد|والدہ)\s*(?:کا\s*)?نام\s*[:\s\u0640.-]+\s*(?<n>[^\n\r]{3,120})");
+            @"(?:والد|والدہ)\s*(?:کا\s*)?نام\s*[:\s\u0640.-]+\s*(?<n>[^\n\r]{3,120})");
         if (urduFather.Success)
         {
             var n3 = NormalizeNameWhitespace(urduFather.Groups["n"].Value);
