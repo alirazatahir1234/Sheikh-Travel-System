@@ -21,4 +21,13 @@ export class LoginFormCardComponent {
   togglePassword(): void {
     this.hidePasswordChange.emit(!this.hidePassword);
   }
+
+  emitSubmit(emailValue: string, passwordValue: string): void {
+    this.form.patchValue({
+      email: (emailValue || '').trim(),
+      password: passwordValue || ''
+    });
+    this.form.updateValueAndValidity({ emitEvent: false });
+    this.submitLogin.emit();
+  }
 }

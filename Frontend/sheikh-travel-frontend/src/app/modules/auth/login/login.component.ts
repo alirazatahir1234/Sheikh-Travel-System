@@ -42,7 +42,12 @@ export class LoginComponent implements OnInit {
   }
 
   submit(): void {
-    if (this.form.invalid) return;
+    this.form.markAllAsTouched();
+    this.form.updateValueAndValidity({ emitEvent: false });
+    if (this.form.invalid) {
+      this.snackBar.open('Please enter a valid email and password.', 'Close', { duration: 2500 });
+      return;
+    }
 
     if (this.rememberMe) {
       localStorage.setItem('stb_last_email', this.form.get('email')?.value || '');
