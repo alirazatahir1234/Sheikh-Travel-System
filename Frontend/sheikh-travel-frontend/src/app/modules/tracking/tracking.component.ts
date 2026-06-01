@@ -8,8 +8,12 @@ import {
   HostListener
 } from '@angular/core';
 import { Router } from '@angular/router';
-import * as L from 'leaflet';
-import 'leaflet.markercluster';
+import type * as LeafletTypes from 'leaflet';
+import {
+  createMarkerClusterGroup,
+  L,
+  loadMarkerClusterPlugin
+} from '../../core/leaflet/leaflet-cluster';
 import { TrackingService } from '../../core/services/tracking.service';
 import { VehicleService } from '../../core/services/vehicle.service';
 import {
@@ -69,16 +73,16 @@ const TRAIL_COLORS: Record<FleetTrackStatus, string> = {
 export class TrackingComponent implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild('mapHost') mapHost?: ElementRef<HTMLElement>;
 
-  private map!: L.Map;
-  private tileLayer?: L.TileLayer;
+  private map!: LeafletTypes.Map;
+  private tileLayer?: LeafletTypes.TileLayer;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private markerCluster!: any;
-  private markers = new Map<number, L.Marker>();
-  private trailLayers = new Map<number, L.Polyline>();
+  private markers = new Map<number, LeafletTypes.Marker>();
+  private trailLayers = new Map<number, LeafletTypes.Polyline>();
   private prevPositions = new Map<number, { lat: number; lng: number }>();
   private positionTrails = new Map<number, [number, number][]>();
-  private historyPolyline?: L.Polyline;
-  private historyMarker?: L.Marker;
+  private historyPolyline?: LeafletTypes.Polyline;
+  private historyMarker?: LeafletTypes.Marker;
   private refreshInterval?: ReturnType<typeof setInterval>;
   private replayTimer?: ReturnType<typeof setInterval>;
   private replayIndex = 0;
@@ -148,11 +152,17 @@ export class TrackingComponent implements OnInit, AfterViewInit, OnDestroy {
 
   ngAfterViewInit(): void {
     setTimeout(() => {
-      this.initMap();
-      this.loadLocations();
-      this.refreshInterval = setInterval(() => {
-        if (this.liveTracking) this.loadLocations(true);
-      }, 30000);
+      void loadMarkerClusterPlugin()
+        .then(() => {
+          this.initMap();
+          this.loadLocations();
+          this.refreshInterval = setInterval(() => {
+            if (this.liveTracking) this.loadLocations(true);
+          }, 30000);
+        })
+        .catch(() => {
+          this.error = 'Map clustering failed to load. Refresh the page.';
+        });
     }, 0);
   }
 
@@ -381,7 +391,7 @@ export class TrackingComponent implements OnInit, AfterViewInit, OnDestroy {
       zoomControl: false
     });
     L.control.zoom({ position: 'bottomright' }).addTo(this.map);
-    this.markerCluster = (L as unknown as { markerClusterGroup(o: object): unknown }).markerClusterGroup({
+    this.markerCluster = createMarkerClusterGroup({
       maxClusterRadius: 55,
       disableClusteringAtZoom: 14,
       spiderfyOnMaxZoom: true,
@@ -458,7 +468,7 @@ export class TrackingComponent implements OnInit, AfterViewInit, OnDestroy {
     return ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
   }
 
-  private createMarkerIcon(status: FleetTrackStatus, bearing = 0): L.DivIcon {
+  private createMarkerIcon(status: FleetTrackStatus, bearing = 0): LeafletTypes.DivIcon {
     const showArrow = status === 'moving' || status === 'delayed';
     const arrow = showArrow
       ? `<span class="fleet-marker-arrow" style="transform:rotate(${bearing}deg)"></span>`
@@ -670,7 +680,7 @@ export class TrackingComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private drawHistoryRoute(rows: TrackingDto[]): void {
     if (!rows.length) return;
-    const latlngs: L.LatLngExpression[] = rows.map(r => [r.latitude, r.longitude]);
+    const latlngs: LeafletTypes.LatLngExpression[] = rows.map(r => [r.latitude, r.longitude]);
     this.historyPolyline = L.polyline(latlngs, {
       color: '#2DD4BF',
       weight: 5,
