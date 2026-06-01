@@ -1,50 +1,98 @@
 <div class="dash">
 
-  <!-- Greeting + notifications -->
-  <stb-greeting-banner
-    [userName]="userName"
-    [notificationsCount]="(unreadCount$ | async) ?? 0"
-    subject="notifications">
-  </stb-greeting-banner>
-
   <div *ngIf="error" class="error-message">
     <mat-icon>warning</mat-icon> {{ error }}
   </div>
 
-  <!-- Row 1: Quick launch (full width) -->
-  <stb-quick-launch-grid
-    class="cell cell-quick"
-    title="Recent used apps"
-    [apps]="quickApps">
-  </stb-quick-launch-grid>
+  <!-- Header -->
+  <section class="dash-section dash-header">
+    <div class="dash-greeting-wrap">
+      <nav class="dash-breadcrumb" aria-label="Breadcrumb">
+        <span class="bc-root">Dashboard</span>
+        <mat-icon>chevron_right</mat-icon>
+        <span class="bc-current">Fleet overview</span>
+      </nav>
+      <stb-greeting-banner
+        class="dash-greeting"
+        [compact]="true"
+        [userName]="userName"
+        [notificationsCount]="(unreadCount$ | async) ?? 0"
+        subject="notifications">
+      </stb-greeting-banner>
+      <div class="ops-status" aria-live="polite">
+        <span class="ops-status-dot"></span>
+        <span>System operational</span>
+      </div>
+    </div>
 
-  <!-- Row 2: KPI tiles -->
-  <div class="stats-row">
-    <stb-stat-tile *ngFor="let s of stats"
+    <stb-quick-launch-grid
+      class="dash-quick"
+      [actionCards]="true"
+      title="Quick actions"
+      [apps]="quickApps">
+    </stb-quick-launch-grid>
+  </section>
+
+  <!-- KPIs -->
+  <section class="dash-section stats-row">
+    <stb-stat-tile
+      *ngFor="let s of stats"
       [label]="s.label"
       [value]="s.value"
       [hint]="s.hint"
       [icon]="s.icon"
       [color]="s.color"
+      [trend]="s.trend"
+      [trendUp]="s.trendUp"
+      [trendDetail]="s.trendDetail"
+      [sparkline]="s.sparkline"
+      [variant]="s.variant || 'default'"
       [loading]="loading"
       (click)="onStatClick(s.key)"
       class="clickable-tile">
     </stb-stat-tile>
-  </div>
+  </section>
 
-  <!-- Row 3: Two task list cards + weather -->
-  <div class="row-3">
+  <!-- Transport operations -->
+  <section class="dash-section ops-strip" *ngIf="summary">
+    <div class="ops-item" *ngFor="let k of transportKpis">
+      <mat-icon>{{ k.icon }}</mat-icon>
+      <div>
+        <span class="ops-val">{{ k.value }}</span>
+        <span class="ops-lbl">{{ k.label }}</span>
+      </div>
+    </div>
+    <a class="ops-link" routerLink="/tracking">
+      <mat-icon>my_location</mat-icon>
+      Live tracking
+    </a>
+  </section>
+
+  <!-- Analytics -->
+  <app-dashboard-analytics
+    [loading]="loading"
+    [revenueLabels]="revenueChartLabels"
+    [revenueValues]="revenueChartValues"
+    [revenueTotal]="revenueWeekTotal"
+    [bookingLabels]="bookingChartLabels"
+    [bookingValues]="bookingChartValues"
+    [fleetLabels]="fleetChartLabels"
+    [fleetValues]="fleetChartValues">
+  </app-dashboard-analytics>
+
+  <!-- To-do & assignments -->
+  <section class="dash-section row-ops">
     <stb-task-list-card
-      class="c-todo"
+      class="ops-panel c-todo"
       title="To do"
       icon="task_alt"
       [tasks]="todoTasks"
       (toggle)="onTaskToggle($event)"
-      emptyMessage="No bookings waiting for your review.">
+      emptyMessage="No pending bookings today — you're all caught up.">
     </stb-task-list-card>
 
     <stb-task-list-card
-      class="c-assigned"
+      class="ops-panel c-assigned"
       title="Assignments"
       icon="assignment_ind"
       [tasks]="assignedTasks"
@@ -52,52 +100,41 @@
       [activeFilter]="assignedFilter"
       (filterChange)="onAssignedFilter($event)"
       (toggle)="onTaskToggle($event)"
-      emptyMessage="No trips are currently assigned.">
+      emptyMessage="No trips assigned for this filter.">
     </stb-task-list-card>
+  </section>
 
-    <stb-weather-card class="c-weather" [info]="weather"></stb-weather-card>
-  </div>
-
-  <!-- Row 4: Recent bookings + prayer times -->
-  <div class="row-4">
+  <!-- Recent bookings -->
+  <section class="dash-section row-table">
     <stb-data-table-card
       class="c-recent"
       title="Recent bookings"
       icon="confirmation_number"
       actionLabel="View all"
+      [showRowActions]="true"
       [columns]="recentColumns"
       [rows]="recentBookings"
       (action)="onViewAllBookings()"
       (rowClick)="onRecentBookingClick($event)"
-      emptyMessage="No recent bookings.">
+      (viewRow)="onViewBooking($event)"
+      (editRow)="onEditBooking($event)"
+      (assignRow)="onAssignBooking($event)"
+      emptyMessage="No recent bookings yet.">
     </stb-data-table-card>
+  </section>
 
-    <stb-prayer-times-card
-      class="c-prayer"
-      upcomingName="Dhuhr"
-      upcomingTime="12:05 PM"
-      city="Islamabad, Pakistan"
-      [times]="prayerTimes">
-    </stb-prayer-times-card>
-  </div>
-
-  <!-- Row 5: Articles + Promo banner -->
-  <div class="row-5">
-    <stb-article-links-card
-      class="c-articles"
-      title="Popular articles"
-      [articles]="articles"
-      (open)="onArticleOpen($event)">
-    </stb-article-links-card>
-
-    <stb-promo-banner
-      class="c-promo"
-      gradient="teal"
-      icon="directions_bus"
-      title="Smart fleet scheduling"
-      subtitle="Get more out of the Sheikh Travel platform. Explore the guided booking wizard and automate driver assignments."
-      ctaLabel="Take a tour"
-      (cta)="onPromoCta()">
-    </stb-promo-banner>
-  </div>
+  <!-- Compact CTA -->
+  <section class="dash-section dash-cta-bar">
+    <div class="cta-text">
+      <mat-icon>directions_bus</mat-icon>
+      <div>
+        <strong>New booking</strong>
+        <span>Assign driver & vehicle in the guided wizard</span>
+      </div>
+    </div>
+    <button mat-flat-button color="primary" type="button" (click)="onPromoCta()">
+      <mat-icon>add</mat-icon>
+      Create booking
+    </button>
+  </section>
 </div>

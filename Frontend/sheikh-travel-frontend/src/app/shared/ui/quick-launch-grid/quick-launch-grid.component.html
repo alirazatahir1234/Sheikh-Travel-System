@@ -1,4 +1,4 @@
-<div class="stb-quicklaunch">
+<div class="stb-quicklaunch" [class.is-compact]="compact" [class.is-action-cards]="actionCards">
   <h4 class="stb-section-title" *ngIf="title">{{ title }}</h4>
   <div class="ql-row">
     <a *ngFor="let app of apps; trackBy: trackById"
@@ -7,11 +7,11 @@
        (click)="launch.emit(app)"
        [matTooltip]="app.label"
        matTooltipPosition="below">
-      <span class="ql-bubble is-solid"
-            [ngClass]="'stb-accent-' + app.color">
+      <span class="ql-bubble" [class.is-solid]="!actionCards" [ngClass]="'stb-accent-' + app.color">
         <mat-icon>{{ app.icon }}</mat-icon>
+        <span class="ql-plus" *ngIf="actionCards">+</span>
       </span>
-      <span class="ql-label">{{ app.label }}</span>
+      <span class="ql-label">{{ actionCards ? app.label : app.label }}</span>
     </a>
   </div>
 </div>

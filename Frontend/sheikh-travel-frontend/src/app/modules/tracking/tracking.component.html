@@ -1,94 +1,366 @@
-<div class="tracking-layout">
-  <div class="sidebar">
-    <div class="sidebar-header">
-      <h3>Vehicle Locations</h3>
-      <mat-spinner *ngIf="loading" diameter="20"></mat-spinner>
+<div class="track-page" [class.track-page--fs]="isMapFullscreen">
+
+  <header class="track-header stb-elevated">
+    <div class="track-header-left">
+      <nav class="track-breadcrumb" aria-label="Breadcrumb">
+        <span>Operations</span>
+        <mat-icon>chevron_right</mat-icon>
+        <span class="bc-current">Live tracking</span>
+      </nav>
+      <h1 class="track-title">Fleet map</h1>
+      <p class="track-subtitle">Monitor vehicles, routes, and telemetry in real time</p>
     </div>
-    <mat-list>
-      <mat-list-item *ngFor="let loc of locations" class="vehicle-item">
-        <mat-icon matListItemIcon color="primary">directions_bus</mat-icon>
-        <span matListItemTitle (click)="focusVehicle(loc)" class="clickable">{{ loc.vehicleName }}</span>
-        <span matListItemLine>{{ loc.registrationNumber }}</span>
-        <span matListItemLine class="last-updated">{{ loc.lastUpdated | date:'shortTime' }}</span>
-        <button mat-icon-button matTooltip="View Vehicle Profile" (click)="goToVehicleProfile(loc.vehicleId)" class="profile-btn">
-          <mat-icon>open_in_new</mat-icon>
-        </button>
-      </mat-list-item>
-      <div *ngIf="!loading && locations.length === 0 && !error" class="empty-state">
-        <mat-icon>location_off</mat-icon>
-        No active vehicles being tracked
+    <div class="track-header-right">
+      <div class="sync-pill" [class.sync-pill--active]="trackingActive">
+        <span class="sync-dot sync-dot--live"></span>
+        <span>{{ trackingActive ? 'Tracking active' : 'Tracking paused' }}</span>
+        <span class="sync-meta">Last sync {{ formatSyncAgo() }}</span>
       </div>
-      <div *ngIf="error" class="error-state">
-        <mat-icon>error_outline</mat-icon>
-        {{ error }}
+      <div class="gps-pill" [class.gps-pill--ok]="gpsHealthy">
+        <mat-icon>{{ gpsHealthy ? 'gps_fixed' : 'gps_off' }}</mat-icon>
+        {{ gpsHealthy ? 'GPS healthy' : 'GPS limited' }}
       </div>
-    </mat-list>
-    <p class="refresh-hint">Auto-refreshes every 30s</p>
-  </div>
-
-  <div id="tracking-map" class="map-container"></div>
-</div>
-
-<!-- ══ Tracking History Panel ══════════════════════════════════════════════ -->
-<mat-card class="history-card">
-  <mat-card-header>
-    <mat-card-title>
-      <mat-icon>history</mat-icon> Vehicle History
-    </mat-card-title>
-  </mat-card-header>
-  <mat-card-content>
-    <div class="history-filters">
-      <mat-form-field appearance="outline">
-        <mat-label>Vehicle</mat-label>
-        <mat-select [(ngModel)]="selectedVehicleId">
-          <mat-option *ngFor="let v of vehicles" [value]="v.id">{{ v.name }} ({{ v.registrationNumber }})</mat-option>
-        </mat-select>
-      </mat-form-field>
-
-      <mat-form-field appearance="outline">
-        <mat-label>From</mat-label>
-        <input matInput type="datetime-local" [(ngModel)]="historyFrom">
-      </mat-form-field>
-
-      <mat-form-field appearance="outline">
-        <mat-label>To</mat-label>
-        <input matInput type="datetime-local" [(ngModel)]="historyTo">
-      </mat-form-field>
-
-      <button mat-raised-button color="primary" (click)="loadHistory()" [disabled]="!selectedVehicleId || loadingHistory">
-        <mat-icon>search</mat-icon> Load History
+      <button mat-stroked-button type="button" (click)="refreshNow()" [disabled]="loading">
+        <mat-icon>refresh</mat-icon>
+        Refresh
+      </button>
+      <button mat-stroked-button type="button" (click)="toggleLiveTracking()">
+        <mat-icon>{{ liveTracking ? 'pause' : 'play_arrow' }}</mat-icon>
+        {{ liveTracking ? 'Live on' : 'Live off' }}
       </button>
     </div>
+  </header>
 
-    <div *ngIf="loadingHistory" class="history-loading"><mat-spinner diameter="32"></mat-spinner></div>
-    <div *ngIf="historyError" class="history-error"><mat-icon>error</mat-icon> {{ historyError }}</div>
+  <section class="track-stats">
+    <div class="stat-chip stat-chip--online">
+      <mat-icon>wifi_tethering</mat-icon>
+      <div>
+        <span class="stat-val">{{ liveStats.online }}</span>
+        <span class="stat-lbl">Vehicles online</span>
+      </div>
+    </div>
+    <div class="stat-chip stat-chip--trips">
+      <mat-icon>route</mat-icon>
+      <div>
+        <span class="stat-val">{{ liveStats.tripsActive }}</span>
+        <span class="stat-lbl">Trips active</span>
+      </div>
+    </div>
+    <div class="stat-chip stat-chip--speed">
+      <mat-icon>speed</mat-icon>
+      <div>
+        <span class="stat-val">{{ liveStats.avgSpeed }}<small> km/h</small></span>
+        <span class="stat-lbl">Average speed</span>
+      </div>
+    </div>
+    <div class="stat-chip stat-chip--warn">
+      <mat-icon>local_gas_station</mat-icon>
+      <div>
+        <span class="stat-val">{{ liveStats.fuelAlerts }}</span>
+        <span class="stat-lbl">Fuel alerts</span>
+      </div>
+    </div>
+    <div class="stat-chip stat-chip--alert">
+      <mat-icon>fence</mat-icon>
+      <div>
+        <span class="stat-val">{{ liveStats.geofence }}</span>
+        <span class="stat-lbl">Geofence flags</span>
+      </div>
+    </div>
+  </section>
 
-    <ng-container *ngIf="showHistory && !loadingHistory && !historyError">
-      <div *ngIf="historyRows.length === 0" class="history-empty">
-        <mat-icon>location_off</mat-icon>
-        <span>No tracking records found for the selected vehicle and time range.</span>
+  <div class="track-main">
+
+    <aside class="track-panel stb-elevated">
+      <div class="panel-search">
+        <mat-icon>search</mat-icon>
+        <input
+          type="search"
+          placeholder="Search vehicle, plate, driver…"
+          [(ngModel)]="searchQuery"
+          aria-label="Search vehicles" />
       </div>
 
-      <table mat-table [dataSource]="historyRows" *ngIf="historyRows.length > 0" class="history-table">
-        <ng-container matColumnDef="timestamp">
-          <th mat-header-cell *matHeaderCellDef>Timestamp</th>
-          <td mat-cell *matCellDef="let r">{{ r.timestamp | date:'short' }}</td>
-        </ng-container>
-        <ng-container matColumnDef="latitude">
-          <th mat-header-cell *matHeaderCellDef>Latitude</th>
-          <td mat-cell *matCellDef="let r">{{ r.latitude | number:'1.4-6' }}</td>
-        </ng-container>
-        <ng-container matColumnDef="longitude">
-          <th mat-header-cell *matHeaderCellDef>Longitude</th>
-          <td mat-cell *matCellDef="let r">{{ r.longitude | number:'1.4-6' }}</td>
-        </ng-container>
-        <ng-container matColumnDef="speed">
-          <th mat-header-cell *matHeaderCellDef>Speed (km/h)</th>
-          <td mat-cell *matCellDef="let r">{{ r.speed | number:'1.0-1' }}</td>
-        </ng-container>
-        <tr mat-header-row *matHeaderRowDef="historyCols"></tr>
-        <tr mat-row *matRowDef="let row; columns: historyCols;"></tr>
-      </table>
-    </ng-container>
-  </mat-card-content>
-</mat-card>
+      <div class="panel-status">
+        <span class="status-pill status-pill--moving">
+          <span class="dot dot--pulse"></span> Active {{ statusCounts.moving }}
+        </span>
+        <span class="status-pill status-pill--idle">
+          <span class="dot dot--pulse-slow"></span> Idle {{ statusCounts.idle }}
+        </span>
+        <span class="status-pill status-pill--offline">
+          <span class="dot"></span> Offline {{ statusCounts.offline }}
+        </span>
+      </div>
+
+      <div class="panel-list-header">
+        <span>Vehicles</span>
+        <span class="panel-count">{{ filteredLocations.length }}</span>
+      </div>
+
+      <div class="panel-list" role="list">
+        <mat-spinner *ngIf="loading" diameter="28" class="panel-spinner"></mat-spinner>
+
+        <button
+          type="button"
+          class="vehicle-card"
+          *ngFor="let loc of filteredLocations"
+          [class.vehicle-card--selected]="selectedVehicleId === loc.vehicleId"
+          [class.vehicle-card--moving]="loc.status === 'moving'"
+          [class.vehicle-card--idle]="loc.status === 'idle'"
+          [class.vehicle-card--offline]="loc.status === 'offline'"
+          [class.vehicle-card--delayed]="loc.status === 'delayed'"
+          [class.vehicle-card--scheduled]="loc.status === 'scheduled'"
+          (click)="selectVehicle(loc)"
+          (mouseenter)="onVehicleCardEnter(loc)"
+          (mouseleave)="onVehicleCardLeave(loc)"
+          role="listitem">
+          <div class="vehicle-card-avatar">
+            <mat-icon>{{ statusIcon(loc.status) }}</mat-icon>
+          </div>
+          <div class="vehicle-card-body">
+            <div class="vehicle-card-top">
+              <strong>{{ loc.vehicleName }}</strong>
+              <span class="vehicle-badge">{{ statusLabel(loc.status) }}</span>
+            </div>
+            <span class="vehicle-reg">{{ loc.registrationNumber }}</span>
+            <div class="vehicle-meta">
+              <span class="vehicle-speed">
+                <mat-icon>speed</mat-icon>
+                {{ speedLabel(loc) }}
+              </span>
+              <span class="signal-bars" [attr.aria-label]="'Signal ' + signalBars(loc) + ' of 4'">
+                <i *ngFor="let b of [1,2,3,4]" class="bar" [class.bar--on]="b <= signalBars(loc)"></i>
+              </span>
+            </div>
+            <span class="vehicle-route" *ngIf="loc.driverName">{{ loc.driverName }}</span>
+            <span class="vehicle-route vehicle-route--hint">{{ loc.routeHint }}</span>
+            <span class="vehicle-time">{{ formatLastPing(loc) }}</span>
+          </div>
+          <button
+            type="button"
+            mat-icon-button
+            class="vehicle-card-action"
+            matTooltip="Vehicle profile"
+            (click)="$event.stopPropagation(); goToVehicleProfile(loc.vehicleId)">
+            <mat-icon>open_in_new</mat-icon>
+          </button>
+        </button>
+
+        <div *ngIf="!loading && filteredLocations.length === 0" class="panel-empty">
+          <div class="panel-empty-art"><mat-icon>gps_off</mat-icon></div>
+          <h3>No vehicles match</h3>
+          <p>Adjust filters or assign GPS-enabled vehicles to start live tracking.</p>
+          <button mat-flat-button color="primary" type="button" (click)="goToVehicles()">
+            <mat-icon>directions_bus</mat-icon>
+            Manage fleet
+          </button>
+        </div>
+        <div *ngIf="error && !loading" class="panel-error">
+          <mat-icon>cloud_off</mat-icon>
+          <p>{{ error }}</p>
+        </div>
+      </div>
+
+      <p class="panel-footer">
+        <mat-icon>autorenew</mat-icon>
+        Auto-refresh every 30s when live tracking is on
+      </p>
+    </aside>
+
+    <div class="track-map-col">
+      <div class="map-toolbar">
+        <div class="filter-chips">
+          <button
+            type="button"
+            class="filter-chip"
+            *ngFor="let f of statusFilters"
+            [class.filter-chip--active]="statusFilter === f.id"
+            (click)="setStatusFilter(f.id)">
+            {{ f.label }}
+          </button>
+        </div>
+        <div class="filter-chips filter-chips--time">
+          <button
+            type="button"
+            class="filter-chip filter-chip--ghost"
+            *ngFor="let t of timePresets"
+            [class.filter-chip--active]="timePreset === t.id"
+            (click)="setTimePreset(t.id)">
+            {{ t.label }}
+          </button>
+        </div>
+      </div>
+
+      <div class="map-shell" #mapHost [class.map-shell--fs]="isMapFullscreen">
+        <div id="tracking-map" class="map-container"></div>
+        <div class="map-vignette" aria-hidden="true"></div>
+
+        <div class="map-glass-toolbar">
+          <span class="toolbar-label">Map</span>
+          <button type="button" class="glass-btn" matTooltip="Center fleet" (click)="centerMap()">
+            <mat-icon>my_location</mat-icon>
+          </button>
+          <button type="button" class="glass-btn" matTooltip="Refresh" (click)="refreshNow()">
+            <mat-icon>refresh</mat-icon>
+          </button>
+          <button type="button" class="glass-btn" matTooltip="Map style" (click)="cycleMapTheme()">
+            <mat-icon>{{ mapTheme === 'satellite' ? 'satellite_alt' : 'layers' }}</mat-icon>
+          </button>
+          <button type="button" class="glass-btn" matTooltip="Reset zoom" (click)="resetZoom()">
+            <mat-icon>zoom_out_map</mat-icon>
+          </button>
+          <button type="button" class="glass-btn glass-btn--accent" matTooltip="Fullscreen map" (click)="toggleFullscreen()">
+            <mat-icon>{{ isMapFullscreen ? 'fullscreen_exit' : 'fullscreen' }}</mat-icon>
+          </button>
+        </div>
+
+        <div class="map-legend">
+          <span><i class="leg moving"></i> Active</span>
+          <span><i class="leg idle"></i> Idle</span>
+          <span><i class="leg offline"></i> Offline</span>
+          <span><i class="leg scheduled"></i> Scheduled</span>
+          <span><i class="leg delayed"></i> Delayed</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <section class="track-bottom">
+    <div class="history-block stb-elevated">
+      <div class="history-head">
+        <div class="history-title">
+          <mat-icon>history</mat-icon>
+          <h2>Vehicle history &amp; playback</h2>
+        </div>
+        <div class="history-toolbar">
+          <mat-form-field appearance="outline" class="tb-field">
+            <mat-label>Vehicle</mat-label>
+            <mat-select [(ngModel)]="selectedVehicleId">
+              <mat-option [value]="null">Select vehicle</mat-option>
+              <mat-option *ngFor="let v of vehicles" [value]="v.id">
+                {{ v.name }} ({{ v.registrationNumber }})
+              </mat-option>
+            </mat-select>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="tb-field tb-field--date" *ngIf="timePreset === 'custom'">
+            <mat-label>From</mat-label>
+            <input matInput type="datetime-local" [(ngModel)]="historyFrom">
+          </mat-form-field>
+          <mat-form-field appearance="outline" class="tb-field tb-field--date" *ngIf="timePreset === 'custom'">
+            <mat-label>To</mat-label>
+            <input matInput type="datetime-local" [(ngModel)]="historyTo">
+          </mat-form-field>
+
+          <button
+            mat-flat-button
+            color="primary"
+            type="button"
+            (click)="loadHistory()"
+            [disabled]="!selectedVehicleId || loadingHistory">
+            <mat-icon>search</mat-icon>
+            Load route
+          </button>
+        </div>
+      </div>
+
+      <div class="trip-summary" *ngIf="tripSummary">
+        <div class="trip-metric">
+          <span class="trip-val">{{ tripSummary.distanceKm }} km</span>
+          <span class="trip-lbl">Distance</span>
+        </div>
+        <div class="trip-metric">
+          <span class="trip-val">{{ tripSummary.durationMinutes }} min</span>
+          <span class="trip-lbl">Duration</span>
+        </div>
+        <div class="trip-metric">
+          <span class="trip-val">{{ tripSummary.avgSpeed }} km/h</span>
+          <span class="trip-lbl">Avg speed</span>
+        </div>
+        <div class="trip-metric">
+          <span class="trip-val">{{ tripSummary.stopMinutes }} min</span>
+          <span class="trip-lbl">Stop time</span>
+        </div>
+        <div class="trip-metric">
+          <span class="trip-val">{{ tripSummary.pointCount }}</span>
+          <span class="trip-lbl">GPS points</span>
+        </div>
+      </div>
+
+      <div class="playback-bar" *ngIf="historyRows.length > 0">
+        <div class="replay-controls">
+          <button mat-flat-button color="primary" type="button" (click)="toggleReplay()">
+            <mat-icon>{{ replayPlaying ? 'pause' : 'play_arrow' }}</mat-icon>
+            {{ replayPlaying ? 'Pause' : 'Play' }}
+          </button>
+          <button mat-stroked-button type="button" [class.replay-speed--active]="replaySpeed === 1" (click)="setReplaySpeed(1)">1×</button>
+          <button mat-stroked-button type="button" [class.replay-speed--active]="replaySpeed === 2" (click)="setReplaySpeed(2)">2×</button>
+          <button mat-stroked-button type="button" [class.replay-speed--active]="replaySpeed === 4" (click)="setReplaySpeed(4)">4×</button>
+        </div>
+        <label class="timeline-scrub">
+          <span>Timeline</span>
+          <input
+            type="range"
+            min="0"
+            max="100"
+            [value]="replayProgress"
+            (input)="onReplayScrub($event)" />
+          <span class="timeline-pct">{{ replayProgress }}%</span>
+        </label>
+      </div>
+
+      <div *ngIf="loadingHistory" class="history-loading"><mat-spinner diameter="32"></mat-spinner></div>
+      <div *ngIf="historyError" class="history-error"><mat-icon>error</mat-icon> {{ historyError }}</div>
+
+      <ng-container *ngIf="showHistory && !loadingHistory && !historyError">
+        <div *ngIf="historyRows.length === 0" class="history-empty">
+          <mat-icon>timeline</mat-icon>
+          <span>Select a vehicle and date range to replay its route on the map.</span>
+        </div>
+        <div class="history-table-wrap" *ngIf="historyRows.length > 0">
+          <table mat-table [dataSource]="historyRows" class="history-table">
+            <ng-container matColumnDef="timestamp">
+              <th mat-header-cell *matHeaderCellDef>Time</th>
+              <td mat-cell *matCellDef="let r">{{ r.timestamp | date:'short' }}</td>
+            </ng-container>
+            <ng-container matColumnDef="latitude">
+              <th mat-header-cell *matHeaderCellDef>Lat</th>
+              <td mat-cell *matCellDef="let r">{{ r.latitude | number:'1.4-4' }}</td>
+            </ng-container>
+            <ng-container matColumnDef="longitude">
+              <th mat-header-cell *matHeaderCellDef>Lng</th>
+              <td mat-cell *matCellDef="let r">{{ r.longitude | number:'1.4-4' }}</td>
+            </ng-container>
+            <ng-container matColumnDef="speed">
+              <th mat-header-cell *matHeaderCellDef>Speed</th>
+              <td mat-cell *matCellDef="let r">{{ r.speed | number:'1.0-0' }} km/h</td>
+            </ng-container>
+            <tr mat-header-row *matHeaderRowDef="['timestamp','latitude','longitude','speed']"></tr>
+            <tr mat-row *matRowDef="let row; columns: ['timestamp','latitude','longitude','speed'];"></tr>
+          </table>
+        </div>
+      </ng-container>
+    </div>
+
+    <aside class="events-block stb-elevated">
+      <div class="events-head">
+        <mat-icon>notifications_active</mat-icon>
+        <h2>Live events</h2>
+        <span class="events-count">{{ events.length }}</span>
+      </div>
+      <ul class="events-list" *ngIf="events.length; else noEvents">
+        <li *ngFor="let ev of events" [class]="'ev ev--' + ev.type">
+          <mat-icon class="ev-icon">{{ ev.icon }}</mat-icon>
+          <div class="ev-body">
+            <span class="ev-time">{{ ev.time | date:'shortTime' }}</span>
+            <span class="ev-msg">{{ ev.message }}</span>
+          </div>
+        </li>
+      </ul>
+      <ng-template #noEvents>
+        <p class="events-empty">Telemetry events appear as vehicles move, sync, or trigger alerts.</p>
+      </ng-template>
+    </aside>
+  </section>
+</div>

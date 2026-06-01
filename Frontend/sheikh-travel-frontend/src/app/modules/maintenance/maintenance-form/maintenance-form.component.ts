@@ -42,7 +42,19 @@ export class MaintenanceFormComponent implements OnInit {
     });
   }
 
+  private readonly templates: Record<string, string> = {
+    oil: 'Oil change service',
+    tires: 'Tire rotation',
+    brakes: 'Brake inspection',
+    battery: 'Battery check'
+  };
+
   ngOnInit(): void {
+    const template = this.route.snapshot.queryParamMap.get('template');
+    if (template && this.templates[template]) {
+      this.form.patchValue({ description: this.templates[template] });
+    }
+
     const idParam = this.route.snapshot.paramMap.get('id');
     if (idParam) {
       this.editMode = true;

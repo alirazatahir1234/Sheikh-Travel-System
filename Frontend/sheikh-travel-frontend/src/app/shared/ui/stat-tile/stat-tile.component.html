@@ -1,13 +1,25 @@
-<div class="stb-stat">
-  <div class="st-text">
+<div class="stb-stat" [class.is-danger]="variant === 'danger'" [class.is-success]="variant === 'success'" [class.is-warning]="variant === 'warning'">
+  <div class="st-head">
+    <div class="st-icon" [ngClass]="'stb-accent-' + color">
+      <mat-icon>{{ icon }}</mat-icon>
+    </div>
+    <div class="st-spark-wrap" *ngIf="sparkline?.length && !loading">
+      <canvas #spark class="st-spark" aria-hidden="true"></canvas>
+    </div>
+  </div>
+  <div class="st-body">
     <div class="st-label">{{ label }}</div>
     <div class="st-value">
-      <mat-spinner *ngIf="loading" diameter="18"></mat-spinner>
+      <mat-spinner *ngIf="loading" diameter="22"></mat-spinner>
       <ng-container *ngIf="!loading">{{ prefix }}{{ value }}{{ suffix }}</ng-container>
     </div>
-    <div class="st-hint stb-muted" *ngIf="hint">{{ hint }}</div>
-  </div>
-  <div class="st-icon" [ngClass]="'stb-accent-' + color">
-    <mat-icon>{{ icon }}</mat-icon>
+    <div class="st-trend-row" *ngIf="(trend || trendDetail) && !loading">
+      <span class="st-trend" *ngIf="trend" [class.is-up]="trendUp === true" [class.is-down]="trendUp === false">
+        <mat-icon>{{ trendUp === true ? 'arrow_upward' : trendUp === false ? 'arrow_downward' : 'remove' }}</mat-icon>
+        {{ trend }}
+      </span>
+      <span class="st-trend-detail" *ngIf="trendDetail">{{ trendDetail }}</span>
+    </div>
+    <div class="st-hint" *ngIf="hint">{{ hint }}</div>
   </div>
 </div>

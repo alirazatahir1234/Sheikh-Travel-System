@@ -11,7 +11,10 @@
 
   <ul class="stb-tasks" *ngIf="tasks?.length; else empty">
     <li *ngFor="let t of tasks; trackBy: trackById"
-        class="task" [class.done]="t.done">
+        class="task"
+        [class.done]="t.done"
+        [attr.data-status]="taskStatusKey(t)">
+      <span class="priority" *ngIf="t.priority" [attr.data-priority]="t.priority">{{ t.priority }}</span>
       <label class="cb">
         <input type="checkbox" [checked]="!!t.done" (change)="toggle.emit(t)"/>
         <span class="box"><mat-icon>check</mat-icon></span>
@@ -34,7 +37,7 @@
   <ng-template #empty>
     <div class="stb-empty">
       <mat-icon>inbox</mat-icon>
-      <span>{{ emptyMessage }}</span>
+      <span>{{ emptyMessage || 'Nothing here yet — you are all caught up.' }}</span>
     </div>
   </ng-template>
 </stb-info-card>

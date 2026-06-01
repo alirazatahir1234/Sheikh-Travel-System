@@ -2,9 +2,16 @@
 
 .stb-greeting { margin: 0 0 16px; }
 
+.stb-greeting.is-compact {
+  margin: 0;
+
+  .g-title { font-size: 1.75rem; }
+  .g-sub { font-size: .85rem; margin-top: 4px; }
+}
+
 .g-title {
   margin: 0;
-  font-size: 1.6rem;
+  font-size: 1.75rem;
   font-weight: 600;
   color: var(--stb-text);
   letter-spacing: -0.01em;

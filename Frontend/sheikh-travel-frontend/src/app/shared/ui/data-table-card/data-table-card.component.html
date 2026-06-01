@@ -15,18 +15,45 @@
               [style.textAlign]="c.align || 'left'">
             {{ c.header }}
           </th>
+          <th *ngIf="showRowActions" class="col-actions" aria-label="Actions"></th>
         </tr>
       </thead>
       <tbody>
-        <tr *ngFor="let row of rows" (click)="rowClick.emit(row)">
+        <tr *ngFor="let row of rows" (click)="onRowClick(row)">
           <td *ngFor="let c of columns"
               [style.textAlign]="c.align || 'left'">
-            {{ valueFor(row, c) }}
+            <span *ngIf="c.badge; else plainCell"
+                  class="status-badge"
+                  [attr.data-status]="statusKey(row, c)">
+              <mat-icon class="badge-icon">{{ statusIcon(row, c) }}</mat-icon>
+              {{ valueFor(row, c) }}
+            </span>
+            <ng-template #plainCell>{{ valueFor(row, c) }}</ng-template>
+          </td>
+          <td *ngIf="showRowActions" class="col-actions" (click)="$event.stopPropagation()">
+            <button mat-icon-button type="button"
+                    [matMenuTriggerFor]="actionsMenu"
+                    (click)="selectRow(row, $event)"
+                    aria-label="Row actions">
+              <mat-icon>more_vert</mat-icon>
+            </button>
           </td>
         </tr>
       </tbody>
     </table>
   </div>
+
+  <mat-menu #actionsMenu="matMenu" xPosition="before">
+    <button mat-menu-item (click)="viewRow.emit(selectedRow!)">
+      <mat-icon>visibility</mat-icon><span>View</span>
+    </button>
+    <button mat-menu-item (click)="editRow.emit(selectedRow!)">
+      <mat-icon>edit</mat-icon><span>Edit</span>
+    </button>
+    <button mat-menu-item (click)="assignRow.emit(selectedRow!)">
+      <mat-icon>person_add</mat-icon><span>Assign driver</span>
+    </button>
+  </mat-menu>
 
   <ng-template #empty>
     <div class="stb-empty">

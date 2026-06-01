@@ -14,15 +14,15 @@
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  padding: 14px 10px 12px;
-  gap: 12px;
+  padding: 12px 10px 10px;
+  gap: 10px;
   z-index: 5;
   height: 100vh;
   overflow: hidden;
   transition: width .2s ease, box-shadow .2s ease;
 
   &.is-expanded {
-    width: 240px;
+    width: 204px;
     box-shadow: 8px 0 24px rgba(2, 6, 23, .06);
   }
 }
@@ -102,12 +102,12 @@
 }
 
 .stb-rail-nav {
-  display: flex; flex-direction: column; gap: 4px;
+  display: flex; flex-direction: column; gap: 3px;
   flex: 1 1 auto; width: 100%; align-items: stretch;
-  margin-top: 4px;
+  margin-top: 2px;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 4px 2px;
+  padding: 2px 2px;
 
   // Hide scrollbar but keep functionality
   scrollbar-width: none;
@@ -125,8 +125,8 @@
 
 .stb-rail-link {
   width: 100%;
-  min-height: 44px;
-  border-radius: 12px;
+  min-height: 40px;
+  border-radius: 11px;
   border: 0;
   background: transparent;
   padding: 0 10px;
@@ -145,20 +145,27 @@
   }
 
   &.active {
-    background: rgba(27, 127, 117, .12);
-    color: var(--stb-primary);
-    box-shadow: inset 0 0 0 1px rgba(27, 127, 117, .16);
+    background: linear-gradient(90deg, rgba(15, 118, 110, 0.18) 0%, rgba(15, 118, 110, 0.06) 100%);
+    color: var(--stb-primary-600, #0D6B64);
+    box-shadow: inset 0 0 0 1px rgba(15, 118, 110, 0.22), 0 2px 8px rgba(15, 118, 110, 0.12);
+    font-weight: 700;
+
+    mat-icon {
+      color: var(--stb-primary);
+      filter: drop-shadow(0 0 6px rgba(15, 118, 110, 0.35));
+    }
   }
 
   &.active::before {
     content: '';
     position: absolute;
     left: -10px;
-    top: 8px;
-    bottom: 8px;
-    width: 3px;
+    top: 6px;
+    bottom: 6px;
+    width: 4px;
     border-radius: 999px;
-    background: var(--stb-primary);
+    background: linear-gradient(180deg, #14B8A6 0%, var(--stb-primary) 100%);
+    box-shadow: 0 0 8px rgba(15, 118, 110, 0.45);
   }
 }
 
@@ -504,8 +511,9 @@
 
 .stb-content {
   flex: 1 1 auto;
-  padding: 24px 28px 40px;
+  padding: 0;
   overflow: auto;
+  background: linear-gradient(180deg, #f4f7fa 0%, #e8eef4 55%, #eef4f8 100%);
 }
 
 @media (max-width: 900px) {

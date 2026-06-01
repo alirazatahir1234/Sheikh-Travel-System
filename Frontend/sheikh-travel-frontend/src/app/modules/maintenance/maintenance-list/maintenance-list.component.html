@@ -1,183 +1,314 @@
-<div class="page-header">
-  <div>
-    <h2>Maintenance Records</h2>
-    <p class="page-sub">Track service history and scheduled maintenance</p>
-  </div>
-  <div class="header-actions">
-    <button mat-stroked-button (click)="load()">
-      <mat-icon>refresh</mat-icon> Refresh
-    </button>
-    <button mat-raised-button color="primary" routerLink="new">
-      <mat-icon>build</mat-icon> Schedule Maintenance
-    </button>
-  </div>
-</div>
+<div class="maint-page">
 
-<!-- Summary Cards -->
-<div class="summary-row">
-  <mat-card class="summary-card scheduled" (click)="onOverdueFilterChange('ALL')"
-            [class.active]="overdueFilter === 'ALL'">
-    <mat-icon>schedule</mat-icon>
-    <div class="summary-content">
-      <span class="summary-value">{{ scheduledCount }}</span>
-      <span class="summary-label">Scheduled</span>
+  <header class="maint-header stb-elevated">
+    <div class="maint-header-left">
+      <nav class="maint-breadcrumb" aria-label="Breadcrumb">
+        <span>Fleet</span>
+        <mat-icon>chevron_right</mat-icon>
+        <span class="bc-current">Maintenance</span>
+      </nav>
+      <h1 class="maint-title">Fleet maintenance</h1>
+      <p class="maint-subtitle">Service history, schedules, and vehicle health</p>
     </div>
-  </mat-card>
-  <mat-card class="summary-card overdue" (click)="onOverdueFilterChange('OVERDUE')"
-            [class.active]="overdueFilter === 'OVERDUE'">
-    <mat-icon>warning</mat-icon>
-    <div class="summary-content">
-      <span class="summary-value">{{ overdueCount }}</span>
-      <span class="summary-label">Overdue</span>
+    <div class="maint-header-right">
+      <div class="maint-alerts" *ngIf="alerts.length">
+        <span
+          class="alert-pill"
+          *ngFor="let a of alerts"
+          [class.alert-pill--ok]="a.severity === 'ok'"
+          [class.alert-pill--warn]="a.severity === 'warn'"
+          [class.alert-pill--danger]="a.severity === 'danger'">
+          <mat-icon>{{ a.icon }}</mat-icon>
+          {{ a.message }}
+        </span>
+      </div>
+      <button mat-stroked-button type="button" (click)="load()" [disabled]="loading">
+        <mat-icon>refresh</mat-icon>
+        Refresh
+      </button>
+      <button mat-flat-button color="primary" type="button" routerLink="new">
+        <mat-icon>build</mat-icon>
+        Schedule maintenance
+      </button>
     </div>
-  </mat-card>
-  <mat-card class="summary-card upcoming" (click)="onOverdueFilterChange('UPCOMING')"
-            [class.active]="overdueFilter === 'UPCOMING'">
-    <mat-icon>event</mat-icon>
-    <div class="summary-content">
-      <span class="summary-value">{{ upcomingCount }}</span>
-      <span class="summary-label">Due in 7 Days</span>
-    </div>
-  </mat-card>
-  <mat-card class="summary-card expense">
-    <mat-icon>payments</mat-icon>
-    <div class="summary-content">
-      <span class="summary-value">PKR {{ formatNumber(totalCost) }}</span>
-      <span class="summary-label">Total Cost</span>
-    </div>
-  </mat-card>
-</div>
+  </header>
 
-<!-- Filters -->
-<mat-card class="filter-card">
-  <div class="filter-row">
-    <mat-form-field appearance="outline" class="search-field">
-      <mat-label>Search</mat-label>
-      <input matInput [ngModel]="searchTerm" (ngModelChange)="onSearch($event)"
-             placeholder="Vehicle, description, provider…">
-      <mat-icon matPrefix>search</mat-icon>
-      <button *ngIf="searchTerm" mat-icon-button matSuffix (click)="onSearch('')">
+  <section class="maint-stats">
+    <stb-stat-tile
+      *ngFor="let s of stats"
+      class="maint-stat"
+      [label]="s.label"
+      [value]="s.value"
+      [icon]="s.icon"
+      [color]="s.color"
+      [prefix]="s.prefix || ''"
+      [trend]="s.trend"
+      [trendUp]="s.trendUp"
+      [trendDetail]="s.trendDetail"
+      [sparkline]="s.sparkline"
+      [variant]="s.variant || 'default'"
+      [loading]="loading"
+      (click)="onStatClick(s)">
+    </stb-stat-tile>
+  </section>
+
+  <section class="quick-actions">
+    <span class="qa-label">Quick schedule</span>
+    <button
+      type="button"
+      class="qa-card"
+      *ngFor="let q of quickActions"
+      (click)="scheduleQuick(q.template)">
+      <mat-icon>{{ q.icon }}</mat-icon>
+      <span>{{ q.label }}</span>
+    </button>
+  </section>
+
+  <app-maintenance-analytics
+    [loading]="loading"
+    [costLabels]="costChartLabels"
+    [costValues]="costChartValues"
+    [costTotal]="costChartTotal"
+    [statusLabels]="statusChartLabels"
+    [statusValues]="statusChartValues"
+    [vehicleLabels]="vehicleChartLabels"
+    [vehicleValues]="vehicleChartValues"
+    [completionRate]="completionRate">
+  </app-maintenance-analytics>
+
+  <div class="maint-mid">
+    <aside class="health-panel stb-elevated">
+      <div class="panel-head">
+        <mat-icon>health_and_safety</mat-icon>
+        <h2>Vehicle health</h2>
+      </div>
+      <div class="health-list" *ngIf="!loading && healthCards.length; else healthEmpty">
+        <button
+          type="button"
+          class="health-card"
+          *ngFor="let h of healthCards"
+          (click)="viewVehicle(h.vehicleId)">
+          <div class="health-top">
+            <strong>{{ h.name }}</strong>
+            <span class="health-score" [class.health-score--low]="h.score < 70">{{ h.score }}%</span>
+          </div>
+          <span class="health-reg">{{ h.registration }}</span>
+          <span class="health-next" *ngIf="h.nextService">Next service: {{ h.nextService }}</span>
+          <span class="health-alert" *ngIf="h.alert">
+            <mat-icon>warning</mat-icon>
+            {{ h.alert }}
+          </span>
+        </button>
+      </div>
+      <ng-template #healthEmpty>
+        <p class="panel-empty">Add maintenance records to see vehicle health scores.</p>
+      </ng-template>
+    </aside>
+
+    <aside class="timeline-panel stb-elevated">
+      <div class="panel-head">
+        <mat-icon>timeline</mat-icon>
+        <h2>Maintenance timeline</h2>
+      </div>
+      <ul class="timeline" *ngIf="timeline.length; else timelineEmpty">
+        <li *ngFor="let t of timeline" [class]="'tl-item tl-item--' + t.type">
+          <span class="tl-dot"><mat-icon>{{ t.icon }}</mat-icon></span>
+          <div class="tl-body">
+            <strong>{{ t.title }}</strong>
+            <span>{{ t.subtitle }}</span>
+            <time>{{ t.date | date:'mediumDate' }}</time>
+          </div>
+        </li>
+      </ul>
+      <ng-template #timelineEmpty>
+        <div class="empty-state-mini" *ngIf="!loading">
+          <mat-icon>celebration</mat-icon>
+          <p>No maintenance events yet</p>
+        </div>
+      </ng-template>
+    </aside>
+  </div>
+
+  <div class="toolbar stb-elevated">
+    <div class="toolbar-search">
+      <mat-icon>search</mat-icon>
+      <input
+        type="search"
+        placeholder="Search vehicle, description, provider…"
+        [ngModel]="searchTerm"
+        (ngModelChange)="onSearch($event)"
+        aria-label="Search maintenance" />
+      <button *ngIf="searchTerm" type="button" mat-icon-button (click)="onSearch('')">
         <mat-icon>close</mat-icon>
       </button>
-    </mat-form-field>
-
-    <mat-form-field appearance="outline">
-      <mat-label>Status</mat-label>
-      <mat-select [ngModel]="statusFilter" (ngModelChange)="onStatusChange($event)">
-        <mat-option value="ALL">All Statuses</mat-option>
-        <mat-option *ngFor="let s of statuses" [value]="s">{{ statusLabel(s) }}</mat-option>
-      </mat-select>
-    </mat-form-field>
-
-    <button mat-stroked-button (click)="clearFilters()" matTooltip="Clear filters">
-      <mat-icon>filter_alt_off</mat-icon>
-    </button>
-
-    <span class="spacer"></span>
-
-    <button mat-stroked-button [matMenuTriggerFor]="exportMenu">
-      <mat-icon>download</mat-icon> Export
-    </button>
-    <mat-menu #exportMenu="matMenu">
-      <button mat-menu-item (click)="exportExcel()">
-        <mat-icon>table_chart</mat-icon> Excel (.xlsx)
+    </div>
+    <div class="toolbar-chips">
+      <button
+        type="button"
+        class="t-chip"
+        *ngFor="let s of statusChips"
+        [class.t-chip--active]="statusFilter === s.id"
+        (click)="onStatusChange(s.id)">
+        {{ s.label }}
       </button>
-      <button mat-menu-item (click)="exportPdf()">
-        <mat-icon>picture_as_pdf</mat-icon> PDF
+      <button
+        type="button"
+        class="t-chip t-chip--overdue"
+        [class.t-chip--active]="overdueFilter === 'OVERDUE'"
+        (click)="onOverdueFilterChange(overdueFilter === 'OVERDUE' ? 'ALL' : 'OVERDUE')">
+        Overdue
       </button>
-    </mat-menu>
-  </div>
-</mat-card>
-
-<!-- Loading -->
-<div *ngIf="loading" class="loading"><mat-spinner diameter="32"></mat-spinner></div>
-
-<!-- Table -->
-<mat-card *ngIf="!loading" class="table-card">
-  <div class="table-container">
-    <table mat-table [dataSource]="dataSource" class="maint-table">
-
-      <ng-container matColumnDef="maintenanceDate">
-        <th mat-header-cell *matHeaderCellDef>Date</th>
-        <td mat-cell *matCellDef="let r">{{ r.maintenanceDate | date:'mediumDate' }}</td>
-      </ng-container>
-
-      <ng-container matColumnDef="vehicle">
-        <th mat-header-cell *matHeaderCellDef>Vehicle</th>
-        <td mat-cell *matCellDef="let r">
-          <div class="cell-main">{{ r.vehicleName }}</div>
-          <div class="cell-sub">{{ r.vehicleRegistration }}</div>
-        </td>
-      </ng-container>
-
-      <ng-container matColumnDef="description">
-        <th mat-header-cell *matHeaderCellDef>Description</th>
-        <td mat-cell *matCellDef="let r">{{ r.description }}</td>
-      </ng-container>
-
-      <ng-container matColumnDef="status">
-        <th mat-header-cell *matHeaderCellDef>Status</th>
-        <td mat-cell *matCellDef="let r">
-          <span class="status-chip" [attr.data-status]="r.status">{{ statusLabel(r.status) }}</span>
-        </td>
-      </ng-container>
-
-      <ng-container matColumnDef="cost">
-        <th mat-header-cell *matHeaderCellDef class="num">Cost (PKR)</th>
-        <td mat-cell *matCellDef="let r" class="num cost">{{ r.cost | number:'1.0-0' }}</td>
-      </ng-container>
-
-      <ng-container matColumnDef="serviceProvider">
-        <th mat-header-cell *matHeaderCellDef>Provider</th>
-        <td mat-cell *matCellDef="let r">{{ r.serviceProvider || '—' }}</td>
-      </ng-container>
-
-      <ng-container matColumnDef="nextDueDate">
-        <th mat-header-cell *matHeaderCellDef>Next Due</th>
-        <td mat-cell *matCellDef="let r" [class.overdue-cell]="isOverdue(r)" [class.upcoming-cell]="isUpcoming(r)">
-          <span *ngIf="r.nextDueDate">
-            {{ r.nextDueDate | date:'mediumDate' }}
-            <mat-icon *ngIf="isOverdue(r)" class="due-icon overdue" matTooltip="Overdue">warning</mat-icon>
-            <mat-icon *ngIf="isUpcoming(r)" class="due-icon upcoming" matTooltip="Due soon">schedule</mat-icon>
-          </span>
-          <span *ngIf="!r.nextDueDate">—</span>
-        </td>
-      </ng-container>
-
-      <ng-container matColumnDef="actions">
-        <th mat-header-cell *matHeaderCellDef></th>
-        <td mat-cell *matCellDef="let r">
-          <button mat-icon-button [matMenuTriggerFor]="actionsMenu" matTooltip="Actions">
-            <mat-icon>more_vert</mat-icon>
-          </button>
-          <mat-menu #actionsMenu="matMenu">
-            <button mat-menu-item (click)="editRecord(r)">
-              <mat-icon>edit</mat-icon> Edit
-            </button>
-            <button mat-menu-item *ngIf="r.status === 1" (click)="updateStatus(r, 2)">
-              <mat-icon>play_arrow</mat-icon> Start Work
-            </button>
-            <button mat-menu-item *ngIf="r.status === 2" (click)="updateStatus(r, 3)">
-              <mat-icon>check</mat-icon> Mark Completed
-            </button>
-            <mat-divider></mat-divider>
-            <button mat-menu-item (click)="deleteRecord(r)" class="delete-action">
-              <mat-icon color="warn">delete</mat-icon> Delete
-            </button>
-          </mat-menu>
-        </td>
-      </ng-container>
-
-      <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-      <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
-
-      <tr class="empty-row" *matNoDataRow>
-        <td [attr.colspan]="displayedColumns.length">
-          No maintenance records found. Schedule a maintenance to get started.
-        </td>
-      </tr>
-    </table>
+      <button
+        type="button"
+        class="t-chip t-chip--upcoming"
+        [class.t-chip--active]="overdueFilter === 'UPCOMING'"
+        (click)="onOverdueFilterChange(overdueFilter === 'UPCOMING' ? 'ALL' : 'UPCOMING')">
+        Due 7d
+      </button>
+    </div>
+    <div class="toolbar-actions">
+      <button mat-stroked-button type="button" (click)="clearFilters()" matTooltip="Clear filters">
+        <mat-icon>filter_alt_off</mat-icon>
+      </button>
+      <button mat-stroked-button type="button" [matMenuTriggerFor]="exportMenu">
+        <mat-icon>download</mat-icon>
+        Export
+      </button>
+      <mat-menu #exportMenu="matMenu">
+        <button mat-menu-item type="button" (click)="exportExcel()">
+          <mat-icon>table_chart</mat-icon> Excel
+        </button>
+        <button mat-menu-item type="button" (click)="exportPdf()">
+          <mat-icon>picture_as_pdf</mat-icon> PDF
+        </button>
+      </mat-menu>
+    </div>
   </div>
 
-  <mat-paginator [pageSize]="10" [pageSizeOptions]="[10, 25, 50]" showFirstLastButtons></mat-paginator>
-</mat-card>
+  <div *ngIf="loading" class="loading"><mat-spinner diameter="36"></mat-spinner></div>
+
+  <mat-card *ngIf="!loading" class="table-card stb-elevated">
+    <div class="table-wrap">
+      <table mat-table [dataSource]="dataSource" class="maint-table">
+
+        <ng-container matColumnDef="maintenanceDate">
+          <th mat-header-cell *matHeaderCellDef>Date</th>
+          <td mat-cell *matCellDef="let r">
+            <span class="row-date">{{ r.maintenanceDate | date:'mediumDate' }}</span>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="vehicle">
+          <th mat-header-cell *matHeaderCellDef>Vehicle</th>
+          <td mat-cell *matCellDef="let r">
+            <div class="cell-main">{{ r.vehicleName }}</div>
+            <div class="cell-sub">{{ r.vehicleRegistration }}</div>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="description">
+          <th mat-header-cell *matHeaderCellDef>Description</th>
+          <td mat-cell *matCellDef="let r">{{ r.description }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="status">
+          <th mat-header-cell *matHeaderCellDef>Status</th>
+          <td mat-cell *matCellDef="let r">
+            <span class="status-badge" [attr.data-status]="displayStatus(r)">
+              <mat-icon>{{ statusIcon(displayStatus(r)) }}</mat-icon>
+              {{ displayStatusLabel(r) }}
+            </span>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="cost">
+          <th mat-header-cell *matHeaderCellDef class="num">Cost</th>
+          <td mat-cell *matCellDef="let r" class="num cost">PKR {{ r.cost | number:'1.0-0' }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="serviceProvider">
+          <th mat-header-cell *matHeaderCellDef>Provider</th>
+          <td mat-cell *matCellDef="let r">{{ r.serviceProvider || '—' }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="nextDueDate">
+          <th mat-header-cell *matHeaderCellDef>Next due</th>
+          <td mat-cell *matCellDef="let r" [class.overdue-cell]="isOverdue(r)" [class.upcoming-cell]="isUpcoming(r)">
+            <span *ngIf="r.nextDueDate">{{ r.nextDueDate | date:'mediumDate' }}</span>
+            <span *ngIf="!r.nextDueDate">—</span>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="actions">
+          <th mat-header-cell *matHeaderCellDef></th>
+          <td mat-cell *matCellDef="let r">
+            <button
+              mat-icon-button
+              type="button"
+              [matMenuTriggerFor]="actionsMenu"
+              (click)="openRowMenu(r)"
+              aria-label="Row actions">
+              <mat-icon>more_vert</mat-icon>
+            </button>
+          </td>
+        </ng-container>
+
+        <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+        <tr
+          mat-row
+          *matRowDef="let row; columns: displayedColumns;"
+          class="data-row"
+          [class.data-row--overdue]="isOverdue(row)"></tr>
+
+        <tr class="mat-row empty-row" *matNoDataRow>
+          <td class="mat-cell" [attr.colspan]="displayedColumns.length">
+            <div class="table-empty" *ngIf="showFleetHealthyEmpty">
+              <mat-icon>celebration</mat-icon>
+              <h3>No maintenance records yet</h3>
+              <p>Schedule your first service to start tracking fleet health.</p>
+              <button mat-flat-button color="primary" routerLink="new">Schedule maintenance</button>
+            </div>
+            <div class="table-empty" *ngIf="showHealthyEmpty && !showFleetHealthyEmpty">
+              <mat-icon>check_circle</mat-icon>
+              <h3>No overdue maintenance</h3>
+              <p>Fleet is operating normally for the current filters.</p>
+            </div>
+            <div class="table-empty" *ngIf="!showFleetHealthyEmpty && !showHealthyEmpty">
+              <mat-icon>search_off</mat-icon>
+              <h3>No records match</h3>
+              <p>Try adjusting search or status filters.</p>
+            </div>
+          </td>
+        </tr>
+      </table>
+    </div>
+    <mat-paginator [pageSize]="10" [pageSizeOptions]="[10, 25, 50]" showFirstLastButtons></mat-paginator>
+  </mat-card>
+
+  <mat-menu #actionsMenu="matMenu">
+    <button mat-menu-item type="button" (click)="editRecord(selectedRow!)">
+      <mat-icon>visibility</mat-icon> View / Edit
+    </button>
+    <button
+      mat-menu-item
+      type="button"
+      *ngIf="selectedRow?.status === 1"
+      (click)="updateStatus(selectedRow!, 2)">
+      <mat-icon>play_arrow</mat-icon> Start work
+    </button>
+    <button
+      mat-menu-item
+      type="button"
+      *ngIf="selectedRow && selectedRow.status !== 3"
+      (click)="completeRecord(selectedRow!)">
+      <mat-icon>check_circle</mat-icon> Mark completed
+    </button>
+    <button mat-menu-item type="button" (click)="viewVehicle(selectedRow!.vehicleId)">
+      <mat-icon>directions_bus</mat-icon> View vehicle
+    </button>
+    <mat-divider></mat-divider>
+    <button mat-menu-item type="button" class="delete-action" (click)="deleteRecord(selectedRow!)">
+      <mat-icon color="warn">delete</mat-icon> Delete
+    </button>
+  </mat-menu>
+</div>

@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using SheikhTravelSystem.API.Models;
 using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Application.Features.Ocr.DTOs;
 
@@ -23,10 +24,10 @@ public class OcrController : BaseApiController
     [Consumes("multipart/form-data")]
     [RequestSizeLimit(15 * 1024 * 1024)]
     public async Task<IActionResult> ExtractIdentity(
-        [FromForm] IFormFile file,
-        [FromForm] string? request,
+        [FromForm] ExtractIdentityFormRequest form,
         CancellationToken cancellationToken)
     {
+        var file = form.File;
         if (file is null || file.Length == 0)
             return BadRequest("File is required.");
 
@@ -36,12 +37,12 @@ public class OcrController : BaseApiController
             return BadRequest("CNIC OCR accepts photos only (JPEG, PNG, or WebP). Export or screenshot the card as an image and upload again.");
 
         ExtractIdentityOcrRequest parsedRequest = new();
-        if (!string.IsNullOrWhiteSpace(request))
+        if (!string.IsNullOrWhiteSpace(form.Request))
         {
             try
             {
                 parsedRequest = JsonSerializer.Deserialize<ExtractIdentityOcrRequest>(
-                    request,
+                    form.Request,
                     new JsonSerializerOptions
                     {
                         PropertyNameCaseInsensitive = true,

@@ -54,7 +54,8 @@ export class ShellComponent implements OnInit, OnDestroy {
   searchResults: SearchResult[] = [];
   searchLoading = false;
   showSearchResults = false;
-  isSidebarPinned = false;
+  /** Pinned by default so nav labels stay visible (hover still expands when unpinned). */
+  isSidebarPinned = true;
   isSidebarHovering = false;
   private searchSubject = new Subject<string>();
   private searchSub?: Subscription;

@@ -1,0 +1,37 @@
+<section class="analytics-section">
+  <div class="section-head">
+    <h2>Fleet analytics</h2>
+    <p class="stb-muted">Revenue trends and booking distribution</p>
+  </div>
+
+  <div class="analytics-grid">
+    <stb-info-card title="Weekly revenue" subtitle="PKR from bookings · last 7 days" icon="show_chart" class="chart-card">
+      <div class="chart-meta" *ngIf="revenueTotal > 0 && !loading">
+        <span class="meta-val">{{ revenueTotal | number }}</span>
+        <span class="meta-lbl">PKR this week</span>
+      </div>
+      <div class="chart-wrap" *ngIf="!loading; else chartLoad">
+        <canvas #revenueCanvas aria-label="Weekly revenue chart"></canvas>
+      </div>
+      <p class="chart-empty-hint stb-muted" *ngIf="!loading && revenueTotal === 0">No booking revenue in the last 7 days yet.</p>
+    </stb-info-card>
+
+    <stb-info-card title="Bookings by status" subtitle="Last 30 days" icon="pie_chart" class="chart-card">
+      <div class="chart-wrap chart-wrap--donut" *ngIf="!loading; else chartLoad">
+        <canvas #bookingsCanvas aria-label="Bookings by status chart"></canvas>
+      </div>
+    </stb-info-card>
+
+    <stb-info-card title="Fleet snapshot" subtitle="Utilization & availability" icon="directions_bus" class="chart-card chart-card--fleet">
+      <div class="chart-wrap chart-wrap--bar" *ngIf="!loading; else chartLoad">
+        <canvas #fleetCanvas aria-label="Fleet utilization chart"></canvas>
+      </div>
+    </stb-info-card>
+  </div>
+</section>
+
+<ng-template #chartLoad>
+  <div class="chart-loading">
+    <mat-spinner diameter="32"></mat-spinner>
+  </div>
+</ng-template>

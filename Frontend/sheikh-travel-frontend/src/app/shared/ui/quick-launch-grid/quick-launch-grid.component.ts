@@ -9,6 +9,9 @@ import { QuickLaunchApp } from '../ui.types';
 export class QuickLaunchGridComponent {
   @Input() title = 'Quick access';
   @Input() apps: QuickLaunchApp[] = [];
+  @Input() compact = false;
+  /** Larger “+ Action” cards for dashboard quick actions. */
+  @Input() actionCards = false;
   @Output() launch = new EventEmitter<QuickLaunchApp>();
 
   trackById(_i: number, a: QuickLaunchApp): string { return a.id; }

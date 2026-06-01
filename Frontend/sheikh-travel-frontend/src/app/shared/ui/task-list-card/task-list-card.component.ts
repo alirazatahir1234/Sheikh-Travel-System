@@ -18,4 +18,11 @@ export class TaskListCardComponent {
   @Output() filterChange = new EventEmitter<string>();
 
   trackById(_i: number, t: TaskItem) { return t.id; }
+
+  taskStatusKey(t: TaskItem): string {
+    if (t.status) return t.status.toLowerCase().replace(/\s+/g, '-');
+    if (t.priority === 'high') return 'pending';
+    if (t.done) return 'completed';
+    return 'active';
+  }
 }

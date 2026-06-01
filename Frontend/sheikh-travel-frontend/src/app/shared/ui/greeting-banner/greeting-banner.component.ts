@@ -9,6 +9,8 @@ export class GreetingBannerComponent {
   @Input() userName = 'there';
   @Input() notificationsCount = 0;
   @Input() subject = 'notifications';
+  /** Tighter layout for dashboard header row. */
+  @Input() compact = false;
   @Input() date: Date = new Date();
 
   get timeOfDay(): 'Morning' | 'Afternoon' | 'Evening' {

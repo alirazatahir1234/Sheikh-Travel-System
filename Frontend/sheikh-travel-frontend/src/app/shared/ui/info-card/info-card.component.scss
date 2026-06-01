@@ -1,7 +1,8 @@
 :host { display: block; }
 
 .stb-info-card {
-  background: var(--stb-surface);
+  background: var(--stb-glass, #fff);
+  border: 1px solid var(--stb-border);
   border-radius: var(--stb-radius);
   box-shadow: var(--stb-shadow);
   padding: 20px 22px;
@@ -39,10 +40,11 @@
   h3 {
     margin: 0;
     font-size: 1rem;
-    font-weight: 600;
+    font-weight: 700;
+    letter-spacing: -0.02em;
     color: var(--stb-text);
   }
-  p { margin: 2px 0 0; font-size: .8rem; }
+  p { margin: 2px 0 0; font-size: 0.8125rem; color: var(--stb-text-soft); }
 }
 
 .ic-actions {

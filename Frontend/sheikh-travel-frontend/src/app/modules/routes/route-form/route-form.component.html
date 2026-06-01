@@ -1,96 +1,273 @@
-<div class="page-header">
-  <h2>{{ isEdit ? 'Edit Route' : 'Add Route' }}</h2>
-  <button mat-button routerLink="/routes"><mat-icon>arrow_back</mat-icon> Back</button>
-</div>
+<div class="route-planner">
 
-<mat-card class="form-card">
-  <mat-card-content>
-    <div class="maps-banner" *ngIf="!mapsConfigured">
-      <mat-icon>info</mat-icon>
-      <span>
-        Google Maps is not configured. Add your API key to
-        <code>src/environments/environment.ts</code> (<code>googleMapsApiKey</code>) to enable
-        place search and auto-calculated distance/duration. You can still enter values manually.
+  <header class="planner-header stb-elevated">
+    <div class="planner-header-left">
+      <button mat-icon-button type="button" routerLink="/routes" aria-label="Back">
+        <mat-icon>arrow_back</mat-icon>
+      </button>
+      <div>
+        <nav class="planner-breadcrumb">
+          <span>Operations</span>
+          <mat-icon>chevron_right</mat-icon>
+          <span class="bc-current">{{ isEdit ? 'Edit route' : 'New route' }}</span>
+        </nav>
+        <h1>{{ isEdit ? 'Edit route' : 'Route planner' }}</h1>
+        <p class="planner-sub">Draw routes, estimate costs, and save fleet corridors</p>
+      </div>
+    </div>
+    <div class="planner-header-right">
+      <span class="sync-pill" *ngIf="mapsConfigured && mapsReady">
+        <span class="sync-dot"></span>
+        Smart routing enabled
+      </span>
+      <span class="sync-pill sync-pill--muted" *ngIf="!mapsConfigured">
+        <mat-icon>info</mat-icon>
+        Manual entry mode
       </span>
     </div>
-    <div class="maps-banner error" *ngIf="mapsError">
-      <mat-icon>error_outline</mat-icon>
-      <span>{{ mapsError }}</span>
-    </div>
+  </header>
 
-    <form [formGroup]="form" (ngSubmit)="submit()">
-      <div class="form-grid">
-        <mat-form-field appearance="outline" class="span-2">
-          <mat-label>Route Name</mat-label>
-          <input matInput formControlName="name" placeholder="Karachi - Lahore Express" maxlength="200">
-        </mat-form-field>
+  <div class="maps-banner" *ngIf="mapsError">
+    <mat-icon>error_outline</mat-icon>
+    <span>{{ mapsError }}</span>
+  </div>
 
-        <mat-form-field appearance="outline">
-          <mat-label>Origin</mat-label>
-          <mat-icon matPrefix>location_on</mat-icon>
-          <input #originInput
-                 matInput
-                 formControlName="source"
-                 placeholder="Start typing a city or address"
-                 autocomplete="off"
-                 (blur)="scheduleRecompute()">
-          <mat-error *ngIf="form.get('source')?.hasError('required')">Required</mat-error>
-        </mat-form-field>
+  <div class="maps-banner maps-banner--info" *ngIf="!mapsConfigured">
+    <mat-icon>info</mat-icon>
+    <span>
+      Add <code>googleMapsApiKey</code> in <code>environment.ts</code> for live map routing.
+      You can still enter distance and price manually.
+    </span>
+  </div>
 
-        <mat-form-field appearance="outline">
-          <mat-label>Destination</mat-label>
-          <mat-icon matPrefix>flag</mat-icon>
-          <input #destinationInput
-                 matInput
-                 formControlName="destination"
-                 placeholder="Start typing a city or address"
-                 autocomplete="off"
-                 (blur)="scheduleRecompute()">
-          <mat-error *ngIf="form.get('destination')?.hasError('required')">Required</mat-error>
-        </mat-form-field>
+  <div class="planner-split">
 
-        <mat-form-field appearance="outline">
-          <mat-label>Distance (km)</mat-label>
-          <input matInput type="number" formControlName="distance" min="0.1" step="0.1">
-          <mat-hint *ngIf="computedDistanceText">From Google Maps: {{ computedDistanceText }}</mat-hint>
-          <mat-error *ngIf="form.get('distance')?.hasError('required')">Required</mat-error>
-        </mat-form-field>
+    <!-- Form panel ~40% -->
+    <aside class="form-panel stb-elevated">
+      <form [formGroup]="form" (ngSubmit)="submit()">
 
-        <mat-form-field appearance="outline">
-          <mat-label>Estimated Duration (minutes)</mat-label>
-          <input matInput type="number" formControlName="estimatedMinutes" min="1">
-          <mat-hint *ngIf="computedDurationText">From Google Maps: {{ computedDurationText }}</mat-hint>
-        </mat-form-field>
+        <section class="form-section form-section-card">
+          <h2 class="section-title">
+            <mat-icon>star</mat-icon>
+            Frequent routes
+          </h2>
+          <div class="preset-chips">
+            <button
+              type="button"
+              class="preset-chip"
+              *ngFor="let p of presets"
+              (click)="applyPreset(p)">
+              {{ p.label }}
+            </button>
+          </div>
+        </section>
 
-        <mat-form-field appearance="outline">
-          <mat-label>Base Price (PKR)</mat-label>
-          <input matInput type="number" formControlName="basePrice" min="0" step="50">
-          <mat-icon matPrefix>payments</mat-icon>
-          <mat-hint *ngIf="computedBasePriceText">{{ computedBasePriceText }}. You can override.</mat-hint>
-          <mat-hint *ngIf="!computedBasePriceText && mapsReady">Will be auto-calculated once a route is computed.</mat-hint>
-          <mat-error *ngIf="form.get('basePrice')?.hasError('required')">Required</mat-error>
-        </mat-form-field>
+        <section class="form-section form-section-card">
+          <h2 class="section-title">
+            <mat-icon>route</mat-icon>
+            Route information
+          </h2>
 
-        <div class="active-toggle" *ngIf="isEdit">
-          <mat-slide-toggle formControlName="isActive" color="primary">Active</mat-slide-toggle>
+          <mat-form-field appearance="outline" class="compact-field full">
+            <mat-label>Route name</mat-label>
+            <input matInput formControlName="name" placeholder="Karachi – Lahore Express" maxlength="200">
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="compact-field full soft-field">
+            <mat-label>Origin</mat-label>
+            <mat-icon matPrefix>trip_origin</mat-icon>
+            <input
+              #originInput
+              matInput
+              formControlName="source"
+              placeholder="City or address"
+              autocomplete="off"
+              (blur)="scheduleRecompute()" />
+            <mat-error *ngIf="form.get('source')?.hasError('required')">Required</mat-error>
+          </mat-form-field>
+
+          <div class="stops-block">
+            <div class="stops-head">
+              <span>Stops &amp; waypoints</span>
+              <button mat-stroked-button type="button" (click)="addStop()">
+                <mat-icon>add</mat-icon>
+                Add stop
+              </button>
+            </div>
+            <div class="stop-row" *ngFor="let stop of stops; let i = index">
+              <mat-icon>place</mat-icon>
+              <input
+                class="stop-input"
+                [(ngModel)]="stops[i]"
+                [ngModelOptions]="{ standalone: true }"
+                placeholder="Intermediate stop"
+                (blur)="onStopBlur()" />
+              <button mat-icon-button type="button" (click)="removeStop(i)" aria-label="Remove stop">
+                <mat-icon>close</mat-icon>
+              </button>
+            </div>
+          </div>
+
+          <mat-form-field appearance="outline" class="compact-field full soft-field">
+            <mat-label>Destination</mat-label>
+            <mat-icon matPrefix>flag</mat-icon>
+            <input
+              #destinationInput
+              matInput
+              formControlName="destination"
+              placeholder="City or address"
+              autocomplete="off"
+              (blur)="scheduleRecompute()" />
+            <mat-error *ngIf="form.get('destination')?.hasError('required')">Required</mat-error>
+          </mat-form-field>
+        </section>
+
+        <section class="form-section form-section-card form-section-card--alt">
+          <h2 class="section-title">
+            <mat-icon>tune</mat-icon>
+            Route optimization
+          </h2>
+          <div class="optimize-chips">
+            <button
+              type="button"
+              class="opt-chip"
+              *ngFor="let m of optimizeModes"
+              [class.opt-chip--active]="optimizeMode === m.id"
+              (click)="setOptimizeMode(m.id)">
+              <mat-icon>{{ m.icon }}</mat-icon>
+              {{ m.label }}
+            </button>
+          </div>
+        </section>
+
+        <section class="form-section form-section-card" [class.metrics-flash]="metricsUpdated">
+          <h2 class="section-title">
+            <mat-icon>payments</mat-icon>
+            Pricing &amp; distance
+          </h2>
+          <p class="metrics-hint" *ngIf="metricsUpdated">Route metrics updated from live map</p>
+          <div class="field-row">
+            <mat-form-field appearance="outline" class="compact-field soft-field">
+              <mat-label>Distance (km)</mat-label>
+              <input matInput type="number" formControlName="distance" min="0.1" step="0.1">
+              <mat-hint *ngIf="computedDistanceText">Live: {{ computedDistanceText }}</mat-hint>
+            </mat-form-field>
+            <mat-form-field appearance="outline" class="compact-field soft-field">
+              <mat-label>Duration (min)</mat-label>
+              <input matInput type="number" formControlName="estimatedMinutes" min="1">
+              <mat-hint *ngIf="computedDurationText">ETA {{ formattedDuration }}</mat-hint>
+            </mat-form-field>
+          </div>
+          <mat-form-field appearance="outline" class="compact-field full soft-field">
+            <mat-label>Base price (PKR)</mat-label>
+            <mat-icon matPrefix>payments</mat-icon>
+            <input matInput type="number" formControlName="basePrice" min="0" step="50">
+            <mat-hint *ngIf="computedBasePriceText">{{ computedBasePriceText }}</mat-hint>
+          </mat-form-field>
+          <div class="active-row" *ngIf="isEdit">
+            <mat-slide-toggle formControlName="isActive" color="primary">Route active</mat-slide-toggle>
+          </div>
+        </section>
+
+        <section class="summary-card" *ngIf="hasRoutePreview || calculating">
+          <h2 class="section-title">
+            <mat-icon>insights</mat-icon>
+            Route summary
+          </h2>
+          <div *ngIf="calculating" class="summary-loading">
+            <mat-spinner diameter="24"></mat-spinner>
+            <span>Computing route…</span>
+          </div>
+          <div class="summary-grid" *ngIf="!calculating && hasRoutePreview">
+            <div class="sum-item">
+              <span class="sum-lbl">Distance</span>
+              <strong>{{ computedDistanceText }}</strong>
+            </div>
+            <div class="sum-item">
+              <span class="sum-lbl">Est. time</span>
+              <strong>{{ formattedDuration }}</strong>
+            </div>
+            <div class="sum-item">
+              <span class="sum-lbl">Base price</span>
+              <strong>PKR {{ form.get('basePrice')?.value | number:'1.0-0' }}</strong>
+            </div>
+            <div class="sum-item">
+              <span class="sum-lbl">Fuel est.</span>
+              <strong>PKR {{ fuelEstimate | number:'1.0-0' }}</strong>
+            </div>
+            <div class="sum-item" *ngIf="tollEstimate">
+              <span class="sum-lbl">Tolls est.</span>
+              <strong>PKR {{ tollEstimate | number:'1.0-0' }}</strong>
+            </div>
+            <div class="sum-item">
+              <span class="sum-lbl">Stops</span>
+              <strong>{{ stops.length }}</strong>
+            </div>
+          </div>
+        </section>
+
+        <div class="form-actions">
+          <button mat-button type="button" class="btn-tertiary" routerLink="/routes">Cancel</button>
+          <button mat-stroked-button type="button" class="btn-tertiary" (click)="saveDraft()" *ngIf="!isEdit">
+            Save draft
+          </button>
+          <button mat-stroked-button type="button" class="btn-secondary" (click)="previewRoute()" [disabled]="calculating">
+            <mat-icon>visibility</mat-icon>
+            Preview route
+          </button>
+          <button mat-flat-button color="primary" class="btn-primary" type="submit" [disabled]="loading || calculating">
+            <mat-icon>{{ isEdit ? 'save' : 'add_road' }}</mat-icon>
+            {{ isEdit ? 'Update route' : 'Create route' }}
+          </button>
         </div>
+      </form>
+    </aside>
+
+    <!-- Map panel ~60% -->
+    <div class="route-map-panel stb-elevated">
+      <div class="map-toolbar">
+        <span class="map-title">
+          <mat-icon>map</mat-icon>
+          Live route preview
+        </span>
+        <span class="map-status" *ngIf="calculating">
+          <mat-spinner diameter="18"></mat-spinner>
+          Routing…
+        </span>
+        <span class="map-status map-status--ok" *ngIf="hasRoutePreview && !calculating">
+          <mat-icon>check_circle</mat-icon>
+          {{ computedDistanceText }} · {{ formattedDuration }}
+        </span>
       </div>
 
-      <div class="map-wrapper" *ngIf="mapsConfigured">
-        <div class="map-header">
-          <span class="title">Route preview</span>
-          <span class="status" *ngIf="calculating">
-            <mat-spinner diameter="16"></mat-spinner> Calculating...
-          </span>
-          <span class="status success" *ngIf="!calculating && computedDistanceText && computedDurationText">
-            <mat-icon>check_circle</mat-icon>
-            {{ computedDistanceText }} · {{ computedDurationText }}
+      <div class="map-stage" *ngIf="mapsConfigured" [class.map-stage--active]="routeLineActive">
+
+        <div class="route-path-strip" *ngIf="routePathLabels.length">
+          <span class="path-node" *ngFor="let node of routePathLabels; let last = last">
+            {{ node }}<mat-icon *ngIf="!last">chevron_right</mat-icon>
           </span>
         </div>
 
-        <div class="map-canvas" *ngIf="mapsReady; else mapLoading">
+        <div class="map-empty" *ngIf="showMapEmpty">
+          <div class="empty-route-art">
+            <span class="pulse-line"></span>
+            <mat-icon>route</mat-icon>
+          </div>
+          <h3>Select origin &amp; destination</h3>
+          <p>Generate an optimized fleet route with live distance, ETA, and cost estimates.</p>
+        </div>
+
+        <div class="map-calculating" *ngIf="calculating">
+          <mat-spinner diameter="36"></mat-spinner>
+          <span>Drawing route…</span>
+        </div>
+
+        <div
+          class="map-canvas"
+          *ngIf="mapsReady; else mapLoading"
+          [class.map-canvas--live]="routeLineActive">
           <google-map
-            height="340px"
+            height="100%"
             width="100%"
             [center]="mapCenter"
             [zoom]="mapZoom"
@@ -100,22 +277,77 @@
               [directions]="directionsResult"
               [options]="rendererOptions">
             </map-directions-renderer>
+            <map-marker
+              *ngFor="let m of mapMarkers"
+              [position]="m.position"
+              [title]="m.title"
+              [label]="m.label"
+              [options]="markerOptions(m.role)">
+            </map-marker>
           </google-map>
+          <div class="map-glow-layer" *ngIf="routeLineActive" aria-hidden="true"></div>
         </div>
         <ng-template #mapLoading>
-          <div class="map-placeholder">
-            <mat-spinner diameter="24"></mat-spinner>
-            <span>Loading map...</span>
+          <div class="map-loading">
+            <mat-spinner diameter="32"></mat-spinner>
+            <span>Loading map…</span>
           </div>
         </ng-template>
+
+        <div class="map-summary-overlay" *ngIf="hasRoutePreview && !calculating">
+          <div class="overlay-head">
+            <mat-icon>insights</mat-icon>
+            <span>Live route telemetry</span>
+          </div>
+          <div class="overlay-grid">
+            <div class="ov-item">
+              <span class="ov-lbl">Distance</span>
+              <strong>{{ computedDistanceText }}</strong>
+            </div>
+            <div class="ov-item">
+              <span class="ov-lbl">ETA</span>
+              <strong>{{ formattedDuration }}</strong>
+            </div>
+            <div class="ov-item">
+              <span class="ov-lbl">Base price</span>
+              <strong>PKR {{ form.get('basePrice')?.value | number:'1.0-0' }}</strong>
+            </div>
+            <div class="ov-item">
+              <span class="ov-lbl">Fuel est.</span>
+              <strong>PKR {{ fuelEstimate | number:'1.0-0' }}</strong>
+            </div>
+            <div class="ov-item" *ngIf="tollEstimate">
+              <span class="ov-lbl">Tolls est.</span>
+              <strong>PKR {{ tollEstimate | number:'1.0-0' }}</strong>
+            </div>
+            <div class="ov-item ov-item--traffic" [attr.data-level]="trafficLevel">
+              <span class="ov-lbl">Traffic</span>
+              <strong>
+                <mat-icon>{{ trafficIcon }}</mat-icon>
+                {{ trafficLabel }}
+              </strong>
+            </div>
+          </div>
+        </div>
+
+        <div class="map-float-dock" *ngIf="mapsReady">
+          <span class="dock-label">Map</span>
+          <button type="button" class="glass-btn" matTooltip="Fit route" (click)="resetMapView()">
+            <mat-icon>my_location</mat-icon>
+          </button>
+          <button type="button" class="glass-btn" matTooltip="Map style" (click)="toggleMapType()">
+            <mat-icon>{{ mapTypeSatellite ? 'map' : 'satellite_alt' }}</mat-icon>
+          </button>
+          <button type="button" class="glass-btn" matTooltip="Fullscreen" (click)="toggleMapFullscreen()">
+            <mat-icon>fullscreen</mat-icon>
+          </button>
+        </div>
       </div>
 
-      <div class="actions">
-        <button mat-button type="button" routerLink="/routes">Cancel</button>
-        <button mat-raised-button color="primary" type="submit" [disabled]="loading">
-          {{ isEdit ? 'Update' : 'Create' }}
-        </button>
+      <div class="map-fallback" *ngIf="!mapsConfigured">
+        <mat-icon>map</mat-icon>
+        <p>Configure Google Maps to enable interactive route drawing.</p>
       </div>
-    </form>
-  </mat-card-content>
-</mat-card>
+    </div>
+  </div>
+</div>

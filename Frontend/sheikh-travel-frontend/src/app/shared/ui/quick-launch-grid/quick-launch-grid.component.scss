@@ -5,6 +5,123 @@
   border-radius: var(--stb-radius);
   box-shadow: var(--stb-shadow);
   padding: 18px 22px;
+
+  &.is-compact:not(.is-action-cards) {
+    padding: 12px 14px;
+    box-shadow: var(--stb-shadow-sm);
+
+    .stb-section-title {
+      font-size: 0.75rem;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--stb-text-muted);
+    }
+
+    .ql-row { gap: 10px; }
+    .ql-tile {
+      min-width: 56px;
+      padding: 6px 8px;
+      border-radius: 10px;
+      border: 1px solid var(--stb-border);
+      background: var(--stb-surface-alt);
+
+      &:hover {
+        border-color: var(--stb-primary);
+        background: var(--stb-primary-50);
+        transform: translateY(-1px);
+      }
+    }
+    .ql-bubble {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      box-shadow: none;
+    }
+    .ql-label { font-size: 0.68rem; font-weight: 500; }
+  }
+
+  &.is-action-cards {
+    padding: 0;
+    background: transparent;
+    box-shadow: none;
+
+    .stb-section-title {
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--stb-text-muted);
+      margin: 0 0 12px;
+    }
+
+    .ql-row {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+
+      @media (max-width: 900px) {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    .ql-tile {
+      flex-direction: column;
+      align-items: stretch;
+      min-width: 0;
+      padding: 16px 14px;
+      border-radius: 14px;
+      border: 1px solid var(--stb-border-strong);
+      background: linear-gradient(180deg, #fff 0%, var(--stb-surface-alt) 100%);
+      box-shadow: var(--stb-shadow);
+      cursor: pointer;
+      transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s ease, border-color 0.2s ease;
+
+      &:hover {
+        transform: translateY(-4px) scale(1.02);
+        box-shadow: var(--stb-shadow-hover);
+        border-color: var(--stb-primary);
+
+        .ql-bubble {
+          filter: brightness(1.06);
+          box-shadow: 0 6px 16px rgba(15, 118, 110, 0.35);
+        }
+      }
+
+      &:active {
+        transform: translateY(-1px) scale(0.99);
+      }
+    }
+
+    .ql-bubble {
+      position: relative;
+      width: 100%;
+      height: 52px;
+      border-radius: 12px;
+      margin-bottom: 10px;
+      transition: filter 0.2s ease, box-shadow 0.2s ease;
+
+      mat-icon { font-size: 28px; width: 28px; height: 28px; color: #fff; }
+
+      .ql-plus {
+        position: absolute;
+        top: 8px;
+        right: 10px;
+        font-size: 1rem;
+        font-weight: 800;
+        color: rgba(255, 255, 255, 0.95);
+        line-height: 1;
+      }
+    }
+
+    .ql-label {
+      font-size: 0.875rem;
+      font-weight: 700;
+      color: var(--stb-text);
+      text-align: center;
+      letter-spacing: -0.01em;
+    }
+  }
 }
 
 .ql-row {
@@ -22,31 +139,33 @@
   text-decoration: none;
   color: inherit;
   cursor: pointer;
-  transition: transform .15s ease;
+  transition: transform 0.15s ease;
 
   &:hover { transform: translateY(-2px); }
 }
 
 .ql-bubble {
-  width: 44px; height: 44px;
+  width: 44px;
+  height: 44px;
   border-radius: 12px;
-  display: flex; align-items: center; justify-content: center;
-  box-shadow: 0 6px 16px rgba(15, 23, 42, .08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.08);
 
   mat-icon { font-size: 22px; width: 22px; height: 22px; color: #fff; }
 
-  /* Make sure .is-solid overrides the tinted background when both classes apply. */
-  &.is-solid.stb-accent-blue   { background: var(--stb-cat-blue) !important; }
-  &.is-solid.stb-accent-green  { background: var(--stb-cat-green) !important; }
-  &.is-solid.stb-accent-teal   { background: var(--stb-cat-teal) !important; }
-  &.is-solid.stb-accent-purple { background: var(--stb-cat-purple) !important; }
-  &.is-solid.stb-accent-orange { background: var(--stb-cat-orange) !important; }
-  &.is-solid.stb-accent-rose   { background: var(--stb-cat-rose) !important; }
-  &.is-solid.stb-accent-amber  { background: var(--stb-cat-amber) !important; }
-  &.is-solid.stb-accent-sky    { background: var(--stb-cat-sky) !important; }
+  &.is-solid.stb-accent-blue,
+  &.is-solid.stb-accent-teal { background: var(--stb-primary) !important; }
+  &.is-solid.stb-accent-green { background: var(--stb-success) !important; }
+  &.is-solid.stb-accent-orange,
+  &.is-solid.stb-accent-amber { background: var(--stb-warning) !important; }
+  &.is-solid.stb-accent-rose { background: var(--stb-danger) !important; }
+  &.is-solid.stb-accent-purple,
+  &.is-solid.stb-accent-sky { background: var(--stb-info) !important; }
 }
 
 .ql-label {
-  font-size: .72rem;
+  font-size: 0.72rem;
   color: var(--stb-text-muted);
 }

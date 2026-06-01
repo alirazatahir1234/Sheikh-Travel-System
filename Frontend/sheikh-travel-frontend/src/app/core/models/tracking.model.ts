@@ -16,6 +16,8 @@ export interface TrackingRecord {
   recordedAt: string;
 }
 
+export type FleetTrackStatus = 'moving' | 'idle' | 'offline' | 'scheduled' | 'delayed';
+
 export interface VehicleLocation {
   vehicleId: number;
   vehicleName: string;
@@ -23,6 +25,12 @@ export interface VehicleLocation {
   latitude: number;
   longitude: number;
   lastUpdated: string;
+  speed: number;
+  status: FleetTrackStatus;
+  driverName?: string;
+  /** True when coordinates come from live GPS feed */
+  hasGps?: boolean;
+  routeHint?: string;
 }
 
 /** DTO returned by backend /tracking/live endpoint */

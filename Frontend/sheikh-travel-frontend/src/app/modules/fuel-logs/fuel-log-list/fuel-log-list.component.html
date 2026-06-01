@@ -1,162 +1,295 @@
-<div class="page-header">
-  <div>
-    <h2>Fuel Logs</h2>
-    <p class="page-sub">Track fuel purchases across your fleet</p>
-  </div>
-  <div class="header-actions">
-    <button mat-stroked-button (click)="load()">
-      <mat-icon>refresh</mat-icon> Refresh
-    </button>
-    <button mat-raised-button color="primary" routerLink="new">
-      <mat-icon>local_gas_station</mat-icon> Record Fuel
-    </button>
-  </div>
-</div>
+<div class="fuel-page">
 
-<!-- Summary Cards -->
-<div class="summary-row">
-  <mat-card class="summary-card">
-    <mat-icon>opacity</mat-icon>
-    <div class="summary-content">
-      <span class="summary-value">{{ formatNumber(totalLiters, '1.1-1') }} L</span>
-      <span class="summary-label">Total Liters</span>
+  <header class="fuel-header stb-elevated">
+    <div class="fuel-header-left">
+      <nav class="fuel-breadcrumb" aria-label="Breadcrumb">
+        <span>Fleet</span>
+        <mat-icon>chevron_right</mat-icon>
+        <span class="bc-current">Fuel analytics</span>
+      </nav>
+      <h1 class="fuel-title">Fuel intelligence</h1>
+      <p class="fuel-subtitle">Consumption, cost trends, and fleet efficiency</p>
     </div>
-  </mat-card>
-  <mat-card class="summary-card expense">
-    <mat-icon>payments</mat-icon>
-    <div class="summary-content">
-      <span class="summary-value">PKR {{ formatNumber(totalCost) }}</span>
-      <span class="summary-label">Total Expense</span>
+    <div class="fuel-header-right">
+      <div class="fuel-alerts" *ngIf="alerts.length">
+        <span
+          class="alert-pill"
+          *ngFor="let a of alerts"
+          [class.alert-pill--ok]="a.severity === 'ok'"
+          [class.alert-pill--warn]="a.severity === 'warn'"
+          [class.alert-pill--danger]="a.severity === 'danger'">
+          <mat-icon>{{ a.icon }}</mat-icon>
+          {{ a.message }}
+        </span>
+      </div>
+      <button mat-stroked-button type="button" (click)="load()" [disabled]="loading">
+        <mat-icon>refresh</mat-icon>
+        Refresh
+      </button>
+      <button mat-flat-button color="primary" type="button" routerLink="new">
+        <mat-icon>local_gas_station</mat-icon>
+        Record fuel
+      </button>
     </div>
-  </mat-card>
-</div>
+  </header>
 
-<!-- Filters -->
-<mat-card class="filter-card">
-  <div class="filter-row">
-    <mat-form-field appearance="outline" class="search-field">
-      <mat-label>Search</mat-label>
-      <input matInput [ngModel]="searchTerm" (ngModelChange)="onSearch($event)"
-             placeholder="Vehicle, driver, station…">
-      <mat-icon matPrefix>search</mat-icon>
-      <button *ngIf="searchTerm" mat-icon-button matSuffix (click)="onSearch('')">
+  <section class="fuel-stats">
+    <stb-stat-tile
+      *ngFor="let s of stats"
+      class="fuel-stat"
+      [label]="s.label"
+      [value]="s.value"
+      [icon]="s.icon"
+      [color]="s.color"
+      [prefix]="s.prefix || ''"
+      [suffix]="s.suffix || ''"
+      [trend]="s.trend"
+      [trendUp]="s.trendUp"
+      [trendDetail]="s.trendDetail"
+      [sparkline]="s.sparkline"
+      [variant]="s.variant || 'default'"
+      [loading]="loading"
+      (click)="onStatClick(s)">
+    </stb-stat-tile>
+  </section>
+
+  <section class="highlights" *ngIf="highlights.length">
+    <div class="highlight-card" *ngFor="let h of highlights">
+      <mat-icon>{{ h.icon }}</mat-icon>
+      <div>
+        <span class="hl-lbl">{{ h.label }}</span>
+        <strong class="hl-val">{{ h.value }}</strong>
+        <span class="hl-detail">{{ h.detail }}</span>
+      </div>
+    </div>
+  </section>
+
+  <app-fuel-log-analytics
+    [loading]="loading"
+    [expenseLabels]="expenseChartLabels"
+    [expenseValues]="expenseChartValues"
+    [expenseTotal]="expenseChartTotal"
+    [typeLabels]="typeChartLabels"
+    [typeValues]="typeChartValues"
+    [vehicleLabels]="vehicleChartLabels"
+    [vehicleLiters]="vehicleChartLiters"
+    [fleetEfficiency]="fleetEfficiencyAvg">
+  </app-fuel-log-analytics>
+
+  <div class="fuel-mid">
+    <aside class="efficiency-panel stb-elevated">
+      <div class="panel-head">
+        <mat-icon>eco</mat-icon>
+        <h2>Vehicle efficiency</h2>
+      </div>
+      <div class="eff-list" *ngIf="efficiencyCards.length; else effEmpty">
+        <button
+          type="button"
+          class="eff-card"
+          *ngFor="let e of efficiencyCards"
+          [class.eff-card--high]="e.level === 'high'"
+          [class.eff-card--efficient]="e.level === 'efficient'"
+          (click)="viewVehicle(e.vehicleId)">
+          <div class="eff-top">
+            <strong>{{ e.name }}</strong>
+            <span class="eff-km" *ngIf="e.kmPerLiter">{{ e.kmPerLiter | number:'1.1-1' }} km/L</span>
+            <span class="eff-km eff-km--muted" *ngIf="!e.kmPerLiter">—</span>
+          </div>
+          <span class="eff-reg">{{ e.registration }}</span>
+          <span class="eff-badge" [attr.data-level]="e.level">{{ efficiencyLabel(e.level) }}</span>
+        </button>
+      </div>
+      <ng-template #effEmpty>
+        <p class="panel-empty">Record fill-ups with odometer readings to calculate efficiency.</p>
+      </ng-template>
+    </aside>
+
+    <aside class="timeline-panel stb-elevated">
+      <div class="panel-head">
+        <mat-icon>history</mat-icon>
+        <h2>Fuel timeline</h2>
+      </div>
+      <ul class="timeline" *ngIf="timeline.length; else tlEmpty">
+        <li *ngFor="let t of timeline" class="tl-item">
+          <span class="tl-dot"><mat-icon>{{ t.icon }}</mat-icon></span>
+          <div class="tl-body">
+            <strong>{{ t.title }}</strong>
+            <span>{{ t.subtitle }}</span>
+            <time>{{ t.date | date:'mediumDate' }}</time>
+          </div>
+        </li>
+      </ul>
+      <ng-template #tlEmpty>
+        <p class="panel-empty" *ngIf="!loading">No fuel events yet.</p>
+      </ng-template>
+    </aside>
+  </div>
+
+  <div class="toolbar stb-elevated">
+    <div class="toolbar-search">
+      <mat-icon>search</mat-icon>
+      <input
+        type="search"
+        placeholder="Search vehicle, driver, station…"
+        [ngModel]="searchTerm"
+        (ngModelChange)="onSearch($event)"
+        aria-label="Search fuel logs" />
+      <button *ngIf="searchTerm" type="button" mat-icon-button (click)="onSearch('')">
         <mat-icon>close</mat-icon>
       </button>
-    </mat-form-field>
-
-    <mat-form-field appearance="outline">
-      <mat-label>Fuel Type</mat-label>
-      <mat-select [ngModel]="fuelTypeFilter" (ngModelChange)="onFuelTypeChange($event)">
-        <mat-option value="ALL">All Types</mat-option>
-        <mat-option *ngFor="let f of fuelTypes" [value]="f">{{ fuelTypeLabel(f) }}</mat-option>
-      </mat-select>
-    </mat-form-field>
-
-    <button mat-stroked-button (click)="clearFilters()" matTooltip="Clear filters">
-      <mat-icon>filter_alt_off</mat-icon>
-    </button>
-
-    <span class="spacer"></span>
-
-    <button mat-stroked-button [matMenuTriggerFor]="exportMenu">
-      <mat-icon>download</mat-icon> Export
-    </button>
-    <mat-menu #exportMenu="matMenu">
-      <button mat-menu-item (click)="exportExcel()">
-        <mat-icon>table_chart</mat-icon> Excel (.xlsx)
+    </div>
+    <div class="toolbar-chips">
+      <button
+        type="button"
+        class="t-chip"
+        *ngFor="let f of fuelTypeChips"
+        [class.t-chip--active]="fuelTypeFilter === f.id"
+        (click)="onFuelTypeChange(f.id)">
+        {{ f.label }}
       </button>
-      <button mat-menu-item (click)="exportPdf()">
-        <mat-icon>picture_as_pdf</mat-icon> PDF
+    </div>
+    <div class="toolbar-actions">
+      <button mat-stroked-button type="button" (click)="clearFilters()" matTooltip="Clear filters">
+        <mat-icon>filter_alt_off</mat-icon>
       </button>
-    </mat-menu>
-  </div>
-</mat-card>
-
-<!-- Loading -->
-<div *ngIf="loading" class="loading"><mat-spinner diameter="32"></mat-spinner></div>
-
-<!-- Table -->
-<mat-card *ngIf="!loading" class="table-card">
-  <div class="table-container">
-    <table mat-table [dataSource]="dataSource" class="fuel-table">
-
-      <ng-container matColumnDef="fuelDate">
-        <th mat-header-cell *matHeaderCellDef>Date</th>
-        <td mat-cell *matCellDef="let l">{{ l.fuelDate | date:'mediumDate' }}</td>
-      </ng-container>
-
-      <ng-container matColumnDef="vehicle">
-        <th mat-header-cell *matHeaderCellDef>Vehicle</th>
-        <td mat-cell *matCellDef="let l">
-          <div class="cell-main">{{ l.vehicleName }}</div>
-          <div class="cell-sub">{{ l.vehicleRegistration }}</div>
-        </td>
-      </ng-container>
-
-      <ng-container matColumnDef="driver">
-        <th mat-header-cell *matHeaderCellDef>Driver</th>
-        <td mat-cell *matCellDef="let l">{{ l.driverName }}</td>
-      </ng-container>
-
-      <ng-container matColumnDef="fuelType">
-        <th mat-header-cell *matHeaderCellDef>Fuel</th>
-        <td mat-cell *matCellDef="let l">
-          <span class="fuel-chip" [attr.data-type]="l.fuelType">{{ fuelTypeLabel(l.fuelType) }}</span>
-        </td>
-      </ng-container>
-
-      <ng-container matColumnDef="liters">
-        <th mat-header-cell *matHeaderCellDef class="num">Liters</th>
-        <td mat-cell *matCellDef="let l" class="num">{{ l.liters | number:'1.1-1' }}</td>
-      </ng-container>
-
-      <ng-container matColumnDef="pricePerLiter">
-        <th mat-header-cell *matHeaderCellDef class="num">Price/L</th>
-        <td mat-cell *matCellDef="let l" class="num">{{ l.pricePerLiter | number:'1.2-2' }}</td>
-      </ng-container>
-
-      <ng-container matColumnDef="totalCost">
-        <th mat-header-cell *matHeaderCellDef class="num">Total (PKR)</th>
-        <td mat-cell *matCellDef="let l" class="num cost">{{ l.totalCost | number:'1.0-0' }}</td>
-      </ng-container>
-
-      <ng-container matColumnDef="odometer">
-        <th mat-header-cell *matHeaderCellDef class="num">Odometer</th>
-        <td mat-cell *matCellDef="let l" class="num">{{ l.odometerReading | number:'1.0-0' }} km</td>
-      </ng-container>
-
-      <ng-container matColumnDef="station">
-        <th mat-header-cell *matHeaderCellDef>Station</th>
-        <td mat-cell *matCellDef="let l">{{ l.station || '—' }}</td>
-      </ng-container>
-
-      <ng-container matColumnDef="actions">
-        <th mat-header-cell *matHeaderCellDef></th>
-        <td mat-cell *matCellDef="let l">
-          <button mat-icon-button [matMenuTriggerFor]="rowMenu" matTooltip="Actions">
-            <mat-icon>more_vert</mat-icon>
-          </button>
-          <mat-menu #rowMenu="matMenu">
-            <button mat-menu-item (click)="editLog(l)">
-              <mat-icon>edit</mat-icon> Edit
-            </button>
-            <button mat-menu-item (click)="deleteLog(l)" class="delete-action">
-              <mat-icon color="warn">delete</mat-icon> Delete
-            </button>
-          </mat-menu>
-        </td>
-      </ng-container>
-
-      <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-      <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
-
-      <tr class="empty-row" *matNoDataRow>
-        <td [attr.colspan]="displayedColumns.length">
-          No fuel logs found. Record a fuel purchase to get started.
-        </td>
-      </tr>
-    </table>
+      <button mat-stroked-button type="button" [matMenuTriggerFor]="exportMenu">
+        <mat-icon>download</mat-icon>
+        Export
+      </button>
+      <mat-menu #exportMenu="matMenu">
+        <button mat-menu-item type="button" (click)="exportExcel()">
+          <mat-icon>table_chart</mat-icon> Excel
+        </button>
+        <button mat-menu-item type="button" (click)="exportPdf()">
+          <mat-icon>picture_as_pdf</mat-icon> PDF
+        </button>
+      </mat-menu>
+    </div>
   </div>
 
-  <mat-paginator [pageSize]="10" [pageSizeOptions]="[10, 25, 50]" showFirstLastButtons></mat-paginator>
-</mat-card>
+  <div *ngIf="loading" class="loading"><mat-spinner diameter="36"></mat-spinner></div>
+
+  <mat-card *ngIf="!loading" class="table-card stb-elevated">
+    <div class="table-wrap">
+      <table mat-table [dataSource]="dataSource" class="fuel-table">
+
+        <ng-container matColumnDef="fuelDate">
+          <th mat-header-cell *matHeaderCellDef>Date</th>
+          <td mat-cell *matCellDef="let l">{{ l.fuelDate | date:'mediumDate' }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="vehicle">
+          <th mat-header-cell *matHeaderCellDef>Vehicle</th>
+          <td mat-cell *matCellDef="let l">
+            <div class="cell-main">{{ l.vehicleName }}</div>
+            <div class="cell-sub">{{ l.vehicleRegistration }}</div>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="driver">
+          <th mat-header-cell *matHeaderCellDef>Driver</th>
+          <td mat-cell *matCellDef="let l">{{ l.driverName }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="fuelType">
+          <th mat-header-cell *matHeaderCellDef>Fuel</th>
+          <td mat-cell *matCellDef="let l">
+            <span class="fuel-badge" [attr.data-fuel]="fuelTypeCss(l.fuelType)">
+              <mat-icon>local_gas_station</mat-icon>
+              {{ fuelTypeLabel(l.fuelType) }}
+            </span>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="liters">
+          <th mat-header-cell *matHeaderCellDef class="num">Liters</th>
+          <td mat-cell *matCellDef="let l" class="num">{{ l.liters | number:'1.1-1' }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="pricePerLiter">
+          <th mat-header-cell *matHeaderCellDef class="num">Price/L</th>
+          <td mat-cell *matCellDef="let l" class="num">{{ l.pricePerLiter | number:'1.2-2' }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="totalCost">
+          <th mat-header-cell *matHeaderCellDef class="num">Total</th>
+          <td mat-cell *matCellDef="let l" class="num cost">PKR {{ l.totalCost | number:'1.0-0' }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="odometer">
+          <th mat-header-cell *matHeaderCellDef class="num">Odometer</th>
+          <td mat-cell *matCellDef="let l" class="num" [class.odo-missing]="!l.odometerReading">
+            {{ l.odometerReading ? (l.odometerReading | number:'1.0-0') + ' km' : '—' }}
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="efficiency">
+          <th mat-header-cell *matHeaderCellDef>Efficiency</th>
+          <td mat-cell *matCellDef="let l">
+            <span class="eff-tag" [attr.data-level]="logEfficiency(l)">
+              {{ efficiencyLabel(logEfficiency(l)) }}
+            </span>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="station">
+          <th mat-header-cell *matHeaderCellDef>Station</th>
+          <td mat-cell *matCellDef="let l">{{ l.station || '—' }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="actions">
+          <th mat-header-cell *matHeaderCellDef></th>
+          <td mat-cell *matCellDef="let l">
+            <button
+              mat-icon-button
+              type="button"
+              [matMenuTriggerFor]="actionsMenu"
+              (click)="openRowMenu(l)"
+              aria-label="Actions">
+              <mat-icon>more_vert</mat-icon>
+            </button>
+          </td>
+        </ng-container>
+
+        <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+        <tr mat-row *matRowDef="let row; columns: displayedColumns;" class="data-row"></tr>
+
+        <tr class="mat-row empty-row" *matNoDataRow>
+          <td class="mat-cell" [attr.colspan]="displayedColumns.length">
+            <div class="table-empty" *ngIf="hasNoLogs">
+              <mat-icon>local_gas_station</mat-icon>
+              <h3>No fuel records yet</h3>
+              <p>Start tracking fleet fuel consumption and costs.</p>
+              <button mat-flat-button color="primary" routerLink="new">Record first fill-up</button>
+            </div>
+            <div class="table-empty" *ngIf="hasNoFilterMatch">
+              <mat-icon>search_off</mat-icon>
+              <h3>No logs match filters</h3>
+              <p>Adjust search or fuel type filters.</p>
+            </div>
+          </td>
+        </tr>
+      </table>
+    </div>
+    <mat-paginator [pageSize]="10" [pageSizeOptions]="[10, 25, 50]" showFirstLastButtons></mat-paginator>
+  </mat-card>
+
+  <mat-menu #actionsMenu="matMenu">
+    <button mat-menu-item type="button" (click)="editLog(selectedRow!)">
+      <mat-icon>edit</mat-icon> Edit log
+    </button>
+    <button mat-menu-item type="button" (click)="exportRowInvoice(selectedRow!)">
+      <mat-icon>receipt</mat-icon> Export receipt
+    </button>
+    <button mat-menu-item type="button" (click)="viewVehicle(selectedRow!.vehicleId)">
+      <mat-icon>directions_bus</mat-icon> View vehicle
+    </button>
+    <button mat-menu-item type="button" (click)="flagAnomaly(selectedRow!)">
+      <mat-icon>flag</mat-icon> Flag anomaly
+    </button>
+    <mat-divider></mat-divider>
+    <button mat-menu-item type="button" class="delete-action" (click)="deleteLog(selectedRow!)">
+      <mat-icon color="warn">delete</mat-icon> Delete
+    </button>
+  </mat-menu>
+</div>

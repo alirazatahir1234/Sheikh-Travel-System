@@ -1,501 +1,288 @@
 :host {
   display: block;
-  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-  min-height: 100vh;
-  padding: 0;
+  min-height: 100%;
+  background: linear-gradient(180deg, #f4f7fa 0%, #e8eef4 55%, #eef4f8 100%);
 }
 
 .dash {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  padding: 16px;
-  max-width: 1920px;
+  gap: 24px;
+  padding: 16px 24px 32px;
+  max-width: 1680px;
   margin: 0 auto;
-  background: transparent;
 }
 
-.cell-quick {
-  display: block;
-  animation: slideIn 0.6s ease-out;
-  margin-bottom: 8px;
+.dash-section {
+  /* 8 / 12 / 16 / 24 spacing scale */
+}
 
-  ::ng-deep .card-container {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    border-radius: 12px;
-    padding: 18px 24px;
+/* Header */
+.dash-header {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) minmax(360px, 1.5fr);
+  gap: 16px;
+  align-items: stretch;
 
-    .card-title {
-      color: white;
-      font-size: 16px;
-      font-weight: 600;
-      margin-bottom: 14px;
-    }
+  @media (max-width: 1000px) {
+    grid-template-columns: 1fr;
   }
 }
 
-/* KPI grid — compact layout with 4-6 tiles per row */
+.dash-greeting-wrap {
+  background: var(--stb-glass, #fff);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--stb-border);
+  border-radius: var(--stb-radius);
+  box-shadow: var(--stb-shadow);
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.dash-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
+  color: var(--stb-text-muted);
+  margin-bottom: 4px;
+
+  mat-icon {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+    opacity: 0.6;
+  }
+
+  .bc-current {
+    color: var(--stb-text);
+    font-weight: 600;
+  }
+}
+
+.dash-greeting {
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.ops-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--stb-success);
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(34, 197, 94, 0.1);
+  width: fit-content;
+}
+
+.ops-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--stb-success);
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.25);
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+
+.dash-quick {
+  padding: 16px 20px;
+  background: var(--stb-section-bg);
+  border: 1px solid var(--stb-border-strong);
+  border-radius: var(--stb-radius);
+  box-shadow: var(--stb-shadow);
+}
+
+/* KPI grid */
 .stats-row {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 12px;
-  animation: slideIn 0.8s ease-out;
-
-  ::ng-deep stb-stat-tile {
-    .stat-tile {
-      background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
-      border: 1px solid #e8ebf0;
-      border-radius: 10px;
-      padding: 18px;
-      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-      cursor: pointer;
-      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
-      height: 100%;
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-
-      &:hover {
-        transform: translateY(-6px);
-        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.08);
-        border-color: #667eea;
-      }
-
-      .stat-icon {
-        font-size: 28px;
-        opacity: 0.8;
-        transition: all 0.3s ease;
-        margin-bottom: 8px;
-      }
-
-      .stat-label {
-        font-size: 11px;
-        font-weight: 500;
-        color: #6c757d;
-        text-transform: uppercase;
-        letter-spacing: 0.4px;
-        margin-bottom: 6px;
-      }
-
-      .stat-value {
-        font-size: 24px;
-        font-weight: 700;
-        color: #2c3e50;
-        margin-bottom: 6px;
-      }
-
-      .stat-hint {
-        font-size: 11px;
-        color: #95a5a6;
-      }
-
-      &:hover .stat-icon {
-        transform: scale(1.1);
-      }
-    }
-  }
-}
-
-/* Row 3: two task lists + weather - optimized layout */
-.row-3 {
-  display: grid;
-  grid-template-columns: 1fr 1fr 300px;
-  gap: 12px;
-  animation: slideIn 1s ease-out;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 16px;
 
   @media (max-width: 1400px) {
-    grid-template-columns: 1fr 1fr;
-    .c-weather { 
-      grid-column: 1 / -1; 
-      max-width: 300px;
-      justify-self: end;
-    }
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
-  @media (max-width: 900px) {
+  @media (max-width: 720px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  @media (max-width: 480px) {
     grid-template-columns: 1fr;
-    .c-weather { 
-      grid-column: 1;
-      max-width: 100%;
-    }
-  }
-
-  ::ng-deep stb-task-list-card,
-  ::ng-deep stb-weather-card {
-    .card-container {
-      background: white;
-      border-radius: 10px;
-      border: 1px solid #e8ebf0;
-      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
-      transition: all 0.3s ease;
-      display: flex;
-      flex-direction: column;
-      height: 100%;
-      min-height: 300px;
-
-      &:hover {
-        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.08);
-      }
-    }
-
-    .card-header {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-      padding: 14px 18px;
-      border-radius: 10px 10px 0 0;
-      font-weight: 600;
-      font-size: 14px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      flex-shrink: 0;
-    }
-
-    .card-content {
-      padding: 12px 14px;
-      flex: 1;
-      overflow-y: auto;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-
-      &::-webkit-scrollbar {
-        width: 6px;
-      }
-
-      &::-webkit-scrollbar-track {
-        background: #f1f1f1;
-      }
-
-      &::-webkit-scrollbar-thumb {
-        background: #ddd;
-        border-radius: 3px;
-
-        &:hover {
-          background: #999;
-        }
-      }
-    }
   }
 }
 
-/* Row 4: recent table + prayer times - optimized */
-.row-4 {
-  display: grid;
-  grid-template-columns: 2fr 1fr;
+.clickable-tile {
+  cursor: pointer;
+}
+
+/* Transport KPI strip */
+.ops-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 20px;
+  background: var(--stb-section-bg);
+  border: 1px solid var(--stb-border);
+  border-radius: var(--stb-radius);
+  box-shadow: var(--stb-shadow);
+}
+
+.ops-item {
+  display: flex;
+  align-items: center;
   gap: 12px;
-  animation: slideIn 1.2s ease-out;
+  padding-right: 20px;
+  border-right: 1px solid var(--stb-border);
 
-  @media (max-width: 1200px) { 
-    grid-template-columns: 1fr 280px;
-  }
-  @media (max-width: 900px) { 
-    grid-template-columns: 1fr; 
-  }
-
-  ::ng-deep stb-data-table-card,
-  ::ng-deep stb-prayer-times-card {
-    .card-container {
-      background: white;
-      border-radius: 10px;
-      border: 1px solid #e8ebf0;
-      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
-      transition: all 0.3s ease;
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
-      min-height: 350px;
-
-      &:hover {
-        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.08);
-      }
-    }
-
-    .card-header {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-      padding: 14px 18px;
-      border-bottom: none;
-      font-weight: 600;
-      font-size: 14px;
-      flex-shrink: 0;
-    }
-
-    .card-content {
-      padding: 0;
-      flex: 1;
-      overflow-y: auto;
-      display: flex;
-      flex-direction: column;
-
-      &::-webkit-scrollbar {
-        width: 6px;
-      }
-
-      &::-webkit-scrollbar-track {
-        background: transparent;
-      }
-
-      &::-webkit-scrollbar-thumb {
-        background: #ddd;
-        border-radius: 3px;
-
-        &:hover {
-          background: #999;
-        }
-      }
-    }
+  mat-icon {
+    color: var(--stb-primary);
+    font-size: 24px;
+    width: 24px;
+    height: 24px;
+    padding: 8px;
+    border-radius: 10px;
+    background: var(--stb-primary-50);
+    box-sizing: content-box;
   }
 
-  ::ng-deep stb-data-table-card {
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      flex: 1;
-
-      thead {
-        background: #f8f9fa;
-        border-bottom: 1px solid #e8ebf0;
-        position: sticky;
-        top: 0;
-        z-index: 10;
-      }
-
-      th {
-        padding: 12px 14px;
-        font-weight: 600;
-        font-size: 11px;
-        color: #6c757d;
-        text-align: left;
-        text-transform: uppercase;
-        letter-spacing: 0.4px;
-        white-space: nowrap;
-      }
-
-      tbody {
-        display: table;
-        width: 100%;
-
-        tr {
-          border-bottom: 1px solid #e8ebf0;
-          transition: background 0.2s ease;
-
-          &:hover {
-            background: #f8f9fa;
-            cursor: pointer;
-          }
-
-          &:last-child {
-            border-bottom: none;
-          }
-        }
-
-        td {
-          padding: 12px 14px;
-          color: #2c3e50;
-          font-size: 12px;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-        }
-      }
-    }
+  .ops-val {
+    display: block;
+    font-size: 1.375rem;
+    font-weight: 700;
+    color: var(--stb-text);
+    line-height: 1.1;
   }
 
-  ::ng-deep stb-prayer-times-card {
-    .prayer-time-item {
-      padding: 10px 14px;
-      border-bottom: 1px solid #e8ebf0;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      font-size: 11px;
+  .ops-lbl {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--stb-text-muted);
+    margin-top: 2px;
+  }
 
-      &:last-child {
-        border-bottom: none;
-      }
-
-      .prayer-name {
-        font-weight: 600;
-        color: #2c3e50;
-      }
-
-      .prayer-time {
-        color: #667eea;
-        font-weight: 600;
-      }
-    }
+  @media (max-width: 640px) {
+    border-right: 0;
+    flex: 1 1 45%;
   }
 }
 
-/* Row 5: articles + promo - optimized */
-.row-5 {
+.ops-link {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: 10px;
+  background: var(--stb-primary);
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.875rem;
+  text-decoration: none;
+  box-shadow: var(--stb-shadow-sm);
+  transition: filter 0.15s ease, transform 0.15s ease;
+
+  &:hover {
+    filter: brightness(1.05);
+    transform: translateY(-1px);
+  }
+}
+
+.row-ops {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  animation: slideIn 1.4s ease-out;
+  gap: 16px;
 
-  @media (max-width: 900px) { 
-    grid-template-columns: 1fr; 
+  @media (max-width: 900px) {
+    grid-template-columns: 1fr;
   }
+}
 
-  ::ng-deep stb-article-links-card {
-    .card-container {
-      background: white;
-      border-radius: 10px;
-      border: 1px solid #e8ebf0;
-      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
-      transition: all 0.3s ease;
-      display: flex;
-      flex-direction: column;
-      height: 100%;
-      min-height: 300px;
+.ops-panel {
+  background: var(--stb-glass, #fff);
+  border: 1px solid var(--stb-border);
+  border-radius: var(--stb-radius);
+  box-shadow: var(--stb-shadow);
+  padding: 8px;
+}
 
-      &:hover {
-        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.08);
-      }
+.row-table {
+  background: var(--stb-glass, #fff);
+  border: 1px solid var(--stb-border);
+  border-radius: var(--stb-radius);
+  box-shadow: var(--stb-shadow);
+  padding: 12px;
+}
+
+.dash-cta-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 20px;
+  background: var(--stb-surface);
+  border: 1px solid rgba(15, 118, 110, 0.2);
+  border-radius: var(--stb-radius);
+  box-shadow: var(--stb-shadow-sm);
+
+  .cta-text {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+
+    mat-icon {
+      color: var(--stb-primary);
+      font-size: 28px;
+      width: 28px;
+      height: 28px;
     }
 
-    .card-header {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-      padding: 14px 18px;
-      font-weight: 600;
-      font-size: 14px;
-      flex-shrink: 0;
+    strong {
+      display: block;
+      font-size: 0.9375rem;
+      color: var(--stb-text);
     }
 
-    .card-content {
-      flex: 1;
-      overflow-y: auto;
-      padding: 0;
-      display: flex;
-      flex-direction: column;
-
-      &::-webkit-scrollbar {
-        width: 6px;
-      }
-
-      &::-webkit-scrollbar-thumb {
-        background: #ddd;
-        border-radius: 3px;
-      }
-    }
-
-    .article-item {
-      padding: 12px 14px;
-      border-bottom: 1px solid #e8ebf0;
-      display: flex;
-      align-items: flex-start;
-      gap: 10px;
-      transition: all 0.2s ease;
-      cursor: pointer;
-
-      &:hover {
-        background: #f8f9fa;
-        transform: translateX(2px);
-      }
-
-      &:last-child {
-        border-bottom: none;
-      }
-
-      .article-icon {
-        color: #667eea;
-        font-size: 18px;
-        flex-shrink: 0;
-        margin-top: 2px;
-      }
-
-      .article-title {
-        color: #2c3e50;
-        font-size: 12px;
-        font-weight: 500;
-        line-height: 1.4;
-      }
+    span {
+      display: block;
+      font-size: 0.75rem;
+      color: var(--stb-text-muted);
+      margin-top: 2px;
     }
   }
 
-  ::ng-deep stb-promo-banner {
-    .promo-container {
-      border-radius: 10px;
-      overflow: hidden;
-      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
-      transition: all 0.3s ease;
-      padding: 18px;
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-      height: 100%;
-      min-height: 300px;
+  @media (max-width: 600px) {
+    flex-direction: column;
+    align-items: stretch;
+    text-align: center;
 
-      &:hover {
-        transform: translateY(-4px);
-        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.12);
-      }
-
-      .promo-icon {
-        font-size: 36px;
-        margin-bottom: 8px;
-        opacity: 0.9;
-      }
-
-      .promo-title {
-        font-size: 15px;
-        font-weight: 700;
-        margin-bottom: 6px;
-        line-height: 1.3;
-      }
-
-      .promo-subtitle {
-        font-size: 11px;
-        line-height: 1.5;
-        margin-bottom: 10px;
-        opacity: 0.95;
-        flex: 1;
-      }
-
-      .promo-cta {
-        padding: 8px 14px;
-        border-radius: 6px;
-        font-weight: 600;
-        font-size: 11px;
-        transition: all 0.2s ease;
-        align-self: flex-start;
-
-        &:hover {
-          transform: scale(1.05);
-        }
-      }
-    }
+    .cta-text { justify-content: center; }
   }
 }
 
 .error-message {
-  background: #fee;
-  border: 1px solid #fcc;
-  border-radius: 8px;
-  padding: 12px 14px;
-  color: #c33;
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  border-radius: var(--stb-radius-sm);
+  padding: 12px 16px;
+  color: var(--stb-danger);
   display: flex;
   align-items: center;
-  gap: 10px;
-  animation: slideIn 0.4s ease-out;
-  font-size: 13px;
+  gap: 8px;
+  font-size: 0.875rem;
 
   mat-icon {
     font-size: 18px;
     width: 18px;
     height: 18px;
-  }
-}
-
-@keyframes slideIn {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
   }
 }

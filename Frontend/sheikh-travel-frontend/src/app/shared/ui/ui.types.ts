@@ -16,6 +16,8 @@ export interface QuickLaunchApp {
   color: AccentColor;
 }
 
+export type StatVariant = 'default' | 'success' | 'warning' | 'danger';
+
 export interface StatTile {
   key: string;
   label: string;
@@ -25,16 +27,29 @@ export interface StatTile {
   color: AccentColor;
   prefix?: string;
   suffix?: string;
+  /** e.g. "+12.4%" */
+  trend?: string;
+  trendUp?: boolean;
+  /** e.g. "vs last week" */
+  trendDetail?: string;
+  /** Mini sparkline values (normalized 0–100 internally). */
+  sparkline?: number[];
+  variant?: StatVariant;
 }
+
+export type TaskPriority = 'high' | 'medium' | 'low';
 
 export interface TaskItem {
   id: string | number;
   title: string;
   subtitle?: string;
   done?: boolean;
-  meta?: string;         // right-aligned meta (e.g. "Lahore HR Director")
+  meta?: string;         // right-aligned meta (e.g. driver name)
   avatarUrl?: string;
   avatarInitials?: string;
+  priority?: TaskPriority;
+  /** Booking status for row accent (Pending, Completed, Cancelled, etc.). */
+  status?: string;
 }
 
 export interface DataTableColumn<T = any> {
@@ -43,6 +58,8 @@ export interface DataTableColumn<T = any> {
   width?: string;
   align?: 'left' | 'right' | 'center';
   cell?: (row: T) => string;
+  /** Renders value as a colored status badge (for booking status, etc.). */
+  badge?: boolean;
 }
 
 export interface ArticleLink {
