@@ -1,7 +1,7 @@
 import type * as Leaflet from 'leaflet';
 
 declare global {
-  // Set by leaflet.js / leaflet.markercluster scripts in angular.json
+  // Optional: set when leaflet.markercluster registers on globalThis
   // eslint-disable-next-line @typescript-eslint/no-namespace
   var L: typeof Leaflet & {
     MarkerClusterGroup: new (options?: object) => Leaflet.LayerGroup;

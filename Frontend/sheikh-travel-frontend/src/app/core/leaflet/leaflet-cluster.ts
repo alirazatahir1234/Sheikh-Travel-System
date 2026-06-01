@@ -11,17 +11,72 @@ type LeafletWithCluster = typeof LeafletType & {
   markerClusterGroup: (options?: object) => MarkerClusterGroupLayer;
 };
 
-function resolveLeaflet(): LeafletWithCluster {
-  const leaflet = (globalThis as { L?: LeafletWithCluster }).L;
-  if (!leaflet) {
+let leafletApi: LeafletWithCluster | null = null;
+let loadPromise: Promise<LeafletWithCluster> | null = null;
+
+function readGlobalLeaflet(): LeafletWithCluster | undefined {
+  const scope = globalThis as typeof globalThis & { L?: LeafletWithCluster };
+  return scope.L ?? (typeof window !== 'undefined' ? window.L : undefined);
+}
+
+function copyClusterExtensions(
+  target: LeafletWithCluster,
+  source: LeafletWithCluster
+): void {
+  if (typeof source.MarkerClusterGroup === 'function') {
+    target.MarkerClusterGroup = source.MarkerClusterGroup;
+  }
+  if (typeof source.markerClusterGroup === 'function') {
+    target.markerClusterGroup = source.markerClusterGroup;
+  }
+}
+
+async function importLeafletWithCluster(): Promise<LeafletWithCluster> {
+  const leafletModule = (await import('leaflet')) as unknown as LeafletWithCluster & {
+    default?: LeafletWithCluster;
+  };
+  const leaflet = leafletModule.default ?? leafletModule;
+
+  const scope = globalThis as typeof globalThis & { L?: LeafletWithCluster };
+  scope.L = leaflet;
+
+  await import('leaflet.markercluster');
+
+  const globalLeaflet = readGlobalLeaflet();
+  if (globalLeaflet && globalLeaflet !== leaflet) {
+    copyClusterExtensions(leaflet, globalLeaflet);
+  }
+
+  if (
+    typeof leaflet.markerClusterGroup !== 'function' &&
+    typeof leaflet.MarkerClusterGroup !== 'function'
+  ) {
     throw new Error(
-      'Leaflet is not on globalThis.L. Add leaflet scripts to angular.json.'
+      'leaflet.markercluster failed to register on Leaflet. Check the package install.'
     );
   }
+
+  leafletApi = leaflet;
   return leaflet;
 }
 
-/** Always uses globalThis.L (loaded via angular.json scripts). */
+function resolveLeaflet(): LeafletWithCluster {
+  if (leafletApi) {
+    return leafletApi;
+  }
+
+  const globalLeaflet = readGlobalLeaflet();
+  if (globalLeaflet) {
+    leafletApi = globalLeaflet;
+    return globalLeaflet;
+  }
+
+  throw new Error(
+    'Leaflet is not loaded yet. Call loadMarkerClusterPlugin() before using the map.'
+  );
+}
+
+/** Resolves to the shared Leaflet instance after loadMarkerClusterPlugin(). */
 export const L = new Proxy({} as LeafletWithCluster, {
   get(_target, prop) {
     const leaflet = resolveLeaflet();
@@ -33,18 +88,25 @@ export const L = new Proxy({} as LeafletWithCluster, {
 });
 
 export function loadMarkerClusterPlugin(): Promise<void> {
-  const leaflet = resolveLeaflet();
-  if (
-    typeof leaflet.markerClusterGroup !== 'function' &&
-    typeof leaflet.MarkerClusterGroup !== 'function'
-  ) {
-    return Promise.reject(
-      new Error(
-        'leaflet.markercluster is not loaded. Add its script to angular.json after leaflet.js.'
-      )
-    );
+  if (leafletApi) {
+    return Promise.resolve();
   }
-  return Promise.resolve();
+
+  const globalLeaflet = readGlobalLeaflet();
+  if (
+    globalLeaflet &&
+    (typeof globalLeaflet.markerClusterGroup === 'function' ||
+      typeof globalLeaflet.MarkerClusterGroup === 'function')
+  ) {
+    leafletApi = globalLeaflet;
+    return Promise.resolve();
+  }
+
+  if (!loadPromise) {
+    loadPromise = importLeafletWithCluster();
+  }
+
+  return loadPromise.then(() => undefined);
 }
 
 export function createMarkerClusterGroup(options?: object): MarkerClusterGroupLayer {
@@ -59,6 +121,6 @@ export function createMarkerClusterGroup(options?: object): MarkerClusterGroupLa
   }
 
   throw new Error(
-    'Leaflet.markercluster is not loaded. Call loadMarkerClusterPlugin() before creating a cluster group.'
+    'Leaflet.markercluster is not loaded. Call loadMarkerClusterPlugin() first.'
   );
 }
