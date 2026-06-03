@@ -1,0 +1,43 @@
+<div class="grid">
+  <mat-card>
+    <mat-card-header><mat-card-title>Speed alert rule</mat-card-title></mat-card-header>
+    <mat-card-content>
+      <form [formGroup]="ruleForm" class="form-grid" (ngSubmit)="createRule()">
+        <mat-form-field appearance="outline">
+          <mat-label>Speed limit (km/h)</mat-label>
+          <input matInput type="number" formControlName="speedLimitKmh">
+        </mat-form-field>
+        <mat-checkbox formControlName="alertOnEnter">Geofence enter</mat-checkbox>
+        <mat-checkbox formControlName="alertOnExit">Geofence exit</mat-checkbox>
+        <button mat-raised-button color="primary" type="submit">Add rule</button>
+      </form>
+      <div class="rules" *ngIf="rules.length">
+        <div class="rule" *ngFor="let r of rules">
+          <span *ngIf="r.speedLimitKmh">Speed &gt; {{ r.speedLimitKmh }} km/h</span>
+          <span *ngIf="r.geofenceName"> · {{ r.geofenceName }}</span>
+          <span class="muted"> · {{ r.vehicleName || 'All vehicles' }}</span>
+        </div>
+      </div>
+    </mat-card-content>
+  </mat-card>
+
+  <mat-card>
+    <mat-card-header>
+      <mat-card-title>Alert log</mat-card-title>
+      <button mat-stroked-button (click)="showUnackOnly = !showUnackOnly; load()">
+        {{ showUnackOnly ? 'Show all' : 'Unacknowledged only' }}
+      </button>
+    </mat-card-header>
+    <mat-card-content>
+      <div *ngIf="loading" class="loading"><mat-spinner diameter="32"></mat-spinner></div>
+      <div class="event" *ngFor="let e of events">
+        <div>
+          <strong>{{ e.eventType }}</strong> — {{ e.message }}
+          <div class="meta">{{ e.vehicleName || ('Vehicle #' + e.vehicleId) }} · {{ e.timestamp | date:'medium' }} · {{ e.speed }} km/h</div>
+        </div>
+        <button mat-stroked-button *ngIf="!e.isAcknowledged" (click)="acknowledge(e)">Acknowledge</button>
+      </div>
+      <p *ngIf="!loading && !events.length" class="empty">No alerts.</p>
+    </mat-card-content>
+  </mat-card>
+</div>

@@ -1,0 +1,67 @@
+<mat-card>
+  <mat-card-header>
+    <mat-card-title>Trip reports</mat-card-title>
+    <mat-card-subtitle>Detected trips from GPS position streams</mat-card-subtitle>
+  </mat-card-header>
+  <mat-card-content>
+    <div class="filters">
+      <mat-form-field appearance="outline">
+        <mat-label>Vehicle (optional)</mat-label>
+        <mat-select [(value)]="vehicleId">
+          <mat-option [value]="null">All vehicles</mat-option>
+          <mat-option *ngFor="let v of vehicles" [value]="v.id">{{ v.name }}</mat-option>
+        </mat-select>
+      </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label>From</mat-label>
+        <input matInput type="datetime-local" [(ngModel)]="from">
+      </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label>To</mat-label>
+        <input matInput type="datetime-local" [(ngModel)]="to">
+      </mat-form-field>
+      <button mat-raised-button color="primary" (click)="load()" [disabled]="loading">
+        <mat-icon>refresh</mat-icon> Refresh
+      </button>
+      <button mat-stroked-button (click)="exportCsv()" [disabled]="!trips.length">
+        <mat-icon>download</mat-icon> Export CSV
+      </button>
+    </div>
+
+    <div *ngIf="error" class="error-message"><mat-icon>error</mat-icon> {{ error }}</div>
+    <div *ngIf="loading" class="loading"><mat-spinner diameter="36"></mat-spinner></div>
+
+    <div class="table-wrap" *ngIf="!loading && trips.length">
+      <table mat-table [dataSource]="trips" class="full-width">
+        <ng-container matColumnDef="vehicle">
+          <th mat-header-cell *matHeaderCellDef>Vehicle</th>
+          <td mat-cell *matCellDef="let t">{{ t.vehicleName || ('#' + t.vehicleId) }}</td>
+        </ng-container>
+        <ng-container matColumnDef="start">
+          <th mat-header-cell *matHeaderCellDef>Start</th>
+          <td mat-cell *matCellDef="let t">{{ t.startTime | date:'short' }}</td>
+        </ng-container>
+        <ng-container matColumnDef="end">
+          <th mat-header-cell *matHeaderCellDef>End</th>
+          <td mat-cell *matCellDef="let t">{{ t.endTime | date:'short' }}</td>
+        </ng-container>
+        <ng-container matColumnDef="distance">
+          <th mat-header-cell *matHeaderCellDef>Distance</th>
+          <td mat-cell *matCellDef="let t">{{ t.distanceKm }} km</td>
+        </ng-container>
+        <ng-container matColumnDef="avg">
+          <th mat-header-cell *matHeaderCellDef>Avg speed</th>
+          <td mat-cell *matCellDef="let t">{{ t.avgSpeedKmh }} km/h</td>
+        </ng-container>
+        <ng-container matColumnDef="duration">
+          <th mat-header-cell *matHeaderCellDef>Duration</th>
+          <td mat-cell *matCellDef="let t">{{ t.durationMinutes }} min</td>
+        </ng-container>
+        <tr mat-header-row *matHeaderRowDef="['vehicle','start','end','distance','avg','duration']"></tr>
+        <tr mat-row *matRowDef="let row; columns: ['vehicle','start','end','distance','avg','duration'];"></tr>
+      </table>
+    </div>
+
+    <p *ngIf="!loading && !trips.length && !error" class="empty">No trips detected for the selected period.</p>
+  </mat-card-content>
+</mat-card>

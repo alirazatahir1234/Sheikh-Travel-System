@@ -38,12 +38,24 @@ public record GetTrackingHistoryQuery(int VehicleId, DateTime? FromDate, DateTim
 public class GetTrackingHistoryQueryHandler(IDbConnectionFactory dbFactory)
     : IRequestHandler<GetTrackingHistoryQuery, ApiResponse<List<TrackingDto>>>
 {
+    private static readonly TimeSpan MaxRange = TimeSpan.FromDays(30);
+
     public async Task<ApiResponse<List<TrackingDto>>> Handle(GetTrackingHistoryQuery request, CancellationToken cancellationToken)
     {
-        using var connection = dbFactory.CreateConnection();
-
         var fromDate = request.FromDate ?? DateTime.UtcNow.AddDays(-1);
         var toDate = request.ToDate ?? DateTime.UtcNow;
+
+        if (fromDate > toDate)
+        {
+            return ApiResponse<List<TrackingDto>>.FailResponse("'from' must be before 'to'.");
+        }
+
+        if (toDate - fromDate > MaxRange)
+        {
+            return ApiResponse<List<TrackingDto>>.FailResponse("Date range cannot exceed 30 days.");
+        }
+
+        using var connection = dbFactory.CreateConnection();
 
         var history = await connection.QueryAsync<TrackingDto>(
             new CommandDefinition(

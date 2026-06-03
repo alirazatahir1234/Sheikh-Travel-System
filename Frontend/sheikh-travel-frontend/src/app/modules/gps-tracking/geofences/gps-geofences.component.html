@@ -1,0 +1,49 @@
+<div class="grid">
+  <mat-card>
+    <mat-card-header><mat-card-title>Add geofence</mat-card-title></mat-card-header>
+    <mat-card-content>
+      <form [formGroup]="form" class="form-grid" (ngSubmit)="create()">
+        <mat-form-field appearance="outline">
+          <mat-label>Name</mat-label>
+          <input matInput formControlName="name" placeholder="e.g. Lahore Airport">
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Latitude</mat-label>
+          <input matInput type="number" step="any" formControlName="centerLat">
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Longitude</mat-label>
+          <input matInput type="number" step="any" formControlName="centerLng">
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Radius (meters)</mat-label>
+          <input matInput type="number" formControlName="radiusMeters">
+        </mat-form-field>
+        <button mat-raised-button color="primary" type="submit" [disabled]="form.invalid">
+          <mat-icon>add</mat-icon> Create
+        </button>
+      </form>
+    </mat-card-content>
+  </mat-card>
+
+  <mat-card>
+    <mat-card-header><mat-card-title>Geofences</mat-card-title></mat-card-header>
+    <mat-card-content>
+      <div *ngIf="loading" class="loading"><mat-spinner diameter="32"></mat-spinner></div>
+      <div class="geo-list" *ngIf="!loading">
+        <div class="geo-item" *ngFor="let g of geofences">
+          <div>
+            <strong>{{ g.name }}</strong>
+            <div class="meta">{{ g.centerLat | number:'1.4-4' }}, {{ g.centerLng | number:'1.4-4' }} · {{ g.radiusMeters }}m</div>
+          </div>
+          <div class="actions">
+            <mat-chip [class]="g.isActive ? 'chip-active' : 'chip-inactive'">{{ g.isActive ? 'Active' : 'Inactive' }}</mat-chip>
+            <button mat-icon-button (click)="toggleActive(g)" matTooltip="Toggle active"><mat-icon>toggle_on</mat-icon></button>
+            <button mat-icon-button color="warn" (click)="delete(g)" matTooltip="Delete"><mat-icon>delete</mat-icon></button>
+          </div>
+        </div>
+        <p *ngIf="!geofences.length" class="empty">No geofences yet.</p>
+      </div>
+    </mat-card-content>
+  </mat-card>
+</div>

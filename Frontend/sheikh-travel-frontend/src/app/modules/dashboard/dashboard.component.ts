@@ -35,7 +35,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     { id: 'bookings', label: 'Booking', icon: 'add_circle', color: 'teal', route: '/bookings/new' },
     { id: 'vehicles', label: 'Vehicle', icon: 'directions_bus', color: 'teal', route: '/vehicles' },
     { id: 'drivers', label: 'Driver', icon: 'badge', color: 'blue', route: '/drivers' },
-    { id: 'tracking', label: 'Tracking', icon: 'my_location', color: 'blue', route: '/tracking' },
+    { id: 'tracking', label: 'GPS Tracking', icon: 'my_location', color: 'blue', route: '/gps-tracking' },
   ];
 
   /** Summary KPI row (mirrors DashboardSummaryDto). */

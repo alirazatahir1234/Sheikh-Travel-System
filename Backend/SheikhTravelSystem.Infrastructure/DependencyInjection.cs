@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Infrastructure.Authentication;
 using SheikhTravelSystem.Infrastructure.Persistence;
+using SheikhTravelSystem.Infrastructure.Persistence.Migrations;
 using SheikhTravelSystem.Infrastructure.Services;
 using SheikhTravelSystem.Infrastructure.Services.Ocr;
 
@@ -27,6 +28,7 @@ public static class DependencyInjection
         services.AddScoped<PaddleOcrProvider>();
         services.AddScoped<AzureDocumentIntelligenceProvider>();
         services.AddScoped<IIdentityOcrService, HybridIdentityOcrService>();
+        services.AddScoped<ILocationBroadcastService, LocationBroadcastService>();
         services.AddHttpContextAccessor();
         services.AddSignalR();
 

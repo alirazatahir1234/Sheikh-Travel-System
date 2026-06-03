@@ -10,6 +10,7 @@ using SheikhTravelSystem.API.Middleware;
 using SheikhTravelSystem.Application;
 using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Infrastructure;
+using SheikhTravelSystem.Infrastructure.Persistence.Migrations;
 using SheikhTravelSystem.Infrastructure.SignalR;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -41,6 +42,20 @@ builder.Services.AddAuthentication(options =>
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings["Secret"]!)),
         // Small skew avoids noisy 401s when the access token just crossed expiry and the client is refreshing.
         ClockSkew = TimeSpan.FromMinutes(2)
+    };
+    options.Events = new JwtBearerEvents
+    {
+        OnMessageReceived = context =>
+        {
+            var accessToken = context.Request.Query["access_token"];
+            var path = context.HttpContext.Request.Path;
+            if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
+            {
+                context.Token = accessToken;
+            }
+
+            return Task.CompletedTask;
+        }
     };
 });
 
@@ -163,6 +178,8 @@ using (var scope = app.Services.CreateScope())
             }
             logger.LogInformation("BookingNumber column added and backfilled for {Count} rows.", rows.Count());
         }
+
+        await GpsSchemaMigration.ApplyAsync(dbFactory, logger);
     }
     catch (Exception ex)
     {

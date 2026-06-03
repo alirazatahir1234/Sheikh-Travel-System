@@ -36,7 +36,7 @@ export class ShellComponent implements OnInit, OnDestroy {
     { label: 'Routes',    icon: 'alt_route',      route: '/routes' },
     { label: 'Fuel Logs', icon: 'local_gas_station', route: '/fuel-logs' },
     { label: 'Maintenance', icon: 'build',        route: '/maintenance' },
-    { label: 'Tracking',  icon: 'my_location',    route: '/tracking' },
+    { label: 'GPS Tracking', icon: 'my_location', route: '/gps-tracking' },
     { label: 'Payments',  icon: 'account_balance_wallet', route: '/payments' },
     { label: 'Reports',   icon: 'insights',       route: '/reports' },
     { label: 'Allowance Rules', icon: 'rule',     route: '/driver-allowance-rules', adminOnly: true },

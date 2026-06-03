@@ -1,7 +1,9 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 
 namespace SheikhTravelSystem.Infrastructure.SignalR;
 
+[Authorize]
 public class TrackingHub : Hub
 {
     public async Task SendLocationUpdate(int vehicleId, double latitude, double longitude, decimal speed)

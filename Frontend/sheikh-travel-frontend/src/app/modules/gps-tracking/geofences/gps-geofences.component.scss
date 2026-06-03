@@ -1,0 +1,21 @@
+.grid { display: grid; gap: 16px; }
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+  align-items: center;
+}
+.geo-list { display: flex; flex-direction: column; gap: 10px; }
+.geo-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--stb-border);
+  border-radius: 12px;
+}
+.meta { font-size: 0.8rem; color: var(--stb-text-muted); margin-top: 4px; }
+.actions { display: flex; align-items: center; gap: 4px; }
+.chip-active { background: #e8f5e9 !important; color: #2e7d32 !important; }
+.chip-inactive { background: #f1f5f9 !important; color: #64748b !important; }
+.empty, .loading { text-align: center; padding: 24px; color: var(--stb-text-muted); }

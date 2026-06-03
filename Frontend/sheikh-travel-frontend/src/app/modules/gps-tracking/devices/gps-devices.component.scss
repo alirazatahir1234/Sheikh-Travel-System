@@ -1,0 +1,12 @@
+.grid { display: grid; gap: 16px; }
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  align-items: center;
+}
+.full-width { width: 100%; }
+.sub { font-size: 0.75rem; color: var(--stb-text-muted); }
+.on { color: #047857; font-weight: 600; }
+.off { color: #64748b; }
+.empty, .loading { text-align: center; padding: 24px; color: var(--stb-text-muted); }

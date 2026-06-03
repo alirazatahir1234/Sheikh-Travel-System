@@ -1,0 +1,11 @@
+.filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 16px;
+}
+.meta { color: var(--stb-text-muted); font-size: 0.875rem; }
+.loading { display: flex; justify-content: center; padding: 24px; }
+.table-wrap { overflow-x: auto; }
+.full-width { width: 100%; min-width: 640px; }

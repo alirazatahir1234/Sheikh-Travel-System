@@ -1,0 +1,22 @@
+<div class="gps-module">
+  <header class="gps-module-header">
+    <div>
+      <h1>GPS Fleet Tracking</h1>
+      <p>Live vehicle tracking, history, geofences, alerts, and device commands</p>
+    </div>
+  </header>
+
+  <nav class="gps-subnav" aria-label="GPS module navigation">
+    <a *ngFor="let item of navItems"
+       [routerLink]="item.route"
+       routerLinkActive="active"
+       class="gps-subnav-link">
+      <mat-icon>{{ item.icon }}</mat-icon>
+      <span>{{ item.label }}</span>
+    </a>
+  </nav>
+
+  <div class="gps-module-content">
+    <router-outlet></router-outlet>
+  </div>
+</div>

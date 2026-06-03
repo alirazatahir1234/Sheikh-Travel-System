@@ -231,6 +231,102 @@ CREATE TABLE VehicleTracking (
     CONSTRAINT FK_VehicleTracking_Bookings FOREIGN KEY (BookingId) REFERENCES Bookings(Id)
 );
 
+-- Extended GPS columns (applied via startup migration on existing DBs)
+-- Heading FLOAT NULL, Altitude FLOAT NULL, Ignition BIT NULL, GpsDeviceId INT NULL
+
+-- =============================================
+-- GpsDevices
+-- =============================================
+CREATE TABLE GpsDevices (
+    Id INT IDENTITY(1,1) PRIMARY KEY,
+    VehicleId INT NULL,
+    UniqueId NVARCHAR(100) NOT NULL,
+    Name NVARCHAR(200) NOT NULL,
+    Protocol NVARCHAR(50) NULL,
+    SupportsEngineCutoff BIT NOT NULL DEFAULT 0,
+    LastIgnition BIT NULL,
+    LastSeenAt DATETIME2 NULL,
+    IsActive BIT NOT NULL DEFAULT 1,
+    CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+    UpdatedAt DATETIME2 NULL,
+    CreatedBy NVARCHAR(100) NULL,
+    UpdatedBy NVARCHAR(100) NULL,
+    IsDeleted BIT NOT NULL DEFAULT 0,
+    CONSTRAINT FK_GpsDevices_Vehicles FOREIGN KEY (VehicleId) REFERENCES Vehicles(Id),
+    CONSTRAINT UQ_GpsDevices_UniqueId UNIQUE (UniqueId)
+);
+
+-- =============================================
+-- Geofences
+-- =============================================
+CREATE TABLE Geofences (
+    Id INT IDENTITY(1,1) PRIMARY KEY,
+    Name NVARCHAR(200) NOT NULL,
+    AreaType NVARCHAR(20) NOT NULL DEFAULT 'circle',
+    CenterLat FLOAT NOT NULL,
+    CenterLng FLOAT NOT NULL,
+    RadiusMeters FLOAT NOT NULL DEFAULT 500,
+    GeoJson NVARCHAR(MAX) NULL,
+    IsActive BIT NOT NULL DEFAULT 1,
+    CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+    UpdatedAt DATETIME2 NULL,
+    CreatedBy NVARCHAR(100) NULL,
+    UpdatedBy NVARCHAR(100) NULL,
+    IsDeleted BIT NOT NULL DEFAULT 0
+);
+
+-- =============================================
+-- GpsAlertRules / GpsAlertEvents / GpsDeviceCommands
+-- =============================================
+CREATE TABLE GpsAlertRules (
+    Id INT IDENTITY(1,1) PRIMARY KEY,
+    VehicleId INT NULL,
+    SpeedLimitKmh DECIMAL(10,2) NULL,
+    GeofenceId INT NULL,
+    AlertOnEnter BIT NOT NULL DEFAULT 1,
+    AlertOnExit BIT NOT NULL DEFAULT 1,
+    IsActive BIT NOT NULL DEFAULT 1,
+    CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+    UpdatedAt DATETIME2 NULL,
+    CreatedBy NVARCHAR(100) NULL,
+    UpdatedBy NVARCHAR(100) NULL,
+    IsDeleted BIT NOT NULL DEFAULT 0,
+    CONSTRAINT FK_GpsAlertRules_Vehicles FOREIGN KEY (VehicleId) REFERENCES Vehicles(Id),
+    CONSTRAINT FK_GpsAlertRules_Geofences FOREIGN KEY (GeofenceId) REFERENCES Geofences(Id)
+);
+
+CREATE TABLE GpsAlertEvents (
+    Id INT IDENTITY(1,1) PRIMARY KEY,
+    RuleId INT NULL,
+    VehicleId INT NOT NULL,
+    GeofenceId INT NULL,
+    EventType NVARCHAR(50) NOT NULL,
+    Latitude FLOAT NOT NULL,
+    Longitude FLOAT NOT NULL,
+    Speed DECIMAL(10,2) NOT NULL DEFAULT 0,
+    Message NVARCHAR(500) NOT NULL,
+    Timestamp DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+    IsAcknowledged BIT NOT NULL DEFAULT 0,
+    CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+    IsDeleted BIT NOT NULL DEFAULT 0,
+    CONSTRAINT FK_GpsAlertEvents_Vehicles FOREIGN KEY (VehicleId) REFERENCES Vehicles(Id),
+    CONSTRAINT FK_GpsAlertEvents_Rules FOREIGN KEY (RuleId) REFERENCES GpsAlertRules(Id),
+    CONSTRAINT FK_GpsAlertEvents_Geofences FOREIGN KEY (GeofenceId) REFERENCES Geofences(Id)
+);
+
+CREATE TABLE GpsDeviceCommands (
+    Id INT IDENTITY(1,1) PRIMARY KEY,
+    GpsDeviceId INT NOT NULL,
+    CommandType NVARCHAR(50) NOT NULL,
+    Status NVARCHAR(20) NOT NULL DEFAULT 'pending',
+    RequestedBy NVARCHAR(100) NULL,
+    RequestedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+    CompletedAt DATETIME2 NULL,
+    CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+    IsDeleted BIT NOT NULL DEFAULT 0,
+    CONSTRAINT FK_GpsDeviceCommands_Devices FOREIGN KEY (GpsDeviceId) REFERENCES GpsDevices(Id)
+);
+
 -- =============================================
 -- Notifications
 -- =============================================
@@ -447,3 +543,25 @@ PRINT 'Seed Data:'
 PRINT '  - 1 Admin User'
 PRINT '  - 4 Driver Allowance Rules'
 PRINT '======================================'
+
+-- All records
+SELECT
+    Id,
+    RuleId,
+    VehicleId,
+    GeofenceId,
+    EventType,
+    Latitude,
+    Longitude,
+    Speed,
+    Message,
+    Timestamp,
+    IsAcknowledged,
+    CreatedAt,
+    IsDeleted
+FROM GpsAlertEvents;
+
+-- Only active (not deleted) events
+SELECT *
+FROM GpsAlertEvents
+WHERE IsDeleted = 0;

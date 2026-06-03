@@ -13,15 +13,17 @@ import {
   createMarkerClusterGroup,
   L,
   loadMarkerClusterPlugin
-} from '../../core/leaflet/leaflet-cluster';
-import { TrackingService } from '../../core/services/tracking.service';
-import { VehicleService } from '../../core/services/vehicle.service';
+} from '../../../core/leaflet/leaflet-cluster';
+import { GpsTrackingService } from '../../../core/services/gps-tracking.service';
+import { GpsRealtimeService } from '../../../core/services/gps-realtime.service';
+import { VehicleService } from '../../../core/services/vehicle.service';
 import {
   VehicleLocation,
+  PositionDto,
   TrackingDto,
   FleetTrackStatus
-} from '../../core/models/tracking.model';
-import { Vehicle } from '../../core/models/vehicle.model';
+} from '../../../core/models/gps-tracking.model';
+import { Vehicle } from '../../../core/models/vehicle.model';
 
 type StatusFilter = 'all' | FleetTrackStatus;
 type MapTheme = 'dark' | 'light' | 'satellite';
@@ -66,11 +68,11 @@ const TRAIL_COLORS: Record<FleetTrackStatus, string> = {
 };
 
 @Component({
-  selector: 'app-tracking',
-  templateUrl: './tracking.component.html',
-  styleUrls: ['./tracking.component.scss']
+  selector: 'app-live-map',
+  templateUrl: './live-map.component.html',
+  styleUrls: ['./live-map.component.scss']
 })
-export class TrackingComponent implements OnInit, AfterViewInit, OnDestroy {
+export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild('mapHost') mapHost?: ElementRef<HTMLElement>;
 
   private map!: LeafletTypes.Map;
@@ -130,8 +132,12 @@ export class TrackingComponent implements OnInit, AfterViewInit, OnDestroy {
     { id: 'custom', label: 'Custom' }
   ];
 
+  geofenceBreachCount = 0;
+  private realtimeSub?: { unsubscribe(): void };
+
   constructor(
-    private trackingService: TrackingService,
+    private gpsService: GpsTrackingService,
+    private realtime: GpsRealtimeService,
     private vehicleService: VehicleService,
     private router: Router
   ) {}
@@ -141,6 +147,16 @@ export class TrackingComponent implements OnInit, AfterViewInit, OnDestroy {
     this.vehicleService.getAll(1, 500).subscribe({
       next: r => { this.vehicles = r.items; },
       error: () => {}
+    });
+    this.gpsService.getGeofenceBreachCount().subscribe({
+      next: c => { this.geofenceBreachCount = c; },
+      error: () => {}
+    });
+    void this.realtime.connect().catch(() => {
+      this.pushEvent('Realtime unavailable — using polling', 'warning', 'wifi_off');
+    });
+    this.realtimeSub = this.realtime.locationUpdates$.subscribe(update => {
+      this.applyRealtimeUpdate(update);
     });
     this.syncTick = setInterval(() => {
       if (this.lastSyncAt) {
@@ -169,6 +185,8 @@ export class TrackingComponent implements OnInit, AfterViewInit, OnDestroy {
   ngOnDestroy(): void {
     if (this.refreshInterval) clearInterval(this.refreshInterval);
     if (this.syncTick) clearInterval(this.syncTick);
+    this.realtimeSub?.unsubscribe();
+    void this.realtime.disconnect();
     this.stopReplay();
     if (this.map) this.map.remove();
   }
@@ -214,7 +232,7 @@ export class TrackingComponent implements OnInit, AfterViewInit, OnDestroy {
       tripsActive: moving.length,
       avgSpeed: Math.round(avg),
       fuelAlerts: 0,
-      geofence: gps.filter(l => l.status === 'delayed').length
+      geofence: this.geofenceBreachCount
     };
   }
 
@@ -413,7 +431,7 @@ export class TrackingComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private loadLocations(silent = false): void {
     if (!silent) this.loading = true;
-    this.trackingService.getAllVehicleLocations().subscribe({
+    this.gpsService.getAllVehicleLocations().subscribe({
       next: locs => {
         const prevMoving = new Set(
           this.locations.filter(l => l.status === 'moving').map(l => l.vehicleId)
@@ -599,7 +617,7 @@ export class TrackingComponent implements OnInit, AfterViewInit, OnDestroy {
     this.tripSummary = null;
     this.showHistory = true;
     this.clearHistoryOverlay();
-    this.trackingService
+    this.gpsService
       .getHistory(this.selectedVehicleId, new Date(this.historyFrom), new Date(this.historyTo))
       .subscribe({
         next: rows => {
@@ -796,5 +814,26 @@ export class TrackingComponent implements OnInit, AfterViewInit, OnDestroy {
     if (!this.lastSyncAt) return '—';
     if (this.secondsSinceSync < 60) return `${this.secondsSinceSync} sec ago`;
     return `${Math.floor(this.secondsSinceSync / 60)} min ago`;
+  }
+
+  private applyRealtimeUpdate(update: TrackingDto): void {
+    const idx = this.locations.findIndex(l => l.vehicleId === update.vehicleId);
+    const status = update.speed > 5 ? 'moving' as FleetTrackStatus : 'idle';
+    if (idx >= 0) {
+      this.locations[idx] = {
+        ...this.locations[idx],
+        latitude: update.latitude,
+        longitude: update.longitude,
+        speed: Number(update.speed) || 0,
+        lastUpdated: update.timestamp,
+        status,
+        hasGps: true,
+        ignition: update.ignition,
+        routeHint: `${Math.round(Number(update.speed) || 0)} km/h`
+      };
+      this.updateMarkers(this.locations.filter(l => l.hasGps && l.latitude !== 0));
+    }
+    this.lastSyncAt = new Date();
+    this.secondsSinceSync = 0;
   }
 }

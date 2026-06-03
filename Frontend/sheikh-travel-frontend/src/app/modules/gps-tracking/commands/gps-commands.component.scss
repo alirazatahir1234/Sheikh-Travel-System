@@ -1,0 +1,10 @@
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 16px;
+}
+.hint { color: var(--stb-warning, #b45309); font-size: 0.875rem; margin-bottom: 12px; }
+.full-width { width: 100%; }
+.empty, .loading { text-align: center; padding: 24px; color: var(--stb-text-muted); }

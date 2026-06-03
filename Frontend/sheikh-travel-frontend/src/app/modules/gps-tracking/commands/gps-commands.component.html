@@ -1,0 +1,53 @@
+<mat-card>
+  <mat-card-header>
+    <mat-card-title>Engine commands</mat-card-title>
+    <mat-card-subtitle>Queue cut-off or resume for supported trackers</mat-card-subtitle>
+  </mat-card-header>
+  <mat-card-content>
+    <div class="toolbar">
+      <mat-form-field appearance="outline">
+        <mat-label>Device</mat-label>
+        <mat-select [(value)]="selectedDeviceId" (selectionChange)="loadCommands()">
+          <mat-option *ngFor="let d of devices" [value]="d.id">{{ d.name }} ({{ d.uniqueId }})</mat-option>
+        </mat-select>
+      </mat-form-field>
+      <button mat-raised-button color="warn"
+              (click)="send('engineStop')"
+              [disabled]="!selectedDeviceId || !selectedDevice()?.supportsEngineCutoff">
+        <mat-icon>power_off</mat-icon> Engine stop
+      </button>
+      <button mat-stroked-button color="primary" (click)="send('engineResume')" [disabled]="!selectedDeviceId">
+        <mat-icon>power</mat-icon> Engine resume
+      </button>
+    </div>
+
+    <p *ngIf="selectedDevice() && !selectedDevice()?.supportsEngineCutoff" class="hint">
+      Selected device does not support remote engine cut-off.
+    </p>
+
+    <div *ngIf="loading" class="loading"><mat-spinner diameter="32"></mat-spinner></div>
+
+    <table mat-table [dataSource]="commands" class="full-width" *ngIf="commands.length">
+      <ng-container matColumnDef="type">
+        <th mat-header-cell *matHeaderCellDef>Command</th>
+        <td mat-cell *matCellDef="let c">{{ c.commandType }}</td>
+      </ng-container>
+      <ng-container matColumnDef="status">
+        <th mat-header-cell *matHeaderCellDef>Status</th>
+        <td mat-cell *matCellDef="let c">{{ c.status }}</td>
+      </ng-container>
+      <ng-container matColumnDef="requested">
+        <th mat-header-cell *matHeaderCellDef>Requested</th>
+        <td mat-cell *matCellDef="let c">{{ c.requestedAt | date:'short' }}</td>
+      </ng-container>
+      <ng-container matColumnDef="by">
+        <th mat-header-cell *matHeaderCellDef>By</th>
+        <td mat-cell *matCellDef="let c">{{ c.requestedBy || '—' }}</td>
+      </ng-container>
+      <tr mat-header-row *matHeaderRowDef="['type','status','requested','by']"></tr>
+      <tr mat-row *matRowDef="let row; columns: ['type','status','requested','by'];"></tr>
+    </table>
+
+    <p *ngIf="!loading && !commands.length" class="empty">No commands for this device.</p>
+  </mat-card-content>
+</mat-card>
