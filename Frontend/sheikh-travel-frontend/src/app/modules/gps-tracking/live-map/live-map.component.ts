@@ -381,6 +381,7 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
 
   selectVehicle(loc: VehicleLocation): void {
     this.selectedVehicleId = loc.vehicleId;
+    void this.realtime.subscribeVehicle(loc.vehicleId);
     if (loc.hasGps && loc.latitude && loc.longitude) {
       this.focusVehicle(loc);
     }

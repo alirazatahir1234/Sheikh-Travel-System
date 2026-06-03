@@ -16,16 +16,11 @@ public class GetLivePositionsQueryHandler(IDbConnectionFactory dbFactory)
     {
         using var connection = dbFactory.CreateConnection();
         var rows = await connection.QueryAsync<PositionDto>(new CommandDefinition(
-            @"SELECT t.Id, t.VehicleId, t.DriverId, t.BookingId, t.GpsDeviceId,
-                     t.Latitude, t.Longitude, t.Speed, t.Heading, t.Altitude, t.Ignition, t.Timestamp
-              FROM VehicleTracking t
-              INNER JOIN (
-                  SELECT VehicleId, MAX(Timestamp) AS MaxTimestamp
-                  FROM VehicleTracking
-                  WHERE Timestamp > DATEADD(MINUTE, -30, GETUTCDATE()) AND IsDeleted = 0
-                  GROUP BY VehicleId
-              ) latest ON t.VehicleId = latest.VehicleId AND t.Timestamp = latest.MaxTimestamp
-              WHERE t.IsDeleted = 0",
+            @"SELECT vcl.VehicleId AS Id, vcl.VehicleId, vcl.DriverId, vcl.BookingId, vcl.GpsDeviceId,
+                     vcl.Latitude, vcl.Longitude, ISNULL(vcl.Speed, 0) AS Speed, vcl.Heading, NULL AS Altitude,
+                     vcl.Ignition, vcl.LastUpdate AS Timestamp
+              FROM VehicleCurrentLocation vcl
+              WHERE vcl.LastUpdate > DATEADD(MINUTE, -30, GETUTCDATE())",
             cancellationToken: cancellationToken));
 
         return ApiResponse<List<PositionDto>>.SuccessResponse(rows.ToList());
@@ -58,10 +53,10 @@ public class GetPositionHistoryQueryHandler(IDbConnectionFactory dbFactory)
         using var connection = dbFactory.CreateConnection();
         var rows = await connection.QueryAsync<PositionDto>(new CommandDefinition(
             @"SELECT Id, VehicleId, DriverId, BookingId, GpsDeviceId, Latitude, Longitude, Speed,
-                     Heading, Altitude, Ignition, Timestamp
-              FROM VehicleTracking
-              WHERE VehicleId = @VehicleId AND Timestamp BETWEEN @FromDate AND @ToDate AND IsDeleted = 0
-              ORDER BY Timestamp ASC",
+                     Heading, Altitude, Ignition, RecordedAt AS Timestamp
+              FROM GpsPositions
+              WHERE VehicleId = @VehicleId AND RecordedAt BETWEEN @FromDate AND @ToDate
+              ORDER BY RecordedAt ASC",
             new { request.VehicleId, FromDate = fromDate, ToDate = toDate },
             cancellationToken: cancellationToken));
 
@@ -78,10 +73,38 @@ public class GetGpsTripsQueryHandler(IDbConnectionFactory dbFactory, IMediator m
     public async Task<ApiResponse<List<GpsTripDto>>> Handle(GetGpsTripsQuery request, CancellationToken cancellationToken)
     {
         using var connection = dbFactory.CreateConnection();
+        var fromDate = request.FromDate ?? DateTime.UtcNow.AddDays(-7);
+        var toDate = request.ToDate ?? DateTime.UtcNow;
+
+        var sql = """
+            SELECT t.VehicleId, v.Name AS VehicleName, t.GpsDeviceId, t.StartTime, t.EndTime,
+                   t.DistanceKm, t.AvgSpeedKmh, t.MaxSpeedKmh, t.DurationMinutes
+            FROM GpsTrips t
+            LEFT JOIN Vehicles v ON v.Id = t.VehicleId
+            WHERE t.StartTime >= @FromDate AND t.EndTime <= @ToDate
+            """;
+
+        if (request.VehicleId.HasValue)
+        {
+            sql += " AND t.VehicleId = @VehicleId";
+        }
+
+        sql += " ORDER BY t.EndTime DESC";
+
+        var persisted = (await connection.QueryAsync<GpsTripDto>(new CommandDefinition(
+            sql,
+            new { FromDate = fromDate, ToDate = toDate, request.VehicleId },
+            cancellationToken: cancellationToken))).ToList();
+
+        if (persisted.Count > 0)
+        {
+            return ApiResponse<List<GpsTripDto>>.SuccessResponse(persisted);
+        }
+
         var vehicleIds = request.VehicleId.HasValue
             ? new List<int> { request.VehicleId.Value }
             : (await connection.QueryAsync<int>(new CommandDefinition(
-                "SELECT DISTINCT VehicleId FROM VehicleTracking WHERE IsDeleted = 0",
+                "SELECT DISTINCT VehicleId FROM GpsPositions",
                 cancellationToken: cancellationToken))).ToList();
 
         var trips = new List<GpsTripDto>();
@@ -91,7 +114,7 @@ public class GetGpsTripsQueryHandler(IDbConnectionFactory dbFactory, IMediator m
                 new GetPositionHistoryQuery(vehicleId, request.FromDate, request.ToDate),
                 cancellationToken);
 
-            if (!history.Success || history.Data is null)
+            if (!history.Success || history.Data is null || history.Data.Count < 2)
             {
                 continue;
             }
@@ -274,8 +297,7 @@ public class GetGpsEtaQueryHandler(IDbConnectionFactory dbFactory)
 
         var position = await connection.QueryFirstOrDefaultAsync<(double Lat, double Lng)>(
             new CommandDefinition(
-                @"SELECT TOP 1 Latitude, Longitude FROM VehicleTracking
-                  WHERE VehicleId = @VehicleId AND IsDeleted = 0 ORDER BY Timestamp DESC",
+                @"SELECT Latitude, Longitude FROM VehicleCurrentLocation WHERE VehicleId = @VehicleId",
                 new { VehicleId = booking.VehicleId.Value },
                 cancellationToken: cancellationToken));
 

@@ -31,42 +31,44 @@ public class IngestPositionCommandHandler(
     {
         using var connection = dbFactory.CreateConnection();
         var dto = request.Position;
-        var timestamp = DateTime.UtcNow;
+        var recordedAt = DateTime.UtcNow;
 
-        await connection.ExecuteAsync(new CommandDefinition(
-            @"INSERT INTO VehicleTracking
-              (VehicleId, DriverId, BookingId, GpsDeviceId, Latitude, Longitude, Speed, Heading, Altitude, Ignition, Timestamp, CreatedAt, IsDeleted)
-              VALUES (@VehicleId, @DriverId, @BookingId, @GpsDeviceId, @Latitude, @Longitude, @Speed, @Heading, @Altitude, @Ignition, @Timestamp, @CreatedAt, 0)",
-            new
-            {
-                dto.VehicleId,
-                dto.DriverId,
-                dto.BookingId,
-                dto.GpsDeviceId,
-                dto.Latitude,
-                dto.Longitude,
-                dto.Speed,
-                dto.Heading,
-                dto.Altitude,
-                dto.Ignition,
-                Timestamp = timestamp,
-                CreatedAt = timestamp
-            },
+        var previousSpeed = await connection.ExecuteScalarAsync<decimal?>(new CommandDefinition(
+            "SELECT Speed FROM VehicleCurrentLocation WHERE VehicleId = @VehicleId",
+            new { dto.VehicleId },
             cancellationToken: cancellationToken));
+
+        await GpsPositionIngestionHelper.IngestAsync(connection, dto, recordedAt, cancellationToken);
+
+        var bookingId = await GpsPositionIngestionHelper.ResolveActiveBookingIdAsync(
+            connection, dto.VehicleId, dto.BookingId, cancellationToken);
 
         if (dto.GpsDeviceId.HasValue)
         {
             await connection.ExecuteAsync(new CommandDefinition(
                 @"UPDATE GpsDevices SET LastSeenAt = @Timestamp, LastIgnition = @Ignition, UpdatedAt = @Timestamp
                   WHERE Id = @Id AND IsDeleted = 0",
-                new { Id = dto.GpsDeviceId.Value, Timestamp = timestamp, dto.Ignition },
+                new { Id = dto.GpsDeviceId.Value, Timestamp = recordedAt, dto.Ignition },
                 cancellationToken: cancellationToken));
         }
 
-        await EvaluateAlertsAsync(connection, dto, timestamp, cancellationToken);
+        var ingestDto = dto with { BookingId = bookingId };
+        await EvaluateAlertsAsync(connection, ingestDto, recordedAt, cancellationToken);
+
+        if (GpsPositionIngestionHelper.ShouldAttemptTripPersistence(dto.Speed, dto.Ignition, previousSpeed))
+        {
+            await GpsTripPersistenceService.TryPersistRecentTripsAsync(connection, dto.VehicleId, cancellationToken);
+        }
 
         await broadcaster.BroadcastLocationUpdateAsync(
-            dto.VehicleId, dto.Latitude, dto.Longitude, dto.Speed, dto.Ignition, timestamp, cancellationToken);
+            dto.VehicleId,
+            bookingId,
+            dto.Latitude,
+            dto.Longitude,
+            dto.Speed,
+            dto.Ignition,
+            recordedAt,
+            cancellationToken);
 
         return ApiResponse<bool>.SuccessResponse(true, "Position recorded.");
     }

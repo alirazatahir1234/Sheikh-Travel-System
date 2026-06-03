@@ -4,6 +4,7 @@ public interface ILocationBroadcastService
 {
     Task BroadcastLocationUpdateAsync(
         int vehicleId,
+        int? bookingId,
         double latitude,
         double longitude,
         decimal speed,

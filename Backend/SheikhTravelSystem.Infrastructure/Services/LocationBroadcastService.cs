@@ -8,6 +8,7 @@ public class LocationBroadcastService(IHubContext<TrackingHub> hubContext) : ILo
 {
     public async Task BroadcastLocationUpdateAsync(
         int vehicleId,
+        int? bookingId,
         double latitude,
         double longitude,
         decimal speed,
@@ -15,17 +16,24 @@ public class LocationBroadcastService(IHubContext<TrackingHub> hubContext) : ILo
         DateTime timestamp,
         CancellationToken cancellationToken = default)
     {
-        await hubContext.Clients.Group("dispatchers").SendAsync(
-            "ReceiveLocationUpdate",
-            new
-            {
-                VehicleId = vehicleId,
-                Latitude = latitude,
-                Longitude = longitude,
-                Speed = speed,
-                Ignition = ignition,
-                Timestamp = timestamp
-            },
-            cancellationToken);
+        var payload = new
+        {
+            VehicleId = vehicleId,
+            BookingId = bookingId,
+            Latitude = latitude,
+            Longitude = longitude,
+            Speed = speed,
+            Ignition = ignition,
+            Timestamp = timestamp
+        };
+
+        await hubContext.Clients.Group("dispatchers").SendAsync("ReceiveLocationUpdate", payload, cancellationToken);
+        await hubContext.Clients.Group($"vehicle_{vehicleId}").SendAsync("ReceiveLocationUpdate", payload, cancellationToken);
+
+        if (bookingId.HasValue)
+        {
+            await hubContext.Clients.Group($"booking_{bookingId.Value}")
+                .SendAsync("ReceiveLocationUpdate", payload, cancellationToken);
+        }
     }
 }

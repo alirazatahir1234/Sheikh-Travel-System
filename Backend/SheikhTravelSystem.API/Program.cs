@@ -7,8 +7,10 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Serilog;
 using SheikhTravelSystem.API.Middleware;
+using Microsoft.Extensions.Options;
 using SheikhTravelSystem.Application;
 using SheikhTravelSystem.Application.Common.Interfaces;
+using SheikhTravelSystem.Application.Features.GpsTracking;
 using SheikhTravelSystem.Infrastructure;
 using SheikhTravelSystem.Infrastructure.Persistence.Migrations;
 using SheikhTravelSystem.Infrastructure.SignalR;
@@ -180,6 +182,9 @@ using (var scope = app.Services.CreateScope())
         }
 
         await GpsSchemaMigration.ApplyAsync(dbFactory, logger);
+
+        var gpsSettings = scope.ServiceProvider.GetRequiredService<IOptions<GpsSettings>>().Value;
+        await GpsSchemaMigration.ApplyRetentionAsync(dbFactory, gpsSettings.PositionRetentionDays, logger);
     }
     catch (Exception ex)
     {

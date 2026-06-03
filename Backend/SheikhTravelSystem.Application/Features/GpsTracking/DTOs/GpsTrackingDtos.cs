@@ -1,7 +1,7 @@
 namespace SheikhTravelSystem.Application.Features.GpsTracking.DTOs;
 
 public record PositionDto(
-    int Id,
+    long Id,
     int VehicleId,
     int? DriverId,
     int? BookingId,

@@ -328,6 +328,65 @@ CREATE TABLE GpsDeviceCommands (
 );
 
 -- =============================================
+-- GpsPositions (append-only history)
+-- =============================================
+CREATE TABLE GpsPositions (
+    Id BIGINT IDENTITY(1,1) PRIMARY KEY,
+    VehicleId INT NOT NULL,
+    GpsDeviceId INT NULL,
+    DriverId INT NULL,
+    BookingId INT NULL,
+    Latitude FLOAT NOT NULL,
+    Longitude FLOAT NOT NULL,
+    Speed DECIMAL(10,2) NOT NULL DEFAULT 0,
+    Heading FLOAT NULL,
+    Altitude FLOAT NULL,
+    Ignition BIT NULL,
+    RecordedAt DATETIME2 NOT NULL,
+    CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+    CONSTRAINT FK_GpsPositions_Vehicles FOREIGN KEY (VehicleId) REFERENCES Vehicles(Id)
+);
+
+-- =============================================
+-- VehicleCurrentLocation (live cache)
+-- =============================================
+CREATE TABLE VehicleCurrentLocation (
+    VehicleId INT PRIMARY KEY,
+    GpsDeviceId INT NULL,
+    DriverId INT NULL,
+    BookingId INT NULL,
+    Latitude FLOAT NOT NULL,
+    Longitude FLOAT NOT NULL,
+    Speed DECIMAL(10,2) NULL,
+    Heading FLOAT NULL,
+    Ignition BIT NULL,
+    LastUpdate DATETIME2 NOT NULL,
+    CONSTRAINT FK_VehicleCurrentLocation_Vehicles FOREIGN KEY (VehicleId) REFERENCES Vehicles(Id)
+);
+
+-- =============================================
+-- GpsTrips (persisted trip segments)
+-- =============================================
+CREATE TABLE GpsTrips (
+    Id INT IDENTITY(1,1) PRIMARY KEY,
+    VehicleId INT NOT NULL,
+    BookingId INT NULL,
+    GpsDeviceId INT NULL,
+    StartTime DATETIME2 NOT NULL,
+    EndTime DATETIME2 NOT NULL,
+    DistanceKm DECIMAL(10,2) NOT NULL,
+    AvgSpeedKmh DECIMAL(10,2) NOT NULL,
+    MaxSpeedKmh DECIMAL(10,2) NOT NULL,
+    DurationMinutes INT NOT NULL,
+    CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+    CONSTRAINT FK_GpsTrips_Vehicles FOREIGN KEY (VehicleId) REFERENCES Vehicles(Id),
+    CONSTRAINT FK_GpsTrips_Bookings FOREIGN KEY (BookingId) REFERENCES Bookings(Id)
+);
+
+CREATE INDEX IX_GpsPositions_VehicleId_RecordedAt ON GpsPositions(VehicleId, RecordedAt DESC);
+CREATE INDEX IX_GpsTrips_VehicleId_EndTime ON GpsTrips(VehicleId, EndTime DESC);
+
+-- =============================================
 -- Notifications
 -- =============================================
 CREATE TABLE Notifications (

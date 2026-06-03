@@ -127,10 +127,140 @@ public static class GpsSchemaMigration
                 CREATE INDEX IX_GpsAlertEvents_VehicleId ON GpsAlertEvents(VehicleId, Timestamp DESC) WHERE IsDeleted = 0;
             """, cancellationToken: cancellationToken));
 
+        await ApplyPhase2TablesAsync(connection, logger, cancellationToken);
+
         await SeedGeofencesAsync(connection, logger, cancellationToken);
         await SeedDefaultSpeedRuleAsync(connection, logger, cancellationToken);
 
         logger.LogInformation("GPS schema migration completed.");
+    }
+
+    private static async Task ApplyPhase2TablesAsync(
+        System.Data.IDbConnection connection,
+        ILogger logger,
+        CancellationToken cancellationToken)
+    {
+        await connection.ExecuteAsync(new CommandDefinition("""
+            IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'GpsPositions')
+            CREATE TABLE GpsPositions (
+                Id BIGINT IDENTITY(1,1) PRIMARY KEY,
+                VehicleId INT NOT NULL,
+                GpsDeviceId INT NULL,
+                DriverId INT NULL,
+                BookingId INT NULL,
+                Latitude FLOAT NOT NULL,
+                Longitude FLOAT NOT NULL,
+                Speed DECIMAL(10,2) NOT NULL DEFAULT 0,
+                Heading FLOAT NULL,
+                Altitude FLOAT NULL,
+                Ignition BIT NULL,
+                RecordedAt DATETIME2 NOT NULL,
+                CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+                CONSTRAINT FK_GpsPositions_Vehicles FOREIGN KEY (VehicleId) REFERENCES Vehicles(Id)
+            );
+            """, cancellationToken: cancellationToken));
+
+        await connection.ExecuteAsync(new CommandDefinition("""
+            IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'VehicleCurrentLocation')
+            CREATE TABLE VehicleCurrentLocation (
+                VehicleId INT PRIMARY KEY,
+                GpsDeviceId INT NULL,
+                DriverId INT NULL,
+                BookingId INT NULL,
+                Latitude FLOAT NOT NULL,
+                Longitude FLOAT NOT NULL,
+                Speed DECIMAL(10,2) NULL,
+                Heading FLOAT NULL,
+                Ignition BIT NULL,
+                LastUpdate DATETIME2 NOT NULL,
+                CONSTRAINT FK_VehicleCurrentLocation_Vehicles FOREIGN KEY (VehicleId) REFERENCES Vehicles(Id)
+            );
+            """, cancellationToken: cancellationToken));
+
+        await connection.ExecuteAsync(new CommandDefinition("""
+            IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'GpsTrips')
+            CREATE TABLE GpsTrips (
+                Id INT IDENTITY(1,1) PRIMARY KEY,
+                VehicleId INT NOT NULL,
+                BookingId INT NULL,
+                GpsDeviceId INT NULL,
+                StartTime DATETIME2 NOT NULL,
+                EndTime DATETIME2 NOT NULL,
+                DistanceKm DECIMAL(10,2) NOT NULL,
+                AvgSpeedKmh DECIMAL(10,2) NOT NULL,
+                MaxSpeedKmh DECIMAL(10,2) NOT NULL,
+                DurationMinutes INT NOT NULL,
+                CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+                CONSTRAINT FK_GpsTrips_Vehicles FOREIGN KEY (VehicleId) REFERENCES Vehicles(Id),
+                CONSTRAINT FK_GpsTrips_Bookings FOREIGN KEY (BookingId) REFERENCES Bookings(Id)
+            );
+            """, cancellationToken: cancellationToken));
+
+        await connection.ExecuteAsync(new CommandDefinition("""
+            IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_GpsPositions_VehicleId_RecordedAt')
+                CREATE INDEX IX_GpsPositions_VehicleId_RecordedAt ON GpsPositions(VehicleId, RecordedAt DESC);
+            IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_GpsPositions_BookingId')
+                CREATE INDEX IX_GpsPositions_BookingId ON GpsPositions(BookingId, RecordedAt DESC) WHERE BookingId IS NOT NULL;
+            IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_GpsTrips_VehicleId_EndTime')
+                CREATE INDEX IX_GpsTrips_VehicleId_EndTime ON GpsTrips(VehicleId, EndTime DESC);
+            """, cancellationToken: cancellationToken));
+
+        var gpsPositionCount = await connection.ExecuteScalarAsync<long>(new CommandDefinition(
+            "SELECT COUNT_BIG(1) FROM GpsPositions", cancellationToken: cancellationToken));
+
+        if (gpsPositionCount == 0)
+        {
+            var migrated = await connection.ExecuteAsync(new CommandDefinition("""
+                INSERT INTO GpsPositions
+                (VehicleId, GpsDeviceId, DriverId, BookingId, Latitude, Longitude, Speed, Heading, Altitude, Ignition, RecordedAt, CreatedAt)
+                SELECT VehicleId, GpsDeviceId, DriverId, BookingId, Latitude, Longitude, Speed, Heading, Altitude, Ignition, Timestamp, CreatedAt
+                FROM VehicleTracking WHERE IsDeleted = 0
+                """, cancellationToken: cancellationToken));
+
+            logger.LogInformation("Backfilled {Count} rows from VehicleTracking into GpsPositions.", migrated);
+        }
+
+        var cacheCount = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
+            "SELECT COUNT(*) FROM VehicleCurrentLocation", cancellationToken: cancellationToken));
+
+        if (cacheCount == 0)
+        {
+            var backfilled = await connection.ExecuteAsync(new CommandDefinition("""
+                INSERT INTO VehicleCurrentLocation
+                (VehicleId, GpsDeviceId, DriverId, BookingId, Latitude, Longitude, Speed, Heading, Ignition, LastUpdate)
+                SELECT t.VehicleId, t.GpsDeviceId, t.DriverId, t.BookingId, t.Latitude, t.Longitude, t.Speed, t.Heading, t.Ignition, t.Timestamp
+                FROM VehicleTracking t
+                INNER JOIN (
+                    SELECT VehicleId, MAX(Timestamp) AS MaxTs FROM VehicleTracking WHERE IsDeleted = 0 GROUP BY VehicleId
+                ) latest ON t.VehicleId = latest.VehicleId AND t.Timestamp = latest.MaxTs
+                WHERE t.IsDeleted = 0
+                """, cancellationToken: cancellationToken));
+
+            logger.LogInformation("Backfilled VehicleCurrentLocation for {Count} vehicles.", backfilled);
+        }
+    }
+
+    public static async Task ApplyRetentionAsync(
+        IDbConnectionFactory dbFactory,
+        int retentionDays,
+        ILogger logger,
+        CancellationToken cancellationToken = default)
+    {
+        if (retentionDays <= 0)
+        {
+            return;
+        }
+
+        using var connection = dbFactory.CreateConnection();
+        var deleted = await connection.ExecuteAsync(new CommandDefinition(
+            "DELETE FROM GpsPositions WHERE RecordedAt < DATEADD(DAY, -@Days, GETUTCDATE())",
+            new { Days = retentionDays },
+            cancellationToken: cancellationToken));
+
+        if (deleted > 0)
+        {
+            logger.LogInformation("GPS retention: deleted {Count} positions older than {Days} days.", deleted, retentionDays);
+        }
     }
 
     private static async Task SeedGeofencesAsync(System.Data.IDbConnection connection, ILogger logger, CancellationToken cancellationToken)
