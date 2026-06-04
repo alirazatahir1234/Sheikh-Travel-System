@@ -1,5 +1,5 @@
 import { DecimalPipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, effect, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { PortalBookingCardDto } from '../../core/models/portal.models';
@@ -16,8 +16,11 @@ import { PortalApiService } from '../../core/services/portal-api.service';
       <div>
         <h1 class="text-2xl font-bold tracking-tight text-slate-900">Payments</h1>
         <p class="mt-1 text-sm text-slate-600">Outstanding balances for your trips.</p>
+        @if (gatewayNote()) {
+          <p class="mt-2 rounded-xl border border-amber-100 bg-amber-50/80 p-3 text-xs text-amber-900">{{ gatewayNote() }}</p>
+        }
       </div>
-      @if (!session.hasSession()) {
+      @if (!session.isAuthenticated()) {
         <div class="rounded-2xl border border-slate-200 bg-white p-5 text-sm shadow-card">
           <a routerLink="/profile" class="font-semibold text-primary-600 underline">Connect your phone</a>
           first.
@@ -62,15 +65,30 @@ export class PaymentsPageComponent {
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
   readonly outstanding = signal<PortalBookingCardDto[]>([]);
+  readonly gatewayNote = signal<string | null>(null);
 
   constructor() {
-    const phone = this.session.phone();
-    if (!phone) {
+    this.api
+      .getPaymentGatewayInfo()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (g) => this.gatewayNote.set(g.message)
+      });
+    this.loadOutstanding();
+    effect(() => {
+      this.session.sessionVersion();
+      this.loadOutstanding();
+    });
+  }
+
+  private loadOutstanding(): void {
+    if (!this.session.isAuthenticated()) {
       this.loading.set(false);
       return;
     }
+    this.loading.set(true);
     this.api
-      .getMyBookings(phone)
+      .getMyBookings()
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (list) => {

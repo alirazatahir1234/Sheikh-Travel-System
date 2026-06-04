@@ -100,6 +100,7 @@ builder.Services.AddCors(options =>
                 }
 
                 if (origin is "https://sheikh-travel-system.vercel.app"
+                    or "https://sheikh-customer-portal.vercel.app"
                     or "http://localhost:4200"
                     or "http://127.0.0.1:4200"
                     or "http://localhost:4300"
@@ -110,10 +111,11 @@ builder.Services.AddCors(options =>
 
                 if (Uri.TryCreate(origin, UriKind.Absolute, out var uri))
                 {
-                    // Allow Vercel preview deployments for this frontend project.
+                    // Allow Vercel preview deployments for admin and customer portal projects.
                     return uri.Scheme == Uri.UriSchemeHttps
                         && uri.Host.EndsWith(".vercel.app", StringComparison.OrdinalIgnoreCase)
-                        && uri.Host.Contains("sheikh-travel-system", StringComparison.OrdinalIgnoreCase);
+                        && (uri.Host.Contains("sheikh-travel-system", StringComparison.OrdinalIgnoreCase)
+                            || uri.Host.Contains("sheikh-customer-portal", StringComparison.OrdinalIgnoreCase));
                 }
 
                 return false;
@@ -191,6 +193,18 @@ using (var scope = app.Services.CreateScope())
         var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
         logger.LogError(ex, "Database migration failed at startup.");
     }
+
+    try
+    {
+        var dbFactory = scope.ServiceProvider.GetRequiredService<IDbConnectionFactory>();
+        var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+        await PortalSchemaMigration.ApplyAsync(dbFactory, logger);
+    }
+    catch (Exception ex)
+    {
+        var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+        logger.LogError(ex, "Portal schema migration failed at startup.");
+    }
 }
 
 // Seed baseline data on startup (idempotent — only fills empty tables).
@@ -215,8 +229,9 @@ if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
-    app.UseHttpsRedirection();
 }
+
+// TLS is terminated at Railway/Vercel in production; local dev uses HTTP on :5082 via the Angular proxy.
 
 app.UseCors("AllowFrontendClients");
 app.UseRateLimiter();

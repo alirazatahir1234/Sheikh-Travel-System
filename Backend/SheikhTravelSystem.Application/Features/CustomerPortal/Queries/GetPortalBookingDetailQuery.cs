@@ -36,11 +36,17 @@ public class GetPortalBookingDetailQueryHandler(IDbConnectionFactory dbFactory)
             string? VehicleName,
             int Status,
             decimal TotalAmount,
-            decimal PaidAmount)?>(
+            decimal PaidAmount,
+            string? PickupAddress,
+            string? DropoffAddress,
+            int? DriverId,
+            string? DriverName,
+            decimal? DriverRating,
+            int? DriverYears)?>(
             new CommandDefinition(
                 @"SELECT b.Id,
                          b.BookingNumber,
-                         ISNULL(r.Source + N' → ' + r.Destination, N'') AS RouteLabel,
+                         ISNULL(NULLIF(b.PickupAddress + N' → ' + b.DropoffAddress, N' → '), ISNULL(r.Source + N' → ' + r.Destination, N'')) AS RouteLabel,
                          b.PickupTime,
                          b.PassengerCount,
                          v.Name AS VehicleName,
@@ -52,11 +58,18 @@ public class GetPortalBookingDetailQueryHandler(IDbConnectionFactory dbFactory)
                            WHERE p.BookingId = b.Id
                              AND p.Status IN (@Paid, @Partial)
                              AND p.IsDeleted = 0
-                         ), 0) AS PaidAmount
+                         ), 0) AS PaidAmount,
+                         b.PickupAddress,
+                         b.DropoffAddress,
+                         b.DriverId,
+                         d.FullName AS DriverName,
+                         d.Rating AS DriverRating,
+                         d.YearsExperience AS DriverYears
                   FROM Bookings b
                   INNER JOIN Customers c ON c.Id = b.CustomerId AND c.IsDeleted = 0
                   LEFT JOIN Routes r ON r.Id = b.RouteId AND r.IsDeleted = 0
                   LEFT JOIN Vehicles v ON v.Id = b.VehicleId AND v.IsDeleted = 0
+                  LEFT JOIN Drivers d ON d.Id = b.DriverId AND d.IsDeleted = 0
                   WHERE b.Id = @Id AND b.IsDeleted = 0 AND c.Phone = @Phone",
                 new
                 {
@@ -78,11 +91,21 @@ public class GetPortalBookingDetailQueryHandler(IDbConnectionFactory dbFactory)
         var payments = await connection.QueryAsync<PortalPaymentLineDto>(
             new CommandDefinition(
                 @"SELECT Id, Amount, Status, PaymentDate, PaymentMethod
-                  FROM Payments
-                  WHERE BookingId = @BookingId AND IsDeleted = 0
-                  ORDER BY PaymentDate DESC",
+                  FROM Payments WHERE BookingId = @BookingId AND IsDeleted = 0 ORDER BY PaymentDate DESC",
                 new { BookingId = request.BookingId },
                 cancellationToken: cancellationToken));
+
+        var seats = await connection.QueryAsync<string>(
+            new CommandDefinition(
+                "SELECT SeatLabel FROM BookingSeats WHERE BookingId = @BookingId ORDER BY SeatLabel",
+                new { BookingId = request.BookingId },
+                cancellationToken: cancellationToken));
+
+        PortalDriverPreviewDto? driver = null;
+        if (h.DriverId.HasValue && !string.IsNullOrWhiteSpace(h.DriverName))
+        {
+            driver = new PortalDriverPreviewDto(h.DriverName, h.DriverRating, h.DriverYears, true);
+        }
 
         var dto = new PortalBookingDetailDto(
             h.Id,
@@ -96,7 +119,11 @@ public class GetPortalBookingDetailQueryHandler(IDbConnectionFactory dbFactory)
             h.PaidAmount,
             remaining,
             payState,
-            payments.ToList());
+            payments.ToList(),
+            h.PickupAddress,
+            h.DropoffAddress,
+            driver,
+            seats.ToList());
 
         return ApiResponse<PortalBookingDetailDto>.SuccessResponse(dto, "Booking loaded.");
     }

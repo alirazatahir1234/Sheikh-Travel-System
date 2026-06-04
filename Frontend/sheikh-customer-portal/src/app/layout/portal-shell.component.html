@@ -1,12 +1,39 @@
 <div class="stb-shell">
-  <aside class="stb-rail" aria-label="Main navigation">
-    <div
-      class="stb-brand"
-      routerLink="/dashboard"
-      matTooltip="Sheikh Travel · Customer portal"
-      matTooltipPosition="right"
-    >
-      <div class="logo-circle"><mat-icon>flight_takeoff</mat-icon></div>
+  <aside
+    class="stb-rail"
+    aria-label="Main navigation"
+    [class.is-expanded]="sidebarExpanded()"
+    [class.is-pinned]="isSidebarPinned()"
+    (mouseenter)="onSidebarEnter()"
+    (mouseleave)="onSidebarLeave()"
+  >
+    <div class="stb-brand-row">
+      <div
+        class="stb-brand"
+        routerLink="/dashboard"
+        matTooltip="Sheikh Travel · Customer portal"
+        [matTooltipDisabled]="sidebarExpanded()"
+        matTooltipPosition="right"
+      >
+        <div class="logo-mark">
+          <mat-icon>flight_takeoff</mat-icon>
+        </div>
+        @if (sidebarExpanded()) {
+          <span class="stb-brand-label">Sheikh Travel</span>
+        }
+      </div>
+
+      @if (sidebarExpanded()) {
+        <button
+          mat-icon-button
+          type="button"
+          class="stb-pin-btn"
+          [attr.aria-label]="isSidebarPinned() ? 'Unpin sidebar' : 'Pin sidebar'"
+          (click)="toggleSidebarPin()"
+        >
+          <mat-icon>{{ isSidebarPinned() ? 'push_pin' : 'chevron_left' }}</mat-icon>
+        </button>
+      }
     </div>
 
     <nav class="stb-rail-nav">
@@ -16,10 +43,15 @@
           routerLinkActive="active"
           [routerLinkActiveOptions]="{ exact: item.exact }"
           [matTooltip]="item.label"
+          [matTooltipDisabled]="sidebarExpanded()"
+          matTooltipShowDelay="600"
           matTooltipPosition="right"
           class="stb-rail-link"
         >
           <mat-icon>{{ item.icon }}</mat-icon>
+          @if (sidebarExpanded()) {
+            <span class="stb-link-label">{{ item.label }}</span>
+          }
         </a>
       }
     </nav>
@@ -30,20 +62,30 @@
         routerLinkActive="active"
         [routerLinkActiveOptions]="{ exact: true }"
         class="stb-rail-link"
-        matTooltip="API &amp; help"
+        matTooltip="Help"
+        [matTooltipDisabled]="sidebarExpanded()"
+        matTooltipShowDelay="600"
         matTooltipPosition="right"
       >
-        <mat-icon>description</mat-icon>
+        <mat-icon>help_outline</mat-icon>
+        @if (sidebarExpanded()) {
+          <span class="stb-link-label">Help</span>
+        }
       </a>
       <a
         routerLink="/profile"
         routerLinkActive="active"
         [routerLinkActiveOptions]="{ exact: true }"
         class="stb-rail-link"
-        matTooltip="Profile"
+        matTooltip="Sign in &amp; profile"
+        [matTooltipDisabled]="sidebarExpanded()"
+        matTooltipShowDelay="600"
         matTooltipPosition="right"
       >
         <mat-icon>account_circle</mat-icon>
+        @if (sidebarExpanded()) {
+          <span class="stb-link-label">Profile</span>
+        }
       </a>
     </div>
   </aside>
@@ -72,11 +114,25 @@
       }
 
       <div class="stb-topbar-actions">
+        @if (session.isAuthenticated()) {
+          <a
+            mat-icon-button
+            class="stb-icon-btn"
+            matTooltip="Notifications"
+            routerLink="/notifications"
+            [attr.aria-label]="'Notifications' + (unreadNotifications() ? ', ' + unreadNotifications() + ' unread' : '')"
+          >
+            <mat-icon>notifications</mat-icon>
+            @if (unreadNotifications() > 0) {
+              <span class="stb-notif-badge">{{ unreadNotifications() > 9 ? '9+' : unreadNotifications() }}</span>
+            }
+          </a>
+        }
         <a mat-icon-button class="stb-icon-btn stb-topbar-help" matTooltip="Help" routerLink="/help">
           <mat-icon>help_outline</mat-icon>
         </a>
 
-        @if (session.hasSession()) {
+        @if (session.isAuthenticated()) {
           <button mat-button type="button" [matMenuTriggerFor]="userMenu" class="stb-user-chip">
             <div class="avatar">{{ initials(session.fullName()) }}</div>
             <div class="user-meta">
@@ -97,7 +153,7 @@
             <mat-divider />
             <button mat-menu-item type="button" (click)="clearSession()">
               <mat-icon>logout</mat-icon>
-              <span>Clear session</span>
+              <span>Sign out</span>
             </button>
           </mat-menu>
         } @else {
@@ -109,5 +165,6 @@
     <main class="stb-content">
       <router-outlet />
     </main>
+    <app-support-fab />
   </section>
 </div>

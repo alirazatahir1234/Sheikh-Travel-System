@@ -22,7 +22,9 @@ public class GetPortalRoutesQueryHandler(IDbConnectionFactory dbFactory)
                          BasePrice,
                          COALESCE(Source, N'') AS Source,
                          COALESCE(Destination, N'') AS Destination,
-                         Name
+                         Name,
+                         COALESCE(EstimatedMinutes,
+                             CASE WHEN Distance > 0 THEN CAST(CEILING(Distance / 70.0 * 60) AS INT) ELSE 120 END) AS EstimatedDurationMinutes
                   FROM Routes
                   WHERE IsDeleted = 0 AND IsActive = 1
                   ORDER BY Source, Destination",

@@ -3,6 +3,12 @@
     "target": "http://127.0.0.1:5082",
     "secure": false,
     "changeOrigin": true,
-    "logLevel": "silent"
+    "logLevel": "warn"
+  },
+  "/hubs": {
+    "target": "http://127.0.0.1:5082",
+    "secure": false,
+    "changeOrigin": true,
+    "ws": true
   }
 }

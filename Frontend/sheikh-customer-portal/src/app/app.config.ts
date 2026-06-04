@@ -3,6 +3,7 @@ import { ApplicationConfig, provideZoneChangeDetection } from '@angular/core';
 import { provideAnimations } from '@angular/platform-browser/animations';
 import { provideRouter, withInMemoryScrolling } from '@angular/router';
 import { apiEnvelopeInterceptor } from './core/interceptors/api-envelope.interceptor';
+import { portalAuthInterceptor } from './core/interceptors/portal-auth.interceptor';
 import { routes } from './app.routes';
 
 export const appConfig: ApplicationConfig = {
@@ -16,6 +17,6 @@ export const appConfig: ApplicationConfig = {
         scrollPositionRestoration: 'enabled'
       })
     ),
-    provideHttpClient(withInterceptors([apiEnvelopeInterceptor]))
+    provideHttpClient(withInterceptors([apiEnvelopeInterceptor, portalAuthInterceptor]))
   ]
 };

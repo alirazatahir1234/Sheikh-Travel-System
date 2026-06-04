@@ -9,6 +9,7 @@ import { PortalBookingDetailDto } from '../../core/models/portal.models';
 import { CustomerSessionService } from '../../core/services/customer-session.service';
 import { PortalApiService } from '../../core/services/portal-api.service';
 import { paymentLineStatusLabel } from '../../core/utils/portal-display.util';
+import { BookingTrackingComponent } from '../../shared/booking-tracking/booking-tracking.component';
 import { PaymentSummaryComponent } from '../../shared/payment-summary/payment-summary.component';
 import { StatusBadgeComponent } from '../../shared/status-badge/status-badge.component';
 
@@ -21,12 +22,13 @@ import { StatusBadgeComponent } from '../../shared/status-badge/status-badge.com
     ReactiveFormsModule,
     RouterLink,
     PaymentSummaryComponent,
-    StatusBadgeComponent
+    StatusBadgeComponent,
+    BookingTrackingComponent
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="space-y-6">
-      @if (!session.hasSession()) {
+      @if (!session.isAuthenticated()) {
         <div class="rounded-2xl border border-slate-200 bg-white p-5 text-sm shadow-card">
           <a routerLink="/profile" class="font-semibold text-primary-600 underline">Add your phone</a>
           to view this booking.
@@ -42,6 +44,22 @@ import { StatusBadgeComponent } from '../../shared/status-badge/status-badge.com
           <app-status-badge [bookingStatus]="detail()!.bookingStatus" />
         </div>
 
+        @if (detail()!.driver; as drv) {
+          <section class="rounded-2xl border border-slate-200 bg-white p-4 shadow-card">
+            <h2 class="text-xs font-semibold uppercase tracking-wide text-slate-500">Your driver</h2>
+            <p class="mt-2 font-bold text-slate-900">{{ drv.fullName || 'Assigned driver' }}</p>
+            @if (drv.rating != null) {
+              <p class="text-sm text-amber-700">★ {{ drv.rating | number : '1.1-1' }}</p>
+            }
+            @if (drv.yearsExperience != null) {
+              <p class="text-xs text-slate-600">{{ drv.yearsExperience }} years experience</p>
+            }
+            @if (drv.isVerified) {
+              <p class="mt-1 text-xs font-semibold text-emerald-700">Verified chauffeur</p>
+            }
+          </section>
+        }
+
         <section class="rounded-2xl border border-slate-200 bg-white p-4 shadow-card">
           <h2 class="text-xs font-semibold uppercase tracking-wide text-slate-500">Trip</h2>
           <dl class="mt-3 space-y-2 text-sm">
@@ -49,6 +67,24 @@ import { StatusBadgeComponent } from '../../shared/status-badge/status-badge.com
               <dt class="text-slate-600">Route</dt>
               <dd class="font-medium text-slate-900">{{ detail()!.routeLabel }}</dd>
             </div>
+            @if (detail()!.pickupAddress) {
+              <div class="flex justify-between gap-4">
+                <dt class="text-slate-600">Pickup</dt>
+                <dd class="font-medium text-slate-900 text-right max-w-[60%]">{{ detail()!.pickupAddress }}</dd>
+              </div>
+            }
+            @if (detail()!.dropoffAddress) {
+              <div class="flex justify-between gap-4">
+                <dt class="text-slate-600">Drop-off</dt>
+                <dd class="font-medium text-slate-900 text-right max-w-[60%]">{{ detail()!.dropoffAddress }}</dd>
+              </div>
+            }
+            @if (detail()!.seats?.length) {
+              <div class="flex justify-between gap-4">
+                <dt class="text-slate-600">Seats</dt>
+                <dd class="font-medium text-slate-900">{{ detail()!.seats!.join(', ') }}</dd>
+              </div>
+            }
             <div class="flex justify-between gap-4">
               <dt class="text-slate-600">Pickup</dt>
               <dd class="font-medium text-slate-900">{{ detail()!.pickupTime | date : 'medium' }}</dd>
@@ -70,6 +106,8 @@ import { StatusBadgeComponent } from '../../shared/status-badge/status-badge.com
           [remaining]="detail()!.remaining"
           [payState]="detail()!.payState"
         />
+
+        <app-booking-tracking [bookingId]="detail()!.id" [bookingStatus]="detail()!.bookingStatus" />
 
         <section class="rounded-2xl border border-slate-200 bg-white p-4 shadow-card">
           <h2 class="text-xs font-semibold uppercase tracking-wide text-slate-500">Payment history</h2>
@@ -118,14 +156,26 @@ import { StatusBadgeComponent } from '../../shared/status-badge/status-badge.com
           </form>
         }
 
-        <button
-          type="button"
-          disabled
-          class="w-full cursor-not-allowed rounded-xl border border-dashed border-slate-200 py-2.5 text-sm font-semibold text-slate-400"
-          title="Coming soon"
-        >
-          Download invoice
-        </button>
+        <div class="flex flex-col gap-2 sm:flex-row">
+          <button
+            type="button"
+            (click)="downloadInvoice()"
+            [disabled]="invoiceBusy()"
+            class="flex-1 rounded-xl border border-slate-200 bg-white py-2.5 text-sm font-semibold text-slate-800 hover:bg-slate-50 disabled:opacity-50"
+          >
+            {{ invoiceBusy() ? 'Preparing…' : 'Download invoice' }}
+          </button>
+          @if (canCancel()) {
+            <button
+              type="button"
+              (click)="cancelBooking()"
+              [disabled]="cancelBusy()"
+              class="flex-1 rounded-xl border border-rose-200 bg-rose-50 py-2.5 text-sm font-semibold text-rose-800 disabled:opacity-50"
+            >
+              {{ cancelBusy() ? 'Cancelling…' : 'Cancel booking' }}
+            </button>
+          }
+        </div>
       } @else if (loading()) {
         <p class="text-sm text-slate-500">Loading…</p>
       }
@@ -144,6 +194,8 @@ export class BookingDetailPageComponent {
   readonly detail = signal<PortalBookingDetailDto | null>(null);
   readonly payBusy = signal(false);
   readonly payError = signal<string | null>(null);
+  readonly invoiceBusy = signal(false);
+  readonly cancelBusy = signal(false);
 
   readonly payForm = this.fb.group({
     amount: [0, [Validators.required, Validators.min(0.01)]],
@@ -164,24 +216,71 @@ export class BookingDetailPageComponent {
     });
   }
 
+  canCancel(): boolean {
+    const d = this.detail();
+    return !!d && (d.bookingStatus === 1 || d.bookingStatus === 2);
+  }
+
+  downloadInvoice(): void {
+    const d = this.detail();
+    if (!d) return;
+    this.invoiceBusy.set(true);
+    this.api
+      .downloadInvoice(d.id)
+      .pipe(take(1))
+      .subscribe({
+        next: (res) => {
+          this.invoiceBusy.set(false);
+          const blob = res.body;
+          if (!blob) return;
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `invoice-${d.bookingNumber}.html`;
+          a.click();
+          URL.revokeObjectURL(url);
+        },
+        error: () => this.invoiceBusy.set(false)
+      });
+  }
+
+  cancelBooking(): void {
+    const d = this.detail();
+    if (!d || !confirm('Cancel this booking?')) return;
+    this.cancelBusy.set(true);
+    this.api
+      .cancelBooking(d.id)
+      .pipe(take(1))
+      .subscribe({
+        next: () => {
+          this.cancelBusy.set(false);
+          this.load(d.id);
+        },
+        error: () => this.cancelBusy.set(false)
+      });
+  }
+
   private load(id: number): void {
-    const phone = this.session.phone();
-    if (!phone) {
+    if (!this.session.isAuthenticated()) {
       this.loading.set(false);
       return;
     }
     this.loading.set(true);
     this.error.set(null);
     this.api
-      .getBooking(id, phone)
+      .getBooking(id)
       .pipe(take(1))
       .subscribe({
         next: (d) => {
           this.detail.set(d);
           this.payForm.patchValue({ amount: d.remaining > 0 ? d.remaining : 0 });
           this.loading.set(false);
-          if (this.route.snapshot.queryParamMap.get('pay') === '1' && d.remaining > 0) {
+          const q = this.route.snapshot.queryParamMap;
+          if (q.get('pay') === '1' && d.remaining > 0) {
             setTimeout(() => document.getElementById('pay-anchor')?.scrollIntoView({ behavior: 'smooth' }), 100);
+          }
+          if (q.get('track') === '1') {
+            setTimeout(() => document.querySelector('app-booking-tracking')?.scrollIntoView({ behavior: 'smooth' }), 100);
           }
         },
         error: () => {
@@ -193,8 +292,7 @@ export class BookingDetailPageComponent {
 
   submitPay(): void {
     const d = this.detail();
-    const phone = this.session.phone();
-    if (!d || !phone) return;
+    if (!d || !this.session.isAuthenticated()) return;
     this.payError.set(null);
     if (this.payForm.invalid) {
       this.payForm.markAllAsTouched();
@@ -208,7 +306,6 @@ export class BookingDetailPageComponent {
     this.payBusy.set(true);
     this.api
       .createPayment(d.id, {
-        phone,
         amount: amt,
         paymentMethod: this.payForm.value.paymentMethod!
       })

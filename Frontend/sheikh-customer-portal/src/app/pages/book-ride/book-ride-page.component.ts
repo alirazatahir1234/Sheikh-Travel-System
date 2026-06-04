@@ -18,26 +18,37 @@ import {
 } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { forkJoin, of } from 'rxjs';
-import { catchError, finalize } from 'rxjs/operators';
+import { catchError, debounceTime, finalize, map, switchMap } from 'rxjs/operators';
 import {
   PortalPaymentPlan,
+  PortalPaymentGatewayInfoDto,
   PortalRouteDto,
+  PortalSavedAddressDto,
+  PortalSeatLayoutDto,
   PortalVehicleDto,
   PortalBookingCreatedDto,
   PriceBreakdown
 } from '../../core/models/portal.models';
 import { CustomerSessionService } from '../../core/services/customer-session.service';
 import { PortalApiService } from '../../core/services/portal-api.service';
-import { portalRouteOptionLabel, portalVehicleOptionLabel } from '../../core/utils/portal-display.util';
+import { BookingStepperComponent, BookingStep } from '../../shared/booking-stepper/booking-stepper.component';
+import { FareBreakdownCardComponent } from '../../shared/fare-breakdown-card/fare-breakdown-card.component';
+import { RouteSummaryCardComponent } from '../../shared/route-summary-card/route-summary-card.component';
+import { VehicleCardGridComponent } from '../../shared/vehicle-card-grid/vehicle-card-grid.component';
 import { RoutePreviewMapComponent } from '../../shared/route-preview-map/route-preview-map.component';
+import {
+  LocationAutocompleteComponent,
+  LocationValue
+} from '../../shared/location-autocomplete/location-autocomplete.component';
+import { TripMapComponent } from '../../shared/trip-map/trip-map.component';
+import { CounterStepperComponent } from '../../shared/counter-stepper/counter-stepper.component';
+import { SeatMapComponent } from '../../shared/seat-map/seat-map.component';
 
-/** `datetime-local` min/max use local time without seconds (HTML spec). */
 function toDatetimeLocalString(d: Date): string {
   const pad = (n: number) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-/** Blocks times more than ~1 minute in the past (covers minute-level input vs clock skew). */
 function pickupNotInPastValidator(control: AbstractControl): ValidationErrors | null {
   const raw = control.value;
   if (!raw || typeof raw !== 'string') return null;
@@ -50,7 +61,20 @@ function pickupNotInPastValidator(control: AbstractControl): ValidationErrors | 
 @Component({
   selector: 'app-book-ride-page',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink, RoutePreviewMapComponent],
+  imports: [
+    CommonModule,
+    ReactiveFormsModule,
+    RouterLink,
+    BookingStepperComponent,
+    FareBreakdownCardComponent,
+    RouteSummaryCardComponent,
+    VehicleCardGridComponent,
+    RoutePreviewMapComponent,
+    LocationAutocompleteComponent,
+    TripMapComponent,
+    CounterStepperComponent,
+    SeatMapComponent
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './book-ride-page.component.html'
 })
@@ -61,37 +85,85 @@ export class BookRidePageComponent {
   private readonly destroyRef = inject(DestroyRef);
 
   readonly step = signal(0);
+  readonly useCustomRoute = signal(false);
   readonly routes = signal<PortalRouteDto[]>([]);
   readonly vehicles = signal<PortalVehicleDto[]>([]);
+  readonly savedAddresses = signal<PortalSavedAddressDto[]>([]);
   readonly routesError = signal<string | null>(null);
   readonly vehiclesError = signal<string | null>(null);
   readonly catalogLoading = signal(true);
   readonly estimateBusy = signal(false);
   readonly submitBusy = signal(false);
   readonly apiError = signal<string | null>(null);
+  readonly routeStale = signal(false);
   readonly estimate = signal<PriceBreakdown | null>(null);
+  readonly quoteDistanceKm = signal<number | null>(null);
+  readonly quoteDurationMin = signal<number | null>(null);
   readonly confirmation = signal<PortalBookingCreatedDto | null>(null);
+  readonly promoDiscount = signal(0);
+  readonly promoMessage = signal<string | null>(null);
+  readonly seatLayout = signal<PortalSeatLayoutDto[]>([]);
+  readonly selectedSeats = signal<string[]>([]);
+  readonly gatewayInfo = signal<PortalPaymentGatewayInfoDto | null>(null);
 
-  readonly stepLabel = computed(() => ['Trip', 'Passengers & contact', 'Payment'][this.step()] ?? '');
-
-  /** Earliest selectable pickup in the native datetime picker (current local date & time). */
   readonly pickupDatetimeMin = toDatetimeLocalString(new Date());
 
+  readonly paymentMethods = [
+    { value: 'Cash', label: 'Cash' },
+    { value: 'BankTransfer', label: 'Bank transfer' },
+    { value: 'Easypaisa', label: 'Easypaisa' },
+    { value: 'JazzCash', label: 'JazzCash' },
+    { value: 'Card', label: 'Card (online)' }
+  ] as const;
+
   readonly form = this.fb.group({
-    routeId: [null as number | null, Validators.required],
+    routeId: [null as number | null],
     vehicleId: [null as number | null, Validators.required],
+    pickupLocation: [null as LocationValue | null],
+    dropoffLocation: [null as LocationValue | null],
     isRoundTrip: [false],
     pickupLocal: ['', [Validators.required, pickupNotInPastValidator]],
-    passengerCount: [1, [Validators.required, Validators.min(1), Validators.max(60)]],
+    adultCount: [1, [Validators.required, Validators.min(1), Validators.max(60)]],
+    childCount: [0, [Validators.min(0), Validators.max(20)]],
+    luggageCount: [0, [Validators.min(0), Validators.max(20)]],
     fullName: ['', [Validators.required, Validators.maxLength(100)]],
     phone: ['', [Validators.required, Validators.maxLength(20)]],
     email: ['', Validators.maxLength(200)],
     notes: ['', Validators.maxLength(900)],
+    promoCode: ['', Validators.maxLength(32)],
+    preferredPaymentMethod: ['Cash', Validators.required],
     paymentPlan: this.fb.control<PortalPaymentPlan>('payLater', { nonNullable: true }),
     partialAmount: [null as number | null]
   });
 
+  readonly passengerCount = computed(
+    () => Number(this.form.value.adultCount ?? 1) + Number(this.form.value.childCount ?? 0)
+  );
+
+  readonly stepperSteps = computed((): BookingStep[] => [
+    { label: 'Route & schedule', complete: !!this.estimate() },
+    { label: 'Passengers & contact', complete: this.step() > 1 },
+    { label: 'Payment & confirm', complete: !!this.confirmation() }
+  ]);
+
+  readonly scheduleHints = computed(() => {
+    const pickup = this.form.value.pickupLocal;
+    if (!pickup) return null;
+    const start = new Date(pickup);
+    if (Number.isNaN(start.getTime())) return null;
+    const mins =
+      this.quoteDurationMin() ??
+      this.selectedRoute()?.estimatedDurationMinutes ??
+      (this.selectedRoute() ? Math.ceil((this.selectedRoute()!.distanceKm / 70) * 60) : 60);
+    const arrival = new Date(start.getTime() + mins * 60_000);
+    const cap = this.selectedVehicle()?.seatingCapacity;
+    const seatsLeft = cap != null ? Math.max(0, cap - this.passengerCount()) : null;
+    return { departure: start, arrival, seatsLeft, durationMin: mins };
+  });
+
   constructor() {
+    this.setBookingMode(false);
+
     const name = this.session.fullName();
     const phone = this.session.phone();
     if (name) this.form.patchValue({ fullName: name });
@@ -109,152 +181,305 @@ export class BookRidePageComponent {
           this.vehiclesError.set(this.catalogLoadMessage('vehicles', e));
           return of([] as PortalVehicleDto[]);
         })
-      )
+      ),
+      gateway: this.portal.getPaymentGatewayInfo().pipe(catchError(() => of(null)))
     })
       .pipe(
         finalize(() => this.catalogLoading.set(false)),
         takeUntilDestroyed(this.destroyRef)
       )
-      .subscribe(({ routes, vehicles }) => {
+      .subscribe(({ routes, vehicles, gateway }) => {
         this.routes.set(routes);
         this.vehicles.set(vehicles);
+        if (gateway) this.gatewayInfo.set(gateway);
         this.applyDefaultSelections(routes, vehicles);
+      });
+
+    if (this.session.isAuthenticated()) {
+      this.portal
+        .getSavedAddresses()
+        .pipe(
+          catchError(() => of([] as PortalSavedAddressDto[])),
+          takeUntilDestroyed(this.destroyRef)
+        )
+        .subscribe((a) => this.savedAddresses.set(a));
+    }
+
+    this.form.valueChanges
+      .pipe(debounceTime(450), takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => this.triggerAutoEstimate());
+
+    this.form.controls.vehicleId.valueChanges
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => this.loadSeatsIfReady());
+  }
+
+  setBookingMode(custom: boolean): void {
+    this.useCustomRoute.set(custom);
+    this.estimate.set(null);
+    this.quoteDistanceKm.set(null);
+    this.quoteDurationMin.set(null);
+    this.apiError.set(null);
+    if (custom) {
+      this.form.patchValue({ routeId: null });
+      this.form.controls.pickupLocation.setValidators([Validators.required]);
+      this.form.controls.dropoffLocation.setValidators([Validators.required]);
+      this.form.controls.routeId.clearValidators();
+    } else {
+      this.form.patchValue({ pickupLocation: null, dropoffLocation: null });
+      this.form.controls.routeId.setValidators([Validators.required]);
+      this.form.controls.pickupLocation.clearValidators();
+      this.form.controls.dropoffLocation.clearValidators();
+    }
+    this.form.controls.routeId.updateValueAndValidity();
+    this.form.controls.pickupLocation.updateValueAndValidity();
+    this.form.controls.dropoffLocation.updateValueAndValidity();
+    this.triggerAutoEstimate();
+  }
+
+  applyPopularRoute(routeId: number): void {
+    this.useCustomRoute.set(false);
+    this.form.patchValue({ routeId });
+    this.setBookingMode(false);
+  }
+
+  applySavedAddress(addr: PortalSavedAddressDto, which: 'pickup' | 'dropoff'): void {
+    const val: LocationValue = {
+      address: addr.addressLine,
+      lat: addr.latitude,
+      lng: addr.longitude
+    };
+    if (which === 'pickup') this.form.patchValue({ pickupLocation: val });
+    else this.form.patchValue({ dropoffLocation: val });
+    this.useCustomRoute.set(true);
+    this.setBookingMode(true);
+  }
+
+  reloadRoutes(): void {
+    this.routesError.set(null);
+    this.routeStale.set(false);
+    this.catalogLoading.set(true);
+    this.portal
+      .getRoutes()
+      .pipe(
+        finalize(() => this.catalogLoading.set(false)),
+        takeUntilDestroyed(this.destroyRef)
+      )
+      .subscribe({
+        next: (routes) => {
+          this.routes.set(routes);
+          this.form.patchValue({ routeId: routes[0]?.id ?? null });
+        },
+        error: (e) => this.routesError.set(this.catalogLoadMessage('routes', e))
       });
   }
 
   private applyDefaultSelections(routes: PortalRouteDto[], vehicles: PortalVehicleDto[]): void {
-    const curR = this.form.value.routeId;
-    const curV = this.form.value.vehicleId;
     const patch: { routeId?: number | null; vehicleId?: number | null } = {};
-    if (routes.length > 0 && (curR == null || !routes.some((r) => r.id === curR))) {
-      patch.routeId = routes[0].id;
-    }
-    if (vehicles.length > 0 && (curV == null || !vehicles.some((v) => v.id === curV))) {
-      patch.vehicleId = vehicles[0].id;
-    }
-    if (Object.keys(patch).length > 0) {
-      this.form.patchValue(patch);
-    }
+    if (!this.useCustomRoute() && routes.length > 0) patch.routeId = routes[0].id;
+    if (vehicles.length > 0) patch.vehicleId = vehicles[0].id;
+    if (Object.keys(patch).length) this.form.patchValue(patch);
   }
 
   private catalogLoadMessage(kind: 'routes' | 'vehicles', err: unknown): string {
-    const base =
-      kind === 'routes'
-        ? 'Could not load routes.'
-        : 'Could not load vehicles.';
-    const startApiHint =
-      'Start the API from the repo: `dotnet run --project Backend/SheikhTravelSystem.API/SheikhTravelSystem.API.csproj --launch-profile http` (listens on http://127.0.0.1:5082). Then run the customer portal with `ng serve` so `proxy.conf.json` can forward `/api`.';
+    const base = kind === 'routes' ? 'Could not load routes.' : 'Could not load vehicles.';
+    const startApi =
+      'Start the API with: `dotnet run --project Backend/SheikhTravelSystem.API/SheikhTravelSystem.API.csproj --launch-profile http` (port 5082).';
     if (err instanceof HttpErrorResponse) {
-      const raw =
-        typeof err.error === 'string'
-          ? err.error
-          : err.error != null && typeof err.error === 'object' && 'message' in err.error
-            ? String((err.error as { message?: unknown }).message ?? '')
-            : '';
-      const proxyOrNetwork =
-        err.status === 0 ||
-        err.status === 502 ||
-        err.status === 503 ||
-        err.status === 504 ||
-        /ECONNREFUSED|ECONNRESET|proxy|socket hang up/i.test(err.message) ||
-        /ECONNREFUSED|proxy error/i.test(raw);
-      if (proxyOrNetwork) {
-        return `${base} ${startApiHint}`;
-      }
-      if (err.status === 404) {
-        return `${base} No /api/customer-portal/${kind} route on this server — rebuild and deploy the latest SheikhTravelSystem.API. ${startApiHint}`;
-      }
-      if (err.status === 500 && (!raw || raw === 'Internal Server Error')) {
-        return `${base} Server error or dev proxy could not reach the API. ${startApiHint}`;
+      if (err.status === 0) {
+        return `${base} ${startApi} Ensure \`ng serve\` is using the dev proxy (requests should go to /api, not :7012).`;
       }
       const body = err.error as { message?: string } | undefined;
       if (body?.message) return `${base} ${body.message}`;
+      if (err.status === 500) return `${base} Server error — restart the API after pulling latest changes. ${startApi}`;
     }
-    return base;
+    return `${base} ${startApi}`;
   }
 
   selectedVehicle(): PortalVehicleDto | undefined {
     const id = this.form.value.vehicleId;
-    if (id == null) return undefined;
-    return this.vehicles().find((v) => v.id === id);
+    return id == null ? undefined : this.vehicles().find((v) => v.id === id);
   }
 
   selectedRoute(): PortalRouteDto | undefined {
     const id = this.form.value.routeId;
-    if (id == null) return undefined;
-    return this.routes().find((r) => r.id === id);
-  }
-
-  /** Dropdown label — same fields as admin route list. */
-  routeOptionLabel(r: PortalRouteDto): string {
-    return portalRouteOptionLabel(r);
-  }
-
-  /** Dropdown label — same fields as admin vehicle list. */
-  vehicleOptionLabel(v: PortalVehicleDto): string {
-    return portalVehicleOptionLabel(v);
+    return id == null ? undefined : this.routes().find((r) => r.id === id);
   }
 
   maxPassengers(): number {
     return this.selectedVehicle()?.seatingCapacity ?? 60;
   }
 
-  canEstimate(): boolean {
-    const v = this.form.value;
-    const pickup = this.form.controls.pickupLocal;
-    return !!(v.routeId && v.vehicleId && v.pickupLocal && !pickup.invalid && !this.estimateBusy());
+  seatsRemaining(): number | null {
+    const cap = this.selectedVehicle()?.seatingCapacity;
+    return cap != null ? Math.max(0, cap - this.passengerCount()) : null;
   }
 
-  getEstimate(): void {
-    this.apiError.set(null);
-    this.estimate.set(null);
-    const routeId = this.form.value.routeId!;
-    const vehicleId = this.form.value.vehicleId!;
-    const isRoundTrip = !!this.form.value.isRoundTrip;
+  canProceedStep0(): boolean {
+    const pickup = this.form.controls.pickupLocal;
+    if (pickup.invalid) return false;
+    if (!this.form.value.vehicleId) return false;
+    if (this.useCustomRoute()) {
+      return !!(this.form.value.pickupLocation && this.form.value.dropoffLocation && this.estimate());
+    }
+    return !!(this.form.value.routeId && this.estimate());
+  }
+
+  private triggerAutoEstimate(): void {
+    if (this.step() !== 0 || this.confirmation()) return;
+    const v = this.form.getRawValue();
+    if (!v.vehicleId || !v.pickupLocal || this.form.controls.pickupLocal.invalid) return;
+
+    if (this.useCustomRoute()) {
+      const p = v.pickupLocation;
+      const d = v.dropoffLocation;
+      if (!p || !d) return;
+      this.runEstimate(() =>
+        this.portal
+          .quotePointToPoint({
+            vehicleId: v.vehicleId!,
+            pickupLat: p.lat,
+            pickupLng: p.lng,
+            dropLat: d.lat,
+            dropLng: d.lng,
+            isRoundTrip: !!v.isRoundTrip,
+            routeId: v.routeId
+          })
+          .pipe(
+            map((q) => ({
+              priceBreakdown: q.priceBreakdown,
+              distanceKm: q.distanceKm,
+              durationMinutes: q.durationMinutes
+            }))
+          )
+      );
+      return;
+    }
+
+    if (!v.routeId) return;
+    this.runEstimate(() =>
+      this.portal.estimatePrice(v.routeId!, v.vehicleId!, !!v.isRoundTrip).pipe(
+        switchMap((b) =>
+          of({
+            priceBreakdown: b,
+            distanceKm: this.selectedRoute()?.distanceKm ?? 0,
+            durationMinutes:
+              this.selectedRoute()?.estimatedDurationMinutes ??
+              Math.ceil(((this.selectedRoute()?.distanceKm ?? 0) / 70) * 60)
+          })
+        )
+      )
+    );
+  }
+
+  private runEstimate(
+    factory: () => import('rxjs').Observable<{
+      priceBreakdown: PriceBreakdown;
+      distanceKm: number;
+      durationMinutes: number;
+    }>
+  ): void {
     this.estimateBusy.set(true);
-    this.portal
-      .estimatePrice(routeId, vehicleId, isRoundTrip)
-      .pipe(takeUntilDestroyed(this.destroyRef))
+    this.apiError.set(null);
+    this.routeStale.set(false);
+    factory()
+      .pipe(
+        finalize(() => this.estimateBusy.set(false)),
+        takeUntilDestroyed(this.destroyRef)
+      )
       .subscribe({
-        next: (b) => {
-          this.estimate.set(b);
-          this.estimateBusy.set(false);
+        next: (q) => {
+          this.estimate.set(q.priceBreakdown);
+          this.quoteDistanceKm.set(q.distanceKm);
+          this.quoteDurationMin.set(q.durationMinutes);
+          void this.applyPromoIfAny();
         },
         error: (e) => {
-          this.apiError.set(this.formatError(e));
-          this.estimateBusy.set(false);
+          const msg = this.formatError(e);
+          this.apiError.set(msg);
+          if (/route.*not found|reload/i.test(msg)) this.routeStale.set(true);
         }
       });
   }
 
-  nextFromStep0(): void {
-    this.form.controls.routeId.markAsTouched();
-    this.form.controls.vehicleId.markAsTouched();
-    this.form.controls.pickupLocal.markAsTouched();
-    if (this.form.controls.routeId.invalid || this.form.controls.vehicleId.invalid || this.form.controls.pickupLocal.invalid) {
+  applyPromo(): void {
+    void this.applyPromoIfAny();
+  }
+
+  private async applyPromoIfAny(): Promise<void> {
+    const code = this.form.value.promoCode?.trim();
+    const est = this.estimate();
+    if (!code || !est) {
+      this.promoDiscount.set(0);
+      this.promoMessage.set(null);
       return;
     }
-    if (!this.estimate()) {
-      this.apiError.set('Please get a price estimate before continuing.');
+    this.portal
+      .validatePromo(code, est.totalAmount)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (r) => {
+          this.promoDiscount.set(r.valid ? r.discountAmount : 0);
+          this.promoMessage.set(r.message);
+        },
+        error: () => {
+          this.promoDiscount.set(0);
+          this.promoMessage.set('Could not validate promo code.');
+        }
+      });
+  }
+
+  private loadSeatsIfReady(): void {
+    const vid = this.form.value.vehicleId;
+    const pickup = this.form.value.pickupLocal;
+    if (!vid || !pickup) {
+      this.seatLayout.set([]);
+      return;
+    }
+    const iso = new Date(pickup).toISOString();
+    this.portal
+      .getVehicleSeats(vid, iso)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (s) => this.seatLayout.set(s),
+        error: () => this.seatLayout.set([])
+      });
+  }
+
+  onSeatsChange(labels: string[]): void {
+    this.selectedSeats.set(labels);
+    const total = labels.length;
+    if (total > 0) {
+      this.form.patchValue({ adultCount: Math.max(1, total), childCount: 0 });
+    }
+  }
+
+  nextFromStep0(): void {
+    this.form.controls.vehicleId.markAsTouched();
+    this.form.controls.pickupLocal.markAsTouched();
+    if (this.useCustomRoute()) {
+      this.form.controls.pickupLocation.markAsTouched();
+      this.form.controls.dropoffLocation.markAsTouched();
+    } else {
+      this.form.controls.routeId.markAsTouched();
+    }
+    if (!this.canProceedStep0()) {
+      if (!this.estimate()) this.apiError.set('Waiting for fare estimate — adjust trip details if needed.');
       return;
     }
     this.apiError.set(null);
+    this.loadSeatsIfReady();
     this.step.set(1);
   }
 
   nextFromStep1(): void {
-    ['fullName', 'phone', 'passengerCount'].forEach((k) => {
-      this.form.get(k)?.markAsTouched();
-    });
+    ['fullName', 'phone', 'adultCount'].forEach((k) => this.form.get(k)?.markAsTouched());
     const cap = this.maxPassengers();
-    const pax = Number(this.form.value.passengerCount);
-    if (pax > cap) {
+    if (this.passengerCount() > cap) {
       this.apiError.set(`This vehicle seats up to ${cap} passengers.`);
       return;
     }
-    if (this.form.controls.fullName.invalid || this.form.controls.phone.invalid || this.form.controls.passengerCount.invalid) {
-      return;
-    }
+    if (this.form.controls.fullName.invalid || this.form.controls.phone.invalid) return;
     this.apiError.set(null);
     this.step.set(2);
   }
@@ -263,46 +488,71 @@ export class BookRidePageComponent {
     this.step.update((s) => Math.max(0, s - 1));
   }
 
+  cardPaymentDisabled(): boolean {
+    const g = this.gatewayInfo();
+    return this.form.value.preferredPaymentMethod === 'Card' && g != null && !g.enabled;
+  }
+
   submit(): void {
     this.apiError.set(null);
     const est = this.estimate();
-    if (!est || this.form.invalid) {
+    if (!est || this.form.invalid || this.cardPaymentDisabled()) {
       this.form.markAllAsTouched();
+      if (this.cardPaymentDisabled()) {
+        this.apiError.set(this.gatewayInfo()?.message ?? 'Card payments are not available yet.');
+      }
       return;
     }
     const plan = this.form.controls.paymentPlan.value;
+    const totalAfterDiscount = Math.max(0, est.totalAmount - this.promoDiscount());
     let initial: number | null = null;
     if (plan === 'partial') {
       initial = Number(this.form.value.partialAmount);
-      if (!(initial > 0) || initial >= est.totalAmount) {
+      if (!(initial > 0) || initial >= totalAfterDiscount) {
         this.apiError.set('Enter a partial amount greater than zero and less than the trip total.');
         return;
       }
-    } else {
-      this.form.patchValue({ partialAmount: null });
     }
 
-    const pickupIso = new Date(this.form.value.pickupLocal!).toISOString();
+    const v = this.form.getRawValue();
+    const pickupIso = new Date(v.pickupLocal!).toISOString();
+    const p = v.pickupLocation;
+    const d = v.dropoffLocation;
+
     this.submitBusy.set(true);
     this.portal
       .createBooking({
-        fullName: this.form.value.fullName!.trim(),
-        phone: this.form.value.phone!.trim(),
-        email: this.form.value.email?.trim() || null,
-        routeId: this.form.value.routeId!,
-        vehicleId: this.form.value.vehicleId!,
+        fullName: v.fullName!.trim(),
+        phone: v.phone!.trim(),
+        email: v.email?.trim() || null,
+        routeId: this.useCustomRoute() ? (v.routeId ?? null) : v.routeId!,
+        vehicleId: v.vehicleId!,
         pickupTime: pickupIso,
-        passengerCount: Number(this.form.value.passengerCount),
-        isRoundTrip: !!this.form.value.isRoundTrip,
-        notes: this.form.value.notes?.trim() || null,
+        passengerCount: this.passengerCount(),
+        isRoundTrip: !!v.isRoundTrip,
+        notes: v.notes?.trim() || null,
         paymentPlan: plan,
-        initialPaymentAmount: plan === 'partial' ? initial : null
+        initialPaymentAmount: plan === 'partial' ? initial : null,
+        preferredPaymentMethod: v.preferredPaymentMethod,
+        pickupAddress: p?.address ?? this.selectedRoute()?.source ?? null,
+        dropoffAddress: d?.address ?? this.selectedRoute()?.destination ?? null,
+        pickupLat: p?.lat ?? null,
+        pickupLng: p?.lng ?? null,
+        dropLat: d?.lat ?? null,
+        dropLng: d?.lng ?? null,
+        quotedDistanceKm: this.quoteDistanceKm(),
+        quotedDurationMinutes: this.quoteDurationMin(),
+        adultCount: v.adultCount,
+        childCount: v.childCount,
+        luggageCount: v.luggageCount,
+        promoCode: v.promoCode?.trim() || null,
+        seatLabels: this.selectedSeats().length ? this.selectedSeats() : null
       })
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (c) => {
           this.confirmation.set(c);
-          this.session.setSession(this.form.value.phone!.trim(), this.form.value.fullName!.trim());
+          this.session.setLocalProfile(v.phone!.trim(), v.fullName!.trim());
           this.submitBusy.set(false);
         },
         error: (e) => {
@@ -314,15 +564,14 @@ export class BookRidePageComponent {
 
   private formatError(err: unknown): string {
     if (err instanceof HttpErrorResponse) {
-      if (err.status === 404) {
-        return 'API endpoint not found. Restart the backend and confirm /api/customer-portal is available.';
-      }
-      if (err.status === 0) {
-        return 'Could not reach the API. Check that the backend is running and the dev proxy targets the correct URL.';
-      }
       const body = err.error as { message?: string } | undefined;
-      if (body?.message) return body.message;
-      return err.message || 'Request failed.';
+      const msg = body?.message ?? err.message;
+      if (/route.*not found/i.test(msg)) {
+        this.routeStale.set(true);
+        return 'That route is no longer available. Tap Reload routes and pick again.';
+      }
+      if (msg) return msg;
+      return 'Request failed.';
     }
     return 'Something went wrong.';
   }

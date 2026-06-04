@@ -12,6 +12,7 @@ export interface PortalRouteDto {
   destination: string;
   /** Same as admin Routes table “Route name”. */
   name?: string | null;
+  estimatedDurationMinutes?: number | null;
 }
 
 /** Numeric enums match `SheikhTravelSystem.Domain` / admin app. */
@@ -54,7 +55,7 @@ export interface CreatePortalBookingPayload {
   fullName: string;
   phone: string;
   email?: string | null;
-  routeId: number;
+  routeId?: number | null;
   vehicleId: number;
   pickupTime: string;
   passengerCount: number;
@@ -62,6 +63,85 @@ export interface CreatePortalBookingPayload {
   notes?: string | null;
   paymentPlan: PortalPaymentPlan;
   initialPaymentAmount?: number | null;
+  preferredPaymentMethod?: string | null;
+  pickupAddress?: string | null;
+  dropoffAddress?: string | null;
+  pickupLat?: number | null;
+  pickupLng?: number | null;
+  dropLat?: number | null;
+  dropLng?: number | null;
+  quotedDistanceKm?: number | null;
+  quotedDurationMinutes?: number | null;
+  adultCount?: number | null;
+  childCount?: number | null;
+  luggageCount?: number | null;
+  promoCode?: string | null;
+  seatLabels?: string[] | null;
+}
+
+export interface PortalQuoteResultDto {
+  priceBreakdown: PriceBreakdown;
+  distanceKm: number;
+  durationMinutes: number;
+  matchedRouteLabel?: string | null;
+}
+
+export interface PortalPointToPointQuotePayload {
+  vehicleId: number;
+  pickupLat: number;
+  pickupLng: number;
+  dropLat: number;
+  dropLng: number;
+  isRoundTrip: boolean;
+  routeId?: number | null;
+}
+
+export interface PortalPromoResultDto {
+  valid: boolean;
+  code: string;
+  discountAmount: number;
+  message: string;
+}
+
+export interface PortalSavedAddressDto {
+  id: number;
+  label: string;
+  addressLine: string;
+  latitude: number;
+  longitude: number;
+}
+
+export interface PortalCustomerNotificationDto {
+  id: number;
+  title: string;
+  message: string;
+  notificationType: string;
+  bookingId: number | null;
+  isRead: boolean;
+  createdAt: string;
+}
+
+export interface PortalDriverPreviewDto {
+  fullName: string | null;
+  rating: number | null;
+  yearsExperience: number | null;
+  isVerified: boolean;
+}
+
+export interface PortalSeatLayoutDto {
+  seatLabel: string;
+  rowIndex: number;
+  colIndex: number;
+  isBooked: boolean;
+}
+
+export interface PortalLoyaltyDto {
+  points: number;
+  tier: string;
+}
+
+export interface PortalWalletDto {
+  balance: number;
 }
 
 export interface PortalBookingCardDto {
@@ -97,12 +177,56 @@ export interface PortalBookingDetailDto {
   remaining: number;
   payState: PortalPayState;
   payments: PortalPaymentLineDto[];
+  pickupAddress?: string | null;
+  dropoffAddress?: string | null;
+  driver?: PortalDriverPreviewDto | null;
+  seats?: string[] | null;
 }
 
 export interface CreatePortalPaymentPayload {
-  phone: string;
   amount: number;
   paymentMethod: string;
   transactionReference?: string | null;
   notes?: string | null;
+}
+
+export interface PortalOtpSentDto {
+  phone: string;
+  devMode: boolean;
+  message: string;
+}
+
+export interface PortalAuthResultDto {
+  phone: string;
+  fullName: string;
+  accessToken: string;
+}
+
+export interface PortalBookingTrackingDto {
+  bookingId: number;
+  vehicleId: number | null;
+  vehicleName: string | null;
+  bookingStatus: number;
+  trackingAvailable: boolean;
+  driverLatitude: number | null;
+  driverLongitude: number | null;
+  pickupLatitude: number | null;
+  pickupLongitude: number | null;
+  distanceKm: number | null;
+  etaMinutes: number | null;
+  speedKmh?: number | null;
+  lastUpdatedUtc?: string | null;
+  driverPhoneMasked?: string | null;
+}
+
+export interface PortalNotificationPreferencesDto {
+  smsEnabled: boolean;
+  emailEnabled: boolean;
+  email: string | null;
+}
+
+export interface PortalPaymentGatewayInfoDto {
+  enabled: boolean;
+  provider: string;
+  message: string;
 }

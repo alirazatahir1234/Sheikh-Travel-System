@@ -1,7 +1,8 @@
 import { DatePipe, DecimalPipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, input } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { ChangeDetectionStrategy, Component, inject, input, output, signal } from '@angular/core';
+import { Router, RouterLink } from '@angular/router';
 import { PortalBookingCardDto } from '../../core/models/portal.models';
+import { PortalApiService } from '../../core/services/portal-api.service';
 import { StatusBadgeComponent } from '../status-badge/status-badge.component';
 
 @Component({
@@ -40,17 +41,44 @@ import { StatusBadgeComponent } from '../status-badge/status-badge.component';
       <div class="mt-4 flex flex-wrap gap-2">
         <a
           [routerLink]="['/bookings', card().id]"
-          class="inline-flex flex-1 min-w-[8rem] justify-center rounded-xl bg-slate-100 px-4 py-2.5 text-sm font-semibold text-slate-800 ring-1 ring-slate-200 transition hover:bg-slate-200"
+          class="inline-flex flex-1 min-w-[7rem] justify-center rounded-xl bg-slate-100 px-3 py-2.5 text-sm font-semibold text-slate-800 ring-1 ring-slate-200 hover:bg-slate-200"
         >
-          View details
+          Details
         </a>
+        @if (card().bookingStatus === 3) {
+          <a
+            [routerLink]="['/bookings', card().id]"
+            [queryParams]="{ track: '1' }"
+            class="inline-flex flex-1 min-w-[7rem] justify-center rounded-xl bg-primary-600 px-3 py-2.5 text-sm font-semibold text-white hover:bg-primary-700"
+          >
+            Track
+          </a>
+        }
+        @if (canCancel()) {
+          <button
+            type="button"
+            (click)="cancel()"
+            [disabled]="cancelBusy()"
+            class="inline-flex flex-1 min-w-[7rem] justify-center rounded-xl border border-rose-200 bg-rose-50 px-3 py-2.5 text-sm font-semibold text-rose-800 disabled:opacity-50"
+          >
+            {{ cancelBusy() ? '…' : 'Cancel' }}
+          </button>
+        }
+        <button
+          type="button"
+          (click)="downloadInvoice()"
+          [disabled]="invoiceBusy()"
+          class="inline-flex flex-1 min-w-[7rem] justify-center rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-semibold text-slate-800 disabled:opacity-50"
+        >
+          {{ invoiceBusy() ? '…' : 'Invoice' }}
+        </button>
         @if (card().remaining > 0 && card().bookingStatus !== 5) {
           <a
             [routerLink]="['/bookings', card().id]"
             [queryParams]="{ pay: '1' }"
-            class="inline-flex flex-1 min-w-[8rem] justify-center rounded-xl bg-primary-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-700"
+            class="inline-flex flex-1 min-w-[7rem] justify-center rounded-xl bg-emerald-600 px-3 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700"
           >
-            Pay now
+            Pay
           </a>
         }
       </div>
@@ -59,4 +87,46 @@ import { StatusBadgeComponent } from '../status-badge/status-badge.component';
 })
 export class BookingCardComponent {
   readonly card = input.required<PortalBookingCardDto>();
+  readonly cancelled = output<void>();
+
+  private readonly api = inject(PortalApiService);
+  private readonly router = inject(Router);
+
+  readonly cancelBusy = signal(false);
+  readonly invoiceBusy = signal(false);
+
+  canCancel(): boolean {
+    const s = this.card().bookingStatus;
+    return s === 1 || s === 2;
+  }
+
+  cancel(): void {
+    if (!confirm('Cancel this booking?')) return;
+    this.cancelBusy.set(true);
+    this.api.cancelBooking(this.card().id).subscribe({
+      next: () => {
+        this.cancelBusy.set(false);
+        this.cancelled.emit();
+      },
+      error: () => this.cancelBusy.set(false)
+    });
+  }
+
+  downloadInvoice(): void {
+    this.invoiceBusy.set(true);
+    this.api.downloadInvoice(this.card().id).subscribe({
+      next: (res) => {
+        this.invoiceBusy.set(false);
+        const blob = res.body;
+        if (!blob) return;
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `invoice-${this.card().bookingNumber}.html`;
+        a.click();
+        URL.revokeObjectURL(url);
+      },
+      error: () => this.invoiceBusy.set(false)
+    });
+  }
 }

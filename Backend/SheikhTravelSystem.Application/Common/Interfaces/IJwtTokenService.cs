@@ -15,4 +15,9 @@ public interface IJwtTokenService
     /// Generates a cryptographically secure refresh token.
     /// </summary>
     string GenerateRefreshToken();
+
+    /// <summary>
+    /// Generates a JWT for the public customer portal (role PortalCustomer).
+    /// </summary>
+    string GeneratePortalAccessToken(string phone, string fullName);
 }

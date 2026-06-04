@@ -9,7 +9,7 @@ using SheikhTravelSystem.Application.Features.Payments.DTOs;
 
 namespace SheikhTravelSystem.Application.Features.CustomerPortal.Commands;
 
-public record CreatePortalPaymentCommand(int BookingId, CreatePortalPaymentRequest Request)
+public record CreatePortalPaymentCommand(int BookingId, string Phone, CreatePortalPaymentRequest Request)
     : IRequest<ApiResponse<int>>;
 
 public class CreatePortalPaymentCommandValidator : AbstractValidator<CreatePortalPaymentCommand>
@@ -17,7 +17,7 @@ public class CreatePortalPaymentCommandValidator : AbstractValidator<CreatePorta
     public CreatePortalPaymentCommandValidator()
     {
         RuleFor(x => x.BookingId).GreaterThan(0);
-        RuleFor(x => x.Request.Phone).NotEmpty().MaximumLength(20);
+        RuleFor(x => x.Phone).NotEmpty().MaximumLength(20);
         RuleFor(x => x.Request.Amount).GreaterThan(0);
         RuleFor(x => x.Request.PaymentMethod).NotEmpty().MaximumLength(50);
         RuleFor(x => x.Request.TransactionReference).MaximumLength(200);
@@ -30,19 +30,7 @@ public class CreatePortalPaymentCommandHandler(IDbConnectionFactory dbFactory, I
 {
     public async Task<ApiResponse<int>> Handle(CreatePortalPaymentCommand request, CancellationToken cancellationToken)
     {
-        var phone = request.Request.Phone.Trim();
-        using var connection = dbFactory.CreateConnection();
-
-        var allowed = await connection.ExecuteScalarAsync<bool>(
-            new CommandDefinition(
-                @"SELECT CASE WHEN EXISTS(
-                    SELECT 1 FROM Bookings b
-                    INNER JOIN Customers c ON c.Id = b.CustomerId AND c.IsDeleted = 0
-                    WHERE b.Id = @BookingId AND b.IsDeleted = 0 AND c.Phone = @Phone) THEN 1 ELSE 0 END",
-                new { request.BookingId, Phone = phone },
-                cancellationToken: cancellationToken));
-
-        if (!allowed)
+        if (!await PortalBookingAccess.PhoneOwnsBookingAsync(dbFactory, request.BookingId, request.Phone, cancellationToken))
             return ApiResponse<int>.FailResponse("Booking not found for this phone number.");
 
         return await mediator.Send(

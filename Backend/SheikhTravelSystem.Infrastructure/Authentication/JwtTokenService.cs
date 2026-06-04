@@ -46,6 +46,37 @@ public class JwtTokenService(IConfiguration configuration) : IJwtTokenService
         return new JwtSecurityTokenHandler().WriteToken(token);
     }
 
+    /// <inheritdoc />
+    public string GeneratePortalAccessToken(string phone, string fullName)
+    {
+        var jwtSettings = configuration.GetSection("JwtSettings");
+        var portalSettings = configuration.GetSection("PortalAuth");
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(
+            jwtSettings["Secret"] ?? throw new InvalidOperationException("JWT Secret not configured.")));
+
+        var claims = new List<Claim>
+        {
+            new(ClaimTypes.MobilePhone, phone.Trim()),
+            new("portal_phone", phone.Trim()),
+            new(ClaimTypes.Name, fullName.Trim()),
+            new(ClaimTypes.Role, "PortalCustomer")
+        };
+
+        var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+        var expiryMinutes = int.TryParse(portalSettings["PortalTokenExpiryMinutes"], out var mins) && mins > 0
+            ? mins
+            : 10_080;
+
+        var token = new JwtSecurityToken(
+            issuer: jwtSettings["Issuer"],
+            audience: jwtSettings["Audience"],
+            claims: claims,
+            expires: DateTime.UtcNow.AddMinutes(expiryMinutes),
+            signingCredentials: credentials);
+
+        return new JwtSecurityTokenHandler().WriteToken(token);
+    }
+
     /// <summary>
     /// Creates a random, high-entropy token suitable for refresh workflows.
     /// </summary>

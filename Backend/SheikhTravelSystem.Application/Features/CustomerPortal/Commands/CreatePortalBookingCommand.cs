@@ -4,6 +4,7 @@ using MediatR;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Application.Features.Bookings.Commands;
+using SheikhTravelSystem.Domain.Enums;
 using SheikhTravelSystem.Application.Features.Bookings.DTOs;
 using SheikhTravelSystem.Application.Features.CustomerPortal.DTOs;
 using SheikhTravelSystem.Application.Features.Customers.Commands;
@@ -24,8 +25,10 @@ public class CreatePortalBookingCommandValidator : AbstractValidator<CreatePorta
         RuleFor(x => x.Request.FullName).NotEmpty().MaximumLength(100);
         RuleFor(x => x.Request.Phone).NotEmpty().MaximumLength(20);
         RuleFor(x => x.Request.Email).MaximumLength(200).EmailAddress().When(x => !string.IsNullOrWhiteSpace(x.Request.Email));
-        RuleFor(x => x.Request.RouteId).GreaterThan(0);
         RuleFor(x => x.Request.VehicleId).GreaterThan(0);
+        RuleFor(x => x.Request)
+            .Must(r => r.RouteId is > 0 || (r.PickupLat.HasValue && r.PickupLng.HasValue && r.DropLat.HasValue && r.DropLng.HasValue))
+            .WithMessage("Select a route or provide pickup and drop-off locations.");
         RuleFor(x => x.Request.PickupTime).GreaterThan(DateTime.UtcNow)
             .WithMessage("Pickup time must be in the future.");
         RuleFor(x => x.Request.PassengerCount).InclusiveBetween(1, 60);
@@ -67,15 +70,67 @@ public class CreatePortalBookingCommandHandler(IDbConnectionFactory dbFactory, I
                     $"Passenger count cannot exceed vehicle capacity ({seating.Value}).");
         }
 
-        var quote = await PortalPricingHelper.CalculateQuoteAsync(
-            mediator, dbFactory, r.RouteId, r.VehicleId, r.IsRoundTrip, cancellationToken);
+        ApiResponse<PriceBreakdown> quote;
+        if (r.PickupLat.HasValue && r.PickupLng.HasValue && r.DropLat.HasValue && r.DropLng.HasValue)
+        {
+            quote = await PortalDynamicPricingHelper.CalculatePointToPointQuoteAsync(
+                mediator,
+                dbFactory,
+                r.VehicleId,
+                r.PickupLat.Value,
+                r.PickupLng.Value,
+                r.DropLat.Value,
+                r.DropLng.Value,
+                r.IsRoundTrip,
+                r.RouteId,
+                cancellationToken);
+        }
+        else if (r.RouteId is > 0)
+        {
+            quote = await PortalPricingHelper.CalculateQuoteAsync(
+                mediator, dbFactory, r.RouteId.Value, r.VehicleId, r.IsRoundTrip, cancellationToken);
+        }
+        else
+        {
+            return ApiResponse<PortalBookingCreatedDto>.FailResponse("Route or pickup/drop locations are required.");
+        }
 
         if (!quote.Success || quote.Data is null)
             return ApiResponse<PortalBookingCreatedDto>.FailResponse(quote.Message ?? "Could not calculate price.");
 
         var breakdown = quote.Data;
-        if (breakdown.TotalAmount <= 0)
-            return ApiResponse<PortalBookingCreatedDto>.FailResponse("Calculated total is invalid. Please contact support.");
+        var discount = 0m;
+        int? promoId = null;
+        if (!string.IsNullOrWhiteSpace(r.PromoCode))
+        {
+            var promoResult = await mediator.Send(
+                new ValidatePortalPromoCommand(r.Phone, new PortalValidatePromoRequest(r.PromoCode, breakdown.TotalAmount)),
+                cancellationToken);
+            if (promoResult.Success && promoResult.Data is { Valid: true } p)
+            {
+                discount = p.DiscountAmount;
+                using var promoConn = dbFactory.CreateConnection();
+                promoId = await promoConn.ExecuteScalarAsync<int?>(
+                    new CommandDefinition(
+                        "SELECT Id FROM PromoCodes WHERE Code = @Code AND IsDeleted = 0",
+                        new { Code = r.PromoCode.Trim().ToUpperInvariant() },
+                        cancellationToken: cancellationToken));
+            }
+        }
+
+        var finalTotal = breakdown.TotalAmount - discount;
+        if (finalTotal <= 0)
+            return ApiResponse<PortalBookingCreatedDto>.FailResponse("Calculated total is invalid after discounts.");
+
+        var effectiveRouteId = r.RouteId;
+        if (effectiveRouteId is null or <= 0)
+        {
+            using var routeConn = dbFactory.CreateConnection();
+            effectiveRouteId = await routeConn.ExecuteScalarAsync<int>(
+                new CommandDefinition(
+                    "SELECT TOP 1 Id FROM Routes WHERE IsDeleted = 0 AND IsActive = 1 ORDER BY Id",
+                    cancellationToken: cancellationToken));
+        }
 
         var (customerOk, customerId, customerError) = await TryResolveCustomerIdAsync(dbFactory, mediator, r, cancellationToken);
         if (!customerOk)
@@ -88,10 +143,10 @@ public class CreatePortalBookingCommandHandler(IDbConnectionFactory dbFactory, I
             new CreateBookingCommand(
                 new CreateBookingDto(
                     customerId,
-                    r.RouteId,
+                    effectiveRouteId!.Value,
                     r.PickupTime,
                     r.PassengerCount,
-                    breakdown.TotalAmount,
+                    finalTotal,
                     combinedNotes)),
             cancellationToken);
 
@@ -101,12 +156,40 @@ public class CreatePortalBookingCommandHandler(IDbConnectionFactory dbFactory, I
         var bookingId = bookingResult.Data;
         var bookingNumber = await GetBookingNumberAsync(dbFactory, bookingId, cancellationToken);
 
+        await mediator.Send(new AssignVehicleCommand(bookingId, r.VehicleId), cancellationToken);
+        await ApplyPortalBookingExtrasAsync(dbFactory, bookingId, r, discount, promoId, cancellationToken);
+
+        if (r.SeatLabels?.Count > 0)
+        {
+            using var seatConn = dbFactory.CreateConnection();
+            foreach (var seat in r.SeatLabels.Distinct(StringComparer.OrdinalIgnoreCase))
+            {
+                await seatConn.ExecuteAsync(
+                    new CommandDefinition(
+                        "INSERT INTO BookingSeats (BookingId, SeatLabel) VALUES (@BookingId, @SeatLabel)",
+                        new { BookingId = bookingId, SeatLabel = seat },
+                        cancellationToken: cancellationToken));
+            }
+        }
+
+        await PortalCustomerWriter.WriteCustomerNotificationAsync(
+            dbFactory,
+            customerId,
+            "Booking confirmed",
+            $"Your booking {bookingNumber} has been received.",
+            "BookingConfirmed",
+            bookingId,
+            cancellationToken);
+
+        await PortalCustomerWriter.AddLoyaltyPointsAsync(dbFactory, customerId, (int)Math.Floor(finalTotal / 100), cancellationToken);
+
         var payState = await ApplyInitialPortalPaymentAsync(
             mediator,
             r.PaymentPlan,
             r.InitialPaymentAmount,
             bookingId,
-            breakdown.TotalAmount,
+            finalTotal,
+            r.PreferredPaymentMethod,
             cancellationToken);
 
         if (payState is null)
@@ -116,11 +199,60 @@ public class CreatePortalBookingCommandHandler(IDbConnectionFactory dbFactory, I
         var payload = new PortalBookingCreatedDto(
             bookingId,
             bookingNumber ?? string.Empty,
-            breakdown.TotalAmount,
-            breakdown,
+            finalTotal,
+            breakdown with { TotalAmount = finalTotal },
             payState.Value);
 
         return ApiResponse<PortalBookingCreatedDto>.SuccessResponse(payload, "Your booking request has been received.");
+    }
+
+    private static async Task ApplyPortalBookingExtrasAsync(
+        IDbConnectionFactory dbFactory,
+        int bookingId,
+        CreatePortalBookingRequest r,
+        decimal discount,
+        int? promoId,
+        CancellationToken cancellationToken)
+    {
+        using var connection = dbFactory.CreateConnection();
+        await connection.ExecuteAsync(
+            new CommandDefinition(
+                @"UPDATE Bookings SET
+                    PreferredPaymentMethod = @PreferredPaymentMethod,
+                    PickupAddress = @PickupAddress,
+                    DropoffAddress = @DropoffAddress,
+                    PickupLat = @PickupLat,
+                    PickupLng = @PickupLng,
+                    DropLat = @DropLat,
+                    DropLng = @DropLng,
+                    QuotedDistanceKm = @QuotedDistanceKm,
+                    QuotedDurationMinutes = @QuotedDurationMinutes,
+                    AdultCount = @AdultCount,
+                    ChildCount = @ChildCount,
+                    LuggageCount = @LuggageCount,
+                    PromoCodeId = @PromoCodeId,
+                    DiscountAmount = @DiscountAmount,
+                    UpdatedAt = SYSUTCDATETIME()
+                  WHERE Id = @Id",
+                new
+                {
+                    Id = bookingId,
+                    r.PreferredPaymentMethod,
+                    r.PickupAddress,
+                    r.DropoffAddress,
+                    r.PickupLat,
+                    r.PickupLng,
+                    r.DropLat,
+                    r.DropLng,
+                    r.QuotedDistanceKm,
+                    r.QuotedDurationMinutes,
+                    AdultCount = r.AdultCount ?? r.PassengerCount,
+                    r.ChildCount,
+                    r.LuggageCount,
+                    PromoCodeId = promoId,
+                    DiscountAmount = discount
+                },
+                cancellationToken: cancellationToken));
     }
 
     private static async Task<PortalPayState?> ApplyInitialPortalPaymentAsync(
@@ -129,6 +261,7 @@ public class CreatePortalBookingCommandHandler(IDbConnectionFactory dbFactory, I
         decimal? initialAmount,
         int bookingId,
         decimal total,
+        string? preferredMethod,
         CancellationToken cancellationToken)
     {
         switch (plan)
@@ -139,7 +272,7 @@ public class CreatePortalBookingCommandHandler(IDbConnectionFactory dbFactory, I
                         new CreatePaymentDto(
                             bookingId,
                             total,
-                            "CustomerPortal",
+                            preferredMethod ?? "CustomerPortal",
                             null,
                             "Full payment (customer portal)",
                             null)),
@@ -155,7 +288,7 @@ public class CreatePortalBookingCommandHandler(IDbConnectionFactory dbFactory, I
                         new CreatePaymentDto(
                             bookingId,
                             amt,
-                            "CustomerPortal",
+                            preferredMethod ?? "CustomerPortal",
                             null,
                             "Partial payment (customer portal)",
                             null)),

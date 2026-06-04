@@ -29,7 +29,8 @@ public static class PortalPricingHelper
                 cancellationToken: cancellationToken));
 
         if (basePrice is null)
-            return ApiResponse<PriceBreakdown>.FailResponse("Selected route was not found.");
+            return ApiResponse<PriceBreakdown>.FailResponse(
+                "The selected route has changed or is no longer available. Please reload routes and select again.");
 
         return await mediator.Send(
             new CalculatePriceCommand(
