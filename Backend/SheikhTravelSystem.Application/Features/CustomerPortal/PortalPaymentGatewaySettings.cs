@@ -7,4 +7,8 @@ public class PortalPaymentGatewaySettings
     public bool Enabled { get; set; }
 
     public string Provider { get; set; } = "Stripe";
+
+    public string ReturnBaseUrl { get; set; } = "http://localhost:4300";
+
+    public string ApiBaseUrl { get; set; } = "http://localhost:5082";
 }

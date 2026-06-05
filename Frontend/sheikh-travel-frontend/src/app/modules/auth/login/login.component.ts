@@ -29,7 +29,7 @@ export class LoginComponent implements OnInit {
     });
 
     if (this.auth.isLoggedIn()) {
-      this.router.navigate(['/dashboard']);
+      this.router.navigate([this.auth.getHomeRoute()]);
     }
   }
 
@@ -57,7 +57,7 @@ export class LoginComponent implements OnInit {
 
     this.loading = true;
     this.auth.login(this.form.value).subscribe({
-      next: () => this.router.navigate(['/dashboard']),
+      next: user => this.router.navigate([user.roles?.includes('Driver') ? '/my-trips' : '/dashboard']),
       error: err => {
         this.loading = false;
         const message = err?.error?.message || err?.message || 'Invalid email or password';

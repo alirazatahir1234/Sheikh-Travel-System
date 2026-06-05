@@ -8,7 +8,8 @@ using SheikhTravelSystem.Domain.Enums;
 
 namespace SheikhTravelSystem.Application.Features.CustomerPortal.Queries;
 
-public record GetPortalBookingDetailQuery(int BookingId, string Phone) : IRequest<ApiResponse<PortalBookingDetailDto>>;
+public record GetPortalBookingDetailQuery(int BookingId, string Phone, int? CustomerId = null)
+    : IRequest<ApiResponse<PortalBookingDetailDto>>;
 
 public class GetPortalBookingDetailQueryValidator : AbstractValidator<GetPortalBookingDetailQuery>
 {
@@ -24,7 +25,11 @@ public class GetPortalBookingDetailQueryHandler(IDbConnectionFactory dbFactory)
 {
     public async Task<ApiResponse<PortalBookingDetailDto>> Handle(GetPortalBookingDetailQuery request, CancellationToken cancellationToken)
     {
-        var phone = request.Phone.Trim();
+        var customerIds = await PortalBookingAccess.ResolvePortalCustomerIdsAsync(
+            dbFactory, request.Phone, request.CustomerId, cancellationToken);
+        if (customerIds.Count == 0)
+            return ApiResponse<PortalBookingDetailDto>.FailResponse("Booking not found for this phone number.");
+
         using var connection = dbFactory.CreateConnection();
 
         var head = await connection.QuerySingleOrDefaultAsync<(
@@ -66,15 +71,14 @@ public class GetPortalBookingDetailQueryHandler(IDbConnectionFactory dbFactory)
                          d.Rating AS DriverRating,
                          d.YearsExperience AS DriverYears
                   FROM Bookings b
-                  INNER JOIN Customers c ON c.Id = b.CustomerId AND c.IsDeleted = 0
                   LEFT JOIN Routes r ON r.Id = b.RouteId AND r.IsDeleted = 0
                   LEFT JOIN Vehicles v ON v.Id = b.VehicleId AND v.IsDeleted = 0
                   LEFT JOIN Drivers d ON d.Id = b.DriverId AND d.IsDeleted = 0
-                  WHERE b.Id = @Id AND b.IsDeleted = 0 AND c.Phone = @Phone",
+                  WHERE b.Id = @Id AND b.IsDeleted = 0 AND b.CustomerId IN @CustomerIds",
                 new
                 {
                     Id = request.BookingId,
-                    Phone = phone,
+                    CustomerIds = customerIds,
                     Paid = (int)PaymentStatus.Paid,
                     Partial = (int)PaymentStatus.PartiallyPaid
                 },

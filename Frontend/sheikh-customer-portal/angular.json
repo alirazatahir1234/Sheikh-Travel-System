@@ -51,6 +51,11 @@
               {
                 "glob": "**/*",
                 "input": "public"
+              },
+              {
+                "glob": "**/*",
+                "input": "../sheikh-travel-frontend/public/brand",
+                "output": "brand"
               }
             ],
             "styles": [
@@ -125,6 +130,11 @@
               {
                 "glob": "**/*",
                 "input": "public"
+              },
+              {
+                "glob": "**/*",
+                "input": "../sheikh-travel-frontend/public/brand",
+                "output": "brand"
               }
             ],
             "styles": [

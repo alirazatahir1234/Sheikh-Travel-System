@@ -8,7 +8,8 @@ using SheikhTravelSystem.Domain.Enums;
 
 namespace SheikhTravelSystem.Application.Features.CustomerPortal.Queries;
 
-public record GetPortalBookingsByPhoneQuery(string Phone) : IRequest<ApiResponse<IReadOnlyList<PortalBookingCardDto>>>;
+public record GetPortalBookingsByPhoneQuery(string Phone, int? CustomerId = null)
+    : IRequest<ApiResponse<IReadOnlyList<PortalBookingCardDto>>>;
 
 public class GetPortalBookingsByPhoneQueryValidator : AbstractValidator<GetPortalBookingsByPhoneQuery>
 {
@@ -23,7 +24,11 @@ public class GetPortalBookingsByPhoneQueryHandler(IDbConnectionFactory dbFactory
 {
     public async Task<ApiResponse<IReadOnlyList<PortalBookingCardDto>>> Handle(GetPortalBookingsByPhoneQuery request, CancellationToken cancellationToken)
     {
-        var phone = request.Phone.Trim();
+        var customerIds = await PortalBookingAccess.ResolvePortalCustomerIdsAsync(
+            dbFactory, request.Phone, request.CustomerId, cancellationToken);
+        if (customerIds.Count == 0)
+            return ApiResponse<IReadOnlyList<PortalBookingCardDto>>.SuccessResponse([], "Bookings loaded.");
+
         using var connection = dbFactory.CreateConnection();
 
         var rows = await connection.QueryAsync<(
@@ -49,13 +54,12 @@ public class GetPortalBookingsByPhoneQueryHandler(IDbConnectionFactory dbFactory
                              AND p.IsDeleted = 0
                          ), 0) AS PaidAmount
                   FROM Bookings b
-                  INNER JOIN Customers c ON c.Id = b.CustomerId AND c.IsDeleted = 0
                   LEFT JOIN Routes r ON r.Id = b.RouteId AND r.IsDeleted = 0
-                  WHERE b.IsDeleted = 0 AND c.Phone = @Phone
+                  WHERE b.IsDeleted = 0 AND b.CustomerId IN @CustomerIds
                   ORDER BY b.PickupTime DESC",
                 new
                 {
-                    Phone = phone,
+                    CustomerIds = customerIds,
                     Paid = (int)PaymentStatus.Paid,
                     Partial = (int)PaymentStatus.PartiallyPaid
                 },

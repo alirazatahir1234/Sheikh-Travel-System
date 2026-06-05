@@ -118,6 +118,15 @@
                 </div>
               }
               <app-location-autocomplete formControlName="pickupLocation" label="Pickup" placeholder="Where from?" />
+              @if (session.isAuthenticated() && form.value.pickupLocation) {
+                <button
+                  type="button"
+                  class="text-xs font-semibold text-primary-600 underline"
+                  (click)="savePickupAsAddress()"
+                >
+                  Save pickup as favorite place
+                </button>
+              }
               <app-location-autocomplete formControlName="dropoffLocation" label="Drop-off" placeholder="Where to?" />
               @if (form.value.pickupLocation && form.value.dropoffLocation) {
                 <app-trip-map

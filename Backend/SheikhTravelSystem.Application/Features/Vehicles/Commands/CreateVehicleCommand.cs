@@ -26,18 +26,19 @@ public class CreateVehicleCommandValidator : AbstractValidator<CreateVehicleComm
     }
 }
 
-public class CreateVehicleCommandHandler(IDbConnectionFactory dbFactory)
+public class CreateVehicleCommandHandler(IDbConnectionFactory dbFactory, ITenantContext tenantContext)
     : IRequestHandler<CreateVehicleCommand, ApiResponse<int>>
 {
     public async Task<ApiResponse<int>> Handle(CreateVehicleCommand request, CancellationToken cancellationToken)
     {
         using var connection = dbFactory.CreateConnection();
         var dto = request.Vehicle;
+        var tenantId = tenantContext.GetRequiredTenantId();
 
         var exists = await connection.ExecuteScalarAsync<bool>(
             new CommandDefinition(
-                "SELECT CASE WHEN EXISTS(SELECT 1 FROM Vehicles WHERE RegistrationNumber = @Reg AND IsDeleted = 0) THEN 1 ELSE 0 END",
-                new { Reg = dto.RegistrationNumber },
+                "SELECT CASE WHEN EXISTS(SELECT 1 FROM Vehicles WHERE RegistrationNumber = @Reg AND IsDeleted = 0 AND TenantId = @TenantId) THEN 1 ELSE 0 END",
+                new { Reg = dto.RegistrationNumber, TenantId = tenantId },
                 cancellationToken: cancellationToken));
 
         if (exists)
@@ -45,13 +46,14 @@ public class CreateVehicleCommandHandler(IDbConnectionFactory dbFactory)
 
         var id = await connection.ExecuteScalarAsync<int>(
             new CommandDefinition(
-                @"INSERT INTO Vehicles (Name, RegistrationNumber, Model, Year, SeatingCapacity, FuelAverage, FuelType,
+                @"INSERT INTO Vehicles (TenantId, Name, RegistrationNumber, Model, Year, SeatingCapacity, FuelAverage, FuelType,
                   CurrentMileage, InsuranceExpiryDate, Status, CreatedAt, IsDeleted)
-                  VALUES (@Name, @RegistrationNumber, @Model, @Year, @SeatingCapacity, @FuelAverage, @FuelType,
+                  VALUES (@TenantId, @Name, @RegistrationNumber, @Model, @Year, @SeatingCapacity, @FuelAverage, @FuelType,
                   @CurrentMileage, @InsuranceExpiryDate, @Status, @CreatedAt, 0);
                   SELECT SCOPE_IDENTITY();",
                 new
                 {
+                    TenantId = tenantId,
                     dto.Name, dto.RegistrationNumber, dto.Model, dto.Year, dto.SeatingCapacity,
                     dto.FuelAverage, FuelType = (int)dto.FuelType, dto.CurrentMileage,
                     dto.InsuranceExpiryDate, Status = (int)Domain.Enums.VehicleStatus.Available,

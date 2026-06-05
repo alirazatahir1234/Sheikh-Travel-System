@@ -43,9 +43,9 @@ public class CalculatePriceCommandHandler(IDbConnectionFactory dbFactory)
         using var connection = dbFactory.CreateConnection();
         var req = request.Request;
 
-        var route = await connection.QuerySingleOrDefaultAsync<(decimal Distance, decimal BasePrice)?>
-            (new CommandDefinition(
-                "SELECT Distance, BasePrice FROM Routes WHERE Id = @Id",
+        var route = await connection.QuerySingleOrDefaultAsync<RoutePricingRow>(
+            new CommandDefinition(
+                "SELECT Distance, BasePrice FROM Routes WHERE Id = @Id AND IsDeleted = 0 AND IsActive = 1",
                 new { Id = req.RouteId },
                 cancellationToken: cancellationToken));
 
@@ -64,11 +64,11 @@ public class CalculatePriceCommandHandler(IDbConnectionFactory dbFactory)
         // Formula: FuelCost = (Distance / FuelAverage) × FuelPricePerLiter × TripMultiplier
         // TripMultiplier = 2 for round trips (driver must return), 1 for one-way
         var tripMultiplier = req.IsRoundTrip ? 2.0m : 1.0m;
-        var fuelCost = (route.Value.Distance / fuelAverage.Value) * req.FuelPricePerLiter * tripMultiplier;
+        var fuelCost = (route.Distance / fuelAverage.Value) * req.FuelPricePerLiter * tripMultiplier;
         var total = fuelCost + req.DriverAllowance + req.TollCharges + req.OtherCharges;
 
         var breakdown = new PriceBreakdown(
-            Distance: route.Value.Distance,
+            Distance: route.Distance,
             FuelAverage: fuelAverage.Value,
             FuelPricePerLiter: req.FuelPricePerLiter,
             FuelCost: Math.Round(fuelCost, 2),
@@ -79,5 +79,11 @@ public class CalculatePriceCommandHandler(IDbConnectionFactory dbFactory)
             IsRoundTrip: req.IsRoundTrip);
 
         return ApiResponse<PriceBreakdown>.SuccessResponse(breakdown, "Price calculated successfully.");
+    }
+
+    private sealed class RoutePricingRow
+    {
+        public decimal Distance { get; init; }
+        public decimal BasePrice { get; init; }
     }
 }

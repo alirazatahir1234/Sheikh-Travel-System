@@ -13,4 +13,5 @@ public class Driver : BaseEntity
     public string? Address { get; set; }
     public DriverStatus Status { get; set; } = DriverStatus.Available;
     public bool IsActive { get; set; } = true;
+    public int? UserId { get; set; }
 }

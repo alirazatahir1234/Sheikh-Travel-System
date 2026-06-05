@@ -71,6 +71,10 @@ export class AuthService {
     return user?.roles?.includes(role) ?? false;
   }
 
+  getHomeRoute(): string {
+    return this.hasRole('Driver') ? '/my-trips' : '/dashboard';
+  }
+
   /** Backend sends a single `role` string; normalize to `roles[]` for the rest of the app. */
   private normalize(dto: LoginResponseDto): LoginResponse {
     if (!dto?.accessToken) {

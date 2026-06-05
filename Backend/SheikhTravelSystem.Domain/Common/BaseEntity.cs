@@ -3,6 +3,7 @@ namespace SheikhTravelSystem.Domain.Common;
 public abstract class BaseEntity
 {
     public int Id { get; set; }
+    public int TenantId { get; set; } = 1;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? UpdatedAt { get; set; }
     public string? CreatedBy { get; set; }

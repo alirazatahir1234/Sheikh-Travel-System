@@ -78,6 +78,8 @@ public record PortalSavedAddressDto(int Id, string Label, string AddressLine, do
 
 public record PortalSaveAddressRequest(string Label, string AddressLine, double Latitude, double Longitude);
 
+public record AddPortalFavoriteRouteRequest(int RouteId, string? Label);
+
 public record PortalCustomerNotificationDto(
     int Id,
     string Title,

@@ -1,8 +1,9 @@
 import { DecimalPipe } from '@angular/common';
+import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, DestroyRef, effect, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
-import { PortalBookingCardDto } from '../../core/models/portal.models';
+import { PortalBookingCardDto, PortalPaymentGatewayInfoDto } from '../../core/models/portal.models';
 import { CustomerSessionService } from '../../core/services/customer-session.service';
 import { PortalApiService } from '../../core/services/portal-api.service';
 
@@ -44,12 +45,24 @@ import { PortalApiService } from '../../core/services/portal-api.service';
                 Remaining:
                 <span class="text-lg font-bold text-rose-600">PKR {{ b.remaining | number : '1.2-2' }}</span>
               </p>
-              <a
-                [routerLink]="['/bookings', b.id]"
-                [queryParams]="{ pay: '1' }"
-                class="mt-4 inline-flex w-full justify-center rounded-xl bg-primary-600 py-2.5 text-sm font-bold text-white hover:bg-primary-700"
-                >Pay now</a
-              >
+              <div class="mt-4 grid gap-2 sm:grid-cols-2">
+                @if (gatewayInfo()?.enabled) {
+                  <button
+                    type="button"
+                    class="inline-flex w-full justify-center rounded-xl bg-primary-600 py-2.5 text-sm font-bold text-white hover:bg-primary-700 disabled:cursor-not-allowed disabled:opacity-60"
+                    [disabled]="checkoutBusyId() === b.id"
+                    (click)="startCheckout(b)"
+                  >
+                    {{ checkoutBusyId() === b.id ? 'Redirecting…' : 'Pay online' }}
+                  </button>
+                }
+                <a
+                  [routerLink]="['/bookings', b.id]"
+                  [queryParams]="{ pay: '1' }"
+                  class="inline-flex w-full justify-center rounded-xl border border-slate-200 bg-white py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50"
+                  >Manual payment</a
+                >
+              </div>
             </article>
           }
         </div>
@@ -66,13 +79,18 @@ export class PaymentsPageComponent {
   readonly error = signal<string | null>(null);
   readonly outstanding = signal<PortalBookingCardDto[]>([]);
   readonly gatewayNote = signal<string | null>(null);
+  readonly gatewayInfo = signal<PortalPaymentGatewayInfoDto | null>(null);
+  readonly checkoutBusyId = signal<number | null>(null);
 
   constructor() {
     this.api
       .getPaymentGatewayInfo()
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
-        next: (g) => this.gatewayNote.set(g.message)
+        next: (g) => {
+          this.gatewayInfo.set(g);
+          this.gatewayNote.set(g.message);
+        }
       });
     this.loadOutstanding();
     effect(() => {
@@ -98,6 +116,31 @@ export class PaymentsPageComponent {
         error: () => {
           this.error.set('Could not load balances.');
           this.loading.set(false);
+        }
+      });
+  }
+
+  startCheckout(booking: PortalBookingCardDto): void {
+    if (booking.remaining <= 0 || this.checkoutBusyId()) {
+      return;
+    }
+
+    this.error.set(null);
+    this.checkoutBusyId.set(booking.id);
+    this.api
+      .createPaymentCheckout({ bookingId: booking.id, amount: booking.remaining })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (checkout) => {
+          window.location.assign(checkout.checkoutUrl);
+        },
+        error: (e: unknown) => {
+          this.checkoutBusyId.set(null);
+          if (e instanceof HttpErrorResponse) {
+            this.error.set((e.error as { message?: string })?.message || e.message);
+          } else {
+            this.error.set('Could not start online payment.');
+          }
         }
       });
   }

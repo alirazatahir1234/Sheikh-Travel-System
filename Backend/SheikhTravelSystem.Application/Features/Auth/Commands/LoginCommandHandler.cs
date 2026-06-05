@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Domain.Entities;
+using SheikhTravelSystem.Domain.Enums;
 
 namespace SheikhTravelSystem.Application.Features.Auth.Commands;
 
@@ -27,7 +28,7 @@ public class LoginCommandHandler(
 
         var user = await connection.QuerySingleOrDefaultAsync<User>(
             new CommandDefinition(
-                @"SELECT Id, FullName, Email, PasswordHash, Phone, Role, IsActive,
+                @"SELECT Id, TenantId, FullName, Email, PasswordHash, Phone, Role, IsActive,
                   RefreshToken, RefreshTokenExpiryTime, CreatedAt, UpdatedAt, IsDeleted
                   FROM Users WHERE Email = @Email AND IsDeleted = 0 AND IsActive = 1",
                 new { request.Email },
@@ -39,7 +40,16 @@ public class LoginCommandHandler(
             return ApiResponse<LoginResponse>.FailResponse("Invalid email or password.");
         }
 
-        var accessToken = jwtTokenService.GenerateAccessToken(user);
+        int? driverId = null;
+        if (user.Role == UserRole.Driver)
+        {
+            driverId = await connection.ExecuteScalarAsync<int?>(new CommandDefinition(
+                "SELECT Id FROM Drivers WHERE UserId = @UserId AND IsDeleted = 0",
+                new { UserId = user.Id },
+                cancellationToken: cancellationToken));
+        }
+
+        var accessToken = jwtTokenService.GenerateAccessToken(user, driverId);
         var refreshToken = jwtTokenService.GenerateRefreshToken();
         var expiryDays = int.TryParse(configuration["JwtSettings:RefreshTokenExpiryDays"], out var days) ? days : 7;
 

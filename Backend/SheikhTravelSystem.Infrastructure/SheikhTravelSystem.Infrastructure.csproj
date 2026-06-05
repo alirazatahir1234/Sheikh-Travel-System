@@ -17,6 +17,7 @@
     <PackageReference Include="Serilog.Sinks.File" Version="6.0.0" />
     <PackageReference Include="Azure.AI.FormRecognizer" Version="4.1.0" />
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="Stripe.net" Version="51.2.0" />
   </ItemGroup>
 
   <ItemGroup>

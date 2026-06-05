@@ -81,7 +81,7 @@ function pickupNotInPastValidator(control: AbstractControl): ValidationErrors | 
 export class BookRidePageComponent {
   private readonly fb = inject(FormBuilder);
   private readonly portal = inject(PortalApiService);
-  private readonly session = inject(CustomerSessionService);
+  readonly session = inject(CustomerSessionService);
   private readonly destroyRef = inject(DestroyRef);
 
   readonly step = signal(0);
@@ -241,6 +241,26 @@ export class BookRidePageComponent {
     this.useCustomRoute.set(false);
     this.form.patchValue({ routeId });
     this.setBookingMode(false);
+  }
+
+  savePickupAsAddress(): void {
+    const loc = this.form.value.pickupLocation;
+    if (!loc) return;
+    const label = prompt('Name this place (e.g. Home, Office)', 'Saved place');
+    if (!label?.trim()) return;
+    this.portal
+      .saveAddress({
+        label: label.trim(),
+        addressLine: loc.address,
+        latitude: loc.lat,
+        longitude: loc.lng
+      })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.portal.getSavedAddresses().subscribe((a) => this.savedAddresses.set(a));
+        }
+      });
   }
 
   applySavedAddress(addr: PortalSavedAddressDto, which: 'pickup' | 'dropoff'): void {
@@ -515,6 +535,9 @@ export class BookRidePageComponent {
     }
 
     const v = this.form.getRawValue();
+    const phone = this.session.isAuthenticated() && this.session.phone()
+      ? this.session.phone()!.trim()
+      : v.phone!.trim();
     const pickupIso = new Date(v.pickupLocal!).toISOString();
     const p = v.pickupLocation;
     const d = v.dropoffLocation;
@@ -523,7 +546,7 @@ export class BookRidePageComponent {
     this.portal
       .createBooking({
         fullName: v.fullName!.trim(),
-        phone: v.phone!.trim(),
+        phone,
         email: v.email?.trim() || null,
         routeId: this.useCustomRoute() ? (v.routeId ?? null) : v.routeId!,
         vehicleId: v.vehicleId!,
@@ -552,7 +575,9 @@ export class BookRidePageComponent {
       .subscribe({
         next: (c) => {
           this.confirmation.set(c);
-          this.session.setLocalProfile(v.phone!.trim(), v.fullName!.trim());
+          if (!this.session.isAuthenticated()) {
+            this.session.setLocalProfile(phone, v.fullName!.trim());
+          }
           this.submitBusy.set(false);
         },
         error: (e) => {

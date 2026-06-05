@@ -1,0 +1,56 @@
+<div class="driver-page">
+  <header class="driver-header stb-elevated">
+    <div>
+      <h1>My trips</h1>
+      <p>Assigned bookings — start, complete, or decline</p>
+    </div>
+    <button mat-stroked-button type="button" (click)="load()" [disabled]="loading">
+      <mat-icon>refresh</mat-icon>
+      Refresh
+    </button>
+  </header>
+
+  <div class="driver-loading" *ngIf="loading">
+    <mat-spinner diameter="40"></mat-spinner>
+  </div>
+
+  <div class="driver-empty" *ngIf="!loading && !trips.length">
+    <mat-icon>event_busy</mat-icon>
+    <p>No assigned trips right now.</p>
+  </div>
+
+  <div class="trip-grid" *ngIf="!loading && trips.length">
+    <mat-card class="trip-card" *ngFor="let trip of trips">
+      <mat-card-header>
+        <mat-card-title>{{ trip.bookingNumber }}</mat-card-title>
+        <mat-card-subtitle>{{ trip.routeName }}</mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content>
+        <p><mat-icon>person</mat-icon> {{ trip.customerName }}</p>
+        <p><mat-icon>schedule</mat-icon> Pickup {{ formatWhen(trip.pickupTime) }}</p>
+        <p *ngIf="trip.vehicleName"><mat-icon>directions_bus</mat-icon> {{ trip.vehicleName }}</p>
+        <span class="status-chip" [class.started]="isStarted(trip)">{{ trip.statusName }}</span>
+      </mat-card-content>
+      <mat-card-actions align="end">
+        <button mat-button type="button" color="warn"
+                *ngIf="isConfirmed(trip)"
+                [disabled]="actionId === trip.id"
+                (click)="rejectTrip(trip)">
+          Decline
+        </button>
+        <button mat-flat-button color="primary" type="button"
+                *ngIf="isConfirmed(trip)"
+                [disabled]="actionId === trip.id"
+                (click)="startTrip(trip)">
+          Start trip
+        </button>
+        <button mat-flat-button color="primary" type="button"
+                *ngIf="isStarted(trip)"
+                [disabled]="actionId === trip.id"
+                (click)="completeTrip(trip)">
+          Complete trip
+        </button>
+      </mat-card-actions>
+    </mat-card>
+  </div>
+</div>

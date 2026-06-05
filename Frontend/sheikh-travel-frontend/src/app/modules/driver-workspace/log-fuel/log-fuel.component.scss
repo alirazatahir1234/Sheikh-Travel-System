@@ -1,0 +1,25 @@
+@import '../my-trips/my-trips.component.scss';
+
+.fuel-form-card {
+  max-width: 640px;
+}
+
+.full {
+  width: 100%;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.hint {
+  opacity: 0.8;
+}
+
+@media (max-width: 600px) {
+  .row {
+    grid-template-columns: 1fr;
+  }
+}

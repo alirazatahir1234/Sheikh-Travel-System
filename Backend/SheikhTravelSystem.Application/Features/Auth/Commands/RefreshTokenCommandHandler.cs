@@ -4,6 +4,7 @@ using Microsoft.Extensions.Configuration;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Domain.Entities;
+using SheikhTravelSystem.Domain.Enums;
 
 namespace SheikhTravelSystem.Application.Features.Auth.Commands;
 
@@ -33,7 +34,16 @@ public class RefreshTokenCommandHandler(
         if (user is null)
             return ApiResponse<LoginResponse>.FailResponse("Invalid or expired refresh token.");
 
-        var accessToken = jwtTokenService.GenerateAccessToken(user);
+        int? driverId = null;
+        if (user.Role == UserRole.Driver)
+        {
+            driverId = await connection.ExecuteScalarAsync<int?>(new CommandDefinition(
+                "SELECT Id FROM Drivers WHERE UserId = @UserId AND IsDeleted = 0",
+                new { UserId = user.Id },
+                cancellationToken: cancellationToken));
+        }
+
+        var accessToken = jwtTokenService.GenerateAccessToken(user, driverId);
         var newRefreshToken = jwtTokenService.GenerateRefreshToken();
         var expiryDays = int.TryParse(configuration["JwtSettings:RefreshTokenExpiryDays"], out var days) ? days : 7;
 

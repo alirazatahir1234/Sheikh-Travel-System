@@ -35,4 +35,24 @@ export class VehicleService {
   toggleStatus(id: number): Observable<boolean> {
     return this.http.patch<boolean>(`${this.base}/${id}/toggle-status`, {});
   }
+
+  getDocuments(vehicleId: number): Observable<VehicleDocument[]> {
+    return this.http.get<VehicleDocument[]>(`${this.base}/${vehicleId}/documents`);
+  }
+
+  addDocument(
+    vehicleId: number,
+    body: { documentType: string; fileUrl?: string; expiryDate?: string; notes?: string }
+  ): Observable<number> {
+    return this.http.post<number>(`${this.base}/${vehicleId}/documents`, body);
+  }
+}
+
+export interface VehicleDocument {
+  id: number;
+  vehicleId: number;
+  documentType: string;
+  fileUrl?: string;
+  expiryDate?: string;
+  notes?: string;
 }

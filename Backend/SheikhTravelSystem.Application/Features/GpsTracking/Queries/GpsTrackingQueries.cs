@@ -9,18 +9,21 @@ namespace SheikhTravelSystem.Application.Features.GpsTracking.Queries;
 
 public record GetLivePositionsQuery : IRequest<ApiResponse<List<PositionDto>>>;
 
-public class GetLivePositionsQueryHandler(IDbConnectionFactory dbFactory)
+public class GetLivePositionsQueryHandler(IDbConnectionFactory dbFactory, ITenantContext tenantContext)
     : IRequestHandler<GetLivePositionsQuery, ApiResponse<List<PositionDto>>>
 {
     public async Task<ApiResponse<List<PositionDto>>> Handle(GetLivePositionsQuery request, CancellationToken cancellationToken)
     {
         using var connection = dbFactory.CreateConnection();
+        var tenantId = tenantContext.GetRequiredTenantId();
         var rows = await connection.QueryAsync<PositionDto>(new CommandDefinition(
             @"SELECT vcl.VehicleId AS Id, vcl.VehicleId, vcl.DriverId, vcl.BookingId, vcl.GpsDeviceId,
                      vcl.Latitude, vcl.Longitude, ISNULL(vcl.Speed, 0) AS Speed, vcl.Heading, NULL AS Altitude,
                      vcl.Ignition, vcl.LastUpdate AS Timestamp
               FROM VehicleCurrentLocation vcl
+              INNER JOIN Vehicles v ON v.Id = vcl.VehicleId AND v.TenantId = @TenantId
               WHERE vcl.LastUpdate > DATEADD(MINUTE, -30, GETUTCDATE())",
+            new { TenantId = tenantId },
             cancellationToken: cancellationToken));
 
         return ApiResponse<List<PositionDto>>.SuccessResponse(rows.ToList());
@@ -281,9 +284,9 @@ public class GetGpsEtaQueryHandler(IDbConnectionFactory dbFactory)
     public async Task<ApiResponse<GpsEtaDto>> Handle(GetGpsEtaQuery request, CancellationToken cancellationToken)
     {
         using var connection = dbFactory.CreateConnection();
-        var booking = await connection.QueryFirstOrDefaultAsync<(int Id, int? VehicleId, string? RouteSource)>(
+        var booking = await connection.QueryFirstOrDefaultAsync<(int Id, int? VehicleId, string? RouteSource, double? PickupLat, double? PickupLng)>(
             new CommandDefinition(
-                @"SELECT b.Id, b.VehicleId, r.Source AS RouteSource
+                @"SELECT b.Id, b.VehicleId, r.Source AS RouteSource, b.PickupLat, b.PickupLng
                   FROM Bookings b
                   LEFT JOIN Routes r ON r.Id = b.RouteId
                   WHERE b.Id = @Id AND b.IsDeleted = 0",
@@ -306,7 +309,9 @@ public class GetGpsEtaQueryHandler(IDbConnectionFactory dbFactory)
             return ApiResponse<GpsEtaDto>.FailResponse("No GPS position available for assigned vehicle.");
         }
 
-        var (pickupLat, pickupLng) = ResolvePickupCoordinates(booking.RouteSource);
+        var (pickupLat, pickupLng) = booking.PickupLat.HasValue && booking.PickupLng.HasValue
+            ? (booking.PickupLat.Value, booking.PickupLng.Value)
+            : ResolvePickupCoordinates(booking.RouteSource);
 
         var distanceKm = GpsGeoHelper.HaversineKm(position.Lat, position.Lng, pickupLat, pickupLng);
         var etaMinutes = distanceKm > 0 ? (int)Math.Ceiling(distanceKm / 40.0 * 60) : 0;

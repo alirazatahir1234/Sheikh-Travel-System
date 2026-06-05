@@ -7,6 +7,7 @@ using SheikhTravelSystem.Infrastructure.Authentication;
 using SheikhTravelSystem.Infrastructure.Persistence;
 using SheikhTravelSystem.Infrastructure.Persistence.Migrations;
 using SheikhTravelSystem.Infrastructure.Services;
+using SheikhTravelSystem.Infrastructure.Services.Payments;
 using SheikhTravelSystem.Infrastructure.Services.Ocr;
 
 namespace SheikhTravelSystem.Infrastructure;
@@ -22,9 +23,17 @@ public static class DependencyInjection
         services.Configure<PortalPaymentGatewaySettings>(configuration.GetSection(PortalPaymentGatewaySettings.SectionName));
         services.AddSingleton<IPortalOtpService, PortalOtpStore>();
         services.AddScoped<ICurrentUserService, CurrentUserService>();
+        services.AddScoped<ITenantContext, TenantContext>();
         services.AddScoped<IDatabaseSeeder, DatabaseSeeder>();
         services.AddScoped<IAuditService, AuditService>();
         services.AddScoped<INotificationService, NotificationService>();
+        services.AddScoped<ISmsOtpService, ConsoleSmsOtpService>();
+        services.AddScoped<PaymentGatewayPaymentRecorder>();
+        services.AddScoped<IPaymentGatewayProvider, StripePaymentGatewayService>();
+        services.AddScoped<IPaymentGatewayProvider, JazzCashPaymentGatewayService>();
+        services.AddScoped<IPaymentGatewayProvider, EasyPaisaPaymentGatewayService>();
+        services.AddScoped<IPaymentGatewayService, ConfiguredPaymentGatewayService>();
+        services.AddHostedService<ComplianceReminderHostedService>();
         services.Configure<GpsSettings>(configuration.GetSection(GpsSettings.SectionName));
         services.Configure<OcrOptions>(configuration.GetSection(OcrOptions.SectionName));
         services.Configure<TranslatorOptions>(configuration.GetSection(TranslatorOptions.SectionName));

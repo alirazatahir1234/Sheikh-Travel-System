@@ -8,6 +8,7 @@ import { BookingService } from '../../../core/services/booking.service';
 import { FuelLogService } from '../../../core/services/fuel-log.service';
 import { MaintenanceService } from '../../../core/services/maintenance.service';
 import { Vehicle, VehicleStatus, VehicleStatusLabels } from '../../../core/models/vehicle.model';
+import { VehicleDocument } from '../../../core/services/vehicle.service';
 import { Booking } from '../../../core/models/booking.model';
 import { FuelLog, FuelTypeLabels, FuelType } from '../../../core/models/fuel-log.model';
 import { Maintenance, MaintenanceStatusLabels, MaintenanceStatus } from '../../../core/models/maintenance.model';
@@ -25,6 +26,7 @@ export class VehicleProfileComponent implements OnInit {
   recentBookings: Booking[] = [];
   recentFuelLogs: FuelLog[] = [];
   recentMaintenance: Maintenance[] = [];
+  documents: VehicleDocument[] = [];
 
   totalFuelCost = 0;
   totalFuelLiters = 0;
@@ -55,10 +57,12 @@ export class VehicleProfileComponent implements OnInit {
       vehicle: this.vehicleService.getById(id),
       bookings: this.bookingService.getAll(1, 500).pipe(catchError(() => of({ items: [] }))),
       fuelLogs: this.fuelLogService.getAll(1, 500).pipe(catchError(() => of({ items: [] }))),
-      maintenance: this.maintenanceService.getAll(1, 500).pipe(catchError(() => of({ items: [] })))
+      maintenance: this.maintenanceService.getAll(1, 500).pipe(catchError(() => of({ items: [] }))),
+      documents: this.vehicleService.getDocuments(id).pipe(catchError(() => of([])))
     }).subscribe({
-      next: ({ vehicle, bookings, fuelLogs, maintenance }) => {
+      next: ({ vehicle, bookings, fuelLogs, maintenance, documents }) => {
         this.vehicle = vehicle;
+        this.documents = documents;
 
         this.recentBookings = bookings.items
           .filter(b => b.vehicleId === id)

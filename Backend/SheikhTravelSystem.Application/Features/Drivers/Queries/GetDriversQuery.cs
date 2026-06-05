@@ -8,26 +8,28 @@ namespace SheikhTravelSystem.Application.Features.Drivers.Queries;
 
 public record GetDriversQuery(int Page = 1, int PageSize = 20) : IRequest<ApiResponse<PagedResult<DriverDto>>>;
 
-public class GetDriversQueryHandler(IDbConnectionFactory dbFactory)
+public class GetDriversQueryHandler(IDbConnectionFactory dbFactory, ITenantContext tenantContext)
     : IRequestHandler<GetDriversQuery, ApiResponse<PagedResult<DriverDto>>>
 {
     public async Task<ApiResponse<PagedResult<DriverDto>>> Handle(GetDriversQuery request, CancellationToken cancellationToken)
     {
         using var connection = dbFactory.CreateConnection();
         var offset = (request.Page - 1) * request.PageSize;
+        var tenantId = tenantContext.GetRequiredTenantId();
 
         var drivers = await connection.QueryAsync<DriverDto>(
             new CommandDefinition(
                 @"SELECT Id, FullName, Phone, LicenseNumber, LicenseExpiryDate, CNIC, Address, Status, IsActive, CreatedAt
-                  FROM Drivers WHERE IsDeleted = 0
+                  FROM Drivers WHERE IsDeleted = 0 AND TenantId = @TenantId
                   ORDER BY CreatedAt DESC
                   OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY",
-                new { Offset = offset, request.PageSize },
+                new { Offset = offset, request.PageSize, TenantId = tenantId },
                 cancellationToken: cancellationToken));
 
         var totalCount = await connection.ExecuteScalarAsync<int>(
             new CommandDefinition(
-                "SELECT COUNT(*) FROM Drivers WHERE IsDeleted = 0",
+                "SELECT COUNT(*) FROM Drivers WHERE IsDeleted = 0 AND TenantId = @TenantId",
+                new { TenantId = tenantId },
                 cancellationToken: cancellationToken));
 
         var result = new PagedResult<DriverDto>

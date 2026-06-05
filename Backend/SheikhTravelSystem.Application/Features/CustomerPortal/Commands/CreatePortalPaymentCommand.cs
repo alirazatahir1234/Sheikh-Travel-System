@@ -9,7 +9,11 @@ using SheikhTravelSystem.Application.Features.Payments.DTOs;
 
 namespace SheikhTravelSystem.Application.Features.CustomerPortal.Commands;
 
-public record CreatePortalPaymentCommand(int BookingId, string Phone, CreatePortalPaymentRequest Request)
+public record CreatePortalPaymentCommand(
+    int BookingId,
+    string Phone,
+    CreatePortalPaymentRequest Request,
+    int? CustomerId = null)
     : IRequest<ApiResponse<int>>;
 
 public class CreatePortalPaymentCommandValidator : AbstractValidator<CreatePortalPaymentCommand>
@@ -30,7 +34,8 @@ public class CreatePortalPaymentCommandHandler(IDbConnectionFactory dbFactory, I
 {
     public async Task<ApiResponse<int>> Handle(CreatePortalPaymentCommand request, CancellationToken cancellationToken)
     {
-        if (!await PortalBookingAccess.PhoneOwnsBookingAsync(dbFactory, request.BookingId, request.Phone, cancellationToken))
+        if (!await PortalBookingAccess.CustomerOwnsBookingAsync(
+                dbFactory, request.BookingId, request.Phone, request.CustomerId, cancellationToken))
             return ApiResponse<int>.FailResponse("Booking not found for this phone number.");
 
         return await mediator.Send(

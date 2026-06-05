@@ -283,8 +283,15 @@ export class BookingDetailPageComponent {
             setTimeout(() => document.querySelector('app-booking-tracking')?.scrollIntoView({ behavior: 'smooth' }), 100);
           }
         },
-        error: () => {
-          this.error.set('Booking not found or phone does not match.');
+        error: (e: unknown) => {
+          const msg =
+            e instanceof HttpErrorResponse
+              ? (e.error as { message?: string })?.message
+              : undefined;
+          this.error.set(
+            msg ||
+              'This booking is not linked to your signed-in phone. Sign out on Profile, sign in again with the same number used when booking, then open the trip from My bookings.'
+          );
           this.loading.set(false);
         }
       });

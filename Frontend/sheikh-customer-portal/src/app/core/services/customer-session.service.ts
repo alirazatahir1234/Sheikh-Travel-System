@@ -23,6 +23,11 @@ export class CustomerSessionService {
     return !!this.phone()?.trim() && !!this.accessToken()?.trim();
   }
 
+  /** Alias used in templates (OTP sign-in with JWT). */
+  isSignedIn(): boolean {
+    return this.isAuthenticated();
+  }
+
   /** Saves name/phone for form prefill after anonymous booking (no JWT). */
   setLocalProfile(phone: string, fullName: string): void {
     const p = phone.trim();

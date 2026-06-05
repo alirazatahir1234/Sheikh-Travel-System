@@ -25,6 +25,7 @@ public class DatabaseSeeder(
         await SeedCustomersAsync(connection, cancellationToken);
         await SeedVehiclesAsync(connection, cancellationToken);
         await SeedDriversAsync(connection, cancellationToken);
+        await LinkDriverAppUsersAsync(connection, cancellationToken);
         await SeedRoutesAsync(connection, cancellationToken);
         await SeedBookingsAsync(connection, cancellationToken);
         await SeedPaymentsAsync(connection, cancellationToken);
@@ -128,11 +129,11 @@ public class DatabaseSeeder(
 
             if (exists)
             {
-                // Update existing admin password to ensure it matches the default
-                if (u.Email == "admin@sheikhtravel.com")
+                // Keep demo passwords in sync for local / driver app testing
+                if (u.Email is "admin@sheikhtravel.com" or "driver@sheikhtravel.com")
                 {
                     await connection.ExecuteAsync(new CommandDefinition(
-                        "UPDATE Users SET PasswordHash = @PasswordHash WHERE Email = @Email",
+                        "UPDATE Users SET PasswordHash = @PasswordHash, IsActive = 1, IsDeleted = 0 WHERE Email = @Email",
                         new { PasswordHash = passwordHasher.Hash(u.Password), u.Email },
                         cancellationToken: ct));
                     logger.LogInformation("Updated password for {Email}", u.Email);
@@ -245,6 +246,27 @@ public class DatabaseSeeder(
             cancellationToken: ct));
 
         logger.LogInformation("Seeded {Count} drivers", rows.Length);
+    }
+
+    /// <summary>Links the driver user account to a Drivers row for mobile app login.</summary>
+    private async Task LinkDriverAppUsersAsync(System.Data.IDbConnection connection, CancellationToken ct)
+    {
+        var colExists = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
+            "SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'Drivers' AND COLUMN_NAME = 'UserId'",
+            cancellationToken: ct));
+        if (colExists == 0) return;
+
+        await connection.ExecuteAsync(new CommandDefinition(
+            """
+            UPDATE d SET d.UserId = u.Id, d.Phone = u.Phone
+            FROM Drivers d
+            INNER JOIN Users u ON u.Email = 'driver@sheikhtravel.com' AND u.IsDeleted = 0 AND u.Role = 3
+            WHERE d.IsDeleted = 0
+              AND d.Id = (SELECT MIN(Id) FROM Drivers WHERE IsDeleted = 0);
+            """,
+            cancellationToken: ct));
+
+        logger.LogInformation("Driver app user link ensured for driver@sheikhtravel.com.");
     }
 
     // ---------------------------------------------------------------------

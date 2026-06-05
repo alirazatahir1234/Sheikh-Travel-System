@@ -7,15 +7,23 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Serilog;
 using SheikhTravelSystem.API.Middleware;
+using SheikhTravelSystem.Infrastructure.Authentication;
 using Microsoft.Extensions.Options;
 using SheikhTravelSystem.Application;
 using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Application.Features.GpsTracking;
 using SheikhTravelSystem.Infrastructure;
+using SheikhTravelSystem.Application.Features.CustomerPortal.Commands;
 using SheikhTravelSystem.Infrastructure.Persistence.Migrations;
 using SheikhTravelSystem.Infrastructure.SignalR;
 
 var builder = WebApplication.CreateBuilder(args);
+
+if (builder.Environment.IsDevelopment())
+{
+    builder.Services.Configure<HostOptions>(o =>
+        o.BackgroundServiceExceptionBehavior = BackgroundServiceExceptionBehavior.Ignore);
+}
 
 // Serilog
 builder.Host.UseSerilog((context, config) => config.ReadFrom.Configuration(context.Configuration));
@@ -111,6 +119,13 @@ builder.Services.AddCors(options =>
 
                 if (Uri.TryCreate(origin, UriKind.Absolute, out var uri))
                 {
+                    // Flutter web / local dev (driver app, etc.)
+                    if (uri.Scheme is "http" or "https"
+                        && (uri.Host is "localhost" or "127.0.0.1"))
+                    {
+                        return true;
+                    }
+
                     // Allow Vercel preview deployments for admin and customer portal projects.
                     return uri.Scheme == Uri.UriSchemeHttps
                         && uri.Host.EndsWith(".vercel.app", StringComparison.OrdinalIgnoreCase)
@@ -205,6 +220,18 @@ using (var scope = app.Services.CreateScope())
         var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
         logger.LogError(ex, "Portal schema migration failed at startup.");
     }
+
+    try
+    {
+        var dbFactory = scope.ServiceProvider.GetRequiredService<IDbConnectionFactory>();
+        var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+        await TenantSchemaMigration.ApplyAsync(dbFactory, logger);
+    }
+    catch (Exception ex)
+    {
+        var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+        logger.LogError(ex, "Tenant schema migration failed at startup.");
+    }
 }
 
 // Seed baseline data on startup (idempotent — only fills empty tables).
@@ -214,6 +241,9 @@ using (var scope = app.Services.CreateScope())
     {
         var seeder = scope.ServiceProvider.GetRequiredService<IDatabaseSeeder>();
         await seeder.SeedAsync();
+
+        var dbFactory = scope.ServiceProvider.GetRequiredService<IDbConnectionFactory>();
+        await PortalCustomerWriter.NormalizeCustomerPhonesAsync(dbFactory);
     }
     catch (Exception ex)
     {
@@ -236,6 +266,7 @@ if (app.Environment.IsDevelopment())
 app.UseCors("AllowFrontendClients");
 app.UseRateLimiter();
 app.UseAuthentication();
+app.UseMiddleware<TenantResolutionMiddleware>();
 app.UseAuthorization();
 app.MapControllers();
 app.MapHub<TrackingHub>("/hubs/tracking");

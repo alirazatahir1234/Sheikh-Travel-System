@@ -111,12 +111,44 @@ public static class PortalCustomerWriter
         string phone,
         CancellationToken cancellationToken)
     {
-        using var connection = dbFactory.CreateConnection();
-        return await connection.ExecuteScalarAsync<int?>(
-            new CommandDefinition(
-                "SELECT TOP 1 Id FROM Customers WHERE Phone = @Phone AND IsDeleted = 0",
-                new { Phone = phone.Trim() },
-                cancellationToken: cancellationToken));
+        var ids = await PortalBookingAccess.ResolvePortalCustomerIdsAsync(dbFactory, phone, null, cancellationToken);
+        return ids.Count > 0 ? ids[0] : null;
+    }
+
+    public static Task NormalizeCustomerPhonesAsync(
+        IDbConnectionFactory dbFactory,
+        CancellationToken cancellationToken = default)
+        => PortalBookingAccess.NormalizeCustomerPhonesAsync(dbFactory, cancellationToken);
+
+    public static async Task<int> EnsureCustomerAsync(
+        IDbConnectionFactory dbFactory,
+        string phone,
+        string fullName,
+        int tenantId,
+        CancellationToken cancellationToken)
+    {
+        var normalized = PortalPhoneHelper.Normalize(phone);
+        var existing = await ResolveCustomerIdByPhoneAsync(dbFactory, phone, cancellationToken);
+        if (existing.HasValue)
+        {
+            using (var connection = dbFactory.CreateConnection())
+            {
+                await connection.ExecuteAsync(new CommandDefinition(
+                    "UPDATE Customers SET Phone = @Phone, FullName = @FullName WHERE Id = @Id AND IsDeleted = 0",
+                    new { Phone = normalized, FullName = fullName.Trim(), Id = existing.Value },
+                    cancellationToken: cancellationToken));
+            }
+
+            return existing.Value;
+        }
+
+        using var insert = dbFactory.CreateConnection();
+        return await insert.ExecuteScalarAsync<int>(new CommandDefinition(
+            @"INSERT INTO Customers (FullName, Phone, IsActive, TenantId, CreatedAt, CreatedBy, IsDeleted)
+              VALUES (@FullName, @Phone, 1, @TenantId, SYSUTCDATETIME(), 'portal', 0);
+              SELECT CAST(SCOPE_IDENTITY() AS INT);",
+            new { FullName = fullName.Trim(), Phone = normalized, TenantId = tenantId },
+            cancellationToken: cancellationToken));
     }
 
     public static async Task WriteCustomerNotificationAsync(

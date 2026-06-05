@@ -10,7 +10,7 @@ using SheikhTravelSystem.Domain.Enums;
 
 namespace SheikhTravelSystem.Application.Features.CustomerPortal.Queries;
 
-public record GetPortalBookingTrackingQuery(int BookingId, string Phone)
+public record GetPortalBookingTrackingQuery(int BookingId, string Phone, int? CustomerId = null)
     : IRequest<ApiResponse<PortalBookingTrackingDto>>;
 
 public class GetPortalBookingTrackingQueryValidator : AbstractValidator<GetPortalBookingTrackingQuery>
@@ -29,7 +29,8 @@ public class GetPortalBookingTrackingQueryHandler(IDbConnectionFactory dbFactory
         GetPortalBookingTrackingQuery request,
         CancellationToken cancellationToken)
     {
-        if (!await PortalBookingAccess.PhoneOwnsBookingAsync(dbFactory, request.BookingId, request.Phone, cancellationToken))
+        if (!await PortalBookingAccess.CustomerOwnsBookingAsync(
+                dbFactory, request.BookingId, request.Phone, request.CustomerId, cancellationToken))
         {
             return ApiResponse<PortalBookingTrackingDto>.FailResponse("Booking not found for this phone number.");
         }
@@ -125,7 +126,8 @@ public class GetPortalBookingTrackingQueryHandler(IDbConnectionFactory dbFactory
     }
 }
 
-public record GetPortalBookingInvoiceQuery(int BookingId, string Phone) : IRequest<ApiResponse<byte[]>>;
+public record GetPortalBookingInvoiceQuery(int BookingId, string Phone, int? CustomerId = null)
+    : IRequest<ApiResponse<byte[]>>;
 
 public class GetPortalBookingInvoiceQueryValidator : AbstractValidator<GetPortalBookingInvoiceQuery>
 {
@@ -141,7 +143,8 @@ public class GetPortalBookingInvoiceQueryHandler(IDbConnectionFactory dbFactory)
 {
     public async Task<ApiResponse<byte[]>> Handle(GetPortalBookingInvoiceQuery request, CancellationToken cancellationToken)
     {
-        if (!await PortalBookingAccess.PhoneOwnsBookingAsync(dbFactory, request.BookingId, request.Phone, cancellationToken))
+        if (!await PortalBookingAccess.CustomerOwnsBookingAsync(
+                dbFactory, request.BookingId, request.Phone, request.CustomerId, cancellationToken))
         {
             return ApiResponse<byte[]>.FailResponse("Booking not found for this phone number.");
         }
@@ -204,7 +207,8 @@ public class GetPortalBookingInvoiceQueryHandler(IDbConnectionFactory dbFactory)
     }
 }
 
-public record CancelPortalBookingCommand(int BookingId, string Phone) : IRequest<ApiResponse<bool>>;
+public record CancelPortalBookingCommand(int BookingId, string Phone, int? CustomerId = null)
+    : IRequest<ApiResponse<bool>>;
 
 public class CancelPortalBookingCommandValidator : AbstractValidator<CancelPortalBookingCommand>
 {
@@ -220,7 +224,8 @@ public class CancelPortalBookingCommandHandler(IDbConnectionFactory dbFactory)
 {
     public async Task<ApiResponse<bool>> Handle(CancelPortalBookingCommand request, CancellationToken cancellationToken)
     {
-        if (!await PortalBookingAccess.PhoneOwnsBookingAsync(dbFactory, request.BookingId, request.Phone, cancellationToken))
+        if (!await PortalBookingAccess.CustomerOwnsBookingAsync(
+                dbFactory, request.BookingId, request.Phone, request.CustomerId, cancellationToken))
         {
             return ApiResponse<bool>.FailResponse("Booking not found for this phone number.");
         }
@@ -307,8 +312,8 @@ public class GetPortalPaymentGatewayInfoQueryHandler(Microsoft.Extensions.Config
             enabled,
             provider,
             enabled
-                ? "Online payments will open in the configured gateway."
-                : "Online card payments are not enabled yet. Use cash or bank transfer and record payment here.");
+                ? $"Online payments will open in {provider}."
+                : "Online payments are not enabled yet. Use cash or bank transfer and record payment here.");
         return Task.FromResult(ApiResponse<PortalPaymentGatewayInfoDto>.SuccessResponse(dto));
     }
 }

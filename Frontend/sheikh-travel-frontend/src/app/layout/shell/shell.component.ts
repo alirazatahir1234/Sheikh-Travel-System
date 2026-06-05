@@ -13,12 +13,15 @@ import {
 } from '../../core/models/notification.model';
 import { HelpDialogComponent } from '../../shared/components/help-dialog/help-dialog.component';
 import { LocalTimeContextService, LocalTimeDisplay } from '../../core/services/local-time-context.service';
+import { TenantConfigService } from '../../core/services/tenant-config.service';
 
 interface NavItem {
   label: string;
   icon: string;
   route: string;
   adminOnly?: boolean;
+  driverOnly?: boolean;
+  moduleKey?: string;
 }
 
 @Component({
@@ -27,22 +30,29 @@ interface NavItem {
   styleUrls: ['./shell.component.scss']
 })
 export class ShellComponent implements OnInit, OnDestroy {
-  private allNavItems: NavItem[] = [
-    { label: 'Dashboard', icon: 'dashboard',      route: '/dashboard' },
-    { label: 'Bookings',  icon: 'confirmation_number', route: '/bookings' },
-    { label: 'Vehicles',  icon: 'directions_bus', route: '/vehicles' },
-    { label: 'Drivers',   icon: 'badge',          route: '/drivers' },
-    { label: 'Customers', icon: 'group',          route: '/customers' },
-    { label: 'Routes',    icon: 'alt_route',      route: '/routes' },
-    { label: 'Fuel Logs', icon: 'local_gas_station', route: '/fuel-logs' },
-    { label: 'Maintenance', icon: 'build',        route: '/maintenance' },
-    { label: 'GPS Tracking', icon: 'my_location', route: '/gps-tracking' },
-    { label: 'Payments',  icon: 'account_balance_wallet', route: '/payments' },
-    { label: 'Reports',   icon: 'insights',       route: '/reports' },
-    { label: 'Allowance Rules', icon: 'rule',     route: '/driver-allowance-rules', adminOnly: true },
-    { label: 'Users',     icon: 'manage_accounts', route: '/users', adminOnly: true },
-    { label: 'Audit Logs', icon: 'history',       route: '/audit-logs', adminOnly: true },
+  private driverNavItems: NavItem[] = [
+    { label: 'My Trips', icon: 'route', route: '/my-trips' },
+    { label: 'Log Fuel', icon: 'local_gas_station', route: '/my-trips/fuel' },
   ];
+
+  private allNavItems: NavItem[] = [
+    { label: 'Dashboard', icon: 'dashboard',      route: '/dashboard', moduleKey: 'dashboard' },
+    { label: 'Bookings',  icon: 'confirmation_number', route: '/bookings', moduleKey: 'bookings' },
+    { label: 'Vehicles',  icon: 'directions_bus', route: '/vehicles', moduleKey: 'vehicles' },
+    { label: 'Drivers',   icon: 'badge',          route: '/drivers', moduleKey: 'drivers' },
+    { label: 'Customers', icon: 'group',          route: '/customers', moduleKey: 'customers' },
+    { label: 'Routes',    icon: 'alt_route',      route: '/routes', moduleKey: 'routes' },
+    { label: 'Fuel Logs', icon: 'local_gas_station', route: '/fuel-logs', moduleKey: 'fuel-logs' },
+    { label: 'Maintenance', icon: 'build',        route: '/maintenance', moduleKey: 'maintenance' },
+    { label: 'GPS Tracking', icon: 'my_location', route: '/gps-tracking', moduleKey: 'gps-tracking' },
+    { label: 'Payments',  icon: 'account_balance_wallet', route: '/payments', moduleKey: 'payments' },
+    { label: 'Reports',   icon: 'insights',       route: '/reports', moduleKey: 'reports' },
+    { label: 'Allowance Rules', icon: 'rule',     route: '/driver-allowance-rules', adminOnly: true, moduleKey: 'driver-allowance-rules' },
+    { label: 'Users',     icon: 'manage_accounts', route: '/users', adminOnly: true, moduleKey: 'users' },
+    { label: 'Audit Logs', icon: 'history',       route: '/audit-logs', adminOnly: true, moduleKey: 'audit-logs' },
+  ];
+
+  private enabledModules: string[] = [];
 
   navItems$!: Observable<NavItem[]>;
   currentUser$: AuthService['currentUser$'];
@@ -68,7 +78,8 @@ export class ShellComponent implements OnInit, OnDestroy {
     private globalSearch: GlobalSearchService,
     private localTime: LocalTimeContextService,
     private router: Router,
-    private dialog: MatDialog
+    private dialog: MatDialog,
+    private tenantConfig: TenantConfigService
   ) {
     this.currentUser$ = auth.currentUser$;
     this.unreadCount$ = notificationService.unreadCount;
@@ -79,12 +90,39 @@ export class ShellComponent implements OnInit, OnDestroy {
     this.navItems$ = this.currentUser$.pipe(
       map(user => {
         const isAdmin = user?.roles?.includes('Admin') ?? false;
-        return this.allNavItems.filter(item => !item.adminOnly || isAdmin);
+        const isDriver = user?.roles?.includes('Driver') ?? false;
+
+        if (isDriver) {
+          return this.driverNavItems;
+        }
+
+        return this.allNavItems.filter(item => {
+          if (item.driverOnly) return false;
+          if (item.adminOnly && !isAdmin) return false;
+          if (this.enabledModules.length && item.moduleKey) {
+            return this.enabledModules.includes(item.moduleKey);
+          }
+          return true;
+        });
       })
     );
   }
 
+  get homeRoute(): string {
+    return this.auth.hasRole('Driver') ? '/my-trips' : '/dashboard';
+  }
+
+  get isDriverUser(): boolean {
+    return this.auth.hasRole('Driver');
+  }
+
   ngOnInit(): void {
+    this.tenantConfig.loadBranding().subscribe(b => {
+      if (b?.enabledModules?.length) {
+        this.enabledModules = b.enabledModules;
+      }
+    });
+
     this.sessionSub = this.auth.currentUser$.subscribe(user => {
       if (user && this.auth.getToken()) {
         queueMicrotask(() => this.notificationService.startPolling(60000));

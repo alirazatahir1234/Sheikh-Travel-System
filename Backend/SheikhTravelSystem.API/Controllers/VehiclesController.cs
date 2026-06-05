@@ -55,4 +55,19 @@ public class VehiclesController : BaseApiController
     [HttpPatch("{id}/toggle-status")]
     public async Task<IActionResult> ToggleStatus(int id)
         => Ok(await Mediator.Send(new ToggleVehicleStatusCommand(id)));
+
+    [HttpGet("{id}/documents")]
+    public async Task<IActionResult> GetDocuments(int id)
+        => Ok(await Mediator.Send(new GetVehicleDocumentsQuery(id)));
+
+    [HttpPost("{id}/documents")]
+    public async Task<IActionResult> AddDocument(int id, [FromBody] CreateVehicleDocumentRequest body)
+        => Ok(await Mediator.Send(new CreateVehicleDocumentCommand(
+            id, body.DocumentType, body.FileUrl, body.ExpiryDate, body.Notes)));
 }
+
+public record CreateVehicleDocumentRequest(
+    string DocumentType,
+    string? FileUrl,
+    DateTime? ExpiryDate,
+    string? Notes);

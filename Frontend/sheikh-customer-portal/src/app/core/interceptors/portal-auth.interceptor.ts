@@ -17,8 +17,7 @@ export const portalAuthInterceptor: HttpInterceptorFn = (req, next) => {
     req.url.includes('/customer-portal/quote') ||
     req.url.includes('/customer-portal/promo/validate') ||
     req.url.includes('/customer-portal/auth/') ||
-    req.url.includes('/customer-portal/payment-gateway') ||
-    (req.method === 'POST' && req.url.endsWith('/customer-portal/bookings'));
+    req.url.includes('/customer-portal/payment-gateway');
 
   if (isPublic) {
     return next(req);

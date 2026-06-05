@@ -49,6 +49,8 @@ export class TripMapComponent implements AfterViewInit, OnChanges {
   readonly maps = inject(GoogleMapsLoaderService);
   readonly pickup = input<TripMapPoint | null>(null);
   readonly dropoff = input<TripMapPoint | null>(null);
+  /** Live driver position for tracking view. */
+  readonly driver = input<TripMapPoint | null>(null);
 
   @ViewChild('mapEl') mapEl?: ElementRef<HTMLDivElement>;
 
@@ -58,6 +60,7 @@ export class TripMapComponent implements AfterViewInit, OnChanges {
 
   private map?: google.maps.Map;
   private directionsRenderer?: google.maps.DirectionsRenderer;
+  private driverMarker?: google.maps.Marker;
 
   ngAfterViewInit(): void {
     void this.render();
@@ -68,6 +71,12 @@ export class TripMapComponent implements AfterViewInit, OnChanges {
   }
 
   private async render(): Promise<void> {
+    const drv = this.driver();
+    if (drv && this.mapEl) {
+      await this.renderDriverOnly(drv);
+      return;
+    }
+
     const p = this.pickup();
     const d = this.dropoff();
     if (!p || !d || !this.mapEl) return;
@@ -103,6 +112,43 @@ export class TripMapComponent implements AfterViewInit, OnChanges {
           if (leg?.duration?.value) this.durationMin.set(Math.round(leg.duration.value / 60));
         }
       );
+    } catch {
+      this.loadError.set('Map failed to load.');
+    }
+  }
+
+  private async renderDriverOnly(drv: TripMapPoint): Promise<void> {
+    const p = this.pickup();
+    this.loadError.set(null);
+    try {
+      const g = await this.maps.load();
+      const center = { lat: drv.lat, lng: drv.lng };
+      if (!this.map) {
+        this.map = new g.maps.Map(this.mapEl!.nativeElement, {
+          center,
+          zoom: 14,
+          disableDefaultUI: true
+        });
+      } else {
+        this.map.setCenter(center);
+      }
+      if (!this.driverMarker) {
+        this.driverMarker = new g.maps.Marker({
+          map: this.map,
+          position: center,
+          title: drv.label
+        });
+      } else {
+        this.driverMarker.setPosition(center);
+      }
+      if (p) {
+        new g.maps.Marker({
+          map: this.map,
+          position: { lat: p.lat, lng: p.lng },
+          title: p.label,
+          icon: 'http://maps.google.com/mapfiles/ms/icons/green-dot.png'
+        });
+      }
     } catch {
       this.loadError.set('Map failed to load.');
     }

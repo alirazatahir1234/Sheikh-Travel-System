@@ -162,8 +162,30 @@ public class CreatePortalBookingCommandHandler(IDbConnectionFactory dbFactory, I
         if (r.SeatLabels?.Count > 0)
         {
             using var seatConn = dbFactory.CreateConnection();
+            var windowStart = r.PickupTime.AddHours(-3);
+            var windowEnd = r.PickupTime.AddHours(3);
             foreach (var seat in r.SeatLabels.Distinct(StringComparer.OrdinalIgnoreCase))
             {
+                var taken = await seatConn.ExecuteScalarAsync<bool>(new CommandDefinition(
+                    @"SELECT CASE WHEN EXISTS(
+                        SELECT 1 FROM BookingSeats bs
+                        INNER JOIN Bookings b ON b.Id = bs.BookingId
+                        WHERE b.VehicleId = @VehicleId AND bs.SeatLabel = @SeatLabel
+                          AND b.IsDeleted = 0 AND b.Status <> @Cancelled
+                          AND b.PickupTime BETWEEN @Start AND @End) THEN 1 ELSE 0 END",
+                    new
+                    {
+                        r.VehicleId,
+                        SeatLabel = seat,
+                        Cancelled = (int)BookingStatus.Cancelled,
+                        Start = windowStart,
+                        End = windowEnd
+                    },
+                    cancellationToken: cancellationToken));
+
+                if (taken)
+                    return ApiResponse<PortalBookingCreatedDto>.FailResponse($"Seat {seat} is already booked for this vehicle and time.");
+
                 await seatConn.ExecuteAsync(
                     new CommandDefinition(
                         "INSERT INTO BookingSeats (BookingId, SeatLabel) VALUES (@BookingId, @SeatLabel)",
@@ -309,16 +331,11 @@ public class CreatePortalBookingCommandHandler(IDbConnectionFactory dbFactory, I
         CreatePortalBookingRequest r,
         CancellationToken cancellationToken)
     {
-        var phone = r.Phone.Trim();
-        using var connection = dbFactory.CreateConnection();
-        var existingId = await connection.ExecuteScalarAsync<int?>(
-            new CommandDefinition(
-                @"SELECT TOP 1 Id FROM Customers WHERE Phone = @Phone AND IsDeleted = 0 ORDER BY Id",
-                new { Phone = phone },
-                cancellationToken: cancellationToken));
-
-        if (existingId is > 0)
-            return (true, existingId.Value, null);
+        var phone = PortalPhoneHelper.Normalize(r.Phone);
+        var existingIds = await PortalBookingAccess.ResolvePortalCustomerIdsAsync(
+            dbFactory, r.Phone, null, cancellationToken);
+        if (existingIds.Count > 0)
+            return (true, existingIds[0], null);
 
         var created = await mediator.Send(
             new CreateCustomerCommand(new CreateCustomerDto(r.FullName.Trim(), phone, r.Email?.Trim(), null, null)),

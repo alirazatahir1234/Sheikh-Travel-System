@@ -24,13 +24,34 @@ public class IngestPositionCommandValidator : AbstractValidator<IngestPositionCo
 public class IngestPositionCommandHandler(
     IDbConnectionFactory dbFactory,
     INotificationService notifications,
-    ILocationBroadcastService broadcaster)
+    ILocationBroadcastService broadcaster,
+    ICurrentUserService currentUser)
     : IRequestHandler<IngestPositionCommand, ApiResponse<bool>>
 {
     public async Task<ApiResponse<bool>> Handle(IngestPositionCommand request, CancellationToken cancellationToken)
     {
         using var connection = dbFactory.CreateConnection();
         var dto = request.Position;
+
+        if (currentUser.Role == "Driver")
+        {
+            var driverId = currentUser.DriverId;
+            if (!driverId.HasValue)
+                return ApiResponse<bool>.FailResponse("Driver identity required.");
+
+            var allowed = await connection.ExecuteScalarAsync<bool>(new CommandDefinition(
+                @"SELECT CASE WHEN EXISTS(
+                    SELECT 1 FROM Bookings
+                    WHERE DriverId = @DriverId AND VehicleId = @VehicleId AND Status = @Started AND IsDeleted = 0) THEN 1 ELSE 0 END",
+                new { DriverId = driverId.Value, dto.VehicleId, Started = (int)BookingStatus.Started },
+                cancellationToken: cancellationToken));
+
+            if (!allowed)
+                return ApiResponse<bool>.FailResponse("GPS ingest only allowed during your active started trip for this vehicle.");
+
+            dto = dto with { DriverId = driverId.Value };
+        }
+
         var recordedAt = DateTime.UtcNow;
 
         var previousSpeed = await connection.ExecuteScalarAsync<decimal?>(new CommandDefinition(

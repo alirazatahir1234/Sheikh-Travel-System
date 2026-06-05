@@ -16,4 +16,13 @@ public class CurrentUserService(IHttpContextAccessor httpContextAccessor) : ICur
     }
 
     public string? Role => httpContextAccessor.HttpContext?.User.FindFirst(ClaimTypes.Role)?.Value;
+
+    public int? DriverId
+    {
+        get
+        {
+            var claim = httpContextAccessor.HttpContext?.User.FindFirst("driver_id")?.Value;
+            return int.TryParse(claim, out var id) ? id : null;
+        }
+    }
 }

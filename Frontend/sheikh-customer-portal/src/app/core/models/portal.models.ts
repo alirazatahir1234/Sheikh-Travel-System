@@ -190,6 +190,17 @@ export interface CreatePortalPaymentPayload {
   notes?: string | null;
 }
 
+export interface CreatePortalPaymentCheckoutPayload {
+  bookingId: number;
+  amount: number;
+}
+
+export interface PortalPaymentCheckoutDto {
+  checkoutUrl: string;
+  sessionId: string;
+  provider: string;
+}
+
 export interface PortalOtpSentDto {
   phone: string;
   devMode: boolean;

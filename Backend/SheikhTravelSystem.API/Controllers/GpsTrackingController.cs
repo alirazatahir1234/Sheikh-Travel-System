@@ -9,7 +9,7 @@ using SheikhTravelSystem.Application.Features.Tracking.Queries;
 
 namespace SheikhTravelSystem.API.Controllers;
 
-[Authorize]
+[Authorize(Roles = "Admin,Dispatcher,Accountant,Driver")]
 /// <summary>
 /// GPS fleet tracking — live positions, history, trips, geofences, alerts, devices, and commands.
 /// </summary>
@@ -17,6 +17,7 @@ namespace SheikhTravelSystem.API.Controllers;
 public class GpsTrackingController : BaseApiController
 {
     [HttpPost("positions")]
+    [Authorize(Roles = "Admin,Dispatcher,Driver")]
     public async Task<IActionResult> IngestPosition([FromBody] IngestPositionDto position)
         => Ok(await Mediator.Send(new IngestPositionCommand(position)));
 

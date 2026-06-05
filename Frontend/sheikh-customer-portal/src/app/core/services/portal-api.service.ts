@@ -4,6 +4,7 @@ import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import {
   CreatePortalBookingPayload,
+  CreatePortalPaymentCheckoutPayload,
   CreatePortalPaymentPayload,
   PortalAuthResultDto,
   PortalBookingCardDto,
@@ -15,6 +16,7 @@ import {
   PortalNotificationPreferencesDto,
   PortalOtpSentDto,
   PortalPaymentGatewayInfoDto,
+  PortalPaymentCheckoutDto,
   PortalPointToPointQuotePayload,
   PortalPromoResultDto,
   PortalQuoteResultDto,
@@ -118,6 +120,10 @@ export class PortalApiService {
 
   createPayment(bookingId: number, body: CreatePortalPaymentPayload): Observable<number> {
     return this.http.post<number>(`${this.base}/bookings/${bookingId}/payments`, body);
+  }
+
+  createPaymentCheckout(body: CreatePortalPaymentCheckoutPayload): Observable<PortalPaymentCheckoutDto> {
+    return this.http.post<PortalPaymentCheckoutDto>(`${this.base}/payments/checkout`, body);
   }
 
   getNotificationPreferences(): Observable<PortalNotificationPreferencesDto> {

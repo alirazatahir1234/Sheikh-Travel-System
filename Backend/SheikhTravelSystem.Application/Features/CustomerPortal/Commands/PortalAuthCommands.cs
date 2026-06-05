@@ -21,11 +21,12 @@ public class SendPortalOtpCommandValidator : AbstractValidator<SendPortalOtpComm
 
 public class SendPortalOtpCommandHandler(
     IPortalOtpService otpService,
+    ISmsOtpService smsOtpService,
     IConfiguration configuration,
     ILogger<SendPortalOtpCommandHandler> logger)
     : IRequestHandler<SendPortalOtpCommand, ApiResponse<PortalOtpSentDto>>
 {
-    public Task<ApiResponse<PortalOtpSentDto>> Handle(SendPortalOtpCommand request, CancellationToken cancellationToken)
+    public async Task<ApiResponse<PortalOtpSentDto>> Handle(SendPortalOtpCommand request, CancellationToken cancellationToken)
     {
         var phone = request.Phone.Trim();
         var devMode = !bool.TryParse(configuration["PortalAuth:DevMode"], out var devFlag) || devFlag;
@@ -42,7 +43,7 @@ public class SendPortalOtpCommandHandler(
         }
         else
         {
-            logger.LogInformation("Portal OTP sent for {Phone}", phone);
+            await smsOtpService.SendOtpAsync(phone, code, cancellationToken);
         }
 
         var dto = new PortalOtpSentDto(
@@ -50,7 +51,7 @@ public class SendPortalOtpCommandHandler(
             devMode,
             devMode ? "Use the dev OTP from appsettings PortalAuth:DevOtpCode." : "OTP sent via SMS.");
 
-        return Task.FromResult(ApiResponse<PortalOtpSentDto>.SuccessResponse(dto, "OTP sent."));
+        return ApiResponse<PortalOtpSentDto>.SuccessResponse(dto, "OTP sent.");
     }
 }
 
@@ -68,18 +69,25 @@ public class VerifyPortalOtpCommandValidator : AbstractValidator<VerifyPortalOtp
 
 public class VerifyPortalOtpCommandHandler(
     IPortalOtpService otpService,
-    IJwtTokenService jwtTokenService)
+    IJwtTokenService jwtTokenService,
+    ITenantContext tenantContext,
+    IDbConnectionFactory dbFactory)
     : IRequestHandler<VerifyPortalOtpCommand, ApiResponse<PortalAuthResultDto>>
 {
-    public Task<ApiResponse<PortalAuthResultDto>> Handle(VerifyPortalOtpCommand request, CancellationToken cancellationToken)
+    public async Task<ApiResponse<PortalAuthResultDto>> Handle(VerifyPortalOtpCommand request, CancellationToken cancellationToken)
     {
+        var phone = PortalPhoneHelper.Normalize(request.Phone);
         if (!otpService.TryValidate(request.Phone.Trim(), request.Code.Trim(), out var error))
         {
-            return Task.FromResult(ApiResponse<PortalAuthResultDto>.FailResponse(error ?? "Invalid OTP."));
+            return ApiResponse<PortalAuthResultDto>.FailResponse(error ?? "Invalid OTP.");
         }
 
-        var token = jwtTokenService.GeneratePortalAccessToken(request.Phone.Trim(), request.FullName.Trim());
-        var dto = new PortalAuthResultDto(request.Phone.Trim(), request.FullName.Trim(), token);
-        return Task.FromResult(ApiResponse<PortalAuthResultDto>.SuccessResponse(dto, "Signed in."));
+        var tenantId = tenantContext.GetRequiredTenantId();
+        var customerId = await PortalCustomerWriter.EnsureCustomerAsync(
+            dbFactory, phone, request.FullName.Trim(), tenantId, cancellationToken);
+        var token = jwtTokenService.GeneratePortalAccessToken(
+            phone, request.FullName.Trim(), tenantId, customerId);
+        var dto = new PortalAuthResultDto(phone, request.FullName.Trim(), token);
+        return ApiResponse<PortalAuthResultDto>.SuccessResponse(dto, "Signed in.");
     }
 }

@@ -16,4 +16,15 @@ public static class PortalUserContext
         return user.FindFirst("portal_phone")?.Value
             ?? user.FindFirst(ClaimTypes.MobilePhone)?.Value;
     }
+
+    public static int? GetCustomerId(ClaimsPrincipal? user)
+    {
+        if (user?.Identity?.IsAuthenticated != true)
+        {
+            return null;
+        }
+
+        var claim = user.FindFirst("portal_customer_id")?.Value;
+        return int.TryParse(claim, out var id) ? id : null;
+    }
 }

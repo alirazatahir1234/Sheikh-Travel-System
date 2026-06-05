@@ -34,6 +34,18 @@ public class CustomerPortalController : ControllerBase
         return null;
     }
 
+    private IActionResult? RequirePortalContext(out string phone, out int? customerId)
+    {
+        phone = PortalPhone ?? string.Empty;
+        customerId = PortalUserContext.GetCustomerId(User);
+        if (string.IsNullOrWhiteSpace(phone))
+        {
+            return Unauthorized(new { success = false, message = "Portal sign-in required." });
+        }
+
+        return null;
+    }
+
     [HttpGet("routes")]
     [AllowAnonymous]
     public async Task<IActionResult> GetRoutes()
@@ -77,6 +89,24 @@ public class CustomerPortalController : ControllerBase
         return Ok(await Mediator.Send(new SavePortalAddressCommand(phone, body)));
     }
 
+    [HttpGet("favorite-routes")]
+    [Authorize(Roles = PortalUserContext.PortalRole)]
+    public async Task<IActionResult> GetFavoriteRoutes()
+    {
+        var denied = RequirePortalPhone(out var phone);
+        if (denied is not null) return denied;
+        return Ok(await Mediator.Send(new GetPortalFavoriteRoutesQuery(phone)));
+    }
+
+    [HttpPost("favorite-routes")]
+    [Authorize(Roles = PortalUserContext.PortalRole)]
+    public async Task<IActionResult> AddFavoriteRoute([FromBody] AddPortalFavoriteRouteRequest body)
+    {
+        var denied = RequirePortalPhone(out var phone);
+        if (denied is not null) return denied;
+        return Ok(await Mediator.Send(new AddPortalFavoriteRouteCommand(phone, body.RouteId, body.Label)));
+    }
+
     [HttpGet("notifications")]
     [Authorize(Roles = PortalUserContext.PortalRole)]
     public async Task<IActionResult> GetNotifications()
@@ -112,42 +142,49 @@ public class CustomerPortalController : ControllerBase
     [HttpPost("bookings")]
     [AllowAnonymous]
     public async Task<IActionResult> CreateBooking([FromBody] CreatePortalBookingRequest body)
-        => Ok(await Mediator.Send(new CreatePortalBookingCommand(body)));
+    {
+        if (!string.IsNullOrWhiteSpace(PortalPhone))
+        {
+            body = body with { Phone = PortalPhone };
+        }
+
+        return Ok(await Mediator.Send(new CreatePortalBookingCommand(body)));
+    }
 
     [HttpGet("my-bookings")]
     [Authorize(Roles = PortalUserContext.PortalRole)]
     public async Task<IActionResult> MyBookings()
     {
-        var denied = RequirePortalPhone(out var phone);
+        var denied = RequirePortalContext(out var phone, out var customerId);
         if (denied is not null) return denied;
-        return Ok(await Mediator.Send(new GetPortalBookingsByPhoneQuery(phone)));
+        return Ok(await Mediator.Send(new GetPortalBookingsByPhoneQuery(phone, customerId)));
     }
 
     [HttpGet("bookings/{id:int}")]
     [Authorize(Roles = PortalUserContext.PortalRole)]
     public async Task<IActionResult> GetBooking(int id)
     {
-        var denied = RequirePortalPhone(out var phone);
+        var denied = RequirePortalContext(out var phone, out var customerId);
         if (denied is not null) return denied;
-        return Ok(await Mediator.Send(new GetPortalBookingDetailQuery(id, phone)));
+        return Ok(await Mediator.Send(new GetPortalBookingDetailQuery(id, phone, customerId)));
     }
 
     [HttpGet("bookings/{id:int}/tracking")]
     [Authorize(Roles = PortalUserContext.PortalRole)]
     public async Task<IActionResult> GetBookingTracking(int id)
     {
-        var denied = RequirePortalPhone(out var phone);
+        var denied = RequirePortalContext(out var phone, out var customerId);
         if (denied is not null) return denied;
-        return Ok(await Mediator.Send(new GetPortalBookingTrackingQuery(id, phone)));
+        return Ok(await Mediator.Send(new GetPortalBookingTrackingQuery(id, phone, customerId)));
     }
 
     [HttpGet("bookings/{id:int}/invoice")]
     [Authorize(Roles = PortalUserContext.PortalRole)]
     public async Task<IActionResult> GetBookingInvoice(int id)
     {
-        var denied = RequirePortalPhone(out var phone);
+        var denied = RequirePortalContext(out var phone, out var customerId);
         if (denied is not null) return denied;
-        var result = await Mediator.Send(new GetPortalBookingInvoiceQuery(id, phone));
+        var result = await Mediator.Send(new GetPortalBookingInvoiceQuery(id, phone, customerId));
         if (!result.Success || result.Data is null)
         {
             return BadRequest(result);
@@ -160,18 +197,18 @@ public class CustomerPortalController : ControllerBase
     [Authorize(Roles = PortalUserContext.PortalRole)]
     public async Task<IActionResult> CancelBooking(int id)
     {
-        var denied = RequirePortalPhone(out var phone);
+        var denied = RequirePortalContext(out var phone, out var customerId);
         if (denied is not null) return denied;
-        return Ok(await Mediator.Send(new CancelPortalBookingCommand(id, phone)));
+        return Ok(await Mediator.Send(new CancelPortalBookingCommand(id, phone, customerId)));
     }
 
     [HttpPost("bookings/{id:int}/payments")]
     [Authorize(Roles = PortalUserContext.PortalRole)]
     public async Task<IActionResult> CreatePayment(int id, [FromBody] CreatePortalPaymentRequest body)
     {
-        var denied = RequirePortalPhone(out var phone);
+        var denied = RequirePortalContext(out var phone, out var customerId);
         if (denied is not null) return denied;
-        return Ok(await Mediator.Send(new CreatePortalPaymentCommand(id, phone, body)));
+        return Ok(await Mediator.Send(new CreatePortalPaymentCommand(id, phone, body, customerId)));
     }
 
     [HttpGet("notifications/preferences")]

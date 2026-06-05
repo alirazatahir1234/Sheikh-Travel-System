@@ -100,7 +100,7 @@ public class GetPortalVehicleSeatsQueryHandler(IDbConnectionFactory dbFactory)
                 @"SELECT bs.SeatLabel FROM BookingSeats bs
                   INNER JOIN Bookings b ON b.Id = bs.BookingId AND b.IsDeleted = 0
                   WHERE b.VehicleId = @VehicleId AND b.Status IN (@P, @C, @S)
-                    AND ABS(DATEDIFF(MINUTE, b.PickupTime, @Pickup)) < 180",
+                    AND ABS(DATEDIFF(MINUTE, b.PickupTime, @PickupTime)) < 180",
                 new
                 {
                     request.VehicleId,
@@ -167,5 +167,60 @@ public class GetPortalWalletQueryHandler(IDbConnectionFactory dbFactory)
                 cancellationToken: cancellationToken));
 
         return ApiResponse<PortalWalletDto>.SuccessResponse(new PortalWalletDto(balance));
+    }
+}
+
+public record GetPortalFavoriteRoutesQuery(string Phone) : IRequest<ApiResponse<IReadOnlyList<PortalFavoriteRouteDto>>>;
+
+public record PortalFavoriteRouteDto(int Id, int RouteId, string RouteName, string? Label);
+
+public class GetPortalFavoriteRoutesQueryHandler(IDbConnectionFactory dbFactory)
+    : IRequestHandler<GetPortalFavoriteRoutesQuery, ApiResponse<IReadOnlyList<PortalFavoriteRouteDto>>>
+{
+    public async Task<ApiResponse<IReadOnlyList<PortalFavoriteRouteDto>>> Handle(
+        GetPortalFavoriteRoutesQuery request,
+        CancellationToken cancellationToken)
+    {
+        var customerId = await PortalCustomerWriter.ResolveCustomerIdByPhoneAsync(
+            dbFactory, request.Phone, cancellationToken);
+        if (customerId is null or <= 0)
+            return ApiResponse<IReadOnlyList<PortalFavoriteRouteDto>>.SuccessResponse([]);
+
+        using var connection = dbFactory.CreateConnection();
+        var rows = await connection.QueryAsync<PortalFavoriteRouteDto>(new CommandDefinition(
+            @"SELECT f.Id, f.RouteId,
+                     r.Source + ' -> ' + r.Destination AS RouteName, f.Label
+              FROM CustomerFavoriteRoutes f
+              INNER JOIN Routes r ON r.Id = f.RouteId
+              WHERE f.CustomerId = @CustomerId AND f.IsDeleted = 0
+              ORDER BY f.SortOrder, f.Id",
+            new { CustomerId = customerId },
+            cancellationToken: cancellationToken));
+
+        return ApiResponse<IReadOnlyList<PortalFavoriteRouteDto>>.SuccessResponse(rows.ToList());
+    }
+}
+
+public record AddPortalFavoriteRouteCommand(string Phone, int RouteId, string? Label) : IRequest<ApiResponse<int>>;
+
+public class AddPortalFavoriteRouteCommandHandler(IDbConnectionFactory dbFactory)
+    : IRequestHandler<AddPortalFavoriteRouteCommand, ApiResponse<int>>
+{
+    public async Task<ApiResponse<int>> Handle(AddPortalFavoriteRouteCommand request, CancellationToken cancellationToken)
+    {
+        var customerId = await PortalCustomerWriter.ResolveCustomerIdByPhoneAsync(
+            dbFactory, request.Phone, cancellationToken);
+        if (customerId is null or <= 0)
+            return ApiResponse<int>.FailResponse("Sign in and complete a booking first.");
+
+        using var connection = dbFactory.CreateConnection();
+        var id = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
+            @"INSERT INTO CustomerFavoriteRoutes (CustomerId, RouteId, Label, SortOrder, CreatedAt, IsDeleted)
+              VALUES (@CustomerId, @RouteId, @Label, 0, GETUTCDATE(), 0);
+              SELECT CAST(SCOPE_IDENTITY() AS INT);",
+            new { CustomerId = customerId, request.RouteId, Label = request.Label },
+            cancellationToken: cancellationToken));
+
+        return ApiResponse<int>.SuccessResponse(id, "Favorite route saved.");
     }
 }
