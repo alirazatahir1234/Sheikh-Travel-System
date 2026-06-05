@@ -109,6 +109,8 @@ builder.Services.AddCors(options =>
 
                 if (origin is "https://sheikh-travel-system.vercel.app"
                     or "https://sheikh-customer-portal.vercel.app"
+                    or "https://sheikh-travel-control-center.vercel.app"
+                    or "https://sheikh-travel-customer-hub.vercel.app"
                     or "http://localhost:4200"
                     or "http://127.0.0.1:4200"
                     or "http://localhost:4300"
@@ -126,11 +128,13 @@ builder.Services.AddCors(options =>
                         return true;
                     }
 
-                    // Allow Vercel preview deployments for admin and customer portal projects.
+                    // Allow Vercel preview deployments for admin and customer hub projects.
                     return uri.Scheme == Uri.UriSchemeHttps
                         && uri.Host.EndsWith(".vercel.app", StringComparison.OrdinalIgnoreCase)
                         && (uri.Host.Contains("sheikh-travel-system", StringComparison.OrdinalIgnoreCase)
-                            || uri.Host.Contains("sheikh-customer-portal", StringComparison.OrdinalIgnoreCase));
+                            || uri.Host.Contains("sheikh-customer-portal", StringComparison.OrdinalIgnoreCase)
+                            || uri.Host.Contains("sheikh-travel-control-center", StringComparison.OrdinalIgnoreCase)
+                            || uri.Host.Contains("sheikh-travel-customer-hub", StringComparison.OrdinalIgnoreCase));
                 }
 
                 return false;

@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "8f0b86b0-a9f6-4d59-b1d9-6e31be42ea55",
     "name": "SheikhTravelSystem API",
-    "description": "Complete Postman collection for SheikhTravelSystem API. Login first to auto-save accessToken/refreshToken. Includes folder **Customer portal (public)** (`/api/customer-portal`, no JWT) — set collection variable `portalPhone` for phone-scoped calls.",
+    "description": "Complete Postman collection for SheikhTravelSystem API. Login first to auto-save accessToken/refreshToken. Includes folder **Customer Hub (public)** (`/api/customer-portal`, no JWT) — set collection variable `portalPhone` for phone-scoped calls.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -1323,8 +1323,8 @@
       ]
     },
     {
-      "name": "Customer portal (public)",
-      "description": "Anonymous endpoints for sheikh-customer-portal (`/api/customer-portal`). Uses the `portal` rate limiter. No Bearer token — set request auth to “No auth” for these calls.",
+      "name": "Customer Hub (public)",
+      "description": "Anonymous endpoints for sheikh-travel-customer-hub (`/api/customer-portal`). Uses the `portal` rate limiter. No Bearer token — set request auth to “No auth” for these calls.",
       "item": [
         {
           "name": "List routes",

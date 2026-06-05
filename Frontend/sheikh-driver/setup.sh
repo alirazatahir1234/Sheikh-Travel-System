@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Run from repo root: ./Frontend/sheikh-driver-app/setup.sh
+# Run from repo root: ./Frontend/sheikh-driver/setup.sh
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
@@ -23,7 +23,7 @@ flutter --version
 
 # Generate android/, ios/, etc. without overwriting lib/
 if [ ! -d android ]; then
-  flutter create . --project-name sheikh_driver_app
+  flutter create . --project-name sheikh_driver
 fi
 
 flutter pub get

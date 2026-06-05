@@ -1,6 +1,6 @@
 {
   "buildCommand": "npm run build -- --configuration=production",
-  "outputDirectory": "dist/sheikh-customer-portal/browser",
+  "outputDirectory": "dist/sheikh-travel-customer-hub/browser",
   "rewrites": [
     {
       "source": "/(.*)",

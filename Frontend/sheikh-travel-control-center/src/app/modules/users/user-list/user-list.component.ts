@@ -193,7 +193,7 @@ export class UserListComponent implements OnInit {
     this.exportService.exportExcel(this.dataSource.filteredData, this.getColumns(), { filename: 'users', sheetName: 'Users' });
   }
   exportPdf(): void {
-    this.exportService.exportPdf(this.dataSource.filteredData, this.getColumns(), { filename: 'users', title: 'Sheikh Travel – Users' });
+    this.exportService.exportPdf(this.dataSource.filteredData, this.getColumns(), { filename: 'users', title: 'Sheikh Travel Control Center – Users' });
   }
 
   private getColumns(): ExportColumn<User>[] {

@@ -3,7 +3,7 @@
   "version": 1,
   "newProjectRoot": "projects",
   "projects": {
-    "sheikh-customer-portal": {
+    "sheikh-travel-customer-hub": {
       "projectType": "application",
       "schematics": {
         "@schematics/angular:component": {
@@ -39,7 +39,7 @@
         "build": {
           "builder": "@angular-devkit/build-angular:application",
           "options": {
-            "outputPath": "dist/sheikh-customer-portal",
+            "outputPath": "dist/sheikh-travel-customer-hub",
             "index": "src/index.html",
             "browser": "src/main.ts",
             "polyfills": [
@@ -50,12 +50,13 @@
             "assets": [
               {
                 "glob": "**/*",
-                "input": "public"
+                "input": "public",
+                "output": "/"
               },
               {
                 "glob": "**/*",
-                "input": "../sheikh-travel-frontend/public/brand",
-                "output": "brand"
+                "input": "../sheikh-travel-control-center/public/brand",
+                "output": "/brand"
               }
             ],
             "styles": [
@@ -106,10 +107,10 @@
           },
           "configurations": {
             "production": {
-              "buildTarget": "sheikh-customer-portal:build:production"
+              "buildTarget": "sheikh-travel-customer-hub:build:production"
             },
             "development": {
-              "buildTarget": "sheikh-customer-portal:build:development"
+              "buildTarget": "sheikh-travel-customer-hub:build:development"
             }
           },
           "defaultConfiguration": "development"
@@ -129,12 +130,13 @@
             "assets": [
               {
                 "glob": "**/*",
-                "input": "public"
+                "input": "public",
+                "output": "/"
               },
               {
                 "glob": "**/*",
-                "input": "../sheikh-travel-frontend/public/brand",
-                "output": "brand"
+                "input": "../sheikh-travel-control-center/public/brand",
+                "output": "/brand"
               }
             ],
             "styles": [

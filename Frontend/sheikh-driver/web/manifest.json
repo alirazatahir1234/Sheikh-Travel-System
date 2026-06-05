@@ -1,11 +1,11 @@
 {
-    "name": "sheikh_driver_app",
-    "short_name": "sheikh_driver_app",
+    "name": "Sheikh Driver",
+    "short_name": "Sheikh Driver",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "Sheikh Driver — Sheikh Travel driver mobile app",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

@@ -1,8 +1,9 @@
 {
-  "name": "sheikh-customer-portal",
+  "name": "sheikh-travel-customer-hub",
   "version": "0.0.0",
   "scripts": {
     "ng": "ng",
+    "prestart": "sh -c 'kill -9 $(lsof -ti :4300) 2>/dev/null || true'",
     "start": "ng serve --port 4300 --host 127.0.0.1",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",

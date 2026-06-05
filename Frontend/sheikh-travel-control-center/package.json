@@ -1,8 +1,9 @@
 {
-  "name": "sheikh-travel-frontend",
+  "name": "sheikh-travel-control-center",
   "version": "0.0.0",
   "scripts": {
     "ng": "ng",
+    "prestart": "sh -c 'kill -9 $(lsof -ti :4200) 2>/dev/null || true'",
     "start": "ng serve --port 4200 --host 127.0.0.1 --proxy-config proxy.conf.json",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",

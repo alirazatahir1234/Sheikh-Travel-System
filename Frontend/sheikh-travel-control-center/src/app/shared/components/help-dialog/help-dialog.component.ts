@@ -16,7 +16,7 @@ interface HelpSection {
     </h2>
     <mat-dialog-content>
       <div class="help-intro">
-        <p>Welcome to the Sheikh Travel System! Here are some quick guides to help you get started.</p>
+        <p>Welcome to Sheikh Travel Control Center! Here are some quick guides to help you get started.</p>
       </div>
 
       <div class="help-section" *ngFor="let section of sections">

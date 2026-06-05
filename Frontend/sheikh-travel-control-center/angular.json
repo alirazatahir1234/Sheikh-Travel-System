@@ -3,7 +3,7 @@
   "version": 1,
   "newProjectRoot": "projects",
   "projects": {
-    "sheikh-travel-frontend": {
+    "sheikh-travel-control-center": {
       "projectType": "application",
       "schematics": {
         "@schematics/angular:component": {
@@ -42,7 +42,7 @@
         "build": {
           "builder": "@angular-devkit/build-angular:application",
           "options": {
-            "outputPath": "dist/sheikh-travel-frontend",
+            "outputPath": "dist/sheikh-travel-control-center",
             "index": "src/index.html",
             "browser": "src/main.ts",
             "polyfills": [
@@ -53,7 +53,8 @@
             "assets": [
               {
                 "glob": "**/*",
-                "input": "public"
+                "input": "public",
+                "output": "/"
               }
             ],
             "styles": [
@@ -102,10 +103,10 @@
           },
           "configurations": {
             "production": {
-              "buildTarget": "sheikh-travel-frontend:build:production"
+              "buildTarget": "sheikh-travel-control-center:build:production"
             },
             "development": {
-              "buildTarget": "sheikh-travel-frontend:build:development"
+              "buildTarget": "sheikh-travel-control-center:build:development"
             }
           },
           "defaultConfiguration": "development"
@@ -125,7 +126,8 @@
             "assets": [
               {
                 "glob": "**/*",
-                "input": "public"
+                "input": "public",
+                "output": "/"
               }
             ],
             "styles": [

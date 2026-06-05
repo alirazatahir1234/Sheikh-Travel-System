@@ -9,5 +9,5 @@ import { RouterOutlet } from '@angular/router';
   styleUrl: './app.component.scss'
 })
 export class AppComponent {
-  title = 'sheikh-customer-portal';
+  title = 'sheikh-travel-customer-hub';
 }

@@ -591,7 +591,7 @@ export class FuelLogListComponent implements OnInit {
   exportPdf(): void {
     this.exportService.exportPdf(this.dataSource.filteredData, this.getColumns(), {
       filename: 'fuel-logs',
-      title: 'Sheikh Travel – Fuel Analytics',
+      title: 'Sheikh Travel Control Center – Fuel Analytics',
       subtitle: `Total: ${this.formatNumber(this.totalLiters, '1.1-1')} L | PKR ${this.formatNumber(this.totalCost)}`
     });
   }
