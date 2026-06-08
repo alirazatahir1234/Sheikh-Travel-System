@@ -22,18 +22,77 @@
       </button>
     </div>
 
-    <nav class="stb-rail-nav">
-      <a *ngFor="let item of (navItems$ | async) ?? []; trackBy: trackByRoute"
-         [routerLink]="item.route"
-         routerLinkActive="active"
-         [matTooltip]="item.label"
-         [matTooltipDisabled]="sidebarExpanded"
-         matTooltipShowDelay="600"
-         matTooltipPosition="right"
-         class="stb-rail-link">
-        <mat-icon>{{ item.icon }}</mat-icon>
-        <span class="stb-link-label" *ngIf="sidebarExpanded">{{ item.label }}</span>
-      </a>
+    <nav class="stb-rail-nav" *ngIf="menu$ | async as menu">
+      <!-- Driver flat nav -->
+      <ng-container *ngIf="menu.isDriverLayout; else moduleNav">
+        <a *ngFor="let item of menu.standaloneItems; trackBy: trackById"
+           [routerLink]="item.route"
+           [queryParams]="item.queryParams"
+           routerLinkActive="active"
+           [routerLinkActiveOptions]="{ exact: item.route === '/my-trips' }"
+           [matTooltip]="item.label"
+           [matTooltipDisabled]="sidebarExpanded"
+           matTooltipShowDelay="600"
+           matTooltipPosition="right"
+           class="stb-rail-link">
+          <mat-icon>{{ item.icon }}</mat-icon>
+          <span class="stb-link-label" *ngIf="sidebarExpanded">{{ item.label }}</span>
+        </a>
+      </ng-container>
+
+      <!-- Enterprise module groups -->
+      <ng-template #moduleNav>
+        <ng-container *ngFor="let group of menu.groups; trackBy: trackByGroupId">
+          <!-- Standalone dashboard (non-collapsible) -->
+          <ng-container *ngIf="!group.collapsible">
+            <a *ngFor="let item of group.items; trackBy: trackById"
+               [routerLink]="item.route"
+               [queryParams]="item.queryParams"
+               routerLinkActive="active"
+               [matTooltip]="item.label"
+               [matTooltipDisabled]="sidebarExpanded"
+               matTooltipShowDelay="600"
+               matTooltipPosition="right"
+               class="stb-rail-link stb-rail-link--top">
+              <mat-icon>{{ item.icon }}</mat-icon>
+              <span class="stb-link-label" *ngIf="sidebarExpanded">{{ item.label }}</span>
+            </a>
+          </ng-container>
+
+          <!-- Collapsible business module -->
+          <div *ngIf="group.collapsible"
+               class="stb-nav-group"
+               [class.is-expanded]="isGroupExpanded(group.id)"
+               [class.is-collapsed-rail]="!sidebarExpanded">
+            <button type="button"
+                    class="stb-group-header"
+                    [attr.aria-expanded]="isGroupExpanded(group.id)"
+                    [matTooltip]="group.label"
+                    [matTooltipDisabled]="sidebarExpanded"
+                    matTooltipShowDelay="600"
+                    matTooltipPosition="right"
+                    (click)="toggleGroup(group, $event)">
+              <mat-icon class="stb-group-icon">{{ group.icon }}</mat-icon>
+              <span class="stb-group-label" *ngIf="sidebarExpanded">{{ group.label }}</span>
+              <mat-icon class="stb-group-chevron" *ngIf="sidebarExpanded">expand_more</mat-icon>
+            </button>
+
+            <div class="stb-group-items" *ngIf="sidebarExpanded && isGroupExpanded(group.id)">
+              <a *ngFor="let item of group.items; trackBy: trackById"
+                 [routerLink]="item.route"
+                 [queryParams]="item.queryParams"
+                 class="stb-rail-link stb-rail-link--child"
+                 [class.active]="isItemActive(item)"
+                 [matTooltip]="item.label"
+                 matTooltipShowDelay="600"
+                 matTooltipPosition="right">
+                <mat-icon>{{ item.icon }}</mat-icon>
+                <span class="stb-link-label">{{ item.label }}</span>
+              </a>
+            </div>
+          </div>
+        </ng-container>
+      </ng-template>
     </nav>
 
     <div class="stb-rail-foot">

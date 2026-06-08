@@ -18,11 +18,11 @@ public class LoginCommandHandlerTests
     }
 
     [Fact]
-    public void Validate_InvalidEmailFormat_ShouldFail()
+    public void Validate_PhoneLoginIdentifier_ShouldPass()
     {
-        var command = new LoginCommand("not-an-email", "password");
+        var command = new LoginCommand("03001234567", "Password123");
         var result = _validator.Validate(command);
-        result.IsValid.Should().BeFalse();
+        result.IsValid.Should().BeTrue();
     }
 
     [Fact]

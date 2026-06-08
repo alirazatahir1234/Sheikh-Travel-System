@@ -1,44 +1,44 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-/// SheikhGo customer app scaffold — reuses customer-hub REST APIs (OTP auth, book, track).
-/// Run: flutter run --dart-define=API_BASE_URL=http://127.0.0.1:5082/api
+import 'core/constants/app_theme.dart';
+import 'core/services/session_storage.dart';
+import 'features/auth/login_screen.dart';
+import 'features/shell/app_shell.dart';
+
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
   runApp(const ProviderScope(child: SheikhGoApp()));
 }
 
-class SheikhGoApp extends StatelessWidget {
+class SheikhGoApp extends ConsumerWidget {
   const SheikhGoApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final sessionState = ref.watch(sessionProvider);
+
     return MaterialApp(
       title: 'SheikhGo',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF0369A1)),
-        useMaterial3: true,
+      debugShowCheckedModeBanner: false,
+      theme: buildSheikhGoTheme(),
+      home: sessionState.when(
+        loading: () => const _SplashScreen(),
+        error: (_, __) => const LoginScreen(),
+        data: (session) =>
+            session == null ? const LoginScreen() : const AppShell(),
       ),
-      home: const _HomePlaceholder(),
     );
   }
 }
 
-class _HomePlaceholder extends StatelessWidget {
-  const _HomePlaceholder();
+class _SplashScreen extends StatelessWidget {
+  const _SplashScreen();
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('SheikhGo')),
-      body: const Padding(
-        padding: EdgeInsets.all(24),
-        child: Text(
-          'SheikhGo customer mobile app shell.\n\n'
-          'Wire screens to /api/customer-portal (book, track, pay) — '
-          'same backend as Sheikh Travel Customer Hub.\n\n'
-          'Prefer sheikh-travel-customer-hub PWA until native screens are added.',
-        ),
-      ),
+    return const Scaffold(
+      body: Center(child: CircularProgressIndicator()),
     );
   }
 }

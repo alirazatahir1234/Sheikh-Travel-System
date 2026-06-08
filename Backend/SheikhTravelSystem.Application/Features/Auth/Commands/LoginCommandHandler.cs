@@ -30,7 +30,7 @@ public class LoginCommandHandler(
             new CommandDefinition(
                 @"SELECT Id, TenantId, FullName, Email, PasswordHash, Phone, Role, IsActive,
                   RefreshToken, RefreshTokenExpiryTime, CreatedAt, UpdatedAt, IsDeleted
-                  FROM Users WHERE Email = @Email AND IsDeleted = 0 AND IsActive = 1",
+                  FROM Users WHERE (Email = @Email OR Phone = @Email) AND IsDeleted = 0 AND IsActive = 1",
                 new { request.Email },
                 cancellationToken: cancellationToken));
 

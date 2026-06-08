@@ -1,6 +1,6 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
-import { Router } from '@angular/router';
-import { Subject, debounceTime, distinctUntilChanged, switchMap, of, Observable, Subscription, map } from 'rxjs';
+import { NavigationEnd, Router } from '@angular/router';
+import { Subject, BehaviorSubject, debounceTime, distinctUntilChanged, switchMap, of, Observable, Subscription, map, filter, combineLatest } from 'rxjs';
 import { MatDialog } from '@angular/material/dialog';
 import { AuthService } from '../../core/services/auth.service';
 import { NotificationService } from '../../core/services/notification.service';
@@ -14,15 +14,13 @@ import {
 import { HelpDialogComponent } from '../../shared/components/help-dialog/help-dialog.component';
 import { LocalTimeContextService, LocalTimeDisplay } from '../../core/services/local-time-context.service';
 import { TenantConfigService } from '../../core/services/tenant-config.service';
-
-interface NavItem {
-  label: string;
-  icon: string;
-  route: string;
-  adminOnly?: boolean;
-  driverOnly?: boolean;
-  moduleKey?: string;
-}
+import { NavGroup, NavItem, ResolvedMenu } from '../../core/navigation/nav-models';
+import {
+  defaultExpandedGroupIds,
+  groupContainingRoute,
+  resolveMenu
+} from '../../core/navigation/menu-config';
+import { resolveTenantType } from '../../core/navigation/tenant-type';
 
 @Component({
   selector: 'app-shell',
@@ -30,46 +28,34 @@ interface NavItem {
   styleUrls: ['./shell.component.scss']
 })
 export class ShellComponent implements OnInit, OnDestroy {
-  private driverNavItems: NavItem[] = [
-    { label: 'My Trips', icon: 'route', route: '/my-trips' },
-    { label: 'Log Fuel', icon: 'local_gas_station', route: '/my-trips/fuel' },
-  ];
+  private readonly enabledModules$ = new BehaviorSubject<string[]>([]);
+  private latestMenu?: ResolvedMenu;
 
-  private allNavItems: NavItem[] = [
-    { label: 'Dashboard', icon: 'dashboard',      route: '/dashboard', moduleKey: 'dashboard' },
-    { label: 'Bookings',  icon: 'confirmation_number', route: '/bookings', moduleKey: 'bookings' },
-    { label: 'Vehicles',  icon: 'directions_bus', route: '/vehicles', moduleKey: 'vehicles' },
-    { label: 'Drivers',   icon: 'badge',          route: '/drivers', moduleKey: 'drivers' },
-    { label: 'Customers', icon: 'group',          route: '/customers', moduleKey: 'customers' },
-    { label: 'Routes',    icon: 'alt_route',      route: '/routes', moduleKey: 'routes' },
-    { label: 'Fuel Logs', icon: 'local_gas_station', route: '/fuel-logs', moduleKey: 'fuel-logs' },
-    { label: 'Maintenance', icon: 'build',        route: '/maintenance', moduleKey: 'maintenance' },
-    { label: 'GPS Tracking', icon: 'my_location', route: '/gps-tracking', moduleKey: 'gps-tracking' },
-    { label: 'Payments',  icon: 'account_balance_wallet', route: '/payments', moduleKey: 'payments' },
-    { label: 'Reports',   icon: 'insights',       route: '/reports', moduleKey: 'reports' },
-    { label: 'Allowance Rules', icon: 'rule',     route: '/driver-allowance-rules', adminOnly: true, moduleKey: 'driver-allowance-rules' },
-    { label: 'Users',     icon: 'manage_accounts', route: '/users', adminOnly: true, moduleKey: 'users' },
-    { label: 'Audit Logs', icon: 'history',       route: '/audit-logs', adminOnly: true, moduleKey: 'audit-logs' },
-  ];
-
-  private enabledModules: string[] = [];
-
-  navItems$!: Observable<NavItem[]>;
+  menu$!: Observable<ResolvedMenu>;
   currentUser$: AuthService['currentUser$'];
   unreadCount$!: NotificationService['unreadCount'];
   notifications$!: NotificationService['notifications'];
 
-  // Global search
+  expandedGroupIds = new Set<string>();
+
   searchQuery = '';
   searchResults: SearchResult[] = [];
   searchLoading = false;
   showSearchResults = false;
-  /** Pinned by default so nav labels stay visible (hover still expands when unpinned). */
   isSidebarPinned = true;
   isSidebarHovering = false;
   private searchSubject = new Subject<string>();
   private searchSub?: Subscription;
   private sessionSub?: Subscription;
+  private routerSub?: Subscription;
+  private menuSub?: Subscription;
+
+  /** Secondary items that share a route with a primary nav entry. */
+  private readonly aliasItemIds = new Set([
+    'trips', 'dispatch-board', 'invoices', 'wallets', 'expenses',
+    'corporate-accounts', 'passengers', 'vendors',
+    'performance-analytics', 'roles-permissions', 'system-configuration'
+  ]);
   timeDisplay$: Observable<LocalTimeDisplay>;
 
   constructor(
@@ -86,23 +72,13 @@ export class ShellComponent implements OnInit, OnDestroy {
     this.notifications$ = notificationService.notifications;
     this.timeDisplay$ = this.localTime.clockDisplay$();
 
-    // Filter nav items based on user role
-    this.navItems$ = this.currentUser$.pipe(
-      map(user => {
-        const isAdmin = user?.roles?.includes('Admin') ?? false;
-        const isDriver = user?.roles?.includes('Driver') ?? false;
-
-        if (isDriver) {
-          return this.driverNavItems;
-        }
-
-        return this.allNavItems.filter(item => {
-          if (item.driverOnly) return false;
-          if (item.adminOnly && !isAdmin) return false;
-          if (this.enabledModules.length && item.moduleKey) {
-            return this.enabledModules.includes(item.moduleKey);
-          }
-          return true;
+    this.menu$ = combineLatest([this.currentUser$, this.enabledModules$]).pipe(
+      map(([user, enabledModules]) => {
+        const tenantType = resolveTenantType(user?.roles ?? []);
+        return resolveMenu({
+          tenantType,
+          roles: user?.roles ?? [],
+          enabledModules
         });
       })
     );
@@ -119,7 +95,7 @@ export class ShellComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.tenantConfig.loadBranding().subscribe(b => {
       if (b?.enabledModules?.length) {
-        this.enabledModules = b.enabledModules;
+        this.enabledModules$.next(b.enabledModules);
       }
     });
 
@@ -130,13 +106,37 @@ export class ShellComponent implements OnInit, OnDestroy {
         this.notificationService.reset();
       }
     });
+
+    this.menuSub = this.menu$.subscribe(menu => {
+      this.latestMenu = menu;
+      this.expandedGroupIds = defaultExpandedGroupIds(menu);
+      this.ensureActiveGroupExpanded(menu);
+    });
+
+    this.routerSub = this.router.events.pipe(
+      filter((e): e is NavigationEnd => e instanceof NavigationEnd)
+    ).subscribe(() => {
+      if (this.latestMenu) {
+        this.ensureActiveGroupExpanded(this.latestMenu);
+      }
+    });
+
     this.initSearch();
   }
 
   ngOnDestroy(): void {
     this.sessionSub?.unsubscribe();
     this.searchSub?.unsubscribe();
+    this.routerSub?.unsubscribe();
+    this.menuSub?.unsubscribe();
     this.notificationService.reset();
+  }
+
+  private ensureActiveGroupExpanded(menu: ResolvedMenu): void {
+    const groupId = groupContainingRoute(menu, this.router.url);
+    if (groupId) {
+      this.expandedGroupIds = new Set([...this.expandedGroupIds, groupId]);
+    }
   }
 
   private initSearch(): void {
@@ -190,6 +190,45 @@ export class ShellComponent implements OnInit, OnDestroy {
     this.isSidebarPinned = !this.isSidebarPinned;
   }
 
+  isGroupExpanded(groupId: string): boolean {
+    return this.expandedGroupIds.has(groupId);
+  }
+
+  toggleGroup(group: NavGroup, event: Event): void {
+    event.preventDefault();
+    event.stopPropagation();
+    if (!this.sidebarExpanded) {
+      this.isSidebarHovering = true;
+      this.expandedGroupIds = new Set([...this.expandedGroupIds, group.id]);
+      return;
+    }
+    const next = new Set(this.expandedGroupIds);
+    if (next.has(group.id)) {
+      next.delete(group.id);
+    } else {
+      next.add(group.id);
+    }
+    this.expandedGroupIds = next;
+  }
+
+  isItemActive(item: NavItem): boolean {
+    const tree = this.router.parseUrl(this.router.url);
+    const path = tree.root.children['primary']?.segments.map(s => s.path).join('/') ?? '';
+    const normalizedPath = '/' + path;
+
+    if (item.queryParams) {
+      const onRoute = normalizedPath === item.route;
+      return onRoute && Object.entries(item.queryParams).every(
+        ([key, value]) => tree.queryParams[key] === value
+      );
+    }
+
+    const onRoute = normalizedPath === item.route || normalizedPath.startsWith(item.route + '/');
+    if (!onRoute) return false;
+    if (this.aliasItemIds.has(item.id)) return false;
+    return true;
+  }
+
   navigateToResult(result: SearchResult): void {
     this.showSearchResults = false;
     this.searchQuery = '';
@@ -210,7 +249,8 @@ export class ShellComponent implements OnInit, OnDestroy {
     return labels[type] || type;
   }
 
-  trackByRoute(_i: number, item: NavItem): string { return item.route; }
+  trackById(_i: number, item: { id: string }): string { return item.id; }
+  trackByGroupId(_i: number, group: NavGroup): string { return group.id; }
   trackByNotifId(_i: number, n: Notification): number { return n.id; }
 
   logout(): void { this.auth.logout(); }
