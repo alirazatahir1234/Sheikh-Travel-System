@@ -1,0 +1,154 @@
+/* Organization Hierarchy console — SVG + control layout safeguards */
+
+$oh-components:
+  'app-hierarchy-configuration',
+  'app-top-navbar',
+  'app-organization-tree',
+  'app-tenant-selector',
+  'app-tree-node',
+  'app-branch-header',
+  'app-overview-dashboard',
+  'app-hierarchy-minimap',
+  'app-context-menu',
+  'app-diagram-view',
+  'app-unassigned-department',
+  'app-statistics-cards',
+  'app-structural-lineage',
+  'app-operational-logs',
+  'app-user-preview',
+  'app-footer-action-bar',
+  'app-departments-tab',
+  'app-users-tab',
+  'app-assets-tab';
+
+@each $component in $oh-components {
+  #{$component} {
+    .flex {
+      display: flex;
+    }
+
+    .inline-flex {
+      display: inline-flex;
+    }
+
+    .flex-wrap {
+      flex-wrap: wrap;
+    }
+
+    .items-center {
+      align-items: center;
+    }
+
+    .justify-between {
+      justify-content: space-between;
+    }
+
+    button,
+    [role='button'] {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.375rem;
+    }
+
+    /* HTML5 SVG default is 300×150 or 100% width — always pin heroicon size */
+    svg[viewBox='0 0 24 24'] {
+      flex-shrink: 0;
+      display: inline-block;
+      vertical-align: middle;
+      width: 1rem !important;
+      height: 1rem !important;
+      max-width: none;
+      max-height: none;
+    }
+
+    svg[class*='w-3.5'],
+    svg[class*='h-3.5'] {
+      width: 0.875rem !important;
+      height: 0.875rem !important;
+    }
+
+    svg.w-5,
+    svg[class*='w-5'] {
+      width: 1.25rem !important;
+      height: 1.25rem !important;
+    }
+
+    svg.w-6,
+    svg[class*='w-6'] {
+      width: 1.5rem !important;
+      height: 1.5rem !important;
+    }
+
+    svg.w-8,
+    svg[class*='w-8'] {
+      width: 2rem !important;
+      height: 2rem !important;
+    }
+
+    svg.w-10,
+    svg[class*='w-10'] {
+      width: 2.5rem !important;
+      height: 2.5rem !important;
+    }
+
+    svg.w-12,
+    svg[class*='w-12'] {
+      width: 3rem !important;
+      height: 3rem !important;
+    }
+
+    svg.w-16,
+    svg[class*='w-16'] {
+      width: 4rem !important;
+      height: 4rem !important;
+    }
+
+    svg.w-2\.5,
+    svg[class*='w-2.5'] {
+      width: 0.625rem !important;
+      height: 0.625rem !important;
+    }
+
+    svg.w-3,
+    svg[class*='w-3']:not([class*='w-3.5']) {
+      width: 0.75rem !important;
+      height: 0.75rem !important;
+    }
+
+    .bg-primary-600 {
+      background-color: #0f766e !important;
+      color: #fff !important;
+      border-color: #0f766e !important;
+    }
+
+    .bg-primary-50 {
+      background-color: #ecfdf5 !important;
+    }
+
+    .text-primary-600 {
+      color: #0f766e !important;
+    }
+
+    .text-primary-700 {
+      color: #0d6b64 !important;
+    }
+
+    .border-border {
+      border-color: #d8e0ea !important;
+    }
+
+    .rounded-lg {
+      border-radius: 1rem;
+    }
+
+    .w-full {
+      width: 100%;
+    }
+  }
+}
+
+app-hierarchy-configuration {
+  min-height: 100vh;
+  background-color: #f4f7fa;
+}

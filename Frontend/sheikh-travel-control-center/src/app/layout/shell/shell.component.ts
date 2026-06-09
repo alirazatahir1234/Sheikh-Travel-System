@@ -29,6 +29,7 @@ import { resolveTenantType } from '../../core/navigation/tenant-type';
   styleUrls: ['./shell.component.scss']
 })
 export class ShellComponent implements OnInit, OnDestroy {
+  private readonly sidebarPinnedStorageKey = 'stb_sidebar_pinned';
   private readonly enabledModules$ = new BehaviorSubject<string[]>([]);
   private latestMenu?: ResolvedMenu;
 
@@ -101,6 +102,8 @@ export class ShellComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
+    this.isSidebarPinned = this.readSidebarPinnedPreference();
+
     this.tenantConfig.loadBranding().subscribe(b => {
       if (b?.enabledModules?.length) {
         this.enabledModules$.next(b.enabledModules);
@@ -196,6 +199,16 @@ export class ShellComponent implements OnInit, OnDestroy {
 
   toggleSidebarPin(): void {
     this.isSidebarPinned = !this.isSidebarPinned;
+    localStorage.setItem(this.sidebarPinnedStorageKey, String(this.isSidebarPinned));
+  }
+
+  private readSidebarPinnedPreference(): boolean {
+    const stored = localStorage.getItem(this.sidebarPinnedStorageKey);
+    // Default to expanded/pinned sidebar on first load.
+    if (stored === null) {
+      return true;
+    }
+    return stored === 'true';
   }
 
   isGroupExpanded(groupId: string): boolean {

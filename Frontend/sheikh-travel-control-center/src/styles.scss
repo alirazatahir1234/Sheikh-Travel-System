@@ -1,4 +1,10 @@
 @import '@angular/material/prebuilt-themes/indigo-pink.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import 'app/features/organization-hierarchy/organization-hierarchy-overrides';
 @import 'leaflet/dist/leaflet.css';
 @import 'leaflet.markercluster/dist/MarkerCluster.css';
 @import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
@@ -54,7 +60,7 @@
   --stb-glass:          rgba(255, 255, 255, 0.88);
 
   /* Layout */
-  --stb-sidenav-w:      204px;
+  --stb-sidenav-w:      280px;
   --stb-sidenav-rail-w: 72px;
   /* At least this tall; content (two-line user chip) may expand slightly. */
   --stb-topbar-h:       72px;

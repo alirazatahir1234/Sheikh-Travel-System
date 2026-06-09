@@ -8,7 +8,7 @@
 
 /* ---------- Rail ---------- */
 .stb-rail {
-  width: 72px;
+  width: var(--stb-sidenav-rail-w, 72px);
   background: var(--stb-surface);
   border-right: 1px solid var(--stb-border);
   display: flex;
@@ -21,8 +21,9 @@
   overflow: hidden;
   transition: width .2s ease, box-shadow .2s ease;
 
-  &.is-expanded {
-    width: 248px;
+  &.is-expanded,
+  &.is-pinned {
+    width: var(--stb-sidenav-w, 280px);
     box-shadow: 8px 0 24px rgba(2, 6, 23, .06);
   }
 }
