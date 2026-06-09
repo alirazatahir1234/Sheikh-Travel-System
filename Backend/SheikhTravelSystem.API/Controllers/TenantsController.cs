@@ -54,7 +54,14 @@ public class TenantsController : BaseApiController
             request.Country,
             request.CurrencyCode,
             request.TimeZone)));
+
+    [RequirePermission(PlatformPermissions.TenantsManage)]
+    [HttpPost("{id:int}/reset-admin-password")]
+    public async Task<IActionResult> ResetAdminPassword(int id, [FromBody] ResetAdminPasswordRequest request)
+        => Ok(await Mediator.Send(new ResetTenantAdminPasswordCommand(id, request.NewPassword)));
 }
+
+public record ResetAdminPasswordRequest(string NewPassword);
 
 public record UpdateTenantBrandingRequest(
     string? LogoUrl,

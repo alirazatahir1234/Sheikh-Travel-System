@@ -72,13 +72,35 @@
 
       <mat-card class="section-card">
         <h2>Subscription &amp; Modules</h2>
-        <div class="field-row">
+        <div class="plan-selector-row">
           <mat-form-field appearance="outline">
             <mat-label>Plan</mat-label>
             <mat-select formControlName="subscriptionPlan">
               <mat-option *ngFor="let p of planTiers" [value]="p">{{ p }}</mat-option>
             </mat-select>
           </mat-form-field>
+          <button mat-stroked-button type="button"
+            (click)="applyPlan(form.controls.subscriptionPlan.value ?? 'Enterprise')"
+            class="apply-plan-btn">
+            <mat-icon>auto_fix_high</mat-icon>
+            Apply Plan Defaults
+          </button>
+        </div>
+        <div class="plan-cards-row">
+          <div class="plan-info-card" *ngFor="let p of planTiers"
+            [class.active]="form.controls.subscriptionPlan.value === p"
+            (click)="form.controls.subscriptionPlan.setValue(p); applyPlan(p)">
+            <span class="plan-chip" [ngClass]="tenantPlanMeta(p).cssClass">
+              <mat-icon>{{ tenantPlanMeta(p).icon }}</mat-icon>{{ p }}
+            </span>
+            <span class="plan-best-for">{{ planDef(p)?.bestFor }}</span>
+            <span class="plan-quota" *ngIf="planDef(p)?.quotas?.maxUsers !== null">
+              {{ planDef(p)?.quotas?.maxUsers }} users · {{ planDef(p)?.quotas?.maxVehicles }} vehicles
+            </span>
+            <span class="plan-quota unlimited" *ngIf="planDef(p)?.quotas?.maxUsers === null">
+              Unlimited resources
+            </span>
+          </div>
         </div>
         <div class="field-row limits-row">
           <mat-form-field appearance="outline">
@@ -114,6 +136,62 @@
             <span>{{ m.name }}</span>
           </button>
         </div>
+      </mat-card>
+
+      <mat-card class="section-card admin-account-card">
+        <div class="admin-card-header">
+          <div>
+            <h2>Administrator Account</h2>
+            <p class="section-sub">Primary admin user provisioned with this tenant</p>
+          </div>
+          <span class="admin-status-badge"
+            [class.active]="adminInfo?.isActive"
+            [class.disabled]="!adminInfo?.isActive">
+            <mat-icon>{{ adminInfo?.isActive ? 'verified_user' : 'block' }}</mat-icon>
+            {{ adminInfo?.status || 'Not provisioned' }}
+          </span>
+        </div>
+
+        <ng-container *ngIf="adminInfo; else noAdmin">
+          <div class="admin-info-grid">
+            <div class="admin-info-field">
+              <span class="label">Full Name</span>
+              <strong>{{ adminInfo.fullName }}</strong>
+            </div>
+            <div class="admin-info-field">
+              <span class="label">Email Address</span>
+              <strong>{{ adminInfo.email }}</strong>
+            </div>
+            <div class="admin-info-field">
+              <span class="label">Mobile</span>
+              <strong>{{ adminInfo.phone || '—' }}</strong>
+            </div>
+            <div class="admin-info-field">
+              <span class="label">Username</span>
+              <strong>{{ adminInfo.email }}</strong>
+            </div>
+            <div class="admin-info-field">
+              <span class="label">Password</span>
+              <strong class="password-masked">••••••••••••</strong>
+            </div>
+          </div>
+          <div class="admin-actions">
+            <button mat-stroked-button type="button"
+              (click)="resetAdminPassword()"
+              [disabled]="resettingPassword">
+              <mat-spinner *ngIf="resettingPassword" diameter="16"></mat-spinner>
+              <mat-icon *ngIf="!resettingPassword">lock_reset</mat-icon>
+              Reset Password
+            </button>
+          </div>
+        </ng-container>
+
+        <ng-template #noAdmin>
+          <div class="no-admin-notice">
+            <mat-icon>info_outline</mat-icon>
+            <span>No administrator account found for this tenant.</span>
+          </div>
+        </ng-template>
       </mat-card>
 
       <mat-card class="section-card">

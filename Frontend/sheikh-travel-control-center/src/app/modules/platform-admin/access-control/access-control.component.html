@@ -1,0 +1,334 @@
+<div class="page-container">
+  <header class="page-header">
+    <div class="header-left">
+      <button mat-icon-button (click)="goBack()" class="back-btn">
+        <mat-icon>arrow_back</mat-icon>
+      </button>
+      <div>
+        <nav class="breadcrumb">
+          <span>Platform</span>
+          <mat-icon>chevron_right</mat-icon>
+          <span class="current">Access Control</span>
+        </nav>
+        <h2>Access Control</h2>
+        <p class="page-sub">Manage users, roles, permissions, and security policies for the selected tenant.</p>
+      </div>
+    </div>
+    <div class="header-right">
+      <app-tenant-picker></app-tenant-picker>
+      <button mat-stroked-button type="button" (click)="refreshTab()" [disabled]="!tenantId || tabLoading">
+        <mat-icon>refresh</mat-icon> Refresh
+      </button>
+    </div>
+  </header>
+
+  <div *ngIf="loading" class="loading">
+    <mat-spinner diameter="36"></mat-spinner>
+  </div>
+
+  <ng-container *ngIf="!loading">
+    <div class="content-placeholder" *ngIf="!selectedTenant">
+      <mat-icon>admin_panel_settings</mat-icon>
+      <h3>Select a Tenant</h3>
+      <p>Choose a tenant from the picker above to manage access control settings.</p>
+    </div>
+
+    <mat-card class="content-card" *ngIf="selectedTenant">
+      <mat-tab-group [(selectedIndex)]="activeTab" (selectedIndexChange)="onTabChange($event)">
+        <!-- Users -->
+        <mat-tab label="Users">
+          <div class="tab-content">
+            <div class="tab-toolbar">
+              <p class="tab-desc">Users assigned to <strong>{{ selectedTenant.name }}</strong></p>
+              <button mat-stroked-button type="button" (click)="openUsersModule()">
+                <mat-icon>open_in_new</mat-icon> Open User Management
+              </button>
+            </div>
+
+            <div *ngIf="tabLoading" class="tab-loading"><mat-spinner diameter="32"></mat-spinner></div>
+
+            <table mat-table [dataSource]="users" class="admin-table" *ngIf="!tabLoading">
+              <ng-container matColumnDef="name">
+                <th mat-header-cell *matHeaderCellDef>Name</th>
+                <td mat-cell *matCellDef="let u"><strong>{{ u.fullName }}</strong></td>
+              </ng-container>
+              <ng-container matColumnDef="email">
+                <th mat-header-cell *matHeaderCellDef>Email</th>
+                <td mat-cell *matCellDef="let u">{{ u.email }}</td>
+              </ng-container>
+              <ng-container matColumnDef="role">
+                <th mat-header-cell *matHeaderCellDef>Legacy Role</th>
+                <td mat-cell *matCellDef="let u">{{ roleLabel(u.role) }}</td>
+              </ng-container>
+              <ng-container matColumnDef="status">
+                <th mat-header-cell *matHeaderCellDef>Status</th>
+                <td mat-cell *matCellDef="let u">
+                  <span class="status-pill" [class.active]="u.isActive">{{ u.isActive ? 'Active' : 'Inactive' }}</span>
+                </td>
+              </ng-container>
+              <tr mat-header-row *matHeaderRowDef="['name','email','role','status']"></tr>
+              <tr mat-row *matRowDef="let row; columns: ['name','email','role','status'];"></tr>
+            </table>
+
+            <div class="empty-tab" *ngIf="!tabLoading && !users.length">No users found for this tenant.</div>
+
+            <div class="table-footer" *ngIf="usersTotal > usersPageSize">
+              <span>Showing {{ users.length }} of {{ usersTotal }} users</span>
+              <div class="pager">
+                <button mat-icon-button [disabled]="usersPage <= 1" (click)="usersPageChange(usersPage - 1)">
+                  <mat-icon>chevron_left</mat-icon>
+                </button>
+                <span>Page {{ usersPage }}</span>
+                <button mat-icon-button [disabled]="usersPage * usersPageSize >= usersTotal" (click)="usersPageChange(usersPage + 1)">
+                  <mat-icon>chevron_right</mat-icon>
+                </button>
+              </div>
+            </div>
+          </div>
+        </mat-tab>
+
+        <!-- Roles -->
+        <mat-tab label="Roles">
+          <div class="tab-content roles-tab">
+            <div *ngIf="tabLoading" class="tab-loading"><mat-spinner diameter="32"></mat-spinner></div>
+
+            <div class="roles-layout" *ngIf="!tabLoading">
+              <div class="roles-main">
+                <mat-card class="inline-form-card">
+                  <h4>Create Role</h4>
+                  <div class="inline-form">
+                    <mat-form-field appearance="outline">
+                      <mat-label>Name</mat-label>
+                      <input matInput [(ngModel)]="newRoleName" />
+                    </mat-form-field>
+                    <mat-form-field appearance="outline">
+                      <mat-label>Code</mat-label>
+                      <input matInput [(ngModel)]="newRoleCode" placeholder="CUSTOM_ROLE" />
+                    </mat-form-field>
+                    <button mat-raised-button color="primary" type="button" (click)="createRole()">
+                      <mat-icon>add</mat-icon> Create
+                    </button>
+                  </div>
+                </mat-card>
+
+                <table mat-table [dataSource]="roles" class="admin-table">
+                  <ng-container matColumnDef="name">
+                    <th mat-header-cell *matHeaderCellDef>Role</th>
+                    <td mat-cell *matCellDef="let r">
+                      <strong>{{ r.name }}</strong>
+                      <span class="system-badge" *ngIf="r.isSystem">System</span>
+                    </td>
+                  </ng-container>
+                  <ng-container matColumnDef="users">
+                    <th mat-header-cell *matHeaderCellDef>Users</th>
+                    <td mat-cell *matCellDef="let r">{{ r.userCount }}</td>
+                  </ng-container>
+                  <ng-container matColumnDef="perms">
+                    <th mat-header-cell *matHeaderCellDef>Permissions</th>
+                    <td mat-cell *matCellDef="let r">{{ r.permissionCount }}</td>
+                  </ng-container>
+                  <ng-container matColumnDef="actions">
+                    <th mat-header-cell *matHeaderCellDef></th>
+                    <td mat-cell *matCellDef="let r">
+                      <button mat-button color="primary" type="button" (click)="selectRole(r)">Configure</button>
+                    </td>
+                  </ng-container>
+                  <tr mat-header-row *matHeaderRowDef="['name','users','perms','actions']"></tr>
+                  <tr mat-row *matRowDef="let row; columns: ['name','users','perms','actions'];"
+                      [class.selected]="selectedRole?.id === row.id"
+                      (click)="selectRole(row)"></tr>
+                </table>
+              </div>
+
+              <mat-card class="role-detail-card" *ngIf="selectedRole">
+                <h4>{{ selectedRole.name }}</h4>
+                <p class="role-code">{{ selectedRole.code }}</p>
+
+                <mat-form-field appearance="outline" class="full-width">
+                  <mat-label>Display Name</mat-label>
+                  <input matInput [(ngModel)]="editingRoleName" />
+                </mat-form-field>
+
+                <mat-slide-toggle [(ngModel)]="editingRoleActive">Active</mat-slide-toggle>
+
+                <div class="detail-actions">
+                  <button mat-stroked-button type="button" (click)="saveRoleDetails()" [disabled]="saving">Save Details</button>
+                  <button mat-stroked-button color="warn" type="button"
+                          (click)="deleteRole(selectedRole)"
+                          [disabled]="selectedRole.isSystem || selectedRole.userCount > 0">
+                    Delete
+                  </button>
+                </div>
+
+                <h5>Permission Matrix</h5>
+                <div class="permission-grid">
+                  <ng-container *ngFor="let group of permissionsByModule()">
+                    <div class="permission-module">{{ group.module }}</div>
+                    <mat-checkbox *ngFor="let p of group.items"
+                                  [checked]="selectedPermissionCodes.has(p.permissionCode)"
+                                  (change)="togglePermission(p.permissionCode)">
+                      {{ p.permissionCode }}
+                    </mat-checkbox>
+                  </ng-container>
+                </div>
+
+                <div class="detail-actions">
+                  <button mat-raised-button color="primary" type="button" (click)="saveRolePermissions()" [disabled]="saving">
+                    Save Permissions
+                  </button>
+                </div>
+              </mat-card>
+            </div>
+          </div>
+        </mat-tab>
+
+        <!-- Permissions -->
+        <mat-tab label="Permissions">
+          <div class="tab-content">
+            <p class="tab-desc">Permission catalog and which roles grant each permission for <strong>{{ selectedTenant.name }}</strong>.</p>
+
+            <div *ngIf="tabLoading" class="tab-loading"><mat-spinner diameter="32"></mat-spinner></div>
+
+            <div class="permissions-catalog" *ngIf="!tabLoading">
+              <div class="perm-group" *ngFor="let group of permissionsByModule()">
+                <h4>{{ group.module }}</h4>
+                <div class="perm-row" *ngFor="let p of group.items">
+                  <div class="perm-code">{{ p.permissionCode }}</div>
+                  <div class="perm-desc">{{ p.description || '—' }}</div>
+                  <div class="perm-roles">
+                    <span class="role-chip" *ngFor="let name of rolesWithPermission(p.permissionCode)">{{ name }}</span>
+                    <span class="muted" *ngIf="!rolesWithPermission(p.permissionCode).length">No roles</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </mat-tab>
+
+        <!-- Access Policies -->
+        <mat-tab label="Access Policies">
+          <div class="tab-content">
+            <p class="tab-desc">Security policies for <strong>{{ selectedTenant.name }}</strong></p>
+
+            <div *ngIf="tabLoading" class="tab-loading"><mat-spinner diameter="32"></mat-spinner></div>
+
+            <form [formGroup]="securityForm" (ngSubmit)="saveSecuritySettings()" class="policies-form" *ngIf="!tabLoading">
+              <div class="policy-grid">
+                <mat-card class="policy-card">
+                  <mat-icon>security</mat-icon>
+                  <div>
+                    <strong>Multi-Factor Authentication</strong>
+                    <p>Require MFA for all users in this tenant.</p>
+                  </div>
+                  <mat-slide-toggle formControlName="isMfaRequired"></mat-slide-toggle>
+                </mat-card>
+
+                <mat-card class="policy-card">
+                  <mat-icon>password</mat-icon>
+                  <div>
+                    <strong>Password Policy</strong>
+                    <p>Password expiry in days (blank = no expiry).</p>
+                    <mat-form-field appearance="outline" class="compact-field">
+                      <mat-label>Expiry (days)</mat-label>
+                      <input matInput type="number" formControlName="passwordExpiryDays" />
+                    </mat-form-field>
+                  </div>
+                </mat-card>
+
+                <mat-card class="policy-card">
+                  <mat-icon>timer</mat-icon>
+                  <div>
+                    <strong>Session Timeout</strong>
+                    <p>Idle session timeout in minutes.</p>
+                    <mat-form-field appearance="outline" class="compact-field">
+                      <mat-label>Minutes</mat-label>
+                      <input matInput type="number" formControlName="sessionTimeoutMinutes" />
+                    </mat-form-field>
+                  </div>
+                </mat-card>
+
+                <mat-card class="policy-card">
+                  <mat-icon>policy</mat-icon>
+                  <div>
+                    <strong>GDPR Compliance</strong>
+                    <p>Enable GDPR data handling features.</p>
+                  </div>
+                  <mat-slide-toggle formControlName="isGdprEnabled"></mat-slide-toggle>
+                </mat-card>
+
+                <mat-card class="policy-card">
+                  <mat-icon>history</mat-icon>
+                  <div>
+                    <strong>Audit Logging</strong>
+                    <p>Record security-relevant actions.</p>
+                  </div>
+                  <mat-slide-toggle formControlName="isAuditLoggingEnabled"></mat-slide-toggle>
+                </mat-card>
+
+                <mat-card class="policy-card">
+                  <mat-icon>receipt</mat-icon>
+                  <div>
+                    <strong>VAT Enabled</strong>
+                    <p>Apply VAT rules for billing.</p>
+                  </div>
+                  <mat-slide-toggle formControlName="isVatEnabled"></mat-slide-toggle>
+                </mat-card>
+
+                <mat-card class="policy-card policy-card--stub">
+                  <mat-icon>lan</mat-icon>
+                  <div>
+                    <strong>IP Whitelist</strong>
+                    <p>Restrict access to approved IP ranges. Coming in a future release.</p>
+                  </div>
+                  <span class="coming-soon">Soon</span>
+                </mat-card>
+
+                <mat-card class="policy-card policy-card--stub">
+                  <mat-icon>schedule</mat-icon>
+                  <div>
+                    <strong>Working Hours</strong>
+                    <p>Limit logins to business hours. Coming in a future release.</p>
+                  </div>
+                  <span class="coming-soon">Soon</span>
+                </mat-card>
+              </div>
+
+              <div class="form-actions">
+                <button mat-raised-button color="primary" type="submit" [disabled]="saving">
+                  {{ saving ? 'Saving...' : 'Save Policies' }}
+                </button>
+              </div>
+            </form>
+          </div>
+        </mat-tab>
+
+        <!-- Role Templates -->
+        <mat-tab label="Role Templates">
+          <div class="tab-content">
+            <p class="tab-desc">Apply standard role permission sets to <strong>{{ selectedTenant.name }}</strong>.</p>
+
+            <div class="templates-grid">
+              <mat-card class="template-card" *ngFor="let t of roleTemplates">
+                <div class="template-header">
+                  <mat-icon>badge</mat-icon>
+                  <div>
+                    <strong>{{ t.name }}</strong>
+                    <span class="template-code">{{ t.code }}</span>
+                  </div>
+                </div>
+                <p>{{ t.permissionCount }} permissions</p>
+                <div class="template-perms">
+                  <span class="perm-chip" *ngFor="let p of t.permissions | slice:0:4">{{ p }}</span>
+                  <span class="perm-more" *ngIf="t.permissions.length > 4">+{{ t.permissions.length - 4 }} more</span>
+                </div>
+                <button mat-stroked-button color="primary" type="button" (click)="applyTemplate(t)" [disabled]="saving || !tenantId">
+                  Apply Template
+                </button>
+              </mat-card>
+            </div>
+          </div>
+        </mat-tab>
+      </mat-tab-group>
+    </mat-card>
+  </ng-container>
+</div>

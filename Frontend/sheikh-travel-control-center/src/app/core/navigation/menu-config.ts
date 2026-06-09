@@ -83,8 +83,35 @@ const organizationGroup: NavGroup = {
   collapsible: true,
   items: [
     { id: 'tenants', label: 'Tenants', icon: 'business', route: '/platform/tenants', adminOnly: true, moduleKey: 'organization' },
-    { id: 'branches', label: 'Branches', icon: 'account_tree', route: '/platform/branches', adminOnly: true, moduleKey: 'organization' },
+    { id: 'organization-designer', label: 'Hierarchy', icon: 'account_tree', route: '/platform/organization-designer', adminOnly: true, moduleKey: 'organization' },
+    { id: 'branches', label: 'Branches', icon: 'location_city', route: '/platform/branches', adminOnly: true, moduleKey: 'organization' },
     { id: 'departments', label: 'Departments', icon: 'domain', route: '/platform/departments', adminOnly: true, moduleKey: 'organization' }
+  ]
+};
+
+const identityGroup: NavGroup = {
+  id: 'identity',
+  label: 'Identity',
+  icon: 'admin_panel_settings',
+  collapsible: true,
+  items: [
+    { id: 'users', label: 'Users', icon: 'manage_accounts', route: '/users', adminOnly: true, moduleKey: 'access_control' },
+    { id: 'roles', label: 'Roles', icon: 'security', route: '/platform/roles', adminOnly: true, moduleKey: 'access_control' },
+    { id: 'permissions', label: 'Permissions', icon: 'verified_user', route: '/platform/access-control', adminOnly: true, moduleKey: 'access_control' },
+    { id: 'access-policies', label: 'Access Policies', icon: 'policy', route: '/platform/access-control', queryParams: { tab: 'policies' }, adminOnly: true, moduleKey: 'access_control' }
+  ]
+};
+
+const platformGroup: NavGroup = {
+  id: 'platform',
+  label: 'Platform',
+  icon: 'settings_applications',
+  collapsible: true,
+  items: [
+    { id: 'modules', label: 'Modules', icon: 'extension', route: '/platform/module-management', adminOnly: true, moduleKey: 'platform' },
+    { id: 'plans', label: 'Plans', icon: 'subscriptions', route: '/platform/subscription-management', adminOnly: true, moduleKey: 'platform' },
+    { id: 'billing', label: 'Billing', icon: 'payments', route: '/platform/subscription-management', queryParams: { tab: 'billing' }, adminOnly: true, moduleKey: 'platform' },
+    { id: 'audit-logs-platform', label: 'Audit Logs', icon: 'history', route: '/audit-logs', adminOnly: true, moduleKey: 'audit-logs' }
   ]
 };
 
@@ -122,6 +149,8 @@ const allGroups: NavGroup[] = [
   financeGroup,
   analyticsGroup,
   organizationGroup,
+  identityGroup,
+  platformGroup,
   accessControlGroup,
   administrationGroup
 ];
@@ -136,9 +165,9 @@ const driverItems: NavItem[] = [
 ];
 
 const tenantGroupIds: Record<TenantType, string[]> = {
-  [TenantType.TravelAgency]: ['dashboard', 'operations', 'customers', 'finance', 'analytics', 'organization', 'access_control'],
-  [TenantType.FleetOperator]: ['dashboard', 'fleet', 'analytics', 'organization', 'access_control'],
-  [TenantType.CorporateCustomer]: ['dashboard', 'operations', 'customers', 'finance', 'analytics', 'organization', 'access_control'],
+  [TenantType.TravelAgency]: ['dashboard', 'operations', 'customers', 'finance', 'analytics', 'organization', 'identity', 'platform', 'access_control'],
+  [TenantType.FleetOperator]: ['dashboard', 'fleet', 'analytics', 'organization', 'identity', 'platform', 'access_control'],
+  [TenantType.CorporateCustomer]: ['dashboard', 'operations', 'customers', 'finance', 'analytics', 'organization', 'identity', 'platform', 'access_control'],
   [TenantType.Driver]: []
 };
 

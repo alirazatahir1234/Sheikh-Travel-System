@@ -1,0 +1,192 @@
+<div class="page-container">
+  <header class="page-header">
+    <div class="header-left">
+      <button mat-icon-button (click)="goBack()" class="back-btn">
+        <mat-icon>arrow_back</mat-icon>
+      </button>
+      <div>
+        <nav class="breadcrumb">
+          <span>Platform</span>
+          <mat-icon>chevron_right</mat-icon>
+          <span class="current">Subscription Management</span>
+        </nav>
+        <h2>Subscription Management</h2>
+        <p class="page-sub">Track subscription plans, billing history, and payment status for the selected tenant.</p>
+      </div>
+    </div>
+    <div class="header-right">
+      <app-tenant-picker></app-tenant-picker>
+      <button mat-stroked-button type="button" (click)="refresh()" [disabled]="!overview || loading">
+        <mat-icon>refresh</mat-icon> Refresh
+      </button>
+    </div>
+  </header>
+
+  <div *ngIf="loading" class="loading">
+    <mat-spinner diameter="36"></mat-spinner>
+  </div>
+
+  <ng-container *ngIf="!loading">
+    <div class="content-placeholder" *ngIf="!overview">
+      <mat-icon>subscriptions</mat-icon>
+      <h3>Select a Tenant</h3>
+      <p>Choose a tenant from the picker above to manage their subscription and billing.</p>
+    </div>
+
+    <div class="subscription-layout" *ngIf="overview && subscription">
+      <!-- Current Plan -->
+      <mat-card class="plan-card">
+        <mat-card-header>
+          <mat-card-title>Current Plan</mat-card-title>
+        </mat-card-header>
+        <mat-card-content>
+          <div class="plan-banner" [class.warn]="isExpiringSoon()" [class.danger]="isExpired()" *ngIf="isExpiringSoon() || isExpired()">
+            <mat-icon>{{ isExpired() ? 'error' : 'warning' }}</mat-icon>
+            <span>{{ isExpired() ? 'This subscription has expired.' : 'This subscription expires within 30 days.' }}</span>
+          </div>
+
+          <div class="plan-details">
+            <div class="plan-name">
+              <span class="plan-badge">{{ subscription.planName || 'Basic' }}</span>
+              <span class="status-pill" [ngClass]="statusClass(subscription.status)">{{ subscription.status }}</span>
+            </div>
+
+            <div class="plan-info">
+              <div class="info-item">
+                <span class="label">Monthly Amount</span>
+                <span class="value">{{ formatMoney(subscription.monthlyAmount) }}</span>
+              </div>
+              <div class="info-item">
+                <span class="label">Billing Cycle</span>
+                <span class="value">{{ subscription.billingCycle }}</span>
+              </div>
+              <div class="info-item">
+                <span class="label">Start Date</span>
+                <span class="value">{{ subscription.subscriptionStartDate | date:'mediumDate' }}</span>
+              </div>
+              <div class="info-item">
+                <span class="label">Expiry Date</span>
+                <span class="value">{{ (subscription.subscriptionEndDate | date:'mediumDate') || '—' }}</span>
+              </div>
+              <div class="info-item">
+                <span class="label">Auto Renewal</span>
+                <mat-slide-toggle
+                  [checked]="subscription.autoRenew"
+                  (change)="toggleAutoRenew($event.checked)"
+                  [disabled]="saving">
+                  {{ subscription.autoRenew ? 'On' : 'Off' }}
+                </mat-slide-toggle>
+              </div>
+            </div>
+          </div>
+
+          <div class="plan-actions">
+            <mat-form-field appearance="outline" class="plan-select">
+              <mat-label>Change Plan</mat-label>
+              <mat-select [(ngModel)]="upgradePlan">
+                <mat-option *ngFor="let p of planOptions" [value]="p">{{ p }}</mat-option>
+              </mat-select>
+            </mat-form-field>
+            <button mat-raised-button color="primary" type="button" (click)="upgrade()"
+                    [disabled]="saving || !upgradePlan || upgradePlan === subscription.planName">
+              Apply Plan
+            </button>
+            <button mat-stroked-button type="button" (click)="renew()" [disabled]="saving">Renew</button>
+            <button mat-stroked-button color="warn" type="button" (click)="suspend()"
+                    [disabled]="saving || subscription.status === 'Suspended'">
+              Suspend
+            </button>
+            <button mat-stroked-button color="warn" type="button" (click)="cancel()"
+                    [disabled]="saving || subscription.status === 'Cancelled'">
+              Cancel
+            </button>
+            <button mat-stroked-button color="primary" type="button" (click)="reactivate()"
+                    *ngIf="subscription.status !== 'Active'" [disabled]="saving">
+              Reactivate
+            </button>
+          </div>
+        </mat-card-content>
+      </mat-card>
+
+      <!-- Payment History -->
+      <mat-card class="billing-card">
+        <mat-card-header>
+          <mat-card-title>Payment History</mat-card-title>
+        </mat-card-header>
+        <mat-card-content>
+          <table mat-table [dataSource]="payments" class="admin-table" *ngIf="payments.length">
+            <ng-container matColumnDef="date">
+              <th mat-header-cell *matHeaderCellDef>Date</th>
+              <td mat-cell *matCellDef="let p">{{ p.paidAt | date:'mediumDate' }}</td>
+            </ng-container>
+            <ng-container matColumnDef="amount">
+              <th mat-header-cell *matHeaderCellDef>Amount</th>
+              <td mat-cell *matCellDef="let p">{{ formatMoney(p.amount, p.currencyCode) }}</td>
+            </ng-container>
+            <ng-container matColumnDef="method">
+              <th mat-header-cell *matHeaderCellDef>Method</th>
+              <td mat-cell *matCellDef="let p">{{ p.paymentMethod || '—' }}</td>
+            </ng-container>
+            <ng-container matColumnDef="reference">
+              <th mat-header-cell *matHeaderCellDef>Reference</th>
+              <td mat-cell *matCellDef="let p">{{ p.reference || '—' }}</td>
+            </ng-container>
+            <ng-container matColumnDef="status">
+              <th mat-header-cell *matHeaderCellDef>Status</th>
+              <td mat-cell *matCellDef="let p"><span class="status-pill status-active">{{ p.status }}</span></td>
+            </ng-container>
+            <tr mat-header-row *matHeaderRowDef="['date','amount','method','reference','status']"></tr>
+            <tr mat-row *matRowDef="let row; columns: ['date','amount','method','reference','status'];"></tr>
+          </table>
+
+          <div class="empty-state" *ngIf="!payments.length">
+            <mat-icon>receipt_long</mat-icon>
+            <p>No payments recorded yet.</p>
+          </div>
+        </mat-card-content>
+      </mat-card>
+
+      <!-- Invoices -->
+      <mat-card class="invoices-card">
+        <mat-card-header>
+          <mat-card-title>Invoices</mat-card-title>
+        </mat-card-header>
+        <mat-card-content>
+          <table mat-table [dataSource]="invoices" class="admin-table" *ngIf="invoices.length">
+            <ng-container matColumnDef="number">
+              <th mat-header-cell *matHeaderCellDef>Invoice #</th>
+              <td mat-cell *matCellDef="let i"><strong>{{ i.invoiceNumber }}</strong></td>
+            </ng-container>
+            <ng-container matColumnDef="plan">
+              <th mat-header-cell *matHeaderCellDef>Plan</th>
+              <td mat-cell *matCellDef="let i">{{ i.planName || '—' }}</td>
+            </ng-container>
+            <ng-container matColumnDef="amount">
+              <th mat-header-cell *matHeaderCellDef>Amount</th>
+              <td mat-cell *matCellDef="let i">{{ formatMoney(i.amount, i.currencyCode) }}</td>
+            </ng-container>
+            <ng-container matColumnDef="issued">
+              <th mat-header-cell *matHeaderCellDef>Issued</th>
+              <td mat-cell *matCellDef="let i">{{ i.issuedDate | date:'mediumDate' }}</td>
+            </ng-container>
+            <ng-container matColumnDef="due">
+              <th mat-header-cell *matHeaderCellDef>Due</th>
+              <td mat-cell *matCellDef="let i">{{ (i.dueDate | date:'mediumDate') || '—' }}</td>
+            </ng-container>
+            <ng-container matColumnDef="status">
+              <th mat-header-cell *matHeaderCellDef>Status</th>
+              <td mat-cell *matCellDef="let i"><span class="inv-pill" [ngClass]="invoiceStatusClass(i.status)">{{ i.status }}</span></td>
+            </ng-container>
+            <tr mat-header-row *matHeaderRowDef="['number','plan','amount','issued','due','status']"></tr>
+            <tr mat-row *matRowDef="let row; columns: ['number','plan','amount','issued','due','status'];"></tr>
+          </table>
+
+          <div class="empty-state" *ngIf="!invoices.length">
+            <mat-icon>description</mat-icon>
+            <p>No invoices generated yet.</p>
+          </div>
+        </mat-card-content>
+      </mat-card>
+    </div>
+  </ng-container>
+</div>

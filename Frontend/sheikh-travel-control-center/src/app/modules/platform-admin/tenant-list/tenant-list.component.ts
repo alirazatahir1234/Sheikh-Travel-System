@@ -12,7 +12,9 @@ import {
   TenantModuleDefinition,
   TENANT_PLAN_TIERS,
   TENANT_TYPES,
+  formatCurrency,
   formatModuleBadge,
+  normalizeTenantManagementStats,
   tenantDisplayCode,
   tenantHealthStatus,
   tenantModuleList,
@@ -96,7 +98,7 @@ export class TenantListComponent implements OnInit {
     }).subscribe({
       next: ({ tenants, stats, modules }) => {
         this.tenants = tenants;
-        this.stats = stats;
+        this.stats = normalizeTenantManagementStats(stats as unknown as Record<string, unknown>);
         this.modules = modules;
         this.dataSource.data = tenants;
         this.applyFilters();
@@ -324,28 +326,43 @@ export class TenantListComponent implements OnInit {
     URL.revokeObjectURL(url);
   }
 
-  openOrganizationDesigner(): void {
-    this.snackBar.open('Organization Designer will be available in a future release.', 'Close', { duration: 3500 });
+  openOrganizationDesigner(tenant?: Tenant): void {
+    if (tenant) {
+      void this.router.navigate(['/platform/organization-designer'], { queryParams: { tenantId: tenant.id } });
+    } else {
+      void this.router.navigate(['/platform/organization-designer']);
+    }
   }
 
-  openAccessControl(): void {
-    void this.router.navigate(['/platform/roles']);
+  openAccessControl(tenant?: Tenant): void {
+    if (tenant) {
+      void this.router.navigate(['/platform/access-control'], { queryParams: { tenantId: tenant.id } });
+    } else {
+      void this.router.navigate(['/platform/access-control']);
+    }
   }
 
-  openModuleManagement(): void {
-    this.snackBar.open('Module provisioning will be available in a future release.', 'Close', { duration: 3500 });
+  openModuleManagement(tenant?: Tenant): void {
+    if (tenant) {
+      void this.router.navigate(['/platform/module-management'], { queryParams: { tenantId: tenant.id } });
+    } else {
+      void this.router.navigate(['/platform/module-management']);
+    }
   }
 
-  openSubscriptionManagement(): void {
-    this.snackBar.open('Subscription review will be available in a future release.', 'Close', { duration: 3500 });
+  openSubscriptionManagement(tenant?: Tenant): void {
+    if (tenant) {
+      void this.router.navigate(['/platform/subscription-management'], { queryParams: { tenantId: tenant.id } });
+    } else {
+      void this.router.navigate(['/platform/subscription-management']);
+    }
   }
 
   planFor(tenant: Tenant): TenantPlanMeta {
     return tenantPlanMeta(tenant.subscriptionPlan);
   }
 
-  formatRevenue(value: number): string {
-    if (value >= 1000) return `AED ${Math.round(value / 1000)}k`;
-    return `AED ${value}`;
+  formatRevenue(value?: number | null): string {
+    return formatCurrency(value);
   }
 }

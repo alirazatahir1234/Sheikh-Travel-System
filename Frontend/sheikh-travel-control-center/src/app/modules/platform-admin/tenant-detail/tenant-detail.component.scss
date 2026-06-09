@@ -137,6 +137,144 @@
   }
 }
 
+// ─── Plan selector ───────────────────────────────────────────────────────────
+
+.plan-selector-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 4px;
+
+  mat-form-field { flex: 1; }
+
+  .apply-plan-btn {
+    margin-top: 4px;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+}
+
+.plan-cards-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 20px;
+
+  @media (max-width: 680px) { grid-template-columns: 1fr; }
+}
+
+.plan-info-card {
+  border: 2px solid var(--stb-border, #e5e7eb);
+  border-radius: 10px;
+  padding: 12px 14px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  transition: border-color .15s, background .15s;
+
+  &:hover { border-color: #93c5fd; background: #f8fafc; }
+  &.active { border-color: #1d4ed8; background: #eff6ff; }
+
+  .plan-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: .75rem;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 999px;
+    width: fit-content;
+
+    mat-icon { font-size: 14px; width: 14px; height: 14px; }
+
+    &.plan-enterprise { background: #ede9fe; color: #5b21b6; }
+    &.plan-pro { background: #dbeafe; color: #1d4ed8; }
+    &.plan-starter { background: #f3f4f6; color: #374151; }
+  }
+
+  .plan-best-for { font-size: .78rem; color: var(--stb-text-muted); }
+  .plan-quota { font-size: .78rem; font-weight: 600; color: var(--stb-text); }
+  .plan-quota.unlimited { color: #059669; }
+}
+
+// ─── Administrator Account card ───────────────────────────────────────────────
+
+.admin-account-card {
+  .admin-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 20px;
+
+    h2 { margin: 0; }
+    .section-sub { margin: 4px 0 0; font-size: .82rem; color: var(--stb-text-muted); }
+  }
+
+  .admin-status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: .78rem;
+    font-weight: 600;
+    padding: 4px 12px;
+    border-radius: 999px;
+
+    mat-icon { font-size: 15px; width: 15px; height: 15px; }
+
+    &.active { background: #dcfce7; color: #15803d; }
+    &.disabled { background: #fee2e2; color: #b91c1c; }
+  }
+}
+
+.admin-info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+
+  .admin-info-field {
+    .label {
+      display: block;
+      font-size: .72rem;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      color: var(--stb-text-muted);
+      margin-bottom: 3px;
+    }
+
+    strong { font-size: .95rem; }
+    .password-masked { letter-spacing: 2px; color: var(--stb-text-muted); }
+  }
+}
+
+.admin-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+
+  button {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+}
+
+.no-admin-notice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px;
+  background: #f9fafb;
+  border-radius: 8px;
+  color: var(--stb-text-muted);
+  font-size: .88rem;
+
+  mat-icon { color: #9ca3af; }
+}
+
 .form-actions {
   display: flex;
   justify-content: flex-end;

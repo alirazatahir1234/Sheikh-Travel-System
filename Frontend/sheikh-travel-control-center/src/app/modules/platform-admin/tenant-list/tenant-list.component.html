@@ -227,7 +227,10 @@
         <button mat-menu-item type="button" (click)="openTenant(selectedRow!)">
           <mat-icon>edit</mat-icon><span>Edit Tenant</span>
         </button>
-        <button mat-menu-item type="button" (click)="openTenant(selectedRow!)">
+        <button mat-menu-item type="button" (click)="openOrganizationDesigner(selectedRow!)">
+          <mat-icon>account_tree</mat-icon><span>Organization Structure</span>
+        </button>
+        <button mat-menu-item type="button" (click)="openModuleManagement(selectedRow!)">
           <mat-icon>extension</mat-icon><span>Manage Modules</span>
         </button>
         <button mat-menu-item type="button" (click)="manageUsers()">

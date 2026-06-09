@@ -235,6 +235,8 @@ using (var scope = app.Services.CreateScope())
         await TenantSchemaMigration.ApplyAsync(dbFactory, logger);
         await PlatformSchemaMigration.ApplyAsync(dbFactory, logger);
         await TenantNormalizationMigration.ApplyAsync(dbFactory, logger);
+        await OrganizationDesignerMigration.ApplyAsync(dbFactory, logger);
+        await SubscriptionBillingMigration.ApplyAsync(dbFactory, logger);
     }
     catch (Exception ex)
     {

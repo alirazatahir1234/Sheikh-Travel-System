@@ -29,8 +29,11 @@ export class UserService {
 
   constructor(private http: HttpClient) {}
 
-  getAll(page = 1, pageSize = 20): Observable<PagedResult<User>> {
-    const params = new HttpParams().set('page', page).set('pageSize', pageSize);
+  getAll(page = 1, pageSize = 20, tenantId?: number | null): Observable<PagedResult<User>> {
+    let params = new HttpParams().set('page', page).set('pageSize', pageSize);
+    if (tenantId != null) {
+      params = params.set('tenantId', tenantId);
+    }
     return this.http.get<PagedResult<User>>(this.base, { params });
   }
 

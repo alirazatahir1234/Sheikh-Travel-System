@@ -26,6 +26,7 @@ public record BranchDto(
 public record DepartmentDto(
     int Id,
     int TenantId,
+    int? BranchId,
     string Name,
     int? DepartmentHeadUserId,
     string? DepartmentHeadName,
@@ -120,6 +121,17 @@ public record GetTenantModulesQuery : IRequest<ApiResponse<IReadOnlyList<TenantM
 
 public record GetTenantsQuery : IRequest<ApiResponse<IReadOnlyList<TenantListDto>>>;
 
+public record TenantAdminInfoDto(
+    int Id,
+    string FullName,
+    string Email,
+    string? Phone,
+    bool IsActive,
+    string Status);
+
+public record ResetTenantAdminPasswordCommand(int TenantId, string NewPassword)
+    : IRequest<ApiResponse<bool>>;
+
 public record TenantDetailDto(
     int Id,
     string Name,
@@ -139,7 +151,6 @@ public record TenantDetailDto(
     int? MaxDrivers,
     int? MaxBranches,
     int? MaxGpsDevices,
-    IReadOnlyList<string> ModuleCodes,
     string? LogoUrl,
     string? PrimaryColor,
     string? Website,
@@ -150,7 +161,11 @@ public record TenantDetailDto(
     int BranchCount,
     int DepartmentCount,
     int RoleCount,
-    string? Location);
+    string? Location)
+{
+    public IReadOnlyList<string> ModuleCodes { get; init; } = [];
+    public TenantAdminInfoDto? AdminInfo { get; init; }
+}
 
 public record GetTenantByIdQuery(int Id) : IRequest<ApiResponse<TenantDetailDto>>;
 
@@ -171,3 +186,164 @@ public record UpdateTenantCommand(
 public record GetUserMenuQuery : IRequest<ApiResponse<IReadOnlyList<MenuModuleDto>>>;
 
 public record UpdateDepartmentRequest(DepartmentUpsertPayload Payload, bool IsActive);
+
+// Organization Designer DTOs
+public record OrganizationTreeDto(
+    int TenantId,
+    string TenantName,
+    IReadOnlyList<OrganizationBranchDto> Branches,
+    IReadOnlyList<OrganizationDepartmentDto> UnassignedDepartments);
+
+public record OrganizationBranchDto(
+    int Id,
+    int? ParentBranchId,
+    string BranchCode,
+    string Name,
+    string? BranchType,
+    string? City,
+    string? Country,
+    bool IsActive,
+    int Status,
+    IReadOnlyList<OrganizationDepartmentDto> Departments);
+
+public record OrganizationDepartmentDto(
+    int Id,
+    int? BranchId,
+    string Name,
+    string? DepartmentHeadName,
+    int StaffCount,
+    bool IsActive);
+
+public record DepartmentUpsertWithBranchPayload(string Name, int? DepartmentHeadUserId, int? BranchId);
+
+// Tenant-scoped queries for Organization Designer
+public record GetOrganizationTreeQuery(int TenantId) : IRequest<ApiResponse<OrganizationTreeDto>>;
+
+// Tenant-scoped branch commands
+public record GetBranchesForTenantQuery(int TenantId) : IRequest<ApiResponse<IReadOnlyList<BranchDto>>>;
+public record CreateBranchForTenantCommand(int TenantId, BranchUpsertPayload Payload) : IRequest<ApiResponse<int>>;
+public record UpdateBranchForTenantCommand(int TenantId, int BranchId, BranchUpsertPayload Payload) : IRequest<ApiResponse<bool>>;
+public record DeleteBranchForTenantCommand(int TenantId, int BranchId) : IRequest<ApiResponse<bool>>;
+
+// Tenant-scoped department commands
+public record GetDepartmentsForTenantQuery(int TenantId) : IRequest<ApiResponse<IReadOnlyList<DepartmentDto>>>;
+public record CreateDepartmentForTenantCommand(int TenantId, DepartmentUpsertWithBranchPayload Payload) : IRequest<ApiResponse<int>>;
+public record UpdateDepartmentForTenantCommand(int TenantId, int DepartmentId, DepartmentUpsertWithBranchPayload Payload, bool IsActive) : IRequest<ApiResponse<bool>>;
+public record DeleteDepartmentForTenantCommand(int TenantId, int DepartmentId) : IRequest<ApiResponse<bool>>;
+public record MoveDepartmentCommand(int TenantId, int DepartmentId, int? NewBranchId) : IRequest<ApiResponse<bool>>;
+
+// Access Control (Sprint 2)
+public record RoleSummaryDto(
+    int Id,
+    int TenantId,
+    string Name,
+    string Code,
+    bool IsSystem,
+    bool IsActive,
+    int UserCount,
+    int PermissionCount,
+    IReadOnlyList<string> Permissions);
+
+public record TenantSecuritySettingsDto(
+    bool IsMfaRequired,
+    int? PasswordExpiryDays,
+    int? SessionTimeoutMinutes,
+    bool IsGdprEnabled,
+    bool IsAuditLoggingEnabled,
+    bool IsVatEnabled);
+
+public record RoleTemplateDto(
+    string Code,
+    string Name,
+    int PermissionCount,
+    IReadOnlyList<string> Permissions);
+
+public record GetRolesForTenantQuery(int TenantId) : IRequest<ApiResponse<IReadOnlyList<RoleSummaryDto>>>;
+public record CreateRoleForTenantCommand(int TenantId, string Name, string Code) : IRequest<ApiResponse<int>>;
+public record UpdateRoleForTenantCommand(int TenantId, int RoleId, string Name, bool IsActive) : IRequest<ApiResponse<bool>>;
+public record DeleteRoleForTenantCommand(int TenantId, int RoleId) : IRequest<ApiResponse<bool>>;
+public record UpdateRolePermissionsForTenantCommand(int TenantId, int RoleId, IReadOnlyList<string> PermissionCodes) : IRequest<ApiResponse<bool>>;
+
+public record GetTenantSecuritySettingsQuery(int TenantId) : IRequest<ApiResponse<TenantSecuritySettingsDto>>;
+public record UpdateTenantSecuritySettingsCommand(int TenantId, TenantSecuritySettingsDto Payload) : IRequest<ApiResponse<bool>>;
+
+public record GetRoleTemplatesQuery : IRequest<ApiResponse<IReadOnlyList<RoleTemplateDto>>>;
+public record ApplyRoleTemplateCommand(int TenantId, string RoleCode) : IRequest<ApiResponse<bool>>;
+
+// Module Management (Sprint 3)
+public record ModuleStatusDto(
+    string Code,
+    string Name,
+    bool IsEnabled);
+
+public record LicenseLimitDto(
+    string Resource,
+    int Used,
+    int? Limit);
+
+public record TenantModuleOverviewDto(
+    int TenantId,
+    string TenantName,
+    string? PlanName,
+    IReadOnlyList<ModuleStatusDto> Modules,
+    IReadOnlyList<LicenseLimitDto> LicenseLimits);
+
+public record GetTenantModuleOverviewQuery(int TenantId) : IRequest<ApiResponse<TenantModuleOverviewDto>>;
+public record SetTenantModulesCommand(int TenantId, IReadOnlyList<string> ModuleCodes) : IRequest<ApiResponse<bool>>;
+
+// Subscription Management (Sprint 4)
+public record SubscriptionDetailDto(
+    int TenantId,
+    string TenantName,
+    string? PlanName,
+    string Status,
+    string BillingCycle,
+    decimal? MonthlyAmount,
+    string CurrencyCode,
+    bool AutoRenew,
+    DateTime? SubscriptionStartDate,
+    DateTime? SubscriptionEndDate,
+    DateTime? TrialEndDate,
+    int? MaxUsers,
+    int? MaxVehicles,
+    int? MaxDrivers,
+    int? MaxBranches,
+    int? MaxGpsDevices);
+
+public record InvoiceDto(
+    int Id,
+    string InvoiceNumber,
+    string? PlanName,
+    decimal Amount,
+    string CurrencyCode,
+    string Status,
+    DateTime IssuedDate,
+    DateTime? DueDate,
+    DateTime? PaidDate);
+
+public record PaymentDto(
+    int Id,
+    int? InvoiceId,
+    decimal Amount,
+    string CurrencyCode,
+    string? PaymentMethod,
+    string Status,
+    string? Reference,
+    DateTime PaidAt);
+
+public record SubscriptionOverviewDto(
+    SubscriptionDetailDto Subscription,
+    IReadOnlyList<InvoiceDto> Invoices,
+    IReadOnlyList<PaymentDto> Payments);
+
+public record GetSubscriptionOverviewQuery(int TenantId) : IRequest<ApiResponse<SubscriptionOverviewDto>>;
+
+public enum SubscriptionAction { Upgrade, Renew, Suspend, Cancel, Reactivate }
+
+public record UpdateSubscriptionCommand(
+    int TenantId,
+    SubscriptionAction Action,
+    string? PlanName,
+    decimal? MonthlyAmount,
+    bool? AutoRenew,
+    string? BillingCycle) : IRequest<ApiResponse<bool>>;

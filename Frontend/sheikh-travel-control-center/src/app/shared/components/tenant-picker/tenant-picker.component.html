@@ -1,0 +1,18 @@
+<div class="tenant-picker">
+  <mat-form-field appearance="outline" class="tenant-picker-field">
+    <mat-label>Select Tenant</mat-label>
+    <mat-select
+      [value]="selectedTenantId"
+      (selectionChange)="selectTenant($event.value)"
+      [disabled]="loading"
+    >
+      <mat-option *ngFor="let tenant of tenants" [value]="tenant.id">
+        <div class="tenant-option">
+          <span class="tenant-name">{{ tenant.name }}</span>
+          <span class="tenant-code">{{ tenant.slug || tenant.code }}</span>
+        </div>
+      </mat-option>
+    </mat-select>
+    <mat-icon matPrefix>business</mat-icon>
+  </mat-form-field>
+</div>

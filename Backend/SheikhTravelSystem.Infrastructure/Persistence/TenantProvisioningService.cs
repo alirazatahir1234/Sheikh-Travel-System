@@ -3,6 +3,7 @@ using Dapper;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Application.Features.Tenants;
+using SheikhTravelSystem.Domain.Constants;
 using SheikhTravelSystem.Domain.Enums;
 
 namespace SheikhTravelSystem.Infrastructure.Persistence;
@@ -125,7 +126,7 @@ public class TenantProvisioningService(
             request.Website,
             request.SupportEmail,
             request.Country,
-            request.CurrencyCode,
+            CurrencyCode = request.CurrencyCode ?? AppConstants.DefaultCurrency,
             request.TimeZone
         }, transaction: transaction, cancellationToken: cancellationToken));
 
@@ -247,10 +248,15 @@ public class TenantProvisioningService(
             TenantId = tenantId,
             Name = branchName,
             HeadOffice = headOffice,
-            City = request.Country == "United Arab Emirates" ? "Dubai" : null,
+            City = request.Country switch
+            {
+                "Pakistan" => "Karachi",
+                "United Arab Emirates" => "Dubai",
+                _ => null
+            },
             request.Country,
             request.TimeZone,
-            Currency = request.CurrencyCode
+            Currency = request.CurrencyCode ?? AppConstants.DefaultCurrency
         }, transaction: transaction, cancellationToken: ct));
 
         var departments = (request.DefaultDepartments ?? "Operations,Finance,Fleet,HR")

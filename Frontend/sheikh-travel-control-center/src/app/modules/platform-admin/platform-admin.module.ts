@@ -8,6 +8,10 @@ import { BranchListComponent } from './branch-list/branch-list.component';
 import { BranchFormComponent } from './branch-form/branch-form.component';
 import { DepartmentListComponent } from './department-list/department-list.component';
 import { RoleListComponent } from './role-list/role-list.component';
+import { OrganizationDesignerComponent } from './organization-designer/organization-designer.component';
+import { AccessControlComponent } from './access-control/access-control.component';
+import { ModuleManagementComponent } from './module-management/module-management.component';
+import { SubscriptionManagementComponent } from './subscription-management/subscription-management.component';
 
 const routes: Routes = [
   { path: 'tenants', component: TenantListComponent },
@@ -18,6 +22,10 @@ const routes: Routes = [
   { path: 'branches/:id/edit', component: BranchFormComponent },
   { path: 'departments', component: DepartmentListComponent },
   { path: 'roles', component: RoleListComponent },
+  { path: 'organization-designer', component: OrganizationDesignerComponent },
+  { path: 'access-control', component: AccessControlComponent },
+  { path: 'module-management', component: ModuleManagementComponent },
+  { path: 'subscription-management', component: SubscriptionManagementComponent },
   { path: '', redirectTo: 'branches', pathMatch: 'full' }
 ];
 
@@ -29,7 +37,11 @@ const routes: Routes = [
     BranchListComponent,
     BranchFormComponent,
     DepartmentListComponent,
-    RoleListComponent
+    RoleListComponent,
+    OrganizationDesignerComponent,
+    AccessControlComponent,
+    ModuleManagementComponent,
+    SubscriptionManagementComponent
   ],
   imports: [SharedModule, RouterModule.forChild(routes)]
 })

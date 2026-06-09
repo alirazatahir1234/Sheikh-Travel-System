@@ -1,5 +1,6 @@
 using MediatR;
 using SheikhTravelSystem.Application.Common;
+using SheikhTravelSystem.Domain.Constants;
 
 namespace SheikhTravelSystem.Application.Features.Tenants;
 
@@ -32,7 +33,7 @@ public record ProvisionTenantCommand : IRequest<ApiResponse<int>>
 
     // 4. Branding & localization
     public string? Country { get; init; } = "United Arab Emirates";
-    public string? CurrencyCode { get; init; } = "AED";
+    public string? CurrencyCode { get; init; } = AppConstants.DefaultCurrency;
     public string? TimeZone { get; init; } = "Asia/Dubai";
     public string? PrimaryColor { get; init; } = "#007657";
     public string? Website { get; init; }

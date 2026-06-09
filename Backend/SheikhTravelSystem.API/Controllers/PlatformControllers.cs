@@ -103,3 +103,154 @@ public class PlatformMenusController : BaseApiController
     public async Task<IActionResult> GetMyMenu()
         => Ok(await Mediator.Send(new GetUserMenuQuery()));
 }
+
+[RequirePermission(PlatformPermissions.TenantsManage)]
+[ApiController]
+[Route("api/platform/tenants/{tenantId:int}")]
+public class TenantOrganizationController : BaseApiController
+{
+    [HttpGet("organization")]
+    public async Task<IActionResult> GetOrganizationTree(int tenantId)
+        => Ok(await Mediator.Send(new GetOrganizationTreeQuery(tenantId)));
+
+    [HttpGet("branches")]
+    public async Task<IActionResult> GetBranches(int tenantId)
+        => Ok(await Mediator.Send(new GetBranchesForTenantQuery(tenantId)));
+
+    [HttpPost("branches")]
+    public async Task<IActionResult> CreateBranch(int tenantId, [FromBody] BranchUpsertPayload payload)
+        => Ok(await Mediator.Send(new CreateBranchForTenantCommand(tenantId, payload)));
+
+    [HttpPut("branches/{branchId:int}")]
+    public async Task<IActionResult> UpdateBranch(int tenantId, int branchId, [FromBody] BranchUpsertPayload payload)
+        => Ok(await Mediator.Send(new UpdateBranchForTenantCommand(tenantId, branchId, payload)));
+
+    [HttpDelete("branches/{branchId:int}")]
+    public async Task<IActionResult> DeleteBranch(int tenantId, int branchId)
+        => Ok(await Mediator.Send(new DeleteBranchForTenantCommand(tenantId, branchId)));
+
+    [HttpGet("departments")]
+    public async Task<IActionResult> GetDepartments(int tenantId)
+        => Ok(await Mediator.Send(new GetDepartmentsForTenantQuery(tenantId)));
+
+    [HttpPost("departments")]
+    public async Task<IActionResult> CreateDepartment(int tenantId, [FromBody] DepartmentUpsertWithBranchPayload payload)
+        => Ok(await Mediator.Send(new CreateDepartmentForTenantCommand(tenantId, payload)));
+
+    [HttpPut("departments/{departmentId:int}")]
+    public async Task<IActionResult> UpdateDepartment(int tenantId, int departmentId, [FromBody] UpdateDepartmentWithBranchRequest request)
+        => Ok(await Mediator.Send(new UpdateDepartmentForTenantCommand(tenantId, departmentId, request.Payload, request.IsActive)));
+
+    [HttpDelete("departments/{departmentId:int}")]
+    public async Task<IActionResult> DeleteDepartment(int tenantId, int departmentId)
+        => Ok(await Mediator.Send(new DeleteDepartmentForTenantCommand(tenantId, departmentId)));
+
+    [HttpPost("departments/{departmentId:int}/move")]
+    public async Task<IActionResult> MoveDepartment(int tenantId, int departmentId, [FromBody] MoveDepartmentRequest request)
+        => Ok(await Mediator.Send(new MoveDepartmentCommand(tenantId, departmentId, request.NewBranchId)));
+}
+
+public record UpdateDepartmentWithBranchRequest(DepartmentUpsertWithBranchPayload Payload, bool IsActive);
+public record MoveDepartmentRequest(int? NewBranchId);
+
+[RequirePermission(PlatformPermissions.RolesView)]
+[ApiController]
+[Route("api/platform/tenants/{tenantId:int}")]
+public class TenantAccessController : BaseApiController
+{
+    [HttpGet("roles")]
+    public async Task<IActionResult> GetRoles(int tenantId)
+        => Ok(await Mediator.Send(new GetRolesForTenantQuery(tenantId)));
+
+    [RequirePermission(PlatformPermissions.RolesManage)]
+    [HttpPost("roles")]
+    public async Task<IActionResult> CreateRole(int tenantId, [FromBody] CreateRoleRequest request)
+        => Ok(await Mediator.Send(new CreateRoleForTenantCommand(tenantId, request.Name, request.Code)));
+
+    [RequirePermission(PlatformPermissions.RolesManage)]
+    [HttpPut("roles/{roleId:int}")]
+    public async Task<IActionResult> UpdateRole(int tenantId, int roleId, [FromBody] UpdateRoleForTenantRequest request)
+        => Ok(await Mediator.Send(new UpdateRoleForTenantCommand(tenantId, roleId, request.Name, request.IsActive)));
+
+    [RequirePermission(PlatformPermissions.RolesManage)]
+    [HttpDelete("roles/{roleId:int}")]
+    public async Task<IActionResult> DeleteRole(int tenantId, int roleId)
+        => Ok(await Mediator.Send(new DeleteRoleForTenantCommand(tenantId, roleId)));
+
+    [RequirePermission(PlatformPermissions.RolesManage)]
+    [HttpPut("roles/{roleId:int}/permissions")]
+    public async Task<IActionResult> UpdateRolePermissions(int tenantId, int roleId, [FromBody] UpdateRolePermissionsRequest request)
+        => Ok(await Mediator.Send(new UpdateRolePermissionsForTenantCommand(tenantId, roleId, request.PermissionCodes)));
+
+    [HttpGet("security")]
+    public async Task<IActionResult> GetSecuritySettings(int tenantId)
+        => Ok(await Mediator.Send(new GetTenantSecuritySettingsQuery(tenantId)));
+
+    [RequirePermission(PlatformPermissions.TenantsManage)]
+    [HttpPut("security")]
+    public async Task<IActionResult> UpdateSecuritySettings(int tenantId, [FromBody] TenantSecuritySettingsDto payload)
+        => Ok(await Mediator.Send(new UpdateTenantSecuritySettingsCommand(tenantId, payload)));
+
+    [RequirePermission(PlatformPermissions.RolesManage)]
+    [HttpPost("roles/apply-template")]
+    public async Task<IActionResult> ApplyRoleTemplate(int tenantId, [FromBody] ApplyRoleTemplateRequest request)
+        => Ok(await Mediator.Send(new ApplyRoleTemplateCommand(tenantId, request.RoleCode)));
+}
+
+[RequirePermission(PlatformPermissions.RolesView)]
+[ApiController]
+[Route("api/platform/role-templates")]
+public class RoleTemplatesController : BaseApiController
+{
+    [HttpGet]
+    public async Task<IActionResult> GetAll()
+        => Ok(await Mediator.Send(new GetRoleTemplatesQuery()));
+}
+
+public record CreateRoleRequest(string Name, string Code);
+public record UpdateRoleForTenantRequest(string Name, bool IsActive);
+public record UpdateRolePermissionsRequest(IReadOnlyList<string> PermissionCodes);
+public record ApplyRoleTemplateRequest(string RoleCode);
+
+[RequirePermission(PlatformPermissions.TenantsManage)]
+[ApiController]
+[Route("api/platform/tenants/{tenantId:int}")]
+public class TenantModuleManagementController : BaseApiController
+{
+    [HttpGet("module-overview")]
+    public async Task<IActionResult> GetModuleOverview(int tenantId)
+        => Ok(await Mediator.Send(new GetTenantModuleOverviewQuery(tenantId)));
+
+    [HttpPut("modules")]
+    public async Task<IActionResult> SetModules(int tenantId, [FromBody] SetTenantModulesRequest request)
+        => Ok(await Mediator.Send(new SetTenantModulesCommand(tenantId, request.ModuleCodes)));
+}
+
+public record SetTenantModulesRequest(IReadOnlyList<string> ModuleCodes);
+
+[RequirePermission(PlatformPermissions.TenantsManage)]
+[ApiController]
+[Route("api/platform/tenants/{tenantId:int}")]
+public class TenantSubscriptionController : BaseApiController
+{
+    [HttpGet("subscription")]
+    public async Task<IActionResult> GetSubscription(int tenantId)
+        => Ok(await Mediator.Send(new GetSubscriptionOverviewQuery(tenantId)));
+
+    [HttpPost("subscription/action")]
+    public async Task<IActionResult> UpdateSubscription(int tenantId, [FromBody] UpdateSubscriptionRequest request)
+    {
+        if (!Enum.TryParse<SubscriptionAction>(request.Action, ignoreCase: true, out var action))
+            return BadRequest(ApiResponse<bool>.FailResponse($"Unknown action '{request.Action}'."));
+
+        return Ok(await Mediator.Send(new UpdateSubscriptionCommand(
+            tenantId, action, request.PlanName, request.MonthlyAmount, request.AutoRenew, request.BillingCycle)));
+    }
+}
+
+public record UpdateSubscriptionRequest(
+    string Action,
+    string? PlanName,
+    decimal? MonthlyAmount,
+    bool? AutoRenew,
+    string? BillingCycle);

@@ -7,16 +7,19 @@ import { apiErrorMessage } from '../../../core/utils/api-error.util';
 import {
   BRANCH_COUNTRIES,
   BRANCH_CURRENCIES,
+  DEFAULT_CURRENCY,
   BRANCH_TIMEZONES,
   DEFAULT_TENANT_MODULE_CODES,
   GPS_PROVIDERS,
   INDUSTRY_TYPES,
   MODULE_ICONS,
+  PLAN_DEFINITIONS,
   ProvisionTenantRequest,
   STORAGE_MODELS,
   TENANT_PLAN_TIERS,
   TENANT_TYPES,
   TenantModuleDefinition,
+  applyPlanDefaults,
   tenantPlanMeta
 } from '../../../core/models/platform.model';
 
@@ -33,6 +36,7 @@ export class TenantProvisionComponent implements OnInit {
   modules: TenantModuleDefinition[] = [];
 
   readonly planTiers = TENANT_PLAN_TIERS;
+  readonly planDefinitions = PLAN_DEFINITIONS;
   readonly tenantTypes = TENANT_TYPES;
   readonly industryTypes = INDUSTRY_TYPES;
   readonly storageModels = STORAGE_MODELS;
@@ -88,7 +92,7 @@ export class TenantProvisionComponent implements OnInit {
       }),
       branding: this.fb.group({
         country: ['United Arab Emirates'],
-        currencyCode: ['AED'],
+        currencyCode: [DEFAULT_CURRENCY],
         timeZone: ['Asia/Dubai'],
         primaryColor: ['#007A57'],
         website: [''],
@@ -183,6 +187,19 @@ export class TenantProvisionComponent implements OnInit {
 
   get checklistCompleteCount(): number {
     return this.checklistItems.filter(i => i.done).length;
+  }
+
+  applyPlan(planName: string): void {
+    const def = applyPlanDefaults(planName);
+    this.planGroup.patchValue({
+      maxUsers: def.quotas.maxUsers ?? 0,
+      maxVehicles: def.quotas.maxVehicles ?? 0,
+      maxDrivers: def.quotas.maxDrivers ?? 0,
+      maxBranches: def.quotas.maxBranches ?? 0,
+      maxGpsDevices: def.quotas.maxGpsDevices ?? 0,
+      moduleCodes: [...def.moduleCodes]
+    });
+    this.planGroup.markAsDirty();
   }
 
   moduleIcon(code: string): string {

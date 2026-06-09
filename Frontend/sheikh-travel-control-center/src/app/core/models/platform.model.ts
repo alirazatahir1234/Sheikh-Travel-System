@@ -23,6 +23,15 @@ export interface Tenant {
 
 export type TenantHealthStatus = 'Healthy' | 'Trial Ending' | 'Expired' | 'Suspended';
 
+export interface TenantAdminInfo {
+  id: number;
+  fullName: string;
+  email: string;
+  phone?: string | null;
+  isActive: boolean;
+  status: string;
+}
+
 export interface TenantDetail extends Omit<Tenant, 'moduleCodes'> {
   tenantType?: string | null;
   industryType?: string | null;
@@ -43,6 +52,7 @@ export interface TenantDetail extends Omit<Tenant, 'moduleCodes'> {
   country?: string | null;
   currencyCode?: string | null;
   timeZone?: string | null;
+  adminInfo?: TenantAdminInfo | null;
 }
 
 export interface UpdateTenantPayload {
@@ -87,6 +97,46 @@ export const DEFAULT_TENANT_MODULE_CODES = [
 ] as const;
 
 export const TENANT_PLAN_TIERS = ['Enterprise', 'Pro', 'Starter'] as const;
+
+export interface PlanQuotas {
+  maxUsers: number | null;
+  maxVehicles: number | null;
+  maxDrivers: number | null;
+  maxBranches: number | null;
+  maxGpsDevices: number | null;
+}
+
+export interface PlanDefinition {
+  quotas: PlanQuotas;
+  moduleCodes: string[];
+  description: string;
+  bestFor: string;
+}
+
+export const PLAN_DEFINITIONS: Record<string, PlanDefinition> = {
+  Starter: {
+    description: 'Core fleet & GPS operations',
+    bestFor: 'Small companies',
+    quotas: { maxUsers: 10, maxVehicles: 50, maxDrivers: 50, maxBranches: 5, maxGpsDevices: 50 },
+    moduleCodes: ['DASHBOARD', 'FLEET', 'GPS', 'ACCESS']
+  },
+  Pro: {
+    description: 'Full operations suite',
+    bestFor: 'Growing businesses',
+    quotas: { maxUsers: 50, maxVehicles: 250, maxDrivers: 250, maxBranches: 15, maxGpsDevices: 250 },
+    moduleCodes: ['DASHBOARD', 'FLEET', 'GPS', 'RENTAL', 'CRM', 'FINANCE', 'ANALYTICS', 'ACCESS']
+  },
+  Enterprise: {
+    description: 'Unlimited — all modules',
+    bestFor: 'Large organizations',
+    quotas: { maxUsers: null, maxVehicles: null, maxDrivers: null, maxBranches: null, maxGpsDevices: null },
+    moduleCodes: ['DASHBOARD', 'FLEET', 'GPS', 'RENTAL', 'TRAVEL', 'CRM', 'FINANCE', 'HR', 'ANALYTICS', 'ACCESS']
+  }
+};
+
+export function applyPlanDefaults(planName: string): PlanDefinition {
+  return PLAN_DEFINITIONS[planName] ?? PLAN_DEFINITIONS['Enterprise'];
+}
 
 export const TENANT_TYPES = [
   'Travel Agency',
@@ -339,7 +389,187 @@ export const BRANCH_TIMEZONES = [
   'Asia/Kuwait'
 ] as const;
 
-export const BRANCH_CURRENCIES = ['AED', 'PKR', 'SAR', 'QAR', 'OMR', 'BHD', 'KWD', 'USD'] as const;
+export const DEFAULT_CURRENCY = 'PKR';
+
+export const BRANCH_CURRENCIES = ['PKR', 'AED', 'SAR', 'QAR', 'OMR', 'BHD', 'KWD', 'USD'] as const;
+
+export function formatCurrency(amount?: number | null, currency = DEFAULT_CURRENCY): string {
+  const value = Number(amount ?? 0);
+  if (!Number.isFinite(value)) return `${currency} 0`;
+  if (value >= 1_000_000) return `${currency} ${(value / 1_000_000).toFixed(1)}M`;
+  if (value >= 1000) return `${currency} ${Math.round(value / 1000)}k`;
+  return `${currency} ${value.toLocaleString('en-PK')}`;
+}
+
+/** Normalizes API stats from current or legacy management-stats payloads. */
+export function normalizeTenantManagementStats(raw: Record<string, unknown> | null | undefined): TenantManagementStats {
+  const n = (key: string, fallback = 0) => {
+    const v = raw?.[key];
+    return typeof v === 'number' && Number.isFinite(v) ? v : fallback;
+  };
+
+  if (raw && 'activeTenants' in raw) {
+    return {
+      activeTenants: n('activeTenants'),
+      activeUsers: n('activeUsers'),
+      activeVehicles: n('activeVehicles'),
+      expiringPlans: n('expiringPlans'),
+      monthlyRevenue: n('monthlyRevenue'),
+      tenantsAddedThisMonth: n('tenantsAddedThisMonth')
+    };
+  }
+
+  return {
+    activeTenants: n('totalTenants'),
+    activeUsers: 0,
+    activeVehicles: 0,
+    expiringPlans: 0,
+    monthlyRevenue: 0,
+    tenantsAddedThisMonth: n('tenantsAddedThisMonth')
+  };
+}
+
+// Organization Designer Types
+export interface OrganizationTree {
+  tenantId: number;
+  tenantName: string;
+  branches: OrganizationBranch[];
+  unassignedDepartments: OrganizationDepartment[];
+}
+
+export interface OrganizationBranch {
+  id: number;
+  parentBranchId?: number | null;
+  branchCode: string;
+  name: string;
+  branchType?: string | null;
+  city?: string | null;
+  country?: string | null;
+  isActive: boolean;
+  status: number;
+  departments: OrganizationDepartment[];
+}
+
+export interface OrganizationDepartment {
+  id: number;
+  branchId?: number | null;
+  name: string;
+  departmentHeadName?: string | null;
+  staffCount: number;
+  isActive: boolean;
+}
+
+export interface DepartmentPayloadWithBranch {
+  name: string;
+  departmentHeadUserId?: number | null;
+  branchId?: number | null;
+}
+
+export interface RoleSummary {
+  id: number;
+  tenantId: number;
+  name: string;
+  code: string;
+  isSystem: boolean;
+  isActive: boolean;
+  userCount: number;
+  permissionCount: number;
+  permissions: string[];
+}
+
+export interface TenantSecuritySettings {
+  isMfaRequired: boolean;
+  passwordExpiryDays?: number | null;
+  sessionTimeoutMinutes?: number | null;
+  isGdprEnabled: boolean;
+  isAuditLoggingEnabled: boolean;
+  isVatEnabled: boolean;
+}
+
+export interface RoleTemplate {
+  code: string;
+  name: string;
+  permissionCount: number;
+  permissions: string[];
+}
+
+export interface ModuleStatus {
+  code: string;
+  name: string;
+  isEnabled: boolean;
+}
+
+export interface LicenseLimit {
+  resource: string;
+  used: number;
+  limit?: number | null;
+}
+
+export interface TenantModuleOverview {
+  tenantId: number;
+  tenantName: string;
+  planName?: string | null;
+  modules: ModuleStatus[];
+  licenseLimits: LicenseLimit[];
+}
+
+export interface SubscriptionDetail {
+  tenantId: number;
+  tenantName: string;
+  planName?: string | null;
+  status: string;
+  billingCycle: string;
+  monthlyAmount?: number | null;
+  currencyCode: string;
+  autoRenew: boolean;
+  subscriptionStartDate?: string | null;
+  subscriptionEndDate?: string | null;
+  trialEndDate?: string | null;
+  maxUsers?: number | null;
+  maxVehicles?: number | null;
+  maxDrivers?: number | null;
+  maxBranches?: number | null;
+  maxGpsDevices?: number | null;
+}
+
+export interface Invoice {
+  id: number;
+  invoiceNumber: string;
+  planName?: string | null;
+  amount: number;
+  currencyCode: string;
+  status: string;
+  issuedDate: string;
+  dueDate?: string | null;
+  paidDate?: string | null;
+}
+
+export interface Payment {
+  id: number;
+  invoiceId?: number | null;
+  amount: number;
+  currencyCode: string;
+  paymentMethod?: string | null;
+  status: string;
+  reference?: string | null;
+  paidAt: string;
+}
+
+export interface SubscriptionOverview {
+  subscription: SubscriptionDetail;
+  invoices: Invoice[];
+  payments: Payment[];
+}
+
+export type SubscriptionAction = 'Upgrade' | 'Renew' | 'Suspend' | 'Cancel' | 'Reactivate';
+
+export interface UpdateSubscriptionRequest {
+  action: SubscriptionAction;
+  planName?: string | null;
+  monthlyAmount?: number | null;
+  autoRenew?: boolean | null;
+  billingCycle?: string | null;
+}
 
 export const BRANCH_STATUS_OPTIONS: { value: BranchStatus; label: string; hint: string }[] = [
   { value: BranchStatus.Active, label: 'Active', hint: 'Visible in all systems' },

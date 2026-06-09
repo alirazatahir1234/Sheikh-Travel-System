@@ -197,7 +197,7 @@ public static class TenantNormalizationMigration
             await connection.ExecuteAsync(new CommandDefinition("""
                 IF NOT EXISTS (SELECT 1 FROM TenantBranding WHERE TenantId = @TenantId)
                 INSERT INTO TenantBranding (TenantId, LogoUrl, PrimaryColor, Country, CurrencyCode, TimeZone)
-                VALUES (@TenantId, @LogoUrl, @PrimaryColor, N'United Arab Emirates', N'AED', N'Asia/Dubai');
+                VALUES (@TenantId, @LogoUrl, @PrimaryColor, N'Pakistan', N'PKR', N'Asia/Karachi');
                 """, new { TenantId = tenant.Id, tenant.LogoUrl, tenant.PrimaryColor },
                 cancellationToken: ct));
 

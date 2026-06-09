@@ -1,0 +1,100 @@
+<div class="page-container">
+  <header class="page-header">
+    <div class="header-left">
+      <button mat-icon-button (click)="goBack()" class="back-btn">
+        <mat-icon>arrow_back</mat-icon>
+      </button>
+      <div>
+        <nav class="breadcrumb">
+          <span>Platform</span>
+          <mat-icon>chevron_right</mat-icon>
+          <span class="current">Module Management</span>
+        </nav>
+        <h2>Module Management</h2>
+        <p class="page-sub">Enable or disable system modules and monitor license limits for the selected tenant.</p>
+      </div>
+    </div>
+    <div class="header-right">
+      <app-tenant-picker></app-tenant-picker>
+      <button mat-stroked-button type="button" (click)="refresh()" [disabled]="!overview || loading">
+        <mat-icon>refresh</mat-icon> Refresh
+      </button>
+    </div>
+  </header>
+
+  <div *ngIf="loading" class="loading">
+    <mat-spinner diameter="36"></mat-spinner>
+  </div>
+
+  <ng-container *ngIf="!loading">
+    <div class="content-placeholder" *ngIf="!overview">
+      <mat-icon>extension</mat-icon>
+      <h3>Select a Tenant</h3>
+      <p>Choose a tenant from the picker above to manage their module configuration.</p>
+    </div>
+
+    <div class="module-layout" *ngIf="overview">
+      <mat-card class="modules-card">
+        <mat-card-header>
+          <div class="card-head">
+            <div>
+              <mat-card-title>Available Modules</mat-card-title>
+              <mat-card-subtitle>
+                {{ overview.tenantName }}
+                <span class="plan-chip" *ngIf="overview.planName">{{ overview.planName }}</span>
+              </mat-card-subtitle>
+            </div>
+          </div>
+        </mat-card-header>
+        <mat-card-content>
+          <div class="module-grid">
+            <div class="module-item" *ngFor="let module of modules" [class.enabled]="module.isEnabled">
+              <div class="module-info">
+                <mat-icon>{{ getModuleIcon(module.code) }}</mat-icon>
+                <div>
+                  <strong>{{ module.name }}</strong>
+                  <p class="module-code">{{ module.code }}</p>
+                </div>
+              </div>
+              <mat-slide-toggle
+                [checked]="module.isEnabled"
+                (change)="toggleModule(module, $event.checked)">
+                {{ module.isEnabled ? 'Enabled' : 'Disabled' }}
+              </mat-slide-toggle>
+            </div>
+          </div>
+
+          <div class="module-actions">
+            <button mat-stroked-button type="button" (click)="resetModules()" [disabled]="saving || !hasChanges">
+              Reset
+            </button>
+            <button mat-raised-button color="primary" type="button" (click)="saveModules()" [disabled]="saving || !hasChanges">
+              {{ saving ? 'Saving...' : 'Save Changes' }}
+            </button>
+          </div>
+        </mat-card-content>
+      </mat-card>
+
+      <mat-card class="limits-card">
+        <mat-card-header>
+          <mat-card-title>License Limits</mat-card-title>
+          <mat-card-subtitle>Live usage vs subscription limits</mat-card-subtitle>
+        </mat-card-header>
+        <mat-card-content>
+          <div class="limit-item" *ngFor="let limit of overview.licenseLimits">
+            <div class="limit-top">
+              <span class="limit-label">{{ limit.resource }}</span>
+              <span class="limit-value">
+                {{ limit.used | number }}<ng-container *ngIf="limit.limit"> / {{ limit.limit | number }}</ng-container>
+                <span class="unlimited" *ngIf="!limit.limit">/ ∞</span>
+              </span>
+            </div>
+            <div class="limit-bar">
+              <span class="limit-fill" [ngClass]="usageClass(limit)" [style.width.%]="usagePercent(limit)"></span>
+            </div>
+          </div>
+        </mat-card-content>
+      </mat-card>
+    </div>
+  </ng-container>
+</div>

@@ -11,6 +11,7 @@ import {
   BranchStatus,
   BRANCH_COUNTRIES,
   BRANCH_CURRENCIES,
+  DEFAULT_CURRENCY,
   BRANCH_STATUS_OPTIONS,
   BRANCH_TIMEZONES,
   BRANCH_TYPES
@@ -60,7 +61,7 @@ export class BranchFormComponent implements OnInit {
       city: [''],
       country: ['United Arab Emirates'],
       timeZone: ['Asia/Dubai'],
-      currencyCode: ['AED'],
+      currencyCode: [DEFAULT_CURRENCY],
       status: [BranchStatus.Active, Validators.required],
       isGpsEnabled: [true]
     });
@@ -113,7 +114,7 @@ export class BranchFormComponent implements OnInit {
         city: branch.city ?? '',
         country: branch.country ?? 'United Arab Emirates',
         timeZone: branch.timeZone ?? 'Asia/Dubai',
-        currencyCode: branch.currencyCode ?? 'AED',
+        currencyCode: branch.currencyCode ?? DEFAULT_CURRENCY,
         status: branch.status,
         isGpsEnabled: branch.isGpsEnabled
       });
@@ -138,7 +139,7 @@ export class BranchFormComponent implements OnInit {
       branchType: 'Hub',
       country: 'United Arab Emirates',
       timeZone: 'Asia/Dubai',
-      currencyCode: 'AED',
+      currencyCode: DEFAULT_CURRENCY,
       status: BranchStatus.Active,
       isGpsEnabled: true
     });

@@ -2,18 +2,23 @@ import { Component, OnInit } from '@angular/core';
 import { FormBuilder, FormControl, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { MatDialog } from '@angular/material/dialog';
 import { forkJoin } from 'rxjs';
 import { PlatformService } from '../../../core/services/platform.service';
 import { apiErrorMessage } from '../../../core/utils/api-error.util';
 import {
   BRANCH_COUNTRIES,
   BRANCH_CURRENCIES,
+  DEFAULT_CURRENCY,
   BRANCH_TIMEZONES,
   DEFAULT_TENANT_MODULE_CODES,
   MODULE_ICONS,
+  PLAN_DEFINITIONS,
   TENANT_PLAN_TIERS,
+  TenantAdminInfo,
   TenantDetail,
   TenantModuleDefinition,
+  applyPlanDefaults,
   tenantDisplayCode,
   tenantPlanMeta
 } from '../../../core/models/platform.model';
@@ -26,11 +31,14 @@ import {
 export class TenantDetailComponent implements OnInit {
   loading = true;
   saving = false;
+  resettingPassword = false;
   tenantId?: number;
   tenant?: TenantDetail;
   modules: TenantModuleDefinition[] = [];
+  adminInfo?: TenantAdminInfo | null;
 
   readonly planTiers = TENANT_PLAN_TIERS;
+  readonly planDefinitions = PLAN_DEFINITIONS;
   readonly countries = BRANCH_COUNTRIES;
   readonly timezones = BRANCH_TIMEZONES;
   readonly currencies = BRANCH_CURRENCIES;
@@ -45,7 +53,8 @@ export class TenantDetailComponent implements OnInit {
     private route: ActivatedRoute,
     private router: Router,
     private platform: PlatformService,
-    private snackBar: MatSnackBar
+    private snackBar: MatSnackBar,
+    private dialog: MatDialog
   ) {
     this.form = this.fb.group({
       name: ['', [Validators.required, Validators.maxLength(200)]],
@@ -62,7 +71,7 @@ export class TenantDetailComponent implements OnInit {
       website: [''],
       supportEmail: ['', Validators.email],
       country: ['United Arab Emirates'],
-      currencyCode: ['AED'],
+      currencyCode: [DEFAULT_CURRENCY],
       timeZone: ['Asia/Dubai']
     });
   }
@@ -91,6 +100,7 @@ export class TenantDetailComponent implements OnInit {
   private initForm(tenant: TenantDetail, modules: TenantModuleDefinition[]): void {
     this.tenant = tenant;
     this.modules = modules;
+    this.adminInfo = tenant.adminInfo;
     this.form.patchValue({
       name: tenant.name,
       subscriptionPlan: tenant.subscriptionPlan ?? 'Enterprise',
@@ -106,7 +116,7 @@ export class TenantDetailComponent implements OnInit {
       website: tenant.website ?? '',
       supportEmail: tenant.supportEmail ?? '',
       country: tenant.country ?? 'United Arab Emirates',
-      currencyCode: tenant.currencyCode ?? 'AED',
+      currencyCode: tenant.currencyCode ?? DEFAULT_CURRENCY,
       timeZone: tenant.timeZone ?? 'Asia/Dubai'
     });
     this.loading = false;
@@ -179,6 +189,48 @@ export class TenantDetailComponent implements OnInit {
       error: (err: unknown) => {
         this.saving = false;
         this.snackBar.open(apiErrorMessage(err, 'Save failed.'), 'Close', { duration: 4000 });
+      }
+    });
+  }
+
+  planDef(planName: string) {
+    return this.planDefinitions[planName] ?? null;
+  }
+
+  applyPlan(planName: string): void {
+    const def = applyPlanDefaults(planName);
+    this.form.patchValue({
+      maxUsers: def.quotas.maxUsers,
+      maxVehicles: def.quotas.maxVehicles,
+      maxDrivers: def.quotas.maxDrivers,
+      maxBranches: def.quotas.maxBranches,
+      maxGpsDevices: def.quotas.maxGpsDevices,
+      moduleCodes: [...def.moduleCodes]
+    });
+    this.form.markAsDirty();
+    this.snackBar.open(`${planName} plan defaults applied.`, 'OK', { duration: 2000 });
+  }
+
+  resetAdminPassword(): void {
+    const password = prompt(
+      `Enter new password for ${this.adminInfo?.email ?? 'admin'} (min 8 characters):`
+    );
+    if (!password) return;
+    if (password.length < 8) {
+      this.snackBar.open('Password must be at least 8 characters.', 'Close', { duration: 3000 });
+      return;
+    }
+    if (!this.tenantId) return;
+
+    this.resettingPassword = true;
+    this.platform.resetTenantAdminPassword(this.tenantId, password).subscribe({
+      next: () => {
+        this.resettingPassword = false;
+        this.snackBar.open('Admin password reset successfully.', 'Close', { duration: 3000 });
+      },
+      error: (err: unknown) => {
+        this.resettingPassword = false;
+        this.snackBar.open(apiErrorMessage(err, 'Password reset failed.'), 'Close', { duration: 4000 });
       }
     });
   }

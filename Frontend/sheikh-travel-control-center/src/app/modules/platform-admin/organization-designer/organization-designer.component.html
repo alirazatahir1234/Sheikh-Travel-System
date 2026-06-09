@@ -1,0 +1,355 @@
+<div class="page-container">
+  <header class="page-header">
+    <div class="header-left">
+      <button mat-icon-button (click)="goBack()" class="back-btn">
+        <mat-icon>arrow_back</mat-icon>
+      </button>
+      <div>
+        <nav class="breadcrumb">
+          <span>Platform</span>
+          <mat-icon>chevron_right</mat-icon>
+          <span class="current">Organization Designer</span>
+        </nav>
+        <h2>Organization Designer</h2>
+        <p class="page-sub">Configure branch hierarchy and department structure for the selected tenant.</p>
+      </div>
+    </div>
+    <div class="header-right">
+      <app-tenant-picker></app-tenant-picker>
+    </div>
+  </header>
+
+  <div *ngIf="loading" class="loading">
+    <mat-spinner diameter="36"></mat-spinner>
+  </div>
+
+  <ng-container *ngIf="!loading">
+    <div class="content-placeholder" *ngIf="!organizationTree">
+      <mat-icon>account_tree</mat-icon>
+      <h3>Select a Tenant</h3>
+      <p>Choose a tenant from the picker above to view and edit their organization structure.</p>
+    </div>
+
+    <div class="designer-layout" *ngIf="organizationTree">
+      <!-- Left Panel: Hierarchy Tree -->
+      <mat-card class="tree-panel">
+        <mat-card-header>
+          <mat-card-title>
+            <mat-icon>account_tree</mat-icon>
+            {{ organizationTree.tenantName }}
+          </mat-card-title>
+          <div class="tree-actions">
+            <button mat-icon-button matTooltip="Add Branch" (click)="openAddBranch()">
+              <mat-icon>add_business</mat-icon>
+            </button>
+            <button mat-icon-button matTooltip="Add Department" (click)="openAddDepartment()">
+              <mat-icon>group_add</mat-icon>
+            </button>
+            <button mat-icon-button matTooltip="Export Hierarchy" (click)="exportHierarchy()">
+              <mat-icon>download</mat-icon>
+            </button>
+          </div>
+        </mat-card-header>
+        <mat-card-content>
+          <div class="tree-container">
+            <!-- Root branches -->
+            <ng-container *ngFor="let node of treeNodes">
+              <ng-container *ngTemplateOutlet="treeNodeTemplate; context: { node: node, level: 0 }"></ng-container>
+            </ng-container>
+
+            <!-- Unassigned departments -->
+            <div class="unassigned-section" *ngIf="organizationTree.unassignedDepartments.length">
+              <div class="unassigned-header">
+                <mat-icon>domain_disabled</mat-icon>
+                <span>Unassigned Departments</span>
+              </div>
+              <div class="dept-item"
+                   *ngFor="let dept of organizationTree.unassignedDepartments"
+                   (click)="selectNode({ type: 'department', data: dept })"
+                   [class.selected]="selectedNode?.type === 'department' && selectedNode?.data?.id === dept.id">
+                <mat-icon class="dept-icon">domain</mat-icon>
+                <span class="dept-name">{{ dept.name }}</span>
+                <span class="dept-count">{{ dept.staffCount }}</span>
+              </div>
+            </div>
+
+            <div class="empty-tree" *ngIf="!treeNodes.length && !organizationTree.unassignedDepartments.length">
+              <mat-icon>account_tree</mat-icon>
+              <p>No branches or departments yet. Click the buttons above to add some.</p>
+            </div>
+          </div>
+        </mat-card-content>
+      </mat-card>
+
+      <!-- Right Panel: Details / Forms -->
+      <mat-card class="detail-panel">
+        <!-- Branch Form -->
+        <ng-container *ngIf="showBranchForm">
+          <mat-card-header>
+            <mat-card-title>
+              <mat-icon>business</mat-icon>
+              {{ editingBranchId ? 'Edit Branch' : 'Add Branch' }}
+            </mat-card-title>
+          </mat-card-header>
+          <mat-card-content>
+            <form [formGroup]="branchForm" (ngSubmit)="saveBranch()" class="form-grid">
+              <mat-form-field appearance="outline">
+                <mat-label>Branch Code</mat-label>
+                <input matInput formControlName="branchCode" placeholder="e.g., HQ-001" />
+              </mat-form-field>
+
+              <mat-form-field appearance="outline">
+                <mat-label>Branch Name</mat-label>
+                <input matInput formControlName="name" />
+              </mat-form-field>
+
+              <mat-form-field appearance="outline">
+                <mat-label>Branch Type</mat-label>
+                <mat-select formControlName="branchType">
+                  <mat-option *ngFor="let type of branchTypes" [value]="type">{{ type }}</mat-option>
+                </mat-select>
+              </mat-form-field>
+
+              <mat-form-field appearance="outline">
+                <mat-label>Parent Branch</mat-label>
+                <mat-select formControlName="parentBranchId">
+                  <mat-option [value]="null">None (Root)</mat-option>
+                  <mat-option *ngFor="let b of getBranchesForParentSelect()" [value]="b.id">{{ b.name }}</mat-option>
+                </mat-select>
+              </mat-form-field>
+
+              <mat-form-field appearance="outline">
+                <mat-label>City</mat-label>
+                <input matInput formControlName="city" />
+              </mat-form-field>
+
+              <mat-form-field appearance="outline">
+                <mat-label>Country</mat-label>
+                <mat-select formControlName="country">
+                  <mat-option *ngFor="let c of countries" [value]="c">{{ c }}</mat-option>
+                </mat-select>
+              </mat-form-field>
+
+              <mat-form-field appearance="outline">
+                <mat-label>Time Zone</mat-label>
+                <mat-select formControlName="timeZone">
+                  <mat-option *ngFor="let tz of timezones" [value]="tz">{{ tz }}</mat-option>
+                </mat-select>
+              </mat-form-field>
+
+              <mat-form-field appearance="outline">
+                <mat-label>Currency</mat-label>
+                <mat-select formControlName="currencyCode">
+                  <mat-option *ngFor="let cur of currencies" [value]="cur">{{ cur }}</mat-option>
+                </mat-select>
+              </mat-form-field>
+
+              <mat-form-field appearance="outline">
+                <mat-label>Status</mat-label>
+                <mat-select formControlName="status">
+                  <mat-option [value]="BranchStatus.Active">Active</mat-option>
+                  <mat-option [value]="BranchStatus.Inactive">Inactive</mat-option>
+                  <mat-option [value]="BranchStatus.Maintenance">Under Maintenance</mat-option>
+                  <mat-option [value]="BranchStatus.Closed">Closed</mat-option>
+                </mat-select>
+              </mat-form-field>
+
+              <div class="form-actions">
+                <button mat-stroked-button type="button" (click)="cancelForm()">Cancel</button>
+                <button mat-raised-button color="primary" type="submit" [disabled]="saving || !branchForm.valid">
+                  {{ saving ? 'Saving...' : (editingBranchId ? 'Update' : 'Create') }}
+                </button>
+              </div>
+            </form>
+          </mat-card-content>
+        </ng-container>
+
+        <!-- Department Form -->
+        <ng-container *ngIf="showDepartmentForm">
+          <mat-card-header>
+            <mat-card-title>
+              <mat-icon>domain</mat-icon>
+              {{ editingDepartmentId ? 'Edit Department' : 'Add Department' }}
+            </mat-card-title>
+          </mat-card-header>
+          <mat-card-content>
+            <form [formGroup]="departmentForm" (ngSubmit)="saveDepartment()" class="form-grid">
+              <mat-form-field appearance="outline" class="full-width">
+                <mat-label>Department Name</mat-label>
+                <input matInput formControlName="name" />
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="full-width">
+                <mat-label>Assign to Branch</mat-label>
+                <mat-select formControlName="branchId">
+                  <mat-option [value]="null">Unassigned</mat-option>
+                  <mat-option *ngFor="let b of organizationTree?.branches" [value]="b.id">{{ b.name }}</mat-option>
+                </mat-select>
+              </mat-form-field>
+
+              <div class="form-actions">
+                <button mat-stroked-button type="button" (click)="cancelForm()">Cancel</button>
+                <button mat-raised-button color="primary" type="submit" [disabled]="saving || !departmentForm.valid">
+                  {{ saving ? 'Saving...' : (editingDepartmentId ? 'Update' : 'Create') }}
+                </button>
+              </div>
+            </form>
+          </mat-card-content>
+        </ng-container>
+
+        <!-- Branch Details -->
+        <ng-container *ngIf="selectedBranch && !showBranchForm && !showDepartmentForm">
+          <mat-card-header>
+            <mat-card-title>
+              <mat-icon>business</mat-icon>
+              Branch Details
+            </mat-card-title>
+          </mat-card-header>
+          <mat-card-content>
+            <div class="detail-grid">
+              <div class="detail-item">
+                <span class="label">Name</span>
+                <span class="value">{{ selectedBranch.name }}</span>
+              </div>
+              <div class="detail-item">
+                <span class="label">Code</span>
+                <span class="value">{{ selectedBranch.branchCode }}</span>
+              </div>
+              <div class="detail-item">
+                <span class="label">Type</span>
+                <span class="value">{{ selectedBranch.branchType || '—' }}</span>
+              </div>
+              <div class="detail-item">
+                <span class="label">Location</span>
+                <span class="value">{{ selectedBranch.city || '—' }}, {{ selectedBranch.country || '—' }}</span>
+              </div>
+              <div class="detail-item">
+                <span class="label">Departments</span>
+                <span class="value">{{ selectedBranch.departments.length || 0 }}</span>
+              </div>
+              <div class="detail-item">
+                <span class="label">Status</span>
+                <span class="value status-badge" [class.active]="selectedBranch.isActive">
+                  {{ selectedBranch.isActive ? 'Active' : 'Inactive' }}
+                </span>
+              </div>
+            </div>
+
+            <div class="detail-actions">
+              <button mat-stroked-button (click)="openEditBranch(selectedBranch)">
+                <mat-icon>edit</mat-icon> Edit
+              </button>
+              <button mat-stroked-button (click)="openAddBranch(selectedBranch.id)">
+                <mat-icon>add_business</mat-icon> Add Child Branch
+              </button>
+              <button mat-stroked-button (click)="openAddDepartment(selectedBranch.id)">
+                <mat-icon>group_add</mat-icon> Add Department
+              </button>
+              <button mat-stroked-button color="warn" (click)="deleteBranch(selectedBranch)">
+                <mat-icon>delete</mat-icon> Delete
+              </button>
+            </div>
+          </mat-card-content>
+        </ng-container>
+
+        <!-- Department Details -->
+        <ng-container *ngIf="selectedDepartment && !showBranchForm && !showDepartmentForm">
+          <mat-card-header>
+            <mat-card-title>
+              <mat-icon>domain</mat-icon>
+              Department Details
+            </mat-card-title>
+          </mat-card-header>
+          <mat-card-content>
+            <div class="detail-grid">
+              <div class="detail-item">
+                <span class="label">Name</span>
+                <span class="value">{{ selectedDepartment.name }}</span>
+              </div>
+              <div class="detail-item">
+                <span class="label">Department Head</span>
+                <span class="value">{{ selectedDepartment.departmentHeadName || '—' }}</span>
+              </div>
+              <div class="detail-item">
+                <span class="label">Staff Count</span>
+                <span class="value">{{ selectedDepartment.staffCount }}</span>
+              </div>
+              <div class="detail-item">
+                <span class="label">Status</span>
+                <span class="value status-badge" [class.active]="selectedDepartment.isActive">
+                  {{ selectedDepartment.isActive ? 'Active' : 'Inactive' }}
+                </span>
+              </div>
+            </div>
+
+            <div class="move-section">
+              <span class="move-label">Move to Branch:</span>
+              <mat-form-field appearance="outline" class="move-select">
+                <mat-select [value]="selectedDepartment.branchId" (selectionChange)="moveDepartment(selectedDepartment, $event.value)">
+                  <mat-option [value]="null">Unassigned</mat-option>
+                  <mat-option *ngFor="let b of organizationTree?.branches" [value]="b.id">{{ b.name }}</mat-option>
+                </mat-select>
+              </mat-form-field>
+            </div>
+
+            <div class="detail-actions">
+              <button mat-stroked-button (click)="openEditDepartment(selectedDepartment)">
+                <mat-icon>edit</mat-icon> Edit
+              </button>
+              <button mat-stroked-button color="warn" (click)="deleteDepartment(selectedDepartment)">
+                <mat-icon>delete</mat-icon> Delete
+              </button>
+            </div>
+          </mat-card-content>
+        </ng-container>
+
+        <!-- Placeholder when nothing selected -->
+        <ng-container *ngIf="!selectedNode && !showBranchForm && !showDepartmentForm">
+          <mat-card-header>
+            <mat-card-title>
+              <mat-icon>info</mat-icon>
+              Details
+            </mat-card-title>
+          </mat-card-header>
+          <mat-card-content>
+            <div class="detail-placeholder">
+              <mat-icon>touch_app</mat-icon>
+              <p>Select a branch or department from the tree to view details and actions.</p>
+            </div>
+          </mat-card-content>
+        </ng-container>
+      </mat-card>
+    </div>
+  </ng-container>
+</div>
+
+<!-- Tree Node Template (recursive) -->
+<ng-template #treeNodeTemplate let-node="node" let-level="level">
+  <div class="tree-node" [style.paddingLeft.px]="level * 24">
+    <div *ngIf="node.type === 'branch'" class="branch-item"
+         [class.selected]="selectedNode?.type === 'branch' && selectedNode?.data?.id === node.data.id"
+         [class.inactive]="!node.data.isActive">
+      <button mat-icon-button class="expand-btn" (click)="toggleBranch(node.data.id); $event.stopPropagation()">
+        <mat-icon>{{ isBranchExpanded(node.data.id) ? 'expand_more' : 'chevron_right' }}</mat-icon>
+      </button>
+      <mat-icon class="branch-icon">business</mat-icon>
+      <span class="branch-name" (click)="selectNode(node)">{{ node.data.name }}</span>
+      <span class="branch-code">{{ node.data.branchCode }}</span>
+    </div>
+
+    <div *ngIf="node.type === 'department'" class="dept-item"
+         [class.selected]="selectedNode?.type === 'department' && selectedNode?.data?.id === node.data.id"
+         [class.inactive]="!node.data.isActive"
+         (click)="selectNode(node)">
+      <mat-icon class="dept-icon">domain</mat-icon>
+      <span class="dept-name">{{ node.data.name }}</span>
+      <span class="dept-count">{{ node.data.staffCount }}</span>
+    </div>
+
+    <div class="tree-children" *ngIf="node.type === 'branch' && isBranchExpanded(node.data.id)">
+      <ng-container *ngFor="let child of node.children">
+        <ng-container *ngTemplateOutlet="treeNodeTemplate; context: { node: child, level: level + 1 }"></ng-container>
+      </ng-container>
+    </div>
+  </div>
+</ng-template>
