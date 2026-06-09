@@ -16,6 +16,7 @@ public class LoginCommandHandler(
     IDbConnectionFactory dbFactory,
     IPasswordHasher passwordHasher,
     IJwtTokenService jwtTokenService,
+    IUserAccessService userAccessService,
     IConfiguration configuration,
     ILogger<LoginCommandHandler> logger) : IRequestHandler<LoginCommand, ApiResponse<LoginResponse>>
 {
@@ -49,7 +50,8 @@ public class LoginCommandHandler(
                 cancellationToken: cancellationToken));
         }
 
-        var accessToken = jwtTokenService.GenerateAccessToken(user, driverId);
+        var access = await userAccessService.ResolveAsync(user.Id, user.TenantId, cancellationToken);
+        var accessToken = jwtTokenService.GenerateAccessToken(user, driverId, access);
         var refreshToken = jwtTokenService.GenerateRefreshToken();
         var expiryDays = int.TryParse(configuration["JwtSettings:RefreshTokenExpiryDays"], out var days) ? days : 7;
 
@@ -60,13 +62,18 @@ public class LoginCommandHandler(
                 cancellationToken: cancellationToken));
 
         logger.LogInformation("User {Email} logged in successfully", request.Email);
+        var primaryRole = access.RoleCodes.FirstOrDefault() ?? user.Role.ToString();
         var response = new LoginResponse(
             accessToken,
             refreshToken,
             user.FullName,
-            user.Role.ToString(),
+            primaryRole,
             user.Email,
-            user.Phone);
+            user.Phone,
+            user.TenantId,
+            user.Id,
+            access.RoleCodes,
+            access.Permissions);
         return ApiResponse<LoginResponse>.SuccessResponse(response, "Login successful.");
     }
 }

@@ -14,6 +14,7 @@ namespace SheikhTravelSystem.Application.Features.Auth.Commands;
 public class RefreshTokenCommandHandler(
     IDbConnectionFactory dbFactory,
     IJwtTokenService jwtTokenService,
+    IUserAccessService userAccessService,
     IConfiguration configuration) : IRequestHandler<RefreshTokenCommand, ApiResponse<LoginResponse>>
 {
     /// <summary>
@@ -25,7 +26,7 @@ public class RefreshTokenCommandHandler(
 
         var user = await connection.QuerySingleOrDefaultAsync<User>(
             new CommandDefinition(
-                @"SELECT Id, FullName, Email, PasswordHash, Phone, Role, IsActive,
+                @"SELECT Id, TenantId, FullName, Email, PasswordHash, Phone, Role, IsActive,
                   RefreshToken, RefreshTokenExpiryTime, CreatedAt, UpdatedAt, IsDeleted
                   FROM Users WHERE RefreshToken = @RefreshToken AND RefreshTokenExpiryTime > @Now AND IsDeleted = 0",
                 new { request.RefreshToken, Now = DateTime.UtcNow },
@@ -43,7 +44,8 @@ public class RefreshTokenCommandHandler(
                 cancellationToken: cancellationToken));
         }
 
-        var accessToken = jwtTokenService.GenerateAccessToken(user, driverId);
+        var access = await userAccessService.ResolveAsync(user.Id, user.TenantId, cancellationToken);
+        var accessToken = jwtTokenService.GenerateAccessToken(user, driverId, access);
         var newRefreshToken = jwtTokenService.GenerateRefreshToken();
         var expiryDays = int.TryParse(configuration["JwtSettings:RefreshTokenExpiryDays"], out var days) ? days : 7;
 
@@ -53,7 +55,18 @@ public class RefreshTokenCommandHandler(
                 new { RefreshToken = newRefreshToken, Expiry = DateTime.UtcNow.AddDays(expiryDays), user.Id },
                 cancellationToken: cancellationToken));
 
-        var response = new LoginResponse(accessToken, newRefreshToken, user.FullName, user.Role.ToString());
+        var primaryRole = access.RoleCodes.FirstOrDefault() ?? user.Role.ToString();
+        var response = new LoginResponse(
+            accessToken,
+            newRefreshToken,
+            user.FullName,
+            primaryRole,
+            user.Email,
+            user.Phone,
+            user.TenantId,
+            user.Id,
+            access.RoleCodes,
+            access.Permissions);
         return ApiResponse<LoginResponse>.SuccessResponse(response, "Token refreshed successfully.");
     }
 }

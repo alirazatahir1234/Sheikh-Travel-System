@@ -14,6 +14,7 @@ import {
 import { HelpDialogComponent } from '../../shared/components/help-dialog/help-dialog.component';
 import { LocalTimeContextService, LocalTimeDisplay } from '../../core/services/local-time-context.service';
 import { TenantConfigService } from '../../core/services/tenant-config.service';
+import { MenuService } from '../../core/services/menu.service';
 import { NavGroup, NavItem, ResolvedMenu } from '../../core/navigation/nav-models';
 import {
   defaultExpandedGroupIds,
@@ -65,7 +66,8 @@ export class ShellComponent implements OnInit, OnDestroy {
     private localTime: LocalTimeContextService,
     private router: Router,
     private dialog: MatDialog,
-    private tenantConfig: TenantConfigService
+    private tenantConfig: TenantConfigService,
+    private menuService: MenuService
   ) {
     this.currentUser$ = auth.currentUser$;
     this.unreadCount$ = notificationService.unreadCount;
@@ -73,13 +75,19 @@ export class ShellComponent implements OnInit, OnDestroy {
     this.timeDisplay$ = this.localTime.clockDisplay$();
 
     this.menu$ = combineLatest([this.currentUser$, this.enabledModules$]).pipe(
-      map(([user, enabledModules]) => {
-        const tenantType = resolveTenantType(user?.roles ?? []);
-        return resolveMenu({
-          tenantType,
-          roles: user?.roles ?? [],
-          enabledModules
-        });
+      switchMap(([user, enabledModules]) => {
+        const roles = user?.roles ?? [];
+        const tenantType = resolveTenantType(roles);
+
+        if (roles.includes('Driver')) {
+          return of(resolveMenu({ tenantType, roles, enabledModules }));
+        }
+
+        if (!user || !this.auth.getToken()) {
+          return of({ groups: [], standaloneItems: [], isDriverLayout: false });
+        }
+
+        return this.menuService.loadMenu(roles, enabledModules);
       })
     );
   }

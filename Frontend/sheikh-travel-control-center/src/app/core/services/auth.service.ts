@@ -75,16 +75,29 @@ export class AuthService {
     return this.hasRole('Driver') ? '/my-trips' : '/dashboard';
   }
 
-  /** Backend sends a single `role` string; normalize to `roles[]` for the rest of the app. */
+  hasPermission(permission: string): boolean {
+    const user = this.getCurrentUser();
+    return user?.permissions?.includes(permission) ?? false;
+  }
+
+  /** Backend sends role(s) and permissions; normalize for the rest of the app. */
   private normalize(dto: LoginResponseDto): LoginResponse {
     if (!dto?.accessToken) {
       throw new Error('Authentication failed.');
     }
+    const roles = dto.roles?.length
+      ? dto.roles
+      : dto.role
+        ? [dto.role]
+        : [];
     return {
       accessToken:  dto.accessToken,
       refreshToken: dto.refreshToken,
       fullName:     dto.fullName,
-      roles:        dto.role ? [dto.role] : [],
+      roles,
+      permissions:  dto.permissions ?? [],
+      userId:       dto.userId,
+      tenantId:     dto.tenantId,
       email:        dto.email,
       phoneNumber:  dto.phoneNumber,
     };

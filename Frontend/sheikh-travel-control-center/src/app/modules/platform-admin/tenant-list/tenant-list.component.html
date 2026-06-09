@@ -1,0 +1,295 @@
+<div class="tenant-page">
+  <header class="page-header">
+    <div>
+      <nav class="breadcrumb">
+        <span>Organization</span>
+        <mat-icon>chevron_right</mat-icon>
+        <span class="current">Organization Management</span>
+      </nav>
+      <h2>Organization Management</h2>
+      <p class="page-sub">Monitor and govern all tenant entities across the platform.</p>
+    </div>
+    <button mat-raised-button color="primary" type="button" (click)="openAddTenant()">
+      <mat-icon>add_business</mat-icon> Add Tenant
+    </button>
+  </header>
+
+  <div *ngIf="loading" class="loading"><mat-spinner diameter="36"></mat-spinner></div>
+
+  <ng-container *ngIf="!loading">
+    <div class="metric-grid">
+      <mat-card class="metric-card">
+        <div class="metric-icon metric-icon--tenants"><mat-icon>domain</mat-icon></div>
+        <div>
+          <p class="metric-label">Active Tenants</p>
+          <p class="metric-value">{{ stats.activeTenants | number }}</p>
+          <span class="metric-badge metric-badge--positive">{{ tenantGrowthPercent() }}</span>
+        </div>
+      </mat-card>
+
+      <mat-card class="metric-card">
+        <div class="metric-icon metric-icon--users"><mat-icon>groups</mat-icon></div>
+        <div>
+          <p class="metric-label">Active Users</p>
+          <p class="metric-value">{{ stats.activeUsers | number }}</p>
+          <span class="metric-badge metric-badge--positive">Healthy</span>
+        </div>
+      </mat-card>
+
+      <mat-card class="metric-card">
+        <div class="metric-icon metric-icon--vehicles"><mat-icon>local_shipping</mat-icon></div>
+        <div>
+          <p class="metric-label">Active Vehicles</p>
+          <p class="metric-value">{{ stats.activeVehicles | number }}</p>
+          <span class="metric-badge metric-badge--positive">Healthy</span>
+        </div>
+      </mat-card>
+
+      <mat-card class="metric-card">
+        <div class="metric-icon metric-icon--plans"><mat-icon>event_busy</mat-icon></div>
+        <div>
+          <p class="metric-label">Expiring Plans</p>
+          <p class="metric-value">{{ stats.expiringPlans | number }}</p>
+          <span class="metric-badge metric-badge--danger" *ngIf="stats.expiringPlans > 0">
+            {{ stats.expiringPlans }} need action
+          </span>
+          <span class="metric-badge metric-badge--muted" *ngIf="stats.expiringPlans === 0">None due</span>
+        </div>
+      </mat-card>
+
+      <mat-card class="metric-card">
+        <div class="metric-icon metric-icon--revenue"><mat-icon>payments</mat-icon></div>
+        <div>
+          <p class="metric-label">Monthly Revenue</p>
+          <p class="metric-value">{{ formatRevenue(stats.monthlyRevenue) }}</p>
+          <span class="metric-badge metric-badge--positive">{{ revenueTrendLabel() }}</span>
+        </div>
+      </mat-card>
+    </div>
+
+    <mat-card class="table-card">
+      <div class="table-toolbar">
+        <mat-form-field appearance="outline" class="search-field">
+          <mat-icon matPrefix>search</mat-icon>
+          <input matInput placeholder="Search tenants by name or ID…" [(ngModel)]="filters.search" (ngModelChange)="applyFilters()" />
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="filter-field">
+          <mat-label>Status</mat-label>
+          <mat-select [(ngModel)]="filters.status" (ngModelChange)="applyFilters()">
+            <mat-option value="all">All</mat-option>
+            <mat-option value="active">Active</mat-option>
+            <mat-option value="inactive">Suspended</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="filter-field">
+          <mat-label>Country</mat-label>
+          <mat-select [(ngModel)]="filters.country" (ngModelChange)="applyFilters()">
+            <mat-option value="all">All</mat-option>
+            <mat-option *ngFor="let c of countryOptions()" [value]="c">{{ c }}</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="filter-field">
+          <mat-label>Tenant Type</mat-label>
+          <mat-select [(ngModel)]="filters.tenantType" (ngModelChange)="applyFilters()">
+            <mat-option value="all">All</mat-option>
+            <mat-option *ngFor="let t of tenantTypeOptions" [value]="t">{{ t }}</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="filter-field">
+          <mat-label>Module</mat-label>
+          <mat-select [(ngModel)]="filters.module" (ngModelChange)="applyFilters()">
+            <mat-option value="all">All</mat-option>
+            <mat-option *ngFor="let m of modules" [value]="m.code">{{ m.name }}</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="filter-field">
+          <mat-label>Plan</mat-label>
+          <mat-select [(ngModel)]="filters.plan" (ngModelChange)="applyFilters()">
+            <mat-option value="all">All</mat-option>
+            <mat-option *ngFor="let p of planOptions" [value]="p">{{ p }}</mat-option>
+          </mat-select>
+        </mat-form-field>
+      </div>
+
+      <div class="bulk-toolbar">
+        <div class="bulk-actions">
+          <button mat-stroked-button type="button" color="primary" (click)="bulkActivate()" [disabled]="!selectedIds.size">
+            Bulk Activate
+          </button>
+          <button mat-stroked-button type="button" class="danger-btn" (click)="bulkSuspend()" [disabled]="!selectedIds.size">
+            Bulk Suspend
+          </button>
+        </div>
+        <div class="toolbar-actions">
+          <button mat-icon-button type="button" (click)="exportCsv()" matTooltip="Export CSV"><mat-icon>download</mat-icon></button>
+          <button mat-icon-button type="button" (click)="load()" matTooltip="Refresh"><mat-icon>refresh</mat-icon></button>
+        </div>
+      </div>
+
+      <table mat-table [dataSource]="dataSource" class="admin-table compact-table">
+        <ng-container matColumnDef="select">
+          <th mat-header-cell *matHeaderCellDef>
+            <mat-checkbox
+              [checked]="isAllSelected()"
+              [indeterminate]="isSomeSelected()"
+              (change)="toggleAll($event.checked)">
+            </mat-checkbox>
+          </th>
+          <td mat-cell *matCellDef="let t">
+            <mat-checkbox [checked]="isSelected(t)" (change)="toggleRow(t, $event.checked)"></mat-checkbox>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="tenant">
+          <th mat-header-cell *matHeaderCellDef>Tenant</th>
+          <td mat-cell *matCellDef="let t">
+            <div class="tenant-details">
+              <span class="tenant-avatar" [style.background]="avatarColor(t.name)">{{ initials(t.name) }}</span>
+              <div>
+                <button type="button" class="tenant-link" (click)="openTenant(t)">{{ t.name }}</button>
+                <span class="tenant-meta">{{ tenantDisplayCode(t) }}</span>
+              </div>
+            </div>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="type">
+          <th mat-header-cell *matHeaderCellDef>Type</th>
+          <td mat-cell *matCellDef="let t">{{ t.tenantType || '—' }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="country">
+          <th mat-header-cell *matHeaderCellDef>Country</th>
+          <td mat-cell *matCellDef="let t">{{ t.country || '—' }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="modules">
+          <th mat-header-cell *matHeaderCellDef>Modules</th>
+          <td mat-cell *matCellDef="let t">
+            <div class="module-badges" *ngIf="tenantModuleList(t).length; else noModules">
+              <span class="module-badge" *ngFor="let code of tenantModuleList(t) | slice:0:3">{{ formatModuleBadge(code) }}</span>
+              <span class="module-more" *ngIf="tenantModuleList(t).length > 3">+{{ tenantModuleList(t).length - 3 }}</span>
+            </div>
+            <ng-template #noModules><span class="muted">—</span></ng-template>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="plan">
+          <th mat-header-cell *matHeaderCellDef>Plan</th>
+          <td mat-cell *matCellDef="let t">
+            <span class="plan-badge" [ngClass]="planFor(t).cssClass">{{ planFor(t).label }}</span>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="usage">
+          <th mat-header-cell *matHeaderCellDef>Usage</th>
+          <td mat-cell *matCellDef="let t">
+            <div class="usage-cell">
+              <span class="usage-label">{{ tenantUsageLabel(t) }}</span>
+              <div class="usage-bar" *ngIf="t.maxUsers && t.maxUsers > 0">
+                <span class="usage-fill" [style.width.%]="tenantUsagePercent(t)"></span>
+              </div>
+            </div>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="health">
+          <th mat-header-cell *matHeaderCellDef>Health</th>
+          <td mat-cell *matCellDef="let t">
+            <span class="health-pill" [ngClass]="healthClass(tenantHealthStatus(t))">
+              <span class="health-dot"></span>{{ tenantHealthStatus(t) }}
+            </span>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="actions">
+          <th mat-header-cell *matHeaderCellDef></th>
+          <td mat-cell *matCellDef="let t">
+            <button mat-icon-button type="button" [matMenuTriggerFor]="tenantMenu" (click)="setActionRow(t)" aria-label="Tenant actions">
+              <mat-icon>more_vert</mat-icon>
+            </button>
+          </td>
+        </ng-container>
+
+        <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+        <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+      </table>
+
+      <mat-menu #tenantMenu="matMenu">
+        <button mat-menu-item type="button" (click)="openTenant(selectedRow!)">
+          <mat-icon>visibility</mat-icon><span>View Details</span>
+        </button>
+        <button mat-menu-item type="button" (click)="openTenant(selectedRow!)">
+          <mat-icon>edit</mat-icon><span>Edit Tenant</span>
+        </button>
+        <button mat-menu-item type="button" (click)="openTenant(selectedRow!)">
+          <mat-icon>extension</mat-icon><span>Manage Modules</span>
+        </button>
+        <button mat-menu-item type="button" (click)="manageUsers()">
+          <mat-icon>groups</mat-icon><span>Manage Users</span>
+        </button>
+        <button mat-menu-item type="button" (click)="toggleActive(selectedRow!)">
+          <mat-icon>{{ selectedRow?.isActive ? 'pause_circle' : 'play_circle' }}</mat-icon>
+          <span>{{ selectedRow?.isActive ? 'Suspend' : 'Activate' }}</span>
+        </button>
+        <button mat-menu-item type="button" (click)="openBilling(selectedRow!)">
+          <mat-icon>payments</mat-icon><span>Billing</span>
+        </button>
+        <button mat-menu-item type="button" (click)="openAuditLogs()">
+          <mat-icon>history</mat-icon><span>Audit Logs</span>
+        </button>
+      </mat-menu>
+
+      <div *ngIf="!dataSource.filteredData.length" class="empty">No tenants match your filters.</div>
+
+      <div class="table-footer" *ngIf="dataSource.filteredData.length">
+        <span>
+          Showing {{ (paginator?.pageIndex ?? 0) * pageSize + 1 }} to
+          {{ Math.min(((paginator?.pageIndex ?? 0) + 1) * pageSize, dataSource.filteredData.length) }}
+          of {{ dataSource.filteredData.length }} tenants
+        </span>
+        <mat-paginator [pageSize]="pageSize" [pageSizeOptions]="[5, 10, 25, 50]" showFirstLastButtons></mat-paginator>
+      </div>
+    </mat-card>
+
+    <div class="feature-cards">
+      <mat-card class="feature-card">
+        <mat-icon>account_tree</mat-icon>
+        <div>
+          <strong>Organization Designer</strong>
+          <p>Configure global department templates and branch relationships for all tenants.</p>
+          <button mat-stroked-button type="button" (click)="openOrganizationDesigner()">Open</button>
+        </div>
+      </mat-card>
+      <mat-card class="feature-card">
+        <mat-icon>shield</mat-icon>
+        <div>
+          <strong>Access Control</strong>
+          <p>Manage cross-tenant security roles, permissions, and access policies.</p>
+          <button mat-stroked-button type="button" (click)="openAccessControl()">Configure</button>
+        </div>
+      </mat-card>
+      <mat-card class="feature-card">
+        <mat-icon>extension</mat-icon>
+        <div>
+          <strong>Module Management</strong>
+          <p>Provision and configure system modules across tenant subscriptions.</p>
+          <button mat-stroked-button type="button" (click)="openModuleManagement()">Manage</button>
+        </div>
+      </mat-card>
+      <mat-card class="feature-card">
+        <mat-icon>subscriptions</mat-icon>
+        <div>
+          <strong>Subscription Management</strong>
+          <p>Track licenses, quotas, expiring plans, and billing health.</p>
+          <button mat-stroked-button type="button" (click)="openSubscriptionManagement()">Review</button>
+        </div>
+      </mat-card>
+    </div>
+  </ng-container>
+</div>

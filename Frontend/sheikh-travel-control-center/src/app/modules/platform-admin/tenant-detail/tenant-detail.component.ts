@@ -1,0 +1,189 @@
+import { Component, OnInit } from '@angular/core';
+import { FormBuilder, FormControl, Validators } from '@angular/forms';
+import { ActivatedRoute, Router } from '@angular/router';
+import { MatSnackBar } from '@angular/material/snack-bar';
+import { forkJoin } from 'rxjs';
+import { PlatformService } from '../../../core/services/platform.service';
+import { apiErrorMessage } from '../../../core/utils/api-error.util';
+import {
+  BRANCH_COUNTRIES,
+  BRANCH_CURRENCIES,
+  BRANCH_TIMEZONES,
+  DEFAULT_TENANT_MODULE_CODES,
+  MODULE_ICONS,
+  TENANT_PLAN_TIERS,
+  TenantDetail,
+  TenantModuleDefinition,
+  tenantDisplayCode,
+  tenantPlanMeta
+} from '../../../core/models/platform.model';
+
+@Component({
+  selector: 'app-tenant-detail',
+  templateUrl: './tenant-detail.component.html',
+  styleUrls: ['./tenant-detail.component.scss']
+})
+export class TenantDetailComponent implements OnInit {
+  loading = true;
+  saving = false;
+  tenantId?: number;
+  tenant?: TenantDetail;
+  modules: TenantModuleDefinition[] = [];
+
+  readonly planTiers = TENANT_PLAN_TIERS;
+  readonly countries = BRANCH_COUNTRIES;
+  readonly timezones = BRANCH_TIMEZONES;
+  readonly currencies = BRANCH_CURRENCIES;
+  readonly moduleIcons = MODULE_ICONS;
+  readonly tenantDisplayCode = tenantDisplayCode;
+  readonly tenantPlanMeta = tenantPlanMeta;
+
+  form;
+
+  constructor(
+    private fb: FormBuilder,
+    private route: ActivatedRoute,
+    private router: Router,
+    private platform: PlatformService,
+    private snackBar: MatSnackBar
+  ) {
+    this.form = this.fb.group({
+      name: ['', [Validators.required, Validators.maxLength(200)]],
+      subscriptionPlan: ['Enterprise', Validators.required],
+      isActive: [true],
+      moduleCodes: new FormControl<string[]>([...DEFAULT_TENANT_MODULE_CODES], Validators.required),
+      maxUsers: [null as number | null, Validators.min(0)],
+      maxVehicles: [null as number | null, Validators.min(0)],
+      maxDrivers: [null as number | null, Validators.min(0)],
+      maxBranches: [null as number | null, Validators.min(0)],
+      maxGpsDevices: [null as number | null, Validators.min(0)],
+      logoUrl: [''],
+      primaryColor: ['#1d4ed8'],
+      website: [''],
+      supportEmail: ['', Validators.email],
+      country: ['United Arab Emirates'],
+      currencyCode: ['AED'],
+      timeZone: ['Asia/Dubai']
+    });
+  }
+
+  ngOnInit(): void {
+    const idParam = this.route.snapshot.paramMap.get('id');
+    if (!idParam) {
+      void this.router.navigate(['/platform/tenants']);
+      return;
+    }
+
+    this.tenantId = Number(idParam);
+    forkJoin({
+      tenant: this.platform.getTenantById(this.tenantId),
+      modules: this.platform.getModules()
+    }).subscribe({
+      next: ({ tenant, modules }) => this.initForm(tenant, modules),
+      error: () => {
+        this.loading = false;
+        this.snackBar.open('Failed to load tenant.', 'Close', { duration: 4000 });
+        void this.router.navigate(['/platform/tenants']);
+      }
+    });
+  }
+
+  private initForm(tenant: TenantDetail, modules: TenantModuleDefinition[]): void {
+    this.tenant = tenant;
+    this.modules = modules;
+    this.form.patchValue({
+      name: tenant.name,
+      subscriptionPlan: tenant.subscriptionPlan ?? 'Enterprise',
+      isActive: tenant.isActive,
+      moduleCodes: tenant.moduleCodes?.length ? [...tenant.moduleCodes] : [...DEFAULT_TENANT_MODULE_CODES],
+      maxUsers: tenant.maxUsers ?? null,
+      maxVehicles: tenant.maxVehicles ?? null,
+      maxDrivers: tenant.maxDrivers ?? null,
+      maxBranches: tenant.maxBranches ?? null,
+      maxGpsDevices: tenant.maxGpsDevices ?? null,
+      logoUrl: tenant.logoUrl ?? '',
+      primaryColor: tenant.primaryColor ?? '#1d4ed8',
+      website: tenant.website ?? '',
+      supportEmail: tenant.supportEmail ?? '',
+      country: tenant.country ?? 'United Arab Emirates',
+      currencyCode: tenant.currencyCode ?? 'AED',
+      timeZone: tenant.timeZone ?? 'Asia/Dubai'
+    });
+    this.loading = false;
+  }
+
+  reset(): void {
+    if (!this.tenantId) return;
+    this.loading = true;
+    this.platform.getTenantById(this.tenantId).subscribe({
+      next: tenant => {
+        this.initForm(tenant, this.modules);
+        this.loading = false;
+      },
+      error: () => { this.loading = false; }
+    });
+  }
+
+  toggleModule(code: string): void {
+    const control = this.form.controls.moduleCodes;
+    const current = control.value ?? [];
+    const next = current.includes(code)
+      ? current.filter(c => c !== code)
+      : [...current, code];
+    control.setValue(next);
+    control.markAsDirty();
+  }
+
+  isModuleSelected(code: string): boolean {
+    return (this.form.controls.moduleCodes.value ?? []).includes(code);
+  }
+
+  submit(): void {
+    if (this.form.invalid || !this.tenantId) {
+      this.form.markAllAsTouched();
+      this.snackBar.open('Please fix validation errors before saving.', 'Close', { duration: 3000 });
+      return;
+    }
+    if (this.saving) return;
+
+    const v = this.form.getRawValue();
+    this.saving = true;
+
+    forkJoin({
+      tenant: this.platform.updateTenant(this.tenantId, {
+        name: v.name!.trim(),
+        subscriptionPlan: v.subscriptionPlan,
+        isActive: !!v.isActive,
+        moduleCodes: v.moduleCodes ?? [],
+        maxUsers: v.maxUsers,
+        maxVehicles: v.maxVehicles,
+        maxDrivers: v.maxDrivers,
+        maxBranches: v.maxBranches,
+        maxGpsDevices: v.maxGpsDevices
+      }),
+      branding: this.platform.updateTenantBranding(this.tenantId, {
+        logoUrl: v.logoUrl?.trim() || null,
+        primaryColor: v.primaryColor?.trim() || null,
+        website: v.website?.trim() || null,
+        supportEmail: v.supportEmail?.trim() || null,
+        country: v.country || null,
+        currencyCode: v.currencyCode?.trim()?.toUpperCase() || null,
+        timeZone: v.timeZone || null
+      })
+    }).subscribe({
+      next: () => {
+        this.saving = false;
+        this.snackBar.open('Tenant updated.', 'Close', { duration: 2500 });
+        void this.router.navigate(['/platform/tenants']);
+      },
+      error: (err: unknown) => {
+        this.saving = false;
+        this.snackBar.open(apiErrorMessage(err, 'Save failed.'), 'Close', { duration: 4000 });
+      }
+    });
+  }
+
+  cancel(): void {
+    void this.router.navigate(['/platform/tenants']);
+  }
+}

@@ -82,3 +82,11 @@ public enum AllowanceCalculationType
     /// <summary>`(Percent/100) × Profit`, where profit is supplied by the caller.</summary>
     ProfitPercent = 4
 }
+
+public enum BranchStatus
+{
+    Active = 1,
+    Inactive = 2,
+    Maintenance = 3,
+    Closed = 4
+}

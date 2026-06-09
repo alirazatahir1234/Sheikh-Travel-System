@@ -11,23 +11,27 @@ namespace SheikhTravelSystem.Infrastructure.Persistence;
 public class AuditService(
     IDbConnectionFactory dbFactory,
     ICurrentUserService currentUserService,
+    ITenantContext tenantContext,
     IHttpContextAccessor httpContextAccessor) : IAuditService
 {
     public async Task LogAsync(string action, string entityName, int? entityId, CancellationToken cancellationToken = default)
     {
         var ipAddress = httpContextAccessor.HttpContext?.Connection.RemoteIpAddress?.ToString();
+        int? tenantId = null;
+        try { tenantId = tenantContext.TenantId; } catch { /* unauthenticated pipeline */ }
 
         using var connection = dbFactory.CreateConnection();
         await connection.ExecuteAsync(
             new CommandDefinition(
-                @"INSERT INTO AuditLogs ([Action], EntityName, EntityId, UserId, IpAddress, CreatedAt, IsDeleted)
-                  VALUES (@Action, @EntityName, @EntityId, @UserId, @IpAddress, @CreatedAt, 0)",
+                @"INSERT INTO AuditLogs (TenantId, [Action], EntityName, EntityId, UserId, IpAddress, CreatedAt, IsDeleted)
+                  VALUES (@TenantId, @Action, @EntityName, @EntityId, @UserId, @IpAddress, @CreatedAt, 0)",
                 new
                 {
-                    Action    = action,
+                    TenantId = tenantId ?? 1,
+                    Action = action,
                     EntityName = entityName,
-                    EntityId  = entityId,
-                    UserId    = currentUserService.UserId,
+                    EntityId = entityId,
+                    UserId = currentUserService.UserId,
                     IpAddress = ipAddress,
                     CreatedAt = DateTime.UtcNow
                 },

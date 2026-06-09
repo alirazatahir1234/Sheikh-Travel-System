@@ -17,22 +17,41 @@ public class JwtTokenService(IConfiguration configuration) : IJwtTokenService
     /// <summary>
     /// Builds an access token from configured JWT settings and user claims.
     /// </summary>
-    public string GenerateAccessToken(User user, int? driverId = null)
+    public string GenerateAccessToken(User user, int? driverId = null, UserAccessContext? access = null)
     {
         var jwtSettings = configuration.GetSection("JwtSettings");
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(
             jwtSettings["Secret"] ?? throw new InvalidOperationException("JWT Secret not configured.")));
 
-        // Keep claims minimal and stable because clients and policies rely on them.
+        var roleCodes = access?.RoleCodes ?? [];
+        var primaryRole = roleCodes.FirstOrDefault() ?? user.Role.ToString();
+        var legacyRole = user.Role.ToString();
+
         var claims = new List<Claim>
         {
             new(ClaimTypes.NameIdentifier, user.Id.ToString()),
             new(ClaimTypes.Email, user.Email),
             new(ClaimTypes.Name, user.FullName),
-            new(ClaimTypes.Role, user.Role.ToString()),
+            new(ClaimTypes.Role, legacyRole),
             new("userId", user.Id.ToString()),
-            new("tenant_id", user.TenantId.ToString())
+            new("tenant_id", user.TenantId.ToString()),
+            new("primary_role", primaryRole)
         };
+
+        if (!string.Equals(primaryRole, legacyRole, StringComparison.OrdinalIgnoreCase))
+        {
+            claims.Add(new Claim(ClaimTypes.Role, primaryRole));
+        }
+
+        foreach (var roleCode in roleCodes.Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            claims.Add(new Claim("role", roleCode));
+        }
+
+        foreach (var permission in access?.Permissions ?? [])
+        {
+            claims.Add(new Claim("permission", permission));
+        }
 
         if (driverId.HasValue)
         {

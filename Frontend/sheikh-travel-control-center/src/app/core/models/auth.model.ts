@@ -14,6 +14,10 @@ export interface LoginResponseDto {
   role: string;
   email?: string;
   phoneNumber?: string;
+  tenantId?: number;
+  userId?: number;
+  roles?: string[];
+  permissions?: string[];
 }
 
 /**
@@ -26,7 +30,9 @@ export interface LoginResponse {
   refreshToken: string;
   fullName: string;
   roles: string[];
+  permissions: string[];
   userId?: number;
+  tenantId?: number;
   email?: string;
   phoneNumber?: string;
 }

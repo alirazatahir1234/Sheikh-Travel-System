@@ -76,6 +76,30 @@ const analyticsGroup: NavGroup = {
   ]
 };
 
+const organizationGroup: NavGroup = {
+  id: 'organization',
+  label: 'Organization',
+  icon: 'corporate_fare',
+  collapsible: true,
+  items: [
+    { id: 'tenants', label: 'Tenants', icon: 'business', route: '/platform/tenants', adminOnly: true, moduleKey: 'organization' },
+    { id: 'branches', label: 'Branches', icon: 'account_tree', route: '/platform/branches', adminOnly: true, moduleKey: 'organization' },
+    { id: 'departments', label: 'Departments', icon: 'domain', route: '/platform/departments', adminOnly: true, moduleKey: 'organization' }
+  ]
+};
+
+const accessControlGroup: NavGroup = {
+  id: 'access_control',
+  label: 'Access Control',
+  icon: 'admin_panel_settings',
+  collapsible: true,
+  items: [
+    { id: 'users', label: 'Users', icon: 'manage_accounts', route: '/users', adminOnly: true, moduleKey: 'access_control' },
+    { id: 'roles', label: 'Roles', icon: 'security', route: '/platform/roles', adminOnly: true, moduleKey: 'access_control' },
+    { id: 'allowance-rules', label: 'Allowance Rules', icon: 'rule', route: '/driver-allowance-rules', adminOnly: true, moduleKey: 'driver-allowance-rules' }
+  ]
+};
+
 const administrationGroup: NavGroup = {
   id: 'administration',
   label: 'Administration',
@@ -97,6 +121,8 @@ const allGroups: NavGroup[] = [
   customersGroup,
   financeGroup,
   analyticsGroup,
+  organizationGroup,
+  accessControlGroup,
   administrationGroup
 ];
 
@@ -110,9 +136,9 @@ const driverItems: NavItem[] = [
 ];
 
 const tenantGroupIds: Record<TenantType, string[]> = {
-  [TenantType.TravelAgency]: ['dashboard', 'operations', 'customers', 'finance', 'analytics', 'administration'],
-  [TenantType.FleetOperator]: ['dashboard', 'fleet', 'analytics', 'administration'],
-  [TenantType.CorporateCustomer]: ['dashboard', 'operations', 'customers', 'finance', 'analytics', 'administration'],
+  [TenantType.TravelAgency]: ['dashboard', 'operations', 'customers', 'finance', 'analytics', 'organization', 'access_control'],
+  [TenantType.FleetOperator]: ['dashboard', 'fleet', 'analytics', 'organization', 'access_control'],
+  [TenantType.CorporateCustomer]: ['dashboard', 'operations', 'customers', 'finance', 'analytics', 'organization', 'access_control'],
   [TenantType.Driver]: []
 };
 

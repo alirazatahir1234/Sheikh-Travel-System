@@ -1,0 +1,307 @@
+import { Component, ElementRef, OnInit } from '@angular/core';
+import { FormBuilder, FormControl, FormGroup, Validators } from '@angular/forms';
+import { Router } from '@angular/router';
+import { MatSnackBar } from '@angular/material/snack-bar';
+import { PlatformService } from '../../../core/services/platform.service';
+import { apiErrorMessage } from '../../../core/utils/api-error.util';
+import {
+  BRANCH_COUNTRIES,
+  BRANCH_CURRENCIES,
+  BRANCH_TIMEZONES,
+  DEFAULT_TENANT_MODULE_CODES,
+  GPS_PROVIDERS,
+  INDUSTRY_TYPES,
+  MODULE_ICONS,
+  ProvisionTenantRequest,
+  STORAGE_MODELS,
+  TENANT_PLAN_TIERS,
+  TENANT_TYPES,
+  TenantModuleDefinition,
+  tenantPlanMeta
+} from '../../../core/models/platform.model';
+
+type SectionKey = 'profile' | 'plan' | 'admin' | 'branding' | 'security' | 'organization' | 'billing';
+
+@Component({
+  selector: 'app-tenant-provision',
+  templateUrl: './tenant-provision.component.html',
+  styleUrls: ['./tenant-provision.component.scss']
+})
+export class TenantProvisionComponent implements OnInit {
+  saving = false;
+  loadingModules = true;
+  modules: TenantModuleDefinition[] = [];
+
+  readonly planTiers = TENANT_PLAN_TIERS;
+  readonly tenantTypes = TENANT_TYPES;
+  readonly industryTypes = INDUSTRY_TYPES;
+  readonly storageModels = STORAGE_MODELS;
+  readonly gpsProviders = GPS_PROVIDERS;
+  readonly countries = BRANCH_COUNTRIES;
+  readonly timezones = BRANCH_TIMEZONES;
+  readonly currencies = BRANCH_CURRENCIES;
+  readonly moduleIcons = MODULE_ICONS;
+  readonly tenantPlanMeta = tenantPlanMeta;
+
+  form: FormGroup;
+
+  private readonly sectionOrder: { key: SectionKey; id: string }[] = [
+    { key: 'profile', id: 'section-profile' },
+    { key: 'plan', id: 'section-plan' },
+    { key: 'admin', id: 'section-admin' },
+    { key: 'branding', id: 'section-branding' },
+    { key: 'security', id: 'section-security' },
+    { key: 'organization', id: 'section-organization' },
+    { key: 'billing', id: 'section-billing' }
+  ];
+
+  constructor(
+    private fb: FormBuilder,
+    private platform: PlatformService,
+    private snackBar: MatSnackBar,
+    private router: Router,
+    private el: ElementRef<HTMLElement>
+  ) {
+    this.form = this.fb.group({
+      profile: this.fb.group({
+        name: ['', [Validators.required, Validators.maxLength(200)]],
+        code: [''],
+        tenantType: ['Travel Agency'],
+        industryType: ['Logistics & Transport'],
+        slug: ['', [Validators.required, Validators.pattern(/^[a-z0-9-]+$/)]],
+        storageModel: ['SharedDatabase']
+      }),
+      plan: this.fb.group({
+        planName: ['Enterprise', Validators.required],
+        moduleCodes: new FormControl<string[]>([...DEFAULT_TENANT_MODULE_CODES], Validators.required),
+        maxUsers: [10, [Validators.min(0)]],
+        maxVehicles: [50, [Validators.min(0)]],
+        maxDrivers: [50, [Validators.min(0)]],
+        maxBranches: [5, [Validators.min(0)]],
+        maxGpsDevices: [50, [Validators.min(0)]]
+      }),
+      admin: this.fb.group({
+        adminFullName: ['', Validators.required],
+        adminEmail: ['', [Validators.required, Validators.email]],
+        adminMobile: [''],
+        adminPassword: ['', [Validators.required, Validators.minLength(8)]]
+      }),
+      branding: this.fb.group({
+        country: ['United Arab Emirates'],
+        currencyCode: ['AED'],
+        timeZone: ['Asia/Dubai'],
+        primaryColor: ['#007A57'],
+        website: [''],
+        supportEmail: ['', Validators.email],
+        logoUrl: ['']
+      }),
+      security: this.fb.group({
+        isMfaRequired: [false],
+        enforcePasswordExpiry: [true],
+        passwordExpiryDays: [90, [Validators.min(1)]],
+        enforceSessionTimeout: [true],
+        sessionTimeoutMinutes: [30, [Validators.min(1)]],
+        isGdprEnabled: [true],
+        isAuditLoggingEnabled: [true],
+        isVatEnabled: [false]
+      }),
+      organization: this.fb.group({
+        headOfficeName: ['Head Office'],
+        defaultBranchName: ['Main Operations Center'],
+        defaultDepartments: ['Operations,Finance,Fleet,HR'],
+        generateOrganizationStructure: [true]
+      }),
+      billing: this.fb.group({
+        billingContactName: [''],
+        companyTRN: [''],
+        billingEmail: ['', Validators.email],
+        billingAddress: [''],
+        gpsProviderName: ['']
+      })
+    });
+
+    this.profileGroup.get('name')?.valueChanges.subscribe(name => {
+      const slugCtrl = this.profileGroup.get('slug');
+      if (!slugCtrl || slugCtrl.dirty) return;
+      const slug = (name ?? '')
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+      slugCtrl.setValue(slug, { emitEvent: false });
+    });
+  }
+
+  ngOnInit(): void {
+    this.platform.getModules().subscribe({
+      next: mods => {
+        this.modules = mods;
+        this.loadingModules = false;
+      },
+      error: () => {
+        this.loadingModules = false;
+        this.snackBar.open('Failed to load module catalog.', 'Close', { duration: 3000 });
+      }
+    });
+  }
+
+  get profileGroup(): FormGroup { return this.form.get('profile') as FormGroup; }
+  get planGroup(): FormGroup { return this.form.get('plan') as FormGroup; }
+  get adminGroup(): FormGroup { return this.form.get('admin') as FormGroup; }
+  get brandingGroup(): FormGroup { return this.form.get('branding') as FormGroup; }
+  get securityGroup(): FormGroup { return this.form.get('security') as FormGroup; }
+  get organizationGroup(): FormGroup { return this.form.get('organization') as FormGroup; }
+  get billingGroup(): FormGroup { return this.form.get('billing') as FormGroup; }
+
+  get activeModuleCount(): number {
+    return (this.planGroup.get('moduleCodes')?.value as string[] ?? []).length;
+  }
+
+  get summaryPlanName(): string {
+    return this.planGroup.get('planName')?.value ?? 'Enterprise';
+  }
+
+  get summaryUserQuota(): number {
+    return this.planGroup.get('maxUsers')?.value ?? 0;
+  }
+
+  get primaryColorPreview(): string {
+    return this.brandingGroup.get('primaryColor')?.value || '#007A57';
+  }
+
+  get checklistItems(): { label: string; done: boolean }[] {
+    return [
+      { label: 'Tenant profile defined', done: this.profileGroup.valid },
+      { label: 'Plan & modules selected', done: this.planGroup.valid && this.activeModuleCount > 0 },
+      { label: 'Initial administrator setup', done: this.adminGroup.valid },
+      { label: 'Localization & branding', done: this.brandingGroup.valid },
+      { label: 'Security policies configured', done: this.securityGroup.valid },
+      { label: 'Organization structure ready', done: this.organizationGroup.valid },
+      { label: 'Billing & GPS (optional)', done: this.billingGroup.valid }
+    ];
+  }
+
+  get checklistCompleteCount(): number {
+    return this.checklistItems.filter(i => i.done).length;
+  }
+
+  moduleIcon(code: string): string {
+    return this.moduleIcons[code] ?? 'extension';
+  }
+
+  isModuleSelected(code: string): boolean {
+    const selected = this.planGroup.get('moduleCodes')?.value as string[] | null;
+    return selected?.includes(code) ?? false;
+  }
+
+  toggleModule(code: string): void {
+    const ctrl = this.planGroup.get('moduleCodes');
+    const current = [...(ctrl?.value as string[] ?? [])];
+    const next = current.includes(code)
+      ? current.filter(c => c !== code)
+      : [...new Set([...current, code])];
+    ctrl?.setValue(next);
+    ctrl?.markAsTouched();
+  }
+
+  validateConfiguration(): boolean {
+    this.form.markAllAsTouched();
+    if (this.form.valid) {
+      this.snackBar.open('Configuration is valid and ready to provision.', 'Close', { duration: 2500 });
+      return true;
+    }
+    this.scrollToFirstInvalid();
+    this.snackBar.open('Please complete all required fields.', 'Close', { duration: 3000 });
+    return false;
+  }
+
+  submit(): void {
+    if (this.saving) return;
+    if (!this.validateConfiguration()) return;
+
+    const payload = this.buildPayload();
+    if (!payload) return;
+
+    this.saving = true;
+    this.platform.provisionTenant(payload).subscribe({
+      next: () => {
+        this.saving = false;
+        this.snackBar.open('Tenant provisioned successfully.', 'Close', { duration: 2500 });
+        void this.router.navigate(['/platform/tenants']);
+      },
+      error: (err: unknown) => {
+        this.saving = false;
+        this.snackBar.open(apiErrorMessage(err, 'Provisioning failed.'), 'Close', { duration: 4000 });
+      }
+    });
+  }
+
+  cancel(): void {
+    void this.router.navigate(['/platform/tenants']);
+  }
+
+  private scrollToFirstInvalid(): void {
+    for (const section of this.sectionOrder) {
+      const group = this.form.get(section.key);
+      if (group && group.invalid) {
+        const el = this.el.nativeElement.querySelector(`#${section.id}`);
+        el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        return;
+      }
+    }
+  }
+
+  private buildPayload(): ProvisionTenantRequest | null {
+    if (this.form.invalid) return null;
+
+    const p = this.profileGroup.getRawValue();
+    const pl = this.planGroup.getRawValue();
+    const a = this.adminGroup.getRawValue();
+    const b = this.brandingGroup.getRawValue();
+    const s = this.securityGroup.getRawValue();
+    const o = this.organizationGroup.getRawValue();
+    const bill = this.billingGroup.getRawValue();
+
+    return {
+      name: p.name!.trim(),
+      slug: p.slug!.trim().toLowerCase(),
+      code: p.code?.trim() || undefined,
+      tenantType: p.tenantType?.trim() || undefined,
+      industryType: p.industryType?.trim() || undefined,
+      storageModel: p.storageModel || 'SharedDatabase',
+      planName: pl.planName ?? 'Enterprise',
+      maxUsers: pl.maxUsers ?? undefined,
+      maxVehicles: pl.maxVehicles ?? undefined,
+      maxDrivers: pl.maxDrivers ?? undefined,
+      maxBranches: pl.maxBranches ?? undefined,
+      maxGpsDevices: pl.maxGpsDevices ?? undefined,
+      moduleCodes: pl.moduleCodes ?? undefined,
+      adminFullName: a.adminFullName!.trim(),
+      adminEmail: a.adminEmail!.trim(),
+      adminPassword: a.adminPassword!,
+      adminMobile: a.adminMobile?.trim() || undefined,
+      country: b.country?.trim() || undefined,
+      timeZone: b.timeZone?.trim() || undefined,
+      currencyCode: b.currencyCode?.trim() || undefined,
+      primaryColor: b.primaryColor?.trim() || undefined,
+      logoUrl: b.logoUrl?.trim() || undefined,
+      website: b.website?.trim() || undefined,
+      supportEmail: b.supportEmail?.trim() || undefined,
+      isMfaRequired: s.isMfaRequired ?? false,
+      passwordExpiryDays: s.enforcePasswordExpiry ? (s.passwordExpiryDays ?? 90) : 0,
+      sessionTimeoutMinutes: s.enforceSessionTimeout ? (s.sessionTimeoutMinutes ?? 30) : 0,
+      isGdprEnabled: s.isGdprEnabled ?? true,
+      isAuditLoggingEnabled: s.isAuditLoggingEnabled ?? true,
+      isVatEnabled: s.isVatEnabled ?? false,
+      generateOrganizationStructure: o.generateOrganizationStructure ?? true,
+      defaultBranchName: o.defaultBranchName?.trim() || undefined,
+      headOfficeName: o.headOfficeName?.trim() || undefined,
+      defaultDepartments: o.defaultDepartments?.trim() || undefined,
+      billingContactName: bill.billingContactName?.trim() || undefined,
+      billingEmail: bill.billingEmail?.trim() || undefined,
+      billingAddress: bill.billingAddress?.trim() || undefined,
+      companyTRN: bill.companyTRN?.trim() || undefined,
+      gpsProviderName: bill.gpsProviderName?.trim() || undefined
+    };
+  }
+}

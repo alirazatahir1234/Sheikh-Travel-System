@@ -13,20 +13,24 @@ public record GetAuditLogsQuery(
     string? EntityName = null,
     int? UserId = null,
     DateTime? FromDate = null,
-    DateTime? ToDate = null
+    DateTime? ToDate = null,
+    int? TenantId = null
 ) : IRequest<ApiResponse<PagedResult<AuditLogDto>>>;
 
-public class GetAuditLogsQueryHandler(IDbConnectionFactory dbFactory)
-    : IRequestHandler<GetAuditLogsQuery, ApiResponse<PagedResult<AuditLogDto>>>
+public class GetAuditLogsQueryHandler(
+    IDbConnectionFactory dbFactory,
+    IPlatformScope platformScope) : IRequestHandler<GetAuditLogsQuery, ApiResponse<PagedResult<AuditLogDto>>>
 {
     public async Task<ApiResponse<PagedResult<AuditLogDto>>> Handle(
         GetAuditLogsQuery request, CancellationToken cancellationToken)
     {
         using var connection = dbFactory.CreateConnection();
         var offset = (request.Page - 1) * request.PageSize;
+        var tenantId = ResolveTenantFilter(request.TenantId);
 
-        var whereConditions = new List<string> { "a.IsDeleted = 0" };
+        var whereConditions = new List<string> { "a.IsDeleted = 0", "a.TenantId = @TenantId" };
         var parameters = new DynamicParameters();
+        parameters.Add("TenantId", tenantId);
         parameters.Add("Offset", offset);
         parameters.Add("PageSize", request.PageSize);
 
@@ -89,5 +93,16 @@ public class GetAuditLogsQueryHandler(IDbConnectionFactory dbFactory)
                 Page = request.Page,
                 PageSize = request.PageSize
             });
+    }
+
+    private int ResolveTenantFilter(int? requestedTenantId)
+    {
+        if (requestedTenantId.HasValue)
+        {
+            platformScope.EnsureTenantAccess(requestedTenantId.Value);
+            return requestedTenantId.Value;
+        }
+
+        return platformScope.TenantId;
     }
 }

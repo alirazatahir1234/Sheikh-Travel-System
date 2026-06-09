@@ -27,27 +27,32 @@ public class UpdateUserCommandValidator : AbstractValidator<UpdateUserCommand>
     }
 }
 
-public class UpdateUserCommandHandler(IDbConnectionFactory dbFactory)
-    : IRequestHandler<UpdateUserCommand, ApiResponse<bool>>
+public class UpdateUserCommandHandler(
+    IDbConnectionFactory dbFactory,
+    IPlatformScope platformScope) : IRequestHandler<UpdateUserCommand, ApiResponse<bool>>
 {
     public async Task<ApiResponse<bool>> Handle(UpdateUserCommand request, CancellationToken cancellationToken)
     {
         using var connection = dbFactory.CreateConnection();
         var dto = request.User;
 
-        var exists = await connection.ExecuteScalarAsync<bool>(
+        var tenantId = await connection.ExecuteScalarAsync<int?>(
             new CommandDefinition(
-                "SELECT CASE WHEN EXISTS(SELECT 1 FROM Users WHERE Id = @Id AND IsDeleted = 0) THEN 1 ELSE 0 END",
+                "SELECT TenantId FROM Users WHERE Id = @Id AND IsDeleted = 0",
                 new { request.Id },
                 cancellationToken: cancellationToken));
 
-        if (!exists)
+        if (!tenantId.HasValue)
             throw new NotFoundException("User", request.Id);
+
+        platformScope.EnsureTenantAccess(tenantId.Value);
 
         var emailConflict = await connection.ExecuteScalarAsync<bool>(
             new CommandDefinition(
-                "SELECT CASE WHEN EXISTS(SELECT 1 FROM Users WHERE Email = @Email AND Id != @Id AND IsDeleted = 0) THEN 1 ELSE 0 END",
-                new { dto.Email, request.Id },
+                @"SELECT CASE WHEN EXISTS(
+                    SELECT 1 FROM Users WHERE Email = @Email AND Id != @Id AND TenantId = @TenantId AND IsDeleted = 0
+                ) THEN 1 ELSE 0 END",
+                new { dto.Email, request.Id, TenantId = tenantId.Value },
                 cancellationToken: cancellationToken));
 
         if (emailConflict)

@@ -1,0 +1,214 @@
+<div class="tenant-detail-page">
+  <header class="form-header">
+    <div class="form-header-left">
+      <button mat-icon-button type="button" routerLink="/platform/tenants" aria-label="Back">
+        <mat-icon>arrow_back</mat-icon>
+      </button>
+      <div>
+        <nav class="breadcrumb">
+          <span>Organization</span>
+          <mat-icon>chevron_right</mat-icon>
+          <a routerLink="/platform/tenants">Tenants</a>
+          <mat-icon>chevron_right</mat-icon>
+          <span class="current">{{ tenant?.name || 'Tenant Details' }}</span>
+        </nav>
+        <h1>{{ tenant?.name || 'Tenant Details' }}</h1>
+        <p class="subtitle" *ngIf="tenant">
+          {{ tenantDisplayCode(tenant) }} · {{ tenant.slug }}
+          <span *ngIf="tenant.location"> · {{ tenant.location }}</span>
+        </p>
+      </div>
+    </div>
+    <button mat-stroked-button type="button" (click)="reset()" [disabled]="loading || saving">
+      <mat-icon>restart_alt</mat-icon> Reset
+    </button>
+  </header>
+
+  <div *ngIf="loading" class="loading"><mat-spinner diameter="36"></mat-spinner></div>
+
+  <div *ngIf="!loading && tenant" class="detail-layout">
+    <form [formGroup]="form" (ngSubmit)="submit()" class="form-column">
+      <mat-card class="section-card">
+        <h2>Profile</h2>
+        <div class="readonly-grid">
+          <div>
+            <span class="label">Tenant Code</span>
+            <strong>{{ tenantDisplayCode(tenant) }}</strong>
+          </div>
+          <div>
+            <span class="label">Slug</span>
+            <strong>{{ tenant.slug }}</strong>
+          </div>
+          <div>
+            <span class="label">Type</span>
+            <strong>{{ tenant.tenantType || '—' }}</strong>
+          </div>
+          <div>
+            <span class="label">Industry</span>
+            <strong>{{ tenant.industryType || '—' }}</strong>
+          </div>
+          <div>
+            <span class="label">Storage</span>
+            <strong>{{ tenant.storageModel }}</strong>
+          </div>
+          <div>
+            <span class="label">Created</span>
+            <strong>{{ tenant.createdAt | date:'mediumDate' }}</strong>
+          </div>
+        </div>
+        <mat-form-field appearance="outline" class="full">
+          <mat-label>Organization Name</mat-label>
+          <input matInput formControlName="name" />
+          <mat-error *ngIf="form.get('name')?.hasError('required')">Name is required</mat-error>
+        </mat-form-field>
+        <div class="toggle-row">
+          <div>
+            <strong>Active Status</strong>
+            <p>Inactive tenants cannot sign in or access the platform.</p>
+          </div>
+          <mat-slide-toggle formControlName="isActive" color="primary"></mat-slide-toggle>
+        </div>
+      </mat-card>
+
+      <mat-card class="section-card">
+        <h2>Subscription &amp; Modules</h2>
+        <div class="field-row">
+          <mat-form-field appearance="outline">
+            <mat-label>Plan</mat-label>
+            <mat-select formControlName="subscriptionPlan">
+              <mat-option *ngFor="let p of planTiers" [value]="p">{{ p }}</mat-option>
+            </mat-select>
+          </mat-form-field>
+        </div>
+        <div class="field-row limits-row">
+          <mat-form-field appearance="outline">
+            <mat-label>Max Users</mat-label>
+            <input matInput type="number" formControlName="maxUsers" min="0" />
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>Max Vehicles</mat-label>
+            <input matInput type="number" formControlName="maxVehicles" min="0" />
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>Max Drivers</mat-label>
+            <input matInput type="number" formControlName="maxDrivers" min="0" />
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>Max Branches</mat-label>
+            <input matInput type="number" formControlName="maxBranches" min="0" />
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>Max GPS Devices</mat-label>
+            <input matInput type="number" formControlName="maxGpsDevices" min="0" />
+          </mat-form-field>
+        </div>
+        <p class="section-hint">Enabled modules</p>
+        <div class="module-grid">
+          <button
+            type="button"
+            class="module-card"
+            *ngFor="let m of modules"
+            [class.selected]="isModuleSelected(m.code)"
+            (click)="toggleModule(m.code)">
+            <mat-icon>{{ moduleIcons[m.code] || 'extension' }}</mat-icon>
+            <span>{{ m.name }}</span>
+          </button>
+        </div>
+      </mat-card>
+
+      <mat-card class="section-card">
+        <h2>Branding</h2>
+        <div class="field-row">
+          <mat-form-field appearance="outline">
+            <mat-label>Logo URL</mat-label>
+            <input matInput formControlName="logoUrl" placeholder="https://..." />
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>Primary Color</mat-label>
+            <input matInput formControlName="primaryColor" placeholder="#1d4ed8" />
+          </mat-form-field>
+        </div>
+        <div class="field-row">
+          <mat-form-field appearance="outline">
+            <mat-label>Website</mat-label>
+            <input matInput formControlName="website" />
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>Support Email</mat-label>
+            <input matInput formControlName="supportEmail" />
+            <mat-error *ngIf="form.get('supportEmail')?.hasError('email')">Enter a valid email</mat-error>
+          </mat-form-field>
+        </div>
+        <div class="field-row">
+          <mat-form-field appearance="outline">
+            <mat-label>Country</mat-label>
+            <mat-select formControlName="country">
+              <mat-option *ngFor="let c of countries" [value]="c">{{ c }}</mat-option>
+            </mat-select>
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>Currency</mat-label>
+            <mat-select formControlName="currencyCode">
+              <mat-option *ngFor="let c of currencies" [value]="c">{{ c }}</mat-option>
+            </mat-select>
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>Time Zone</mat-label>
+            <mat-select formControlName="timeZone">
+              <mat-option *ngFor="let tz of timezones" [value]="tz">{{ tz }}</mat-option>
+            </mat-select>
+          </mat-form-field>
+        </div>
+      </mat-card>
+
+      <div class="form-actions">
+        <button mat-button type="button" (click)="cancel()" [disabled]="saving">Cancel</button>
+        <button mat-raised-button color="primary" type="submit" [disabled]="saving">
+          <mat-spinner *ngIf="saving" diameter="18"></mat-spinner>
+          <span *ngIf="!saving">Save Changes</span>
+        </button>
+      </div>
+    </form>
+
+    <aside class="summary-column">
+      <mat-card class="summary-card">
+        <h3>Overview</h3>
+        <div class="stat-row">
+          <mat-icon>account_tree</mat-icon>
+          <div>
+            <span>Branches</span>
+            <strong>{{ tenant.branchCount }}</strong>
+          </div>
+        </div>
+        <div class="stat-row">
+          <mat-icon>corporate_fare</mat-icon>
+          <div>
+            <span>Departments</span>
+            <strong>{{ tenant.departmentCount }}</strong>
+          </div>
+        </div>
+        <div class="stat-row">
+          <mat-icon>security</mat-icon>
+          <div>
+            <span>Roles</span>
+            <strong>{{ tenant.roleCount }}</strong>
+          </div>
+        </div>
+        <div class="stat-row">
+          <mat-icon>extension</mat-icon>
+          <div>
+            <span>Modules</span>
+            <strong>{{ (form.controls.moduleCodes.value ?? []).length }}</strong>
+          </div>
+        </div>
+        <div class="plan-summary" [ngClass]="tenantPlanMeta(tenant.subscriptionPlan).cssClass">
+          <mat-icon>{{ tenantPlanMeta(tenant.subscriptionPlan).icon }}</mat-icon>
+          {{ tenantPlanMeta(tenant.subscriptionPlan).label }} Plan
+        </div>
+        <span class="status-pill" [class.ok]="tenant.isActive" [class.off]="!tenant.isActive">
+          {{ tenant.isActive ? 'Active' : 'Inactive' }}
+        </span>
+      </mat-card>
+    </aside>
+  </div>
+</div>

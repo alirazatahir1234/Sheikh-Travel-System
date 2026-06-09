@@ -27,18 +27,21 @@ public class CreateUserCommandValidator : AbstractValidator<CreateUserCommand>
     }
 }
 
-public class CreateUserCommandHandler(IDbConnectionFactory dbFactory, IPasswordHasher passwordHasher)
-    : IRequestHandler<CreateUserCommand, ApiResponse<int>>
+public class CreateUserCommandHandler(
+    IDbConnectionFactory dbFactory,
+    IPasswordHasher passwordHasher,
+    IPlatformScope platformScope) : IRequestHandler<CreateUserCommand, ApiResponse<int>>
 {
     public async Task<ApiResponse<int>> Handle(CreateUserCommand request, CancellationToken cancellationToken)
     {
         using var connection = dbFactory.CreateConnection();
         var dto = request.User;
+        var tenantId = platformScope.TenantId;
 
         var exists = await connection.ExecuteScalarAsync<bool>(
             new CommandDefinition(
-                "SELECT CASE WHEN EXISTS(SELECT 1 FROM Users WHERE Email = @Email AND IsDeleted = 0) THEN 1 ELSE 0 END",
-                new { dto.Email },
+                "SELECT CASE WHEN EXISTS(SELECT 1 FROM Users WHERE Email = @Email AND TenantId = @TenantId AND IsDeleted = 0) THEN 1 ELSE 0 END",
+                new { dto.Email, TenantId = tenantId },
                 cancellationToken: cancellationToken));
 
         if (exists)
@@ -48,10 +51,19 @@ public class CreateUserCommandHandler(IDbConnectionFactory dbFactory, IPasswordH
 
         var id = await connection.ExecuteScalarAsync<int>(
             new CommandDefinition(
-                @"INSERT INTO Users (FullName, Email, PasswordHash, Phone, Role, IsActive, CreatedAt, IsDeleted)
-                  VALUES (@FullName, @Email, @PasswordHash, @Phone, @Role, 1, @CreatedAt, 0);
+                @"INSERT INTO Users (TenantId, FullName, Email, PasswordHash, Phone, Role, IsActive, CreatedAt, IsDeleted)
+                  VALUES (@TenantId, @FullName, @Email, @PasswordHash, @Phone, @Role, 1, @CreatedAt, 0);
                   SELECT SCOPE_IDENTITY();",
-                new { dto.FullName, dto.Email, PasswordHash = passwordHash, dto.Phone, Role = (int)dto.Role, CreatedAt = DateTime.UtcNow },
+                new
+                {
+                    TenantId = tenantId,
+                    dto.FullName,
+                    dto.Email,
+                    PasswordHash = passwordHash,
+                    dto.Phone,
+                    Role = (int)dto.Role,
+                    CreatedAt = DateTime.UtcNow
+                },
                 cancellationToken: cancellationToken));
 
         return ApiResponse<int>.SuccessResponse(id, "User created successfully.");

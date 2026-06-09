@@ -13,21 +13,24 @@ public record DeleteUserCommand(int Id) : IRequest<ApiResponse<bool>>, IAuditabl
     public int? AuditEntityId => Id;
 }
 
-public class DeleteUserCommandHandler(IDbConnectionFactory dbFactory)
-    : IRequestHandler<DeleteUserCommand, ApiResponse<bool>>
+public class DeleteUserCommandHandler(
+    IDbConnectionFactory dbFactory,
+    IPlatformScope platformScope) : IRequestHandler<DeleteUserCommand, ApiResponse<bool>>
 {
     public async Task<ApiResponse<bool>> Handle(DeleteUserCommand request, CancellationToken cancellationToken)
     {
         using var connection = dbFactory.CreateConnection();
 
-        var exists = await connection.ExecuteScalarAsync<bool>(
+        var tenantId = await connection.ExecuteScalarAsync<int?>(
             new CommandDefinition(
-                "SELECT CASE WHEN EXISTS(SELECT 1 FROM Users WHERE Id = @Id AND IsDeleted = 0) THEN 1 ELSE 0 END",
+                "SELECT TenantId FROM Users WHERE Id = @Id AND IsDeleted = 0",
                 new { request.Id },
                 cancellationToken: cancellationToken));
 
-        if (!exists)
+        if (!tenantId.HasValue)
             throw new NotFoundException("User", request.Id);
+
+        platformScope.EnsureTenantAccess(tenantId.Value);
 
         await connection.ExecuteAsync(
             new CommandDefinition(

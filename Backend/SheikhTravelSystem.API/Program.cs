@@ -69,7 +69,10 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(options =>
+{
+    SheikhTravelSystem.Infrastructure.Authentication.PermissionPolicyRegistration.AddPermissionPolicies(options);
+});
 
 // Rate Limiting (built-in)
 builder.Services.AddRateLimiter(options =>
@@ -230,6 +233,8 @@ using (var scope = app.Services.CreateScope())
         var dbFactory = scope.ServiceProvider.GetRequiredService<IDbConnectionFactory>();
         var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
         await TenantSchemaMigration.ApplyAsync(dbFactory, logger);
+        await PlatformSchemaMigration.ApplyAsync(dbFactory, logger);
+        await TenantNormalizationMigration.ApplyAsync(dbFactory, logger);
     }
     catch (Exception ex)
     {

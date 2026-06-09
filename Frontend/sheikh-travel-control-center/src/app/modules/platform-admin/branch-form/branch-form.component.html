@@ -1,0 +1,145 @@
+<div class="branch-form-page">
+  <header class="form-header">
+    <div class="form-header-left">
+      <button mat-icon-button type="button" routerLink="/platform/branches" aria-label="Back">
+        <mat-icon>arrow_back</mat-icon>
+      </button>
+      <div>
+        <nav class="breadcrumb">
+          <span>Organization</span>
+          <mat-icon>chevron_right</mat-icon>
+          <a routerLink="/platform/branches">Branches</a>
+          <mat-icon>chevron_right</mat-icon>
+          <span class="current">{{ isEdit ? 'Edit Branch' : 'Add Branch' }}</span>
+        </nav>
+        <h1>{{ isEdit ? 'Edit Branch' : 'Add New Branch' }}</h1>
+        <p class="subtitle">Configure a new operational location for the fleet network.</p>
+      </div>
+    </div>
+    <button mat-stroked-button type="button" (click)="reset()" [disabled]="loading || saving">
+      <mat-icon>restart_alt</mat-icon> Reset Form
+    </button>
+  </header>
+
+  <div *ngIf="loading" class="loading"><mat-spinner diameter="36"></mat-spinner></div>
+
+  <form *ngIf="!loading" [formGroup]="form" (ngSubmit)="submit()" class="form-grid">
+    <mat-card class="section-card">
+      <h2>Basic Information</h2>
+      <div class="field-row">
+        <mat-form-field appearance="outline">
+          <mat-label>Branch Name</mat-label>
+          <input matInput formControlName="name" placeholder="e.g. Dubai Main Hub" />
+          <mat-error *ngIf="form.get('name')?.hasError('required')">Branch name is required</mat-error>
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Branch Code</mat-label>
+          <input matInput formControlName="branchCode" placeholder="e.g. DXB-01" style="text-transform: uppercase" />
+          <mat-error *ngIf="form.get('branchCode')?.hasError('required')">Branch code is required</mat-error>
+        </mat-form-field>
+      </div>
+      <div class="field-row">
+        <mat-form-field appearance="outline">
+          <mat-label>Branch Type</mat-label>
+          <mat-select formControlName="branchType">
+            <mat-option *ngFor="let t of branchTypes" [value]="t">{{ t }}</mat-option>
+          </mat-select>
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Parent Branch</mat-label>
+          <mat-select formControlName="parentBranchId">
+            <mat-option [value]="null">None (Head Office)</mat-option>
+            <mat-option *ngFor="let b of branches" [value]="b.id">{{ b.name }} ({{ b.branchCode }})</mat-option>
+          </mat-select>
+        </mat-form-field>
+      </div>
+    </mat-card>
+
+    <mat-card class="section-card">
+      <h2>Contact Details</h2>
+      <div class="field-row">
+        <mat-form-field appearance="outline">
+          <mat-label>Branch Manager</mat-label>
+          <mat-select formControlName="branchManagerUserId">
+            <mat-option [value]="null">Not assigned</mat-option>
+            <mat-option *ngFor="let u of managers" [value]="u.id">{{ u.fullName }}</mat-option>
+          </mat-select>
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Phone Number</mat-label>
+          <input matInput formControlName="phone" placeholder="+971 -- --- ----" />
+        </mat-form-field>
+      </div>
+      <mat-form-field appearance="outline" class="full">
+        <mat-label>Email Address</mat-label>
+        <input matInput formControlName="email" placeholder="branch@sheikhtravel.com" />
+        <mat-error *ngIf="form.get('email')?.hasError('email')">Enter a valid email</mat-error>
+      </mat-form-field>
+    </mat-card>
+
+    <mat-card class="section-card">
+      <h2>Location</h2>
+      <mat-form-field appearance="outline" class="full">
+        <mat-label>Full Address</mat-label>
+        <textarea matInput formControlName="address" rows="3" placeholder="Enter physical street address..."></textarea>
+      </mat-form-field>
+      <div class="field-row">
+        <mat-form-field appearance="outline">
+          <mat-label>City</mat-label>
+          <input matInput formControlName="city" placeholder="Dubai" />
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Country</mat-label>
+          <mat-select formControlName="country">
+            <mat-option *ngFor="let c of countries" [value]="c">{{ c }}</mat-option>
+          </mat-select>
+        </mat-form-field>
+      </div>
+      <div class="field-row">
+        <mat-form-field appearance="outline">
+          <mat-label>Timezone</mat-label>
+          <mat-select formControlName="timeZone">
+            <mat-option *ngFor="let tz of timezones" [value]="tz">{{ tz }}</mat-option>
+          </mat-select>
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Default Currency</mat-label>
+          <mat-select formControlName="currencyCode">
+            <mat-option *ngFor="let c of currencies" [value]="c">{{ c }}</mat-option>
+          </mat-select>
+        </mat-form-field>
+      </div>
+    </mat-card>
+
+    <mat-card class="section-card">
+      <h2>System Status</h2>
+      <div class="status-row">
+        <div class="toggle-row">
+          <div>
+            <strong>GPS Hub</strong>
+            <p>Enable GPS tracking for this branch</p>
+          </div>
+          <mat-slide-toggle formControlName="isGpsEnabled" color="primary"></mat-slide-toggle>
+        </div>
+      </div>
+      <p class="status-label">Branch Operational Status</p>
+      <div class="status-cards">
+        <label
+          *ngFor="let opt of statusOptions"
+          class="status-card"
+          [class.selected]="form.get('status')?.value === opt.value">
+          <input type="radio" formControlName="status" [value]="opt.value" />
+          <strong>{{ opt.label }}</strong>
+          <span>{{ opt.hint }}</span>
+        </label>
+      </div>
+    </mat-card>
+
+    <footer class="form-footer">
+      <button mat-button type="button" (click)="cancel()" [disabled]="saving">Cancel</button>
+      <button mat-raised-button color="primary" type="submit" [disabled]="saving">
+        {{ saving ? 'Saving…' : (isEdit ? 'Update Branch' : 'Save Branch') }}
+      </button>
+    </footer>
+  </form>
+</div>

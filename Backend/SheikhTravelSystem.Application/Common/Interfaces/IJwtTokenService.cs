@@ -1,3 +1,4 @@
+using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Domain.Entities;
 
 namespace SheikhTravelSystem.Application.Common.Interfaces;
@@ -10,7 +11,7 @@ public interface IJwtTokenService
     /// <summary>
     /// Generates a signed access token for the specified user.
     /// </summary>
-    string GenerateAccessToken(User user, int? driverId = null);
+    string GenerateAccessToken(User user, int? driverId = null, UserAccessContext? access = null);
     /// <summary>
     /// Generates a cryptographically secure refresh token.
     /// </summary>

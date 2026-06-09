@@ -1,0 +1,131 @@
+<div class="dept-page">
+  <header class="page-header">
+    <div>
+      <nav class="breadcrumb">
+        <span>Organization</span>
+        <mat-icon>chevron_right</mat-icon>
+        <span class="current">Department Management</span>
+      </nav>
+      <h2>Department Management</h2>
+      <p class="page-sub">Organizational departments for the current tenant.</p>
+    </div>
+    <div class="header-actions">
+      <button mat-stroked-button type="button" (click)="load()"><mat-icon>refresh</mat-icon> Refresh</button>
+      <button mat-raised-button color="primary" type="button" (click)="bulkImportHint()">
+        <mat-icon>upload</mat-icon> Bulk Import
+      </button>
+    </div>
+  </header>
+
+  <div *ngIf="loading" class="loading"><mat-spinner diameter="36"></mat-spinner></div>
+
+  <div *ngIf="!loading" class="dept-layout">
+    <aside class="dept-sidebar">
+      <mat-card class="add-card">
+        <div class="card-title">
+          <mat-icon>add_circle</mat-icon>
+          <h3>Add department</h3>
+        </div>
+        <form [formGroup]="form" (ngSubmit)="create()">
+          <mat-form-field appearance="outline" class="full">
+            <mat-label>Department Name</mat-label>
+            <input matInput formControlName="name" placeholder="e.g. Logistics Support" />
+            <mat-error *ngIf="form.get('name')?.hasError('required')">Name is required</mat-error>
+          </mat-form-field>
+          <mat-form-field appearance="outline" class="full">
+            <mat-label>Department Head</mat-label>
+            <mat-select formControlName="departmentHeadUserId">
+              <mat-option [value]="null">Select manager…</mat-option>
+              <mat-option *ngFor="let u of managers" [value]="u.id">{{ u.fullName }}</mat-option>
+            </mat-select>
+          </mat-form-field>
+          <button mat-raised-button color="primary" type="submit" class="submit-btn" [disabled]="saving">
+            <mat-icon>add</mat-icon> {{ saving ? 'Adding…' : 'Add Department' }}
+          </button>
+        </form>
+      </mat-card>
+
+      <mat-card class="stats-card">
+        <div class="stats-content">
+          <div>
+            <p class="stats-label">Total Active Departments</p>
+            <p class="stats-value">{{ activeCount }}</p>
+            <span class="stats-trend" *ngIf="addedThisMonth > 0">
+              <mat-icon>trending_up</mat-icon> +{{ addedThisMonth }} this month
+            </span>
+          </div>
+          <mat-icon class="stats-icon">corporate_fare</mat-icon>
+        </div>
+      </mat-card>
+    </aside>
+
+    <section class="dept-main">
+      <mat-card class="table-card">
+        <div class="table-header">
+          <div class="table-title">
+            <h3>All Departments</h3>
+            <span class="count-badge">{{ departments.length }} TOTAL</span>
+          </div>
+          <button mat-icon-button type="button" aria-label="Filter"><mat-icon>filter_list</mat-icon></button>
+        </div>
+
+        <table mat-table [dataSource]="dataSource" class="admin-table">
+          <ng-container matColumnDef="name">
+            <th mat-header-cell *matHeaderCellDef>Name</th>
+            <td mat-cell *matCellDef="let d">
+              <div class="dept-name-cell">
+                <span class="dept-avatar" [style.background]="avatarColor(d.name)">{{ initials(d.name) }}</span>
+                <div>
+                  <strong>{{ d.name }}</strong>
+                  <span class="head-name" *ngIf="d.departmentHeadName">{{ d.departmentHeadName }}</span>
+                </div>
+              </div>
+            </td>
+          </ng-container>
+          <ng-container matColumnDef="staffCount">
+            <th mat-header-cell *matHeaderCellDef>Staff Count</th>
+            <td mat-cell *matCellDef="let d">{{ d.staffCount }} {{ d.staffCount === 1 ? 'Member' : 'Members' }}</td>
+          </ng-container>
+          <ng-container matColumnDef="status">
+            <th mat-header-cell *matHeaderCellDef>Status</th>
+            <td mat-cell *matCellDef="let d">
+              <span class="status-pill" [class.ok]="d.isActive" [class.off]="!d.isActive">
+                {{ d.isActive ? 'Active' : 'Inactive' }}
+              </span>
+            </td>
+          </ng-container>
+          <ng-container matColumnDef="actions">
+            <th mat-header-cell *matHeaderCellDef>Actions</th>
+            <td mat-cell *matCellDef="let d">
+              <button mat-button type="button" (click)="toggleActive(d)">{{ d.isActive ? 'Deactivate' : 'Activate' }}</button>
+              <button mat-icon-button color="warn" type="button" (click)="remove(d)"><mat-icon>delete</mat-icon></button>
+            </td>
+          </ng-container>
+          <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+          <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+        </table>
+
+        <div *ngIf="!departments.length" class="empty">No departments yet. Add one using the form on the left.</div>
+
+        <mat-paginator *ngIf="departments.length > pageSize" [pageSize]="pageSize" [pageSizeOptions]="[5, 10, 25]" showFirstLastButtons></mat-paginator>
+      </mat-card>
+    </section>
+  </div>
+
+  <div *ngIf="!loading" class="info-cards">
+    <mat-card class="info-card">
+      <mat-icon>account_tree</mat-icon>
+      <div>
+        <strong>Team Hierarchy</strong>
+        <p>Visualize and manage your departmental structure and reporting lines seamlessly.</p>
+      </div>
+    </mat-card>
+    <mat-card class="info-card">
+      <mat-icon>security</mat-icon>
+      <div>
+        <strong>Access Control</strong>
+        <p>Set department-level permissions and security protocols with enterprise precision.</p>
+      </div>
+    </mat-card>
+  </div>
+</div>

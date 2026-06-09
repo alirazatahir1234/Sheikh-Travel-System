@@ -37,24 +37,25 @@ public class ResetUserPasswordCommandValidator : AbstractValidator<ResetUserPass
 /// <summary>
 /// Handles password reset operations for users.
 /// </summary>
-public class ResetUserPasswordCommandHandler(IDbConnectionFactory dbFactory, IPasswordHasher passwordHasher)
-    : IRequestHandler<ResetUserPasswordCommand, ApiResponse<ResetUserPasswordResponse>>
+public class ResetUserPasswordCommandHandler(
+    IDbConnectionFactory dbFactory,
+    IPasswordHasher passwordHasher,
+    IPlatformScope platformScope) : IRequestHandler<ResetUserPasswordCommand, ApiResponse<ResetUserPasswordResponse>>
 {
-    /// <summary>
-    /// Generates a temporary password, stores hashed value, and revokes existing refresh token.
-    /// </summary>
     public async Task<ApiResponse<ResetUserPasswordResponse>> Handle(ResetUserPasswordCommand request, CancellationToken cancellationToken)
     {
         using var connection = dbFactory.CreateConnection();
 
-        var exists = await connection.ExecuteScalarAsync<bool>(
+        var tenantId = await connection.ExecuteScalarAsync<int?>(
             new CommandDefinition(
-                "SELECT CASE WHEN EXISTS(SELECT 1 FROM Users WHERE Id = @Id AND IsDeleted = 0) THEN 1 ELSE 0 END",
+                "SELECT TenantId FROM Users WHERE Id = @Id AND IsDeleted = 0",
                 new { request.Id },
                 cancellationToken: cancellationToken));
 
-        if (!exists)
+        if (!tenantId.HasValue)
             throw new NotFoundException("User", request.Id);
+
+        platformScope.EnsureTenantAccess(tenantId.Value);
 
         var temporaryPassword = GenerateTemporaryPassword();
         var passwordHash = passwordHasher.Hash(temporaryPassword);

@@ -26,6 +26,7 @@ const routes: Routes = [
       { path: 'tracking', redirectTo: 'gps-tracking/live', pathMatch: 'full' },
       { path: 'driver-allowance-rules', loadChildren: () => import('./modules/driver-allowance-rules/driver-allowance-rules.module').then(m => m.DriverAllowanceRulesModule) },
       { path: 'users', loadChildren: () => import('./modules/users/users.module').then(m => m.UsersModule) },
+      { path: 'platform', loadChildren: () => import('./modules/platform-admin/platform-admin.module').then(m => m.PlatformAdminModule) },
       { path: 'fuel-logs', loadChildren: () => import('./modules/fuel-logs/fuel-logs.module').then(m => m.FuelLogsModule) },
       { path: 'maintenance', loadChildren: () => import('./modules/maintenance/maintenance.module').then(m => m.MaintenanceModule) },
       { path: 'audit-logs', loadChildren: () => import('./modules/audit-logs/audit-logs.module').then(m => m.AuditLogsModule) },

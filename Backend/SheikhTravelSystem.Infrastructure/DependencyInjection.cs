@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.AspNetCore.Authorization;
 using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Application.Features.CustomerPortal;
 using SheikhTravelSystem.Application.Features.GpsTracking;
@@ -24,6 +25,12 @@ public static class DependencyInjection
         services.AddSingleton<IPortalOtpService, PortalOtpStore>();
         services.AddScoped<ICurrentUserService, CurrentUserService>();
         services.AddScoped<ITenantContext, TenantContext>();
+        services.AddScoped<IPlatformScope, PlatformScope>();
+        services.AddScoped<IUserAccessService, UserAccessService>();
+        services.AddScoped<ITenantModuleService, TenantModuleService>();
+        services.AddScoped<ITenantRoleSeedService, TenantRoleSeedService>();
+        services.AddScoped<ITenantProvisioningService, TenantProvisioningService>();
+        services.AddSingleton<IAuthorizationHandler, PermissionAuthorizationHandler>();
         services.AddScoped<IDatabaseSeeder, DatabaseSeeder>();
         services.AddScoped<IAuditService, AuditService>();
         services.AddScoped<INotificationService, NotificationService>();

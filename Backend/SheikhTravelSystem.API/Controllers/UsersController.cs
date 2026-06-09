@@ -1,33 +1,24 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using SheikhTravelSystem.API.Authorization;
+using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Features.Users.Commands;
 using SheikhTravelSystem.Application.Features.Users.Queries;
 
 namespace SheikhTravelSystem.API.Controllers;
 
-[Authorize(Roles = "Admin")]
-/// <summary>
-/// Manages user administration endpoints.
-/// </summary>
+[RequirePermission(PlatformPermissions.UsersView)]
 public class UsersController : BaseApiController
 {
-    /// <summary>
-    /// Gets users using filter and pagination criteria.
-    /// </summary>
     [HttpGet]
     public async Task<IActionResult> GetAll([FromQuery] GetUsersQuery query)
         => Ok(await Mediator.Send(query));
 
-    /// <summary>
-    /// Gets a single user by identifier.
-    /// </summary>
     [HttpGet("{id:int}")]
     public async Task<IActionResult> GetById(int id)
         => Ok(await Mediator.Send(new GetUserByIdQuery(id)));
 
-    /// <summary>
-    /// Creates a new user account.
-    /// </summary>
+    [RequirePermission(PlatformPermissions.UsersCreate)]
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateUserCommand command)
     {
@@ -35,48 +26,32 @@ public class UsersController : BaseApiController
         return Created(string.Empty, result);
     }
 
-    /// <summary>
-    /// Updates an existing user by identifier.
-    /// </summary>
+    [RequirePermission(PlatformPermissions.UsersEdit)]
     [HttpPut("{id}")]
     public async Task<IActionResult> Update(int id, [FromBody] UpdateUserCommand command)
         => Ok(await Mediator.Send(command with { Id = id }));
 
-    /// <summary>
-    /// Activates or deactivates a user account.
-    /// </summary>
+    [RequirePermission(PlatformPermissions.UsersEdit)]
     [HttpPut("{id}/status")]
     public async Task<IActionResult> UpdateStatus(int id, [FromBody] UpdateUserStatusCommand command)
         => Ok(await Mediator.Send(command with { Id = id }));
 
-    /// <summary>
-    /// Resets a user's password and returns a temporary password.
-    /// </summary>
+    [RequirePermission(PlatformPermissions.UsersEdit)]
     [HttpPost("{id}/reset-password")]
     public async Task<IActionResult> ResetPassword(int id)
         => Ok(await Mediator.Send(new ResetUserPasswordCommand(id)));
 
-    /// <summary>
-    /// Deletes a user by identifier.
-    /// </summary>
+    [RequirePermission(PlatformPermissions.UsersEdit)]
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(int id)
         => Ok(await Mediator.Send(new DeleteUserCommand(id)));
-
 }
 
-/// <summary>
-/// Self-service profile endpoints accessible by any authenticated user.
-/// Separated from UsersController to avoid Admin role requirement.
-/// </summary>
 [Authorize]
 [ApiController]
 [Route("api/users")]
 public class ProfileController : BaseApiController
 {
-    /// <summary>
-    /// Updates the current user's profile (own account only).
-    /// </summary>
     [HttpPut("profile")]
     public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileCommand command)
     {
@@ -84,9 +59,6 @@ public class ProfileController : BaseApiController
         return Ok(await Mediator.Send(command with { UserId = userId }));
     }
 
-    /// <summary>
-    /// Changes the current user's password (own account only).
-    /// </summary>
     [HttpPut("change-password")]
     public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordCommand command)
     {

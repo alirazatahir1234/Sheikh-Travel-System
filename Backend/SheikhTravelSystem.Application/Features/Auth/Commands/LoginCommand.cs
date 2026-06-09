@@ -11,4 +11,8 @@ public record LoginResponse(
     string FullName,
     string Role,
     string? Email = null,
-    string? PhoneNumber = null);
+    string? PhoneNumber = null,
+    int? TenantId = null,
+    int? UserId = null,
+    IReadOnlyList<string>? Roles = null,
+    IReadOnlyList<string>? Permissions = null);

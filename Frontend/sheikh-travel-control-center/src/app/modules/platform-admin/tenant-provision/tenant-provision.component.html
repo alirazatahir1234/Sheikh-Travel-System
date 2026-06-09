@@ -1,0 +1,271 @@
+<div class="tenant-provision-page">
+  <header class="page-header">
+    <div class="page-header-left">
+      <button mat-icon-button type="button" routerLink="/platform/tenants" aria-label="Back">
+        <mat-icon>arrow_back</mat-icon>
+      </button>
+      <div>
+        <nav class="breadcrumb">
+          <span>Organization</span>
+          <mat-icon>chevron_right</mat-icon>
+          <a routerLink="/platform/tenants">Tenants</a>
+          <mat-icon>chevron_right</mat-icon>
+          <span class="current">Configure Enterprise Tenant</span>
+        </nav>
+        <div class="title-row">
+          <span class="title-icon"><mat-icon>domain</mat-icon></span>
+          <div>
+            <h1>Configure Enterprise Tenant</h1>
+            <p class="page-sub">Architect the tenant's architecture, security policies, and initial administrative hierarchy.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="page-header-actions">
+      <button mat-button type="button" (click)="cancel()" [disabled]="saving">Cancel</button>
+      <button mat-raised-button color="primary" type="button" (click)="submit()" [disabled]="saving">
+        <mat-icon>add_business</mat-icon>
+        {{ saving ? 'Creating…' : 'Create Tenant & Initialize Hierarchy' }}
+      </button>
+    </div>
+  </header>
+
+  <form [formGroup]="form" class="provision-layout">
+    <div class="provision-main">
+      <mat-card class="section-card" id="section-profile" formGroupName="profile">
+        <div class="section-head">
+          <span class="section-badge">1</span>
+          <h3>Tenant Profile</h3>
+        </div>
+        <div class="field-row">
+          <mat-form-field appearance="outline">
+            <mat-label>Tenant Name</mat-label>
+            <input matInput formControlName="name" placeholder="e.g. Al Futtaim Logistics" />
+            <mat-error *ngIf="profileGroup.get('name')?.hasError('required')">Required</mat-error>
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>Internal Code</mat-label>
+            <input matInput formControlName="code" placeholder="e.g. APL-DXB-01" />
+            <mat-hint>Auto-generated if empty</mat-hint>
+          </mat-form-field>
+        </div>
+        <div class="field-row">
+          <mat-form-field appearance="outline">
+            <mat-label>Tenant Type</mat-label>
+            <mat-select formControlName="tenantType">
+              <mat-option *ngFor="let t of tenantTypes" [value]="t">{{ t }}</mat-option>
+            </mat-select>
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>Industry Type</mat-label>
+            <mat-select formControlName="industryType">
+              <mat-option *ngFor="let i of industryTypes" [value]="i">{{ i }}</mat-option>
+            </mat-select>
+          </mat-form-field>
+        </div>
+        <mat-form-field appearance="outline" class="full">
+          <mat-label>URL Slug</mat-label>
+          <span matTextPrefix class="slug-prefix">sheikh-travel.app/</span>
+          <input matInput formControlName="slug" placeholder="al-futtaim-logs" />
+          <mat-error *ngIf="profileGroup.get('slug')?.hasError('pattern')">Lowercase letters, numbers, hyphens only</mat-error>
+        </mat-form-field>
+        <mat-form-field appearance="outline" class="full">
+          <mat-label>Tenant Storage Model</mat-label>
+          <mat-select formControlName="storageModel">
+            <mat-option *ngFor="let m of storageModels" [value]="m.value">{{ m.label }}</mat-option>
+          </mat-select>
+        </mat-form-field>
+      </mat-card>
+
+      <mat-card class="section-card" id="section-plan" formGroupName="plan">
+        <div class="section-head">
+          <span class="section-badge">2</span>
+          <h3>Plan &amp; Module Selection</h3>
+        </div>
+        <mat-form-field appearance="outline" class="full plan-select">
+          <mat-label>Subscription Plan</mat-label>
+          <mat-select formControlName="planName">
+            <mat-option *ngFor="let tier of planTiers" [value]="tier">{{ tier }}</mat-option>
+          </mat-select>
+        </mat-form-field>
+        <p class="section-label">Select Modules</p>
+        <div *ngIf="loadingModules" class="module-loading"><mat-spinner diameter="28"></mat-spinner></div>
+        <div class="module-cards" *ngIf="!loadingModules">
+          <button type="button" class="module-card" *ngFor="let mod of modules"
+            [class.selected]="isModuleSelected(mod.code)" (click)="toggleModule(mod.code)">
+            <mat-icon>{{ moduleIcon(mod.code) }}</mat-icon>
+            <span>{{ mod.name }}</span>
+            <mat-icon class="check-icon" *ngIf="isModuleSelected(mod.code)">check_circle</mat-icon>
+          </button>
+        </div>
+        <p class="section-label">License Limits</p>
+        <div class="limits-row">
+          <mat-form-field appearance="outline"><mat-label>Max Users</mat-label><input matInput type="number" formControlName="maxUsers" /></mat-form-field>
+          <mat-form-field appearance="outline"><mat-label>Max Vehicles</mat-label><input matInput type="number" formControlName="maxVehicles" /></mat-form-field>
+          <mat-form-field appearance="outline"><mat-label>Max Drivers</mat-label><input matInput type="number" formControlName="maxDrivers" /></mat-form-field>
+          <mat-form-field appearance="outline"><mat-label>Max Branches</mat-label><input matInput type="number" formControlName="maxBranches" /></mat-form-field>
+          <mat-form-field appearance="outline"><mat-label>Max GPS Devices</mat-label><input matInput type="number" formControlName="maxGpsDevices" /></mat-form-field>
+        </div>
+      </mat-card>
+
+      <mat-card class="section-card" id="section-admin" formGroupName="admin">
+        <div class="section-head">
+          <span class="section-badge">3</span>
+          <h3>Initial Administrator</h3>
+        </div>
+        <div class="field-row">
+          <mat-form-field appearance="outline"><mat-label>Full Name</mat-label><input matInput formControlName="adminFullName" /></mat-form-field>
+          <mat-form-field appearance="outline"><mat-label>Email Address</mat-label><input matInput type="email" formControlName="adminEmail" /></mat-form-field>
+        </div>
+        <div class="field-row">
+          <mat-form-field appearance="outline"><mat-label>Mobile Number</mat-label><input matInput formControlName="adminMobile" /></mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>Temporary Password</mat-label>
+            <input matInput type="password" formControlName="adminPassword" />
+            <mat-error *ngIf="adminGroup.get('adminPassword')?.hasError('minlength')">Min 8 characters</mat-error>
+          </mat-form-field>
+        </div>
+      </mat-card>
+
+      <mat-card class="section-card" id="section-branding" formGroupName="branding">
+        <div class="section-head">
+          <span class="section-badge">4</span>
+          <h3>Localization &amp; Branding</h3>
+        </div>
+        <div class="field-row field-row--3">
+          <mat-form-field appearance="outline"><mat-label>Country</mat-label>
+            <mat-select formControlName="country"><mat-option *ngFor="let c of countries" [value]="c">{{ c }}</mat-option></mat-select>
+          </mat-form-field>
+          <mat-form-field appearance="outline"><mat-label>Currency</mat-label>
+            <mat-select formControlName="currencyCode"><mat-option *ngFor="let cur of currencies" [value]="cur">{{ cur }}</mat-option></mat-select>
+          </mat-form-field>
+          <mat-form-field appearance="outline"><mat-label>Timezone</mat-label>
+            <mat-select formControlName="timeZone"><mat-option *ngFor="let tz of timezones" [value]="tz">{{ tz }}</mat-option></mat-select>
+          </mat-form-field>
+        </div>
+        <div class="branding-row">
+          <div class="branding-fields">
+            <mat-form-field appearance="outline" class="full"><mat-label>Brand Primary Color</mat-label><input matInput formControlName="primaryColor" /></mat-form-field>
+            <mat-form-field appearance="outline" class="full"><mat-label>Company Website</mat-label><input matInput formControlName="website" /></mat-form-field>
+            <mat-form-field appearance="outline" class="full"><mat-label>Support Email</mat-label><input matInput type="email" formControlName="supportEmail" /></mat-form-field>
+            <mat-form-field appearance="outline" class="full"><mat-label>Logo URL (optional)</mat-label><input matInput formControlName="logoUrl" /></mat-form-field>
+          </div>
+          <div class="phone-preview">
+            <div class="phone-frame">
+              <div class="phone-header" [style.background]="primaryColorPreview"></div>
+              <div class="phone-body">
+                <div class="phone-line"></div>
+                <div class="phone-line short"></div>
+                <div class="phone-line"></div>
+              </div>
+            </div>
+            <span class="preview-label">Brand preview</span>
+          </div>
+        </div>
+      </mat-card>
+
+      <mat-card class="section-card" id="section-security" formGroupName="security">
+        <div class="section-head">
+          <span class="section-badge">5</span>
+          <h3>Security &amp; Compliance</h3>
+        </div>
+        <div class="toggle-grid">
+          <div class="toggle-row">
+            <div><strong>MFA Required for All Users</strong><p>Require multi-factor authentication</p></div>
+            <mat-slide-toggle formControlName="isMfaRequired"></mat-slide-toggle>
+          </div>
+          <div class="toggle-row">
+            <div><strong>Enforce Password Expiry</strong><p>Rotate credentials periodically</p></div>
+            <mat-slide-toggle formControlName="enforcePasswordExpiry"></mat-slide-toggle>
+          </div>
+          <mat-form-field appearance="outline" class="inline-num" *ngIf="securityGroup.get('enforcePasswordExpiry')?.value">
+            <mat-label>Expiry (days)</mat-label><input matInput type="number" formControlName="passwordExpiryDays" />
+          </mat-form-field>
+          <div class="toggle-row">
+            <div><strong>Session Timeout</strong><p>Auto-logout after inactivity</p></div>
+            <mat-slide-toggle formControlName="enforceSessionTimeout"></mat-slide-toggle>
+          </div>
+          <mat-form-field appearance="outline" class="inline-num" *ngIf="securityGroup.get('enforceSessionTimeout')?.value">
+            <mat-label>Timeout (minutes)</mat-label><input matInput type="number" formControlName="sessionTimeoutMinutes" />
+          </mat-form-field>
+        </div>
+        <p class="section-label">Compliance Protocols</p>
+        <div class="toggle-grid">
+          <div class="toggle-row"><div><strong>GDPR Compliance Enabled</strong></div><mat-slide-toggle formControlName="isGdprEnabled"></mat-slide-toggle></div>
+          <div class="toggle-row"><div><strong>Audit Logging (7 Years)</strong></div><mat-slide-toggle formControlName="isAuditLoggingEnabled"></mat-slide-toggle></div>
+          <div class="toggle-row"><div><strong>VAT/Tax Calculation Enabled</strong></div><mat-slide-toggle formControlName="isVatEnabled"></mat-slide-toggle></div>
+        </div>
+      </mat-card>
+
+      <mat-card class="section-card" id="section-organization" formGroupName="organization">
+        <div class="section-head">
+          <span class="section-badge">6</span>
+          <h3>Organization Architecture</h3>
+        </div>
+        <div class="field-row">
+          <mat-form-field appearance="outline"><mat-label>Head Office Name</mat-label><input matInput formControlName="headOfficeName" /></mat-form-field>
+          <mat-form-field appearance="outline"><mat-label>Default Branch</mat-label><input matInput formControlName="defaultBranchName" /></mat-form-field>
+        </div>
+        <mat-form-field appearance="outline" class="full">
+          <mat-label>Default Departments (comma-separated)</mat-label>
+          <input matInput formControlName="defaultDepartments" />
+        </mat-form-field>
+        <div class="info-callout">
+          <mat-icon>info</mat-icon>
+          <div>
+            <strong>Automated Role Generation</strong>
+            <p>Initialize standard roles: Super Admin, Fleet Manager, Dispatcher, Driver, and Accountant.</p>
+          </div>
+        </div>
+        <mat-checkbox formControlName="generateOrganizationStructure">Generate organization structure on create</mat-checkbox>
+      </mat-card>
+
+      <mat-card class="section-card" id="section-billing" formGroupName="billing">
+        <div class="section-head">
+          <span class="section-badge">7</span>
+          <h3>Billing &amp; Future Provisioning</h3>
+        </div>
+        <div class="field-row">
+          <mat-form-field appearance="outline"><mat-label>Billing Contact Name</mat-label><input matInput formControlName="billingContactName" /></mat-form-field>
+          <mat-form-field appearance="outline"><mat-label>Company TRN</mat-label><input matInput formControlName="companyTRN" /></mat-form-field>
+        </div>
+        <mat-form-field appearance="outline" class="full"><mat-label>Billing Email</mat-label><input matInput type="email" formControlName="billingEmail" /></mat-form-field>
+        <mat-form-field appearance="outline" class="full"><mat-label>Billing Address</mat-label><textarea matInput formControlName="billingAddress" rows="2"></textarea></mat-form-field>
+        <mat-form-field appearance="outline" class="full">
+          <mat-label>Default Hardware Provider (GPS)</mat-label>
+          <mat-select formControlName="gpsProviderName">
+            <mat-option value="">None</mat-option>
+            <mat-option *ngFor="let p of gpsProviders" [value]="p">{{ p }}</mat-option>
+          </mat-select>
+        </mat-form-field>
+      </mat-card>
+    </div>
+
+    <aside class="provision-sidebar">
+      <mat-card class="sidebar-card">
+        <h4>Configuration Summary</h4>
+        <div class="summary-plan" [ngClass]="tenantPlanMeta(summaryPlanName).cssClass">
+          <mat-icon>{{ tenantPlanMeta(summaryPlanName).icon }}</mat-icon>
+          <span>{{ summaryPlanName }}</span>
+        </div>
+        <dl class="summary-stats">
+          <div><dt>Active Modules</dt><dd>{{ activeModuleCount }}</dd></div>
+          <div><dt>User Quota</dt><dd>{{ summaryUserQuota }}</dd></div>
+        </dl>
+      </mat-card>
+      <mat-card class="sidebar-card">
+        <h4>Implementation Checklist</h4>
+        <p class="checklist-progress">{{ checklistCompleteCount }} / {{ checklistItems.length }} complete</p>
+        <ul class="checklist">
+          <li *ngFor="let item of checklistItems" [class.done]="item.done">
+            <mat-icon>{{ item.done ? 'check_circle' : 'radio_button_unchecked' }}</mat-icon>
+            {{ item.label }}
+          </li>
+        </ul>
+      </mat-card>
+      <button mat-stroked-button type="button" class="validate-btn" (click)="validateConfiguration()">
+        <mat-icon>verified</mat-icon> Validate Configuration
+      </button>
+    </aside>
+  </form>
+</div>
