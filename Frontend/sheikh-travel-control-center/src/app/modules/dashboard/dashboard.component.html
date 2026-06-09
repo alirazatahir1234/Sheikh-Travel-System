@@ -25,12 +25,6 @@
       </div>
     </div>
 
-    <stb-quick-launch-grid
-      class="dash-quick"
-      [actionCards]="true"
-      title="Quick actions"
-      [apps]="quickApps">
-    </stb-quick-launch-grid>
   </section>
 
   <!-- KPIs -->
@@ -62,10 +56,6 @@
         <span class="ops-lbl">{{ k.label }}</span>
       </div>
     </div>
-    <a class="ops-link" routerLink="/gps-tracking/live">
-      <mat-icon>my_location</mat-icon>
-      Live tracking
-    </a>
   </section>
 
   <!-- Analytics -->
@@ -123,18 +113,4 @@
     </stb-data-table-card>
   </section>
 
-  <!-- Compact CTA -->
-  <section class="dash-section dash-cta-bar">
-    <div class="cta-text">
-      <mat-icon>directions_bus</mat-icon>
-      <div>
-        <strong>New booking</strong>
-        <span>Assign driver & vehicle in the guided wizard</span>
-      </div>
-    </div>
-    <button mat-flat-button color="primary" type="button" (click)="onPromoCta()">
-      <mat-icon>add</mat-icon>
-      Create booking
-    </button>
-  </section>
 </div>

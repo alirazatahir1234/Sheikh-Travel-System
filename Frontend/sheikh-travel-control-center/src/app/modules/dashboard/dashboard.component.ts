@@ -11,7 +11,7 @@ import { DashboardSummary } from '../../core/models/common.model';
 import { Booking } from '../../core/models/booking.model';
 
 import {
-  QuickLaunchApp, StatTile, TaskItem, DataTableColumn
+  StatTile, TaskItem, DataTableColumn
 } from '../../shared/ui';
 import { BookingReport } from '../../core/models/common.model';
 
@@ -29,14 +29,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
   
   unreadCount$: Observable<number>;
   private destroy$ = new Subject<void>();
-
-  /** Quick-launch tiles match the Sheikh Travel modules (from the Postman collection). */
-  quickApps: QuickLaunchApp[] = [
-    { id: 'bookings', label: 'Booking', icon: 'add_circle', color: 'teal', route: '/bookings/new' },
-    { id: 'vehicles', label: 'Vehicle', icon: 'directions_bus', color: 'teal', route: '/vehicles' },
-    { id: 'drivers', label: 'Driver', icon: 'badge', color: 'blue', route: '/drivers' },
-    { id: 'tracking', label: 'GPS Tracking', icon: 'my_location', color: 'blue', route: '/gps-tracking' },
-  ];
 
   /** Summary KPI row (mirrors DashboardSummaryDto). */
   stats: StatTile[] = [];
@@ -362,8 +354,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   onTaskToggle(_t: TaskItem): void { /* TODO: call booking status endpoint */ }
   onAssignedFilter(f: string): void { this.assignedFilter = f; }
-  onPromoCta(): void { this.router.navigate(['/bookings/new']); }
-  
   onStatClick(key: string): void {
     const routes: Record<string, string> = {
       activeTrips: '/bookings',

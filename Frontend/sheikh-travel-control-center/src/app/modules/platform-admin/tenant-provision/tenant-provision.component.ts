@@ -2,13 +2,12 @@ import { Component, ElementRef, OnInit } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { forkJoin } from 'rxjs';
 import { PlatformService } from '../../../core/services/platform.service';
+import { LookupService } from '../../../core/services/lookup.service';
 import { apiErrorMessage } from '../../../core/utils/api-error.util';
 import {
-  BRANCH_COUNTRIES,
-  BRANCH_CURRENCIES,
   DEFAULT_CURRENCY,
-  BRANCH_TIMEZONES,
   DEFAULT_TENANT_MODULE_CODES,
   GPS_PROVIDERS,
   INDUSTRY_TYPES,
@@ -41,11 +40,13 @@ export class TenantProvisionComponent implements OnInit {
   readonly industryTypes = INDUSTRY_TYPES;
   readonly storageModels = STORAGE_MODELS;
   readonly gpsProviders = GPS_PROVIDERS;
-  readonly countries = BRANCH_COUNTRIES;
-  readonly timezones = BRANCH_TIMEZONES;
-  readonly currencies = BRANCH_CURRENCIES;
   readonly moduleIcons = MODULE_ICONS;
   readonly tenantPlanMeta = tenantPlanMeta;
+  countries: string[] = [];
+  currencies: string[] = [];
+  timezones: string[] = [];
+  countrySearch = '';
+  currencySearch = '';
 
   form: FormGroup;
 
@@ -62,6 +63,7 @@ export class TenantProvisionComponent implements OnInit {
   constructor(
     private fb: FormBuilder,
     private platform: PlatformService,
+    private lookup: LookupService,
     private snackBar: MatSnackBar,
     private router: Router,
     private el: ElementRef<HTMLElement>
@@ -137,14 +139,22 @@ export class TenantProvisionComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    this.platform.getModules().subscribe({
-      next: mods => {
-        this.modules = mods;
+    forkJoin({
+      modules: this.platform.getModules(),
+      countries: this.lookup.getCountryNames(),
+      currencies: this.lookup.getCurrencyCodes(),
+      timezones: this.lookup.getTimezoneIds()
+    }).subscribe({
+      next: ({ modules, countries, currencies, timezones }) => {
+        this.modules = modules;
+        this.countries = countries;
+        this.currencies = currencies;
+        this.timezones = timezones;
         this.loadingModules = false;
       },
       error: () => {
         this.loadingModules = false;
-        this.snackBar.open('Failed to load module catalog.', 'Close', { duration: 3000 });
+        this.snackBar.open('Failed to load catalog.', 'Close', { duration: 3000 });
       }
     });
   }
@@ -171,6 +181,26 @@ export class TenantProvisionComponent implements OnInit {
 
   get primaryColorPreview(): string {
     return this.brandingGroup.get('primaryColor')?.value || '#007A57';
+  }
+
+  get filteredCountries(): string[] {
+    const query = this.countrySearch.trim().toLowerCase();
+    if (!query) return this.countries;
+    return this.countries.filter(c => c.toLowerCase().includes(query));
+  }
+
+  get filteredCurrencies(): string[] {
+    const query = this.currencySearch.trim().toLowerCase();
+    if (!query) return this.currencies;
+    return this.currencies.filter(c => c.toLowerCase().includes(query));
+  }
+
+  clearCountrySearch(): void {
+    this.countrySearch = '';
+  }
+
+  clearCurrencySearch(): void {
+    this.currencySearch = '';
   }
 
   get checklistItems(): { label: string; done: boolean }[] {

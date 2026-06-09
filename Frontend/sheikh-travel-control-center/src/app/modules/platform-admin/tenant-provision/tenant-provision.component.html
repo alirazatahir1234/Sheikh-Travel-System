@@ -134,10 +134,34 @@
         </div>
         <div class="field-row field-row--3">
           <mat-form-field appearance="outline"><mat-label>Country</mat-label>
-            <mat-select formControlName="country"><mat-option *ngFor="let c of countries" [value]="c">{{ c }}</mat-option></mat-select>
+            <mat-select formControlName="country" (openedChange)="!$event && clearCountrySearch()">
+              <mat-option class="select-search-option">
+                <input
+                  matInput
+                  class="select-search-input"
+                  placeholder="Search country"
+                  [value]="countrySearch"
+                  (input)="countrySearch = $any($event.target).value"
+                  (click)="$event.stopPropagation()"
+                  (keydown)="$event.stopPropagation()" />
+              </mat-option>
+              <mat-option *ngFor="let c of filteredCountries" [value]="c">{{ c }}</mat-option>
+            </mat-select>
           </mat-form-field>
           <mat-form-field appearance="outline"><mat-label>Currency</mat-label>
-            <mat-select formControlName="currencyCode"><mat-option *ngFor="let cur of currencies" [value]="cur">{{ cur }}</mat-option></mat-select>
+            <mat-select formControlName="currencyCode" (openedChange)="!$event && clearCurrencySearch()">
+              <mat-option class="select-search-option">
+                <input
+                  matInput
+                  class="select-search-input"
+                  placeholder="Search currency"
+                  [value]="currencySearch"
+                  (input)="currencySearch = $any($event.target).value"
+                  (click)="$event.stopPropagation()"
+                  (keydown)="$event.stopPropagation()" />
+              </mat-option>
+              <mat-option *ngFor="let cur of filteredCurrencies" [value]="cur">{{ cur }}</mat-option>
+            </mat-select>
           </mat-form-field>
           <mat-form-field appearance="outline"><mat-label>Timezone</mat-label>
             <mat-select formControlName="timeZone"><mat-option *ngFor="let tz of timezones" [value]="tz">{{ tz }}</mat-option></mat-select>
@@ -145,7 +169,17 @@
         </div>
         <div class="branding-row">
           <div class="branding-fields">
-            <mat-form-field appearance="outline" class="full"><mat-label>Brand Primary Color</mat-label><input matInput formControlName="primaryColor" /></mat-form-field>
+            <mat-form-field appearance="outline" class="full color-field">
+              <mat-label>Brand Primary Color</mat-label>
+              <input matInput formControlName="primaryColor" />
+              <span matSuffix class="color-swatch-wrap">
+                <input type="color"
+                  class="color-native"
+                  [value]="primaryColorPreview"
+                  (input)="brandingGroup.get('primaryColor')?.setValue($any($event.target).value)" />
+                <span class="color-swatch" [style.background]="primaryColorPreview"></span>
+              </span>
+            </mat-form-field>
             <mat-form-field appearance="outline" class="full"><mat-label>Company Website</mat-label><input matInput formControlName="website" /></mat-form-field>
             <mat-form-field appearance="outline" class="full"><mat-label>Support Email</mat-label><input matInput type="email" formControlName="supportEmail" /></mat-form-field>
             <mat-form-field appearance="outline" class="full"><mat-label>Logo URL (optional)</mat-label><input matInput formControlName="logoUrl" /></mat-form-field>

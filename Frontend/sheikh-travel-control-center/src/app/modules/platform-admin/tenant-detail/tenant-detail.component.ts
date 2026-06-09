@@ -5,12 +5,10 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatDialog } from '@angular/material/dialog';
 import { forkJoin } from 'rxjs';
 import { PlatformService } from '../../../core/services/platform.service';
+import { LookupService } from '../../../core/services/lookup.service';
 import { apiErrorMessage } from '../../../core/utils/api-error.util';
 import {
-  BRANCH_COUNTRIES,
-  BRANCH_CURRENCIES,
   DEFAULT_CURRENCY,
-  BRANCH_TIMEZONES,
   DEFAULT_TENANT_MODULE_CODES,
   MODULE_ICONS,
   PLAN_DEFINITIONS,
@@ -39,10 +37,12 @@ export class TenantDetailComponent implements OnInit {
 
   readonly planTiers = TENANT_PLAN_TIERS;
   readonly planDefinitions = PLAN_DEFINITIONS;
-  readonly countries = BRANCH_COUNTRIES;
-  readonly timezones = BRANCH_TIMEZONES;
-  readonly currencies = BRANCH_CURRENCIES;
   readonly moduleIcons = MODULE_ICONS;
+  countries: string[] = [];
+  currencies: string[] = [];
+  timezones: string[] = [];
+  countrySearch = '';
+  currencySearch = '';
   readonly tenantDisplayCode = tenantDisplayCode;
   readonly tenantPlanMeta = tenantPlanMeta;
 
@@ -53,6 +53,7 @@ export class TenantDetailComponent implements OnInit {
     private route: ActivatedRoute,
     private router: Router,
     private platform: PlatformService,
+    private lookup: LookupService,
     private snackBar: MatSnackBar,
     private dialog: MatDialog
   ) {
@@ -86,9 +87,17 @@ export class TenantDetailComponent implements OnInit {
     this.tenantId = Number(idParam);
     forkJoin({
       tenant: this.platform.getTenantById(this.tenantId),
-      modules: this.platform.getModules()
+      modules: this.platform.getModules(),
+      countries: this.lookup.getCountryNames(),
+      currencies: this.lookup.getCurrencyCodes(),
+      timezones: this.lookup.getTimezoneIds()
     }).subscribe({
-      next: ({ tenant, modules }) => this.initForm(tenant, modules),
+      next: ({ tenant, modules, countries, currencies, timezones }) => {
+        this.countries = countries;
+        this.currencies = currencies;
+        this.timezones = timezones;
+        this.initForm(tenant, modules);
+      },
       error: () => {
         this.loading = false;
         this.snackBar.open('Failed to load tenant.', 'Close', { duration: 4000 });
@@ -195,6 +204,26 @@ export class TenantDetailComponent implements OnInit {
 
   planDef(planName: string) {
     return this.planDefinitions[planName] ?? null;
+  }
+
+  get filteredCountries(): string[] {
+    const query = this.countrySearch.trim().toLowerCase();
+    if (!query) return this.countries;
+    return this.countries.filter(c => c.toLowerCase().includes(query));
+  }
+
+  get filteredCurrencies(): string[] {
+    const query = this.currencySearch.trim().toLowerCase();
+    if (!query) return this.currencies;
+    return this.currencies.filter(c => c.toLowerCase().includes(query));
+  }
+
+  clearCountrySearch(): void {
+    this.countrySearch = '';
+  }
+
+  clearCurrencySearch(): void {
+    this.currencySearch = '';
   }
 
   applyPlan(planName: string): void {

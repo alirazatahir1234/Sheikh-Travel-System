@@ -5,6 +5,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { Subject, takeUntil } from 'rxjs';
 import { PlatformTenantContextService } from '../../../core/services/platform-tenant-context.service';
 import { PlatformService } from '../../../core/services/platform.service';
+import { LookupService } from '../../../core/services/lookup.service';
 import {
   OrganizationTree,
   OrganizationBranch,
@@ -13,9 +14,6 @@ import {
   DepartmentPayloadWithBranch,
   BranchStatus,
   BRANCH_TYPES,
-  BRANCH_COUNTRIES,
-  BRANCH_TIMEZONES,
-  BRANCH_CURRENCIES,
   DEFAULT_CURRENCY
 } from '../../../core/models/platform.model';
 import { apiErrorMessage } from '../../../core/utils/api-error.util';
@@ -66,9 +64,9 @@ export class OrganizationDesignerComponent implements OnInit, OnDestroy {
   editingDepartmentId: number | null = null;
 
   readonly branchTypes = BRANCH_TYPES;
-  readonly countries = BRANCH_COUNTRIES;
-  readonly timezones = BRANCH_TIMEZONES;
-  readonly currencies = BRANCH_CURRENCIES;
+  countries: string[] = [];
+  timezones: string[] = [];
+  currencies: string[] = [];
   readonly BranchStatus = BranchStatus;
 
   private destroy$ = new Subject<void>();
@@ -79,9 +77,13 @@ export class OrganizationDesignerComponent implements OnInit, OnDestroy {
     private fb: FormBuilder,
     private snackBar: MatSnackBar,
     private tenantContext: PlatformTenantContextService,
-    private platform: PlatformService
+    private platform: PlatformService,
+    private lookup: LookupService
   ) {
     this.initForms();
+    this.lookup.getCountryNames().subscribe(c => this.countries = c);
+    this.lookup.getCurrencyCodes().subscribe(c => this.currencies = c);
+    this.lookup.getTimezoneIds().subscribe(t => this.timezones = t);
   }
 
   ngOnInit(): void {

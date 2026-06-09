@@ -181,6 +181,18 @@
   transform: rotate(180deg);
 }
 
+.stb-nav-group.is-active .stb-group-header {
+  background: linear-gradient(90deg, rgba(15, 118, 110, 0.18) 0%, rgba(15, 118, 110, 0.06) 100%);
+  color: var(--stb-primary-600, #0D6B64);
+  box-shadow: inset 0 0 0 1px rgba(15, 118, 110, 0.22), 0 2px 8px rgba(15, 118, 110, 0.12);
+  font-weight: 700;
+
+  .stb-group-icon {
+    color: var(--stb-primary);
+    filter: drop-shadow(0 0 6px rgba(15, 118, 110, 0.35));
+  }
+}
+
 .stb-group-items {
   display: flex;
   flex-direction: column;

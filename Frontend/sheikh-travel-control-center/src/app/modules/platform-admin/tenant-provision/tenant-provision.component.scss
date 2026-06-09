@@ -4,6 +4,11 @@
   max-width: 1200px;
 }
 
+.color-field { width: 100%; }
+.color-swatch-wrap { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+.color-native { position: absolute; opacity: 0; width: 28px; height: 28px; cursor: pointer; border: none; padding: 0; }
+.color-swatch { display: inline-block; width: 28px; height: 28px; border-radius: 6px; border: 2px solid rgba(0,0,0,.12); cursor: pointer; flex-shrink: 0; }
+
 .page-header {
   display: flex;
   justify-content: space-between;
@@ -131,6 +136,17 @@
 
   @media (max-width: 720px) { grid-template-columns: 1fr; }
   mat-form-field { width: 100%; }
+}
+
+.select-search-option {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: #fff;
+}
+
+.select-search-input {
+  width: 100%;
 }
 
 .full { width: 100%; }

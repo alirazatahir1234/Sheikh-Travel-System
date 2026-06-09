@@ -237,6 +237,10 @@ export class ShellComponent implements OnInit, OnDestroy {
     return true;
   }
 
+  isGroupActive(group: NavGroup): boolean {
+    return group.items.some(item => this.isItemActive(item));
+  }
+
   navigateToResult(result: SearchResult): void {
     this.showSearchResults = false;
     this.searchQuery = '';

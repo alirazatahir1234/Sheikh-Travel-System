@@ -63,6 +63,7 @@
           <div *ngIf="group.collapsible"
                class="stb-nav-group"
                [class.is-expanded]="isGroupExpanded(group.id)"
+               [class.is-active]="isGroupActive(group)"
                [class.is-collapsed-rail]="!sidebarExpanded">
             <button type="button"
                     class="stb-group-header"
@@ -95,56 +96,7 @@
       </ng-template>
     </nav>
 
-    <div class="stb-rail-foot">
-      <button class="stb-rail-link"
-              type="button"
-              [matMenuTriggerFor]="notifMenu"
-              matTooltip="Notifications"
-              [matTooltipDisabled]="sidebarExpanded"
-              matTooltipShowDelay="600"
-              matTooltipPosition="right"
-              [matBadge]="(unreadCount$ | async) || null"
-              [matBadgeHidden]="!(unreadCount$ | async)"
-              matBadgeColor="warn"
-              matBadgeSize="small">
-        <mat-icon>notifications_none</mat-icon>
-        <span class="stb-link-label" *ngIf="sidebarExpanded">Notifications</span>
-      </button>
-
-      <button class="stb-rail-link"
-              type="button"
-              matTooltip="Settings"
-              [matTooltipDisabled]="sidebarExpanded"
-              matTooltipShowDelay="600"
-              matTooltipPosition="right"
-              (click)="goToSettings()">
-        <mat-icon>settings</mat-icon>
-        <span class="stb-link-label" *ngIf="sidebarExpanded">Settings</span>
-      </button>
-
-      <button class="stb-rail-link"
-              type="button"
-              matTooltip="Logout"
-              [matTooltipDisabled]="sidebarExpanded"
-              matTooltipShowDelay="600"
-              matTooltipPosition="right"
-              (click)="logout()">
-        <mat-icon>logout</mat-icon>
-        <span class="stb-link-label" *ngIf="sidebarExpanded">Logout</span>
-      </button>
-
-      <button *ngIf="sidebarExpanded && (currentUser$ | async) as user"
-              class="stb-rail-profile"
-              type="button"
-              (click)="goToProfile()">
-        <div class="avatar">{{ initials(user.fullName) }}</div>
-        <div class="meta">
-          <div class="name">{{ user.fullName }}</div>
-          <div class="role">{{ (user.roles && user.roles[0]) || 'Member' }}</div>
-        </div>
-        <mat-icon>expand_more</mat-icon>
-      </button>
-    </div>
+    <div class="stb-rail-foot"></div>
   </aside>
 
   <!-- Main area -->

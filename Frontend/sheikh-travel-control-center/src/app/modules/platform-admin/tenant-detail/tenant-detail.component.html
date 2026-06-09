@@ -201,9 +201,16 @@
             <mat-label>Logo URL</mat-label>
             <input matInput formControlName="logoUrl" placeholder="https://..." />
           </mat-form-field>
-          <mat-form-field appearance="outline">
+          <mat-form-field appearance="outline" class="color-field">
             <mat-label>Primary Color</mat-label>
-            <input matInput formControlName="primaryColor" placeholder="#1d4ed8" />
+            <input matInput formControlName="primaryColor" placeholder="#007A57" />
+            <span matSuffix class="color-swatch-wrap">
+              <input type="color"
+                class="color-native"
+                [value]="form.controls.primaryColor.value || '#007A57'"
+                (input)="form.controls.primaryColor.setValue($any($event.target).value); form.controls.primaryColor.markAsDirty()" />
+              <span class="color-swatch" [style.background]="form.controls.primaryColor.value || '#007A57'"></span>
+            </span>
           </mat-form-field>
         </div>
         <div class="field-row">
@@ -220,14 +227,34 @@
         <div class="field-row">
           <mat-form-field appearance="outline">
             <mat-label>Country</mat-label>
-            <mat-select formControlName="country">
-              <mat-option *ngFor="let c of countries" [value]="c">{{ c }}</mat-option>
+            <mat-select formControlName="country" (openedChange)="!$event && clearCountrySearch()">
+              <mat-option class="select-search-option">
+                <input
+                  matInput
+                  class="select-search-input"
+                  placeholder="Search country"
+                  [value]="countrySearch"
+                  (input)="countrySearch = $any($event.target).value"
+                  (click)="$event.stopPropagation()"
+                  (keydown)="$event.stopPropagation()" />
+              </mat-option>
+              <mat-option *ngFor="let c of filteredCountries" [value]="c">{{ c }}</mat-option>
             </mat-select>
           </mat-form-field>
           <mat-form-field appearance="outline">
             <mat-label>Currency</mat-label>
-            <mat-select formControlName="currencyCode">
-              <mat-option *ngFor="let c of currencies" [value]="c">{{ c }}</mat-option>
+            <mat-select formControlName="currencyCode" (openedChange)="!$event && clearCurrencySearch()">
+              <mat-option class="select-search-option">
+                <input
+                  matInput
+                  class="select-search-input"
+                  placeholder="Search currency"
+                  [value]="currencySearch"
+                  (input)="currencySearch = $any($event.target).value"
+                  (click)="$event.stopPropagation()"
+                  (keydown)="$event.stopPropagation()" />
+              </mat-option>
+              <mat-option *ngFor="let c of filteredCurrencies" [value]="c">{{ c }}</mat-option>
             </mat-select>
           </mat-form-field>
           <mat-form-field appearance="outline">

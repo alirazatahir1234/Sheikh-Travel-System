@@ -292,23 +292,25 @@ public record GetTenantModuleOverviewQuery(int TenantId) : IRequest<ApiResponse<
 public record SetTenantModulesCommand(int TenantId, IReadOnlyList<string> ModuleCodes) : IRequest<ApiResponse<bool>>;
 
 // Subscription Management (Sprint 4)
-public record SubscriptionDetailDto(
-    int TenantId,
-    string TenantName,
-    string? PlanName,
-    string Status,
-    string BillingCycle,
-    decimal? MonthlyAmount,
-    string CurrencyCode,
-    bool AutoRenew,
-    DateTime? SubscriptionStartDate,
-    DateTime? SubscriptionEndDate,
-    DateTime? TrialEndDate,
-    int? MaxUsers,
-    int? MaxVehicles,
-    int? MaxDrivers,
-    int? MaxBranches,
-    int? MaxGpsDevices);
+public record SubscriptionDetailDto
+{
+    public int TenantId { get; init; }
+    public string TenantName { get; init; } = string.Empty;
+    public string? PlanName { get; init; }
+    public string Status { get; init; } = "Active";
+    public string BillingCycle { get; init; } = "Monthly";
+    public decimal? MonthlyAmount { get; init; }
+    public string CurrencyCode { get; init; } = "PKR";
+    public bool AutoRenew { get; init; }
+    public DateTime? SubscriptionStartDate { get; init; }
+    public DateTime? SubscriptionEndDate { get; init; }
+    public DateTime? TrialEndDate { get; init; }
+    public int? MaxUsers { get; init; }
+    public int? MaxVehicles { get; init; }
+    public int? MaxDrivers { get; init; }
+    public int? MaxBranches { get; init; }
+    public int? MaxGpsDevices { get; init; }
+}
 
 public record InvoiceDto(
     int Id,

@@ -4,16 +4,14 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { forkJoin } from 'rxjs';
 import { PlatformService } from '../../../core/services/platform.service';
+import { LookupService } from '../../../core/services/lookup.service';
 import { UserService } from '../../../core/services/user.service';
 import {
   Branch,
   BranchPayload,
   BranchStatus,
-  BRANCH_COUNTRIES,
-  BRANCH_CURRENCIES,
   DEFAULT_CURRENCY,
   BRANCH_STATUS_OPTIONS,
-  BRANCH_TIMEZONES,
   BRANCH_TYPES
 } from '../../../core/models/platform.model';
 import { User } from '../../../core/models/user.model';
@@ -33,9 +31,9 @@ export class BranchFormComponent implements OnInit {
   managers: User[] = [];
 
   readonly branchTypes = BRANCH_TYPES;
-  readonly countries = BRANCH_COUNTRIES;
-  readonly timezones = BRANCH_TIMEZONES;
-  readonly currencies = BRANCH_CURRENCIES;
+  countries: string[] = [];
+  timezones: string[] = [];
+  currencies: string[] = [];
   readonly statusOptions = BRANCH_STATUS_OPTIONS;
   readonly BranchStatus = BranchStatus;
 
@@ -46,6 +44,7 @@ export class BranchFormComponent implements OnInit {
     private route: ActivatedRoute,
     private router: Router,
     private platform: PlatformService,
+    private lookup: LookupService,
     private userService: UserService,
     private snackBar: MatSnackBar
   ) {
@@ -71,6 +70,16 @@ export class BranchFormComponent implements OnInit {
     const idParam = this.route.snapshot.paramMap.get('id');
     this.isEdit = !!idParam;
     this.branchId = idParam ? Number(idParam) : undefined;
+
+    forkJoin({
+      countries: this.lookup.getCountryNames(),
+      currencies: this.lookup.getCurrencyCodes(),
+      timezones: this.lookup.getTimezoneIds()
+    }).subscribe(({ countries, currencies, timezones }) => {
+      this.countries = countries;
+      this.currencies = currencies;
+      this.timezones = timezones;
+    });
 
     const requests = {
       branches: this.platform.getBranches(),
