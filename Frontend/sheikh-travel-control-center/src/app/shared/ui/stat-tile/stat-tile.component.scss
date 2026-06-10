@@ -124,3 +124,22 @@
   color: var(--stb-text-soft);
   margin-top: 2px;
 }
+
+@media (max-width: 480px) {
+  .stb-stat {
+    padding: 14px 14px;
+    min-height: 120px;
+    gap: 10px;
+  }
+
+  .st-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+
+    mat-icon { font-size: 22px; width: 22px; height: 22px; }
+  }
+
+  .st-value { font-size: 1.65rem; }
+  .st-label { font-size: 0.75rem; }
+}

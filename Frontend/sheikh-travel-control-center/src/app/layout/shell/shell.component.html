@@ -1,8 +1,14 @@
-<div class="stb-shell">
+<div class="stb-shell" [class.is-nav-open]="mobileNavOpen">
+  <div class="stb-nav-backdrop"
+       *ngIf="mobileNavOpen"
+       (click)="closeMobileNav()"
+       aria-hidden="true"></div>
+
   <!-- Rail sidebar -->
   <aside class="stb-rail"
          [class.is-expanded]="sidebarExpanded"
          [class.is-pinned]="isSidebarPinned"
+         [class.is-mobile-open]="mobileNavOpen"
          (mouseenter)="onSidebarEnter()"
          (mouseleave)="onSidebarLeave()">
     <div class="stb-brand-row">
@@ -102,6 +108,14 @@
   <!-- Main area -->
   <section class="stb-main">
     <header class="stb-topbar">
+      <button mat-icon-button
+              type="button"
+              class="stb-mobile-menu-btn"
+              aria-label="Open navigation menu"
+              (click)="toggleMobileNav()">
+        <mat-icon>{{ mobileNavOpen ? 'close' : 'menu' }}</mat-icon>
+      </button>
+
       <div class="stb-search" [class.active]="showSearchResults">
         <mat-icon>search</mat-icon>
         <input type="text"

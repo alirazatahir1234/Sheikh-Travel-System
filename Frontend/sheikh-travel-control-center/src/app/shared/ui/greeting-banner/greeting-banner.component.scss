@@ -7,6 +7,20 @@
 
   .g-title { font-size: 1.75rem; }
   .g-sub { font-size: .85rem; margin-top: 4px; }
+
+  @media (max-width: 768px) {
+    .g-title { font-size: 1.45rem; }
+    .g-sub { font-size: 0.8rem; }
+  }
+
+  @media (max-width: 480px) {
+    .g-title { font-size: 1.2rem; line-height: 1.25; }
+    .g-sub {
+      font-size: 0.76rem;
+      flex-wrap: wrap;
+      line-height: 1.4;
+    }
+  }
 }
 
 .g-title {

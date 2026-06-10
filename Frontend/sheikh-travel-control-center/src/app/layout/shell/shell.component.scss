@@ -3,7 +3,19 @@
 .stb-shell {
   display: flex;
   height: 100vh;
+  height: 100dvh;
   background: var(--stb-bg);
+  overflow: hidden;
+}
+
+.stb-mobile-menu-btn {
+  display: none;
+  flex: 0 0 auto;
+  color: var(--stb-text-muted);
+}
+
+.stb-nav-backdrop {
+  display: none;
 }
 
 /* ---------- Rail ---------- */
@@ -633,13 +645,97 @@
   .stb-local-time .stb-local-time-sub { max-width: 140px; }
 }
 
+@media (max-width: 768px) {
+  .stb-mobile-menu-btn {
+    display: inline-flex;
+  }
+
+  .stb-nav-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.42);
+    z-index: 90;
+    backdrop-filter: blur(2px);
+  }
+
+  .stb-rail {
+    position: fixed;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    z-index: 100;
+    width: min(var(--stb-sidenav-w, 280px), 88vw) !important;
+    transform: translateX(-105%);
+    transition: transform 0.24s ease, box-shadow 0.24s ease;
+    box-shadow: none;
+
+    &.is-mobile-open {
+      transform: translateX(0);
+      box-shadow: 12px 0 40px rgba(2, 6, 23, 0.18);
+    }
+  }
+
+  .stb-main {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .stb-topbar {
+    padding: 8px 10px;
+    gap: 8px;
+    min-height: 56px;
+  }
+
+  .stb-search {
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: none;
+    height: 40px;
+    padding: 0 12px;
+  }
+
+  .stb-local-time {
+    display: none;
+  }
+
+  .stb-content {
+    padding: 10px 12px 20px;
+  }
+
+  .stb-shell.is-nav-open .stb-main {
+    overflow: hidden;
+  }
+}
+
 @media (max-width: 600px) {
-  .stb-topbar { padding-left: 12px; padding-right: 8px; gap: 8px; }
-  .stb-search input { font-size: 0.875rem; }
+  .stb-topbar { padding-left: 8px; padding-right: 8px; gap: 6px; }
+  .stb-search input { font-size: 0.84rem; }
   .stb-topbar-actions .stb-topbar-help { display: none; }
-  .stb-local-time { padding-left: 0; }
-  .stb-local-time .stb-local-time-icon { display: none; }
-  .stb-local-time .stb-local-time-sub { max-width: 100px; }
+  .stb-user-chip > mat-icon:last-of-type { display: none; }
+  .stb-content { padding: 8px 10px 18px; }
+}
+
+@media (max-width: 400px) {
+  .stb-topbar {
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .stb-mobile-menu-btn {
+    order: 0;
+  }
+
+  .stb-topbar-actions {
+    order: 1;
+    margin-left: auto;
+  }
+
+  .stb-search {
+    order: 2;
+    flex: 1 1 100%;
+    margin-top: 2px;
+  }
 }
 
 /* ---------- Notifications Panel ---------- */

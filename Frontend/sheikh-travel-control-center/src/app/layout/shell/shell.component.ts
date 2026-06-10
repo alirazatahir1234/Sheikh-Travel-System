@@ -46,6 +46,7 @@ export class ShellComponent implements OnInit, OnDestroy {
   showSearchResults = false;
   isSidebarPinned = true;
   isSidebarHovering = false;
+  mobileNavOpen = false;
   private searchSubject = new Subject<string>();
   private searchSub?: Subscription;
   private sessionSub?: Subscription;
@@ -127,6 +128,7 @@ export class ShellComponent implements OnInit, OnDestroy {
     this.routerSub = this.router.events.pipe(
       filter((e): e is NavigationEnd => e instanceof NavigationEnd)
     ).subscribe(() => {
+      this.closeMobileNav();
       if (this.latestMenu) {
         this.ensureActiveGroupExpanded(this.latestMenu);
       }
@@ -186,15 +188,38 @@ export class ShellComponent implements OnInit, OnDestroy {
   }
 
   get sidebarExpanded(): boolean {
-    return this.isSidebarPinned || this.isSidebarHovering;
+    return this.isSidebarPinned || this.isSidebarHovering || this.mobileNavOpen;
+  }
+
+  toggleMobileNav(): void {
+    this.mobileNavOpen = !this.mobileNavOpen;
+    if (this.mobileNavOpen) {
+      this.isSidebarHovering = true;
+    } else if (!this.isSidebarPinned) {
+      this.isSidebarHovering = false;
+    }
+  }
+
+  closeMobileNav(): void {
+    if (!this.mobileNavOpen) return;
+    this.mobileNavOpen = false;
+    if (!this.isSidebarPinned) {
+      this.isSidebarHovering = false;
+    }
   }
 
   onSidebarEnter(): void {
+    if (this.isMobileViewport()) return;
     this.isSidebarHovering = true;
   }
 
   onSidebarLeave(): void {
+    if (this.isMobileViewport() || this.mobileNavOpen) return;
     this.isSidebarHovering = false;
+  }
+
+  private isMobileViewport(): boolean {
+    return typeof window !== 'undefined' && window.matchMedia('(max-width: 768px)').matches;
   }
 
   toggleSidebarPin(): void {

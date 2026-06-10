@@ -7,6 +7,15 @@
   padding: 20px;
   box-shadow: var(--stb-shadow);
   animation: fade-up 0.45s ease-out;
+
+  @media (max-width: 768px) {
+    padding: 14px;
+    border-radius: var(--stb-radius);
+  }
+
+  @media (max-width: 480px) {
+    padding: 12px;
+  }
 }
 
 @keyframes fade-up {
