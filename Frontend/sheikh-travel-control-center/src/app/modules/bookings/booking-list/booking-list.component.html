@@ -1,23 +1,26 @@
+<div class="bookings-page">
 <div class="page-header">
   <h2>Bookings</h2>
   <div class="header-actions">
-    <button mat-stroked-button color="warn"
+    <button mat-stroked-button color="warn" class="action-btn"
             [disabled]="!selectionCount || bulkDeleting"
             (click)="bulkDeleteSelected()">
       <mat-spinner *ngIf="bulkDeleting" diameter="18"></mat-spinner>
       <mat-icon *ngIf="!bulkDeleting">delete_sweep</mat-icon>
-      Delete selected ({{ selectionCount }})
+      <span class="btn-label">Delete<span class="btn-label-short"> ({{ selectionCount }})</span></span>
     </button>
-    <button mat-stroked-button color="primary" (click)="exportCsv()">
-      <mat-icon>download</mat-icon> Export
+    <button mat-stroked-button color="primary" class="action-btn" (click)="exportCsv()">
+      <mat-icon>download</mat-icon>
+      <span class="btn-label">Export</span>
     </button>
-    <button mat-raised-button color="primary" routerLink="/bookings/new">
-      <mat-icon>add</mat-icon> New Booking
+    <button mat-raised-button color="primary" class="action-btn action-btn--primary" routerLink="/bookings/new">
+      <mat-icon>add</mat-icon>
+      <span class="btn-label">New Booking</span>
     </button>
   </div>
 </div>
 
-<mat-card>
+<mat-card class="bookings-card">
   <mat-card-content>
     <div class="filters">
       <div class="stb-field stb-field--search">
@@ -61,7 +64,7 @@
                [(ngModel)]="amountMax" (ngModelChange)="applyFilters(true)" />
       </div>
 
-      <button mat-stroked-button color="warn" (click)="clearFilters()">Clear</button>
+      <button mat-stroked-button color="warn" class="clear-filters-btn" (click)="clearFilters()">Clear</button>
     </div>
 
     <div class="smart-filters">
@@ -85,12 +88,13 @@
             aria-label="Select all bookings on this page">
           </mat-checkbox>
         </th>
-        <td mat-cell *matCellDef="let b" class="select-col" [attr.data-label]="'Select'">
+        <td mat-cell *matCellDef="let b" class="select-col mobile-card-header" [attr.data-label]="'Select'">
           <mat-checkbox
             [checked]="isSelected(b.id)"
             (change)="toggleRowSelection(b.id, $event.checked)"
             [attr.aria-label]="'Select booking ' + b.bookingNumber">
           </mat-checkbox>
+          <span class="mobile-booking-id">{{ b.bookingNumber }}</span>
         </td>
       </ng-container>
       <ng-container matColumnDef="bookingNumber">
@@ -144,8 +148,11 @@
     </table>
     </div>
 
-    <mat-paginator [length]="totalCount" [pageIndex]="pageIndex" [pageSize]="pageSize" [pageSizeOptions]="[10,25,50]"
-      (page)="onPageChange($event)">
-    </mat-paginator>
+    <div class="paginator-wrap">
+      <mat-paginator [length]="totalCount" [pageIndex]="pageIndex" [pageSize]="pageSize" [pageSizeOptions]="[10,25,50]"
+        (page)="onPageChange($event)">
+      </mat-paginator>
+    </div>
   </mat-card-content>
 </mat-card>
+</div>
