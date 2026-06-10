@@ -27,54 +27,54 @@
     <mat-card class="section-card">
       <h2>Basic Information</h2>
       <div class="field-row">
-        <mat-form-field appearance="outline">
-          <mat-label>Branch Name</mat-label>
-          <input matInput formControlName="name" placeholder="e.g. Dubai Main Hub" />
-          <mat-error *ngIf="form.get('name')?.hasError('required')">Branch name is required</mat-error>
-        </mat-form-field>
-        <mat-form-field appearance="outline">
-          <mat-label>Branch Code</mat-label>
-          <input matInput formControlName="branchCode" placeholder="e.g. DXB-01" style="text-transform: uppercase" />
-          <mat-error *ngIf="form.get('branchCode')?.hasError('required')">Branch code is required</mat-error>
-        </mat-form-field>
+        <div class="stb-field">
+          <label for="branch-name">Branch Name</label>
+          <input id="branch-name" class="stb-input" type="text" formControlName="name" placeholder="e.g. Dubai Main Hub" />
+          <span class="stb-error" *ngIf="form.get('name')?.hasError('required') && form.get('name')?.touched">Branch name is required</span>
+        </div>
+        <div class="stb-field">
+          <label for="branch-code">Branch Code</label>
+          <input id="branch-code" class="stb-input" type="text" formControlName="branchCode" placeholder="e.g. DXB-01" style="text-transform: uppercase" />
+          <span class="stb-error" *ngIf="form.get('branchCode')?.hasError('required') && form.get('branchCode')?.touched">Branch code is required</span>
+        </div>
       </div>
       <div class="field-row">
-        <mat-form-field appearance="outline">
-          <mat-label>Branch Type</mat-label>
-          <mat-select formControlName="branchType">
-            <mat-option *ngFor="let t of branchTypes" [value]="t">{{ t }}</mat-option>
-          </mat-select>
-        </mat-form-field>
-        <mat-form-field appearance="outline">
-          <mat-label>Parent Branch</mat-label>
-          <mat-select formControlName="parentBranchId">
-            <mat-option [value]="null">None (Head Office)</mat-option>
-            <mat-option *ngFor="let b of branches" [value]="b.id">{{ b.name }} ({{ b.branchCode }})</mat-option>
-          </mat-select>
-        </mat-form-field>
+        <div class="stb-field">
+          <label for="branch-type">Branch Type</label>
+          <select id="branch-type" class="stb-select" formControlName="branchType">
+            <option *ngFor="let t of branchTypes" [ngValue]="t">{{ t }}</option>
+          </select>
+        </div>
+        <div class="stb-field">
+          <label for="branch-parent">Parent Branch</label>
+          <select id="branch-parent" class="stb-select" formControlName="parentBranchId">
+            <option [ngValue]="null">None (Head Office)</option>
+            <option *ngFor="let b of branches" [ngValue]="b.id">{{ b.name }} ({{ b.branchCode }})</option>
+          </select>
+        </div>
       </div>
     </mat-card>
 
     <mat-card class="section-card">
       <h2>Contact Details</h2>
       <div class="field-row">
-        <mat-form-field appearance="outline">
-          <mat-label>Branch Manager</mat-label>
-          <mat-select formControlName="branchManagerUserId">
-            <mat-option [value]="null">Not assigned</mat-option>
-            <mat-option *ngFor="let u of managers" [value]="u.id">{{ u.fullName }}</mat-option>
-          </mat-select>
-        </mat-form-field>
-        <mat-form-field appearance="outline">
-          <mat-label>Phone Number</mat-label>
-          <input matInput formControlName="phone" placeholder="+971 -- --- ----" />
-        </mat-form-field>
+        <div class="stb-field">
+          <label for="branch-manager">Branch Manager</label>
+          <select id="branch-manager" class="stb-select" formControlName="branchManagerUserId">
+            <option [ngValue]="null">Not assigned</option>
+            <option *ngFor="let u of managers" [ngValue]="u.id">{{ u.fullName }}</option>
+          </select>
+        </div>
+        <div class="stb-field">
+          <label for="branch-phone">Phone Number</label>
+          <input id="branch-phone" class="stb-input" type="tel" formControlName="phone" placeholder="+971 -- --- ----" />
+        </div>
       </div>
-      <mat-form-field appearance="outline" class="full">
-        <mat-label>Email Address</mat-label>
-        <input matInput formControlName="email" placeholder="branch@sheikhtravel.com" />
-        <mat-error *ngIf="form.get('email')?.hasError('email')">Enter a valid email</mat-error>
-      </mat-form-field>
+      <div class="stb-field full">
+        <label for="branch-email">Email Address</label>
+        <input id="branch-email" class="stb-input" type="email" formControlName="email" placeholder="branch@sheikhtravel.com" />
+        <span class="stb-error" *ngIf="form.get('email')?.hasError('email') && form.get('email')?.touched">Enter a valid email</span>
+      </div>
     </mat-card>
 
     <mat-card class="section-card">
@@ -84,30 +84,30 @@
         <textarea matInput formControlName="address" rows="3" placeholder="Enter physical street address..."></textarea>
       </mat-form-field>
       <div class="field-row">
-        <mat-form-field appearance="outline">
-          <mat-label>City</mat-label>
-          <input matInput formControlName="city" placeholder="Dubai" />
-        </mat-form-field>
-        <mat-form-field appearance="outline">
-          <mat-label>Country</mat-label>
-          <mat-select formControlName="country">
-            <mat-option *ngFor="let c of countries" [value]="c">{{ c }}</mat-option>
-          </mat-select>
-        </mat-form-field>
+        <div class="stb-field">
+          <label for="branch-city">City</label>
+          <input id="branch-city" class="stb-input" type="text" formControlName="city" placeholder="Dubai" />
+        </div>
+        <div class="stb-field">
+          <label for="branch-country">Country</label>
+          <select id="branch-country" class="stb-select" formControlName="country">
+            <option *ngFor="let c of countries" [ngValue]="c">{{ c }}</option>
+          </select>
+        </div>
       </div>
       <div class="field-row">
-        <mat-form-field appearance="outline">
-          <mat-label>Timezone</mat-label>
-          <mat-select formControlName="timeZone">
-            <mat-option *ngFor="let tz of timezones" [value]="tz">{{ tz }}</mat-option>
-          </mat-select>
-        </mat-form-field>
-        <mat-form-field appearance="outline">
-          <mat-label>Default Currency</mat-label>
-          <mat-select formControlName="currencyCode">
-            <mat-option *ngFor="let c of currencies" [value]="c">{{ c }}</mat-option>
-          </mat-select>
-        </mat-form-field>
+        <div class="stb-field">
+          <label for="branch-timezone">Timezone</label>
+          <select id="branch-timezone" class="stb-select" formControlName="timeZone">
+            <option *ngFor="let tz of timezones" [ngValue]="tz">{{ tz }}</option>
+          </select>
+        </div>
+        <div class="stb-field">
+          <label for="branch-currency">Default Currency</label>
+          <select id="branch-currency" class="stb-select" formControlName="currencyCode">
+            <option *ngFor="let c of currencies" [ngValue]="c">{{ c }}</option>
+          </select>
+        </div>
       </div>
     </mat-card>
 

@@ -23,17 +23,14 @@
   display: grid;
   grid-template-columns: minmax(240px, 2fr) 180px auto;
   gap: 12px;
-  align-items: start;
+  align-items: center;
 
   @media (max-width: 900px)  { grid-template-columns: 1fr 1fr; }
   @media (max-width: 600px)  { grid-template-columns: 1fr; }
 
-  .search-field, .compact { width: 100%; }
+  .stb-field { width: 100%; }
 
   .clear-btn {
-    align-self: start;
-    margin-top: 8px;
-    height: 40px;
     .badge {
       display: inline-flex;
       align-items: center;

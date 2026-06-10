@@ -1,18 +1,16 @@
 <div class="tenant-picker">
-  <mat-form-field appearance="outline" class="tenant-picker-field">
-    <mat-label>Select Tenant</mat-label>
-    <mat-select
-      [value]="selectedTenantId"
-      (selectionChange)="selectTenant($event.value)"
+  <div class="stb-field tenant-picker-field">
+    <label for="tenant-picker-select">Select Tenant</label>
+    <select
+      id="tenant-picker-select"
+      class="stb-select"
+      [ngModel]="selectedTenantId"
+      (ngModelChange)="selectTenant($event)"
       [disabled]="loading"
     >
-      <mat-option *ngFor="let tenant of tenants" [value]="tenant.id">
-        <div class="tenant-option">
-          <span class="tenant-name">{{ tenant.name }}</span>
-          <span class="tenant-code">{{ tenant.slug || tenant.code }}</span>
-        </div>
-      </mat-option>
-    </mat-select>
-    <mat-icon matPrefix>business</mat-icon>
-  </mat-form-field>
+      <option *ngFor="let tenant of tenants" [ngValue]="tenant.id">
+        {{ tenant.name }} ({{ tenant.slug || tenant.code }})
+      </option>
+    </select>
+  </div>
 </div>

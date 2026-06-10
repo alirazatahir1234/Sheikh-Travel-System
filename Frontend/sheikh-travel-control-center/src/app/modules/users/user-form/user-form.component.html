@@ -11,63 +11,53 @@
   <form [formGroup]="form" (ngSubmit)="submit()">
 
     <div class="form-grid">
-      <!-- Full Name -->
-      <mat-form-field appearance="outline" class="span-2">
-        <mat-label>Full Name</mat-label>
-        <input matInput formControlName="fullName" placeholder="e.g. Ahmed Khan">
-        <mat-icon matPrefix>person</mat-icon>
-        <mat-error *ngIf="form.get('fullName')?.hasError('required')">Required</mat-error>
-        <mat-error *ngIf="form.get('fullName')?.hasError('maxlength')">Max 100 characters</mat-error>
-      </mat-form-field>
+      <div class="stb-field span-2">
+        <label for="user-fullName">Full Name</label>
+        <input id="user-fullName" class="stb-input" type="text" formControlName="fullName"
+               placeholder="e.g. Ahmed Khan" autocomplete="name" />
+        <span class="stb-error" *ngIf="form.get('fullName')?.hasError('required') && form.get('fullName')?.touched">Required</span>
+        <span class="stb-error" *ngIf="form.get('fullName')?.hasError('maxlength') && form.get('fullName')?.touched">Max 100 characters</span>
+      </div>
 
-      <!-- Email -->
-      <mat-form-field appearance="outline">
-        <mat-label>Email</mat-label>
-        <input matInput formControlName="email" type="email" placeholder="email@example.com">
-        <mat-icon matPrefix>email</mat-icon>
-        <mat-error *ngIf="form.get('email')?.hasError('required')">Required</mat-error>
-        <mat-error *ngIf="form.get('email')?.hasError('email')">Invalid email format</mat-error>
-      </mat-form-field>
+      <div class="stb-field">
+        <label for="user-email">Email</label>
+        <input id="user-email" class="stb-input" type="email" formControlName="email"
+               placeholder="email@example.com" autocomplete="email" />
+        <span class="stb-error" *ngIf="form.get('email')?.hasError('required') && form.get('email')?.touched">Required</span>
+        <span class="stb-error" *ngIf="form.get('email')?.hasError('email') && form.get('email')?.touched">Invalid email format</span>
+      </div>
 
-      <!-- Phone -->
-      <mat-form-field appearance="outline">
-        <mat-label>Phone</mat-label>
-        <input matInput formControlName="phone" placeholder="03001234567">
-        <mat-icon matPrefix>phone</mat-icon>
-        <mat-error *ngIf="form.get('phone')?.hasError('required')">Required</mat-error>
-      </mat-form-field>
+      <div class="stb-field">
+        <label for="user-phone">Phone</label>
+        <input id="user-phone" class="stb-input" type="tel" formControlName="phone"
+               placeholder="03001234567" autocomplete="tel" />
+        <span class="stb-error" *ngIf="form.get('phone')?.hasError('required') && form.get('phone')?.touched">Required</span>
+      </div>
 
-      <!-- Password (only for new users) -->
-      <mat-form-field appearance="outline" *ngIf="!isEdit">
-        <mat-label>Password</mat-label>
-        <input matInput formControlName="password"
-               [type]="hidePassword ? 'password' : 'text'"
-               placeholder="Min 6 characters">
-        <mat-icon matPrefix>lock</mat-icon>
-        <button mat-icon-button matSuffix type="button" (click)="hidePassword = !hidePassword">
-          <mat-icon>{{ hidePassword ? 'visibility_off' : 'visibility' }}</mat-icon>
-        </button>
-        <mat-error *ngIf="form.get('password')?.hasError('required')">Required</mat-error>
-        <mat-error *ngIf="form.get('password')?.hasError('minlength')">Min 6 characters</mat-error>
-        <mat-hint>User will use this to log in</mat-hint>
-      </mat-form-field>
+      <div class="stb-field" *ngIf="!isEdit">
+        <label for="user-password">Password</label>
+        <div class="stb-input-wrap stb-input-wrap--suffix">
+          <input id="user-password" class="stb-input" formControlName="password"
+                 [type]="hidePassword ? 'password' : 'text'"
+                 placeholder="Min 6 characters" autocomplete="new-password" />
+          <button type="button" class="stb-input-suffix-btn" (click)="hidePassword = !hidePassword"
+                  [attr.aria-label]="hidePassword ? 'Show password' : 'Hide password'">
+            <mat-icon>{{ hidePassword ? 'visibility_off' : 'visibility' }}</mat-icon>
+          </button>
+        </div>
+        <span class="stb-error" *ngIf="form.get('password')?.hasError('required') && form.get('password')?.touched">Required</span>
+        <span class="stb-error" *ngIf="form.get('password')?.hasError('minlength') && form.get('password')?.touched">Min 6 characters</span>
+        <span class="stb-hint">User will use this to log in</span>
+      </div>
 
-      <!-- Role -->
-      <mat-form-field appearance="outline" [class.span-2]="isEdit">
-        <mat-label>Role</mat-label>
-        <mat-select formControlName="role">
-          <mat-option *ngFor="let r of roles" [value]="r">
-            <div class="role-option">
-              <span class="role-name">{{ roleLabel(r) }}</span>
-              <span class="role-desc">{{ roleDescription(r) }}</span>
-            </div>
-          </mat-option>
-        </mat-select>
-        <mat-icon matPrefix>badge</mat-icon>
-        <mat-hint>Determines what the user can access</mat-hint>
-      </mat-form-field>
+      <div class="stb-field" [class.span-2]="isEdit">
+        <label for="user-role">Role</label>
+        <select id="user-role" class="stb-select" formControlName="role">
+          <option *ngFor="let r of roles" [ngValue]="r">{{ roleLabel(r) }}</option>
+        </select>
+        <span class="stb-hint">Determines what the user can access</span>
+      </div>
 
-      <!-- Active Status (only for edit) -->
       <div class="status-toggle" *ngIf="isEdit">
         <mat-slide-toggle formControlName="isActive" color="primary">
           Account is {{ form.value.isActive ? 'Active' : 'Inactive' }}
@@ -76,8 +66,7 @@
       </div>
     </div>
 
-    <!-- Role explanation card -->
-    <mat-card class="role-info-card" *ngIf="form.value.role">
+    <mat-card class="role-info-card" *ngIf="form.value.role != null">
       <mat-icon>info</mat-icon>
       <div>
         <strong>{{ roleLabel(form.value.role) }} Role</strong>

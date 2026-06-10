@@ -10,17 +10,22 @@
 
 @media (max-width: 992px) {
   :host {
-    min-height: 0;
+    justify-content: flex-start;
+    min-height: auto;
   }
 }
 
 .auth-form-side {
   padding: 24px 28px;
+  padding-left: max(28px, env(safe-area-inset-left));
+  padding-right: max(28px, env(safe-area-inset-right));
+  padding-bottom: max(28px, env(safe-area-inset-bottom));
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   width: 100%;
+  box-sizing: border-box;
 }
 
 .auth-card {
@@ -95,33 +100,44 @@
     width: 100%;
   }
 
-  ::ng-deep .mat-mdc-form-field {
-    margin-bottom: 6px;
+  .auth-field {
+    margin-bottom: 14px;
+
+    label {
+      color: rgba(228, 255, 251, 0.9);
+      font-size: 0.86rem;
+      font-weight: 500;
+    }
   }
 
-  ::ng-deep .mat-mdc-text-field-wrapper {
+  .auth-input {
+    height: 48px;
+    border-radius: 12px;
+    border-color: rgba(169, 252, 243, 0.28);
     background: rgba(7, 35, 40, 0.58);
-    border-radius: 14px;
+    color: #e9fffc;
+
+    &::placeholder {
+      color: rgba(185, 230, 224, 0.55);
+    }
+
+    &:focus {
+      border-color: rgba(42, 240, 197, 0.75);
+      box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.22);
+    }
   }
 
-  ::ng-deep .mdc-notched-outline__leading,
-  ::ng-deep .mdc-notched-outline__notch,
-  ::ng-deep .mdc-notched-outline__trailing {
-    border-color: rgba(169, 252, 243, 0.24) !important;
+  .auth-suffix-btn {
+    color: rgba(233, 255, 252, 0.85);
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.08);
+      color: #fff;
+    }
   }
 
-  ::ng-deep .mat-mdc-form-field-focus-overlay {
-    background-color: transparent !important;
-  }
-
-  ::ng-deep .mat-mdc-input-element,
-  ::ng-deep .mdc-floating-label {
-    color: #e9fffc !important;
-  }
-
-  ::ng-deep .mat-mdc-form-field-icon-prefix,
-  ::ng-deep .mat-mdc-form-field-icon-suffix {
-    color: #ffffff !important;
+  .auth-error {
+    color: #fca5a5;
   }
 }
 
@@ -211,17 +227,100 @@
 
 @media (max-width: 992px) {
   .auth-form-side {
-    align-items: center;
-    padding: 20px 16px 30px;
+    align-items: stretch;
+    justify-content: flex-start;
+    padding: 20px 20px 32px;
+    padding-left: max(20px, env(safe-area-inset-left));
+    padding-right: max(20px, env(safe-area-inset-right));
+    padding-bottom: max(32px, env(safe-area-inset-bottom));
+  }
+
+  .auth-card {
+    width: 100%;
+    max-width: 520px;
+    margin: 0 auto;
   }
 }
 
 @media (max-width: 640px) {
-  .auth-card {
-    border-radius: 24px;
-    padding: 26px 18px 22px;
+  .auth-form-side {
+    padding: 16px 14px 24px;
+    padding-left: max(14px, env(safe-area-inset-left));
+    padding-right: max(14px, env(safe-area-inset-right));
+    padding-bottom: max(24px, env(safe-area-inset-bottom));
   }
 
+  .auth-card {
+    border-radius: 22px;
+    padding: 22px 16px 18px;
+  }
+
+  .card-logo img {
+    width: 88px;
+    height: 88px;
+  }
+
+  .ac-head {
+    margin-bottom: 16px;
+
+    h2 {
+      font-size: 1.65rem;
+    }
+
+    p {
+      font-size: 0.9rem;
+    }
+  }
+
+  .ac-submit {
+    height: 50px;
+    font-size: 0.95rem;
+  }
+
+  .ac-help {
+    font-size: 0.8rem;
+    line-height: 1.45;
+  }
+}
+
+@media (max-width: 480px) {
+  .auth-form-side {
+    padding: 12px 12px 20px;
+  }
+
+  .auth-card {
+    border-radius: 18px;
+    padding: 18px 14px 16px;
+  }
+
+  .card-logo {
+    margin-bottom: 12px;
+
+    img {
+      width: 72px;
+      height: 72px;
+    }
+  }
+
+  .ac-head h2 {
+    font-size: 1.45rem;
+  }
+
+  .ac-row {
+    flex-wrap: wrap;
+    gap: 10px 12px;
+  }
+
+  .ac-link {
+    font-size: 0.82rem;
+  }
+
+  .auth-input {
+    height: 46px;
+  }
+}
+
+@media (max-width: 360px) {
   .ac-row {
     flex-direction: column;
     align-items: flex-start;

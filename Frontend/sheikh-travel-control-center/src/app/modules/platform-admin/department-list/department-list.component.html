@@ -27,18 +27,19 @@
           <h3>Add department</h3>
         </div>
         <form [formGroup]="form" (ngSubmit)="create()">
-          <mat-form-field appearance="outline" class="full">
-            <mat-label>Department Name</mat-label>
-            <input matInput formControlName="name" placeholder="e.g. Logistics Support" />
-            <mat-error *ngIf="form.get('name')?.hasError('required')">Name is required</mat-error>
-          </mat-form-field>
-          <mat-form-field appearance="outline" class="full">
-            <mat-label>Department Head</mat-label>
-            <mat-select formControlName="departmentHeadUserId">
-              <mat-option [value]="null">Select manager…</mat-option>
-              <mat-option *ngFor="let u of managers" [value]="u.id">{{ u.fullName }}</mat-option>
-            </mat-select>
-          </mat-form-field>
+          <div class="stb-field full">
+            <label for="dept-name">Department Name</label>
+            <input id="dept-name" class="stb-input" type="text" formControlName="name"
+                   placeholder="e.g. Logistics Support" />
+            <span class="stb-error" *ngIf="form.get('name')?.hasError('required') && form.get('name')?.touched">Name is required</span>
+          </div>
+          <div class="stb-field full">
+            <label for="dept-head">Department Head</label>
+            <select id="dept-head" class="stb-select" formControlName="departmentHeadUserId">
+              <option [ngValue]="null">Select manager…</option>
+              <option *ngFor="let u of managers" [ngValue]="u.id">{{ u.fullName }}</option>
+            </select>
+          </div>
           <button mat-raised-button color="primary" type="submit" class="submit-btn" [disabled]="saving">
             <mat-icon>add</mat-icon> {{ saving ? 'Adding…' : 'Add Department' }}
           </button>

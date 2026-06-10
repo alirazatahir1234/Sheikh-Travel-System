@@ -8,6 +8,7 @@ import { MaintenanceService } from '../../../core/services/maintenance.service';
 import { VehicleService } from '../../../core/services/vehicle.service';
 import { CreateMaintenanceDto, Maintenance } from '../../../core/models/maintenance.model';
 import { Vehicle } from '../../../core/models/vehicle.model';
+import { dateInputToIso, toDateInputValue } from '../../../core/utils/date-input.util';
 
 @Component({
   selector: 'app-maintenance-form',
@@ -36,8 +37,8 @@ export class MaintenanceFormComponent implements OnInit {
       vehicleId:       [null, Validators.required],
       description:     ['', Validators.required],
       cost:            [0, [Validators.required, Validators.min(0)]],
-      maintenanceDate: [new Date(), Validators.required],
-      nextDueDate:     [null],
+      maintenanceDate: [toDateInputValue(new Date()), Validators.required],
+      nextDueDate:     [''],
       serviceProvider: ['']
     });
   }
@@ -85,8 +86,8 @@ export class MaintenanceFormComponent implements OnInit {
           vehicleId:       record.vehicleId,
           description:     record.description,
           cost:            record.cost,
-          maintenanceDate: new Date(record.maintenanceDate),
-          nextDueDate:     record.nextDueDate ? new Date(record.nextDueDate) : null,
+          maintenanceDate: toDateInputValue(record.maintenanceDate),
+          nextDueDate:     toDateInputValue(record.nextDueDate),
           serviceProvider: record.serviceProvider ?? ''
         });
         this.loading = false;
@@ -112,8 +113,8 @@ export class MaintenanceFormComponent implements OnInit {
       vehicleId:       f.vehicleId,
       description:     f.description.trim(),
       cost:            Number(f.cost),
-      maintenanceDate: f.maintenanceDate instanceof Date ? f.maintenanceDate.toISOString() : f.maintenanceDate,
-      nextDueDate:     f.nextDueDate ? (f.nextDueDate instanceof Date ? f.nextDueDate.toISOString() : f.nextDueDate) : null,
+      maintenanceDate: dateInputToIso(f.maintenanceDate)!,
+      nextDueDate:     dateInputToIso(f.nextDueDate),
       serviceProvider: (f.serviceProvider || '').trim() || null
     };
 

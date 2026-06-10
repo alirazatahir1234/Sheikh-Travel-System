@@ -42,8 +42,8 @@ export class PaymentListComponent implements OnInit {
     this.filterForm = this.fb.group({
       bookingId: [null],
       status:    [''],
-      dateFrom:  [null],
-      dateTo:    [null]
+      dateFrom:  [''],
+      dateTo:    ['']
     });
   }
 
@@ -54,8 +54,8 @@ export class PaymentListComponent implements OnInit {
     return {
       bookingId: v.bookingId || null,
       status:    v.status    || null,
-      dateFrom:  v.dateFrom  ? new Date(v.dateFrom).toISOString().split('T')[0]  : null,
-      dateTo:    v.dateTo    ? new Date(v.dateTo).toISOString().split('T')[0]    : null
+      dateFrom:  v.dateFrom || null,
+      dateTo:    v.dateTo   || null
     };
   }
 
@@ -73,7 +73,7 @@ export class PaymentListComponent implements OnInit {
   applyFilter(): void { this.load(1, this.currentPageSize); }
 
   clearFilter(): void {
-    this.filterForm.reset({ bookingId: null, status: '', dateFrom: null, dateTo: null });
+    this.filterForm.reset({ bookingId: null, status: '', dateFrom: '', dateTo: '' });
     this.load(1, this.currentPageSize);
   }
 

@@ -13,6 +13,7 @@ import {
   DriverStatus,
   DriverStatusLabels
 } from '../../../core/models/driver.model';
+import { dateInputToIso, toDateInputValue } from '../../../core/utils/date-input.util';
 
 @Component({
   selector: 'app-driver-form',
@@ -48,7 +49,7 @@ export class DriverFormComponent implements OnInit, OnDestroy {
       fullName: ['', [Validators.required, Validators.maxLength(100)]],
       phone: ['', [Validators.required, Validators.maxLength(20)]],
       licenseNumber: ['', [Validators.required, Validators.maxLength(30)]],
-      licenseExpiryDate: [null, Validators.required],
+      licenseExpiryDate: ['', Validators.required],
       cnic: [''],
       address: [''],
       status: [DriverStatus.Available, Validators.required],
@@ -123,7 +124,7 @@ export class DriverFormComponent implements OnInit, OnDestroy {
       fullName: this.readStr(r, 'fullName', 'FullName'),
       phone: this.readStr(r, 'phone', 'Phone'),
       licenseNumber: this.readStr(r, 'licenseNumber', 'LicenseNumber'),
-      licenseExpiryDate: this.parseDate(this.readAny(r, 'licenseExpiryDate', 'LicenseExpiryDate')),
+      licenseExpiryDate: toDateInputValue(this.parseDate(this.readAny(r, 'licenseExpiryDate', 'LicenseExpiryDate'))),
       cnic: this.readStr(r, 'cnic', 'cNIC', 'CNIC'),
       address: this.readStrOrEmpty(r, 'address', 'Address'),
       status: this.coerceStatus(this.readAny(r, 'status', 'Status')),
@@ -186,16 +187,11 @@ export class DriverFormComponent implements OnInit, OnDestroy {
     this.loading = true;
     const f = this.form.value;
 
-    const expiry: Date | string | null = f.licenseExpiryDate;
-    const expiryIso = expiry
-      ? (expiry instanceof Date ? expiry : new Date(expiry)).toISOString()
-      : null;
-
     const baseDto: CreateDriverDto = {
       fullName: f.fullName,
       phone: f.phone,
       licenseNumber: f.licenseNumber,
-      licenseExpiryDate: expiryIso!,
+      licenseExpiryDate: dateInputToIso(f.licenseExpiryDate)!,
       cnic: f.cnic?.trim() ? f.cnic.trim() : null,
       address: f.address?.trim() ? f.address.trim() : null
     };

@@ -16,32 +16,31 @@
 <!-- Filters -->
 <mat-card class="filter-card">
   <div class="filter-row">
-    <mat-form-field appearance="outline" class="search-field">
-      <mat-label>Search</mat-label>
-      <input matInput [ngModel]="searchTerm" (ngModelChange)="onSearch($event)"
-             placeholder="Name, email, phone…">
-      <mat-icon matPrefix>search</mat-icon>
-      <button *ngIf="searchTerm" mat-icon-button matSuffix (click)="onSearch('')">
-        <mat-icon>close</mat-icon>
-      </button>
-    </mat-form-field>
+    <div class="stb-field stb-field--search">
+      <label for="user-search">Search</label>
+      <input id="user-search" class="stb-input" type="text"
+             [ngModel]="searchTerm" (ngModelChange)="onSearch($event)"
+             placeholder="Search name, email, phone…" />
+    </div>
 
-    <mat-form-field appearance="outline">
-      <mat-label>Role</mat-label>
-      <mat-select [ngModel]="roleFilter" (ngModelChange)="onRoleFilterChange($event)">
-        <mat-option value="ALL">All Roles</mat-option>
-        <mat-option *ngFor="let r of roles" [value]="r">{{ roleLabel(r) }}</mat-option>
-      </mat-select>
-    </mat-form-field>
+    <div class="stb-field stb-field--filter">
+      <label for="user-role-filter">Role</label>
+      <select id="user-role-filter" class="stb-select"
+              [ngModel]="roleFilter" (ngModelChange)="onRoleFilterChange($event)">
+        <option [ngValue]="'ALL'">All Roles</option>
+        <option *ngFor="let r of roles" [ngValue]="r">{{ roleLabel(r) }}</option>
+      </select>
+    </div>
 
-    <mat-form-field appearance="outline">
-      <mat-label>Status</mat-label>
-      <mat-select [ngModel]="statusFilter" (ngModelChange)="onStatusFilterChange($event)">
-        <mat-option value="ALL">All</mat-option>
-        <mat-option value="ACTIVE">Active</mat-option>
-        <mat-option value="INACTIVE">Inactive</mat-option>
-      </mat-select>
-    </mat-form-field>
+    <div class="stb-field stb-field--filter stb-field--filter-narrow">
+      <label for="user-status-filter">Status</label>
+      <select id="user-status-filter" class="stb-select"
+              [ngModel]="statusFilter" (ngModelChange)="onStatusFilterChange($event)">
+        <option value="ALL">All</option>
+        <option value="ACTIVE">Active</option>
+        <option value="INACTIVE">Inactive</option>
+      </select>
+    </div>
 
     <button mat-stroked-button (click)="clearFilters()" matTooltip="Clear filters">
       <mat-icon>filter_alt_off</mat-icon>

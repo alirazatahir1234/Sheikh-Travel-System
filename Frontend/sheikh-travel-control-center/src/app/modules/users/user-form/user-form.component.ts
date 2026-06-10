@@ -10,7 +10,8 @@ import {
   UserRoleLabels,
   UserRoleDescriptions,
   CreateUserDto,
-  UpdateUserDto
+  UpdateUserDto,
+  parseUserRole
 } from '../../../core/models/user.model';
 
 @Component({
@@ -69,7 +70,7 @@ export class UserFormComponent implements OnInit {
             fullName: user.fullName,
             email:    user.email,
             phone:    user.phone,
-            role:     user.role,
+            role:     parseUserRole(user.role),
             isActive: user.isActive
           });
           this.loading = false;
@@ -142,11 +143,15 @@ export class UserFormComponent implements OnInit {
     return `Operation failed (${err?.status || 'network'}).`;
   }
 
-  roleLabel(r: UserRole): string {
-    return UserRoleLabels[r] ?? 'Unknown';
+  roleLabel(r: UserRole | unknown): string {
+    return UserRoleLabels[parseUserRole(r)] ?? 'Unknown';
   }
 
-  roleDescription(r: UserRole): string {
-    return UserRoleDescriptions[r] ?? '';
+  roleDescription(r: UserRole | unknown): string {
+    return UserRoleDescriptions[parseUserRole(r)] ?? '';
+  }
+
+  compareRoles(a: UserRole, b: UserRole): boolean {
+    return parseUserRole(a) === parseUserRole(b);
   }
 }

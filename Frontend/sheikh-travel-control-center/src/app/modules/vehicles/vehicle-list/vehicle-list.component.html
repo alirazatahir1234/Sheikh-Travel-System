@@ -29,47 +29,42 @@
   <mat-card-content>
     <!-- Smart filters: search + quick selects + range, plus a one-click clear. -->
     <div class="filter-toolbar">
-      <mat-form-field appearance="outline" class="search-field">
-        <mat-icon matPrefix>search</mat-icon>
-        <mat-label>Search name, registration, model, year…</mat-label>
-        <input matInput [(ngModel)]="filters.search" (ngModelChange)="applyFilters()">
-        <button *ngIf="filters.search" mat-icon-button matSuffix
-                aria-label="Clear search"
-                (click)="filters.search=''; applyFilters()">
-          <mat-icon>close</mat-icon>
-        </button>
-      </mat-form-field>
+      <div class="stb-field stb-field--search">
+        <label for="vehicle-search">Search</label>
+        <input id="vehicle-search" class="stb-input" type="text"
+               [(ngModel)]="filters.search" (ngModelChange)="applyFilters()"
+               placeholder="Search name, registration, model, year…" />
+      </div>
 
-      <mat-form-field appearance="outline" class="compact">
-        <mat-label>Fuel Type</mat-label>
-        <mat-select [(value)]="filters.fuelType" (selectionChange)="applyFilters()">
-          <mat-option value="ALL">All</mat-option>
-          <mat-option *ngFor="let ft of fuelTypes" [value]="ft">{{ fuelTypeLabel(ft) }}</mat-option>
-        </mat-select>
-      </mat-form-field>
+      <div class="stb-field stb-field--filter">
+        <label for="vehicle-fuel-filter">Fuel Type</label>
+        <select id="vehicle-fuel-filter" class="stb-select"
+                [(ngModel)]="filters.fuelType" (ngModelChange)="applyFilters()">
+          <option [ngValue]="'ALL'">All</option>
+          <option *ngFor="let ft of fuelTypes" [ngValue]="ft">{{ fuelTypeLabel(ft) }}</option>
+        </select>
+      </div>
 
-      <mat-form-field appearance="outline" class="compact">
-        <mat-label>Insurance</mat-label>
-        <mat-select [(value)]="filters.insurance" (selectionChange)="applyFilters()">
-          <mat-option *ngFor="let opt of insuranceOptions" [value]="opt.value">{{ opt.label }}</mat-option>
-        </mat-select>
-      </mat-form-field>
+      <div class="stb-field stb-field--filter">
+        <label for="vehicle-insurance-filter">Insurance</label>
+        <select id="vehicle-insurance-filter" class="stb-select"
+                [(ngModel)]="filters.insurance" (ngModelChange)="applyFilters()">
+          <option *ngFor="let opt of insuranceOptions" [ngValue]="opt.value">{{ opt.label }}</option>
+        </select>
+      </div>
 
       <div class="range">
-        <span class="range-label">Seats</span>
-        <mat-form-field appearance="outline" class="compact-num">
-          <mat-label>Min</mat-label>
-          <input matInput type="number" min="1"
-                 [(ngModel)]="filters.seatsMin"
-                 (ngModelChange)="applyFilters()">
-        </mat-form-field>
+        <div class="stb-field stb-field--filter stb-field--filter-narrow">
+          <label for="vehicle-seats-min">Seats Min</label>
+          <input id="vehicle-seats-min" class="stb-input" type="number" min="1"
+                 [(ngModel)]="filters.seatsMin" (ngModelChange)="applyFilters()" />
+        </div>
         <span class="range-dash">–</span>
-        <mat-form-field appearance="outline" class="compact-num">
-          <mat-label>Max</mat-label>
-          <input matInput type="number" min="1"
-                 [(ngModel)]="filters.seatsMax"
-                 (ngModelChange)="applyFilters()">
-        </mat-form-field>
+        <div class="stb-field stb-field--filter stb-field--filter-narrow">
+          <label for="vehicle-seats-max">Seats Max</label>
+          <input id="vehicle-seats-max" class="stb-input" type="number" min="1"
+                 [(ngModel)]="filters.seatsMax" (ngModelChange)="applyFilters()" />
+        </div>
       </div>
 
       <button mat-stroked-button

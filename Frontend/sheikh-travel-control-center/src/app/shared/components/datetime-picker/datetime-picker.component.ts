@@ -1,23 +1,16 @@
 import { Component, forwardRef, Input, OnInit } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 import { CommonModule } from '@angular/common';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
-import { MatDatepickerModule } from '@angular/material/datepicker';
-import { MatNativeDateModule } from '@angular/material/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { toDateInputValue } from '../../../core/utils/date-input.util';
 
 @Component({
   selector: 'app-datetime-picker',
   standalone: true,
   imports: [
     CommonModule,
-    MatFormFieldModule,
-    MatInputModule,
-    MatDatepickerModule,
-    MatNativeDateModule,
     MatButtonModule,
     MatIconModule,
     MatTooltipModule
@@ -35,6 +28,8 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 export class DatetimePickerComponent implements ControlValueAccessor, OnInit {
   @Input() label = 'Select Date & Time';
   @Input() required = false;
+
+  readonly toDateInputValue = toDateInputValue;
 
   selectedDate: Date | null = null;
   selectedTime: string = '';
@@ -82,8 +77,10 @@ export class DatetimePickerComponent implements ControlValueAccessor, OnInit {
 
   onDateChange(event: Event): void {
     const input = event.target as HTMLInputElement;
-    if (input.valueAsDate) {
-      this.selectedDate = input.valueAsDate;
+    if (input.value) {
+      this.selectedDate = new Date(`${input.value}T00:00:00`);
+    } else {
+      this.selectedDate = null;
     }
   }
 

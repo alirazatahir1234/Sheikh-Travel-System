@@ -4,6 +4,7 @@
 @tailwind components;
 @tailwind utilities;
 
+@import 'app/shared/styles/stb-form-fields';
 @import 'app/features/organization-hierarchy/organization-hierarchy-overrides';
 @import 'leaflet/dist/leaflet.css';
 @import 'leaflet.markercluster/dist/MarkerCluster.css';

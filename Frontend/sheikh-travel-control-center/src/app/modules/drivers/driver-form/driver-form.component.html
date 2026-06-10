@@ -11,48 +11,46 @@
     </div>
     <form [formGroup]="form" (ngSubmit)="submit()" [class.dimmed]="loadingDriver && isEdit">
       <div class="form-grid">
-        <mat-form-field appearance="outline">
-          <mat-label>Full Name</mat-label>
-          <input matInput formControlName="fullName">
-          <mat-error *ngIf="form.get('fullName')?.hasError('required')">Required</mat-error>
-        </mat-form-field>
+        <div class="stb-field">
+          <label for="driver-fullName">Full Name</label>
+          <input id="driver-fullName" class="stb-input" type="text" formControlName="fullName" />
+          <span class="stb-error" *ngIf="form.get('fullName')?.hasError('required') && form.get('fullName')?.touched">Required</span>
+        </div>
 
-        <mat-form-field appearance="outline">
-          <mat-label>Phone</mat-label>
-          <input matInput formControlName="phone" placeholder="+92-300-1234567">
-          <mat-error *ngIf="form.get('phone')?.hasError('required')">Required</mat-error>
-        </mat-form-field>
+        <div class="stb-field">
+          <label for="driver-phone">Phone</label>
+          <input id="driver-phone" class="stb-input" type="tel" formControlName="phone" placeholder="+92-300-1234567" />
+          <span class="stb-error" *ngIf="form.get('phone')?.hasError('required') && form.get('phone')?.touched">Required</span>
+        </div>
 
-        <mat-form-field appearance="outline">
-          <mat-label>License Number</mat-label>
-          <input matInput formControlName="licenseNumber">
-          <mat-error *ngIf="form.get('licenseNumber')?.hasError('required')">Required</mat-error>
-        </mat-form-field>
+        <div class="stb-field">
+          <label for="driver-licenseNumber">License Number</label>
+          <input id="driver-licenseNumber" class="stb-input" type="text" formControlName="licenseNumber" />
+          <span class="stb-error" *ngIf="form.get('licenseNumber')?.hasError('required') && form.get('licenseNumber')?.touched">Required</span>
+        </div>
 
-        <mat-form-field appearance="outline">
-          <mat-label>License Expiry Date</mat-label>
-          <input matInput [matDatepicker]="picker" formControlName="licenseExpiryDate">
-          <mat-datepicker-toggle matSuffix [for]="picker"></mat-datepicker-toggle>
-          <mat-datepicker #picker></mat-datepicker>
-          <mat-error *ngIf="form.get('licenseExpiryDate')?.hasError('required')">Required</mat-error>
-        </mat-form-field>
+        <div class="stb-field">
+          <label for="driver-licenseExpiryDate">License Expiry Date</label>
+          <input id="driver-licenseExpiryDate" class="stb-input" type="date" formControlName="licenseExpiryDate" />
+          <span class="stb-error" *ngIf="form.get('licenseExpiryDate')?.hasError('required') && form.get('licenseExpiryDate')?.touched">Required</span>
+        </div>
 
-        <mat-form-field appearance="outline">
-          <mat-label>CNIC (optional)</mat-label>
-          <input matInput formControlName="cnic" placeholder="XXXXX-XXXXXXX-X">
-        </mat-form-field>
+        <div class="stb-field">
+          <label for="driver-cnic">CNIC (optional)</label>
+          <input id="driver-cnic" class="stb-input" type="text" formControlName="cnic" placeholder="XXXXX-XXXXXXX-X" />
+        </div>
 
         <mat-form-field appearance="outline" class="span-2">
           <mat-label>Address (optional)</mat-label>
           <textarea matInput formControlName="address" rows="2"></textarea>
         </mat-form-field>
 
-        <mat-form-field appearance="outline" *ngIf="isEdit">
-          <mat-label>Status</mat-label>
-          <mat-select formControlName="status">
-            <mat-option *ngFor="let s of statuses" [value]="s">{{ statusLabel(s) }}</mat-option>
-          </mat-select>
-        </mat-form-field>
+        <div class="stb-field" *ngIf="isEdit">
+          <label for="driver-status">Status</label>
+          <select id="driver-status" class="stb-select" formControlName="status">
+            <option *ngFor="let s of statuses" [ngValue]="s">{{ statusLabel(s) }}</option>
+          </select>
+        </div>
 
         <div class="active-toggle" *ngIf="isEdit">
           <mat-slide-toggle formControlName="isActive" color="primary">Active</mat-slide-toggle>

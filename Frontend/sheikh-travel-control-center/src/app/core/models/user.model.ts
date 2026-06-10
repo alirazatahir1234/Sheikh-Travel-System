@@ -24,6 +24,28 @@ export const UserRoleDescriptions: Record<UserRole, string> = {
   [UserRole.Accountant]: 'Finance team — view payments, reports, revenue data'
 };
 
+/** API returns enum names as strings (JsonStringEnumConverter); mat-select needs numeric UserRole. */
+export function parseUserRole(value: unknown): UserRole {
+  if (typeof value === 'number' && UserRoleLabels[value as UserRole]) {
+    return value as UserRole;
+  }
+
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    const byName = (UserRole as Record<string, number | string>)[trimmed];
+    if (typeof byName === 'number') {
+      return byName as UserRole;
+    }
+
+    const numeric = Number(trimmed);
+    if (!Number.isNaN(numeric) && UserRoleLabels[numeric as UserRole]) {
+      return numeric as UserRole;
+    }
+  }
+
+  return UserRole.Dispatcher;
+}
+
 export interface User {
   id: number;
   fullName: string;

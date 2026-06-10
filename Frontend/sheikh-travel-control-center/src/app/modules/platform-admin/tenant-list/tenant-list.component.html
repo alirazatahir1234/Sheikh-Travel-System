@@ -69,51 +69,58 @@
 
     <mat-card class="table-card">
       <div class="table-toolbar">
-        <mat-form-field appearance="outline" class="search-field">
-          <mat-icon matPrefix>search</mat-icon>
-          <input matInput placeholder="Search tenants by name or ID…" [(ngModel)]="filters.search" (ngModelChange)="applyFilters()" />
-        </mat-form-field>
+        <div class="stb-field stb-field--search">
+          <label for="tenant-search">Search</label>
+          <input id="tenant-search" class="stb-input" type="text"
+                 placeholder="Search tenants by name or ID…"
+                 [(ngModel)]="filters.search" (ngModelChange)="applyFilters()" />
+        </div>
 
-        <mat-form-field appearance="outline" class="filter-field">
-          <mat-label>Status</mat-label>
-          <mat-select [(ngModel)]="filters.status" (ngModelChange)="applyFilters()">
-            <mat-option value="all">All</mat-option>
-            <mat-option value="active">Active</mat-option>
-            <mat-option value="inactive">Suspended</mat-option>
-          </mat-select>
-        </mat-form-field>
+        <div class="stb-field stb-field--filter">
+          <label for="tenant-status-filter">Status</label>
+          <select id="tenant-status-filter" class="stb-select"
+                  [(ngModel)]="filters.status" (ngModelChange)="applyFilters()">
+            <option value="all">All</option>
+            <option value="active">Active</option>
+            <option value="inactive">Suspended</option>
+          </select>
+        </div>
 
-        <mat-form-field appearance="outline" class="filter-field">
-          <mat-label>Country</mat-label>
-          <mat-select [(ngModel)]="filters.country" (ngModelChange)="applyFilters()">
-            <mat-option value="all">All</mat-option>
-            <mat-option *ngFor="let c of countryOptions()" [value]="c">{{ c }}</mat-option>
-          </mat-select>
-        </mat-form-field>
+        <div class="stb-field stb-field--filter stb-field--filter-wide">
+          <label for="tenant-country-filter">Country</label>
+          <select id="tenant-country-filter" class="stb-select"
+                  [(ngModel)]="filters.country" (ngModelChange)="applyFilters()">
+            <option value="all">All</option>
+            <option *ngFor="let c of countryOptions()" [value]="c">{{ c }}</option>
+          </select>
+        </div>
 
-        <mat-form-field appearance="outline" class="filter-field">
-          <mat-label>Tenant Type</mat-label>
-          <mat-select [(ngModel)]="filters.tenantType" (ngModelChange)="applyFilters()">
-            <mat-option value="all">All</mat-option>
-            <mat-option *ngFor="let t of tenantTypeOptions" [value]="t">{{ t }}</mat-option>
-          </mat-select>
-        </mat-form-field>
+        <div class="stb-field stb-field--filter stb-field--filter-wide">
+          <label for="tenant-type-filter">Tenant Type</label>
+          <select id="tenant-type-filter" class="stb-select"
+                  [(ngModel)]="filters.tenantType" (ngModelChange)="applyFilters()">
+            <option value="all">All</option>
+            <option *ngFor="let t of tenantTypeOptions" [value]="t">{{ t }}</option>
+          </select>
+        </div>
 
-        <mat-form-field appearance="outline" class="filter-field">
-          <mat-label>Module</mat-label>
-          <mat-select [(ngModel)]="filters.module" (ngModelChange)="applyFilters()">
-            <mat-option value="all">All</mat-option>
-            <mat-option *ngFor="let m of modules" [value]="m.code">{{ m.name }}</mat-option>
-          </mat-select>
-        </mat-form-field>
+        <div class="stb-field stb-field--filter stb-field--filter-wide">
+          <label for="tenant-module-filter">Module</label>
+          <select id="tenant-module-filter" class="stb-select"
+                  [(ngModel)]="filters.module" (ngModelChange)="applyFilters()">
+            <option value="all">All</option>
+            <option *ngFor="let m of modules" [value]="m.code">{{ m.name }}</option>
+          </select>
+        </div>
 
-        <mat-form-field appearance="outline" class="filter-field">
-          <mat-label>Plan</mat-label>
-          <mat-select [(ngModel)]="filters.plan" (ngModelChange)="applyFilters()">
-            <mat-option value="all">All</mat-option>
-            <mat-option *ngFor="let p of planOptions" [value]="p">{{ p }}</mat-option>
-          </mat-select>
-        </mat-form-field>
+        <div class="stb-field stb-field--filter">
+          <label for="tenant-plan-filter">Plan</label>
+          <select id="tenant-plan-filter" class="stb-select"
+                  [(ngModel)]="filters.plan" (ngModelChange)="applyFilters()">
+            <option value="all">All</option>
+            <option *ngFor="let p of planOptions" [value]="p">{{ p }}</option>
+          </select>
+        </div>
       </div>
 
       <div class="bulk-toolbar">

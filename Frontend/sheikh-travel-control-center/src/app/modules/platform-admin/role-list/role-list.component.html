@@ -9,9 +9,15 @@
 <mat-card class="form-card">
   <h3>Create role</h3>
   <div class="inline-form">
-    <mat-form-field appearance="outline"><mat-label>Name</mat-label><input matInput [(ngModel)]="newName" /></mat-form-field>
-    <mat-form-field appearance="outline"><mat-label>Code</mat-label><input matInput [(ngModel)]="newCode" placeholder="FLEET_MANAGER" /></mat-form-field>
-    <button mat-raised-button color="primary" (click)="create()"><mat-icon>add</mat-icon> Create</button>
+    <div class="stb-field">
+      <label for="new-role-name">Name</label>
+      <input id="new-role-name" class="stb-input" type="text" [(ngModel)]="newName" autocomplete="off" />
+    </div>
+    <div class="stb-field">
+      <label for="new-role-code">Code</label>
+      <input id="new-role-code" class="stb-input" type="text" [(ngModel)]="newCode" placeholder="FLEET_MANAGER" autocomplete="off" />
+    </div>
+    <button mat-raised-button color="primary" type="button" (click)="create()"><mat-icon>add</mat-icon> Create</button>
   </div>
 </mat-card>
 

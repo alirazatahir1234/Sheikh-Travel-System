@@ -474,36 +474,144 @@
 
 @media (max-width: 992px) {
   .auth-brand {
-    min-height: 520px;
+    min-height: auto;
+    height: auto;
+    padding: 28px 28px 24px;
     border-right: 0;
     border-bottom: 1px solid rgba(120, 251, 237, 0.16);
   }
+
+  .brand-copy h1 {
+    font-size: clamp(2rem, 6vw, 3.2rem);
+    letter-spacing: -1px;
+  }
+
+  .stats-grid {
+    max-width: 100%;
+  }
+
+  .brand-vehicle {
+    height: min(28vh, 220px);
+  }
+
+  .live-card {
+    top: 120px;
+    right: 20px;
+  }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 768px) {
   .auth-brand {
-    min-height: 420px;
-    padding: 24px 20px;
+    padding: 22px 20px 18px;
+  }
+
+  .brand-logo {
+    width: 72px;
+    height: 72px;
+  }
+
+  .brand-name {
+    font-size: 1.35rem;
+  }
+
+  .brand-sub {
+    font-size: 0.78rem;
   }
 
   .brand-copy {
-    margin: 24px 0 18px;
+    margin: 18px 0 14px;
+
+    h1 {
+      font-size: clamp(1.75rem, 7vw, 2.4rem);
+      margin-bottom: 10px;
+    }
 
     p {
-      font-size: 0.95rem;
+      font-size: 0.9rem;
+      line-height: 1.55;
     }
   }
 
   .stats-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .stat-card {
+    padding: 12px;
+  }
+
+  .stat-value {
+    font-size: 1.35rem;
   }
 
   .brand-vehicle,
   .brand-foot,
   .brand-security,
   .live-card,
-  .route-svg {
+  .route-svg,
+  .route-line,
+  .particles,
+  .world-map {
     display: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .auth-brand {
+    padding: 18px 16px 14px;
+  }
+
+  .stats-grid {
+    display: none;
+  }
+
+  .brand-copy {
+    margin: 14px 0 0;
+
+    p {
+      font-size: 0.85rem;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+  }
+}
+
+@media (max-width: 480px) {
+  .auth-brand {
+    padding: 14px 12px 12px;
+  }
+
+  .brand-head {
+    gap: 10px;
+  }
+
+  .brand-logo {
+    width: 56px;
+    height: 56px;
+  }
+
+  .brand-name {
+    font-size: 1.15rem;
+  }
+
+  .brand-sub {
+    font-size: 0.72rem;
+  }
+
+  .brand-copy {
+    margin-top: 10px;
+
+    h1 {
+      font-size: 1.5rem;
+      margin-bottom: 6px;
+    }
+
+    p {
+      -webkit-line-clamp: 2;
+    }
   }
 }
 

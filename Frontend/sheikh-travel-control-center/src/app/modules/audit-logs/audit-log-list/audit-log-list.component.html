@@ -24,43 +24,46 @@
 <!-- Filters -->
 <mat-card class="filter-card">
   <div class="filter-row">
-    <mat-form-field appearance="outline">
-      <mat-label>Action</mat-label>
-      <mat-select [(ngModel)]="actionFilter" (selectionChange)="applyFilters()">
-        <mat-option value="">All Actions</mat-option>
-        <mat-option *ngFor="let a of actions" [value]="a">{{ a }}</mat-option>
-      </mat-select>
-    </mat-form-field>
+    <div class="stb-field stb-field--filter stb-field--filter-wide">
+      <label for="audit-action-filter">Action</label>
+      <select id="audit-action-filter" class="stb-select"
+              [(ngModel)]="actionFilter" (ngModelChange)="applyFilters()">
+        <option value="">All Actions</option>
+        <option *ngFor="let a of actions" [value]="a">{{ a }}</option>
+      </select>
+    </div>
 
-    <mat-form-field appearance="outline">
-      <mat-label>Entity</mat-label>
-      <mat-select [(ngModel)]="entityFilter" (selectionChange)="applyFilters()">
-        <mat-option value="">All Entities</mat-option>
-        <mat-option *ngFor="let e of entities" [value]="e">{{ e }}</mat-option>
-      </mat-select>
-    </mat-form-field>
+    <div class="stb-field stb-field--filter stb-field--filter-wide">
+      <label for="audit-entity-filter">Entity</label>
+      <select id="audit-entity-filter" class="stb-select"
+              [(ngModel)]="entityFilter" (ngModelChange)="applyFilters()">
+        <option value="">All Entities</option>
+        <option *ngFor="let e of entities" [value]="e">{{ e }}</option>
+      </select>
+    </div>
 
-    <mat-form-field appearance="outline">
-      <mat-label>User</mat-label>
-      <mat-select [(ngModel)]="userFilter" (selectionChange)="applyFilters()">
-        <mat-option [value]="null">All Users</mat-option>
-        <mat-option *ngFor="let u of users" [value]="u.id">{{ u.fullName }}</mat-option>
-      </mat-select>
-    </mat-form-field>
+    <div class="stb-field stb-field--filter stb-field--filter-wide">
+      <label for="audit-user-filter">User</label>
+      <select id="audit-user-filter" class="stb-select"
+              [(ngModel)]="userFilter" (ngModelChange)="applyFilters()">
+        <option [ngValue]="null">All Users</option>
+        <option *ngFor="let u of users" [ngValue]="u.id">{{ u.fullName }}</option>
+      </select>
+    </div>
 
-    <mat-form-field appearance="outline">
-      <mat-label>From Date</mat-label>
-      <input matInput [matDatepicker]="fromPicker" [(ngModel)]="fromDate" (dateChange)="applyFilters()">
-      <mat-datepicker-toggle matSuffix [for]="fromPicker"></mat-datepicker-toggle>
-      <mat-datepicker #fromPicker></mat-datepicker>
-    </mat-form-field>
+    <div class="stb-field stb-field--filter">
+      <label for="audit-date-from">From Date</label>
+      <input id="audit-date-from" class="stb-input" type="date"
+             [(ngModel)]="fromDateStr" [max]="toDateStr || null"
+             (ngModelChange)="applyFilters()" />
+    </div>
 
-    <mat-form-field appearance="outline">
-      <mat-label>To Date</mat-label>
-      <input matInput [matDatepicker]="toPicker" [(ngModel)]="toDate" (dateChange)="applyFilters()">
-      <mat-datepicker-toggle matSuffix [for]="toPicker"></mat-datepicker-toggle>
-      <mat-datepicker #toPicker></mat-datepicker>
-    </mat-form-field>
+    <div class="stb-field stb-field--filter">
+      <label for="audit-date-to">To Date</label>
+      <input id="audit-date-to" class="stb-input" type="date"
+             [(ngModel)]="toDateStr" [min]="fromDateStr || null"
+             (ngModelChange)="applyFilters()" />
+    </div>
 
     <button mat-stroked-button (click)="clearFilters()" matTooltip="Clear all filters">
       <mat-icon>filter_alt_off</mat-icon>

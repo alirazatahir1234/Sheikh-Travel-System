@@ -7,29 +7,29 @@
   <mat-card-content>
     <form [formGroup]="form" (ngSubmit)="submit()">
       <div class="form-grid">
-        <mat-form-field appearance="outline">
-          <mat-label>Booking ID</mat-label>
-          <input matInput type="number" formControlName="bookingId">
-          <mat-error>Required</mat-error>
-        </mat-form-field>
+        <div class="stb-field">
+          <label for="payment-bookingId">Booking ID</label>
+          <input id="payment-bookingId" class="stb-input" type="number" formControlName="bookingId" />
+          <span class="stb-error" *ngIf="form.get('bookingId')?.hasError('required') && form.get('bookingId')?.touched">Required</span>
+        </div>
 
-        <mat-form-field appearance="outline">
-          <mat-label>Amount (PKR)</mat-label>
-          <input matInput type="number" formControlName="amount" min="1">
-          <mat-error>Required</mat-error>
-        </mat-form-field>
+        <div class="stb-field">
+          <label for="payment-amount">Amount (PKR)</label>
+          <input id="payment-amount" class="stb-input" type="number" formControlName="amount" min="1" />
+          <span class="stb-error" *ngIf="form.get('amount')?.hasError('required') && form.get('amount')?.touched">Required</span>
+        </div>
 
-        <mat-form-field appearance="outline">
-          <mat-label>Payment Method</mat-label>
-          <mat-select formControlName="paymentMethod">
-            <mat-option *ngFor="let m of methods" [value]="m">{{ m }}</mat-option>
-          </mat-select>
-        </mat-form-field>
+        <div class="stb-field">
+          <label for="payment-method">Payment Method</label>
+          <select id="payment-method" class="stb-select" formControlName="paymentMethod">
+            <option *ngFor="let m of methods" [ngValue]="m">{{ m }}</option>
+          </select>
+        </div>
 
-        <mat-form-field appearance="outline">
-          <mat-label>Reference Number (optional)</mat-label>
-          <input matInput formControlName="transactionReference">
-        </mat-form-field>
+        <div class="stb-field">
+          <label for="payment-reference">Reference Number (optional)</label>
+          <input id="payment-reference" class="stb-input" type="text" formControlName="transactionReference" />
+        </div>
       </div>
 
       <div class="actions">

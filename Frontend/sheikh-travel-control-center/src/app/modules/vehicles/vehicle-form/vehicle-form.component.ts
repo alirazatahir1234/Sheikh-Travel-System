@@ -8,6 +8,7 @@ import {
   CreateVehicleDto, FuelType, FuelTypeLabels,
   UpdateVehicleDto, VehicleStatus, VehicleStatusLabels
 } from '../../../core/models/vehicle.model';
+import { dateInputToIso, toDateInputValue } from '../../../core/utils/date-input.util';
 
 @Component({
   selector: 'app-vehicle-form',
@@ -45,7 +46,7 @@ export class VehicleFormComponent implements OnInit {
       fuelAverage:         [null, [Validators.required, Validators.min(0.1)]],
       fuelType:            [FuelType.Petrol, Validators.required],
       currentMileage:      [0, [Validators.min(0)]],
-      insuranceExpiryDate: [null],
+      insuranceExpiryDate: [''],
       status:              [VehicleStatus.Available]
     });
 
@@ -61,7 +62,7 @@ export class VehicleFormComponent implements OnInit {
       this.vehicleService.getById(this.vehicleId).subscribe(v => {
         this.form.patchValue({
           ...v,
-          insuranceExpiryDate: v.insuranceExpiryDate ? new Date(v.insuranceExpiryDate) : null
+          insuranceExpiryDate: toDateInputValue(v.insuranceExpiryDate)
         });
       });
     }
@@ -86,7 +87,7 @@ export class VehicleFormComponent implements OnInit {
       fuelAverage:         Number(f.fuelAverage),
       fuelType,
       currentMileage:      Number(f.currentMileage ?? 0),
-      insuranceExpiryDate: f.insuranceExpiryDate ? new Date(f.insuranceExpiryDate).toISOString() : null
+      insuranceExpiryDate: dateInputToIso(f.insuranceExpiryDate)
     };
 
     const status = this.normalizeEnumValue<VehicleStatus>(f.status, VehicleStatus, VehicleStatus.Available);

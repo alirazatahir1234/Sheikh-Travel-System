@@ -43,12 +43,10 @@
             <mat-label>Odometer (km)</mat-label>
             <input matInput type="number" formControlName="odometerReading" min="0" />
           </mat-form-field>
-          <mat-form-field appearance="outline">
-            <mat-label>Date</mat-label>
-            <input matInput [matDatepicker]="picker" formControlName="fuelDate" />
-            <mat-datepicker-toggle matSuffix [for]="picker"></mat-datepicker-toggle>
-            <mat-datepicker #picker></mat-datepicker>
-          </mat-form-field>
+          <div class="stb-field">
+            <label for="log-fuel-date">Date</label>
+            <input id="log-fuel-date" class="stb-input" type="date" formControlName="fuelDate" />
+          </div>
         </div>
 
         <mat-form-field appearance="outline" class="full">

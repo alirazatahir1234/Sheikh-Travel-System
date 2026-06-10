@@ -41,13 +41,11 @@
       </mat-form-field>
 
       <!-- Pickup Time -->
-      <mat-form-field appearance="outline">
-        <mat-label>Pickup Time</mat-label>
-        <input matInput [matDatepicker]="picker" formControlName="pickupTime">
-        <mat-datepicker-toggle matSuffix [for]="picker"></mat-datepicker-toggle>
-        <mat-datepicker #picker></mat-datepicker>
-        <mat-error *ngIf="form.get('pickupTime')?.hasError('required')">Required</mat-error>
-      </mat-form-field>
+      <div class="stb-field">
+        <label for="booking-pickupTime">Pickup Time</label>
+        <input id="booking-pickupTime" class="stb-input" type="datetime-local" formControlName="pickupTime" />
+        <span class="stb-error" *ngIf="form.get('pickupTime')?.hasError('required') && form.get('pickupTime')?.touched">Required</span>
+      </div>
 
       <!-- Passengers -->
       <mat-form-field appearance="outline">

@@ -22,11 +22,10 @@ export class LoginFormCardComponent {
     this.hidePasswordChange.emit(!this.hidePassword);
   }
 
-  emitSubmit(emailValue: string, passwordValue: string): void {
-    this.form.patchValue({
-      email: (emailValue || '').trim(),
-      password: passwordValue || ''
-    });
+  onSubmit(): void {
+    const email = (this.form.get('email')?.value || '').trim();
+    this.form.patchValue({ email }, { emitEvent: false });
+    this.form.markAllAsTouched();
     this.form.updateValueAndValidity({ emitEvent: false });
     this.submitLogin.emit();
   }

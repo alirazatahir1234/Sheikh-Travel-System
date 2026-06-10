@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 import { PagedResult } from '../models/common.model';
 import {
@@ -8,7 +9,8 @@ import {
   CreateUserRequest,
   UpdateUserRequest,
   UpdateUserStatusRequest,
-  ResetPasswordResponse
+  ResetPasswordResponse,
+  parseUserRole
 } from '../models/user.model';
 
 /**
@@ -34,11 +36,25 @@ export class UserService {
     if (tenantId != null) {
       params = params.set('tenantId', tenantId);
     }
-    return this.http.get<PagedResult<User>>(this.base, { params });
+    return this.http.get<PagedResult<User>>(this.base, { params }).pipe(
+      map(result => ({
+        ...result,
+        items: result.items.map(user => this.normalizeUser(user)),
+      }))
+    );
   }
 
   getById(id: number): Observable<User> {
-    return this.http.get<User>(`${this.base}/${id}`);
+    return this.http.get<User>(`${this.base}/${id}`).pipe(
+      map(user => this.normalizeUser(user))
+    );
+  }
+
+  private normalizeUser(user: User): User {
+    return {
+      ...user,
+      role: parseUserRole(user.role),
+    };
   }
 
   create(request: CreateUserRequest): Observable<number> {

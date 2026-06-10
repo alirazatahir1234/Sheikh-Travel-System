@@ -28,23 +28,20 @@
 <mat-card class="filters-card">
   <mat-card-content>
     <div class="filter-toolbar">
-      <mat-form-field appearance="outline" class="search-field">
-        <mat-icon matPrefix>search</mat-icon>
-        <mat-label>Search name, phone, email, CNIC…</mat-label>
-        <input matInput [(ngModel)]="filters.search" (ngModelChange)="applyFilters()">
-        <button *ngIf="filters.search" mat-icon-button matSuffix
-                aria-label="Clear search"
-                (click)="filters.search=''; applyFilters()">
-          <mat-icon>close</mat-icon>
-        </button>
-      </mat-form-field>
+      <div class="stb-field stb-field--search">
+        <label for="customer-search">Search</label>
+        <input id="customer-search" class="stb-input" type="text"
+               [(ngModel)]="filters.search" (ngModelChange)="applyFilters()"
+               placeholder="Search name, phone, email, CNIC…" />
+      </div>
 
-      <mat-form-field appearance="outline" class="compact">
-        <mat-label>Active</mat-label>
-        <mat-select [(value)]="filters.active" (selectionChange)="applyFilters()">
-          <mat-option *ngFor="let opt of activeOptions" [value]="opt.value">{{ opt.label }}</mat-option>
-        </mat-select>
-      </mat-form-field>
+      <div class="stb-field stb-field--filter">
+        <label for="customer-active-filter">Active</label>
+        <select id="customer-active-filter" class="stb-select"
+                [(ngModel)]="filters.active" (ngModelChange)="applyFilters()">
+          <option *ngFor="let opt of activeOptions" [ngValue]="opt.value">{{ opt.label }}</option>
+        </select>
+      </div>
 
       <button mat-stroked-button
               class="clear-btn"

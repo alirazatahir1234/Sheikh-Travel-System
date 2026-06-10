@@ -97,14 +97,14 @@
                 <mat-card class="inline-form-card">
                   <h4>Create Role</h4>
                   <div class="inline-form">
-                    <mat-form-field appearance="outline">
-                      <mat-label>Name</mat-label>
-                      <input matInput [(ngModel)]="newRoleName" />
-                    </mat-form-field>
-                    <mat-form-field appearance="outline">
-                      <mat-label>Code</mat-label>
-                      <input matInput [(ngModel)]="newRoleCode" placeholder="CUSTOM_ROLE" />
-                    </mat-form-field>
+                    <div class="stb-field">
+                      <label for="new-role-name">Name</label>
+                      <input id="new-role-name" class="stb-input" type="text" [(ngModel)]="newRoleName" />
+                    </div>
+                    <div class="stb-field">
+                      <label for="new-role-code">Code</label>
+                      <input id="new-role-code" class="stb-input" type="text" [(ngModel)]="newRoleCode" placeholder="CUSTOM_ROLE" />
+                    </div>
                     <button mat-raised-button color="primary" type="button" (click)="createRole()">
                       <mat-icon>add</mat-icon> Create
                     </button>
@@ -144,10 +144,10 @@
                 <h4>{{ selectedRole.name }}</h4>
                 <p class="role-code">{{ selectedRole.code }}</p>
 
-                <mat-form-field appearance="outline" class="full-width">
-                  <mat-label>Display Name</mat-label>
-                  <input matInput [(ngModel)]="editingRoleName" />
-                </mat-form-field>
+                <div class="stb-field full-width">
+                  <label for="editing-role-name">Display Name</label>
+                  <input id="editing-role-name" class="stb-input" type="text" [(ngModel)]="editingRoleName" />
+                </div>
 
                 <mat-slide-toggle [(ngModel)]="editingRoleActive">Active</mat-slide-toggle>
 
@@ -228,10 +228,10 @@
                   <div>
                     <strong>Password Policy</strong>
                     <p>Password expiry in days (blank = no expiry).</p>
-                    <mat-form-field appearance="outline" class="compact-field">
-                      <mat-label>Expiry (days)</mat-label>
-                      <input matInput type="number" formControlName="passwordExpiryDays" />
-                    </mat-form-field>
+                    <div class="stb-field compact-field">
+                      <label for="policy-password-expiry">Expiry (days)</label>
+                      <input id="policy-password-expiry" class="stb-input" type="number" formControlName="passwordExpiryDays" />
+                    </div>
                   </div>
                 </mat-card>
 
@@ -240,10 +240,10 @@
                   <div>
                     <strong>Session Timeout</strong>
                     <p>Idle session timeout in minutes.</p>
-                    <mat-form-field appearance="outline" class="compact-field">
-                      <mat-label>Minutes</mat-label>
-                      <input matInput type="number" formControlName="sessionTimeoutMinutes" />
-                    </mat-form-field>
+                    <div class="stb-field compact-field">
+                      <label for="policy-session-timeout">Minutes</label>
+                      <input id="policy-session-timeout" class="stb-input" type="number" formControlName="sessionTimeoutMinutes" />
+                    </div>
                   </div>
                 </mat-card>
 

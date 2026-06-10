@@ -1,7 +1,12 @@
 @import '../platform-admin.shared.scss';
 
 .form-card { padding: 16px 20px; margin-bottom: 16px; h3 { margin: 0 0 12px; font-size: 1rem; } }
-.inline-form { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; mat-form-field { flex: 1 1 180px; } }
+.inline-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-end;
+}
 
 .role-layout {
   display: grid;

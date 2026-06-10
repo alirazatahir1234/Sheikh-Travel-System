@@ -4,6 +4,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { DriverAppService } from '../../../core/services/driver-app.service';
 import { DriverTrip } from '../../../core/models/driver-trip.model';
 import { FuelType } from '../../../core/models/fuel-log.model';
+import { dateInputToIso, toDateInputValue } from '../../../core/utils/date-input.util';
 
 interface VehicleOption {
   id: number;
@@ -33,7 +34,7 @@ export class LogFuelComponent implements OnInit {
       liters: [null, [Validators.required, Validators.min(0.1)]],
       pricePerLiter: [null, [Validators.required, Validators.min(0)]],
       odometerReading: [null, [Validators.required, Validators.min(0)]],
-      fuelDate: [new Date(), Validators.required],
+      fuelDate: [toDateInputValue(new Date()), Validators.required],
       station: ['']
     });
   }
@@ -59,9 +60,7 @@ export class LogFuelComponent implements OnInit {
     if (this.form.invalid) return;
 
     const raw = this.form.getRawValue();
-    const fuelDate = raw.fuelDate instanceof Date
-      ? raw.fuelDate.toISOString()
-      : new Date(raw.fuelDate).toISOString();
+    const fuelDate = dateInputToIso(raw.fuelDate)!;
 
     this.submitting = true;
     this.driverApp.submitFuelReceipt({
@@ -80,7 +79,7 @@ export class LogFuelComponent implements OnInit {
         this.form.reset({
           vehicleId: this.vehicles.length === 1 ? this.vehicles[0].id : null,
           fuelType: FuelType.Petrol,
-          fuelDate: new Date(),
+          fuelDate: toDateInputValue(new Date()),
           station: ''
         });
       },

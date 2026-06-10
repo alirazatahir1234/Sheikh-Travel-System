@@ -20,44 +20,46 @@
 <mat-card>
   <mat-card-content>
     <div class="filters">
-      <mat-form-field appearance="outline">
-        <mat-label>Search</mat-label>
-        <input matInput [(ngModel)]="searchTerm" (ngModelChange)="applyFilters(true)"
-          placeholder="Booking #, customer, route">
-      </mat-form-field>
+      <div class="stb-field stb-field--search">
+        <label for="booking-search">Search</label>
+        <input id="booking-search" class="stb-input" type="text"
+               [(ngModel)]="searchTerm" (ngModelChange)="applyFilters(true)"
+               placeholder="Booking #, customer, route" />
+      </div>
 
-      <mat-form-field appearance="outline">
-        <mat-label>Filter by Status</mat-label>
-        <mat-select [(value)]="selectedStatus" (selectionChange)="load()">
-          <mat-option *ngFor="let s of statusOptions; trackBy: trackByValue" [value]="s.value">{{ s.label }}</mat-option>
-        </mat-select>
-      </mat-form-field>
+      <div class="stb-field stb-field--filter">
+        <label for="booking-status-filter">Status</label>
+        <select id="booking-status-filter" class="stb-select"
+                [(ngModel)]="selectedStatus" (ngModelChange)="load()">
+          <option *ngFor="let s of statusOptions; trackBy: trackByValue" [ngValue]="s.value">{{ s.label }}</option>
+        </select>
+      </div>
 
-      <mat-form-field appearance="outline">
-        <mat-label>Date From</mat-label>
-        <input matInput [matDatepicker]="fromPicker" [(ngModel)]="dateFrom" [max]="dateTo"
-          (dateChange)="applyFilters(true)" placeholder="Select start date">
-        <mat-datepicker-toggle matSuffix [for]="fromPicker"></mat-datepicker-toggle>
-        <mat-datepicker #fromPicker></mat-datepicker>
-      </mat-form-field>
+      <div class="stb-field stb-field--filter">
+        <label for="booking-date-from">Date From</label>
+        <input id="booking-date-from" class="stb-input" type="date"
+               [ngModel]="toDateInput(dateFrom)" [max]="toDateInput(dateTo) || null"
+               (ngModelChange)="onDateFromChange($event)" />
+      </div>
 
-      <mat-form-field appearance="outline">
-        <mat-label>Date To</mat-label>
-        <input matInput [matDatepicker]="toPicker" [(ngModel)]="dateTo" [min]="dateFrom"
-          (dateChange)="applyFilters(true)" placeholder="Select end date">
-        <mat-datepicker-toggle matSuffix [for]="toPicker"></mat-datepicker-toggle>
-        <mat-datepicker #toPicker></mat-datepicker>
-      </mat-form-field>
+      <div class="stb-field stb-field--filter">
+        <label for="booking-date-to">Date To</label>
+        <input id="booking-date-to" class="stb-input" type="date"
+               [ngModel]="toDateInput(dateTo)" [min]="toDateInput(dateFrom) || null"
+               (ngModelChange)="onDateToChange($event)" />
+      </div>
 
-      <mat-form-field appearance="outline">
-        <mat-label>Min Amount</mat-label>
-        <input matInput type="number" [(ngModel)]="amountMin" (ngModelChange)="applyFilters(true)">
-      </mat-form-field>
+      <div class="stb-field stb-field--filter stb-field--filter-narrow">
+        <label for="booking-amount-min">Min Amount</label>
+        <input id="booking-amount-min" class="stb-input" type="number"
+               [(ngModel)]="amountMin" (ngModelChange)="applyFilters(true)" />
+      </div>
 
-      <mat-form-field appearance="outline">
-        <mat-label>Max Amount</mat-label>
-        <input matInput type="number" [(ngModel)]="amountMax" (ngModelChange)="applyFilters(true)">
-      </mat-form-field>
+      <div class="stb-field stb-field--filter stb-field--filter-narrow">
+        <label for="booking-amount-max">Max Amount</label>
+        <input id="booking-amount-max" class="stb-input" type="number"
+               [(ngModel)]="amountMax" (ngModelChange)="applyFilters(true)" />
+      </div>
 
       <button mat-stroked-button color="warn" (click)="clearFilters()">Clear</button>
     </div>

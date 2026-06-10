@@ -28,7 +28,7 @@
   display: grid;
   grid-template-columns: minmax(240px, 1.8fr) 160px 200px auto auto;
   gap: 12px;
-  align-items: start;
+  align-items: center;
 
   @media (max-width: 1100px) {
     grid-template-columns: 1fr 1fr;
@@ -37,31 +37,20 @@
     grid-template-columns: 1fr;
   }
 
-  .search-field { width: 100%; }
-
-  .compact { width: 100%; }
+  .stb-field { width: 100%; }
 
   .range {
     display: flex;
-    align-items: center;
+    align-items: flex-end;
     gap: 8px;
-    padding-top: 8px;
 
-    .range-label {
-      font-size: 12px;
-      font-weight: 600;
-      color: var(--stb-text-muted, #64748B);
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
+    .range-dash {
+      color: var(--stb-text-soft, #94A3B8);
+      padding-bottom: 12px;
     }
-    .range-dash { color: var(--stb-text-soft, #94A3B8); }
-    .compact-num { width: 84px; }
   }
 
   .clear-btn {
-    align-self: start;
-    margin-top: 8px;
-    height: 40px;
 
     .badge {
       display: inline-flex;

@@ -261,6 +261,24 @@ export class BookingListComponent implements OnInit {
     return item.value;
   }
 
+  toDateInput(value: Date | null): string {
+    if (!value) return '';
+    const y = value.getFullYear();
+    const m = String(value.getMonth() + 1).padStart(2, '0');
+    const d = String(value.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+
+  onDateFromChange(value: string): void {
+    this.dateFrom = value ? new Date(`${value}T00:00:00`) : null;
+    this.applyFilters(true);
+  }
+
+  onDateToChange(value: string): void {
+    this.dateTo = value ? new Date(`${value}T00:00:00`) : null;
+    this.applyFilters(true);
+  }
+
   private startOfDayMs(value: Date | null): number | null {
     if (!value) return null;
     const d = new Date(value);

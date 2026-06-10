@@ -1,14 +1,14 @@
 <div class="page-header">
   <h2>Reports</h2>
   <div class="date-filters">
-    <mat-form-field appearance="outline" class="date-field">
-      <mat-label>From</mat-label>
-      <input matInput type="date" [(ngModel)]="fromDate">
-    </mat-form-field>
-    <mat-form-field appearance="outline" class="date-field">
-      <mat-label>To</mat-label>
-      <input matInput type="date" [(ngModel)]="toDate">
-    </mat-form-field>
+    <div class="stb-field stb-field--filter">
+      <label for="reports-from">From</label>
+      <input id="reports-from" class="stb-input" type="date" [(ngModel)]="fromDate" />
+    </div>
+    <div class="stb-field stb-field--filter">
+      <label for="reports-to">To</label>
+      <input id="reports-to" class="stb-input" type="date" [(ngModel)]="toDate" [min]="fromDate || null" />
+    </div>
     <button mat-raised-button color="primary" (click)="loadReports()">
       <mat-icon>refresh</mat-icon> Load
     </button>

@@ -11,6 +11,7 @@ import { GoogleMapsLoaderService } from '../../../core/services/google-maps-load
 import { FuelType, FuelTypeLabels, CreateFuelLogDto, FuelLog } from '../../../core/models/fuel-log.model';
 import { Vehicle } from '../../../core/models/vehicle.model';
 import { Driver } from '../../../core/models/driver.model';
+import { dateInputToIso, toDateInputValue } from '../../../core/utils/date-input.util';
 
 @Component({
   selector: 'app-fuel-log-form',
@@ -54,7 +55,7 @@ export class FuelLogFormComponent implements OnInit, AfterViewInit, OnDestroy {
       liters:         [null, [Validators.required, Validators.min(0.1)]],
       pricePerLiter:  [null, [Validators.required, Validators.min(0)]],
       odometerReading:[null, [Validators.required, Validators.min(0)]],
-      fuelDate:       [new Date(), Validators.required],
+      fuelDate:       [toDateInputValue(new Date()), Validators.required],
       station:        ['']
     });
     this.mapsConfigured = this.mapsLoader.isConfigured;
@@ -99,7 +100,7 @@ export class FuelLogFormComponent implements OnInit, AfterViewInit, OnDestroy {
           liters:          log.liters,
           pricePerLiter:   log.pricePerLiter,
           odometerReading: log.odometerReading,
-          fuelDate:        new Date(log.fuelDate),
+          fuelDate:        toDateInputValue(log.fuelDate),
           station:         log.station ?? ''
         });
         this.loading = false;
@@ -173,7 +174,7 @@ export class FuelLogFormComponent implements OnInit, AfterViewInit, OnDestroy {
       liters:          Number(f.liters),
       pricePerLiter:   Number(f.pricePerLiter),
       odometerReading: Number(f.odometerReading),
-      fuelDate:        f.fuelDate instanceof Date ? f.fuelDate.toISOString() : f.fuelDate,
+      fuelDate:        dateInputToIso(f.fuelDate)!,
       station:         (f.station || '').trim() || null
     };
 

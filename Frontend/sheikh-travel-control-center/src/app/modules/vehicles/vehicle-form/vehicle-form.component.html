@@ -7,69 +7,67 @@
   <mat-card-content>
     <form [formGroup]="form" (ngSubmit)="submit()">
       <div class="form-grid">
-        <mat-form-field appearance="outline">
-          <mat-label>Vehicle Name</mat-label>
-          <input matInput formControlName="name" placeholder="Toyota Coaster">
-          <mat-error *ngIf="form.get('name')?.hasError('required')">Required</mat-error>
-          <mat-error *ngIf="form.get('name')?.hasError('maxlength')">Max 100 characters</mat-error>
-        </mat-form-field>
+        <div class="stb-field">
+          <label for="vehicle-name">Vehicle Name</label>
+          <input id="vehicle-name" class="stb-input" type="text" formControlName="name" placeholder="Toyota Coaster" />
+          <span class="stb-error" *ngIf="form.get('name')?.hasError('required') && form.get('name')?.touched">Required</span>
+          <span class="stb-error" *ngIf="form.get('name')?.hasError('maxlength') && form.get('name')?.touched">Max 100 characters</span>
+        </div>
 
-        <mat-form-field appearance="outline">
-          <mat-label>Registration Number</mat-label>
-          <input matInput formControlName="registrationNumber" placeholder="KHI-1234">
-          <mat-error *ngIf="form.get('registrationNumber')?.hasError('required')">Required</mat-error>
-        </mat-form-field>
+        <div class="stb-field">
+          <label for="vehicle-registration">Registration Number</label>
+          <input id="vehicle-registration" class="stb-input" type="text" formControlName="registrationNumber" placeholder="KHI-1234" />
+          <span class="stb-error" *ngIf="form.get('registrationNumber')?.hasError('required') && form.get('registrationNumber')?.touched">Required</span>
+        </div>
 
-        <mat-form-field appearance="outline">
-          <mat-label>Model</mat-label>
-          <input matInput formControlName="model" placeholder="High Roof">
-        </mat-form-field>
+        <div class="stb-field">
+          <label for="vehicle-model">Model</label>
+          <input id="vehicle-model" class="stb-input" type="text" formControlName="model" placeholder="High Roof" />
+        </div>
 
-        <mat-form-field appearance="outline">
-          <mat-label>Year</mat-label>
-          <input matInput type="number" formControlName="year" placeholder="2022">
-        </mat-form-field>
+        <div class="stb-field">
+          <label for="vehicle-year">Year</label>
+          <input id="vehicle-year" class="stb-input" type="number" formControlName="year" placeholder="2022" />
+        </div>
 
-        <mat-form-field appearance="outline">
-          <mat-label>Seating Capacity</mat-label>
-          <input matInput type="number" formControlName="seatingCapacity" min="1">
-          <mat-error *ngIf="form.get('seatingCapacity')?.hasError('required')">Required</mat-error>
-          <mat-error *ngIf="form.get('seatingCapacity')?.hasError('min')">Must be at least 1</mat-error>
-        </mat-form-field>
+        <div class="stb-field">
+          <label for="vehicle-seating">Seating Capacity</label>
+          <input id="vehicle-seating" class="stb-input" type="number" formControlName="seatingCapacity" min="1" />
+          <span class="stb-error" *ngIf="form.get('seatingCapacity')?.hasError('required') && form.get('seatingCapacity')?.touched">Required</span>
+          <span class="stb-error" *ngIf="form.get('seatingCapacity')?.hasError('min') && form.get('seatingCapacity')?.touched">Must be at least 1</span>
+        </div>
 
-        <mat-form-field appearance="outline">
-          <mat-label>Fuel Average (km/L)</mat-label>
-          <input matInput type="number" formControlName="fuelAverage" min="0.1" step="0.1">
-          <mat-error *ngIf="form.get('fuelAverage')?.hasError('required')">Required</mat-error>
-          <mat-error *ngIf="form.get('fuelAverage')?.hasError('min')">Must be greater than 0</mat-error>
-        </mat-form-field>
+        <div class="stb-field">
+          <label for="vehicle-fuelAverage">Fuel Average (km/L)</label>
+          <input id="vehicle-fuelAverage" class="stb-input" type="number" formControlName="fuelAverage" min="0.1" step="0.1" />
+          <span class="stb-error" *ngIf="form.get('fuelAverage')?.hasError('required') && form.get('fuelAverage')?.touched">Required</span>
+          <span class="stb-error" *ngIf="form.get('fuelAverage')?.hasError('min') && form.get('fuelAverage')?.touched">Must be greater than 0</span>
+        </div>
 
-        <mat-form-field appearance="outline">
-          <mat-label>Fuel Type</mat-label>
-          <mat-select formControlName="fuelType">
-            <mat-option *ngFor="let ft of fuelTypes" [value]="ft">{{ fuelTypeLabel(ft) }}</mat-option>
-          </mat-select>
-          <mat-error *ngIf="form.get('fuelType')?.hasError('required')">Required</mat-error>
-        </mat-form-field>
+        <div class="stb-field">
+          <label for="vehicle-fuelType">Fuel Type</label>
+          <select id="vehicle-fuelType" class="stb-select" formControlName="fuelType">
+            <option *ngFor="let ft of fuelTypes" [ngValue]="ft">{{ fuelTypeLabel(ft) }}</option>
+          </select>
+          <span class="stb-error" *ngIf="form.get('fuelType')?.hasError('required') && form.get('fuelType')?.touched">Required</span>
+        </div>
 
-        <mat-form-field appearance="outline">
-          <mat-label>Current Mileage (km)</mat-label>
-          <input matInput type="number" formControlName="currentMileage" min="0">
-        </mat-form-field>
+        <div class="stb-field">
+          <label for="vehicle-mileage">Current Mileage (km)</label>
+          <input id="vehicle-mileage" class="stb-input" type="number" formControlName="currentMileage" min="0" />
+        </div>
 
-        <mat-form-field appearance="outline">
-          <mat-label>Insurance Expiry</mat-label>
-          <input matInput [matDatepicker]="picker" formControlName="insuranceExpiryDate">
-          <mat-datepicker-toggle matSuffix [for]="picker"></mat-datepicker-toggle>
-          <mat-datepicker #picker></mat-datepicker>
-        </mat-form-field>
+        <div class="stb-field">
+          <label for="vehicle-insuranceExpiryDate">Insurance Expiry</label>
+          <input id="vehicle-insuranceExpiryDate" class="stb-input" type="date" formControlName="insuranceExpiryDate" />
+        </div>
 
-        <mat-form-field appearance="outline" *ngIf="isEdit">
-          <mat-label>Status</mat-label>
-          <mat-select formControlName="status">
-            <mat-option *ngFor="let s of vehicleStatuses" [value]="s">{{ statusLabel(s) }}</mat-option>
-          </mat-select>
-        </mat-form-field>
+        <div class="stb-field" *ngIf="isEdit">
+          <label for="vehicle-status">Status</label>
+          <select id="vehicle-status" class="stb-select" formControlName="status">
+            <option *ngFor="let s of vehicleStatuses" [ngValue]="s">{{ statusLabel(s) }}</option>
+          </select>
+        </div>
       </div>
 
       <div class="actions">

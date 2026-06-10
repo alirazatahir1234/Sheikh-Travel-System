@@ -14,31 +14,28 @@
 <mat-card class="filter-card">
   <mat-card-content>
     <form [formGroup]="filterForm" class="filter-grid" (ngSubmit)="applyFilter()">
-      <mat-form-field appearance="outline" class="filter-field">
-        <mat-label>Booking ID</mat-label>
-        <input matInput type="number" formControlName="bookingId" min="1" placeholder="e.g. 42">
-      </mat-form-field>
+      <div class="stb-field stb-field--filter">
+        <label for="payment-booking-id">Booking ID</label>
+        <input id="payment-booking-id" class="stb-input" type="number"
+               formControlName="bookingId" min="1" placeholder="e.g. 42" />
+      </div>
 
-      <mat-form-field appearance="outline" class="filter-field">
-        <mat-label>Status</mat-label>
-        <mat-select formControlName="status">
-          <mat-option *ngFor="let s of statusOptions" [value]="s.value">{{ s.label }}</mat-option>
-        </mat-select>
-      </mat-form-field>
+      <div class="stb-field stb-field--filter">
+        <label for="payment-status-filter">Status</label>
+        <select id="payment-status-filter" class="stb-select" formControlName="status">
+          <option *ngFor="let s of statusOptions" [ngValue]="s.value">{{ s.label }}</option>
+        </select>
+      </div>
 
-      <mat-form-field appearance="outline" class="filter-field">
-        <mat-label>From Date</mat-label>
-        <input matInput [matDatepicker]="fromPicker" formControlName="dateFrom">
-        <mat-datepicker-toggle matIconSuffix [for]="fromPicker"></mat-datepicker-toggle>
-        <mat-datepicker #fromPicker></mat-datepicker>
-      </mat-form-field>
+      <div class="stb-field stb-field--filter">
+        <label for="payment-date-from">From Date</label>
+        <input id="payment-date-from" class="stb-input" type="date" formControlName="dateFrom" />
+      </div>
 
-      <mat-form-field appearance="outline" class="filter-field">
-        <mat-label>To Date</mat-label>
-        <input matInput [matDatepicker]="toPicker" formControlName="dateTo">
-        <mat-datepicker-toggle matIconSuffix [for]="toPicker"></mat-datepicker-toggle>
-        <mat-datepicker #toPicker></mat-datepicker>
-      </mat-form-field>
+      <div class="stb-field stb-field--filter">
+        <label for="payment-date-to">To Date</label>
+        <input id="payment-date-to" class="stb-input" type="date" formControlName="dateTo" />
+      </div>
 
       <div class="filter-actions">
         <button mat-raised-button color="primary" type="submit">

@@ -29,8 +29,8 @@ export class AuditLogListComponent implements OnInit {
   actionFilter = '';
   entityFilter = '';
   userFilter: number | null = null;
-  fromDate: Date | null = null;
-  toDate: Date | null = null;
+  fromDateStr = '';
+  toDateStr = '';
 
   readonly actions = AuditActions;
   readonly entities = AuditEntities;
@@ -66,8 +66,8 @@ export class AuditLogListComponent implements OnInit {
       action: this.actionFilter || undefined,
       entityName: this.entityFilter || undefined,
       userId: this.userFilter ?? undefined,
-      fromDate: this.fromDate ? this.fromDate.toISOString() : undefined,
-      toDate: this.toDate ? this.toDate.toISOString() : undefined
+      fromDate: this.fromDateStr ? new Date(`${this.fromDateStr}T00:00:00`).toISOString() : undefined,
+      toDate: this.toDateStr ? new Date(`${this.toDateStr}T23:59:59`).toISOString() : undefined
     };
 
     this.auditLogService.getAll(filter).subscribe({
@@ -98,8 +98,8 @@ export class AuditLogListComponent implements OnInit {
     this.actionFilter = '';
     this.entityFilter = '';
     this.userFilter = null;
-    this.fromDate = null;
-    this.toDate = null;
+    this.fromDateStr = '';
+    this.toDateStr = '';
     this.pageIndex = 0;
     this.load();
   }

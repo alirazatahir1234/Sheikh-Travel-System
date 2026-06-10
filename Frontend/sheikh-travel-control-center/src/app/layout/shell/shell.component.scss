@@ -175,11 +175,13 @@
     flex: 0 0 auto;
     opacity: 0.6;
     transition: transform .2s ease;
+    /* expand_more points down; rotate so collapsed groups show chevron up */
+    transform: rotate(180deg);
   }
 }
 
 .stb-nav-group.is-expanded .stb-group-chevron {
-  transform: rotate(180deg);
+  transform: rotate(0deg);
 }
 
 .stb-nav-group.is-active .stb-group-header {

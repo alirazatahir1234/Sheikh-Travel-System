@@ -18,6 +18,7 @@ import { Route } from '../../../core/models/route.model';
 import { Customer } from '../../../core/models/customer.model';
 import { Vehicle } from '../../../core/models/vehicle.model';
 import { Driver } from '../../../core/models/driver.model';
+import { dateTimeLocalToIso, toDateTimeLocalValue } from '../../../core/utils/date-input.util';
 
 @Component({
   selector: 'app-booking-edit',
@@ -57,7 +58,7 @@ export class BookingEditComponent implements OnInit {
     this.form = this.fb.group({
       customerId: [null, Validators.required],
       routeId: [null, Validators.required],
-      pickupTime: [null, Validators.required],
+      pickupTime: ['', Validators.required],
       passengerCount: [1, [Validators.required, Validators.min(1)]],
       totalAmount: [0, [Validators.required, Validators.min(0)]],
       vehicleId: [null],
@@ -91,7 +92,7 @@ export class BookingEditComponent implements OnInit {
         this.form.patchValue({
           customerId: booking.customerId,
           routeId: booking.routeId,
-          pickupTime: new Date(booking.pickupTime),
+          pickupTime: toDateTimeLocalValue(booking.pickupTime),
           passengerCount: booking.passengerCount,
           totalAmount: booking.totalAmount,
           vehicleId: booking.vehicleId ?? null,
@@ -148,7 +149,7 @@ export class BookingEditComponent implements OnInit {
     const dto: UpdateBookingDto = {
       customerId: f.customerId,
       routeId: f.routeId,
-      pickupTime: f.pickupTime instanceof Date ? f.pickupTime.toISOString() : f.pickupTime,
+      pickupTime: dateTimeLocalToIso(f.pickupTime)!,
       passengerCount: f.passengerCount,
       totalAmount: f.totalAmount,
       vehicleId: this.normalizeOptionalEntityId(f.vehicleId, this.vehicles.map(v => v.id)),

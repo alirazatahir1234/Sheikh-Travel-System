@@ -240,8 +240,9 @@ export function resolveMenu(options: {
   return { groups, standaloneItems: [], isDriverLayout: false };
 }
 
-export function defaultExpandedGroupIds(menu: ResolvedMenu): Set<string> {
-  return new Set(menu.groups.filter(g => g.collapsible).map(g => g.id));
+export function defaultExpandedGroupIds(_menu: ResolvedMenu): Set<string> {
+  // Sub-menus start collapsed; the shell expands only the active route's group.
+  return new Set();
 }
 
 export function groupContainingRoute(menu: ResolvedMenu, url: string): string | null {

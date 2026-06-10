@@ -1,12 +1,14 @@
 :host {
   display: block;
+  min-height: 100vh;
+  min-height: 100dvh;
 }
 
 .auth-page {
   min-height: 100vh;
   min-height: 100dvh;
   display: grid;
-  grid-template-columns: 55% 45%;
+  grid-template-columns: minmax(0, 55%) minmax(0, 45%);
   align-items: stretch;
   background:
     radial-gradient(circle at 85% 16%, rgba(20, 184, 166, 0.25), transparent 34%),
@@ -17,7 +19,7 @@
 
 @media (max-width: 1200px) {
   .auth-page {
-    grid-template-columns: 52% 48%;
+    grid-template-columns: minmax(0, 52%) minmax(0, 48%);
   }
 }
 
@@ -26,14 +28,25 @@
     display: flex;
     flex-direction: column;
     min-height: 100dvh;
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
   }
 
   app-login-hero {
     flex: 0 0 auto;
+    width: 100%;
   }
 
   app-login-form-card {
-    flex: 1 1 auto;
-    min-height: 0;
+    flex: 1 0 auto;
+    width: 100%;
+    min-height: min(100dvh, 720px);
+  }
+}
+
+@media (max-width: 480px) {
+  app-login-form-card {
+    min-height: auto;
   }
 }
