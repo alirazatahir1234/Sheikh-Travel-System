@@ -258,6 +258,8 @@ public static class PlatformSchemaMigration
             ("Platform", "Platform.Departments.Manage", "Manage departments"),
             ("Platform", "Platform.AuditLogs.View", "View audit logs"),
             ("Platform", "Platform.Menus.Manage", "Manage navigation menus"),
+            ("Platform", "Platform.Settings.View", "View platform settings"),
+            ("Platform", "Platform.Settings.Manage", "Manage platform settings"),
             ("Operations", "Booking.View", "View bookings"),
             ("Operations", "Booking.Create", "Create bookings"),
             ("Operations", "Trip.View", "View trips"),
@@ -364,6 +366,8 @@ public static class PlatformSchemaMigration
 
         foreach (var (name, route, icon, permission, sort) in accessMenus)
             await UpsertMenuUnderModuleAsync(connection, "access_control", name, route, icon, permission, sort, ct);
+
+        await UpsertMenuUnderModuleAsync(connection, "administration", "Settings", "/settings", "tune", "Platform.Settings.View", 10, ct);
 
         await connection.ExecuteAsync(new CommandDefinition("""
             UPDATE pm SET pm.IsActive = 0

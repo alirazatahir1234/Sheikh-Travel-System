@@ -1,0 +1,25 @@
+<header class="settings-page__header" *ngIf="category">
+  <h1>{{ category.label }}</h1>
+  <p>{{ category.description }}</p>
+</header>
+
+<div class="settings-page__loading" *ngIf="loading">
+  <mat-progress-spinner mode="indeterminate" diameter="36"></mat-progress-spinner>
+</div>
+
+<ng-container *ngIf="!loading && category">
+  <app-dynamic-settings-form
+    *ngIf="category.isImplemented; else comingSoon"
+    [category]="category.id"
+    [schema]="schema"
+    [values]="values">
+  </app-dynamic-settings-form>
+
+  <ng-template #comingSoon>
+    <div class="settings-page__placeholder">
+      <mat-icon>{{ category.icon }}</mat-icon>
+      <h3>{{ category.label }} settings are coming soon</h3>
+      <p>This section is part of the roadmap and will be configurable here shortly.</p>
+    </div>
+  </ng-template>
+</ng-container>

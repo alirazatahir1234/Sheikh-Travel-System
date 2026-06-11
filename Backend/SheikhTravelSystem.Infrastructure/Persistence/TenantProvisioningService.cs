@@ -146,6 +146,8 @@ public class TenantProvisioningService(
             request.IsVatEnabled
         }, transaction: transaction, cancellationToken: cancellationToken));
 
+        await SeedDefaultGeneralSettingsAsync(connection, transaction, tenantId, request, cancellationToken);
+
         if (!string.IsNullOrWhiteSpace(request.BillingContactName)
             || !string.IsNullOrWhiteSpace(request.BillingEmail)
             || !string.IsNullOrWhiteSpace(request.CompanyTRN))
@@ -198,6 +200,32 @@ public class TenantProvisioningService(
                 connection, transaction, tenantId, adminUserId, request, cancellationToken);
 
         return tenantId;
+    }
+
+    private static async Task SeedDefaultGeneralSettingsAsync(
+        IDbConnection connection,
+        IDbTransaction transaction,
+        int tenantId,
+        ProvisionTenantCommand request,
+        CancellationToken ct)
+    {
+        var defaults = new (string Key, string? Value)[]
+        {
+            ("CompanyName", request.Name.Trim()),
+            ("DefaultCurrency", request.CurrencyCode ?? AppConstants.DefaultCurrency),
+            ("Timezone", request.TimeZone ?? "Asia/Dubai"),
+            ("Language", "en-AE"),
+        };
+
+        foreach (var (key, value) in defaults)
+        {
+            await connection.ExecuteAsync(new CommandDefinition("""
+                INSERT INTO PlatformSettings (TenantId, Category, [Key], Value, DataType)
+                VALUES (@TenantId, N'General', @Key, @Value, N'string');
+                """, new { TenantId = tenantId, Key = key, Value = value },
+                transaction: transaction,
+                cancellationToken: ct));
+        }
     }
 
     private static async Task SeedRolesAsync(

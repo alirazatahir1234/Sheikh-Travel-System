@@ -1,0 +1,104 @@
+<form [formGroup]="form" (ngSubmit)="save()" class="settings-form">
+  <section class="settings-section" *ngFor="let section of sections">
+    <header class="settings-section__head">
+      <h3>{{ section.title }}</h3>
+    </header>
+
+    <div class="settings-section__grid">
+      <div class="stb-field" *ngFor="let field of section.fields" [class.stb-field--toggle]="field.type === 'toggle'">
+        <ng-container [ngSwitch]="field.type">
+
+          <ng-container *ngSwitchCase="'toggle'">
+            <div class="settings-toggle">
+              <div class="settings-toggle__text">
+                <label>{{ field.label }}</label>
+                <span class="stb-hint" *ngIf="field.hint">{{ field.hint }}</span>
+              </div>
+              <mat-slide-toggle color="primary" [formControlName]="field.key"></mat-slide-toggle>
+            </div>
+          </ng-container>
+
+          <ng-container *ngSwitchCase="'dropdown'">
+            <label [attr.for]="field.key">{{ field.label }}</label>
+            <select class="stb-select" [id]="field.key" [formControlName]="field.key">
+              <option value="">Select…</option>
+              <option *ngFor="let option of field.options" [value]="option.value">{{ option.label }}</option>
+            </select>
+            <span class="stb-hint" *ngIf="field.hint">{{ field.hint }}</span>
+          </ng-container>
+
+          <ng-container *ngSwitchCase="'color'">
+            <label [attr.for]="field.key">{{ field.label }}</label>
+            <div class="settings-color">
+              <input type="color" [id]="field.key" [formControlName]="field.key" class="settings-color__swatch" />
+              <input type="text" class="stb-input" [formControlName]="field.key" placeholder="#0F766E" />
+            </div>
+            <span class="stb-hint" *ngIf="field.hint">{{ field.hint }}</span>
+          </ng-container>
+
+          <ng-container *ngSwitchCase="'number'">
+            <label [attr.for]="field.key">{{ field.label }}</label>
+            <input
+              type="number"
+              class="stb-input"
+              [id]="field.key"
+              [formControlName]="field.key"
+              [min]="field.min ?? null"
+              [max]="field.max ?? null"
+              [placeholder]="field.placeholder ?? ''" />
+            <span class="stb-hint" *ngIf="field.hint">{{ field.hint }}</span>
+          </ng-container>
+
+          <ng-container *ngSwitchCase="'password'">
+            <label [attr.for]="field.key">{{ field.label }}</label>
+            <input
+              type="password"
+              class="stb-input"
+              autocomplete="new-password"
+              [id]="field.key"
+              [formControlName]="field.key"
+              [placeholder]="field.placeholder ?? ''" />
+            <span class="stb-hint" *ngIf="field.hint">{{ field.hint }}</span>
+          </ng-container>
+
+          <ng-container *ngSwitchCase="'textarea'">
+            <label [attr.for]="field.key">{{ field.label }}</label>
+            <textarea
+              class="stb-input settings-textarea"
+              rows="3"
+              [id]="field.key"
+              [formControlName]="field.key"
+              [placeholder]="field.placeholder ?? ''"></textarea>
+            <span class="stb-hint" *ngIf="field.hint">{{ field.hint }}</span>
+          </ng-container>
+
+          <ng-container *ngSwitchCase="'readonly'">
+            <label [attr.for]="field.key">{{ field.label }}</label>
+            <input type="text" class="stb-input" [id]="field.key" [formControlName]="field.key" readonly />
+            <span class="stb-hint" *ngIf="field.hint">{{ field.hint }}</span>
+          </ng-container>
+
+          <ng-container *ngSwitchDefault>
+            <label [attr.for]="field.key">{{ field.label }}</label>
+            <input
+              [type]="field.type === 'email' ? 'email' : field.type === 'url' ? 'url' : 'text'"
+              class="stb-input"
+              [id]="field.key"
+              [formControlName]="field.key"
+              [placeholder]="field.placeholder ?? ''" />
+            <span class="stb-hint" *ngIf="field.hint">{{ field.hint }}</span>
+          </ng-container>
+
+        </ng-container>
+      </div>
+    </div>
+  </section>
+
+  <footer class="settings-actions">
+    <button type="button" mat-stroked-button (click)="discard()" [disabled]="saving || form.pristine">Discard</button>
+    <button type="submit" mat-flat-button color="primary" [disabled]="saving || form.pristine">
+      <span *ngIf="!saving">Save Changes</span>
+      <span *ngIf="saving">Saving…</span>
+    </button>
+  </footer>
+</form>

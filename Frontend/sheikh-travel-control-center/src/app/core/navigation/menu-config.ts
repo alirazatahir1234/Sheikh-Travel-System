@@ -111,6 +111,7 @@ const platformGroup: NavGroup = {
     { id: 'modules', label: 'Modules', icon: 'extension', route: '/platform/module-management', adminOnly: true, moduleKey: 'platform' },
     { id: 'plans', label: 'Plans', icon: 'subscriptions', route: '/platform/subscription-management', adminOnly: true, moduleKey: 'platform' },
     { id: 'billing', label: 'Billing', icon: 'payments', route: '/platform/subscription-management', queryParams: { tab: 'billing' }, adminOnly: true, moduleKey: 'platform' },
+    { id: 'settings', label: 'Settings', icon: 'tune', route: '/settings', adminOnly: true, moduleKey: 'platform' },
     { id: 'audit-logs-platform', label: 'Audit Logs', icon: 'history', route: '/audit-logs', adminOnly: true, moduleKey: 'audit-logs' }
   ]
 };
@@ -135,9 +136,9 @@ const administrationGroup: NavGroup = {
   items: [
     { id: 'users', label: 'Users', icon: 'manage_accounts', route: '/users', adminOnly: true, moduleKey: 'users' },
     { id: 'roles-permissions', label: 'Roles & Permissions', icon: 'security', route: '/users', adminOnly: true, moduleKey: 'users' },
-    { id: 'tenant-settings', label: 'Tenant Settings', icon: 'tune', route: '/profile', queryParams: { tab: 'settings' }, adminOnly: true },
+    { id: 'tenant-settings', label: 'Tenant Settings', icon: 'tune', route: '/settings', adminOnly: true },
     { id: 'allowance-rules', label: 'Allowance Rules', icon: 'rule', route: '/driver-allowance-rules', adminOnly: true, moduleKey: 'driver-allowance-rules' },
-    { id: 'system-configuration', label: 'System Configuration', icon: 'settings_suggest', route: '/users', adminOnly: true, moduleKey: 'users' }
+    { id: 'system-configuration', label: 'System Configuration', icon: 'settings_suggest', route: '/settings', adminOnly: true }
   ]
 };
 

@@ -1,0 +1,33 @@
+<div class="settings-shell">
+  <aside class="settings-sidebar">
+    <div class="settings-sidebar__head">
+      <mat-icon>settings</mat-icon>
+      <div>
+        <h2>Platform Settings</h2>
+        <p>Configure your organization defaults</p>
+      </div>
+    </div>
+
+    <nav class="settings-nav" *ngIf="!loading">
+      <a
+        *ngFor="let category of categories"
+        class="settings-nav__item"
+        [routerLink]="['/settings', category.id]"
+        routerLinkActive="is-active"
+        [matTooltip]="category.isImplemented ? '' : 'Coming soon'"
+        matTooltipPosition="right">
+        <mat-icon>{{ category.icon }}</mat-icon>
+        <span class="settings-nav__label">{{ category.label }}</span>
+        <span class="settings-nav__badge" *ngIf="!category.isImplemented">Soon</span>
+      </a>
+    </nav>
+
+    <div class="settings-sidebar__loading" *ngIf="loading">
+      <mat-progress-spinner mode="indeterminate" diameter="28"></mat-progress-spinner>
+    </div>
+  </aside>
+
+  <section class="settings-content">
+    <router-outlet></router-outlet>
+  </section>
+</div>

@@ -14,12 +14,15 @@ public static class PlatformPermissions
     public const string DepartmentsManage = "Platform.Departments.Manage";
     public const string AuditLogsView = "Platform.AuditLogs.View";
     public const string MenusManage = "Platform.Menus.Manage";
+    public const string SettingsView = "Platform.Settings.View";
+    public const string SettingsManage = "Platform.Settings.Manage";
 
     public static readonly string[] All =
     [
         DashboardView, UsersView, UsersCreate, UsersEdit,
         RolesView, RolesManage, TenantsView, TenantsManage,
-        BranchesManage, DepartmentsManage, AuditLogsView, MenusManage
+        BranchesManage, DepartmentsManage, AuditLogsView, MenusManage,
+        SettingsView, SettingsManage
     ];
 }
 
