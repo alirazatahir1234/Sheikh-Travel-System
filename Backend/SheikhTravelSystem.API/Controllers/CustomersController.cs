@@ -19,6 +19,13 @@ public class CustomersController : BaseApiController
         => Ok(await Mediator.Send(query));
 
     /// <summary>
+    /// Gets segment counts for the customer list filter chips.
+    /// </summary>
+    [HttpGet("stats")]
+    public async Task<IActionResult> GetStats([FromQuery] GetCustomerListStatsQuery query)
+        => Ok(await Mediator.Send(query));
+
+    /// <summary>
     /// Gets a single customer by identifier.
     /// </summary>
     [HttpGet("{id:int}")]

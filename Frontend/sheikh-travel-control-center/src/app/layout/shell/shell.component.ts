@@ -243,11 +243,21 @@ export class ShellComponent implements OnInit, OnDestroy {
   toggleGroup(group: NavGroup, event: Event): void {
     event.preventDefault();
     event.stopPropagation();
-    if (!this.sidebarExpanded) {
+
+    const navigateToPrimary = (): void => {
+      const primary = group.items.find(item => !this.aliasItemIds.has(item.id)) ?? group.items[0];
+      if (!primary?.route) return;
+      this.router.navigate([primary.route], { queryParams: primary.queryParams });
+      this.closeMobileNav();
+    };
+
+    if (!this.sidebarExpanded || this.isMobileViewport()) {
       this.isSidebarHovering = true;
       this.expandedGroupIds = new Set([...this.expandedGroupIds, group.id]);
+      navigateToPrimary();
       return;
     }
+
     const next = new Set(this.expandedGroupIds);
     if (next.has(group.id)) {
       next.delete(group.id);

@@ -35,3 +35,15 @@ export interface UpdateCustomerRequest {
   id: number;
   customer: UpdateCustomerDto;
 }
+
+export interface CustomerFilter {
+  search?: string;
+  isActive?: boolean;
+  recency?: string;
+}
+
+export interface CustomerListStats {
+  total: number;
+  newCount: number;
+  returning: number;
+}

@@ -31,7 +31,7 @@
       <div class="stb-field stb-field--search">
         <label for="customer-search">Search</label>
         <input id="customer-search" class="stb-input" type="text"
-               [(ngModel)]="filters.search" (ngModelChange)="applyFilters()"
+               [ngModel]="filters.search" (ngModelChange)="onSearchChange($event)"
                placeholder="Search name, phone, email, CNIC…" />
       </div>
 
@@ -86,7 +86,7 @@
     <div *ngIf="error" class="error-message"><mat-icon>error</mat-icon> {{ error }}</div>
 
     <div class="results-meta" *ngIf="!loading && !error">
-      Showing <strong>{{ dataSource.data.length }}</strong> of {{ allCustomers.length || totalCount }}
+      Showing <strong>{{ dataSource.data.length }}</strong> of {{ totalCount }}
       <span *ngIf="activeFilterCount > 0"> · {{ activeFilterCount }} filter{{ activeFilterCount > 1 ? 's' : '' }} applied</span>
     </div>
 
@@ -175,13 +175,14 @@
         </ng-container>
 
         <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-        <tr mat-row *matRowDef="let row; columns: displayedColumns;"
+        <tr mat-row *matRowDef="let row; columns: displayedColumns; trackBy: trackById"
             [class.row-selected]="selection.isSelected(row)"></tr>
       </table>
     </div>
 
-    <mat-paginator [length]="totalCount" [pageSizeOptions]="[10,25,50,100]"
-      (page)="load($event.pageIndex + 1, $event.pageSize)">
+    <mat-paginator [length]="totalCount" [pageIndex]="pageIndex" [pageSize]="pageSize"
+      [pageSizeOptions]="[10, 25, 50]" [showFirstLastButtons]="true"
+      (page)="onPageChange($event)">
     </mat-paginator>
   </mat-card-content>
 </mat-card>

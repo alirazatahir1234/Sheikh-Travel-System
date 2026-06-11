@@ -35,3 +35,8 @@ public record UpdateCustomerDto(
     string? Gender = null,
     DateTime? DateOfBirth = null,
     string? Nationality = null);
+
+public record CustomerListStatsDto(
+    int Total,
+    int New,
+    int Returning);

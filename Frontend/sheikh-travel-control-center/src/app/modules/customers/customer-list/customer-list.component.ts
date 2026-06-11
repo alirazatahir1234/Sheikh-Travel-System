@@ -1,23 +1,21 @@
-import { Component, OnInit, ViewChild } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { MatTableDataSource } from '@angular/material/table';
-import { MatPaginator } from '@angular/material/paginator';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { PageEvent } from '@angular/material/paginator';
 import { Router } from '@angular/router';
 import { DatePipe } from '@angular/common';
 import { SelectionModel } from '@angular/cdk/collections';
-import { forkJoin, of } from 'rxjs';
-import { catchError, map } from 'rxjs/operators';
+import { Subject, Subscription, forkJoin, of } from 'rxjs';
+import { catchError, debounceTime, distinctUntilChanged, map } from 'rxjs/operators';
 
 import { CustomerService } from '../../../core/services/customer.service';
 import { ExportService, ExportColumn } from '../../../core/services/export.service';
-import { Customer } from '../../../core/models/customer.model';
+import { Customer, CustomerFilter, CustomerListStats } from '../../../core/models/customer.model';
 
 type ActiveFilter = 'ALL' | 'ACTIVE' | 'INACTIVE';
 type RecencyFilter = 'ALL' | 'NEW' | 'RETURNING';
 
-/** A customer is considered "new" when they were created within this many days. */
 const NEW_CUSTOMER_DAYS = 30;
-const DAY_MS = 86_400_000;
 
 interface CustomerFilters {
   search: string;
@@ -37,19 +35,21 @@ interface QuickChip {
   styleUrls: ['./customer-list.component.scss'],
   providers: [DatePipe]
 })
-export class CustomerListComponent implements OnInit {
+export class CustomerListComponent implements OnInit, OnDestroy {
   displayedColumns = [
     'select', 'fullName', 'phone', 'email', 'cnic',
     'address', 'isActive', 'createdAt', 'actions'
   ];
 
   dataSource = new MatTableDataSource<Customer>();
-  allCustomers: Customer[] = [];
+  recencyStats: CustomerListStats = { total: 0, newCount: 0, returning: 0 };
 
   loading = true;
   deleting = false;
   error: string | null = null;
   totalCount = 0;
+  pageIndex = 0;
+  pageSize = 25;
 
   readonly selection = new SelectionModel<Customer>(true, []);
 
@@ -61,7 +61,8 @@ export class CustomerListComponent implements OnInit {
 
   filters: CustomerFilters = this.emptyFilters();
 
-  @ViewChild(MatPaginator) paginator!: MatPaginator;
+  private readonly searchSubject = new Subject<string>();
+  private searchSub?: Subscription;
 
   constructor(
     private customerService: CustomerService,
@@ -71,45 +72,72 @@ export class CustomerListComponent implements OnInit {
     private datePipe: DatePipe
   ) {}
 
-  ngOnInit(): void { this.load(); }
-
-  // ---------- Data loading ---------------------------------------------------
-
-  load(page = 1, pageSize = 500): void {
-    this.loading = true;
-    this.error = null;
-    this.selection.clear();
-    this.customerService.getAll(page, pageSize).subscribe({
-      next: result => {
-        this.allCustomers = result.items;
-        this.totalCount = result.totalCount;
-        this.applyFilters();
-        this.loading = false;
-      },
-      error: () => { this.loading = false; this.error = 'Failed to load customers.'; }
+  ngOnInit(): void {
+    this.searchSub = this.searchSubject.pipe(
+      debounceTime(350),
+      distinctUntilChanged()
+    ).subscribe(term => {
+      this.filters.search = term;
+      this.load(true);
     });
+    this.load();
   }
 
-  // ---------- Filter state ---------------------------------------------------
+  ngOnDestroy(): void {
+    this.searchSub?.unsubscribe();
+  }
 
-  applyFilters(): void {
-    this.dataSource.data = this.allCustomers.filter(c => this.matches(c));
-    this.selection.clear();
-    setTimeout(() => {
-      if (this.paginator) {
-        this.dataSource.paginator = this.paginator;
+  load(resetPage = false): void {
+    if (resetPage) {
+      this.pageIndex = 0;
+      this.selection.clear();
+    }
+
+    this.loading = true;
+    this.error = null;
+
+    forkJoin({
+      page: this.customerService.getAll(this.pageIndex + 1, this.pageSize, this.buildFilter()),
+      stats: this.customerService.getStats(this.buildStatsFilter()).pipe(
+        catchError(() => of({ total: 0, newCount: 0, returning: 0 }))
+      )
+    }).subscribe({
+      next: ({ page, stats }) => {
+        this.dataSource.data = page.items;
+        this.totalCount = page.totalCount;
+        this.recencyStats = stats;
+        this.loading = false;
+      },
+      error: () => {
+        this.loading = false;
+        this.error = 'Failed to load customers.';
       }
     });
   }
 
+  onSearchChange(term: string): void {
+    this.searchSubject.next(term);
+  }
+
+  applyFilters(): void {
+    this.load(true);
+  }
+
+  onPageChange(event: PageEvent): void {
+    this.pageIndex = event.pageIndex;
+    this.pageSize = event.pageSize;
+    this.selection.clear();
+    this.load();
+  }
+
   setRecency(value: RecencyFilter): void {
     this.filters.recency = value;
-    this.applyFilters();
+    this.load(true);
   }
 
   resetFilters(): void {
     this.filters = this.emptyFilters();
-    this.applyFilters();
+    this.load(true);
   }
 
   get activeFilterCount(): number {
@@ -122,17 +150,13 @@ export class CustomerListComponent implements OnInit {
   }
 
   get recencyChips(): QuickChip[] {
-    const countNew        = this.allCustomers.filter(c => this.isNew(c)).length;
-    const countReturning  = this.allCustomers.filter(c => !this.isNew(c)).length;
-
+    const s = this.recencyStats;
     return [
-      { label: 'All customers',                     value: 'ALL',       count: this.allCustomers.length },
-      { label: `New (${NEW_CUSTOMER_DAYS}d)`,       value: 'NEW',       count: countNew },
-      { label: 'Returning',                         value: 'RETURNING', count: countReturning }
+      { label: 'All customers',               value: 'ALL',       count: s.total },
+      { label: `New (${NEW_CUSTOMER_DAYS}d)`, value: 'NEW',       count: s.newCount },
+      { label: 'Returning',                   value: 'RETURNING', count: s.returning }
     ];
   }
-
-  // ---------- Selection ------------------------------------------------------
 
   isAllSelected(): boolean {
     return this.dataSource.data.length > 0 &&
@@ -146,8 +170,6 @@ export class CustomerListComponent implements OnInit {
       this.selection.select(...this.dataSource.data);
     }
   }
-
-  // ---------- Row / bulk actions --------------------------------------------
 
   edit(id: number): void { this.router.navigate(['/customers', id, 'edit']); }
 
@@ -184,19 +206,38 @@ export class CustomerListComponent implements OnInit {
     });
   }
 
-  // ---------- Export ---------------------------------------------------------
-
   exportExcel(): void {
-    const { columns, meta } = this.buildExport();
-    this.exportService.exportExcel(this.dataSource.data, columns, meta);
+    this.fetchForExport(rows => {
+      const { columns, meta } = this.buildExport(rows);
+      this.exportService.exportExcel(rows, columns, meta);
+    });
   }
 
   exportPdf(): void {
-    const { columns, meta } = this.buildExport();
-    this.exportService.exportPdf(this.dataSource.data, columns, meta);
+    this.fetchForExport(rows => {
+      const { columns, meta } = this.buildExport(rows);
+      this.exportService.exportPdf(rows, columns, meta);
+    });
   }
 
-  private buildExport(): {
+  isNew(c: Customer): boolean {
+    if (!c.createdAt) return false;
+    const ts = new Date(c.createdAt).getTime();
+    return Number.isFinite(ts) && (Date.now() - ts) <= NEW_CUSTOMER_DAYS * 86_400_000;
+  }
+
+  trackById(_index: number, item: Customer): number {
+    return item.id;
+  }
+
+  private fetchForExport(onReady: (rows: Customer[]) => void): void {
+    this.customerService.getAll(1, 10000, this.buildFilter()).subscribe({
+      next: r => onReady(r.items),
+      error: () => this.snackBar.open('Failed to load customers for export.', 'Close', { duration: 3000 })
+    });
+  }
+
+  private buildExport(rows: Customer[]): {
     columns: ExportColumn<Customer>[];
     meta: { filename: string; title: string; subtitle: string; sheetName: string };
   } {
@@ -221,7 +262,7 @@ export class CustomerListComponent implements OnInit {
         filename: `customers-${scope}-${stamp}`,
         title: 'Customers',
         subtitle: [
-          `${this.dataSource.data.length} of ${this.allCustomers.length} customer(s)`,
+          `${rows.length} of ${this.totalCount} customer(s)`,
           filterSummary
         ].filter(Boolean).join(' · '),
         sheetName: 'Customers'
@@ -240,34 +281,18 @@ export class CustomerListComponent implements OnInit {
     return parts.length ? `Filters — ${parts.join('; ')}` : '';
   }
 
-  // ---------- Display helpers ------------------------------------------------
-
-  isNew(c: Customer): boolean {
-    if (!c.createdAt) return false;
-    const ts = new Date(c.createdAt).getTime();
-    return Number.isFinite(ts) && (Date.now() - ts) <= NEW_CUSTOMER_DAYS * DAY_MS;
+  private buildFilter(): CustomerFilter {
+    const f = this.filters;
+    return {
+      search: f.search.trim() || undefined,
+      isActive: f.active === 'ALL' ? undefined : f.active === 'ACTIVE',
+      recency: f.recency === 'ALL' ? undefined : f.recency
+    };
   }
 
-  // ---------- Internals ------------------------------------------------------
-
-  private matches(c: Customer): boolean {
-    const f = this.filters;
-
-    if (f.active === 'ACTIVE'   && !c.isActive) return false;
-    if (f.active === 'INACTIVE' &&  c.isActive) return false;
-
-    if (f.recency === 'NEW'       && !this.isNew(c)) return false;
-    if (f.recency === 'RETURNING' &&  this.isNew(c)) return false;
-
-    const term = f.search.trim().toLowerCase();
-    if (term) {
-      const haystack = [
-        c.fullName, c.phone,
-        c.email ?? '', c.cnic ?? '', c.address ?? ''
-      ].join(' ').toLowerCase();
-      if (!haystack.includes(term)) return false;
-    }
-    return true;
+  private buildStatsFilter(): Omit<CustomerFilter, 'recency'> {
+    const { recency: _recency, ...statsFilter } = this.buildFilter();
+    return statsFilter;
   }
 
   private emptyFilters(): CustomerFilters {
