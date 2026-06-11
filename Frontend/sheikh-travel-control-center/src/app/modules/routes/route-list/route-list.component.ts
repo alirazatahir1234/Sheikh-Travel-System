@@ -1,17 +1,17 @@
-import { Component, OnInit, ViewChild } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { MatTableDataSource } from '@angular/material/table';
-import { MatPaginator } from '@angular/material/paginator';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatDialog } from '@angular/material/dialog';
+import { PageEvent } from '@angular/material/paginator';
 import { Router } from '@angular/router';
 import { DatePipe } from '@angular/common';
 import { SelectionModel } from '@angular/cdk/collections';
-import { forkJoin, of } from 'rxjs';
-import { catchError, map } from 'rxjs/operators';
+import { Subject, Subscription, forkJoin, of } from 'rxjs';
+import { catchError, debounceTime, distinctUntilChanged, map } from 'rxjs/operators';
 
 import { RouteService } from '../../../core/services/route.service';
 import { ExportService, ExportColumn } from '../../../core/services/export.service';
-import { Route } from '../../../core/models/route.model';
+import { Route, RouteFilter, RouteListStats } from '../../../core/models/route.model';
 import {
   BulkRouteAddDialogComponent,
   BulkRouteAddDialogResult
@@ -21,7 +21,6 @@ type ActiveFilter   = 'ALL' | 'ACTIVE' | 'INACTIVE';
 type DistanceFilter = 'ALL' | 'SHORT' | 'MEDIUM' | 'LONG';
 type PriceFilter    = 'ALL' | 'BUDGET' | 'MID' | 'PREMIUM';
 
-/** Thresholds used by the smart filters (kept here so they stay in sync with the UI copy). */
 const SHORT_KM_MAX    = 150;
 const MEDIUM_KM_MAX   = 500;
 const BUDGET_PRICE    = 5_000;
@@ -46,19 +45,21 @@ interface QuickChip {
   styleUrls: ['./route-list.component.scss'],
   providers: [DatePipe]
 })
-export class RouteListComponent implements OnInit {
+export class RouteListComponent implements OnInit, OnDestroy {
   displayedColumns = [
     'select', 'name', 'source', 'destination', 'distance',
     'estimatedMinutes', 'basePrice', 'isActive', 'actions'
   ];
 
   dataSource = new MatTableDataSource<Route>();
-  allRoutes: Route[] = [];
+  distanceStats: RouteListStats = { total: 0, short: 0, medium: 0, long: 0 };
 
   loading = true;
   deleting = false;
   error: string | null = null;
   totalCount = 0;
+  pageIndex = 0;
+  pageSize = 25;
 
   readonly selection = new SelectionModel<Route>(true, []);
 
@@ -76,7 +77,8 @@ export class RouteListComponent implements OnInit {
 
   filters: RouteFilters = this.emptyFilters();
 
-  @ViewChild(MatPaginator) paginator!: MatPaginator;
+  private readonly searchSubject = new Subject<string>();
+  private searchSub?: Subscription;
 
   constructor(
     private routeService: RouteService,
@@ -87,45 +89,72 @@ export class RouteListComponent implements OnInit {
     private datePipe: DatePipe
   ) {}
 
-  ngOnInit(): void { this.load(); }
-
-  // ---------- Data loading ---------------------------------------------------
-
-  load(page = 1, pageSize = 500): void {
-    this.loading = true;
-    this.error = null;
-    this.selection.clear();
-    this.routeService.getAll(page, pageSize).subscribe({
-      next: result => {
-        this.allRoutes = result.items;
-        this.totalCount = result.totalCount;
-        this.applyFilters();
-        this.loading = false;
-      },
-      error: () => { this.loading = false; this.error = 'Failed to load routes.'; }
+  ngOnInit(): void {
+    this.searchSub = this.searchSubject.pipe(
+      debounceTime(350),
+      distinctUntilChanged()
+    ).subscribe(term => {
+      this.filters.search = term;
+      this.load(true);
     });
+    this.load();
   }
 
-  // ---------- Filter state ---------------------------------------------------
+  ngOnDestroy(): void {
+    this.searchSub?.unsubscribe();
+  }
 
-  applyFilters(): void {
-    this.dataSource.data = this.allRoutes.filter(r => this.matches(r));
-    this.selection.clear();
-    setTimeout(() => {
-      if (this.paginator) {
-        this.dataSource.paginator = this.paginator;
+  load(resetPage = false): void {
+    if (resetPage) {
+      this.pageIndex = 0;
+      this.selection.clear();
+    }
+
+    this.loading = true;
+    this.error = null;
+
+    forkJoin({
+      page: this.routeService.getAll(this.pageIndex + 1, this.pageSize, this.buildFilter()),
+      stats: this.routeService.getStats(this.buildStatsFilter()).pipe(
+        catchError(() => of({ total: 0, short: 0, medium: 0, long: 0 }))
+      )
+    }).subscribe({
+      next: ({ page, stats }) => {
+        this.dataSource.data = page.items;
+        this.totalCount = page.totalCount;
+        this.distanceStats = stats;
+        this.loading = false;
+      },
+      error: () => {
+        this.loading = false;
+        this.error = 'Failed to load routes.';
       }
     });
   }
 
+  onSearchChange(term: string): void {
+    this.searchSubject.next(term);
+  }
+
+  applyFilters(): void {
+    this.load(true);
+  }
+
+  onPageChange(event: PageEvent): void {
+    this.pageIndex = event.pageIndex;
+    this.pageSize = event.pageSize;
+    this.selection.clear();
+    this.load();
+  }
+
   setDistance(value: DistanceFilter): void {
     this.filters.distance = value;
-    this.applyFilters();
+    this.load(true);
   }
 
   resetFilters(): void {
     this.filters = this.emptyFilters();
-    this.applyFilters();
+    this.load(true);
   }
 
   get activeFilterCount(): number {
@@ -139,26 +168,14 @@ export class RouteListComponent implements OnInit {
   }
 
   get distanceChips(): QuickChip[] {
-    const inBand = (r: Route, band: DistanceFilter) => {
-      const km = r.distance ?? 0;
-      switch (band) {
-        case 'SHORT':  return km > 0 && km < SHORT_KM_MAX;
-        case 'MEDIUM': return km >= SHORT_KM_MAX && km <= MEDIUM_KM_MAX;
-        case 'LONG':   return km > MEDIUM_KM_MAX;
-        default:       return true;
-      }
-    };
-
+    const s = this.distanceStats;
     return [
-      { label: 'All',                              value: 'ALL',    count: this.allRoutes.length },
-      { label: `Short (< ${SHORT_KM_MAX}km)`,      value: 'SHORT',  count: this.allRoutes.filter(r => inBand(r, 'SHORT')).length },
-      { label: `Medium (${SHORT_KM_MAX}–${MEDIUM_KM_MAX}km)`,
-                                                   value: 'MEDIUM', count: this.allRoutes.filter(r => inBand(r, 'MEDIUM')).length },
-      { label: `Long (> ${MEDIUM_KM_MAX}km)`,      value: 'LONG',   count: this.allRoutes.filter(r => inBand(r, 'LONG')).length }
+      { label: 'All',                              value: 'ALL',    count: s.total },
+      { label: `Short (< ${SHORT_KM_MAX}km)`,      value: 'SHORT',  count: s.short },
+      { label: `Medium (${SHORT_KM_MAX}–${MEDIUM_KM_MAX}km)`, value: 'MEDIUM', count: s.medium },
+      { label: `Long (> ${MEDIUM_KM_MAX}km)`,      value: 'LONG',   count: s.long }
     ];
   }
-
-  // ---------- Selection ------------------------------------------------------
 
   isAllSelected(): boolean {
     return this.dataSource.data.length > 0 &&
@@ -172,8 +189,6 @@ export class RouteListComponent implements OnInit {
       this.selection.select(...this.dataSource.data);
     }
   }
-
-  // ---------- Row / bulk actions --------------------------------------------
 
   edit(id: number): void { this.router.navigate(['/routes', id, 'edit']); }
 
@@ -225,23 +240,54 @@ export class RouteListComponent implements OnInit {
         ? `Added ${created} route${created > 1 ? 's' : ''}.`
         : `Added ${created}, failed ${failed}. Check the dialog for details.`;
       this.snackBar.open(msg, 'Close', { duration: 4000 });
-      if (created > 0) this.load();
+      if (created > 0) this.load(true);
     });
   }
 
-  // ---------- Export ---------------------------------------------------------
-
   exportExcel(): void {
-    const { columns, meta } = this.buildExport();
-    this.exportService.exportExcel(this.dataSource.data, columns, meta);
+    this.fetchForExport(rows => {
+      const { columns, meta } = this.buildExport(rows);
+      this.exportService.exportExcel(rows, columns, meta);
+    });
   }
 
   exportPdf(): void {
-    const { columns, meta } = this.buildExport();
-    this.exportService.exportPdf(this.dataSource.data, columns, meta);
+    this.fetchForExport(rows => {
+      const { columns, meta } = this.buildExport(rows);
+      this.exportService.exportPdf(rows, columns, meta);
+    });
   }
 
-  private buildExport(): {
+  formatDuration(minutes?: number | null): string {
+    if (minutes == null) return '—';
+    const h = Math.floor(minutes / 60);
+    const m = minutes % 60;
+    if (h === 0) return `${m}m`;
+    if (m === 0) return `${h}h`;
+    return `${h}h ${m}m`;
+  }
+
+  formatKm(km?: number | null): string {
+    if (km == null) return '—';
+    return km.toLocaleString('en-PK', { maximumFractionDigits: 1 });
+  }
+
+  formatPrice(value: number): string {
+    return value.toLocaleString('en-PK', { maximumFractionDigits: 0 });
+  }
+
+  trackById(_index: number, item: Route): number {
+    return item.id;
+  }
+
+  private fetchForExport(onReady: (rows: Route[]) => void): void {
+    this.routeService.getAll(1, 10000, this.buildFilter()).subscribe({
+      next: r => onReady(r.items),
+      error: () => this.snackBar.open('Failed to load routes for export.', 'Close', { duration: 3000 })
+    });
+  }
+
+  private buildExport(rows: Route[]): {
     columns: ExportColumn<Route>[];
     meta: { filename: string; title: string; subtitle: string; sheetName: string };
   } {
@@ -268,7 +314,7 @@ export class RouteListComponent implements OnInit {
         filename: `routes-${scope}-${stamp}`,
         title: 'Routes',
         subtitle: [
-          `${this.dataSource.data.length} of ${this.allRoutes.length} route(s)`,
+          `${rows.length} of ${this.totalCount} route(s)`,
           filterSummary
         ].filter(Boolean).join(' · '),
         sheetName: 'Routes'
@@ -288,66 +334,19 @@ export class RouteListComponent implements OnInit {
     return parts.length ? `Filters — ${parts.join('; ')}` : '';
   }
 
-  // ---------- Display helpers ------------------------------------------------
-
-  formatDuration(minutes?: number | null): string {
-    if (minutes == null) return '—';
-    const h = Math.floor(minutes / 60);
-    const m = minutes % 60;
-    if (h === 0) return `${m}m`;
-    if (m === 0) return `${h}h`;
-    return `${h}h ${m}m`;
-  }
-
-  formatKm(km?: number | null): string {
-    if (km == null) return '—';
-    return km.toLocaleString('en-PK', { maximumFractionDigits: 1 });
-  }
-
-  formatPrice(value: number): string {
-    return value.toLocaleString('en-PK', { maximumFractionDigits: 0 });
-  }
-
-  // ---------- Internals ------------------------------------------------------
-
-  private matches(r: Route): boolean {
+  private buildFilter(): RouteFilter {
     const f = this.filters;
-
-    if (f.active === 'ACTIVE'   && !r.isActive) return false;
-    if (f.active === 'INACTIVE' &&  r.isActive) return false;
-
-    if (!this.matchesDistance(r)) return false;
-    if (!this.matchesPrice(r)) return false;
-
-    const term = f.search.trim().toLowerCase();
-    if (term) {
-      const haystack = [
-        r.name ?? '', r.source, r.destination,
-        String(r.distance ?? ''), String(r.basePrice ?? '')
-      ].join(' ').toLowerCase();
-      if (!haystack.includes(term)) return false;
-    }
-    return true;
+    return {
+      search: f.search.trim() || undefined,
+      isActive: f.active === 'ALL' ? undefined : f.active === 'ACTIVE',
+      distanceBand: f.distance === 'ALL' ? undefined : f.distance,
+      priceBand: f.price === 'ALL' ? undefined : f.price
+    };
   }
 
-  private matchesDistance(r: Route): boolean {
-    const km = r.distance ?? 0;
-    switch (this.filters.distance) {
-      case 'ALL':    return true;
-      case 'SHORT':  return km > 0 && km < SHORT_KM_MAX;
-      case 'MEDIUM': return km >= SHORT_KM_MAX && km <= MEDIUM_KM_MAX;
-      case 'LONG':   return km > MEDIUM_KM_MAX;
-    }
-  }
-
-  private matchesPrice(r: Route): boolean {
-    const p = r.basePrice ?? 0;
-    switch (this.filters.price) {
-      case 'ALL':     return true;
-      case 'BUDGET':  return p <= BUDGET_PRICE;
-      case 'MID':     return p > BUDGET_PRICE && p <= MID_PRICE;
-      case 'PREMIUM': return p > MID_PRICE;
-    }
+  private buildStatsFilter(): Omit<RouteFilter, 'distanceBand'> {
+    const { distanceBand: _distance, ...statsFilter } = this.buildFilter();
+    return statsFilter;
   }
 
   private emptyFilters(): RouteFilters {

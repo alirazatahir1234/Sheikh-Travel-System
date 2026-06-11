@@ -27,3 +27,9 @@ public record UpdateRouteDto(
     int? EstimatedMinutes,
     decimal BasePrice,
     bool IsActive);
+
+public record RouteListStatsDto(
+    int Total,
+    int Short,
+    int Medium,
+    int Long);

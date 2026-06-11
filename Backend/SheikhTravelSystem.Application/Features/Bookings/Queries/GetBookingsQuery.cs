@@ -8,7 +8,16 @@ using SheikhTravelSystem.Domain.Enums;
 
 namespace SheikhTravelSystem.Application.Features.Bookings.Queries;
 
-public record GetBookingsQuery(int Page = 1, int PageSize = 20, BookingStatus? Status = null, string? Search = null) : IRequest<ApiResponse<PagedResult<BookingDto>>>;
+public record GetBookingsQuery(
+    int Page = 1,
+    int PageSize = 20,
+    BookingStatus? Status = null,
+    string? Search = null,
+    DateTime? DateFrom = null,
+    DateTime? DateTo = null,
+    decimal? AmountMin = null,
+    decimal? AmountMax = null
+) : IRequest<ApiResponse<PagedResult<BookingDto>>>;
 
 public class GetBookingsQueryHandler(IDbConnectionFactory dbFactory, ITenantContext tenantContext)
     : IRequestHandler<GetBookingsQuery, ApiResponse<PagedResult<BookingDto>>>
@@ -24,6 +33,27 @@ public class GetBookingsQueryHandler(IDbConnectionFactory dbFactory, ITenantCont
             whereClause += " AND b.Status = @Status";
         if (!string.IsNullOrWhiteSpace(request.Search))
             whereClause += " AND (b.BookingNumber LIKE @SearchPattern OR c.FullName LIKE @SearchPattern OR r.Source LIKE @SearchPattern OR r.Destination LIKE @SearchPattern)";
+        if (request.DateFrom.HasValue)
+            whereClause += " AND b.PickupTime >= @DateFrom";
+        if (request.DateTo.HasValue)
+            whereClause += " AND b.PickupTime < @DateTo";
+        if (request.AmountMin.HasValue)
+            whereClause += " AND b.TotalAmount >= @AmountMin";
+        if (request.AmountMax.HasValue)
+            whereClause += " AND b.TotalAmount <= @AmountMax";
+
+        var queryParams = new
+        {
+            Offset = offset,
+            request.PageSize,
+            TenantId = tenantId,
+            Status = (int?)request.Status,
+            SearchPattern = $"%{request.Search}%",
+            request.DateFrom,
+            DateTo = request.DateTo.HasValue ? (DateTime?)request.DateTo.Value.Date.AddDays(1) : null,
+            request.AmountMin,
+            request.AmountMax
+        };
 
         var bookings = await connection.QueryAsync<BookingDto>(
             new CommandDefinition(
@@ -39,7 +69,7 @@ public class GetBookingsQueryHandler(IDbConnectionFactory dbFactory, ITenantCont
                   {whereClause}
                   ORDER BY b.CreatedAt DESC
                   OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY",
-                new { Offset = offset, request.PageSize, TenantId = tenantId, Status = (int?)request.Status, SearchPattern = $"%{request.Search}%" },
+                queryParams,
                 cancellationToken: cancellationToken));
 
         var totalCount = await connection.ExecuteScalarAsync<int>(
@@ -48,7 +78,7 @@ public class GetBookingsQueryHandler(IDbConnectionFactory dbFactory, ITenantCont
                    LEFT JOIN Customers c ON b.CustomerId = c.Id
                    LEFT JOIN Routes r ON b.RouteId = r.Id
                    {whereClause}",
-                new { TenantId = tenantId, Status = (int?)request.Status, SearchPattern = $"%{request.Search}%" },
+                queryParams,
                 cancellationToken: cancellationToken));
 
         var result = new PagedResult<BookingDto>

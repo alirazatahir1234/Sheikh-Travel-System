@@ -66,3 +66,12 @@ export interface UpdateBookingStatusRequest {
   status: BookingStatus;
   cancellationReason?: string;
 }
+
+export interface BookingFilter {
+  status?: string;
+  search?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  amountMin?: number;
+  amountMax?: number;
+}

@@ -31,3 +31,17 @@ export interface UpdateRouteRequest {
   id: number;
   route: UpdateRouteDto;
 }
+
+export interface RouteFilter {
+  search?: string;
+  isActive?: boolean;
+  distanceBand?: string;
+  priceBand?: string;
+}
+
+export interface RouteListStats {
+  total: number;
+  short: number;
+  medium: number;
+  long: number;
+}

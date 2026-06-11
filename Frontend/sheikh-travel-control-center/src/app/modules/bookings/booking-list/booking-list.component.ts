@@ -1,12 +1,13 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { MatTableDataSource } from '@angular/material/table';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatDialog } from '@angular/material/dialog';
 import { MatCheckboxChange } from '@angular/material/checkbox';
 import { Router } from '@angular/router';
 import { PageEvent } from '@angular/material/paginator';
+import { Subject, Subscription, debounceTime, distinctUntilChanged } from 'rxjs';
 import { BookingService } from '../../../core/services/booking.service';
-import { Booking, BookingStatus } from '../../../core/models/booking.model';
+import { Booking, BookingFilter, BookingStatus } from '../../../core/models/booking.model';
 import { ConfirmDialogComponent, ConfirmDialogData } from '../../../shared/components/confirm-dialog/confirm-dialog.component';
 
 @Component({
@@ -14,25 +15,25 @@ import { ConfirmDialogComponent, ConfirmDialogData } from '../../../shared/compo
   templateUrl: './booking-list.component.html',
   styleUrls: ['./booking-list.component.scss']
 })
-export class BookingListComponent implements OnInit {
+export class BookingListComponent implements OnInit, OnDestroy {
   displayedColumns = ['select', 'bookingNumber', 'customerName', 'routeName', 'pickupTime', 'passengerCount', 'totalAmount', 'status', 'actions'];
   dataSource = new MatTableDataSource<Booking>();
-  private allRows: Booking[] = [];
-  private filteredRows: Booking[] = [];
-  /** Selected booking ids (can span multiple pages of the filtered list). */
   readonly selectedIds = new Set<number>();
   bulkDeleting = false;
   loading = true;
   error: string | null = null;
   totalCount = 0;
   pageIndex = 0;
-  pageSize = 10;
+  pageSize = 25;
   selectedStatus = '';
   searchTerm = '';
   dateFrom: Date | null = null;
   dateTo: Date | null = null;
   amountMin: number | null = null;
   amountMax: number | null = null;
+
+  private readonly searchSubject = new Subject<string>();
+  private searchSub?: Subscription;
 
   statusOptions: Array<{ value: string; label: string }> = [
     { value: '', label: 'All' },
@@ -55,57 +56,50 @@ export class BookingListComponent implements OnInit {
     private dialog: MatDialog
   ) {}
 
-  ngOnInit(): void { this.load(); }
+  ngOnInit(): void {
+    this.searchSub = this.searchSubject.pipe(
+      debounceTime(350),
+      distinctUntilChanged()
+    ).subscribe(term => {
+      this.searchTerm = term;
+      this.load(true);
+    });
+    this.load();
+  }
 
-  load(): void {
+  ngOnDestroy(): void {
+    this.searchSub?.unsubscribe();
+  }
+
+  load(resetPage = false): void {
+    if (resetPage) this.pageIndex = 0;
     this.loading = true;
     this.error = null;
-    this.bookingService.getAll(1, 1000, this.selectedStatus || undefined).subscribe({
+    this.bookingService.getAll(this.pageIndex + 1, this.pageSize, this.buildFilter()).subscribe({
       next: r => {
-        this.allRows = r.items;
-        this.applyFilters(true);
+        this.dataSource.data = r.items;
+        this.totalCount = r.totalCount;
         this.loading = false;
       },
-      error: () => { this.loading = false; this.error = 'Failed to load bookings.'; }
+      error: () => {
+        this.loading = false;
+        this.error = 'Failed to load bookings.';
+      }
     });
+  }
+
+  onSearchChange(term: string): void {
+    this.searchSubject.next(term);
   }
 
   applyFilters(resetPage = false): void {
-    const q = this.searchTerm.trim().toLowerCase();
-    const fromMs = this.startOfDayMs(this.dateFrom);
-    const toMs = this.endOfDayMs(this.dateTo);
-    const min = this.amountMin ?? null;
-    const max = this.amountMax ?? null;
-
-    this.filteredRows = this.allRows.filter(b => {
-      if (q) {
-        const haystack = `${b.bookingNumber} ${b.customerName} ${b.routeName}`.toLowerCase();
-        if (!haystack.includes(q)) return false;
-      }
-      const pickup = new Date(b.pickupTime).getTime();
-      if (fromMs !== null && pickup < fromMs) return false;
-      if (toMs !== null && pickup > toMs) return false;
-      if (min !== null && b.totalAmount < min) return false;
-      if (max !== null && b.totalAmount > max) return false;
-      return true;
-    });
-
-    this.pruneSelectionToIds(new Set(this.filteredRows.map(b => b.id)));
-
-    this.totalCount = this.filteredRows.length;
-    if (resetPage) this.pageIndex = 0;
-    this.applyPaging();
-  }
-
-  applyPaging(): void {
-    const start = this.pageIndex * this.pageSize;
-    this.dataSource.data = this.filteredRows.slice(start, start + this.pageSize);
+    this.load(resetPage);
   }
 
   onPageChange(event: PageEvent): void {
     this.pageIndex = event.pageIndex;
     this.pageSize = event.pageSize;
-    this.applyPaging();
+    this.load();
   }
 
   clearFilters(): void {
@@ -115,7 +109,7 @@ export class BookingListComponent implements OnInit {
     this.amountMin = null;
     this.amountMax = null;
     this.selectedStatus = '';
-    this.load();
+    this.load(true);
   }
 
   applySmartFilter(key: 'today' | 'pending' | 'highValue'): void {
@@ -123,40 +117,45 @@ export class BookingListComponent implements OnInit {
     if (key === 'today') {
       this.dateFrom = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       this.dateTo = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      this.selectedStatus = '';
+      this.amountMin = null;
     } else if (key === 'pending') {
       this.selectedStatus = 'Pending';
-      this.load();
-      return;
     } else if (key === 'highValue') {
       this.amountMin = 10000;
+      this.amountMax = null;
     }
-    this.applyFilters(true);
+    this.load(true);
   }
 
   exportCsv(): void {
-    const rows = this.filteredRows.length ? this.filteredRows : this.allRows;
-    const csvRows = [
-      ['BookingNumber', 'Customer', 'Route', 'PickupTime', 'Passengers', 'Amount', 'Status'],
-      ...rows.map(b => [
-        b.bookingNumber,
-        b.customerName,
-        b.routeName,
-        new Date(b.pickupTime).toISOString(),
-        String(b.passengerCount),
-        String(b.totalAmount),
-        b.status
-      ])
-    ];
-    const csv = csvRows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `bookings-${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    this.bookingService.getAll(1, 10000, this.buildFilter()).subscribe({
+      next: r => {
+        const rows = r.items;
+        const csvRows = [
+          ['BookingNumber', 'Customer', 'Route', 'PickupTime', 'Passengers', 'Amount', 'Status'],
+          ...rows.map(b => [
+            b.bookingNumber,
+            b.customerName,
+            b.routeName,
+            new Date(b.pickupTime).toISOString(),
+            String(b.passengerCount),
+            String(b.totalAmount),
+            b.status
+          ])
+        ];
+        const csv = csvRows.map(row => row.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `bookings-${new Date().toISOString().slice(0, 10)}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+      },
+      error: () => this.snackBar.open('Failed to export bookings.', 'Close', { duration: 3000 })
+    });
   }
-
 
   view(id: number): void { this.router.navigate(['/bookings', id]); }
 
@@ -247,18 +246,16 @@ export class BookingListComponent implements OnInit {
       });
   }
 
-  private pruneSelectionToIds(validIds: Set<number>): void {
-    for (const id of [...this.selectedIds]) {
-      if (!validIds.has(id)) this.selectedIds.delete(id);
-    }
-  }
-
   getStatusColor(status: BookingStatus): string {
     return this.statusColors[status] ?? '#666';
   }
 
   trackByValue(_index: number, item: { value: string }): string {
     return item.value;
+  }
+
+  trackById(_index: number, item: Booking): number {
+    return item.id;
   }
 
   toDateInput(value: Date | null): string {
@@ -271,25 +268,22 @@ export class BookingListComponent implements OnInit {
 
   onDateFromChange(value: string): void {
     this.dateFrom = value ? new Date(`${value}T00:00:00`) : null;
-    this.applyFilters(true);
+    this.load(true);
   }
 
   onDateToChange(value: string): void {
     this.dateTo = value ? new Date(`${value}T00:00:00`) : null;
-    this.applyFilters(true);
+    this.load(true);
   }
 
-  private startOfDayMs(value: Date | null): number | null {
-    if (!value) return null;
-    const d = new Date(value);
-    d.setHours(0, 0, 0, 0);
-    return d.getTime();
-  }
-
-  private endOfDayMs(value: Date | null): number | null {
-    if (!value) return null;
-    const d = new Date(value);
-    d.setHours(23, 59, 59, 999);
-    return d.getTime();
+  private buildFilter(): BookingFilter {
+    return {
+      status: this.selectedStatus || undefined,
+      search: this.searchTerm.trim() || undefined,
+      dateFrom: this.dateFrom ? this.toDateInput(this.dateFrom) : undefined,
+      dateTo: this.dateTo ? this.toDateInput(this.dateTo) : undefined,
+      amountMin: this.amountMin ?? undefined,
+      amountMax: this.amountMax ?? undefined
+    };
   }
 }

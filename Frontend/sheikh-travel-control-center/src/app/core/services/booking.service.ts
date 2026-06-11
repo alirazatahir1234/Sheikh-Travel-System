@@ -3,7 +3,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import {
-  Booking, CreateBookingRequest, UpdateBookingRequest, AssignDriverRequest,
+  Booking, BookingFilter, CreateBookingRequest, UpdateBookingRequest, AssignDriverRequest,
   AssignVehicleRequest, UpdateBookingStatusRequest
 } from '../models/booking.model';
 import { PagedResult } from '../models/common.model';
@@ -15,9 +15,14 @@ export class BookingService {
 
   constructor(private http: HttpClient) {}
 
-  getAll(page = 1, pageSize = 10, status?: string): Observable<PagedResult<Booking>> {
+  getAll(page = 1, pageSize = 10, filter?: BookingFilter): Observable<PagedResult<Booking>> {
     let params = new HttpParams().set('page', page).set('pageSize', pageSize);
-    if (status) params = params.set('status', status);
+    if (filter?.status)    params = params.set('status', filter.status);
+    if (filter?.search)    params = params.set('search', filter.search);
+    if (filter?.dateFrom)  params = params.set('dateFrom', filter.dateFrom);
+    if (filter?.dateTo)    params = params.set('dateTo', filter.dateTo);
+    if (filter?.amountMin != null) params = params.set('amountMin', filter.amountMin);
+    if (filter?.amountMax != null) params = params.set('amountMax', filter.amountMax);
     return this.http.get<PagedResult<Booking>>(this.base, { params });
   }
 

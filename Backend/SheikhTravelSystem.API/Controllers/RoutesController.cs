@@ -19,6 +19,13 @@ public class RoutesController : BaseApiController
         => Ok(await Mediator.Send(query));
 
     /// <summary>
+    /// Gets distance-band counts for the route list filter chips.
+    /// </summary>
+    [HttpGet("stats")]
+    public async Task<IActionResult> GetStats([FromQuery] GetRouteListStatsQuery query)
+        => Ok(await Mediator.Send(query));
+
+    /// <summary>
     /// Gets a single route by identifier.
     /// </summary>
     [HttpGet("{id}")]

@@ -26,7 +26,7 @@
       <div class="stb-field stb-field--search">
         <label for="booking-search">Search</label>
         <input id="booking-search" class="stb-input" type="text"
-               [(ngModel)]="searchTerm" (ngModelChange)="applyFilters(true)"
+               [ngModel]="searchTerm" (ngModelChange)="onSearchChange($event)"
                placeholder="Booking #, customer, route" />
       </div>
 
@@ -55,13 +55,13 @@
       <div class="stb-field stb-field--filter stb-field--filter-narrow">
         <label for="booking-amount-min">Min Amount</label>
         <input id="booking-amount-min" class="stb-input" type="number"
-               [(ngModel)]="amountMin" (ngModelChange)="applyFilters(true)" />
+               [(ngModel)]="amountMin" (change)="applyFilters(true)" />
       </div>
 
       <div class="stb-field stb-field--filter stb-field--filter-narrow">
         <label for="booking-amount-max">Max Amount</label>
         <input id="booking-amount-max" class="stb-input" type="number"
-               [(ngModel)]="amountMax" (ngModelChange)="applyFilters(true)" />
+               [(ngModel)]="amountMax" (change)="applyFilters(true)" />
       </div>
 
       <button mat-stroked-button color="warn" class="clear-filters-btn" (click)="clearFilters()">Clear</button>
@@ -144,13 +144,13 @@
       </ng-container>
 
       <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-      <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
+      <tr mat-row *matRowDef="let row; columns: displayedColumns; trackBy: trackById"></tr>
     </table>
     </div>
 
     <div class="paginator-wrap">
-      <mat-paginator [length]="totalCount" [pageIndex]="pageIndex" [pageSize]="pageSize" [pageSizeOptions]="[10,25,50]"
-        (page)="onPageChange($event)">
+      <mat-paginator [length]="totalCount" [pageIndex]="pageIndex" [pageSize]="pageSize" [pageSizeOptions]="[10, 25, 50]"
+        [showFirstLastButtons]="true" (page)="onPageChange($event)">
       </mat-paginator>
     </div>
   </mat-card-content>
