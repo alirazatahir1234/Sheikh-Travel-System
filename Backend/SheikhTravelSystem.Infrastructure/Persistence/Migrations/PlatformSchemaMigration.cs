@@ -40,6 +40,7 @@ public static class PlatformSchemaMigration
         await SeedDefaultBranchAndDepartmentsAsync(connection, cancellationToken);
         await SeedSuperAdminPermissionsAsync(connection, cancellationToken);
         await EnsureOrganizationAndAccessMenusAsync(connection, cancellationToken);
+        await EnsureFleetMenusAsync(connection, cancellationToken);
         await EnsurePlatformAdminMenusAsync(connection, cancellationToken);
         await DeduplicatePlatformMenusAsync(connection, cancellationToken);
         await EnsurePlatformMenuUniqueIndexAsync(connection, cancellationToken);
@@ -405,6 +406,43 @@ public static class PlatformSchemaMigration
             cancellationToken: ct));
     }
 
+    private static async Task EnsureFleetMenusAsync(System.Data.IDbConnection connection, CancellationToken ct)
+    {
+        await connection.ExecuteAsync(new CommandDefinition("""
+            UPDATE PlatformModules SET Name = N'Fleet Management' WHERE ModuleKey = 'fleet';
+            """, cancellationToken: ct));
+
+        await connection.ExecuteAsync(new CommandDefinition("""
+            UPDATE pm SET pm.Name = N'Fuel', pm.SortOrder = 8, pm.IsActive = 1
+            FROM PlatformMenus pm
+            INNER JOIN PlatformModules m ON m.Id = pm.ModuleId
+            WHERE m.ModuleKey = 'fleet' AND pm.Name = N'Fuel Logs';
+            """, cancellationToken: ct));
+
+        var fleetMenus = new (string Name, string Route, string Icon, string Permission, int Sort)[]
+        {
+            ("Vehicles", "/vehicles", "directions_bus", "Vehicle.View", 1),
+            ("Drivers", "/drivers", "badge", "Driver.View", 2),
+            ("Assignments", "/fleet/assignments", "event_available", "Vehicle.View", 3),
+            ("GPS Tracking", "/gps-tracking", "my_location", "GPS.View", 4),
+            ("Maintenance", "/maintenance", "build", "Maintenance.View", 5),
+            ("Inspection", "/fleet/inspections", "fact_check", "Vehicle.View", 6),
+            ("Compliance", "/fleet/compliance", "verified_user", "Vehicle.View", 7),
+            ("Fuel", "/fuel-logs", "local_gas_station", "Fuel.View", 8),
+        };
+
+        foreach (var (name, route, icon, permission, sort) in fleetMenus)
+            await UpsertMenuUnderModuleAsync(connection, "fleet", name, route, icon, permission, sort, ct);
+
+        await connection.ExecuteAsync(new CommandDefinition("""
+            UPDATE pm SET pm.IsActive = 0
+            FROM PlatformMenus pm
+            INNER JOIN PlatformModules m ON m.Id = pm.ModuleId
+            WHERE m.ModuleKey = 'fleet'
+              AND pm.Name IN (N'Fuel Logs', N'Inspections');
+            """, cancellationToken: ct));
+    }
+
     private static async Task EnsurePlatformAdminMenusAsync(System.Data.IDbConnection connection, CancellationToken ct)
     {
         var orgMenuCount = await connection.ExecuteScalarAsync<int>(new CommandDefinition("""
@@ -499,7 +537,7 @@ public static class PlatformSchemaMigration
         {
             ("Dashboard", "dashboard", "dashboard", 1, false),
             ("Operations", "operations", "settings", 2, true),
-            ("Fleet", "fleet", "local_shipping", 3, true),
+            ("Fleet Management", "fleet", "local_shipping", 3, true),
             ("Customers", "customers", "groups", 4, true),
             ("Finance", "finance", "account_balance_wallet", 5, true),
             ("Analytics", "analytics", "bar_chart", 6, true),
@@ -528,9 +566,12 @@ public static class PlatformSchemaMigration
         await SeedMenuItemAsync(connection, "operations", null, "Routes", "/routes", "alt_route", "Route.View", 3, ct);
         await SeedMenuItemAsync(connection, "fleet", null, "Vehicles", "/vehicles", "directions_bus", "Vehicle.View", 1, ct);
         await SeedMenuItemAsync(connection, "fleet", null, "Drivers", "/drivers", "badge", "Driver.View", 2, ct);
-        await SeedMenuItemAsync(connection, "fleet", null, "GPS Tracking", "/gps-tracking", "my_location", "GPS.View", 3, ct);
-        await SeedMenuItemAsync(connection, "fleet", null, "Fuel Logs", "/fuel-logs", "local_gas_station", "Fuel.View", 4, ct);
+        await SeedMenuItemAsync(connection, "fleet", null, "Assignments", "/fleet/assignments", "event_available", "Vehicle.View", 3, ct);
+        await SeedMenuItemAsync(connection, "fleet", null, "GPS Tracking", "/gps-tracking", "my_location", "GPS.View", 4, ct);
         await SeedMenuItemAsync(connection, "fleet", null, "Maintenance", "/maintenance", "build", "Maintenance.View", 5, ct);
+        await SeedMenuItemAsync(connection, "fleet", null, "Inspection", "/fleet/inspections", "fact_check", "Vehicle.View", 6, ct);
+        await SeedMenuItemAsync(connection, "fleet", null, "Compliance", "/fleet/compliance", "verified_user", "Vehicle.View", 7, ct);
+        await SeedMenuItemAsync(connection, "fleet", null, "Fuel", "/fuel-logs", "local_gas_station", "Fuel.View", 8, ct);
         await SeedMenuItemAsync(connection, "customers", null, "Customers", "/customers", "group", "Customer.View", 1, ct);
         await SeedMenuItemAsync(connection, "finance", null, "Payments", "/payments", "payments", "Payment.View", 1, ct);
         await SeedMenuItemAsync(connection, "analytics", null, "Reports", "/reports", "insights", "Report.View", 1, ct);

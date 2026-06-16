@@ -1,0 +1,176 @@
+<div class="vehicle-table-wrap overflow-hidden rounded-xl border border-fleet-border bg-white">
+  @if (error()) {
+    <div class="flex items-center justify-between gap-3 border-b border-fleet-error/30 bg-fleet-error-soft px-5 py-3 text-sm text-fleet-error">
+      <span>{{ error() }}</span>
+      <button type="button" class="font-semibold underline" (click)="retry.emit()">Retry</button>
+    </div>
+  }
+
+  <div class="table-scroll overflow-x-auto">
+    <table class="w-full min-w-[1200px] text-left">
+      <thead class="sticky top-0 z-10 bg-fleet-surface-alt/80 backdrop-blur-sm">
+        <tr>
+          <th class="w-10 px-4 py-3">
+            <input type="checkbox" [checked]="allSelected()" (change)="toggleAll($any($event.target).checked)" />
+          </th>
+          <th class="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-fleet-text-muted">Vehicle Details</th>
+          <th class="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-fleet-text-muted">Status &amp; Health</th>
+          <th class="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-fleet-text-muted">Location</th>
+          <th class="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-fleet-text-muted">Driver</th>
+          <th class="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-fleet-text-muted">Telemetry</th>
+          <th class="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-fleet-text-muted">Odometer</th>
+          <th class="sticky right-0 bg-fleet-surface-alt/80 px-4 py-3 text-right text-[11px] font-bold uppercase tracking-wider text-fleet-text-muted">Actions</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-fleet-border">
+        @if (loading()) {
+          @for (i of [1,2,3,4,5]; track i) {
+            <tr>
+              @for (c of [1,2,3,4,5,6,7,8]; track c) {
+                <td class="px-4 py-4"><div class="h-3.5 w-3/4 animate-pulse rounded bg-fleet-surface-muted"></div></td>
+              }
+            </tr>
+          }
+        } @else if (!rows().length) {
+          <tr>
+            <td colspan="8" class="p-0">
+              <ui-empty-state icon="local_shipping" title="No vehicles found" description="Adjust filters or add a new vehicle to the fleet."></ui-empty-state>
+            </td>
+          </tr>
+        } @else {
+          @for (row of rows(); track trackById($index, row)) {
+            <tr class="cursor-pointer transition-colors hover:bg-fleet-primary/5" (click)="rowClick.emit(row)">
+              <td class="px-4 py-3" (click)="$event.stopPropagation()">
+                <input type="checkbox" [checked]="selectedIds().has(row.id)" (change)="toggleRow(row.id, $any($event.target).checked)" />
+              </td>
+              <td class="px-4 py-3">
+                <div class="flex items-center gap-3">
+                  <div class="flex h-10 w-14 shrink-0 items-center justify-center rounded-md bg-fleet-surface-muted text-fleet-text-muted">
+                    <mat-icon>local_shipping</mat-icon>
+                  </div>
+                  <div>
+                    <a
+                      class="font-bold text-fleet-primary hover:underline"
+                      [routerLink]="['/vehicles', row.id]"
+                      (click)="$event.stopPropagation()">
+                      {{ row.vehicleCode || row.registrationNumber }}
+                    </a>
+                    <div class="text-xs text-fleet-text-muted">
+                      {{ row.make || row.name }} {{ row.model || '' }} @if (row.year) { • {{ row.year }} }
+                    </div>
+                  </div>
+                </div>
+              </td>
+              <td class="px-4 py-3">
+                @let op = operationalStatus(row);
+                <div class="flex flex-col gap-1">
+                  <ui-status-badge [status]="op.label" [variant]="op.variant"></ui-status-badge>
+                  @if (row.engineIgnition != null) {
+                    <span class="text-[10px] font-bold" [class.text-emerald-600]="row.engineIgnition" [class.text-fleet-text-muted]="!row.engineIgnition">
+                      {{ row.engineIgnition ? 'ENGINE OK' : 'ENGINE WARN' }}
+                    </span>
+                  }
+                </div>
+              </td>
+              <td class="px-4 py-3">
+                <div class="flex items-start gap-1 text-sm">
+                  <mat-icon class="!text-[16px] text-fleet-text-muted">location_on</mat-icon>
+                  <div class="min-w-0 flex-1">
+                    <div>{{ locationText(row) }}</div>
+                    @if (row.locationLastUpdate) {
+                      <div class="text-[10px] text-fleet-text-muted">Updated {{ row.locationLastUpdate | date:'short' }}</div>
+                    }
+                  </div>
+                  @if (canTrack(row)) {
+                    <button
+                      type="button"
+                      class="action-btn shrink-0 text-fleet-primary"
+                      title="Live track"
+                      (click)="$event.stopPropagation(); track.emit(row)">
+                      <mat-icon>my_location</mat-icon>
+                    </button>
+                  }
+                </div>
+              </td>
+              <td class="px-4 py-3" (click)="$event.stopPropagation()">
+                @if (row.driverName) {
+                  <div class="flex items-center gap-2">
+                    <span class="flex h-8 w-8 items-center justify-center rounded-full bg-fleet-primary/15 text-xs font-bold text-fleet-primary">
+                      {{ driverInitials(row.driverName) }}
+                    </span>
+                    <span class="text-sm">{{ row.driverName }}</span>
+                  </div>
+                } @else {
+                  <div class="flex flex-col items-start gap-1.5">
+                    <div class="flex items-center gap-1.5 text-sm text-fleet-text-muted">
+                      <mat-icon class="!text-[16px]">person_outline</mat-icon>
+                      Unassigned
+                    </div>
+                    <ui-button variant="outline" size="sm" (clicked)="assign.emit(row)">Assign Driver</ui-button>
+                  </div>
+                }
+              </td>
+              <td class="px-4 py-3 text-xs">
+                @if (!hasTracker(row)) {
+                  <div class="flex items-center gap-1 rounded-md bg-amber-50 px-2 py-1.5 font-semibold text-amber-700">
+                    <mat-icon class="!text-[14px]">warning</mat-icon>
+                    Tracker Not Assigned
+                  </div>
+                } @else {
+                  <div class="space-y-0.5 text-fleet-text-muted">
+                    <div>IMEI: <span class="text-fleet-text">{{ row.gpsImei || '—' }}</span></div>
+                    <div>SIM: <span class="text-fleet-text">{{ row.gpsSim || '—' }}</span></div>
+                    <div>GPS: <span [class.text-emerald-600]="row.gpsOnline" [class.text-fleet-error]="!row.gpsOnline" class="font-semibold">{{ row.gpsOnline ? 'Online' : 'Offline' }}</span></div>
+                    <div>ACC: <span class="font-semibold text-fleet-text">{{ row.engineIgnition == null ? '—' : (row.engineIgnition ? 'ON' : 'OFF') }}</span></div>
+                    <div>Last Ping: <span class="text-fleet-text">{{ lastPing(row) }}</span></div>
+                  </div>
+                }
+              </td>
+              <td class="px-4 py-3">
+                <div class="font-semibold">{{ row.currentMileage | number }} km</div>
+                @let svc = serviceSubtext(row);
+                <div class="text-[10px]" [class.text-fleet-error]="svc.alert" [class.text-fleet-text-muted]="!svc.alert">{{ svc.text }}</div>
+              </td>
+              <td class="sticky right-0 bg-white px-4 py-3 text-right" (click)="$event.stopPropagation()">
+                <div class="inline-flex items-center gap-0.5">
+                  <button type="button" class="action-btn" title="View" (click)="view.emit(row)"><mat-icon>visibility</mat-icon></button>
+                  <button type="button" class="action-btn" title="Edit" (click)="edit.emit(row)"><mat-icon>edit</mat-icon></button>
+                  <button type="button" class="action-btn" title="Live Track" [disabled]="!canTrack(row)" (click)="track.emit(row)"><mat-icon>my_location</mat-icon></button>
+                  <button type="button" class="action-btn" title="Assign Driver" (click)="assign.emit(row)"><mat-icon>link</mat-icon></button>
+                  <button type="button" class="action-btn text-fleet-error" title="Delete" (click)="delete.emit(row)"><mat-icon>delete</mat-icon></button>
+                </div>
+              </td>
+            </tr>
+          }
+        }
+      </tbody>
+    </table>
+  </div>
+
+  @if (!loading() && pagination().total > 0) {
+    <div class="flex flex-wrap items-center justify-between gap-3 border-t border-fleet-border px-5 py-3 text-sm">
+      <label class="flex items-center gap-2 text-fleet-text-muted">
+        Rows per page
+        <select class="rounded-sm border border-fleet-border px-2 py-1"
+                [value]="pagination().pageSize"
+                (change)="pageSizeChange.emit(+$any($event.target).value)">
+          <option [value]="25">25</option>
+          <option [value]="50">50</option>
+          <option [value]="100">100</option>
+        </select>
+      </label>
+      <span class="text-fleet-text-muted">
+        Showing {{ rangeStart() }}–{{ rangeEnd() }} of {{ pagination().total }} entries
+      </span>
+      <div class="flex items-center gap-1">
+        <button type="button" class="page-btn" [disabled]="pagination().page <= 1" (click)="pageChange.emit(pagination().page - 1)">
+          <mat-icon>chevron_left</mat-icon>
+        </button>
+        <span class="px-2 font-semibold">{{ pagination().page }} / {{ totalPages() }}</span>
+        <button type="button" class="page-btn" [disabled]="pagination().page >= totalPages()" (click)="pageChange.emit(pagination().page + 1)">
+          <mat-icon>chevron_right</mat-icon>
+        </button>
+      </div>
+    </div>
+  }
+</div>

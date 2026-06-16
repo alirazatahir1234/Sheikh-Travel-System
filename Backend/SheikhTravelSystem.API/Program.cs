@@ -150,7 +150,7 @@ builder.Services.AddCors(options =>
 builder.Services.AddControllers()
     .AddJsonOptions(opts =>
         opts.JsonSerializerOptions.Converters.Add(
-            new System.Text.Json.Serialization.JsonStringEnumConverter()));
+            new System.Text.Json.Serialization.JsonStringEnumConverter(null, allowIntegerValues: true)));
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
@@ -238,6 +238,8 @@ using (var scope = app.Services.CreateScope())
         await PlatformSettingsMigration.ApplyAsync(dbFactory, logger);
         await OrganizationDesignerMigration.ApplyAsync(dbFactory, logger);
         await SubscriptionBillingMigration.ApplyAsync(dbFactory, logger);
+        await FleetSchemaMigration.ApplyAsync(dbFactory, logger);
+        await FleetComplianceMigration.ApplyAsync(dbFactory, logger);
     }
     catch (Exception ex)
     {
@@ -277,6 +279,17 @@ if (app.Environment.IsDevelopment())
 
 app.UseCors("AllowFrontendClients");
 app.UseRateLimiter();
+
+var fileStorageRoot = Path.Combine(app.Environment.ContentRootPath,
+    app.Configuration.GetValue<string>("FileStorage:RootPath") ?? "uploads");
+Directory.CreateDirectory(fileStorageRoot);
+var publicUploadPath = app.Configuration.GetValue<string>("FileStorage:PublicBasePath") ?? "/uploads";
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(fileStorageRoot),
+    RequestPath = publicUploadPath
+});
+
 app.UseAuthentication();
 app.UseMiddleware<TenantResolutionMiddleware>();
 app.UseAuthorization();

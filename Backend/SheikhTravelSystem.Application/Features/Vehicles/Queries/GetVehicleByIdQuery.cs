@@ -9,19 +9,19 @@ namespace SheikhTravelSystem.Application.Features.Vehicles.Queries;
 
 public record GetVehicleByIdQuery(int Id) : IRequest<ApiResponse<VehicleDto>>;
 
-public class GetVehicleByIdQueryHandler(IDbConnectionFactory dbFactory)
+public class GetVehicleByIdQueryHandler(IDbConnectionFactory dbFactory, ITenantContext tenantContext)
     : IRequestHandler<GetVehicleByIdQuery, ApiResponse<VehicleDto>>
 {
     public async Task<ApiResponse<VehicleDto>> Handle(GetVehicleByIdQuery request, CancellationToken cancellationToken)
     {
         using var connection = dbFactory.CreateConnection();
+        var tenantId = tenantContext.GetRequiredTenantId();
 
         var vehicle = await connection.QuerySingleOrDefaultAsync<VehicleDto>(
             new CommandDefinition(
-                @"SELECT Id, Name, RegistrationNumber, Model, Year, SeatingCapacity, FuelAverage,
-                  FuelType, CurrentMileage, InsuranceExpiryDate, Status, CreatedAt
-                  FROM Vehicles WHERE Id = @Id AND IsDeleted = 0",
-                new { request.Id },
+                $@"SELECT {VehicleSql.DetailColumns}
+                  FROM Vehicles WHERE Id = @Id AND TenantId = @TenantId AND IsDeleted = 0",
+                new { request.Id, TenantId = tenantId },
                 cancellationToken: cancellationToken));
 
         if (vehicle is null)

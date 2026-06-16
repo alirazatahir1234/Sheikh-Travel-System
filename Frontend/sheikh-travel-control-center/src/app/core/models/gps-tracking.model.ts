@@ -41,6 +41,9 @@ export interface GpsDevice {
   lastIgnition?: boolean;
   lastSeenAt?: string;
   isActive: boolean;
+  model?: string;
+  simNumber?: string;
+  vendor?: string;
 }
 
 export interface Geofence {

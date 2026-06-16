@@ -1,0 +1,95 @@
+<div class="inventory-page">
+  <ui-page-header
+    title="Vehicle Inventory Registry"
+    subtitle="Manage and monitor your enterprise fleet assets in real-time.">
+    <div class="header-actions">
+      <div class="sync-indicator">
+        <span class="sync-label">Last synced: {{ lastSyncLabel() }}</span>
+        <button type="button" class="sync-refresh" title="Refresh" (click)="load()">
+          <mat-icon>refresh</mat-icon>
+        </button>
+      </div>
+
+      <ui-button variant="outline" icon="upload" [disabled]="true" title="Coming soon">Import</ui-button>
+
+      <button mat-stroked-button [matMenuTriggerFor]="exportMenu" [disabled]="!filteredRows().length" class="export-btn">
+        <mat-icon>download</mat-icon>
+        Export
+        <mat-icon class="chevron">expand_more</mat-icon>
+      </button>
+      <mat-menu #exportMenu="matMenu">
+        <button mat-menu-item (click)="exportExcel()">
+          <mat-icon>description</mat-icon> Export as Excel
+        </button>
+        <button mat-menu-item (click)="exportPdf()">
+          <mat-icon>picture_as_pdf</mat-icon> Export as PDF
+        </button>
+      </mat-menu>
+
+      <ui-button variant="primary" icon="add" routerLink="/vehicles/new">Add Vehicle</ui-button>
+    </div>
+  </ui-page-header>
+
+  <div class="kpi-grid">
+    @for (card of kpiCards(); track card.title) {
+      <fleet-summary-card [card]="card"></fleet-summary-card>
+    }
+  </div>
+
+  <fleet-filter-toolbar
+    [filters]="filters()"
+    [vehicleTypeOptions]="vehicleTypeOptions()"
+    [statusOptions]="statusOptions"
+    [branchOptions]="branchOptions()"
+    [resultSummary]="resultSummary()"
+    (filtersChange)="onFiltersChange($event)"
+    (advancedFilters)="advancedFiltersOpen.set(true)"
+    (refresh)="load()">
+  </fleet-filter-toolbar>
+
+  <vehicle-bulk-toolbar
+    [count]="selection().size"
+    (assign)="onBulkAssign()"
+    (export)="onBulkExport()"
+    (delete)="onBulkDelete()"
+    (scheduleMaintenance)="onBulkScheduleMaintenance()"
+    (clear)="clearSelection()">
+  </vehicle-bulk-toolbar>
+
+  <vehicle-table
+    [rows]="displayRows()"
+    [loading]="loading()"
+    [error]="error()"
+    [pagination]="{ page: pagination().page, pageSize: pagination().pageSize, total: filteredRows().length }"
+    [selectedIds]="selection()"
+    (rowClick)="openDrawer($event)"
+    (view)="openDrawer($event)"
+    (edit)="onEdit($event)"
+    (track)="onTrack($event)"
+    (assign)="onAssign($event)"
+    (delete)="onDelete($event)"
+    (selectionChange)="onSelectionChange($event)"
+    (pageChange)="onPageChange($event)"
+    (pageSizeChange)="onPageSizeChange($event)"
+    (retry)="load()">
+  </vehicle-table>
+
+  <vehicle-registry-fab></vehicle-registry-fab>
+
+  <vehicle-advanced-filters
+    [open]="advancedFiltersOpen()"
+    [filters]="filters()"
+    [driverOptions]="driverOptions()"
+    (close)="advancedFiltersOpen.set(false)"
+    (filtersChange)="onFiltersChange($event)">
+  </vehicle-advanced-filters>
+
+  <app-vehicle-details-drawer
+    [(open)]="drawerOpen"
+    [vehicleId]="selectedVehicleId()"
+    (statusChanged)="load()"
+    (closed)="selectedVehicleId.set(null)">
+  </app-vehicle-details-drawer>
+
+  <vehicle-assign-dialog (assigned)="load()"></vehicle-assign-dialog>
+</div>

@@ -8,7 +8,7 @@ import { BookingService } from '../../../core/services/booking.service';
 import { FuelLogService } from '../../../core/services/fuel-log.service';
 import { MaintenanceService } from '../../../core/services/maintenance.service';
 import { Vehicle, VehicleStatus, VehicleStatusLabels } from '../../../core/models/vehicle.model';
-import { VehicleDocument } from '../../../core/services/vehicle.service';
+import { VehicleDocument } from '../../../core/models/vehicle.model';
 import { Booking } from '../../../core/models/booking.model';
 import { FuelLog, FuelTypeLabels, FuelType } from '../../../core/models/fuel-log.model';
 import { Maintenance, MaintenanceStatusLabels, MaintenanceStatus } from '../../../core/models/maintenance.model';

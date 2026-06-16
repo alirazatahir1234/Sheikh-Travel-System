@@ -9,11 +9,14 @@ import {
   ViewChild
 } from '@angular/core';
 import { Chart, registerables } from 'chart.js';
+import { SharedModule } from '../../../shared/shared.module';
 
 Chart.register(...registerables);
 
 @Component({
   selector: 'app-dashboard-analytics',
+  standalone: true,
+  imports: [SharedModule],
   templateUrl: './dashboard-analytics.component.html',
   styleUrls: ['./dashboard-analytics.component.scss']
 })

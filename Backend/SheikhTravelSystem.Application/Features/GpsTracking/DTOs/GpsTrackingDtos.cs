@@ -36,14 +36,20 @@ public record GpsDeviceDto(
     bool SupportsEngineCutoff,
     bool? LastIgnition,
     DateTime? LastSeenAt,
-    bool IsActive);
+    bool IsActive,
+    string? Model = null,
+    string? SimNumber = null,
+    string? Vendor = null);
 
 public record CreateGpsDeviceDto(
     int? VehicleId,
     string UniqueId,
     string Name,
     string? Protocol,
-    bool SupportsEngineCutoff);
+    bool SupportsEngineCutoff,
+    string? Model = null,
+    string? SimNumber = null,
+    string? Vendor = null);
 
 public record UpdateGpsDeviceDto(
     int? VehicleId,

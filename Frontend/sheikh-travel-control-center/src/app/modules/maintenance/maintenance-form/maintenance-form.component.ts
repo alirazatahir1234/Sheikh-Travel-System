@@ -56,6 +56,14 @@ export class MaintenanceFormComponent implements OnInit {
       this.form.patchValue({ description: this.templates[template] });
     }
 
+    const vehicleIds = this.route.snapshot.queryParamMap.get('vehicleIds');
+    if (vehicleIds) {
+      const firstId = Number(vehicleIds.split(',')[0]);
+      if (Number.isFinite(firstId)) {
+        this.form.patchValue({ vehicleId: firstId });
+      }
+    }
+
     const idParam = this.route.snapshot.paramMap.get('id');
     if (idParam) {
       this.editMode = true;

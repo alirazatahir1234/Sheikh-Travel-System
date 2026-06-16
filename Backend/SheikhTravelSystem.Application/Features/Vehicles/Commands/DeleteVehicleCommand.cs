@@ -13,17 +13,18 @@ public record DeleteVehicleCommand(int Id) : IRequest<ApiResponse<bool>>, IAudit
     public int? AuditEntityId => Id;
 }
 
-public class DeleteVehicleCommandHandler(IDbConnectionFactory dbFactory)
+public class DeleteVehicleCommandHandler(IDbConnectionFactory dbFactory, ITenantContext tenantContext)
     : IRequestHandler<DeleteVehicleCommand, ApiResponse<bool>>
 {
     public async Task<ApiResponse<bool>> Handle(DeleteVehicleCommand request, CancellationToken cancellationToken)
     {
         using var connection = dbFactory.CreateConnection();
+        var tenantId = tenantContext.GetRequiredTenantId();
 
         var exists = await connection.ExecuteScalarAsync<bool>(
             new CommandDefinition(
-                "SELECT CASE WHEN EXISTS(SELECT 1 FROM Vehicles WHERE Id = @Id AND IsDeleted = 0) THEN 1 ELSE 0 END",
-                new { request.Id },
+                "SELECT CASE WHEN EXISTS(SELECT 1 FROM Vehicles WHERE Id = @Id AND TenantId = @TenantId AND IsDeleted = 0) THEN 1 ELSE 0 END",
+                new { request.Id, TenantId = tenantId },
                 cancellationToken: cancellationToken));
 
         if (!exists)

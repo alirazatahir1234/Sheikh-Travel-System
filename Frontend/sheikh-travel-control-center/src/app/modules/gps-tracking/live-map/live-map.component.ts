@@ -7,7 +7,7 @@ import {
   ViewChild,
   HostListener
 } from '@angular/core';
-import { Router } from '@angular/router';
+import { Router, ActivatedRoute } from '@angular/router';
 import type * as LeafletTypes from 'leaflet';
 import {
   createMarkerClusterGroup,
@@ -135,14 +135,26 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
   geofenceBreachCount = 0;
   private realtimeSub?: { unsubscribe(): void };
 
+  private pendingFocusVehicleId: number | null = null;
+
   constructor(
     private gpsService: GpsTrackingService,
     private realtime: GpsRealtimeService,
     private vehicleService: VehicleService,
-    private router: Router
+    private router: Router,
+    private route: ActivatedRoute
   ) {}
 
   ngOnInit(): void {
+    const vehicleIdParam = this.route.snapshot.queryParamMap.get('vehicleId');
+    if (vehicleIdParam) {
+      const id = Number(vehicleIdParam);
+      if (Number.isFinite(id)) {
+        this.pendingFocusVehicleId = id;
+        this.selectedVehicleId = id;
+      }
+    }
+
     this.applyTimePreset('today');
     this.vehicleService.getAll(1, 500).subscribe({
       next: r => { this.vehicles = r.items; },
@@ -445,7 +457,15 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
         const gpsLocs = locs.filter(l => l.hasGps);
         this.updateMarkers(gpsLocs);
         this.emitTelemetryEvents(gpsLocs, prevMoving);
-        if (!silent) this.centerMap();
+        if (this.pendingFocusVehicleId != null) {
+          const target = locs.find(l => l.vehicleId === this.pendingFocusVehicleId);
+          if (target) {
+            this.focusVehicle(target);
+            this.pendingFocusVehicleId = null;
+          }
+        } else if (!silent) {
+          this.centerMap();
+        }
         this.pushEvent('Fleet positions synced', 'success', 'sync');
       },
       error: () => {

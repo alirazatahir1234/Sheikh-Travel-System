@@ -8,7 +8,7 @@ using SheikhTravelSystem.Application.Features.Vehicles.DTOs;
 
 namespace SheikhTravelSystem.Application.Features.Vehicles.Commands;
 
-public record CreateVehicleCommand(CreateVehicleDto Vehicle) : IRequest<ApiResponse<int>>, IAuditableCommand
+public record CreateVehicleCommand(CreateVehicleDto Vehicle, bool SaveAsDraft = false) : IRequest<ApiResponse<int>>, IAuditableCommand
 {
     public string AuditAction => "Create";
     public string AuditEntityName => "Vehicle";
@@ -19,10 +19,15 @@ public class CreateVehicleCommandValidator : AbstractValidator<CreateVehicleComm
 {
     public CreateVehicleCommandValidator()
     {
-        RuleFor(x => x.Vehicle.Name).NotEmpty().MaximumLength(100);
-        RuleFor(x => x.Vehicle.RegistrationNumber).NotEmpty().MaximumLength(20);
-        RuleFor(x => x.Vehicle.FuelAverage).GreaterThan(0);
-        RuleFor(x => x.Vehicle.SeatingCapacity).GreaterThan(0);
+        When(x => !x.SaveAsDraft, () =>
+        {
+            RuleFor(x => x.Vehicle.Name).NotEmpty().MaximumLength(100);
+            RuleFor(x => x.Vehicle.RegistrationNumber).NotEmpty().MaximumLength(20);
+            RuleFor(x => x.Vehicle.FuelAverage).GreaterThan(0);
+            RuleFor(x => x.Vehicle.SeatingCapacity).GreaterThan(0);
+        });
+        RuleFor(x => x.Vehicle.VehicleCode).MaximumLength(40).When(x => x.Vehicle.VehicleCode != null);
+        RuleFor(x => x.Vehicle.VIN).MaximumLength(64).When(x => x.Vehicle.VIN != null);
     }
 }
 
@@ -35,32 +40,59 @@ public class CreateVehicleCommandHandler(IDbConnectionFactory dbFactory, ITenant
         var dto = request.Vehicle;
         var tenantId = tenantContext.GetRequiredTenantId();
 
-        var exists = await connection.ExecuteScalarAsync<bool>(
-            new CommandDefinition(
-                "SELECT CASE WHEN EXISTS(SELECT 1 FROM Vehicles WHERE RegistrationNumber = @Reg AND IsDeleted = 0 AND TenantId = @TenantId) THEN 1 ELSE 0 END",
-                new { Reg = dto.RegistrationNumber, TenantId = tenantId },
-                cancellationToken: cancellationToken));
+        var registration = string.IsNullOrWhiteSpace(dto.RegistrationNumber)
+            ? $"DRAFT-{tenantId}-{DateTime.UtcNow.Ticks}"
+            : dto.RegistrationNumber.Trim();
 
-        if (exists)
-            throw new ConflictException($"Vehicle with registration '{dto.RegistrationNumber}' already exists.");
+        if (!request.SaveAsDraft || !registration.StartsWith("DRAFT-", StringComparison.Ordinal))
+        {
+            var exists = await connection.ExecuteScalarAsync<bool>(
+                new CommandDefinition(
+                    "SELECT CASE WHEN EXISTS(SELECT 1 FROM Vehicles WHERE RegistrationNumber = @Reg AND IsDeleted = 0 AND TenantId = @TenantId) THEN 1 ELSE 0 END",
+                    new { Reg = registration, TenantId = tenantId },
+                    cancellationToken: cancellationToken));
+
+            if (exists)
+                throw new ConflictException($"Vehicle with registration '{registration}' already exists.");
+        }
+
+        var status = request.SaveAsDraft
+            ? Domain.Enums.VehicleStatus.Draft
+            : Domain.Enums.VehicleStatus.Available;
+
+        var name = string.IsNullOrWhiteSpace(dto.Name) ? "Draft Vehicle" : dto.Name.Trim();
+        var seating = dto.SeatingCapacity > 0 ? dto.SeatingCapacity : 1;
+        var fuelAverage = dto.FuelAverage > 0 ? dto.FuelAverage : 1m;
 
         var id = await connection.ExecuteScalarAsync<int>(
             new CommandDefinition(
-                @"INSERT INTO Vehicles (TenantId, Name, RegistrationNumber, Model, Year, SeatingCapacity, FuelAverage, FuelType,
-                  CurrentMileage, InsuranceExpiryDate, Status, CreatedAt, IsDeleted)
-                  VALUES (@TenantId, @Name, @RegistrationNumber, @Model, @Year, @SeatingCapacity, @FuelAverage, @FuelType,
-                  @CurrentMileage, @InsuranceExpiryDate, @Status, @CreatedAt, 0);
+                @"INSERT INTO Vehicles (TenantId, Name, RegistrationNumber, VehicleCode, VIN, Make, Model, Year,
+                  Color, VehicleType, SeatingCapacity, FuelAverage, FuelType, EngineNo, ChassisNo,
+                  CurrentMileage, InsuranceExpiryDate, PurchaseDate, PurchasePrice, BranchId, DepartmentId,
+                  Status, CreatedAt, IsDeleted)
+                  VALUES (@TenantId, @Name, @RegistrationNumber, @VehicleCode, @VIN, @Make, @Model, @Year,
+                  @Color, @VehicleType, @SeatingCapacity, @FuelAverage, @FuelType, @EngineNo, @ChassisNo,
+                  @CurrentMileage, @InsuranceExpiryDate, @PurchaseDate, @PurchasePrice, @BranchId, @DepartmentId,
+                  @Status, @CreatedAt, 0);
                   SELECT SCOPE_IDENTITY();",
                 new
                 {
                     TenantId = tenantId,
-                    dto.Name, dto.RegistrationNumber, dto.Model, dto.Year, dto.SeatingCapacity,
-                    dto.FuelAverage, FuelType = (int)dto.FuelType, dto.CurrentMileage,
-                    dto.InsuranceExpiryDate, Status = (int)Domain.Enums.VehicleStatus.Available,
+                    Name = name,
+                    RegistrationNumber = registration,
+                    dto.VehicleCode, dto.VIN, dto.Make, dto.Model, dto.Year,
+                    dto.Color, dto.VehicleType,
+                    SeatingCapacity = seating,
+                    FuelAverage = fuelAverage,
+                    FuelType = (int)dto.FuelType, dto.EngineNo, dto.ChassisNo,
+                    dto.CurrentMileage, dto.InsuranceExpiryDate, dto.PurchaseDate, dto.PurchasePrice,
+                    dto.BranchId, dto.DepartmentId,
+                    Status = (int)status,
                     CreatedAt = DateTime.UtcNow
                 },
                 cancellationToken: cancellationToken));
 
-        return ApiResponse<int>.SuccessResponse(id, "Vehicle created successfully.");
+        var message = request.SaveAsDraft ? "Vehicle draft saved." : "Vehicle created successfully.";
+        return ApiResponse<int>.SuccessResponse(id, message);
     }
 }

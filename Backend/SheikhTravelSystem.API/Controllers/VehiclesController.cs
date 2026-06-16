@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using SheikhTravelSystem.API.Models;
 using SheikhTravelSystem.Application.Features.Vehicles.Commands;
+using SheikhTravelSystem.Application.Features.Vehicles.DTOs;
 using SheikhTravelSystem.Application.Features.Vehicles.Queries;
 
 namespace SheikhTravelSystem.API.Controllers;
@@ -29,9 +31,9 @@ public class VehiclesController : BaseApiController
     /// Creates a new vehicle.
     /// </summary>
     [HttpPost]
-    public async Task<IActionResult> Create([FromBody] CreateVehicleCommand command)
+    public async Task<IActionResult> Create([FromBody] CreateVehicleApiRequest request)
     {
-        var result = await Mediator.Send(command);
+        var result = await Mediator.Send(new CreateVehicleCommand(request.Vehicle, request.SaveAsDraft));
         return CreatedAtAction(nameof(GetById), new { id = result.Data }, result);
     }
 
@@ -64,6 +66,54 @@ public class VehiclesController : BaseApiController
     public async Task<IActionResult> AddDocument(int id, [FromBody] CreateVehicleDocumentRequest body)
         => Ok(await Mediator.Send(new CreateVehicleDocumentCommand(
             id, body.DocumentType, body.FileUrl, body.ExpiryDate, body.Notes)));
+
+    [HttpPost("{id}/documents/upload")]
+    [Consumes("multipart/form-data")]
+    [RequestSizeLimit(12 * 1024 * 1024)]
+    public async Task<IActionResult> UploadDocument(int id, [FromForm] UploadVehicleDocumentForm form)
+    {
+        if (form.File is null || form.File.Length == 0)
+            return BadRequest("File is required.");
+
+        await using var stream = form.File.OpenReadStream();
+        var result = await Mediator.Send(new UploadVehicleDocumentCommand(
+            id,
+            stream,
+            form.File.FileName,
+            form.File.ContentType ?? "application/octet-stream",
+            form.DocumentType,
+            form.ExpiryDate,
+            form.Notes));
+        return Ok(result);
+    }
+
+    [HttpPost("{id}/publish")]
+    public async Task<IActionResult> Publish(int id)
+        => Ok(await Mediator.Send(new PublishVehicleCommand(id)));
+
+    [HttpGet("{id}/maintenance")]
+    public async Task<IActionResult> GetMaintenance(int id, [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
+        => Ok(await Mediator.Send(new GetVehicleMaintenanceQuery(id, page, pageSize)));
+
+    [HttpGet("{id}/fuel")]
+    public async Task<IActionResult> GetFuel(int id, [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
+        => Ok(await Mediator.Send(new GetVehicleFuelQuery(id, page, pageSize)));
+
+    [HttpGet("{id}/gps")]
+    public async Task<IActionResult> GetGps(int id)
+        => Ok(await Mediator.Send(new GetVehicleGpsQuery(id)));
+
+    [HttpPost("{id}/change-status")]
+    public async Task<IActionResult> ChangeStatus(int id, [FromBody] ChangeVehicleStatusRequest body)
+        => Ok(await Mediator.Send(new ChangeVehicleStatusCommand(id, body)));
+
+    [HttpPost("{id}/assign-driver")]
+    public async Task<IActionResult> AssignDriver(int id, [FromBody] AssignVehicleDriverRequest body)
+        => Ok(await Mediator.Send(new AssignVehicleDriverCommand(id, body)));
+
+    [HttpPost("{id}/assign-gps")]
+    public async Task<IActionResult> AssignGps(int id, [FromBody] AssignVehicleGpsRequest body)
+        => Ok(await Mediator.Send(new AssignVehicleGpsCommand(id, body)));
 }
 
 public record CreateVehicleDocumentRequest(

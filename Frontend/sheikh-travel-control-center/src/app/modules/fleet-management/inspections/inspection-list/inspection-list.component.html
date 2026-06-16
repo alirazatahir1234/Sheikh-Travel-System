@@ -1,0 +1,42 @@
+<fleet-page-header
+  eyebrow="Fleet Management"
+  title="Inspections"
+  subtitle="Checklist-based vehicle safety inspections"
+  icon="fact_check">
+  <button mat-flat-button color="primary">
+    <mat-icon>add_task</mat-icon> New Inspection
+  </button>
+</fleet-page-header>
+
+<div class="inspection-loading" *ngIf="loading">
+  <mat-progress-spinner mode="indeterminate" diameter="32"></mat-progress-spinner>
+</div>
+
+<div class="inspection-table-wrap" *ngIf="!loading && inspections.length">
+  <table class="inspection-table">
+    <thead>
+      <tr>
+        <th>Vehicle</th>
+        <th>Inspected By</th>
+        <th>Date</th>
+        <th>Odometer</th>
+        <th>Result</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let row of inspections">
+        <td>{{ row.vehicleName }}</td>
+        <td>{{ row.inspectedBy || '—' }}</td>
+        <td>{{ row.inspectionDate | date: 'mediumDate' }}</td>
+        <td>{{ row.odometerReading != null ? (row.odometerReading | number) + ' km' : '—' }}</td>
+        <td><fleet-status-badge [status]="row.result"></fleet-status-badge></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="inspection-empty" *ngIf="!loading && !inspections.length">
+  <mat-icon>fact_check</mat-icon>
+  <p>No inspections recorded yet.</p>
+  <span>Run a pre-trip checklist to capture vehicle condition and photos.</span>
+</div>

@@ -1,0 +1,44 @@
+<fleet-page-header
+  eyebrow="Fleet Management"
+  title="Assignments"
+  subtitle="Assign vehicles and drivers to trips"
+  icon="event_available">
+  <button mat-flat-button color="primary">
+    <mat-icon>add</mat-icon> New Assignment
+  </button>
+</fleet-page-header>
+
+<div class="assignment-loading" *ngIf="loading">
+  <mat-progress-spinner mode="indeterminate" diameter="32"></mat-progress-spinner>
+</div>
+
+<div class="assignment-table-wrap" *ngIf="!loading && assignments.length">
+  <table class="assignment-table">
+    <thead>
+      <tr>
+        <th>Vehicle</th>
+        <th>Driver</th>
+        <th>Type</th>
+        <th>Start</th>
+        <th>End</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let row of assignments">
+        <td>{{ row.vehicleName }}</td>
+        <td>{{ row.driverName || '—' }}</td>
+        <td>{{ row.assignmentType }}</td>
+        <td>{{ row.startAt | date: 'short' }}</td>
+        <td>{{ row.endAt ? (row.endAt | date: 'short') : '—' }}</td>
+        <td><fleet-status-badge [status]="row.status"></fleet-status-badge></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="assignment-empty" *ngIf="!loading && !assignments.length">
+  <mat-icon>event_available</mat-icon>
+  <p>No active assignments.</p>
+  <span>Assign an available vehicle and driver to a trip to see it here.</span>
+</div>

@@ -26,15 +26,54 @@ const operationsGroup: NavGroup = {
 
 const fleetGroup: NavGroup = {
   id: 'fleet',
-  label: 'Fleet',
+  label: 'Fleet Management',
   icon: 'local_shipping',
   collapsible: true,
   items: [
+    { id: 'fleet-dashboard', label: 'Dashboard', icon: 'dashboard', route: '/fleet/dashboard', moduleKey: 'vehicles' },
     { id: 'vehicles', label: 'Vehicles', icon: 'directions_bus', route: '/vehicles', moduleKey: 'vehicles' },
     { id: 'drivers', label: 'Drivers', icon: 'badge', route: '/drivers', moduleKey: 'drivers' },
-    { id: 'gps-tracking', label: 'GPS Tracking', icon: 'my_location', route: '/gps-tracking', moduleKey: 'gps-tracking' },
-    { id: 'fuel-logs', label: 'Fuel Logs', icon: 'local_gas_station', route: '/fuel-logs', moduleKey: 'fuel-logs' },
-    { id: 'maintenance', label: 'Maintenance', icon: 'build', route: '/maintenance', moduleKey: 'maintenance' }
+    { id: 'assignments', label: 'Assignments', icon: 'event_available', route: '/fleet/assignments', moduleKey: 'vehicles' }
+  ]
+};
+
+const fleetOperationsGroup: NavGroup = {
+  id: 'fleet-operations',
+  label: 'Operations',
+  icon: 'settings',
+  collapsible: true,
+  items: [
+    { id: 'live-tracking', label: 'Live Tracking', icon: 'my_location', route: '/gps-tracking/live', moduleKey: 'gps-tracking' },
+    { id: 'gps-trips', label: 'Trips', icon: 'route', route: '/gps-tracking/trips', moduleKey: 'gps-tracking' },
+    { id: 'maintenance', label: 'Maintenance', icon: 'build', route: '/maintenance', moduleKey: 'maintenance' },
+    { id: 'fuel-logs', label: 'Fuel', icon: 'local_gas_station', route: '/fuel-logs', moduleKey: 'fuel-logs' },
+    { id: 'inspections', label: 'Inspections', icon: 'fact_check', route: '/fleet/inspections', moduleKey: 'vehicles' },
+    { id: 'compliance', label: 'Compliance', icon: 'verified_user', route: '/fleet/compliance', moduleKey: 'vehicles' },
+    { id: 'gps-tracking', label: 'GPS Tracking', icon: 'gps_fixed', route: '/gps-tracking', moduleKey: 'gps-tracking' }
+  ]
+};
+
+const fleetResourcesGroup: NavGroup = {
+  id: 'fleet-resources',
+  label: 'Resources',
+  icon: 'folder',
+  collapsible: true,
+  items: [
+    { id: 'fleet-documents', label: 'Documents', icon: 'description', route: '/fleet/compliance', moduleKey: 'vehicles' },
+    { id: 'fleet-expenses', label: 'Expenses', icon: 'money_off', route: '/fuel-logs', moduleKey: 'fuel-logs' },
+    { id: 'fleet-reports', label: 'Reports', icon: 'insights', route: '/reports', moduleKey: 'reports' }
+  ]
+};
+
+const fleetAdminGroup: NavGroup = {
+  id: 'fleet-admin',
+  label: 'Administration',
+  icon: 'admin_panel_settings',
+  collapsible: true,
+  items: [
+    { id: 'tracker-config', label: 'Tracker Configuration', icon: 'settings_input_antenna', route: '/gps-tracking/devices', moduleKey: 'gps-tracking' },
+    { id: 'geofencing', label: 'Geofencing', icon: 'fence', route: '/gps-tracking/geofences', moduleKey: 'gps-tracking' },
+    { id: 'fleet-settings', label: 'Settings', icon: 'tune', route: '/settings', moduleKey: 'platform' }
   ]
 };
 
@@ -71,6 +110,8 @@ const analyticsGroup: NavGroup = {
   collapsible: true,
   items: [
     { id: 'reports', label: 'Reports', icon: 'insights', route: '/reports', moduleKey: 'reports' },
+    { id: 'fleet-analytics', label: 'Fleet Analytics', icon: 'analytics', route: '/reports', moduleKey: 'reports' },
+    { id: 'driver-performance', label: 'Driver Performance', icon: 'speed', route: '/reports', moduleKey: 'reports' },
     { id: 'audit-logs', label: 'Audit Logs', icon: 'history', route: '/audit-logs', adminOnly: true, moduleKey: 'audit-logs' },
     { id: 'performance-analytics', label: 'Performance Analytics', icon: 'speed', route: '/reports', moduleKey: 'reports' }
   ]
@@ -146,6 +187,9 @@ const allGroups: NavGroup[] = [
   dashboardGroup,
   operationsGroup,
   fleetGroup,
+  fleetOperationsGroup,
+  fleetResourcesGroup,
+  fleetAdminGroup,
   customersGroup,
   financeGroup,
   analyticsGroup,
@@ -167,7 +211,7 @@ const driverItems: NavItem[] = [
 
 const tenantGroupIds: Record<TenantType, string[]> = {
   [TenantType.TravelAgency]: ['dashboard', 'operations', 'customers', 'finance', 'analytics', 'organization', 'identity', 'platform', 'access_control'],
-  [TenantType.FleetOperator]: ['dashboard', 'fleet', 'analytics', 'organization', 'identity', 'platform', 'access_control'],
+  [TenantType.FleetOperator]: ['dashboard', 'fleet', 'fleet-operations', 'fleet-resources', 'fleet-admin', 'analytics', 'organization', 'identity', 'platform', 'access_control'],
   [TenantType.CorporateCustomer]: ['dashboard', 'operations', 'customers', 'finance', 'analytics', 'organization', 'identity', 'platform', 'access_control'],
   [TenantType.Driver]: []
 };
@@ -185,10 +229,24 @@ const tenantItemIds: Partial<Record<TenantType, Set<string>>> = {
   ]),
   [TenantType.FleetOperator]: new Set([
     'dashboard',
+    'fleet-dashboard',
     'vehicles',
     'drivers',
+    'assignments',
+    'live-tracking',
+    'gps-trips',
     'gps-tracking',
     'maintenance',
+    'fuel-logs',
+    'inspections',
+    'compliance',
+    'fleet-documents',
+    'fleet-expenses',
+    'fleet-reports',
+    'tracker-config',
+    'geofencing',
+    'fleet-analytics',
+    'driver-performance',
     'reports',
     'tenant-settings'
   ])

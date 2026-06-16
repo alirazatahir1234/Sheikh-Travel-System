@@ -6,34 +6,37 @@ using SheikhTravelSystem.Application.Features.Vehicles.DTOs;
 
 namespace SheikhTravelSystem.Application.Features.Vehicles.Queries;
 
-public record GetVehiclesQuery(int Page = 1, int PageSize = 20) : IRequest<ApiResponse<PagedResult<VehicleDto>>>;
+public record GetVehiclesQuery(int Page = 1, int PageSize = 20, bool IncludeDrafts = false)
+    : IRequest<ApiResponse<PagedResult<VehicleListItemDto>>>;
 
 public class GetVehiclesQueryHandler(IDbConnectionFactory dbFactory, ITenantContext tenantContext)
-    : IRequestHandler<GetVehiclesQuery, ApiResponse<PagedResult<VehicleDto>>>
+    : IRequestHandler<GetVehiclesQuery, ApiResponse<PagedResult<VehicleListItemDto>>>
 {
-    public async Task<ApiResponse<PagedResult<VehicleDto>>> Handle(GetVehiclesQuery request, CancellationToken cancellationToken)
+    public async Task<ApiResponse<PagedResult<VehicleListItemDto>>> Handle(GetVehiclesQuery request, CancellationToken cancellationToken)
     {
         using var connection = dbFactory.CreateConnection();
         var offset = (request.Page - 1) * request.PageSize;
         var tenantId = tenantContext.GetRequiredTenantId();
 
-        var vehicles = await connection.QueryAsync<VehicleDto>(
+        var draftFilter = request.IncludeDrafts ? "" : " AND v.Status <> 5";
+
+        var vehicles = await connection.QueryAsync<VehicleListItemDto>(
             new CommandDefinition(
-                @"SELECT Id, Name, RegistrationNumber, Model, Year, SeatingCapacity, FuelAverage,
-                  FuelType, CurrentMileage, InsuranceExpiryDate, Status, CreatedAt
-                  FROM Vehicles WHERE IsDeleted = 0 AND TenantId = @TenantId
-                  ORDER BY CreatedAt DESC
+                $@"SELECT {VehicleSql.ListSelect}
+                  {VehicleSql.ListFrom}
+                  WHERE v.IsDeleted = 0 AND v.TenantId = @TenantId{draftFilter}
+                  ORDER BY v.CreatedAt DESC
                   OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY",
                 new { Offset = offset, request.PageSize, TenantId = tenantId },
                 cancellationToken: cancellationToken));
 
         var totalCount = await connection.ExecuteScalarAsync<int>(
             new CommandDefinition(
-                "SELECT COUNT(*) FROM Vehicles WHERE IsDeleted = 0 AND TenantId = @TenantId",
+                $"SELECT COUNT(*) FROM Vehicles WHERE IsDeleted = 0 AND TenantId = @TenantId{draftFilter.Replace("v.", "")}",
                 new { TenantId = tenantId },
                 cancellationToken: cancellationToken));
 
-        var result = new PagedResult<VehicleDto>
+        var result = new PagedResult<VehicleListItemDto>
         {
             Items = vehicles.ToList(),
             TotalCount = totalCount,
@@ -41,6 +44,6 @@ public class GetVehiclesQueryHandler(IDbConnectionFactory dbFactory, ITenantCont
             PageSize = request.PageSize
         };
 
-        return ApiResponse<PagedResult<VehicleDto>>.SuccessResponse(result);
+        return ApiResponse<PagedResult<VehicleListItemDto>>.SuccessResponse(result);
     }
 }

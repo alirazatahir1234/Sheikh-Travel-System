@@ -80,7 +80,7 @@
                     matTooltipPosition="right"
                     (click)="toggleGroup(group, $event)">
               <mat-icon class="stb-group-icon">{{ group.icon }}</mat-icon>
-              <span class="stb-group-label" *ngIf="sidebarExpanded">{{ group.label }}</span>
+              <span class="stb-group-label" *ngIf="sidebarExpanded" [attr.title]="group.label">{{ group.label }}</span>
               <mat-icon class="stb-group-chevron" *ngIf="sidebarExpanded">expand_more</mat-icon>
             </button>
 
@@ -119,7 +119,7 @@
       <div class="stb-search" [class.active]="showSearchResults">
         <mat-icon>search</mat-icon>
         <input type="text"
-               placeholder="Search bookings, vehicles, drivers…"
+               placeholder="Search plate, driver, IMEI, VIN, vehicle…"
                [ngModel]="searchQuery"
                (ngModelChange)="onSearchInput($event)"
                (focus)="onSearchFocus()"

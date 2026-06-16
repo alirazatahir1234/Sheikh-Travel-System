@@ -222,7 +222,8 @@ public class GetGpsDevicesQueryHandler(IDbConnectionFactory dbFactory)
         using var connection = dbFactory.CreateConnection();
         var rows = await connection.QueryAsync<GpsDeviceDto>(new CommandDefinition(
             @"SELECT d.Id, d.VehicleId, v.Name AS VehicleName, d.UniqueId, d.Name, d.Protocol,
-                     d.SupportsEngineCutoff, d.LastIgnition, d.LastSeenAt, d.IsActive
+                     d.SupportsEngineCutoff, d.LastIgnition, d.LastSeenAt, d.IsActive,
+                     d.Model, d.SimNumber, d.Vendor
               FROM GpsDevices d
               LEFT JOIN Vehicles v ON v.Id = d.VehicleId
               WHERE d.IsDeleted = 0 ORDER BY d.Name",

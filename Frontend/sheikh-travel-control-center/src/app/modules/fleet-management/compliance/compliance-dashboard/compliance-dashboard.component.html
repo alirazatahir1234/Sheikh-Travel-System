@@ -1,0 +1,35 @@
+<fleet-page-header
+  eyebrow="Fleet Management"
+  title="Compliance"
+  subtitle="Insurance, registration and license expiry tracking"
+  icon="verified_user">
+  <button mat-flat-button color="primary">
+    <mat-icon>upload_file</mat-icon> Add Document
+  </button>
+</fleet-page-header>
+
+<div class="compliance-stats">
+  <stb-stat-tile label="Valid" [value]="validCount" icon="check_circle" color="green"></stb-stat-tile>
+  <stb-stat-tile label="Expiring Soon" [value]="expiringCount" icon="schedule" color="amber"></stb-stat-tile>
+  <stb-stat-tile label="Expired" [value]="expiredCount" icon="error" color="rose"></stb-stat-tile>
+</div>
+
+<div class="compliance-loading" *ngIf="loading">
+  <mat-progress-spinner mode="indeterminate" diameter="32"></mat-progress-spinner>
+</div>
+
+<div class="compliance-grid" *ngIf="!loading && documents.length">
+  <fleet-expiry-card
+    *ngFor="let doc of documents"
+    [documentType]="doc.documentType"
+    [entityName]="doc.entityName"
+    [icon]="iconFor(doc.documentType)"
+    [expiryDate]="doc.expiryDate">
+  </fleet-expiry-card>
+</div>
+
+<div class="compliance-empty" *ngIf="!loading && !documents.length">
+  <mat-icon>verified_user</mat-icon>
+  <p>No compliance documents recorded yet.</p>
+  <span>Add insurance, registration and license documents to start tracking expiries.</span>
+</div>

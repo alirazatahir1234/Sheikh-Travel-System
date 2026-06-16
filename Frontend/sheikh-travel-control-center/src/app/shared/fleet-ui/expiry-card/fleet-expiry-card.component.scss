@@ -1,0 +1,55 @@
+.expiry-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 18px;
+  background: var(--stb-surface, #fff);
+  border: 1px solid var(--stb-border, #e2e8f0);
+  border-radius: var(--stb-radius, 16px);
+  box-shadow: var(--stb-shadow-sm);
+  border-left: 4px solid var(--stb-border, #e2e8f0);
+
+  &[data-tone='success'] { border-left-color: var(--stb-success); }
+  &[data-tone='warning'] { border-left-color: var(--stb-warning); }
+  &[data-tone='danger']  { border-left-color: var(--stb-danger); }
+
+  &__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  &__icon {
+    color: var(--stb-primary);
+  }
+
+  &__title {
+    margin: 4px 0 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--stb-text, #0f172a);
+  }
+
+  &__entity {
+    margin: 0;
+    font-size: 13px;
+    color: var(--stb-text-muted);
+  }
+
+  &__meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 8px;
+    font-size: 13px;
+    color: var(--stb-text-muted);
+
+    strong { color: var(--stb-text, #0f172a); }
+  }
+
+  &__days {
+    margin: 2px 0 0;
+    font-size: 12px;
+    font-weight: 600;
+  }
+}

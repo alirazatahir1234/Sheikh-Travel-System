@@ -146,9 +146,9 @@
   border: 0;
   border-radius: 10px;
   background: transparent;
-  padding: 0 10px;
+  padding: 8px 10px;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 10px;
   color: var(--stb-text-muted);
   cursor: pointer;
@@ -167,17 +167,20 @@
     height: 20px;
     flex: 0 0 auto;
     opacity: 0.85;
+    margin-top: 1px;
   }
 
   .stb-group-label {
     flex: 1 1 auto;
+    min-width: 0;
     font-size: .68rem;
     font-weight: 700;
-    letter-spacing: .06em;
+    letter-spacing: .04em;
     text-transform: uppercase;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    line-height: 1.3;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
   }
 
   .stb-group-chevron {
@@ -186,6 +189,7 @@
     height: 18px;
     flex: 0 0 auto;
     opacity: 0.6;
+    margin-top: 1px;
     transition: transform .2s ease;
     /* expand_more points down; rotate so collapsed groups show chevron up */
     transform: rotate(180deg);
@@ -276,27 +280,42 @@
   &--child {
     min-height: 36px;
     padding-left: 12px;
+    align-items: flex-start;
 
     mat-icon {
       font-size: 18px;
       width: 18px;
       height: 18px;
       opacity: 0.9;
+      margin-top: 2px;
+      flex: 0 0 auto;
     }
 
     .stb-link-label {
       font-size: .86rem;
       font-weight: 500;
+      padding-top: 1px;
     }
   }
 }
 
 .stb-link-label {
+  flex: 1 1 auto;
+  min-width: 0;
   font-size: .9rem;
   font-weight: 500;
-  white-space: nowrap;
+  line-height: 1.3;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.stb-rail.is-expanded .stb-link-label {
+  /* Keep single-line items tidy; allow wrap only when the label is long. */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
   overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .stb-rail-profile {
@@ -665,7 +684,7 @@
     top: 0;
     bottom: 0;
     z-index: 100;
-    width: min(var(--stb-sidenav-w, 280px), 88vw) !important;
+    width: min(var(--stb-sidenav-w, 304px), min(92vw, 320px)) !important;
     transform: translateX(-105%);
     transition: transform 0.24s ease, box-shadow 0.24s ease;
     box-shadow: none;

@@ -1,0 +1,261 @@
+<ui-drawer
+  [(open)]="open"
+  [title]="vehicle()?.name ?? 'Vehicle details'"
+  width="560px"
+  (closed)="onDrawerClosed()">
+
+  @if (loading()) {
+    <div class="flex justify-center py-12">
+      <div class="h-8 w-8 animate-spin rounded-full border-2 border-fleet-primary border-t-transparent"></div>
+    </div>
+  } @else if (vehicle()) {
+    <div class="mb-4 flex items-center justify-between gap-2">
+      <div class="flex items-center gap-2">
+        <ui-status-badge [status]="statusLabel(vehicle()!.status)"></ui-status-badge>
+        <span class="text-sm text-fleet-text-muted">{{ vehicle()!.registrationNumber }}</span>
+      </div>
+      <a [routerLink]="['/vehicles', vehicle()!.id]" class="text-xs font-semibold text-fleet-primary hover:underline">View full profile →</a>
+    </div>
+
+    <ui-tabs [tabs]="tabs" [activeId]="activeTab" (activeIdChange)="onTabChange($event)"></ui-tabs>
+
+    <div class="mt-5">
+      @switch (activeTab) {
+        @case ('general') {
+          <div class="stats-row">
+            <div class="stat-card">
+              <span class="stat-label">Status</span>
+              <ui-status-badge [status]="statusLabel(vehicle()!.status)"></ui-status-badge>
+            </div>
+            <div class="stat-card">
+              <span class="stat-label">Fuel average</span>
+              <strong>{{ vehicle()!.fuelAverage }} km/L</strong>
+            </div>
+            <div class="stat-card">
+              <span class="stat-label">Mileage</span>
+              <strong>{{ vehicle()!.currentMileage | number }} km</strong>
+            </div>
+          </div>
+
+          @if (nextService()) {
+            <div class="section-block">
+              <h4 class="section-title">Next service</h4>
+              <p class="text-sm text-fleet-text">{{ nextService()!.description }}</p>
+              <p class="text-xs text-fleet-text-muted">
+                Due {{ nextService()!.nextDueDate ? (nextService()!.nextDueDate | date:'mediumDate') : (nextService()!.maintenanceDate | date:'mediumDate') }}
+              </p>
+            </div>
+          }
+
+          <div class="section-block">
+            <h4 class="section-title">Overview</h4>
+            <dl class="detail-grid">
+            <dt>Vehicle code</dt><dd>{{ vehicle()!.vehicleCode || '—' }}</dd>
+            <dt>Plate</dt><dd>{{ vehicle()!.registrationNumber }}</dd>
+            <dt>VIN</dt><dd>{{ vehicle()!.vin || '—' }}</dd>
+            <dt>Make / Model</dt><dd>{{ vehicle()!.make || '—' }} {{ vehicle()!.model || '' }}</dd>
+            <dt>Year</dt><dd>{{ vehicle()!.year || '—' }}</dd>
+            <dt>Type / Color</dt><dd>{{ vehicle()!.vehicleType || '—' }} · {{ vehicle()!.color || '—' }}</dd>
+            <dt>Seats</dt><dd>{{ vehicle()!.seatingCapacity }}</dd>
+            <dt>Fuel</dt><dd>{{ fuelTypeLabel(vehicle()!.fuelType) }} · {{ vehicle()!.fuelAverage }} km/L</dd>
+            <dt>Mileage</dt><dd>{{ vehicle()!.currentMileage | number }} km</dd>
+            <dt>Engine / Chassis</dt><dd>{{ vehicle()!.engineNo || '—' }} / {{ vehicle()!.chassisNo || '—' }}</dd>
+            <dt>Insurance expiry</dt>
+            <dd>{{ vehicle()!.insuranceExpiryDate ? (vehicle()!.insuranceExpiryDate | date:'mediumDate') : '—' }}</dd>
+            <dt>Purchase</dt>
+            <dd>
+              @if (vehicle()!.purchaseDate || vehicle()!.purchasePrice) {
+                {{ vehicle()!.purchaseDate ? (vehicle()!.purchaseDate | date:'mediumDate') : '—' }}
+                @if (vehicle()!.purchasePrice) { · {{ vehicle()!.purchasePrice | number }} }
+              } @else { — }
+            </dd>
+            <dt>Branch / Dept</dt><dd>{{ vehicle()!.branchId ?? '—' }} / {{ vehicle()!.departmentId ?? '—' }}</dd>
+            <dt>GPS device</dt><dd>{{ vehicle()!.gpsDeviceId ?? 'Not assigned' }}</dd>
+            </dl>
+          </div>
+
+          @if (gps(); as g) {
+            <div class="section-block">
+              <h4 class="section-title">Real-time location</h4>
+              @if (g.latitude != null && g.longitude != null) {
+                <p class="text-sm">{{ g.latitude | number:'1.4-4' }}, {{ g.longitude | number:'1.4-4' }}</p>
+                @if (g.lastUpdate) {
+                  <p class="text-xs text-fleet-text-muted">Updated {{ g.lastUpdate | date:'medium' }}</p>
+                }
+                @if (mapsUrl(g); as url) {
+                  <a [href]="url" target="_blank" rel="noopener" class="link">Open in maps →</a>
+                  <span class="mx-1 text-fleet-text-muted">·</span>
+                  <a [routerLink]="['/gps-tracking/live']" [queryParams]="{ vehicleId: vehicle()!.id }" class="link">Live tracking →</a>
+                }
+              } @else {
+                <p class="text-sm text-fleet-text-muted">No live position available.</p>
+              }
+            </div>
+          }
+
+          <div class="mt-6 flex flex-wrap gap-2">
+            <ui-button variant="primary" size="sm" (clicked)="openAssignDriverModal()">Assign trip</ui-button>
+            <ui-button variant="outline" icon="edit" (clicked)="router.navigate(['/vehicles', vehicle()!.id, 'edit'])">
+              Edit vehicle
+            </ui-button>
+          </div>
+        }
+
+        @case ('documents') {
+          <div class="mb-4 flex justify-end">
+            <ui-button size="sm" icon="upload" (clicked)="docModalOpen = true">Add document</ui-button>
+          </div>
+          @if (documents().length === 0) {
+            <ui-empty-state icon="description" title="No documents" description="Upload registration, insurance, or inspection files."></ui-empty-state>
+          } @else {
+            <table class="data-table">
+              <thead>
+                <tr><th>Type</th><th>Expiry</th><th>File</th></tr>
+              </thead>
+              <tbody>
+                @for (doc of documents(); track doc.id) {
+                  <tr>
+                    <td>{{ doc.documentType }}</td>
+                    <td>{{ doc.expiryDate ? (doc.expiryDate | date:'mediumDate') : '—' }}</td>
+                    <td>
+                      @if (doc.fileUrl) {
+                        <a [href]="doc.fileUrl" target="_blank" rel="noopener" class="link">View</a>
+                      } @else { — }
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          }
+        }
+
+        @case ('maintenance') {
+          @if (maintenance().length === 0) {
+            <ui-empty-state icon="build" title="No maintenance records" description="Recent service history will appear here."></ui-empty-state>
+          } @else {
+            <table class="data-table">
+              <thead>
+                <tr><th>Date</th><th>Description</th><th>Status</th><th class="num">Cost</th></tr>
+              </thead>
+              <tbody>
+                @for (m of maintenance(); track m.id) {
+                  <tr>
+                    <td>{{ m.maintenanceDate | date:'mediumDate' }}</td>
+                    <td>{{ m.description }}</td>
+                    <td>{{ maintenanceStatusLabel(m.status) }}</td>
+                    <td class="num">{{ m.cost | number }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          }
+          <div class="mt-4">
+            <a routerLink="/maintenance" class="link">View all maintenance →</a>
+          </div>
+        }
+
+        @case ('fuel') {
+          @if (fuelSummary(); as summary) {
+            <div class="summary-row">
+              <span><strong>{{ summary.totalLiters | number:'1.0-1' }}</strong> L total</span>
+              <span><strong>{{ summary.totalCost | number }}</strong> total cost</span>
+            </div>
+            @if (summary.items.length === 0) {
+              <ui-empty-state icon="local_gas_station" title="No fuel logs" description="Fuel entries for this vehicle will appear here."></ui-empty-state>
+            } @else {
+              <table class="data-table">
+                <thead>
+                  <tr><th>Date</th><th>Station</th><th class="num">Liters</th><th class="num">Cost</th></tr>
+                </thead>
+                <tbody>
+                  @for (log of summary.items; track log.id) {
+                    <tr>
+                      <td>{{ log.fuelDate | date:'mediumDate' }}</td>
+                      <td>{{ log.station || '—' }}</td>
+                      <td class="num">{{ log.liters | number:'1.0-1' }}</td>
+                      <td class="num">{{ log.totalCost | number }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            }
+          }
+        }
+
+        @case ('gps') {
+          @if (gps(); as g) {
+            @if (!g.gpsDeviceId) {
+              <ui-empty-state icon="gps_off" title="No GPS device" description="Assign a GPS device to enable live tracking."></ui-empty-state>
+            } @else {
+              <dl class="detail-grid">
+                <dt>Device</dt><dd>{{ g.deviceName || '—' }} ({{ g.uniqueId || '—' }})</dd>
+                <dt>Status</dt><dd>{{ g.isActive ? 'Active' : 'Inactive' }}</dd>
+                <dt>Last seen</dt><dd>{{ g.lastSeenAt ? (g.lastSeenAt | date:'medium') : '—' }}</dd>
+                <dt>Ignition</dt><dd>{{ g.lastIgnition == null ? '—' : (g.lastIgnition ? 'On' : 'Off') }}</dd>
+                <dt>Last position</dt>
+                <dd>
+                  @if (g.latitude != null && g.longitude != null) {
+                    {{ g.latitude | number:'1.4-4' }}, {{ g.longitude | number:'1.4-4' }}
+                    @if (g.speed != null) { · {{ g.speed }} km/h }
+                  } @else { — }
+                </dd>
+                <dt>Last update</dt><dd>{{ g.lastUpdate ? (g.lastUpdate | date:'medium') : '—' }}</dd>
+              </dl>
+              @if (mapsUrl(g); as url) {
+                <div class="mt-4">
+                  <a [href]="url" target="_blank" rel="noopener" class="link">Open in maps →</a>
+                  <span class="mx-2 text-fleet-text-muted">·</span>
+                  <a [routerLink]="['/gps-tracking/live']" [queryParams]="{ vehicleId: vehicle()!.id }" class="link">Live tracking →</a>
+                </div>
+              }
+            }
+          }
+        }
+      }
+    </div>
+
+    <footer class="drawer-footer">
+      <ui-button variant="outline" size="sm" (clicked)="openStatusModal()">Change status</ui-button>
+      <ui-button variant="outline" size="sm" (clicked)="openAssignGpsModal()">Assign GPS</ui-button>
+      <ui-button variant="primary" size="sm" (clicked)="openAssignDriverModal()">Assign driver</ui-button>
+    </footer>
+  }
+</ui-drawer>
+
+<ui-modal [(open)]="statusModalOpen" title="Change status" size="sm">
+  <ui-select label="Status" [options]="statusOptions" [(ngModel)]="selectedStatus"></ui-select>
+  <ui-input class="mt-4 block" label="Reason (optional)" [(ngModel)]="statusReason"></ui-input>
+  <div modal-footer class="flex justify-end gap-2">
+    <ui-button variant="ghost" (clicked)="statusModalOpen = false">Cancel</ui-button>
+    <ui-button variant="primary" (clicked)="submitStatusChange()">Save</ui-button>
+  </div>
+</ui-modal>
+
+<ui-modal [(open)]="assignDriverModalOpen" title="Assign driver" size="sm">
+  <ui-select label="Driver" [options]="driverOptions" [(ngModel)]="selectedDriverId" [required]="true"></ui-select>
+  <ui-input class="mt-4 block" label="Booking ID (optional)" type="number" [(ngModel)]="bookingId"></ui-input>
+  <div modal-footer class="flex justify-end gap-2">
+    <ui-button variant="ghost" (clicked)="assignDriverModalOpen = false">Cancel</ui-button>
+    <ui-button variant="primary" [disabled]="!selectedDriverId" (clicked)="submitAssignDriver()">Assign</ui-button>
+  </div>
+</ui-modal>
+
+<ui-modal [(open)]="assignGpsModalOpen" title="Assign GPS device" size="sm">
+  <ui-select label="GPS device" [options]="gpsOptions" [(ngModel)]="selectedGpsDeviceId" [required]="true"></ui-select>
+  <div modal-footer class="flex justify-end gap-2">
+    <ui-button variant="ghost" (clicked)="assignGpsModalOpen = false">Cancel</ui-button>
+    <ui-button variant="primary" [disabled]="!selectedGpsDeviceId" (clicked)="submitAssignGps()">Assign</ui-button>
+  </div>
+</ui-modal>
+
+<ui-modal [(open)]="docModalOpen" title="Add document" size="sm">
+  <ui-input label="Document type" [(ngModel)]="newDocType" [required]="true"></ui-input>
+  <ui-input class="mt-4 block" label="File URL" [(ngModel)]="newDocUrl" placeholder="https://..."></ui-input>
+  <label class="mt-4 block text-[13px] font-semibold text-fleet-text">Expiry date</label>
+  <input class="stb-input mt-1 w-full" type="date" [(ngModel)]="newDocExpiry" />
+  <ui-input class="mt-4 block" label="Notes" [(ngModel)]="newDocNotes"></ui-input>
+  <div modal-footer class="flex justify-end gap-2">
+    <ui-button variant="ghost" (clicked)="docModalOpen = false">Cancel</ui-button>
+    <ui-button variant="primary" [disabled]="!newDocType.trim()" (clicked)="submitDocument()">Save</ui-button>
+  </div>
+</ui-modal>

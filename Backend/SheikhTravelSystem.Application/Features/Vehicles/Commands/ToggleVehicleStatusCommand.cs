@@ -23,17 +23,18 @@ public class ToggleVehicleStatusCommandValidator : AbstractValidator<ToggleVehic
     }
 }
 
-public class ToggleVehicleStatusCommandHandler(IDbConnectionFactory dbFactory)
+public class ToggleVehicleStatusCommandHandler(IDbConnectionFactory dbFactory, ITenantContext tenantContext)
     : IRequestHandler<ToggleVehicleStatusCommand, ApiResponse<VehicleStatus>>
 {
     public async Task<ApiResponse<VehicleStatus>> Handle(ToggleVehicleStatusCommand request, CancellationToken cancellationToken)
     {
         using var connection = dbFactory.CreateConnection();
+        var tenantId = tenantContext.GetRequiredTenantId();
 
         var currentStatus = await connection.QuerySingleOrDefaultAsync<int?>(
             new CommandDefinition(
-                "SELECT Status FROM Vehicles WHERE Id = @Id AND IsDeleted = 0",
-                new { request.Id },
+                "SELECT Status FROM Vehicles WHERE Id = @Id AND TenantId = @TenantId AND IsDeleted = 0",
+                new { request.Id, TenantId = tenantId },
                 cancellationToken: cancellationToken));
 
         if (currentStatus == null)
@@ -45,8 +46,8 @@ public class ToggleVehicleStatusCommandHandler(IDbConnectionFactory dbFactory)
 
         await connection.ExecuteAsync(
             new CommandDefinition(
-                "UPDATE Vehicles SET Status = @Status, UpdatedAt = @UpdatedAt WHERE Id = @Id",
-                new { request.Id, Status = (int)newStatus, UpdatedAt = DateTime.UtcNow },
+                "UPDATE Vehicles SET Status = @Status, UpdatedAt = @UpdatedAt WHERE Id = @Id AND TenantId = @TenantId",
+                new { request.Id, Status = (int)newStatus, UpdatedAt = DateTime.UtcNow, TenantId = tenantId },
                 cancellationToken: cancellationToken));
 
         return ApiResponse<VehicleStatus>.SuccessResponse(newStatus, $"Vehicle status changed to {newStatus}.");

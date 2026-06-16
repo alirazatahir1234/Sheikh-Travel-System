@@ -61,10 +61,27 @@
   --stb-glass:          rgba(255, 255, 255, 0.88);
 
   /* Layout */
-  --stb-sidenav-w:      280px;
+  --stb-sidenav-w:      304px;
   --stb-sidenav-rail-w: 72px;
   /* At least this tall; content (two-line user chip) may expand slightly. */
   --stb-topbar-h:       72px;
+
+  /* Fleet management (STCC) palette */
+  --fleet-primary:        #005f49;
+  --fleet-primary-dark:   #00513e;
+  --fleet-primary-soft:   rgba(0, 95, 73, 0.10);
+  --fleet-surface:        #f7f9ff;
+  --fleet-card:           #ffffff;
+  --fleet-surface-alt:    #ecf4ff;
+  --fleet-surface-muted:  #e6effa;
+  --fleet-border:         #dae3ee;
+  --fleet-error:          #ba1a1a;
+  --fleet-error-soft:     rgba(186, 26, 26, 0.10);
+  --fleet-secondary:      #535c86;
+  --fleet-secondary-soft: rgba(83, 92, 134, 0.12);
+  --fleet-text:           #141c24;
+  --fleet-text-muted:     #3e4944;
+  --fleet-sidebar-w:      304px;
 }
 
 * { box-sizing: border-box; }

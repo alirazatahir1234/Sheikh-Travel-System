@@ -1,6 +1,6 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { NavigationEnd, Router } from '@angular/router';
-import { Subject, BehaviorSubject, debounceTime, distinctUntilChanged, switchMap, of, Observable, Subscription, map, filter, combineLatest } from 'rxjs';
+import { Subject, BehaviorSubject, debounceTime, distinctUntilChanged, switchMap, of, Observable, Subscription, map, filter, combineLatest, startWith } from 'rxjs';
 import { MatDialog } from '@angular/material/dialog';
 import { AuthService } from '../../core/services/auth.service';
 import { NotificationService } from '../../core/services/notification.service';

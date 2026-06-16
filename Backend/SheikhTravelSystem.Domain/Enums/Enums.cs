@@ -13,7 +13,8 @@ public enum VehicleStatus
     Available = 1,
     OnTrip = 2,
     Maintenance = 3,
-    Retired = 4
+    Retired = 4,
+    Draft = 5
 }
 
 public enum BookingStatus

@@ -10,6 +10,7 @@ using SheikhTravelSystem.Infrastructure.Persistence.Migrations;
 using SheikhTravelSystem.Infrastructure.Services;
 using SheikhTravelSystem.Infrastructure.Services.Payments;
 using SheikhTravelSystem.Infrastructure.Services.Ocr;
+using SheikhTravelSystem.Infrastructure.Services.Storage;
 
 namespace SheikhTravelSystem.Infrastructure;
 
@@ -43,6 +44,7 @@ public static class DependencyInjection
         services.AddHostedService<ComplianceReminderHostedService>();
         services.Configure<GpsSettings>(configuration.GetSection(GpsSettings.SectionName));
         services.Configure<OcrOptions>(configuration.GetSection(OcrOptions.SectionName));
+        services.Configure<FileStorageOptions>(configuration.GetSection(FileStorageOptions.SectionName));
         services.Configure<TranslatorOptions>(configuration.GetSection(TranslatorOptions.SectionName));
         services.AddHttpClient("PaddleOcr");
         services.AddHttpClient("AzureTranslator");
@@ -50,6 +52,7 @@ public static class DependencyInjection
         services.AddScoped<PaddleOcrProvider>();
         services.AddScoped<AzureDocumentIntelligenceProvider>();
         services.AddScoped<IIdentityOcrService, HybridIdentityOcrService>();
+        services.AddScoped<IFileStorageService, LocalFileStorageService>();
         services.AddScoped<ILocationBroadcastService, LocationBroadcastService>();
         services.AddHttpContextAccessor();
         services.AddSignalR();

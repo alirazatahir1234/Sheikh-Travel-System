@@ -26,15 +26,18 @@ public class CreateGpsDeviceCommandHandler(IDbConnectionFactory dbFactory, ICurr
         using var connection = dbFactory.CreateConnection();
         var dto = request.Device;
         var id = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
-            @"INSERT INTO GpsDevices (VehicleId, UniqueId, Name, Protocol, SupportsEngineCutoff, IsActive, CreatedAt, CreatedBy, IsDeleted)
+            @"INSERT INTO GpsDevices (VehicleId, UniqueId, Name, Protocol, Model, SimNumber, Vendor, SupportsEngineCutoff, IsActive, CreatedAt, CreatedBy, IsDeleted)
               OUTPUT INSERTED.Id
-              VALUES (@VehicleId, @UniqueId, @Name, @Protocol, @SupportsEngineCutoff, 1, GETUTCDATE(), @CreatedBy, 0)",
+              VALUES (@VehicleId, @UniqueId, @Name, @Protocol, @Model, @SimNumber, @Vendor, @SupportsEngineCutoff, 1, GETUTCDATE(), @CreatedBy, 0)",
             new
             {
                 dto.VehicleId,
                 dto.UniqueId,
                 dto.Name,
                 dto.Protocol,
+                dto.Model,
+                dto.SimNumber,
+                dto.Vendor,
                 dto.SupportsEngineCutoff,
                 CreatedBy = currentUser.UserId?.ToString()
             },

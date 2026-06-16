@@ -15,6 +15,7 @@ const routes: Routes = [
       { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
       { path: 'my-trips', loadChildren: () => import('./modules/driver-workspace/driver-workspace.module').then(m => m.DriverWorkspaceModule) },
       { path: 'dashboard', loadChildren: () => import('./modules/dashboard/dashboard.module').then(m => m.DashboardModule) },
+      { path: 'fleet', loadChildren: () => import('./modules/fleet-management/fleet-management.module').then(m => m.FleetManagementModule) },
       { path: 'vehicles', loadChildren: () => import('./modules/vehicles/vehicles.module').then(m => m.VehiclesModule) },
       { path: 'drivers', loadChildren: () => import('./modules/drivers/drivers.module').then(m => m.DriversModule) },
       { path: 'customers', loadChildren: () => import('./modules/customers/customers.module').then(m => m.CustomersModule) },

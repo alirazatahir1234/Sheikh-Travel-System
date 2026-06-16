@@ -59,7 +59,12 @@ export class GlobalSearchService {
           .filter(v =>
             v.name?.toLowerCase().includes(q) ||
             v.registrationNumber?.toLowerCase().includes(q) ||
-            v.model?.toLowerCase().includes(q)
+            v.vehicleCode?.toLowerCase().includes(q) ||
+            v.model?.toLowerCase().includes(q) ||
+            v.driverName?.toLowerCase().includes(q) ||
+            v.gpsImei?.toLowerCase().includes(q) ||
+            v.gpsSim?.toLowerCase().includes(q) ||
+            v.vin?.toLowerCase().includes(q)
           )
           .slice(0, 4)
           .forEach(v => {

@@ -1,0 +1,83 @@
+<div class="vehicle-wizard mx-auto max-w-7xl px-4 py-6 md:px-6">
+  <header class="mb-6">
+    <h1 class="text-2xl font-bold text-fleet-text">
+      {{ facade.isEditMode() ? 'Edit Vehicle' : 'Register New Vehicle' }}
+    </h1>
+    <p class="mt-1 text-sm text-fleet-text-muted">
+      {{ facade.pageSubtitle() }}
+    </p>
+    <div class="mt-5">
+      <app-wizard-stepper
+        [steps]="facade.steps"
+        [currentStep]="facade.currentStep()"
+        (stepClick)="facade.goToStep($event)" />
+    </div>
+  </header>
+
+  @if (facade.loading()) {
+    <div class="flex justify-center py-20">
+      <mat-spinner diameter="40"></mat-spinner>
+    </div>
+  } @else {
+    <div class="grid gap-6 lg:grid-cols-[1fr_320px]">
+      <main>
+        @switch (facade.currentStep()) {
+          @case ('details') {
+            <app-wizard-step-details
+              [form]="facade.form"
+              [yearOptions]="yearOptions()"
+              [vinStatus]="facade.vinStatus()"
+              (regenerateCode)="facade.regenerateCode()" />
+          }
+          @case ('technical') {
+            <app-wizard-step-technical
+              [form]="facade.form"
+              [branchOptions]="facade.branchOptions()" />
+          }
+          @case ('gps') {
+            <app-wizard-step-gps
+              [gpsForm]="facade.gpsForm"
+              [unassignedDevices]="facade.unassignedDevices()"
+              [gpsAssigned]="facade.gpsAssigned()" />
+          }
+          @case ('documents') {
+            <app-wizard-step-documents
+              [slots]="facade.documentSlots()"
+              (fileSelected)="onFileSelected($event)" />
+          }
+          @case ('review') {
+            <app-wizard-step-review
+              [formValues]="facade.formValues()"
+              [isDraft]="facade.isDraftVehicle()"
+              [gpsAssigned]="facade.gpsAssigned()"
+              [documentsCount]="facade.documentsUploadedCount()"
+              [validationErrors]="facade.validationErrors()"
+              [showValidationErrors]="facade.attemptedSubmit()" />
+          }
+        }
+
+        <app-wizard-footer
+          [currentStep]="facade.currentStep()"
+          [draftSaving]="facade.draftSaving()"
+          [primaryLoading]="facade.publishing()"
+          [lastSavedAt]="facade.lastSavedAt()"
+          [primaryLabel]="facade.primaryCtaLabel()"
+          [saveDraftLabel]="facade.saveDraftLabel()"
+          (cancel)="facade.cancel()"
+          (back)="facade.prevStep()"
+          (saveDraft)="facade.saveDraft()"
+          (primaryAction)="facade.handlePrimaryAction()" />
+      </main>
+
+      <app-wizard-summary-panel
+        [displayName]="facade.previewName()"
+        [plate]="facade.previewPlate()"
+        [fuelLabel]="facade.previewFuelLabel()"
+        [isDraft]="facade.isDraftVehicle()"
+        [gpsAssigned]="facade.gpsAssigned()"
+        [documentsCount]="facade.documentsUploadedCount()"
+        [validationErrors]="facade.summaryValidationErrors()"
+        [imageUrl]="previewImageUrl()" />
+    </div>
+  }
+</div>

@@ -140,10 +140,14 @@ public class CreateVehicleCommandValidatorTests
     {
         var dto = new VehicleDto(
             Id: 1, Name: "Bus A", RegistrationNumber: "LHR-001",
-            Model: "Hino", Year: 2020, SeatingCapacity: 50,
-            FuelAverage: 10m, FuelType: FuelType.Diesel, CurrentMileage: 5000m,
-            InsuranceExpiryDate: DateTime.UtcNow.AddYears(1),
-            Status: VehicleStatus.Available, CreatedAt: DateTime.UtcNow);
+            VehicleCode: "V-001", VIN: null, Make: "Hino", Model: "Hino", Year: 2020,
+            Color: null, VehicleType: null, SeatingCapacity: 50,
+            FuelAverage: 10m, FuelType: FuelType.Diesel, EngineNo: null, ChassisNo: null,
+            CurrentMileage: 5000m, InsuranceExpiryDate: DateTime.UtcNow.AddYears(1),
+            GpsDeviceId: null, PurchaseDate: null, PurchasePrice: null,
+            BranchId: null, DepartmentId: null,
+            Status: VehicleStatus.Available, IsActive: true,
+            CreatedAt: DateTime.UtcNow, UpdatedAt: null);
 
         dto.Id.Should().Be(1);
         dto.Name.Should().Be("Bus A");
