@@ -85,10 +85,12 @@
   </vehicle-advanced-filters>
 
   <app-vehicle-details-drawer
-    [(open)]="drawerOpen"
+    [open]="drawerOpen()"
+    (openChange)="onDrawerOpenChange($event)"
     [vehicleId]="selectedVehicleId()"
+    [listItem]="selectedListItem()"
     (statusChanged)="load()"
-    (closed)="selectedVehicleId.set(null)">
+    (closed)="onDrawerClosed()">
   </app-vehicle-details-drawer>
 
   <vehicle-assign-dialog (assigned)="load()"></vehicle-assign-dialog>

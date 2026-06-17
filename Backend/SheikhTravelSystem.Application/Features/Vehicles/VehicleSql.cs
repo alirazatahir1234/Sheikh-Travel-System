@@ -65,7 +65,12 @@ internal static class VehicleSql
                 OR LOWER(vd.FileUrl) LIKE '%.webp'
                 OR LOWER(vd.FileUrl) LIKE '%.gif'
               )
-            ORDER BY vd.CreatedAt DESC
+            ORDER BY
+                CASE
+                    WHEN vd.Notes LIKE N'%|primary%' OR LOWER(LTRIM(RTRIM(vd.Notes))) = N'primary' THEN 0
+                    ELSE 1
+                END,
+                vd.CreatedAt DESC
         ) vimg
         """;
 

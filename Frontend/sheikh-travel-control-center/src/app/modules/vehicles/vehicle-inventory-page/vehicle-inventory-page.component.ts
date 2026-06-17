@@ -20,7 +20,8 @@ import {
   VehicleListItem,
   VehicleStatus,
   VehicleStatusLabels,
-  FuelTypeLabels
+  FuelTypeLabels,
+  normalizeVehicleStatus
 } from '../../../core/models/vehicle.model';
 import { formatRelativeTime } from '../../../core/utils/relative-time.util';
 import { FleetSummaryCardComponent, FleetSummaryCardData } from '../components/fleet-summary-card/fleet-summary-card.component';
@@ -94,6 +95,7 @@ export class VehicleInventoryPageComponent implements OnInit {
   readonly error = signal<string | null>(null);
   readonly drawerOpen = signal(false);
   readonly selectedVehicleId = signal<number | null>(null);
+  readonly selectedListItem  = signal<VehicleListItem | null>(null);
   readonly branchOptions = signal<UiSelectOption<number>[]>([]);
   readonly driverOptions = signal<UiSelectOption[]>([]);
   readonly advancedFiltersOpen = signal(false);
@@ -149,10 +151,10 @@ export class VehicleInventoryPageComponent implements OnInit {
   readonly kpiCards = computed<FleetSummaryCardData[]>(() => {
     const d = this.dashboard();
     const rows = this.allRows();
-    const onTrip = rows.filter(r => r.status === VehicleStatus.OnTrip).length;
-    const available = rows.filter(r => r.status === VehicleStatus.Available).length;
+    const onTrip = rows.filter(r => normalizeVehicleStatus(r.status) === VehicleStatus.OnTrip).length;
+    const available = rows.filter(r => normalizeVehicleStatus(r.status) === VehicleStatus.Available).length;
     const total = d?.totalVehicles ?? rows.length;
-    const maintenance = d?.maintenanceDue ?? rows.filter(r => r.status === VehicleStatus.Maintenance).length;
+    const maintenance = d?.maintenanceDue ?? rows.filter(r => normalizeVehicleStatus(r.status) === VehicleStatus.Maintenance).length;
     const utilization = total > 0 ? Math.round((onTrip / total) * 100) : 0;
     const gpsConnected = rows.filter(r => isGpsOnline(r)).length;
     const gpsOffline = rows.filter(r => vehicleHasTracker(r) && !isGpsOnline(r)).length;
@@ -238,7 +240,22 @@ export class VehicleInventoryPageComponent implements OnInit {
 
   openDrawer(row: VehicleListItem): void {
     this.selectedVehicleId.set(row.id);
+    this.selectedListItem.set(row);
     this.drawerOpen.set(true);
+  }
+
+  onDrawerOpenChange(open: boolean): void {
+    this.drawerOpen.set(open);
+    if (!open) {
+      this.selectedVehicleId.set(null);
+      this.selectedListItem.set(null);
+    }
+  }
+
+  onDrawerClosed(): void {
+    this.drawerOpen.set(false);
+    this.selectedVehicleId.set(null);
+    this.selectedListItem.set(null);
   }
 
   onEdit(row: VehicleListItem): void {

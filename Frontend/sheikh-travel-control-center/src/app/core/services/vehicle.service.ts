@@ -132,4 +132,11 @@ export class VehicleService {
   getGps(vehicleId: number): Observable<VehicleGps> {
     return this.http.get<VehicleGps>(`${this.base}/${vehicleId}/gps`);
   }
+
+  setPrimaryVehicleImage(vehicleId: number, documentId: number): Observable<boolean> {
+    return this.http.post<boolean>(
+      `${this.base}/${vehicleId}/documents/${documentId}/set-primary-image`,
+      {}
+    );
+  }
 }
