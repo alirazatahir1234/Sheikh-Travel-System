@@ -306,7 +306,7 @@ export class VehicleWizardFacade {
       await this.syncExpiryDocuments(id);
       this.snackBar.open('Vehicle updated successfully', 'Close', { duration: 3000 });
       if (options.navigate !== false) {
-        this.router.navigate(['/vehicles', id]);
+        this.router.navigate(this.isEditMode() ? ['/vehicles'] : ['/vehicles', id]);
       }
     } catch (err) {
       this.handleSaveError(err);

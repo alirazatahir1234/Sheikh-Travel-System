@@ -9,6 +9,7 @@ import { UiButtonComponent } from '../../../../shared/components/ui/button/ui-bu
 import { VehiclePagination } from '../../models/vehicle-inventory.model';
 import { deriveOperationalStatus } from '../../utils/vehicle-status.util';
 import { formatRelativeTime } from '../../../../core/utils/relative-time.util';
+import { resolveVehicleImageUrl } from '../../../../core/utils/upload-url.util';
 
 @Component({
   selector: 'vehicle-table',
@@ -80,6 +81,10 @@ export class VehicleTableComponent {
 
   driverInitials(name: string): string {
     return name.split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase();
+  }
+
+  vehicleImageUrl(row: VehicleListItem): string | null {
+    return resolveVehicleImageUrl(row.imageUrl);
   }
 
   serviceSubtext(row: VehicleListItem): { text: string; alert: boolean } {

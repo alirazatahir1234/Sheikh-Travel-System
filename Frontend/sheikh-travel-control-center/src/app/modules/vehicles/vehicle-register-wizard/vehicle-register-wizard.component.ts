@@ -19,7 +19,7 @@ import { WizardStepTechnicalComponent } from './components/steps/wizard-step-tec
 import { WizardStepGpsComponent } from './components/steps/wizard-step-gps/wizard-step-gps.component';
 import { WizardStepDocumentsComponent } from './components/steps/wizard-step-documents/wizard-step-documents.component';
 import { WizardStepReviewComponent } from './components/steps/wizard-step-review/wizard-step-review.component';
-import { environment } from '../../../../environments/environment';
+import { resolveUploadUrl } from '../../../core/utils/upload-url.util';
 
 @Component({
   selector: 'app-vehicle-register-wizard',
@@ -49,11 +49,7 @@ export class VehicleRegisterWizardComponent implements OnInit, OnDestroy {
   readonly previewImageUrl = computed(() => {
     const slot = this.facade.documentSlots().find(s => s.documentType === 'VehicleImage');
     if (slot?.file) return URL.createObjectURL(slot.file);
-    if (slot?.fileUrl) {
-      const url = slot.fileUrl;
-      return url.startsWith('http') ? url : `${environment.apiUrl.replace('/api', '')}${url}`;
-    }
-    return undefined;
+    return resolveUploadUrl(slot?.fileUrl) ?? undefined;
   });
 
   ngOnInit(): void {

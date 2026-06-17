@@ -11,7 +11,8 @@ public record VehicleListItemDto(
     string? DriverName, int? DriverId, string? GpsImei, string? GpsSim, bool? EngineIgnition,
     DateTime? GpsLastSeenAt, bool GpsOnline, bool HasGpsDevice,
     double? LocationLatitude, double? LocationLongitude, DateTime? LocationLastUpdate,
-    DateTime? NextServiceDue, decimal? NextDueMileage, string? ServiceAlert);
+    DateTime? NextServiceDue, decimal? NextDueMileage, string? ServiceAlert,
+    string? ImageUrl);
 
 public record VehicleDto(
     int Id, string Name, string RegistrationNumber, string? VehicleCode, string? VIN,

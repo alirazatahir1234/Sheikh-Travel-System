@@ -1,7 +1,8 @@
-import { ChangeDetectionStrategy, Component, ElementRef, input, output, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, ElementRef, input, output, viewChild } from '@angular/core';
 import { NgClass } from '@angular/common';
 import { MatIconModule } from '@angular/material/icon';
 import { DocumentSlotState } from '../../models/vehicle-wizard.model';
+import { isImageUploadUrl, resolveUploadUrl } from '../../../../../core/utils/upload-url.util';
 
 @Component({
   selector: 'app-document-upload-zone',
@@ -23,13 +24,31 @@ import { DocumentSlotState } from '../../models/vehicle-wizard.model';
         #fileInput
         type="file"
         class="hidden"
-        accept=".jpg,.jpeg,.png,.pdf"
+        [accept]="acceptTypes()"
         (change)="onFileSelected($event)" />
 
       @if (slot().uploading) {
         <div class="flex flex-col items-center gap-2 py-4 text-center">
           <div class="h-8 w-8 animate-spin rounded-full border-2 border-fleet-primary border-t-transparent"></div>
           <p class="text-sm text-fleet-text-muted">Uploading…</p>
+        </div>
+      } @else if (previewUrl()) {
+        <div class="space-y-3">
+          <div class="overflow-hidden rounded-md bg-fleet-surface-muted">
+            <img [src]="previewUrl()!" [alt]="slot().label" class="mx-auto max-h-40 w-full object-contain" />
+          </div>
+          <div class="flex items-center justify-between gap-3">
+            <div class="flex min-w-0 items-center gap-3">
+              <mat-icon class="text-emerald-600">check_circle</mat-icon>
+              <div class="min-w-0">
+                <p class="truncate text-sm font-medium text-fleet-text">{{ slot().label }}</p>
+                <p class="truncate text-xs text-fleet-text-muted">{{ fileName() }}</p>
+              </div>
+            </div>
+            <button type="button" class="text-sm text-fleet-primary hover:underline" (click)="$event.stopPropagation(); fileInput.click()">
+              Replace
+            </button>
+          </div>
         </div>
       } @else if (slot().fileUrl) {
         <div class="flex items-center justify-between gap-3">
@@ -82,6 +101,17 @@ export class DocumentUploadZoneComponent {
   readonly fileInput = viewChild<ElementRef<HTMLInputElement>>('fileInput');
   dragOver = false;
 
+  readonly acceptTypes = computed(() =>
+    this.slot().documentType === 'VehicleImage'
+      ? '.jpg,.jpeg,.png,.webp,.gif'
+      : '.jpg,.jpeg,.png,.pdf'
+  );
+
+  readonly previewUrl = computed(() => {
+    const url = this.slot().fileUrl;
+    return isImageUploadUrl(url) ? resolveUploadUrl(url) : null;
+  });
+
   fileName(): string {
     const s = this.slot();
     if (s.file) return s.file.name;
@@ -98,13 +128,21 @@ export class DocumentUploadZoneComponent {
     e.preventDefault();
     this.dragOver = false;
     const file = e.dataTransfer?.files?.[0];
-    if (file) this.fileSelected.emit({ index: this.index(), file });
+    if (!file) return;
+    if (this.slot().documentType === 'VehicleImage' && !file.type.startsWith('image/')) {
+      return;
+    }
+    this.fileSelected.emit({ index: this.index(), file });
   }
 
   onFileSelected(e: Event): void {
     const input = e.target as HTMLInputElement;
     const file = input.files?.[0];
-    if (file) this.fileSelected.emit({ index: this.index(), file });
+    if (!file) return;
+    if (this.slot().documentType === 'VehicleImage' && !file.type.startsWith('image/')) {
+      return;
+    }
+    this.fileSelected.emit({ index: this.index(), file });
     input.value = '';
   }
 }

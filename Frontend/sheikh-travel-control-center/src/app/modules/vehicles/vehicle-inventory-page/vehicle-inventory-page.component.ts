@@ -1,11 +1,12 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal, ViewChild } from '@angular/core';
-import { Router, RouterModule } from '@angular/router';
+import { ChangeDetectionStrategy, Component, computed, inject, signal, ViewChild, OnInit, DestroyRef } from '@angular/core';
+import { Router, RouterModule, NavigationEnd } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatButtonModule } from '@angular/material/button';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { DatePipe, DecimalPipe } from '@angular/common';
-import { catchError, forkJoin, of } from 'rxjs';
+import { catchError, forkJoin, of, filter } from 'rxjs';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { VehicleService } from '../../../core/services/vehicle.service';
 import { PlatformService } from '../../../core/services/platform.service';
 import { DriverService } from '../../../core/services/driver.service';
@@ -70,7 +71,7 @@ import {
   templateUrl: './vehicle-inventory-page.component.html',
   styleUrls: ['./vehicle-inventory-page.component.scss']
 })
-export class VehicleInventoryPageComponent {
+export class VehicleInventoryPageComponent implements OnInit {
   private readonly vehicleService = inject(VehicleService);
   private readonly fleetService = inject(FleetService);
   private readonly platformService = inject(PlatformService);
@@ -80,6 +81,7 @@ export class VehicleInventoryPageComponent {
   private readonly snackBar = inject(MatSnackBar);
   private readonly router = inject(Router);
   private readonly datePipe = inject(DatePipe);
+  private readonly destroyRef = inject(DestroyRef);
 
   @ViewChild(VehicleAssignDialogComponent) assignDialog!: VehicleAssignDialogComponent;
 
@@ -174,8 +176,17 @@ export class VehicleInventoryPageComponent {
   constructor() {
     this.loadBranches();
     this.loadDrivers();
+  }
+
+  ngOnInit(): void {
     this.load();
     setInterval(() => this.syncTick.set(Date.now()), 30_000);
+
+    this.router.events.pipe(
+      filter((event): event is NavigationEnd => event instanceof NavigationEnd),
+      filter(event => event.urlAfterRedirects === '/vehicles' || event.urlAfterRedirects.startsWith('/vehicles?')),
+      takeUntilDestroyed(this.destroyRef)
+    ).subscribe(() => this.load());
   }
 
   load(): void {

@@ -23,7 +23,8 @@ internal static class VehicleSql
         vcl.LastUpdate AS LocationLastUpdate,
         svc.NextDueDate AS NextServiceDue,
         svc.NextDueMileage AS NextDueMileage,
-        svc.ServiceAlert AS ServiceAlert
+        svc.ServiceAlert AS ServiceAlert,
+        vimg.FileUrl AS ImageUrl
         """;
 
     internal const string ListFrom = """
@@ -50,6 +51,22 @@ internal static class VehicleSql
                 CASE WHEN m.NextDueDate IS NOT NULL AND m.NextDueDate < GETUTCDATE() THEN 0 ELSE 1 END,
                 m.NextDueDate ASC
         ) svc
+        OUTER APPLY (
+            SELECT TOP 1 vd.FileUrl
+            FROM VehicleDocuments vd
+            WHERE vd.VehicleId = v.Id
+              AND vd.DocumentType = N'VehicleImage'
+              AND vd.IsDeleted = 0
+              AND vd.FileUrl IS NOT NULL
+              AND (
+                LOWER(vd.FileUrl) LIKE '%.jpg'
+                OR LOWER(vd.FileUrl) LIKE '%.jpeg'
+                OR LOWER(vd.FileUrl) LIKE '%.png'
+                OR LOWER(vd.FileUrl) LIKE '%.webp'
+                OR LOWER(vd.FileUrl) LIKE '%.gif'
+              )
+            ORDER BY vd.CreatedAt DESC
+        ) vimg
         """;
 
     internal const string DetailColumns = """

@@ -59,6 +59,12 @@ public class UploadVehicleDocumentCommandHandler(
             throw new NotFoundException("Vehicle", request.VehicleId);
 
         var ext = Path.GetExtension(request.FileName).ToLowerInvariant();
+        if (string.Equals(request.DocumentType, "VehicleImage", StringComparison.OrdinalIgnoreCase)
+            && ext is not (".jpg" or ".jpeg" or ".png" or ".webp" or ".gif"))
+        {
+            throw new ValidationException("Vehicle image must be a JPG, PNG, WEBP, or GIF file.");
+        }
+
         var maxBytes = ext == ".pdf" ? MaxPdfBytes : MaxImageBytes;
         if (request.FileStream.CanSeek && request.FileStream.Length > maxBytes)
             throw new ValidationException($"File exceeds maximum size of {maxBytes / (1024 * 1024)} MB.");

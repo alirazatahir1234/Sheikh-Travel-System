@@ -55,6 +55,7 @@ export interface VehicleListItem {
   nextDueMileage?: number | null;
   serviceAlert?: string | null;
   vin?: string | null;
+  imageUrl?: string | null;
 }
 
 /** Full vehicle detail (drawer / edit). */

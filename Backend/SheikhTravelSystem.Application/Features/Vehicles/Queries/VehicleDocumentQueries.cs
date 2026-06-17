@@ -27,7 +27,7 @@ public class GetVehicleDocumentsQueryHandler(IDbConnectionFactory dbFactory, ITe
             @"SELECT Id, VehicleId, DocumentType, FileUrl, ExpiryDate, Notes
               FROM VehicleDocuments
               WHERE VehicleId = @VehicleId AND TenantId = @TenantId AND IsDeleted = 0
-              ORDER BY ExpiryDate",
+              ORDER BY CreatedAt DESC",
             new { request.VehicleId, TenantId = tenantContext.GetRequiredTenantId() },
             cancellationToken: cancellationToken));
 
