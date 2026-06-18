@@ -42,6 +42,25 @@
   overflow: auto;
 }
 
+.vehicle-grid {
+  min-width: 0;
+
+  .col-check { width: 2.5rem; }
+  .col-vehicle { width: 16%; }
+  .col-status { width: 11%; }
+  .col-location { width: 12%; }
+  .col-driver { width: 13%; }
+  .col-telemetry { width: 18%; }
+  .col-odometer { width: 10%; min-width: 5.5rem; }
+  .col-actions { width: 9.5rem; min-width: 9.5rem; }
+}
+
+.telemetry-cell {
+  max-width: 100%;
+  overflow: hidden;
+  word-break: break-word;
+}
+
 thead th.sticky,
 tbody td.sticky {
   box-shadow: -4px 0 8px -4px rgba(15, 23, 42, 0.08);

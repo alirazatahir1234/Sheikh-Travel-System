@@ -76,6 +76,58 @@ public class UploadVehicleDocumentCommandHandler(
             $"vehicles/{tenantId}/{request.VehicleId}",
             cancellationToken);
 
+        string? notes = request.Notes;
+        var isVehicleImage = string.Equals(request.DocumentType, "VehicleImage", StringComparison.OrdinalIgnoreCase);
+        if (isVehicleImage)
+        {
+            var angle = VehicleImageNotes.NormalizeAngle(request.Notes);
+            var hasPrimary = await connection.ExecuteScalarAsync<bool>(
+                new CommandDefinition(
+                    @"SELECT CASE WHEN EXISTS(
+                        SELECT 1 FROM VehicleDocuments
+                        WHERE VehicleId = @VehicleId AND TenantId = @TenantId
+                          AND DocumentType = N'VehicleImage' AND IsDeleted = 0
+                          AND (
+                            Notes LIKE N'%|primary%'
+                            OR LOWER(LTRIM(RTRIM(Notes))) = N'primary'
+                          )
+                    ) THEN 1 ELSE 0 END",
+                    new { request.VehicleId, TenantId = tenantId },
+                    cancellationToken: cancellationToken));
+
+            notes = VehicleImageNotes.WithAngle(angle, isPrimary: !hasPrimary);
+
+            await connection.ExecuteAsync(new CommandDefinition(
+                @"UPDATE VehicleDocuments
+                  SET IsDeleted = 1, UpdatedAt = GETUTCDATE()
+                  WHERE VehicleId = @VehicleId AND TenantId = @TenantId
+                    AND DocumentType = N'VehicleImage' AND IsDeleted = 0
+                    AND (Notes = @Angle OR Notes LIKE @AnglePattern)",
+                new
+                {
+                    request.VehicleId,
+                    TenantId = tenantId,
+                    Angle = angle,
+                    AnglePattern = angle + "|%"
+                },
+                cancellationToken: cancellationToken));
+        }
+        else
+        {
+            await connection.ExecuteAsync(new CommandDefinition(
+                @"UPDATE VehicleDocuments
+                  SET IsDeleted = 1, UpdatedAt = GETUTCDATE()
+                  WHERE VehicleId = @VehicleId AND TenantId = @TenantId
+                    AND DocumentType = @DocumentType AND IsDeleted = 0",
+                new
+                {
+                    request.VehicleId,
+                    TenantId = tenantId,
+                    request.DocumentType
+                },
+                cancellationToken: cancellationToken));
+        }
+
         var docId = await connection.ExecuteScalarAsync<int>(
             new CommandDefinition(
                 @"INSERT INTO VehicleDocuments (TenantId, VehicleId, DocumentType, FileUrl, ExpiryDate, Notes, CreatedAt, IsDeleted)
@@ -88,7 +140,7 @@ public class UploadVehicleDocumentCommandHandler(
                     request.DocumentType,
                     FileUrl = stored.RelativeUrl,
                     request.ExpiryDate,
-                    request.Notes
+                    Notes = notes
                 },
                 cancellationToken: cancellationToken));
 

@@ -47,9 +47,10 @@ export class VehicleRegisterWizardComponent implements OnInit, OnDestroy {
   readonly yearOptions = signal<UiSelectOption[]>(this.buildYearOptions());
 
   readonly previewImageUrl = computed(() => {
-    const slot = this.facade.documentSlots().find(s => s.documentType === 'VehicleImage');
-    if (slot?.file) return URL.createObjectURL(slot.file);
-    return resolveUploadUrl(slot?.fileUrl) ?? undefined;
+    const url = this.facade.primaryVehicleImageUrl();
+    if (!url) return undefined;
+    if (url.startsWith('blob:')) return url;
+    return resolveUploadUrl(url) ?? undefined;
   });
 
   ngOnInit(): void {
@@ -63,6 +64,14 @@ export class VehicleRegisterWizardComponent implements OnInit, OnDestroy {
 
   onFileSelected(event: { index: number; file: File }): void {
     void this.facade.uploadDocumentSlot(event.index, event.file);
+  }
+
+  onVehicleImageSelected(event: { index: number; file: File }): void {
+    void this.facade.uploadVehicleImage(event.index, event.file);
+  }
+
+  onSelectPrimaryImage(index: number): void {
+    void this.facade.selectPrimaryVehicleImage(index);
   }
 
   private buildYearOptions(): UiSelectOption[] {

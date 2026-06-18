@@ -1,4 +1,4 @@
-import { FuelType, VehicleListItem, VehicleStatus } from '../../../core/models/vehicle.model';
+import { FuelType, VehicleListItem, VehicleStatus, normalizeVehicleStatus, normalizeFuelType } from '../../../core/models/vehicle.model';
 import { DriverFilterValue, GpsFilterStatus, TrackerFilterValue, VehicleFilters } from '../models/vehicle-inventory.model';
 
 export function normalizeFuelTypeFilter(value: unknown): FuelType | 'ALL' {
@@ -46,7 +46,7 @@ export function isGpsOnline(row: VehicleListItem): boolean {
 }
 
 export function isMaintenanceDue(row: VehicleListItem): boolean {
-  if (row.status === VehicleStatus.Maintenance) return true;
+  if (normalizeVehicleStatus(row.status) === VehicleStatus.Maintenance) return true;
   if (row.serviceAlert?.trim()) return true;
   if (row.nextDueMileage != null && row.currentMileage >= row.nextDueMileage) return true;
   if (row.nextServiceDue && new Date(row.nextServiceDue).getTime() < Date.now()) return true;
@@ -70,10 +70,10 @@ export function matchesVehicleFilters(
   const f = normalizeVehicleFilters(raw);
 
   if (f.vehicleType !== 'ALL' && row.vehicleType !== f.vehicleType) return false;
-  if (f.status !== 'ALL' && row.status !== f.status) return false;
+  if (f.status !== 'ALL' && normalizeVehicleStatus(row.status) !== Number(f.status)) return false;
   if (f.branchId != null && row.branchId !== f.branchId) return false;
 
-  if (f.fuelType !== 'ALL' && Number(row.fuelType) !== f.fuelType) return false;
+  if (f.fuelType !== 'ALL' && normalizeFuelType(row.fuelType) !== f.fuelType) return false;
 
   const hasTracker = vehicleHasTracker(row);
   const online = isGpsOnline(row);

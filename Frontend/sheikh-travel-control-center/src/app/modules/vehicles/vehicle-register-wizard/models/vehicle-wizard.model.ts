@@ -18,6 +18,39 @@ export const WIZARD_STEPS: WizardStep[] = [
 
 export type GpsWizardMode = 'new' | 'existing' | 'skip';
 
+export type VehicleImageAngle = 'Front' | 'Side' | 'Back';
+
+export interface VehicleImageSlotState {
+  angle: VehicleImageAngle;
+  label: string;
+  file?: File;
+  fileUrl?: string;
+  documentId?: number;
+  isPrimary?: boolean;
+  uploading?: boolean;
+  error?: string;
+}
+
+export const VEHICLE_IMAGE_ANGLES: { angle: VehicleImageAngle; label: string }[] = [
+  { angle: 'Front', label: 'Front View' },
+  { angle: 'Side', label: 'Side View' },
+  { angle: 'Back', label: 'Back View' }
+];
+
+export function parseVehicleImageAngle(notes?: string | null): VehicleImageAngle | null {
+  if (!notes?.trim()) return null;
+  const raw = notes.split('|')[0]?.trim() ?? '';
+  if (!raw || raw.toLowerCase() === 'primary') return null;
+  const match = VEHICLE_IMAGE_ANGLES.find(a => a.angle.toLowerCase() === raw.toLowerCase());
+  return match?.angle ?? null;
+}
+
+export function isPrimaryVehicleImage(notes?: string | null): boolean {
+  if (!notes?.trim()) return false;
+  const value = notes.trim().toLowerCase();
+  return value === 'primary' || value.includes('|primary');
+}
+
 export interface DocumentSlotState {
   documentType: string;
   label: string;
@@ -31,7 +64,6 @@ export interface DocumentSlotState {
 }
 
 export const WIZARD_DOCUMENT_SLOTS: Omit<DocumentSlotState, 'file' | 'fileUrl' | 'documentId'>[] = [
-  { documentType: 'VehicleImage', label: 'Vehicle Image', required: true },
   { documentType: 'Registration', label: 'Registration Card', required: true },
   { documentType: 'Insurance', label: 'Insurance Policy', required: false }
 ];

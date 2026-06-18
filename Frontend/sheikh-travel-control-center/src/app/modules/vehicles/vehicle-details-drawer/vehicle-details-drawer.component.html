@@ -1,261 +1,729 @@
 <ui-drawer
   [(open)]="open"
-  [title]="vehicle()?.name ?? 'Vehicle details'"
-  width="560px"
+  [showClose]="false"
+  [padded]="false"
+  width="480px"
   (closed)="onDrawerClosed()">
 
-  @if (loading()) {
-    <div class="flex justify-center py-12">
-      <div class="h-8 w-8 animate-spin rounded-full border-2 border-fleet-primary border-t-transparent"></div>
-    </div>
-  } @else if (vehicle()) {
-    <div class="mb-4 flex items-center justify-between gap-2">
-      <div class="flex items-center gap-2">
-        <ui-status-badge [status]="statusLabel(vehicle()!.status)"></ui-status-badge>
-        <span class="text-sm text-fleet-text-muted">{{ vehicle()!.registrationNumber }}</span>
-      </div>
-      <a [routerLink]="['/vehicles', vehicle()!.id]" class="text-xs font-semibold text-fleet-primary hover:underline">View full profile →</a>
-    </div>
+  @if (hasPreview()) {
+    <div class="vd-host" [class.vd-host--loading]="loading()">
 
-    <ui-tabs [tabs]="tabs" [activeId]="activeTab" (activeIdChange)="onTabChange($event)"></ui-tabs>
+      <!-- HEADER + HERO -->
+      <div
+        class="vd-header"
+        [class.vd-header--has-image]="resolvedImageUrl()"
+        [style.backgroundImage]="resolvedImageUrl() ? 'url(' + resolvedImageUrl() + ')' : null">
 
-    <div class="mt-5">
-      @switch (activeTab) {
-        @case ('general') {
-          <div class="stats-row">
-            <div class="stat-card">
-              <span class="stat-label">Status</span>
-              <ui-status-badge [status]="statusLabel(vehicle()!.status)"></ui-status-badge>
-            </div>
-            <div class="stat-card">
-              <span class="stat-label">Fuel average</span>
-              <strong>{{ vehicle()!.fuelAverage }} km/L</strong>
-            </div>
-            <div class="stat-card">
-              <span class="stat-label">Mileage</span>
-              <strong>{{ vehicle()!.currentMileage | number }} km</strong>
-            </div>
-          </div>
-
-          @if (nextService()) {
-            <div class="section-block">
-              <h4 class="section-title">Next service</h4>
-              <p class="text-sm text-fleet-text">{{ nextService()!.description }}</p>
-              <p class="text-xs text-fleet-text-muted">
-                Due {{ nextService()!.nextDueDate ? (nextService()!.nextDueDate | date:'mediumDate') : (nextService()!.maintenanceDate | date:'mediumDate') }}
-              </p>
-            </div>
-          }
-
-          <div class="section-block">
-            <h4 class="section-title">Overview</h4>
-            <dl class="detail-grid">
-            <dt>Vehicle code</dt><dd>{{ vehicle()!.vehicleCode || '—' }}</dd>
-            <dt>Plate</dt><dd>{{ vehicle()!.registrationNumber }}</dd>
-            <dt>VIN</dt><dd>{{ vehicle()!.vin || '—' }}</dd>
-            <dt>Make / Model</dt><dd>{{ vehicle()!.make || '—' }} {{ vehicle()!.model || '' }}</dd>
-            <dt>Year</dt><dd>{{ vehicle()!.year || '—' }}</dd>
-            <dt>Type / Color</dt><dd>{{ vehicle()!.vehicleType || '—' }} · {{ vehicle()!.color || '—' }}</dd>
-            <dt>Seats</dt><dd>{{ vehicle()!.seatingCapacity }}</dd>
-            <dt>Fuel</dt><dd>{{ fuelTypeLabel(vehicle()!.fuelType) }} · {{ vehicle()!.fuelAverage }} km/L</dd>
-            <dt>Mileage</dt><dd>{{ vehicle()!.currentMileage | number }} km</dd>
-            <dt>Engine / Chassis</dt><dd>{{ vehicle()!.engineNo || '—' }} / {{ vehicle()!.chassisNo || '—' }}</dd>
-            <dt>Insurance expiry</dt>
-            <dd>{{ vehicle()!.insuranceExpiryDate ? (vehicle()!.insuranceExpiryDate | date:'mediumDate') : '—' }}</dd>
-            <dt>Purchase</dt>
-            <dd>
-              @if (vehicle()!.purchaseDate || vehicle()!.purchasePrice) {
-                {{ vehicle()!.purchaseDate ? (vehicle()!.purchaseDate | date:'mediumDate') : '—' }}
-                @if (vehicle()!.purchasePrice) { · {{ vehicle()!.purchasePrice | number }} }
-              } @else { — }
-            </dd>
-            <dt>Branch / Dept</dt><dd>{{ vehicle()!.branchId ?? '—' }} / {{ vehicle()!.departmentId ?? '—' }}</dd>
-            <dt>GPS device</dt><dd>{{ vehicle()!.gpsDeviceId ?? 'Not assigned' }}</dd>
-            </dl>
-          </div>
-
-          @if (gps(); as g) {
-            <div class="section-block">
-              <h4 class="section-title">Real-time location</h4>
-              @if (g.latitude != null && g.longitude != null) {
-                <p class="text-sm">{{ g.latitude | number:'1.4-4' }}, {{ g.longitude | number:'1.4-4' }}</p>
-                @if (g.lastUpdate) {
-                  <p class="text-xs text-fleet-text-muted">Updated {{ g.lastUpdate | date:'medium' }}</p>
-                }
-                @if (mapsUrl(g); as url) {
-                  <a [href]="url" target="_blank" rel="noopener" class="link">Open in maps →</a>
-                  <span class="mx-1 text-fleet-text-muted">·</span>
-                  <a [routerLink]="['/gps-tracking/live']" [queryParams]="{ vehicleId: vehicle()!.id }" class="link">Live tracking →</a>
-                }
-              } @else {
-                <p class="text-sm text-fleet-text-muted">No live position available.</p>
-              }
-            </div>
-          }
-
-          <div class="mt-6 flex flex-wrap gap-2">
-            <ui-button variant="primary" size="sm" (clicked)="openAssignDriverModal()">Assign trip</ui-button>
-            <ui-button variant="outline" icon="edit" (clicked)="router.navigate(['/vehicles', vehicle()!.id, 'edit'])">
-              Edit vehicle
-            </ui-button>
-          </div>
-        }
-
-        @case ('documents') {
-          <div class="mb-4 flex justify-end">
-            <ui-button size="sm" icon="upload" (clicked)="docModalOpen = true">Add document</ui-button>
-          </div>
-          @if (documents().length === 0) {
-            <ui-empty-state icon="description" title="No documents" description="Upload registration, insurance, or inspection files."></ui-empty-state>
-          } @else {
-            <table class="data-table">
-              <thead>
-                <tr><th>Type</th><th>Expiry</th><th>File</th></tr>
-              </thead>
-              <tbody>
-                @for (doc of documents(); track doc.id) {
-                  <tr>
-                    <td>{{ doc.documentType }}</td>
-                    <td>{{ doc.expiryDate ? (doc.expiryDate | date:'mediumDate') : '—' }}</td>
-                    <td>
-                      @if (doc.fileUrl) {
-                        <a [href]="doc.fileUrl" target="_blank" rel="noopener" class="link">View</a>
-                      } @else { — }
-                    </td>
-                  </tr>
-                }
-              </tbody>
-            </table>
-          }
-        }
-
-        @case ('maintenance') {
-          @if (maintenance().length === 0) {
-            <ui-empty-state icon="build" title="No maintenance records" description="Recent service history will appear here."></ui-empty-state>
-          } @else {
-            <table class="data-table">
-              <thead>
-                <tr><th>Date</th><th>Description</th><th>Status</th><th class="num">Cost</th></tr>
-              </thead>
-              <tbody>
-                @for (m of maintenance(); track m.id) {
-                  <tr>
-                    <td>{{ m.maintenanceDate | date:'mediumDate' }}</td>
-                    <td>{{ m.description }}</td>
-                    <td>{{ maintenanceStatusLabel(m.status) }}</td>
-                    <td class="num">{{ m.cost | number }}</td>
-                  </tr>
-                }
-              </tbody>
-            </table>
-          }
-          <div class="mt-4">
-            <a routerLink="/maintenance" class="link">View all maintenance →</a>
-          </div>
-        }
-
-        @case ('fuel') {
-          @if (fuelSummary(); as summary) {
-            <div class="summary-row">
-              <span><strong>{{ summary.totalLiters | number:'1.0-1' }}</strong> L total</span>
-              <span><strong>{{ summary.totalCost | number }}</strong> total cost</span>
-            </div>
-            @if (summary.items.length === 0) {
-              <ui-empty-state icon="local_gas_station" title="No fuel logs" description="Fuel entries for this vehicle will appear here."></ui-empty-state>
-            } @else {
-              <table class="data-table">
-                <thead>
-                  <tr><th>Date</th><th>Station</th><th class="num">Liters</th><th class="num">Cost</th></tr>
-                </thead>
-                <tbody>
-                  @for (log of summary.items; track log.id) {
-                    <tr>
-                      <td>{{ log.fuelDate | date:'mediumDate' }}</td>
-                      <td>{{ log.station || '—' }}</td>
-                      <td class="num">{{ log.liters | number:'1.0-1' }}</td>
-                      <td class="num">{{ log.totalCost | number }}</td>
-                    </tr>
-                  }
-                </tbody>
-              </table>
+        <div class="vd-header-top">
+          <div class="vd-badges">
+            <span class="vd-badge vd-badge-active">
+              <span class="vd-badge-dot"></span>
+              {{ statusLabel(displayStatus()) }}
+            </span>
+            @if (displayStatus() === 2) {
+              <span class="vd-badge vd-badge-transit">In Transit</span>
             }
-          }
+            <span class="vd-badge" [class.vd-badge-gps-on]="gpsOnline()" [class.vd-badge-gps-off]="!gpsOnline()">
+              <span class="vd-badge-dot"></span>
+              {{ gpsOnline() ? 'GPS Online' : 'GPS Offline' }}
+            </span>
+          </div>
+          <div class="vd-header-actions">
+            <button class="vd-more-btn" type="button" [matMenuTriggerFor]="moreMenu" aria-label="More actions" (click)="$event.stopPropagation()">
+              <mat-icon>more_vert</mat-icon>
+            </button>
+            <mat-menu #moreMenu="matMenu">
+              <button mat-menu-item (click)="openAssignDriverModal()"><mat-icon>person_add</mat-icon> Assign Driver</button>
+              <button mat-menu-item (click)="openAssignGpsModal()"><mat-icon>gps_fixed</mat-icon> Assign Tracker</button>
+              <button mat-menu-item routerLink="/maintenance"><mat-icon>build</mat-icon> Schedule Maintenance</button>
+              <button mat-menu-item (click)="openStatusModal()"><mat-icon>block</mat-icon> Deactivate Vehicle</button>
+            </mat-menu>
+            <button class="vd-close" type="button" (click)="closeDrawer()" aria-label="Close">
+              <mat-icon>close</mat-icon>
+            </button>
+          </div>
+        </div>
+
+        @if (!resolvedImageUrl()) {
+          <div class="vd-truck-area">
+            <mat-icon class="vd-truck-ico">local_shipping</mat-icon>
+          </div>
         }
 
-        @case ('gps') {
-          @if (gps(); as g) {
-            @if (!g.gpsDeviceId) {
-              <ui-empty-state icon="gps_off" title="No GPS device" description="Assign a GPS device to enable live tracking."></ui-empty-state>
+        <div class="vd-title-bar">
+          <div class="vd-title-icon">
+            @if (resolvedImageUrl()) {
+              <img [src]="resolvedImageUrl()!" alt="" class="vd-title-thumb" />
             } @else {
-              <dl class="detail-grid">
-                <dt>Device</dt><dd>{{ g.deviceName || '—' }} ({{ g.uniqueId || '—' }})</dd>
-                <dt>Status</dt><dd>{{ g.isActive ? 'Active' : 'Inactive' }}</dd>
-                <dt>Last seen</dt><dd>{{ g.lastSeenAt ? (g.lastSeenAt | date:'medium') : '—' }}</dd>
-                <dt>Ignition</dt><dd>{{ g.lastIgnition == null ? '—' : (g.lastIgnition ? 'On' : 'Off') }}</dd>
-                <dt>Last position</dt>
-                <dd>
-                  @if (g.latitude != null && g.longitude != null) {
-                    {{ g.latitude | number:'1.4-4' }}, {{ g.longitude | number:'1.4-4' }}
-                    @if (g.speed != null) { · {{ g.speed }} km/h }
-                  } @else { — }
-                </dd>
-                <dt>Last update</dt><dd>{{ g.lastUpdate ? (g.lastUpdate | date:'medium') : '—' }}</dd>
-              </dl>
-              @if (mapsUrl(g); as url) {
-                <div class="mt-4">
-                  <a [href]="url" target="_blank" rel="noopener" class="link">Open in maps →</a>
-                  <span class="mx-2 text-fleet-text-muted">·</span>
-                  <a [routerLink]="['/gps-tracking/live']" [queryParams]="{ vehicleId: vehicle()!.id }" class="link">Live tracking →</a>
+              <mat-icon>directions_bus</mat-icon>
+            }
+          </div>
+          <div class="vd-title-text">
+            <h2>{{ displayName() }}</h2>
+            <p># {{ displayCode() }} &bull; Fleet: {{ fleetLabel() }}</p>
+          </div>
+        </div>
+      </div>
+
+      @if (loading()) {
+        <div class="vd-loading-bar">
+          <div class="vd-spinner vd-spinner--sm"></div>
+          <span>Loading vehicle details…</span>
+        </div>
+      }
+
+      <!-- BODY -->
+      <div class="vd-body">
+        <div class="vd-content">
+
+          @if (activeTab === 'general') {
+            @if (loadError()) {
+              <div class="vd-error-banner">
+                <mat-icon>cloud_off</mat-icon>
+                <span>Couldn't refresh full profile — showing registry data.</span>
+                <button class="vd-error-retry" type="button" (click)="retryLoad()">Retry</button>
+              </div>
+            }
+
+            <div class="vd-kpi-row">
+              <div class="vd-kpi-card">
+                <span class="vd-kpi-label">Odometer</span>
+                <span class="vd-kpi-value">{{ displayMileage() | number }}<span class="vd-kpi-unit">km</span></span>
+              </div>
+              <div class="vd-kpi-card vd-kpi-card--green">
+                <span class="vd-kpi-label">Fuel Avg</span>
+                <span class="vd-kpi-value">{{ displayFuelAverage() }}<span class="vd-kpi-unit">km/L</span></span>
+                <div class="vd-fuel-bar"><div class="vd-fuel-fill" [style.width.%]="Math.min(displayFuelAverage() * 10, 100)"></div></div>
+              </div>
+              <div class="vd-kpi-card vd-kpi-card--blue">
+                <span class="vd-kpi-label">Tracker</span>
+                <span class="vd-kpi-value vd-kpi-value--sm">{{ gpsOnline() ? 'Online' : 'Offline' }}</span>
+              </div>
+            </div>
+
+            @if (displayLocation(); as loc) {
+              <div class="vd-section">
+                <div class="vd-section-header">
+                  <span class="vd-section-title">Last Known Location</span>
+                  @if (loc.lastUpdate) {
+                    <span class="vd-section-meta">Updated {{ loc.lastUpdate | date:'shortTime' }}</span>
+                  }
+                </div>
+                <div class="vd-map-block">
+                  <div class="vd-map-content">
+                    <mat-icon class="vd-map-pin">place</mat-icon>
+                    <div>
+                      <p class="vd-map-coords">{{ loc.latitude | number:'1.4-4' }}°, {{ loc.longitude | number:'1.4-4' }}°</p>
+                      <div class="vd-map-links">
+                        <a [href]="mapsUrlFromCoords(loc.latitude, loc.longitude)" target="_blank" rel="noopener" class="vd-link">Open in Maps →</a>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            }
+
+            <div class="vd-section">
+              <div class="vd-section-header"><span class="vd-section-title">Vehicle Information</span></div>
+              <div class="vd-detail-grid">
+                <div class="vd-detail-item"><span class="vd-detail-label">Vehicle Name</span><span class="vd-detail-value">{{ displayName() }}</span></div>
+                <div class="vd-detail-item"><span class="vd-detail-label">Vehicle Code</span><span class="vd-detail-value">{{ displayCode() }}</span></div>
+                <div class="vd-detail-item"><span class="vd-detail-label">Registration</span><span class="vd-detail-value">{{ displayRegistration() }}</span></div>
+                <div class="vd-detail-item"><span class="vd-detail-label">VIN</span><span class="vd-detail-value">{{ displayVin() || '—' }}</span></div>
+                <div class="vd-detail-item"><span class="vd-detail-label">Make</span><span class="vd-detail-value">{{ displayMake() || '—' }}</span></div>
+                <div class="vd-detail-item"><span class="vd-detail-label">Model</span><span class="vd-detail-value">{{ displayModel() || '—' }}</span></div>
+                <div class="vd-detail-item"><span class="vd-detail-label">Year</span><span class="vd-detail-value">{{ displayYear() || '—' }}</span></div>
+                <div class="vd-detail-item"><span class="vd-detail-label">Color</span><span class="vd-detail-value">{{ displayColor() || '—' }}</span></div>
+                <div class="vd-detail-item"><span class="vd-detail-label">Vehicle Type</span><span class="vd-detail-value">{{ displayVehicleType() || '—' }}</span></div>
+                <div class="vd-detail-item"><span class="vd-detail-label">Seating</span><span class="vd-detail-value">{{ displaySeating() }} Persons</span></div>
+                <div class="vd-detail-item"><span class="vd-detail-label">Fuel Type</span><span class="vd-detail-value">{{ fuelTypeLabel(displayFuelType()) }}</span></div>
+                <div class="vd-detail-item"><span class="vd-detail-label">Insurance Expiry</span><span class="vd-detail-value">{{ displayInsuranceExpiry() ? (displayInsuranceExpiry() | date:'mediumDate') : '—' }}</span></div>
+              </div>
+            </div>
+
+            <div class="vd-section">
+              <div class="vd-section-header"><span class="vd-section-title">Organization</span></div>
+              <div class="vd-detail-grid">
+                <div class="vd-detail-item"><span class="vd-detail-label">Branch</span><span class="vd-detail-value">{{ branchName() }}</span></div>
+                <div class="vd-detail-item"><span class="vd-detail-label">Department</span><span class="vd-detail-value">{{ departmentName() }}</span></div>
+                <div class="vd-detail-item"><span class="vd-detail-label">Fleet</span><span class="vd-detail-value">{{ fleetLabel() }}</span></div>
+                <div class="vd-detail-item"><span class="vd-detail-label">Status</span><span class="vd-detail-value">{{ statusLabel(displayStatus()) }}</span></div>
+              </div>
+            </div>
+
+            <div class="vd-section">
+              <div class="vd-section-header"><span class="vd-section-title">Tracker Information</span></div>
+              <div class="vd-detail-grid">
+                <div class="vd-detail-item"><span class="vd-detail-label">IMEI</span><span class="vd-detail-value">{{ displayImei() || '—' }}</span></div>
+                <div class="vd-detail-item"><span class="vd-detail-label">SIM</span><span class="vd-detail-value">{{ displaySim() || '—' }}</span></div>
+                <div class="vd-detail-item"><span class="vd-detail-label">Last Ping</span><span class="vd-detail-value">{{ displayLastPing() ? (displayLastPing() | date:'short') : '—' }}</span></div>
+                <div class="vd-detail-item"><span class="vd-detail-label">Ignition</span><span class="vd-detail-value" [class.vd-ignition-on]="displayIgnition()">{{ displayIgnition() == null ? '—' : (displayIgnition() ? 'ON' : 'OFF') }}</span></div>
+              </div>
+            </div>
+
+            @if (driverName()) {
+              <div class="vd-driver-row">
+                <span class="vd-detail-label">Assigned Driver</span>
+                <div class="vd-driver-info">
+                  <div class="vd-avatar">{{ driverInitials() }}</div>
+                  <span class="vd-driver-name">{{ driverName() }}</span>
+                  <span class="vd-status-chip vd-status-success">On Duty</span>
+                </div>
+              </div>
+            }
+
+          } @else if (activeTab === 'maintenance') {
+            <div class="vd-kpi-row">
+              <div class="vd-kpi-card vd-kpi-card--orange">
+                <span class="vd-kpi-label">Last Service</span>
+                <span class="vd-kpi-value vd-kpi-value--sm">{{ lastServiceDate() ? (lastServiceDate() | date:'mediumDate') : '—' }}</span>
+              </div>
+              <div class="vd-kpi-card">
+                <span class="vd-kpi-label">Next Service</span>
+                <span class="vd-kpi-value vd-kpi-value--sm">{{ displayNextServiceDue() ? (displayNextServiceDue() | date:'mediumDate') : '—' }}</span>
+              </div>
+              <div class="vd-kpi-card vd-kpi-card--red">
+                <span class="vd-kpi-label">Open Orders</span>
+                <span class="vd-kpi-value">{{ openWorkOrders() }}</span>
+              </div>
+            </div>
+            <div class="vd-kpi-row">
+              <div class="vd-kpi-card vd-kpi-card--blue" style="grid-column: span 3">
+                <span class="vd-kpi-label">Total Maintenance Cost</span>
+                <span class="vd-kpi-value">{{ totalMaintenanceCost() | number:'1.0-0' }}</span>
+              </div>
+            </div>
+
+            @if (displayNextDueMileage() != null || displayServiceAlert()) {
+              <div class="vd-section">
+                <div class="vd-section-header"><span class="vd-section-title">Service Schedule</span></div>
+                <div class="vd-detail-grid">
+                  @if (displayNextDueMileage() != null) {
+                    <div class="vd-detail-item"><span class="vd-detail-label">Next Due Mileage</span><span class="vd-detail-value">{{ displayNextDueMileage() | number }} km</span></div>
+                  }
+                  @if (displayServiceAlert()) {
+                    <div class="vd-detail-item"><span class="vd-detail-label">Alert</span><span class="vd-detail-value vd-detail-value--warn">{{ displayServiceAlert() }}</span></div>
+                  }
+                </div>
+              </div>
+            }
+
+            <div class="vd-tab-actions">
+              <span class="vd-section-title">Service History</span>
+              <a routerLink="/maintenance" class="vd-link">Schedule Service →</a>
+            </div>
+
+            @if (maintenanceLoading()) {
+              <div class="vd-loading vd-loading--inline">
+                <div class="vd-spinner"></div>
+                <p>Loading maintenance records…</p>
+              </div>
+            } @else if (maintenance().length === 0) {
+              <ui-empty-state icon="build" title="No maintenance records" description="Service history will appear here."></ui-empty-state>
+            } @else {
+              <div class="vd-record-list">
+                @for (m of maintenance(); track m.id) {
+                  <div class="vd-record-card">
+                    <div class="vd-record-icon"><mat-icon>build</mat-icon></div>
+                    <div class="vd-record-body">
+                      <span class="vd-record-title">{{ m.description }}</span>
+                      <span class="vd-record-meta">{{ m.maintenanceDate | date:'mediumDate' }} @if (m.serviceProvider) { &bull; {{ m.serviceProvider }} }</span>
+                      @if (m.nextDueDate) {
+                        <span class="vd-record-meta">Next due: {{ m.nextDueDate | date:'mediumDate' }}</span>
+                      }
+                    </div>
+                    <div class="vd-record-right">
+                      <span class="vd-record-cost">{{ m.cost | number }}</span>
+                      <span class="vd-status-chip" [ngClass]="getMaintenanceStatusClass(m.status)">{{ maintenanceStatusLabel(m.status) }}</span>
+                    </div>
+                  </div>
+                }
+              </div>
+            }
+
+          } @else if (activeTab === 'fuel') {
+            @if (fuelLoading() && !fuelSummary()) {
+              <div class="vd-loading vd-loading--inline">
+                <div class="vd-spinner"></div>
+                <p>Loading fuel records…</p>
+              </div>
+            } @else if (fuelSummary()) {
+              <div class="vd-kpi-row">
+                <div class="vd-kpi-card vd-kpi-card--blue">
+                  <span class="vd-kpi-label">Total Litres</span>
+                  <span class="vd-kpi-value">{{ fuelSummary()!.totalLiters | number:'1.0-1' }}<span class="vd-kpi-unit">L</span></span>
+                </div>
+                <div class="vd-kpi-card vd-kpi-card--green">
+                  <span class="vd-kpi-label">Fuel Avg</span>
+                  <span class="vd-kpi-value">{{ displayFuelAverage() }}<span class="vd-kpi-unit">km/L</span></span>
+                </div>
+                <div class="vd-kpi-card vd-kpi-card--orange">
+                  <span class="vd-kpi-label">Total Cost</span>
+                  <span class="vd-kpi-value vd-kpi-value--sm">{{ fuelSummary()!.totalCost | number:'1.0-0' }}</span>
+                </div>
+              </div>
+
+              <div class="vd-section">
+                <div class="vd-section-header"><span class="vd-section-title">Fuel Summary</span></div>
+                <div class="vd-detail-grid">
+                  <div class="vd-detail-item"><span class="vd-detail-label">Fuel Type</span><span class="vd-detail-value">{{ fuelTypeLabel(displayFuelType()) }}</span></div>
+                  <div class="vd-detail-item"><span class="vd-detail-label">Total Entries</span><span class="vd-detail-value">{{ fuelSummary()!.totalCount }}</span></div>
+                  <div class="vd-detail-item"><span class="vd-detail-label">Odometer</span><span class="vd-detail-value">{{ displayMileage() | number }} km</span></div>
+                  <div class="vd-detail-item"><span class="vd-detail-label">Avg Efficiency</span><span class="vd-detail-value">{{ displayFuelAverage() }} km/L</span></div>
+                </div>
+              </div>
+
+              @if (fuelSummary()!.items.length > 0) {
+                <div class="vd-chart-strip">
+                  <span class="vd-section-title">Fuel Usage Trend</span>
+                  <div class="vd-mini-bars">
+                    @for (log of fuelSummary()!.items.slice(0, 8); track log.id) {
+                      <div class="vd-mini-bar" [style.height.%]="Math.min((log.liters / (fuelSummary()!.totalLiters || 1)) * 100 * fuelSummary()!.items.length, 100)" [title]="log.liters + 'L'"></div>
+                    }
+                  </div>
                 </div>
               }
+
+              <div class="vd-tab-actions">
+                <span class="vd-section-title">Fuel History</span>
+                <a routerLink="/fuel-logs" class="vd-link">Add Entry →</a>
+              </div>
+
+              @if (fuelSummary()!.items.length === 0) {
+                <ui-empty-state icon="local_gas_station" title="No fuel logs" description="Fuel entries will appear here."></ui-empty-state>
+              } @else {
+                <div class="vd-fuel-table">
+                  <div class="vd-fuel-thead"><span>Date</span><span>Station</span><span class="ta-r">Litres</span><span class="ta-r">Cost</span></div>
+                  @for (log of fuelSummary()!.items; track log.id) {
+                    <div class="vd-fuel-row">
+                      <span>{{ log.fuelDate | date:'mediumDate' }}</span>
+                      <span>{{ log.station || '—' }}</span>
+                      <span class="ta-r">{{ log.liters | number:'1.0-1' }}</span>
+                      <span class="ta-r">{{ log.totalCost | number }}</span>
+                    </div>
+                  }
+                </div>
+              }
+            } @else {
+              <ui-empty-state icon="local_gas_station" title="No fuel data" description="Fuel logs for this vehicle will appear here."></ui-empty-state>
             }
+
+          } @else if (activeTab === 'gps') {
+            @if (gpsLoading() && !hasGpsTracker()) {
+              <div class="vd-loading vd-loading--inline">
+                <div class="vd-spinner"></div>
+                <p>Loading GPS data…</p>
+              </div>
+            } @else if (!hasGpsTracker()) {
+              <ui-empty-state icon="gps_off" title="No GPS device" description="Assign a tracker to enable live tracking."></ui-empty-state>
+              <div class="vd-center mt-4">
+                <button class="vd-btn-sm-primary" type="button" (click)="openAssignGpsModal()"><mat-icon>add</mat-icon> Assign Tracker</button>
+              </div>
+            } @else if (hasGpsTracker() && gps()) {
+              <div class="vd-gps-live-strip">
+                <span class="vd-live-dot" [class.vd-live-dot--off]="!gpsOnline()"></span>
+                <span>{{ gpsOnline() ? 'LIVE' : 'OFFLINE' }} &bull; Last ping: {{ displayLastPing() ? (displayLastPing() | date:'shortTime') : 'Unknown' }}</span>
+                @if (gps()!.speed != null) { <span class="vd-gps-speed">{{ gps()!.speed }} km/h</span> }
+              </div>
+
+              <div class="vd-kpi-row mt-3">
+                <div class="vd-kpi-card"><span class="vd-kpi-label">GPS</span><span class="vd-kpi-value vd-kpi-value--sm" [class.vd-kpi-green]="gpsOnline()">{{ gpsOnline() ? 'Online' : 'Offline' }}</span></div>
+                <div class="vd-kpi-card"><span class="vd-kpi-label">Ignition</span><span class="vd-kpi-value vd-kpi-value--sm" [class.vd-kpi-green]="displayIgnition()">{{ displayIgnition() == null ? '—' : (displayIgnition() ? 'ON' : 'OFF') }}</span></div>
+                <div class="vd-kpi-card vd-kpi-card--blue"><span class="vd-kpi-label">Speed</span><span class="vd-kpi-value">{{ gps()!.speed ?? '—' }}@if (gps()!.speed != null) { <span class="vd-kpi-unit">km/h</span> }</span></div>
+              </div>
+
+              <div class="vd-section">
+                <div class="vd-section-header"><span class="vd-section-title">Device Information</span></div>
+                <div class="vd-detail-grid">
+                  <div class="vd-detail-item"><span class="vd-detail-label">Device</span><span class="vd-detail-value">{{ gps()!.deviceName || '—' }}</span></div>
+                  <div class="vd-detail-item"><span class="vd-detail-label">IMEI</span><span class="vd-detail-value">{{ displayImei() || '—' }}</span></div>
+                  <div class="vd-detail-item"><span class="vd-detail-label">SIM</span><span class="vd-detail-value">{{ displaySim() || '—' }}</span></div>
+                  <div class="vd-detail-item"><span class="vd-detail-label">Last Ping</span><span class="vd-detail-value">{{ displayLastPing() ? (displayLastPing() | date:'short') : '—' }}</span></div>
+                  <div class="vd-detail-item"><span class="vd-detail-label">Latitude</span><span class="vd-detail-value">{{ gps()!.latitude ?? '—' }}</span></div>
+                  <div class="vd-detail-item"><span class="vd-detail-label">Longitude</span><span class="vd-detail-value">{{ gps()!.longitude ?? '—' }}</span></div>
+                </div>
+              </div>
+
+              @if (displayLocation(); as loc) {
+                <div class="vd-section">
+                  <div class="vd-map-block">
+                    <div class="vd-map-content">
+                      <mat-icon class="vd-map-pin">place</mat-icon>
+                      <div>
+                        <p class="vd-map-coords">{{ loc.latitude | number:'1.4-4' }}°, {{ loc.longitude | number:'1.4-4' }}°</p>
+                        <a [href]="mapsUrlFromCoords(loc.latitude, loc.longitude)" target="_blank" rel="noopener" class="vd-link">Open in Maps →</a>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              }
+
+              <div class="vd-footer-actions-inline">
+                @if (effectiveVehicleId(); as vid) {
+                  <a class="vd-btn-sm-primary vd-btn-link" [routerLink]="['/gps-tracking/live']" [queryParams]="{ vehicleId: vid }">Open Live Tracking</a>
+                }
+                <button class="vd-btn-outline vd-btn-outline--sm" type="button" (click)="openAssignGpsModal()">Change Tracker</button>
+              </div>
+            }
+
+          } @else if (activeTab === 'assignments') {
+            <div class="vd-section">
+              <div class="vd-section-header"><span class="vd-section-title">Current Assignment</span></div>
+              <div class="vd-detail-grid">
+                <div class="vd-detail-item"><span class="vd-detail-label">Assigned Driver</span><span class="vd-detail-value">{{ driverName() || 'Unassigned' }}</span></div>
+                <div class="vd-detail-item"><span class="vd-detail-label">Branch</span><span class="vd-detail-value">{{ branchName() }}</span></div>
+                <div class="vd-detail-item"><span class="vd-detail-label">Status</span><span class="vd-detail-value">{{ statusLabel(displayStatus()) }}</span></div>
+                <div class="vd-detail-item"><span class="vd-detail-label">Tracker</span><span class="vd-detail-value">{{ displayTrackerAssigned() }}</span></div>
+                <div class="vd-detail-item"><span class="vd-detail-label">Vehicle Code</span><span class="vd-detail-value">{{ displayCode() }}</span></div>
+                <div class="vd-detail-item"><span class="vd-detail-label">Registration</span><span class="vd-detail-value">{{ displayRegistration() }}</span></div>
+              </div>
+            </div>
+
+            @if (driverName()) {
+              <div class="vd-driver-row">
+                <span class="vd-detail-label">Active Driver</span>
+                <div class="vd-driver-info">
+                  <div class="vd-avatar">{{ driverInitials() }}</div>
+                  <span class="vd-driver-name">{{ driverName() }}</span>
+                  <span class="vd-status-chip vd-status-success">{{ operationalStatus().label }}</span>
+                </div>
+              </div>
+            }
+
+            <div class="vd-footer-actions-inline">
+              <button class="vd-btn-sm-primary" type="button" (click)="openAssignDriverModal()"><mat-icon>person_add</mat-icon> Assign Driver</button>
+              <button class="vd-btn-outline vd-btn-outline--sm" type="button" (click)="openAssignGpsModal()">Assign Tracker</button>
+            </div>
+
+            <div class="vd-tab-actions mt-4">
+              <span class="vd-section-title">Recent Trip Assignments</span>
+            </div>
+
+            @if (tripsLoading()) {
+              <div class="vd-loading vd-loading--inline">
+                <div class="vd-spinner"></div>
+                <p>Loading assignments…</p>
+              </div>
+            } @else if (trips().length === 0) {
+              <ui-empty-state icon="assignment_ind" title="No trip assignments" description="Trip assignments for this vehicle will appear here."></ui-empty-state>
+            } @else {
+              <div class="vd-record-list">
+                @for (trip of trips().slice(0, 8); track trip.id) {
+                  <div class="vd-record-card">
+                    <div class="vd-record-icon"><mat-icon>route</mat-icon></div>
+                    <div class="vd-record-body">
+                      <span class="vd-record-title">{{ trip.routeName }}</span>
+                      <span class="vd-record-meta">{{ trip.driverName || 'No driver' }} &bull; {{ trip.pickupTime | date:'mediumDate' }}</span>
+                      <span class="vd-record-meta">{{ trip.status }}</span>
+                    </div>
+                  </div>
+                }
+              </div>
+            }
+
+          } @else if (activeTab === 'history') {
+            <div class="vd-history-filters">
+              <button type="button" class="vd-filter-chip" [class.vd-filter-chip--active]="historyFilter === 'today'" (click)="historyFilter = 'today'">Today</button>
+              <button type="button" class="vd-filter-chip" [class.vd-filter-chip--active]="historyFilter === 'week'" (click)="historyFilter = 'week'">Week</button>
+              <button type="button" class="vd-filter-chip" [class.vd-filter-chip--active]="historyFilter === 'month'" (click)="historyFilter = 'month'">Month</button>
+              <button type="button" class="vd-filter-chip" [class.vd-filter-chip--active]="historyFilter === 'all'" (click)="historyFilter = 'all'">All</button>
+            </div>
+
+            @if (tripsLoading() && historyEvents().length === 0) {
+              <div class="vd-loading vd-loading--inline">
+                <div class="vd-spinner"></div>
+                <p>Loading activity timeline…</p>
+              </div>
+            } @else if (historyEvents().length === 0) {
+              <ui-empty-state icon="history" title="No activity" description="Vehicle activity timeline will appear here."></ui-empty-state>
+            } @else {
+              <ol class="vd-timeline">
+                @for (event of historyEvents(); track $index) {
+                  <li class="vd-timeline-item" [attr.data-tone]="event.tone">
+                    <span class="vd-timeline-marker"><mat-icon>{{ event.icon }}</mat-icon></span>
+                    <div class="vd-timeline-body">
+                      <p class="vd-timeline-title">{{ event.title }}</p>
+                      @if (event.detail) { <p class="vd-timeline-detail">{{ event.detail }}</p> }
+                      @if (event.timestamp) { <p class="vd-timeline-time">{{ event.timestamp | date:'medium' }}</p> }
+                    </div>
+                  </li>
+                }
+              </ol>
+            }
+
+          } @else if (activeTab === 'trips') {
+            <div class="vd-kpi-row">
+              <div class="vd-kpi-card"><span class="vd-kpi-label">Total Trips</span><span class="vd-kpi-value">{{ trips().length }}</span></div>
+              <div class="vd-kpi-card vd-kpi-card--blue"><span class="vd-kpi-label">Est. Distance</span><span class="vd-kpi-value">{{ totalTripDistance() }}<span class="vd-kpi-unit">km</span></span></div>
+              <div class="vd-kpi-card vd-kpi-card--green"><span class="vd-kpi-label">Completed</span><span class="vd-kpi-value">{{ completedTripsCount() }}</span></div>
+            </div>
+            <div class="vd-kpi-row">
+              <div class="vd-kpi-card vd-kpi-card--orange" style="grid-column: span 3">
+                <span class="vd-kpi-label">In Progress</span>
+                <span class="vd-kpi-value">{{ inProgressTripsCount() }}</span>
+              </div>
+            </div>
+
+            <div class="vd-tab-actions">
+              <span class="vd-section-title">Trip History</span>
+              @if (effectiveVehicleId(); as vid) {
+                <a [routerLink]="['/trip-history']" [queryParams]="{ vehicleId: vid }" class="vd-link">View All →</a>
+              }
+            </div>
+
+            @if (tripsLoading()) {
+              <div class="vd-loading vd-loading--inline">
+                <div class="vd-spinner"></div>
+                <p>Loading trips…</p>
+              </div>
+            } @else if (trips().length === 0) {
+              <ui-empty-state icon="route" title="No trips" description="Trip history for this vehicle will appear here.">
+                @if (effectiveVehicleId(); as vid) {
+                  <a [routerLink]="['/trip-history']" [queryParams]="{ vehicleId: vid }" class="vd-btn-sm-primary vd-btn-link">View All Trips →</a>
+                }
+              </ui-empty-state>
+            } @else {
+              <div class="vd-fuel-table">
+                <div class="vd-fuel-thead" style="grid-template-columns: 1.2fr 1.2fr 72px 80px">
+                  <span>Route</span><span>Driver</span><span>Status</span><span class="ta-r">Date</span>
+                </div>
+                @for (trip of trips(); track trip.id) {
+                  <div class="vd-fuel-row" style="grid-template-columns: 1.2fr 1.2fr 72px 80px">
+                    <span>{{ trip.routeName }}</span>
+                    <span>{{ trip.driverName || '—' }}</span>
+                    <span>{{ trip.status }}</span>
+                    <span class="ta-r">{{ trip.pickupTime | date:'shortDate' }}</span>
+                  </div>
+                }
+              </div>
+            }
+
+          } @else if (activeTab === 'alerts') {
+            <div class="vd-kpi-row">
+              <div class="vd-kpi-card vd-kpi-card--red">
+                <span class="vd-kpi-label">High Priority</span>
+                <span class="vd-kpi-value">{{ highPriorityAlertsCount() }}</span>
+              </div>
+              <div class="vd-kpi-card vd-kpi-card--orange">
+                <span class="vd-kpi-label">Medium</span>
+                <span class="vd-kpi-value">{{ mediumPriorityAlertsCount() }}</span>
+              </div>
+              <div class="vd-kpi-card vd-kpi-card--blue">
+                <span class="vd-kpi-label">Total Active</span>
+                <span class="vd-kpi-value">{{ vehicleAlerts().length }}</span>
+              </div>
+            </div>
+
+            @if (vehicleAlerts().length === 0) {
+              <ui-empty-state icon="notifications_none" title="No active alerts" description="Vehicle alerts and notifications will appear here."></ui-empty-state>
+            } @else {
+              <div class="vd-alert-list">
+                @for (alert of vehicleAlerts(); track alert.id) {
+                  <div class="vd-alert-item">
+                    <div class="vd-alert-item-head">
+                      <span class="vd-status-chip" [ngClass]="alertPriorityClass(alert.priority)">{{ alert.priority | titlecase }}</span>
+                      <span class="vd-alert-type">{{ alert.type }}</span>
+                    </div>
+                    <p class="vd-alert-item-title">{{ alert.title }}</p>
+                    <p class="vd-alert-item-detail">{{ alert.detail }}</p>
+                    @if (alert.date) {
+                      <span class="vd-alert-item-date">{{ alert.date | date:'mediumDate' }}</span>
+                    }
+                  </div>
+                }
+              </div>
+            }
+
+          } @else if (activeTab === 'documents') {
+            <div class="vd-tab-actions">
+              <span class="vd-section-title">Vehicle Documents</span>
+              <button class="vd-btn-sm-primary" type="button" (click)="docModalOpen = true">
+                <mat-icon>upload</mat-icon> Upload
+              </button>
+            </div>
+
+            @if (documentsLoading()) {
+              <div class="vd-loading vd-loading--inline">
+                <div class="vd-spinner"></div>
+                <p>Loading documents…</p>
+              </div>
+            } @else if (displayDocuments().length === 0) {
+              <ui-empty-state icon="description" title="No documents" description="Upload registration, insurance, and compliance files."></ui-empty-state>
+            } @else {
+              <div class="vd-doc-list">
+                @for (doc of displayDocuments(); track doc.id) {
+                  <div class="vd-doc-card">
+                    @if (docFileUrl(doc) && !isPdfDoc(doc)) {
+                      <div class="vd-doc-preview"><img [src]="docFileUrl(doc)!" [alt]="doc.documentType" /></div>
+                    } @else {
+                      <div class="vd-doc-icon"><mat-icon>{{ isPdfDoc(doc) ? 'picture_as_pdf' : 'description' }}</mat-icon></div>
+                    }
+                    <div class="vd-doc-info">
+                      <span class="vd-doc-type">{{ docLabel(doc.documentType) }}</span>
+                      @if (doc.expiryDate) {
+                        <span class="vd-doc-meta">Expires: {{ doc.expiryDate | date:'mediumDate' }}</span>
+                      }
+                    </div>
+                    <div class="vd-doc-right">
+                      <span class="vd-status-chip" [ngClass]="getDocStatusClass(doc.expiryDate)">{{ getDocStatus(doc.expiryDate) }}</span>
+                      <div class="vd-doc-actions">
+                        @if (docFileUrl(doc); as url) {
+                          <a [href]="url" target="_blank" rel="noopener" class="vd-icon-btn" title="Preview"><mat-icon>visibility</mat-icon></a>
+                          <a [href]="url" download class="vd-icon-btn" title="Download"><mat-icon>download</mat-icon></a>
+                        }
+                      </div>
+                    </div>
+                  </div>
+                }
+              </div>
+            }
+
+          } @else if (activeTab === 'compliance') {
+            <div class="vd-kpi-row">
+              <div class="vd-kpi-card vd-kpi-card--green">
+                <span class="vd-kpi-label">Valid</span>
+                <span class="vd-kpi-value">{{ complianceValidCount() }}</span>
+              </div>
+              <div class="vd-kpi-card vd-kpi-card--orange">
+                <span class="vd-kpi-label">Expiring Soon</span>
+                <span class="vd-kpi-value">{{ complianceExpiringCount() }}</span>
+              </div>
+              <div class="vd-kpi-card vd-kpi-card--red">
+                <span class="vd-kpi-label">Issues</span>
+                <span class="vd-kpi-value">{{ complianceIssueCount() }}</span>
+              </div>
+            </div>
+
+            <div class="vd-tab-actions">
+              <span class="vd-section-title">Compliance Status</span>
+              <button class="vd-btn-sm-primary" type="button" (click)="docModalOpen = true"><mat-icon>upload</mat-icon> Renew</button>
+            </div>
+
+            @if (documentsLoading() && documents().length === 0) {
+              <div class="vd-loading vd-loading--inline">
+                <div class="vd-spinner"></div>
+                <p>Loading compliance records…</p>
+              </div>
+            } @else {
+              <div class="vd-doc-list">
+                @for (item of complianceItems(); track item.key) {
+                  <div class="vd-doc-card">
+                    @if (item.document && docFileUrl(item.document) && !isPdfDoc(item.document)) {
+                      <div class="vd-doc-preview"><img [src]="docFileUrl(item.document)!" [alt]="item.label" /></div>
+                    } @else if (item.document && isPdfDoc(item.document)) {
+                      <div class="vd-doc-icon"><mat-icon>picture_as_pdf</mat-icon></div>
+                    } @else {
+                      <div class="vd-doc-icon"><mat-icon>verified_user</mat-icon></div>
+                    }
+                    <div class="vd-doc-info">
+                      <span class="vd-doc-type">{{ item.label }}</span>
+                      <span class="vd-doc-meta">{{ item.expiryDate ? ('Expires: ' + (item.expiryDate | date:'mediumDate')) : 'No expiry on file' }}</span>
+                    </div>
+                    <div class="vd-doc-right">
+                      <span class="vd-status-chip" [ngClass]="item.statusClass">{{ item.status }}</span>
+                      @if (item.document && docFileUrl(item.document); as url) {
+                        <a [href]="url" target="_blank" rel="noopener" class="vd-link">View</a>
+                      }
+                    </div>
+                  </div>
+                }
+              </div>
+            }
+
+          } @else if (loading()) {
+            <div class="vd-loading vd-loading--inline">
+              <div class="vd-spinner"></div>
+              <p>Loading vehicle details…</p>
+            </div>
+          } @else if (loadError()) {
+            <ui-empty-state
+              icon="cloud_off"
+              title="Could not load full profile"
+              description="Registry summary is available on the General tab.">
+              <button class="vd-btn-sm-primary" type="button" (click)="retryLoad()">Retry</button>
+            </ui-empty-state>
+          } @else {
+            <div class="vd-loading vd-loading--inline">
+              <div class="vd-spinner"></div>
+              <p>Loading vehicle details…</p>
+            </div>
           }
-        }
-      }
+        </div>
+
+        <nav class="vd-sidebar" aria-label="Vehicle sections">
+          @for (tab of tabs; track tab.id) {
+            <button
+              class="vd-tab-btn"
+              [class.vd-tab-btn--active]="activeTab === tab.id"
+              type="button"
+              [title]="tab.label"
+              (click)="onTabChange(tab.id)">
+              <mat-icon>{{ tab.icon }}</mat-icon>
+              <span>{{ tab.label }}</span>
+            </button>
+          }
+        </nav>
+      </div>
+
+      <footer class="vd-footer">
+        <button class="vd-cta-btn" type="button" (click)="openAssignDriverModal()">Assign Trip Now →</button>
+        <div class="vd-footer-row">
+          <button class="vd-btn-outline" type="button" (click)="editVehicle()">Edit Vehicle</button>
+          <button class="vd-btn-outline" type="button" (click)="viewFullProfile()">View Logs</button>
+        </div>
+      </footer>
+
     </div>
-
-    <footer class="drawer-footer">
-      <ui-button variant="outline" size="sm" (clicked)="openStatusModal()">Change status</ui-button>
-      <ui-button variant="outline" size="sm" (clicked)="openAssignGpsModal()">Assign GPS</ui-button>
-      <ui-button variant="primary" size="sm" (clicked)="openAssignDriverModal()">Assign driver</ui-button>
-    </footer>
+  } @else {
+    <div class="vd-loading">
+      <mat-icon>directions_bus</mat-icon>
+      <p>No vehicle selected</p>
+    </div>
   }
+
+  <!-- MODALS -->
+  <ui-modal [(open)]="statusModalOpen" title="Change Status" size="sm">
+    <ui-select label="Status" [options]="statusOptions" [(ngModel)]="selectedStatus"></ui-select>
+    <ui-input class="mt-4 block" label="Reason (optional)" [(ngModel)]="statusReason"></ui-input>
+    <div modal-footer class="flex justify-end gap-2">
+      <ui-button variant="ghost" (clicked)="statusModalOpen = false">Cancel</ui-button>
+      <ui-button variant="primary" (clicked)="submitStatusChange()">Save</ui-button>
+    </div>
+  </ui-modal>
+
+  <ui-modal [(open)]="assignDriverModalOpen" title="Assign Driver" size="sm">
+    <ui-select label="Driver" [options]="driverOptions" [(ngModel)]="selectedDriverId" [required]="true"></ui-select>
+    <ui-input class="mt-4 block" label="Booking ID (optional)" type="number" [(ngModel)]="bookingId"></ui-input>
+    <div modal-footer class="flex justify-end gap-2">
+      <ui-button variant="ghost" (clicked)="assignDriverModalOpen = false">Cancel</ui-button>
+      <ui-button variant="primary" [disabled]="!selectedDriverId" (clicked)="submitAssignDriver()">Assign</ui-button>
+    </div>
+  </ui-modal>
+
+  <ui-modal [(open)]="assignGpsModalOpen" title="Assign GPS Device" size="sm">
+    <ui-select label="GPS device" [options]="gpsOptions" [(ngModel)]="selectedGpsDeviceId" [required]="true"></ui-select>
+    <div modal-footer class="flex justify-end gap-2">
+      <ui-button variant="ghost" (clicked)="assignGpsModalOpen = false">Cancel</ui-button>
+      <ui-button variant="primary" [disabled]="!selectedGpsDeviceId" (clicked)="submitAssignGps()">Assign</ui-button>
+    </div>
+  </ui-modal>
+
+  <ui-modal [(open)]="docModalOpen" title="Upload Document" size="sm">
+    <ui-select label="Document type" [options]="docTypeOptions" [(ngModel)]="newDocType"></ui-select>
+    <label class="mt-4 block text-[13px] font-semibold text-fleet-text">File</label>
+    <input class="stb-input mt-1 w-full" type="file" accept=".pdf,.jpg,.jpeg,.png" (change)="onDocFileSelected($event)" />
+    @if (newDocFile) {
+      <p class="mt-2 text-xs text-fleet-text-muted">{{ newDocFile.name }}</p>
+    }
+    <label class="mt-4 block text-[13px] font-semibold text-fleet-text">Expiry date</label>
+    <input class="stb-input mt-1 w-full" type="date" [(ngModel)]="newDocExpiry" />
+    <ui-input class="mt-4 block" label="Notes" [(ngModel)]="newDocNotes"></ui-input>
+    <div modal-footer class="flex justify-end gap-2">
+      <ui-button variant="ghost" (clicked)="docModalOpen = false">Cancel</ui-button>
+      <ui-button variant="primary" [disabled]="!newDocType.trim() || !newDocFile || docUploading" (clicked)="submitDocument()">
+        {{ docUploading ? 'Uploading…' : 'Upload' }}
+      </ui-button>
+    </div>
+  </ui-modal>
+
 </ui-drawer>
-
-<ui-modal [(open)]="statusModalOpen" title="Change status" size="sm">
-  <ui-select label="Status" [options]="statusOptions" [(ngModel)]="selectedStatus"></ui-select>
-  <ui-input class="mt-4 block" label="Reason (optional)" [(ngModel)]="statusReason"></ui-input>
-  <div modal-footer class="flex justify-end gap-2">
-    <ui-button variant="ghost" (clicked)="statusModalOpen = false">Cancel</ui-button>
-    <ui-button variant="primary" (clicked)="submitStatusChange()">Save</ui-button>
-  </div>
-</ui-modal>
-
-<ui-modal [(open)]="assignDriverModalOpen" title="Assign driver" size="sm">
-  <ui-select label="Driver" [options]="driverOptions" [(ngModel)]="selectedDriverId" [required]="true"></ui-select>
-  <ui-input class="mt-4 block" label="Booking ID (optional)" type="number" [(ngModel)]="bookingId"></ui-input>
-  <div modal-footer class="flex justify-end gap-2">
-    <ui-button variant="ghost" (clicked)="assignDriverModalOpen = false">Cancel</ui-button>
-    <ui-button variant="primary" [disabled]="!selectedDriverId" (clicked)="submitAssignDriver()">Assign</ui-button>
-  </div>
-</ui-modal>
-
-<ui-modal [(open)]="assignGpsModalOpen" title="Assign GPS device" size="sm">
-  <ui-select label="GPS device" [options]="gpsOptions" [(ngModel)]="selectedGpsDeviceId" [required]="true"></ui-select>
-  <div modal-footer class="flex justify-end gap-2">
-    <ui-button variant="ghost" (clicked)="assignGpsModalOpen = false">Cancel</ui-button>
-    <ui-button variant="primary" [disabled]="!selectedGpsDeviceId" (clicked)="submitAssignGps()">Assign</ui-button>
-  </div>
-</ui-modal>
-
-<ui-modal [(open)]="docModalOpen" title="Add document" size="sm">
-  <ui-input label="Document type" [(ngModel)]="newDocType" [required]="true"></ui-input>
-  <ui-input class="mt-4 block" label="File URL" [(ngModel)]="newDocUrl" placeholder="https://..."></ui-input>
-  <label class="mt-4 block text-[13px] font-semibold text-fleet-text">Expiry date</label>
-  <input class="stb-input mt-1 w-full" type="date" [(ngModel)]="newDocExpiry" />
-  <ui-input class="mt-4 block" label="Notes" [(ngModel)]="newDocNotes"></ui-input>
-  <div modal-footer class="flex justify-end gap-2">
-    <ui-button variant="ghost" (clicked)="docModalOpen = false">Cancel</ui-button>
-    <ui-button variant="primary" [disabled]="!newDocType.trim()" (clicked)="submitDocument()">Save</ui-button>
-  </div>
-</ui-modal>

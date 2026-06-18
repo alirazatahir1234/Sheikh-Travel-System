@@ -1,4 +1,4 @@
-import { VehicleListItem, VehicleStatus } from '../../../core/models/vehicle.model';
+import { VehicleListItem, VehicleStatus, VehicleStatusLabels, normalizeVehicleStatus } from '../../../core/models/vehicle.model';
 import { UiStatusVariant } from '../../../shared/components/ui/types/ui.types';
 
 export interface OperationalStatus {
@@ -6,21 +6,35 @@ export interface OperationalStatus {
   variant: UiStatusVariant;
 }
 
+function lifecycleStatus(row: VehicleListItem): OperationalStatus {
+  const status = normalizeVehicleStatus(row.status);
+  const label = VehicleStatusLabels[status] ?? 'Available';
+  const variantByStatus: Record<VehicleStatus, UiStatusVariant> = {
+    [VehicleStatus.Available]: 'success',
+    [VehicleStatus.OnTrip]: 'info',
+    [VehicleStatus.Maintenance]: 'warning',
+    [VehicleStatus.Retired]: 'inactive',
+    [VehicleStatus.Draft]: 'inactive'
+  };
+  return { label, variant: variantByStatus[status] ?? 'inactive' };
+}
+
 /** Derives fleet operational status from vehicle status + GPS telemetry. */
 export function deriveOperationalStatus(row: VehicleListItem): OperationalStatus {
-  if (row.status === VehicleStatus.Maintenance) {
+  const status = normalizeVehicleStatus(row.status);
+  if (status === VehicleStatus.Maintenance) {
     return { label: 'Maintenance', variant: 'warning' };
   }
-  if (row.status === VehicleStatus.OnTrip) {
+  if (status === VehicleStatus.OnTrip) {
     return { label: 'On Route', variant: 'info' };
   }
-  if (row.status === VehicleStatus.Retired) {
+  if (status === VehicleStatus.Retired) {
     return { label: 'Offline', variant: 'inactive' };
   }
 
   const hasTracker = row.hasGpsDevice || !!row.gpsImei;
   if (!hasTracker) {
-    return { label: 'Unknown', variant: 'inactive' };
+    return lifecycleStatus(row);
   }
 
   if (!row.gpsOnline) {

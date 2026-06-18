@@ -43,7 +43,11 @@
           @case ('documents') {
             <app-wizard-step-documents
               [slots]="facade.documentSlots()"
-              (fileSelected)="onFileSelected($event)" />
+              [vehicleImageSlots]="facade.vehicleImageSlots()"
+              [showImageRequiredError]="facade.vehicleImageHasError()"
+              (fileSelected)="onFileSelected($event)"
+              (vehicleImageSelected)="onVehicleImageSelected($event)"
+              (selectPrimaryImage)="onSelectPrimaryImage($event)" />
           }
           @case ('review') {
             <app-wizard-step-review
