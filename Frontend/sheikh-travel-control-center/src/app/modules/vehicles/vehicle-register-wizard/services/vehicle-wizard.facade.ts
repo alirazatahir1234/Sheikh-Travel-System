@@ -641,14 +641,16 @@ export class VehicleWizardFacade {
     this.vehicleImageSlots.set(slots);
 
     const docSlots = this.documentSlots().map(slot => {
-      const doc = documents.find(d => d.documentType === slot.documentType);
+      const doc = documents.find(d =>
+        d.documentType === slot.documentType && !!d.fileUrl?.trim()
+      );
       return doc ? { ...slot, fileUrl: doc.fileUrl, documentId: this.readDocumentId(doc) } : slot;
     });
     this.documentSlots.set(docSlots);
 
-    const regDoc = documents.find(d => d.documentType === 'Registration');
-    const roadDoc = documents.find(d => d.documentType === 'RoadTax');
-    const fitDoc = documents.find(d => d.documentType === 'Fitness');
+    const regDoc = documents.find(d => d.documentType === 'Registration' && d.fileUrl?.trim());
+    const roadDoc = documents.find(d => d.documentType === 'RoadTax' && d.fileUrl?.trim());
+    const fitDoc = documents.find(d => d.documentType === 'Fitness' && d.fileUrl?.trim());
     this.form.patchValue({
       registrationExpiryDate: toDateInputValue(regDoc?.expiryDate),
       roadTaxExpiryDate: toDateInputValue(roadDoc?.expiryDate),
@@ -743,13 +745,10 @@ export class VehicleWizardFacade {
 
     for (const { type, date } of pairs) {
       if (!date) continue;
-      const existing = this.uploadedDocuments().find(d => d.documentType === type);
-      if (!existing) {
-        await firstValueFrom(this.vehicleService.addDocument(vehicleId, {
-          documentType: type,
-          expiryDate: dateInputToIso(date) ?? undefined
-        })).catch(() => undefined);
-      }
+      await firstValueFrom(this.vehicleService.addDocument(vehicleId, {
+        documentType: type,
+        expiryDate: dateInputToIso(date) ?? undefined
+      })).catch(() => undefined);
     }
   }
 

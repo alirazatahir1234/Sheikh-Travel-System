@@ -547,11 +547,11 @@
                 <div class="vd-spinner"></div>
                 <p>Loading documents…</p>
               </div>
-            } @else if (documents().length === 0) {
+            } @else if (displayDocuments().length === 0) {
               <ui-empty-state icon="description" title="No documents" description="Upload registration, insurance, and compliance files."></ui-empty-state>
             } @else {
               <div class="vd-doc-list">
-                @for (doc of documents(); track doc.id) {
+                @for (doc of displayDocuments(); track doc.id) {
                   <div class="vd-doc-card">
                     @if (docFileUrl(doc) && !isPdfDoc(doc)) {
                       <div class="vd-doc-preview"><img [src]="docFileUrl(doc)!" [alt]="doc.documentType" /></div>
@@ -710,13 +710,19 @@
 
   <ui-modal [(open)]="docModalOpen" title="Upload Document" size="sm">
     <ui-select label="Document type" [options]="docTypeOptions" [(ngModel)]="newDocType"></ui-select>
-    <ui-input class="mt-4 block" label="File URL" [(ngModel)]="newDocUrl" placeholder="https://…"></ui-input>
+    <label class="mt-4 block text-[13px] font-semibold text-fleet-text">File</label>
+    <input class="stb-input mt-1 w-full" type="file" accept=".pdf,.jpg,.jpeg,.png" (change)="onDocFileSelected($event)" />
+    @if (newDocFile) {
+      <p class="mt-2 text-xs text-fleet-text-muted">{{ newDocFile.name }}</p>
+    }
     <label class="mt-4 block text-[13px] font-semibold text-fleet-text">Expiry date</label>
     <input class="stb-input mt-1 w-full" type="date" [(ngModel)]="newDocExpiry" />
     <ui-input class="mt-4 block" label="Notes" [(ngModel)]="newDocNotes"></ui-input>
     <div modal-footer class="flex justify-end gap-2">
       <ui-button variant="ghost" (clicked)="docModalOpen = false">Cancel</ui-button>
-      <ui-button variant="primary" [disabled]="!newDocType.trim()" (clicked)="submitDocument()">Save</ui-button>
+      <ui-button variant="primary" [disabled]="!newDocType.trim() || !newDocFile || docUploading" (clicked)="submitDocument()">
+        {{ docUploading ? 'Uploading…' : 'Upload' }}
+      </ui-button>
     </div>
   </ui-modal>
 

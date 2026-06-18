@@ -316,6 +316,14 @@ export function normalizeVehicle(vehicle: Vehicle): Vehicle {
   };
 }
 
+export function normalizeVehicleListItem(item: VehicleListItem): VehicleListItem {
+  return {
+    ...item,
+    fuelType: normalizeFuelType(item.fuelType),
+    status: normalizeVehicleStatus(item.status)
+  };
+}
+
 export const MaintenanceStatusLabels: Record<MaintenanceStatus, string> = {
   [MaintenanceStatus.Scheduled]:  'Scheduled',
   [MaintenanceStatus.InProgress]: 'In Progress',

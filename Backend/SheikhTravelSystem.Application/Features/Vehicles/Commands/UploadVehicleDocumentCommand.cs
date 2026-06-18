@@ -112,6 +112,21 @@ public class UploadVehicleDocumentCommandHandler(
                 },
                 cancellationToken: cancellationToken));
         }
+        else
+        {
+            await connection.ExecuteAsync(new CommandDefinition(
+                @"UPDATE VehicleDocuments
+                  SET IsDeleted = 1, UpdatedAt = GETUTCDATE()
+                  WHERE VehicleId = @VehicleId AND TenantId = @TenantId
+                    AND DocumentType = @DocumentType AND IsDeleted = 0",
+                new
+                {
+                    request.VehicleId,
+                    TenantId = tenantId,
+                    request.DocumentType
+                },
+                cancellationToken: cancellationToken));
+        }
 
         var docId = await connection.ExecuteScalarAsync<int>(
             new CommandDefinition(

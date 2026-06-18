@@ -1,9 +1,22 @@
-import { VehicleListItem, VehicleStatus, normalizeVehicleStatus } from '../../../core/models/vehicle.model';
+import { VehicleListItem, VehicleStatus, VehicleStatusLabels, normalizeVehicleStatus } from '../../../core/models/vehicle.model';
 import { UiStatusVariant } from '../../../shared/components/ui/types/ui.types';
 
 export interface OperationalStatus {
   label: string;
   variant: UiStatusVariant;
+}
+
+function lifecycleStatus(row: VehicleListItem): OperationalStatus {
+  const status = normalizeVehicleStatus(row.status);
+  const label = VehicleStatusLabels[status] ?? 'Available';
+  const variantByStatus: Record<VehicleStatus, UiStatusVariant> = {
+    [VehicleStatus.Available]: 'success',
+    [VehicleStatus.OnTrip]: 'info',
+    [VehicleStatus.Maintenance]: 'warning',
+    [VehicleStatus.Retired]: 'inactive',
+    [VehicleStatus.Draft]: 'inactive'
+  };
+  return { label, variant: variantByStatus[status] ?? 'inactive' };
 }
 
 /** Derives fleet operational status from vehicle status + GPS telemetry. */
@@ -21,7 +34,7 @@ export function deriveOperationalStatus(row: VehicleListItem): OperationalStatus
 
   const hasTracker = row.hasGpsDevice || !!row.gpsImei;
   if (!hasTracker) {
-    return { label: 'Unknown', variant: 'inactive' };
+    return lifecycleStatus(row);
   }
 
   if (!row.gpsOnline) {

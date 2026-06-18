@@ -130,6 +130,11 @@ export class VehicleDetailsDrawerComponent {
   readonly documentsLoading = signal(false);
   readonly vehicle = signal<Vehicle | null>(null);
   readonly documents = signal<VehicleDocument[]>([]);
+  readonly displayDocuments = computed(() =>
+    this.documents().filter(doc =>
+      doc.documentType !== 'VehicleImage' && !!doc.fileUrl?.trim()
+    )
+  );
   readonly maintenance = signal<VehicleMaintenance[]>([]);
   readonly nextService = signal<VehicleMaintenance | null>(null);
   readonly fuelSummary = signal<VehicleFuelSummary | null>(null);
@@ -140,7 +145,9 @@ export class VehicleDetailsDrawerComponent {
 
   protected readonly Math = Math;
   protected readonly documentCatalog = DOCUMENT_CATALOG;
-  readonly docTypeOptions: UiSelectOption[] = DOCUMENT_CATALOG.map(d => ({ value: d.type, label: d.label }));
+  readonly docTypeOptions: UiSelectOption[] = DOCUMENT_CATALOG
+    .filter(d => d.type !== 'VehicleImage')
+    .map(d => ({ value: d.type, label: d.label }));
 
   readonly tabs: UiTab[] = [
     { id: 'general', label: 'General', icon: 'info' },
@@ -167,9 +174,10 @@ export class VehicleDetailsDrawerComponent {
   bookingId: number | null = null;
 
   newDocType = '';
-  newDocUrl = '';
+  newDocFile: File | null = null;
   newDocExpiry = '';
   newDocNotes = '';
+  docUploading = false;
 
   driverOptions: UiSelectOption[] = [];
   gpsOptions: UiSelectOption[] = [];
@@ -405,7 +413,8 @@ export class VehicleDetailsDrawerComponent {
   readonly complianceItems = computed((): ComplianceItem[] =>
     COMPLIANCE_TYPES.map(item => {
       const doc = this.documents().find(d =>
-        item.aliases.some(a => d.documentType.toLowerCase() === a.toLowerCase())
+        !!d.fileUrl?.trim()
+        && item.aliases.some(a => d.documentType.toLowerCase() === a.toLowerCase())
       );
       const expiry = doc?.expiryDate ?? (item.key === 'Insurance' ? this.displayInsuranceExpiry() ?? undefined : undefined);
       return {
@@ -751,26 +760,42 @@ export class VehicleDetailsDrawerComponent {
 
   submitDocument(): void {
     const id = this.vehicleId();
-    if (!id || !this.newDocType.trim()) return;
-    this.vehicleService.addDocument(id, {
-      documentType: this.newDocType.trim(),
-      fileUrl: this.newDocUrl || undefined,
-      expiryDate: dateInputToIso(this.newDocExpiry) ?? undefined,
-      notes: this.newDocNotes || undefined
-    }).subscribe({
+    if (!id || !this.newDocType.trim() || !this.newDocFile) return;
+
+    this.docUploading = true;
+    this.vehicleService.uploadDocument(
+      id,
+      this.newDocFile,
+      this.newDocType.trim(),
+      dateInputToIso(this.newDocExpiry) ?? undefined,
+      this.newDocNotes || undefined
+    ).subscribe({
       next: () => {
-        this.snackBar.open('Document added', 'Close', { duration: 2000 });
+        this.snackBar.open('Document uploaded', 'Close', { duration: 2000 });
         this.docModalOpen = false;
-        this.newDocType = '';
-        this.newDocUrl = '';
-        this.newDocExpiry = '';
-        this.newDocNotes = '';
+        this.resetDocForm();
         this.loadedTabs.delete('documents');
         this.loadedTabs.delete('compliance');
         this.loadTab('documents', id);
       },
-      error: () => this.snackBar.open('Upload failed', 'Close', { duration: 3000 })
+      error: () => {
+        this.docUploading = false;
+        this.snackBar.open('Upload failed', 'Close', { duration: 3000 });
+      }
     });
+  }
+
+  onDocFileSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    this.newDocFile = input.files?.[0] ?? null;
+  }
+
+  private resetDocForm(): void {
+    this.docUploading = false;
+    this.newDocType = '';
+    this.newDocFile = null;
+    this.newDocExpiry = '';
+    this.newDocNotes = '';
   }
 
   private daysUntil(dateStr: string): number {
