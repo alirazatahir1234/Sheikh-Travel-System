@@ -15,7 +15,10 @@ public record VehicleDocumentDto(
 
 public record GetVehicleDocumentsQuery(int VehicleId) : IRequest<ApiResponse<IReadOnlyList<VehicleDocumentDto>>>;
 
-public class GetVehicleDocumentsQueryHandler(IDbConnectionFactory dbFactory, ITenantContext tenantContext)
+public class GetVehicleDocumentsQueryHandler(
+    IDbConnectionFactory dbFactory,
+    ITenantContext tenantContext,
+    IFileStorageService fileStorage)
     : IRequestHandler<GetVehicleDocumentsQuery, ApiResponse<IReadOnlyList<VehicleDocumentDto>>>
 {
     public async Task<ApiResponse<IReadOnlyList<VehicleDocumentDto>>> Handle(
@@ -23,7 +26,7 @@ public class GetVehicleDocumentsQueryHandler(IDbConnectionFactory dbFactory, ITe
         CancellationToken cancellationToken)
     {
         using var connection = dbFactory.CreateConnection();
-        var rows = await connection.QueryAsync<VehicleDocumentDto>(new CommandDefinition(
+        var rows = (await connection.QueryAsync<VehicleDocumentDto>(new CommandDefinition(
             @"SELECT Id, VehicleId, DocumentType, FileUrl, ExpiryDate, Notes
               FROM (
                 SELECT Id, VehicleId, DocumentType, FileUrl, ExpiryDate, Notes, CreatedAt,
@@ -39,9 +42,13 @@ public class GetVehicleDocumentsQueryHandler(IDbConnectionFactory dbFactory, ITe
               WHERE DocumentType = N'VehicleImage' OR rn = 1
               ORDER BY CreatedAt DESC",
             new { request.VehicleId, TenantId = tenantContext.GetRequiredTenantId() },
-            cancellationToken: cancellationToken));
+            cancellationToken: cancellationToken)))
+            .Select(row => string.IsNullOrWhiteSpace(row.FileUrl)
+                ? row
+                : row with { FileUrl = fileStorage.ResolveReadUrl(row.FileUrl) })
+            .ToList();
 
-        return ApiResponse<IReadOnlyList<VehicleDocumentDto>>.SuccessResponse(rows.ToList());
+        return ApiResponse<IReadOnlyList<VehicleDocumentDto>>.SuccessResponse(rows);
     }
 }
 

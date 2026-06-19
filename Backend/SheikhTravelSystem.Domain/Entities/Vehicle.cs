@@ -24,6 +24,7 @@ public class Vehicle : BaseEntity
     public int? GpsDeviceId { get; set; }
     public DateTime? PurchaseDate { get; set; }
     public decimal? PurchasePrice { get; set; }
+    public string? PurchaseCurrencyCode { get; set; }
     public int? BranchId { get; set; }
     public int? DepartmentId { get; set; }
     public VehicleStatus Status { get; set; } = VehicleStatus.Available;

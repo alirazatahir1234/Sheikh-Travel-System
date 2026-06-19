@@ -70,6 +70,10 @@ export class VehicleRegisterWizardComponent implements OnInit, OnDestroy {
     void this.facade.uploadVehicleImage(event.index, event.file);
   }
 
+  onVehicleImageRejected(event: { index: number; message: string }): void {
+    this.facade.setVehicleImageSlotError(event.index, event.message);
+  }
+
   onSelectPrimaryImage(index: number): void {
     void this.facade.selectPrimaryVehicleImage(index);
   }

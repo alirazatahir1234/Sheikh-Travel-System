@@ -92,6 +92,7 @@ export class UiModalComponent {
   readonly size = input<UiModalSize>('md');
   readonly showClose = input(true);
   readonly closeOnBackdrop = input(true);
+  readonly closeOnEscape = input(true);
 
   readonly closed = output<void>();
 
@@ -110,7 +111,7 @@ export class UiModalComponent {
 
   @HostListener('document:keydown.escape')
   onEscape(): void {
-    if (this.open()) {
+    if (this.open() && this.closeOnEscape()) {
       this.close();
     }
   }

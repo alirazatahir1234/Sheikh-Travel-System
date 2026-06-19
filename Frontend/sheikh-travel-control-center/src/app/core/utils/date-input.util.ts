@@ -9,6 +9,11 @@ export function toDateInputValue(value: Date | string | null | undefined): strin
   return `${y}-${m}-${day}`;
 }
 
+/** Today's date for `<input type="date" min="…">` (local timezone). */
+export function todayDateInputValue(): string {
+  return toDateInputValue(new Date());
+}
+
 /** Format for `<input type="datetime-local">` (YYYY-MM-DDTHH:mm). */
 export function toDateTimeLocalValue(value: Date | string | null | undefined): string {
   if (value == null || value === '') return '';

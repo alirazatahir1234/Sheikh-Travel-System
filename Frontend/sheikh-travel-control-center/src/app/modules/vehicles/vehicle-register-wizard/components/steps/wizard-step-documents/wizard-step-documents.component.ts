@@ -18,6 +18,7 @@ import { VehicleImageGalleryComponent } from '../../vehicle-image-gallery/vehicl
           [slots]="vehicleImageSlots()"
           [showRequiredError]="showImageRequiredError()"
           (fileSelected)="vehicleImageSelected.emit($event)"
+          (fileRejected)="vehicleImageRejected.emit($event)"
           (selectPrimary)="selectPrimaryImage.emit($event)" />
 
         <div class="grid gap-4 md:grid-cols-1">
@@ -38,5 +39,6 @@ export class WizardStepDocumentsComponent {
   readonly showImageRequiredError = input(false);
   readonly fileSelected = output<{ index: number; file: File }>();
   readonly vehicleImageSelected = output<{ index: number; file: File }>();
+  readonly vehicleImageRejected = output<{ index: number; message: string }>();
   readonly selectPrimaryImage = output<number>();
 }
