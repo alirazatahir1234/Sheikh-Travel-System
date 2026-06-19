@@ -45,20 +45,18 @@
               </td>
               <td class="px-4 py-3">
                 <div class="flex items-center gap-3">
-                  @if (vehicleImageUrl(row); as imgSrc) {
-                    <img
-                      [src]="imgSrc"
-                      alt="Vehicle"
-                      class="h-10 w-14 shrink-0 rounded-md object-cover"
-                      (error)="$any($event.target).style.display='none'; $any($event.target).nextElementSibling.style.display='flex'" />
-                    <div class="hidden h-10 w-14 shrink-0 items-center justify-center rounded-md bg-fleet-surface-muted text-fleet-text-muted">
+                  <div class="vehicle-thumb shrink-0">
+                    @if (vehicleImageUrl(row); as imgSrc) {
+                      <img
+                        [src]="imgSrc"
+                        [alt]="row.vehicleCode || row.registrationNumber"
+                        class="vehicle-thumb__img"
+                        (error)="onImageError(row)" />
+                    }
+                    <div class="vehicle-thumb__fallback" [class.vehicle-thumb__fallback--hidden]="!!vehicleImageUrl(row)">
                       <mat-icon>local_shipping</mat-icon>
                     </div>
-                  } @else {
-                    <div class="flex h-10 w-14 shrink-0 items-center justify-center rounded-md bg-fleet-surface-muted text-fleet-text-muted">
-                      <mat-icon>local_shipping</mat-icon>
-                    </div>
-                  }
+                  </div>
                   <div>
                     <a
                       class="font-bold text-fleet-primary hover:underline"

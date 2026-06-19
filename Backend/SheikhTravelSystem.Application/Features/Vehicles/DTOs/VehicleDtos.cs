@@ -20,7 +20,7 @@ public record VehicleDto(
     int SeatingCapacity, decimal FuelAverage, FuelType FuelType,
     string? EngineNo, string? ChassisNo,
     decimal CurrentMileage, DateTime? InsuranceExpiryDate, int? GpsDeviceId,
-    DateTime? PurchaseDate, decimal? PurchasePrice, int? BranchId, int? DepartmentId,
+    DateTime? PurchaseDate, decimal? PurchasePrice, string? PurchaseCurrencyCode, int? BranchId, int? DepartmentId,
     VehicleStatus Status, bool IsActive, DateTime CreatedAt, DateTime? UpdatedAt);
 
 public record CreateVehicleDto(
@@ -30,7 +30,7 @@ public record CreateVehicleDto(
     string? VehicleCode = null, string? VIN = null, string? Make = null,
     string? Color = null, string? VehicleType = null,
     string? EngineNo = null, string? ChassisNo = null,
-    DateTime? PurchaseDate = null, decimal? PurchasePrice = null,
+    DateTime? PurchaseDate = null, decimal? PurchasePrice = null, string? PurchaseCurrencyCode = null,
     int? BranchId = null, int? DepartmentId = null);
 
 public record UpdateVehicleDto(
@@ -40,7 +40,7 @@ public record UpdateVehicleDto(
     string? VehicleCode = null, string? VIN = null, string? Make = null,
     string? Color = null, string? VehicleType = null,
     string? EngineNo = null, string? ChassisNo = null,
-    DateTime? PurchaseDate = null, decimal? PurchasePrice = null,
+    DateTime? PurchaseDate = null, decimal? PurchasePrice = null, string? PurchaseCurrencyCode = null,
     int? BranchId = null, int? DepartmentId = null);
 
 public record VehicleMaintenanceDto(

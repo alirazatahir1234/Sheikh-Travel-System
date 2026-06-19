@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { fuelTypeLabel } from '../../../models/vehicle-wizard.model';
 import { UiStatusBadgeComponent } from '../../../../../../shared/components/ui/status-badge/ui-status-badge.component';
+import { formatCurrency } from '../../../../../../core/models/platform.model';
 
 @Component({
   selector: 'app-wizard-step-review',
@@ -63,7 +64,7 @@ import { UiStatusBadgeComponent } from '../../../../../../shared/components/ui/s
         </div>
         <div>
           <dt class="text-xs font-semibold uppercase text-fleet-text-muted">Purchase Price</dt>
-          <dd class="text-sm font-medium text-fleet-text">{{ v()['purchasePrice'] || '—' }}</dd>
+          <dd class="text-sm font-medium text-fleet-text">{{ purchasePriceLabel() }}</dd>
         </div>
         <div>
           <dt class="text-xs font-semibold uppercase text-fleet-text-muted">GPS Tracker</dt>
@@ -100,4 +101,10 @@ export class WizardStepReviewComponent {
 
   readonly v = computed(() => this.formValues());
   readonly fuelLabel = computed(() => fuelTypeLabel(this.v()['fuelType'] as string | number));
+  readonly purchasePriceLabel = computed(() => {
+    const amount = this.v()['purchasePrice'];
+    const currency = String(this.v()['purchaseCurrencyCode'] ?? '').trim();
+    if (amount == null || amount === '' || Number(amount) <= 0) return '—';
+    return formatCurrency(Number(amount), currency || undefined);
+  });
 }

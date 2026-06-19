@@ -11,13 +11,13 @@ public static class TenantRolePermissionTemplates
         "Platform.Roles.View", "Platform.Roles.Manage", "Platform.Branches.Manage", "Platform.Departments.Manage",
         "Platform.AuditLogs.View", "Platform.Menus.Manage",
         "Booking.View", "Booking.Create", "Trip.View", "Route.View",
-        "Vehicle.View", "Vehicle.Create", "Vehicle.Update", "Driver.View", "Driver.Manage",
+        "Vehicle.View", "Vehicle.Create", "Vehicle.Update", "Vehicle.Delete", "Driver.View", "Driver.Manage",
         "GPS.View", "Fuel.View", "Maintenance.View", "Customer.View", "Payment.View", "Invoice.View", "Report.View"
     ];
 
     public static readonly string[] FleetManager =
     [
-        "Platform.Dashboard.View", "Vehicle.View", "Vehicle.Create", "Vehicle.Update",
+        "Platform.Dashboard.View", "Vehicle.View", "Vehicle.Create", "Vehicle.Update", "Vehicle.Delete",
         "Driver.View", "Driver.Manage", "GPS.View", "Fuel.View", "Maintenance.View", "Report.View"
     ];
 

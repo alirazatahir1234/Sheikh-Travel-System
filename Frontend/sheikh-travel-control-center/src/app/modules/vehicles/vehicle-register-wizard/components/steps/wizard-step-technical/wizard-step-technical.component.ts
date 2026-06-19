@@ -1,9 +1,10 @@
-import { ChangeDetectionStrategy, Component, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { AbstractControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { UiInputComponent } from '../../../../../../shared/components/ui/input/ui-input.component';
 import { UiSelectComponent } from '../../../../../../shared/components/ui/select/ui-select.component';
 import { UiSelectOption } from '../../../../../../shared/components/ui/types/ui.types';
 import { FuelTypeSegmentComponent } from '../../fuel-type-segment/fuel-type-segment.component';
+import { todayDateInputValue } from '../../../../../../core/utils/date-input.util';
 
 @Component({
   selector: 'app-wizard-step-technical',
@@ -36,12 +37,20 @@ import { FuelTypeSegmentComponent } from '../../fuel-type-segment/fuel-type-segm
             [error]="controlError('seatingCapacity')" />
           <ui-input formControlName="engineNo" label="Engine Number" [required]="true" [error]="controlError('engineNo')" />
           <ui-input formControlName="chassisNo" label="Chassis Number" [required]="true" [error]="controlError('chassisNo')" />
+          <ui-select
+            formControlName="purchaseCurrencyCode"
+            label="Purchase Currency"
+            [options]="currencyOptions()"
+            [searchable]="true"
+            [required]="true"
+            [error]="controlError('purchaseCurrencyCode')"
+            searchPlaceholder="Search currencies…" />
           <ui-input
             formControlName="purchasePrice"
-            label="Purchase Price"
+            label="Purchase Amount"
             type="number"
-            hint="Currency: AED (display only)"
             [required]="true"
+            [hint]="purchasePriceHint()"
             [error]="controlError('purchasePrice')" />
           <ui-select
             formControlName="branchId"
@@ -59,19 +68,19 @@ import { FuelTypeSegmentComponent } from '../../fuel-type-segment/fuel-type-segm
         <div class="grid gap-4 md:grid-cols-2">
           <label class="block">
             <span class="mb-1.5 block text-[13px] font-semibold text-fleet-text">Insurance Expiry</span>
-            <input type="date" formControlName="insuranceExpiryDate" class="w-full rounded-sm border border-fleet-border px-3 py-2.5 text-sm" />
+            <input type="date" formControlName="insuranceExpiryDate" [min]="minDateFor(form().get('insuranceExpiryDate')?.value)" class="w-full rounded-sm border border-fleet-border px-3 py-2.5 text-sm" />
           </label>
           <label class="block">
             <span class="mb-1.5 block text-[13px] font-semibold text-fleet-text">Registration Expiry</span>
-            <input type="date" formControlName="registrationExpiryDate" class="w-full rounded-sm border border-fleet-border px-3 py-2.5 text-sm" />
+            <input type="date" formControlName="registrationExpiryDate" [min]="minDateFor(form().get('registrationExpiryDate')?.value)" class="w-full rounded-sm border border-fleet-border px-3 py-2.5 text-sm" />
           </label>
           <label class="block">
             <span class="mb-1.5 block text-[13px] font-semibold text-fleet-text">Road Tax Expiry</span>
-            <input type="date" formControlName="roadTaxExpiryDate" class="w-full rounded-sm border border-fleet-border px-3 py-2.5 text-sm" />
+            <input type="date" formControlName="roadTaxExpiryDate" [min]="minDateFor(form().get('roadTaxExpiryDate')?.value)" class="w-full rounded-sm border border-fleet-border px-3 py-2.5 text-sm" />
           </label>
           <label class="block">
             <span class="mb-1.5 block text-[13px] font-semibold text-fleet-text">Fitness Expiry</span>
-            <input type="date" formControlName="fitnessExpiryDate" class="w-full rounded-sm border border-fleet-border px-3 py-2.5 text-sm" />
+            <input type="date" formControlName="fitnessExpiryDate" [min]="minDateFor(form().get('fitnessExpiryDate')?.value)" class="w-full rounded-sm border border-fleet-border px-3 py-2.5 text-sm" />
           </label>
         </div>
       </section>
@@ -81,13 +90,34 @@ import { FuelTypeSegmentComponent } from '../../fuel-type-segment/fuel-type-segm
 export class WizardStepTechnicalComponent {
   readonly form = input.required<FormGroup>();
   readonly branchOptions = input.required<UiSelectOption[]>();
+  readonly currencyOptions = input.required<UiSelectOption[]>();
+  readonly selectedCurrency = input<string | null | undefined>('');
+  readonly isEditMode = input(false);
+
+  private readonly today = todayDateInputValue();
+
+  readonly purchasePriceHint = computed(() => {
+    const currency = String(this.selectedCurrency() ?? '').trim();
+    return currency ? `Enter amount in ${currency}` : 'Select a currency first';
+  });
+
+  minDateFor(existingValue: string | null | undefined): string {
+    if (this.isEditMode() && existingValue) {
+      return existingValue < this.today ? existingValue : this.today;
+    }
+    return this.today;
+  }
 
   controlError(name: string): string | undefined {
     const control = this.form().get(name);
     if (!control || !this.shouldShow(control)) return undefined;
     if (!control.errors) return undefined;
 
-    if (control.hasError('required')) return 'This field is required.';
+    if (control.hasError('required')) {
+      return name === 'purchaseCurrencyCode'
+        ? 'Select a currency before entering the purchase amount.'
+        : 'This field is required.';
+    }
     if (control.hasError('maxlength')) return 'Maximum length exceeded.';
     if (control.hasError('min')) {
       return name === 'seatingCapacity'

@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, input, output } from '@an
 import { NgClass } from '@angular/common';
 import { MatIconModule } from '@angular/material/icon';
 import { VehicleImageSlotState } from '../../models/vehicle-wizard.model';
-import { resolveUploadUrl } from '../../../../../core/utils/upload-url.util';
+import { resolveUploadUrl, vehicleUploadSizeError } from '../../../../../core/utils/upload-url.util';
 
 @Component({
   selector: 'app-vehicle-image-gallery',
@@ -56,17 +56,22 @@ import { resolveUploadUrl } from '../../../../../core/utils/upload-url.util';
                   <p class="text-xs font-medium text-white">{{ slot.label }}</p>
                 </div>
               </div>
-              <div class="flex items-center justify-between gap-2 border-t border-fleet-border bg-white px-2 py-1.5">
+              <div class="flex items-stretch gap-2 border-t border-fleet-border bg-white p-2">
                 <button
                   type="button"
-                  class="text-xs text-fleet-primary hover:underline"
+                  class="flex-1 rounded-sm border border-fleet-primary/50 bg-white px-2 py-1.5 text-xs font-semibold text-fleet-primary transition-colors hover:bg-fleet-primary-soft"
                   (click)="$event.stopPropagation(); angleFileInput.click()">
                   Replace
                 </button>
-                @if (!slot.isPrimary) {
+                @if (slot.isPrimary) {
+                  <span
+                    class="flex flex-1 items-center justify-center rounded-sm border border-fleet-primary/30 bg-fleet-primary-soft px-2 py-1.5 text-xs font-semibold text-fleet-primary">
+                    Display photo
+                  </span>
+                } @else {
                   <button
                     type="button"
-                    class="text-xs text-fleet-text-muted hover:text-fleet-primary"
+                    class="flex-1 rounded-sm border border-fleet-border bg-fleet-surface-muted px-2 py-1.5 text-xs font-semibold text-fleet-text transition-colors hover:border-fleet-primary/40 hover:bg-fleet-primary-soft hover:text-fleet-primary"
                     (click)="$event.stopPropagation(); selectPrimary.emit(i)">
                     Set display
                   </button>
@@ -79,7 +84,7 @@ import { resolveUploadUrl } from '../../../../../core/utils/upload-url.util';
                 (click)="$event.stopPropagation(); angleFileInput.click()">
                 <mat-icon class="text-fleet-text-muted/50" style="font-size:28px;width:28px;height:28px;">add_a_photo</mat-icon>
                 <p class="text-xs font-medium text-fleet-text">{{ slot.label }}</p>
-                <p class="text-[10px] text-fleet-text-muted">JPG, PNG, WEBP</p>
+                <p class="text-[10px] text-fleet-text-muted">JPG, PNG, WEBP · max 2 MB</p>
               </button>
             }
 
@@ -90,7 +95,7 @@ import { resolveUploadUrl } from '../../../../../core/utils/upload-url.util';
         }
       </div>
 
-      @if (showRequiredError()) {
+      @if (showRequiredError() && !hasAnyImage()) {
         <p class="text-xs text-fleet-error">At least one vehicle image is required.</p>
       }
     </div>
@@ -101,19 +106,19 @@ export class VehicleImageGalleryComponent {
   readonly showRequiredError = input(false);
 
   readonly fileSelected = output<{ index: number; file: File }>();
+  readonly fileRejected = output<{ index: number; message: string }>();
   readonly selectPrimary = output<number>();
 
   readonly uploadedCount = computed(() => this.slots().filter(s => !!s.fileUrl).length);
   readonly hasAnyImage = computed(() => this.uploadedCount() > 0);
 
   previewUrl(slot: VehicleImageSlotState): string | null {
-    if (slot.file) return URL.createObjectURL(slot.file);
     return slot.fileUrl ? resolveUploadUrl(slot.fileUrl) : null;
   }
 
   onSlotClick(index: number): void {
     const slot = this.slots()[index];
-    if (slot?.fileUrl && !slot.uploading) {
+    if (slot?.fileUrl && !slot.uploading && !slot.isPrimary) {
       this.selectPrimary.emit(index);
     }
   }
@@ -123,6 +128,14 @@ export class VehicleImageGalleryComponent {
     const file = input.files?.[0];
     if (!file) return;
     if (!file.type.startsWith('image/')) return;
+
+    const sizeError = vehicleUploadSizeError(file);
+    if (sizeError) {
+      this.fileRejected.emit({ index, message: sizeError });
+      input.value = '';
+      return;
+    }
+
     this.fileSelected.emit({ index, file });
     input.value = '';
   }

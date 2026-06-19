@@ -58,13 +58,7 @@ internal static class VehicleSql
               AND vd.DocumentType = N'VehicleImage'
               AND vd.IsDeleted = 0
               AND vd.FileUrl IS NOT NULL
-              AND (
-                LOWER(vd.FileUrl) LIKE '%.jpg'
-                OR LOWER(vd.FileUrl) LIKE '%.jpeg'
-                OR LOWER(vd.FileUrl) LIKE '%.png'
-                OR LOWER(vd.FileUrl) LIKE '%.webp'
-                OR LOWER(vd.FileUrl) LIKE '%.gif'
-              )
+              AND LTRIM(RTRIM(vd.FileUrl)) <> N''
             ORDER BY
                 CASE
                     WHEN vd.Notes LIKE N'%|primary%' OR LOWER(LTRIM(RTRIM(vd.Notes))) = N'primary' THEN 0
@@ -77,7 +71,7 @@ internal static class VehicleSql
     internal const string DetailColumns = """
         Id, Name, RegistrationNumber, VehicleCode, VIN, Make, Model, Year, Color, VehicleType,
         SeatingCapacity, FuelAverage, FuelType, EngineNo, ChassisNo,
-        CurrentMileage, InsuranceExpiryDate, GpsDeviceId, PurchaseDate, PurchasePrice,
+        CurrentMileage, InsuranceExpiryDate, GpsDeviceId, PurchaseDate, PurchasePrice, PurchaseCurrencyCode,
         BranchId, DepartmentId, Status,
         CASE WHEN Status <> 4 THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END AS IsActive,
         CreatedAt, UpdatedAt

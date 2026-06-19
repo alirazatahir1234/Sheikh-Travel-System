@@ -17,7 +17,8 @@ import {
   isImageUploadUrl,
   isPdfFile,
   isPdfUploadUrl,
-  resolveUploadUrl
+  resolveUploadUrl,
+  vehicleUploadSizeError
 } from '../../../../../core/utils/upload-url.util';
 
 type DocumentPreview = { kind: 'image' | 'pdf'; src: string };
@@ -66,40 +67,47 @@ type DocumentPreview = { kind: 'image' | 'pdf'; src: string };
           </div>
 
           <div class="flex items-center justify-between gap-3">
-            <div class="flex min-w-0 items-center gap-3">
-              <mat-icon class="text-emerald-600">{{ preview()!.kind === 'pdf' ? 'picture_as_pdf' : 'check_circle' }}</mat-icon>
+            <div class="flex min-w-0 flex-1 items-center gap-3">
+              <mat-icon class="shrink-0 text-emerald-600">{{ preview()!.kind === 'pdf' ? 'picture_as_pdf' : 'check_circle' }}</mat-icon>
               <div class="min-w-0">
                 <p class="truncate text-sm font-medium text-fleet-text">{{ slot().label }}</p>
-                <p class="truncate text-xs text-fleet-text-muted">{{ fileName() }}</p>
               </div>
             </div>
-            <div class="flex shrink-0 items-center gap-3">
-              @if (preview()!.kind === 'pdf') {
-                <a
-                  [href]="preview()!.src"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  class="text-sm text-fleet-text-muted hover:text-fleet-primary"
-                  (click)="$event.stopPropagation()">
-                  Open
-                </a>
-              }
-              <button type="button" class="text-sm text-fleet-primary hover:underline" (click)="$event.stopPropagation(); openFilePicker()">
-                Replace
-              </button>
-            </div>
+          </div>
+
+          <div class="flex items-stretch gap-2 border-t border-fleet-border pt-3">
+            @if (preview()!.kind === 'pdf') {
+              <a
+                [href]="preview()!.src"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="flex flex-1 items-center justify-center rounded-sm border border-fleet-border bg-fleet-surface-muted px-3 py-1.5 text-xs font-semibold text-fleet-text no-underline transition-colors hover:border-fleet-primary/40 hover:bg-fleet-primary-soft hover:text-fleet-primary"
+                (click)="$event.stopPropagation()">
+                Open
+              </a>
+            }
+            <button
+              type="button"
+              class="flex flex-1 items-center justify-center rounded-sm border border-fleet-primary/50 bg-white px-3 py-1.5 text-xs font-semibold text-fleet-primary transition-colors hover:bg-fleet-primary-soft"
+              (click)="$event.stopPropagation(); openFilePicker()">
+              Replace
+            </button>
           </div>
         </div>
       } @else if (slot().file && slot().error) {
         <div class="flex items-center justify-between gap-3">
-          <div class="flex min-w-0 items-center gap-3">
-            <mat-icon class="text-fleet-error">error</mat-icon>
+          <div class="flex min-w-0 flex-1 items-center gap-3">
+            <mat-icon class="shrink-0 text-fleet-error">error</mat-icon>
             <div class="min-w-0">
               <p class="truncate text-sm font-medium text-fleet-text">{{ slot().label }}</p>
-              <p class="truncate text-xs text-fleet-text-muted">{{ fileName() }}</p>
             </div>
           </div>
-          <button type="button" class="text-sm text-fleet-primary hover:underline" (click)="$event.stopPropagation(); openFilePicker()">
+        </div>
+        <div class="mt-3 border-t border-fleet-border pt-3">
+          <button
+            type="button"
+            class="w-full rounded-sm border border-fleet-primary/50 bg-white px-3 py-1.5 text-xs font-semibold text-fleet-primary transition-colors hover:bg-fleet-primary-soft"
+            (click)="$event.stopPropagation(); openFilePicker()">
             Retry
           </button>
         </div>
@@ -107,14 +115,16 @@ type DocumentPreview = { kind: 'image' | 'pdf'; src: string };
         <div class="flex flex-col items-center gap-2 py-4 text-center">
           <mat-icon class="text-fleet-text-muted/50" style="font-size:36px;width:36px;height:36px;">cloud_upload</mat-icon>
           <p class="text-sm font-medium text-fleet-text">{{ slot().label }}</p>
-          <p class="text-xs text-fleet-text-muted">Drag & drop or click — JPG, PNG, or PDF (max 5–10 MB)</p>
+          <p class="text-xs text-fleet-text-muted">Drag & drop or click — JPG, PNG, or PDF (max 2 MB)</p>
           @if (slot().required) {
             <span class="text-xs font-medium text-fleet-error">Required</span>
           }
         </div>
       }
 
-      @if (slot().error) {
+      @if (sizeError()) {
+        <p class="mt-2 text-center text-xs text-fleet-error">{{ sizeError() }}</p>
+      } @else if (slot().error) {
         <p class="mt-2 text-center text-xs text-fleet-error">{{ slot().error }}</p>
       }
     </div>
@@ -127,6 +137,7 @@ export class DocumentUploadZoneComponent {
 
   readonly fileInput = viewChild<ElementRef<HTMLInputElement>>('fileInput');
   dragOver = false;
+  readonly sizeError = signal<string | null>(null);
 
   private readonly localPreviewUrl = signal<string | null>(null);
 
@@ -172,13 +183,6 @@ export class DocumentUploadZoneComponent {
     this.fileInput()?.nativeElement.click();
   }
 
-  fileName(): string {
-    const s = this.slot();
-    if (s.file) return s.file.name;
-    if (s.fileUrl) return decodeURIComponent(s.fileUrl.split('/').pop() ?? 'Uploaded');
-    return '';
-  }
-
   pdfViewerSrc(src: string): string {
     return src.includes('#') ? src : `${src}#toolbar=0&navpanes=0`;
   }
@@ -198,15 +202,25 @@ export class DocumentUploadZoneComponent {
     this.dragOver = false;
     const file = e.dataTransfer?.files?.[0];
     if (!file || !this.isAcceptedFile(file)) return;
-    this.fileSelected.emit({ index: this.index(), file });
+    this.queueFile(file);
   }
 
   onFileSelected(e: Event): void {
     const input = e.target as HTMLInputElement;
     const file = input.files?.[0];
     if (!file || !this.isAcceptedFile(file)) return;
-    this.fileSelected.emit({ index: this.index(), file });
+    this.queueFile(file);
     input.value = '';
+  }
+
+  private queueFile(file: File): void {
+    const sizeError = vehicleUploadSizeError(file);
+    if (sizeError) {
+      this.sizeError.set(sizeError);
+      return;
+    }
+    this.sizeError.set(null);
+    this.fileSelected.emit({ index: this.index(), file });
   }
 
   private isAcceptedFile(file: File): boolean {

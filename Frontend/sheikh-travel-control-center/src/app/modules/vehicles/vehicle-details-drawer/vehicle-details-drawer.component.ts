@@ -35,7 +35,8 @@ import { UiModalComponent } from '../../../shared/components/ui/modal/ui-modal.c
 import { UiEmptyStateComponent } from '../../../shared/components/ui/empty-state/ui-empty-state.component';
 import { UiTab, UiSelectOption } from '../../../shared/components/ui/types/ui.types';
 import { dateInputToIso } from '../../../core/utils/date-input.util';
-import { resolveUploadUrl, resolveVehicleImageUrl, isPdfUploadUrl } from '../../../core/utils/upload-url.util';
+import { resolveUploadUrl, resolveVehicleImageUrl, isPdfUploadUrl, vehicleUploadSizeError } from '../../../core/utils/upload-url.util';
+import { apiErrorMessage } from '../../../core/utils/api-error.util';
 import { deriveOperationalStatus } from '../utils/vehicle-status.util';
 import { formatRelativeTime } from '../../../core/utils/relative-time.util';
 
@@ -762,6 +763,12 @@ export class VehicleDetailsDrawerComponent {
     const id = this.vehicleId();
     if (!id || !this.newDocType.trim() || !this.newDocFile) return;
 
+    const sizeError = vehicleUploadSizeError(this.newDocFile);
+    if (sizeError) {
+      this.snackBar.open(sizeError, 'Close', { duration: 4000 });
+      return;
+    }
+
     this.docUploading = true;
     this.vehicleService.uploadDocument(
       id,
@@ -778,16 +785,24 @@ export class VehicleDetailsDrawerComponent {
         this.loadedTabs.delete('compliance');
         this.loadTab('documents', id);
       },
-      error: () => {
+      error: (err) => {
         this.docUploading = false;
-        this.snackBar.open('Upload failed', 'Close', { duration: 3000 });
+        this.snackBar.open(apiErrorMessage(err, 'Upload failed'), 'Close', { duration: 4000 });
       }
     });
   }
 
   onDocFileSelected(event: Event): void {
     const input = event.target as HTMLInputElement;
-    this.newDocFile = input.files?.[0] ?? null;
+    const file = input.files?.[0] ?? null;
+    const sizeError = file ? vehicleUploadSizeError(file) : null;
+    if (sizeError) {
+      this.snackBar.open(sizeError, 'Close', { duration: 4000 });
+      this.newDocFile = null;
+      input.value = '';
+      return;
+    }
+    this.newDocFile = file;
   }
 
   private resetDocForm(): void {

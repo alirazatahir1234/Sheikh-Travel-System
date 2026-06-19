@@ -9,7 +9,10 @@ namespace SheikhTravelSystem.Application.Features.Vehicles.Queries;
 public record GetVehiclesQuery(int Page = 1, int PageSize = 20, bool IncludeDrafts = false)
     : IRequest<ApiResponse<PagedResult<VehicleListItemDto>>>;
 
-public class GetVehiclesQueryHandler(IDbConnectionFactory dbFactory, ITenantContext tenantContext)
+public class GetVehiclesQueryHandler(
+    IDbConnectionFactory dbFactory,
+    ITenantContext tenantContext,
+    IFileStorageService fileStorage)
     : IRequestHandler<GetVehiclesQuery, ApiResponse<PagedResult<VehicleListItemDto>>>
 {
     public async Task<ApiResponse<PagedResult<VehicleListItemDto>>> Handle(GetVehiclesQuery request, CancellationToken cancellationToken)
@@ -20,7 +23,7 @@ public class GetVehiclesQueryHandler(IDbConnectionFactory dbFactory, ITenantCont
 
         var draftFilter = request.IncludeDrafts ? "" : " AND v.Status <> 5";
 
-        var vehicles = await connection.QueryAsync<VehicleListItemDto>(
+        var vehicles = (await connection.QueryAsync<VehicleListItemDto>(
             new CommandDefinition(
                 $@"SELECT {VehicleSql.ListSelect}
                   {VehicleSql.ListFrom}
@@ -28,7 +31,11 @@ public class GetVehiclesQueryHandler(IDbConnectionFactory dbFactory, ITenantCont
                   ORDER BY v.CreatedAt DESC
                   OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY",
                 new { Offset = offset, request.PageSize, TenantId = tenantId },
-                cancellationToken: cancellationToken));
+                cancellationToken: cancellationToken)))
+            .Select(v => string.IsNullOrWhiteSpace(v.ImageUrl)
+                ? v
+                : v with { ImageUrl = fileStorage.ResolveReadUrl(v.ImageUrl) })
+            .ToList();
 
         var totalCount = await connection.ExecuteScalarAsync<int>(
             new CommandDefinition(
@@ -38,7 +45,7 @@ public class GetVehiclesQueryHandler(IDbConnectionFactory dbFactory, ITenantCont
 
         var result = new PagedResult<VehicleListItemDto>
         {
-            Items = vehicles.ToList(),
+            Items = vehicles,
             TotalCount = totalCount,
             Page = request.Page,
             PageSize = request.PageSize

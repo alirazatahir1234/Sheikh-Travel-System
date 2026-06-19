@@ -268,6 +268,7 @@ public static class PlatformSchemaMigration
             ("Fleet", "Vehicle.View", "View vehicles"),
             ("Fleet", "Vehicle.Create", "Create vehicles"),
             ("Fleet", "Vehicle.Update", "Update vehicles"),
+            ("Fleet", "Vehicle.Delete", "Delete vehicles"),
             ("Fleet", "Driver.View", "View drivers"),
             ("Fleet", "Driver.Manage", "Manage drivers"),
             ("Fleet", "GPS.View", "View GPS tracking"),

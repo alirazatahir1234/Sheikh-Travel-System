@@ -4,6 +4,7 @@ using MediatR;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Exceptions;
 using SheikhTravelSystem.Application.Common.Interfaces;
+using SheikhTravelSystem.Application.Common.IO;
 
 namespace SheikhTravelSystem.Application.Features.Vehicles.Commands;
 
@@ -14,22 +15,27 @@ public record UploadVehicleDocumentCommand(
     string ContentType,
     string DocumentType,
     DateTime? ExpiryDate,
-    string? Notes) : IRequest<ApiResponse<UploadVehicleDocumentResult>>;
+    string? Notes,
+    long FileLength) : IRequest<ApiResponse<UploadVehicleDocumentResult>>;
 
 public record UploadVehicleDocumentResult(int DocumentId, string FileUrl, string DocumentType);
 
 public class UploadVehicleDocumentCommandValidator : AbstractValidator<UploadVehicleDocumentCommand>
 {
-    private static readonly HashSet<string> AllowedExtensions = new(StringComparer.OrdinalIgnoreCase)
-        { ".jpg", ".jpeg", ".png", ".pdf" };
-
     public UploadVehicleDocumentCommandValidator()
     {
         RuleFor(x => x.VehicleId).GreaterThan(0);
         RuleFor(x => x.DocumentType).NotEmpty().MaximumLength(80);
         RuleFor(x => x.FileName).NotEmpty();
-        RuleFor(x => x).Must(x => AllowedExtensions.Contains(Path.GetExtension(x.FileName)))
-            .WithMessage("Only JPG, PNG, and PDF files are allowed.");
+        RuleFor(x => x.FileLength).GreaterThan(0);
+        RuleFor(x => x.FileLength)
+            .LessThanOrEqualTo(VehicleUploadLimits.MaxFileBytes)
+            .WithMessage($"File exceeds maximum size of {VehicleUploadLimits.MaxFileMegabytes} MB.");
+        RuleFor(x => x)
+            .Must(x => VehicleUploadLimits.IsAllowedExtension(x.DocumentType, x.FileName))
+            .WithMessage(x => string.Equals(x.DocumentType, "VehicleImage", StringComparison.OrdinalIgnoreCase)
+                ? "Vehicle image must be a JPG, PNG, WEBP, or GIF file."
+                : "Only JPG, PNG, and PDF files are allowed.");
     }
 }
 
@@ -39,9 +45,6 @@ public class UploadVehicleDocumentCommandHandler(
     IFileStorageService fileStorage)
     : IRequestHandler<UploadVehicleDocumentCommand, ApiResponse<UploadVehicleDocumentResult>>
 {
-    private const long MaxImageBytes = 5 * 1024 * 1024;
-    private const long MaxPdfBytes = 10 * 1024 * 1024;
-
     public async Task<ApiResponse<UploadVehicleDocumentResult>> Handle(
         UploadVehicleDocumentCommand request,
         CancellationToken cancellationToken)
@@ -58,19 +61,9 @@ public class UploadVehicleDocumentCommandHandler(
         if (!exists)
             throw new NotFoundException("Vehicle", request.VehicleId);
 
-        var ext = Path.GetExtension(request.FileName).ToLowerInvariant();
-        if (string.Equals(request.DocumentType, "VehicleImage", StringComparison.OrdinalIgnoreCase)
-            && ext is not (".jpg" or ".jpeg" or ".png" or ".webp" or ".gif"))
-        {
-            throw new ValidationException("Vehicle image must be a JPG, PNG, WEBP, or GIF file.");
-        }
-
-        var maxBytes = ext == ".pdf" ? MaxPdfBytes : MaxImageBytes;
-        if (request.FileStream.CanSeek && request.FileStream.Length > maxBytes)
-            throw new ValidationException($"File exceeds maximum size of {maxBytes / (1024 * 1024)} MB.");
-
+        await using var boundedStream = new MaxLengthReadStream(request.FileStream, VehicleUploadLimits.MaxFileBytes);
         var stored = await fileStorage.SaveAsync(
-            request.FileStream,
+            boundedStream,
             request.FileName,
             request.ContentType,
             $"vehicles/{tenantId}/{request.VehicleId}",
@@ -81,6 +74,7 @@ public class UploadVehicleDocumentCommandHandler(
         if (isVehicleImage)
         {
             var angle = VehicleImageNotes.NormalizeAngle(request.Notes);
+            var anglePattern = angle + "|%";
             var hasPrimary = await connection.ExecuteScalarAsync<bool>(
                 new CommandDefinition(
                     @"SELECT CASE WHEN EXISTS(
@@ -95,7 +89,22 @@ public class UploadVehicleDocumentCommandHandler(
                     new { request.VehicleId, TenantId = tenantId },
                     cancellationToken: cancellationToken));
 
-            notes = VehicleImageNotes.WithAngle(angle, isPrimary: !hasPrimary);
+            var replacingPrimary = await connection.ExecuteScalarAsync<bool>(
+                new CommandDefinition(
+                    @"SELECT CASE WHEN EXISTS(
+                        SELECT 1 FROM VehicleDocuments
+                        WHERE VehicleId = @VehicleId AND TenantId = @TenantId
+                          AND DocumentType = N'VehicleImage' AND IsDeleted = 0
+                          AND (Notes = @Angle OR Notes LIKE @AnglePattern)
+                          AND (
+                            Notes LIKE N'%|primary%'
+                            OR LOWER(LTRIM(RTRIM(Notes))) = N'primary'
+                          )
+                    ) THEN 1 ELSE 0 END",
+                    new { request.VehicleId, TenantId = tenantId, Angle = angle, AnglePattern = anglePattern },
+                    cancellationToken: cancellationToken));
+
+            notes = VehicleImageNotes.WithAngle(angle, isPrimary: !hasPrimary || replacingPrimary);
 
             await connection.ExecuteAsync(new CommandDefinition(
                 @"UPDATE VehicleDocuments
@@ -108,7 +117,7 @@ public class UploadVehicleDocumentCommandHandler(
                     request.VehicleId,
                     TenantId = tenantId,
                     Angle = angle,
-                    AnglePattern = angle + "|%"
+                    AnglePattern = anglePattern
                 },
                 cancellationToken: cancellationToken));
         }
@@ -138,13 +147,13 @@ public class UploadVehicleDocumentCommandHandler(
                     TenantId = tenantId,
                     request.VehicleId,
                     request.DocumentType,
-                    FileUrl = stored.RelativeUrl,
+                    FileUrl = stored.StorageKey,
                     request.ExpiryDate,
                     Notes = notes
                 },
                 cancellationToken: cancellationToken));
 
-        var result = new UploadVehicleDocumentResult(docId, stored.RelativeUrl, request.DocumentType);
+        var result = new UploadVehicleDocumentResult(docId, stored.ReadUrl, request.DocumentType);
         return ApiResponse<UploadVehicleDocumentResult>.SuccessResponse(result, "Document uploaded.");
     }
 }

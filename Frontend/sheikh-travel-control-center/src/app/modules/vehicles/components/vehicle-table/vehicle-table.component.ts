@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, effect, input, output, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, input, output, signal } from '@angular/core';
 import { RouterModule } from '@angular/router';
 import { DatePipe, DecimalPipe } from '@angular/common';
 import { MatIconModule } from '@angular/material/icon';
@@ -99,8 +99,19 @@ export class VehicleTableComponent {
     return name.split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase();
   }
 
+  readonly failedImageIds = signal<ReadonlySet<number>>(new Set());
+
   vehicleImageUrl(row: VehicleListItem): string | null {
+    if (this.failedImageIds().has(row.id)) return null;
     return resolveVehicleImageUrl(row.imageUrl);
+  }
+
+  onImageError(row: VehicleListItem): void {
+    this.failedImageIds.update(ids => {
+      const next = new Set(ids);
+      next.add(row.id);
+      return next;
+    });
   }
 
   serviceSubtext(row: VehicleListItem): { text: string; alert: boolean } {

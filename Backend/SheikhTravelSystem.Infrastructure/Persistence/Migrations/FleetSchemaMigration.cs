@@ -80,6 +80,8 @@ public static class FleetSchemaMigration
                 ALTER TABLE Vehicles ADD PurchaseDate DATETIME2 NULL;
             IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'Vehicles' AND COLUMN_NAME = 'PurchasePrice')
                 ALTER TABLE Vehicles ADD PurchasePrice DECIMAL(18,2) NULL;
+            IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'Vehicles' AND COLUMN_NAME = 'PurchaseCurrencyCode')
+                ALTER TABLE Vehicles ADD PurchaseCurrencyCode NVARCHAR(10) NULL;
             IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'Vehicles' AND COLUMN_NAME = 'BranchId')
                 ALTER TABLE Vehicles ADD BranchId INT NULL;
             IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'Vehicles' AND COLUMN_NAME = 'DepartmentId')

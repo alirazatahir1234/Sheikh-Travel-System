@@ -144,7 +144,7 @@ public class CreateVehicleCommandValidatorTests
             Color: null, VehicleType: null, SeatingCapacity: 50,
             FuelAverage: 10m, FuelType: FuelType.Diesel, EngineNo: null, ChassisNo: null,
             CurrentMileage: 5000m, InsuranceExpiryDate: DateTime.UtcNow.AddYears(1),
-            GpsDeviceId: null, PurchaseDate: null, PurchasePrice: null,
+            GpsDeviceId: null, PurchaseDate: null, PurchasePrice: null, PurchaseCurrencyCode: null,
             BranchId: null, DepartmentId: null,
             Status: VehicleStatus.Available, IsActive: true,
             CreatedAt: DateTime.UtcNow, UpdatedAt: null);

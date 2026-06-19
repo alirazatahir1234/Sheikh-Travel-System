@@ -1,5 +1,4 @@
 import { Injectable, inject, signal, computed } from '@angular/core';
-import { HttpErrorResponse } from '@angular/common/http';
 import { AbstractControl, FormBuilder, FormGroup, ValidationErrors, ValidatorFn, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -7,6 +6,7 @@ import { debounceTime, distinctUntilChanged, filter, switchMap, catchError, of, 
 import { VehicleService } from '../../../../core/services/vehicle.service';
 import { GpsTrackingService } from '../../../../core/services/gps-tracking.service';
 import { PlatformService } from '../../../../core/services/platform.service';
+import { LookupService } from '../../../../core/services/lookup.service';
 import {
   CreateVehicleDto,
   FuelType,
@@ -20,7 +20,9 @@ import {
   normalizeVehicleStatus
 } from '../../../../core/models/vehicle.model';
 import { GpsDevice } from '../../../../core/models/gps-tracking.model';
-import { dateInputToIso, toDateInputValue } from '../../../../core/utils/date-input.util';
+import { dateInputToIso, toDateInputValue, todayDateInputValue } from '../../../../core/utils/date-input.util';
+import { apiErrorMessage } from '../../../../core/utils/api-error.util';
+import { vehicleUploadSizeError } from '../../../../core/utils/upload-url.util';
 import { UiSelectOption } from '../../../../shared/components/ui/types/ui.types';
 import {
   DocumentSlotState,
@@ -44,6 +46,7 @@ export class VehicleWizardFacade {
   private readonly vehicleService = inject(VehicleService);
   private readonly gpsService = inject(GpsTrackingService);
   private readonly platformService = inject(PlatformService);
+  private readonly lookupService = inject(LookupService);
   private readonly router = inject(Router);
   private readonly snackBar = inject(MatSnackBar);
   private readonly destroy$ = new Subject<void>();
@@ -63,6 +66,7 @@ export class VehicleWizardFacade {
   readonly gpsDeviceId = signal<number | null>(null);
   readonly unassignedDevices = signal<GpsDevice[]>([]);
   readonly branchOptions = signal<UiSelectOption[]>([]);
+  readonly currencyOptions = signal<UiSelectOption[]>([]);
   readonly uploadedDocuments = signal<VehicleDocument[]>([]);
 
   readonly documentSlots = signal<DocumentSlotState[]>(
@@ -86,7 +90,8 @@ export class VehicleWizardFacade {
     fuelAverage: [null as number | null, [Validators.required, Validators.min(0.1)]],
     engineNo: ['', [requiredTrimmed(), Validators.maxLength(60)]],
     chassisNo: ['', [requiredTrimmed(), Validators.maxLength(60)]],
-    purchasePrice: [null as number | null, [Validators.required, Validators.min(1)]],
+    purchaseCurrencyCode: ['', Validators.required],
+    purchasePrice: [{ value: null as number | null, disabled: true }, [Validators.required, Validators.min(1)]],
     insuranceExpiryDate: [''],
     registrationExpiryDate: [''],
     roadTaxExpiryDate: [''],
@@ -153,9 +158,11 @@ export class VehicleWizardFacade {
     return chosen.fileUrl ?? null;
   });
 
-  readonly vehicleImageHasError = computed(() =>
-    this.vehicleImageSlots().some(s => !!s.error)
-  );
+  readonly vehicleImageHasError = computed(() => {
+    if (this.vehicleImageSlots().some(s => !!s.fileUrl)) return false;
+    return this.attemptedSubmit()
+      || this.vehicleImageSlots().some(s => s.error === 'At least one vehicle image is required.');
+  });
 
   readonly validationErrors = computed(() => {
     const errors: string[] = [];
@@ -172,7 +179,8 @@ export class VehicleWizardFacade {
     if (!f.fuelAverage || Number(f.fuelAverage) <= 0) errors.push('Fuel economy is required');
     if (!f.engineNo?.trim()) errors.push('Engine number is required');
     if (!f.chassisNo?.trim()) errors.push('Chassis number is required');
-    if (!f.purchasePrice || Number(f.purchasePrice) <= 0) errors.push('Purchase price is required');
+    if (!f.purchaseCurrencyCode?.trim()) errors.push('Purchase currency is required');
+    if (!f.purchasePrice || Number(f.purchasePrice) <= 0) errors.push('Purchase amount is required');
     if (!f.branchId) errors.push('Branch is required');
     if (!this.vehicleImageSlots().some(s => !!s.fileUrl)) {
       errors.push('At least one vehicle image is required');
@@ -190,6 +198,8 @@ export class VehicleWizardFacade {
     this.syncFormValues();
     this.setupGpsValidationRules();
     this.loadBranches();
+    this.loadCurrencies();
+    this.setupPurchaseCurrencyRules();
     this.loadUnassignedDevices();
 
     if (editId) {
@@ -285,6 +295,7 @@ export class VehicleWizardFacade {
         'seatingCapacity',
         'engineNo',
         'chassisNo',
+        'purchaseCurrencyCode',
         'purchasePrice',
         'branchId',
         'currentMileage'
@@ -390,7 +401,14 @@ export class VehicleWizardFacade {
     const vehicleId = this.vehicleId();
     if (!vehicleId) return;
 
+    const sizeError = vehicleUploadSizeError(file);
     const slots = [...this.vehicleImageSlots()];
+    if (sizeError) {
+      slots[slotIndex] = { ...slots[slotIndex], error: sizeError, uploading: false };
+      this.vehicleImageSlots.set(slots);
+      return;
+    }
+
     slots[slotIndex] = { ...slots[slotIndex], file, uploading: true, error: undefined };
     this.vehicleImageSlots.set(slots);
 
@@ -416,16 +434,26 @@ export class VehicleWizardFacade {
         error: undefined,
         isPrimary: wasPrimary || !hasPrimary
       };
-      this.vehicleImageSlots.set(updated);
+      this.vehicleImageSlots.set(this.stripVehicleImageRequiredErrors(updated));
 
       if (!documentId) {
         await this.refreshVehicleImageSlots(vehicleId);
       }
-    } catch {
+    } catch (err) {
       const updated = [...this.vehicleImageSlots()];
-      updated[slotIndex] = { ...updated[slotIndex], uploading: false, error: 'Upload failed' };
+      updated[slotIndex] = {
+        ...updated[slotIndex],
+        uploading: false,
+        error: apiErrorMessage(err, 'Upload failed')
+      };
       this.vehicleImageSlots.set(updated);
     }
+  }
+
+  setVehicleImageSlotError(slotIndex: number, message: string): void {
+    const slots = [...this.vehicleImageSlots()];
+    slots[slotIndex] = { ...slots[slotIndex], error: message, uploading: false };
+    this.vehicleImageSlots.set(slots);
   }
 
   async selectPrimaryVehicleImage(slotIndex: number): Promise<void> {
@@ -447,7 +475,7 @@ export class VehicleWizardFacade {
       this.snackBar.open('Display photo updated', 'Close', { duration: 2500 });
     } catch (err) {
       this.vehicleImageSlots.set(previous);
-      this.snackBar.open(this.extractErrorMessage(err, 'Failed to set display photo'), 'Close', { duration: 4000 });
+      this.snackBar.open(apiErrorMessage(err, 'Failed to set display photo'), 'Close', { duration: 4000 });
     }
   }
 
@@ -455,7 +483,14 @@ export class VehicleWizardFacade {
     const vehicleId = this.vehicleId();
     if (!vehicleId) return;
 
+    const sizeError = vehicleUploadSizeError(file);
     const slots = [...this.documentSlots()];
+    if (sizeError) {
+      slots[slotIndex] = { ...slots[slotIndex], error: sizeError, uploading: false };
+      this.documentSlots.set(slots);
+      return;
+    }
+
     slots[slotIndex] = { ...slots[slotIndex], file, uploading: true, error: undefined };
     this.documentSlots.set(slots);
 
@@ -476,9 +511,13 @@ export class VehicleWizardFacade {
         error: undefined
       };
       this.documentSlots.set(updated);
-    } catch {
+    } catch (err) {
       const updated = [...this.documentSlots()];
-      updated[slotIndex] = { ...updated[slotIndex], uploading: false, error: 'Upload failed' };
+      updated[slotIndex] = {
+        ...updated[slotIndex],
+        uploading: false,
+        error: apiErrorMessage(err, 'Upload failed')
+      };
       this.documentSlots.set(updated);
     }
   }
@@ -502,7 +541,7 @@ export class VehicleWizardFacade {
       this.snackBar.open('Vehicle published successfully', 'Close', { duration: 3000 });
       this.router.navigate(['/vehicles']);
     } catch (err) {
-      const message = this.extractErrorMessage(err, 'Failed to publish vehicle');
+      const message = apiErrorMessage(err, 'Failed to publish vehicle');
       if (message.toLowerCase().includes('registration') || message.toLowerCase().includes('license')) {
         this.form.get('registrationNumber')?.setErrors({ conflict: true });
         this.form.get('registrationNumber')?.markAsTouched();
@@ -568,6 +607,32 @@ export class VehicleWizardFacade {
     });
   }
 
+  private loadCurrencies(): void {
+    this.lookupService.getCurrencies().pipe(catchError(() => of([]))).subscribe(currencies => {
+      this.currencyOptions.set(
+        currencies.map(c => ({ value: c.code, label: `${c.code} — ${c.name}` }))
+      );
+    });
+  }
+
+  private setupPurchaseCurrencyRules(): void {
+    const currencyControl = this.form.get('purchaseCurrencyCode');
+    const priceControl = this.form.get('purchasePrice');
+    if (!currencyControl || !priceControl) return;
+
+    const syncPriceEnabled = (code: string | null | undefined) => {
+      if (code?.trim()) {
+        priceControl.enable({ emitEvent: false });
+      } else {
+        priceControl.reset(null, { emitEvent: false });
+        priceControl.disable({ emitEvent: false });
+      }
+    };
+
+    syncPriceEnabled(currencyControl.value);
+    currencyControl.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(syncPriceEnabled);
+  }
+
   private loadUnassignedDevices(): void {
     this.gpsService.getDevices().pipe(catchError(() => of([]))).subscribe(devices => {
       this.unassignedDevices.set(devices.filter(d => !d.vehicleId && d.isActive));
@@ -589,6 +654,7 @@ export class VehicleWizardFacade {
       fuelAverage: v.fuelAverage,
       engineNo: v.engineNo || '',
       chassisNo: v.chassisNo || '',
+      purchaseCurrencyCode: v.purchaseCurrencyCode || '',
       purchasePrice: v.purchasePrice,
       insuranceExpiryDate: toDateInputValue(v.insuranceExpiryDate),
       seatingCapacity: v.seatingCapacity,
@@ -638,7 +704,7 @@ export class VehicleWizardFacade {
       if (first) first.isPrimary = true;
     }
 
-    this.vehicleImageSlots.set(slots);
+    this.vehicleImageSlots.set(this.stripVehicleImageRequiredErrors(slots));
 
     const docSlots = this.documentSlots().map(slot => {
       const doc = documents.find(d =>
@@ -706,7 +772,7 @@ export class VehicleWizardFacade {
         this.snackBar.open(message, 'Close', { duration: 2000 });
       }
     } catch (err) {
-      const message = this.extractErrorMessage(err, 'Failed to save vehicle');
+      const message = apiErrorMessage(err, 'Failed to save vehicle');
       if (showToast) this.snackBar.open(message, 'Close', { duration: 3000 });
       throw new Error(message);
     }
@@ -731,6 +797,7 @@ export class VehicleWizardFacade {
       currentMileage: f.currentMileage,
       insuranceExpiryDate: dateInputToIso(f.insuranceExpiryDate),
       purchasePrice: f.purchasePrice,
+      purchaseCurrencyCode: f.purchaseCurrencyCode,
       branchId: f.branchId
     });
   }
@@ -753,43 +820,13 @@ export class VehicleWizardFacade {
   }
 
   private handleSaveError(error: unknown): void {
-    const message = this.extractErrorMessage(error, 'Failed to save vehicle');
+    const message = apiErrorMessage(error, 'Failed to save vehicle');
     if (message.toLowerCase().includes('registration') || message.toLowerCase().includes('license')) {
       this.form.get('registrationNumber')?.setErrors({ conflict: true });
       this.form.get('registrationNumber')?.markAsTouched();
       this.currentStep.set('details');
     }
     this.snackBar.open(message, 'Close', { duration: 4500 });
-  }
-
-  private extractErrorMessage(error: unknown, fallback: string): string {
-    if (error instanceof Error && error.message && error.message !== fallback) {
-      return error.message;
-    }
-
-    if (error instanceof HttpErrorResponse) {
-      const payload = error.error as {
-        message?: string;
-        title?: string;
-        errors?: Record<string, string[] | string>;
-      } | string | undefined;
-
-      if (typeof payload === 'string' && payload.trim()) return payload;
-      if (payload && typeof payload === 'object') {
-        if (payload.message) return payload.message;
-        if (payload.errors) {
-          const preferred = Object.entries(payload.errors).find(([key]) => !key.startsWith('command'));
-          const first = preferred ? preferred[1] : Object.values(payload.errors)[0];
-          if (Array.isArray(first) && first.length) return String(first[0]);
-          if (first) return String(first);
-        }
-        if (payload.title && payload.title !== 'One or more validation errors occurred.') {
-          return payload.title;
-        }
-      }
-    }
-
-    return fallback;
   }
 
   private syncFormValues(): void {
@@ -883,9 +920,9 @@ export class VehicleWizardFacade {
       this.markTouched(this.form.get('seatingCapacity'));
       this.markTouched(this.form.get('engineNo'));
       this.markTouched(this.form.get('chassisNo'));
-      this.markTouched(this.form.get('branchId'));
-      this.markTouched(this.form.get('currentMileage'));
+      this.markTouched(this.form.get('purchaseCurrencyCode'));
       this.markTouched(this.form.get('purchasePrice'));
+      this.markTouched(this.form.get('branchId'));
       return;
     }
     if (step === 'gps') {
@@ -915,8 +952,9 @@ export class VehicleWizardFacade {
       if (!this.vehicleImageSlots().some(s => !!s.fileUrl)) {
         const imageSlots = this.vehicleImageSlots().map(s => ({
           ...s,
-          error: 'At least one vehicle image is required.'
+          error: s.error === 'At least one vehicle image is required.' ? undefined : s.error
         }));
+        imageSlots[0] = { ...imageSlots[0], error: 'At least one vehicle image is required.' };
         this.vehicleImageSlots.set(imageSlots);
       }
     }
@@ -931,6 +969,13 @@ export class VehicleWizardFacade {
     const documents = await firstValueFrom(this.vehicleService.getDocuments(vehicleId).pipe(catchError(() => of([]))));
     this.uploadedDocuments.set(documents);
     this.syncDocumentSlots(documents);
+  }
+
+  private stripVehicleImageRequiredErrors(slots: VehicleImageSlotState[]): VehicleImageSlotState[] {
+    if (!slots.some(s => !!s.fileUrl)) return slots;
+    return slots.map(s =>
+      s.error === 'At least one vehicle image is required.' ? { ...s, error: undefined } : s
+    );
   }
 
   private readDocumentId(value: VehicleImageSlotState | VehicleDocument | UploadVehicleDocumentResult | Record<string, unknown> | null | undefined): number | undefined {

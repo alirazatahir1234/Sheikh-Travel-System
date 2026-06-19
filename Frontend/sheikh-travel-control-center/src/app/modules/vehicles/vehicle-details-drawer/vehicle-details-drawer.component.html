@@ -712,6 +712,7 @@
     <ui-select label="Document type" [options]="docTypeOptions" [(ngModel)]="newDocType"></ui-select>
     <label class="mt-4 block text-[13px] font-semibold text-fleet-text">File</label>
     <input class="stb-input mt-1 w-full" type="file" accept=".pdf,.jpg,.jpeg,.png" (change)="onDocFileSelected($event)" />
+    <p class="mt-1 text-xs text-fleet-text-muted">JPG, PNG, or PDF · max 2 MB</p>
     @if (newDocFile) {
       <p class="mt-2 text-xs text-fleet-text-muted">{{ newDocFile.name }}</p>
     }

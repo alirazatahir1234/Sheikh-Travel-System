@@ -11,6 +11,7 @@ import { VehicleService } from '../../../core/services/vehicle.service';
 import { PlatformService } from '../../../core/services/platform.service';
 import { DriverService } from '../../../core/services/driver.service';
 import { ExportService, ExportColumn } from '../../../core/services/export.service';
+import { apiErrorMessage } from '../../../core/utils/api-error.util';
 import { UiConfirmService } from '../../../shared/components/ui/confirm-dialog/ui-confirm.service';
 import { UiButtonComponent } from '../../../shared/components/ui/button/ui-button.component';
 import { UiPageHeaderComponent } from '../../../shared/components/ui/page-header/ui-page-header.component';
@@ -283,7 +284,7 @@ export class VehicleInventoryPageComponent implements OnInit {
         this.snackBar.open('Vehicle deleted', 'Close', { duration: 2000 });
         this.load();
       },
-      error: () => this.snackBar.open('Delete failed', 'Close', { duration: 3000 })
+      error: (err) => this.snackBar.open(apiErrorMessage(err, 'Delete failed'), 'Close', { duration: 3000 })
     });
   }
 

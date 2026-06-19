@@ -75,3 +75,7 @@ _ReSharper*/
 # OS generated files
 .DS_Store
 Thumbs.db
+
+# Local API uploads (dev file storage)
+SheikhTravelSystem.API/uploads/
+**/uploads/
