@@ -2,19 +2,27 @@ import { NgModule } from '@angular/core';
 import { RouterModule, Routes } from '@angular/router';
 import { SharedModule } from '../../shared/shared.module';
 import { FleetUiModule } from '../../shared/fleet-ui';
-import { DriverListComponent } from './driver-list/driver-list.component';
-import { DriverFormComponent } from './driver-form/driver-form.component';
 import { DriverProfileComponent } from './driver-profile/driver-profile.component';
+import { DriverInventoryPageComponent } from './driver-inventory-page/driver-inventory-page.component';
+import { DriverRegisterWizardComponent } from './driver-register-wizard/driver-register-wizard.component';
+import { DriverDetailsDrawerComponent } from './driver-details-drawer/driver-details-drawer.component';
 
 const routes: Routes = [
-  { path: '', component: DriverListComponent },
-  { path: 'new', component: DriverFormComponent },
+  { path: '', component: DriverInventoryPageComponent },
+  { path: 'new', component: DriverRegisterWizardComponent },
   { path: ':id', component: DriverProfileComponent },
-  { path: ':id/edit', component: DriverFormComponent }
+  { path: ':id/edit', component: DriverRegisterWizardComponent }
 ];
 
 @NgModule({
-  declarations: [DriverListComponent, DriverFormComponent, DriverProfileComponent],
-  imports: [SharedModule, FleetUiModule, RouterModule.forChild(routes)]
+  declarations: [DriverProfileComponent],
+  imports: [
+    SharedModule,
+    FleetUiModule,
+    DriverInventoryPageComponent,
+    DriverRegisterWizardComponent,
+    DriverDetailsDrawerComponent,
+    RouterModule.forChild(routes)
+  ]
 })
 export class DriversModule {}

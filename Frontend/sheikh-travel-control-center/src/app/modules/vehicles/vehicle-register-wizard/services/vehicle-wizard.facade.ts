@@ -240,16 +240,17 @@ export class VehicleWizardFacade {
     this.destroy$.complete();
   }
 
-  goToStep(step: WizardStepId): void {
+  goToStep(step: string): void {
+    const stepId = step as WizardStepId;
     if (this.isEditMode()) {
-      this.currentStep.set(step);
+      this.currentStep.set(stepId);
       return;
     }
 
     const currentIdx = this.steps.findIndex(s => s.id === this.currentStep());
-    const targetIdx = this.steps.findIndex(s => s.id === step);
+    const targetIdx = this.steps.findIndex(s => s.id === stepId);
     if (targetIdx <= currentIdx) {
-      this.currentStep.set(step);
+      this.currentStep.set(stepId);
       return;
     }
     if (targetIdx > currentIdx + 1) {
@@ -259,7 +260,7 @@ export class VehicleWizardFacade {
       this.markCurrentStepTouched();
       return;
     }
-    this.currentStep.set(step);
+    this.currentStep.set(stepId);
   }
 
   nextStep(): void {

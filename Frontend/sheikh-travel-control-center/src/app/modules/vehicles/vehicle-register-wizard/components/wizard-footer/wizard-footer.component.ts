@@ -1,6 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
 import { UiButtonComponent } from '../../../../../shared/components/ui/button/ui-button.component';
-import { WizardStepId } from '../../models/vehicle-wizard.model';
 
 @Component({
   selector: 'app-wizard-footer',
@@ -26,7 +25,7 @@ import { WizardStepId } from '../../models/vehicle-wizard.model';
         <ui-button
           variant="primary"
           [loading]="primaryLoading()"
-          [icon]="currentStep() === 'review' ? 'check_circle' : 'arrow_forward'"
+          [icon]="currentStep() === finalStepId() ? 'check_circle' : 'arrow_forward'"
           iconPosition="right"
           (clicked)="primaryAction.emit()">
           {{ primaryLabel() }}
@@ -36,10 +35,13 @@ import { WizardStepId } from '../../models/vehicle-wizard.model';
   `
 })
 export class WizardFooterComponent {
-  readonly currentStep = input.required<WizardStepId>();
+  readonly currentStep = input.required<string>();
+  readonly firstStepId = input('details');
+  readonly finalStepId = input('review');
   readonly draftSaving = input(false);
   readonly primaryLoading = input(false);
   readonly lastSavedAt = input<Date | null>(null);
+  readonly lastSavedFormatted = input<string | null>(null);
   readonly primaryLabel = input('Continue');
   readonly saveDraftLabel = input('Save Draft');
   readonly cancel = output<void>();
@@ -47,9 +49,11 @@ export class WizardFooterComponent {
   readonly saveDraft = output<void>();
   readonly primaryAction = output<void>();
 
-  readonly showBack = computed(() => this.currentStep() !== 'details');
+  readonly showBack = computed(() => this.currentStep() !== this.firstStepId());
 
   readonly lastSavedLabel = computed(() => {
+    const formatted = this.lastSavedFormatted();
+    if (formatted) return `Last saved: ${formatted}`;
     const at = this.lastSavedAt();
     if (!at) return null;
     const sec = Math.max(0, Math.floor((Date.now() - at.getTime()) / 1000));
