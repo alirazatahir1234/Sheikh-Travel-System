@@ -568,7 +568,7 @@ export class VehicleDetailsDrawerComponent {
       this.seedGpsFromListItem();
       this.prefetchTabDataEarly(id);
       this.loadVehicle(id);
-    });
+    }, { allowSignalWrites: true });
   }
 
   retryLoad(): void {

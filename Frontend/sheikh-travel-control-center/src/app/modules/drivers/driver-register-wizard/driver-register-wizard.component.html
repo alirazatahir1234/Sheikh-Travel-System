@@ -1,0 +1,78 @@
+<div class="driver-wizard mx-auto max-w-7xl px-4 py-6 md:px-6">
+  <ui-page-header
+    [title]="facade.isEditMode() ? 'Edit Driver' : 'Driver Registration'"
+    [subtitle]="facade.pageSubtitle()"
+    [breadcrumbs]="breadcrumbs()" />
+
+  <div class="mt-5 mb-6">
+    <app-wizard-stepper
+      [steps]="facade.steps"
+      [currentStep]="facade.currentStep()"
+      (stepClick)="facade.goToStep($event)" />
+  </div>
+
+  @if (facade.loading()) {
+    <div class="flex justify-center py-20">
+      <mat-spinner diameter="40"></mat-spinner>
+    </div>
+  } @else {
+    <div class="grid gap-6 lg:grid-cols-[1fr_320px]">
+      <main>
+        @switch (facade.currentStep()) {
+          @case ('personal') {
+            <app-wizard-step-personal
+              [form]="facade.form"
+              [photoPreview]="photoPreview()"
+              [driverCode]="facade.previewDriverCode()"
+              [fullName]="facade.previewFullName()"
+              [maxDateOfBirth]="facade.maxDateOfBirth"
+              [minDateOfBirth]="facade.minDateOfBirth"
+              (photoSelected)="facade.onPhotoSelected($event)"
+              (photoRemoved)="facade.onPhotoRemoved()" />
+          }
+          @case ('license') {
+            <app-wizard-step-license
+              [form]="facade.form"
+              [minLicenseExpiry]="facade.minLicenseExpiry"
+              [docSlots]="facade.docSlots()"
+              (docSelected)="onDocSelected($event)" />
+          }
+          @case ('organization') {
+            <app-wizard-step-organization
+              [form]="facade.form"
+              [branchOptions]="facade.branchOptions()"
+              [departmentOptions]="facade.departmentOptions()"
+              [driverName]="facade.previewName()"
+              [phone]="phoneDisplay()"
+              [licenseNumber]="facade.form.getRawValue().licenseNumber"
+              [licenseExpiry]="facade.form.getRawValue().licenseExpiryDate"
+              [branchLabel]="branchLabel()"
+              [documentsCount]="facade.documentsUploadedCount()"
+              [validationErrors]="facade.attemptedSubmit() ? facade.validationErrors() : []" />
+          }
+        }
+
+        <app-wizard-footer
+          firstStepId="personal"
+          finalStepId="organization"
+          [currentStep]="facade.currentStep()"
+          [draftSaving]="facade.draftSaving()"
+          [primaryLoading]="facade.saving()"
+          [lastSavedAt]="facade.lastSavedAt()"
+          [lastSavedFormatted]="facade.lastSavedFormatted()"
+          [primaryLabel]="facade.primaryCtaLabel()"
+          (cancel)="facade.cancel()"
+          (back)="facade.prevStep()"
+          (saveDraft)="facade.saveDraft()"
+          (primaryAction)="facade.handlePrimaryAction()" />
+      </main>
+
+      <app-driver-wizard-sidebar
+        [progressPercent]="facade.progressPercent()"
+        [stepCompletion]="facade.stepCompletion()"
+        [licenseStatus]="facade.licenseStatus()"
+        [orgStatus]="facade.orgStatus()"
+        [driverStatus]="facade.driverStatusLabel()" />
+    </div>
+  }
+</div>
