@@ -27,9 +27,18 @@
               <p class="panel-hint">Sample data — analytics API pending</p>
             }
           </div>
-          <div class="chart-legend">
-            <span class="legend-dot safety">Safety</span>
-            <span class="legend-dot efficiency">Efficiency</span>
+          <div class="chart-controls">
+            <div class="chart-period-tabs">
+              <button class="period-tab" [class.active]="chartPeriod() === 'monthly'"   (click)="chartPeriod.set('monthly')">Monthly</button>
+              <button class="period-tab" [class.active]="chartPeriod() === 'quarterly'" (click)="chartPeriod.set('quarterly')">Quarterly</button>
+              <button class="period-tab" [class.active]="chartPeriod() === 'yearly'"    (click)="chartPeriod.set('yearly')">Yearly</button>
+            </div>
+            <div class="chart-legend">
+              <span class="legend-dot safety">Safety</span>
+              <span class="legend-dot efficiency">Efficiency</span>
+              <span class="legend-dot fuel">Fuel Score</span>
+              <span class="legend-dot trips">Trips</span>
+            </div>
           </div>
         </div>
         <div class="chart-canvas">
@@ -41,8 +50,10 @@
         <div class="card incident-panel">
           <div class="incident-header">
             <mat-icon>warning</mat-icon>
-            <h3>Incident Alerts</h3>
+            <h3>Incident Center</h3>
           </div>
+
+          <p class="incident-section-label">License Compliance</p>
           @for (d of complianceDrivers().slice(0, 3); track d.id) {
             <div class="incident-item">
               <div class="incident-avatar">{{ initials(d.fullName) }}</div>
@@ -56,8 +67,36 @@
             </div>
           }
           @if (complianceDrivers().length === 0) {
-            <p class="no-alerts">No critical alerts</p>
+            <p class="no-alerts">No license alerts</p>
           }
+
+          <p class="incident-section-label mt-3">Incident Summary <span class="sample-tag">Sample</span></p>
+          <div class="incident-type-row">
+            <mat-icon class="incident-type-icon speed">speed</mat-icon>
+            <span>Overspeed</span>
+            <span class="incident-type-count">0</span>
+          </div>
+          <div class="incident-type-row">
+            <mat-icon class="incident-type-icon brake">warning</mat-icon>
+            <span>Harsh Braking</span>
+            <span class="incident-type-count">0</span>
+          </div>
+          <div class="incident-type-row">
+            <mat-icon class="incident-type-icon accident">car_crash</mat-icon>
+            <span>Accidents</span>
+            <span class="incident-type-count">0</span>
+          </div>
+          <div class="incident-type-row">
+            <mat-icon class="incident-type-icon complaint">feedback</mat-icon>
+            <span>Complaints</span>
+            <span class="incident-type-count">0</span>
+          </div>
+          <div class="incident-type-row">
+            <mat-icon class="incident-type-icon geofence">location_off</mat-icon>
+            <span>Geofence Violations</span>
+            <span class="incident-type-count">0</span>
+          </div>
+
           <button class="view-all-btn" (click)="onLicenseFilterChange('EXPIRING')">VIEW ALL CRITICAL</button>
         </div>
 
@@ -112,6 +151,34 @@
           <p class="no-alerts">No recent activity</p>
         }
       </div>
+
+      <div class="card assignment-panel">
+        <h3 class="panel-title">Assignment Coverage</h3>
+        <div class="assignment-row">
+          <div class="assignment-icon assigned"><mat-icon>badge</mat-icon></div>
+          <span class="assignment-label">Assigned Drivers</span>
+          <span class="assignment-count">{{ assignmentCoverage().assignedDrivers }}</span>
+        </div>
+        <div class="assignment-row">
+          <div class="assignment-icon unassigned"><mat-icon>person_off</mat-icon></div>
+          <span class="assignment-label">Unassigned Drivers</span>
+          <span class="assignment-count" [class.assignment-count--alert]="assignmentCoverage().unassignedDrivers > 0">
+            {{ assignmentCoverage().unassignedDrivers }}
+          </span>
+        </div>
+        <div class="assignment-divider"></div>
+        <div class="assignment-row">
+          <div class="assignment-icon vehicle"><mat-icon>directions_car</mat-icon></div>
+          <span class="assignment-label">Assigned Vehicles</span>
+          <span class="assignment-count">{{ assignmentCoverage().assignedDrivers }}</span>
+        </div>
+        <div class="assignment-row">
+          <div class="assignment-icon available"><mat-icon>garage</mat-icon></div>
+          <span class="assignment-label">Available Vehicles</span>
+          <span class="assignment-count assignment-count--muted">—</span>
+        </div>
+        <p class="assignment-hint">Vehicle data via fleet stats API — pending</p>
+      </div>
     </div>
 
     <div class="dashboard-stats">
@@ -132,6 +199,16 @@
           <span>Off Duty</span>
           <span class="avail-count">{{ stats()?.offDuty ?? 0 }}</span>
         </div>
+        <div class="availability-item">
+          <span class="avail-dot purple"></span>
+          <span>On Leave</span>
+          <span class="avail-count">{{ stats()?.onLeave ?? 0 }}</span>
+        </div>
+        <div class="availability-item">
+          <span class="avail-dot red"></span>
+          <span>Suspended</span>
+          <span class="avail-count">{{ stats()?.suspended ?? 0 }}</span>
+        </div>
         <button class="coverage-map-btn" (click)="viewCoverageMap()">
           <mat-icon>map</mat-icon>
           VIEW COVERAGE MAP
@@ -150,6 +227,11 @@
           <span>Expiring in 30 days</span>
           <span class="expiry-count">{{ stats()?.licensesExpiringSoon ?? 0 }}</span>
         </div>
+        <div class="expiry-item expiry-item--info">
+          <mat-icon>schedule</mat-icon>
+          <span>Expiring in 60 days</span>
+          <span class="expiry-count expiry-count--muted">—</span>
+        </div>
         <div class="expiry-item expiry-item--error">
           <mat-icon>cancel</mat-icon>
           <span>Already Expired</span>
@@ -166,13 +248,18 @@
         </div>
         <div class="verification-item verification-item--pending">
           <mat-icon>pending</mat-icon>
-          <span>Pending</span>
+          <span>Pending Verification</span>
           <span class="verification-count">{{ stats()?.pendingVerification ?? 0 }}</span>
         </div>
         <div class="verification-item verification-item--assigned">
           <mat-icon>directions_car</mat-icon>
           <span>Assigned to Vehicle</span>
           <span class="verification-count">{{ stats()?.assignedDrivers ?? 0 }}</span>
+        </div>
+        <div class="verification-item verification-item--unassigned">
+          <mat-icon>person_off</mat-icon>
+          <span>Unassigned</span>
+          <span class="verification-count">{{ assignmentCoverage().unassignedDrivers }}</span>
         </div>
       </div>
     </div>

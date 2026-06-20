@@ -31,6 +31,9 @@ export interface DriverListItem {
   verificationStatus: string;
   branchId?: number | null;
   branchName?: string | null;
+  departmentId?: number | null;
+  departmentName?: string | null;
+  hireDate?: string | null;
   assignedVehicleId?: number | null;
   assignedVehicleCode?: string | null;
   assignedVehicleRegistration?: string | null;

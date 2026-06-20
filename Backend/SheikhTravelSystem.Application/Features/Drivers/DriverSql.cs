@@ -14,6 +14,7 @@ internal static class DriverSql
         {LicenseExpiryFlags},
         d.Nationality, d.Status, d.IsActive, d.VerificationStatus, d.BranchId,
         b.Name AS BranchName,
+        d.DepartmentId, dep.Name AS DepartmentName, d.HireDate,
         av.VehicleId AS AssignedVehicleId,
         av.VehicleCode AS AssignedVehicleCode,
         av.RegistrationNumber AS AssignedVehicleRegistration,
@@ -23,6 +24,7 @@ internal static class DriverSql
     internal const string ListFrom = """
         FROM Drivers d
         LEFT JOIN Branches b ON b.Id = d.BranchId AND b.IsActive = 1
+        LEFT JOIN Departments dep ON dep.Id = d.DepartmentId AND dep.IsActive = 1
         OUTER APPLY (
             SELECT TOP 1 v.Id AS VehicleId, v.VehicleCode, v.RegistrationNumber
             FROM AssignmentHistory ah

@@ -121,6 +121,8 @@ $card-pad: 1rem;    // 16px
 
   &.safety::before     { background: #14b8a6; }
   &.efficiency::before { background: #f59e0b; }
+  &.fuel::before       { background: #6366f1; }
+  &.trips::before      { background: #22c55e; }
 }
 
 /* Compact quick actions for driver dashboard sidebar */
@@ -258,10 +260,102 @@ $card-pad: 1rem;    // 16px
   &:hover { background: #b91c1c; }
 }
 
-/* Mid row: compliance + feed — full width, directly under top band */
+/* Chart period filter tabs */
+.chart-controls {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.5rem;
+}
+
+.chart-period-tabs {
+  display: flex;
+  gap: 2px;
+  background: var(--fleet-surface-alt, #f1f5f9);
+  border-radius: 6px;
+  padding: 2px;
+}
+
+.period-tab {
+  padding: 3px 10px;
+  border: none;
+  background: transparent;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--fleet-text-muted, #64748b);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+
+  &.active {
+    background: #fff;
+    color: var(--fleet-primary, #006b54);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+  }
+
+  &:hover:not(.active) {
+    color: var(--fleet-text, #0f172a);
+  }
+}
+
+/* Incident section labels + types */
+.incident-section-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--fleet-text-muted, #64748b);
+  margin: 0.5rem 0 0.25rem;
+}
+
+.sample-tag {
+  font-size: 9px;
+  font-weight: 700;
+  background: #f1f5f9;
+  color: #94a3b8;
+  border-radius: 4px;
+  padding: 1px 5px;
+  margin-left: 4px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.incident-type-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.3rem 0;
+  font-size: 12px;
+  color: var(--fleet-text, #0f172a);
+  border-bottom: 1px solid #fecaca;
+
+  &:last-of-type { border-bottom: none; }
+}
+
+.incident-type-icon {
+  font-size: 15px !important;
+  width: 15px !important;
+  height: 15px !important;
+  flex-shrink: 0;
+
+  &.speed     { color: #f59e0b; }
+  &.brake     { color: #ef4444; }
+  &.accident  { color: #dc2626; }
+  &.complaint { color: #6366f1; }
+  &.geofence  { color: #0ea5e9; }
+}
+
+.incident-type-count {
+  margin-left: auto;
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--fleet-text-muted, #94a3b8);
+}
+
+/* Mid row: compliance + feed + coverage — full width, directly under top band */
 .dashboard-mid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: $dash-gap;
   align-items: start;
 }
@@ -409,6 +503,8 @@ $card-pad: 1rem;    // 16px
 
 .feed-icon--trip      { background: #eff6ff; color: #2563eb; }
 .feed-icon--available { background: #f0fdf4; color: #16a34a; }
+.feed-icon--offduty   { background: #f0f9ff; color: #0369a1; }
+.feed-icon--leave     { background: #faf5ff; color: #7c3aed; }
 .feed-icon--suspended { background: #fff1f2; color: #be123c; }
 .feed-icon--default   { background: #f8fafc; color: #64748b; }
 
@@ -460,9 +556,11 @@ $card-pad: 1rem;    // 16px
   border-radius: 50%;
   flex-shrink: 0;
 
-  &.green { background: #22c55e; }
-  &.amber { background: #f59e0b; }
-  &.blue  { background: #3b82f6; }
+  &.green  { background: #22c55e; }
+  &.amber  { background: #f59e0b; }
+  &.blue   { background: #3b82f6; }
+  &.purple { background: #a855f7; }
+  &.red    { background: #ef4444; }
 }
 
 .avail-count {
@@ -522,6 +620,7 @@ $card-pad: 1rem;    // 16px
 
 .expiry-item--critical mat-icon { color: #f59e0b; }
 .expiry-item--warning  mat-icon { color: #ef4444; }
+.expiry-item--info     mat-icon { color: #0ea5e9; }
 .expiry-item--error    mat-icon { color: #dc2626; }
 
 .expiry-count {
@@ -529,6 +628,8 @@ $card-pad: 1rem;    // 16px
   font-weight: 700;
   font-size: 15px;
   color: var(--fleet-text, #0f172a);
+
+  &--muted { color: var(--fleet-text-muted, #94a3b8); font-size: 13px; }
 }
 
 /* Verification Status widget */
@@ -552,9 +653,10 @@ $card-pad: 1rem;    // 16px
   }
 }
 
-.verification-item--verified mat-icon { color: #16a34a; }
-.verification-item--pending  mat-icon { color: #d97706; }
-.verification-item--assigned mat-icon { color: #2563eb; }
+.verification-item--verified    mat-icon { color: #16a34a; }
+.verification-item--pending     mat-icon { color: #d97706; }
+.verification-item--assigned    mat-icon { color: #2563eb; }
+.verification-item--unassigned  mat-icon { color: #94a3b8; }
 
 .verification-count {
   margin-left: auto;
@@ -570,6 +672,66 @@ $card-pad: 1rem;    // 16px
   text-align: center;
 }
 
+/* Assignment Coverage widget */
+.assignment-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 0;
+  border-bottom: 1px solid var(--fleet-border, #e2e8f0);
+  font-size: 12px;
+  color: var(--fleet-text, #0f172a);
+
+  &:last-of-type { border-bottom: none; }
+}
+
+.assignment-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+
+  mat-icon {
+    font-size: 15px !important;
+    width: 15px !important;
+    height: 15px !important;
+  }
+
+  &.assigned   { background: #ecfdf5; color: #16a34a; }
+  &.unassigned { background: #fff7ed; color: #ea580c; }
+  &.vehicle    { background: #eff6ff; color: #2563eb; }
+  &.available  { background: #f8fafc; color: #64748b; }
+}
+
+.assignment-label { flex: 1; }
+
+.assignment-count {
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--fleet-text, #0f172a);
+
+  &--alert { color: #ea580c; }
+  &--muted { color: var(--fleet-text-muted, #94a3b8); font-size: 13px; font-weight: 600; }
+}
+
+.assignment-divider {
+  height: 1px;
+  background: var(--fleet-border, #e2e8f0);
+  margin: 0.25rem 0;
+}
+
+.assignment-hint {
+  margin: 0.5rem 0 0;
+  font-size: 10px;
+  color: var(--fleet-text-muted, #94a3b8);
+  font-style: italic;
+}
+
+/* .mt-3 helper (used inline in template) */
+.mt-3 { margin-top: 0.75rem; }
+
 /* ── Responsive ── */
 @media (max-width: 1200px) {
   .dashboard-top {
@@ -578,6 +740,12 @@ $card-pad: 1rem;    // 16px
 
   .dashboard-aside {
     display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 1100px) {
+  .dashboard-mid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

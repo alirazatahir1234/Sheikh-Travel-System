@@ -30,14 +30,19 @@ export function buildDriverKpiCards(stats: DriverStats | null): FleetSummaryCard
   const available  = stats?.available            ?? 0;
   const expiring   = stats?.licensesExpiringSoon ?? 0;
   const suspended  = stats?.suspended            ?? 0;
+  const onLeave    = stats?.onLeave              ?? 0;
+  const assigned   = stats?.assignedDrivers      ?? 0;
   const operational = available + onTrip;
+  const unassigned  = Math.max(0, total - assigned);
   const utilization = total > 0 ? Math.round((operational / total) * 100) : 0;
   return [
-    { title: 'Total Drivers', value: String(total),     icon: 'groups' },
-    { title: 'Active',        value: String(active || operational), icon: 'verified_user',  progress: utilization },
-    { title: 'On Trip',       value: String(onTrip),    icon: 'directions_car', trend: 'Live', trendUp: true, subtext: 'Live tracking on' },
-    { title: 'Available',     value: String(available), icon: 'check_circle',   subtext: 'Ready for dispatch' },
-    { title: 'Expiring',      value: String(expiring),  icon: 'warning',        alert: expiring > 0,   subtext: 'Action required' },
-    { title: 'Suspended',     value: String(suspended), icon: 'block',          alert: suspended > 0,  subtext: 'Under review' },
+    { title: 'Total Drivers', value: String(total),       icon: 'groups' },
+    { title: 'Active',        value: String(active || operational), icon: 'verified_user',  progress: utilization, subtext: `${operational} of ${total} operational` },
+    { title: 'On Trip',       value: String(onTrip),      icon: 'directions_car', trend: 'Live', trendUp: true, subtext: 'Live tracking on' },
+    { title: 'Available',     value: String(available),   icon: 'check_circle',   subtext: 'Ready for dispatch' },
+    { title: 'Expiring',      value: String(expiring),    icon: 'warning',        alert: expiring > 0,   subtext: 'Action required' },
+    { title: 'Suspended',     value: String(suspended),   icon: 'block',          alert: suspended > 0,  subtext: 'Under review' },
+    { title: 'On Leave',      value: String(onLeave),     icon: 'event_busy',     subtext: 'Scheduled leave' },
+    { title: 'Unassigned',    value: String(unassigned),  icon: 'person_off',     alert: unassigned > 0, subtext: 'No vehicle assigned' },
   ];
 }

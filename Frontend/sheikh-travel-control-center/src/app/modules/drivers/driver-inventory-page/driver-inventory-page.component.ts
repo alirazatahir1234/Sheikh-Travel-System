@@ -65,23 +65,40 @@ export class DriverInventoryPageComponent implements OnInit {
   readonly drawerOpen = model(false);
   readonly selectedDriverId = signal<number | null>(null);
   readonly branchOptions = signal<UiSelectOption[]>([]);
+  readonly chartPeriod = signal<'monthly' | 'quarterly' | 'yearly'>('monthly');
 
   readonly kpiCards = computed(() => buildDriverKpiCards(this.stats()));
 
+  readonly assignmentCoverage = computed(() => {
+    const s = this.stats();
+    const total    = s?.totalDrivers    ?? 0;
+    const assigned = s?.assignedDrivers ?? 0;
+    return {
+      assignedDrivers:   assigned,
+      unassignedDrivers: Math.max(0, total - assigned)
+    };
+  });
+
   readonly feedItems = computed(() =>
-    this.rows().slice(0, 3).map(d => ({
+    this.rows().slice(0, 5).map(d => ({
       id: d.id,
       name: d.fullName,
       icon: d.status === DriverStatus.OnTrip    ? 'directions_car'
           : d.status === DriverStatus.Available  ? 'check_circle'
+          : d.status === DriverStatus.OffDuty    ? 'bedtime'
+          : d.status === DriverStatus.OnLeave    ? 'event_busy'
           : d.status === DriverStatus.Suspended  ? 'block'
           : 'person',
       iconClass: d.status === DriverStatus.OnTrip    ? 'feed-icon--trip'
                : d.status === DriverStatus.Available  ? 'feed-icon--available'
+               : d.status === DriverStatus.OffDuty    ? 'feed-icon--offduty'
+               : d.status === DriverStatus.OnLeave    ? 'feed-icon--leave'
                : d.status === DriverStatus.Suspended  ? 'feed-icon--suspended'
                : 'feed-icon--default',
       event: d.status === DriverStatus.OnTrip    ? 'started a trip'
            : d.status === DriverStatus.Available  ? 'is available for dispatch'
+           : d.status === DriverStatus.OffDuty    ? 'went off duty'
+           : d.status === DriverStatus.OnLeave    ? 'is on scheduled leave'
            : d.status === DriverStatus.Suspended  ? 'has been suspended'
            : 'updated status',
       isLive: d.status === DriverStatus.OnTrip,
@@ -89,13 +106,24 @@ export class DriverInventoryPageComponent implements OnInit {
     }))
   );
 
-  readonly chartData = computed<ChartData>(() => ({
-    labels: ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN'],
-    datasets: [
-      { label: 'Safety',     data: [82, 75, 88, 91, 85, 93], backgroundColor: '#14b8a6', borderRadius: 4, barPercentage: 0.4 },
-      { label: 'Efficiency', data: [70, 68, 79, 83, 76, 88], backgroundColor: '#f59e0b', borderRadius: 4, barPercentage: 0.4 }
-    ]
-  }));
+  private readonly chartSampleData: Record<'monthly' | 'quarterly' | 'yearly', { labels: string[]; safety: number[]; efficiency: number[]; fuel: number[]; trips: number[] }> = {
+    monthly:   { labels: ['JAN','FEB','MAR','APR','MAY','JUN'], safety: [82,75,88,91,85,93], efficiency: [70,68,79,83,76,88], fuel: [74,71,80,78,82,85], trips: [45,38,52,61,58,67] },
+    quarterly: { labels: ['Q1','Q2','Q3','Q4'],                 safety: [80,88,85,91],        efficiency: [72,81,78,86],        fuel: [75,80,77,84],        trips: [135,172,168,198] },
+    yearly:    { labels: ['2022','2023','2024','2025'],          safety: [76,82,87,91],        efficiency: [68,74,80,86],        fuel: [70,76,80,85],        trips: [520,610,680,750] }
+  };
+
+  readonly chartData = computed<ChartData>(() => {
+    const d = this.chartSampleData[this.chartPeriod()];
+    return {
+      labels: d.labels,
+      datasets: [
+        { label: 'Safety',       data: d.safety,     backgroundColor: '#14b8a6', borderRadius: 4, barPercentage: 0.35 },
+        { label: 'Efficiency',   data: d.efficiency, backgroundColor: '#f59e0b', borderRadius: 4, barPercentage: 0.35 },
+        { label: 'Fuel Score',   data: d.fuel,       backgroundColor: '#6366f1', borderRadius: 4, barPercentage: 0.35 },
+        { label: 'Trips (×10)', data: d.trips.map(v => Math.round(v / 10)), backgroundColor: '#22c55e', borderRadius: 4, barPercentage: 0.35 }
+      ]
+    };
+  });
 
   readonly chartOptions: ChartOptions = {
     responsive: true,
