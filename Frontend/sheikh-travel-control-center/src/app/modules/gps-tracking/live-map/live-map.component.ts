@@ -44,14 +44,16 @@ interface TripSummary {
   pointCount: number;
 }
 
-const MAP_TILES: Record<MapTheme, { url: string; attribution: string }> = {
+const MAP_TILES: Record<MapTheme, { url: string; attribution: string; subdomains?: string }> = {
   dark: {
     url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-    attribution: '&copy; OpenStreetMap &copy; CARTO'
+    attribution: '&copy; OpenStreetMap &copy; CARTO',
+    subdomains: 'abcd'
   },
   light: {
-    url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
-    attribution: '&copy; OpenStreetMap &copy; CARTO'
+    url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    attribution: '&copy; OpenStreetMap contributors',
+    subdomains: 'abc'
   },
   satellite: {
     url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
@@ -74,9 +76,11 @@ const TRAIL_COLORS: Record<FleetTrackStatus, string> = {
 })
 export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild('mapHost') mapHost?: ElementRef<HTMLElement>;
+  @ViewChild('mapContainer') mapContainer?: ElementRef<HTMLElement>;
 
   private map!: LeafletTypes.Map;
   private tileLayer?: LeafletTypes.TileLayer;
+  private mapResizeObserver?: ResizeObserver;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private markerCluster!: any;
   private markers = new Map<number, LeafletTypes.Marker>();
@@ -96,7 +100,7 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
   searchQuery = '';
   statusFilter: StatusFilter = 'all';
   timePreset: TimePreset = 'today';
-  mapTheme: MapTheme = 'dark';
+  mapTheme: MapTheme = 'light';
   liveTracking = true;
   selectedVehicleId: number | null = null;
   lastSyncAt: Date | null = null;
@@ -197,6 +201,7 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
   ngOnDestroy(): void {
     if (this.refreshInterval) clearInterval(this.refreshInterval);
     if (this.syncTick) clearInterval(this.syncTick);
+    this.mapResizeObserver?.disconnect();
     this.realtimeSub?.unsubscribe();
     void this.realtime.disconnect();
     this.stopReplay();
@@ -363,7 +368,29 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
     if (!this.map) return;
     if (this.tileLayer) this.map.removeLayer(this.tileLayer);
     const cfg = MAP_TILES[theme];
-    this.tileLayer = L.tileLayer(cfg.url, { maxZoom: 19, attribution: cfg.attribution }).addTo(this.map);
+    this.tileLayer = L.tileLayer(cfg.url, {
+      maxZoom: 19,
+      attribution: cfg.attribution,
+      ...(cfg.subdomains ? { subdomains: cfg.subdomains } : {})
+    }).addTo(this.map);
+    this.scheduleMapResize();
+  }
+
+  private scheduleMapResize(): void {
+    if (!this.map) return;
+    const resize = () => this.map.invalidateSize(true);
+    resize();
+    requestAnimationFrame(resize);
+    setTimeout(resize, 150);
+    setTimeout(resize, 400);
+  }
+
+  private observeMapResize(): void {
+    const el = this.mapContainer?.nativeElement;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    this.mapResizeObserver?.disconnect();
+    this.mapResizeObserver = new ResizeObserver(() => this.map?.invalidateSize(true));
+    this.mapResizeObserver.observe(el);
   }
 
   centerMap(): void {
@@ -416,7 +443,10 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private initMap(): void {
-    this.map = L.map('tracking-map', {
+    const host = this.mapContainer?.nativeElement;
+    if (!host) return;
+
+    this.map = L.map(host, {
       center: [30.3753, 69.3451],
       zoom: 6,
       zoomControl: false
@@ -440,6 +470,8 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
     });
     this.map.addLayer(this.markerCluster);
     this.setMapTheme(this.mapTheme);
+    this.observeMapResize();
+    this.scheduleMapResize();
   }
 
   private loadLocations(silent = false): void {
@@ -454,7 +486,9 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
         this.error = null;
         this.lastSyncAt = new Date();
         this.secondsSinceSync = 0;
-        const gpsLocs = locs.filter(l => l.hasGps);
+        const gpsLocs = locs.filter(
+          l => l.hasGps && this.isValidCoord(l.latitude, l.longitude)
+        );
         this.updateMarkers(gpsLocs);
         this.emitTelemetryEvents(gpsLocs, prevMoving);
         if (this.pendingFocusVehicleId != null) {
@@ -558,7 +592,10 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private updateMarkers(locs: VehicleLocation[]): void {
-    const currentIds = new Set(locs.map(l => l.vehicleId));
+    const mappable = locs.filter(
+      loc => loc.hasGps && this.isValidCoord(loc.latitude, loc.longitude)
+    );
+    const currentIds = new Set(mappable.map(l => l.vehicleId));
 
     this.markers.forEach((marker, vehicleId) => {
       if (!currentIds.has(vehicleId)) {
@@ -572,7 +609,7 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
       }
     });
 
-    locs.forEach(loc => {
+    mappable.forEach(loc => {
       const prev = this.prevPositions.get(loc.vehicleId);
       let bearing = 0;
       if (prev) {
@@ -617,9 +654,13 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   focusVehicle(loc: VehicleLocation): void {
-    if (!loc.hasGps) return;
+    if (!loc.hasGps || !this.isValidCoord(loc.latitude, loc.longitude)) return;
     this.map.setView([loc.latitude, loc.longitude], 14, { animate: true });
     this.markers.get(loc.vehicleId)?.openPopup();
+  }
+
+  private isValidCoord(lat: number, lng: number): boolean {
+    return Number.isFinite(lat) && Number.isFinite(lng) && !(lat === 0 && lng === 0);
   }
 
   goToVehicleProfile(vehicleId: number): void {
@@ -852,7 +893,9 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
         ignition: update.ignition,
         routeHint: `${Math.round(Number(update.speed) || 0)} km/h`
       };
-      this.updateMarkers(this.locations.filter(l => l.hasGps && l.latitude !== 0));
+      this.updateMarkers(this.locations.filter(
+        l => l.hasGps && this.isValidCoord(l.latitude, l.longitude)
+      ));
     }
     this.lastSyncAt = new Date();
     this.secondsSinceSync = 0;
