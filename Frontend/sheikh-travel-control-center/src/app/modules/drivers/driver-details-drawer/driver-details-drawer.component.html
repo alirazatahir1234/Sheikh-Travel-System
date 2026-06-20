@@ -49,7 +49,7 @@
             <ui-button size="sm" variant="outline" (clicked)="setStatus(driverStatus.OnLeave)">Set On Leave</ui-button>
             <ui-button size="sm" variant="outline" (clicked)="setStatus(driverStatus.Available)">Set Available</ui-button>
             <ui-button size="sm" variant="outline" (clicked)="setStatus(driverStatus.Suspended)">Suspend</ui-button>
-            <ui-button size="sm" variant="primary" [routerLink]="['/drivers', d.id, 'edit']">Edit</ui-button>
+            <ui-button size="sm" variant="primary" (clicked)="editDriver()">Edit Driver</ui-button>
           </div>
         </div>
       }
@@ -78,6 +78,10 @@
       }
       @case ('verification') {
         <div class="panel space-y-4">
+          <p class="drawer-upload-limit">{{ uploadMaxSizeLabel }}</p>
+          @if (uploadSizeError()) {
+            <p class="drawer-upload-error">{{ uploadSizeError() }}</p>
+          }
           @for (slot of docTypes; track slot.type) {
             <div class="rounded-lg border border-fleet-border p-3">
               <div class="mb-2 flex items-center justify-between">
@@ -88,8 +92,8 @@
                 <a [href]="resolveUploadUrl(rawUrl) || rawUrl" target="_blank" rel="noopener" class="text-sm text-fleet-primary">View document</a>
               }
               <label class="mt-2 block">
-                <span class="text-xs text-fleet-text-muted">Upload / replace</span>
-                <input type="file" class="mt-1 block w-full text-sm" (change)="onUploadDoc(slot.type, $event)" />
+                <span class="text-xs text-fleet-text-muted">Upload / replace · JPG, PNG, or PDF</span>
+                <input type="file" class="mt-1 block w-full text-sm" accept="image/jpeg,image/png,application/pdf" (change)="onUploadDoc(slot.type, $event)" />
               </label>
             </div>
           }

@@ -21,7 +21,7 @@ import { QuickActionsCardComponent } from '../../fleet-management/fleet-dashboar
 import { QuickAction } from '../../fleet-management/fleet-dashboard/fleet-dashboard.model';
 import { DriverTableComponent } from '../components/driver-table/driver-table.component';
 import { DriverDetailsDrawerComponent } from '../driver-details-drawer/driver-details-drawer.component';
-import { EMPTY_DRIVER_FILTERS, DriverFilters, DriverPagination, buildDriverKpiCards } from '../models/driver-inventory.model';
+import { EMPTY_DRIVER_FILTERS, DriverFilters, DriverPagination, DEFAULT_DRIVER_PAGE_SIZE, buildDriverKpiCards } from '../models/driver-inventory.model';
 
 @Component({
   selector: 'app-driver-inventory-page',
@@ -59,7 +59,7 @@ export class DriverInventoryPageComponent implements OnInit {
   readonly stats = signal<DriverStats | null>(null);
   readonly complianceDrivers = signal<DriverListItem[]>([]);
   readonly filters = signal<DriverFilters>({ ...EMPTY_DRIVER_FILTERS });
-  readonly pagination = signal<DriverPagination>({ page: 1, pageSize: 25, total: 0 });
+  readonly pagination = signal<DriverPagination>({ page: 1, pageSize: DEFAULT_DRIVER_PAGE_SIZE, total: 0 });
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
   readonly drawerOpen = model(false);
@@ -277,25 +277,49 @@ export class DriverInventoryPageComponent implements OnInit {
     this.drawerOpen.set(true);
   }
 
+  onDrawerOpenChange(open: boolean): void {
+    this.drawerOpen.set(open);
+    if (!open) {
+      this.selectedDriverId.set(null);
+    }
+  }
+
+  onDrawerClosed(): void {
+    this.drawerOpen.set(false);
+    this.selectedDriverId.set(null);
+  }
+
   onEdit(row: DriverListItem): void {
     void this.router.navigate(['/drivers', row.id, 'edit']);
   }
 
-  onDelete(row: DriverListItem): void {
-    void this.confirm.confirmDelete(`Remove ${row.fullName} from the fleet registry?`, 'Delete driver?').then(confirmed => {
-      if (!confirmed) return;
-      this.driverService.delete(row.id).pipe(take(1)).subscribe({
-        next: () => {
-          this.snackBar.open('Driver deleted', 'Close', { duration: 2000 });
-          this.load();
-        },
-        error: err => this.snackBar.open(apiErrorMessage(err, 'Delete failed'), 'Close', { duration: 3000 })
-      });
+  async onDelete(row: DriverListItem): Promise<void> {
+    const label = row.driverCode || row.fullName;
+    const ok = await this.confirm.confirmDelete(
+      `Delete driver "${label}"? This cannot be undone.`,
+      'Delete driver'
+    );
+    if (!ok) return;
+
+    this.driverService.delete(row.id).pipe(take(1)).subscribe({
+      next: () => {
+        this.snackBar.open('Driver deleted', 'Close', { duration: 2000 });
+        if (this.selectedDriverId() === row.id) {
+          this.onDrawerClosed();
+        }
+        this.load();
+      },
+      error: err => this.snackBar.open(apiErrorMessage(err, 'Delete failed'), 'Close', { duration: 3000 })
     });
   }
 
   onPageChange(page: number): void {
     this.pagination.update(p => ({ ...p, page }));
+    this.load();
+  }
+
+  onPageSizeChange(pageSize: number): void {
+    this.pagination.update(p => ({ ...p, pageSize, page: 1 }));
     this.load();
   }
 

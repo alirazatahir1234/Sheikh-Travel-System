@@ -17,12 +17,23 @@ public class GetLivePositionsQueryHandler(IDbConnectionFactory dbFactory, ITenan
         using var connection = dbFactory.CreateConnection();
         var tenantId = tenantContext.GetRequiredTenantId();
         var rows = await connection.QueryAsync<PositionDto>(new CommandDefinition(
-            @"SELECT vcl.VehicleId AS Id, vcl.VehicleId, vcl.DriverId, vcl.BookingId, vcl.GpsDeviceId,
-                     vcl.Latitude, vcl.Longitude, ISNULL(vcl.Speed, 0) AS Speed, vcl.Heading, NULL AS Altitude,
-                     vcl.Ignition, vcl.LastUpdate AS Timestamp
+            @"SELECT CAST(vcl.VehicleId AS BIGINT) AS Id,
+                     vcl.VehicleId,
+                     vcl.DriverId,
+                     vcl.BookingId,
+                     vcl.GpsDeviceId,
+                     vcl.Latitude,
+                     vcl.Longitude,
+                     ISNULL(vcl.Speed, 0) AS Speed,
+                     vcl.Heading,
+                     CAST(NULL AS FLOAT) AS Altitude,
+                     vcl.Ignition,
+                     vcl.LastUpdate AS Timestamp
               FROM VehicleCurrentLocation vcl
-              INNER JOIN Vehicles v ON v.Id = vcl.VehicleId AND v.TenantId = @TenantId
-              WHERE vcl.LastUpdate > DATEADD(MINUTE, -30, GETUTCDATE())",
+              INNER JOIN Vehicles v ON v.Id = vcl.VehicleId AND v.TenantId = @TenantId AND v.IsDeleted = 0
+              WHERE vcl.Latitude IS NOT NULL
+                AND vcl.Longitude IS NOT NULL
+                AND NOT (vcl.Latitude = 0 AND vcl.Longitude = 0)",
             new { TenantId = tenantId },
             cancellationToken: cancellationToken));
 

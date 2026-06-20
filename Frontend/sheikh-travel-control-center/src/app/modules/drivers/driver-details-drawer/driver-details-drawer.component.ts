@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, effect, inject, input, model, output, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
-import { RouterModule } from '@angular/router';
+import { Router, RouterModule } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { forkJoin } from 'rxjs';
@@ -18,6 +18,7 @@ import {
 } from '../../../core/models/driver.model';
 import { VehicleListItem } from '../../../core/models/vehicle.model';
 import { apiErrorMessage } from '../../../core/utils/api-error.util';
+import { vehicleUploadSizeError, UPLOAD_MAX_SIZE_LABEL } from '../../../core/utils/upload-url.util';
 import { resolveUploadUrl } from '../../../core/utils/upload-url.util';
 import { UiDrawerComponent } from '../../../shared/components/ui/drawer/ui-drawer.component';
 import { UiButtonComponent } from '../../../shared/components/ui/button/ui-button.component';
@@ -38,6 +39,7 @@ export class DriverDetailsDrawerComponent {
   private readonly driverService = inject(DriverService);
   private readonly vehicleService = inject(VehicleService);
   private readonly snackBar = inject(MatSnackBar);
+  private readonly router = inject(Router);
 
   readonly open = model(false);
   readonly driverId = input<number | null>(null);
@@ -51,6 +53,8 @@ export class DriverDetailsDrawerComponent {
   readonly vehicles = signal<VehicleListItem[]>([]);
   readonly loading = signal(false);
   readonly assignVehicleId = signal<number | ''>('');
+  readonly uploadSizeError = signal<string | null>(null);
+  readonly uploadMaxSizeLabel = UPLOAD_MAX_SIZE_LABEL;
 
   readonly docTypes = DRIVER_VERIFICATION_DOC_TYPES;
 
@@ -114,6 +118,13 @@ export class DriverDetailsDrawerComponent {
     this.open.set(false);
   }
 
+  editDriver(): void {
+    const id = this.driverId();
+    if (!id) return;
+    this.open.set(false);
+    void this.router.navigate(['/drivers', id, 'edit']);
+  }
+
   docFor(type: string): DriverDocument | undefined {
     return this.documents().find(d => d.documentType === type);
   }
@@ -123,6 +134,15 @@ export class DriverDetailsDrawerComponent {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
     if (!id || !file) return;
+
+    const sizeError = vehicleUploadSizeError(file);
+    if (sizeError) {
+      this.uploadSizeError.set(sizeError);
+      input.value = '';
+      return;
+    }
+
+    this.uploadSizeError.set(null);
     this.driverService.uploadDocument(id, type, file).subscribe({
       next: () => {
         this.snackBar.open('Document uploaded', 'Close', { duration: 2000 });

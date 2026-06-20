@@ -7,6 +7,9 @@ export interface DriverPagination {
   total: number;
 }
 
+export const DEFAULT_DRIVER_PAGE_SIZE = 5;
+export const DRIVER_PAGE_SIZE_OPTIONS = [5, 10, 25, 50, 100] as const;
+
 export interface DriverFilters {
   search: string;
   status: DriverStatus | 'ALL';

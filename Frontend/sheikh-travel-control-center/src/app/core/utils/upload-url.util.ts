@@ -48,7 +48,8 @@ export function resolveVehicleImageUrl(url: string | null | undefined): string |
 }
 
 export const VEHICLE_UPLOAD_MAX_BYTES = 2 * 1024 * 1024;
-export const VEHICLE_UPLOAD_SIZE_ERROR = 'File size is greater than 2 MB.';
+export const UPLOAD_MAX_SIZE_LABEL = 'Max size: 2 MB';
+export const VEHICLE_UPLOAD_SIZE_ERROR = `File exceeds the maximum upload size. ${UPLOAD_MAX_SIZE_LABEL}.`;
 
 export function vehicleUploadSizeError(file: File): string | null {
   return file.size > VEHICLE_UPLOAD_MAX_BYTES ? VEHICLE_UPLOAD_SIZE_ERROR : null;

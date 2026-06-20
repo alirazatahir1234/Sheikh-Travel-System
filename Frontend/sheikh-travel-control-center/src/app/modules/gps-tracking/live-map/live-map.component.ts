@@ -23,7 +23,7 @@ import {
   TrackingDto,
   FleetTrackStatus
 } from '../../../core/models/gps-tracking.model';
-import { Vehicle } from '../../../core/models/vehicle.model';
+import { VehicleListItem } from '../../../core/models/vehicle.model';
 
 type StatusFilter = 'all' | FleetTrackStatus;
 type MapTheme = 'dark' | 'light' | 'satellite';
@@ -44,14 +44,16 @@ interface TripSummary {
   pointCount: number;
 }
 
-const MAP_TILES: Record<MapTheme, { url: string; attribution: string }> = {
+const MAP_TILES: Record<MapTheme, { url: string; attribution: string; subdomains?: string }> = {
   dark: {
     url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-    attribution: '&copy; OpenStreetMap &copy; CARTO'
+    attribution: '&copy; OpenStreetMap &copy; CARTO',
+    subdomains: 'abcd'
   },
   light: {
-    url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
-    attribution: '&copy; OpenStreetMap &copy; CARTO'
+    url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    attribution: '&copy; OpenStreetMap contributors',
+    subdomains: 'abc'
   },
   satellite: {
     url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
@@ -74,9 +76,11 @@ const TRAIL_COLORS: Record<FleetTrackStatus, string> = {
 })
 export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild('mapHost') mapHost?: ElementRef<HTMLElement>;
+  @ViewChild('mapContainer') mapContainer?: ElementRef<HTMLElement>;
 
   private map!: LeafletTypes.Map;
   private tileLayer?: LeafletTypes.TileLayer;
+  private mapResizeObserver?: ResizeObserver;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private markerCluster!: any;
   private markers = new Map<number, LeafletTypes.Marker>();
@@ -92,11 +96,12 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
 
   locations: VehicleLocation[] = [];
   loading = true;
-  error: string | null = null;
+  syncError: string | null = null;
+  mapError: string | null = null;
   searchQuery = '';
   statusFilter: StatusFilter = 'all';
   timePreset: TimePreset = 'today';
-  mapTheme: MapTheme = 'dark';
+  mapTheme: MapTheme = 'light';
   liveTracking = true;
   selectedVehicleId: number | null = null;
   lastSyncAt: Date | null = null;
@@ -105,7 +110,7 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
   tripSummary: TripSummary | null = null;
   private syncTick?: ReturnType<typeof setInterval>;
 
-  vehicles: Vehicle[] = [];
+  vehicles: VehicleListItem[] = [];
   historyFrom = '';
   historyTo = '';
   historyRows: TrackingDto[] = [];
@@ -134,6 +139,9 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
 
   geofenceBreachCount = 0;
   private realtimeSub?: { unsubscribe(): void };
+  private mapReady = false;
+  private pendingMarkerLocations: VehicleLocation[] | null = null;
+  private lastSyncSummaryKey = '';
 
   private pendingFocusVehicleId: number | null = null;
 
@@ -164,6 +172,7 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
       next: c => { this.geofenceBreachCount = c; },
       error: () => {}
     });
+    this.loadRecentAlertEvents();
     void this.realtime.connect().catch(() => {
       this.pushEvent('Realtime unavailable — using polling', 'warning', 'wifi_off');
     });
@@ -189,7 +198,7 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
           }, 30000);
         })
         .catch(() => {
-          this.error = 'Map clustering failed to load. Refresh the page.';
+          this.mapError = 'Map clustering failed to load. Refresh the page.';
         });
     }, 0);
   }
@@ -197,6 +206,7 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
   ngOnDestroy(): void {
     if (this.refreshInterval) clearInterval(this.refreshInterval);
     if (this.syncTick) clearInterval(this.syncTick);
+    this.mapResizeObserver?.disconnect();
     this.realtimeSub?.unsubscribe();
     void this.realtime.disconnect();
     this.stopReplay();
@@ -235,12 +245,16 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   get liveStats() {
-    const gps = this.locations.filter(l => l.hasGps);
-    const moving = gps.filter(l => l.status === 'moving');
+    const mappable = this.locations.filter(
+      l => l.hasGps && this.isValidCoord(l.latitude, l.longitude)
+    );
+    const live = mappable.filter(l => l.isLive);
+    const moving = mappable.filter(l => l.status === 'moving');
     const speeds = moving.map(l => l.speed).filter(s => s > 0);
     const avg = speeds.length ? speeds.reduce((a, b) => a + b, 0) / speeds.length : 0;
     return {
-      online: gps.filter(l => l.status !== 'offline').length,
+      tracked: mappable.length,
+      liveOnline: live.length,
       tripsActive: moving.length,
       avgSpeed: Math.round(avg),
       fuelAlerts: 0,
@@ -248,17 +262,49 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
     };
   }
 
+  get trackingStatusLabel(): string {
+    if (!this.liveTracking) return 'Tracking paused';
+    if (this.syncError) return 'Sync issue — tap Refresh';
+    return 'Tracking active';
+  }
+
   get trackingActive(): boolean {
-    return !this.error && this.liveTracking;
+    return this.liveTracking && !this.syncError;
   }
 
   get gpsHealthy(): boolean {
-    return !this.error && this.locations.some(l => l.hasGps);
+    return this.locations.some(
+      l => l.hasGps && this.isValidCoord(l.latitude, l.longitude)
+    );
   }
 
   get replayProgress(): number {
     if (!this.historyRows.length) return 0;
     return Math.round((this.replayIndex / this.historyRows.length) * 100);
+  }
+
+  get historyVehicleOptions(): VehicleListItem[] {
+    return [...this.vehicles].sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  get selectedHistoryVehicleLabel(): string {
+    if (this.selectedVehicleId == null) return 'Select vehicle';
+    const vehicle = this.vehicles.find(v => v.id === this.selectedVehicleId);
+    if (!vehicle) return 'Select vehicle';
+    return `${vehicle.name} (${vehicle.registrationNumber})`;
+  }
+
+  compareVehicleId = (a: number | null, b: number | null): boolean => a === b;
+
+  onHistoryVehicleSelected(vehicleId: number | null): void {
+    if (vehicleId == null) return;
+    const loc = this.locations.find(l => l.vehicleId === vehicleId);
+    if (loc) {
+      this.selectVehicle(loc);
+      return;
+    }
+    this.selectedVehicleId = vehicleId;
+    void this.realtime.subscribeVehicle(vehicleId);
   }
 
   statusLabel(status: FleetTrackStatus): string {
@@ -339,7 +385,9 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   refreshNow(): void {
-    this.loadLocations(true);
+    this.pushEvent('Manual refresh requested', 'info', 'refresh');
+    this.loadLocations(true, true);
+    this.loadRecentAlertEvents();
   }
 
   toggleLiveTracking(): void {
@@ -363,7 +411,29 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
     if (!this.map) return;
     if (this.tileLayer) this.map.removeLayer(this.tileLayer);
     const cfg = MAP_TILES[theme];
-    this.tileLayer = L.tileLayer(cfg.url, { maxZoom: 19, attribution: cfg.attribution }).addTo(this.map);
+    this.tileLayer = L.tileLayer(cfg.url, {
+      maxZoom: 19,
+      attribution: cfg.attribution,
+      ...(cfg.subdomains ? { subdomains: cfg.subdomains } : {})
+    }).addTo(this.map);
+    this.scheduleMapResize();
+  }
+
+  private scheduleMapResize(): void {
+    if (!this.map) return;
+    const resize = () => this.map.invalidateSize(true);
+    resize();
+    requestAnimationFrame(resize);
+    setTimeout(resize, 150);
+    setTimeout(resize, 400);
+  }
+
+  private observeMapResize(): void {
+    const el = this.mapContainer?.nativeElement;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    this.mapResizeObserver?.disconnect();
+    this.mapResizeObserver = new ResizeObserver(() => this.map?.invalidateSize(true));
+    this.mapResizeObserver.observe(el);
   }
 
   centerMap(): void {
@@ -394,8 +464,10 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
   selectVehicle(loc: VehicleLocation): void {
     this.selectedVehicleId = loc.vehicleId;
     void this.realtime.subscribeVehicle(loc.vehicleId);
-    if (loc.hasGps && loc.latitude && loc.longitude) {
+    if (loc.hasGps && this.isValidCoord(loc.latitude, loc.longitude)) {
       this.focusVehicle(loc);
+    } else {
+      this.pushEvent(`${loc.vehicleName} has no GPS coordinates yet`, 'warning', 'gps_off');
     }
   }
 
@@ -416,7 +488,10 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private initMap(): void {
-    this.map = L.map('tracking-map', {
+    const host = this.mapContainer?.nativeElement;
+    if (!host) return;
+
+    this.map = L.map(host, {
       center: [30.3753, 69.3451],
       zoom: 6,
       zoomControl: false
@@ -440,9 +515,22 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
     });
     this.map.addLayer(this.markerCluster);
     this.setMapTheme(this.mapTheme);
+    this.observeMapResize();
+    this.scheduleMapResize();
+    this.mapReady = true;
+    if (this.pendingMarkerLocations) {
+      this.updateMarkers(this.pendingMarkerLocations);
+      this.pendingMarkerLocations = null;
+    } else if (this.locations.length) {
+      this.updateMarkers(this.mappableLocations(this.locations));
+    }
   }
 
-  private loadLocations(silent = false): void {
+  private mappableLocations(locs: VehicleLocation[]): VehicleLocation[] {
+    return locs.filter(l => l.hasGps && this.isValidCoord(l.latitude, l.longitude));
+  }
+
+  private loadLocations(silent = false, manual = false): void {
     if (!silent) this.loading = true;
     this.gpsService.getAllVehicleLocations().subscribe({
       next: locs => {
@@ -451,29 +539,61 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
         );
         this.locations = locs;
         this.loading = false;
-        this.error = null;
+        this.syncError = null;
         this.lastSyncAt = new Date();
         this.secondsSinceSync = 0;
-        const gpsLocs = locs.filter(l => l.hasGps);
+        const gpsLocs = this.mappableLocations(locs);
         this.updateMarkers(gpsLocs);
         this.emitTelemetryEvents(gpsLocs, prevMoving);
+        this.emitSyncSummary(gpsLocs, manual || !silent);
         if (this.pendingFocusVehicleId != null) {
           const target = locs.find(l => l.vehicleId === this.pendingFocusVehicleId);
           if (target) {
             this.focusVehicle(target);
             this.pendingFocusVehicleId = null;
           }
-        } else if (!silent) {
+        } else if (!silent && gpsLocs.length) {
           this.centerMap();
         }
-        this.pushEvent('Fleet positions synced', 'success', 'sync');
+        if (manual) {
+          this.scheduleMapResize();
+        }
       },
       error: () => {
         this.loading = false;
-        this.error = 'Could not reach tracking service. Showing fleet registry as offline.';
-        this.locations = [];
+        this.syncError = 'Could not reach tracking service.';
         this.pushEvent('Tracking sync failed', 'alert', 'cloud_off');
       }
+    });
+  }
+
+  private emitSyncSummary(gpsLocs: VehicleLocation[], announce: boolean): void {
+    if (!announce) return;
+    const live = gpsLocs.filter(l => l.isLive).length;
+    const lastKnown = gpsLocs.length - live;
+    const summary = `${gpsLocs.length} on map (${live} live${lastKnown ? `, ${lastKnown} last known` : ''})`;
+    if (summary === this.lastSyncSummaryKey) return;
+    this.lastSyncSummaryKey = summary;
+    this.pushEvent(`Fleet synced — ${summary}`, 'success', 'sync');
+    gpsLocs.slice(0, 3).forEach(loc => {
+      const ignition = loc.ignition === true ? 'Ignition on' : loc.ignition === false ? 'Ignition off' : null;
+      const detail = [
+        loc.isLive ? 'Live signal' : 'Last known position',
+        ignition,
+        loc.speed > 0 ? `${Math.round(loc.speed)} km/h` : null
+      ].filter(Boolean).join(' · ');
+      this.pushEvent(`${loc.vehicleName}: ${detail}`, loc.isLive ? 'success' : 'info', 'place');
+    });
+  }
+
+  private loadRecentAlertEvents(): void {
+    this.gpsService.getAlertEvents(undefined, true).subscribe({
+      next: events => {
+        events.slice(0, 5).forEach(ev => {
+          this.pushEvent(ev.message || `${ev.eventType} alert`, 'warning', 'warning');
+        });
+      },
+      error: () => {}
     });
   }
 
@@ -558,7 +678,15 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private updateMarkers(locs: VehicleLocation[]): void {
-    const currentIds = new Set(locs.map(l => l.vehicleId));
+    if (!this.mapReady || !this.map || !this.markerCluster) {
+      this.pendingMarkerLocations = locs;
+      return;
+    }
+
+    const mappable = locs.filter(
+      loc => loc.hasGps && this.isValidCoord(loc.latitude, loc.longitude)
+    );
+    const currentIds = new Set(mappable.map(l => l.vehicleId));
 
     this.markers.forEach((marker, vehicleId) => {
       if (!currentIds.has(vehicleId)) {
@@ -572,7 +700,7 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
       }
     });
 
-    locs.forEach(loc => {
+    mappable.forEach(loc => {
       const prev = this.prevPositions.get(loc.vehicleId);
       let bearing = 0;
       if (prev) {
@@ -614,12 +742,31 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
         this.markers.get(loc.vehicleId)?.setZIndexOffset(1500);
       }
     });
+
+    if (typeof this.markerCluster.refreshClusters === 'function') {
+      this.markerCluster.refreshClusters();
+    }
+    this.scheduleMapResize();
   }
 
   focusVehicle(loc: VehicleLocation): void {
-    if (!loc.hasGps) return;
+    if (!loc.hasGps || !this.isValidCoord(loc.latitude, loc.longitude)) return;
     this.map.setView([loc.latitude, loc.longitude], 14, { animate: true });
-    this.markers.get(loc.vehicleId)?.openPopup();
+    const marker = this.markers.get(loc.vehicleId);
+    if (marker) {
+      marker.openPopup();
+    } else {
+      setTimeout(() => this.markers.get(loc.vehicleId)?.openPopup(), 250);
+    }
+    this.pushEvent(
+      `Focused ${loc.vehicleName} (${loc.isLive ? 'live' : 'last known'})`,
+      'info',
+      'my_location'
+    );
+  }
+
+  private isValidCoord(lat: number, lng: number): boolean {
+    return Number.isFinite(lat) && Number.isFinite(lng) && !(lat === 0 && lng === 0);
   }
 
   goToVehicleProfile(vehicleId: number): void {
@@ -849,10 +996,16 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
         lastUpdated: update.timestamp,
         status,
         hasGps: true,
+        isLive: true,
         ignition: update.ignition,
         routeHint: `${Math.round(Number(update.speed) || 0)} km/h`
       };
-      this.updateMarkers(this.locations.filter(l => l.hasGps && l.latitude !== 0));
+      this.updateMarkers(this.mappableLocations(this.locations));
+      this.pushEvent(
+        `${this.locations[idx].vehicleName} location updated (${Math.round(Number(update.speed) || 0)} km/h)`,
+        'success',
+        'gps_fixed'
+      );
     }
     this.lastSyncAt = new Date();
     this.secondsSinceSync = 0;
