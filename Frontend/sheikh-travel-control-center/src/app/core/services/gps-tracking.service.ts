@@ -22,6 +22,7 @@ import { VehicleStatus } from '../models/vehicle.model';
 
 const STALE_MS = 30 * 60 * 1000;
 const DELAYED_MS = 15 * 60 * 1000;
+const RECENT_MS = STALE_MS;
 
 @Injectable({ providedIn: 'root' })
 export class GpsTrackingService {
@@ -42,45 +43,90 @@ export class GpsTrackingService {
       map(({ tracking, vehicles, drivers }) => {
         const vehicleMap = new Map(vehicles.items.map(v => [v.id, v]));
         const driverMap = new Map(drivers.items.map(d => [d.id, d.fullName]));
-        const liveIds = new Set(tracking.map(t => t.vehicleId));
+        const liveByVehicle = new Map(tracking.map(t => [t.vehicleId, t]));
 
-        const live: VehicleLocation[] = tracking.map(t => {
-          const vehicle = vehicleMap.get(t.vehicleId);
-          const status = this.deriveStatus(t.speed, t.timestamp);
-          return {
-            vehicleId: t.vehicleId,
-            vehicleName: vehicle?.name ?? `Vehicle #${t.vehicleId}`,
-            registrationNumber: vehicle?.registrationNumber ?? '',
-            latitude: t.latitude,
-            longitude: t.longitude,
-            lastUpdated: t.timestamp,
-            speed: Number(t.speed) || 0,
-            status,
-            driverName: t.driverId ? driverMap.get(t.driverId) : undefined,
-            hasGps: true,
-            routeHint: this.routeHint(status, Number(t.speed) || 0),
-            ignition: t.ignition
-          };
-        });
+        const result: VehicleLocation[] = vehicles.items
+          .filter(v => v.status !== VehicleStatus.Retired)
+          .map(v => {
+            const live = liveByVehicle.get(v.id);
+            if (live && this.hasValidCoords(live.latitude, live.longitude)) {
+              const status = this.deriveStatus(live.speed, live.timestamp);
+              return {
+                vehicleId: v.id,
+                vehicleName: v.name ?? `Vehicle #${v.id}`,
+                registrationNumber: v.registrationNumber ?? '',
+                latitude: this.toCoord(live.latitude)!,
+                longitude: this.toCoord(live.longitude)!,
+                lastUpdated: live.timestamp,
+                speed: Number(live.speed) || 0,
+                status,
+                driverName: live.driverId ? driverMap.get(live.driverId) : v.driverName ?? undefined,
+                hasGps: true,
+                isLive: this.isRecentTelemetry(live.timestamp),
+                routeHint: this.routeHint(status, Number(live.speed) || 0),
+                ignition: live.ignition
+              };
+            }
 
-        const offline: VehicleLocation[] = vehicles.items
-          .filter(v => !liveIds.has(v.id) && v.status !== VehicleStatus.Retired)
-          .map(v => ({
-            vehicleId: v.id,
-            vehicleName: v.name,
-            registrationNumber: v.registrationNumber,
-            latitude: 0,
-            longitude: 0,
-            lastUpdated: '',
-            speed: 0,
-            status: (v.status === VehicleStatus.OnTrip ? 'scheduled' : 'offline') as FleetTrackStatus,
-            hasGps: false,
-            routeHint: v.status === VehicleStatus.OnTrip ? 'Scheduled trip' : 'No GPS signal'
-          }));
+            const lat = this.toCoord(v.locationLatitude);
+            const lng = this.toCoord(v.locationLongitude);
+            if (this.hasValidCoords(lat, lng)) {
+              const lastUpdated = v.locationLastUpdate ?? '';
+              const status = lastUpdated
+                ? this.deriveStatus(0, lastUpdated)
+                : ('offline' as FleetTrackStatus);
+              return {
+                vehicleId: v.id,
+                vehicleName: v.name ?? `Vehicle #${v.id}`,
+                registrationNumber: v.registrationNumber ?? '',
+                latitude: lat!,
+                longitude: lng!,
+                lastUpdated,
+                speed: 0,
+                status,
+                driverName: v.driverName ?? undefined,
+                hasGps: true,
+                isLive: this.isRecentTelemetry(lastUpdated),
+                routeHint: status === 'offline' ? 'Last known position' : this.routeHint(status, 0),
+                ignition: v.engineIgnition ?? undefined
+              };
+            }
 
-        return [...live, ...offline];
+            return {
+              vehicleId: v.id,
+              vehicleName: v.name ?? `Vehicle #${v.id}`,
+              registrationNumber: v.registrationNumber ?? '',
+              latitude: 0,
+              longitude: 0,
+              lastUpdated: '',
+              speed: 0,
+              status: (v.status === VehicleStatus.OnTrip ? 'scheduled' : 'offline') as FleetTrackStatus,
+              driverName: v.driverName ?? undefined,
+              hasGps: false,
+              routeHint: v.hasGpsDevice ? 'Awaiting GPS signal' : 'No GPS signal'
+            };
+          });
+
+        return result;
       })
     );
+  }
+
+  private hasValidCoords(lat?: number | null, lng?: number | null): boolean {
+    if (lat == null || lng == null) return false;
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return false;
+    return !(lat === 0 && lng === 0);
+  }
+
+  private toCoord(value: unknown): number | null {
+    const n = Number(value);
+    return Number.isFinite(n) ? n : null;
+  }
+
+  private isRecentTelemetry(timestamp: string): boolean {
+    if (!timestamp) return false;
+    const age = Date.now() - new Date(timestamp).getTime();
+    return Number.isFinite(age) && age >= 0 && age <= RECENT_MS;
   }
 
   ingestPosition(payload: IngestPositionPayload): Observable<boolean> {

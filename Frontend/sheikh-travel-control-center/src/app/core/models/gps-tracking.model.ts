@@ -26,6 +26,8 @@ export interface VehicleLocation {
   status: FleetTrackStatus;
   driverName?: string;
   hasGps?: boolean;
+  /** True when telemetry was received within the recent window (typically 30 min). */
+  isLive?: boolean;
   routeHint?: string;
   ignition?: boolean;
 }

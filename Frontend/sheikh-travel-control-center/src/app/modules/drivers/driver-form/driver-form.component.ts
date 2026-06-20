@@ -11,7 +11,8 @@ import {
   UpdateDriverDto,
   Driver,
   DriverStatus,
-  DriverStatusLabels
+  DriverStatusLabels,
+  splitDriverFullName
 } from '../../../core/models/driver.model';
 import { dateInputToIso, toDateInputValue } from '../../../core/utils/date-input.util';
 
@@ -186,9 +187,11 @@ export class DriverFormComponent implements OnInit, OnDestroy {
     }
     this.loading = true;
     const f = this.form.value;
+    const { firstName, lastName } = splitDriverFullName(String(f.fullName ?? ''));
 
     const baseDto: CreateDriverDto = {
-      fullName: f.fullName,
+      firstName,
+      lastName,
       phone: f.phone,
       licenseNumber: f.licenseNumber,
       licenseExpiryDate: dateInputToIso(f.licenseExpiryDate)!,

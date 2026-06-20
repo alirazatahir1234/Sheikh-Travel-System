@@ -114,6 +114,8 @@ export interface DriverActiveDuty {
 export interface CreateDriverDto {
   firstName: string;
   lastName: string;
+  /** Computed client-side for API compatibility; backend derives FullName from first/last name. */
+  fullName?: string;
   phone: string;
   licenseNumber: string;
   licenseExpiryDate: string;
@@ -183,11 +185,25 @@ export function normalizeDriver(driver: Driver): Driver {
   return { ...driver, status: normalizeDriverStatus(driver.status) };
 }
 
+export function buildDriverFullName(firstName: string, lastName: string): string {
+  return [firstName?.trim(), lastName?.trim()].filter(Boolean).join(' ');
+}
+
+export function splitDriverFullName(fullName: string): { firstName: string; lastName: string } {
+  const parts = fullName.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return { firstName: '', lastName: '' };
+  if (parts.length === 1) return { firstName: parts[0], lastName: parts[0] };
+  return { firstName: parts[0], lastName: parts.slice(1).join(' ') };
+}
+
 export function sanitizeCreateDriverDto(dto: CreateDriverDto): CreateDriverDto {
+  const firstName = dto.firstName?.trim() || '';
+  const lastName = dto.lastName?.trim() || '';
   return {
     ...dto,
-    firstName: dto.firstName?.trim() || '',
-    lastName: dto.lastName?.trim() || '',
+    firstName,
+    lastName,
+    fullName: buildDriverFullName(firstName, lastName),
     phone: dto.phone?.trim() || '',
     licenseNumber: dto.licenseNumber?.trim() || '',
     nationality: dto.nationality?.trim() || null,

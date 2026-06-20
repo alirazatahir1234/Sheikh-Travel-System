@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, input, output, signal } from '@angular/core';
 import { FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -10,6 +10,7 @@ import {
   DRIVER_NATIONALITY_OPTIONS
 } from '../../models/driver-wizard.model';
 import { PHONE_COUNTRY_CODES } from '../../utils/driver-wizard.validators';
+import { UPLOAD_MAX_SIZE_LABEL, vehicleUploadSizeError } from '../../../../../core/utils/upload-url.util';
 
 @Component({
   selector: 'app-wizard-step-personal',
@@ -21,10 +22,14 @@ import { PHONE_COUNTRY_CODES } from '../../utils/driver-wizard.validators';
       <section class="wizard-card">
         <h2 class="wizard-card-title">Driver Profile Photo</h2>
         <p class="wizard-card-desc">
-          Upload a clear front-facing photo. Max 5MB, JPG or PNG format.
+          Upload a clear front-facing photo. JPG, PNG, or WEBP format.
+        </p>
+        <p class="upload-limit-note">
+          <mat-icon>info</mat-icon>
+          <span>{{ uploadMaxSizeLabel }}</span>
         </p>
         <div class="photo-section">
-          <button type="button" class="photo-upload" (click)="photoInput.click()">
+          <button type="button" class="photo-upload" [class.photo-upload--error]="!!sizeError()" (click)="photoInput.click()">
             @if (photoPreview()) {
               <img [src]="photoPreview()" alt="Driver photo" class="photo-img" />
             } @else {
@@ -38,10 +43,16 @@ import { PHONE_COUNTRY_CODES } from '../../utils/driver-wizard.validators';
               {{ photoPreview() ? 'Replace' : 'Upload' }}
             </ui-button>
             @if (photoPreview()) {
-              <ui-button size="sm" variant="ghost" icon="delete" (clicked)="photoRemoved.emit()">Remove</ui-button>
+              <ui-button size="sm" variant="ghost" icon="delete" (clicked)="clearPhotoError(); photoRemoved.emit()">Remove</ui-button>
             }
           </div>
         </div>
+        @if (sizeError()) {
+          <p class="upload-validation-error">
+            <mat-icon>error_outline</mat-icon>
+            <span>{{ sizeError() }}</span>
+          </p>
+        }
         <div class="driver-code-row">
           <span class="driver-code-label">Driver Code: <strong>{{ driverCode() }}</strong></span>
           <div class="driver-code-actions">
@@ -166,9 +177,25 @@ export class WizardStepPersonalComponent {
   readonly genderOptions = DRIVER_GENDER_OPTIONS;
   readonly nationalityOptions = DRIVER_NATIONALITY_OPTIONS;
   readonly phoneCountryCodes = PHONE_COUNTRY_CODES;
+  readonly uploadMaxSizeLabel = UPLOAD_MAX_SIZE_LABEL;
+  readonly sizeError = signal<string | null>(null);
+
+  clearPhotoError(): void {
+    this.sizeError.set(null);
+  }
 
   onPhotoChange(event: Event): void {
     const file = (event.target as HTMLInputElement).files?.[0] ?? null;
+    if (!file) return;
+
+    const error = vehicleUploadSizeError(file);
+    if (error) {
+      this.sizeError.set(error);
+      (event.target as HTMLInputElement).value = '';
+      return;
+    }
+
+    this.sizeError.set(null);
     this.photoSelected.emit(file);
     (event.target as HTMLInputElement).value = '';
   }

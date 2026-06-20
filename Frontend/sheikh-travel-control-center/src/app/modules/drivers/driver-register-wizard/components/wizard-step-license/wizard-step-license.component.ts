@@ -1,6 +1,7 @@
-import { ChangeDetectionStrategy, Component, ElementRef, input, output, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, input, output, signal, viewChild } from '@angular/core';
 import { FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
+import { vehicleUploadSizeError, UPLOAD_MAX_SIZE_LABEL } from '../../../../../core/utils/upload-url.util';
 import { DriverDocSlot, DriverDocType } from '../../models/driver-wizard.model';
 
 @Component({
@@ -35,12 +36,23 @@ import { DriverDocSlot, DriverDocType } from '../../models/driver-wizard.model';
 
       <section class="wizard-card">
         <h2 class="wizard-card-title">Verification Documents</h2>
-        <p class="wizard-card-desc">Upload license, medical certificate, and background check documents.</p>
+        <p class="wizard-card-desc">Upload license, medical certificate, and background check documents (JPG, PNG, or PDF).</p>
+        <p class="upload-limit-note">
+          <mat-icon>info</mat-icon>
+          <span>{{ uploadMaxSizeLabel }}</span>
+        </p>
+        @if (sizeError()) {
+          <p class="upload-validation-error">
+            <mat-icon>error_outline</mat-icon>
+            <span>{{ sizeError() }}</span>
+          </p>
+        }
         <div class="doc-grid">
           @for (slot of docSlots(); track slot.type) {
             <div
               class="doc-zone"
               [class.has-file]="!!slot.file"
+              [class.doc-zone--error]="!!sizeError()"
               (click)="openDocPicker(slot.type)">
               @if (slot.previewUrl) {
                 <mat-icon class="doc-zone-icon text-emerald-600">check_circle</mat-icon>
@@ -50,6 +62,7 @@ import { DriverDocSlot, DriverDocType } from '../../models/driver-wizard.model';
                 <mat-icon class="doc-zone-icon">upload_file</mat-icon>
                 <span class="doc-zone-label">{{ slot.label }}</span>
                 <span class="doc-zone-hint">Click to upload</span>
+                <span class="doc-zone-limit">{{ uploadMaxSizeLabel }}</span>
               }
             </div>
           }
@@ -73,6 +86,8 @@ export class WizardStepLicenseComponent {
 
   private readonly docFileInput = viewChild<ElementRef<HTMLInputElement>>('docFileInput');
   private pendingType: DriverDocType | null = null;
+  readonly sizeError = signal<string | null>(null);
+  readonly uploadMaxSizeLabel = UPLOAD_MAX_SIZE_LABEL;
 
   showError(controlName: string, errorKey?: string): boolean {
     const c = this.form().get(controlName);
@@ -82,13 +97,22 @@ export class WizardStepLicenseComponent {
   }
 
   openDocPicker(type: DriverDocType): void {
+    this.sizeError.set(null);
     this.pendingType = type;
     this.docFileInput()?.nativeElement.click();
   }
 
   onFileChange(event: Event): void {
     const file = (event.target as HTMLInputElement).files?.[0] ?? null;
-    if (this.pendingType) this.docSelected.emit({ type: this.pendingType, file });
+    if (this.pendingType && file) {
+      const error = vehicleUploadSizeError(file);
+      if (error) {
+        this.sizeError.set(error);
+      } else {
+        this.sizeError.set(null);
+        this.docSelected.emit({ type: this.pendingType, file });
+      }
+    }
     this.pendingType = null;
     (event.target as HTMLInputElement).value = '';
   }

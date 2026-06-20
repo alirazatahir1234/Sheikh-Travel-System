@@ -13,10 +13,12 @@ import {
   Driver,
   DriverStatus,
   UpdateDriverDto,
-  driverDisplayName
+  driverDisplayName,
+  splitDriverFullName
 } from '../../../../core/models/driver.model';
 import { dateInputToIso, toDateInputValue, todayDateInputValue } from '../../../../core/utils/date-input.util';
 import { apiErrorMessage } from '../../../../core/utils/api-error.util';
+import { vehicleUploadSizeError } from '../../../../core/utils/upload-url.util';
 import { UiSelectOption } from '../../../../shared/components/ui/types/ui.types';
 import {
   DRIVER_DOC_SLOTS,
@@ -270,10 +272,14 @@ export class DriverWizardFacade {
   private applyDriver(d: Driver): void {
     const phoneParts = this.splitPhone(d.phone);
     const emergencyPhone = d.emergencyContact ?? '';
+    const hasSplitName = !!(d.firstName?.trim() || d.lastName?.trim());
+    const nameParts = hasSplitName
+      ? { firstName: d.firstName?.trim() ?? '', lastName: d.lastName?.trim() ?? '' }
+      : splitDriverFullName(d.fullName);
     this.driverCode.set(d.driverCode ?? null);
     this.form.patchValue({
-      firstName: d.firstName ?? '',
-      lastName: d.lastName ?? '',
+      firstName: nameParts.firstName,
+      lastName: nameParts.lastName,
       phoneLocal: phoneParts.local,
       phoneCountryCode: phoneParts.code,
       email: d.email ?? '',
@@ -444,8 +450,9 @@ export class DriverWizardFacade {
 
   onPhotoSelected(file: File | null): void {
     if (!file) return;
-    if (file.size > 5 * 1024 * 1024) {
-      this.snackBar.open('Photo must be 5MB or less', 'Close', { duration: 3000 });
+    const sizeError = vehicleUploadSizeError(file);
+    if (sizeError) {
+      this.snackBar.open(sizeError, 'Close', { duration: 3000 });
       return;
     }
     this.photoFile.set(file);
@@ -461,6 +468,11 @@ export class DriverWizardFacade {
 
   onDocSelected(type: DriverDocType, file: File | null): void {
     if (!file) return;
+    const sizeError = vehicleUploadSizeError(file);
+    if (sizeError) {
+      this.snackBar.open(sizeError, 'Close', { duration: 3000 });
+      return;
+    }
     this.docSlots.update(slots =>
       slots.map(s => {
         if (s.type !== type) return s;

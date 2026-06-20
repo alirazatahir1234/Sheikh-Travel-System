@@ -44,6 +44,16 @@
   .mat-mdc-select-arrow-wrapper {
     border: none;
   }
+
+  /* Vertical divider inside the field (notch side borders) */
+  .mdc-notched-outline__notch {
+    border-left: none !important;
+    border-right: none !important;
+  }
+
+  .mat-mdc-select-min-line {
+    display: none;
+  }
 }
 
 /* --- Plain text input (no Material wrapper) --- */
