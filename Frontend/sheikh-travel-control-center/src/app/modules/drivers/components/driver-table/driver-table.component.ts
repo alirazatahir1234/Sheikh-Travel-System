@@ -5,14 +5,13 @@ import { RouterModule } from '@angular/router';
 import { DriverListItem, DriverStatusLabels, driverDisplayName } from '../../../../core/models/driver.model';
 import { UiStatusBadgeComponent } from '../../../../shared/components/ui/status-badge/ui-status-badge.component';
 import { UiEmptyStateComponent } from '../../../../shared/components/ui/empty-state/ui-empty-state.component';
-import { UiButtonComponent } from '../../../../shared/components/ui/button/ui-button.component';
-import { DriverPagination } from '../../models/driver-inventory.model';
+import { DriverPagination, DRIVER_PAGE_SIZE_OPTIONS } from '../../models/driver-inventory.model';
 import { licenseExpiryLabel, licenseExpiryState } from '../../utils/driver-status.util';
 
 @Component({
   selector: 'driver-table',
   standalone: true,
-  imports: [DatePipe, MatIconModule, RouterModule, UiStatusBadgeComponent, UiEmptyStateComponent, UiButtonComponent],
+  imports: [DatePipe, MatIconModule, RouterModule, UiStatusBadgeComponent, UiEmptyStateComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './driver-table.component.html',
   styleUrls: ['./driver-table.component.scss']
@@ -24,10 +23,14 @@ export class DriverTableComponent {
   readonly pagination = input.required<DriverPagination>();
 
   readonly rowClick = output<DriverListItem>();
+  readonly view = output<DriverListItem>();
   readonly edit = output<DriverListItem>();
   readonly delete = output<DriverListItem>();
   readonly pageChange = output<number>();
+  readonly pageSizeChange = output<number>();
   readonly retry = output<void>();
+
+  readonly pageSizeOptions = DRIVER_PAGE_SIZE_OPTIONS;
 
   displayName(row: DriverListItem): string {
     return driverDisplayName(row);

@@ -10,8 +10,8 @@ import { DriverDetailsDrawerComponent } from './driver-details-drawer/driver-det
 const routes: Routes = [
   { path: '', component: DriverInventoryPageComponent },
   { path: 'new', component: DriverRegisterWizardComponent },
-  { path: ':id', component: DriverProfileComponent },
-  { path: ':id/edit', component: DriverRegisterWizardComponent }
+  { path: ':id/edit', component: DriverRegisterWizardComponent },
+  { path: ':id', component: DriverProfileComponent }
 ];
 
 @NgModule({

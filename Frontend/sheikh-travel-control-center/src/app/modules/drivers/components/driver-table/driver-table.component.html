@@ -58,9 +58,18 @@
                 <ui-status-badge [status]="statusLabel(row)" variant="info"></ui-status-badge>
               </td>
               <td class="px-4 py-3 text-sm">{{ assignedVehicle(row) }}</td>
-              <td class="px-4 py-3 text-right" (click)="$event.stopPropagation()">
-                <ui-button size="sm" variant="ghost" icon="edit" (clicked)="edit.emit(row)">Edit</ui-button>
-                <ui-button size="sm" variant="ghost" icon="delete" (clicked)="delete.emit(row)">Delete</ui-button>
+              <td class="sticky right-0 bg-white px-4 py-3 text-right" (click)="$event.stopPropagation()">
+                <div class="inline-flex items-center gap-0.5">
+                  <button type="button" class="action-btn" title="View" (click)="view.emit(row)">
+                    <mat-icon>visibility</mat-icon>
+                  </button>
+                  <button type="button" class="action-btn" title="Edit" (click)="edit.emit(row)">
+                    <mat-icon>edit</mat-icon>
+                  </button>
+                  <button type="button" class="action-btn text-fleet-error" title="Delete" (click)="delete.emit(row)">
+                    <mat-icon>delete</mat-icon>
+                  </button>
+                </div>
               </td>
             </tr>
           }
@@ -69,11 +78,30 @@
     </table>
   </div>
 
-  <div class="flex items-center justify-between border-t border-fleet-border px-4 py-3 text-sm text-fleet-text-muted">
-    <span>{{ rangeStart() }}–{{ rangeEnd() }} of {{ pagination().total }}</span>
-    <div class="flex gap-2">
-      <ui-button size="sm" variant="outline" [disabled]="pagination().page <= 1" (clicked)="pageChange.emit(pagination().page - 1)">Prev</ui-button>
-      <ui-button size="sm" variant="outline" [disabled]="pagination().page >= totalPages()" (clicked)="pageChange.emit(pagination().page + 1)">Next</ui-button>
+  @if (!loading() && pagination().total > 0) {
+    <div class="flex flex-wrap items-center justify-between gap-3 border-t border-fleet-border px-4 py-3 text-sm">
+      <label class="flex items-center gap-2 text-fleet-text-muted">
+        Rows per page
+        <select class="page-size-select"
+                [value]="pagination().pageSize"
+                (change)="pageSizeChange.emit(+$any($event.target).value)">
+          @for (size of pageSizeOptions; track size) {
+            <option [value]="size">{{ size }}</option>
+          }
+        </select>
+      </label>
+      <span class="text-fleet-text-muted">
+        Showing {{ rangeStart() }}–{{ rangeEnd() }} of {{ pagination().total }} drivers
+      </span>
+      <div class="flex items-center gap-1">
+        <button type="button" class="page-btn" [disabled]="pagination().page <= 1" (click)="pageChange.emit(pagination().page - 1)">
+          <mat-icon>chevron_left</mat-icon>
+        </button>
+        <span class="px-2 font-semibold text-fleet-text-muted">{{ pagination().page }} / {{ totalPages() }}</span>
+        <button type="button" class="page-btn" [disabled]="pagination().page >= totalPages()" (click)="pageChange.emit(pagination().page + 1)">
+          <mat-icon>chevron_right</mat-icon>
+        </button>
+      </div>
     </div>
-  </div>
+  }
 </div>

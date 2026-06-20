@@ -213,15 +213,18 @@
       [error]="error()"
       [pagination]="pagination()"
       (rowClick)="openDrawer($event)"
+      (view)="openDrawer($event)"
       (edit)="onEdit($event)"
       (delete)="onDelete($event)"
       (pageChange)="onPageChange($event)"
+      (pageSizeChange)="onPageSizeChange($event)"
       (retry)="load()">
     </driver-table>
   </section>
 
   <driver-details-drawer
-    [(open)]="drawerOpen"
+    [open]="drawerOpen()"
+    (openChange)="onDrawerOpenChange($event)"
     [driverId]="selectedDriverId()"
     (changed)="onDrawerChanged()">
   </driver-details-drawer>
