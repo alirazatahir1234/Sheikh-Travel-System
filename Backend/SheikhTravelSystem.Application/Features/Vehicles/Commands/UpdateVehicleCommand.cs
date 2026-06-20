@@ -66,6 +66,7 @@ public class UpdateVehicleCommandHandler(IDbConnectionFactory dbFactory, ITenant
                   EngineNo = @EngineNo, ChassisNo = @ChassisNo,
                   CurrentMileage = @CurrentMileage, InsuranceExpiryDate = @InsuranceExpiryDate,
                   PurchaseDate = @PurchaseDate, PurchasePrice = @PurchasePrice,
+                  PurchaseCurrencyCode = @PurchaseCurrencyCode,
                   BranchId = @BranchId, DepartmentId = @DepartmentId, Status = @Status,
                   UpdatedAt = @UpdatedAt
                   WHERE Id = @Id AND TenantId = @TenantId AND IsDeleted = 0",
@@ -75,6 +76,9 @@ public class UpdateVehicleCommandHandler(IDbConnectionFactory dbFactory, ITenant
                     dto.Color, dto.VehicleType, dto.SeatingCapacity, dto.FuelAverage,
                     FuelType = (int)dto.FuelType, dto.EngineNo, dto.ChassisNo,
                     dto.CurrentMileage, dto.InsuranceExpiryDate, dto.PurchaseDate, dto.PurchasePrice,
+                    PurchaseCurrencyCode = string.IsNullOrWhiteSpace(dto.PurchaseCurrencyCode)
+                        ? null
+                        : dto.PurchaseCurrencyCode.Trim().ToUpperInvariant(),
                     dto.BranchId, dto.DepartmentId, Status = (int)dto.Status,
                     UpdatedAt = DateTime.UtcNow, request.Id, TenantId = tenantId
                 },

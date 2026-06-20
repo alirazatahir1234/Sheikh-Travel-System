@@ -1,3 +1,39 @@
+.vehicle-thumb {
+  position: relative;
+  width: 3.5rem;
+  height: 3rem;
+}
+
+.vehicle-thumb__img {
+  width: 3.5rem;
+  height: 3rem;
+  border-radius: 0.5rem;
+  object-fit: cover;
+  border: 1px solid var(--fleet-border, #dae3ee);
+  background: var(--fleet-surface-muted, #f1f5f9);
+}
+
+.vehicle-thumb__fallback {
+  display: flex;
+  width: 3.5rem;
+  height: 3rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.5rem;
+  background: color-mix(in srgb, var(--fleet-primary, #005f49) 8%, white);
+  color: var(--fleet-primary, #005f49);
+
+  &--hidden {
+    display: none;
+  }
+
+  mat-icon {
+    font-size: 22px;
+    width: 22px;
+    height: 22px;
+  }
+}
+
 .action-btn {
   display: inline-flex;
   align-items: center;
@@ -40,6 +76,25 @@
 .table-scroll {
   max-height: calc(100vh - 420px);
   overflow: auto;
+}
+
+.vehicle-grid {
+  min-width: 0;
+
+  .col-check { width: 2.5rem; }
+  .col-vehicle { width: 16%; }
+  .col-status { width: 11%; }
+  .col-location { width: 12%; }
+  .col-driver { width: 13%; }
+  .col-telemetry { width: 18%; }
+  .col-odometer { width: 10%; min-width: 5.5rem; }
+  .col-actions { width: 9.5rem; min-width: 9.5rem; }
+}
+
+.telemetry-cell {
+  max-width: 100%;
+  overflow: hidden;
+  word-break: break-word;
 }
 
 thead th.sticky,

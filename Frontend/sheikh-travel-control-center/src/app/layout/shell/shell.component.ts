@@ -1,6 +1,6 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { NavigationEnd, Router } from '@angular/router';
-import { Subject, BehaviorSubject, debounceTime, distinctUntilChanged, switchMap, of, Observable, Subscription, map, filter, combineLatest, startWith } from 'rxjs';
+import { Subject, BehaviorSubject, debounceTime, distinctUntilChanged, exhaustMap, switchMap, of, Observable, Subscription, map, filter, combineLatest, startWith } from 'rxjs';
 import { MatDialog } from '@angular/material/dialog';
 import { AuthService } from '../../core/services/auth.service';
 import { NotificationService } from '../../core/services/notification.service';
@@ -77,7 +77,7 @@ export class ShellComponent implements OnInit, OnDestroy {
     this.timeDisplay$ = this.localTime.clockDisplay$();
 
     this.menu$ = combineLatest([this.currentUser$, this.enabledModules$]).pipe(
-      switchMap(([user, enabledModules]) => {
+      exhaustMap(([user, enabledModules]) => {
         const roles = user?.roles ?? [];
         const tenantType = resolveTenantType(roles);
 

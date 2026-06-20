@@ -296,4 +296,19 @@ app.UseAuthorization();
 app.MapControllers();
 app.MapHub<TrackingHub>("/hubs/tracking");
 
+{
+    var fileStorage = app.Configuration.GetSection("FileStorage");
+    var provider = fileStorage.GetValue<string>("Provider") ?? "Azure";
+    var azureConnection = fileStorage.GetValue<string>("AzureConnectionString")
+        ?? Environment.GetEnvironmentVariable("AZURE_STORAGE_CONNECTION_STRING")
+        ?? Environment.GetEnvironmentVariable("FileStorage__AzureConnectionString");
+    var usesAzure = string.Equals(provider, "Azure", StringComparison.OrdinalIgnoreCase)
+        && !string.IsNullOrWhiteSpace(azureConnection)
+        && azureConnection != "__SET_IN_USER_SECRETS_OR_ENV__";
+    Log.Information(
+        "File storage: {Mode} (container: {Container})",
+        usesAzure ? "Azure Blob" : "Local disk",
+        fileStorage.GetValue<string>("AzureContainerName") ?? "vehicle-files");
+}
+
 app.Run();

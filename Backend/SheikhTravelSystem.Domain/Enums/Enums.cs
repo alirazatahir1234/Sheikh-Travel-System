@@ -39,7 +39,8 @@ public enum DriverStatus
     Available = 1,
     OnTrip = 2,
     OffDuty = 3,
-    Suspended = 4
+    Suspended = 4,
+    OnLeave = 5
 }
 
 public enum NotificationType

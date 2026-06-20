@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using SheikhTravelSystem.API.Authorization;
 using SheikhTravelSystem.API.Models;
+using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Features.Vehicles.Commands;
 using SheikhTravelSystem.Application.Features.Vehicles.DTOs;
 using SheikhTravelSystem.Application.Features.Vehicles.Queries;
@@ -47,6 +49,7 @@ public class VehiclesController : BaseApiController
     /// <summary>
     /// Deletes a vehicle by identifier.
     /// </summary>
+    [RequirePermission(FleetPermissions.VehicleDelete)]
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(int id)
         => Ok(await Mediator.Send(new DeleteVehicleCommand(id)));
@@ -67,9 +70,13 @@ public class VehiclesController : BaseApiController
         => Ok(await Mediator.Send(new CreateVehicleDocumentCommand(
             id, body.DocumentType, body.FileUrl, body.ExpiryDate, body.Notes)));
 
+    [HttpPost("{id}/documents/{documentId}/set-primary-image")]
+    public async Task<IActionResult> SetPrimaryImage(int id, int documentId)
+        => Ok(await Mediator.Send(new SetPrimaryVehicleImageCommand(id, documentId)));
+
     [HttpPost("{id}/documents/upload")]
     [Consumes("multipart/form-data")]
-    [RequestSizeLimit(12 * 1024 * 1024)]
+    [RequestSizeLimit(3 * 1024 * 1024)]
     public async Task<IActionResult> UploadDocument(int id, [FromForm] UploadVehicleDocumentForm form)
     {
         if (form.File is null || form.File.Length == 0)
@@ -83,7 +90,8 @@ public class VehiclesController : BaseApiController
             form.File.ContentType ?? "application/octet-stream",
             form.DocumentType,
             form.ExpiryDate,
-            form.Notes));
+            form.Notes,
+            form.File.Length));
         return Ok(result);
     }
 

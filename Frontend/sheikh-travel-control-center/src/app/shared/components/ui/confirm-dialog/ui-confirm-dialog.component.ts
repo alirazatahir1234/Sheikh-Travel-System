@@ -22,7 +22,13 @@ const VARIANT_STYLES: Record<UiConfirmVariant, VariantStyle> = {
   imports: [MatIconModule, UiModalComponent, UiButtonComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <ui-modal [open]="open()" (openChange)="open.set($event)" size="sm" [showClose]="false" (closed)="resolve(false)">
+    <ui-modal
+      [open]="open()"
+      (openChange)="open.set($event)"
+      size="sm"
+      [showClose]="false"
+      [closeOnBackdrop]="false"
+      [closeOnEscape]="false">
       <div class="flex gap-4">
         <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full" [class]="style().iconClass">
           <mat-icon>{{ style().icon }}</mat-icon>

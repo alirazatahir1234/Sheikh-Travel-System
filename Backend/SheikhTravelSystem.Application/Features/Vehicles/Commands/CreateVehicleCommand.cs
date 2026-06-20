@@ -68,11 +68,11 @@ public class CreateVehicleCommandHandler(IDbConnectionFactory dbFactory, ITenant
             new CommandDefinition(
                 @"INSERT INTO Vehicles (TenantId, Name, RegistrationNumber, VehicleCode, VIN, Make, Model, Year,
                   Color, VehicleType, SeatingCapacity, FuelAverage, FuelType, EngineNo, ChassisNo,
-                  CurrentMileage, InsuranceExpiryDate, PurchaseDate, PurchasePrice, BranchId, DepartmentId,
+                  CurrentMileage, InsuranceExpiryDate, PurchaseDate, PurchasePrice, PurchaseCurrencyCode, BranchId, DepartmentId,
                   Status, CreatedAt, IsDeleted)
                   VALUES (@TenantId, @Name, @RegistrationNumber, @VehicleCode, @VIN, @Make, @Model, @Year,
                   @Color, @VehicleType, @SeatingCapacity, @FuelAverage, @FuelType, @EngineNo, @ChassisNo,
-                  @CurrentMileage, @InsuranceExpiryDate, @PurchaseDate, @PurchasePrice, @BranchId, @DepartmentId,
+                  @CurrentMileage, @InsuranceExpiryDate, @PurchaseDate, @PurchasePrice, @PurchaseCurrencyCode, @BranchId, @DepartmentId,
                   @Status, @CreatedAt, 0);
                   SELECT SCOPE_IDENTITY();",
                 new
@@ -86,6 +86,7 @@ public class CreateVehicleCommandHandler(IDbConnectionFactory dbFactory, ITenant
                     FuelAverage = fuelAverage,
                     FuelType = (int)dto.FuelType, dto.EngineNo, dto.ChassisNo,
                     dto.CurrentMileage, dto.InsuranceExpiryDate, dto.PurchaseDate, dto.PurchasePrice,
+                    PurchaseCurrencyCode = NormalizeCurrencyCode(dto.PurchaseCurrencyCode),
                     dto.BranchId, dto.DepartmentId,
                     Status = (int)status,
                     CreatedAt = DateTime.UtcNow
@@ -95,4 +96,7 @@ public class CreateVehicleCommandHandler(IDbConnectionFactory dbFactory, ITenant
         var message = request.SaveAsDraft ? "Vehicle draft saved." : "Vehicle created successfully.";
         return ApiResponse<int>.SuccessResponse(id, message);
     }
+
+    private static string? NormalizeCurrencyCode(string? code) =>
+        string.IsNullOrWhiteSpace(code) ? null : code.Trim().ToUpperInvariant();
 }

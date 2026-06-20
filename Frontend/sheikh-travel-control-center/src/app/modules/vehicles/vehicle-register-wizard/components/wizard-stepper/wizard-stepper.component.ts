@@ -1,6 +1,11 @@
-import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
-import { WizardStep, WizardStepId } from '../../models/vehicle-wizard.model';
+
+export interface WizardStepConfig {
+  id: string;
+  number: number;
+  label: string;
+}
 
 @Component({
   selector: 'app-wizard-stepper',
@@ -44,15 +49,15 @@ import { WizardStep, WizardStepId } from '../../models/vehicle-wizard.model';
   `
 })
 export class WizardStepperComponent {
-  readonly steps = input.required<WizardStep[]>();
-  readonly currentStep = input.required<WizardStepId>();
-  readonly stepClick = output<WizardStepId>();
+  readonly steps = input.required<WizardStepConfig[]>();
+  readonly currentStep = input.required<string>();
+  readonly stepClick = output<string>();
 
-  isActive(id: WizardStepId): boolean {
+  isActive(id: string): boolean {
     return this.currentStep() === id;
   }
 
-  isComplete(id: WizardStepId): boolean {
+  isComplete(id: string): boolean {
     const steps = this.steps();
     const currentIdx = steps.findIndex(s => s.id === this.currentStep());
     const stepIdx = steps.findIndex(s => s.id === id);

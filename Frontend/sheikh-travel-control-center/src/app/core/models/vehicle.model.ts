@@ -80,6 +80,7 @@ export interface Vehicle {
   gpsDeviceId?: number | null;
   purchaseDate?: string | null;
   purchasePrice?: number | null;
+  purchaseCurrencyCode?: string | null;
   branchId?: number | null;
   departmentId?: number | null;
   status: VehicleStatus;
@@ -108,6 +109,7 @@ export interface CreateVehicleDto {
   chassisNo?: string | null;
   purchaseDate?: string | null;
   purchasePrice?: number | null;
+  purchaseCurrencyCode?: string | null;
   branchId?: number | null;
   departmentId?: number | null;
 }
@@ -296,6 +298,7 @@ export function sanitizeCreateVehicleDto(dto: CreateVehicleDto): CreateVehicleDt
     insuranceExpiryDate: toOptionalIsoDate(dto.insuranceExpiryDate ?? undefined),
     purchaseDate: toOptionalIsoDate(dto.purchaseDate ?? undefined),
     purchasePrice: toOptionalNumber(dto.purchasePrice),
+    purchaseCurrencyCode: emptyToNull(dto.purchaseCurrencyCode ?? undefined)?.toUpperCase() ?? null,
     branchId: toOptionalInt(dto.branchId),
     departmentId: toOptionalInt(dto.departmentId)
   };
@@ -313,6 +316,14 @@ export function normalizeVehicle(vehicle: Vehicle): Vehicle {
     ...vehicle,
     fuelType: normalizeFuelType(vehicle.fuelType),
     status: normalizeVehicleStatus(vehicle.status)
+  };
+}
+
+export function normalizeVehicleListItem(item: VehicleListItem): VehicleListItem {
+  return {
+    ...item,
+    fuelType: normalizeFuelType(item.fuelType),
+    status: normalizeVehicleStatus(item.status)
   };
 }
 

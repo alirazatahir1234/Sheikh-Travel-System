@@ -10,6 +10,7 @@ using SheikhTravelSystem.Infrastructure.Persistence.Migrations;
 using SheikhTravelSystem.Infrastructure.Services;
 using SheikhTravelSystem.Infrastructure.Services.Payments;
 using SheikhTravelSystem.Infrastructure.Services.Ocr;
+using Azure.Storage.Blobs;
 using SheikhTravelSystem.Infrastructure.Services.Storage;
 
 namespace SheikhTravelSystem.Infrastructure;
@@ -52,11 +53,31 @@ public static class DependencyInjection
         services.AddScoped<PaddleOcrProvider>();
         services.AddScoped<AzureDocumentIntelligenceProvider>();
         services.AddScoped<IIdentityOcrService, HybridIdentityOcrService>();
-        services.AddScoped<IFileStorageService, LocalFileStorageService>();
+        RegisterFileStorage(services, configuration);
         services.AddScoped<ILocationBroadcastService, LocationBroadcastService>();
         services.AddHttpContextAccessor();
         services.AddSignalR();
 
         return services;
+    }
+
+    private static void RegisterFileStorage(IServiceCollection services, IConfiguration configuration)
+    {
+        var section = FileStorageOptions.SectionName;
+        var provider = configuration.GetValue<string>($"{section}:Provider") ?? "Azure";
+        var azureConnection = configuration.GetValue<string>($"{section}:AzureConnectionString")
+            ?? Environment.GetEnvironmentVariable("AZURE_STORAGE_CONNECTION_STRING")
+            ?? Environment.GetEnvironmentVariable("FileStorage__AzureConnectionString");
+
+        if (string.Equals(provider, "Azure", StringComparison.OrdinalIgnoreCase)
+            && !string.IsNullOrWhiteSpace(azureConnection)
+            && azureConnection != "__SET_IN_USER_SECRETS_OR_ENV__")
+        {
+            services.AddSingleton(_ => new BlobServiceClient(azureConnection));
+            services.AddScoped<IFileStorageService, AzureBlobStorageService>();
+            return;
+        }
+
+        services.AddScoped<IFileStorageService, LocalFileStorageService>();
     }
 }

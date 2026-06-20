@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, effect, input, output, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, input, output, signal } from '@angular/core';
 import { RouterModule } from '@angular/router';
 import { DatePipe, DecimalPipe } from '@angular/common';
 import { MatIconModule } from '@angular/material/icon';
@@ -72,6 +72,22 @@ export class VehicleTableComponent {
     if (row.locationLatitude != null && row.locationLongitude != null) {
       return `${row.locationLatitude.toFixed(2)}, ${row.locationLongitude.toFixed(2)}`;
     }
+    if (this.hasTracker(row)) {
+      return 'No GPS fix';
+    }
+    return 'No tracker';
+  }
+
+  vehicleSubtitle(row: VehicleListItem): string {
+    const parts: string[] = [];
+    if (row.make?.trim()) parts.push(row.make.trim());
+    if (row.model?.trim()) parts.push(row.model.trim());
+    if (parts.length) {
+      let line = parts.join(' ');
+      if (row.year) line += ` • ${row.year}`;
+      return line;
+    }
+    if (row.name?.trim()) return row.name.trim();
     return '—';
   }
 
@@ -83,8 +99,19 @@ export class VehicleTableComponent {
     return name.split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase();
   }
 
+  readonly failedImageIds = signal<ReadonlySet<number>>(new Set());
+
   vehicleImageUrl(row: VehicleListItem): string | null {
+    if (this.failedImageIds().has(row.id)) return null;
     return resolveVehicleImageUrl(row.imageUrl);
+  }
+
+  onImageError(row: VehicleListItem): void {
+    this.failedImageIds.update(ids => {
+      const next = new Set(ids);
+      next.add(row.id);
+      return next;
+    });
   }
 
   serviceSubtext(row: VehicleListItem): { text: string; alert: boolean } {
@@ -95,15 +122,18 @@ export class VehicleTableComponent {
       }
       return { text: `${Math.round(remaining).toLocaleString()} km remaining`, alert: remaining <= 500 };
     }
-    if (row.serviceAlert) {
-      return { text: row.serviceAlert, alert: true };
-    }
     if (row.nextServiceDue) {
       const due = new Date(row.nextServiceDue);
       if (due.getTime() < Date.now()) {
         return { text: 'Service Due', alert: true };
       }
       return { text: `Due ${due.toLocaleDateString()}`, alert: false };
+    }
+    if (row.serviceAlert?.trim()) {
+      const trimmed = row.serviceAlert.trim();
+      const friendly = trimmed.length > 24 ? `${trimmed.slice(0, 24)}…` : trimmed;
+      const isGeneric = /^service due$/i.test(trimmed);
+      return { text: isGeneric ? 'Service Due' : friendly, alert: true };
     }
     return { text: '—', alert: false };
   }

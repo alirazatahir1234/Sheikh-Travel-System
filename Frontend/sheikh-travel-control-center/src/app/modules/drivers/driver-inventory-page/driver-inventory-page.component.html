@@ -1,0 +1,229 @@
+<div class="inventory-page">
+
+  <ui-page-header
+    title="Driver Management"
+    subtitle="Monitor drivers, compliance, performance, and real-time availability.">
+    <div class="header-actions">
+      <ui-button variant="outline" icon="download" (clicked)="exportReport()">Generate Report</ui-button>
+      <ui-button variant="primary" icon="add" routerLink="/drivers/new">Add Driver</ui-button>
+    </div>
+  </ui-page-header>
+
+  <div class="kpi-grid">
+    @for (card of kpiCards(); track card.title) {
+      <fleet-summary-card [card]="card" />
+    }
+  </div>
+
+  <section class="dashboard" aria-label="Driver dashboard">
+
+    <!-- Top band: chart + sidebar only (sidebar does not affect rows below) -->
+    <div class="dashboard-top">
+      <div class="card chart-panel">
+        <div class="panel-header">
+          <div class="panel-header-text">
+            <h3 class="panel-title panel-title--inline">Driver Performance Analytics</h3>
+            @if (chartIsSampleData) {
+              <p class="panel-hint">Sample data — analytics API pending</p>
+            }
+          </div>
+          <div class="chart-legend">
+            <span class="legend-dot safety">Safety</span>
+            <span class="legend-dot efficiency">Efficiency</span>
+          </div>
+        </div>
+        <div class="chart-canvas">
+          <ui-chart type="bar" [data]="chartData()" [options]="chartOptions" height="100%" />
+        </div>
+      </div>
+
+      <aside class="dashboard-aside">
+        <div class="card incident-panel">
+          <div class="incident-header">
+            <mat-icon>warning</mat-icon>
+            <h3>Incident Alerts</h3>
+          </div>
+          @for (d of complianceDrivers().slice(0, 3); track d.id) {
+            <div class="incident-item">
+              <div class="incident-avatar">{{ initials(d.fullName) }}</div>
+              <div class="incident-body">
+                <p class="incident-name">{{ d.fullName }}</p>
+                <p class="incident-desc">{{ expiryDescription(d.licenseExpiryDate) }}</p>
+              </div>
+              <span class="severity-badge" [class.severity--critical]="isExpiryUrgent(d.licenseExpiryDate)">
+                {{ isExpiryUrgent(d.licenseExpiryDate) ? 'Critical' : 'High' }}
+              </span>
+            </div>
+          }
+          @if (complianceDrivers().length === 0) {
+            <p class="no-alerts">No critical alerts</p>
+          }
+          <button class="view-all-btn" (click)="onLicenseFilterChange('EXPIRING')">VIEW ALL CRITICAL</button>
+        </div>
+
+        <fleet-quick-actions-card
+          class="quick-actions-compact"
+          [actions]="quickActions"
+          (actionClick)="onQuickAction($event)" />
+      </aside>
+    </div>
+
+    <!-- Full-width widget rows — start immediately after chart, independent of sidebar height -->
+    <div class="dashboard-mid">
+      <div class="card compliance-panel">
+        <h3 class="panel-title">Compliance Alerts</h3>
+        @for (d of complianceDrivers(); track d.id) {
+          <div class="compliance-item" (click)="openDrawer(d)">
+            <div class="compliance-avatar" [class.urgent]="isExpiryUrgent(d.licenseExpiryDate)">
+              {{ initials(d.fullName) }}
+            </div>
+            <div class="compliance-text">
+              <p class="compliance-name">{{ d.fullName }}</p>
+              <p class="compliance-meta">{{ d.licenseNumber }} · {{ d.branchName ?? 'No branch' }}</p>
+              <p class="compliance-sub">{{ expiryDescription(d.licenseExpiryDate) }}</p>
+            </div>
+            <span class="compliance-badge" [class.compliance-badge--critical]="isExpiryUrgent(d.licenseExpiryDate)">
+              {{ isExpiryUrgent(d.licenseExpiryDate) ? 'Urgent' : 'Due Soon' }}
+            </span>
+          </div>
+        }
+        @if (complianceDrivers().length === 0) {
+          <p class="no-alerts">All licenses are current</p>
+        }
+      </div>
+
+      <div class="card feed-panel">
+        <h3 class="panel-title">Real-time Feed</h3>
+        @for (item of feedItems(); track item.id) {
+          <div class="feed-item">
+            <div class="feed-icon" [ngClass]="item.iconClass">
+              <mat-icon>{{ item.icon }}</mat-icon>
+            </div>
+            <div class="feed-content">
+              <p><strong>{{ item.name }}</strong> {{ item.event }}</p>
+              <p class="feed-time">{{ item.time }}</p>
+            </div>
+            @if (item.isLive) {
+              <span class="live-badge">LIVE</span>
+            }
+          </div>
+        }
+        @if (feedItems().length === 0) {
+          <p class="no-alerts">No recent activity</p>
+        }
+      </div>
+    </div>
+
+    <div class="dashboard-stats">
+      <div class="card availability-panel">
+        <h3 class="panel-title">Driver Availability</h3>
+        <div class="availability-item">
+          <span class="avail-dot green"></span>
+          <span>Available Now</span>
+          <span class="avail-count">{{ stats()?.available ?? 0 }}</span>
+        </div>
+        <div class="availability-item">
+          <span class="avail-dot amber"></span>
+          <span>On Trip</span>
+          <span class="avail-count">{{ stats()?.onTrip ?? 0 }}</span>
+        </div>
+        <div class="availability-item">
+          <span class="avail-dot blue"></span>
+          <span>Off Duty</span>
+          <span class="avail-count">{{ stats()?.offDuty ?? 0 }}</span>
+        </div>
+        <button class="coverage-map-btn" (click)="viewCoverageMap()">
+          <mat-icon>map</mat-icon>
+          VIEW COVERAGE MAP
+        </button>
+      </div>
+
+      <div class="card license-expiry-panel">
+        <h3 class="panel-title">License Expiry</h3>
+        <div class="expiry-item expiry-item--critical">
+          <mat-icon>error</mat-icon>
+          <span>Expiring in 7 days</span>
+          <span class="expiry-count">{{ stats()?.licensesExpiringIn7Days ?? 0 }}</span>
+        </div>
+        <div class="expiry-item expiry-item--warning">
+          <mat-icon>warning</mat-icon>
+          <span>Expiring in 30 days</span>
+          <span class="expiry-count">{{ stats()?.licensesExpiringSoon ?? 0 }}</span>
+        </div>
+        <div class="expiry-item expiry-item--error">
+          <mat-icon>cancel</mat-icon>
+          <span>Already Expired</span>
+          <span class="expiry-count">{{ stats()?.licensesExpired ?? 0 }}</span>
+        </div>
+      </div>
+
+      <div class="card verification-panel">
+        <h3 class="panel-title">Verification Status</h3>
+        <div class="verification-item verification-item--verified">
+          <mat-icon>verified</mat-icon>
+          <span>Verified</span>
+          <span class="verification-count">{{ stats()?.verifiedDrivers ?? 0 }}</span>
+        </div>
+        <div class="verification-item verification-item--pending">
+          <mat-icon>pending</mat-icon>
+          <span>Pending</span>
+          <span class="verification-count">{{ stats()?.pendingVerification ?? 0 }}</span>
+        </div>
+        <div class="verification-item verification-item--assigned">
+          <mat-icon>directions_car</mat-icon>
+          <span>Assigned to Vehicle</span>
+          <span class="verification-count">{{ stats()?.assignedDrivers ?? 0 }}</span>
+        </div>
+      </div>
+    </div>
+
+  </section>
+
+  <section class="table-section">
+    <div class="filters-bar card">
+      <div class="filters-grid">
+        <input
+          type="search"
+          class="filter-input"
+          placeholder="Search name, code, license, mobile…"
+          [value]="filters().search"
+          (input)="onSearchInput($any($event.target).value)" />
+        <select class="filter-input" (change)="onStatusChange($any($event.target).value)">
+          @for (opt of statusOptions; track opt.value) {
+            <option [value]="opt.value" [selected]="filters().status === opt.value || (filters().status !== 'ALL' && statusValue(filters().status) === opt.value)">{{ opt.label }}</option>
+          }
+        </select>
+        <select class="filter-input" (change)="onBranchChange($any($event.target).value)">
+          @for (opt of branchOptions(); track opt.value) {
+            <option [value]="opt.value">{{ opt.label }}</option>
+          }
+        </select>
+        <select class="filter-input" (change)="onLicenseFilterChange($any($event.target).value)">
+          <option value="ALL">All license states</option>
+          <option value="VALID">Valid</option>
+          <option value="EXPIRING">Expiring (30d)</option>
+          <option value="EXPIRED">Expired</option>
+        </select>
+      </div>
+    </div>
+
+    <driver-table
+      [rows]="rows()"
+      [loading]="loading()"
+      [error]="error()"
+      [pagination]="pagination()"
+      (rowClick)="openDrawer($event)"
+      (edit)="onEdit($event)"
+      (delete)="onDelete($event)"
+      (pageChange)="onPageChange($event)"
+      (retry)="load()">
+    </driver-table>
+  </section>
+
+  <driver-details-drawer
+    [(open)]="drawerOpen"
+    [driverId]="selectedDriverId()"
+    (changed)="onDrawerChanged()">
+  </driver-details-drawer>
+
+</div>

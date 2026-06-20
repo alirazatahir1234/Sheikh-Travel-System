@@ -32,7 +32,10 @@
           @case ('technical') {
             <app-wizard-step-technical
               [form]="facade.form"
-              [branchOptions]="facade.branchOptions()" />
+              [branchOptions]="facade.branchOptions()"
+              [currencyOptions]="facade.currencyOptions()"
+              [selectedCurrency]="facade.formValues()['purchaseCurrencyCode']"
+              [isEditMode]="facade.isEditMode()" />
           }
           @case ('gps') {
             <app-wizard-step-gps
@@ -43,7 +46,12 @@
           @case ('documents') {
             <app-wizard-step-documents
               [slots]="facade.documentSlots()"
-              (fileSelected)="onFileSelected($event)" />
+              [vehicleImageSlots]="facade.vehicleImageSlots()"
+              [showImageRequiredError]="facade.vehicleImageHasError()"
+              (fileSelected)="onFileSelected($event)"
+              (vehicleImageSelected)="onVehicleImageSelected($event)"
+              (vehicleImageRejected)="onVehicleImageRejected($event)"
+              (selectPrimaryImage)="onSelectPrimaryImage($event)" />
           }
           @case ('review') {
             <app-wizard-step-review

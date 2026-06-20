@@ -1,0 +1,137 @@
+<ui-drawer [(open)]="open" [title]="driver() ? name(driver()!) : 'Driver Details'" [padded]="false" width="480px" (closed)="onDrawerClosed()">
+  @if (loading()) {
+    <p class="p-4 text-sm text-fleet-text-muted">Loading…</p>
+  } @else {
+    @if (driver(); as d) {
+    <div class="drawer-tabs">
+      @for (t of [
+        { id: 'overview', label: 'Overview' },
+        { id: 'license', label: 'License' },
+        { id: 'vehicle', label: 'Vehicle' },
+        { id: 'verification', label: 'Verification' },
+        { id: 'timeline', label: 'Timeline' },
+        { id: 'duty', label: 'Active Duty' }
+      ]; track t.id) {
+        <button type="button" class="tab-btn" [class.tab-btn--active]="tab() === t.id" (click)="tab.set($any(t.id))">{{ t.label }}</button>
+      }
+    </div>
+
+    @switch (tab()) {
+      @case ('overview') {
+        <div class="panel">
+          <div class="flex items-center gap-4">
+            <div class="photo-wrap">
+              @if (photoUrl(d); as url) {
+                <img [src]="url" alt="" class="photo" />
+              } @else {
+                <mat-icon>person</mat-icon>
+              }
+            </div>
+            <div>
+              <h3 class="text-lg font-semibold">{{ name(d) }}</h3>
+              <p class="text-sm text-fleet-text-muted">{{ d.driverCode || '—' }} · {{ d.phone }}</p>
+              <ui-status-badge [status]="d.verificationStatus" variant="info"></ui-status-badge>
+            </div>
+          </div>
+          <dl class="meta-grid">
+            <div><dt>Email</dt><dd>{{ d.email || '—' }}</dd></div>
+            <div><dt>Date of Birth</dt><dd>{{ d.dateOfBirth ? (d.dateOfBirth | date:'mediumDate') : '—' }}</dd></div>
+            <div><dt>Gender</dt><dd>{{ d.gender || '—' }}</dd></div>
+            <div><dt>Nationality</dt><dd>{{ d.nationality || '—' }}</dd></div>
+            <div><dt>Address</dt><dd>{{ d.address || '—' }}</dd></div>
+            <div><dt>Emergency Contact</dt><dd>{{ emergencyContactDisplay(d) }}</dd></div>
+            <div><dt>Branch</dt><dd>{{ d.branchName || '—' }}</dd></div>
+            <div><dt>Department</dt><dd>{{ d.departmentName || '—' }}</dd></div>
+            <div><dt>Hire Date</dt><dd>{{ d.hireDate ? (d.hireDate | date:'mediumDate') : '—' }}</dd></div>
+            <div><dt>Status</dt><dd>{{ statusLabels[d.status] }}</dd></div>
+          </dl>
+          <div class="actions-row">
+            <ui-button size="sm" variant="outline" (clicked)="setStatus(driverStatus.OnLeave)">Set On Leave</ui-button>
+            <ui-button size="sm" variant="outline" (clicked)="setStatus(driverStatus.Available)">Set Available</ui-button>
+            <ui-button size="sm" variant="outline" (clicked)="setStatus(driverStatus.Suspended)">Suspend</ui-button>
+            <ui-button size="sm" variant="primary" [routerLink]="['/drivers', d.id, 'edit']">Edit</ui-button>
+          </div>
+        </div>
+      }
+      @case ('license') {
+        <div class="panel">
+          <ui-status-badge [status]="licenseBadge(d).label" [variant]="licenseBadge(d).variant"></ui-status-badge>
+          <dl class="meta-grid">
+            <div><dt>License Number</dt><dd>{{ d.licenseNumber }}</dd></div>
+            <div><dt>Expiry</dt><dd>{{ d.licenseExpiryDate | date:'mediumDate' }}</dd></div>
+          </dl>
+        </div>
+      }
+      @case ('vehicle') {
+        <div class="panel">
+          <p class="mb-2 text-sm">Current: {{ d.assignedVehicleRegistration || d.assignedVehicleCode || 'Unassigned' }}</p>
+          <select class="w-full rounded-md border border-fleet-border px-3 py-2 text-sm" [value]="assignVehicleId()" (change)="assignVehicleId.set(+$any($event.target).value)">
+            <option value="">Select vehicle…</option>
+            @for (v of vehicles(); track v.id) {
+              <option [value]="v.id">{{ v.registrationNumber }} · {{ v.vehicleCode || v.name }}</option>
+            }
+          </select>
+          <div class="mt-3">
+            <ui-button variant="primary" (clicked)="assignVehicle()">Assign Vehicle</ui-button>
+          </div>
+        </div>
+      }
+      @case ('verification') {
+        <div class="panel space-y-4">
+          @for (slot of docTypes; track slot.type) {
+            <div class="rounded-lg border border-fleet-border p-3">
+              <div class="mb-2 flex items-center justify-between">
+                <span class="font-medium">{{ slot.label }}</span>
+                <ui-status-badge [status]="docFor(slot.type)?.status || 'Missing'" variant="warning"></ui-status-badge>
+              </div>
+              @if (docFor(slot.type)?.fileUrl; as rawUrl) {
+                <a [href]="resolveUploadUrl(rawUrl) || rawUrl" target="_blank" rel="noopener" class="text-sm text-fleet-primary">View document</a>
+              }
+              <label class="mt-2 block">
+                <span class="text-xs text-fleet-text-muted">Upload / replace</span>
+                <input type="file" class="mt-1 block w-full text-sm" (change)="onUploadDoc(slot.type, $event)" />
+              </label>
+            </div>
+          }
+          <ui-button variant="primary" (clicked)="markVerified()">Mark Driver Verified</ui-button>
+        </div>
+      }
+      @case ('timeline') {
+        <div class="panel">
+          @if (!timeline().length) {
+            <p class="text-sm text-fleet-text-muted">No timeline events yet.</p>
+          } @else {
+            <ul class="timeline-list">
+              @for (e of timeline(); track e.id + e.eventType) {
+                <li>
+                  <strong>{{ e.title }}</strong>
+                  <span class="block text-xs text-fleet-text-muted">{{ e.occurredAt | date:'medium' }}</span>
+                  @if (e.description) { <span class="text-sm">{{ e.description }}</span> }
+                </li>
+              }
+            </ul>
+          }
+        </div>
+      }
+      @case ('duty') {
+        <div class="panel">
+          @if (activeDuty(); as duty) {
+            <p class="text-sm">Fuel logs: {{ duty.fuelLogCount }}</p>
+            <p class="text-sm">GPS on assigned vehicle: {{ duty.hasGpsAssignment ? 'Yes' : 'No' }}</p>
+            <h4 class="mt-3 font-semibold">Recent trips</h4>
+            @if (!duty.recentTrips.length) {
+              <p class="text-sm text-fleet-text-muted">No recent trips.</p>
+            } @else {
+              <ul class="timeline-list">
+                @for (t of duty.recentTrips; track t.id) {
+                  <li>#{{ t.id }} · {{ t.status }} · {{ t.route || '—' }}</li>
+                }
+              </ul>
+            }
+          }
+        </div>
+      }
+    }
+    }
+  }
+</ui-drawer>

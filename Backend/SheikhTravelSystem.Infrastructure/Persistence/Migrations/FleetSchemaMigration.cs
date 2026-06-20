@@ -80,6 +80,8 @@ public static class FleetSchemaMigration
                 ALTER TABLE Vehicles ADD PurchaseDate DATETIME2 NULL;
             IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'Vehicles' AND COLUMN_NAME = 'PurchasePrice')
                 ALTER TABLE Vehicles ADD PurchasePrice DECIMAL(18,2) NULL;
+            IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'Vehicles' AND COLUMN_NAME = 'PurchaseCurrencyCode')
+                ALTER TABLE Vehicles ADD PurchaseCurrencyCode NVARCHAR(10) NULL;
             IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'Vehicles' AND COLUMN_NAME = 'BranchId')
                 ALTER TABLE Vehicles ADD BranchId INT NULL;
             IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'Vehicles' AND COLUMN_NAME = 'DepartmentId')
@@ -106,6 +108,35 @@ public static class FleetSchemaMigration
                 ALTER TABLE Drivers ADD BranchId INT NULL;
             IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'Drivers' AND COLUMN_NAME = 'DepartmentId')
                 ALTER TABLE Drivers ADD DepartmentId INT NULL;
+            IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'Drivers' AND COLUMN_NAME = 'FirstName')
+                ALTER TABLE Drivers ADD FirstName NVARCHAR(100) NULL;
+            IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'Drivers' AND COLUMN_NAME = 'LastName')
+                ALTER TABLE Drivers ADD LastName NVARCHAR(100) NULL;
+            IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'Drivers' AND COLUMN_NAME = 'IsDeleted')
+                ALTER TABLE Drivers ADD IsDeleted BIT NOT NULL DEFAULT 0;
+            IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'Drivers' AND COLUMN_NAME = 'DateOfBirth')
+                ALTER TABLE Drivers ADD DateOfBirth DATE NULL;
+            IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'Drivers' AND COLUMN_NAME = 'Gender')
+                ALTER TABLE Drivers ADD Gender NVARCHAR(20) NULL;
+            IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'Drivers' AND COLUMN_NAME = 'EmergencyContact')
+                ALTER TABLE Drivers ADD EmergencyContact NVARCHAR(200) NULL;
+            IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'Drivers' AND COLUMN_NAME = 'EmergencyContactName')
+                ALTER TABLE Drivers ADD EmergencyContactName NVARCHAR(100) NULL;
+            """, cancellationToken: ct));
+
+        // Separate batch: SQL Server cannot reference columns added in the same batch as ALTER TABLE.
+        await connection.ExecuteAsync(new CommandDefinition("""
+            UPDATE Drivers
+            SET FirstName = LTRIM(RTRIM(FullName)),
+                LastName = NULL
+            WHERE (FirstName IS NULL OR LTRIM(RTRIM(FirstName)) = N'')
+              AND FullName IS NOT NULL AND LTRIM(RTRIM(FullName)) <> N'';
+
+            UPDATE Drivers
+            SET FirstName = LTRIM(RTRIM(LEFT(FullName, NULLIF(CHARINDEX(N' ', FullName + N' '), 0) - 1))),
+                LastName = LTRIM(RTRIM(SUBSTRING(FullName, NULLIF(CHARINDEX(N' ', FullName + N' '), 0), LEN(FullName))))
+            WHERE FullName LIKE N'% %'
+              AND (LastName IS NULL OR LTRIM(RTRIM(LastName)) = N'');
             """, cancellationToken: ct));
     }
 

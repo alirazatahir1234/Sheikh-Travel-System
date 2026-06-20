@@ -20,6 +20,7 @@ import {
   sanitizeCreateVehicleDto,
   sanitizeUpdateVehicleDto,
   normalizeVehicle,
+  normalizeVehicleListItem,
   normalizeVehicleStatus
 } from '../models/vehicle.model';
 import { PagedResult } from '../models/common.model';
@@ -32,7 +33,12 @@ export class VehicleService {
 
   getAll(page = 1, pageSize = 10): Observable<PagedResult<VehicleListItem>> {
     const params = new HttpParams().set('page', page).set('pageSize', pageSize);
-    return this.http.get<PagedResult<VehicleListItem>>(this.base, { params });
+    return this.http.get<PagedResult<VehicleListItem>>(this.base, { params }).pipe(
+      map(result => ({
+        ...result,
+        items: result.items.map(normalizeVehicleListItem)
+      }))
+    );
   }
 
   getById(id: number): Observable<Vehicle> {
@@ -131,5 +137,12 @@ export class VehicleService {
 
   getGps(vehicleId: number): Observable<VehicleGps> {
     return this.http.get<VehicleGps>(`${this.base}/${vehicleId}/gps`);
+  }
+
+  setPrimaryVehicleImage(vehicleId: number, documentId: number): Observable<boolean> {
+    return this.http.post<boolean>(
+      `${this.base}/${vehicleId}/documents/${documentId}/set-primary-image`,
+      {}
+    );
   }
 }

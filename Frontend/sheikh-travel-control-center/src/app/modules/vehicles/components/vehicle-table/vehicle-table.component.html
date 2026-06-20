@@ -7,19 +7,19 @@
   }
 
   <div class="table-scroll overflow-x-auto">
-    <table class="w-full min-w-[1200px] text-left">
+    <table class="vehicle-grid w-full table-fixed text-left">
       <thead class="sticky top-0 z-10 bg-fleet-surface-alt/80 backdrop-blur-sm">
         <tr>
-          <th class="w-10 px-4 py-3">
+          <th class="col-check w-10 px-3 py-3">
             <input type="checkbox" [checked]="allSelected()" (change)="toggleAll($any($event.target).checked)" />
           </th>
-          <th class="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-fleet-text-muted">Vehicle Details</th>
-          <th class="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-fleet-text-muted">Status &amp; Health</th>
-          <th class="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-fleet-text-muted">Location</th>
-          <th class="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-fleet-text-muted">Driver</th>
-          <th class="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-fleet-text-muted">Telemetry</th>
-          <th class="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-fleet-text-muted">Odometer</th>
-          <th class="sticky right-0 bg-fleet-surface-alt/80 px-4 py-3 text-right text-[11px] font-bold uppercase tracking-wider text-fleet-text-muted">Actions</th>
+          <th class="col-vehicle px-3 py-3 text-[11px] font-bold uppercase tracking-wider text-fleet-text-muted">Vehicle Details</th>
+          <th class="col-status px-3 py-3 text-[11px] font-bold uppercase tracking-wider text-fleet-text-muted">Status &amp; Health</th>
+          <th class="col-location px-3 py-3 text-[11px] font-bold uppercase tracking-wider text-fleet-text-muted">Location</th>
+          <th class="col-driver px-3 py-3 text-[11px] font-bold uppercase tracking-wider text-fleet-text-muted">Driver</th>
+          <th class="col-telemetry px-3 py-3 text-[11px] font-bold uppercase tracking-wider text-fleet-text-muted">Telemetry</th>
+          <th class="col-odometer px-3 py-3 text-[11px] font-bold uppercase tracking-wider text-fleet-text-muted">Odometer</th>
+          <th class="col-actions sticky right-0 bg-fleet-surface-alt/80 px-3 py-3 text-right text-[11px] font-bold uppercase tracking-wider text-fleet-text-muted">Actions</th>
         </tr>
       </thead>
       <tbody class="divide-y divide-fleet-border">
@@ -45,20 +45,18 @@
               </td>
               <td class="px-4 py-3">
                 <div class="flex items-center gap-3">
-                  @if (vehicleImageUrl(row); as imgSrc) {
-                    <img
-                      [src]="imgSrc"
-                      alt="Vehicle"
-                      class="h-10 w-14 shrink-0 rounded-md object-cover"
-                      (error)="$any($event.target).style.display='none'; $any($event.target).nextElementSibling.style.display='flex'" />
-                    <div class="hidden h-10 w-14 shrink-0 items-center justify-center rounded-md bg-fleet-surface-muted text-fleet-text-muted">
+                  <div class="vehicle-thumb shrink-0">
+                    @if (vehicleImageUrl(row); as imgSrc) {
+                      <img
+                        [src]="imgSrc"
+                        [alt]="row.vehicleCode || row.registrationNumber"
+                        class="vehicle-thumb__img"
+                        (error)="onImageError(row)" />
+                    }
+                    <div class="vehicle-thumb__fallback" [class.vehicle-thumb__fallback--hidden]="!!vehicleImageUrl(row)">
                       <mat-icon>local_shipping</mat-icon>
                     </div>
-                  } @else {
-                    <div class="flex h-10 w-14 shrink-0 items-center justify-center rounded-md bg-fleet-surface-muted text-fleet-text-muted">
-                      <mat-icon>local_shipping</mat-icon>
-                    </div>
-                  }
+                  </div>
                   <div>
                     <a
                       class="font-bold text-fleet-primary hover:underline"
@@ -66,8 +64,8 @@
                       (click)="$event.stopPropagation()">
                       {{ row.vehicleCode || row.registrationNumber }}
                     </a>
-                    <div class="text-xs text-fleet-text-muted">
-                      {{ row.make || row.name }} {{ row.model || '' }} @if (row.year) { • {{ row.year }} }
+                    <div class="text-xs text-fleet-text-muted truncate" [title]="vehicleSubtitle(row)">
+                      {{ vehicleSubtitle(row) }}
                     </div>
                   </div>
                 </div>
@@ -128,7 +126,7 @@
                     Tracker Not Assigned
                   </div>
                 } @else {
-                  <div class="space-y-0.5 text-fleet-text-muted">
+                  <div class="telemetry-cell space-y-0.5 text-fleet-text-muted">
                     <div>IMEI: <span class="text-fleet-text">{{ row.gpsImei || '—' }}</span></div>
                     <div>SIM: <span class="text-fleet-text">{{ row.gpsSim || '—' }}</span></div>
                     <div>GPS: <span [class.text-emerald-600]="row.gpsOnline" [class.text-fleet-error]="!row.gpsOnline" class="font-semibold">{{ row.gpsOnline ? 'Online' : 'Offline' }}</span></div>

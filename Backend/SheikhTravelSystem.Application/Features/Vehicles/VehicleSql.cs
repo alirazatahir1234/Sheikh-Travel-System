@@ -9,7 +9,7 @@ internal static class VehicleSql
         d.FullName AS DriverName,
         activeAssign.DriverId AS DriverId,
         gd.UniqueId AS GpsImei,
-        gd.Protocol AS GpsSim,
+        gd.SimNumber AS GpsSim,
         gd.LastIgnition AS EngineIgnition,
         gd.LastSeenAt AS GpsLastSeenAt,
         CASE
@@ -41,8 +41,8 @@ internal static class VehicleSql
         OUTER APPLY (
             SELECT TOP 1 m.NextDueDate, m.NextDueMileage,
                 CASE
-                    WHEN m.NextDueDate IS NOT NULL AND m.NextDueDate < GETUTCDATE() THEN m.Description
-                    WHEN m.Status IN (1, 2) THEN m.Description
+                    WHEN m.NextDueDate IS NOT NULL AND m.NextDueDate < GETUTCDATE() THEN N'Service Due'
+                    WHEN m.Status IN (1, 2) THEN N'Service Due'
                     ELSE NULL
                 END AS ServiceAlert
             FROM Maintenance m
@@ -58,21 +58,20 @@ internal static class VehicleSql
               AND vd.DocumentType = N'VehicleImage'
               AND vd.IsDeleted = 0
               AND vd.FileUrl IS NOT NULL
-              AND (
-                LOWER(vd.FileUrl) LIKE '%.jpg'
-                OR LOWER(vd.FileUrl) LIKE '%.jpeg'
-                OR LOWER(vd.FileUrl) LIKE '%.png'
-                OR LOWER(vd.FileUrl) LIKE '%.webp'
-                OR LOWER(vd.FileUrl) LIKE '%.gif'
-              )
-            ORDER BY vd.CreatedAt DESC
+              AND LTRIM(RTRIM(vd.FileUrl)) <> N''
+            ORDER BY
+                CASE
+                    WHEN vd.Notes LIKE N'%|primary%' OR LOWER(LTRIM(RTRIM(vd.Notes))) = N'primary' THEN 0
+                    ELSE 1
+                END,
+                vd.CreatedAt DESC
         ) vimg
         """;
 
     internal const string DetailColumns = """
         Id, Name, RegistrationNumber, VehicleCode, VIN, Make, Model, Year, Color, VehicleType,
         SeatingCapacity, FuelAverage, FuelType, EngineNo, ChassisNo,
-        CurrentMileage, InsuranceExpiryDate, GpsDeviceId, PurchaseDate, PurchasePrice,
+        CurrentMileage, InsuranceExpiryDate, GpsDeviceId, PurchaseDate, PurchasePrice, PurchaseCurrencyCode,
         BranchId, DepartmentId, Status,
         CASE WHEN Status <> 4 THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END AS IsActive,
         CreatedAt, UpdatedAt
