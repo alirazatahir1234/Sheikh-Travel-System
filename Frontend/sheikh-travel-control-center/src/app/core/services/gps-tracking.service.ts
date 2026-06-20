@@ -22,6 +22,7 @@ import { VehicleStatus } from '../models/vehicle.model';
 
 const STALE_MS = 30 * 60 * 1000;
 const DELAYED_MS = 15 * 60 * 1000;
+const RECENT_MS = STALE_MS;
 
 @Injectable({ providedIn: 'root' })
 export class GpsTrackingService {
@@ -54,20 +55,21 @@ export class GpsTrackingService {
                 vehicleId: v.id,
                 vehicleName: v.name ?? `Vehicle #${v.id}`,
                 registrationNumber: v.registrationNumber ?? '',
-                latitude: live.latitude,
-                longitude: live.longitude,
+                latitude: this.toCoord(live.latitude)!,
+                longitude: this.toCoord(live.longitude)!,
                 lastUpdated: live.timestamp,
                 speed: Number(live.speed) || 0,
                 status,
                 driverName: live.driverId ? driverMap.get(live.driverId) : v.driverName ?? undefined,
                 hasGps: true,
+                isLive: this.isRecentTelemetry(live.timestamp),
                 routeHint: this.routeHint(status, Number(live.speed) || 0),
                 ignition: live.ignition
               };
             }
 
-            const lat = v.locationLatitude;
-            const lng = v.locationLongitude;
+            const lat = this.toCoord(v.locationLatitude);
+            const lng = this.toCoord(v.locationLongitude);
             if (this.hasValidCoords(lat, lng)) {
               const lastUpdated = v.locationLastUpdate ?? '';
               const status = lastUpdated
@@ -84,6 +86,7 @@ export class GpsTrackingService {
                 status,
                 driverName: v.driverName ?? undefined,
                 hasGps: true,
+                isLive: this.isRecentTelemetry(lastUpdated),
                 routeHint: status === 'offline' ? 'Last known position' : this.routeHint(status, 0),
                 ignition: v.engineIgnition ?? undefined
               };
@@ -113,6 +116,17 @@ export class GpsTrackingService {
     if (lat == null || lng == null) return false;
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) return false;
     return !(lat === 0 && lng === 0);
+  }
+
+  private toCoord(value: unknown): number | null {
+    const n = Number(value);
+    return Number.isFinite(n) ? n : null;
+  }
+
+  private isRecentTelemetry(timestamp: string): boolean {
+    if (!timestamp) return false;
+    const age = Date.now() - new Date(timestamp).getTime();
+    return Number.isFinite(age) && age >= 0 && age <= RECENT_MS;
   }
 
   ingestPosition(payload: IngestPositionPayload): Observable<boolean> {

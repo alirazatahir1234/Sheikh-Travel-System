@@ -13,7 +13,7 @@
     <div class="track-header-right">
       <div class="sync-pill" [class.sync-pill--active]="trackingActive">
         <span class="sync-dot sync-dot--live"></span>
-        <span>{{ trackingActive ? 'Tracking active' : 'Tracking paused' }}</span>
+        <span>{{ trackingStatusLabel }}</span>
         <span class="sync-meta">Last sync {{ formatSyncAgo() }}</span>
       </div>
       <div class="gps-pill" [class.gps-pill--ok]="gpsHealthy">
@@ -35,15 +35,15 @@
     <div class="stat-chip stat-chip--online">
       <mat-icon>wifi_tethering</mat-icon>
       <div>
-        <span class="stat-val">{{ liveStats.online }}</span>
-        <span class="stat-lbl">Vehicles online</span>
+        <span class="stat-val">{{ liveStats.tracked }}</span>
+        <span class="stat-lbl">On map</span>
       </div>
     </div>
     <div class="stat-chip stat-chip--trips">
-      <mat-icon>route</mat-icon>
+      <mat-icon>sensors</mat-icon>
       <div>
-        <span class="stat-val">{{ liveStats.tripsActive }}</span>
-        <span class="stat-lbl">Trips active</span>
+        <span class="stat-val">{{ liveStats.liveOnline }}</span>
+        <span class="stat-lbl">Live signal</span>
       </div>
     </div>
     <div class="stat-chip stat-chip--speed">
@@ -54,10 +54,10 @@
       </div>
     </div>
     <div class="stat-chip stat-chip--warn">
-      <mat-icon>local_gas_station</mat-icon>
+      <mat-icon>route</mat-icon>
       <div>
-        <span class="stat-val">{{ liveStats.fuelAlerts }}</span>
-        <span class="stat-lbl">Fuel alerts</span>
+        <span class="stat-val">{{ liveStats.tripsActive }}</span>
+        <span class="stat-lbl">Trips active</span>
       </div>
     </div>
     <div class="stat-chip stat-chip--alert">
@@ -156,9 +156,13 @@
             Manage fleet
           </button>
         </div>
-        <div *ngIf="error && !loading" class="panel-error">
+        <div *ngIf="syncError && !loading" class="panel-error">
           <mat-icon>cloud_off</mat-icon>
-          <p>{{ error }}</p>
+          <p>{{ syncError }}</p>
+        </div>
+        <div *ngIf="mapError && !loading" class="panel-error">
+          <mat-icon>map</mat-icon>
+          <p>{{ mapError }}</p>
         </div>
       </div>
 
@@ -234,12 +238,22 @@
           <h2>Vehicle history &amp; playback</h2>
         </div>
         <div class="history-toolbar">
-          <mat-form-field appearance="outline" class="tb-field">
+          <mat-form-field appearance="outline" class="tb-field tb-field--vehicle">
             <mat-label>Vehicle</mat-label>
-            <mat-select [(ngModel)]="selectedVehicleId">
+            <mat-select
+              [(ngModel)]="selectedVehicleId"
+              [compareWith]="compareVehicleId"
+              panelClass="history-vehicle-panel"
+              (selectionChange)="onHistoryVehicleSelected($event.value)">
+              <mat-select-trigger>
+                {{ selectedHistoryVehicleLabel }}
+              </mat-select-trigger>
               <mat-option [value]="null">Select vehicle</mat-option>
-              <mat-option *ngFor="let v of vehicles" [value]="v.id">
-                {{ v.name }} ({{ v.registrationNumber }})
+              <mat-option *ngFor="let v of historyVehicleOptions" [value]="v.id">
+                <span class="vehicle-option">
+                  <span class="vehicle-option-name">{{ v.name }}</span>
+                  <span class="vehicle-option-reg">{{ v.registrationNumber }}</span>
+                </span>
               </mat-option>
             </mat-select>
           </mat-form-field>

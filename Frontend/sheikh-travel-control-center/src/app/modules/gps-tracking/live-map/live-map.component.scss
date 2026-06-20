@@ -744,6 +744,52 @@
   font-size: 0.875rem;
   ::ng-deep .mat-mdc-form-field-subscript-wrapper { display: none; }
   &--date { width: 180px; }
+  &--vehicle {
+    width: min(100%, 340px);
+    min-width: 280px;
+
+    ::ng-deep {
+      .mdc-notched-outline__notch {
+        border-left: none !important;
+        border-right: none !important;
+      }
+
+      .mat-mdc-select-min-line {
+        display: none;
+      }
+
+      .mat-mdc-select-value-text {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+    }
+  }
+}
+
+:host ::ng-deep {
+  .history-vehicle-panel {
+    min-width: 320px !important;
+    max-width: min(420px, 95vw);
+  }
+
+  .vehicle-option {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 4px 0;
+    line-height: 1.25;
+  }
+
+  .vehicle-option-name {
+    font-weight: 600;
+    color: var(--stb-text, #0f172a);
+  }
+
+  .vehicle-option-reg {
+    font-size: 0.75rem;
+    color: var(--stb-text-muted, #64748b);
+  }
 }
 
 .history-loading { display: flex; justify-content: center; padding: 20px; }
