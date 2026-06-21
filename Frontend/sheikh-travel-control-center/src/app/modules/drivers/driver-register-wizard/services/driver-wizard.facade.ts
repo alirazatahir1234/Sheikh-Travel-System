@@ -15,7 +15,8 @@ import {
   UpdateDriverDto,
   driverDisplayName,
   DriverStatusLabels,
-  splitDriverFullName
+  splitDriverFullName,
+  sanitizeCreateDriverDto
 } from '../../../../core/models/driver.model';
 import { dateInputToIso, toDateInputValue, todayDateInputValue, parseApiDate, formatAbsoluteDateTime, formatRelativeTime } from '../../../../core/utils/date-input.util';
 import { apiErrorMessage } from '../../../../core/utils/api-error.util';
@@ -109,6 +110,8 @@ export class DriverWizardFacade {
   readonly minLicenseExpiry = todayDateInputValue();
   readonly previewCode = signal(previewDriverCode());
   readonly formValues = signal<Record<string, unknown>>({});
+  /** Bumped after API load so date inputs re-bind reliably in edit mode. */
+  readonly formLoadKey = signal(0);
 
   readonly docSlots = signal<DriverDocSlot[]>(
     DRIVER_DOC_SLOTS.map(s => ({ ...s, file: null, previewUrl: null }))
@@ -397,6 +400,7 @@ export class DriverWizardFacade {
       this.isEditMode.set(true);
       this.driverId.set(id);
       this.loading.set(true);
+      this.formLoadKey.set(0);
       this.driverService.getById(id).subscribe({
         next: driver => {
           this.applyDriver(driver);
@@ -422,6 +426,9 @@ export class DriverWizardFacade {
     const nameParts = hasSplitName
       ? { firstName: d.firstName?.trim() ?? '', lastName: d.lastName?.trim() ?? '' }
       : splitDriverFullName(d.fullName);
+    const dateOfBirth = toDateInputValue(d.dateOfBirth);
+    const licenseExpiryDate = toDateInputValue(d.licenseExpiryDate);
+
     this.driverCode.set(d.driverCode ?? null);
     this.form.patchValue({
       firstName: nameParts.firstName,
@@ -430,25 +437,36 @@ export class DriverWizardFacade {
       phoneCountryCode: phoneParts.code,
       email: d.email ?? '',
       nationality: d.nationality ?? 'United Arab Emirates',
-      dateOfBirth: toDateInputValue(d.dateOfBirth),
-      gender: d.gender ?? 'Male',
+      dateOfBirth,
+      gender: d.gender ?? '',
       address: d.address ?? '',
       emergencyContactName: d.emergencyContactName ?? '',
       emergencyContactPhone: emergencyPhone,
       licenseNumber: d.licenseNumber,
-      licenseExpiryDate: toDateInputValue(d.licenseExpiryDate),
+      licenseExpiryDate,
       branchId: d.branchId ? String(d.branchId) : '',
       departmentId: d.departmentId ? String(d.departmentId) : '',
       cnic: d.cnic ?? '',
       status: d.status,
       isActive: d.isActive
-    });
+    }, { emitEvent: true });
+
+    this.patchDateControl('dateOfBirth', dateOfBirth);
+    this.patchDateControl('licenseExpiryDate', licenseExpiryDate);
     this.formValues.set(this.form.getRawValue());
+    this.formLoadKey.update(n => n + 1);
 
     const photo = resolveDriverPhotoUrl(d.photoUrl);
     this.photoPreviewUrl.set(photo);
 
     this.recordUpdatedAt.set(parseApiDate(d.updatedAt ?? d.createdAt));
+  }
+
+  private patchDateControl(name: string, value: string): void {
+    const control = this.form.get(name);
+    if (!control) return;
+    control.setValue(value, { emitEvent: false });
+    control.updateValueAndValidity({ emitEvent: false });
   }
 
   branchSummaryLabel(): { text: string; warning: boolean } {
@@ -592,7 +610,29 @@ export class DriverWizardFacade {
   }
 
   goToStep(step: string): void {
-    this.currentStep.set(step as DriverWizardStepId);
+    const target = step as DriverWizardStepId;
+    const targetIdx = this.steps.findIndex(s => s.id === target);
+    const currentIdx = this.steps.findIndex(s => s.id === this.currentStep());
+    if (targetIdx <= currentIdx) {
+      this.currentStep.set(target);
+      return;
+    }
+
+    void this.validateStepsUpTo(targetIdx - 1).then(ok => {
+      if (ok) this.currentStep.set(target);
+    });
+  }
+
+  private async validateStepsUpTo(lastIdx: number): Promise<boolean> {
+    const original = this.currentStep();
+    for (let i = 0; i <= lastIdx; i++) {
+      this.currentStep.set(this.steps[i].id);
+      if (!(await this.validateCurrentStep())) {
+        this.currentStep.set(original);
+        return false;
+      }
+    }
+    return true;
   }
 
   prevStep(): void {
@@ -750,12 +790,12 @@ export class DriverWizardFacade {
 
   private buildDto(): CreateDriverDto {
     const v = this.form.getRawValue();
-    return {
+    return sanitizeCreateDriverDto({
       firstName: String(v.firstName).trim(),
       lastName: String(v.lastName).trim(),
       phone: this.buildPhone(),
       licenseNumber: String(v.licenseNumber).trim(),
-      licenseExpiryDate: dateInputToIso(v.licenseExpiryDate)!,
+      licenseExpiryDate: dateInputToIso(v.licenseExpiryDate) ?? String(v.licenseExpiryDate),
       email: String(v.email).trim(),
       nationality: v.nationality?.trim() || null,
       dateOfBirth: dateInputToIso(v.dateOfBirth),
@@ -766,15 +806,21 @@ export class DriverWizardFacade {
       departmentId: v.departmentId ? Number(v.departmentId) : null,
       cnic: v.cnic?.trim() || null,
       address: v.address?.trim() || null
-    };
+    });
+  }
+
+  private async validateAllSteps(): Promise<boolean> {
+    for (const step of this.steps) {
+      this.currentStep.set(step.id);
+      if (!(await this.validateCurrentStep())) return false;
+    }
+    return true;
   }
 
   async submit(): Promise<void> {
     this.attemptedSubmit.set(true);
     this.form.markAllAsTouched();
-    await this.validatePersonalUniqueness();
-    await this.validateLicenseUniqueness();
-    if (this.form.invalid) {
+    if (!(await this.validateAllSteps())) {
       this.snackBar.open('Please complete required fields', 'Close', { duration: 3000 });
       return;
     }
@@ -811,8 +857,16 @@ export class DriverWizardFacade {
         }
       }
 
+      if (this.isEditMode() && id) {
+        const refreshed = await firstValueFrom(this.driverService.getById(id));
+        this.applyDriver(refreshed);
+        this.loadDriverDocuments(id);
+      }
+
       this.snackBar.open(this.isEditMode() ? 'Driver updated' : 'Driver registered', 'Close', { duration: 2500 });
-      void this.router.navigate(['/drivers']);
+      if (!this.isEditMode()) {
+        void this.router.navigate(['/drivers']);
+      }
     } catch (err) {
       this.applyConflictFromError(err);
       this.snackBar.open(apiErrorMessage(err, 'Save failed'), 'Close', { duration: 4000 });

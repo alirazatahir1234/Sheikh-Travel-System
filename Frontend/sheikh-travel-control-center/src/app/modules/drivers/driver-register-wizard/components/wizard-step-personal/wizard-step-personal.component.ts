@@ -144,13 +144,14 @@ import { UPLOAD_MAX_SIZE_LABEL, vehicleUploadSizeError } from '../../../../../co
           </label>
           <label class="field">
             <span>Date of Birth <span class="req">*</span></span>
-            <input
-              formControlName="dateOfBirth"
-              type="date"
-              class="input date-input"
-              [class.date-input--empty]="!form().get('dateOfBirth')?.value"
-              [attr.max]="maxDateOfBirth()"
-              [attr.min]="minDateOfBirth()" />
+            @for (key of [formLoadKey()]; track key) {
+              <input
+                formControlName="dateOfBirth"
+                type="date"
+                class="input date-input"
+                [attr.max]="maxDateOfBirth()"
+                [attr.min]="minDateOfBirth()" />
+            }
             <span class="field-hint">Minimum age: 18 years</span>
             @if (showError('dateOfBirth', 'futureDate')) {
               <span class="field-error">Date of birth cannot be in the future</span>
@@ -163,6 +164,9 @@ import { UPLOAD_MAX_SIZE_LABEL, vehicleUploadSizeError } from '../../../../../co
           <label class="field">
             <span>Gender <span class="req">*</span></span>
             <select formControlName="gender" class="input">
+              @if (!form().get('gender')?.value) {
+                <option value="" disabled hidden>Select gender</option>
+              }
               @for (g of genderOptions; track g) {
                 <option [value]="g">{{ g }}</option>
               }
@@ -237,6 +241,7 @@ export class WizardStepPersonalComponent {
   private readonly snackBar = inject(MatSnackBar);
 
   readonly form = input.required<FormGroup>();
+  readonly formLoadKey = input(0);
   readonly photoPreview = input<string | undefined>();
   readonly photoInitials = input('?');
   readonly driverCode = input('ST-DRV-2024-000');

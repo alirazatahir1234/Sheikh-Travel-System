@@ -20,8 +20,10 @@
       <main>
         @switch (facade.currentStep()) {
           @case ('personal') {
-            <app-wizard-step-personal
-              [form]="facade.form"
+            @if (!facade.isEditMode() || facade.formLoadKey() > 0) {
+              <app-wizard-step-personal
+                [form]="facade.form"
+                [formLoadKey]="facade.formLoadKey()"
               [photoPreview]="photoPreview()"
               [photoInitials]="facade.previewInitials()"
               [driverCode]="facade.previewDriverCode()"
@@ -39,6 +41,7 @@
               [minDateOfBirth]="facade.minDateOfBirth"
               (photoSelected)="facade.onPhotoSelected($event)"
               (photoRemoved)="facade.onPhotoRemoved()" />
+            }
           }
           @case ('license') {
             <app-wizard-step-license

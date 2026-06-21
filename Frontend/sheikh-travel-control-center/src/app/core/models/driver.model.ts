@@ -1,3 +1,5 @@
+import { dateInputToIso } from '../utils/date-input.util';
+
 export enum DriverStatus {
   Available = 1,
   OnTrip = 2,
@@ -180,18 +182,52 @@ export function normalizeDriverStatus(value: unknown, fallback = DriverStatus.Av
   return Object.values(DriverStatus).includes(n) ? (n as DriverStatus) : fallback;
 }
 
+function pickField<T>(raw: Record<string, unknown>, camel: string, pascal: string): T | undefined {
+  const v = raw[camel] ?? raw[pascal];
+  return v as T | undefined;
+}
+
+function pickString(raw: Record<string, unknown>, camel: string, pascal: string): string | null {
+  const v = pickField<unknown>(raw, camel, pascal);
+  if (v == null || v === '') return null;
+  return String(v);
+}
+
+function normalizeAddress(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const lines = value.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  const unique = [...new Set(lines)];
+  return unique.length ? unique.join('\n') : null;
+}
+
 export function normalizeDriverListItem(item: DriverListItem): DriverListItem {
   return { ...item, status: normalizeDriverStatus(item.status) };
 }
 
 export function normalizeDriver(driver: Driver): Driver {
   const r = driver as Driver & Record<string, unknown>;
+  const dateOfBirthRaw = pickField<string | null>(r, 'dateOfBirth', 'DateOfBirth');
+  const licenseExpiryRaw = pickField<string | null>(r, 'licenseExpiryDate', 'LicenseExpiryDate');
+  const hireDateRaw = pickField<string | null>(r, 'hireDate', 'HireDate');
+
   return {
     ...driver,
+    firstName: pickString(r, 'firstName', 'FirstName') ?? driver.firstName,
+    lastName: pickString(r, 'lastName', 'LastName') ?? driver.lastName,
+    email: pickString(r, 'email', 'Email') ?? driver.email,
+    gender: pickString(r, 'gender', 'Gender') ?? driver.gender,
+    nationality: pickString(r, 'nationality', 'Nationality') ?? driver.nationality,
+    cnic: pickString(r, 'cnic', 'CNIC') ?? driver.cnic,
+    address: normalizeAddress(pickString(r, 'address', 'Address') ?? driver.address),
+    emergencyContactName: pickString(r, 'emergencyContactName', 'EmergencyContactName') ?? driver.emergencyContactName,
+    emergencyContact: pickString(r, 'emergencyContact', 'EmergencyContact') ?? driver.emergencyContact,
+    photoUrl: pickString(r, 'photoUrl', 'PhotoUrl') ?? driver.photoUrl,
     status: normalizeDriverStatus(driver.status),
-    dateOfBirth: driver.dateOfBirth ?? (r['DateOfBirth'] as string | null | undefined) ?? null,
-    photoUrl: driver.photoUrl ?? (r['PhotoUrl'] as string | null | undefined) ?? null,
-    updatedAt: driver.updatedAt ?? (r['UpdatedAt'] as string | null | undefined) ?? null
+    dateOfBirth: dateOfBirthRaw ?? null,
+    licenseExpiryDate: licenseExpiryRaw ?? driver.licenseExpiryDate,
+    hireDate: hireDateRaw ?? driver.hireDate,
+    updatedAt: pickString(r, 'updatedAt', 'UpdatedAt') ?? driver.updatedAt,
+    createdAt: pickString(r, 'createdAt', 'CreatedAt') ?? driver.createdAt
   };
 }
 
@@ -209,6 +245,8 @@ export function splitDriverFullName(fullName: string): { firstName: string; last
 export function sanitizeCreateDriverDto(dto: CreateDriverDto): CreateDriverDto {
   const firstName = dto.firstName?.trim() || '';
   const lastName = dto.lastName?.trim() || '';
+  const dobIso = dto.dateOfBirth ? dateInputToIso(dto.dateOfBirth) : null;
+  const licenseIso = dto.licenseExpiryDate ? dateInputToIso(dto.licenseExpiryDate) : null;
   return {
     ...dto,
     firstName,
@@ -216,15 +254,18 @@ export function sanitizeCreateDriverDto(dto: CreateDriverDto): CreateDriverDto {
     fullName: buildDriverFullName(firstName, lastName),
     phone: dto.phone?.trim() || '',
     licenseNumber: dto.licenseNumber?.trim() || '',
+    licenseExpiryDate: licenseIso ?? dto.licenseExpiryDate,
+    dateOfBirth: dobIso,
     nationality: dto.nationality?.trim() || null,
     email: dto.email?.trim() || null,
     gender: dto.gender?.trim() || null,
     emergencyContactName: dto.emergencyContactName?.trim() || null,
     emergencyContact: dto.emergencyContact?.trim() || null,
     cnic: dto.cnic?.trim() || null,
-    address: dto.address?.trim() || null,
+    address: normalizeAddress(dto.address),
     branchId: dto.branchId ? Number(dto.branchId) : null,
-    departmentId: dto.departmentId ? Number(dto.departmentId) : null
+    departmentId: dto.departmentId ? Number(dto.departmentId) : null,
+    hireDate: dto.hireDate ? dateInputToIso(dto.hireDate) : null
   };
 }
 
