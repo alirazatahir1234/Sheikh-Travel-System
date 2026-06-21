@@ -185,7 +185,14 @@ export function normalizeDriverListItem(item: DriverListItem): DriverListItem {
 }
 
 export function normalizeDriver(driver: Driver): Driver {
-  return { ...driver, status: normalizeDriverStatus(driver.status) };
+  const r = driver as Driver & Record<string, unknown>;
+  return {
+    ...driver,
+    status: normalizeDriverStatus(driver.status),
+    dateOfBirth: driver.dateOfBirth ?? (r['DateOfBirth'] as string | null | undefined) ?? null,
+    photoUrl: driver.photoUrl ?? (r['PhotoUrl'] as string | null | undefined) ?? null,
+    updatedAt: driver.updatedAt ?? (r['UpdatedAt'] as string | null | undefined) ?? null
+  };
 }
 
 export function buildDriverFullName(firstName: string, lastName: string): string {

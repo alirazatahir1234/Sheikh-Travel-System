@@ -47,6 +47,18 @@ export function resolveVehicleImageUrl(url: string | null | undefined): string |
   return resolveUploadUrl(url);
 }
 
+/** Driver profile photos — rejects vehicle asset paths mistakenly linked to drivers. */
+export function resolveDriverPhotoUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+  if (url.startsWith('blob:')) return url;
+  if (!isImageUploadUrl(url)) return null;
+
+  const normalized = url.toLowerCase().replace(/\\/g, '/');
+  if (normalized.includes('/vehicles/')) return null;
+
+  return resolveUploadUrl(url);
+}
+
 export const VEHICLE_UPLOAD_MAX_BYTES = 2 * 1024 * 1024;
 export const UPLOAD_MAX_SIZE_LABEL = 'Max size: 2 MB';
 export const VEHICLE_UPLOAD_SIZE_ERROR = `File exceeds the maximum upload size. ${UPLOAD_MAX_SIZE_LABEL}.`;

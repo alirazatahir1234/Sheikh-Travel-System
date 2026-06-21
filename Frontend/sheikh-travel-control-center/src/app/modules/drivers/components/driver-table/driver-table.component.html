@@ -10,17 +10,16 @@
     <table class="driver-grid w-full text-left">
       <thead class="bg-fleet-surface-alt/80">
         <tr>
-          <th class="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-fleet-text-muted">Code</th>
+          <th class="px-3 py-3 text-[11px] font-bold uppercase tracking-wider text-fleet-text-muted w-12"></th>
           <th class="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-fleet-text-muted">Driver</th>
+          <th class="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-fleet-text-muted">Branch</th>
           <th class="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-fleet-text-muted">Department</th>
-          <th class="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-fleet-text-muted">Hire Date</th>
           <th class="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-fleet-text-muted">License</th>
-          <th class="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-fleet-text-muted">License Status</th>
+          <th class="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-fleet-text-muted">Lic. Expiry</th>
           <th class="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-fleet-text-muted">Verification</th>
-          <th class="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-fleet-text-muted">Mobile</th>
-          <th class="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-fleet-text-muted">Nationality</th>
+          <th class="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-fleet-text-muted">Driver Score</th>
+          <th class="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-fleet-text-muted">Vehicle</th>
           <th class="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-fleet-text-muted">Status</th>
-          <th class="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-fleet-text-muted">Assigned Vehicle</th>
           <th class="px-4 py-3 text-right text-[11px] font-bold uppercase tracking-wider text-fleet-text-muted">Actions</th>
         </tr>
       </thead>
@@ -28,40 +27,51 @@
         @if (loading()) {
           @for (i of [1,2,3,4,5]; track i) {
             <tr>
-              @for (c of [1,2,3,4,5,6,7,8,9,10,11,12]; track c) {
+              @for (c of [1,2,3,4,5,6,7,8,9,10,11]; track c) {
                 <td class="px-4 py-4"><div class="h-3.5 w-3/4 animate-pulse rounded bg-fleet-surface-muted"></div></td>
               }
             </tr>
           }
         } @else if (!rows().length) {
           <tr>
-            <td colspan="12" class="p-0">
+            <td colspan="11" class="p-0">
               <ui-empty-state icon="badge" title="No drivers found" description="Adjust filters or register a new driver."></ui-empty-state>
             </td>
           </tr>
         } @else {
           @for (row of rows(); track row.id) {
             <tr class="cursor-pointer transition-colors hover:bg-fleet-primary/5" (click)="rowClick.emit(row)">
-              <td class="px-4 py-3 font-mono text-sm">{{ row.driverCode || '—' }}</td>
+              <td class="px-3 py-3">
+                <div class="driver-avatar" [attr.aria-label]="displayName(row)">{{ initials(row) }}</div>
+              </td>
               <td class="px-4 py-3">
                 <div class="font-semibold text-fleet-text">{{ displayName(row) }}</div>
-                <div class="text-xs text-fleet-text-muted">{{ row.branchName || 'No branch' }}</div>
+                <div class="text-xs text-fleet-text-muted font-mono">{{ row.driverCode || '—' }}</div>
               </td>
+              <td class="px-4 py-3 text-sm text-fleet-text-muted">{{ row.branchName || '—' }}</td>
               <td class="px-4 py-3 text-sm text-fleet-text-muted">{{ row.departmentName || '—' }}</td>
-              <td class="px-4 py-3 text-sm text-fleet-text-muted">{{ row.hireDate ? (row.hireDate | date:'dd MMM yyyy') : '—' }}</td>
-              <td class="px-4 py-3 text-sm">{{ row.licenseNumber }}</td>
               <td class="px-4 py-3">
+                <div class="text-sm">{{ row.licenseNumber }}</div>
                 <ui-status-badge [status]="licenseLabel(row)" [variant]="licenseVariant(row)"></ui-status-badge>
+              </td>
+              <td class="px-4 py-3 text-sm whitespace-nowrap"
+                  [class.text-fleet-error]="row.licenseExpired"
+                  [class.text-amber-600]="!row.licenseExpired && row.licenseExpiringSoon"
+                  [class.text-fleet-text-muted]="!row.licenseExpired && !row.licenseExpiringSoon">
+                {{ formatExpiryDate(row.licenseExpiryDate) }}
               </td>
               <td class="px-4 py-3">
                 <ui-status-badge [status]="row.verificationStatus"></ui-status-badge>
               </td>
-              <td class="px-4 py-3 text-sm">{{ row.phone }}</td>
-              <td class="px-4 py-3 text-sm">{{ row.nationality || '—' }}</td>
+              <td class="px-4 py-3">
+                <span class="driver-score" [class]="'driver-score--' + scoreVariant(row)">
+                  {{ driverScore(row) }}/100
+                </span>
+              </td>
+              <td class="px-4 py-3 text-sm">{{ assignedVehicle(row) }}</td>
               <td class="px-4 py-3">
                 <ui-status-badge [status]="statusLabel(row)" variant="info"></ui-status-badge>
               </td>
-              <td class="px-4 py-3 text-sm">{{ assignedVehicle(row) }}</td>
               <td class="sticky right-0 bg-white px-4 py-3 text-right" (click)="$event.stopPropagation()">
                 <div class="inline-flex items-center gap-0.5">
                   <button type="button" class="action-btn" title="View" (click)="view.emit(row)">

@@ -11,7 +11,6 @@ import { WizardStepLicenseComponent } from './components/wizard-step-license/wiz
 import { WizardStepOrganizationComponent } from './components/wizard-step-organization/wizard-step-organization.component';
 import { DriverWizardSidebarComponent } from './components/driver-wizard-sidebar/driver-wizard-sidebar.component';
 import { DriverDocType } from './models/driver-wizard.model';
-import { resolveUploadUrl } from '../../../core/utils/upload-url.util';
 import { UiBreadcrumb } from '../../../shared/components/ui/types/ui.types';
 
 @Component({
@@ -50,10 +49,7 @@ export class DriverRegisterWizardComponent implements OnInit {
   }
 
   photoPreview(): string | undefined {
-    const url = this.facade.photoPreviewUrl();
-    if (!url) return undefined;
-    if (url.startsWith('blob:')) return url;
-    return resolveUploadUrl(url) ?? undefined;
+    return this.facade.resolvedPhotoPreview() ?? undefined;
   }
 
   phoneDisplay(): string {

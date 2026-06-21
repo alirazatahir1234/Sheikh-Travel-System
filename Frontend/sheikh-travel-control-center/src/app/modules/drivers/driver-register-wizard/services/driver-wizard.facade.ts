@@ -14,11 +14,12 @@ import {
   DriverStatus,
   UpdateDriverDto,
   driverDisplayName,
+  DriverStatusLabels,
   splitDriverFullName
 } from '../../../../core/models/driver.model';
-import { dateInputToIso, toDateInputValue, todayDateInputValue } from '../../../../core/utils/date-input.util';
+import { dateInputToIso, toDateInputValue, todayDateInputValue, parseApiDate, formatAbsoluteDateTime, formatRelativeTime } from '../../../../core/utils/date-input.util';
 import { apiErrorMessage } from '../../../../core/utils/api-error.util';
-import { vehicleUploadSizeError } from '../../../../core/utils/upload-url.util';
+import { vehicleUploadSizeError, resolveDriverPhotoUrl, resolveUploadUrl } from '../../../../core/utils/upload-url.util';
 import { UiSelectOption } from '../../../../shared/components/ui/types/ui.types';
 import {
   DRIVER_DOC_SLOTS,
@@ -33,7 +34,10 @@ import {
   PHONE_COUNTRY_CODES,
   buildFullName,
   calcStepFieldProgress,
+  calcProfileCompletion,
+  calcOrgFieldProgress,
   dateOfBirthValidator,
+  emergencyContactPhoneValidator,
   maxDateOfBirthInputValue,
   minDateOfBirthInputValue,
   phoneLocalValidator
@@ -56,9 +60,12 @@ const PERSONAL_FIELDS = [
   { name: 'firstName' },
   { name: 'lastName' },
   { name: 'dateOfBirth' },
+  { name: 'gender' },
   { name: 'nationality' },
   { name: 'phoneLocal' },
-  { name: 'email' }
+  { name: 'email' },
+  { name: 'emergencyContactName' },
+  { name: 'emergencyContactPhone' }
 ];
 
 const LICENSE_FIELDS = [
@@ -67,7 +74,7 @@ const LICENSE_FIELDS = [
 ];
 
 const ORG_FIELDS = [
-  { name: 'branchId', required: false }
+  { name: 'branchId' }
 ];
 
 @Injectable()
@@ -85,6 +92,7 @@ export class DriverWizardFacade {
   readonly minDateOfBirth = minDateOfBirthInputValue();
   readonly currentStep = signal<DriverWizardStepId>('personal');
   readonly driverId = signal<number | null>(null);
+  readonly loadedDriver = signal<Driver | null>(null);
   readonly driverCode = signal<string | null>(null);
   readonly isEditMode = signal(false);
   readonly loading = signal(false);
@@ -92,6 +100,8 @@ export class DriverWizardFacade {
   readonly draftSaving = signal(false);
   readonly attemptedSubmit = signal(false);
   readonly lastSavedAt = signal<Date | null>(null);
+  /** Server record timestamp — shown as absolute "Last updated on …" in edit mode. */
+  readonly recordUpdatedAt = signal<Date | null>(null);
   readonly photoPreviewUrl = signal<string | null>(null);
   readonly photoFile = signal<File | null>(null);
   readonly branchOptions = signal<UiSelectOption[]>([]);
@@ -114,8 +124,8 @@ export class DriverWizardFacade {
     dateOfBirth: ['', dateOfBirthValidator()],
     gender: ['Male', requiredTrimmed()],
     address: [''],
-    emergencyContactName: ['', Validators.maxLength(100)],
-    emergencyContactPhone: ['', Validators.maxLength(20)],
+    emergencyContactName: ['', [requiredTrimmed(), Validators.maxLength(100)]],
+    emergencyContactPhone: ['', [emergencyContactPhoneValidator()]],
     licenseNumber: ['', [requiredTrimmed(), Validators.maxLength(30)]],
     licenseExpiryDate: ['', Validators.required],
     cnic: [''],
@@ -140,73 +150,207 @@ export class DriverWizardFacade {
     return name || '—';
   });
 
-  readonly previewDriverCode = computed(() => this.driverCode() ?? this.previewCode());
-
-  readonly driverStatusLabel = computed(() =>
-    this.isEditMode() ? 'Available' : 'Draft'
-  );
-
-  readonly progressPercent = computed(() => {
-    const stepIdx = this.steps.findIndex(s => s.id === this.currentStep());
-    const values = this.formValues();
-    const controls = this.form.controls as Record<string, AbstractControl>;
-
-    const stepFieldMap: Record<DriverWizardStepId, { name: string; required?: boolean }[]> = {
-      personal: PERSONAL_FIELDS,
-      license: LICENSE_FIELDS,
-      organization: ORG_FIELDS
-    };
-
-    const stepWeight = 100 / this.steps.length;
-    let total = 0;
-
-    for (let i = 0; i < this.steps.length; i++) {
-      const stepId = this.steps[i].id;
-      const progress = calcStepFieldProgress(stepFieldMap[stepId], values, controls);
-      if (i < stepIdx) total += stepWeight;
-      else if (i === stepIdx) total += (progress / 100) * stepWeight;
-    }
-
-    return Math.min(100, Math.round(total));
+  readonly previewInitials = computed(() => {
+    const name = this.previewFullName();
+    if (name === '—') return '?';
+    return name.split(' ').slice(0, 2).map(w => w[0] ?? '').join('').toUpperCase();
   });
 
-  readonly stepCompletion = computed(() => {
-    const currentIdx = this.steps.findIndex(s => s.id === this.currentStep());
-    const values = this.formValues();
-    const controls = this.form.controls as Record<string, AbstractControl>;
+  readonly previewDriverCode = computed(() => this.driverCode() ?? this.previewCode());
 
-    const stepFieldMap: Record<DriverWizardStepId, { name: string; required?: boolean }[]> = {
+  private stepFieldMap(): Record<DriverWizardStepId, { name: string; required?: boolean }[]> {
+    return {
       personal: PERSONAL_FIELDS,
       license: LICENSE_FIELDS,
       organization: ORG_FIELDS
     };
+  }
 
-    return this.steps.map((step, i) => {
-      const fieldProgress = calcStepFieldProgress(stepFieldMap[step.id], values, controls);
+  readonly profileCompletion = computed(() => {
+    const values = this.formValues();
+    const controls = this.form.controls as Record<string, AbstractControl>;
+    const map = this.stepFieldMap();
+
+    const personal = calcStepFieldProgress(map.personal, values, controls);
+    const license = calcStepFieldProgress(map.license, values, controls);
+    const organization = calcOrgFieldProgress(values);
+
+    return calcProfileCompletion([
+      { label: 'Personal Info', percent: personal },
+      { label: 'License', percent: license },
+      { label: 'Assignment', percent: organization }
+    ]);
+  });
+
+  readonly profileCompletionHint = computed(() => {
+    const s = this.profileCompletion().sections;
+    if (s.length === 0) return '';
+    const parts = s.map(x => `${x.label} ${x.percent}%`).join(' + ');
+    const sum = s.reduce((n, x) => n + x.percent, 0);
+    return `${parts} = ${sum}% ÷ ${s.length} = ${this.profileCompletion().overall}%`;
+  });
+
+  readonly driverStatusLabel = computed(() => {
+    const driver = this.loadedDriver();
+    const values = this.formValues();
+    const controls = this.form.controls as Record<string, AbstractControl>;
+    const personalPct = calcStepFieldProgress(PERSONAL_FIELDS, values, controls);
+    const licenseComplete = !!(String(values['licenseNumber'] ?? '').trim() && values['licenseExpiryDate']);
+    const hasBranch = !!String(values['branchId'] ?? '').trim();
+    const hasVehicle = !!(driver?.assignedVehicleId);
+    const verification = (driver?.verificationStatus ?? '').toLowerCase();
+    const operational = Number(values['status'] ?? driver?.status ?? DriverStatus.Available) as DriverStatus;
+
+    if (operational === DriverStatus.Suspended) return 'Suspended';
+
+    if (verification === 'verified') {
+      if (hasVehicle) return 'Assigned';
+      if (hasBranch) return 'Available';
+      return 'Verified';
+    }
+
+    if (verification === 'rejected') return 'Pending Verification';
+
+    if (licenseComplete && hasBranch && personalPct >= 80) return 'Pending Verification';
+    if (licenseComplete && hasBranch) return 'Pending Verification';
+    if (licenseComplete && !hasBranch) return 'Pending Assignment';
+    if (personalPct >= 80 || (this.isEditMode() && licenseComplete)) return 'Pending Verification';
+    if (!this.isEditMode() && personalPct < 50) return 'Draft';
+
+    return 'Pending Verification';
+  });
+
+  readonly licenseVerificationStatus = computed(() => {
+    const values = this.formValues();
+    const verification = (this.loadedDriver()?.verificationStatus ?? '').toLowerCase();
+    if (verification === 'verified') return 'Verified';
+    if (values['licenseNumber'] && values['licenseExpiryDate']) return 'Pending';
+    return 'Not Started';
+  });
+
+  readonly orgAssignmentStatus = computed(() => {
+    const values = this.formValues();
+    if (values['branchId']) return 'Assigned';
+    if (this.isEditMode()) return 'Pending';
+    return 'Not Started';
+  });
+
+  readonly backgroundCheckStatus = computed(() => {
+    const verification = (this.loadedDriver()?.verificationStatus ?? '').toLowerCase();
+    const hasDoc = this.docSlots().some(s => s.type === 'BackgroundCheck' && (s.file || s.previewUrl));
+    if (verification === 'verified' && hasDoc) return 'Verified';
+    if (hasDoc) return 'Pending';
+    return 'Not Started';
+  });
+
+  readonly verificationSidebarRows = computed(() => [
+    { label: 'Driver Status', status: this.driverStatusLabel() },
+    { label: 'License Verification', status: this.licenseVerificationStatus() },
+    { label: 'Org Assignment', status: this.orgAssignmentStatus() },
+    { label: 'Background Check', status: this.backgroundCheckStatus() }
+  ]);
+
+  readonly verificationProgressPercent = computed(() => {
+    const rows = this.verificationSidebarRows();
+    const weights: Record<string, number> = {
+      'VERIFIED': 100, 'ASSIGNED': 100, 'AVAILABLE': 100,
+      'PENDING': 50, 'NOT STARTED': 0
+    };
+    const total = rows.reduce((sum, r) => sum + (weights[r.status.toUpperCase()] ?? 25), 0);
+    return Math.round(total / rows.length);
+  });
+
+  readonly onboardingChecklist = computed(() => {
+    const values = this.formValues();
+    const controls = this.form.controls as Record<string, AbstractControl>;
+    const personalDone = calcStepFieldProgress(PERSONAL_FIELDS, values, controls) === 100;
+    const licenseFieldsDone = !!(values['licenseNumber'] && values['licenseExpiryDate']);
+    const licenseDoc = this.docSlots().some(s => s.type === 'DrivingLicense' && (s.file || s.previewUrl));
+    const orgDone = !!String(values['branchId'] ?? '').trim();
+    const medicalDoc = this.docSlots().some(s => s.type === 'MedicalCertificate' && (s.file || s.previewUrl));
+    const bgDoc = this.docSlots().some(s => s.type === 'BackgroundCheck' && (s.file || s.previewUrl));
+    const verified = (this.loadedDriver()?.verificationStatus ?? '').toLowerCase() === 'verified';
+
+    return [
+      { label: 'Personal Information', done: personalDone },
+      { label: 'License Uploaded', done: licenseFieldsDone && licenseDoc },
+      { label: 'Organization Assigned', done: orgDone },
+      { label: 'Background Check', done: bgDoc },
+      { label: 'Medical Certificate', done: medicalDoc },
+      { label: 'Driver Verification', done: verified }
+    ];
+  });
+
+  readonly statusTimeline = computed(() => {
+    const d = this.loadedDriver();
+    if (!d) return [];
+
+    const items: { label: string; date: string }[] = [];
+    const created = formatAbsoluteDateTime(d.createdAt);
+    if (created) items.push({ label: 'Driver Created', date: created });
+
+    const values = this.formValues();
+    if (values['licenseNumber'] && values['licenseExpiryDate']) {
+      const licenseDate = formatAbsoluteDateTime(d.updatedAt ?? d.createdAt);
+      if (licenseDate) items.push({ label: 'License Recorded', date: licenseDate });
+    }
+
+    if (values['branchId']) {
+      const orgDate = formatAbsoluteDateTime(d.updatedAt ?? d.createdAt);
+      if (orgDate) items.push({ label: 'Org Assigned', date: orgDate });
+    }
+
+    const verification = (d.verificationStatus ?? '').toLowerCase();
+    if (verification === 'pending' || verification === 'rejected') {
+      items.push({ label: 'Pending Verification', date: formatAbsoluteDateTime(d.updatedAt ?? d.createdAt) ?? '—' });
+    } else if (verification === 'verified') {
+      items.push({ label: 'Verified', date: formatAbsoluteDateTime(d.updatedAt ?? d.createdAt) ?? '—' });
+    }
+
+    return items;
+  });
+
+  readonly footerSaveLabel = computed(() => {
+    const session = this.lastSavedAt();
+    if (session) {
+      const relative = formatRelativeTime(session);
+      return relative ? `Saved ${relative}` : null;
+    }
+    const record = this.recordUpdatedAt();
+    if (this.isEditMode() && record) {
+      const absolute = formatAbsoluteDateTime(record);
+      return absolute ? `Last updated on ${absolute}` : null;
+    }
+    return null;
+  });
+
+  readonly progressPercent = computed(() => this.profileCompletion().overall);
+
+  readonly stepCompletion = computed(() => {
+    const values = this.formValues();
+    const controls = this.form.controls as Record<string, AbstractControl>;
+    const map = this.stepFieldMap();
+
+    return this.steps.map(step => {
+      const fieldProgress = step.id === 'organization'
+        ? calcOrgFieldProgress(values)
+        : calcStepFieldProgress(map[step.id], values, controls);
       return {
         id: step.id,
         label: step.label,
-        complete: i < currentIdx || (i === currentIdx && fieldProgress === 100),
+        complete: fieldProgress === 100,
         active: step.id === this.currentStep()
       };
     });
   });
 
-  readonly licenseStatus = computed(() => {
-    const stepIdx = this.steps.findIndex(s => s.id === 'license');
-    const currentIdx = this.steps.findIndex(s => s.id === this.currentStep());
-    if (currentIdx < stepIdx) return 'NOT STARTED';
-
-    const v = this.formValues();
-    if (v['licenseNumber'] && v['licenseExpiryDate']) return 'IN PROGRESS';
-    return 'NOT STARTED';
-  });
+  readonly licenseStatus = computed(() => this.licenseVerificationStatus().toUpperCase());
 
   readonly orgStatus = computed(() => {
-    const stepIdx = this.steps.findIndex(s => s.id === 'organization');
-    const currentIdx = this.steps.findIndex(s => s.id === this.currentStep());
-    if (currentIdx < stepIdx) return 'NOT STARTED';
-    return this.formValues()['branchId'] ? 'ASSIGNED' : 'UNASSIGNED';
+    const s = this.orgAssignmentStatus();
+    if (s === 'Assigned') return 'ASSIGNED';
+    if (s === 'Pending') return 'PENDING';
+    return 'NOT STARTED';
   });
 
   readonly documentsUploadedCount = computed(() => this.docSlots().filter(s => s.file).length);
@@ -256,6 +400,7 @@ export class DriverWizardFacade {
       this.driverService.getById(id).subscribe({
         next: driver => {
           this.applyDriver(driver);
+          this.loadDriverDocuments(id);
           this.loading.set(false);
         },
         error: () => {
@@ -270,6 +415,7 @@ export class DriverWizardFacade {
   }
 
   private applyDriver(d: Driver): void {
+    this.loadedDriver.set(d);
     const phoneParts = this.splitPhone(d.phone);
     const emergencyPhone = d.emergencyContact ?? '';
     const hasSplitName = !!(d.firstName?.trim() || d.lastName?.trim());
@@ -297,7 +443,75 @@ export class DriverWizardFacade {
       status: d.status,
       isActive: d.isActive
     });
-    if (d.photoUrl) this.photoPreviewUrl.set(d.photoUrl);
+    this.formValues.set(this.form.getRawValue());
+
+    const photo = resolveDriverPhotoUrl(d.photoUrl);
+    this.photoPreviewUrl.set(photo);
+
+    this.recordUpdatedAt.set(parseApiDate(d.updatedAt ?? d.createdAt));
+  }
+
+  branchSummaryLabel(): { text: string; warning: boolean } {
+    const d = this.loadedDriver();
+    const formBranch = String(this.form.getRawValue().branchId ?? '').trim();
+    const name = d?.branchName
+      ?? this.branchOptions().find(b => b.value === formBranch)?.label;
+    if (name) return { text: name, warning: false };
+    return { text: 'Driver not assigned to any branch', warning: true };
+  }
+
+  departmentSummaryLabel(): { text: string; warning: boolean } {
+    const d = this.loadedDriver();
+    const formDept = String(this.form.getRawValue().departmentId ?? '').trim();
+    const name = d?.departmentName
+      ?? this.departmentOptions().find(x => x.value === formDept)?.label;
+    if (name) return { text: name, warning: false };
+    return { text: 'No department assigned', warning: true };
+  }
+
+  isVehicleUnassigned(): boolean {
+    return this.assignedVehicleLabel() === 'Unassigned';
+  }
+
+  private loadDriverDocuments(id: number): void {
+    this.driverService.getDocuments(id).subscribe({
+      next: docs => {
+        this.docSlots.update(slots =>
+          slots.map(s => {
+            const doc = docs.find(d => d.documentType === s.type);
+            if (!doc?.fileUrl) return s;
+            return { ...s, previewUrl: resolveUploadUrl(doc.fileUrl) };
+          })
+        );
+      },
+      error: () => { /* optional */ }
+    });
+  }
+
+  resolvedPhotoPreview(): string | null {
+    return resolveDriverPhotoUrl(this.photoPreviewUrl());
+  }
+
+  formatUpdatedAt(): string | null {
+    return formatAbsoluteDateTime(this.recordUpdatedAt());
+  }
+
+  assignedVehicleLabel(): string {
+    const d = this.loadedDriver();
+    if (!d) return 'Unassigned';
+    return d.assignedVehicleRegistration || d.assignedVehicleCode || 'Unassigned';
+  }
+
+  hireDateLabel(): string {
+    const raw = this.loadedDriver()?.hireDate;
+    if (!raw) return 'Pending organization assignment';
+    const d = parseApiDate(raw);
+    if (!d) return 'Pending organization assignment';
+    return new Intl.DateTimeFormat(undefined, {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric'
+    }).format(d);
   }
 
   private splitPhone(phone: string): { code: string; local: string } {
@@ -399,7 +613,10 @@ export class DriverWizardFacade {
   async validateCurrentStep(): Promise<boolean> {
     const step = this.currentStep();
     const fields: Record<DriverWizardStepId, string[]> = {
-      personal: ['firstName', 'lastName', 'phoneLocal', 'email', 'dateOfBirth', 'nationality', 'gender'],
+      personal: [
+        'firstName', 'lastName', 'phoneLocal', 'email', 'dateOfBirth', 'nationality', 'gender',
+        'emergencyContactName', 'emergencyContactPhone'
+      ],
       license: ['licenseNumber', 'licenseExpiryDate'],
       organization: []
     };
@@ -574,6 +791,7 @@ export class DriverWizardFacade {
           isActive: !!this.form.getRawValue().isActive
         };
         await firstValueFrom(this.driverService.update({ id, driver: updateDto }));
+        this.lastSavedAt.set(new Date());
       } else {
         id = await firstValueFrom(this.driverService.create({ driver: dto }));
         this.driverId.set(id);
@@ -626,6 +844,8 @@ export class DriverWizardFacade {
     if (this.form.get('dateOfBirth')?.hasError('minAge')) errors.push('Driver must be at least 18 years old');
     if (this.form.get('phoneLocal')?.invalid) errors.push('Valid mobile number is required');
     if (this.form.get('email')?.invalid) errors.push('Valid email is required');
+    if (this.form.get('emergencyContactName')?.invalid) errors.push('Emergency contact name is required');
+    if (this.form.get('emergencyContactPhone')?.invalid) errors.push('Valid emergency contact phone is required');
     if (this.form.get('licenseNumber')?.invalid) errors.push('License number is required');
     if (this.form.get('phoneLocal')?.hasError('duplicate')) errors.push('Mobile number is already registered');
     if (this.form.get('email')?.hasError('duplicate')) errors.push('Email is already registered');

@@ -19,7 +19,7 @@ import {
 import { VehicleListItem } from '../../../core/models/vehicle.model';
 import { apiErrorMessage } from '../../../core/utils/api-error.util';
 import { vehicleUploadSizeError, UPLOAD_MAX_SIZE_LABEL } from '../../../core/utils/upload-url.util';
-import { resolveUploadUrl } from '../../../core/utils/upload-url.util';
+import { resolveUploadUrl, resolveDriverPhotoUrl } from '../../../core/utils/upload-url.util';
 import { UiDrawerComponent } from '../../../shared/components/ui/drawer/ui-drawer.component';
 import { UiButtonComponent } from '../../../shared/components/ui/button/ui-button.component';
 import { UiStatusBadgeComponent } from '../../../shared/components/ui/status-badge/ui-status-badge.component';
@@ -103,7 +103,7 @@ export class DriverDetailsDrawerComponent {
   }
 
   photoUrl(d: Driver): string | null {
-    return resolveUploadUrl(d.photoUrl);
+    return resolveDriverPhotoUrl(d.photoUrl);
   }
 
   licenseBadge(d: Driver): { label: string; variant: 'success' | 'warning' | 'error' } {

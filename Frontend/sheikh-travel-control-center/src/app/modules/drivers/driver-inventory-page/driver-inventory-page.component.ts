@@ -2,6 +2,8 @@ import { ChangeDetectionStrategy, Component, computed, inject, model, signal, On
 import { NgClass } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
+import { MatMenuModule } from '@angular/material/menu';
+import { MatButtonModule } from '@angular/material/button';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Subject, forkJoin, catchError, of, switchMap, debounceTime, distinctUntilChanged, EMPTY, map, take } from 'rxjs';
@@ -21,7 +23,7 @@ import { QuickActionsCardComponent } from '../../fleet-management/fleet-dashboar
 import { QuickAction } from '../../fleet-management/fleet-dashboard/fleet-dashboard.model';
 import { DriverTableComponent } from '../components/driver-table/driver-table.component';
 import { DriverDetailsDrawerComponent } from '../driver-details-drawer/driver-details-drawer.component';
-import { EMPTY_DRIVER_FILTERS, DriverFilters, DriverPagination, DEFAULT_DRIVER_PAGE_SIZE, buildDriverKpiCards } from '../models/driver-inventory.model';
+import { EMPTY_DRIVER_FILTERS, DriverFilters, DriverPagination, DEFAULT_DRIVER_PAGE_SIZE, buildDriverKpiGroups, buildOperationsSummary, buildAssignmentCoverage, computeDriverScore, scoreTone } from '../models/driver-inventory.model';
 
 @Component({
   selector: 'app-driver-inventory-page',
@@ -30,6 +32,8 @@ import { EMPTY_DRIVER_FILTERS, DriverFilters, DriverPagination, DEFAULT_DRIVER_P
     NgClass,
     RouterModule,
     MatIconModule,
+    MatMenuModule,
+    MatButtonModule,
     UiButtonComponent,
     UiPageHeaderComponent,
     UiChartComponent,
@@ -67,43 +71,78 @@ export class DriverInventoryPageComponent implements OnInit {
   readonly branchOptions = signal<UiSelectOption[]>([]);
   readonly chartPeriod = signal<'monthly' | 'quarterly' | 'yearly'>('monthly');
 
-  readonly kpiCards = computed(() => buildDriverKpiCards(this.stats()));
+  readonly kpiGroups = computed(() => buildDriverKpiGroups(this.stats()));
+  readonly operationsSummary = computed(() => buildOperationsSummary(this.stats()));
+  readonly assignmentCoverage = computed(() => buildAssignmentCoverage(this.stats()));
 
-  readonly assignmentCoverage = computed(() => {
-    const s = this.stats();
-    const total    = s?.totalDrivers    ?? 0;
-    const assigned = s?.assignedDrivers ?? 0;
+  readonly topDrivers = computed(() =>
+    this.rows()
+      .map(d => ({ driver: d, score: computeDriverScore(d) }))
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 5)
+  );
+
+  readonly incidentSeverity = computed(() => {
+    const urgent = this.complianceDrivers().filter(d => this.isExpiryUrgent(d.licenseExpiryDate)).length;
+    const expiring = this.stats()?.licensesExpiringSoon ?? 0;
+    const expired = this.stats()?.licensesExpired ?? 0;
     return {
-      assignedDrivers:   assigned,
-      unassignedDrivers: Math.max(0, total - assigned)
+      critical: urgent + expired,
+      high: Math.max(0, expiring - urgent),
+      medium: Math.max(0, (this.stats()?.licensesExpiringIn7Days ?? 0) - urgent),
+      low: Math.max(0, (this.stats()?.suspended ?? 0))
     };
   });
 
+  readonly incidentTypes = computed(() => [
+    { label: 'Overspeed', icon: 'speed', tone: 'speed', count: 0 },
+    { label: 'Accidents', icon: 'car_crash', tone: 'accident', count: 0 },
+    { label: 'Complaints', icon: 'feedback', tone: 'complaint', count: this.stats()?.suspended ?? 0 }
+  ]);
+
   readonly feedItems = computed(() =>
-    this.rows().slice(0, 5).map(d => ({
-      id: d.id,
-      name: d.fullName,
-      icon: d.status === DriverStatus.OnTrip    ? 'directions_car'
-          : d.status === DriverStatus.Available  ? 'check_circle'
-          : d.status === DriverStatus.OffDuty    ? 'bedtime'
-          : d.status === DriverStatus.OnLeave    ? 'event_busy'
-          : d.status === DriverStatus.Suspended  ? 'block'
-          : 'person',
-      iconClass: d.status === DriverStatus.OnTrip    ? 'feed-icon--trip'
-               : d.status === DriverStatus.Available  ? 'feed-icon--available'
-               : d.status === DriverStatus.OffDuty    ? 'feed-icon--offduty'
-               : d.status === DriverStatus.OnLeave    ? 'feed-icon--leave'
-               : d.status === DriverStatus.Suspended  ? 'feed-icon--suspended'
-               : 'feed-icon--default',
-      event: d.status === DriverStatus.OnTrip    ? 'started a trip'
-           : d.status === DriverStatus.Available  ? 'is available for dispatch'
-           : d.status === DriverStatus.OffDuty    ? 'went off duty'
-           : d.status === DriverStatus.OnLeave    ? 'is on scheduled leave'
-           : d.status === DriverStatus.Suspended  ? 'has been suspended'
-           : 'updated status',
-      isLive: d.status === DriverStatus.OnTrip,
-      time: 'Recently'
-    }))
+    this.rows().slice(0, 5).map(d => {
+      const licenseAlert = d.licenseExpiringSoon || d.licenseExpired;
+      if (licenseAlert) {
+        return {
+          id: d.id,
+          eventLabel: d.licenseExpired ? 'License Expired' : 'License Expiring',
+          eventDetail: `${d.fullName} · ${this.expiryDescription(d.licenseExpiryDate)}`,
+          icon: 'warning',
+          iconClass: 'feed-icon--warning',
+          isLive: false,
+          time: 'Compliance'
+        };
+      }
+      if (d.assignedVehicleId && d.status === DriverStatus.Available) {
+        return {
+          id: d.id,
+          eventLabel: 'Vehicle Assigned',
+          eventDetail: `${d.fullName} · ${d.assignedVehicleRegistration || d.assignedVehicleCode || 'Vehicle linked'}`,
+          icon: 'directions_car',
+          iconClass: 'feed-icon--trip',
+          isLive: false,
+          time: 'Recently'
+        };
+      }
+      const meta = {
+        [DriverStatus.OnTrip]: { eventLabel: 'Trip Started', icon: 'trip_origin', iconClass: 'feed-icon--trip', isLive: true },
+        [DriverStatus.Available]: { eventLabel: 'Driver Available', icon: 'check_circle', iconClass: 'feed-icon--available', isLive: false },
+        [DriverStatus.OffDuty]: { eventLabel: 'Off Duty', icon: 'bedtime', iconClass: 'feed-icon--offduty', isLive: false },
+        [DriverStatus.OnLeave]: { eventLabel: 'On Leave', icon: 'event_busy', iconClass: 'feed-icon--leave', isLive: false },
+        [DriverStatus.Suspended]: { eventLabel: 'Driver Suspended', icon: 'block', iconClass: 'feed-icon--suspended', isLive: false }
+      }[d.status] ?? { eventLabel: 'Status Update', icon: 'person', iconClass: 'feed-icon--default', isLive: false };
+
+      return {
+        id: d.id,
+        eventLabel: meta.eventLabel,
+        eventDetail: d.fullName,
+        icon: meta.icon,
+        iconClass: meta.iconClass,
+        isLive: meta.isLive,
+        time: meta.isLive ? 'Live now' : 'Recently'
+      };
+    })
   );
 
   private readonly chartSampleData: Record<'monthly' | 'quarterly' | 'yearly', { labels: string[]; safety: number[]; efficiency: number[]; fuel: number[]; trips: number[] }> = {
@@ -142,12 +181,12 @@ export class DriverInventoryPageComponent implements OnInit {
   ];
 
   readonly quickActions: QuickAction[] = [
-    { id: 'add',      label: 'Add Driver',      icon: 'person_add',     route: '/drivers/new' },
-    { id: 'assign',   label: 'Assign Vehicle',  icon: 'directions_car' },
-    { id: 'verify',   label: 'Verify Driver',   icon: 'verified_user' },
-    { id: 'export',   label: 'Generate Report', icon: 'file_download' },
-    { id: 'incident', label: 'Log Incident',    icon: 'report_problem' },
-    { id: 'suspend',  label: 'Suspend Driver',  icon: 'block' },
+    { id: 'add',      label: 'Add Driver',      icon: 'person_add',     route: '/drivers/new', tone: 'green' },
+    { id: 'assign',   label: 'Assign Vehicle',  icon: 'directions_car', tone: 'blue' },
+    { id: 'verify',   label: 'Verify Driver',   icon: 'verified_user',  tone: 'orange' },
+    { id: 'export',   label: 'Generate Report', icon: 'file_download',  tone: 'neutral' },
+    { id: 'incident', label: 'Log Incident',    icon: 'report_problem', tone: 'red' },
+    { id: 'suspend',  label: 'Suspend Driver',  icon: 'block',          tone: 'red' },
   ];
 
   ngOnInit(): void {
@@ -208,8 +247,18 @@ export class DriverInventoryPageComponent implements OnInit {
         verificationStatus: f.verificationStatus === 'ALL' ? undefined : f.verificationStatus
       }),
       stats: this.driverService.getStats().pipe(catchError(() => of(null))),
-      compliance: this.driverService.getAll({ licenseExpiry: 'EXPIRING', pageSize: 5 })
-        .pipe(catchError(() => of(emptyPaged)))
+      compliance: forkJoin({
+        expiring: this.driverService.getAll({ licenseExpiry: 'EXPIRING', pageSize: 5 }).pipe(catchError(() => of(emptyPaged))),
+        expired: this.driverService.getAll({ licenseExpiry: 'EXPIRED', pageSize: 5 }).pipe(catchError(() => of(emptyPaged)))
+      }).pipe(
+        map(({ expiring, expired }) => {
+          const merged = [...expired.items, ...expiring.items]
+            .sort((a, b) => (this.daysUntilExpiry(a.licenseExpiryDate) ?? 999) - (this.daysUntilExpiry(b.licenseExpiryDate) ?? 999))
+            .slice(0, 5);
+          return { ...emptyPaged, items: merged, totalCount: merged.length };
+        }),
+        catchError(() => of(emptyPaged))
+      )
     }).pipe(
       map(payload => ({ ...payload, page: p })),
       catchError(err => {
@@ -331,6 +380,18 @@ export class DriverInventoryPageComponent implements OnInit {
     this.snackBar.open('Export not yet implemented', 'Close', { duration: 2000 });
   }
 
+  importDrivers(): void {
+    this.snackBar.open('Bulk import coming soon', 'Close', { duration: 2000 });
+  }
+
+  bulkAssign(): void {
+    this.onQuickAction('assign');
+  }
+
+  exportExcel(): void {
+    this.exportReport();
+  }
+
   onQuickAction(actionId: string): void {
     switch (actionId) {
       case 'assign': {
@@ -355,6 +416,11 @@ export class DriverInventoryPageComponent implements OnInit {
         this.exportReport();
         break;
     }
+  }
+
+
+  topDriverScoreTone(score: number): 'success' | 'warning' | 'error' {
+    return scoreTone(score);
   }
 
   viewCoverageMap(): void {
