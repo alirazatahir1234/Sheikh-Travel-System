@@ -32,19 +32,24 @@ import { MaintenanceCostTrendPoint } from '../../../../core/models/maintenance.m
     </div>
   `,
   styles: [`
-    .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 1.25rem; }
+    .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 1.25rem; min-width: 0; }
     .card-head { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: 0.75rem; flex-wrap: wrap; }
     h3 { margin: 0; font-size: 1rem; font-weight: 700; color: #0f172a; }
-    .controls { display: flex; gap: 0.5rem; align-items: center; }
-    .periods { display: flex; gap: 0.25rem; }
-    .periods button { border: 1px solid #e2e8f0; background: #fff; border-radius: 6px; padding: 0.25rem 0.5rem; font-size: 0.75rem; cursor: pointer; }
+    .controls { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+    .periods { display: flex; gap: 0.25rem; overflow-x: auto; max-width: 100%; -webkit-overflow-scrolling: touch; }
+    .periods button { border: 1px solid #e2e8f0; background: #fff; border-radius: 6px; padding: 0.25rem 0.5rem; font-size: 0.75rem; cursor: pointer; flex-shrink: 0; white-space: nowrap; }
     .periods button.active { background: #064e3b; color: #fff; border-color: #064e3b; }
-    .toggle { border: 1px solid #e2e8f0; background: #fff; border-radius: 6px; width: 32px; height: 32px; display: grid; place-items: center; cursor: pointer; }
-    .legend { display: flex; gap: 1rem; margin-bottom: 0.75rem; font-size: 0.75rem; color: #64748b; }
+    .toggle { border: 1px solid #e2e8f0; background: #fff; border-radius: 6px; width: 32px; height: 32px; display: grid; place-items: center; cursor: pointer; flex-shrink: 0; }
+    .legend { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; margin-bottom: 0.75rem; font-size: 0.75rem; color: #64748b; }
     .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 0.25rem; }
     .dot--green { background: #047857; }
     .dot--purple { background: #7c3aed; }
     .dot--red { background: #b91c1c; }
+    @media (max-width: 640px) {
+      .card { padding: 1rem; }
+      .card-head { flex-direction: column; align-items: stretch; }
+      .controls { justify-content: space-between; }
+    }
   `]
 })
 export class MaintenanceCostTrendComponent {

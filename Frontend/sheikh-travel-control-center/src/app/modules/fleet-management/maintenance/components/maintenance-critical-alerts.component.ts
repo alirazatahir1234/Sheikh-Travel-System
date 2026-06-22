@@ -36,7 +36,7 @@ import { MaintenanceAlert } from '../../../../core/models/maintenance.model';
     </div>
   `,
   styles: [`
-    .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 1.25rem; }
+    .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 1.25rem; min-width: 0; }
     .card-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; }
     h3 { margin: 0; font-size: 1rem; font-weight: 700; color: #0b6b50; }
     .badge { background: #dc2626; color: #fff; font-size: 0.625rem; font-weight: 700; padding: 0.125rem 0.5rem; border-radius: 999px; }
