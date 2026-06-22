@@ -1,44 +1,395 @@
 <fleet-page-header
   eyebrow="Fleet Management"
-  title="Assignments"
-  subtitle="Assign vehicles and drivers to trips"
+  title="Assignment Management"
+  subtitle="Assign vehicles to drivers, track transfers and maintain assignment history"
   icon="event_available">
-  <button mat-flat-button color="primary">
+  <button class="ab-btn-primary" (click)="openCreate()">
     <mat-icon>add</mat-icon> New Assignment
   </button>
 </fleet-page-header>
 
-<div class="assignment-loading" *ngIf="loading">
-  <mat-progress-spinner mode="indeterminate" diameter="32"></mat-progress-spinner>
+<!-- KPI Cards -->
+<div class="ab-kpi-grid">
+  <div class="ab-kpi-card">
+    <div class="ab-kpi-icon ab-kpi-icon--blue"><mat-icon>assignment</mat-icon></div>
+    <div class="ab-kpi-body">
+      <p class="ab-kpi-label">Total</p>
+      <p class="ab-kpi-value">{{ stats()?.totalAssignments ?? '—' }}</p>
+    </div>
+  </div>
+  <div class="ab-kpi-card">
+    <div class="ab-kpi-icon ab-kpi-icon--green"><mat-icon>check_circle</mat-icon></div>
+    <div class="ab-kpi-body">
+      <p class="ab-kpi-label">Active</p>
+      <p class="ab-kpi-value ab-kpi-value--green">{{ stats()?.activeAssignments ?? '—' }}</p>
+    </div>
+  </div>
+  <div class="ab-kpi-card">
+    <div class="ab-kpi-icon ab-kpi-icon--slate"><mat-icon>task_alt</mat-icon></div>
+    <div class="ab-kpi-body">
+      <p class="ab-kpi-label">Completed</p>
+      <p class="ab-kpi-value">{{ stats()?.completedAssignments ?? '—' }}</p>
+    </div>
+  </div>
+  <div class="ab-kpi-card">
+    <div class="ab-kpi-icon ab-kpi-icon--amber"><mat-icon>directions_car</mat-icon></div>
+    <div class="ab-kpi-body">
+      <p class="ab-kpi-label">Unassigned Vehicles</p>
+      <p class="ab-kpi-value ab-kpi-value--amber">{{ stats()?.unassignedVehicles ?? '—' }}</p>
+    </div>
+  </div>
+  <div class="ab-kpi-card">
+    <div class="ab-kpi-icon ab-kpi-icon--teal"><mat-icon>badge</mat-icon></div>
+    <div class="ab-kpi-body">
+      <p class="ab-kpi-label">Available Drivers</p>
+      <p class="ab-kpi-value ab-kpi-value--teal">{{ stats()?.availableDrivers ?? '—' }}</p>
+    </div>
+  </div>
+  <div class="ab-kpi-card">
+    <div class="ab-kpi-icon ab-kpi-icon--red"><mat-icon>card_membership</mat-icon></div>
+    <div class="ab-kpi-body">
+      <p class="ab-kpi-label">Expiring Licenses</p>
+      <p class="ab-kpi-value ab-kpi-value--red">{{ stats()?.expiringLicenses ?? '—' }}</p>
+    </div>
+  </div>
 </div>
 
-<div class="assignment-table-wrap" *ngIf="!loading && assignments.length">
-  <table class="assignment-table">
+<!-- Filters -->
+<div class="ab-filters">
+  <div class="ab-search-wrap">
+    <mat-icon class="ab-search-icon">search</mat-icon>
+    <input
+      class="ab-search-input"
+      type="text"
+      placeholder="Search assignment no., vehicle, driver…"
+      [value]="filters().search"
+      (input)="updateFilter('search', $any($event.target).value)"
+      (keyup.enter)="applyFilters()" />
+  </div>
+
+  <select class="ab-filter-select" [value]="filters().status" (change)="updateFilter('status', $any($event.target).value); applyFilters()">
+    <option value="">All Status</option>
+    @for (s of ASSIGNMENT_STATUSES; track s) {
+      <option [value]="s">{{ s }}</option>
+    }
+  </select>
+
+  <select class="ab-filter-select" [value]="filters().assignmentType" (change)="updateFilter('assignmentType', $any($event.target).value); applyFilters()">
+    <option value="">All Types</option>
+    @for (t of ASSIGNMENT_TYPES; track t) {
+      <option [value]="t">{{ t }}</option>
+    }
+  </select>
+
+  <input
+    class="ab-filter-date"
+    type="date"
+    [value]="filters().dateFrom"
+    (change)="updateFilter('dateFrom', $any($event.target).value); applyFilters()"
+    title="Start date from" />
+
+  <input
+    class="ab-filter-date"
+    type="date"
+    [value]="filters().dateTo"
+    (change)="updateFilter('dateTo', $any($event.target).value); applyFilters()"
+    title="Start date to" />
+
+  <button class="ab-btn-ghost" (click)="applyFilters()">
+    <mat-icon>filter_list</mat-icon> Apply
+  </button>
+  <button class="ab-btn-ghost" (click)="clearFilters()">
+    <mat-icon>clear</mat-icon>
+  </button>
+</div>
+
+<!-- Table -->
+<div class="ab-table-wrap">
+  <table class="ab-table">
     <thead>
       <tr>
+        <th>Assignment #</th>
         <th>Vehicle</th>
         <th>Driver</th>
         <th>Type</th>
-        <th>Start</th>
-        <th>End</th>
+        <th>Start Date</th>
+        <th>End Date</th>
         <th>Status</th>
+        <th class="ab-th-right">Actions</th>
       </tr>
     </thead>
     <tbody>
-      <tr *ngFor="let row of assignments">
-        <td>{{ row.vehicleName }}</td>
-        <td>{{ row.driverName || '—' }}</td>
-        <td>{{ row.assignmentType }}</td>
-        <td>{{ row.startAt | date: 'short' }}</td>
-        <td>{{ row.endAt ? (row.endAt | date: 'short') : '—' }}</td>
-        <td><fleet-status-badge [status]="row.status"></fleet-status-badge></td>
-      </tr>
+      @if (loading()) {
+        @for (i of [1,2,3,4,5]; track i) {
+          <tr>
+            @for (c of [1,2,3,4,5,6,7,8]; track c) {
+              <td><div class="ab-skeleton"></div></td>
+            }
+          </tr>
+        }
+      } @else if (!assignments().length) {
+        <tr>
+          <td colspan="8">
+            <div class="ab-empty">
+              <mat-icon>event_available</mat-icon>
+              <p>No assignments found</p>
+              <span>Adjust filters or create a new assignment</span>
+            </div>
+          </td>
+        </tr>
+      } @else {
+        @for (row of assignments(); track row.id) {
+          <tr class="ab-row" (click)="openDetail(row)">
+            <td>
+              <span class="ab-assignment-no">{{ row.assignmentNo }}</span>
+            </td>
+            <td>
+              <div class="ab-cell-primary">{{ row.vehicleName }}</div>
+              @if (row.vehicleRegistration) {
+                <div class="ab-cell-sub">{{ row.vehicleRegistration }}</div>
+              }
+            </td>
+            <td>
+              @if (row.driverName) {
+                <div class="ab-cell-primary">{{ row.driverName }}</div>
+                @if (row.driverCode) {
+                  <div class="ab-cell-sub">{{ row.driverCode }}</div>
+                }
+              } @else {
+                <span class="ab-cell-muted">Unassigned</span>
+              }
+            </td>
+            <td>
+              <div class="ab-type-badge">
+                <mat-icon class="ab-type-icon">{{ typeIcon(row.assignmentType) }}</mat-icon>
+                {{ row.assignmentType }}
+              </div>
+            </td>
+            <td class="ab-cell-date">{{ row.startAt | date:'dd MMM yyyy' }}</td>
+            <td class="ab-cell-date">{{ row.endAt ? (row.endAt | date:'dd MMM yyyy') : '—' }}</td>
+            <td>
+              <span class="ab-status-badge ab-status-badge--{{ row.status.toLowerCase() }}">
+                {{ row.status }}
+              </span>
+            </td>
+            <td class="ab-td-actions" (click)="$event.stopPropagation()">
+              @if (row.status === 'Active') {
+                <button class="ab-action-btn" title="Transfer vehicle" (click)="openTransfer(row)">
+                  <mat-icon>swap_horiz</mat-icon>
+                </button>
+                <button class="ab-action-btn" title="Complete" (click)="openDetail(row)">
+                  <mat-icon>task_alt</mat-icon>
+                </button>
+              }
+              <button class="ab-action-btn" title="View detail" (click)="openDetail(row)">
+                <mat-icon>visibility</mat-icon>
+              </button>
+            </td>
+          </tr>
+        }
+      }
     </tbody>
   </table>
 </div>
 
-<div class="assignment-empty" *ngIf="!loading && !assignments.length">
-  <mat-icon>event_available</mat-icon>
-  <p>No active assignments.</p>
-  <span>Assign an available vehicle and driver to a trip to see it here.</span>
-</div>
+<!-- Pagination -->
+@if (!loading() && totalCount() > 0) {
+  <div class="ab-pagination">
+    <span class="ab-pagination-info">
+      Showing {{ rangeStart() }}–{{ rangeEnd() }} of {{ totalCount() }} assignments
+    </span>
+    <div class="ab-pagination-nav">
+      <button class="ab-page-btn" [disabled]="page() <= 1" (click)="goToPage(page() - 1)">
+        <mat-icon>chevron_left</mat-icon>
+      </button>
+      <span class="ab-page-info">{{ page() }} / {{ totalPages() }}</span>
+      <button class="ab-page-btn" [disabled]="page() >= totalPages()" (click)="goToPage(page() + 1)">
+        <mat-icon>chevron_right</mat-icon>
+      </button>
+    </div>
+  </div>
+}
+
+<!-- Side Drawer Overlay -->
+@if (drawerOpen()) {
+  <div class="ab-overlay" (click)="closeDrawer()"></div>
+  <div class="ab-drawer">
+
+    <!-- Create Assignment -->
+    @if (drawerMode() === 'create') {
+      <div class="ab-drawer-header">
+        <h2 class="ab-drawer-title"><mat-icon>add_circle</mat-icon> New Assignment</h2>
+        <button class="ab-drawer-close" (click)="closeDrawer()"><mat-icon>close</mat-icon></button>
+      </div>
+      <div class="ab-drawer-body">
+
+        <div class="ab-form-section">
+          <h4 class="ab-form-section-title"><mat-icon>directions_car</mat-icon> Vehicle</h4>
+          <label class="ab-field">
+            <span class="ab-field-label">Vehicle <span class="ab-required">*</span></span>
+            <select class="ab-select" [value]="form().vehicleId" (change)="updateForm('vehicleId', $any($event.target).value)">
+              <option value="">— Select vehicle —</option>
+              @for (v of vehicles(); track v.id) {
+                <option [value]="v.id">{{ vehicleLabel(v) }}</option>
+              }
+            </select>
+          </label>
+        </div>
+
+        <div class="ab-form-section">
+          <h4 class="ab-form-section-title"><mat-icon>badge</mat-icon> Driver</h4>
+          <label class="ab-field">
+            <span class="ab-field-label">Driver <span class="ab-required">*</span></span>
+            <select class="ab-select" [value]="form().driverId" (change)="updateForm('driverId', $any($event.target).value)">
+              <option value="">— Select driver —</option>
+              @for (d of drivers(); track d.id) {
+                <option [value]="d.id">{{ d.fullName }}{{ d.driverCode ? ' · ' + d.driverCode : '' }}</option>
+              }
+            </select>
+          </label>
+        </div>
+
+        <div class="ab-form-section">
+          <h4 class="ab-form-section-title"><mat-icon>info</mat-icon> Assignment Details</h4>
+
+          <label class="ab-field">
+            <span class="ab-field-label">Assignment Type <span class="ab-required">*</span></span>
+            <select class="ab-select" [value]="form().assignmentType" (change)="updateForm('assignmentType', $any($event.target).value)">
+              <option value="Permanent">Permanent</option>
+              <option value="Temporary">Temporary</option>
+              <option value="Trip">Trip</option>
+            </select>
+          </label>
+
+          <div class="ab-date-row">
+            <label class="ab-field">
+              <span class="ab-field-label">Start Date <span class="ab-required">*</span></span>
+              <input class="ab-input" type="date" [value]="form().startDate" (change)="updateForm('startDate', $any($event.target).value)" />
+            </label>
+            <label class="ab-field">
+              <span class="ab-field-label">End Date <span class="ab-opt">(optional)</span></span>
+              <input class="ab-input" type="date" [value]="form().endDate" (change)="updateForm('endDate', $any($event.target).value)" />
+            </label>
+          </div>
+
+          <label class="ab-field">
+            <span class="ab-field-label">Reason <span class="ab-opt">(optional)</span></span>
+            <input class="ab-input" type="text" placeholder="e.g. Airport transfer team" [value]="form().reason" (input)="updateForm('reason', $any($event.target).value)" />
+          </label>
+
+          <label class="ab-field">
+            <span class="ab-field-label">Notes <span class="ab-opt">(optional)</span></span>
+            <textarea class="ab-textarea" rows="2" placeholder="Additional notes…" [value]="form().notes" (input)="updateForm('notes', $any($event.target).value)"></textarea>
+          </label>
+        </div>
+      </div>
+      <div class="ab-drawer-footer">
+        <button class="ab-btn-ghost" (click)="closeDrawer()">Cancel</button>
+        <button class="ab-btn-primary" [disabled]="saving() || !form().vehicleId || !form().driverId" (click)="saveCreate()">
+          @if (saving()) { <mat-icon class="ab-spin">sync</mat-icon> } @else { <mat-icon>check</mat-icon> }
+          Create Assignment
+        </button>
+      </div>
+    }
+
+    <!-- Transfer Assignment -->
+    @if (drawerMode() === 'transfer') {
+      <div class="ab-drawer-header">
+        <h2 class="ab-drawer-title"><mat-icon>swap_horiz</mat-icon> Transfer Assignment</h2>
+        <button class="ab-drawer-close" (click)="closeDrawer()"><mat-icon>close</mat-icon></button>
+      </div>
+      <div class="ab-drawer-body">
+        <div class="ab-current-card">
+          <p class="ab-current-label">Current Assignment</p>
+          <p class="ab-current-vehicle">{{ selectedAssignment()?.vehicleName }}</p>
+          <p class="ab-current-driver">{{ selectedAssignment()?.driverName || 'No driver' }}</p>
+        </div>
+
+        <div class="ab-form-section">
+          <h4 class="ab-form-section-title"><mat-icon>directions_car</mat-icon> New Vehicle</h4>
+          <label class="ab-field">
+            <span class="ab-field-label">Select New Vehicle <span class="ab-required">*</span></span>
+            <select class="ab-select" [value]="transferForm().newVehicleId" (change)="updateTransferForm('newVehicleId', $any($event.target).value)">
+              <option value="">— Select vehicle —</option>
+              @for (v of vehicles(); track v.id) {
+                <option [value]="v.id" [disabled]="v.id === selectedAssignment()?.vehicleId">
+                  {{ vehicleLabel(v) }}{{ v.id === selectedAssignment()?.vehicleId ? ' (current)' : '' }}
+                </option>
+              }
+            </select>
+          </label>
+          <label class="ab-field">
+            <span class="ab-field-label">Reason</span>
+            <input class="ab-input" type="text" placeholder="e.g. Maintenance, Breakdown…" [value]="transferForm().reason" (input)="updateTransferForm('reason', $any($event.target).value)" />
+          </label>
+          <label class="ab-field">
+            <span class="ab-field-label">Notes</span>
+            <textarea class="ab-textarea" rows="2" [value]="transferForm().notes" (input)="updateTransferForm('notes', $any($event.target).value)"></textarea>
+          </label>
+        </div>
+      </div>
+      <div class="ab-drawer-footer">
+        <button class="ab-btn-ghost" (click)="closeDrawer()">Cancel</button>
+        <button class="ab-btn-primary" [disabled]="saving() || !transferForm().newVehicleId" (click)="saveTransfer()">
+          @if (saving()) { <mat-icon class="ab-spin">sync</mat-icon> } @else { <mat-icon>swap_horiz</mat-icon> }
+          Transfer
+        </button>
+      </div>
+    }
+
+    <!-- Detail / Actions -->
+    @if (drawerMode() === 'detail') {
+      @if (selectedAssignment(); as a) {
+        <div class="ab-drawer-header">
+          <h2 class="ab-drawer-title"><mat-icon>assignment</mat-icon> {{ a.assignmentNo }}</h2>
+          <button class="ab-drawer-close" (click)="closeDrawer()"><mat-icon>close</mat-icon></button>
+        </div>
+        <div class="ab-drawer-body">
+          <span class="ab-status-badge ab-status-badge--{{ a.status.toLowerCase() }} ab-status-lg">{{ a.status }}</span>
+
+          <dl class="ab-detail-grid">
+            <div><dt>Vehicle</dt><dd>{{ a.vehicleName }}</dd></div>
+            <div><dt>Plate</dt><dd>{{ a.vehicleRegistration || '—' }}</dd></div>
+            <div><dt>Driver</dt><dd>{{ a.driverName || '—' }}</dd></div>
+            <div><dt>Type</dt><dd>{{ a.assignmentType }}</dd></div>
+            <div><dt>Start</dt><dd>{{ a.startAt | date:'dd MMM yyyy' }}</dd></div>
+            <div><dt>End</dt><dd>{{ a.endAt ? (a.endAt | date:'dd MMM yyyy') : '—' }}</dd></div>
+            <div class="ab-detail-full"><dt>Reason</dt><dd>{{ a.reason || '—' }}</dd></div>
+            <div class="ab-detail-full"><dt>Notes</dt><dd>{{ a.notes || '—' }}</dd></div>
+            <div><dt>Created By</dt><dd>{{ a.createdBy || '—' }}</dd></div>
+            <div><dt>Created</dt><dd>{{ a.createdAt | date:'dd MMM yyyy' }}</dd></div>
+          </dl>
+
+          @if (a.status === 'Active') {
+            <div class="ab-actions-section">
+              <h4 class="ab-form-section-title"><mat-icon>manage_accounts</mat-icon> Close Assignment</h4>
+              <label class="ab-field">
+                <span class="ab-field-label">Reason <span class="ab-opt">(optional)</span></span>
+                <input class="ab-input" type="text" placeholder="Reason for completing or cancelling…"
+                  [value]="actionReason()"
+                  (input)="actionReason.set($any($event.target).value)" />
+              </label>
+              <div class="ab-close-actions">
+                <button class="ab-btn-success" [disabled]="saving()" (click)="completeAssignment(a)">
+                  <mat-icon>task_alt</mat-icon> Complete
+                </button>
+                <button class="ab-btn-danger" [disabled]="saving()" (click)="cancelAssignment(a)">
+                  <mat-icon>cancel</mat-icon> Cancel
+                </button>
+              </div>
+            </div>
+          }
+        </div>
+        <div class="ab-drawer-footer">
+          <button class="ab-btn-ghost" (click)="closeDrawer()">Close</button>
+          @if (a.status === 'Active') {
+            <button class="ab-btn-outline" (click)="openTransfer(a)">
+              <mat-icon>swap_horiz</mat-icon> Transfer Vehicle
+            </button>
+          }
+        </div>
+      }
+    }
+
+  </div>
+}

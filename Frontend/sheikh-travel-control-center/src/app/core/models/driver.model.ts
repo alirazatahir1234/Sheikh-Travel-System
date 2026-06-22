@@ -113,6 +113,10 @@ export interface DriverListItem {
   assignedVehicleId?: number | null;
   assignedVehicleCode?: string | null;
   assignedVehicleRegistration?: string | null;
+  assignedVehicleName?: string | null;
+  assignedVehicleMake?: string | null;
+  assignedVehicleModel?: string | null;
+  assignedVehicleColor?: string | null;
   rating?: number | null;
   gpsOnline?: boolean;
   availabilityBucket?: string | null;
@@ -148,6 +152,10 @@ export interface Driver {
   assignedVehicleId?: number | null;
   assignedVehicleCode?: string | null;
   assignedVehicleRegistration?: string | null;
+  assignedVehicleName?: string | null;
+  assignedVehicleMake?: string | null;
+  assignedVehicleModel?: string | null;
+  assignedVehicleColor?: string | null;
   status: DriverStatus;
   isActive: boolean;
   rating?: number | null;
@@ -239,6 +247,9 @@ export interface AssignDriverVehicleRequest {
   vehicleId: number;
   bookingId?: number | null;
   assignmentType?: string | null;
+  remarks?: string | null;
+  effectiveFrom?: string | null;
+  effectiveTo?: string | null;
 }
 
 export interface DriverAvailability {
@@ -268,11 +279,17 @@ export interface DriverAssignment {
   vehicleId: number;
   vehicleRegistration?: string | null;
   vehicleCode?: string | null;
+  vehicleName?: string | null;
+  vehicleMake?: string | null;
+  vehicleModel?: string | null;
+  vehicleColor?: string | null;
   assignmentType: string;
   status: string;
   startAt: string;
   endAt?: string | null;
   bookingId?: number | null;
+  assignedBy?: string | null;
+  remarks?: string | null;
 }
 
 export interface DriverPerformanceSummary {
@@ -324,6 +341,9 @@ export interface TransferDriverVehicleRequest {
   newVehicleId: number;
   bookingId?: number | null;
   assignmentType?: string | null;
+  remarks?: string | null;
+  effectiveFrom?: string | null;
+  effectiveTo?: string | null;
 }
 
 export function driverDisplayName(d: Pick<DriverListItem | Driver, 'firstName' | 'lastName' | 'fullName'>): string {

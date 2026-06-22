@@ -113,11 +113,11 @@ public class AssignVehicleDriverCommandHandler(
             driverRow.VerificationStatus,
             driverRow.LicenseExpiry);
 
-        await connection.ExecuteAsync(new CommandDefinition(
-            @"UPDATE AssignmentHistory SET Status = N'Completed', EndAt = GETUTCDATE()
-              WHERE DriverId = @DriverId AND TenantId = @TenantId AND Status = N'Active' AND IsDeleted = 0",
-            new { body.DriverId, TenantId = tenantId },
-            cancellationToken: cancellationToken));
+        await DriverAssignmentValidation.EnsureDriverNotOnActiveTripAsync(
+            connection, tenantId, body.DriverId, cancellationToken);
+
+        await DriverAssignmentValidation.CompleteActiveAssignmentsAsync(
+            connection, tenantId, body.DriverId, request.Id, transaction: null, cancellationToken);
 
         if (body.BookingId is int bookingId)
         {

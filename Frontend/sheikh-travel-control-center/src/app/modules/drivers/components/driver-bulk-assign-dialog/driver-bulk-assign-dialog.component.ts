@@ -1,6 +1,7 @@
-import { ChangeDetectionStrategy, Component, inject, model, output, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, inject, model, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { catchError, forkJoin, of } from 'rxjs';
 import { DriverService } from '../../../../core/services/driver.service';
 import { VehicleService } from '../../../../core/services/vehicle.service';
@@ -16,16 +17,16 @@ import { UiSelectOption } from '../../../../shared/components/ui/types/ui.types'
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <ui-modal [(open)]="open" title="Bulk assign vehicle" size="md">
-      <p class="hint">Assign one vehicle to multiple unassigned drivers. Drivers with an active assignment are skipped.</p>
+      <p class="hint">Assign the selected vehicle to one driver at a time. Each driver must be unassigned and verified.</p>
       <ui-select class="block" label="Vehicle" [options]="vehicleOptions()" [(ngModel)]="selectedVehicleId" [required]="true" />
       <div class="driver-list">
-        <p class="list-label">Drivers</p>
+        <p class="list-label">Driver</p>
         @if (driverOptions().length === 0) {
           <p class="empty">No unassigned drivers found.</p>
         } @else {
           @for (opt of driverOptions(); track opt.value) {
             <label class="driver-row">
-              <input type="checkbox" [value]="opt.value" [checked]="isSelected(opt.value)" (change)="toggleDriver(opt.value, $any($event.target).checked)" />
+              <input type="radio" name="bulkAssignDriver" [value]="opt.value" [checked]="selectedDriverId() === opt.value" (change)="selectedDriverId.set(opt.value)" />
               <span>{{ opt.label }}</span>
             </label>
           }
@@ -36,9 +37,9 @@ import { UiSelectOption } from '../../../../shared/components/ui/types/ui.types'
         <ui-button
           variant="primary"
           [loading]="submitting()"
-          [disabled]="!selectedVehicleId || selectedDriverIds().length === 0 || submitting()"
+          [disabled]="!selectedVehicleId || !selectedDriverId() || submitting()"
           (clicked)="submit()">
-          Assign {{ selectedDriverIds().length || '' }} driver(s)
+          Assign driver
         </ui-button>
       </div>
     </ui-modal>
@@ -55,24 +56,25 @@ export class DriverBulkAssignDialogComponent {
   private readonly driverService = inject(DriverService);
   private readonly vehicleService = inject(VehicleService);
   private readonly snackBar = inject(MatSnackBar);
+  private readonly destroyRef = inject(DestroyRef);
 
   readonly open = model(false);
   readonly assigned = output<void>();
 
   readonly vehicleOptions = signal<UiSelectOption[]>([]);
   readonly driverOptions = signal<UiSelectOption[]>([]);
-  readonly selectedDriverIds = signal<string[]>([]);
+  readonly selectedDriverId = signal<string | null>(null);
   readonly submitting = signal(false);
 
   selectedVehicleId: string | null = null;
 
   show(): void {
     this.selectedVehicleId = null;
-    this.selectedDriverIds.set([]);
+    this.selectedDriverId.set(null);
     forkJoin({
       drivers: this.driverService.getAll({ page: 1, pageSize: 500 }).pipe(catchError(() => of({ items: [] }))),
       vehicles: this.vehicleService.getAll(1, 500).pipe(catchError(() => of({ items: [] })))
-    }).subscribe(({ drivers, vehicles }) => {
+    }).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(({ drivers, vehicles }) => {
       this.driverOptions.set(
         drivers.items
           .filter(d => !d.assignedVehicleId && d.isActive !== false)
@@ -88,34 +90,24 @@ export class DriverBulkAssignDialogComponent {
     this.open.set(true);
   }
 
-  isSelected(id: string): boolean {
-    return this.selectedDriverIds().includes(id);
-  }
-
-  toggleDriver(id: string, checked: boolean): void {
-    this.selectedDriverIds.update(ids => checked ? [...ids, id] : ids.filter(x => x !== id));
-  }
-
   submit(): void {
     const vehicleId = Number(this.selectedVehicleId);
-    const driverIds = this.selectedDriverIds().map(Number).filter(Number.isFinite);
-    if (!vehicleId || driverIds.length === 0) return;
+    const driverId = Number(this.selectedDriverId());
+    if (!vehicleId || !Number.isFinite(driverId)) return;
 
     this.submitting.set(true);
-    forkJoin(
-      driverIds.map(id =>
-        this.driverService.assignVehicle(id, { vehicleId }).pipe(catchError(err => of({ error: err, id })))
-      )
-    ).subscribe(results => {
-      this.submitting.set(false);
-      const failed = results.filter((r: unknown) => r && typeof r === 'object' && 'error' in (r as object)).length;
-      const ok = driverIds.length - failed;
-      if (ok > 0) {
-        this.snackBar.open(`Assigned ${ok} driver(s) to vehicle`, 'Close', { duration: 3000 });
+    this.driverService.assignVehicle(driverId, { vehicleId }).pipe(
+      takeUntilDestroyed(this.destroyRef)
+    ).subscribe({
+      next: () => {
+        this.submitting.set(false);
+        this.snackBar.open('Vehicle assigned to driver', 'Close', { duration: 3000 });
         this.assigned.emit();
         this.open.set(false);
-      } else {
-        this.snackBar.open('Assignment failed for all selected drivers', 'Close', { duration: 3500 });
+      },
+      error: () => {
+        this.submitting.set(false);
+        this.snackBar.open('Assignment failed', 'Close', { duration: 3500 });
       }
     });
   }

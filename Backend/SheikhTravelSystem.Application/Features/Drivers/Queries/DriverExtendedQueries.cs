@@ -113,7 +113,9 @@ public class GetDriverAssignmentsQueryHandler(IDbConnectionFactory dbFactory, IT
         var items = (await connection.QueryAsync<DriverAssignmentDto>(
             new CommandDefinition(
                 @"SELECT ah.Id, ah.VehicleId, v.RegistrationNumber AS VehicleRegistration, v.VehicleCode,
-                         ah.AssignmentType, ah.Status, ah.StartAt, ah.EndAt, ah.BookingId
+                         v.Name AS VehicleName, v.Make AS VehicleMake, v.Model AS VehicleModel, v.Color AS VehicleColor,
+                         ah.AssignmentType, ah.Status, ah.StartAt, ah.EndAt, ah.BookingId,
+                         ah.CreatedBy AS AssignedBy, ah.Notes AS Remarks
                   FROM AssignmentHistory ah
                   INNER JOIN Vehicles v ON v.Id = ah.VehicleId AND v.IsDeleted = 0
                   WHERE ah.DriverId = @DriverId AND ah.TenantId = @TenantId AND ah.IsDeleted = 0

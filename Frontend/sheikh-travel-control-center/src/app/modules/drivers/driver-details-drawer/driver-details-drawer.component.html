@@ -75,47 +75,148 @@
       }
       @case ('vehicle') {
         <div class="panel space-y-4">
-          <p class="text-sm">Current: <strong>{{ d.assignedVehicleRegistration || d.assignedVehicleCode || 'Unassigned' }}</strong></p>
-          <label class="field-block">
-            <span class="field-label">Assign vehicle</span>
-            <select class="w-full rounded-md border border-fleet-border px-3 py-2 text-sm" [value]="assignVehicleId()" (change)="assignVehicleId.set(+$any($event.target).value)">
-              <option value="">Select vehicle…</option>
-              @for (v of vehicles(); track v.id) {
-                <option [value]="v.id">{{ v.registrationNumber }} · {{ v.vehicleCode || v.name }}</option>
-              }
-            </select>
-          </label>
-          <div class="actions-row">
-            <ui-button variant="primary" (clicked)="assignVehicle()">Assign Vehicle</ui-button>
+
+          <div class="vehicle-assignment-card">
+            <div class="vehicle-assignment-header">
+              <h4 class="vehicle-section-title">
+                <mat-icon>directions_car</mat-icon>
+                Vehicle Assignment
+              </h4>
+              <ui-status-badge
+                [status]="driverStatusBadge(d).label"
+                [variant]="driverStatusBadge(d).variant" />
+            </div>
+
+            <!-- Current vehicle -->
+            <div class="vehicle-current-card" [class.vehicle-current-card--assigned]="d.assignedVehicleId">
+              <div class="vehicle-current-icon">
+                <mat-icon>{{ d.assignedVehicleId ? 'directions_car' : 'no_transfer' }}</mat-icon>
+              </div>
+              <div class="vehicle-current-info">
+                <p class="vehicle-current-label">Current Vehicle</p>
+                @if (d.assignedVehicleId) {
+                  <p class="vehicle-current-reg">{{ currentVehiclePrimary(d) }}</p>
+                  @if (currentVehicleModelLine(d); as modelLine) {
+                    <p class="vehicle-current-sub">{{ modelLine }}</p>
+                  }
+                  @if (d.assignedVehicleColor) {
+                    <p class="vehicle-current-sub">{{ d.assignedVehicleColor }}</p>
+                  }
+                  @if (d.assignedVehicleRegistration && d.assignedVehicleRegistration !== currentVehiclePrimary(d)) {
+                    <p class="vehicle-current-sub">{{ d.assignedVehicleRegistration }}</p>
+                  }
+                } @else {
+                  <p class="vehicle-current-reg vehicle-current-reg--empty">No vehicle assigned</p>
+                }
+              </div>
+            </div>
+
             @if (d.assignedVehicleId) {
-              <ui-button variant="outline" (clicked)="unassignVehicle()">Remove Assignment</ui-button>
+              <button type="button" class="vehicle-remove-btn" (click)="removeAssignment()">
+                <mat-icon>link_off</mat-icon>
+                Remove Assignment
+              </button>
+            }
+
+            <div class="vehicle-divider"></div>
+
+            <!-- Assign / Change -->
+            <div class="vehicle-assign-section">
+              <h4 class="vehicle-section-title">
+                <mat-icon>{{ d.assignedVehicleId ? 'swap_horiz' : 'add_circle' }}</mat-icon>
+                {{ d.assignedVehicleId ? 'Change Vehicle' : 'Assign Vehicle' }}
+              </h4>
+
+              <ui-select
+                label="Select vehicle"
+                placeholder="Select vehicle…"
+                [searchable]="true"
+                searchPlaceholder="Search by code, plate, or model…"
+                [options]="vehicleSelectOptions()"
+                [(ngModel)]="selectedVehicleId" />
+
+              <div class="vehicle-date-grid">
+                <label class="field-block">
+                  <span class="field-label">Effective from</span>
+                  <input
+                    type="date"
+                    class="veh-date-input"
+                    [value]="assignEffectiveFrom()"
+                    (input)="assignEffectiveFrom.set($any($event.target).value)" />
+                </label>
+                <label class="field-block">
+                  <span class="field-label">Effective to <span class="field-optional">(optional)</span></span>
+                  <input
+                    type="date"
+                    class="veh-date-input"
+                    [value]="assignEffectiveTo()"
+                    (input)="assignEffectiveTo.set($any($event.target).value)" />
+                </label>
+              </div>
+
+              <label class="field-block">
+                <span class="field-label">Remarks <span class="field-optional">(optional)</span></span>
+                <textarea
+                  class="veh-remarks"
+                  rows="2"
+                  placeholder="e.g. Assigned for airport transfer team"
+                  [value]="assignVehicleRemarks()"
+                  (input)="assignVehicleRemarks.set($any($event.target).value)"></textarea>
+              </label>
+
+              <div class="actions-row">
+                <ui-button
+                  variant="primary"
+                  [disabled]="!canSubmitVehicleChange()"
+                  (clicked)="submitVehicleChange()">
+                  {{ d.assignedVehicleId ? 'Transfer Vehicle' : 'Assign Vehicle' }}
+                </ui-button>
+              </div>
+              @if (!selectedVehicleId) {
+                <p class="vehicle-hint">Select a vehicle first to enable assignment</p>
+              }
+            </div>
+
+            <!-- Assignment History -->
+            @if (assignmentTimeline().length) {
+              <div class="vehicle-divider"></div>
+              <div>
+                <h4 class="vehicle-section-title">
+                  <mat-icon>history</mat-icon>
+                  Assignment History
+                </h4>
+                <ul class="assignment-timeline">
+                  @for (entry of assignmentTimeline(); track entry.assignment.id) {
+                    <li class="assignment-timeline-item">
+                      <div class="assignment-timeline-dot" [class.assignment-timeline-dot--active]="entry.isActive"></div>
+                      <div class="assignment-timeline-body">
+                        <div class="assignment-timeline-header">
+                          <span class="assignment-timeline-date">{{ entry.date | date:'dd MMM yyyy' }}</span>
+                          <span class="assignment-timeline-status" [class.assignment-timeline-status--active]="entry.isActive">
+                            {{ assignmentStatusLabel(entry.assignment) }}
+                          </span>
+                        </div>
+                        <p class="assignment-timeline-action">{{ entry.action }} {{ entry.detail }}</p>
+                        <dl class="assignment-detail-grid">
+                          <div><dt>Vehicle</dt><dd>{{ assignmentVehicleLabel(entry.assignment) }}</dd></div>
+                          <div><dt>Assigned by</dt><dd>{{ entry.assignment.assignedBy || '—' }}</dd></div>
+                          <div><dt>Assigned date</dt><dd>{{ entry.assignment.startAt | date:'mediumDate' }}</dd></div>
+                          <div><dt>End date</dt><dd>{{ entry.assignment.endAt ? (entry.assignment.endAt | date:'mediumDate') : '—' }}</dd></div>
+                          <div><dt>Type</dt><dd>{{ entry.assignment.assignmentType || '—' }}</dd></div>
+                          <div><dt>Status</dt><dd>{{ assignmentStatusLabel(entry.assignment) }}</dd></div>
+                          @if (entry.assignment.remarks) {
+                            <div class="assignment-detail-remarks"><dt>Remarks</dt><dd>{{ entry.assignment.remarks }}</dd></div>
+                          }
+                        </dl>
+                      </div>
+                    </li>
+                  }
+                </ul>
+              </div>
+            } @else {
+              <p class="text-sm text-fleet-text-muted text-center py-2">No assignment history</p>
             }
           </div>
-          @if (d.assignedVehicleId) {
-            <label class="field-block">
-              <span class="field-label">Transfer to</span>
-              <select class="w-full rounded-md border border-fleet-border px-3 py-2 text-sm" [value]="transferVehicleId()" (change)="transferVehicleId.set(+$any($event.target).value)">
-                <option value="">Select new vehicle…</option>
-                @for (v of vehicles(); track v.id) {
-                  <option [value]="v.id">{{ v.registrationNumber }} · {{ v.vehicleCode || v.name }}</option>
-                }
-              </select>
-              <ui-button class="mt-2" variant="outline" (clicked)="transferVehicle()">Transfer Vehicle</ui-button>
-            </label>
-          }
-          @if (assignments().length) {
-            <div>
-              <h4 class="font-semibold mb-2">Assignment History</h4>
-              <ul class="timeline-list">
-                @for (a of assignments(); track a.id) {
-                  <li>
-                    <strong>{{ a.vehicleRegistration || a.vehicleCode }}</strong>
-                    <span class="block text-xs text-fleet-text-muted">{{ a.assignmentType }} · {{ a.status }} · {{ a.startAt | date:'medium' }}</span>
-                  </li>
-                }
-              </ul>
-            </div>
-          }
         </div>
       }
       @case ('verification') {

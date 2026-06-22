@@ -37,6 +37,10 @@ internal static class DriverSql
         av.VehicleId AS AssignedVehicleId,
         av.VehicleCode AS AssignedVehicleCode,
         av.RegistrationNumber AS AssignedVehicleRegistration,
+        av.VehicleName AS AssignedVehicleName,
+        av.VehicleMake AS AssignedVehicleMake,
+        av.VehicleModel AS AssignedVehicleModel,
+        av.VehicleColor AS AssignedVehicleColor,
         d.Rating,
         {GpsOnlineFlag},
         {AvailabilityBucketColumn},
@@ -48,7 +52,8 @@ internal static class DriverSql
         LEFT JOIN Branches b ON b.Id = d.BranchId AND b.IsActive = 1
         LEFT JOIN Departments dep ON dep.Id = d.DepartmentId AND dep.IsActive = 1
         OUTER APPLY (
-            SELECT TOP 1 v.Id AS VehicleId, v.VehicleCode, v.RegistrationNumber, v.GpsDeviceId
+            SELECT TOP 1 v.Id AS VehicleId, v.VehicleCode, v.RegistrationNumber, v.GpsDeviceId,
+                   v.Name AS VehicleName, v.Make AS VehicleMake, v.Model AS VehicleModel, v.Color AS VehicleColor
             FROM AssignmentHistory ah
             INNER JOIN Vehicles v ON v.Id = ah.VehicleId AND v.IsDeleted = 0
             WHERE ah.DriverId = d.Id AND ah.IsDeleted = 0 AND ah.Status = N'Active'
@@ -66,6 +71,8 @@ internal static class DriverSql
         d.BranchId, b.Name AS BranchName, d.DepartmentId, dep.Name AS DepartmentName,
         av.VehicleId AS AssignedVehicleId, av.VehicleCode AS AssignedVehicleCode,
         av.RegistrationNumber AS AssignedVehicleRegistration,
+        av.VehicleName AS AssignedVehicleName, av.VehicleMake AS AssignedVehicleMake,
+        av.VehicleModel AS AssignedVehicleModel, av.VehicleColor AS AssignedVehicleColor,
         d.Status, d.IsActive, d.Rating, d.YearsExperience,
         {GpsOnlineFlag},
         {AvailabilityBucketColumn},
@@ -77,7 +84,8 @@ internal static class DriverSql
         LEFT JOIN Branches b ON b.Id = d.BranchId AND b.IsActive = 1
         LEFT JOIN Departments dep ON dep.Id = d.DepartmentId AND dep.IsActive = 1
         OUTER APPLY (
-            SELECT TOP 1 v.Id AS VehicleId, v.VehicleCode, v.RegistrationNumber, v.GpsDeviceId
+            SELECT TOP 1 v.Id AS VehicleId, v.VehicleCode, v.RegistrationNumber, v.GpsDeviceId,
+                   v.Name AS VehicleName, v.Make AS VehicleMake, v.Model AS VehicleModel, v.Color AS VehicleColor
             FROM AssignmentHistory ah
             INNER JOIN Vehicles v ON v.Id = ah.VehicleId AND v.IsDeleted = 0
             WHERE ah.DriverId = d.Id AND ah.IsDeleted = 0 AND ah.Status = N'Active'

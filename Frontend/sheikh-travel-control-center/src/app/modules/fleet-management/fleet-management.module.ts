@@ -30,14 +30,14 @@ const routes: Routes = [
     FleetLayoutComponent,
     FleetDashboardComponent,
     ComplianceDashboardComponent,
-    InspectionListComponent,
-    AssignmentBoardComponent
+    InspectionListComponent
   ],
   imports: [
     SharedModule,
     FleetUiModule,
     UiModule,
     FleetDashboardContentComponent,
+    AssignmentBoardComponent,
     RouterModule.forChild(routes)
   ]
 })

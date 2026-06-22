@@ -4,7 +4,7 @@ import { Router, RouterModule } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatButtonModule } from '@angular/material/button';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Subject, forkJoin, catchError, of, switchMap, debounceTime, distinctUntilChanged, EMPTY, map, take } from 'rxjs';
 import { ChartData, ChartOptions } from 'chart.js';
@@ -54,7 +54,7 @@ export class DriverInventoryPageComponent implements OnInit {
   private readonly driverService = inject(DriverService);
   private readonly platformService = inject(PlatformService);
   private readonly confirm = inject(UiConfirmService);
-  private readonly snackBar = inject(MatSnackBar);
+  private readonly toast = inject(UiToastService);
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
   private readonly reload$ = new Subject<void>();
@@ -378,13 +378,13 @@ export class DriverInventoryPageComponent implements OnInit {
 
     this.driverService.delete(row.id).pipe(take(1)).subscribe({
       next: () => {
-        this.snackBar.open('Driver deleted', 'Close', { duration: 2000 });
+        this.toast.success('Driver deleted');
         if (this.selectedDriverId() === row.id) {
           this.onDrawerClosed();
         }
         this.load();
       },
-      error: err => this.snackBar.open(apiErrorMessage(err, 'Delete failed'), 'Close', { duration: 3000 })
+      error: err => this.toast.error(apiErrorMessage(err, 'Delete failed'))
     });
   }
 
@@ -403,11 +403,11 @@ export class DriverInventoryPageComponent implements OnInit {
   }
 
   exportReport(): void {
-    this.snackBar.open('Export not yet implemented', 'Close', { duration: 2000 });
+    this.toast.info('Export not yet implemented');
   }
 
   importDrivers(): void {
-    this.snackBar.open('Bulk import coming soon', 'Close', { duration: 2000 });
+    this.toast.info('Bulk import coming soon');
   }
 
   bulkAssign(): void {
@@ -426,7 +426,7 @@ export class DriverInventoryPageComponent implements OnInit {
           this.openDrawer(first);
           return;
         }
-        this.snackBar.open('Select a driver from the table to assign a vehicle', 'Close', { duration: 3000 });
+        this.toast.warning('Select a driver from the table to assign a vehicle');
         break;
       }
       case 'verify': {
@@ -435,7 +435,7 @@ export class DriverInventoryPageComponent implements OnInit {
           this.openDrawer(pending);
           return;
         }
-        this.snackBar.open('All drivers are verified', 'Close', { duration: 2500 });
+        this.toast.info('All drivers are verified');
         break;
       }
       case 'export':
@@ -444,26 +444,26 @@ export class DriverInventoryPageComponent implements OnInit {
       case 'suspend': {
         const target = this.rows().find(d => d.status !== DriverStatus.Suspended);
         if (!target) {
-          this.snackBar.open('No active driver to suspend in current view', 'Close', { duration: 2500 });
+          this.toast.warning('No active driver to suspend in current view');
           break;
         }
         this.driverService.changeStatus(target.id, DriverStatus.Suspended).subscribe({
           next: () => {
-            this.snackBar.open(`${target.fullName} suspended`, 'Close', { duration: 2500 });
+            this.toast.warning(`${target.fullName} suspended`);
             this.load();
           },
-          error: err => this.snackBar.open(apiErrorMessage(err, 'Suspend failed'), 'Close', { duration: 3000 })
+          error: err => this.toast.error(apiErrorMessage(err, 'Suspend failed'))
         });
         break;
       }
       case 'incident': {
         const target = this.rows()[0];
         if (!target) {
-          this.snackBar.open('No drivers in current view', 'Close', { duration: 2500 });
+          this.toast.warning('No drivers in current view');
           break;
         }
         this.openDrawer(target);
-        this.snackBar.open('Open Performance tab to log an incident', 'Close', { duration: 3000 });
+        this.toast.info('Open Performance tab to log an incident');
         break;
       }
     }
@@ -475,6 +475,6 @@ export class DriverInventoryPageComponent implements OnInit {
   }
 
   viewCoverageMap(): void {
-    this.snackBar.open('Coverage map coming soon', 'Close', { duration: 2000 });
+    this.toast.info('Coverage map coming soon');
   }
 }

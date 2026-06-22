@@ -36,9 +36,9 @@ public class GetDriverPerformanceSummaryQueryHandler(IDbConnectionFactory dbFact
                     SUM(CASE WHEN Status = @Completed THEN 1 ELSE 0 END) AS Completed,
                     ISNULL(SUM(CASE WHEN Status = @Completed THEN TotalAmount ELSE 0 END), 0) AS Revenue
                   FROM Bookings
-                  WHERE DriverId = @DriverId AND IsDeleted = 0
+                  WHERE DriverId = @DriverId AND TenantId = @TenantId AND IsDeleted = 0
                     AND PickupTime >= @From AND PickupTime <= @To",
-                new { request.DriverId, From = from, To = to, Completed = (int)Domain.Enums.BookingStatus.Completed },
+                new { request.DriverId, TenantId = tenantId, From = from, To = to, Completed = (int)Domain.Enums.BookingStatus.Completed },
                 cancellationToken: cancellationToken));
 
         var violations = await connection.ExecuteScalarAsync<int>(

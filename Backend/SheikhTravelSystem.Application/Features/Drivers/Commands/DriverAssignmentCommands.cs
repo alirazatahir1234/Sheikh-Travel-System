@@ -37,12 +37,11 @@ public class UnassignDriverVehicleCommandHandler(IDbConnectionFactory dbFactory,
         if (!exists)
             throw new NotFoundException("Driver", request.DriverId);
 
-        var rows = await connection.ExecuteAsync(
-            new CommandDefinition(
-                @"UPDATE AssignmentHistory SET Status = N'Completed', EndAt = GETUTCDATE()
-                  WHERE DriverId = @DriverId AND TenantId = @TenantId AND Status = N'Active' AND IsDeleted = 0",
-                new { request.DriverId, TenantId = tenantId },
-                cancellationToken: cancellationToken));
+        await DriverAssignmentValidation.EnsureDriverNotOnActiveTripAsync(
+            connection, tenantId, request.DriverId, cancellationToken);
+
+        var rows = await DriverAssignmentValidation.CompleteActiveAssignmentsAsync(
+            connection, tenantId, request.DriverId, vehicleId: null, transaction: null, cancellationToken);
 
         return ApiResponse<bool>.SuccessResponse(true, rows > 0 ? "Vehicle assignment removed." : "No active assignment to remove.");
     }
@@ -65,20 +64,17 @@ public class TransferDriverVehicleCommandValidator : AbstractValidator<TransferD
     }
 }
 
-public class TransferDriverVehicleCommandHandler(
-    IDbConnectionFactory dbFactory,
-    ITenantContext tenantContext,
-    IMediator mediator)
+public class TransferDriverVehicleCommandHandler(IMediator mediator)
     : IRequestHandler<TransferDriverVehicleCommand, ApiResponse<int>>
 {
-    public async Task<ApiResponse<int>> Handle(TransferDriverVehicleCommand request, CancellationToken cancellationToken)
-    {
-        await mediator.Send(new UnassignDriverVehicleCommand(request.DriverId), cancellationToken);
-        return await mediator.Send(
+    public Task<ApiResponse<int>> Handle(TransferDriverVehicleCommand request, CancellationToken cancellationToken)
+        => mediator.Send(
             new AssignDriverVehicleCommand(request.DriverId, new AssignDriverVehicleRequest(
                 request.Body.NewVehicleId,
                 request.Body.BookingId,
-                request.Body.AssignmentType ?? "Transfer")),
+                request.Body.AssignmentType ?? "Transfer",
+                request.Body.Remarks,
+                request.Body.EffectiveFrom,
+                request.Body.EffectiveTo)),
             cancellationToken);
-    }
 }

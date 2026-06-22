@@ -26,6 +26,10 @@ public record DriverListItemDto(
     int? AssignedVehicleId,
     string? AssignedVehicleCode,
     string? AssignedVehicleRegistration,
+    string? AssignedVehicleName,
+    string? AssignedVehicleMake,
+    string? AssignedVehicleModel,
+    string? AssignedVehicleColor,
     decimal? Rating,
     bool GpsOnline,
     string? AvailabilityBucket,
@@ -60,6 +64,10 @@ public record DriverDto(
     int? AssignedVehicleId,
     string? AssignedVehicleCode,
     string? AssignedVehicleRegistration,
+    string? AssignedVehicleName,
+    string? AssignedVehicleMake,
+    string? AssignedVehicleModel,
+    string? AssignedVehicleColor,
     DriverStatus Status,
     bool IsActive,
     decimal? Rating,
@@ -132,7 +140,13 @@ public record DriverTimelineEventDto(
     string? Description,
     DateTime OccurredAt);
 
-public record AssignDriverVehicleRequest(int VehicleId, int? BookingId = null, string? AssignmentType = null);
+public record AssignDriverVehicleRequest(
+    int VehicleId,
+    int? BookingId = null,
+    string? AssignmentType = null,
+    string? Remarks = null,
+    DateTime? EffectiveFrom = null,
+    DateTime? EffectiveTo = null);
 
 public record UpdateDriverVerificationRequest(string VerificationStatus);
 
@@ -143,18 +157,30 @@ public record DriverAvailabilityDto(
     bool EmailAvailable,
     bool LicenseAvailable);
 
-public record TransferDriverVehicleRequest(int NewVehicleId, int? BookingId = null, string? AssignmentType = null);
+public record TransferDriverVehicleRequest(
+    int NewVehicleId,
+    int? BookingId = null,
+    string? AssignmentType = null,
+    string? Remarks = null,
+    DateTime? EffectiveFrom = null,
+    DateTime? EffectiveTo = null);
 
 public record DriverAssignmentDto(
     int Id,
     int VehicleId,
     string? VehicleRegistration,
     string? VehicleCode,
+    string? VehicleName,
+    string? VehicleMake,
+    string? VehicleModel,
+    string? VehicleColor,
     string AssignmentType,
     string Status,
     DateTime StartAt,
     DateTime? EndAt,
-    int? BookingId);
+    int? BookingId,
+    string? AssignedBy,
+    string? Remarks);
 
 public record DriversAvailabilitySummaryDto(
     int Available,

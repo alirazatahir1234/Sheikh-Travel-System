@@ -27,6 +27,10 @@ public class UpdateDocumentStatusCommandValidator : AbstractValidator<UpdateDocu
         RuleFor(x => x.DocumentId).GreaterThan(0);
         RuleFor(x => x.Status).Must(s => AllowedStatuses.Contains(s))
             .WithMessage("Status must be 'Approved' or 'Rejected'.");
+        RuleFor(x => x.RejectionReason)
+            .NotEmpty()
+            .MaximumLength(500)
+            .When(x => string.Equals(x.Status, "Rejected", StringComparison.OrdinalIgnoreCase));
     }
 }
 
