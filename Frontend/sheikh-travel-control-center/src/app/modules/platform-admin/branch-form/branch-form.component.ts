@@ -1,8 +1,8 @@
 import { Component, OnInit } from '@angular/core';
 import { FormBuilder, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { forkJoin } from 'rxjs';
+import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
 import { PlatformService } from '../../../core/services/platform.service';
 import { LookupService } from '../../../core/services/lookup.service';
 import { UserService } from '../../../core/services/user.service';
@@ -46,7 +46,7 @@ export class BranchFormComponent implements OnInit {
     private platform: PlatformService,
     private lookup: LookupService,
     private userService: UserService,
-    private snackBar: MatSnackBar
+    private toast: UiToastService
   ) {
     this.form = this.fb.group({
       branchCode: ['', [Validators.required, Validators.maxLength(50)]],
@@ -91,7 +91,7 @@ export class BranchFormComponent implements OnInit {
         next: ({ branches, users, branch }) => this.initForm(branches, users.items, branch),
         error: () => {
           this.loading = false;
-          this.snackBar.open('Failed to load branch.', 'Close', { duration: 4000 });
+          this.toast.error('Failed to load branch.');
           void this.router.navigate(['/platform/branches']);
         }
       });
@@ -100,7 +100,7 @@ export class BranchFormComponent implements OnInit {
         next: ({ branches, users }) => this.initForm(branches, users.items),
         error: () => {
           this.loading = false;
-          this.snackBar.open('Failed to load form data.', 'Close', { duration: 4000 });
+          this.toast.error('Failed to load form data.');
         }
       });
     }
@@ -157,7 +157,7 @@ export class BranchFormComponent implements OnInit {
   submit(): void {
     if (this.form.invalid) {
       this.form.markAllAsTouched();
-      this.snackBar.open('Please fix validation errors before saving.', 'Close', { duration: 3000 });
+      this.toast.error('Please fix validation errors before saving.');
       return;
     }
     if (this.saving) return;
@@ -180,13 +180,13 @@ export class BranchFormComponent implements OnInit {
 
   private onSaveSuccess(isEdit: boolean): void {
     this.saving = false;
-    this.snackBar.open(isEdit ? 'Branch updated.' : 'Branch created.', 'Close', { duration: 2500 });
+    this.toast.success(isEdit ? 'Branch updated.' : 'Branch created.');
     void this.router.navigate(['/platform/branches']);
   }
 
   private onSaveError(err: unknown): void {
     this.saving = false;
-    this.snackBar.open(apiErrorMessage(err, 'Save failed.'), 'Close', { duration: 4000 });
+    this.toast.error(apiErrorMessage(err, 'Save failed.'));
   }
 
   private buildPayload(): BranchPayload {

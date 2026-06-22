@@ -1,8 +1,8 @@
 import { Component, OnInit, AfterViewInit, ViewChild, ElementRef, OnDestroy, NgZone } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { HttpErrorResponse } from '@angular/common/http';
+import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
 import { forkJoin, Observable } from 'rxjs';
 import { FuelLogService } from '../../../core/services/fuel-log.service';
 import { VehicleService } from '../../../core/services/vehicle.service';
@@ -45,7 +45,7 @@ export class FuelLogFormComponent implements OnInit, AfterViewInit, OnDestroy {
     private mapsLoader: GoogleMapsLoaderService,
     private router: Router,
     private route: ActivatedRoute,
-    private snackBar: MatSnackBar,
+    private toast: UiToastService,
     private ngZone: NgZone
   ) {
     this.form = this.fb.group({
@@ -85,7 +85,7 @@ export class FuelLogFormComponent implements OnInit, AfterViewInit, OnDestroy {
       },
       error: () => {
         this.loading = false;
-        this.snackBar.open('Failed to load data.', 'Close', { duration: 3000 });
+        this.toast.error('Failed to load data.');
       }
     });
   }
@@ -107,7 +107,7 @@ export class FuelLogFormComponent implements OnInit, AfterViewInit, OnDestroy {
       },
       error: () => {
         this.loading = false;
-        this.snackBar.open('Failed to load fuel log.', 'Close', { duration: 3000 });
+        this.toast.error('Failed to load fuel log.');
         this.router.navigate(['/fuel-logs']);
       }
     });
@@ -186,12 +186,12 @@ export class FuelLogFormComponent implements OnInit, AfterViewInit, OnDestroy {
       next: () => {
         this.submitting = false;
         const msg = this.editMode ? 'Fuel log updated successfully.' : 'Fuel log recorded successfully.';
-        this.snackBar.open(msg, 'Close', { duration: 2000 });
+        this.toast.success(msg);
         this.router.navigate(['/fuel-logs']);
       },
       error: (err: HttpErrorResponse) => {
         this.submitting = false;
-        this.snackBar.open(this.extractError(err), 'Close', { duration: 4000 });
+        this.toast.error(this.extractError(err));
       }
     });
   }

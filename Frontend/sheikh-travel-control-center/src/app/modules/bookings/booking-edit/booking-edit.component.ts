@@ -2,8 +2,8 @@ import { Component, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ActivatedRoute, Router } from '@angular/router';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { forkJoin, of } from 'rxjs';
+import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
 import { catchError } from 'rxjs/operators';
 import { BookingService } from '../../../core/services/booking.service';
 import { RouteService } from '../../../core/services/route.service';
@@ -53,7 +53,7 @@ export class BookingEditComponent implements OnInit {
     private vehicleService: VehicleService,
     private driverService: DriverService,
     private paymentService: PaymentService,
-    private snackBar: MatSnackBar
+    private toast: UiToastService
   ) {
     this.form = this.fb.group({
       customerId: [null, Validators.required],
@@ -105,7 +105,7 @@ export class BookingEditComponent implements OnInit {
       },
       error: () => {
         this.loading = false;
-        this.snackBar.open('Failed to load booking data.', 'Close', { duration: 3000 });
+        this.toast.error('Failed to load booking data.');
         this.router.navigate(['/bookings']);
       }
     });
@@ -160,7 +160,7 @@ export class BookingEditComponent implements OnInit {
     this.bookingService.update(this.bookingId, { booking: dto }).subscribe({
       next: () => {
         this.submitting = false;
-        this.snackBar.open('Booking updated successfully.', 'Close', { duration: 2000 });
+        this.toast.success('Booking updated successfully.');
         this.router.navigate(['/bookings', this.bookingId]);
       },
       error: (err: HttpErrorResponse) => {
@@ -168,7 +168,7 @@ export class BookingEditComponent implements OnInit {
         const message =
           (err.error && typeof err.error === 'object' && 'message' in err.error && (err.error as { message?: string }).message) ||
           'Failed to update booking.';
-        this.snackBar.open(message, 'Close', { duration: 3500 });
+        this.toast.success(message);
       }
     });
   }

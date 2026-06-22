@@ -3,7 +3,6 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { AbstractControl, FormBuilder, FormGroup, ValidationErrors, Validators } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Router } from '@angular/router';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { firstValueFrom } from 'rxjs';
 import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
 import { DriverService } from '../../../../core/services/driver.service';
@@ -22,6 +21,7 @@ import { dateInputToIso, toDateInputValue, todayDateInputValue, parseApiDate, fo
 import { apiErrorMessage } from '../../../../core/utils/api-error.util';
 import { vehicleUploadSizeError, resolveDriverPhotoUrl, resolveUploadUrl } from '../../../../core/utils/upload-url.util';
 import { UiSelectOption } from '../../../../shared/components/ui/types/ui.types';
+import { UiToastService } from '../../../../shared/components/ui/toast/ui-toast.service';
 import {
   DRIVER_DOC_SLOTS,
   DRIVER_WIZARD_DRAFT_KEY,
@@ -84,7 +84,7 @@ export class DriverWizardFacade {
   private readonly driverService = inject(DriverService);
   private readonly platformService = inject(PlatformService);
   private readonly router = inject(Router);
-  private readonly snackBar = inject(MatSnackBar);
+  private readonly toast = inject(UiToastService);
   private readonly destroyRef = inject(DestroyRef);
 
   readonly steps = DRIVER_WIZARD_STEPS;
@@ -409,7 +409,7 @@ export class DriverWizardFacade {
         },
         error: () => {
           this.loading.set(false);
-          this.snackBar.open('Failed to load driver', 'Close', { duration: 3000 });
+          this.toast.error('Failed to load driver');
           void this.router.navigate(['/drivers']);
         }
       });
@@ -681,7 +681,7 @@ export class DriverWizardFacade {
       }
     }
 
-    if (!valid) this.snackBar.open('Please fix validation errors', 'Close', { duration: 2500 });
+    if (!valid) this.toast.error('Please fix validation errors');
     return valid;
   }
 
@@ -709,7 +709,7 @@ export class DriverWizardFacade {
     if (!file) return;
     const sizeError = vehicleUploadSizeError(file);
     if (sizeError) {
-      this.snackBar.open(sizeError, 'Close', { duration: 3000 });
+      this.toast.error(sizeError);
       return;
     }
     this.photoFile.set(file);
@@ -727,7 +727,7 @@ export class DriverWizardFacade {
     if (!file) return;
     const sizeError = vehicleUploadSizeError(file);
     if (sizeError) {
-      this.snackBar.open(sizeError, 'Close', { duration: 3000 });
+      this.toast.error(sizeError);
       return;
     }
     this.docSlots.update(slots =>
@@ -749,7 +749,7 @@ export class DriverWizardFacade {
       };
       localStorage.setItem(DRIVER_WIZARD_DRAFT_KEY, JSON.stringify(draft));
       this.lastSavedAt.set(new Date());
-      this.snackBar.open('Draft saved', 'Close', { duration: 2000 });
+      this.toast.success('Draft saved');
     } finally {
       this.draftSaving.set(false);
     }
@@ -821,7 +821,7 @@ export class DriverWizardFacade {
     this.attemptedSubmit.set(true);
     this.form.markAllAsTouched();
     if (!(await this.validateAllSteps())) {
-      this.snackBar.open('Please complete required fields', 'Close', { duration: 3000 });
+      this.toast.warning('Please complete required fields');
       return;
     }
 
@@ -863,13 +863,13 @@ export class DriverWizardFacade {
         this.loadDriverDocuments(id);
       }
 
-      this.snackBar.open(this.isEditMode() ? 'Driver updated' : 'Driver registered', 'Close', { duration: 2500 });
+      this.toast.success(this.isEditMode() ? 'Driver updated' : 'Driver registered');
       if (!this.isEditMode()) {
         void this.router.navigate(['/drivers']);
       }
     } catch (err) {
       this.applyConflictFromError(err);
-      this.snackBar.open(apiErrorMessage(err, 'Save failed'), 'Close', { duration: 4000 });
+      this.toast.error(apiErrorMessage(err, 'Save failed'));
     } finally {
       this.saving.set(false);
     }

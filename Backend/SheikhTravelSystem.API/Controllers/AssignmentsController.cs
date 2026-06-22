@@ -20,6 +20,21 @@ public class AssignmentsController : BaseApiController
         => Ok(await Mediator.Send(new GetAssignmentStatsQuery()));
 
     [RequirePermission(DriverPermissions.DriverView)]
+    [HttpGet("calendar")]
+    public async Task<IActionResult> GetCalendar([FromQuery] GetAssignmentCalendarQuery query)
+        => Ok(await Mediator.Send(query));
+
+    [RequirePermission(DriverPermissions.DriverView)]
+    [HttpGet("utilization-report")]
+    public async Task<IActionResult> GetUtilizationReport()
+        => Ok(await Mediator.Send(new GetAssignmentUtilizationReportQuery()));
+
+    [RequirePermission(DriverPermissions.DriverView)]
+    [HttpPost("validate")]
+    public async Task<IActionResult> Validate([FromBody] ValidateAssignmentRequest body)
+        => Ok(await Mediator.Send(new ValidateAssignmentQuery(body)));
+
+    [RequirePermission(DriverPermissions.DriverView)]
     [HttpGet("{id:int}/changelog")]
     public async Task<IActionResult> GetChangelog(int id)
         => Ok(await Mediator.Send(new GetAssignmentChangelogQuery(id)));
@@ -43,4 +58,24 @@ public class AssignmentsController : BaseApiController
     [HttpPost("{id:int}/cancel")]
     public async Task<IActionResult> Cancel(int id, [FromBody] CancelAssignmentRequest body)
         => Ok(await Mediator.Send(new CancelAssignmentCommand(id, body)));
+
+    [RequirePermission(DriverPermissions.DriverAssign)]
+    [HttpPost("{id:int}/approve")]
+    public async Task<IActionResult> Approve(int id, [FromBody] ApproveAssignmentRequest body)
+        => Ok(await Mediator.Send(new ApproveAssignmentCommand(id, body)));
+
+    [RequirePermission(DriverPermissions.DriverAssign)]
+    [HttpPost("{id:int}/reject")]
+    public async Task<IActionResult> Reject(int id, [FromBody] RejectAssignmentRequest body)
+        => Ok(await Mediator.Send(new RejectAssignmentCommand(id, body)));
+
+    [RequirePermission(DriverPermissions.DriverAssign)]
+    [HttpPost("bulk-complete")]
+    public async Task<IActionResult> BulkComplete([FromBody] BulkAssignmentIdsRequest body)
+        => Ok(await Mediator.Send(new BulkCompleteAssignmentsCommand(body)));
+
+    [RequirePermission(DriverPermissions.DriverAssign)]
+    [HttpPost("bulk-cancel")]
+    public async Task<IActionResult> BulkCancel([FromBody] BulkAssignmentIdsRequest body)
+        => Ok(await Mediator.Send(new BulkCancelAssignmentsCommand(body)));
 }

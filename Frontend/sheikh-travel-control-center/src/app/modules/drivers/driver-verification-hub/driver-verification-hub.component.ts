@@ -10,7 +10,7 @@ import {
 import { DatePipe, NgClass, PercentPipe } from '@angular/common';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { forkJoin, catchError, of } from 'rxjs';
 
@@ -97,7 +97,7 @@ export class DriverVerificationHubComponent implements OnInit {
   private readonly router = inject(Router);
   private readonly driverService = inject(DriverService);
   private readonly ocrService = inject(OcrService);
-  private readonly snackBar = inject(MatSnackBar);
+  private readonly toast = inject(UiToastService);
   private readonly destroyRef = inject(DestroyRef);
 
   // ── State ────────────────────────────────────────────────────────────────
@@ -199,7 +199,7 @@ export class DriverVerificationHubComponent implements OnInit {
       },
       error: () => {
         this.loading.set(false);
-        this.snackBar.open('Failed to load driver details', 'Close', { duration: 3000 });
+        this.toast.error('Failed to load driver details');
       }
     });
   }
@@ -221,24 +221,24 @@ export class DriverVerificationHubComponent implements OnInit {
   startReview(): void {
     this.saving.set(true);
     this.driverService.startReview(this.driverId).subscribe({
-      next: () => { this.snackBar.open('Review started', 'Close', { duration: 2000 }); this.load(); },
-      error: err => { this.saving.set(false); this.snackBar.open(apiErrorMessage(err, 'Failed'), 'Close', { duration: 3000 }); }
+      next: () => { this.toast.success('Review started'); this.load(); },
+      error: err => { this.saving.set(false); this.toast.error(apiErrorMessage(err, 'Failed')); }
     });
   }
 
   approveAll(): void {
     this.saving.set(true);
     this.driverService.updateVerification(this.driverId, 'Verified').subscribe({
-      next: () => { this.snackBar.open('Driver verified ✓', 'Close', { duration: 2500 }); this.load(); },
-      error: err => { this.saving.set(false); this.snackBar.open(apiErrorMessage(err, 'Failed'), 'Close', { duration: 3000 }); }
+      next: () => { this.toast.success('Driver verified ✓'); this.load(); },
+      error: err => { this.saving.set(false); this.toast.error(apiErrorMessage(err, 'Failed')); }
     });
   }
 
   rejectDriver(): void {
     this.saving.set(true);
     this.driverService.updateVerification(this.driverId, 'Rejected').subscribe({
-      next: () => { this.snackBar.open('Driver rejected', 'Close', { duration: 2500 }); this.load(); },
-      error: err => { this.saving.set(false); this.snackBar.open(apiErrorMessage(err, 'Failed'), 'Close', { duration: 3000 }); }
+      next: () => { this.toast.success('Driver rejected'); this.load(); },
+      error: err => { this.saving.set(false); this.toast.error(apiErrorMessage(err, 'Failed')); }
     });
   }
 
@@ -246,8 +246,8 @@ export class DriverVerificationHubComponent implements OnInit {
   approveDoc(slot: DocSlot): void {
     if (!slot.doc) return;
     this.driverService.updateDocumentStatus(this.driverId, slot.doc.id, { status: 'Approved' }).subscribe({
-      next: () => { this.snackBar.open(`${slot.label} approved`, 'Close', { duration: 2000 }); this.load(); },
-      error: err => this.snackBar.open(apiErrorMessage(err, 'Failed'), 'Close', { duration: 3000 })
+      next: () => { this.toast.success(`${slot.label} approved`); this.load(); },
+      error: err => this.toast.error(apiErrorMessage(err, 'Failed'))
     });
   }
 
@@ -269,8 +269,8 @@ export class DriverVerificationHubComponent implements OnInit {
       status: 'Rejected',
       rejectionReason: slot.rejectReason || null
     }).subscribe({
-      next: () => { this.snackBar.open(`${slot.label} rejected`, 'Close', { duration: 2000 }); this.load(); },
-      error: err => this.snackBar.open(apiErrorMessage(err, 'Failed'), 'Close', { duration: 3000 })
+      next: () => { this.toast.success(`${slot.label} rejected`); this.load(); },
+      error: err => this.toast.error(apiErrorMessage(err, 'Failed'))
     });
   }
 
@@ -305,12 +305,12 @@ export class DriverVerificationHubComponent implements OnInit {
 
     this.driverService.uploadDocument(this.driverId, slot.type, file, expiryDate).subscribe({
       next: () => {
-        this.snackBar.open(`${slot.label} uploaded`, 'Close', { duration: 2000 });
+        this.toast.success(`${slot.label} uploaded`);
         this.runOcr(slot, file);
         this.load();
         input.value = '';
       },
-      error: err => this.snackBar.open(apiErrorMessage(err, 'Upload failed'), 'Close', { duration: 3000 })
+      error: err => this.toast.error(apiErrorMessage(err, 'Upload failed'))
     });
   }
 
@@ -351,7 +351,7 @@ export class DriverVerificationHubComponent implements OnInit {
       },
       error: err => {
         this.savingNote.set(false);
-        this.snackBar.open(apiErrorMessage(err, 'Failed to save note'), 'Close', { duration: 3000 });
+        this.toast.error(apiErrorMessage(err, 'Failed to save note'));
       }
     });
   }

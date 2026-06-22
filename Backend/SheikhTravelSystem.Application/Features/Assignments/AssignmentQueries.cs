@@ -2,6 +2,7 @@ using Dapper;
 using MediatR;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Interfaces;
+using SheikhTravelSystem.Domain.Enums;
 
 namespace SheikhTravelSystem.Application.Features.Assignments;
 
@@ -13,6 +14,8 @@ public record ListAssignmentsQuery(
     string? AssignmentType = null,
     int? VehicleId = null,
     int? DriverId = null,
+    int? BranchId = null,
+    int? DepartmentId = null,
     DateTime? DateFrom = null,
     DateTime? DateTo = null)
     : IRequest<ApiResponse<PagedResult<AssignmentListItemDto>>>;
@@ -21,6 +24,17 @@ public record GetAssignmentStatsQuery : IRequest<ApiResponse<AssignmentStatsDto>
 
 public record GetAssignmentChangelogQuery(int AssignmentId) : IRequest<ApiResponse<IReadOnlyList<AssignmentChangelogDto>>>;
 
+public record ValidateAssignmentQuery(ValidateAssignmentRequest Body) : IRequest<ApiResponse<AssignmentValidationResultDto>>;
+
+public record GetAssignmentCalendarQuery(
+    DateTime From,
+    DateTime To,
+    string View = "vehicles",
+    int? BranchId = null)
+    : IRequest<ApiResponse<IReadOnlyList<AssignmentCalendarItemDto>>>;
+
+public record GetAssignmentUtilizationReportQuery : IRequest<ApiResponse<AssignmentUtilizationReportDto>>;
+
 public class ListAssignmentsQueryHandler(IDbConnectionFactory dbFactory, ITenantContext tenantContext)
     : IRequestHandler<ListAssignmentsQuery, ApiResponse<PagedResult<AssignmentListItemDto>>>
 {
@@ -28,41 +42,18 @@ public class ListAssignmentsQueryHandler(IDbConnectionFactory dbFactory, ITenant
     {
         var tenantId = tenantContext.GetRequiredTenantId();
         using var connection = dbFactory.CreateConnection();
-
         var offset = (Math.Max(1, request.Page) - 1) * request.PageSize;
-
         var filter = BuildFilter(request, tenantId);
 
         var countSql = $"""
             SELECT COUNT(*)
-            FROM AssignmentHistory a
-            INNER JOIN Vehicles v ON a.VehicleId = v.Id
-            LEFT JOIN Drivers d ON a.DriverId = d.Id
+            {AssignmentSql.ListFrom}
             WHERE {filter.Condition}
             """;
 
         var dataSql = $"""
-            SELECT
-                a.Id,
-                ISNULL(a.AssignmentNo, CONCAT(N'ASN-', RIGHT(CONCAT(N'000000', CAST(a.Id AS NVARCHAR)), 6))) AS AssignmentNo,
-                a.VehicleId,
-                v.Name AS VehicleName,
-                v.RegistrationNumber AS VehicleRegistration,
-                v.VehicleCode,
-                a.DriverId,
-                d.FullName AS DriverName,
-                d.DriverCode,
-                a.AssignmentType,
-                a.Status,
-                a.StartAt,
-                a.EndAt,
-                a.Reason,
-                a.Notes,
-                a.CreatedBy,
-                a.CreatedAt
-            FROM AssignmentHistory a
-            INNER JOIN Vehicles v ON a.VehicleId = v.Id
-            LEFT JOIN Drivers d ON a.DriverId = d.Id
+            SELECT {AssignmentSql.ListSelect}
+            {AssignmentSql.ListFrom}
             WHERE {filter.Condition}
             ORDER BY a.StartAt DESC
             OFFSET {offset} ROWS FETCH NEXT {request.PageSize} ROWS ONLY
@@ -74,14 +65,13 @@ public class ListAssignmentsQueryHandler(IDbConnectionFactory dbFactory, ITenant
         var rows = await connection.QueryAsync<AssignmentListItemDto>(
             new CommandDefinition(dataSql, filter.Params, cancellationToken: cancellationToken));
 
-        return ApiResponse<PagedResult<AssignmentListItemDto>>.SuccessResponse(
-            new PagedResult<AssignmentListItemDto>
-            {
-                Items = rows.ToList(),
-                TotalCount = totalCount,
-                Page = request.Page,
-                PageSize = request.PageSize
-            });
+        return ApiResponse<PagedResult<AssignmentListItemDto>>.SuccessResponse(new PagedResult<AssignmentListItemDto>
+        {
+            Items = rows.ToList(),
+            TotalCount = totalCount,
+            Page = request.Page,
+            PageSize = request.PageSize
+        });
     }
 
     private static (string Condition, object Params) BuildFilter(ListAssignmentsQuery q, int tenantId)
@@ -92,8 +82,16 @@ public class ListAssignmentsQueryHandler(IDbConnectionFactory dbFactory, ITenant
 
         if (!string.IsNullOrWhiteSpace(q.Status))
         {
-            clauses.Add("a.Status = @Status");
-            p["Status"] = q.Status.Trim();
+            var status = q.Status.Trim();
+            if (status.Equals("Overdue", StringComparison.OrdinalIgnoreCase))
+                clauses.Add("a.Status = N'Active' AND a.EndAt IS NOT NULL AND a.EndAt < GETUTCDATE()");
+            else if (status.Equals("Assigned", StringComparison.OrdinalIgnoreCase))
+                clauses.Add("a.Status = N'Active' AND a.StartAt > GETUTCDATE()");
+            else
+            {
+                clauses.Add("a.Status = @Status");
+                p["Status"] = status;
+            }
         }
 
         if (!string.IsNullOrWhiteSpace(q.AssignmentType))
@@ -112,6 +110,18 @@ public class ListAssignmentsQueryHandler(IDbConnectionFactory dbFactory, ITenant
         {
             clauses.Add("a.DriverId = @DriverId");
             p["DriverId"] = q.DriverId.Value;
+        }
+
+        if (q.BranchId.HasValue)
+        {
+            clauses.Add("(v.BranchId = @BranchId OR d.BranchId = @BranchId)");
+            p["BranchId"] = q.BranchId.Value;
+        }
+
+        if (q.DepartmentId.HasValue)
+        {
+            clauses.Add("(v.DepartmentId = @DepartmentId OR d.DepartmentId = @DepartmentId)");
+            p["DepartmentId"] = q.DepartmentId.Value;
         }
 
         if (q.DateFrom.HasValue)
@@ -147,18 +157,56 @@ public class GetAssignmentStatsQueryHandler(IDbConnectionFactory dbFactory, ITen
         var dto = await connection.QuerySingleAsync<AssignmentStatsDto>(new CommandDefinition("""
             SELECT
                 (SELECT COUNT(*) FROM AssignmentHistory WHERE IsDeleted = 0 AND TenantId = @TenantId) AS TotalAssignments,
-                (SELECT COUNT(*) FROM AssignmentHistory WHERE IsDeleted = 0 AND TenantId = @TenantId AND Status = N'Active') AS ActiveAssignments,
+                (SELECT COUNT(*) FROM AssignmentHistory WHERE IsDeleted = 0 AND TenantId = @TenantId AND Status IN (N'Active', N'Scheduled')) AS ActiveAssignments,
                 (SELECT COUNT(*) FROM AssignmentHistory WHERE IsDeleted = 0 AND TenantId = @TenantId AND Status = N'Completed') AS CompletedAssignments,
                 (SELECT COUNT(*) FROM AssignmentHistory WHERE IsDeleted = 0 AND TenantId = @TenantId AND Status = N'Cancelled') AS CancelledAssignments,
                 (SELECT COUNT(*) FROM Vehicles WHERE IsDeleted = 0 AND TenantId = @TenantId AND Status <> 5
-                    AND Id NOT IN (SELECT VehicleId FROM AssignmentHistory WHERE IsDeleted = 0 AND TenantId = @TenantId AND Status = N'Active')) AS UnassignedVehicles,
+                    AND Id NOT IN (SELECT VehicleId FROM AssignmentHistory WHERE IsDeleted = 0 AND TenantId = @TenantId AND Status IN (N'Active', N'Scheduled'))) AS UnassignedVehicles,
+                (SELECT COUNT(*) FROM Vehicles WHERE IsDeleted = 0 AND TenantId = @TenantId AND Status = 1
+                    AND Id NOT IN (SELECT VehicleId FROM AssignmentHistory WHERE IsDeleted = 0 AND TenantId = @TenantId AND Status IN (N'Active', N'Scheduled'))) AS AvailableVehicles,
                 (SELECT COUNT(*) FROM Drivers WHERE IsDeleted = 0 AND TenantId = @TenantId AND IsActive = 1 AND Status = 1
-                    AND Id NOT IN (SELECT DriverId FROM AssignmentHistory WHERE IsDeleted = 0 AND TenantId = @TenantId AND Status = N'Active' AND DriverId IS NOT NULL)) AS AvailableDrivers,
+                    AND Id NOT IN (SELECT DriverId FROM AssignmentHistory WHERE IsDeleted = 0 AND TenantId = @TenantId AND Status IN (N'Active', N'Scheduled') AND DriverId IS NOT NULL)) AS AvailableDrivers,
                 (SELECT COUNT(*) FROM Drivers WHERE IsDeleted = 0 AND TenantId = @TenantId AND IsActive = 1
-                    AND LicenseExpiryDate IS NOT NULL AND LicenseExpiryDate <= DATEADD(DAY, 30, GETUTCDATE())) AS ExpiringLicenses
-            """, new { TenantId = tenantId }, cancellationToken: cancellationToken));
+                    AND LicenseExpiryDate IS NOT NULL AND LicenseExpiryDate <= DATEADD(DAY, 30, GETUTCDATE())) AS ExpiringLicenses,
+                (SELECT COUNT(*) FROM Bookings WHERE IsDeleted = 0 AND TenantId = @TenantId AND Status = @Started) AS OngoingTrips,
+                (SELECT COUNT(*) FROM AssignmentHistory WHERE IsDeleted = 0 AND TenantId = @TenantId
+                    AND (Status = N'Scheduled' OR (Status = N'Active' AND StartAt BETWEEN GETUTCDATE() AND DATEADD(hour, 24, GETUTCDATE())))) AS UpcomingAssignments,
+                (SELECT COUNT(*) FROM AssignmentHistory WHERE IsDeleted = 0 AND TenantId = @TenantId
+                    AND Status = N'Active' AND EndAt IS NOT NULL AND EndAt < GETUTCDATE()) AS OverdueReturns,
+                (SELECT COUNT(*) FROM (
+                    SELECT v.Id FROM Vehicles v WHERE v.IsDeleted = 0 AND v.TenantId = @TenantId
+                      AND v.InsuranceExpiryDate IS NOT NULL AND v.InsuranceExpiryDate < CAST(GETUTCDATE() AS DATE)
+                    UNION
+                    SELECT d.Id FROM Drivers d WHERE d.IsDeleted = 0 AND d.TenantId = @TenantId
+                      AND d.LicenseExpiryDate < CAST(GETUTCDATE() AS DATE)
+                ) x) AS ExpiredDocuments,
+                (SELECT COUNT(*) FROM Drivers WHERE IsDeleted = 0 AND TenantId = @TenantId AND Status = @OnLeave) AS DriversOnLeave,
+                (SELECT COUNT(*) FROM Vehicles WHERE IsDeleted = 0 AND TenantId = @TenantId AND Status = @Maintenance) AS VehiclesUnderMaintenance,
+                CAST(CASE WHEN (SELECT COUNT(*) FROM Vehicles WHERE IsDeleted = 0 AND TenantId = @TenantId AND Status <> 5) = 0 THEN 0
+                    ELSE (SELECT COUNT(DISTINCT VehicleId) * 100.0 / NULLIF((SELECT COUNT(*) FROM Vehicles WHERE IsDeleted = 0 AND TenantId = @TenantId AND Status <> 5), 0)
+                          FROM AssignmentHistory WHERE IsDeleted = 0 AND TenantId = @TenantId AND Status IN (N'Active', N'Scheduled'))
+                END AS DECIMAL(5,2)) AS AssignmentUtilizationPct
+            """, new
+        {
+            TenantId = tenantId,
+            Started = (int)BookingStatus.Started,
+            OnLeave = (int)DriverStatus.OnLeave,
+            Maintenance = (int)VehicleStatus.Maintenance
+        }, cancellationToken: cancellationToken));
 
         return ApiResponse<AssignmentStatsDto>.SuccessResponse(dto);
+    }
+}
+
+public class ValidateAssignmentQueryHandler(IDbConnectionFactory dbFactory, ITenantContext tenantContext)
+    : IRequestHandler<ValidateAssignmentQuery, ApiResponse<AssignmentValidationResultDto>>
+{
+    public async Task<ApiResponse<AssignmentValidationResultDto>> Handle(ValidateAssignmentQuery request, CancellationToken cancellationToken)
+    {
+        using var connection = dbFactory.CreateConnection();
+        var tenantId = tenantContext.GetRequiredTenantId();
+        var result = await AssignmentValidation.ValidateAsync(connection, tenantId, request.Body, cancellationToken);
+        return ApiResponse<AssignmentValidationResultDto>.SuccessResponse(result);
     }
 }
 
@@ -191,5 +239,66 @@ public class GetAssignmentChangelogQueryHandler(IDbConnectionFactory dbFactory, 
             """, new { request.AssignmentId, TenantId = tenantId }, cancellationToken: cancellationToken));
 
         return ApiResponse<IReadOnlyList<AssignmentChangelogDto>>.SuccessResponse(rows.ToList());
+    }
+}
+
+public class GetAssignmentCalendarQueryHandler(IDbConnectionFactory dbFactory, ITenantContext tenantContext)
+    : IRequestHandler<GetAssignmentCalendarQuery, ApiResponse<IReadOnlyList<AssignmentCalendarItemDto>>>
+{
+    public async Task<ApiResponse<IReadOnlyList<AssignmentCalendarItemDto>>> Handle(
+        GetAssignmentCalendarQuery request, CancellationToken cancellationToken)
+    {
+        var tenantId = tenantContext.GetRequiredTenantId();
+        using var connection = dbFactory.CreateConnection();
+
+        var where = "a.IsDeleted = 0 AND v.TenantId = @TenantId AND a.StartAt <= @To AND (a.EndAt IS NULL OR a.EndAt >= @From)";
+        if (request.BranchId.HasValue)
+            where += " AND (v.BranchId = @BranchId OR d.BranchId = @BranchId)";
+
+        var rows = await connection.QueryAsync<AssignmentCalendarItemDto>(new CommandDefinition($"""
+            SELECT a.Id,
+                ISNULL(a.AssignmentNo, CONCAT(N'ASN-', RIGHT(CONCAT(N'000000', CAST(a.Id AS NVARCHAR)), 6))) AS AssignmentNo,
+                a.VehicleId, v.Name AS VehicleName, a.DriverId, d.FullName AS DriverName,
+                a.Status, a.StartAt, a.EndAt, a.AssignmentType
+            FROM AssignmentHistory a
+            INNER JOIN Vehicles v ON a.VehicleId = v.Id
+            LEFT JOIN Drivers d ON a.DriverId = d.Id
+            WHERE {where}
+            ORDER BY a.StartAt
+            """, new { TenantId = tenantId, request.From, request.To, request.BranchId }, cancellationToken: cancellationToken));
+
+        return ApiResponse<IReadOnlyList<AssignmentCalendarItemDto>>.SuccessResponse(rows.ToList());
+    }
+}
+
+public class GetAssignmentUtilizationReportQueryHandler(IDbConnectionFactory dbFactory, ITenantContext tenantContext)
+    : IRequestHandler<GetAssignmentUtilizationReportQuery, ApiResponse<AssignmentUtilizationReportDto>>
+{
+    public async Task<ApiResponse<AssignmentUtilizationReportDto>> Handle(
+        GetAssignmentUtilizationReportQuery request, CancellationToken cancellationToken)
+    {
+        var tenantId = tenantContext.GetRequiredTenantId();
+        using var connection = dbFactory.CreateConnection();
+
+        var dto = await connection.QuerySingleAsync<AssignmentUtilizationReportDto>(new CommandDefinition("""
+            SELECT
+                (SELECT COUNT(*) FROM Vehicles WHERE IsDeleted = 0 AND TenantId = @TenantId AND Status <> 5) AS TotalVehicles,
+                (SELECT COUNT(DISTINCT VehicleId) FROM AssignmentHistory WHERE IsDeleted = 0 AND TenantId = @TenantId AND Status IN (N'Active', N'Scheduled')) AS AssignedVehicles,
+                CAST(CASE WHEN (SELECT COUNT(*) FROM Vehicles WHERE IsDeleted = 0 AND TenantId = @TenantId AND Status <> 5) = 0 THEN 0
+                    ELSE (SELECT COUNT(DISTINCT VehicleId) * 100.0 / NULLIF((SELECT COUNT(*) FROM Vehicles WHERE IsDeleted = 0 AND TenantId = @TenantId AND Status <> 5), 0)
+                          FROM AssignmentHistory WHERE IsDeleted = 0 AND TenantId = @TenantId AND Status IN (N'Active', N'Scheduled'))
+                END AS DECIMAL(5,2)) AS UtilizationPct,
+                (SELECT COUNT(*) FROM Drivers WHERE IsDeleted = 0 AND TenantId = @TenantId AND IsActive = 1) AS TotalDrivers,
+                (SELECT COUNT(DISTINCT DriverId) FROM AssignmentHistory WHERE IsDeleted = 0 AND TenantId = @TenantId AND Status IN (N'Active', N'Scheduled') AND DriverId IS NOT NULL) AS AssignedDrivers,
+                CAST(CASE WHEN (SELECT COUNT(*) FROM Drivers WHERE IsDeleted = 0 AND TenantId = @TenantId AND IsActive = 1) = 0 THEN 0
+                    ELSE (SELECT COUNT(DISTINCT DriverId) * 100.0 / NULLIF((SELECT COUNT(*) FROM Drivers WHERE IsDeleted = 0 AND TenantId = @TenantId AND IsActive = 1), 0)
+                          FROM AssignmentHistory WHERE IsDeleted = 0 AND TenantId = @TenantId AND Status IN (N'Active', N'Scheduled') AND DriverId IS NOT NULL)
+                END AS DECIMAL(5,2)) AS DriverUtilizationPct,
+                (SELECT COUNT(*) FROM AssignmentHistory WHERE IsDeleted = 0 AND TenantId = @TenantId AND Status IN (N'Active', N'Scheduled')) AS ActiveAssignments,
+                (SELECT COUNT(*) FROM AssignmentHistory WHERE IsDeleted = 0 AND TenantId = @TenantId AND Status = N'Completed'
+                    AND EndAt >= DATEADD(month, DATEDIFF(month, 0, GETUTCDATE()), 0)) AS CompletedThisMonth
+            """, new { TenantId = tenantId }, cancellationToken: cancellationToken));
+
+        return ApiResponse<AssignmentUtilizationReportDto>.SuccessResponse(dto);
     }
 }

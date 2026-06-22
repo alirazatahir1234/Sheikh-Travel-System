@@ -1,7 +1,7 @@
 import { Component, ElementRef, OnInit } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
 import { forkJoin } from 'rxjs';
 import { PlatformService } from '../../../core/services/platform.service';
 import { LookupService } from '../../../core/services/lookup.service';
@@ -64,7 +64,7 @@ export class TenantProvisionComponent implements OnInit {
     private fb: FormBuilder,
     private platform: PlatformService,
     private lookup: LookupService,
-    private snackBar: MatSnackBar,
+    private toast: UiToastService,
     private router: Router,
     private el: ElementRef<HTMLElement>
   ) {
@@ -154,7 +154,7 @@ export class TenantProvisionComponent implements OnInit {
       },
       error: () => {
         this.loadingModules = false;
-        this.snackBar.open('Failed to load catalog.', 'Close', { duration: 3000 });
+        this.toast.error('Failed to load catalog.');
       }
     });
   }
@@ -254,11 +254,11 @@ export class TenantProvisionComponent implements OnInit {
   validateConfiguration(): boolean {
     this.form.markAllAsTouched();
     if (this.form.valid) {
-      this.snackBar.open('Configuration is valid and ready to provision.', 'Close', { duration: 2500 });
+      this.toast.success('Configuration is valid and ready to provision.');
       return true;
     }
     this.scrollToFirstInvalid();
-    this.snackBar.open('Please complete all required fields.', 'Close', { duration: 3000 });
+    this.toast.warning('Please complete all required fields.');
     return false;
   }
 
@@ -273,12 +273,12 @@ export class TenantProvisionComponent implements OnInit {
     this.platform.provisionTenant(payload).subscribe({
       next: () => {
         this.saving = false;
-        this.snackBar.open('Tenant provisioned successfully.', 'Close', { duration: 2500 });
+        this.toast.success('Tenant provisioned successfully.');
         void this.router.navigate(['/platform/tenants']);
       },
       error: (err: unknown) => {
         this.saving = false;
-        this.snackBar.open(apiErrorMessage(err, 'Provisioning failed.'), 'Close', { duration: 4000 });
+        this.toast.error(apiErrorMessage(err, 'Provisioning failed.'));
       }
     });
   }

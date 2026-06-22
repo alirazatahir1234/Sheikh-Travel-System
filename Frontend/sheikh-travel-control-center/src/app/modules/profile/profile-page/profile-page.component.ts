@@ -1,8 +1,8 @@
 import { Component, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { environment } from '../../../../environments/environment';
 import { OcrSettingsService } from '../../../core/services/ocr-settings.service';
@@ -46,8 +46,7 @@ export class ProfilePageComponent implements OnInit {
     private http: HttpClient,
     private auth: AuthService,
     private ocrSettingsService: OcrSettingsService,
-    private snackBar: MatSnackBar
-  ) {
+    private toast: UiToastService) {
     this.profileForm = this.fb.group({
       fullName: ['', [Validators.required, Validators.maxLength(200)]],
       phoneNumber: ['', Validators.maxLength(30)],
@@ -130,7 +129,7 @@ export class ProfilePageComponent implements OnInit {
     }).subscribe({
       next: () => {
         this.savingProfile = false;
-        this.snackBar.open('Profile updated successfully.', 'Close', { duration: 2000 });
+        this.toast.success('Profile updated successfully.');
         
         // Update local user and persist to session
         if (this.currentUser) {
@@ -151,7 +150,7 @@ export class ProfilePageComponent implements OnInit {
       },
       error: (err: HttpErrorResponse) => {
         this.savingProfile = false;
-        this.snackBar.open(this.extractError(err), 'Close', { duration: 4000 });
+        this.toast.error(this.extractError(err));
       }
     });
   }
@@ -172,12 +171,12 @@ export class ProfilePageComponent implements OnInit {
     }).subscribe({
       next: () => {
         this.changingPassword = false;
-        this.snackBar.open('Password changed successfully.', 'Close', { duration: 2000 });
+        this.toast.success('Password changed successfully.');
         this.passwordForm.reset();
       },
       error: (err: HttpErrorResponse) => {
         this.changingPassword = false;
-        this.snackBar.open(this.extractError(err), 'Close', { duration: 4000 });
+        this.toast.error(this.extractError(err));
       }
     });
   }
@@ -200,7 +199,7 @@ export class ProfilePageComponent implements OnInit {
     });
     setTimeout(() => {
       this.savingOcrSettings = false;
-      this.snackBar.open('OCR settings saved.', 'Close', { duration: 2200 });
+      this.toast.success('OCR settings saved.');
     }, 250);
   }
 

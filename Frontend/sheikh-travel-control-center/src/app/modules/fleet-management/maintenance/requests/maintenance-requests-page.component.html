@@ -1,0 +1,38 @@
+<div class="requests-page">
+  <header class="page-head">
+    <div>
+      <h2>Service Requests</h2>
+      <p>Review, approve, and convert driver maintenance requests</p>
+    </div>
+    <button type="button" class="btn-new" (click)="showForm.set(!showForm())">
+      <mat-icon>{{ showForm() ? 'close' : 'add' }}</mat-icon>
+      {{ showForm() ? 'Cancel' : 'New Request' }}
+    </button>
+  </header>
+
+  <request-kpi-chips
+    [stats]="stats()"
+    [activeFilter]="statusFilter()"
+    (filterChange)="onFilterChange($event)">
+  </request-kpi-chips>
+
+  @if (showForm()) {
+    <request-create-form
+      [vehicles]="vehicles()"
+      [saving]="saving()"
+      (submit)="submit($event)"
+      (cancel)="showForm.set(false)">
+    </request-create-form>
+  }
+
+  <div class="desktop-only">
+    <request-table [requests]="requests()" (rowSelect)="onSelect($event)"></request-table>
+  </div>
+  <request-mobile-cards [requests]="requests()" (cardSelect)="onSelect($event)"></request-mobile-cards>
+
+  <request-detail-drawer
+    [requestId]="selectedId()"
+    (closed)="selectedId.set(null)"
+    (changed)="onChanged()">
+  </request-detail-drawer>
+</div>

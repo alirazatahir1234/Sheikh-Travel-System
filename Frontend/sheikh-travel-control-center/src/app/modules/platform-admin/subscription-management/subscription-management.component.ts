@@ -1,6 +1,6 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
 import { Subject, takeUntil } from 'rxjs';
 import { PlatformTenantContextService } from '../../../core/services/platform-tenant-context.service';
 import { PlatformService } from '../../../core/services/platform.service';
@@ -35,7 +35,7 @@ export class SubscriptionManagementComponent implements OnInit, OnDestroy {
   constructor(
     private route: ActivatedRoute,
     private router: Router,
-    private snackBar: MatSnackBar,
+    private toast: UiToastService,
     private tenantContext: PlatformTenantContextService,
     private platform: PlatformService
   ) {}
@@ -81,7 +81,7 @@ export class SubscriptionManagementComponent implements OnInit, OnDestroy {
       },
       error: (err) => {
         this.loading = false;
-        this.snackBar.open(apiErrorMessage(err, 'Failed to load subscription.'), 'Close', { duration: 4000 });
+        this.toast.error(apiErrorMessage(err, 'Failed to load subscription.'));
       }
     });
   }
@@ -168,12 +168,12 @@ export class SubscriptionManagementComponent implements OnInit, OnDestroy {
     this.platform.updateSubscription(tenantId, request).subscribe({
       next: () => {
         this.saving = false;
-        this.snackBar.open(`Subscription ${request.action.toLowerCase()} successful.`, 'Close', { duration: 2500 });
+        this.toast.success(`Subscription ${request.action.toLowerCase()} successful.`);
         this.loadOverview(tenantId);
       },
       error: (err) => {
         this.saving = false;
-        this.snackBar.open(apiErrorMessage(err, 'Action failed.'), 'Close', { duration: 4000 });
+        this.toast.error(apiErrorMessage(err, 'Action failed.'));
       }
     });
   }

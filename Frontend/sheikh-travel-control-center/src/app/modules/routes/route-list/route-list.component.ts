@@ -1,6 +1,5 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { MatTableDataSource } from '@angular/material/table';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatDialog } from '@angular/material/dialog';
 import { PageEvent } from '@angular/material/paginator';
 import { Router } from '@angular/router';
@@ -9,6 +8,7 @@ import { SelectionModel } from '@angular/cdk/collections';
 import { Subject, Subscription, forkJoin, of } from 'rxjs';
 import { catchError, debounceTime, distinctUntilChanged, map } from 'rxjs/operators';
 
+import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
 import { RouteService } from '../../../core/services/route.service';
 import { ExportService, ExportColumn } from '../../../core/services/export.service';
 import { Route, RouteFilter, RouteListStats } from '../../../core/models/route.model';
@@ -83,7 +83,7 @@ export class RouteListComponent implements OnInit, OnDestroy {
   constructor(
     private routeService: RouteService,
     private router: Router,
-    private snackBar: MatSnackBar,
+    private toast: UiToastService,
     private exportService: ExportService,
     private dialog: MatDialog,
     private datePipe: DatePipe
@@ -195,8 +195,8 @@ export class RouteListComponent implements OnInit, OnDestroy {
   delete(id: number): void {
     if (!confirm('Delete this route?')) return;
     this.routeService.delete(id).subscribe({
-      next: () => { this.snackBar.open('Route deleted', 'Close', { duration: 2000 }); this.load(); },
-      error: () => this.snackBar.open('Delete failed', 'Close', { duration: 3000 })
+      next: () => { this.toast.success('Route deleted.'); this.load(); },
+      error: () => this.toast.error('Delete failed.')
     });
   }
 
@@ -220,7 +220,7 @@ export class RouteListComponent implements OnInit, OnDestroy {
       const msg = failed === 0
         ? `Deleted ${ok} route${ok > 1 ? 's' : ''}.`
         : `Deleted ${ok}, failed ${failed}.`;
-      this.snackBar.open(msg, 'Close', { duration: 3500 });
+      this.toast.success(msg);
       this.load();
     });
   }
@@ -239,7 +239,7 @@ export class RouteListComponent implements OnInit, OnDestroy {
       const msg = failed === 0
         ? `Added ${created} route${created > 1 ? 's' : ''}.`
         : `Added ${created}, failed ${failed}. Check the dialog for details.`;
-      this.snackBar.open(msg, 'Close', { duration: 4000 });
+      this.toast.success(msg);
       if (created > 0) this.load(true);
     });
   }
@@ -283,7 +283,7 @@ export class RouteListComponent implements OnInit, OnDestroy {
   private fetchForExport(onReady: (rows: Route[]) => void): void {
     this.routeService.getAll(1, 10000, this.buildFilter()).subscribe({
       next: r => onReady(r.items),
-      error: () => this.snackBar.open('Failed to load routes for export.', 'Close', { duration: 3000 })
+      error: () => this.toast.error('Failed to load routes for export.')
     });
   }
 

@@ -1,11 +1,11 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Observable, Subject, firstValueFrom } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 
+import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
 import { CustomerService } from '../../../core/services/customer.service';
 import { OcrService } from '../../../core/services/ocr.service';
 import { OcrSettingsService } from '../../../core/services/ocr-settings.service';
@@ -115,7 +115,7 @@ export class CustomerFormComponent implements OnInit, OnDestroy {
     private ocrSettingsService: OcrSettingsService,
     private router: Router,
     private route: ActivatedRoute,
-    private snackBar: MatSnackBar
+    private toast: UiToastService
   ) {
     this.form = this.fb.group({
       fullName: ['', [Validators.required, Validators.maxLength(100)]],
@@ -462,27 +462,25 @@ export class CustomerFormComponent implements OnInit, OnDestroy {
   async ingestCnicImagesFromFiles(source: FileList | File[]): Promise<void> {
     if (this.cnicUploadBusy || this.cnicOcrBusy || this.loadingCustomer) {
       if (this.loadingCustomer) {
-        this.snackBar.open('Please wait until the customer record finishes loading.', 'Close', { duration: 3500 });
+        this.toast.warning('Please wait until the customer record finishes loading.');
       }
       return;
     }
 
     const eligible = this.collectCnicEligibleFiles(source);
     if (eligible.length === 0) {
-      this.snackBar.open('Use JPG, PNG, or WebP photos of the CNIC (PDF is not supported).', 'Close', { duration: 4000 });
+      this.toast.warning('Use JPG, PNG, or WebP photos of the CNIC (PDF is not supported).');
       return;
     }
 
     const { front, back, skippedExtra } = this.partitionFrontBack(eligible);
     if (!front && !back) {
-      this.snackBar.open('Could not assign images to front or back.', 'Close', { duration: 3500 });
+      this.toast.error('Could not assign images to front or back.');
       return;
     }
 
     if (skippedExtra > 0) {
-      this.snackBar.open(`Using up to two images for CNIC. ${skippedExtra} extra file(s) were skipped.`, 'Close', {
-        duration: 4000
-      });
+      this.toast.info(`Using up to two images for CNIC. ${skippedExtra} extra file(s) were skipped.`);
     }
 
     this.cnicLastOcrInlineError = null;
@@ -527,7 +525,7 @@ export class CustomerFormComponent implements OnInit, OnDestroy {
         error: (err: HttpErrorResponse) => {
           if (this.customerId !== id) return;
           this.loadingCustomer = false;
-          this.snackBar.open(this.extractError(err) || 'Could not load customer.', 'Close', { duration: 5000 });
+          this.toast.error(this.extractError(err) || 'Could not load customer.');
         }
       });
   }
@@ -603,12 +601,12 @@ export class CustomerFormComponent implements OnInit, OnDestroy {
 
     obs.subscribe({
       next: () => {
-        this.snackBar.open(`Customer ${this.isEdit ? 'updated' : 'created'}`, 'Close', { duration: 2500 });
+        this.toast.success(`Customer ${this.isEdit ? 'updated' : 'created'}`);
         this.router.navigate(['/customers']);
       },
       error: (err: HttpErrorResponse) => {
         this.loading = false;
-        this.snackBar.open(this.extractError(err), 'Close', { duration: 4500 });
+        this.toast.error(this.extractError(err));
       }
     });
   }
@@ -648,7 +646,7 @@ export class CustomerFormComponent implements OnInit, OnDestroy {
     const applyOcrResult = options?.applyOcrResult !== false;
 
     if (file.size > this.maxUploadBytes) {
-      this.snackBar.open('CNIC file must be 15 MB or smaller.', 'Close', { duration: 3500 });
+      this.toast.warning('CNIC file must be 15 MB or smaller.');
       this.cnicOcrLastFailure = true;
       this.setSideUiStatus(side, 'error');
       this.cnicLastOcrInlineError = 'File is too large (max 15 MB).';
@@ -662,7 +660,7 @@ export class CustomerFormComponent implements OnInit, OnDestroy {
       file.type === 'image/webp' ||
       (!file.type && /\.(jpe?g|png|webp)$/i.test(file.name || ''));
     if (!isImage) {
-      this.snackBar.open('Please upload CNIC as a JPG, PNG, or WebP photo (not PDF).', 'Close', { duration: 4000 });
+      this.toast.warning('Please upload CNIC as a JPG, PNG, or WebP photo (not PDF).');
       this.cnicOcrLastFailure = true;
       this.setSideUiStatus(side, 'error');
       this.cnicLastOcrInlineError = 'Unsupported file type.';
@@ -693,7 +691,7 @@ export class CustomerFormComponent implements OnInit, OnDestroy {
       this.cnicOcrLastFailure = true;
       this.setSideUiStatus(side, 'error');
       this.cnicLastOcrInlineError = `Could not prepare the ${side} image. Try another photo or file.`;
-      this.snackBar.open('Could not process CNIC image. Try a clearer file.', 'Close', { duration: 3500 });
+      this.toast.error('Could not process CNIC image. Try a clearer file.');
     } finally {
       if (ownBusy) {
         this.cnicUploadBusy = false;
@@ -763,7 +761,7 @@ export class CustomerFormComponent implements OnInit, OnDestroy {
       this.cnicOcrLastFailure = true;
       this.setSideUiStatus(side, 'error');
       this.cnicLastOcrInlineError = `Could not read the ${side} side clearly. Try a sharper photo or use Retry OCR.`;
-      this.snackBar.open('OCR failed. You can still fill fields manually.', 'Close', { duration: 3500 });
+      this.toast.error('OCR failed. You can still fill fields manually.');
     } finally {
       this.cnicOcrBusy = false;
     }
@@ -985,15 +983,12 @@ export class CustomerFormComponent implements OnInit, OnDestroy {
           this.cnicLastOcrSuccessMessage = null;
         }, 8000);
       } else if (patchedKeys.length > 0 && positivePatchCount === 0) {
-        this.snackBar.open(
-          'Unreliable OCR text was removed from one or more fields. Enter details manually or upload a sharper image.',
-          'Close',
-          { duration: 5500 }
-        );
+        this.toast.success(
+          'Unreliable OCR text was removed from one or more fields. Enter details manually or upload a sharper image.');
       } else if (filled.length > 0) {
-        this.snackBar.open(`CNIC OCR filled: ${filled.join(', ')}. Please verify before saving.`, 'Close', { duration: 4000 });
+        this.toast.success(`CNIC OCR filled: ${filled.join(', ')}. Please verify before saving.`);
       } else {
-        this.snackBar.open('No reliable CNIC fields found. Please fill manually.', 'Close', { duration: 3500 });
+        this.toast.warning('No reliable CNIC fields found. Please fill manually.');
       }
     }
   }
@@ -1017,9 +1012,7 @@ export class CustomerFormComponent implements OnInit, OnDestroy {
       nationality: '',
       address: ''
     });
-    this.snackBar.open('CNIC scans cleared. Phone and email were left unchanged — re-upload or type details.', 'Close', {
-      duration: 5000
-    });
+    this.toast.success('CNIC scans cleared. Phone and email were left unchanged — re-upload or type details.');
   }
 
   private warnIfDuplicateCnic(cnic: string): void {
@@ -1031,11 +1024,8 @@ export class CustomerFormComponent implements OnInit, OnDestroy {
         (!this.isEdit || c.id !== this.customerId)
     );
     if (dup) {
-      this.snackBar.open(
-        `A customer named "${dup.fullName}" already has this CNIC. Verify before saving.`,
-        'Close',
-        { duration: 5000 }
-      );
+      this.toast.success(
+        `A customer named "${dup.fullName}" already has this CNIC. Verify before saving.`);
     }
   }
 
@@ -1132,7 +1122,7 @@ export class CustomerFormComponent implements OnInit, OnDestroy {
       jobs.push({ side: 'back', file: this.cnicOrientedBackFile, preview: this.cnicBackPreviewDataUrl });
     }
     if (!jobs.length) {
-      this.snackBar.open('Upload CNIC images first, then retry OCR.', 'Close', { duration: 3500 });
+      this.toast.warning('Upload CNIC images first, then retry OCR.');
       return;
     }
     this.cnicUploadBusy = true;

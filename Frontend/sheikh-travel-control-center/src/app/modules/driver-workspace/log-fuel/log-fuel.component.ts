@@ -1,7 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { DriverAppService } from '../../../core/services/driver-app.service';
+import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
 import { DriverTrip } from '../../../core/models/driver-trip.model';
 import { FuelType } from '../../../core/models/fuel-log.model';
 import { dateInputToIso, toDateInputValue } from '../../../core/utils/date-input.util';
@@ -26,8 +26,7 @@ export class LogFuelComponent implements OnInit {
   constructor(
     private fb: FormBuilder,
     private driverApp: DriverAppService,
-    private snackBar: MatSnackBar
-  ) {
+    private toast: UiToastService) {
     this.form = this.fb.group({
       vehicleId: [null, Validators.required],
       fuelType: [FuelType.Petrol, Validators.required],
@@ -50,7 +49,7 @@ export class LogFuelComponent implements OnInit {
       },
       error: () => {
         this.loadingTrips = false;
-        this.snackBar.open('Could not load your vehicles', 'Close', { duration: 3500 });
+        this.toast.error('Could not load your vehicles');
       }
     });
   }
@@ -75,7 +74,7 @@ export class LogFuelComponent implements OnInit {
     }).subscribe({
       next: () => {
         this.submitting = false;
-        this.snackBar.open('Fuel receipt logged', 'Close', { duration: 3000 });
+        this.toast.success('Fuel receipt logged');
         this.form.reset({
           vehicleId: this.vehicles.length === 1 ? this.vehicles[0].id : null,
           fuelType: FuelType.Petrol,
@@ -85,7 +84,7 @@ export class LogFuelComponent implements OnInit {
       },
       error: err => {
         this.submitting = false;
-        this.snackBar.open(err?.error?.message || 'Could not save fuel log', 'Close', { duration: 4000 });
+        this.toast.error(err?.error?.message || 'Could not save fuel log');
       }
     });
   }

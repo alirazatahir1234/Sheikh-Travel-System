@@ -1,7 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { FormBuilder, Validators } from '@angular/forms';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { GpsTrackingService } from '../../../core/services/gps-tracking.service';
+import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
 import { VehicleService } from '../../../core/services/vehicle.service';
 import { GpsDevice } from '../../../core/models/gps-tracking.model';
 import { Vehicle } from '../../../core/models/vehicle.model';
@@ -22,7 +22,7 @@ export class GpsDevicesComponent implements OnInit {
     private gps: GpsTrackingService,
     private vehicleService: VehicleService,
     private fb: FormBuilder,
-    private snack: MatSnackBar
+    private toast: UiToastService
   ) {
     this.form = this.fb.group({
       uniqueId: ['', Validators.required],
@@ -57,7 +57,7 @@ export class GpsDevicesComponent implements OnInit {
       supportsEngineCutoff: !!v.supportsEngineCutoff
     }).subscribe({
       next: () => {
-        this.snack.open('Device registered', 'OK', { duration: 2500 });
+        this.toast.success('Device registered');
         this.form.reset({ supportsEngineCutoff: false });
         this.load();
       }

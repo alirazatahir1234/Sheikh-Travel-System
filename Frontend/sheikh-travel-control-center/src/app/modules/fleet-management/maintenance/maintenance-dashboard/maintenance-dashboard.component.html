@@ -1,0 +1,35 @@
+<div class="maint-dashboard">
+  @if (loading()) {
+    <p class="loading">Loading dashboard…</p>
+  } @else {
+    @if (dashboard(); as d) {
+      <maintenance-kpi-grid [kpis]="d.kpis"></maintenance-kpi-grid>
+
+      <maintenance-pending-requests [count]="d.kpis.pendingRequests ?? 0"></maintenance-pending-requests>
+
+      <div class="grid">
+        <div class="grid-main">
+          <maintenance-cost-trend [data]="d.costTrend" [period]="ctx.period()"></maintenance-cost-trend>
+          @if (d.fuelSummary) {
+            <maintenance-fuel-summary [summary]="d.fuelSummary"></maintenance-fuel-summary>
+          }
+          <maintenance-recent-work-orders
+            [orders]="d.recentWorkOrders"
+            (orderSelect)="openWorkOrder($event)">
+          </maintenance-recent-work-orders>
+          <maintenance-upcoming-services [services]="d.upcomingServices"></maintenance-upcoming-services>
+        </div>
+        <div class="grid-side">
+          <maintenance-quick-actions></maintenance-quick-actions>
+          <maintenance-vehicle-health [health]="d.vehicleHealth"></maintenance-vehicle-health>
+          <maintenance-critical-alerts [alerts]="d.criticalAlerts"></maintenance-critical-alerts>
+        </div>
+      </div>
+    }
+  }
+
+  <work-order-detail-drawer
+    [workOrderId]="selectedWorkOrderId()"
+    (closed)="selectedWorkOrderId.set(null)">
+  </work-order-detail-drawer>
+</div>

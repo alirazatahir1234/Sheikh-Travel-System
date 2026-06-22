@@ -28,7 +28,7 @@ export const FUEL_MAINTENANCE_MOCK: FuelMaintenanceChart = {
 export const QUICK_ACTIONS_MOCK: QuickAction[] = [
   { id: 'add-vehicle', label: 'Add Vehicle', icon: 'add_circle', route: '/vehicles' },
   { id: 'add-driver', label: 'Add Driver', icon: 'person_add', route: '/drivers' },
-  { id: 'schedule-maint', label: 'Schedule Maint.', icon: 'schedule', route: '/maintenance' },
+  { id: 'schedule-maint', label: 'Schedule Maint.', icon: 'schedule', route: '/fleet/maintenance' },
   { id: 'assign-driver', label: 'Assign Driver', icon: 'assignment_ind', route: '/fleet/assignments' }
 ];
 

@@ -1,8 +1,8 @@
 import { Component, OnInit, ViewChild } from '@angular/core';
 import { MatTableDataSource } from '@angular/material/table';
 import { MatPaginator } from '@angular/material/paginator';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatDialog } from '@angular/material/dialog';
+import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
 import { Router } from '@angular/router';
 import { DatePipe } from '@angular/common';
 import { SelectionModel } from '@angular/cdk/collections';
@@ -40,7 +40,7 @@ export class UserListComponent implements OnInit {
     private userService: UserService,
     private exportService: ExportService,
     private router: Router,
-    private snackBar: MatSnackBar,
+    private toast: UiToastService,
     private dialog: MatDialog,
     private datePipe: DatePipe
   ) {}
@@ -60,7 +60,7 @@ export class UserListComponent implements OnInit {
       },
       error: () => {
         this.loading = false;
-        this.snackBar.open('Failed to load users.', 'Close', { duration: 3000 });
+        this.toast.error('Failed to load users.');
       }
     });
   }
@@ -127,13 +127,10 @@ export class UserListComponent implements OnInit {
     this.userService.updateStatus({ id: user.id, isActive: newStatus }).subscribe({
       next: () => {
         user.isActive = newStatus;
-        this.snackBar.open(
-          `User ${newStatus ? 'activated' : 'deactivated'}.`,
-          'Close',
-          { duration: 2000 }
-        );
+        this.toast.success(
+          `User ${newStatus ? 'activated' : 'deactivated'}.`);
       },
-      error: () => this.snackBar.open('Status update failed.', 'Close', { duration: 3000 })
+      error: () => this.toast.error('Status update failed.')
     });
   }
 
@@ -142,13 +139,10 @@ export class UserListComponent implements OnInit {
 
     this.userService.resetPassword(user.id).subscribe({
       next: result => {
-        this.snackBar.open(
-          `Password reset. Temporary: ${result.temporaryPassword}`,
-          'Copy',
-          { duration: 15000 }
-        );
+        this.toast.success(
+          `Password reset. Temporary: ${result.temporaryPassword}`);
       },
-      error: () => this.snackBar.open('Password reset failed.', 'Close', { duration: 3000 })
+      error: () => this.toast.error('Password reset failed.')
     });
   }
 
@@ -157,10 +151,10 @@ export class UserListComponent implements OnInit {
 
     this.userService.delete(user.id).subscribe({
       next: () => {
-        this.snackBar.open('User deleted.', 'Close', { duration: 2000 });
+        this.toast.success('User deleted.');
         this.load();
       },
-      error: () => this.snackBar.open('Delete failed.', 'Close', { duration: 3000 })
+      error: () => this.toast.error('Delete failed.')
     });
   }
 

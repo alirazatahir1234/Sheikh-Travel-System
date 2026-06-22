@@ -1,7 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { FormBuilder, Validators } from '@angular/forms';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { GpsTrackingService } from '../../../core/services/gps-tracking.service';
+import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
 import { GpsAlertEvent, GpsAlertRule } from '../../../core/models/gps-tracking.model';
 
 @Component({
@@ -20,7 +20,7 @@ export class GpsAlertsComponent implements OnInit {
   constructor(
     private gps: GpsTrackingService,
     private fb: FormBuilder,
-    private snack: MatSnackBar
+    private toast: UiToastService
   ) {
     this.ruleForm = this.fb.group({
       vehicleId: [null as number | null],
@@ -58,7 +58,7 @@ export class GpsAlertsComponent implements OnInit {
       alertOnExit: !!v.alertOnExit
     }).subscribe({
       next: () => {
-        this.snack.open('Alert rule created', 'OK', { duration: 2500 });
+        this.toast.success('Alert rule created');
         this.load();
       }
     });

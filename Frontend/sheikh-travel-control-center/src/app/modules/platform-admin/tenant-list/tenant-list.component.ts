@@ -1,7 +1,7 @@
 import { Component, OnInit, ViewChild } from '@angular/core';
 import { Router } from '@angular/router';
 import { MatPaginator } from '@angular/material/paginator';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
 import { MatTableDataSource } from '@angular/material/table';
 import { forkJoin } from 'rxjs';
 import { PlatformService } from '../../../core/services/platform.service';
@@ -82,7 +82,7 @@ export class TenantListComponent implements OnInit {
   constructor(
     private platform: PlatformService,
     private router: Router,
-    private snackBar: MatSnackBar
+    private toast: UiToastService
   ) {
     this.dataSource.filterPredicate = (tenant, raw) => this.matchesFilters(tenant, raw);
   }
@@ -107,7 +107,7 @@ export class TenantListComponent implements OnInit {
       },
       error: () => {
         this.loading = false;
-        this.snackBar.open('Failed to load tenants.', 'Close', { duration: 3000 });
+        this.toast.error('Failed to load tenants.');
       }
     });
   }
@@ -211,9 +211,9 @@ export class TenantListComponent implements OnInit {
         tenant.isActive = !tenant.isActive;
         this.dataSource.data = [...this.tenants];
         this.applyFilters();
-        this.snackBar.open(tenant.isActive ? 'Tenant activated.' : 'Tenant suspended.', 'Close', { duration: 2000 });
+        this.toast.success(tenant.isActive ? 'Tenant activated.' : 'Tenant suspended.');
       },
-      error: (err) => this.snackBar.open(apiErrorMessage(err, 'Update failed.'), 'Close', { duration: 4000 })
+      error: (err) => this.toast.error(apiErrorMessage(err, 'Update failed.'))
     });
   }
 
@@ -263,7 +263,7 @@ export class TenantListComponent implements OnInit {
   private bulkSetActive(active: boolean): void {
     const targets = this.tenants.filter(t => this.selectedIds.has(t.id) && t.isActive !== active);
     if (!targets.length) {
-      this.snackBar.open('No tenants selected for this action.', 'Close', { duration: 2500 });
+      this.toast.warning('No tenants selected for this action.');
       return;
     }
 
@@ -293,16 +293,16 @@ export class TenantListComponent implements OnInit {
     this.applyFilters();
     const action = active ? 'activated' : 'suspended';
     if (failed) {
-      this.snackBar.open(`${done} tenant(s) ${action}, ${failed} failed.`, 'Close', { duration: 3500 });
+      this.toast.error(`${done} tenant(s) ${action}, ${failed} failed.`);
     } else {
-      this.snackBar.open(`${done} tenant(s) ${action}.`, 'Close', { duration: 2500 });
+      this.toast.success(`${done} tenant(s) ${action}.`);
     }
   }
 
   exportCsv(): void {
     const rows = this.dataSource.filteredData;
     if (!rows.length) {
-      this.snackBar.open('No tenants to export.', 'Close', { duration: 2500 });
+      this.toast.warning('No tenants to export.');
       return;
     }
     const header = ['Code', 'Name', 'Type', 'Country', 'Modules', 'Plan', 'Usage', 'Health'];

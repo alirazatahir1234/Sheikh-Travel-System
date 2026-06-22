@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, input, output, signal } from '@angular/core';
 import { FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { UiToastService } from '../../../../../shared/components/ui/toast/ui-toast.service';
 import { inject } from '@angular/core';
 import { UiStatusBadgeComponent } from '../../../../../shared/components/ui/status-badge/ui-status-badge.component';
 import { UiButtonComponent } from '../../../../../shared/components/ui/button/ui-button.component';
@@ -238,7 +238,7 @@ import { UPLOAD_MAX_SIZE_LABEL, vehicleUploadSizeError } from '../../../../../co
   styleUrls: ['./wizard-step-shared.scss']
 })
 export class WizardStepPersonalComponent {
-  private readonly snackBar = inject(MatSnackBar);
+  private readonly toast = inject(UiToastService);
 
   readonly form = input.required<FormGroup>();
   readonly formLoadKey = input(0);
@@ -297,7 +297,7 @@ export class WizardStepPersonalComponent {
   }
 
   onCropHint(): void {
-    this.snackBar.open('Upload a pre-cropped passport-style photo (JPG/PNG). In-app crop coming soon.', 'Close', { duration: 3500 });
+    this.toast.success('Upload a pre-cropped passport-style photo (JPG/PNG). In-app crop coming soon.');
   }
 
   statusBadgeVariant(): 'valid' | 'pending' | 'inactive' {
@@ -321,7 +321,7 @@ export class WizardStepPersonalComponent {
 
   copyCode(): void {
     void navigator.clipboard.writeText(this.driverCode()).then(() => {
-      this.snackBar.open('Copied successfully', 'Close', { duration: 2000 });
+      this.toast.success('Copied successfully');
     });
   }
 }

@@ -1,7 +1,6 @@
 import { Injectable, inject, signal, computed } from '@angular/core';
 import { AbstractControl, FormBuilder, FormGroup, ValidationErrors, ValidatorFn, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { debounceTime, distinctUntilChanged, filter, switchMap, catchError, of, Subject, takeUntil, forkJoin, tap, firstValueFrom } from 'rxjs';
 import { VehicleService } from '../../../../core/services/vehicle.service';
 import { GpsTrackingService } from '../../../../core/services/gps-tracking.service';
@@ -24,6 +23,7 @@ import { dateInputToIso, toDateInputValue, todayDateInputValue } from '../../../
 import { apiErrorMessage } from '../../../../core/utils/api-error.util';
 import { vehicleUploadSizeError } from '../../../../core/utils/upload-url.util';
 import { UiSelectOption } from '../../../../shared/components/ui/types/ui.types';
+import { UiToastService } from '../../../../shared/components/ui/toast/ui-toast.service';
 import {
   DocumentSlotState,
   GpsWizardMode,
@@ -48,7 +48,7 @@ export class VehicleWizardFacade {
   private readonly platformService = inject(PlatformService);
   private readonly lookupService = inject(LookupService);
   private readonly router = inject(Router);
-  private readonly snackBar = inject(MatSnackBar);
+  private readonly toast = inject(UiToastService);
   private readonly destroy$ = new Subject<void>();
   private autosaveSubscribed = false;
 
@@ -227,7 +227,7 @@ export class VehicleWizardFacade {
         },
         error: () => {
           this.loading.set(false);
-          this.snackBar.open('Failed to load vehicle', 'Close', { duration: 3000 });
+          this.toast.error('Failed to load vehicle');
         }
       });
     } else {
@@ -335,7 +335,7 @@ export class VehicleWizardFacade {
       this.form.markAllAsTouched();
       this.gpsForm.markAllAsTouched();
       this.currentStep.set('review');
-      this.snackBar.open('Please resolve validation errors before saving.', 'Close', { duration: 3500 });
+      this.toast.error('Please resolve validation errors before saving.');
       return;
     }
 
@@ -343,7 +343,7 @@ export class VehicleWizardFacade {
     try {
       await this.persistVehicle(false);
       await this.syncExpiryDocuments(id);
-      this.snackBar.open('Vehicle updated successfully', 'Close', { duration: 3000 });
+      this.toast.success('Vehicle updated successfully');
       if (options.navigate !== false) {
         this.router.navigate(this.isEditMode() ? ['/vehicles'] : ['/vehicles', id]);
       }
@@ -393,7 +393,7 @@ export class VehicleWizardFacade {
       }
       return true;
     } catch {
-      this.snackBar.open('Failed to assign GPS tracker', 'Close', { duration: 4000 });
+      this.toast.error('Failed to assign GPS tracker');
       return false;
     }
   }
@@ -463,7 +463,7 @@ export class VehicleWizardFacade {
     const slot = slots[slotIndex];
     const documentId = this.readDocumentId(slot);
     if (!vehicleId || !documentId || !slot?.fileUrl) {
-      this.snackBar.open('Save the image first, then set it as the display photo.', 'Close', { duration: 3500 });
+      this.toast.warning('Save the image first, then set it as the display photo.');
       return;
     }
 
@@ -473,10 +473,10 @@ export class VehicleWizardFacade {
 
     try {
       await firstValueFrom(this.vehicleService.setPrimaryVehicleImage(vehicleId, documentId));
-      this.snackBar.open('Display photo updated', 'Close', { duration: 2500 });
+      this.toast.success('Display photo updated');
     } catch (err) {
       this.vehicleImageSlots.set(previous);
-      this.snackBar.open(apiErrorMessage(err, 'Failed to set display photo'), 'Close', { duration: 4000 });
+      this.toast.error(apiErrorMessage(err, 'Failed to set display photo'));
     }
   }
 
@@ -530,7 +530,7 @@ export class VehicleWizardFacade {
       this.form.markAllAsTouched();
       this.gpsForm.markAllAsTouched();
       this.currentStep.set('review');
-      this.snackBar.open('Please resolve validation errors before publishing.', 'Close', { duration: 3500 });
+      this.toast.error('Please resolve validation errors before publishing.');
       return;
     }
 
@@ -539,7 +539,7 @@ export class VehicleWizardFacade {
       await this.persistVehicle(false);
       await this.syncExpiryDocuments(id);
       await firstValueFrom(this.vehicleService.publish(id));
-      this.snackBar.open('Vehicle published successfully', 'Close', { duration: 3000 });
+      this.toast.success('Vehicle published successfully');
       this.router.navigate(['/vehicles']);
     } catch (err) {
       const message = apiErrorMessage(err, 'Failed to publish vehicle');
@@ -548,7 +548,7 @@ export class VehicleWizardFacade {
         this.form.get('registrationNumber')?.markAsTouched();
         this.currentStep.set('details');
       }
-      this.snackBar.open(message, 'Close', { duration: 4500 });
+      this.toast.success(message);
     } finally {
       this.publishing.set(false);
     }
@@ -733,7 +733,7 @@ export class VehicleWizardFacade {
       const id = await firstValueFrom(this.vehicleService.createDraft(dto));
       if (id) this.vehicleId.set(id);
     } catch {
-      this.snackBar.open('Failed to create draft', 'Close', { duration: 3000 });
+      this.toast.error('Failed to create draft');
     }
   }
 
@@ -770,11 +770,11 @@ export class VehicleWizardFacade {
       this.lastSavedAt.set(new Date());
       if (showToast) {
         const message = this.isPublishedVehicle() ? 'Changes saved' : 'Draft saved';
-        this.snackBar.open(message, 'Close', { duration: 2000 });
+        this.toast.success(message);
       }
     } catch (err) {
       const message = apiErrorMessage(err, 'Failed to save vehicle');
-      if (showToast) this.snackBar.open(message, 'Close', { duration: 3000 });
+      if (showToast) this.toast.success(message);
       throw new Error(message);
     }
   }
@@ -827,7 +827,7 @@ export class VehicleWizardFacade {
       this.form.get('registrationNumber')?.markAsTouched();
       this.currentStep.set('details');
     }
-    this.snackBar.open(message, 'Close', { duration: 4500 });
+    this.toast.success(message);
   }
 
   private syncFormValues(): void {

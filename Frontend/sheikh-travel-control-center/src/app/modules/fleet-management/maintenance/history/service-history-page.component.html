@@ -1,0 +1,46 @@
+<div class="history-page">
+  <header class="page-head">
+    <div>
+      <h2>Service History</h2>
+      <p>Complete maintenance timeline by vehicle</p>
+    </div>
+    <div class="page-head__actions">
+      <button type="button" class="btn-export btn-export--primary" (click)="openExport()">
+        <mat-icon>download</mat-icon> Export
+      </button>
+    </div>
+  </header>
+
+  @if (filters().vehicleId) {
+    <vehicle-history-profile-card
+      [vehicle]="selectedVehicle()"
+      [imageUrl]="vehicleImageUrl()"
+      [lastServiceDate]="lastServiceDate()"
+      [nextServiceDue]="selectedListItem()?.nextServiceDue ?? null"
+      [nextDueMileage]="selectedListItem()?.nextDueMileage ?? null" />
+  } @else {
+    <div class="hint">Select a vehicle and click Apply to view its profile card and focused history.</div>
+  }
+
+  <service-history-filters
+    [vehicles]="vehicles()"
+    [serviceTypes]="serviceTypes()"
+    [filters]="draftFilters()"
+    (filtersChange)="onDraftChange($event)"
+    (apply)="onApply()"
+    (reset)="onReset()" />
+
+  <service-history-stats [stats]="stats()" [loading]="loading()" />
+
+  @if (loading()) {
+    <p class="loading">Loading service history…</p>
+  } @else {
+    <service-history-timeline [items]="items()" />
+  }
+
+  <service-history-export-dialog
+    [open]="exportOpen()"
+    [recordCount]="items().length"
+    (close)="closeExport()"
+    (exportFormat)="onExport($event)" />
+</div>

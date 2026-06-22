@@ -1,0 +1,43 @@
+<div class="reports-page">
+  <header class="page-head">
+    <div>
+      <h2>Maintenance Reports</h2>
+      <p>Enterprise reporting with filters, preview, export, and scheduled delivery</p>
+    </div>
+    <a class="history-link" routerLink="/fleet/maintenance/history">
+      <mat-icon>history</mat-icon> Service History
+    </a>
+  </header>
+
+  <report-catalog [selected]="selectedReport()" (select)="onSelectReport($event)" />
+
+  <report-filters
+    [filters]="draftFilters()"
+    [vehicles]="vehicles()"
+    [branches]="branches()"
+    [showStatus]="showStatus()"
+    [statusOptions]="statusOptions()"
+    (filtersChange)="onDraftChange($event)"
+    (apply)="onApply()"
+    (reset)="onReset()" />
+
+  <report-export-actions
+    [loading]="loading()"
+    [canExport]="canExport()"
+    (preview)="onPreview()"
+    (exportPdf)="exportPdf()"
+    (exportExcel)="exportExcel()"
+    (schedule)="openSchedule()" />
+
+  <report-preview
+    [report]="report()"
+    [loading]="loading()"
+    [hasPreview]="hasPreview()" />
+
+  <report-schedule-dialog
+    [open]="scheduleOpen()"
+    [reportType]="selectedReport()"
+    [filters]="draftFilters()"
+    (close)="scheduleOpen.set(false)"
+    (saved)="scheduleOpen.set(false)" />
+</div>

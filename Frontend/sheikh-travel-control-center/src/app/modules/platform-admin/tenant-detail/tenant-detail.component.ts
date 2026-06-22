@@ -1,8 +1,8 @@
 import { Component, OnInit } from '@angular/core';
 import { FormBuilder, FormControl, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatDialog } from '@angular/material/dialog';
+import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
 import { forkJoin } from 'rxjs';
 import { PlatformService } from '../../../core/services/platform.service';
 import { LookupService } from '../../../core/services/lookup.service';
@@ -54,7 +54,7 @@ export class TenantDetailComponent implements OnInit {
     private router: Router,
     private platform: PlatformService,
     private lookup: LookupService,
-    private snackBar: MatSnackBar,
+    private toast: UiToastService,
     private dialog: MatDialog
   ) {
     this.form = this.fb.group({
@@ -100,7 +100,7 @@ export class TenantDetailComponent implements OnInit {
       },
       error: () => {
         this.loading = false;
-        this.snackBar.open('Failed to load tenant.', 'Close', { duration: 4000 });
+        this.toast.error('Failed to load tenant.');
         void this.router.navigate(['/platform/tenants']);
       }
     });
@@ -160,7 +160,7 @@ export class TenantDetailComponent implements OnInit {
   submit(): void {
     if (this.form.invalid || !this.tenantId) {
       this.form.markAllAsTouched();
-      this.snackBar.open('Please fix validation errors before saving.', 'Close', { duration: 3000 });
+      this.toast.error('Please fix validation errors before saving.');
       return;
     }
     if (this.saving) return;
@@ -192,12 +192,12 @@ export class TenantDetailComponent implements OnInit {
     }).subscribe({
       next: () => {
         this.saving = false;
-        this.snackBar.open('Tenant updated.', 'Close', { duration: 2500 });
+        this.toast.success('Tenant updated.');
         void this.router.navigate(['/platform/tenants']);
       },
       error: (err: unknown) => {
         this.saving = false;
-        this.snackBar.open(apiErrorMessage(err, 'Save failed.'), 'Close', { duration: 4000 });
+        this.toast.error(apiErrorMessage(err, 'Save failed.'));
       }
     });
   }
@@ -237,7 +237,7 @@ export class TenantDetailComponent implements OnInit {
       moduleCodes: [...def.moduleCodes]
     });
     this.form.markAsDirty();
-    this.snackBar.open(`${planName} plan defaults applied.`, 'OK', { duration: 2000 });
+    this.toast.success(`${planName} plan defaults applied.`);
   }
 
   resetAdminPassword(): void {
@@ -246,7 +246,7 @@ export class TenantDetailComponent implements OnInit {
     );
     if (!password) return;
     if (password.length < 8) {
-      this.snackBar.open('Password must be at least 8 characters.', 'Close', { duration: 3000 });
+      this.toast.success('Password must be at least 8 characters.');
       return;
     }
     if (!this.tenantId) return;
@@ -255,11 +255,11 @@ export class TenantDetailComponent implements OnInit {
     this.platform.resetTenantAdminPassword(this.tenantId, password).subscribe({
       next: () => {
         this.resettingPassword = false;
-        this.snackBar.open('Admin password reset successfully.', 'Close', { duration: 3000 });
+        this.toast.success('Admin password reset successfully.');
       },
       error: (err: unknown) => {
         this.resettingPassword = false;
-        this.snackBar.open(apiErrorMessage(err, 'Password reset failed.'), 'Close', { duration: 4000 });
+        this.toast.error(apiErrorMessage(err, 'Password reset failed.'));
       }
     });
   }

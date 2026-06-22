@@ -1,7 +1,7 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { Subject, takeUntil } from 'rxjs';
+import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
 import { PlatformTenantContextService } from '../../../core/services/platform-tenant-context.service';
 import { PlatformService } from '../../../core/services/platform.service';
 import {
@@ -32,7 +32,7 @@ export class ModuleManagementComponent implements OnInit, OnDestroy {
   constructor(
     private route: ActivatedRoute,
     private router: Router,
-    private snackBar: MatSnackBar,
+    private toast: UiToastService,
     private tenantContext: PlatformTenantContextService,
     private platform: PlatformService
   ) {}
@@ -80,7 +80,7 @@ export class ModuleManagementComponent implements OnInit, OnDestroy {
       },
       error: (err) => {
         this.loading = false;
-        this.snackBar.open(apiErrorMessage(err, 'Failed to load module overview.'), 'Close', { duration: 4000 });
+        this.toast.error(apiErrorMessage(err, 'Failed to load module overview.'));
       }
     });
   }
@@ -108,12 +108,12 @@ export class ModuleManagementComponent implements OnInit, OnDestroy {
     this.platform.setTenantModules(tenantId, enabledCodes).subscribe({
       next: () => {
         this.saving = false;
-        this.snackBar.open('Modules updated.', 'Close', { duration: 2500 });
+        this.toast.success('Modules updated.');
         this.loadOverview(tenantId);
       },
       error: (err) => {
         this.saving = false;
-        this.snackBar.open(apiErrorMessage(err, 'Failed to update modules.'), 'Close', { duration: 4000 });
+        this.toast.error(apiErrorMessage(err, 'Failed to update modules.'));
       }
     });
   }

@@ -1,0 +1,57 @@
+<div class="wo-page">
+  <header class="page-head">
+    <div>
+      <h2>Work Orders</h2>
+      <p>Manage vehicle repairs and services</p>
+    </div>
+    <div class="page-head__actions">
+      <button type="button" class="btn-export" (click)="exportOrders()">
+        <mat-icon>download</mat-icon> Export
+      </button>
+      <button type="button" class="btn-new" (click)="showCreate.set(true)">
+        <mat-icon>add</mat-icon> Create Work Order
+      </button>
+    </div>
+  </header>
+
+  <wo-stats [stats]="stats()" [activeKey]="activeStat()" (select)="onStatSelect($event)" />
+
+  <wo-filters
+    [filters]="draftFilters()"
+    [vehicles]="vehicles()"
+    [workshops]="workshops()"
+    [statusOptions]="statusOptions"
+    (filtersChange)="onDraftChange($event)"
+    (apply)="onApply()"
+    (reset)="onReset()" />
+
+  <wo-table
+    [orders]="orders()"
+    [loading]="loading()"
+    (rowClick)="selectedId.set($event)" />
+
+  @if (!loading() && totalCount() > 0) {
+    <div class="pagination">
+      <span>Showing {{ rangeStart() }}–{{ rangeEnd() }} of {{ totalCount() }}</span>
+      <div class="pagination-nav">
+        <button type="button" [disabled]="page() <= 1" (click)="goToPage(page() - 1)">Previous</button>
+        <span>{{ page() }} / {{ totalPages() }}</span>
+        <button type="button" [disabled]="page() >= totalPages()" (click)="goToPage(page() + 1)">Next</button>
+      </div>
+    </div>
+  }
+
+  <work-order-detail-drawer
+    [workOrderId]="selectedId()"
+    [workshops]="workshops()"
+    (closed)="selectedId.set(null)"
+    (changed)="onChanged()" />
+
+  <work-order-detail-drawer
+    [workOrderId]="null"
+    [createMode]="showCreate()"
+    [vehicles]="vehicles()"
+    [workshops]="workshops()"
+    (closed)="showCreate.set(false)"
+    (created)="onCreated()" />
+</div>

@@ -1,6 +1,5 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, inject, model, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { catchError, forkJoin, of } from 'rxjs';
 import { DriverService } from '../../../../core/services/driver.service';
@@ -9,6 +8,7 @@ import { UiModalComponent } from '../../../../shared/components/ui/modal/ui-moda
 import { UiButtonComponent } from '../../../../shared/components/ui/button/ui-button.component';
 import { UiSelectComponent } from '../../../../shared/components/ui/select/ui-select.component';
 import { UiSelectOption } from '../../../../shared/components/ui/types/ui.types';
+import { UiToastService } from '../../../../shared/components/ui/toast/ui-toast.service';
 
 @Component({
   selector: 'driver-bulk-assign-dialog',
@@ -55,7 +55,7 @@ import { UiSelectOption } from '../../../../shared/components/ui/types/ui.types'
 export class DriverBulkAssignDialogComponent {
   private readonly driverService = inject(DriverService);
   private readonly vehicleService = inject(VehicleService);
-  private readonly snackBar = inject(MatSnackBar);
+  private readonly toast = inject(UiToastService);
   private readonly destroyRef = inject(DestroyRef);
 
   readonly open = model(false);
@@ -101,13 +101,13 @@ export class DriverBulkAssignDialogComponent {
     ).subscribe({
       next: () => {
         this.submitting.set(false);
-        this.snackBar.open('Vehicle assigned to driver', 'Close', { duration: 3000 });
+        this.toast.success('Vehicle assigned to driver');
         this.assigned.emit();
         this.open.set(false);
       },
       error: () => {
         this.submitting.set(false);
-        this.snackBar.open('Assignment failed', 'Close', { duration: 3500 });
+        this.toast.error('Assignment failed');
       }
     });
   }

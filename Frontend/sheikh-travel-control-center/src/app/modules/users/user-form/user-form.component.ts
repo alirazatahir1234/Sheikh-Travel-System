@@ -1,8 +1,8 @@
 import { Component, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { HttpErrorResponse } from '@angular/common/http';
+import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
 import { UserService } from '../../../core/services/user.service';
 import {
   User,
@@ -39,8 +39,7 @@ export class UserFormComponent implements OnInit {
     private userService: UserService,
     private route: ActivatedRoute,
     private router: Router,
-    private snackBar: MatSnackBar
-  ) {
+    private toast: UiToastService) {
     this.form = this.fb.group({
       fullName: ['', [Validators.required, Validators.maxLength(100)]],
       email:    ['', [Validators.required, Validators.email]],
@@ -77,7 +76,7 @@ export class UserFormComponent implements OnInit {
         },
         error: () => {
           this.loading = false;
-          this.snackBar.open('Failed to load user.', 'Close', { duration: 3000 });
+          this.toast.error('Failed to load user.');
           this.router.navigate(['/users']);
         }
       });
@@ -124,13 +123,13 @@ export class UserFormComponent implements OnInit {
 
   private onSuccess(action: string): void {
     this.submitting = false;
-    this.snackBar.open(`User ${action} successfully.`, 'Close', { duration: 2000 });
+    this.toast.success(`User ${action} successfully.`);
     this.router.navigate(['/users']);
   }
 
   private onError(err: HttpErrorResponse): void {
     this.submitting = false;
-    this.snackBar.open(this.extractError(err), 'Close', { duration: 4000 });
+    this.toast.error(this.extractError(err));
   }
 
   private extractError(err: HttpErrorResponse): string {

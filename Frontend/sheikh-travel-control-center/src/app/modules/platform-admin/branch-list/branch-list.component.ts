@@ -1,7 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { PlatformService } from '../../../core/services/platform.service';
+import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
 import { Branch, BranchStatus, branchStatusLabel } from '../../../core/models/platform.model';
 import { apiErrorMessage } from '../../../core/utils/api-error.util';
 
@@ -19,7 +19,7 @@ export class BranchListComponent implements OnInit {
   constructor(
     private platform: PlatformService,
     private router: Router,
-    private snackBar: MatSnackBar
+    private toast: UiToastService
   ) {}
 
   ngOnInit(): void { this.load(); }
@@ -28,7 +28,7 @@ export class BranchListComponent implements OnInit {
     this.loading = true;
     this.platform.getBranches().subscribe({
       next: rows => { this.branches = rows; this.loading = false; },
-      error: () => { this.loading = false; this.snackBar.open('Failed to load branches.', 'Close', { duration: 3000 }); }
+      error: () => { this.loading = false; this.toast.error('Failed to load branches.'); }
     });
   }
 
@@ -54,7 +54,7 @@ export class BranchListComponent implements OnInit {
     if (!confirm(`Delete branch "${branch.name}"?`)) return;
     this.platform.deleteBranch(branch.id).subscribe({
       next: () => this.load(),
-      error: (err) => this.snackBar.open(apiErrorMessage(err, 'Delete failed.'), 'Close', { duration: 4000 })
+      error: (err) => this.toast.error(apiErrorMessage(err, 'Delete failed.'))
     });
   }
 }

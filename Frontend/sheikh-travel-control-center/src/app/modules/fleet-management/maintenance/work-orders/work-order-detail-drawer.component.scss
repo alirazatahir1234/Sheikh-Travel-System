@@ -1,0 +1,78 @@
+.wo-drawer { display: flex; flex-direction: column; gap: 1.25rem; }
+.muted { color: #94a3b8; }
+h4 { margin: 0 0 0.625rem; font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #64748b; }
+section { background: #f8faf9; border: 1px solid #e8f0eb; border-radius: 10px; padding: 0.875rem 1rem; }
+
+dl { margin: 0; display: grid; gap: 0.5rem; }
+dl div { display: grid; grid-template-columns: 110px 1fr; gap: 0.5rem; font-size: 0.8125rem; }
+dt { color: #94a3b8; }
+dd { margin: 0; font-weight: 600; color: #1e293b; }
+.sub { display: block; font-size: 0.6875rem; color: #94a3b8; font-weight: 400; }
+.mono { font-family: monospace; color: #0b6b50; }
+
+.stepper { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+.step { display: flex; align-items: center; gap: 0.25rem; font-size: 0.625rem; color: #cbd5e1; font-weight: 600; }
+.step--done { color: #0b6b50; }
+.step--current .dot { background: #0b6b50; box-shadow: 0 0 0 3px #e8f5f0; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: #e2e8f0; }
+
+.badge { display: inline-block; padding: 0.2rem 0.5rem; border-radius: 999px; font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; }
+.badge--lg { font-size: 0.8125rem; padding: 0.3rem 0.75rem; }
+.badge--info { background: #dbeafe; color: #1d4ed8; }
+.badge--warning { background: #fef3c7; color: #b45309; }
+.badge--done { background: #dcfce7; color: #15803d; }
+.badge--danger { background: #fee2e2; color: #dc2626; }
+.badge--muted { background: #f1f5f9; color: #64748b; }
+
+.cost-grid { display: grid; gap: 0.35rem; }
+.cost-row { display: flex; justify-content: space-between; font-size: 0.8125rem; }
+.cost-row--muted { color: #94a3b8; }
+.cost-row--total { border-top: 1px solid #e2e8f0; padding-top: 0.5rem; font-weight: 700; color: #0b6b50; }
+.mt-sm { margin-top: 0.5rem; }
+
+.service-chips { display: flex; flex-wrap: wrap; gap: 0.375rem; }
+.service-chip {
+  border: 1px solid #e2e8f0; border-radius: 999px; padding: 0.25rem 0.625rem;
+  font-size: 0.75rem; font-weight: 600; color: #475569; background: #fff;
+}
+.service-chip--active { border-color: #0b6b50; background: #e8f5f0; color: #0b6b50; }
+button.service-chip { cursor: pointer; }
+
+.part-row { display: flex; justify-content: space-between; font-size: 0.8125rem; padding: 0.35rem 0; border-bottom: 1px solid #f1f5f9; }
+.parts-form .row { display: flex; gap: 0.5rem; }
+.parts-form input { flex: 1; border: 1px solid #e2e8f0; border-radius: 6px; padding: 0.4375rem 0.625rem; font-size: 0.8125rem; }
+
+.assign-panel label { display: grid; gap: 0.35rem; margin-bottom: 0.625rem; font-size: 0.75rem; font-weight: 700; color: #475569; }
+.assign-panel select { border: 1px solid #e2e8f0; border-radius: 7px; padding: 0.5rem; font-size: 0.8125rem; }
+.inline-actions { display: flex; gap: 0.5rem; justify-content: flex-end; }
+
+.actions { display: flex; gap: 0.5rem; flex-wrap: wrap; padding-top: 0.5rem; border-top: 1px solid #e2e8f0; }
+button { border: 1px solid #e2e8f0; background: #fff; border-radius: 8px; padding: 0.5rem 0.875rem; font-weight: 600; font-size: 0.8125rem; cursor: pointer; }
+.btn-primary { background: #0b6b50; color: #fff; border-color: #0b6b50; }
+.btn-outline { color: #475569; }
+.btn-muted { background: #f1f5f9; color: #64748b; border: none; }
+.btn-sm { padding: 0.375rem 0.625rem; font-size: 0.75rem; }
+button:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.field { display: flex; flex-direction: column; gap: 0.3rem; margin-bottom: 0.625rem; }
+.field label { font-size: 0.75rem; font-weight: 700; color: #475569; }
+.req { color: #dc2626; }
+.field select, .field input, .field textarea {
+  border: 1px solid #e2e8f0; border-radius: 7px; padding: 0.5rem 0.625rem; font-size: 0.8125rem;
+}
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+
+.maint-type-group { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.maint-type-card {
+  flex: 1; min-width: 90px; display: flex; flex-direction: column; align-items: center; gap: 0.25rem;
+  padding: 0.625rem; border: 1.5px solid #e2e8f0; border-radius: 10px; cursor: pointer; background: #fff;
+}
+.maint-type-card input { display: none; }
+.maint-type-card mat-icon { color: #64748b; }
+.maint-type-card--active { border-color: #0b6b50; background: #e8f5f0; color: #0b6b50; }
+.maint-type-card--active mat-icon { color: #0b6b50; }
+
+@media (max-width: 768px) {
+  :host ::ng-deep ui-drawer aside { width: 100% !important; }
+  .two-col { grid-template-columns: 1fr; }
+}

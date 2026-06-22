@@ -1,6 +1,5 @@
 import { Component, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { forkJoin, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { VehicleService } from '../../../core/services/vehicle.service';
@@ -43,8 +42,7 @@ export class VehicleProfileComponent implements OnInit {
     private vehicleService: VehicleService,
     private bookingService: BookingService,
     private fuelLogService: FuelLogService,
-    private maintenanceService: MaintenanceService,
-    private snackBar: MatSnackBar
+    private maintenanceService: MaintenanceService
   ) {}
 
   ngOnInit(): void {

@@ -1,6 +1,6 @@
 import { Component, OnInit } from '@angular/core';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { PlatformService } from '../../../core/services/platform.service';
+import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
 import { Permission, PlatformRole } from '../../../core/models/platform.model';
 import { apiErrorMessage } from '../../../core/utils/api-error.util';
 
@@ -18,7 +18,7 @@ export class RoleListComponent implements OnInit {
   newName = '';
   newCode = '';
 
-  constructor(private platform: PlatformService, private snackBar: MatSnackBar) {}
+  constructor(private platform: PlatformService, private toast: UiToastService) {}
 
   ngOnInit(): void {
     this.platform.getPermissions().subscribe(perms => this.permissions = perms);
@@ -29,18 +29,18 @@ export class RoleListComponent implements OnInit {
     this.loading = true;
     this.platform.getRoles().subscribe({
       next: rows => { this.roles = rows; this.loading = false; },
-      error: (err) => { this.loading = false; this.snackBar.open(apiErrorMessage(err, 'Failed to load roles.'), 'Close', { duration: 4000 }); }
+      error: (err) => { this.loading = false; this.toast.error(apiErrorMessage(err, 'Failed to load roles.')); }
     });
   }
 
   create(): void {
     if (!this.newName.trim() || !this.newCode.trim()) {
-      this.snackBar.open('Role name and code are required.', 'Close', { duration: 3000 });
+      this.toast.warning('Role name and code are required.');
       return;
     }
     this.platform.createRole(this.newName.trim(), this.newCode.trim()).subscribe({
       next: () => { this.newName = ''; this.newCode = ''; this.load(); },
-      error: (err) => this.snackBar.open(apiErrorMessage(err, 'Create failed.'), 'Close', { duration: 4000 })
+      error: (err) => this.toast.error(apiErrorMessage(err, 'Create failed.'))
     });
   }
 
@@ -59,10 +59,10 @@ export class RoleListComponent implements OnInit {
     this.platform.updateRolePermissions(this.selectedRole.id, [...this.selectedPermissionCodes]).subscribe({
       next: () => {
         this.selectedRole!.permissions = [...this.selectedPermissionCodes];
-        this.snackBar.open('Permissions saved.', 'Close', { duration: 2000 });
+        this.toast.success('Permissions saved.');
         this.load();
       },
-      error: (err) => this.snackBar.open(apiErrorMessage(err, 'Save failed.'), 'Close', { duration: 4000 })
+      error: (err) => this.toast.error(apiErrorMessage(err, 'Save failed.'))
     });
   }
 

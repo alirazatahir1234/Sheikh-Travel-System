@@ -1,7 +1,7 @@
 import { Component, OnInit, ViewChild } from '@angular/core';
 import { FormBuilder, Validators } from '@angular/forms';
 import { MatPaginator } from '@angular/material/paginator';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
 import { MatTableDataSource } from '@angular/material/table';
 import { PlatformService } from '../../../core/services/platform.service';
 import { UserService } from '../../../core/services/user.service';
@@ -31,7 +31,7 @@ export class DepartmentListComponent implements OnInit {
     private fb: FormBuilder,
     private platform: PlatformService,
     private userService: UserService,
-    private snackBar: MatSnackBar
+    private toast: UiToastService
   ) {
     this.form = this.fb.group({
       name: ['', [Validators.required, Validators.maxLength(100)]],
@@ -70,7 +70,7 @@ export class DepartmentListComponent implements OnInit {
       },
       error: (err) => {
         this.loading = false;
-        this.snackBar.open(apiErrorMessage(err, 'Failed to load departments.'), 'Close', { duration: 4000 });
+        this.toast.error(apiErrorMessage(err, 'Failed to load departments.'));
       }
     });
   }
@@ -78,7 +78,7 @@ export class DepartmentListComponent implements OnInit {
   create(): void {
     if (this.form.invalid) {
       this.form.markAllAsTouched();
-      this.snackBar.open('Department name is required.', 'Close', { duration: 3000 });
+      this.toast.warning('Department name is required.');
       return;
     }
     if (this.saving) return;
@@ -94,12 +94,12 @@ export class DepartmentListComponent implements OnInit {
       next: () => {
         this.form.reset();
         this.saving = false;
-        this.snackBar.open('Department created.', 'Close', { duration: 2500 });
+        this.toast.success('Department created.');
         this.load();
       },
       error: (err) => {
         this.saving = false;
-        this.snackBar.open(apiErrorMessage(err, 'Create failed.'), 'Close', { duration: 4000 });
+        this.toast.error(apiErrorMessage(err, 'Create failed.'));
       }
     });
   }
@@ -113,7 +113,7 @@ export class DepartmentListComponent implements OnInit {
         dept.isActive = !dept.isActive;
         this.dataSource.data = [...this.departments];
       },
-      error: (err) => this.snackBar.open(apiErrorMessage(err, 'Update failed.'), 'Close', { duration: 4000 })
+      error: (err) => this.toast.error(apiErrorMessage(err, 'Update failed.'))
     });
   }
 
@@ -121,12 +121,12 @@ export class DepartmentListComponent implements OnInit {
     if (!confirm(`Delete department "${dept.name}"?`)) return;
     this.platform.deleteDepartment(dept.id).subscribe({
       next: () => this.load(),
-      error: (err) => this.snackBar.open(apiErrorMessage(err, 'Delete failed.'), 'Close', { duration: 4000 })
+      error: (err) => this.toast.error(apiErrorMessage(err, 'Delete failed.'))
     });
   }
 
   bulkImportHint(): void {
-    this.snackBar.open('Bulk import will be available in a future release.', 'Close', { duration: 3500 });
+    this.toast.warning('Bulk import will be available in a future release.');
   }
 
   initials(name: string): string {

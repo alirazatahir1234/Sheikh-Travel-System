@@ -1,6 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
 import { forkJoin, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { DriverService } from '../../../core/services/driver.service';
@@ -31,7 +31,7 @@ export class DriverProfileComponent implements OnInit {
     private router: Router,
     private driverService: DriverService,
     private bookingService: BookingService,
-    private snackBar: MatSnackBar
+    private toast: UiToastService
   ) {}
 
   ngOnInit(): void {

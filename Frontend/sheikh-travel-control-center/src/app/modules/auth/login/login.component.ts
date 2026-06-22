@@ -2,7 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
 
 @Component({
   selector: 'app-login',
@@ -20,7 +20,7 @@ export class LoginComponent implements OnInit {
     private fb: FormBuilder,
     private auth: AuthService,
     private router: Router,
-    private snackBar: MatSnackBar
+    private toast: UiToastService
   ) {
     // Pre-fill with admin credentials for easy access
     this.form = this.fb.group({
@@ -45,7 +45,7 @@ export class LoginComponent implements OnInit {
     this.form.markAllAsTouched();
     this.form.updateValueAndValidity({ emitEvent: false });
     if (this.form.invalid) {
-      this.snackBar.open('Please enter a valid email and password.', 'Close', { duration: 2500 });
+      this.toast.warning('Please enter a valid email and password.');
       return;
     }
 
@@ -61,18 +61,16 @@ export class LoginComponent implements OnInit {
       error: err => {
         this.loading = false;
         const message = err?.error?.message || err?.message || 'Invalid email or password';
-        this.snackBar.open(message, 'Close', { duration: 4000 });
+        this.toast.error(message);
       }
     });
   }
 
   forgotPassword(): void {
-    this.snackBar.open('Please contact your administrator to reset password.', 'Close', { duration: 3500 });
+    this.toast.warning('Please contact your administrator to reset password.');
   }
 
   socialLogin(provider: 'google' | 'microsoft'): void {
-    this.snackBar.open(`${provider[0].toUpperCase()}${provider.slice(1)} login is not configured yet.`, 'Close', {
-      duration: 3000
-    });
+    this.toast.info(`${provider[0].toUpperCase()}${provider.slice(1)} login is not configured yet.`);
   }
 }

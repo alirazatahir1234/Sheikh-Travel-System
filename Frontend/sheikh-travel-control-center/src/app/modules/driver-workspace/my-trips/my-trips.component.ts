@@ -1,6 +1,6 @@
 import { Component, OnInit } from '@angular/core';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { DriverAppService } from '../../../core/services/driver-app.service';
+import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
 import { DriverTrip } from '../../../core/models/driver-trip.model';
 
 @Component({
@@ -15,8 +15,7 @@ export class MyTripsComponent implements OnInit {
 
   constructor(
     private driverApp: DriverAppService,
-    private snackBar: MatSnackBar
-  ) {}
+    private toast: UiToastService) {}
 
   ngOnInit(): void {
     this.load();
@@ -31,7 +30,7 @@ export class MyTripsComponent implements OnInit {
       },
       error: err => {
         this.loading = false;
-        this.snackBar.open(err?.error?.message || 'Could not load trips', 'Close', { duration: 4000 });
+        this.toast.error(err?.error?.message || 'Could not load trips');
       }
     });
   }
@@ -67,12 +66,12 @@ export class MyTripsComponent implements OnInit {
     call().subscribe({
       next: () => {
         this.actionId = null;
-        this.snackBar.open(success, 'Close', { duration: 2500 });
+        this.toast.success(success);
         this.load();
       },
       error: err => {
         this.actionId = null;
-        this.snackBar.open(err?.error?.message || 'Action failed', 'Close', { duration: 4000 });
+        this.toast.error(err?.error?.message || 'Action failed');
       }
     });
   }

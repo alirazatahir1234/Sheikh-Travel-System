@@ -9,7 +9,7 @@ namespace SheikhTravelSystem.API.Controllers;
 /// <summary>
 /// Manages vehicle maintenance operations.
 /// </summary>
-public class MaintenanceController : BaseApiController
+public partial class MaintenanceController : BaseApiController
 {
     /// <summary>
     /// Gets maintenance records using filter and pagination criteria.
