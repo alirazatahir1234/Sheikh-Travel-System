@@ -1,5 +1,79 @@
 import { dateInputToIso } from '../utils/date-input.util';
 
+// ── Verification status pipeline ────────────────────────────────────────────
+export type DriverVerificationStatus =
+  | 'Pending'
+  | 'UnderReview'
+  | 'Verified'
+  | 'Rejected'
+  | 'ExpiredDocs';
+
+export const DRIVER_VERIFICATION_STATUSES: DriverVerificationStatus[] = [
+  'Pending', 'UnderReview', 'Verified', 'Rejected', 'ExpiredDocs'
+];
+
+export const DRIVER_VERIFICATION_STATUS_LABELS: Record<DriverVerificationStatus, string> = {
+  Pending: 'Pending',
+  UnderReview: 'Under Review',
+  Verified: 'Verified',
+  Rejected: 'Rejected',
+  ExpiredDocs: 'Docs Expired'
+};
+
+// ── Per-document status ──────────────────────────────────────────────────────
+export type DocumentStatus = 'Missing' | 'Uploaded' | 'Approved' | 'Rejected' | 'Expired';
+
+export interface DriverDocumentDetailed {
+  id: number;
+  documentType: string;
+  fileUrl?: string | null;
+  expiryDate?: string | null;
+  /** Fine-grained per-document status set by reviewer. */
+  status: DocumentStatus;
+  rejectionReason?: string | null;
+  reviewedBy?: string | null;
+  reviewedAt?: string | null;
+  createdAt: string;
+}
+
+export interface VerificationReviewNote {
+  id: number;
+  note: string;
+  /** Optional: scoped to a specific document type (e.g. 'DrivingLicense'). */
+  documentType?: string | null;
+  createdBy?: string | null;
+  createdAt: string;
+}
+
+export interface VerificationSummary {
+  overallStatus: DriverVerificationStatus;
+  documents: DriverDocumentDetailed[];
+  reviewNotes: VerificationReviewNote[];
+  checklist: {
+    drivingLicenseUploaded: boolean;
+    drivingLicenseApproved: boolean;
+    medicalCertUploaded: boolean;
+    medicalCertApproved: boolean;
+    backgroundCheckUploaded: boolean;
+    backgroundCheckApproved: boolean;
+    licenseNotExpired: boolean;
+    cnicVerified: boolean;
+  };
+  completionPct: number;
+  lastReviewedBy?: string | null;
+  lastReviewedAt?: string | null;
+}
+
+export interface UpdateDocumentStatusRequest {
+  status: 'Approved' | 'Rejected';
+  rejectionReason?: string | null;
+}
+
+export interface AddReviewNoteRequest {
+  note: string;
+  documentType?: string | null;
+}
+
 export enum DriverStatus {
   Available = 1,
   OnTrip = 2,
@@ -39,6 +113,9 @@ export interface DriverListItem {
   assignedVehicleId?: number | null;
   assignedVehicleCode?: string | null;
   assignedVehicleRegistration?: string | null;
+  rating?: number | null;
+  gpsOnline?: boolean;
+  availabilityBucket?: string | null;
   createdAt: string;
 }
 
@@ -73,6 +150,10 @@ export interface Driver {
   assignedVehicleRegistration?: string | null;
   status: DriverStatus;
   isActive: boolean;
+  rating?: number | null;
+  yearsExperience?: number | null;
+  gpsOnline?: boolean;
+  availabilityBucket?: string | null;
   createdAt: string;
   updatedAt?: string | null;
 }
@@ -80,11 +161,14 @@ export interface Driver {
 export interface DriverStats {
   totalDrivers: number;
   active: number;
+  inactive?: number;
   onTrip: number;
   offDuty: number;
   available: number;
+  busy?: number;
   onLeave: number;
   suspended: number;
+  gpsOnline?: number;
   licensesExpiringSoon: number;
   licensesExpiringIn7Days: number;
   licensesExpired: number;
@@ -168,6 +252,78 @@ export interface CheckDriverAvailabilityParams {
   email?: string;
   licenseNumber?: string;
   excludeDriverId?: number;
+}
+
+export type DriverAvailabilityBucket = 'Available' | 'Busy' | 'OnTrip' | 'Unavailable';
+
+export interface DriversAvailabilitySummary {
+  available: number;
+  busy: number;
+  onTrip: number;
+  unavailable: number;
+}
+
+export interface DriverAssignment {
+  id: number;
+  vehicleId: number;
+  vehicleRegistration?: string | null;
+  vehicleCode?: string | null;
+  assignmentType: string;
+  status: string;
+  startAt: string;
+  endAt?: string | null;
+  bookingId?: number | null;
+}
+
+export interface DriverPerformanceSummary {
+  driverId: number;
+  driverName: string;
+  rating?: number | null;
+  yearsExperience?: number | null;
+  totalTrips: number;
+  completedTrips: number;
+  totalRevenue: number;
+  completionRate: number;
+  violationCount: number;
+  attendancePresentCount: number;
+}
+
+export interface DriverViolation {
+  id: number;
+  violationType: string;
+  severity: string;
+  occurredAt: string;
+  description?: string | null;
+  bookingId?: number | null;
+  status: string;
+  createdAt: string;
+}
+
+export interface DriverAttendance {
+  id: number;
+  attendanceDate: string;
+  status: string;
+  checkInAt?: string | null;
+  checkOutAt?: string | null;
+  notes?: string | null;
+  createdAt: string;
+}
+
+export interface DriverLocation {
+  latitude?: number | null;
+  longitude?: number | null;
+  speed?: number | null;
+  ignition?: boolean | null;
+  lastSeen?: string | null;
+  vehicleId?: number | null;
+  vehicleRegistration?: string | null;
+  gpsOnline: boolean;
+}
+
+export interface TransferDriverVehicleRequest {
+  newVehicleId: number;
+  bookingId?: number | null;
+  assignmentType?: string | null;
 }
 
 export function driverDisplayName(d: Pick<DriverListItem | Driver, 'firstName' | 'lastName' | 'fullName'>): string {

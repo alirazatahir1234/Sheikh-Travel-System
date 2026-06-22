@@ -26,6 +26,11 @@ public class DriversController : BaseApiController
         => Ok(await Mediator.Send(new GetDriverStatsQuery()));
 
     [RequirePermission(DriverPermissions.DriverView)]
+    [HttpGet("availability")]
+    public async Task<IActionResult> GetAvailabilitySummary([FromQuery] int? branchId)
+        => Ok(await Mediator.Send(new GetDriversAvailabilityQuery(branchId)));
+
+    [RequirePermission(DriverPermissions.DriverView)]
     [HttpGet("{id:int}")]
     public async Task<IActionResult> GetById(int id)
         => Ok(await Mediator.Send(new GetDriverByIdQuery(id)));
@@ -99,6 +104,26 @@ public class DriversController : BaseApiController
     public async Task<IActionResult> AssignVehicle(int id, [FromBody] AssignDriverVehicleRequest body)
         => Ok(await Mediator.Send(new AssignDriverVehicleCommand(id, body)));
 
+    [RequirePermission(DriverPermissions.DriverAssign)]
+    [HttpPost("{id:int}/unassign-vehicle")]
+    public async Task<IActionResult> UnassignVehicle(int id)
+        => Ok(await Mediator.Send(new UnassignDriverVehicleCommand(id)));
+
+    [RequirePermission(DriverPermissions.DriverAssign)]
+    [HttpPost("{id:int}/transfer-vehicle")]
+    public async Task<IActionResult> TransferVehicle(int id, [FromBody] TransferDriverVehicleRequest body)
+        => Ok(await Mediator.Send(new TransferDriverVehicleCommand(id, body)));
+
+    [RequirePermission(DriverPermissions.DriverView)]
+    [HttpGet("{id:int}/assignments")]
+    public async Task<IActionResult> GetAssignments(int id, [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
+        => Ok(await Mediator.Send(new GetDriverAssignmentsQuery(id, page, pageSize)));
+
+    [RequirePermission(DriverPermissions.DriverView)]
+    [HttpGet("{id:int}/availability")]
+    public async Task<IActionResult> GetDriverAvailability(int id)
+        => Ok(await Mediator.Send(new GetDriverAvailabilityDetailQuery(id)));
+
     [RequirePermission(DriverPermissions.DriverView)]
     [HttpGet("{id:int}/timeline")]
     public async Task<IActionResult> GetTimeline(int id)
@@ -109,37 +134,84 @@ public class DriversController : BaseApiController
     public async Task<IActionResult> GetActiveDuty(int id)
         => Ok(await Mediator.Send(new GetDriverActiveDutyQuery(id)));
 
+    [RequirePermission(DriverPermissions.DriverViewPerformance)]
+    [HttpGet("{id:int}/performance/summary")]
+    public async Task<IActionResult> GetPerformanceSummary(int id, [FromQuery] DateTime? fromDate, [FromQuery] DateTime? toDate)
+        => Ok(await Mediator.Send(new GetDriverPerformanceSummaryQuery(id, fromDate, toDate)));
+
+    [RequirePermission(DriverPermissions.DriverViewPerformance)]
+    [HttpGet("{id:int}/performance")]
+    public async Task<IActionResult> GetPerformance(int id, [FromQuery] DateTime? fromDate, [FromQuery] DateTime? toDate)
+        => Ok(await Mediator.Send(new GetDriverPerformanceSummaryQuery(id, fromDate, toDate)));
+
     [RequirePermission(DriverPermissions.DriverUpdate)]
+    [HttpPatch("{id:int}/rating")]
+    public async Task<IActionResult> UpdateRating(int id, [FromBody] UpdateDriverRatingRequest body)
+        => Ok(await Mediator.Send(new UpdateDriverRatingCommand(id, body.Rating)));
+
+    [RequirePermission(DriverPermissions.DriverViewPerformance)]
+    [HttpGet("{id:int}/violations")]
+    public async Task<IActionResult> GetViolations(int id, [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
+        => Ok(await Mediator.Send(new GetDriverViolationsQuery(id, page, pageSize)));
+
+    [RequirePermission(DriverPermissions.DriverUpdate)]
+    [HttpPost("{id:int}/violations")]
+    public async Task<IActionResult> CreateViolation(int id, [FromBody] CreateDriverViolationRequest body)
+        => Ok(await Mediator.Send(new CreateDriverViolationCommand(id, body)));
+
+    [RequirePermission(DriverPermissions.DriverViewPerformance)]
+    [HttpGet("{id:int}/attendance")]
+    public async Task<IActionResult> GetAttendance(int id, [FromQuery] DateTime? fromDate, [FromQuery] DateTime? toDate)
+        => Ok(await Mediator.Send(new GetDriverAttendanceQuery(id, fromDate, toDate)));
+
+    [RequirePermission(DriverPermissions.DriverUpdate)]
+    [HttpPost("{id:int}/attendance")]
+    public async Task<IActionResult> CreateAttendance(int id, [FromBody] CreateDriverAttendanceRequest body)
+        => Ok(await Mediator.Send(new CreateDriverAttendanceCommand(id, body)));
+
+    [RequirePermission(DriverPermissions.DriverView)]
+    [HttpGet("{id:int}/location")]
+    public async Task<IActionResult> GetLocation(int id)
+        => Ok(await Mediator.Send(new GetDriverLocationQuery(id)));
+
+    [RequirePermission(DriverPermissions.DriverView)]
+    [HttpGet("{id:int}/location/history")]
+    public async Task<IActionResult> GetLocationHistory(int id, [FromQuery] DateTime from, [FromQuery] DateTime to)
+        => Ok(await Mediator.Send(new GetDriverLocationHistoryQuery(id, from, to)));
+
+    [RequirePermission(DriverPermissions.DriverManageStatus)]
     [HttpPatch("{id:int}/status")]
     public async Task<IActionResult> ChangeStatus(int id, [FromBody] ChangeDriverStatusRequest body)
-    {
-        var driver = await Mediator.Send(new GetDriverByIdQuery(id));
-        if (!driver.Success || driver.Data is null)
-            return NotFound(driver);
+        => Ok(await Mediator.Send(new ChangeDriverStatusCommand(id, body.Status)));
 
-        var current = driver.Data;
-        var update = new UpdateDriverDto(
-            current.FirstName ?? current.FullName.Split(' ')[0],
-            current.LastName ?? (current.FullName.Contains(' ') ? current.FullName[(current.FullName.IndexOf(' ') + 1)..] : string.Empty),
-            current.Phone,
-            current.LicenseNumber,
-            current.LicenseExpiryDate,
-            body.Status,
-            current.IsActive,
-            current.Nationality,
-            current.Email,
-            current.DateOfBirth,
-            current.Gender,
-            current.EmergencyContactName,
-            current.EmergencyContact,
-            current.HireDate,
-            current.BranchId,
-            current.DepartmentId,
-            current.CNIC,
-            current.Address);
+    [RequirePermission(DriverPermissions.DriverManageStatus)]
+    [HttpPatch("{id:int}/toggle-active")]
+    public async Task<IActionResult> ToggleActive(int id)
+        => Ok(await Mediator.Send(new ToggleDriverActiveCommand(id)));
 
-        return Ok(await Mediator.Send(new UpdateDriverCommand(id, update)));
-    }
+    // ── Verification: per-document status ───────────────────────────────────
+
+    [RequirePermission(DriverPermissions.DriverUpdate)]
+    [HttpPatch("{id:int}/documents/{docId:int}/status")]
+    public async Task<IActionResult> UpdateDocumentStatus(
+        int id,
+        int docId,
+        [FromBody] UpdateDocumentStatusRequest body)
+        => Ok(await Mediator.Send(new UpdateDocumentStatusCommand(id, docId, body.Status, body.RejectionReason)));
+
+    // ── Verification: reviewer notes ─────────────────────────────────────────
+
+    [RequirePermission(DriverPermissions.DriverUpdate)]
+    [HttpPost("{id:int}/verification/review-notes")]
+    public async Task<IActionResult> AddReviewNote(
+        int id,
+        [FromBody] AddDriverReviewNoteRequest body)
+        => Ok(await Mediator.Send(new AddDriverReviewNoteCommand(id, body.Note, body.DocumentType)));
+
+    [RequirePermission(DriverPermissions.DriverView)]
+    [HttpGet("{id:int}/verification/review-notes")]
+    public async Task<IActionResult> GetReviewNotes(int id)
+        => Ok(await Mediator.Send(new GetDriverReviewNotesQuery(id)));
 }
 
 public record UploadDriverDocumentForm(string DocumentType, DateTime? ExpiryDate, IFormFile? File);

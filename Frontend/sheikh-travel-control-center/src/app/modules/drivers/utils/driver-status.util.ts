@@ -40,6 +40,16 @@ export function licenseExpiryLabel(state: LicenseExpiryState): string {
   }
 }
 
+export function availabilityBucketLabel(bucket?: string | null): string {
+  switch (bucket) {
+    case 'Busy': return 'Busy';
+    case 'OnTrip': return 'On Trip';
+    case 'Unavailable': return 'Unavailable';
+    case 'Available': return 'Available';
+    default: return bucket || '—';
+  }
+}
+
 export function statusBadgeVariant(status: DriverStatus): 'success' | 'warning' | 'danger' | 'neutral' | 'info' {
   switch (status) {
     case DriverStatus.Available: return 'success';

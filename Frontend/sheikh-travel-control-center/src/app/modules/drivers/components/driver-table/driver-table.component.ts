@@ -5,7 +5,7 @@ import { DriverListItem, DriverStatusLabels, driverDisplayName } from '../../../
 import { UiStatusBadgeComponent } from '../../../../shared/components/ui/status-badge/ui-status-badge.component';
 import { UiEmptyStateComponent } from '../../../../shared/components/ui/empty-state/ui-empty-state.component';
 import { DriverPagination, DRIVER_PAGE_SIZE_OPTIONS, computeDriverScore, scoreTone } from '../../models/driver-inventory.model';
-import { licenseExpiryLabel, licenseExpiryState } from '../../utils/driver-status.util';
+import { licenseExpiryLabel, licenseExpiryState, availabilityBucketLabel } from '../../utils/driver-status.util';
 
 @Component({
   selector: 'driver-table',
@@ -48,6 +48,10 @@ export class DriverTableComponent {
 
   statusLabel(row: DriverListItem): string {
     return DriverStatusLabels[row.status] ?? 'Unknown';
+  }
+
+  availabilityLabel(row: DriverListItem): string {
+    return availabilityBucketLabel(row.availabilityBucket);
   }
 
   assignedVehicle(row: DriverListItem): string {

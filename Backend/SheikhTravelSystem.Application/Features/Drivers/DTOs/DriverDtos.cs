@@ -26,6 +26,9 @@ public record DriverListItemDto(
     int? AssignedVehicleId,
     string? AssignedVehicleCode,
     string? AssignedVehicleRegistration,
+    decimal? Rating,
+    bool GpsOnline,
+    string? AvailabilityBucket,
     DateTime CreatedAt);
 
 public record DriverDto(
@@ -59,6 +62,10 @@ public record DriverDto(
     string? AssignedVehicleRegistration,
     DriverStatus Status,
     bool IsActive,
+    decimal? Rating,
+    int? YearsExperience,
+    bool GpsOnline,
+    string? AvailabilityBucket,
     DateTime CreatedAt,
     DateTime? UpdatedAt);
 
@@ -103,11 +110,14 @@ public record UpdateDriverDto(
 public record DriverStatsDto(
     int TotalDrivers,
     int Active,
+    int Inactive,
     int OnTrip,
     int OffDuty,
     int Available,
+    int Busy,
     int OnLeave,
     int Suspended,
+    int GpsOnline,
     int LicensesExpiringSoon,
     int LicensesExpiringIn7Days,
     int LicensesExpired,
@@ -132,3 +142,120 @@ public record DriverAvailabilityDto(
     bool PhoneAvailable,
     bool EmailAvailable,
     bool LicenseAvailable);
+
+public record TransferDriverVehicleRequest(int NewVehicleId, int? BookingId = null, string? AssignmentType = null);
+
+public record DriverAssignmentDto(
+    int Id,
+    int VehicleId,
+    string? VehicleRegistration,
+    string? VehicleCode,
+    string AssignmentType,
+    string Status,
+    DateTime StartAt,
+    DateTime? EndAt,
+    int? BookingId);
+
+public record DriversAvailabilitySummaryDto(
+    int Available,
+    int Busy,
+    int OnTrip,
+    int Unavailable);
+
+public record DriverAvailabilityDetailDto(
+    int DriverId,
+    string AvailabilityBucket,
+    DriverStatus Status,
+    bool HasActiveAssignment);
+
+public record DriverPerformanceSummaryDto(
+    int DriverId,
+    string DriverName,
+    decimal? Rating,
+    int? YearsExperience,
+    int TotalTrips,
+    int CompletedTrips,
+    decimal TotalRevenue,
+    decimal CompletionRate,
+    int ViolationCount,
+    int AttendancePresentCount);
+
+public record CreateDriverViolationRequest(
+    string ViolationType,
+    string Severity,
+    DateTime OccurredAt,
+    string? Description = null,
+    int? BookingId = null,
+    int? GpsAlertId = null);
+
+public record DriverViolationDto(
+    int Id,
+    string ViolationType,
+    string Severity,
+    DateTime OccurredAt,
+    string? Description,
+    int? BookingId,
+    string Status,
+    DateTime CreatedAt);
+
+public record CreateDriverAttendanceRequest(
+    DateTime AttendanceDate,
+    string Status,
+    DateTime? CheckInAt = null,
+    DateTime? CheckOutAt = null,
+    string? Notes = null);
+
+public record DriverAttendanceDto(
+    int Id,
+    DateTime AttendanceDate,
+    string Status,
+    DateTime? CheckInAt,
+    DateTime? CheckOutAt,
+    string? Notes,
+    DateTime CreatedAt);
+
+public record DriverLocationDto(
+    decimal? Latitude,
+    decimal? Longitude,
+    decimal? Speed,
+    bool? Ignition,
+    DateTime? LastSeen,
+    int? VehicleId,
+    string? VehicleRegistration,
+    bool GpsOnline);
+
+public record DriverLocationPointDto(
+    decimal Latitude,
+    decimal Longitude,
+    decimal? Speed,
+    DateTime Timestamp);
+
+public record UpdateDriverRatingRequest(decimal Rating);
+
+// ── Driver Verification ──────────────────────────────────────────────────────
+
+public record DriverDocumentDetailedDto(
+    int Id,
+    string DocumentType,
+    string? FileUrl,
+    DateTime? ExpiryDate,
+    string Status,
+    string? RejectionReason,
+    string? ReviewedBy,
+    DateTime? ReviewedAt,
+    DateTime CreatedAt);
+
+public record UpdateDocumentStatusRequest(
+    string Status,
+    string? RejectionReason = null);
+
+public record AddDriverReviewNoteRequest(
+    string Note,
+    string? DocumentType = null);
+
+public record DriverReviewNoteDto(
+    int Id,
+    string Note,
+    string? DocumentType,
+    string? CreatedBy,
+    DateTime CreatedAt);

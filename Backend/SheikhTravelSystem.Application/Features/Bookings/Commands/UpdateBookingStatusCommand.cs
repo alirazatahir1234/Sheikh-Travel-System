@@ -76,6 +76,50 @@ public class UpdateBookingStatusCommandHandler(IDbConnectionFactory dbFactory, I
                 },
                 cancellationToken: cancellationToken));
 
+        var booking = await connection.QuerySingleOrDefaultAsync<(int? DriverId, int? VehicleId)>(
+            new CommandDefinition(
+                "SELECT DriverId, VehicleId FROM Bookings WHERE Id = @Id AND IsDeleted = 0",
+                new { request.Id },
+                cancellationToken: cancellationToken));
+
+        if (booking.DriverId is int driverId)
+        {
+            var driverStatus = request.Status switch
+            {
+                BookingStatus.Started => DriverStatus.OnTrip,
+                BookingStatus.Completed or BookingStatus.Cancelled => DriverStatus.Available,
+                _ => (DriverStatus?)null
+            };
+
+            if (driverStatus.HasValue)
+            {
+                await connection.ExecuteAsync(
+                    new CommandDefinition(
+                        "UPDATE Drivers SET Status = @Status, UpdatedAt = GETUTCDATE() WHERE Id = @Id AND IsDeleted = 0",
+                        new { Status = (int)driverStatus.Value, Id = driverId },
+                        cancellationToken: cancellationToken));
+            }
+        }
+
+        if (booking.VehicleId is int vehicleId)
+        {
+            var vehicleStatus = request.Status switch
+            {
+                BookingStatus.Started => VehicleStatus.OnTrip,
+                BookingStatus.Completed or BookingStatus.Cancelled => VehicleStatus.Available,
+                _ => (VehicleStatus?)null
+            };
+
+            if (vehicleStatus.HasValue)
+            {
+                await connection.ExecuteAsync(
+                    new CommandDefinition(
+                        "UPDATE Vehicles SET Status = @Status, UpdatedAt = GETUTCDATE() WHERE Id = @Id AND IsDeleted = 0",
+                        new { Status = (int)vehicleStatus.Value, Id = vehicleId },
+                        cancellationToken: cancellationToken));
+            }
+        }
+
         logger.LogInformation("Booking {BookingId} status transitioned from {From} to {To}", request.Id, current, request.Status);
         return ApiResponse<bool>.SuccessResponse(true, $"Booking status updated to {request.Status}.");
     }

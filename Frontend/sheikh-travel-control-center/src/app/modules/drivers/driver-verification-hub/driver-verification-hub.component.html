@@ -1,0 +1,361 @@
+<section class="hub-root">
+
+  <!-- ── PAGE HEADER ──────────────────────────────────────────────────────── -->
+  <ui-page-header
+    eyebrow="Driver Module"
+    [title]="driverName()"
+    subtitle="Verification Hub"
+    icon="verified_user"
+    [breadcrumbs]="[
+      { label: 'Drivers', route: '/drivers' },
+      { label: driverName() },
+      { label: 'Verification' }
+    ]">
+    <ui-button variant="outline" size="sm" (clicked)="goBack()">
+      <mat-icon>arrow_back</mat-icon> Back to Profile
+    </ui-button>
+    @if (canStartReview()) {
+      <ui-button variant="primary" size="sm" [disabled]="saving()" (clicked)="startReview()">
+        <mat-icon>manage_search</mat-icon> Start Review
+      </ui-button>
+    }
+    @if (canApproveAll()) {
+      <ui-button variant="primary" size="sm" [disabled]="saving()" (clicked)="approveAll()">
+        <mat-icon>verified</mat-icon> Mark Verified
+      </ui-button>
+    }
+    @if (verificationStatus() === 'UnderReview') {
+      <ui-button variant="outline" size="sm" [disabled]="saving()" (clicked)="rejectDriver()">
+        <mat-icon>cancel</mat-icon> Reject Driver
+      </ui-button>
+    }
+  </ui-page-header>
+
+  <!-- ── STATUS PIPELINE ──────────────────────────────────────────────────── -->
+  <div class="pipeline-wrap">
+    <div class="pipeline">
+      @for (step of pipelineSteps; track step.key; let last = $last; let i = $index) {
+        <!-- Skip Rejected step in the linear flow unless driver is rejected -->
+        @if (step.key !== 'Rejected' && step.key !== 'ExpiredDocs' || verificationStatus() === step.key) {
+          <div class="pipeline__step" [ngClass]="pipelineStepClass(step)">
+            <div class="pipeline__icon">
+              <mat-icon>{{ step.icon }}</mat-icon>
+            </div>
+            <span class="pipeline__label">{{ step.label }}</span>
+          </div>
+          @if (!last && step.key !== 'Verified') {
+            <div class="pipeline__connector" [class.pipeline__connector--done]="pipelineActiveIndex() > i"></div>
+          }
+        }
+      }
+    </div>
+  </div>
+
+  @if (loading()) {
+    <div class="hub-loading">
+      <mat-icon class="spin">autorenew</mat-icon>
+      <span>Loading driver data…</span>
+    </div>
+  } @else {
+
+    <!-- ── STAT TILES ──────────────────────────────────────────────────────── -->
+    <div class="stat-tiles">
+      <div class="stat-tile">
+        <mat-icon class="stat-tile__icon text-fleet-primary">upload_file</mat-icon>
+        <div class="stat-tile__body">
+          <span class="stat-tile__value">{{ uploadedDocs() }} / {{ totalDocs() }}</span>
+          <span class="stat-tile__label">Docs Uploaded</span>
+        </div>
+      </div>
+      <div class="stat-tile">
+        <mat-icon class="stat-tile__icon text-emerald-600">task_alt</mat-icon>
+        <div class="stat-tile__body">
+          <span class="stat-tile__value">{{ approvedDocs() }} / {{ totalDocs() }}</span>
+          <span class="stat-tile__label">Docs Approved</span>
+        </div>
+      </div>
+      <div class="stat-tile">
+        <mat-icon class="stat-tile__icon text-blue-600">percent</mat-icon>
+        <div class="stat-tile__body">
+          <span class="stat-tile__value">{{ completionPct() }}%</span>
+          <span class="stat-tile__label">Checklist Done</span>
+        </div>
+      </div>
+      <div class="stat-tile" [class.stat-tile--warn]="(daysUntilLicenseExpiry() ?? 999) <= 30"
+                             [class.stat-tile--error]="(daysUntilLicenseExpiry() ?? 0) < 0">
+        <mat-icon class="stat-tile__icon" [ngClass]="{
+          'text-red-600':   (daysUntilLicenseExpiry() ?? 0) < 0,
+          'text-amber-600': (daysUntilLicenseExpiry() ?? 999) <= 30,
+          'text-fleet-primary': (daysUntilLicenseExpiry() ?? 999) > 30
+        }">event</mat-icon>
+        <div class="stat-tile__body">
+          @if (daysUntilLicenseExpiry() === null) {
+            <span class="stat-tile__value">—</span>
+          } @else if ((daysUntilLicenseExpiry() ?? 0) < 0) {
+            <span class="stat-tile__value">Expired</span>
+          } @else {
+            <span class="stat-tile__value">{{ daysUntilLicenseExpiry() }}d</span>
+          }
+          <span class="stat-tile__label">License Expiry</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── MAIN TWO-COLUMN LAYOUT ────────────────────────────────────────── -->
+    <div class="hub-grid">
+
+      <!-- LEFT: Document cards ─────────────────────────────────────────────── -->
+      <div class="hub-col hub-col--docs">
+        <h2 class="col-title">
+          <mat-icon>folder_open</mat-icon> Documents
+        </h2>
+
+        @for (slot of docSlots(); track slot.type) {
+          <div class="doc-card" [ngClass]="{
+            'doc-card--approved': slot.doc?.status === 'Approved',
+            'doc-card--rejected': slot.doc?.status === 'Rejected',
+            'doc-card--missing':  !slot.doc || slot.doc.status === 'Missing'
+          }">
+            <!-- Card header -->
+            <div class="doc-card__header">
+              <div class="doc-card__type-icon">
+                <mat-icon>{{ slot.type === 'DrivingLicense' ? 'badge' : slot.type === 'MedicalCertificate' ? 'medical_information' : 'policy' }}</mat-icon>
+              </div>
+              <div class="doc-card__meta">
+                <span class="doc-card__label">{{ slot.label }}</span>
+                @if (slot.doc?.expiryDate) {
+                  <span class="doc-card__expiry">
+                    Expires {{ slot.doc!.expiryDate | date:'mediumDate' }}
+                  </span>
+                }
+              </div>
+              <ui-status-badge
+                [status]="slot.doc?.status || 'Missing'"
+                [variant]="docStatusVariant(slot.doc?.status)">
+              </ui-status-badge>
+            </div>
+
+            <!-- OCR result chip -->
+            @if (ocrLoading()[slot.type]) {
+              <div class="ocr-chip ocr-chip--loading">
+                <mat-icon class="spin">autorenew</mat-icon> Reading document…
+              </div>
+            }
+            @if (ocrResult()[slot.type]; as chip) {
+              <div class="ocr-chip">
+                <mat-icon>auto_awesome</mat-icon> {{ chip }}
+              </div>
+            }
+
+            <!-- Document preview / link -->
+            @if (slot.doc?.fileUrl; as rawUrl) {
+              <div class="doc-card__preview">
+                @if (isImage(rawUrl)) {
+                  <a [href]="resolveUrl(rawUrl)" target="_blank" rel="noopener">
+                    <img [src]="resolveUrl(rawUrl)" alt="{{ slot.label }}" class="doc-thumb" />
+                  </a>
+                } @else {
+                  <a [href]="resolveUrl(rawUrl)" target="_blank" rel="noopener" class="doc-link">
+                    <mat-icon>picture_as_pdf</mat-icon> View {{ slot.label }}
+                  </a>
+                }
+              </div>
+            }
+
+            <!-- Reviewer note on rejected doc -->
+            @if (slot.doc?.status === 'Rejected' && slot.doc?.rejectionReason) {
+              <div class="rejection-note">
+                <mat-icon>error_outline</mat-icon>
+                <span>{{ slot.doc!.rejectionReason }}</span>
+              </div>
+            }
+
+            <!-- Upload row -->
+            <div class="doc-card__upload-row">
+              <div class="expiry-input-wrap">
+                <label class="expiry-label">Expiry date</label>
+                <input
+                  type="date"
+                  class="expiry-input"
+                  [value]="slot.pendingExpiryDate"
+                  (change)="onExpiryChange(slot, $any($event.target).value)" />
+              </div>
+              <label class="upload-label">
+                <mat-icon>upload</mat-icon>
+                <span>{{ slot.doc ? 'Replace' : 'Upload' }}</span>
+                <input
+                  type="file"
+                  hidden
+                  accept="image/jpeg,image/png,application/pdf"
+                  (change)="onUploadDoc(slot, $event)" />
+              </label>
+            </div>
+
+            @if (slot.uploadSizeError) {
+              <p class="upload-error">{{ slot.uploadSizeError }}</p>
+            }
+            <p class="upload-hint">{{ uploadMaxSizeLabel }} · JPG, PNG or PDF</p>
+
+            <!-- Reviewer actions (only when doc uploaded and in review) -->
+            @if (slot.doc && slot.doc.status !== 'Missing' && verificationStatus() === 'UnderReview') {
+              <div class="doc-card__actions">
+                @if (slot.doc.status !== 'Approved') {
+                  <button class="btn-approve" (click)="approveDoc(slot)">
+                    <mat-icon>check_circle</mat-icon> Approve
+                  </button>
+                }
+                @if (!slot.showRejectInput) {
+                  <button class="btn-reject" (click)="showRejectInput(slot)">
+                    <mat-icon>cancel</mat-icon> Reject
+                  </button>
+                }
+              </div>
+
+              <!-- Reject reason inline input -->
+              @if (slot.showRejectInput) {
+                <div class="reject-input-wrap">
+                  <textarea
+                    class="reject-textarea"
+                    rows="2"
+                    placeholder="Reason for rejection (optional)"
+                    [value]="slot.rejectReason"
+                    (input)="onRejectReasonChange(slot, $any($event.target).value)">
+                  </textarea>
+                  <div class="reject-actions">
+                    <button class="btn-reject" (click)="confirmReject(slot)">Confirm Reject</button>
+                    <button class="btn-cancel" (click)="cancelReject(slot)">Cancel</button>
+                  </div>
+                </div>
+              }
+            }
+
+            <!-- Reviewer info -->
+            @if (slot.doc?.reviewedBy) {
+              <p class="reviewed-by">
+                Reviewed by {{ slot.doc!.reviewedBy }}
+                @if (slot.doc?.reviewedAt) { · {{ slot.doc!.reviewedAt | date:'mediumDate' }} }
+              </p>
+            }
+          </div>
+        }
+      </div>
+
+      <!-- RIGHT: Checklist + Notes + Timeline ──────────────────────────────── -->
+      <div class="hub-col hub-col--side">
+
+        <!-- Verification checklist -->
+        <div class="side-card">
+          <h3 class="side-card__title">
+            <mat-icon>checklist</mat-icon> Verification Checklist
+          </h3>
+
+          <!-- Progress ring -->
+          <div class="progress-ring-wrap">
+            <svg class="progress-ring" viewBox="0 0 60 60">
+              <circle cx="30" cy="30" r="24" fill="none" stroke="#e2e8f0" stroke-width="6"/>
+              <circle
+                cx="30" cy="30" r="24" fill="none"
+                stroke="#005f49" stroke-width="6"
+                stroke-linecap="round"
+                stroke-dasharray="150.8"
+                [attr.stroke-dashoffset]="150.8 - (150.8 * completionPct() / 100)"
+                transform="rotate(-90 30 30)"
+                style="transition: stroke-dashoffset 0.5s ease"/>
+            </svg>
+            <span class="progress-ring__pct">{{ completionPct() }}%</span>
+          </div>
+
+          <ul class="checklist">
+            @for (slot of docSlots(); track slot.type) {
+              <li class="checklist__item" [class.checklist__item--done]="slot.doc?.status === 'Approved'">
+                <mat-icon>{{ slot.doc?.status === 'Approved' ? 'check_circle' : 'radio_button_unchecked' }}</mat-icon>
+                <span>{{ slot.label }} approved</span>
+              </li>
+            }
+            <li class="checklist__item" [class.checklist__item--done]="!driver()?.licenseExpired">
+              <mat-icon>{{ !driver()?.licenseExpired ? 'check_circle' : 'radio_button_unchecked' }}</mat-icon>
+              <span>License not expired</span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- Reviewer notes -->
+        <div class="side-card">
+          <h3 class="side-card__title">
+            <mat-icon>rate_review</mat-icon> Reviewer Notes
+          </h3>
+
+          <div class="note-input-wrap">
+            <select
+              class="note-doctype"
+              [value]="newNoteDocType()"
+              (change)="newNoteDocType.set($any($event.target).value)">
+              <option value="">General note</option>
+              @for (dt of docTypes; track dt.type) {
+                <option [value]="dt.type">{{ dt.label }}</option>
+              }
+            </select>
+            <textarea
+              class="note-textarea"
+              rows="3"
+              placeholder="Add a reviewer note…"
+              [value]="newNote()"
+              (input)="newNote.set($any($event.target).value)">
+            </textarea>
+            <ui-button
+              variant="primary"
+              size="sm"
+              [disabled]="!newNote().trim() || savingNote()"
+              (clicked)="submitNote()">
+              <mat-icon>send</mat-icon> Add Note
+            </ui-button>
+          </div>
+
+          <div class="notes-list">
+            @if (!reviewNotes().length) {
+              <p class="empty-notes">No notes yet.</p>
+            }
+            @for (note of reviewNotes(); track note.id) {
+              <div class="note-item">
+                @if (note.documentType) {
+                  <span class="note-doctype-chip">{{ note.documentType }}</span>
+                }
+                <p class="note-text">{{ note.note }}</p>
+                <p class="note-meta">
+                  {{ note.createdBy || 'Reviewer' }} · {{ note.createdAt | date:'medium' }}
+                </p>
+              </div>
+            }
+          </div>
+        </div>
+
+        <!-- Timeline (verification events) -->
+        <div class="side-card">
+          <h3 class="side-card__title">
+            <mat-icon>history</mat-icon> Activity Timeline
+          </h3>
+          @if (!timeline().length) {
+            <p class="empty-notes">No events yet.</p>
+          } @else {
+            <ul class="timeline">
+              @for (event of timeline().slice(0, 8); track event.id) {
+                <li class="timeline__item">
+                  <div class="timeline__dot"></div>
+                  <div class="timeline__content">
+                    <strong>{{ event.title }}</strong>
+                    @if (event.description) {
+                      <span class="block text-xs text-fleet-text-muted">{{ event.description }}</span>
+                    }
+                    <span class="timeline__time">{{ event.occurredAt | date:'medium' }}</span>
+                  </div>
+                </li>
+              }
+            </ul>
+          }
+        </div>
+
+      </div><!-- /hub-col--side -->
+    </div><!-- /hub-grid -->
+
+  }<!-- /!loading -->
+</section>

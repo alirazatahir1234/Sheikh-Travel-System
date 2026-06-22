@@ -16,6 +16,7 @@ export interface DriverFilters {
   branchId: number | 'ALL';
   licenseExpiry: 'ALL' | 'VALID' | 'EXPIRING' | 'EXPIRED';
   verificationStatus: string | 'ALL';
+  availability: 'ALL' | 'Available' | 'Busy' | 'OnTrip' | 'Unavailable';
 }
 
 export const EMPTY_DRIVER_FILTERS: DriverFilters = {
@@ -23,7 +24,8 @@ export const EMPTY_DRIVER_FILTERS: DriverFilters = {
   status: 'ALL',
   branchId: 'ALL',
   licenseExpiry: 'ALL',
-  verificationStatus: 'ALL'
+  verificationStatus: 'ALL',
+  availability: 'ALL'
 };
 
 export interface DriverKpiGroups {
@@ -46,8 +48,11 @@ export interface AssignmentCoverageView {
   driverAssignmentPct: number;
 }
 
-/** Client-side safety score until analytics API exists. */
+/** Client-side safety score; uses API rating when available. */
 export function computeDriverScore(row: DriverListItem): number {
+  if (row.rating != null) {
+    return Math.round(Math.max(0, Math.min(100, row.rating * 20)));
+  }
   let score = 88;
   if (row.licenseExpired) score -= 35;
   else if (row.licenseExpiringSoon) score -= 12;
@@ -104,10 +109,10 @@ export function buildDriverKpiGroups(stats: DriverStats | null): DriverKpiGroups
       },
       {
         title: 'GPS Online',
-        value: String(onTrip),
+        value: String(stats?.gpsOnline ?? 0),
         icon: 'gps_fixed',
         variant: 'operational',
-        subtext: 'Jimi GPS pending'
+        subtext: 'Devices connected'
       }
     ],
     risk: [

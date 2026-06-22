@@ -17,6 +17,7 @@ import {
 import { GpsTrackingService } from '../../../core/services/gps-tracking.service';
 import { GpsRealtimeService } from '../../../core/services/gps-realtime.service';
 import { VehicleService } from '../../../core/services/vehicle.service';
+import { DriverService } from '../../../core/services/driver.service';
 import {
   VehicleLocation,
   PositionDto,
@@ -149,6 +150,7 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
     private gpsService: GpsTrackingService,
     private realtime: GpsRealtimeService,
     private vehicleService: VehicleService,
+    private driverService: DriverService,
     private router: Router,
     private route: ActivatedRoute
   ) {}
@@ -160,6 +162,27 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
       if (Number.isFinite(id)) {
         this.pendingFocusVehicleId = id;
         this.selectedVehicleId = id;
+      }
+    }
+
+    const driverIdParam = this.route.snapshot.queryParamMap.get('driverId');
+    if (driverIdParam) {
+      const driverId = Number(driverIdParam);
+      if (Number.isFinite(driverId)) {
+        this.driverService.getById(driverId).subscribe({
+          next: driver => {
+            if (driver.assignedVehicleId) {
+              this.pendingFocusVehicleId = driver.assignedVehicleId;
+              this.selectedVehicleId = driver.assignedVehicleId;
+              this.pushEvent(`Tracking ${driver.fullName}`, 'info', 'person_pin_circle');
+            } else {
+              this.pushEvent('Driver has no assigned vehicle — GPS unavailable', 'warning', 'person_off');
+            }
+          },
+          error: () => {
+            this.pushEvent('Could not load driver for tracking', 'warning', 'error');
+          }
+        });
       }
     }
 

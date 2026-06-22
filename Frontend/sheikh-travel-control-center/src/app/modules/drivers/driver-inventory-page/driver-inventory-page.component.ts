@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject, model, signal, OnInit, DestroyRef } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, model, signal, OnInit, DestroyRef, ViewChild } from '@angular/core';
 import { NgClass } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
@@ -10,7 +10,7 @@ import { Subject, forkJoin, catchError, of, switchMap, debounceTime, distinctUnt
 import { ChartData, ChartOptions } from 'chart.js';
 import { DriverService } from '../../../core/services/driver.service';
 import { PlatformService } from '../../../core/services/platform.service';
-import { DriverListItem, DriverStats, DriverStatus, DriverStatusLabels } from '../../../core/models/driver.model';
+import { DriverListItem, DriverStats, DriverStatus, DriverStatusLabels, DriversAvailabilitySummary } from '../../../core/models/driver.model';
 import { PagedResult } from '../../../core/models/common.model';
 import { apiErrorMessage } from '../../../core/utils/api-error.util';
 import { UiConfirmService } from '../../../shared/components/ui/confirm-dialog/ui-confirm.service';
@@ -22,6 +22,7 @@ import { FleetSummaryCardComponent } from '../../vehicles/components/fleet-summa
 import { QuickActionsCardComponent } from '../../fleet-management/fleet-dashboard/widgets/quick-actions-card.component';
 import { QuickAction } from '../../fleet-management/fleet-dashboard/fleet-dashboard.model';
 import { DriverTableComponent } from '../components/driver-table/driver-table.component';
+import { DriverBulkAssignDialogComponent } from '../components/driver-bulk-assign-dialog/driver-bulk-assign-dialog.component';
 import { DriverDetailsDrawerComponent } from '../driver-details-drawer/driver-details-drawer.component';
 import { EMPTY_DRIVER_FILTERS, DriverFilters, DriverPagination, DEFAULT_DRIVER_PAGE_SIZE, buildDriverKpiGroups, buildOperationsSummary, buildAssignmentCoverage, computeDriverScore, scoreTone } from '../models/driver-inventory.model';
 
@@ -40,6 +41,7 @@ import { EMPTY_DRIVER_FILTERS, DriverFilters, DriverPagination, DEFAULT_DRIVER_P
     FleetSummaryCardComponent,
     QuickActionsCardComponent,
     DriverTableComponent,
+    DriverBulkAssignDialogComponent,
     DriverDetailsDrawerComponent
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -47,6 +49,8 @@ import { EMPTY_DRIVER_FILTERS, DriverFilters, DriverPagination, DEFAULT_DRIVER_P
   styleUrls: ['./driver-inventory-page.component.scss']
 })
 export class DriverInventoryPageComponent implements OnInit {
+  @ViewChild(DriverBulkAssignDialogComponent) bulkAssignDialog?: DriverBulkAssignDialogComponent;
+
   private readonly driverService = inject(DriverService);
   private readonly platformService = inject(PlatformService);
   private readonly confirm = inject(UiConfirmService);
@@ -56,11 +60,12 @@ export class DriverInventoryPageComponent implements OnInit {
   private readonly reload$ = new Subject<void>();
   private readonly searchInput$ = new Subject<string>();
 
-  /** Performance chart uses sample data until a driver analytics API is available. */
-  readonly chartIsSampleData = true;
+  /** Performance chart uses fleet stats when available. */
+  readonly chartIsSampleData = false;
 
   readonly rows = signal<DriverListItem[]>([]);
   readonly stats = signal<DriverStats | null>(null);
+  readonly availabilitySummary = signal<DriversAvailabilitySummary | null>(null);
   readonly complianceDrivers = signal<DriverListItem[]>([]);
   readonly filters = signal<DriverFilters>({ ...EMPTY_DRIVER_FILTERS });
   readonly pagination = signal<DriverPagination>({ page: 1, pageSize: DEFAULT_DRIVER_PAGE_SIZE, total: 0 });
@@ -69,7 +74,14 @@ export class DriverInventoryPageComponent implements OnInit {
   readonly drawerOpen = model(false);
   readonly selectedDriverId = signal<number | null>(null);
   readonly branchOptions = signal<UiSelectOption[]>([]);
-  readonly chartPeriod = signal<'monthly' | 'quarterly' | 'yearly'>('monthly');
+
+  readonly availabilityOptions: UiSelectOption[] = [
+    { value: 'ALL', label: 'All availability' },
+    { value: 'Available', label: 'Available' },
+    { value: 'Busy', label: 'Busy' },
+    { value: 'OnTrip', label: 'On Trip' },
+    { value: 'Unavailable', label: 'Unavailable' }
+  ];
 
   readonly kpiGroups = computed(() => buildDriverKpiGroups(this.stats()));
   readonly operationsSummary = computed(() => buildOperationsSummary(this.stats()));
@@ -145,22 +157,25 @@ export class DriverInventoryPageComponent implements OnInit {
     })
   );
 
-  private readonly chartSampleData: Record<'monthly' | 'quarterly' | 'yearly', { labels: string[]; safety: number[]; efficiency: number[]; fuel: number[]; trips: number[] }> = {
-    monthly:   { labels: ['JAN','FEB','MAR','APR','MAY','JUN'], safety: [82,75,88,91,85,93], efficiency: [70,68,79,83,76,88], fuel: [74,71,80,78,82,85], trips: [45,38,52,61,58,67] },
-    quarterly: { labels: ['Q1','Q2','Q3','Q4'],                 safety: [80,88,85,91],        efficiency: [72,81,78,86],        fuel: [75,80,77,84],        trips: [135,172,168,198] },
-    yearly:    { labels: ['2022','2023','2024','2025'],          safety: [76,82,87,91],        efficiency: [68,74,80,86],        fuel: [70,76,80,85],        trips: [520,610,680,750] }
-  };
-
   readonly chartData = computed<ChartData>(() => {
-    const d = this.chartSampleData[this.chartPeriod()];
+    const s = this.stats();
+    const labels = ['Available', 'Busy', 'On Trip', 'Unavailable'];
+    const values = s
+      ? [
+          s.available ?? 0,
+          s.busy ?? 0,
+          s.onTrip ?? 0,
+          Math.max(0, (s.totalDrivers ?? 0) - (s.available ?? 0) - (s.busy ?? 0) - (s.onTrip ?? 0))
+        ]
+      : [0, 0, 0, 0];
     return {
-      labels: d.labels,
-      datasets: [
-        { label: 'Safety',       data: d.safety,     backgroundColor: '#14b8a6', borderRadius: 4, barPercentage: 0.35 },
-        { label: 'Efficiency',   data: d.efficiency, backgroundColor: '#f59e0b', borderRadius: 4, barPercentage: 0.35 },
-        { label: 'Fuel Score',   data: d.fuel,       backgroundColor: '#6366f1', borderRadius: 4, barPercentage: 0.35 },
-        { label: 'Trips (×10)', data: d.trips.map(v => Math.round(v / 10)), backgroundColor: '#22c55e', borderRadius: 4, barPercentage: 0.35 }
-      ]
+      labels,
+      datasets: [{
+        label: 'Drivers',
+        data: values,
+        backgroundColor: ['#22c55e', '#f59e0b', '#6366f1', '#94a3b8'],
+        borderRadius: 4
+      }]
     };
   });
 
@@ -170,7 +185,7 @@ export class DriverInventoryPageComponent implements OnInit {
     plugins: { legend: { display: false } },
     scales: {
       x: { grid: { display: false }, ticks: { font: { size: 11 } } },
-      y: { beginAtZero: true, max: 100, ticks: { stepSize: 20 } }
+      y: { beginAtZero: true, ticks: { stepSize: 1 } }
     }
   };
 
@@ -214,10 +229,11 @@ export class DriverInventoryPageComponent implements OnInit {
       takeUntilDestroyed(this.destroyRef)
     ).subscribe(result => {
       if (!result) return;
-      const { list, stats, compliance, page } = result;
+      const { list, stats, compliance, availability, page } = result;
       this.rows.set(list.items);
       this.pagination.set({ ...page, total: list.totalCount });
       this.stats.set(stats);
+      this.availabilitySummary.set(availability);
       this.complianceDrivers.set(compliance.items);
       this.loading.set(false);
     });
@@ -244,9 +260,13 @@ export class DriverInventoryPageComponent implements OnInit {
         status: f.status === 'ALL' ? undefined : f.status,
         branchId: f.branchId === 'ALL' ? undefined : Number(f.branchId),
         licenseExpiry: f.licenseExpiry === 'ALL' ? undefined : f.licenseExpiry,
-        verificationStatus: f.verificationStatus === 'ALL' ? undefined : f.verificationStatus
+        verificationStatus: f.verificationStatus === 'ALL' ? undefined : f.verificationStatus,
+        availability: f.availability === 'ALL' ? undefined : f.availability
       }),
       stats: this.driverService.getStats().pipe(catchError(() => of(null))),
+      availability: this.driverService.getAvailabilitySummary(
+        f.branchId === 'ALL' ? undefined : Number(f.branchId)
+      ).pipe(catchError(() => of(null))),
       compliance: forkJoin({
         expiring: this.driverService.getAll({ licenseExpiry: 'EXPIRING', pageSize: 5 }).pipe(catchError(() => of(emptyPaged))),
         expired: this.driverService.getAll({ licenseExpiry: 'EXPIRED', pageSize: 5 }).pipe(catchError(() => of(emptyPaged)))
@@ -321,6 +341,12 @@ export class DriverInventoryPageComponent implements OnInit {
     this.load();
   }
 
+  onAvailabilityChange(value: string): void {
+    this.filters.update(f => ({ ...f, availability: value as DriverFilters['availability'] }));
+    this.pagination.update(p => ({ ...p, page: 1 }));
+    this.load();
+  }
+
   openDrawer(row: DriverListItem): void {
     this.selectedDriverId.set(row.id);
     this.drawerOpen.set(true);
@@ -385,7 +411,7 @@ export class DriverInventoryPageComponent implements OnInit {
   }
 
   bulkAssign(): void {
-    this.onQuickAction('assign');
+    this.bulkAssignDialog?.show();
   }
 
   exportExcel(): void {
@@ -415,6 +441,31 @@ export class DriverInventoryPageComponent implements OnInit {
       case 'export':
         this.exportReport();
         break;
+      case 'suspend': {
+        const target = this.rows().find(d => d.status !== DriverStatus.Suspended);
+        if (!target) {
+          this.snackBar.open('No active driver to suspend in current view', 'Close', { duration: 2500 });
+          break;
+        }
+        this.driverService.changeStatus(target.id, DriverStatus.Suspended).subscribe({
+          next: () => {
+            this.snackBar.open(`${target.fullName} suspended`, 'Close', { duration: 2500 });
+            this.load();
+          },
+          error: err => this.snackBar.open(apiErrorMessage(err, 'Suspend failed'), 'Close', { duration: 3000 })
+        });
+        break;
+      }
+      case 'incident': {
+        const target = this.rows()[0];
+        if (!target) {
+          this.snackBar.open('No drivers in current view', 'Close', { duration: 2500 });
+          break;
+        }
+        this.openDrawer(target);
+        this.snackBar.open('Open Performance tab to log an incident', 'Close', { duration: 3000 });
+        break;
+      }
     }
   }
 

@@ -53,6 +53,7 @@
           @case ('organization') {
             <app-wizard-step-organization
               [form]="facade.form"
+              [isEditMode]="facade.isEditMode()"
               [branchOptions]="facade.branchOptions()"
               [departmentOptions]="facade.departmentOptions()"
               [driverName]="facade.previewName()"

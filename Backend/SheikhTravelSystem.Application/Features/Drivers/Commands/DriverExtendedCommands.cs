@@ -182,20 +182,20 @@ public class AssignDriverVehicleCommandHandler(
         var tenantId = tenantContext.GetRequiredTenantId();
         var body = request.Body;
 
-        var driver = await connection.QuerySingleOrDefaultAsync<(string VerificationStatus, DateTime LicenseExpiry)>(
+        var driver = await connection.QuerySingleOrDefaultAsync<(string VerificationStatus, DateTime LicenseExpiry, bool IsActive, int Status)>(
             new CommandDefinition(
-                "SELECT VerificationStatus, LicenseExpiryDate FROM Drivers WHERE Id = @Id AND TenantId = @TenantId AND IsDeleted = 0",
+                "SELECT VerificationStatus, LicenseExpiryDate, IsActive, Status FROM Drivers WHERE Id = @Id AND TenantId = @TenantId AND IsDeleted = 0",
                 new { Id = request.DriverId, TenantId = tenantId },
                 cancellationToken: cancellationToken));
 
         if (driver.VerificationStatus is null)
             throw new NotFoundException("Driver", request.DriverId);
 
-        if (!string.Equals(driver.VerificationStatus, "Verified", StringComparison.OrdinalIgnoreCase))
-            throw new ConflictException("Driver must be verified before vehicle assignment.");
-
-        if (driver.LicenseExpiry < DateTime.UtcNow.Date)
-            throw new ConflictException("Driver license is expired.");
+        DriverAssignmentGuard.EnsureAssignable(
+            driver.IsActive,
+            (Domain.Enums.DriverStatus)driver.Status,
+            driver.VerificationStatus,
+            driver.LicenseExpiry);
 
         var vehicleExists = await connection.ExecuteScalarAsync<bool>(
             new CommandDefinition(
@@ -207,7 +207,7 @@ public class AssignDriverVehicleCommandHandler(
             throw new NotFoundException("Vehicle", body.VehicleId);
 
         await connection.ExecuteAsync(new CommandDefinition(
-            @"UPDATE AssignmentHistory SET Status = N'Completed', EndAt = GETUTCDATE(), UpdatedAt = GETUTCDATE()
+            @"UPDATE AssignmentHistory SET Status = N'Completed', EndAt = GETUTCDATE()
               WHERE DriverId = @DriverId AND TenantId = @TenantId AND Status = N'Active' AND IsDeleted = 0",
             new { request.DriverId, TenantId = tenantId },
             cancellationToken: cancellationToken));

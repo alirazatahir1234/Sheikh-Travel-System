@@ -95,23 +95,8 @@
       <div class="card chart-panel">
         <div class="panel-header">
           <div class="panel-header-text">
-            <h3 class="panel-title panel-title--inline">Performance Analytics</h3>
-            @if (chartIsSampleData) {
-              <p class="panel-hint">Sample data — analytics API pending</p>
-            }
-          </div>
-          <div class="chart-controls">
-            <div class="chart-period-tabs">
-              <button class="period-tab" [class.active]="chartPeriod() === 'monthly'"   (click)="chartPeriod.set('monthly')">Monthly</button>
-              <button class="period-tab" [class.active]="chartPeriod() === 'quarterly'" (click)="chartPeriod.set('quarterly')">Quarterly</button>
-              <button class="period-tab" [class.active]="chartPeriod() === 'yearly'"    (click)="chartPeriod.set('yearly')">Yearly</button>
-            </div>
-            <div class="chart-legend">
-              <span class="legend-dot safety">Safety</span>
-              <span class="legend-dot efficiency">Efficiency</span>
-              <span class="legend-dot fuel">Fuel Score</span>
-              <span class="legend-dot trips">Trips</span>
-            </div>
+            <h3 class="panel-title panel-title--inline">Availability Overview</h3>
+            <p class="panel-hint">Live driver availability from fleet data</p>
           </div>
         </div>
         <div class="chart-canvas">
@@ -222,6 +207,32 @@
       </div>
 
       <div class="card assignment-panel">
+        <h3 class="panel-title">Driver Availability</h3>
+        @if (availabilitySummary(); as avail) {
+          <div class="availability-grid">
+            <div class="availability-item">
+              <span class="avail-dot avail-dot--available"></span>
+              <span>Available</span>
+              <strong>{{ avail.available }}</strong>
+            </div>
+            <div class="availability-item">
+              <span class="avail-dot avail-dot--busy"></span>
+              <span>Busy</span>
+              <strong>{{ avail.busy }}</strong>
+            </div>
+            <div class="availability-item">
+              <span class="avail-dot avail-dot--trip"></span>
+              <span>On Trip</span>
+              <strong>{{ avail.onTrip }}</strong>
+            </div>
+            <div class="availability-item">
+              <span class="avail-dot avail-dot--unavailable"></span>
+              <span>Unavailable</span>
+              <strong>{{ avail.unavailable }}</strong>
+            </div>
+          </div>
+          <div class="assignment-divider"></div>
+        }
         <h3 class="panel-title">Assignment Coverage</h3>
 
         <div class="coverage-metric">
@@ -359,6 +370,11 @@
           <option value="EXPIRING">Expiring (30d)</option>
           <option value="EXPIRED">Expired</option>
         </select>
+        <select class="filter-input" (change)="onAvailabilityChange($any($event.target).value)">
+          @for (opt of availabilityOptions; track opt.value) {
+            <option [value]="opt.value" [selected]="filters().availability === opt.value">{{ opt.label }}</option>
+          }
+        </select>
       </div>
     </div>
 
@@ -383,5 +399,7 @@
     [driverId]="selectedDriverId()"
     (changed)="onDrawerChanged()">
   </driver-details-drawer>
+
+  <driver-bulk-assign-dialog (assigned)="load()" />
 
 </div>

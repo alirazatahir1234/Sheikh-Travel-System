@@ -275,6 +275,8 @@ public static class PlatformSchemaMigration
             ("Fleet", "Driver.Delete", "Delete drivers"),
             ("Fleet", "Driver.Assign", "Assign drivers to vehicles"),
             ("Fleet", "Driver.Manage", "Manage drivers"),
+            ("Fleet", "Driver.ManageStatus", "Change driver operational status"),
+            ("Fleet", "Driver.ViewPerformance", "View driver performance and violations"),
             ("Fleet", "GPS.View", "View GPS tracking"),
             ("Fleet", "Fuel.View", "View fuel logs"),
             ("Fleet", "Maintenance.View", "View maintenance"),

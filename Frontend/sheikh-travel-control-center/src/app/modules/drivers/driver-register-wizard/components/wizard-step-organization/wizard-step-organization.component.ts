@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 import { FormGroup, ReactiveFormsModule } from '@angular/forms';
+import { DriverStatus, DriverStatusLabels } from '../../../../../core/models/driver.model';
 import { UiSelectOption } from '../../../../../shared/components/ui/types/ui.types';
 
 @Component({
@@ -33,6 +34,29 @@ import { UiSelectOption } from '../../../../../shared/components/ui/types/ui.typ
           </label>
         </div>
       </section>
+
+      @if (isEditMode()) {
+        <section class="wizard-card">
+          <h2 class="wizard-card-title">Driver Status</h2>
+          <div class="form-grid" [formGroup]="form()">
+            <label class="field">
+              <span>Operational Status</span>
+              <select formControlName="status" class="input">
+                @for (s of statusOptions; track s) {
+                  <option [value]="s">{{ statusLabels[s] }}</option>
+                }
+              </select>
+            </label>
+            <label class="field">
+              <span>Account</span>
+              <label class="checkbox-row">
+                <input type="checkbox" formControlName="isActive" />
+                <span>Active account (can log in and be assigned)</span>
+              </label>
+            </label>
+          </div>
+        </section>
+      }
 
       <section class="wizard-card">
         <h2 class="wizard-card-title">Registration Summary</h2>
@@ -76,6 +100,7 @@ import { UiSelectOption } from '../../../../../shared/components/ui/types/ui.typ
 })
 export class WizardStepOrganizationComponent {
   readonly form = input.required<FormGroup>();
+  readonly isEditMode = input(false);
   readonly branchOptions = input<UiSelectOption[]>([]);
   readonly departmentOptions = input<UiSelectOption[]>([]);
   readonly driverName = input('');
@@ -85,4 +110,7 @@ export class WizardStepOrganizationComponent {
   readonly branchLabel = input('—');
   readonly documentsCount = input(0);
   readonly validationErrors = input<string[]>([]);
+
+  readonly statusOptions = Object.values(DriverStatus).filter((v): v is DriverStatus => typeof v === 'number');
+  readonly statusLabels = DriverStatusLabels;
 }

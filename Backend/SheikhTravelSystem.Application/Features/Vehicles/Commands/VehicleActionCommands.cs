@@ -4,6 +4,7 @@ using MediatR;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Exceptions;
 using SheikhTravelSystem.Application.Common.Interfaces;
+using SheikhTravelSystem.Application.Features.Drivers;
 using SheikhTravelSystem.Application.Features.Vehicles.DTOs;
 using SheikhTravelSystem.Domain.Enums;
 
@@ -99,6 +100,24 @@ public class AssignVehicleDriverCommandHandler(
 
         if (!driverExists)
             throw new NotFoundException("Driver", body.DriverId);
+
+        var driverRow = await connection.QuerySingleAsync<(bool IsActive, int Status, string VerificationStatus, DateTime LicenseExpiry)>(
+            new CommandDefinition(
+                "SELECT IsActive, Status, VerificationStatus, LicenseExpiryDate FROM Drivers WHERE Id = @DriverId AND TenantId = @TenantId AND IsDeleted = 0",
+                new { body.DriverId, TenantId = tenantId },
+                cancellationToken: cancellationToken));
+
+        DriverAssignmentGuard.EnsureAssignable(
+            driverRow.IsActive,
+            (DriverStatus)driverRow.Status,
+            driverRow.VerificationStatus,
+            driverRow.LicenseExpiry);
+
+        await connection.ExecuteAsync(new CommandDefinition(
+            @"UPDATE AssignmentHistory SET Status = N'Completed', EndAt = GETUTCDATE()
+              WHERE DriverId = @DriverId AND TenantId = @TenantId AND Status = N'Active' AND IsDeleted = 0",
+            new { body.DriverId, TenantId = tenantId },
+            cancellationToken: cancellationToken));
 
         if (body.BookingId is int bookingId)
         {

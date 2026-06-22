@@ -19,6 +19,7 @@
           <th class="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-fleet-text-muted">Verification</th>
           <th class="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-fleet-text-muted">Driver Score</th>
           <th class="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-fleet-text-muted">Vehicle</th>
+          <th class="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-fleet-text-muted">Availability</th>
           <th class="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-fleet-text-muted">Status</th>
           <th class="px-4 py-3 text-right text-[11px] font-bold uppercase tracking-wider text-fleet-text-muted">Actions</th>
         </tr>
@@ -27,14 +28,14 @@
         @if (loading()) {
           @for (i of [1,2,3,4,5]; track i) {
             <tr>
-              @for (c of [1,2,3,4,5,6,7,8,9,10,11]; track c) {
+              @for (c of [1,2,3,4,5,6,7,8,9,10,11,12]; track c) {
                 <td class="px-4 py-4"><div class="h-3.5 w-3/4 animate-pulse rounded bg-fleet-surface-muted"></div></td>
               }
             </tr>
           }
         } @else if (!rows().length) {
           <tr>
-            <td colspan="11" class="p-0">
+            <td colspan="12" class="p-0">
               <ui-empty-state icon="badge" title="No drivers found" description="Adjust filters or register a new driver."></ui-empty-state>
             </td>
           </tr>
@@ -69,6 +70,9 @@
                 </span>
               </td>
               <td class="px-4 py-3 text-sm">{{ assignedVehicle(row) }}</td>
+              <td class="px-4 py-3">
+                <ui-status-badge [status]="availabilityLabel(row)" variant="info"></ui-status-badge>
+              </td>
               <td class="px-4 py-3">
                 <ui-status-badge [status]="statusLabel(row)" variant="info"></ui-status-badge>
               </td>

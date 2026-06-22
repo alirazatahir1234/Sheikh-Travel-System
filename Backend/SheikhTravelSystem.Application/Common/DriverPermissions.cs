@@ -7,6 +7,8 @@ public static class DriverPermissions
     public const string DriverUpdate = "Driver.Update";
     public const string DriverDelete = "Driver.Delete";
     public const string DriverAssign = "Driver.Assign";
+    public const string DriverManageStatus = "Driver.ManageStatus";
+    public const string DriverViewPerformance = "Driver.ViewPerformance";
 
     public static readonly string[] All =
     [
@@ -14,6 +16,8 @@ public static class DriverPermissions
         DriverCreate,
         DriverUpdate,
         DriverDelete,
-        DriverAssign
+        DriverAssign,
+        DriverManageStatus,
+        DriverViewPerformance
     ];
 }
