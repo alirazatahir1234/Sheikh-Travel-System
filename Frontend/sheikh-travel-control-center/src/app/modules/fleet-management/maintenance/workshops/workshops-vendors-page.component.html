@@ -1,0 +1,45 @@
+<div class="wv-page">
+  <header class="page-head">
+    <div>
+      <h2>Workshops & Vendors</h2>
+      <p>Manage internal workshops and external parts vendors</p>
+    </div>
+    <button type="button" class="btn-add" (click)="activeTab() === 'vendors' ? openVendorCreate() : openWorkshopCreate()">
+      <mat-icon>add</mat-icon>
+      {{ activeTab() === 'vendors' ? 'Add Vendor' : 'Add Workshop' }}
+    </button>
+  </header>
+
+  <workshop-vendor-stats [stats]="stats()" />
+
+  <nav class="tabs">
+    <button type="button" [class.active]="activeTab() === 'workshops'" (click)="selectTab('workshops')">Workshops</button>
+    <button type="button" [class.active]="activeTab() === 'vendors'" (click)="selectTab('vendors')">Vendors</button>
+  </nav>
+
+  @if (activeTab() === 'workshops') {
+    <workshop-table
+      [workshops]="workshops()"
+      (edit)="editWorkshop($event)"
+      (activate)="toggleWorkshop($event, true)"
+      (deactivate)="toggleWorkshop($event, false)" />
+  } @else {
+    <vendor-table
+      [vendors]="vendors()"
+      (edit)="editVendor($event)"
+      (activate)="toggleVendor($event, true)"
+      (deactivate)="toggleVendor($event, false)" />
+  }
+
+  <workshop-form-drawer
+    [open]="workshopDrawerOpen()"
+    [workshop]="selectedWorkshop()"
+    (closed)="workshopDrawerOpen.set(false)"
+    (saved)="onSaved()" />
+
+  <vendor-form-drawer
+    [open]="vendorDrawerOpen()"
+    [vendor]="selectedVendor()"
+    (closed)="vendorDrawerOpen.set(false)"
+    (saved)="onSaved()" />
+</div>

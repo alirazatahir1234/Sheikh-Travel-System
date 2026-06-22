@@ -1,7 +1,7 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Observable, Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
@@ -44,7 +44,7 @@ export class DriverFormComponent implements OnInit, OnDestroy {
     private driverService: DriverService,
     private router: Router,
     private route: ActivatedRoute,
-    private snackBar: MatSnackBar
+    private toast: UiToastService
   ) {
     this.form = this.fb.group({
       fullName: ['', [Validators.required, Validators.maxLength(100)]],
@@ -106,11 +106,7 @@ export class DriverFormComponent implements OnInit, OnDestroy {
       },
       error: (err: HttpErrorResponse) => {
         this.loadingDriver = false;
-        this.snackBar.open(
-          this.extractError(err) || 'Could not load driver.',
-          'Close',
-          { duration: 5000 }
-        );
+        this.toast.error(this.extractError(err) || 'Could not load driver.');
       }
     });
   }
@@ -212,12 +208,12 @@ export class DriverFormComponent implements OnInit, OnDestroy {
 
     obs.subscribe({
       next: () => {
-        this.snackBar.open(`Driver ${this.isEdit ? 'updated' : 'created'}`, 'Close', { duration: 2500 });
+        this.toast.success(`Driver ${this.isEdit ? 'updated' : 'created'}`);
         this.router.navigate(['/drivers']);
       },
       error: (err: HttpErrorResponse) => {
         this.loading = false;
-        this.snackBar.open(this.extractError(err), 'Close', { duration: 4500 });
+        this.toast.error(this.extractError(err));
       }
     });
   }

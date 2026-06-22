@@ -1,8 +1,8 @@
 import { Component, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { PaymentService } from '../../../core/services/payment.service';
+import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
 import { PaymentMethod } from '../../../core/models/payment.model';
 
 @Component({
@@ -22,7 +22,7 @@ export class PaymentFormComponent implements OnInit {
     private paymentService: PaymentService,
     private router: Router,
     private route: ActivatedRoute,
-    private snackBar: MatSnackBar
+    private toast: UiToastService
   ) {
     this.form = this.fb.group({
       bookingId: [null, [Validators.required, Validators.min(1)]],
@@ -57,14 +57,14 @@ export class PaymentFormComponent implements OnInit {
     this.loading = true;
     this.paymentService.create(this.form.value).subscribe({
       next: () => {
-        this.snackBar.open('Payment recorded', 'Close', { duration: 2000 });
+        this.toast.success('Payment recorded.');
         if (this.returnToBookingId != null) {
           this.router.navigate(['/bookings', this.returnToBookingId]);
         } else {
           this.router.navigate(['/payments']);
         }
       },
-      error: () => { this.loading = false; this.snackBar.open('Failed', 'Close', { duration: 3000 }); }
+      error: () => { this.loading = false; this.toast.error('Failed to record payment.'); }
     });
   }
 }

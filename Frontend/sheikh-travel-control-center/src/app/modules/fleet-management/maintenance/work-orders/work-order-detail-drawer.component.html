@@ -1,0 +1,207 @@
+<ui-drawer [open]="!!workOrderId()" [title]="detailTitle()" (closed)="onClose()" width="560px">
+  @if (loading()) {
+    <p class="muted">Loading…</p>
+  } @else if (wo()) {
+    <div class="wo-drawer">
+      <div class="stepper">
+        @for (step of workflowSteps; track step; let i = $index) {
+          <div class="step"
+               [class.step--done]="stepIndex(wo()!.status) >= i"
+               [class.step--current]="stepIndex(wo()!.status) === i">
+            <span class="dot"></span>
+            <span class="label">{{ statusLabel(step) }}</span>
+          </div>
+        }
+      </div>
+
+      <section>
+        <h4>General</h4>
+        <dl>
+          <div><dt>WO Number</dt><dd class="mono">{{ wo()!.workOrderNumber }}</dd></div>
+          <div><dt>Vehicle</dt><dd>{{ wo()!.vehicleName }} @if (wo()!.vehicleRegistration) { <span class="sub">{{ wo()!.vehicleRegistration }}</span> }</dd></div>
+          <div><dt>Driver</dt><dd>{{ wo()!.driverName || '—' }}</dd></div>
+          <div><dt>Branch</dt><dd>{{ wo()!.branchName || '—' }}</dd></div>
+        </dl>
+      </section>
+
+      @if (wo()!.maintenanceType) {
+        <section>
+          <h4>Maintenance Type</h4>
+          <span class="badge badge--{{ maintTypeClass(wo()!.maintenanceType) }} badge--lg">{{ wo()!.maintenanceType }}</span>
+        </section>
+      }
+
+      @if (serviceItems(wo()!).length) {
+        <section>
+          <h4>Service Items</h4>
+          <div class="service-chips">
+            @for (item of serviceItems(wo()!); track item) {
+              <span class="service-chip service-chip--active">{{ item }}</span>
+            }
+          </div>
+        </section>
+      }
+
+      <section>
+        <h4>Cost</h4>
+        <div class="cost-grid">
+          <div class="cost-row"><span>Parts Cost</span><span>{{ wo()!.partsCost | currency }}</span></div>
+          <div class="cost-row"><span>Labor Cost</span><span>{{ wo()!.laborCost | currency }}</span></div>
+          <div class="cost-row cost-row--muted"><span>Tax</span><span>{{ taxAmount() | currency }}</span></div>
+          <div class="cost-row cost-row--total"><span>Total Cost</span><span>{{ actualCost(wo()!) | currency }}</span></div>
+          <div class="cost-row cost-row--muted"><span>Estimated</span><span>{{ estimatedTotal(wo()!) | currency }}</span></div>
+        </div>
+      </section>
+
+      @if (wo()!.partsUsage?.length) {
+        <section>
+          <h4>Parts Used</h4>
+          @for (p of wo()!.partsUsage!; track p.partId) {
+            <div class="part-row"><span>{{ p.partName }} × {{ p.quantity }}</span><span>{{ p.totalCost | currency }}</span></div>
+          }
+        </section>
+      }
+
+      @if (canManage()) {
+        @if (assignOpen()) {
+          <section class="assign-panel">
+            <h4>Assign Workshop</h4>
+            <label>Workshop
+              <select [ngModel]="assignWorkshopId" (ngModelChange)="onAssignWorkshopChange($event)">
+                <option [ngValue]="0" disabled>Select workshop</option>
+                @for (ws of workshops(); track ws.id) {
+                  <option [ngValue]="ws.id">{{ ws.name }}</option>
+                }
+              </select>
+            </label>
+            <label>Technician
+              <select [(ngModel)]="assignTechnicianId">
+                <option [ngValue]="0">Unassigned</option>
+                @for (t of technicians(); track t.id) {
+                  <option [ngValue]="t.id">{{ t.fullName }}</option>
+                }
+              </select>
+            </label>
+            <div class="inline-actions">
+              <button type="button" class="btn-muted" (click)="assignOpen.set(false)">Cancel</button>
+              <button type="button" class="btn-primary" [disabled]="saving()" (click)="submitAssign()">Save</button>
+            </div>
+          </section>
+        }
+
+        <section class="parts-form">
+          <h4>Record Part Usage</h4>
+          <div class="row">
+            <input type="number" placeholder="Part ID" [(ngModel)]="partId" />
+            <input type="number" placeholder="Qty" [(ngModel)]="partQty" min="1" />
+            <button type="button" class="btn-sm" (click)="recordPart(wo()!.id)" [disabled]="saving()">Add</button>
+          </div>
+        </section>
+
+        <div class="actions">
+          @if (['Open', 'Assigned', 'Draft'].includes(wo()!.status)) {
+            <button type="button" class="btn-outline" (click)="openAssign()">Assign Workshop</button>
+            <button type="button" class="btn-primary" (click)="setStatus(wo()!.id, 'InProgress')">Start Work</button>
+          }
+          @if (wo()!.status === 'InProgress' || wo()!.status === 'WaitingParts') {
+            <button type="button" class="btn-outline" (click)="uploadInvoice()">Upload Invoice</button>
+            @if (wo()!.status === 'InProgress') {
+              <button type="button" (click)="setStatus(wo()!.id, 'WaitingParts')">Waiting Parts</button>
+            }
+            <button type="button" class="btn-primary" (click)="setStatus(wo()!.id, 'Completed')">Complete Work Order</button>
+          }
+          @if (wo()!.status === 'Completed') {
+            <button type="button" class="btn-primary" (click)="setStatus(wo()!.id, 'Closed')">Close Work Order</button>
+          }
+        </div>
+      }
+    </div>
+  }
+</ui-drawer>
+
+<ui-drawer [open]="createMode()" title="Create Work Order" (closed)="onCreateClose()" width="560px">
+  <form class="wo-drawer" (ngSubmit)="submitCreate()">
+    <section>
+      <h4>General</h4>
+      <div class="field">
+        <label>Vehicle <span class="req">*</span></label>
+        <select [(ngModel)]="form.vehicleId" name="vehicleId" required>
+          <option [ngValue]="0" disabled>Select vehicle</option>
+          @for (v of vehicles(); track v.id) {
+            <option [ngValue]="v.id">{{ v.name }}</option>
+          }
+        </select>
+      </div>
+      <div class="field">
+        <label>Workshop</label>
+        <select [(ngModel)]="form.workshopId" name="workshopId">
+          <option [ngValue]="0">None</option>
+          @for (ws of workshops(); track ws.id) {
+            <option [ngValue]="ws.id">{{ ws.name }}</option>
+          }
+        </select>
+      </div>
+      <div class="field">
+        <label>Priority</label>
+        <select [(ngModel)]="form.priority" name="priority">
+          @for (p of priorities; track p) { <option [value]="p">{{ p }}</option> }
+        </select>
+      </div>
+      <div class="field">
+        <label>Notes</label>
+        <textarea [(ngModel)]="form.notes" name="notes" rows="2"></textarea>
+      </div>
+    </section>
+
+    <section>
+      <h4>Maintenance Type</h4>
+      <div class="maint-type-group">
+        @for (mt of maintTypes; track mt.value) {
+          <label class="maint-type-card" [class.maint-type-card--active]="form.maintenanceType === mt.value">
+            <input type="radio" [(ngModel)]="form.maintenanceType" [value]="mt.value" name="maintenanceType" />
+            <mat-icon>{{ mt.icon }}</mat-icon>
+            <span>{{ mt.label }}</span>
+          </label>
+        }
+      </div>
+    </section>
+
+    <section>
+      <h4>Service Items</h4>
+      <div class="service-chips">
+        @for (chip of serviceChips; track chip) {
+          <button type="button" class="service-chip"
+                  [class.service-chip--active]="form.serviceItems.includes(chip)"
+                  (click)="toggleServiceItem(chip)">{{ chip }}</button>
+        }
+      </div>
+    </section>
+
+    <section>
+      <h4>Dates</h4>
+      <div class="two-col">
+        <div class="field"><label>Start Date</label><input type="date" [(ngModel)]="form.startDate" name="startDate" /></div>
+        <div class="field"><label>Est. Completion</label><input type="date" [(ngModel)]="form.estimatedCompletionDate" name="estimatedCompletionDate" /></div>
+      </div>
+    </section>
+
+    <section>
+      <h4>Estimated Costs</h4>
+      <div class="two-col">
+        <div class="field"><label>Parts Cost</label><input type="number" [(ngModel)]="form.partsCost" name="partsCost" min="0" step="0.01" /></div>
+        <div class="field"><label>Labor Cost</label><input type="number" [(ngModel)]="form.laborCost" name="laborCost" min="0" step="0.01" /></div>
+      </div>
+      <div class="cost-grid mt-sm">
+        <div class="cost-row cost-row--muted"><span>Tax</span><span>{{ 0 | currency }}</span></div>
+        <div class="cost-row cost-row--total"><span>Total</span><span>{{ (form.partsCost + form.laborCost) | currency }}</span></div>
+      </div>
+    </section>
+
+    <div class="actions">
+      <button type="button" class="btn-outline" (click)="onCreateClose()">Cancel</button>
+      <button type="submit" class="btn-primary" [disabled]="saving() || !form.vehicleId">
+        {{ saving() ? 'Creating…' : 'Create Work Order' }}
+      </button>
+    </div>
+  </form>
+</ui-drawer>

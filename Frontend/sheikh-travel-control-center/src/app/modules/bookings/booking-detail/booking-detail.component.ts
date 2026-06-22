@@ -1,7 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { forkJoin, of } from 'rxjs';
+import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
 import { catchError } from 'rxjs/operators';
 import { BookingService } from '../../../core/services/booking.service';
 import { PaymentService } from '../../../core/services/payment.service';
@@ -49,7 +49,7 @@ export class BookingDetailComponent implements OnInit {
     private paymentService: PaymentService,
     private vehicleService: VehicleService,
     private driverService: DriverService,
-    private snackBar: MatSnackBar,
+    private toast: UiToastService,
     private router: Router
   ) {}
 
@@ -90,25 +90,25 @@ export class BookingDetailComponent implements OnInit {
     if (status === 'Cancelled') {
       const reason = prompt('Please enter a reason for cancellation:');
       if (!reason || !reason.trim()) {
-        this.snackBar.open('Cancellation reason is required.', 'Close', { duration: 3000 });
+        this.toast.warning('Cancellation reason is required.');
         return;
       }
       this.bookingService.updateStatus({ bookingId: this.booking.id, status, cancellationReason: reason.trim() }).subscribe({
         next: () => {
-          this.snackBar.open(`Booking cancelled`, 'Close', { duration: 2000 });
+          this.toast.success(`Booking cancelled`);
           this.booking!.status = status;
         },
-        error: () => this.snackBar.open('Failed to cancel booking', 'Close', { duration: 3000 })
+        error: () => this.toast.error('Failed to cancel booking')
       });
       return;
     }
 
     this.bookingService.updateStatus({ bookingId: this.booking.id, status }).subscribe({
       next: () => {
-        this.snackBar.open(`Status updated to ${status}`, 'Close', { duration: 2000 });
+        this.toast.success(`Status updated to ${status}`);
         this.booking!.status = status;
       },
-      error: () => this.snackBar.open('Failed to update status', 'Close', { duration: 3000 })
+      error: () => this.toast.error('Failed to update status')
     });
   }
 
@@ -179,11 +179,11 @@ export class BookingDetailComponent implements OnInit {
         const vehicle = this.vehicles.find(v => v.id === this.selectedVehicleId);
         this.booking!.vehicleId = this.selectedVehicleId!;
         this.booking!.vehicleName = vehicle?.name ?? '';
-        this.snackBar.open('Vehicle reassigned.', 'Close', { duration: 2000 });
+        this.toast.success('Vehicle reassigned.');
         this.reassigning = false;
       },
       error: () => {
-        this.snackBar.open('Failed to reassign vehicle.', 'Close', { duration: 3000 });
+        this.toast.error('Failed to reassign vehicle.');
         this.reassigning = false;
       }
     });
@@ -198,11 +198,11 @@ export class BookingDetailComponent implements OnInit {
         const driver = this.drivers.find(d => d.id === this.selectedDriverId);
         this.booking!.driverId = this.selectedDriverId!;
         this.booking!.driverName = driver?.fullName ?? '';
-        this.snackBar.open('Driver reassigned.', 'Close', { duration: 2000 });
+        this.toast.success('Driver reassigned.');
         this.reassigning = false;
       },
       error: () => {
-        this.snackBar.open('Failed to reassign driver.', 'Close', { duration: 3000 });
+        this.toast.error('Failed to reassign driver.');
         this.reassigning = false;
       }
     });

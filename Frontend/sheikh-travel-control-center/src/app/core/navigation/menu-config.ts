@@ -45,7 +45,8 @@ const fleetOperationsGroup: NavGroup = {
   items: [
     { id: 'live-tracking', label: 'Live Tracking', icon: 'my_location', route: '/gps-tracking/live', moduleKey: 'gps-tracking' },
     { id: 'gps-trips', label: 'Trips', icon: 'route', route: '/gps-tracking/trips', moduleKey: 'gps-tracking' },
-    { id: 'maintenance', label: 'Maintenance', icon: 'build', route: '/maintenance', moduleKey: 'maintenance' },
+    { id: 'maintenance', label: 'Maintenance', icon: 'build', route: '/fleet/maintenance', moduleKey: 'maintenance' },
+    { id: 'service-records', label: 'Service Records', icon: 'history', route: '/maintenance/service-records', moduleKey: 'maintenance' },
     { id: 'fuel-logs', label: 'Fuel', icon: 'local_gas_station', route: '/fuel-logs', moduleKey: 'fuel-logs' },
     { id: 'inspections', label: 'Inspections', icon: 'fact_check', route: '/fleet/inspections', moduleKey: 'vehicles' },
     { id: 'compliance', label: 'Compliance', icon: 'verified_user', route: '/fleet/compliance', moduleKey: 'vehicles' },

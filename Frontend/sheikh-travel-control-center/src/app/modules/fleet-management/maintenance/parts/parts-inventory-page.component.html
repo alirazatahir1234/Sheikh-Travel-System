@@ -1,0 +1,54 @@
+<div class="parts-page">
+  <header class="page-head">
+    <div>
+      <h2>Spare Parts Inventory</h2>
+      <p>Track fleet spare parts, stock levels, and movements</p>
+    </div>
+    <button type="button" class="btn-add" (click)="openCreate()">
+      <mat-icon>add</mat-icon> Add Part
+    </button>
+  </header>
+
+  <parts-inventory-stats [stats]="stats()" />
+
+  <parts-alerts [parts]="parts()" />
+
+  <parts-filters
+    [filters]="draftFilters()"
+    (filtersChange)="onDraftChange($event)"
+    (apply)="onApply()"
+    (reset)="onReset()" />
+
+  @if (loading()) {
+    <p class="loading">Loading parts…</p>
+  } @else {
+    <parts-table
+      [parts]="parts()"
+      (addStock)="openAddStock($event)"
+      (issuePart)="openIssue($event)"
+      (transferStock)="openTransfer($event)" />
+  }
+
+  <part-form-drawer
+    [open]="formDrawerOpen()"
+    (closed)="formDrawerOpen.set(false)"
+    (saved)="onSaved()" />
+
+  <add-stock-drawer
+    [open]="addStockOpen()"
+    [part]="selectedPart()"
+    (closed)="addStockOpen.set(false)"
+    (saved)="onSaved()" />
+
+  <issue-part-drawer
+    [open]="issueOpen()"
+    [part]="selectedPart()"
+    (closed)="issueOpen.set(false)"
+    (saved)="onSaved()" />
+
+  <transfer-stock-drawer
+    [open]="transferOpen()"
+    [part]="selectedPart()"
+    (closed)="transferOpen.set(false)"
+    (saved)="onSaved()" />
+</div>

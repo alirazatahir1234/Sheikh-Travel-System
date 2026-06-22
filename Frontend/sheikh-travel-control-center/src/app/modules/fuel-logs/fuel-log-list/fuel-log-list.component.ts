@@ -1,8 +1,8 @@
 import { Component, OnInit, ViewChild } from '@angular/core';
 import { MatTableDataSource } from '@angular/material/table';
 import { MatPaginator } from '@angular/material/paginator';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatDialog } from '@angular/material/dialog';
+import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
 import { Router } from '@angular/router';
 import { DatePipe, DecimalPipe } from '@angular/common';
 import { forkJoin } from 'rxjs';
@@ -105,7 +105,7 @@ export class FuelLogListComponent implements OnInit {
     private driverService: DriverService,
     private exportService: ExportService,
     private router: Router,
-    private snackBar: MatSnackBar,
+    private toast: UiToastService,
     private dialog: MatDialog,
     private datePipe: DatePipe,
     private decimalPipe: DecimalPipe
@@ -155,7 +155,7 @@ export class FuelLogListComponent implements OnInit {
       },
       error: () => {
         this.loading = false;
-        this.snackBar.open('Failed to load fuel logs.', 'Close', { duration: 3000 });
+        this.toast.error('Failed to load fuel logs.');
       }
     });
   }
@@ -541,7 +541,7 @@ export class FuelLogListComponent implements OnInit {
   }
 
   flagAnomaly(log: FuelLog): void {
-    this.snackBar.open(`Flagged fuel log #${log.id} for review.`, 'Close', { duration: 2500 });
+    this.toast.success(`Flagged fuel log #${log.id} for review.`);
   }
 
   exportRowInvoice(log: FuelLog): void {
@@ -566,7 +566,7 @@ export class FuelLogListComponent implements OnInit {
       if (!confirmed) return;
       this.fuelLogService.delete(log.id).subscribe({
         next: () => {
-          this.snackBar.open('Fuel log deleted.', 'Close', { duration: 2000 });
+          this.toast.success('Fuel log deleted.');
           this.allLogs = this.allLogs.filter(l => l.id !== log.id);
           this.calculateSummary(this.allLogs);
           this.buildAnalytics();
@@ -576,7 +576,7 @@ export class FuelLogListComponent implements OnInit {
           this.buildAlerts();
           this.applyFilters();
         },
-        error: () => this.snackBar.open('Failed to delete fuel log.', 'Close', { duration: 3000 })
+        error: () => this.toast.error('Failed to delete fuel log.')
       });
     });
   }

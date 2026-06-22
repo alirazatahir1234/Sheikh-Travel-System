@@ -2,8 +2,8 @@ import { CommonModule, DatePipe, DecimalPipe } from '@angular/common';
 import { Component, computed, effect, inject, input, model, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatIconModule } from '@angular/material/icon';
+import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
 import { MatMenuModule } from '@angular/material/menu';
 import { catchError, of } from 'rxjs';
 import { VehicleService } from '../../../core/services/vehicle.service';
@@ -110,7 +110,7 @@ export class VehicleDetailsDrawerComponent {
   private readonly gpsService = inject(GpsTrackingService);
   private readonly platformService = inject(PlatformService);
   private readonly bookingService = inject(BookingService);
-  private readonly snackBar = inject(MatSnackBar);
+  private readonly toast = inject(UiToastService);
   readonly router = inject(Router);
 
   readonly vehicleId = input<number | null>(null);
@@ -717,12 +717,12 @@ export class VehicleDetailsDrawerComponent {
       reason: this.statusReason || null
     }).subscribe({
       next: () => {
-        this.snackBar.open('Status updated', 'Close', { duration: 2000 });
+        this.toast.success('Status updated');
         this.statusModalOpen = false;
         this.loadVehicle(id);
         this.statusChanged.emit();
       },
-      error: () => this.snackBar.open('Status update failed', 'Close', { duration: 3000 })
+      error: () => this.toast.error('Status update failed')
     });
   }
 
@@ -734,12 +734,12 @@ export class VehicleDetailsDrawerComponent {
       bookingId: this.bookingId || null
     }).subscribe({
       next: () => {
-        this.snackBar.open('Driver assigned', 'Close', { duration: 2000 });
+        this.toast.success('Driver assigned');
         this.assignDriverModalOpen = false;
         this.loadVehicle(id);
         this.statusChanged.emit();
       },
-      error: () => this.snackBar.open('Assign driver failed', 'Close', { duration: 3000 })
+      error: () => this.toast.error('Assign driver failed')
     });
   }
 
@@ -748,14 +748,14 @@ export class VehicleDetailsDrawerComponent {
     if (!id || !this.selectedGpsDeviceId) return;
     this.vehicleService.assignGps(id, { gpsDeviceId: Number(this.selectedGpsDeviceId) }).subscribe({
       next: () => {
-        this.snackBar.open('GPS device assigned', 'Close', { duration: 2000 });
+        this.toast.success('GPS device assigned');
         this.assignGpsModalOpen = false;
         this.loadedTabs.delete('gps');
         this.loadTab('gps', id);
         this.loadVehicle(id);
         this.statusChanged.emit();
       },
-      error: () => this.snackBar.open('Assign GPS failed', 'Close', { duration: 3000 })
+      error: () => this.toast.error('Assign GPS failed')
     });
   }
 
@@ -765,7 +765,7 @@ export class VehicleDetailsDrawerComponent {
 
     const sizeError = vehicleUploadSizeError(this.newDocFile);
     if (sizeError) {
-      this.snackBar.open(sizeError, 'Close', { duration: 4000 });
+      this.toast.warning(sizeError);
       return;
     }
 
@@ -778,7 +778,7 @@ export class VehicleDetailsDrawerComponent {
       this.newDocNotes || undefined
     ).subscribe({
       next: () => {
-        this.snackBar.open('Document uploaded', 'Close', { duration: 2000 });
+        this.toast.success('Document uploaded');
         this.docModalOpen = false;
         this.resetDocForm();
         this.loadedTabs.delete('documents');
@@ -787,7 +787,7 @@ export class VehicleDetailsDrawerComponent {
       },
       error: (err) => {
         this.docUploading = false;
-        this.snackBar.open(apiErrorMessage(err, 'Upload failed'), 'Close', { duration: 4000 });
+        this.toast.error(apiErrorMessage(err, 'Upload failed'));
       }
     });
   }
@@ -797,7 +797,7 @@ export class VehicleDetailsDrawerComponent {
     const file = input.files?.[0] ?? null;
     const sizeError = file ? vehicleUploadSizeError(file) : null;
     if (sizeError) {
-      this.snackBar.open(sizeError, 'Close', { duration: 4000 });
+      this.toast.warning(sizeError);
       this.newDocFile = null;
       input.value = '';
       return;

@@ -243,6 +243,7 @@ using (var scope = app.Services.CreateScope())
         await DriverPerformanceMigration.ApplyAsync(dbFactory, logger);
         await DriverVerificationMigration.ApplyAsync(dbFactory, logger);
         await AssignmentSchemaMigration.ApplyAsync(dbFactory, logger);
+        await MaintenanceModuleMigration.ApplyAsync(dbFactory, logger);
     }
     catch (Exception ex)
     {

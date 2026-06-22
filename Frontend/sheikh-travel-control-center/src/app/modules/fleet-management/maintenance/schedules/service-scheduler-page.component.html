@@ -1,0 +1,47 @@
+<div class="scheduler-page">
+  <header class="page-head">
+    <div>
+      <h2>Service Scheduler</h2>
+      <p>Plan preventive maintenance by mileage, date, or engine hours</p>
+    </div>
+    <button type="button" class="btn-new" (click)="openCreate()">+ Schedule Service</button>
+  </header>
+
+  <div class="toolbar">
+    <schedule-view-toggle [view]="view()" (viewChange)="onViewChange($event)" />
+
+    <label class="filter">
+      <span>Status</span>
+      <select [ngModel]="statusFilter()" (ngModelChange)="statusFilter.set($event)">
+        @for (opt of statusOptions; track opt.value) {
+          <option [ngValue]="opt.value">{{ opt.label }}</option>
+        }
+      </select>
+    </label>
+  </div>
+
+  @if (loading() && view() === 'list') {
+    <p class="loading">Loading schedules…</p>
+  } @else if (view() === 'list') {
+    <schedule-list-view
+      [schedules]="schedules()"
+      (reschedule)="openReschedule($event)"
+      (createWorkOrder)="createWorkOrder($event)" />
+  } @else if (view() === 'calendar') {
+    <schedule-calendar-view
+      [items]="calendarItems()"
+      (monthChange)="onCalendarRange($event)" />
+  } @else {
+    <schedule-timeline-view
+      [items]="calendarItems()"
+      (rangeChange)="onCalendarRange($event)" />
+  }
+
+  <schedule-form-drawer
+    [open]="drawerOpen()"
+    [mode]="drawerMode()"
+    [schedule]="selectedSchedule()"
+    [vehicles]="vehicles()"
+    (closed)="drawerOpen.set(false)"
+    (saved)="onSaved()" />
+</div>

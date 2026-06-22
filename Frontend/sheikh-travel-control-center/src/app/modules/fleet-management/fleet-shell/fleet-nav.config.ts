@@ -31,7 +31,7 @@ export const FLEET_NAV_GROUPS: FleetNavGroup[] = [
     items: [
       { id: 'live-tracking', label: 'Live Tracking', icon: 'my_location', route: '/gps-tracking/live' },
       { id: 'trips', label: 'Trips', icon: 'route', route: '/gps-tracking/trips' },
-      { id: 'maintenance', label: 'Maintenance', icon: 'build', route: '/maintenance' },
+      { id: 'maintenance', label: 'Maintenance', icon: 'build', route: '/fleet/maintenance' },
       { id: 'fuel', label: 'Fuel', icon: 'local_gas_station', route: '/fuel-logs' },
       { id: 'inspections', label: 'Inspections', icon: 'fact_check', route: '/fleet/inspections' },
       { id: 'compliance', label: 'Compliance', icon: 'verified_user', route: '/fleet/compliance' }

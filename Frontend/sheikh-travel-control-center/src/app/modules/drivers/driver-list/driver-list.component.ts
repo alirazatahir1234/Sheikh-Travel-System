@@ -1,7 +1,7 @@
 import { Component, OnInit, ViewChild } from '@angular/core';
 import { MatTableDataSource } from '@angular/material/table';
 import { MatPaginator } from '@angular/material/paginator';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
 import { MatDialog } from '@angular/material/dialog';
 import { Router } from '@angular/router';
 import { DatePipe } from '@angular/common';
@@ -71,7 +71,7 @@ export class DriverListComponent implements OnInit {
   constructor(
     private driverService: DriverService,
     private router: Router,
-    private snackBar: MatSnackBar,
+    private toast: UiToastService,
     private dialog: MatDialog,
     private exportService: ExportService,
     private datePipe: DatePipe
@@ -157,8 +157,8 @@ export class DriverListComponent implements OnInit {
     dialogRef.afterClosed().subscribe(confirmed => {
       if (!confirmed) return;
       this.driverService.delete(id).subscribe({
-        next: () => { this.snackBar.open('Deleted', 'Close', { duration: 2000 }); this.load(); },
-        error: () => this.snackBar.open('Delete failed', 'Close', { duration: 3000 })
+        next: () => { this.toast.success('Deleted'); this.load(); },
+        error: () => this.toast.error('Delete failed')
       });
     });
   }

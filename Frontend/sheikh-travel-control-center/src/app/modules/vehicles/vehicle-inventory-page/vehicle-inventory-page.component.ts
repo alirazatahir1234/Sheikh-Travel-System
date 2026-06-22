@@ -3,8 +3,8 @@ import { Router, RouterModule, NavigationEnd } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatButtonModule } from '@angular/material/button';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { DatePipe, DecimalPipe } from '@angular/common';
+import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
 import { catchError, forkJoin, of, filter } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { VehicleService } from '../../../core/services/vehicle.service';
@@ -80,7 +80,7 @@ export class VehicleInventoryPageComponent implements OnInit {
   private readonly driverService = inject(DriverService);
   private readonly exportService = inject(ExportService);
   private readonly confirm = inject(UiConfirmService);
-  private readonly snackBar = inject(MatSnackBar);
+  private readonly toast = inject(UiToastService);
   private readonly router = inject(Router);
   private readonly datePipe = inject(DatePipe);
   private readonly destroyRef = inject(DestroyRef);
@@ -281,10 +281,10 @@ export class VehicleInventoryPageComponent implements OnInit {
 
     this.vehicleService.delete(row.id).subscribe({
       next: () => {
-        this.snackBar.open('Vehicle deleted', 'Close', { duration: 2000 });
+        this.toast.success('Vehicle deleted');
         this.load();
       },
-      error: (err) => this.snackBar.open(apiErrorMessage(err, 'Delete failed'), 'Close', { duration: 3000 })
+      error: (err) => this.toast.error(apiErrorMessage(err, 'Delete failed'))
     });
   }
 
@@ -320,11 +320,7 @@ export class VehicleInventoryPageComponent implements OnInit {
         });
       });
     }
-    this.snackBar.open(
-      failed ? `Deleted with ${failed} failure(s)` : 'Vehicles deleted',
-      'Close',
-      { duration: 3000 }
-    );
+    this.toast.success(failed ? `Deleted with ${failed} failure(s)` : 'Vehicles deleted');
     this.clearSelection();
     this.load();
   }

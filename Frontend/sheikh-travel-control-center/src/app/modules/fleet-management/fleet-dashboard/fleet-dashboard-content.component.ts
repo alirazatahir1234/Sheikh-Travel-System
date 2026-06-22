@@ -1,10 +1,12 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
+import { catchError, of } from 'rxjs';
 
 import { UiModule } from '../../../shared/components/ui';
 import { FleetService } from '../services/fleet.service';
+import { MaintenanceService } from '../../../core/services/maintenance.service';
 import { AssignmentRow, FleetDashboardSummary } from '../models/fleet.model';
-import { AssignmentItem, FleetKpi } from './fleet-dashboard.model';
+import { AssignmentItem, FleetKpi, FuelMaintenanceChart } from './fleet-dashboard.model';
 import {
   ACTIVITIES_MOCK,
   ALERTS_MOCK,
@@ -69,7 +71,7 @@ import { FleetFabComponent } from './widgets/fleet-fab.component';
           </div>
 
           <div class="col-span-12 lg:col-span-8">
-            <fleet-fuel-maintenance-chart [data]="fuelMaintenance"></fleet-fuel-maintenance-chart>
+            <fleet-fuel-maintenance-chart [data]="fuelMaintenance()"></fleet-fuel-maintenance-chart>
           </div>
 
           <div class="col-span-12 lg:col-span-4">
@@ -98,6 +100,7 @@ import { FleetFabComponent } from './widgets/fleet-fab.component';
 })
 export class FleetDashboardContentComponent {
   private readonly fleet = inject(FleetService);
+  private readonly maintenanceService = inject(MaintenanceService);
 
   private readonly summary = toSignal<FleetDashboardSummary | null>(this.fleet.getDashboard(), {
     initialValue: null
@@ -105,11 +108,21 @@ export class FleetDashboardContentComponent {
   private readonly assignmentRows = toSignal<AssignmentRow[] | null>(this.fleet.getAssignments(), {
     initialValue: null
   });
+  private readonly maintenanceDashboard = toSignal(
+    this.maintenanceService.getDashboard('Month').pipe(catchError(() => of(null))),
+    { initialValue: null }
+  );
 
   readonly loadingAssignments = computed(() => this.assignmentRows() === null);
 
   readonly utilization = UTILIZATION_MOCK;
-  readonly fuelMaintenance = FUEL_MAINTENANCE_MOCK;
+  readonly fuelMaintenance = computed<FuelMaintenanceChart>(() => {
+    const fuel = this.maintenanceDashboard()?.fuelSummary;
+    if (fuel?.labels?.length) {
+      return { labels: fuel.labels, fuel: fuel.fuelCosts, maintenance: fuel.maintenanceCosts };
+    }
+    return FUEL_MAINTENANCE_MOCK;
+  });
   readonly quickActions = QUICK_ACTIONS_MOCK;
   readonly alerts = ALERTS_MOCK;
   readonly activities = ACTIVITIES_MOCK;
@@ -119,7 +132,7 @@ export class FleetDashboardContentComponent {
     return [
       { id: 'total', label: 'Total Vehicles', value: this.count(s?.totalVehicles, 1284), icon: 'local_shipping', tone: 'primary', trend: '+12% vs last month', trendUp: true },
       { id: 'active', label: 'Active', value: this.count(s?.activeVehicles, 1102), icon: 'radar', tone: 'secondary', trend: '86% utilization' },
-      { id: 'maintenance', label: 'In Maintenance', value: this.count(s?.maintenanceDue, 42), icon: 'build', tone: 'error', alert: true, trend: '8 overdue service', trendUp: false },
+      { id: 'maintenance', label: 'In Maintenance', value: this.count(this.maintenanceDashboard()?.kpis?.underMaintenance ?? s?.maintenanceDue, 0), icon: 'build', tone: 'error', alert: (this.maintenanceDashboard()?.kpis?.overdueServices ?? 0) > 0, trend: `${this.maintenanceDashboard()?.kpis?.overdueServices ?? 0} overdue service`, trendUp: false },
       { id: 'drivers', label: 'Active Drivers', value: this.count(s?.driversOnDuty, 942), icon: 'person', tone: 'primary', trend: '14 currently standby' },
       { id: 'fuel', label: 'Fuel Cost', value: this.currency(s?.monthlyFuelCost, 142000), icon: 'local_gas_station', tone: 'secondary', trend: '+4.2% price surge', trendUp: false },
       { id: 'trips', label: 'Monthly Trips', value: '8.4k', icon: 'route', tone: 'primary', trend: '99.2% on-time', trendUp: true }

@@ -12,13 +12,16 @@ public static class TenantRolePermissionTemplates
         "Platform.AuditLogs.View", "Platform.Menus.Manage",
         "Booking.View", "Booking.Create", "Trip.View", "Route.View",
         "Vehicle.View", "Vehicle.Create", "Vehicle.Update", "Vehicle.Delete", "Driver.View", "Driver.Create", "Driver.Update", "Driver.Delete", "Driver.Assign", "Driver.Manage", "Driver.ManageStatus", "Driver.ViewPerformance",
-        "GPS.View", "Fuel.View", "Maintenance.View", "Customer.View", "Payment.View", "Invoice.View", "Report.View"
+        "GPS.View", "Fuel.View", "Maintenance.View", "Maintenance.Manage", "Maintenance.Request.Create", "Maintenance.Request.Approve",
+        "Maintenance.WorkOrder.Manage", "Maintenance.Workshop.Manage", "Maintenance.Vendor.Manage", "Maintenance.Report.View",
+        "Customer.View", "Payment.View", "Invoice.View", "Report.View"
     ];
 
     public static readonly string[] FleetManager =
     [
         "Platform.Dashboard.View", "Vehicle.View", "Vehicle.Create", "Vehicle.Update", "Vehicle.Delete",
-        "Driver.View", "Driver.Create", "Driver.Update", "Driver.Delete", "Driver.Assign", "Driver.Manage", "Driver.ManageStatus", "Driver.ViewPerformance", "GPS.View", "Fuel.View", "Maintenance.View", "Report.View"
+        "Driver.View", "Driver.Create", "Driver.Update", "Driver.Delete", "Driver.Assign", "Driver.Manage", "Driver.ManageStatus", "Driver.ViewPerformance", "GPS.View", "Fuel.View",
+        "Maintenance.View", "Maintenance.Manage", "Maintenance.Request.Create", "Maintenance.Request.Approve", "Maintenance.WorkOrder.Manage", "Maintenance.Workshop.Manage", "Maintenance.Vendor.Manage", "Maintenance.Report.View", "Report.View"
     ];
 
     public static readonly string[] Dispatcher =
@@ -29,12 +32,13 @@ public static class TenantRolePermissionTemplates
 
     public static readonly string[] Accountant =
     [
-        "Platform.Dashboard.View", "Payment.View", "Invoice.View", "Report.View", "Fuel.View"
+        "Platform.Dashboard.View", "Payment.View", "Invoice.View", "Report.View", "Fuel.View",
+        "Maintenance.Report.View", "Maintenance.View"
     ];
 
     public static readonly string[] Driver =
     [
-        "Trip.View", "GPS.View", "Fuel.View"
+        "Trip.View", "GPS.View", "Fuel.View", "Maintenance.Request.Create", "Maintenance.View"
     ];
 
     public static IReadOnlyList<(string RoleCode, string[] Permissions)> StandardRoles { get; } =

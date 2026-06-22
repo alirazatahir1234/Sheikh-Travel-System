@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject, model, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { catchError, of } from 'rxjs';
+import { UiToastService } from '../../../../shared/components/ui/toast/ui-toast.service';
 import { DriverService } from '../../../../core/services/driver.service';
 import { VehicleService } from '../../../../core/services/vehicle.service';
 import { UiModalComponent } from '../../../../shared/components/ui/modal/ui-modal.component';
@@ -29,7 +29,7 @@ import { UiSelectOption } from '../../../../shared/components/ui/types/ui.types'
 export class VehicleAssignDialogComponent {
   private readonly vehicleService = inject(VehicleService);
   private readonly driverService = inject(DriverService);
-  private readonly snackBar = inject(MatSnackBar);
+  private readonly toast = inject(UiToastService);
 
   readonly open = model(false);
   readonly vehicleId = model<number | null>(null);
@@ -88,12 +88,12 @@ export class VehicleAssignDialogComponent {
       next: () => {
         this.submitting.set(false);
         this.open.set(false);
-        this.snackBar.open('Driver assigned', 'Close', { duration: 2000 });
+        this.toast.success('Driver assigned');
         this.assigned.emit();
       },
       error: () => {
         this.submitting.set(false);
-        this.snackBar.open('Assign failed', 'Close', { duration: 3000 });
+        this.toast.error('Assign failed');
       }
     });
   }

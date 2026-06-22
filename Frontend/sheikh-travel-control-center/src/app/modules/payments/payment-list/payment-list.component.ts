@@ -1,8 +1,8 @@
 import { Component, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup } from '@angular/forms';
 import { MatTableDataSource } from '@angular/material/table';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
+import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
 import { PaymentService } from '../../../core/services/payment.service';
 import { Payment, PaymentFilter, PaymentStatus } from '../../../core/models/payment.model';
 
@@ -37,7 +37,7 @@ export class PaymentListComponent implements OnInit {
     private fb: FormBuilder,
     private paymentService: PaymentService,
     private router: Router,
-    private snackBar: MatSnackBar
+    private toast: UiToastService
   ) {
     this.filterForm = this.fb.group({
       bookingId: [null],
@@ -83,10 +83,10 @@ export class PaymentListComponent implements OnInit {
     if (!confirm(`Refund payment of PKR ${payment.amount.toLocaleString()} for Booking #${payment.bookingId}?`)) return;
     this.paymentService.updateStatus(payment.id, { status: 'Refunded' }).subscribe({
       next: () => {
-        this.snackBar.open('Payment marked as refunded.', 'Close', { duration: 3000 });
+        this.toast.success('Payment marked as refunded.');
         this.load(this.currentPage, this.currentPageSize);
       },
-      error: () => this.snackBar.open('Failed to refund payment.', 'Close', { duration: 3000 })
+      error: () => this.toast.error('Failed to refund payment.')
     });
   }
 
@@ -106,7 +106,7 @@ export class PaymentListComponent implements OnInit {
         a.href = url; a.download = `payments-${new Date().toISOString().slice(0,10)}.csv`;
         a.click(); URL.revokeObjectURL(url);
       },
-      error: () => this.snackBar.open('Export failed.', 'Close', { duration: 3000 })
+      error: () => this.toast.error('Export failed.')
     });
   }
 

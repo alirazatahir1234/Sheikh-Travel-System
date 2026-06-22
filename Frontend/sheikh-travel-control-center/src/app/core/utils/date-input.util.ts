@@ -77,7 +77,24 @@ export function toDateTimeLocalValue(value: Date | string | null | undefined): s
 export function dateInputToIso(value: string | Date | null | undefined): string | null {
   if (value == null || value === '') return null;
   if (value instanceof Date) return isNaN(value.getTime()) ? null : value.toISOString();
-  return new Date(`${value}T00:00:00`).toISOString();
+
+  const s = String(value).trim();
+  if (!s) return null;
+
+  // Already an ISO datetime from a prior conversion or API payload.
+  if (/^\d{4}-\d{2}-\d{2}T/.test(s)) {
+    const d = new Date(s);
+    return isNaN(d.getTime()) ? null : d.toISOString();
+  }
+
+  // Date-only from `<input type="date">`.
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+    const d = new Date(`${s}T00:00:00`);
+    return isNaN(d.getTime()) ? null : d.toISOString();
+  }
+
+  const d = new Date(s);
+  return isNaN(d.getTime()) ? null : d.toISOString();
 }
 
 /** Parse `<input type="datetime-local">` value to ISO string. */

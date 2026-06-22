@@ -1,8 +1,8 @@
 import { Component, OnInit, ViewChild } from '@angular/core';
 import { MatTableDataSource } from '@angular/material/table';
 import { MatPaginator } from '@angular/material/paginator';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
+import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
 import { DriverAllowanceRuleService } from '../../../core/services/driver-allowance-rule.service';
 import {
   DriverAllowanceRule,
@@ -30,8 +30,7 @@ export class DriverAllowanceRuleListComponent implements OnInit {
   constructor(
     private ruleService: DriverAllowanceRuleService,
     private router: Router,
-    private snackBar: MatSnackBar
-  ) {}
+    private toast: UiToastService) {}
 
   ngOnInit(): void { this.load(); }
 
@@ -45,7 +44,7 @@ export class DriverAllowanceRuleListComponent implements OnInit {
       },
       error: () => {
         this.loading = false;
-        this.snackBar.open('Failed to load allowance rules.', 'Close', { duration: 3000 });
+        this.toast.error('Failed to load allowance rules.');
       }
     });
   }
@@ -55,8 +54,8 @@ export class DriverAllowanceRuleListComponent implements OnInit {
   delete(rule: DriverAllowanceRule): void {
     if (!confirm(`Delete rule "${rule.name}"?`)) return;
     this.ruleService.delete(rule.id).subscribe({
-      next: () => { this.snackBar.open('Rule deleted.', 'Close', { duration: 2000 }); this.load(); },
-      error: () => this.snackBar.open('Delete failed.', 'Close', { duration: 3000 })
+      next: () => { this.toast.success('Rule deleted.'); this.load(); },
+      error: () => this.toast.error('Delete failed.')
     });
   }
 

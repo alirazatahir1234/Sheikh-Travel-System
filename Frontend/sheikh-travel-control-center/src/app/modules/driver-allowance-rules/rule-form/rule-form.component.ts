@@ -1,8 +1,8 @@
 import { Component, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { HttpErrorResponse } from '@angular/common/http';
+import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
 import { DriverAllowanceRuleService } from '../../../core/services/driver-allowance-rule.service';
 import {
   AllowanceCalculationType,
@@ -38,8 +38,7 @@ export class DriverAllowanceRuleFormComponent implements OnInit {
     private ruleService: DriverAllowanceRuleService,
     private route: ActivatedRoute,
     private router: Router,
-    private snackBar: MatSnackBar
-  ) {
+    private toast: UiToastService) {
     this.form = this.fb.group({
       name:            ['', [Validators.required, Validators.maxLength(150)]],
       calculationType: [AllowanceCalculationType.FixedAmount, Validators.required],
@@ -68,7 +67,7 @@ export class DriverAllowanceRuleFormComponent implements OnInit {
         },
         error: () => {
           this.loading = false;
-          this.snackBar.open('Failed to load rule.', 'Close', { duration: 3000 });
+          this.toast.error('Failed to load rule.');
         }
       });
     });
@@ -93,13 +92,13 @@ export class DriverAllowanceRuleFormComponent implements OnInit {
 
     const done = () => {
       this.submitting = false;
-      this.snackBar.open(`Rule ${this.isEdit ? 'updated' : 'created'}.`, 'Close', { duration: 2000 });
+      this.toast.success(`Rule ${this.isEdit ? 'updated' : 'created'}.`);
       this.router.navigate(['/driver-allowance-rules']);
     };
 
     const fail = (err: HttpErrorResponse) => {
       this.submitting = false;
-      this.snackBar.open(this.extractError(err), 'Close', { duration: 4000 });
+      this.toast.error(this.extractError(err));
     };
 
     if (this.isEdit && this.ruleId) {

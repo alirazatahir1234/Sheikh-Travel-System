@@ -44,7 +44,10 @@ public static class PermissionPolicyRegistration
 {
     public static void AddPermissionPolicies(this AuthorizationOptions options)
     {
-        foreach (var permission in PlatformPermissions.All.Concat(FleetPermissions.All).Concat(DriverPermissions.All))
+        foreach (var permission in PlatformPermissions.All
+            .Concat(FleetPermissions.All)
+            .Concat(DriverPermissions.All)
+            .Concat(MaintenancePermissions.All))
         {
             options.AddPolicy(permission, policy =>
                 policy.Requirements.Add(new PermissionRequirement(permission)));

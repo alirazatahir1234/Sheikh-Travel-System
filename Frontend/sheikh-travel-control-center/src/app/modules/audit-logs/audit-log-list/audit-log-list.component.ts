@@ -1,7 +1,7 @@
 import { Component, OnInit, ViewChild } from '@angular/core';
 import { MatPaginator, PageEvent } from '@angular/material/paginator';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { DatePipe } from '@angular/common';
+import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
 import { AuditLogService, AuditLogFilter } from '../../../core/services/audit-log.service';
 import { UserService } from '../../../core/services/user.service';
 import { ExportService, ExportColumn } from '../../../core/services/export.service';
@@ -41,7 +41,7 @@ export class AuditLogListComponent implements OnInit {
     private auditLogService: AuditLogService,
     private userService: UserService,
     private exportService: ExportService,
-    private snackBar: MatSnackBar,
+    private toast: UiToastService,
     private datePipe: DatePipe
   ) {}
 
@@ -78,7 +78,7 @@ export class AuditLogListComponent implements OnInit {
       },
       error: () => {
         this.loading = false;
-        this.snackBar.open('Failed to load audit logs.', 'Close', { duration: 3000 });
+        this.toast.error('Failed to load audit logs.');
       }
     });
   }

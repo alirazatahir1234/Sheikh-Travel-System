@@ -1,8 +1,8 @@
 import { Component, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { HttpErrorResponse } from '@angular/common/http';
+import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
 import { Observable } from 'rxjs';
 import { MaintenanceService } from '../../../core/services/maintenance.service';
 import { VehicleService } from '../../../core/services/vehicle.service';
@@ -31,7 +31,7 @@ export class MaintenanceFormComponent implements OnInit {
     private vehicleService: VehicleService,
     private router: Router,
     private route: ActivatedRoute,
-    private snackBar: MatSnackBar
+    private toast: UiToastService
   ) {
     this.form = this.fb.group({
       vehicleId:       [null, Validators.required],
@@ -82,7 +82,7 @@ export class MaintenanceFormComponent implements OnInit {
       },
       error: () => {
         this.loading = false;
-        this.snackBar.open('Failed to load vehicles.', 'Close', { duration: 3000 });
+        this.toast.error('Failed to load vehicles.');
       }
     });
   }
@@ -102,7 +102,7 @@ export class MaintenanceFormComponent implements OnInit {
       },
       error: () => {
         this.loading = false;
-        this.snackBar.open('Failed to load maintenance record.', 'Close', { duration: 3000 });
+        this.toast.error('Failed to load maintenance record.');
         this.router.navigate(['/maintenance']);
       }
     });
@@ -134,12 +134,12 @@ export class MaintenanceFormComponent implements OnInit {
       next: () => {
         this.submitting = false;
         const msg = this.editMode ? 'Maintenance record updated.' : 'Maintenance record created.';
-        this.snackBar.open(msg, 'Close', { duration: 2000 });
+        this.toast.success(msg);
         this.router.navigate(['/maintenance']);
       },
       error: (err: HttpErrorResponse) => {
         this.submitting = false;
-        this.snackBar.open(this.extractError(err), 'Close', { duration: 4000 });
+        this.toast.error(this.extractError(err));
       }
     });
   }

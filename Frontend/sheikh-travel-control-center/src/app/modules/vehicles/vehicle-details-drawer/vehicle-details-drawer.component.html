@@ -210,7 +210,9 @@
 
             <div class="vd-tab-actions">
               <span class="vd-section-title">Service History</span>
-              <a routerLink="/maintenance" class="vd-link">Schedule Service →</a>
+              @if (effectiveVehicleId(); as vid) {
+                <a [routerLink]="['/fleet/maintenance/history']" [queryParams]="{ vehicleId: vid }" class="vd-link">View full history →</a>
+              }
             </div>
 
             @if (maintenanceLoading()) {

@@ -1,7 +1,7 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
 import { Subject, takeUntil } from 'rxjs';
 import { PlatformTenantContextService } from '../../../core/services/platform-tenant-context.service';
 import { PlatformService } from '../../../core/services/platform.service';
@@ -75,7 +75,7 @@ export class OrganizationDesignerComponent implements OnInit, OnDestroy {
     private route: ActivatedRoute,
     private router: Router,
     private fb: FormBuilder,
-    private snackBar: MatSnackBar,
+    private toast: UiToastService,
     private tenantContext: PlatformTenantContextService,
     private platform: PlatformService,
     private lookup: LookupService
@@ -146,7 +146,7 @@ export class OrganizationDesignerComponent implements OnInit, OnDestroy {
       },
       error: (err) => {
         this.loading = false;
-        this.snackBar.open(apiErrorMessage(err, 'Failed to load organization tree.'), 'Close', { duration: 4000 });
+        this.toast.error(apiErrorMessage(err, 'Failed to load organization tree.'));
       }
     });
   }
@@ -305,27 +305,27 @@ export class OrganizationDesignerComponent implements OnInit, OnDestroy {
     if (this.editingBranchId) {
       this.platform.updateBranchForTenant(tenantId, this.editingBranchId, payload).subscribe({
         next: () => {
-          this.snackBar.open('Branch updated.', 'Close', { duration: 2500 });
+          this.toast.success('Branch updated.');
           this.saving = false;
           this.cancelForm();
           this.loadOrganizationTree(tenantId);
         },
         error: (err) => {
           this.saving = false;
-          this.snackBar.open(apiErrorMessage(err, 'Failed to update branch.'), 'Close', { duration: 4000 });
+          this.toast.error(apiErrorMessage(err, 'Failed to update branch.'));
         }
       });
     } else {
       this.platform.createBranchForTenant(tenantId, payload).subscribe({
         next: () => {
-          this.snackBar.open('Branch created.', 'Close', { duration: 2500 });
+          this.toast.success('Branch created.');
           this.saving = false;
           this.cancelForm();
           this.loadOrganizationTree(tenantId);
         },
         error: (err) => {
           this.saving = false;
-          this.snackBar.open(apiErrorMessage(err, 'Failed to create branch.'), 'Close', { duration: 4000 });
+          this.toast.error(apiErrorMessage(err, 'Failed to create branch.'));
         }
       });
     }
@@ -347,27 +347,27 @@ export class OrganizationDesignerComponent implements OnInit, OnDestroy {
     if (this.editingDepartmentId) {
       this.platform.updateDepartmentForTenant(tenantId, this.editingDepartmentId, payload, true).subscribe({
         next: () => {
-          this.snackBar.open('Department updated.', 'Close', { duration: 2500 });
+          this.toast.success('Department updated.');
           this.saving = false;
           this.cancelForm();
           this.loadOrganizationTree(tenantId);
         },
         error: (err) => {
           this.saving = false;
-          this.snackBar.open(apiErrorMessage(err, 'Failed to update department.'), 'Close', { duration: 4000 });
+          this.toast.error(apiErrorMessage(err, 'Failed to update department.'));
         }
       });
     } else {
       this.platform.createDepartmentForTenant(tenantId, payload).subscribe({
         next: () => {
-          this.snackBar.open('Department created.', 'Close', { duration: 2500 });
+          this.toast.success('Department created.');
           this.saving = false;
           this.cancelForm();
           this.loadOrganizationTree(tenantId);
         },
         error: (err) => {
           this.saving = false;
-          this.snackBar.open(apiErrorMessage(err, 'Failed to create department.'), 'Close', { duration: 4000 });
+          this.toast.error(apiErrorMessage(err, 'Failed to create department.'));
         }
       });
     }
@@ -380,12 +380,12 @@ export class OrganizationDesignerComponent implements OnInit, OnDestroy {
     const tenantId = this.organizationTree.tenantId;
     this.platform.deleteBranchForTenant(tenantId, branch.id).subscribe({
       next: () => {
-        this.snackBar.open('Branch deleted.', 'Close', { duration: 2500 });
+        this.toast.success('Branch deleted.');
         this.selectedNode = null;
         this.loadOrganizationTree(tenantId);
       },
       error: (err) => {
-        this.snackBar.open(apiErrorMessage(err, 'Failed to delete branch.'), 'Close', { duration: 4000 });
+        this.toast.error(apiErrorMessage(err, 'Failed to delete branch.'));
       }
     });
   }
@@ -397,12 +397,12 @@ export class OrganizationDesignerComponent implements OnInit, OnDestroy {
     const tenantId = this.organizationTree.tenantId;
     this.platform.deleteDepartmentForTenant(tenantId, dept.id).subscribe({
       next: () => {
-        this.snackBar.open('Department deleted.', 'Close', { duration: 2500 });
+        this.toast.success('Department deleted.');
         this.selectedNode = null;
         this.loadOrganizationTree(tenantId);
       },
       error: (err) => {
-        this.snackBar.open(apiErrorMessage(err, 'Failed to delete department.'), 'Close', { duration: 4000 });
+        this.toast.error(apiErrorMessage(err, 'Failed to delete department.'));
       }
     });
   }
@@ -413,11 +413,11 @@ export class OrganizationDesignerComponent implements OnInit, OnDestroy {
     const tenantId = this.organizationTree.tenantId;
     this.platform.moveDepartment(tenantId, dept.id, newBranchId).subscribe({
       next: () => {
-        this.snackBar.open('Department moved.', 'Close', { duration: 2500 });
+        this.toast.success('Department moved.');
         this.loadOrganizationTree(tenantId);
       },
       error: (err) => {
-        this.snackBar.open(apiErrorMessage(err, 'Failed to move department.'), 'Close', { duration: 4000 });
+        this.toast.error(apiErrorMessage(err, 'Failed to move department.'));
       }
     });
   }

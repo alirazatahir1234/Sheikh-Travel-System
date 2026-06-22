@@ -1,11 +1,11 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { MatTableDataSource } from '@angular/material/table';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatDialog } from '@angular/material/dialog';
 import { MatCheckboxChange } from '@angular/material/checkbox';
 import { Router } from '@angular/router';
 import { PageEvent } from '@angular/material/paginator';
 import { Subject, Subscription, debounceTime, distinctUntilChanged } from 'rxjs';
+import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
 import { BookingService } from '../../../core/services/booking.service';
 import { Booking, BookingFilter, BookingStatus } from '../../../core/models/booking.model';
 import { ConfirmDialogComponent, ConfirmDialogData } from '../../../shared/components/confirm-dialog/confirm-dialog.component';
@@ -52,7 +52,7 @@ export class BookingListComponent implements OnInit, OnDestroy {
   constructor(
     private bookingService: BookingService,
     private router: Router,
-    private snackBar: MatSnackBar,
+    private toast: UiToastService,
     private dialog: MatDialog
   ) {}
 
@@ -153,7 +153,7 @@ export class BookingListComponent implements OnInit, OnDestroy {
         a.click();
         URL.revokeObjectURL(url);
       },
-      error: () => this.snackBar.open('Failed to export bookings.', 'Close', { duration: 3000 })
+      error: () => this.toast.error('Failed to export bookings.')
     });
   }
 
@@ -168,11 +168,11 @@ export class BookingListComponent implements OnInit, OnDestroy {
       this.bookingService.delete(id).subscribe({
         next: () => {
           this.selectedIds.delete(id);
-          this.snackBar.open('Booking deleted', 'Close', { duration: 2000 });
+          this.toast.success('Booking deleted');
           this.load();
         },
         error: () => {
-          this.snackBar.open('Failed to delete booking', 'Close', { duration: 2000 });
+          this.toast.error('Failed to delete booking');
         }
       });
     }
@@ -231,16 +231,13 @@ export class BookingListComponent implements OnInit, OnDestroy {
           next: count => {
             this.bulkDeleting = false;
             this.selectedIds.clear();
-            this.snackBar.open(
-              count > 0 ? `${count} booking(s) deleted.` : 'No bookings were deleted (they may have already been removed).',
-              'Close',
-              { duration: 3500 }
-            );
+            this.toast.warning(
+              count > 0 ? `${count} booking(s) deleted.` : 'No bookings were deleted (they may have already been removed).');
             this.load();
           },
           error: () => {
             this.bulkDeleting = false;
-            this.snackBar.open('Bulk delete failed.', 'Close', { duration: 3000 });
+            this.toast.error('Bulk delete failed.');
           }
         });
       });

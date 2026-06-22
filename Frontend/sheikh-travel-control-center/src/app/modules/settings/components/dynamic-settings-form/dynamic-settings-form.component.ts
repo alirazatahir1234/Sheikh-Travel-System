@@ -1,7 +1,7 @@
 import { Component, Input, OnChanges, inject } from '@angular/core';
 import { FormBuilder, FormGroup } from '@angular/forms';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { SettingsService } from '../../services/settings.service';
+import { UiToastService } from '../../../../shared/components/ui/toast/ui-toast.service';
 import { SettingFieldSchema, SettingsValues } from '../../models/settings.model';
 import { apiErrorMessage } from '../../../../core/utils/api-error.util';
 
@@ -22,7 +22,7 @@ export class DynamicSettingsFormComponent implements OnChanges {
 
   private readonly fb = inject(FormBuilder);
   private readonly settings = inject(SettingsService);
-  private readonly snackBar = inject(MatSnackBar);
+  private readonly toast = inject(UiToastService);
 
   form: FormGroup = this.fb.group({});
   sections: SettingsSection[] = [];
@@ -79,11 +79,11 @@ export class DynamicSettingsFormComponent implements OnChanges {
         this.saving = false;
         this.values = payload;
         this.form.markAsPristine();
-        this.snackBar.open('Settings saved.', 'Close', { duration: 2500 });
+        this.toast.success('Settings saved.');
       },
       error: (err) => {
         this.saving = false;
-        this.snackBar.open(apiErrorMessage(err, 'Failed to save settings.'), 'Close', { duration: 4000 });
+        this.toast.error(apiErrorMessage(err, 'Failed to save settings.'));
       }
     });
   }

@@ -10,10 +10,10 @@ import {
 } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { GoogleMap, MapDirectionsService } from '@angular/google-maps';
 import { Observable, Subscription } from 'rxjs';
 
+import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
 import { RouteService } from '../../../core/services/route.service';
 import { GoogleMapsLoaderService } from '../../../core/services/google-maps-loader.service';
 import {
@@ -148,7 +148,7 @@ export class RouteFormComponent implements OnInit, AfterViewInit, OnDestroy {
     private routeService: RouteService,
     private router: Router,
     private route: ActivatedRoute,
-    private snackBar: MatSnackBar,
+    private toast: UiToastService,
     private mapsLoader: GoogleMapsLoaderService,
     private directionsService: MapDirectionsService,
     private zone: NgZone,
@@ -274,7 +274,7 @@ export class RouteFormComponent implements OnInit, AfterViewInit, OnDestroy {
           this.scheduleRecompute();
         }
       },
-      error: () => this.snackBar.open('Failed to load route.', 'Close', { duration: 3000 })
+      error: () => this.toast.error('Failed to load route.')
     });
   }
 
@@ -349,7 +349,7 @@ export class RouteFormComponent implements OnInit, AfterViewInit, OnDestroy {
   saveDraft(): void {
     const payload = { form: this.form.getRawValue(), stops: this.stops };
     localStorage.setItem('stb-route-draft', JSON.stringify(payload));
-    this.snackBar.open('Draft saved locally.', 'Close', { duration: 2000 });
+    this.toast.success('Draft saved locally.');
   }
 
   private loadDraft(): void {
@@ -366,7 +366,7 @@ export class RouteFormComponent implements OnInit, AfterViewInit, OnDestroy {
 
   previewRoute(): void {
     if (!this.form.get('source')?.value || !this.form.get('destination')?.value) {
-      this.snackBar.open('Enter origin and destination first.', 'Close', { duration: 2500 });
+      this.toast.warning('Enter origin and destination first.');
       return;
     }
     this.computeRoute();
@@ -692,12 +692,12 @@ export class RouteFormComponent implements OnInit, AfterViewInit, OnDestroy {
     obs.subscribe({
       next: () => {
         localStorage.removeItem('stb-route-draft');
-        this.snackBar.open(`Route ${this.isEdit ? 'updated' : 'created'}`, 'Close', { duration: 2000 });
+        this.toast.success(`Route ${this.isEdit ? 'updated' : 'created'}.`);
         this.router.navigate(['/routes']);
       },
       error: err => {
         this.loading = false;
-        this.snackBar.open(this.extractError(err), 'Close', { duration: 4000 });
+        this.toast.error(this.extractError(err));
       }
     });
   }

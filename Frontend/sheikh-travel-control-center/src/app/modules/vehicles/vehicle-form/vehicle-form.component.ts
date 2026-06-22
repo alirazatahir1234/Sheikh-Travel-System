@@ -1,8 +1,8 @@
 import { Component, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { HttpErrorResponse } from '@angular/common/http';
+import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
 import { Observable } from 'rxjs';
 import { VehicleService } from '../../../core/services/vehicle.service';
 import {
@@ -41,7 +41,7 @@ export class VehicleFormComponent implements OnInit {
     private vehicleService: VehicleService,
     public router: Router,
     private route: ActivatedRoute,
-    private snackBar: MatSnackBar
+    private toast: UiToastService
   ) {
     this.form = this.fb.group({
       name:                [''],
@@ -132,12 +132,12 @@ export class VehicleFormComponent implements OnInit {
 
     (obs as Observable<unknown>).subscribe({
       next: () => {
-        this.snackBar.open(`Vehicle ${this.isEdit ? 'updated' : 'created'}`, 'Close', { duration: 2000 });
+        this.toast.success(`Vehicle ${this.isEdit ? 'updated' : 'created'}`);
         this.router.navigate(['/vehicles']);
       },
       error: (err: HttpErrorResponse) => {
         this.loading = false;
-        this.snackBar.open(this.extractError(err), 'Close', { duration: 5000 });
+        this.toast.error(this.extractError(err));
       }
     });
   }

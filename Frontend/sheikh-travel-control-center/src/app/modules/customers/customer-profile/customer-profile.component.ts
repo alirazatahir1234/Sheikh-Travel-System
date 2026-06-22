@@ -1,6 +1,5 @@
 import { Component, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { forkJoin, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { CustomerService } from '../../../core/services/customer.service';
@@ -31,8 +30,7 @@ export class CustomerProfileComponent implements OnInit {
     private route: ActivatedRoute,
     private router: Router,
     private customerService: CustomerService,
-    private bookingService: BookingService,
-    private snackBar: MatSnackBar
+    private bookingService: BookingService
   ) {}
 
   ngOnInit(): void {

@@ -36,6 +36,20 @@ public static class AssignmentSchemaMigration
                 ALTER TABLE AssignmentHistory ADD ModifiedBy NVARCHAR(100) NULL;
             IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'AssignmentHistory' AND COLUMN_NAME = 'ModifiedAt')
                 ALTER TABLE AssignmentHistory ADD ModifiedAt DATETIME2 NULL;
+            IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'AssignmentHistory' AND COLUMN_NAME = 'Purpose')
+                ALTER TABLE AssignmentHistory ADD Purpose NVARCHAR(60) NULL;
+            IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'AssignmentHistory' AND COLUMN_NAME = 'PickupLocation')
+                ALTER TABLE AssignmentHistory ADD PickupLocation NVARCHAR(300) NULL;
+            IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'AssignmentHistory' AND COLUMN_NAME = 'DropLocation')
+                ALTER TABLE AssignmentHistory ADD DropLocation NVARCHAR(300) NULL;
+            IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'AssignmentHistory' AND COLUMN_NAME = 'OdometerStart')
+                ALTER TABLE AssignmentHistory ADD OdometerStart DECIMAL(12,2) NULL;
+            IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'AssignmentHistory' AND COLUMN_NAME = 'OdometerEnd')
+                ALTER TABLE AssignmentHistory ADD OdometerEnd DECIMAL(12,2) NULL;
+            IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'AssignmentHistory' AND COLUMN_NAME = 'TransferType')
+                ALTER TABLE AssignmentHistory ADD TransferType NVARCHAR(30) NULL;
+            IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'AssignmentHistory' AND COLUMN_NAME = 'ApprovedBy')
+                ALTER TABLE AssignmentHistory ADD ApprovedBy NVARCHAR(100) NULL;
             """, cancellationToken: ct));
 
         // Backfill AssignmentNo for existing rows that don't have one

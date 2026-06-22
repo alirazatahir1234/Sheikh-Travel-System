@@ -174,7 +174,7 @@
   <mat-card class="data-card">
     <mat-card-header>
       <mat-card-title>Maintenance History</mat-card-title>
-      <button mat-button routerLink="/maintenance">View All</button>
+      <button mat-button *ngIf="vehicle" [routerLink]="['/fleet/maintenance/history']" [queryParams]="{ vehicleId: vehicle.id }">View full history</button>
     </mat-card-header>
     <mat-card-content>
       <table mat-table [dataSource]="recentMaintenance" *ngIf="recentMaintenance.length > 0">

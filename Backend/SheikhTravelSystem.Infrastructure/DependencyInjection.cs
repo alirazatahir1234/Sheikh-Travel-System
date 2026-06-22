@@ -43,6 +43,7 @@ public static class DependencyInjection
         services.AddScoped<IPaymentGatewayProvider, EasyPaisaPaymentGatewayService>();
         services.AddScoped<IPaymentGatewayService, ConfiguredPaymentGatewayService>();
         services.AddHostedService<ComplianceReminderHostedService>();
+        services.AddHostedService<MaintenanceAlertHostedService>();
         services.Configure<GpsSettings>(configuration.GetSection(GpsSettings.SectionName));
         services.Configure<OcrOptions>(configuration.GetSection(OcrOptions.SectionName));
         services.Configure<FileStorageOptions>(configuration.GetSection(FileStorageOptions.SectionName));

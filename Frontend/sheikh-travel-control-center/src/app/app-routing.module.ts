@@ -30,7 +30,8 @@ const routes: Routes = [
       { path: 'platform', loadChildren: () => import('./modules/platform-admin/platform-admin.module').then(m => m.PlatformAdminModule) },
       { path: 'settings', loadChildren: () => import('./modules/settings/settings.module').then(m => m.SettingsModule) },
       { path: 'fuel-logs', loadChildren: () => import('./modules/fuel-logs/fuel-logs.module').then(m => m.FuelLogsModule) },
-      { path: 'maintenance', loadChildren: () => import('./modules/maintenance/maintenance.module').then(m => m.MaintenanceModule) },
+      { path: 'maintenance', redirectTo: 'fleet/maintenance', pathMatch: 'full' },
+      { path: 'maintenance/service-records', loadChildren: () => import('./modules/maintenance/maintenance.module').then(m => m.MaintenanceModule) },
       { path: 'audit-logs', loadChildren: () => import('./modules/audit-logs/audit-logs.module').then(m => m.AuditLogsModule) },
       { path: 'profile', loadChildren: () => import('./modules/profile/profile.module').then(m => m.ProfileModule) }
     ]

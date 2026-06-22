@@ -1,6 +1,6 @@
 import { Component, OnInit } from '@angular/core';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { GpsTrackingService } from '../../../core/services/gps-tracking.service';
+import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
 import { GpsDevice, GpsDeviceCommand } from '../../../core/models/gps-tracking.model';
 
 @Component({
@@ -16,7 +16,7 @@ export class GpsCommandsComponent implements OnInit {
 
   constructor(
     private gps: GpsTrackingService,
-    private snack: MatSnackBar
+    private toast: UiToastService
   ) {}
 
   ngOnInit(): void {
@@ -44,18 +44,18 @@ export class GpsCommandsComponent implements OnInit {
     if (!this.selectedDeviceId) return;
     const device = this.devices.find(d => d.id === this.selectedDeviceId);
     if (commandType === 'engineStop' && device && !device.supportsEngineCutoff) {
-      this.snack.open('This device does not support engine cut-off', 'Dismiss', { duration: 3000 });
+      this.toast.warning('This device does not support engine cut-off');
       return;
     }
     if (!confirm(`Send ${commandType} to ${device?.name}?`)) return;
 
     this.gps.sendCommand(this.selectedDeviceId, commandType).subscribe({
       next: () => {
-        this.snack.open('Command queued', 'OK', { duration: 2500 });
+        this.toast.success('Command queued');
         this.loadCommands();
       },
       error: err => {
-        this.snack.open(err?.error?.message ?? 'Command failed', 'Dismiss', { duration: 3000 });
+        this.toast.error(err?.error?.message ?? 'Command failed');
       }
     });
   }

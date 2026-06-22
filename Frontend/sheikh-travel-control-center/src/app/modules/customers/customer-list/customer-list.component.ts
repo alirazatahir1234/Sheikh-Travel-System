@@ -1,6 +1,5 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { MatTableDataSource } from '@angular/material/table';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { PageEvent } from '@angular/material/paginator';
 import { Router } from '@angular/router';
 import { DatePipe } from '@angular/common';
@@ -8,6 +7,7 @@ import { SelectionModel } from '@angular/cdk/collections';
 import { Subject, Subscription, forkJoin, of } from 'rxjs';
 import { catchError, debounceTime, distinctUntilChanged, map } from 'rxjs/operators';
 
+import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
 import { CustomerService } from '../../../core/services/customer.service';
 import { ExportService, ExportColumn } from '../../../core/services/export.service';
 import { Customer, CustomerFilter, CustomerListStats } from '../../../core/models/customer.model';
@@ -67,7 +67,7 @@ export class CustomerListComponent implements OnInit, OnDestroy {
   constructor(
     private customerService: CustomerService,
     private router: Router,
-    private snackBar: MatSnackBar,
+    private toast: UiToastService,
     private exportService: ExportService,
     private datePipe: DatePipe
   ) {}
@@ -176,8 +176,8 @@ export class CustomerListComponent implements OnInit, OnDestroy {
   delete(id: number): void {
     if (!confirm('Delete this customer?')) return;
     this.customerService.delete(id).subscribe({
-      next: () => { this.snackBar.open('Customer deleted', 'Close', { duration: 2000 }); this.load(); },
-      error: () => this.snackBar.open('Delete failed', 'Close', { duration: 3000 })
+      next: () => { this.toast.success('Customer deleted'); this.load(); },
+      error: () => this.toast.error('Delete failed')
     });
   }
 
@@ -201,7 +201,7 @@ export class CustomerListComponent implements OnInit, OnDestroy {
       const msg = failed === 0
         ? `Deleted ${ok} customer${ok > 1 ? 's' : ''}.`
         : `Deleted ${ok}, failed ${failed}.`;
-      this.snackBar.open(msg, 'Close', { duration: 3500 });
+      this.toast.success(msg);
       this.load();
     });
   }
@@ -233,7 +233,7 @@ export class CustomerListComponent implements OnInit, OnDestroy {
   private fetchForExport(onReady: (rows: Customer[]) => void): void {
     this.customerService.getAll(1, 10000, this.buildFilter()).subscribe({
       next: r => onReady(r.items),
-      error: () => this.snackBar.open('Failed to load customers for export.', 'Close', { duration: 3000 })
+      error: () => this.toast.error('Failed to load customers for export.')
     });
   }
 

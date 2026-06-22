@@ -2,8 +2,8 @@ import { Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { MatStepper } from '@angular/material/stepper';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { HttpErrorResponse } from '@angular/common/http';
+import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
 import { Observable, Subject, firstValueFrom, forkJoin, of } from 'rxjs';
 import { finalize, map, startWith, switchMap, takeUntil, tap } from 'rxjs/operators';
 
@@ -127,7 +127,7 @@ export class BookingWizardComponent implements OnInit, OnDestroy {
     private ocrService: OcrService,
     private ocrSettingsService: OcrSettingsService,
     private router: Router,
-    private snackBar: MatSnackBar
+    private toast: UiToastService
   ) {
     this.step1Form = this.fb.group({
       customerId:        [null, [Validators.required, Validators.min(1)]],
@@ -463,14 +463,14 @@ export class BookingWizardComponent implements OnInit, OnDestroy {
     const vehicleId = this.resolveVehicleId();
     if (!routeId || !vehicleId) {
       this.priceBreakdown = null;
-      this.snackBar.open('Please select route and vehicle from the suggestions.', 'Close', { duration: 3200 });
+      this.toast.warning('Please select route and vehicle from the suggestions.');
       return;
     }
     const routeExists = this.routes.some(r => r.id === routeId);
     const vehicleExists = this.vehicles.some(v => v.id === vehicleId);
     if (!routeExists || !vehicleExists) {
       this.priceBreakdown = null;
-      this.snackBar.open('Please select route and vehicle from the suggestions.', 'Close', { duration: 3200 });
+      this.toast.warning('Please select route and vehicle from the suggestions.');
       return;
     }
     const driverAllowanceAmount = this.step1Form.value.driverRequired
@@ -496,10 +496,10 @@ export class BookingWizardComponent implements OnInit, OnDestroy {
         const fallback = this.buildLocalPriceBreakdown(routeId, vehicleId);
         if (fallback) {
           this.priceBreakdown = fallback;
-          this.snackBar.open('Calculated locally (server unavailable).', 'Close', { duration: 2800 });
+          this.toast.info('Calculated locally (server unavailable).');
           return;
         }
-        this.snackBar.open(this.extractError(err) || 'Failed to calculate price.', 'Close', { duration: 3500 });
+        this.toast.error(this.extractError(err) || 'Failed to calculate price.');
       }
     });
   }
@@ -546,7 +546,7 @@ export class BookingWizardComponent implements OnInit, OnDestroy {
       error: (err: HttpErrorResponse) => {
         this.loading = false;
         this.creatingCustomer = false;
-        this.snackBar.open(this.extractError(err) || 'Failed to create booking', 'Close', { duration: 4000 });
+        this.toast.error(this.extractError(err) || 'Failed to create booking');
       }
     });
   }
@@ -582,7 +582,7 @@ export class BookingWizardComponent implements OnInit, OnDestroy {
         this.customers = [newCustomer, ...this.customers];
         this.step1Form.patchValue({ customerId: newId, customerSearch: newCustomer });
         this.creatingCustomer = false;
-        this.snackBar.open('Customer created.', 'Close', { duration: 2000 });
+        this.toast.success('Customer created.');
         return newId;
       })
     );
@@ -593,30 +593,30 @@ export class BookingWizardComponent implements OnInit, OnDestroy {
     this.step1Form.markAllAsTouched();
 
     if (this.step1Form.invalid) {
-      this.snackBar.open('Please fill all required fields.', 'Close', { duration: 3000 });
+      this.toast.warning('Please fill all required fields.');
       return false;
     }
 
     const pickupIso = this.combineDateAndTime(this.step1Form.value.pickupTime, this.step1Form.value.pickupTimeClock);
     if (!this.isPickupInFuture(pickupIso)) {
-      this.snackBar.open('Pickup time must be in the future.', 'Close', { duration: 3200 });
+      this.toast.warning('Pickup time must be in the future.');
       return false;
     }
 
     if (!this.priceBreakdown) {
-      this.snackBar.open('Calculate the price before continuing.', 'Close', { duration: 3000 });
+      this.toast.warning('Calculate the price before continuing.');
       return false;
     }
 
     if (this.customerMode === 'EXISTING' && !this.step1Form.value.customerId) {
-      this.snackBar.open('Pick an existing customer or switch to New.', 'Close', { duration: 3000 });
+      this.toast.warning('Pick an existing customer or switch to New.');
       return false;
     }
 
     if (this.customerMode === 'NEW') {
       const f = this.step1Form.value;
       if (!f.newFullName?.trim() || !f.newPhone?.trim()) {
-        this.snackBar.open('New customer needs a name and phone.', 'Close', { duration: 3000 });
+        this.toast.warning('New customer needs a name and phone.');
         return false;
       }
     }
@@ -642,15 +642,11 @@ export class BookingWizardComponent implements OnInit, OnDestroy {
 
   assignAndFinish(): void {
     if (!this.createdBooking) {
-      this.snackBar.open('Create the booking from Trip Details first (use Next: Assign Driver).', 'Close', { duration: 4000 });
+      this.toast.warning('Create the booking from Trip Details first (use Next: Assign Driver).');
       return;
     }
     if (!this.canProceedToConfirm()) {
-      this.snackBar.open(
-        'Partial payment requires an amount greater than 0 and less than the total. Go back to Payment to fix it.',
-        'Close',
-        { duration: 5000 }
-      );
+      this.toast.warning('Partial payment requires an amount greater than 0 and less than the total. Go back to Payment to fix it.');
       this.goToPaymentStep();
       return;
     }
@@ -659,7 +655,7 @@ export class BookingWizardComponent implements OnInit, OnDestroy {
     const paymentPlan = this.step3Form.value.paymentPlan as PaymentPlan;
 
     const afterSuccess = () => {
-      this.snackBar.open('Booking saved. Payment and driver updates are complete.', 'Close', { duration: 3200 });
+      this.toast.success('Booking saved. Payment and driver updates are complete.');
       this.router.navigate(['/bookings']);
     };
 
@@ -687,11 +683,11 @@ export class BookingWizardComponent implements OnInit, OnDestroy {
 
           if (paymentPlan === 'PARTIAL') {
             if (!Number.isFinite(amount) || amount <= 0) {
-              this.snackBar.open('Enter a valid partial payment amount.', 'Close', { duration: 3200 });
+              this.toast.warning('Enter a valid partial payment amount.');
               return of('BLOCKED' as const);
             }
             if (amount >= totalAmount) {
-              this.snackBar.open('Partial payment must be less than total amount.', 'Close', { duration: 3200 });
+              this.toast.warning('Partial payment must be less than total amount.');
               return of('BLOCKED' as const);
             }
           }
@@ -725,7 +721,7 @@ export class BookingWizardComponent implements OnInit, OnDestroy {
           const msg = err instanceof HttpErrorResponse
             ? this.extractError(err)
             : 'Could not complete driver assignment or payment. Please try again.';
-          this.snackBar.open(msg, 'Close', { duration: 5500 });
+          this.toast.error(msg);
         }
       });
   }
@@ -807,7 +803,7 @@ export class BookingWizardComponent implements OnInit, OnDestroy {
     try {
       await this.ingestCnicFile('front', frontFile);
       await this.ingestCnicFile('back', backFile);
-      this.snackBar.open('Processed CNIC front and back. Please verify all fields.', 'Close', { duration: 4000 });
+      this.toast.success('Processed CNIC front and back. Please verify all fields.');
     } finally {
       this.cnicUploadBusy = false;
     }
@@ -815,7 +811,7 @@ export class BookingWizardComponent implements OnInit, OnDestroy {
 
   private async ingestCnicFile(side: 'front' | 'back', file: File): Promise<void> {
     if (file.size > this.bankTransferReceiptMaxBytes) {
-      this.snackBar.open('CNIC file must be 15 MB or smaller.', 'Close', { duration: 3500 });
+      this.toast.warning('CNIC file must be 15 MB or smaller.');
       return;
     }
 
@@ -826,7 +822,7 @@ export class BookingWizardComponent implements OnInit, OnDestroy {
       file.type === 'image/webp' ||
       (!file.type && /\.(jpe?g|png|webp)$/i.test(file.name || ''));
     if (!isCnicPhoto) {
-      this.snackBar.open('Please upload CNIC as a JPG, PNG, or WebP photo (not PDF).', 'Close', { duration: 4000 });
+      this.toast.success('Please upload CNIC as a JPG, PNG, or WebP photo (not PDF).');
       return;
     }
 
@@ -848,7 +844,7 @@ export class BookingWizardComponent implements OnInit, OnDestroy {
       }
       await this.extractAndMergeCnicSide(side, jpegFile, dataUrl);
     } catch {
-      this.snackBar.open('Could not process CNIC image. Try a clearer file.', 'Close', { duration: 3500 });
+      this.toast.error('Could not process CNIC image. Try a clearer file.');
     } finally {
       if (ownBusy) this.cnicUploadBusy = false;
     }
@@ -896,16 +892,13 @@ export class BookingWizardComponent implements OnInit, OnDestroy {
 
       if (backendResult) {
         const sideLabel = side === 'front' ? 'Front' : 'Back';
-        this.snackBar.open(`${sideLabel}: OCR completed`, 'Close', { duration: 2200 });
+        this.toast.success(`${sideLabel}: OCR completed`);
       } else if (usedTesseract) {
-        this.snackBar.open(
-          `${side === 'front' ? 'Front' : 'Back'}: CNIC OCR completed using frontend fallback.`,
-          'Close',
-          { duration: 3200 }
-        );
+        this.toast.success(
+          `${side === 'front' ? 'Front' : 'Back'}: CNIC OCR completed using frontend fallback.`);
       }
     } catch {
-      this.snackBar.open('OCR failed. You can still fill fields manually.', 'Close', { duration: 3500 });
+      this.toast.error('OCR failed. You can still fill fields manually.');
     } finally {
       this.cnicOcrBusy = false;
     }
@@ -1076,7 +1069,7 @@ export class BookingWizardComponent implements OnInit, OnDestroy {
       if (existing) {
         this.setCustomerMode('EXISTING');
         this.onCustomerSelected(existing);
-        this.snackBar.open('Existing customer found by CNIC and loaded.', 'Close', { duration: 3500 });
+        this.toast.success('Existing customer found by CNIC and loaded.');
         return;
       }
     }
@@ -1090,16 +1083,16 @@ export class BookingWizardComponent implements OnInit, OnDestroy {
     ].filter(Boolean);
     if (showSummaryToast) {
       if (filled.length > 0) {
-        this.snackBar.open(`CNIC OCR filled: ${filled.join(', ')}. Please verify before saving.`, 'Close', { duration: 4000 });
+        this.toast.success(`CNIC OCR filled: ${filled.join(', ')}. Please verify before saving.`);
       } else {
-        this.snackBar.open('No reliable CNIC fields found. Please fill manually.', 'Close', { duration: 3500 });
+        this.toast.warning('No reliable CNIC fields found. Please fill manually.');
       }
     }
   }
 
   private async ingestBankTransferReceiptFile(file: File): Promise<void> {
     if (file.size > this.bankTransferReceiptMaxBytes) {
-      this.snackBar.open('File must be 15 MB or smaller.', 'Close', { duration: 4000 });
+      this.toast.success('File must be 15 MB or smaller.');
       return;
     }
 
@@ -1112,7 +1105,7 @@ export class BookingWizardComponent implements OnInit, OnDestroy {
     }
 
     if (!file.type.startsWith('image/')) {
-      this.snackBar.open('Please choose an image (JPEG, PNG, WebP) or a PDF.', 'Close', { duration: 3500 });
+      this.toast.success('Please choose an image (JPEG, PNG, WebP) or a PDF.');
       return;
     }
 
@@ -1123,7 +1116,7 @@ export class BookingWizardComponent implements OnInit, OnDestroy {
       this.bankTransferReceiptFileName = file.name;
       this.applyTransactionReferenceFromUpload(file, this.bankTransferReceiptDataUrl);
     } catch {
-      this.snackBar.open('Could not process that image.', 'Close', { duration: 3500 });
+      this.toast.error('Could not process that image.');
       this.clearBankTransferReceiptPreview();
     } finally {
       this.bankTransferReceiptCompressing = false;
@@ -1138,16 +1131,13 @@ export class BookingWizardComponent implements OnInit, OnDestroy {
   private applyTransactionReferenceFromFileNameOnly(fileName: string, sourceLabel: string): void {
     const fromName = extractTransactionReferenceFromFileName(fileName);
     if (!fromName) {
-      this.snackBar.open(
-        'Could not detect a reference from the file name. Enter it manually or upload a clear screenshot.',
-        'Close',
-        { duration: 4500 }
-      );
+      this.toast.error(
+        'Could not detect a reference from the file name. Enter it manually or upload a clear screenshot.');
       return;
     }
     if (!this.getTransactionReferenceTrimmed()) {
       this.step3Form.patchValue({ transactionReference: fromName });
-      this.snackBar.open(`Transaction reference filled from ${sourceLabel} file name.`, 'Close', { duration: 3000 });
+      this.toast.success(`Transaction reference filled from ${sourceLabel} file name.`);
     }
   }
 
@@ -1156,7 +1146,7 @@ export class BookingWizardComponent implements OnInit, OnDestroy {
     const fromName = extractTransactionReferenceFromFileName(file.name);
     if (fromName && !this.getTransactionReferenceTrimmed()) {
       this.step3Form.patchValue({ transactionReference: fromName });
-      this.snackBar.open('Transaction reference filled from file name.', 'Close', { duration: 2500 });
+      this.toast.success('Transaction reference filled from file name.');
     }
     void this.maybeFillReferenceFromReceiptOcr(imageDataUrl, fromName);
   }
@@ -1175,7 +1165,7 @@ export class BookingWizardComponent implements OnInit, OnDestroy {
       const current = this.getTransactionReferenceTrimmed();
       if (ocrRef && !current) {
         this.step3Form.patchValue({ transactionReference: ocrRef });
-        this.snackBar.open('Transaction reference filled from receipt scan.', 'Close', { duration: 2800 });
+        this.toast.success('Transaction reference filled from receipt scan.');
         return;
       }
       if (
@@ -1185,7 +1175,7 @@ export class BookingWizardComponent implements OnInit, OnDestroy {
         ocrRef.toUpperCase() !== current.toUpperCase()
       ) {
         this.step3Form.patchValue({ transactionReference: ocrRef });
-        this.snackBar.open('Transaction reference updated from receipt scan.', 'Close', { duration: 2800 });
+        this.toast.success('Transaction reference updated from receipt scan.');
       }
     } catch {
       /* OCR is best-effort; filename hint may still be enough */

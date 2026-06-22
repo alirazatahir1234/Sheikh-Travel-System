@@ -1,7 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { FormBuilder, Validators } from '@angular/forms';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { GpsTrackingService } from '../../../core/services/gps-tracking.service';
+import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
 import { Geofence } from '../../../core/models/gps-tracking.model';
 
 @Component({
@@ -18,7 +18,7 @@ export class GpsGeofencesComponent implements OnInit {
   constructor(
     private gps: GpsTrackingService,
     private fb: FormBuilder,
-    private snack: MatSnackBar
+    private toast: UiToastService
   ) {
     this.form = this.fb.group({
       name: ['', Validators.required],
@@ -53,11 +53,11 @@ export class GpsGeofencesComponent implements OnInit {
       radiusMeters: Number(v.radiusMeters)
     }).subscribe({
       next: () => {
-        this.snack.open('Geofence created', 'OK', { duration: 2500 });
+        this.toast.success('Geofence created');
         this.form.reset({ centerLat: 31.52, centerLng: 74.35, radiusMeters: 500 });
         this.load();
       },
-      error: () => this.snack.open('Failed to create geofence', 'Dismiss', { duration: 3000 })
+      error: () => this.toast.error('Failed to create geofence')
     });
   }
 

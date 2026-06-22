@@ -1,7 +1,7 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { FormBuilder, FormGroup } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
 import { Subject, forkJoin, takeUntil } from 'rxjs';
 import { PlatformTenantContextService } from '../../../core/services/platform-tenant-context.service';
 import { PlatformService } from '../../../core/services/platform.service';
@@ -52,7 +52,7 @@ export class AccessControlComponent implements OnInit, OnDestroy {
     private route: ActivatedRoute,
     private router: Router,
     private fb: FormBuilder,
-    private snackBar: MatSnackBar,
+    private toast: UiToastService,
     private tenantContext: PlatformTenantContextService,
     private platform: PlatformService,
     private usersApi: UserService
@@ -172,7 +172,7 @@ export class AccessControlComponent implements OnInit, OnDestroy {
       },
       error: (err) => {
         this.tabLoading = false;
-        this.snackBar.open(apiErrorMessage(err, 'Failed to load users.'), 'Close', { duration: 4000 });
+        this.toast.error(apiErrorMessage(err, 'Failed to load users.'));
       }
     });
   }
@@ -193,7 +193,7 @@ export class AccessControlComponent implements OnInit, OnDestroy {
       },
       error: (err) => {
         this.tabLoading = false;
-        this.snackBar.open(apiErrorMessage(err, 'Failed to load roles.'), 'Close', { duration: 4000 });
+        this.toast.error(apiErrorMessage(err, 'Failed to load roles.'));
       }
     });
   }
@@ -206,7 +206,7 @@ export class AccessControlComponent implements OnInit, OnDestroy {
       },
       error: (err) => {
         this.tabLoading = false;
-        this.snackBar.open(apiErrorMessage(err, 'Failed to load security settings.'), 'Close', { duration: 4000 });
+        this.toast.error(apiErrorMessage(err, 'Failed to load security settings.'));
       }
     });
   }
@@ -243,7 +243,7 @@ export class AccessControlComponent implements OnInit, OnDestroy {
 
   createRole(): void {
     if (!this.tenantId || !this.newRoleName.trim() || !this.newRoleCode.trim()) {
-      this.snackBar.open('Role name and code are required.', 'Close', { duration: 3000 });
+      this.toast.warning('Role name and code are required.');
       return;
     }
 
@@ -251,10 +251,10 @@ export class AccessControlComponent implements OnInit, OnDestroy {
       next: () => {
         this.newRoleName = '';
         this.newRoleCode = '';
-        this.snackBar.open('Role created.', 'Close', { duration: 2500 });
+        this.toast.success('Role created.');
         this.loadRoles(this.tenantId!);
       },
-      error: (err) => this.snackBar.open(apiErrorMessage(err, 'Create failed.'), 'Close', { duration: 4000 })
+      error: (err) => this.toast.error(apiErrorMessage(err, 'Create failed.'))
     });
   }
 
@@ -270,12 +270,12 @@ export class AccessControlComponent implements OnInit, OnDestroy {
     ).subscribe({
       next: () => {
         this.saving = false;
-        this.snackBar.open('Role updated.', 'Close', { duration: 2500 });
+        this.toast.success('Role updated.');
         this.loadRoles(this.tenantId!);
       },
       error: (err) => {
         this.saving = false;
-        this.snackBar.open(apiErrorMessage(err, 'Update failed.'), 'Close', { duration: 4000 });
+        this.toast.error(apiErrorMessage(err, 'Update failed.'));
       }
     });
   }
@@ -291,12 +291,12 @@ export class AccessControlComponent implements OnInit, OnDestroy {
     ).subscribe({
       next: () => {
         this.saving = false;
-        this.snackBar.open('Permissions saved.', 'Close', { duration: 2500 });
+        this.toast.success('Permissions saved.');
         this.loadRoles(this.tenantId!);
       },
       error: (err) => {
         this.saving = false;
-        this.snackBar.open(apiErrorMessage(err, 'Save failed.'), 'Close', { duration: 4000 });
+        this.toast.error(apiErrorMessage(err, 'Save failed.'));
       }
     });
   }
@@ -304,7 +304,7 @@ export class AccessControlComponent implements OnInit, OnDestroy {
   deleteRole(role: RoleSummary): void {
     if (!this.tenantId) return;
     if (role.isSystem) {
-      this.snackBar.open('System roles cannot be deleted.', 'Close', { duration: 3000 });
+      this.toast.success('System roles cannot be deleted.');
       return;
     }
     if (!confirm(`Delete role "${role.name}"?`)) return;
@@ -312,10 +312,10 @@ export class AccessControlComponent implements OnInit, OnDestroy {
     this.platform.deleteRoleForTenant(this.tenantId, role.id).subscribe({
       next: () => {
         if (this.selectedRole?.id === role.id) this.selectedRole = null;
-        this.snackBar.open('Role deleted.', 'Close', { duration: 2500 });
+        this.toast.success('Role deleted.');
         this.loadRoles(this.tenantId!);
       },
-      error: (err) => this.snackBar.open(apiErrorMessage(err, 'Delete failed.'), 'Close', { duration: 4000 })
+      error: (err) => this.toast.error(apiErrorMessage(err, 'Delete failed.'))
     });
   }
 
@@ -327,11 +327,11 @@ export class AccessControlComponent implements OnInit, OnDestroy {
     this.platform.updateTenantSecuritySettings(this.tenantId, payload).subscribe({
       next: () => {
         this.saving = false;
-        this.snackBar.open('Security settings saved.', 'Close', { duration: 2500 });
+        this.toast.success('Security settings saved.');
       },
       error: (err) => {
         this.saving = false;
-        this.snackBar.open(apiErrorMessage(err, 'Save failed.'), 'Close', { duration: 4000 });
+        this.toast.error(apiErrorMessage(err, 'Save failed.'));
       }
     });
   }
@@ -344,12 +344,12 @@ export class AccessControlComponent implements OnInit, OnDestroy {
     this.platform.applyRoleTemplate(this.tenantId, template.code).subscribe({
       next: () => {
         this.saving = false;
-        this.snackBar.open(`Template "${template.name}" applied.`, 'Close', { duration: 2500 });
+        this.toast.success(`Template "${template.name}" applied.`);
         this.loadRoles(this.tenantId!);
       },
       error: (err) => {
         this.saving = false;
-        this.snackBar.open(apiErrorMessage(err, 'Apply failed.'), 'Close', { duration: 4000 });
+        this.toast.error(apiErrorMessage(err, 'Apply failed.'));
       }
     });
   }

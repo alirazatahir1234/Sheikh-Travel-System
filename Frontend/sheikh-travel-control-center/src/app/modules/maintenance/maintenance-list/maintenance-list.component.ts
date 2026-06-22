@@ -1,8 +1,8 @@
 import { Component, OnInit, ViewChild } from '@angular/core';
 import { MatTableDataSource } from '@angular/material/table';
 import { MatPaginator } from '@angular/material/paginator';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatDialog } from '@angular/material/dialog';
+import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
 import { Router } from '@angular/router';
 import { DatePipe, DecimalPipe } from '@angular/common';
 import { forkJoin } from 'rxjs';
@@ -112,7 +112,7 @@ export class MaintenanceListComponent implements OnInit {
     private vehicleService: VehicleService,
     private exportService: ExportService,
     private router: Router,
-    private snackBar: MatSnackBar,
+    private toast: UiToastService,
     private dialog: MatDialog,
     private datePipe: DatePipe,
     private decimalPipe: DecimalPipe
@@ -171,7 +171,7 @@ export class MaintenanceListComponent implements OnInit {
       },
       error: () => {
         this.loading = false;
-        this.snackBar.open('Failed to load maintenance records.', 'Close', { duration: 3000 });
+        this.toast.error('Failed to load maintenance records.');
       }
     });
   }
@@ -520,14 +520,14 @@ export class MaintenanceListComponent implements OnInit {
     this.maintenanceService.updateStatus({ id: record.id, status: newStatus }).subscribe({
       next: () => {
         record.status = newStatus;
-        this.snackBar.open('Status updated.', 'Close', { duration: 2000 });
+        this.toast.success('Status updated.');
         this.buildAnalytics();
         this.buildTimeline();
         this.buildHealthCards();
         this.buildAlerts();
         this.applyFilters();
       },
-      error: () => this.snackBar.open('Failed to update status.', 'Close', { duration: 3000 })
+      error: () => this.toast.error('Failed to update status.')
     });
   }
 
@@ -554,7 +554,7 @@ export class MaintenanceListComponent implements OnInit {
       if (!confirmed) return;
       this.maintenanceService.delete(record.id).subscribe({
         next: () => {
-          this.snackBar.open('Maintenance record deleted.', 'Close', { duration: 2000 });
+          this.toast.success('Maintenance record deleted.');
           this.allRecords = this.allRecords.filter(r => r.id !== record.id);
           this.buildAnalytics();
           this.buildTimeline();
@@ -562,7 +562,7 @@ export class MaintenanceListComponent implements OnInit {
           this.buildAlerts();
           this.applyFilters();
         },
-        error: () => this.snackBar.open('Failed to delete record.', 'Close', { duration: 3000 })
+        error: () => this.toast.error('Failed to delete record.')
       });
     });
   }
