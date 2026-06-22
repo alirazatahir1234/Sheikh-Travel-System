@@ -10,7 +10,9 @@ import { UiButtonComponent } from '../../../../../shared/components/ui/button/ui
     <footer class="mt-8 flex flex-col gap-4 border-t border-fleet-border pt-5 sm:flex-row sm:items-center sm:justify-between">
       <div class="flex items-center gap-3">
         <ui-button variant="ghost" (clicked)="cancel.emit()">Cancel</ui-button>
-        @if (lastSavedLabel()) {
+        @if (saveStatusLabel()) {
+          <span class="text-sm text-fleet-text-muted">{{ saveStatusLabel() }}</span>
+        } @else if (lastSavedLabel()) {
           <span class="text-sm text-fleet-text-muted">{{ lastSavedLabel() }}</span>
         }
       </div>
@@ -42,6 +44,8 @@ export class WizardFooterComponent {
   readonly primaryLoading = input(false);
   readonly lastSavedAt = input<Date | null>(null);
   readonly lastSavedFormatted = input<string | null>(null);
+  /** Preferred label from parent (absolute or session-relative). */
+  readonly saveStatusLabel = input<string | null>(null);
   readonly primaryLabel = input('Continue');
   readonly saveDraftLabel = input('Save Draft');
   readonly cancel = output<void>();
@@ -53,12 +57,20 @@ export class WizardFooterComponent {
 
   readonly lastSavedLabel = computed(() => {
     const formatted = this.lastSavedFormatted();
-    if (formatted) return `Last saved: ${formatted}`;
+    if (formatted) return formatted;
     const at = this.lastSavedAt();
-    if (!at) return null;
-    const sec = Math.max(0, Math.floor((Date.now() - at.getTime()) / 1000));
-    if (sec < 5) return 'Saved just now';
-    if (sec < 60) return `Last saved ${sec}s ago`;
-    return `Last saved ${Math.floor(sec / 60)}m ago`;
+    if (!at || isNaN(at.getTime())) return null;
+
+    const sec = Math.floor((Date.now() - at.getTime()) / 1000);
+    if (sec < 0) return null;
+    if (sec < 10) return 'Saved just now';
+    if (sec < 60) return `Saved ${sec}s ago`;
+    const min = Math.floor(sec / 60);
+    if (min < 60) return `Saved ${min} minute${min === 1 ? '' : 's'} ago`;
+    const hr = Math.floor(min / 60);
+    if (hr < 24) return `Saved ${hr} hour${hr === 1 ? '' : 's'} ago`;
+    const days = Math.floor(hr / 24);
+    if (days < 7) return `Saved ${days} day${days === 1 ? '' : 's'} ago`;
+    return null;
   });
 }

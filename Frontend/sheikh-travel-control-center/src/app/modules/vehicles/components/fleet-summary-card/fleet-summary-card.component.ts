@@ -2,6 +2,8 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
 import { NgClass } from '@angular/common';
 
+export type FleetSummaryCardVariant = 'neutral' | 'operational' | 'risk';
+
 export interface FleetSummaryCardData {
   icon: string;
   title: string;
@@ -12,6 +14,8 @@ export interface FleetSummaryCardData {
   progress?: number;
   alert?: boolean;
   actionLabel?: string;
+  /** Visual group: operational (green/blue), risk (amber/red), or neutral. */
+  variant?: FleetSummaryCardVariant;
 }
 
 @Component({
@@ -21,11 +25,12 @@ export interface FleetSummaryCardData {
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div
-      class="rounded-xl border border-fleet-border bg-white p-5 transition-shadow hover:shadow-md"
-      [class.border-l-4]="card().alert"
-      [class.border-l-fleet-error]="card().alert">
+      class="summary-card rounded-xl border border-fleet-border bg-white p-5 transition-shadow hover:shadow-md"
+      [ngClass]="'summary-card--' + (card().variant ?? 'neutral')"
+      [class.border-l-4]="card().alert || card().variant === 'risk'"
+      [class.border-l-fleet-error]="card().alert || card().variant === 'risk'">
       <div class="mb-4 flex items-start justify-between">
-        <div class="rounded-lg bg-fleet-primary/10 p-2.5 text-fleet-primary">
+        <div class="summary-card__icon rounded-lg p-2.5">
           <mat-icon>{{ card().icon }}</mat-icon>
         </div>
         @if (card().trend) {
@@ -58,7 +63,14 @@ export interface FleetSummaryCardData {
       }
     </div>
   `,
-  styles: [`mat-icon { display: inline-flex; }`]
+  styles: [`
+    mat-icon { display: inline-flex; }
+    .summary-card__icon { background: rgba(100, 116, 139, 0.12); color: #64748b; }
+    .summary-card--operational .summary-card__icon { background: rgba(15, 118, 110, 0.12); color: #0f766e; }
+    .summary-card--operational { border-top: 3px solid #14b8a6; }
+    .summary-card--risk .summary-card__icon { background: rgba(245, 158, 11, 0.14); color: #d97706; }
+    .summary-card--risk { border-top: 3px solid #f59e0b; }
+  `]
 })
 export class FleetSummaryCardComponent {
   readonly card = input.required<FleetSummaryCardData>();

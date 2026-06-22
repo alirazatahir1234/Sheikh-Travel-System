@@ -20,15 +20,28 @@
       <main>
         @switch (facade.currentStep()) {
           @case ('personal') {
-            <app-wizard-step-personal
-              [form]="facade.form"
+            @if (!facade.isEditMode() || facade.formLoadKey() > 0) {
+              <app-wizard-step-personal
+                [form]="facade.form"
+                [formLoadKey]="facade.formLoadKey()"
               [photoPreview]="photoPreview()"
+              [photoInitials]="facade.previewInitials()"
               [driverCode]="facade.previewDriverCode()"
               [fullName]="facade.previewFullName()"
+              [isEditMode]="facade.isEditMode()"
+              [driverStatus]="facade.driverStatusLabel()"
+              [branchSummary]="facade.branchSummaryLabel()"
+              [departmentSummary]="facade.departmentSummaryLabel()"
+              [vehicleUnassigned]="facade.isVehicleUnassigned()"
+              [vehicleLabel]="facade.assignedVehicleLabel()"
+              [hireDateLabel]="facade.hireDateLabel()"
+              [updatedAtLabel]="facade.formatUpdatedAt()"
+              [statusTimeline]="facade.statusTimeline()"
               [maxDateOfBirth]="facade.maxDateOfBirth"
               [minDateOfBirth]="facade.minDateOfBirth"
               (photoSelected)="facade.onPhotoSelected($event)"
               (photoRemoved)="facade.onPhotoRemoved()" />
+            }
           }
           @case ('license') {
             <app-wizard-step-license
@@ -40,6 +53,7 @@
           @case ('organization') {
             <app-wizard-step-organization
               [form]="facade.form"
+              [isEditMode]="facade.isEditMode()"
               [branchOptions]="facade.branchOptions()"
               [departmentOptions]="facade.departmentOptions()"
               [driverName]="facade.previewName()"
@@ -58,8 +72,7 @@
           [currentStep]="facade.currentStep()"
           [draftSaving]="facade.draftSaving()"
           [primaryLoading]="facade.saving()"
-          [lastSavedAt]="facade.lastSavedAt()"
-          [lastSavedFormatted]="facade.lastSavedFormatted()"
+          [saveStatusLabel]="facade.footerSaveLabel()"
           [primaryLabel]="facade.primaryCtaLabel()"
           (cancel)="facade.cancel()"
           (back)="facade.prevStep()"
@@ -69,10 +82,11 @@
 
       <app-driver-wizard-sidebar
         [progressPercent]="facade.progressPercent()"
-        [stepCompletion]="facade.stepCompletion()"
-        [licenseStatus]="facade.licenseStatus()"
-        [orgStatus]="facade.orgStatus()"
-        [driverStatus]="facade.driverStatusLabel()" />
+        [profileSections]="facade.profileCompletion().sections"
+        [completionHint]="facade.profileCompletionHint()"
+        [onboardingChecklist]="facade.onboardingChecklist()"
+        [verificationProgress]="facade.verificationProgressPercent()"
+        [verificationRows]="facade.verificationSidebarRows()" />
     </div>
   }
 </div>

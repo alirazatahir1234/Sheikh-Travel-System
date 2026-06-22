@@ -4,32 +4,99 @@
     title="Driver Management"
     subtitle="Monitor drivers, compliance, performance, and real-time availability.">
     <div class="header-actions">
+      <button mat-stroked-button [matMenuTriggerFor]="bulkMenu" class="menu-trigger-btn">
+        <mat-icon>more_horiz</mat-icon>
+        More Actions
+      </button>
+      <mat-menu #bulkMenu="matMenu">
+        <button mat-menu-item (click)="importDrivers()">
+          <mat-icon>upload_file</mat-icon>
+          <span>Import Drivers</span>
+        </button>
+        <button mat-menu-item (click)="bulkAssign()">
+          <mat-icon>link</mat-icon>
+          <span>Bulk Assign</span>
+        </button>
+        <button mat-menu-item (click)="exportExcel()">
+          <mat-icon>table_view</mat-icon>
+          <span>Export Excel</span>
+        </button>
+      </mat-menu>
+
       <ui-button variant="outline" icon="download" (clicked)="exportReport()">Generate Report</ui-button>
       <ui-button variant="primary" icon="add" routerLink="/drivers/new">Add Driver</ui-button>
     </div>
   </ui-page-header>
 
-  <div class="kpi-grid">
-    @for (card of kpiCards(); track card.title) {
-      <fleet-summary-card [card]="card" />
-    }
+  <div class="kpi-section">
+    <div class="kpi-group">
+      <p class="kpi-group-label kpi-group-label--operational">Operational</p>
+      <div class="kpi-grid kpi-grid--operational">
+        @for (card of kpiGroups().operational; track card.title) {
+          <fleet-summary-card [card]="card" />
+        }
+      </div>
+    </div>
+    <div class="kpi-group">
+      <p class="kpi-group-label kpi-group-label--risk">Risk &amp; Attention</p>
+      <div class="kpi-grid kpi-grid--risk">
+        @for (card of kpiGroups().risk; track card.title) {
+          <fleet-summary-card [card]="card" />
+        }
+      </div>
+    </div>
+  </div>
+
+  <fleet-quick-actions-card
+    class="quick-actions-strip"
+    [actions]="quickActions"
+    (actionClick)="onQuickAction($event)" />
+
+  <div class="card operations-summary">
+    <div class="operations-summary-header">
+      <h3 class="panel-title panel-title--inline">Today's Operations Summary</h3>
+      <span class="ops-date-badge">Live</span>
+    </div>
+    <div class="operations-grid">
+      <div class="ops-metric">
+        <mat-icon class="ops-icon ops-icon--trip">route</mat-icon>
+        <div>
+          <p class="ops-value">{{ operationsSummary().tripsToday }}</p>
+          <p class="ops-label">Trips Today</p>
+        </div>
+      </div>
+      <div class="ops-metric">
+        <mat-icon class="ops-icon ops-icon--available">check_circle</mat-icon>
+        <div>
+          <p class="ops-value">{{ operationsSummary().driversAvailable }}</p>
+          <p class="ops-label">Drivers Available</p>
+        </div>
+      </div>
+      <div class="ops-metric">
+        <mat-icon class="ops-icon ops-icon--assigned">badge</mat-icon>
+        <div>
+          <p class="ops-value">{{ operationsSummary().driversAssigned }}</p>
+          <p class="ops-label">Drivers Assigned</p>
+        </div>
+      </div>
+      <div class="ops-metric">
+        <mat-icon class="ops-icon ops-icon--incident">report</mat-icon>
+        <div>
+          <p class="ops-value">{{ operationsSummary().incidentsToday }}</p>
+          <p class="ops-label">Incidents Today</p>
+        </div>
+      </div>
+    </div>
   </div>
 
   <section class="dashboard" aria-label="Driver dashboard">
 
-    <!-- Top band: chart + sidebar only (sidebar does not affect rows below) -->
     <div class="dashboard-top">
       <div class="card chart-panel">
         <div class="panel-header">
           <div class="panel-header-text">
-            <h3 class="panel-title panel-title--inline">Driver Performance Analytics</h3>
-            @if (chartIsSampleData) {
-              <p class="panel-hint">Sample data — analytics API pending</p>
-            }
-          </div>
-          <div class="chart-legend">
-            <span class="legend-dot safety">Safety</span>
-            <span class="legend-dot efficiency">Efficiency</span>
+            <h3 class="panel-title panel-title--inline">Availability Overview</h3>
+            <p class="panel-hint">Live driver availability from fleet data</p>
           </div>
         </div>
         <div class="chart-canvas">
@@ -41,8 +108,29 @@
         <div class="card incident-panel">
           <div class="incident-header">
             <mat-icon>warning</mat-icon>
-            <h3>Incident Alerts</h3>
+            <h3>Incident Center</h3>
           </div>
+
+          <div class="severity-grid">
+            <div class="severity-card severity-card--critical">
+              <span class="severity-card-count">{{ incidentSeverity().critical }}</span>
+              <span class="severity-card-label">Critical</span>
+            </div>
+            <div class="severity-card severity-card--high">
+              <span class="severity-card-count">{{ incidentSeverity().high }}</span>
+              <span class="severity-card-label">High</span>
+            </div>
+            <div class="severity-card severity-card--medium">
+              <span class="severity-card-count">{{ incidentSeverity().medium }}</span>
+              <span class="severity-card-label">Medium</span>
+            </div>
+            <div class="severity-card severity-card--low">
+              <span class="severity-card-count">{{ incidentSeverity().low }}</span>
+              <span class="severity-card-label">Low</span>
+            </div>
+          </div>
+
+          <p class="incident-section-label">License Compliance</p>
           @for (d of complianceDrivers().slice(0, 3); track d.id) {
             <div class="incident-item">
               <div class="incident-avatar">{{ initials(d.fullName) }}</div>
@@ -51,24 +139,28 @@
                 <p class="incident-desc">{{ expiryDescription(d.licenseExpiryDate) }}</p>
               </div>
               <span class="severity-badge" [class.severity--critical]="isExpiryUrgent(d.licenseExpiryDate)">
-                {{ isExpiryUrgent(d.licenseExpiryDate) ? 'Critical' : 'High' }}
+                {{ isExpiryUrgent(d.licenseExpiryDate) ? 'Urgent' : 'High' }}
               </span>
             </div>
           }
           @if (complianceDrivers().length === 0) {
-            <p class="no-alerts">No critical alerts</p>
+            <p class="no-alerts">No license alerts</p>
           }
+
+          <p class="incident-section-label mt-3">Incident Types</p>
+          @for (t of incidentTypes(); track t.label) {
+            <div class="incident-type-row">
+              <mat-icon class="incident-type-icon" [ngClass]="t.tone">{{ t.icon }}</mat-icon>
+              <span>{{ t.label }}</span>
+              <span class="incident-type-badge" [class.incident-type-badge--active]="t.count > 0">{{ t.count }}</span>
+            </div>
+          }
+
           <button class="view-all-btn" (click)="onLicenseFilterChange('EXPIRING')">VIEW ALL CRITICAL</button>
         </div>
-
-        <fleet-quick-actions-card
-          class="quick-actions-compact"
-          [actions]="quickActions"
-          (actionClick)="onQuickAction($event)" />
       </aside>
     </div>
 
-    <!-- Full-width widget rows — start immediately after chart, independent of sidebar height -->
     <div class="dashboard-mid">
       <div class="card compliance-panel">
         <h3 class="panel-title">Compliance Alerts</h3>
@@ -100,7 +192,8 @@
               <mat-icon>{{ item.icon }}</mat-icon>
             </div>
             <div class="feed-content">
-              <p><strong>{{ item.name }}</strong> {{ item.event }}</p>
+              <p class="feed-event-label">{{ item.eventLabel }}</p>
+              <p class="feed-event-detail">{{ item.eventDetail }}</p>
               <p class="feed-time">{{ item.time }}</p>
             </div>
             @if (item.isLive) {
@@ -112,30 +205,117 @@
           <p class="no-alerts">No recent activity</p>
         }
       </div>
+
+      <div class="card assignment-panel">
+        <h3 class="panel-title">Driver Availability</h3>
+        @if (availabilitySummary(); as avail) {
+          <div class="availability-grid">
+            <div class="availability-item">
+              <span class="avail-dot avail-dot--available"></span>
+              <span>Available</span>
+              <strong>{{ avail.available }}</strong>
+            </div>
+            <div class="availability-item">
+              <span class="avail-dot avail-dot--busy"></span>
+              <span>Busy</span>
+              <strong>{{ avail.busy }}</strong>
+            </div>
+            <div class="availability-item">
+              <span class="avail-dot avail-dot--trip"></span>
+              <span>On Trip</span>
+              <strong>{{ avail.onTrip }}</strong>
+            </div>
+            <div class="availability-item">
+              <span class="avail-dot avail-dot--unavailable"></span>
+              <span>Unavailable</span>
+              <strong>{{ avail.unavailable }}</strong>
+            </div>
+          </div>
+          <div class="assignment-divider"></div>
+        }
+        <h3 class="panel-title">Assignment Coverage</h3>
+
+        <div class="coverage-metric">
+          <div class="coverage-metric-header">
+            <span>Assigned Drivers</span>
+            <span>{{ assignmentCoverage().assignedDrivers }} / {{ assignmentCoverage().totalDrivers }}</span>
+          </div>
+          <div class="coverage-bar">
+            <div class="coverage-bar-fill coverage-bar-fill--assigned" [style.width.%]="assignmentCoverage().driverAssignmentPct"></div>
+          </div>
+          <p class="coverage-pct">{{ assignmentCoverage().driverAssignmentPct }}% assigned</p>
+        </div>
+
+        <div class="coverage-metric">
+          <div class="coverage-metric-header">
+            <span>Unassigned Drivers</span>
+            <span [class.coverage-alert]="assignmentCoverage().unassignedDrivers > 0">{{ assignmentCoverage().unassignedDrivers }}</span>
+          </div>
+          <div class="coverage-bar">
+            <div class="coverage-bar-fill coverage-bar-fill--unassigned"
+                 [style.width.%]="assignmentCoverage().totalDrivers ? (assignmentCoverage().unassignedDrivers / assignmentCoverage().totalDrivers) * 100 : 0"></div>
+          </div>
+        </div>
+
+        <div class="assignment-divider"></div>
+
+        <div class="assignment-row">
+          <div class="assignment-icon vehicle"><mat-icon>directions_car</mat-icon></div>
+          <span class="assignment-label">Assigned Vehicles</span>
+          <span class="assignment-count">{{ assignmentCoverage().assignedVehicles }}</span>
+        </div>
+        <div class="assignment-row">
+          <div class="assignment-icon available"><mat-icon>garage</mat-icon></div>
+          <span class="assignment-label">Available Vehicles</span>
+          <span class="assignment-count assignment-count--muted">—</span>
+        </div>
+      </div>
     </div>
 
     <div class="dashboard-stats">
-      <div class="card availability-panel">
-        <h3 class="panel-title">Driver Availability</h3>
-        <div class="availability-item">
-          <span class="avail-dot green"></span>
-          <span>Available Now</span>
-          <span class="avail-count">{{ stats()?.available ?? 0 }}</span>
+      <div class="card top-drivers-panel">
+        <h3 class="panel-title">Top Drivers</h3>
+        <p class="panel-hint" style="margin-bottom: 0.5rem;">Ranked by safety score</p>
+        @for (item of topDrivers(); track item.driver.id; let i = $index) {
+          <div class="top-driver-item">
+            <span class="top-driver-rank">#{{ i + 1 }}</span>
+            <div class="top-driver-avatar">{{ initials(item.driver.fullName) }}</div>
+            <span class="top-driver-name">{{ item.driver.fullName }}</span>
+            <span class="top-driver-score top-driver-score--{{ topDriverScoreTone(item.score) }}">{{ item.score }}/100</span>
+          </div>
+        }
+        @if (topDrivers().length === 0) {
+          <p class="no-alerts">No driver data yet</p>
+        }
+      </div>
+
+      <div class="card verification-panel">
+        <h3 class="panel-title">Verification</h3>
+        <div class="verification-item verification-item--verified">
+          <mat-icon>verified</mat-icon>
+          <span>Verified</span>
+          <span class="verification-count">{{ stats()?.verifiedDrivers ?? 0 }}</span>
         </div>
-        <div class="availability-item">
-          <span class="avail-dot amber"></span>
-          <span>On Trip</span>
-          <span class="avail-count">{{ stats()?.onTrip ?? 0 }}</span>
+        <div class="verification-item verification-item--pending">
+          <mat-icon>pending</mat-icon>
+          <span>Pending</span>
+          <span class="verification-count">{{ stats()?.pendingVerification ?? 0 }}</span>
         </div>
-        <div class="availability-item">
-          <span class="avail-dot blue"></span>
-          <span>Off Duty</span>
-          <span class="avail-count">{{ stats()?.offDuty ?? 0 }}</span>
+        <div class="verification-item verification-item--rejected">
+          <mat-icon>cancel</mat-icon>
+          <span>Rejected</span>
+          <span class="verification-count">0</span>
         </div>
-        <button class="coverage-map-btn" (click)="viewCoverageMap()">
-          <mat-icon>map</mat-icon>
-          VIEW COVERAGE MAP
-        </button>
+        <div class="verification-item verification-item--assigned">
+          <mat-icon>directions_car</mat-icon>
+          <span>With Vehicle</span>
+          <span class="verification-count">{{ stats()?.assignedDrivers ?? 0 }}</span>
+        </div>
+        <div class="verification-item verification-item--unassigned">
+          <mat-icon>person_off</mat-icon>
+          <span>Unassigned</span>
+          <span class="verification-count">{{ (stats()?.totalDrivers ?? 0) - (stats()?.assignedDrivers ?? 0) }}</span>
+        </div>
       </div>
 
       <div class="card license-expiry-panel">
@@ -150,29 +330,15 @@
           <span>Expiring in 30 days</span>
           <span class="expiry-count">{{ stats()?.licensesExpiringSoon ?? 0 }}</span>
         </div>
+        <div class="expiry-item expiry-item--info">
+          <mat-icon>schedule</mat-icon>
+          <span>Expiring in 60 days</span>
+          <span class="expiry-count expiry-count--muted">—</span>
+        </div>
         <div class="expiry-item expiry-item--error">
           <mat-icon>cancel</mat-icon>
           <span>Already Expired</span>
           <span class="expiry-count">{{ stats()?.licensesExpired ?? 0 }}</span>
-        </div>
-      </div>
-
-      <div class="card verification-panel">
-        <h3 class="panel-title">Verification Status</h3>
-        <div class="verification-item verification-item--verified">
-          <mat-icon>verified</mat-icon>
-          <span>Verified</span>
-          <span class="verification-count">{{ stats()?.verifiedDrivers ?? 0 }}</span>
-        </div>
-        <div class="verification-item verification-item--pending">
-          <mat-icon>pending</mat-icon>
-          <span>Pending</span>
-          <span class="verification-count">{{ stats()?.pendingVerification ?? 0 }}</span>
-        </div>
-        <div class="verification-item verification-item--assigned">
-          <mat-icon>directions_car</mat-icon>
-          <span>Assigned to Vehicle</span>
-          <span class="verification-count">{{ stats()?.assignedDrivers ?? 0 }}</span>
         </div>
       </div>
     </div>
@@ -204,6 +370,11 @@
           <option value="EXPIRING">Expiring (30d)</option>
           <option value="EXPIRED">Expired</option>
         </select>
+        <select class="filter-input" (change)="onAvailabilityChange($any($event.target).value)">
+          @for (opt of availabilityOptions; track opt.value) {
+            <option [value]="opt.value" [selected]="filters().availability === opt.value">{{ opt.label }}</option>
+          }
+        </select>
       </div>
     </div>
 
@@ -228,5 +399,7 @@
     [driverId]="selectedDriverId()"
     (changed)="onDrawerChanged()">
   </driver-details-drawer>
+
+  <driver-bulk-assign-dialog (assigned)="load()" />
 
 </div>

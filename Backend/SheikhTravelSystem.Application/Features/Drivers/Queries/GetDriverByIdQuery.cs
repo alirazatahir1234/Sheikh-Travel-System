@@ -4,6 +4,7 @@ using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Exceptions;
 using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Application.Features.Drivers.DTOs;
+using SheikhTravelSystem.Domain.Enums;
 
 namespace SheikhTravelSystem.Application.Features.Drivers.Queries;
 
@@ -25,7 +26,16 @@ public class GetDriverByIdQueryHandler(
                 $@"SELECT {DriverSql.DetailColumns}
                   {DriverSql.DetailFrom}
                   WHERE d.Id = @Id AND d.TenantId = @TenantId AND d.IsDeleted = 0",
-                new { request.Id, TenantId = tenantId },
+                new
+                {
+                    request.Id,
+                    TenantId = tenantId,
+                    OnTrip = (int)DriverStatus.OnTrip,
+                    OffDuty = (int)DriverStatus.OffDuty,
+                    Available = (int)DriverStatus.Available,
+                    OnLeave = (int)DriverStatus.OnLeave,
+                    Suspended = (int)DriverStatus.Suspended
+                },
                 cancellationToken: cancellationToken));
 
         if (driver is null)

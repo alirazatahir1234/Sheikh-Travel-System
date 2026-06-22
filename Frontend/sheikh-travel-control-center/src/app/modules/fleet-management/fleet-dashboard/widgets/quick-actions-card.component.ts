@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
+import { NgClass } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { QuickAction } from '../fleet-dashboard.model';
@@ -6,7 +7,7 @@ import { QuickAction } from '../fleet-dashboard.model';
 @Component({
   selector: 'fleet-quick-actions-card',
   standalone: true,
-  imports: [RouterLink, MatIconModule],
+  imports: [NgClass, RouterLink, MatIconModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="rounded-xl border border-fleet-border bg-white p-6">
@@ -16,16 +17,22 @@ import { QuickAction } from '../fleet-dashboard.model';
           @if (action.route) {
             <a
               [routerLink]="action.route"
-              class="quick-action-card group">
-              <mat-icon class="mb-2 text-fleet-primary">{{ action.icon }}</mat-icon>
+              class="quick-action-card group"
+              [ngClass]="toneClass(action.tone)">
+              <span class="quick-action-icon" [ngClass]="toneClass(action.tone)">
+                <mat-icon>{{ action.icon }}</mat-icon>
+              </span>
               <span class="text-[13px] font-semibold">{{ action.label }}</span>
             </a>
           } @else {
             <button
               type="button"
               class="quick-action-card group"
+              [ngClass]="toneClass(action.tone)"
               (click)="actionClick.emit(action.id)">
-              <mat-icon class="mb-2 text-fleet-primary">{{ action.icon }}</mat-icon>
+              <span class="quick-action-icon" [ngClass]="toneClass(action.tone)">
+                <mat-icon>{{ action.icon }}</mat-icon>
+              </span>
               <span class="text-[13px] font-semibold">{{ action.label }}</span>
             </button>
           }
@@ -51,15 +58,33 @@ import { QuickAction } from '../fleet-dashboard.model';
       transition: background 0.15s, border-color 0.15s, color 0.15s;
       cursor: pointer;
       color: var(--fleet-text, #0f172a);
+      gap: 0.5rem;
     }
+    .quick-action-icon {
+      display: grid;
+      place-items: center;
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      background: rgba(100, 116, 139, 0.12);
+      color: #64748b;
+    }
+    .quick-action-icon mat-icon { font-size: 22px; width: 22px; height: 22px; }
+    .tone-green .quick-action-icon, .quick-action-icon.tone-green { background: #ecfdf5; color: #059669; }
+    .tone-blue .quick-action-icon, .quick-action-icon.tone-blue { background: #eff6ff; color: #2563eb; }
+    .tone-orange .quick-action-icon, .quick-action-icon.tone-orange { background: #fff7ed; color: #ea580c; }
+    .tone-red .quick-action-icon, .quick-action-icon.tone-red { background: #fef2f2; color: #dc2626; }
     .quick-action-card:hover {
-      background: color-mix(in srgb, var(--fleet-primary, #3b82f6) 10%, white);
       border-color: var(--fleet-primary, #3b82f6);
-      color: var(--fleet-primary, #3b82f6);
+      background: color-mix(in srgb, var(--fleet-primary, #3b82f6) 6%, white);
     }
   `]
 })
 export class QuickActionsCardComponent {
   readonly actions = input<QuickAction[]>([]);
   readonly actionClick = output<string>();
+
+  toneClass(tone?: QuickAction['tone']): string {
+    return tone ? `tone-${tone}` : 'tone-neutral';
+  }
 }

@@ -14,7 +14,8 @@ public record GetDriversQuery(
     DriverStatus? Status = null,
     int? BranchId = null,
     string? LicenseExpiry = null,
-    string? VerificationStatus = null) : IRequest<ApiResponse<PagedResult<DriverListItemDto>>>;
+    string? VerificationStatus = null,
+    string? Availability = null) : IRequest<ApiResponse<PagedResult<DriverListItemDto>>>;
 
 public class GetDriversQueryHandler(IDbConnectionFactory dbFactory, ITenantContext tenantContext)
     : IRequestHandler<GetDriversQuery, ApiResponse<PagedResult<DriverListItemDto>>>
@@ -26,7 +27,17 @@ public class GetDriversQueryHandler(IDbConnectionFactory dbFactory, ITenantConte
         var tenantId = tenantContext.GetRequiredTenantId();
 
         var where = new List<string> { "d.IsDeleted = 0", "d.TenantId = @TenantId" };
-        var parameters = new DynamicParameters(new { TenantId = tenantId, Offset = offset, request.PageSize });
+        var parameters = new DynamicParameters(new
+        {
+            TenantId = tenantId,
+            Offset = offset,
+            request.PageSize,
+            OnTrip = (int)DriverStatus.OnTrip,
+            OffDuty = (int)DriverStatus.OffDuty,
+            Available = (int)DriverStatus.Available,
+            OnLeave = (int)DriverStatus.OnLeave,
+            Suspended = (int)DriverStatus.Suspended
+        });
 
         if (!string.IsNullOrWhiteSpace(request.Q))
         {
@@ -64,6 +75,12 @@ public class GetDriversQueryHandler(IDbConnectionFactory dbFactory, ITenantConte
             case "VALID":
                 where.Add("d.LicenseExpiryDate > DATEADD(day, 30, CAST(GETUTCDATE() AS DATE))");
                 break;
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.Availability))
+        {
+            where.Add($"({DriverAvailabilityHelper.BucketSqlExpression}) = @AvailabilityBucket");
+            parameters.Add("AvailabilityBucket", request.Availability.Trim());
         }
 
         var whereClause = string.Join(" AND ", where);
@@ -109,11 +126,14 @@ public class GetDriverStatsQueryHandler(IDbConnectionFactory dbFactory, ITenantC
                 @"SELECT
                     COUNT(*) AS TotalDrivers,
                     SUM(CASE WHEN IsActive = 1 THEN 1 ELSE 0 END) AS Active,
+                    SUM(CASE WHEN IsActive = 0 THEN 1 ELSE 0 END) AS Inactive,
                     SUM(CASE WHEN Status = @OnTrip THEN 1 ELSE 0 END) AS OnTrip,
                     SUM(CASE WHEN Status = @OffDuty THEN 1 ELSE 0 END) AS OffDuty,
                     SUM(CASE WHEN Status = @Available THEN 1 ELSE 0 END) AS Available,
+                    SUM(CASE WHEN bucket = N'Busy' THEN 1 ELSE 0 END) AS Busy,
                     SUM(CASE WHEN Status = @OnLeave THEN 1 ELSE 0 END) AS OnLeave,
                     SUM(CASE WHEN Status = @Suspended THEN 1 ELSE 0 END) AS Suspended,
+                    SUM(CASE WHEN gpsOnline = 1 THEN 1 ELSE 0 END) AS GpsOnline,
                     SUM(CASE WHEN LicenseExpiryDate >= CAST(GETUTCDATE() AS DATE)
                               AND LicenseExpiryDate <= DATEADD(day, 30, CAST(GETUTCDATE() AS DATE))
                          THEN 1 ELSE 0 END) AS LicensesExpiringSoon,
@@ -128,8 +148,22 @@ public class GetDriverStatsQueryHandler(IDbConnectionFactory dbFactory, ITenantC
                         SELECT 1 FROM AssignmentHistory ah
                         WHERE ah.DriverId = d.Id AND ah.IsDeleted = 0 AND ah.Status = N'Active'
                     ) THEN 1 ELSE 0 END) AS AssignedDrivers
-                  FROM Drivers d
-                  WHERE d.IsDeleted = 0 AND d.TenantId = @TenantId",
+                  FROM (
+                    SELECT d.*,
+                           CASE WHEN av.GpsDeviceId IS NOT NULL AND gd.LastSeenAt >= DATEADD(minute, -15, GETUTCDATE())
+                                THEN 1 ELSE 0 END AS gpsOnline,
+                           """ + DriverAvailabilityHelper.BucketSqlExpression + @" AS bucket
+                    FROM Drivers d
+                    OUTER APPLY (
+                        SELECT TOP 1 v.GpsDeviceId
+                        FROM AssignmentHistory ah
+                        INNER JOIN Vehicles v ON v.Id = ah.VehicleId AND v.IsDeleted = 0
+                        WHERE ah.DriverId = d.Id AND ah.IsDeleted = 0 AND ah.Status = N'Active'
+                        ORDER BY ah.StartAt DESC
+                    ) av
+                    LEFT JOIN GpsDevices gd ON gd.Id = av.GpsDeviceId AND gd.IsDeleted = 0
+                    WHERE d.IsDeleted = 0 AND d.TenantId = @TenantId
+                  ) d",
                 new
                 {
                     TenantId = tenantId,

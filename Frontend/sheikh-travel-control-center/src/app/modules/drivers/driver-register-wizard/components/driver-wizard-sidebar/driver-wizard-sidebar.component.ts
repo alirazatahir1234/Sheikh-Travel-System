@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { UiStatusBadgeComponent } from '../../../../../shared/components/ui/status-badge/ui-status-badge.component';
 
 export interface DriverWizardStepStatus {
@@ -9,30 +10,61 @@ export interface DriverWizardStepStatus {
   active: boolean;
 }
 
+export interface ProfileCompletionSection {
+  label: string;
+  percent: number;
+}
+
+export interface VerificationStatusRow {
+  label: string;
+  status: string;
+}
+
+export interface OnboardingChecklistItem {
+  label: string;
+  done: boolean;
+}
+
 @Component({
   selector: 'app-driver-wizard-sidebar',
   standalone: true,
-  imports: [MatIconModule, UiStatusBadgeComponent],
+  imports: [MatIconModule, MatTooltipModule, UiStatusBadgeComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <aside class="sidebar">
       <div class="sidebar-card">
-        <p class="sidebar-eyebrow">Registration Progress</p>
+        <div class="sidebar-card-head">
+          <p class="sidebar-eyebrow">Profile Completion</p>
+          <button type="button" class="formula-hint" [matTooltip]="completionHint()" matTooltipPosition="left" aria-label="Completion formula">
+            <mat-icon>info_outline</mat-icon>
+          </button>
+        </div>
         <p class="sidebar-percent">{{ progressPercent() }}%</p>
         <div class="progress-bar">
           <div class="progress-fill" [style.width.%]="progressPercent()"></div>
         </div>
-        <ul class="step-checklist">
-          @for (step of stepCompletion(); track step.id) {
-            <li class="step-item">
-              @if (step.complete) {
-                <mat-icon class="step-icon done">check_circle</mat-icon>
-              } @else if (step.active) {
-                <mat-icon class="step-icon active">radio_button_checked</mat-icon>
+        <ul class="completion-breakdown">
+          @for (section of profileSections(); track section.label) {
+            <li class="completion-row">
+              <span class="completion-label">{{ section.label }}</span>
+              <div class="completion-track">
+                <div class="completion-fill" [style.width.%]="section.percent"></div>
+              </div>
+              <span class="completion-pct">{{ section.percent }}%</span>
+            </li>
+          }
+        </ul>
+
+        <p class="checklist-eyebrow">Onboarding Checklist</p>
+        <ul class="onboarding-checklist">
+          @for (item of onboardingChecklist(); track item.label) {
+            <li class="checklist-item">
+              @if (item.done) {
+                <mat-icon class="checklist-icon done">check_circle</mat-icon>
               } @else {
-                <mat-icon class="step-icon pending">hourglass_empty</mat-icon>
+                <mat-icon class="checklist-icon warn">warning</mat-icon>
               }
-              <span [class.text-fleet-primary]="step.active" [class.font-medium]="step.active">{{ step.label }}</span>
+              <span [class.done-text]="item.done">{{ item.label }}</span>
             </li>
           }
         </ul>
@@ -40,34 +72,26 @@ export interface DriverWizardStepStatus {
 
       <div class="sidebar-card">
         <p class="sidebar-eyebrow">Verification Status</p>
+        <div class="verification-progress">
+          <div class="verification-progress-head">
+            <span>Verification Progress</span>
+            <span class="verification-pct">{{ verificationProgress() }}%</span>
+          </div>
+          <div class="progress-bar">
+            <div class="progress-fill verification-fill" [style.width.%]="verificationProgress()"></div>
+          </div>
+        </div>
         <div class="status-list">
-          <div class="status-row">
-            <span>Driver Status</span>
-            <ui-status-badge [status]="driverStatus() === 'Draft' ? 'pending' : 'valid'" [label]="driverStatus()" />
-          </div>
-          <div class="status-row">
-            <span>License Status</span>
-            <ui-status-badge
-              [status]="statusVariant(licenseStatus())"
-              [label]="licenseStatus()" />
-          </div>
-          <div class="status-row">
-            <span>Org. Assignment</span>
-            <ui-status-badge
-              [status]="statusVariant(orgStatus())"
-              [label]="orgStatus()" />
-          </div>
+          @for (row of verificationRows(); track row.label) {
+            <div class="status-row">
+              <span>{{ row.label }}</span>
+              <ui-status-badge [status]="statusVariant(row.status)" [label]="row.status" />
+            </div>
+          }
         </div>
         <div class="info-note">
           <mat-icon>info</mat-icon>
           <p>Ensure the full name matches exactly with the Emirates ID to avoid verification delays.</p>
-        </div>
-      </div>
-
-      <div class="branding-card">
-        <div class="branding-overlay">
-          <p class="branding-title">Premium Fleet Registry</p>
-          <p class="branding-sub">Managing excellence since 2008</p>
         </div>
       </div>
     </aside>
@@ -86,6 +110,34 @@ export interface DriverWizardStepStatus {
       border: 1px solid var(--fleet-border, #e2e8f0);
       background: #fff;
       padding: 1.25rem;
+    }
+
+    .sidebar-card-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .sidebar-card-head .sidebar-eyebrow { margin-bottom: 0; }
+
+    .formula-hint {
+      display: grid;
+      place-items: center;
+      width: 1.5rem;
+      height: 1.5rem;
+      border: none;
+      background: transparent;
+      color: var(--fleet-text-muted, #64748b);
+      cursor: help;
+      padding: 0;
+
+      mat-icon {
+        font-size: 16px !important;
+        width: 16px !important;
+        height: 16px !important;
+      }
     }
 
     .sidebar-eyebrow {
@@ -120,32 +172,103 @@ export interface DriverWizardStepStatus {
       transition: width 0.3s ease;
     }
 
-    .step-checklist {
+    .verification-fill { background: #2563eb; }
+
+    .completion-breakdown {
+      list-style: none;
+      margin: 0 0 1rem;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .completion-row {
+      display: grid;
+      grid-template-columns: 1fr 1.5fr auto;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.75rem;
+    }
+
+    .completion-label {
+      color: var(--fleet-text-muted, #64748b);
+      font-weight: 600;
+    }
+
+    .completion-track {
+      height: 4px;
+      border-radius: 999px;
+      background: #f1f5f9;
+      overflow: hidden;
+    }
+
+    .completion-fill {
+      height: 100%;
+      background: #14b8a6;
+      border-radius: 999px;
+    }
+
+    .completion-pct {
+      font-weight: 700;
+      color: var(--fleet-text, #0f172a);
+      min-width: 2rem;
+      text-align: right;
+    }
+
+    .checklist-eyebrow {
+      margin: 0 0 0.5rem;
+      font-size: 0.6875rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--fleet-text-muted, #64748b);
+      border-top: 1px solid var(--fleet-border, #e2e8f0);
+      padding-top: 0.875rem;
+    }
+
+    .onboarding-checklist {
       list-style: none;
       margin: 0;
       padding: 0;
       display: flex;
       flex-direction: column;
-      gap: 0.625rem;
+      gap: 0.45rem;
     }
 
-    .step-item {
+    .checklist-item {
       display: flex;
       align-items: center;
-      gap: 0.5rem;
-      font-size: 0.875rem;
+      gap: 0.45rem;
+      font-size: 0.8125rem;
       color: var(--fleet-text-muted, #64748b);
     }
 
-    .step-icon {
-      font-size: 18px !important;
-      width: 18px !important;
-      height: 18px !important;
+    .checklist-icon {
+      font-size: 16px !important;
+      width: 16px !important;
+      height: 16px !important;
 
       &.done { color: #16a34a; }
-      &.active { color: var(--fleet-primary, #006b54); }
-      &.pending { color: #94a3b8; }
+      &.warn { color: #d97706; }
     }
+
+    .done-text { color: var(--fleet-text, #0f172a); font-weight: 600; }
+
+    .verification-progress {
+      margin-bottom: 0.875rem;
+    }
+
+    .verification-progress-head {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.8125rem;
+      font-weight: 600;
+      color: var(--fleet-text, #0f172a);
+      margin-bottom: 0.35rem;
+    }
+
+    .verification-pct { color: #2563eb; }
 
     .status-list {
       display: flex;
@@ -186,48 +309,20 @@ export interface DriverWizardStepStatus {
         line-height: 1.4;
       }
     }
-
-    .branding-card {
-      border-radius: 0.75rem;
-      overflow: hidden;
-      min-height: 120px;
-      background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 40%, #006b54 100%);
-      position: relative;
-    }
-
-    .branding-overlay {
-      padding: 1.25rem;
-      height: 100%;
-      display: flex;
-      flex-direction: column;
-      justify-content: flex-end;
-    }
-
-    .branding-title {
-      font-size: 0.9375rem;
-      font-weight: 700;
-      color: #fff;
-      margin: 0 0 0.25rem;
-    }
-
-    .branding-sub {
-      font-size: 0.75rem;
-      color: rgba(255, 255, 255, 0.75);
-      margin: 0;
-    }
   `]
 })
 export class DriverWizardSidebarComponent {
   readonly progressPercent = input(33);
-  readonly stepCompletion = input<DriverWizardStepStatus[]>([]);
-  readonly licenseStatus = input('NOT STARTED');
-  readonly orgStatus = input('NOT STARTED');
-  readonly driverStatus = input('Draft');
+  readonly profileSections = input<ProfileCompletionSection[]>([]);
+  readonly completionHint = input('');
+  readonly onboardingChecklist = input<OnboardingChecklistItem[]>([]);
+  readonly verificationProgress = input(0);
+  readonly verificationRows = input<VerificationStatusRow[]>([]);
 
   statusVariant(status: string): 'valid' | 'pending' | 'inactive' {
     const s = status.toUpperCase();
-    if (s === 'ASSIGNED' || s === 'VALID' || s === 'IN PROGRESS') return 'valid';
-    if (s === 'NOT STARTED') return 'inactive';
+    if (['VERIFIED', 'ASSIGNED', 'AVAILABLE'].includes(s)) return 'valid';
+    if (['DRAFT', 'NOT STARTED'].includes(s)) return 'inactive';
     return 'pending';
   }
 }

@@ -9,11 +9,22 @@ import {
   CreateDriverRequest,
   Driver,
   DriverActiveDuty,
+  DriverAssignment,
+  DriverAttendance,
   DriverAvailability,
   DriverDocument,
+  DriverDocumentDetailed,
   DriverListItem,
+  DriverLocation,
+  DriverPerformanceSummary,
   DriverStats,
   DriverTimelineEvent,
+  DriverViolation,
+  DriversAvailabilitySummary,
+  TransferDriverVehicleRequest,
+  UpdateDocumentStatusRequest,
+  AddReviewNoteRequest,
+  VerificationReviewNote,
   normalizeDriver,
   normalizeDriverListItem,
   sanitizeCreateDriverDto,
@@ -31,6 +42,7 @@ export interface DriverListParams {
   branchId?: number;
   licenseExpiry?: 'VALID' | 'EXPIRING' | 'EXPIRED';
   verificationStatus?: string;
+  availability?: string;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -50,6 +62,7 @@ export class DriverService {
     if (params.branchId != null) httpParams = httpParams.set('branchId', params.branchId);
     if (params.licenseExpiry) httpParams = httpParams.set('licenseExpiry', params.licenseExpiry);
     if (params.verificationStatus) httpParams = httpParams.set('verificationStatus', params.verificationStatus);
+    if (params.availability) httpParams = httpParams.set('availability', params.availability);
 
     return this.http.get<PagedResult<DriverListItem>>(this.base, { params: httpParams }).pipe(
       map(result => ({ ...result, items: result.items.map(normalizeDriverListItem) }))
@@ -58,6 +71,12 @@ export class DriverService {
 
   getStats(): Observable<DriverStats> {
     return this.http.get<DriverStats>(`${this.base}/stats`);
+  }
+
+  getAvailabilitySummary(branchId?: number): Observable<DriversAvailabilitySummary> {
+    let params = new HttpParams();
+    if (branchId != null) params = params.set('branchId', branchId);
+    return this.http.get<DriversAvailabilitySummary>(`${this.base}/availability`, { params });
   }
 
   getById(id: number): Observable<Driver> {
@@ -92,6 +111,26 @@ export class DriverService {
     return this.http.get<DriverDocument[]>(`${this.base}/${id}/documents`);
   }
 
+  getDocumentsDetailed(id: number): Observable<DriverDocumentDetailed[]> {
+    return this.http.get<DriverDocumentDetailed[]>(`${this.base}/${id}/documents`);
+  }
+
+  startReview(id: number): Observable<boolean> {
+    return this.updateVerification(id, 'UnderReview');
+  }
+
+  updateDocumentStatus(id: number, docId: number, body: UpdateDocumentStatusRequest): Observable<boolean> {
+    return this.http.patch<boolean>(`${this.base}/${id}/documents/${docId}/status`, body);
+  }
+
+  getReviewNotes(id: number): Observable<VerificationReviewNote[]> {
+    return this.http.get<VerificationReviewNote[]>(`${this.base}/${id}/verification/review-notes`);
+  }
+
+  addReviewNote(id: number, body: AddReviewNoteRequest): Observable<VerificationReviewNote> {
+    return this.http.post<VerificationReviewNote>(`${this.base}/${id}/verification/review-notes`, body);
+  }
+
   uploadDocument(id: number, documentType: string, file: File, expiryDate?: string): Observable<{ documentId: number; fileUrl: string; documentType: string }> {
     const form = new FormData();
     form.append('file', file);
@@ -114,8 +153,25 @@ export class DriverService {
     return this.http.post<number>(`${this.base}/${id}/assign-vehicle`, body);
   }
 
+  unassignVehicle(id: number): Observable<boolean> {
+    return this.http.post<boolean>(`${this.base}/${id}/unassign-vehicle`, {});
+  }
+
+  transferVehicle(id: number, body: TransferDriverVehicleRequest): Observable<number> {
+    return this.http.post<number>(`${this.base}/${id}/transfer-vehicle`, body);
+  }
+
+  getAssignments(id: number, page = 1, pageSize = 20): Observable<PagedResult<DriverAssignment>> {
+    const params = new HttpParams().set('page', page).set('pageSize', pageSize);
+    return this.http.get<PagedResult<DriverAssignment>>(`${this.base}/${id}/assignments`, { params });
+  }
+
   changeStatus(id: number, status: DriverStatus): Observable<boolean> {
     return this.http.patch<boolean>(`${this.base}/${id}/status`, { status });
+  }
+
+  toggleActive(id: number): Observable<boolean> {
+    return this.http.patch<boolean>(`${this.base}/${id}/toggle-active`, {});
   }
 
   getTimeline(id: number): Observable<DriverTimelineEvent[]> {
@@ -124,5 +180,57 @@ export class DriverService {
 
   getActiveDuty(id: number): Observable<DriverActiveDuty> {
     return this.http.get<DriverActiveDuty>(`${this.base}/${id}/active-duty`);
+  }
+
+  getPerformanceSummary(id: number, fromDate?: string, toDate?: string): Observable<DriverPerformanceSummary> {
+    let params = new HttpParams();
+    if (fromDate) params = params.set('fromDate', fromDate);
+    if (toDate) params = params.set('toDate', toDate);
+    return this.http.get<DriverPerformanceSummary>(`${this.base}/${id}/performance/summary`, { params });
+  }
+
+  updateRating(id: number, rating: number): Observable<boolean> {
+    return this.http.patch<boolean>(`${this.base}/${id}/rating`, { rating });
+  }
+
+  getViolations(id: number, page = 1, pageSize = 20): Observable<PagedResult<DriverViolation>> {
+    const params = new HttpParams().set('page', page).set('pageSize', pageSize);
+    return this.http.get<PagedResult<DriverViolation>>(`${this.base}/${id}/violations`, { params });
+  }
+
+  createViolation(id: number, body: {
+    violationType: string;
+    severity: string;
+    occurredAt: string;
+    description?: string | null;
+    bookingId?: number | null;
+  }): Observable<number> {
+    return this.http.post<number>(`${this.base}/${id}/violations`, body);
+  }
+
+  getAttendance(id: number, fromDate?: string, toDate?: string): Observable<DriverAttendance[]> {
+    let params = new HttpParams();
+    if (fromDate) params = params.set('fromDate', fromDate);
+    if (toDate) params = params.set('toDate', toDate);
+    return this.http.get<DriverAttendance[]>(`${this.base}/${id}/attendance`, { params });
+  }
+
+  createAttendance(id: number, body: {
+    attendanceDate: string;
+    status: string;
+    checkInAt?: string | null;
+    checkOutAt?: string | null;
+    notes?: string | null;
+  }): Observable<number> {
+    return this.http.post<number>(`${this.base}/${id}/attendance`, body);
+  }
+
+  getLocation(id: number): Observable<DriverLocation> {
+    return this.http.get<DriverLocation>(`${this.base}/${id}/location`);
+  }
+
+  getLocationHistory(id: number, from: string, to: string): Observable<DriverLocation[]> {
+    const params = new HttpParams().set('from', from).set('to', to);
+    return this.http.get<DriverLocation[]>(`${this.base}/${id}/location/history`, { params });
   }
 }

@@ -1,5 +1,30 @@
 .driver-grid { min-width: 960px; }
 
+.driver-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #ecfdf5, #d1fae5);
+  color: #047857;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.driver-score {
+  display: inline-flex;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 700;
+
+  &--success { background: #ecfdf5; color: #059669; }
+  &--warning { background: #fffbeb; color: #d97706; }
+  &--error   { background: #fef2f2; color: #dc2626; }
+}
+
 .action-btn {
   display: inline-flex;
   align-items: center;

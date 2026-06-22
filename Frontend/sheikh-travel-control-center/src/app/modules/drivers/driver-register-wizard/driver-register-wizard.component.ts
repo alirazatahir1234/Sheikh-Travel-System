@@ -1,4 +1,5 @@
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, DestroyRef } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
@@ -11,7 +12,6 @@ import { WizardStepLicenseComponent } from './components/wizard-step-license/wiz
 import { WizardStepOrganizationComponent } from './components/wizard-step-organization/wizard-step-organization.component';
 import { DriverWizardSidebarComponent } from './components/driver-wizard-sidebar/driver-wizard-sidebar.component';
 import { DriverDocType } from './models/driver-wizard.model';
-import { resolveUploadUrl } from '../../../core/utils/upload-url.util';
 import { UiBreadcrumb } from '../../../shared/components/ui/types/ui.types';
 
 @Component({
@@ -36,6 +36,7 @@ import { UiBreadcrumb } from '../../../shared/components/ui/types/ui.types';
 export class DriverRegisterWizardComponent implements OnInit {
   readonly facade = inject(DriverWizardFacade);
   private readonly route = inject(ActivatedRoute);
+  private readonly destroyRef = inject(DestroyRef);
 
   readonly breadcrumbs = computed<UiBreadcrumb[]>(() =>
     this.facade.isEditMode()
@@ -44,16 +45,15 @@ export class DriverRegisterWizardComponent implements OnInit {
   );
 
   ngOnInit(): void {
-    const id = this.route.snapshot.paramMap.get('id');
-    const isEditRoute = this.route.snapshot.url.some(s => s.path === 'edit');
-    this.facade.init(isEditRoute && id ? +id : undefined);
+    this.route.paramMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(pm => {
+      const id = pm.get('id');
+      const isEditRoute = this.route.snapshot.url.some(s => s.path === 'edit');
+      this.facade.init(isEditRoute && id ? +id : undefined);
+    });
   }
 
   photoPreview(): string | undefined {
-    const url = this.facade.photoPreviewUrl();
-    if (!url) return undefined;
-    if (url.startsWith('blob:')) return url;
-    return resolveUploadUrl(url) ?? undefined;
+    return this.facade.resolvedPhotoPreview() ?? undefined;
   }
 
   phoneDisplay(): string {

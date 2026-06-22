@@ -1,0 +1,22 @@
+<div
+  [class]="'toast toast--' + variant"
+  [class.toast--visible]="visible"
+  [class.toast--leaving]="leaving">
+
+  <div class="toast__icon">
+    <mat-icon>{{ ICONS[variant] }}</mat-icon>
+  </div>
+
+  <div class="toast__body">
+    <p class="toast__title">{{ displayTitle }}</p>
+    <p class="toast__message">{{ message }}</p>
+  </div>
+
+  <button class="toast__close" type="button" (click)="dismiss()" aria-label="Dismiss">
+    <mat-icon>close</mat-icon>
+  </button>
+
+  <div class="toast__progress-track">
+    <div class="toast__progress-bar" [style.width.%]="progress"></div>
+  </div>
+</div>

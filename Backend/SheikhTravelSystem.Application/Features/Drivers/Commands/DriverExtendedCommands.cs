@@ -179,58 +179,83 @@ public class AssignDriverVehicleCommandHandler(
     public async Task<ApiResponse<int>> Handle(AssignDriverVehicleCommand request, CancellationToken cancellationToken)
     {
         using var connection = dbFactory.CreateConnection();
-        var tenantId = tenantContext.GetRequiredTenantId();
-        var body = request.Body;
+        DriverAssignmentValidation.OpenConnection(connection);
+        using var transaction = connection.BeginTransaction();
 
-        var driver = await connection.QuerySingleOrDefaultAsync<(string VerificationStatus, DateTime LicenseExpiry)>(
-            new CommandDefinition(
-                "SELECT VerificationStatus, LicenseExpiryDate FROM Drivers WHERE Id = @Id AND TenantId = @TenantId AND IsDeleted = 0",
-                new { Id = request.DriverId, TenantId = tenantId },
-                cancellationToken: cancellationToken));
+        try
+        {
+            var tenantId = tenantContext.GetRequiredTenantId();
+            var body = request.Body;
 
-        if (driver.VerificationStatus is null)
-            throw new NotFoundException("Driver", request.DriverId);
+            var driver = await connection.QuerySingleOrDefaultAsync<(string VerificationStatus, DateTime LicenseExpiry, bool IsActive, int Status)>(
+                new CommandDefinition(
+                    "SELECT VerificationStatus, LicenseExpiryDate, IsActive, Status FROM Drivers WHERE Id = @Id AND TenantId = @TenantId AND IsDeleted = 0",
+                    new { Id = request.DriverId, TenantId = tenantId },
+                    transaction: transaction,
+                    cancellationToken: cancellationToken));
 
-        if (!string.Equals(driver.VerificationStatus, "Verified", StringComparison.OrdinalIgnoreCase))
-            throw new ConflictException("Driver must be verified before vehicle assignment.");
+            if (driver.VerificationStatus is null)
+                throw new NotFoundException("Driver", request.DriverId);
 
-        if (driver.LicenseExpiry < DateTime.UtcNow.Date)
-            throw new ConflictException("Driver license is expired.");
+            DriverAssignmentGuard.EnsureAssignable(
+                driver.IsActive,
+                (Domain.Enums.DriverStatus)driver.Status,
+                driver.VerificationStatus,
+                driver.LicenseExpiry);
 
-        var vehicleExists = await connection.ExecuteScalarAsync<bool>(
-            new CommandDefinition(
-                "SELECT CASE WHEN EXISTS(SELECT 1 FROM Vehicles WHERE Id = @VehicleId AND TenantId = @TenantId AND IsDeleted = 0) THEN 1 ELSE 0 END",
-                new { body.VehicleId, TenantId = tenantId },
-                cancellationToken: cancellationToken));
+            await DriverAssignmentValidation.EnsureDriverNotOnActiveTripAsync(
+                connection, tenantId, request.DriverId, cancellationToken, transaction);
 
-        if (!vehicleExists)
-            throw new NotFoundException("Vehicle", body.VehicleId);
+            var vehicleExists = await connection.ExecuteScalarAsync<bool>(
+                new CommandDefinition(
+                    "SELECT CASE WHEN EXISTS(SELECT 1 FROM Vehicles WHERE Id = @VehicleId AND TenantId = @TenantId AND IsDeleted = 0) THEN 1 ELSE 0 END",
+                    new { body.VehicleId, TenantId = tenantId },
+                    transaction: transaction,
+                    cancellationToken: cancellationToken));
 
-        await connection.ExecuteAsync(new CommandDefinition(
-            @"UPDATE AssignmentHistory SET Status = N'Completed', EndAt = GETUTCDATE(), UpdatedAt = GETUTCDATE()
-              WHERE DriverId = @DriverId AND TenantId = @TenantId AND Status = N'Active' AND IsDeleted = 0",
-            new { request.DriverId, TenantId = tenantId },
-            cancellationToken: cancellationToken));
+            if (!vehicleExists)
+                throw new NotFoundException("Vehicle", body.VehicleId);
 
-        var assignmentType = string.IsNullOrWhiteSpace(body.AssignmentType) ? "Manual" : body.AssignmentType.Trim();
-        var assignmentId = await connection.ExecuteScalarAsync<int>(
-            new CommandDefinition(
-                @"INSERT INTO AssignmentHistory (TenantId, VehicleId, DriverId, BookingId, AssignmentType,
-                  Status, StartAt, CreatedAt, CreatedBy, IsDeleted)
-                  VALUES (@TenantId, @VehicleId, @DriverId, @BookingId, @AssignmentType,
-                  N'Active', GETUTCDATE(), GETUTCDATE(), @CreatedBy, 0);
-                  SELECT CAST(SCOPE_IDENTITY() AS INT);",
-                new
-                {
-                    TenantId = tenantId,
-                    body.VehicleId,
-                    request.DriverId,
-                    body.BookingId,
-                    AssignmentType = assignmentType,
-                    CreatedBy = currentUser.UserId?.ToString() ?? "api"
-                },
-                cancellationToken: cancellationToken));
+            await DriverAssignmentValidation.CompleteActiveAssignmentsAsync(
+                connection, tenantId, request.DriverId, body.VehicleId, transaction, cancellationToken);
 
-        return ApiResponse<int>.SuccessResponse(assignmentId, "Vehicle assigned to driver.");
+            var assignmentType = string.IsNullOrWhiteSpace(body.AssignmentType) ? "Manual" : body.AssignmentType.Trim();
+            var startAt = body.EffectiveFrom?.ToUniversalTime() ?? DateTime.UtcNow;
+            var notes = string.IsNullOrWhiteSpace(body.Remarks) ? null : body.Remarks.Trim();
+            if (body.EffectiveTo is DateTime plannedEnd)
+            {
+                var plannedNote = $"Planned end: {plannedEnd:yyyy-MM-dd}";
+                notes = string.IsNullOrWhiteSpace(notes) ? plannedNote : $"{notes} ({plannedNote})";
+            }
+
+            var assignmentId = await connection.ExecuteScalarAsync<int>(
+                new CommandDefinition(
+                    @"INSERT INTO AssignmentHistory (TenantId, VehicleId, DriverId, BookingId, AssignmentType,
+                      Status, StartAt, CreatedAt, CreatedBy, Notes, IsDeleted)
+                      VALUES (@TenantId, @VehicleId, @DriverId, @BookingId, @AssignmentType,
+                      N'Active', @StartAt, GETUTCDATE(), @CreatedBy, @Notes, 0);
+                      SELECT CAST(SCOPE_IDENTITY() AS INT);",
+                    new
+                    {
+                        TenantId = tenantId,
+                        body.VehicleId,
+                        request.DriverId,
+                        body.BookingId,
+                        AssignmentType = assignmentType,
+                        StartAt = startAt,
+                        Notes = notes,
+                        CreatedBy = currentUser.UserId?.ToString() ?? "api"
+                    },
+                    transaction: transaction,
+                    cancellationToken: cancellationToken));
+
+            transaction.Commit();
+            return ApiResponse<int>.SuccessResponse(assignmentId, "Vehicle assigned to driver.");
+        }
+        catch
+        {
+            transaction.Rollback();
+            throw;
+        }
     }
 }

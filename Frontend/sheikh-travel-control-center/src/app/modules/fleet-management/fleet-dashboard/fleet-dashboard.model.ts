@@ -52,6 +52,8 @@ export interface QuickAction {
   label: string;
   icon: string;
   route?: string;
+  /** Colored icon background for dashboard quick actions. */
+  tone?: 'green' | 'blue' | 'orange' | 'red' | 'neutral';
 }
 
 export interface AssignmentItem {
