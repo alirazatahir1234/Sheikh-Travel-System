@@ -8,6 +8,7 @@ import { DatePipe } from '@angular/common';
 import { SelectionModel } from '@angular/cdk/collections';
 import { UserService } from '../../../core/services/user.service';
 import { ExportService, ExportColumn } from '../../../core/services/export.service';
+import { exportDocumentTitle } from '../../../core/constants/app-brand';
 import {
   User,
   UserRole,
@@ -187,7 +188,7 @@ export class UserListComponent implements OnInit {
     this.exportService.exportExcel(this.dataSource.filteredData, this.getColumns(), { filename: 'users', sheetName: 'Users' });
   }
   exportPdf(): void {
-    this.exportService.exportPdf(this.dataSource.filteredData, this.getColumns(), { filename: 'users', title: 'Sheikh Travel Control Center – Users' });
+    this.exportService.exportPdf(this.dataSource.filteredData, this.getColumns(), { filename: 'users', title: exportDocumentTitle('Users') });
   }
 
   private getColumns(): ExportColumn<User>[] {

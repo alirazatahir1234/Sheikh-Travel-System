@@ -13,10 +13,10 @@
 <div class="receipt" *ngIf="payment && !loading">
   <div class="receipt-header">
     <div class="company-logo">
-      <img class="logo-image" src="/brand/sheikh-logo.png" alt="Sheikh Travel logo" />
+      <img class="logo-image" src="/brand/sheikh-logo.png" [alt]="companyName + ' logo'" />
     </div>
     <div class="company-info">
-      <h1 class="company-name">Sheikh Travel</h1>
+      <h1 class="company-name">{{ companyName }}</h1>
       <p class="company-tagline">Premium Travel Services</p>
     </div>
     <div class="receipt-title-block">
@@ -101,7 +101,7 @@
   </div>
 
   <div class="receipt-footer">
-    <p>Thank you for choosing Sheikh Travel!</p>
+    <p>Thank you for choosing {{ companyName }}!</p>
     <p class="footer-sub">This is a computer-generated receipt and does not require a signature.</p>
     <p class="footer-date">Printed: {{ receiptDate | date:'medium' }}</p>
   </div>

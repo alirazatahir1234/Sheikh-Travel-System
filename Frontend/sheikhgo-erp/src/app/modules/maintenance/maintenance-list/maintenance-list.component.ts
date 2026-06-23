@@ -9,6 +9,7 @@ import { forkJoin } from 'rxjs';
 import { MaintenanceService } from '../../../core/services/maintenance.service';
 import { VehicleService } from '../../../core/services/vehicle.service';
 import { ExportService, ExportColumn } from '../../../core/services/export.service';
+import { exportDocumentTitle } from '../../../core/constants/app-brand';
 import {
   Maintenance,
   MaintenanceStatus,
@@ -577,7 +578,7 @@ export class MaintenanceListComponent implements OnInit {
   exportPdf(): void {
     this.exportService.exportPdf(this.dataSource.filteredData, this.getColumns(), {
       filename: 'maintenance-records',
-      title: 'Sheikh Travel Control Center – Maintenance Records',
+      title: exportDocumentTitle('Maintenance Records'),
       subtitle: `Total Cost: PKR ${this.formatNumber(this.totalCost)}`
     });
   }

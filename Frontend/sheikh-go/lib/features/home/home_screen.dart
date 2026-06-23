@@ -41,7 +41,7 @@ class HomeScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              'You are signed in with the same staff account used in Sheikh Travel Control Center.',
+              'You are signed in with the same staff account used in SheikhGo ERP.',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: Colors.white70,
                   ),

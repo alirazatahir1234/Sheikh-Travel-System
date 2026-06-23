@@ -113,6 +113,7 @@ builder.Services.AddCors(options =>
                 if (origin is "https://sheikh-travel-system.vercel.app"
                     or "https://sheikh-customer-portal.vercel.app"
                     or "https://sheikh-travel-control-center.vercel.app"
+                    or "https://sheikhgo-erp.vercel.app"
                     or "https://sheikh-travel-customer-hub.vercel.app"
                     or "http://localhost:4200"
                     or "http://127.0.0.1:4200"
@@ -137,6 +138,7 @@ builder.Services.AddCors(options =>
                         && (uri.Host.Contains("sheikh-travel-system", StringComparison.OrdinalIgnoreCase)
                             || uri.Host.Contains("sheikh-customer-portal", StringComparison.OrdinalIgnoreCase)
                             || uri.Host.Contains("sheikh-travel-control-center", StringComparison.OrdinalIgnoreCase)
+                            || uri.Host.Contains("sheikhgo-erp", StringComparison.OrdinalIgnoreCase)
                             || uri.Host.Contains("sheikh-travel-customer-hub", StringComparison.OrdinalIgnoreCase));
                 }
 

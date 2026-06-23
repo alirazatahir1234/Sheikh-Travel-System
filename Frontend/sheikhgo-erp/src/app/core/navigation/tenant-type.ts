@@ -25,6 +25,6 @@ export function tenantProductSubtitle(type: TenantType): string {
     case TenantType.Driver:
       return 'DRIVER APP';
     default:
-      return 'CONTROL CENTER';
+      return 'ERP';
   }
 }

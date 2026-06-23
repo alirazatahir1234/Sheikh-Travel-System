@@ -1,4 +1,5 @@
 import { SettingFieldSchema } from '../models/settings.model';
+import { COMPANY_NAME } from '../../../core/constants/app-brand';
 
 const CURRENCY_OPTIONS = [
   { value: 'AED', label: 'AED — UAE Dirham' },
@@ -46,7 +47,7 @@ const TIME_FORMAT_OPTIONS = [
 
 // 1. General Settings
 const generalSchema: SettingFieldSchema[] = [
-  { key: 'CompanyName', label: 'Company Name', type: 'text', section: 'Company Identity', required: true, placeholder: 'Sheikh Travel' },
+  { key: 'CompanyName', label: 'Company Name', type: 'text', section: 'Company Identity', required: true, placeholder: COMPANY_NAME },
   { key: 'CompanyLogo', label: 'Company Logo URL', type: 'url', section: 'Company Identity', placeholder: 'https://...' },
   { key: 'CompanyAddress', label: 'Company Address', type: 'textarea', section: 'Company Identity', placeholder: 'Street, City, Country' },
   { key: 'Phone', label: 'Phone', type: 'text', section: 'Contact', placeholder: '+971 4 000 0000' },
@@ -62,7 +63,7 @@ const generalSchema: SettingFieldSchema[] = [
 
 // 2. Tenant Settings
 const tenantSchema: SettingFieldSchema[] = [
-  { key: 'TenantName', label: 'Tenant Name', type: 'text', section: 'Tenant', placeholder: 'Sheikh Travel' },
+  { key: 'TenantName', label: 'Tenant Name', type: 'text', section: 'Tenant', placeholder: COMPANY_NAME },
   { key: 'SubscriptionPlan', label: 'Subscription Plan', type: 'text', section: 'Tenant', placeholder: 'Enterprise' },
   { key: 'TenantStatus', label: 'Tenant Status', type: 'dropdown', section: 'Tenant', options: [
     { value: 'Active', label: 'Active' },

@@ -22,6 +22,7 @@ import {
   resolveMenu
 } from '../../core/navigation/menu-config';
 import { resolveTenantType } from '../../core/navigation/tenant-type';
+import { APP_PRODUCT_NAME } from '../../core/constants/app-brand';
 
 @Component({
   selector: 'app-shell',
@@ -29,6 +30,7 @@ import { resolveTenantType } from '../../core/navigation/tenant-type';
   styleUrls: ['./shell.component.scss']
 })
 export class ShellComponent implements OnInit, OnDestroy {
+  readonly appProductName = APP_PRODUCT_NAME;
   private readonly sidebarPinnedStorageKey = 'stb_sidebar_pinned';
   private readonly enabledModules$ = new BehaviorSubject<string[]>([]);
   private latestMenu?: ResolvedMenu;

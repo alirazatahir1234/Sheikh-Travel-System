@@ -1,6 +1,6 @@
 {
   "buildCommand": "npm run build -- --configuration=production",
-  "outputDirectory": "dist/sheikh-travel-control-center/browser",
+  "outputDirectory": "dist/sheikhgo-erp/browser",
   "rewrites": [
     {
       "source": "/(.*)",

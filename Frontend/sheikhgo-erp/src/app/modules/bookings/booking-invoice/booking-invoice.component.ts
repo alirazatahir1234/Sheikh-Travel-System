@@ -6,6 +6,7 @@ import { BookingService } from '../../../core/services/booking.service';
 import { PaymentService } from '../../../core/services/payment.service';
 import { Booking } from '../../../core/models/booking.model';
 import { Payment } from '../../../core/models/payment.model';
+import { COMPANY_NAME } from '../../../core/constants/app-brand';
 
 @Component({
   selector: 'app-booking-invoice',
@@ -13,6 +14,7 @@ import { Payment } from '../../../core/models/payment.model';
   styleUrls: ['./booking-invoice.component.scss']
 })
 export class BookingInvoiceComponent implements OnInit {
+  readonly companyName = COMPANY_NAME;
   booking: Booking | null = null;
   payments: Payment[] = [];
   loading = true;

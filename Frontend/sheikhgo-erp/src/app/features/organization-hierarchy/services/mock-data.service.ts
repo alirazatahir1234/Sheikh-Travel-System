@@ -1,4 +1,5 @@
 import { Injectable, signal, computed } from '@angular/core';
+import { COMPANY_NAME } from '../../../core/constants/app-brand';
 import {
   Tenant,
   Branch,
@@ -20,7 +21,7 @@ export class MockDataService {
   
   readonly tenant = signal<Tenant>({
     id: 1,
-    name: 'Sheikh Travel',
+    name: COMPANY_NAME,
     code: 'ST-001',
     logo: '/assets/logos/sheikh-travel.png',
     isActive: true,
@@ -222,7 +223,7 @@ export class MockDataService {
     return {
       tenant: {
         id: 1,
-        name: 'Sheikh Travel',
+        name: COMPANY_NAME,
         type: 'TENANT',
         icon: 'building',
       },

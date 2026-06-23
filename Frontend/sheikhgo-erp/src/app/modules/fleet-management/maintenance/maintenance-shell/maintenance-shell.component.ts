@@ -9,6 +9,7 @@ import { MaintenanceContextService } from '../maintenance-context.service';
 import { MaintenanceService } from '../../../../core/services/maintenance.service';
 import { MAINTENANCE_SUB_NAV } from '../maintenance-nav.config';
 import { MaintenanceSearchResult } from '../../../../core/models/maintenance.model';
+import { COMPANY_NAME } from '../../../../core/constants/app-brand';
 
 @Component({
   selector: 'app-maintenance-shell',
@@ -19,6 +20,7 @@ import { MaintenanceSearchResult } from '../../../../core/models/maintenance.mod
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class MaintenanceShellComponent {
+  readonly companyName = COMPANY_NAME;
   private readonly ctx = inject(MaintenanceContextService);
   private readonly maintenanceService = inject(MaintenanceService);
   private readonly router = inject(Router);

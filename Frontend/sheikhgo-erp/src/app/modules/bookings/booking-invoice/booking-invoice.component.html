@@ -15,8 +15,8 @@
   <div class="invoice-header">
     <div class="company-block">
       <div class="company-logo-row">
-        <img class="logo-image" src="/brand/sheikh-logo.png" alt="Sheikh Travel logo" />
-        <h1 class="company-name">Sheikh Travel</h1>
+        <img class="logo-image" src="/brand/sheikh-logo.png" [alt]="companyName + ' logo'" />
+        <h1 class="company-name">{{ companyName }}</h1>
       </div>
       <p class="company-tagline">Premium Travel Services</p>
     </div>
@@ -117,8 +117,8 @@
     <div *ngIf="booking.notes" class="notes-block">
       <strong>Notes:</strong> {{ booking.notes }}
     </div>
-    <p>Thank you for choosing Sheikh Travel. We look forward to serving you again.</p>
-    <p class="footer-sub">This is a computer-generated invoice. For queries, contact Sheikh Travel.</p>
+    <p>Thank you for choosing {{ companyName }}. We look forward to serving you again.</p>
+    <p class="footer-sub">This is a computer-generated invoice. For queries, contact {{ companyName }}.</p>
     <p class="footer-date">Generated: {{ invoiceDate | date:'medium' }}</p>
   </div>
 </div>

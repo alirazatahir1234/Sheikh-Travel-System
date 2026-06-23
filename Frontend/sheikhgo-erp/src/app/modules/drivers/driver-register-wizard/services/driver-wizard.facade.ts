@@ -19,6 +19,7 @@ import {
 } from '../../../../core/models/driver.model';
 import { dateInputToIso, toDateInputValue, todayDateInputValue, parseApiDate, formatAbsoluteDateTime, formatRelativeTime } from '../../../../core/utils/date-input.util';
 import { apiErrorMessage } from '../../../../core/utils/api-error.util';
+import { COMPANY_NAME } from '../../../../core/constants/app-brand';
 import { vehicleUploadSizeError, resolveDriverPhotoUrl, resolveUploadUrl } from '../../../../core/utils/upload-url.util';
 import { UiSelectOption } from '../../../../shared/components/ui/types/ui.types';
 import { UiToastService } from '../../../../shared/components/ui/toast/ui-toast.service';
@@ -702,7 +703,7 @@ export class DriverWizardFacade {
   pageSubtitle(): string {
     return this.isEditMode()
       ? 'Update driver profile, license, and organization details.'
-      : 'Onboard a new professional to the Sheikh Travel fleet network.';
+      : `Onboard a new professional to the ${COMPANY_NAME} fleet network.`;
   }
 
   onPhotoSelected(file: File | null): void {

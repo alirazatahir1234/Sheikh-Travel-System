@@ -1,6 +1,6 @@
 # SheikhGo (Flutter)
 
-Customer mobile app with staff-style sign-in (same API as Sheikh Travel Control Center).
+Customer mobile app with staff-style sign-in (same API as SheikhGo ERP).
 
 ## Run
 

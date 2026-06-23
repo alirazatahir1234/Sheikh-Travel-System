@@ -41,7 +41,7 @@
       "preLaunchTask": "Run Angular (http 4200)",
       "url": "http://localhost:4200",
       "runtimeExecutable": "/Applications/Brave Browser.app/Contents/MacOS/Brave Browser",
-      "webRoot": "${workspaceFolder}/Frontend/sheikh-travel-control-center",
+      "webRoot": "${workspaceFolder}/Frontend/sheikhgo-erp",
       "sourceMaps": true,
       "sourceMapPathOverrides": {
         "webpack:/*": "${webRoot}/*",

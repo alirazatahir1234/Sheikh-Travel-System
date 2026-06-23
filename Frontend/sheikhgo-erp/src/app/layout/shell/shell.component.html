@@ -12,9 +12,9 @@
          (mouseenter)="onSidebarEnter()"
          (mouseleave)="onSidebarLeave()">
     <div class="stb-brand-row">
-      <div class="stb-brand" [routerLink]="homeRoute" matTooltip="Sheikh Travel Control Center" matTooltipPosition="right">
+      <div class="stb-brand" [routerLink]="homeRoute" [matTooltip]="appProductName" matTooltipPosition="right">
         <div class="logo-mark">
-          <img src="/brand/sts-login-logo.png" alt="Sheikh Travel" />
+          <img src="/brand/sts-login-logo.png" [alt]="appProductName" />
         </div>
       </div>
 

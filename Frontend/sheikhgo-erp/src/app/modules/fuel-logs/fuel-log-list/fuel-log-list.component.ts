@@ -10,6 +10,7 @@ import { FuelLogService } from '../../../core/services/fuel-log.service';
 import { VehicleService } from '../../../core/services/vehicle.service';
 import { DriverService } from '../../../core/services/driver.service';
 import { ExportService, ExportColumn } from '../../../core/services/export.service';
+import { exportDocumentTitle } from '../../../core/constants/app-brand';
 import { FuelLog, FuelType, FuelTypeLabels } from '../../../core/models/fuel-log.model';
 import { Vehicle } from '../../../core/models/vehicle.model';
 import { Driver } from '../../../core/models/driver.model';
@@ -591,7 +592,7 @@ export class FuelLogListComponent implements OnInit {
   exportPdf(): void {
     this.exportService.exportPdf(this.dataSource.filteredData, this.getColumns(), {
       filename: 'fuel-logs',
-      title: 'Sheikh Travel Control Center – Fuel Analytics',
+      title: exportDocumentTitle('Fuel Analytics'),
       subtitle: `Total: ${this.formatNumber(this.totalLiters, '1.1-1')} L | PKR ${this.formatNumber(this.totalCost)}`
     });
   }

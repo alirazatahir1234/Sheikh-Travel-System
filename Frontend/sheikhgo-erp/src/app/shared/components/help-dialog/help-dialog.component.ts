@@ -1,5 +1,6 @@
 import { Component } from '@angular/core';
 import { MatDialogRef } from '@angular/material/dialog';
+import { APP_PRODUCT_NAME } from '../../../core/constants/app-brand';
 
 interface HelpSection {
   title: string;
@@ -16,7 +17,7 @@ interface HelpSection {
     </h2>
     <mat-dialog-content>
       <div class="help-intro">
-        <p>Welcome to Sheikh Travel Control Center! Here are some quick guides to help you get started.</p>
+        <p>Welcome to {{ appProductName }}! Here are some quick guides to help you get started.</p>
       </div>
 
       <div class="help-section" *ngFor="let section of sections">
@@ -83,6 +84,8 @@ interface HelpSection {
   `]
 })
 export class HelpDialogComponent {
+  readonly appProductName = APP_PRODUCT_NAME;
+
   sections: HelpSection[] = [
     {
       title: 'Creating a Booking',

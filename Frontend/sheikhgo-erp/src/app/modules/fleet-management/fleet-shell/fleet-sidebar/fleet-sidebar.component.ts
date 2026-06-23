@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, output } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
+import { APP_PRODUCT_NAME } from '../../../../core/constants/app-brand';
 import { FLEET_NAV_FOOTER, FLEET_NAV_GROUPS, FleetNavLink } from '../fleet-nav.config';
 
 @Component({
@@ -12,9 +13,9 @@ import { FLEET_NAV_FOOTER, FLEET_NAV_GROUPS, FleetNavLink } from '../fleet-nav.c
   template: `
     <aside class="flex h-full w-sidebar flex-col bg-fleet-surface-alt py-6 font-fleet">
       <div class="mb-8 px-6">
-        <a routerLink="/dashboard" class="fleet-brand" aria-label="Sheikh Travel Control Center">
+        <a routerLink="/dashboard" class="fleet-brand" [attr.aria-label]="appProductName">
           <div class="fleet-brand__logo">
-            <img src="/brand/sts-login-logo.png" alt="Sheikh Travel Control Center" />
+            <img src="/brand/sts-login-logo.png" [alt]="appProductName" />
           </div>
         </a>
       </div>
@@ -119,6 +120,7 @@ import { FLEET_NAV_FOOTER, FLEET_NAV_GROUPS, FleetNavLink } from '../fleet-nav.c
   `]
 })
 export class FleetSidebarComponent {
+  readonly appProductName = APP_PRODUCT_NAME;
   readonly navigate = output<void>();
 
   protected readonly groups = FLEET_NAV_GROUPS;
