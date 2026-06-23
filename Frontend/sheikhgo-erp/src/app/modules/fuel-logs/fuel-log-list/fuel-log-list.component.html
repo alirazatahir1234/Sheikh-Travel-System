@@ -167,7 +167,7 @@
     </div>
   </div>
 
-  <div *ngIf="loading" class="loading"><mat-spinner diameter="36"></mat-spinner></div>
+  <app-brand-loader *ngIf="loading" />
 
   <mat-card *ngIf="!loading" class="table-card stb-elevated">
     <div class="table-wrap">

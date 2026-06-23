@@ -20,7 +20,7 @@
     (reset)="onReset()" />
 
   @if (loading()) {
-    <p class="loading">Loading parts…</p>
+    <app-brand-loader message="Loading parts…" />
   } @else {
     <parts-table
       [parts]="parts()"

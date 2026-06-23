@@ -1,6 +1,6 @@
 <div class="maint-dashboard">
   @if (loading()) {
-    <p class="loading">Loading dashboard…</p>
+    <app-brand-loader message="Loading dashboard…" />
   } @else {
     @if (dashboard(); as d) {
       <maintenance-kpi-grid [kpis]="d.kpis"></maintenance-kpi-grid>

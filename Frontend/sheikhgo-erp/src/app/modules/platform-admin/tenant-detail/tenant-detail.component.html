@@ -24,7 +24,7 @@
     </button>
   </header>
 
-  <div *ngIf="loading" class="loading"><mat-spinner diameter="36"></mat-spinner></div>
+  <app-brand-loader *ngIf="loading" />
 
   <div *ngIf="!loading && tenant" class="detail-layout">
     <form [formGroup]="form" (ngSubmit)="submit()" class="form-column">

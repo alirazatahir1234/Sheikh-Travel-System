@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, output } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
-import { APP_PRODUCT_NAME, APP_LOGO_PATH } from '../../../../core/constants/app-brand';
+import { APP_PRODUCT_NAME, APP_SIDEBAR_LOGO_PATH } from '../../../../core/constants/app-brand';
 import { FLEET_NAV_FOOTER, FLEET_NAV_GROUPS, FleetNavLink } from '../fleet-nav.config';
 
 @Component({
@@ -17,6 +17,7 @@ import { FLEET_NAV_FOOTER, FLEET_NAV_GROUPS, FleetNavLink } from '../fleet-nav.c
           <div class="fleet-brand__logo">
             <img [src]="appLogoPath" [alt]="appProductName" />
           </div>
+          <span class="fleet-brand__label">{{ appProductName }}</span>
         </a>
       </div>
 
@@ -68,7 +69,9 @@ import { FLEET_NAV_FOOTER, FLEET_NAV_GROUPS, FleetNavLink } from '../fleet-nav.c
     .hide-scrollbar::-webkit-scrollbar { display: none; }
 
     .fleet-brand {
-      display: block;
+      display: flex;
+      align-items: center;
+      gap: 10px;
       border-radius: 12px;
       padding: 8px;
       text-decoration: none;
@@ -81,12 +84,12 @@ import { FLEET_NAV_FOOTER, FLEET_NAV_GROUPS, FleetNavLink } from '../fleet-nav.c
       width: 52px;
       height: 52px;
       border-radius: 13px;
-      background: #113537;
-      border: 1px solid rgba(17, 129, 119, 0.35);
+      background: #fff;
+      border: 1px solid rgba(17, 129, 119, 0.18);
       display: flex;
       align-items: center;
       justify-content: center;
-      box-shadow: 0 1px 2px rgba(2, 6, 23, 0.08);
+      box-shadow: 0 1px 2px rgba(2, 6, 23, 0.05);
       overflow: hidden;
     }
     .fleet-brand__logo img {
@@ -95,6 +98,15 @@ import { FLEET_NAV_FOOTER, FLEET_NAV_GROUPS, FleetNavLink } from '../fleet-nav.c
       object-fit: contain;
       object-position: center;
       display: block;
+    }
+
+    .fleet-brand__label {
+      min-width: 0;
+      font-size: 0.92rem;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      line-height: 1.25;
+      color: var(--fleet-text);
     }
 
     .fleet-nav-link {
@@ -122,7 +134,7 @@ import { FLEET_NAV_FOOTER, FLEET_NAV_GROUPS, FleetNavLink } from '../fleet-nav.c
 })
 export class FleetSidebarComponent {
   readonly appProductName = APP_PRODUCT_NAME;
-  readonly appLogoPath = APP_LOGO_PATH;
+  readonly appLogoPath = APP_SIDEBAR_LOGO_PATH;
   readonly navigate = output<void>();
 
   protected readonly groups = FLEET_NAV_GROUPS;

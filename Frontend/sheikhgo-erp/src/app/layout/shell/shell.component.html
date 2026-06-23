@@ -12,10 +12,11 @@
          (mouseenter)="onSidebarEnter()"
          (mouseleave)="onSidebarLeave()">
     <div class="stb-brand-row">
-      <div class="stb-brand" [routerLink]="homeRoute" [matTooltip]="appProductName" matTooltipPosition="right">
+      <div class="stb-brand" [routerLink]="homeRoute" [matTooltip]="appProductName" [matTooltipDisabled]="sidebarExpanded" matTooltipPosition="right">
         <div class="logo-mark">
           <img [src]="appLogoPath" [alt]="appProductName" />
         </div>
+        <span class="brand-label">{{ appProductName }}</span>
       </div>
 
       <button *ngIf="sidebarExpanded"

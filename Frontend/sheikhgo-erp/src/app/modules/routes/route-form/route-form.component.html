@@ -258,8 +258,7 @@
         </div>
 
         <div class="map-calculating" *ngIf="calculating">
-          <mat-spinner diameter="36"></mat-spinner>
-          <span>Drawing route…</span>
+          <app-brand-loader size="sm" message="Drawing route…" />
         </div>
 
         <div
@@ -289,8 +288,7 @@
         </div>
         <ng-template #mapLoading>
           <div class="map-loading">
-            <mat-spinner diameter="32"></mat-spinner>
-            <span>Loading map…</span>
+            <app-brand-loader size="sm" message="Loading map…" />
           </div>
         </ng-template>
 

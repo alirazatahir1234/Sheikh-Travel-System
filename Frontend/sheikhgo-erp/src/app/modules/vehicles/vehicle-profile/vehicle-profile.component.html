@@ -10,7 +10,7 @@
   </div>
 </div>
 
-<div *ngIf="loading" class="loading"><mat-spinner diameter="40"></mat-spinner></div>
+<app-brand-loader *ngIf="loading" />
 <div *ngIf="error" class="error-message"><mat-icon>error</mat-icon> {{ error }}</div>
 
 <div *ngIf="vehicle && !loading" class="profile-container">

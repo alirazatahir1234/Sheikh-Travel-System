@@ -2,16 +2,17 @@ import { ChangeDetectionStrategy, Component, input, output } from '@angular/core
 import { CurrencyPipe, DatePipe } from '@angular/common';
 import { WorkOrderListItem, WorkOrderStatusLabels } from '../../../../../core/models/maintenance.model';
 import { woActualCost, woEstimatedCost } from '../utils/wo.util';
+import { AppBrandLoaderComponent } from '../../../../../shared/components/app-brand-loader/app-brand-loader.component';
 
 @Component({
   selector: 'wo-table',
   standalone: true,
-  imports: [CurrencyPipe, DatePipe],
+  imports: [CurrencyPipe, DatePipe, AppBrandLoaderComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="table-wrap">
       @if (loading()) {
-        <div class="loading">Loading work orders…</div>
+        <app-brand-loader message="Loading work orders…" />
       } @else {
         <table>
           <thead>

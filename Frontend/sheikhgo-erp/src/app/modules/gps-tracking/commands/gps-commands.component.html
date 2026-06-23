@@ -25,7 +25,7 @@
       Selected device does not support remote engine cut-off.
     </p>
 
-    <div *ngIf="loading" class="loading"><mat-spinner diameter="32"></mat-spinner></div>
+    <app-brand-loader *ngIf="loading" />
 
     <table mat-table [dataSource]="commands" class="full-width" *ngIf="commands.length">
       <ng-container matColumnDef="type">

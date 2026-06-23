@@ -33,7 +33,7 @@
   <service-history-stats [stats]="stats()" [loading]="loading()" />
 
   @if (loading()) {
-    <p class="loading">Loading service history…</p>
+    <app-brand-loader message="Loading service history…" />
   } @else {
     <service-history-timeline [items]="items()" />
   }

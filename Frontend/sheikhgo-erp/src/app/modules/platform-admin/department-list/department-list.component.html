@@ -17,7 +17,7 @@
     </div>
   </header>
 
-  <div *ngIf="loading" class="loading"><mat-spinner diameter="36"></mat-spinner></div>
+  <app-brand-loader *ngIf="loading" />
 
   <div *ngIf="!loading" class="dept-layout">
     <aside class="dept-sidebar">

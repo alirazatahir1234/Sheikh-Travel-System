@@ -18,6 +18,7 @@ import { ScheduleListViewComponent } from './components/schedule-list-view.compo
 import { ScheduleCalendarViewComponent } from './components/schedule-calendar-view.component';
 import { ScheduleTimelineViewComponent } from './components/schedule-timeline-view.component';
 import { ScheduleFormDrawerComponent, ScheduleDrawerMode } from './components/schedule-form-drawer.component';
+import { AppBrandLoaderComponent } from '../../../../shared/components/app-brand-loader/app-brand-loader.component';
 import { apiErrorMessage } from '../../../../core/utils/api-error.util';
 
 @Component({
@@ -26,6 +27,7 @@ import { apiErrorMessage } from '../../../../core/utils/api-error.util';
   imports: [
     CommonModule,
     FormsModule,
+    AppBrandLoaderComponent,
     ScheduleViewToggleComponent,
     ScheduleListViewComponent,
     ScheduleCalendarViewComponent,

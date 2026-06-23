@@ -3,6 +3,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { AppBrandLoaderComponent } from '../../../shared/components/app-brand-loader/app-brand-loader.component';
 import { DriverWizardFacade } from './services/driver-wizard.facade';
 import { UiPageHeaderComponent } from '../../../shared/components/ui/page-header/ui-page-header.component';
 import { WizardStepperComponent } from '../../vehicles/vehicle-register-wizard/components/wizard-stepper/wizard-stepper.component';
@@ -20,6 +21,7 @@ import { UiBreadcrumb } from '../../../shared/components/ui/types/ui.types';
   imports: [
     MatIconModule,
     MatProgressSpinnerModule,
+    AppBrandLoaderComponent,
     UiPageHeaderComponent,
     WizardStepperComponent,
     WizardFooterComponent,

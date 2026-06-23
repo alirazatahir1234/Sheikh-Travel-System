@@ -14,9 +14,7 @@
   <stb-stat-tile label="Expired" [value]="expiredCount" icon="error" color="rose"></stb-stat-tile>
 </div>
 
-<div class="compliance-loading" *ngIf="loading">
-  <mat-progress-spinner mode="indeterminate" diameter="32"></mat-progress-spinner>
-</div>
+<app-brand-loader *ngIf="loading" size="sm" />
 
 <div class="compliance-grid" *ngIf="!loading && documents.length">
   <fleet-expiry-card

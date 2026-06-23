@@ -10,6 +10,7 @@ import {
 import { ActivatedRoute } from '@angular/router';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { UiSelectOption } from '../../../shared/components/ui/types/ui.types';
+import { AppBrandLoaderComponent } from '../../../shared/components/app-brand-loader/app-brand-loader.component';
 import { VehicleWizardFacade } from './services/vehicle-wizard.facade';
 import { WizardStepperComponent } from './components/wizard-stepper/wizard-stepper.component';
 import { WizardSummaryPanelComponent } from './components/wizard-summary-panel/wizard-summary-panel.component';
@@ -26,6 +27,7 @@ import { resolveUploadUrl } from '../../../core/utils/upload-url.util';
   standalone: true,
   imports: [
     MatProgressSpinnerModule,
+    AppBrandLoaderComponent,
     WizardStepperComponent,
     WizardSummaryPanelComponent,
     WizardFooterComponent,

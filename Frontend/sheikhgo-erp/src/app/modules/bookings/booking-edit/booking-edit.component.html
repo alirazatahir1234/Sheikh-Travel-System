@@ -5,7 +5,7 @@
   </button>
 </div>
 
-<div *ngIf="loading" class="loading"><mat-spinner diameter="32"></mat-spinner></div>
+<app-brand-loader *ngIf="loading" />
 
 <mat-card *ngIf="!loading" class="form-card">
   <div *ngIf="editBlocked" class="edit-notice edit-notice-danger" role="alert">

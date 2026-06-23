@@ -6,8 +6,7 @@
 <mat-card class="form-card">
   <mat-card-content>
     <div class="panel-loading" *ngIf="loadingDriver">
-      <mat-spinner diameter="40"></mat-spinner>
-      <span>Loading driver…</span>
+      <app-brand-loader size="lg" message="Loading driver…" />
     </div>
     <form [formGroup]="form" (ngSubmit)="submit()" [class.dimmed]="loadingDriver && isEdit">
       <div class="form-grid">

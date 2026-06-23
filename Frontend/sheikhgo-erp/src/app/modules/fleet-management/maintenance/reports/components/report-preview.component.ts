@@ -2,17 +2,18 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 import { CurrencyPipe } from '@angular/common';
 import { MaintenanceReport } from '../../../../../core/models/maintenance.model';
 import { formatFieldValue } from '../utils/report-column.util';
+import { AppBrandLoaderComponent } from '../../../../../shared/components/app-brand-loader/app-brand-loader.component';
 
 @Component({
   selector: 'report-preview',
   standalone: true,
-  imports: [CurrencyPipe],
+  imports: [CurrencyPipe, AppBrandLoaderComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (!hasPreview()) {
       <div class="empty">Select a report and click Preview to load data.</div>
     } @else if (loading()) {
-      <p class="loading">Loading report…</p>
+      <app-brand-loader message="Loading report…" />
     } @else if (report()) {
       <div class="preview">
         <header class="preview-head">
