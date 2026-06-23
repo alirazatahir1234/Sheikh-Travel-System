@@ -11,7 +11,7 @@ services:
 
   admin:
     build:
-      context: ./Frontend/sheikh-travel-control-center
+      context: ./Frontend/sheikhgo-erp
       dockerfile: Dockerfile
     container_name: sheikh-admin
     ports:

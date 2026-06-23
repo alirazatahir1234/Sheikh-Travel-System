@@ -1,0 +1,62 @@
+<div class="auth-form-side">
+  <article class="auth-card">
+    <div class="card-logo">
+      <img [src]="logoPath" [alt]="productName + ' logo'" />
+    </div>
+
+    <header class="ac-head">
+      <h2>Welcome back</h2>
+      <p>Sign in to SheikhGo ERP</p>
+    </header>
+
+    <form [formGroup]="form" (ngSubmit)="onSubmit()" class="ac-form">
+      <div class="stb-field auth-field">
+        <label for="login-email">Email address</label>
+        <input id="login-email" class="stb-input auth-input" type="email"
+               formControlName="email" autocomplete="username"
+               placeholder="you@company.com" />
+        <span class="stb-error auth-error" *ngIf="form.get('email')?.hasError('required') && form.get('email')?.touched">Email is required</span>
+        <span class="stb-error auth-error" *ngIf="form.get('email')?.hasError('email') && form.get('email')?.touched">Enter a valid email address</span>
+      </div>
+
+      <div class="stb-field auth-field">
+        <label for="login-password">Password</label>
+        <div class="stb-input-wrap stb-input-wrap--suffix">
+          <input id="login-password" class="stb-input auth-input" formControlName="password"
+                 [type]="hidePassword ? 'password' : 'text'"
+                 autocomplete="current-password" placeholder="Enter your password" />
+          <button type="button" class="stb-input-suffix-btn auth-suffix-btn"
+                  (click)="togglePassword()"
+                  [attr.aria-label]="hidePassword ? 'Show password' : 'Hide password'">
+            <mat-icon>{{ hidePassword ? 'visibility_off' : 'visibility' }}</mat-icon>
+          </button>
+        </div>
+        <span class="stb-error auth-error" *ngIf="form.get('password')?.hasError('required') && form.get('password')?.touched">Password is required</span>
+      </div>
+
+      <div class="ac-row">
+        <mat-checkbox
+          [ngModel]="rememberMe"
+          (ngModelChange)="rememberMeChange.emit($event)"
+          [ngModelOptions]="{ standalone: true }"
+        >
+          Remember me
+        </mat-checkbox>
+        <button type="button" class="ac-link" (click)="forgotPasswordClick.emit()">Forgot password?</button>
+      </div>
+
+      <button mat-flat-button type="submit" class="full-width ac-submit" [disabled]="loading || form.invalid">
+        <mat-spinner *ngIf="loading" diameter="20" class="ac-spinner"></mat-spinner>
+        <span *ngIf="!loading" class="submit-label">
+          <span>Sign in</span>
+          <mat-icon>arrow_forward</mat-icon>
+        </span>
+      </button>
+
+      <p class="ac-help">
+        Need help?
+        <button type="button" class="ac-link" (click)="forgotPasswordClick.emit()">Contact your administrator.</button>
+      </p>
+    </form>
+  </article>
+</div>

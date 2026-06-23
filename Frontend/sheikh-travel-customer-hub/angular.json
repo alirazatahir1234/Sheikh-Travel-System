@@ -55,7 +55,7 @@
               },
               {
                 "glob": "**/*",
-                "input": "../sheikh-travel-control-center/public/brand",
+                "input": "../sheikhgo-erp/public/brand",
                 "output": "/brand"
               }
             ],
@@ -135,7 +135,7 @@
               },
               {
                 "glob": "**/*",
-                "input": "../sheikh-travel-control-center/public/brand",
+                "input": "../sheikhgo-erp/public/brand",
                 "output": "/brand"
               }
             ],

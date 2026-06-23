@@ -27,7 +27,7 @@ class AuthApiClient {
 
   final Dio _dio;
 
-  /// Same contract as Sheikh Travel Control Center: POST /api/auth/login
+  /// Same contract as SheikhGo ERP: POST /api/auth/login
   Future<AuthSession> login({
     required String emailOrPhone,
     required String password,

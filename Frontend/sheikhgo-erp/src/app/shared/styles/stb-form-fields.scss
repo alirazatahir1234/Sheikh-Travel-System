@@ -1,0 +1,327 @@
+/* ======================================================================
+   SheikhGo ERP – unified text fields & filter toolbars
+   ====================================================================== */
+
+/* --- Outline fields (app-wide) --- */
+.mat-mdc-form-field.mat-form-field-appearance-outline {
+  .mat-mdc-text-field-wrapper {
+    border-radius: 8px;
+    background: var(--stb-surface);
+  }
+
+  .mdc-notched-outline__leading,
+  .mdc-notched-outline__notch,
+  .mdc-notched-outline__trailing {
+    border-color: var(--stb-border) !important;
+  }
+
+  &.mat-focused {
+    .mdc-notched-outline__leading,
+    .mdc-notched-outline__notch,
+    .mdc-notched-outline__trailing {
+      border-color: var(--stb-primary) !important;
+    }
+  }
+
+  &:not(.mat-form-field-type-mat-select) .mat-mdc-form-field-infix {
+    min-width: 0;
+  }
+}
+
+/* Remove inner line / notch artifacts on Material selects */
+.mat-mdc-form-field-type-mat-select.mat-form-field-appearance-outline {
+  .mat-mdc-form-field-infix {
+    min-width: 64px;
+    border: none;
+    padding-left: 0;
+  }
+
+  .mat-mdc-select-value,
+  .mat-mdc-select-value-text {
+    padding-left: 0;
+  }
+
+  .mat-mdc-select-arrow-wrapper {
+    border: none;
+  }
+
+  /* Vertical divider inside the field (notch side borders) */
+  .mdc-notched-outline__notch {
+    border-left: none !important;
+    border-right: none !important;
+  }
+
+  .mat-mdc-select-min-line {
+    display: none;
+  }
+}
+
+/* --- Plain text input (no Material wrapper) --- */
+.stb-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+
+  label {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--stb-text-muted);
+  }
+}
+
+.stb-input {
+  display: block;
+  width: 100%;
+  height: 44px;
+  padding: 0 14px;
+
+  &[type='date'],
+  &[type='datetime-local'],
+  &[type='time'] {
+    min-width: 148px;
+    color-scheme: light;
+  }
+  border: 1px solid var(--stb-border);
+  border-radius: 8px;
+  font: inherit;
+  color: var(--stb-text);
+  background: var(--stb-surface);
+  box-sizing: border-box;
+
+  &::placeholder {
+    color: var(--stb-text-soft);
+  }
+
+  &:focus {
+    outline: none;
+    border-color: var(--stb-primary);
+    box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.12);
+  }
+
+  &:disabled {
+    background: var(--stb-surface-alt);
+    color: var(--stb-text-muted);
+    cursor: not-allowed;
+  }
+}
+
+.stb-select {
+  display: block;
+  width: 100%;
+  height: 44px;
+  padding: 0 36px 0 14px;
+  border: 1px solid var(--stb-border);
+  border-radius: 8px;
+  font: inherit;
+  color: var(--stb-text);
+  background-color: var(--stb-surface);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748B' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  box-sizing: border-box;
+  cursor: pointer;
+  appearance: none;
+
+  &:focus {
+    outline: none;
+    border-color: var(--stb-primary);
+    box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.12);
+  }
+
+  &:disabled {
+    background-color: var(--stb-surface-alt);
+    color: var(--stb-text-muted);
+    cursor: not-allowed;
+  }
+}
+
+.stb-field--search {
+  flex: 1 1 280px;
+  min-width: 240px;
+}
+
+.stb-field--filter {
+  flex: 0 0 auto;
+  min-width: 148px;
+
+  &.stb-field--filter-narrow {
+    min-width: 120px;
+  }
+
+  &.stb-field--filter-wide {
+    min-width: 160px;
+  }
+}
+
+.stb-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+
+  .stb-input {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+.stb-hint {
+  font-size: 12px;
+  color: var(--stb-text-muted);
+  line-height: 1.4;
+}
+
+.stb-error {
+  font-size: 12px;
+  color: var(--stb-danger, #ef4444);
+  line-height: 1.4;
+}
+
+.stb-input-wrap--suffix {
+  position: relative;
+
+  .stb-input {
+    padding-right: 44px;
+  }
+
+  .stb-input-suffix-btn {
+    position: absolute;
+    right: 4px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--stb-text-muted);
+    cursor: pointer;
+
+    mat-icon {
+      font-size: 20px;
+      width: 20px;
+      height: 20px;
+    }
+
+    &:hover {
+      background: var(--stb-surface-alt);
+      color: var(--stb-text);
+    }
+  }
+}
+
+/* --- Form layouts --- */
+.form-grid,
+.filter-grid {
+  .stb-field {
+    width: 100%;
+    margin-bottom: 4px;
+  }
+
+  .mat-mdc-form-field {
+    width: 100%;
+    margin: 0;
+  }
+}
+
+/* Date pickers in filter bars — align with stb fields */
+.filter-row,
+.table-toolbar,
+.filter-toolbar,
+.filters,
+.filter-grid {
+  .mat-mdc-form-field-type-mat-input.mat-form-field-appearance-outline {
+    flex: 0 0 auto;
+    min-width: 160px;
+    max-width: 200px;
+  }
+}
+
+.inline-form {
+  .stb-field {
+    flex: 1 1 180px;
+    min-width: 160px;
+    max-width: 280px;
+  }
+
+  .mat-mdc-form-field {
+    flex: 1 1 180px;
+    min-width: 160px;
+    max-width: 280px;
+    margin: 0;
+  }
+}
+
+/* --- Flex filter bars (users, audit logs, tenants, …) --- */
+.filter-row,
+.table-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px;
+
+  .stb-field--search {
+    flex: 1 1 280px;
+    min-width: 240px;
+    width: auto;
+  }
+
+  .stb-field--filter {
+    @media (max-width: 640px) {
+      flex: 1 1 100%;
+      min-width: 100%;
+    }
+  }
+
+  .mat-mdc-form-field {
+    margin: 0;
+  }
+
+  .mat-mdc-form-field-subscript-wrapper {
+    display: none;
+  }
+
+  @media (max-width: 640px) {
+    flex-direction: column;
+    align-items: stretch;
+
+    .stb-field--search {
+      flex: 1 1 100%;
+      width: 100%;
+    }
+  }
+}
+
+/* --- Grid filter bars (customers, drivers, vehicles, routes) --- */
+.filter-toolbar,
+.filters,
+.filter-grid {
+  .stb-field {
+    width: 100%;
+  }
+
+  .stb-field--search {
+    min-width: 0;
+  }
+
+  .mat-mdc-form-field {
+    margin: 0;
+    width: 100%;
+  }
+
+  .mat-mdc-form-field-subscript-wrapper {
+    display: none;
+  }
+
+  .clear-btn,
+  .filter-actions {
+    align-self: flex-end;
+    margin-top: 0;
+    height: 44px;
+  }
+}

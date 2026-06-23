@@ -1,0 +1,106 @@
+<aside class="auth-brand">
+  <img
+    class="bg-photo"
+    src="/assets/login/world-map.png"
+    alt=""
+    aria-hidden="true"
+  />
+  <img class="world-map" src="/assets/login/world-map.png" alt="" aria-hidden="true" />
+  <div class="cinematic-overlay"></div>
+  <div class="depth-layer one"></div>
+  <div class="depth-layer two"></div>
+
+  <svg class="route-svg" viewBox="0 0 560 360" aria-hidden="true">
+    <path id="routePath" class="route-path" d="M40 70C130 130 185 270 280 205C380 136 430 50 520 145" />
+    <circle class="gps-point p1" cx="40" cy="70" r="7" />
+    <circle class="gps-point p2" cx="280" cy="205" r="7" />
+    <circle class="gps-point p3" cx="520" cy="145" r="7" />
+  </svg>
+
+  <div class="particles" aria-hidden="true">
+    <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+  </div>
+
+  <div class="brand-head">
+    <span class="brand-logo">
+      <img [src]="logoPath" [alt]="productShortName + ' logo'" />
+    </span>
+    <div class="brand-title-wrap">
+      <span class="brand-name">{{ productShortName }}</span>
+      <span class="brand-sub">Smart Travel. Smooth Operations.</span>
+    </div>
+  </div>
+
+  <div class="brand-copy">
+    <h1>Move smarter.<br />Travel <span>further.</span></h1>
+    <p>
+      One intelligent platform to manage your bookings, vehicles, drivers, routes and business operations
+      from anywhere.
+    </p>
+  </div>
+
+  <article class="live-card">
+    <div class="live-dot"></div>
+    <div>
+      <h4>Live Tracking</h4>
+      <p>42 Vehicles Online</p>
+    </div>
+    <div class="live-icon" aria-hidden="true">◉</div>
+  </article>
+
+  <div class="stats-grid">
+    <article class="stat-card">
+      <div class="stat-title">Active Vehicles</div>
+      <div class="stat-value">42</div>
+      <p class="stat-sub">Live on road</p>
+      <svg class="stat-graph" viewBox="0 0 120 36" aria-hidden="true">
+        <path d="M1 31C18 14 34 24 52 19C70 14 89 6 118 11" />
+      </svg>
+    </article>
+    <article class="stat-card">
+      <div class="stat-title">Trips Today</div>
+      <div class="stat-value">128</div>
+      <p class="stat-sub">+18% from yesterday</p>
+      <svg class="stat-graph" viewBox="0 0 120 36" aria-hidden="true">
+        <path d="M1 31C18 23 34 12 52 16C70 20 89 8 118 4" />
+      </svg>
+    </article>
+    <article class="stat-card">
+      <div class="stat-title">Revenue Today</div>
+      <div class="stat-value">PKR 24,300</div>
+      <p class="stat-sub">+12.5% from yesterday</p>
+      <svg class="stat-graph" viewBox="0 0 120 36" aria-hidden="true">
+        <path d="M1 30C20 24 32 28 52 18C72 8 90 10 118 5" />
+      </svg>
+    </article>
+    <article class="stat-card">
+      <div class="stat-title">Drivers Online</div>
+      <div class="stat-value">56</div>
+      <p class="stat-sub">Available now</p>
+      <svg class="stat-graph" viewBox="0 0 120 36" aria-hidden="true">
+        <path d="M1 31C18 18 37 22 52 14C68 7 94 11 118 7" />
+      </svg>
+    </article>
+  </div>
+
+  <div class="brand-vehicle">
+    <img class="scene-city" src="/assets/login/dubai-skyline.png" alt="Dubai skyline at night" />
+    <div class="scene-road"></div>
+  </div>
+
+  <div class="brand-security">
+    <div class="shield">🛡️</div>
+    <div>
+      <h4>Enterprise Grade Security</h4>
+      <p>Your data is protected with end-to-end encryption</p>
+    </div>
+  </div>
+
+  <div class="brand-foot">© {{ year }} {{ companyName }}</div>
+
+  <div class="brand-glow a"></div>
+  <div class="brand-glow b"></div>
+  <div class="brand-glow c"></div>
+  <div class="route-line one"></div>
+  <div class="route-line two"></div>
+</aside>

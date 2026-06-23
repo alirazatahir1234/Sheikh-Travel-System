@@ -1,0 +1,195 @@
+@import '@angular/material/prebuilt-themes/indigo-pink.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import 'app/shared/styles/stb-form-fields';
+@import 'app/features/organization-hierarchy/organization-hierarchy-overrides';
+@import 'leaflet/dist/leaflet.css';
+@import 'leaflet.markercluster/dist/MarkerCluster.css';
+@import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
+
+/* Tailwind preflight sets img { max-width: 100% } which breaks Leaflet tiles. */
+.leaflet-container img.leaflet-tile,
+.leaflet-container img.leaflet-marker-icon,
+.leaflet-container img.leaflet-marker-shadow {
+  max-width: none !important;
+  max-height: none !important;
+  padding: 0;
+}
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+/* ======================================================================
+   SheikhGo ERP – Design Tokens
+   ====================================================================== */
+:root {
+  /* Brand */
+  --stb-primary:        #0F766E;
+  --stb-primary-600:    #0D6B64;
+  --stb-primary-50:     #ECFDF5;
+  --stb-accent:         #4C6EF5;
+
+  /* Surfaces */
+  --stb-bg:             #F4F7FA;
+  --stb-section-bg:     #E8EEF4;
+  --stb-surface:        #FFFFFF;
+  --stb-surface-alt:    #F8FAFC;
+  --stb-border:         #D8E0EA;
+  --stb-border-strong:  #C5D0DE;
+
+  /* Text */
+  --stb-text:           #0F172A;
+  --stb-text-muted:     #64748B;
+  --stb-text-soft:      #94A3B8;
+
+  /* Status */
+  --stb-success:        #10B981;
+  --stb-warning:        #F59E0B;
+  --stb-danger:         #EF4444;
+  --stb-info:           #3B82F6;
+
+  /* Category palette (for chips / quick-launch tiles) */
+  --stb-cat-blue:       #4C6EF5;
+  --stb-cat-green:      #10B981;
+  --stb-cat-teal:       #14B8A6;
+  --stb-cat-purple:     #8B5CF6;
+  --stb-cat-orange:     #F97316;
+  --stb-cat-rose:       #F43F5E;
+  --stb-cat-amber:      #F59E0B;
+  --stb-cat-sky:        #0EA5E9;
+
+  /* Radii + shadows */
+  --stb-radius-sm:      10px;
+  --stb-radius:         16px;
+  --stb-radius-lg:      20px;
+  --stb-shadow-sm:      0 1px 2px rgba(15, 23, 42, 0.04);
+  --stb-shadow:         0 1px 2px rgba(15, 23, 42, 0.04), 0 8px 24px rgba(15, 23, 42, 0.06);
+  --stb-shadow-lg:      0 2px 4px rgba(15, 23, 42, 0.05), 0 12px 32px rgba(15, 23, 42, 0.1);
+  --stb-shadow-hover:   0 4px 12px rgba(15, 23, 42, 0.08), 0 16px 40px rgba(15, 118, 110, 0.12);
+  --stb-glass:          rgba(255, 255, 255, 0.88);
+
+  /* Layout */
+  --stb-sidenav-w:      304px;
+  --stb-sidenav-rail-w: 72px;
+  /* At least this tall; content (two-line user chip) may expand slightly. */
+  --stb-topbar-h:       72px;
+
+  /* Fleet management (STCC) palette */
+  --fleet-primary:        #005f49;
+  --fleet-primary-dark:   #00513e;
+  --fleet-primary-soft:   rgba(0, 95, 73, 0.10);
+  --fleet-surface:        #f7f9ff;
+  --fleet-card:           #ffffff;
+  --fleet-surface-alt:    #ecf4ff;
+  --fleet-surface-muted:  #e6effa;
+  --fleet-border:         #dae3ee;
+  --fleet-error:          #ba1a1a;
+  --fleet-error-soft:     rgba(186, 26, 26, 0.10);
+  --fleet-secondary:      #535c86;
+  --fleet-secondary-soft: rgba(83, 92, 134, 0.12);
+  --fleet-text:           #141c24;
+  --fleet-text-muted:     #3e4944;
+  --fleet-sidebar-w:      304px;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: var(--stb-bg);
+  font-family: 'Inter', Roboto, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  color: var(--stb-text);
+  -webkit-font-smoothing: antialiased;
+}
+
+a { color: inherit; }
+
+/* ---------- Generic helpers reused across modules ---------- */
+.stb-card {
+  background: var(--stb-surface);
+  border-radius: var(--stb-radius);
+  box-shadow: var(--stb-shadow);
+  padding: 20px;
+}
+
+.stb-muted   { color: var(--stb-text-muted); }
+.stb-soft    { color: var(--stb-text-soft); }
+.stb-bold    { font-weight: 700; }
+
+.stb-section-title {
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin: 0 0 12px;
+  color: var(--stb-text);
+}
+
+.stb-elevated {
+  background: var(--stb-surface);
+  border: 1px solid var(--stb-border);
+  border-radius: var(--stb-radius);
+  box-shadow: var(--stb-shadow);
+  transition: box-shadow 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
+}
+
+.error-message {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  margin: 8px 0;
+  color: #c62828;
+  background: #ffebee;
+  border-radius: var(--stb-radius-sm);
+  font-size: 14px;
+
+  mat-icon { font-size: 20px; width: 20px; height: 20px; }
+}
+
+/* ---------- Accent palette helpers (used by shared UI widgets) ---------- */
+.stb-accent-blue   { color: var(--stb-cat-blue);   background: rgba(76, 110, 245, .12); }
+.stb-accent-green  { color: var(--stb-cat-green);  background: rgba(16, 185, 129, .12); }
+.stb-accent-teal   { color: var(--stb-cat-teal);   background: rgba(20, 184, 166, .12); }
+.stb-accent-purple { color: var(--stb-cat-purple); background: rgba(139, 92, 246, .12); }
+.stb-accent-orange { color: var(--stb-cat-orange); background: rgba(249, 115, 22, .12); }
+.stb-accent-rose   { color: var(--stb-cat-rose);   background: rgba(244, 63, 94,  .12); }
+.stb-accent-amber  { color: var(--stb-cat-amber);  background: rgba(245, 158, 11, .14); }
+.stb-accent-sky    { color: var(--stb-cat-sky);    background: rgba(14, 165, 233, .12); }
+
+.stb-accent-blue.is-solid,
+.stb-accent-green.is-solid,
+.stb-accent-teal.is-solid,
+.stb-accent-purple.is-solid,
+.stb-accent-orange.is-solid,
+.stb-accent-rose.is-solid,
+.stb-accent-amber.is-solid,
+.stb-accent-sky.is-solid { color: #fff; }
+.stb-accent-blue.is-solid   { background: var(--stb-cat-blue); }
+.stb-accent-green.is-solid  { background: var(--stb-cat-green); }
+.stb-accent-teal.is-solid   { background: var(--stb-cat-teal); }
+.stb-accent-purple.is-solid { background: var(--stb-cat-purple); }
+.stb-accent-orange.is-solid { background: var(--stb-cat-orange); }
+.stb-accent-rose.is-solid   { background: var(--stb-cat-rose); }
+.stb-accent-amber.is-solid  { background: var(--stb-cat-amber); }
+.stb-accent-sky.is-solid    { background: var(--stb-cat-sky); }
+
+/* ---------- Material density tweaks to match design ---------- */
+.mat-mdc-card {
+  border-radius: var(--stb-radius) !important;
+  box-shadow: var(--stb-shadow) !important;
+  background: var(--stb-surface) !important;
+}
+
+.mat-toolbar.mat-primary {
+  background: var(--stb-surface);
+  color: var(--stb-text);
+}
+
+/* Material list item active helper (used by shell) */
+.mat-mdc-list-item.active .mdc-list-item__content,
+.mat-mdc-list-item.active {
+  color: var(--stb-primary) !important;
+}

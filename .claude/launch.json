@@ -2,9 +2,9 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "Sheikh Travel Frontend",
+      "name": "SheikhGo ERP Frontend",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["start", "--prefix", "Frontend/sheikh-travel-control-center"],
+      "runtimeArgs": ["start", "--prefix", "Frontend/sheikhgo-erp"],
       "port": 4200
     }
   ]

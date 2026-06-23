@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>SheikhGo ERP</title>
+  <base href="/">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#113537">
+  <link rel="icon" type="image/png" href="brand/sheikhgo-logo.png">
+  <link rel="apple-touch-icon" href="brand/sheikhgo-logo.png">
+
+  <!-- Inter (used as the app's primary typeface) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Plus Jakarta Sans + Manrope (Fleet management UI typefaces) -->
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Material Icons (required by every <mat-icon>) -->
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
+  <style>
+    #app-initial-splash {
+      position: fixed;
+      inset: 0;
+      z-index: 10000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #113537;
+    }
+
+    #app-initial-splash img {
+      width: min(240px, 52vw);
+      height: auto;
+      object-fit: contain;
+    }
+  </style>
+</head>
+<body>
+  <div id="app-initial-splash" aria-hidden="true">
+    <img src="brand/sheikhgo-logo.png" alt="" />
+  </div>
+  <app-root></app-root>
+</body>
+</html>
