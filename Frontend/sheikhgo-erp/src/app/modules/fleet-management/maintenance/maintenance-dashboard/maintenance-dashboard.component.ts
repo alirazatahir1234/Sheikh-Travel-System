@@ -18,6 +18,7 @@ import {
   MaintenanceVehicleHealthComponent
 } from '../components/maintenance-health-widgets.component';
 import { WorkOrderDetailDrawerComponent } from '../work-orders/work-order-detail-drawer.component';
+import { AppBrandLoaderComponent } from '../../../../shared/components/app-brand-loader/app-brand-loader.component';
 import { apiErrorMessage } from '../../../../core/utils/api-error.util';
 
 @Component({
@@ -26,6 +27,7 @@ import { apiErrorMessage } from '../../../../core/utils/api-error.util';
   imports: [
     CommonModule,
     CurrencyPipe,
+    AppBrandLoaderComponent,
     MaintenanceKpiGridComponent,
     MaintenanceCostTrendComponent,
     MaintenanceQuickActionsComponent,

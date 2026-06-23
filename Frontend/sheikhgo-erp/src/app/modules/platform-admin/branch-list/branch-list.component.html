@@ -9,7 +9,7 @@
   </div>
 </div>
 
-<div *ngIf="loading" class="loading"><mat-spinner diameter="32"></mat-spinner></div>
+<app-brand-loader *ngIf="loading" />
 
 <mat-card *ngIf="!loading" class="table-card">
   <table mat-table [dataSource]="branches" class="admin-table">

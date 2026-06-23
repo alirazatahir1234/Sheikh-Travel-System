@@ -21,7 +21,7 @@
     </button>
   </header>
 
-  <div *ngIf="loading" class="loading"><mat-spinner diameter="36"></mat-spinner></div>
+  <app-brand-loader *ngIf="loading" />
 
   <form *ngIf="!loading" [formGroup]="form" (ngSubmit)="submit()" class="form-grid">
     <mat-card class="section-card">

@@ -22,6 +22,7 @@ import {
 } from './components/service-history-export-dialog.component';
 import { computeAvgIntervalDays, isAccidentService } from './utils/service-type.util';
 import { apiErrorMessage } from '../../../../core/utils/api-error.util';
+import { AppBrandLoaderComponent } from '../../../../shared/components/app-brand-loader/app-brand-loader.component';
 
 function defaultDateRange(): { from: string; to: string } {
   const to = new Date();
@@ -40,6 +41,7 @@ function defaultFilters(): ServiceHistoryFilterState {
   imports: [
     CommonModule,
     MatIconModule,
+    AppBrandLoaderComponent,
     VehicleHistoryProfileCardComponent,
     ServiceHistoryFiltersComponent,
     ServiceHistoryStatsComponent,

@@ -3,7 +3,7 @@
   <button mat-button routerLink="/bookings"><mat-icon>arrow_back</mat-icon> Back</button>
 </div>
 
-<div *ngIf="loadingData" class="loading"><mat-spinner diameter="36"></mat-spinner></div>
+<app-brand-loader *ngIf="loadingData" />
 <div *ngIf="error" class="error-message"><mat-icon>error</mat-icon> {{ error }}</div>
 
 <mat-stepper linear #stepper class="wizard-stepper" *ngIf="!loadingData && !error">

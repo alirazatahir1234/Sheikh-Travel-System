@@ -73,7 +73,7 @@
       <button mat-stroked-button (click)="applySmartFilter('highValue')">High Value (10k+)</button>
     </div>
 
-    <div *ngIf="loading" class="loading"><mat-spinner diameter="36"></mat-spinner></div>
+    <app-brand-loader *ngIf="loading" />
     <div *ngIf="error" class="error-message"><mat-icon>error</mat-icon> {{ error }}</div>
 
     <div class="table-wrap" *ngIf="!loading && !error">

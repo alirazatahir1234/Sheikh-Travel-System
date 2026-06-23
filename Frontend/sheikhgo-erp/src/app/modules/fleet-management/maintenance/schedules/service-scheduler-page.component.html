@@ -21,7 +21,7 @@
   </div>
 
   @if (loading() && view() === 'list') {
-    <p class="loading">Loading schedules…</p>
+    <app-brand-loader message="Loading schedules…" />
   } @else if (view() === 'list') {
     <schedule-list-view
       [schedules]="schedules()"

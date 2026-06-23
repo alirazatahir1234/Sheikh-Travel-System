@@ -72,7 +72,7 @@
 </mat-card>
 
 <!-- Loading -->
-<div *ngIf="loading" class="loading"><mat-spinner diameter="32"></mat-spinner></div>
+<app-brand-loader *ngIf="loading" />
 
 <!-- Table -->
 <mat-card *ngIf="!loading" class="table-card">

@@ -8,9 +8,7 @@
   </button>
 </fleet-page-header>
 
-<div class="inspection-loading" *ngIf="loading">
-  <mat-progress-spinner mode="indeterminate" diameter="32"></mat-progress-spinner>
-</div>
+<app-brand-loader *ngIf="loading" size="sm" />
 
 <div class="inspection-table-wrap" *ngIf="!loading && inspections.length">
   <table class="inspection-table">

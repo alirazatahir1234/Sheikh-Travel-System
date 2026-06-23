@@ -3,9 +3,7 @@
   <p>{{ category.description }}</p>
 </header>
 
-<div class="settings-page__loading" *ngIf="loading">
-  <mat-progress-spinner mode="indeterminate" diameter="36"></mat-progress-spinner>
-</div>
+<app-brand-loader *ngIf="loading" />
 
 <ng-container *ngIf="!loading && category">
   <app-dynamic-settings-form

@@ -324,7 +324,7 @@
         </label>
       </div>
 
-      <div *ngIf="loadingHistory" class="history-loading"><mat-spinner diameter="32"></mat-spinner></div>
+      <app-brand-loader *ngIf="loadingHistory" size="sm" />
       <div *ngIf="historyError" class="history-error"><mat-icon>error</mat-icon> {{ historyError }}</div>
 
       <ng-container *ngIf="showHistory && !loadingHistory && !historyError">

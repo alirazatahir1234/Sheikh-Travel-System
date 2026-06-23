@@ -31,7 +31,7 @@
   <mat-card>
     <mat-card-header><mat-card-title>Devices &amp; ignition</mat-card-title></mat-card-header>
     <mat-card-content>
-      <div *ngIf="loading" class="loading"><mat-spinner diameter="32"></mat-spinner></div>
+      <app-brand-loader *ngIf="loading" />
       <table mat-table [dataSource]="devices" class="full-width" *ngIf="!loading && devices.length">
         <ng-container matColumnDef="name">
           <th mat-header-cell *matHeaderCellDef>Device</th>

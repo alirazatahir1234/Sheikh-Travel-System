@@ -41,7 +41,7 @@
   <!-- ══ Tab 2: Vehicle Profit ══════════════════════════════════════════════ -->
   <mat-tab label="Vehicle Profit">
     <div class="tab-content">
-      <div *ngIf="loadingVehicleProfit" class="loading-row"><mat-spinner diameter="36"></mat-spinner></div>
+      <app-brand-loader *ngIf="loadingVehicleProfit" />
 
       <ng-container *ngIf="!loadingVehicleProfit">
         <div *ngIf="vehicleProfitRows.length === 0" class="empty-state">
@@ -108,7 +108,7 @@
   <!-- ══ Tab 3: Driver Performance ══════════════════════════════════════════ -->
   <mat-tab label="Driver Performance">
     <div class="tab-content">
-      <div *ngIf="loadingDrivers" class="loading-row"><mat-spinner diameter="36"></mat-spinner></div>
+      <app-brand-loader *ngIf="loadingDrivers" />
 
       <ng-container *ngIf="!loadingDrivers">
         <div *ngIf="driverRows.length === 0" class="empty-state">
@@ -172,7 +172,7 @@
   <!-- ══ Tab 4: Payment Report ══════════════════════════════════════════════ -->
   <mat-tab label="Payment Report">
     <div class="tab-content">
-      <div *ngIf="loadingPayments" class="loading-row"><mat-spinner diameter="36"></mat-spinner></div>
+      <app-brand-loader *ngIf="loadingPayments" />
 
       <ng-container *ngIf="!loadingPayments && paymentReport">
         <div class="export-row" *ngIf="paymentReport.recentPayments.length > 0">

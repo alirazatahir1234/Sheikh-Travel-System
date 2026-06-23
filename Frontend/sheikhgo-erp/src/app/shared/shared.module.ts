@@ -47,6 +47,7 @@ import {
 import { ConfirmDialogComponent } from './components/confirm-dialog/confirm-dialog.component';
 import { HelpDialogComponent } from './components/help-dialog/help-dialog.component';
 import { TenantPickerComponent } from './components/tenant-picker/tenant-picker.component';
+import { AppBrandLoaderComponent } from './components/app-brand-loader/app-brand-loader.component';
 
 const MATERIAL = [
   MatButtonModule, MatCardModule, MatFormFieldModule, MatInputModule,
@@ -73,7 +74,7 @@ const UI = [
 
 @NgModule({
   declarations: [...UI, ConfirmDialogComponent, HelpDialogComponent, TenantPickerComponent],
-  imports: [CommonModule, ReactiveFormsModule, FormsModule, RouterModule, ...MATERIAL],
+  imports: [CommonModule, ReactiveFormsModule, FormsModule, RouterModule, AppBrandLoaderComponent, ...MATERIAL],
   exports: [
     CommonModule, ReactiveFormsModule, FormsModule, RouterModule,
     ...MATERIAL,
@@ -81,6 +82,7 @@ const UI = [
     ConfirmDialogComponent,
     HelpDialogComponent,
     TenantPickerComponent,
+    AppBrandLoaderComponent,
   ]
 })
 export class SharedModule {}

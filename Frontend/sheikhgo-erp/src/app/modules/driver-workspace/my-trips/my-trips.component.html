@@ -11,7 +11,7 @@
   </header>
 
   <div class="driver-loading" *ngIf="loading">
-    <mat-spinner diameter="40"></mat-spinner>
+    <app-brand-loader size="lg" />
   </div>
 
   <div class="driver-empty" *ngIf="!loading && !trips.length">

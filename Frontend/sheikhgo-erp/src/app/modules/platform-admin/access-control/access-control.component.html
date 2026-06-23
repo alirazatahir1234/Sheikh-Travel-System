@@ -22,9 +22,7 @@
     </div>
   </header>
 
-  <div *ngIf="loading" class="loading">
-    <mat-spinner diameter="36"></mat-spinner>
-  </div>
+  <app-brand-loader *ngIf="loading" />
 
   <ng-container *ngIf="!loading">
     <div class="content-placeholder" *ngIf="!selectedTenant">
@@ -45,7 +43,7 @@
               </button>
             </div>
 
-            <div *ngIf="tabLoading" class="tab-loading"><mat-spinner diameter="32"></mat-spinner></div>
+            <app-brand-loader *ngIf="tabLoading" size="sm" />
 
             <table mat-table [dataSource]="users" class="admin-table" *ngIf="!tabLoading">
               <ng-container matColumnDef="name">
@@ -90,7 +88,7 @@
         <!-- Roles -->
         <mat-tab label="Roles">
           <div class="tab-content roles-tab">
-            <div *ngIf="tabLoading" class="tab-loading"><mat-spinner diameter="32"></mat-spinner></div>
+            <app-brand-loader *ngIf="tabLoading" size="sm" />
 
             <div class="roles-layout" *ngIf="!tabLoading">
               <div class="roles-main">
@@ -187,7 +185,7 @@
           <div class="tab-content">
             <p class="tab-desc">Permission catalog and which roles grant each permission for <strong>{{ selectedTenant.name }}</strong>.</p>
 
-            <div *ngIf="tabLoading" class="tab-loading"><mat-spinner diameter="32"></mat-spinner></div>
+            <app-brand-loader *ngIf="tabLoading" size="sm" />
 
             <div class="permissions-catalog" *ngIf="!tabLoading">
               <div class="perm-group" *ngFor="let group of permissionsByModule()">
@@ -210,7 +208,7 @@
           <div class="tab-content">
             <p class="tab-desc">Security policies for <strong>{{ selectedTenant.name }}</strong></p>
 
-            <div *ngIf="tabLoading" class="tab-loading"><mat-spinner diameter="32"></mat-spinner></div>
+            <app-brand-loader *ngIf="tabLoading" size="sm" />
 
             <form [formGroup]="securityForm" (ngSubmit)="saveSecuritySettings()" class="policies-form" *ngIf="!tabLoading">
               <div class="policy-grid">

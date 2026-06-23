@@ -89,7 +89,7 @@
           </mat-select>
         </mat-form-field>
         <p class="section-label">Select Modules</p>
-        <div *ngIf="loadingModules" class="module-loading"><mat-spinner diameter="28"></mat-spinner></div>
+        <div *ngIf="loadingModules" class="module-loading"><app-brand-loader size="sm" message="Loading modules…" /></div>
         <div class="module-cards" *ngIf="!loadingModules">
           <button type="button" class="module-card" *ngFor="let mod of modules"
             [class.selected]="isModuleSelected(mod.code)" (click)="toggleModule(mod.code)">

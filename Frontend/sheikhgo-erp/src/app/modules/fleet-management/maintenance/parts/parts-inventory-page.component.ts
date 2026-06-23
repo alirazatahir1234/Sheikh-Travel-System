@@ -13,6 +13,7 @@ import { PartFormDrawerComponent } from './components/part-form-drawer.component
 import { AddStockDrawerComponent } from './components/add-stock-drawer.component';
 import { IssuePartDrawerComponent } from './components/issue-part-drawer.component';
 import { TransferStockDrawerComponent } from './components/transfer-stock-drawer.component';
+import { AppBrandLoaderComponent } from '../../../../shared/components/app-brand-loader/app-brand-loader.component';
 import { apiErrorMessage } from '../../../../core/utils/api-error.util';
 
 @Component({
@@ -20,6 +21,7 @@ import { apiErrorMessage } from '../../../../core/utils/api-error.util';
   standalone: true,
   imports: [
     MatIconModule,
+    AppBrandLoaderComponent,
     PartsInventoryStatsComponent,
     PartsFiltersComponent,
     PartsAlertsComponent,

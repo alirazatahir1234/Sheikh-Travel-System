@@ -29,7 +29,7 @@
     </div>
 
     <div *ngIf="error" class="error-message"><mat-icon>error</mat-icon> {{ error }}</div>
-    <div *ngIf="loading" class="loading"><mat-spinner diameter="36"></mat-spinner></div>
+    <app-brand-loader *ngIf="loading" />
 
     <div class="table-wrap" *ngIf="!loading && trips.length">
       <table mat-table [dataSource]="trips" class="full-width">

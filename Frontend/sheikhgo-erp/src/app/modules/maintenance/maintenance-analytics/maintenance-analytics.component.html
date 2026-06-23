@@ -6,7 +6,7 @@
     </div>
     <div class="chart-body">
       <canvas #costCanvas height="160"></canvas>
-      <div class="chart-skeleton" *ngIf="loading"><mat-spinner diameter="28"></mat-spinner></div>
+      <div class="chart-skeleton" *ngIf="loading"><app-brand-loader size="sm" /></div>
     </div>
   </div>
 
@@ -17,7 +17,7 @@
     </div>
     <div class="chart-body chart-body--donut">
       <canvas #statusCanvas height="180"></canvas>
-      <div class="chart-skeleton" *ngIf="loading"><mat-spinner diameter="28"></mat-spinner></div>
+      <div class="chart-skeleton" *ngIf="loading"><app-brand-loader size="sm" /></div>
     </div>
   </div>
 
@@ -28,7 +28,7 @@
     </div>
     <div class="chart-body">
       <canvas #vehicleCanvas height="160"></canvas>
-      <div class="chart-skeleton" *ngIf="loading"><mat-spinner diameter="28"></mat-spinner></div>
+      <div class="chart-skeleton" *ngIf="loading"><app-brand-loader size="sm" /></div>
     </div>
   </div>
 </section>

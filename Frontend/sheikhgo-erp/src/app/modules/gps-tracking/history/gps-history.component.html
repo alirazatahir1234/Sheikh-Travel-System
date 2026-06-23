@@ -25,7 +25,7 @@
     </div>
 
     <div *ngIf="error" class="error-message"><mat-icon>error</mat-icon> {{ error }}</div>
-    <div *ngIf="loading" class="loading"><mat-spinner diameter="36"></mat-spinner></div>
+    <app-brand-loader *ngIf="loading" />
 
     <p *ngIf="!loading && !error" class="meta">Showing {{ rows.length }} points</p>
 

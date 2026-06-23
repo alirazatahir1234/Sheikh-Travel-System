@@ -19,9 +19,7 @@
     </div>
   </header>
 
-  <div *ngIf="loading" class="loading">
-    <mat-spinner diameter="36"></mat-spinner>
-  </div>
+  <app-brand-loader *ngIf="loading" />
 
   <ng-container *ngIf="!loading">
     <div class="content-placeholder" *ngIf="!organizationTree">

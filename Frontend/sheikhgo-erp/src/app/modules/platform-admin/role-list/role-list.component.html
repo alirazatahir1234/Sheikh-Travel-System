@@ -21,7 +21,7 @@
   </div>
 </mat-card>
 
-<div *ngIf="loading" class="loading"><mat-spinner diameter="32"></mat-spinner></div>
+<app-brand-loader *ngIf="loading" />
 
 <div *ngIf="!loading" class="role-layout">
   <mat-card class="table-card">

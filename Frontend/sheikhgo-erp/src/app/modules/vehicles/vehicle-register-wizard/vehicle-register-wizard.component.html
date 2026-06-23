@@ -15,9 +15,7 @@
   </header>
 
   @if (facade.loading()) {
-    <div class="flex justify-center py-20">
-      <mat-spinner diameter="40"></mat-spinner>
-    </div>
+    <app-brand-loader size="lg" />
   } @else {
     <div class="grid gap-6 lg:grid-cols-[1fr_320px]">
       <main>
