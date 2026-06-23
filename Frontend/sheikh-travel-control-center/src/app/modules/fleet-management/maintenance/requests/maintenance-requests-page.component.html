@@ -4,7 +4,7 @@
       <h2>Service Requests</h2>
       <p>Review, approve, and convert driver maintenance requests</p>
     </div>
-    <button type="button" class="btn-new" (click)="showForm.set(!showForm())">
+    <button type="button" class="btn-new" (click)="showForm() ? closeForm() : showForm.set(true)">
       <mat-icon>{{ showForm() ? 'close' : 'add' }}</mat-icon>
       {{ showForm() ? 'Cancel' : 'New Request' }}
     </button>
@@ -20,8 +20,9 @@
     <request-create-form
       [vehicles]="vehicles()"
       [saving]="saving()"
+      [resetKey]="formResetKey()"
       (submit)="submit($event)"
-      (cancel)="showForm.set(false)">
+      (cancel)="closeForm()">
     </request-create-form>
   }
 

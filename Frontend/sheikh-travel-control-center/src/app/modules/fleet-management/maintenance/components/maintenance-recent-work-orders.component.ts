@@ -42,11 +42,11 @@ import { WorkOrderListItem, WorkOrderStatusLabels } from '../../../../core/model
     </div>
   `,
   styles: [`
-    .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 1.25rem; box-shadow: 0 1px 3px rgba(11,107,80,.06); }
-    .card-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+    .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 1.25rem; box-shadow: 0 1px 3px rgba(11,107,80,.06); min-width: 0; }
+    .card-head { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap; }
     h3 { margin: 0; font-size: 1rem; font-weight: 700; color: #0b6b50; }
-    a { font-size: 0.75rem; font-weight: 700; color: #0b6b50; text-decoration: none; }
-    .table-wrap { overflow-x: auto; }
+    a { font-size: 0.75rem; font-weight: 700; color: #0b6b50; text-decoration: none; white-space: nowrap; }
+    .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
     table { width: 100%; border-collapse: collapse; font-size: 0.8125rem; min-width: 640px; }
     th { text-align: left; color: #64748b; font-weight: 600; padding: 0.5rem; border-bottom: 1px solid #e2e8f0; white-space: nowrap; }
     td { padding: 0.625rem 0.5rem; border-bottom: 1px solid #f1f5f9; }
@@ -63,6 +63,9 @@ import { WorkOrderListItem, WorkOrderStatusLabels } from '../../../../core/model
     .prio--high { color: #f59e0b; }
     .prio--medium { color: #0b6b50; }
     .prio--low { color: #64748b; }
+    @media (max-width: 640px) {
+      .card { padding: 1rem; }
+    }
   `]
 })
 export class MaintenanceRecentWorkOrdersComponent {

@@ -16,7 +16,7 @@ import { UiChartComponent } from '../../../../shared/components/ui';
   </div>
   `,
   styles: [`
-    .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 1.25rem; }
+    .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 1.25rem; min-width: 0; }
     h3 { margin: 0 0 0.75rem; font-size: 1rem; font-weight: 700; }
   `]
 })
@@ -46,6 +46,7 @@ export class MaintenanceVehicleHealthComponent {
         <h3>Upcoming Services</h3>
         <a routerLink="/fleet/maintenance/schedules" class="link">View scheduler →</a>
       </div>
+      <div class="table-wrap">
       <table>
         <thead><tr><th>Vehicle</th><th>Service</th><th>Due</th><th>Priority</th></tr></thead>
         <tbody>
@@ -69,18 +70,23 @@ export class MaintenanceVehicleHealthComponent {
           }
         </tbody>
       </table>
+      </div>
     </div>
   `,
   styles: [`
-    .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 1.25rem; }
-    .card__head { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.75rem; }
+    .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 1.25rem; min-width: 0; }
+    .card__head { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.75rem; flex-wrap: wrap; }
     h3 { margin: 0; font-size: 1rem; font-weight: 700; }
     .link { font-size: 0.8125rem; font-weight: 600; color: #0B6B50; text-decoration: none; }
     .link:hover { text-decoration: underline; }
-    table { width: 100%; border-collapse: collapse; font-size: 0.8125rem; }
-    th { text-align: left; color: #64748b; padding: 0.375rem 0.5rem; border-bottom: 1px solid #e2e8f0; }
+    .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.8125rem; min-width: 480px; }
+    th { text-align: left; color: #64748b; padding: 0.375rem 0.5rem; border-bottom: 1px solid #e2e8f0; white-space: nowrap; }
     td { padding: 0.5rem; border-bottom: 1px solid #f1f5f9; }
     .empty { text-align: center; color: #94a3b8; }
+    @media (max-width: 640px) {
+      .card { padding: 1rem; }
+    }
   `]
 })
 export class MaintenanceUpcomingServicesComponent {

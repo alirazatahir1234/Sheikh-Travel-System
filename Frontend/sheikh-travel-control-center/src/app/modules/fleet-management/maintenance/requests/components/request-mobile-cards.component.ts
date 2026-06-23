@@ -16,7 +16,7 @@ import { MaintenanceRequest } from '../../../../../core/models/maintenance.model
             <span class="status status--{{ r.status.toLowerCase() }}">{{ r.status }}</span>
           </div>
           <p class="vehicle">{{ r.vehicleName }} @if (r.vehicleRegistration) { · {{ r.vehicleRegistration }} }</p>
-          <p class="meta">{{ r.issueCategory }} · {{ r.priority }} · {{ r.requestDate | date:'MMM d' }}</p>
+          <p class="meta">{{ r.issueCategory }} · {{ r.requestType }} · {{ r.priority }} · {{ r.requestDate | date:'MMM d' }}</p>
         </button>
       } @empty {
         <p class="empty">No requests found.</p>

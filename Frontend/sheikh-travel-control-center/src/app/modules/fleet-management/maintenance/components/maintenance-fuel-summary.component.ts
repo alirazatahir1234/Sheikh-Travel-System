@@ -28,10 +28,13 @@ import { UiChartComponent } from '../../../../shared/components/ui/chart/ui-char
     }
   `,
   styles: [`
-    .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 1.25rem; }
+    .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 1.25rem; min-width: 0; }
     h3 { margin: 0 0 1rem; font-size: 1rem; font-weight: 700; color: #0b6b50; }
     .sub { margin: 1rem 0 0.5rem; font-size: 0.75rem; font-weight: 600; color: #64748b; text-transform: uppercase; }
-    .row { display: flex; justify-content: space-between; font-size: 0.8125rem; padding: 0.375rem 0; border-bottom: 1px solid #f1f5f9; }
+    .row { display: flex; justify-content: space-between; font-size: 0.8125rem; padding: 0.375rem 0; border-bottom: 1px solid #f1f5f9; gap: 0.75rem; }
+    @media (max-width: 640px) {
+      .card { padding: 1rem; }
+    }
   `]
 })
 export class MaintenanceFuelSummaryComponent {

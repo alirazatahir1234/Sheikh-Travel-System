@@ -38,6 +38,7 @@ export interface MaintKpiCard {
       border: 1px solid #e2e8f0; border-radius: 14px; background: #fff;
       box-shadow: 0 1px 3px rgba(11, 107, 80, 0.06);
       transition: box-shadow .15s ease;
+      min-width: 0;
     }
     .kpi-card:hover { box-shadow: 0 4px 12px rgba(11, 107, 80, 0.1); }
     .kpi-card--alert { border-color: #fecaca; background: #fef2f2; }
@@ -52,9 +53,20 @@ export interface MaintKpiCard {
     .kpi-icon--blue { background: #dbeafe; color: #1d4ed8; }
     .kpi-icon--teal { background: #ccfbf1; color: #0f766e; }
     .kpi-icon--slate { background: #f1f5f9; color: #475569; }
+    .kpi-body { min-width: 0; }
     .kpi-label { margin: 0; font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: #64748b; }
     .kpi-value { margin: 0.25rem 0 0; font-size: 1.5rem; font-weight: 800; color: #0b6b50; line-height: 1.1; }
     .kpi-card--alert .kpi-value { color: #dc2626; }
+    @media (max-width: 640px) {
+      .kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.625rem; }
+      .kpi-card { padding: 0.875rem; gap: 0.625rem; }
+      .kpi-icon { width: 36px; height: 36px; }
+      .kpi-icon mat-icon { font-size: 18px; width: 18px; height: 18px; }
+      .kpi-value { font-size: 1.25rem; }
+    }
+    @media (max-width: 400px) {
+      .kpi-grid { grid-template-columns: 1fr; }
+    }
   `]
 })
 export class MaintenanceKpiGridComponent {
