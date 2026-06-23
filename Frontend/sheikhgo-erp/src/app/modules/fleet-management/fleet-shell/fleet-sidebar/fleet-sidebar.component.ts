@@ -17,6 +17,7 @@ import { FLEET_NAV_FOOTER, FLEET_NAV_GROUPS, FleetNavLink } from '../fleet-nav.c
           <div class="fleet-brand__logo">
             <img [src]="appLogoPath" [alt]="appProductName" />
           </div>
+          <span class="fleet-brand__label">{{ appProductName }}</span>
         </a>
       </div>
 
@@ -68,7 +69,9 @@ import { FLEET_NAV_FOOTER, FLEET_NAV_GROUPS, FleetNavLink } from '../fleet-nav.c
     .hide-scrollbar::-webkit-scrollbar { display: none; }
 
     .fleet-brand {
-      display: block;
+      display: flex;
+      align-items: center;
+      gap: 10px;
       border-radius: 12px;
       padding: 8px;
       text-decoration: none;
@@ -95,6 +98,15 @@ import { FLEET_NAV_FOOTER, FLEET_NAV_GROUPS, FleetNavLink } from '../fleet-nav.c
       object-fit: contain;
       object-position: center;
       display: block;
+    }
+
+    .fleet-brand__label {
+      min-width: 0;
+      font-size: 0.92rem;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      line-height: 1.25;
+      color: var(--fleet-text);
     }
 
     .fleet-nav-link {
