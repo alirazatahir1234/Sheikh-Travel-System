@@ -1,4 +1,5 @@
 using Dapper;
+using FluentValidation;
 using MediatR;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Exceptions;
@@ -14,6 +15,37 @@ public record UpdateMaintenanceRequestCommand(int Id, UpdateMaintenanceRequestDt
 
 public record ConvertMaintenanceRequestCommand(int Id, ConvertRequestToWorkOrderDto Body)
     : IRequest<ApiResponse<int>>;
+
+public class CreateMaintenanceRequestCommandValidator : AbstractValidator<CreateMaintenanceRequestCommand>
+{
+    public CreateMaintenanceRequestCommandValidator()
+    {
+        RuleFor(x => x.Body.VehicleId).GreaterThan(0).WithMessage("Vehicle is required.");
+
+        RuleFor(x => x.Body.Description)
+            .Must(d => !string.IsNullOrWhiteSpace(d))
+            .WithMessage("Description is required.")
+            .Must(d => d!.Trim().Length >= MaintenanceRequestValidation.DescriptionMinLength)
+            .WithMessage($"Description must be at least {MaintenanceRequestValidation.DescriptionMinLength} characters.")
+            .Must(d => d!.Trim().Length <= MaintenanceRequestValidation.DescriptionMaxLength)
+            .WithMessage($"Description cannot exceed {MaintenanceRequestValidation.DescriptionMaxLength} characters.");
+
+        RuleFor(x => x.Body.Priority)
+            .NotEmpty().WithMessage("Priority is required.")
+            .Must(MaintenanceRequestValidation.IsValidPriority)
+            .WithMessage("Priority is invalid.");
+
+        RuleFor(x => x.Body.RequestType)
+            .NotEmpty().WithMessage("Type is required.")
+            .Must(MaintenanceRequestValidation.IsValidRequestType)
+            .WithMessage("Request type is invalid.");
+
+        RuleFor(x => x.Body.IssueCategory)
+            .NotEmpty().WithMessage("Category is required.")
+            .Must(MaintenanceRequestValidation.IsValidIssueCategory)
+            .WithMessage("Issue category is invalid.");
+    }
+}
 
 public class CreateMaintenanceRequestCommandHandler(
     IDbConnectionFactory dbFactory,

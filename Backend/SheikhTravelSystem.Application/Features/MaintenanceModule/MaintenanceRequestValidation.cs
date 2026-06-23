@@ -2,6 +2,29 @@ namespace SheikhTravelSystem.Application.Features.MaintenanceModule;
 
 public static class MaintenanceRequestValidation
 {
+    public static readonly string[] AllowedPriorities = ["Low", "Medium", "High", "Critical"];
+    public static readonly string[] AllowedRequestTypes = ["Corrective", "Preventive", "Breakdown"];
+    public static readonly string[] AllowedIssueCategories =
+    [
+        "Engine", "Transmission", "Brake", "Tire", "Electrical", "Battery",
+        "AC", "Body Damage", "Inspection", "Oil Change", "Breakdown", "Other"
+    ];
+
+    public const int DescriptionMinLength = 10;
+    public const int DescriptionMaxLength = 2000;
+
+    public static bool IsValidPriority(string? value) =>
+        !string.IsNullOrWhiteSpace(value) &&
+        AllowedPriorities.Contains(value.Trim(), StringComparer.OrdinalIgnoreCase);
+
+    public static bool IsValidRequestType(string? value) =>
+        !string.IsNullOrWhiteSpace(value) &&
+        AllowedRequestTypes.Contains(value.Trim(), StringComparer.OrdinalIgnoreCase);
+
+    public static bool IsValidIssueCategory(string? value) =>
+        !string.IsNullOrWhiteSpace(value) &&
+        AllowedIssueCategories.Contains(value.Trim(), StringComparer.OrdinalIgnoreCase);
+
     private static readonly HashSet<string> TerminalStatuses = new(StringComparer.OrdinalIgnoreCase)
     {
         "Rejected", "Converted", "Cancelled"

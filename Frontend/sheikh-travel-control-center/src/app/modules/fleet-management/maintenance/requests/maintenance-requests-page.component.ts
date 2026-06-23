@@ -47,6 +47,7 @@ export class MaintenanceRequestsPageComponent implements OnInit {
   readonly vehicles = signal<VehicleListItem[]>([]);
   readonly statusFilter = signal('');
   readonly showForm = signal(false);
+  readonly formResetKey = signal(0);
   readonly saving = signal(false);
   readonly selectedId = signal<number | null>(null);
 
@@ -101,10 +102,14 @@ export class MaintenanceRequestsPageComponent implements OnInit {
 
   submit(form: CreateMaintenanceRequestPayload): void {
     this.saving.set(true);
-    this.maintenanceService.createRequest(form).subscribe({
+    this.maintenanceService.createRequest({
+      ...form,
+      description: form.description.trim()
+    }).subscribe({
       next: () => {
         this.saving.set(false);
         this.showForm.set(false);
+        this.formResetKey.update(k => k + 1);
         this.load();
         this.loadStats();
         this.toast.success('Request created');
@@ -114,5 +119,10 @@ export class MaintenanceRequestsPageComponent implements OnInit {
         this.toast.error(apiErrorMessage(err, 'Failed to create request'));
       }
     });
+  }
+
+  closeForm(): void {
+    this.showForm.set(false);
+    this.formResetKey.update(k => k + 1);
   }
 }
