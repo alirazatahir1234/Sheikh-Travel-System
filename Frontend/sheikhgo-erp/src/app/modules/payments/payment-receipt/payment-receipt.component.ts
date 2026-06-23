@@ -2,7 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { PaymentService } from '../../../core/services/payment.service';
 import { PaymentDetail } from '../../../core/models/payment.model';
-import { COMPANY_NAME } from '../../../core/constants/app-brand';
+import { COMPANY_NAME, APP_LOGO_PATH } from '../../../core/constants/app-brand';
 
 @Component({
   selector: 'app-payment-receipt',
@@ -11,6 +11,7 @@ import { COMPANY_NAME } from '../../../core/constants/app-brand';
 })
 export class PaymentReceiptComponent implements OnInit {
   readonly companyName = COMPANY_NAME;
+  readonly logoPath = APP_LOGO_PATH;
   payment: PaymentDetail | null = null;
   loading = true;
   error: string | null = null;

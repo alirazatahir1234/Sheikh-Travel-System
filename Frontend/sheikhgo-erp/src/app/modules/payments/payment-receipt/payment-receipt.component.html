@@ -13,7 +13,7 @@
 <div class="receipt" *ngIf="payment && !loading">
   <div class="receipt-header">
     <div class="company-logo">
-      <img class="logo-image" src="/brand/sheikh-logo.png" [alt]="companyName + ' logo'" />
+      <img class="logo-image" [src]="logoPath" [alt]="companyName + ' logo'" />
     </div>
     <div class="company-info">
       <h1 class="company-name">{{ companyName }}</h1>

@@ -1,5 +1,5 @@
 import { Component, Input } from '@angular/core';
-import { APP_PRODUCT_SHORT_NAME, COMPANY_NAME } from '../../../../../core/constants/app-brand';
+import { APP_PRODUCT_SHORT_NAME, APP_LOGO_PATH, COMPANY_NAME } from '../../../../../core/constants/app-brand';
 
 @Component({
   selector: 'app-login-hero',
@@ -10,4 +10,5 @@ export class LoginHeroComponent {
   @Input() year = new Date().getFullYear();
   readonly productShortName = APP_PRODUCT_SHORT_NAME;
   readonly companyName = COMPANY_NAME;
+  readonly logoPath = APP_LOGO_PATH;
 }

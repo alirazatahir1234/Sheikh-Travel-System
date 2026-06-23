@@ -1,5 +1,5 @@
 import { Injectable, signal, computed } from '@angular/core';
-import { COMPANY_NAME } from '../../../core/constants/app-brand';
+import { COMPANY_NAME, APP_LOGO_PATH } from '../../../core/constants/app-brand';
 import {
   Tenant,
   Branch,
@@ -23,7 +23,7 @@ export class MockDataService {
     id: 1,
     name: COMPANY_NAME,
     code: 'ST-001',
-    logo: '/assets/logos/sheikh-travel.png',
+    logo: APP_LOGO_PATH,
     isActive: true,
   });
 

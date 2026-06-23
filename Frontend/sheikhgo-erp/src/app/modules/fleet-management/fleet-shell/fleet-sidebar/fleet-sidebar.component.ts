@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, output } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
-import { APP_PRODUCT_NAME } from '../../../../core/constants/app-brand';
+import { APP_PRODUCT_NAME, APP_LOGO_PATH } from '../../../../core/constants/app-brand';
 import { FLEET_NAV_FOOTER, FLEET_NAV_GROUPS, FleetNavLink } from '../fleet-nav.config';
 
 @Component({
@@ -15,7 +15,7 @@ import { FLEET_NAV_FOOTER, FLEET_NAV_GROUPS, FleetNavLink } from '../fleet-nav.c
       <div class="mb-8 px-6">
         <a routerLink="/dashboard" class="fleet-brand" [attr.aria-label]="appProductName">
           <div class="fleet-brand__logo">
-            <img src="/brand/sts-login-logo.png" [alt]="appProductName" />
+            <img [src]="appLogoPath" [alt]="appProductName" />
           </div>
         </a>
       </div>
@@ -81,18 +81,19 @@ import { FLEET_NAV_FOOTER, FLEET_NAV_GROUPS, FleetNavLink } from '../fleet-nav.c
       width: 52px;
       height: 52px;
       border-radius: 13px;
-      background: linear-gradient(155deg, rgba(27, 127, 117, 0.14) 0%, rgba(255, 255, 255, 0.92) 48%, rgba(240, 253, 250, 0.98) 100%);
-      border: 1px solid rgba(27, 127, 117, 0.22);
+      background: #113537;
+      border: 1px solid rgba(17, 129, 119, 0.35);
       display: flex;
       align-items: center;
       justify-content: center;
-      box-shadow: 0 1px 2px rgba(2, 6, 23, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.75);
+      box-shadow: 0 1px 2px rgba(2, 6, 23, 0.08);
       overflow: hidden;
     }
     .fleet-brand__logo img {
-      width: 82%;
-      height: 82%;
+      width: 100%;
+      height: 100%;
       object-fit: contain;
+      object-position: center;
       display: block;
     }
 
@@ -121,6 +122,7 @@ import { FLEET_NAV_FOOTER, FLEET_NAV_GROUPS, FleetNavLink } from '../fleet-nav.c
 })
 export class FleetSidebarComponent {
   readonly appProductName = APP_PRODUCT_NAME;
+  readonly appLogoPath = APP_LOGO_PATH;
   readonly navigate = output<void>();
 
   protected readonly groups = FLEET_NAV_GROUPS;
