@@ -8,6 +8,7 @@ import { AppComponent } from './app.component';
 import { LayoutModule } from './layout/layout.module';
 import { AuthInterceptor } from './core/interceptors/auth.interceptor';
 import { ApiEnvelopeInterceptor } from './core/interceptors/api-envelope.interceptor';
+import { AppSplashComponent } from './shared/components/app-splash/app-splash.component';
 
 @NgModule({
   declarations: [AppComponent],
@@ -16,7 +17,8 @@ import { ApiEnvelopeInterceptor } from './core/interceptors/api-envelope.interce
     BrowserAnimationsModule,
     HttpClientModule,
     AppRoutingModule,
-    LayoutModule
+    LayoutModule,
+    AppSplashComponent
   ],
   providers: [
     { provide: HTTP_INTERCEPTORS, useClass: AuthInterceptor, multi: true },
