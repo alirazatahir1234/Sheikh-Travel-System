@@ -29,7 +29,15 @@
       </button>
     </div>
 
-    <nav class="stb-rail-nav" *ngIf="menu$ | async as menu">
+    <div class="stb-nav-skeleton" *ngIf="menuLoading" aria-busy="true" aria-label="Loading navigation">
+      <div class="stb-nav-skeleton-row" *ngFor="let row of skeletonNavRows">
+        <span class="stb-nav-skeleton-icon"></span>
+        <span class="stb-nav-skeleton-label" *ngIf="sidebarExpanded"></span>
+      </div>
+    </div>
+
+    <ng-container *ngIf="!menuLoading && menu as menu">
+    <nav class="stb-rail-nav">
       <!-- Driver flat nav -->
       <ng-container *ngIf="menu.isDriverLayout; else moduleNav">
         <a *ngFor="let item of menu.standaloneItems; trackBy: trackById"
@@ -102,6 +110,7 @@
         </ng-container>
       </ng-template>
     </nav>
+    </ng-container>
 
     <div class="stb-rail-foot"></div>
   </aside>
@@ -229,7 +238,7 @@
       </div>
     </header>
 
-    <main class="stb-content">
+    <main class="stb-content" #mainContent>
       <router-outlet></router-outlet>
     </main>
   </section>

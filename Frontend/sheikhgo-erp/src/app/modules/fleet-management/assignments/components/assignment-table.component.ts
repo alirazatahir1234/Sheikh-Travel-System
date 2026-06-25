@@ -98,52 +98,298 @@ import {
       </table>
     </div>
 
-    <!-- Mobile cards -->
     <div class="card-list">
-      @for (row of rows(); track row.id) {
-        <article class="assignment-card" (click)="view.emit(row)">
-          <div class="card-head">
-            <strong>{{ row.assignmentNo }}</strong>
-            <span class="status-badge status-badge--{{ statusBadgeClass(effectiveStatus(row)) }}">{{ effectiveStatus(row) }}</span>
-          </div>
-          <p>{{ row.vehicleName }} · {{ row.driverName || 'No driver' }}</p>
-          <p class="card-meta">{{ row.startAt | date:'dd MMM yyyy' }} · GPS {{ row.gpsOnline ? 'Online' : 'Offline' }}</p>
-        </article>
+      @if (loading()) {
+        @for (i of [1, 2, 3]; track i) {
+          <div class="assignment-card assignment-card--skeleton"></div>
+        }
+      } @else if (!rows().length) {
+        <div class="empty empty--card">
+          <mat-icon>event_available</mat-icon>
+          <p>No assignments found</p>
+          <span>Adjust filters or create a new assignment.</span>
+        </div>
+      } @else {
+        @for (row of rows(); track row.id) {
+          <article class="assignment-card" (click)="view.emit(row)">
+            <div class="card-head">
+              <div class="card-head__left">
+                @if (selectable()) {
+                  <input type="checkbox" class="card-check"
+                    [checked]="selectedIds().has(row.id)"
+                    (click)="$event.stopPropagation()"
+                    (change)="toggleRow.emit(row.id)" />
+                }
+                <strong class="assignment-no">{{ row.assignmentNo }}</strong>
+              </div>
+              <span class="status-badge status-badge--{{ statusBadgeClass(effectiveStatus(row)) }}">
+                {{ effectiveStatus(row) }}
+              </span>
+            </div>
+
+            <dl class="card-meta">
+              <div>
+                <dt>Vehicle</dt>
+                <dd>{{ row.vehicleName }}</dd>
+              </div>
+              <div>
+                <dt>Driver</dt>
+                <dd>{{ row.driverName || 'Unassigned' }}</dd>
+              </div>
+              <div>
+                <dt>Type</dt>
+                <dd>{{ row.assignmentType }}</dd>
+              </div>
+              <div>
+                <dt>GPS</dt>
+                <dd>
+                  <span class="gps-pill" [class.gps-pill--online]="row.gpsOnline">
+                    {{ row.gpsOnline ? 'Online' : 'Offline' }}
+                  </span>
+                </dd>
+              </div>
+              <div>
+                <dt>Start</dt>
+                <dd>{{ row.startAt | date:'dd MMM yyyy' }}</dd>
+              </div>
+              <div>
+                <dt>End</dt>
+                <dd>{{ row.endAt ? (row.endAt | date:'dd MMM yyyy') : '—' }}</dd>
+              </div>
+            </dl>
+
+            <div class="card-actions" (click)="$event.stopPropagation()">
+              <button type="button" class="card-action" (click)="view.emit(row)">
+                <mat-icon>visibility</mat-icon> View
+              </button>
+              @if (isOpen(row)) {
+                <button type="button" class="card-action" (click)="transfer.emit(row)">
+                  <mat-icon>swap_horiz</mat-icon> Transfer
+                </button>
+                <button type="button" class="card-action card-action--primary" (click)="complete.emit(row)">
+                  <mat-icon>task_alt</mat-icon> Complete
+                </button>
+              }
+              <button type="button" class="card-action" (click)="history.emit(row)">
+                <mat-icon>history</mat-icon> History
+              </button>
+            </div>
+          </article>
+        }
       }
     </div>
   `,
   styles: [`
-    .table-wrap { overflow: auto; border: 1px solid #e2e8f0; border-radius: 10px; background: #fff; }
-    .data-table { width: 100%; border-collapse: collapse; min-width: 1100px; }
-    thead th { position: sticky; top: 0; z-index: 1; background: #f8fafc; padding: 0.625rem 0.75rem; text-align: left; font-size: 0.6875rem; text-transform: uppercase; letter-spacing: .04em; color: #64748b; border-bottom: 1px solid #e2e8f0; }
+    :host { display: block; min-width: 0; }
+
+    .table-wrap {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      background: #fff;
+    }
+
+    .data-table {
+      width: max-content;
+      min-width: 72rem;
+      border-collapse: collapse;
+    }
+
+    thead th {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      background: #f8fafc;
+      padding: 0.75rem;
+      text-align: left;
+      font-size: clamp(0.75rem, 1.5vw, 0.8125rem);
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      color: #64748b;
+      border-bottom: 1px solid #e2e8f0;
+      white-space: nowrap;
+    }
+
     .data-row { cursor: pointer; transition: background .12s; }
     .data-row:hover { background: #f8fafc; }
     .data-row--alt { background: #fcfdfe; }
-    .data-row td { padding: 0.625rem 0.75rem; font-size: 0.8125rem; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+    .data-row td {
+      padding: 0.75rem;
+      font-size: clamp(0.8125rem, 1.5vw, 0.875rem);
+      border-bottom: 1px solid #f1f5f9;
+      vertical-align: top;
+    }
+
     .cell-primary { font-weight: 600; color: #0f172a; }
     .cell-sub, .cell-muted { font-size: 0.75rem; color: #64748b; }
-    .assignment-no { font-family: ui-monospace, monospace; font-weight: 700; }
-    .gps-pill { font-size: 0.6875rem; font-weight: 700; padding: 2px 8px; border-radius: 99px; background: #f1f5f9; color: #64748b; }
+    .assignment-no { font-family: ui-monospace, monospace; font-weight: 700; color: #0f766e; }
+
+    .gps-pill {
+      display: inline-flex;
+      font-size: 0.6875rem;
+      font-weight: 700;
+      padding: 0.2rem 0.5rem;
+      border-radius: 99px;
+      background: #f1f5f9;
+      color: #64748b;
+      white-space: nowrap;
+    }
     .gps-pill--online { background: #d1fae5; color: #047857; }
-    .status-badge { font-size: 0.6875rem; font-weight: 700; padding: 2px 8px; border-radius: 99px; text-transform: uppercase; }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      max-width: 100%;
+      font-size: 0.6875rem;
+      font-weight: 700;
+      padding: 0.2rem 0.5rem;
+      border-radius: 99px;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
     .status-badge--success { background: #d1fae5; color: #047857; }
     .status-badge--warning { background: #fef3c7; color: #b45309; }
     .status-badge--error { background: #fee2e2; color: #b91c1c; }
     .status-badge--info { background: #dbeafe; color: #1d4ed8; }
     .status-badge--slate { background: #f1f5f9; color: #475569; }
+
     .td-actions, .th-actions { text-align: right; white-space: nowrap; }
-    .action-btn { border: none; background: transparent; padding: 0.25rem; border-radius: 6px; cursor: pointer; color: #475569; }
+    .action-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      height: 36px;
+      border: none;
+      background: transparent;
+      border-radius: 8px;
+      cursor: pointer;
+      color: #475569;
+    }
     .action-btn:hover { background: #f1f5f9; color: #0f766e; }
     .action-btn mat-icon { font-size: 18px; width: 18px; height: 18px; }
-    .skeleton { height: 14px; background: linear-gradient(90deg, #f1f5f9, #e2e8f0, #f1f5f9); border-radius: 4px; }
-    .empty { padding: 2rem; text-align: center; color: #94a3b8; }
-    .card-list { display: none; gap: 0.75rem; margin-top: 1rem; }
-    .assignment-card { border: 1px solid #e2e8f0; border-radius: 10px; padding: 0.875rem; background: #fff; }
-    .card-head { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; }
-    .card-meta { font-size: 0.75rem; color: #64748b; margin: 0.25rem 0 0; }
-    @media (max-width: 900px) {
+
+    .skeleton {
+      height: 14px;
+      background: linear-gradient(90deg, #f1f5f9, #e2e8f0, #f1f5f9);
+      border-radius: 4px;
+      animation: shimmer 1.2s infinite;
+    }
+
+    @keyframes shimmer {
+      0% { opacity: 1; }
+      50% { opacity: 0.5; }
+      100% { opacity: 1; }
+    }
+
+    .empty {
+      padding: 2rem;
+      text-align: center;
+      color: #94a3b8;
+    }
+    .empty mat-icon { font-size: 40px; width: 40px; height: 40px; margin-bottom: 0.5rem; }
+    .empty--card {
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      background: #fff;
+    }
+
+    .card-list { display: none; gap: 0.75rem; }
+
+    .assignment-card {
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 1rem;
+      background: #fff;
+      cursor: pointer;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .assignment-card:hover {
+      border-color: #cbd5e1;
+      box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+    }
+    .assignment-card--skeleton {
+      min-height: 9rem;
+      background: linear-gradient(90deg, #f8fafc 25%, #f1f5f9 50%, #f8fafc 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.2s infinite;
+      cursor: default;
+    }
+
+    .card-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 0.5rem;
+      margin-bottom: 0.75rem;
+    }
+    .card-head__left {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      min-width: 0;
+    }
+    .card-check { flex-shrink: 0; width: 18px; height: 18px; }
+
+    .card-meta {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.5rem 0.75rem;
+      margin: 0 0 0.75rem;
+      font-size: 0.8125rem;
+    }
+    .card-meta dt {
+      margin: 0;
+      font-size: 0.625rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      color: #94a3b8;
+    }
+    .card-meta dd {
+      margin: 0.125rem 0 0;
+      font-weight: 600;
+      color: #0f172a;
+      word-break: break-word;
+    }
+
+    .card-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      padding-top: 0.75rem;
+      border-top: 1px solid #f1f5f9;
+    }
+    .card-action {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      padding: 0.375rem 0.625rem;
+      min-height: 40px;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      background: #fff;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #475569;
+      cursor: pointer;
+    }
+    .card-action mat-icon { font-size: 16px; width: 16px; height: 16px; }
+    .card-action--primary {
+      color: #0f766e;
+      border-color: #99f6e4;
+      background: #f0fdfa;
+    }
+
+    @media (max-width: 767px) {
       .table-wrap { display: none; }
-      .card-list { display: grid; }
+      .card-list { display: grid; grid-template-columns: 1fr; }
+      .card-action { flex: 1 1 calc(50% - 0.25rem); justify-content: center; min-height: 44px; }
+    }
+
+    @media (min-width: 768px) and (max-width: 1023px) {
+      .card-list { display: none; }
     }
   `]
 })

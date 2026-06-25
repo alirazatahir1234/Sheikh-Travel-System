@@ -10,9 +10,12 @@
   <div class="st-body">
     <div class="st-label">{{ label }}</div>
     <div class="st-value">
-      <mat-spinner *ngIf="loading" diameter="22"></mat-spinner>
+      <ng-container *ngIf="loading">
+        <span class="st-skeleton-value stb-shimmer-block" aria-hidden="true"></span>
+      </ng-container>
       <ng-container *ngIf="!loading">{{ prefix }}{{ value }}{{ suffix }}</ng-container>
     </div>
+    <div class="st-skeleton-trend stb-shimmer-block" *ngIf="loading" aria-hidden="true"></div>
     <div class="st-trend-row" *ngIf="(trend || trendDetail) && !loading">
       <span class="st-trend" *ngIf="trend" [class.is-up]="trendUp === true" [class.is-down]="trendUp === false">
         <mat-icon>{{ trendUp === true ? 'arrow_upward' : trendUp === false ? 'arrow_downward' : 'remove' }}</mat-icon>
@@ -20,6 +23,6 @@
       </span>
       <span class="st-trend-detail" *ngIf="trendDetail">{{ trendDetail }}</span>
     </div>
-    <div class="st-hint" *ngIf="hint">{{ hint }}</div>
+    <div class="st-hint" *ngIf="hint && !loading">{{ hint }}</div>
   </div>
 </div>

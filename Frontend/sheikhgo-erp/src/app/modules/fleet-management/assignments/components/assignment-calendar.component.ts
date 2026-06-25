@@ -34,13 +34,29 @@ import { AssignmentCalendarItem } from '../../../../core/models/fleet-assignment
     </div>
   `,
   styles: [`
-    .calendar-page { padding: 1rem; }
-    .title { display: flex; align-items: center; gap: 0.5rem; font-size: 1.125rem; margin: 0 0 1rem; }
+    :host { display: block; min-width: 0; }
+    .calendar-page { padding: 1rem; max-width: 100%; box-sizing: border-box; }
+    .title { display: flex; align-items: center; gap: 0.5rem; font-size: clamp(1.125rem, 2.5vw, 1.25rem); margin: 0 0 1rem; }
     .calendar-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.625rem; }
-    .calendar-item { display: grid; grid-template-columns: 110px 1fr; gap: 0.75rem; padding: 0.75rem; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; font-size: 0.8125rem; }
+    .calendar-item {
+      display: grid;
+      grid-template-columns: 110px 1fr;
+      gap: 0.75rem;
+      padding: 0.75rem;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      background: #fff;
+      font-size: clamp(0.8125rem, 1.5vw, 0.875rem);
+    }
     .date { font-weight: 700; color: #0f766e; }
     .status { margin-left: 0.5rem; font-size: 0.6875rem; font-weight: 700; color: #64748b; text-transform: uppercase; }
     .muted { color: #94a3b8; }
+
+    @media (max-width: 767px) {
+      .calendar-item { grid-template-columns: 1fr; }
+      .date { font-size: 0.75rem; }
+      .status { display: inline-block; margin: 0.25rem 0 0; margin-left: 0; }
+    }
   `]
 })
 export class AssignmentCalendarComponent implements OnInit {

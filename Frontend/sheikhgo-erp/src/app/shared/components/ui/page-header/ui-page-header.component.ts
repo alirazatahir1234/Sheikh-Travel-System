@@ -9,8 +9,8 @@ import { UiBreadcrumb } from '../types/ui.types';
   imports: [RouterLink, MatIconModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <header class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-      <div class="min-w-0">
+    <header class="stb-page-header flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+      <div class="min-w-0 flex-1">
         @if (breadcrumbs().length) {
           <nav class="mb-1 flex flex-wrap items-center gap-1 text-[12px] text-fleet-text-muted">
             @for (crumb of breadcrumbs(); track crumb.label; let last = $last) {
@@ -28,7 +28,7 @@ import { UiBreadcrumb } from '../types/ui.types';
           <p class="text-[12px] font-bold uppercase tracking-wider text-fleet-primary">{{ eyebrow() }}</p>
         }
 
-        <h1 class="flex items-center gap-2 text-2xl font-bold tracking-tight text-fleet-text sm:text-3xl">
+        <h1 class="stb-heading-page flex items-center gap-2 font-bold tracking-tight text-fleet-text">
           @if (icon()) { <mat-icon class="text-fleet-primary">{{ icon() }}</mat-icon> }
           {{ title() }}
         </h1>
@@ -38,14 +38,26 @@ import { UiBreadcrumb } from '../types/ui.types';
         }
       </div>
 
-      <div class="flex flex-wrap items-center gap-3">
+      <div class="stb-page-header__actions flex w-full flex-wrap items-center gap-3 md:w-auto md:justify-end">
         <ng-content></ng-content>
       </div>
     </header>
   `,
   styles: [`
-    :host { display: block; }
+    :host { display: block; min-width: 0; }
     mat-icon { display: inline-flex; align-items: center; }
+    @media (max-width: 767px) {
+      .stb-page-header__actions {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      .stb-page-header__actions ::ng-deep ui-button,
+      .stb-page-header__actions ::ng-deep button[mat-stroked-button],
+      .stb-page-header__actions ::ng-deep button[mat-flat-button] {
+        width: 100%;
+        justify-content: center;
+      }
+    }
   `]
 })
 export class UiPageHeaderComponent {

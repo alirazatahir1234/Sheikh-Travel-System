@@ -1,5 +1,6 @@
-import { ChangeDetectionStrategy, Component, effect, input, output, signal } from '@angular/core';
-import { FormsModule } from '@angular/forms';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, DestroyRef, effect, inject, input, output, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { VehicleListItem } from '../../../../../core/models/vehicle.model';
@@ -7,26 +8,26 @@ import { CreateMaintenanceRequestPayload, ISSUE_CATEGORIES } from '../../../../.
 import {
   defaultCreateMaintenanceRequestForm,
   DESCRIPTION_MAX_LENGTH,
+  DESCRIPTION_MIN_LENGTH,
   REQUEST_PRIORITIES,
   REQUEST_TYPES,
   validateCreateMaintenanceRequest
 } from '../utils/request-form.util';
 
+type RequestFormField = 'vehicleId' | 'priority' | 'issueCategory' | 'requestType' | 'description';
+
 @Component({
   selector: 'request-create-form',
   standalone: true,
-  imports: [FormsModule, MatIconModule, MatTooltipModule],
+  imports: [ReactiveFormsModule, MatIconModule, MatTooltipModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <form class="form" (ngSubmit)="onSubmit()" novalidate>
+    <form class="form" [formGroup]="form" (ngSubmit)="onSubmit()" novalidate>
       <h3>New Service Request</h3>
 
       <label [class.field--invalid]="showError('vehicleId')">
         <span>Vehicle <span class="req" aria-hidden="true">*</span></span>
-        <select
-          [(ngModel)]="form.vehicleId"
-          name="vehicleId"
-          [attr.aria-invalid]="showError('vehicleId')">
+        <select formControlName="vehicleId" [attr.aria-invalid]="showError('vehicleId')">
           <option [ngValue]="0">Select vehicle</option>
           @for (v of vehicles(); track v.id) {
             <option [ngValue]="v.id">{{ v.name }} ({{ v.registrationNumber }})</option>
@@ -50,14 +51,13 @@ import {
           </button>
         </span>
         <select
-          [(ngModel)]="form.priority"
-          name="priority"
+          formControlName="priority"
           [attr.aria-invalid]="showError('priority')"
-          [matTooltip]="showError('priority') ? fieldError('priority') : (!form.priority ? 'Priority is required' : '')"
+          [matTooltip]="showError('priority') ? fieldError('priority') : ''"
           matTooltipPosition="above">
-          <option value="">Select priority</option>
+          <option [ngValue]="''">Select priority</option>
           @for (p of priorities; track p) {
-            <option [value]="p">{{ p }}</option>
+            <option [ngValue]="p">{{ p }}</option>
           }
         </select>
         @if (showError('priority')) {
@@ -68,14 +68,13 @@ import {
       <label [class.field--invalid]="showError('issueCategory')">
         <span>Category <span class="req" aria-hidden="true">*</span></span>
         <select
-          [(ngModel)]="form.issueCategory"
-          name="category"
+          formControlName="issueCategory"
           [attr.aria-invalid]="showError('issueCategory')"
-          [matTooltip]="showError('issueCategory') ? fieldError('issueCategory') : (!form.issueCategory ? 'Category is required' : '')"
+          [matTooltip]="showError('issueCategory') ? fieldError('issueCategory') : ''"
           matTooltipPosition="above">
-          <option value="">Select category</option>
+          <option [ngValue]="''">Select category</option>
           @for (c of categories; track c) {
-            <option [value]="c">{{ c }}</option>
+            <option [ngValue]="c">{{ c }}</option>
           }
         </select>
         @if (showError('issueCategory')) {
@@ -86,14 +85,13 @@ import {
       <label [class.field--invalid]="showError('requestType')">
         <span>Type <span class="req" aria-hidden="true">*</span></span>
         <select
-          [(ngModel)]="form.requestType"
-          name="type"
+          formControlName="requestType"
           [attr.aria-invalid]="showError('requestType')"
-          [matTooltip]="showError('requestType') ? fieldError('requestType') : (!form.requestType ? 'Type is required' : '')"
+          [matTooltip]="showError('requestType') ? fieldError('requestType') : ''"
           matTooltipPosition="above">
-          <option value="">Select type</option>
+          <option [ngValue]="''">Select type</option>
           @for (t of requestTypes; track t) {
-            <option [value]="t">{{ t }}</option>
+            <option [ngValue]="t">{{ t }}</option>
           }
         </select>
         @if (showError('requestType')) {
@@ -104,10 +102,8 @@ import {
       <label class="full" [class.field--invalid]="showError('description')">
         <span>Description <span class="req" aria-hidden="true">*</span></span>
         <textarea
-          [(ngModel)]="form.description"
-          name="description"
+          formControlName="description"
           rows="3"
-          [maxlength]="descriptionMaxLength"
           [attr.aria-invalid]="showError('description')">
         </textarea>
         <span class="char-hint">{{ descriptionLength }}/{{ descriptionMaxLength }}</span>
@@ -117,9 +113,9 @@ import {
       </label>
 
       <div class="actions">
-        <button type="button" (click)="onCancel()">Cancel</button>
-        <button type="submit" [disabled]="saving()">
-          Create Request
+        <button type="button" class="btn-cancel" (click)="onCancel()">Cancel</button>
+        <button type="submit" class="btn-submit" [disabled]="saving()">
+          {{ saving() ? 'Creating…' : 'Create Request' }}
         </button>
       </div>
     </form>
@@ -168,22 +164,38 @@ import {
     .field-error { color: #dc2626; font-size: 0.75rem; font-weight: 500; }
     .char-hint { align-self: flex-end; font-size: 0.6875rem; font-weight: 500; color: #94a3b8; }
     .actions { grid-column: 1 / -1; display: flex; gap: 0.5rem; justify-content: flex-end; }
-    button {
+    .btn-cancel,
+    .btn-submit {
       border-radius: 8px;
       padding: 0.5rem 1rem;
       font-weight: 700;
       cursor: pointer;
       border: 1px solid #e2e8f0;
-      background: #fff;
+      font: inherit;
     }
-    button[type="submit"] { background: #0b6b50; color: #fff; border-color: #0b6b50; }
-    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-cancel { background: #fff; color: #0f172a; }
+    .btn-submit {
+      background: #0b6b50;
+      color: #fff;
+      border-color: #0b6b50;
+      opacity: 1;
+      min-width: 9.5rem;
+    }
+    .btn-submit:disabled {
+      opacity: 0.72;
+      cursor: wait;
+    }
     @media (max-width: 640px) {
       .form { grid-template-columns: 1fr; padding: 1rem; }
     }
   `]
 })
 export class RequestCreateFormComponent {
+  private readonly fb = inject(FormBuilder);
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly cdr = inject(ChangeDetectorRef);
+  private lastResetKey = -1;
+
   readonly categories = ISSUE_CATEGORIES;
   readonly priorities = REQUEST_PRIORITIES;
   readonly requestTypes = REQUEST_TYPES;
@@ -195,27 +207,61 @@ export class RequestCreateFormComponent {
   readonly cancel = output<void>();
 
   readonly submitted = signal(false);
-  readonly errors = signal<Partial<Record<string, string>>>({});
+  readonly errors = signal<Partial<Record<RequestFormField, string>>>({});
+  readonly formValid = signal(false);
 
-  form: CreateMaintenanceRequestPayload = defaultCreateMaintenanceRequestForm();
+  readonly form = this.fb.nonNullable.group({
+    vehicleId: [0, [Validators.required, Validators.min(1)]],
+    priority: ['', Validators.required],
+    issueCategory: ['', Validators.required],
+    requestType: ['', Validators.required],
+    description: [
+      '',
+      [
+        Validators.required,
+        Validators.minLength(DESCRIPTION_MIN_LENGTH),
+        Validators.maxLength(DESCRIPTION_MAX_LENGTH)
+      ]
+    ]
+  });
 
   constructor() {
+    this.form.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
+      this.formValid.set(this.isValid());
+      if (this.submitted()) {
+        this.syncErrors();
+      }
+      this.cdr.markForCheck();
+    });
+
     effect(() => {
-      this.resetKey();
+      const key = this.resetKey();
+      if (key === this.lastResetKey) return;
+      this.lastResetKey = key;
       this.reset();
     });
+
+    effect(() => {
+      this.vehicles();
+      this.cdr.markForCheck();
+    });
+
+    this.formValid.set(this.isValid());
   }
 
   get descriptionLength(): number {
-    return String(this.form.description ?? '').length;
+    return this.form.controls.description.value.length;
   }
 
   onSubmit(): void {
     this.submitted.set(true);
-    const result = validateCreateMaintenanceRequest(this.form);
-    this.errors.set(result.errors);
-    if (!result.valid) return;
-    this.submit.emit({ ...this.form, description: this.form.description.trim() });
+    this.form.markAllAsTouched();
+    this.syncErrors();
+    this.formValid.set(this.isValid());
+    if (!this.formValid()) return;
+
+    const payload = this.getPayload();
+    this.submit.emit({ ...payload, description: payload.description.trim() });
   }
 
   onCancel(): void {
@@ -224,16 +270,39 @@ export class RequestCreateFormComponent {
   }
 
   reset(): void {
-    this.form = defaultCreateMaintenanceRequestForm();
+    const defaults = defaultCreateMaintenanceRequestForm();
+    this.form.reset(defaults);
     this.submitted.set(false);
     this.errors.set({});
+    this.formValid.set(this.isValid());
   }
 
-  showError(field: string): boolean {
-    return this.submitted() && !!this.errors()[field];
+  showError(field: RequestFormField): boolean {
+    const control = this.form.controls[field];
+    return (this.submitted() || control.touched) && !!this.errors()[field];
   }
 
-  fieldError(field: string): string {
+  fieldError(field: RequestFormField): string {
     return this.errors()[field] ?? '';
+  }
+
+  private isValid(): boolean {
+    return validateCreateMaintenanceRequest(this.getPayload()).valid;
+  }
+
+  private syncErrors(): void {
+    const result = validateCreateMaintenanceRequest(this.getPayload());
+    this.errors.set(result.errors as Partial<Record<RequestFormField, string>>);
+  }
+
+  private getPayload(): CreateMaintenanceRequestPayload {
+    const raw = this.form.getRawValue();
+    return {
+      vehicleId: Number(raw.vehicleId) || 0,
+      priority: String(raw.priority ?? '').trim(),
+      issueCategory: String(raw.issueCategory ?? '').trim(),
+      requestType: String(raw.requestType ?? '').trim(),
+      description: String(raw.description ?? '')
+    };
   }
 }

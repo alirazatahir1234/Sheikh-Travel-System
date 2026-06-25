@@ -122,9 +122,10 @@ public class BulkCompleteAssignmentsCommandHandler(IMediator mediator)
 {
     public async Task<ApiResponse<BulkAssignmentResultDto>> Handle(BulkCompleteAssignmentsCommand request, CancellationToken cancellationToken)
     {
+        var ids = request.Body.AssignmentIds.Distinct().ToList();
         var succeeded = 0;
         var errors = new List<string>();
-        foreach (var id in request.Body.AssignmentIds.Distinct())
+        foreach (var id in ids)
         {
             try
             {
@@ -138,7 +139,7 @@ public class BulkCompleteAssignmentsCommandHandler(IMediator mediator)
             }
         }
         return ApiResponse<BulkAssignmentResultDto>.SuccessResponse(
-            new BulkAssignmentResultDto(succeeded, request.Body.AssignmentIds.Count - succeeded, errors));
+            new BulkAssignmentResultDto(succeeded, ids.Count - succeeded, errors));
     }
 }
 
@@ -147,9 +148,10 @@ public class BulkCancelAssignmentsCommandHandler(IMediator mediator)
 {
     public async Task<ApiResponse<BulkAssignmentResultDto>> Handle(BulkCancelAssignmentsCommand request, CancellationToken cancellationToken)
     {
+        var ids = request.Body.AssignmentIds.Distinct().ToList();
         var succeeded = 0;
         var errors = new List<string>();
-        foreach (var id in request.Body.AssignmentIds.Distinct())
+        foreach (var id in ids)
         {
             try
             {
@@ -163,6 +165,6 @@ public class BulkCancelAssignmentsCommandHandler(IMediator mediator)
             }
         }
         return ApiResponse<BulkAssignmentResultDto>.SuccessResponse(
-            new BulkAssignmentResultDto(succeeded, request.Body.AssignmentIds.Count - succeeded, errors));
+            new BulkAssignmentResultDto(succeeded, ids.Count - succeeded, errors));
     }
 }

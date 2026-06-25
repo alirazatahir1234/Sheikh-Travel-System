@@ -39,9 +39,9 @@ type TableRow = Record<string, unknown>;
         </div>
       }
 
-      <div class="overflow-x-auto">
-        <table class="w-full text-left">
-          <thead class="bg-fleet-surface-alt/60">
+      <div class="stb-table-scroll overflow-x-auto">
+        <table class="stb-data-table w-full min-w-[640px] text-left">
+          <thead class="sticky top-0 z-10 bg-fleet-surface-alt/60">
             <tr>
               @for (col of columns(); track col.key) {
                 <th
@@ -116,7 +116,7 @@ type TableRow = Record<string, unknown>;
       </div>
 
       @if (!loading() && pageCount() > 1) {
-        <div class="flex items-center justify-between gap-3 border-t border-fleet-border px-5 py-3 text-sm">
+        <div class="stb-table-footer flex items-center justify-between gap-3 border-t border-fleet-border px-5 py-3 text-sm">
           <span class="text-fleet-text-muted">
             Showing {{ rangeStart() }}–{{ rangeEnd() }} of {{ filteredRows().length }}
           </span>
@@ -142,8 +142,18 @@ type TableRow = Record<string, unknown>;
     </div>
   `,
   styles: [`
-    :host { display: block; }
+    :host { display: block; min-width: 0; }
     mat-icon { display: inline-flex; align-items: center; justify-content: center; }
+    @media (max-width: 767px) {
+      .stb-table-footer {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      .stb-table-footer > div:last-child {
+        display: flex;
+        justify-content: space-between;
+      }
+    }
   `]
 })
 export class UiDataTableComponent {

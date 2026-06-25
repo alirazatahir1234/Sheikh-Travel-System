@@ -44,18 +44,104 @@ import {
       <input class="filter-date" type="date" [ngModel]="filters().dateFrom" (ngModelChange)="patch('dateFrom', $event); apply.emit()" />
       <input class="filter-date" type="date" [ngModel]="filters().dateTo" (ngModelChange)="patch('dateTo', $event); apply.emit()" />
 
-      <button type="button" class="btn-ghost" (click)="apply.emit()"><mat-icon>filter_list</mat-icon></button>
-      <button type="button" class="btn-ghost" (click)="clear.emit()"><mat-icon>clear</mat-icon></button>
+      <div class="filter-actions">
+        <button type="button" class="btn-ghost" (click)="apply.emit()"><mat-icon>filter_list</mat-icon></button>
+        <button type="button" class="btn-ghost" (click)="clear.emit()"><mat-icon>clear</mat-icon></button>
+      </div>
     </div>
   `,
   styles: [`
-    .filters { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin-bottom: 1rem; }
-    .search-wrap { position: relative; flex: 1; min-width: 200px; }
-    .search-icon { position: absolute; left: 0.625rem; top: 50%; transform: translateY(-50%); font-size: 18px; color: #94a3b8; }
-    .search-input { width: 100%; padding: 0.5rem 0.75rem 0.5rem 2.25rem; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.8125rem; }
-    .filter-select, .filter-date { padding: 0.5rem 0.625rem; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.8125rem; background: #fff; }
-    .btn-ghost { display: inline-flex; align-items: center; padding: 0.45rem; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; cursor: pointer; }
-    ui-select { min-width: 160px; }
+    :host { display: block; min-width: 0; }
+
+    .filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+
+    .search-wrap {
+      position: relative;
+      flex: 1 1 280px;
+      min-width: 0;
+    }
+
+    .search-icon {
+      position: absolute;
+      left: 0.625rem;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 18px;
+      color: #94a3b8;
+    }
+
+    .search-input {
+      width: 100%;
+      min-height: 44px;
+      padding: 0.5rem 0.75rem 0.5rem 2.25rem;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      font-size: 0.875rem;
+      box-sizing: border-box;
+    }
+
+    .filter-select,
+    .filter-date {
+      min-height: 44px;
+      padding: 0.5rem 0.625rem;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      font-size: 0.875rem;
+      background: #fff;
+      box-sizing: border-box;
+    }
+
+    .filter-actions {
+      display: flex;
+      gap: 0.5rem;
+      flex-shrink: 0;
+    }
+
+    .btn-ghost {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 44px;
+      min-height: 44px;
+      padding: 0.45rem;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      background: #fff;
+      cursor: pointer;
+    }
+
+    ui-select {
+      flex: 1 1 160px;
+      min-width: 0;
+    }
+
+    @media (min-width: 768px) and (max-width: 1023px) {
+      .filters {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        align-items: end;
+      }
+      .search-wrap { grid-column: 1 / -1; }
+      .filter-actions { grid-column: 1 / -1; justify-content: flex-end; }
+      ui-select, .filter-select, .filter-date { width: 100%; }
+    }
+
+    @media (max-width: 767px) {
+      .filters {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      .search-wrap { flex: 1 1 auto; width: 100%; }
+      ui-select, .filter-select, .filter-date { width: 100%; flex: 1 1 auto; }
+      .filter-actions { width: 100%; }
+      .btn-ghost { flex: 1; }
+    }
   `]
 })
 export class AssignmentFiltersComponent {

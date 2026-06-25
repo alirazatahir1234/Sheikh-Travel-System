@@ -48,6 +48,7 @@ import { ConfirmDialogComponent } from './components/confirm-dialog/confirm-dial
 import { HelpDialogComponent } from './components/help-dialog/help-dialog.component';
 import { TenantPickerComponent } from './components/tenant-picker/tenant-picker.component';
 import { AppBrandLoaderComponent } from './components/app-brand-loader/app-brand-loader.component';
+import { SgProgressLoaderComponent } from './components/sg-progress-loader/sg-progress-loader.component';
 
 const MATERIAL = [
   MatButtonModule, MatCardModule, MatFormFieldModule, MatInputModule,
@@ -74,7 +75,7 @@ const UI = [
 
 @NgModule({
   declarations: [...UI, ConfirmDialogComponent, HelpDialogComponent, TenantPickerComponent],
-  imports: [CommonModule, ReactiveFormsModule, FormsModule, RouterModule, AppBrandLoaderComponent, ...MATERIAL],
+  imports: [CommonModule, ReactiveFormsModule, FormsModule, RouterModule, AppBrandLoaderComponent, SgProgressLoaderComponent, ...MATERIAL],
   exports: [
     CommonModule, ReactiveFormsModule, FormsModule, RouterModule,
     ...MATERIAL,
@@ -83,6 +84,7 @@ const UI = [
     HelpDialogComponent,
     TenantPickerComponent,
     AppBrandLoaderComponent,
+    SgProgressLoaderComponent,
   ]
 })
 export class SharedModule {}

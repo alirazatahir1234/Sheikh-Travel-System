@@ -1,37 +1,57 @@
 <section class="analytics-section">
   <div class="section-head">
-    <h2>Fleet analytics</h2>
+    <h2 class="stb-heading-section">Fleet analytics</h2>
     <p class="stb-muted">Revenue trends and booking distribution</p>
   </div>
 
   <div class="analytics-grid">
-    <stb-info-card title="Weekly revenue" subtitle="PKR from bookings · last 7 days" icon="show_chart" class="chart-card">
+    <stb-info-card title="Weekly revenue" subtitle="PKR from bookings · last 7 days" icon="show_chart" class="chart-card chart-card--revenue">
       <div class="chart-meta" *ngIf="revenueTotal > 0 && !loading">
         <span class="meta-val">{{ revenueTotal | number }}</span>
         <span class="meta-lbl">PKR this week</span>
       </div>
-      <div class="chart-wrap" *ngIf="!loading; else chartLoad">
+      <div class="chart-meta-skeleton stb-shimmer-block" *ngIf="loading" aria-hidden="true"></div>
+      <div class="chart-wrap" *ngIf="!loading; else revenueSkeleton">
         <canvas #revenueCanvas aria-label="Weekly revenue chart"></canvas>
       </div>
       <p class="chart-empty-hint stb-muted" *ngIf="!loading && revenueTotal === 0">No booking revenue in the last 7 days yet.</p>
     </stb-info-card>
 
-    <stb-info-card title="Bookings by status" subtitle="Last 30 days" icon="pie_chart" class="chart-card">
-      <div class="chart-wrap chart-wrap--donut" *ngIf="!loading; else chartLoad">
+    <stb-info-card title="Bookings by status" subtitle="Last 30 days" icon="pie_chart" class="chart-card chart-card--donut">
+      <div class="chart-wrap chart-wrap--donut" *ngIf="!loading; else donutSkeleton">
         <canvas #bookingsCanvas aria-label="Bookings by status chart"></canvas>
       </div>
     </stb-info-card>
 
     <stb-info-card title="Fleet snapshot" subtitle="Utilization & availability" icon="directions_bus" class="chart-card chart-card--fleet">
-      <div class="chart-wrap chart-wrap--bar" *ngIf="!loading; else chartLoad">
+      <div class="chart-wrap chart-wrap--bar" *ngIf="!loading; else barSkeleton">
         <canvas #fleetCanvas aria-label="Fleet utilization chart"></canvas>
       </div>
     </stb-info-card>
   </div>
 </section>
 
-<ng-template #chartLoad>
-  <div class="chart-loading">
-    <app-brand-loader size="sm" />
+<ng-template #revenueSkeleton>
+  <div class="chart-skeleton chart-skeleton--line" aria-busy="true" aria-label="Loading weekly revenue chart">
+    <div class="chart-skeleton-bars">
+      <span class="stb-shimmer-block" *ngFor="let _ of skeletonBars"></span>
+    </div>
+  </div>
+</ng-template>
+
+<ng-template #donutSkeleton>
+  <div class="chart-skeleton chart-skeleton--donut" aria-busy="true" aria-label="Loading bookings chart">
+    <span class="chart-skeleton-ring stb-shimmer-block"></span>
+    <div class="chart-skeleton-legend">
+      <span class="stb-shimmer-block" *ngFor="let _ of skeletonLegend"></span>
+    </div>
+  </div>
+</ng-template>
+
+<ng-template #barSkeleton>
+  <div class="chart-skeleton chart-skeleton--bar" aria-busy="true" aria-label="Loading fleet chart">
+    <div class="chart-skeleton-hbars">
+      <span class="stb-shimmer-block" *ngFor="let _ of skeletonBars"></span>
+    </div>
   </div>
 </ng-template>

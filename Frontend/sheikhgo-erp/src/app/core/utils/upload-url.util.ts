@@ -27,14 +27,36 @@ export function isImageFile(file: File): boolean {
  * - Local dev: http://127.0.0.1:5082/uploads/… (via filesBaseUrl)
  * - Production SPA: /uploads/… (nginx proxies to API)
  */
+function devProxyUploadPath(path: string): string | null {
+  if (environment.production || !path.startsWith('/uploads/')) return null;
+  return path;
+}
+
+function rewriteApiOriginToProxy(url: string): string | null {
+  const filesBase = (environment as { filesBaseUrl?: string }).filesBaseUrl?.replace(/\/$/, '');
+  if (!filesBase || environment.production || !url.startsWith(filesBase)) return null;
+
+  const relative = url.slice(filesBase.length);
+  const path = relative.startsWith('/') ? relative : `/${relative}`;
+  return devProxyUploadPath(path) ?? path;
+}
+
 export function resolveUploadUrl(url: string | null | undefined): string | null {
   if (!url) return null;
 
   const trimmed = url.trim();
   if (!trimmed) return null;
-  if (/^(https?:|blob:)/i.test(trimmed)) return trimmed;
+  if (trimmed.startsWith('blob:')) return trimmed;
+
+  const proxiedAbsolute = rewriteApiOriginToProxy(trimmed);
+  if (proxiedAbsolute) return proxiedAbsolute;
+
+  if (/^https?:/i.test(trimmed)) return trimmed;
 
   const path = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+  const proxyPath = devProxyUploadPath(path);
+  if (proxyPath) return proxyPath;
+
   const filesBase = (environment as { filesBaseUrl?: string }).filesBaseUrl?.replace(/\/$/, '');
   if (filesBase) return `${filesBase}${path}`;
 

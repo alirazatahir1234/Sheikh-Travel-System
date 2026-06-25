@@ -23,6 +23,7 @@ public record DriverListItemDto(
     int? DepartmentId,
     string? DepartmentName,
     DateTime? HireDate,
+    string? PhotoUrl,
     int? AssignedVehicleId,
     string? AssignedVehicleCode,
     string? AssignedVehicleRegistration,

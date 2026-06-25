@@ -1,40 +1,76 @@
-<fleet-page-header
-  eyebrow="Fleet Management"
-  title="Inspections"
-  subtitle="Checklist-based vehicle safety inspections"
-  icon="fact_check">
-  <button mat-flat-button color="primary">
-    <mat-icon>add_task</mat-icon> New Inspection
-  </button>
-</fleet-page-header>
+<div class="inspection-page stb-page">
 
-<app-brand-loader *ngIf="loading" size="sm" />
+  <fleet-page-header
+    eyebrow="Fleet Management"
+    title="Inspections"
+    subtitle="Checklist-based vehicle safety inspections"
+    icon="fact_check">
+    <button mat-flat-button color="primary" class="stb-touch" type="button">
+      <mat-icon>add_task</mat-icon> New Inspection
+    </button>
+  </fleet-page-header>
 
-<div class="inspection-table-wrap" *ngIf="!loading && inspections.length">
-  <table class="inspection-table">
-    <thead>
-      <tr>
-        <th>Vehicle</th>
-        <th>Inspected By</th>
-        <th>Date</th>
-        <th>Odometer</th>
-        <th>Result</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr *ngFor="let row of inspections">
-        <td>{{ row.vehicleName }}</td>
-        <td>{{ row.inspectedBy || '—' }}</td>
-        <td>{{ row.inspectionDate | date: 'mediumDate' }}</td>
-        <td>{{ row.odometerReading != null ? (row.odometerReading | number) + ' km' : '—' }}</td>
-        <td><fleet-status-badge [status]="row.result"></fleet-status-badge></td>
-      </tr>
-    </tbody>
-  </table>
-</div>
+  <app-brand-loader *ngIf="loading" size="sm" />
 
-<div class="inspection-empty" *ngIf="!loading && !inspections.length">
-  <mat-icon>fact_check</mat-icon>
-  <p>No inspections recorded yet.</p>
-  <span>Run a pre-trip checklist to capture vehicle condition and photos.</span>
+  <div class="inspection-table-wrap stb-table-scroll desktop-only" *ngIf="!loading && inspections.length">
+    <table class="inspection-table">
+      <thead>
+        <tr>
+          <th>Vehicle</th>
+          <th>Inspected By</th>
+          <th>Date</th>
+          <th>Odometer</th>
+          <th>Result</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let row of inspections">
+          <td>{{ row.vehicleName }}</td>
+          <td>{{ row.inspectedBy || '—' }}</td>
+          <td>{{ row.inspectionDate | date: 'mediumDate' }}</td>
+          <td>{{ row.odometerReading != null ? (row.odometerReading | number) + ' km' : '—' }}</td>
+          <td><fleet-status-badge [status]="row.result"></fleet-status-badge></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="inspection-cards mobile-only" *ngIf="!loading && inspections.length">
+    <article
+      class="inspection-card"
+      *ngFor="let row of inspections"
+      [class.inspection-card--pass]="row.result === 'Pass'"
+      [class.inspection-card--warning]="row.result === 'Warning'"
+      [class.inspection-card--fail]="row.result === 'Fail'">
+      <div class="inspection-card__head">
+        <strong class="inspection-card__vehicle">{{ row.vehicleName }}</strong>
+        <fleet-status-badge [status]="row.result"></fleet-status-badge>
+      </div>
+      <div class="inspection-card__row">
+        <span class="inspection-card__lbl">Inspected by</span>
+        <span class="inspection-card__val">{{ row.inspectedBy || '—' }}</span>
+      </div>
+      <div class="inspection-card__row">
+        <span class="inspection-card__lbl">Date</span>
+        <span class="inspection-card__val">{{ row.inspectionDate | date: 'mediumDate' }}</span>
+      </div>
+      <div class="inspection-card__row">
+        <span class="inspection-card__lbl">Odometer</span>
+        <span class="inspection-card__val">
+          {{ row.odometerReading != null ? (row.odometerReading | number) + ' km' : '—' }}
+        </span>
+      </div>
+    </article>
+  </div>
+
+  <div
+    class="inspection-empty"
+    *ngIf="!loading && !inspections.length"
+    role="status"
+    aria-live="polite">
+    <mat-icon>fact_check</mat-icon>
+    <p class="stb-heading-section">No inspections recorded yet.</p>
+    <span class="inspection-empty__hint">Run a pre-trip checklist to capture vehicle condition and photos.</span>
+  </div>
+
 </div>

@@ -30,10 +30,38 @@ export interface KpiCard {
     </div>
   `,
   styles: [`
-    .kpi-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0.75rem; margin-bottom: 1rem; }
-    .kpi-card { display: flex; gap: 0.625rem; align-items: center; padding: 0.75rem; border: 1px solid #e2e8f0; border-radius: 10px; background: #fff; cursor: pointer; text-align: left; transition: box-shadow .15s; }
+    :host { display: block; min-width: 0; }
+
+    .kpi-grid {
+      display: grid;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .kpi-card {
+      display: flex;
+      gap: 0.625rem;
+      align-items: center;
+      padding: 0.75rem;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      background: #fff;
+      cursor: pointer;
+      text-align: left;
+      transition: box-shadow .15s;
+      min-width: 0;
+    }
     .kpi-card:hover { box-shadow: 0 2px 8px rgba(15,23,42,.08); }
-    .kpi-icon { width: 36px; height: 36px; border-radius: 8px; display: grid; place-items: center; }
+
+    .kpi-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      flex-shrink: 0;
+    }
     .kpi-icon mat-icon { font-size: 18px; width: 18px; height: 18px; }
     .kpi-icon--blue { background: #dbeafe; color: #1d4ed8; }
     .kpi-icon--green { background: #d1fae5; color: #047857; }
@@ -42,12 +70,41 @@ export interface KpiCard {
     .kpi-icon--teal { background: #ccfbf1; color: #0f766e; }
     .kpi-icon--slate { background: #f1f5f9; color: #475569; }
     .kpi-icon--purple { background: #ede9fe; color: #6d28d9; }
-    .kpi-label { margin: 0; font-size: 0.6875rem; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: #64748b; }
-    .kpi-value { margin: 0.125rem 0 0; font-size: 1.25rem; font-weight: 700; color: #0f172a; }
+
+    .kpi-body { min-width: 0; }
+    .kpi-label {
+      margin: 0;
+      font-size: 0.6875rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      color: #64748b;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .kpi-value {
+      margin: 0.125rem 0 0;
+      font-size: clamp(1.125rem, 2.5vw, 1.25rem);
+      font-weight: 700;
+      color: #0f172a;
+    }
     .kpi-value--green { color: #047857; }
     .kpi-value--amber { color: #b45309; }
     .kpi-value--red { color: #b91c1c; }
     .kpi-value--teal { color: #0f766e; }
+
+    @media (max-width: 1200px) {
+      .kpi-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    }
+
+    @media (max-width: 900px) {
+      .kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+
+    @media (max-width: 480px) {
+      .kpi-grid { grid-template-columns: 1fr; }
+    }
   `]
 })
 export class AssignmentKpiGridComponent {

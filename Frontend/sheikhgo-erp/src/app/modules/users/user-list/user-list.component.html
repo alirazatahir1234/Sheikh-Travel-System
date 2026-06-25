@@ -1,26 +1,46 @@
-<div class="users-page">
-  <div class="page-header">
-    <div class="page-header-text">
-      <h2>User Administration</h2>
-      <p class="page-sub">Manage system users, roles, and account status</p>
-    </div>
+<div class="users-page stb-page">
+  <ui-page-header
+    title="User Administration"
+    subtitle="Manage system users, roles, and account status"
+    [breadcrumbs]="[{ label: 'Administration' }, { label: 'Users' }]">
     <div class="header-actions">
-      <button mat-stroked-button class="action-btn" (click)="load()">
-        <mat-icon>refresh</mat-icon>
-        <span class="btn-label">Refresh</span>
-      </button>
-      <button mat-raised-button color="primary" class="action-btn action-btn--primary" routerLink="new">
+      <ui-button variant="outline" icon="refresh" (clicked)="load()">Refresh</ui-button>
+      <a routerLink="new" class="users-header-link users-header-link--primary">
         <mat-icon>person_add</mat-icon>
-        <span class="btn-label">Add User</span>
-      </button>
+        <span>Add User</span>
+      </a>
     </div>
+  </ui-page-header>
+
+  <div class="user-stats" *ngIf="!loading" aria-label="User statistics">
+    <mat-card class="user-stat-card">
+      <mat-icon aria-hidden="true">groups</mat-icon>
+      <div>
+        <p class="user-stat-label">Total users</p>
+        <p class="user-stat-value">{{ allUsers.length }}</p>
+      </div>
+    </mat-card>
+    <mat-card class="user-stat-card">
+      <mat-icon aria-hidden="true">filter_list</mat-icon>
+      <div>
+        <p class="user-stat-label">Matching filters</p>
+        <p class="user-stat-value">{{ dataSource.data.length }}</p>
+      </div>
+    </mat-card>
+    <mat-card class="user-stat-card">
+      <mat-icon aria-hidden="true">how_to_reg</mat-icon>
+      <div>
+        <p class="user-stat-label">Selected</p>
+        <p class="user-stat-value">{{ selection.selected.length }}</p>
+      </div>
+    </mat-card>
   </div>
 
   <mat-card class="filter-card">
-    <div class="filter-row">
+    <div class="filter-grid">
       <div class="stb-field stb-field--search">
         <label for="user-search">Search</label>
-        <input id="user-search" class="stb-input" type="text"
+        <input id="user-search" class="stb-input" type="search"
                [ngModel]="searchTerm" (ngModelChange)="onSearch($event)"
                placeholder="Search name, email, phone…" />
       </div>
@@ -34,7 +54,7 @@
         </select>
       </div>
 
-      <div class="stb-field stb-field--filter stb-field--filter-narrow">
+      <div class="stb-field stb-field--filter">
         <label for="user-status-filter">Status</label>
         <select id="user-status-filter" class="stb-select"
                 [ngModel]="statusFilter" (ngModelChange)="onStatusFilterChange($event)">
@@ -44,42 +64,86 @@
         </select>
       </div>
 
-      <button mat-stroked-button class="filter-clear-btn" (click)="clearFilters()" matTooltip="Clear filters">
-        <mat-icon>filter_alt_off</mat-icon>
-        <span class="btn-label">Clear</span>
-      </button>
-
-      <span class="spacer"></span>
-
-      <button mat-stroked-button class="export-btn" [matMenuTriggerFor]="exportMenu">
-        <mat-icon>download</mat-icon>
-        <span class="btn-label">Export</span>
-      </button>
-      <mat-menu #exportMenu="matMenu">
-        <button mat-menu-item (click)="exportExcel()">
-          <mat-icon>table_chart</mat-icon> Excel (.xlsx)
+      <div class="filter-actions">
+        <ui-button variant="outline" icon="filter_alt_off" (clicked)="clearFilters()">Clear</ui-button>
+        <button mat-stroked-button type="button" class="export-trigger" [matMenuTriggerFor]="exportMenu">
+          <mat-icon>download</mat-icon>
+          <span>Export</span>
         </button>
-        <button mat-menu-item (click)="exportPdf()">
-          <mat-icon>picture_as_pdf</mat-icon> PDF
-        </button>
-      </mat-menu>
+      </div>
     </div>
+    <mat-menu #exportMenu="matMenu">
+      <button mat-menu-item (click)="exportExcel()">
+        <mat-icon>table_chart</mat-icon> Excel (.xlsx)
+      </button>
+      <button mat-menu-item (click)="exportPdf()">
+        <mat-icon>picture_as_pdf</mat-icon> PDF
+      </button>
+    </mat-menu>
 
     <div class="bulk-bar" *ngIf="selection.selected.length > 0">
       <span>{{ selection.selected.length }} user(s) selected</span>
-      <button mat-stroked-button color="warn" (click)="bulkDelete()">
-        <mat-icon>delete</mat-icon>
-        <span class="btn-label">Delete selected</span>
-      </button>
+      <ui-button variant="danger" icon="delete" size="sm" (clicked)="bulkDelete()">Delete selected</ui-button>
     </div>
   </mat-card>
 
-  <app-brand-loader *ngIf="loading" />
+  <div *ngIf="loading" class="users-loading" aria-busy="true" aria-label="Loading users">
+    <span class="stb-shimmer-block users-skeleton__stat" *ngFor="let i of [1, 2, 3]"></span>
+    <span class="stb-shimmer-block users-skeleton__filter"></span>
+    <span class="stb-shimmer-block users-skeleton__row" *ngFor="let i of [1, 2, 3, 4]"></span>
+  </div>
 
   <mat-card *ngIf="!loading" class="table-card">
-    <div class="table-container">
-      <table mat-table [dataSource]="dataSource" class="user-table responsive-table">
+    <div class="user-mobile-cards" *ngIf="dataSource.data.length">
+      <article class="user-mobile-card" *ngFor="let u of dataSource.data"
+               [class.user-mobile-card--selected]="selection.isSelected(u)">
+        <div class="user-mobile-card__head">
+          <mat-checkbox (click)="$event.stopPropagation()"
+                        (change)="selection.toggle(u)"
+                        [checked]="selection.isSelected(u)"
+                        aria-label="Select user">
+          </mat-checkbox>
+          <div class="user-avatar">{{ u.fullName?.charAt(0)?.toUpperCase() || '?' }}</div>
+          <div class="user-mobile-card__identity">
+            <strong class="user-mobile-card__name">{{ u.fullName }}</strong>
+            <span class="user-mobile-card__email">{{ u.email }}</span>
+          </div>
+          <span class="role-chip" [attr.data-role]="u.role">{{ roleLabel(u.role) }}</span>
+        </div>
 
+        <dl class="user-mobile-card__meta">
+          <div class="user-mobile-card__field">
+            <dt>Phone</dt>
+            <dd>{{ u.phone || '—' }}</dd>
+          </div>
+          <div class="user-mobile-card__field">
+            <dt>Created</dt>
+            <dd>{{ u.createdAt | date:'mediumDate' }}</dd>
+          </div>
+          <div class="user-mobile-card__field user-mobile-card__field--status">
+            <dt>Status</dt>
+            <dd>
+              <mat-slide-toggle [checked]="u.isActive"
+                                (change)="toggleStatus(u)"
+                                color="primary">
+              </mat-slide-toggle>
+              <span class="status-label" [class.active]="u.isActive" [class.inactive]="!u.isActive">
+                {{ u.isActive ? 'Active' : 'Inactive' }}
+              </span>
+            </dd>
+          </div>
+        </dl>
+
+        <div class="user-mobile-card__actions">
+          <ui-button variant="outline" size="sm" icon="edit" [fullWidth]="true" (clicked)="edit(u.id)">Edit</ui-button>
+          <ui-button variant="outline" size="sm" icon="lock_reset" [fullWidth]="true" (clicked)="resetPassword(u)">Reset</ui-button>
+          <ui-button variant="danger" size="sm" icon="delete" [fullWidth]="true" (clicked)="delete(u)">Delete</ui-button>
+        </div>
+      </article>
+    </div>
+
+    <div class="user-table-wrap stb-table-scroll">
+      <table mat-table [dataSource]="dataSource" class="user-table">
         <ng-container matColumnDef="select">
           <th mat-header-cell *matHeaderCellDef class="select-col">
             <mat-checkbox (change)="toggleAllRows()"
@@ -87,26 +151,19 @@
                           [indeterminate]="selection.hasValue() && !isAllSelected()">
             </mat-checkbox>
           </th>
-          <td mat-cell *matCellDef="let u" class="select-col mobile-card-header" [attr.data-label]="'Select'">
+          <td mat-cell *matCellDef="let u" class="select-col">
             <mat-checkbox (click)="$event.stopPropagation()"
                           (change)="selection.toggle(u)"
                           [checked]="selection.isSelected(u)">
             </mat-checkbox>
-            <div class="mobile-user-header">
-              <div class="avatar">{{ u.fullName?.charAt(0)?.toUpperCase() || '?' }}</div>
-              <div class="mobile-user-meta">
-                <span class="name">{{ u.fullName }}</span>
-                <span class="role-chip" [attr.data-role]="u.role">{{ roleLabel(u.role) }}</span>
-              </div>
-            </div>
           </td>
         </ng-container>
 
         <ng-container matColumnDef="fullName">
           <th mat-header-cell *matHeaderCellDef>Name</th>
-          <td mat-cell *matCellDef="let u" [attr.data-label]="'Name'">
+          <td mat-cell *matCellDef="let u">
             <div class="user-cell">
-              <div class="avatar">{{ u.fullName?.charAt(0)?.toUpperCase() || '?' }}</div>
+              <div class="user-avatar user-avatar--sm">{{ u.fullName?.charAt(0)?.toUpperCase() || '?' }}</div>
               <span class="name">{{ u.fullName }}</span>
             </div>
           </td>
@@ -114,26 +171,24 @@
 
         <ng-container matColumnDef="email">
           <th mat-header-cell *matHeaderCellDef>Email</th>
-          <td mat-cell *matCellDef="let u" [attr.data-label]="'Email'">{{ u.email }}</td>
+          <td mat-cell *matCellDef="let u">{{ u.email }}</td>
         </ng-container>
 
         <ng-container matColumnDef="phone">
           <th mat-header-cell *matHeaderCellDef>Phone</th>
-          <td mat-cell *matCellDef="let u" [attr.data-label]="'Phone'">{{ u.phone }}</td>
+          <td mat-cell *matCellDef="let u">{{ u.phone }}</td>
         </ng-container>
 
         <ng-container matColumnDef="role">
           <th mat-header-cell *matHeaderCellDef>Role</th>
-          <td mat-cell *matCellDef="let u" [attr.data-label]="'Role'">
-            <span class="role-chip" [attr.data-role]="u.role">
-              {{ roleLabel(u.role) }}
-            </span>
+          <td mat-cell *matCellDef="let u">
+            <span class="role-chip" [attr.data-role]="u.role">{{ roleLabel(u.role) }}</span>
           </td>
         </ng-container>
 
         <ng-container matColumnDef="isActive">
           <th mat-header-cell *matHeaderCellDef>Status</th>
-          <td mat-cell *matCellDef="let u" class="status-cell" [attr.data-label]="'Status'">
+          <td mat-cell *matCellDef="let u" class="status-cell">
             <mat-slide-toggle [checked]="u.isActive"
                               (change)="toggleStatus(u)"
                               color="primary"
@@ -147,25 +202,21 @@
 
         <ng-container matColumnDef="createdAt">
           <th mat-header-cell *matHeaderCellDef>Created</th>
-          <td mat-cell *matCellDef="let u" [attr.data-label]="'Created'">{{ u.createdAt | date:'mediumDate' }}</td>
+          <td mat-cell *matCellDef="let u">{{ u.createdAt | date:'mediumDate' }}</td>
         </ng-container>
 
         <ng-container matColumnDef="actions">
           <th mat-header-cell *matHeaderCellDef class="col-actions">Actions</th>
-          <td mat-cell *matCellDef="let u" class="col-actions actions-cell" [attr.data-label]="'Actions'">
-            <button mat-icon-button color="primary" (click)="edit(u.id)" matTooltip="Edit">
-              <mat-icon>edit</mat-icon>
-            </button>
-            <button mat-icon-button (click)="resetPassword(u)" matTooltip="Reset password">
-              <mat-icon>lock_reset</mat-icon>
-            </button>
-            <button mat-icon-button color="warn" (click)="delete(u)" matTooltip="Delete">
-              <mat-icon>delete</mat-icon>
-            </button>
+          <td mat-cell *matCellDef="let u" class="col-actions">
+            <div class="user-table-actions">
+              <ui-button variant="outline" size="sm" icon="edit" (clicked)="edit(u.id)">Edit</ui-button>
+              <ui-button variant="outline" size="sm" icon="lock_reset" (clicked)="resetPassword(u)">Reset</ui-button>
+              <ui-button variant="danger" size="sm" icon="delete" (clicked)="delete(u)">Delete</ui-button>
+            </div>
           </td>
         </ng-container>
 
-        <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+        <tr mat-header-row *matHeaderRowDef="displayedColumns" class="user-table-head-row"></tr>
         <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
 
         <tr class="empty-row" *matNoDataRow>
@@ -174,6 +225,16 @@
           </td>
         </tr>
       </table>
+    </div>
+
+    <div *ngIf="!dataSource.data.length" class="users-empty">
+      <mat-icon>person_off</mat-icon>
+      <p>No users found</p>
+      <span>Adjust filters or add a new user to get started.</span>
+      <a routerLink="new" class="users-header-link users-header-link--primary users-empty__cta">
+        <mat-icon>person_add</mat-icon>
+        <span>Add User</span>
+      </a>
     </div>
 
     <div class="paginator-wrap">

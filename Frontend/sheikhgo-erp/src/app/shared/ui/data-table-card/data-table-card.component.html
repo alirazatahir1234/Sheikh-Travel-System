@@ -1,12 +1,12 @@
-<stb-info-card [title]="title" [icon]="icon">
+<stb-info-card [title]="title" [icon]="icon" class="stb-dt-card-host">
   <ng-container actions>
-    <button mat-button color="primary" (click)="action.emit()">
+    <button mat-button color="primary" class="stb-dt-header-action" (click)="action.emit()">
       <mat-icon>open_in_new</mat-icon>
       <span>{{ actionLabel }}</span>
     </button>
   </ng-container>
 
-  <div class="stb-dt" *ngIf="rows?.length; else empty">
+  <div class="stb-dt stb-dt--desktop" *ngIf="rows?.length; else empty">
     <table>
       <thead>
         <tr>
@@ -32,6 +32,7 @@
           </td>
           <td *ngIf="showRowActions" class="col-actions" (click)="$event.stopPropagation()">
             <button mat-icon-button type="button"
+                    class="stb-dt-row-menu"
                     [matMenuTriggerFor]="actionsMenu"
                     (click)="selectRow(row, $event)"
                     aria-label="Row actions">
@@ -41,6 +42,50 @@
         </tr>
       </tbody>
     </table>
+  </div>
+
+  <div class="stb-dt-cards" *ngIf="rows?.length">
+    <article class="stb-dt-mobile-card"
+             *ngFor="let row of rows"
+             (click)="onRowClick(row)">
+      <div class="stb-dt-mobile-card__head">
+        <div class="stb-dt-mobile-card__title-wrap">
+          <h4 class="stb-dt-mobile-card__title">{{ valueFor(row, columns[0]) }}</h4>
+        </div>
+        <ng-container *ngFor="let c of columns">
+          <span *ngIf="c.badge"
+                class="status-badge"
+                [attr.data-status]="statusKey(row, c)">
+            <mat-icon class="badge-icon">{{ statusIcon(row, c) }}</mat-icon>
+            {{ valueFor(row, c) }}
+          </span>
+        </ng-container>
+      </div>
+
+      <dl class="stb-dt-mobile-card__meta">
+        <ng-container *ngFor="let c of columns; let i = index">
+          <div class="stb-dt-mobile-card__field" *ngIf="i > 0 && !c.badge">
+            <dt>{{ c.header }}</dt>
+            <dd [class.stb-dt-mobile-card__amount]="c.align === 'right'">{{ valueFor(row, c) }}</dd>
+          </div>
+        </ng-container>
+      </dl>
+
+      <div class="stb-dt-mobile-card__actions" *ngIf="showRowActions" (click)="$event.stopPropagation()">
+        <button type="button" class="stb-dt-mobile-action" (click)="viewRow.emit(row)">
+          <mat-icon>visibility</mat-icon>
+          <span>View</span>
+        </button>
+        <button type="button" class="stb-dt-mobile-action" (click)="editRow.emit(row)">
+          <mat-icon>edit</mat-icon>
+          <span>Edit</span>
+        </button>
+        <button type="button" class="stb-dt-mobile-action stb-dt-mobile-action--primary" (click)="assignRow.emit(row)">
+          <mat-icon>person_add</mat-icon>
+          <span>Assign</span>
+        </button>
+      </div>
+    </article>
   </div>
 
   <mat-menu #actionsMenu="matMenu" xPosition="before">

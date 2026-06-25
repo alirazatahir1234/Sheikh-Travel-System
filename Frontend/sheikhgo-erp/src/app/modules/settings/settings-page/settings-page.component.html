@@ -1,23 +1,41 @@
-<header class="settings-page__header" *ngIf="category">
-  <h1>{{ category.label }}</h1>
-  <p>{{ category.description }}</p>
-</header>
-
-<app-brand-loader *ngIf="loading" />
-
-<ng-container *ngIf="!loading && category">
-  <app-dynamic-settings-form
-    *ngIf="category.isImplemented; else comingSoon"
-    [category]="category.id"
-    [schema]="schema"
-    [values]="values">
-  </app-dynamic-settings-form>
-
-  <ng-template #comingSoon>
-    <div class="settings-page__placeholder">
-      <mat-icon>{{ category.icon }}</mat-icon>
-      <h3>{{ category.label }} settings are coming soon</h3>
-      <p>This section is part of the roadmap and will be configurable here shortly.</p>
+<div class="settings-page">
+  <ui-page-header
+    *ngIf="category"
+    [title]="category.label"
+    [subtitle]="category.description"
+    [breadcrumbs]="[{ label: 'Settings', route: '/settings/general' }, { label: category.label }]">
+    <div class="settings-header-actions" *ngIf="!loading && category.isImplemented">
+      <ui-button
+        variant="primary"
+        type="submit"
+        form="appSettingsForm"
+        icon="save"
+        [loading]="formStatus.saving"
+        [disabled]="formStatus.saving || formStatus.pristine || formStatus.invalid">
+        Save Changes
+      </ui-button>
     </div>
-  </ng-template>
-</ng-container>
+  </ui-page-header>
+
+  <div *ngIf="loading" class="settings-page__loading" aria-busy="true" aria-label="Loading settings">
+    <span class="stb-shimmer-block settings-page-skeleton__section" *ngFor="let i of [1, 2, 3]"></span>
+  </div>
+
+  <ng-container *ngIf="!loading && category">
+    <app-dynamic-settings-form
+      *ngIf="category.isImplemented; else comingSoon"
+      [category]="category.id"
+      [schema]="schema"
+      [values]="values"
+      (formStatusChange)="onFormStatusChange($event)">
+    </app-dynamic-settings-form>
+
+    <ng-template #comingSoon>
+      <div class="settings-page__placeholder">
+        <mat-icon>{{ category.icon }}</mat-icon>
+        <h3>{{ category.label }} settings are coming soon</h3>
+        <p>This section is part of the roadmap and will be configurable here shortly.</p>
+      </div>
+    </ng-template>
+  </ng-container>
+</div>

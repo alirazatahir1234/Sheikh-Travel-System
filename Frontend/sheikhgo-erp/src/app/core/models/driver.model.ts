@@ -110,6 +110,7 @@ export interface DriverListItem {
   departmentId?: number | null;
   departmentName?: string | null;
   hireDate?: string | null;
+  photoUrl?: string | null;
   assignedVehicleId?: number | null;
   assignedVehicleCode?: string | null;
   assignedVehicleRegistration?: string | null;
@@ -377,7 +378,9 @@ function normalizeAddress(value: string | null | undefined): string | null {
 }
 
 export function normalizeDriverListItem(item: DriverListItem): DriverListItem {
-  return { ...item, status: normalizeDriverStatus(item.status) };
+  const r = item as DriverListItem & Record<string, unknown>;
+  const photoUrl = (r['photoUrl'] ?? r['PhotoUrl'] ?? null) as string | null;
+  return { ...item, status: normalizeDriverStatus(item.status), photoUrl: photoUrl || null };
 }
 
 export function normalizeDriver(driver: Driver): Driver {

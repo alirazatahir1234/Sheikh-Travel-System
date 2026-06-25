@@ -132,5 +132,59 @@
 .stb-empty {
   display: flex; flex-direction: column; align-items: center;
   padding: 32px 0; color: var(--stb-text-soft); gap: 6px; font-size: .85rem;
+  text-align: center;
   mat-icon { font-size: 32px; width: 32px; height: 32px; }
+}
+
+@media (max-width: 767px) {
+  .task {
+    padding: 10px;
+    gap: 10px;
+
+    & + .task { margin-top: 6px; }
+  }
+
+  .stb-empty {
+    padding: 16px 12px;
+    gap: 8px;
+    font-size: 0.8125rem;
+    max-width: 260px;
+    margin: 0 auto;
+
+    mat-icon {
+      font-size: 26px;
+      width: 26px;
+      height: 26px;
+    }
+
+    span {
+      line-height: 1.4;
+    }
+  }
+}
+
+.stb-chip-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  max-width: 100%;
+  scrollbar-width: none;
+  margin: -2px 0;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+
+  mat-chip-listbox {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 8px;
+    width: max-content;
+    min-width: 100%;
+  }
+}
+
+@media (max-width: 991px) {
+  .stb-chip-scroll {
+    padding-bottom: 2px;
+  }
 }

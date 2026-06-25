@@ -35,7 +35,7 @@ export interface WizardStepConfig {
             }
           </span>
           <span
-            class="hidden text-sm font-medium sm:inline"
+            class="text-xs font-medium sm:text-sm"
             [class.text-fleet-primary]="isActive(step.id)"
             [class.text-fleet-text]="!isActive(step.id)">
             {{ step.label }}

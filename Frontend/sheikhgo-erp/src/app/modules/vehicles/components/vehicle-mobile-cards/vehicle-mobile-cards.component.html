@@ -1,0 +1,99 @@
+<div class="mobile-cards">
+  @if (loading()) {
+    @for (i of [1, 2, 3]; track i) {
+      <div class="card card--skeleton"></div>
+    }
+  } @else if (!rows().length) {
+    <ui-empty-state icon="local_shipping" title="No vehicles found" description="Adjust filters or add a new vehicle."></ui-empty-state>
+  } @else {
+    @for (row of rows(); track row.id) {
+      <article class="card" (click)="cardSelect.emit(row)">
+        <div class="card__head">
+          <div class="card__identity">
+            @if (imageUrl(row); as src) {
+              <img [src]="src" [alt]="row.vehicleCode || row.registrationNumber" class="card__thumb" />
+            } @else {
+              <div class="card__thumb card__thumb--fallback"><mat-icon>local_shipping</mat-icon></div>
+            }
+            <div>
+              <strong class="card__code">{{ row.vehicleCode || row.registrationNumber }}</strong>
+              <p class="card__sub">{{ vehicleSubtitle(row) }}</p>
+            </div>
+          </div>
+          @let op = operationalStatus(row);
+          <ui-status-badge [status]="op.label" [variant]="op.variant"></ui-status-badge>
+        </div>
+
+        <dl class="card__meta">
+          <div>
+            <dt>Driver</dt>
+            <dd>{{ row.driverName || 'Unassigned' }}</dd>
+          </div>
+          <div>
+            <dt>Location</dt>
+            <dd>{{ locationText(row) }}</dd>
+          </div>
+          <div>
+            <dt>Odometer</dt>
+            <dd>
+              {{ row.currentMileage | number }} km
+              @let svc = serviceSubtext(row);
+              <span class="card__service" [class.card__service--alert]="svc.alert">{{ svc.text }}</span>
+            </dd>
+          </div>
+          <div>
+            <dt>Device</dt>
+            @if (!hasTracker(row)) {
+              <dd class="card__warn">No tracker</dd>
+            } @else {
+              <dd class="card__telemetry">
+                <span>GPS: <strong [class.text-online]="row.gpsOnline" [class.text-offline]="row.gpsOnline === false">{{ row.gpsOnline ? 'Online' : 'Offline' }}</strong></span>
+                <span>ACC: <strong>{{ row.engineIgnition == null ? '—' : (row.engineIgnition ? 'ON' : 'OFF') }}</strong></span>
+                <span class="ping">Ping: {{ lastPing(row) }}</span>
+              </dd>
+            }
+          </div>
+        </dl>
+
+        <div class="card__actions" (click)="$event.stopPropagation()">
+          <button type="button" class="action" (click)="cardSelect.emit(row)">
+            <mat-icon>visibility</mat-icon> View
+          </button>
+          @if (canTrack(row)) {
+            <button type="button" class="action" (click)="track.emit(row)">
+              <mat-icon>my_location</mat-icon> Track
+            </button>
+          }
+          @if (!row.driverName) {
+            <button type="button" class="action action--primary" (click)="assign.emit(row)">
+              <mat-icon>person_add</mat-icon> Assign
+            </button>
+          }
+        </div>
+      </article>
+    }
+  }
+
+  @if (!loading() && pagination().total > 0) {
+    <footer class="pager">
+      <label class="pager__size">
+        Rows
+        <select [value]="pagination().pageSize" (change)="pageSizeChange.emit(+$any($event.target).value)">
+          <option [value]="25">25</option>
+          <option [value]="50">50</option>
+          <option [value]="100">100</option>
+        </select>
+      </label>
+      <span class="pager__range">{{ rangeStart() }}–{{ rangeEnd() }} of {{ pagination().total }}</span>
+      <div class="pager__nav">
+        <button type="button" [disabled]="pagination().page <= 1" (click)="pageChange.emit(pagination().page - 1)">
+          <mat-icon>chevron_left</mat-icon>
+        </button>
+        <span>{{ pagination().page }} / {{ totalPages() }}</span>
+        <button type="button" [disabled]="pagination().page >= totalPages()" (click)="pageChange.emit(pagination().page + 1)">
+          <mat-icon>chevron_right</mat-icon>
+        </button>
+      </div>
+    </footer>
+  }
+</div>

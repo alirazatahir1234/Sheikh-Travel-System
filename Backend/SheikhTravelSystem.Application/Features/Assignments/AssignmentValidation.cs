@@ -52,9 +52,9 @@ public static class AssignmentValidation
                 issues.Add(new("DriverInvalid", ex.Message, "Error"));
             }
 
-            if (driver.LicenseExpiry.Date < DateTime.UtcNow.Date)
-                issues.Add(new("LicenseExpired", "Driver license has expired.", "Error"));
-            else if (!request.SkipSoftWarnings && driver.LicenseExpiry.Date <= DateTime.UtcNow.Date.AddDays(30))
+            if (!request.SkipSoftWarnings
+                && driver.LicenseExpiry.Date >= DateTime.UtcNow.Date
+                && driver.LicenseExpiry.Date <= DateTime.UtcNow.Date.AddDays(30))
             {
                 var days = (driver.LicenseExpiry.Date - DateTime.UtcNow.Date).Days;
                 issues.Add(new("LicenseExpiring", $"Driver license expires in {days} days.", "Warning"));
@@ -120,11 +120,11 @@ public static class AssignmentValidation
 
     public static string ResolveInitialStatus(DateTime startDateUtc, string? assignmentType)
     {
-        if (startDateUtc > DateTime.UtcNow)
-            return "Scheduled";
-
         if (assignmentType is "Temporary" or "Emergency")
             return "PendingApproval";
+
+        if (startDateUtc > DateTime.UtcNow)
+            return "Scheduled";
 
         return "Active";
     }

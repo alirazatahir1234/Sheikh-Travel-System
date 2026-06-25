@@ -4,6 +4,7 @@ import {
 import { CommonModule, CurrencyPipe, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
+import { finalize } from 'rxjs/operators';
 import { UiToastService } from '../../../../shared/components/ui/toast/ui-toast.service';
 import { UiDrawerComponent } from '../../../../shared/components/ui/drawer/ui-drawer.component';
 import { MaintenanceService } from '../../../../core/services/maintenance.service';
@@ -14,42 +15,13 @@ import {
 } from '../../../../core/models/maintenance.model';
 import { VehicleListItem } from '../../../../core/models/vehicle.model';
 import { parseServiceItems, workflowStepIndex, woActualCost } from './utils/wo.util';
+import { WoCreateFormComponent } from './components/wo-create-form.component';
 import { apiErrorMessage } from '../../../../core/utils/api-error.util';
-
-const MAINT_TYPES = [
-  { value: 'Preventive', label: 'Preventive', icon: 'verified' },
-  { value: 'Corrective', label: 'Corrective', icon: 'build' },
-  { value: 'Emergency', label: 'Emergency', icon: 'warning' }
-] as const;
-
-const SERVICE_CHIPS = [
-  'Oil Change', 'Brake Service', 'Tire Rotation', 'Battery Replacement', 'Engine Repair'
-];
-
-interface CreateForm {
-  vehicleId: number;
-  workshopId: number;
-  priority: string;
-  maintenanceType: string;
-  serviceItems: string[];
-  startDate: string;
-  estimatedCompletionDate: string;
-  laborCost: number;
-  partsCost: number;
-  notes: string;
-}
-
-const BLANK_FORM: CreateForm = {
-  vehicleId: 0, workshopId: 0, priority: 'Medium',
-  maintenanceType: 'Preventive', serviceItems: [],
-  startDate: '', estimatedCompletionDate: '',
-  laborCost: 0, partsCost: 0, notes: ''
-};
 
 @Component({
   selector: 'work-order-detail-drawer',
   standalone: true,
-  imports: [CommonModule, FormsModule, CurrencyPipe, DatePipe, MatIconModule, UiDrawerComponent],
+  imports: [CommonModule, FormsModule, CurrencyPipe, DatePipe, MatIconModule, UiDrawerComponent, WoCreateFormComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './work-order-detail-drawer.component.html',
   styleUrls: ['./work-order-detail-drawer.component.scss']
@@ -61,6 +33,7 @@ export class WorkOrderDetailDrawerComponent {
 
   readonly workOrderId = input<number | null>(null);
   readonly createMode = input(false);
+  readonly createResetKey = input(0);
   readonly vehicles = input<VehicleListItem[]>([]);
   readonly workshops = input<Workshop[]>([]);
 
@@ -75,11 +48,7 @@ export class WorkOrderDetailDrawerComponent {
   readonly technicians = signal<TechnicianListItem[]>([]);
 
   readonly workflowSteps = WORK_ORDER_WORKFLOW_STEPS;
-  readonly maintTypes = MAINT_TYPES;
-  readonly serviceChips = SERVICE_CHIPS;
-  readonly priorities = ['Low', 'Medium', 'High', 'Critical'];
 
-  form: CreateForm = { ...BLANK_FORM };
   assignWorkshopId = 0;
   assignTechnicianId = 0;
   partId = 0;
@@ -114,6 +83,14 @@ export class WorkOrderDetailDrawerComponent {
     return (WorkOrderStatusLabels as Record<string, string>)[s] ?? s;
   }
 
+  statusTone(s: string): string {
+    if (s === 'InProgress' || s === 'WaitingParts') return 'warning';
+    if (s === 'Open' || s === 'Assigned' || s === 'Draft') return 'info';
+    if (s === 'Completed' || s === 'Closed') return 'done';
+    if (s === 'Cancelled') return 'danger';
+    return 'muted';
+  }
+
   estimatedTotal(wo: WorkOrderDetail): number {
     return (wo.estimatedLaborCost ?? wo.laborCost) + (wo.estimatedPartsCost ?? wo.partsCost);
   }
@@ -123,16 +100,7 @@ export class WorkOrderDetailDrawerComponent {
   onClose(): void { this.closed.emit(); }
 
   onCreateClose(): void {
-    this.form = { ...BLANK_FORM };
     this.closed.emit();
-  }
-
-  toggleServiceItem(chip: string): void {
-    const items = [...this.form.serviceItems];
-    const idx = items.indexOf(chip);
-    if (idx >= 0) items.splice(idx, 1);
-    else items.push(chip);
-    this.form = { ...this.form, serviceItems: items };
   }
 
   openAssign(): void {
@@ -194,8 +162,16 @@ export class WorkOrderDetailDrawerComponent {
   }
 
   setStatus(id: number, status: string): void {
-    this.maintenanceService.updateWorkOrderStatus(id, status).subscribe({
-      next: () => { this.load(id); this.changed.emit(); },
+    if (this.saving()) return;
+    this.saving.set(true);
+    this.maintenanceService.updateWorkOrderStatus(id, status).pipe(
+      finalize(() => this.saving.set(false))
+    ).subscribe({
+      next: () => {
+        this.load(id);
+        this.changed.emit();
+        this.toast.success(`Work order marked as ${this.statusLabel(status)}`);
+      },
       error: err => this.toast.error(apiErrorMessage(err, 'Status update failed'))
     });
   }
@@ -219,30 +195,20 @@ export class WorkOrderDetailDrawerComponent {
     });
   }
 
-  submitCreate(): void {
-    if (!this.form.vehicleId) return;
+  submitCreate(payload: CreateWorkOrderPayload): void {
+    if (this.saving()) return;
     this.saving.set(true);
-    const payload: CreateWorkOrderPayload = {
-      vehicleId: this.form.vehicleId,
-      workshopId: this.form.workshopId || null,
-      priority: this.form.priority,
-      maintenanceType: this.form.maintenanceType,
-      serviceTypeName: this.form.serviceItems.join(', ') || null,
-      startDate: this.form.startDate || null,
-      estimatedCompletionDate: this.form.estimatedCompletionDate || null,
-      laborCost: this.form.laborCost,
-      partsCost: this.form.partsCost,
-      notes: this.form.notes || null
-    };
-    this.maintenanceService.createWorkOrder(payload).subscribe({
-      next: () => {
-        this.saving.set(false);
-        this.form = { ...BLANK_FORM };
-        this.created.emit();
-      },
+    this.maintenanceService.createWorkOrder(payload).pipe(
+      finalize(() => this.saving.set(false))
+    ).subscribe({
+      next: () => this.created.emit(),
       error: err => {
-        this.saving.set(false);
-        this.toast.error(apiErrorMessage(err, 'Failed to create work order'));
+        const message = apiErrorMessage(err, 'Failed to create work order');
+        if (message !== 'An unexpected error occurred.') {
+          this.toast.error(message);
+          return;
+        }
+        this.toast.error('Could not create the work order. Please select a vehicle and at least one service item, then try again.');
       }
     });
   }

@@ -51,6 +51,51 @@
   display: flex;
   gap: 6px;
   align-items: center;
+  min-width: 0;
 }
 
 .ic-body { flex: 1 1 auto; min-height: 0; }
+
+@media (max-width: 991px) {
+  .ic-head {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .ic-actions {
+    flex: 1 1 100%;
+    max-width: 100%;
+  }
+
+  .stb-info-card {
+    padding: 14px 16px;
+  }
+
+  .ic-title h3 {
+    font-size: clamp(0.9375rem, 2.5vw, 1rem);
+    overflow-wrap: anywhere;
+  }
+}
+
+@media (max-width: 767px) {
+  .stb-info-card {
+    padding: 12px 14px;
+  }
+
+  .ic-head {
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+  }
+
+  .ic-actions {
+    flex: 1 1 100%;
+    max-width: 100%;
+
+    button,
+    .stb-dt-header-action {
+      width: 100%;
+      justify-content: center;
+      min-height: 44px;
+    }
+  }
+}

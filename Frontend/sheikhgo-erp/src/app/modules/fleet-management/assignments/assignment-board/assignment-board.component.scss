@@ -126,6 +126,24 @@
 
 /* ── Buttons ─────────────────────────────────────────────────────────────────── */
 
+.ab-btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.75rem;
+  background: transparent;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 0.8125rem;
+  color: #475569;
+  cursor: pointer;
+  min-height: 40px;
+
+  mat-icon { font-size: 15px; width: 15px; height: 15px; }
+
+  &:hover { background: #f8fafc; }
+}
+
 .ab-btn-primary {
   display: inline-flex;
   align-items: center;
@@ -139,28 +157,12 @@
   font-weight: 600;
   cursor: pointer;
   transition: opacity 0.15s;
+  min-height: 40px;
 
   mat-icon { font-size: 16px; width: 16px; height: 16px; }
 
   &:hover:not(:disabled) { opacity: 0.88; }
   &:disabled { opacity: 0.5; cursor: not-allowed; }
-}
-
-.ab-btn-ghost {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  padding: 0.4rem 0.75rem;
-  background: transparent;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  font-size: 0.8125rem;
-  color: #475569;
-  cursor: pointer;
-
-  mat-icon { font-size: 15px; width: 15px; height: 15px; }
-
-  &:hover { background: #f8fafc; }
 }
 
 .ab-btn-outline {
@@ -368,7 +370,11 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-top: 1rem;
+  padding: 0.75rem 1rem;
+  margin-top: 0;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #fff;
 }
 
 .bulk-bar {
@@ -403,14 +409,6 @@
   font-size: 0.75rem;
   font-weight: 700;
   text-transform: uppercase;
-}
-
-.ab-pagination {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0.75rem 1rem;
-  border-top: 1px solid #e2e8f0;
 }
 
 .ab-pagination-info { font-size: 0.8125rem; color: #64748b; }
@@ -664,3 +662,143 @@
 
 @keyframes abspin { to { transform: rotate(360deg); } }
 .ab-spin { animation: abspin 0.8s linear infinite; }
+
+/* ── Page shell ──────────────────────────────────────────────────────────────── */
+
+:host {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.ab-board {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-width: 0;
+  padding-bottom: 1rem;
+}
+
+.ab-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* ── Responsive ──────────────────────────────────────────────────────────────── */
+
+@media (max-width: 1023px) {
+  .ab-pagination {
+    justify-content: center;
+    text-align: center;
+  }
+}
+
+@media (max-width: 767px) {
+  .ab-board {
+    gap: 0.875rem;
+    padding-bottom: 1.5rem;
+  }
+
+  .ab-header-actions {
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+  }
+
+  .ab-header-actions .ab-btn-ghost,
+  .ab-header-actions .ab-btn-primary {
+    width: 100%;
+    justify-content: center;
+    min-height: 44px;
+  }
+
+  .bulk-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+
+    .ab-btn-ghost {
+      width: 100%;
+      justify-content: center;
+      min-height: 44px;
+    }
+  }
+
+  .ab-pagination {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+    margin-top: 0;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    background: #fff;
+  }
+
+  .ab-pagination-nav {
+    justify-content: space-between;
+  }
+
+  .ab-page-btn {
+    width: 44px;
+    height: 44px;
+  }
+
+  .ab-drawer {
+    width: 100% !important;
+    max-width: 100vw;
+    height: 100dvh;
+  }
+
+  .ab-drawer-title {
+    font-size: clamp(1rem, 4vw, 1.125rem);
+  }
+
+  .ab-drawer-close {
+    width: 44px;
+    height: 44px;
+  }
+
+  .ab-detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .ab-date-row {
+    grid-template-columns: 1fr;
+  }
+
+  .ab-drawer-footer,
+  .ab-close-actions {
+    flex-direction: column;
+    align-items: stretch;
+
+    .ab-btn-ghost,
+    .ab-btn-primary,
+    .ab-btn-outline,
+    .ab-btn-success,
+    .ab-btn-danger {
+      width: 100%;
+      justify-content: center;
+      min-height: 44px;
+    }
+  }
+
+  .ab-select,
+  .ab-input {
+    min-height: 44px;
+    font-size: 0.875rem;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  .ab-drawer {
+    width: min(440px, 92vw);
+  }
+}
+
+@media (max-width: 480px) {
+  .ab-header-actions__export {
+    display: none;
+  }
+}

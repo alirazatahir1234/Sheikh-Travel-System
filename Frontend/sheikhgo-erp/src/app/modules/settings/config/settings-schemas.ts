@@ -47,18 +47,107 @@ const TIME_FORMAT_OPTIONS = [
 
 // 1. General Settings
 const generalSchema: SettingFieldSchema[] = [
-  { key: 'CompanyName', label: 'Company Name', type: 'text', section: 'Company Identity', required: true, placeholder: COMPANY_NAME },
-  { key: 'CompanyLogo', label: 'Company Logo URL', type: 'url', section: 'Company Identity', placeholder: 'https://...' },
-  { key: 'CompanyAddress', label: 'Company Address', type: 'textarea', section: 'Company Identity', placeholder: 'Street, City, Country' },
-  { key: 'Phone', label: 'Phone', type: 'text', section: 'Contact', placeholder: '+971 4 000 0000' },
-  { key: 'Email', label: 'Email', type: 'email', section: 'Contact', placeholder: 'info@example.com' },
-  { key: 'Website', label: 'Website', type: 'url', section: 'Contact', placeholder: 'https://...' },
-  { key: 'Timezone', label: 'Time Zone', type: 'dropdown', section: 'Regional Defaults', options: TIMEZONE_OPTIONS },
-  { key: 'DefaultCurrency', label: 'Currency', type: 'dropdown', section: 'Regional Defaults', options: CURRENCY_OPTIONS },
-  { key: 'Language', label: 'Language', type: 'dropdown', section: 'Regional Defaults', options: LANGUAGE_OPTIONS },
-  { key: 'DateFormat', label: 'Date Format', type: 'dropdown', section: 'Regional Defaults', options: DATE_FORMAT_OPTIONS },
-  { key: 'TimeFormat', label: 'Time Format', type: 'dropdown', section: 'Regional Defaults', options: TIME_FORMAT_OPTIONS },
-  { key: 'FiscalYearStart', label: 'Fiscal Year Start (MM-DD)', type: 'text', section: 'Regional Defaults', placeholder: '01-01' }
+  {
+    key: 'CompanyName',
+    label: 'Company Name',
+    type: 'text',
+    section: 'Company Identity',
+    required: true,
+    minLength: 2,
+    maxLength: 150,
+    placeholder: COMPANY_NAME
+  },
+  {
+    key: 'CompanyLogo',
+    label: 'Company Logo URL',
+    type: 'url',
+    section: 'Company Identity',
+    placeholder: 'https://...',
+    maxLength: 500
+  },
+  {
+    key: 'CompanyAddress',
+    label: 'Company Address',
+    type: 'textarea',
+    section: 'Company Identity',
+    placeholder: 'Street, City, Country',
+    maxLength: 500
+  },
+  {
+    key: 'Phone',
+    label: 'Phone',
+    type: 'text',
+    section: 'Contact',
+    placeholder: '+971 4 000 0000',
+    maxLength: 30,
+    pattern: '^\\+?[\\d\\s().-]{7,20}$',
+    patternMessage: 'Enter a valid phone number (7–20 digits).'
+  },
+  {
+    key: 'Email',
+    label: 'Email',
+    type: 'email',
+    section: 'Contact',
+    placeholder: 'info@example.com',
+    maxLength: 254
+  },
+  {
+    key: 'Website',
+    label: 'Website',
+    type: 'url',
+    section: 'Contact',
+    placeholder: 'https://...',
+    maxLength: 500
+  },
+  {
+    key: 'Timezone',
+    label: 'Time Zone',
+    type: 'dropdown',
+    section: 'Regional Defaults',
+    required: true,
+    options: TIMEZONE_OPTIONS
+  },
+  {
+    key: 'DefaultCurrency',
+    label: 'Currency',
+    type: 'dropdown',
+    section: 'Regional Defaults',
+    required: true,
+    options: CURRENCY_OPTIONS
+  },
+  {
+    key: 'Language',
+    label: 'Language',
+    type: 'dropdown',
+    section: 'Regional Defaults',
+    required: true,
+    options: LANGUAGE_OPTIONS
+  },
+  {
+    key: 'DateFormat',
+    label: 'Date Format',
+    type: 'dropdown',
+    section: 'Regional Defaults',
+    required: true,
+    options: DATE_FORMAT_OPTIONS
+  },
+  {
+    key: 'TimeFormat',
+    label: 'Time Format',
+    type: 'dropdown',
+    section: 'Regional Defaults',
+    required: true,
+    options: TIME_FORMAT_OPTIONS
+  },
+  {
+    key: 'FiscalYearStart',
+    label: 'Fiscal Year Start (MM-DD)',
+    type: 'text',
+    section: 'Regional Defaults',
+    placeholder: '01-01',
+    pattern: '^(0[1-9]|1[0-2])-(0[1-9]|[12]\\d|3[01])$',
+    patternMessage: 'Use MM-DD format (e.g. 01-01).'
+  }
 ];
 
 // 2. Tenant Settings

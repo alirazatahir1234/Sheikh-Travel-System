@@ -8,7 +8,7 @@
       <button type="button" class="btn-export" (click)="exportOrders()">
         <mat-icon>download</mat-icon> Export
       </button>
-      <button type="button" class="btn-new" (click)="showCreate.set(true)">
+      <button type="button" class="btn-new" (click)="openCreate()">
         <mat-icon>add</mat-icon> Create Work Order
       </button>
     </div>
@@ -50,8 +50,9 @@
   <work-order-detail-drawer
     [workOrderId]="null"
     [createMode]="showCreate()"
+    [createResetKey]="createResetKey()"
     [vehicles]="vehicles()"
     [workshops]="workshops()"
-    (closed)="showCreate.set(false)"
+    (closed)="onCreateClosed()"
     (created)="onCreated()" />
 </div>

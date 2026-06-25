@@ -35,6 +35,11 @@ export interface SettingFieldSchema {
   required?: boolean;
   min?: number;
   max?: number;
+  minLength?: number;
+  maxLength?: number;
+  /** Regex source string applied when the field has a value (or always when required). */
+  pattern?: string;
+  patternMessage?: string;
 }
 
 /** Raw values exchanged with the API: every value is serialized as a string (or null). */

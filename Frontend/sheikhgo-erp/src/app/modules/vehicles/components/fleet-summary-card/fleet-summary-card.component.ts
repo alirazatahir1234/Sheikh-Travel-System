@@ -65,11 +65,16 @@ export interface FleetSummaryCardData {
   `,
   styles: [`
     mat-icon { display: inline-flex; }
+    .summary-card { min-width: 0; }
     .summary-card__icon { background: rgba(100, 116, 139, 0.12); color: #64748b; }
     .summary-card--operational .summary-card__icon { background: rgba(15, 118, 110, 0.12); color: #0f766e; }
     .summary-card--operational { border-top: 3px solid #14b8a6; }
     .summary-card--risk .summary-card__icon { background: rgba(245, 158, 11, 0.14); color: #d97706; }
     .summary-card--risk { border-top: 3px solid #f59e0b; }
+    @media (max-width: 767px) {
+      .summary-card h3 { font-size: 1.375rem; }
+      .summary-card [class*="text-[10px]"] { line-height: 1.2; }
+    }
   `]
 })
 export class FleetSummaryCardComponent {

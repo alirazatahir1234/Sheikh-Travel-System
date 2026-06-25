@@ -34,14 +34,22 @@ export class DashboardAnalyticsComponent implements AfterViewInit, OnChanges, On
   @Input() revenueTotal = 0;
   @Input() loading = false;
 
+  readonly skeletonBars = [0, 1, 2, 3, 4, 5, 6];
+  readonly skeletonLegend = [0, 1, 2, 3];
+
   private revenueChart?: Chart;
   private bookingsChart?: Chart;
   private fleetChart?: Chart;
   private viewReady = false;
+  private resizeObserver?: ResizeObserver;
+
+  constructor(private host: ElementRef<HTMLElement>) {}
 
   ngAfterViewInit(): void {
     this.viewReady = true;
     this.renderCharts();
+    this.resizeObserver = new ResizeObserver(() => this.resizeCharts());
+    this.resizeObserver.observe(this.host.nativeElement);
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -57,9 +65,17 @@ export class DashboardAnalyticsComponent implements AfterViewInit, OnChanges, On
   }
 
   ngOnDestroy(): void {
+    this.resizeObserver?.disconnect();
     this.revenueChart?.destroy();
     this.bookingsChart?.destroy();
     this.fleetChart?.destroy();
+  }
+
+  private resizeCharts(): void {
+    if (this.loading) return;
+    this.revenueChart?.resize();
+    this.bookingsChart?.resize();
+    this.fleetChart?.resize();
   }
 
   private renderCharts(): void {
@@ -68,6 +84,7 @@ export class DashboardAnalyticsComponent implements AfterViewInit, OnChanges, On
       this.renderRevenue();
       this.renderBookings();
       this.renderFleet();
+      this.resizeCharts();
     });
   }
 

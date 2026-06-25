@@ -28,6 +28,7 @@ import { formatRelativeTime } from '../../../core/utils/relative-time.util';
 import { FleetSummaryCardComponent, FleetSummaryCardData } from '../components/fleet-summary-card/fleet-summary-card.component';
 import { FleetFilterToolbarComponent } from '../components/fleet-filter-toolbar/fleet-filter-toolbar.component';
 import { VehicleTableComponent } from '../components/vehicle-table/vehicle-table.component';
+import { VehicleMobileCardsComponent } from '../components/vehicle-mobile-cards/vehicle-mobile-cards.component';
 import { VehicleDetailsDrawerComponent } from '../vehicle-details-drawer/vehicle-details-drawer.component';
 import { VehicleAssignDialogComponent } from '../components/vehicle-assign-dialog/vehicle-assign-dialog.component';
 import { VehicleBulkToolbarComponent } from '../components/vehicle-bulk-toolbar/vehicle-bulk-toolbar.component';
@@ -62,6 +63,7 @@ import {
     FleetSummaryCardComponent,
     FleetFilterToolbarComponent,
     VehicleTableComponent,
+    VehicleMobileCardsComponent,
     VehicleDetailsDrawerComponent,
     VehicleAssignDialogComponent,
     VehicleBulkToolbarComponent,

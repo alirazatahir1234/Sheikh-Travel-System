@@ -43,6 +43,7 @@ import { FleetAssignmentChangelog } from '../../../../core/models/fleet-assignme
     </div>
   `,
   styles: [`
+    :host { display: block; min-width: 0; }
     .history-panel { margin-top: 1rem; }
     .history-title { display: flex; align-items: center; gap: 0.375rem; font-size: 0.875rem; font-weight: 700; margin: 0 0 0.75rem; }
     .history-title mat-icon { font-size: 16px; width: 16px; height: 16px; }
@@ -51,9 +52,9 @@ import { FleetAssignmentChangelog } from '../../../../core/models/fleet-assignme
     .history-item { display: flex; gap: 0.625rem; }
     .history-dot { width: 10px; height: 10px; border-radius: 50%; background: #0f766e; margin-top: 0.35rem; flex-shrink: 0; }
     .history-body { flex: 1; min-width: 0; }
-    .history-header { display: flex; justify-content: space-between; gap: 0.5rem; font-size: 0.8125rem; }
+    .history-header { display: flex; justify-content: space-between; gap: 0.5rem; font-size: 0.8125rem; flex-wrap: wrap; }
     .history-date { color: #64748b; font-size: 0.75rem; }
-    .history-line, .history-reason, .history-by { margin: 0.2rem 0 0; font-size: 0.75rem; color: #475569; }
+    .history-line, .history-reason, .history-by { margin: 0.2rem 0 0; font-size: 0.75rem; color: #475569; word-break: break-word; }
     .history-by { color: #94a3b8; }
   `]
 })

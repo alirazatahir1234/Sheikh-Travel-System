@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, input, output, signal } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
 import { RouterModule } from '@angular/router';
 import { DriverListItem, DriverStatusLabels, driverDisplayName } from '../../../../core/models/driver.model';
@@ -6,6 +6,7 @@ import { UiStatusBadgeComponent } from '../../../../shared/components/ui/status-
 import { UiEmptyStateComponent } from '../../../../shared/components/ui/empty-state/ui-empty-state.component';
 import { DriverPagination, DRIVER_PAGE_SIZE_OPTIONS, computeDriverScore, scoreTone } from '../../models/driver-inventory.model';
 import { licenseExpiryLabel, licenseExpiryState, availabilityBucketLabel } from '../../utils/driver-status.util';
+import { resolveDriverPhotoUrl } from '../../../../core/utils/upload-url.util';
 
 @Component({
   selector: 'driver-table',
@@ -69,6 +70,17 @@ export class DriverTableComponent {
   initials(row: DriverListItem): string {
     const name = this.displayName(row);
     return name.split(' ').slice(0, 2).map(w => w[0] ?? '').join('').toUpperCase();
+  }
+
+  private readonly brokenImages = signal<Set<number>>(new Set());
+
+  resolvePhoto(row: DriverListItem): string | null {
+    if (this.brokenImages().has(row.id)) return null;
+    return resolveDriverPhotoUrl(row.photoUrl);
+  }
+
+  onImgError(row: DriverListItem): void {
+    this.brokenImages.update(s => new Set(s).add(row.id));
   }
 
   formatExpiryDate(dateStr: string | Date | null | undefined): string {

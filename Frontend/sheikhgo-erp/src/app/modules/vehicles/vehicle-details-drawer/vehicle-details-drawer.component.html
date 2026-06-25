@@ -101,6 +101,50 @@
               </div>
             </div>
 
+            <div class="vd-section vd-photo-section">
+              <div class="vd-section-header">
+                <span class="vd-section-title">Vehicle Photos</span>
+                @if (documentsLoading() && vehicleImageDocuments().length === 0) {
+                  <span class="vd-section-meta">Loading…</span>
+                }
+              </div>
+
+              @if (documentsLoading() && vehicleImageDocuments().length === 0) {
+                <div class="vd-loading vd-loading--inline">
+                  <div class="vd-spinner"></div>
+                  <p>Loading vehicle photos…</p>
+                </div>
+              } @else {
+                <div class="vd-photo-grid">
+                  @for (slot of vehiclePhotoSlots(); track slot.angle) {
+                    <div
+                      class="vd-photo-slot"
+                      [class.vd-photo-slot--filled]="!!slot.document"
+                      [class.vd-photo-slot--primary]="slot.isPrimary">
+                      @if (vehicleImagePreviewUrl(slot.document); as previewUrl) {
+                        <button
+                          type="button"
+                          class="vd-photo-preview"
+                          [attr.aria-label]="'View ' + slot.label"
+                          (click)="openPhotoPreview(previewUrl, slot.label)">
+                          <img [src]="previewUrl" [alt]="slot.label" loading="lazy" />
+                          @if (slot.isPrimary) {
+                            <span class="vd-photo-badge">Display</span>
+                          }
+                        </button>
+                      } @else {
+                        <div class="vd-photo-placeholder">
+                          <mat-icon>photo_camera</mat-icon>
+                          <span>No photo</span>
+                        </div>
+                      }
+                      <span class="vd-photo-label">{{ slot.label }}</span>
+                    </div>
+                  }
+                </div>
+              }
+            </div>
+
             @if (displayLocation(); as loc) {
               <div class="vd-section">
                 <div class="vd-section-header">
@@ -730,3 +774,24 @@
   </ui-modal>
 
 </ui-drawer>
+
+@if (photoPreviewUrl) {
+  <div
+    class="vd-photo-lightbox"
+    role="dialog"
+    aria-modal="true"
+    [attr.aria-label]="photoPreviewLabel + ' preview'"
+    (click)="closePhotoPreview()">
+    <button
+      type="button"
+      class="vd-photo-lightbox-close"
+      aria-label="Close preview"
+      (click)="closePhotoPreview(); $event.stopPropagation()">
+      <mat-icon>close</mat-icon>
+    </button>
+    <div class="vd-photo-lightbox-inner" (click)="$event.stopPropagation()">
+      <img [src]="photoPreviewUrl" [alt]="photoPreviewLabel" />
+      <p class="vd-photo-lightbox-caption">{{ photoPreviewLabel }}</p>
+    </div>
+  </div>
+}

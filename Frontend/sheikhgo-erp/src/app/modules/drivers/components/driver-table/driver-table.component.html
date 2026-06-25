@@ -1,4 +1,4 @@
-<div class="driver-table-wrap overflow-hidden rounded-xl border border-fleet-border bg-white">
+<div class="driver-table-wrap rounded-xl border border-fleet-border bg-white">
   @if (error()) {
     <div class="flex items-center justify-between gap-3 border-b border-fleet-error/30 bg-fleet-error-soft px-5 py-3 text-sm text-fleet-error">
       <span>{{ error() }}</span>
@@ -43,7 +43,13 @@
           @for (row of rows(); track row.id) {
             <tr class="cursor-pointer transition-colors hover:bg-fleet-primary/5" (click)="rowClick.emit(row)">
               <td class="px-3 py-3">
-                <div class="driver-avatar" [attr.aria-label]="displayName(row)">{{ initials(row) }}</div>
+                <div class="driver-avatar" [attr.aria-label]="displayName(row)">
+                  @if (resolvePhoto(row)) {
+                    <img class="driver-avatar__img" [src]="resolvePhoto(row)" [alt]="displayName(row)" (error)="onImgError(row)" />
+                  } @else {
+                    {{ initials(row) }}
+                  }
+                </div>
               </td>
               <td class="px-4 py-3">
                 <div class="font-semibold text-fleet-text">{{ displayName(row) }}</div>
@@ -97,7 +103,7 @@
   </div>
 
   @if (!loading() && pagination().total > 0) {
-    <div class="flex flex-wrap items-center justify-between gap-3 border-t border-fleet-border px-4 py-3 text-sm">
+    <div class="table-footer flex flex-wrap items-center justify-between gap-3 border-t border-fleet-border px-4 py-3 text-sm">
       <label class="flex items-center gap-2 text-fleet-text-muted">
         Rows per page
         <select class="page-size-select"

@@ -106,7 +106,19 @@ export interface AssignmentWizardForm extends CreateAssignmentRequest {
     .alert { padding: 0.5rem 0.75rem; border-radius: 8px; font-size: 0.8125rem; margin-top: 0.5rem; }
     .alert--error { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
     .alert--warn { background: #fffbeb; color: #b45309; border: 1px solid #fde68a; }
-    .wizard-footer { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.5rem; }
+    .wizard-footer { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.5rem; flex-wrap: wrap; }
+
+    @media (max-width: 767px) {
+      .date-row { grid-template-columns: 1fr; }
+      .wizard-footer {
+        flex-direction: column-reverse;
+        align-items: stretch;
+      }
+      .wizard-footer ui-button { width: 100%; }
+      .input, select.input { min-height: 44px; font-size: 0.875rem; }
+      .wizard-steps { gap: 0.375rem; }
+      .wizard-step-label { font-size: 0.6875rem; }
+    }
   `]
 })
 export class AssignmentCreateWizardComponent {

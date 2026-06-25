@@ -1,4 +1,9 @@
-:host { display: block; }
+:host {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: hidden;
+}
 
 .analytics-section {
   background: var(--stb-section-bg);
@@ -7,14 +12,15 @@
   padding: 20px;
   box-shadow: var(--stb-shadow);
   animation: fade-up 0.45s ease-out;
+  min-width: 0;
 
-  @media (max-width: 768px) {
-    padding: 14px;
+  @media (max-width: 767px) {
+    padding: 12px;
     border-radius: var(--stb-radius);
   }
 
-  @media (max-width: 480px) {
-    padding: 12px;
+  @media (max-width: 575px) {
+    padding: 10px;
   }
 }
 
@@ -32,41 +38,65 @@
 .section-head {
   margin-bottom: 16px;
   padding: 0 4px;
+  min-width: 0;
 
   h2 {
     margin: 0;
-    font-size: 1.125rem;
-    font-weight: 700;
     color: var(--stb-text);
   }
 
-  p { margin: 4px 0 0; font-size: 0.8125rem; }
+  p {
+    margin: 4px 0 0;
+    font-size: clamp(0.8125rem, 1.5vw, 0.875rem);
+  }
+
+  @media (max-width: 767px) {
+    margin-bottom: 12px;
+  }
 }
 
 .analytics-grid {
   display: grid;
   grid-template-columns: 1.5fr 1fr 1fr;
   gap: 16px;
+  min-width: 0;
 
-  @media (max-width: 1200px) {
+  @media (max-width: 1199px) {
     grid-template-columns: 1fr 1fr;
-    .chart-card:first-child { grid-column: 1 / -1; }
+
+    .chart-card--revenue {
+      grid-column: 1 / -1;
+    }
   }
-  @media (max-width: 720px) {
+
+  @media (max-width: 991px) {
+    gap: 14px;
+  }
+
+  @media (max-width: 767px) {
     grid-template-columns: 1fr;
+    gap: 12px;
   }
 }
 
 .chart-card {
-  min-height: 300px;
+  min-height: clamp(220px, 50vh, 300px);
+  min-width: 0;
   background: var(--stb-glass, #fff) !important;
   box-shadow: var(--stb-shadow) !important;
   border: 1px solid var(--stb-border) !important;
   transition: box-shadow 0.2s ease, transform 0.2s ease;
 
-  &:hover {
-    box-shadow: var(--stb-shadow-lg) !important;
-    transform: translateY(-2px);
+  @media (hover: hover) {
+    &:hover {
+      box-shadow: var(--stb-shadow-lg) !important;
+      transform: translateY(-2px);
+    }
+  }
+
+  @media (max-width: 767px) {
+    min-height: auto;
+    height: auto;
   }
 }
 
@@ -75,21 +105,61 @@
   align-items: baseline;
   gap: 8px;
   margin-bottom: 8px;
+  flex-wrap: wrap;
 
   .meta-val {
-    font-size: 1.5rem;
+    font-size: clamp(1.25rem, 3vw, 1.5rem);
     font-weight: 700;
     color: var(--stb-primary);
   }
-  .meta-lbl { font-size: 0.75rem; color: var(--stb-text-muted); }
+
+  .meta-lbl {
+    font-size: 0.75rem;
+    color: var(--stb-text-muted);
+  }
+}
+
+.chart-meta-skeleton {
+  width: 140px;
+  height: 1.5rem;
+  margin-bottom: 8px;
+  border-radius: 8px;
 }
 
 .chart-wrap {
   height: 220px;
+  min-height: 160px;
   position: relative;
+  width: 100%;
+  max-width: 100%;
 
-  &--donut { height: 200px; }
-  &--bar { height: 180px; }
+  canvas {
+    width: 100% !important;
+    height: 100% !important;
+  }
+
+  &--donut {
+    height: 200px;
+    min-height: 150px;
+  }
+
+  &--bar {
+    height: 180px;
+    min-height: 140px;
+  }
+
+  @media (max-width: 767px) {
+    height: auto;
+    min-height: 140px;
+    max-height: 200px;
+    aspect-ratio: 16 / 10;
+
+    &--donut,
+    &--bar {
+      min-height: 140px;
+      max-height: 180px;
+    }
+  }
 }
 
 .chart-empty-hint {
@@ -97,9 +167,101 @@
   margin: 8px 0 0;
 }
 
-.chart-loading {
-  height: 200px;
+.chart-skeleton {
+  width: 100%;
+  min-height: 160px;
   display: flex;
+  align-items: flex-end;
+  justify-content: center;
+
+  @media (max-width: 767px) {
+    min-height: 140px;
+    max-height: 200px;
+    aspect-ratio: 16 / 10;
+  }
+}
+
+.chart-skeleton--line {
+  .chart-skeleton-bars {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 8px;
+    width: 100%;
+    height: 100%;
+    min-height: 140px;
+    padding: 8px 4px 0;
+
+    span {
+      flex: 1 1 0;
+      min-width: 0;
+      border-radius: 6px 6px 2px 2px;
+      height: var(--bar-h, 40%);
+
+      &:nth-child(1) { --bar-h: 55%; }
+      &:nth-child(2) { --bar-h: 72%; }
+      &:nth-child(3) { --bar-h: 48%; }
+      &:nth-child(4) { --bar-h: 85%; }
+      &:nth-child(5) { --bar-h: 62%; }
+      &:nth-child(6) { --bar-h: 78%; }
+      &:nth-child(7) { --bar-h: 52%; }
+    }
+  }
+}
+
+.chart-skeleton--donut {
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 12px;
+  padding: 8px;
+
+  .chart-skeleton-ring {
+    width: clamp(100px, 40vw, 140px);
+    height: clamp(100px, 40vw, 140px);
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .chart-skeleton-legend {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+
+    span {
+      width: 64px;
+      height: 10px;
+      border-radius: 4px;
+    }
+  }
+}
+
+.chart-skeleton--bar {
+  align-items: center;
+  padding: 12px 8px;
+
+  .chart-skeleton-hbars {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: 100%;
+
+    span {
+      height: 14px;
+      border-radius: 6px;
+
+      &:nth-child(1) { width: 88%; }
+      &:nth-child(2) { width: 72%; }
+      &:nth-child(3) { width: 60%; }
+    }
+  }
+}
+
+@media (hover: none) {
+  .chart-card:hover {
+    transform: none;
+    box-shadow: var(--stb-shadow) !important;
+  }
 }

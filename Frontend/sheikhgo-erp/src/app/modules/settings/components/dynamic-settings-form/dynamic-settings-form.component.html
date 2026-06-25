@@ -1,20 +1,24 @@
-<form [formGroup]="form" (ngSubmit)="save()" class="settings-form">
+<form [formGroup]="form" (ngSubmit)="save()" id="appSettingsForm" class="settings-form">
   <section class="settings-section" *ngFor="let section of sections">
     <header class="settings-section__head">
-      <h3>{{ section.title }}</h3>
+      <h3 class="settings-section__title">{{ section.title }}</h3>
     </header>
 
     <div class="settings-section__grid">
-      <div class="stb-field" *ngFor="let field of section.fields" [class.stb-field--toggle]="field.type === 'toggle'">
+      <div class="stb-field"
+           *ngFor="let field of section.fields"
+           [class.stb-field--toggle]="field.type === 'toggle'"
+           [class.stb-field--full]="field.type === 'textarea' || field.type === 'toggle'"
+           [class.stb-field--invalid]="showFieldError(field)">
         <ng-container [ngSwitch]="field.type">
 
           <ng-container *ngSwitchCase="'toggle'">
             <div class="settings-toggle">
               <div class="settings-toggle__text">
-                <label>{{ field.label }}</label>
+                <label [attr.for]="field.key">{{ field.label }}</label>
                 <span class="stb-hint" *ngIf="field.hint">{{ field.hint }}</span>
               </div>
-              <mat-slide-toggle color="primary" [formControlName]="field.key"></mat-slide-toggle>
+              <mat-slide-toggle color="primary" [formControlName]="field.key" [attr.aria-label]="field.label"></mat-slide-toggle>
             </div>
           </ng-container>
 
@@ -25,15 +29,37 @@
               <option *ngFor="let option of field.options" [value]="option.value">{{ option.label }}</option>
             </select>
             <span class="stb-hint" *ngIf="field.hint">{{ field.hint }}</span>
+            <span class="stb-error" *ngIf="showFieldError(field)">{{ getFieldError(field) }}</span>
           </ng-container>
 
           <ng-container *ngSwitchCase="'color'">
             <label [attr.for]="field.key">{{ field.label }}</label>
             <div class="settings-color">
-              <input type="color" [id]="field.key" [formControlName]="field.key" class="settings-color__swatch" />
+              <input type="color" [id]="field.key" [formControlName]="field.key" class="settings-color__swatch" [attr.aria-label]="field.label + ' picker'" />
               <input type="text" class="stb-input" [formControlName]="field.key" placeholder="#0F766E" />
             </div>
             <span class="stb-hint" *ngIf="field.hint">{{ field.hint }}</span>
+            <span class="stb-error" *ngIf="showFieldError(field)">{{ getFieldError(field) }}</span>
+          </ng-container>
+
+          <ng-container *ngSwitchCase="'url'">
+            <label [attr.for]="field.key">{{ field.label }}</label>
+            <input
+              type="url"
+              class="stb-input"
+              [id]="field.key"
+              [formControlName]="field.key"
+              [placeholder]="field.placeholder ?? 'https://...'" />
+            <span class="stb-hint" *ngIf="field.hint">{{ field.hint }}</span>
+            <div class="settings-logo-preview" *ngIf="field.key === 'CompanyLogo' && form.get(field.key)?.value">
+              <img
+                [src]="form.get(field.key)?.value"
+                alt="Company logo preview"
+                class="settings-logo-preview__img"
+                loading="lazy" />
+              <span class="settings-logo-preview__label">Logo preview</span>
+            </div>
+            <span class="stb-error" *ngIf="showFieldError(field)">{{ getFieldError(field) }}</span>
           </ng-container>
 
           <ng-container *ngSwitchCase="'number'">
@@ -47,6 +73,7 @@
               [max]="field.max ?? null"
               [placeholder]="field.placeholder ?? ''" />
             <span class="stb-hint" *ngIf="field.hint">{{ field.hint }}</span>
+            <span class="stb-error" *ngIf="showFieldError(field)">{{ getFieldError(field) }}</span>
           </ng-container>
 
           <ng-container *ngSwitchCase="'password'">
@@ -59,6 +86,7 @@
               [formControlName]="field.key"
               [placeholder]="field.placeholder ?? ''" />
             <span class="stb-hint" *ngIf="field.hint">{{ field.hint }}</span>
+            <span class="stb-error" *ngIf="showFieldError(field)">{{ getFieldError(field) }}</span>
           </ng-container>
 
           <ng-container *ngSwitchCase="'textarea'">
@@ -70,6 +98,7 @@
               [formControlName]="field.key"
               [placeholder]="field.placeholder ?? ''"></textarea>
             <span class="stb-hint" *ngIf="field.hint">{{ field.hint }}</span>
+            <span class="stb-error" *ngIf="showFieldError(field)">{{ getFieldError(field) }}</span>
           </ng-container>
 
           <ng-container *ngSwitchCase="'readonly'">
@@ -81,12 +110,13 @@
           <ng-container *ngSwitchDefault>
             <label [attr.for]="field.key">{{ field.label }}</label>
             <input
-              [type]="field.type === 'email' ? 'email' : field.type === 'url' ? 'url' : 'text'"
+              [type]="field.type === 'email' ? 'email' : 'text'"
               class="stb-input"
               [id]="field.key"
               [formControlName]="field.key"
               [placeholder]="field.placeholder ?? ''" />
             <span class="stb-hint" *ngIf="field.hint">{{ field.hint }}</span>
+            <span class="stb-error" *ngIf="showFieldError(field)">{{ getFieldError(field) }}</span>
           </ng-container>
 
         </ng-container>
@@ -95,10 +125,22 @@
   </section>
 
   <footer class="settings-actions">
-    <button type="button" mat-stroked-button (click)="discard()" [disabled]="saving || form.pristine">Discard</button>
-    <button type="submit" mat-flat-button color="primary" [disabled]="saving || form.pristine">
-      <span *ngIf="!saving">Save Changes</span>
-      <span *ngIf="saving">Saving…</span>
-    </button>
+    <ui-button
+      variant="outline"
+      type="button"
+      icon="undo"
+      (clicked)="discard()"
+      [disabled]="saving || form.pristine">
+      Discard
+    </ui-button>
+    <ui-button
+      variant="primary"
+      type="submit"
+      icon="save"
+      class="settings-save-footer"
+      [loading]="saving"
+      [disabled]="saving || form.pristine || form.invalid">
+      Save Changes
+    </ui-button>
   </footer>
 </form>

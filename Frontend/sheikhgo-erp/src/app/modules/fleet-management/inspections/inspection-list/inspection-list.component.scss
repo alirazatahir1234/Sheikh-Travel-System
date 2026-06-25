@@ -1,7 +1,16 @@
-.inspection-loading {
+:host {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+.inspection-page {
   display: flex;
-  justify-content: center;
-  padding: 40px;
+  flex-direction: column;
+  gap: 1.25rem;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .inspection-table-wrap {
@@ -9,48 +18,202 @@
   border: 1px solid var(--stb-border);
   border-radius: var(--stb-radius);
   box-shadow: var(--stb-shadow-sm);
-  overflow: hidden;
+  max-width: 100%;
 }
 
 .inspection-table {
   width: 100%;
+  min-width: 36rem;
   border-collapse: collapse;
-  font-size: 14px;
+  font-size: clamp(0.8125rem, 1.5vw, 0.875rem);
 
   thead th {
     text-align: left;
     padding: 12px 16px;
-    font-size: 12px;
+    font-size: 0.75rem;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.04em;
     color: var(--stb-text-muted);
     background: var(--stb-surface-alt);
     border-bottom: 1px solid var(--stb-border);
+    white-space: nowrap;
   }
 
   tbody td {
     padding: 12px 16px;
     border-bottom: 1px solid var(--stb-border);
     color: var(--stb-text);
+    vertical-align: middle;
   }
 
-  tbody tr:last-child td { border-bottom: none; }
-  tbody tr:hover { background: var(--stb-surface-alt); }
+  tbody tr:last-child td {
+    border-bottom: none;
+  }
+
+  @media (hover: hover) {
+    tbody tr:hover {
+      background: var(--stb-surface-alt);
+    }
+  }
+}
+
+.inspection-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.inspection-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1rem 1.125rem;
+  background: var(--stb-surface);
+  border: 1px solid var(--stb-border);
+  border-radius: var(--stb-radius);
+  border-left: 4px solid var(--stb-border);
+  box-shadow: var(--stb-shadow-sm);
+
+  &--pass {
+    border-left-color: var(--stb-success);
+  }
+
+  &--warning {
+    border-left-color: var(--stb-warning);
+  }
+
+  &--fail {
+    border-left-color: var(--stb-danger);
+  }
+}
+
+.inspection-card__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-height: 44px;
+}
+
+.inspection-card__vehicle {
+  font-size: clamp(0.9375rem, 2vw, 1rem);
+  font-weight: 700;
+  color: var(--stb-text);
+  word-break: break-word;
+  flex: 1;
+  min-width: 0;
+}
+
+.inspection-card__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.375rem 0;
+  min-height: 44px;
+  border-top: 1px solid var(--stb-border);
+
+  &:first-of-type {
+    border-top: none;
+    padding-top: 0;
+  }
+}
+
+.inspection-card__lbl {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--stb-text-muted);
+  flex-shrink: 0;
+}
+
+.inspection-card__val {
+  font-size: clamp(0.875rem, 1.5vw, 0.9375rem);
+  font-weight: 500;
+  color: var(--stb-text);
+  text-align: right;
+  word-break: break-word;
 }
 
 .inspection-empty {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
-  padding: 48px 24px;
+  gap: 0.5rem;
+  padding: clamp(2rem, 8vw, 3rem) 1rem;
   text-align: center;
   background: var(--stb-surface);
   border: 1px dashed var(--stb-border);
   border-radius: var(--stb-radius);
 
-  mat-icon { font-size: 40px; width: 40px; height: 40px; color: var(--stb-text-muted); }
-  p { margin: 0; font-size: 15px; font-weight: 600; color: var(--stb-text); }
-  span { font-size: 13px; color: var(--stb-text-muted); }
+  mat-icon {
+    font-size: clamp(2rem, 6vw, 2.5rem);
+    width: clamp(2rem, 6vw, 2.5rem);
+    height: clamp(2rem, 6vw, 2.5rem);
+    color: var(--stb-text-muted);
+  }
+
+  p {
+    margin: 0;
+    font-size: clamp(1rem, 2.5vw, 1.125rem);
+    font-weight: 600;
+    color: var(--stb-text);
+  }
+}
+
+.inspection-empty__hint {
+  font-size: clamp(0.875rem, 1.5vw, 1rem);
+  color: var(--stb-text-muted);
+  line-height: 1.45;
+  max-width: 22rem;
+}
+
+@media (max-width: 1279px) {
+  .inspection-table {
+    thead th,
+    tbody td {
+      padding: 10px 14px;
+    }
+  }
+}
+
+@media (max-width: 1023px) {
+  .inspection-page {
+    gap: 1rem;
+  }
+}
+
+@media (max-width: 575px) {
+  .inspection-card {
+    padding: 0.875rem 1rem;
+  }
+
+  .inspection-card__row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+    min-height: auto;
+    padding: 0.5rem 0;
+  }
+
+  .inspection-card__val {
+    text-align: left;
+  }
+}
+
+@media (max-width: 430px) {
+  .inspection-page {
+    gap: 0.875rem;
+  }
+
+  .inspection-card {
+    padding: 0.75rem 0.875rem;
+  }
+
+  .inspection-empty {
+    padding: 1.5rem 0.75rem;
+  }
 }

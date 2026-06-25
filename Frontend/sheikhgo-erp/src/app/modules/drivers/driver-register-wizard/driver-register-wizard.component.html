@@ -14,8 +14,8 @@
   @if (facade.loading()) {
     <app-brand-loader size="lg" />
   } @else {
-    <div class="grid gap-6 lg:grid-cols-[1fr_320px]">
-      <main>
+    <div class="flex flex-col gap-6 lg:grid lg:grid-cols-[1fr_320px]">
+      <main class="order-2 lg:order-1 min-w-0">
         @switch (facade.currentStep()) {
           @case ('personal') {
             @if (!facade.isEditMode() || facade.formLoadKey() > 0) {
@@ -78,13 +78,15 @@
           (primaryAction)="facade.handlePrimaryAction()" />
       </main>
 
-      <app-driver-wizard-sidebar
-        [progressPercent]="facade.progressPercent()"
-        [profileSections]="facade.profileCompletion().sections"
-        [completionHint]="facade.profileCompletionHint()"
-        [onboardingChecklist]="facade.onboardingChecklist()"
-        [verificationProgress]="facade.verificationProgressPercent()"
-        [verificationRows]="facade.verificationSidebarRows()" />
+      <div class="order-1 lg:order-2">
+        <app-driver-wizard-sidebar
+          [progressPercent]="facade.progressPercent()"
+          [profileSections]="facade.profileCompletion().sections"
+          [completionHint]="facade.profileCompletionHint()"
+          [onboardingChecklist]="facade.onboardingChecklist()"
+          [verificationProgress]="facade.verificationProgressPercent()"
+          [verificationRows]="facade.verificationSidebarRows()" />
+      </div>
     </div>
   }
 </div>

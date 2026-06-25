@@ -5,7 +5,7 @@
   <title>SheikhGo ERP</title>
   <base href="/">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#113537">
+  <meta name="theme-color" content="#0E3D3A">
   <link rel="icon" type="image/png" href="brand/sheikhgo-logo.png">
   <link rel="apple-touch-icon" href="brand/sheikhgo-logo.png">
 
@@ -28,19 +28,34 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      background: #113537;
+      background: linear-gradient(180deg, #f8fffe 0%, #eef8f6 100%);
     }
 
-    #app-initial-splash img {
-      width: min(240px, 52vw);
-      height: auto;
-      object-fit: contain;
+    #app-initial-splash svg {
+      width: 112px;
+      height: 112px;
+    }
+
+    #app-initial-splash .boot-arc {
+      transform-origin: 60px 60px;
+      animation: boot-arc-spin 1.15s linear infinite;
+    }
+
+    @keyframes boot-arc-spin {
+      to { transform: rotate(360deg); }
     }
   </style>
 </head>
 <body>
   <div id="app-initial-splash" aria-hidden="true">
-    <img src="brand/sheikhgo-logo.png" alt="" />
+    <svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <circle cx="60" cy="60" r="46" fill="none" stroke="#0FAF9F" stroke-width="7" stroke-opacity="0.18" />
+      <g class="boot-arc">
+        <circle cx="60" cy="60" r="46" fill="none" stroke="#0FAF9F" stroke-width="7" stroke-linecap="round" pathLength="100" stroke-dasharray="28 72" />
+      </g>
+      <circle cx="60" cy="60" r="30" fill="#0E3D3A" />
+      <text x="60" y="67" text-anchor="middle" fill="#fff" font-family="Georgia, serif" font-size="24" font-weight="700">SG</text>
+    </svg>
   </div>
   <app-root></app-root>
 </body>

@@ -3,6 +3,13 @@
     <p class="muted">Loading…</p>
   } @else if (wo()) {
     <div class="wo-drawer">
+      <div class="status-banner">
+        <span class="badge badge--{{ statusTone(wo()!.status) }}">{{ statusLabel(wo()!.status) }}</span>
+        @if (wo()!.status === 'Open' || wo()!.status === 'Assigned' || wo()!.status === 'Draft') {
+          <p class="status-hint">Assign a workshop or click <strong>Start Work</strong> to begin this work order.</p>
+        }
+      </div>
+
       <div class="stepper">
         @for (step of workflowSteps; track step; let i = $index) {
           <div class="step"
@@ -120,88 +127,13 @@
 </ui-drawer>
 
 <ui-drawer [open]="createMode()" title="Create Work Order" (closed)="onCreateClose()" width="560px">
-  <form class="wo-drawer" (ngSubmit)="submitCreate()">
-    <section>
-      <h4>General</h4>
-      <div class="field">
-        <label>Vehicle <span class="req">*</span></label>
-        <select [(ngModel)]="form.vehicleId" name="vehicleId" required>
-          <option [ngValue]="0" disabled>Select vehicle</option>
-          @for (v of vehicles(); track v.id) {
-            <option [ngValue]="v.id">{{ v.name }}</option>
-          }
-        </select>
-      </div>
-      <div class="field">
-        <label>Workshop</label>
-        <select [(ngModel)]="form.workshopId" name="workshopId">
-          <option [ngValue]="0">None</option>
-          @for (ws of workshops(); track ws.id) {
-            <option [ngValue]="ws.id">{{ ws.name }}</option>
-          }
-        </select>
-      </div>
-      <div class="field">
-        <label>Priority</label>
-        <select [(ngModel)]="form.priority" name="priority">
-          @for (p of priorities; track p) { <option [value]="p">{{ p }}</option> }
-        </select>
-      </div>
-      <div class="field">
-        <label>Notes</label>
-        <textarea [(ngModel)]="form.notes" name="notes" rows="2"></textarea>
-      </div>
-    </section>
-
-    <section>
-      <h4>Maintenance Type</h4>
-      <div class="maint-type-group">
-        @for (mt of maintTypes; track mt.value) {
-          <label class="maint-type-card" [class.maint-type-card--active]="form.maintenanceType === mt.value">
-            <input type="radio" [(ngModel)]="form.maintenanceType" [value]="mt.value" name="maintenanceType" />
-            <mat-icon>{{ mt.icon }}</mat-icon>
-            <span>{{ mt.label }}</span>
-          </label>
-        }
-      </div>
-    </section>
-
-    <section>
-      <h4>Service Items</h4>
-      <div class="service-chips">
-        @for (chip of serviceChips; track chip) {
-          <button type="button" class="service-chip"
-                  [class.service-chip--active]="form.serviceItems.includes(chip)"
-                  (click)="toggleServiceItem(chip)">{{ chip }}</button>
-        }
-      </div>
-    </section>
-
-    <section>
-      <h4>Dates</h4>
-      <div class="two-col">
-        <div class="field"><label>Start Date</label><input type="date" [(ngModel)]="form.startDate" name="startDate" /></div>
-        <div class="field"><label>Est. Completion</label><input type="date" [(ngModel)]="form.estimatedCompletionDate" name="estimatedCompletionDate" /></div>
-      </div>
-    </section>
-
-    <section>
-      <h4>Estimated Costs</h4>
-      <div class="two-col">
-        <div class="field"><label>Parts Cost</label><input type="number" [(ngModel)]="form.partsCost" name="partsCost" min="0" step="0.01" /></div>
-        <div class="field"><label>Labor Cost</label><input type="number" [(ngModel)]="form.laborCost" name="laborCost" min="0" step="0.01" /></div>
-      </div>
-      <div class="cost-grid mt-sm">
-        <div class="cost-row cost-row--muted"><span>Tax</span><span>{{ 0 | currency }}</span></div>
-        <div class="cost-row cost-row--total"><span>Total</span><span>{{ (form.partsCost + form.laborCost) | currency }}</span></div>
-      </div>
-    </section>
-
-    <div class="actions">
-      <button type="button" class="btn-outline" (click)="onCreateClose()">Cancel</button>
-      <button type="submit" class="btn-primary" [disabled]="saving() || !form.vehicleId">
-        {{ saving() ? 'Creating…' : 'Create Work Order' }}
-      </button>
-    </div>
-  </form>
+  @if (createMode()) {
+    <wo-create-form
+      [vehicles]="vehicles()"
+      [workshops]="workshops()"
+      [saving]="saving()"
+      [resetKey]="createResetKey()"
+      (submit)="submitCreate($event)"
+      (cancel)="onCreateClose()" />
+  }
 </ui-drawer>

@@ -124,113 +124,131 @@ import { UPLOAD_MAX_SIZE_LABEL, vehicleUploadSizeError } from '../../../../../co
 
       <section class="wizard-card">
         <h2 class="wizard-card-title">Detailed Information</h2>
-        <div class="form-grid" [formGroup]="form()">
-          <label class="field">
-            <span>First Name <span class="req">*</span></span>
-            <input formControlName="firstName" class="input" placeholder="e.g. Salim" />
-            @if (showError('firstName')) { <span class="field-error">First name is required</span> }
-          </label>
-          <label class="field">
-            <span>Last Name <span class="req">*</span></span>
-            <input formControlName="lastName" class="input" placeholder="e.g. Al-Mansoor" />
-            @if (showError('lastName')) { <span class="field-error">Last name is required</span> }
-          </label>
-          <label class="field full">
-            <span>Full Name (Auto-generated)</span>
-            <div class="readonly-name">
-              <mat-icon class="readonly-lock">lock</mat-icon>
-              <span>{{ fullName() }}</span>
-            </div>
-          </label>
-          <label class="field">
-            <span>Date of Birth <span class="req">*</span></span>
-            @for (key of [formLoadKey()]; track key) {
-              <input
-                formControlName="dateOfBirth"
-                type="date"
-                class="input date-input"
-                [attr.max]="maxDateOfBirth()"
-                [attr.min]="minDateOfBirth()" />
-            }
-            <span class="field-hint">Minimum age: 18 years</span>
-            @if (showError('dateOfBirth', 'futureDate')) {
-              <span class="field-error">Date of birth cannot be in the future</span>
-            } @else if (showError('dateOfBirth', 'minAge')) {
-              <span class="field-error">Driver must be at least 18 years old</span>
-            } @else if (showError('dateOfBirth')) {
-              <span class="field-error">Date of birth is required</span>
-            }
-          </label>
-          <label class="field">
-            <span>Gender <span class="req">*</span></span>
-            <select formControlName="gender" class="input">
-              @if (!form().get('gender')?.value) {
-                <option value="" disabled hidden>Select gender</option>
+
+        <div [formGroup]="form()">
+
+          <!-- Basic Information -->
+          <p class="form-group-label">Basic Information</p>
+          <div class="form-grid">
+            <label class="field">
+              <span>First Name <span class="req">*</span></span>
+              <input formControlName="firstName" class="input" placeholder="e.g. Salim" />
+              @if (showError('firstName')) { <span class="field-error">First name is required</span> }
+            </label>
+            <label class="field">
+              <span>Last Name <span class="req">*</span></span>
+              <input formControlName="lastName" class="input" placeholder="e.g. Al-Mansoor" />
+              @if (showError('lastName')) { <span class="field-error">Last name is required</span> }
+            </label>
+            <label class="field full">
+              <span>Full Name (Auto-generated)</span>
+              <div class="readonly-name">
+                <mat-icon class="readonly-lock">lock</mat-icon>
+                <span>{{ fullName() }}</span>
+              </div>
+            </label>
+            <label class="field">
+              <span>Date of Birth <span class="req">*</span></span>
+              @for (key of [formLoadKey()]; track key) {
+                <input
+                  formControlName="dateOfBirth"
+                  type="date"
+                  class="input date-input"
+                  [attr.max]="maxDateOfBirth()"
+                  [attr.min]="minDateOfBirth()" />
               }
-              @for (g of genderOptions; track g) {
-                <option [value]="g">{{ g }}</option>
+              @if (showError('dateOfBirth', 'futureDate')) {
+                <span class="field-error">Date of birth cannot be in the future</span>
+              } @else if (showError('dateOfBirth', 'minAge')) {
+                <span class="field-error">Driver must be at least 18 years old</span>
+              } @else if (showError('dateOfBirth')) {
+                <span class="field-error">Date of birth is required</span>
+              } @else {
+                <span class="field-hint">Minimum age: 18 years</span>
               }
-            </select>
-          </label>
-          <label class="field">
-            <span>Nationality <span class="req">*</span></span>
-            <select formControlName="nationality" class="input">
-              @for (n of nationalityOptions; track n) {
-                <option [value]="n">{{ n }}</option>
-              }
-            </select>
-          </label>
-          <label class="field">
-            <span>Mobile Number <span class="req">*</span></span>
-            <div class="phone-row">
-              <select formControlName="phoneCountryCode" class="input phone-code-select">
-                @for (c of phoneCountryCodes; track c.code) {
-                  <option [value]="c.code">{{ c.flag }} {{ c.code }}</option>
+            </label>
+            <label class="field">
+              <span>Gender <span class="req">*</span></span>
+              <select formControlName="gender" class="input">
+                @if (!form().get('gender')?.value) {
+                  <option value="" disabled hidden>Select gender</option>
+                }
+                @for (g of genderOptions; track g) {
+                  <option [value]="g">{{ g }}</option>
                 }
               </select>
-              <input formControlName="phoneLocal" class="input phone-local" placeholder="50 123 4567" inputmode="numeric" />
-            </div>
-            @if (showError('phoneLocal', 'duplicate')) {
-              <span class="field-error">This mobile number is already registered</span>
-            } @else if (showError('phoneLocal', 'phoneFormat')) {
-              <span class="field-error">Invalid number format for selected country</span>
-            } @else if (showError('phoneLocal', 'phoneLength')) {
-              <span class="field-error">Invalid mobile number length</span>
-            } @else if (showError('phoneLocal')) {
-              <span class="field-error">Mobile number is required</span>
-            }
-          </label>
-          <label class="field full">
-            <span>Email Address <span class="req">*</span></span>
-            <input formControlName="email" type="email" class="input" placeholder="salim.mansoor@example.com" />
-            @if (showError('email', 'duplicate')) {
-              <span class="field-error">This email is already registered</span>
-            } @else if (showError('email', 'email')) {
-              <span class="field-error">Enter a valid email address</span>
-            } @else if (showError('email')) {
-              <span class="field-error">Email is required</span>
-            }
-          </label>
-          <label class="field full">
-            <span>Residential Address</span>
-            <textarea formControlName="address" class="input textarea" rows="3" placeholder="Suite 402, Business Bay, Dubai, UAE"></textarea>
-          </label>
-          <label class="field">
-            <span>Emergency Contact Name <span class="req">*</span></span>
-            <input formControlName="emergencyContactName" class="input" placeholder="e.g. Layla Mansoor" />
-            @if (showError('emergencyContactName')) {
-              <span class="field-error">Emergency contact name is required</span>
-            }
-          </label>
-          <label class="field">
-            <span>Emergency Contact Phone <span class="req">*</span></span>
-            <input formControlName="emergencyContactPhone" class="input" placeholder="e.g. +971 50 987 6543" inputmode="tel" />
-            @if (showError('emergencyContactPhone', 'phoneLength')) {
-              <span class="field-error">Enter a valid phone number (7–15 digits)</span>
-            } @else if (showError('emergencyContactPhone')) {
-              <span class="field-error">Emergency contact phone is required</span>
-            }
-          </label>
+            </label>
+            <label class="field">
+              <span>Nationality <span class="req">*</span></span>
+              <select formControlName="nationality" class="input">
+                @for (n of nationalityOptions; track n) {
+                  <option [value]="n">{{ n }}</option>
+                }
+              </select>
+            </label>
+          </div>
+
+          <!-- Contact Information -->
+          <p class="form-group-label">Contact Information</p>
+          <div class="form-grid">
+            <label class="field">
+              <span>Mobile Number <span class="req">*</span></span>
+              <div class="phone-row">
+                <select formControlName="phoneCountryCode" class="input phone-code-select">
+                  @for (c of phoneCountryCodes; track c.code) {
+                    <option [value]="c.code">{{ c.flag }} {{ c.code }}</option>
+                  }
+                </select>
+                <input formControlName="phoneLocal" class="input phone-local" placeholder="50 123 4567" inputmode="numeric" />
+              </div>
+              @if (showError('phoneLocal', 'duplicate')) {
+                <span class="field-error">This mobile number is already registered</span>
+              } @else if (showError('phoneLocal', 'phoneFormat')) {
+                <span class="field-error">Invalid number format for selected country</span>
+              } @else if (showError('phoneLocal', 'phoneLength')) {
+                <span class="field-error">Invalid mobile number length</span>
+              } @else if (showError('phoneLocal')) {
+                <span class="field-error">Mobile number is required</span>
+              }
+            </label>
+            <label class="field">
+              <span>Email Address <span class="req">*</span></span>
+              <input formControlName="email" type="email" class="input" placeholder="salim.mansoor@example.com" />
+              @if (showError('email', 'duplicate')) {
+                <span class="field-error">This email is already registered</span>
+              } @else if (showError('email', 'email')) {
+                <span class="field-error">Enter a valid email address</span>
+              } @else if (showError('email')) {
+                <span class="field-error">Email is required</span>
+              }
+            </label>
+            <label class="field full">
+              <span>Residential Address</span>
+              <textarea formControlName="address" class="input textarea" rows="3" placeholder="Suite 402, Business Bay, Dubai, UAE"></textarea>
+            </label>
+          </div>
+
+          <!-- Emergency Contact -->
+          <p class="form-group-label">Emergency Contact</p>
+          <div class="form-grid">
+            <label class="field">
+              <span>Contact Name <span class="req">*</span></span>
+              <input formControlName="emergencyContactName" class="input" placeholder="e.g. Layla Mansoor" />
+              @if (showError('emergencyContactName')) {
+                <span class="field-error">Emergency contact name is required</span>
+              }
+            </label>
+            <label class="field">
+              <span>Contact Phone <span class="req">*</span></span>
+              <input formControlName="emergencyContactPhone" class="input" placeholder="e.g. +971 50 987 6543" inputmode="tel" />
+              @if (showError('emergencyContactPhone', 'phoneLength')) {
+                <span class="field-error">Enter a valid phone number (7–15 digits)</span>
+              } @else if (showError('emergencyContactPhone')) {
+                <span class="field-error">Emergency contact phone is required</span>
+              }
+            </label>
+          </div>
+
         </div>
       </section>
     </div>
