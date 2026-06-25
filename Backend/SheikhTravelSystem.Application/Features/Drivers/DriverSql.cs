@@ -33,7 +33,7 @@ internal static class DriverSql
         {LicenseExpiryFlags},
         d.Nationality, d.Status, d.IsActive, d.VerificationStatus, d.BranchId,
         b.Name AS BranchName,
-        d.DepartmentId, dep.Name AS DepartmentName, d.HireDate,
+        d.DepartmentId, dep.Name AS DepartmentName, d.HireDate, d.PhotoUrl,
         av.VehicleId AS AssignedVehicleId,
         av.VehicleCode AS AssignedVehicleCode,
         av.RegistrationNumber AS AssignedVehicleRegistration,

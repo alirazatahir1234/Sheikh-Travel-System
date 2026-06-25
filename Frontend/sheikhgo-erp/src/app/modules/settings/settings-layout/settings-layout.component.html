@@ -1,14 +1,14 @@
-<div class="settings-shell">
-  <aside class="settings-sidebar">
+<div class="settings-shell stb-page">
+  <aside class="settings-sidebar" aria-label="Settings categories">
     <div class="settings-sidebar__head">
-      <mat-icon>settings</mat-icon>
-      <div>
+      <mat-icon aria-hidden="true">settings</mat-icon>
+      <div class="settings-sidebar__head-text">
         <h2>Platform Settings</h2>
         <p>Configure your organization defaults</p>
       </div>
     </div>
 
-    <nav class="settings-nav" *ngIf="!loading">
+    <nav class="settings-nav" *ngIf="!loading" aria-label="Settings navigation">
       <a
         *ngFor="let category of categories"
         class="settings-nav__item"
@@ -16,14 +16,14 @@
         routerLinkActive="is-active"
         [matTooltip]="category.isImplemented ? '' : 'Coming soon'"
         matTooltipPosition="right">
-        <mat-icon>{{ category.icon }}</mat-icon>
+        <mat-icon aria-hidden="true">{{ category.icon }}</mat-icon>
         <span class="settings-nav__label">{{ category.label }}</span>
         <span class="settings-nav__badge" *ngIf="!category.isImplemented">Soon</span>
       </a>
     </nav>
 
-    <div class="settings-sidebar__loading" *ngIf="loading">
-      <app-brand-loader size="sm" />
+    <div class="settings-sidebar__loading" *ngIf="loading" aria-busy="true">
+      <span class="stb-shimmer-block settings-nav-skeleton" *ngFor="let i of [1, 2, 3, 4, 5]"></span>
     </div>
   </aside>
 

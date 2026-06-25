@@ -53,7 +53,7 @@ const SIZE_CLASSES: Record<UiModalSize, string> = {
           (click)="onBackdrop()"></div>
 
         <div
-          class="relative z-10 flex max-h-[90vh] w-full flex-col overflow-hidden rounded-xl bg-white shadow-2xl"
+          class="ui-modal-panel relative z-10 flex max-h-[90vh] w-full flex-col overflow-hidden rounded-xl bg-white shadow-2xl"
           [ngClass]="sizeClass()"
           @panel>
           @if (title() || showClose()) {
@@ -75,7 +75,7 @@ const SIZE_CLASSES: Record<UiModalSize, string> = {
             <ng-content></ng-content>
           </div>
 
-          <div class="border-t border-fleet-border px-6 py-4">
+          <div class="ui-modal-footer border-t border-fleet-border px-6 py-4">
             <ng-content select="[modal-footer]"></ng-content>
           </div>
         </div>
@@ -84,6 +84,29 @@ const SIZE_CLASSES: Record<UiModalSize, string> = {
   `,
   styles: [`
     mat-icon { display: inline-flex; align-items: center; justify-content: center; }
+    @media (max-width: 767px) {
+      .ui-modal-panel {
+        width: 95vw !important;
+        max-width: 95vw !important;
+        max-height: calc(100dvh - 1.5rem);
+        border-radius: 12px;
+      }
+      .ui-modal-footer {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+      }
+      .ui-modal-footer ::ng-deep button,
+      .ui-modal-footer ::ng-deep ui-button {
+        width: 100%;
+      }
+    }
+    @media (min-width: 768px) and (max-width: 1023px) {
+      .ui-modal-panel {
+        width: 90vw !important;
+        max-width: 90vw !important;
+      }
+    }
   `]
 })
 export class UiModalComponent {

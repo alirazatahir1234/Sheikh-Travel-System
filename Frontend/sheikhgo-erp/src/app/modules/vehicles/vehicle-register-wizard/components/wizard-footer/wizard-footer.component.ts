@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnDestroy, computed, input, output, signal } from '@angular/core';
 import { UiButtonComponent } from '../../../../../shared/components/ui/button/ui-button.component';
 
 @Component({
@@ -7,7 +7,7 @@ import { UiButtonComponent } from '../../../../../shared/components/ui/button/ui
   imports: [UiButtonComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <footer class="mt-8 flex flex-col gap-4 border-t border-fleet-border pt-5 sm:flex-row sm:items-center sm:justify-between">
+    <footer class="sticky bottom-0 z-20 mt-6 border-t border-fleet-border bg-white px-1 pt-4 pb-4 shadow-[0_-2px_10px_rgba(0,0,0,0.06)] flex flex-col gap-3 sm:relative sm:mt-8 sm:shadow-none sm:pb-0 sm:flex-row sm:items-center sm:justify-between">
       <div class="flex items-center gap-3">
         <ui-button variant="ghost" (clicked)="cancel.emit()">Cancel</ui-button>
         @if (saveStatusLabel()) {
@@ -36,7 +36,7 @@ import { UiButtonComponent } from '../../../../../shared/components/ui/button/ui
     </footer>
   `
 })
-export class WizardFooterComponent {
+export class WizardFooterComponent implements OnDestroy {
   readonly currentStep = input.required<string>();
   readonly firstStepId = input('details');
   readonly finalStepId = input('review');
@@ -53,6 +53,13 @@ export class WizardFooterComponent {
   readonly saveDraft = output<void>();
   readonly primaryAction = output<void>();
 
+  private readonly _now = signal(Date.now());
+  private readonly _ticker = setInterval(() => this._now.set(Date.now()), 10_000);
+
+  ngOnDestroy(): void {
+    clearInterval(this._ticker);
+  }
+
   readonly showBack = computed(() => this.currentStep() !== this.firstStepId());
 
   readonly lastSavedLabel = computed(() => {
@@ -61,7 +68,7 @@ export class WizardFooterComponent {
     const at = this.lastSavedAt();
     if (!at || isNaN(at.getTime())) return null;
 
-    const sec = Math.floor((Date.now() - at.getTime()) / 1000);
+    const sec = Math.floor((this._now() - at.getTime()) / 1000);
     if (sec < 0) return null;
     if (sec < 10) return 'Saved just now';
     if (sec < 60) return `Saved ${sec}s ago`;

@@ -8,6 +8,7 @@ import { UiDrawerComponent } from '../../../../../shared/components/ui/drawer/ui
 import { MaintenanceService } from '../../../../../core/services/maintenance.service';
 import { AuthService } from '../../../../../core/services/auth.service';
 import { MaintenanceRequest } from '../../../../../core/models/maintenance.model';
+import { finalize } from 'rxjs/operators';
 import { apiErrorMessage } from '../../../../../core/utils/api-error.util';
 import { resolveUploadUrl } from '../../../../../core/utils/upload-url.util';
 
@@ -63,14 +64,19 @@ import { resolveUploadUrl } from '../../../../../core/utils/upload-url.util';
           </div>
 
           <footer class="footer">
+            @if (req()!.status === 'Approved' && canManageWo() && !req()!.workOrderId) {
+              <p class="next-step">Request approved — create a work order to begin maintenance.</p>
+            }
             @if (canManageWo()) {
-              <button type="button" class="btn-primary" (click)="createWorkOrder(req()!)" [disabled]="!!req()!.workOrderId">
-                Create Work Order
+              <button type="button" class="btn-primary" (click)="createWorkOrder(req()!)" [disabled]="saving() || !!req()!.workOrderId">
+                {{ req()!.workOrderId ? 'Work Order Created' : 'Create Work Order' }}
               </button>
             }
             @if (canApprove() && (req()!.status === 'Open' || req()!.status === 'PendingApproval')) {
-              <button type="button" class="btn-approve" (click)="approve(req()!.id)">Approve</button>
-              <button type="button" class="btn-reject" (click)="showReject.set(true)">Reject</button>
+              <button type="button" class="btn-approve" (click)="approve(req()!.id)" [disabled]="saving()">
+                {{ saving() ? 'Approving…' : 'Approve' }}
+              </button>
+              <button type="button" class="btn-reject" (click)="showReject.set(true)" [disabled]="saving()">Reject</button>
             }
           </footer>
 
@@ -122,6 +128,14 @@ import { resolveUploadUrl } from '../../../../../core/utils/upload-url.util';
     .btn-primary { background: #0b6b50; color: #fff; border-color: #0b6b50; flex: 1; }
     .btn-approve { color: #0b6b50; border-color: #0b6b50; }
     .btn-reject { color: #dc2626; border-color: #fecaca; background: #fef2f2; }
+    .next-step {
+      flex: 1 1 100%;
+      margin: 0 0 0.25rem;
+      font-size: 0.8125rem;
+      color: #0b6b50;
+      font-weight: 600;
+    }
+    button:disabled { opacity: 0.6; cursor: not-allowed; }
     .reject-panel textarea { width: 100%; border: 1px solid #e2e8f0; border-radius: 8px; padding: 0.5rem; font-size: 0.8125rem; }
     .reject-actions { display: flex; gap: 0.5rem; margin-top: 0.5rem; justify-content: flex-end; }
     .muted { color: #94a3b8; }
@@ -142,6 +156,7 @@ export class RequestDetailDrawerComponent {
 
   readonly req = signal<MaintenanceRequest | null>(null);
   readonly loading = signal(false);
+  readonly saving = signal(false);
   readonly showReject = signal(false);
   rejectReason = '';
 
@@ -191,18 +206,30 @@ export class RequestDetailDrawerComponent {
   }
 
   approve(id: number): void {
-    this.maintenanceService.approveRequest(id).subscribe({
-      next: () => { this.load(id); this.changed.emit(); this.toast.success('Request approved'); },
-      error: err => this.toast.error(apiErrorMessage(err, 'Approve failed'))
+    if (this.saving()) return;
+    this.saving.set(true);
+    this.maintenanceService.approveRequest(id).pipe(
+      finalize(() => this.saving.set(false))
+    ).subscribe({
+      next: () => {
+        this.load(id);
+        this.changed.emit();
+        this.toast.success('Request approved. You can now create a work order.');
+      },
+      error: err => this.toast.error(apiErrorMessage(err, 'Could not approve this request'))
     });
   }
 
   reject(id: number): void {
+    if (this.saving()) return;
     if (!this.rejectReason.trim()) {
       this.toast.warning('Rejection reason is required');
       return;
     }
-    this.maintenanceService.rejectRequest(id, this.rejectReason).subscribe({
+    this.saving.set(true);
+    this.maintenanceService.rejectRequest(id, this.rejectReason).pipe(
+      finalize(() => this.saving.set(false))
+    ).subscribe({
       next: () => {
         this.showReject.set(false);
         this.rejectReason = '';
@@ -210,18 +237,30 @@ export class RequestDetailDrawerComponent {
         this.changed.emit();
         this.toast.success('Request rejected');
       },
-      error: err => this.toast.error(apiErrorMessage(err, 'Reject failed'))
+      error: err => this.toast.error(apiErrorMessage(err, 'Could not reject this request'))
     });
   }
 
   createWorkOrder(r: MaintenanceRequest): void {
-    this.maintenanceService.convertRequest(r.id).subscribe({
+    if (this.saving()) return;
+    if (r.workOrderId) {
+      this.toast.info('A work order already exists for this request.');
+      return;
+    }
+    if (!['Open', 'Approved', 'InProgress'].includes(r.status)) {
+      this.toast.warning('This request must be approved before creating a work order.');
+      return;
+    }
+    this.saving.set(true);
+    this.maintenanceService.convertRequest(r.id).pipe(
+      finalize(() => this.saving.set(false))
+    ).subscribe({
       next: woId => {
         this.changed.emit();
         this.toast.success('Work order created');
         this.router.navigate(['/fleet/maintenance/work-orders'], { queryParams: { wo: woId } });
       },
-      error: err => this.toast.error(apiErrorMessage(err, 'Create WO failed'))
+      error: err => this.toast.error(apiErrorMessage(err, 'Could not create work order'))
     });
   }
 

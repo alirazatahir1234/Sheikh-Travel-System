@@ -59,6 +59,7 @@ export class WorkOrdersPageComponent implements OnInit {
   readonly workshops = signal<Workshop[]>([]);
   readonly loading = signal(false);
   readonly showCreate = signal(false);
+  readonly createResetKey = signal(0);
   readonly selectedId = signal<number | null>(null);
 
   readonly draftFilters = signal<WoFilterState>({ ...DEFAULT_FILTERS });
@@ -73,7 +74,7 @@ export class WorkOrdersPageComponent implements OnInit {
   readonly statusOptions = Object.entries(WorkOrderStatusLabels).map(([v, l]) => ({ value: v, label: l }));
 
   ngOnInit(): void {
-    if (this.route.snapshot.queryParamMap.get('create') === 'true') this.showCreate.set(true);
+    if (this.route.snapshot.queryParamMap.get('create') === 'true') this.openCreate();
     const wo = this.route.snapshot.queryParamMap.get('wo');
     if (wo) this.selectedId.set(+wo);
 
@@ -163,11 +164,21 @@ export class WorkOrdersPageComponent implements OnInit {
     return Math.min(this.page() * this.pageSize, this.totalCount());
   }
 
+  openCreate(): void {
+    this.createResetKey.update(k => k + 1);
+    this.showCreate.set(true);
+  }
+
   onCreated(): void {
     this.showCreate.set(false);
     this.loadStats();
     this.load();
     this.toast.success('Work order created.');
+  }
+
+  onCreateClosed(): void {
+    this.showCreate.set(false);
+    this.createResetKey.update(k => k + 1);
   }
 
   onChanged(): void {

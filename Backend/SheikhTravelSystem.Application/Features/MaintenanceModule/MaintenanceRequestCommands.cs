@@ -4,6 +4,7 @@ using MediatR;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Exceptions;
 using SheikhTravelSystem.Application.Common.Interfaces;
+using SheikhTravelSystem.Application.Features.Drivers;
 
 namespace SheikhTravelSystem.Application.Features.MaintenanceModule;
 
@@ -66,12 +67,6 @@ public class CreateMaintenanceRequestCommandHandler(
         if (vehicleExists is null)
             throw new NotFoundException("Vehicle", body.VehicleId);
 
-        var seq = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
-            "SELECT COUNT(*) + 1 FROM MaintenanceRequests WHERE TenantId = @TenantId",
-            new { TenantId = tenantId }, cancellationToken: cancellationToken));
-
-        var requestNumber = $"MR-{seq:D5}";
-
         var vehicleMeta = await connection.QuerySingleOrDefaultAsync<(int? BranchId, int? DepartmentId)>(
             new CommandDefinition(
                 "SELECT BranchId, DepartmentId FROM Vehicles WHERE Id = @VehicleId AND TenantId = @TenantId",
@@ -82,13 +77,12 @@ public class CreateMaintenanceRequestCommandHandler(
                 (TenantId, RequestNumber, VehicleId, DriverId, BranchId, DepartmentId, RequestType, Priority, IssueCategory,
                  Description, BreakdownLocation, DriverRemarks, PhotosJson, DocumentsJson, Status, CreatedBy, CreatedAt)
             VALUES
-                (@TenantId, @RequestNumber, @VehicleId, @DriverId, @BranchId, @DepartmentId, @RequestType, @Priority, @IssueCategory,
+                (@TenantId, N'MR-PENDING', @VehicleId, @DriverId, @BranchId, @DepartmentId, @RequestType, @Priority, @IssueCategory,
                  @Description, @BreakdownLocation, @DriverRemarks, @PhotosJson, @DocumentsJson, N'Open', @CreatedBy, GETUTCDATE());
             SELECT CAST(SCOPE_IDENTITY() AS INT);
             """, new
         {
             TenantId = tenantId,
-            RequestNumber = requestNumber,
             body.VehicleId,
             body.DriverId,
             BranchId = vehicleMeta.BranchId,
@@ -103,6 +97,11 @@ public class CreateMaintenanceRequestCommandHandler(
             body.DocumentsJson,
             CreatedBy = currentUser.UserId?.ToString() ?? "system"
         }, cancellationToken: cancellationToken));
+
+        var requestNumber = $"MR-{id:D5}";
+        await connection.ExecuteAsync(new CommandDefinition(
+            "UPDATE MaintenanceRequests SET RequestNumber = @No WHERE Id = @Id",
+            new { No = requestNumber, Id = id }, cancellationToken: cancellationToken));
 
         await MaintenanceAlertHelper.InsertAlertAsync(connection, tenantId, body.VehicleId, "RequestCreated",
             body.Priority.Equals("Critical", StringComparison.OrdinalIgnoreCase) ? "Critical" : "Info",
@@ -204,49 +203,62 @@ public class ConvertMaintenanceRequestCommandHandler(
             throw new ConflictException($"Cannot convert request in status {req.Status}.");
 
         var body = request.Body;
-        var seq = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
-            "SELECT COUNT(*) + 1 FROM WorkOrders WHERE TenantId = @TenantId",
-            new { TenantId = tenantId }, cancellationToken: cancellationToken));
-
-        var woNumber = $"WO-{seq:D5}";
         var serviceType = body.ServiceTypeName ?? req.IssueCategory;
 
-        var woId = await connection.ExecuteScalarAsync<int>(new CommandDefinition("""
-            INSERT INTO WorkOrders
-                (TenantId, WorkOrderNumber, RequestId, VehicleId, WorkshopId, TechnicianId,
-                 ServiceTypeId, ServiceTypeName, StartDate, EstimatedCompletionDate,
-                 Priority, Notes, Status, CreatedBy, CreatedAt)
-            VALUES
-                (@TenantId, @WorkOrderNumber, @RequestId, @VehicleId, @WorkshopId, @TechnicianId,
-                 @ServiceTypeId, @ServiceTypeName, @StartDate, @EstimatedCompletionDate,
-                 @Priority, @Description, N'Open', @CreatedBy, GETUTCDATE());
-            SELECT CAST(SCOPE_IDENTITY() AS INT);
-            """, new
+        DriverAssignmentValidation.OpenConnection(connection);
+        using var transaction = connection.BeginTransaction();
+        try
         {
-            TenantId = tenantId,
-            WorkOrderNumber = woNumber,
-            RequestId = request.Id,
-            req.VehicleId,
-            body.WorkshopId,
-            body.TechnicianId,
-            body.ServiceTypeId,
-            ServiceTypeName = serviceType,
-            StartDate = body.StartDate?.ToUniversalTime(),
-            EstimatedCompletionDate = body.EstimatedCompletionDate?.ToUniversalTime(),
-            Priority = req.Priority,
-            Description = req.Description,
-            CreatedBy = currentUser.UserId?.ToString() ?? "system"
-        }, cancellationToken: cancellationToken));
+            var woId = await connection.ExecuteScalarAsync<int>(new CommandDefinition("""
+                INSERT INTO WorkOrders
+                    (TenantId, WorkOrderNumber, RequestId, VehicleId, WorkshopId, TechnicianId,
+                     ServiceTypeId, ServiceTypeName, StartDate, EstimatedCompletionDate,
+                     Priority, Notes, Status, CreatedBy, CreatedAt)
+                VALUES
+                    (@TenantId, N'WO-PENDING', @RequestId, @VehicleId, @WorkshopId, @TechnicianId,
+                     @ServiceTypeId, @ServiceTypeName, @StartDate, @EstimatedCompletionDate,
+                     @Priority, @Description, N'Open', @CreatedBy, GETUTCDATE());
+                SELECT CAST(SCOPE_IDENTITY() AS INT);
+                """, new
+            {
+                TenantId = tenantId,
+                RequestId = request.Id,
+                req.VehicleId,
+                body.WorkshopId,
+                body.TechnicianId,
+                body.ServiceTypeId,
+                ServiceTypeName = serviceType,
+                StartDate = body.StartDate?.ToUniversalTime(),
+                EstimatedCompletionDate = body.EstimatedCompletionDate?.ToUniversalTime(),
+                Priority = req.Priority,
+                Description = req.Description,
+                CreatedBy = currentUser.UserId?.ToString() ?? "system"
+            }, transaction: transaction, cancellationToken: cancellationToken));
 
-        await connection.ExecuteAsync(new CommandDefinition("""
-            UPDATE MaintenanceRequests SET WorkOrderId = @WorkOrderId, Status = N'Converted', UpdatedAt = GETUTCDATE()
-            WHERE Id = @Id AND TenantId = @TenantId
-            """, new { WorkOrderId = woId, request.Id, TenantId = tenantId }, cancellationToken: cancellationToken));
+            var woNumber = $"WO-{woId:D5}";
 
-        await MaintenanceAlertHelper.InsertAlertAsync(
-            connection, tenantId, req.VehicleId, "WorkOrderCreated", "Info",
-            $"Work order {woNumber} created", $"Converted from maintenance request.", "WorkOrder", woId, cancellationToken);
+            await connection.ExecuteAsync(new CommandDefinition(
+                "UPDATE WorkOrders SET WorkOrderNumber = @No WHERE Id = @Id",
+                new { No = woNumber, Id = woId }, transaction: transaction, cancellationToken: cancellationToken));
 
-        return ApiResponse<int>.SuccessResponse(woId);
+            await connection.ExecuteAsync(new CommandDefinition("""
+                UPDATE MaintenanceRequests SET WorkOrderId = @WorkOrderId, Status = N'Converted', UpdatedAt = GETUTCDATE()
+                WHERE Id = @Id AND TenantId = @TenantId
+                """, new { WorkOrderId = woId, request.Id, TenantId = tenantId },
+                transaction: transaction, cancellationToken: cancellationToken));
+
+            transaction.Commit();
+
+            await MaintenanceAlertHelper.InsertAlertAsync(
+                connection, tenantId, req.VehicleId, "WorkOrderCreated", "Info",
+                $"Work order {woNumber} created", $"Converted from maintenance request.", "WorkOrder", woId, cancellationToken);
+
+            return ApiResponse<int>.SuccessResponse(woId);
+        }
+        catch
+        {
+            transaction.Rollback();
+            throw;
+        }
     }
 }

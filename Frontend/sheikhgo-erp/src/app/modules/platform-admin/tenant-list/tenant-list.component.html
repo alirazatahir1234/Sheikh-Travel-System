@@ -1,23 +1,22 @@
-<div class="tenant-page">
-  <header class="page-header">
-    <div>
-      <nav class="breadcrumb">
-        <span>Organization</span>
-        <mat-icon>chevron_right</mat-icon>
-        <span class="current">Organization Management</span>
-      </nav>
-      <h2>Organization Management</h2>
-      <p class="page-sub">Monitor and govern all tenant entities across the platform.</p>
-    </div>
-    <button mat-raised-button color="primary" type="button" (click)="openAddTenant()">
-      <mat-icon>add_business</mat-icon> Add Tenant
-    </button>
-  </header>
+<div class="tenant-page stb-page">
+  <ui-page-header
+    title="Organization Management"
+    subtitle="Monitor and govern all tenant entities across the platform."
+    [breadcrumbs]="[{ label: 'Platform' }, { label: 'Tenants' }]">
+    <a routerLink="/platform/tenants/new" class="tenant-header-link tenant-header-link--primary">
+      <mat-icon>add_business</mat-icon>
+      <span>Add Tenant</span>
+    </a>
+  </ui-page-header>
 
-  <app-brand-loader *ngIf="loading" />
+  <div *ngIf="loading" class="tenant-loading" aria-busy="true" aria-label="Loading tenants">
+    <span class="stb-shimmer-block tenant-skeleton__metric" *ngFor="let i of [1, 2, 3, 4, 5]"></span>
+    <span class="stb-shimmer-block tenant-skeleton__filter"></span>
+    <span class="stb-shimmer-block tenant-skeleton__row" *ngFor="let i of [1, 2, 3, 4]"></span>
+  </div>
 
   <ng-container *ngIf="!loading">
-    <div class="metric-grid">
+    <div class="metric-grid" aria-label="Tenant statistics">
       <mat-card class="metric-card">
         <div class="metric-icon metric-icon--tenants"><mat-icon>domain</mat-icon></div>
         <div>
@@ -68,10 +67,10 @@
     </div>
 
     <mat-card class="table-card">
-      <div class="table-toolbar">
+      <div class="filter-grid table-toolbar">
         <div class="stb-field stb-field--search">
           <label for="tenant-search">Search</label>
-          <input id="tenant-search" class="stb-input" type="text"
+          <input id="tenant-search" class="stb-input" type="search"
                  placeholder="Search tenants by name or ID…"
                  [(ngModel)]="filters.search" (ngModelChange)="applyFilters()" />
         </div>
@@ -86,7 +85,7 @@
           </select>
         </div>
 
-        <div class="stb-field stb-field--filter stb-field--filter-wide">
+        <div class="stb-field stb-field--filter">
           <label for="tenant-country-filter">Country</label>
           <select id="tenant-country-filter" class="stb-select"
                   [(ngModel)]="filters.country" (ngModelChange)="applyFilters()">
@@ -95,7 +94,7 @@
           </select>
         </div>
 
-        <div class="stb-field stb-field--filter stb-field--filter-wide">
+        <div class="stb-field stb-field--filter">
           <label for="tenant-type-filter">Tenant Type</label>
           <select id="tenant-type-filter" class="stb-select"
                   [(ngModel)]="filters.tenantType" (ngModelChange)="applyFilters()">
@@ -104,7 +103,7 @@
           </select>
         </div>
 
-        <div class="stb-field stb-field--filter stb-field--filter-wide">
+        <div class="stb-field stb-field--filter">
           <label for="tenant-module-filter">Module</label>
           <select id="tenant-module-filter" class="stb-select"
                   [(ngModel)]="filters.module" (ngModelChange)="applyFilters()">
@@ -125,107 +124,172 @@
 
       <div class="bulk-toolbar">
         <div class="bulk-actions">
-          <button mat-stroked-button type="button" color="primary" (click)="bulkActivate()" [disabled]="!selectedIds.size">
+          <ui-button variant="outline" size="sm" (clicked)="bulkActivate()" [disabled]="!selectedIds.size">
             Bulk Activate
-          </button>
-          <button mat-stroked-button type="button" class="danger-btn" (click)="bulkSuspend()" [disabled]="!selectedIds.size">
+          </ui-button>
+          <ui-button variant="danger" size="sm" (clicked)="bulkSuspend()" [disabled]="!selectedIds.size">
             Bulk Suspend
-          </button>
+          </ui-button>
         </div>
         <div class="toolbar-actions">
-          <button mat-icon-button type="button" (click)="exportCsv()" matTooltip="Export CSV"><mat-icon>download</mat-icon></button>
-          <button mat-icon-button type="button" (click)="load()" matTooltip="Refresh"><mat-icon>refresh</mat-icon></button>
+          <ui-button variant="ghost" size="sm" icon="download" (clicked)="exportCsv()" title="Export CSV"></ui-button>
+          <ui-button variant="ghost" size="sm" icon="refresh" (clicked)="load()" title="Refresh"></ui-button>
         </div>
       </div>
 
-      <table mat-table [dataSource]="dataSource" class="admin-table compact-table">
-        <ng-container matColumnDef="select">
-          <th mat-header-cell *matHeaderCellDef>
-            <mat-checkbox
-              [checked]="isAllSelected()"
-              [indeterminate]="isSomeSelected()"
-              (change)="toggleAll($event.checked)">
-            </mat-checkbox>
-          </th>
-          <td mat-cell *matCellDef="let t">
-            <mat-checkbox [checked]="isSelected(t)" (change)="toggleRow(t, $event.checked)"></mat-checkbox>
-          </td>
-        </ng-container>
-
-        <ng-container matColumnDef="tenant">
-          <th mat-header-cell *matHeaderCellDef>Tenant</th>
-          <td mat-cell *matCellDef="let t">
-            <div class="tenant-details">
-              <span class="tenant-avatar" [style.background]="avatarColor(t.name)">{{ initials(t.name) }}</span>
-              <div>
-                <button type="button" class="tenant-link" (click)="openTenant(t)">{{ t.name }}</button>
-                <span class="tenant-meta">{{ tenantDisplayCode(t) }}</span>
-              </div>
+      <div *ngIf="dataSource.filteredData.length" class="tenant-mobile-cards">
+        <article class="tenant-mobile-card" *ngFor="let t of dataSource.filteredData"
+                 [class.tenant-mobile-card--selected]="isSelected(t)">
+          <div class="tenant-mobile-card__head">
+            <mat-checkbox [checked]="isSelected(t)" (change)="toggleRow(t, $event.checked)" aria-label="Select tenant"></mat-checkbox>
+            <span class="tenant-avatar" [style.background]="avatarColor(t.name)">{{ initials(t.name) }}</span>
+            <div class="tenant-mobile-card__identity">
+              <button type="button" class="tenant-link" (click)="openTenant(t)">{{ t.name }}</button>
+              <span class="tenant-meta">{{ tenantDisplayCode(t) }}</span>
             </div>
-          </td>
-        </ng-container>
-
-        <ng-container matColumnDef="type">
-          <th mat-header-cell *matHeaderCellDef>Type</th>
-          <td mat-cell *matCellDef="let t">{{ t.tenantType || '—' }}</td>
-        </ng-container>
-
-        <ng-container matColumnDef="country">
-          <th mat-header-cell *matHeaderCellDef>Country</th>
-          <td mat-cell *matCellDef="let t">{{ t.country || '—' }}</td>
-        </ng-container>
-
-        <ng-container matColumnDef="modules">
-          <th mat-header-cell *matHeaderCellDef>Modules</th>
-          <td mat-cell *matCellDef="let t">
-            <div class="module-badges" *ngIf="tenantModuleList(t).length; else noModules">
-              <span class="module-badge" *ngFor="let code of tenantModuleList(t) | slice:0:3">{{ formatModuleBadge(code) }}</span>
-              <span class="module-more" *ngIf="tenantModuleList(t).length > 3">+{{ tenantModuleList(t).length - 3 }}</span>
-            </div>
-            <ng-template #noModules><span class="muted">—</span></ng-template>
-          </td>
-        </ng-container>
-
-        <ng-container matColumnDef="plan">
-          <th mat-header-cell *matHeaderCellDef>Plan</th>
-          <td mat-cell *matCellDef="let t">
-            <span class="plan-badge" [ngClass]="planFor(t).cssClass">{{ planFor(t).label }}</span>
-          </td>
-        </ng-container>
-
-        <ng-container matColumnDef="usage">
-          <th mat-header-cell *matHeaderCellDef>Usage</th>
-          <td mat-cell *matCellDef="let t">
-            <div class="usage-cell">
-              <span class="usage-label">{{ tenantUsageLabel(t) }}</span>
-              <div class="usage-bar" *ngIf="t.maxUsers && t.maxUsers > 0">
-                <span class="usage-fill" [style.width.%]="tenantUsagePercent(t)"></span>
-              </div>
-            </div>
-          </td>
-        </ng-container>
-
-        <ng-container matColumnDef="health">
-          <th mat-header-cell *matHeaderCellDef>Health</th>
-          <td mat-cell *matCellDef="let t">
             <span class="health-pill" [ngClass]="healthClass(tenantHealthStatus(t))">
               <span class="health-dot"></span>{{ tenantHealthStatus(t) }}
             </span>
-          </td>
-        </ng-container>
+          </div>
 
-        <ng-container matColumnDef="actions">
-          <th mat-header-cell *matHeaderCellDef></th>
-          <td mat-cell *matCellDef="let t">
-            <button mat-icon-button type="button" [matMenuTriggerFor]="tenantMenu" (click)="setActionRow(t)" aria-label="Tenant actions">
-              <mat-icon>more_vert</mat-icon>
+          <dl class="tenant-mobile-card__meta">
+            <div class="tenant-mobile-card__field">
+              <dt>Type</dt>
+              <dd>{{ t.tenantType || '—' }}</dd>
+            </div>
+            <div class="tenant-mobile-card__field">
+              <dt>Country</dt>
+              <dd>{{ t.country || '—' }}</dd>
+            </div>
+            <div class="tenant-mobile-card__field">
+              <dt>Plan</dt>
+              <dd>
+                <span class="plan-badge" [ngClass]="planFor(t).cssClass">{{ planFor(t).label }}</span>
+              </dd>
+            </div>
+            <div class="tenant-mobile-card__field">
+              <dt>Usage</dt>
+              <dd>{{ tenantUsageLabel(t) }}</dd>
+            </div>
+            <div class="tenant-mobile-card__field">
+              <dt>Status</dt>
+              <dd>
+                <span class="status-pill" [class.ok]="t.isActive" [class.off]="!t.isActive">
+                  {{ t.isActive ? 'Active' : 'Suspended' }}
+                </span>
+              </dd>
+            </div>
+            <div class="tenant-mobile-card__field">
+              <dt>Created</dt>
+              <dd>{{ t.createdAt | date:'mediumDate' }}</dd>
+            </div>
+          </dl>
+
+          <div class="module-badges" *ngIf="tenantModuleList(t).length">
+            <span class="module-badge" *ngFor="let code of tenantModuleList(t) | slice:0:4">{{ formatModuleBadge(code) }}</span>
+            <span class="module-more" *ngIf="tenantModuleList(t).length > 4">+{{ tenantModuleList(t).length - 4 }}</span>
+          </div>
+
+          <div class="tenant-mobile-card__actions">
+            <ui-button variant="outline" size="sm" icon="visibility" [fullWidth]="true" (clicked)="openTenant(t)">View</ui-button>
+            <button mat-stroked-button type="button" class="tenant-more-btn" [matMenuTriggerFor]="tenantMenu" (click)="setActionRow(t)">
+              <mat-icon>more_horiz</mat-icon>
+              <span>More</span>
             </button>
-          </td>
-        </ng-container>
+          </div>
+        </article>
+      </div>
 
-        <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-        <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
-      </table>
+      <div class="tenant-table-wrap stb-table-scroll">
+        <table mat-table [dataSource]="dataSource" class="admin-table compact-table tenant-table">
+          <ng-container matColumnDef="select">
+            <th mat-header-cell *matHeaderCellDef class="select-col">
+              <mat-checkbox
+                [checked]="isAllSelected()"
+                [indeterminate]="isSomeSelected()"
+                (change)="toggleAll($event.checked)">
+              </mat-checkbox>
+            </th>
+            <td mat-cell *matCellDef="let t" class="select-col">
+              <mat-checkbox [checked]="isSelected(t)" (change)="toggleRow(t, $event.checked)"></mat-checkbox>
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="tenant">
+            <th mat-header-cell *matHeaderCellDef>Tenant</th>
+            <td mat-cell *matCellDef="let t">
+              <div class="tenant-details">
+                <span class="tenant-avatar" [style.background]="avatarColor(t.name)">{{ initials(t.name) }}</span>
+                <div>
+                  <button type="button" class="tenant-link" (click)="openTenant(t)">{{ t.name }}</button>
+                  <span class="tenant-meta">{{ tenantDisplayCode(t) }}</span>
+                </div>
+              </div>
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="type">
+            <th mat-header-cell *matHeaderCellDef>Type</th>
+            <td mat-cell *matCellDef="let t">{{ t.tenantType || '—' }}</td>
+          </ng-container>
+
+          <ng-container matColumnDef="country">
+            <th mat-header-cell *matHeaderCellDef>Country</th>
+            <td mat-cell *matCellDef="let t">{{ t.country || '—' }}</td>
+          </ng-container>
+
+          <ng-container matColumnDef="modules">
+            <th mat-header-cell *matHeaderCellDef>Modules</th>
+            <td mat-cell *matCellDef="let t">
+              <div class="module-badges" *ngIf="tenantModuleList(t).length; else noModules">
+                <span class="module-badge" *ngFor="let code of tenantModuleList(t) | slice:0:3">{{ formatModuleBadge(code) }}</span>
+                <span class="module-more" *ngIf="tenantModuleList(t).length > 3">+{{ tenantModuleList(t).length - 3 }}</span>
+              </div>
+              <ng-template #noModules><span class="muted">—</span></ng-template>
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="plan">
+            <th mat-header-cell *matHeaderCellDef>Plan</th>
+            <td mat-cell *matCellDef="let t">
+              <span class="plan-badge" [ngClass]="planFor(t).cssClass">{{ planFor(t).label }}</span>
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="usage">
+            <th mat-header-cell *matHeaderCellDef>Usage</th>
+            <td mat-cell *matCellDef="let t">
+              <div class="usage-cell">
+                <span class="usage-label">{{ tenantUsageLabel(t) }}</span>
+                <div class="usage-bar" *ngIf="t.maxUsers && t.maxUsers > 0">
+                  <span class="usage-fill" [style.width.%]="tenantUsagePercent(t)"></span>
+                </div>
+              </div>
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="health">
+            <th mat-header-cell *matHeaderCellDef>Health</th>
+            <td mat-cell *matCellDef="let t">
+              <span class="health-pill" [ngClass]="healthClass(tenantHealthStatus(t))">
+                <span class="health-dot"></span>{{ tenantHealthStatus(t) }}
+              </span>
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="actions">
+            <th mat-header-cell *matHeaderCellDef class="col-actions">Actions</th>
+            <td mat-cell *matCellDef="let t" class="col-actions">
+              <button mat-icon-button type="button" [matMenuTriggerFor]="tenantMenu" (click)="setActionRow(t)" aria-label="Tenant actions">
+                <mat-icon>more_vert</mat-icon>
+              </button>
+            </td>
+          </ng-container>
+
+          <tr mat-header-row *matHeaderRowDef="displayedColumns" class="tenant-table-head-row"></tr>
+          <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+        </table>
+      </div>
 
       <mat-menu #tenantMenu="matMenu">
         <button mat-menu-item type="button" (click)="openTenant(selectedRow!)">
@@ -255,10 +319,17 @@
         </button>
       </mat-menu>
 
-      <div *ngIf="!dataSource.filteredData.length" class="empty">No tenants match your filters.</div>
+      <div *ngIf="!dataSource.filteredData.length" class="tenant-empty">
+        <mat-icon>domain_disabled</mat-icon>
+        <p>No tenants match your filters</p>
+        <span>Adjust search or filters, or add a new tenant to get started.</span>
+        <button mat-stroked-button type="button" class="tenant-empty__cta" (click)="openAddTenant()">
+          <mat-icon>add_business</mat-icon> Add Tenant
+        </button>
+      </div>
 
       <div class="table-footer" *ngIf="dataSource.filteredData.length">
-        <span>
+        <span class="table-footer__text">
           Showing {{ (paginator?.pageIndex ?? 0) * pageSize + 1 }} to
           {{ Math.min(((paginator?.pageIndex ?? 0) + 1) * pageSize, dataSource.filteredData.length) }}
           of {{ dataSource.filteredData.length }} tenants
@@ -273,7 +344,7 @@
         <div>
           <strong>Organization Designer</strong>
           <p>Configure global department templates and branch relationships for all tenants.</p>
-          <button mat-stroked-button type="button" (click)="openOrganizationDesigner()">Open</button>
+          <ui-button variant="outline" size="sm" (clicked)="openOrganizationDesigner()">Open</ui-button>
         </div>
       </mat-card>
       <mat-card class="feature-card">
@@ -281,7 +352,7 @@
         <div>
           <strong>Access Control</strong>
           <p>Manage cross-tenant security roles, permissions, and access policies.</p>
-          <button mat-stroked-button type="button" (click)="openAccessControl()">Configure</button>
+          <ui-button variant="outline" size="sm" (clicked)="openAccessControl()">Configure</ui-button>
         </div>
       </mat-card>
       <mat-card class="feature-card">
@@ -289,7 +360,7 @@
         <div>
           <strong>Module Management</strong>
           <p>Provision and configure system modules across tenant subscriptions.</p>
-          <button mat-stroked-button type="button" (click)="openModuleManagement()">Manage</button>
+          <ui-button variant="outline" size="sm" (clicked)="openModuleManagement()">Manage</ui-button>
         </div>
       </mat-card>
       <mat-card class="feature-card">
@@ -297,7 +368,7 @@
         <div>
           <strong>Subscription Management</strong>
           <p>Track licenses, quotas, expiring plans, and billing health.</p>
-          <button mat-stroked-button type="button" (click)="openSubscriptionManagement()">Review</button>
+          <ui-button variant="outline" size="sm" (clicked)="openSubscriptionManagement()">Review</ui-button>
         </div>
       </mat-card>
     </div>

@@ -5,3 +5,9 @@
 .vehicle-wizard {
   min-height: calc(100vh - 120px);
 }
+
+@media (max-width: 639px) {
+  .vehicle-wizard main {
+    padding-bottom: 5rem;
+  }
+}

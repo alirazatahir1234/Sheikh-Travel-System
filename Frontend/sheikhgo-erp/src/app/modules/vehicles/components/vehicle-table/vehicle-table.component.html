@@ -1,4 +1,4 @@
-<div class="vehicle-table-wrap overflow-hidden rounded-xl border border-fleet-border bg-white">
+<div class="vehicle-table-wrap rounded-xl border border-fleet-border bg-white">
   @if (error()) {
     <div class="flex items-center justify-between gap-3 border-b border-fleet-error/30 bg-fleet-error-soft px-5 py-3 text-sm text-fleet-error">
       <span>{{ error() }}</span>
@@ -7,7 +7,7 @@
   }
 
   <div class="table-scroll overflow-x-auto">
-    <table class="vehicle-grid w-full table-fixed text-left">
+    <table class="vehicle-grid w-full text-left">
       <thead class="sticky top-0 z-10 bg-fleet-surface-alt/80 backdrop-blur-sm">
         <tr>
           <th class="col-check w-10 px-3 py-3">
@@ -157,7 +157,7 @@
   </div>
 
   @if (!loading() && pagination().total > 0) {
-    <div class="flex flex-wrap items-center justify-between gap-3 border-t border-fleet-border px-5 py-3 text-sm">
+    <div class="table-footer flex flex-wrap items-center justify-between gap-3 border-t border-fleet-border px-5 py-3 text-sm">
       <label class="flex items-center gap-2 text-fleet-text-muted">
         Rows per page
         <select class="rounded-sm border border-fleet-border px-2 py-1"

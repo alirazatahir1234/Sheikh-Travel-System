@@ -1,4 +1,5 @@
 using Dapper;
+using FluentValidation;
 using MediatR;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Exceptions;
@@ -12,6 +13,54 @@ public record UpdateWorkOrderStatusCommand(int Id, UpdateWorkOrderStatusDto Body
 
 public record UpdateWorkOrderCommand(int Id, UpdateWorkOrderDto Body) : IRequest<ApiResponse<bool>>;
 
+public class CreateWorkOrderCommandValidator : AbstractValidator<CreateWorkOrderCommand>
+{
+    public CreateWorkOrderCommandValidator()
+    {
+        RuleFor(x => x.Body.VehicleId)
+            .GreaterThan(0)
+            .WithMessage("Please select a vehicle.");
+
+        RuleFor(x => x.Body.ServiceTypeName)
+            .Must(s => !string.IsNullOrWhiteSpace(s))
+            .WithMessage("Select at least one service item.");
+
+        RuleFor(x => x.Body.Priority)
+            .Must(WorkOrderValidation.IsValidPriority)
+            .When(x => !string.IsNullOrWhiteSpace(x.Body.Priority))
+            .WithMessage("Priority is invalid.");
+
+        RuleFor(x => x.Body.MaintenanceType)
+            .Must(WorkOrderValidation.IsValidMaintenanceType)
+            .When(x => !string.IsNullOrWhiteSpace(x.Body.MaintenanceType))
+            .WithMessage("Maintenance type is invalid.");
+
+        RuleFor(x => x.Body.LaborCost)
+            .GreaterThanOrEqualTo(0)
+            .WithMessage("Labor cost cannot be negative.")
+            .LessThanOrEqualTo(WorkOrderValidation.MaxCost)
+            .WithMessage($"Labor cost cannot exceed {WorkOrderValidation.MaxCost:N2}.");
+
+        RuleFor(x => x.Body.PartsCost)
+            .GreaterThanOrEqualTo(0)
+            .WithMessage("Parts cost cannot be negative.")
+            .LessThanOrEqualTo(WorkOrderValidation.MaxCost)
+            .WithMessage($"Parts cost cannot exceed {WorkOrderValidation.MaxCost:N2}.");
+
+        RuleFor(x => x.Body.Notes)
+            .MaximumLength(WorkOrderValidation.NotesMaxLength)
+            .WithMessage($"Notes cannot exceed {WorkOrderValidation.NotesMaxLength} characters.");
+
+        RuleFor(x => x.Body)
+            .Must(b => WorkOrderValidation.IsValidDateRange(b.StartDate, b.EstimatedCompletionDate))
+            .WithMessage("Estimated completion must be on or after the start date.");
+
+        RuleFor(x => x.Body)
+            .Must(b => !string.Equals(b.MaintenanceType, "Emergency", StringComparison.OrdinalIgnoreCase) || b.StartDate.HasValue)
+            .WithMessage("Start date is required for emergency work orders.");
+    }
+}
+
 public class CreateWorkOrderCommandHandler(
     IDbConnectionFactory dbFactory,
     ITenantContext tenantContext,
@@ -24,9 +73,38 @@ public class CreateWorkOrderCommandHandler(
         var body = request.Body;
         using var connection = dbFactory.CreateConnection();
 
-        var seq = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
-            "SELECT COUNT(*) + 1 FROM WorkOrders WHERE TenantId = @TenantId",
-            new { TenantId = tenantId }, cancellationToken: cancellationToken));
+        var vehicleId = body.VehicleId;
+        if (vehicleId <= 0)
+            throw new ConflictException("Please select a vehicle.");
+
+        var vehicleExists = await connection.ExecuteScalarAsync<int?>(new CommandDefinition(
+            "SELECT 1 FROM Vehicles WHERE Id = @VehicleId AND TenantId = @TenantId AND IsDeleted = 0",
+            new { VehicleId = vehicleId, TenantId = tenantId }, cancellationToken: cancellationToken));
+
+        if (vehicleExists is null)
+            throw new NotFoundException("Vehicle", vehicleId);
+
+        var workshopId = WorkOrderValidation.NormalizeOptionalId(body.WorkshopId);
+        if (workshopId.HasValue)
+        {
+            var workshopExists = await connection.ExecuteScalarAsync<int?>(new CommandDefinition(
+                "SELECT 1 FROM Workshops WHERE Id = @WorkshopId AND TenantId = @TenantId AND IsDeleted = 0",
+                new { WorkshopId = workshopId.Value, TenantId = tenantId }, cancellationToken: cancellationToken));
+
+            if (workshopExists is null)
+                throw new NotFoundException("Workshop", workshopId.Value);
+        }
+
+        var technicianId = WorkOrderValidation.NormalizeOptionalId(body.TechnicianId);
+        if (technicianId.HasValue)
+        {
+            var technicianExists = await connection.ExecuteScalarAsync<int?>(new CommandDefinition(
+                "SELECT 1 FROM Technicians WHERE Id = @TechnicianId AND TenantId = @TenantId AND IsDeleted = 0",
+                new { TechnicianId = technicianId.Value, TenantId = tenantId }, cancellationToken: cancellationToken));
+
+            if (technicianExists is null)
+                throw new NotFoundException("Technician", technicianId.Value);
+        }
 
         var id = await connection.ExecuteScalarAsync<int>(new CommandDefinition("""
             INSERT INTO WorkOrders
@@ -35,7 +113,7 @@ public class CreateWorkOrderCommandHandler(
                  LaborCost, PartsCost, EstimatedLaborCost, EstimatedPartsCost,
                  Priority, Notes, Status, CreatedBy, CreatedAt)
             VALUES
-                (@TenantId, @WorkOrderNumber, @RequestId, @ScheduleId, @VehicleId, @WorkshopId, @TechnicianId,
+                (@TenantId, N'WO-PENDING', @RequestId, @ScheduleId, @VehicleId, @WorkshopId, @TechnicianId,
                  @ServiceTypeId, @ServiceTypeName, @MaintenanceType, @StartDate, @EstimatedCompletionDate,
                  @LaborCost, @PartsCost, @EstimatedLaborCost, @EstimatedPartsCost,
                  @Priority, @Notes, N'Open', @CreatedBy, GETUTCDATE());
@@ -43,25 +121,28 @@ public class CreateWorkOrderCommandHandler(
             """, new
         {
             TenantId = tenantId,
-            WorkOrderNumber = $"WO-{seq:D5}",
             body.RequestId,
             body.ScheduleId,
             body.VehicleId,
-            body.WorkshopId,
-            body.TechnicianId,
+            WorkshopId = workshopId,
+            TechnicianId = technicianId,
             body.ServiceTypeId,
-            body.ServiceTypeName,
-            MaintenanceType = body.MaintenanceType,
-            StartDate = body.StartDate?.ToUniversalTime(),
-            EstimatedCompletionDate = body.EstimatedCompletionDate?.ToUniversalTime(),
+            ServiceTypeName = body.ServiceTypeName?.Trim(),
+            MaintenanceType = WorkOrderValidation.NormalizeMaintenanceType(body.MaintenanceType),
+            StartDate = WorkOrderValidation.NormalizeDate(body.StartDate),
+            EstimatedCompletionDate = WorkOrderValidation.NormalizeDate(body.EstimatedCompletionDate),
             body.LaborCost,
             body.PartsCost,
             EstimatedLaborCost = body.LaborCost,
             EstimatedPartsCost = body.PartsCost,
-            body.Priority,
-            body.Notes,
+            Priority = body.Priority?.Trim(),
+            Notes = string.IsNullOrWhiteSpace(body.Notes) ? null : body.Notes.Trim(),
             CreatedBy = currentUser.UserId?.ToString() ?? "system"
         }, cancellationToken: cancellationToken));
+
+        await connection.ExecuteAsync(new CommandDefinition(
+            "UPDATE WorkOrders SET WorkOrderNumber = @No WHERE Id = @Id",
+            new { No = $"WO-{id:D5}", Id = id }, cancellationToken: cancellationToken));
 
         return ApiResponse<int>.SuccessResponse(id);
     }

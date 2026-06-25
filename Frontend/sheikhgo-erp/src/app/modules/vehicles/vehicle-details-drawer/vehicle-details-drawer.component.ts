@@ -36,6 +36,12 @@ import { UiEmptyStateComponent } from '../../../shared/components/ui/empty-state
 import { UiTab, UiSelectOption } from '../../../shared/components/ui/types/ui.types';
 import { dateInputToIso } from '../../../core/utils/date-input.util';
 import { resolveUploadUrl, resolveVehicleImageUrl, isPdfUploadUrl, vehicleUploadSizeError } from '../../../core/utils/upload-url.util';
+import {
+  VEHICLE_IMAGE_ANGLES,
+  VehicleImageAngle,
+  parseVehicleImageAngle,
+  isPrimaryVehicleImage
+} from '../vehicle-register-wizard/models/vehicle-wizard.model';
 import { apiErrorMessage } from '../../../core/utils/api-error.util';
 import { deriveOperationalStatus } from '../utils/vehicle-status.util';
 import { formatRelativeTime } from '../../../core/utils/relative-time.util';
@@ -64,6 +70,13 @@ interface HistoryEvent {
   timestamp?: string;
   icon: string;
   tone: 'success' | 'warning' | 'danger' | 'primary' | 'muted';
+}
+
+interface VehiclePhotoSlot {
+  angle: VehicleImageAngle;
+  label: string;
+  document?: VehicleDocument;
+  isPrimary: boolean;
 }
 
 const COMPLIANCE_TYPES: { key: string; label: string; aliases: string[] }[] = [
@@ -136,6 +149,30 @@ export class VehicleDetailsDrawerComponent {
       doc.documentType !== 'VehicleImage' && !!doc.fileUrl?.trim()
     )
   );
+  readonly vehicleImageDocuments = computed(() =>
+    this.documents().filter(doc =>
+      doc.documentType === 'VehicleImage' && !!doc.fileUrl?.trim()
+    )
+  );
+  readonly vehiclePhotoSlots = computed((): VehiclePhotoSlot[] => {
+    const imageDocs = this.vehicleImageDocuments();
+    const usedIds = new Set<number>();
+
+    return VEHICLE_IMAGE_ANGLES.map(({ angle, label }) => {
+      let doc = imageDocs.find(d => !usedIds.has(d.id) && parseVehicleImageAngle(d.notes) === angle);
+      if (!doc && angle === 'Front') {
+        doc = imageDocs.find(d => !usedIds.has(d.id) && !parseVehicleImageAngle(d.notes));
+      }
+      if (doc) usedIds.add(doc.id);
+
+      return {
+        angle,
+        label,
+        document: doc,
+        isPrimary: doc ? isPrimaryVehicleImage(doc.notes) : false
+      };
+    });
+  });
   readonly maintenance = signal<VehicleMaintenance[]>([]);
   readonly nextService = signal<VehicleMaintenance | null>(null);
   readonly fuelSummary = signal<VehicleFuelSummary | null>(null);
@@ -167,6 +204,8 @@ export class VehicleDetailsDrawerComponent {
   assignDriverModalOpen = false;
   assignGpsModalOpen = false;
   docModalOpen = false;
+  photoPreviewUrl: string | null = null;
+  photoPreviewLabel = '';
 
   selectedStatus = String(VehicleStatus.Available);
   statusReason = '';
@@ -188,7 +227,18 @@ export class VehicleDetailsDrawerComponent {
 
   private loadedTabs = new Set<string>();
 
-  readonly resolvedImageUrl = computed(() => resolveVehicleImageUrl(this.listItem()?.imageUrl));
+  readonly resolvedImageUrl = computed(() => {
+    const fromList = resolveVehicleImageUrl(this.listItem()?.imageUrl);
+    if (fromList) return fromList;
+
+    const images = this.vehicleImageDocuments();
+    const primary = images.find(d => isPrimaryVehicleImage(d.notes));
+    const fallback = primary ?? images[0];
+    if (!fallback) return null;
+
+    if (isPdfUploadUrl(fallback.fileUrl)) return null;
+    return resolveUploadUrl(fallback.fileUrl);
+  });
   readonly effectiveVehicleId = computed(() => this.vehicleId() ?? this.listItem()?.id ?? null);
   readonly hasPreview = computed(() => !!(this.vehicle() || this.listItem()));
   readonly displayName = computed(() => this.vehicle()?.name ?? this.listItem()?.name ?? 'Vehicle');
@@ -584,9 +634,13 @@ export class VehicleDetailsDrawerComponent {
     }
   }
 
-  onDrawerClosed(): void { this.closed.emit(); }
+  onDrawerClosed(): void {
+    this.closePhotoPreview();
+    this.closed.emit();
+  }
 
   closeDrawer(): void {
+    this.closePhotoPreview();
     this.open.set(false);
     this.closed.emit();
   }
@@ -615,6 +669,22 @@ export class VehicleDetailsDrawerComponent {
 
   docFileUrl(doc: VehicleDocument): string | null {
     return resolveUploadUrl(doc.fileUrl);
+  }
+
+  vehicleImagePreviewUrl(doc: VehicleDocument | undefined): string | null {
+    if (!doc?.fileUrl?.trim()) return null;
+    if (isPdfUploadUrl(doc.fileUrl)) return null;
+    return resolveUploadUrl(doc.fileUrl);
+  }
+
+  openPhotoPreview(url: string, label: string): void {
+    this.photoPreviewUrl = url;
+    this.photoPreviewLabel = label;
+  }
+
+  closePhotoPreview(): void {
+    this.photoPreviewUrl = null;
+    this.photoPreviewLabel = '';
   }
 
   isPdfDoc(doc: VehicleDocument): boolean {

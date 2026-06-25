@@ -41,7 +41,11 @@ interface FabAction {
     </div>
   `,
   styles: [`
-    .fab-root { position: fixed; bottom: 2rem; right: 2rem; z-index: 40; display: flex; flex-direction: column; align-items: flex-end; gap: 0.75rem; }
+    :host { display: none; }
+    @media (max-width: 767px) {
+      :host { display: block; }
+    }
+    .fab-root { position: fixed; bottom: 1.25rem; right: 1rem; z-index: 40; display: flex; flex-direction: column; align-items: flex-end; gap: 0.75rem; }
     .fab-menu { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 0.25rem; }
     .fab-item {
       display: inline-flex; align-items: center; gap: 0.5rem;

@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, effect, inject, OnInit, signal } fr
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
+import { finalize } from 'rxjs/operators';
 import { UiToastService } from '../../../../shared/components/ui/toast/ui-toast.service';
 import { MaintenanceService } from '../../../../core/services/maintenance.service';
 import { VehicleService } from '../../../../core/services/vehicle.service';
@@ -105,9 +106,10 @@ export class MaintenanceRequestsPageComponent implements OnInit {
     this.maintenanceService.createRequest({
       ...form,
       description: form.description.trim()
-    }).subscribe({
+    }).pipe(
+      finalize(() => this.saving.set(false))
+    ).subscribe({
       next: () => {
-        this.saving.set(false);
         this.showForm.set(false);
         this.formResetKey.update(k => k + 1);
         this.load();
@@ -115,7 +117,6 @@ export class MaintenanceRequestsPageComponent implements OnInit {
         this.toast.success('Request created');
       },
       error: err => {
-        this.saving.set(false);
         this.toast.error(apiErrorMessage(err, 'Failed to create request'));
       }
     });

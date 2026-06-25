@@ -5,3 +5,10 @@
 .hidden {
   display: none;
 }
+
+/* Pad below form so content isn't hidden under the sticky footer on mobile */
+@media (max-width: 639px) {
+  .driver-wizard main {
+    padding-bottom: 5rem;
+  }
+}

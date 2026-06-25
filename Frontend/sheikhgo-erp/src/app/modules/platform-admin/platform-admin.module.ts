@@ -11,6 +11,8 @@ import { RoleListComponent } from './role-list/role-list.component';
 import { AccessControlComponent } from './access-control/access-control.component';
 import { ModuleManagementComponent } from './module-management/module-management.component';
 import { SubscriptionManagementComponent } from './subscription-management/subscription-management.component';
+import { UiButtonComponent } from '../../shared/components/ui/button/ui-button.component';
+import { UiPageHeaderComponent } from '../../shared/components/ui/page-header/ui-page-header.component';
 
 const routes: Routes = [
   { path: 'tenants', component: TenantListComponent },
@@ -49,6 +51,6 @@ const routes: Routes = [
     ModuleManagementComponent,
     SubscriptionManagementComponent
   ],
-  imports: [SharedModule, RouterModule.forChild(routes)]
+  imports: [SharedModule, RouterModule.forChild(routes), UiButtonComponent, UiPageHeaderComponent]
 })
 export class PlatformAdminModule {}

@@ -293,6 +293,7 @@
     .stb-field--search {
       flex: 1 1 100%;
       width: 100%;
+      min-width: 0;
     }
   }
 }
@@ -323,5 +324,13 @@
     align-self: flex-end;
     margin-top: 0;
     height: 44px;
+  }
+
+  @media (max-width: 767px) {
+    .clear-btn,
+    .filter-actions {
+      align-self: stretch;
+      width: 100%;
+    }
   }
 }

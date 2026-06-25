@@ -26,7 +26,7 @@
         </button>
       </mat-menu>
 
-      <ui-button variant="primary" icon="add" routerLink="/vehicles/new">Add Vehicle</ui-button>
+      <ui-button class="header-add-btn" variant="primary" icon="add" routerLink="/vehicles/new">Add Vehicle</ui-button>
     </div>
   </ui-page-header>
 
@@ -55,6 +55,17 @@
     (scheduleMaintenance)="onBulkScheduleMaintenance()"
     (clear)="clearSelection()">
   </vehicle-bulk-toolbar>
+
+  <vehicle-mobile-cards
+    [rows]="displayRows()"
+    [loading]="loading()"
+    [pagination]="{ page: pagination().page, pageSize: pagination().pageSize, total: filteredRows().length }"
+    (cardSelect)="openDrawer($event)"
+    (track)="onTrack($event)"
+    (assign)="onAssign($event)"
+    (pageChange)="onPageChange($event)"
+    (pageSizeChange)="onPageSizeChange($event)">
+  </vehicle-mobile-cards>
 
   <vehicle-table
     [rows]="displayRows()"

@@ -5,6 +5,7 @@ import { catchError, switchMap, takeUntil } from 'rxjs/operators';
 import { SettingsService } from '../services/settings.service';
 import { SETTINGS_SCHEMAS } from '../config/settings-schemas';
 import { SettingFieldSchema, SettingsCategory, SettingsValues } from '../models/settings.model';
+import { SettingsFormStatus } from '../components/dynamic-settings-form/dynamic-settings-form.component';
 
 @Component({
   selector: 'app-settings-page',
@@ -20,6 +21,11 @@ export class SettingsPageComponent implements OnInit, OnDestroy {
   schema: SettingFieldSchema[] = [];
   values: SettingsValues = {};
   loading = true;
+  formStatus: SettingsFormStatus = { invalid: false, pristine: true, saving: false };
+
+  onFormStatusChange(status: SettingsFormStatus): void {
+    this.formStatus = status;
+  }
 
   ngOnInit(): void {
     combineLatest([this.route.paramMap, this.settings.getCategories()])

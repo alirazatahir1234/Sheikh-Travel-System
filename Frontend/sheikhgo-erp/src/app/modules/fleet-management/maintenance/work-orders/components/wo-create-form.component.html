@@ -1,0 +1,147 @@
+<form class="wo-drawer" [formGroup]="form" (ngSubmit)="onSubmit()" novalidate>
+  @if (submitted() && validationMessages().length) {
+    <div class="form-summary" role="alert">
+      <mat-icon>error_outline</mat-icon>
+      <div>
+        <strong>Please fix the following:</strong>
+        <ul>
+          @for (message of validationMessages(); track message) {
+            <li>{{ message }}</li>
+          }
+        </ul>
+      </div>
+    </div>
+  }
+
+  <section>
+    <h4>General</h4>
+    <div class="field" data-field="vehicleId" [class.field--invalid]="showError('vehicleId')">
+      <label>Vehicle <span class="req">*</span></label>
+      <select formControlName="vehicleId" [attr.aria-invalid]="showError('vehicleId')">
+        <option [ngValue]="0">Select vehicle</option>
+        @for (v of vehicles(); track v.id) {
+          <option [ngValue]="v.id">{{ v.name }}@if (v.registrationNumber) { ({{ v.registrationNumber }}) }</option>
+        }
+      </select>
+      @if (showError('vehicleId')) {
+        <span class="field-error">{{ fieldError('vehicleId') }}</span>
+      }
+    </div>
+
+    <div class="field">
+      <label>Workshop</label>
+      <select formControlName="workshopId">
+        <option [ngValue]="0">None</option>
+        @for (ws of workshops(); track ws.id) {
+          <option [ngValue]="ws.id">{{ ws.name }}</option>
+        }
+      </select>
+    </div>
+
+    <div class="field" data-field="priority" [class.field--invalid]="showError('priority')">
+      <label>Priority <span class="req">*</span></label>
+      <select formControlName="priority" [attr.aria-invalid]="showError('priority')">
+        @for (p of priorities; track p) {
+          <option [ngValue]="p">{{ p }}</option>
+        }
+      </select>
+      @if (showError('priority')) {
+        <span class="field-error">{{ fieldError('priority') }}</span>
+      }
+    </div>
+
+    <div class="field" data-field="notes" [class.field--invalid]="showError('notes')">
+      <label>Notes</label>
+      <textarea formControlName="notes" rows="2" [attr.aria-invalid]="showError('notes')"></textarea>
+      <span class="char-hint">{{ notesLength() }}/{{ notesMaxLength }}</span>
+      @if (showError('notes')) {
+        <span class="field-error">{{ fieldError('notes') }}</span>
+      }
+    </div>
+  </section>
+
+  <section data-field="maintenanceType">
+    <h4>Maintenance Type <span class="req">*</span></h4>
+    <div class="maint-type-group" [class.field--invalid]="showError('maintenanceType')">
+      @for (mt of maintTypes; track mt) {
+        <label class="maint-type-card" [class.maint-type-card--active]="form.controls.maintenanceType.value === mt">
+          <input type="radio" formControlName="maintenanceType" [value]="mt" />
+          <mat-icon>{{ maintTypeIcon(mt) }}</mat-icon>
+          <span>{{ mt }}</span>
+        </label>
+      }
+    </div>
+    @if (showError('maintenanceType')) {
+      <span class="field-error">{{ fieldError('maintenanceType') }}</span>
+    }
+  </section>
+
+  <section data-field="serviceItems" [class.field--invalid]="showError('serviceItems')">
+    <h4>Service Items <span class="req">*</span></h4>
+    <div class="service-chips">
+      @for (chip of serviceChips; track chip) {
+        <button
+          type="button"
+          class="service-chip"
+          [class.service-chip--active]="isServiceItemSelected(chip)"
+          (click)="toggleServiceItem(chip)">
+          {{ chip }}
+        </button>
+      }
+    </div>
+    @if (showError('serviceItems')) {
+      <span class="field-error">{{ fieldError('serviceItems') }}</span>
+    }
+  </section>
+
+  <section>
+    <h4>Dates</h4>
+    <div class="two-col">
+      <div class="field" data-field="startDate" [class.field--invalid]="showError('startDate')">
+        <label>Start Date@if (form.controls.maintenanceType.value === 'Emergency') { <span class="req">*</span> }</label>
+        <input type="date" formControlName="startDate" [attr.aria-invalid]="showError('startDate')" />
+        @if (showError('startDate')) {
+          <span class="field-error">{{ fieldError('startDate') }}</span>
+        }
+      </div>
+      <div class="field" data-field="estimatedCompletionDate" [class.field--invalid]="showError('estimatedCompletionDate')">
+        <label>Est. Completion</label>
+        <input type="date" formControlName="estimatedCompletionDate" [attr.aria-invalid]="showError('estimatedCompletionDate')" />
+        @if (showError('estimatedCompletionDate')) {
+          <span class="field-error">{{ fieldError('estimatedCompletionDate') }}</span>
+        }
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h4>Estimated Costs</h4>
+    <div class="two-col">
+      <div class="field" data-field="partsCost" [class.field--invalid]="showError('partsCost')">
+        <label>Parts Cost</label>
+        <input type="number" formControlName="partsCost" min="0" step="0.01" [attr.aria-invalid]="showError('partsCost')" />
+        @if (showError('partsCost')) {
+          <span class="field-error">{{ fieldError('partsCost') }}</span>
+        }
+      </div>
+      <div class="field" data-field="laborCost" [class.field--invalid]="showError('laborCost')">
+        <label>Labor Cost</label>
+        <input type="number" formControlName="laborCost" min="0" step="0.01" [attr.aria-invalid]="showError('laborCost')" />
+        @if (showError('laborCost')) {
+          <span class="field-error">{{ fieldError('laborCost') }}</span>
+        }
+      </div>
+    </div>
+    <div class="cost-grid mt-sm">
+      <div class="cost-row cost-row--muted"><span>Tax</span><span>{{ 0 | currency }}</span></div>
+      <div class="cost-row cost-row--total"><span>Total</span><span>{{ estimatedTotal() | currency }}</span></div>
+    </div>
+  </section>
+
+  <div class="actions">
+    <button type="button" class="btn-cancel" (click)="onCancel()">Cancel</button>
+    <button type="submit" class="btn-submit" [disabled]="saving()">
+      {{ saving() ? 'Creating…' : 'Create Work Order' }}
+    </button>
+  </div>
+</form>

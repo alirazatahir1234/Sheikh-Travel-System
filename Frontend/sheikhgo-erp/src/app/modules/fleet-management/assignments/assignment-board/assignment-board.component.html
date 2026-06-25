@@ -1,17 +1,20 @@
+<div class="ab-board">
 <fleet-page-header
   eyebrow="Fleet Management"
   title="Assignment Management"
   subtitle="Assign vehicles to drivers, track transfers and maintain assignment history"
   icon="event_available">
-  <button class="ab-btn-ghost" type="button" (click)="toggleBulkMode()">
-    <mat-icon>{{ bulkMode() ? 'close' : 'checklist' }}</mat-icon>
-    {{ bulkMode() ? 'Exit bulk' : 'Bulk' }}
-  </button>
-  <button class="ab-btn-ghost" type="button" (click)="exportExcel()"><mat-icon>download</mat-icon> Excel</button>
-  <button class="ab-btn-ghost" type="button" (click)="exportPdf()"><mat-icon>picture_as_pdf</mat-icon> PDF</button>
-  <button class="ab-btn-primary" type="button" (click)="openCreate()">
-    <mat-icon>add</mat-icon> New Assignment
-  </button>
+  <div class="ab-header-actions">
+    <button class="ab-btn-ghost" type="button" (click)="toggleBulkMode()">
+      <mat-icon>{{ bulkMode() ? 'close' : 'checklist' }}</mat-icon>
+      {{ bulkMode() ? 'Exit bulk' : 'Bulk' }}
+    </button>
+    <button class="ab-btn-ghost ab-header-actions__export" type="button" (click)="exportExcel()"><mat-icon>download</mat-icon> Excel</button>
+    <button class="ab-btn-ghost ab-header-actions__export" type="button" (click)="exportPdf()"><mat-icon>picture_as_pdf</mat-icon> PDF</button>
+    <button class="ab-btn-primary" type="button" (click)="openCreate()">
+      <mat-icon>add</mat-icon> New Assignment
+    </button>
+  </div>
 </fleet-page-header>
 
 <assignment-kpi-grid [stats]="stats()" [loading]="statsLoading()" (kpiClick)="onKpiClick($event)" />
@@ -200,3 +203,4 @@
     }
   </div>
 }
+</div>

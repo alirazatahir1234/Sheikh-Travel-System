@@ -7,6 +7,7 @@ export function apiErrorMessage(error: unknown, fallback: string): string {
       message?: string;
       title?: string;
       errors?: Record<string, string[] | string>;
+      success?: boolean;
     } | string | null;
 
     if (typeof payload === 'string' && payload.trim()) {

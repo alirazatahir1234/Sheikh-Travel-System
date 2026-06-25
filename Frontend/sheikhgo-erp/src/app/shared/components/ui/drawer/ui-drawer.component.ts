@@ -43,14 +43,14 @@ import { UiDrawerPosition } from '../types/ui.types';
 
         @if (position() === 'left') {
           <aside
-            class="absolute left-0 top-0 flex h-full flex-col bg-white shadow-2xl"
+            class="ui-drawer-panel absolute left-0 top-0 flex h-full max-h-[100dvh] flex-col bg-white shadow-2xl"
             [style.width]="width()"
             @panelLeft>
             <ng-container [ngTemplateOutlet]="content"></ng-container>
           </aside>
         } @else {
           <aside
-            class="absolute right-0 top-0 flex h-full flex-col bg-white shadow-2xl"
+            class="ui-drawer-panel absolute right-0 top-0 flex h-full max-h-[100dvh] flex-col bg-white shadow-2xl"
             [style.width]="width()"
             @panelRight>
             <ng-container [ngTemplateOutlet]="content"></ng-container>
@@ -81,6 +81,16 @@ import { UiDrawerPosition } from '../types/ui.types';
   `,
   styles: [`
     mat-icon { display: inline-flex; align-items: center; justify-content: center; }
+    @media (max-width: 767px) {
+      .ui-drawer-panel {
+        width: 100% !important;
+        max-width: 100vw;
+      }
+      header button {
+        min-width: 44px;
+        min-height: 44px;
+      }
+    }
   `]
 })
 export class UiDrawerComponent {

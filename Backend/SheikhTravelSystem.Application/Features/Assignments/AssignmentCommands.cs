@@ -49,51 +49,63 @@ public class CreateAssignmentCommandHandler(
         if (!validation.CanProceed)
             throw new ConflictException(string.Join(" ", validation.Issues.Where(i => i.Severity == "Error").Select(i => i.Message)));
 
-        await DriverAssignmentValidation.CompleteActiveAssignmentsAsync(
-            connection, tenantId, body.DriverId, body.VehicleId, null, cancellationToken);
+        DriverAssignmentValidation.OpenConnection(connection);
+        using var transaction = connection.BeginTransaction();
+        try
+        {
+            await DriverAssignmentValidation.CompleteActiveAssignmentsAsync(
+                connection, tenantId, body.DriverId, body.VehicleId, transaction, cancellationToken);
 
-        var startAt = body.StartDate.ToUniversalTime();
-        var status = AssignmentValidation.ResolveInitialStatus(startAt, body.AssignmentType.Trim());
-        var assignmentType = body.AssignmentType.Trim();
-        var purpose = string.IsNullOrWhiteSpace(body.Purpose) ? assignmentType : body.Purpose.Trim();
+            var startAt = body.StartDate.ToUniversalTime();
+            var status = AssignmentValidation.ResolveInitialStatus(startAt, body.AssignmentType.Trim());
+            var assignmentType = body.AssignmentType.Trim();
+            var purpose = string.IsNullOrWhiteSpace(body.Purpose) ? assignmentType : body.Purpose.Trim();
 
-        var assignmentId = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
-            @"INSERT INTO AssignmentHistory
-                (TenantId, VehicleId, DriverId, BookingId, AssignmentType, Status, StartAt, EndAt,
-                 Purpose, PickupLocation, DropLocation, OdometerStart, Reason, Notes, CreatedBy, CreatedAt, IsDeleted)
-              VALUES
-                (@TenantId, @VehicleId, @DriverId, @BookingId, @AssignmentType, @Status, @StartAt, @EndAt,
-                 @Purpose, @PickupLocation, @DropLocation, @OdometerStart, @Reason, @Notes, @CreatedBy, GETUTCDATE(), 0);
-              SELECT CAST(SCOPE_IDENTITY() AS INT);",
-            new
-            {
-                TenantId = tenantId,
-                body.VehicleId,
-                body.DriverId,
-                body.BookingId,
-                AssignmentType = assignmentType,
-                Status = status,
-                StartAt = startAt,
-                EndAt = body.EndDate?.ToUniversalTime(),
-                Purpose = purpose,
-                PickupLocation = NullIfEmpty(body.PickupLocation),
-                DropLocation = NullIfEmpty(body.DropLocation),
-                body.OdometerStart,
-                Reason = NullIfEmpty(body.Reason),
-                Notes = NullIfEmpty(body.Notes),
-                CreatedBy = currentUser.UserId?.ToString() ?? "system"
-            }, cancellationToken: cancellationToken));
+            var assignmentId = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
+                @"INSERT INTO AssignmentHistory
+                    (TenantId, VehicleId, DriverId, BookingId, AssignmentType, Status, StartAt, EndAt,
+                     Purpose, PickupLocation, DropLocation, OdometerStart, Reason, Notes, CreatedBy, CreatedAt, IsDeleted)
+                  VALUES
+                    (@TenantId, @VehicleId, @DriverId, @BookingId, @AssignmentType, @Status, @StartAt, @EndAt,
+                     @Purpose, @PickupLocation, @DropLocation, @OdometerStart, @Reason, @Notes, @CreatedBy, GETUTCDATE(), 0);
+                  SELECT CAST(SCOPE_IDENTITY() AS INT);",
+                new
+                {
+                    TenantId = tenantId,
+                    body.VehicleId,
+                    body.DriverId,
+                    body.BookingId,
+                    AssignmentType = assignmentType,
+                    Status = status,
+                    StartAt = startAt,
+                    EndAt = body.EndDate?.ToUniversalTime(),
+                    Purpose = purpose,
+                    PickupLocation = NullIfEmpty(body.PickupLocation),
+                    DropLocation = NullIfEmpty(body.DropLocation),
+                    body.OdometerStart,
+                    Reason = NullIfEmpty(body.Reason),
+                    Notes = NullIfEmpty(body.Notes),
+                    CreatedBy = currentUser.UserId?.ToString() ?? "system"
+                }, transaction: transaction, cancellationToken: cancellationToken));
 
-        await connection.ExecuteAsync(new CommandDefinition(
-            "UPDATE AssignmentHistory SET AssignmentNo = @No WHERE Id = @Id",
-            new { No = $"ASN-{assignmentId:D6}", Id = assignmentId }, cancellationToken: cancellationToken));
+            await connection.ExecuteAsync(new CommandDefinition(
+                "UPDATE AssignmentHistory SET AssignmentNo = @No WHERE Id = @Id",
+                new { No = $"ASN-{assignmentId:D6}", Id = assignmentId },
+                transaction: transaction, cancellationToken: cancellationToken));
 
-        await AssignmentChangelogWriter.WriteAsync(connection, tenantId, assignmentId,
-            null, body.VehicleId, null, body.DriverId,
-            status == "PendingApproval" ? "Submitted" : "Created",
-            body.Reason, currentUser.UserId?.ToString(), cancellationToken);
+            await AssignmentChangelogWriter.WriteAsync(connection, tenantId, assignmentId,
+                null, body.VehicleId, null, body.DriverId,
+                status == "PendingApproval" ? "Submitted" : "Created",
+                body.Reason, currentUser.UserId?.ToString(), cancellationToken, transaction);
 
-        return ApiResponse<int>.SuccessResponse(assignmentId, "Assignment created successfully.");
+            transaction.Commit();
+            return ApiResponse<int>.SuccessResponse(assignmentId, "Assignment created successfully.");
+        }
+        catch
+        {
+            transaction.Rollback();
+            throw;
+        }
     }
 
     private static string? NullIfEmpty(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
@@ -159,41 +171,53 @@ public class TransferAssignmentCommandHandler(
         if (!validation.CanProceed)
             throw new ConflictException(string.Join(" ", validation.Issues.Where(i => i.Severity == "Error").Select(i => i.Message)));
 
-        await connection.ExecuteAsync(new CommandDefinition(
-            @"UPDATE AssignmentHistory SET Status = N'Completed', EndAt = GETUTCDATE(), ModifiedAt = GETUTCDATE(), ModifiedBy = @ModifiedBy
-              WHERE Id = @Id",
-            new { Id = request.AssignmentId, ModifiedBy = currentUser.UserId?.ToString() },
-            cancellationToken: cancellationToken));
+        DriverAssignmentValidation.OpenConnection(connection);
+        using var transaction = connection.BeginTransaction();
+        try
+        {
+            await connection.ExecuteAsync(new CommandDefinition(
+                @"UPDATE AssignmentHistory SET Status = N'Completed', EndAt = GETUTCDATE(), ModifiedAt = GETUTCDATE(), ModifiedBy = @ModifiedBy
+                  WHERE Id = @Id",
+                new { Id = request.AssignmentId, ModifiedBy = currentUser.UserId?.ToString() },
+                transaction: transaction, cancellationToken: cancellationToken));
 
-        var newId = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
-            @"INSERT INTO AssignmentHistory
-                (TenantId, VehicleId, DriverId, AssignmentType, Status, StartAt, TransferType,
-                 Reason, Notes, CreatedBy, CreatedAt, IsDeleted)
-              VALUES
-                (@TenantId, @VehicleId, @DriverId, @AssignmentType, N'Active', GETUTCDATE(), @TransferType,
-                 @Reason, @Notes, @CreatedBy, GETUTCDATE(), 0);
-              SELECT CAST(SCOPE_IDENTITY() AS INT);",
-            new
-            {
-                TenantId = tenantId,
-                VehicleId = newVehicleId,
-                DriverId = newDriverId,
-                AssignmentType = transferType.Equals("Temporary", StringComparison.OrdinalIgnoreCase) ? "Temporary" : "Transfer",
-                TransferType = transferType,
-                Reason = NullIfEmpty(body.Reason),
-                Notes = NullIfEmpty(body.Notes),
-                CreatedBy = currentUser.UserId?.ToString() ?? "system"
-            }, cancellationToken: cancellationToken));
+            var newId = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
+                @"INSERT INTO AssignmentHistory
+                    (TenantId, VehicleId, DriverId, AssignmentType, Status, StartAt, TransferType,
+                     Reason, Notes, CreatedBy, CreatedAt, IsDeleted)
+                  VALUES
+                    (@TenantId, @VehicleId, @DriverId, @AssignmentType, N'Active', GETUTCDATE(), @TransferType,
+                     @Reason, @Notes, @CreatedBy, GETUTCDATE(), 0);
+                  SELECT CAST(SCOPE_IDENTITY() AS INT);",
+                new
+                {
+                    TenantId = tenantId,
+                    VehicleId = newVehicleId,
+                    DriverId = newDriverId,
+                    AssignmentType = transferType.Equals("Temporary", StringComparison.OrdinalIgnoreCase) ? "Temporary" : "Transfer",
+                    TransferType = transferType,
+                    Reason = NullIfEmpty(body.Reason),
+                    Notes = NullIfEmpty(body.Notes),
+                    CreatedBy = currentUser.UserId?.ToString() ?? "system"
+                }, transaction: transaction, cancellationToken: cancellationToken));
 
-        await connection.ExecuteAsync(new CommandDefinition(
-            "UPDATE AssignmentHistory SET AssignmentNo = @No WHERE Id = @Id",
-            new { No = $"ASN-{newId:D6}", Id = newId }, cancellationToken: cancellationToken));
+            await connection.ExecuteAsync(new CommandDefinition(
+                "UPDATE AssignmentHistory SET AssignmentNo = @No WHERE Id = @Id",
+                new { No = $"ASN-{newId:D6}", Id = newId },
+                transaction: transaction, cancellationToken: cancellationToken));
 
-        await AssignmentChangelogWriter.WriteAsync(connection, tenantId, newId,
-            existing.VehicleId, newVehicleId, existing.DriverId, newDriverId,
-            "Transferred", body.Reason, currentUser.UserId?.ToString(), cancellationToken);
+            await AssignmentChangelogWriter.WriteAsync(connection, tenantId, newId,
+                existing.VehicleId, newVehicleId, existing.DriverId, newDriverId,
+                "Transferred", body.Reason, currentUser.UserId?.ToString(), cancellationToken, transaction);
 
-        return ApiResponse<int>.SuccessResponse(newId, "Assignment transferred successfully.");
+            transaction.Commit();
+            return ApiResponse<int>.SuccessResponse(newId, "Assignment transferred successfully.");
+        }
+        catch
+        {
+            transaction.Rollback();
+            throw;
+        }
     }
 
     private static string? NullIfEmpty(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
@@ -308,7 +332,8 @@ internal static class AssignmentChangelogWriter
 {
     public static Task WriteAsync(System.Data.IDbConnection conn, int tenantId, int assignmentId,
         int? oldVehicleId, int? newVehicleId, int? oldDriverId, int? newDriverId,
-        string action, string? reason, string? by, CancellationToken ct)
+        string action, string? reason, string? by, CancellationToken ct,
+        System.Data.IDbTransaction? transaction = null)
         => conn.ExecuteAsync(new CommandDefinition(
             @"INSERT INTO FleetAssignmentChangelog (TenantId, AssignmentId, OldVehicleId, NewVehicleId,
               OldDriverId, NewDriverId, ActionType, Reason, CreatedBy, CreatedAt)
@@ -325,5 +350,5 @@ internal static class AssignmentChangelogWriter
                 ActionType = action,
                 Reason = string.IsNullOrWhiteSpace(reason) ? null : reason.Trim(),
                 CreatedBy = by
-            }, cancellationToken: ct));
+            }, transaction: transaction, cancellationToken: ct));
 }

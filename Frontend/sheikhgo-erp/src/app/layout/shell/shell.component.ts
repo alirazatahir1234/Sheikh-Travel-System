@@ -1,6 +1,6 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, ViewChild, ElementRef } from '@angular/core';
 import { NavigationEnd, Router } from '@angular/router';
-import { Subject, BehaviorSubject, debounceTime, distinctUntilChanged, exhaustMap, switchMap, of, Observable, Subscription, map, filter, combineLatest, startWith } from 'rxjs';
+import { Subject, BehaviorSubject, debounceTime, distinctUntilChanged, exhaustMap, switchMap, of, Observable, Subscription, map, filter, combineLatest, startWith, tap, finalize, shareReplay } from 'rxjs';
 import { MatDialog } from '@angular/material/dialog';
 import { AuthService } from '../../core/services/auth.service';
 import { NotificationService } from '../../core/services/notification.service';
@@ -41,6 +41,8 @@ export class ShellComponent implements OnInit, OnDestroy {
   unreadCount$!: NotificationService['unreadCount'];
   notifications$!: NotificationService['notifications'];
 
+  @ViewChild('mainContent') mainContent!: ElementRef<HTMLElement>;
+
   expandedGroupIds = new Set<string>();
 
   searchQuery = '';
@@ -50,6 +52,9 @@ export class ShellComponent implements OnInit, OnDestroy {
   isSidebarPinned = true;
   isSidebarHovering = false;
   mobileNavOpen = false;
+  menuLoading = true;
+  menu: ResolvedMenu | null = null;
+  readonly skeletonNavRows = [1, 2, 3, 4, 5, 6, 7, 8];
   private searchSubject = new Subject<string>();
   private searchSub?: Subscription;
   private sessionSub?: Subscription;
@@ -80,6 +85,7 @@ export class ShellComponent implements OnInit, OnDestroy {
     this.timeDisplay$ = this.localTime.clockDisplay$();
 
     this.menu$ = combineLatest([this.currentUser$, this.enabledModules$]).pipe(
+      tap(() => { this.menuLoading = true; }),
       exhaustMap(([user, enabledModules]) => {
         const roles = user?.roles ?? [];
         const tenantType = resolveTenantType(roles);
@@ -93,7 +99,13 @@ export class ShellComponent implements OnInit, OnDestroy {
         }
 
         return this.menuService.loadMenu(roles, enabledModules);
-      })
+      }),
+      tap(resolved => {
+        this.menu = resolved;
+        queueMicrotask(() => { this.menuLoading = false; });
+      }),
+      finalize(() => { queueMicrotask(() => { this.menuLoading = false; }); }),
+      shareReplay(1)
     );
   }
 
@@ -135,6 +147,7 @@ export class ShellComponent implements OnInit, OnDestroy {
       if (this.latestMenu) {
         this.ensureActiveGroupExpanded(this.latestMenu);
       }
+      this.mainContent?.nativeElement?.scrollTo({ top: 0, behavior: 'instant' });
     });
 
     this.initSearch();

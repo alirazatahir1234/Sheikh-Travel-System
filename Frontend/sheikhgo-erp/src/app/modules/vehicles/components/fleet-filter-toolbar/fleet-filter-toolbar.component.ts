@@ -12,9 +12,9 @@ import { VehicleStatus } from '../../../../core/models/vehicle.model';
   imports: [FormsModule, MatIconModule, UiInputComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="flex flex-col gap-3 rounded-xl border border-fleet-border bg-white px-4 py-3">
-      <div class="flex flex-wrap items-center gap-3">
-        <div class="min-w-[220px] flex-1">
+    <div class="fleet-toolbar rounded-xl border border-fleet-border bg-white px-4 py-3">
+      <div class="fleet-toolbar__filters">
+        <div class="fleet-toolbar__search">
           <ui-input
             type="search"
             placeholder="Search plate, driver, IMEI, SIM, VIN..."
@@ -23,9 +23,9 @@ import { VehicleStatus } from '../../../../core/models/vehicle.model';
           </ui-input>
         </div>
 
-        <label class="flex items-center gap-2 text-sm">
-          <span class="font-semibold text-fleet-text-muted">Vehicle Type:</span>
-          <select class="rounded-sm border border-fleet-border bg-white px-3 py-1.5 text-sm"
+        <label class="fleet-toolbar__field">
+          <span class="fleet-toolbar__label">Vehicle Type</span>
+          <select class="fleet-toolbar__select"
                   [ngModel]="filters().vehicleType" (ngModelChange)="patch({ vehicleType: $event })">
             <option value="ALL">All</option>
             @for (opt of vehicleTypeOptions(); track opt.value) {
@@ -34,9 +34,9 @@ import { VehicleStatus } from '../../../../core/models/vehicle.model';
           </select>
         </label>
 
-        <label class="flex items-center gap-2 text-sm">
-          <span class="font-semibold text-fleet-text-muted">Status:</span>
-          <select class="rounded-sm border border-fleet-border bg-white px-3 py-1.5 text-sm"
+        <label class="fleet-toolbar__field">
+          <span class="fleet-toolbar__label">Status</span>
+          <select class="fleet-toolbar__select"
                   [ngModel]="statusValue()" (ngModelChange)="onStatusChange($event)">
             @for (opt of statusOptions(); track opt.value) {
               <option [value]="opt.value">{{ opt.label }}</option>
@@ -44,9 +44,9 @@ import { VehicleStatus } from '../../../../core/models/vehicle.model';
           </select>
         </label>
 
-        <label class="flex items-center gap-2 text-sm">
-          <span class="font-semibold text-fleet-text-muted">Branch:</span>
-          <select class="rounded-sm border border-fleet-border bg-white px-3 py-1.5 text-sm"
+        <label class="fleet-toolbar__field">
+          <span class="fleet-toolbar__label">Branch</span>
+          <select class="fleet-toolbar__select"
                   [ngModel]="filters().branchId" (ngModelChange)="patch({ branchId: $event })">
             <option [ngValue]="null">All Regions</option>
             @for (opt of branchOptions(); track opt.value) {
@@ -55,23 +55,95 @@ import { VehicleStatus } from '../../../../core/models/vehicle.model';
           </select>
         </label>
 
-        <button type="button"
-                class="inline-flex items-center gap-1.5 rounded-sm border border-fleet-border px-3 py-1.5 text-sm font-semibold text-fleet-text-muted hover:bg-fleet-surface-muted"
+        <button type="button" class="fleet-toolbar__advanced"
                 (click)="advancedFilters.emit()">
-          <mat-icon class="!text-[18px]">tune</mat-icon>
+          <mat-icon>tune</mat-icon>
           Advanced Filters
         </button>
       </div>
 
-      <div class="flex items-center gap-2 text-xs text-fleet-text-muted">
+      <div class="fleet-toolbar__summary">
         <span>{{ resultSummary() }}</span>
-        <button type="button" class="ml-auto rounded-full p-1 hover:bg-fleet-surface-muted" (click)="refresh.emit()">
-          <mat-icon class="!text-[18px]">refresh</mat-icon>
+        <button type="button" class="fleet-toolbar__refresh" (click)="refresh.emit()">
+          <mat-icon>refresh</mat-icon>
         </button>
       </div>
     </div>
   `,
-  styles: [`mat-icon { display: inline-flex; }`]
+  styles: [`
+    mat-icon { display: inline-flex; }
+    .fleet-toolbar { display: flex; flex-direction: column; gap: 0.75rem; }
+    .fleet-toolbar__filters {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 0.75rem;
+    }
+    .fleet-toolbar__search { min-width: 0; }
+    .fleet-toolbar__field {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+      font-size: 0.8125rem;
+    }
+    .fleet-toolbar__label {
+      font-weight: 600;
+      color: #64748b;
+    }
+    .fleet-toolbar__select {
+      width: 100%;
+      border: 1px solid #dae3ee;
+      border-radius: 6px;
+      background: #fff;
+      padding: 0.5rem 0.625rem;
+      font: inherit;
+    }
+    .fleet-toolbar__advanced {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.375rem;
+      width: 100%;
+      border: 1px solid #dae3ee;
+      border-radius: 6px;
+      padding: 0.5rem 0.75rem;
+      font-size: 0.8125rem;
+      font-weight: 600;
+      color: #64748b;
+      background: #fff;
+      cursor: pointer;
+    }
+    .fleet-toolbar__summary {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.75rem;
+      color: #64748b;
+    }
+    .fleet-toolbar__refresh {
+      margin-left: auto;
+      display: inline-flex;
+      padding: 0.25rem;
+      border: none;
+      background: transparent;
+      border-radius: 999px;
+      cursor: pointer;
+      color: #64748b;
+    }
+    @media (min-width: 640px) {
+      .fleet-toolbar__filters {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      .fleet-toolbar__search { grid-column: 1 / -1; }
+    }
+    @media (min-width: 1024px) {
+      .fleet-toolbar__filters {
+        grid-template-columns: minmax(220px, 1.4fr) repeat(3, minmax(0, 1fr)) auto;
+        align-items: end;
+      }
+      .fleet-toolbar__search { grid-column: auto; }
+      .fleet-toolbar__advanced { width: auto; white-space: nowrap; }
+    }
+  `]
 })
 export class FleetFilterToolbarComponent {
   readonly filters = input.required<VehicleFilters>();

@@ -191,7 +191,7 @@ export class MaintenanceService {
   }
 
   createWorkOrder(body: CreateWorkOrderPayload): Observable<number> {
-    return this.http.post<number>(this.workOrdersBase, body);
+    return this.http.post<number>(this.workOrdersBase, sanitizeCreateWorkOrderPayload(body));
   }
 
   updateWorkOrderStatus(id: number, status: string, technicianNotes?: string): Observable<boolean> {
@@ -370,4 +370,35 @@ export class MaintenanceService {
     if (filters?.serviceType) params = params.set('serviceType', filters.serviceType);
     return this.http.get<VehicleServiceHistoryItem[]>(`${this.base}/history`, { params });
   }
+}
+
+function sanitizeCreateWorkOrderPayload(body: CreateWorkOrderPayload): CreateWorkOrderPayload {
+  const vehicleId = Number(body.vehicleId) || 0;
+  const workshopId = Number(body.workshopId) || 0;
+  const technicianId = Number(body.technicianId) || 0;
+  const notes = body.notes?.trim();
+  const maintenanceType = body.maintenanceType?.trim() || 'Preventive';
+  const serviceTypeName = body.serviceTypeName?.trim() || null;
+
+  return {
+    vehicleId,
+    priority: body.priority?.trim() || 'Medium',
+    maintenanceType,
+    serviceTypeName,
+    startDate: body.startDate || null,
+    estimatedCompletionDate: body.estimatedCompletionDate || null,
+    laborCost: roundMoney(body.laborCost),
+    partsCost: roundMoney(body.partsCost),
+    notes: notes || null,
+    ...(workshopId > 0 ? { workshopId } : {}),
+    ...(technicianId > 0 ? { technicianId } : {}),
+    ...(body.requestId && body.requestId > 0 ? { requestId: body.requestId } : {}),
+    ...(body.serviceTypeId && body.serviceTypeId > 0 ? { serviceTypeId: body.serviceTypeId } : {})
+  };
+}
+
+function roundMoney(value: number | undefined): number {
+  const amount = Number(value);
+  if (!Number.isFinite(amount) || amount < 0) return 0;
+  return Math.round(amount * 100) / 100;
 }

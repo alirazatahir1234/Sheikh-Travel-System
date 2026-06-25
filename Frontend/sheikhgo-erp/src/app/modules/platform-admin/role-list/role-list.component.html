@@ -1,57 +1,217 @@
-<div class="page-header">
-  <div>
-    <h2>Role & Permission Management</h2>
-    <p class="page-sub">Define tenant roles and assign fine-grained permissions.</p>
-  </div>
-  <button mat-stroked-button (click)="load()"><mat-icon>refresh</mat-icon> Refresh</button>
-</div>
-
-<mat-card class="form-card">
-  <h3>Create role</h3>
-  <div class="inline-form">
-    <div class="stb-field">
-      <label for="new-role-name">Name</label>
-      <input id="new-role-name" class="stb-input" type="text" [(ngModel)]="newName" autocomplete="off" />
+<div class="roles-page stb-page">
+  <ui-page-header
+    title="Role & Permission Management"
+    subtitle="Define tenant roles and assign fine-grained permissions."
+    [breadcrumbs]="[{ label: 'Platform' }, { label: 'Roles' }]">
+    <div class="roles-header-actions">
+      <ui-button variant="outline" icon="refresh" (clicked)="load()">Refresh</ui-button>
     </div>
-    <div class="stb-field">
-      <label for="new-role-code">Code</label>
-      <input id="new-role-code" class="stb-input" type="text" [(ngModel)]="newCode" placeholder="FLEET_MANAGER" autocomplete="off" />
-    </div>
-    <button mat-raised-button color="primary" type="button" (click)="create()"><mat-icon>add</mat-icon> Create</button>
+  </ui-page-header>
+
+  <div class="role-stats" *ngIf="!loading" aria-label="Role statistics">
+    <mat-card class="role-stat-card">
+      <mat-icon aria-hidden="true">badge</mat-icon>
+      <div>
+        <p class="role-stat-label">Total roles</p>
+        <p class="role-stat-value">{{ roles.length }}</p>
+      </div>
+    </mat-card>
+    <mat-card class="role-stat-card">
+      <mat-icon aria-hidden="true">lock</mat-icon>
+      <div>
+        <p class="role-stat-label">Permission catalog</p>
+        <p class="role-stat-value">{{ permissions.length }}</p>
+      </div>
+    </mat-card>
+    <mat-card class="role-stat-card">
+      <mat-icon aria-hidden="true">tune</mat-icon>
+      <div>
+        <p class="role-stat-label">Editing permissions</p>
+        <p class="role-stat-value">{{ selectedRole ? selectedPermissionCodes.size : '—' }}</p>
+      </div>
+    </mat-card>
   </div>
-</mat-card>
 
-<app-brand-loader *ngIf="loading" />
-
-<div *ngIf="!loading" class="role-layout">
-  <mat-card class="table-card">
-    <table mat-table [dataSource]="roles" class="admin-table">
-      <ng-container matColumnDef="name"><th mat-header-cell *matHeaderCellDef>Role</th><td mat-cell *matCellDef="let r"><strong>{{ r.name }}</strong></td></ng-container>
-      <ng-container matColumnDef="code"><th mat-header-cell *matHeaderCellDef>Code</th><td mat-cell *matCellDef="let r">{{ r.code }}</td></ng-container>
-      <ng-container matColumnDef="perms"><th mat-header-cell *matHeaderCellDef>Permissions</th><td mat-cell *matCellDef="let r">{{ r.permissions.length }}</td></ng-container>
-      <ng-container matColumnDef="actions">
-        <th mat-header-cell *matHeaderCellDef></th>
-        <td mat-cell *matCellDef="let r"><button mat-button color="primary" (click)="selectRole(r)">Edit</button></td>
-      </ng-container>
-      <tr mat-header-row *matHeaderRowDef="['name','code','perms','actions']"></tr>
-      <tr mat-row *matRowDef="let row; columns: ['name','code','perms','actions'];" [class.selected]="selectedRole?.id === row.id"></tr>
-    </table>
+  <mat-card class="create-card">
+    <h3 class="roles-section-title">Create role</h3>
+    <div class="create-form">
+      <div class="stb-field">
+        <label for="role-create-name">Name</label>
+        <input id="role-create-name" class="stb-input" type="text" [(ngModel)]="newName" autocomplete="off"
+               placeholder="e.g. Fleet Manager" />
+      </div>
+      <div class="stb-field">
+        <label for="role-create-code">Code</label>
+        <input id="role-create-code" class="stb-input" type="text" [(ngModel)]="newCode"
+               placeholder="FLEET_MANAGER" autocomplete="off" />
+      </div>
+      <ui-button variant="primary" icon="add" (clicked)="create()">Create</ui-button>
+    </div>
   </mat-card>
 
-  <mat-card *ngIf="selectedRole" class="perm-card">
-    <h3>Permissions — {{ selectedRole.name }}</h3>
-    <div class="permission-grid">
-      <ng-container *ngFor="let group of permissionsByModule()">
-        <div class="permission-module">{{ group.module }}</div>
-        <mat-checkbox *ngFor="let p of group.items"
-                      [checked]="selectedPermissionCodes.has(p.permissionCode)"
-                      (change)="togglePermission(p.permissionCode)">
-          {{ p.permissionCode }}
-        </mat-checkbox>
-      </ng-container>
+  <div *ngIf="loading" class="roles-loading" aria-busy="true" aria-label="Loading roles">
+    <span class="stb-shimmer-block roles-skeleton__stat" *ngFor="let i of [1, 2, 3]"></span>
+    <span class="stb-shimmer-block roles-skeleton__form"></span>
+    <div class="roles-skeleton__layout">
+      <span class="stb-shimmer-block roles-skeleton__panel"></span>
+      <span class="stb-shimmer-block roles-skeleton__panel"></span>
     </div>
-    <div class="perm-actions">
-      <button mat-raised-button color="primary" (click)="savePermissions()">Save permissions</button>
-    </div>
-  </mat-card>
+  </div>
+
+  <div *ngIf="!loading" class="role-layout">
+    <section class="roles-main" aria-label="Roles list">
+      <mat-card class="table-card">
+        <div class="table-header">
+          <div class="table-title">
+            <h3 class="roles-section-title">All roles</h3>
+            <span class="count-badge">{{ roles.length }} TOTAL</span>
+          </div>
+        </div>
+
+        <div *ngIf="roles.length" class="role-mobile-cards">
+          <article class="role-mobile-card" *ngFor="let r of roles"
+                   [class.role-mobile-card--selected]="selectedRole?.id === r.id"
+                   [class.role-mobile-card--inactive]="!r.isActive">
+            <div class="role-mobile-card__head">
+              <span class="role-avatar" [attr.aria-label]="r.name">{{ r.name.charAt(0).toUpperCase() }}</span>
+              <div class="role-mobile-card__identity">
+                <strong class="role-mobile-card__name">{{ r.name }}</strong>
+                <span class="role-mobile-card__code">{{ r.code }}</span>
+              </div>
+              <div class="role-mobile-card__badges">
+                <span class="status-pill" [class.ok]="r.isActive" [class.off]="!r.isActive">
+                  {{ r.isActive ? 'Active' : 'Inactive' }}
+                </span>
+                <span class="system-badge" *ngIf="r.isSystem">System</span>
+              </div>
+            </div>
+
+            <dl class="role-mobile-card__meta">
+              <div class="role-mobile-card__field">
+                <dt>Permissions</dt>
+                <dd>{{ r.permissions.length }}</dd>
+              </div>
+              <div class="role-mobile-card__field">
+                <dt>Type</dt>
+                <dd>{{ r.isSystem ? 'System role' : 'Custom role' }}</dd>
+              </div>
+            </dl>
+
+            <div class="role-mobile-card__actions">
+              <ui-button variant="outline" size="sm" icon="edit" [fullWidth]="true" (clicked)="selectRole(r)">
+                Configure
+              </ui-button>
+            </div>
+          </article>
+        </div>
+
+        <div class="role-table-wrap stb-table-scroll">
+          <table mat-table [dataSource]="roles" class="admin-table role-table">
+            <ng-container matColumnDef="name">
+              <th mat-header-cell *matHeaderCellDef>Role</th>
+              <td mat-cell *matCellDef="let r">
+                <div class="role-name-cell">
+                  <span class="role-avatar role-avatar--sm">{{ r.name.charAt(0).toUpperCase() }}</span>
+                  <div class="role-name-text">
+                    <strong>{{ r.name }}</strong>
+                    <span class="system-badge" *ngIf="r.isSystem">System</span>
+                  </div>
+                </div>
+              </td>
+            </ng-container>
+
+            <ng-container matColumnDef="code">
+              <th mat-header-cell *matHeaderCellDef>Code</th>
+              <td mat-cell *matCellDef="let r">
+                <code class="role-code">{{ r.code }}</code>
+              </td>
+            </ng-container>
+
+            <ng-container matColumnDef="status">
+              <th mat-header-cell *matHeaderCellDef>Status</th>
+              <td mat-cell *matCellDef="let r">
+                <span class="status-pill" [class.ok]="r.isActive" [class.off]="!r.isActive">
+                  {{ r.isActive ? 'Active' : 'Inactive' }}
+                </span>
+              </td>
+            </ng-container>
+
+            <ng-container matColumnDef="perms">
+              <th mat-header-cell *matHeaderCellDef>Permissions</th>
+              <td mat-cell *matCellDef="let r">{{ r.permissions.length }}</td>
+            </ng-container>
+
+            <ng-container matColumnDef="actions">
+              <th mat-header-cell *matHeaderCellDef class="col-actions">Actions</th>
+              <td mat-cell *matCellDef="let r" class="col-actions">
+                <ui-button variant="outline" size="sm" icon="edit" (clicked)="selectRole(r)">Configure</ui-button>
+              </td>
+            </ng-container>
+
+            <tr mat-header-row *matHeaderRowDef="['name', 'code', 'status', 'perms', 'actions']" class="role-table-head-row"></tr>
+            <tr mat-row *matRowDef="let row; columns: ['name', 'code', 'status', 'perms', 'actions'];"
+                [class.selected]="selectedRole?.id === row.id"></tr>
+          </table>
+        </div>
+
+        <div *ngIf="!roles.length" class="roles-empty">
+          <mat-icon>admin_panel_settings</mat-icon>
+          <p>No roles yet</p>
+          <span>Create your first role using the form above.</span>
+        </div>
+      </mat-card>
+    </section>
+
+    <aside class="roles-perm-panel" aria-label="Permission configuration">
+      <mat-card *ngIf="selectedRole; else noRoleSelected" class="perm-card">
+        <div class="perm-card__header">
+          <div class="perm-card__title">
+            <h3 class="roles-section-title">Permissions</h3>
+            <p class="perm-card__role">{{ selectedRole.name }}</p>
+            <code class="role-code">{{ selectedRole.code }}</code>
+          </div>
+          <span class="status-pill" [class.ok]="selectedRole.isActive" [class.off]="!selectedRole.isActive">
+            {{ selectedRole.isActive ? 'Active' : 'Inactive' }}
+          </span>
+        </div>
+
+        <p class="perm-card__hint">
+          Toggle permissions for this role. Changes apply after you save.
+        </p>
+
+        <div class="permission-panels" role="group" aria-label="Permission groups">
+          <details class="perm-panel" *ngFor="let group of permissionsByModule()" open>
+            <summary class="perm-panel__summary">
+              <span class="perm-panel__module">{{ group.module }}</span>
+              <span class="perm-panel__count">{{ group.items.length }} permissions</span>
+              <mat-icon class="perm-panel__chevron" aria-hidden="true">expand_more</mat-icon>
+            </summary>
+            <div class="perm-panel__body">
+              <label class="perm-checkbox-row" *ngFor="let p of group.items">
+                <mat-checkbox [checked]="selectedPermissionCodes.has(p.permissionCode)"
+                              (change)="togglePermission(p.permissionCode)">
+                  <span class="perm-checkbox__code">{{ p.permissionCode }}</span>
+                  <span class="perm-checkbox__desc" *ngIf="p.description">{{ p.description }}</span>
+                </mat-checkbox>
+              </label>
+            </div>
+          </details>
+        </div>
+
+        <div class="perm-actions">
+          <ui-button variant="primary" icon="save" [fullWidth]="true" (clicked)="savePermissions()">
+            Save permissions
+          </ui-button>
+        </div>
+      </mat-card>
+
+      <ng-template #noRoleSelected>
+        <mat-card class="perm-card perm-card--placeholder">
+          <mat-icon>touch_app</mat-icon>
+          <h3 class="roles-section-title">Select a role</h3>
+          <p>Choose a role from the list to view and edit its permission matrix.</p>
+        </mat-card>
+      </ng-template>
+    </aside>
+  </div>
 </div>

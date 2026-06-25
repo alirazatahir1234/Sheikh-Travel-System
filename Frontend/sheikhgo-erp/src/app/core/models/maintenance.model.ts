@@ -51,7 +51,7 @@ export type WorkOrderStatus =
 
 export const WorkOrderStatusLabels: Record<WorkOrderStatus, string> = {
   Draft: 'Draft',
-  Open: 'Approved',
+  Open: 'Open',
   Assigned: 'Assigned',
   InProgress: 'In Progress',
   WaitingParts: 'Waiting Parts',

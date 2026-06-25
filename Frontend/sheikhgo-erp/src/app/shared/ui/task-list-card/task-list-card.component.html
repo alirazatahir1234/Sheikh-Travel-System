@@ -1,5 +1,5 @@
 <stb-info-card [title]="title" [icon]="icon">
-  <ng-container actions *ngIf="filters?.length">
+  <div class="stb-chip-scroll" actions *ngIf="filters?.length">
     <mat-chip-listbox [value]="activeFilter">
       <mat-chip-option *ngFor="let f of filters"
                        [value]="f"
@@ -7,7 +7,7 @@
         {{ f }}
       </mat-chip-option>
     </mat-chip-listbox>
-  </ng-container>
+  </div>
 
   <ul class="stb-tasks" *ngIf="tasks?.length; else empty">
     <li *ngFor="let t of tasks; trackBy: trackById"
