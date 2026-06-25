@@ -3,17 +3,17 @@ using System.Threading.RateLimiting;
 using Dapper;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Serilog;
 using SheikhTravelSystem.API.Middleware;
-using SheikhTravelSystem.Infrastructure.Authentication;
-using Microsoft.Extensions.Options;
 using SheikhTravelSystem.Application;
 using SheikhTravelSystem.Application.Common.Interfaces;
+using SheikhTravelSystem.Application.Features.CustomerPortal.Commands;
 using SheikhTravelSystem.Application.Features.GpsTracking;
 using SheikhTravelSystem.Infrastructure;
-using SheikhTravelSystem.Application.Features.CustomerPortal.Commands;
+using SheikhTravelSystem.Infrastructure.Authentication;
 using SheikhTravelSystem.Infrastructure.Persistence.Migrations;
 using SheikhTravelSystem.Infrastructure.SignalR;
 
@@ -98,7 +98,7 @@ builder.Services.AddRateLimiter(options =>
     });
 });
 
-// CORS
+// CORS — production frontends at https://sheikhgo.com (+ subdomains); Vercel previews + local dev below.
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontendClients", policy =>
@@ -110,7 +110,8 @@ builder.Services.AddCors(options =>
                     return false;
                 }
 
-                if (origin is "https://sheikh-travel-system.vercel.app"
+                if (origin is "https://sheikhgo.com"
+                    or "https://www.sheikhgo.com"
                     or "https://sheikh-customer-portal.vercel.app"
                     or "https://sheikh-travel-control-center.vercel.app"
                     or "https://sheikhgo-erp.vercel.app"
@@ -123,26 +124,35 @@ builder.Services.AddCors(options =>
                     return true;
                 }
 
-                if (Uri.TryCreate(origin, UriKind.Absolute, out var uri))
+                if (!Uri.TryCreate(origin, UriKind.Absolute, out var uri))
                 {
-                    // Flutter web / local dev (driver app, etc.)
-                    if (uri.Scheme is "http" or "https"
-                        && (uri.Host is "localhost" or "127.0.0.1"))
-                    {
-                        return true;
-                    }
-
-                    // Allow Vercel preview deployments for admin and customer hub projects.
-                    return uri.Scheme == Uri.UriSchemeHttps
-                        && uri.Host.EndsWith(".vercel.app", StringComparison.OrdinalIgnoreCase)
-                        && (uri.Host.Contains("sheikh-travel-system", StringComparison.OrdinalIgnoreCase)
-                            || uri.Host.Contains("sheikh-customer-portal", StringComparison.OrdinalIgnoreCase)
-                            || uri.Host.Contains("sheikh-travel-control-center", StringComparison.OrdinalIgnoreCase)
-                            || uri.Host.Contains("sheikhgo-erp", StringComparison.OrdinalIgnoreCase)
-                            || uri.Host.Contains("sheikh-travel-customer-hub", StringComparison.OrdinalIgnoreCase));
+                    return false;
                 }
 
-                return false;
+                // Production: apex + any HTTPS subdomain of sheikhgo.com (e.g. portal.sheikhgo.com).
+                if (uri.Scheme == Uri.UriSchemeHttps
+                    && (uri.Host.Equals("sheikhgo.com", StringComparison.OrdinalIgnoreCase)
+                        || uri.Host.EndsWith(".sheikhgo.com", StringComparison.OrdinalIgnoreCase)))
+                {
+                    return true;
+                }
+
+                // Flutter web / local dev (driver app, etc.)
+                if (uri.Scheme is "http" or "https"
+                    && uri.Host is "localhost" or "127.0.0.1")
+                {
+                    return true;
+                }
+
+                // Vercel preview deployments for SheikhGo frontends.
+                return uri.Scheme == Uri.UriSchemeHttps
+                    && uri.Host.EndsWith(".vercel.app", StringComparison.OrdinalIgnoreCase)
+                    && (uri.Host.Contains("sheikhgo", StringComparison.OrdinalIgnoreCase)
+                        || uri.Host.Contains("sheikh-travel-system", StringComparison.OrdinalIgnoreCase)
+                        || uri.Host.Contains("sheikh-customer-portal", StringComparison.OrdinalIgnoreCase)
+                        || uri.Host.Contains("sheikh-travel-control-center", StringComparison.OrdinalIgnoreCase)
+                        || uri.Host.Contains("sheikhgo-erp", StringComparison.OrdinalIgnoreCase)
+                        || uri.Host.Contains("sheikh-travel-customer-hub", StringComparison.OrdinalIgnoreCase));
             })
             .AllowAnyMethod()
             .AllowAnyHeader());
