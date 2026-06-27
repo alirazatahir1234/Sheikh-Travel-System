@@ -2,36 +2,56 @@
 
   <div class="page-header">
     <div class="header-left">
-      <h2 class="page-title">GPS Devices</h2>
-      <span *ngIf="traccarStatus" class="traccar-chip" [class.connected]="traccarStatus.connected">
-        <span class="dot"></span>
-        <ng-container *ngIf="traccarStatus.connected">
-          {{ traccarChipLabel }}
-          <span *ngIf="traccarStatus.serverVersion"> · v{{ traccarStatus.serverVersion }}</span>
-        </ng-container>
-        <ng-container *ngIf="!traccarStatus.connected">Traccar Offline</ng-container>
-      </span>
-      <span class="auto-sync-hint" *ngIf="traccarSyncStatus">{{ autoSyncLabel }}</span>
+      <h2 class="page-title">Fleet Trackers</h2>
+      <p class="page-subtitle">Live vehicle telemetry from Traccar — SheikhGo manages vehicles, drivers, and assignments.</p>
     </div>
     <div class="header-actions">
-      <button
-        class="btn btn-secondary"
-        type="button"
-        (click)="refreshNow()"
-        [disabled]="!canRefreshNow"
-        [matTooltip]="canRefreshNow ? 'Run a full Traccar sync now (devices, positions, events)' : 'Traccar is unreachable or sync is already running'">
-        <mat-icon>sync</mat-icon>
-        {{ syncing ? 'Refreshing…' : 'Refresh now' }}
-      </button>
       <button class="btn btn-primary" type="button" (click)="openCreate()">
         <mat-icon>add</mat-icon>
-        Add Device
+        Register Tracker
       </button>
     </div>
   </div>
 
-  <div class="offline-banner" *ngIf="traccarStatus && !traccarStatus.connected">
-    Traccar unreachable — connection and ignition may be stale or unknown. Last known timestamps are cached locally.
+  <div class="sync-status-card" *ngIf="traccarStatus || traccarSyncStatus">
+    <div class="sync-status-main">
+      <span class="sync-dot" [class.online]="traccarStatus?.connected"></span>
+      <div>
+        <div class="sync-title">
+          {{ traccarStatus?.connected ? 'Traccar Connected' : 'Traccar Offline' }}
+        </div>
+        <div class="sync-meta" *ngIf="traccarStatus?.connected">
+          Server online
+          <span *ngIf="traccarStatus?.serverVersion"> · v{{ traccarStatus?.serverVersion }}</span>
+        </div>
+        <div class="sync-meta sync-meta--warn" *ngIf="!traccarStatus?.connected">
+          {{ traccarStatus?.lastError || 'Cannot reach Traccar server — showing cached data where available.' }}
+        </div>
+      </div>
+    </div>
+
+    <div class="sync-stats" *ngIf="traccarStatus">
+      <div class="sync-stat">
+        <span class="sync-stat-label">Registered</span>
+        <span class="sync-stat-value">{{ totalCount }}</span>
+      </div>
+      <div class="sync-stat">
+        <span class="sync-stat-label">On server</span>
+        <span class="sync-stat-value">{{ connectedOnServer }}</span>
+      </div>
+      <div class="sync-stat" *ngIf="traccarSyncStatus?.enabled">
+        <span class="sync-stat-label">Auto sync</span>
+        <span class="sync-stat-value">Every {{ syncIntervalSeconds }}s</span>
+      </div>
+      <div class="sync-stat" *ngIf="traccarSyncStatus?.enabled">
+        <span class="sync-stat-label">Last sync</span>
+        <span class="sync-stat-value">{{ lastSyncLabel }}</span>
+      </div>
+      <div class="sync-stat" *ngIf="traccarSyncStatus?.enabled && traccarStatus?.connected">
+        <span class="sync-stat-label">Next sync</span>
+        <span class="sync-stat-value">{{ nextSyncLabel }}</span>
+      </div>
+    </div>
   </div>
 
   <div class="toolbar" *ngIf="!loading && devices.length > 0">
@@ -39,10 +59,10 @@
       <mat-icon>search</mat-icon>
       <input
         type="search"
-        placeholder="Search name, IMEI, vehicle…"
+        placeholder="Search vehicle, plate, driver, IMEI…"
         [(ngModel)]="searchQuery"
         (ngModelChange)="onSearchChange()"
-        aria-label="Search devices" />
+        aria-label="Search fleet trackers" />
     </div>
     <div class="filter-chips">
       <button
@@ -63,53 +83,67 @@
 
     <div *ngIf="!loading && devices.length === 0" class="empty-state">
       <mat-icon>sensors_off</mat-icon>
-      <p>No GPS devices registered.</p>
-      <p class="sub">Devices update automatically from Traccar. Use <strong>Refresh now</strong> for an immediate sync, or add one manually.</p>
+      <p>No fleet trackers registered.</p>
+      <p class="sub">Trackers sync automatically from Traccar every few seconds, or register one manually.</p>
     </div>
 
     <div *ngIf="!loading && devices.length > 0 && filteredCount === 0" class="empty-state">
       <mat-icon>filter_alt_off</mat-icon>
-      <p>No devices match your search or filters.</p>
+      <p>No trackers match your search or filters.</p>
     </div>
 
     <div class="table-wrap" *ngIf="!loading && filteredCount > 0">
       <table mat-table [dataSource]="dataSource" class="data-table desktop-only">
-        <ng-container matColumnDef="name">
-          <th mat-header-cell *matHeaderCellDef>Name</th>
-          <td mat-cell *matCellDef="let d" class="device-name">
-            <mat-icon class="device-icon">sensors</mat-icon>
-            <div class="device-name-text">
-              <div class="device-name-primary" [matTooltip]="d.name">{{ d.name }}</div>
-              <div *ngIf="d.protocol" class="device-protocol">{{ d.protocol }}</div>
-              <div class="device-quality-badges">
-                <span *ngIf="showNotOnTraccar(d)" class="quality-badge">Not on Traccar</span>
-                <span *ngIf="showInvalidImei(d)" class="quality-badge quality-badge--warn">Invalid IMEI</span>
-              </div>
-            </div>
-          </td>
-        </ng-container>
-
-        <ng-container matColumnDef="uniqueId">
-          <th mat-header-cell *matHeaderCellDef>Unique ID</th>
-          <td mat-cell *matCellDef="let d" class="mono">{{ d.uniqueId }}</td>
-        </ng-container>
-
         <ng-container matColumnDef="vehicle">
           <th mat-header-cell *matHeaderCellDef>Vehicle</th>
           <td mat-cell *matCellDef="let d">
-            <span *ngIf="d.vehicleId && d.vehicleName" class="badge badge-blue">{{ d.vehicleName }}</span>
-            <span *ngIf="d.vehicleId && !d.vehicleName" class="badge badge-gray" matTooltip="Linked vehicle is missing or is a draft">Invalid link</span>
-            <span *ngIf="!d.vehicleId" class="badge badge-gray">Unlinked</span>
+            <span class="vehicle-primary" [matTooltip]="vehicleLabel(d)">{{ vehicleLabel(d) }}</span>
+            <span *ngIf="!d.isTraccarLinked" class="quality-hint">Not on Traccar</span>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="plate">
+          <th mat-header-cell *matHeaderCellDef>Plate</th>
+          <td mat-cell *matCellDef="let d" class="mono">{{ d.plateNumber || '—' }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="driver">
+          <th mat-header-cell *matHeaderCellDef>Driver</th>
+          <td mat-cell *matCellDef="let d">{{ d.driverName || '—' }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="trackerModel">
+          <th mat-header-cell *matHeaderCellDef>Tracker</th>
+          <td mat-cell *matCellDef="let d">
+            <span [matTooltip]="d.name">{{ trackerModelLabel(d) }}</span>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="imei">
+          <th mat-header-cell *matHeaderCellDef>IMEI</th>
+          <td mat-cell *matCellDef="let d" class="mono">
+            {{ d.uniqueId }}
+            <span *ngIf="!d.isValidImei" class="quality-hint quality-hint--warn">Invalid</span>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="status">
+          <th mat-header-cell *matHeaderCellDef>Status</th>
+          <td mat-cell *matCellDef="let d">
+            <span class="badge" [ngClass]="connectionBadgeClass(d)">{{ connectionLabel(d) }}</span>
           </td>
         </ng-container>
 
         <ng-container matColumnDef="ignition">
           <th mat-header-cell *matHeaderCellDef>Ignition</th>
           <td mat-cell *matCellDef="let d">
-            <span class="badge" [ngClass]="ignitionBadgeClass(d)">
-              {{ ignitionLabel(d) }}
-            </span>
+            <span class="badge" [ngClass]="ignitionBadgeClass(d)">{{ ignitionLabel(d) }}</span>
           </td>
+        </ng-container>
+
+        <ng-container matColumnDef="speed">
+          <th mat-header-cell *matHeaderCellDef>Speed</th>
+          <td mat-cell *matCellDef="let d">{{ speedLabel(d) }}</td>
         </ng-container>
 
         <ng-container matColumnDef="lastSeen">
@@ -119,31 +153,23 @@
           </td>
         </ng-container>
 
-        <ng-container matColumnDef="connection">
-          <th mat-header-cell *matHeaderCellDef>Connection</th>
-          <td mat-cell *matCellDef="let d">
-            <span class="badge" [ngClass]="connectionBadgeClass(d)">{{ connectionLabel(d) }}</span>
-          </td>
+        <ng-container matColumnDef="signal">
+          <th mat-header-cell *matHeaderCellDef>GPS Signal</th>
+          <td mat-cell *matCellDef="let d">{{ signalLabel(d) }}</td>
         </ng-container>
 
-        <ng-container matColumnDef="enabled">
-          <th mat-header-cell *matHeaderCellDef>
-            <span matTooltip="Registered in SheikhGo — not the same as live GPS connection">Registered</span>
-          </th>
-          <td mat-cell *matCellDef="let d">
-            <span class="badge" [class.badge-green]="d.isActive" [class.badge-gray]="!d.isActive">
-              {{ d.isActive ? 'Yes' : 'No' }}
-            </span>
-          </td>
+        <ng-container matColumnDef="battery">
+          <th mat-header-cell *matHeaderCellDef>Battery</th>
+          <td mat-cell *matCellDef="let d">{{ batteryLabel(d) }}</td>
         </ng-container>
 
         <ng-container matColumnDef="actions">
           <th mat-header-cell *matHeaderCellDef class="actions-th">Actions</th>
           <td mat-cell *matCellDef="let d" class="actions-cell">
-            <button mat-icon-button type="button" (click)="openEdit(d)" matTooltip="Edit">
+            <button mat-icon-button type="button" (click)="openEdit(d)" matTooltip="Edit tracker">
               <mat-icon>edit</mat-icon>
             </button>
-            <button mat-icon-button type="button" (click)="deleteDevice(d)" matTooltip="Delete" class="delete-btn">
+            <button mat-icon-button type="button" (click)="deleteDevice(d)" matTooltip="Remove" class="delete-btn">
               <mat-icon>delete_outline</mat-icon>
             </button>
           </td>
@@ -156,25 +182,21 @@
       <div class="mobile-cards mobile-only">
         <article class="device-card" *ngFor="let d of pageDevices">
           <div class="device-card-head">
-            <mat-icon class="device-icon">sensors</mat-icon>
-            <div class="device-name-text">
-              <strong [matTooltip]="d.name">{{ d.name }}</strong>
-              <span class="mono">{{ d.uniqueId }}</span>
-              <div class="device-quality-badges">
-                <span *ngIf="showNotOnTraccar(d)" class="quality-badge">Not on Traccar</span>
-                <span *ngIf="showInvalidImei(d)" class="quality-badge quality-badge--warn">Invalid IMEI</span>
-              </div>
+            <div>
+              <strong>{{ vehicleLabel(d) }}</strong>
+              <span class="mono">{{ d.plateNumber || 'No plate' }}</span>
             </div>
             <span class="badge" [ngClass]="connectionBadgeClass(d)">{{ connectionLabel(d) }}</span>
           </div>
           <div class="device-card-meta">
-            <span>{{ d.vehicleId && d.vehicleName ? d.vehicleName : (d.vehicleId ? 'Invalid link' : 'Unlinked') }}</span>
-            <span [matTooltip]="lastSeenTooltip(d)">{{ lastSeenLabel(d) }}</span>
-            <span>Ignition: {{ ignitionLabel(d) }}</span>
+            <span>Driver: {{ d.driverName || '—' }}</span>
+            <span>IMEI: {{ d.uniqueId }}</span>
+            <span>Speed: {{ speedLabel(d) }}</span>
+            <span [matTooltip]="lastSeenTooltip(d)">Seen: {{ lastSeenLabel(d) }}</span>
           </div>
           <div class="device-card-actions">
             <button mat-stroked-button type="button" (click)="openEdit(d)">Edit</button>
-            <button mat-stroked-button type="button" color="warn" (click)="deleteDevice(d)">Delete</button>
+            <button mat-stroked-button type="button" color="warn" (click)="deleteDevice(d)">Remove</button>
           </div>
         </article>
       </div>
@@ -185,10 +207,11 @@
           <span *ngIf="filteredCount !== totalCount"> ({{ totalCount }} total)</span>
         </span>
         <mat-paginator
+          [length]="filteredCount"
           [pageSizeOptions]="[10, 25, 50]"
           [pageSize]="10"
           showFirstLastButtons
-          aria-label="Device list pagination">
+          aria-label="Fleet tracker pagination">
         </mat-paginator>
       </div>
     </div>
@@ -198,32 +221,36 @@
 <div class="drawer-overlay" *ngIf="showForm" (click)="showForm = false"></div>
 <div class="drawer" [class.open]="showForm">
   <div class="drawer-header">
-    <h3>{{ editDevice ? 'Edit Device' : 'Add GPS Device' }}</h3>
+    <h3>{{ editDevice ? 'Edit Tracker' : 'Register Tracker' }}</h3>
     <button mat-icon-button type="button" (click)="showForm = false"><mat-icon>close</mat-icon></button>
   </div>
   <div class="drawer-body">
     <form [formGroup]="form" (ngSubmit)="save()">
       <mat-form-field appearance="outline" class="full-width">
-        <mat-label>Unique ID (IMEI)</mat-label>
+        <mat-label>Link to Vehicle</mat-label>
+        <mat-select formControlName="vehicleId">
+          <mat-option [value]="null">None (unlinked)</mat-option>
+          <mat-option *ngFor="let v of linkableVehicles" [value]="v.id">
+            {{ v.name }} · {{ v.registrationNumber }}
+          </mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>IMEI</mat-label>
         <input matInput formControlName="uniqueId" placeholder="862170055432112">
+        <mat-hint>14–20 digit device identifier from Traccar</mat-hint>
         <mat-error *ngIf="form.get('uniqueId')?.hasError('required')">Required</mat-error>
         <mat-error *ngIf="form.get('uniqueId')?.hasError('pattern')">Must be 14–20 digits</mat-error>
       </mat-form-field>
 
       <mat-form-field appearance="outline" class="full-width">
-        <mat-label>Device Name</mat-label>
+        <mat-label>Tracker label (Traccar)</mat-label>
         <input matInput formControlName="name" placeholder="Truck 01 Tracker">
+        <mat-hint>Internal Traccar name — vehicle is shown in the grid</mat-hint>
         <mat-error *ngIf="form.get('name')?.hasError('required')">Required</mat-error>
         <mat-error *ngIf="form.get('name')?.hasError('minlength')">At least 3 characters</mat-error>
         <mat-error *ngIf="form.get('name')?.hasError('pattern')">Must contain at least one letter</mat-error>
-      </mat-form-field>
-
-      <mat-form-field appearance="outline" class="full-width">
-        <mat-label>Link to Vehicle</mat-label>
-        <mat-select formControlName="vehicleId">
-          <mat-option [value]="null">None</mat-option>
-          <mat-option *ngFor="let v of linkableVehicles" [value]="v.id">{{ v.name }}</mat-option>
-        </mat-select>
       </mat-form-field>
 
       <mat-form-field appearance="outline" class="full-width">

@@ -25,7 +25,8 @@ public sealed class TraccarSyncState(IOptions<TraccarOptions> options) : ITracca
                 _lastDeviceSyncAt,
                 _lastEventSyncAt,
                 _lastSyncCompletedAt,
-                _lastError);
+                _lastError,
+                options.Value.ResolvedPositionIntervalSeconds);
         }
     }
 

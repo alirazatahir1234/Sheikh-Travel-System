@@ -234,18 +234,34 @@ public class GetGpsDevicesQueryHandler(IDbConnectionFactory dbFactory)
         var rows = await connection.QueryAsync<GpsDeviceDto>(new CommandDefinition(
             @"SELECT d.Id, d.VehicleId,
                      CASE WHEN v.Status = 5 THEN NULL ELSE v.Name END AS VehicleName,
+                     CASE WHEN v.Status = 5 OR v.RegistrationNumber LIKE 'DRAFT-%' THEN NULL
+                          ELSE v.RegistrationNumber END AS PlateNumber,
+                     COALESCE(drVcl.FullName, assignDrv.DriverName) AS DriverName,
                      d.UniqueId, d.Name, d.Protocol,
                      d.SupportsEngineCutoff, d.LastIgnition, d.LastSeenAt, d.IsActive,
                      CASE WHEN d.LastSeenAt IS NOT NULL AND d.LastSeenAt > DATEADD(minute, -30, GETUTCDATE())
                           THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END AS IsOnline,
+                     COALESCE(d.LastSpeed, vcl.Speed) AS LastSpeed,
+                     d.LastBatteryLevel, d.LastRssi,
                      d.TraccarDeviceId,
                      CASE WHEN d.TraccarDeviceId IS NOT NULL THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END AS IsTraccarLinked,
                      CASE WHEN d.UniqueId NOT LIKE '%[^0-9]%' AND LEN(d.UniqueId) BETWEEN 14 AND 20
                           THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END AS IsValidImei,
                      d.Model, d.SimNumber, d.Vendor
               FROM GpsDevices d
-              LEFT JOIN Vehicles v ON v.Id = d.VehicleId
-              WHERE d.IsDeleted = 0 ORDER BY d.Name",
+              LEFT JOIN Vehicles v ON v.Id = d.VehicleId AND v.IsDeleted = 0
+              LEFT JOIN VehicleCurrentLocation vcl ON vcl.VehicleId = d.VehicleId
+              LEFT JOIN Drivers drVcl ON drVcl.Id = vcl.DriverId AND drVcl.IsDeleted = 0
+              OUTER APPLY (
+                  SELECT TOP 1 dr.FullName AS DriverName
+                  FROM AssignmentHistory a
+                  INNER JOIN Drivers dr ON dr.Id = a.DriverId AND dr.IsDeleted = 0
+                  WHERE a.VehicleId = d.VehicleId AND a.IsDeleted = 0
+                    AND a.Status IN (N'Active', N'Scheduled') AND a.DriverId IS NOT NULL
+                  ORDER BY CASE WHEN a.Status = N'Active' THEN 0 ELSE 1 END, a.StartAt DESC
+              ) assignDrv
+              WHERE d.IsDeleted = 0
+              ORDER BY CASE WHEN v.Name IS NULL THEN 1 ELSE 0 END, v.Name, d.Name",
             cancellationToken: cancellationToken));
 
         return ApiResponse<List<GpsDeviceDto>>.SuccessResponse(rows.ToList());

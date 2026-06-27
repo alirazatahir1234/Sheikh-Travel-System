@@ -20,4 +20,5 @@ public record TraccarSyncStatusDto(
     DateTime? LastDeviceSyncAt,
     DateTime? LastEventSyncAt,
     DateTime? LastSyncCompletedAt,
-    string? LastError);
+    string? LastError,
+    int PositionSyncIntervalSeconds = 5);

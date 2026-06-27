@@ -36,6 +36,8 @@ export interface GpsDevice {
   id: number;
   vehicleId?: number;
   vehicleName?: string;
+  plateNumber?: string;
+  driverName?: string;
   uniqueId: string;
   name: string;
   protocol?: string;
@@ -44,6 +46,9 @@ export interface GpsDevice {
   lastSeenAt?: string;
   isActive: boolean;
   isOnline?: boolean;
+  lastSpeed?: number;
+  lastBatteryLevel?: number;
+  lastRssi?: number;
   traccarDeviceId?: number;
   isTraccarLinked?: boolean;
   isValidImei?: boolean;
@@ -190,4 +195,5 @@ export interface TraccarSyncStatusDto {
   lastEventSyncAt?: string | null;
   lastSyncCompletedAt?: string | null;
   lastError?: string | null;
+  positionSyncIntervalSeconds?: number;
 }

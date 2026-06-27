@@ -170,6 +170,9 @@ public sealed class TraccarSyncOrchestrator(
 
                 var ignition = pos.Attributes.Ignition;
                 var recordedAt = pos.FixTime.ToUniversalTime();
+                var speedKmh = (decimal)(pos.Speed * 1.852);
+                var battery = pos.Attributes.BatteryLevel;
+                var rssi = pos.Attributes.Rssi;
 
                 if (linkedDevices.TryGetValue(pos.DeviceId, out var linked))
                 {
@@ -180,7 +183,7 @@ public sealed class TraccarSyncOrchestrator(
                         GpsDeviceId: linked.GpsDeviceId,
                         Latitude: pos.Latitude,
                         Longitude: pos.Longitude,
-                        Speed: (decimal)(pos.Speed * 1.852),
+                        Speed: speedKmh,
                         Heading: pos.Course,
                         Altitude: pos.Altitude,
                         Ignition: ignition);
@@ -205,7 +208,8 @@ public sealed class TraccarSyncOrchestrator(
                     try
                     {
                         await GpsDeviceTelemetryUpdater.UpdateAsync(
-                            connection, device.GpsDeviceId, recordedAt, ignition, ct);
+                            connection, device.GpsDeviceId, recordedAt, ignition,
+                            speedKmh, battery, rssi, ct);
                         _lastIngested[pos.DeviceId] = pos.FixTime;
                         telemetryOnly++;
                     }
