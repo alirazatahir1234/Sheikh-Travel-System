@@ -1,15 +1,20 @@
+using System.Net.Http.Headers;
+using System.Text;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.Extensions.Options;
 using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Application.Features.CustomerPortal;
 using SheikhTravelSystem.Application.Features.GpsTracking;
+using SheikhTravelSystem.Application.Features.GpsTracking.Traccar;
 using SheikhTravelSystem.Infrastructure.Authentication;
 using SheikhTravelSystem.Infrastructure.Persistence;
 using SheikhTravelSystem.Infrastructure.Persistence.Migrations;
 using SheikhTravelSystem.Infrastructure.Services;
 using SheikhTravelSystem.Infrastructure.Services.Payments;
 using SheikhTravelSystem.Infrastructure.Services.Ocr;
+using SheikhTravelSystem.Infrastructure.Traccar;
 using Azure.Storage.Blobs;
 using SheikhTravelSystem.Infrastructure.Services.Storage;
 
@@ -58,6 +63,24 @@ public static class DependencyInjection
         services.AddScoped<ILocationBroadcastService, LocationBroadcastService>();
         services.AddHttpContextAccessor();
         services.AddSignalR();
+
+        // Traccar GPS integration
+        services.Configure<TraccarOptions>(configuration.GetSection(TraccarOptions.SectionName));
+        services.AddHttpClient<ITraccarClient, TraccarClient>((sp, client) =>
+        {
+            var opts = sp.GetRequiredService<IOptions<TraccarOptions>>().Value;
+            if (!string.IsNullOrWhiteSpace(opts.BaseUrl))
+                client.BaseAddress = new Uri(opts.BaseUrl.TrimEnd('/') + "/");
+            if (!string.IsNullOrWhiteSpace(opts.Username))
+            {
+                var encoded = Convert.ToBase64String(Encoding.ASCII.GetBytes($"{opts.Username}:{opts.Password}"));
+                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", encoded);
+            }
+            client.Timeout = TimeSpan.FromSeconds(30);
+        });
+        services.AddHostedService<TraccarSyncService>();
+        services.AddSingleton<ITraccarSyncState, TraccarSyncState>();
+        services.AddScoped<ITraccarSyncOrchestrator, TraccarSyncOrchestrator>();
 
         return services;
     }

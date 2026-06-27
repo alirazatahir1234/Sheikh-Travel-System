@@ -234,6 +234,8 @@ public class GetGpsDevicesQueryHandler(IDbConnectionFactory dbFactory)
         var rows = await connection.QueryAsync<GpsDeviceDto>(new CommandDefinition(
             @"SELECT d.Id, d.VehicleId, v.Name AS VehicleName, d.UniqueId, d.Name, d.Protocol,
                      d.SupportsEngineCutoff, d.LastIgnition, d.LastSeenAt, d.IsActive,
+                     CASE WHEN d.LastSeenAt IS NOT NULL AND d.LastSeenAt > DATEADD(minute, -30, GETUTCDATE())
+                          THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END AS IsOnline,
                      d.Model, d.SimNumber, d.Vendor
               FROM GpsDevices d
               LEFT JOIN Vehicles v ON v.Id = d.VehicleId

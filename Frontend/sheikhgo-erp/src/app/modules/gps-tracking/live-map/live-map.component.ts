@@ -14,6 +14,7 @@ import {
   L,
   loadMarkerClusterPlugin
 } from '../../../core/leaflet/leaflet-cluster';
+import { MAP_TILE_STACKS, MapTheme } from '../../../core/leaflet/leaflet-map-tiles';
 import { GpsTrackingService } from '../../../core/services/gps-tracking.service';
 import { GpsRealtimeService } from '../../../core/services/gps-realtime.service';
 import { VehicleService } from '../../../core/services/vehicle.service';
@@ -27,7 +28,6 @@ import {
 import { VehicleListItem } from '../../../core/models/vehicle.model';
 
 type StatusFilter = 'all' | FleetTrackStatus;
-type MapTheme = 'dark' | 'light' | 'satellite';
 type TimePreset = 'today' | '24h' | '7d' | 'custom';
 
 interface TrackEvent {
@@ -45,23 +45,6 @@ interface TripSummary {
   pointCount: number;
 }
 
-const MAP_TILES: Record<MapTheme, { url: string; attribution: string; subdomains?: string }> = {
-  dark: {
-    url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-    attribution: '&copy; OpenStreetMap &copy; CARTO',
-    subdomains: 'abcd'
-  },
-  light: {
-    url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-    attribution: '&copy; OpenStreetMap contributors',
-    subdomains: 'abc'
-  },
-  satellite: {
-    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-    attribution: '&copy; Esri'
-  }
-};
-
 const TRAIL_COLORS: Record<FleetTrackStatus, string> = {
   moving: '#10B981',
   idle: '#F59E0B',
@@ -77,7 +60,7 @@ const TRAIL_COLORS: Record<FleetTrackStatus, string> = {
 })
 export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild('mapHost') mapHost?: ElementRef<HTMLElement>;
-  @ViewChild('mapContainer') mapContainer?: ElementRef<HTMLElement>;
+  @ViewChild('mapContainer', { static: false }) mapContainer?: ElementRef<HTMLElement>;
 
   private map!: LeafletTypes.Map;
   private tileLayer?: LeafletTypes.TileLayer;
@@ -143,6 +126,11 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
   private mapReady = false;
   private pendingMarkerLocations: VehicleLocation[] | null = null;
   private lastSyncSummaryKey = '';
+  private tileFallbackIndex = 0;
+  private tileErrorCount = 0;
+  private _bootstrapping = false;
+  private _bootstrapTimer?: ReturnType<typeof setTimeout>;
+  private _switchingTiles = false;
 
   private pendingFocusVehicleId: number | null = null;
 
@@ -211,22 +199,65 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   ngAfterViewInit(): void {
-    setTimeout(() => {
-      void loadMarkerClusterPlugin()
-        .then(() => {
-          this.initMap();
-          this.loadLocations();
-          this.refreshInterval = setInterval(() => {
-            if (this.liveTracking) this.loadLocations(true);
-          }, 30000);
-        })
-        .catch(() => {
-          this.mapError = 'Map clustering failed to load. Refresh the page.';
-        });
-    }, 0);
+    // Defer until the routed view and map container dimensions are ready.
+    this._bootstrapTimer = setTimeout(() => void this.bootstrapMap(), 100);
+  }
+
+  @HostListener('window:resize')
+  onWindowResize(): void {
+    this.scheduleMapResize();
+  }
+
+  private async bootstrapMap(): Promise<void> {
+    if (this._bootstrapping) return;
+    this._bootstrapping = true;
+    try {
+      await loadMarkerClusterPlugin();
+      await this.waitForMapContainer();
+      if (this.map) {
+        this.setMapTheme(this.mapTheme);
+        this.scheduleMapResize();
+        return;
+      }
+      this.initMap();
+      this.loadLocations();
+      if (this.refreshInterval) clearInterval(this.refreshInterval);
+      this.refreshInterval = setInterval(() => {
+        if (this.liveTracking) this.loadLocations(true);
+      }, 30000);
+    } catch (err) {
+      console.error('[LiveMap] Map bootstrap failed:', err);
+      this.mapError = 'Map could not be initialized. Refresh the page or tap Retry map.';
+    } finally {
+      this._bootstrapping = false;
+    }
+  }
+
+  private waitForMapContainer(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const attempt = (frame: number) => {
+        const host = this.mapContainer?.nativeElement;
+        if (host) {
+          if (host.offsetWidth >= 50 && host.offsetHeight >= 50) {
+            resolve();
+            return;
+          }
+          if (frame >= 100) {
+            resolve();
+            return;
+          }
+        } else if (frame >= 100) {
+          reject(new Error('Map container element not found'));
+          return;
+        }
+        requestAnimationFrame(() => attempt(frame + 1));
+      };
+      attempt(0);
+    });
   }
 
   ngOnDestroy(): void {
+    if (this._bootstrapTimer) clearTimeout(this._bootstrapTimer);
     if (this.refreshInterval) clearInterval(this.refreshInterval);
     if (this.syncTick) clearInterval(this.syncTick);
     this.mapResizeObserver?.disconnect();
@@ -432,13 +463,47 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
   setMapTheme(theme: MapTheme): void {
     this.mapTheme = theme;
     if (!this.map) return;
-    if (this.tileLayer) this.map.removeLayer(this.tileLayer);
-    const cfg = MAP_TILES[theme];
+    this.tileFallbackIndex = 0;
+    this.tileErrorCount = 0;
+    this.mapError = null;
+    this.applyTileLayer(theme);
+  }
+
+  private applyTileLayer(theme: MapTheme): void {
+    if (!this.map) return;
+
+    const stack = MAP_TILE_STACKS[theme];
+    const cfg = stack[this.tileFallbackIndex] ?? stack[0];
+    if (!cfg) return;
+
+    if (this.tileLayer) {
+      this.tileLayer.off();
+      this.map.removeLayer(this.tileLayer);
+    }
+
     this.tileLayer = L.tileLayer(cfg.url, {
-      maxZoom: 19,
+      maxZoom: cfg.maxZoom ?? 19,
       attribution: cfg.attribution,
       ...(cfg.subdomains ? { subdomains: cfg.subdomains } : {})
     }).addTo(this.map);
+
+    this.tileLayer.on('tileerror', () => {
+      if (this._switchingTiles) return;
+      this.tileErrorCount += 1;
+      if (this.tileErrorCount < 4) return;
+
+      if (this.tileFallbackIndex < stack.length - 1) {
+        this._switchingTiles = true;
+        this.tileFallbackIndex += 1;
+        this.tileErrorCount = 0;
+        this.applyTileLayer(theme);
+        this._switchingTiles = false;
+        return;
+      }
+
+      this.mapError = 'Map tiles could not be loaded. Check your network or try another map style.';
+    });
+
     this.scheduleMapResize();
   }
 
@@ -472,6 +537,16 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
   resetZoom(): void {
     this.map.setZoom(6);
     this.centerMap();
+  }
+
+  retryMap(): void {
+    this.mapError = null;
+    if (this.map) {
+      this.setMapTheme(this.mapTheme);
+      this.scheduleMapResize();
+      return;
+    }
+    this._bootstrapTimer = setTimeout(() => void this.bootstrapMap(), 100);
   }
 
   toggleFullscreen(): void {
@@ -510,14 +585,35 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
     if (line) line.setStyle({ weight: 3, opacity: 0.75 });
   }
 
+  private configureLeafletDefaults(): void {
+    if (!L.Icon?.Default?.mergeOptions) {
+      return;
+    }
+    const iconBase = 'https://unpkg.com/leaflet@1.9.4/dist/images/';
+    L.Icon.Default.mergeOptions({
+      iconRetinaUrl: `${iconBase}marker-icon-2x.png`,
+      iconUrl: `${iconBase}marker-icon.png`,
+      shadowUrl: `${iconBase}marker-shadow.png`
+    });
+  }
+
   private initMap(): void {
     const host = this.mapContainer?.nativeElement;
-    if (!host) return;
+    if (!host) {
+      throw new Error('Map container element not found');
+    }
+
+    if ((host as HTMLElement & { _leaflet_id?: number })._leaflet_id != null) {
+      return;
+    }
+
+    this.configureLeafletDefaults();
 
     this.map = L.map(host, {
       center: [30.3753, 69.3451],
       zoom: 6,
-      zoomControl: false
+      zoomControl: false,
+      preferCanvas: false
     });
     L.control.zoom({ position: 'bottomright' }).addTo(this.map);
     this.markerCluster = createMarkerClusterGroup({
@@ -539,6 +635,7 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
     this.map.addLayer(this.markerCluster);
     this.setMapTheme(this.mapTheme);
     this.observeMapResize();
+    this.map.whenReady(() => this.scheduleMapResize());
     this.scheduleMapResize();
     this.mapReady = true;
     if (this.pendingMarkerLocations) {
@@ -756,7 +853,7 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
           document.querySelector(`a[data-vid="${loc.vehicleId}"]`)?.addEventListener('click', e => {
             e.preventDefault();
             this.goToVehicleProfile(loc.vehicleId);
-          });
+          }, { once: true });
         });
         this.markerCluster.addLayer(marker);
         this.markers.set(loc.vehicleId, marker);

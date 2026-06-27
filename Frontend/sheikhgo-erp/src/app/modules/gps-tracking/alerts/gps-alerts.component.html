@@ -1,43 +1,154 @@
-<div class="grid">
-  <mat-card>
-    <mat-card-header><mat-card-title>Speed alert rule</mat-card-title></mat-card-header>
-    <mat-card-content>
-      <form [formGroup]="ruleForm" class="form-grid" (ngSubmit)="createRule()">
-        <mat-form-field appearance="outline">
-          <mat-label>Speed limit (km/h)</mat-label>
-          <input matInput type="number" formControlName="speedLimitKmh">
-        </mat-form-field>
-        <mat-checkbox formControlName="alertOnEnter">Geofence enter</mat-checkbox>
-        <mat-checkbox formControlName="alertOnExit">Geofence exit</mat-checkbox>
-        <button mat-raised-button color="primary" type="submit">Add rule</button>
-      </form>
-      <div class="rules" *ngIf="rules.length">
-        <div class="rule" *ngFor="let r of rules">
-          <span *ngIf="r.speedLimitKmh">Speed &gt; {{ r.speedLimitKmh }} km/h</span>
-          <span *ngIf="r.geofenceName"> · {{ r.geofenceName }}</span>
-          <span class="muted"> · {{ r.vehicleName || 'All vehicles' }}</span>
-        </div>
-      </div>
-    </mat-card-content>
-  </mat-card>
+<div class="alerts-page">
 
-  <mat-card>
-    <mat-card-header>
-      <mat-card-title>Alert log</mat-card-title>
-      <button mat-stroked-button (click)="showUnackOnly = !showUnackOnly; load()">
-        {{ showUnackOnly ? 'Show all' : 'Unacknowledged only' }}
+  <!-- Header -->
+  <div class="page-header">
+    <h2 class="page-title">GPS Alerts</h2>
+    <div class="header-actions">
+      <span class="refresh-note">Events refresh every 30s</span>
+      <button class="btn btn-primary" (click)="showRuleForm = true">
+        <mat-icon>add_alert</mat-icon>
+        New Rule
       </button>
-    </mat-card-header>
-    <mat-card-content>
-      <app-brand-loader *ngIf="loading" />
-      <div class="event" *ngFor="let e of events">
-        <div>
-          <strong>{{ e.eventType }}</strong> — {{ e.message }}
-          <div class="meta">{{ e.vehicleName || ('Vehicle #' + e.vehicleId) }} · {{ e.timestamp | date:'medium' }} · {{ e.speed }} km/h</div>
-        </div>
-        <button mat-stroked-button *ngIf="!e.isAcknowledged" (click)="acknowledge(e)">Acknowledge</button>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tab-bar">
+    <button class="tab" [class.active]="activeTab === 'events'" (click)="activeTab = 'events'">
+      <mat-icon>notifications</mat-icon>
+      Alert Events
+      <span *ngIf="events.length" class="tab-badge">{{ events.length }}</span>
+    </button>
+    <button class="tab" [class.active]="activeTab === 'rules'" (click)="activeTab = 'rules'">
+      <mat-icon>rule</mat-icon>
+      Alert Rules
+      <span *ngIf="rules.length" class="tab-badge tab-badge-gray">{{ rules.length }}</span>
+    </button>
+  </div>
+
+  <!-- Events tab -->
+  <div *ngIf="activeTab === 'events'">
+    <div class="filter-row">
+      <label class="toggle-label">
+        <mat-slide-toggle [(ngModel)]="showUnackOnly" (change)="loadEvents()">Unacknowledged only</mat-slide-toggle>
+      </label>
+      <span class="count-note">{{ events.length }} event{{ events.length !== 1 ? 's' : '' }}</span>
+    </div>
+
+    <div *ngIf="loading" class="loading-row"><mat-spinner diameter="28"></mat-spinner></div>
+
+    <div *ngIf="!loading && events.length === 0" class="empty-state">
+      <mat-icon>check_circle</mat-icon>
+      <p>No {{ showUnackOnly ? 'unacknowledged ' : '' }}alert events.</p>
+    </div>
+
+    <div class="table-card" *ngIf="!loading && events.length > 0">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Type</th>
+            <th>Vehicle</th>
+            <th>Speed</th>
+            <th>Message</th>
+            <th>Time</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let e of events" [class.acknowledged]="e.isAcknowledged">
+            <td>
+              <span class="badge" [ngClass]="eventTypeBadge(e.eventType)">{{ eventTypeLabel(e.eventType) }}</span>
+            </td>
+            <td class="fw-med">{{ e.vehicleName || ('#' + e.vehicleId) }}</td>
+            <td>{{ e.speed | number:'1.0-1' }} km/h</td>
+            <td class="muted">{{ e.message }}</td>
+            <td class="muted small">{{ e.timestamp | date:'dd MMM, HH:mm' }}</td>
+            <td>
+              <button *ngIf="!e.isAcknowledged" class="btn btn-secondary btn-sm" (click)="acknowledge(e)">
+                Acknowledge
+              </button>
+              <span *ngIf="e.isAcknowledged" class="muted small">Acknowledged</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Rules tab -->
+  <div *ngIf="activeTab === 'rules'">
+    <div *ngIf="rules.length === 0" class="empty-state">
+      <mat-icon>rule</mat-icon>
+      <p>No alert rules configured.</p>
+      <p class="sub">Click <strong>New Rule</strong> to create a speed or geofence alert.</p>
+    </div>
+
+    <div class="table-card" *ngIf="rules.length > 0">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Vehicle</th>
+            <th>Speed Limit</th>
+            <th>Geofence</th>
+            <th>Enter</th>
+            <th>Exit</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let r of rules">
+            <td class="fw-med">{{ r.vehicleName || 'All Vehicles' }}</td>
+            <td>{{ r.speedLimitKmh ? r.speedLimitKmh + ' km/h' : '—' }}</td>
+            <td>{{ r.geofenceName || '—' }}</td>
+            <td><mat-icon [class.icon-green]="r.alertOnEnter" [class.icon-gray]="!r.alertOnEnter">{{ r.alertOnEnter ? 'check_circle' : 'cancel' }}</mat-icon></td>
+            <td><mat-icon [class.icon-green]="r.alertOnExit" [class.icon-gray]="!r.alertOnExit">{{ r.alertOnExit ? 'check_circle' : 'cancel' }}</mat-icon></td>
+            <td>
+              <span class="badge" [class.badge-green]="r.isActive" [class.badge-gray]="!r.isActive">
+                {{ r.isActive ? 'Active' : 'Inactive' }}
+              </span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<!-- Rule form drawer -->
+<div class="drawer-overlay" *ngIf="showRuleForm" (click)="showRuleForm = false"></div>
+<div class="drawer" [class.open]="showRuleForm">
+  <div class="drawer-header">
+    <h3>Create Alert Rule</h3>
+    <button mat-icon-button (click)="showRuleForm = false"><mat-icon>close</mat-icon></button>
+  </div>
+  <div class="drawer-body">
+    <form [formGroup]="ruleForm" (ngSubmit)="createRule()">
+
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Speed Limit (km/h)</mat-label>
+        <input matInput type="number" formControlName="speedLimitKmh">
+        <mat-hint>Alert fires when a vehicle exceeds this speed</mat-hint>
+        <mat-error>Required, min 1</mat-error>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Geofence (optional)</mat-label>
+        <mat-select formControlName="geofenceId">
+          <mat-option [value]="null">None</mat-option>
+          <mat-option *ngFor="let g of geofences" [value]="g.id">{{ g.name }}</mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <div class="checkbox-row">
+        <mat-checkbox formControlName="alertOnEnter">Alert on geofence enter</mat-checkbox>
+        <mat-checkbox formControlName="alertOnExit">Alert on geofence exit</mat-checkbox>
       </div>
-      <p *ngIf="!loading && !events.length" class="empty">No alerts.</p>
-    </mat-card-content>
-  </mat-card>
+
+      <div class="form-actions">
+        <button type="button" class="btn btn-secondary" (click)="showRuleForm = false">Cancel</button>
+        <button type="submit" class="btn btn-primary" [disabled]="ruleForm.invalid">Create Rule</button>
+      </div>
+    </form>
+  </div>
 </div>

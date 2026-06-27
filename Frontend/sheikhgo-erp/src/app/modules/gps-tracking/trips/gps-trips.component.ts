@@ -3,7 +3,7 @@ import { GpsTrackingService } from '../../../core/services/gps-tracking.service'
 import { VehicleService } from '../../../core/services/vehicle.service';
 import { ExportService } from '../../../core/services/export.service';
 import { Vehicle } from '../../../core/models/vehicle.model';
-import { GpsTrip } from '../../../core/models/gps-tracking.model';
+import { GpsTrip, PositionDto } from '../../../core/models/gps-tracking.model';
 
 @Component({
   selector: 'app-gps-trips',
@@ -18,6 +18,17 @@ export class GpsTripsComponent implements OnInit {
   trips: GpsTrip[] = [];
   loading = false;
   error = '';
+
+  selectedTrip: GpsTrip | null = null;
+  drawerPositions: PositionDto[] = [];
+  drawerLoading = false;
+
+  get totalDistance(): number { return this.trips.reduce((s, t) => s + (Number(t.distanceKm) || 0), 0); }
+  get totalDuration(): number { return this.trips.reduce((s, t) => s + (Number(t.durationMinutes) || 0), 0); }
+  get avgSpeed(): number {
+    if (!this.trips.length) return 0;
+    return Math.round(this.trips.reduce((s, t) => s + (Number(t.avgSpeedKmh) || 0), 0) / this.trips.length);
+  }
 
   constructor(
     private gps: GpsTrackingService,
@@ -40,14 +51,18 @@ export class GpsTripsComponent implements OnInit {
     const fromDate = this.from ? new Date(this.from) : undefined;
     const toDate = this.to ? new Date(this.to) : undefined;
     this.gps.getTrips(this.vehicleId ?? undefined, fromDate, toDate).subscribe({
-      next: trips => {
-        this.trips = trips;
-        this.loading = false;
-      },
-      error: err => {
-        this.error = err?.error?.message ?? 'Failed to load trips.';
-        this.loading = false;
-      }
+      next: trips => { this.trips = trips; this.loading = false; },
+      error: err => { this.error = err?.error?.message ?? 'Failed to load trips.'; this.loading = false; }
+    });
+  }
+
+  openTrip(t: GpsTrip): void {
+    this.selectedTrip = t;
+    this.drawerLoading = true;
+    this.drawerPositions = [];
+    this.gps.getHistory(t.vehicleId, new Date(t.startTime), new Date(t.endTime)).subscribe({
+      next: pos => { this.drawerPositions = pos; this.drawerLoading = false; },
+      error: () => { this.drawerLoading = false; }
     });
   }
 

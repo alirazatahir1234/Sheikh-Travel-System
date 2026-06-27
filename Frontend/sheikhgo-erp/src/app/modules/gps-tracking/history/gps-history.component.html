@@ -1,59 +1,104 @@
-<mat-card>
-  <mat-card-header>
-    <mat-card-title>Vehicle history</mat-card-title>
-    <mat-card-subtitle>Route points for a vehicle within a date range (max 30 days)</mat-card-subtitle>
-  </mat-card-header>
-  <mat-card-content>
-    <div class="filters">
-      <mat-form-field appearance="outline">
-        <mat-label>Vehicle</mat-label>
-        <mat-select [(value)]="vehicleId">
-          <mat-option *ngFor="let v of vehicles" [value]="v.id">{{ v.name }} ({{ v.registrationNumber }})</mat-option>
-        </mat-select>
-      </mat-form-field>
-      <mat-form-field appearance="outline">
-        <mat-label>From</mat-label>
-        <input matInput type="datetime-local" [(ngModel)]="from">
-      </mat-form-field>
-      <mat-form-field appearance="outline">
-        <mat-label>To</mat-label>
-        <input matInput type="datetime-local" [(ngModel)]="to">
-      </mat-form-field>
-      <button mat-raised-button color="primary" (click)="load()" [disabled]="loading || !vehicleId">
-        <mat-icon>search</mat-icon> Load history
-      </button>
+<div class="history-page">
+
+  <!-- Header + filter bar -->
+  <div class="page-header">
+    <h2 class="page-title">Route History</h2>
+  </div>
+
+  <div class="filter-bar">
+    <mat-form-field appearance="outline">
+      <mat-label>Vehicle</mat-label>
+      <mat-select [(value)]="vehicleId">
+        <mat-option *ngFor="let v of vehicles" [value]="v.id">
+          {{ v.name }} <span *ngIf="v.registrationNumber">({{ v.registrationNumber }})</span>
+        </mat-option>
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>From</mat-label>
+      <input matInput type="datetime-local" [(ngModel)]="from">
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>To</mat-label>
+      <input matInput type="datetime-local" [(ngModel)]="to">
+    </mat-form-field>
+
+    <button class="btn btn-primary" (click)="load()" [disabled]="loading || !vehicleId">
+      <mat-icon>search</mat-icon>
+      Load History
+    </button>
+  </div>
+
+  <div *ngIf="error" class="error-banner">
+    <mat-icon>error_outline</mat-icon>
+    {{ error }}
+  </div>
+
+  <!-- Map -->
+  <div class="map-card">
+    <div #mapEl class="leaflet-map"></div>
+    <div *ngIf="loading" class="map-overlay"><mat-spinner diameter="36"></mat-spinner></div>
+    <div *ngIf="!loading && rows.length === 0 && !error" class="map-placeholder">
+      <mat-icon>route</mat-icon>
+      <p>Select a vehicle and date range, then click Load History</p>
     </div>
+  </div>
 
-    <div *ngIf="error" class="error-message"><mat-icon>error</mat-icon> {{ error }}</div>
-    <app-brand-loader *ngIf="loading" />
+  <!-- Summary strip -->
+  <div *ngIf="summary" class="summary-strip">
+    <div class="summary-chip">
+      <mat-icon>timeline</mat-icon>
+      <span>{{ summary.points }} points</span>
+    </div>
+    <div class="summary-chip">
+      <mat-icon>timer</mat-icon>
+      <span>{{ summary.durationMin }} min</span>
+    </div>
+    <div class="summary-chip">
+      <mat-icon>speed</mat-icon>
+      <span>Avg {{ summary.avgSpeed }} km/h</span>
+    </div>
+    <div class="summary-chip">
+      <mat-icon>speed</mat-icon>
+      <span>Max {{ summary.maxSpeed }} km/h</span>
+    </div>
+  </div>
 
-    <p *ngIf="!loading && !error" class="meta">Showing {{ rows.length }} points</p>
-
-    <div class="table-wrap" *ngIf="rows.length">
-      <table mat-table [dataSource]="rows" class="full-width">
-        <ng-container matColumnDef="timestamp">
-          <th mat-header-cell *matHeaderCellDef>Time</th>
-          <td mat-cell *matCellDef="let r">{{ r.timestamp | date:'medium' }}</td>
-        </ng-container>
-        <ng-container matColumnDef="lat">
-          <th mat-header-cell *matHeaderCellDef>Lat</th>
-          <td mat-cell *matCellDef="let r">{{ r.latitude | number:'1.4-4' }}</td>
-        </ng-container>
-        <ng-container matColumnDef="lng">
-          <th mat-header-cell *matHeaderCellDef>Lng</th>
-          <td mat-cell *matCellDef="let r">{{ r.longitude | number:'1.4-4' }}</td>
-        </ng-container>
-        <ng-container matColumnDef="speed">
-          <th mat-header-cell *matHeaderCellDef>Speed</th>
-          <td mat-cell *matCellDef="let r">{{ r.speed }} km/h</td>
-        </ng-container>
-        <ng-container matColumnDef="ignition">
-          <th mat-header-cell *matHeaderCellDef>Ignition</th>
-          <td mat-cell *matCellDef="let r">{{ r.ignition == null ? '—' : (r.ignition ? 'ON' : 'OFF') }}</td>
-        </ng-container>
-        <tr mat-header-row *matHeaderRowDef="['timestamp','lat','lng','speed','ignition']"></tr>
-        <tr mat-row *matRowDef="let row; columns: ['timestamp','lat','lng','speed','ignition'];"></tr>
+  <!-- Positions table -->
+  <div class="table-card" *ngIf="rows.length > 0">
+    <div class="table-scroll">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Time</th>
+            <th>Latitude</th>
+            <th>Longitude</th>
+            <th>Speed (km/h)</th>
+            <th>Heading</th>
+            <th>Ignition</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let r of rows; let i = index">
+            <td class="muted small">{{ i + 1 }}</td>
+            <td>{{ r.timestamp | date:'dd MMM, HH:mm:ss' }}</td>
+            <td class="mono">{{ r.latitude | number:'1.5-5' }}</td>
+            <td class="mono">{{ r.longitude | number:'1.5-5' }}</td>
+            <td>{{ r.speed | number:'1.0-1' }}</td>
+            <td class="muted">{{ r.heading != null ? (r.heading | number:'1.0-0') + '°' : '—' }}</td>
+            <td>
+              <span *ngIf="r.ignition != null" class="badge" [class.badge-green]="r.ignition" [class.badge-red]="!r.ignition">
+                {{ r.ignition ? 'ON' : 'OFF' }}
+              </span>
+              <span *ngIf="r.ignition == null" class="muted">—</span>
+            </td>
+          </tr>
+        </tbody>
       </table>
     </div>
-  </mat-card-content>
-</mat-card>
+  </div>
+
+</div>

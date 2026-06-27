@@ -1,53 +1,100 @@
-<mat-card>
-  <mat-card-header>
-    <mat-card-title>Engine commands</mat-card-title>
-    <mat-card-subtitle>Queue cut-off or resume for supported trackers</mat-card-subtitle>
-  </mat-card-header>
-  <mat-card-content>
-    <div class="toolbar">
-      <mat-form-field appearance="outline">
-        <mat-label>Device</mat-label>
+<div class="commands-page">
+
+  <!-- Header -->
+  <div class="page-header">
+    <div>
+      <h2 class="page-title">Remote Commands</h2>
+      <p class="page-sub">Send control commands to GPS-linked vehicles</p>
+    </div>
+    <div class="device-selector">
+      <label class="selector-label">Device</label>
+      <mat-form-field appearance="outline" class="device-field">
         <mat-select [(value)]="selectedDeviceId" (selectionChange)="loadCommands()">
-          <mat-option *ngFor="let d of devices" [value]="d.id">{{ d.name }} ({{ d.uniqueId }})</mat-option>
+          <mat-option *ngFor="let d of devices" [value]="d.id">
+            {{ d.name }} <span class="mono-opt">({{ d.uniqueId }})</span>
+          </mat-option>
         </mat-select>
       </mat-form-field>
-      <button mat-raised-button color="warn"
-              (click)="send('engineStop')"
-              [disabled]="!selectedDeviceId || !selectedDevice()?.supportsEngineCutoff">
-        <mat-icon>power_off</mat-icon> Engine stop
-      </button>
-      <button mat-stroked-button color="primary" (click)="send('engineResume')" [disabled]="!selectedDeviceId">
-        <mat-icon>power</mat-icon> Engine resume
-      </button>
+    </div>
+  </div>
+
+  <div *ngIf="devices.length === 0" class="empty-state">
+    <mat-icon>sensors_off</mat-icon>
+    <p>No active GPS devices.</p>
+    <p class="sub">Register and activate a device in the Devices section first.</p>
+  </div>
+
+  <!-- Device info strip -->
+  <div *ngIf="selectedDevice() as dev" class="device-strip">
+    <div class="device-strip-item">
+      <span class="strip-label">Name</span>
+      <span class="strip-val">{{ dev.name }}</span>
+    </div>
+    <div class="device-strip-item">
+      <span class="strip-label">IMEI</span>
+      <span class="strip-val mono">{{ dev.uniqueId }}</span>
+    </div>
+    <div class="device-strip-item">
+      <span class="strip-label">Ignition</span>
+      <span class="badge" [class.badge-green]="dev.lastIgnition" [class.badge-gray]="dev.lastIgnition == null" [class.badge-red]="dev.lastIgnition === false">
+        {{ dev.lastIgnition == null ? 'Unknown' : (dev.lastIgnition ? 'On' : 'Off') }}
+      </span>
+    </div>
+    <div class="device-strip-item">
+      <span class="strip-label">Cut-off</span>
+      <span class="badge" [class.badge-green]="dev.supportsEngineCutoff" [class.badge-gray]="!dev.supportsEngineCutoff">
+        {{ dev.supportsEngineCutoff ? 'Supported' : 'Not supported' }}
+      </span>
+    </div>
+  </div>
+
+  <!-- Command cards -->
+  <div class="command-cards" *ngIf="devices.length > 0">
+    <div *ngFor="let card of commandCards" class="command-card" [class]="card.colorClass" [class.disabled]="isCardDisabled(card)" (click)="send(card)">
+      <mat-icon class="card-icon">{{ card.icon }}</mat-icon>
+      <div class="card-body">
+        <div class="card-title">{{ card.label }}</div>
+        <div class="card-desc">{{ card.description }}</div>
+      </div>
+      <mat-icon class="card-arrow">arrow_forward_ios</mat-icon>
+    </div>
+  </div>
+
+  <!-- Command history -->
+  <div *ngIf="devices.length > 0">
+    <div class="section-header">
+      <h3 class="section-title">Command History</h3>
+      <span class="refresh-note">Auto-refresh every 15s</span>
     </div>
 
-    <p *ngIf="selectedDevice() && !selectedDevice()?.supportsEngineCutoff" class="hint">
-      Selected device does not support remote engine cut-off.
-    </p>
+    <div *ngIf="loading" class="loading-row"><mat-spinner diameter="28"></mat-spinner></div>
 
-    <app-brand-loader *ngIf="loading" />
+    <div *ngIf="!loading && commands.length === 0" class="empty-state-sm">
+      No command history for this device.
+    </div>
 
-    <table mat-table [dataSource]="commands" class="full-width" *ngIf="commands.length">
-      <ng-container matColumnDef="type">
-        <th mat-header-cell *matHeaderCellDef>Command</th>
-        <td mat-cell *matCellDef="let c">{{ c.commandType }}</td>
-      </ng-container>
-      <ng-container matColumnDef="status">
-        <th mat-header-cell *matHeaderCellDef>Status</th>
-        <td mat-cell *matCellDef="let c">{{ c.status }}</td>
-      </ng-container>
-      <ng-container matColumnDef="requested">
-        <th mat-header-cell *matHeaderCellDef>Requested</th>
-        <td mat-cell *matCellDef="let c">{{ c.requestedAt | date:'short' }}</td>
-      </ng-container>
-      <ng-container matColumnDef="by">
-        <th mat-header-cell *matHeaderCellDef>By</th>
-        <td mat-cell *matCellDef="let c">{{ c.requestedBy || '—' }}</td>
-      </ng-container>
-      <tr mat-header-row *matHeaderRowDef="['type','status','requested','by']"></tr>
-      <tr mat-row *matRowDef="let row; columns: ['type','status','requested','by'];"></tr>
-    </table>
+    <div class="table-card" *ngIf="!loading && commands.length > 0">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Command</th>
+            <th>Status</th>
+            <th>Requested By</th>
+            <th>Requested At</th>
+            <th>Completed At</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let c of commands">
+            <td class="fw-med">{{ c.commandType }}</td>
+            <td><span class="badge" [ngClass]="statusBadgeClass(c.status)">{{ c.status }}</span></td>
+            <td class="muted">{{ c.requestedBy || '—' }}</td>
+            <td class="muted small">{{ c.requestedAt | date:'dd MMM, HH:mm:ss' }}</td>
+            <td class="muted small">{{ c.completedAt ? (c.completedAt | date:'dd MMM, HH:mm:ss') : '—' }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
 
-    <p *ngIf="!loading && !commands.length" class="empty">No commands for this device.</p>
-  </mat-card-content>
-</mat-card>
+</div>

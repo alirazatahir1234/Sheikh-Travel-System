@@ -1,12 +1,75 @@
-<div class="grid">
-  <mat-card>
-    <mat-card-header><mat-card-title>Add geofence</mat-card-title></mat-card-header>
-    <mat-card-content>
-      <form [formGroup]="form" class="form-grid" (ngSubmit)="create()">
-        <mat-form-field appearance="outline">
-          <mat-label>Name</mat-label>
-          <input matInput formControlName="name" placeholder="e.g. Lahore Airport">
-        </mat-form-field>
+<div class="geo-page">
+
+  <!-- Header -->
+  <div class="page-header">
+    <div>
+      <h2 class="page-title">Geofences</h2>
+      <p class="page-sub">Click the map to pick a center point, or add coordinates manually.</p>
+    </div>
+    <button class="btn btn-primary" (click)="openCreate()">
+      <mat-icon>add_location_alt</mat-icon>
+      Add Geofence
+    </button>
+  </div>
+
+  <!-- Split layout -->
+  <div class="split-layout">
+
+    <!-- Map panel -->
+    <div class="map-panel">
+      <div #mapEl class="leaflet-map"></div>
+    </div>
+
+    <!-- List panel -->
+    <div class="list-panel">
+      <div *ngIf="loading" class="loading-row"><mat-spinner diameter="28"></mat-spinner></div>
+
+      <div *ngIf="!loading && geofences.length === 0" class="empty-state">
+        <mat-icon>location_off</mat-icon>
+        <p>No geofences defined.</p>
+        <p class="sub">Click on the map or use the button above to add one.</p>
+      </div>
+
+      <div *ngFor="let g of geofences" class="geo-card" [class.inactive]="!g.isActive">
+        <div class="geo-info">
+          <div class="geo-name">{{ g.name }}</div>
+          <div class="geo-meta">{{ g.centerLat | number:'1.4-4' }}, {{ g.centerLng | number:'1.4-4' }} · {{ g.radiusMeters | number }}m</div>
+        </div>
+        <div class="geo-actions">
+          <span class="badge" [class.badge-green]="g.isActive" [class.badge-gray]="!g.isActive">
+            {{ g.isActive ? 'Active' : 'Inactive' }}
+          </span>
+          <button mat-icon-button (click)="openEdit(g)" matTooltip="Edit"><mat-icon>edit</mat-icon></button>
+          <button mat-icon-button (click)="toggleActive(g)" [matTooltip]="g.isActive ? 'Deactivate' : 'Activate'">
+            <mat-icon>{{ g.isActive ? 'toggle_on' : 'toggle_off' }}</mat-icon>
+          </button>
+          <button mat-icon-button (click)="delete(g)" matTooltip="Delete" class="delete-btn">
+            <mat-icon>delete_outline</mat-icon>
+          </button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+<!-- Drawer overlay -->
+<div class="drawer-overlay" *ngIf="showForm" (click)="showForm = false"></div>
+<div class="drawer" [class.open]="showForm">
+  <div class="drawer-header">
+    <h3>{{ editGeofence ? 'Edit Geofence' : 'New Geofence' }}</h3>
+    <button mat-icon-button (click)="showForm = false"><mat-icon>close</mat-icon></button>
+  </div>
+  <div class="drawer-body">
+    <form [formGroup]="form" (ngSubmit)="save()">
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Name</mat-label>
+        <input matInput formControlName="name" placeholder="e.g. Lahore Airport">
+        <mat-error>Required</mat-error>
+      </mat-form-field>
+
+      <div class="coord-row">
         <mat-form-field appearance="outline">
           <mat-label>Latitude</mat-label>
           <input matInput type="number" step="any" formControlName="centerLat">
@@ -15,35 +78,21 @@
           <mat-label>Longitude</mat-label>
           <input matInput type="number" step="any" formControlName="centerLng">
         </mat-form-field>
-        <mat-form-field appearance="outline">
-          <mat-label>Radius (meters)</mat-label>
-          <input matInput type="number" formControlName="radiusMeters">
-        </mat-form-field>
-        <button mat-raised-button color="primary" type="submit" [disabled]="form.invalid">
-          <mat-icon>add</mat-icon> Create
-        </button>
-      </form>
-    </mat-card-content>
-  </mat-card>
-
-  <mat-card>
-    <mat-card-header><mat-card-title>Geofences</mat-card-title></mat-card-header>
-    <mat-card-content>
-      <app-brand-loader *ngIf="loading" />
-      <div class="geo-list" *ngIf="!loading">
-        <div class="geo-item" *ngFor="let g of geofences">
-          <div>
-            <strong>{{ g.name }}</strong>
-            <div class="meta">{{ g.centerLat | number:'1.4-4' }}, {{ g.centerLng | number:'1.4-4' }} · {{ g.radiusMeters }}m</div>
-          </div>
-          <div class="actions">
-            <mat-chip [class]="g.isActive ? 'chip-active' : 'chip-inactive'">{{ g.isActive ? 'Active' : 'Inactive' }}</mat-chip>
-            <button mat-icon-button (click)="toggleActive(g)" matTooltip="Toggle active"><mat-icon>toggle_on</mat-icon></button>
-            <button mat-icon-button color="warn" (click)="delete(g)" matTooltip="Delete"><mat-icon>delete</mat-icon></button>
-          </div>
-        </div>
-        <p *ngIf="!geofences.length" class="empty">No geofences yet.</p>
       </div>
-    </mat-card-content>
-  </mat-card>
+
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Radius (meters)</mat-label>
+        <input matInput type="number" formControlName="radiusMeters">
+        <mat-hint>Min 50m</mat-hint>
+        <mat-error>Min 50m</mat-error>
+      </mat-form-field>
+
+      <div class="form-actions">
+        <button type="button" class="btn btn-secondary" (click)="showForm = false">Cancel</button>
+        <button type="submit" class="btn btn-primary" [disabled]="form.invalid">
+          {{ editGeofence ? 'Update' : 'Create' }}
+        </button>
+      </div>
+    </form>
+  </div>
 </div>

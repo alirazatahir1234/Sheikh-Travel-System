@@ -1,64 +1,233 @@
-<div class="grid">
-  <mat-card>
-    <mat-card-header><mat-card-title>Register GPS device</mat-card-title></mat-card-header>
-    <mat-card-content>
-      <form [formGroup]="form" class="form-grid" (ngSubmit)="create()">
-        <mat-form-field appearance="outline">
-          <mat-label>IMEI / Unique ID</mat-label>
-          <input matInput formControlName="uniqueId">
-        </mat-form-field>
-        <mat-form-field appearance="outline">
-          <mat-label>Display name</mat-label>
-          <input matInput formControlName="name">
-        </mat-form-field>
-        <mat-form-field appearance="outline">
-          <mat-label>Link vehicle</mat-label>
-          <mat-select formControlName="vehicleId">
-            <mat-option [value]="null">None</mat-option>
-            <mat-option *ngFor="let v of vehicles" [value]="v.id">{{ v.name }}</mat-option>
-          </mat-select>
-        </mat-form-field>
-        <mat-form-field appearance="outline">
-          <mat-label>Protocol</mat-label>
-          <input matInput formControlName="protocol" placeholder="e.g. teltonika">
-        </mat-form-field>
-        <mat-checkbox formControlName="supportsEngineCutoff">Supports engine cut-off</mat-checkbox>
-        <button mat-raised-button color="primary" type="submit" [disabled]="form.invalid">Register</button>
-      </form>
-    </mat-card-content>
-  </mat-card>
+<div class="devices-page">
 
-  <mat-card>
-    <mat-card-header><mat-card-title>Devices &amp; ignition</mat-card-title></mat-card-header>
-    <mat-card-content>
-      <app-brand-loader *ngIf="loading" />
-      <table mat-table [dataSource]="devices" class="full-width" *ngIf="!loading && devices.length">
-        <ng-container matColumnDef="name">
-          <th mat-header-cell *matHeaderCellDef>Device</th>
-          <td mat-cell *matCellDef="let d">{{ d.name }}<div class="sub">{{ d.uniqueId }}</div></td>
+  <div class="page-header">
+    <div class="header-left">
+      <h2 class="page-title">GPS Devices</h2>
+      <span *ngIf="traccarStatus" class="traccar-chip" [class.connected]="traccarStatus.connected">
+        <span class="dot"></span>
+        <ng-container *ngIf="traccarStatus.connected">
+          Traccar · {{ traccarStatus.deviceCount }} devices
+          <span *ngIf="traccarStatus.serverVersion"> · v{{ traccarStatus.serverVersion }}</span>
         </ng-container>
+        <ng-container *ngIf="!traccarStatus.connected">Traccar Offline</ng-container>
+      </span>
+      <span class="auto-sync-hint" *ngIf="traccarSyncStatus">{{ autoSyncLabel }}</span>
+    </div>
+    <div class="header-actions">
+      <button
+        class="btn btn-secondary"
+        type="button"
+        (click)="refreshNow()"
+        [disabled]="!canRefreshNow"
+        [matTooltip]="canRefreshNow ? 'Run a full Traccar sync now (devices, positions, events)' : 'Traccar is unreachable or sync is already running'">
+        <mat-icon>sync</mat-icon>
+        {{ syncing ? 'Refreshing…' : 'Refresh now' }}
+      </button>
+      <button class="btn btn-primary" type="button" (click)="openCreate()">
+        <mat-icon>add</mat-icon>
+        Add Device
+      </button>
+    </div>
+  </div>
+
+  <div class="toolbar" *ngIf="!loading && devices.length > 0">
+    <div class="search-box">
+      <mat-icon>search</mat-icon>
+      <input
+        type="search"
+        placeholder="Search name, IMEI, vehicle…"
+        [(ngModel)]="searchQuery"
+        (ngModelChange)="onSearchChange()"
+        aria-label="Search devices" />
+    </div>
+    <div class="filter-chips">
+      <button
+        type="button"
+        class="filter-chip"
+        *ngFor="let f of filterOptions"
+        [class.filter-chip--active]="deviceFilter === f.id"
+        (click)="setDeviceFilter(f.id)">
+        {{ f.label }}
+      </button>
+    </div>
+  </div>
+
+  <div class="table-card">
+    <div *ngIf="loading" class="loading-row">
+      <mat-spinner diameter="32"></mat-spinner>
+    </div>
+
+    <div *ngIf="!loading && devices.length === 0" class="empty-state">
+      <mat-icon>sensors_off</mat-icon>
+      <p>No GPS devices registered.</p>
+      <p class="sub">Devices update automatically from Traccar. Use <strong>Refresh now</strong> for an immediate sync, or add one manually.</p>
+    </div>
+
+    <div *ngIf="!loading && devices.length > 0 && filteredCount === 0" class="empty-state">
+      <mat-icon>filter_alt_off</mat-icon>
+      <p>No devices match your search or filters.</p>
+    </div>
+
+    <div class="table-wrap" *ngIf="!loading && filteredCount > 0">
+      <table mat-table [dataSource]="dataSource" class="data-table desktop-only">
+        <ng-container matColumnDef="name">
+          <th mat-header-cell *matHeaderCellDef>Name</th>
+          <td mat-cell *matCellDef="let d" class="device-name">
+            <mat-icon class="device-icon">sensors</mat-icon>
+            <div class="device-name-text">
+              <div class="device-name-primary">{{ d.name }}</div>
+              <div *ngIf="d.protocol" class="device-protocol">{{ d.protocol }}</div>
+            </div>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="uniqueId">
+          <th mat-header-cell *matHeaderCellDef>Unique ID</th>
+          <td mat-cell *matCellDef="let d" class="mono">{{ d.uniqueId }}</td>
+        </ng-container>
+
         <ng-container matColumnDef="vehicle">
           <th mat-header-cell *matHeaderCellDef>Vehicle</th>
-          <td mat-cell *matCellDef="let d">{{ d.vehicleName || '—' }}</td>
+          <td mat-cell *matCellDef="let d">
+            <span *ngIf="d.vehicleId" class="badge badge-blue">{{ d.vehicleName || vehicleName(d.vehicleId) }}</span>
+            <span *ngIf="!d.vehicleId" class="badge badge-gray">Unlinked</span>
+          </td>
         </ng-container>
+
         <ng-container matColumnDef="ignition">
           <th mat-header-cell *matHeaderCellDef>Ignition</th>
           <td mat-cell *matCellDef="let d">
-            <span [class]="d.lastIgnition ? 'on' : 'off'">{{ ignitionLabel(d) }}</span>
+            <span class="badge"
+              [class.badge-green]="d.lastIgnition === true"
+              [class.badge-gray]="d.lastIgnition == null"
+              [class.badge-red]="d.lastIgnition === false">
+              {{ ignitionLabel(d) }}
+            </span>
           </td>
         </ng-container>
+
         <ng-container matColumnDef="lastSeen">
-          <th mat-header-cell *matHeaderCellDef>Last seen</th>
-          <td mat-cell *matCellDef="let d">{{ d.lastSeenAt ? (d.lastSeenAt | date:'short') : '—' }}</td>
+          <th mat-header-cell *matHeaderCellDef>Last Seen</th>
+          <td mat-cell *matCellDef="let d" class="muted" [matTooltip]="lastSeenTooltip(d)">
+            {{ lastSeenLabel(d) }}
+          </td>
         </ng-container>
-        <ng-container matColumnDef="cutoff">
-          <th mat-header-cell *matHeaderCellDef>Cut-off</th>
-          <td mat-cell *matCellDef="let d">{{ d.supportsEngineCutoff ? 'Yes' : 'No' }}</td>
+
+        <ng-container matColumnDef="connection">
+          <th mat-header-cell *matHeaderCellDef>Connection</th>
+          <td mat-cell *matCellDef="let d">
+            <span class="badge" [ngClass]="connectionBadgeClass(d)">{{ connectionLabel(d) }}</span>
+          </td>
         </ng-container>
-        <tr mat-header-row *matHeaderRowDef="['name','vehicle','ignition','lastSeen','cutoff']"></tr>
-        <tr mat-row *matRowDef="let row; columns: ['name','vehicle','ignition','lastSeen','cutoff'];"></tr>
+
+        <ng-container matColumnDef="enabled">
+          <th mat-header-cell *matHeaderCellDef>Enabled</th>
+          <td mat-cell *matCellDef="let d">
+            <span class="badge" [class.badge-green]="d.isActive" [class.badge-gray]="!d.isActive">
+              {{ d.isActive ? 'Yes' : 'No' }}
+            </span>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="actions">
+          <th mat-header-cell *matHeaderCellDef class="actions-th">Actions</th>
+          <td mat-cell *matCellDef="let d" class="actions-cell">
+            <button mat-icon-button type="button" (click)="openEdit(d)" matTooltip="Edit">
+              <mat-icon>edit</mat-icon>
+            </button>
+            <button mat-icon-button type="button" (click)="deleteDevice(d)" matTooltip="Delete" class="delete-btn">
+              <mat-icon>delete_outline</mat-icon>
+            </button>
+          </td>
+        </ng-container>
+
+        <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+        <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
       </table>
-      <p *ngIf="!loading && !devices.length" class="empty">No devices registered.</p>
-    </mat-card-content>
-  </mat-card>
+
+      <div class="mobile-cards mobile-only">
+        <article class="device-card" *ngFor="let d of pageDevices">
+          <div class="device-card-head">
+            <mat-icon class="device-icon">sensors</mat-icon>
+            <div class="device-name-text">
+              <strong>{{ d.name }}</strong>
+              <span class="mono">{{ d.uniqueId }}</span>
+            </div>
+            <span class="badge" [ngClass]="connectionBadgeClass(d)">{{ connectionLabel(d) }}</span>
+          </div>
+          <div class="device-card-meta">
+            <span>{{ d.vehicleId ? (d.vehicleName || vehicleName(d.vehicleId)) : 'Unlinked' }}</span>
+            <span [matTooltip]="lastSeenTooltip(d)">{{ lastSeenLabel(d) }}</span>
+            <span>Ignition: {{ ignitionLabel(d) }}</span>
+          </div>
+          <div class="device-card-actions">
+            <button mat-stroked-button type="button" (click)="openEdit(d)">Edit</button>
+            <button mat-stroked-button type="button" color="warn" (click)="deleteDevice(d)">Delete</button>
+          </div>
+        </article>
+      </div>
+
+      <div class="table-footer">
+        <span class="record-count" *ngIf="paginator">
+          Showing {{ paginator.pageIndex * paginator.pageSize + 1 }}–{{
+            Math.min((paginator.pageIndex + 1) * paginator.pageSize, filteredCount)
+          }} of {{ filteredCount }}
+          <span *ngIf="filteredCount !== totalCount"> ({{ totalCount }} total)</span>
+        </span>
+        <mat-paginator
+          [pageSizeOptions]="[10, 25, 50]"
+          [pageSize]="10"
+          showFirstLastButtons
+          aria-label="Device list pagination">
+        </mat-paginator>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="drawer-overlay" *ngIf="showForm" (click)="showForm = false"></div>
+<div class="drawer" [class.open]="showForm">
+  <div class="drawer-header">
+    <h3>{{ editDevice ? 'Edit Device' : 'Add GPS Device' }}</h3>
+    <button mat-icon-button type="button" (click)="showForm = false"><mat-icon>close</mat-icon></button>
+  </div>
+  <div class="drawer-body">
+    <form [formGroup]="form" (ngSubmit)="save()">
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Unique ID (IMEI)</mat-label>
+        <input matInput formControlName="uniqueId" placeholder="862170055432112">
+        <mat-error *ngIf="form.get('uniqueId')?.hasError('required')">Required</mat-error>
+        <mat-error *ngIf="form.get('uniqueId')?.hasError('pattern')">Must be 14–20 digits</mat-error>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Device Name</mat-label>
+        <input matInput formControlName="name" placeholder="Truck 01 Tracker">
+        <mat-error *ngIf="form.get('name')?.hasError('required')">Required</mat-error>
+        <mat-error *ngIf="form.get('name')?.hasError('minlength')">At least 3 characters</mat-error>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Link to Vehicle</mat-label>
+        <mat-select formControlName="vehicleId">
+          <mat-option [value]="null">None</mat-option>
+          <mat-option *ngFor="let v of linkableVehicles" [value]="v.id">{{ v.name }}</mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Protocol</mat-label>
+        <input matInput formControlName="protocol" placeholder="e.g. jt701, osmand">
+      </mat-form-field>
+
+      <mat-checkbox formControlName="supportsEngineCutoff" class="mb-16">Supports Engine Cut-off</mat-checkbox>
+
+      <div class="form-actions">
+        <button type="button" class="btn btn-secondary" (click)="showForm = false">Cancel</button>
+        <button type="submit" class="btn btn-primary" [disabled]="form.invalid">
+          {{ editDevice ? 'Update' : 'Register' }}
+        </button>
+      </div>
+    </form>
+  </div>
 </div>

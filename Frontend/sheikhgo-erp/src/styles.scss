@@ -11,13 +11,21 @@
 @import 'leaflet.markercluster/dist/MarkerCluster.css';
 @import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 
-/* Tailwind preflight sets img { max-width: 100% } which breaks Leaflet tiles. */
+/* Tailwind preflight breaks Leaflet tiles and controls — reset inside map containers. */
 .leaflet-container img.leaflet-tile,
 .leaflet-container img.leaflet-marker-icon,
-.leaflet-container img.leaflet-marker-shadow {
+.leaflet-container img.leaflet-marker-shadow,
+.leaflet-container img.leaflet-image-layer {
   max-width: none !important;
   max-height: none !important;
+  width: auto;
+  height: auto;
   padding: 0;
+  border: none;
+}
+
+.leaflet-container .leaflet-tile-pane {
+  z-index: 200;
 }
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 

@@ -210,6 +210,11 @@
 
       <div class="map-shell" #mapHost [class.map-shell--fs]="isMapFullscreen">
         <div #mapContainer class="map-container"></div>
+        <div class="map-load-error" *ngIf="mapError" role="alert">
+          <mat-icon>map</mat-icon>
+          <p>{{ mapError }}</p>
+          <button mat-stroked-button type="button" class="stb-touch" (click)="retryMap()">Retry map</button>
+        </div>
         <div class="map-vignette" aria-hidden="true"></div>
 
         <div class="map-glass-toolbar" role="toolbar" aria-label="Map controls">
