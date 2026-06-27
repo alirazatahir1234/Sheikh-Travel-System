@@ -125,7 +125,7 @@ public class GpsTrackingController : BaseApiController
     // ── Traccar admin endpoints ────────────────────────────────────────────
 
     [HttpGet("traccar/status")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin,Dispatcher")]
     public async Task<IActionResult> GetTraccarStatus(
         [FromServices] ITraccarClient traccar)
     {
@@ -157,7 +157,7 @@ public class GpsTrackingController : BaseApiController
         => Ok(await orchestrator.RunManualSyncAsync(HttpContext.RequestAborted));
 
     [HttpGet("traccar/sync-status")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin,Dispatcher")]
     public async Task<IActionResult> GetTraccarSyncStatus(
         [FromServices] ITraccarSyncState syncState,
         [FromServices] ITraccarClient traccar,

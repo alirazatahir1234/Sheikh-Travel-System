@@ -44,6 +44,9 @@ export interface GpsDevice {
   lastSeenAt?: string;
   isActive: boolean;
   isOnline?: boolean;
+  traccarDeviceId?: number;
+  isTraccarLinked?: boolean;
+  isValidImei?: boolean;
   model?: string;
   simNumber?: string;
   vendor?: string;

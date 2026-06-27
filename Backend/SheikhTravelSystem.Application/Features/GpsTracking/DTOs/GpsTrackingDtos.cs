@@ -38,6 +38,9 @@ public record GpsDeviceDto(
     DateTime? LastSeenAt,
     bool IsActive,
     bool IsOnline,
+    int? TraccarDeviceId = null,
+    bool IsTraccarLinked = false,
+    bool IsValidImei = false,
     string? Model = null,
     string? SimNumber = null,
     string? Vendor = null);

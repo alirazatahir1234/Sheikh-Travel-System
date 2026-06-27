@@ -30,6 +30,10 @@
     </div>
   </div>
 
+  <div class="offline-banner" *ngIf="traccarStatus && !traccarStatus.connected">
+    Traccar unreachable — connection and ignition may be stale or unknown. Last known timestamps are cached locally.
+  </div>
+
   <div class="toolbar" *ngIf="!loading && devices.length > 0">
     <div class="search-box">
       <mat-icon>search</mat-icon>
@@ -75,8 +79,12 @@
           <td mat-cell *matCellDef="let d" class="device-name">
             <mat-icon class="device-icon">sensors</mat-icon>
             <div class="device-name-text">
-              <div class="device-name-primary">{{ d.name }}</div>
+              <div class="device-name-primary" [matTooltip]="d.name">{{ d.name }}</div>
               <div *ngIf="d.protocol" class="device-protocol">{{ d.protocol }}</div>
+              <div class="device-quality-badges">
+                <span *ngIf="showNotOnTraccar(d)" class="quality-badge">Not on Traccar</span>
+                <span *ngIf="showInvalidImei(d)" class="quality-badge quality-badge--warn">Invalid IMEI</span>
+              </div>
             </div>
           </td>
         </ng-container>
@@ -89,7 +97,8 @@
         <ng-container matColumnDef="vehicle">
           <th mat-header-cell *matHeaderCellDef>Vehicle</th>
           <td mat-cell *matCellDef="let d">
-            <span *ngIf="d.vehicleId" class="badge badge-blue">{{ d.vehicleName || vehicleName(d.vehicleId) }}</span>
+            <span *ngIf="d.vehicleId && d.vehicleName" class="badge badge-blue">{{ d.vehicleName }}</span>
+            <span *ngIf="d.vehicleId && !d.vehicleName" class="badge badge-gray" matTooltip="Linked vehicle is missing or is a draft">Invalid link</span>
             <span *ngIf="!d.vehicleId" class="badge badge-gray">Unlinked</span>
           </td>
         </ng-container>
@@ -97,10 +106,7 @@
         <ng-container matColumnDef="ignition">
           <th mat-header-cell *matHeaderCellDef>Ignition</th>
           <td mat-cell *matCellDef="let d">
-            <span class="badge"
-              [class.badge-green]="d.lastIgnition === true"
-              [class.badge-gray]="d.lastIgnition == null"
-              [class.badge-red]="d.lastIgnition === false">
+            <span class="badge" [ngClass]="ignitionBadgeClass(d)">
               {{ ignitionLabel(d) }}
             </span>
           </td>
@@ -121,7 +127,9 @@
         </ng-container>
 
         <ng-container matColumnDef="enabled">
-          <th mat-header-cell *matHeaderCellDef>Enabled</th>
+          <th mat-header-cell *matHeaderCellDef>
+            <span matTooltip="Registered in SheikhGo — not the same as live GPS connection">Registered</span>
+          </th>
           <td mat-cell *matCellDef="let d">
             <span class="badge" [class.badge-green]="d.isActive" [class.badge-gray]="!d.isActive">
               {{ d.isActive ? 'Yes' : 'No' }}
@@ -150,13 +158,17 @@
           <div class="device-card-head">
             <mat-icon class="device-icon">sensors</mat-icon>
             <div class="device-name-text">
-              <strong>{{ d.name }}</strong>
+              <strong [matTooltip]="d.name">{{ d.name }}</strong>
               <span class="mono">{{ d.uniqueId }}</span>
+              <div class="device-quality-badges">
+                <span *ngIf="showNotOnTraccar(d)" class="quality-badge">Not on Traccar</span>
+                <span *ngIf="showInvalidImei(d)" class="quality-badge quality-badge--warn">Invalid IMEI</span>
+              </div>
             </div>
             <span class="badge" [ngClass]="connectionBadgeClass(d)">{{ connectionLabel(d) }}</span>
           </div>
           <div class="device-card-meta">
-            <span>{{ d.vehicleId ? (d.vehicleName || vehicleName(d.vehicleId)) : 'Unlinked' }}</span>
+            <span>{{ d.vehicleId && d.vehicleName ? d.vehicleName : (d.vehicleId ? 'Invalid link' : 'Unlinked') }}</span>
             <span [matTooltip]="lastSeenTooltip(d)">{{ lastSeenLabel(d) }}</span>
             <span>Ignition: {{ ignitionLabel(d) }}</span>
           </div>
@@ -203,6 +215,7 @@
         <input matInput formControlName="name" placeholder="Truck 01 Tracker">
         <mat-error *ngIf="form.get('name')?.hasError('required')">Required</mat-error>
         <mat-error *ngIf="form.get('name')?.hasError('minlength')">At least 3 characters</mat-error>
+        <mat-error *ngIf="form.get('name')?.hasError('pattern')">Must contain at least one letter</mat-error>
       </mat-form-field>
 
       <mat-form-field appearance="outline" class="full-width">
