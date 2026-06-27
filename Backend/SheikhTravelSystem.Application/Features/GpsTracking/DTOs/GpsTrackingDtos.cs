@@ -37,6 +37,7 @@ public record GpsDeviceDto(
     bool? LastIgnition,
     DateTime? LastSeenAt,
     bool IsActive,
+    bool IsOnline,
     string? Model = null,
     string? SimNumber = null,
     string? Vendor = null);

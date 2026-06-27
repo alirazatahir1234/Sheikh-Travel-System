@@ -14,7 +14,12 @@ import {
   GpsTrip,
   GpsDeviceCommand,
   GpsEta,
-  IngestPositionPayload
+  IngestPositionPayload,
+  TraccarStatusDto,
+  TraccarDeviceDto,
+  TraccarSyncResultDto,
+  TraccarSyncRunResult,
+  TraccarSyncStatusDto
 } from '../models/gps-tracking.model';
 import { VehicleService } from './vehicle.service';
 import { DriverService } from './driver.service';
@@ -213,6 +218,28 @@ export class GpsTrackingService {
 
   getEta(bookingId: number): Observable<GpsEta> {
     return this.http.get<GpsEta>(`${this.base}/eta`, { params: { bookingId: String(bookingId) } });
+  }
+
+  // ── Traccar admin ───────────────────────────────────────────────────────────
+
+  getTraccarStatus(): Observable<TraccarStatusDto> {
+    return this.http.get<TraccarStatusDto>(`${this.base}/traccar/status`);
+  }
+
+  getTraccarDevices(): Observable<TraccarDeviceDto[]> {
+    return this.http.get<TraccarDeviceDto[]>(`${this.base}/traccar/devices`);
+  }
+
+  syncTraccarDevices(): Observable<TraccarSyncResultDto> {
+    return this.http.post<TraccarSyncResultDto>(`${this.base}/traccar/sync-devices`, {});
+  }
+
+  runTraccarSync(): Observable<TraccarSyncRunResult> {
+    return this.http.post<TraccarSyncRunResult>(`${this.base}/traccar/sync`, {});
+  }
+
+  getTraccarSyncStatus(): Observable<TraccarSyncStatusDto> {
+    return this.http.get<TraccarSyncStatusDto>(`${this.base}/traccar/sync-status`);
   }
 
   private deriveStatus(speed: number, timestamp: string): FleetTrackStatus {

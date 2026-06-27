@@ -213,18 +213,26 @@ public class AssignVehicleGpsCommandHandler(IDbConnectionFactory dbFactory, ITen
         if (!vehicleExists)
             throw new NotFoundException("Vehicle", request.Id);
 
+        // Allow claiming a Traccar-synced device (TenantId IS NULL = unowned) or one already owned by this tenant.
         var deviceExists = await connection.ExecuteScalarAsync<bool>(
             new CommandDefinition(
-                "SELECT CASE WHEN EXISTS(SELECT 1 FROM GpsDevices WHERE Id = @DeviceId AND TenantId = @TenantId AND IsDeleted = 0) THEN 1 ELSE 0 END",
+                """
+                SELECT CASE WHEN EXISTS(
+                    SELECT 1 FROM GpsDevices
+                    WHERE Id = @DeviceId AND IsDeleted = 0
+                      AND (TenantId = @TenantId OR TenantId IS NULL)
+                ) THEN 1 ELSE 0 END
+                """,
                 new { DeviceId = deviceId, TenantId = tenantId },
                 cancellationToken: cancellationToken));
 
         if (!deviceExists)
             throw new NotFoundException("GpsDevice", deviceId);
 
+        // Unlink this device from any other vehicle in the same tenant.
         await connection.ExecuteAsync(
             new CommandDefinition(
-                "UPDATE GpsDevices SET VehicleId = NULL, UpdatedAt = @UpdatedAt WHERE VehicleId = @VehicleId AND Id <> @DeviceId AND TenantId = @TenantId",
+                "UPDATE GpsDevices SET VehicleId = NULL, UpdatedAt = @UpdatedAt WHERE VehicleId = @VehicleId AND Id <> @DeviceId AND (TenantId = @TenantId OR TenantId IS NULL)",
                 new { VehicleId = request.Id, DeviceId = deviceId, UpdatedAt = DateTime.UtcNow, TenantId = tenantId },
                 cancellationToken: cancellationToken));
 
@@ -234,9 +242,10 @@ public class AssignVehicleGpsCommandHandler(IDbConnectionFactory dbFactory, ITen
                 new { DeviceId = deviceId, UpdatedAt = DateTime.UtcNow, request.Id, TenantId = tenantId },
                 cancellationToken: cancellationToken));
 
+        // Stamp TenantId on the device when it is claimed (covers Traccar-imported devices with NULL TenantId).
         await connection.ExecuteAsync(
             new CommandDefinition(
-                "UPDATE GpsDevices SET VehicleId = @VehicleId, UpdatedAt = @UpdatedAt WHERE Id = @DeviceId AND TenantId = @TenantId",
+                "UPDATE GpsDevices SET VehicleId = @VehicleId, TenantId = @TenantId, UpdatedAt = @UpdatedAt WHERE Id = @DeviceId",
                 new { VehicleId = request.Id, DeviceId = deviceId, UpdatedAt = DateTime.UtcNow, TenantId = tenantId },
                 cancellationToken: cancellationToken));
 

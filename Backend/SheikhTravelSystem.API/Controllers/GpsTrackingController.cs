@@ -1,8 +1,11 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
+using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Application.Features.GpsTracking.Commands;
 using SheikhTravelSystem.Application.Features.GpsTracking.DTOs;
 using SheikhTravelSystem.Application.Features.GpsTracking.Queries;
+using SheikhTravelSystem.Application.Features.GpsTracking.Traccar;
 using SheikhTravelSystem.Application.Features.Tracking.Commands;
 using SheikhTravelSystem.Application.Features.Tracking.DTOs;
 using SheikhTravelSystem.Application.Features.Tracking.Queries;
@@ -118,6 +121,67 @@ public class GpsTrackingController : BaseApiController
     [HttpGet("eta")]
     public async Task<IActionResult> GetEta([FromQuery] int bookingId)
         => Ok(await Mediator.Send(new GetGpsEtaQuery(bookingId)));
+
+    // ── Traccar admin endpoints ────────────────────────────────────────────
+
+    [HttpGet("traccar/status")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> GetTraccarStatus(
+        [FromServices] ITraccarClient traccar)
+    {
+        var server = await traccar.GetServerAsync(HttpContext.RequestAborted);
+        var devices = await traccar.GetDevicesAsync(HttpContext.RequestAborted);
+
+        if (server is not null)
+            return Ok(new TraccarStatusDto(true, server.Version, devices.Count));
+
+        if (devices.Count > 0)
+            return Ok(new TraccarStatusDto(true, null, devices.Count, "Server info unavailable; device API reachable."));
+
+        return Ok(new TraccarStatusDto(false, null, 0, "Traccar server unreachable."));
+    }
+
+    [HttpGet("traccar/devices")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> GetTraccarDevices(
+        [FromServices] ITraccarClient traccar)
+    {
+        var devices = await traccar.GetDevicesAsync(HttpContext.RequestAborted);
+        return Ok(devices);
+    }
+
+    [HttpPost("traccar/sync")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> RunTraccarSync(
+        [FromServices] ITraccarSyncOrchestrator orchestrator)
+        => Ok(await orchestrator.RunManualSyncAsync(HttpContext.RequestAborted));
+
+    [HttpGet("traccar/sync-status")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> GetTraccarSyncStatus(
+        [FromServices] ITraccarSyncState syncState,
+        [FromServices] ITraccarClient traccar,
+        [FromServices] IOptions<TraccarOptions> traccarOptions)
+    {
+        if (!traccarOptions.Value.Enabled)
+            return Ok(syncState.Snapshot(connected: false));
+
+        var server = await traccar.GetServerAsync(HttpContext.RequestAborted);
+        var devices = await traccar.GetDevicesAsync(HttpContext.RequestAborted);
+        var connected = server is not null || devices.Count > 0;
+        return Ok(syncState.Snapshot(connected));
+    }
+
+    /// <summary>Deprecated — use POST traccar/sync for full manual sync.</summary>
+    [HttpPost("traccar/sync-devices")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> SyncTraccarDevices(
+        [FromServices] ITraccarSyncOrchestrator orchestrator)
+    {
+        var result = await orchestrator.SyncDevicesAsync(HttpContext.RequestAborted);
+        var job = result.Jobs.FirstOrDefault(j => j.Job == "devices");
+        return Ok(new TraccarSyncResultDto(job?.Imported ?? 0, job?.Updated ?? 0, job?.Skipped ?? 0));
+    }
 }
 
 /// <summary>

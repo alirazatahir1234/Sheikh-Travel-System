@@ -43,6 +43,7 @@ export interface GpsDevice {
   lastIgnition?: boolean;
   lastSeenAt?: string;
   isActive: boolean;
+  isOnline?: boolean;
   model?: string;
   simNumber?: string;
   vendor?: string;
@@ -135,3 +136,55 @@ export interface IngestPositionPayload {
 
 /** @deprecated Use PositionDto — kept for live-map compatibility */
 export type TrackingDto = PositionDto;
+
+// ── Traccar admin types ───────────────────────────────────────────────────────
+
+export interface TraccarStatusDto {
+  connected: boolean;
+  serverVersion?: string | null;
+  deviceCount: number;
+  lastError?: string | null;
+}
+
+export interface TraccarDeviceDto {
+  id: number;
+  name: string;
+  uniqueId: string;
+  status: string;
+  category?: string;
+  phone?: string;
+  model?: string;
+  disabled: boolean;
+  lastUpdate?: string;
+}
+
+export interface TraccarSyncResultDto {
+  imported: number;
+  updated: number;
+  skipped: number;
+}
+
+export interface TraccarSyncJobResult {
+  job: string;
+  processed: number;
+  imported: number;
+  updated: number;
+  skipped: number;
+  error?: string | null;
+}
+
+export interface TraccarSyncRunResult {
+  completedAt: string;
+  jobs: TraccarSyncJobResult[];
+}
+
+export interface TraccarSyncStatusDto {
+  enabled: boolean;
+  connected: boolean;
+  isRunning: boolean;
+  lastPositionSyncAt?: string | null;
+  lastDeviceSyncAt?: string | null;
+  lastEventSyncAt?: string | null;
+  lastSyncCompletedAt?: string | null;
+  lastError?: string | null;
+}

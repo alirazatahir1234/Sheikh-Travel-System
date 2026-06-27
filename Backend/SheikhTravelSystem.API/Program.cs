@@ -218,6 +218,10 @@ using (var scope = app.Services.CreateScope())
         }
 
         await GpsSchemaMigration.ApplyAsync(dbFactory, logger);
+        await GpsTraccarMigration.ApplyAsync(dbFactory, logger);
+        await GpsDeviceUniqueIdMigration.ApplyAsync(dbFactory, logger);
+        await GpsDevicesTenantMigration.ApplyAsync(dbFactory, logger);
+        await GpsTraccarEventMigration.ApplyAsync(dbFactory, logger);
 
         var gpsSettings = scope.ServiceProvider.GetRequiredService<IOptions<GpsSettings>>().Value;
         await GpsSchemaMigration.ApplyRetentionAsync(dbFactory, gpsSettings.PositionRetentionDays, logger);
