@@ -306,7 +306,7 @@
 
         <mat-form-field appearance="outline" [class.ocr-field-shimmer]="cnicOcrBusy" [class.ocr-field-glow]="ocrJustFilled('phone')">
           <mat-label>Phone</mat-label>
-          <input matInput formControlName="phone" placeholder="+92-300-1234567" autocomplete="tel">
+          <input matInput type="tel" formControlName="phone" placeholder="923001234567" autocomplete="tel">
           <mat-error *ngIf="form.get('phone')?.hasError('required')">Required</mat-error>
         </mat-form-field>
 

@@ -78,9 +78,9 @@ const generalSchema: SettingFieldSchema[] = [
     label: 'Phone',
     type: 'text',
     section: 'Contact',
-    placeholder: '+971 4 000 0000',
-    maxLength: 30,
-    pattern: '^\\+?[\\d\\s().-]{7,20}$',
+    placeholder: '97140000000',
+    maxLength: 20,
+    pattern: '^\\d{7,20}$',
     patternMessage: 'Enter a valid phone number (7–20 digits).'
   },
   {

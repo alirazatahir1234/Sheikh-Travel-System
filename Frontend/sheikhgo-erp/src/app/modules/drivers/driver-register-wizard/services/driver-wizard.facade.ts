@@ -42,7 +42,8 @@ import {
   emergencyContactPhoneValidator,
   maxDateOfBirthInputValue,
   minDateOfBirthInputValue,
-  phoneLocalValidator
+  phoneLocalValidator,
+  phoneCodeForNationality
 } from '../utils/driver-wizard.validators';
 
 function requiredTrimmed() {
@@ -101,6 +102,8 @@ export class DriverWizardFacade {
   readonly saving = signal(false);
   readonly draftSaving = signal(false);
   readonly attemptedSubmit = signal(false);
+  /** Bumped when step/submit validation runs so OnPush child steps re-render field errors. */
+  readonly validationAttempted = signal(0);
   readonly lastSavedAt = signal<Date | null>(null);
   /** Server record timestamp — shown as absolute "Last updated on …" in edit mode. */
   readonly recordUpdatedAt = signal<Date | null>(null);
@@ -370,6 +373,17 @@ export class DriverWizardFacade {
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(() => phoneCtrl.updateValueAndValidity({ emitEvent: false }));
 
+    this.form.get('nationality')?.valueChanges
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(nationality => {
+        const code = phoneCodeForNationality(String(nationality ?? ''));
+        if (!code) return;
+        const codeCtrl = this.form.get('phoneCountryCode');
+        if (codeCtrl?.value !== code) {
+          codeCtrl?.setValue(code);
+        }
+      });
+
     this.form.valueChanges
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(v => this.formValues.set(v));
@@ -450,7 +464,7 @@ export class DriverWizardFacade {
       cnic: d.cnic ?? '',
       status: d.status,
       isActive: d.isActive
-    }, { emitEvent: true });
+    }, { emitEvent: false });
 
     this.patchDateControl('dateOfBirth', dateOfBirth);
     this.patchDateControl('licenseExpiryDate', licenseExpiryDate);
@@ -652,6 +666,7 @@ export class DriverWizardFacade {
   }
 
   async validateCurrentStep(): Promise<boolean> {
+    this.validationAttempted.update(n => n + 1);
     const step = this.currentStep();
     const fields: Record<DriverWizardStepId, string[]> = {
       personal: [
@@ -773,7 +788,10 @@ export class DriverWizardFacade {
       const raw = localStorage.getItem(DRIVER_WIZARD_DRAFT_KEY);
       if (!raw) return;
       const draft = JSON.parse(raw) as DriverWizardDraft;
-      if (draft.form) this.form.patchValue(draft.form);
+      if (draft.form) {
+        this.form.patchValue(draft.form, { emitEvent: false });
+        this.formValues.set(this.form.getRawValue());
+      }
       if (draft.currentStep) this.currentStep.set(draft.currentStep);
       if (draft.savedAt) this.lastSavedAt.set(new Date(draft.savedAt));
     } catch {
@@ -820,6 +838,7 @@ export class DriverWizardFacade {
 
   async submit(): Promise<void> {
     this.attemptedSubmit.set(true);
+    this.validationAttempted.update(n => n + 1);
     this.form.markAllAsTouched();
     if (!(await this.validateAllSteps())) {
       this.toast.warning('Please complete required fields');

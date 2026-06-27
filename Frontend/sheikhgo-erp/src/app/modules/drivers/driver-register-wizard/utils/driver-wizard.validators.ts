@@ -7,10 +7,45 @@ export const PHONE_COUNTRY_CODES = [
   { code: '+971', flag: '🇦🇪', label: 'UAE (+971)', digits: 9, pattern: /^5\d{8}$/ },
   { code: '+92', flag: '🇵🇰', label: 'Pakistan (+92)', digits: 10, pattern: /^3\d{9}$/ },
   { code: '+91', flag: '🇮🇳', label: 'India (+91)', digits: 10, pattern: /^[6-9]\d{9}$/ },
+  { code: '+880', flag: '🇧🇩', label: 'Bangladesh (+880)', digits: 10, pattern: /^1\d{9}$/ },
+  { code: '+63', flag: '🇵🇭', label: 'Philippines (+63)', digits: 10, pattern: /^9\d{9}$/ },
+  { code: '+20', flag: '🇪🇬', label: 'Egypt (+20)', digits: 10, pattern: /^\d{10}$/ },
+  { code: '+962', flag: '🇯🇴', label: 'Jordan (+962)', digits: 9, pattern: /^7\d{8}$/ },
+  { code: '+961', flag: '🇱🇧', label: 'Lebanon (+961)', digits: 8, pattern: /^\d{7,8}$/ },
+  { code: '+963', flag: '🇸🇾', label: 'Syria (+963)', digits: 9, pattern: /^9\d{8}$/ },
+  { code: '+249', flag: '🇸🇩', label: 'Sudan (+249)', digits: 9, pattern: /^9\d{8}$/ },
+  { code: '+977', flag: '🇳🇵', label: 'Nepal (+977)', digits: 10, pattern: /^9\d{9}$/ },
+  { code: '+94', flag: '🇱🇰', label: 'Sri Lanka (+94)', digits: 9, pattern: /^7\d{8}$/ },
   { code: '+966', flag: '🇸🇦', label: 'Saudi (+966)', digits: 9, pattern: /^5\d{8}$/ },
   { code: '+44', flag: '🇬🇧', label: 'UK (+44)', digits: 10, pattern: /^\d{10}$/ },
   { code: '+1', flag: '🇺🇸', label: 'US (+1)', digits: 10, pattern: /^\d{10}$/ }
 ] as const;
+
+/** Maps driver nationality options to their default international dialing code. */
+export const NATIONALITY_PHONE_CODE_MAP: Record<string, string> = {
+  'United Arab Emirates': '+971',
+  Pakistan: '+92',
+  India: '+91',
+  Bangladesh: '+880',
+  Philippines: '+63',
+  Egypt: '+20',
+  Jordan: '+962',
+  Lebanon: '+961',
+  Syria: '+963',
+  Sudan: '+249',
+  Nepal: '+977',
+  'Sri Lanka': '+94',
+  'United Kingdom': '+44',
+  'United States': '+1'
+};
+
+export function phoneCodeForNationality(nationality: string): string | null {
+  const code = NATIONALITY_PHONE_CODE_MAP[nationality.trim()];
+  if (!code) return null;
+  return PHONE_COUNTRY_CODES.some(c => c.code === code) ? code : null;
+}
+
+export { digitsOnlyPhoneInput } from '../../../../core/utils/phone-input.util';
 
 export function calcOrgFieldProgress(values: Record<string, unknown>): number {
   let score = 0;

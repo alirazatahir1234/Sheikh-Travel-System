@@ -176,7 +176,7 @@
               <mat-form-field appearance="outline">
                 <mat-label>Phone</mat-label>
                 <mat-icon matPrefix>phone</mat-icon>
-                <input matInput formControlName="newPhone" placeholder="+92-300-1234567" autocomplete="tel">
+                <input matInput type="tel" formControlName="newPhone" placeholder="923001234567" autocomplete="tel">
                 <mat-error *ngIf="step1Form.get('newPhone')?.hasError('required')">Required</mat-error>
               </mat-form-field>
               <mat-form-field appearance="outline">
