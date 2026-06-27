@@ -6,7 +6,7 @@
       <span *ngIf="traccarStatus" class="traccar-chip" [class.connected]="traccarStatus.connected">
         <span class="dot"></span>
         <ng-container *ngIf="traccarStatus.connected">
-          Traccar · {{ traccarStatus.deviceCount }} devices
+          {{ traccarChipLabel }}
           <span *ngIf="traccarStatus.serverVersion"> · v{{ traccarStatus.serverVersion }}</span>
         </ng-container>
         <ng-container *ngIf="!traccarStatus.connected">Traccar Offline</ng-container>
@@ -168,10 +168,8 @@
       </div>
 
       <div class="table-footer">
-        <span class="record-count" *ngIf="paginator">
-          Showing {{ paginator.pageIndex * paginator.pageSize + 1 }}–{{
-            Math.min((paginator.pageIndex + 1) * paginator.pageSize, filteredCount)
-          }} of {{ filteredCount }}
+        <span class="record-count" *ngIf="filteredCount > 0">
+          Showing {{ pageRangeStart }}–{{ pageRangeEnd }} of {{ filteredCount }}
           <span *ngIf="filteredCount !== totalCount"> ({{ totalCount }} total)</span>
         </span>
         <mat-paginator

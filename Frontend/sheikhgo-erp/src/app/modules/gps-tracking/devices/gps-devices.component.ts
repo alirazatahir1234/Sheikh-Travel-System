@@ -1,7 +1,9 @@
-import { Component, OnInit, OnDestroy, ViewChild, AfterViewInit } from '@angular/core';
+import { Component, OnInit, OnDestroy, ViewChild, AfterViewInit, ChangeDetectorRef } from '@angular/core';
 import { FormBuilder, Validators } from '@angular/forms';
 import { MatPaginator } from '@angular/material/paginator';
 import { MatTableDataSource } from '@angular/material/table';
+import { forkJoin, of } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 import { GpsTrackingService } from '../../../core/services/gps-tracking.service';
 import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
 import { VehicleService } from '../../../core/services/vehicle.service';
@@ -53,12 +55,14 @@ export class GpsDevicesComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private readonly imeiPattern = /^\d{14,20}$/;
   private pollTimer?: ReturnType<typeof setInterval>;
+  private paginatorReady = false;
 
   constructor(
     private gps: GpsTrackingService,
     private vehicleService: VehicleService,
     private fb: FormBuilder,
-    private toast: UiToastService
+    private toast: UiToastService,
+    private cdr: ChangeDetectorRef
   ) {
     this.form = this.fb.group({
       uniqueId: ['', [Validators.required, Validators.pattern(this.imeiPattern)]],
@@ -73,9 +77,7 @@ export class GpsDevicesComponent implements OnInit, AfterViewInit, OnDestroy {
     this.vehicleService.getAll(1, 500).subscribe({
       next: r => { this.vehicles = r.items; }
     });
-    this.load();
-    this.loadTraccarStatus();
-    this.loadSyncStatus();
+    this.loadInitial();
     this.pollTimer = setInterval(() => {
       this.load(true);
       this.loadSyncStatus();
@@ -88,6 +90,10 @@ export class GpsDevicesComponent implements OnInit, AfterViewInit, OnDestroy {
 
   ngAfterViewInit(): void {
     this.attachPaginator();
+    this.paginatorReady = true;
+    if (this.devices.length > 0) {
+      this.applyFilters();
+    }
   }
 
   get pageDevices(): GpsDevice[] {
@@ -96,6 +102,19 @@ export class GpsDevicesComponent implements OnInit, AfterViewInit, OnDestroy {
     if (!p) return data;
     const start = p.pageIndex * p.pageSize;
     return data.slice(start, start + p.pageSize);
+  }
+
+  get pageRangeStart(): number {
+    if (this.filteredCount === 0) return 0;
+    const p = this.paginator;
+    if (!p) return 1;
+    return p.pageIndex * p.pageSize + 1;
+  }
+
+  get pageRangeEnd(): number {
+    const p = this.paginator;
+    if (!p) return this.filteredCount;
+    return Math.min((p.pageIndex + 1) * p.pageSize, this.filteredCount);
   }
 
   private attachPaginator(): void {
@@ -133,6 +152,34 @@ export class GpsDevicesComponent implements OnInit, AfterViewInit, OnDestroy {
     if (secs < 60) return `Auto-sync active · last position ${secs}s ago`;
     const mins = Math.floor(secs / 60);
     return `Auto-sync active · last position ${mins}m ago`;
+  }
+
+  get traccarChipLabel(): string {
+    if (!this.traccarStatus?.connected) return 'Traccar Offline';
+    const onTraccar = this.traccarStatus.deviceCount;
+    const registered = this.totalCount;
+    if (registered > onTraccar) {
+      return `Traccar · ${onTraccar} on server · ${registered} registered`;
+    }
+    return `Traccar · ${onTraccar} devices`;
+  }
+
+  private loadInitial(): void {
+    this.loading = true;
+    forkJoin({
+      devices: this.gps.getDevices().pipe(catchError(() => of([] as GpsDevice[]))),
+      traccar: this.gps.getTraccarStatus().pipe(
+        catchError(() => of({ connected: false, deviceCount: 0 } as TraccarStatusDto))
+      ),
+      sync: this.gps.getTraccarSyncStatus().pipe(catchError(() => of(null)))
+    }).subscribe(({ devices, traccar, sync }) => {
+      this.devices = devices;
+      this.traccarStatus = traccar;
+      this.traccarSyncStatus = sync;
+      this.applyFilters();
+      this.loading = false;
+      this.cdr.detectChanges();
+    });
   }
 
   load(silent = false): void {
@@ -208,7 +255,7 @@ export class GpsDevicesComponent implements OnInit, AfterViewInit, OnDestroy {
     let rows = [...this.devices];
 
     if (this.deviceFilter === 'online') {
-      rows = rows.filter(d => d.isOnline);
+      rows = rows.filter(d => !!d.isOnline);
     } else if (this.deviceFilter === 'offline') {
       rows = rows.filter(d => !!d.lastSeenAt && !d.isOnline);
     } else if (this.deviceFilter === 'unlinked') {
@@ -227,8 +274,9 @@ export class GpsDevicesComponent implements OnInit, AfterViewInit, OnDestroy {
     }
 
     this.dataSource.data = rows;
-    this.paginator?.firstPage();
-    setTimeout(() => this.attachPaginator());
+    if (this.paginatorReady) {
+      this.paginator?.firstPage();
+    }
   }
 
   openCreate(): void {
@@ -316,7 +364,7 @@ export class GpsDevicesComponent implements OnInit, AfterViewInit, OnDestroy {
   connectionLabel(d: GpsDevice): string {
     if (!this.traccarStatus?.connected && !d.lastSeenAt) return 'Unknown';
     if (!d.lastSeenAt) return 'Never seen';
-    return d.isOnline ? 'Online' : 'Offline';
+    return d.isOnline === true ? 'Online' : 'Offline';
   }
 
   connectionBadgeClass(d: GpsDevice): string {

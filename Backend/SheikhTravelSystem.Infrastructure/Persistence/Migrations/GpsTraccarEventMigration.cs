@@ -12,12 +12,13 @@ public static class GpsTraccarEventMigration
 
         try
         {
+            // SQL Server validates the whole batch at compile time — add column and index separately.
             await connection.ExecuteAsync(new CommandDefinition("""
                 IF COL_LENGTH('GpsAlertEvents', 'ExternalEventId') IS NULL
-                BEGIN
                     ALTER TABLE GpsAlertEvents ADD ExternalEventId NVARCHAR(100) NULL;
-                END
+                """, cancellationToken: cancellationToken));
 
+            await connection.ExecuteAsync(new CommandDefinition("""
                 IF NOT EXISTS (
                     SELECT 1 FROM sys.indexes
                     WHERE name = 'UQ_GpsAlertEvents_ExternalEventId'
