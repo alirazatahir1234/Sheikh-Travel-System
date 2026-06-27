@@ -55,6 +55,11 @@ export interface GpsDevice {
   model?: string;
   simNumber?: string;
   vendor?: string;
+  serialNumber?: string;
+  installationDate?: string;
+  installedBy?: string;
+  installationNotes?: string;
+  relayOutput?: string;
 }
 
 export interface Geofence {
@@ -112,6 +117,7 @@ export interface GpsDeviceCommand {
   deviceName?: string;
   commandType: string;
   status: string;
+  reason?: string;
   requestedBy?: string;
   requestedAt: string;
   completedAt?: string;

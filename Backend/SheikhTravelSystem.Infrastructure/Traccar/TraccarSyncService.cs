@@ -25,6 +25,14 @@ public class TraccarSyncService(
             return;
         }
 
+        if (!opts.IsConfigured)
+        {
+            logger.LogWarning(
+                "Traccar sync is enabled but Traccar:BaseUrl is missing or invalid. " +
+                "Set Traccar:BaseUrl (e.g. http://20.174.1.230:8082) in user secrets or environment.");
+            return;
+        }
+
         var positionInterval = TimeSpan.FromSeconds(Math.Max(1, opts.ResolvedPositionIntervalSeconds));
         var eventInterval = TimeSpan.FromSeconds(Math.Max(1, opts.EventSyncIntervalSeconds));
         var deviceInterval = TimeSpan.FromSeconds(Math.Max(60, opts.DeviceSyncIntervalSeconds));

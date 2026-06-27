@@ -48,8 +48,32 @@
     </div>
   </div>
 
+  <!-- Inline confirmation panel -->
+  <div class="confirm-panel" *ngIf="pendingCard">
+    <div class="confirm-inner">
+      <mat-icon class="confirm-icon" [class.icon-danger]="pendingCard.type === 'engineStop'">{{ pendingCard.icon }}</mat-icon>
+      <div class="confirm-text">
+        <p class="confirm-title">Send <strong>{{ pendingCard.label }}</strong> to <strong>{{ selectedDevice()?.name }}</strong>?</p>
+        <p class="confirm-sub" *ngIf="pendingCard.type === 'engineStop'">This will cut engine power remotely. Ensure the vehicle is safely stopped.</p>
+      </div>
+    </div>
+    <mat-form-field appearance="outline" class="reason-field">
+      <mat-label>Reason *</mat-label>
+      <mat-select [(ngModel)]="selectedReason">
+        <mat-option *ngFor="let r of REASONS" [value]="r">{{ r }}</mat-option>
+      </mat-select>
+    </mat-form-field>
+    <div class="confirm-actions">
+      <button mat-stroked-button (click)="cancelSend()" [disabled]="sending">Cancel</button>
+      <button mat-raised-button color="warn" (click)="confirmSend()" [disabled]="!selectedReason || sending">
+        <mat-icon *ngIf="sending" class="spin">hourglass_empty</mat-icon>
+        {{ sending ? 'Sending…' : 'Confirm' }}
+      </button>
+    </div>
+  </div>
+
   <!-- Command cards -->
-  <div class="command-cards" *ngIf="devices.length > 0">
+  <div class="command-cards" *ngIf="devices.length > 0 && !pendingCard">
     <div *ngFor="let card of commandCards" class="command-card" [class]="card.colorClass" [class.disabled]="isCardDisabled(card)" (click)="send(card)">
       <mat-icon class="card-icon">{{ card.icon }}</mat-icon>
       <div class="card-body">
@@ -79,6 +103,7 @@
           <tr>
             <th>Command</th>
             <th>Status</th>
+            <th>Reason</th>
             <th>Requested By</th>
             <th>Requested At</th>
             <th>Completed At</th>
@@ -88,6 +113,7 @@
           <tr *ngFor="let c of commands">
             <td class="fw-med">{{ c.commandType }}</td>
             <td><span class="badge" [ngClass]="statusBadgeClass(c.status)">{{ c.status }}</span></td>
+            <td class="muted">{{ c.reason || '—' }}</td>
             <td class="muted">{{ c.requestedBy || '—' }}</td>
             <td class="muted small">{{ c.requestedAt | date:'dd MMM, HH:mm:ss' }}</td>
             <td class="muted small">{{ c.completedAt ? (c.completedAt | date:'dd MMM, HH:mm:ss') : '—' }}</td>

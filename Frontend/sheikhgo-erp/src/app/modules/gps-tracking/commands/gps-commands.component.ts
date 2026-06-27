@@ -24,6 +24,10 @@ export class GpsCommandsComponent implements OnInit, OnDestroy {
   loading = false;
   sending = false;
 
+  pendingCard: CommandCard | null = null;
+  selectedReason = '';
+  readonly REASONS = ['Vehicle Theft', 'Unauthorized Driver', 'Police Request', 'Maintenance', 'Other'];
+
   readonly commandCards: CommandCard[] = [
     { type: 'engineStop',     label: 'Engine Stop',       description: 'Remotely cut engine power', icon: 'power_off',    colorClass: 'card-red',   requiresCutoff: true },
     { type: 'engineResume',   label: 'Engine Resume',     description: 'Re-enable engine power',     icon: 'power',        colorClass: 'card-green', requiresCutoff: true },
@@ -77,14 +81,19 @@ export class GpsCommandsComponent implements OnInit, OnDestroy {
       if (card.requiresCutoff) { this.toast.warning('This device does not support engine cut-off'); return; }
       return;
     }
-    const device = this.selectedDevice();
-    if (!confirm(`Send "${card.label}" to ${device?.name}?`)) return;
+    // Show inline confirmation panel with reason dropdown instead of native confirm().
+    this.pendingCard = card;
+    this.selectedReason = '';
+  }
 
+  confirmSend(): void {
+    if (!this.pendingCard || !this.selectedDeviceId) return;
     this.sending = true;
-    this.gps.sendCommand(this.selectedDeviceId!, card.type).subscribe({
+    this.gps.sendCommand(this.selectedDeviceId, this.pendingCard.type, this.selectedReason).subscribe({
       next: () => {
-        this.toast.success('Command queued');
+        this.toast.success('Command sent to device');
         this.sending = false;
+        this.pendingCard = null;
         this.loadCommands();
       },
       error: err => {
@@ -92,6 +101,11 @@ export class GpsCommandsComponent implements OnInit, OnDestroy {
         this.sending = false;
       }
     });
+  }
+
+  cancelSend(): void {
+    this.pendingCard = null;
+    this.selectedReason = '';
   }
 
   statusBadgeClass(status: string): string {

@@ -247,7 +247,8 @@ public class GetGpsDevicesQueryHandler(IDbConnectionFactory dbFactory)
                      CASE WHEN d.TraccarDeviceId IS NOT NULL THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END AS IsTraccarLinked,
                      CASE WHEN d.UniqueId NOT LIKE '%[^0-9]%' AND LEN(d.UniqueId) BETWEEN 14 AND 20
                           THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END AS IsValidImei,
-                     d.Model, d.SimNumber, d.Vendor
+                     d.Model, d.SimNumber, d.Vendor,
+                     d.SerialNumber, d.InstallationDate, d.InstalledBy, d.InstallationNotes, d.RelayOutput
               FROM GpsDevices d
               LEFT JOIN Vehicles v ON v.Id = d.VehicleId AND v.IsDeleted = 0
               LEFT JOIN VehicleCurrentLocation vcl ON vcl.VehicleId = d.VehicleId

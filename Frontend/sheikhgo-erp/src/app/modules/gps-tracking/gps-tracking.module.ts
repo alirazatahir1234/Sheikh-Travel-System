@@ -1,6 +1,8 @@
 import { NgModule } from '@angular/core';
 import { RouterModule, Routes } from '@angular/router';
 import { SharedModule } from '../../shared/shared.module';
+import { UiInputComponent } from '../../shared/components/ui/input/ui-input.component';
+import { UiSelectComponent } from '../../shared/components/ui/select/ui-select.component';
 import { GpsTrackingLayoutComponent } from './gps-tracking-layout.component';
 import { LiveMapComponent } from './live-map/live-map.component';
 import { GpsHistoryComponent } from './history/gps-history.component';
@@ -38,6 +40,6 @@ const routes: Routes = [
     GpsDevicesComponent,
     GpsCommandsComponent
   ],
-  imports: [SharedModule, RouterModule.forChild(routes)]
+  imports: [SharedModule, UiInputComponent, UiSelectComponent, RouterModule.forChild(routes)]
 })
 export class GpsTrackingModule {}

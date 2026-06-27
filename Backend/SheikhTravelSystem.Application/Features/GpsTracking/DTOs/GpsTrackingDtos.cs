@@ -48,7 +48,12 @@ public record GpsDeviceDto(
     bool IsValidImei = false,
     string? Model = null,
     string? SimNumber = null,
-    string? Vendor = null);
+    string? Vendor = null,
+    string? SerialNumber = null,
+    DateTime? InstallationDate = null,
+    string? InstalledBy = null,
+    string? InstallationNotes = null,
+    string? RelayOutput = null);
 
 public record CreateGpsDeviceDto(
     int? VehicleId,
@@ -58,14 +63,25 @@ public record CreateGpsDeviceDto(
     bool SupportsEngineCutoff,
     string? Model = null,
     string? SimNumber = null,
-    string? Vendor = null);
+    string? Vendor = null,
+    string? SerialNumber = null,
+    DateTime? InstallationDate = null,
+    string? InstalledBy = null,
+    string? InstallationNotes = null,
+    string? RelayOutput = null);
 
 public record UpdateGpsDeviceDto(
     int? VehicleId,
     string Name,
     string? Protocol,
     bool SupportsEngineCutoff,
-    bool IsActive);
+    bool IsActive,
+    string? SimNumber = null,
+    string? SerialNumber = null,
+    DateTime? InstallationDate = null,
+    string? InstalledBy = null,
+    string? InstallationNotes = null,
+    string? RelayOutput = null);
 
 public record GeofenceDto(
     int Id,
@@ -144,7 +160,7 @@ public record GpsDeviceCommandDto(
     DateTime RequestedAt,
     DateTime? CompletedAt);
 
-public record SendDeviceCommandDto(int GpsDeviceId, string CommandType);
+public record SendDeviceCommandDto(int GpsDeviceId, string CommandType, string? Reason = null);
 
 public record GpsEtaDto(
     int BookingId,

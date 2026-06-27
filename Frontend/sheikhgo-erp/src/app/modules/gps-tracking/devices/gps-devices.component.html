@@ -218,54 +218,149 @@
   </div>
 </div>
 
-<div class="drawer-overlay" *ngIf="showForm" (click)="showForm = false"></div>
-<div class="drawer" [class.open]="showForm">
-  <div class="drawer-header">
-    <h3>{{ editDevice ? 'Edit Tracker' : 'Register Tracker' }}</h3>
-    <button mat-icon-button type="button" (click)="showForm = false"><mat-icon>close</mat-icon></button>
+<div class="tracker-modal-backdrop" *ngIf="showForm" (click)="closeForm()"></div>
+<aside
+  class="tracker-modal"
+  *ngIf="showForm"
+  role="dialog"
+  aria-modal="true"
+  [attr.aria-label]="registrationSuccess ? 'Tracker registered' : (editDevice ? 'Edit Tracker' : 'Register Tracker')"
+  (click)="$event.stopPropagation()">
+  <div class="tracker-modal__header">
+    <h3>{{ registrationSuccess ? 'Tracker Registered' : (editDevice ? 'Edit Tracker' : 'Register Tracker') }}</h3>
+    <button mat-icon-button type="button" (click)="closeForm()" aria-label="Close">
+      <mat-icon>close</mat-icon>
+    </button>
   </div>
-  <div class="drawer-body">
-    <form [formGroup]="form" (ngSubmit)="save()">
-      <mat-form-field appearance="outline" class="full-width">
-        <mat-label>Link to Vehicle</mat-label>
-        <mat-select formControlName="vehicleId">
-          <mat-option [value]="null">None (unlinked)</mat-option>
-          <mat-option *ngFor="let v of linkableVehicles" [value]="v.id">
-            {{ v.name }} · {{ v.registrationNumber }}
-          </mat-option>
-        </mat-select>
-      </mat-form-field>
 
-      <mat-form-field appearance="outline" class="full-width">
-        <mat-label>IMEI</mat-label>
-        <input matInput formControlName="uniqueId" placeholder="862170055432112">
-        <mat-hint>14–20 digit device identifier from Traccar</mat-hint>
-        <mat-error *ngIf="form.get('uniqueId')?.hasError('required')">Required</mat-error>
-        <mat-error *ngIf="form.get('uniqueId')?.hasError('pattern')">Must be 14–20 digits</mat-error>
-      </mat-form-field>
+  <div class="tracker-modal__success" *ngIf="registrationSuccess as success">
+    <div class="success-banner">
+      <mat-icon>check_circle</mat-icon>
+      <span>Tracker Registered Successfully</span>
+    </div>
+    <dl class="success-details">
+      <div><dt>Tracker Name</dt><dd>{{ success.name }}</dd></div>
+      <div><dt>IMEI</dt><dd class="mono">{{ success.uniqueId }}</dd></div>
+      <div><dt>Protocol</dt><dd>{{ success.protocolLabel }}</dd></div>
+      <div><dt>Vehicle</dt><dd>{{ success.vehicleLabel }}</dd></div>
+      <div><dt>Status</dt><dd class="status-waiting">Waiting for first GPS signal</dd></div>
+    </dl>
+    <div class="tracker-modal__footer tracker-modal__footer--solo">
+      <button type="button" class="btn btn-primary" (click)="closeForm()">Done</button>
+    </div>
+  </div>
 
-      <mat-form-field appearance="outline" class="full-width">
-        <mat-label>Tracker label (Traccar)</mat-label>
-        <input matInput formControlName="name" placeholder="Truck 01 Tracker">
-        <mat-hint>Internal Traccar name — vehicle is shown in the grid</mat-hint>
-        <mat-error *ngIf="form.get('name')?.hasError('required')">Required</mat-error>
-        <mat-error *ngIf="form.get('name')?.hasError('minlength')">At least 3 characters</mat-error>
-        <mat-error *ngIf="form.get('name')?.hasError('pattern')">Must contain at least one letter</mat-error>
-      </mat-form-field>
+  <form class="tracker-modal__form" *ngIf="!registrationSuccess" [formGroup]="form" (ngSubmit)="save()">
+    <div class="tracker-modal__body">
+      <ui-select
+        class="tracker-form-block"
+        formControlName="trackerModelKey"
+        label="Tracker Model"
+        placeholder="Select tracker model"
+        [options]="trackerModelOptions"
+        [required]="true"
+        [error]="trackerModelError()" />
 
-      <mat-form-field appearance="outline" class="full-width">
-        <mat-label>Protocol</mat-label>
-        <input matInput formControlName="protocol" placeholder="e.g. jt701, osmand">
-      </mat-form-field>
-
-      <mat-checkbox formControlName="supportsEngineCutoff" class="mb-16">Supports Engine Cut-off</mat-checkbox>
-
-      <div class="form-actions">
-        <button type="button" class="btn btn-secondary" (click)="showForm = false">Cancel</button>
-        <button type="submit" class="btn btn-primary" [disabled]="form.invalid">
-          {{ editDevice ? 'Update' : 'Register' }}
-        </button>
+      <div class="tracker-form-block">
+        <ui-input
+          formControlName="uniqueId"
+          label="IMEI"
+          placeholder="862292058090598"
+          [required]="true"
+          hint="15-digit number printed on the tracker label"
+          [error]="imeiIsDuplicate ? 'IMEI already registered' : (form.get('uniqueId')?.hasError('pattern') && form.get('uniqueId')?.touched ? 'Must be exactly 15 digits' : '')" />
+        <p class="field-feedback field-feedback--ok" *ngIf="imeiFeedbackOk">
+          <mat-icon>check_circle</mat-icon> Valid IMEI
+        </p>
+        <p class="field-feedback field-feedback--progress" *ngIf="imeiFeedback && !imeiFeedbackOk && !imeiIsDuplicate && imeiValue">
+          {{ imeiFeedback }}
+        </p>
+        <p class="field-feedback field-feedback--error" *ngIf="imeiIsDuplicate">
+          <mat-icon>error</mat-icon> IMEI already registered
+        </p>
       </div>
-    </form>
-  </div>
-</div>
+
+      <ui-input
+        class="tracker-form-block"
+        formControlName="name"
+        label="Tracker Name"
+        placeholder="e.g. Corolla GPS, Bus-21, Truck-05"
+        [required]="true"
+        hint="Displayed in SheikhGo ERP and Traccar"
+        [error]="nameError()" />
+
+      <div class="tracker-readonly-field tracker-form-block">
+        <span class="tracker-readonly-field__label">Protocol</span>
+        <div class="tracker-readonly-field__value">{{ protocolDisplayLabel }}</div>
+        <span class="tracker-readonly-field__hint">Automatically set from tracker model</span>
+      </div>
+
+      <mat-checkbox formControlName="supportsEngineCutoff" class="immobilizer-checkbox">
+        Supports Remote Engine Immobilizer
+      </mat-checkbox>
+
+      <ui-select
+        *ngIf="showRelayOutput"
+        class="tracker-form-block"
+        formControlName="relayOutput"
+        label="Relay Output"
+        placeholder="Select output"
+        [options]="relayOutputs" />
+
+      <div class="tracker-form-block">
+        <ui-select
+          formControlName="vehicleId"
+          label="Assign Vehicle"
+          placeholder="Search vehicle"
+          searchPlaceholder="Search by plate, name, or fleet number"
+          [options]="vehicleOptions"
+          [searchable]="true" />
+        <span class="field-hint">Vehicle this tracker is installed in</span>
+      </div>
+
+      <ui-input
+        class="tracker-form-block"
+        formControlName="simNumber"
+        label="SIM Number"
+        placeholder="+923001234567"
+        hint="SIM card installed in this tracker (optional)"
+        [error]="simError()" />
+
+      <div class="tracker-form-block stb-field">
+        <label for="installationDate">Installation Date</label>
+        <input id="installationDate" type="date" class="stb-input" formControlName="installationDate" />
+      </div>
+
+      <ui-input
+        class="tracker-form-block"
+        formControlName="installedBy"
+        label="Installed By"
+        placeholder="Ali GPS Services" />
+
+      <ui-input
+        class="tracker-form-block"
+        formControlName="serialNumber"
+        label="Serial Number"
+        placeholder="Tracker serial (not IMEI)"
+        hint="Hardware serial from the device label" />
+
+      <div class="tracker-form-block stb-field">
+        <label for="installationNotes">Installation Notes</label>
+        <textarea
+          id="installationNotes"
+          class="stb-textarea"
+          formControlName="installationNotes"
+          rows="3"
+          placeholder="Installed under dashboard."></textarea>
+      </div>
+    </div>
+
+    <div class="tracker-modal__footer">
+      <button type="button" class="btn btn-secondary" (click)="closeForm()" [disabled]="saving">Cancel</button>
+      <button type="submit" class="btn btn-primary" [disabled]="!canSubmit">
+        <mat-spinner *ngIf="saving" diameter="18"></mat-spinner>
+        <span>{{ editDevice ? 'Update Tracker' : 'Register Tracker' }}</span>
+      </button>
+    </div>
+  </form>
+</aside>

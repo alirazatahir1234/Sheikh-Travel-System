@@ -4,6 +4,8 @@ using MediatR;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Application.Features.GpsTracking.DTOs;
+using SheikhTravelSystem.Application.Features.GpsTracking.Traccar;
+using SheikhTravelSystem.Domain.Enums;
 
 namespace SheikhTravelSystem.Application.Features.GpsTracking.Commands;
 
@@ -146,7 +148,7 @@ public record SendDeviceCommandCommand(SendDeviceCommandDto Command) : IRequest<
 
 public class SendDeviceCommandCommandValidator : AbstractValidator<SendDeviceCommandCommand>
 {
-    private static readonly string[] Allowed = ["engineStop", "engineResume", "custom"];
+    private static readonly string[] Allowed = ["engineStop", "engineResume", "positionSingle", "custom"];
 
     public SendDeviceCommandCommandValidator()
     {
@@ -158,46 +160,69 @@ public class SendDeviceCommandCommandValidator : AbstractValidator<SendDeviceCom
 public class SendDeviceCommandCommandHandler(
     IDbConnectionFactory dbFactory,
     ICurrentUserService currentUser,
-    IAuditService auditService)
+    IAuditService auditService,
+    ITraccarClient traccar,
+    ITenantContext tenantContext,
+    INotificationService notifications)
     : IRequestHandler<SendDeviceCommandCommand, ApiResponse<int>>
 {
     public async Task<ApiResponse<int>> Handle(SendDeviceCommandCommand request, CancellationToken cancellationToken)
     {
         using var connection = dbFactory.CreateConnection();
-        var device = await connection.QueryFirstOrDefaultAsync<(int Id, bool SupportsEngineCutoff, string Name)>(
+        var device = await connection.QueryFirstOrDefaultAsync<(int Id, bool SupportsEngineCutoff, string Name, int? TraccarDeviceId)>(
             new CommandDefinition(
-                "SELECT Id, SupportsEngineCutoff, Name FROM GpsDevices WHERE Id = @Id AND IsDeleted = 0",
+                "SELECT Id, SupportsEngineCutoff, Name, TraccarDeviceId FROM GpsDevices WHERE Id = @Id AND IsDeleted = 0",
                 new { Id = request.Command.GpsDeviceId },
                 cancellationToken: cancellationToken));
 
         if (device.Id == 0)
-        {
             return ApiResponse<int>.FailResponse("Device not found.");
-        }
 
         if (request.Command.CommandType.Equals("engineStop", StringComparison.OrdinalIgnoreCase)
             && !device.SupportsEngineCutoff)
-        {
             return ApiResponse<int>.FailResponse("Device does not support engine cut-off.");
-        }
 
         var id = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
-            @"INSERT INTO GpsDeviceCommands (GpsDeviceId, CommandType, Status, RequestedBy, RequestedAt, CreatedAt, IsDeleted)
-              OUTPUT INSERTED.Id
-              VALUES (@GpsDeviceId, @CommandType, 'pending', @RequestedBy, GETUTCDATE(), GETUTCDATE(), 0)",
+            """
+            INSERT INTO GpsDeviceCommands
+                (GpsDeviceId, CommandType, Status, Reason, TenantId, RequestedBy, RequestedAt, CreatedAt, IsDeleted)
+            OUTPUT INSERTED.Id
+            VALUES
+                (@GpsDeviceId, @CommandType, 'pending', @Reason, @TenantId, @RequestedBy, GETUTCDATE(), GETUTCDATE(), 0)
+            """,
             new
             {
                 request.Command.GpsDeviceId,
                 request.Command.CommandType,
+                request.Command.Reason,
+                TenantId = tenantContext.TenantId,
                 RequestedBy = currentUser.UserId?.ToString()
             },
             cancellationToken: cancellationToken));
 
-        await auditService.LogAsync(
-            "Send",
-            "GpsDeviceCommand",
-            id,
-            cancellationToken);
+        // Forward to Traccar immediately if the device is linked; device will relay to hardware.
+        if (device.TraccarDeviceId.HasValue)
+        {
+            var sent = await traccar.SendCommandAsync(device.TraccarDeviceId.Value, request.Command.CommandType, cancellationToken);
+            if (sent)
+                await connection.ExecuteAsync(new CommandDefinition(
+                    "UPDATE GpsDeviceCommands SET Status = 'sent' WHERE Id = @Id",
+                    new { Id = id },
+                    cancellationToken: cancellationToken));
+        }
+
+        await auditService.LogAsync("Send", "GpsDeviceCommand", id, cancellationToken);
+
+        if (request.Command.CommandType is "engineStop" or "engineResume")
+        {
+            var verb = request.Command.CommandType == "engineStop" ? "cut off" : "restored";
+            await notifications.CreateForAllAsync(
+                $"Engine {verb} — {device.Name}",
+                $"Reason: {request.Command.Reason ?? "Not specified"}",
+                NotificationType.EngineCommandSent,
+                id,
+                cancellationToken);
+        }
 
         return ApiResponse<int>.SuccessResponse(id, "Command queued.");
     }
