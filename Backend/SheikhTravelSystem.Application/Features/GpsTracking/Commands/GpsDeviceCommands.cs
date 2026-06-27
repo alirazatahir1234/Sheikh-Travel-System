@@ -6,6 +6,7 @@ using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Application.Features.GpsTracking.DTOs;
 using SheikhTravelSystem.Application.Features.GpsTracking.Traccar;
+using SheikhTravelSystem.Domain.Enums;
 
 namespace SheikhTravelSystem.Application.Features.GpsTracking.Commands;
 
@@ -23,7 +24,22 @@ public class CreateGpsDeviceCommandValidator : AbstractValidator<CreateGpsDevice
         RuleFor(x => x.Device.Name)
             .NotEmpty()
             .MinimumLength(3)
-            .MaximumLength(200);
+            .MaximumLength(200)
+            .Matches(@"[A-Za-z]")
+            .WithMessage("Name must contain at least one letter.");
+    }
+}
+
+public class UpdateGpsDeviceCommandValidator : AbstractValidator<UpdateGpsDeviceCommand>
+{
+    public UpdateGpsDeviceCommandValidator()
+    {
+        RuleFor(x => x.Device.Name)
+            .NotEmpty()
+            .MinimumLength(3)
+            .MaximumLength(200)
+            .Matches(@"[A-Za-z]")
+            .WithMessage("Name must contain at least one letter.");
     }
 }
 
@@ -46,6 +62,13 @@ public class CreateGpsDeviceCommandHandler(
 
         if (duplicate)
             return ApiResponse<int>.FailResponse("A device with this IMEI already exists.");
+
+        if (dto.VehicleId.HasValue)
+        {
+            var vehicleError = await GpsDeviceVehicleGuard.ValidateAsync(connection, dto.VehicleId.Value, cancellationToken);
+            if (vehicleError is not null)
+                return ApiResponse<int>.FailResponse(vehicleError);
+        }
 
         int? traccarDeviceId = null;
         if (traccarOptions.Value.Enabled)
@@ -105,6 +128,13 @@ public class UpdateGpsDeviceCommandHandler(
 
         if (existing.Id == 0)
             return ApiResponse<bool>.FailResponse("Device not found.");
+
+        if (dto.VehicleId.HasValue)
+        {
+            var vehicleError = await GpsDeviceVehicleGuard.ValidateAsync(connection, dto.VehicleId.Value, cancellationToken);
+            if (vehicleError is not null)
+                return ApiResponse<bool>.FailResponse(vehicleError);
+        }
 
         var rows = await connection.ExecuteAsync(new CommandDefinition(
             @"UPDATE GpsDevices SET VehicleId = @VehicleId, Name = @Name, Protocol = @Protocol,
@@ -177,5 +207,27 @@ public class DeleteGpsDeviceCommandHandler(
             await traccar.DeleteDeviceAsync(traccarDeviceId.Value, cancellationToken);
 
         return ApiResponse<bool>.SuccessResponse(true, "GPS device deleted.");
+    }
+}
+
+internal static class GpsDeviceVehicleGuard
+{
+    public static async Task<string?> ValidateAsync(
+        System.Data.IDbConnection connection,
+        int vehicleId,
+        CancellationToken cancellationToken)
+    {
+        var status = await connection.ExecuteScalarAsync<int?>(new CommandDefinition(
+            "SELECT Status FROM Vehicles WHERE Id = @Id AND IsDeleted = 0",
+            new { Id = vehicleId },
+            cancellationToken: cancellationToken));
+
+        if (status is null)
+            return "Vehicle not found.";
+
+        if (status == (int)VehicleStatus.Draft)
+            return "Cannot link a GPS device to a draft vehicle. Complete the vehicle first.";
+
+        return null;
     }
 }

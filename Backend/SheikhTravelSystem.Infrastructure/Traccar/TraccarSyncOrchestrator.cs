@@ -84,22 +84,22 @@ public sealed class TraccarSyncOrchestrator(
                 else if (existing.TraccarDeviceId != td.Id)
                 {
                     await connection.ExecuteAsync(new CommandDefinition("""
-                        UPDATE GpsDevices SET TraccarDeviceId = @TraccarDeviceId, IsActive = @IsActive,
+                        UPDATE GpsDevices SET TraccarDeviceId = @TraccarDeviceId, Name = @Name, IsActive = @IsActive,
                             LastSeenAt = COALESCE(@LastSeenAt, LastSeenAt), UpdatedAt = GETUTCDATE()
                         WHERE Id = @Id
                         """,
-                        new { TraccarDeviceId = td.Id, IsActive = isActive, LastSeenAt = lastSeen, Id = existing.Id },
+                        new { TraccarDeviceId = td.Id, Name = td.Name, IsActive = isActive, LastSeenAt = lastSeen, Id = existing.Id },
                         cancellationToken: ct));
                     updated++;
                 }
                 else
                 {
                     await connection.ExecuteAsync(new CommandDefinition("""
-                        UPDATE GpsDevices SET IsActive = @IsActive,
+                        UPDATE GpsDevices SET Name = @Name, IsActive = @IsActive,
                             LastSeenAt = COALESCE(@LastSeenAt, LastSeenAt), UpdatedAt = GETUTCDATE()
                         WHERE Id = @Id
                         """,
-                        new { IsActive = isActive, LastSeenAt = lastSeen, Id = existing.Id },
+                        new { Name = td.Name, IsActive = isActive, LastSeenAt = lastSeen, Id = existing.Id },
                         cancellationToken: ct));
                     skipped++;
                 }

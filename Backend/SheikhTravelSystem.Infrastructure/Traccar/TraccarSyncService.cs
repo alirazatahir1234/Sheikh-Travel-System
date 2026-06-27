@@ -36,6 +36,16 @@ public class TraccarSyncService(
             eventInterval.TotalSeconds,
             deviceInterval.TotalSeconds);
 
+        try
+        {
+            await RunJobAsync(o => o.SyncDevicesAsync(stoppingToken), stoppingToken);
+            _lastDeviceSync = DateTime.UtcNow;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Initial Traccar device sync on startup failed — will retry on schedule");
+        }
+
         while (!stoppingToken.IsCancellationRequested)
         {
             var now = DateTime.UtcNow;

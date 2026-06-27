@@ -66,7 +66,7 @@ export class GpsDevicesComponent implements OnInit, AfterViewInit, OnDestroy {
   ) {
     this.form = this.fb.group({
       uniqueId: ['', [Validators.required, Validators.pattern(this.imeiPattern)]],
-      name: ['', [Validators.required, Validators.minLength(3)]],
+      name: ['', [Validators.required, Validators.minLength(3), Validators.pattern(/[A-Za-z]/)]],
       vehicleId: [null as number | null],
       protocol: [''],
       supportsEngineCutoff: [false]
@@ -339,8 +339,16 @@ export class GpsDevicesComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   ignitionLabel(d: GpsDevice): string {
+    if (!d.lastSeenAt) return '—';
     if (d.lastIgnition == null) return 'Unknown';
     return d.lastIgnition ? 'On' : 'Off';
+  }
+
+  ignitionBadgeClass(d: GpsDevice): string {
+    if (!d.lastSeenAt) return 'badge-gray';
+    if (d.lastIgnition === true) return 'badge-green';
+    if (d.lastIgnition === false) return 'badge-red';
+    return 'badge-gray';
   }
 
   lastSeenLabel(d: GpsDevice): string {
@@ -358,7 +366,9 @@ export class GpsDevicesComponent implements OnInit, AfterViewInit, OnDestroy {
 
   lastSeenTooltip(d: GpsDevice): string {
     if (!d.lastSeenAt) return 'No telemetry received yet';
-    return new Date(d.lastSeenAt).toLocaleString();
+    const when = new Date(d.lastSeenAt).toLocaleString();
+    if (!this.traccarStatus?.connected) return `${when} (last known — cached)`;
+    return when;
   }
 
   connectionLabel(d: GpsDevice): string {
@@ -372,5 +382,13 @@ export class GpsDevicesComponent implements OnInit, AfterViewInit, OnDestroy {
     if (label === 'Online') return 'badge-green';
     if (label === 'Offline') return 'badge-red';
     return 'badge-gray';
+  }
+
+  showNotOnTraccar(d: GpsDevice): boolean {
+    return d.isTraccarLinked === false;
+  }
+
+  showInvalidImei(d: GpsDevice): boolean {
+    return d.isValidImei === false;
   }
 }
