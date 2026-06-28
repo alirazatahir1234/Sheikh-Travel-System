@@ -50,11 +50,17 @@ public class DriverLoginCommandHandler(
             return ApiResponse<DriverAuthResultDto>.FailResponse("Invalid phone or password.");
         }
 
-        var token = jwtTokenService.GenerateDriverAccessToken(
+        var accessToken = jwtTokenService.GenerateDriverAccessToken(
             row.DriverId, row.UserId, row.TenantId, row.FullName, row.Phone);
+        var refreshToken = jwtTokenService.GenerateRefreshToken();
+
+        await connection.ExecuteAsync(new CommandDefinition(
+            "UPDATE Users SET RefreshToken = @Token, RefreshTokenExpiryTime = @Expiry WHERE Id = @UserId",
+            new { Token = refreshToken, Expiry = DateTime.UtcNow.AddDays(30), UserId = row.UserId },
+            cancellationToken: cancellationToken));
 
         return ApiResponse<DriverAuthResultDto>.SuccessResponse(
-            new DriverAuthResultDto(token, row.DriverId, row.FullName, row.Phone),
+            new DriverAuthResultDto(accessToken, refreshToken, row.DriverId, row.FullName, row.Phone),
             "Login successful.");
     }
 }
@@ -195,6 +201,72 @@ public class DriverSubmitFuelReceiptCommandHandler(IMediator mediator)
 {
     public async Task<ApiResponse<int>> Handle(DriverSubmitFuelReceiptCommand request, CancellationToken cancellationToken)
         => await mediator.Send(new CreateFuelLogCommand(request.FuelLog), cancellationToken);
+}
+
+// ── Attendance ────────────────────────────────────────────────────────────────
+
+public record DriverCheckInCommand(double? Latitude, double? Longitude) : IRequest<ApiResponse<bool>>;
+public record DriverCheckOutCommand(double? Latitude, double? Longitude) : IRequest<ApiResponse<bool>>;
+
+public class DriverCheckInCommandHandler(
+    IDbConnectionFactory dbFactory,
+    ICurrentUserService currentUser,
+    ITenantContext tenantContext)
+    : IRequestHandler<DriverCheckInCommand, ApiResponse<bool>>
+{
+    public async Task<ApiResponse<bool>> Handle(DriverCheckInCommand request, CancellationToken cancellationToken)
+    {
+        var driverId = currentUser.DriverId;
+        if (!driverId.HasValue) return ApiResponse<bool>.FailResponse("Driver identity required.");
+
+        using var connection = dbFactory.CreateConnection();
+        await connection.ExecuteAsync(new CommandDefinition(
+            @"INSERT INTO DriverAttendance (DriverId, TenantId, AttendanceType, RecordedAt, Latitude, Longitude, IsDeleted)
+              VALUES (@DriverId, @TenantId, 'CheckIn', GETUTCDATE(), @Lat, @Lng, 0)",
+            new { DriverId = driverId.Value, TenantId = tenantContext.GetRequiredTenantId(), Lat = request.Latitude, Lng = request.Longitude },
+            cancellationToken: cancellationToken));
+
+        return ApiResponse<bool>.SuccessResponse(true, "Checked in successfully.");
+    }
+}
+
+public class DriverCheckOutCommandHandler(
+    IDbConnectionFactory dbFactory,
+    ICurrentUserService currentUser,
+    ITenantContext tenantContext)
+    : IRequestHandler<DriverCheckOutCommand, ApiResponse<bool>>
+{
+    public async Task<ApiResponse<bool>> Handle(DriverCheckOutCommand request, CancellationToken cancellationToken)
+    {
+        var driverId = currentUser.DriverId;
+        if (!driverId.HasValue) return ApiResponse<bool>.FailResponse("Driver identity required.");
+
+        using var connection = dbFactory.CreateConnection();
+        await connection.ExecuteAsync(new CommandDefinition(
+            @"INSERT INTO DriverAttendance (DriverId, TenantId, AttendanceType, RecordedAt, Latitude, Longitude, IsDeleted)
+              VALUES (@DriverId, @TenantId, 'CheckOut', GETUTCDATE(), @Lat, @Lng, 0)",
+            new { DriverId = driverId.Value, TenantId = tenantContext.GetRequiredTenantId(), Lat = request.Latitude, Lng = request.Longitude },
+            cancellationToken: cancellationToken));
+
+        return ApiResponse<bool>.SuccessResponse(true, "Checked out successfully.");
+    }
+}
+
+// ── Batch Location ────────────────────────────────────────────────────────────
+
+public record DriverPostLocationBatchCommand(List<DriverLocationDto> Positions) : IRequest<ApiResponse<bool>>;
+
+public class DriverPostLocationBatchCommandHandler(IMediator mediator)
+    : IRequestHandler<DriverPostLocationBatchCommand, ApiResponse<bool>>
+{
+    public async Task<ApiResponse<bool>> Handle(DriverPostLocationBatchCommand request, CancellationToken cancellationToken)
+    {
+        foreach (var pos in request.Positions)
+        {
+            await mediator.Send(new DriverPostLocationCommand(pos), cancellationToken);
+        }
+        return ApiResponse<bool>.SuccessResponse(true, $"{request.Positions.Count} positions ingested.");
+    }
 }
 
 file class DriverLoginRow

@@ -6,11 +6,31 @@
       <p class="page-subtitle">Live vehicle telemetry from Traccar — SheikhGo manages vehicles, drivers, and assignments.</p>
     </div>
     <div class="header-actions">
+      <div class="refresh-control">
+        <mat-icon class="refresh-icon">sync</mat-icon>
+        <select class="refresh-select" (change)="setRefreshInterval(+$any($event.target).value)" [attr.aria-label]="'Auto-refresh interval'">
+          <option *ngFor="let o of refreshOptions" [value]="o.value" [selected]="refreshIntervalMs === o.value">{{ o.label }}</option>
+        </select>
+        <button class="btn btn-icon" type="button" (click)="load()" matTooltip="Refresh now">
+          <mat-icon>refresh</mat-icon>
+        </button>
+      </div>
       <button class="btn btn-primary" type="button" (click)="openCreate()">
         <mat-icon>add</mat-icon>
         Register Tracker
       </button>
     </div>
+  </div>
+
+  <div class="kpi-strip" *ngIf="devices.length > 0 || !loading">
+    <button class="kpi-tile" type="button"
+      *ngFor="let t of kpiTiles"
+      [class.kpi-tile--active]="deviceFilter === t.filter"
+      (click)="setDeviceFilter(t.filter)">
+      <mat-icon class="kpi-icon" [style.color]="t.color">{{ t.icon }}</mat-icon>
+      <span class="kpi-value">{{ t.value }}</span>
+      <span class="kpi-label">{{ t.label }}</span>
+    </button>
   </div>
 
   <div class="sync-status-card" *ngIf="traccarStatus || traccarSyncStatus">
@@ -137,7 +157,7 @@
         <ng-container matColumnDef="ignition">
           <th mat-header-cell *matHeaderCellDef>Ignition</th>
           <td mat-cell *matCellDef="let d">
-            <span class="badge" [ngClass]="ignitionBadgeClass(d)">{{ ignitionLabel(d) }}</span>
+            <span class="ignition-dot" [ngClass]="ignitionBadgeClass(d)"></span>{{ ignitionLabel(d) }}
           </td>
         </ng-container>
 
@@ -148,7 +168,7 @@
 
         <ng-container matColumnDef="lastSeen">
           <th mat-header-cell *matHeaderCellDef>Last Seen</th>
-          <td mat-cell *matCellDef="let d" class="muted" [matTooltip]="lastSeenTooltip(d)">
+          <td mat-cell *matCellDef="let d" [ngClass]="lastSeenClass(d)" [matTooltip]="lastSeenTooltip(d)">
             {{ lastSeenLabel(d) }}
           </td>
         </ng-container>
@@ -166,11 +186,12 @@
         <ng-container matColumnDef="actions">
           <th mat-header-cell *matHeaderCellDef class="actions-th">Actions</th>
           <td mat-cell *matCellDef="let d" class="actions-cell">
-            <button mat-icon-button type="button" (click)="openEdit(d)" matTooltip="Edit tracker">
-              <mat-icon>edit</mat-icon>
-            </button>
-            <button mat-icon-button type="button" (click)="deleteDevice(d)" matTooltip="Remove" class="delete-btn">
-              <mat-icon>delete_outline</mat-icon>
+            <button mat-icon-button type="button"
+              [matMenuTriggerFor]="actionMenu"
+              [matMenuTriggerData]="{d: d}"
+              (click)="$event.stopPropagation()"
+              matTooltip="Actions">
+              <mat-icon>more_vert</mat-icon>
             </button>
           </td>
         </ng-container>
@@ -178,6 +199,28 @@
         <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
         <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
       </table>
+
+      <mat-menu #actionMenu="matMenu" xPosition="before">
+        <ng-template matMenuContent let-d="d">
+          <button mat-menu-item type="button" (click)="openEdit(d)">
+            <mat-icon>edit</mat-icon> Edit Tracker
+          </button>
+          <mat-divider></mat-divider>
+          <button mat-menu-item type="button" (click)="goToLiveMap(d)" [disabled]="!d.vehicleId">
+            <mat-icon>my_location</mat-icon> View on Live Map
+          </button>
+          <button mat-menu-item type="button" (click)="goToHistory(d)" [disabled]="!d.vehicleId">
+            <mat-icon>history</mat-icon> Trip History
+          </button>
+          <button mat-menu-item type="button" (click)="goToCommands(d)">
+            <mat-icon>power_settings_new</mat-icon> Send Command
+          </button>
+          <mat-divider></mat-divider>
+          <button mat-menu-item type="button" (click)="deleteDevice(d)" class="action-delete">
+            <mat-icon>delete_outline</mat-icon> Remove Tracker
+          </button>
+        </ng-template>
+      </mat-menu>
 
       <div class="mobile-cards mobile-only">
         <article class="device-card" *ngFor="let d of pageDevices">
@@ -217,150 +260,3 @@
     </div>
   </div>
 </div>
-
-<div class="tracker-modal-backdrop" *ngIf="showForm" (click)="closeForm()"></div>
-<aside
-  class="tracker-modal"
-  *ngIf="showForm"
-  role="dialog"
-  aria-modal="true"
-  [attr.aria-label]="registrationSuccess ? 'Tracker registered' : (editDevice ? 'Edit Tracker' : 'Register Tracker')"
-  (click)="$event.stopPropagation()">
-  <div class="tracker-modal__header">
-    <h3>{{ registrationSuccess ? 'Tracker Registered' : (editDevice ? 'Edit Tracker' : 'Register Tracker') }}</h3>
-    <button mat-icon-button type="button" (click)="closeForm()" aria-label="Close">
-      <mat-icon>close</mat-icon>
-    </button>
-  </div>
-
-  <div class="tracker-modal__success" *ngIf="registrationSuccess as success">
-    <div class="success-banner">
-      <mat-icon>check_circle</mat-icon>
-      <span>Tracker Registered Successfully</span>
-    </div>
-    <dl class="success-details">
-      <div><dt>Tracker Name</dt><dd>{{ success.name }}</dd></div>
-      <div><dt>IMEI</dt><dd class="mono">{{ success.uniqueId }}</dd></div>
-      <div><dt>Protocol</dt><dd>{{ success.protocolLabel }}</dd></div>
-      <div><dt>Vehicle</dt><dd>{{ success.vehicleLabel }}</dd></div>
-      <div><dt>Status</dt><dd class="status-waiting">Waiting for first GPS signal</dd></div>
-    </dl>
-    <div class="tracker-modal__footer tracker-modal__footer--solo">
-      <button type="button" class="btn btn-primary" (click)="closeForm()">Done</button>
-    </div>
-  </div>
-
-  <form class="tracker-modal__form" *ngIf="!registrationSuccess" [formGroup]="form" (ngSubmit)="save()">
-    <div class="tracker-modal__body">
-      <ui-select
-        class="tracker-form-block"
-        formControlName="trackerModelKey"
-        label="Tracker Model"
-        placeholder="Select tracker model"
-        [options]="trackerModelOptions"
-        [required]="true"
-        [error]="trackerModelError()" />
-
-      <div class="tracker-form-block">
-        <ui-input
-          formControlName="uniqueId"
-          label="IMEI"
-          placeholder="862292058090598"
-          [required]="true"
-          hint="15-digit number printed on the tracker label"
-          [error]="imeiIsDuplicate ? 'IMEI already registered' : (form.get('uniqueId')?.hasError('pattern') && form.get('uniqueId')?.touched ? 'Must be exactly 15 digits' : '')" />
-        <p class="field-feedback field-feedback--ok" *ngIf="imeiFeedbackOk">
-          <mat-icon>check_circle</mat-icon> Valid IMEI
-        </p>
-        <p class="field-feedback field-feedback--progress" *ngIf="imeiFeedback && !imeiFeedbackOk && !imeiIsDuplicate && imeiValue">
-          {{ imeiFeedback }}
-        </p>
-        <p class="field-feedback field-feedback--error" *ngIf="imeiIsDuplicate">
-          <mat-icon>error</mat-icon> IMEI already registered
-        </p>
-      </div>
-
-      <ui-input
-        class="tracker-form-block"
-        formControlName="name"
-        label="Tracker Name"
-        placeholder="e.g. Corolla GPS, Bus-21, Truck-05"
-        [required]="true"
-        hint="Displayed in SheikhGo ERP and Traccar"
-        [error]="nameError()" />
-
-      <div class="tracker-readonly-field tracker-form-block">
-        <span class="tracker-readonly-field__label">Protocol</span>
-        <div class="tracker-readonly-field__value">{{ protocolDisplayLabel }}</div>
-        <span class="tracker-readonly-field__hint">Automatically set from tracker model</span>
-      </div>
-
-      <mat-checkbox formControlName="supportsEngineCutoff" class="immobilizer-checkbox">
-        Supports Remote Engine Immobilizer
-      </mat-checkbox>
-
-      <ui-select
-        *ngIf="showRelayOutput"
-        class="tracker-form-block"
-        formControlName="relayOutput"
-        label="Relay Output"
-        placeholder="Select output"
-        [options]="relayOutputs" />
-
-      <div class="tracker-form-block">
-        <ui-select
-          formControlName="vehicleId"
-          label="Assign Vehicle"
-          placeholder="Search vehicle"
-          searchPlaceholder="Search by plate, name, or fleet number"
-          [options]="vehicleOptions"
-          [searchable]="true" />
-        <span class="field-hint">Vehicle this tracker is installed in</span>
-      </div>
-
-      <ui-input
-        class="tracker-form-block"
-        formControlName="simNumber"
-        label="SIM Number"
-        placeholder="+923001234567"
-        hint="SIM card installed in this tracker (optional)"
-        [error]="simError()" />
-
-      <div class="tracker-form-block stb-field">
-        <label for="installationDate">Installation Date</label>
-        <input id="installationDate" type="date" class="stb-input" formControlName="installationDate" />
-      </div>
-
-      <ui-input
-        class="tracker-form-block"
-        formControlName="installedBy"
-        label="Installed By"
-        placeholder="Ali GPS Services" />
-
-      <ui-input
-        class="tracker-form-block"
-        formControlName="serialNumber"
-        label="Serial Number"
-        placeholder="Tracker serial (not IMEI)"
-        hint="Hardware serial from the device label" />
-
-      <div class="tracker-form-block stb-field">
-        <label for="installationNotes">Installation Notes</label>
-        <textarea
-          id="installationNotes"
-          class="stb-textarea"
-          formControlName="installationNotes"
-          rows="3"
-          placeholder="Installed under dashboard."></textarea>
-      </div>
-    </div>
-
-    <div class="tracker-modal__footer">
-      <button type="button" class="btn btn-secondary" (click)="closeForm()" [disabled]="saving">Cancel</button>
-      <button type="submit" class="btn btn-primary" [disabled]="!canSubmit">
-        <mat-spinner *ngIf="saving" diameter="18"></mat-spinner>
-        <span>{{ editDevice ? 'Update Tracker' : 'Register Tracker' }}</span>
-      </button>
-    </div>
-  </form>
-</aside>

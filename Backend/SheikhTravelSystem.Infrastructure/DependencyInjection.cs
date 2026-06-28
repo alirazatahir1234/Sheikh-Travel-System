@@ -9,6 +9,7 @@ using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Application.Features.CustomerPortal;
 using SheikhTravelSystem.Application.Features.GpsTracking;
 using SheikhTravelSystem.Application.Features.GpsTracking.Traccar;
+using SheikhTravelSystem.Application.Features.GpsTracking.Trackers;
 using SheikhTravelSystem.Infrastructure.Authentication;
 using SheikhTravelSystem.Infrastructure.Persistence;
 using SheikhTravelSystem.Infrastructure.Persistence.Migrations;
@@ -90,6 +91,7 @@ public static class DependencyInjection
         services.AddHostedService<TraccarSyncService>();
         services.AddSingleton<ITraccarSyncState, TraccarSyncState>();
         services.AddScoped<ITraccarSyncOrchestrator, TraccarSyncOrchestrator>();
+        services.AddScoped<ITrackerRegistrationService, TrackerRegistrationService>();
 
         return services;
     }

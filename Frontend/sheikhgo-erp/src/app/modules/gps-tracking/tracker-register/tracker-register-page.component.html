@@ -1,0 +1,136 @@
+<div class="tracker-register-page">
+  <header class="page-head">
+    <div>
+      <button type="button" class="back-link" (click)="cancel()">
+        <mat-icon>arrow_back</mat-icon>
+        Fleet Trackers
+      </button>
+      <h1>{{ pageTitle }}</h1>
+      <p class="subtitle" *ngIf="!registrationSuccess">
+        {{ isEdit ? 'Update tracker details in SheikhGo and Traccar.' : 'Register a GPS tracker from SheikhGo — Traccar is provisioned automatically.' }}
+      </p>
+    </div>
+  </header>
+
+  <div *ngIf="loading" class="loading-wrap">
+    <mat-spinner diameter="40"></mat-spinner>
+  </div>
+
+  <div class="success-panel" *ngIf="registrationSuccess as s">
+    <div class="success-banner">
+      <mat-icon>check_circle</mat-icon>
+      <span>Tracker Registered Successfully</span>
+    </div>
+    <dl class="success-details">
+      <div><dt>Tracker Name</dt><dd>{{ s.name }}</dd></div>
+      <div><dt>IMEI</dt><dd class="mono">{{ s.uniqueId }}</dd></div>
+      <div><dt>Protocol</dt><dd>{{ s.protocolLabel }}</dd></div>
+      <div><dt>Vehicle</dt><dd>{{ s.vehicleName || 'Unassigned' }}</dd></div>
+      <div><dt>Status</dt><dd class="status-waiting">{{ s.statusMessage }}</dd></div>
+    </dl>
+    <button type="button" class="btn btn-primary" (click)="cancel()">Done</button>
+  </div>
+
+  <form *ngIf="!loading && !registrationSuccess" [formGroup]="form" (ngSubmit)="submit()" class="register-form">
+    <section class="form-section">
+      <h2>Traccar Device</h2>
+      <p class="section-hint">These fields are sent to the GPS engine when the tracker is registered.</p>
+
+      <div class="form-grid">
+        <ui-input class="span-2" formControlName="name" label="Tracker Name" placeholder="Toyota Corolla GPS" [required]="true" />
+
+        <div class="field-block span-2">
+          <ui-input formControlName="uniqueId" label="IMEI" placeholder="862292058090598" [required]="true"
+            hint="15-digit number printed on the tracker label"
+            [error]="imeiIsDuplicate ? 'IMEI already registered' : ''" />
+          <p class="feedback feedback--ok" *ngIf="imeiIsValid && !imeiIsDuplicate"><mat-icon>check_circle</mat-icon> Valid IMEI</p>
+        </div>
+
+        <ui-select class="span-2" formControlName="category" label="Category" [options]="categoryOptions" [required]="true" />
+
+        <ui-select formControlName="countryCode" label="Country" [options]="countryOptions" [required]="true" />
+        <ui-input formControlName="phoneLocal" label="Phone Number" [placeholder]="phonePlaceholder()" hint="SIM number installed in tracker (optional)" />
+
+        <ui-select formControlName="trackerBrandId" label="Tracker Brand" placeholder="Select brand" [options]="brandOptions" [required]="true" [searchable]="true" />
+        <ui-select formControlName="trackerModelId" label="Tracker Model" placeholder="Select model" [options]="modelOptions" [required]="true" [searchable]="true" />
+
+        <ui-input class="span-2" formControlName="contact" label="Contact" placeholder="Driver name or fleet manager" />
+
+        <label class="checkbox-field span-2">
+          <input type="checkbox" formControlName="disabled" />
+          <span>Disabled on Traccar server</span>
+        </label>
+      </div>
+    </section>
+
+    <section class="form-section">
+      <h2>SheikhGo ERP</h2>
+      <p class="section-hint">Business and installation data stored only in SheikhGo.</p>
+
+      <div class="form-grid">
+        <div class="readonly-field span-2">
+          <span class="readonly-label">Protocol</span>
+          <div class="readonly-value">{{ protocolLabel }}</div>
+          <span class="readonly-hint">Automatically set from tracker model</span>
+        </div>
+
+        <ui-select formControlName="vehicleId" label="Assign Vehicle" placeholder="Search vehicle"
+          searchPlaceholder="Search by plate, name, or fleet number" [options]="vehicleOptions" [searchable]="true" />
+        <ui-select formControlName="driverId" label="Assign Driver" placeholder="Search driver"
+          searchPlaceholder="Search driver name" [options]="driverOptions" [searchable]="true" />
+
+        <label class="checkbox-field span-2">
+          <input type="checkbox" formControlName="supportsEngineCutoff" />
+          <span>Supports Remote Engine Immobilizer</span>
+        </label>
+
+        <ui-select *ngIf="showRelayOutput" class="span-2" formControlName="relayOutput" label="Relay Output" [options]="relayOutputs" />
+
+        <div class="stb-field">
+          <label for="installationDate">Installation Date</label>
+          <input id="installationDate" type="date" class="stb-input" formControlName="installationDate" />
+        </div>
+        <ui-input formControlName="installedBy" label="Installed By" placeholder="Ali GPS Services" />
+
+        <ui-input class="span-2" formControlName="serialNumber" label="Serial Number" placeholder="Hardware serial (not IMEI)" />
+
+        <ui-select formControlName="simProvider" label="SIM Provider" placeholder="Select provider" [options]="simProviderOpts" />
+        <ui-select formControlName="simPackage" label="SIM Package" [options]="simPackages" />
+
+        <ui-input formControlName="monthlySimCost" label="Monthly SIM Cost" type="number" placeholder="0.00" />
+
+        <div class="stb-field">
+          <label for="warrantyStart">Warranty Start</label>
+          <input id="warrantyStart" type="date" class="stb-input" formControlName="warrantyStart" [min]="minDate" />
+        </div>
+        <div class="stb-field">
+          <label for="warrantyEnd">Warranty End</label>
+          <input id="warrantyEnd" type="date" class="stb-input" formControlName="warrantyEnd" />
+        </div>
+
+        <div class="stb-field">
+          <label for="purchaseDate">Purchase Date</label>
+          <input id="purchaseDate" type="date" class="stb-input" formControlName="purchaseDate" [min]="minDate" />
+        </div>
+        <ui-input formControlName="purchasePrice" label="Purchase Price" type="number" placeholder="250" />
+
+        <ui-input formControlName="vendor" label="Vendor" placeholder="GPS Solutions" />
+        <ui-select formControlName="currentStatus" label="Current Status" [options]="currentStatuses" />
+
+        <div class="span-2 stb-field">
+          <label for="installationNotes">Installation Notes</label>
+          <textarea id="installationNotes" class="stb-textarea" formControlName="installationNotes" rows="3"
+            placeholder="Installed under dashboard."></textarea>
+        </div>
+      </div>
+    </section>
+
+    <footer class="form-footer">
+      <button type="button" class="btn btn-secondary" (click)="cancel()" [disabled]="saving">Cancel</button>
+      <button type="submit" class="btn btn-primary" [disabled]="!canSubmit">
+        <mat-spinner *ngIf="saving" diameter="18"></mat-spinner>
+        <span>{{ isEdit ? 'Update Tracker' : 'Register Tracker' }}</span>
+      </button>
+    </footer>
+  </form>
+</div>

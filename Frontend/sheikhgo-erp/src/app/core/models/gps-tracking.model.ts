@@ -62,6 +62,69 @@ export interface GpsDevice {
   relayOutput?: string;
 }
 
+export interface TrackerDetail extends GpsDevice {
+  driverId?: number;
+  category?: string;
+  phone?: string;
+  contact?: string;
+  disabled?: boolean;
+  trackerModelKey?: string;
+  trackerModelId?: number;
+  trackerBrandId?: number;
+  trackerBrandName?: string;
+  modelName?: string;
+  countryCode?: string;
+  simProvider?: string;
+  simPackage?: string;
+  monthlySimCost?: number;
+  warrantyStart?: string;
+  warrantyEnd?: string;
+  purchaseDate?: string;
+  purchasePrice?: number;
+  currentStatus?: string;
+  lastSyncAt?: string;
+}
+
+export interface RegisterTrackerPayload {
+  name: string;
+  uniqueId: string;
+  category: string;
+  trackerModelId: number;
+  trackerModelKey?: string;
+  phone?: string;
+  contact?: string;
+  disabled?: boolean;
+  vehicleId?: number;
+  driverId?: number;
+  supportsEngineCutoff?: boolean;
+  relayOutput?: string;
+  installationDate?: string;
+  installedBy?: string;
+  installationNotes?: string;
+  serialNumber?: string;
+  countryCode?: string;
+  simProvider?: string;
+  simPackage?: string;
+  monthlySimCost?: number;
+  warrantyStart?: string;
+  warrantyEnd?: string;
+  purchaseDate?: string;
+  purchasePrice?: number;
+  vendor?: string;
+  currentStatus?: string;
+}
+
+export interface TrackerRegisteredResult {
+  id: number;
+  name: string;
+  uniqueId: string;
+  protocolLabel: string;
+  vehicleName?: string;
+  plateNumber?: string;
+  traccarDeviceId?: number;
+  statusMessage: string;
+}
+
 export interface Geofence {
   id: number;
   name: string;
