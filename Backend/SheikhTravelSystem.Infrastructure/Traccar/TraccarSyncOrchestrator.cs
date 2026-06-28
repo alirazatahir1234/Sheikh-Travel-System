@@ -48,6 +48,103 @@ public sealed class TraccarSyncOrchestrator(
         }
     }
 
+    public async Task<TraccarSyncRunResult> SyncTrackerAsync(int gpsDeviceId, CancellationToken ct = default)
+    {
+        if (!IsTraccarActive)
+            return SingleJob("tracker", 0, 0, 0, 0, TraccarInactiveReason);
+
+        using var scope = scopeFactory.CreateScope();
+        var dbFactory = scope.ServiceProvider.GetRequiredService<IDbConnectionFactory>();
+        using var connection = dbFactory.CreateConnection();
+
+        var device = await connection.QueryFirstOrDefaultAsync<(int Id, int? TraccarDeviceId, int? VehicleId)>(
+            new CommandDefinition(
+                "SELECT Id, TraccarDeviceId, VehicleId FROM GpsDevices WHERE Id = @Id AND IsDeleted = 0",
+                new { Id = gpsDeviceId },
+                cancellationToken: ct));
+
+        if (device.Id == 0 || !device.TraccarDeviceId.HasValue)
+            return SingleJob("tracker", 0, 0, 0, 0, "Tracker is not linked to Traccar.");
+
+        var traccarDeviceId = device.TraccarDeviceId.Value;
+        var traccarDevice = await traccar.GetDeviceByIdAsync(traccarDeviceId, ct);
+        if (traccarDevice is null)
+            return SingleJob("tracker", 0, 0, 0, 0, "Device not found on Traccar server.");
+
+        var lastSeen = traccarDevice.LastUpdate?.ToUniversalTime();
+        await connection.ExecuteAsync(new CommandDefinition(
+            """
+            UPDATE GpsDevices SET
+                Name = @Name, IsActive = @IsActive, LastSeenAt = COALESCE(@LastSeenAt, LastSeenAt),
+                LastSyncAt = GETUTCDATE(), UpdatedAt = GETUTCDATE()
+            WHERE Id = @Id
+            """,
+            new
+            {
+                Id = gpsDeviceId,
+                traccarDevice.Name,
+                IsActive = !traccarDevice.Disabled,
+                LastSeenAt = lastSeen
+            },
+            cancellationToken: ct));
+
+        var positions = await traccar.GetLivePositionsAsync(ct);
+        var pos = positions.FirstOrDefault(p => p.DeviceId == traccarDeviceId);
+        var telemetryUpdated = 0;
+
+        if (pos is not null)
+        {
+            var ignition = pos.Attributes.Ignition;
+            var speedKmh = (decimal)(pos.Speed * 1.852);
+            var battery = pos.Attributes.BatteryLevel;
+            var rssi = pos.Attributes.Rssi;
+            var recordedAt = pos.FixTime.ToUniversalTime();
+
+            if (device.VehicleId.HasValue)
+            {
+                var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+                var dto = new IngestPositionDto(
+                    VehicleId: device.VehicleId.Value,
+                    DriverId: null,
+                    BookingId: null,
+                    GpsDeviceId: gpsDeviceId,
+                    Latitude: pos.Latitude,
+                    Longitude: pos.Longitude,
+                    Speed: speedKmh,
+                    Heading: pos.Course,
+                    Altitude: pos.Altitude,
+                    Ignition: ignition);
+
+                try
+                {
+                    await mediator.Send(new IngestPositionCommand(dto), ct);
+                    telemetryUpdated = 1;
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "Failed to ingest position during tracker sync for device {Id}", gpsDeviceId);
+                }
+            }
+            else
+            {
+                try
+                {
+                    await GpsDeviceTelemetryUpdater.UpdateAsync(
+                        connection, gpsDeviceId, recordedAt, ignition, speedKmh, battery, rssi, ct);
+                    telemetryUpdated = 1;
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "Failed telemetry update during tracker sync for device {Id}", gpsDeviceId);
+                }
+            }
+        }
+
+        return new TraccarSyncRunResult(DateTime.UtcNow, [
+            new TraccarSyncJobResult("tracker", 1, telemetryUpdated > 0 ? 1 : 0, 1, 0)
+        ]);
+    }
+
     public async Task<TraccarSyncRunResult> SyncDevicesAsync(CancellationToken ct = default)
     {
         if (!IsTraccarActive)

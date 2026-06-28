@@ -61,6 +61,9 @@ public static class TrackerCatalogMigration
                 IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = 'FK_GpsDevices_TrackerModels')
                     ALTER TABLE GpsDevices ADD CONSTRAINT FK_GpsDevices_TrackerModels
                         FOREIGN KEY (TrackerModelId) REFERENCES TrackerModels(Id);
+
+                IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_GpsDevices_TenantId_UniqueId' AND object_id = OBJECT_ID('GpsDevices'))
+                    CREATE INDEX IX_GpsDevices_TenantId_UniqueId ON GpsDevices(TenantId, UniqueId) WHERE IsDeleted = 0;
                 """, cancellationToken: cancellationToken));
 
             await SeedCatalogAsync(connection, cancellationToken);

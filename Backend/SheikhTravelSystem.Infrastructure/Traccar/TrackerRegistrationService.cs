@@ -37,14 +37,14 @@ public sealed class TrackerRegistrationService(
 
         if (dto.VehicleId.HasValue)
         {
-            var vehicleError = await ValidateVehicleAsync(connection, dto.VehicleId.Value, ct);
+            var vehicleError = await ValidateVehicleAsync(connection, dto.VehicleId.Value, tenantContext.GetRequiredTenantId(), ct);
             if (vehicleError is not null)
                 return ApiResponse<TrackerRegisteredDto>.FailResponse(vehicleError);
         }
 
         if (dto.DriverId.HasValue)
         {
-            var driverError = await ValidateDriverAsync(connection, dto.DriverId.Value, ct);
+            var driverError = await ValidateDriverAsync(connection, dto.DriverId.Value, tenantContext.GetRequiredTenantId(), ct);
             if (driverError is not null)
                 return ApiResponse<TrackerRegisteredDto>.FailResponse(driverError);
         }
@@ -76,7 +76,7 @@ public sealed class TrackerRegistrationService(
         }
 
         var traccarDeviceId = traccarResult.Value.Id;
-        var tenantId = tenantContext.TenantId;
+        var tenantId = tenantContext.GetRequiredTenantId();
         var createdBy = currentUser.UserId?.ToString();
 
         try
@@ -125,6 +125,10 @@ public sealed class TrackerRegistrationService(
     public async Task<ApiResponse<bool>> UpdateAsync(int id, UpdateTrackerDto dto, CancellationToken ct = default)
     {
         using var connection = dbFactory.CreateConnection();
+        var tenantId = tenantContext.GetRequiredTenantId();
+
+        if (!await DeviceBelongsToTenantAsync(connection, id, tenantId, ct))
+            return ApiResponse<bool>.FailResponse("Tracker not found.");
 
         var model = await ResolveModelAsync(connection, dto.TrackerModelId, dto.TrackerModelKey, ct);
         if (model is null)
@@ -140,22 +144,22 @@ public sealed class TrackerRegistrationService(
 
         if (dto.VehicleId.HasValue)
         {
-            var vehicleError = await ValidateVehicleAsync(connection, dto.VehicleId.Value, ct);
+            var vehicleError = await ValidateVehicleAsync(connection, dto.VehicleId.Value, tenantId, ct);
             if (vehicleError is not null)
                 return ApiResponse<bool>.FailResponse(vehicleError);
         }
 
         if (dto.DriverId.HasValue)
         {
-            var driverError = await ValidateDriverAsync(connection, dto.DriverId.Value, ct);
+            var driverError = await ValidateDriverAsync(connection, dto.DriverId.Value, tenantId, ct);
             if (driverError is not null)
                 return ApiResponse<bool>.FailResponse(driverError);
         }
 
         var opts = traccarOptions.Value;
-        if (opts.IsConfigured && opts.Enabled && existing.TraccarDeviceId.HasValue)
-        {
-            var updateResult = await traccar.UpdateDeviceAsync(new TraccarUpdateDevicePayload(
+        TraccarDevice? traccarSnapshot = null;
+        var traccarPayload = existing.TraccarDeviceId.HasValue
+            ? new TraccarUpdateDevicePayload(
                 existing.TraccarDeviceId.Value,
                 dto.Name,
                 existing.UniqueId,
@@ -163,69 +167,93 @@ public sealed class TrackerRegistrationService(
                 dto.Phone,
                 model.Name,
                 dto.Contact,
-                dto.Disabled), ct);
+                dto.Disabled)
+            : null;
 
+        if (opts.IsConfigured && opts.Enabled && traccarPayload is not null)
+        {
+            traccarSnapshot = await traccar.GetDeviceByIdAsync(existing.TraccarDeviceId!.Value, ct);
+            var updateResult = await traccar.UpdateDeviceAsync(traccarPayload, ct);
             if (!updateResult.Success)
                 return ApiResponse<bool>.FailResponse(updateResult.ErrorMessage ?? "Traccar sync failed.");
         }
 
-        var rows = await connection.ExecuteAsync(new CommandDefinition(
-            @"UPDATE GpsDevices SET
-                VehicleId = @VehicleId, DriverId = @DriverId, Name = @Name,
-                Category = @Category, Phone = @Phone, Contact = @Contact, Disabled = @Disabled,
-                Protocol = @Protocol, Model = @Model, Vendor = @Vendor,
-                TrackerModelKey = @TrackerModelKey, TrackerModelId = @TrackerModelId,
-                SupportsEngineCutoff = @SupportsEngineCutoff, RelayOutput = @RelayOutput,
-                SerialNumber = @SerialNumber, InstallationDate = @InstallationDate,
-                InstalledBy = @InstalledBy, InstallationNotes = @InstallationNotes,
-                CountryCode = @CountryCode, SIMProvider = @SIMProvider, SIMPackage = @SIMPackage,
-                MonthlySIMCost = @MonthlySIMCost, WarrantyStart = @WarrantyStart, WarrantyEnd = @WarrantyEnd,
-                PurchaseDate = @PurchaseDate, PurchasePrice = @PurchasePrice, CurrentStatus = @CurrentStatus,
-                IsActive = @IsActive, UpdatedAt = GETUTCDATE(), UpdatedBy = @UpdatedBy
-              WHERE Id = @Id AND IsDeleted = 0",
-            new
-            {
-                Id = id,
-                dto.VehicleId,
-                dto.DriverId,
-                dto.Name,
-                Category = dto.Category.ToLowerInvariant(),
-                dto.Phone,
-                dto.Contact,
-                dto.Disabled,
-                Protocol = model.Protocol,
-                Model = FormatModelLabel(model),
-                Vendor = model.BrandName,
-                TrackerModelKey = model.CatalogKey,
-                TrackerModelId = model.Id,
-                dto.SupportsEngineCutoff,
-                RelayOutput = dto.SupportsEngineCutoff ? dto.RelayOutput : null,
-                dto.SerialNumber,
-                dto.InstallationDate,
-                dto.InstalledBy,
-                dto.InstallationNotes,
-                dto.CountryCode,
-                dto.SIMProvider,
-                dto.SIMPackage,
-                dto.MonthlySIMCost,
-                dto.WarrantyStart,
-                dto.WarrantyEnd,
-                dto.PurchaseDate,
-                dto.PurchasePrice,
-                dto.CurrentStatus,
-                dto.IsActive,
-                UpdatedBy = currentUser.UserId?.ToString()
-            },
-            cancellationToken: ct));
+        try
+        {
+            var rows = await connection.ExecuteAsync(new CommandDefinition(
+                @"UPDATE GpsDevices SET
+                    TenantId = COALESCE(TenantId, @TenantId),
+                    VehicleId = @VehicleId, DriverId = @DriverId, Name = @Name,
+                    Category = @Category, Phone = @Phone, Contact = @Contact, Disabled = @Disabled,
+                    Protocol = @Protocol, Model = @Model, Vendor = @Vendor,
+                    TrackerModelKey = @TrackerModelKey, TrackerModelId = @TrackerModelId,
+                    SupportsEngineCutoff = @SupportsEngineCutoff, RelayOutput = @RelayOutput,
+                    SerialNumber = @SerialNumber, InstallationDate = @InstallationDate,
+                    InstalledBy = @InstalledBy, InstallationNotes = @InstallationNotes,
+                    CountryCode = @CountryCode, SIMProvider = @SIMProvider, SIMPackage = @SIMPackage,
+                    MonthlySIMCost = @MonthlySIMCost, WarrantyStart = @WarrantyStart, WarrantyEnd = @WarrantyEnd,
+                    PurchaseDate = @PurchaseDate, PurchasePrice = @PurchasePrice, CurrentStatus = @CurrentStatus,
+                    IsActive = @IsActive, UpdatedAt = GETUTCDATE(), UpdatedBy = @UpdatedBy
+                  WHERE Id = @Id AND IsDeleted = 0",
+                new
+                {
+                    Id = id,
+                    TenantId = tenantId,
+                    dto.VehicleId,
+                    dto.DriverId,
+                    dto.Name,
+                    Category = dto.Category.ToLowerInvariant(),
+                    dto.Phone,
+                    dto.Contact,
+                    dto.Disabled,
+                    Protocol = model.Protocol,
+                    Model = FormatModelLabel(model),
+                    Vendor = model.BrandName,
+                    TrackerModelKey = model.CatalogKey,
+                    TrackerModelId = model.Id,
+                    dto.SupportsEngineCutoff,
+                    RelayOutput = dto.SupportsEngineCutoff ? dto.RelayOutput : null,
+                    dto.SerialNumber,
+                    dto.InstallationDate,
+                    dto.InstalledBy,
+                    dto.InstallationNotes,
+                    dto.CountryCode,
+                    dto.SIMProvider,
+                    dto.SIMPackage,
+                    dto.MonthlySIMCost,
+                    dto.WarrantyStart,
+                    dto.WarrantyEnd,
+                    dto.PurchaseDate,
+                    dto.PurchasePrice,
+                    dto.CurrentStatus,
+                    dto.IsActive,
+                    UpdatedBy = currentUser.UserId?.ToString()
+                },
+                cancellationToken: ct));
 
-        return rows == 0
-            ? ApiResponse<bool>.FailResponse("Tracker not found.")
-            : ApiResponse<bool>.SuccessResponse(true, "Tracker updated.");
+            if (rows == 0)
+            {
+                await RevertTraccarAsync(traccarSnapshot, ct);
+                return ApiResponse<bool>.FailResponse("Tracker not found.");
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Tracker DB update failed for {TrackerId}; reverting Traccar", id);
+            await RevertTraccarAsync(traccarSnapshot, ct);
+            return ApiResponse<bool>.FailResponse("Failed to update tracker. Traccar changes were rolled back.");
+        }
+
+        return ApiResponse<bool>.SuccessResponse(true, "Tracker updated.");
     }
 
     public async Task<ApiResponse<bool>> DeleteAsync(int id, CancellationToken ct = default)
     {
         using var connection = dbFactory.CreateConnection();
+        var tenantId = tenantContext.GetRequiredTenantId();
+
+        if (!await DeviceBelongsToTenantAsync(connection, id, tenantId, ct))
+            return ApiResponse<bool>.FailResponse("Tracker not found.");
 
         var existing = await connection.QueryFirstOrDefaultAsync<(int Id, int? TraccarDeviceId)>(
             new CommandDefinition(
@@ -235,18 +263,21 @@ public sealed class TrackerRegistrationService(
         if (existing.Id == 0)
             return ApiResponse<bool>.FailResponse("Tracker not found.");
 
+        var opts = traccarOptions.Value;
+        if (opts.IsConfigured && opts.Enabled && existing.TraccarDeviceId.HasValue)
+        {
+            var deleted = await traccar.DeleteDeviceAsync(existing.TraccarDeviceId.Value, ct);
+            if (!deleted)
+                return ApiResponse<bool>.FailResponse("Failed to remove device from Traccar. Tracker was not deleted.");
+        }
+
         var rows = await connection.ExecuteAsync(new CommandDefinition(
             "UPDATE GpsDevices SET IsDeleted = 1, UpdatedAt = GETUTCDATE() WHERE Id = @Id",
             new { Id = id }, cancellationToken: ct));
 
-        if (rows == 0)
-            return ApiResponse<bool>.FailResponse("Tracker not found.");
-
-        var opts = traccarOptions.Value;
-        if (opts.IsConfigured && opts.Enabled && existing.TraccarDeviceId.HasValue)
-            await traccar.DeleteDeviceAsync(existing.TraccarDeviceId.Value, ct);
-
-        return ApiResponse<bool>.SuccessResponse(true, "Tracker removed.");
+        return rows == 0
+            ? ApiResponse<bool>.FailResponse("Tracker not found.")
+            : ApiResponse<bool>.SuccessResponse(true, "Tracker removed.");
     }
 
     private static object BuildInsertParams(
@@ -310,11 +341,36 @@ public sealed class TrackerRegistrationService(
     private static string FormatModelLabel(TrackerModelRecord model)
         => $"{model.BrandName} {model.Name}";
 
-    private async Task<string?> ValidateVehicleAsync(System.Data.IDbConnection connection, int vehicleId, CancellationToken ct)
+    private static async Task<bool> DeviceBelongsToTenantAsync(
+        System.Data.IDbConnection connection, int id, int tenantId, CancellationToken ct)
+    {
+        return await connection.ExecuteScalarAsync<bool>(new CommandDefinition(
+            TrackerTenantSql.DeviceExistsForTenant,
+            new { Id = id, TenantId = tenantId },
+            cancellationToken: ct));
+    }
+
+    private async Task RevertTraccarAsync(TraccarDevice? snapshot, CancellationToken ct)
+    {
+        if (snapshot is null) return;
+
+        await traccar.UpdateDeviceAsync(new TraccarUpdateDevicePayload(
+            snapshot.Id,
+            snapshot.Name,
+            snapshot.UniqueId,
+            snapshot.Category,
+            snapshot.Phone,
+            snapshot.Model,
+            snapshot.Contact,
+            snapshot.Disabled), ct);
+    }
+
+    private static async Task<string?> ValidateVehicleAsync(
+        System.Data.IDbConnection connection, int vehicleId, int tenantId, CancellationToken ct)
     {
         var status = await connection.ExecuteScalarAsync<int?>(new CommandDefinition(
-            "SELECT Status FROM Vehicles WHERE Id = @Id AND IsDeleted = 0",
-            new { Id = vehicleId }, cancellationToken: ct));
+            "SELECT Status FROM Vehicles WHERE Id = @Id AND TenantId = @TenantId AND IsDeleted = 0",
+            new { Id = vehicleId, TenantId = tenantId }, cancellationToken: ct));
 
         if (status is null)
             return "Vehicle not found.";
@@ -325,11 +381,12 @@ public sealed class TrackerRegistrationService(
         return null;
     }
 
-    private async Task<string?> ValidateDriverAsync(System.Data.IDbConnection connection, int driverId, CancellationToken ct)
+    private static async Task<string?> ValidateDriverAsync(
+        System.Data.IDbConnection connection, int driverId, int tenantId, CancellationToken ct)
     {
         var exists = await connection.ExecuteScalarAsync<bool>(new CommandDefinition(
-            "SELECT CASE WHEN EXISTS(SELECT 1 FROM Drivers WHERE Id = @Id AND IsDeleted = 0) THEN 1 ELSE 0 END",
-            new { Id = driverId }, cancellationToken: ct));
+            "SELECT CASE WHEN EXISTS(SELECT 1 FROM Drivers WHERE Id = @Id AND TenantId = @TenantId AND IsDeleted = 0) THEN 1 ELSE 0 END",
+            new { Id = driverId, TenantId = tenantId }, cancellationToken: ct));
 
         return exists ? null : "Driver not found.";
     }

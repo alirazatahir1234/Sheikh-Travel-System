@@ -1,7 +1,8 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, DestroyRef, OnInit, inject } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormBuilder, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { forkJoin, of } from 'rxjs';
+import { filter, forkJoin, of, switchMap } from 'rxjs';
 import { GpsTrackingService } from '../../../core/services/gps-tracking.service';
 import { TrackerCatalogService } from '../../../core/services/tracker-catalog.service';
 import { VehicleService } from '../../../core/services/vehicle.service';
@@ -16,6 +17,7 @@ import {
   countrySelectOptions,
   CURRENT_STATUSES,
   DEFAULT_TRACKER_COUNTRY,
+  getTrackerCountry,
   RELAY_OUTPUTS,
   simProviderOptions,
   SIM_PACKAGES,
@@ -43,6 +45,7 @@ export class TrackerRegisterPageComponent implements OnInit {
   private readonly toast = inject(UiToastService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
+  private readonly destroyRef = inject(DestroyRef);
 
   readonly countryOptions = countrySelectOptions();
   readonly categoryOptions = TRACKER_CATEGORIES;
@@ -61,6 +64,7 @@ export class TrackerRegisterPageComponent implements OnInit {
   isEdit = false;
   trackerId: number | null = null;
   registrationSuccess: TrackerRegisteredResult | null = null;
+  private patchingBrand = false;
 
   form = this.fb.group({
     name: ['', [Validators.required, Validators.maxLength(100)]],
@@ -109,8 +113,8 @@ export class TrackerRegisterPageComponent implements OnInit {
       drivers: this.driversSvc.getAll(1, 500),
       devices: this.gps.getDevices(),
       tracker: this.trackerId ? this.gps.getTracker(this.trackerId) : of(null)
-    }).subscribe({
-      next: async ({ brands, vehicles, drivers, devices, tracker }) => {
+    }).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: ({ brands, vehicles, drivers, devices, tracker }) => {
         this.brands = brands;
         this.vehicles = vehicles.items.filter(
           v => v.status !== VehicleStatus.Draft && v.name.trim().toLowerCase() !== 'draft vehicle'
@@ -119,7 +123,7 @@ export class TrackerRegisterPageComponent implements OnInit {
         this.existingImeis = new Set(devices.map(d => d.uniqueId));
 
         if (tracker) {
-          await this.patchFromTracker(tracker);
+          this.patchFromTracker(tracker);
         } else {
           this.setDefaultBrandAndModel();
         }
@@ -132,24 +136,34 @@ export class TrackerRegisterPageComponent implements OnInit {
       }
     });
 
-    this.form.get('trackerBrandId')?.valueChanges.subscribe((brandId: string | null) => {
-      if (!brandId) return;
-      this.loadModelsForBrand(Number(brandId));
+    this.form.get('trackerBrandId')!.valueChanges.pipe(
+      filter((id): id is string => !!id && !this.patchingBrand),
+      switchMap(id => this.catalog.getModels(Number(id))),
+      takeUntilDestroyed(this.destroyRef)
+    ).subscribe({
+      next: models => this.applyModels(models),
+      error: () => this.toast.error('Failed to load tracker models')
     });
 
-    this.form.get('trackerModelId')?.valueChanges.subscribe((modelId: string | null) => {
+    this.form.get('trackerModelId')?.valueChanges.pipe(
+      takeUntilDestroyed(this.destroyRef)
+    ).subscribe((modelId: string | null) => {
       const model = this.models.find(m => m.id === Number(modelId));
       if (model) {
         this.form.patchValue({ supportsEngineCutoff: model.supportsEngineCutOff }, { emitEvent: false });
       }
     });
 
-    this.form.get('countryCode')?.valueChanges.subscribe(() => {
+    this.form.get('countryCode')?.valueChanges.pipe(
+      takeUntilDestroyed(this.destroyRef)
+    ).subscribe(() => {
       this.form.patchValue({ phoneLocal: '', simProvider: '' }, { emitEvent: false });
       phoneCtrl.updateValueAndValidity();
     });
 
-    this.form.get('uniqueId')?.valueChanges.subscribe((raw: string | null) => {
+    this.form.get('uniqueId')?.valueChanges.pipe(
+      takeUntilDestroyed(this.destroyRef)
+    ).subscribe((raw: string | null) => {
       const digits = String(raw ?? '').replace(/\D/g, '').slice(0, 15);
       if (digits !== raw) this.form.get('uniqueId')?.setValue(digits, { emitEvent: false });
     });
@@ -223,9 +237,7 @@ export class TrackerRegisterPageComponent implements OnInit {
   }
 
   phonePlaceholder(): string {
-    const country = this.form.get('countryCode')?.value as string;
-    const cfg = getTrackerCountryPlaceholder(country);
-    return cfg;
+    return getTrackerCountry(this.form.get('countryCode')?.value as string)?.localPlaceholder ?? 'Local number';
   }
 
   cancel(): void {
@@ -269,7 +281,9 @@ export class TrackerRegisterPageComponent implements OnInit {
     };
 
     if (this.isEdit && this.trackerId) {
-      this.gps.updateTracker(this.trackerId, { ...payload, isActive: !!(v.isActive) }).subscribe({
+      this.gps.updateTracker(this.trackerId, { ...payload, isActive: !!(v.isActive) }).pipe(
+        takeUntilDestroyed(this.destroyRef)
+      ).subscribe({
         next: () => {
           this.saving = false;
           this.toast.success('Tracker updated');
@@ -283,7 +297,9 @@ export class TrackerRegisterPageComponent implements OnInit {
       return;
     }
 
-    this.gps.registerTracker(payload).subscribe({
+    this.gps.registerTracker(payload).pipe(
+      takeUntilDestroyed(this.destroyRef)
+    ).subscribe({
       next: result => {
         this.saving = false;
         this.registrationSuccess = result;
@@ -298,35 +314,29 @@ export class TrackerRegisterPageComponent implements OnInit {
   private setDefaultBrandAndModel(): void {
     const teltonika = this.brands.find(b => b.name === 'Teltonika') ?? this.brands[0];
     if (!teltonika) return;
+
+    this.patchingBrand = true;
     this.form.patchValue({ trackerBrandId: String(teltonika.id) }, { emitEvent: false });
-    this.catalog.getModels(teltonika.id).subscribe(models => {
-      this.models = models;
-      const fmb920 = models.find(m => m.name === 'FMB920') ?? models[0];
-      if (fmb920) {
-        this.form.patchValue({
-          trackerModelId: String(fmb920.id),
-          supportsEngineCutoff: fmb920.supportsEngineCutOff
-        }, { emitEvent: false });
-      }
+    this.patchingBrand = false;
+
+    this.catalog.getModels(teltonika.id).pipe(
+      takeUntilDestroyed(this.destroyRef)
+    ).subscribe(models => {
+      this.applyModels(models, models.find(m => m.name === 'FMB920')?.id);
     });
   }
 
-  private loadModelsForBrand(brandId: number, selectModelId?: number): void {
-    this.catalog.getModels(brandId).subscribe({
-      next: models => {
-        this.models = models;
-        const current = selectModelId ?? Number(this.form.get('trackerModelId')?.value);
-        const match = models.find(m => m.id === current) ?? models[0];
-        this.form.patchValue({
-          trackerModelId: match ? String(match.id) : '',
-          supportsEngineCutoff: match?.supportsEngineCutOff ?? false
-        }, { emitEvent: false });
-      },
-      error: () => this.toast.error('Failed to load tracker models')
-    });
+  private applyModels(models: TrackerModel[], selectModelId?: number): void {
+    this.models = models;
+    const current = selectModelId ?? Number(this.form.get('trackerModelId')?.value);
+    const match = models.find(m => m.id === current) ?? models[0];
+    this.form.patchValue({
+      trackerModelId: match ? String(match.id) : '',
+      supportsEngineCutoff: match?.supportsEngineCutOff ?? false
+    }, { emitEvent: false });
   }
 
-  private async patchFromTracker(t: TrackerDetail): Promise<void> {
+  private patchFromTracker(t: TrackerDetail): void {
     let phoneLocal = '';
     if (t.phone && t.countryCode && t.phone.startsWith(t.countryCode)) {
       phoneLocal = t.phone.slice(t.countryCode.length);
@@ -336,22 +346,22 @@ export class TrackerRegisterPageComponent implements OnInit {
       ?? this.brands.find(b => b.name === t.trackerBrandName)?.id
       ?? this.brands.find(b => b.name === 'Teltonika')?.id;
 
+    const modelId = t.trackerModelId;
+
     if (brandId) {
-      await new Promise<void>(resolve => {
-        this.catalog.getModels(brandId).subscribe({
-          next: models => {
-            this.models = models;
-            resolve();
-          },
-          error: () => resolve()
-        });
+      this.patchingBrand = true;
+      this.form.patchValue({ trackerBrandId: String(brandId) }, { emitEvent: false });
+      this.patchingBrand = false;
+
+      this.catalog.getModels(brandId).pipe(
+        takeUntilDestroyed(this.destroyRef)
+      ).subscribe(models => {
+        const resolvedModelId = modelId
+          ?? models.find(m => m.catalogKey === t.trackerModelKey)?.id
+          ?? models.find(m => m.name === t.modelName)?.id;
+        this.applyModels(models, resolvedModelId);
       });
     }
-
-    const modelId = t.trackerModelId
-      ?? this.models.find(m => m.catalogKey === t.trackerModelKey)?.id
-      ?? this.models.find(m => m.name === t.modelName)?.id
-      ?? this.models[0]?.id;
 
     this.form.patchValue({
       name: t.name,
@@ -359,8 +369,6 @@ export class TrackerRegisterPageComponent implements OnInit {
       category: t.category ?? 'car',
       countryCode: t.countryCode ?? DEFAULT_TRACKER_COUNTRY,
       phoneLocal,
-      trackerBrandId: brandId ? String(brandId) : '',
-      trackerModelId: modelId ? String(modelId) : '',
       contact: t.contact ?? '',
       disabled: t.disabled ?? false,
       vehicleId: t.vehicleId ? String(t.vehicleId) : '',
@@ -385,9 +393,4 @@ export class TrackerRegisterPageComponent implements OnInit {
     this.form.get('uniqueId')?.disable();
     this.existingImeis.delete(t.uniqueId);
   }
-}
-
-function getTrackerCountryPlaceholder(country: string): string {
-  void country;
-  return 'Local number';
 }

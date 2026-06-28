@@ -1,6 +1,8 @@
 using FluentValidation;
 using MediatR;
+using Dapper;
 using SheikhTravelSystem.Application.Common;
+using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Application.Features.GpsTracking.Traccar;
 using SheikhTravelSystem.Application.Features.GpsTracking.Trackers;
 
@@ -98,12 +100,25 @@ public class DeleteTrackerCommandHandler(ITrackerRegistrationService service)
 
 public record SyncTrackerCommand(int Id) : IRequest<ApiResponse<TraccarSyncRunResult>>;
 
-public class SyncTrackerCommandHandler(ITraccarSyncOrchestrator orchestrator)
+public class SyncTrackerCommandHandler(
+    IDbConnectionFactory dbFactory,
+    ITenantContext tenantContext,
+    ITraccarSyncOrchestrator orchestrator)
     : IRequestHandler<SyncTrackerCommand, ApiResponse<TraccarSyncRunResult>>
 {
     public async Task<ApiResponse<TraccarSyncRunResult>> Handle(SyncTrackerCommand request, CancellationToken cancellationToken)
     {
-        var result = await orchestrator.RunManualSyncAsync(cancellationToken);
+        using var connection = dbFactory.CreateConnection();
+        var tenantId = tenantContext.GetRequiredTenantId();
+        var allowed = await connection.ExecuteScalarAsync<bool>(new CommandDefinition(
+            TrackerTenantSql.DeviceExistsForTenant,
+            new { Id = request.Id, TenantId = tenantId },
+            cancellationToken: cancellationToken));
+
+        if (!allowed)
+            return ApiResponse<TraccarSyncRunResult>.FailResponse("Tracker not found.");
+
+        var result = await orchestrator.SyncTrackerAsync(request.Id, cancellationToken);
         return ApiResponse<TraccarSyncRunResult>.SuccessResponse(result);
     }
 }

@@ -8,16 +8,18 @@ namespace SheikhTravelSystem.Application.Features.GpsTracking.Trackers.Queries;
 
 public record GetTrackersQuery : IRequest<ApiResponse<List<TrackerDetailDto>>>;
 
-public class GetTrackersQueryHandler(IDbConnectionFactory dbFactory)
+public class GetTrackersQueryHandler(IDbConnectionFactory dbFactory, ITenantContext tenantContext)
     : IRequestHandler<GetTrackersQuery, ApiResponse<List<TrackerDetailDto>>>
 {
     public async Task<ApiResponse<List<TrackerDetailDto>>> Handle(GetTrackersQuery request, CancellationToken cancellationToken)
     {
         using var connection = dbFactory.CreateConnection();
+        var tenantId = tenantContext.GetRequiredTenantId();
         var rows = await connection.QueryAsync<TrackerDetailDto>(new CommandDefinition(
-            TrackerSql.ListQuery + """
+            TrackerSql.ListQuery + TrackerTenantSql.DeviceScopeFilter + """
              ORDER BY CASE WHEN v.Name IS NULL THEN 1 ELSE 0 END, v.Name, d.Name
              """,
+            new { TenantId = tenantId },
             cancellationToken: cancellationToken));
         return ApiResponse<List<TrackerDetailDto>>.SuccessResponse(rows.ToList());
     }
@@ -25,15 +27,16 @@ public class GetTrackersQueryHandler(IDbConnectionFactory dbFactory)
 
 public record GetTrackerByIdQuery(int Id) : IRequest<ApiResponse<TrackerDetailDto>>;
 
-public class GetTrackerByIdQueryHandler(IDbConnectionFactory dbFactory)
+public class GetTrackerByIdQueryHandler(IDbConnectionFactory dbFactory, ITenantContext tenantContext)
     : IRequestHandler<GetTrackerByIdQuery, ApiResponse<TrackerDetailDto>>
 {
     public async Task<ApiResponse<TrackerDetailDto>> Handle(GetTrackerByIdQuery request, CancellationToken cancellationToken)
     {
         using var connection = dbFactory.CreateConnection();
+        var tenantId = tenantContext.GetRequiredTenantId();
         var row = await connection.QueryFirstOrDefaultAsync<TrackerDetailDto>(new CommandDefinition(
-            TrackerSql.ListQuery + " AND d.Id = @Id",
-            new { request.Id },
+            TrackerSql.ListQuery + " AND d.Id = @Id" + TrackerTenantSql.DeviceScopeFilter,
+            new { request.Id, TenantId = tenantId },
             cancellationToken: cancellationToken));
 
         return row is null
