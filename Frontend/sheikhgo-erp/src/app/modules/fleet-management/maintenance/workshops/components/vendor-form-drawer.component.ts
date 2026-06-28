@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, effect, inject, input, output, sign
 import { FormsModule } from '@angular/forms';
 import { UiToastService } from '../../../../../shared/components/ui/toast/ui-toast.service';
 import { UiDrawerComponent } from '../../../../../shared/components/ui/drawer/ui-drawer.component';
+import { PhoneDigitsOnlyDirective } from '../../../../../shared/directives/phone-digits-only.directive';
 import { MaintenanceService } from '../../../../../core/services/maintenance.service';
 import { CreateVendorPayload, Vendor } from '../../../../../core/models/maintenance.model';
 import { apiErrorMessage } from '../../../../../core/utils/api-error.util';
@@ -11,7 +12,7 @@ const VENDOR_CATEGORIES = ['Parts', 'Fluids', 'Tires', 'Electrical', 'Other'] as
 @Component({
   selector: 'vendor-form-drawer',
   standalone: true,
-  imports: [FormsModule, UiDrawerComponent],
+  imports: [FormsModule, UiDrawerComponent, PhoneDigitsOnlyDirective],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <ui-drawer [open]="open()" [title]="vendor() ? 'Edit Vendor' : 'Add Vendor'" (closed)="closed.emit()">
@@ -23,7 +24,7 @@ const VENDOR_CATEGORIES = ['Parts', 'Fluids', 'Tires', 'Electrical', 'Other'] as
           </select>
         </label>
         <label>Contact Person<input [(ngModel)]="form.contactPerson" name="contactPerson" /></label>
-        <label>Mobile<input [(ngModel)]="form.contactPhone" name="contactPhone" /></label>
+        <label>Mobile<input type="tel" [(ngModel)]="form.contactPhone" name="contactPhone" placeholder="501234567" /></label>
         <label>Email<input type="email" [(ngModel)]="form.contactEmail" name="contactEmail" /></label>
         <label>Products <span class="hint">(comma-separated)</span>
           <input [(ngModel)]="productsText" name="products" placeholder="Brake pads, Oil filters" />

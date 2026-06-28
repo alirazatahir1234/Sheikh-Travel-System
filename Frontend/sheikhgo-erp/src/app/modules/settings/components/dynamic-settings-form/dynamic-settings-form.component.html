@@ -110,7 +110,7 @@
           <ng-container *ngSwitchDefault>
             <label [attr.for]="field.key">{{ field.label }}</label>
             <input
-              [type]="field.type === 'email' ? 'email' : 'text'"
+              [type]="field.key === 'Phone' ? 'tel' : (field.type === 'email' ? 'email' : 'text')"
               class="stb-input"
               [id]="field.key"
               [formControlName]="field.key"

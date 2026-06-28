@@ -37,6 +37,7 @@
               [statusTimeline]="facade.statusTimeline()"
               [maxDateOfBirth]="facade.maxDateOfBirth"
               [minDateOfBirth]="facade.minDateOfBirth"
+              [validationAttempted]="facade.validationAttempted()"
               (photoSelected)="facade.onPhotoSelected($event)"
               (photoRemoved)="facade.onPhotoRemoved()" />
             }
@@ -45,6 +46,7 @@
             <app-wizard-step-license
               [form]="facade.form"
               [minLicenseExpiry]="facade.minLicenseExpiry"
+              [validationAttempted]="facade.validationAttempted()"
               [docSlots]="facade.docSlots()"
               (docSelected)="onDocSelected($event)" />
           }

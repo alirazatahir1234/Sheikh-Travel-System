@@ -70,6 +70,15 @@
     outline: 2px solid var(--fleet-primary, #006b54);
     outline-offset: 1px;
   }
+
+  &.input--error {
+    border-color: #dc2626;
+    background: #fef2f2;
+
+    &:focus {
+      outline-color: #dc2626;
+    }
+  }
 }
 
 .input-readonly {

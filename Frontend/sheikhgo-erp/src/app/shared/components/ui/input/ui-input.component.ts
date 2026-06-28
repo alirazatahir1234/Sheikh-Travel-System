@@ -8,6 +8,7 @@ import {
 } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
+import { digitsOnlyPhoneInput, blockNonDigitPhoneKey } from '../../../../core/utils/phone-input.util';
 import { UiInputType } from '../types/ui.types';
 
 let uiInputId = 0;
@@ -52,6 +53,7 @@ let uiInputId = 0;
           [attr.aria-invalid]="!!error()"
           class="w-full bg-transparent px-3 py-2.5 text-sm text-fleet-text placeholder:text-fleet-text-muted/70 focus:outline-none disabled:cursor-not-allowed"
           [class.pl-2]="!!prefixIcon()"
+          (keydown)="onKeydown($event)"
           (input)="onInput($event)"
           (blur)="onTouched()" />
 
@@ -92,8 +94,18 @@ export class UiInputComponent implements ControlValueAccessor {
 
   protected readonly hasIcons = computed(() => !!this.prefixIcon() || !!this.suffixIcon());
 
+  onKeydown(event: KeyboardEvent): void {
+    if (this.type() !== 'tel') return;
+    blockNonDigitPhoneKey(event);
+  }
+
   onInput(event: Event): void {
-    const next = (event.target as HTMLInputElement).value;
+    const el = event.target as HTMLInputElement;
+    let next = el.value;
+    if (this.type() === 'tel') {
+      next = digitsOnlyPhoneInput(next);
+      if (el.value !== next) el.value = next;
+    }
     this.value.set(next);
     this.onChange(next);
   }

@@ -11,6 +11,7 @@ export interface MaintKpiCard {
   icon: string;
   tone: string;
   alert?: boolean;
+  currency?: boolean;
 }
 
 @Component({
@@ -21,18 +22,28 @@ export interface MaintKpiCard {
   template: `
     <div class="kpi-grid">
       @for (card of cards(); track card.key) {
-        <div class="kpi-card" [class.kpi-card--alert]="card.alert" [class.kpi-card--primary]="card.tone === 'brand'">
+        <div
+          class="kpi-card"
+          [class.kpi-card--alert]="card.alert"
+          [class.kpi-card--primary]="card.tone === 'brand'"
+          [class.kpi-card--cost]="card.currency">
           <div class="kpi-icon kpi-icon--{{ card.tone }}"><mat-icon>{{ card.icon }}</mat-icon></div>
           <div class="kpi-body">
             <p class="kpi-label">{{ card.label }}</p>
-            <p class="kpi-value">@if (card.key === 'cost') { {{ card.value | currency }} } @else { {{ card.value }} }</p>
+            <p class="kpi-value" [class.kpi-value--currency]="card.currency">
+              @if (card.currency) { {{ card.value | currency }} } @else { {{ card.value }} }
+            </p>
           </div>
         </div>
       }
     </div>
   `,
   styles: [`
-    .kpi-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 0.875rem; }
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 0.875rem;
+    }
     .kpi-card {
       display: flex; gap: 0.875rem; align-items: center; padding: 1.125rem 1.25rem;
       border: 1px solid #e2e8f0; border-radius: 14px; background: #fff;
@@ -40,6 +51,7 @@ export interface MaintKpiCard {
       transition: box-shadow .15s ease;
       min-width: 0;
     }
+    .kpi-card--cost { min-width: 0; }
     .kpi-card:hover { box-shadow: 0 4px 12px rgba(11, 107, 80, 0.1); }
     .kpi-card--alert { border-color: #fecaca; background: #fef2f2; }
     .kpi-card--alert .kpi-value { color: #dc2626; }
@@ -52,11 +64,24 @@ export interface MaintKpiCard {
     .kpi-icon--red { background: #fee2e2; color: #dc2626; }
     .kpi-icon--blue { background: #dbeafe; color: #1d4ed8; }
     .kpi-icon--teal { background: #ccfbf1; color: #0f766e; }
+    .kpi-icon--purple { background: #ede9fe; color: #7c3aed; }
     .kpi-icon--slate { background: #f1f5f9; color: #475569; }
-    .kpi-body { min-width: 0; }
-    .kpi-label { margin: 0; font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: #64748b; }
+    .kpi-body { min-width: 0; flex: 1; }
+    .kpi-label { margin: 0; font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: #64748b; line-height: 1.3; }
     .kpi-value { margin: 0.25rem 0 0; font-size: 1.5rem; font-weight: 800; color: #0b6b50; line-height: 1.1; }
+    .kpi-value--currency {
+      font-size: clamp(1.125rem, 1.6vw, 1.5rem);
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+      letter-spacing: -0.02em;
+    }
     .kpi-card--alert .kpi-value { color: #dc2626; }
+    @media (max-width: 1280px) {
+      .kpi-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    }
+    @media (max-width: 900px) {
+      .kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
     @media (max-width: 640px) {
       .kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.625rem; }
       .kpi-card { padding: 0.875rem; gap: 0.625rem; }
@@ -80,8 +105,8 @@ export class MaintenanceKpiGridComponent {
       { key: 'due', label: 'Due for Service', value: k.dueForService, icon: 'event', tone: 'amber' },
       { key: 'under', label: 'Under Maintenance', value: k.underMaintenance, icon: 'build', tone: 'blue' },
       { key: 'overdue', label: 'Overdue Services', value: k.overdueServices, icon: 'warning', tone: 'red', alert: k.overdueServices > 0 },
-      { key: 'cost', label: 'Monthly Cost', value: k.monthlyMaintenanceCost, icon: 'payments', tone: 'teal' },
-      { key: 'active', label: 'Active Work Orders', value: k.activeWorkOrders, icon: 'assignment', tone: 'slate' }
+      { key: 'active', label: 'Active Work Orders', value: k.activeWorkOrders, icon: 'assignment', tone: 'purple' },
+      { key: 'cost', label: 'Monthly Cost', value: k.monthlyMaintenanceCost, icon: 'payments', tone: 'teal', currency: true }
     ];
   });
 }

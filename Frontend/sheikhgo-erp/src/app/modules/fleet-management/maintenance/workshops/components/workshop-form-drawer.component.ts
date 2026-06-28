@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, effect, inject, input, OnInit, outp
 import { FormsModule } from '@angular/forms';
 import { UiToastService } from '../../../../../shared/components/ui/toast/ui-toast.service';
 import { UiDrawerComponent } from '../../../../../shared/components/ui/drawer/ui-drawer.component';
+import { PhoneDigitsOnlyDirective } from '../../../../../shared/directives/phone-digits-only.directive';
 import { MaintenanceService } from '../../../../../core/services/maintenance.service';
 import { CreateWorkshopPayload, Workshop } from '../../../../../core/models/maintenance.model';
 import { apiErrorMessage } from '../../../../../core/utils/api-error.util';
@@ -9,14 +10,14 @@ import { apiErrorMessage } from '../../../../../core/utils/api-error.util';
 @Component({
   selector: 'workshop-form-drawer',
   standalone: true,
-  imports: [FormsModule, UiDrawerComponent],
+  imports: [FormsModule, UiDrawerComponent, PhoneDigitsOnlyDirective],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <ui-drawer [open]="open()" [title]="workshop() ? 'Edit Workshop' : 'Add Workshop'" (closed)="closed.emit()">
       <form class="form" (ngSubmit)="submit()">
         <label>Workshop Name<input [(ngModel)]="form.name" name="name" required /></label>
         <label>Contact Person<input [(ngModel)]="form.contactPerson" name="contactPerson" /></label>
-        <label>Mobile<input [(ngModel)]="form.contactPhone" name="contactPhone" /></label>
+        <label>Mobile<input type="tel" [(ngModel)]="form.contactPhone" name="contactPhone" placeholder="501234567" /></label>
         <label>Email<input type="email" [(ngModel)]="form.contactEmail" name="contactEmail" /></label>
         <label>Address<input [(ngModel)]="form.location" name="location" /></label>
         <label>Rating (1–5)<input type="number" min="1" max="5" step="0.1" [(ngModel)]="form.rating" name="rating" /></label>

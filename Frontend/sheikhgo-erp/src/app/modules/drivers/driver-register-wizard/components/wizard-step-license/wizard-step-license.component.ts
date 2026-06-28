@@ -16,7 +16,7 @@ import { DriverDocSlot, DriverDocType } from '../../models/driver-wizard.model';
         <div class="form-grid" [formGroup]="form()">
           <label class="field">
             <span>License Number *</span>
-            <input formControlName="licenseNumber" class="input" placeholder="e.g. DXB-1234567" />
+            <input formControlName="licenseNumber" class="input" [class.input--error]="showError('licenseNumber')" placeholder="e.g. DXB-1234567" />
             @if (showError('licenseNumber', 'duplicate')) {
               <span class="field-error">This license number is already registered</span>
             } @else if (showError('licenseNumber')) {
@@ -25,7 +25,10 @@ import { DriverDocSlot, DriverDocType } from '../../models/driver-wizard.model';
           </label>
           <label class="field">
             <span>License Expiry *</span>
-            <input formControlName="licenseExpiryDate" type="date" class="input" [attr.min]="minLicenseExpiry()" />
+            <input formControlName="licenseExpiryDate" type="date" class="input" [class.input--error]="showError('licenseExpiryDate')" [attr.min]="minLicenseExpiry()" />
+            @if (showError('licenseExpiryDate')) {
+              <span class="field-error">License expiry date is required</span>
+            }
           </label>
           <label class="field full">
             <span>CNIC / Emirates ID</span>
@@ -81,6 +84,7 @@ import { DriverDocSlot, DriverDocType } from '../../models/driver-wizard.model';
 export class WizardStepLicenseComponent {
   readonly form = input.required<FormGroup>();
   readonly minLicenseExpiry = input('');
+  readonly validationAttempted = input(0);
   readonly docSlots = input.required<DriverDocSlot[]>();
   readonly docSelected = output<{ type: DriverDocType; file: File | null }>();
 
@@ -91,7 +95,9 @@ export class WizardStepLicenseComponent {
 
   showError(controlName: string, errorKey?: string): boolean {
     const c = this.form().get(controlName);
-    if (!c || (!c.touched && !c.dirty)) return false;
+    if (!c) return false;
+    const show = c.touched || c.dirty || this.validationAttempted() > 0;
+    if (!show) return false;
     if (errorKey) return !!c.hasError(errorKey);
     return c.invalid;
   }

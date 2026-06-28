@@ -43,6 +43,7 @@ import {
 import { TripMapComponent } from '../../shared/trip-map/trip-map.component';
 import { CounterStepperComponent } from '../../shared/counter-stepper/counter-stepper.component';
 import { SeatMapComponent } from '../../shared/seat-map/seat-map.component';
+import { PhoneDigitsOnlyDirective } from '../../shared/directives/phone-digits-only.directive';
 
 function toDatetimeLocalString(d: Date): string {
   const pad = (n: number) => String(n).padStart(2, '0');
@@ -73,7 +74,8 @@ function pickupNotInPastValidator(control: AbstractControl): ValidationErrors | 
     LocationAutocompleteComponent,
     TripMapComponent,
     CounterStepperComponent,
-    SeatMapComponent
+    SeatMapComponent,
+    PhoneDigitsOnlyDirective
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './book-ride-page.component.html'

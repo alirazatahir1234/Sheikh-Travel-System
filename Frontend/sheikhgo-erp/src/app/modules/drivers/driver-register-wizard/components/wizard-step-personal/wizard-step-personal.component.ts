@@ -10,12 +10,13 @@ import {
   DRIVER_NATIONALITY_OPTIONS
 } from '../../models/driver-wizard.model';
 import { PHONE_COUNTRY_CODES } from '../../utils/driver-wizard.validators';
+import { PhoneDigitsOnlyDirective } from '../../../../../shared/directives/phone-digits-only.directive';
 import { UPLOAD_MAX_SIZE_LABEL, vehicleUploadSizeError } from '../../../../../core/utils/upload-url.util';
 
 @Component({
   selector: 'app-wizard-step-personal',
   standalone: true,
-  imports: [ReactiveFormsModule, MatIconModule, UiStatusBadgeComponent, UiButtonComponent],
+  imports: [ReactiveFormsModule, MatIconModule, UiStatusBadgeComponent, UiButtonComponent, PhoneDigitsOnlyDirective],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="space-y-6">
@@ -132,12 +133,12 @@ import { UPLOAD_MAX_SIZE_LABEL, vehicleUploadSizeError } from '../../../../../co
           <div class="form-grid">
             <label class="field">
               <span>First Name <span class="req">*</span></span>
-              <input formControlName="firstName" class="input" placeholder="e.g. Salim" />
+              <input formControlName="firstName" class="input" [class.input--error]="showError('firstName')" placeholder="e.g. Salim" />
               @if (showError('firstName')) { <span class="field-error">First name is required</span> }
             </label>
             <label class="field">
               <span>Last Name <span class="req">*</span></span>
-              <input formControlName="lastName" class="input" placeholder="e.g. Al-Mansoor" />
+              <input formControlName="lastName" class="input" [class.input--error]="showError('lastName')" placeholder="e.g. Al-Mansoor" />
               @if (showError('lastName')) { <span class="field-error">Last name is required</span> }
             </label>
             <label class="field full">
@@ -154,6 +155,7 @@ import { UPLOAD_MAX_SIZE_LABEL, vehicleUploadSizeError } from '../../../../../co
                   formControlName="dateOfBirth"
                   type="date"
                   class="input date-input"
+                  [class.input--error]="showError('dateOfBirth')"
                   [attr.max]="maxDateOfBirth()"
                   [attr.min]="minDateOfBirth()" />
               }
@@ -180,11 +182,14 @@ import { UPLOAD_MAX_SIZE_LABEL, vehicleUploadSizeError } from '../../../../../co
             </label>
             <label class="field">
               <span>Nationality <span class="req">*</span></span>
-              <select formControlName="nationality" class="input">
+              <select formControlName="nationality" class="input" [class.input--error]="showError('nationality')">
                 @for (n of nationalityOptions; track n) {
                   <option [value]="n">{{ n }}</option>
                 }
               </select>
+              @if (showError('nationality')) {
+                <span class="field-error">Nationality is required</span>
+              }
             </label>
           </div>
 
@@ -193,13 +198,19 @@ import { UPLOAD_MAX_SIZE_LABEL, vehicleUploadSizeError } from '../../../../../co
           <div class="form-grid">
             <label class="field">
               <span>Mobile Number <span class="req">*</span></span>
-              <div class="phone-row">
-                <select formControlName="phoneCountryCode" class="input phone-code-select">
+              <div class="phone-row" [class.phone-row--error]="showError('phoneLocal')">
+                <select formControlName="phoneCountryCode" class="input phone-code-select" [class.input--error]="showError('phoneLocal')">
                   @for (c of phoneCountryCodes; track c.code) {
                     <option [value]="c.code">{{ c.flag }} {{ c.code }}</option>
                   }
                 </select>
-                <input formControlName="phoneLocal" class="input phone-local" placeholder="50 123 4567" inputmode="numeric" />
+                <input
+                  formControlName="phoneLocal"
+                  type="tel"
+                  class="input phone-local"
+                  [class.input--error]="showError('phoneLocal')"
+                  placeholder="501234567"
+                  inputmode="numeric" />
               </div>
               @if (showError('phoneLocal', 'duplicate')) {
                 <span class="field-error">This mobile number is already registered</span>
@@ -213,7 +224,7 @@ import { UPLOAD_MAX_SIZE_LABEL, vehicleUploadSizeError } from '../../../../../co
             </label>
             <label class="field">
               <span>Email Address <span class="req">*</span></span>
-              <input formControlName="email" type="email" class="input" placeholder="salim.mansoor@example.com" />
+              <input formControlName="email" type="email" class="input" [class.input--error]="showError('email')" placeholder="salim.mansoor@example.com" />
               @if (showError('email', 'duplicate')) {
                 <span class="field-error">This email is already registered</span>
               } @else if (showError('email', 'email')) {
@@ -233,14 +244,20 @@ import { UPLOAD_MAX_SIZE_LABEL, vehicleUploadSizeError } from '../../../../../co
           <div class="form-grid">
             <label class="field">
               <span>Contact Name <span class="req">*</span></span>
-              <input formControlName="emergencyContactName" class="input" placeholder="e.g. Layla Mansoor" />
+              <input formControlName="emergencyContactName" class="input" [class.input--error]="showError('emergencyContactName')" placeholder="e.g. Layla Mansoor" />
               @if (showError('emergencyContactName')) {
                 <span class="field-error">Emergency contact name is required</span>
               }
             </label>
             <label class="field">
               <span>Contact Phone <span class="req">*</span></span>
-              <input formControlName="emergencyContactPhone" class="input" placeholder="e.g. +971 50 987 6543" inputmode="tel" />
+              <input
+                formControlName="emergencyContactPhone"
+                type="tel"
+                class="input"
+                [class.input--error]="showError('emergencyContactPhone')"
+                placeholder="e.g. 971509876543"
+                inputmode="numeric" />
               @if (showError('emergencyContactPhone', 'phoneLength')) {
                 <span class="field-error">Enter a valid phone number (7–15 digits)</span>
               } @else if (showError('emergencyContactPhone')) {
@@ -275,6 +292,7 @@ export class WizardStepPersonalComponent {
   readonly updatedAtLabel = input<string | null>(null);
   readonly maxDateOfBirth = input('');
   readonly minDateOfBirth = input('');
+  readonly validationAttempted = input(0);
   readonly photoSelected = output<File | null>();
   readonly photoRemoved = output<void>();
 
@@ -332,7 +350,9 @@ export class WizardStepPersonalComponent {
 
   showError(controlName: string, errorKey?: string): boolean {
     const c = this.form().get(controlName);
-    if (!c || !c.touched && !c.dirty) return false;
+    if (!c) return false;
+    const show = c.touched || c.dirty || this.validationAttempted() > 0;
+    if (!show) return false;
     if (errorKey) return !!c.hasError(errorKey);
     return c.invalid;
   }

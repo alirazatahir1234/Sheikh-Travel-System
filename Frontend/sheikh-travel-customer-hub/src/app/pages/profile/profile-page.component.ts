@@ -4,11 +4,12 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { take } from 'rxjs/operators';
 import { CustomerSessionService } from '../../core/services/customer-session.service';
 import { PortalApiService } from '../../core/services/portal-api.service';
+import { PhoneDigitsOnlyDirective } from '../../shared/directives/phone-digits-only.directive';
 
 @Component({
   selector: 'app-profile-page',
   standalone: true,
-  imports: [ReactiveFormsModule, RouterLink],
+  imports: [ReactiveFormsModule, RouterLink, PhoneDigitsOnlyDirective],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="min-h-screen bg-slate-50 px-4 py-8">

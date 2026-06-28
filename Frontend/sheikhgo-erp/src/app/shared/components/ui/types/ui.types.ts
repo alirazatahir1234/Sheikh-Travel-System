@@ -9,7 +9,7 @@ export type UiButtonVariant =
 
 export type UiButtonSize = 'sm' | 'md' | 'lg';
 
-export type UiInputType = 'text' | 'email' | 'password' | 'number' | 'search';
+export type UiInputType = 'text' | 'email' | 'password' | 'number' | 'search' | 'tel';
 
 export type UiStatusVariant =
   | 'success'
