@@ -30,7 +30,7 @@ dependencies:
   permission_handler: ^11.3.1
 
   # Background tasks
-  workmanager: ^0.5.2
+  workmanager: ^0.9.0
 
   # Real-time (SignalR)
   signalr_netcore: ^1.3.4

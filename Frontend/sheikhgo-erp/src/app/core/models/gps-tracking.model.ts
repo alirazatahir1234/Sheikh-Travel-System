@@ -37,10 +37,12 @@ export interface GpsDevice {
   vehicleId?: number;
   vehicleName?: string;
   plateNumber?: string;
+  driverId?: number;
   driverName?: string;
   uniqueId: string;
   name: string;
   protocol?: string;
+  disabled?: boolean;
   supportsEngineCutoff: boolean;
   lastIgnition?: boolean;
   lastSeenAt?: string;
@@ -52,6 +54,9 @@ export interface GpsDevice {
   traccarDeviceId?: number;
   isTraccarLinked?: boolean;
   isValidImei?: boolean;
+  trackerBrandId?: number;
+  trackerBrandName?: string;
+  modelName?: string;
   model?: string;
   simNumber?: string;
   vendor?: string;
@@ -60,6 +65,8 @@ export interface GpsDevice {
   installedBy?: string;
   installationNotes?: string;
   relayOutput?: string;
+  relayPurpose?: string;
+  currentStatus?: string;
 }
 
 export interface TrackerDetail extends GpsDevice {
@@ -98,6 +105,7 @@ export interface RegisterTrackerPayload {
   driverId?: number;
   supportsEngineCutoff?: boolean;
   relayOutput?: string;
+  relayPurpose?: string;
   installationDate?: string;
   installedBy?: string;
   installationNotes?: string;
@@ -123,6 +131,15 @@ export interface TrackerRegisteredResult {
   plateNumber?: string;
   traccarDeviceId?: number;
   statusMessage: string;
+}
+
+export interface InstallTrackerPayload {
+  vehicleId: number;
+  driverId?: number;
+  installationDate?: string;
+  installedBy?: string;
+  installationNotes?: string;
+  relayOutput?: string;
 }
 
 export interface Geofence {

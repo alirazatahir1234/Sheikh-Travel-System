@@ -27,6 +27,7 @@ public record TrackerModelDto(
     bool SupportsIgnition,
     bool SupportsOdometer,
     bool SupportsBatteryMonitoring,
+    string? DefaultRelayOutput,
     string? CatalogKey,
     string? Description,
     bool IsActive);
@@ -41,4 +42,5 @@ public record TrackerModelRecord(
     string ProtocolLabel,
     int DefaultPort,
     bool SupportsEngineCutOff,
-    bool SupportsRelay);
+    bool SupportsRelay,
+    string? DefaultRelayOutput);

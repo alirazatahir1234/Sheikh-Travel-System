@@ -61,7 +61,7 @@ Future<void> _drainQueue() async {
 
 class GpsBackgroundService {
   static Future<void> initialize() async {
-    await Workmanager().initialize(callbackDispatcher, isInDebugMode: false);
+    await Workmanager().initialize(callbackDispatcher);
   }
 
   /// Register a periodic drain task — runs when device is online.
@@ -71,7 +71,7 @@ class GpsBackgroundService {
       _drainTaskName,
       frequency: const Duration(minutes: 15),
       constraints: Constraints(networkType: NetworkType.connected),
-      existingWorkPolicy: ExistingWorkPolicy.keep,
+      existingWorkPolicy: ExistingPeriodicWorkPolicy.keep,
     );
   }
 

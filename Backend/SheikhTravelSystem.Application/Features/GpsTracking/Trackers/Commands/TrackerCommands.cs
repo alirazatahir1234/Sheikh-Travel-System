@@ -98,6 +98,41 @@ public class DeleteTrackerCommandHandler(ITrackerRegistrationService service)
         => service.DeleteAsync(request.Id, cancellationToken);
 }
 
+public record InstallTrackerCommand(int Id, InstallTrackerDto Body) : IRequest<ApiResponse<bool>>;
+
+public class InstallTrackerCommandValidator : AbstractValidator<InstallTrackerCommand>
+{
+    public InstallTrackerCommandValidator()
+    {
+        RuleFor(x => x.Id).GreaterThan(0);
+        RuleFor(x => x.Body.VehicleId).GreaterThan(0);
+    }
+}
+
+public class InstallTrackerCommandHandler(ITrackerRegistrationService service)
+    : IRequestHandler<InstallTrackerCommand, ApiResponse<bool>>
+{
+    public Task<ApiResponse<bool>> Handle(InstallTrackerCommand request, CancellationToken cancellationToken)
+        => service.InstallAsync(request.Id, request.Body, cancellationToken);
+}
+
+public record UninstallTrackerCommand(int Id) : IRequest<ApiResponse<bool>>;
+
+public class UninstallTrackerCommandValidator : AbstractValidator<UninstallTrackerCommand>
+{
+    public UninstallTrackerCommandValidator()
+    {
+        RuleFor(x => x.Id).GreaterThan(0);
+    }
+}
+
+public class UninstallTrackerCommandHandler(ITrackerRegistrationService service)
+    : IRequestHandler<UninstallTrackerCommand, ApiResponse<bool>>
+{
+    public Task<ApiResponse<bool>> Handle(UninstallTrackerCommand request, CancellationToken cancellationToken)
+        => service.UninstallAsync(request.Id, cancellationToken);
+}
+
 public record SyncTrackerCommand(int Id) : IRequest<ApiResponse<TraccarSyncRunResult>>;
 
 public class SyncTrackerCommandHandler(

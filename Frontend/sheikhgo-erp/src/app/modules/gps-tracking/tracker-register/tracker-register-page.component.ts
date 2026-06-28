@@ -2,27 +2,28 @@ import { Component, DestroyRef, OnInit, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormBuilder, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { filter, forkJoin, of, switchMap } from 'rxjs';
+import { filter, finalize, forkJoin, of, switchMap } from 'rxjs';
 import { GpsTrackingService } from '../../../core/services/gps-tracking.service';
 import { TrackerCatalogService } from '../../../core/services/tracker-catalog.service';
-import { VehicleService } from '../../../core/services/vehicle.service';
-import { DriverService } from '../../../core/services/driver.service';
 import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
-import { Vehicle, VehicleStatus } from '../../../core/models/vehicle.model';
-import { DriverListItem } from '../../../core/models/driver.model';
 import { TrackerDetail, TrackerRegisteredResult } from '../../../core/models/gps-tracking.model';
 import { TrackerBrand, TrackerModel } from '../../../core/models/tracker-catalog.model';
 import { UiSelectOption } from '../../../shared/components/ui/types/ui.types';
 import {
   countrySelectOptions,
-  CURRENT_STATUSES,
   DEFAULT_TRACKER_COUNTRY,
   getTrackerCountry,
-  RELAY_OUTPUTS,
   simProviderOptions,
   SIM_PACKAGES,
   TRACKER_CATEGORIES,
 } from './tracker-country.config';
+import {
+  buildRelayOutputOptions,
+  RELAY_OUTPUT_HINT,
+  RELAY_PURPOSE_ENGINE,
+  relayOutputLabel,
+  resolveDefaultRelayOutput,
+} from '../utils/relay-immobilizer.util';
 import {
   buildInternationalPhone,
   IMEI_PATTERN,
@@ -40,8 +41,6 @@ export class TrackerRegisterPageComponent implements OnInit {
   private readonly fb = inject(FormBuilder);
   private readonly gps = inject(GpsTrackingService);
   private readonly catalog = inject(TrackerCatalogService);
-  private readonly vehiclesSvc = inject(VehicleService);
-  private readonly driversSvc = inject(DriverService);
   private readonly toast = inject(UiToastService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
@@ -49,21 +48,20 @@ export class TrackerRegisterPageComponent implements OnInit {
 
   readonly countryOptions = countrySelectOptions();
   readonly categoryOptions = TRACKER_CATEGORIES;
-  readonly relayOutputs = RELAY_OUTPUTS;
+  readonly relayOutputHint = RELAY_OUTPUT_HINT;
+  readonly relayOutputLabel = relayOutputLabel;
   readonly simPackages = SIM_PACKAGES;
-  readonly currentStatuses = CURRENT_STATUSES;
   readonly minDate = todayIsoDate();
 
   brands: TrackerBrand[] = [];
   models: TrackerModel[] = [];
-  vehicles: Vehicle[] = [];
-  drivers: DriverListItem[] = [];
   existingImeis = new Set<string>();
   loading = false;
   saving = false;
   isEdit = false;
   trackerId: number | null = null;
   registrationSuccess: TrackerRegisteredResult | null = null;
+  relayManualOverride = false;
   private patchingBrand = false;
 
   form = this.fb.group({
@@ -76,13 +74,8 @@ export class TrackerRegisterPageComponent implements OnInit {
     trackerModelId: ['', Validators.required],
     contact: [''],
     disabled: [false],
-    vehicleId: [''],
-    driverId: [''],
     supportsEngineCutoff: [false],
-    relayOutput: ['output1'],
-    installationDate: [todayIsoDate()],
-    installedBy: [''],
-    installationNotes: [''],
+    relayOutput: [''],
     serialNumber: [''],
     simProvider: [''],
     simPackage: [''],
@@ -92,7 +85,6 @@ export class TrackerRegisterPageComponent implements OnInit {
     purchaseDate: [todayIsoDate(), notPastDateValidator()],
     purchasePrice: [null as number | null],
     vendor: [''],
-    currentStatus: ['Installed'],
     isActive: [true],
   });
 
@@ -109,17 +101,11 @@ export class TrackerRegisterPageComponent implements OnInit {
     this.loading = true;
     forkJoin({
       brands: this.catalog.getBrands(),
-      vehicles: this.vehiclesSvc.getAll(1, 500),
-      drivers: this.driversSvc.getAll(1, 500),
       devices: this.gps.getDevices(),
       tracker: this.trackerId ? this.gps.getTracker(this.trackerId) : of(null)
     }).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: ({ brands, vehicles, drivers, devices, tracker }) => {
+      next: ({ brands, devices, tracker }) => {
         this.brands = brands;
-        this.vehicles = vehicles.items.filter(
-          v => v.status !== VehicleStatus.Draft && v.name.trim().toLowerCase() !== 'draft vehicle'
-        );
-        this.drivers = drivers.items;
         this.existingImeis = new Set(devices.map(d => d.uniqueId));
 
         if (tracker) {
@@ -150,7 +136,32 @@ export class TrackerRegisterPageComponent implements OnInit {
     ).subscribe((modelId: string | null) => {
       const model = this.models.find(m => m.id === Number(modelId));
       if (model) {
-        this.form.patchValue({ supportsEngineCutoff: model.supportsEngineCutOff }, { emitEvent: false });
+        this.applyModelImmobilizerDefaults(model);
+      }
+    });
+
+    this.form.get('supportsEngineCutoff')?.valueChanges.pipe(
+      takeUntilDestroyed(this.destroyRef)
+    ).subscribe(enabled => {
+      const relayCtrl = this.form.get('relayOutput')!;
+      if (enabled) {
+        relayCtrl.enable({ emitEvent: false });
+        if (!relayCtrl.value) {
+          relayCtrl.setValue(resolveDefaultRelayOutput(this.selectedModel), { emitEvent: false });
+        }
+      } else {
+        relayCtrl.disable({ emitEvent: false });
+        relayCtrl.setValue('', { emitEvent: false });
+      }
+    });
+
+    this.form.get('relayOutput')?.valueChanges.pipe(
+      takeUntilDestroyed(this.destroyRef)
+    ).subscribe(value => {
+      if (!value) return;
+      const recommended = resolveDefaultRelayOutput(this.selectedModel);
+      if (value !== recommended) {
+        this.relayManualOverride = true;
       }
     });
 
@@ -167,6 +178,10 @@ export class TrackerRegisterPageComponent implements OnInit {
       const digits = String(raw ?? '').replace(/\D/g, '').slice(0, 15);
       if (digits !== raw) this.form.get('uniqueId')?.setValue(digits, { emitEvent: false });
     });
+
+    if (!this.form.get('supportsEngineCutoff')?.value) {
+      this.form.get('relayOutput')?.disable({ emitEvent: false });
+    }
   }
 
   get brandOptions(): UiSelectOption[] {
@@ -180,6 +195,11 @@ export class TrackerRegisterPageComponent implements OnInit {
   get selectedModel(): TrackerModel | undefined {
     const id = Number(this.form.get('trackerModelId')?.value);
     return this.models.find(m => m.id === id);
+  }
+
+  get selectedBrand(): TrackerBrand | undefined {
+    const id = Number(this.form.get('trackerBrandId')?.value);
+    return this.brands.find(b => b.id === id);
   }
 
   get protocolLabel(): string {
@@ -203,37 +223,78 @@ export class TrackerRegisterPageComponent implements OnInit {
     return this.existingImeis.has(this.imeiValue);
   }
 
+  get imeiError(): string {
+    if (this.isEdit) return '';
+    const value = this.imeiValue;
+    if (!value) return '';
+    if (this.imeiIsDuplicate) return 'IMEI already registered';
+    if (!this.imeiIsValid) {
+      return value.length < 15
+        ? `IMEI must be 15 digits (${value.length} entered)`
+        : 'IMEI must be exactly 15 digits';
+    }
+    return '';
+  }
+
+  get submitBlockedReason(): string | null {
+    if (this.saving || this.registrationSuccess || this.canSubmit) return null;
+
+    if (!this.isEdit) {
+      if (!this.imeiValue) return 'Enter the 15-digit IMEI from the tracker label.';
+      if (!this.imeiIsValid) return this.imeiError || 'IMEI must be exactly 15 digits.';
+      if (this.imeiIsDuplicate) return 'This IMEI is already registered.';
+    }
+
+    if (this.form.get('phoneLocal')?.invalid) {
+      return 'Phone number format is invalid for the selected country.';
+    }
+    if (this.form.get('warrantyStart')?.invalid) {
+      return 'Warranty start cannot be in the past.';
+    }
+    if (this.form.get('purchaseDate')?.invalid) {
+      return 'Purchase date cannot be in the past.';
+    }
+    if (this.form.get('supportsEngineCutoff')?.value && !this.form.getRawValue().relayOutput) {
+      return 'Select an engine cutoff output when remote cutoff is enabled.';
+    }
+    if (!this.form.get('name')?.valid) return 'Tracker name is required.';
+    if (!this.form.get('trackerBrandId')?.valid || !this.form.get('trackerModelId')?.valid) {
+      return 'Select a tracker brand and model.';
+    }
+
+    return 'Complete all required fields to continue.';
+  }
+
+  get modelSupportsImmobilizer(): boolean {
+    return !!this.selectedModel?.supportsEngineCutOff;
+  }
+
+  get defaultRelayForModel(): string {
+    return resolveDefaultRelayOutput(this.selectedModel);
+  }
+
+  get relayOutputOptions(): UiSelectOption[] {
+    return buildRelayOutputOptions(this.defaultRelayForModel);
+  }
+
   get showRelayOutput(): boolean {
-    return !!this.form.get('supportsEngineCutoff')?.value;
+    return this.modelSupportsImmobilizer && !!this.form.get('supportsEngineCutoff')?.value;
   }
 
   get canSubmit(): boolean {
     if (this.saving || this.registrationSuccess) return false;
     if (!this.form.get('name')?.valid || !this.form.get('category')?.valid) return false;
     if (!this.form.get('trackerBrandId')?.valid || !this.form.get('trackerModelId')?.valid) return false;
-    if (!this.imeiIsValid || this.imeiIsDuplicate) return false;
+    if (!this.isEdit && (!this.imeiIsValid || this.imeiIsDuplicate)) return false;
     if (this.form.get('phoneLocal')?.invalid) return false;
     if (this.form.get('warrantyStart')?.invalid || this.form.get('purchaseDate')?.invalid) return false;
+    if (this.form.get('supportsEngineCutoff')?.value && !this.form.getRawValue().relayOutput) return false;
     return true;
-  }
-
-  get vehicleOptions(): UiSelectOption[] {
-    return this.vehicles.map(v => ({
-      value: String(v.id),
-      label: `${v.name} - ${v.registrationNumber}${v.vehicleCode ? ` · ${v.vehicleCode}` : ''}`
-    }));
-  }
-
-  get driverOptions(): UiSelectOption[] {
-    return this.drivers.map(d => ({
-      value: String(d.id),
-      label: d.fullName
-    }));
   }
 
   get pageTitle(): string {
     if (this.registrationSuccess) return 'Tracker Registered';
-    return this.isEdit ? 'Edit Tracker' : 'Register Tracker';
+    return this.isEdit ? 'Edit Tracker Inventory' : 'Register Tracker';
   }
 
   phonePlaceholder(): string {
@@ -244,8 +305,13 @@ export class TrackerRegisterPageComponent implements OnInit {
     void this.router.navigate(['/gps-tracking/devices']);
   }
 
+  goToInstall(): void {
+    if (!this.registrationSuccess?.id) return;
+    void this.router.navigate(['/gps-tracking/devices', this.registrationSuccess.id, 'install']);
+  }
+
   submit(): void {
-    if (!this.canSubmit) return;
+    if (!this.canSubmit || this.saving) return;
     this.saving = true;
     const v = this.form.getRawValue();
     const phone = buildInternationalPhone(v.countryCode as string, v.phoneLocal as string);
@@ -260,13 +326,9 @@ export class TrackerRegisterPageComponent implements OnInit {
       phone,
       contact: (v.contact as string) || undefined,
       disabled: !!(v.disabled),
-      vehicleId: (v.vehicleId as string) ? Number(v.vehicleId) : undefined,
-      driverId: (v.driverId as string) ? Number(v.driverId) : undefined,
       supportsEngineCutoff: !!(v.supportsEngineCutoff),
       relayOutput: v.supportsEngineCutoff ? (v.relayOutput as string) : undefined,
-      installationDate: (v.installationDate as string) || undefined,
-      installedBy: (v.installedBy as string) || undefined,
-      installationNotes: (v.installationNotes as string) || undefined,
+      relayPurpose: v.supportsEngineCutoff ? RELAY_PURPOSE_ENGINE : undefined,
       serialNumber: (v.serialNumber as string) || undefined,
       countryCode: v.countryCode as string,
       simProvider: (v.simProvider as string) || undefined,
@@ -277,38 +339,35 @@ export class TrackerRegisterPageComponent implements OnInit {
       purchaseDate: (v.purchaseDate as string) || undefined,
       purchasePrice: v.purchasePrice != null ? Number(v.purchasePrice) : undefined,
       vendor: (v.vendor as string) || undefined,
-      currentStatus: (v.currentStatus as string) || 'Installed',
+      currentStatus: 'Available',
     };
 
     if (this.isEdit && this.trackerId) {
       this.gps.updateTracker(this.trackerId, { ...payload, isActive: !!(v.isActive) }).pipe(
-        takeUntilDestroyed(this.destroyRef)
+        finalize(() => { this.saving = false; })
       ).subscribe({
         next: () => {
-          this.saving = false;
-          this.toast.success('Tracker updated');
+          this.toast.success('Tracker inventory updated');
           void this.router.navigate(['/gps-tracking/devices']);
         },
-        error: err => {
-          this.saving = false;
-          this.toast.error(err?.error?.message ?? 'Update failed');
-        }
+        error: err => this.toast.error(this.extractError(err, 'Update failed'))
       });
       return;
     }
 
     this.gps.registerTracker(payload).pipe(
-      takeUntilDestroyed(this.destroyRef)
+      finalize(() => { this.saving = false; })
     ).subscribe({
       next: result => {
-        this.saving = false;
         this.registrationSuccess = result;
+        this.toast.success('Tracker registered successfully');
       },
-      error: err => {
-        this.saving = false;
-        this.toast.error(err?.error?.message ?? 'Registration failed');
-      }
+      error: err => this.toast.error(this.extractError(err, 'Registration failed'))
     });
+  }
+
+  private extractError(err: { error?: { message?: string; Message?: string } }, fallback: string): string {
+    return err?.error?.message ?? err?.error?.Message ?? fallback;
   }
 
   private setDefaultBrandAndModel(): void {
@@ -332,8 +391,55 @@ export class TrackerRegisterPageComponent implements OnInit {
     const match = models.find(m => m.id === current) ?? models[0];
     this.form.patchValue({
       trackerModelId: match ? String(match.id) : '',
-      supportsEngineCutoff: match?.supportsEngineCutOff ?? false
     }, { emitEvent: false });
+    if (match) {
+      this.applyModelImmobilizerDefaults(match);
+    }
+  }
+
+  private applyModelImmobilizerDefaults(model: TrackerModel): void {
+    const relayCtrl = this.form.get('relayOutput')!;
+
+    if (!model.supportsEngineCutOff) {
+      this.relayManualOverride = false;
+      this.form.patchValue({ supportsEngineCutoff: false, relayOutput: '' }, { emitEvent: false });
+      relayCtrl.disable({ emitEvent: false });
+      return;
+    }
+
+    if (this.isEdit) {
+      const cutoffEnabled = !!this.form.get('supportsEngineCutoff')?.value;
+      if (cutoffEnabled) {
+        const defaultRelay = resolveDefaultRelayOutput(model);
+        if (!relayCtrl.value) {
+          relayCtrl.setValue(defaultRelay, { emitEvent: false });
+        }
+        relayCtrl.enable({ emitEvent: false });
+      } else {
+        relayCtrl.setValue('', { emitEvent: false });
+        relayCtrl.disable({ emitEvent: false });
+      }
+      return;
+    }
+
+    this.relayManualOverride = false;
+    const autoEnable = this.shouldAutoEnableCutoff(model);
+    this.form.patchValue({
+      supportsEngineCutoff: autoEnable,
+      relayOutput: autoEnable ? resolveDefaultRelayOutput(model) : '',
+    }, { emitEvent: false });
+
+    if (autoEnable) {
+      relayCtrl.enable({ emitEvent: false });
+    } else {
+      relayCtrl.disable({ emitEvent: false });
+    }
+  }
+
+  /** Teltonika fleet trackers commonly ship with relay wiring — pre-enable for that brand only. */
+  private shouldAutoEnableCutoff(model: TrackerModel): boolean {
+    const brand = this.brands.find(b => b.id === model.trackerBrandId);
+    return brand?.name?.toLowerCase() === 'teltonika';
   }
 
   private patchFromTracker(t: TrackerDetail): void {
@@ -360,6 +466,21 @@ export class TrackerRegisterPageComponent implements OnInit {
           ?? models.find(m => m.catalogKey === t.trackerModelKey)?.id
           ?? models.find(m => m.name === t.modelName)?.id;
         this.applyModels(models, resolvedModelId);
+
+        const match = models.find(m => m.id === resolvedModelId);
+        const defaultRelay = resolveDefaultRelayOutput(match);
+        if (t.relayOutput && t.relayOutput !== defaultRelay) {
+          this.relayManualOverride = true;
+        }
+
+        const relayCtrl = this.form.get('relayOutput')!;
+        if (t.supportsEngineCutoff) {
+          relayCtrl.setValue(t.relayOutput ?? defaultRelay, { emitEvent: false });
+          relayCtrl.enable({ emitEvent: false });
+        } else {
+          relayCtrl.setValue('', { emitEvent: false });
+          relayCtrl.disable({ emitEvent: false });
+        }
       });
     }
 
@@ -371,13 +492,7 @@ export class TrackerRegisterPageComponent implements OnInit {
       phoneLocal,
       contact: t.contact ?? '',
       disabled: t.disabled ?? false,
-      vehicleId: t.vehicleId ? String(t.vehicleId) : '',
-      driverId: t.driverId ? String(t.driverId) : '',
       supportsEngineCutoff: t.supportsEngineCutoff,
-      relayOutput: t.relayOutput ?? 'output1',
-      installationDate: t.installationDate?.slice(0, 10) ?? todayIsoDate(),
-      installedBy: t.installedBy ?? '',
-      installationNotes: t.installationNotes ?? '',
       serialNumber: t.serialNumber ?? '',
       simProvider: t.simProvider ?? '',
       simPackage: t.simPackage ?? '',
@@ -387,7 +502,6 @@ export class TrackerRegisterPageComponent implements OnInit {
       purchaseDate: t.purchaseDate?.slice(0, 10) ?? todayIsoDate(),
       purchasePrice: t.purchasePrice ?? null,
       vendor: t.vendor ?? '',
-      currentStatus: t.currentStatus ?? 'Installed',
       isActive: t.isActive,
     });
     this.form.get('uniqueId')?.disable();

@@ -104,6 +104,7 @@ export const RELAY_OUTPUTS: UiSelectOption[] = [
   { value: 'output1', label: 'Output 1' },
   { value: 'output2', label: 'Output 2' },
   { value: 'output3', label: 'Output 3' },
+  { value: 'output4', label: 'Output 4' },
 ];
 
 export const SIM_PACKAGES: UiSelectOption[] = [
@@ -113,8 +114,9 @@ export const SIM_PACKAGES: UiSelectOption[] = [
 ];
 
 export const CURRENT_STATUSES: UiSelectOption[] = [
+  { value: 'Available', label: 'Available' },
   { value: 'Installed', label: 'Installed' },
-  { value: 'InStock', label: 'In Stock' },
+  { value: 'InStock', label: 'In Stock (legacy)' },
   { value: 'Maintenance', label: 'Maintenance' },
   { value: 'Damaged', label: 'Damaged' },
   { value: 'Removed', label: 'Removed' },

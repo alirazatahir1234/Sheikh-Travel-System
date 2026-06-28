@@ -10,6 +10,7 @@ import {
   GpsDevice,
   TrackerDetail,
   RegisterTrackerPayload,
+  InstallTrackerPayload,
   TrackerRegisteredResult,
   Geofence,
   GpsAlertRule,
@@ -215,6 +216,14 @@ export class GpsTrackingService {
 
   deleteTracker(id: number): Observable<boolean> {
     return this.http.delete<boolean>(`${this.base}/trackers/${id}`);
+  }
+
+  installTracker(id: number, body: InstallTrackerPayload): Observable<boolean> {
+    return this.http.post<boolean>(`${this.base}/trackers/${id}/install`, body);
+  }
+
+  uninstallTracker(id: number): Observable<boolean> {
+    return this.http.post<boolean>(`${this.base}/trackers/${id}/uninstall`, {});
   }
 
   createDevice(body: Partial<GpsDevice>): Observable<number> {

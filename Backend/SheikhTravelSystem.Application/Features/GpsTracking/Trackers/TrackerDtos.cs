@@ -23,7 +23,12 @@ public static class TrackerCatalog
 
     public static readonly HashSet<string> ValidCurrentStatuses = new(StringComparer.OrdinalIgnoreCase)
     {
-        "Installed", "InStock", "Maintenance", "Damaged", "Removed"
+        "Available", "Installed", "InStock", "Maintenance", "Damaged", "Removed"
+    };
+
+    public static readonly HashSet<string> InstallableStatuses = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "Available", "InStock", "Maintenance", "Removed", "Installed"
     };
 }
 
@@ -42,6 +47,7 @@ public record RegisterTrackerDto(
     int? DriverId = null,
     bool SupportsEngineCutoff = false,
     string? RelayOutput = null,
+    string? RelayPurpose = null,
     DateTime? InstallationDate = null,
     string? InstalledBy = null,
     string? InstallationNotes = null,
@@ -55,7 +61,7 @@ public record RegisterTrackerDto(
     DateOnly? PurchaseDate = null,
     decimal? PurchasePrice = null,
     string? Vendor = null,
-    string? CurrentStatus = "Installed");
+    string? CurrentStatus = "Available");
 
 public record UpdateTrackerDto(
     string Name,
@@ -69,6 +75,7 @@ public record UpdateTrackerDto(
     int? DriverId = null,
     bool SupportsEngineCutoff = false,
     string? RelayOutput = null,
+    string? RelayPurpose = null,
     DateTime? InstallationDate = null,
     string? InstalledBy = null,
     string? InstallationNotes = null,
@@ -84,6 +91,14 @@ public record UpdateTrackerDto(
     string? Vendor = null,
     string? CurrentStatus = null,
     bool IsActive = true);
+
+public record InstallTrackerDto(
+    int VehicleId,
+    int? DriverId = null,
+    DateTime? InstallationDate = null,
+    string? InstalledBy = null,
+    string? InstallationNotes = null,
+    string? RelayOutput = null);
 
 public record TrackerRegisteredDto(
     int Id,
@@ -118,6 +133,7 @@ public record TrackerDetailDto(
     string? Vendor,
     bool SupportsEngineCutoff,
     string? RelayOutput,
+    string? RelayPurpose,
     bool? LastIgnition,
     DateTime? LastSeenAt,
     bool IsActive,

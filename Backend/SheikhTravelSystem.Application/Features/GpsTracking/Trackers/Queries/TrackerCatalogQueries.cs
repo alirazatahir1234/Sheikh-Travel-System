@@ -38,7 +38,8 @@ public class GetTrackerModelsQueryHandler(IDbConnectionFactory dbFactory)
                    m.DefaultPort, m.SupportsEngineCutOff, m.SupportsFuelSensor, m.SupportsTemperatureSensor,
                    m.SupportsDriverIdentification, m.SupportsCanBus, m.SupportsObd, m.SupportsBle,
                    m.SupportsCamera, m.SupportsRelay, m.SupportsDoorSensor, m.SupportsIgnition,
-                   m.SupportsOdometer, m.SupportsBatteryMonitoring, m.CatalogKey, m.Description, m.IsActive
+                   m.SupportsOdometer, m.SupportsBatteryMonitoring, m.DefaultRelayOutput,
+                   m.CatalogKey, m.Description, m.IsActive
             FROM TrackerModels m
             INNER JOIN TrackerBrands b ON b.Id = m.TrackerBrandId AND b.IsActive = 1
             WHERE m.IsActive = 1
@@ -63,7 +64,7 @@ public static class TrackerCatalogSql
     public const string ModelById = """
         SELECT m.Id, m.TrackerBrandId, b.Name AS BrandName, m.Name,
                m.CatalogKey, m.Protocol, m.ProtocolLabel, m.DefaultPort,
-               m.SupportsEngineCutOff, m.SupportsRelay
+               m.SupportsEngineCutOff, m.SupportsRelay, m.DefaultRelayOutput
         FROM TrackerModels m
         INNER JOIN TrackerBrands b ON b.Id = m.TrackerBrandId
         WHERE m.Id = @Id AND m.IsActive = 1 AND b.IsActive = 1
@@ -72,7 +73,7 @@ public static class TrackerCatalogSql
     public const string ModelByCatalogKey = """
         SELECT m.Id, m.TrackerBrandId, b.Name AS BrandName, m.Name,
                m.CatalogKey, m.Protocol, m.ProtocolLabel, m.DefaultPort,
-               m.SupportsEngineCutOff, m.SupportsRelay
+               m.SupportsEngineCutOff, m.SupportsRelay, m.DefaultRelayOutput
         FROM TrackerModels m
         INNER JOIN TrackerBrands b ON b.Id = m.TrackerBrandId
         WHERE m.CatalogKey = @CatalogKey AND m.IsActive = 1 AND b.IsActive = 1

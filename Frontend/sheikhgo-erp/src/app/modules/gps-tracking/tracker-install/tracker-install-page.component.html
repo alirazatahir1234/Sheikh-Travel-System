@@ -1,0 +1,74 @@
+<div class="tracker-install-page">
+  <header class="page-head">
+    <div>
+      <button type="button" class="back-link" (click)="cancel()">
+        <mat-icon>arrow_back</mat-icon>
+        Fleet Trackers
+      </button>
+      <h1>{{ pageTitle }}</h1>
+      <p class="subtitle">Assign this registered tracker to a vehicle and record installation details.</p>
+    </div>
+  </header>
+
+  <div *ngIf="loading" class="loading-wrap">
+    <mat-spinner diameter="40"></mat-spinner>
+  </div>
+
+  <div class="saving-overlay" *ngIf="saving" role="status" aria-live="polite">
+    <mat-spinner diameter="48"></mat-spinner>
+    <p class="saving-title">Installing tracker…</p>
+  </div>
+
+  <div class="tracker-summary-card" *ngIf="tracker && !loading">
+    <div>
+      <span class="summary-label">Tracker</span>
+      <strong>{{ tracker.name }}</strong>
+      <span class="summary-meta mono">{{ tracker.uniqueId }}</span>
+    </div>
+    <div>
+      <span class="summary-label">Model</span>
+      <strong>{{ trackerSummary || '—' }}</strong>
+    </div>
+  </div>
+
+  <form *ngIf="tracker && !loading" [formGroup]="form" (ngSubmit)="submit()" class="install-form">
+    <section class="form-section">
+      <h2>Installation</h2>
+      <div class="form-grid">
+        <ui-select class="span-2" formControlName="vehicleId" label="Vehicle" placeholder="Search vehicle"
+          searchPlaceholder="Search by plate, name, or fleet number" [options]="vehicleOptions" [searchable]="true" [required]="true" />
+        <ui-select class="span-2" formControlName="driverId" label="Driver" placeholder="Search driver"
+          searchPlaceholder="Search driver name" [options]="driverOptions" [searchable]="true" />
+
+        <div class="stb-field">
+          <label for="installationDate">Installation Date</label>
+          <input id="installationDate" type="date" class="stb-input" formControlName="installationDate" [min]="minDate" />
+        </div>
+        <ui-input formControlName="installedBy" label="Installed By" placeholder="Technician or vendor" />
+
+        <div class="span-2 immobilizer-block" *ngIf="showRelayOutput">
+          <h3>Remote Immobilization</h3>
+          <p class="immobilizer-note">Engine cutoff is enabled for this tracker. Confirm the relay output matches how it was wired during installation.</p>
+          <ui-select formControlName="relayOutput" label="Engine Cutoff Output"
+            [options]="relayOutputOptions" />
+          <p class="relay-help">{{ relayOutputHint }}</p>
+          <p class="relay-configured">Configured output: <strong>{{ relayConfiguredLabel }}</strong></p>
+        </div>
+
+        <div class="span-2 stb-field">
+          <label for="installationNotes">Installation Notes</label>
+          <textarea id="installationNotes" class="stb-textarea" formControlName="installationNotes" rows="3"
+            placeholder="Installed under dashboard."></textarea>
+        </div>
+      </div>
+    </section>
+
+    <footer class="form-footer">
+      <button type="button" class="btn btn-secondary" (click)="cancel()" [disabled]="saving">Cancel</button>
+      <button type="submit" class="btn btn-primary" [disabled]="form.invalid || saving">
+        <mat-spinner *ngIf="saving" diameter="18"></mat-spinner>
+        <span>{{ isReassign ? 'Reassign Tracker' : 'Install Tracker' }}</span>
+      </button>
+    </footer>
+  </form>
+</div>

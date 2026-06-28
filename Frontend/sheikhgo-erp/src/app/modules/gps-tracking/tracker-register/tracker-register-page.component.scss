@@ -43,6 +43,39 @@
   padding: 80px 0;
 }
 
+.saving-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(2px);
+  padding: 24px;
+  text-align: center;
+}
+
+.saving-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.saving-hint {
+  margin: 0;
+  max-width: 360px;
+  font-size: 14px;
+  color: #e2e8f0;
+}
+
+.saving-overlay mat-spinner {
+  --mdc-circular-progress-active-indicator-color: #fff;
+}
+
 .form-section {
   background: #fff;
   border: 1px solid #e5e7eb;
@@ -85,6 +118,7 @@
 
   mat-icon { font-size: 16px; width: 16px; height: 16px; }
   &--ok { color: #059669; }
+  &--warn { color: #dc2626; }
 }
 
 .readonly-field {
@@ -127,6 +161,41 @@
   input { width: 16px; height: 16px; accent-color: #0f766e; }
 }
 
+.immobilizer-section {
+  border-color: #d1fae5;
+  background: linear-gradient(180deg, #f0fdf4 0%, #fff 48px);
+}
+
+.relay-auto-hint {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: -4px 0 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #ecfdf5;
+  color: #047857;
+  font-size: 13px;
+  line-height: 1.45;
+
+  mat-icon {
+    flex-shrink: 0;
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+    margin-top: 1px;
+  }
+
+  strong { font-weight: 600; }
+}
+
+.relay-help {
+  margin: -8px 0 0;
+  font-size: 12px;
+  color: #6b7280;
+  line-height: 1.45;
+}
+
 .stb-field {
   display: flex;
   flex-direction: column;
@@ -160,11 +229,21 @@
 .form-footer {
   display: flex;
   justify-content: flex-end;
+  align-items: center;
+  flex-wrap: wrap;
   gap: 10px;
   padding: 16px 0 32px;
   position: sticky;
   bottom: 0;
   background: linear-gradient(transparent, #f8fafc 24%);
+}
+
+.submit-blocked-hint {
+  flex: 1 1 100%;
+  margin: 0 0 4px;
+  font-size: 13px;
+  color: #b45309;
+  text-align: right;
 }
 
 .btn {
@@ -243,6 +322,12 @@
 
   .mono { font-family: monospace; }
   .status-waiting { color: #b45309; font-weight: 500; }
+}
+
+.success-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
 @media (max-width: 720px) {

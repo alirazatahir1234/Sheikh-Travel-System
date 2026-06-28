@@ -31,8 +31,9 @@ public class TraccarClient(
 
     public async Task<TraccarDevice?> GetDeviceByUniqueIdAsync(string uniqueId, CancellationToken ct = default)
     {
-        var devices = await GetDevicesAsync(ct);
-        return devices.FirstOrDefault(d =>
+        var escaped = Uri.EscapeDataString(uniqueId);
+        var list = await GetListAsync<TraccarDevice>($"/api/devices?uniqueId={escaped}", ct);
+        return list.FirstOrDefault(d =>
             string.Equals(d.UniqueId, uniqueId, StringComparison.OrdinalIgnoreCase));
     }
 

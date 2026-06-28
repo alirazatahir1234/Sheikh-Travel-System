@@ -11,8 +11,30 @@ import {
   TraccarStatusDto,
   TraccarSyncStatusDto
 } from '../../../core/models/gps-tracking.model';
+import {
+  assignmentLabel,
+  assignmentBadgeClass,
+  isTrackerInInventory,
+  isTrackerInstalled,
+  batteryDisplayLabel,
+  deviceMatchesSearch,
+  formatLastSeenLabel,
+  formatLastSeenTooltip,
+  gsmSignalLabel,
+  ignitionDisplay,
+  isTrackerIdle,
+  isTrackerMoving,
+  isTrackerNeverSeen,
+  isTrackerOffline,
+  isTrackerUnassigned,
+  resolveTrackerStatus,
+  trackerBrandLabel,
+  trackerModelLabel,
+  traccarLinkHint,
+  vehicleDisplayLabel,
+} from '../utils/tracker-status.util';
 
-type DeviceFilter = 'all' | 'online' | 'moving' | 'idle' | 'offline' | 'unlinked' | 'never';
+type DeviceFilter = 'all' | 'online' | 'moving' | 'idle' | 'parked' | 'offline' | 'available' | 'unassigned' | 'never';
 
 @Component({
   selector: 'app-gps-devices',
@@ -39,17 +61,19 @@ export class GpsDevicesComponent implements OnInit, AfterViewInit, OnDestroy {
   deviceFilter: DeviceFilter = 'all';
 
   readonly filterOptions: { id: DeviceFilter; label: string }[] = [
-    { id: 'all',      label: 'All' },
-    { id: 'online',   label: 'Online' },
-    { id: 'moving',   label: 'Moving' },
-    { id: 'idle',     label: 'Idle' },
-    { id: 'offline',  label: 'Offline' },
-    { id: 'unlinked', label: 'Unlinked' },
-    { id: 'never',    label: 'Never Seen' }
+    { id: 'all',       label: 'All' },
+    { id: 'online',    label: 'Online' },
+    { id: 'moving',    label: 'Moving' },
+    { id: 'idle',      label: 'Idle' },
+    { id: 'parked',    label: 'Parked' },
+    { id: 'offline',   label: 'Offline' },
+    { id: 'available', label: 'Available' },
+    { id: 'unassigned', label: 'Unassigned' },
+    { id: 'never',     label: 'Never Seen' }
   ];
 
   readonly displayedColumns = [
-    'vehicle', 'plate', 'driver', 'trackerModel', 'imei',
+    'vehicle', 'assignment', 'plate', 'driver', 'trackerModel', 'imei',
     'status', 'ignition', 'speed', 'lastSeen', 'signal', 'battery', 'actions'
   ];
 
@@ -90,8 +114,6 @@ export class GpsDevicesComponent implements OnInit, AfterViewInit, OnDestroy {
     if (this.devices.length > 0) this.applyFilters();
   }
 
-  // ── Pagination helpers ───────────────────────────────────────────────────────
-
   get pageDevices(): GpsDevice[] {
     const data = this.dataSource.filteredData;
     const p = this.paginator;
@@ -125,11 +147,6 @@ export class GpsDevicesComponent implements OnInit, AfterViewInit, OnDestroy {
     return Math.max(0, Math.floor((this.clockNow - new Date(last).getTime()) / 1000));
   }
 
-  get nextSyncSeconds(): number | null {
-    if (this.lastSyncSecondsAgo === null) return null;
-    return Math.max(0, this.syncIntervalSeconds - this.lastSyncSecondsAgo);
-  }
-
   get lastSyncLabel(): string {
     const secs = this.lastSyncSecondsAgo;
     if (secs === null) return 'Awaiting first sync';
@@ -137,17 +154,23 @@ export class GpsDevicesComponent implements OnInit, AfterViewInit, OnDestroy {
     return `${Math.floor(secs / 60)} min ago`;
   }
 
-  get nextSyncLabel(): string {
-    const secs = this.nextSyncSeconds;
-    if (secs === null) return '—';
-    return `~${secs} sec`;
+  get autoSyncLabel(): string {
+    if (!this.traccarSyncStatus) return '—';
+    return this.traccarSyncStatus.enabled ? 'Enabled' : 'Disabled';
+  }
+
+  get autoSyncDetail(): string | null {
+    if (!this.traccarSyncStatus?.enabled) return null;
+    return `Every ${this.syncIntervalSeconds}s`;
+  }
+
+  get liveSyncRunning(): boolean {
+    return !!(this.traccarSyncStatus?.enabled && this.traccarStatus?.connected && this.traccarSyncStatus.isRunning);
   }
 
   private attachPaginator(): void {
     if (this.paginator) this.dataSource.paginator = this.paginator;
   }
-
-  // ── Data loading ─────────────────────────────────────────────────────────────
 
   private loadInitial(): void {
     this.loading = true;
@@ -202,48 +225,42 @@ export class GpsDevicesComponent implements OnInit, AfterViewInit, OnDestroy {
     let rows = [...this.devices];
 
     if (this.deviceFilter === 'online')        rows = rows.filter(d => !!d.isOnline);
-    else if (this.deviceFilter === 'moving')   rows = rows.filter(d => this.isMoving(d));
-    else if (this.deviceFilter === 'idle')     rows = rows.filter(d => this.isIdle(d));
-    else if (this.deviceFilter === 'offline')  rows = rows.filter(d => !!d.lastSeenAt && !d.isOnline);
-    else if (this.deviceFilter === 'unlinked') rows = rows.filter(d => !d.vehicleId || !d.vehicleName);
-    else if (this.deviceFilter === 'never')    rows = rows.filter(d => !d.lastSeenAt);
+    else if (this.deviceFilter === 'moving')   rows = rows.filter(d => isTrackerMoving(d));
+    else if (this.deviceFilter === 'idle')     rows = rows.filter(d => isTrackerIdle(d));
+    else if (this.deviceFilter === 'parked')   rows = rows.filter(d => resolveTrackerStatus(d).key === 'parked');
+    else if (this.deviceFilter === 'offline')  rows = rows.filter(d => isTrackerOffline(d));
+    else if (this.deviceFilter === 'available') rows = rows.filter(d => isTrackerInInventory(d));
+    else if (this.deviceFilter === 'unassigned') rows = rows.filter(d => isTrackerUnassigned(d));
+    else if (this.deviceFilter === 'never')    rows = rows.filter(d => isTrackerNeverSeen(d));
 
     if (q) {
-      rows = rows.filter(d =>
-        (d.vehicleName?.toLowerCase().includes(q) ?? false) ||
-        (d.plateNumber?.toLowerCase().includes(q) ?? false) ||
-        (d.driverName?.toLowerCase().includes(q) ?? false) ||
-        (d.model?.toLowerCase().includes(q) ?? false) ||
-        d.uniqueId.toLowerCase().includes(q) ||
-        d.name.toLowerCase().includes(q)
-      );
+      rows = rows.filter(d => deviceMatchesSearch(d, q));
     }
 
     this.dataSource.data = rows;
     if (this.paginatorReady) this.paginator?.firstPage();
   }
 
-  // ── Display helpers ──────────────────────────────────────────────────────────
+  vehicleLabel = vehicleDisplayLabel;
+  traccarHint = traccarLinkHint;
+  trackerBrand = trackerBrandLabel;
+  trackerModel = trackerModelLabel;
+  assignmentText = assignmentLabel;
+  assignmentClass = assignmentBadgeClass;
+  ignitionView = ignitionDisplay;
+  signalLabel = gsmSignalLabel;
+  batteryLabel = batteryDisplayLabel;
 
-  vehicleLabel(d: GpsDevice): string {
-    if (d.vehicleName) return d.vehicleName;
-    if (d.vehicleId)   return 'Invalid link';
-    return 'Unlinked';
+  connectionLabel(d: GpsDevice): string {
+    return resolveTrackerStatus(d).label;
   }
 
-  trackerModelLabel(d: GpsDevice): string { return d.model || d.vendor || '—'; }
-
-  ignitionLabel(d: GpsDevice): string {
-    if (!d.lastSeenAt)       return '—';
-    if (d.lastIgnition == null) return 'Unknown';
-    return d.lastIgnition ? 'On' : 'Off';
+  connectionBadgeClass(d: GpsDevice): string {
+    return resolveTrackerStatus(d).badgeClass;
   }
 
-  ignitionBadgeClass(d: GpsDevice): string {
-    if (!d.lastSeenAt)          return 'badge-gray';
-    if (d.lastIgnition === true)  return 'badge-green';
-    if (d.lastIgnition === false) return 'badge-red';
-    return 'badge-gray';
+  rowStatusClass(d: GpsDevice): string {
+    return resolveTrackerStatus(d).rowClass;
   }
 
   speedLabel(d: GpsDevice): string {
@@ -251,63 +268,18 @@ export class GpsDevicesComponent implements OnInit, AfterViewInit, OnDestroy {
     return `${Math.round(d.lastSpeed)} km/h`;
   }
 
-  signalLabel(d: GpsDevice): string {
-    if (d.lastRssi == null) return '—';
-    if (d.lastRssi >= -70)  return 'Strong';
-    if (d.lastRssi >= -85)  return 'Good';
-    if (d.lastRssi >= -100) return 'Weak';
-    return 'Poor';
-  }
-
-  batteryLabel(d: GpsDevice): string {
-    if (d.lastBatteryLevel == null) return '—';
-    return `${Math.round(d.lastBatteryLevel)}%`;
-  }
-
   lastSeenLabel(d: GpsDevice): string {
     if (!d.lastSeenAt) {
       return this.traccarStatus?.connected ? 'Awaiting ping' : 'Never';
     }
-    const diff = this.clockNow - new Date(d.lastSeenAt).getTime();
-    const mins = Math.floor(diff / 60000);
-    if (mins < 1)  return 'Just now';
-    if (mins < 60) return `${mins}m ago`;
-    const hrs = Math.floor(mins / 60);
-    if (hrs < 24)  return `${hrs}h ago`;
-    return `${Math.floor(hrs / 24)}d ago`;
+    return formatLastSeenLabel(d.lastSeenAt, this.clockNow);
   }
 
   lastSeenTooltip(d: GpsDevice): string {
-    if (!d.lastSeenAt) return 'No telemetry received yet';
-    const when = new Date(d.lastSeenAt).toLocaleString();
+    const when = formatLastSeenTooltip(d.lastSeenAt);
+    if (!d.lastSeenAt) return when;
     if (!this.traccarStatus?.connected) return `${when} (last known — cached)`;
     return when;
-  }
-
-  private isMoving(d: GpsDevice): boolean {
-    return !!d.isOnline && (d.lastSpeed ?? 0) > 5;
-  }
-
-  private isIdle(d: GpsDevice): boolean {
-    return !!d.isOnline && !!d.lastSeenAt && (d.lastSpeed ?? 0) <= 5;
-  }
-
-  connectionLabel(d: GpsDevice): string {
-    if (!d.lastSeenAt) return 'Never Seen';
-    if (!d.isOnline)   return 'Offline';
-    if (this.isMoving(d)) return 'Moving';
-    if (this.isIdle(d))   return 'Idle';
-    return 'Online';
-  }
-
-  connectionBadgeClass(d: GpsDevice): string {
-    switch (this.connectionLabel(d)) {
-      case 'Moving':    return 'badge-blue';
-      case 'Idle':      return 'badge-amber';
-      case 'Online':    return 'badge-green';
-      case 'Offline':   return 'badge-red';
-      default:          return 'badge-gray';
-    }
   }
 
   lastSeenClass(d: GpsDevice): string {
@@ -321,13 +293,15 @@ export class GpsDevicesComponent implements OnInit, AfterViewInit, OnDestroy {
 
   get kpiTiles() {
     return [
-      { filter: 'all' as DeviceFilter,      label: 'Total',      value: this.devices.length,                                            icon: 'sensors',      color: '#64748b' },
-      { filter: 'online' as DeviceFilter,   label: 'Online',     value: this.devices.filter(d => !!d.isOnline).length,                  icon: 'wifi',         color: '#22c55e' },
-      { filter: 'moving' as DeviceFilter,   label: 'Moving',     value: this.devices.filter(d => this.isMoving(d)).length,              icon: 'speed',        color: '#3b82f6' },
-      { filter: 'idle' as DeviceFilter,     label: 'Idle',       value: this.devices.filter(d => this.isIdle(d)).length,                icon: 'pause_circle', color: '#f59e0b' },
-      { filter: 'offline' as DeviceFilter,  label: 'Offline',    value: this.devices.filter(d => !!d.lastSeenAt && !d.isOnline).length, icon: 'wifi_off',     color: '#ef4444' },
-      { filter: 'never' as DeviceFilter,    label: 'Never Seen', value: this.devices.filter(d => !d.lastSeenAt).length,                 icon: 'sensors_off',  color: '#94a3b8' },
-      { filter: 'unlinked' as DeviceFilter, label: 'Unlinked',   value: this.devices.filter(d => !d.vehicleId).length,                  icon: 'link_off',     color: '#a855f7' },
+      { filter: 'all' as DeviceFilter,        label: 'Total',      value: this.devices.length,                                            icon: 'sensors',      color: '#64748b' },
+      { filter: 'online' as DeviceFilter,     label: 'Online',     value: this.devices.filter(d => !!d.isOnline).length,                  icon: 'wifi',         color: '#22c55e' },
+      { filter: 'moving' as DeviceFilter,     label: 'Moving',     value: this.devices.filter(d => isTrackerMoving(d)).length,            icon: 'speed',        color: '#3b82f6' },
+      { filter: 'idle' as DeviceFilter,       label: 'Idle',       value: this.devices.filter(d => isTrackerIdle(d)).length,              icon: 'pause_circle', color: '#f59e0b' },
+      { filter: 'parked' as DeviceFilter,     label: 'Parked',     value: this.devices.filter(d => resolveTrackerStatus(d).key === 'parked').length, icon: 'local_parking', color: '#10b981' },
+      { filter: 'offline' as DeviceFilter,    label: 'Offline',    value: this.devices.filter(d => isTrackerOffline(d)).length,           icon: 'wifi_off',     color: '#ef4444' },
+      { filter: 'available' as DeviceFilter,  label: 'Available',  value: this.devices.filter(d => isTrackerInInventory(d)).length,       icon: 'inventory_2',  color: '#8b5cf6' },
+      { filter: 'never' as DeviceFilter,      label: 'Never Seen', value: this.devices.filter(d => isTrackerNeverSeen(d)).length,           icon: 'sensors_off',  color: '#94a3b8' },
+      { filter: 'unassigned' as DeviceFilter, label: 'Unassigned', value: this.devices.filter(d => isTrackerUnassigned(d)).length,        icon: 'link_off',     color: '#a855f7' },
     ];
   }
 
@@ -335,6 +309,46 @@ export class GpsDevicesComponent implements OnInit, AfterViewInit, OnDestroy {
     this.refreshIntervalMs = ms;
     if (this.devicePollTimer) clearInterval(this.devicePollTimer);
     if (ms > 0) this.devicePollTimer = setInterval(() => this.load(true), ms);
+  }
+
+  openView(d: GpsDevice): void {
+    void this.router.navigate([d.id, 'edit'], { relativeTo: this.route });
+  }
+
+  openEdit(d: GpsDevice): void {
+    void this.router.navigate([d.id, 'edit'], { relativeTo: this.route });
+  }
+
+  openInstall(d: GpsDevice): void {
+    void this.router.navigate([d.id, 'install'], { relativeTo: this.route });
+  }
+
+  openReassign(d: GpsDevice): void {
+    void this.router.navigate([d.id, 'install'], { relativeTo: this.route, queryParams: { reassign: 1 } });
+  }
+
+  uninstallTracker(d: GpsDevice): void {
+    const label = d.name || d.uniqueId;
+    if (!confirm(`Return "${label}" to inventory? This will unlink the vehicle assignment.`)) return;
+    this.gps.uninstallTracker(d.id).subscribe({
+      next: () => {
+        this.toast.success('Tracker returned to inventory');
+        this.load();
+      },
+      error: err => this.toast.error(err?.error?.message ?? 'Uninstall failed')
+    });
+  }
+
+  canInstall(d: GpsDevice): boolean {
+    return isTrackerInInventory(d);
+  }
+
+  canReassign(d: GpsDevice): boolean {
+    return isTrackerInstalled(d);
+  }
+
+  canUninstall(d: GpsDevice): boolean {
+    return isTrackerInstalled(d);
   }
 
   goToLiveMap(d: GpsDevice): void {
@@ -345,18 +359,14 @@ export class GpsDevicesComponent implements OnInit, AfterViewInit, OnDestroy {
     this.router.navigate(['../history'], { relativeTo: this.route, queryParams: { vehicleId: d.vehicleId } });
   }
 
-  goToCommands(d: GpsDevice): void {
-    this.router.navigate(['../commands'], { relativeTo: this.route, queryParams: { deviceId: d.id } });
+  goToCommands(d: GpsDevice, command?: string): void {
+    const queryParams: Record<string, string | number> = { deviceId: d.id };
+    if (command) queryParams['command'] = command;
+    this.router.navigate(['../commands'], { relativeTo: this.route, queryParams });
   }
-
-  // ── Navigation ───────────────────────────────────────────────────────────────
 
   openCreate(): void {
     void this.router.navigate(['register'], { relativeTo: this.route });
-  }
-
-  openEdit(d: GpsDevice): void {
-    void this.router.navigate([d.id, 'edit'], { relativeTo: this.route });
   }
 
   deleteDevice(d: GpsDevice): void {

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Run from repo root: ./Frontend/sheikh-driver/setup.sh
+# Run from repo root: ./Frontend/sheikhgo-driver/setup.sh
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"

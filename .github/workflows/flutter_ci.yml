@@ -3,11 +3,11 @@ name: SheikhGo Driver — CI
 on:
   push:
     paths:
-      - 'Frontend/sheikh-driver/**'
+      - 'Frontend/sheikhgo-driver/**'
       - '.github/workflows/flutter_ci.yml'
   pull_request:
     paths:
-      - 'Frontend/sheikh-driver/**'
+      - 'Frontend/sheikhgo-driver/**'
 
 jobs:
   analyze-test-build:
@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: Frontend/sheikh-driver
+        working-directory: Frontend/sheikhgo-driver
 
     steps:
       - name: Checkout
@@ -49,4 +49,4 @@ jobs:
         if: always()
         with:
           name: coverage-report
-          path: Frontend/sheikh-driver/coverage/lcov.info
+          path: Frontend/sheikhgo-driver/coverage/lcov.info

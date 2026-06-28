@@ -26,6 +26,7 @@ export interface TrackerModel {
   supportsIgnition: boolean;
   supportsOdometer: boolean;
   supportsBatteryMonitoring: boolean;
+  defaultRelayOutput?: string;
   catalogKey?: string;
   description?: string;
   isActive: boolean;

@@ -38,7 +38,7 @@
       <span class="sync-dot" [class.online]="traccarStatus?.connected"></span>
       <div>
         <div class="sync-title">
-          {{ traccarStatus?.connected ? 'Traccar Connected' : 'Traccar Offline' }}
+          {{ traccarStatus?.connected ? 'SheikhGo Server Connected' : 'Traccar Offline' }}
         </div>
         <div class="sync-meta" *ngIf="traccarStatus?.connected">
           Server online
@@ -52,24 +52,28 @@
 
     <div class="sync-stats" *ngIf="traccarStatus">
       <div class="sync-stat">
-        <span class="sync-stat-label">Registered</span>
+        <span class="sync-stat-label">Registered in ERP</span>
         <span class="sync-stat-value">{{ totalCount }}</span>
       </div>
       <div class="sync-stat">
-        <span class="sync-stat-label">On server</span>
+        <span class="sync-stat-label">Registered in Traccar</span>
         <span class="sync-stat-value">{{ connectedOnServer }}</span>
       </div>
-      <div class="sync-stat" *ngIf="traccarSyncStatus?.enabled">
+      <div class="sync-stat" *ngIf="traccarSyncStatus">
         <span class="sync-stat-label">Auto sync</span>
-        <span class="sync-stat-value">Every {{ syncIntervalSeconds }}s</span>
+        <span class="sync-stat-value">{{ autoSyncLabel }}</span>
+        <span class="sync-stat-hint" *ngIf="autoSyncDetail">{{ autoSyncDetail }}</span>
       </div>
       <div class="sync-stat" *ngIf="traccarSyncStatus?.enabled">
         <span class="sync-stat-label">Last sync</span>
         <span class="sync-stat-value">{{ lastSyncLabel }}</span>
       </div>
       <div class="sync-stat" *ngIf="traccarSyncStatus?.enabled && traccarStatus?.connected">
-        <span class="sync-stat-label">Next sync</span>
-        <span class="sync-stat-value">{{ nextSyncLabel }}</span>
+        <span class="sync-stat-label">Live synchronization</span>
+        <span class="sync-stat-value sync-stat-value--live" *ngIf="liveSyncRunning">
+          <mat-icon>check_circle</mat-icon> Running
+        </span>
+        <span class="sync-stat-value" *ngIf="!liveSyncRunning">Paused</span>
       </div>
     </div>
   </div>
@@ -79,7 +83,7 @@
       <mat-icon>search</mat-icon>
       <input
         type="search"
-        placeholder="Search vehicle, plate, driver, IMEI…"
+        placeholder="Search vehicle, plate, driver, tracker, IMEI, serial, SIM…"
         [(ngModel)]="searchQuery"
         (ngModelChange)="onSearchChange()"
         aria-label="Search fleet trackers" />
@@ -117,8 +121,17 @@
         <ng-container matColumnDef="vehicle">
           <th mat-header-cell *matHeaderCellDef>Vehicle</th>
           <td mat-cell *matCellDef="let d">
-            <span class="vehicle-primary" [matTooltip]="vehicleLabel(d)">{{ vehicleLabel(d) }}</span>
-            <span *ngIf="!d.isTraccarLinked" class="quality-hint">Not on Traccar</span>
+            <span class="vehicle-primary" [class.vehicle-primary--muted]="!d.vehicleName" [matTooltip]="vehicleLabel(d)">
+              {{ vehicleLabel(d) }}
+            </span>
+            <span *ngIf="traccarHint(d) as hint" class="quality-hint quality-hint--warn">{{ hint }}</span>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="assignment">
+          <th mat-header-cell *matHeaderCellDef>Assignment</th>
+          <td mat-cell *matCellDef="let d">
+            <span class="badge" [ngClass]="assignmentClass(d)">{{ assignmentText(d) }}</span>
           </td>
         </ng-container>
 
@@ -135,16 +148,16 @@
         <ng-container matColumnDef="trackerModel">
           <th mat-header-cell *matHeaderCellDef>Tracker</th>
           <td mat-cell *matCellDef="let d">
-            <span [matTooltip]="d.name">{{ trackerModelLabel(d) }}</span>
+            <div class="tracker-split" [matTooltip]="d.name">
+              <span class="tracker-brand">{{ trackerBrand(d) }}</span>
+              <span class="tracker-model">{{ trackerModel(d) }}</span>
+            </div>
           </td>
         </ng-container>
 
         <ng-container matColumnDef="imei">
           <th mat-header-cell *matHeaderCellDef>IMEI</th>
-          <td mat-cell *matCellDef="let d" class="mono">
-            {{ d.uniqueId }}
-            <span *ngIf="!d.isValidImei" class="quality-hint quality-hint--warn">Invalid</span>
-          </td>
+          <td mat-cell *matCellDef="let d" class="mono">{{ d.uniqueId }}</td>
         </ng-container>
 
         <ng-container matColumnDef="status">
@@ -157,7 +170,10 @@
         <ng-container matColumnDef="ignition">
           <th mat-header-cell *matHeaderCellDef>Ignition</th>
           <td mat-cell *matCellDef="let d">
-            <span class="ignition-dot" [ngClass]="ignitionBadgeClass(d)"></span>{{ ignitionLabel(d) }}
+            <span class="ignition-pill" [ngClass]="ignitionView(d).className" [matTooltip]="ignitionView(d).label">
+              <mat-icon>{{ ignitionView(d).icon }}</mat-icon>
+              <span>{{ ignitionView(d).label }}</span>
+            </span>
           </td>
         </ng-container>
 
@@ -174,7 +190,7 @@
         </ng-container>
 
         <ng-container matColumnDef="signal">
-          <th mat-header-cell *matHeaderCellDef>GPS Signal</th>
+          <th mat-header-cell *matHeaderCellDef>GSM Signal</th>
           <td mat-cell *matCellDef="let d">{{ signalLabel(d) }}</td>
         </ng-container>
 
@@ -197,33 +213,52 @@
         </ng-container>
 
         <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-        <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+        <tr mat-row *matRowDef="let row; columns: displayedColumns;" [ngClass]="rowStatusClass(row)"></tr>
       </table>
 
       <mat-menu #actionMenu="matMenu" xPosition="before">
         <ng-template matMenuContent let-d="d">
+          <button mat-menu-item type="button" (click)="openView(d)">
+            <mat-icon>visibility</mat-icon> View Tracker
+          </button>
           <button mat-menu-item type="button" (click)="openEdit(d)">
-            <mat-icon>edit</mat-icon> Edit Tracker
+            <mat-icon>edit</mat-icon> Edit Inventory
+          </button>
+          <button mat-menu-item type="button" (click)="openInstall(d)" *ngIf="canInstall(d)">
+            <mat-icon>build</mat-icon> Install Tracker
+          </button>
+          <button mat-menu-item type="button" (click)="openReassign(d)" *ngIf="canReassign(d)">
+            <mat-icon>swap_horiz</mat-icon> Reassign
+          </button>
+          <button mat-menu-item type="button" (click)="uninstallTracker(d)" *ngIf="canUninstall(d)">
+            <mat-icon>inventory_2</mat-icon> Return to Inventory
           </button>
           <mat-divider></mat-divider>
           <button mat-menu-item type="button" (click)="goToLiveMap(d)" [disabled]="!d.vehicleId">
-            <mat-icon>my_location</mat-icon> View on Live Map
+            <mat-icon>my_location</mat-icon> View Live Map
           </button>
           <button mat-menu-item type="button" (click)="goToHistory(d)" [disabled]="!d.vehicleId">
-            <mat-icon>history</mat-icon> Trip History
+            <mat-icon>history</mat-icon> View History
+          </button>
+          <mat-divider></mat-divider>
+          <button mat-menu-item type="button" (click)="goToCommands(d, 'engineStop')" [disabled]="!d.supportsEngineCutoff">
+            <mat-icon>power_off</mat-icon> Engine Cutoff
+          </button>
+          <button mat-menu-item type="button" (click)="goToCommands(d, 'engineResume')" [disabled]="!d.supportsEngineCutoff">
+            <mat-icon>power</mat-icon> Engine Resume
           </button>
           <button mat-menu-item type="button" (click)="goToCommands(d)">
-            <mat-icon>power_settings_new</mat-icon> Send Command
+            <mat-icon>settings_remote</mat-icon> Send Command
           </button>
           <mat-divider></mat-divider>
           <button mat-menu-item type="button" (click)="deleteDevice(d)" class="action-delete">
-            <mat-icon>delete_outline</mat-icon> Remove Tracker
+            <mat-icon>delete_outline</mat-icon> Delete Tracker
           </button>
         </ng-template>
       </mat-menu>
 
       <div class="mobile-cards mobile-only">
-        <article class="device-card" *ngFor="let d of pageDevices">
+        <article class="device-card" *ngFor="let d of pageDevices" [ngClass]="rowStatusClass(d)">
           <div class="device-card-head">
             <div>
               <strong>{{ vehicleLabel(d) }}</strong>
@@ -232,6 +267,7 @@
             <span class="badge" [ngClass]="connectionBadgeClass(d)">{{ connectionLabel(d) }}</span>
           </div>
           <div class="device-card-meta">
+            <span>Assignment: {{ assignmentText(d) }}</span>
             <span>Driver: {{ d.driverName || '—' }}</span>
             <span>IMEI: {{ d.uniqueId }}</span>
             <span>Speed: {{ speedLabel(d) }}</span>

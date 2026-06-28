@@ -35,7 +35,7 @@ public class GetTrackerByIdQueryHandler(IDbConnectionFactory dbFactory, ITenantC
         using var connection = dbFactory.CreateConnection();
         var tenantId = tenantContext.GetRequiredTenantId();
         var row = await connection.QueryFirstOrDefaultAsync<TrackerDetailDto>(new CommandDefinition(
-            TrackerSql.ListQuery + " AND d.Id = @Id" + TrackerTenantSql.DeviceScopeFilter,
+            TrackerSql.ListQuery + TrackerTenantSql.DeviceScopeFilter + " AND d.Id = @Id",
             new { request.Id, TenantId = tenantId },
             cancellationToken: cancellationToken));
 
@@ -58,7 +58,7 @@ internal static class TrackerSql
                d.Protocol, d.TrackerModelKey, d.TrackerModelId,
                b.Id AS TrackerBrandId, b.Name AS TrackerBrandName, m.Name AS ModelName,
                d.Model, d.Vendor,
-               d.SupportsEngineCutoff, d.RelayOutput, d.LastIgnition, d.LastSeenAt, d.IsActive,
+               d.SupportsEngineCutoff, d.RelayOutput, d.RelayPurpose, d.LastIgnition, d.LastSeenAt, d.IsActive,
                CASE WHEN d.LastSeenAt IS NOT NULL AND d.LastSeenAt > DATEADD(minute, -30, GETUTCDATE())
                     THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END AS IsOnline,
                COALESCE(d.LastSpeed, vcl.Speed) AS LastSpeed,

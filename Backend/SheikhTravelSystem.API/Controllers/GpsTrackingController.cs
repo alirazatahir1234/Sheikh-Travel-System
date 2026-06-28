@@ -127,7 +127,7 @@ public class GpsTrackingController : BaseApiController
     public async Task<IActionResult> RegisterTracker([FromBody] RegisterTrackerDto tracker)
     {
         var result = await Mediator.Send(new RegisterTrackerCommand(tracker));
-        return Created(string.Empty, result);
+        return result.Success ? Created(string.Empty, result) : BadRequest(result);
     }
 
     [HttpPut("trackers/{id:int}")]
@@ -139,6 +139,22 @@ public class GpsTrackingController : BaseApiController
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> DeleteTracker(int id)
         => Ok(await Mediator.Send(new DeleteTrackerCommand(id)));
+
+    [HttpPost("trackers/{id:int}/install")]
+    [Authorize(Roles = "Admin,Dispatcher")]
+    public async Task<IActionResult> InstallTracker(int id, [FromBody] InstallTrackerDto body)
+    {
+        var result = await Mediator.Send(new InstallTrackerCommand(id, body));
+        return result.Success ? Ok(result) : BadRequest(result);
+    }
+
+    [HttpPost("trackers/{id:int}/uninstall")]
+    [Authorize(Roles = "Admin,Dispatcher")]
+    public async Task<IActionResult> UninstallTracker(int id)
+    {
+        var result = await Mediator.Send(new UninstallTrackerCommand(id));
+        return result.Success ? Ok(result) : BadRequest(result);
+    }
 
     [HttpPost("trackers/{id:int}/sync")]
     [Authorize(Roles = "Admin")]
