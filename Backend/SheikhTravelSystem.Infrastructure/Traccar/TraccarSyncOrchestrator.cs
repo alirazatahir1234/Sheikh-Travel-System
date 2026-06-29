@@ -22,6 +22,15 @@ public sealed class TraccarSyncOrchestrator(
     private readonly ConcurrentDictionary<int, DateTime> _lastIngested = new();
     private readonly ConcurrentDictionary<int, DateTime> _lastEventSync = new();
 
+    private bool IsTraccarActive => options.Value.Enabled && options.Value.IsConfigured;
+
+    private string TraccarInactiveReason =>
+        !options.Value.Enabled
+            ? "Traccar sync is disabled."
+            : !options.Value.IsConfigured
+                ? "Traccar BaseUrl is not configured."
+                : "";
+
     public async Task<TraccarSyncRunResult> RunManualSyncAsync(CancellationToken ct = default)
     {
         syncState.MarkRunning(true);
@@ -41,8 +50,8 @@ public sealed class TraccarSyncOrchestrator(
 
     public async Task<TraccarSyncRunResult> SyncDevicesAsync(CancellationToken ct = default)
     {
-        if (!options.Value.Enabled)
-            return SingleJob("devices", 0, 0, 0, 0, "Traccar sync is disabled.");
+        if (!IsTraccarActive)
+            return SingleJob("devices", 0, 0, 0, 0, TraccarInactiveReason);
 
         try
         {
@@ -122,8 +131,8 @@ public sealed class TraccarSyncOrchestrator(
 
     public async Task<TraccarSyncRunResult> SyncPositionsAsync(CancellationToken ct = default)
     {
-        if (!options.Value.Enabled)
-            return SingleJob("positions", 0, 0, 0, 0, "Traccar sync is disabled.");
+        if (!IsTraccarActive)
+            return SingleJob("positions", 0, 0, 0, 0, TraccarInactiveReason);
 
         try
         {
@@ -170,6 +179,9 @@ public sealed class TraccarSyncOrchestrator(
 
                 var ignition = pos.Attributes.Ignition;
                 var recordedAt = pos.FixTime.ToUniversalTime();
+                var speedKmh = (decimal)(pos.Speed * 1.852);
+                var battery = pos.Attributes.BatteryLevel;
+                var rssi = pos.Attributes.Rssi;
 
                 if (linkedDevices.TryGetValue(pos.DeviceId, out var linked))
                 {
@@ -180,7 +192,7 @@ public sealed class TraccarSyncOrchestrator(
                         GpsDeviceId: linked.GpsDeviceId,
                         Latitude: pos.Latitude,
                         Longitude: pos.Longitude,
-                        Speed: (decimal)(pos.Speed * 1.852),
+                        Speed: speedKmh,
                         Heading: pos.Course,
                         Altitude: pos.Altitude,
                         Ignition: ignition);
@@ -205,7 +217,8 @@ public sealed class TraccarSyncOrchestrator(
                     try
                     {
                         await GpsDeviceTelemetryUpdater.UpdateAsync(
-                            connection, device.GpsDeviceId, recordedAt, ignition, ct);
+                            connection, device.GpsDeviceId, recordedAt, ignition,
+                            speedKmh, battery, rssi, ct);
                         _lastIngested[pos.DeviceId] = pos.FixTime;
                         telemetryOnly++;
                     }
@@ -236,8 +249,8 @@ public sealed class TraccarSyncOrchestrator(
 
     public async Task<TraccarSyncRunResult> SyncEventsAsync(CancellationToken ct = default)
     {
-        if (!options.Value.Enabled)
-            return SingleJob("events", 0, 0, 0, 0, "Traccar sync is disabled.");
+        if (!IsTraccarActive)
+            return SingleJob("events", 0, 0, 0, 0, TraccarInactiveReason);
 
         try
         {

@@ -66,11 +66,13 @@ public class IngestPositionCommandHandler(
 
         if (dto.GpsDeviceId.HasValue)
         {
-            await connection.ExecuteAsync(new CommandDefinition(
-                @"UPDATE GpsDevices SET LastSeenAt = @Timestamp, LastIgnition = @Ignition, UpdatedAt = @Timestamp
-                  WHERE Id = @Id AND IsDeleted = 0",
-                new { Id = dto.GpsDeviceId.Value, Timestamp = recordedAt, dto.Ignition },
-                cancellationToken: cancellationToken));
+            await GpsDeviceTelemetryUpdater.UpdateAsync(
+                connection,
+                dto.GpsDeviceId.Value,
+                recordedAt,
+                dto.Ignition,
+                dto.Speed,
+                cancellationToken: cancellationToken);
         }
 
         var ingestDto = dto with { BookingId = bookingId };

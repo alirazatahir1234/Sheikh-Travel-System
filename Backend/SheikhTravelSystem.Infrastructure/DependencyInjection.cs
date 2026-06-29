@@ -2,6 +2,7 @@ using System.Net.Http.Headers;
 using System.Text;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Options;
 using SheikhTravelSystem.Application.Common.Interfaces;
@@ -69,8 +70,16 @@ public static class DependencyInjection
         services.AddHttpClient<ITraccarClient, TraccarClient>((sp, client) =>
         {
             var opts = sp.GetRequiredService<IOptions<TraccarOptions>>().Value;
-            if (!string.IsNullOrWhiteSpace(opts.BaseUrl))
-                client.BaseAddress = new Uri(opts.BaseUrl.TrimEnd('/') + "/");
+            if (opts.TryGetBaseUri(out var baseUri))
+                client.BaseAddress = baseUri;
+            else if (opts.Enabled)
+            {
+                var logger = sp.GetRequiredService<ILogger<TraccarClient>>();
+                logger.LogWarning(
+                    "Traccar:Enabled is true but Traccar:BaseUrl is missing or invalid. " +
+                    "Set Traccar:BaseUrl (e.g. http://20.174.1.230:8082) in user secrets or environment.");
+            }
+
             if (!string.IsNullOrWhiteSpace(opts.Username))
             {
                 var encoded = Convert.ToBase64String(Encoding.ASCII.GetBytes($"{opts.Username}:{opts.Password}"));

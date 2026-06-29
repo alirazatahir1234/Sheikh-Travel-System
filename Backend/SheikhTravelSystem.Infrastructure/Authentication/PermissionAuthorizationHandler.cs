@@ -47,7 +47,8 @@ public static class PermissionPolicyRegistration
         foreach (var permission in PlatformPermissions.All
             .Concat(FleetPermissions.All)
             .Concat(DriverPermissions.All)
-            .Concat(MaintenancePermissions.All))
+            .Concat(MaintenancePermissions.All)
+            .Concat(GpsPermissions.All))
         {
             options.AddPolicy(permission, policy =>
                 policy.Requirements.Add(new PermissionRequirement(permission)));

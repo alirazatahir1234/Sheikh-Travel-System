@@ -208,8 +208,8 @@ export class GpsTrackingService {
     return this.http.delete<boolean>(`${this.base}/devices/${id}`);
   }
 
-  sendCommand(gpsDeviceId: number, commandType: string): Observable<number> {
-    return this.http.post<number>(`${this.base}/commands/send`, { gpsDeviceId, commandType });
+  sendCommand(gpsDeviceId: number, commandType: string, reason?: string): Observable<number> {
+    return this.http.post<number>(`${this.base}/commands/send`, { gpsDeviceId, commandType, reason });
   }
 
   getCommands(deviceId: number): Observable<GpsDeviceCommand[]> {

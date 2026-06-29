@@ -2,11 +2,15 @@ using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using SheikhTravelSystem.Application.Features.GpsTracking.Traccar;
 
 namespace SheikhTravelSystem.Infrastructure.Traccar;
 
-public class TraccarClient(HttpClient http, ILogger<TraccarClient> logger) : ITraccarClient
+public class TraccarClient(
+    HttpClient http,
+    IOptions<TraccarOptions> options,
+    ILogger<TraccarClient> logger) : ITraccarClient
 {
     private static readonly JsonSerializerOptions JsonOpts = new()
     {
@@ -27,10 +31,13 @@ public class TraccarClient(HttpClient http, ILogger<TraccarClient> logger) : ITr
 
     public async Task<TraccarDevice?> CreateDeviceAsync(string name, string uniqueId, string? category = null, CancellationToken ct = default)
     {
+        var uri = ResolveRequestUri("/api/devices");
+        if (uri is null) return null;
+
         try
         {
             var payload = new { name, uniqueId, category, disabled = false };
-            var response = await http.PostAsJsonAsync("/api/devices", payload, ct);
+            var response = await http.PostAsJsonAsync(uri, payload, ct);
             if (!response.IsSuccessStatusCode)
             {
                 logger.LogWarning("Traccar CreateDevice failed: {Status}", response.StatusCode);
@@ -47,10 +54,13 @@ public class TraccarClient(HttpClient http, ILogger<TraccarClient> logger) : ITr
 
     public async Task<bool> UpdateDeviceAsync(int deviceId, string name, string uniqueId, bool disabled, CancellationToken ct = default)
     {
+        var uri = ResolveRequestUri($"/api/devices/{deviceId}");
+        if (uri is null) return false;
+
         try
         {
             var payload = new { id = deviceId, name, uniqueId, disabled };
-            var response = await http.PutAsJsonAsync($"/api/devices/{deviceId}", payload, ct);
+            var response = await http.PutAsJsonAsync(uri, payload, ct);
             return response.IsSuccessStatusCode;
         }
         catch (Exception ex)
@@ -62,9 +72,12 @@ public class TraccarClient(HttpClient http, ILogger<TraccarClient> logger) : ITr
 
     public async Task<bool> DeleteDeviceAsync(int deviceId, CancellationToken ct = default)
     {
+        var uri = ResolveRequestUri($"/api/devices/{deviceId}");
+        if (uri is null) return false;
+
         try
         {
-            var response = await http.DeleteAsync($"/api/devices/{deviceId}", ct);
+            var response = await http.DeleteAsync(uri, ct);
             return response.IsSuccessStatusCode;
         }
         catch (Exception ex)
@@ -89,10 +102,13 @@ public class TraccarClient(HttpClient http, ILogger<TraccarClient> logger) : ITr
 
     public async Task<TraccarGeofence?> CreateGeofenceAsync(string name, string area, string? description = null, CancellationToken ct = default)
     {
+        var uri = ResolveRequestUri("/api/geofences");
+        if (uri is null) return null;
+
         try
         {
             var payload = new { name, area, description };
-            var response = await http.PostAsJsonAsync("/api/geofences", payload, ct);
+            var response = await http.PostAsJsonAsync(uri, payload, ct);
             if (!response.IsSuccessStatusCode)
             {
                 logger.LogWarning("Traccar CreateGeofence failed: {Status}", response.StatusCode);
@@ -109,10 +125,13 @@ public class TraccarClient(HttpClient http, ILogger<TraccarClient> logger) : ITr
 
     public async Task<bool> UpdateGeofenceAsync(int geofenceId, string name, string area, CancellationToken ct = default)
     {
+        var uri = ResolveRequestUri($"/api/geofences/{geofenceId}");
+        if (uri is null) return false;
+
         try
         {
             var payload = new { id = geofenceId, name, area };
-            var response = await http.PutAsJsonAsync($"/api/geofences/{geofenceId}", payload, ct);
+            var response = await http.PutAsJsonAsync(uri, payload, ct);
             return response.IsSuccessStatusCode;
         }
         catch (Exception ex)
@@ -124,9 +143,12 @@ public class TraccarClient(HttpClient http, ILogger<TraccarClient> logger) : ITr
 
     public async Task<bool> DeleteGeofenceAsync(int geofenceId, CancellationToken ct = default)
     {
+        var uri = ResolveRequestUri($"/api/geofences/{geofenceId}");
+        if (uri is null) return false;
+
         try
         {
-            var response = await http.DeleteAsync($"/api/geofences/{geofenceId}", ct);
+            var response = await http.DeleteAsync(uri, ct);
             return response.IsSuccessStatusCode;
         }
         catch (Exception ex)
@@ -167,10 +189,13 @@ public class TraccarClient(HttpClient http, ILogger<TraccarClient> logger) : ITr
 
     public async Task<bool> SendCommandAsync(int deviceId, string type, CancellationToken ct = default)
     {
+        var uri = ResolveRequestUri("/api/commands/send");
+        if (uri is null) return false;
+
         try
         {
             var payload = new { deviceId, type };
-            var response = await http.PostAsJsonAsync("/api/commands/send", payload, ct);
+            var response = await http.PostAsJsonAsync(uri, payload, ct);
             return response.IsSuccessStatusCode;
         }
         catch (Exception ex)
@@ -180,11 +205,31 @@ public class TraccarClient(HttpClient http, ILogger<TraccarClient> logger) : ITr
         }
     }
 
+    private Uri? ResolveRequestUri(string path)
+    {
+        if (http.BaseAddress is not null)
+            return new Uri(http.BaseAddress, path.TrimStart('/'));
+
+        if (!options.Value.TryGetBaseUri(out var baseUri) || baseUri is null)
+        {
+            logger.LogWarning(
+                "Traccar request skipped — BaseUrl is not configured. Set Traccar:BaseUrl (e.g. http://20.174.1.230:8082). Path: {Path}",
+                path);
+            return null;
+        }
+
+        return new Uri(baseUri, path.TrimStart('/'));
+    }
+
     private async Task<T?> GetAsync<T>(string path, CancellationToken ct)
     {
+        var uri = ResolveRequestUri(path);
+        if (uri is null)
+            return default;
+
         try
         {
-            var response = await http.GetAsync(path, ct);
+            var response = await http.GetAsync(uri, ct);
             if (!response.IsSuccessStatusCode)
             {
                 logger.LogWarning("Traccar GET {Path} returned {Status}", path, response.StatusCode);
@@ -201,9 +246,13 @@ public class TraccarClient(HttpClient http, ILogger<TraccarClient> logger) : ITr
 
     private async Task<IReadOnlyList<T>> GetListAsync<T>(string path, CancellationToken ct)
     {
+        var uri = ResolveRequestUri(path);
+        if (uri is null)
+            return Array.Empty<T>();
+
         try
         {
-            var response = await http.GetAsync(path, ct);
+            var response = await http.GetAsync(uri, ct);
             if (!response.IsSuccessStatusCode)
             {
                 logger.LogWarning("Traccar GET {Path} returned {Status}", path, response.StatusCode);

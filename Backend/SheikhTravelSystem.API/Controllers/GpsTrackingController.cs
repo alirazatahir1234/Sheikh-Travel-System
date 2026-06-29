@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
+using SheikhTravelSystem.API.Authorization;
+using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Application.Features.GpsTracking.Commands;
 using SheikhTravelSystem.Application.Features.GpsTracking.DTOs;
@@ -97,6 +99,7 @@ public class GpsTrackingController : BaseApiController
     public async Task<IActionResult> DeleteDevice(int id)
         => Ok(await Mediator.Send(new DeleteGpsDeviceCommand(id)));
 
+    [RequirePermission(GpsPermissions.CommandSend)]
     [HttpPost("commands/send")]
     public async Task<IActionResult> SendCommand([FromBody] SendDeviceCommandDto command)
     {

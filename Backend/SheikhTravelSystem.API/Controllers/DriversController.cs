@@ -10,9 +10,7 @@ using SheikhTravelSystem.Domain.Enums;
 namespace SheikhTravelSystem.API.Controllers;
 
 [Authorize]
-/// <summary>
-/// Manages driver operations.
-/// </summary>
+
 public class DriversController : BaseApiController
 {
     [RequirePermission(DriverPermissions.DriverView)]

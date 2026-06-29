@@ -36,6 +36,8 @@ export interface GpsDevice {
   id: number;
   vehicleId?: number;
   vehicleName?: string;
+  plateNumber?: string;
+  driverName?: string;
   uniqueId: string;
   name: string;
   protocol?: string;
@@ -44,12 +46,20 @@ export interface GpsDevice {
   lastSeenAt?: string;
   isActive: boolean;
   isOnline?: boolean;
+  lastSpeed?: number;
+  lastBatteryLevel?: number;
+  lastRssi?: number;
   traccarDeviceId?: number;
   isTraccarLinked?: boolean;
   isValidImei?: boolean;
   model?: string;
   simNumber?: string;
   vendor?: string;
+  serialNumber?: string;
+  installationDate?: string;
+  installedBy?: string;
+  installationNotes?: string;
+  relayOutput?: string;
 }
 
 export interface Geofence {
@@ -107,6 +117,7 @@ export interface GpsDeviceCommand {
   deviceName?: string;
   commandType: string;
   status: string;
+  reason?: string;
   requestedBy?: string;
   requestedAt: string;
   completedAt?: string;
@@ -190,4 +201,5 @@ export interface TraccarSyncStatusDto {
   lastEventSyncAt?: string | null;
   lastSyncCompletedAt?: string | null;
   lastError?: string | null;
+  positionSyncIntervalSeconds?: number;
 }

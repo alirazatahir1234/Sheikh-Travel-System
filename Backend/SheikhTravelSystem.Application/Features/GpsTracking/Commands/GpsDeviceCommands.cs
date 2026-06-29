@@ -19,8 +19,8 @@ public class CreateGpsDeviceCommandValidator : AbstractValidator<CreateGpsDevice
         RuleFor(x => x.Device.UniqueId)
             .NotEmpty()
             .MaximumLength(100)
-            .Matches(@"^\d{14,20}$")
-            .WithMessage("Unique ID must be 14–20 digits (IMEI).");
+            .Matches(@"^\d{15}$")
+            .WithMessage("IMEI must be exactly 15 digits.");
         RuleFor(x => x.Device.Name)
             .NotEmpty()
             .MinimumLength(3)
@@ -61,7 +61,7 @@ public class CreateGpsDeviceCommandHandler(
             cancellationToken: cancellationToken));
 
         if (duplicate)
-            return ApiResponse<int>.FailResponse("A device with this IMEI already exists.");
+            return ApiResponse<int>.FailResponse("IMEI already registered.");
 
         if (dto.VehicleId.HasValue)
         {
@@ -71,7 +71,7 @@ public class CreateGpsDeviceCommandHandler(
         }
 
         int? traccarDeviceId = null;
-        if (traccarOptions.Value.Enabled)
+        if (traccarOptions.Value.IsConfigured && traccarOptions.Value.Enabled)
         {
             var created = await traccar.CreateDeviceAsync(dto.Name, dto.UniqueId, ct: cancellationToken);
             if (created is null)
@@ -83,10 +83,12 @@ public class CreateGpsDeviceCommandHandler(
 
         var id = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
             @"INSERT INTO GpsDevices (VehicleId, UniqueId, Name, Protocol, Model, SimNumber, Vendor,
-              SupportsEngineCutoff, TraccarDeviceId, IsActive, CreatedAt, CreatedBy, IsDeleted)
+              SupportsEngineCutoff, RelayOutput, SerialNumber, InstallationDate, InstalledBy, InstallationNotes,
+              TraccarDeviceId, IsActive, CreatedAt, CreatedBy, IsDeleted)
               OUTPUT INSERTED.Id
               VALUES (@VehicleId, @UniqueId, @Name, @Protocol, @Model, @SimNumber, @Vendor,
-              @SupportsEngineCutoff, @TraccarDeviceId, 1, GETUTCDATE(), @CreatedBy, 0)",
+              @SupportsEngineCutoff, @RelayOutput, @SerialNumber, @InstallationDate, @InstalledBy, @InstallationNotes,
+              @TraccarDeviceId, 1, GETUTCDATE(), @CreatedBy, 0)",
             new
             {
                 dto.VehicleId,
@@ -97,6 +99,11 @@ public class CreateGpsDeviceCommandHandler(
                 dto.SimNumber,
                 dto.Vendor,
                 dto.SupportsEngineCutoff,
+                RelayOutput = dto.SupportsEngineCutoff ? dto.RelayOutput : null,
+                dto.SerialNumber,
+                dto.InstallationDate,
+                dto.InstalledBy,
+                dto.InstallationNotes,
                 TraccarDeviceId = traccarDeviceId,
                 CreatedBy = currentUser.UserId?.ToString()
             },
@@ -138,7 +145,11 @@ public class UpdateGpsDeviceCommandHandler(
 
         var rows = await connection.ExecuteAsync(new CommandDefinition(
             @"UPDATE GpsDevices SET VehicleId = @VehicleId, Name = @Name, Protocol = @Protocol,
-              SupportsEngineCutoff = @SupportsEngineCutoff, IsActive = @IsActive, UpdatedAt = GETUTCDATE(), UpdatedBy = @UpdatedBy
+              SupportsEngineCutoff = @SupportsEngineCutoff, RelayOutput = @RelayOutput,
+              SimNumber = @SimNumber, SerialNumber = @SerialNumber,
+              InstallationDate = @InstallationDate, InstalledBy = @InstalledBy,
+              InstallationNotes = @InstallationNotes, IsActive = @IsActive,
+              UpdatedAt = GETUTCDATE(), UpdatedBy = @UpdatedBy
               WHERE Id = @Id AND IsDeleted = 0",
             new
             {
@@ -147,6 +158,12 @@ public class UpdateGpsDeviceCommandHandler(
                 dto.Name,
                 dto.Protocol,
                 dto.SupportsEngineCutoff,
+                RelayOutput = dto.SupportsEngineCutoff ? dto.RelayOutput : null,
+                dto.SimNumber,
+                dto.SerialNumber,
+                dto.InstallationDate,
+                dto.InstalledBy,
+                dto.InstallationNotes,
                 dto.IsActive,
                 UpdatedBy = currentUser.UserId?.ToString()
             },
@@ -155,7 +172,7 @@ public class UpdateGpsDeviceCommandHandler(
         if (rows == 0)
             return ApiResponse<bool>.FailResponse("Device not found.");
 
-        if (traccarOptions.Value.Enabled && existing.TraccarDeviceId.HasValue)
+        if (traccarOptions.Value.IsConfigured && traccarOptions.Value.Enabled && existing.TraccarDeviceId.HasValue)
         {
             var synced = await traccar.UpdateDeviceAsync(
                 existing.TraccarDeviceId.Value,
@@ -203,7 +220,7 @@ public class DeleteGpsDeviceCommandHandler(
         if (rows == 0)
             return ApiResponse<bool>.FailResponse("Device not found.");
 
-        if (traccarOptions.Value.Enabled && traccarDeviceId.HasValue)
+        if (traccarOptions.Value.IsConfigured && traccarOptions.Value.Enabled && traccarDeviceId.HasValue)
             await traccar.DeleteDeviceAsync(traccarDeviceId.Value, cancellationToken);
 
         return ApiResponse<bool>.SuccessResponse(true, "GPS device deleted.");

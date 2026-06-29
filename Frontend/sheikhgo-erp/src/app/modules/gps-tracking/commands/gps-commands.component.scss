@@ -84,3 +84,17 @@
   p { margin: 4px 0; font-size: 15px; }
   .sub { font-size: 13px; color: #9ca3af; }
 }
+
+.confirm-panel {
+  background: #fff7ed; border: 1px solid #fed7aa; border-radius: 12px;
+  padding: 20px 24px; margin-bottom: 24px;
+}
+.confirm-inner { display: flex; align-items: flex-start; gap: 14px; margin-bottom: 16px; }
+.confirm-icon { font-size: 28px; width: 28px; height: 28px; color: #ea580c; flex-shrink: 0; margin-top: 2px; }
+.confirm-icon.icon-danger { color: #dc2626; }
+.confirm-title { margin: 0 0 4px; font-size: 15px; font-weight: 500; color: #1a202c; }
+.confirm-sub { margin: 0; font-size: 13px; color: #9a3412; }
+.reason-field { width: 100%; max-width: 360px; display: block; margin-bottom: 12px; }
+.confirm-actions { display: flex; gap: 10px; }
+@keyframes spin { from { transform: rotate(0deg) } to { transform: rotate(360deg) } }
+.spin { animation: spin 1s linear infinite; }
