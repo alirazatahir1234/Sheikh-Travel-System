@@ -93,11 +93,11 @@
             <span class="plan-chip" [ngClass]="tenantPlanMeta(p).cssClass">
               <mat-icon>{{ tenantPlanMeta(p).icon }}</mat-icon>{{ p }}
             </span>
-            <span class="plan-best-for">{{ planDef(p)?.bestFor }}</span>
-            <span class="plan-quota" *ngIf="planDef(p)?.quotas?.maxUsers !== null">
-              {{ planDef(p)?.quotas?.maxUsers }} users · {{ planDef(p)?.quotas?.maxVehicles }} vehicles
+            <span class="plan-best-for">{{ planDef(p).bestFor }}</span>
+            <span class="plan-quota" *ngIf="planDef(p).quotas.maxUsers !== null">
+              {{ planDef(p).quotas.maxUsers }} users · {{ planDef(p).quotas.maxVehicles }} vehicles
             </span>
-            <span class="plan-quota unlimited" *ngIf="planDef(p)?.quotas?.maxUsers === null">
+            <span class="plan-quota unlimited" *ngIf="planDef(p).quotas.maxUsers === null">
               Unlimited resources
             </span>
           </div>

@@ -47,13 +47,12 @@ public class UserAccessService(IDbConnectionFactory dbFactory) : IUserAccessServ
             ? (IReadOnlyList<string>)[]
             : (await connection.QueryAsync<string>(new CommandDefinition("""
                 SELECT DISTINCT p.PermissionCode
-                FROM UserRoles ur
-                INNER JOIN Roles r ON r.Id = ur.RoleId AND r.TenantId = @TenantId
+                FROM Roles r
                 INNER JOIN RolePermissions rp ON rp.RoleId = r.Id
                 INNER JOIN Permissions p ON p.Id = rp.PermissionId
-                WHERE ur.UserId = @UserId
+                WHERE r.TenantId = @TenantId AND r.IsActive = 1 AND r.Code IN @RoleCodes
                 ORDER BY p.PermissionCode
-                """, new { UserId = userId, TenantId = tenantId }, cancellationToken: cancellationToken))).ToList();
+                """, new { TenantId = tenantId, RoleCodes = roleCodes }, cancellationToken: cancellationToken))).ToList();
 
         return new UserAccessContext(userId, tenantId, roleCodes, permissions);
     }

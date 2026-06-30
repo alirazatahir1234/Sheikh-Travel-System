@@ -43,7 +43,14 @@ import {
   maxDateOfBirthInputValue,
   minDateOfBirthInputValue,
   phoneLocalValidator,
-  phoneCodeForNationality
+  phoneCodeForNationality,
+  personNameValidator,
+  personNameErrorMessage,
+  contactNameValidator,
+  contactNameErrorMessage,
+  emergencyContactPhoneErrorMessage,
+  sanitizeEmergencyContactPhoneInput,
+  EMERGENCY_CONTACT_PHONE_MAX_DIGITS
 } from '../utils/driver-wizard.validators';
 
 function requiredTrimmed() {
@@ -122,8 +129,8 @@ export class DriverWizardFacade {
   );
 
   readonly form: FormGroup = this.fb.group({
-    firstName: ['', [requiredTrimmed(), Validators.maxLength(100)]],
-    lastName: ['', [requiredTrimmed(), Validators.maxLength(100)]],
+    firstName: ['', [personNameValidator()]],
+    lastName: ['', [personNameValidator()]],
     phoneLocal: ['', [requiredTrimmed()]],
     phoneCountryCode: ['+971'],
     email: ['', [requiredTrimmed(), Validators.email]],
@@ -131,7 +138,7 @@ export class DriverWizardFacade {
     dateOfBirth: ['', dateOfBirthValidator()],
     gender: ['Male', requiredTrimmed()],
     address: [''],
-    emergencyContactName: ['', [requiredTrimmed(), Validators.maxLength(100)]],
+    emergencyContactName: ['', [contactNameValidator()]],
     emergencyContactPhone: ['', [emergencyContactPhoneValidator()]],
     licenseNumber: ['', [requiredTrimmed(), Validators.maxLength(30)]],
     licenseExpiryDate: ['', Validators.required],
@@ -912,14 +919,28 @@ export class DriverWizardFacade {
 
   validationErrors(): string[] {
     const errors: string[] = [];
-    if (this.form.get('firstName')?.invalid) errors.push('First name is required');
-    if (this.form.get('lastName')?.invalid) errors.push('Last name is required');
+    if (this.form.get('firstName')?.invalid) {
+      errors.push(personNameErrorMessage(this.form.get('firstName'), 'First name') ?? 'First name is invalid');
+    }
+    if (this.form.get('lastName')?.invalid) {
+      errors.push(personNameErrorMessage(this.form.get('lastName'), 'Last name') ?? 'Last name is invalid');
+    }
     if (this.form.get('dateOfBirth')?.hasError('futureDate')) errors.push('Date of birth cannot be in the future');
     if (this.form.get('dateOfBirth')?.hasError('minAge')) errors.push('Driver must be at least 18 years old');
     if (this.form.get('phoneLocal')?.invalid) errors.push('Valid mobile number is required');
     if (this.form.get('email')?.invalid) errors.push('Valid email is required');
-    if (this.form.get('emergencyContactName')?.invalid) errors.push('Emergency contact name is required');
-    if (this.form.get('emergencyContactPhone')?.invalid) errors.push('Valid emergency contact phone is required');
+    if (this.form.get('emergencyContactName')?.invalid) {
+      errors.push(
+        contactNameErrorMessage(this.form.get('emergencyContactName'), 'Emergency contact name')
+          ?? 'Emergency contact name is invalid'
+      );
+    }
+    if (this.form.get('emergencyContactPhone')?.invalid) {
+      errors.push(
+        emergencyContactPhoneErrorMessage(this.form.get('emergencyContactPhone'))
+          ?? 'Valid emergency contact phone is required'
+      );
+    }
     if (this.form.get('licenseNumber')?.invalid) errors.push('License number is required');
     if (this.form.get('phoneLocal')?.hasError('duplicate')) errors.push('Mobile number is already registered');
     if (this.form.get('email')?.hasError('duplicate')) errors.push('Email is already registered');

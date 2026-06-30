@@ -103,7 +103,7 @@
                         [checked]="selection.isSelected(u)"
                         aria-label="Select user">
           </mat-checkbox>
-          <div class="user-avatar">{{ u.fullName?.charAt(0)?.toUpperCase() || '?' }}</div>
+          <div class="user-avatar">{{ u.fullName.charAt(0).toUpperCase() || '?' }}</div>
           <div class="user-mobile-card__identity">
             <strong class="user-mobile-card__name">{{ u.fullName }}</strong>
             <span class="user-mobile-card__email">{{ u.email }}</span>
@@ -163,7 +163,7 @@
           <th mat-header-cell *matHeaderCellDef>Name</th>
           <td mat-cell *matCellDef="let u">
             <div class="user-cell">
-              <div class="user-avatar user-avatar--sm">{{ u.fullName?.charAt(0)?.toUpperCase() || '?' }}</div>
+              <div class="user-avatar user-avatar--sm">{{ u.fullName.charAt(0).toUpperCase() || '?' }}</div>
               <span class="name">{{ u.fullName }}</span>
             </div>
           </td>

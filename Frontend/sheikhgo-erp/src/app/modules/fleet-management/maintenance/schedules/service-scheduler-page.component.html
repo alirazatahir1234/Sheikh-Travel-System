@@ -4,7 +4,9 @@
       <h2>Service Scheduler</h2>
       <p>Plan preventive maintenance by mileage, date, or engine hours</p>
     </div>
-    <button type="button" class="btn-new" (click)="openCreate()">+ Schedule Service</button>
+    @if (canManageSchedules()) {
+      <button type="button" class="btn-new" (click)="openCreate()">+ Schedule Service</button>
+    }
   </header>
 
   <div class="toolbar">

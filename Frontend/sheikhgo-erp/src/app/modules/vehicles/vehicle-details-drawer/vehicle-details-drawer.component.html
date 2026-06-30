@@ -738,11 +738,22 @@
   </ui-modal>
 
   <ui-modal [(open)]="assignDriverModalOpen" title="Assign Driver" size="sm">
-    <ui-select label="Driver" [options]="driverOptions" [(ngModel)]="selectedDriverId" [required]="true"></ui-select>
-    <ui-input class="mt-4 block" label="Booking ID (optional)" type="number" [(ngModel)]="bookingId"></ui-input>
+    <ui-select
+      label="Driver"
+      placeholder="Select driver"
+      [searchable]="true"
+      [options]="driverOptions"
+      [(ngModel)]="selectedDriverId"
+      [required]="true" />
+    <ui-input
+      class="mt-4 block"
+      label="Booking ID (Optional)"
+      type="number"
+      placeholder="Enter booking ID"
+      [(ngModel)]="bookingId" />
     <div modal-footer class="flex justify-end gap-2">
       <ui-button variant="ghost" (clicked)="assignDriverModalOpen = false">Cancel</ui-button>
-      <ui-button variant="primary" [disabled]="!selectedDriverId" (clicked)="submitAssignDriver()">Assign</ui-button>
+      <ui-button variant="primary" [disabled]="!selectedDriverId" (clicked)="submitAssignDriver()">Assign Driver</ui-button>
     </div>
   </ui-modal>
 

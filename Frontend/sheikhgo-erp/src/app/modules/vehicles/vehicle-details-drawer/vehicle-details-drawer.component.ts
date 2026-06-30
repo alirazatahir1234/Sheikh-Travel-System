@@ -45,6 +45,7 @@ import {
 import { apiErrorMessage } from '../../../core/utils/api-error.util';
 import { deriveOperationalStatus } from '../utils/vehicle-status.util';
 import { formatRelativeTime } from '../../../core/utils/relative-time.util';
+import { buildDriverAssignOptions, parseOptionalBookingId } from '../utils/vehicle-assign.util';
 
 interface VehicleAlert {
   id: string;
@@ -211,7 +212,7 @@ export class VehicleDetailsDrawerComponent {
   statusReason = '';
   selectedDriverId: string | null = null;
   selectedGpsDeviceId: string | null = null;
-  bookingId: number | null = null;
+  bookingId: string | number | null = null;
 
   newDocType = '';
   newDocFile: File | null = null;
@@ -757,10 +758,7 @@ export class VehicleDetailsDrawerComponent {
 
   openAssignDriverModal(): void {
     this.driverService.getAll(1, 500).subscribe(result => {
-      this.driverOptions = result.items.map(d => ({
-        value: String(d.id),
-        label: `${d.fullName} (${d.phone})`
-      }));
+      this.driverOptions = buildDriverAssignOptions(result.items);
       this.selectedDriverId = null;
       this.bookingId = null;
       this.assignDriverModalOpen = true;
@@ -799,17 +797,24 @@ export class VehicleDetailsDrawerComponent {
   submitAssignDriver(): void {
     const id = this.vehicleId();
     if (!id || !this.selectedDriverId) return;
+
+    const bookingId = parseOptionalBookingId(this.bookingId);
+    if (this.bookingId !== null && this.bookingId !== undefined && String(this.bookingId).trim() !== '' && bookingId === null) {
+      this.toast.error('Enter a valid booking ID.');
+      return;
+    }
+
     this.vehicleService.assignDriver(id, {
       driverId: Number(this.selectedDriverId),
-      bookingId: this.bookingId || null
+      bookingId
     }).subscribe({
       next: () => {
-        this.toast.success('Driver assigned');
+        this.toast.success('Driver assigned successfully');
         this.assignDriverModalOpen = false;
         this.loadVehicle(id);
         this.statusChanged.emit();
       },
-      error: () => this.toast.error('Assign driver failed')
+      error: (err) => this.toast.error(apiErrorMessage(err, 'Driver assignment failed'))
     });
   }
 

@@ -9,7 +9,20 @@ import {
   DRIVER_GENDER_OPTIONS,
   DRIVER_NATIONALITY_OPTIONS
 } from '../../models/driver-wizard.model';
-import { PHONE_COUNTRY_CODES } from '../../utils/driver-wizard.validators';
+import {
+  PHONE_COUNTRY_CODES,
+  PERSON_NAME_MAX_LENGTH,
+  CONTACT_NAME_MAX_LENGTH,
+  EMERGENCY_CONTACT_PHONE_MAX_DIGITS,
+  blockNonPersonNameKey,
+  blockNonContactNameKey,
+  personNameErrorMessage,
+  contactNameErrorMessage,
+  emergencyContactPhoneErrorMessage,
+  sanitizePersonNameInput,
+  sanitizeContactNameInput,
+  sanitizeEmergencyContactPhoneInput
+} from '../../utils/driver-wizard.validators';
 import { PhoneDigitsOnlyDirective } from '../../../../../shared/directives/phone-digits-only.directive';
 import { UPLOAD_MAX_SIZE_LABEL, vehicleUploadSizeError } from '../../../../../core/utils/upload-url.util';
 
@@ -133,13 +146,31 @@ import { UPLOAD_MAX_SIZE_LABEL, vehicleUploadSizeError } from '../../../../../co
           <div class="form-grid">
             <label class="field">
               <span>First Name <span class="req">*</span></span>
-              <input formControlName="firstName" class="input" [class.input--error]="showError('firstName')" placeholder="e.g. Salim" />
-              @if (showError('firstName')) { <span class="field-error">First name is required</span> }
+              <input
+                formControlName="firstName"
+                class="input"
+                [class.input--error]="showError('firstName')"
+                placeholder="e.g. Salim"
+                [attr.maxlength]="personNameMaxLength"
+                (keydown)="blockPersonNameKey($event)"
+                (input)="onPersonNameInput($event, 'firstName')" />
+              @if (nameError('firstName', 'First name'); as err) {
+                <span class="field-error">{{ err }}</span>
+              }
             </label>
             <label class="field">
               <span>Last Name <span class="req">*</span></span>
-              <input formControlName="lastName" class="input" [class.input--error]="showError('lastName')" placeholder="e.g. Al-Mansoor" />
-              @if (showError('lastName')) { <span class="field-error">Last name is required</span> }
+              <input
+                formControlName="lastName"
+                class="input"
+                [class.input--error]="showError('lastName')"
+                placeholder="e.g. Al-Mansoor"
+                [attr.maxlength]="personNameMaxLength"
+                (keydown)="blockPersonNameKey($event)"
+                (input)="onPersonNameInput($event, 'lastName')" />
+              @if (nameError('lastName', 'Last name'); as err) {
+                <span class="field-error">{{ err }}</span>
+              }
             </label>
             <label class="field full">
               <span>Full Name (Auto-generated)</span>
@@ -244,9 +275,16 @@ import { UPLOAD_MAX_SIZE_LABEL, vehicleUploadSizeError } from '../../../../../co
           <div class="form-grid">
             <label class="field">
               <span>Contact Name <span class="req">*</span></span>
-              <input formControlName="emergencyContactName" class="input" [class.input--error]="showError('emergencyContactName')" placeholder="e.g. Layla Mansoor" />
-              @if (showError('emergencyContactName')) {
-                <span class="field-error">Emergency contact name is required</span>
+              <input
+                formControlName="emergencyContactName"
+                class="input"
+                [class.input--error]="showError('emergencyContactName')"
+                placeholder="e.g. Layla Mansoor"
+                [attr.maxlength]="contactNameMaxLength"
+                (keydown)="blockContactNameKey($event)"
+                (input)="onContactNameInput($event)" />
+              @if (contactNameError('emergencyContactName', 'Emergency contact name'); as err) {
+                <span class="field-error">{{ err }}</span>
               }
             </label>
             <label class="field">
@@ -257,11 +295,11 @@ import { UPLOAD_MAX_SIZE_LABEL, vehicleUploadSizeError } from '../../../../../co
                 class="input"
                 [class.input--error]="showError('emergencyContactPhone')"
                 placeholder="e.g. 971509876543"
-                inputmode="numeric" />
-              @if (showError('emergencyContactPhone', 'phoneLength')) {
-                <span class="field-error">Enter a valid phone number (7–15 digits)</span>
-              } @else if (showError('emergencyContactPhone')) {
-                <span class="field-error">Emergency contact phone is required</span>
+                [attr.maxlength]="emergencyContactPhoneMaxDigits"
+                inputmode="numeric"
+                (input)="onEmergencyContactPhoneInput($event)" />
+              @if (emergencyContactPhoneError('emergencyContactPhone'); as err) {
+                <span class="field-error">{{ err }}</span>
               }
             </label>
           </div>
@@ -299,6 +337,9 @@ export class WizardStepPersonalComponent {
   readonly genderOptions = DRIVER_GENDER_OPTIONS;
   readonly nationalityOptions = DRIVER_NATIONALITY_OPTIONS;
   readonly phoneCountryCodes = PHONE_COUNTRY_CODES;
+  readonly personNameMaxLength = PERSON_NAME_MAX_LENGTH;
+  readonly contactNameMaxLength = CONTACT_NAME_MAX_LENGTH;
+  readonly emergencyContactPhoneMaxDigits = EMERGENCY_CONTACT_PHONE_MAX_DIGITS;
   readonly uploadMaxSizeLabel = UPLOAD_MAX_SIZE_LABEL;
   readonly sizeError = signal<string | null>(null);
   readonly photoLoadFailed = signal(false);
@@ -355,6 +396,59 @@ export class WizardStepPersonalComponent {
     if (!show) return false;
     if (errorKey) return !!c.hasError(errorKey);
     return c.invalid;
+  }
+
+  nameError(controlName: string, label: string): string | null {
+    if (!this.showError(controlName)) return null;
+    return personNameErrorMessage(this.form().get(controlName), label);
+  }
+
+  blockPersonNameKey(event: KeyboardEvent): void {
+    blockNonPersonNameKey(event);
+  }
+
+  onPersonNameInput(event: Event, controlName: string): void {
+    const input = event.target as HTMLInputElement;
+    const cleaned = sanitizePersonNameInput(input.value);
+    const ctrl = this.form().get(controlName);
+    if (!ctrl) return;
+    if (ctrl.value !== cleaned) {
+      ctrl.setValue(cleaned);
+    }
+  }
+
+  contactNameError(controlName: string, label: string): string | null {
+    if (!this.showError(controlName)) return null;
+    return contactNameErrorMessage(this.form().get(controlName), label);
+  }
+
+  blockContactNameKey(event: KeyboardEvent): void {
+    blockNonContactNameKey(event);
+  }
+
+  onContactNameInput(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const cleaned = sanitizeContactNameInput(input.value);
+    const ctrl = this.form().get('emergencyContactName');
+    if (!ctrl) return;
+    if (ctrl.value !== cleaned) {
+      ctrl.setValue(cleaned);
+    }
+  }
+
+  emergencyContactPhoneError(controlName: string): string | null {
+    if (!this.showError(controlName)) return null;
+    return emergencyContactPhoneErrorMessage(this.form().get(controlName));
+  }
+
+  onEmergencyContactPhoneInput(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const cleaned = sanitizeEmergencyContactPhoneInput(input.value);
+    const ctrl = this.form().get('emergencyContactPhone');
+    if (!ctrl) return;
+    if (ctrl.value !== cleaned) {
+      ctrl.setValue(cleaned);
+    }
   }
 
   copyCode(): void {

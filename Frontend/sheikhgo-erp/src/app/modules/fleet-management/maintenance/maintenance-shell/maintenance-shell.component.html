@@ -22,7 +22,11 @@
         }
       </div>
       <select class="period-select" [ngModel]="period()" (ngModelChange)="onPeriodChange($event)">
-        <option>Today</option><option>Week</option><option>Month</option><option>Quarter</option><option>Year</option>
+        <option value="Today">Today</option>
+        <option value="Week">Week</option>
+        <option value="Month">Month</option>
+        <option value="Quarter">Quarter</option>
+        <option value="Year">Year</option>
       </select>
       <button type="button" class="export-btn" (click)="exportReport()">
         <mat-icon>download</mat-icon> Export Report

@@ -13,6 +13,7 @@ import {
 } from '../../../../../core/models/maintenance.model';
 import { VehicleListItem } from '../../../../../core/models/vehicle.model';
 import { apiErrorMessage } from '../../../../../core/utils/api-error.util';
+import { buildCreateMaintenanceSchedulePayload } from '../utils/schedule-form.util';
 
 export type ScheduleDrawerMode = 'create' | 'reschedule';
 
@@ -199,10 +200,8 @@ export class ScheduleFormDrawerComponent implements OnInit {
   }
 
   submit(): void {
-    if (this.mode() === 'create' && !this.form.vehicleId) return;
-    this.saving.set(true);
-
     if (this.mode() === 'reschedule' && this.schedule()) {
+      this.saving.set(true);
       const body: RescheduleMaintenanceSchedulePayload = {
         lastServiceDate: this.form.lastServiceDate || null,
         lastServiceMileage: this.form.lastServiceMileage ?? null,
@@ -220,7 +219,14 @@ export class ScheduleFormDrawerComponent implements OnInit {
       return;
     }
 
-    this.maintenanceService.createSchedule(this.form).subscribe({
+    const payload = buildCreateMaintenanceSchedulePayload(this.form);
+    if (!payload) {
+      this.toast.error('Select a vehicle, service type, and interval value of at least 1.');
+      return;
+    }
+
+    this.saving.set(true);
+    this.maintenanceService.createSchedule(payload).subscribe({
       next: () => { this.saving.set(false); this.saved.emit(); this.onClose(); },
       error: err => {
         this.saving.set(false);

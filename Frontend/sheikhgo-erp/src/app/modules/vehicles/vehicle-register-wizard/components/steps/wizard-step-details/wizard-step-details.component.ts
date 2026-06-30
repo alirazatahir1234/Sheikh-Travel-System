@@ -20,16 +20,18 @@ import { VinValidationState } from '../../../models/vehicle-wizard.model';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="space-y-6" [formGroup]="form()">
-      <section class="rounded-lg border border-fleet-border bg-white p-6 shadow-sm">
+      <section class="overflow-visible rounded-lg border border-fleet-border bg-white p-6 shadow-sm">
         <h2 class="mb-1 text-lg font-semibold text-fleet-text">Vehicle Details</h2>
         <p class="mb-5 text-sm text-fleet-text-muted">Basic identification and registration information.</p>
 
-        <div class="grid gap-4 md:grid-cols-2">
-          <ui-input
+        <div class="grid gap-4 overflow-visible md:grid-cols-2">
+          <ui-select
             formControlName="name"
             label="Vehicle Name"
-            placeholder="e.g. Toyota Hiace 2024"
+            placeholder="Select vehicle name"
+            [searchable]="true"
             [required]="true"
+            [options]="vehicleNameOptions()"
             [error]="controlError('name')" />
           <app-vehicle-code-field
             formControlName="vehicleCode"
@@ -65,9 +67,30 @@ import { VinValidationState } from '../../../models/vehicle-wizard.model';
             }
           </div>
           <ui-select formControlName="year" label="Year" [options]="yearOptions()" />
-          <ui-input formControlName="make" label="Make" placeholder="Toyota" [required]="true" [error]="controlError('make')" />
-          <ui-input formControlName="model" label="Model" placeholder="Hiace" [required]="true" [error]="controlError('model')" />
-          <ui-input formControlName="color" label="Color" placeholder="White" [required]="true" [error]="controlError('color')" />
+          <ui-select
+            formControlName="make"
+            label="Make"
+            placeholder="Select make"
+            [searchable]="true"
+            [required]="true"
+            [options]="makeOptions()"
+            [error]="controlError('make')" />
+          <ui-select
+            formControlName="model"
+            label="Model"
+            placeholder="Select model"
+            [searchable]="true"
+            [required]="true"
+            [options]="modelOptions()"
+            [error]="controlError('model')" />
+          <ui-select
+            formControlName="color"
+            label="Color"
+            placeholder="Select color"
+            [searchable]="true"
+            [required]="true"
+            [options]="colorOptions()"
+            [error]="controlError('color')" />
         </div>
       </section>
 
@@ -80,6 +103,10 @@ import { VinValidationState } from '../../../models/vehicle-wizard.model';
 export class WizardStepDetailsComponent {
   readonly form = input.required<FormGroup>();
   readonly yearOptions = input.required<UiSelectOption[]>();
+  readonly vehicleNameOptions = input<UiSelectOption[]>([]);
+  readonly makeOptions = input<UiSelectOption[]>([]);
+  readonly modelOptions = input<UiSelectOption[]>([]);
+  readonly colorOptions = input<UiSelectOption[]>([]);
   readonly vinStatus = input<VinValidationState>('empty');
   readonly regenerateCode = output<void>();
 

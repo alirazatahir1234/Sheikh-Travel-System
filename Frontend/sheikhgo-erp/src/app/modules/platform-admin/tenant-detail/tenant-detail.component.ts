@@ -203,7 +203,7 @@ export class TenantDetailComponent implements OnInit {
   }
 
   planDef(planName: string) {
-    return this.planDefinitions[planName] ?? null;
+    return this.planDefinitions[planName] ?? this.planDefinitions['Enterprise'];
   }
 
   get filteredCountries(): string[] {

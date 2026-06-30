@@ -26,7 +26,10 @@ export class PhoneDigitsOnlyDirective {
   @HostListener('input', ['$event'])
   onInput(event: Event): void {
     const input = event.target as HTMLInputElement;
-    const digits = digitsOnlyPhoneInput(input.value);
+    let digits = digitsOnlyPhoneInput(input.value);
+    if (input.maxLength > 0) {
+      digits = digits.slice(0, input.maxLength);
+    }
     if (input.value === digits) return;
 
     input.value = digits;

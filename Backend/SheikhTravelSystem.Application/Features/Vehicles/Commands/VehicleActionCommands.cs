@@ -107,7 +107,7 @@ public class AssignVehicleDriverCommandHandler(
                 new { body.DriverId, TenantId = tenantId },
                 cancellationToken: cancellationToken));
 
-        DriverAssignmentGuard.EnsureAssignable(
+        DriverAssignmentGuard.EnsureAssignableForVehicleTrip(
             driverRow.IsActive,
             (DriverStatus)driverRow.Status,
             driverRow.VerificationStatus,
@@ -121,14 +121,17 @@ public class AssignVehicleDriverCommandHandler(
 
         if (body.BookingId is int bookingId)
         {
-            var bookingExists = await connection.ExecuteScalarAsync<bool>(
+            var bookingStatus = await connection.ExecuteScalarAsync<int?>(
                 new CommandDefinition(
-                    "SELECT CASE WHEN EXISTS(SELECT 1 FROM Bookings WHERE Id = @BookingId AND TenantId = @TenantId AND IsDeleted = 0) THEN 1 ELSE 0 END",
+                    "SELECT Status FROM Bookings WHERE Id = @BookingId AND TenantId = @TenantId AND IsDeleted = 0",
                     new { BookingId = bookingId, TenantId = tenantId },
                     cancellationToken: cancellationToken));
 
-            if (!bookingExists)
+            if (bookingStatus is null)
                 throw new NotFoundException("Booking", bookingId);
+
+            if (bookingStatus != (int)BookingStatus.Pending && bookingStatus != (int)BookingStatus.Confirmed)
+                throw new ConflictException("Can only assign driver to pending or confirmed bookings.");
 
             await connection.ExecuteAsync(
                 new CommandDefinition(

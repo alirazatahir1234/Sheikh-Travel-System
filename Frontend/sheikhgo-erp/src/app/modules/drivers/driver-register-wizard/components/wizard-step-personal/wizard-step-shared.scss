@@ -51,10 +51,19 @@
     grid-column: 1 / -1;
   }
 
-  span {
+  > span:not(.field-error) {
     font-weight: 500;
     color: var(--fleet-text-muted, #64748b);
   }
+}
+
+.field-error {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #dc2626;
+  margin-top: 0.15rem;
+  line-height: 1.35;
 }
 
 .input {
@@ -361,12 +370,6 @@
 
 .req {
   color: #dc2626;
-}
-
-.field-error {
-  font-size: 0.75rem;
-  color: #dc2626;
-  margin-top: 0.15rem;
 }
 
 .doc-size-error {

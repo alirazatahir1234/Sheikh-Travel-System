@@ -31,7 +31,7 @@ import { Part } from '../../../../../core/models/maintenance.model';
               <td><strong>{{ p.partName }}</strong></td>
               <td>{{ p.category || '—' }}</td>
               <td class="compat">
-                @if (p.vehicleCompatibility?.length) {
+                @if (p.vehicleCompatibility.length) {
                   @for (v of p.vehicleCompatibility.slice(0, 2); track v) {
                     <span class="chip">{{ v }}</span>
                   }
