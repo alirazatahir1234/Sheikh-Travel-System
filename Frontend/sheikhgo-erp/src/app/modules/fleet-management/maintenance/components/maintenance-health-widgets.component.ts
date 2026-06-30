@@ -39,33 +39,28 @@ const HEALTH_LEGEND = [
     .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 1.25rem; min-width: 0; }
     h3 { margin: 0 0 0.75rem; font-size: 1rem; font-weight: 700; }
     .legend {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 0.625rem 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
       margin: 0.875rem 0 0;
       padding: 0;
       list-style: none;
     }
     .legend__item {
-      display: flex;
+      display: grid;
+      grid-template-columns: 0.75rem 1fr;
+      column-gap: 0.625rem;
       align-items: center;
-      gap: 0.5rem;
-      min-width: 0;
     }
     .legend__swatch {
       width: 0.75rem;
       height: 0.75rem;
       border-radius: 2px;
-      flex-shrink: 0;
     }
     .legend__label {
       font-size: 0.8125rem;
       line-height: 1.25rem;
       color: #334155;
-      white-space: nowrap;
-    }
-    @media (max-width: 480px) {
-      .legend { grid-template-columns: 1fr; }
     }
   `]
 })

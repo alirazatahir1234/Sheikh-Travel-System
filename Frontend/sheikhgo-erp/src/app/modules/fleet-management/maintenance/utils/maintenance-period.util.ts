@@ -1,3 +1,16 @@
+/** Chart bucket size passed to the maintenance dashboard API. */
+export function maintenanceDashboardGranularity(period: string): string {
+  switch (period.trim().toLowerCase()) {
+    case 'year':
+    case 'quarter':
+      return 'Month';
+    case 'month':
+      return 'Week';
+    default:
+      return 'Day';
+  }
+}
+
 /** Mirrors backend MaintenanceDashboardQueries.ResolveRange for client-side filtering. */
 export function resolveMaintenancePeriodRange(period: string, now = new Date()): { from: Date; to: Date } {
   const end = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);

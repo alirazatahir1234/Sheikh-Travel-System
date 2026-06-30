@@ -9,7 +9,11 @@
 
       <div class="grid">
         <div class="grid-main">
-          <maintenance-cost-trend [data]="d.costTrend" [period]="ctx.period()"></maintenance-cost-trend>
+          <maintenance-cost-trend
+            [data]="d.costTrend"
+            [period]="ctx.period()"
+            (periodChange)="onPeriodChange($event)">
+          </maintenance-cost-trend>
           @if (d.fuelSummary) {
             <maintenance-fuel-summary [summary]="d.fuelSummary"></maintenance-fuel-summary>
           }

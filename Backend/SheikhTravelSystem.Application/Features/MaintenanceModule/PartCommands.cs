@@ -201,14 +201,14 @@ public class IssuePartCommandHandler(
             throw new ValidationException("Quantity must be greater than zero.");
 
         var tenantId = tenantContext.GetRequiredTenantId();
+        var workOrderId = request.Body.WorkOrderId is > 0 ? request.Body.WorkOrderId : null;
         using var connection = dbFactory.CreateConnection();
 
-        var part = await connection.QuerySingleOrDefaultAsync<(decimal UnitCost, string PartName)>(
-            new CommandDefinition(
-                "SELECT UnitCost, PartName FROM Parts WHERE Id = @PartId AND TenantId = @TenantId AND IsDeleted = 0",
-                new { PartId = request.PartId, TenantId = tenantId }, cancellationToken: cancellationToken));
+        var part = await connection.QuerySingleOrDefaultAsync<PartIssueRow>(new CommandDefinition(
+            "SELECT UnitCost, PartName FROM Parts WHERE Id = @PartId AND TenantId = @TenantId AND IsDeleted = 0",
+            new { PartId = request.PartId, TenantId = tenantId }, cancellationToken: cancellationToken));
 
-        if (string.IsNullOrEmpty(part.PartName))
+        if (part is null)
             throw new NotFoundException("Part", request.PartId);
 
         var vehicleExists = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
@@ -217,7 +217,7 @@ public class IssuePartCommandHandler(
         if (vehicleExists == 0)
             throw new NotFoundException("Vehicle", request.Body.VehicleId);
 
-        if (request.Body.WorkOrderId is int woId)
+        if (workOrderId is int woId)
         {
             var woExists = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
                 "SELECT COUNT(1) FROM WorkOrders WHERE Id = @Id AND TenantId = @TenantId AND IsDeleted = 0",
@@ -241,7 +241,7 @@ public class IssuePartCommandHandler(
         {
             TenantId = tenantId,
             request.Body.VehicleId,
-            request.Body.WorkOrderId,
+            WorkOrderId = workOrderId,
             PartId = request.PartId,
             request.Body.Quantity,
             part.UnitCost,
@@ -250,16 +250,16 @@ public class IssuePartCommandHandler(
 
         await DeductStockAsync(connection, tenantId, request.PartId, request.Body.Quantity, cancellationToken);
 
-        if (request.Body.WorkOrderId is int workOrderId)
+        if (workOrderId is int linkedWorkOrderId)
         {
             await connection.ExecuteAsync(new CommandDefinition(
-                "UPDATE WorkOrders SET PartsCost = PartsCost + @Total, UpdatedAt = GETUTCDATE() WHERE Id = @Id",
-                new { Total = total, Id = workOrderId }, cancellationToken: cancellationToken));
+                "UPDATE WorkOrders SET PartsCost = ISNULL(PartsCost, 0) + @Total, UpdatedAt = GETUTCDATE() WHERE Id = @Id",
+                new { Total = total, Id = linkedWorkOrderId }, cancellationToken: cancellationToken));
         }
 
         await PartStockHelper.InsertMovementAsync(
             connection, tenantId, request.PartId, "Issue", request.Body.Quantity,
-            null, null, request.Body.VehicleId, request.Body.WorkOrderId, request.Body.Notes, createdBy, cancellationToken);
+            null, null, request.Body.VehicleId, workOrderId, request.Body.Notes, createdBy, cancellationToken);
 
         var newStock = await PartStockHelper.GetTotalStockAsync(connection, tenantId, request.PartId, cancellationToken);
         var minStock = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
@@ -271,6 +271,8 @@ public class IssuePartCommandHandler(
 
         return ApiResponse<int>.SuccessResponse(usageId);
     }
+
+    private sealed record PartIssueRow(decimal UnitCost, string PartName);
 
     private static async Task DeductStockAsync(
         System.Data.IDbConnection connection, int tenantId, int partId, int quantity, CancellationToken ct)
@@ -291,6 +293,9 @@ public class IssuePartCommandHandler(
                 new { Deduct = deduct, row.Id }, cancellationToken: ct));
             remaining -= deduct;
         }
+
+        if (remaining > 0)
+            throw new ValidationException("Insufficient stock for this issue.");
     }
 }
 
