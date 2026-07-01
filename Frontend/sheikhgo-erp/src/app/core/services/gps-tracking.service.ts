@@ -8,6 +8,10 @@ import {
   PositionDto,
   FleetTrackStatus,
   GpsDevice,
+  TrackerDetail,
+  RegisterTrackerPayload,
+  InstallTrackerPayload,
+  TrackerRegisteredResult,
   Geofence,
   GpsAlertRule,
   GpsAlertEvent,
@@ -193,7 +197,33 @@ export class GpsTrackingService {
   }
 
   getDevices(): Observable<GpsDevice[]> {
-    return this.http.get<GpsDevice[]>(`${this.base}/devices`);
+    return this.http.get<TrackerDetail[]>(`${this.base}/trackers`).pipe(
+      map(list => list as GpsDevice[])
+    );
+  }
+
+  getTracker(id: number): Observable<TrackerDetail> {
+    return this.http.get<TrackerDetail>(`${this.base}/trackers/${id}`);
+  }
+
+  registerTracker(body: RegisterTrackerPayload): Observable<TrackerRegisteredResult> {
+    return this.http.post<TrackerRegisteredResult>(`${this.base}/trackers/register`, body);
+  }
+
+  updateTracker(id: number, body: Partial<RegisterTrackerPayload> & { isActive?: boolean }): Observable<boolean> {
+    return this.http.put<boolean>(`${this.base}/trackers/${id}`, body);
+  }
+
+  deleteTracker(id: number): Observable<boolean> {
+    return this.http.delete<boolean>(`${this.base}/trackers/${id}`);
+  }
+
+  installTracker(id: number, body: InstallTrackerPayload): Observable<boolean> {
+    return this.http.post<boolean>(`${this.base}/trackers/${id}/install`, body);
+  }
+
+  uninstallTracker(id: number): Observable<boolean> {
+    return this.http.post<boolean>(`${this.base}/trackers/${id}/uninstall`, {});
   }
 
   createDevice(body: Partial<GpsDevice>): Observable<number> {

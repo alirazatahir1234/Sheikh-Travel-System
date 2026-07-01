@@ -7,6 +7,9 @@ using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Application.Features.GpsTracking.Commands;
 using SheikhTravelSystem.Application.Features.GpsTracking.DTOs;
 using SheikhTravelSystem.Application.Features.GpsTracking.Queries;
+using SheikhTravelSystem.Application.Features.GpsTracking.Trackers;
+using SheikhTravelSystem.Application.Features.GpsTracking.Trackers.Commands;
+using SheikhTravelSystem.Application.Features.GpsTracking.Trackers.Queries;
 using SheikhTravelSystem.Application.Features.GpsTracking.Traccar;
 using SheikhTravelSystem.Application.Features.Tracking.Commands;
 using SheikhTravelSystem.Application.Features.Tracking.DTOs;
@@ -81,23 +84,125 @@ public class GpsTrackingController : BaseApiController
         => Ok(await Mediator.Send(new GetGeofenceBreachCountQuery()));
 
     [HttpGet("devices")]
+    [Obsolete("Use GET /api/gps/trackers")]
     public async Task<IActionResult> GetDevices()
-        => Ok(await Mediator.Send(new GetGpsDevicesQuery()));
+        => Ok(await Mediator.Send(new GetTrackersQuery()));
 
     [HttpPost("devices")]
+    [Obsolete("Use POST /api/gps/trackers/register")]
     public async Task<IActionResult> CreateDevice([FromBody] CreateGpsDeviceDto device)
     {
-        var result = await Mediator.Send(new CreateGpsDeviceCommand(device));
+        var tracker = MapLegacyCreate(device);
+        var result = await Mediator.Send(new RegisterTrackerCommand(tracker));
         return Created(string.Empty, result);
     }
 
     [HttpPut("devices/{id:int}")]
+    [Obsolete("Use PUT /api/gps/trackers/{id}")]
     public async Task<IActionResult> UpdateDevice(int id, [FromBody] UpdateGpsDeviceDto device)
-        => Ok(await Mediator.Send(new UpdateGpsDeviceCommand(id, device)));
+    {
+        var tracker = MapLegacyUpdate(device);
+        return Ok(await Mediator.Send(new UpdateTrackerCommand(id, tracker)));
+    }
 
     [HttpDelete("devices/{id:int}")]
+    [Obsolete("Use DELETE /api/gps/trackers/{id}")]
     public async Task<IActionResult> DeleteDevice(int id)
-        => Ok(await Mediator.Send(new DeleteGpsDeviceCommand(id)));
+        => Ok(await Mediator.Send(new DeleteTrackerCommand(id)));
+
+    // ── Tracker registration (SheikhGo master, Traccar engine) ─────────────
+
+    [HttpGet("trackers")]
+    [Authorize(Roles = "Admin,Dispatcher,Accountant")]
+    public async Task<IActionResult> GetTrackers()
+        => Ok(await Mediator.Send(new GetTrackersQuery()));
+
+    [HttpGet("trackers/{id:int}")]
+    [Authorize(Roles = "Admin,Dispatcher")]
+    public async Task<IActionResult> GetTracker(int id)
+        => Ok(await Mediator.Send(new GetTrackerByIdQuery(id)));
+
+    [HttpPost("trackers/register")]
+    [Authorize(Roles = "Admin,Dispatcher")]
+    public async Task<IActionResult> RegisterTracker([FromBody] RegisterTrackerDto tracker)
+    {
+        var result = await Mediator.Send(new RegisterTrackerCommand(tracker));
+        return result.Success ? Created(string.Empty, result) : BadRequest(result);
+    }
+
+    [HttpPut("trackers/{id:int}")]
+    [Authorize(Roles = "Admin,Dispatcher")]
+    public async Task<IActionResult> UpdateTracker(int id, [FromBody] UpdateTrackerDto tracker)
+        => Ok(await Mediator.Send(new UpdateTrackerCommand(id, tracker)));
+
+    [HttpDelete("trackers/{id:int}")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> DeleteTracker(int id)
+        => Ok(await Mediator.Send(new DeleteTrackerCommand(id)));
+
+    [HttpPost("trackers/{id:int}/install")]
+    [Authorize(Roles = "Admin,Dispatcher")]
+    public async Task<IActionResult> InstallTracker(int id, [FromBody] InstallTrackerDto body)
+    {
+        var result = await Mediator.Send(new InstallTrackerCommand(id, body));
+        return result.Success ? Ok(result) : BadRequest(result);
+    }
+
+    [HttpPost("trackers/{id:int}/uninstall")]
+    [Authorize(Roles = "Admin,Dispatcher")]
+    public async Task<IActionResult> UninstallTracker(int id)
+    {
+        var result = await Mediator.Send(new UninstallTrackerCommand(id));
+        return result.Success ? Ok(result) : BadRequest(result);
+    }
+
+    [HttpPost("trackers/{id:int}/sync")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> SyncTracker(int id)
+        => Ok(await Mediator.Send(new SyncTrackerCommand(id)));
+
+    [HttpPost("trackers/sync-all")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> SyncAllTrackers()
+        => Ok(await Mediator.Send(new SyncAllTrackersCommand()));
+
+    private static RegisterTrackerDto MapLegacyCreate(CreateGpsDeviceDto d) => new(
+        d.Name,
+        d.UniqueId,
+        Category: "car",
+        TrackerModelId: 0,
+        TrackerModelKey: ResolveModelKey(d.Model),
+        Phone: d.SimNumber,
+        SupportsEngineCutoff: d.SupportsEngineCutoff,
+        RelayOutput: d.RelayOutput,
+        VehicleId: d.VehicleId,
+        SerialNumber: d.SerialNumber,
+        InstallationDate: d.InstallationDate,
+        InstalledBy: d.InstalledBy,
+        InstallationNotes: d.InstallationNotes,
+        Vendor: d.Vendor);
+
+    private static UpdateTrackerDto MapLegacyUpdate(UpdateGpsDeviceDto d) => new(
+        d.Name,
+        Category: "car",
+        TrackerModelId: 0,
+        TrackerModelKey: "teltonika_fmb920",
+        SupportsEngineCutoff: d.SupportsEngineCutoff,
+        RelayOutput: d.RelayOutput,
+        VehicleId: d.VehicleId,
+        SerialNumber: d.SerialNumber,
+        InstallationDate: d.InstallationDate,
+        InstalledBy: d.InstalledBy,
+        InstallationNotes: d.InstallationNotes,
+        IsActive: d.IsActive);
+
+    private static string ResolveModelKey(string? model)
+    {
+        if (string.IsNullOrWhiteSpace(model)) return "teltonika_fmb920";
+        var match = TrackerCatalog.Models.FirstOrDefault(m =>
+            string.Equals(m.Value.Label, model, StringComparison.OrdinalIgnoreCase));
+        return match.Key ?? "teltonika_fmb920";
+    }
 
     [RequirePermission(GpsPermissions.CommandSend)]
     [HttpPost("commands/send")]

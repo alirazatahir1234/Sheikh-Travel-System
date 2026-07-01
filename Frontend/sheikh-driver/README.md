@@ -44,17 +44,17 @@ xattr -dr com.apple.quarantine /opt/homebrew/Caskroom/flutter
 **From the repo root** (`Sheikh-Travel-System`):
 
 ```bash
-cd Frontend/sheikh-driver
+cd Frontend/sheikhgo-driver
 ./setup.sh
 flutter run --dart-define=API_BASE_URL=http://127.0.0.1:5082/api
 ```
 
-If you are **already inside** `sheikh-driver`, do **not** run `cd Frontend/sheikh-driver` again — that path only works from the repo root.
+If you are **already inside** `sheikhgo-driver`, do **not** run `cd Frontend/sheikhgo-driver` again — that path only works from the repo root.
 
 **Absolute path:**
 
 ```bash
-cd /Users/alirazatahir/Projects/Sheikh-Travel-System/Frontend/sheikh-driver
+cd /Users/alirazatahir/Projects/Sheikh-Travel-System/Frontend/sheikhgo-driver
 ./setup.sh
 ```
 
@@ -65,7 +65,7 @@ The first `setup.sh` run runs `flutter create` to add `android/` and `ios/` fold
 `flutter run -d macos` needs **full Xcode** (`xcodebuild`). If you see `unable to find utility "xcodebuild"`, use the **web server** target instead (no Chrome required):
 
 ```bash
-cd Frontend/sheikh-driver
+cd Frontend/sheikhgo-driver
 flutter config --enable-web
 flutter run -d web-server --web-port=7357 \
   --dart-define=API_BASE_URL=http://127.0.0.1:5082/api

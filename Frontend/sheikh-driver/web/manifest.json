@@ -1,11 +1,11 @@
 {
-    "name": "Sheikh Driver",
-    "short_name": "Sheikh Driver",
+    "name": "SheikhGo Driver",
+    "short_name": "SheikhGo Driver",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "Sheikh Driver — Sheikh Travel driver mobile app",
+    "background_color": "#0F4D3A",
+    "theme_color": "#0F4D3A",
+    "description": "SheikhGo Driver — Production driver app for SheikhGo fleet platform",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

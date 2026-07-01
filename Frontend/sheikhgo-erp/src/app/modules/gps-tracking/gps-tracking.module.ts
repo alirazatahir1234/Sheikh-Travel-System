@@ -11,6 +11,8 @@ import { GpsGeofencesComponent } from './geofences/gps-geofences.component';
 import { GpsAlertsComponent } from './alerts/gps-alerts.component';
 import { GpsDevicesComponent } from './devices/gps-devices.component';
 import { GpsCommandsComponent } from './commands/gps-commands.component';
+import { TrackerRegisterPageComponent } from './tracker-register/tracker-register-page.component';
+import { TrackerInstallPageComponent } from './tracker-install/tracker-install-page.component';
 
 const routes: Routes = [
   {
@@ -24,6 +26,9 @@ const routes: Routes = [
       { path: 'geofences', component: GpsGeofencesComponent },
       { path: 'alerts', component: GpsAlertsComponent },
       { path: 'devices', component: GpsDevicesComponent },
+      { path: 'devices/register', component: TrackerRegisterPageComponent },
+      { path: 'devices/:id/install', component: TrackerInstallPageComponent },
+      { path: 'devices/:id/edit', component: TrackerRegisterPageComponent },
       { path: 'commands', component: GpsCommandsComponent }
     ]
   }
@@ -38,7 +43,9 @@ const routes: Routes = [
     GpsGeofencesComponent,
     GpsAlertsComponent,
     GpsDevicesComponent,
-    GpsCommandsComponent
+    GpsCommandsComponent,
+    TrackerRegisterPageComponent,
+    TrackerInstallPageComponent
   ],
   imports: [SharedModule, UiInputComponent, UiSelectComponent, RouterModule.forChild(routes)]
 })

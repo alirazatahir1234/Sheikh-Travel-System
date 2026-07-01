@@ -29,45 +29,105 @@ public class TraccarClient(
         return list.FirstOrDefault();
     }
 
-    public async Task<TraccarDevice?> CreateDeviceAsync(string name, string uniqueId, string? category = null, CancellationToken ct = default)
+    public async Task<TraccarDevice?> GetDeviceByUniqueIdAsync(string uniqueId, CancellationToken ct = default)
+    {
+        var escaped = Uri.EscapeDataString(uniqueId);
+        var list = await GetListAsync<TraccarDevice>($"/api/devices?uniqueId={escaped}", ct);
+        return list.FirstOrDefault(d =>
+            string.Equals(d.UniqueId, uniqueId, StringComparison.OrdinalIgnoreCase));
+    }
+
+    public async Task<TraccarClientResult<TraccarDevice>> CreateDeviceAsync(TraccarDevicePayload payload, CancellationToken ct = default)
     {
         var uri = ResolveRequestUri("/api/devices");
-        if (uri is null) return null;
+        if (uri is null)
+            return TraccarClientResult<TraccarDevice>.Fail("Traccar is not configured. Set Traccar:BaseUrl and credentials.");
 
         try
         {
-            var payload = new { name, uniqueId, category, disabled = false };
-            var response = await http.PostAsJsonAsync(uri, payload, ct);
+            var body = new
+            {
+                name = payload.Name,
+                uniqueId = payload.UniqueId,
+                category = payload.Category,
+                phone = payload.Phone,
+                model = payload.Model,
+                contact = payload.Contact,
+                disabled = payload.Disabled
+            };
+            var response = await http.PostAsJsonAsync(uri, body, ct);
             if (!response.IsSuccessStatusCode)
             {
-                logger.LogWarning("Traccar CreateDevice failed: {Status}", response.StatusCode);
-                return null;
+                var err = await response.Content.ReadAsStringAsync(ct);
+                logger.LogWarning("Traccar CreateDevice failed: {Status} {Body}", response.StatusCode, err);
+                return TraccarClientResult<TraccarDevice>.Fail(
+                    $"Traccar device creation failed ({(int)response.StatusCode}).", (int)response.StatusCode);
             }
-            return await response.Content.ReadFromJsonAsync<TraccarDevice>(JsonOpts, ct);
+
+            var device = await response.Content.ReadFromJsonAsync<TraccarDevice>(JsonOpts, ct);
+            return device is null
+                ? TraccarClientResult<TraccarDevice>.Fail("Traccar returned an empty response.")
+                : TraccarClientResult<TraccarDevice>.Ok(device);
         }
         catch (Exception ex)
         {
             logger.LogWarning(ex, "Traccar CreateDevice exception");
-            return null;
+            return TraccarClientResult<TraccarDevice>.Fail(ex.Message);
         }
     }
 
-    public async Task<bool> UpdateDeviceAsync(int deviceId, string name, string uniqueId, bool disabled, CancellationToken ct = default)
+    public async Task<TraccarClientResult<TraccarDevice>> UpdateDeviceAsync(TraccarUpdateDevicePayload payload, CancellationToken ct = default)
     {
-        var uri = ResolveRequestUri($"/api/devices/{deviceId}");
-        if (uri is null) return false;
+        var uri = ResolveRequestUri($"/api/devices/{payload.Id}");
+        if (uri is null)
+            return TraccarClientResult<TraccarDevice>.Fail("Traccar is not configured. Set Traccar:BaseUrl and credentials.");
 
         try
         {
-            var payload = new { id = deviceId, name, uniqueId, disabled };
-            var response = await http.PutAsJsonAsync(uri, payload, ct);
-            return response.IsSuccessStatusCode;
+            var body = new
+            {
+                id = payload.Id,
+                name = payload.Name,
+                uniqueId = payload.UniqueId,
+                category = payload.Category,
+                phone = payload.Phone,
+                model = payload.Model,
+                contact = payload.Contact,
+                disabled = payload.Disabled
+            };
+            var response = await http.PutAsJsonAsync(uri, body, ct);
+            if (!response.IsSuccessStatusCode)
+            {
+                var err = await response.Content.ReadAsStringAsync(ct);
+                logger.LogWarning("Traccar UpdateDevice failed: {Status} {Body}", response.StatusCode, err);
+                return TraccarClientResult<TraccarDevice>.Fail(
+                    $"Traccar device update failed ({(int)response.StatusCode}).", (int)response.StatusCode);
+            }
+
+            var device = await response.Content.ReadFromJsonAsync<TraccarDevice>(JsonOpts, ct);
+            return device is null
+                ? TraccarClientResult<TraccarDevice>.Ok(new TraccarDevice(
+                    payload.Id, payload.Name, payload.UniqueId, "unknown",
+                    payload.Category, payload.Phone, payload.Model, payload.Contact, payload.Disabled, null))
+                : TraccarClientResult<TraccarDevice>.Ok(device);
         }
         catch (Exception ex)
         {
             logger.LogWarning(ex, "Traccar UpdateDevice exception");
-            return false;
+            return TraccarClientResult<TraccarDevice>.Fail(ex.Message);
         }
+    }
+
+    public async Task<TraccarDevice?> CreateDeviceAsync(string name, string uniqueId, string? category = null, CancellationToken ct = default)
+    {
+        var result = await CreateDeviceAsync(new TraccarDevicePayload(name, uniqueId, category), ct);
+        return result.Success ? result.Value : null;
+    }
+
+    public async Task<bool> UpdateDeviceAsync(int deviceId, string name, string uniqueId, bool disabled, CancellationToken ct = default)
+    {
+        var result = await UpdateDeviceAsync(new TraccarUpdateDevicePayload(deviceId, name, uniqueId, Disabled: disabled), ct);
+        return result.Success;
     }
 
     public async Task<bool> DeleteDeviceAsync(int deviceId, CancellationToken ct = default)

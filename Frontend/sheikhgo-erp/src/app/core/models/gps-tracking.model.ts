@@ -37,10 +37,12 @@ export interface GpsDevice {
   vehicleId?: number;
   vehicleName?: string;
   plateNumber?: string;
+  driverId?: number;
   driverName?: string;
   uniqueId: string;
   name: string;
   protocol?: string;
+  disabled?: boolean;
   supportsEngineCutoff: boolean;
   lastIgnition?: boolean;
   lastSeenAt?: string;
@@ -52,10 +54,88 @@ export interface GpsDevice {
   traccarDeviceId?: number;
   isTraccarLinked?: boolean;
   isValidImei?: boolean;
+  trackerBrandId?: number;
+  trackerBrandName?: string;
+  modelName?: string;
   model?: string;
   simNumber?: string;
   vendor?: string;
   serialNumber?: string;
+  installationDate?: string;
+  installedBy?: string;
+  installationNotes?: string;
+  relayOutput?: string;
+  relayPurpose?: string;
+  currentStatus?: string;
+}
+
+export interface TrackerDetail extends GpsDevice {
+  driverId?: number;
+  category?: string;
+  phone?: string;
+  contact?: string;
+  disabled?: boolean;
+  trackerModelKey?: string;
+  trackerModelId?: number;
+  trackerBrandId?: number;
+  trackerBrandName?: string;
+  modelName?: string;
+  countryCode?: string;
+  simProvider?: string;
+  simPackage?: string;
+  monthlySimCost?: number;
+  warrantyStart?: string;
+  warrantyEnd?: string;
+  purchaseDate?: string;
+  purchasePrice?: number;
+  currentStatus?: string;
+  lastSyncAt?: string;
+}
+
+export interface RegisterTrackerPayload {
+  name: string;
+  uniqueId: string;
+  category: string;
+  trackerModelId: number;
+  trackerModelKey?: string;
+  phone?: string;
+  contact?: string;
+  disabled?: boolean;
+  vehicleId?: number;
+  driverId?: number;
+  supportsEngineCutoff?: boolean;
+  relayOutput?: string;
+  relayPurpose?: string;
+  installationDate?: string;
+  installedBy?: string;
+  installationNotes?: string;
+  serialNumber?: string;
+  countryCode?: string;
+  simProvider?: string;
+  simPackage?: string;
+  monthlySimCost?: number;
+  warrantyStart?: string;
+  warrantyEnd?: string;
+  purchaseDate?: string;
+  purchasePrice?: number;
+  vendor?: string;
+  currentStatus?: string;
+}
+
+export interface TrackerRegisteredResult {
+  id: number;
+  name: string;
+  uniqueId: string;
+  protocolLabel: string;
+  vehicleName?: string;
+  plateNumber?: string;
+  traccarDeviceId?: number;
+  statusMessage: string;
+}
+
+export interface InstallTrackerPayload {
+  vehicleId: number;
+  driverId?: number;
   installationDate?: string;
   installedBy?: string;
   installationNotes?: string;

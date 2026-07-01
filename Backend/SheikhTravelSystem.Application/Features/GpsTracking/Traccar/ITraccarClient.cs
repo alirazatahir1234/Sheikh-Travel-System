@@ -6,9 +6,17 @@ public interface ITraccarClient
 
     Task<IReadOnlyList<TraccarDevice>> GetDevicesAsync(CancellationToken ct = default);
     Task<TraccarDevice?> GetDeviceByIdAsync(int deviceId, CancellationToken ct = default);
-    Task<TraccarDevice?> CreateDeviceAsync(string name, string uniqueId, string? category = null, CancellationToken ct = default);
-    Task<bool> UpdateDeviceAsync(int deviceId, string name, string uniqueId, bool disabled, CancellationToken ct = default);
+    Task<TraccarDevice?> GetDeviceByUniqueIdAsync(string uniqueId, CancellationToken ct = default);
+
+    Task<TraccarClientResult<TraccarDevice>> CreateDeviceAsync(TraccarDevicePayload payload, CancellationToken ct = default);
+    Task<TraccarClientResult<TraccarDevice>> UpdateDeviceAsync(TraccarUpdateDevicePayload payload, CancellationToken ct = default);
     Task<bool> DeleteDeviceAsync(int deviceId, CancellationToken ct = default);
+
+    /// <summary>Legacy narrow create — prefer <see cref="CreateDeviceAsync"/> with full payload.</summary>
+    Task<TraccarDevice?> CreateDeviceAsync(string name, string uniqueId, string? category = null, CancellationToken ct = default);
+
+    /// <summary>Legacy narrow update — prefer <see cref="UpdateDeviceAsync"/> with full payload.</summary>
+    Task<bool> UpdateDeviceAsync(int deviceId, string name, string uniqueId, bool disabled, CancellationToken ct = default);
 
     Task<IReadOnlyList<TraccarPosition>> GetLivePositionsAsync(CancellationToken ct = default);
     Task<IReadOnlyList<TraccarPosition>> GetPositionsByDeviceAsync(int deviceId, DateTime from, DateTime to, CancellationToken ct = default);

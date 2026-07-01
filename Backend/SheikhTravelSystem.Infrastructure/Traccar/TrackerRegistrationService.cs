@@ -1,0 +1,533 @@
+using Dapper;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using SheikhTravelSystem.Application.Common;
+using SheikhTravelSystem.Application.Common.Interfaces;
+using SheikhTravelSystem.Application.Features.GpsTracking.Trackers.Queries;
+using SheikhTravelSystem.Application.Features.GpsTracking.Traccar;
+using SheikhTravelSystem.Application.Features.GpsTracking.Trackers;
+using SheikhTravelSystem.Domain.Enums;
+
+namespace SheikhTravelSystem.Infrastructure.Traccar;
+
+public sealed class TrackerRegistrationService(
+    IDbConnectionFactory dbFactory,
+    ITenantContext tenantContext,
+    ICurrentUserService currentUser,
+    ITraccarClient traccar,
+    IOptions<TraccarOptions> traccarOptions,
+    ILogger<TrackerRegistrationService> logger) : ITrackerRegistrationService
+{
+    public async Task<ApiResponse<TrackerRegisteredDto>> RegisterAsync(RegisterTrackerDto dto, CancellationToken ct = default)
+    {
+        if (!TrackerCatalog.ValidCategories.Contains(dto.Category))
+            return ApiResponse<TrackerRegisteredDto>.FailResponse("Invalid device category.");
+
+        using var connection = dbFactory.CreateConnection();
+
+        var model = await ResolveModelAsync(connection, dto.TrackerModelId, dto.TrackerModelKey, ct);
+        if (model is null)
+            return ApiResponse<TrackerRegisteredDto>.FailResponse("Invalid tracker model.");
+
+        var duplicate = await connection.ExecuteScalarAsync<bool>(new CommandDefinition(
+            "SELECT CASE WHEN EXISTS(SELECT 1 FROM GpsDevices WHERE UniqueId = @UniqueId AND IsDeleted = 0) THEN 1 ELSE 0 END",
+            new { dto.UniqueId }, cancellationToken: ct));
+        if (duplicate)
+            return ApiResponse<TrackerRegisteredDto>.FailResponse("IMEI already registered.");
+
+        if (dto.VehicleId.HasValue)
+        {
+            var vehicleError = await ValidateVehicleAsync(connection, dto.VehicleId.Value, tenantContext.GetRequiredTenantId(), ct);
+            if (vehicleError is not null)
+                return ApiResponse<TrackerRegisteredDto>.FailResponse(vehicleError);
+        }
+
+        if (dto.DriverId.HasValue)
+        {
+            var driverError = await ValidateDriverAsync(connection, dto.DriverId.Value, tenantContext.GetRequiredTenantId(), ct);
+            if (driverError is not null)
+                return ApiResponse<TrackerRegisteredDto>.FailResponse(driverError);
+        }
+
+        var opts = traccarOptions.Value;
+        if (!opts.IsConfigured || !opts.Enabled)
+            return ApiResponse<TrackerRegisteredDto>.FailResponse(
+                "Traccar is not configured. Set Traccar:BaseUrl, credentials, and Enabled=true before registering trackers.");
+
+        var traccarPayload = new TraccarDevicePayload(
+            dto.Name,
+            dto.UniqueId,
+            dto.Category.ToLowerInvariant(),
+            dto.Phone,
+            model.Name,
+            dto.Contact,
+            dto.Disabled);
+
+        var traccarResult = await traccar.CreateDeviceAsync(traccarPayload, ct);
+        if (!traccarResult.Success || traccarResult.Value is null)
+        {
+            logger.LogWarning("Traccar registration failed for IMEI {Imei}: {Error}", dto.UniqueId, traccarResult.ErrorMessage);
+            return ApiResponse<TrackerRegisteredDto>.FailResponse(
+                traccarResult.ErrorMessage ?? "Failed to create device in Traccar.");
+        }
+
+        var traccarDeviceId = traccarResult.Value.Id;
+        var tenantId = tenantContext.GetRequiredTenantId();
+        var createdBy = currentUser.UserId?.ToString();
+
+        try
+        {
+            var id = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
+                @"INSERT INTO GpsDevices (
+                    TenantId, VehicleId, DriverId, UniqueId, Name, Category, Phone, Contact, Disabled,
+                    Protocol, Model, Vendor, TrackerModelKey, TrackerModelId, SupportsEngineCutoff, RelayOutput, RelayPurpose,
+                    SerialNumber, InstallationDate, InstalledBy, InstallationNotes,
+                    CountryCode, SIMProvider, SIMPackage, MonthlySIMCost,
+                    WarrantyStart, WarrantyEnd, PurchaseDate, PurchasePrice, CurrentStatus,
+                    TraccarDeviceId, IsActive, CreatedAt, CreatedBy, IsDeleted)
+                  OUTPUT INSERTED.Id
+                  VALUES (
+                    @TenantId, @VehicleId, @DriverId, @UniqueId, @Name, @Category, @Phone, @Contact, @Disabled,
+                    @Protocol, @Model, @Vendor, @TrackerModelKey, @TrackerModelId, @SupportsEngineCutoff, @RelayOutput, @RelayPurpose,
+                    @SerialNumber, @InstallationDate, @InstalledBy, @InstallationNotes,
+                    @CountryCode, @SIMProvider, @SIMPackage, @MonthlySIMCost,
+                    @WarrantyStart, @WarrantyEnd, @PurchaseDate, @PurchasePrice, @CurrentStatus,
+                    @TraccarDeviceId, 1, GETUTCDATE(), @CreatedBy, 0)",
+                BuildInsertParams(dto, model, traccarDeviceId, tenantId, createdBy),
+                cancellationToken: ct));
+
+            var vehicleInfo = await GetVehicleInfoAsync(connection, dto.VehicleId, ct);
+            var statusMessage = dto.VehicleId.HasValue
+                ? "Waiting for first GPS signal"
+                : "Registered · Not assigned";
+
+            return ApiResponse<TrackerRegisteredDto>.SuccessResponse(
+                new TrackerRegisteredDto(
+                    id,
+                    dto.Name,
+                    dto.UniqueId,
+                    model.ProtocolLabel,
+                    string.IsNullOrWhiteSpace(vehicleInfo.Name) ? null : vehicleInfo.Name,
+                    string.IsNullOrWhiteSpace(vehicleInfo.Plate) ? null : vehicleInfo.Plate,
+                    traccarDeviceId,
+                    statusMessage),
+                "Tracker registered successfully.");
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "SheikhGo tracker insert failed after Traccar create {TraccarId}; rolling back", traccarDeviceId);
+            await traccar.DeleteDeviceAsync(traccarDeviceId, ct);
+            return ApiResponse<TrackerRegisteredDto>.FailResponse("Failed to save tracker. Traccar device was rolled back.");
+        }
+    }
+
+    public async Task<ApiResponse<bool>> UpdateAsync(int id, UpdateTrackerDto dto, CancellationToken ct = default)
+    {
+        using var connection = dbFactory.CreateConnection();
+        var tenantId = tenantContext.GetRequiredTenantId();
+
+        if (!await DeviceBelongsToTenantAsync(connection, id, tenantId, ct))
+            return ApiResponse<bool>.FailResponse("Tracker not found.");
+
+        var model = await ResolveModelAsync(connection, dto.TrackerModelId, dto.TrackerModelKey, ct);
+        if (model is null)
+            return ApiResponse<bool>.FailResponse("Invalid tracker model.");
+
+        var existing = await connection.QueryFirstOrDefaultAsync<(int Id, int? TraccarDeviceId, string UniqueId)>(
+            new CommandDefinition(
+                "SELECT Id, TraccarDeviceId, UniqueId FROM GpsDevices WHERE Id = @Id AND IsDeleted = 0",
+                new { Id = id }, cancellationToken: ct));
+
+        if (existing.Id == 0)
+            return ApiResponse<bool>.FailResponse("Tracker not found.");
+
+        var opts = traccarOptions.Value;
+        TraccarDevice? traccarSnapshot = null;
+        var traccarPayload = existing.TraccarDeviceId.HasValue
+            ? new TraccarUpdateDevicePayload(
+                existing.TraccarDeviceId.Value,
+                dto.Name,
+                existing.UniqueId,
+                dto.Category.ToLowerInvariant(),
+                dto.Phone,
+                model.Name,
+                dto.Contact,
+                dto.Disabled)
+            : null;
+
+        if (opts.IsConfigured && opts.Enabled && traccarPayload is not null)
+        {
+            traccarSnapshot = await traccar.GetDeviceByIdAsync(existing.TraccarDeviceId!.Value, ct);
+            var updateResult = await traccar.UpdateDeviceAsync(traccarPayload, ct);
+            if (!updateResult.Success)
+                return ApiResponse<bool>.FailResponse(updateResult.ErrorMessage ?? "Traccar sync failed.");
+        }
+
+        try
+        {
+            var rows = await connection.ExecuteAsync(new CommandDefinition(
+                @"UPDATE GpsDevices SET
+                    TenantId = COALESCE(TenantId, @TenantId),
+                    Name = @Name,
+                    Category = @Category, Phone = @Phone, Contact = @Contact, Disabled = @Disabled,
+                    Protocol = @Protocol, Model = @Model, Vendor = @Vendor,
+                    TrackerModelKey = @TrackerModelKey, TrackerModelId = @TrackerModelId,
+                    SupportsEngineCutoff = @SupportsEngineCutoff, RelayOutput = @RelayOutput, RelayPurpose = @RelayPurpose,
+                    SerialNumber = @SerialNumber,
+                    CountryCode = @CountryCode, SIMProvider = @SIMProvider, SIMPackage = @SIMPackage,
+                    MonthlySIMCost = @MonthlySIMCost, WarrantyStart = @WarrantyStart, WarrantyEnd = @WarrantyEnd,
+                    PurchaseDate = @PurchaseDate, PurchasePrice = @PurchasePrice,
+                    IsActive = @IsActive, UpdatedAt = GETUTCDATE(), UpdatedBy = @UpdatedBy
+                  WHERE Id = @Id AND IsDeleted = 0",
+                new
+                {
+                    Id = id,
+                    TenantId = tenantId,
+                    dto.Name,
+                    Category = dto.Category.ToLowerInvariant(),
+                    dto.Phone,
+                    dto.Contact,
+                    dto.Disabled,
+                    Protocol = model.Protocol,
+                    Model = FormatModelLabel(model),
+                    Vendor = model.BrandName,
+                    TrackerModelKey = model.CatalogKey,
+                    TrackerModelId = model.Id,
+                    dto.SupportsEngineCutoff,
+                    RelayOutput = dto.SupportsEngineCutoff ? dto.RelayOutput : null,
+                    RelayPurpose = dto.SupportsEngineCutoff ? (dto.RelayPurpose ?? "EngineImmobilizer") : null,
+                    dto.SerialNumber,
+                    dto.CountryCode,
+                    dto.SIMProvider,
+                    dto.SIMPackage,
+                    dto.MonthlySIMCost,
+                    WarrantyStart = ToSqlDate(dto.WarrantyStart),
+                    WarrantyEnd = ToSqlDate(dto.WarrantyEnd),
+                    PurchaseDate = ToSqlDate(dto.PurchaseDate),
+                    dto.PurchasePrice,
+                    dto.IsActive,
+                    UpdatedBy = currentUser.UserId?.ToString()
+                },
+                cancellationToken: ct));
+
+            if (rows == 0)
+            {
+                await RevertTraccarAsync(traccarSnapshot, ct);
+                return ApiResponse<bool>.FailResponse("Tracker not found.");
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Tracker DB update failed for {TrackerId}; reverting Traccar", id);
+            await RevertTraccarAsync(traccarSnapshot, ct);
+            return ApiResponse<bool>.FailResponse("Failed to update tracker. Traccar changes were rolled back.");
+        }
+
+        return ApiResponse<bool>.SuccessResponse(true, "Tracker updated.");
+    }
+
+    public async Task<ApiResponse<bool>> DeleteAsync(int id, CancellationToken ct = default)
+    {
+        using var connection = dbFactory.CreateConnection();
+        var tenantId = tenantContext.GetRequiredTenantId();
+
+        if (!await DeviceBelongsToTenantAsync(connection, id, tenantId, ct))
+            return ApiResponse<bool>.FailResponse("Tracker not found.");
+
+        var existing = await connection.QueryFirstOrDefaultAsync<(int Id, int? TraccarDeviceId)>(
+            new CommandDefinition(
+                "SELECT Id, TraccarDeviceId FROM GpsDevices WHERE Id = @Id AND IsDeleted = 0",
+                new { Id = id }, cancellationToken: ct));
+
+        if (existing.Id == 0)
+            return ApiResponse<bool>.FailResponse("Tracker not found.");
+
+        var opts = traccarOptions.Value;
+        if (opts.IsConfigured && opts.Enabled && existing.TraccarDeviceId.HasValue)
+        {
+            var deleted = await traccar.DeleteDeviceAsync(existing.TraccarDeviceId.Value, ct);
+            if (!deleted)
+                return ApiResponse<bool>.FailResponse("Failed to remove device from Traccar. Tracker was not deleted.");
+        }
+
+        var rows = await connection.ExecuteAsync(new CommandDefinition(
+            "UPDATE GpsDevices SET IsDeleted = 1, UpdatedAt = GETUTCDATE() WHERE Id = @Id",
+            new { Id = id }, cancellationToken: ct));
+
+        return rows == 0
+            ? ApiResponse<bool>.FailResponse("Tracker not found.")
+            : ApiResponse<bool>.SuccessResponse(true, "Tracker removed.");
+    }
+
+    public async Task<ApiResponse<bool>> InstallAsync(int id, InstallTrackerDto dto, CancellationToken ct = default)
+    {
+        using var connection = dbFactory.CreateConnection();
+        var tenantId = tenantContext.GetRequiredTenantId();
+
+        if (!await DeviceBelongsToTenantAsync(connection, id, tenantId, ct))
+            return ApiResponse<bool>.FailResponse("Tracker not found.");
+
+        var existing = await connection.QueryFirstOrDefaultAsync<(int Id, int? VehicleId, bool SupportsEngineCutoff, string? CurrentStatus)>(
+            new CommandDefinition(
+                "SELECT Id, VehicleId, SupportsEngineCutoff, CurrentStatus FROM GpsDevices WHERE Id = @Id AND IsDeleted = 0",
+                new { Id = id }, cancellationToken: ct));
+
+        if (existing.Id == 0)
+            return ApiResponse<bool>.FailResponse("Tracker not found.");
+
+        var status = existing.CurrentStatus ?? "Available";
+        if (!TrackerCatalog.InstallableStatuses.Contains(status))
+            return ApiResponse<bool>.FailResponse($"Tracker cannot be installed while status is {status}.");
+
+        var vehicleError = await ValidateVehicleAsync(connection, dto.VehicleId, tenantId, ct);
+        if (vehicleError is not null)
+            return ApiResponse<bool>.FailResponse(vehicleError);
+
+        if (dto.DriverId.HasValue)
+        {
+            var driverError = await ValidateDriverAsync(connection, dto.DriverId.Value, tenantId, ct);
+            if (driverError is not null)
+                return ApiResponse<bool>.FailResponse(driverError);
+        }
+
+        var installationDate = dto.InstallationDate ?? DateTime.UtcNow;
+        var relayOutput = existing.SupportsEngineCutoff ? dto.RelayOutput : null;
+
+        if (existing.SupportsEngineCutoff && string.IsNullOrWhiteSpace(relayOutput))
+            return ApiResponse<bool>.FailResponse("Relay output is required when engine immobilizer is enabled.");
+
+        var now = DateTime.UtcNow;
+
+        if (existing.VehicleId.HasValue && existing.VehicleId != dto.VehicleId)
+        {
+            await connection.ExecuteAsync(new CommandDefinition(
+                "UPDATE Vehicles SET GpsDeviceId = NULL, UpdatedAt = @Now WHERE Id = @VehicleId AND TenantId = @TenantId",
+                new { VehicleId = existing.VehicleId.Value, TenantId = tenantId, Now = now },
+                cancellationToken: ct));
+        }
+
+        await connection.ExecuteAsync(new CommandDefinition(
+            """
+            UPDATE GpsDevices SET VehicleId = NULL, UpdatedAt = @Now
+            WHERE VehicleId = @VehicleId AND Id <> @DeviceId AND IsDeleted = 0
+              AND (TenantId = @TenantId OR TenantId IS NULL)
+            """,
+            new { VehicleId = dto.VehicleId, DeviceId = id, TenantId = tenantId, Now = now },
+            cancellationToken: ct));
+
+        await connection.ExecuteAsync(new CommandDefinition(
+            "UPDATE Vehicles SET GpsDeviceId = NULL, UpdatedAt = @Now WHERE GpsDeviceId = @DeviceId AND TenantId = @TenantId",
+            new { DeviceId = id, TenantId = tenantId, Now = now },
+            cancellationToken: ct));
+
+        var rows = await connection.ExecuteAsync(new CommandDefinition(
+            """
+            UPDATE GpsDevices SET
+                VehicleId = @VehicleId,
+                DriverId = @DriverId,
+                InstallationDate = @InstallationDate,
+                InstalledBy = @InstalledBy,
+                InstallationNotes = @InstallationNotes,
+                RelayOutput = @RelayOutput,
+                CurrentStatus = 'Installed',
+                TenantId = COALESCE(TenantId, @TenantId),
+                UpdatedAt = @Now
+            WHERE Id = @Id AND IsDeleted = 0
+            """,
+            new
+            {
+                Id = id,
+                dto.VehicleId,
+                dto.DriverId,
+                InstallationDate = installationDate,
+                dto.InstalledBy,
+                dto.InstallationNotes,
+                RelayOutput = relayOutput,
+                TenantId = tenantId,
+                Now = now
+            },
+            cancellationToken: ct));
+
+        if (rows == 0)
+            return ApiResponse<bool>.FailResponse("Tracker not found.");
+
+        await connection.ExecuteAsync(new CommandDefinition(
+            "UPDATE Vehicles SET GpsDeviceId = @DeviceId, UpdatedAt = @Now WHERE Id = @VehicleId AND TenantId = @TenantId",
+            new { DeviceId = id, dto.VehicleId, TenantId = tenantId, Now = now },
+            cancellationToken: ct));
+
+        return ApiResponse<bool>.SuccessResponse(true, "Tracker installed on vehicle.");
+    }
+
+    public async Task<ApiResponse<bool>> UninstallAsync(int id, CancellationToken ct = default)
+    {
+        using var connection = dbFactory.CreateConnection();
+        var tenantId = tenantContext.GetRequiredTenantId();
+
+        if (!await DeviceBelongsToTenantAsync(connection, id, tenantId, ct))
+            return ApiResponse<bool>.FailResponse("Tracker not found.");
+
+        var existing = await connection.QueryFirstOrDefaultAsync<(int Id, int? VehicleId)>(
+            new CommandDefinition(
+                "SELECT Id, VehicleId FROM GpsDevices WHERE Id = @Id AND IsDeleted = 0",
+                new { Id = id }, cancellationToken: ct));
+
+        if (existing.Id == 0)
+            return ApiResponse<bool>.FailResponse("Tracker not found.");
+
+        var now = DateTime.UtcNow;
+
+        await connection.ExecuteAsync(new CommandDefinition(
+            "UPDATE Vehicles SET GpsDeviceId = NULL, UpdatedAt = @Now WHERE GpsDeviceId = @DeviceId AND TenantId = @TenantId",
+            new { DeviceId = id, TenantId = tenantId, Now = now },
+            cancellationToken: ct));
+
+        var rows = await connection.ExecuteAsync(new CommandDefinition(
+            """
+            UPDATE GpsDevices SET
+                VehicleId = NULL,
+                DriverId = NULL,
+                InstallationDate = NULL,
+                InstalledBy = NULL,
+                CurrentStatus = 'Available',
+                UpdatedAt = @Now
+            WHERE Id = @Id AND IsDeleted = 0
+            """,
+            new { Id = id, Now = now },
+            cancellationToken: ct));
+
+        return rows == 0
+            ? ApiResponse<bool>.FailResponse("Tracker not found.")
+            : ApiResponse<bool>.SuccessResponse(true, "Tracker returned to inventory.");
+    }
+
+    private static object BuildInsertParams(
+        RegisterTrackerDto dto, TrackerModelRecord model, int traccarDeviceId, int? tenantId, string? createdBy)
+    {
+        var installing = dto.VehicleId.HasValue;
+        return new
+    {
+        TenantId = tenantId,
+        VehicleId = installing ? dto.VehicleId : null,
+        DriverId = installing ? dto.DriverId : null,
+        dto.UniqueId,
+        dto.Name,
+        Category = dto.Category.ToLowerInvariant(),
+        dto.Phone,
+        dto.Contact,
+        dto.Disabled,
+        Protocol = model.Protocol,
+        Model = FormatModelLabel(model),
+        Vendor = model.BrandName,
+        TrackerModelKey = model.CatalogKey,
+        TrackerModelId = model.Id,
+        dto.SupportsEngineCutoff,
+        RelayOutput = dto.SupportsEngineCutoff ? dto.RelayOutput : null,
+        RelayPurpose = dto.SupportsEngineCutoff ? (dto.RelayPurpose ?? "EngineImmobilizer") : null,
+        dto.SerialNumber,
+        InstallationDate = installing ? dto.InstallationDate : null,
+        InstalledBy = installing ? dto.InstalledBy : null,
+        InstallationNotes = installing ? dto.InstallationNotes : null,
+        dto.CountryCode,
+        dto.SIMProvider,
+        dto.SIMPackage,
+        dto.MonthlySIMCost,
+        WarrantyStart = ToSqlDate(dto.WarrantyStart),
+        WarrantyEnd = ToSqlDate(dto.WarrantyEnd),
+        PurchaseDate = ToSqlDate(dto.PurchaseDate),
+        dto.PurchasePrice,
+        CurrentStatus = dto.CurrentStatus ?? (installing ? "Installed" : "Available"),
+        TraccarDeviceId = traccarDeviceId,
+        CreatedBy = createdBy
+    };
+    }
+
+    private static async Task<TrackerModelRecord?> ResolveModelAsync(
+        System.Data.IDbConnection connection, int modelId, string? catalogKey, CancellationToken ct)
+    {
+        if (modelId > 0)
+        {
+            return await connection.QueryFirstOrDefaultAsync<TrackerModelRecord>(new CommandDefinition(
+                TrackerCatalogSql.ModelById,
+                new { Id = modelId },
+                cancellationToken: ct));
+        }
+
+        if (!string.IsNullOrWhiteSpace(catalogKey))
+        {
+            return await connection.QueryFirstOrDefaultAsync<TrackerModelRecord>(new CommandDefinition(
+                TrackerCatalogSql.ModelByCatalogKey,
+                new { CatalogKey = catalogKey },
+                cancellationToken: ct));
+        }
+
+        return null;
+    }
+
+    private static string FormatModelLabel(TrackerModelRecord model)
+        => $"{model.BrandName} {model.Name}";
+
+    private static DateTime? ToSqlDate(DateOnly? value)
+        => value?.ToDateTime(TimeOnly.MinValue);
+
+    private static async Task<bool> DeviceBelongsToTenantAsync(
+        System.Data.IDbConnection connection, int id, int tenantId, CancellationToken ct)
+    {
+        return await connection.ExecuteScalarAsync<bool>(new CommandDefinition(
+            TrackerTenantSql.DeviceExistsForTenant,
+            new { Id = id, TenantId = tenantId },
+            cancellationToken: ct));
+    }
+
+    private async Task RevertTraccarAsync(TraccarDevice? snapshot, CancellationToken ct)
+    {
+        if (snapshot is null) return;
+
+        await traccar.UpdateDeviceAsync(new TraccarUpdateDevicePayload(
+            snapshot.Id,
+            snapshot.Name,
+            snapshot.UniqueId,
+            snapshot.Category,
+            snapshot.Phone,
+            snapshot.Model,
+            snapshot.Contact,
+            snapshot.Disabled), ct);
+    }
+
+    private static async Task<string?> ValidateVehicleAsync(
+        System.Data.IDbConnection connection, int vehicleId, int tenantId, CancellationToken ct)
+    {
+        var status = await connection.ExecuteScalarAsync<int?>(new CommandDefinition(
+            "SELECT Status FROM Vehicles WHERE Id = @Id AND TenantId = @TenantId AND IsDeleted = 0",
+            new { Id = vehicleId, TenantId = tenantId }, cancellationToken: ct));
+
+        if (status is null)
+            return "Vehicle not found.";
+
+        if (status == (int)VehicleStatus.Draft)
+            return "Cannot link a tracker to a draft vehicle. Complete the vehicle first.";
+
+        return null;
+    }
+
+    private static async Task<string?> ValidateDriverAsync(
+        System.Data.IDbConnection connection, int driverId, int tenantId, CancellationToken ct)
+    {
+        var exists = await connection.ExecuteScalarAsync<bool>(new CommandDefinition(
+            "SELECT CASE WHEN EXISTS(SELECT 1 FROM Drivers WHERE Id = @Id AND TenantId = @TenantId AND IsDeleted = 0) THEN 1 ELSE 0 END",
+            new { Id = driverId, TenantId = tenantId }, cancellationToken: ct));
+
+        return exists ? null : "Driver not found.";
+    }
+
+    private static async Task<(string? Name, string? Plate)> GetVehicleInfoAsync(
+        System.Data.IDbConnection connection, int? vehicleId, CancellationToken ct)
+    {
+        if (!vehicleId.HasValue) return (null, null);
+
+        return await connection.QueryFirstOrDefaultAsync<(string Name, string Plate)>(new CommandDefinition(
+            @"SELECT Name, RegistrationNumber AS Plate FROM Vehicles
+              WHERE Id = @Id AND IsDeleted = 0 AND Status <> 5",
+            new { Id = vehicleId.Value }, cancellationToken: ct));
+    }
+}

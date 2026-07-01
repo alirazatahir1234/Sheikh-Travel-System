@@ -6,4 +6,5 @@ public interface ITraccarSyncOrchestrator
     Task<TraccarSyncRunResult> SyncPositionsAsync(CancellationToken ct = default);
     Task<TraccarSyncRunResult> SyncEventsAsync(CancellationToken ct = default);
     Task<TraccarSyncRunResult> RunManualSyncAsync(CancellationToken ct = default);
+    Task<TraccarSyncRunResult> SyncTrackerAsync(int gpsDeviceId, CancellationToken ct = default);
 }
