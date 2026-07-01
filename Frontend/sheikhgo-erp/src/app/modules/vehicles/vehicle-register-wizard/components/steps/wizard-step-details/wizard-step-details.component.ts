@@ -25,13 +25,11 @@ import { VinValidationState } from '../../../models/vehicle-wizard.model';
         <p class="mb-5 text-sm text-fleet-text-muted">Basic identification and registration information.</p>
 
         <div class="grid gap-4 overflow-visible md:grid-cols-2">
-          <ui-select
+          <ui-input
             formControlName="name"
             label="Vehicle Name"
-            placeholder="Select vehicle name"
-            [searchable]="true"
+            placeholder="Enter vehicle name"
             [required]="true"
-            [options]="vehicleNameOptions()"
             [error]="controlError('name')" />
           <app-vehicle-code-field
             formControlName="vehicleCode"
@@ -103,7 +101,6 @@ import { VinValidationState } from '../../../models/vehicle-wizard.model';
 export class WizardStepDetailsComponent {
   readonly form = input.required<FormGroup>();
   readonly yearOptions = input.required<UiSelectOption[]>();
-  readonly vehicleNameOptions = input<UiSelectOption[]>([]);
   readonly makeOptions = input<UiSelectOption[]>([]);
   readonly modelOptions = input<UiSelectOption[]>([]);
   readonly colorOptions = input<UiSelectOption[]>([]);
