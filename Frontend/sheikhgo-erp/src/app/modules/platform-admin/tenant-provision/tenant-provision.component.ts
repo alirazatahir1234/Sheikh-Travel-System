@@ -80,11 +80,11 @@ export class TenantProvisionComponent implements OnInit {
       plan: this.fb.group({
         planName: ['Enterprise', Validators.required],
         moduleCodes: new FormControl<string[]>([...DEFAULT_TENANT_MODULE_CODES], Validators.required),
-        maxUsers: [10, [Validators.min(0)]],
-        maxVehicles: [50, [Validators.min(0)]],
-        maxDrivers: [50, [Validators.min(0)]],
-        maxBranches: [5, [Validators.min(0)]],
-        maxGpsDevices: [50, [Validators.min(0)]]
+        maxUsers: [null as number | null, [Validators.min(0)]],
+        maxVehicles: [null as number | null, [Validators.min(0)]],
+        maxDrivers: [null as number | null, [Validators.min(0)]],
+        maxBranches: [null as number | null, [Validators.min(0)]],
+        maxGpsDevices: [null as number | null, [Validators.min(0)]]
       }),
       admin: this.fb.group({
         adminFullName: ['', Validators.required],
@@ -124,6 +124,12 @@ export class TenantProvisionComponent implements OnInit {
         billingAddress: [''],
         gpsProviderName: ['']
       })
+    });
+
+    this.applyPlan(this.planGroup.get('planName')?.value ?? 'Enterprise');
+
+    this.planGroup.get('planName')?.valueChanges.subscribe(plan => {
+      if (plan) this.applyPlan(plan);
     });
 
     this.profileGroup.get('name')?.valueChanges.subscribe(name => {
@@ -175,8 +181,9 @@ export class TenantProvisionComponent implements OnInit {
     return this.planGroup.get('planName')?.value ?? 'Enterprise';
   }
 
-  get summaryUserQuota(): number {
-    return this.planGroup.get('maxUsers')?.value ?? 0;
+  get summaryUserQuota(): string | number {
+    const value = this.planGroup.get('maxUsers')?.value;
+    return value === null || value === undefined ? 'Unlimited' : value;
   }
 
   get primaryColorPreview(): string {
@@ -222,11 +229,11 @@ export class TenantProvisionComponent implements OnInit {
   applyPlan(planName: string): void {
     const def = applyPlanDefaults(planName);
     this.planGroup.patchValue({
-      maxUsers: def.quotas.maxUsers ?? 0,
-      maxVehicles: def.quotas.maxVehicles ?? 0,
-      maxDrivers: def.quotas.maxDrivers ?? 0,
-      maxBranches: def.quotas.maxBranches ?? 0,
-      maxGpsDevices: def.quotas.maxGpsDevices ?? 0,
+      maxUsers: def.quotas.maxUsers,
+      maxVehicles: def.quotas.maxVehicles,
+      maxDrivers: def.quotas.maxDrivers,
+      maxBranches: def.quotas.maxBranches,
+      maxGpsDevices: def.quotas.maxGpsDevices,
       moduleCodes: [...def.moduleCodes]
     });
     this.planGroup.markAsDirty();

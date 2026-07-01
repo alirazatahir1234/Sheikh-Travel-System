@@ -85,7 +85,9 @@
   .mat-mdc-select-value-text {
     padding-left: 0;
     line-height: 24px;
-    display: block;
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: 100%;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -100,15 +102,6 @@
   .mdc-notched-outline__notch {
     border-left: none !important;
     border-right: none !important;
-  }
-
-  /* Keep min-line in layout flow; display:none collapses the trigger and hides values */
-  .mat-mdc-select-min-line {
-    display: inline-block;
-    visibility: hidden;
-    width: 0;
-    max-width: 0;
-    overflow: hidden;
   }
 }
 
