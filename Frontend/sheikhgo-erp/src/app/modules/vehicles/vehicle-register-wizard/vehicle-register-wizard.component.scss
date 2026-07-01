@@ -8,6 +8,6 @@
 
 @media (max-width: 639px) {
   .vehicle-wizard main {
-    padding-bottom: 5rem;
+    scroll-padding-bottom: calc(10.5rem + env(safe-area-inset-bottom, 0px));
   }
 }

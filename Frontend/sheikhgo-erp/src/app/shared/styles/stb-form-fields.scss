@@ -26,6 +26,31 @@
   &:not(.mat-form-field-type-mat-select) .mat-mdc-form-field-infix {
     min-width: 0;
   }
+
+  /* Tailwind preflight resets input line-height/padding; restore Material alignment */
+  .mat-mdc-form-field-infix {
+    display: flex;
+    align-items: center;
+  }
+
+  .mdc-text-field__input,
+  input.mat-mdc-input-element,
+  textarea.mat-mdc-input-element {
+    line-height: 24px;
+    margin-top: 0;
+    margin-bottom: 0;
+  }
+
+  input.mat-mdc-input-element {
+    height: 24px;
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+
+  textarea.mat-mdc-input-element {
+    height: auto;
+    min-height: 24px;
+  }
 }
 
 /* Remove inner line / notch artifacts on Material selects */
@@ -34,11 +59,39 @@
     min-width: 64px;
     border: none;
     padding-left: 0;
+    display: flex;
+    align-items: center;
   }
 
-  .mat-mdc-select-value,
+  .mat-mdc-select {
+    display: flex;
+    align-items: center;
+    width: 100%;
+  }
+
+  .mat-mdc-select-trigger {
+    display: inline-flex;
+    align-items: center;
+    width: 100%;
+  }
+
+  .mat-mdc-select-value {
+    display: flex;
+    align-items: center;
+    max-width: 100%;
+    padding-left: 0;
+  }
+
   .mat-mdc-select-value-text {
     padding-left: 0;
+    line-height: 24px;
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--stb-text, rgba(0, 0, 0, 0.87));
   }
 
   .mat-mdc-select-arrow-wrapper {
@@ -50,9 +103,15 @@
     border-left: none !important;
     border-right: none !important;
   }
+}
 
-  .mat-mdc-select-min-line {
-    display: none;
+/* Search row inside mat-select panels must not become the selected value */
+.select-search-option {
+  pointer-events: none;
+  opacity: 1 !important;
+
+  .select-search-input {
+    pointer-events: auto;
   }
 }
 

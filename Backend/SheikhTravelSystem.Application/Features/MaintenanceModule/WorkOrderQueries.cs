@@ -21,6 +21,38 @@ public record ListWorkOrdersQuery(
 
 public record GetWorkOrderByIdQuery(int Id) : IRequest<ApiResponse<WorkOrderDetailDto>>;
 
+internal sealed record WorkOrderDetailRow(
+    int Id,
+    string WorkOrderNumber,
+    int? RequestId,
+    int VehicleId,
+    string? VehicleName,
+    string? VehicleRegistration,
+    int? DriverId,
+    string? DriverName,
+    int? BranchId,
+    string? BranchName,
+    int? WorkshopId,
+    string? WorkshopName,
+    int? TechnicianId,
+    string? TechnicianName,
+    int? ServiceTypeId,
+    string? ServiceTypeName,
+    string? MaintenanceType,
+    DateTime? StartDate,
+    DateTime? EstimatedCompletionDate,
+    DateTime? CompletedAt,
+    decimal LaborCost,
+    decimal PartsCost,
+    decimal TotalCost,
+    decimal EstimatedLaborCost,
+    decimal EstimatedPartsCost,
+    string Status,
+    string? Priority,
+    string? Notes,
+    string? TechnicianNotes,
+    DateTime CreatedAt);
+
 public record ListTechniciansQuery(int? WorkshopId = null)
     : IRequest<ApiResponse<IReadOnlyList<TechnicianListItemDto>>>;
 
@@ -136,7 +168,7 @@ public class GetWorkOrderByIdQueryHandler(IDbConnectionFactory dbFactory, ITenan
         var tenantId = tenantContext.GetRequiredTenantId();
         using var connection = dbFactory.CreateConnection();
 
-        var row = await connection.QuerySingleOrDefaultAsync<WorkOrderDetailDto>(new CommandDefinition("""
+        var row = await connection.QuerySingleOrDefaultAsync<WorkOrderDetailRow>(new CommandDefinition("""
             SELECT wo.Id, wo.WorkOrderNumber, wo.RequestId, wo.VehicleId, v.Name AS VehicleName,
                    v.RegistrationNumber AS VehicleRegistration,
                    r.DriverId, d.FullName AS DriverName,
@@ -161,15 +193,24 @@ public class GetWorkOrderByIdQueryHandler(IDbConnectionFactory dbFactory, ITenan
             throw new NotFoundException("WorkOrder", request.Id);
 
         var parts = await connection.QueryAsync<WorkOrderPartUsageDto>(new CommandDefinition("""
-            SELECT pu.PartId, p.Name AS PartName, pu.Quantity, pu.UnitCost,
+            SELECT pu.PartId, p.PartName, pu.Quantity, pu.UnitCost,
                    (pu.Quantity * pu.UnitCost) AS TotalCost
             FROM PartUsage pu
-            INNER JOIN Parts p ON p.Id = pu.PartId
+            INNER JOIN Parts p ON p.Id = pu.PartId AND p.IsDeleted = 0
             WHERE pu.WorkOrderId = @Id AND pu.TenantId = @TenantId
             ORDER BY pu.UsedAt DESC
             """, new { request.Id, TenantId = tenantId }, cancellationToken: cancellationToken));
 
-        var detail = row with { PartsUsage = parts.ToList() };
+        var detail = new WorkOrderDetailDto(
+            row.Id, row.WorkOrderNumber, row.RequestId, row.VehicleId, row.VehicleName,
+            row.VehicleRegistration, row.DriverId, row.DriverName, row.BranchId, row.BranchName,
+            row.WorkshopId, row.WorkshopName, row.TechnicianId, row.TechnicianName,
+            row.ServiceTypeId, row.ServiceTypeName, row.MaintenanceType,
+            row.StartDate, row.EstimatedCompletionDate, row.CompletedAt,
+            row.LaborCost, row.PartsCost, row.TotalCost,
+            row.EstimatedLaborCost, row.EstimatedPartsCost,
+            row.Status, row.Priority, row.Notes, row.TechnicianNotes, row.CreatedAt,
+            parts.ToList());
         return ApiResponse<WorkOrderDetailDto>.SuccessResponse(detail);
     }
 }

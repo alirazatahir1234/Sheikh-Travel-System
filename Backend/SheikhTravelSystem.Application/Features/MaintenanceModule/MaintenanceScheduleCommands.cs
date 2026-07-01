@@ -1,4 +1,5 @@
 using Dapper;
+using FluentValidation;
 using MediatR;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Exceptions;
@@ -24,6 +25,28 @@ public record GetMaintenanceScheduleTemplatesQuery()
 
 public record CreateMaintenanceScheduleCommand(CreateMaintenanceScheduleDto Body)
     : IRequest<ApiResponse<int>>;
+
+public class CreateMaintenanceScheduleCommandValidator : AbstractValidator<CreateMaintenanceScheduleCommand>
+{
+    private static readonly HashSet<string> ValidIntervalTypes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "Mileage", "Months", "Month", "Days", "Day", "EngineHours", "Hours"
+    };
+
+    public CreateMaintenanceScheduleCommandValidator()
+    {
+        RuleFor(x => x.Body.VehicleId).GreaterThan(0).WithMessage("Vehicle is required.");
+        RuleFor(x => x.Body.ServiceTypeName)
+            .Must(n => !string.IsNullOrWhiteSpace(n))
+            .WithMessage("Service type is required.")
+            .MaximumLength(150);
+        RuleFor(x => x.Body.IntervalType)
+            .Must(t => ValidIntervalTypes.Contains(t))
+            .WithMessage("Interval type is invalid.");
+        RuleFor(x => x.Body.IntervalValue).GreaterThan(0).WithMessage("Interval value must be greater than zero.");
+        RuleFor(x => x.Body.Priority).NotEmpty().WithMessage("Priority is required.");
+    }
+}
 
 public record RescheduleMaintenanceScheduleCommand(int Id, RescheduleMaintenanceScheduleDto Body)
     : IRequest<ApiResponse<bool>>;

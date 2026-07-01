@@ -4,11 +4,13 @@ import { catchError, of } from 'rxjs';
 import { UiToastService } from '../../../../shared/components/ui/toast/ui-toast.service';
 import { DriverService } from '../../../../core/services/driver.service';
 import { VehicleService } from '../../../../core/services/vehicle.service';
+import { apiErrorMessage } from '../../../../core/utils/api-error.util';
 import { UiModalComponent } from '../../../../shared/components/ui/modal/ui-modal.component';
 import { UiButtonComponent } from '../../../../shared/components/ui/button/ui-button.component';
 import { UiSelectComponent } from '../../../../shared/components/ui/select/ui-select.component';
 import { UiInputComponent } from '../../../../shared/components/ui/input/ui-input.component';
 import { UiSelectOption } from '../../../../shared/components/ui/types/ui.types';
+import { buildDriverAssignOptions, parseOptionalBookingId } from '../../utils/vehicle-assign.util';
 
 @Component({
   selector: 'vehicle-assign-dialog',
@@ -16,12 +18,29 @@ import { UiSelectOption } from '../../../../shared/components/ui/types/ui.types'
   imports: [FormsModule, UiModalComponent, UiButtonComponent, UiSelectComponent, UiInputComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <ui-modal [(open)]="open" title="Assign driver" size="sm">
-      <ui-select label="Driver" [options]="driverOptions()" [(ngModel)]="selectedDriverId" [required]="true"></ui-select>
-      <ui-input class="mt-4 block" label="Booking ID (optional)" type="number" [(ngModel)]="bookingId"></ui-input>
+    <ui-modal [(open)]="open" title="Assign Driver" size="sm">
+      <ui-select
+        label="Driver"
+        placeholder="Select driver"
+        [options]="driverOptions()"
+        [(ngModel)]="selectedDriverId"
+        [searchable]="true"
+        [required]="true" />
+      <ui-input
+        class="mt-4 block"
+        label="Booking ID (Optional)"
+        type="number"
+        placeholder="Enter booking ID"
+        [(ngModel)]="bookingId" />
       <div modal-footer class="flex justify-end gap-2">
         <ui-button variant="ghost" (clicked)="open.set(false)">Cancel</ui-button>
-        <ui-button variant="primary" [loading]="submitting()" [disabled]="!selectedDriverId || submitting()" (clicked)="submit()">Assign</ui-button>
+        <ui-button
+          variant="primary"
+          [loading]="submitting()"
+          [disabled]="!selectedDriverId || submitting()"
+          (clicked)="submit()">
+          Assign Driver
+        </ui-button>
       </div>
     </ui-modal>
   `
@@ -39,7 +58,7 @@ export class VehicleAssignDialogComponent {
   readonly submitting = signal(false);
 
   selectedDriverId: string | null = null;
-  bookingId: number | null = null;
+  bookingId: string | number | null = null;
 
   constructor() {
     // Load drivers when dialog opens
@@ -52,10 +71,7 @@ export class VehicleAssignDialogComponent {
         this.driverService.getAll(1, 500).pipe(
           catchError(() => of({ items: [] }))
         ).subscribe(r => {
-          this.driverOptions.set(r.items.map(d => ({
-            value: String(d.id),
-            label: `${d.fullName} (${d.phone})`
-          })));
+          this.driverOptions.set(buildDriverAssignOptions(r.items));
         });
       }
       prevOpen = isOpen;
@@ -68,10 +84,7 @@ export class VehicleAssignDialogComponent {
     this.selectedDriverId = null;
     this.bookingId = null;
     this.driverService.getAll(1, 500).pipe(catchError(() => of({ items: [] }))).subscribe(r => {
-      this.driverOptions.set(r.items.map(d => ({
-        value: String(d.id),
-        label: `${d.fullName} (${d.phone})`
-      })));
+      this.driverOptions.set(buildDriverAssignOptions(r.items));
     });
     this.open.set(true);
   }
@@ -80,20 +93,26 @@ export class VehicleAssignDialogComponent {
     const id = this.vehicleId();
     if (!id || !this.selectedDriverId) return;
 
+    const bookingId = parseOptionalBookingId(this.bookingId);
+    if (this.bookingId !== null && this.bookingId !== undefined && String(this.bookingId).trim() !== '' && bookingId === null) {
+      this.toast.error('Enter a valid booking ID.');
+      return;
+    }
+
     this.submitting.set(true);
     this.vehicleService.assignDriver(id, {
       driverId: Number(this.selectedDriverId),
-      bookingId: this.bookingId || null
+      bookingId
     }).subscribe({
       next: () => {
         this.submitting.set(false);
         this.open.set(false);
-        this.toast.success('Driver assigned');
+        this.toast.success('Driver assigned successfully');
         this.assigned.emit();
       },
-      error: () => {
+      error: (err) => {
         this.submitting.set(false);
-        this.toast.error('Assign failed');
+        this.toast.error(apiErrorMessage(err, 'Driver assignment failed'));
       }
     });
   }

@@ -20,6 +20,7 @@ import { ScheduleTimelineViewComponent } from './components/schedule-timeline-vi
 import { ScheduleFormDrawerComponent, ScheduleDrawerMode } from './components/schedule-form-drawer.component';
 import { AppBrandLoaderComponent } from '../../../../shared/components/app-brand-loader/app-brand-loader.component';
 import { apiErrorMessage } from '../../../../core/utils/api-error.util';
+import { AuthService } from '../../../../core/services/auth.service';
 
 @Component({
   selector: 'app-service-scheduler-page',
@@ -44,6 +45,7 @@ export class ServiceSchedulerPageComponent implements OnInit {
   private readonly toast = inject(UiToastService);
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly auth = inject(AuthService);
   readonly ctx = inject(MaintenanceContextService);
 
   readonly schedules = signal<MaintenanceScheduleListItem[]>([]);
@@ -55,6 +57,10 @@ export class ServiceSchedulerPageComponent implements OnInit {
   readonly drawerMode = signal<ScheduleDrawerMode>('create');
   readonly selectedSchedule = signal<MaintenanceScheduleListItem | null>(null);
   readonly loading = signal(true);
+
+  canManageSchedules(): boolean {
+    return this.auth.hasPermission('Maintenance.Manage');
+  }
 
   readonly statusOptions: { value: ScheduleStatus | ''; label: string }[] = [
     { value: '', label: 'All statuses' },
@@ -90,6 +96,10 @@ export class ServiceSchedulerPageComponent implements OnInit {
   }
 
   openCreate(): void {
+    if (!this.canManageSchedules()) {
+      this.toast.error('You do not have permission to schedule maintenance services.');
+      return;
+    }
     this.drawerMode.set('create');
     this.selectedSchedule.set(null);
     this.drawerOpen.set(true);

@@ -62,6 +62,36 @@ public class DriverAssignmentGuardTests
             .WithMessage("*verified*");
     }
 
+    [Theory]
+    [InlineData("Pending")]
+    [InlineData("UnderReview")]
+    [InlineData("Verified")]
+    [InlineData(null)]
+    public void EnsureAssignableForVehicleTrip_AllowsOperationalVerificationStates(string? verificationStatus)
+    {
+        var act = () => DriverAssignmentGuard.EnsureAssignableForVehicleTrip(
+            isActive: true,
+            status: DriverStatus.Available,
+            verificationStatus: verificationStatus,
+            licenseExpiry: ValidLicense);
+
+        act.Should().NotThrow();
+    }
+
+    [Theory]
+    [InlineData("Rejected")]
+    [InlineData("ExpiredDocs")]
+    public void EnsureAssignableForVehicleTrip_BlocksRejectedVerification(string verificationStatus)
+    {
+        var act = () => DriverAssignmentGuard.EnsureAssignableForVehicleTrip(
+            isActive: true,
+            status: DriverStatus.Available,
+            verificationStatus: verificationStatus,
+            licenseExpiry: ValidLicense);
+
+        act.Should().Throw<ConflictException>();
+    }
+
     [Fact]
     public void EnsureAssignable_ExpiredLicense_ThrowsConflict()
     {

@@ -1,8 +1,16 @@
-import { ChangeDetectionStrategy, Component, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { DatePipe, DecimalPipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
+import { ChartOptions } from 'chart.js';
 import { VehicleHealthSummary, UpcomingService } from '../../../../core/models/maintenance.model';
 import { UiChartComponent } from '../../../../shared/components/ui';
+
+const HEALTH_LEGEND = [
+  { key: 'healthy', label: 'Healthy', color: '#047857' },
+  { key: 'serviceDueSoon', label: 'Due Soon', color: '#d97706' },
+  { key: 'overdue', label: 'Overdue', color: '#b91c1c' },
+  { key: 'inWorkshop', label: 'In Workshop', color: '#1d4ed8' }
+] as const;
 
 @Component({
   selector: 'maintenance-vehicle-health',
@@ -12,24 +20,76 @@ import { UiChartComponent } from '../../../../shared/components/ui';
   template: `
   <div class="card">
     <h3>Vehicle Health Status</h3>
-    <ui-chart type="doughnut" [data]="chartData()" [options]="{ plugins: { legend: { position: 'bottom' } } }" height="200px"></ui-chart>
+    <ui-chart
+      type="doughnut"
+      [data]="chartData()"
+      [options]="chartOptions"
+      height="200px" />
+    <ul class="legend" aria-label="Vehicle health legend">
+      @for (item of legendItems(); track item.label) {
+        <li class="legend__item">
+          <span class="legend__swatch" [style.background-color]="item.color"></span>
+          <span class="legend__label">{{ item.label }}</span>
+        </li>
+      }
+    </ul>
   </div>
   `,
   styles: [`
     .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 1.25rem; min-width: 0; }
     h3 { margin: 0 0 0.75rem; font-size: 1rem; font-weight: 700; }
+    .legend {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      margin: 0.875rem 0 0;
+      padding: 0;
+      list-style: none;
+    }
+    .legend__item {
+      display: grid;
+      grid-template-columns: 0.75rem 1fr;
+      column-gap: 0.625rem;
+      align-items: center;
+    }
+    .legend__swatch {
+      width: 0.75rem;
+      height: 0.75rem;
+      border-radius: 2px;
+    }
+    .legend__label {
+      font-size: 0.8125rem;
+      line-height: 1.25rem;
+      color: #334155;
+    }
   `]
 })
 export class MaintenanceVehicleHealthComponent {
   readonly health = input<VehicleHealthSummary | null>(null);
 
+  readonly chartOptions: ChartOptions<'doughnut'> = {
+    responsive: true,
+    maintainAspectRatio: false,
+    cutout: '65%',
+    plugins: { legend: { display: false } }
+  };
+
+  readonly legendItems = computed(() => {
+    const h = this.health();
+    return HEALTH_LEGEND.map(item => ({
+      label: item.label,
+      color: item.color,
+      value: h?.[item.key] ?? 0
+    }));
+  });
+
   chartData() {
     const h = this.health();
     return {
-      labels: ['Healthy', 'Due Soon', 'Overdue', 'In Workshop'],
+      labels: HEALTH_LEGEND.map(item => item.label),
       datasets: [{
-        data: [h?.healthy ?? 0, h?.serviceDueSoon ?? 0, h?.overdue ?? 0, h?.inWorkshop ?? 0],
-        backgroundColor: ['#047857', '#d97706', '#b91c1c', '#1d4ed8']
+        data: HEALTH_LEGEND.map(item => h?.[item.key] ?? 0),
+        backgroundColor: HEALTH_LEGEND.map(item => item.color)
       }]
     };
   }

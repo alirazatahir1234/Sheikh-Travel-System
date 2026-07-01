@@ -5,11 +5,15 @@
     @if (dashboard(); as d) {
       <maintenance-kpi-grid [kpis]="d.kpis"></maintenance-kpi-grid>
 
-      <maintenance-pending-requests [count]="d.kpis.pendingRequests ?? 0"></maintenance-pending-requests>
+      <maintenance-pending-requests [count]="d.kpis.pendingRequests"></maintenance-pending-requests>
 
       <div class="grid">
         <div class="grid-main">
-          <maintenance-cost-trend [data]="d.costTrend" [period]="ctx.period()"></maintenance-cost-trend>
+          <maintenance-cost-trend
+            [data]="d.costTrend"
+            [period]="ctx.period()"
+            (periodChange)="onPeriodChange($event)">
+          </maintenance-cost-trend>
           @if (d.fuelSummary) {
             <maintenance-fuel-summary [summary]="d.fuelSummary"></maintenance-fuel-summary>
           }

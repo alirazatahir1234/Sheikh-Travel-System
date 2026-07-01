@@ -20,6 +20,7 @@ import {
 import { WorkOrderDetailDrawerComponent } from '../work-orders/work-order-detail-drawer.component';
 import { AppBrandLoaderComponent } from '../../../../shared/components/app-brand-loader/app-brand-loader.component';
 import { apiErrorMessage } from '../../../../core/utils/api-error.util';
+import { maintenanceDashboardGranularity } from '../utils/maintenance-period.util';
 
 @Component({
   selector: 'app-maintenance-dashboard',
@@ -63,9 +64,14 @@ export class MaintenanceDashboardComponent {
     this.ctx.exportRequested$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => this.exportReport());
   }
 
+  onPeriodChange(period: string): void {
+    this.ctx.period.set(period);
+  }
+
   load(): void {
+    const period = this.ctx.period();
     this.loading.set(true);
-    this.maintenanceService.getDashboard(this.ctx.period()).subscribe({
+    this.maintenanceService.getDashboard(period, maintenanceDashboardGranularity(period)).subscribe({
       next: d => {
         this.dashboard.set(d);
         this.loading.set(false);

@@ -50,6 +50,7 @@ import { TenantPickerComponent } from './components/tenant-picker/tenant-picker.
 import { AppBrandLoaderComponent } from './components/app-brand-loader/app-brand-loader.component';
 import { SgProgressLoaderComponent } from './components/sg-progress-loader/sg-progress-loader.component';
 import { PhoneDigitsOnlyDirective } from './directives/phone-digits-only.directive';
+import { PositiveIntegerOnlyDirective } from './directives/positive-integer-only.directive';
 
 const MATERIAL = [
   MatButtonModule, MatCardModule, MatFormFieldModule, MatInputModule,
@@ -76,7 +77,7 @@ const UI = [
 
 @NgModule({
   declarations: [...UI, ConfirmDialogComponent, HelpDialogComponent, TenantPickerComponent],
-  imports: [CommonModule, ReactiveFormsModule, FormsModule, RouterModule, AppBrandLoaderComponent, SgProgressLoaderComponent, PhoneDigitsOnlyDirective, ...MATERIAL],
+  imports: [CommonModule, ReactiveFormsModule, FormsModule, RouterModule, AppBrandLoaderComponent, SgProgressLoaderComponent, PhoneDigitsOnlyDirective, PositiveIntegerOnlyDirective, ...MATERIAL],
   exports: [
     CommonModule, ReactiveFormsModule, FormsModule, RouterModule,
     ...MATERIAL,
@@ -87,6 +88,7 @@ const UI = [
     AppBrandLoaderComponent,
     SgProgressLoaderComponent,
     PhoneDigitsOnlyDirective,
+    PositiveIntegerOnlyDirective,
   ]
 })
 export class SharedModule {}

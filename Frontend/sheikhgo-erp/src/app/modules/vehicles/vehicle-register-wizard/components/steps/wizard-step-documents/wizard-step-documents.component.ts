@@ -9,7 +9,7 @@ import { VehicleImageGalleryComponent } from '../../vehicle-image-gallery/vehicl
   imports: [DocumentUploadZoneComponent, VehicleImageGalleryComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <section class="rounded-lg border border-fleet-border bg-white p-6 shadow-sm">
+    <section class="rounded-lg border border-fleet-border bg-white p-6 shadow-sm pb-8 sm:pb-6">
       <h2 class="mb-1 text-lg font-semibold text-fleet-text">Documents</h2>
       <p class="mb-5 text-sm text-fleet-text-muted">Upload vehicle images and compliance documents.</p>
 

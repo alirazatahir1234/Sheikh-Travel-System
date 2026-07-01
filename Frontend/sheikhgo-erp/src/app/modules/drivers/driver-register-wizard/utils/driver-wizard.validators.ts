@@ -47,6 +47,116 @@ export function phoneCodeForNationality(nationality: string): string | null {
 
 export { digitsOnlyPhoneInput } from '../../../../core/utils/phone-input.util';
 
+export const PERSON_NAME_MIN_LENGTH = 3;
+export const PERSON_NAME_MAX_LENGTH = 15;
+
+/** Latin letters; optional hyphen/apostrophe between letter groups (e.g. Al-Mansoor). */
+const PERSON_NAME_PATTERN = /^[A-Za-z]+(?:['-][A-Za-z]+)*$/;
+
+export function sanitizePersonNameInput(value: string): string {
+  return value.replace(/[^A-Za-z'-]/g, '').slice(0, PERSON_NAME_MAX_LENGTH);
+}
+
+export function blockNonPersonNameKey(event: KeyboardEvent): void {
+  if (event.ctrlKey || event.metaKey || event.altKey) return;
+  const allowed = ['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'];
+  if (allowed.includes(event.key)) return;
+  if (event.key.length === 1 && !/[A-Za-z'-]/.test(event.key)) {
+    event.preventDefault();
+  }
+}
+
+export function personNameValidator(
+  minLength = PERSON_NAME_MIN_LENGTH,
+  maxLength = PERSON_NAME_MAX_LENGTH
+): ValidatorFn {
+  return (control: AbstractControl): ValidationErrors | null => {
+    const v = String(control.value ?? '').trim();
+    if (!v) return { required: true };
+    if (v.length < minLength) {
+      return { minlength: { requiredLength: minLength, actualLength: v.length } };
+    }
+    if (v.length > maxLength) {
+      return { maxlength: { requiredLength: maxLength, actualLength: v.length } };
+    }
+    if (/\d/.test(v) || !PERSON_NAME_PATTERN.test(v)) {
+      return { lettersOnly: true };
+    }
+    return null;
+  };
+}
+
+export function personNameErrorMessage(
+  control: AbstractControl | null | undefined,
+  label: string
+): string | null {
+  if (!control?.invalid) return null;
+  if (control.hasError('required')) return `${label} is required`;
+  if (control.hasError('lettersOnly')) return `${label} must contain letters only (no numbers)`;
+  if (control.hasError('minlength')) {
+    return `${label} must be at least ${PERSON_NAME_MIN_LENGTH} characters`;
+  }
+  if (control.hasError('maxlength')) {
+    return `${label} cannot exceed ${PERSON_NAME_MAX_LENGTH} characters`;
+  }
+  return `${label} is invalid`;
+}
+
+export const CONTACT_NAME_MIN_LENGTH = 3;
+export const CONTACT_NAME_MAX_LENGTH = 12;
+
+/** Latin letters with optional spaces, hyphens, or apostrophes between words. */
+const CONTACT_NAME_PATTERN = /^[A-Za-z]+(?:[\s'-][A-Za-z]+)*$/;
+
+export function sanitizeContactNameInput(value: string): string {
+  return value.replace(/[^A-Za-z\s'-]/g, '').slice(0, CONTACT_NAME_MAX_LENGTH);
+}
+
+export function blockNonContactNameKey(event: KeyboardEvent): void {
+  if (event.ctrlKey || event.metaKey || event.altKey) return;
+  const allowed = ['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'];
+  if (allowed.includes(event.key)) return;
+  if (event.key.length === 1 && !/[A-Za-z\s'-]/.test(event.key)) {
+    event.preventDefault();
+  }
+}
+
+export function contactNameValidator(
+  minLength = CONTACT_NAME_MIN_LENGTH,
+  maxLength = CONTACT_NAME_MAX_LENGTH
+): ValidatorFn {
+  return (control: AbstractControl): ValidationErrors | null => {
+    const v = String(control.value ?? '').trim();
+    if (!v) return { required: true };
+    if (v.length < minLength) {
+      return { minlength: { requiredLength: minLength, actualLength: v.length } };
+    }
+    if (v.length > maxLength) {
+      return { maxlength: { requiredLength: maxLength, actualLength: v.length } };
+    }
+    if (/\d/.test(v) || !CONTACT_NAME_PATTERN.test(v)) {
+      return { lettersOnly: true };
+    }
+    return null;
+  };
+}
+
+export function contactNameErrorMessage(
+  control: AbstractControl | null | undefined,
+  label: string
+): string | null {
+  if (!control?.invalid) return null;
+  if (control.hasError('required')) return `${label} is required`;
+  if (control.hasError('lettersOnly')) return `${label} must contain letters only (no numbers)`;
+  if (control.hasError('minlength')) {
+    return `${label} must be at least ${CONTACT_NAME_MIN_LENGTH} characters`;
+  }
+  if (control.hasError('maxlength')) {
+    return `${label} cannot exceed ${CONTACT_NAME_MAX_LENGTH} characters`;
+  }
+  return `${label} is invalid`;
+}
+
 export function calcOrgFieldProgress(values: Record<string, unknown>): number {
   let score = 0;
   if (String(values['branchId'] ?? '').trim()) score += 70;
@@ -107,14 +217,34 @@ export function buildFullName(firstName: string, lastName: string): string {
   return [firstName.trim(), lastName.trim()].filter(Boolean).join(' ');
 }
 
+export const EMERGENCY_CONTACT_PHONE_MIN_DIGITS = 7;
+export const EMERGENCY_CONTACT_PHONE_MAX_DIGITS = 15;
+
 export function emergencyContactPhoneValidator(): ValidatorFn {
   return (control: AbstractControl): ValidationErrors | null => {
     const v = String(control.value ?? '').trim();
     if (!v) return { required: true };
     const digits = v.replace(/\D/g, '');
-    if (digits.length < 7 || digits.length > 15) return { phoneLength: true };
+    if (digits.length < EMERGENCY_CONTACT_PHONE_MIN_DIGITS || digits.length > EMERGENCY_CONTACT_PHONE_MAX_DIGITS) {
+      return { phoneLength: true };
+    }
     return null;
   };
+}
+
+export function sanitizeEmergencyContactPhoneInput(value: string): string {
+  return value.replace(/\D/g, '').slice(0, EMERGENCY_CONTACT_PHONE_MAX_DIGITS);
+}
+
+export function emergencyContactPhoneErrorMessage(
+  control: AbstractControl | null | undefined
+): string | null {
+  if (!control?.invalid) return null;
+  if (control.hasError('required')) return 'Emergency contact phone is required';
+  if (control.hasError('phoneLength')) {
+    return `Enter a valid phone number (${EMERGENCY_CONTACT_PHONE_MIN_DIGITS}–${EMERGENCY_CONTACT_PHONE_MAX_DIGITS} digits)`;
+  }
+  return 'Emergency contact phone is invalid';
 }
 
 export function calcProfileCompletion(

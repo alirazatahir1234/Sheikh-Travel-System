@@ -39,6 +39,13 @@ import {
   parseVehicleImageAngle,
   isPrimaryVehicleImage
 } from '../models/vehicle-wizard.model';
+import {
+  buildDefaultDetailCatalogOptions,
+  mergeModelsByMake,
+  modelOptionsForMake,
+  toSelectOptions,
+  withSelectOption
+} from '../utils/vehicle-catalog.util';
 
 @Injectable()
 export class VehicleWizardFacade {
@@ -67,6 +74,13 @@ export class VehicleWizardFacade {
   readonly unassignedDevices = signal<GpsDevice[]>([]);
   readonly branchOptions = signal<UiSelectOption[]>([]);
   readonly currencyOptions = signal<UiSelectOption[]>([]);
+  readonly vehicleNameOptions = signal<UiSelectOption[]>(buildDefaultDetailCatalogOptions().names);
+  readonly makeOptions = signal<UiSelectOption[]>(buildDefaultDetailCatalogOptions().makes);
+  readonly colorOptions = signal<UiSelectOption[]>(buildDefaultDetailCatalogOptions().colors);
+  readonly modelsByMake = signal<Record<string, string[]>>(buildDefaultDetailCatalogOptions().modelsByMake);
+  readonly modelOptions = computed(() =>
+    modelOptionsForMake(String(this.formValues()['make'] ?? ''), this.modelsByMake())
+  );
   readonly uploadedDocuments = signal<VehicleDocument[]>([]);
 
   readonly documentSlots = signal<DocumentSlotState[]>(
@@ -199,6 +213,8 @@ export class VehicleWizardFacade {
     this.setupGpsValidationRules();
     this.loadBranches();
     this.loadCurrencies();
+    this.loadDetailCatalog();
+    this.setupMakeModelRules();
     this.setupPurchaseCurrencyRules();
     this.loadUnassignedDevices();
 
@@ -616,6 +632,68 @@ export class VehicleWizardFacade {
     });
   }
 
+  private loadDetailCatalog(): void {
+    const defaults = buildDefaultDetailCatalogOptions();
+    this.vehicleNameOptions.set(defaults.names);
+    this.makeOptions.set(defaults.makes);
+    this.colorOptions.set(defaults.colors);
+    this.modelsByMake.set(defaults.modelsByMake);
+
+    this.vehicleService.getAll(1, 500).pipe(catchError(() => of({ items: [] }))).subscribe(result => {
+      const names = new Set(defaults.names.map(o => o.value));
+      const makes = new Set(defaults.makes.map(o => o.value));
+      const colors = new Set(defaults.colors.map(o => o.value));
+      let modelsByMake = { ...defaults.modelsByMake };
+
+      for (const vehicle of result.items) {
+        if (vehicle.name?.trim()) names.add(vehicle.name.trim());
+        if (vehicle.make?.trim()) makes.add(vehicle.make.trim());
+        if (vehicle.make?.trim() && vehicle.model?.trim()) {
+          modelsByMake = mergeModelsByMake(modelsByMake, vehicle.make, vehicle.model);
+        }
+      }
+
+      this.vehicleNameOptions.set(toSelectOptions(names));
+      this.makeOptions.set(toSelectOptions(makes));
+      this.colorOptions.set(toSelectOptions(colors));
+      this.modelsByMake.set(modelsByMake);
+      this.ensureDetailCatalogIncludesFormValues();
+    });
+  }
+
+  private ensureDetailCatalogIncludesFormValues(): void {
+    const values = this.form.getRawValue() as Record<string, unknown>;
+    const name = String(values['name'] ?? '').trim();
+    const make = String(values['make'] ?? '').trim();
+    const model = String(values['model'] ?? '').trim();
+    const color = String(values['color'] ?? '').trim();
+
+    if (name) this.vehicleNameOptions.update(opts => withSelectOption(opts, name));
+    if (make) this.makeOptions.update(opts => withSelectOption(opts, make));
+    if (color) this.colorOptions.update(opts => withSelectOption(opts, color));
+    if (make && model) {
+      this.modelsByMake.update(map => mergeModelsByMake(map, make, model));
+    }
+  }
+
+  private setupMakeModelRules(): void {
+    const makeControl = this.form.get('make');
+    const modelControl = this.form.get('model');
+    if (!makeControl || !modelControl) return;
+
+    makeControl.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(make => {
+      const selectedMake = String(make ?? '').trim();
+      const currentModel = String(modelControl.value ?? '').trim();
+      if (!currentModel) return;
+
+      const allowed = modelOptionsForMake(selectedMake, this.modelsByMake()).map(o => o.value);
+      if (!allowed.includes(currentModel)) {
+        modelControl.reset('', { emitEvent: false });
+        this.syncFormValuesFromForm();
+      }
+    });
+  }
+
   private setupPurchaseCurrencyRules(): void {
     const currencyControl = this.form.get('purchaseCurrencyCode');
     const priceControl = this.form.get('purchasePrice');
@@ -663,6 +741,7 @@ export class VehicleWizardFacade {
       currentMileage: v.currentMileage
     });
     this.syncFormValuesFromForm();
+    this.ensureDetailCatalogIncludesFormValues();
   }
 
   private syncDocumentSlots(documents: VehicleDocument[]): void {

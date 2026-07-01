@@ -35,8 +35,14 @@ public class GlobalExceptionMiddleware(RequestDelegate next, ILogger<GlobalExcep
             NotFoundException => (HttpStatusCode.NotFound, exception.Message),
             ConflictException => (HttpStatusCode.Conflict, exception.Message),
             ForbiddenException => (HttpStatusCode.Forbidden, exception.Message),
-            FluentValidation.ValidationException validationEx => (HttpStatusCode.BadRequest,
-                string.Join("; ", validationEx.Errors.Select(e => e.ErrorMessage))),
+            FluentValidation.ValidationException validationEx =>
+            {
+                var fromFailures = string.Join("; ", validationEx.Errors.Select(e => e.ErrorMessage).Where(m => !string.IsNullOrWhiteSpace(m)));
+                var message = !string.IsNullOrWhiteSpace(fromFailures)
+                    ? fromFailures
+                    : validationEx.Message;
+                return (HttpStatusCode.BadRequest, message);
+            },
             UnauthorizedAccessException => (HttpStatusCode.Unauthorized, "Unauthorized"),
             _ => (HttpStatusCode.InternalServerError, "An unexpected error occurred.")
         };

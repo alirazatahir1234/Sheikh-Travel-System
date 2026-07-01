@@ -184,24 +184,51 @@ public class GetMaintenanceDashboardQueryHandler(IDbConnectionFactory dbFactory,
         string granularity, int? branchId, CancellationToken ct)
     {
         var branchClause = branchId.HasValue ? " AND v.BranchId = @BranchId" : "";
-        var dateExpr = granularity.Equals("Month", StringComparison.OrdinalIgnoreCase)
-            ? "FORMAT(m.MaintenanceDate, 'yyyy-MM')"
-            : granularity.Equals("Week", StringComparison.OrdinalIgnoreCase)
-                ? "CONCAT(DATEPART(YEAR, m.MaintenanceDate), '-W', DATEPART(WEEK, m.MaintenanceDate))"
-                : "FORMAT(m.MaintenanceDate, 'yyyy-MM-dd')";
+        static string DateBucket(string column, string granularity) =>
+            granularity.Equals("Month", StringComparison.OrdinalIgnoreCase)
+                ? $"FORMAT({column}, 'yyyy-MM')"
+                : granularity.Equals("Week", StringComparison.OrdinalIgnoreCase)
+                    ? $"CONCAT(DATEPART(YEAR, {column}), '-W', DATEPART(WEEK, {column}))"
+                    : $"FORMAT({column}, 'yyyy-MM-dd')";
+
+        var maintBucket = DateBucket("m.MaintenanceDate", granularity);
+        var woBucket = DateBucket("wo.CreatedAt", granularity);
 
         var rows = await connection.QueryAsync<(string Label, decimal Preventive, decimal Corrective, decimal Breakdown)>(
             new CommandDefinition($"""
-                SELECT {dateExpr} AS Label,
-                    ISNULL(SUM(CASE WHEN ISNULL(m.IsPreventive, 0) = 1 THEN ISNULL(m.Cost,0)+ISNULL(m.LaborCost,0)+ISNULL(m.PartsCost,0) ELSE 0 END), 0),
-                    ISNULL(SUM(CASE WHEN ISNULL(m.IsPreventive, 0) = 0 AND ISNULL(m.Category, N'') <> N'Breakdown' THEN ISNULL(m.Cost,0)+ISNULL(m.LaborCost,0)+ISNULL(m.PartsCost,0) ELSE 0 END), 0),
-                    ISNULL(SUM(CASE WHEN m.Category = N'Breakdown' THEN ISNULL(m.Cost,0)+ISNULL(m.LaborCost,0)+ISNULL(m.PartsCost,0) ELSE 0 END), 0)
-                FROM Maintenance m
-                INNER JOIN Vehicles v ON v.Id = m.VehicleId
-                WHERE m.IsDeleted = 0 AND v.TenantId = @TenantId
-                  AND m.MaintenanceDate >= @From AND m.MaintenanceDate < @To {branchClause}
-                GROUP BY {dateExpr}
-                ORDER BY {dateExpr}
+                SELECT Label,
+                    SUM(Preventive) AS Preventive,
+                    SUM(Corrective) AS Corrective,
+                    SUM(Breakdown) AS Breakdown
+                FROM (
+                    SELECT {maintBucket} AS Label,
+                        CASE WHEN ISNULL(m.IsPreventive, 0) = 1
+                            THEN ISNULL(m.Cost,0)+ISNULL(m.LaborCost,0)+ISNULL(m.PartsCost,0) ELSE 0 END AS Preventive,
+                        CASE WHEN ISNULL(m.IsPreventive, 0) = 0 AND ISNULL(m.Category, N'') <> N'Breakdown'
+                            THEN ISNULL(m.Cost,0)+ISNULL(m.LaborCost,0)+ISNULL(m.PartsCost,0) ELSE 0 END AS Corrective,
+                        CASE WHEN m.Category = N'Breakdown'
+                            THEN ISNULL(m.Cost,0)+ISNULL(m.LaborCost,0)+ISNULL(m.PartsCost,0) ELSE 0 END AS Breakdown
+                    FROM Maintenance m
+                    INNER JOIN Vehicles v ON v.Id = m.VehicleId
+                    WHERE m.IsDeleted = 0 AND v.TenantId = @TenantId
+                      AND m.MaintenanceDate >= @From AND m.MaintenanceDate < @To {branchClause}
+
+                    UNION ALL
+
+                    SELECT {woBucket} AS Label,
+                        CASE WHEN wo.MaintenanceType = N'Preventive'
+                            THEN ISNULL(wo.LaborCost,0)+ISNULL(wo.PartsCost,0) ELSE 0 END,
+                        CASE WHEN wo.MaintenanceType = N'Corrective'
+                            THEN ISNULL(wo.LaborCost,0)+ISNULL(wo.PartsCost,0) ELSE 0 END,
+                        CASE WHEN wo.MaintenanceType = N'Emergency'
+                            THEN ISNULL(wo.LaborCost,0)+ISNULL(wo.PartsCost,0) ELSE 0 END
+                    FROM WorkOrders wo
+                    INNER JOIN Vehicles v ON v.Id = wo.VehicleId AND v.IsDeleted = 0
+                    WHERE wo.IsDeleted = 0 AND v.TenantId = @TenantId
+                      AND wo.CreatedAt >= @From AND wo.CreatedAt < @To {branchClause}
+                ) buckets
+                GROUP BY Label
+                ORDER BY Label
                 """, new { TenantId = tenantId, From = from, To = to, BranchId = branchId }, cancellationToken: ct));
 
         return rows.Select(r => new MaintenanceCostTrendPointDto(r.Label, r.Preventive, r.Corrective, r.Breakdown)).ToList();

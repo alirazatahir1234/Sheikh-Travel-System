@@ -87,6 +87,7 @@
           <mat-select formControlName="planName">
             <mat-option *ngFor="let tier of planTiers" [value]="tier">{{ tier }}</mat-option>
           </mat-select>
+          <mat-hint>Changing the plan updates license limits and module selection</mat-hint>
         </mat-form-field>
         <p class="section-label">Select Modules</p>
         <div *ngIf="loadingModules" class="module-loading"><app-brand-loader size="sm" message="Loading modules…" /></div>
@@ -100,11 +101,11 @@
         </div>
         <p class="section-label">License Limits</p>
         <div class="limits-row">
-          <mat-form-field appearance="outline"><mat-label>Max Users</mat-label><input matInput type="number" formControlName="maxUsers" /></mat-form-field>
-          <mat-form-field appearance="outline"><mat-label>Max Vehicles</mat-label><input matInput type="number" formControlName="maxVehicles" /></mat-form-field>
-          <mat-form-field appearance="outline"><mat-label>Max Drivers</mat-label><input matInput type="number" formControlName="maxDrivers" /></mat-form-field>
-          <mat-form-field appearance="outline"><mat-label>Max Branches</mat-label><input matInput type="number" formControlName="maxBranches" /></mat-form-field>
-          <mat-form-field appearance="outline"><mat-label>Max GPS Devices</mat-label><input matInput type="number" formControlName="maxGpsDevices" /></mat-form-field>
+          <mat-form-field appearance="outline"><mat-label>Max Users</mat-label><input matInput type="text" inputmode="numeric" formControlName="maxUsers" appPositiveInteger placeholder="Unlimited" /></mat-form-field>
+          <mat-form-field appearance="outline"><mat-label>Max Vehicles</mat-label><input matInput type="text" inputmode="numeric" formControlName="maxVehicles" appPositiveInteger placeholder="Unlimited" /></mat-form-field>
+          <mat-form-field appearance="outline"><mat-label>Max Drivers</mat-label><input matInput type="text" inputmode="numeric" formControlName="maxDrivers" appPositiveInteger placeholder="Unlimited" /></mat-form-field>
+          <mat-form-field appearance="outline"><mat-label>Max Branches</mat-label><input matInput type="text" inputmode="numeric" formControlName="maxBranches" appPositiveInteger placeholder="Unlimited" /></mat-form-field>
+          <mat-form-field appearance="outline"><mat-label>Max GPS Devices</mat-label><input matInput type="text" inputmode="numeric" formControlName="maxGpsDevices" appPositiveInteger placeholder="Unlimited" /></mat-form-field>
         </div>
       </mat-card>
 
