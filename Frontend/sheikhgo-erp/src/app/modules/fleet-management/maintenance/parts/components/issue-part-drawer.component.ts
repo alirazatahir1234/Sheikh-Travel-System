@@ -150,7 +150,7 @@ export class IssuePartDrawerComponent implements OnInit {
 
   private parseWorkOrderId(): number | undefined {
     const raw = this.workOrderId;
-    if (raw === null || raw === undefined || raw === '') return undefined;
+    if (raw === null || raw === undefined) return undefined;
     const id = Number(raw);
     return Number.isFinite(id) && id > 0 ? id : undefined;
   }
