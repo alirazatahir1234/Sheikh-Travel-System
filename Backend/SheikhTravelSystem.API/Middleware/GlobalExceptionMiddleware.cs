@@ -35,14 +35,7 @@ public class GlobalExceptionMiddleware(RequestDelegate next, ILogger<GlobalExcep
             NotFoundException => (HttpStatusCode.NotFound, exception.Message),
             ConflictException => (HttpStatusCode.Conflict, exception.Message),
             ForbiddenException => (HttpStatusCode.Forbidden, exception.Message),
-            FluentValidation.ValidationException validationEx =>
-            {
-                var fromFailures = string.Join("; ", validationEx.Errors.Select(e => e.ErrorMessage).Where(m => !string.IsNullOrWhiteSpace(m)));
-                var message = !string.IsNullOrWhiteSpace(fromFailures)
-                    ? fromFailures
-                    : validationEx.Message;
-                return (HttpStatusCode.BadRequest, message);
-            },
+            FluentValidation.ValidationException validationEx => (HttpStatusCode.BadRequest, FormatValidationMessage(validationEx)),
             UnauthorizedAccessException => (HttpStatusCode.Unauthorized, "Unauthorized"),
             _ => (HttpStatusCode.InternalServerError, "An unexpected error occurred.")
         };
@@ -53,5 +46,12 @@ public class GlobalExceptionMiddleware(RequestDelegate next, ILogger<GlobalExcep
         var response = ApiResponse<object>.FailResponse(message);
         var json = JsonSerializer.Serialize(response, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
         await context.Response.WriteAsync(json);
+    }
+
+    private static string FormatValidationMessage(FluentValidation.ValidationException validationEx)
+    {
+        var fromFailures = string.Join("; ",
+            validationEx.Errors.Select(e => e.ErrorMessage).Where(m => !string.IsNullOrWhiteSpace(m)));
+        return !string.IsNullOrWhiteSpace(fromFailures) ? fromFailures : validationEx.Message;
     }
 }
