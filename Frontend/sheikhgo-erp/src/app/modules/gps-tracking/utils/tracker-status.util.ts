@@ -18,6 +18,7 @@ export interface TrackerStatusView {
 }
 
 const MOVING_THRESHOLD_KMH = 0;
+const IGNITION_INFER_THRESHOLD_KMH = 5;
 
 export function resolveTrackerStatus(device: GpsDevice): TrackerStatusView {
   if (device.disabled || !device.isActive) {
@@ -25,7 +26,7 @@ export function resolveTrackerStatus(device: GpsDevice): TrackerStatusView {
   }
 
   if (!device.lastSeenAt) {
-    return status('never_seen', 'Never Seen', 'badge-gray', 'row-never');
+    return status('never_seen', 'Provisioned', 'badge-gray', 'row-never');
   }
 
   if (!device.isOnline) {
@@ -39,7 +40,7 @@ export function resolveTrackerStatus(device: GpsDevice): TrackerStatusView {
     if (speed > MOVING_THRESHOLD_KMH) {
       return status('moving', 'Moving', 'badge-blue', 'row-moving');
     }
-    return status('waiting_telemetry', 'Waiting for telemetry', 'badge-gray', 'row-unknown');
+    return status('waiting_telemetry', 'Online', 'badge-teal', 'row-online');
   }
 
   if (ignition) {
@@ -77,8 +78,8 @@ export function isTrackerUnassigned(device: GpsDevice): boolean {
 }
 
 export function isTrackerInInventory(device: GpsDevice): boolean {
-  const status = normalizeInventoryStatus(device.currentStatus);
-  return !device.vehicleId && (status === 'Available' || status === 'InStock');
+  const s = normalizeInventoryStatus(device.currentStatus);
+  return !device.vehicleId && (s === 'Available' || s === 'InStock');
 }
 
 export function isTrackerInstalled(device: GpsDevice): boolean {
@@ -92,25 +93,33 @@ export function normalizeInventoryStatus(status?: string): string {
 }
 
 export function assignmentLabel(device: GpsDevice): string {
-  if (device.vehicleName) {
-    return `Installed on ${device.vehicleName}`;
-  }
-  const status = normalizeInventoryStatus(device.currentStatus);
-  if (status === 'Available') return 'Available';
-  if (status === 'Installed' && !device.vehicleId) return 'Not assigned';
-  return status;
+  if (device.vehicleName) return 'Installed';
+  const s = normalizeInventoryStatus(device.currentStatus);
+  if (s === 'Available') return 'In Stock';
+  if (s === 'Installed' && !device.vehicleId) return 'Unassigned';
+  if (s === 'Maintenance') return 'Maintenance';
+  return s;
+}
+
+export function assignmentTooltip(device: GpsDevice): string {
+  if (device.vehicleName) return `Installed on ${device.vehicleName}`;
+  const s = normalizeInventoryStatus(device.currentStatus);
+  if (s === 'Available') return 'Available in inventory';
+  return assignmentLabel(device);
 }
 
 export function assignmentBadgeClass(device: GpsDevice): string {
   if (device.vehicleName) return 'badge-green';
-  if (isTrackerInInventory(device)) return 'badge-gray';
-  return 'badge-amber';
+  const s = normalizeInventoryStatus(device.currentStatus);
+  if (s === 'Maintenance') return 'badge-amber';
+  if (s === 'Installed' && !device.vehicleId) return 'badge-amber';
+  return 'badge-gray';
 }
 
 export function vehicleDisplayLabel(device: GpsDevice): string {
   if (device.vehicleName) return device.vehicleName;
   if (device.vehicleId) return 'Vehicle not found';
-  return 'No vehicle assigned';
+  return '—';
 }
 
 export function traccarLinkHint(device: GpsDevice): string | null {
@@ -119,7 +128,13 @@ export function traccarLinkHint(device: GpsDevice): string | null {
 }
 
 export function trackerBrandLabel(device: GpsDevice): string {
-  return device.trackerBrandName || device.vendor || '—';
+  const raw = device.trackerBrandName || device.vendor || '';
+  if (!raw) return '—';
+  // Normalize all-caps strings to title case
+  if (raw === raw.toUpperCase() && raw.length > 2) {
+    return raw.replace(/\w+/g, w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
+  }
+  return raw;
 }
 
 export function trackerModelLabel(device: GpsDevice): string {
@@ -128,7 +143,7 @@ export function trackerModelLabel(device: GpsDevice): string {
 
 export function ignitionDisplay(device: GpsDevice): { icon: string; label: string; className: string } {
   if (!device.lastSeenAt) {
-    return { icon: 'remove', label: 'No data', className: 'ignition--none' };
+    return { icon: 'remove', label: '—', className: 'ignition--none' };
   }
   if (device.lastIgnition === true) {
     return { icon: 'trip_origin', label: 'ON', className: 'ignition--on' };
@@ -136,27 +151,46 @@ export function ignitionDisplay(device: GpsDevice): { icon: string; label: strin
   if (device.lastIgnition === false) {
     return { icon: 'circle', label: 'OFF', className: 'ignition--off' };
   }
-  return { icon: 'help_outline', label: 'Unknown', className: 'ignition--unknown' };
+  // Infer ignition state from speed when protocol doesn't report it
+  const speed = device.lastSpeed ?? 0;
+  if (speed > IGNITION_INFER_THRESHOLD_KMH) {
+    return { icon: 'trip_origin', label: 'ON (est.)', className: 'ignition--inferred' };
+  }
+  return { icon: 'help_outline', label: '—', className: 'ignition--unknown' };
 }
 
 export function gsmSignalLabel(device: GpsDevice): string {
-  if (device.lastRssi == null) {
-    if (!device.lastSeenAt) return 'No data';
-    if (!device.isOnline) return 'No signal';
-    return 'No data';
+  if (device.lastRssi != null) {
+    if (device.lastRssi >= -70) return 'Excellent';
+    if (device.lastRssi >= -85) return 'Good';
+    if (device.lastRssi >= -100) return 'Weak';
+    return 'Poor';
   }
-  if (device.lastRssi >= -70) return 'Strong';
-  if (device.lastRssi >= -85) return 'Good';
-  if (device.lastRssi >= -100) return 'Weak';
-  return 'Poor';
+  if (!device.lastSeenAt) return '—';
+  if (!device.isOnline) return 'No signal';
+  // Device is transmitting — it must have GSM connectivity, just no RSSI reported
+  return 'Active';
+}
+
+export function gsmSignalClass(device: GpsDevice): string {
+  if (device.lastRssi != null) {
+    if (device.lastRssi >= -70) return 'signal-excellent';
+    if (device.lastRssi >= -85) return 'signal-good';
+    if (device.lastRssi >= -100) return 'signal-weak';
+    return 'signal-poor';
+  }
+  if (device.isOnline) return 'signal-active';
+  return 'signal-none';
 }
 
 export function batteryDisplayLabel(device: GpsDevice): string {
   if (device.lastBatteryLevel != null) {
     return `${Math.round(device.lastBatteryLevel)}%`;
   }
-  if (!device.lastSeenAt) return 'No data';
-  return 'No data';
+  if (!device.lastSeenAt) return '—';
+  // Online with no battery data → likely a hardwired vehicle tracker
+  if (device.isOnline) return 'Ext. Power';
+  return '—';
 }
 
 export function formatLastSeenLabel(lastSeenAt: string | undefined, nowMs: number): string {
@@ -166,34 +200,25 @@ export function formatLastSeenLabel(lastSeenAt: string | undefined, nowMs: numbe
   const diff = nowMs - when.getTime();
   const mins = Math.floor(diff / 60_000);
 
-  if (mins < 1) return 'Just now';
+  if (mins < 1)  return 'Just now';
   if (mins < 60) return `${mins}m ago`;
 
-  const today = new Date(nowMs);
-  const isToday = when.toDateString() === today.toDateString();
-  const time = when.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
-  if (isToday) return `Today ${time}`;
-
   const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
+  if (hrs < 24)  return `${hrs}h ago`;
 
   const days = Math.floor(hrs / 24);
-  if (days < 7) return `${days}d ago`;
+  if (days === 1) return 'Yesterday';
+  if (days < 7)   return `${days}d ago`;
 
-  return when.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+  return when.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
 }
 
 export function formatLastSeenTooltip(lastSeenAt: string | undefined): string {
   if (!lastSeenAt) return 'No telemetry received yet';
   const when = new Date(lastSeenAt);
-  return when.toLocaleString(undefined, {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-    second: '2-digit'
-  });
+  const date = when.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+  const time = when.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  return `${date}  ${time}`;
 }
 
 export function deviceMatchesSearch(device: GpsDevice, query: string): boolean {

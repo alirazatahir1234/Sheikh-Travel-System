@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, input, output, signal } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
-import { UiChartComponent } from '../../../../shared/components/ui';
+import { UiChartComponent, UiChartOptions } from '../../../../shared/components/ui';
 import { MaintenanceCostTrendPoint } from '../../../../core/models/maintenance.model';
 
 @Component({
@@ -72,7 +72,7 @@ export class MaintenanceCostTrendComponent {
     };
   });
 
-  readonly options = {
+  readonly options: UiChartOptions = {
     responsive: true,
     maintainAspectRatio: false,
     plugins: { legend: { display: false } },

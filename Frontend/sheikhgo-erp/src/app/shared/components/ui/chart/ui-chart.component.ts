@@ -10,6 +10,7 @@ import {
 } from '@angular/core';
 import {
   Chart,
+  ChartConfiguration,
   ChartData,
   ChartOptions,
   ChartType,
@@ -19,6 +20,9 @@ import {
 Chart.register(...registerables);
 
 export type UiChartType = Extract<ChartType, 'line' | 'bar' | 'doughnut'>;
+
+/** Chart options accepted by ui-chart (avoids doughnut/line/bar generic conflicts in templates). */
+export type UiChartOptions = ChartOptions<UiChartType>;
 
 @Component({
   selector: 'ui-chart',
@@ -34,7 +38,7 @@ export type UiChartType = Extract<ChartType, 'line' | 'bar' | 'doughnut'>;
 export class UiChartComponent implements AfterViewInit, OnDestroy {
   readonly type = input<UiChartType>('line');
   readonly data = input<ChartData>({ labels: [], datasets: [] });
-  readonly options = input<ChartOptions>();
+  readonly options = input<UiChartOptions>();
   readonly height = input('280px');
 
   private readonly canvasRef = viewChild<ElementRef<HTMLCanvasElement>>('canvas');
@@ -64,14 +68,15 @@ export class UiChartComponent implements AfterViewInit, OnDestroy {
       return;
     }
     this.chart?.destroy();
-    this.chart = new Chart(canvas, {
+    const config = {
       type: this.type(),
       data: this.data(),
       options: this.options() ?? this.defaultOptions()
-    });
+    } as ChartConfiguration<UiChartType>;
+    this.chart = new Chart(canvas, config);
   }
 
-  private defaultOptions(): ChartOptions {
+  private defaultOptions(): UiChartOptions {
     return {
       responsive: true,
       maintainAspectRatio: false,

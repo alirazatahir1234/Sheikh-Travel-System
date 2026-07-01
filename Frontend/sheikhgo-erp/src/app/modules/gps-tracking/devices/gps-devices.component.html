@@ -60,20 +60,15 @@
         <span class="sync-stat-value">{{ connectedOnServer }}</span>
       </div>
       <div class="sync-stat" *ngIf="traccarSyncStatus">
-        <span class="sync-stat-label">Auto sync</span>
-        <span class="sync-stat-value">{{ autoSyncLabel }}</span>
-        <span class="sync-stat-hint" *ngIf="autoSyncDetail">{{ autoSyncDetail }}</span>
-      </div>
-      <div class="sync-stat" *ngIf="traccarSyncStatus?.enabled">
-        <span class="sync-stat-label">Last sync</span>
-        <span class="sync-stat-value">{{ lastSyncLabel }}</span>
-      </div>
-      <div class="sync-stat" *ngIf="traccarSyncStatus?.enabled && traccarStatus?.connected">
-        <span class="sync-stat-label">Live synchronization</span>
+        <span class="sync-stat-label">Data sync</span>
         <span class="sync-stat-value sync-stat-value--live" *ngIf="liveSyncRunning">
-          <mat-icon>check_circle</mat-icon> Running
+          <mat-icon>check_circle</mat-icon> Live
         </span>
-        <span class="sync-stat-value" *ngIf="!liveSyncRunning">Paused</span>
+        <span class="sync-stat-value" *ngIf="!liveSyncRunning && traccarSyncStatus.enabled">
+          Every {{ syncIntervalSeconds }}s
+        </span>
+        <span class="sync-stat-value" *ngIf="!traccarSyncStatus.enabled">Disabled</span>
+        <span class="sync-stat-hint" *ngIf="traccarSyncStatus.enabled && lastSyncLabel !== 'Awaiting first sync'">{{ lastSyncLabel }}</span>
       </div>
     </div>
   </div>
@@ -83,7 +78,7 @@
       <mat-icon>search</mat-icon>
       <input
         type="search"
-        placeholder="Search vehicle, plate, driver, tracker, IMEI, serial, SIM…"
+        placeholder="Search by vehicle, IMEI, tracker or driver…"
         [(ngModel)]="searchQuery"
         (ngModelChange)="onSearchChange()"
         aria-label="Search fleet trackers" />
@@ -131,7 +126,7 @@
         <ng-container matColumnDef="assignment">
           <th mat-header-cell *matHeaderCellDef>Assignment</th>
           <td mat-cell *matCellDef="let d">
-            <span class="badge" [ngClass]="assignmentClass(d)">{{ assignmentText(d) }}</span>
+            <span class="badge" [ngClass]="assignmentClass(d)" [matTooltip]="assignmentHint(d)">{{ assignmentText(d) }}</span>
           </td>
         </ng-container>
 
@@ -157,7 +152,8 @@
 
         <ng-container matColumnDef="imei">
           <th mat-header-cell *matHeaderCellDef>IMEI</th>
-          <td mat-cell *matCellDef="let d" class="mono">{{ d.uniqueId }}</td>
+          <td mat-cell *matCellDef="let d" class="mono imei-cell"
+            [matTooltip]="imeiTooltip(d)" matTooltipClass="multiline-tooltip">{{ d.uniqueId }}</td>
         </ng-container>
 
         <ng-container matColumnDef="status">
@@ -191,7 +187,7 @@
 
         <ng-container matColumnDef="signal">
           <th mat-header-cell *matHeaderCellDef>GSM Signal</th>
-          <td mat-cell *matCellDef="let d">{{ signalLabel(d) }}</td>
+          <td mat-cell *matCellDef="let d" [ngClass]="signalClass(d)">{{ signalLabel(d) }}</td>
         </ng-container>
 
         <ng-container matColumnDef="battery">
@@ -239,6 +235,15 @@
           </button>
           <button mat-menu-item type="button" (click)="goToHistory(d)" [disabled]="!d.vehicleId">
             <mat-icon>history</mat-icon> View History
+          </button>
+          <button mat-menu-item type="button" (click)="goToTrips(d)" [disabled]="!d.vehicleId">
+            <mat-icon>route</mat-icon> View Trips
+          </button>
+          <button mat-menu-item type="button" (click)="goToAlerts(d)" [disabled]="!d.vehicleId">
+            <mat-icon>notifications_active</mat-icon> View Alerts
+          </button>
+          <button mat-menu-item type="button" (click)="goToGeofences(d)">
+            <mat-icon>fence</mat-icon> View Geofences
           </button>
           <mat-divider></mat-divider>
           <button mat-menu-item type="button" (click)="goToCommands(d, 'engineStop')" [disabled]="!d.supportsEngineCutoff">

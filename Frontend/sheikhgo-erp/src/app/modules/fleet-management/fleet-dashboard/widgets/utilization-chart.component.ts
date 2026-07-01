@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
-import { ChartData, ChartOptions } from 'chart.js';
-import { UiChartComponent } from '../../../../shared/components/ui';
+import { ChartData } from 'chart.js';
+import { UiChartComponent, UiChartOptions } from '../../../../shared/components/ui';
 import { UtilizationChart } from '../fleet-dashboard.model';
 
 @Component({
@@ -50,7 +50,7 @@ export class UtilizationChartComponent {
     }))
   }));
 
-  protected readonly options: ChartOptions = {
+  protected readonly options: UiChartOptions = {
     responsive: true,
     maintainAspectRatio: false,
     plugins: { legend: { display: false } },

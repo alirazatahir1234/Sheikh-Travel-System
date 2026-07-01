@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
-import { ChartData, ChartOptions } from 'chart.js';
-import { UiChartComponent } from '../../../../shared/components/ui';
+import { ChartData } from 'chart.js';
+import { UiChartComponent, UiChartOptions } from '../../../../shared/components/ui';
 import { FuelMaintenanceChart } from '../fleet-dashboard.model';
 import { FLEET_PRIMARY, FLEET_SECONDARY } from '../fleet-dashboard.mock';
 
@@ -46,7 +46,7 @@ export class FuelMaintenanceChartComponent {
     ]
   }));
 
-  protected readonly options: ChartOptions = {
+  protected readonly options: UiChartOptions = {
     responsive: true,
     maintainAspectRatio: false,
     plugins: { legend: { display: false } },

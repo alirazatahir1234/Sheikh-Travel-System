@@ -1,9 +1,8 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { DatePipe, DecimalPipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
-import { ChartOptions } from 'chart.js';
 import { VehicleHealthSummary, UpcomingService } from '../../../../core/models/maintenance.model';
-import { UiChartComponent } from '../../../../shared/components/ui';
+import { UiChartComponent, UiChartOptions } from '../../../../shared/components/ui';
 
 const HEALTH_LEGEND = [
   { key: 'healthy', label: 'Healthy', color: '#047857' },
@@ -67,7 +66,7 @@ const HEALTH_LEGEND = [
 export class MaintenanceVehicleHealthComponent {
   readonly health = input<VehicleHealthSummary | null>(null);
 
-  readonly chartOptions: ChartOptions<'doughnut'> = {
+  readonly chartOptions: UiChartOptions = {
     responsive: true,
     maintainAspectRatio: false,
     cutout: '65%',

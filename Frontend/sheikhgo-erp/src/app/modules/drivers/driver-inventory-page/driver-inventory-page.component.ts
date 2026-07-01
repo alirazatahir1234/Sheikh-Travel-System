@@ -7,7 +7,8 @@ import { MatButtonModule } from '@angular/material/button';
 import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Subject, forkJoin, catchError, of, switchMap, debounceTime, distinctUntilChanged, EMPTY, map, take } from 'rxjs';
-import { ChartData, ChartOptions } from 'chart.js';
+import { ChartData } from 'chart.js';
+import { UiChartOptions } from '../../../shared/components/ui';
 import { DriverService } from '../../../core/services/driver.service';
 import { PlatformService } from '../../../core/services/platform.service';
 import { DriverListItem, DriverStats, DriverStatus, DriverStatusLabels, DriversAvailabilitySummary } from '../../../core/models/driver.model';
@@ -179,7 +180,7 @@ export class DriverInventoryPageComponent implements OnInit {
     };
   });
 
-  readonly chartOptions: ChartOptions = {
+  readonly chartOptions: UiChartOptions = {
     responsive: true,
     maintainAspectRatio: false,
     plugins: { legend: { display: false } },

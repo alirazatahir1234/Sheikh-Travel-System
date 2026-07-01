@@ -14,6 +14,7 @@ import {
 import {
   assignmentLabel,
   assignmentBadgeClass,
+  assignmentTooltip,
   isTrackerInInventory,
   isTrackerInstalled,
   batteryDisplayLabel,
@@ -21,6 +22,7 @@ import {
   formatLastSeenLabel,
   formatLastSeenTooltip,
   gsmSignalLabel,
+  gsmSignalClass,
   ignitionDisplay,
   isTrackerIdle,
   isTrackerMoving,
@@ -61,15 +63,15 @@ export class GpsDevicesComponent implements OnInit, AfterViewInit, OnDestroy {
   deviceFilter: DeviceFilter = 'all';
 
   readonly filterOptions: { id: DeviceFilter; label: string }[] = [
-    { id: 'all',       label: 'All' },
-    { id: 'online',    label: 'Online' },
-    { id: 'moving',    label: 'Moving' },
-    { id: 'idle',      label: 'Idle' },
-    { id: 'parked',    label: 'Parked' },
-    { id: 'offline',   label: 'Offline' },
-    { id: 'available', label: 'Available' },
+    { id: 'all',        label: 'All' },
+    { id: 'online',     label: 'Online' },
+    { id: 'moving',     label: 'Moving' },
+    { id: 'idle',       label: 'Idle' },
+    { id: 'parked',     label: 'Parked' },
+    { id: 'offline',    label: 'Offline' },
+    { id: 'available',  label: 'In Stock' },
     { id: 'unassigned', label: 'Unassigned' },
-    { id: 'never',     label: 'Never Seen' }
+    { id: 'never',      label: 'Provisioned' }
   ];
 
   readonly displayedColumns = [
@@ -247,8 +249,10 @@ export class GpsDevicesComponent implements OnInit, AfterViewInit, OnDestroy {
   trackerModel = trackerModelLabel;
   assignmentText = assignmentLabel;
   assignmentClass = assignmentBadgeClass;
+  assignmentHint = assignmentTooltip;
   ignitionView = ignitionDisplay;
   signalLabel = gsmSignalLabel;
+  signalClass = gsmSignalClass;
   batteryLabel = batteryDisplayLabel;
 
   connectionLabel(d: GpsDevice): string {
@@ -264,8 +268,15 @@ export class GpsDevicesComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   speedLabel(d: GpsDevice): string {
-    if (d.lastSpeed == null || !d.lastSeenAt) return '—';
+    if (d.lastSpeed == null || !d.lastSeenAt || d.lastSpeed <= 0) return '—';
     return `${Math.round(d.lastSpeed)} km/h`;
+  }
+
+  imeiTooltip(d: GpsDevice): string {
+    const parts = [`IMEI: ${d.uniqueId}`];
+    if (d.traccarDeviceId) parts.push(`Traccar ID: ${d.traccarDeviceId}`);
+    if (d.serialNumber)    parts.push(`Serial: ${d.serialNumber}`);
+    return parts.join('\n');
   }
 
   lastSeenLabel(d: GpsDevice): string {
@@ -299,8 +310,8 @@ export class GpsDevicesComponent implements OnInit, AfterViewInit, OnDestroy {
       { filter: 'idle' as DeviceFilter,       label: 'Idle',       value: this.devices.filter(d => isTrackerIdle(d)).length,              icon: 'pause_circle', color: '#f59e0b' },
       { filter: 'parked' as DeviceFilter,     label: 'Parked',     value: this.devices.filter(d => resolveTrackerStatus(d).key === 'parked').length, icon: 'local_parking', color: '#10b981' },
       { filter: 'offline' as DeviceFilter,    label: 'Offline',    value: this.devices.filter(d => isTrackerOffline(d)).length,           icon: 'wifi_off',     color: '#ef4444' },
-      { filter: 'available' as DeviceFilter,  label: 'Available',  value: this.devices.filter(d => isTrackerInInventory(d)).length,       icon: 'inventory_2',  color: '#8b5cf6' },
-      { filter: 'never' as DeviceFilter,      label: 'Never Seen', value: this.devices.filter(d => isTrackerNeverSeen(d)).length,           icon: 'sensors_off',  color: '#94a3b8' },
+      { filter: 'available' as DeviceFilter,  label: 'In Stock',   value: this.devices.filter(d => isTrackerInInventory(d)).length,       icon: 'inventory_2',  color: '#8b5cf6' },
+      { filter: 'never' as DeviceFilter,      label: 'Provisioned', value: this.devices.filter(d => isTrackerNeverSeen(d)).length,          icon: 'sensors_off',  color: '#94a3b8' },
       { filter: 'unassigned' as DeviceFilter, label: 'Unassigned', value: this.devices.filter(d => isTrackerUnassigned(d)).length,        icon: 'link_off',     color: '#a855f7' },
     ];
   }
@@ -363,6 +374,18 @@ export class GpsDevicesComponent implements OnInit, AfterViewInit, OnDestroy {
     const queryParams: Record<string, string | number> = { deviceId: d.id };
     if (command) queryParams['command'] = command;
     this.router.navigate(['../commands'], { relativeTo: this.route, queryParams });
+  }
+
+  goToTrips(d: GpsDevice): void {
+    this.router.navigate(['../trips'], { relativeTo: this.route, queryParams: { vehicleId: d.vehicleId } });
+  }
+
+  goToAlerts(d: GpsDevice): void {
+    this.router.navigate(['../alerts'], { relativeTo: this.route, queryParams: { vehicleId: d.vehicleId } });
+  }
+
+  goToGeofences(_d: GpsDevice): void {
+    this.router.navigate(['../geofences'], { relativeTo: this.route });
   }
 
   openCreate(): void {
