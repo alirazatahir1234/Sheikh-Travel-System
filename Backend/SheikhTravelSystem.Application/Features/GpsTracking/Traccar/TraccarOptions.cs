@@ -21,6 +21,14 @@ public class TraccarOptions
     public int ResolvedPositionIntervalSeconds =>
         PositionSyncIntervalSeconds > 0 ? PositionSyncIntervalSeconds : SyncIntervalSeconds;
 
+    /// <summary>
+    /// Values of the Traccar position `attributes.alarm` field treated as an SOS/panic alarm.
+    /// "sos" is Traccar's own normalized alarm constant (Position.ALARM_SOS) used by most protocol
+    /// decoders (Teltonika, Concox, Queclink, etc.); "panic" is included as a common alias. Adjust here
+    /// (Traccar:SosAlarmValues in appsettings) if real device payloads use a different value.
+    /// </summary>
+    public string[] SosAlarmValues { get; set; } = ["sos", "panic"];
+
     /// <summary>True when BaseUrl resolves to a valid absolute URI (scheme + host).</summary>
     public bool IsConfigured => TryGetBaseUri(out _);
 

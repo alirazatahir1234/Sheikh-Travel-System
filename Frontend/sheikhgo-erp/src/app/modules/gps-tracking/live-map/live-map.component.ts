@@ -16,19 +16,24 @@ import {
 } from '../../../core/leaflet/leaflet-cluster';
 import { MAP_TILE_STACKS, MapTheme } from '../../../core/leaflet/leaflet-map-tiles';
 import { GpsTrackingService } from '../../../core/services/gps-tracking.service';
-import { GpsRealtimeService } from '../../../core/services/gps-realtime.service';
+import { GpsRealtimeService, GpsConnectionState } from '../../../core/services/gps-realtime.service';
 import { VehicleService } from '../../../core/services/vehicle.service';
 import { DriverService } from '../../../core/services/driver.service';
 import {
   VehicleLocation,
   PositionDto,
   TrackingDto,
-  FleetTrackStatus
+  FleetTrackStatus,
+  SosAlertPayload
 } from '../../../core/models/gps-tracking.model';
 import { VehicleListItem } from '../../../core/models/vehicle.model';
+import { resolveFleetStatus } from '../../../core/utils/gps-status.util';
+import { mergeVehicleLocations } from './live-map-state.util';
 
 type StatusFilter = 'all' | FleetTrackStatus;
 type TimePreset = 'today' | '24h' | '7d' | 'custom';
+type IgnitionFilter = 'all' | 'on' | 'off';
+type RefreshRateMs = 5000 | 10000 | 30000 | 60000 | null;
 
 interface TrackEvent {
   time: Date;
@@ -48,8 +53,11 @@ interface TripSummary {
 const TRAIL_COLORS: Record<FleetTrackStatus, string> = {
   moving: '#10B981',
   idle: '#F59E0B',
+  parked: '#3B82F6',
   delayed: '#EF4444',
   offline: '#64748B',
+  never_seen: '#CBD5E1',
+  sos: '#DC2626',
   scheduled: '#3B82F6'
 };
 
@@ -84,6 +92,8 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
   mapError: string | null = null;
   searchQuery = '';
   statusFilter: StatusFilter = 'all';
+  ignitionFilter: IgnitionFilter = 'all';
+  batteryLowOnly = false;
   timePreset: TimePreset = 'today';
   mapTheme: MapTheme = 'light';
   liveTracking = true;
@@ -93,6 +103,20 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
   isMapFullscreen = false;
   tripSummary: TripSummary | null = null;
   private syncTick?: ReturnType<typeof setInterval>;
+
+  readonly refreshRateOptions: { id: RefreshRateMs; label: string }[] = [
+    { id: 5000, label: '5 sec' },
+    { id: 10000, label: '10 sec' },
+    { id: 30000, label: '30 sec' },
+    { id: 60000, label: '1 min' },
+    { id: null, label: 'Pause' }
+  ];
+  refreshRateMs: RefreshRateMs = 5000;
+  followSelected = false;
+  connectionState: GpsConnectionState = 'disconnected';
+  private connectionStateSub?: { unsubscribe(): void };
+  private sosSub?: { unsubscribe(): void };
+  private readonly BATTERY_LOW_THRESHOLD = 20;
 
   vehicles: VehicleListItem[] = [];
   historyFrom = '';
@@ -107,9 +131,12 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
 
   readonly statusFilters: { id: StatusFilter; label: string }[] = [
     { id: 'all', label: 'All' },
-    { id: 'moving', label: 'Active' },
+    { id: 'moving', label: 'Moving' },
     { id: 'idle', label: 'Idle' },
+    { id: 'parked', label: 'Parked' },
     { id: 'offline', label: 'Offline' },
+    { id: 'never_seen', label: 'Never Seen' },
+    { id: 'sos', label: 'SOS' },
     { id: 'delayed', label: 'Delayed' },
     { id: 'scheduled', label: 'Scheduled' }
   ];
@@ -133,6 +160,9 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
   private _switchingTiles = false;
 
   private pendingFocusVehicleId: number | null = null;
+  private isRefreshingLocations = false;
+  private userInteractionActive = false;
+  private interactionPauseTimer?: ReturnType<typeof setTimeout>;
 
   constructor(
     private gpsService: GpsTrackingService,
@@ -190,6 +220,25 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
     this.realtimeSub = this.realtime.locationUpdates$.subscribe(update => {
       this.applyRealtimeUpdate(update);
     });
+    this.connectionStateSub = this.realtime.connectionState$.subscribe(state => {
+      const wasDisconnected = this.connectionState === 'disconnected';
+      this.connectionState = state;
+      if (state === 'reconnecting') {
+        this.pushEvent('Connection lost — reconnecting…', 'warning', 'wifi_off');
+      } else if (state === 'connected' && wasDisconnected) {
+        this.pushEvent('Realtime connection restored', 'success', 'wifi');
+      }
+    });
+    this.sosSub = this.realtime.sosAlerts$.subscribe(alert => {
+      const idx = this.locations.findIndex(l => l.vehicleId === alert.vehicleId);
+      if (idx >= 0) {
+        this.locations[idx] = { ...this.locations[idx], status: 'sos', alarmType: 'sos' };
+        this.updateMarkers(this.mappableLocations(this.locations));
+        this.pushEvent(`${this.locations[idx].vehicleName} — SOS / panic alarm!`, 'alert', 'sos');
+      } else {
+        this.pushEvent(`Vehicle #${alert.vehicleId} — SOS / panic alarm!`, 'alert', 'sos');
+      }
+    });
     this.syncTick = setInterval(() => {
       if (this.lastSyncAt) {
         this.secondsSinceSync = Math.floor((Date.now() - this.lastSyncAt.getTime()) / 1000);
@@ -221,10 +270,7 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
       }
       this.initMap();
       this.loadLocations();
-      if (this.refreshInterval) clearInterval(this.refreshInterval);
-      this.refreshInterval = setInterval(() => {
-        if (this.liveTracking) this.loadLocations(true);
-      }, 30000);
+      this.startAutoRefresh();
     } catch (err) {
       console.error('[LiveMap] Map bootstrap failed:', err);
       this.mapError = 'Map could not be initialized. Refresh the page or tap Retry map.';
@@ -260,8 +306,11 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
     if (this._bootstrapTimer) clearTimeout(this._bootstrapTimer);
     if (this.refreshInterval) clearInterval(this.refreshInterval);
     if (this.syncTick) clearInterval(this.syncTick);
+    if (this.interactionPauseTimer) clearTimeout(this.interactionPauseTimer);
     this.mapResizeObserver?.disconnect();
     this.realtimeSub?.unsubscribe();
+    this.connectionStateSub?.unsubscribe();
+    this.sosSub?.unsubscribe();
     void this.realtime.disconnect();
     this.stopReplay();
     if (this.map) this.map.remove();
@@ -277,13 +326,28 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
     const q = this.searchQuery.trim().toLowerCase();
     return this.locations.filter(loc => {
       if (this.statusFilter !== 'all' && loc.status !== this.statusFilter) return false;
+      if (this.ignitionFilter === 'on' && loc.ignition !== true) return false;
+      if (this.ignitionFilter === 'off' && loc.ignition !== false) return false;
+      if (this.batteryLowOnly && !(loc.batteryLevel != null && loc.batteryLevel < this.BATTERY_LOW_THRESHOLD)) {
+        return false;
+      }
       if (!q) return true;
       return (
         loc.vehicleName.toLowerCase().includes(q) ||
         loc.registrationNumber.toLowerCase().includes(q) ||
-        (loc.driverName?.toLowerCase().includes(q) ?? false)
+        (loc.driverName?.toLowerCase().includes(q) ?? false) ||
+        (loc.imei?.toLowerCase().includes(q) ?? false) ||
+        (loc.trackerName?.toLowerCase().includes(q) ?? false)
       );
     });
+  }
+
+  setIgnitionFilter(id: IgnitionFilter): void {
+    this.ignitionFilter = this.ignitionFilter === id ? 'all' : id;
+  }
+
+  toggleBatteryLowOnly(): void {
+    this.batteryLowOnly = !this.batteryLowOnly;
   }
 
   get statusCounts(): Record<FleetTrackStatus | 'all', number> {
@@ -292,38 +356,40 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
       all: this.locations.length,
       moving: gps.filter(l => l.status === 'moving').length,
       idle: gps.filter(l => l.status === 'idle').length,
+      parked: gps.filter(l => l.status === 'parked').length,
       offline: this.locations.filter(l => l.status === 'offline').length,
+      never_seen: this.locations.filter(l => l.status === 'never_seen').length,
+      sos: this.locations.filter(l => l.status === 'sos').length,
       delayed: gps.filter(l => l.status === 'delayed').length,
       scheduled: this.locations.filter(l => l.status === 'scheduled').length
     };
   }
 
-  get liveStats() {
-    const mappable = this.locations.filter(
-      l => l.hasGps && this.isValidCoord(l.latitude, l.longitude)
-    );
-    const live = mappable.filter(l => l.isLive);
-    const moving = mappable.filter(l => l.status === 'moving');
-    const speeds = moving.map(l => l.speed).filter(s => s > 0);
-    const avg = speeds.length ? speeds.reduce((a, b) => a + b, 0) / speeds.length : 0;
+  /** Online/Offline/Moving/Idle/Parked/Never-Seen counts for the top stat row, per the spec's dashboard cards. */
+  get fleetCounts() {
+    const c = this.statusCounts;
     return {
-      tracked: mappable.length,
-      liveOnline: live.length,
-      tripsActive: moving.length,
-      avgSpeed: Math.round(avg),
-      fuelAlerts: 0,
-      geofence: this.geofenceBreachCount
+      total: this.locations.length,
+      online: c.moving + c.idle,
+      offline: c.offline,
+      moving: c.moving,
+      idle: c.idle,
+      parked: c.parked,
+      neverSeen: c.never_seen,
+      sos: c.sos
     };
   }
 
   get trackingStatusLabel(): string {
     if (!this.liveTracking) return 'Tracking paused';
+    if (this.connectionState === 'reconnecting') return 'Connection lost — reconnecting…';
+    if (this.connectionState === 'disconnected') return 'Connection lost';
     if (this.syncError) return 'Sync issue — tap Refresh';
-    return 'Tracking active';
+    return 'Connected';
   }
 
   get trackingActive(): boolean {
-    return this.liveTracking && !this.syncError;
+    return this.liveTracking && !this.syncError && this.connectionState === 'connected';
   }
 
   get gpsHealthy(): boolean {
@@ -365,7 +431,10 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
     const labels: Record<FleetTrackStatus, string> = {
       moving: 'Moving',
       idle: 'Idle',
+      parked: 'Parked',
       offline: 'Offline',
+      never_seen: 'Never Seen',
+      sos: 'SOS',
       scheduled: 'Scheduled',
       delayed: 'Delayed'
     };
@@ -376,11 +445,28 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
     const icons: Record<FleetTrackStatus, string> = {
       moving: 'directions_bus',
       idle: 'local_shipping',
+      parked: 'local_parking',
       offline: 'signal_wifi_off',
+      never_seen: 'help_outline',
+      sos: 'sos',
       scheduled: 'schedule',
       delayed: 'warning'
     };
     return icons[status];
+  }
+
+  /** Vehicle-category glyph independent of live status; production VehicleType values are free
+   * text, so this matches by substring — treat as a first draft to refine against real data. */
+  private vehicleCategoryGlyph(vehicleType?: string | null): string {
+    const type = (vehicleType ?? '').toLowerCase();
+    if (!type) return '&#128652;'; // 🚌 default
+    if (type.includes('ambulance')) return '&#128657;';
+    if (type.includes('bike') || type.includes('motorcycle')) return '&#127949;';
+    if (type.includes('construction') || type.includes('excavator') || type.includes('crane')) return '&#128667;';
+    if (type.includes('truck') || type.includes('trailer')) return '&#128666;';
+    if (type.includes('bus') || type.includes('coaster') || type.includes('van')) return '&#128652;';
+    if (type.includes('car') || type.includes('sedan') || type.includes('suv')) return '&#128663;';
+    return '&#128652;';
   }
 
   signalBars(loc: VehicleLocation): number {
@@ -409,12 +495,19 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
     return loc.status === 'idle' ? '0 km/h · idle' : 'Stationary';
   }
 
+  onSearchQueryChanged(value: string): void {
+    this.searchQuery = value;
+    this.markUserActive();
+  }
+
   setStatusFilter(id: StatusFilter): void {
     this.statusFilter = id;
+    this.markUserActive();
   }
 
   setTimePreset(id: TimePreset): void {
     this.timePreset = id;
+    this.markUserActive();
     if (id !== 'custom') this.applyTimePreset(id);
   }
 
@@ -451,6 +544,34 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
       this.liveTracking ? 'Live tracking resumed' : 'Live tracking paused',
       'info',
       this.liveTracking ? 'play_circle' : 'pause_circle'
+    );
+  }
+
+  private startAutoRefresh(): void {
+    if (this.refreshInterval) clearInterval(this.refreshInterval);
+    if (this.refreshRateMs == null) return;
+    this.refreshInterval = setInterval(() => {
+      if (this.liveTracking && !this.userInteractionActive) this.loadLocations(true);
+    }, this.refreshRateMs);
+  }
+
+  setRefreshRate(rate: RefreshRateMs): void {
+    this.refreshRateMs = rate;
+    this.markUserActive();
+    this.startAutoRefresh();
+    this.pushEvent(
+      rate == null ? 'Auto-refresh paused' : `Auto-refresh set to ${rate / 1000}s`,
+      'info',
+      rate == null ? 'pause_circle' : 'autorenew'
+    );
+  }
+
+  toggleFollowSelected(): void {
+    this.followSelected = !this.followSelected;
+    this.pushEvent(
+      this.followSelected ? 'Follow vehicle enabled' : 'Follow vehicle disabled',
+      'info',
+      this.followSelected ? 'my_location' : 'location_disabled'
     );
   }
 
@@ -561,6 +682,7 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
 
   selectVehicle(loc: VehicleLocation): void {
     this.selectedVehicleId = loc.vehicleId;
+    this.markUserActive();
     void this.realtime.subscribeVehicle(loc.vehicleId);
     if (loc.hasGps && this.isValidCoord(loc.latitude, loc.longitude)) {
       this.focusVehicle(loc);
@@ -612,6 +734,7 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
     this.map = L.map(host, {
       center: [30.3753, 69.3451],
       zoom: 6,
+      maxZoom: 20,
       zoomControl: false,
       preferCanvas: false
     });
@@ -651,23 +774,26 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private loadLocations(silent = false, manual = false): void {
+    if (this.isRefreshingLocations) return;
+    this.isRefreshingLocations = true;
     if (!silent) this.loading = true;
     this.gpsService.getAllVehicleLocations().subscribe({
       next: locs => {
         const prevMoving = new Set(
           this.locations.filter(l => l.status === 'moving').map(l => l.vehicleId)
         );
-        this.locations = locs;
+        const previousLocations = this.locations;
+        this.locations = mergeVehicleLocations(previousLocations, locs);
         this.loading = false;
         this.syncError = null;
         this.lastSyncAt = new Date();
         this.secondsSinceSync = 0;
-        const gpsLocs = this.mappableLocations(locs);
+        const gpsLocs = this.mappableLocations(this.locations);
         this.updateMarkers(gpsLocs);
         this.emitTelemetryEvents(gpsLocs, prevMoving);
         this.emitSyncSummary(gpsLocs, manual || !silent);
         if (this.pendingFocusVehicleId != null) {
-          const target = locs.find(l => l.vehicleId === this.pendingFocusVehicleId);
+          const target = this.locations.find(l => l.vehicleId === this.pendingFocusVehicleId);
           if (target) {
             this.focusVehicle(target);
             this.pendingFocusVehicleId = null;
@@ -678,9 +804,11 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
         if (manual) {
           this.scheduleMapResize();
         }
+        this.isRefreshingLocations = false;
       },
       error: () => {
         this.loading = false;
+        this.isRefreshingLocations = false;
         this.syncError = 'Could not reach tracking service.';
         this.pushEvent('Tracking sync failed', 'alert', 'cloud_off');
       }
@@ -747,19 +875,19 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
     return ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
   }
 
-  private createMarkerIcon(status: FleetTrackStatus, bearing = 0): LeafletTypes.DivIcon {
+  private createMarkerIcon(status: FleetTrackStatus, bearing = 0, vehicleType?: string | null): LeafletTypes.DivIcon {
     const showArrow = status === 'moving' || status === 'delayed';
     const arrow = showArrow
       ? `<span class="fleet-marker-arrow" style="transform:rotate(${bearing}deg)"></span>`
       : '';
     const vehicleGlyph =
-      status === 'moving'
-        ? '&#128652;'
-        : status === 'idle'
-          ? '&#128666;'
-          : status === 'delayed'
-            ? '&#9888;'
-            : '&#9679;';
+      status === 'sos'
+        ? '&#128680;'
+        : status === 'delayed'
+          ? '&#9888;'
+          : status === 'offline' || status === 'never_seen'
+            ? '&#9679;'
+            : this.vehicleCategoryGlyph(vehicleType);
     return L.divIcon({
       className: 'fleet-marker-host',
       html: `
@@ -839,7 +967,7 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
           <a href="#" class="map-popup-link" data-vid="${loc.vehicleId}">View vehicle →</a>
         </div>
       `;
-      const icon = this.createMarkerIcon(loc.status, bearing);
+      const icon = this.createMarkerIcon(loc.status, bearing, loc.vehicleType);
 
       if (this.markers.has(loc.vehicleId)) {
         const m = this.markers.get(loc.vehicleId)!;
@@ -1104,30 +1232,69 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
     return `${Math.floor(this.secondsSinceSync / 60)} min ago`;
   }
 
-  private applyRealtimeUpdate(update: TrackingDto): void {
+  private markUserActive(): void {
+    this.userInteractionActive = true;
+    if (this.interactionPauseTimer) clearTimeout(this.interactionPauseTimer);
+    this.interactionPauseTimer = setTimeout(() => {
+      this.userInteractionActive = false;
+      this.startAutoRefresh();
+    }, 2000);
+  }
+
+  private applyRealtimeUpdate(update: PositionDto): void {
     const idx = this.locations.findIndex(l => l.vehicleId === update.vehicleId);
-    const status = update.speed > 5 ? 'moving' as FleetTrackStatus : 'idle';
     if (idx >= 0) {
+      const speed = Number(update.speed) || 0;
+      const prevStatus = this.locations[idx].status;
+      const status = resolveFleetStatus({
+        speed,
+        ignition: update.ignition,
+        lastUpdated: update.timestamp,
+        hasGps: true,
+        alarmType: update.alarmType
+      });
       this.locations[idx] = {
         ...this.locations[idx],
         latitude: update.latitude,
         longitude: update.longitude,
-        speed: Number(update.speed) || 0,
+        speed,
         lastUpdated: update.timestamp,
         status,
         hasGps: true,
         isLive: true,
         ignition: update.ignition,
-        routeHint: `${Math.round(Number(update.speed) || 0)} km/h`
+        heading: update.heading,
+        fuelLevel: update.fuelLevel,
+        batteryLevel: update.batteryLevel,
+        gsmSignal: update.gsmSignal,
+        totalDistanceKm: update.totalDistanceKm,
+        address: update.address,
+        alarmType: update.alarmType,
+        routeHint: this.realtimeRouteHint(status, speed)
       };
       this.updateMarkers(this.mappableLocations(this.locations));
-      this.pushEvent(
-        `${this.locations[idx].vehicleName} location updated (${Math.round(Number(update.speed) || 0)} km/h)`,
-        'success',
-        'gps_fixed'
-      );
+      if (this.followSelected && this.selectedVehicleId === update.vehicleId) {
+        this.map?.panTo([update.latitude, update.longitude], { animate: true });
+      }
+      if (status === 'sos' && prevStatus !== 'sos') {
+        this.pushEvent(`${this.locations[idx].vehicleName} — SOS / panic alarm!`, 'alert', 'sos');
+      } else {
+        this.pushEvent(
+          `${this.locations[idx].vehicleName} location updated (${Math.round(speed)} km/h)`,
+          'success',
+          'gps_fixed'
+        );
+      }
     }
     this.lastSyncAt = new Date();
     this.secondsSinceSync = 0;
+  }
+
+  private realtimeRouteHint(status: FleetTrackStatus, speed: number): string {
+    if (status === 'moving') return `${Math.round(speed)} km/h`;
+    if (status === 'idle') return 'Idle • awaiting movement';
+    if (status === 'parked') return 'Parked • ignition off';
+    if (status === 'sos') return 'SOS / panic alarm';
+    return `${Math.round(speed)} km/h`;
   }
 }

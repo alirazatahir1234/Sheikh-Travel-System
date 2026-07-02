@@ -48,6 +48,7 @@ export class GpsDevicesComponent implements OnInit, AfterViewInit, OnDestroy {
 
   devices: GpsDevice[] = [];
   loading = false;
+  syncing = false;
   traccarStatus: TraccarStatusDto | null = null;
   traccarSyncStatus: TraccarSyncStatusDto | null = null;
   clockNow = Date.now();
@@ -167,7 +168,10 @@ export class GpsDevicesComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   get liveSyncRunning(): boolean {
-    return !!(this.traccarSyncStatus?.enabled && this.traccarStatus?.connected && this.traccarSyncStatus.isRunning);
+    if (!this.traccarSyncStatus?.enabled || !this.traccarStatus?.connected) return false;
+    if (this.traccarSyncStatus.isRunning) return true;
+    const secs = this.lastSyncSecondsAgo;
+    return secs !== null && secs <= this.syncIntervalSeconds * 2;
   }
 
   private attachPaginator(): void {
@@ -205,13 +209,36 @@ export class GpsDevicesComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   loadSyncStatus(): void {
+    const prevSyncAt = this.traccarSyncStatus?.lastPositionSyncAt;
     this.gps.getTraccarSyncStatus().subscribe({
-      next: s => { this.traccarSyncStatus = s; },
+      next: s => {
+        this.traccarSyncStatus = s;
+        if (s?.lastPositionSyncAt && s.lastPositionSyncAt !== prevSyncAt) {
+          this.load(true);
+        }
+      },
       error: () => {}
     });
     this.gps.getTraccarStatus().subscribe({
       next: s => { this.traccarStatus = s; },
       error: () => {}
+    });
+  }
+
+  syncNow(): void {
+    if (this.syncing) return;
+    this.syncing = true;
+    this.gps.runTraccarSync().subscribe({
+      next: () => {
+        this.toast.success('Traccar sync completed');
+        this.loadSyncStatus();
+        this.load(true);
+        this.syncing = false;
+      },
+      error: err => {
+        this.toast.error(err?.error?.message ?? 'Sync failed');
+        this.syncing = false;
+      }
     });
   }
 
@@ -323,7 +350,15 @@ export class GpsDevicesComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   openView(d: GpsDevice): void {
-    void this.router.navigate([d.id, 'edit'], { relativeTo: this.route });
+    if (isTrackerInstalled(d)) {
+      void this.router.navigate([d.id], { relativeTo: this.route });
+      return;
+    }
+    if (this.canInstall(d)) {
+      void this.router.navigate([d.id, 'install'], { relativeTo: this.route });
+      return;
+    }
+    void this.router.navigate([d.id], { relativeTo: this.route });
   }
 
   openEdit(d: GpsDevice): void {
@@ -331,11 +366,18 @@ export class GpsDevicesComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   openInstall(d: GpsDevice): void {
+    if (isTrackerInstalled(d)) {
+      this.toast.warning(
+        `This tracker is already installed on ${d.vehicleName ?? 'a vehicle'} (${d.plateNumber ?? ''}). Remove or transfer first.`
+      );
+      void this.router.navigate([d.id], { relativeTo: this.route });
+      return;
+    }
     void this.router.navigate([d.id, 'install'], { relativeTo: this.route });
   }
 
   openReassign(d: GpsDevice): void {
-    void this.router.navigate([d.id, 'install'], { relativeTo: this.route, queryParams: { reassign: 1 } });
+    void this.router.navigate([d.id, 'transfer'], { relativeTo: this.route });
   }
 
   uninstallTracker(d: GpsDevice): void {

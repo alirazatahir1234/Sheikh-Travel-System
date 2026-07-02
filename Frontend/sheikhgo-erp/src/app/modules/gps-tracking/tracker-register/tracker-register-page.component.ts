@@ -219,12 +219,11 @@ export class TrackerRegisterPageComponent implements OnInit {
   }
 
   get imeiIsDuplicate(): boolean {
-    if (this.isEdit || !this.imeiIsValid) return false;
+    if (!this.imeiIsValid) return false;
     return this.existingImeis.has(this.imeiValue);
   }
 
   get imeiError(): string {
-    if (this.isEdit) return '';
     const value = this.imeiValue;
     if (!value) return '';
     if (this.imeiIsDuplicate) return 'IMEI already registered';
@@ -239,11 +238,9 @@ export class TrackerRegisterPageComponent implements OnInit {
   get submitBlockedReason(): string | null {
     if (this.saving || this.registrationSuccess || this.canSubmit) return null;
 
-    if (!this.isEdit) {
-      if (!this.imeiValue) return 'Enter the 15-digit IMEI from the tracker label.';
-      if (!this.imeiIsValid) return this.imeiError || 'IMEI must be exactly 15 digits.';
-      if (this.imeiIsDuplicate) return 'This IMEI is already registered.';
-    }
+    if (!this.imeiValue) return 'Enter the 15-digit IMEI from the tracker label.';
+    if (!this.imeiIsValid) return this.imeiError || 'IMEI must be exactly 15 digits.';
+    if (this.imeiIsDuplicate) return 'This IMEI is already registered.';
 
     if (this.form.get('phoneLocal')?.invalid) {
       return 'Phone number format is invalid for the selected country.';
@@ -285,7 +282,7 @@ export class TrackerRegisterPageComponent implements OnInit {
     if (this.saving || this.registrationSuccess) return false;
     if (!this.form.get('name')?.valid || !this.form.get('category')?.valid) return false;
     if (!this.form.get('trackerBrandId')?.valid || !this.form.get('trackerModelId')?.valid) return false;
-    if (!this.isEdit && (!this.imeiIsValid || this.imeiIsDuplicate)) return false;
+    if (!this.imeiIsValid || this.imeiIsDuplicate) return false;
     if (this.form.get('phoneLocal')?.invalid) return false;
     if (this.form.get('warrantyStart')?.invalid || this.form.get('purchaseDate')?.invalid) return false;
     if (this.form.get('supportsEngineCutoff')?.value && !this.form.getRawValue().relayOutput) return false;
@@ -504,7 +501,6 @@ export class TrackerRegisterPageComponent implements OnInit {
       vendor: t.vendor ?? '',
       isActive: t.isActive,
     });
-    this.form.get('uniqueId')?.disable();
     this.existingImeis.delete(t.uniqueId);
   }
 }

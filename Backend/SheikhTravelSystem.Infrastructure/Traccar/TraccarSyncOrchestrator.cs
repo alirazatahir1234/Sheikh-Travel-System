@@ -113,7 +113,14 @@ public sealed class TraccarSyncOrchestrator(
                     Speed: speedKmh,
                     Heading: pos.Course,
                     Altitude: pos.Altitude,
-                    Ignition: ignition);
+                    Ignition: ignition,
+                    FuelLevel: pos.Attributes.Fuel,
+                    BatteryLevel: battery,
+                    GsmSignal: rssi,
+                    // Traccar reports totalDistance in meters; convert to km for storage/display.
+                    TotalDistanceKm: pos.Attributes.TotalDistance.HasValue ? pos.Attributes.TotalDistance / 1000m : null,
+                    Address: pos.Address,
+                    AlarmType: pos.Attributes.Alarm);
 
                 try
                 {
@@ -231,6 +238,7 @@ public sealed class TraccarSyncOrchestrator(
         if (!IsTraccarActive)
             return SingleJob("positions", 0, 0, 0, 0, TraccarInactiveReason);
 
+        syncState.MarkRunning(true);
         try
         {
             var positions = await traccar.GetLivePositionsAsync(ct);
@@ -292,7 +300,14 @@ public sealed class TraccarSyncOrchestrator(
                         Speed: speedKmh,
                         Heading: pos.Course,
                         Altitude: pos.Altitude,
-                        Ignition: ignition);
+                        Ignition: ignition,
+                        FuelLevel: pos.Attributes.Fuel,
+                        BatteryLevel: battery,
+                        GsmSignal: rssi,
+                        // Traccar reports totalDistance in meters; convert to km for storage/display.
+                        TotalDistanceKm: pos.Attributes.TotalDistance.HasValue ? pos.Attributes.TotalDistance / 1000m : null,
+                        Address: pos.Address,
+                        AlarmType: pos.Attributes.Alarm);
 
                     try
                     {
@@ -341,6 +356,10 @@ public sealed class TraccarSyncOrchestrator(
             var failed = SingleJob("positions", 0, 0, 0, 0, ex.Message);
             syncState.RecordJobComplete("positions", failed.Jobs[0]);
             return failed;
+        }
+        finally
+        {
+            syncState.MarkRunning(false);
         }
     }
 

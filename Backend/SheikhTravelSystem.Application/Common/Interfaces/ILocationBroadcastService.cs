@@ -10,5 +10,19 @@ public interface ILocationBroadcastService
         decimal speed,
         bool? ignition,
         DateTime timestamp,
+        double? heading = null,
+        decimal? fuelLevel = null,
+        decimal? batteryLevel = null,
+        int? gsmSignal = null,
+        decimal? totalDistanceKm = null,
+        string? address = null,
+        string? alarmType = null,
+        CancellationToken cancellationToken = default);
+
+    Task BroadcastSosAlertAsync(
+        int vehicleId,
+        double latitude,
+        double longitude,
+        DateTime timestamp,
         CancellationToken cancellationToken = default);
 }

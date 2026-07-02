@@ -1,0 +1,44 @@
+<div class="replay-map-wrap">
+  <div class="replay-map" #mapEl></div>
+
+  <div class="replay-overlay" *ngIf="loading">
+    <app-brand-loader size="sm" message="Loading route…" />
+  </div>
+
+  <div class="route-summary" *ngIf="routeSummary && !loading">
+    <div class="rs-item"><span class="rs-val">{{ routeSummary.distanceKm }} km</span><span class="rs-lbl">Distance</span></div>
+    <div class="rs-item"><span class="rs-val">{{ routeSummary.durationMinutes }} min</span><span class="rs-lbl">Driving</span></div>
+    <div class="rs-item"><span class="rs-val">{{ routeSummary.avgSpeed }} km/h</span><span class="rs-lbl">Avg speed</span></div>
+    <div class="rs-item"><span class="rs-val">{{ routeSummary.maxSpeed }} km/h</span><span class="rs-lbl">Max speed</span></div>
+    <div class="rs-item"><span class="rs-val">{{ routeSummary.pointCount }}</span><span class="rs-lbl">Points</span></div>
+  </div>
+
+  <div class="playback-bar" *ngIf="positions.length > 0 && !loading">
+    <div class="replay-controls">
+      <button type="button" class="btn btn-primary btn-sm" (click)="toggleReplay()">
+        <mat-icon>{{ replayPlaying ? 'pause' : 'play_arrow' }}</mat-icon>
+        {{ replayPlaying ? 'Pause' : 'Play' }}
+      </button>
+      <button type="button" class="btn btn-secondary btn-sm"
+        *ngFor="let s of speedOptions"
+        [class.active]="replaySpeed === s"
+        (click)="setReplaySpeed(s)">{{ s }}×</button>
+    </div>
+    <label class="timeline-scrub">
+      <div class="timeline-labels">
+        <span>Start: {{ startTimeLabel }}</span>
+        <span class="timeline-current" *ngIf="currentPosition">
+          {{ currentPosition.timestamp | date:'hh:mm a' }} · {{ currentPosition.speedKmh | number:'1.0-0' }} km/h
+        </span>
+        <span>End: {{ endTimeLabel }}</span>
+      </div>
+      <input type="range" min="0" max="100" [value]="replayProgress" (input)="onReplayScrub($event)" />
+      <span class="timeline-pct">{{ replayProgress }}%</span>
+    </label>
+  </div>
+
+  <div class="replay-empty" *ngIf="!loading && positions.length === 0">
+    <mat-icon>map</mat-icon>
+    <span>Select a trip or refresh to load route replay.</span>
+  </div>
+</div>

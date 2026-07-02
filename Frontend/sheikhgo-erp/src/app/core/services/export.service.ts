@@ -50,6 +50,16 @@ const PAGE_MARGIN_PT = 32;
 @Injectable({ providedIn: 'root' })
 export class ExportService {
   exportExcel<T>(rows: T[], columns: ExportColumn<T>[], meta: ExportMeta): void {
+    const book = this.buildWorkbook(rows, columns, meta);
+    XLSX.writeFile(book, `${this.sanitize(meta.filename)}.xlsx`, { compression: true });
+  }
+
+  exportCsv<T>(rows: T[], columns: ExportColumn<T>[], meta: ExportMeta): void {
+    const book = this.buildWorkbook(rows, columns, meta);
+    XLSX.writeFile(book, `${this.sanitize(meta.filename)}.csv`, { bookType: 'csv' });
+  }
+
+  private buildWorkbook<T>(rows: T[], columns: ExportColumn<T>[], meta: ExportMeta): XLSX.WorkBook {
     const data = rows.map(row => {
       const obj: Record<string, string | number | null> = {};
       for (const col of columns) {
@@ -68,8 +78,7 @@ export class ExportService {
 
     const book = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(book, sheet, meta.sheetName || 'Sheet1');
-
-    XLSX.writeFile(book, `${this.sanitize(meta.filename)}.xlsx`, { compression: true });
+    return book;
   }
 
   exportPdf<T>(rows: T[], columns: ExportColumn<T>[], meta: ExportMeta): void {

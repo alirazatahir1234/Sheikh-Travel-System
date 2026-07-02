@@ -115,6 +115,30 @@
   }
 }
 
+.refresh-rate-select {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border: 1px solid var(--stb-border);
+  background: var(--stb-surface-alt);
+  color: var(--stb-text-muted);
+
+  mat-icon { font-size: 18px; width: 18px; height: 18px; }
+  select {
+    border: none;
+    background: transparent;
+    color: var(--stb-text);
+    font-size: 0.75rem;
+    font-weight: 600;
+    outline: none;
+    cursor: pointer;
+  }
+}
+
 @keyframes blink-sync {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.45; }
@@ -172,10 +196,12 @@
   }
 
   &--online { border-top-color: var(--stb-success); }
+  &--offline { border-top-color: var(--stb-text-soft); mat-icon { color: var(--stb-text-soft); background: var(--stb-surface-alt); } }
   &--trips { border-top-color: var(--stb-info); }
   &--speed { border-top-color: var(--stb-cat-teal); }
   &--warn { border-top-color: var(--stb-warning); mat-icon { color: var(--stb-warning); background: rgba(245, 158, 11, 0.12); } }
   &--alert { border-top-color: var(--stb-danger); mat-icon { color: var(--stb-danger); background: rgba(239, 68, 68, 0.1); } }
+  &--sos { border-top-color: #dc2626; mat-icon { color: #dc2626; background: rgba(220, 38, 38, 0.12); } }
 }
 
 .stat-val {
@@ -316,7 +342,10 @@
 
   &--moving .dot { background: var(--stb-success); }
   &--idle .dot { background: var(--stb-warning); }
+  &--parked .dot { background: #3b82f6; }
   &--offline .dot { background: var(--stb-danger); }
+  &--sos { background: rgba(220, 38, 38, 0.12); border-color: #dc2626; color: #dc2626; }
+  &--sos .dot { background: #dc2626; }
 
   .dot--pulse { animation: dot-pulse 1.5s ease infinite; }
   .dot--pulse-slow { animation: dot-pulse 2.5s ease infinite; }
@@ -347,11 +376,13 @@
 
 .panel-list {
   flex: 1;
-  overflow-y: auto;
+  min-height: 0;
   padding: 0 10px 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+
+  // cdk-virtual-scroll-viewport manages its own overflow/positioning; items get their gap from
+  // vehicle-card's margin-bottom below rather than a flex `gap` (there's no flex layout inside
+  // the viewport's virtualized content wrapper).
+  .vehicle-card { margin-bottom: 8px; }
 }
 
 .panel-spinner { margin: 24px auto; }
@@ -390,7 +421,14 @@
     &:hover { box-shadow: 0 4px 20px rgba(16, 185, 129, 0.2); }
   }
   &--idle { border-left-color: var(--stb-warning); &:hover { box-shadow: 0 4px 16px rgba(245, 158, 11, 0.15); } }
+  &--parked { border-left-color: #3b82f6; }
   &--offline { border-left-color: var(--stb-text-soft); opacity: 0.88; }
+  &--never-seen { border-left-color: #cbd5e1; opacity: 0.75; }
+  &--sos {
+    border-left-color: #dc2626;
+    box-shadow: 0 0 0 1px rgba(220, 38, 38, 0.25);
+    &:hover { box-shadow: 0 4px 20px rgba(220, 38, 38, 0.3); }
+  }
   &--delayed { border-left-color: var(--stb-danger); &:hover { box-shadow: 0 4px 16px rgba(239, 68, 68, 0.18); } }
   &--scheduled { border-left-color: var(--stb-info); }
 }
@@ -881,8 +919,11 @@
     margin-right: 4px;
     &.moving { background: var(--stb-success); box-shadow: 0 0 6px var(--stb-success); }
     &.idle { background: var(--stb-warning); }
+    &.parked { background: #3b82f6; }
     &.delayed { background: var(--stb-danger); }
     &.offline { background: #94a3b8; }
+    &.never_seen { background: #cbd5e1; }
+    &.sos { background: #dc2626; box-shadow: 0 0 6px #dc2626; }
     &.scheduled { background: var(--stb-info); box-shadow: 0 0 6px var(--stb-info); }
   }
 }

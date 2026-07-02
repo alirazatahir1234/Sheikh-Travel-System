@@ -1,23 +1,48 @@
 using Dapper;
 using MediatR;
+using Microsoft.Extensions.Options;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Application.Features.GpsTracking.DTOs;
 using SheikhTravelSystem.Application.Features.GpsTracking.Services;
+using SheikhTravelSystem.Application.Features.GpsTracking.Traccar;
 
 namespace SheikhTravelSystem.Application.Features.GpsTracking.Queries;
 
-public record GetLivePositionsQuery : IRequest<ApiResponse<List<PositionDto>>>;
+public record GetLivePositionsQuery(int Page = 1, int PageSize = 500) : IRequest<ApiResponse<PagedResult<PositionDto>>>;
 
 public class GetLivePositionsQueryHandler(IDbConnectionFactory dbFactory, ITenantContext tenantContext)
-    : IRequestHandler<GetLivePositionsQuery, ApiResponse<List<PositionDto>>>
+    : IRequestHandler<GetLivePositionsQuery, ApiResponse<PagedResult<PositionDto>>>
 {
-    public async Task<ApiResponse<List<PositionDto>>> Handle(GetLivePositionsQuery request, CancellationToken cancellationToken)
+    // Higher ceiling than the generic AppConstants.MaxPageSize (100): this endpoint feeds a live
+    // fleet map meant to return "everything currently visible" in as few round-trips as possible,
+    // not a paged list UI, so callers can request a single generously-sized page.
+    private const int MaxPageSize = 5000;
+
+    public async Task<ApiResponse<PagedResult<PositionDto>>> Handle(GetLivePositionsQuery request, CancellationToken cancellationToken)
     {
+        var page = request.Page < 1 ? 1 : request.Page;
+        var pageSize = request.PageSize < 1 ? 500 : Math.Min(request.PageSize, MaxPageSize);
+
         using var connection = dbFactory.CreateConnection();
         var tenantId = tenantContext.GetRequiredTenantId();
+
+        const string whereClause = """
+              FROM VehicleCurrentLocation vcl
+              INNER JOIN Vehicles v ON v.Id = vcl.VehicleId AND v.TenantId = @TenantId AND v.IsDeleted = 0
+              WHERE vcl.Latitude IS NOT NULL
+                AND vcl.Longitude IS NOT NULL
+                AND NOT (vcl.Latitude = 0 AND vcl.Longitude = 0)
+            """;
+
+        var totalCount = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
+            $"SELECT COUNT(*) {whereClause}",
+            new { TenantId = tenantId },
+            cancellationToken: cancellationToken));
+
         var rows = await connection.QueryAsync<PositionDto>(new CommandDefinition(
-            @"SELECT CAST(vcl.VehicleId AS BIGINT) AS Id,
+            $"""
+              SELECT CAST(vcl.VehicleId AS BIGINT) AS Id,
                      vcl.VehicleId,
                      vcl.DriverId,
                      vcl.BookingId,
@@ -28,16 +53,27 @@ public class GetLivePositionsQueryHandler(IDbConnectionFactory dbFactory, ITenan
                      vcl.Heading,
                      CAST(NULL AS FLOAT) AS Altitude,
                      vcl.Ignition,
-                     vcl.LastUpdate AS Timestamp
-              FROM VehicleCurrentLocation vcl
-              INNER JOIN Vehicles v ON v.Id = vcl.VehicleId AND v.TenantId = @TenantId AND v.IsDeleted = 0
-              WHERE vcl.Latitude IS NOT NULL
-                AND vcl.Longitude IS NOT NULL
-                AND NOT (vcl.Latitude = 0 AND vcl.Longitude = 0)",
-            new { TenantId = tenantId },
+                     vcl.LastUpdate AS Timestamp,
+                     vcl.FuelLevel,
+                     vcl.BatteryLevel,
+                     vcl.GsmSignal,
+                     vcl.TotalDistanceKm,
+                     vcl.Address,
+                     vcl.AlarmType
+              {whereClause}
+              ORDER BY vcl.VehicleId
+              OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY
+            """,
+            new { TenantId = tenantId, Offset = (page - 1) * pageSize, PageSize = pageSize },
             cancellationToken: cancellationToken));
 
-        return ApiResponse<List<PositionDto>>.SuccessResponse(rows.ToList());
+        return ApiResponse<PagedResult<PositionDto>>.SuccessResponse(new PagedResult<PositionDto>
+        {
+            Items = rows.ToList(),
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        });
     }
 }
 
@@ -78,36 +114,141 @@ public class GetPositionHistoryQueryHandler(IDbConnectionFactory dbFactory)
     }
 }
 
-public record GetGpsTripsQuery(int? VehicleId, DateTime? FromDate, DateTime? ToDate)
+public record GetGpsTripsQuery(
+    int? VehicleId,
+    DateTime? FromDate,
+    DateTime? ToDate,
+    int? BranchId = null,
+    int? DepartmentId = null,
+    int? DriverId = null)
     : IRequest<ApiResponse<List<GpsTripDto>>>;
 
-public class GetGpsTripsQueryHandler(IDbConnectionFactory dbFactory, IMediator mediator)
+public class GetGpsTripsQueryHandler(
+    IDbConnectionFactory dbFactory,
+    IMediator mediator,
+    ITraccarClient traccarClient,
+    IOptions<TraccarOptions> traccarOptions,
+    ITenantContext tenantContext)
     : IRequestHandler<GetGpsTripsQuery, ApiResponse<List<GpsTripDto>>>
 {
+    private static readonly TimeSpan MaxRange = TimeSpan.FromDays(30);
+
+    // Fleet-wide fallback calls are capped since each is a live Traccar HTTP round trip (or a
+    // GpsPositions scan) — background persistence of trips would remove the need for this cap,
+    // but that's explicitly out of scope for now (see plan doc).
+    private const int MaxFleetTraccarCalls = 10;
+    private const int MaxFleetDetectorCalls = 10;
+
+    private sealed record VehicleTripSource(
+        int VehicleId,
+        string? VehicleName,
+        string? PlateNumber,
+        int? GpsDeviceId,
+        string? DeviceName,
+        int? TraccarDeviceId);
+
+    private sealed record FleetVehicle(
+        int VehicleId,
+        string? VehicleName,
+        string? PlateNumber,
+        int? GpsDeviceId,
+        string? DeviceName,
+        int? TraccarDeviceId,
+        string? DriverName);
+
     public async Task<ApiResponse<List<GpsTripDto>>> Handle(GetGpsTripsQuery request, CancellationToken cancellationToken)
     {
-        using var connection = dbFactory.CreateConnection();
         var fromDate = request.FromDate ?? DateTime.UtcNow.AddDays(-7);
         var toDate = request.ToDate ?? DateTime.UtcNow;
 
-        var sql = """
-            SELECT t.VehicleId, v.Name AS VehicleName, t.GpsDeviceId, t.StartTime, t.EndTime,
-                   t.DistanceKm, t.AvgSpeedKmh, t.MaxSpeedKmh, t.DurationMinutes
-            FROM GpsTrips t
-            LEFT JOIN Vehicles v ON v.Id = t.VehicleId
-            WHERE t.StartTime >= @FromDate AND t.EndTime <= @ToDate
-            """;
+        if (fromDate > toDate)
+        {
+            return ApiResponse<List<GpsTripDto>>.FailResponse("'from' must be before 'to'.");
+        }
+
+        if (toDate - fromDate > MaxRange)
+        {
+            return ApiResponse<List<GpsTripDto>>.FailResponse("Date range cannot exceed 30 days.");
+        }
+
+        using var connection = dbFactory.CreateConnection();
+        var tenantId = tenantContext.GetRequiredTenantId();
 
         if (request.VehicleId.HasValue)
         {
-            sql += " AND t.VehicleId = @VehicleId";
+            return await HandleSingleVehicleAsync(connection, tenantId, request.VehicleId.Value, fromDate, toDate, cancellationToken);
         }
 
-        sql += " ORDER BY t.EndTime DESC";
+        return await HandleFleetWideAsync(connection, tenantId, request, fromDate, toDate, cancellationToken);
+    }
+
+    private async Task<ApiResponse<List<GpsTripDto>>> HandleSingleVehicleAsync(
+        System.Data.IDbConnection connection,
+        int tenantId,
+        int vehicleId,
+        DateTime fromDate,
+        DateTime toDate,
+        CancellationToken cancellationToken)
+    {
+        var source = await connection.QueryFirstOrDefaultAsync<VehicleTripSource>(new CommandDefinition(
+            """
+            SELECT v.Id AS VehicleId, v.Name AS VehicleName, v.RegistrationNumber AS PlateNumber,
+                   d.Id AS GpsDeviceId, d.Name AS DeviceName, d.TraccarDeviceId
+            FROM Vehicles v
+            LEFT JOIN GpsDevices d ON d.Id = v.GpsDeviceId AND d.IsDeleted = 0
+            WHERE v.Id = @VehicleId AND v.TenantId = @TenantId AND v.IsDeleted = 0
+            """,
+            new { VehicleId = vehicleId, TenantId = tenantId },
+            cancellationToken: cancellationToken));
+
+        if (source is null)
+        {
+            return ApiResponse<List<GpsTripDto>>.FailResponse("Vehicle not found.");
+        }
+
+        var opts = traccarOptions.Value;
+        if (opts.IsConfigured && opts.Enabled && source.TraccarDeviceId.HasValue)
+        {
+            var traccarTrips = await traccarClient.GetTripsAsync(
+                source.TraccarDeviceId.Value,
+                fromDate,
+                toDate,
+                cancellationToken);
+
+            var mapped = traccarTrips
+                .Select(t => TraccarTripMapper.ToGpsTripDto(
+                    t,
+                    source.VehicleId,
+                    source.VehicleName,
+                    source.GpsDeviceId,
+                    source.DeviceName,
+                    source.PlateNumber))
+                .OrderByDescending(t => t.StartTime)
+                .ToList();
+
+            return ApiResponse<List<GpsTripDto>>.SuccessResponse(mapped);
+        }
+
+        if (opts.IsConfigured && opts.Enabled && !source.TraccarDeviceId.HasValue)
+        {
+            return ApiResponse<List<GpsTripDto>>.FailResponse(
+                "This vehicle has no Traccar-linked GPS device. Install a tracker or link an existing device.");
+        }
+
+        var sql = """
+            SELECT t.VehicleId, v.Name AS VehicleName, v.RegistrationNumber AS PlateNumber, t.GpsDeviceId, d.Name AS DeviceName,
+                   t.StartTime, t.EndTime, t.DistanceKm, t.AvgSpeedKmh, t.MaxSpeedKmh, t.DurationMinutes
+            FROM GpsTrips t
+            LEFT JOIN Vehicles v ON v.Id = t.VehicleId
+            LEFT JOIN GpsDevices d ON d.Id = t.GpsDeviceId AND d.IsDeleted = 0
+            WHERE t.VehicleId = @VehicleId
+              AND t.StartTime >= @FromDate AND t.EndTime <= @ToDate
+            ORDER BY t.EndTime DESC
+            """;
 
         var persisted = (await connection.QueryAsync<GpsTripDto>(new CommandDefinition(
             sql,
-            new { FromDate = fromDate, ToDate = toDate, request.VehicleId },
+            new { FromDate = fromDate, ToDate = toDate, VehicleId = vehicleId },
             cancellationToken: cancellationToken))).ToList();
 
         if (persisted.Count > 0)
@@ -115,35 +256,169 @@ public class GetGpsTripsQueryHandler(IDbConnectionFactory dbFactory, IMediator m
             return ApiResponse<List<GpsTripDto>>.SuccessResponse(persisted);
         }
 
-        var vehicleIds = request.VehicleId.HasValue
-            ? new List<int> { request.VehicleId.Value }
-            : (await connection.QueryAsync<int>(new CommandDefinition(
-                "SELECT DISTINCT VehicleId FROM GpsPositions",
-                cancellationToken: cancellationToken))).ToList();
+        var history = await mediator.Send(
+            new GetPositionHistoryQuery(vehicleId, fromDate, toDate),
+            cancellationToken);
 
-        var trips = new List<GpsTripDto>();
-        foreach (var vehicleId in vehicleIds)
+        if (!history.Success || history.Data is null || history.Data.Count < 2)
         {
-            var history = await mediator.Send(
-                new GetPositionHistoryQuery(vehicleId, request.FromDate, request.ToDate),
-                cancellationToken);
-
-            if (!history.Success || history.Data is null || history.Data.Count < 2)
-            {
-                continue;
-            }
-
-            var vehicleName = await connection.ExecuteScalarAsync<string?>(new CommandDefinition(
-                "SELECT Name FROM Vehicles WHERE Id = @Id",
-                new { Id = vehicleId },
-                cancellationToken: cancellationToken));
-
-            var deviceId = history.Data.LastOrDefault()?.GpsDeviceId;
-            trips.AddRange(GpsTripDetector.DetectTrips(vehicleId, vehicleName, deviceId, history.Data));
+            return ApiResponse<List<GpsTripDto>>.SuccessResponse([]);
         }
+
+        var trips = GpsTripDetector.DetectTrips(
+            source.VehicleId,
+            source.VehicleName,
+            source.GpsDeviceId,
+            history.Data);
 
         return ApiResponse<List<GpsTripDto>>.SuccessResponse(
             trips.OrderByDescending(t => t.StartTime).ToList());
+    }
+
+    /// <summary>
+    /// Fleet-wide trip ledger: local-data-primary, Traccar-lazy-secondary, capped. Local
+    /// <c>GpsTrips</c> rows are served first (cheap, one query); only vehicles with zero local
+    /// rows in range fall back to a capped, parallel Traccar fan-out; anything still uncovered
+    /// falls back to capped local position-based detection, grouped per vehicle.
+    /// </summary>
+    private async Task<ApiResponse<List<GpsTripDto>>> HandleFleetWideAsync(
+        System.Data.IDbConnection connection,
+        int tenantId,
+        GetGpsTripsQuery request,
+        DateTime fromDate,
+        DateTime toDate,
+        CancellationToken cancellationToken)
+    {
+        var filters = new List<string> { "v.TenantId = @TenantId", "v.IsDeleted = 0" };
+        var parameters = new DynamicParameters();
+        parameters.Add("TenantId", tenantId);
+
+        if (request.BranchId.HasValue)
+        {
+            filters.Add("v.BranchId = @BranchId");
+            parameters.Add("BranchId", request.BranchId.Value);
+        }
+
+        if (request.DepartmentId.HasValue)
+        {
+            filters.Add("v.DepartmentId = @DepartmentId");
+            parameters.Add("DepartmentId", request.DepartmentId.Value);
+        }
+
+        if (request.DriverId.HasValue)
+        {
+            filters.Add("assignDrv.DriverId = @DriverId");
+            parameters.Add("DriverId", request.DriverId.Value);
+        }
+
+        var whereClause = string.Join(" AND ", filters);
+
+        var vehicles = (await connection.QueryAsync<FleetVehicle>(new CommandDefinition(
+            $"""
+            SELECT v.Id AS VehicleId, v.Name AS VehicleName, v.RegistrationNumber AS PlateNumber,
+                   d.Id AS GpsDeviceId, d.Name AS DeviceName, d.TraccarDeviceId,
+                   assignDrv.DriverName
+            FROM Vehicles v
+            LEFT JOIN GpsDevices d ON d.Id = v.GpsDeviceId AND d.IsDeleted = 0
+            OUTER APPLY (
+                SELECT TOP 1 a.DriverId, dr.FullName AS DriverName
+                FROM AssignmentHistory a
+                INNER JOIN Drivers dr ON dr.Id = a.DriverId AND dr.IsDeleted = 0
+                WHERE a.VehicleId = v.Id AND a.IsDeleted = 0
+                  AND a.Status IN (N'Active', N'Scheduled') AND a.DriverId IS NOT NULL
+                ORDER BY CASE WHEN a.Status = N'Active' THEN 0 ELSE 1 END, a.StartAt DESC
+            ) assignDrv
+            WHERE {whereClause}
+            """,
+            parameters,
+            cancellationToken: cancellationToken))).ToList();
+
+        if (vehicles.Count == 0)
+        {
+            return ApiResponse<List<GpsTripDto>>.SuccessResponse([]);
+        }
+
+        var vehicleInfoById = vehicles.ToDictionary(v => v.VehicleId);
+        var vehicleIds = vehicles.Select(v => v.VehicleId).ToList();
+        var results = new List<GpsTripDto>();
+
+        // Step 1: local GpsTrips table across the whole filtered vehicle set.
+        var localTrips = (await connection.QueryAsync<GpsTripDto>(new CommandDefinition(
+            """
+            SELECT t.VehicleId, v.Name AS VehicleName, v.RegistrationNumber AS PlateNumber, t.GpsDeviceId, d.Name AS DeviceName,
+                   t.StartTime, t.EndTime, t.DistanceKm, t.AvgSpeedKmh, t.MaxSpeedKmh, t.DurationMinutes
+            FROM GpsTrips t
+            INNER JOIN Vehicles v ON v.Id = t.VehicleId
+            LEFT JOIN GpsDevices d ON d.Id = t.GpsDeviceId AND d.IsDeleted = 0
+            WHERE t.VehicleId IN @VehicleIds
+              AND t.StartTime >= @FromDate AND t.EndTime <= @ToDate
+            """,
+            new { VehicleIds = vehicleIds, FromDate = fromDate, ToDate = toDate },
+            cancellationToken: cancellationToken))).ToList();
+
+        results.AddRange(localTrips.Select(t => vehicleInfoById.TryGetValue(t.VehicleId, out var vi)
+            ? t with { DriverName = vi.DriverName ?? t.DriverName }
+            : t));
+
+        var covered = localTrips.Select(t => t.VehicleId).ToHashSet();
+        var uncovered = vehicles.Where(v => !covered.Contains(v.VehicleId)).ToList();
+
+        // Step 2: capped Traccar fallback, only for uncovered + Traccar-linked vehicles.
+        var opts = traccarOptions.Value;
+        if (opts.IsConfigured && opts.Enabled && uncovered.Count > 0)
+        {
+            var traccarCandidates = uncovered.Where(v => v.TraccarDeviceId.HasValue).Take(MaxFleetTraccarCalls).ToList();
+            if (traccarCandidates.Count > 0)
+            {
+                var traccarResults = await Task.WhenAll(traccarCandidates.Select(async v =>
+                {
+                    var trips = await traccarClient.GetTripsAsync(v.TraccarDeviceId!.Value, fromDate, toDate, cancellationToken);
+                    return trips.Select(t => TraccarTripMapper.ToGpsTripDto(
+                        t, v.VehicleId, v.VehicleName, v.GpsDeviceId, v.DeviceName, v.PlateNumber) with
+                    {
+                        DriverName = t.DriverName ?? v.DriverName
+                    });
+                }));
+
+                results.AddRange(traccarResults.SelectMany(r => r));
+                var traccarCovered = traccarCandidates.Select(v => v.VehicleId).ToHashSet();
+                uncovered = uncovered.Where(v => !traccarCovered.Contains(v.VehicleId)).ToList();
+            }
+        }
+
+        // Step 3: capped local position-based detection for whatever's still uncovered.
+        var detectorCandidates = uncovered.Take(MaxFleetDetectorCalls).ToList();
+        if (detectorCandidates.Count > 0)
+        {
+            var detectorVehicleIds = detectorCandidates.Select(v => v.VehicleId).ToList();
+            var positions = (await connection.QueryAsync<PositionDto>(new CommandDefinition(
+                """
+                SELECT Id, VehicleId, DriverId, BookingId, GpsDeviceId, Latitude, Longitude, Speed,
+                       Heading, Altitude, Ignition, RecordedAt AS Timestamp
+                FROM GpsPositions
+                WHERE VehicleId IN @VehicleIds AND RecordedAt BETWEEN @FromDate AND @ToDate
+                ORDER BY VehicleId, RecordedAt ASC
+                """,
+                new { VehicleIds = detectorVehicleIds, FromDate = fromDate, ToDate = toDate },
+                cancellationToken: cancellationToken))).ToList();
+
+            // GpsTripDetector has no internal grouping — feeding it mixed-vehicle positions would
+            // silently splice unrelated vehicles' points into fake trips, so group first.
+            var positionsByVehicle = positions.GroupBy(p => p.VehicleId).ToDictionary(g => g.Key, g => g.ToList());
+
+            foreach (var v in detectorCandidates)
+            {
+                if (!positionsByVehicle.TryGetValue(v.VehicleId, out var vehiclePositions) || vehiclePositions.Count < 2)
+                {
+                    continue;
+                }
+
+                results.AddRange(GpsTripDetector.DetectTrips(v.VehicleId, v.VehicleName, v.GpsDeviceId, vehiclePositions));
+            }
+        }
+
+        return ApiResponse<List<GpsTripDto>>.SuccessResponse(
+            results.OrderByDescending(t => t.StartTime).ToList());
     }
 }
 

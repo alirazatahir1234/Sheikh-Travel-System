@@ -27,6 +27,8 @@ public interface ITraccarClient
     Task<bool> DeleteGeofenceAsync(int geofenceId, CancellationToken ct = default);
 
     Task<IReadOnlyList<TraccarTrip>> GetTripsAsync(int deviceId, DateTime from, DateTime to, CancellationToken ct = default);
+    /// <summary>Historical route positions for map polyline and playback (Traccar /api/reports/route).</summary>
+    Task<IReadOnlyList<TraccarPosition>> GetRouteAsync(int deviceId, DateTime from, DateTime to, CancellationToken ct = default);
     Task<IReadOnlyList<TraccarStop>> GetStopsAsync(int deviceId, DateTime from, DateTime to, CancellationToken ct = default);
     Task<IReadOnlyList<TraccarEvent>> GetEventsAsync(int deviceId, DateTime from, DateTime to, string? type = null, CancellationToken ct = default);
     Task<IReadOnlyList<TraccarSummary>> GetSummaryAsync(int deviceId, DateTime from, DateTime to, CancellationToken ct = default);

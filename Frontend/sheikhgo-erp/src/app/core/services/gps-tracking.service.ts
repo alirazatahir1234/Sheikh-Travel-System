@@ -11,11 +11,21 @@ import {
   TrackerDetail,
   RegisterTrackerPayload,
   InstallTrackerPayload,
+  TransferTrackerPayload,
+  UninstallTrackerPayload,
+  TrackerAssignment,
+  TrackerInstallVehicle,
   TrackerRegisteredResult,
   Geofence,
   GpsAlertRule,
   GpsAlertEvent,
   GpsTrip,
+  TripAnalyticsBundle,
+  TripAnalyticsSummary,
+  TripFleetFilters,
+  TripReplayBundle,
+  GpsFleetStatus,
+  TripDeviceContext,
   GpsDeviceCommand,
   GpsEta,
   IngestPositionPayload,
@@ -25,13 +35,18 @@ import {
   TraccarSyncRunResult,
   TraccarSyncStatusDto
 } from '../models/gps-tracking.model';
+import { PagedResult } from '../models/common.model';
 import { VehicleService } from './vehicle.service';
 import { DriverService } from './driver.service';
 import { VehicleStatus } from '../models/vehicle.model';
+import { resolveFleetStatus } from '../utils/gps-status.util';
 
 const STALE_MS = 30 * 60 * 1000;
-const DELAYED_MS = 15 * 60 * 1000;
 const RECENT_MS = STALE_MS;
+// Single generously-sized page rather than a paged UI: the live map re-fetches on every refresh
+// tick, and the vehicle list/marker layer already virtual-scrolls/clusters past this point.
+// Raise if the fleet genuinely exceeds this — the backend endpoints are unbounded past here.
+const LIVE_FLEET_PAGE_SIZE = 2000;
 
 @Injectable({ providedIn: 'root' })
 export class GpsTrackingService {
@@ -45,21 +60,40 @@ export class GpsTrackingService {
 
   getAllVehicleLocations(): Observable<VehicleLocation[]> {
     return forkJoin({
-      tracking: this.http.get<PositionDto[]>(`${this.base}/live`).pipe(catchError(() => of([]))),
-      vehicles: this.vehicleService.getAll(1, 500).pipe(catchError(() => of({ items: [] }))),
-      drivers: this.driverService.getAll(1, 500).pipe(catchError(() => of({ items: [] })))
+      tracking: this.http
+        .get<PagedResult<PositionDto>>(`${this.base}/live`, { params: { pageSize: LIVE_FLEET_PAGE_SIZE } })
+        .pipe(map(r => r.items), catchError(() => of([] as PositionDto[]))),
+      vehicles: this.vehicleService.getAll(1, LIVE_FLEET_PAGE_SIZE).pipe(catchError(() => of({ items: [] }))),
+      drivers: this.driverService.getAll(1, LIVE_FLEET_PAGE_SIZE).pipe(catchError(() => of({ items: [] }))),
+      devices: this.getDevices().pipe(catchError(() => of([])))
     }).pipe(
-      map(({ tracking, vehicles, drivers }) => {
+      map(({ tracking, vehicles, drivers, devices }) => {
         const vehicleMap = new Map(vehicles.items.map(v => [v.id, v]));
         const driverMap = new Map(drivers.items.map(d => [d.id, d.fullName]));
         const liveByVehicle = new Map(tracking.map(t => [t.vehicleId, t]));
+        const deviceByVehicle = new Map(
+          devices.filter(d => d.vehicleId != null).map(d => [d.vehicleId as number, d])
+        );
 
         const result: VehicleLocation[] = vehicles.items
           .filter(v => v.status !== VehicleStatus.Retired)
           .map(v => {
+            const tracker = deviceByVehicle.get(v.id);
+            const trackerFields = {
+              imei: tracker?.uniqueId,
+              trackerName: tracker?.name,
+              relayOutput: tracker?.relayOutput
+            };
+
             const live = liveByVehicle.get(v.id);
             if (live && this.hasValidCoords(live.latitude, live.longitude)) {
-              const status = this.deriveStatus(live.speed, live.timestamp);
+              const status = resolveFleetStatus({
+                speed: Number(live.speed) || 0,
+                ignition: live.ignition,
+                lastUpdated: live.timestamp,
+                hasGps: true,
+                alarmType: live.alarmType
+              });
               return {
                 vehicleId: v.id,
                 vehicleName: v.name ?? `Vehicle #${v.id}`,
@@ -73,7 +107,16 @@ export class GpsTrackingService {
                 hasGps: true,
                 isLive: this.isRecentTelemetry(live.timestamp),
                 routeHint: this.routeHint(status, Number(live.speed) || 0),
-                ignition: live.ignition
+                ignition: live.ignition,
+                heading: live.heading,
+                fuelLevel: live.fuelLevel,
+                batteryLevel: live.batteryLevel,
+                gsmSignal: live.gsmSignal,
+                totalDistanceKm: live.totalDistanceKm,
+                address: live.address,
+                alarmType: live.alarmType,
+                vehicleType: v.vehicleType,
+                ...trackerFields
               };
             }
 
@@ -81,9 +124,11 @@ export class GpsTrackingService {
             const lng = this.toCoord(v.locationLongitude);
             if (this.hasValidCoords(lat, lng)) {
               const lastUpdated = v.locationLastUpdate ?? '';
-              const status = lastUpdated
-                ? this.deriveStatus(0, lastUpdated)
-                : ('offline' as FleetTrackStatus);
+              // A snapshot position exists, so this vehicle has a marker — never fall through to
+              // resolveFleetStatus's "never_seen" (that's reserved for vehicles with no fix at all).
+              const status: FleetTrackStatus = lastUpdated
+                ? resolveFleetStatus({ speed: 0, ignition: v.engineIgnition, lastUpdated, hasGps: true })
+                : 'offline';
               return {
                 vehicleId: v.id,
                 vehicleName: v.name ?? `Vehicle #${v.id}`,
@@ -97,9 +142,18 @@ export class GpsTrackingService {
                 hasGps: true,
                 isLive: this.isRecentTelemetry(lastUpdated),
                 routeHint: status === 'offline' ? 'Last known position' : this.routeHint(status, 0),
-                ignition: v.engineIgnition ?? undefined
+                ignition: v.engineIgnition ?? undefined,
+                vehicleType: v.vehicleType,
+                ...trackerFields
               };
             }
+
+            // No live cache row and no last-known snapshot: a tracker that's assigned but has
+            // never reported a fix is "Never Seen" (appears in the grid, no map marker); a
+            // vehicle with no tracker at all keeps the previous scheduled/offline hint.
+            const status: FleetTrackStatus = v.hasGpsDevice
+              ? 'never_seen'
+              : ((v.status === VehicleStatus.OnTrip ? 'scheduled' : 'offline') as FleetTrackStatus);
 
             return {
               vehicleId: v.id,
@@ -109,10 +163,12 @@ export class GpsTrackingService {
               longitude: 0,
               lastUpdated: '',
               speed: 0,
-              status: (v.status === VehicleStatus.OnTrip ? 'scheduled' : 'offline') as FleetTrackStatus,
+              status,
               driverName: v.driverName ?? undefined,
               hasGps: false,
-              routeHint: v.hasGpsDevice ? 'Awaiting GPS signal' : 'No GPS signal'
+              routeHint: v.hasGpsDevice ? 'Awaiting GPS signal' : 'No GPS signal',
+              vehicleType: v.vehicleType,
+              ...trackerFields
             };
           });
 
@@ -149,12 +205,50 @@ export class GpsTrackingService {
     return this.http.get<PositionDto[]>(`${this.base}/history/${vehicleId}`, { params });
   }
 
-  getTrips(vehicleId?: number, from?: Date, to?: Date): Observable<GpsTrip[]> {
+
+  getTripAnalytics(vehicleId: number, from?: Date, to?: Date): Observable<TripAnalyticsBundle> {
+    const params: Record<string, string> = { vehicleId: String(vehicleId) };
+    if (from) params['from'] = from.toISOString();
+    if (to) params['to'] = to.toISOString();
+    return this.http.get<TripAnalyticsBundle>(`${this.base}/trips/analytics`, { params });
+  }
+
+  getTripReplay(vehicleId: number, from?: Date, to?: Date): Observable<TripReplayBundle> {
+    const params: Record<string, string> = { vehicleId: String(vehicleId) };
+    if (from) params['from'] = from.toISOString();
+    if (to) params['to'] = to.toISOString();
+    return this.http.get<TripReplayBundle>(`${this.base}/trips/replay`, { params });
+  }
+
+  getFleetStatus(): Observable<GpsFleetStatus> {
+    return this.http.get<GpsFleetStatus>(`${this.base}/dashboard/fleet-status`);
+  }
+
+  getTripContext(vehicleId: number): Observable<TripDeviceContext> {
+    return this.http.get<TripDeviceContext>(`${this.base}/trips/context`, {
+      params: { vehicleId: String(vehicleId) }
+    });
+  }
+
+  getTrips(vehicleId?: number | null, from?: Date, to?: Date, filters?: TripFleetFilters): Observable<GpsTrip[]> {
     const params: Record<string, string> = {};
     if (vehicleId) params['vehicleId'] = String(vehicleId);
     if (from) params['from'] = from.toISOString();
     if (to) params['to'] = to.toISOString();
+    if (filters?.branchId) params['branchId'] = String(filters.branchId);
+    if (filters?.departmentId) params['departmentId'] = String(filters.departmentId);
+    if (filters?.driverId) params['driverId'] = String(filters.driverId);
     return this.http.get<GpsTrip[]>(`${this.base}/trips`, { params });
+  }
+
+  getFleetTripSummary(from?: Date, to?: Date, filters?: TripFleetFilters): Observable<TripAnalyticsSummary> {
+    const params: Record<string, string> = {};
+    if (from) params['from'] = from.toISOString();
+    if (to) params['to'] = to.toISOString();
+    if (filters?.branchId) params['branchId'] = String(filters.branchId);
+    if (filters?.departmentId) params['departmentId'] = String(filters.departmentId);
+    if (filters?.driverId) params['driverId'] = String(filters.driverId);
+    return this.http.get<TripAnalyticsSummary>(`${this.base}/trips/fleet-summary`, { params });
   }
 
   getGeofences(): Observable<Geofence[]> {
@@ -222,8 +316,23 @@ export class GpsTrackingService {
     return this.http.post<boolean>(`${this.base}/trackers/${id}/install`, body);
   }
 
-  uninstallTracker(id: number): Observable<boolean> {
-    return this.http.post<boolean>(`${this.base}/trackers/${id}/uninstall`, {});
+  transferTracker(id: number, body: TransferTrackerPayload): Observable<boolean> {
+    return this.http.post<boolean>(`${this.base}/trackers/${id}/transfer`, body);
+  }
+
+  uninstallTracker(id: number, body?: UninstallTrackerPayload): Observable<boolean> {
+    return this.http.post<boolean>(`${this.base}/trackers/${id}/uninstall`, body ?? {});
+  }
+
+  getTrackerAssignments(id: number): Observable<TrackerAssignment[]> {
+    return this.http.get<TrackerAssignment[]>(`${this.base}/trackers/${id}/assignments`);
+  }
+
+  getTrackerInstallVehicles(trackerId?: number): Observable<TrackerInstallVehicle[]> {
+    const url = trackerId
+      ? `${this.base}/trackers/install-vehicles?trackerId=${trackerId}`
+      : `${this.base}/trackers/install-vehicles`;
+    return this.http.get<TrackerInstallVehicle[]>(url);
   }
 
   createDevice(body: Partial<GpsDevice>): Observable<number> {
@@ -272,18 +381,12 @@ export class GpsTrackingService {
     return this.http.get<TraccarSyncStatusDto>(`${this.base}/traccar/sync-status`);
   }
 
-  private deriveStatus(speed: number, timestamp: string): FleetTrackStatus {
-    const age = Date.now() - new Date(timestamp).getTime();
-    if (age > STALE_MS) return 'offline';
-    if (age > DELAYED_MS && speed <= 2) return 'delayed';
-    if (speed > 5) return 'moving';
-    if (speed > 0) return 'idle';
-    return 'idle';
-  }
-
   private routeHint(status: FleetTrackStatus, speed: number): string {
     if (status === 'moving') return `${Math.round(speed)} km/h`;
     if (status === 'idle') return 'Idle • awaiting movement';
+    if (status === 'parked') return 'Parked • ignition off';
+    if (status === 'sos') return 'SOS / panic alarm';
+    if (status === 'never_seen') return 'Never seen • no fix yet';
     if (status === 'delayed') return 'Delayed • check route';
     return 'Last known position';
   }

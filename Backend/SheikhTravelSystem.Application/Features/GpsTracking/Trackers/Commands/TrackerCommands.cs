@@ -66,6 +66,10 @@ public class UpdateTrackerCommandValidator : AbstractValidator<UpdateTrackerComm
     public UpdateTrackerCommandValidator()
     {
         RuleFor(x => x.Tracker.Name).NotEmpty().MaximumLength(100);
+        RuleFor(x => x.Tracker.UniqueId)
+            .Matches(@"^\d{15}$")
+            .When(x => !string.IsNullOrWhiteSpace(x.Tracker.UniqueId))
+            .WithMessage("IMEI must be exactly 15 digits.");
         RuleFor(x => x.Tracker.Category)
             .NotEmpty()
             .Must(c => TrackerCatalog.ValidCategories.Contains(c));
@@ -116,7 +120,7 @@ public class InstallTrackerCommandHandler(ITrackerRegistrationService service)
         => service.InstallAsync(request.Id, request.Body, cancellationToken);
 }
 
-public record UninstallTrackerCommand(int Id) : IRequest<ApiResponse<bool>>;
+public record UninstallTrackerCommand(int Id, UninstallTrackerDto? Body = null) : IRequest<ApiResponse<bool>>;
 
 public class UninstallTrackerCommandValidator : AbstractValidator<UninstallTrackerCommand>
 {
@@ -130,7 +134,26 @@ public class UninstallTrackerCommandHandler(ITrackerRegistrationService service)
     : IRequestHandler<UninstallTrackerCommand, ApiResponse<bool>>
 {
     public Task<ApiResponse<bool>> Handle(UninstallTrackerCommand request, CancellationToken cancellationToken)
-        => service.UninstallAsync(request.Id, cancellationToken);
+        => service.UninstallAsync(request.Id, request.Body, cancellationToken);
+}
+
+public record TransferTrackerCommand(int Id, TransferTrackerDto Body) : IRequest<ApiResponse<bool>>;
+
+public class TransferTrackerCommandValidator : AbstractValidator<TransferTrackerCommand>
+{
+    public TransferTrackerCommandValidator()
+    {
+        RuleFor(x => x.Id).GreaterThan(0);
+        RuleFor(x => x.Body.VehicleId).GreaterThan(0);
+        RuleFor(x => x.Body.Reason).NotEmpty().WithMessage("Transfer reason is required.");
+    }
+}
+
+public class TransferTrackerCommandHandler(ITrackerRegistrationService service)
+    : IRequestHandler<TransferTrackerCommand, ApiResponse<bool>>
+{
+    public Task<ApiResponse<bool>> Handle(TransferTrackerCommand request, CancellationToken cancellationToken)
+        => service.TransferAsync(request.Id, request.Body, cancellationToken);
 }
 
 public record SyncTrackerCommand(int Id) : IRequest<ApiResponse<TraccarSyncRunResult>>;

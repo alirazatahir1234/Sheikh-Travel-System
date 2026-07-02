@@ -1,13 +1,14 @@
+using Dapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
+using SheikhTravelSystem.Application.Features.GpsTracking.Trackers;
 using SheikhTravelSystem.API.Authorization;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Application.Features.GpsTracking.Commands;
 using SheikhTravelSystem.Application.Features.GpsTracking.DTOs;
 using SheikhTravelSystem.Application.Features.GpsTracking.Queries;
-using SheikhTravelSystem.Application.Features.GpsTracking.Trackers;
 using SheikhTravelSystem.Application.Features.GpsTracking.Trackers.Commands;
 using SheikhTravelSystem.Application.Features.GpsTracking.Trackers.Queries;
 using SheikhTravelSystem.Application.Features.GpsTracking.Traccar;
@@ -30,16 +31,48 @@ public class GpsTrackingController : BaseApiController
         => Ok(await Mediator.Send(new IngestPositionCommand(position)));
 
     [HttpGet("live")]
-    public async Task<IActionResult> GetLive()
-        => Ok(await Mediator.Send(new GetLivePositionsQuery()));
+    public async Task<IActionResult> GetLive([FromQuery] int page = 1, [FromQuery] int pageSize = 500)
+        => Ok(await Mediator.Send(new GetLivePositionsQuery(page, pageSize)));
 
     [HttpGet("history/{vehicleId:int}")]
     public async Task<IActionResult> GetHistory(int vehicleId, [FromQuery] DateTime? from, [FromQuery] DateTime? to)
         => Ok(await Mediator.Send(new GetPositionHistoryQuery(vehicleId, from, to)));
 
+
+    [HttpGet("trips/analytics")]
+    public async Task<IActionResult> GetTripAnalytics([FromQuery] int? vehicleId, [FromQuery] DateTime? from, [FromQuery] DateTime? to)
+        => Ok(await Mediator.Send(new GetTripAnalyticsQuery(vehicleId, from, to)));
+
+    [HttpGet("trips/replay")]
+    public async Task<IActionResult> GetTripReplay([FromQuery] int? vehicleId, [FromQuery] DateTime? from, [FromQuery] DateTime? to)
+        => Ok(await Mediator.Send(new GetTripReplayQuery(vehicleId, from, to)));
+
+    [HttpGet("dashboard/fleet-status")]
+    public async Task<IActionResult> GetFleetStatus()
+        => Ok(await Mediator.Send(new GetGpsFleetStatusQuery()));
+
+    [HttpGet("trips/context")]
+    public async Task<IActionResult> GetTripContext([FromQuery] int vehicleId)
+        => Ok(await Mediator.Send(new GetTripContextQuery(vehicleId)));
+
     [HttpGet("trips")]
-    public async Task<IActionResult> GetTrips([FromQuery] int? vehicleId, [FromQuery] DateTime? from, [FromQuery] DateTime? to)
-        => Ok(await Mediator.Send(new GetGpsTripsQuery(vehicleId, from, to)));
+    public async Task<IActionResult> GetTrips(
+        [FromQuery] int? vehicleId,
+        [FromQuery] DateTime? from,
+        [FromQuery] DateTime? to,
+        [FromQuery] int? branchId,
+        [FromQuery] int? departmentId,
+        [FromQuery] int? driverId)
+        => Ok(await Mediator.Send(new GetGpsTripsQuery(vehicleId, from, to, branchId, departmentId, driverId)));
+
+    [HttpGet("trips/fleet-summary")]
+    public async Task<IActionResult> GetFleetTripSummary(
+        [FromQuery] DateTime? from,
+        [FromQuery] DateTime? to,
+        [FromQuery] int? branchId,
+        [FromQuery] int? departmentId,
+        [FromQuery] int? driverId)
+        => Ok(await Mediator.Send(new GetFleetTripSummaryQuery(from, to, branchId, departmentId, driverId)));
 
     [HttpGet("geofences")]
     public async Task<IActionResult> GetGeofences()
@@ -150,11 +183,29 @@ public class GpsTrackingController : BaseApiController
 
     [HttpPost("trackers/{id:int}/uninstall")]
     [Authorize(Roles = "Admin,Dispatcher")]
-    public async Task<IActionResult> UninstallTracker(int id)
+    public async Task<IActionResult> UninstallTracker(int id, [FromBody] UninstallTrackerDto? body = null)
     {
-        var result = await Mediator.Send(new UninstallTrackerCommand(id));
+        var result = await Mediator.Send(new UninstallTrackerCommand(id, body));
         return result.Success ? Ok(result) : BadRequest(result);
     }
+
+    [HttpPost("trackers/{id:int}/transfer")]
+    [Authorize(Roles = "Admin,Dispatcher")]
+    public async Task<IActionResult> TransferTracker(int id, [FromBody] TransferTrackerDto body)
+    {
+        var result = await Mediator.Send(new TransferTrackerCommand(id, body));
+        return result.Success ? Ok(result) : BadRequest(result);
+    }
+
+    [HttpGet("trackers/install-vehicles")]
+    [Authorize(Roles = "Admin,Dispatcher")]
+    public async Task<IActionResult> GetTrackerInstallVehicles([FromQuery] int? trackerId)
+        => Ok(await Mediator.Send(new GetTrackerInstallVehiclesQuery(trackerId)));
+
+    [HttpGet("trackers/{id:int}/assignments")]
+    [Authorize(Roles = "Admin,Dispatcher,Accountant")]
+    public async Task<IActionResult> GetTrackerAssignments(int id)
+        => Ok(await Mediator.Send(new GetTrackerAssignmentsQuery(id)));
 
     [HttpPost("trackers/{id:int}/sync")]
     [Authorize(Roles = "Admin")]
@@ -235,18 +286,34 @@ public class GpsTrackingController : BaseApiController
     [HttpGet("traccar/status")]
     [Authorize(Roles = "Admin,Dispatcher")]
     public async Task<IActionResult> GetTraccarStatus(
-        [FromServices] ITraccarClient traccar)
+        [FromServices] ITraccarClient traccar,
+        [FromServices] IDbConnectionFactory dbFactory,
+        [FromServices] ITenantContext tenantContext)
     {
         var server = await traccar.GetServerAsync(HttpContext.RequestAborted);
         var devices = await traccar.GetDevicesAsync(HttpContext.RequestAborted);
+        var connected = server is not null || devices.Count > 0;
+
+        var tenantId = tenantContext.GetRequiredTenantId();
+        using var connection = dbFactory.CreateConnection();
+        var linkedCount = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
+            """
+            SELECT COUNT(*)
+            FROM GpsDevices d
+            LEFT JOIN Vehicles v ON v.Id = d.VehicleId AND v.IsDeleted = 0
+            WHERE d.IsDeleted = 0
+              AND d.TraccarDeviceId IS NOT NULL
+            """ + TrackerTenantSql.DeviceScopeFilter,
+            new { TenantId = tenantId },
+            cancellationToken: HttpContext.RequestAborted));
 
         if (server is not null)
-            return Ok(new TraccarStatusDto(true, server.Version, devices.Count));
+            return Ok(new TraccarStatusDto(true, server.Version, linkedCount));
 
-        if (devices.Count > 0)
-            return Ok(new TraccarStatusDto(true, null, devices.Count, "Server info unavailable; device API reachable."));
+        if (connected)
+            return Ok(new TraccarStatusDto(true, null, linkedCount, "Server info unavailable; device API reachable."));
 
-        return Ok(new TraccarStatusDto(false, null, 0, "Traccar server unreachable."));
+        return Ok(new TraccarStatusDto(false, null, linkedCount, "Traccar server unreachable."));
     }
 
     [HttpGet("traccar/devices")]
@@ -259,7 +326,7 @@ public class GpsTrackingController : BaseApiController
     }
 
     [HttpPost("traccar/sync")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin,Dispatcher")]
     public async Task<IActionResult> RunTraccarSync(
         [FromServices] ITraccarSyncOrchestrator orchestrator)
         => Ok(await orchestrator.RunManualSyncAsync(HttpContext.RequestAborted));

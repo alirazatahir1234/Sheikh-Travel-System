@@ -28,7 +28,7 @@ public static class TrackerCatalog
 
     public static readonly HashSet<string> InstallableStatuses = new(StringComparer.OrdinalIgnoreCase)
     {
-        "Available", "InStock", "Maintenance", "Removed", "Installed"
+        "Available", "InStock", "Maintenance", "Removed"
     };
 }
 
@@ -90,6 +90,7 @@ public record UpdateTrackerDto(
     decimal? PurchasePrice = null,
     string? Vendor = null,
     string? CurrentStatus = null,
+    string? UniqueId = null,
     bool IsActive = true);
 
 public record InstallTrackerDto(
@@ -99,6 +100,43 @@ public record InstallTrackerDto(
     string? InstalledBy = null,
     string? InstallationNotes = null,
     string? RelayOutput = null);
+
+public record TransferTrackerDto(
+    int VehicleId,
+    int? DriverId = null,
+    DateTime? InstallationDate = null,
+    string? InstalledBy = null,
+    string? InstallationNotes = null,
+    string? RelayOutput = null,
+    string? Reason = null);
+
+public record UninstallTrackerDto(
+    string? RemovedBy = null,
+    string? Reason = null);
+
+public record TrackerAssignmentDto(
+    int Id,
+    int GpsDeviceId,
+    int VehicleId,
+    string? VehicleName,
+    string? PlateNumber,
+    int? DriverId,
+    string? DriverName,
+    DateTime InstalledDate,
+    DateTime? RemovedDate,
+    string? InstalledBy,
+    string? RemovedBy,
+    string? Reason,
+    bool IsActive);
+
+public record TrackerInstallVehicleDto(
+    int VehicleId,
+    string Name,
+    string? PlateNumber,
+    string? VehicleCode,
+    bool IsSelectable,
+    string? AssignedTrackerName,
+    string? BlockedReason);
 
 public record TrackerRegisteredDto(
     int Id,

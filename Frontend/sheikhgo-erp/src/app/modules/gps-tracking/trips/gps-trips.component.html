@@ -1,151 +1,334 @@
 <div class="trips-page">
 
-  <!-- Header -->
-  <div class="page-header">
-    <h2 class="page-title">Trip Analytics</h2>
-    <button class="btn btn-secondary" (click)="exportCsv()" [disabled]="!trips.length">
-      <mat-icon>download</mat-icon>
-      Export
-    </button>
-  </div>
-
-  <!-- Filters -->
-  <div class="filter-bar">
-    <mat-form-field appearance="outline">
-      <mat-label>Vehicle</mat-label>
-      <mat-select [(value)]="vehicleId">
-        <mat-option [value]="null">All Vehicles</mat-option>
-        <mat-option *ngFor="let v of vehicles" [value]="v.id">{{ v.name }}</mat-option>
-      </mat-select>
-    </mat-form-field>
-
-    <mat-form-field appearance="outline">
-      <mat-label>From</mat-label>
-      <input matInput type="datetime-local" [(ngModel)]="from">
-    </mat-form-field>
-
-    <mat-form-field appearance="outline">
-      <mat-label>To</mat-label>
-      <input matInput type="datetime-local" [(ngModel)]="to">
-    </mat-form-field>
-
-    <button class="btn btn-primary" (click)="load()" [disabled]="loading">
-      <mat-icon>refresh</mat-icon>
-      Refresh
-    </button>
-  </div>
-
-  <!-- Stats chips -->
-  <div *ngIf="trips.length > 0" class="stats-row">
-    <div class="stat-chip">
-      <div class="stat-label">Total Trips</div>
-      <div class="stat-value">{{ trips.length }}</div>
+  <header class="page-header">
+    <div class="page-header__text">
+      <h1 class="page-title">GPS Trip Analytics</h1>
+      <p class="page-sub">Review vehicle movement, driver behavior, and operational efficiency.</p>
+      <p class="page-updated" *ngIf="lastRefreshedAt">Last updated {{ formatLastUpdated() }}</p>
     </div>
-    <div class="stat-chip">
-      <div class="stat-label">Total Distance</div>
-      <div class="stat-value">{{ totalDistance | number:'1.1-1' }} km</div>
+    <div class="header-actions">
+      <button type="button" class="btn btn-secondary" (click)="shareReport()">
+        <mat-icon>share</mat-icon> Share
+      </button>
+      <span class="share-toast" *ngIf="shareMessage">{{ shareMessage }}</span>
+      <button type="button" class="btn btn-secondary" [matMenuTriggerFor]="exportMenu" [disabled]="!trips.length">
+        <mat-icon>download</mat-icon> Export
+      </button>
+      <mat-menu #exportMenu="matMenu">
+        <button mat-menu-item (click)="exportExcel()">Excel (.xlsx)</button>
+        <button mat-menu-item (click)="exportPdf()">PDF Report</button>
+        <button mat-menu-item (click)="exportCsv()">CSV (.csv)</button>
+      </mat-menu>
+      <button type="button" class="btn btn-primary btn-refresh" (click)="load()" [disabled]="loading">
+        <mat-icon>{{ loading ? 'hourglass_top' : 'refresh' }}</mat-icon>
+        {{ loading ? 'Refreshing…' : 'Refresh Data' }}
+      </button>
     </div>
-    <div class="stat-chip">
-      <div class="stat-label">Total Duration</div>
-      <div class="stat-value">{{ totalDuration }} min</div>
+  </header>
+
+  <section class="filter-card">
+    <div class="filter-card__row">
+      <mat-form-field appearance="outline" class="filter-field vehicle-field">
+        <mat-label>Vehicle</mat-label>
+        <mat-select [(value)]="vehicleId" (selectionChange)="onVehicleChange()">
+          <mat-select-trigger>
+            <div class="vehicle-trigger" *ngIf="selectedVehicle as v; else vehiclePlaceholder">
+              <span class="vehicle-trigger__name">{{ v.vehicleName }}</span>
+              <span class="vehicle-trigger__sub">{{ v.plateNumber }} · {{ v.deviceName }} · {{ statusLabel(v) }}</span>
+            </div>
+            <ng-template #vehiclePlaceholder>
+              <span class="vehicle-trigger__placeholder">All Vehicles</span>
+            </ng-template>
+          </mat-select-trigger>
+          <mat-option [value]="null">All Vehicles</mat-option>
+          <mat-option *ngFor="let v of vehicleOptions" [value]="v.vehicleId">
+            <div class="vehicle-option">
+              <strong>{{ v.vehicleName }}</strong>
+              <span class="vehicle-option-sub">{{ v.plateNumber }} · {{ v.deviceName }} · {{ statusLabel(v) }}</span>
+            </div>
+          </mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <!-- Single-vehicle mode: filter by driver within this vehicle's own trip history. -->
+      <mat-form-field appearance="outline" class="filter-field" *ngIf="!isFleetWide">
+        <mat-label>Driver</mat-label>
+        <mat-select [(value)]="driverFilter" (selectionChange)="applyFilters()" [disabled]="!trips.length">
+          <mat-option value="">All Drivers</mat-option>
+          <mat-option *ngFor="let d of driverOptions" [value]="d">{{ d }}</mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <!-- Fleet-wide mode: narrow which vehicles are included, server-side. -->
+      <ng-container *ngIf="isFleetWide">
+        <mat-form-field appearance="outline" class="filter-field">
+          <mat-label>Branch</mat-label>
+          <mat-select [(value)]="branchId" (selectionChange)="onFleetFilterChange()">
+            <mat-option [value]="null">All Branches</mat-option>
+            <mat-option *ngFor="let b of branches" [value]="b.id">{{ b.name }}</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="filter-field">
+          <mat-label>Department</mat-label>
+          <mat-select [(value)]="departmentId" (selectionChange)="onFleetFilterChange()">
+            <mat-option [value]="null">All Departments</mat-option>
+            <mat-option *ngFor="let d of departments" [value]="d.id">{{ d.name }}</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="filter-field">
+          <mat-label>Driver</mat-label>
+          <mat-select [(value)]="fleetDriverId" (selectionChange)="onFleetFilterChange()">
+            <mat-option [value]="null">All Drivers</mat-option>
+            <mat-option *ngFor="let d of fleetDrivers" [value]="d.id">{{ d.fullName }}</mat-option>
+          </mat-select>
+        </mat-form-field>
+      </ng-container>
+
+      <div class="period-display">
+        <span class="period-label">Time period</span>
+        <span class="period-value">{{ periodLabel }}</span>
+      </div>
     </div>
-    <div class="stat-chip">
-      <div class="stat-label">Avg Speed</div>
-      <div class="stat-value">{{ avgSpeed }} km/h</div>
+
+    <div class="preset-row">
+      <button type="button" class="preset-chip"
+        *ngFor="let p of datePresets"
+        [class.active]="datePreset === p.id"
+        (click)="onPresetChange(p.id)">{{ p.label }}</button>
     </div>
+
+    <div class="custom-dates" *ngIf="datePreset === 'custom'">
+      <mat-form-field appearance="outline">
+        <mat-label>From</mat-label>
+        <input matInput type="datetime-local" [(ngModel)]="from">
+      </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label>To</mat-label>
+        <input matInput type="datetime-local" [(ngModel)]="to">
+      </mat-form-field>
+      <button type="button" class="btn btn-secondary" (click)="load()">Apply</button>
+    </div>
+
+    <div class="range-filters-row">
+      <mat-form-field appearance="outline" class="range-field">
+        <mat-label>Min distance (km)</mat-label>
+        <input matInput type="number" min="0" [(ngModel)]="distanceMin" (ngModelChange)="applyFilters()">
+      </mat-form-field>
+      <mat-form-field appearance="outline" class="range-field">
+        <mat-label>Max distance (km)</mat-label>
+        <input matInput type="number" min="0" [(ngModel)]="distanceMax" (ngModelChange)="applyFilters()">
+      </mat-form-field>
+      <mat-form-field appearance="outline" class="range-field">
+        <mat-label>Min speed (km/h)</mat-label>
+        <input matInput type="number" min="0" [(ngModel)]="speedMin" (ngModelChange)="applyFilters()">
+      </mat-form-field>
+      <mat-form-field appearance="outline" class="range-field">
+        <mat-label>Max speed (km/h)</mat-label>
+        <input matInput type="number" min="0" [(ngModel)]="speedMax" (ngModelChange)="applyFilters()">
+      </mat-form-field>
+    </div>
+  </section>
+
+  <div *ngIf="apiWarning" class="warn-banner">
+    <mat-icon>warning_amber</mat-icon> {{ apiWarning }}
   </div>
 
   <div *ngIf="error" class="error-banner">
     <mat-icon>error_outline</mat-icon> {{ error }}
   </div>
-  <div *ngIf="loading" class="loading-row"><mat-spinner diameter="28"></mat-spinner></div>
 
-  <div *ngIf="!loading && trips.length === 0 && !error" class="empty-state">
+  <section class="kpi-row">
+    <stb-stat-tile
+      label="Total Trips"
+      [value]="summary?.tripCount ?? 0"
+      icon="route"
+      color="teal"
+      [loading]="loading || analyticsLoading"
+      [sparkline]="distanceSparkline">
+    </stb-stat-tile>
+    <stb-stat-tile
+      label="Distance"
+      [value]="distanceValue"
+      suffix=" km"
+      icon="straighten"
+      color="blue"
+      [loading]="loading || analyticsLoading">
+    </stb-stat-tile>
+    <stb-stat-tile
+      label="Drive Time"
+      [value]="driveTimeValue"
+      icon="schedule"
+      color="teal"
+      [loading]="loading || analyticsLoading">
+    </stb-stat-tile>
+    <stb-stat-tile
+      label="Idle Time"
+      [value]="summary ? idlePercentLabel : '—'"
+      [hint]="summary ? formatDuration(summary.idleMinutes) + ' idle' : ''"
+      icon="hourglass_empty"
+      color="amber"
+      [loading]="loading || analyticsLoading">
+    </stb-stat-tile>
+    <stb-stat-tile
+      label="Avg Speed"
+      [value]="avgSpeedValue"
+      suffix=" km/h"
+      icon="speed"
+      color="blue"
+      [loading]="loading || analyticsLoading">
+    </stb-stat-tile>
+    <stb-stat-tile
+      label="Max Speed"
+      [value]="maxSpeedValue"
+      suffix=" km/h"
+      icon="speed"
+      color="rose"
+      [loading]="loading || analyticsLoading">
+    </stb-stat-tile>
+    <stb-stat-tile
+      label="Stops"
+      [value]="stopCountValue"
+      icon="pause_circle"
+      color="amber"
+      [loading]="loading || analyticsLoading">
+    </stb-stat-tile>
+    <stb-stat-tile
+      label="Overspeed Events"
+      [value]="overspeedCountValue"
+      icon="warning_amber"
+      color="rose"
+      [loading]="loading || analyticsLoading">
+    </stb-stat-tile>
+    <stb-stat-tile
+      label="Engine Hours"
+      [value]="engineHoursValue"
+      suffix=" h"
+      icon="timer"
+      color="teal"
+      [loading]="loading || analyticsLoading">
+    </stb-stat-tile>
+    <stb-stat-tile
+      label="Fuel Est."
+      [value]="fuelValue"
+      suffix=" L"
+      icon="local_gas_station"
+      color="green"
+      [loading]="loading || analyticsLoading">
+    </stb-stat-tile>
+  </section>
+
+  <div *ngIf="loading" class="loading-panel">
+    <app-brand-loader size="md" message="Loading trip analytics…" />
+  </div>
+
+  <section class="analytics-main" *ngIf="!loading && vehicleId">
+    <div class="analytics-map">
+      <app-trip-replay-map
+        [routePoints]="replayRoute"
+        [positions]="replayPlayback"
+        [stops]="replayStops"
+        [events]="replayEvents"
+        [loading]="replayLoading">
+      </app-trip-replay-map>
+    </div>
+    <app-trip-route-analysis-panel
+      [summary]="summary"
+      [events]="analyticsEvents"
+      [selectedTrip]="selectedTrip"
+      [loading]="analyticsLoading || replayLoading">
+    </app-trip-route-analysis-panel>
+  </section>
+
+  <div *ngIf="!loading && !trips.length && !error" class="empty-state">
     <mat-icon>directions_car</mat-icon>
-    <p>No trips detected for the selected period.</p>
-    <p class="sub">Trips are auto-detected from GPS position streams when engine on/off events are recorded.</p>
-  </div>
-
-  <!-- Trip table -->
-  <div class="table-card" *ngIf="!loading && trips.length > 0">
-    <table class="data-table">
-      <thead>
-        <tr>
-          <th>Vehicle</th>
-          <th>Start</th>
-          <th>End</th>
-          <th>Duration</th>
-          <th>Distance</th>
-          <th>Avg Speed</th>
-          <th>Max Speed</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr *ngFor="let t of trips" (click)="openTrip(t)" class="clickable-row">
-          <td class="fw-med">{{ t.vehicleName || ('#' + t.vehicleId) }}</td>
-          <td class="muted small">{{ t.startTime | date:'dd MMM, HH:mm' }}</td>
-          <td class="muted small">{{ t.endTime | date:'dd MMM, HH:mm' }}</td>
-          <td>{{ t.durationMinutes | number:'1.0-0' }} min</td>
-          <td>{{ t.distanceKm | number:'1.1-1' }} km</td>
-          <td>{{ t.avgSpeedKmh | number:'1.0-0' }} km/h</td>
-          <td>
-            <span class="speed-badge" [class.speed-high]="t.maxSpeedKmh > 120">
-              {{ t.maxSpeedKmh | number:'1.0-0' }} km/h
-            </span>
-          </td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
-
-</div>
-
-<!-- Trip detail drawer -->
-<div class="drawer-overlay" *ngIf="selectedTrip" (click)="selectedTrip = null"></div>
-<div class="drawer" [class.open]="!!selectedTrip">
-  <div class="drawer-header" *ngIf="selectedTrip">
-    <div>
-      <h3>Trip Detail</h3>
-      <span class="drawer-sub">{{ selectedTrip.vehicleName || ('#' + selectedTrip.vehicleId) }}</span>
-    </div>
-    <button mat-icon-button (click)="selectedTrip = null"><mat-icon>close</mat-icon></button>
-  </div>
-  <div class="drawer-body" *ngIf="selectedTrip">
-    <!-- Stats -->
-    <div class="trip-stats-grid">
-      <div class="trip-stat">
-        <div class="ts-label">Start</div>
-        <div class="ts-val">{{ selectedTrip.startTime | date:'dd MMM, HH:mm' }}</div>
-      </div>
-      <div class="trip-stat">
-        <div class="ts-label">End</div>
-        <div class="ts-val">{{ selectedTrip.endTime | date:'dd MMM, HH:mm' }}</div>
-      </div>
-      <div class="trip-stat">
-        <div class="ts-label">Distance</div>
-        <div class="ts-val">{{ selectedTrip.distanceKm | number:'1.1-1' }} km</div>
-      </div>
-      <div class="trip-stat">
-        <div class="ts-label">Duration</div>
-        <div class="ts-val">{{ selectedTrip.durationMinutes }} min</div>
-      </div>
-      <div class="trip-stat">
-        <div class="ts-label">Avg Speed</div>
-        <div class="ts-val">{{ selectedTrip.avgSpeedKmh | number:'1.0-0' }} km/h</div>
-      </div>
-      <div class="trip-stat">
-        <div class="ts-label">Max Speed</div>
-        <div class="ts-val">{{ selectedTrip.maxSpeedKmh | number:'1.0-0' }} km/h</div>
-      </div>
-    </div>
-
-    <!-- Position count -->
-    <div *ngIf="drawerLoading" class="drawer-loading"><mat-spinner diameter="24"></mat-spinner></div>
-    <div *ngIf="!drawerLoading && drawerPositions.length > 0" class="drawer-info">
-      {{ drawerPositions.length }} position points recorded during this trip.
-    </div>
-    <div *ngIf="!drawerLoading && drawerPositions.length === 0" class="drawer-empty">
-      No detailed position data available for this trip.
+    <h3>No trips found</h3>
+    <p *ngIf="!isFleetWide">Possible reasons:</p>
+    <ul *ngIf="!isFleetWide">
+      <li *ngFor="let r of emptyReasons">{{ r }}</li>
+    </ul>
+    <p *ngIf="isFleetWide">{{ emptyReasons[0] }}</p>
+    <div class="context-card" *ngIf="context">
+      <div><strong>Last communication:</strong> {{ context.lastPositionAt ? (context.lastPositionAt | date:'dd MMM yyyy, HH:mm') : '—' }}</div>
+      <div><strong>Current status:</strong> {{ context.isOnline ? 'Online' : 'Offline' }}</div>
+      <div *ngIf="context.lastLatitude != null"><strong>Last position:</strong> {{ context.lastLatitude | number:'1.4-4' }}, {{ context.lastLongitude | number:'1.4-4' }}</div>
+      <div *ngIf="context.deviceName"><strong>Device:</strong> {{ context.deviceName }} ({{ context.uniqueId }})</div>
     </div>
   </div>
+
+  <section class="trip-logs" *ngIf="!loading && trips.length > 0">
+    <div class="trip-logs__head">
+      <h2 class="section-title">Trip Logs</h2>
+      <mat-form-field appearance="outline" class="log-search">
+        <mat-label>Find logs…</mat-label>
+        <mat-icon matPrefix>search</mat-icon>
+        <input matInput [(ngModel)]="logSearch" (ngModelChange)="applyFilters()" placeholder="Vehicle, driver, location, plate…">
+      </mat-form-field>
+    </div>
+
+    <div class="table-card">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th *ngIf="isFleetWide">Vehicle</th>
+            <th>Trip Date</th>
+            <th>Start / End Location</th>
+            <th>Duration</th>
+            <th>Dist (km)</th>
+            <th>Avg Speed</th>
+            <th>Max Speed</th>
+            <th>Fuel</th>
+            <th>Events</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let t of paginatedTrips"
+              [class.selected]="selectedTrip?.vehicleId === t.vehicleId && selectedTrip?.startTime === t.startTime && selectedTrip?.endTime === t.endTime"
+              (click)="selectTrip(t)"
+              class="clickable-row">
+            <td *ngIf="isFleetWide" class="vehicle-cell">{{ vehicleLabel(t) }}</td>
+            <td class="trip-date">{{ formatTripDate(t) }}</td>
+            <td class="location-cell">{{ formatLocation(t) }}</td>
+            <td>{{ formatDuration(t.durationMinutes) }}</td>
+            <td>{{ t.distanceKm | number:'1.1-1' }}</td>
+            <td>{{ t.avgSpeedKmh | number:'1.0-0' }} km/h</td>
+            <td>
+              <span class="speed-pill" [class.speed-pill--high]="t.maxSpeedKmh > 90">
+                {{ t.maxSpeedKmh | number:'1.0-0' }} km/h
+              </span>
+            </td>
+            <td>{{ t.fuelLiters != null ? (t.fuelLiters | number:'1.1-1') + ' L' : '—' }}</td>
+            <td>
+              <span class="event-badges">
+                <mat-icon *ngFor="let icon of tripEventIcons(t)" [title]="icon">{{ icon }}</mat-icon>
+              </span>
+            </td>
+            <td>
+              <button type="button" class="icon-btn" (click)="viewTrip(t, $event)" title="View / Replay">
+                <mat-icon>visibility</mat-icon>
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="table-footer" *ngIf="filteredTrips.length > pageSize">
+        <span class="page-info">
+          {{ pageIndex * pageSize + 1 }}–{{ pageIndex * pageSize + paginatedTrips.length }} of {{ filteredTrips.length }}
+        </span>
+        <div class="page-controls">
+          <button type="button" class="btn btn-secondary btn-sm" (click)="prevPage()" [disabled]="pageIndex === 0">
+            <mat-icon>chevron_left</mat-icon>
+          </button>
+          <span>Page {{ pageIndex + 1 }} / {{ totalPages }}</span>
+          <button type="button" class="btn btn-secondary btn-sm" (click)="nextPage()" [disabled]="pageIndex >= totalPages - 1">
+            <mat-icon>chevron_right</mat-icon>
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
 </div>

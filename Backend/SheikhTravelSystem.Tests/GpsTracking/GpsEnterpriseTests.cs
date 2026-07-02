@@ -1,6 +1,7 @@
 using FluentAssertions;
 using SheikhTravelSystem.Application.Features.GpsTracking.DTOs;
 using SheikhTravelSystem.Application.Features.GpsTracking.Services;
+using SheikhTravelSystem.Application.Features.GpsTracking.Traccar;
 
 namespace SheikhTravelSystem.Tests.GpsTracking;
 
@@ -48,5 +49,39 @@ public class GpsEnterpriseTests
         var trips = GpsTripDetector.DetectTrips(1, "Bus 1", null, points);
         trips.Should().NotBeEmpty();
         trips[0].DistanceKm.Should().BeGreaterThan(0);
+    }
+
+    [Fact]
+    public void TraccarTripMapper_ConvertsUnitsAndAddresses()
+    {
+        var start = DateTime.UtcNow.AddHours(-1);
+        var end = start.AddMinutes(11);
+        var trip = new TraccarTrip(
+            DeviceId: 11,
+            DeviceName: "Jimi VG03",
+            StartTime: start,
+            EndTime: end,
+            StartLat: 32.1,
+            StartLon: 74.3,
+            EndLat: 32.2,
+            EndLon: 74.4,
+            Distance: 3589.95,
+            AverageSpeed: 10.43,
+            MaxSpeed: 15,
+            Duration: 660,
+            StartAddress: "Pasrur",
+            EndAddress: "Pasrur",
+            DriverName: null);
+
+        var dto = TraccarTripMapper.ToGpsTripDto(trip, 5, "Toyota Corolla", 3, "Jimi VG03");
+
+        dto.VehicleId.Should().Be(5);
+        dto.VehicleName.Should().Be("Toyota Corolla");
+        dto.DeviceName.Should().Be("Jimi VG03");
+        dto.DistanceKm.Should().BeApproximately(3.59, 0.01);
+        dto.DurationMinutes.Should().Be(11);
+        dto.AvgSpeedKmh.Should().BeApproximately(19.3m, 0.1m);
+        dto.StartAddress.Should().Be("Pasrur");
+        dto.EndAddress.Should().Be("Pasrur");
     }
 }

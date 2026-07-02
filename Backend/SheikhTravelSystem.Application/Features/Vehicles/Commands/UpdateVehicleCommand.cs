@@ -1,10 +1,12 @@
 using Dapper;
 using FluentValidation;
 using MediatR;
+using Microsoft.Data.SqlClient;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Exceptions;
 using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Application.Features.Vehicles.DTOs;
+using SheikhTravelSystem.Domain.Enums;
 
 namespace SheikhTravelSystem.Application.Features.Vehicles.Commands;
 
@@ -21,7 +23,13 @@ public class UpdateVehicleCommandValidator : AbstractValidator<UpdateVehicleComm
     {
         RuleFor(x => x.Id).GreaterThan(0);
         RuleFor(x => x.Vehicle.Name).NotEmpty().MaximumLength(100);
-        RuleFor(x => x.Vehicle.RegistrationNumber).NotEmpty().MaximumLength(20);
+        RuleFor(x => x.Vehicle.RegistrationNumber)
+            .NotEmpty()
+            .MaximumLength(20)
+            .When(x => x.Vehicle.Status != VehicleStatus.Draft);
+        RuleFor(x => x.Vehicle.RegistrationNumber)
+            .MaximumLength(20)
+            .When(x => x.Vehicle.Status == VehicleStatus.Draft);
         RuleFor(x => x.Vehicle.FuelAverage).GreaterThan(0);
         RuleFor(x => x.Vehicle.SeatingCapacity).GreaterThan(0);
     }
@@ -45,44 +53,66 @@ public class UpdateVehicleCommandHandler(IDbConnectionFactory dbFactory, ITenant
         if (!exists)
             throw new NotFoundException("Vehicle", request.Id);
 
-        var regConflict = await connection.ExecuteScalarAsync<bool>(
-            new CommandDefinition(
-                @"SELECT CASE WHEN EXISTS(
-                    SELECT 1 FROM Vehicles
-                    WHERE RegistrationNumber = @Reg AND Id != @Id AND TenantId = @TenantId AND IsDeleted = 0
-                  ) THEN 1 ELSE 0 END",
-                new { Reg = dto.RegistrationNumber.Trim(), request.Id, TenantId = tenantId },
-                cancellationToken: cancellationToken));
+        var registration = string.IsNullOrWhiteSpace(dto.RegistrationNumber)
+            ? null
+            : dto.RegistrationNumber.Trim();
 
-        if (regConflict)
+        if (!string.IsNullOrWhiteSpace(registration))
+        {
+            var regConflict = await connection.ExecuteScalarAsync<bool>(
+                new CommandDefinition(
+                    @"SELECT CASE WHEN EXISTS(
+                        SELECT 1 FROM Vehicles
+                        WHERE RegistrationNumber = @Reg AND Id != @Id AND TenantId = @TenantId AND IsDeleted = 0
+                      ) THEN 1 ELSE 0 END",
+                    new { Reg = registration, request.Id, TenantId = tenantId },
+                    cancellationToken: cancellationToken));
+
+            if (regConflict)
+                throw new ConflictException($"Registration '{registration}' is already in use.");
+        }
+
+        int rows;
+        try
+        {
+            rows = await connection.ExecuteAsync(
+                new CommandDefinition(
+                    @"UPDATE Vehicles SET Name = @Name,
+                      RegistrationNumber = COALESCE(@RegistrationNumber, RegistrationNumber),
+                      VehicleCode = @VehicleCode, VIN = @VIN, Make = @Make, Model = @Model, Year = @Year,
+                      Color = @Color, VehicleType = @VehicleType,
+                      SeatingCapacity = @SeatingCapacity, FuelAverage = @FuelAverage, FuelType = @FuelType,
+                      EngineNo = @EngineNo, ChassisNo = @ChassisNo,
+                      CurrentMileage = @CurrentMileage, InsuranceExpiryDate = @InsuranceExpiryDate,
+                      PurchaseDate = @PurchaseDate, PurchasePrice = @PurchasePrice,
+                      PurchaseCurrencyCode = @PurchaseCurrencyCode,
+                      BranchId = @BranchId, DepartmentId = @DepartmentId, Status = @Status,
+                      UpdatedAt = @UpdatedAt
+                      WHERE Id = @Id AND TenantId = @TenantId AND IsDeleted = 0",
+                    new
+                    {
+                        dto.Name,
+                        RegistrationNumber = registration,
+                        dto.VehicleCode, dto.VIN, dto.Make, dto.Model, dto.Year,
+                        dto.Color, dto.VehicleType, dto.SeatingCapacity, dto.FuelAverage,
+                        FuelType = (int)dto.FuelType, dto.EngineNo, dto.ChassisNo,
+                        dto.CurrentMileage, dto.InsuranceExpiryDate, dto.PurchaseDate, dto.PurchasePrice,
+                        PurchaseCurrencyCode = string.IsNullOrWhiteSpace(dto.PurchaseCurrencyCode)
+                            ? null
+                            : dto.PurchaseCurrencyCode.Trim().ToUpperInvariant(),
+                        dto.BranchId, dto.DepartmentId, Status = (int)dto.Status,
+                        UpdatedAt = DateTime.UtcNow, request.Id, TenantId = tenantId
+                    },
+                    cancellationToken: cancellationToken));
+        }
+        catch (SqlException ex) when (ex.Number is 2627 or 2601
+            && ex.Message.Contains("UQ_Vehicles_Registration", StringComparison.OrdinalIgnoreCase))
+        {
+            // The pre-check above only looks at active, same-tenant rows, but the DB constraint
+            // doesn't share that scoping (e.g. a soft-deleted or cross-tenant vehicle can still
+            // hold the registration number) — surface a proper conflict instead of a 500.
             throw new ConflictException($"Registration '{dto.RegistrationNumber}' is already in use.");
-
-        var rows = await connection.ExecuteAsync(
-            new CommandDefinition(
-                @"UPDATE Vehicles SET Name = @Name, RegistrationNumber = @RegistrationNumber,
-                  VehicleCode = @VehicleCode, VIN = @VIN, Make = @Make, Model = @Model, Year = @Year,
-                  Color = @Color, VehicleType = @VehicleType,
-                  SeatingCapacity = @SeatingCapacity, FuelAverage = @FuelAverage, FuelType = @FuelType,
-                  EngineNo = @EngineNo, ChassisNo = @ChassisNo,
-                  CurrentMileage = @CurrentMileage, InsuranceExpiryDate = @InsuranceExpiryDate,
-                  PurchaseDate = @PurchaseDate, PurchasePrice = @PurchasePrice,
-                  PurchaseCurrencyCode = @PurchaseCurrencyCode,
-                  BranchId = @BranchId, DepartmentId = @DepartmentId, Status = @Status,
-                  UpdatedAt = @UpdatedAt
-                  WHERE Id = @Id AND TenantId = @TenantId AND IsDeleted = 0",
-                new
-                {
-                    dto.Name, dto.RegistrationNumber, dto.VehicleCode, dto.VIN, dto.Make, dto.Model, dto.Year,
-                    dto.Color, dto.VehicleType, dto.SeatingCapacity, dto.FuelAverage,
-                    FuelType = (int)dto.FuelType, dto.EngineNo, dto.ChassisNo,
-                    dto.CurrentMileage, dto.InsuranceExpiryDate, dto.PurchaseDate, dto.PurchasePrice,
-                    PurchaseCurrencyCode = string.IsNullOrWhiteSpace(dto.PurchaseCurrencyCode)
-                        ? null
-                        : dto.PurchaseCurrencyCode.Trim().ToUpperInvariant(),
-                    dto.BranchId, dto.DepartmentId, Status = (int)dto.Status,
-                    UpdatedAt = DateTime.UtcNow, request.Id, TenantId = tenantId
-                },
-                cancellationToken: cancellationToken));
+        }
 
         if (rows == 0)
             throw new NotFoundException("Vehicle", request.Id);

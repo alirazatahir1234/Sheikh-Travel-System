@@ -12,7 +12,13 @@ public record PositionDto(
     double? Heading,
     double? Altitude,
     bool? Ignition,
-    DateTime Timestamp);
+    DateTime Timestamp,
+    decimal? FuelLevel = null,
+    decimal? BatteryLevel = null,
+    int? GsmSignal = null,
+    decimal? TotalDistanceKm = null,
+    string? Address = null,
+    string? AlarmType = null);
 
 public record IngestPositionDto(
     int VehicleId,
@@ -24,7 +30,13 @@ public record IngestPositionDto(
     decimal Speed,
     double? Heading = null,
     double? Altitude = null,
-    bool? Ignition = null);
+    bool? Ignition = null,
+    decimal? FuelLevel = null,
+    decimal? BatteryLevel = null,
+    int? GsmSignal = null,
+    decimal? TotalDistanceKm = null,
+    string? Address = null,
+    string? AlarmType = null);
 
 public record GpsDeviceDto(
     int Id,
@@ -148,7 +160,13 @@ public record GpsTripDto(
     double DistanceKm,
     decimal AvgSpeedKmh,
     decimal MaxSpeedKmh,
-    int DurationMinutes);
+    int DurationMinutes,
+    string? DeviceName = null,
+    string? StartAddress = null,
+    string? EndAddress = null,
+    string? DriverName = null,
+    decimal? FuelLiters = null,
+    string? PlateNumber = null);
 
 public record GpsDeviceCommandDto(
     int Id,

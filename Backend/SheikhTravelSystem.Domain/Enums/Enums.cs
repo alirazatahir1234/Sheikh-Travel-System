@@ -49,7 +49,8 @@ public enum NotificationType
     TripDelayed = 2,
     VehicleOffline = 3,
     PaymentReceived = 4,
-    EngineCommandSent = 5
+    EngineCommandSent = 5,
+    Sos = 6
 }
 
 public enum MaintenanceStatus

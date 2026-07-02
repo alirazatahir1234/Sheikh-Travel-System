@@ -28,7 +28,7 @@ export class AuthInterceptor implements HttpInterceptor {
     return next.handle(authReq).pipe(
       catchError((error: HttpErrorResponse) => {
         if (error.status === 401 && !req.url.includes('/auth/')) {
-          return this.handle401(req, next);
+          return this.handle401(authReq, next);
         }
         return throwError(() => error);
       })
@@ -44,7 +44,7 @@ export class AuthInterceptor implements HttpInterceptor {
         switchMap(res => {
           this.isRefreshing = false;
           this.refreshTokenSubject.next(res.accessToken);
-          return next.handle(req.clone({ setHeaders: { Authorization: `Bearer ${res.accessToken}` } }));
+          return next.handle(this.withBearerToken(req, res.accessToken));
         }),
         catchError(err => {
           this.isRefreshing = false;
@@ -57,7 +57,15 @@ export class AuthInterceptor implements HttpInterceptor {
     return this.refreshTokenSubject.pipe(
       filter(token => token !== null),
       take(1),
-      switchMap(token => next.handle(req.clone({ setHeaders: { Authorization: `Bearer ${token}` } })))
+      switchMap(token => next.handle(this.withBearerToken(req, token as string)))
     );
+  }
+
+  private withBearerToken(req: HttpRequest<unknown>, accessToken: string): HttpRequest<unknown> {
+    return req.clone({
+      setHeaders: {
+        Authorization: `Bearer ${accessToken}`
+      }
+    });
   }
 }

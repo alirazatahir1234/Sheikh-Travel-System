@@ -1,0 +1,101 @@
+<div class="tracker-details-page">
+  <header class="page-head">
+    <button type="button" class="back-link" (click)="back()">
+      <mat-icon>arrow_back</mat-icon>
+      Fleet Trackers
+    </button>
+    <h1 *ngIf="tracker">{{ tracker.name }}</h1>
+    <p class="subtitle" *ngIf="tracker">Tracker details and installation history</p>
+  </header>
+
+  <div *ngIf="loading" class="loading-wrap">
+    <mat-spinner diameter="40"></mat-spinner>
+  </div>
+
+  <ng-container *ngIf="tracker && !loading">
+    <section class="status-card">
+      <div class="status-row">
+        <span class="label">Status</span>
+        <span class="badge" [ngClass]="statusClass">{{ statusLabel }}</span>
+      </div>
+
+      <div class="detail-grid">
+        <div>
+          <span class="label">IMEI</span>
+          <strong class="mono">{{ tracker.uniqueId }}</strong>
+        </div>
+        <div>
+          <span class="label">Model</span>
+          <strong>{{ trackerModelLine }}</strong>
+        </div>
+        <div *ngIf="isInstalled">
+          <span class="label">Current Vehicle</span>
+          <strong>{{ tracker.vehicleName || '—' }}</strong>
+          <span class="meta" *ngIf="tracker.plateNumber">{{ tracker.plateNumber }}</span>
+        </div>
+        <div *ngIf="isInstalled">
+          <span class="label">Installed On</span>
+          <strong>{{ formatDate(tracker.installationDate) }}</strong>
+        </div>
+        <div *ngIf="isInstalled && tracker.installedBy">
+          <span class="label">Installed By</span>
+          <strong>{{ tracker.installedBy }}</strong>
+        </div>
+        <div>
+          <span class="label">Remote Immobilizer</span>
+          <strong>{{ tracker.supportsEngineCutoff ? 'Enabled' : 'Disabled' }}</strong>
+          <span class="meta" *ngIf="tracker.supportsEngineCutoff">{{ immobilizerLabel }}</span>
+        </div>
+      </div>
+
+      <div class="actions" *ngIf="isInstalled">
+        <button type="button" class="btn btn-primary" (click)="goTransfer()">
+          <mat-icon>swap_horiz</mat-icon> Transfer Tracker
+        </button>
+        <button type="button" class="btn btn-secondary" (click)="removeInstallation()" [disabled]="removing">
+          <mat-icon>link_off</mat-icon> Remove Installation
+        </button>
+        <button type="button" class="btn btn-secondary" (click)="goEditInventory()">
+          <mat-icon>edit</mat-icon> Edit Inventory
+        </button>
+      </div>
+
+      <div class="actions" *ngIf="isMaintenance">
+        <p class="maint-note">This tracker is in maintenance. Complete service before reinstalling.</p>
+        <button type="button" class="btn btn-secondary" (click)="goEditInventory()">Edit Inventory</button>
+      </div>
+    </section>
+
+    <section class="history-card">
+      <h2>Assignment History</h2>
+      <p class="history-sub" *ngIf="!assignments.length">No assignment history yet.</p>
+      <table class="history-table" *ngIf="assignments.length">
+        <thead>
+          <tr>
+            <th>Vehicle</th>
+            <th>Installed On</th>
+            <th>Removed On</th>
+            <th>Status</th>
+            <th>Reason</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let a of assignments">
+            <td>
+              <strong>{{ a.vehicleName || '—' }}</strong>
+              <span class="meta" *ngIf="a.plateNumber">{{ a.plateNumber }}</span>
+            </td>
+            <td>{{ formatDate(a.installedDate) }}</td>
+            <td>{{ a.isActive ? 'Current' : formatDate(a.removedDate) }}</td>
+            <td>
+              <span class="badge" [class.badge-green]="a.isActive" [class.badge-gray]="!a.isActive">
+                {{ assignmentStatus(a) }}
+              </span>
+            </td>
+            <td>{{ a.reason || '—' }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+  </ng-container>
+</div>

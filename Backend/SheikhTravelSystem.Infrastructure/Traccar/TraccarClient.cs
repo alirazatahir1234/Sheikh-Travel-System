@@ -225,6 +225,13 @@ public class TraccarClient(
         return await GetListAsync<TraccarTrip>($"/api/reports/trips?deviceId={deviceId}&from={f}&to={t}", ct);
     }
 
+    public async Task<IReadOnlyList<TraccarPosition>> GetRouteAsync(int deviceId, DateTime from, DateTime to, CancellationToken ct = default)
+    {
+        var f = Uri.EscapeDataString(from.ToString("yyyy-MM-ddTHH:mm:ssZ"));
+        var t = Uri.EscapeDataString(to.ToString("yyyy-MM-ddTHH:mm:ssZ"));
+        return await GetListAsync<TraccarPosition>($"/api/reports/route?deviceId={deviceId}&from={f}&to={t}", ct);
+    }
+
     public async Task<IReadOnlyList<TraccarStop>> GetStopsAsync(int deviceId, DateTime from, DateTime to, CancellationToken ct = default)
     {
         var f = Uri.EscapeDataString(from.ToString("yyyy-MM-ddTHH:mm:ssZ"));
@@ -313,17 +320,42 @@ public class TraccarClient(
         try
         {
             var response = await http.GetAsync(uri, ct);
+            var body = await response.Content.ReadAsStringAsync(ct);
             if (!response.IsSuccessStatusCode)
             {
-                logger.LogWarning("Traccar GET {Path} returned {Status}", path, response.StatusCode);
+                logger.LogWarning(
+                    "Traccar GET {Path} returned {Status}. Body: {Body}",
+                    path,
+                    response.StatusCode,
+                    TruncateBody(body));
                 return Array.Empty<T>();
             }
-            return await response.Content.ReadFromJsonAsync<List<T>>(JsonOpts, ct) ?? [];
+
+            try
+            {
+                return JsonSerializer.Deserialize<List<T>>(body, JsonOpts) ?? [];
+            }
+            catch (JsonException ex)
+            {
+                logger.LogWarning(
+                    ex,
+                    "Traccar GET {Path} returned invalid JSON. Body: {Body}",
+                    path,
+                    TruncateBody(body));
+                return Array.Empty<T>();
+            }
         }
         catch (Exception ex)
         {
             logger.LogWarning(ex, "Traccar GET {Path} exception", path);
             return Array.Empty<T>();
         }
+    }
+
+    private static string TruncateBody(string body)
+    {
+        if (string.IsNullOrWhiteSpace(body)) return "(empty)";
+        var trimmed = body.Trim();
+        return trimmed.Length <= 200 ? trimmed : trimmed[..200] + "…";
     }
 }

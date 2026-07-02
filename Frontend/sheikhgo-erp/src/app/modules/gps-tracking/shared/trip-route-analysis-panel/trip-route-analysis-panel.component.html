@@ -1,0 +1,43 @@
+<div class="route-panel">
+  <div class="route-panel__head">
+    <h3>Route Analysis</h3>
+    <span class="status-badge" [class.status-badge--done]="selectedTrip">{{ statusLabel }}</span>
+  </div>
+
+  <div *ngIf="loading" class="route-panel__loading">
+    <app-brand-loader size="sm" message="Analyzing route…" />
+  </div>
+
+  <ng-container *ngIf="!loading">
+    <div class="score-block">
+      <div class="score-ring" [attr.aria-label]="'Safety score ' + safetyScore">
+        <svg viewBox="0 0 100 100" class="score-svg">
+          <circle cx="50" cy="50" r="42" class="score-bg" />
+          <circle cx="50" cy="50" r="42" class="score-fg"
+            [style.stroke-dasharray]="264"
+            [style.stroke-dashoffset]="scoreStroke" />
+        </svg>
+        <div class="score-center">
+          <div class="score-num">{{ safetyScore }}</div>
+          <div class="score-lbl">SCORE</div>
+        </div>
+      </div>
+      <div class="score-copy">
+        <div class="score-title">Safety Performance</div>
+        <p>{{ safetyText }}</p>
+      </div>
+    </div>
+
+    <div class="timeline">
+      <div class="timeline-title">Trip Events</div>
+      <div *ngIf="!displayEvents.length" class="timeline-empty">No events for the selected period.</div>
+      <div class="timeline-item" *ngFor="let e of displayEvents" [class]="'tone-' + e.tone">
+        <div class="timeline-icon"><mat-icon>{{ e.icon }}</mat-icon></div>
+        <div class="timeline-body">
+          <div class="timeline-label">{{ e.label }}</div>
+          <div class="timeline-meta">{{ e.time | date:'hh:mm a' }} · {{ e.address || '—' }}</div>
+        </div>
+      </div>
+    </div>
+  </ng-container>
+</div>

@@ -20,6 +20,12 @@
         <mat-icon>{{ gpsHealthy ? 'gps_fixed' : 'gps_off' }}</mat-icon>
         {{ gpsHealthy ? 'GPS healthy' : 'GPS limited' }}
       </div>
+      <label class="refresh-rate-select" aria-label="Auto-refresh interval">
+        <mat-icon>update</mat-icon>
+        <select [ngModel]="refreshRateMs" (ngModelChange)="setRefreshRate($event)">
+          <option *ngFor="let r of refreshRateOptions" [ngValue]="r.id">{{ r.label }}</option>
+        </select>
+      </label>
       <button mat-stroked-button type="button" class="stb-touch" (click)="refreshNow()" [disabled]="loading">
         <mat-icon>refresh</mat-icon>
         Refresh
@@ -35,36 +41,50 @@
     <div class="stat-chip stat-chip--online">
       <mat-icon>wifi_tethering</mat-icon>
       <div>
-        <span class="stat-val">{{ liveStats.tracked }}</span>
-        <span class="stat-lbl">On map</span>
+        <span class="stat-val">{{ fleetCounts.online }}</span>
+        <span class="stat-lbl">Online</span>
+      </div>
+    </div>
+    <div class="stat-chip stat-chip--offline">
+      <mat-icon>signal_wifi_off</mat-icon>
+      <div>
+        <span class="stat-val">{{ fleetCounts.offline }}</span>
+        <span class="stat-lbl">Offline</span>
       </div>
     </div>
     <div class="stat-chip stat-chip--trips">
-      <mat-icon>sensors</mat-icon>
+      <mat-icon>directions_bus</mat-icon>
       <div>
-        <span class="stat-val">{{ liveStats.liveOnline }}</span>
-        <span class="stat-lbl">Live signal</span>
+        <span class="stat-val">{{ fleetCounts.moving }}</span>
+        <span class="stat-lbl">Moving</span>
       </div>
     </div>
     <div class="stat-chip stat-chip--speed">
-      <mat-icon>speed</mat-icon>
+      <mat-icon>local_shipping</mat-icon>
       <div>
-        <span class="stat-val">{{ liveStats.avgSpeed }}<small> km/h</small></span>
-        <span class="stat-lbl">Average speed</span>
+        <span class="stat-val">{{ fleetCounts.idle }}</span>
+        <span class="stat-lbl">Idle</span>
       </div>
     </div>
     <div class="stat-chip stat-chip--warn">
-      <mat-icon>route</mat-icon>
+      <mat-icon>local_parking</mat-icon>
       <div>
-        <span class="stat-val">{{ liveStats.tripsActive }}</span>
-        <span class="stat-lbl">Trips active</span>
+        <span class="stat-val">{{ fleetCounts.parked }}</span>
+        <span class="stat-lbl">Parked</span>
       </div>
     </div>
     <div class="stat-chip stat-chip--alert">
-      <mat-icon>fence</mat-icon>
+      <mat-icon>help_outline</mat-icon>
       <div>
-        <span class="stat-val">{{ liveStats.geofence }}</span>
-        <span class="stat-lbl">Geofence flags</span>
+        <span class="stat-val">{{ fleetCounts.neverSeen }}</span>
+        <span class="stat-lbl">Never Seen</span>
+      </div>
+    </div>
+    <div class="stat-chip stat-chip--sos" *ngIf="fleetCounts.sos > 0">
+      <mat-icon>sos</mat-icon>
+      <div>
+        <span class="stat-val">{{ fleetCounts.sos }}</span>
+        <span class="stat-lbl">SOS</span>
       </div>
     </div>
   </section>
@@ -83,20 +103,27 @@
           <mat-icon>search</mat-icon>
           <input
             type="search"
-            placeholder="Search vehicle, plate, driver…"
+            placeholder="Search vehicle, plate, driver, IMEI, tracker…"
             [(ngModel)]="searchQuery"
+            (ngModelChange)="onSearchQueryChanged($event)"
             aria-label="Search vehicles" />
         </div>
 
         <div class="panel-status">
           <span class="status-pill status-pill--moving">
-            <span class="dot dot--pulse"></span> Active {{ statusCounts.moving }}
+            <span class="dot dot--pulse"></span> Moving {{ statusCounts.moving }}
           </span>
           <span class="status-pill status-pill--idle">
             <span class="dot dot--pulse-slow"></span> Idle {{ statusCounts.idle }}
           </span>
+          <span class="status-pill status-pill--parked">
+            <span class="dot"></span> Parked {{ statusCounts.parked }}
+          </span>
           <span class="status-pill status-pill--offline">
             <span class="dot"></span> Offline {{ statusCounts.offline }}
+          </span>
+          <span class="status-pill status-pill--sos" *ngIf="statusCounts.sos > 0">
+            <span class="dot dot--pulse"></span> SOS {{ statusCounts.sos }}
           </span>
         </div>
 
@@ -105,17 +132,42 @@
           <span class="panel-count">{{ filteredLocations.length }}</span>
         </div>
 
-        <div class="panel-list" role="list">
-          <mat-spinner *ngIf="loading" diameter="28" class="panel-spinner"></mat-spinner>
+        <mat-spinner *ngIf="loading" diameter="28" class="panel-spinner"></mat-spinner>
 
+        <div *ngIf="!loading && filteredLocations.length === 0" class="panel-empty">
+          <div class="panel-empty-art"><mat-icon>gps_off</mat-icon></div>
+          <h3>No vehicles match</h3>
+          <p>Adjust filters or assign GPS-enabled vehicles to start live tracking.</p>
+          <button mat-flat-button color="primary" type="button" class="stb-touch" (click)="goToVehicles()">
+            <mat-icon>directions_bus</mat-icon>
+            Manage fleet
+          </button>
+        </div>
+        <div *ngIf="syncError && !loading" class="panel-error">
+          <mat-icon>cloud_off</mat-icon>
+          <p>{{ syncError }}</p>
+        </div>
+        <div *ngIf="mapError && !loading" class="panel-error">
+          <mat-icon>map</mat-icon>
+          <p>{{ mapError }}</p>
+        </div>
+
+        <cdk-virtual-scroll-viewport
+          *ngIf="!loading && filteredLocations.length > 0"
+          class="panel-list"
+          itemSize="112"
+          role="list">
           <button
             type="button"
             class="vehicle-card"
-            *ngFor="let loc of filteredLocations"
+            *cdkVirtualFor="let loc of filteredLocations"
             [class.vehicle-card--selected]="selectedVehicleId === loc.vehicleId"
             [class.vehicle-card--moving]="loc.status === 'moving'"
             [class.vehicle-card--idle]="loc.status === 'idle'"
+            [class.vehicle-card--parked]="loc.status === 'parked'"
             [class.vehicle-card--offline]="loc.status === 'offline'"
+            [class.vehicle-card--never-seen]="loc.status === 'never_seen'"
+            [class.vehicle-card--sos]="loc.status === 'sos'"
             [class.vehicle-card--delayed]="loc.status === 'delayed'"
             [class.vehicle-card--scheduled]="loc.status === 'scheduled'"
             (click)="selectVehicle(loc)"
@@ -153,29 +205,11 @@
               <mat-icon>open_in_new</mat-icon>
             </button>
           </button>
-
-          <div *ngIf="!loading && filteredLocations.length === 0" class="panel-empty">
-            <div class="panel-empty-art"><mat-icon>gps_off</mat-icon></div>
-            <h3>No vehicles match</h3>
-            <p>Adjust filters or assign GPS-enabled vehicles to start live tracking.</p>
-            <button mat-flat-button color="primary" type="button" class="stb-touch" (click)="goToVehicles()">
-              <mat-icon>directions_bus</mat-icon>
-              Manage fleet
-            </button>
-          </div>
-          <div *ngIf="syncError && !loading" class="panel-error">
-            <mat-icon>cloud_off</mat-icon>
-            <p>{{ syncError }}</p>
-          </div>
-          <div *ngIf="mapError && !loading" class="panel-error">
-            <mat-icon>map</mat-icon>
-            <p>{{ mapError }}</p>
-          </div>
-        </div>
+        </cdk-virtual-scroll-viewport>
 
         <p class="panel-footer desktop-only">
           <mat-icon>autorenew</mat-icon>
-          Auto-refresh every 30s when live tracking is on
+          {{ refreshRateMs ? 'Auto-refresh every ' + (refreshRateMs / 1000) + 's when live tracking is on' : 'Auto-refresh paused' }}
         </p>
       </div>
     </details>
@@ -206,6 +240,31 @@
             </button>
           </div>
         </div>
+        <div class="map-toolbar__row">
+          <div class="filter-chips filter-chips--ghost">
+            <button
+              type="button"
+              class="filter-chip filter-chip--ghost stb-touch"
+              [class.filter-chip--active]="ignitionFilter === 'on'"
+              (click)="setIgnitionFilter('on')">
+              Ignition ON
+            </button>
+            <button
+              type="button"
+              class="filter-chip filter-chip--ghost stb-touch"
+              [class.filter-chip--active]="ignitionFilter === 'off'"
+              (click)="setIgnitionFilter('off')">
+              Ignition OFF
+            </button>
+            <button
+              type="button"
+              class="filter-chip filter-chip--ghost stb-touch"
+              [class.filter-chip--active]="batteryLowOnly"
+              (click)="toggleBatteryLowOnly()">
+              Battery Low
+            </button>
+          </div>
+        </div>
       </div>
 
       <div class="map-shell" #mapHost [class.map-shell--fs]="isMapFullscreen">
@@ -222,6 +281,16 @@
           <button type="button" class="glass-btn stb-touch" matTooltip="Center fleet" aria-label="Center fleet" (click)="centerMap()">
             <mat-icon>my_location</mat-icon>
           </button>
+          <button
+            type="button"
+            class="glass-btn stb-touch"
+            [class.glass-btn--accent]="followSelected"
+            matTooltip="Follow selected vehicle"
+            aria-label="Toggle follow selected vehicle"
+            [disabled]="!selectedVehicleId"
+            (click)="toggleFollowSelected()">
+            <mat-icon>{{ followSelected ? 'location_disabled' : 'directions_run' }}</mat-icon>
+          </button>
           <button type="button" class="glass-btn stb-touch" matTooltip="Refresh" aria-label="Refresh map" (click)="refreshNow()">
             <mat-icon>refresh</mat-icon>
           </button>
@@ -237,9 +306,12 @@
         </div>
 
         <div class="map-legend" aria-label="Map legend">
-          <span><i class="leg moving"></i> Active</span>
+          <span><i class="leg moving"></i> Moving</span>
           <span><i class="leg idle"></i> Idle</span>
+          <span><i class="leg parked"></i> Parked</span>
           <span><i class="leg offline"></i> Offline</span>
+          <span><i class="leg never_seen"></i> Never Seen</span>
+          <span><i class="leg sos"></i> SOS</span>
           <span><i class="leg scheduled"></i> Scheduled</span>
           <span><i class="leg delayed"></i> Delayed</span>
         </div>
@@ -266,6 +338,13 @@
                 <span class="detail-metric-val">{{ loc.driverName }}</span>
               </div>
             </div>
+            <div class="detail-metric" *ngIf="loc.trackerName">
+              <mat-icon>router</mat-icon>
+              <div>
+                <span class="detail-metric-lbl">Tracker</span>
+                <span class="detail-metric-val">{{ loc.trackerName }}</span>
+              </div>
+            </div>
             <div class="detail-metric">
               <mat-icon>speed</mat-icon>
               <div>
@@ -280,15 +359,59 @@
                 <span class="detail-metric-val">{{ loc.ignition ? 'On' : 'Off' }}</span>
               </div>
             </div>
-            <div class="detail-metric">
-              <mat-icon>place</mat-icon>
+            <div class="detail-metric" *ngIf="loc.fuelLevel != null">
+              <mat-icon>local_gas_station</mat-icon>
               <div>
-                <span class="detail-metric-lbl">Coordinates</span>
-                <span class="detail-metric-val detail-metric-val--mono">
-                  {{ loc.latitude | number:'1.4-4' }}, {{ loc.longitude | number:'1.4-4' }}
-                </span>
+                <span class="detail-metric-lbl">Fuel</span>
+                <span class="detail-metric-val">{{ loc.fuelLevel | number:'1.0-0' }}%</span>
               </div>
             </div>
+            <div class="detail-metric" *ngIf="loc.batteryLevel != null">
+              <mat-icon>battery_std</mat-icon>
+              <div>
+                <span class="detail-metric-lbl">Battery</span>
+                <span class="detail-metric-val">{{ loc.batteryLevel | number:'1.0-0' }}%</span>
+              </div>
+            </div>
+            <div class="detail-metric" *ngIf="loc.gsmSignal != null">
+              <mat-icon>signal_cellular_alt</mat-icon>
+              <div>
+                <span class="detail-metric-lbl">GSM Signal</span>
+                <span class="detail-metric-val">{{ loc.gsmSignal }} dBm</span>
+              </div>
+            </div>
+            <div class="detail-metric" *ngIf="loc.totalDistanceKm != null">
+              <mat-icon>timeline</mat-icon>
+              <div>
+                <span class="detail-metric-lbl">Odometer</span>
+                <span class="detail-metric-val">{{ loc.totalDistanceKm | number:'1.0-0' }} km</span>
+              </div>
+            </div>
+            <div class="detail-metric" *ngIf="loc.relayOutput">
+              <mat-icon>electrical_services</mat-icon>
+              <div>
+                <span class="detail-metric-lbl">Relay Status</span>
+                <span class="detail-metric-val">{{ loc.relayOutput }}</span>
+              </div>
+            </div>
+            <div class="detail-metric" *ngIf="loc.address; else coordsFallback">
+              <mat-icon>place</mat-icon>
+              <div>
+                <span class="detail-metric-lbl">Address</span>
+                <span class="detail-metric-val">{{ loc.address }}</span>
+              </div>
+            </div>
+            <ng-template #coordsFallback>
+              <div class="detail-metric">
+                <mat-icon>place</mat-icon>
+                <div>
+                  <span class="detail-metric-lbl">Coordinates</span>
+                  <span class="detail-metric-val detail-metric-val--mono">
+                    {{ loc.latitude | number:'1.4-4' }}, {{ loc.longitude | number:'1.4-4' }}
+                  </span>
+                </div>
+              </div>
+            </ng-template>
             <div class="detail-metric" *ngIf="loc.routeHint">
               <mat-icon>route</mat-icon>
               <div>

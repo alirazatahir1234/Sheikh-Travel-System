@@ -95,16 +95,17 @@ export function normalizeInventoryStatus(status?: string): string {
 export function assignmentLabel(device: GpsDevice): string {
   if (device.vehicleName) return 'Installed';
   const s = normalizeInventoryStatus(device.currentStatus);
-  if (s === 'Available') return 'In Stock';
+  if (s === 'Available') return 'Available';
   if (s === 'Installed' && !device.vehicleId) return 'Unassigned';
   if (s === 'Maintenance') return 'Maintenance';
+  if (s === 'Removed') return 'Removed';
   return s;
 }
 
 export function assignmentTooltip(device: GpsDevice): string {
   if (device.vehicleName) return `Installed on ${device.vehicleName}`;
   const s = normalizeInventoryStatus(device.currentStatus);
-  if (s === 'Available') return 'Available in inventory';
+  if (s === 'Available') return 'Available — ready to install';
   return assignmentLabel(device);
 }
 

@@ -1,10 +1,12 @@
 using Dapper;
 using FluentValidation;
 using MediatR;
+using Microsoft.Extensions.Options;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Application.Features.GpsTracking.DTOs;
 using SheikhTravelSystem.Application.Features.GpsTracking.Services;
+using SheikhTravelSystem.Application.Features.GpsTracking.Traccar;
 using SheikhTravelSystem.Domain.Enums;
 
 namespace SheikhTravelSystem.Application.Features.GpsTracking.Commands;
@@ -25,7 +27,8 @@ public class IngestPositionCommandHandler(
     IDbConnectionFactory dbFactory,
     INotificationService notifications,
     ILocationBroadcastService broadcaster,
-    ICurrentUserService currentUser)
+    ICurrentUserService currentUser,
+    IOptions<TraccarOptions> traccarOptions)
     : IRequestHandler<IngestPositionCommand, ApiResponse<bool>>
 {
     public async Task<ApiResponse<bool>> Handle(IngestPositionCommand request, CancellationToken cancellationToken)
@@ -77,6 +80,7 @@ public class IngestPositionCommandHandler(
 
         var ingestDto = dto with { BookingId = bookingId };
         await EvaluateAlertsAsync(connection, ingestDto, recordedAt, cancellationToken);
+        await EvaluateSosAsync(connection, ingestDto, recordedAt, cancellationToken);
 
         if (GpsPositionIngestionHelper.ShouldAttemptTripPersistence(dto.Speed, dto.Ignition, previousSpeed))
         {
@@ -91,9 +95,64 @@ public class IngestPositionCommandHandler(
             dto.Speed,
             dto.Ignition,
             recordedAt,
+            dto.Heading,
+            dto.FuelLevel,
+            dto.BatteryLevel,
+            dto.GsmSignal,
+            dto.TotalDistanceKm,
+            dto.Address,
+            dto.AlarmType,
             cancellationToken);
 
         return ApiResponse<bool>.SuccessResponse(true, "Position recorded.");
+    }
+
+    private async Task EvaluateSosAsync(
+        System.Data.IDbConnection connection,
+        IngestPositionDto dto,
+        DateTime timestamp,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(dto.AlarmType))
+        {
+            return;
+        }
+
+        var sosValues = traccarOptions.Value.SosAlarmValues;
+        var isSos = sosValues is { Length: > 0 } &&
+            sosValues.Any(v => string.Equals(v, dto.AlarmType, StringComparison.OrdinalIgnoreCase));
+
+        if (!isSos)
+        {
+            return;
+        }
+
+        // Suppress re-alerting for the same ongoing incident within a short window.
+        var recentUnacknowledged = await connection.ExecuteScalarAsync<bool>(new CommandDefinition(
+            @"SELECT CASE WHEN EXISTS(
+                SELECT 1 FROM GpsAlertEvents
+                WHERE VehicleId = @VehicleId AND EventType = 'sos' AND IsAcknowledged = 0 AND IsDeleted = 0
+                AND Timestamp > DATEADD(SECOND, -60, @Timestamp)
+              ) THEN 1 ELSE 0 END",
+            new { dto.VehicleId, Timestamp = timestamp },
+            cancellationToken: cancellationToken));
+
+        if (recentUnacknowledged)
+        {
+            return;
+        }
+
+        await InsertAlertAsync(connection, null, dto, null, "sos",
+            "SOS / panic alarm triggered", timestamp, cancellationToken);
+
+        await notifications.CreateForAllAsync(
+            "SOS alert",
+            $"Vehicle #{dto.VehicleId} triggered an SOS/panic alarm.",
+            NotificationType.Sos,
+            dto.VehicleId,
+            cancellationToken);
+
+        await broadcaster.BroadcastSosAlertAsync(dto.VehicleId, dto.Latitude, dto.Longitude, timestamp, cancellationToken);
     }
 
     private async Task EvaluateAlertsAsync(
@@ -169,7 +228,7 @@ public class IngestPositionCommandHandler(
 
     private static async Task InsertAlertAsync(
         System.Data.IDbConnection connection,
-        int ruleId,
+        int? ruleId,
         IngestPositionDto dto,
         int? geofenceId,
         string eventType,

@@ -246,7 +246,11 @@ export class VehicleWizardFacade {
         }
       });
     } else {
-      this.ensureDraft().then(() => this.setupAutosave());
+      this.loading.set(true);
+      void this.ensureDraft()
+        .then(() => this.setupAutosave())
+        .catch(() => this.toast.error('Failed to create vehicle draft. Please refresh and try again.'))
+        .finally(() => this.loading.set(false));
     }
   }
 
@@ -415,7 +419,10 @@ export class VehicleWizardFacade {
 
   async uploadVehicleImage(slotIndex: number, file: File): Promise<void> {
     const vehicleId = this.vehicleId();
-    if (!vehicleId) return;
+    if (!vehicleId) {
+      this.toast.error('Vehicle draft is still being created. Please wait a moment and try again.');
+      return;
+    }
 
     const sizeError = vehicleUploadSizeError(file);
     const slots = [...this.vehicleImageSlots()];
@@ -497,7 +504,10 @@ export class VehicleWizardFacade {
 
   async uploadDocumentSlot(slotIndex: number, file: File): Promise<void> {
     const vehicleId = this.vehicleId();
-    if (!vehicleId) return;
+    if (!vehicleId) {
+      this.toast.error('Vehicle draft is still being created. Please wait a moment and try again.');
+      return;
+    }
 
     const sizeError = vehicleUploadSizeError(file);
     const slots = [...this.documentSlots()];
@@ -563,7 +573,7 @@ export class VehicleWizardFacade {
         this.form.get('registrationNumber')?.markAsTouched();
         this.currentStep.set('details');
       }
-      this.toast.success(message);
+      this.toast.error(message);
     } finally {
       this.publishing.set(false);
     }
@@ -801,12 +811,12 @@ export class VehicleWizardFacade {
   private async ensureDraft(): Promise<void> {
     if (this.vehicleId()) return;
     const dto = this.buildDto();
-    try {
-      const id = await firstValueFrom(this.vehicleService.createDraft(dto));
-      if (id) this.vehicleId.set(id);
-    } catch {
-      this.toast.error('Failed to create draft');
+    const id = await firstValueFrom(this.vehicleService.createDraft(dto));
+    if (!id) {
+      throw new Error('Failed to create vehicle draft');
     }
+    this.vehicleId.set(id);
+    this.vehicleStatus.set(VehicleStatus.Draft);
   }
 
   private setupAutosave(): void {
@@ -816,7 +826,7 @@ export class VehicleWizardFacade {
     this.form.valueChanges.pipe(
       debounceTime(2000),
       distinctUntilChanged(),
-      filter(() => !!this.vehicleId()),
+      filter(() => !!this.vehicleId() && this.canAutosaveDraft()),
       tap(() => this.draftSaving.set(true)),
       switchMap(() => this.persistVehicle(false).then(() => true).catch(() => false)),
       takeUntil(this.destroy$)
@@ -846,7 +856,7 @@ export class VehicleWizardFacade {
       }
     } catch (err) {
       const message = apiErrorMessage(err, 'Failed to save vehicle');
-      if (showToast) this.toast.success(message);
+      if (showToast) this.toast.error(message);
       throw new Error(message);
     }
   }
@@ -899,7 +909,12 @@ export class VehicleWizardFacade {
       this.form.get('registrationNumber')?.markAsTouched();
       this.currentStep.set('details');
     }
-    this.toast.success(message);
+    this.toast.error(message);
+  }
+
+  private canAutosaveDraft(): boolean {
+    const registration = String(this.form.getRawValue().registrationNumber ?? '').trim();
+    return registration.length > 0;
   }
 
   private syncFormValues(): void {

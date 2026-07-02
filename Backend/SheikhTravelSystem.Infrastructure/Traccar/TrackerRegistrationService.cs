@@ -141,13 +141,29 @@ public sealed class TrackerRegistrationService(
         if (existing.Id == 0)
             return ApiResponse<bool>.FailResponse("Tracker not found.");
 
+        var uniqueId = string.IsNullOrWhiteSpace(dto.UniqueId)
+            ? existing.UniqueId
+            : dto.UniqueId.Trim();
+
+        if (!System.Text.RegularExpressions.Regex.IsMatch(uniqueId, @"^\d{15}$"))
+            return ApiResponse<bool>.FailResponse("IMEI must be exactly 15 digits.");
+
+        if (!string.Equals(uniqueId, existing.UniqueId, StringComparison.Ordinal))
+        {
+            var duplicate = await connection.ExecuteScalarAsync<bool>(new CommandDefinition(
+                "SELECT CASE WHEN EXISTS(SELECT 1 FROM GpsDevices WHERE UniqueId = @UniqueId AND Id <> @Id AND IsDeleted = 0) THEN 1 ELSE 0 END",
+                new { UniqueId = uniqueId, Id = id }, cancellationToken: ct));
+            if (duplicate)
+                return ApiResponse<bool>.FailResponse("IMEI already registered.");
+        }
+
         var opts = traccarOptions.Value;
         TraccarDevice? traccarSnapshot = null;
         var traccarPayload = existing.TraccarDeviceId.HasValue
             ? new TraccarUpdateDevicePayload(
                 existing.TraccarDeviceId.Value,
                 dto.Name,
-                existing.UniqueId,
+                uniqueId,
                 dto.Category.ToLowerInvariant(),
                 dto.Phone,
                 model.Name,
@@ -169,6 +185,7 @@ public sealed class TrackerRegistrationService(
                 @"UPDATE GpsDevices SET
                     TenantId = COALESCE(TenantId, @TenantId),
                     Name = @Name,
+                    UniqueId = @UniqueId,
                     Category = @Category, Phone = @Phone, Contact = @Contact, Disabled = @Disabled,
                     Protocol = @Protocol, Model = @Model, Vendor = @Vendor,
                     TrackerModelKey = @TrackerModelKey, TrackerModelId = @TrackerModelId,
@@ -184,6 +201,7 @@ public sealed class TrackerRegistrationService(
                     Id = id,
                     TenantId = tenantId,
                     dto.Name,
+                    UniqueId = uniqueId,
                     Category = dto.Category.ToLowerInvariant(),
                     dto.Phone,
                     dto.Contact,
@@ -267,6 +285,38 @@ public sealed class TrackerRegistrationService(
         if (!await DeviceBelongsToTenantAsync(connection, id, tenantId, ct))
             return ApiResponse<bool>.FailResponse("Tracker not found.");
 
+        var existing = await connection.QueryFirstOrDefaultAsync<(int Id, int? VehicleId, bool SupportsEngineCutoff, string? CurrentStatus, string Name)>(
+            new CommandDefinition(
+                "SELECT Id, VehicleId, SupportsEngineCutoff, CurrentStatus, Name FROM GpsDevices WHERE Id = @Id AND IsDeleted = 0",
+                new { Id = id }, cancellationToken: ct));
+
+        if (existing.Id == 0)
+            return ApiResponse<bool>.FailResponse("Tracker not found.");
+
+        var hasActive = await HasActiveAssignmentAsync(connection, id, tenantId, ct);
+        if (hasActive || existing.VehicleId.HasValue)
+        {
+            var vehicleInfo = await GetVehicleInfoAsync(connection, existing.VehicleId, ct);
+            var label = string.IsNullOrWhiteSpace(vehicleInfo.Name) ? "another vehicle" : $"{vehicleInfo.Name} ({vehicleInfo.Plate})";
+            return ApiResponse<bool>.FailResponse(
+                $"This tracker is already installed on {label}. Remove or transfer the current installation before assigning it to another vehicle.");
+        }
+
+        var status = existing.CurrentStatus ?? "Available";
+        if (!TrackerCatalog.InstallableStatuses.Contains(status))
+            return ApiResponse<bool>.FailResponse($"Tracker cannot be installed while status is {status}.");
+
+        return await AssignToVehicleAsync(connection, id, dto, tenantId, existing.SupportsEngineCutoff, reason: null, ct);
+    }
+
+    public async Task<ApiResponse<bool>> TransferAsync(int id, TransferTrackerDto dto, CancellationToken ct = default)
+    {
+        using var connection = dbFactory.CreateConnection();
+        var tenantId = tenantContext.GetRequiredTenantId();
+
+        if (!await DeviceBelongsToTenantAsync(connection, id, tenantId, ct))
+            return ApiResponse<bool>.FailResponse("Tracker not found.");
+
         var existing = await connection.QueryFirstOrDefaultAsync<(int Id, int? VehicleId, bool SupportsEngineCutoff, string? CurrentStatus)>(
             new CommandDefinition(
                 "SELECT Id, VehicleId, SupportsEngineCutoff, CurrentStatus FROM GpsDevices WHERE Id = @Id AND IsDeleted = 0",
@@ -275,10 +325,76 @@ public sealed class TrackerRegistrationService(
         if (existing.Id == 0)
             return ApiResponse<bool>.FailResponse("Tracker not found.");
 
-        var status = existing.CurrentStatus ?? "Available";
-        if (!TrackerCatalog.InstallableStatuses.Contains(status))
-            return ApiResponse<bool>.FailResponse($"Tracker cannot be installed while status is {status}.");
+        if (!await HasActiveAssignmentAsync(connection, id, tenantId, ct) && !existing.VehicleId.HasValue)
+            return ApiResponse<bool>.FailResponse("Tracker is not currently installed. Use Install instead of Transfer.");
 
+        if (existing.VehicleId == dto.VehicleId)
+            return ApiResponse<bool>.FailResponse("Tracker is already installed on the selected vehicle.");
+
+        await CloseActiveAssignmentAsync(connection, id, tenantId, dto.InstalledBy, dto.Reason, ct);
+
+        var installDto = new InstallTrackerDto(
+            dto.VehicleId, dto.DriverId, dto.InstallationDate, dto.InstalledBy, dto.InstallationNotes, dto.RelayOutput);
+
+        return await AssignToVehicleAsync(connection, id, installDto, tenantId, existing.SupportsEngineCutoff, dto.Reason, ct);
+    }
+
+    public async Task<ApiResponse<bool>> UninstallAsync(int id, UninstallTrackerDto? dto = null, CancellationToken ct = default)
+    {
+        using var connection = dbFactory.CreateConnection();
+        var tenantId = tenantContext.GetRequiredTenantId();
+
+        if (!await DeviceBelongsToTenantAsync(connection, id, tenantId, ct))
+            return ApiResponse<bool>.FailResponse("Tracker not found.");
+
+        var existing = await connection.QueryFirstOrDefaultAsync<(int Id, int? VehicleId)>(
+            new CommandDefinition(
+                "SELECT Id, VehicleId FROM GpsDevices WHERE Id = @Id AND IsDeleted = 0",
+                new { Id = id }, cancellationToken: ct));
+
+        if (existing.Id == 0)
+            return ApiResponse<bool>.FailResponse("Tracker not found.");
+
+        if (!existing.VehicleId.HasValue && !await HasActiveAssignmentAsync(connection, id, tenantId, ct))
+            return ApiResponse<bool>.FailResponse("Tracker is not installed on a vehicle.");
+
+        var now = DateTime.UtcNow;
+        await CloseActiveAssignmentAsync(connection, id, tenantId, dto?.RemovedBy, dto?.Reason, ct);
+
+        await connection.ExecuteAsync(new CommandDefinition(
+            "UPDATE Vehicles SET GpsDeviceId = NULL, UpdatedAt = @Now WHERE GpsDeviceId = @DeviceId AND TenantId = @TenantId",
+            new { DeviceId = id, TenantId = tenantId, Now = now },
+            cancellationToken: ct));
+
+        var rows = await connection.ExecuteAsync(new CommandDefinition(
+            """
+            UPDATE GpsDevices SET
+                VehicleId = NULL,
+                DriverId = NULL,
+                InstallationDate = NULL,
+                InstalledBy = NULL,
+                InstallationNotes = NULL,
+                CurrentStatus = 'Available',
+                UpdatedAt = @Now
+            WHERE Id = @Id AND IsDeleted = 0
+            """,
+            new { Id = id, Now = now },
+            cancellationToken: ct));
+
+        return rows == 0
+            ? ApiResponse<bool>.FailResponse("Tracker not found.")
+            : ApiResponse<bool>.SuccessResponse(true, "Tracker returned to inventory.");
+    }
+
+    private async Task<ApiResponse<bool>> AssignToVehicleAsync(
+        System.Data.IDbConnection connection,
+        int id,
+        InstallTrackerDto dto,
+        int tenantId,
+        bool supportsEngineCutoff,
+        string? reason,
+        CancellationToken ct)
+    {
         var vehicleError = await ValidateVehicleAsync(connection, dto.VehicleId, tenantId, ct);
         if (vehicleError is not null)
             return ApiResponse<bool>.FailResponse(vehicleError);
@@ -290,21 +406,26 @@ public sealed class TrackerRegistrationService(
                 return ApiResponse<bool>.FailResponse(driverError);
         }
 
-        var installationDate = dto.InstallationDate ?? DateTime.UtcNow;
-        var relayOutput = existing.SupportsEngineCutoff ? dto.RelayOutput : null;
+        var targetHasTracker = await connection.ExecuteScalarAsync<bool>(new CommandDefinition(
+            """
+            SELECT CASE WHEN EXISTS(
+                SELECT 1 FROM GpsDeviceAssignments
+                WHERE VehicleId = @VehicleId AND IsActive = 1 AND GpsDeviceId <> @DeviceId AND TenantId = @TenantId
+            ) THEN 1 ELSE 0 END
+            """,
+            new { dto.VehicleId, DeviceId = id, TenantId = tenantId },
+            cancellationToken: ct));
 
-        if (existing.SupportsEngineCutoff && string.IsNullOrWhiteSpace(relayOutput))
+        if (targetHasTracker)
+            return ApiResponse<bool>.FailResponse("Selected vehicle already has an active tracker. Remove it first.");
+
+        var installationDate = dto.InstallationDate ?? DateTime.UtcNow;
+        var relayOutput = supportsEngineCutoff ? dto.RelayOutput : null;
+
+        if (supportsEngineCutoff && string.IsNullOrWhiteSpace(relayOutput))
             return ApiResponse<bool>.FailResponse("Relay output is required when engine immobilizer is enabled.");
 
         var now = DateTime.UtcNow;
-
-        if (existing.VehicleId.HasValue && existing.VehicleId != dto.VehicleId)
-        {
-            await connection.ExecuteAsync(new CommandDefinition(
-                "UPDATE Vehicles SET GpsDeviceId = NULL, UpdatedAt = @Now WHERE Id = @VehicleId AND TenantId = @TenantId",
-                new { VehicleId = existing.VehicleId.Value, TenantId = tenantId, Now = now },
-                cancellationToken: ct));
-        }
 
         await connection.ExecuteAsync(new CommandDefinition(
             """
@@ -312,13 +433,15 @@ public sealed class TrackerRegistrationService(
             WHERE VehicleId = @VehicleId AND Id <> @DeviceId AND IsDeleted = 0
               AND (TenantId = @TenantId OR TenantId IS NULL)
             """,
-            new { VehicleId = dto.VehicleId, DeviceId = id, TenantId = tenantId, Now = now },
+            new { dto.VehicleId, DeviceId = id, TenantId = tenantId, Now = now },
             cancellationToken: ct));
 
         await connection.ExecuteAsync(new CommandDefinition(
             "UPDATE Vehicles SET GpsDeviceId = NULL, UpdatedAt = @Now WHERE GpsDeviceId = @DeviceId AND TenantId = @TenantId",
             new { DeviceId = id, TenantId = tenantId, Now = now },
             cancellationToken: ct));
+
+        await CloseActiveAssignmentAsync(connection, id, tenantId, dto.InstalledBy, reason, ct);
 
         var rows = await connection.ExecuteAsync(new CommandDefinition(
             """
@@ -352,6 +475,30 @@ public sealed class TrackerRegistrationService(
             return ApiResponse<bool>.FailResponse("Tracker not found.");
 
         await connection.ExecuteAsync(new CommandDefinition(
+            """
+            INSERT INTO GpsDeviceAssignments (
+                TenantId, GpsDeviceId, VehicleId, DriverId, InstalledDate, InstalledBy,
+                InstallationNotes, RelayOutput, Reason, IsActive, CreatedAt)
+            VALUES (
+                @TenantId, @DeviceId, @VehicleId, @DriverId, @InstallationDate, @InstalledBy,
+                @InstallationNotes, @RelayOutput, @Reason, 1, @Now)
+            """,
+            new
+            {
+                TenantId = tenantId,
+                DeviceId = id,
+                dto.VehicleId,
+                dto.DriverId,
+                InstallationDate = installationDate,
+                dto.InstalledBy,
+                dto.InstallationNotes,
+                RelayOutput = relayOutput,
+                Reason = reason,
+                Now = now
+            },
+            cancellationToken: ct));
+
+        await connection.ExecuteAsync(new CommandDefinition(
             "UPDATE Vehicles SET GpsDeviceId = @DeviceId, UpdatedAt = @Now WHERE Id = @VehicleId AND TenantId = @TenantId",
             new { DeviceId = id, dto.VehicleId, TenantId = tenantId, Now = now },
             cancellationToken: ct));
@@ -359,46 +506,40 @@ public sealed class TrackerRegistrationService(
         return ApiResponse<bool>.SuccessResponse(true, "Tracker installed on vehicle.");
     }
 
-    public async Task<ApiResponse<bool>> UninstallAsync(int id, CancellationToken ct = default)
+    private static async Task<bool> HasActiveAssignmentAsync(
+        System.Data.IDbConnection connection, int deviceId, int tenantId, CancellationToken ct)
     {
-        using var connection = dbFactory.CreateConnection();
-        var tenantId = tenantContext.GetRequiredTenantId();
-
-        if (!await DeviceBelongsToTenantAsync(connection, id, tenantId, ct))
-            return ApiResponse<bool>.FailResponse("Tracker not found.");
-
-        var existing = await connection.QueryFirstOrDefaultAsync<(int Id, int? VehicleId)>(
-            new CommandDefinition(
-                "SELECT Id, VehicleId FROM GpsDevices WHERE Id = @Id AND IsDeleted = 0",
-                new { Id = id }, cancellationToken: ct));
-
-        if (existing.Id == 0)
-            return ApiResponse<bool>.FailResponse("Tracker not found.");
-
-        var now = DateTime.UtcNow;
-
-        await connection.ExecuteAsync(new CommandDefinition(
-            "UPDATE Vehicles SET GpsDeviceId = NULL, UpdatedAt = @Now WHERE GpsDeviceId = @DeviceId AND TenantId = @TenantId",
-            new { DeviceId = id, TenantId = tenantId, Now = now },
-            cancellationToken: ct));
-
-        var rows = await connection.ExecuteAsync(new CommandDefinition(
+        return await connection.ExecuteScalarAsync<bool>(new CommandDefinition(
             """
-            UPDATE GpsDevices SET
-                VehicleId = NULL,
-                DriverId = NULL,
-                InstallationDate = NULL,
-                InstalledBy = NULL,
-                CurrentStatus = 'Available',
-                UpdatedAt = @Now
-            WHERE Id = @Id AND IsDeleted = 0
+            SELECT CASE WHEN EXISTS(
+                SELECT 1 FROM GpsDeviceAssignments
+                WHERE GpsDeviceId = @DeviceId AND TenantId = @TenantId AND IsActive = 1
+            ) THEN 1 ELSE 0 END
             """,
-            new { Id = id, Now = now },
+            new { DeviceId = deviceId, TenantId = tenantId },
             cancellationToken: ct));
+    }
 
-        return rows == 0
-            ? ApiResponse<bool>.FailResponse("Tracker not found.")
-            : ApiResponse<bool>.SuccessResponse(true, "Tracker returned to inventory.");
+    private static async Task CloseActiveAssignmentAsync(
+        System.Data.IDbConnection connection,
+        int deviceId,
+        int tenantId,
+        string? removedBy,
+        string? reason,
+        CancellationToken ct)
+    {
+        await connection.ExecuteAsync(new CommandDefinition(
+            """
+            UPDATE GpsDeviceAssignments SET
+                IsActive = 0,
+                RemovedDate = GETUTCDATE(),
+                RemovedBy = @RemovedBy,
+                Reason = COALESCE(@Reason, Reason),
+                UpdatedAt = GETUTCDATE()
+            WHERE GpsDeviceId = @DeviceId AND TenantId = @TenantId AND IsActive = 1
+            """,
+            new { DeviceId = deviceId, TenantId = tenantId, RemovedBy = removedBy, Reason = reason },
+            cancellationToken: ct));
     }
 
     private static object BuildInsertParams(

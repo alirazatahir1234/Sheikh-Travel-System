@@ -199,7 +199,7 @@ export class VehicleInventoryPageComponent implements OnInit {
     this.error.set(null);
 
     forkJoin({
-      vehicles: this.vehicleService.getAll(1, 500).pipe(catchError(() => of({ items: [], totalCount: 0, page: 1, pageSize: 500 }))),
+      vehicles: this.vehicleService.getAll(1, 500, true).pipe(catchError(() => of({ items: [], totalCount: 0, page: 1, pageSize: 500 }))),
       dashboard: this.fleetService.getDashboard().pipe(catchError(() => of(null)))
     }).subscribe({
       next: ({ vehicles, dashboard }) => {

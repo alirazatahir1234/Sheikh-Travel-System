@@ -11,6 +11,11 @@
         <select class="refresh-select" (change)="setRefreshInterval(+$any($event.target).value)" [attr.aria-label]="'Auto-refresh interval'">
           <option *ngFor="let o of refreshOptions" [value]="o.value" [selected]="refreshIntervalMs === o.value">{{ o.label }}</option>
         </select>
+        <button class="btn btn-icon" type="button" (click)="syncNow()" [disabled]="syncing || !traccarStatus?.connected"
+          matTooltip="Sync now from Traccar">
+          <mat-spinner *ngIf="syncing" diameter="18"></mat-spinner>
+          <mat-icon *ngIf="!syncing">cloud_sync</mat-icon>
+        </button>
         <button class="btn btn-icon" type="button" (click)="load()" matTooltip="Refresh now">
           <mat-icon>refresh</mat-icon>
         </button>
@@ -124,7 +129,7 @@
         </ng-container>
 
         <ng-container matColumnDef="assignment">
-          <th mat-header-cell *matHeaderCellDef>Assignment</th>
+          <th mat-header-cell *matHeaderCellDef>Assignment Status</th>
           <td mat-cell *matCellDef="let d">
             <span class="badge" [ngClass]="assignmentClass(d)" [matTooltip]="assignmentHint(d)">{{ assignmentText(d) }}</span>
           </td>
@@ -224,7 +229,7 @@
             <mat-icon>build</mat-icon> Install Tracker
           </button>
           <button mat-menu-item type="button" (click)="openReassign(d)" *ngIf="canReassign(d)">
-            <mat-icon>swap_horiz</mat-icon> Reassign
+            <mat-icon>swap_horiz</mat-icon> Transfer Tracker
           </button>
           <button mat-menu-item type="button" (click)="uninstallTracker(d)" *ngIf="canUninstall(d)">
             <mat-icon>inventory_2</mat-icon> Return to Inventory

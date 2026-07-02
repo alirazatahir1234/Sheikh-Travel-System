@@ -52,8 +52,10 @@ public static class GpsPositionIngestionHelper
 
         await connection.ExecuteAsync(new CommandDefinition(
             @"INSERT INTO GpsPositions
-              (VehicleId, GpsDeviceId, DriverId, BookingId, Latitude, Longitude, Speed, Heading, Altitude, Ignition, RecordedAt, CreatedAt)
-              VALUES (@VehicleId, @GpsDeviceId, @DriverId, @BookingId, @Latitude, @Longitude, @Speed, @Heading, @Altitude, @Ignition, @RecordedAt, @RecordedAt)",
+              (VehicleId, GpsDeviceId, DriverId, BookingId, Latitude, Longitude, Speed, Heading, Altitude, Ignition, RecordedAt, CreatedAt,
+               FuelLevel, BatteryLevel, GsmSignal, TotalDistanceKm, Address, AlarmType)
+              VALUES (@VehicleId, @GpsDeviceId, @DriverId, @BookingId, @Latitude, @Longitude, @Speed, @Heading, @Altitude, @Ignition, @RecordedAt, @RecordedAt,
+               @FuelLevel, @BatteryLevel, @GsmSignal, @TotalDistanceKm, @Address, @AlarmType)",
             new
             {
                 dto.VehicleId,
@@ -66,7 +68,13 @@ public static class GpsPositionIngestionHelper
                 dto.Heading,
                 dto.Altitude,
                 dto.Ignition,
-                RecordedAt = recordedAt
+                RecordedAt = recordedAt,
+                dto.FuelLevel,
+                dto.BatteryLevel,
+                dto.GsmSignal,
+                dto.TotalDistanceKm,
+                dto.Address,
+                dto.AlarmType
             },
             cancellationToken: cancellationToken));
 
@@ -78,10 +86,14 @@ public static class GpsPositionIngestionHelper
             WHEN MATCHED THEN
               UPDATE SET GpsDeviceId = @GpsDeviceId, DriverId = @DriverId, BookingId = @BookingId,
                 Latitude = @Latitude, Longitude = @Longitude, Speed = @Speed, Heading = @Heading,
-                Ignition = @Ignition, LastUpdate = @LastUpdate
+                Ignition = @Ignition, LastUpdate = @LastUpdate,
+                FuelLevel = @FuelLevel, BatteryLevel = @BatteryLevel, GsmSignal = @GsmSignal,
+                TotalDistanceKm = @TotalDistanceKm, Address = @Address, AlarmType = @AlarmType
             WHEN NOT MATCHED THEN
-              INSERT (VehicleId, GpsDeviceId, DriverId, BookingId, Latitude, Longitude, Speed, Heading, Ignition, LastUpdate)
-              VALUES (@VehicleId, @GpsDeviceId, @DriverId, @BookingId, @Latitude, @Longitude, @Speed, @Heading, @Ignition, @LastUpdate);
+              INSERT (VehicleId, GpsDeviceId, DriverId, BookingId, Latitude, Longitude, Speed, Heading, Ignition, LastUpdate,
+                FuelLevel, BatteryLevel, GsmSignal, TotalDistanceKm, Address, AlarmType)
+              VALUES (@VehicleId, @GpsDeviceId, @DriverId, @BookingId, @Latitude, @Longitude, @Speed, @Heading, @Ignition, @LastUpdate,
+                @FuelLevel, @BatteryLevel, @GsmSignal, @TotalDistanceKm, @Address, @AlarmType);
             """,
             new
             {
@@ -94,7 +106,13 @@ public static class GpsPositionIngestionHelper
                 dto.Speed,
                 dto.Heading,
                 dto.Ignition,
-                LastUpdate = recordedAt
+                LastUpdate = recordedAt,
+                dto.FuelLevel,
+                dto.BatteryLevel,
+                dto.GsmSignal,
+                dto.TotalDistanceKm,
+                dto.Address,
+                dto.AlarmType
             },
             cancellationToken: cancellationToken));
 

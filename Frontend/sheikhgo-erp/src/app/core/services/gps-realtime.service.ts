@@ -1,17 +1,23 @@
 import { Injectable, OnDestroy } from '@angular/core';
 import * as signalR from '@microsoft/signalr';
-import { Subject } from 'rxjs';
+import { BehaviorSubject, Subject } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { AuthService } from './auth.service';
-import { PositionDto } from '../models/gps-tracking.model';
+import { PositionDto, SosAlertPayload } from '../models/gps-tracking.model';
+
+export type GpsConnectionState = 'connected' | 'reconnecting' | 'disconnected';
 
 @Injectable({ providedIn: 'root' })
 export class GpsRealtimeService implements OnDestroy {
   private hub?: signalR.HubConnection;
   private readonly updates$ = new Subject<PositionDto>();
+  private readonly sos$ = new Subject<SosAlertPayload>();
+  private readonly connectionState = new BehaviorSubject<GpsConnectionState>('disconnected');
   private subscribedVehicleId: number | null = null;
 
   readonly locationUpdates$ = this.updates$.asObservable();
+  readonly sosAlerts$ = this.sos$.asObservable();
+  readonly connectionState$ = this.connectionState.asObservable();
 
   constructor(private auth: AuthService) {}
 
@@ -20,15 +26,19 @@ export class GpsRealtimeService implements OnDestroy {
       return;
     }
 
-    const token = this.auth.getToken();
     const hubUrl = environment.apiUrl.replace('/api', '/hubs/tracking');
 
     this.hub = new signalR.HubConnectionBuilder()
       .withUrl(hubUrl, {
-        accessTokenFactory: () => token ?? ''
+        // Always read latest token so reconnect uses refreshed credentials.
+        accessTokenFactory: () => this.auth.getToken() ?? ''
       })
       .withAutomaticReconnect([0, 2000, 5000, 10000])
       .build();
+
+    this.hub.onreconnecting(() => this.connectionState.next('reconnecting'));
+    this.hub.onreconnected(() => this.connectionState.next('connected'));
+    this.hub.onclose(() => this.connectionState.next('disconnected'));
 
     this.hub.on('ReceiveLocationUpdate', (payload: PositionDto & { bookingId?: number }) => {
       this.updates$.next({
@@ -39,11 +49,23 @@ export class GpsRealtimeService implements OnDestroy {
         longitude: payload.longitude,
         speed: Number(payload.speed) || 0,
         ignition: payload.ignition,
-        timestamp: payload.timestamp ?? new Date().toISOString()
+        timestamp: payload.timestamp ?? new Date().toISOString(),
+        heading: payload.heading,
+        fuelLevel: payload.fuelLevel,
+        batteryLevel: payload.batteryLevel,
+        gsmSignal: payload.gsmSignal,
+        totalDistanceKm: payload.totalDistanceKm,
+        address: payload.address,
+        alarmType: payload.alarmType
       });
     });
 
+    this.hub.on('ReceiveSosAlert', (payload: SosAlertPayload) => {
+      this.sos$.next(payload);
+    });
+
     await this.hub.start();
+    this.connectionState.next('connected');
     await this.hub.invoke('JoinDispatcherGroup');
   }
 
@@ -77,10 +99,13 @@ export class GpsRealtimeService implements OnDestroy {
     }
     this.hub = undefined;
     this.subscribedVehicleId = null;
+    this.connectionState.next('disconnected');
   }
 
   ngOnDestroy(): void {
     void this.disconnect();
     this.updates$.complete();
+    this.sos$.complete();
+    this.connectionState.complete();
   }
 }

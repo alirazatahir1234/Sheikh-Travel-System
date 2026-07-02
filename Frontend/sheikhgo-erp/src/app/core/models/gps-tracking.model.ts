@@ -1,4 +1,17 @@
-export type FleetTrackStatus = 'moving' | 'idle' | 'offline' | 'scheduled' | 'delayed';
+/**
+ * 'moving'/'idle'/'parked'/'offline'/'never_seen'/'sos' are derived from live Traccar telemetry
+ * (see core/utils/gps-status.util.ts for the single source of truth on how). 'scheduled'/'delayed'
+ * are a separate, booking-derived concern and are not produced by that function.
+ */
+export type FleetTrackStatus =
+  | 'moving'
+  | 'idle'
+  | 'parked'
+  | 'offline'
+  | 'never_seen'
+  | 'sos'
+  | 'scheduled'
+  | 'delayed';
 
 export interface PositionDto {
   id: number;
@@ -13,6 +26,12 @@ export interface PositionDto {
   altitude?: number;
   ignition?: boolean;
   timestamp: string;
+  fuelLevel?: number;
+  batteryLevel?: number;
+  gsmSignal?: number;
+  totalDistanceKm?: number;
+  address?: string;
+  alarmType?: string;
 }
 
 export interface VehicleLocation {
@@ -30,6 +49,24 @@ export interface VehicleLocation {
   isLive?: boolean;
   routeHint?: string;
   ignition?: boolean;
+  heading?: number;
+  fuelLevel?: number;
+  batteryLevel?: number;
+  gsmSignal?: number;
+  totalDistanceKm?: number;
+  address?: string;
+  alarmType?: string;
+  vehicleType?: string | null;
+  trackerName?: string;
+  imei?: string;
+  relayOutput?: string;
+}
+
+export interface SosAlertPayload {
+  vehicleId: number;
+  latitude: number;
+  longitude: number;
+  timestamp: string;
 }
 
 export interface GpsDevice {
@@ -142,6 +179,41 @@ export interface InstallTrackerPayload {
   relayOutput?: string;
 }
 
+export interface TransferTrackerPayload extends InstallTrackerPayload {
+  reason: string;
+}
+
+export interface UninstallTrackerPayload {
+  removedBy?: string;
+  reason?: string;
+}
+
+export interface TrackerAssignment {
+  id: number;
+  gpsDeviceId: number;
+  vehicleId: number;
+  vehicleName?: string | null;
+  plateNumber?: string | null;
+  driverId?: number | null;
+  driverName?: string | null;
+  installedDate: string;
+  removedDate?: string | null;
+  installedBy?: string | null;
+  removedBy?: string | null;
+  reason?: string | null;
+  isActive: boolean;
+}
+
+export interface TrackerInstallVehicle {
+  vehicleId: number;
+  name: string;
+  plateNumber?: string | null;
+  vehicleCode?: string | null;
+  isSelectable: boolean;
+  assignedTrackerName?: string | null;
+  blockedReason?: string | null;
+}
+
 export interface Geofence {
   id: number;
   name: string;
@@ -179,16 +251,137 @@ export interface GpsAlertEvent {
   isAcknowledged: boolean;
 }
 
+export interface TripFleetFilters {
+  branchId?: number | null;
+  departmentId?: number | null;
+  driverId?: number | null;
+}
+
 export interface GpsTrip {
   vehicleId: number;
   vehicleName?: string;
   gpsDeviceId?: number;
+  deviceName?: string;
   startTime: string;
   endTime: string;
   distanceKm: number;
   avgSpeedKmh: number;
   maxSpeedKmh: number;
   durationMinutes: number;
+  startAddress?: string | null;
+  endAddress?: string | null;
+  driverName?: string | null;
+  fuelLiters?: number | null;
+  plateNumber?: string | null;
+}
+
+
+export interface TripAnalyticsSummary {
+  tripCount: number;
+  distanceKm: number;
+  drivingMinutes: number;
+  idleMinutes: number;
+  fuelLiters?: number | null;
+  avgSpeedKmh: number;
+  maxSpeedKmh: number;
+  stopCount: number;
+  overspeedCount: number;
+  harshBrakeCount: number;
+  harshAccelCount: number;
+  engineHours?: number | null;
+}
+
+export interface TripEvent {
+  time: string;
+  type: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  address?: string | null;
+  speedKmh?: number | null;
+}
+
+export interface TripStop {
+  startTime: string;
+  endTime: string;
+  latitude: number;
+  longitude: number;
+  address?: string | null;
+  durationMinutes: number;
+}
+
+export interface TripAnalyticsBundle {
+  summary: TripAnalyticsSummary;
+  events: TripEvent[];
+  stops: TripStop[];
+}
+
+export interface TripReplayPosition {
+  timestamp: string;
+  latitude: number;
+  longitude: number;
+  speedKmh: number;
+  heading?: number | null;
+  ignition?: boolean | null;
+  altitude?: number | null;
+  address?: string | null;
+  batteryLevel?: number | null;
+  satellites?: number | null;
+}
+
+export interface TripReplaySummary {
+  distanceKm: number;
+  drivingMinutes: number;
+  avgSpeedKmh: number;
+  maxSpeedKmh: number;
+  fuelLiters?: number | null;
+  engineHours?: number | null;
+}
+
+/** Aggregated replay payload from Traccar route + stops + events reports. */
+export interface TripReplayBundle {
+  route: TripReplayPosition[];
+  playback: TripReplayPosition[];
+  stops: TripStop[];
+  events: TripEvent[];
+  summary?: TripReplaySummary | null;
+}
+
+export interface GpsFleetStatus {
+  totalVehicles: number;
+  online: number;
+  offline: number;
+  moving: number;
+  idle: number;
+  parked: number;
+  neverSeen: number;
+  avgSpeedKmh?: number | null;
+  todayDistanceKm?: number | null;
+}
+
+export interface TripDeviceContext {
+  vehicleId: number;
+  vehicleName?: string | null;
+  plateNumber?: string | null;
+  gpsDeviceId?: number | null;
+  deviceName?: string | null;
+  uniqueId?: string | null;
+  hasTraccarLink: boolean;
+  isOnline: boolean;
+  lastPositionAt?: string | null;
+  lastLatitude?: number | null;
+  lastLongitude?: number | null;
+  lastAddress?: string | null;
+  lastSpeedKmh?: number | null;
+  lastIgnition?: boolean | null;
+}
+
+export interface TripVehicleOption {
+  vehicleId: number;
+  vehicleName: string;
+  plateNumber: string;
+  deviceName: string;
+  uniqueId: string;
+  isOnline: boolean;
 }
 
 export interface GpsDeviceCommand {

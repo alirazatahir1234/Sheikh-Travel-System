@@ -37,6 +37,9 @@
       <div class="form-grid">
         <ui-select class="span-2" formControlName="vehicleId" label="Vehicle" placeholder="Search vehicle"
           searchPlaceholder="Search by plate, name, or fleet number" [options]="vehicleOptions" [searchable]="true" [required]="true" />
+        <p class="vehicle-hint span-2" *ngIf="vehicleInstallHint">
+          {{ vehicleInstallHint }}
+        </p>
         <ui-select class="span-2" formControlName="driverId" label="Driver" placeholder="Search driver"
           searchPlaceholder="Search driver name" [options]="driverOptions" [searchable]="true" />
 
@@ -55,6 +58,12 @@
           <p class="relay-configured">Configured output: <strong>{{ relayConfiguredLabel }}</strong></p>
         </div>
 
+        <div class="span-2 stb-field" *ngIf="isTransfer">
+          <label for="reason">Transfer Reason <span class="req">*</span></label>
+          <textarea id="reason" class="stb-textarea" formControlName="reason" rows="2"
+            placeholder="e.g. Vehicle sold, hardware moved to replacement unit"></textarea>
+        </div>
+
         <div class="span-2 stb-field">
           <label for="installationNotes">Installation Notes</label>
           <textarea id="installationNotes" class="stb-textarea" formControlName="installationNotes" rows="3"
@@ -67,7 +76,7 @@
       <button type="button" class="btn btn-secondary" (click)="cancel()" [disabled]="saving">Cancel</button>
       <button type="submit" class="btn btn-primary" [disabled]="form.invalid || saving">
         <mat-spinner *ngIf="saving" diameter="18"></mat-spinner>
-        <span>{{ isReassign ? 'Reassign Tracker' : 'Install Tracker' }}</span>
+        <span>{{ isTransfer ? 'Transfer Tracker' : 'Install Tracker' }}</span>
       </button>
     </footer>
   </form>

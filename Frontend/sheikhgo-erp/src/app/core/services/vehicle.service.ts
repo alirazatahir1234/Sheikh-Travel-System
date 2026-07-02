@@ -31,8 +31,11 @@ export class VehicleService {
 
   constructor(private http: HttpClient) {}
 
-  getAll(page = 1, pageSize = 10): Observable<PagedResult<VehicleListItem>> {
-    const params = new HttpParams().set('page', page).set('pageSize', pageSize);
+  getAll(page = 1, pageSize = 10, includeDrafts = false): Observable<PagedResult<VehicleListItem>> {
+    let params = new HttpParams().set('page', page).set('pageSize', pageSize);
+    if (includeDrafts) {
+      params = params.set('includeDrafts', 'true');
+    }
     return this.http.get<PagedResult<VehicleListItem>>(this.base, { params }).pipe(
       map(result => ({
         ...result,

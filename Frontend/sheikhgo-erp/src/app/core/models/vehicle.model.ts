@@ -262,6 +262,7 @@ function emptyToNull(value: string | null | undefined): string | null {
 }
 
 function toOptionalInt(value: unknown): number | null {
+  if (value === '' || value === null || value === undefined) return null;
   const n = Number(value);
   return Number.isFinite(n) ? Math.trunc(n) : null;
 }
