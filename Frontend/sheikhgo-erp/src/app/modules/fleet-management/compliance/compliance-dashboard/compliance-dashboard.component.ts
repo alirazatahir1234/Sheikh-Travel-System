@@ -3,6 +3,7 @@ import { FleetService } from '../../services/fleet.service';
 import { ComplianceDocument } from '../../models/fleet.model';
 
 @Component({
+  standalone: false,
   selector: 'app-compliance-dashboard',
   templateUrl: './compliance-dashboard.component.html',
   styleUrls: ['./compliance-dashboard.component.scss']

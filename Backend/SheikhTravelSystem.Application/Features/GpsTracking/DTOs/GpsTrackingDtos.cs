@@ -18,7 +18,8 @@ public record PositionDto(
     int? GsmSignal = null,
     decimal? TotalDistanceKm = null,
     string? Address = null,
-    string? AlarmType = null);
+    string? AlarmType = null,
+    string? DriverPhone = null);
 
 public record IngestPositionDto(
     int VehicleId,

@@ -7,6 +7,7 @@ import { PaymentService } from '../../../core/services/payment.service';
 import { Payment, PaymentFilter, PaymentStatus } from '../../../core/models/payment.model';
 
 @Component({
+  standalone: false,
   selector: 'app-payment-list',
   templateUrl: './payment-list.component.html',
   styleUrls: ['./payment-list.component.scss']

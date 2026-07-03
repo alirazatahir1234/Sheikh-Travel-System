@@ -57,10 +57,16 @@ public class IngestPositionCommandHandler(
 
         var recordedAt = DateTime.UtcNow;
 
-        var previousSpeed = await connection.ExecuteScalarAsync<decimal?>(new CommandDefinition(
-            "SELECT Speed FROM VehicleCurrentLocation WHERE VehicleId = @VehicleId",
+        // Read the previous state before ingestion overwrites the row — both previousSpeed (for
+        // trip-persistence detection below) and previousIgnition (for the ignition-transition
+        // alert) depend on this happening first; a future reordering of these calls would
+        // silently break both.
+        var previous = await connection.QueryFirstOrDefaultAsync<(decimal? Speed, bool? Ignition)>(new CommandDefinition(
+            "SELECT Speed, Ignition FROM VehicleCurrentLocation WHERE VehicleId = @VehicleId",
             new { dto.VehicleId },
             cancellationToken: cancellationToken));
+        var previousSpeed = previous.Speed;
+        var previousIgnition = previous.Ignition;
 
         await GpsPositionIngestionHelper.IngestAsync(connection, dto, recordedAt, cancellationToken);
 
@@ -81,6 +87,16 @@ public class IngestPositionCommandHandler(
         var ingestDto = dto with { BookingId = bookingId };
         await EvaluateAlertsAsync(connection, ingestDto, recordedAt, cancellationToken);
         await EvaluateSosAsync(connection, ingestDto, recordedAt, cancellationToken);
+        await EvaluateIgnitionTransitionAsync(connection, ingestDto, previousIgnition, recordedAt, cancellationToken);
+        await EvaluateLowFuelAsync(connection, ingestDto, recordedAt, cancellationToken);
+
+        // A position just arrived for this vehicle, so it's no longer offline — clear any
+        // outstanding offline alert the background detector raised while it was unreachable.
+        await connection.ExecuteAsync(new CommandDefinition(
+            @"UPDATE GpsAlertEvents SET IsAcknowledged = 1
+              WHERE VehicleId = @VehicleId AND EventType = 'vehicle_offline' AND IsAcknowledged = 0 AND IsDeleted = 0",
+            new { dto.VehicleId },
+            cancellationToken: cancellationToken));
 
         if (GpsPositionIngestionHelper.ShouldAttemptTripPersistence(dto.Speed, dto.Ignition, previousSpeed))
         {
@@ -224,6 +240,57 @@ public class IngestPositionCommandHandler(
                     $"Exited geofence: {geofence.Name}", timestamp, cancellationToken);
             }
         }
+    }
+
+    private static async Task EvaluateIgnitionTransitionAsync(
+        System.Data.IDbConnection connection,
+        IngestPositionDto dto,
+        bool? previousIgnition,
+        DateTime timestamp,
+        CancellationToken cancellationToken)
+    {
+        if (!dto.Ignition.HasValue || !previousIgnition.HasValue || dto.Ignition == previousIgnition)
+        {
+            return;
+        }
+
+        var eventType = dto.Ignition.Value ? "ignition_on" : "ignition_off";
+        var message = dto.Ignition.Value ? "Ignition turned ON" : "Ignition turned OFF";
+
+        await InsertAlertAsync(connection, null, dto, null, eventType, message, timestamp, cancellationToken);
+    }
+
+    private const decimal LowFuelThresholdPercent = 15m;
+
+    private static async Task EvaluateLowFuelAsync(
+        System.Data.IDbConnection connection,
+        IngestPositionDto dto,
+        DateTime timestamp,
+        CancellationToken cancellationToken)
+    {
+        if (!dto.FuelLevel.HasValue || dto.FuelLevel.Value >= LowFuelThresholdPercent)
+        {
+            return;
+        }
+
+        // Re-alert at most once/hour while fuel stays low, rather than once per position tick —
+        // fuel level changes slowly, unlike SOS's 60-second window for an active incident.
+        var recentAlert = await connection.ExecuteScalarAsync<bool>(new CommandDefinition(
+            @"SELECT CASE WHEN EXISTS(
+                SELECT 1 FROM GpsAlertEvents
+                WHERE VehicleId = @VehicleId AND EventType = 'low_fuel' AND IsDeleted = 0
+                AND Timestamp > DATEADD(HOUR, -1, @Timestamp)
+              ) THEN 1 ELSE 0 END",
+            new { dto.VehicleId, Timestamp = timestamp },
+            cancellationToken: cancellationToken));
+
+        if (recentAlert)
+        {
+            return;
+        }
+
+        await InsertAlertAsync(connection, null, dto, null, "low_fuel",
+            $"Low fuel — {dto.FuelLevel.Value:F0}%", timestamp, cancellationToken);
     }
 
     private static async Task InsertAlertAsync(

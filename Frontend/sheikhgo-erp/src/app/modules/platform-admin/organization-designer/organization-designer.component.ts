@@ -44,6 +44,7 @@ interface SelectedDepartment {
 type SelectedNode = SelectedBranch | SelectedDepartment | null;
 
 @Component({
+  standalone: false,
   selector: 'app-organization-designer',
   templateUrl: './organization-designer.component.html',
   styleUrls: ['./organization-designer.component.scss']

@@ -24,6 +24,7 @@ interface ParsedRow {
 const COLUMN_ORDER = ['name', 'source', 'destination', 'distance', 'estimatedMinutes', 'basePrice'] as const;
 
 @Component({
+  standalone: false,
   selector: 'app-bulk-route-add-dialog',
   templateUrl: './bulk-route-add-dialog.component.html',
   styleUrls: ['./bulk-route-add-dialog.component.scss']

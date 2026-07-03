@@ -33,6 +33,7 @@ import {
 } from './tracker-register.validators';
 
 @Component({
+  standalone: false,
   selector: 'app-tracker-register-page',
   templateUrl: './tracker-register-page.component.html',
   styleUrls: ['./tracker-register-page.component.scss']

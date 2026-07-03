@@ -9,6 +9,7 @@ export interface FleetTimelineEvent {
 }
 
 @Component({
+  standalone: false,
   selector: 'fleet-timeline',
   template: `
     <ol class="fleet-timeline">

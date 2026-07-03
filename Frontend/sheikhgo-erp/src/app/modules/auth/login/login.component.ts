@@ -5,6 +5,7 @@ import { AuthService } from '../../../core/services/auth.service';
 import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
 
 @Component({
+  standalone: false,
   selector: 'app-login',
   templateUrl: './login.component.html',
   styleUrls: ['./login.component.scss']

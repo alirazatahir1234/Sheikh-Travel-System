@@ -11,6 +11,7 @@ import {
 import { AccentColor, StatVariant } from '../ui.types';
 
 @Component({
+  standalone: false,
   selector: 'stb-stat-tile',
   templateUrl: './stat-tile.component.html',
   styleUrls: ['./stat-tile.component.scss']

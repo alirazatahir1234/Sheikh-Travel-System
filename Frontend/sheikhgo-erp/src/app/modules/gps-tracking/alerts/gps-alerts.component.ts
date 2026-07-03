@@ -5,6 +5,7 @@ import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.ser
 import { GpsAlertEvent, GpsAlertRule, Geofence } from '../../../core/models/gps-tracking.model';
 
 @Component({
+  standalone: false,
   selector: 'app-gps-alerts',
   templateUrl: './gps-alerts.component.html',
   styleUrls: ['./gps-alerts.component.scss']

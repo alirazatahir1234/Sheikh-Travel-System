@@ -22,6 +22,7 @@ import {
 } from '../../../core/models/platform.model';
 
 @Component({
+  standalone: false,
   selector: 'app-tenant-detail',
   templateUrl: './tenant-detail.component.html',
   styleUrls: ['./tenant-detail.component.scss']

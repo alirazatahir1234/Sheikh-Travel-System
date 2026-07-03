@@ -3,6 +3,7 @@ import { FleetService } from '../../services/fleet.service';
 import { InspectionRow } from '../../models/fleet.model';
 
 @Component({
+  standalone: false,
   selector: 'app-inspection-list',
   templateUrl: './inspection-list.component.html',
   styleUrls: ['./inspection-list.component.scss']

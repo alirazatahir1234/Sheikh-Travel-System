@@ -2,6 +2,7 @@ import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { DataTableColumn } from '../ui.types';
 
 @Component({
+  standalone: false,
   selector: 'stb-data-table-card',
   templateUrl: './data-table-card.component.html',
   styleUrls: ['./data-table-card.component.scss']

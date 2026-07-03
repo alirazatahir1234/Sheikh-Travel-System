@@ -30,6 +30,7 @@ public class GetLivePositionsQueryHandler(IDbConnectionFactory dbFactory, ITenan
         const string whereClause = """
               FROM VehicleCurrentLocation vcl
               INNER JOIN Vehicles v ON v.Id = vcl.VehicleId AND v.TenantId = @TenantId AND v.IsDeleted = 0
+              LEFT JOIN Drivers dr ON dr.Id = vcl.DriverId AND dr.IsDeleted = 0
               WHERE vcl.Latitude IS NOT NULL
                 AND vcl.Longitude IS NOT NULL
                 AND NOT (vcl.Latitude = 0 AND vcl.Longitude = 0)
@@ -59,8 +60,10 @@ public class GetLivePositionsQueryHandler(IDbConnectionFactory dbFactory, ITenan
                      vcl.GsmSignal,
                      vcl.TotalDistanceKm,
                      vcl.Address,
-                     vcl.AlarmType
+                     vcl.AlarmType,
+                     dr.Phone AS DriverPhone
               {whereClause}
+              LEFT JOIN Drivers dr ON dr.Id = vcl.DriverId AND dr.IsDeleted = 0
               ORDER BY vcl.VehicleId
               OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY
             """,

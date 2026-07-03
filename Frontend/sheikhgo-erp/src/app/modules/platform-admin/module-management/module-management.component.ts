@@ -14,6 +14,7 @@ import {
 import { apiErrorMessage } from '../../../core/utils/api-error.util';
 
 @Component({
+  standalone: false,
   selector: 'app-module-management',
   templateUrl: './module-management.component.html',
   styleUrls: ['./module-management.component.scss']

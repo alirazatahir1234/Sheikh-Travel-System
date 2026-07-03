@@ -6,6 +6,7 @@ import { Branch, BranchStatus, branchStatusLabel } from '../../../core/models/pl
 import { apiErrorMessage } from '../../../core/utils/api-error.util';
 
 @Component({
+  standalone: false,
   selector: 'app-branch-list',
   templateUrl: './branch-list.component.html',
   styleUrls: ['./branch-list.component.scss']

@@ -6,6 +6,7 @@ import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.ser
 import { PaymentMethod } from '../../../core/models/payment.model';
 
 @Component({
+  standalone: false,
   selector: 'app-payment-form',
   templateUrl: './payment-form.component.html',
   styleUrls: ['./payment-form.component.scss']

@@ -8,6 +8,7 @@ import { Customer } from '../../../core/models/customer.model';
 import { Booking } from '../../../core/models/booking.model';
 
 @Component({
+  standalone: false,
   selector: 'app-customer-profile',
   templateUrl: './customer-profile.component.html',
   styleUrls: ['./customer-profile.component.scss']

@@ -2,6 +2,7 @@ import { Component, Input } from '@angular/core';
 import { PrayerTime } from '../ui.types';
 
 @Component({
+  standalone: false,
   selector: 'stb-prayer-times-card',
   templateUrl: './prayer-times-card.component.html',
   styleUrls: ['./prayer-times-card.component.scss']

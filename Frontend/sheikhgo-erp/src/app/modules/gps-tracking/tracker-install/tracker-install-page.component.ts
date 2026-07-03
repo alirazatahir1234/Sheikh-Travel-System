@@ -19,6 +19,7 @@ import { todayIsoDate } from '../tracker-register/tracker-register.validators';
 import { isTrackerInstalled } from '../utils/tracker-status.util';
 
 @Component({
+  standalone: false,
   selector: 'app-tracker-install-page',
   templateUrl: './tracker-install-page.component.html',
   styleUrls: ['./tracker-install-page.component.scss']

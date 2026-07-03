@@ -1,4 +1,4 @@
-<div class="tenant-provision-page">
+<div class="tenant-provision-page stb-page">
   <header class="page-header">
     <div class="page-header-left">
       <button mat-icon-button type="button" routerLink="/platform/tenants" aria-label="Back">
@@ -22,8 +22,8 @@
       </div>
     </div>
     <div class="page-header-actions">
-      <button mat-button type="button" (click)="cancel()" [disabled]="saving">Cancel</button>
-      <button mat-raised-button color="primary" type="button" (click)="submit()" [disabled]="saving">
+      <button mat-stroked-button type="button" (click)="cancel()" [disabled]="saving">Cancel</button>
+      <button mat-flat-button color="primary" type="button" (click)="submit()" [disabled]="saving">
         <mat-icon>add_business</mat-icon>
         {{ saving ? 'Creating…' : 'Create Tenant & Initialize Hierarchy' }}
       </button>
@@ -36,45 +36,47 @@
         <div class="section-head">
           <span class="section-badge">1</span>
           <h3>Tenant Profile</h3>
+          <button mat-icon-button type="button" class="section-info" matTooltip="Core tenant identity and routing details">
+            <mat-icon>info_outline</mat-icon>
+          </button>
         </div>
         <div class="field-row">
-          <mat-form-field appearance="outline">
-            <mat-label>Tenant Name</mat-label>
-            <input matInput formControlName="name" placeholder="e.g. Al Futtaim Logistics" />
-            <mat-error *ngIf="profileGroup.get('name')?.hasError('required')">Required</mat-error>
-          </mat-form-field>
-          <mat-form-field appearance="outline">
-            <mat-label>Internal Code</mat-label>
-            <input matInput formControlName="code" placeholder="e.g. APL-DXB-01" />
-            <mat-hint>Auto-generated if empty</mat-hint>
-          </mat-form-field>
+          <div class="stb-field">
+            <label for="tenant-name">Tenant Name <span class="req" aria-hidden="true">*</span></label>
+            <input id="tenant-name" class="stb-input" type="text" formControlName="name" placeholder="e.g. Sheikh Travel Agency" />
+            <span class="stb-error" *ngIf="profileGroup.get('name')?.hasError('required') && profileGroup.get('name')?.touched">Required</span>
+          </div>
+          <div class="stb-field">
+            <label for="tenant-type">Tenant Type</label>
+            <select id="tenant-type" class="stb-select" formControlName="tenantType">
+              <option *ngFor="let t of tenantTypes" [ngValue]="t">{{ t }}</option>
+            </select>
+          </div>
         </div>
         <div class="field-row">
-          <mat-form-field appearance="outline">
-            <mat-label>Tenant Type</mat-label>
-            <mat-select formControlName="tenantType">
-              <mat-option *ngFor="let t of tenantTypes" [value]="t">{{ t }}</mat-option>
-            </mat-select>
-          </mat-form-field>
-          <mat-form-field appearance="outline">
-            <mat-label>Industry Type</mat-label>
-            <mat-select formControlName="industryType">
-              <mat-option *ngFor="let i of industryTypes" [value]="i">{{ i }}</mat-option>
-            </mat-select>
-          </mat-form-field>
+          <div class="field-cell">
+            <div class="stb-field">
+              <label for="tenant-code">Internal Code</label>
+              <input id="tenant-code" class="stb-input" type="text" formControlName="code" placeholder="e.g. SHTRAVEL" />
+            </div>
+            <p class="slug-preview" *ngIf="slugPreview">
+              sheikh-travel.app/<span>{{ slugPreview }}</span>
+            </p>
+            <p class="field-helper" *ngIf="!slugPreview">Auto-generated if empty</p>
+          </div>
+          <div class="stb-field">
+            <label for="tenant-industry">Industry Type</label>
+            <select id="tenant-industry" class="stb-select" formControlName="industryType">
+              <option *ngFor="let i of industryTypes" [ngValue]="i">{{ i }}</option>
+            </select>
+          </div>
         </div>
-        <mat-form-field appearance="outline" class="full">
-          <mat-label>URL Slug</mat-label>
-          <span matTextPrefix class="slug-prefix">sheikh-travel.app/</span>
-          <input matInput formControlName="slug" placeholder="al-futtaim-logs" />
-          <mat-error *ngIf="profileGroup.get('slug')?.hasError('pattern')">Lowercase letters, numbers, hyphens only</mat-error>
-        </mat-form-field>
-        <mat-form-field appearance="outline" class="full">
-          <mat-label>Tenant Storage Model</mat-label>
-          <mat-select formControlName="storageModel">
-            <mat-option *ngFor="let m of storageModels" [value]="m.value">{{ m.label }}</mat-option>
-          </mat-select>
-        </mat-form-field>
+        <div class="stb-field stb-field--full">
+          <label for="tenant-storage">Tenant Storage Model</label>
+          <select id="tenant-storage" class="stb-select" formControlName="storageModel">
+            <option *ngFor="let m of storageModels" [ngValue]="m.value">{{ m.label }}</option>
+          </select>
+        </div>
       </mat-card>
 
       <mat-card class="section-card" id="section-plan" formGroupName="plan">
@@ -82,13 +84,13 @@
           <span class="section-badge">2</span>
           <h3>Plan &amp; Module Selection</h3>
         </div>
-        <mat-form-field appearance="outline" class="full plan-select">
-          <mat-label>Subscription Plan</mat-label>
-          <mat-select formControlName="planName">
-            <mat-option *ngFor="let tier of planTiers" [value]="tier">{{ tier }}</mat-option>
-          </mat-select>
-          <mat-hint>Changing the plan updates license limits and module selection</mat-hint>
-        </mat-form-field>
+        <div class="stb-field stb-field--full plan-select">
+          <label for="tenant-plan">Plan Type</label>
+          <select id="tenant-plan" class="stb-select" formControlName="planName">
+            <option *ngFor="let tier of planTiers" [ngValue]="tier">{{ tier }}</option>
+          </select>
+          <span class="stb-hint">Changing the plan updates license limits and module selection</span>
+        </div>
         <p class="section-label">Select Modules</p>
         <div *ngIf="loadingModules" class="module-loading"><app-brand-loader size="sm" message="Loading modules…" /></div>
         <div class="module-cards" *ngIf="!loadingModules">
@@ -101,11 +103,26 @@
         </div>
         <p class="section-label">License Limits</p>
         <div class="limits-row">
-          <mat-form-field appearance="outline"><mat-label>Max Users</mat-label><input matInput type="text" inputmode="numeric" formControlName="maxUsers" appPositiveInteger placeholder="Unlimited" /></mat-form-field>
-          <mat-form-field appearance="outline"><mat-label>Max Vehicles</mat-label><input matInput type="text" inputmode="numeric" formControlName="maxVehicles" appPositiveInteger placeholder="Unlimited" /></mat-form-field>
-          <mat-form-field appearance="outline"><mat-label>Max Drivers</mat-label><input matInput type="text" inputmode="numeric" formControlName="maxDrivers" appPositiveInteger placeholder="Unlimited" /></mat-form-field>
-          <mat-form-field appearance="outline"><mat-label>Max Branches</mat-label><input matInput type="text" inputmode="numeric" formControlName="maxBranches" appPositiveInteger placeholder="Unlimited" /></mat-form-field>
-          <mat-form-field appearance="outline"><mat-label>Max GPS Devices</mat-label><input matInput type="text" inputmode="numeric" formControlName="maxGpsDevices" appPositiveInteger placeholder="Unlimited" /></mat-form-field>
+          <div class="stb-field">
+            <label for="limit-users">Max Users</label>
+            <input id="limit-users" class="stb-input" type="text" inputmode="numeric" formControlName="maxUsers" appPositiveInteger placeholder="Unlimited" />
+          </div>
+          <div class="stb-field">
+            <label for="limit-vehicles">Max Vehicles</label>
+            <input id="limit-vehicles" class="stb-input" type="text" inputmode="numeric" formControlName="maxVehicles" appPositiveInteger placeholder="Unlimited" />
+          </div>
+          <div class="stb-field">
+            <label for="limit-drivers">Max Drivers</label>
+            <input id="limit-drivers" class="stb-input" type="text" inputmode="numeric" formControlName="maxDrivers" appPositiveInteger placeholder="Unlimited" />
+          </div>
+          <div class="stb-field">
+            <label for="limit-branches">Max Branches</label>
+            <input id="limit-branches" class="stb-input" type="text" inputmode="numeric" formControlName="maxBranches" appPositiveInteger placeholder="Unlimited" />
+          </div>
+          <div class="stb-field">
+            <label for="limit-gps">Max GPS Devices</label>
+            <input id="limit-gps" class="stb-input" type="text" inputmode="numeric" formControlName="maxGpsDevices" appPositiveInteger placeholder="Unlimited" />
+          </div>
         </div>
       </mat-card>
 
@@ -115,16 +132,38 @@
           <h3>Initial Administrator</h3>
         </div>
         <div class="field-row">
-          <mat-form-field appearance="outline"><mat-label>Full Name</mat-label><input matInput formControlName="adminFullName" /></mat-form-field>
-          <mat-form-field appearance="outline"><mat-label>Email Address</mat-label><input matInput type="email" formControlName="adminEmail" /></mat-form-field>
+          <div class="stb-field">
+            <label for="admin-name">Full Name</label>
+            <input id="admin-name" class="stb-input" type="text" formControlName="adminFullName" />
+          </div>
+          <div class="stb-field">
+            <label for="admin-email">Email Address</label>
+            <input id="admin-email" class="stb-input" type="email" formControlName="adminEmail" />
+          </div>
         </div>
         <div class="field-row">
-          <mat-form-field appearance="outline"><mat-label>Mobile Number</mat-label><input matInput type="tel" formControlName="adminMobile" placeholder="923001234567" autocomplete="tel" /></mat-form-field>
-          <mat-form-field appearance="outline">
-            <mat-label>Temporary Password</mat-label>
-            <input matInput type="password" formControlName="adminPassword" />
-            <mat-error *ngIf="adminGroup.get('adminPassword')?.hasError('minlength')">Min 8 characters</mat-error>
-          </mat-form-field>
+          <div class="stb-field">
+            <label for="admin-mobile">Mobile Number</label>
+            <input id="admin-mobile" class="stb-input" type="tel" formControlName="adminMobile" placeholder="923001234567" autocomplete="tel" />
+          </div>
+          <div class="field-cell">
+            <div class="stb-field">
+              <label for="admin-password">Temporary Password</label>
+              <div class="stb-input-wrap stb-input-wrap--suffix">
+                <input id="admin-password" class="stb-input" formControlName="adminPassword"
+                  [type]="hideAdminPassword ? 'password' : 'text'" autocomplete="new-password" />
+                <button type="button" class="stb-input-suffix-btn"
+                  (click)="hideAdminPassword = !hideAdminPassword"
+                  [attr.aria-label]="hideAdminPassword ? 'Show password' : 'Hide password'">
+                  <mat-icon>{{ hideAdminPassword ? 'visibility' : 'visibility_off' }}</mat-icon>
+                </button>
+              </div>
+              <span class="stb-error" *ngIf="adminGroup.get('adminPassword')?.hasError('minlength') && adminGroup.get('adminPassword')?.touched">Min 8 characters</span>
+            </div>
+            <button mat-stroked-button type="button" class="generate-btn stb-touch" (click)="generatePassword()">
+              Generate
+            </button>
+          </div>
         </div>
       </mat-card>
 
@@ -134,68 +173,65 @@
           <h3>Localization &amp; Branding</h3>
         </div>
         <div class="field-row field-row--3">
-          <mat-form-field appearance="outline"><mat-label>Country</mat-label>
-            <mat-select formControlName="country" (openedChange)="!$event && clearCountrySearch()">
-              <mat-option class="select-search-option">
-                <input
-                  matInput
-                  class="select-search-input"
-                  placeholder="Search country"
-                  [value]="countrySearch"
-                  (input)="countrySearch = $any($event.target).value"
-                  (click)="$event.stopPropagation()"
-                  (keydown)="$event.stopPropagation()" />
-              </mat-option>
-              <mat-option *ngFor="let c of filteredCountries" [value]="c">{{ c }}</mat-option>
-            </mat-select>
-          </mat-form-field>
-          <mat-form-field appearance="outline"><mat-label>Currency</mat-label>
-            <mat-select formControlName="currencyCode" (openedChange)="!$event && clearCurrencySearch()">
-              <mat-option class="select-search-option">
-                <input
-                  matInput
-                  class="select-search-input"
-                  placeholder="Search currency"
-                  [value]="currencySearch"
-                  (input)="currencySearch = $any($event.target).value"
-                  (click)="$event.stopPropagation()"
-                  (keydown)="$event.stopPropagation()" />
-              </mat-option>
-              <mat-option *ngFor="let cur of filteredCurrencies" [value]="cur">{{ cur }}</mat-option>
-            </mat-select>
-          </mat-form-field>
-          <mat-form-field appearance="outline"><mat-label>Timezone</mat-label>
-            <mat-select formControlName="timeZone"><mat-option *ngFor="let tz of timezones" [value]="tz">{{ tz }}</mat-option></mat-select>
-          </mat-form-field>
+          <div class="stb-field stb-field--searchable-select">
+            <label for="tenant-country">Country</label>
+            <input class="stb-input stb-input--filter" type="search" placeholder="Search country"
+              [(ngModel)]="countrySearch" [ngModelOptions]="{ standalone: true }" aria-label="Search country" />
+            <select id="tenant-country" class="stb-select" formControlName="country">
+              <option *ngFor="let c of filteredCountries" [ngValue]="c">{{ c }}</option>
+            </select>
+          </div>
+          <div class="stb-field stb-field--searchable-select">
+            <label for="tenant-currency">Currency</label>
+            <input class="stb-input stb-input--filter" type="search" placeholder="Search currency"
+              [(ngModel)]="currencySearch" [ngModelOptions]="{ standalone: true }" aria-label="Search currency" />
+            <select id="tenant-currency" class="stb-select" formControlName="currencyCode">
+              <option *ngFor="let cur of filteredCurrencies" [ngValue]="cur">{{ cur }}</option>
+            </select>
+          </div>
+          <div class="stb-field">
+            <label for="tenant-timezone">Timezone</label>
+            <select id="tenant-timezone" class="stb-select" formControlName="timeZone">
+              <option *ngFor="let tz of timezones" [ngValue]="tz">{{ tz }}</option>
+            </select>
+          </div>
         </div>
         <div class="branding-row">
-          <div class="branding-fields">
-            <mat-form-field appearance="outline" class="full color-field">
-              <mat-label>Brand Primary Color</mat-label>
-              <input matInput formControlName="primaryColor" />
-              <span matSuffix class="color-swatch-wrap">
-                <input type="color"
-                  class="color-native"
-                  [value]="primaryColorPreview"
-                  (input)="brandingGroup.get('primaryColor')?.setValue($any($event.target).value)" />
+          <div class="stb-field color-field">
+            <label for="tenant-brand-color">Brand Code</label>
+            <div class="stb-input-wrap stb-input-wrap--suffix color-input-wrap">
+              <input id="tenant-brand-color" class="stb-input" type="text" formControlName="primaryColor" />
+              <span class="color-swatch-wrap stb-input-suffix-btn color-swatch-btn">
+                <input type="color" class="color-native" [value]="primaryColorPreview"
+                  (input)="brandingGroup.get('primaryColor')?.setValue($any($event.target).value)" aria-label="Pick brand color" />
                 <span class="color-swatch" [style.background]="primaryColorPreview"></span>
               </span>
-            </mat-form-field>
-            <mat-form-field appearance="outline" class="full"><mat-label>Company Website</mat-label><input matInput formControlName="website" /></mat-form-field>
-            <mat-form-field appearance="outline" class="full"><mat-label>Support Email</mat-label><input matInput type="email" formControlName="supportEmail" /></mat-form-field>
-            <mat-form-field appearance="outline" class="full"><mat-label>Logo URL (optional)</mat-label><input matInput formControlName="logoUrl" /></mat-form-field>
-          </div>
-          <div class="phone-preview">
-            <div class="phone-frame">
-              <div class="phone-header" [style.background]="primaryColorPreview"></div>
-              <div class="phone-body">
-                <div class="phone-line"></div>
-                <div class="phone-line short"></div>
-                <div class="phone-line"></div>
-              </div>
             </div>
-            <span class="preview-label">Brand preview</span>
           </div>
+          <div class="logo-upload"
+            [class.logo-upload--active]="logoDragOver"
+            (dragover)="onLogoDragOver($event)"
+            (dragleave)="logoDragOver = false"
+            (drop)="onLogoDrop($event)"
+            (click)="logoInput.click()">
+            <input #logoInput type="file" class="logo-upload__input" accept="image/*" (change)="onLogoFileSelected($event)" />
+            <ng-container *ngIf="logoPreviewUrl; else logoPlaceholder">
+              <img [src]="logoPreviewUrl" alt="Logo preview" class="logo-upload__preview" />
+              <span class="logo-upload__label">Click to change logo</span>
+            </ng-container>
+            <ng-template #logoPlaceholder>
+              <mat-icon>cloud_upload</mat-icon>
+              <strong>Upload Logo</strong>
+              <span>Drag &amp; drop or click to browse</span>
+            </ng-template>
+          </div>
+        </div>
+        <button type="button" class="link-btn" (click)="showLogoUrlField = !showLogoUrlField">
+          {{ showLogoUrlField ? 'Hide logo URL' : 'Paste logo URL' }}
+        </button>
+        <div class="stb-field stb-field--full" *ngIf="showLogoUrlField">
+          <label for="tenant-logo-url">Logo URL</label>
+          <input id="tenant-logo-url" class="stb-input" type="url" formControlName="logoUrl" placeholder="https://…" />
         </div>
       </mat-card>
 
@@ -209,20 +245,26 @@
             <div><strong>MFA Required for All Users</strong><p>Require multi-factor authentication</p></div>
             <mat-slide-toggle formControlName="isMfaRequired"></mat-slide-toggle>
           </div>
-          <div class="toggle-row">
+          <div class="toggle-row toggle-row--inline">
             <div><strong>Enforce Password Expiry</strong><p>Rotate credentials periodically</p></div>
-            <mat-slide-toggle formControlName="enforcePasswordExpiry"></mat-slide-toggle>
+            <div class="toggle-row__controls">
+              <input *ngIf="securityGroup.get('enforcePasswordExpiry')?.value"
+                class="stb-input inline-num" type="number" formControlName="passwordExpiryDays"
+                aria-label="Password expiry days" />
+              <span class="unit" *ngIf="securityGroup.get('enforcePasswordExpiry')?.value">days</span>
+              <mat-slide-toggle formControlName="enforcePasswordExpiry"></mat-slide-toggle>
+            </div>
           </div>
-          <mat-form-field appearance="outline" class="inline-num" *ngIf="securityGroup.get('enforcePasswordExpiry')?.value">
-            <mat-label>Expiry (days)</mat-label><input matInput type="number" formControlName="passwordExpiryDays" />
-          </mat-form-field>
-          <div class="toggle-row">
+          <div class="toggle-row toggle-row--inline">
             <div><strong>Session Timeout</strong><p>Auto-logout after inactivity</p></div>
-            <mat-slide-toggle formControlName="enforceSessionTimeout"></mat-slide-toggle>
+            <div class="toggle-row__controls">
+              <input *ngIf="securityGroup.get('enforceSessionTimeout')?.value"
+                class="stb-input inline-num" type="number" formControlName="sessionTimeoutMinutes"
+                aria-label="Session timeout minutes" />
+              <span class="unit" *ngIf="securityGroup.get('enforceSessionTimeout')?.value">min</span>
+              <mat-slide-toggle formControlName="enforceSessionTimeout"></mat-slide-toggle>
+            </div>
           </div>
-          <mat-form-field appearance="outline" class="inline-num" *ngIf="securityGroup.get('enforceSessionTimeout')?.value">
-            <mat-label>Timeout (minutes)</mat-label><input matInput type="number" formControlName="sessionTimeoutMinutes" />
-          </mat-form-field>
         </div>
         <p class="section-label">Compliance Protocols</p>
         <div class="toggle-grid">
@@ -238,13 +280,19 @@
           <h3>Organization Architecture</h3>
         </div>
         <div class="field-row">
-          <mat-form-field appearance="outline"><mat-label>Head Office Name</mat-label><input matInput formControlName="headOfficeName" /></mat-form-field>
-          <mat-form-field appearance="outline"><mat-label>Default Branch</mat-label><input matInput formControlName="defaultBranchName" /></mat-form-field>
+          <div class="stb-field">
+            <label for="org-head-office">Head Office Name</label>
+            <input id="org-head-office" class="stb-input" type="text" formControlName="headOfficeName" />
+          </div>
+          <div class="stb-field">
+            <label for="org-default-branch">Default Branch</label>
+            <input id="org-default-branch" class="stb-input" type="text" formControlName="defaultBranchName" />
+          </div>
         </div>
-        <mat-form-field appearance="outline" class="full">
-          <mat-label>Default Departments (comma-separated)</mat-label>
-          <input matInput formControlName="defaultDepartments" />
-        </mat-form-field>
+        <div class="stb-field stb-field--full">
+          <label for="org-departments">Department Structure</label>
+          <input id="org-departments" class="stb-input" type="text" formControlName="defaultDepartments" placeholder="Operations, Finance, Fleet, HR" />
+        </div>
         <div class="info-callout">
           <mat-icon>info</mat-icon>
           <div>
@@ -261,27 +309,42 @@
           <h3>Billing &amp; Future Provisioning</h3>
         </div>
         <div class="field-row">
-          <mat-form-field appearance="outline"><mat-label>Billing Contact Name</mat-label><input matInput formControlName="billingContactName" /></mat-form-field>
-          <mat-form-field appearance="outline"><mat-label>Company TRN</mat-label><input matInput formControlName="companyTRN" /></mat-form-field>
+          <div class="stb-field">
+            <label for="billing-contact">Billing Contact Name</label>
+            <input id="billing-contact" class="stb-input" type="text" formControlName="billingContactName" />
+          </div>
+          <div class="stb-field">
+            <label for="billing-trn">Company TRN</label>
+            <input id="billing-trn" class="stb-input" type="text" formControlName="companyTRN" />
+          </div>
         </div>
-        <mat-form-field appearance="outline" class="full"><mat-label>Billing Email</mat-label><input matInput type="email" formControlName="billingEmail" /></mat-form-field>
-        <mat-form-field appearance="outline" class="full"><mat-label>Billing Address</mat-label><textarea matInput formControlName="billingAddress" rows="2"></textarea></mat-form-field>
-        <mat-form-field appearance="outline" class="full">
-          <mat-label>Default Hardware Provider (GPS)</mat-label>
-          <mat-select formControlName="gpsProviderName">
-            <mat-option value="">None</mat-option>
-            <mat-option *ngFor="let p of gpsProviders" [value]="p">{{ p }}</mat-option>
-          </mat-select>
-        </mat-form-field>
+        <div class="stb-field stb-field--full">
+          <label for="billing-email">Billing Email</label>
+          <input id="billing-email" class="stb-input" type="email" formControlName="billingEmail" />
+        </div>
+        <div class="stb-field stb-field--full">
+          <label for="billing-address">Billing Address</label>
+          <textarea id="billing-address" class="stb-input stb-textarea" formControlName="billingAddress" rows="2"></textarea>
+        </div>
+        <div class="stb-field stb-field--full">
+          <label for="billing-gps-provider">Default Hardware Provider (GPS)</label>
+          <select id="billing-gps-provider" class="stb-select" formControlName="gpsProviderName">
+            <option value="">None</option>
+            <option *ngFor="let p of gpsProviders" [ngValue]="p">{{ p }}</option>
+          </select>
+        </div>
       </mat-card>
     </div>
 
     <aside class="provision-sidebar">
       <mat-card class="sidebar-card">
         <h4>Configuration Summary</h4>
-        <div class="summary-plan" [ngClass]="tenantPlanMeta(summaryPlanName).cssClass">
-          <mat-icon>{{ tenantPlanMeta(summaryPlanName).icon }}</mat-icon>
-          <span>{{ summaryPlanName }}</span>
+        <div class="summary-plan-row">
+          <span class="summary-plan-label">Plan Type</span>
+          <div class="summary-plan" [ngClass]="tenantPlanMeta(summaryPlanName).cssClass">
+            <mat-icon>{{ tenantPlanMeta(summaryPlanName).icon }}</mat-icon>
+            <span>{{ summaryPlanName }}</span>
+          </div>
         </div>
         <dl class="summary-stats">
           <div><dt>Active Modules</dt><dd>{{ activeModuleCount }}</dd></div>
@@ -298,7 +361,10 @@
           </li>
         </ul>
       </mat-card>
-      <button mat-stroked-button type="button" class="validate-btn" (click)="validateConfiguration()">
+      <button mat-flat-button color="primary" type="button" class="validate-btn"
+        [class.validate-btn--ready]="form.valid"
+        [disabled]="!form.valid"
+        (click)="validateConfiguration()">
         <mat-icon>verified</mat-icon> Validate Configuration
       </button>
     </aside>

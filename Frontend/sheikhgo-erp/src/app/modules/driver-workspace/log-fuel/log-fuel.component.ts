@@ -12,6 +12,7 @@ interface VehicleOption {
 }
 
 @Component({
+  standalone: false,
   selector: 'app-log-fuel',
   templateUrl: './log-fuel.component.html',
   styleUrls: ['./log-fuel.component.scss']

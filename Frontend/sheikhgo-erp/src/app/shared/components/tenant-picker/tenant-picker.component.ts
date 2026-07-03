@@ -5,6 +5,7 @@ import { PlatformTenantContextService } from '../../../core/services/platform-te
 import { Tenant } from '../../../core/models/platform.model';
 
 @Component({
+  standalone: false,
   selector: 'app-tenant-picker',
   templateUrl: './tenant-picker.component.html',
   styleUrls: ['./tenant-picker.component.scss']

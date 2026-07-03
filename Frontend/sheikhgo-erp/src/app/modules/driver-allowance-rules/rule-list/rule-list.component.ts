@@ -12,6 +12,7 @@ import {
 } from '../../../core/models/driver-allowance-rule.model';
 
 @Component({
+  standalone: false,
   selector: 'app-driver-allowance-rule-list',
   templateUrl: './rule-list.component.html',
   styleUrls: ['./rule-list.component.scss']

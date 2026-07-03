@@ -8,6 +8,7 @@ import { L } from '../../../core/leaflet/leaflet-cluster';
 import type * as LeafletTypes from 'leaflet';
 
 @Component({
+  standalone: false,
   selector: 'app-gps-history',
   templateUrl: './gps-history.component.html',
   styleUrls: ['./gps-history.component.scss']

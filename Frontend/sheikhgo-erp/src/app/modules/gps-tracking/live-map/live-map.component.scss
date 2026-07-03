@@ -228,13 +228,13 @@
   display: grid;
   grid-template-columns: minmax(280px, 340px) 1fr minmax(240px, 300px);
   gap: 16px;
-  min-height: 0;
+  min-height: 600px;
   align-items: stretch;
 }
 
 .track-panel--sheet {
-  display: flex;
-  flex-direction: column;
+  display: block;
+  height: 100%;
   min-height: 0;
   max-height: 640px;
   overflow: hidden;
@@ -243,6 +243,8 @@
   border: none;
   margin: 0;
   padding: 0;
+  border-radius: var(--stb-radius-lg);
+  border: 1px solid var(--stb-border);
 
   &::marker,
   &::-webkit-details-marker {
@@ -252,7 +254,8 @@
 
 .track-panel__handle {
   display: none;
-  list-style: none;
+  width: 100%;
+  border: none;
   cursor: pointer;
   align-items: center;
   justify-content: center;
@@ -282,19 +285,20 @@
   }
 }
 
-.track-panel--sheet[open] .track-panel__chevron {
+.track-panel--sheet:not(.track-panel--peek) .track-panel__chevron {
   transform: rotate(180deg);
 }
 
 .track-panel__body {
   display: flex;
   flex-direction: column;
+  height: 100%;
   min-height: 0;
-  flex: 1;
   overflow: hidden;
 }
 
 .panel-search {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -317,6 +321,7 @@
 }
 
 .panel-status {
+  flex-shrink: 0;
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
@@ -357,6 +362,7 @@
 }
 
 .panel-list-header {
+  flex-shrink: 0;
   display: flex;
   justify-content: space-between;
   padding: 12px 14px 8px;
@@ -375,8 +381,9 @@
 }
 
 .panel-list {
-  flex: 1;
-  min-height: 0;
+  flex: 1 1 0;
+  height: 0;
+  min-height: 160px;
   padding: 0 10px 10px;
 
   // cdk-virtual-scroll-viewport manages its own overflow/positioning; items get their gap from
@@ -557,6 +564,7 @@
 }
 
 .panel-footer {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1409,7 +1417,9 @@
 
   .track-panel--sheet {
     order: 3;
-    max-height: 40vh;
+    max-height: min(40vh, 420px);
+    min-height: 280px;
+    height: min(40vh, 420px);
   }
 
   .map-shell {
@@ -1516,11 +1526,11 @@
     width: 100%;
   }
 
-  .track-panel--sheet:not([open]) {
+  .track-panel--sheet.track-panel--peek {
     transform: translateY(calc(100% - 52px));
   }
 
-  .track-panel--sheet[open] {
+  .track-panel--sheet:not(.track-panel--peek) {
     transform: translateY(0);
   }
 
@@ -1630,4 +1640,16 @@
   .glass-btn { width: 40px; height: 40px; min-width: 40px; min-height: 40px; }
   .map-glass-toolbar { right: 6px; bottom: calc(8px + env(safe-area-inset-bottom, 0px)); }
   .map-legend { left: 6px; max-width: calc(100% - 120px); }
+}
+
+/* Desktop — full-height vehicle list (virtual scroll needs bounded parent) */
+@media (min-width: 1024px) {
+  .track-panel--sheet {
+    max-height: none;
+    min-height: 600px;
+  }
+
+  .track-panel--peek {
+    transform: none !important;
+  }
 }

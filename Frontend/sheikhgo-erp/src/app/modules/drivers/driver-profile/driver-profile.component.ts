@@ -9,6 +9,7 @@ import { Driver } from '../../../core/models/driver.model';
 import { Booking } from '../../../core/models/booking.model';
 
 @Component({
+  standalone: false,
   selector: 'app-driver-profile',
   templateUrl: './driver-profile.component.html',
   styleUrls: ['./driver-profile.component.scss']

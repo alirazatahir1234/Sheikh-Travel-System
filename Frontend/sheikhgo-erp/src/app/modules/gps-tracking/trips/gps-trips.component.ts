@@ -40,6 +40,7 @@ interface FleetDriverOption {
 }
 
 @Component({
+  standalone: false,
   selector: 'app-gps-trips',
   templateUrl: './gps-trips.component.html',
   styleUrls: ['./gps-trips.component.scss']

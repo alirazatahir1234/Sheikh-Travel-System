@@ -14,6 +14,7 @@ import { Driver } from '../../../core/models/driver.model';
 import { dateInputToIso, toDateInputValue } from '../../../core/utils/date-input.util';
 
 @Component({
+  standalone: false,
   selector: 'app-fuel-log-form',
   templateUrl: './fuel-log-form.component.html',
   styleUrls: ['./fuel-log-form.component.scss']

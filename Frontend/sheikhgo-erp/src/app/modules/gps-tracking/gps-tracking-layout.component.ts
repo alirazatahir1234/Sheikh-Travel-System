@@ -7,6 +7,7 @@ export interface GpsNavItem {
 }
 
 @Component({
+  standalone: false,
   selector: 'app-gps-tracking-layout',
   templateUrl: './gps-tracking-layout.component.html',
   styleUrls: ['./gps-tracking-layout.component.scss']

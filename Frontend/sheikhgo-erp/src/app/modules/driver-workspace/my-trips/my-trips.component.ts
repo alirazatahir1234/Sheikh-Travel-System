@@ -4,6 +4,7 @@ import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.ser
 import { DriverTrip } from '../../../core/models/driver-trip.model';
 
 @Component({
+  standalone: false,
   selector: 'app-my-trips',
   templateUrl: './my-trips.component.html',
   styleUrls: ['./my-trips.component.scss']

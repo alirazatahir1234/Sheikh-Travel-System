@@ -8,6 +8,7 @@ import { L } from '../../../core/leaflet/leaflet-cluster';
 import type * as LeafletTypes from 'leaflet';
 
 @Component({
+  standalone: false,
   selector: 'app-gps-geofences',
   templateUrl: './gps-geofences.component.html',
   styleUrls: ['./gps-geofences.component.scss']

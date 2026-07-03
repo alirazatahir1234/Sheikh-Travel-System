@@ -5,6 +5,7 @@ import { Component } from '@angular/core';
  * inside the fleet hub's own layout shell ({@link FleetLayoutComponent}).
  */
 @Component({
+  standalone: false,
   selector: 'app-fleet-dashboard',
   template: `<fleet-dashboard-content></fleet-dashboard-content>`
 })

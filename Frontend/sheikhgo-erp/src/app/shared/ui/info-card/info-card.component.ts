@@ -11,6 +11,7 @@ import { Component, Input } from '@angular/core';
  *   </stb-info-card>
  */
 @Component({
+  standalone: false,
   selector: 'stb-info-card',
   templateUrl: './info-card.component.html',
   styleUrls: ['./info-card.component.scss']

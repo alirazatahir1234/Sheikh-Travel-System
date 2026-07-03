@@ -2,6 +2,7 @@ import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { ArticleLink } from '../ui.types';
 
 @Component({
+  standalone: false,
   selector: 'stb-article-links-card',
   templateUrl: './article-links-card.component.html',
   styleUrls: ['./article-links-card.component.scss']

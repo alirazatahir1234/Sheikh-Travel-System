@@ -2,6 +2,7 @@ import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { QuickLaunchApp } from '../ui.types';
 
 @Component({
+  standalone: false,
   selector: 'stb-quick-launch-grid',
   templateUrl: './quick-launch-grid.component.html',
   styleUrls: ['./quick-launch-grid.component.scss']

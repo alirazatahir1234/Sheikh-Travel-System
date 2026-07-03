@@ -9,6 +9,7 @@ import { Payment } from '../../../core/models/payment.model';
 import { COMPANY_NAME, APP_LOGO_PATH } from '../../../core/constants/app-brand';
 
 @Component({
+  standalone: false,
   selector: 'app-booking-invoice',
   templateUrl: './booking-invoice.component.html',
   styleUrls: ['./booking-invoice.component.scss']

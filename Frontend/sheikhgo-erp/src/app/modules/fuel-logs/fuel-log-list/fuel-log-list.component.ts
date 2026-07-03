@@ -52,6 +52,7 @@ interface MonthlyHighlight {
 }
 
 @Component({
+  standalone: false,
   selector: 'app-fuel-log-list',
   templateUrl: './fuel-log-list.component.html',
   styleUrls: ['./fuel-log-list.component.scss'],

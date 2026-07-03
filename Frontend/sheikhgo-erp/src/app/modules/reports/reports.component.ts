@@ -15,6 +15,7 @@ import {
 Chart.register(...registerables);
 
 @Component({
+  standalone: false,
   selector: 'app-reports',
   templateUrl: './reports.component.html',
   styleUrls: ['./reports.component.scss']

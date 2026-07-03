@@ -51,6 +51,7 @@ const DARK_MAP_STYLES: google.maps.MapTypeStyle[] = [
 ];
 
 @Component({
+  standalone: false,
   selector: 'app-route-form',
   templateUrl: './route-form.component.html',
   styleUrls: ['./route-form.component.scss']

@@ -13,6 +13,7 @@ interface CommandCard {
 }
 
 @Component({
+  standalone: false,
   selector: 'app-gps-commands',
   templateUrl: './gps-commands.component.html',
   styleUrls: ['./gps-commands.component.scss']

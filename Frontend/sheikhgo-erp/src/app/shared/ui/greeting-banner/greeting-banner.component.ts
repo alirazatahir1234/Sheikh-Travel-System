@@ -1,6 +1,7 @@
 import { Component, Input } from '@angular/core';
 
 @Component({
+  standalone: false,
   selector: 'stb-greeting-banner',
   templateUrl: './greeting-banner.component.html',
   styleUrls: ['./greeting-banner.component.scss']

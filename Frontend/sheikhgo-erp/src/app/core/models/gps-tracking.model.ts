@@ -32,6 +32,7 @@ export interface PositionDto {
   totalDistanceKm?: number;
   address?: string;
   alarmType?: string;
+  driverPhone?: string;
 }
 
 export interface VehicleLocation {
@@ -60,6 +61,9 @@ export interface VehicleLocation {
   trackerName?: string;
   imei?: string;
   relayOutput?: string;
+  driverPhone?: string;
+  /** Active booking this vehicle is currently on, if any — drives the Trip/ETA panel section. */
+  bookingId?: number;
 }
 
 export interface SosAlertPayload {
@@ -356,6 +360,36 @@ export interface GpsFleetStatus {
   neverSeen: number;
   avgSpeedKmh?: number | null;
   todayDistanceKm?: number | null;
+}
+
+/**
+ * Local-data-sourced fleet snapshot (Vehicles + VehicleCurrentLocation) — what the Live Map KPI
+ * strip actually uses. NOT the same source as GpsFleetStatus (which calls Traccar directly) — do
+ * not conflate the two.
+ */
+export interface GpsFleetStatusLocal {
+  totalVehicles: number;
+  online: number;
+  offline: number;
+  moving: number;
+  idle: number;
+  parked: number;
+  neverSeen: number;
+  sos: number;
+  alertsToday: number;
+}
+
+export interface GpsFleetStatusSnapshot {
+  snapshotAt: string;
+  totalVehicles: number;
+  online: number;
+  offline: number;
+  moving: number;
+  idle: number;
+  parked: number;
+  neverSeen: number;
+  sos: number;
+  alertsToday: number;
 }
 
 export interface TripDeviceContext {

@@ -34,6 +34,11 @@ public record TripReplaySummaryDto(
     decimal? FuelLiters,
     decimal? EngineHours = null);
 
+/// <summary>
+/// Traccar-sourced fleet snapshot — calls the live Traccar server directly and returns all-zeros
+/// if Traccar isn't configured/enabled. NOT the same data source as <see cref="GpsFleetStatusLocalDto"/>
+/// (which reads local tables) — do not conflate or merge these two, they intentionally differ.
+/// </summary>
 public record GpsFleetStatusDto(
     int TotalVehicles,
     int Online,
@@ -44,6 +49,36 @@ public record GpsFleetStatusDto(
     int NeverSeen,
     double? AvgSpeedKmh,
     double? TodayDistanceKm);
+
+/// <summary>
+/// Local-data-sourced fleet snapshot (Vehicles + VehicleCurrentLocation), independent of Traccar
+/// reachability — this is what the Live Map screen's KPI strip actually uses, matching the same
+/// status-derivation rule as the frontend's resolveFleetStatus()/GetLivePositionsQuery. Computed
+/// by the shared GpsFleetStatusCalculator so this and the background snapshot job never drift.
+/// Online = Moving + Idle + Parked + Sos (i.e. everything that isn't Offline or NeverSeen).
+/// </summary>
+public record GpsFleetStatusLocalDto(
+    int TotalVehicles,
+    int Online,
+    int Offline,
+    int Moving,
+    int Idle,
+    int Parked,
+    int NeverSeen,
+    int Sos,
+    int AlertsToday);
+
+public record GpsFleetStatusSnapshotDto(
+    DateTime SnapshotAt,
+    int TotalVehicles,
+    int Online,
+    int Offline,
+    int Moving,
+    int Idle,
+    int Parked,
+    int NeverSeen,
+    int Sos,
+    int AlertsToday);
 
 public record TripReplayPositionDto(
     DateTime Timestamp,

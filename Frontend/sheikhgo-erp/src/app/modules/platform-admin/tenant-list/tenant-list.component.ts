@@ -35,6 +35,7 @@ interface TenantFilters {
 }
 
 @Component({
+  standalone: false,
   selector: 'app-tenant-list',
   templateUrl: './tenant-list.component.html',
   styleUrls: ['./tenant-list.component.scss']

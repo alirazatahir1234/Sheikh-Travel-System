@@ -17,6 +17,7 @@ import { User, UserRole, UserRoleLabels } from '../../../core/models/user.model'
 import { apiErrorMessage } from '../../../core/utils/api-error.util';
 
 @Component({
+  standalone: false,
   selector: 'app-access-control',
   templateUrl: './access-control.component.html',
   styleUrls: ['./access-control.component.scss']

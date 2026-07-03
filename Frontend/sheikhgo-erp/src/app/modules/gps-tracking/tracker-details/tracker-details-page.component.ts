@@ -15,6 +15,7 @@ import {
 } from '../utils/tracker-status.util';
 
 @Component({
+  standalone: false,
   selector: 'app-tracker-details-page',
   templateUrl: './tracker-details-page.component.html',
   styleUrls: ['./tracker-details-page.component.scss']

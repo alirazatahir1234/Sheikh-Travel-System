@@ -2,6 +2,7 @@ import { Component, Input } from '@angular/core';
 import { APP_PRODUCT_NAME, APP_LOGO_PATH, COMPANY_NAME } from '../../../../../core/constants/app-brand';
 
 @Component({
+  standalone: false,
   selector: 'app-login-hero',
   templateUrl: './login-hero.component.html',
   styleUrls: ['./login-hero.component.scss']

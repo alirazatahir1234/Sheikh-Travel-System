@@ -333,3 +333,63 @@ public class GetGpsFleetStatusQueryHandler(
             todayDistanceKm));
     }
 }
+
+/// <summary>Powers the Live Map screen's KPI strip — see GpsFleetStatusLocalDto for why this is a
+/// separate, local-data-sourced sibling of GetGpsFleetStatusQuery, not a replacement for it.</summary>
+public record GetGpsFleetStatusLocalQuery : IRequest<ApiResponse<GpsFleetStatusLocalDto>>;
+
+public class GetGpsFleetStatusLocalQueryHandler(
+    IDbConnectionFactory dbFactory,
+    ITenantContext tenantContext)
+    : IRequestHandler<GetGpsFleetStatusLocalQuery, ApiResponse<GpsFleetStatusLocalDto>>
+{
+    public async Task<ApiResponse<GpsFleetStatusLocalDto>> Handle(GetGpsFleetStatusLocalQuery request, CancellationToken cancellationToken)
+    {
+        using var connection = dbFactory.CreateConnection();
+        var tenantId = tenantContext.GetRequiredTenantId();
+        var result = await GpsFleetStatusCalculator.ComputeAsync(connection, tenantId, cancellationToken);
+        return ApiResponse<GpsFleetStatusLocalDto>.SuccessResponse(result);
+    }
+}
+
+public record GetGpsFleetStatusHistoryQuery(DateTime? FromDate, DateTime? ToDate)
+    : IRequest<ApiResponse<List<GpsFleetStatusSnapshotDto>>>;
+
+public class GetGpsFleetStatusHistoryQueryHandler(
+    IDbConnectionFactory dbFactory,
+    ITenantContext tenantContext)
+    : IRequestHandler<GetGpsFleetStatusHistoryQuery, ApiResponse<List<GpsFleetStatusSnapshotDto>>>
+{
+    private static readonly TimeSpan MaxRange = TimeSpan.FromDays(90);
+
+    public async Task<ApiResponse<List<GpsFleetStatusSnapshotDto>>> Handle(GetGpsFleetStatusHistoryQuery request, CancellationToken cancellationToken)
+    {
+        var fromDate = request.FromDate ?? DateTime.UtcNow.AddDays(-7);
+        var toDate = request.ToDate ?? DateTime.UtcNow;
+
+        if (fromDate > toDate)
+        {
+            return ApiResponse<List<GpsFleetStatusSnapshotDto>>.FailResponse("'from' must be before 'to'.");
+        }
+
+        if (toDate - fromDate > MaxRange)
+        {
+            return ApiResponse<List<GpsFleetStatusSnapshotDto>>.FailResponse("Date range cannot exceed 90 days.");
+        }
+
+        using var connection = dbFactory.CreateConnection();
+        var tenantId = tenantContext.GetRequiredTenantId();
+
+        var rows = await connection.QueryAsync<GpsFleetStatusSnapshotDto>(new CommandDefinition(
+            """
+            SELECT SnapshotAt, TotalVehicles, Online, Offline, Moving, Idle, Parked, NeverSeen, Sos, AlertsToday
+            FROM GpsFleetStatusSnapshots
+            WHERE TenantId = @TenantId AND SnapshotAt BETWEEN @FromDate AND @ToDate
+            ORDER BY SnapshotAt ASC
+            """,
+            new { TenantId = tenantId, FromDate = fromDate, ToDate = toDate },
+            cancellationToken: cancellationToken));
+
+        return ApiResponse<List<GpsFleetStatusSnapshotDto>>.SuccessResponse(rows.ToList());
+    }
+}

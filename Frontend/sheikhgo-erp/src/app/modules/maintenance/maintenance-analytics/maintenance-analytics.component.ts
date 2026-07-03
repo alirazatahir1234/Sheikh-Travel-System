@@ -14,6 +14,7 @@ import { AppChartInstance, createAppChart } from '../../../core/utils/chart.util
 Chart.register(...registerables);
 
 @Component({
+  standalone: false,
   selector: 'app-maintenance-analytics',
   templateUrl: './maintenance-analytics.component.html',
   styleUrls: ['./maintenance-analytics.component.scss']

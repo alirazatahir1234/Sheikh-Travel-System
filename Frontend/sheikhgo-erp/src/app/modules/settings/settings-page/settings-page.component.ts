@@ -8,6 +8,7 @@ import { SettingFieldSchema, SettingsCategory, SettingsValues } from '../models/
 import { SettingsFormStatus } from '../components/dynamic-settings-form/dynamic-settings-form.component';
 
 @Component({
+  standalone: false,
   selector: 'app-settings-page',
   templateUrl: './settings-page.component.html',
   styleUrls: ['./settings-page.component.scss']

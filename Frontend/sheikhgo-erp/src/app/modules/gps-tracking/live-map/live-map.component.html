@@ -37,49 +37,79 @@
     </div>
   </header>
 
-  <section class="track-stats" aria-label="Live fleet statistics">
-    <div class="stat-chip stat-chip--online">
-      <mat-icon>wifi_tethering</mat-icon>
-      <div>
-        <span class="stat-val">{{ fleetCounts.online }}</span>
-        <span class="stat-lbl">Online</span>
-      </div>
-    </div>
-    <div class="stat-chip stat-chip--offline">
-      <mat-icon>signal_wifi_off</mat-icon>
-      <div>
-        <span class="stat-val">{{ fleetCounts.offline }}</span>
-        <span class="stat-lbl">Offline</span>
-      </div>
-    </div>
-    <div class="stat-chip stat-chip--trips">
-      <mat-icon>directions_bus</mat-icon>
-      <div>
-        <span class="stat-val">{{ fleetCounts.moving }}</span>
-        <span class="stat-lbl">Moving</span>
-      </div>
-    </div>
-    <div class="stat-chip stat-chip--speed">
-      <mat-icon>local_shipping</mat-icon>
-      <div>
-        <span class="stat-val">{{ fleetCounts.idle }}</span>
-        <span class="stat-lbl">Idle</span>
-      </div>
-    </div>
-    <div class="stat-chip stat-chip--warn">
-      <mat-icon>local_parking</mat-icon>
-      <div>
-        <span class="stat-val">{{ fleetCounts.parked }}</span>
-        <span class="stat-lbl">Parked</span>
-      </div>
-    </div>
-    <div class="stat-chip stat-chip--alert">
-      <mat-icon>help_outline</mat-icon>
-      <div>
-        <span class="stat-val">{{ fleetCounts.neverSeen }}</span>
-        <span class="stat-lbl">Never Seen</span>
-      </div>
-    </div>
+  <section class="track-kpi-strip" aria-label="Live fleet statistics">
+    <stb-stat-tile
+      label="Online Vehicles"
+      [value]="fleetStatusLocal?.online ?? fleetCounts.online"
+      icon="wifi_tethering"
+      color="sky"
+      [hint]="(fleetStatusLocal?.totalVehicles ?? fleetCounts.total) + ' total fleet'"
+      [trend]="trendFor('online')?.trend"
+      [trendUp]="trendFor('online')?.trendUp"
+      [sparkline]="sparklineFor('online')">
+    </stb-stat-tile>
+    <stb-stat-tile
+      label="Moving"
+      [value]="fleetStatusLocal?.moving ?? fleetCounts.moving"
+      icon="directions_bus"
+      color="green"
+      [trend]="trendFor('moving')?.trend"
+      [trendUp]="trendFor('moving')?.trendUp"
+      [sparkline]="sparklineFor('moving')">
+    </stb-stat-tile>
+    <stb-stat-tile
+      label="Parked"
+      [value]="fleetStatusLocal?.parked ?? fleetCounts.parked"
+      icon="local_parking"
+      color="blue"
+      [trend]="trendFor('parked')?.trend"
+      [trendUp]="trendFor('parked')?.trendUp"
+      [sparkline]="sparklineFor('parked')">
+    </stb-stat-tile>
+    <stb-stat-tile
+      label="Idle"
+      [value]="fleetStatusLocal?.idle ?? fleetCounts.idle"
+      icon="local_shipping"
+      color="amber"
+      [trend]="trendFor('idle')?.trend"
+      [trendUp]="trendFor('idle')?.trendUp"
+      [sparkline]="sparklineFor('idle')">
+    </stb-stat-tile>
+    <stb-stat-tile
+      label="Offline"
+      [value]="fleetStatusLocal?.offline ?? fleetCounts.offline"
+      icon="signal_wifi_off"
+      color="rose"
+      [trend]="trendFor('offline')?.trend"
+      [trendUp]="trendFor('offline')?.trendUp"
+      [sparkline]="sparklineFor('offline')">
+    </stb-stat-tile>
+    <stb-stat-tile
+      label="Never Seen"
+      [value]="fleetStatusLocal?.neverSeen ?? fleetCounts.neverSeen"
+      icon="help_outline"
+      color="purple"
+      [trend]="trendFor('neverSeen')?.trend"
+      [trendUp]="trendFor('neverSeen')?.trendUp"
+      [sparkline]="sparklineFor('neverSeen')">
+    </stb-stat-tile>
+    <stb-stat-tile
+      label="Total Fleet"
+      [value]="fleetStatusLocal?.totalVehicles ?? fleetCounts.total"
+      icon="directions_car"
+      color="teal"
+      hint="All vehicles">
+    </stb-stat-tile>
+    <stb-stat-tile
+      label="Alerts Today"
+      [value]="fleetStatusLocal?.alertsToday ?? 0"
+      icon="notifications_active"
+      color="orange"
+      hint="Total alerts"
+      [trend]="trendFor('alertsToday')?.trend"
+      [trendUp]="trendFor('alertsToday')?.trendUp"
+      [sparkline]="sparklineFor('alertsToday')">
+    </stb-stat-tile>
     <div class="stat-chip stat-chip--sos" *ngIf="fleetCounts.sos > 0">
       <mat-icon>sos</mat-icon>
       <div>
@@ -91,12 +121,18 @@
 
   <div class="track-main">
 
-    <details class="track-panel track-panel--sheet stb-elevated" open>
-      <summary class="track-panel__handle mobile-only">
+    <aside
+      class="track-panel track-panel--sheet stb-elevated"
+      [class.track-panel--peek]="!listSheetOpen">
+      <button
+        type="button"
+        class="track-panel__handle mobile-only"
+        (click)="listSheetOpen = !listSheetOpen"
+        [attr.aria-expanded]="listSheetOpen">
         <mat-icon>directions_bus</mat-icon>
         <span>Vehicles ({{ filteredLocations.length }})</span>
         <mat-icon class="track-panel__chevron">expand_less</mat-icon>
-      </summary>
+      </button>
 
       <div class="track-panel__body">
         <div class="panel-search">
@@ -212,7 +248,7 @@
           {{ refreshRateMs ? 'Auto-refresh every ' + (refreshRateMs / 1000) + 's when live tracking is on' : 'Auto-refresh paused' }}
         </p>
       </div>
-    </details>
+    </aside>
 
     <div class="track-map-col">
       <div class="map-toolbar">

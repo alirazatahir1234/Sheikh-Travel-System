@@ -14,6 +14,7 @@ import { AppChartInstance, createAppChart } from '../../../core/utils/chart.util
 Chart.register(...registerables);
 
 @Component({
+  standalone: false,
   selector: 'app-fuel-log-analytics',
   templateUrl: './fuel-log-analytics.component.html',
   styleUrls: ['./fuel-log-analytics.component.scss']

@@ -1,6 +1,7 @@
 import { Component, EventEmitter, Input, Output } from '@angular/core';
 
 @Component({
+  standalone: false,
   selector: 'stb-promo-banner',
   templateUrl: './promo-banner.component.html',
   styleUrls: ['./promo-banner.component.scss']

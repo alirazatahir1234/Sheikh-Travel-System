@@ -25,6 +25,8 @@ import {
   TripFleetFilters,
   TripReplayBundle,
   GpsFleetStatus,
+  GpsFleetStatusLocal,
+  GpsFleetStatusSnapshot,
   TripDeviceContext,
   GpsDeviceCommand,
   GpsEta,
@@ -116,6 +118,8 @@ export class GpsTrackingService {
                 address: live.address,
                 alarmType: live.alarmType,
                 vehicleType: v.vehicleType,
+                driverPhone: live.driverPhone,
+                bookingId: live.bookingId,
                 ...trackerFields
               };
             }
@@ -222,6 +226,17 @@ export class GpsTrackingService {
 
   getFleetStatus(): Observable<GpsFleetStatus> {
     return this.http.get<GpsFleetStatus>(`${this.base}/dashboard/fleet-status`);
+  }
+
+  getFleetStatusLocal(): Observable<GpsFleetStatusLocal> {
+    return this.http.get<GpsFleetStatusLocal>(`${this.base}/dashboard/fleet-status-local`);
+  }
+
+  getFleetStatusHistory(from?: Date, to?: Date): Observable<GpsFleetStatusSnapshot[]> {
+    const params: Record<string, string> = {};
+    if (from) params['from'] = from.toISOString();
+    if (to) params['to'] = to.toISOString();
+    return this.http.get<GpsFleetStatusSnapshot[]>(`${this.base}/dashboard/fleet-status-history`, { params });
   }
 
   getTripContext(vehicleId: number): Observable<TripDeviceContext> {

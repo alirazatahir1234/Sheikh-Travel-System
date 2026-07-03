@@ -3,6 +3,7 @@ import { SettingsService } from '../services/settings.service';
 import { SettingsCategory } from '../models/settings.model';
 
 @Component({
+  standalone: false,
   selector: 'app-settings-layout',
   templateUrl: './settings-layout.component.html',
   styleUrls: ['./settings-layout.component.scss']

@@ -11,6 +11,7 @@ import { Vehicle } from '../../../core/models/vehicle.model';
 import { dateInputToIso, toDateInputValue } from '../../../core/utils/date-input.util';
 
 @Component({
+  standalone: false,
   selector: 'app-maintenance-form',
   templateUrl: './maintenance-form.component.html',
   styleUrls: ['./maintenance-form.component.scss']

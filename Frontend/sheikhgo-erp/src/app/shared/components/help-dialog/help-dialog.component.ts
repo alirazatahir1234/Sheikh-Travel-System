@@ -9,6 +9,7 @@ interface HelpSection {
 }
 
 @Component({
+  standalone: false,
   selector: 'app-help-dialog',
   template: `
     <h2 mat-dialog-title>

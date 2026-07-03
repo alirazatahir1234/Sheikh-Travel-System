@@ -3,6 +3,7 @@ import { FormGroup } from '@angular/forms';
 import { APP_LOGO_PATH, APP_PRODUCT_NAME } from '../../../../../core/constants/app-brand';
 
 @Component({
+  standalone: false,
   selector: 'app-login-form-card',
   templateUrl: './login-form-card.component.html',
   styleUrls: ['./login-form-card.component.scss']

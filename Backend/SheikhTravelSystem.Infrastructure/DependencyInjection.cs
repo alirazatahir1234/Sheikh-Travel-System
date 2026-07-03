@@ -51,6 +51,8 @@ public static class DependencyInjection
         services.AddScoped<IPaymentGatewayService, ConfiguredPaymentGatewayService>();
         services.AddHostedService<ComplianceReminderHostedService>();
         services.AddHostedService<MaintenanceAlertHostedService>();
+        services.AddHostedService<GpsFleetStatusSnapshotHostedService>();
+        services.AddHostedService<GpsOfflineDetectionHostedService>();
         services.Configure<GpsSettings>(configuration.GetSection(GpsSettings.SectionName));
         services.Configure<OcrOptions>(configuration.GetSection(OcrOptions.SectionName));
         services.Configure<FileStorageOptions>(configuration.GetSection(FileStorageOptions.SectionName));

@@ -8,6 +8,7 @@ import {
 } from '../../utils/trip-event.util';
 
 @Component({
+  standalone: false,
   selector: 'app-trip-route-analysis-panel',
   templateUrl: './trip-route-analysis-panel.component.html',
   styleUrls: ['./trip-route-analysis-panel.component.scss']

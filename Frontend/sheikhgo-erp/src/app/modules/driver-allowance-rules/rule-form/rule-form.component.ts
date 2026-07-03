@@ -14,6 +14,7 @@ import {
 import { FuelType, FuelTypeLabels } from '../../../core/models/vehicle.model';
 
 @Component({
+  standalone: false,
   selector: 'app-driver-allowance-rule-form',
   templateUrl: './rule-form.component.html',
   styleUrls: ['./rule-form.component.scss']

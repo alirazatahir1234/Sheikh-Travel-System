@@ -39,6 +39,7 @@ import {
 type DeviceFilter = 'all' | 'online' | 'moving' | 'idle' | 'parked' | 'offline' | 'available' | 'unassigned' | 'never';
 
 @Component({
+  standalone: false,
   selector: 'app-gps-devices',
   templateUrl: './gps-devices.component.html',
   styleUrls: ['./gps-devices.component.scss']

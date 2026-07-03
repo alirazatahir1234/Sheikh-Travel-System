@@ -42,6 +42,7 @@ import {
 type CustomerMode = 'EXISTING' | 'NEW';
 
 @Component({
+  standalone: false,
   selector: 'app-booking-wizard',
   templateUrl: './booking-wizard.component.html',
   styleUrls: ['./booking-wizard.component.scss']

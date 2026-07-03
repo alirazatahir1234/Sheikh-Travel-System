@@ -9,6 +9,7 @@ import { AuditLog, AuditActions, AuditEntities } from '../../../core/models/audi
 import { User } from '../../../core/models/user.model';
 
 @Component({
+  standalone: false,
   selector: 'app-audit-log-list',
   templateUrl: './audit-log-list.component.html',
   styleUrls: ['./audit-log-list.component.scss'],

@@ -51,6 +51,14 @@ public class GpsTrackingController : BaseApiController
     public async Task<IActionResult> GetFleetStatus()
         => Ok(await Mediator.Send(new GetGpsFleetStatusQuery()));
 
+    [HttpGet("dashboard/fleet-status-local")]
+    public async Task<IActionResult> GetFleetStatusLocal()
+        => Ok(await Mediator.Send(new GetGpsFleetStatusLocalQuery()));
+
+    [HttpGet("dashboard/fleet-status-history")]
+    public async Task<IActionResult> GetFleetStatusHistory([FromQuery] DateTime? from, [FromQuery] DateTime? to)
+        => Ok(await Mediator.Send(new GetGpsFleetStatusHistoryQuery(from, to)));
+
     [HttpGet("trips/context")]
     public async Task<IActionResult> GetTripContext([FromQuery] int vehicleId)
         => Ok(await Mediator.Send(new GetTripContextQuery(vehicleId)));

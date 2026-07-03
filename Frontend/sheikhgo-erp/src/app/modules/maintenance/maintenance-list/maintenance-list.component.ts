@@ -46,6 +46,7 @@ interface MaintAlert {
 }
 
 @Component({
+  standalone: false,
   selector: 'app-maintenance-list',
   templateUrl: './maintenance-list.component.html',
   styleUrls: ['./maintenance-list.component.scss'],

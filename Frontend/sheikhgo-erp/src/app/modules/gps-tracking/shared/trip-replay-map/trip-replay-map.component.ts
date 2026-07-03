@@ -7,6 +7,7 @@ import { L } from '../../../../core/leaflet/leaflet-cluster';
 import type * as LeafletTypes from 'leaflet';
 
 @Component({
+  standalone: false,
   selector: 'app-trip-replay-map',
   templateUrl: './trip-replay-map.component.html',
   styleUrls: ['./trip-replay-map.component.scss']

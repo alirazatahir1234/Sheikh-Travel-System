@@ -1,6 +1,7 @@
 import { Component, Input } from '@angular/core';
 
 @Component({
+  standalone: false,
   selector: 'fleet-expiry-card',
   template: `
     <article class="expiry-card" [attr.data-tone]="tone">

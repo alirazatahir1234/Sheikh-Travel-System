@@ -13,6 +13,7 @@ import { UiSelectOption } from '../../../shared/components/ui/types/ui.types';
 import { dateInputToIso, toDateInputValue } from '../../../core/utils/date-input.util';
 
 @Component({
+  standalone: false,
   selector: 'app-vehicle-form',
   templateUrl: './vehicle-form.component.html',
   styleUrls: ['./vehicle-form.component.scss']

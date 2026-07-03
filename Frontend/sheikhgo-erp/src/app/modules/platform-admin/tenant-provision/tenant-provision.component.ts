@@ -1,4 +1,4 @@
-import { Component, ElementRef, OnInit } from '@angular/core';
+import { Component, ElementRef, OnDestroy, OnInit } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
@@ -25,14 +25,19 @@ import {
 type SectionKey = 'profile' | 'plan' | 'admin' | 'branding' | 'security' | 'organization' | 'billing';
 
 @Component({
+  standalone: false,
   selector: 'app-tenant-provision',
   templateUrl: './tenant-provision.component.html',
   styleUrls: ['./tenant-provision.component.scss']
 })
-export class TenantProvisionComponent implements OnInit {
+export class TenantProvisionComponent implements OnInit, OnDestroy {
   saving = false;
   loadingModules = true;
   modules: TenantModuleDefinition[] = [];
+  hideAdminPassword = true;
+  showLogoUrlField = false;
+  logoDragOver = false;
+  logoPreviewUrl: string | null = null;
 
   readonly planTiers = TENANT_PLAN_TIERS;
   readonly planDefinitions = PLAN_DEFINITIONS;
@@ -190,6 +195,11 @@ export class TenantProvisionComponent implements OnInit {
     return this.brandingGroup.get('primaryColor')?.value || '#007A57';
   }
 
+  get slugPreview(): string {
+    const slug = (this.profileGroup.get('slug')?.value as string | null)?.trim();
+    return slug ?? '';
+  }
+
   get filteredCountries(): string[] {
     const query = this.countrySearch.trim().toLowerCase();
     if (!query) return this.countries;
@@ -208,6 +218,59 @@ export class TenantProvisionComponent implements OnInit {
 
   clearCurrencySearch(): void {
     this.currencySearch = '';
+  }
+
+  generatePassword(): void {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%';
+    let value = '';
+    for (let i = 0; i < 12; i++) {
+      value += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    this.adminGroup.get('adminPassword')?.setValue(value);
+    this.adminGroup.get('adminPassword')?.markAsDirty();
+    this.hideAdminPassword = false;
+  }
+
+  onLogoDragOver(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.logoDragOver = true;
+  }
+
+  onLogoDrop(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.logoDragOver = false;
+    const file = event.dataTransfer?.files?.[0];
+    if (file) this.applyLogoFile(file);
+  }
+
+  onLogoFileSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (file) this.applyLogoFile(file);
+    input.value = '';
+  }
+
+  ngOnDestroy(): void {
+    this.revokeLogoPreview();
+  }
+
+  private applyLogoFile(file: File): void {
+    if (!file.type.startsWith('image/')) {
+      this.toast.warning('Please select an image file.');
+      return;
+    }
+    this.revokeLogoPreview();
+    this.logoPreviewUrl = URL.createObjectURL(file);
+    this.toast.info('Logo preview ready. Paste a hosted logo URL to include it in provisioning.');
+  }
+
+  private revokeLogoPreview(): void {
+    if (this.logoPreviewUrl) {
+      URL.revokeObjectURL(this.logoPreviewUrl);
+      this.logoPreviewUrl = null;
+    }
   }
 
   get checklistItems(): { label: string; done: boolean }[] {

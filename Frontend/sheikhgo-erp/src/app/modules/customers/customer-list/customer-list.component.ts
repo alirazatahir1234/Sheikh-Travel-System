@@ -30,6 +30,7 @@ interface QuickChip {
 }
 
 @Component({
+  standalone: false,
   selector: 'app-customer-list',
   templateUrl: './customer-list.component.html',
   styleUrls: ['./customer-list.component.scss'],

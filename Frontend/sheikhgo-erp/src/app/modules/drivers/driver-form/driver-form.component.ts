@@ -17,6 +17,7 @@ import {
 import { dateInputToIso, toDateInputValue } from '../../../core/utils/date-input.util';
 
 @Component({
+  standalone: false,
   selector: 'app-driver-form',
   templateUrl: './driver-form.component.html',
   styleUrls: ['./driver-form.component.scss']

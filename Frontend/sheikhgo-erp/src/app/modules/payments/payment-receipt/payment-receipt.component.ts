@@ -5,6 +5,7 @@ import { PaymentDetail } from '../../../core/models/payment.model';
 import { COMPANY_NAME, APP_LOGO_PATH } from '../../../core/constants/app-brand';
 
 @Component({
+  standalone: false,
   selector: 'app-payment-receipt',
   templateUrl: './payment-receipt.component.html',
   styleUrls: ['./payment-receipt.component.scss']

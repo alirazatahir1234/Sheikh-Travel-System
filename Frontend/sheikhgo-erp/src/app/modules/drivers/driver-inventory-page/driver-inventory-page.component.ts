@@ -447,7 +447,7 @@ export class DriverInventoryPageComponent implements OnInit {
     });
 
     this.toast.success('Drivers report downloaded');
-  }
+                                                                                                                                                                                                                                                                                                                                          }
 
   importDrivers(): void {
     this.toast.info('Bulk import coming soon');

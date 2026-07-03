@@ -17,6 +17,7 @@ import {
 import { apiErrorMessage } from '../../../core/utils/api-error.util';
 
 @Component({
+  standalone: false,
   selector: 'app-subscription-management',
   templateUrl: './subscription-management.component.html',
   styleUrls: ['./subscription-management.component.scss']

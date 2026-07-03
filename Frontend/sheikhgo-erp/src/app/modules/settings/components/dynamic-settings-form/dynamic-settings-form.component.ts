@@ -19,6 +19,7 @@ export interface SettingsFormStatus {
 }
 
 @Component({
+  standalone: false,
   selector: 'app-dynamic-settings-form',
   templateUrl: './dynamic-settings-form.component.html',
   styleUrls: ['./dynamic-settings-form.component.scss']

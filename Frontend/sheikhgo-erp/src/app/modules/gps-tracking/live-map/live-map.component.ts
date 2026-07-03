@@ -8,6 +8,7 @@ import {
   HostListener
 } from '@angular/core';
 import { Router, ActivatedRoute } from '@angular/router';
+import { ChartData } from 'chart.js';
 import type * as LeafletTypes from 'leaflet';
 import {
   createMarkerClusterGroup,
@@ -24,11 +25,14 @@ import {
   PositionDto,
   TrackingDto,
   FleetTrackStatus,
-  SosAlertPayload
+  SosAlertPayload,
+  GpsFleetStatusLocal,
+  GpsFleetStatusSnapshot
 } from '../../../core/models/gps-tracking.model';
 import { VehicleListItem } from '../../../core/models/vehicle.model';
 import { resolveFleetStatus } from '../../../core/utils/gps-status.util';
 import { mergeVehicleLocations } from './live-map-state.util';
+import { computeFleetHealth, FleetHealthBreakdown } from '../utils/fleet-health.util';
 
 type StatusFilter = 'all' | FleetTrackStatus;
 type TimePreset = 'today' | '24h' | '7d' | 'custom';
@@ -62,6 +66,7 @@ const TRAIL_COLORS: Record<FleetTrackStatus, string> = {
 };
 
 @Component({
+  standalone: false,
   selector: 'app-live-map',
   templateUrl: './live-map.component.html',
   styleUrls: ['./live-map.component.scss']
@@ -97,6 +102,7 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
   timePreset: TimePreset = 'today';
   mapTheme: MapTheme = 'light';
   liveTracking = true;
+  listSheetOpen = true;
   selectedVehicleId: number | null = null;
   lastSyncAt: Date | null = null;
   secondsSinceSync = 0;
@@ -149,6 +155,15 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
   ];
 
   geofenceBreachCount = 0;
+
+  fleetStatusLocal: GpsFleetStatusLocal | null = null;
+  fleetStatusHistory: GpsFleetStatusSnapshot[] = [];
+  fleetOverviewRangeDays: 7 | 30 = 7;
+  readonly fleetOverviewRangeOptions: { days: 7 | 30; label: string }[] = [
+    { days: 7, label: '7 Days' },
+    { days: 30, label: '30 Days' }
+  ];
+
   private realtimeSub?: { unsubscribe(): void };
   private mapReady = false;
   private pendingMarkerLocations: VehicleLocation[] | null = null;
@@ -214,6 +229,7 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
       error: () => {}
     });
     this.loadRecentAlertEvents();
+    this.loadFleetStatus();
     void this.realtime.connect().catch(() => {
       this.pushEvent('Realtime unavailable — using polling', 'warning', 'wifi_off');
     });
@@ -535,6 +551,86 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
     this.pushEvent('Manual refresh requested', 'info', 'refresh');
     this.loadLocations(true, true);
     this.loadRecentAlertEvents();
+    this.loadFleetStatus();
+  }
+
+  private loadFleetStatus(): void {
+    this.gpsService.getFleetStatusLocal().subscribe({
+      next: s => { this.fleetStatusLocal = s; },
+      error: () => {}
+    });
+    this.loadFleetStatusHistory();
+  }
+
+  private loadFleetStatusHistory(): void {
+    const to = new Date();
+    const from = new Date(to.getTime() - this.fleetOverviewRangeDays * 24 * 60 * 60 * 1000);
+    this.gpsService.getFleetStatusHistory(from, to).subscribe({
+      next: rows => { this.fleetStatusHistory = rows; },
+      error: () => {}
+    });
+  }
+
+  setFleetOverviewRange(days: 7 | 30): void {
+    this.fleetOverviewRangeDays = days;
+    this.loadFleetStatusHistory();
+  }
+
+  /** Last ~24 history points for a given metric — feeds each KPI tile's sparkline canvas. */
+  sparklineFor(metric: keyof GpsFleetStatusSnapshot): number[] {
+    return this.fleetStatusHistory.slice(-24).map(s => Number(s[metric]) || 0);
+  }
+
+  /** Day-over-day delta (latest snapshot vs. ~24h-ago) for a given metric's trend indicator. */
+  trendFor(metric: keyof GpsFleetStatusSnapshot): { trend: string; trendUp: boolean } | null {
+    if (this.fleetStatusHistory.length < 2) return null;
+
+    const latest = this.fleetStatusHistory[this.fleetStatusHistory.length - 1];
+    const latestTime = new Date(latest.snapshotAt).getTime();
+    const dayAgoTarget = latestTime - 24 * 60 * 60 * 1000;
+
+    let compare = this.fleetStatusHistory[0];
+    for (const s of this.fleetStatusHistory) {
+      if (new Date(s.snapshotAt).getTime() <= dayAgoTarget) compare = s;
+    }
+
+    const latestVal = Number(latest[metric]) || 0;
+    const compareVal = Number(compare[metric]) || 0;
+    if (compareVal === 0) return null;
+
+    const pct = ((latestVal - compareVal) / compareVal) * 100;
+    return { trend: `${pct >= 0 ? '+' : ''}${pct.toFixed(1)}%`, trendUp: pct >= 0 };
+  }
+
+  get fleetHealth(): FleetHealthBreakdown {
+    return computeFleetHealth(this.locations);
+  }
+
+  get fleetOverviewChartData(): ChartData {
+    const labels = this.fleetStatusHistory.map(s =>
+      new Date(s.snapshotAt).toLocaleDateString(undefined, { day: '2-digit', month: 'short' }));
+    return {
+      labels,
+      datasets: [
+        { label: 'Moving', data: this.fleetStatusHistory.map(s => s.moving), borderColor: '#10B981', backgroundColor: '#10B98133', tension: 0.4, pointRadius: 0 },
+        { label: 'Idle', data: this.fleetStatusHistory.map(s => s.idle), borderColor: '#8B5CF6', backgroundColor: '#8B5CF633', tension: 0.4, pointRadius: 0 },
+        { label: 'Parked', data: this.fleetStatusHistory.map(s => s.parked), borderColor: '#F97316', backgroundColor: '#F9731633', tension: 0.4, pointRadius: 0 },
+        { label: 'Offline', data: this.fleetStatusHistory.map(s => s.offline), borderColor: '#EF4444', backgroundColor: '#EF444433', tension: 0.4, pointRadius: 0 }
+      ]
+    };
+  }
+
+  get fleetHealthChartData(): ChartData {
+    const h = this.fleetHealth;
+    return {
+      labels: ['Optimal', 'Attention', 'Critical', 'Unknown'],
+      datasets: [{
+        data: [h.optimal, h.attention, h.critical, h.unknown],
+        backgroundColor: ['#10B981', '#F59E0B', '#EF4444', '#94A3B8'],
+        borderWidth: 0,
+        hoverOffset: 6
+      }]
+    };
   }
 
   toggleLiveTracking(): void {

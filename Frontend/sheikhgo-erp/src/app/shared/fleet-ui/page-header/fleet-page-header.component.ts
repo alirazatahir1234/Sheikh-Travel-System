@@ -1,6 +1,7 @@
 import { Component, Input } from '@angular/core';
 
 @Component({
+  standalone: false,
   selector: 'fleet-page-header',
   template: `
     <ui-page-header [title]="title" [subtitle]="subtitle" [eyebrow]="eyebrow" [icon]="icon">

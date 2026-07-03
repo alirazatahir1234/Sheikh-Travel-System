@@ -13,6 +13,7 @@ import { FuelLog, FuelTypeLabels, FuelType } from '../../../core/models/fuel-log
 import { Maintenance, MaintenanceStatusLabels, MaintenanceStatus } from '../../../core/models/maintenance.model';
 
 @Component({
+  standalone: false,
   selector: 'app-vehicle-profile',
   templateUrl: './vehicle-profile.component.html',
   styleUrls: ['./vehicle-profile.component.scss']
