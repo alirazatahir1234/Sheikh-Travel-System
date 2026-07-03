@@ -40,8 +40,9 @@ const TONE_MAP: Record<string, FleetStatusTone> = {
 };
 
 @Component({
-  selector: 'fleet-status-badge',
-  template: `<ui-status-badge [status]="status" [label]="label" [variant]="variant"></ui-status-badge>`
+    selector: 'fleet-status-badge',
+    template: `<ui-status-badge [status]="status" [label]="label" [variant]="variant"></ui-status-badge>`,
+    standalone: false
 })
 export class FleetStatusBadgeComponent {
   @Input() status = '';

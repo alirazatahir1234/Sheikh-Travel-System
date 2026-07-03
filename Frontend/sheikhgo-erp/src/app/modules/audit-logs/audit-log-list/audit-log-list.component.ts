@@ -9,10 +9,11 @@ import { AuditLog, AuditActions, AuditEntities } from '../../../core/models/audi
 import { User } from '../../../core/models/user.model';
 
 @Component({
-  selector: 'app-audit-log-list',
-  templateUrl: './audit-log-list.component.html',
-  styleUrls: ['./audit-log-list.component.scss'],
-  providers: [DatePipe]
+    selector: 'app-audit-log-list',
+    templateUrl: './audit-log-list.component.html',
+    styleUrls: ['./audit-log-list.component.scss'],
+    providers: [DatePipe],
+    standalone: false
 })
 export class AuditLogListComponent implements OnInit {
   displayedColumns = ['createdAt', 'user', 'action', 'entity', 'details', 'ipAddress'];

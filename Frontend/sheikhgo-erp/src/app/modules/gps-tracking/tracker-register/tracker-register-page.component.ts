@@ -31,11 +31,16 @@ import {
   phoneLocalValidator,
   todayIsoDate
 } from './tracker-register.validators';
+import { SharedModule } from '../../../shared/shared.module';
+import { UiInputComponent } from '../../../shared/components/ui/input/ui-input.component';
+import { UiSelectComponent } from '../../../shared/components/ui/select/ui-select.component';
 
 @Component({
-  selector: 'app-tracker-register-page',
-  templateUrl: './tracker-register-page.component.html',
-  styleUrls: ['./tracker-register-page.component.scss']
+    selector: 'app-tracker-register-page',
+    templateUrl: './tracker-register-page.component.html',
+    styleUrls: ['./tracker-register-page.component.scss'],
+    standalone: true,
+    imports: [SharedModule, UiInputComponent, UiSelectComponent]
 })
 export class TrackerRegisterPageComponent implements OnInit {
   private readonly fb = inject(FormBuilder);

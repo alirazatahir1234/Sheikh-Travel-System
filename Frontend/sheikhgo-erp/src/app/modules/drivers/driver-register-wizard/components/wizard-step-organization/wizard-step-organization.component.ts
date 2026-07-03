@@ -4,11 +4,10 @@ import { DriverStatus, DriverStatusLabels } from '../../../../../core/models/dri
 import { UiSelectOption } from '../../../../../shared/components/ui/types/ui.types';
 
 @Component({
-  selector: 'app-wizard-step-organization',
-  standalone: true,
-  imports: [ReactiveFormsModule],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'app-wizard-step-organization',
+    imports: [ReactiveFormsModule],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     <div class="space-y-6">
       <section class="wizard-card">
         <h2 class="wizard-card-title">Organization Assignment</h2>
@@ -96,7 +95,7 @@ import { UiSelectOption } from '../../../../../shared/components/ui/types/ui.typ
       </section>
     </div>
   `,
-  styleUrls: ['../wizard-step-personal/wizard-step-shared.scss']
+    styleUrls: ['../wizard-step-personal/wizard-step-shared.scss']
 })
 export class WizardStepOrganizationComponent {
   readonly form = input.required<FormGroup>();

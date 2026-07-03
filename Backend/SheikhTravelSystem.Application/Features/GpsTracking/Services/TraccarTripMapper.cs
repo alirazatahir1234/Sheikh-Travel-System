@@ -30,7 +30,8 @@ public static class TraccarTripMapper
             trip.EndAddress,
             trip.DriverName,
             trip.SpentFuel,
-            plateNumber);
+            plateNumber,
+            Status: "Completed");
     }
 
     /// <summary>

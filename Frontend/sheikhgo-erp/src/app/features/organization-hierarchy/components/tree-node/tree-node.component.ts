@@ -9,11 +9,10 @@ import { CommonModule } from '@angular/common';
 import { OrganizationNode } from '../../models/organization.models';
 
 @Component({
-  selector: 'app-tree-node',
-  standalone: true,
-  imports: [CommonModule],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  styles: [`
+    selector: 'app-tree-node',
+    imports: [CommonModule],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    styles: [`
     .tree-node-wrapper {
       position: relative;
     }
@@ -50,7 +49,7 @@ import { OrganizationNode } from '../../models/organization.models';
       border-left: 1px solid transparent;
     }
   `],
-  template: `
+    template: `
     <div class="tree-node-wrapper">
       <!-- Node Row -->
       <div
@@ -222,7 +221,7 @@ import { OrganizationNode } from '../../models/organization.models';
         </div>
       }
     </div>
-  `,
+  `
 })
 export class TreeNodeComponent {
   readonly node = input.required<OrganizationNode>();

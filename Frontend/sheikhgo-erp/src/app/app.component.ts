@@ -3,9 +3,10 @@ import { NavigationEnd, Router } from '@angular/router';
 import { Subject, filter, take, takeUntil, timer } from 'rxjs';
 
 @Component({
-  selector: 'app-root',
-  templateUrl: './app.component.html',
-  styleUrl: './app.component.scss'
+    selector: 'app-root',
+    templateUrl: './app.component.html',
+    styleUrl: './app.component.scss',
+    standalone: false
 })
 export class AppComponent implements OnInit, OnDestroy {
   splashVisible = true;

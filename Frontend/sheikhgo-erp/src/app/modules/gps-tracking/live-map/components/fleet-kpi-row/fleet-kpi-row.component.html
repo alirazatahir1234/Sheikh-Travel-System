@@ -1,0 +1,36 @@
+<section class="ft-kpis" aria-label="Fleet KPIs">
+  <div *ngIf="loading" class="ft-kpis-loading">
+    <mat-spinner diameter="32"></mat-spinner>
+  </div>
+
+  <article
+    *ngFor="let kpi of kpis"
+    class="kpi-card"
+    [class]="'kpi-card--' + kpi.tone"
+    [attr.aria-label]="kpi.label">
+    <div class="kpi-card__icon">
+      <mat-icon>{{ kpi.icon }}</mat-icon>
+    </div>
+    <div class="kpi-card__body">
+      <span class="kpi-card__label">{{ kpi.label }}</span>
+      <div class="kpi-card__row">
+        <span class="kpi-card__value">{{ countFor(kpi) }}</span>
+        <span
+          *ngIf="trendFor(kpi) != null"
+          class="kpi-card__trend"
+          [class.kpi-card__trend--up]="(trendFor(kpi) ?? 0) >= 0"
+          [class.kpi-card__trend--down]="(trendFor(kpi) ?? 0) < 0">
+          {{ (trendFor(kpi) ?? 0) >= 0 ? '+' : '' }}{{ trendFor(kpi) }}%
+        </span>
+      </div>
+      <span *ngIf="hintFor(kpi.key) as hint" class="kpi-card__hint">{{ hint }}</span>
+      <div *ngIf="sparklineFor(kpi).length" class="kpi-card__sparkline" aria-hidden="true">
+        <span
+          *ngFor="let v of sparklineFor(kpi); let i = index"
+          class="kpi-spark-bar"
+          [style.height.%]="sparkHeight(v, sparklineFor(kpi))"
+          [style.animation-delay.ms]="i * 40"></span>
+      </div>
+    </div>
+  </article>
+</section>

@@ -15,9 +15,10 @@ import {
 Chart.register(...registerables);
 
 @Component({
-  selector: 'app-reports',
-  templateUrl: './reports.component.html',
-  styleUrls: ['./reports.component.scss']
+    selector: 'app-reports',
+    templateUrl: './reports.component.html',
+    styleUrls: ['./reports.component.scss'],
+    standalone: false
 })
 export class ReportsComponent implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild('revenueChart') revenueCanvasRef!: ElementRef<HTMLCanvasElement>;

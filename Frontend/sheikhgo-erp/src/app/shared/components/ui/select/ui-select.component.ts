@@ -14,18 +14,17 @@ import { MatIconModule } from '@angular/material/icon';
 import { UiSelectOption } from '../types/ui.types';
 
 @Component({
-  selector: 'ui-select',
-  standalone: true,
-  imports: [MatIconModule],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  providers: [
-    {
-      provide: NG_VALUE_ACCESSOR,
-      useExisting: forwardRef(() => UiSelectComponent),
-      multi: true
-    }
-  ],
-  template: `
+    selector: 'ui-select',
+    imports: [MatIconModule],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    providers: [
+        {
+            provide: NG_VALUE_ACCESSOR,
+            useExisting: forwardRef(() => UiSelectComponent),
+            multi: true
+        }
+    ],
+    template: `
     <label class="block">
       @if (label()) {
         <span class="mb-1.5 block text-[13px] font-semibold text-fleet-text">
@@ -90,7 +89,7 @@ import { UiSelectOption } from '../types/ui.types';
       }
     </label>
   `,
-  styles: [`
+    styles: [`
     :host { display: block; }
     mat-icon { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; font-size: 20px; }
   `]

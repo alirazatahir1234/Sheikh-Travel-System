@@ -24,11 +24,10 @@ import {
 type DocumentPreview = { kind: 'image' | 'pdf'; src: string };
 
 @Component({
-  selector: 'app-document-upload-zone',
-  standalone: true,
-  imports: [MatIconModule, NgClass],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'app-document-upload-zone',
+    imports: [MatIconModule, NgClass],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     <div
       class="rounded-lg border-2 border-dashed p-5 transition-colors"
       [ngClass]="{

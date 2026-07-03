@@ -42,9 +42,10 @@ import {
 type CustomerMode = 'EXISTING' | 'NEW';
 
 @Component({
-  selector: 'app-booking-wizard',
-  templateUrl: './booking-wizard.component.html',
-  styleUrls: ['./booking-wizard.component.scss']
+    selector: 'app-booking-wizard',
+    templateUrl: './booking-wizard.component.html',
+    styleUrls: ['./booking-wizard.component.scss'],
+    standalone: false
 })
 export class BookingWizardComponent implements OnInit, OnDestroy {
   @ViewChild('stepper') stepper?: MatStepper;

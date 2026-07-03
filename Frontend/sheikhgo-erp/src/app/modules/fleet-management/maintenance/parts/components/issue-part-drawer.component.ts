@@ -10,11 +10,10 @@ import { VehicleListItem } from '../../../../../core/models/vehicle.model';
 import { apiErrorMessage } from '../../../../../core/utils/api-error.util';
 
 @Component({
-  selector: 'issue-part-drawer',
-  standalone: true,
-  imports: [FormsModule, UiDrawerComponent],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'issue-part-drawer',
+    imports: [FormsModule, UiDrawerComponent],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     <ui-drawer [open]="open()" [title]="'Issue Part — ' + (part()?.partName ?? '')" (closed)="closed.emit()">
       @if (part(); as p) {
         <form class="form" (ngSubmit)="submit()">
@@ -57,7 +56,7 @@ import { apiErrorMessage } from '../../../../../core/utils/api-error.util';
       }
     </ui-drawer>
   `,
-  styles: [`
+    styles: [`
     .form { display: grid; gap: 0.875rem; }
     .hint { margin: 0; font-size: 0.8125rem; color: #64748b; }
     .warn { margin: 0; font-size: 0.8125rem; color: #b45309; background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 0.5rem 0.625rem; }

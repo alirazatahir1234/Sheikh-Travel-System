@@ -10,11 +10,10 @@ import {
 } from '../../../../core/models/fleet-assignment.model';
 
 @Component({
-  selector: 'assignment-table',
-  standalone: true,
-  imports: [DatePipe, MatIconModule, MatMenuModule],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'assignment-table',
+    imports: [DatePipe, MatIconModule, MatMenuModule],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     <div class="table-wrap">
       <table class="data-table">
         <thead>
@@ -179,7 +178,7 @@ import {
       }
     </div>
   `,
-  styles: [`
+    styles: [`
     :host { display: block; min-width: 0; }
 
     .table-wrap {

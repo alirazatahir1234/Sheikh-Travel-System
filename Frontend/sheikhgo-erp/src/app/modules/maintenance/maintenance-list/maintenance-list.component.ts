@@ -46,10 +46,11 @@ interface MaintAlert {
 }
 
 @Component({
-  selector: 'app-maintenance-list',
-  templateUrl: './maintenance-list.component.html',
-  styleUrls: ['./maintenance-list.component.scss'],
-  providers: [DatePipe, DecimalPipe]
+    selector: 'app-maintenance-list',
+    templateUrl: './maintenance-list.component.html',
+    styleUrls: ['./maintenance-list.component.scss'],
+    providers: [DatePipe, DecimalPipe],
+    standalone: false
 })
 export class MaintenanceListComponent implements OnInit {
   displayedColumns = ['maintenanceDate', 'vehicle', 'description', 'status', 'cost', 'serviceProvider', 'nextDueDate', 'actions'];

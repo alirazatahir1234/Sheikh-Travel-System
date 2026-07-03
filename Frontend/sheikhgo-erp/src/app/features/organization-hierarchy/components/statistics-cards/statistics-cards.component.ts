@@ -14,11 +14,10 @@ interface StatCard {
 }
 
 @Component({
-  selector: 'app-statistics-cards',
-  standalone: true,
-  imports: [CommonModule],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'app-statistics-cards',
+    imports: [CommonModule],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
       @for (stat of stats(); track stat.label) {
         <div class="bg-white rounded-xl border border-border p-4 hover:shadow-sm transition-shadow">
@@ -60,7 +59,7 @@ interface StatCard {
         </div>
       }
     </div>
-  `,
+  `
 })
 export class StatisticsCardsComponent {
   readonly branch = input.required<Branch>();

@@ -14,18 +14,17 @@ import { UiInputType } from '../types/ui.types';
 let uiInputId = 0;
 
 @Component({
-  selector: 'ui-input',
-  standalone: true,
-  imports: [MatIconModule],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  providers: [
-    {
-      provide: NG_VALUE_ACCESSOR,
-      useExisting: forwardRef(() => UiInputComponent),
-      multi: true
-    }
-  ],
-  template: `
+    selector: 'ui-input',
+    imports: [MatIconModule],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    providers: [
+        {
+            provide: NG_VALUE_ACCESSOR,
+            useExisting: forwardRef(() => UiInputComponent),
+            multi: true
+        }
+    ],
+    template: `
     <label class="block">
       @if (label()) {
         <span class="mb-1.5 block text-[13px] font-semibold text-fleet-text">
@@ -69,7 +68,7 @@ let uiInputId = 0;
       }
     </label>
   `,
-  styles: [`
+    styles: [`
     :host { display: block; }
     mat-icon { display: inline-flex; align-items: center; justify-content: center; }
   `]

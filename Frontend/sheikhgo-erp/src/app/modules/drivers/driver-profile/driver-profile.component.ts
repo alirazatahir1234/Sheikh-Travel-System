@@ -9,9 +9,10 @@ import { Driver } from '../../../core/models/driver.model';
 import { Booking } from '../../../core/models/booking.model';
 
 @Component({
-  selector: 'app-driver-profile',
-  templateUrl: './driver-profile.component.html',
-  styleUrls: ['./driver-profile.component.scss']
+    selector: 'app-driver-profile',
+    templateUrl: './driver-profile.component.html',
+    styleUrls: ['./driver-profile.component.scss'],
+    standalone: false
 })
 export class DriverProfileComponent implements OnInit {
   driver: Driver | null = null;

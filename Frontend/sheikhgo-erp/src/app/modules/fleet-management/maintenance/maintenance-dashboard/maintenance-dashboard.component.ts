@@ -23,26 +23,25 @@ import { apiErrorMessage } from '../../../../core/utils/api-error.util';
 import { maintenanceDashboardGranularity } from '../utils/maintenance-period.util';
 
 @Component({
-  selector: 'app-maintenance-dashboard',
-  standalone: true,
-  imports: [
-    CommonModule,
-    CurrencyPipe,
-    AppBrandLoaderComponent,
-    MaintenanceKpiGridComponent,
-    MaintenanceCostTrendComponent,
-    MaintenanceQuickActionsComponent,
-    MaintenanceRecentWorkOrdersComponent,
-    MaintenanceCriticalAlertsComponent,
-    MaintenanceVehicleHealthComponent,
-    MaintenanceUpcomingServicesComponent,
-    MaintenancePendingRequestsComponent,
-    MaintenanceFuelSummaryComponent,
-    WorkOrderDetailDrawerComponent
-  ],
-  templateUrl: './maintenance-dashboard.component.html',
-  styleUrls: ['./maintenance-dashboard.component.scss'],
-  changeDetection: ChangeDetectionStrategy.OnPush
+    selector: 'app-maintenance-dashboard',
+    imports: [
+        CommonModule,
+        CurrencyPipe,
+        AppBrandLoaderComponent,
+        MaintenanceKpiGridComponent,
+        MaintenanceCostTrendComponent,
+        MaintenanceQuickActionsComponent,
+        MaintenanceRecentWorkOrdersComponent,
+        MaintenanceCriticalAlertsComponent,
+        MaintenanceVehicleHealthComponent,
+        MaintenanceUpcomingServicesComponent,
+        MaintenancePendingRequestsComponent,
+        MaintenanceFuelSummaryComponent,
+        WorkOrderDetailDrawerComponent
+    ],
+    templateUrl: './maintenance-dashboard.component.html',
+    styleUrls: ['./maintenance-dashboard.component.scss'],
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class MaintenanceDashboardComponent {
   private readonly maintenanceService = inject(MaintenanceService);

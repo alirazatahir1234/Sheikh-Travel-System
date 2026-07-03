@@ -4,11 +4,10 @@ import { UiStatusBadgeComponent } from '../../../../../../shared/components/ui/s
 import { formatCurrency } from '../../../../../../core/models/platform.model';
 
 @Component({
-  selector: 'app-wizard-step-review',
-  standalone: true,
-  imports: [UiStatusBadgeComponent],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'app-wizard-step-review',
+    imports: [UiStatusBadgeComponent],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     <section class="rounded-lg border border-fleet-border bg-white p-6 shadow-sm">
       <h2 class="mb-1 text-lg font-semibold text-fleet-text">
         {{ isDraft() ? 'Review & Publish' : 'Review & Save' }}

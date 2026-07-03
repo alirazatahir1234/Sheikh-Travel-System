@@ -3,9 +3,10 @@ import { FleetService } from '../../services/fleet.service';
 import { InspectionRow } from '../../models/fleet.model';
 
 @Component({
-  selector: 'app-inspection-list',
-  templateUrl: './inspection-list.component.html',
-  styleUrls: ['./inspection-list.component.scss']
+    selector: 'app-inspection-list',
+    templateUrl: './inspection-list.component.html',
+    styleUrls: ['./inspection-list.component.scss'],
+    standalone: false
 })
 export class InspectionListComponent implements OnInit {
   private readonly fleet = inject(FleetService);

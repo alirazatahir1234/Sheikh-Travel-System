@@ -1,0 +1,45 @@
+<section class="route-replay-panel stb-elevated" *ngIf="visible">
+  <header class="route-replay-panel__head">
+    <div class="route-replay-panel__title">
+      <mat-icon>play_circle</mat-icon>
+      <span>Route replay{{ vehicleName ? ' — ' + vehicleName : '' }}</span>
+    </div>
+    <button type="button" mat-icon-button class="stb-touch" aria-label="Close replay" (click)="close.emit()">
+      <mat-icon>close</mat-icon>
+    </button>
+  </header>
+
+  <div class="route-replay-panel__body">
+    <div class="route-replay-toolbar">
+      <div class="filter-chips">
+        <button
+          type="button"
+          class="filter-chip stb-touch"
+          *ngFor="let p of presets"
+          [class.filter-chip--active]="preset === p.id"
+          (click)="presetChange.emit(p.id)">
+          {{ p.label }}
+        </button>
+      </div>
+      <button mat-flat-button color="primary" type="button" class="stb-touch" (click)="load.emit()" [disabled]="loading">
+        <mat-icon>search</mat-icon>
+        Load route
+      </button>
+    </div>
+
+    <div *ngIf="error" class="history-error">
+      <mat-icon>error</mat-icon>
+      {{ error }}
+    </div>
+
+    <app-brand-loader *ngIf="loading" size="sm" />
+
+    <app-trip-replay-map
+      *ngIf="!loading && replayData"
+      [routePoints]="replayData.routePoints"
+      [positions]="replayData.positions"
+      [stops]="replayData.stops ?? []"
+      [events]="replayData.events ?? []"
+      [loading]="loading" />
+  </div>
+</section>

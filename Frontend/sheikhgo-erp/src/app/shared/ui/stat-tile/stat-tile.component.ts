@@ -11,9 +11,10 @@ import {
 import { AccentColor, StatVariant } from '../ui.types';
 
 @Component({
-  selector: 'stb-stat-tile',
-  templateUrl: './stat-tile.component.html',
-  styleUrls: ['./stat-tile.component.scss']
+    selector: 'stb-stat-tile',
+    templateUrl: './stat-tile.component.html',
+    styleUrls: ['./stat-tile.component.scss'],
+    standalone: false
 })
 export class StatTileComponent implements AfterViewInit, OnChanges {
   @Input() label = '';

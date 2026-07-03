@@ -9,8 +9,8 @@ interface HelpSection {
 }
 
 @Component({
-  selector: 'app-help-dialog',
-  template: `
+    selector: 'app-help-dialog',
+    template: `
     <h2 mat-dialog-title>
       <mat-icon>help_outline</mat-icon>
       Help & Support
@@ -40,7 +40,7 @@ interface HelpSection {
       <button mat-button (click)="close()">Close</button>
     </mat-dialog-actions>
   `,
-  styles: [`
+    styles: [`
     h2[mat-dialog-title] {
       display: flex;
       align-items: center;
@@ -81,7 +81,8 @@ interface HelpSection {
       padding: 12px 16px;
       ul { list-style: none; padding-left: 0; }
     }
-  `]
+  `],
+    standalone: false
 })
 export class HelpDialogComponent {
   readonly appProductName = APP_PRODUCT_NAME;

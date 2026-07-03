@@ -4,11 +4,10 @@ import { MatIconModule } from '@angular/material/icon';
 import { MaintenanceAlert } from '../../../../core/models/maintenance.model';
 
 @Component({
-  selector: 'maintenance-critical-alerts',
-  standalone: true,
-  imports: [MatIconModule],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'maintenance-critical-alerts',
+    imports: [MatIconModule],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     <div class="card">
       <div class="card-head">
         <h3>Critical Alerts</h3>
@@ -35,7 +34,7 @@ import { MaintenanceAlert } from '../../../../core/models/maintenance.model';
       </div>
     </div>
   `,
-  styles: [`
+    styles: [`
     .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 1.25rem; min-width: 0; }
     .card-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; }
     h3 { margin: 0; font-size: 1rem; font-weight: 700; color: #0b6b50; }

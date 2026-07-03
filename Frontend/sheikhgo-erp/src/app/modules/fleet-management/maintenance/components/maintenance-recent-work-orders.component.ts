@@ -4,11 +4,10 @@ import { RouterLink } from '@angular/router';
 import { WorkOrderListItem, WorkOrderStatusLabels } from '../../../../core/models/maintenance.model';
 
 @Component({
-  selector: 'maintenance-recent-work-orders',
-  standalone: true,
-  imports: [DatePipe, RouterLink],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'maintenance-recent-work-orders',
+    imports: [DatePipe, RouterLink],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     <div class="card">
       <div class="card-head">
         <h3>Recent Work Orders</h3>
@@ -41,7 +40,7 @@ import { WorkOrderListItem, WorkOrderStatusLabels } from '../../../../core/model
       </div>
     </div>
   `,
-  styles: [`
+    styles: [`
     .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 1.25rem; box-shadow: 0 1px 3px rgba(11,107,80,.06); min-width: 0; }
     .card-head { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap; }
     h3 { margin: 0; font-size: 1rem; font-weight: 700; color: #0b6b50; }

@@ -4,11 +4,10 @@ import { MatIconModule } from '@angular/material/icon';
 import { UiBreadcrumb } from '../types/ui.types';
 
 @Component({
-  selector: 'ui-page-header',
-  standalone: true,
-  imports: [RouterLink, MatIconModule],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'ui-page-header',
+    imports: [RouterLink, MatIconModule],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     <header class="stb-page-header flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
       <div class="min-w-0 flex-1">
         @if (breadcrumbs().length) {
@@ -43,7 +42,7 @@ import { UiBreadcrumb } from '../types/ui.types';
       </div>
     </header>
   `,
-  styles: [`
+    styles: [`
     :host { display: block; min-width: 0; }
     mat-icon { display: inline-flex; align-items: center; }
     @media (max-width: 767px) {

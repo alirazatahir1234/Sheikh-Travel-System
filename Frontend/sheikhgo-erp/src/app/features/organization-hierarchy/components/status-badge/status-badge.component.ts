@@ -8,16 +8,15 @@ import { CommonModule } from '@angular/common';
 import { BranchStatus } from '../../models/organization.models';
 
 @Component({
-  selector: 'app-status-badge',
-  standalone: true,
-  imports: [CommonModule],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'app-status-badge',
+    imports: [CommonModule],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     <span [class]="badgeClasses()">
       <span [class]="dotClasses()"></span>
       {{ status() }}
     </span>
-  `,
+  `
 })
 export class StatusBadgeComponent {
   readonly status = input.required<BranchStatus>();

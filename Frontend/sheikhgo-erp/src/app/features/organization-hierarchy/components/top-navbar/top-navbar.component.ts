@@ -15,11 +15,10 @@ export interface BreadcrumbItem {
 }
 
 @Component({
-  selector: 'app-top-navbar',
-  standalone: true,
-  imports: [CommonModule],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'app-top-navbar',
+    imports: [CommonModule],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     <header class="bg-white border-b border-border sticky top-0 z-40">
       <div class="px-6 py-4">
         <div class="flex items-center justify-between">
@@ -128,7 +127,7 @@ export interface BreadcrumbItem {
         </div>
       </div>
     </header>
-  `,
+  `
 })
 export class TopNavbarComponent {
   readonly viewMode = input<ViewMode>('tree');

@@ -40,10 +40,11 @@ interface QuickChip {
 }
 
 @Component({
-  selector: 'app-route-list',
-  templateUrl: './route-list.component.html',
-  styleUrls: ['./route-list.component.scss'],
-  providers: [DatePipe]
+    selector: 'app-route-list',
+    templateUrl: './route-list.component.html',
+    styleUrls: ['./route-list.component.scss'],
+    providers: [DatePipe],
+    standalone: false
 })
 export class RouteListComponent implements OnInit, OnDestroy {
   displayedColumns = [

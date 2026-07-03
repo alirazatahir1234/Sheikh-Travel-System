@@ -3,11 +3,10 @@ import { MatIconModule } from '@angular/material/icon';
 import { Part } from '../../../../../core/models/maintenance.model';
 
 @Component({
-  selector: 'parts-alerts',
-  standalone: true,
-  imports: [MatIconModule],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'parts-alerts',
+    imports: [MatIconModule],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     @if (lowStockParts().length || outOfStockParts().length) {
       <div class="alerts">
         @if (outOfStockParts().length) {
@@ -31,7 +30,7 @@ import { Part } from '../../../../../core/models/maintenance.model';
       </div>
     }
   `,
-  styles: [`
+    styles: [`
     .alerts { display: grid; gap: 0.625rem; margin-bottom: 1rem; }
     .alert {
       display: flex; align-items: flex-start; gap: 0.625rem;

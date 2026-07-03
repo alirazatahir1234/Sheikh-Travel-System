@@ -3,11 +3,10 @@ import { APP_PRODUCT_NAME } from '../../../core/constants/app-brand';
 import { SgProgressLoaderComponent } from '../sg-progress-loader/sg-progress-loader.component';
 
 @Component({
-  selector: 'app-splash',
-  standalone: true,
-  imports: [SgProgressLoaderComponent],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'app-splash',
+    imports: [SgProgressLoaderComponent],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     <div
       class="splash-screen"
       [class.splash-screen--exit]="hiding()"
@@ -20,7 +19,7 @@ import { SgProgressLoaderComponent } from '../sg-progress-loader/sg-progress-loa
       </div>
     </div>
   `,
-  styles: [`
+    styles: [`
     .splash-screen {
       position: fixed;
       inset: 0;

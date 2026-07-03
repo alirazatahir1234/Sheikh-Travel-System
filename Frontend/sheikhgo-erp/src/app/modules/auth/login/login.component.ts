@@ -5,9 +5,10 @@ import { AuthService } from '../../../core/services/auth.service';
 import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
 
 @Component({
-  selector: 'app-login',
-  templateUrl: './login.component.html',
-  styleUrls: ['./login.component.scss']
+    selector: 'app-login',
+    templateUrl: './login.component.html',
+    styleUrls: ['./login.component.scss'],
+    standalone: false
 })
 export class LoginComponent implements OnInit {
   form: FormGroup;

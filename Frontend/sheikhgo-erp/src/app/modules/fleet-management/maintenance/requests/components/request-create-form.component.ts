@@ -17,11 +17,10 @@ import {
 type RequestFormField = 'vehicleId' | 'priority' | 'issueCategory' | 'requestType' | 'description';
 
 @Component({
-  selector: 'request-create-form',
-  standalone: true,
-  imports: [ReactiveFormsModule, MatIconModule, MatTooltipModule],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'request-create-form',
+    imports: [ReactiveFormsModule, MatIconModule, MatTooltipModule],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     <form class="form" [formGroup]="form" (ngSubmit)="onSubmit()" novalidate>
       <h3>New Service Request</h3>
 
@@ -120,7 +119,7 @@ type RequestFormField = 'vehicleId' | 'priority' | 'issueCategory' | 'requestTyp
       </div>
     </form>
   `,
-  styles: [`
+    styles: [`
     .form {
       display: grid;
       grid-template-columns: repeat(2, 1fr);

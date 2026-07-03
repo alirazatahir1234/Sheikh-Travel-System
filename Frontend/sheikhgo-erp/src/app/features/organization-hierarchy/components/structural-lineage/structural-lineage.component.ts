@@ -7,11 +7,10 @@ import { CommonModule } from '@angular/common';
 import { StructuralLineage } from '../../models/organization.models';
 
 @Component({
-  selector: 'app-structural-lineage',
-  standalone: true,
-  imports: [CommonModule],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'app-structural-lineage',
+    imports: [CommonModule],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     <div class="bg-white rounded-xl border border-border overflow-hidden">
       <!-- Header -->
       <div class="px-4 py-3 border-b border-border">
@@ -91,7 +90,7 @@ import { StructuralLineage } from '../../models/organization.models';
         </div>
       </div>
     </div>
-  `,
+  `
 })
 export class StructuralLineageComponent {
   readonly lineage = input.required<StructuralLineage>();

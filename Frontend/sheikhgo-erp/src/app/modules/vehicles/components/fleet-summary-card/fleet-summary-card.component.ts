@@ -19,11 +19,10 @@ export interface FleetSummaryCardData {
 }
 
 @Component({
-  selector: 'fleet-summary-card',
-  standalone: true,
-  imports: [MatIconModule, NgClass],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'fleet-summary-card',
+    imports: [MatIconModule, NgClass],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     <div
       class="summary-card rounded-xl border border-fleet-border bg-white p-5 transition-shadow hover:shadow-md"
       [ngClass]="'summary-card--' + (card().variant ?? 'neutral')"
@@ -63,7 +62,7 @@ export interface FleetSummaryCardData {
       }
     </div>
   `,
-  styles: [`
+    styles: [`
     mat-icon { display: inline-flex; }
     .summary-card { min-width: 0; }
     .summary-card__icon { background: rgba(100, 116, 139, 0.12); color: #64748b; }

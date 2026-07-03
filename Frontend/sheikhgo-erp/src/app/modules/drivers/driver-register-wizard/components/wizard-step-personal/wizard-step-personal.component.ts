@@ -27,11 +27,10 @@ import { PhoneDigitsOnlyDirective } from '../../../../../shared/directives/phone
 import { UPLOAD_MAX_SIZE_LABEL, vehicleUploadSizeError } from '../../../../../core/utils/upload-url.util';
 
 @Component({
-  selector: 'app-wizard-step-personal',
-  standalone: true,
-  imports: [ReactiveFormsModule, MatIconModule, UiStatusBadgeComponent, UiButtonComponent, PhoneDigitsOnlyDirective],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'app-wizard-step-personal',
+    imports: [ReactiveFormsModule, MatIconModule, UiStatusBadgeComponent, UiButtonComponent, PhoneDigitsOnlyDirective],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     <div class="space-y-6">
       <section class="wizard-card profile-header-card">
         <div class="profile-header-row">
@@ -308,7 +307,7 @@ import { UPLOAD_MAX_SIZE_LABEL, vehicleUploadSizeError } from '../../../../../co
       </section>
     </div>
   `,
-  styleUrls: ['./wizard-step-shared.scss']
+    styleUrls: ['./wizard-step-shared.scss']
 })
 export class WizardStepPersonalComponent {
   private readonly toast = inject(UiToastService);

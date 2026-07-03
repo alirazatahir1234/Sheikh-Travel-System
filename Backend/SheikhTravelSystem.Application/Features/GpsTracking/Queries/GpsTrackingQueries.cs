@@ -128,7 +128,8 @@ public class GetGpsTripsQueryHandler(
     IMediator mediator,
     ITraccarClient traccarClient,
     IOptions<TraccarOptions> traccarOptions,
-    ITenantContext tenantContext)
+    ITenantContext tenantContext,
+    ICurrentUserService currentUser)
     : IRequestHandler<GetGpsTripsQuery, ApiResponse<List<GpsTripDto>>>
 {
     private static readonly TimeSpan MaxRange = TimeSpan.FromDays(30);
@@ -139,6 +140,16 @@ public class GetGpsTripsQueryHandler(
     private const int MaxFleetTraccarCalls = 10;
     private const int MaxFleetDetectorCalls = 10;
 
+    // GpsTrips has no DriverId column: GPS-only trips (BookingId IS NULL) default to "Completed"
+    // since nothing in the pipeline ever produces an in-progress GPS-detected trip.
+    private const string TripStatusCaseSql = """
+        CASE WHEN t.BookingId IS NULL THEN 'Completed' ELSE
+          CASE b.Status
+            WHEN 1 THEN 'Pending' WHEN 2 THEN 'Confirmed' WHEN 3 THEN 'Started'
+            WHEN 4 THEN 'Completed' WHEN 5 THEN 'Cancelled' ELSE 'Completed' END
+        END
+        """;
+
     private sealed record VehicleTripSource(
         int VehicleId,
         string? VehicleName,
@@ -146,15 +157,6 @@ public class GetGpsTripsQueryHandler(
         int? GpsDeviceId,
         string? DeviceName,
         int? TraccarDeviceId);
-
-    private sealed record FleetVehicle(
-        int VehicleId,
-        string? VehicleName,
-        string? PlateNumber,
-        int? GpsDeviceId,
-        string? DeviceName,
-        int? TraccarDeviceId,
-        string? DriverName);
 
     public async Task<ApiResponse<List<GpsTripDto>>> Handle(GetGpsTripsQuery request, CancellationToken cancellationToken)
     {
@@ -171,15 +173,27 @@ public class GetGpsTripsQueryHandler(
             return ApiResponse<List<GpsTripDto>>.FailResponse("Date range cannot exceed 30 days.");
         }
 
+        // Never let a Driver-role caller widen scope via a client-supplied driverId.
+        int? driverId = request.DriverId;
+        if (currentUser.Role == "Driver")
+        {
+            if (!currentUser.DriverId.HasValue)
+            {
+                return ApiResponse<List<GpsTripDto>>.SuccessResponse([]);
+            }
+
+            driverId = currentUser.DriverId.Value;
+        }
+
         using var connection = dbFactory.CreateConnection();
         var tenantId = tenantContext.GetRequiredTenantId();
 
         if (request.VehicleId.HasValue)
         {
-            return await HandleSingleVehicleAsync(connection, tenantId, request.VehicleId.Value, fromDate, toDate, cancellationToken);
+            return await HandleSingleVehicleAsync(connection, tenantId, request.VehicleId.Value, fromDate, toDate, driverId, cancellationToken);
         }
 
-        return await HandleFleetWideAsync(connection, tenantId, request, fromDate, toDate, cancellationToken);
+        return await HandleFleetWideAsync(connection, tenantId, request, fromDate, toDate, driverId, cancellationToken);
     }
 
     private async Task<ApiResponse<List<GpsTripDto>>> HandleSingleVehicleAsync(
@@ -188,6 +202,7 @@ public class GetGpsTripsQueryHandler(
         int vehicleId,
         DateTime fromDate,
         DateTime toDate,
+        int? driverId,
         CancellationToken cancellationToken)
     {
         var source = await connection.QueryFirstOrDefaultAsync<VehicleTripSource>(new CommandDefinition(
@@ -204,6 +219,15 @@ public class GetGpsTripsQueryHandler(
         if (source is null)
         {
             return ApiResponse<List<GpsTripDto>>.FailResponse("Vehicle not found.");
+        }
+
+        // Traccar-sourced and locally-detected trips have no BookingId, so they can only be
+        // driver-scoped via the time-bounded AssignmentHistory signal, fetched once up front.
+        List<TripVehicleQueryHelper.DriverAssignmentWindow>? driverWindows = null;
+        if (driverId.HasValue)
+        {
+            driverWindows = await TripVehicleQueryHelper.GetDriverAssignmentWindowsAsync(
+                connection, driverId.Value, [vehicleId], fromDate, toDate, cancellationToken);
         }
 
         var opts = traccarOptions.Value;
@@ -223,6 +247,7 @@ public class GetGpsTripsQueryHandler(
                     source.GpsDeviceId,
                     source.DeviceName,
                     source.PlateNumber))
+                .Where(t => driverWindows is null || TripVehicleQueryHelper.MatchesDriverWindow(driverWindows, t.VehicleId, t.StartTime))
                 .OrderByDescending(t => t.StartTime)
                 .ToList();
 
@@ -235,20 +260,36 @@ public class GetGpsTripsQueryHandler(
                 "This vehicle has no Traccar-linked GPS device. Install a tracker or link an existing device.");
         }
 
-        var sql = """
+        var driverFilterSql = driverId.HasValue
+            ? """
+              AND (
+                (t.BookingId IS NOT NULL AND b.DriverId = @DriverId)
+                OR (t.BookingId IS NULL AND EXISTS (
+                      SELECT 1 FROM AssignmentHistory a
+                      WHERE a.VehicleId = t.VehicleId AND a.DriverId = @DriverId AND a.IsDeleted = 0
+                        AND t.StartTime >= a.StartAt AND t.StartTime <= ISNULL(a.EndAt, '9999-12-31')
+                    ))
+              )
+              """
+            : "";
+
+        var sql = $"""
             SELECT t.VehicleId, v.Name AS VehicleName, v.RegistrationNumber AS PlateNumber, t.GpsDeviceId, d.Name AS DeviceName,
-                   t.StartTime, t.EndTime, t.DistanceKm, t.AvgSpeedKmh, t.MaxSpeedKmh, t.DurationMinutes
+                   t.StartTime, t.EndTime, t.DistanceKm, t.AvgSpeedKmh, t.MaxSpeedKmh, t.DurationMinutes,
+                   {TripStatusCaseSql} AS Status
             FROM GpsTrips t
             LEFT JOIN Vehicles v ON v.Id = t.VehicleId
             LEFT JOIN GpsDevices d ON d.Id = t.GpsDeviceId AND d.IsDeleted = 0
+            LEFT JOIN Bookings b ON b.Id = t.BookingId
             WHERE t.VehicleId = @VehicleId
               AND t.StartTime >= @FromDate AND t.EndTime <= @ToDate
+              {driverFilterSql}
             ORDER BY t.EndTime DESC
             """;
 
         var persisted = (await connection.QueryAsync<GpsTripDto>(new CommandDefinition(
             sql,
-            new { FromDate = fromDate, ToDate = toDate, VehicleId = vehicleId },
+            new { FromDate = fromDate, ToDate = toDate, VehicleId = vehicleId, DriverId = driverId },
             cancellationToken: cancellationToken))).ToList();
 
         if (persisted.Count > 0)
@@ -266,10 +307,12 @@ public class GetGpsTripsQueryHandler(
         }
 
         var trips = GpsTripDetector.DetectTrips(
-            source.VehicleId,
-            source.VehicleName,
-            source.GpsDeviceId,
-            history.Data);
+                source.VehicleId,
+                source.VehicleName,
+                source.GpsDeviceId,
+                history.Data)
+            .Where(t => driverWindows is null || TripVehicleQueryHelper.MatchesDriverWindow(driverWindows, t.VehicleId, t.StartTime))
+            .ToList();
 
         return ApiResponse<List<GpsTripDto>>.SuccessResponse(
             trips.OrderByDescending(t => t.StartTime).ToList());
@@ -287,51 +330,11 @@ public class GetGpsTripsQueryHandler(
         GetGpsTripsQuery request,
         DateTime fromDate,
         DateTime toDate,
+        int? driverId,
         CancellationToken cancellationToken)
     {
-        var filters = new List<string> { "v.TenantId = @TenantId", "v.IsDeleted = 0" };
-        var parameters = new DynamicParameters();
-        parameters.Add("TenantId", tenantId);
-
-        if (request.BranchId.HasValue)
-        {
-            filters.Add("v.BranchId = @BranchId");
-            parameters.Add("BranchId", request.BranchId.Value);
-        }
-
-        if (request.DepartmentId.HasValue)
-        {
-            filters.Add("v.DepartmentId = @DepartmentId");
-            parameters.Add("DepartmentId", request.DepartmentId.Value);
-        }
-
-        if (request.DriverId.HasValue)
-        {
-            filters.Add("assignDrv.DriverId = @DriverId");
-            parameters.Add("DriverId", request.DriverId.Value);
-        }
-
-        var whereClause = string.Join(" AND ", filters);
-
-        var vehicles = (await connection.QueryAsync<FleetVehicle>(new CommandDefinition(
-            $"""
-            SELECT v.Id AS VehicleId, v.Name AS VehicleName, v.RegistrationNumber AS PlateNumber,
-                   d.Id AS GpsDeviceId, d.Name AS DeviceName, d.TraccarDeviceId,
-                   assignDrv.DriverName
-            FROM Vehicles v
-            LEFT JOIN GpsDevices d ON d.Id = v.GpsDeviceId AND d.IsDeleted = 0
-            OUTER APPLY (
-                SELECT TOP 1 a.DriverId, dr.FullName AS DriverName
-                FROM AssignmentHistory a
-                INNER JOIN Drivers dr ON dr.Id = a.DriverId AND dr.IsDeleted = 0
-                WHERE a.VehicleId = v.Id AND a.IsDeleted = 0
-                  AND a.Status IN (N'Active', N'Scheduled') AND a.DriverId IS NOT NULL
-                ORDER BY CASE WHEN a.Status = N'Active' THEN 0 ELSE 1 END, a.StartAt DESC
-            ) assignDrv
-            WHERE {whereClause}
-            """,
-            parameters,
-            cancellationToken: cancellationToken))).ToList();
+        var vehicles = await TripVehicleQueryHelper.ResolveFleetVehiclesAsync(
+            connection, tenantId, request.BranchId, request.DepartmentId, driverId, fromDate, toDate, cancellationToken);
 
         if (vehicles.Count == 0)
         {
@@ -342,18 +345,43 @@ public class GetGpsTripsQueryHandler(
         var vehicleIds = vehicles.Select(v => v.VehicleId).ToList();
         var results = new List<GpsTripDto>();
 
+        // Traccar-sourced and locally-detected trips have no BookingId, so they can only be
+        // driver-scoped via the time-bounded AssignmentHistory signal, fetched once up front.
+        List<TripVehicleQueryHelper.DriverAssignmentWindow>? driverWindows = null;
+        if (driverId.HasValue)
+        {
+            driverWindows = await TripVehicleQueryHelper.GetDriverAssignmentWindowsAsync(
+                connection, driverId.Value, vehicleIds, fromDate, toDate, cancellationToken);
+        }
+
         // Step 1: local GpsTrips table across the whole filtered vehicle set.
+        var driverFilterSql = driverId.HasValue
+            ? """
+              AND (
+                (t.BookingId IS NOT NULL AND b.DriverId = @DriverId)
+                OR (t.BookingId IS NULL AND EXISTS (
+                      SELECT 1 FROM AssignmentHistory a
+                      WHERE a.VehicleId = t.VehicleId AND a.DriverId = @DriverId AND a.IsDeleted = 0
+                        AND t.StartTime >= a.StartAt AND t.StartTime <= ISNULL(a.EndAt, '9999-12-31')
+                    ))
+              )
+              """
+            : "";
+
         var localTrips = (await connection.QueryAsync<GpsTripDto>(new CommandDefinition(
-            """
+            $"""
             SELECT t.VehicleId, v.Name AS VehicleName, v.RegistrationNumber AS PlateNumber, t.GpsDeviceId, d.Name AS DeviceName,
-                   t.StartTime, t.EndTime, t.DistanceKm, t.AvgSpeedKmh, t.MaxSpeedKmh, t.DurationMinutes
+                   t.StartTime, t.EndTime, t.DistanceKm, t.AvgSpeedKmh, t.MaxSpeedKmh, t.DurationMinutes,
+                   {TripStatusCaseSql} AS Status
             FROM GpsTrips t
             INNER JOIN Vehicles v ON v.Id = t.VehicleId
             LEFT JOIN GpsDevices d ON d.Id = t.GpsDeviceId AND d.IsDeleted = 0
+            LEFT JOIN Bookings b ON b.Id = t.BookingId
             WHERE t.VehicleId IN @VehicleIds
               AND t.StartTime >= @FromDate AND t.EndTime <= @ToDate
+              {driverFilterSql}
             """,
-            new { VehicleIds = vehicleIds, FromDate = fromDate, ToDate = toDate },
+            new { VehicleIds = vehicleIds, FromDate = fromDate, ToDate = toDate, DriverId = driverId },
             cancellationToken: cancellationToken))).ToList();
 
         results.AddRange(localTrips.Select(t => vehicleInfoById.TryGetValue(t.VehicleId, out var vi)
@@ -380,7 +408,9 @@ public class GetGpsTripsQueryHandler(
                     });
                 }));
 
-                results.AddRange(traccarResults.SelectMany(r => r));
+                var traccarTrips = traccarResults.SelectMany(r => r)
+                    .Where(t => driverWindows is null || TripVehicleQueryHelper.MatchesDriverWindow(driverWindows, t.VehicleId, t.StartTime));
+                results.AddRange(traccarTrips);
                 var traccarCovered = traccarCandidates.Select(v => v.VehicleId).ToHashSet();
                 uncovered = uncovered.Where(v => !traccarCovered.Contains(v.VehicleId)).ToList();
             }
@@ -413,7 +443,9 @@ public class GetGpsTripsQueryHandler(
                     continue;
                 }
 
-                results.AddRange(GpsTripDetector.DetectTrips(v.VehicleId, v.VehicleName, v.GpsDeviceId, vehiclePositions));
+                var detected = GpsTripDetector.DetectTrips(v.VehicleId, v.VehicleName, v.GpsDeviceId, vehiclePositions)
+                    .Where(t => driverWindows is null || TripVehicleQueryHelper.MatchesDriverWindow(driverWindows, t.VehicleId, t.StartTime));
+                results.AddRange(detected);
             }
         }
 

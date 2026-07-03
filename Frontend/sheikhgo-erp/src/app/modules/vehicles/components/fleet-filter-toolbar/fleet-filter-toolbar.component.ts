@@ -7,11 +7,10 @@ import { VehicleFilters } from '../../models/vehicle-inventory.model';
 import { VehicleStatus } from '../../../../core/models/vehicle.model';
 
 @Component({
-  selector: 'fleet-filter-toolbar',
-  standalone: true,
-  imports: [FormsModule, MatIconModule, UiInputComponent],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'fleet-filter-toolbar',
+    imports: [FormsModule, MatIconModule, UiInputComponent],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     <div class="fleet-toolbar rounded-xl border border-fleet-border bg-white px-4 py-3">
       <div class="fleet-toolbar__filters">
         <div class="fleet-toolbar__search">
@@ -70,7 +69,7 @@ import { VehicleStatus } from '../../../../core/models/vehicle.model';
       </div>
     </div>
   `,
-  styles: [`
+    styles: [`
     mat-icon { display: inline-flex; }
     .fleet-toolbar { display: flex; flex-direction: column; gap: 0.75rem; }
     .fleet-toolbar__filters {

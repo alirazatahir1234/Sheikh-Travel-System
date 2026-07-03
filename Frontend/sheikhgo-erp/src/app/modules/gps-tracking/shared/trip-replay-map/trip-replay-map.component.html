@@ -13,6 +13,15 @@
     <div class="rs-item"><span class="rs-val">{{ routeSummary.pointCount }}</span><span class="rs-lbl">Points</span></div>
   </div>
 
+  <div class="heatmap-legend" *ngIf="!loading && (routePoints.length > 0 || positions.length > 0)">
+    <span class="heatmap-legend__label">Speed</span>
+    <span class="heatmap-legend__bar"></span>
+    <span class="heatmap-legend__scale">
+      <span *ngFor="let stop of heatmapLegend">{{ stop.speed }}</span>
+      <span>+ km/h</span>
+    </span>
+  </div>
+
   <div class="playback-bar" *ngIf="positions.length > 0 && !loading">
     <div class="replay-controls">
       <button type="button" class="btn btn-primary btn-sm" (click)="toggleReplay()">

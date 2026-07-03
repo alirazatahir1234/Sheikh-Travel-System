@@ -7,11 +7,10 @@ import { Part } from '../../../../../core/models/maintenance.model';
 import { apiErrorMessage } from '../../../../../core/utils/api-error.util';
 
 @Component({
-  selector: 'transfer-stock-drawer',
-  standalone: true,
-  imports: [FormsModule, UiDrawerComponent],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'transfer-stock-drawer',
+    imports: [FormsModule, UiDrawerComponent],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     <ui-drawer [open]="open()" [title]="'Transfer Stock — ' + (part()?.partName ?? '')" (closed)="closed.emit()">
       @if (part(); as p) {
         <form class="form" (ngSubmit)="submit()">
@@ -45,7 +44,7 @@ import { apiErrorMessage } from '../../../../../core/utils/api-error.util';
       }
     </ui-drawer>
   `,
-  styles: [`
+    styles: [`
     .form { display: grid; gap: 0.875rem; }
     .hint { margin: 0; font-size: 0.8125rem; color: #64748b; }
     label { display: grid; gap: 0.35rem; font-size: 0.8125rem; font-weight: 600; color: #334155; }

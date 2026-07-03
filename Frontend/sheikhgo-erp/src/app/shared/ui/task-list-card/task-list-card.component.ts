@@ -2,9 +2,10 @@ import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { TaskItem } from '../ui.types';
 
 @Component({
-  selector: 'stb-task-list-card',
-  templateUrl: './task-list-card.component.html',
-  styleUrls: ['./task-list-card.component.scss']
+    selector: 'stb-task-list-card',
+    templateUrl: './task-list-card.component.html',
+    styleUrls: ['./task-list-card.component.scss'],
+    standalone: false
 })
 export class TaskListCardComponent {
   @Input() title = 'Tasks';

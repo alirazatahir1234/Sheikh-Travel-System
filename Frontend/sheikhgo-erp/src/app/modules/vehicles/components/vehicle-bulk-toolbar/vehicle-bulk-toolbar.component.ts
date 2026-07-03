@@ -3,11 +3,10 @@ import { MatIconModule } from '@angular/material/icon';
 import { UiButtonComponent } from '../../../../shared/components/ui/button/ui-button.component';
 
 @Component({
-  selector: 'vehicle-bulk-toolbar',
-  standalone: true,
-  imports: [MatIconModule, UiButtonComponent],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'vehicle-bulk-toolbar',
+    imports: [MatIconModule, UiButtonComponent],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     @if (count() > 0) {
       <div class="bulk-toolbar sticky top-0 z-20 flex flex-wrap items-center gap-3 rounded-xl border border-fleet-primary/30 bg-fleet-primary-soft px-4 py-3">
         <span class="bulk-toolbar__count text-sm font-bold text-fleet-primary">{{ count() }} Selected</span>
@@ -23,7 +22,7 @@ import { UiButtonComponent } from '../../../../shared/components/ui/button/ui-bu
       </div>
     }
   `,
-  styles: [`
+    styles: [`
     @media (max-width: 767px) {
       .bulk-toolbar { flex-direction: column; align-items: stretch; }
       .bulk-toolbar__actions { width: 100%; }

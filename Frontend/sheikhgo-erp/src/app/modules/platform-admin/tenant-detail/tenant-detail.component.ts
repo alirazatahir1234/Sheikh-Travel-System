@@ -22,9 +22,10 @@ import {
 } from '../../../core/models/platform.model';
 
 @Component({
-  selector: 'app-tenant-detail',
-  templateUrl: './tenant-detail.component.html',
-  styleUrls: ['./tenant-detail.component.scss']
+    selector: 'app-tenant-detail',
+    templateUrl: './tenant-detail.component.html',
+    styleUrls: ['./tenant-detail.component.scss'],
+    standalone: false
 })
 export class TenantDetailComponent implements OnInit {
   loading = true;

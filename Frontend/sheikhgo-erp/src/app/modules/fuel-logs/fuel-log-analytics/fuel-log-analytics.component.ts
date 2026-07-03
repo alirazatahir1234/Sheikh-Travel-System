@@ -14,9 +14,10 @@ import { AppChartInstance, createAppChart } from '../../../core/utils/chart.util
 Chart.register(...registerables);
 
 @Component({
-  selector: 'app-fuel-log-analytics',
-  templateUrl: './fuel-log-analytics.component.html',
-  styleUrls: ['./fuel-log-analytics.component.scss']
+    selector: 'app-fuel-log-analytics',
+    templateUrl: './fuel-log-analytics.component.html',
+    styleUrls: ['./fuel-log-analytics.component.scss'],
+    standalone: false
 })
 export class FuelLogAnalyticsComponent implements AfterViewInit, OnChanges, OnDestroy {
   @ViewChild('expenseCanvas') expenseCanvasRef!: ElementRef<HTMLCanvasElement>;

@@ -1,8 +1,8 @@
 import { Component, Input } from '@angular/core';
 
 @Component({
-  selector: 'fleet-expiry-card',
-  template: `
+    selector: 'fleet-expiry-card',
+    template: `
     <article class="expiry-card" [attr.data-tone]="tone">
       <div class="expiry-card__head">
         <mat-icon class="expiry-card__icon">{{ icon }}</mat-icon>
@@ -19,7 +19,8 @@ import { Component, Input } from '@angular/core';
       </p>
     </article>
   `,
-  styleUrls: ['./fleet-expiry-card.component.scss']
+    styleUrls: ['./fleet-expiry-card.component.scss'],
+    standalone: false
 })
 export class FleetExpiryCardComponent {
   @Input() documentType = '';

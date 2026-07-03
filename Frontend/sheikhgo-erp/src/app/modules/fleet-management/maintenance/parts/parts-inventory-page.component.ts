@@ -17,23 +17,22 @@ import { AppBrandLoaderComponent } from '../../../../shared/components/app-brand
 import { apiErrorMessage } from '../../../../core/utils/api-error.util';
 
 @Component({
-  selector: 'app-parts-inventory-page',
-  standalone: true,
-  imports: [
-    MatIconModule,
-    AppBrandLoaderComponent,
-    PartsInventoryStatsComponent,
-    PartsFiltersComponent,
-    PartsAlertsComponent,
-    PartsTableComponent,
-    PartFormDrawerComponent,
-    AddStockDrawerComponent,
-    IssuePartDrawerComponent,
-    TransferStockDrawerComponent
-  ],
-  templateUrl: './parts-inventory-page.component.html',
-  styleUrls: ['./parts-inventory-page.component.scss'],
-  changeDetection: ChangeDetectionStrategy.OnPush
+    selector: 'app-parts-inventory-page',
+    imports: [
+        MatIconModule,
+        AppBrandLoaderComponent,
+        PartsInventoryStatsComponent,
+        PartsFiltersComponent,
+        PartsAlertsComponent,
+        PartsTableComponent,
+        PartFormDrawerComponent,
+        AddStockDrawerComponent,
+        IssuePartDrawerComponent,
+        TransferStockDrawerComponent
+    ],
+    templateUrl: './parts-inventory-page.component.html',
+    styleUrls: ['./parts-inventory-page.component.scss'],
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class PartsInventoryPageComponent implements OnInit {
   private readonly maintenanceService = inject(MaintenanceService);

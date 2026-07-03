@@ -6,9 +6,10 @@ import { Branch, BranchStatus, branchStatusLabel } from '../../../core/models/pl
 import { apiErrorMessage } from '../../../core/utils/api-error.util';
 
 @Component({
-  selector: 'app-branch-list',
-  templateUrl: './branch-list.component.html',
-  styleUrls: ['./branch-list.component.scss']
+    selector: 'app-branch-list',
+    templateUrl: './branch-list.component.html',
+    styleUrls: ['./branch-list.component.scss'],
+    standalone: false
 })
 export class BranchListComponent implements OnInit {
   loading = true;

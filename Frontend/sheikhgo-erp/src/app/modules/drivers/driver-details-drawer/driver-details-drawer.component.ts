@@ -55,22 +55,21 @@ export interface AssignmentTimelineEntry {
 }
 
 @Component({
-  selector: 'driver-details-drawer',
-  standalone: true,
-  imports: [
-    DatePipe,
-    DecimalPipe,
-    FormsModule,
-    RouterModule,
-    MatIconModule,
-    UiDrawerComponent,
-    UiButtonComponent,
-    UiStatusBadgeComponent,
-    UiSelectComponent
-  ],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  templateUrl: './driver-details-drawer.component.html',
-  styleUrls: ['./driver-details-drawer.component.scss']
+    selector: 'driver-details-drawer',
+    imports: [
+        DatePipe,
+        DecimalPipe,
+        FormsModule,
+        RouterModule,
+        MatIconModule,
+        UiDrawerComponent,
+        UiButtonComponent,
+        UiStatusBadgeComponent,
+        UiSelectComponent
+    ],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    templateUrl: './driver-details-drawer.component.html',
+    styleUrls: ['./driver-details-drawer.component.scss']
 })
 export class DriverDetailsDrawerComponent {
   private readonly driverService = inject(DriverService);

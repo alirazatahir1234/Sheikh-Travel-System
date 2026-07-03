@@ -23,7 +23,7 @@ const routes: Routes = [
       { path: 'bookings', loadChildren: () => import('./modules/bookings/bookings.module').then(m => m.BookingsModule) },
       { path: 'payments', loadChildren: () => import('./modules/payments/payments.module').then(m => m.PaymentsModule) },
       { path: 'reports', loadChildren: () => import('./modules/reports/reports.module').then(m => m.ReportsModule) },
-      { path: 'gps-tracking', loadChildren: () => import('./modules/gps-tracking/gps-tracking.module').then(m => m.GpsTrackingModule) },
+      { path: 'gps-tracking', loadChildren: () => import('./modules/gps-tracking/gps-tracking.routes').then(m => m.GPS_TRACKING_ROUTES) },
       { path: 'tracking', redirectTo: 'gps-tracking/live', pathMatch: 'full' },
       { path: 'driver-allowance-rules', loadChildren: () => import('./modules/driver-allowance-rules/driver-allowance-rules.module').then(m => m.DriverAllowanceRulesModule) },
       { path: 'users', loadChildren: () => import('./modules/users/users.module').then(m => m.UsersModule) },

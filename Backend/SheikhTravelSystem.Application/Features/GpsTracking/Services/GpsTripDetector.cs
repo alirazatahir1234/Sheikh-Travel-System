@@ -42,7 +42,8 @@ public static class GpsTripDetector
                 Math.Round(segmentDistance, 2),
                 segmentSpeeds.Count > 0 ? Math.Round(segmentSpeeds.Average(), 1) : 0,
                 segmentSpeeds.Count > 0 ? segmentSpeeds.Max() : 0,
-                duration));
+                duration,
+                Status: "Completed"));
 
             tripStart = null;
             segmentDistance = 0;

@@ -31,12 +31,11 @@ const MAINT_TYPE_ICONS: Record<string, string> = {
 };
 
 @Component({
-  selector: 'wo-create-form',
-  standalone: true,
-  imports: [ReactiveFormsModule, MatIconModule, CurrencyPipe],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  templateUrl: './wo-create-form.component.html',
-  styleUrls: ['./wo-create-form.component.scss']
+    selector: 'wo-create-form',
+    imports: [ReactiveFormsModule, MatIconModule, CurrencyPipe],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    templateUrl: './wo-create-form.component.html',
+    styleUrls: ['./wo-create-form.component.scss']
 })
 export class WoCreateFormComponent {
   private readonly fb = inject(FormBuilder);

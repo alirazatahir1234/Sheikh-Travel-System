@@ -166,7 +166,8 @@ public record GpsTripDto(
     string? EndAddress = null,
     string? DriverName = null,
     decimal? FuelLiters = null,
-    string? PlateNumber = null);
+    string? PlateNumber = null,
+    string? Status = null);
 
 public record GpsDeviceCommandDto(
     int Id,

@@ -9,11 +9,10 @@ import { CommonModule } from '@angular/common';
 import { TabItem } from '../../models/organization.models';
 
 @Component({
-  selector: 'app-tab-navigation',
-  standalone: true,
-  imports: [CommonModule],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'app-tab-navigation',
+    imports: [CommonModule],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     <div class="px-6 border-t border-border">
       <nav class="flex gap-1 -mb-px">
         @for (tab of tabs(); track tab.id) {
@@ -32,7 +31,7 @@ import { TabItem } from '../../models/organization.models';
         }
       </nav>
     </div>
-  `,
+  `
 })
 export class TabNavigationComponent {
   readonly tabs = input.required<TabItem[]>();

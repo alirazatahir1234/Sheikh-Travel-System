@@ -18,11 +18,10 @@ import { buildCreateMaintenanceSchedulePayload } from '../utils/schedule-form.ut
 export type ScheduleDrawerMode = 'create' | 'reschedule';
 
 @Component({
-  selector: 'schedule-form-drawer',
-  standalone: true,
-  imports: [CommonModule, FormsModule, UiDrawerComponent],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'schedule-form-drawer',
+    imports: [CommonModule, FormsModule, UiDrawerComponent],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     <ui-drawer
       [open]="open()"
       [title]="mode() === 'create' ? 'Schedule Service' : 'Reschedule Service'"
@@ -107,7 +106,7 @@ export type ScheduleDrawerMode = 'create' | 'reschedule';
       </form>
     </ui-drawer>
   `,
-  styles: [`
+    styles: [`
     .form { display: grid; gap: 0.875rem; }
     label { display: grid; gap: 0.35rem; font-size: 0.8125rem; font-weight: 600; color: #334155; }
     input, select {

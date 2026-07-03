@@ -10,12 +10,11 @@ import {
 } from '../../utils/booking-ledger.util';
 
 @Component({
-  selector: 'stb-booking-ledger-payment-summary',
-  standalone: true,
-  imports: [CommonModule, RouterModule, MatButtonModule, MatIconModule],
-  templateUrl: './booking-ledger-payment-summary.component.html',
-  styleUrls: ['./booking-ledger-payment-summary.component.scss'],
-  changeDetection: ChangeDetectionStrategy.OnPush
+    selector: 'stb-booking-ledger-payment-summary',
+    imports: [CommonModule, RouterModule, MatButtonModule, MatIconModule],
+    templateUrl: './booking-ledger-payment-summary.component.html',
+    styleUrls: ['./booking-ledger-payment-summary.component.scss'],
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class BookingLedgerPaymentSummaryComponent {
   @Input({ required: true }) bookingId!: number;

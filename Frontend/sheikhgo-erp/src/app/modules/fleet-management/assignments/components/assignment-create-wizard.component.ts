@@ -17,11 +17,10 @@ export interface AssignmentWizardForm extends CreateAssignmentRequest {
 }
 
 @Component({
-  selector: 'assignment-create-wizard',
-  standalone: true,
-  imports: [FormsModule, MatIconModule, UiSelectComponent, UiButtonComponent],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'assignment-create-wizard',
+    imports: [FormsModule, MatIconModule, UiSelectComponent, UiButtonComponent],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     <div class="wizard">
       <div class="wizard-steps">
         @for (s of steps; track s.id; let i = $index) {
@@ -90,7 +89,7 @@ export interface AssignmentWizardForm extends CreateAssignmentRequest {
       </div>
     </div>
   `,
-  styles: [`
+    styles: [`
     .wizard { display: grid; gap: 1rem; }
     .wizard-steps { display: flex; gap: 0.5rem; flex-wrap: wrap; }
     .wizard-step { display: flex; align-items: center; gap: 0.375rem; font-size: 0.75rem; color: #94a3b8; }

@@ -14,9 +14,10 @@ import {
 import { apiErrorMessage } from '../../../core/utils/api-error.util';
 
 @Component({
-  selector: 'app-module-management',
-  templateUrl: './module-management.component.html',
-  styleUrls: ['./module-management.component.scss']
+    selector: 'app-module-management',
+    templateUrl: './module-management.component.html',
+    styleUrls: ['./module-management.component.scss'],
+    standalone: false
 })
 export class ModuleManagementComponent implements OnInit, OnDestroy {
   loading = false;

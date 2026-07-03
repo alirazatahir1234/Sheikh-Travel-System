@@ -32,23 +32,22 @@ import { AssignmentCreateWizardComponent, AssignmentWizardForm } from '../compon
 import { AssignmentHistoryPanelComponent } from '../components/assignment-history-panel.component';
 
 @Component({
-  selector: 'app-assignment-board',
-  standalone: true,
-  imports: [
-    CommonModule,
-    DatePipe,
-    FormsModule,
-    MatIconModule,
-    FleetUiModule,
-    AssignmentKpiGridComponent,
-    AssignmentFiltersComponent,
-    AssignmentTableComponent,
-    AssignmentCreateWizardComponent,
-    AssignmentHistoryPanelComponent
-  ],
-  templateUrl: './assignment-board.component.html',
-  styleUrls: ['./assignment-board.component.scss'],
-  changeDetection: ChangeDetectionStrategy.OnPush
+    selector: 'app-assignment-board',
+    imports: [
+        CommonModule,
+        DatePipe,
+        FormsModule,
+        MatIconModule,
+        FleetUiModule,
+        AssignmentKpiGridComponent,
+        AssignmentFiltersComponent,
+        AssignmentTableComponent,
+        AssignmentCreateWizardComponent,
+        AssignmentHistoryPanelComponent
+    ],
+    templateUrl: './assignment-board.component.html',
+    styleUrls: ['./assignment-board.component.scss'],
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class AssignmentBoardComponent implements OnInit {
   private readonly assignmentService = inject(FleetAssignmentService);

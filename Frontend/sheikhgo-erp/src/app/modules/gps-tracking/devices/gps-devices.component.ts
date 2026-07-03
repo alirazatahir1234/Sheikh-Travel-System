@@ -35,13 +35,16 @@ import {
   traccarLinkHint,
   vehicleDisplayLabel,
 } from '../utils/tracker-status.util';
+import { SharedModule } from '../../../shared/shared.module';
 
 type DeviceFilter = 'all' | 'online' | 'moving' | 'idle' | 'parked' | 'offline' | 'available' | 'unassigned' | 'never';
 
 @Component({
-  selector: 'app-gps-devices',
-  templateUrl: './gps-devices.component.html',
-  styleUrls: ['./gps-devices.component.scss']
+    selector: 'app-gps-devices',
+    templateUrl: './gps-devices.component.html',
+    styleUrls: ['./gps-devices.component.scss'],
+    standalone: true,
+    imports: [SharedModule]
 })
 export class GpsDevicesComponent implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild(MatPaginator) paginator?: MatPaginator;

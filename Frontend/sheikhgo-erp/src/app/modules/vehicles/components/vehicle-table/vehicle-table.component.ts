@@ -12,20 +12,19 @@ import { formatRelativeTime } from '../../../../core/utils/relative-time.util';
 import { resolveVehicleImageUrl } from '../../../../core/utils/upload-url.util';
 
 @Component({
-  selector: 'vehicle-table',
-  standalone: true,
-  imports: [
-    RouterModule,
-    DatePipe,
-    DecimalPipe,
-    MatIconModule,
-    UiStatusBadgeComponent,
-    UiEmptyStateComponent,
-    UiButtonComponent
-  ],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  templateUrl: './vehicle-table.component.html',
-  styleUrls: ['./vehicle-table.component.scss']
+    selector: 'vehicle-table',
+    imports: [
+        RouterModule,
+        DatePipe,
+        DecimalPipe,
+        MatIconModule,
+        UiStatusBadgeComponent,
+        UiEmptyStateComponent,
+        UiButtonComponent
+    ],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    templateUrl: './vehicle-table.component.html',
+    styleUrls: ['./vehicle-table.component.scss']
 })
 export class VehicleTableComponent {
   readonly rows = input<VehicleListItem[]>([]);

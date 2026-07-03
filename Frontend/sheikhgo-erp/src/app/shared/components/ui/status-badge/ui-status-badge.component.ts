@@ -45,11 +45,10 @@ const STATUS_ALIASES: Record<string, UiStatusVariant> = {
 };
 
 @Component({
-  selector: 'ui-status-badge',
-  standalone: true,
-  imports: [NgClass],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'ui-status-badge',
+    imports: [NgClass],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     <span
       class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide"
       [ngClass]="variantClass()">

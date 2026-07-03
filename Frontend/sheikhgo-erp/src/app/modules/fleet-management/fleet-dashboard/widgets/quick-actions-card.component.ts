@@ -5,11 +5,10 @@ import { MatIconModule } from '@angular/material/icon';
 import { QuickAction } from '../fleet-dashboard.model';
 
 @Component({
-  selector: 'fleet-quick-actions-card',
-  standalone: true,
-  imports: [NgClass, RouterLink, MatIconModule],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'fleet-quick-actions-card',
+    imports: [NgClass, RouterLink, MatIconModule],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     <section class="rounded-xl border border-fleet-border bg-white p-6">
       <h3 class="mb-4 font-label text-[13px] font-semibold uppercase tracking-widest text-fleet-text-muted">Quick Actions</h3>
       <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -40,7 +39,7 @@ import { QuickAction } from '../fleet-dashboard.model';
       </div>
     </section>
   `,
-  styles: [`
+    styles: [`
     :host { display: block; }
     mat-icon { display: inline-flex; align-items: center; justify-content: center; }
     .quick-action-card {

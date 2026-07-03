@@ -3,9 +3,10 @@ import { FleetService } from '../../services/fleet.service';
 import { ComplianceDocument } from '../../models/fleet.model';
 
 @Component({
-  selector: 'app-compliance-dashboard',
-  templateUrl: './compliance-dashboard.component.html',
-  styleUrls: ['./compliance-dashboard.component.scss']
+    selector: 'app-compliance-dashboard',
+    templateUrl: './compliance-dashboard.component.html',
+    styleUrls: ['./compliance-dashboard.component.scss'],
+    standalone: false
 })
 export class ComplianceDashboardComponent implements OnInit {
   private readonly fleet = inject(FleetService);

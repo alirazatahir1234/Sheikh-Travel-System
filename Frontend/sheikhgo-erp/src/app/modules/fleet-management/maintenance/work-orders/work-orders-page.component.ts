@@ -31,18 +31,17 @@ const STAT_STATUS_MAP: Record<Exclude<WoStatKey, ''>, string> = {
 };
 
 @Component({
-  selector: 'app-work-orders-page',
-  standalone: true,
-  imports: [
-    MatIconModule,
-    WoStatsComponent,
-    WoFiltersComponent,
-    WoTableComponent,
-    WorkOrderDetailDrawerComponent
-  ],
-  templateUrl: './work-orders-page.component.html',
-  styleUrls: ['./work-orders-page.component.scss'],
-  changeDetection: ChangeDetectionStrategy.OnPush
+    selector: 'app-work-orders-page',
+    imports: [
+        MatIconModule,
+        WoStatsComponent,
+        WoFiltersComponent,
+        WoTableComponent,
+        WorkOrderDetailDrawerComponent
+    ],
+    templateUrl: './work-orders-page.component.html',
+    styleUrls: ['./work-orders-page.component.scss'],
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class WorkOrdersPageComponent implements OnInit {
   private readonly maintenanceService = inject(MaintenanceService);

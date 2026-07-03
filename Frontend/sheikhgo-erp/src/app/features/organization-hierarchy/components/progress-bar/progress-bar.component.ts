@@ -7,18 +7,17 @@ import {
 import { CommonModule } from '@angular/common';
 
 @Component({
-  selector: 'app-progress-bar',
-  standalone: true,
-  imports: [CommonModule],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'app-progress-bar',
+    imports: [CommonModule],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     <div class="h-2 bg-gray-100 rounded-full overflow-hidden">
       <div
         [class]="barClasses()"
         [style.width.%]="clampedValue()"
       ></div>
     </div>
-  `,
+  `
 })
 export class ProgressBarComponent {
   readonly value = input<number>(0);

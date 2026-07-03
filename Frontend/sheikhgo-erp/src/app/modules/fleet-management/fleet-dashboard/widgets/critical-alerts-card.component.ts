@@ -3,11 +3,10 @@ import { MatIconModule } from '@angular/material/icon';
 import { CriticalAlert } from '../fleet-dashboard.model';
 
 @Component({
-  selector: 'fleet-critical-alerts-card',
-  standalone: true,
-  imports: [MatIconModule],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'fleet-critical-alerts-card',
+    imports: [MatIconModule],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     <section class="rounded-xl border border-fleet-border bg-white p-6">
       <div class="mb-4 flex items-center justify-between">
         <h3 class="font-label text-[13px] font-semibold uppercase tracking-widest text-fleet-text-muted">Critical Alerts</h3>
@@ -45,7 +44,7 @@ import { CriticalAlert } from '../fleet-dashboard.model';
       </div>
     </section>
   `,
-  styles: [`
+    styles: [`
     :host { display: block; }
     mat-icon { display: inline-flex; align-items: center; justify-content: center; }
   `]

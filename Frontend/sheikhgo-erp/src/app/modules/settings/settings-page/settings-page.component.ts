@@ -8,9 +8,10 @@ import { SettingFieldSchema, SettingsCategory, SettingsValues } from '../models/
 import { SettingsFormStatus } from '../components/dynamic-settings-form/dynamic-settings-form.component';
 
 @Component({
-  selector: 'app-settings-page',
-  templateUrl: './settings-page.component.html',
-  styleUrls: ['./settings-page.component.scss']
+    selector: 'app-settings-page',
+    templateUrl: './settings-page.component.html',
+    styleUrls: ['./settings-page.component.scss'],
+    standalone: false
 })
 export class SettingsPageComponent implements OnInit, OnDestroy {
   private readonly route = inject(ActivatedRoute);

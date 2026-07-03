@@ -5,11 +5,10 @@ import { Vehicle, VehicleStatusLabels } from '../../../../../core/models/vehicle
 import { resolveVehicleImageUrl } from '../../../../../core/utils/upload-url.util';
 
 @Component({
-  selector: 'vehicle-history-profile-card',
-  standalone: true,
-  imports: [DecimalPipe, DatePipe, MatIconModule],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'vehicle-history-profile-card',
+    imports: [DecimalPipe, DatePipe, MatIconModule],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     @if (vehicle(); as v) {
       <div class="profile-card">
         <div class="profile-card__inner">
@@ -71,7 +70,7 @@ import { resolveVehicleImageUrl } from '../../../../../core/utils/upload-url.uti
       </div>
     }
   `,
-  styles: [`
+    styles: [`
     .profile-card {
       background: #fff;
       border-radius: 12px;

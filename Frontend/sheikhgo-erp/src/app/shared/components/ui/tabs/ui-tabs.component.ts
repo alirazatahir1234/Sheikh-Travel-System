@@ -3,11 +3,10 @@ import { MatIconModule } from '@angular/material/icon';
 import { UiTab } from '../types/ui.types';
 
 @Component({
-  selector: 'ui-tabs',
-  standalone: true,
-  imports: [MatIconModule],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'ui-tabs',
+    imports: [MatIconModule],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     <div class="border-b border-fleet-border">
       <nav class="-mb-px flex gap-1 overflow-x-auto" role="tablist">
         @for (tab of tabs(); track tab.id) {
@@ -30,7 +29,7 @@ import { UiTab } from '../types/ui.types';
       </nav>
     </div>
   `,
-  styles: [`
+    styles: [`
     :host { display: block; }
     mat-icon { display: inline-flex; align-items: center; justify-content: center; }
   `]

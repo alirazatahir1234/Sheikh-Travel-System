@@ -5,11 +5,10 @@ import { FuelMaintenanceChart } from '../fleet-dashboard.model';
 import { FLEET_PRIMARY, FLEET_SECONDARY } from '../fleet-dashboard.mock';
 
 @Component({
-  selector: 'fleet-fuel-maintenance-chart',
-  standalone: true,
-  imports: [UiChartComponent],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'fleet-fuel-maintenance-chart',
+    imports: [UiChartComponent],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     <section class="flex h-full flex-col rounded-xl border border-fleet-border bg-white p-6">
       <div class="mb-6 flex items-center justify-between">
         <h3 class="text-lg font-bold text-fleet-text">Fuel Usage vs. Maintenance Cost</h3>
@@ -30,7 +29,7 @@ import { FLEET_PRIMARY, FLEET_SECONDARY } from '../fleet-dashboard.mock';
       </div>
     </section>
   `,
-  styles: [`:host { display: block; height: 100%; }`]
+    styles: [`:host { display: block; height: 100%; }`]
 })
 export class FuelMaintenanceChartComponent {
   readonly data = input.required<FuelMaintenanceChart>();

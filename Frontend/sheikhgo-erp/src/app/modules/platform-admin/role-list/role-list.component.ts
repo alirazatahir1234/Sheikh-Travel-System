@@ -5,9 +5,10 @@ import { Permission, PlatformRole } from '../../../core/models/platform.model';
 import { apiErrorMessage } from '../../../core/utils/api-error.util';
 
 @Component({
-  selector: 'app-role-list',
-  templateUrl: './role-list.component.html',
-  styleUrls: ['./role-list.component.scss']
+    selector: 'app-role-list',
+    templateUrl: './role-list.component.html',
+    styleUrls: ['./role-list.component.scss'],
+    standalone: false
 })
 export class RoleListComponent implements OnInit {
   loading = true;

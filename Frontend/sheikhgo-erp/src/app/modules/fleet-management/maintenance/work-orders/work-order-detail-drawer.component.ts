@@ -19,12 +19,11 @@ import { WoCreateFormComponent } from './components/wo-create-form.component';
 import { apiErrorMessage } from '../../../../core/utils/api-error.util';
 
 @Component({
-  selector: 'work-order-detail-drawer',
-  standalone: true,
-  imports: [CommonModule, FormsModule, CurrencyPipe, DatePipe, MatIconModule, UiDrawerComponent, WoCreateFormComponent],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  templateUrl: './work-order-detail-drawer.component.html',
-  styleUrls: ['./work-order-detail-drawer.component.scss']
+    selector: 'work-order-detail-drawer',
+    imports: [CommonModule, FormsModule, CurrencyPipe, DatePipe, MatIconModule, UiDrawerComponent, WoCreateFormComponent],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    templateUrl: './work-order-detail-drawer.component.html',
+    styleUrls: ['./work-order-detail-drawer.component.scss']
 })
 export class WorkOrderDetailDrawerComponent {
   private readonly maintenanceService = inject(MaintenanceService);

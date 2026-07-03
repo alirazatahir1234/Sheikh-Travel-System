@@ -19,9 +19,10 @@ export interface SettingsFormStatus {
 }
 
 @Component({
-  selector: 'app-dynamic-settings-form',
-  templateUrl: './dynamic-settings-form.component.html',
-  styleUrls: ['./dynamic-settings-form.component.scss']
+    selector: 'app-dynamic-settings-form',
+    templateUrl: './dynamic-settings-form.component.html',
+    styleUrls: ['./dynamic-settings-form.component.scss'],
+    standalone: false
 })
 export class DynamicSettingsFormComponent implements OnChanges, OnDestroy {
   @Input() category = '';

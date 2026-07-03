@@ -6,10 +6,9 @@ import { FleetDashboardContentComponent } from '../../../fleet-management/fleet-
  * widgets grid — navigation stays in the main STCC shell sidebar.
  */
 @Component({
-  selector: 'app-dashboard-fleet',
-  standalone: true,
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FleetDashboardContentComponent],
-  template: `<fleet-dashboard-content></fleet-dashboard-content>`
+    selector: 'app-dashboard-fleet',
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    imports: [FleetDashboardContentComponent],
+    template: `<fleet-dashboard-content></fleet-dashboard-content>`
 })
 export class FleetDashboardComponent {}

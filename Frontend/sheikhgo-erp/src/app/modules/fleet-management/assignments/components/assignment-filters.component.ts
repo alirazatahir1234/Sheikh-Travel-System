@@ -10,11 +10,10 @@ import {
 } from '../../../../core/models/fleet-assignment.model';
 
 @Component({
-  selector: 'assignment-filters',
-  standalone: true,
-  imports: [FormsModule, MatIconModule, UiSelectComponent],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'assignment-filters',
+    imports: [FormsModule, MatIconModule, UiSelectComponent],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     <div class="filters">
       <div class="search-wrap">
         <mat-icon class="search-icon">search</mat-icon>
@@ -50,7 +49,7 @@ import {
       </div>
     </div>
   `,
-  styles: [`
+    styles: [`
     :host { display: block; min-width: 0; }
 
     .filters {

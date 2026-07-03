@@ -12,9 +12,10 @@ interface VehicleOption {
 }
 
 @Component({
-  selector: 'app-log-fuel',
-  templateUrl: './log-fuel.component.html',
-  styleUrls: ['./log-fuel.component.scss']
+    selector: 'app-log-fuel',
+    templateUrl: './log-fuel.component.html',
+    styleUrls: ['./log-fuel.component.scss'],
+    standalone: false
 })
 export class LogFuelComponent implements OnInit {
   form: FormGroup;

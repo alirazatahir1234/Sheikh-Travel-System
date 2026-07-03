@@ -6,11 +6,10 @@ import { VehicleListItem } from '../../../../../core/models/vehicle.model';
 import { Branch } from '../../../../../core/models/platform.model';
 
 @Component({
-  selector: 'report-filters',
-  standalone: true,
-  imports: [FormsModule, MatIconModule],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'report-filters',
+    imports: [FormsModule, MatIconModule],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     <div class="filters-card">
       <label>
         <span>Vehicle</span>
@@ -58,7 +57,7 @@ import { Branch } from '../../../../../core/models/platform.model';
       </div>
     </div>
   `,
-  styles: [`
+    styles: [`
     .filters-card {
       display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: flex-end;
       background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 1rem 1.25rem; margin-bottom: 1rem;

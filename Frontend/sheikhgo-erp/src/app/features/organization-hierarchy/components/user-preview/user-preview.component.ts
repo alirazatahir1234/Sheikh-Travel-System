@@ -9,11 +9,10 @@ import { UserPreview, User } from '../../models/organization.models';
 import { UserListItemComponent } from '../user-list-item/user-list-item.component';
 
 @Component({
-  selector: 'app-user-preview',
-  standalone: true,
-  imports: [CommonModule, UserListItemComponent],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'app-user-preview',
+    imports: [CommonModule, UserListItemComponent],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     <div class="bg-white rounded-xl border border-border overflow-hidden">
       <!-- Header -->
       <div class="px-4 py-3 border-b border-border flex items-center justify-between">
@@ -51,7 +50,7 @@ import { UserListItemComponent } from '../user-list-item/user-list-item.componen
         </button>
       </div>
     </div>
-  `,
+  `
 })
 export class UserPreviewComponent {
   readonly preview = input.required<UserPreview>();

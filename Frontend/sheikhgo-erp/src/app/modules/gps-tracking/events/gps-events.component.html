@@ -1,0 +1,156 @@
+<div class="events-page">
+
+  <header class="page-header">
+    <div class="page-header__text">
+      <h1 class="page-title">Events Report</h1>
+      <p class="page-sub">Fleet-wide overspeed, harsh driving, geofence and alarm events from Traccar.</p>
+    </div>
+    <button type="button" class="btn btn-primary" (click)="load()" [disabled]="loading">
+      <mat-icon>{{ loading ? 'hourglass_top' : 'refresh' }}</mat-icon>
+      {{ loading ? 'Loading…' : 'Refresh' }}
+    </button>
+  </header>
+
+  <section class="filter-card">
+    <div class="filter-card__row">
+      <mat-form-field appearance="outline" class="filter-field">
+        <mat-label>Event Type</mat-label>
+        <mat-select [(value)]="eventType" (selectionChange)="onFilterChange()">
+          <mat-option *ngFor="let o of eventTypeOptions" [value]="o.value">{{ o.label }}</mat-option>
+        </mat-select>
+      </mat-form-field>
+      <mat-form-field appearance="outline" class="filter-field">
+        <mat-label>Branch</mat-label>
+        <mat-select [(value)]="branchId" (selectionChange)="onFilterChange()">
+          <mat-option [value]="null">All Branches</mat-option>
+          <mat-option *ngFor="let b of branches" [value]="b.id">{{ b.name }}</mat-option>
+        </mat-select>
+      </mat-form-field>
+      <mat-form-field appearance="outline" class="filter-field">
+        <mat-label>Department</mat-label>
+        <mat-select [(value)]="departmentId" (selectionChange)="onFilterChange()">
+          <mat-option [value]="null">All Departments</mat-option>
+          <mat-option *ngFor="let d of departments" [value]="d.id">{{ d.name }}</mat-option>
+        </mat-select>
+      </mat-form-field>
+      <mat-form-field appearance="outline" class="filter-field">
+        <mat-label>Driver</mat-label>
+        <mat-select [(value)]="driverId" (selectionChange)="onFilterChange()">
+          <mat-option [value]="null">All Drivers</mat-option>
+          <mat-option *ngFor="let d of fleetDrivers" [value]="d.id">{{ d.fullName }}</mat-option>
+        </mat-select>
+      </mat-form-field>
+      <div class="period-display">
+        <span class="period-label">Time period</span>
+        <span class="period-value">{{ periodLabel }}</span>
+      </div>
+    </div>
+    <div class="preset-row">
+      <button type="button" class="preset-chip" *ngFor="let p of datePresets"
+        [class.active]="datePreset === p.id" (click)="onPresetChange(p.id)">{{ p.label }}</button>
+    </div>
+    <div class="custom-dates" *ngIf="datePreset === 'custom'">
+      <mat-form-field appearance="outline">
+        <mat-label>From</mat-label>
+        <input matInput type="datetime-local" [(ngModel)]="from">
+      </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label>To</mat-label>
+        <input matInput type="datetime-local" [(ngModel)]="to">
+      </mat-form-field>
+      <button type="button" class="btn btn-secondary" (click)="onFilterChange()">Apply</button>
+    </div>
+  </section>
+
+  <div *ngIf="error" class="error-banner">
+    <mat-icon>error_outline</mat-icon> {{ error }}
+  </div>
+
+  <div *ngIf="showCappedScopeBanner" class="info-banner">
+    <mat-icon>info</mat-icon>
+    Showing results from the first {{ vehiclesQueried }} of {{ vehiclesInScope }} vehicles with activity — narrow Branch/Department/Driver to see more.
+  </div>
+
+  <div *ngIf="loading" class="loading-panel">
+    <app-brand-loader size="md" message="Loading events…" />
+  </div>
+
+  <div *ngIf="!loading && !events.length && !error" class="empty-state">
+    <mat-icon>notifications_active</mat-icon>
+    <h3>No events found</h3>
+    <p>No events match the selected filters and date range.</p>
+  </div>
+
+  <section class="table-card" *ngIf="!loading && events.length > 0">
+    <div class="table-scroll desktop-only">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th class="sortable" (click)="onSortChange('vehicleName')">
+              Vehicle <mat-icon class="sort-icon">{{ sortIcon('vehicleName') }}</mat-icon>
+            </th>
+            <th>Driver</th>
+            <th>Event</th>
+            <th class="sortable" (click)="onSortChange('time')">
+              Time <mat-icon class="sort-icon">{{ sortIcon('time') }}</mat-icon>
+            </th>
+            <th class="sortable" (click)="onSortChange('speedKmh')">
+              Speed <mat-icon class="sort-icon">{{ sortIcon('speedKmh') }}</mat-icon>
+            </th>
+            <th>Location</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let e of sortedEvents">
+            <td class="vehicle-cell">{{ vehicleLabel(e) }}</td>
+            <td>{{ e.driverName ?? '—' }}</td>
+            <td>
+              <span class="event-chip" [ngClass]="'event-chip--' + eventView(e).tone">
+                <mat-icon>{{ eventView(e).icon }}</mat-icon> {{ eventView(e).label }}
+              </span>
+            </td>
+            <td>{{ e.time | date:'dd MMM, HH:mm' }}</td>
+            <td>{{ e.speedKmh != null ? (e.speedKmh | number:'1.0-0') + ' km/h' : '—' }}</td>
+            <td class="location-cell">{{ e.address ?? (e.latitude != null ? ((e.latitude | number:'1.4-4') + ', ' + (e.longitude | number:'1.4-4')) : '—') }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="mobile-cards mobile-only">
+      <article class="stb-record-card" *ngFor="let e of sortedEvents">
+        <div class="stb-record-card__head">
+          <strong>{{ vehicleLabel(e) }}</strong>
+          <span class="event-chip" [ngClass]="'event-chip--' + eventView(e).tone">
+            <mat-icon>{{ eventView(e).icon }}</mat-icon> {{ eventView(e).label }}
+          </span>
+        </div>
+        <div class="stb-record-card__meta">
+          <span>Driver: {{ e.driverName ?? '—' }}</span>
+          <span>Time: {{ e.time | date:'dd MMM, HH:mm' }}</span>
+          <span>Speed: {{ e.speedKmh != null ? (e.speedKmh | number:'1.0-0') + ' km/h' : '—' }}</span>
+          <span>{{ e.address ?? 'Unknown location' }}</span>
+        </div>
+      </article>
+    </div>
+
+    <div class="table-footer">
+      <span class="page-info">{{ totalCount }} events · Page {{ page }} / {{ totalPages }}</span>
+      <div class="page-controls">
+        <label class="page-size-label">
+          Rows per page
+          <select class="page-size-select" [(ngModel)]="pageSize" (ngModelChange)="onPageSizeChange()">
+            <option *ngFor="let n of pageSizeOptions" [ngValue]="n">{{ n }}</option>
+          </select>
+        </label>
+        <button type="button" class="btn btn-secondary btn-sm" (click)="prevPage()" [disabled]="page <= 1">
+          <mat-icon>chevron_left</mat-icon>
+        </button>
+        <button type="button" class="btn btn-secondary btn-sm" (click)="nextPage()" [disabled]="page >= totalPages">
+          <mat-icon>chevron_right</mat-icon>
+        </button>
+      </div>
+    </div>
+  </section>
+
+</div>

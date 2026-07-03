@@ -45,6 +45,35 @@ public record GpsFleetStatusDto(
     double? AvgSpeedKmh,
     double? TodayDistanceKm);
 
+public record GpsDashboardTrendsDto(
+    double Online,
+    double Moving,
+    double Parked,
+    double Idle,
+    double Offline,
+    double NeverSeen,
+    double TotalFleet,
+    double AlertsToday);
+
+public record GpsDashboardSparklineDto(
+    int[] Moving,
+    int[] Parked,
+    int[] Idle,
+    int[] Offline);
+
+public record GpsDashboardSummaryDto(
+    int Online,
+    int Moving,
+    int Parked,
+    int Idle,
+    int Offline,
+    int NeverSeen,
+    int TotalFleet,
+    int AlertsToday,
+    GpsDashboardTrendsDto Trends,
+    GpsDashboardSparklineDto Sparkline,
+    DateTime LastSyncAt);
+
 public record TripReplayPositionDto(
     DateTime Timestamp,
     double Latitude,
@@ -72,6 +101,43 @@ public record TripStopDto(
     double Longitude,
     string? Address,
     int DurationMinutes);
+
+public record FleetTripStopDto(
+    int VehicleId,
+    string? VehicleName,
+    string? PlateNumber,
+    string? DriverName,
+    DateTime StartTime,
+    DateTime EndTime,
+    double Latitude,
+    double Longitude,
+    string? Address,
+    int DurationMinutes);
+
+public record FleetTripEventDto(
+    int VehicleId,
+    string? VehicleName,
+    string? PlateNumber,
+    string? DriverName,
+    DateTime Time,
+    string Type,
+    double? Latitude,
+    double? Longitude,
+    string? Address,
+    decimal? SpeedKmh);
+
+/// <summary>
+/// Page over a capped-fan-out fleet report (Stops/Events) — <see cref="TotalCount"/> and pagination
+/// only cover <see cref="VehiclesQueried"/> vehicles, not the full <see cref="VehiclesInScope"/>.
+/// Surface this gap in the UI rather than presenting it as a true fleet-wide total.
+/// </summary>
+public record FleetReportPageDto<T>(
+    IReadOnlyList<T> Items,
+    int TotalCount,
+    int Page,
+    int PageSize,
+    int VehiclesInScope,
+    int VehiclesQueried);
 
 public record TripDeviceContextDto(
     int VehicleId,

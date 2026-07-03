@@ -18,9 +18,10 @@ import { User } from '../../../core/models/user.model';
 import { apiErrorMessage } from '../../../core/utils/api-error.util';
 
 @Component({
-  selector: 'app-branch-form',
-  templateUrl: './branch-form.component.html',
-  styleUrls: ['./branch-form.component.scss']
+    selector: 'app-branch-form',
+    templateUrl: './branch-form.component.html',
+    styleUrls: ['./branch-form.component.scss'],
+    standalone: false
 })
 export class BranchFormComponent implements OnInit {
   loading = true;

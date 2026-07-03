@@ -8,11 +8,10 @@ import { CommonModule } from '@angular/common';
 import { User } from '../../models/organization.models';
 
 @Component({
-  selector: 'app-users-tab',
-  standalone: true,
-  imports: [CommonModule],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'app-users-tab',
+    imports: [CommonModule],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     <div>
       <!-- Header -->
       <div class="flex items-center justify-between mb-4">
@@ -119,7 +118,7 @@ import { User } from '../../models/organization.models';
         }
       }
     </div>
-  `,
+  `
 })
 export class UsersTabComponent {
   readonly users = input<User[]>([]);

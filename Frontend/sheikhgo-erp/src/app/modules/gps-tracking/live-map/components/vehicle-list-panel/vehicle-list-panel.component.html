@@ -1,0 +1,75 @@
+<aside class="ft-panel ft-panel--list stb-elevated" aria-label="Vehicle list">
+  <div class="ft-panel__head">
+    <h2 class="ft-panel__title">Vehicles</h2>
+    <span class="ft-panel__count">{{ filteredLocations.length }}</span>
+  </div>
+
+  <div class="panel-search">
+    <mat-icon>search</mat-icon>
+    <input
+      type="search"
+      placeholder="Search vehicle, plate, driver…"
+      [ngModel]="searchInput"
+      (ngModelChange)="searchChange.emit($event)"
+      aria-label="Search vehicles" />
+  </div>
+
+  <div class="ft-list-tabs" role="tablist">
+    <button
+      type="button"
+      *ngFor="let tab of tabs"
+      class="ft-list-tab stb-touch"
+      role="tab"
+      [class.ft-list-tab--active]="listTab === tab.id"
+      [attr.aria-selected]="listTab === tab.id"
+      (click)="tabChange.emit(tab.id)">
+      {{ tab.label }}
+    </button>
+  </div>
+
+  <mat-spinner *ngIf="loading" diameter="28" class="panel-spinner"></mat-spinner>
+
+  <div *ngIf="!loading && filteredLocations.length === 0" class="panel-empty">
+    <mat-icon>gps_off</mat-icon>
+    <p>No vehicles match your filters.</p>
+  </div>
+
+  <cdk-virtual-scroll-viewport
+    *ngIf="!loading && filteredLocations.length > 0"
+    class="panel-list"
+    itemSize="96"
+    role="list">
+    <button
+      type="button"
+      class="vehicle-card"
+      *cdkVirtualFor="let loc of filteredLocations"
+      [class.vehicle-card--selected]="selectedId === loc.vehicleId"
+      [class.vehicle-card--moving]="loc.status === 'moving'"
+      [class.vehicle-card--idle]="loc.status === 'idle'"
+      [class.vehicle-card--parked]="loc.status === 'parked'"
+      [class.vehicle-card--offline]="loc.status === 'offline'"
+      [class.vehicle-card--never-seen]="loc.status === 'never_seen'"
+      [class.vehicle-card--sos]="loc.status === 'sos'"
+      (click)="select.emit(loc)"
+      role="listitem">
+      <span class="vehicle-card-initials" [class]="'vehicle-card-initials--' + loc.status">
+        {{ initials(loc.vehicleName) }}
+      </span>
+      <div class="vehicle-card-body">
+        <div class="vehicle-card-top">
+          <strong>{{ loc.vehicleName }}</strong>
+          <span class="vehicle-badge">{{ statusLabel(loc.status) }}</span>
+        </div>
+        <span class="vehicle-reg">{{ loc.registrationNumber }}</span>
+        <span class="vehicle-route" *ngIf="loc.driverName">{{ loc.driverName }}</span>
+        <div class="vehicle-meta">
+          <span class="vehicle-speed">
+            <mat-icon>speed</mat-icon>
+            {{ speedLabel(loc) }}
+          </span>
+          <span class="vehicle-time">{{ formatLastPing(loc) }}</span>
+        </div>
+      </div>
+    </button>
+  </cdk-virtual-scroll-viewport>
+</aside>

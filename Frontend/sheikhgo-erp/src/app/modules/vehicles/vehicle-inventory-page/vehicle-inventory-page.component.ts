@@ -49,31 +49,30 @@ import {
 } from '../utils/vehicle-filter.util';
 
 @Component({
-  selector: 'app-vehicle-inventory-page',
-  standalone: true,
-  imports: [
-    RouterModule,
-    MatIconModule,
-    MatMenuModule,
-    MatButtonModule,
-    DatePipe,
-    DecimalPipe,
-    UiButtonComponent,
-    UiPageHeaderComponent,
-    FleetSummaryCardComponent,
-    FleetFilterToolbarComponent,
-    VehicleTableComponent,
-    VehicleMobileCardsComponent,
-    VehicleDetailsDrawerComponent,
-    VehicleAssignDialogComponent,
-    VehicleBulkToolbarComponent,
-    VehicleAdvancedFiltersComponent,
-    VehicleRegistryFabComponent
-  ],
-  providers: [DatePipe, DecimalPipe],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  templateUrl: './vehicle-inventory-page.component.html',
-  styleUrls: ['./vehicle-inventory-page.component.scss']
+    selector: 'app-vehicle-inventory-page',
+    imports: [
+        RouterModule,
+        MatIconModule,
+        MatMenuModule,
+        MatButtonModule,
+        DatePipe,
+        DecimalPipe,
+        UiButtonComponent,
+        UiPageHeaderComponent,
+        FleetSummaryCardComponent,
+        FleetFilterToolbarComponent,
+        VehicleTableComponent,
+        VehicleMobileCardsComponent,
+        VehicleDetailsDrawerComponent,
+        VehicleAssignDialogComponent,
+        VehicleBulkToolbarComponent,
+        VehicleAdvancedFiltersComponent,
+        VehicleRegistryFabComponent
+    ],
+    providers: [DatePipe, DecimalPipe],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    templateUrl: './vehicle-inventory-page.component.html',
+    styleUrls: ['./vehicle-inventory-page.component.scss']
 })
 export class VehicleInventoryPageComponent implements OnInit {
   private readonly vehicleService = inject(VehicleService);

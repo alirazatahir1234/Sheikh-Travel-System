@@ -5,9 +5,10 @@ import { PaymentDetail } from '../../../core/models/payment.model';
 import { COMPANY_NAME, APP_LOGO_PATH } from '../../../core/constants/app-brand';
 
 @Component({
-  selector: 'app-payment-receipt',
-  templateUrl: './payment-receipt.component.html',
-  styleUrls: ['./payment-receipt.component.scss']
+    selector: 'app-payment-receipt',
+    templateUrl: './payment-receipt.component.html',
+    styleUrls: ['./payment-receipt.component.scss'],
+    standalone: false
 })
 export class PaymentReceiptComponent implements OnInit {
   readonly companyName = COMPANY_NAME;

@@ -8,11 +8,10 @@ import { CommonModule } from '@angular/common';
 import { Department } from '../../models/organization.models';
 
 @Component({
-  selector: 'app-departments-tab',
-  standalone: true,
-  imports: [CommonModule],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'app-departments-tab',
+    imports: [CommonModule],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     <div>
       <!-- Header -->
       <div class="flex items-center justify-between mb-4">
@@ -95,7 +94,7 @@ import { Department } from '../../models/organization.models';
         </div>
       }
     </div>
-  `,
+  `
 })
 export class DepartmentsTabComponent {
   readonly departments = input<Department[]>([]);

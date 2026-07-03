@@ -16,9 +16,10 @@ interface ProfileUser {
 }
 
 @Component({
-  selector: 'app-profile-page',
-  templateUrl: './profile-page.component.html',
-  styleUrls: ['./profile-page.component.scss']
+    selector: 'app-profile-page',
+    templateUrl: './profile-page.component.html',
+    styleUrls: ['./profile-page.component.scss'],
+    standalone: false
 })
 export class ProfilePageComponent implements OnInit {
   profileForm: FormGroup;

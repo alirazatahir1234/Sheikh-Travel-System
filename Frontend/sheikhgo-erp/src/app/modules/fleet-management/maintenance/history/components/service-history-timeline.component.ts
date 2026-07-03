@@ -5,11 +5,10 @@ import { VehicleServiceHistoryItem } from '../../../../../core/models/maintenanc
 import { serviceTypeBadgeClass, serviceTypeIcon, serviceTypeTone } from '../utils/service-type.util';
 
 @Component({
-  selector: 'service-history-timeline',
-  standalone: true,
-  imports: [CurrencyPipe, DatePipe, MatIconModule],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'service-history-timeline',
+    imports: [CurrencyPipe, DatePipe, MatIconModule],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
   <section class="timeline-section">
     <header class="section-header">
       <h3 class="section-title">
@@ -76,7 +75,7 @@ import { serviceTypeBadgeClass, serviceTypeIcon, serviceTypeTone } from '../util
     }
   </section>
   `,
-  styles: [`
+    styles: [`
     .timeline-section { margin-bottom: 1.5rem; }
     .section-header {
       display: flex;

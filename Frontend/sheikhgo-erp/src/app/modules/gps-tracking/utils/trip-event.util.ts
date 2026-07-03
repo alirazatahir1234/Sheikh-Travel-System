@@ -53,6 +53,32 @@ export function computeSafetyScore(
   return Math.max(0, Math.min(100, Math.round(score)));
 }
 
+/**
+ * First-pass efficiency score blending safety, idle time, and fuel use vs. a flat reference
+ * consumption (no real fleet-average baseline exists yet to compare against) — weights and the
+ * reference figure are a starting point, subject to tuning once real fuel/idle data is observed
+ * at scale.
+ */
+export function computeTripEfficiencyScore(
+  safetyScore: number,
+  idleMinutes: number,
+  drivingMinutes: number,
+  fuelLiters: number | null | undefined,
+  distanceKm: number
+): number {
+  const totalMinutes = idleMinutes + drivingMinutes;
+  const idleScore = totalMinutes > 0 ? 100 - (idleMinutes / totalMinutes) * 100 : 100;
+
+  const REFERENCE_FUEL_L_PER_100KM = 12;
+  const fuelPer100Km = fuelLiters != null && distanceKm > 0 ? (fuelLiters / distanceKm) * 100 : null;
+  const fuelScore = fuelPer100Km != null
+    ? Math.max(0, Math.min(100, 100 - ((fuelPer100Km - REFERENCE_FUEL_L_PER_100KM) / REFERENCE_FUEL_L_PER_100KM) * 100))
+    : safetyScore; // no fuel data: don't let a missing signal drag the score down
+
+  const score = safetyScore * 0.5 + idleScore * 0.25 + fuelScore * 0.25;
+  return Math.max(0, Math.min(100, Math.round(score)));
+}
+
 export function safetyMessage(score: number): string {
   if (score >= 85) return 'Excellent safety behavior overall. Minor events may still appear on highways.';
   if (score >= 70) return 'Good driving with some overspeed or harsh events detected.';

@@ -29,27 +29,26 @@ import { DriverDetailsDrawerComponent } from '../driver-details-drawer/driver-de
 import { EMPTY_DRIVER_FILTERS, DriverFilters, DriverPagination, DEFAULT_DRIVER_PAGE_SIZE, buildDriverKpiGroups, buildOperationsSummary, buildAssignmentCoverage, computeDriverScore, scoreTone } from '../models/driver-inventory.model';
 
 @Component({
-  selector: 'app-driver-inventory-page',
-  standalone: true,
-  providers: [DatePipe],
-  imports: [
-    NgClass,
-    RouterModule,
-    MatIconModule,
-    MatMenuModule,
-    MatButtonModule,
-    UiButtonComponent,
-    UiPageHeaderComponent,
-    UiChartComponent,
-    FleetSummaryCardComponent,
-    QuickActionsCardComponent,
-    DriverTableComponent,
-    DriverBulkAssignDialogComponent,
-    DriverDetailsDrawerComponent
-  ],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  templateUrl: './driver-inventory-page.component.html',
-  styleUrls: ['./driver-inventory-page.component.scss']
+    selector: 'app-driver-inventory-page',
+    providers: [DatePipe],
+    imports: [
+        NgClass,
+        RouterModule,
+        MatIconModule,
+        MatMenuModule,
+        MatButtonModule,
+        UiButtonComponent,
+        UiPageHeaderComponent,
+        UiChartComponent,
+        FleetSummaryCardComponent,
+        QuickActionsCardComponent,
+        DriverTableComponent,
+        DriverBulkAssignDialogComponent,
+        DriverDetailsDrawerComponent
+    ],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    templateUrl: './driver-inventory-page.component.html',
+    styleUrls: ['./driver-inventory-page.component.scss']
 })
 export class DriverInventoryPageComponent implements OnInit {
   @ViewChild(DriverBulkAssignDialogComponent) bulkAssignDialog?: DriverBulkAssignDialogComponent;

@@ -22,11 +22,10 @@ export interface ContextMenuItem {
 }
 
 @Component({
-  selector: 'app-context-menu',
-  standalone: true,
-  imports: [CommonModule],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'app-context-menu',
+    imports: [CommonModule],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     @if (visible()) {
       <div
         class="fixed z-[100] bg-white border border-border rounded-lg shadow-lg py-1 min-w-[180px]"
@@ -92,10 +91,10 @@ export interface ContextMenuItem {
       </div>
     }
   `,
-  host: {
-    '(document:click)': 'onDocumentClick($event)',
-    '(document:contextmenu)': 'onDocumentContextMenu($event)',
-  },
+    host: {
+        '(document:click)': 'onDocumentClick($event)',
+        '(document:contextmenu)': 'onDocumentContextMenu($event)',
+    }
 })
 export class ContextMenuComponent implements OnDestroy {
   readonly visible = signal(false);

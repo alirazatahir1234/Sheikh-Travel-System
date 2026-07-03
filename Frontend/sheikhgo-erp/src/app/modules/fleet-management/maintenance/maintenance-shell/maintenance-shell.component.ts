@@ -12,12 +12,11 @@ import { MaintenanceSearchResult } from '../../../../core/models/maintenance.mod
 import { COMPANY_NAME } from '../../../../core/constants/app-brand';
 
 @Component({
-  selector: 'app-maintenance-shell',
-  standalone: true,
-  imports: [CommonModule, FormsModule, RouterOutlet, RouterLink, RouterLinkActive, MatIconModule],
-  templateUrl: './maintenance-shell.component.html',
-  styleUrls: ['./maintenance-shell.component.scss'],
-  changeDetection: ChangeDetectionStrategy.OnPush
+    selector: 'app-maintenance-shell',
+    imports: [CommonModule, FormsModule, RouterOutlet, RouterLink, RouterLinkActive, MatIconModule],
+    templateUrl: './maintenance-shell.component.html',
+    styleUrls: ['./maintenance-shell.component.scss'],
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class MaintenanceShellComponent {
   readonly companyName = COMPANY_NAME;

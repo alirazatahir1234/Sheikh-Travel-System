@@ -9,17 +9,16 @@ import { VinValidationState } from '../../../models/vehicle-wizard.model';
 import { descriptiveVehicleTextError } from '../../../../utils/vehicle-descriptive-text.util';
 
 @Component({
-  selector: 'app-wizard-step-details',
-  standalone: true,
-  imports: [
-    ReactiveFormsModule,
-    UiInputComponent,
-    UiSelectComponent,
-    UiStatusBadgeComponent,
-    VehicleCodeFieldComponent
-  ],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'app-wizard-step-details',
+    imports: [
+        ReactiveFormsModule,
+        UiInputComponent,
+        UiSelectComponent,
+        UiStatusBadgeComponent,
+        VehicleCodeFieldComponent
+    ],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     <div class="space-y-6" [formGroup]="form()">
       <section class="overflow-visible rounded-lg border border-fleet-border bg-white p-6 shadow-sm">
         <h2 class="mb-1 text-lg font-semibold text-fleet-text">Vehicle Details</h2>

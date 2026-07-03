@@ -4,16 +4,15 @@ import { MatIconModule } from '@angular/material/icon';
 import { UiButtonComponent } from '../../../../../shared/components/ui/button/ui-button.component';
 
 @Component({
-  selector: 'app-vehicle-code-field',
-  standalone: true,
-  imports: [MatIconModule, UiButtonComponent],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  providers: [{
-    provide: NG_VALUE_ACCESSOR,
-    useExisting: forwardRef(() => VehicleCodeFieldComponent),
-    multi: true
-  }],
-  template: `
+    selector: 'app-vehicle-code-field',
+    imports: [MatIconModule, UiButtonComponent],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    providers: [{
+            provide: NG_VALUE_ACCESSOR,
+            useExisting: forwardRef(() => VehicleCodeFieldComponent),
+            multi: true
+        }],
+    template: `
     <label class="block">
       <span class="mb-1.5 block text-[13px] font-semibold text-fleet-text">
         {{ label() || 'Vehicle Code' }}

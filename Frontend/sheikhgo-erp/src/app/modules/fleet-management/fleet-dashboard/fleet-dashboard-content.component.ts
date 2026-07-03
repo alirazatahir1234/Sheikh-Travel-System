@@ -30,21 +30,20 @@ import { FleetFabComponent } from './widgets/fleet-fab.component';
  * hub and the `/dashboard` selector so KPI/chart/table logic lives in one place.
  */
 @Component({
-  selector: 'fleet-dashboard-content',
-  standalone: true,
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [
-    UiModule,
-    DashboardKpiRowComponent,
-    UtilizationChartComponent,
-    FuelMaintenanceChartComponent,
-    QuickActionsCardComponent,
-    CriticalAlertsCardComponent,
-    RecentActivitiesCardComponent,
-    ActiveAssignmentsTableComponent,
-    FleetFabComponent
-  ],
-  template: `
+    selector: 'fleet-dashboard-content',
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    imports: [
+        UiModule,
+        DashboardKpiRowComponent,
+        UtilizationChartComponent,
+        FuelMaintenanceChartComponent,
+        QuickActionsCardComponent,
+        CriticalAlertsCardComponent,
+        RecentActivitiesCardComponent,
+        ActiveAssignmentsTableComponent,
+        FleetFabComponent
+    ],
+    template: `
     <div class="fleet-dashboard">
       <div class="mx-auto w-full max-w-[1440px] space-y-gutter px-page py-6">
         <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
@@ -89,7 +88,7 @@ import { FleetFabComponent } from './widgets/fleet-fab.component';
       <fleet-fab></fleet-fab>
     </div>
   `,
-  styles: [`
+    styles: [`
     :host { display: block; }
     .fleet-dashboard {
       min-height: 100%;

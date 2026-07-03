@@ -33,11 +33,10 @@ const ICON_SIZE: Record<UiButtonSize, string> = {
 };
 
 @Component({
-  selector: 'ui-button',
-  standalone: true,
-  imports: [NgClass, MatIconModule],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'ui-button',
+    imports: [NgClass, MatIconModule],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     <button
       [type]="type()"
       [disabled]="disabled() || loading()"
@@ -54,7 +53,7 @@ const ICON_SIZE: Record<UiButtonSize, string> = {
       }
     </button>
   `,
-  styles: [`
+    styles: [`
     :host { display: inline-flex; }
     button { width: 100%; }
     .ui-btn-spinner {

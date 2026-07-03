@@ -6,11 +6,14 @@ import { PositionDto } from '../../../core/models/gps-tracking.model';
 import { MAP_TILE_STACKS } from '../../../core/leaflet/leaflet-map-tiles';
 import { L } from '../../../core/leaflet/leaflet-cluster';
 import type * as LeafletTypes from 'leaflet';
+import { SharedModule } from '../../../shared/shared.module';
 
 @Component({
-  selector: 'app-gps-history',
-  templateUrl: './gps-history.component.html',
-  styleUrls: ['./gps-history.component.scss']
+    selector: 'app-gps-history',
+    templateUrl: './gps-history.component.html',
+    styleUrls: ['./gps-history.component.scss'],
+    standalone: true,
+    imports: [SharedModule]
 })
 export class GpsHistoryComponent implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild('mapEl', { static: false }) mapEl!: ElementRef<HTMLDivElement>;

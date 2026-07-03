@@ -11,9 +11,10 @@ import { Vehicle } from '../../../core/models/vehicle.model';
 import { dateInputToIso, toDateInputValue } from '../../../core/utils/date-input.util';
 
 @Component({
-  selector: 'app-maintenance-form',
-  templateUrl: './maintenance-form.component.html',
-  styleUrls: ['./maintenance-form.component.scss']
+    selector: 'app-maintenance-form',
+    templateUrl: './maintenance-form.component.html',
+    styleUrls: ['./maintenance-form.component.scss'],
+    standalone: false
 })
 export class MaintenanceFormComponent implements OnInit {
   form: FormGroup;

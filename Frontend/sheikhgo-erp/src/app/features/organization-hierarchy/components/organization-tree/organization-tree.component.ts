@@ -16,11 +16,10 @@ import { ContextMenuComponent } from '../context-menu/context-menu.component';
 import { HierarchyMinimapComponent } from '../hierarchy-minimap/hierarchy-minimap.component';
 
 @Component({
-  selector: 'app-organization-tree',
-  standalone: true,
-  imports: [CommonModule, FormsModule, TreeNodeComponent, UnassignedDepartmentComponent, ContextMenuComponent, HierarchyMinimapComponent],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'app-organization-tree',
+    imports: [CommonModule, FormsModule, TreeNodeComponent, UnassignedDepartmentComponent, ContextMenuComponent, HierarchyMinimapComponent],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     <div class="bg-white rounded-lg shadow border border-border overflow-hidden h-full flex flex-col">
       <!-- Header -->
       <div class="px-4 py-3 border-b border-border">
@@ -262,7 +261,7 @@ import { HierarchyMinimapComponent } from '../hierarchy-minimap/hierarchy-minima
         </div>
       }
     </div>
-  `,
+  `
 })
 export class OrganizationTreeComponent {
   @ViewChild('contextMenu') contextMenu!: ContextMenuComponent;

@@ -11,9 +11,10 @@ import { Component, Input } from '@angular/core';
  *   </stb-info-card>
  */
 @Component({
-  selector: 'stb-info-card',
-  templateUrl: './info-card.component.html',
-  styleUrls: ['./info-card.component.scss']
+    selector: 'stb-info-card',
+    templateUrl: './info-card.component.html',
+    styleUrls: ['./info-card.component.scss'],
+    standalone: false
 })
 export class InfoCardComponent {
   @Input() title?: string;

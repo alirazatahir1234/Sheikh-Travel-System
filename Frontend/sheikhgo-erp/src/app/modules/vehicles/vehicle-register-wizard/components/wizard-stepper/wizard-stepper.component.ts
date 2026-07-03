@@ -8,11 +8,10 @@ export interface WizardStepConfig {
 }
 
 @Component({
-  selector: 'app-wizard-stepper',
-  standalone: true,
-  imports: [MatIconModule],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'app-wizard-stepper',
+    imports: [MatIconModule],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     <nav class="flex flex-wrap items-center gap-2 md:gap-0" aria-label="Registration steps">
       @for (step of steps(); track step.id; let i = $index; let last = $last) {
         <button

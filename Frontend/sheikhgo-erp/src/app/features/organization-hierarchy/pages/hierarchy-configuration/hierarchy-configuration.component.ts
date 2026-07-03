@@ -29,28 +29,27 @@ import { AssetsTabComponent, AssetCategory } from '../../components/tab-content/
 import { DiagramViewComponent } from '../../components/diagram-view/diagram-view.component';
 
 @Component({
-  selector: 'app-hierarchy-configuration',
-  standalone: true,
-  imports: [
-    CommonModule,
-    TopNavbarComponent,
-    OrganizationTreeComponent,
-    BranchHeaderComponent,
-    StatisticsCardsComponent,
-    BranchCapacityCardComponent,
-    StructuralLineageComponent,
-    OperationalLogsComponent,
-    UserPreviewComponent,
-    FooterActionBarComponent,
-    TenantSelectorComponent,
-    OverviewDashboardComponent,
-    DepartmentsTabComponent,
-    UsersTabComponent,
-    AssetsTabComponent,
-    DiagramViewComponent,
-  ],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'app-hierarchy-configuration',
+    imports: [
+        CommonModule,
+        TopNavbarComponent,
+        OrganizationTreeComponent,
+        BranchHeaderComponent,
+        StatisticsCardsComponent,
+        BranchCapacityCardComponent,
+        StructuralLineageComponent,
+        OperationalLogsComponent,
+        UserPreviewComponent,
+        FooterActionBarComponent,
+        TenantSelectorComponent,
+        OverviewDashboardComponent,
+        DepartmentsTabComponent,
+        UsersTabComponent,
+        AssetsTabComponent,
+        DiagramViewComponent,
+    ],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     <div class="min-h-screen bg-surface-muted pb-20">
       <!-- Top Navbar -->
       <app-top-navbar
@@ -226,7 +225,7 @@ import { DiagramViewComponent } from '../../components/diagram-view/diagram-view
         (discard)="onDiscardChanges()"
       />
     </div>
-  `,
+  `
 })
 export class HierarchyConfigurationComponent implements OnInit {
   private readonly router = inject(Router);

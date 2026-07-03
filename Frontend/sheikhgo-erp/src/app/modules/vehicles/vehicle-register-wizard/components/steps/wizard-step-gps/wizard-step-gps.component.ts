@@ -8,11 +8,10 @@ import { GpsDevice } from '../../../../../../core/models/gps-tracking.model';
 import { TRACKER_MODELS, TRACKER_VENDORS } from '../../../models/vehicle-wizard.model';
 
 @Component({
-  selector: 'app-wizard-step-gps',
-  standalone: true,
-  imports: [ReactiveFormsModule, MatRadioModule, UiInputComponent, UiSelectComponent],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'app-wizard-step-gps',
+    imports: [ReactiveFormsModule, MatRadioModule, UiInputComponent, UiSelectComponent],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     <div class="space-y-6" [formGroup]="gpsForm()">
       <section class="rounded-lg border border-fleet-border bg-white p-6 shadow-sm">
         <h2 class="mb-1 text-lg font-semibold text-fleet-text">GPS Tracker</h2>

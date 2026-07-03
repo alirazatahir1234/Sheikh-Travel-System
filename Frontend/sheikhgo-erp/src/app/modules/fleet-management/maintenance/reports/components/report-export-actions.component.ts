@@ -2,11 +2,10 @@ import { ChangeDetectionStrategy, Component, input, output } from '@angular/core
 import { MatIconModule } from '@angular/material/icon';
 
 @Component({
-  selector: 'report-export-actions',
-  standalone: true,
-  imports: [MatIconModule],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'report-export-actions',
+    imports: [MatIconModule],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     <div class="actions-bar">
       <button type="button" class="btn btn--primary" [disabled]="loading()" (click)="preview.emit()">
         <mat-icon>visibility</mat-icon> Preview
@@ -22,7 +21,7 @@ import { MatIconModule } from '@angular/material/icon';
       </button>
     </div>
   `,
-  styles: [`
+    styles: [`
     .actions-bar { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1rem; }
     .btn { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.5rem 1rem; border-radius: 8px; font-size: 0.8125rem; font-weight: 600; cursor: pointer; border: none; }
     .btn:disabled { opacity: 0.5; cursor: not-allowed; }

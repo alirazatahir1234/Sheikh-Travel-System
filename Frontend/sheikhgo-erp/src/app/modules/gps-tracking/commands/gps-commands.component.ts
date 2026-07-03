@@ -2,6 +2,7 @@ import { Component, OnInit, OnDestroy } from '@angular/core';
 import { GpsTrackingService } from '../../../core/services/gps-tracking.service';
 import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
 import { GpsDevice, GpsDeviceCommand } from '../../../core/models/gps-tracking.model';
+import { SharedModule } from '../../../shared/shared.module';
 
 interface CommandCard {
   type: string;
@@ -13,9 +14,11 @@ interface CommandCard {
 }
 
 @Component({
-  selector: 'app-gps-commands',
-  templateUrl: './gps-commands.component.html',
-  styleUrls: ['./gps-commands.component.scss']
+    selector: 'app-gps-commands',
+    templateUrl: './gps-commands.component.html',
+    styleUrls: ['./gps-commands.component.scss'],
+    standalone: true,
+    imports: [SharedModule]
 })
 export class GpsCommandsComponent implements OnInit, OnDestroy {
   devices: GpsDevice[] = [];

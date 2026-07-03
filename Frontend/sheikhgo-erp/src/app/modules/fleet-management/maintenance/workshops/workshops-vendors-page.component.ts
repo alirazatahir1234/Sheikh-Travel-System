@@ -14,19 +14,18 @@ import { apiErrorMessage } from '../../../../core/utils/api-error.util';
 type TabId = 'workshops' | 'vendors';
 
 @Component({
-  selector: 'app-workshops-vendors-page',
-  standalone: true,
-  imports: [
-    MatIconModule,
-    WorkshopVendorStatsComponent,
-    WorkshopTableComponent,
-    VendorTableComponent,
-    WorkshopFormDrawerComponent,
-    VendorFormDrawerComponent
-  ],
-  templateUrl: './workshops-vendors-page.component.html',
-  styleUrls: ['./workshops-vendors-page.component.scss'],
-  changeDetection: ChangeDetectionStrategy.OnPush
+    selector: 'app-workshops-vendors-page',
+    imports: [
+        MatIconModule,
+        WorkshopVendorStatsComponent,
+        WorkshopTableComponent,
+        VendorTableComponent,
+        WorkshopFormDrawerComponent,
+        VendorFormDrawerComponent
+    ],
+    templateUrl: './workshops-vendors-page.component.html',
+    styleUrls: ['./workshops-vendors-page.component.scss'],
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class WorkshopsVendorsPageComponent implements OnInit {
   private readonly maintenanceService = inject(MaintenanceService);

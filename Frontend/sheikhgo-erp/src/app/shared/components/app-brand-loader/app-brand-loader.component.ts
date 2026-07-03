@@ -5,11 +5,10 @@ import { SgProgressLoaderComponent, SgLoaderSize } from '../sg-progress-loader/s
 export type BrandLoaderSize = SgLoaderSize;
 
 @Component({
-  selector: 'app-brand-loader',
-  standalone: true,
-  imports: [SgProgressLoaderComponent],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'app-brand-loader',
+    imports: [SgProgressLoaderComponent],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     <div
       class="brand-loader"
       [class.brand-loader--sm]="size() === 'sm'"
@@ -23,7 +22,7 @@ export type BrandLoaderSize = SgLoaderSize;
       }
     </div>
   `,
-  styles: [`
+    styles: [`
     .brand-loader {
       display: flex;
       flex-direction: column;

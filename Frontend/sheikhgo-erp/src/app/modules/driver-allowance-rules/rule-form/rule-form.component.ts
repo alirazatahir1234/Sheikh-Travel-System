@@ -14,9 +14,10 @@ import {
 import { FuelType, FuelTypeLabels } from '../../../core/models/vehicle.model';
 
 @Component({
-  selector: 'app-driver-allowance-rule-form',
-  templateUrl: './rule-form.component.html',
-  styleUrls: ['./rule-form.component.scss']
+    selector: 'app-driver-allowance-rule-form',
+    templateUrl: './rule-form.component.html',
+    styleUrls: ['./rule-form.component.scss'],
+    standalone: false
 })
 export class DriverAllowanceRuleFormComponent implements OnInit {
   form: FormGroup;

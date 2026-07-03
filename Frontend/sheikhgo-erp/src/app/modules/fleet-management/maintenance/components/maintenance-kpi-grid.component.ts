@@ -15,11 +15,10 @@ export interface MaintKpiCard {
 }
 
 @Component({
-  selector: 'maintenance-kpi-grid',
-  standalone: true,
-  imports: [MatIconModule, CurrencyPipe, RouterLink],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'maintenance-kpi-grid',
+    imports: [MatIconModule, CurrencyPipe, RouterLink],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     <div class="kpi-grid">
       @for (card of cards(); track card.key) {
         <div
@@ -38,7 +37,7 @@ export interface MaintKpiCard {
       }
     </div>
   `,
-  styles: [`
+    styles: [`
     .kpi-grid {
       display: grid;
       grid-template-columns: repeat(6, minmax(0, 1fr));

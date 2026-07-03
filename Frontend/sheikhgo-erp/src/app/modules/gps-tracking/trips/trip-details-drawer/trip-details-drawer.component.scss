@@ -1,0 +1,63 @@
+.drawer-info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px 16px;
+  padding: 4px 0 20px;
+  border-bottom: 1px solid #e5e7eb;
+  margin-bottom: 16px;
+}
+
+.info-block {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.info-block--wide {
+  grid-column: 1 / -1;
+}
+
+.info-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: #9ca3af;
+}
+
+.info-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: #111827;
+  word-break: break-word;
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.status-pill--completed { background: #ecfdf5; color: #0f766e; }
+.status-pill--started { background: #eff6ff; color: #2563eb; }
+.status-pill--confirmed { background: #eff6ff; color: #2563eb; }
+.status-pill--cancelled { background: #fee2e2; color: #dc2626; }
+.status-pill--pending { background: #fef3c7; color: #b45309; }
+
+.drawer-map {
+  min-height: 360px;
+  margin-bottom: 16px;
+}
+
+@media (max-width: 767px) {
+  .drawer-info-grid {
+    grid-template-columns: 1fr;
+  }
+}

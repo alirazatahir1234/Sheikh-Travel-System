@@ -2,11 +2,10 @@ import { ChangeDetectionStrategy, Component, OnDestroy, computed, input, output,
 import { UiButtonComponent } from '../../../../../shared/components/ui/button/ui-button.component';
 
 @Component({
-  selector: 'app-wizard-footer',
-  standalone: true,
-  imports: [UiButtonComponent],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'app-wizard-footer',
+    imports: [UiButtonComponent],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     <div class="wizard-footer-wrap">
       <div class="wizard-footer-spacer" aria-hidden="true"></div>
       <footer class="wizard-footer-bar">
@@ -40,7 +39,7 @@ import { UiButtonComponent } from '../../../../../shared/components/ui/button/ui
       </footer>
     </div>
   `,
-  styles: [`
+    styles: [`
     .wizard-footer-wrap {
       margin-top: 1.5rem;
     }

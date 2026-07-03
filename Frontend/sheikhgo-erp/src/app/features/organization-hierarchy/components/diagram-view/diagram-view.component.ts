@@ -9,11 +9,10 @@ import { CommonModule } from '@angular/common';
 import { OrganizationNode } from '../../models/organization.models';
 
 @Component({
-  selector: 'app-diagram-view',
-  standalone: true,
-  imports: [CommonModule],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  styles: [`
+    selector: 'app-diagram-view',
+    imports: [CommonModule],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    styles: [`
     .org-chart {
       display: flex;
       flex-direction: column;
@@ -72,7 +71,7 @@ import { OrganizationNode } from '../../models/organization.models';
       display: none;
     }
   `],
-  template: `
+    template: `
     <div class="bg-white rounded-lg border border-border p-6 overflow-auto">
       <!-- Header -->
       <div class="flex items-center justify-between mb-6">
@@ -185,7 +184,7 @@ import { OrganizationNode } from '../../models/organization.models';
         }
       </div>
     </ng-template>
-  `,
+  `
 })
 export class DiagramViewComponent {
   readonly nodes = input<OrganizationNode[]>([]);

@@ -20,11 +20,10 @@ export const SERVICE_HISTORY_TYPE_OPTIONS = [
 ] as const;
 
 @Component({
-  selector: 'service-history-filters',
-  standalone: true,
-  imports: [FormsModule, MatIconModule],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'service-history-filters',
+    imports: [FormsModule, MatIconModule],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     <div class="filters-card">
       <label class="filter-group">
         <span class="filter-label">Vehicle</span>
@@ -66,7 +65,7 @@ export const SERVICE_HISTORY_TYPE_OPTIONS = [
       </div>
     </div>
   `,
-  styles: [`
+    styles: [`
     .filters-card {
       display: flex;
       gap: 0.75rem;

@@ -3,11 +3,10 @@ import { DatePipe } from '@angular/common';
 import { MaintenanceRequest } from '../../../../../core/models/maintenance.model';
 
 @Component({
-  selector: 'request-table',
-  standalone: true,
-  imports: [DatePipe],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'request-table',
+    imports: [DatePipe],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     <div class="table-wrap">
       <table>
         <thead>
@@ -35,7 +34,7 @@ import { MaintenanceRequest } from '../../../../../core/models/maintenance.model
       </table>
     </div>
   `,
-  styles: [`
+    styles: [`
     .table-wrap { overflow-x: auto; background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; }
     table { width: 100%; border-collapse: collapse; font-size: 0.8125rem; min-width: 860px; }
     th { text-align: left; padding: 0.75rem; background: #f8faf9; color: #64748b; font-weight: 600; border-bottom: 1px solid #e2e8f0; }

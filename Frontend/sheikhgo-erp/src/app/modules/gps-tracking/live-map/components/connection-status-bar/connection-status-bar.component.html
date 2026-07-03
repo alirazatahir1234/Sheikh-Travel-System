@@ -1,0 +1,28 @@
+<div class="ft-status-bar stb-elevated" role="status" aria-live="polite">
+  <span class="ft-status-pill" [ngClass]="liveStatusClass">
+    <span class="ft-status-dot"></span>
+    Live Status: {{ liveStatusLabel }}
+  </span>
+
+  <span class="ft-status-pill" [class.ft-status-pill--ok]="apiHealthy" [class.ft-status-pill--warn]="!apiHealthy">
+    <mat-icon>{{ apiHealthy ? 'cloud_done' : 'cloud_off' }}</mat-icon>
+    API Health: {{ apiHealthy ? 'Healthy' : 'Degraded' }}
+  </span>
+
+  <span class="ft-status-pill ft-status-pill--muted">
+    <mat-icon>schedule</mat-icon>
+    Last sync: {{ lastSyncLabel }}
+  </span>
+
+  <label class="refresh-rate-select" aria-label="Auto-refresh interval">
+    <mat-icon>update</mat-icon>
+    <select [ngModel]="refreshRateMs" (ngModelChange)="refreshRateChange.emit($event)">
+      <option *ngFor="let r of refreshRateOptions" [ngValue]="r.id">{{ r.label }}</option>
+    </select>
+  </label>
+
+  <button mat-stroked-button type="button" class="stb-touch" (click)="refresh.emit()" [disabled]="loading">
+    <mat-icon>refresh</mat-icon>
+    Refresh
+  </button>
+</div>

@@ -24,26 +24,25 @@ const SIZE_CLASSES: Record<UiModalSize, string> = {
 };
 
 @Component({
-  selector: 'ui-modal',
-  standalone: true,
-  imports: [NgClass, MatIconModule],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  animations: [
-    trigger('backdrop', [
-      transition(':enter', [style({ opacity: 0 }), animate('150ms ease-out', style({ opacity: 1 }))]),
-      transition(':leave', [animate('120ms ease-in', style({ opacity: 0 }))])
-    ]),
-    trigger('panel', [
-      transition(':enter', [
-        style({ opacity: 0, transform: 'translateY(12px) scale(0.98)' }),
-        animate('180ms cubic-bezier(0.16, 1, 0.3, 1)', style({ opacity: 1, transform: 'translateY(0) scale(1)' }))
-      ]),
-      transition(':leave', [
-        animate('120ms ease-in', style({ opacity: 0, transform: 'translateY(8px) scale(0.98)' }))
-      ])
-    ])
-  ],
-  template: `
+    selector: 'ui-modal',
+    imports: [NgClass, MatIconModule],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    animations: [
+        trigger('backdrop', [
+            transition(':enter', [style({ opacity: 0 }), animate('150ms ease-out', style({ opacity: 1 }))]),
+            transition(':leave', [animate('120ms ease-in', style({ opacity: 0 }))])
+        ]),
+        trigger('panel', [
+            transition(':enter', [
+                style({ opacity: 0, transform: 'translateY(12px) scale(0.98)' }),
+                animate('180ms cubic-bezier(0.16, 1, 0.3, 1)', style({ opacity: 1, transform: 'translateY(0) scale(1)' }))
+            ]),
+            transition(':leave', [
+                animate('120ms ease-in', style({ opacity: 0, transform: 'translateY(8px) scale(0.98)' }))
+            ])
+        ])
+    ],
+    template: `
     @if (open()) {
       <div
         class="fixed inset-0 z-[1000] flex items-center justify-center p-4"
@@ -82,7 +81,7 @@ const SIZE_CLASSES: Record<UiModalSize, string> = {
       </div>
     }
   `,
-  styles: [`
+    styles: [`
     mat-icon { display: inline-flex; align-items: center; justify-content: center; }
     @media (max-width: 767px) {
       .ui-modal-panel {

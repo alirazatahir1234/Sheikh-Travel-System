@@ -26,11 +26,10 @@ export interface OnboardingChecklistItem {
 }
 
 @Component({
-  selector: 'app-driver-wizard-sidebar',
-  standalone: true,
-  imports: [MatIconModule, MatTooltipModule, UiStatusBadgeComponent],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'app-driver-wizard-sidebar',
+    imports: [MatIconModule, MatTooltipModule, UiStatusBadgeComponent],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     <aside class="sidebar">
       <div class="sidebar-card">
         <div class="sidebar-card-head">
@@ -96,7 +95,7 @@ export interface OnboardingChecklistItem {
       </div>
     </aside>
   `,
-  styles: [`
+    styles: [`
     .sidebar {
       display: flex;
       flex-direction: column;

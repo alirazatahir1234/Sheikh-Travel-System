@@ -11,11 +11,10 @@ import { UiSelectOption } from '../../../../shared/components/ui/types/ui.types'
 import { UiToastService } from '../../../../shared/components/ui/toast/ui-toast.service';
 
 @Component({
-  selector: 'driver-bulk-assign-dialog',
-  standalone: true,
-  imports: [FormsModule, UiModalComponent, UiButtonComponent, UiSelectComponent],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'driver-bulk-assign-dialog',
+    imports: [FormsModule, UiModalComponent, UiButtonComponent, UiSelectComponent],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     <ui-modal [(open)]="open" title="Bulk assign vehicle" size="md">
       <p class="hint">Assign the selected vehicle to one driver at a time. Each driver must be unassigned and verified.</p>
       <ui-select class="block" label="Vehicle" [options]="vehicleOptions()" [(ngModel)]="selectedVehicleId" [required]="true" />
@@ -44,7 +43,7 @@ import { UiToastService } from '../../../../shared/components/ui/toast/ui-toast.
       </div>
     </ui-modal>
   `,
-  styles: [`
+    styles: [`
     .hint { font-size: 0.8125rem; color: #64748b; margin-bottom: 1rem; }
     .driver-list { margin-top: 1rem; max-height: 240px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 0.5rem; padding: 0.5rem; }
     .list-label { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; color: #64748b; margin: 0 0 0.5rem; }

@@ -4,11 +4,10 @@ import { MatIconModule } from '@angular/material/icon';
 import { PartsInventoryStats } from '../../../../../core/models/maintenance.model';
 
 @Component({
-  selector: 'parts-inventory-stats',
-  standalone: true,
-  imports: [CurrencyPipe, MatIconModule],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'parts-inventory-stats',
+    imports: [CurrencyPipe, MatIconModule],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     <div class="stats">
       <div class="stat-card">
         <div class="stat-icon stat-icon--brand"><mat-icon>inventory_2</mat-icon></div>
@@ -40,7 +39,7 @@ import { PartsInventoryStats } from '../../../../../core/models/maintenance.mode
       </div>
     </div>
   `,
-  styles: [`
+    styles: [`
     .stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.75rem; margin-bottom: 1rem; }
     .stat-card {
       display: flex; align-items: center; gap: 0.875rem;

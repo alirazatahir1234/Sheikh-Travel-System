@@ -9,11 +9,10 @@ import { AuditLog } from '../../models/organization.models';
 import { TenantOverviewStats } from '../../services/organization-hierarchy.service';
 
 @Component({
-  selector: 'app-overview-dashboard',
-  standalone: true,
-  imports: [CommonModule],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'app-overview-dashboard',
+    imports: [CommonModule],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     <div class="bg-white rounded-lg border border-border overflow-hidden">
       <!-- Header -->
       <div class="px-6 py-4 border-b border-border">
@@ -155,7 +154,7 @@ import { TenantOverviewStats } from '../../services/organization-hierarchy.servi
         </div>
       </div>
     </div>
-  `,
+  `
 })
 export class OverviewDashboardComponent {
   readonly tenantName = input<string | null>(null);

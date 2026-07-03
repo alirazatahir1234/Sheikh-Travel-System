@@ -1,0 +1,71 @@
+<div class="track-page stb-page">
+  <app-fleet-tracking-header
+    [liveTracking]="liveTracking"
+    (liveToggle)="toggleLiveTracking()" />
+
+  <app-connection-status-bar
+    [liveTracking]="liveTracking"
+    [connectionState]="facade.connectionState()"
+    [apiHealthy]="!facade.syncError()"
+    [lastSyncLabel]="lastSyncLabel"
+    [refreshRateMs]="refreshRateMs"
+    [loading]="facade.refreshing()"
+    (refresh)="refreshNow()"
+    (refreshRateChange)="setRefreshRate($event)" />
+
+  <app-fleet-kpi-row
+    [dashboardSummary]="facade.dashboardSummary()"
+    [fleetCounts]="facade.fleetCounts()"
+    [loading]="dashboardLoading"
+    [kpiHint]="kpiHint" />
+
+  <div class="ft-workspace">
+    <app-vehicle-list-panel
+      [locations]="facade.locations()"
+      [selectedId]="facade.selectedVehicleId()"
+      [loading]="facade.initialLoading()"
+      [listTab]="listTab"
+      [searchInput]="searchInput"
+      (select)="onSelectVehicle($event)"
+      (searchChange)="onSearchChange($event)"
+      (tabChange)="listTab = $event" />
+
+    <app-live-map-panel
+      #mapPanel
+      [locations]="facade.locations()"
+      [selectedId]="facade.selectedVehicleId()"
+      [statusFilter]="statusFilter"
+      [batteryLowOnly]="batteryLowOnly"
+      (selectVehicle)="onSelectVehicle($event)"
+      (statusFilterChange)="onStatusFilterChange($event)"
+      (batteryLowOnlyChange)="onBatteryLowOnlyChange($event)"
+      (mapReady)="onMapReady()" />
+
+    <app-vehicle-detail-panel
+      [location]="facade.selectedLocation()"
+      (track)="onTrackSelected()"
+      (replay)="openReplay()"
+      (history)="goToHistory()"
+      (trips)="goToTrips()"
+      (commands)="goToCommands()"
+      (profile)="goToProfile()" />
+  </div>
+
+  <app-route-replay-panel
+    [visible]="replayVisible"
+    [vehicleName]="facade.selectedLocation()?.vehicleName ?? ''"
+    [loading]="replayLoading"
+    [error]="replayError"
+    [replayData]="replayData"
+    [preset]="replayPreset"
+    (close)="closeReplay()"
+    (load)="loadReplay()"
+    (presetChange)="onReplayPresetChange($event)" />
+
+  <app-fleet-analytics-row
+    [lineChartData]="lineChartData"
+    [doughnutChartData]="doughnutChartData"
+    [chartOptions]="chartOptions"
+    [events]="facade.events()"
+    [loading]="dashboardLoading" />
+</div>

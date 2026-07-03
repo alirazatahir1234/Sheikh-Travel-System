@@ -14,9 +14,10 @@ import { Driver } from '../../../core/models/driver.model';
 import { dateInputToIso, toDateInputValue } from '../../../core/utils/date-input.util';
 
 @Component({
-  selector: 'app-fuel-log-form',
-  templateUrl: './fuel-log-form.component.html',
-  styleUrls: ['./fuel-log-form.component.scss']
+    selector: 'app-fuel-log-form',
+    templateUrl: './fuel-log-form.component.html',
+    styleUrls: ['./fuel-log-form.component.scss'],
+    standalone: false
 })
 export class FuelLogFormComponent implements OnInit, AfterViewInit, OnDestroy {
   form: FormGroup;

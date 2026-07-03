@@ -9,11 +9,10 @@ import { CommonModule } from '@angular/common';
 import { PendingChange } from '../../models/organization.models';
 
 @Component({
-  selector: 'app-footer-action-bar',
-  standalone: true,
-  imports: [CommonModule],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'app-footer-action-bar',
+    imports: [CommonModule],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     <div class="fixed bottom-0 left-0 right-0 bg-white border-t border-border shadow-lg z-50">
       <div class="max-w-screen-2xl mx-auto px-6 py-3">
         <div class="flex items-center justify-between">
@@ -59,7 +58,7 @@ import { PendingChange } from '../../models/organization.models';
         </div>
       </div>
     </div>
-  `,
+  `
 })
 export class FooterActionBarComponent {
   readonly pendingChanges = input<PendingChange[]>([]);

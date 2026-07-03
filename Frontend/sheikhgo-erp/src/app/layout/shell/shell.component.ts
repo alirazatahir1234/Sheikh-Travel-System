@@ -25,9 +25,10 @@ import { resolveTenantType } from '../../core/navigation/tenant-type';
 import { APP_PRODUCT_NAME, APP_SIDEBAR_LOGO_PATH } from '../../core/constants/app-brand';
 
 @Component({
-  selector: 'app-shell',
-  templateUrl: './shell.component.html',
-  styleUrls: ['./shell.component.scss']
+    selector: 'app-shell',
+    templateUrl: './shell.component.html',
+    styleUrls: ['./shell.component.scss'],
+    standalone: false
 })
 export class ShellComponent implements OnInit, OnDestroy {
   readonly appProductName = APP_PRODUCT_NAME;

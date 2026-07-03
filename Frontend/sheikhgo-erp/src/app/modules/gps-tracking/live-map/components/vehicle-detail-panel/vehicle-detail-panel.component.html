@@ -1,0 +1,66 @@
+<aside class="ft-panel ft-panel--detail stb-elevated" aria-label="Vehicle details">
+  <ng-container *ngIf="location as loc; else empty">
+    <div class="detail-head">
+      <mat-icon>{{ statusIcon(loc.status) }}</mat-icon>
+      <div class="detail-head-text">
+        <h2 class="detail-title">{{ loc.vehicleName }}</h2>
+        <span class="detail-reg">{{ loc.registrationNumber }}</span>
+      </div>
+      <span class="vehicle-badge detail-badge">{{ statusLabel(loc.status) }}</span>
+    </div>
+
+    <div class="detail-actions">
+      <button mat-stroked-button type="button" class="stb-touch" (click)="track.emit()">
+        <mat-icon>my_location</mat-icon>
+        Track
+      </button>
+      <button mat-stroked-button type="button" class="stb-touch" (click)="replay.emit()">
+        <mat-icon>play_circle</mat-icon>
+        Replay
+      </button>
+      <button mat-stroked-button type="button" class="stb-touch" (click)="history.emit()">
+        <mat-icon>history</mat-icon>
+        History
+      </button>
+      <button mat-stroked-button type="button" class="stb-touch" (click)="trips.emit()">
+        <mat-icon>route</mat-icon>
+        Trips
+      </button>
+      <button
+        *ngIf="canSendCommands"
+        mat-stroked-button
+        type="button"
+        class="stb-touch"
+        (click)="commands.emit()">
+        <mat-icon>settings_remote</mat-icon>
+        Commands
+      </button>
+      <button mat-flat-button color="primary" type="button" class="stb-touch" (click)="profile.emit()">
+        <mat-icon>open_in_new</mat-icon>
+        Profile
+      </button>
+    </div>
+
+    <div class="detail-sections">
+      <section *ngFor="let section of sections" class="detail-section">
+        <h3 class="detail-section__title">{{ section.title }}</h3>
+        <div class="detail-metrics">
+          <div class="detail-metric" *ngFor="let field of section.fields">
+            <mat-icon>{{ field.icon }}</mat-icon>
+            <div>
+              <span class="detail-metric-lbl">{{ field.label }}</span>
+              <span class="detail-metric-val">{{ field.value }}</span>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </ng-container>
+
+  <ng-template #empty>
+    <div class="detail-empty">
+      <mat-icon>touch_app</mat-icon>
+      <p>Select a vehicle on the map or list to view live details.</p>
+    </div>
+  </ng-template>
+</aside>

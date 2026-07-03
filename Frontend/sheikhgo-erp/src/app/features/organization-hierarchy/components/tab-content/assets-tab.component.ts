@@ -15,11 +15,10 @@ export interface AssetCategory {
 }
 
 @Component({
-  selector: 'app-assets-tab',
-  standalone: true,
-  imports: [CommonModule],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'app-assets-tab',
+    imports: [CommonModule],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     <div>
       <!-- Header -->
       <div class="flex items-center justify-between mb-4">
@@ -133,7 +132,7 @@ export interface AssetCategory {
         </div>
       </div>
     </div>
-  `,
+  `
 })
 export class AssetsTabComponent {
   readonly categories = input<AssetCategory[]>([]);

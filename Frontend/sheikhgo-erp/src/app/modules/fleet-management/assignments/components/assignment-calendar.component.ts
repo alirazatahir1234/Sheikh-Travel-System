@@ -6,11 +6,10 @@ import { FleetAssignmentService } from '../../../../core/services/fleet-assignme
 import { AssignmentCalendarItem } from '../../../../core/models/fleet-assignment.model';
 
 @Component({
-  selector: 'assignment-calendar',
-  standalone: true,
-  imports: [DatePipe, MatIconModule],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'assignment-calendar',
+    imports: [DatePipe, MatIconModule],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     <div class="calendar-page">
       <h2 class="title"><mat-icon>calendar_month</mat-icon> Assignment Calendar</h2>
       @if (loading()) {
@@ -33,7 +32,7 @@ import { AssignmentCalendarItem } from '../../../../core/models/fleet-assignment
       }
     </div>
   `,
-  styles: [`
+    styles: [`
     :host { display: block; min-width: 0; }
     .calendar-page { padding: 1rem; max-width: 100%; box-sizing: border-box; }
     .title { display: flex; align-items: center; gap: 0.5rem; font-size: clamp(1.125rem, 2.5vw, 1.25rem); margin: 0 0 1rem; }

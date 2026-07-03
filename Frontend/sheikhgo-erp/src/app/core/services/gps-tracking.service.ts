@@ -20,11 +20,15 @@ import {
   GpsAlertRule,
   GpsAlertEvent,
   GpsTrip,
+  FleetTripStop,
+  FleetTripEvent,
+  FleetReportPage,
   TripAnalyticsBundle,
   TripAnalyticsSummary,
   TripFleetFilters,
   TripReplayBundle,
   GpsFleetStatus,
+  GpsDashboardSummary,
   TripDeviceContext,
   GpsDeviceCommand,
   GpsEta,
@@ -224,6 +228,10 @@ export class GpsTrackingService {
     return this.http.get<GpsFleetStatus>(`${this.base}/dashboard/fleet-status`);
   }
 
+  getDashboardSummary(): Observable<GpsDashboardSummary> {
+    return this.http.get<GpsDashboardSummary>(`${this.base}/dashboard/summary`);
+  }
+
   getTripContext(vehicleId: number): Observable<TripDeviceContext> {
     return this.http.get<TripDeviceContext>(`${this.base}/trips/context`, {
       params: { vehicleId: String(vehicleId) }
@@ -249,6 +257,40 @@ export class GpsTrackingService {
     if (filters?.departmentId) params['departmentId'] = String(filters.departmentId);
     if (filters?.driverId) params['driverId'] = String(filters.driverId);
     return this.http.get<TripAnalyticsSummary>(`${this.base}/trips/fleet-summary`, { params });
+  }
+
+  getFleetStops(
+    from?: Date,
+    to?: Date,
+    filters?: TripFleetFilters,
+    page = 1,
+    pageSize = 25
+  ): Observable<FleetReportPage<FleetTripStop>> {
+    const params: Record<string, string> = { page: String(page), pageSize: String(pageSize) };
+    if (from) params['from'] = from.toISOString();
+    if (to) params['to'] = to.toISOString();
+    if (filters?.branchId) params['branchId'] = String(filters.branchId);
+    if (filters?.departmentId) params['departmentId'] = String(filters.departmentId);
+    if (filters?.driverId) params['driverId'] = String(filters.driverId);
+    return this.http.get<FleetReportPage<FleetTripStop>>(`${this.base}/trips/stops`, { params });
+  }
+
+  getFleetEvents(
+    from?: Date,
+    to?: Date,
+    filters?: TripFleetFilters,
+    eventType?: string | null,
+    page = 1,
+    pageSize = 25
+  ): Observable<FleetReportPage<FleetTripEvent>> {
+    const params: Record<string, string> = { page: String(page), pageSize: String(pageSize) };
+    if (from) params['from'] = from.toISOString();
+    if (to) params['to'] = to.toISOString();
+    if (filters?.branchId) params['branchId'] = String(filters.branchId);
+    if (filters?.departmentId) params['departmentId'] = String(filters.departmentId);
+    if (filters?.driverId) params['driverId'] = String(filters.driverId);
+    if (eventType) params['eventType'] = eventType;
+    return this.http.get<FleetReportPage<FleetTripEvent>>(`${this.base}/trips/events`, { params });
   }
 
   getGeofences(): Observable<Geofence[]> {

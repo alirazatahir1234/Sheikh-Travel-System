@@ -3,11 +3,10 @@ import { MatIconModule } from '@angular/material/icon';
 import { UiStatusBadgeComponent } from '../../../../../shared/components/ui/status-badge/ui-status-badge.component';
 
 @Component({
-  selector: 'app-wizard-summary-panel',
-  standalone: true,
-  imports: [MatIconModule, UiStatusBadgeComponent],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'app-wizard-summary-panel',
+    imports: [MatIconModule, UiStatusBadgeComponent],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     <aside class="sticky top-4 rounded-lg border border-fleet-border bg-white p-5 shadow-sm">
       <div class="mb-4 flex aspect-video items-center justify-center overflow-hidden rounded-md bg-fleet-surface-muted">
         @if (imageUrl()) {

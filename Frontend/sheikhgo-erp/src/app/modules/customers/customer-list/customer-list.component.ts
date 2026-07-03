@@ -30,10 +30,11 @@ interface QuickChip {
 }
 
 @Component({
-  selector: 'app-customer-list',
-  templateUrl: './customer-list.component.html',
-  styleUrls: ['./customer-list.component.scss'],
-  providers: [DatePipe]
+    selector: 'app-customer-list',
+    templateUrl: './customer-list.component.html',
+    styleUrls: ['./customer-list.component.scss'],
+    providers: [DatePipe],
+    standalone: false
 })
 export class CustomerListComponent implements OnInit, OnDestroy {
   displayedColumns = [

@@ -8,11 +8,10 @@ import { CreateWorkshopPayload, Workshop } from '../../../../../core/models/main
 import { apiErrorMessage } from '../../../../../core/utils/api-error.util';
 
 @Component({
-  selector: 'workshop-form-drawer',
-  standalone: true,
-  imports: [FormsModule, UiDrawerComponent, PhoneDigitsOnlyDirective],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'workshop-form-drawer',
+    imports: [FormsModule, UiDrawerComponent, PhoneDigitsOnlyDirective],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     <ui-drawer [open]="open()" [title]="workshop() ? 'Edit Workshop' : 'Add Workshop'" (closed)="closed.emit()">
       <form class="form" (ngSubmit)="submit()">
         <label>Workshop Name<input [(ngModel)]="form.name" name="name" required /></label>
@@ -34,7 +33,7 @@ import { apiErrorMessage } from '../../../../../core/utils/api-error.util';
       </form>
     </ui-drawer>
   `,
-  styles: [`
+    styles: [`
     .form { display: grid; gap: 0.875rem; }
     label { display: grid; gap: 0.35rem; font-size: 0.8125rem; font-weight: 600; color: #334155; }
     input, select { padding: 0.5rem 0.625rem; border: 1px solid #e2e8f0; border-radius: 8px; }

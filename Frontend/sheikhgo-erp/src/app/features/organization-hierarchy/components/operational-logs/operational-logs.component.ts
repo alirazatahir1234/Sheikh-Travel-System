@@ -8,11 +8,10 @@ import { CommonModule } from '@angular/common';
 import { AuditLog } from '../../models/organization.models';
 
 @Component({
-  selector: 'app-operational-logs',
-  standalone: true,
-  imports: [CommonModule],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'app-operational-logs',
+    imports: [CommonModule],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     <div class="bg-white rounded-xl border border-border overflow-hidden">
       <!-- Header -->
       <div class="px-4 py-3 border-b border-border flex items-center justify-between">
@@ -67,7 +66,7 @@ import { AuditLog } from '../../models/organization.models';
         </button>
       </div>
     </div>
-  `,
+  `
 })
 export class OperationalLogsComponent {
   readonly logs = input.required<AuditLog[]>();

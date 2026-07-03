@@ -11,11 +11,10 @@ interface FabAction {
 }
 
 @Component({
-  selector: 'vehicle-registry-fab',
-  standalone: true,
-  imports: [RouterModule, MatIconModule],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'vehicle-registry-fab',
+    imports: [RouterModule, MatIconModule],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     <div class="fab-root">
       @if (expanded()) {
         <div class="fab-menu">
@@ -40,7 +39,7 @@ interface FabAction {
       </button>
     </div>
   `,
-  styles: [`
+    styles: [`
     :host { display: none; }
     @media (max-width: 767px) {
       :host { display: block; }

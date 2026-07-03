@@ -15,11 +15,10 @@ import { SharedModule } from '../../../shared/shared.module';
 Chart.register(...registerables);
 
 @Component({
-  selector: 'app-dashboard-analytics',
-  standalone: true,
-  imports: [SharedModule],
-  templateUrl: './dashboard-analytics.component.html',
-  styleUrls: ['./dashboard-analytics.component.scss']
+    selector: 'app-dashboard-analytics',
+    imports: [SharedModule],
+    templateUrl: './dashboard-analytics.component.html',
+    styleUrls: ['./dashboard-analytics.component.scss']
 })
 export class DashboardAnalyticsComponent implements AfterViewInit, OnChanges, OnDestroy {
   @ViewChild('revenueCanvas') revenueCanvasRef!: ElementRef<HTMLCanvasElement>;

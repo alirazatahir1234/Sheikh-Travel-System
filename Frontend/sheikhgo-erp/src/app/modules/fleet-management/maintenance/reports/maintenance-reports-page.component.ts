@@ -31,20 +31,19 @@ function defaultFilters(): MaintenanceReportFilters {
 }
 
 @Component({
-  selector: 'app-maintenance-reports-page',
-  standalone: true,
-  imports: [
-    RouterLink,
-    MatIconModule,
-    ReportCatalogComponent,
-    ReportFiltersComponent,
-    ReportPreviewComponent,
-    ReportExportActionsComponent,
-    ReportScheduleDialogComponent
-  ],
-  templateUrl: './maintenance-reports-page.component.html',
-  styleUrls: ['./maintenance-reports-page.component.scss'],
-  changeDetection: ChangeDetectionStrategy.OnPush
+    selector: 'app-maintenance-reports-page',
+    imports: [
+        RouterLink,
+        MatIconModule,
+        ReportCatalogComponent,
+        ReportFiltersComponent,
+        ReportPreviewComponent,
+        ReportExportActionsComponent,
+        ReportScheduleDialogComponent
+    ],
+    templateUrl: './maintenance-reports-page.component.html',
+    styleUrls: ['./maintenance-reports-page.component.scss'],
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class MaintenanceReportsPageComponent implements OnInit {
   private readonly maintenanceService = inject(MaintenanceService);

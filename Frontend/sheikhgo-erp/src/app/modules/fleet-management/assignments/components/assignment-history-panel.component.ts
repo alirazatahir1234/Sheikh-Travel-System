@@ -6,11 +6,10 @@ import { FleetAssignmentService } from '../../../../core/services/fleet-assignme
 import { FleetAssignmentChangelog } from '../../../../core/models/fleet-assignment.model';
 
 @Component({
-  selector: 'assignment-history-panel',
-  standalone: true,
-  imports: [DatePipe, MatIconModule],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'assignment-history-panel',
+    imports: [DatePipe, MatIconModule],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     <div class="history-panel">
       <h4 class="history-title"><mat-icon>history</mat-icon> Assignment History</h4>
       @if (loading()) {
@@ -42,7 +41,7 @@ import { FleetAssignmentChangelog } from '../../../../core/models/fleet-assignme
       }
     </div>
   `,
-  styles: [`
+    styles: [`
     :host { display: block; min-width: 0; }
     .history-panel { margin-top: 1rem; }
     .history-title { display: flex; align-items: center; gap: 0.375rem; font-size: 0.875rem; font-weight: 700; margin: 0 0 0.75rem; }

@@ -7,11 +7,10 @@ import { FuelTypeSegmentComponent } from '../../fuel-type-segment/fuel-type-segm
 import { todayDateInputValue } from '../../../../../../core/utils/date-input.util';
 
 @Component({
-  selector: 'app-wizard-step-technical',
-  standalone: true,
-  imports: [ReactiveFormsModule, UiInputComponent, UiSelectComponent, FuelTypeSegmentComponent],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'app-wizard-step-technical',
+    imports: [ReactiveFormsModule, UiInputComponent, UiSelectComponent, FuelTypeSegmentComponent],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     <div class="space-y-6" [formGroup]="form()">
       <section class="rounded-lg border border-fleet-border bg-white p-6 shadow-sm">
         <h2 class="mb-1 text-lg font-semibold text-fleet-text">Technical Specifications</h2>

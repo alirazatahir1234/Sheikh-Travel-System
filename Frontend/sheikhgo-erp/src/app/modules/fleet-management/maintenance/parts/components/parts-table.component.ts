@@ -4,11 +4,10 @@ import { MatIconModule } from '@angular/material/icon';
 import { Part } from '../../../../../core/models/maintenance.model';
 
 @Component({
-  selector: 'parts-table',
-  standalone: true,
-  imports: [CurrencyPipe, MatIconModule],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'parts-table',
+    imports: [CurrencyPipe, MatIconModule],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     <div class="table-wrap">
       <table>
         <thead>
@@ -59,7 +58,7 @@ import { Part } from '../../../../../core/models/maintenance.model';
       </table>
     </div>
   `,
-  styles: [`
+    styles: [`
     .table-wrap { overflow-x: auto; background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; }
     table { width: 100%; border-collapse: collapse; font-size: 0.8125rem; min-width: 960px; }
     th { text-align: left; color: #64748b; padding: 0.625rem 0.75rem; border-bottom: 1px solid #e2e8f0; white-space: nowrap; }

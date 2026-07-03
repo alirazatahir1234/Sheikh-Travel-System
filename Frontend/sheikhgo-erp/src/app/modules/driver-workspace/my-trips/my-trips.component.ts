@@ -4,9 +4,10 @@ import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.ser
 import { DriverTrip } from '../../../core/models/driver-trip.model';
 
 @Component({
-  selector: 'app-my-trips',
-  templateUrl: './my-trips.component.html',
-  styleUrls: ['./my-trips.component.scss']
+    selector: 'app-my-trips',
+    templateUrl: './my-trips.component.html',
+    styleUrls: ['./my-trips.component.scss'],
+    standalone: false
 })
 export class MyTripsComponent implements OnInit {
   trips: DriverTrip[] = [];

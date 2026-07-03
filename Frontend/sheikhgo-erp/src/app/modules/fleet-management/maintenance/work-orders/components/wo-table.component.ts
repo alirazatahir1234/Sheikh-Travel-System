@@ -5,11 +5,10 @@ import { woActualCost, woEstimatedCost } from '../utils/wo.util';
 import { AppBrandLoaderComponent } from '../../../../../shared/components/app-brand-loader/app-brand-loader.component';
 
 @Component({
-  selector: 'wo-table',
-  standalone: true,
-  imports: [CurrencyPipe, DatePipe, AppBrandLoaderComponent],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'wo-table',
+    imports: [CurrencyPipe, DatePipe, AppBrandLoaderComponent],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     <div class="table-wrap">
       @if (loading()) {
         <app-brand-loader message="Loading work orders…" />
@@ -60,7 +59,7 @@ import { AppBrandLoaderComponent } from '../../../../../shared/components/app-br
       }
     </div>
   `,
-  styles: [`
+    styles: [`
     .table-wrap { overflow-x: auto; background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; }
     .loading, .empty { text-align: center; padding: 2.5rem 1rem; color: #94a3b8; font-size: 0.875rem; }
     table { width: 100%; border-collapse: collapse; min-width: 1040px; }

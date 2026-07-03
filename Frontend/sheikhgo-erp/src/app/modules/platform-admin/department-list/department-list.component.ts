@@ -10,9 +10,10 @@ import { User } from '../../../core/models/user.model';
 import { apiErrorMessage } from '../../../core/utils/api-error.util';
 
 @Component({
-  selector: 'app-department-list',
-  templateUrl: './department-list.component.html',
-  styleUrls: ['./department-list.component.scss']
+    selector: 'app-department-list',
+    templateUrl: './department-list.component.html',
+    styleUrls: ['./department-list.component.scss'],
+    standalone: false
 })
 export class DepartmentListComponent implements OnInit {
   @ViewChild(MatPaginator) paginator?: MatPaginator;

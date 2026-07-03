@@ -1,9 +1,10 @@
 import { Component, EventEmitter, Input, Output } from '@angular/core';
 
 @Component({
-  selector: 'stb-promo-banner',
-  templateUrl: './promo-banner.component.html',
-  styleUrls: ['./promo-banner.component.scss']
+    selector: 'stb-promo-banner',
+    templateUrl: './promo-banner.component.html',
+    styleUrls: ['./promo-banner.component.scss'],
+    standalone: false
 })
 export class PromoBannerComponent {
   @Input() title = '';

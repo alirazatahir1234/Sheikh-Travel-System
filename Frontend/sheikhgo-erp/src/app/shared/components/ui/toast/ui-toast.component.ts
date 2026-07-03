@@ -12,12 +12,11 @@ import { NgClass } from '@angular/common';
 export type UiToastVariant = 'success' | 'error' | 'warning' | 'info';
 
 @Component({
-  selector: 'ui-toast',
-  standalone: true,
-  imports: [MatIconModule, NgClass],
-  templateUrl: './ui-toast.component.html',
-  styleUrls: ['./ui-toast.component.scss'],
-  changeDetection: ChangeDetectionStrategy.OnPush
+    selector: 'ui-toast',
+    imports: [MatIconModule, NgClass],
+    templateUrl: './ui-toast.component.html',
+    styleUrls: ['./ui-toast.component.scss'],
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class UiToastComponent implements OnInit, OnDestroy {
   private readonly cdr = inject(ChangeDetectorRef);

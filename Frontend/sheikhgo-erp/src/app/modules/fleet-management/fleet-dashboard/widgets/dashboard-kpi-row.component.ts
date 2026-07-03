@@ -9,11 +9,10 @@ const TONE_ICON_CLASS: Record<KpiTone, string> = {
 };
 
 @Component({
-  selector: 'fleet-dashboard-kpi-row',
-  standalone: true,
-  imports: [MatIconModule],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'fleet-dashboard-kpi-row',
+    imports: [MatIconModule],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     <div class="grid grid-cols-1 gap-gutter sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
       @for (kpi of kpis(); track kpi.id) {
         <div
@@ -42,7 +41,7 @@ const TONE_ICON_CLASS: Record<KpiTone, string> = {
       }
     </div>
   `,
-  styles: [`
+    styles: [`
     :host { display: block; }
     mat-icon { display: inline-flex; align-items: center; justify-content: center; }
   `]

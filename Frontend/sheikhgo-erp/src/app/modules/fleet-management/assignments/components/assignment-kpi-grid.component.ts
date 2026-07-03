@@ -12,11 +12,10 @@ export interface KpiCard {
 }
 
 @Component({
-  selector: 'assignment-kpi-grid',
-  standalone: true,
-  imports: [MatIconModule],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'assignment-kpi-grid',
+    imports: [MatIconModule],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     <div class="kpi-grid">
       @for (card of cards(); track card.key) {
         <button type="button" class="kpi-card" (click)="kpiClick.emit(card.filterStatus ?? '')">
@@ -29,7 +28,7 @@ export interface KpiCard {
       }
     </div>
   `,
-  styles: [`
+    styles: [`
     :host { display: block; min-width: 0; }
 
     .kpi-grid {

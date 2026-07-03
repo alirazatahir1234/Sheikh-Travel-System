@@ -6,9 +6,10 @@ import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.ser
 import { PaymentMethod } from '../../../core/models/payment.model';
 
 @Component({
-  selector: 'app-payment-form',
-  templateUrl: './payment-form.component.html',
-  styleUrls: ['./payment-form.component.scss']
+    selector: 'app-payment-form',
+    templateUrl: './payment-form.component.html',
+    styleUrls: ['./payment-form.component.scss'],
+    standalone: false
 })
 export class PaymentFormComponent implements OnInit {
   form: FormGroup;

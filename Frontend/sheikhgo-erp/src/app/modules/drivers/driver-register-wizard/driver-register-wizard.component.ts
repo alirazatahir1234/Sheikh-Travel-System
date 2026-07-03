@@ -16,24 +16,23 @@ import { DriverDocType } from './models/driver-wizard.model';
 import { UiBreadcrumb } from '../../../shared/components/ui/types/ui.types';
 
 @Component({
-  selector: 'app-driver-register-wizard',
-  standalone: true,
-  imports: [
-    MatIconModule,
-    MatProgressSpinnerModule,
-    AppBrandLoaderComponent,
-    UiPageHeaderComponent,
-    WizardStepperComponent,
-    WizardFooterComponent,
-    WizardStepPersonalComponent,
-    WizardStepLicenseComponent,
-    WizardStepOrganizationComponent,
-    DriverWizardSidebarComponent
-  ],
-  providers: [DriverWizardFacade],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  templateUrl: './driver-register-wizard.component.html',
-  styleUrls: ['./driver-register-wizard.component.scss']
+    selector: 'app-driver-register-wizard',
+    imports: [
+        MatIconModule,
+        MatProgressSpinnerModule,
+        AppBrandLoaderComponent,
+        UiPageHeaderComponent,
+        WizardStepperComponent,
+        WizardFooterComponent,
+        WizardStepPersonalComponent,
+        WizardStepLicenseComponent,
+        WizardStepOrganizationComponent,
+        DriverWizardSidebarComponent
+    ],
+    providers: [DriverWizardFacade],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    templateUrl: './driver-register-wizard.component.html',
+    styleUrls: ['./driver-register-wizard.component.scss']
 })
 export class DriverRegisterWizardComponent implements OnInit {
   readonly facade = inject(DriverWizardFacade);

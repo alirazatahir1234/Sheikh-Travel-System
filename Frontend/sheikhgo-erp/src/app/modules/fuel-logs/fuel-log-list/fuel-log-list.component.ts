@@ -52,10 +52,11 @@ interface MonthlyHighlight {
 }
 
 @Component({
-  selector: 'app-fuel-log-list',
-  templateUrl: './fuel-log-list.component.html',
-  styleUrls: ['./fuel-log-list.component.scss'],
-  providers: [DatePipe, DecimalPipe]
+    selector: 'app-fuel-log-list',
+    templateUrl: './fuel-log-list.component.html',
+    styleUrls: ['./fuel-log-list.component.scss'],
+    providers: [DatePipe, DecimalPipe],
+    standalone: false
 })
 export class FuelLogListComponent implements OnInit {
   displayedColumns = ['fuelDate', 'vehicle', 'driver', 'fuelType', 'liters', 'pricePerLiter', 'totalCost', 'odometer', 'efficiency', 'station', 'actions'];

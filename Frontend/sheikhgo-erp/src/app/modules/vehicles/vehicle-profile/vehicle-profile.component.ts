@@ -13,9 +13,10 @@ import { FuelLog, FuelTypeLabels, FuelType } from '../../../core/models/fuel-log
 import { Maintenance, MaintenanceStatusLabels, MaintenanceStatus } from '../../../core/models/maintenance.model';
 
 @Component({
-  selector: 'app-vehicle-profile',
-  templateUrl: './vehicle-profile.component.html',
-  styleUrls: ['./vehicle-profile.component.scss']
+    selector: 'app-vehicle-profile',
+    templateUrl: './vehicle-profile.component.html',
+    styleUrls: ['./vehicle-profile.component.scss'],
+    standalone: false
 })
 export class VehicleProfileComponent implements OnInit {
   vehicle: Vehicle | null = null;

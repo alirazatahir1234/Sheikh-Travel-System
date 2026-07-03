@@ -5,11 +5,10 @@ import { vehicleUploadSizeError, UPLOAD_MAX_SIZE_LABEL } from '../../../../../co
 import { DriverDocSlot, DriverDocType } from '../../models/driver-wizard.model';
 
 @Component({
-  selector: 'app-wizard-step-license',
-  standalone: true,
-  imports: [ReactiveFormsModule, MatIconModule],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'app-wizard-step-license',
+    imports: [ReactiveFormsModule, MatIconModule],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     <div class="space-y-6">
       <section class="wizard-card">
         <h2 class="wizard-card-title">License Information</h2>
@@ -79,7 +78,7 @@ import { DriverDocSlot, DriverDocType } from '../../models/driver-wizard.model';
       </section>
     </div>
   `,
-  styleUrls: ['../wizard-step-personal/wizard-step-shared.scss']
+    styleUrls: ['../wizard-step-personal/wizard-step-shared.scss']
 })
 export class WizardStepLicenseComponent {
   readonly form = input.required<FormGroup>();

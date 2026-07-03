@@ -8,11 +8,10 @@ import { UiButtonComponent } from '../../../../shared/components/ui/button/ui-bu
 import { normalizeVehicleFilters } from '../../utils/vehicle-filter.util';
 
 @Component({
-  selector: 'vehicle-advanced-filters',
-  standalone: true,
-  imports: [FormsModule, MatIconModule, UiButtonComponent],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'vehicle-advanced-filters',
+    imports: [FormsModule, MatIconModule, UiButtonComponent],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     @if (open()) {
       <div class="fixed inset-0 z-50 flex justify-end bg-black/30" (click)="close.emit()">
         <div class="h-full w-full max-w-md overflow-y-auto bg-white shadow-2xl" (click)="$event.stopPropagation()">

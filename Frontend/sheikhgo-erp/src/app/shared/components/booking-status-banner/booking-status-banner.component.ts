@@ -5,12 +5,11 @@ import { BookingStatus } from '../../../core/models/booking.model';
 import { BookingDetailBannerVm, getBookingDetailBanner } from '../../utils/booking-ledger.util';
 
 @Component({
-  selector: 'stb-booking-status-banner',
-  standalone: true,
-  imports: [CommonModule, MatIconModule],
-  templateUrl: './booking-status-banner.component.html',
-  styleUrls: ['./booking-status-banner.component.scss'],
-  changeDetection: ChangeDetectionStrategy.OnPush
+    selector: 'stb-booking-status-banner',
+    imports: [CommonModule, MatIconModule],
+    templateUrl: './booking-status-banner.component.html',
+    styleUrls: ['./booking-status-banner.component.scss'],
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class BookingStatusBannerComponent {
   @Input({ required: true }) status!: BookingStatus;

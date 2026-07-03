@@ -1,0 +1,25 @@
+<header class="ft-header stb-elevated">
+  <div class="ft-header__main">
+    <nav class="track-breadcrumb" aria-label="Breadcrumb">
+      <span>Dashboard</span>
+      <mat-icon>chevron_right</mat-icon>
+      <span>GPS Tracking</span>
+      <mat-icon>chevron_right</mat-icon>
+      <span class="bc-current">Live Map</span>
+    </nav>
+    <h1 class="ft-title">Fleet Tracking</h1>
+    <p class="ft-subtitle">Monitor vehicles, routes, and telemetry in real time</p>
+  </div>
+  <div class="ft-header__actions">
+    <button
+      mat-flat-button
+      color="primary"
+      type="button"
+      class="ft-live-btn stb-touch"
+      [class.ft-live-btn--off]="!liveTracking"
+      (click)="liveToggle.emit()">
+      <mat-icon>{{ liveTracking ? 'sensors' : 'sensors_off' }}</mat-icon>
+      {{ liveTracking ? 'Live' : 'Paused' }}
+    </button>
+  </div>
+</header>

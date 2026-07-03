@@ -98,25 +98,24 @@ const DOCUMENT_CATALOG: { type: string; label: string }[] = [
 ];
 
 @Component({
-  selector: 'app-vehicle-details-drawer',
-  standalone: true,
-  imports: [
-    CommonModule,
-    FormsModule,
-    RouterModule,
-    DatePipe,
-    DecimalPipe,
-    MatIconModule,
-    MatMenuModule,
-    UiDrawerComponent,
-    UiButtonComponent,
-    UiInputComponent,
-    UiSelectComponent,
-    UiModalComponent,
-    UiEmptyStateComponent
-  ],
-  templateUrl: './vehicle-details-drawer.component.html',
-  styleUrls: ['./vehicle-details-drawer.component.scss']
+    selector: 'app-vehicle-details-drawer',
+    imports: [
+        CommonModule,
+        FormsModule,
+        RouterModule,
+        DatePipe,
+        DecimalPipe,
+        MatIconModule,
+        MatMenuModule,
+        UiDrawerComponent,
+        UiButtonComponent,
+        UiInputComponent,
+        UiSelectComponent,
+        UiModalComponent,
+        UiEmptyStateComponent
+    ],
+    templateUrl: './vehicle-details-drawer.component.html',
+    styleUrls: ['./vehicle-details-drawer.component.scss']
 })
 export class VehicleDetailsDrawerComponent {
   private readonly vehicleService = inject(VehicleService);

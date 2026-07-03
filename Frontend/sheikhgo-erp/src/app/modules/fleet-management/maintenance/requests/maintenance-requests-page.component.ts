@@ -24,20 +24,19 @@ import { apiErrorMessage } from '../../../../core/utils/api-error.util';
 import { isWithinMaintenancePeriod } from '../utils/maintenance-period.util';
 
 @Component({
-  selector: 'app-maintenance-requests-page',
-  standalone: true,
-  imports: [
-    CommonModule,
-    MatIconModule,
-    RequestKpiChipsComponent,
-    RequestTableComponent,
-    RequestMobileCardsComponent,
-    RequestDetailDrawerComponent,
-    RequestCreateFormComponent
-  ],
-  templateUrl: './maintenance-requests-page.component.html',
-  styleUrls: ['./maintenance-requests-page.component.scss'],
-  changeDetection: ChangeDetectionStrategy.OnPush
+    selector: 'app-maintenance-requests-page',
+    imports: [
+        CommonModule,
+        MatIconModule,
+        RequestKpiChipsComponent,
+        RequestTableComponent,
+        RequestMobileCardsComponent,
+        RequestDetailDrawerComponent,
+        RequestCreateFormComponent
+    ],
+    templateUrl: './maintenance-requests-page.component.html',
+    styleUrls: ['./maintenance-requests-page.component.scss'],
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class MaintenanceRequestsPageComponent implements OnInit {
   private readonly maintenanceService = inject(MaintenanceService);

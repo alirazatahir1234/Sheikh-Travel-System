@@ -35,9 +35,10 @@ interface TenantFilters {
 }
 
 @Component({
-  selector: 'app-tenant-list',
-  templateUrl: './tenant-list.component.html',
-  styleUrls: ['./tenant-list.component.scss']
+    selector: 'app-tenant-list',
+    templateUrl: './tenant-list.component.html',
+    styleUrls: ['./tenant-list.component.scss'],
+    standalone: false
 })
 export class TenantListComponent implements OnInit {
   @ViewChild(MatPaginator) paginator?: MatPaginator;

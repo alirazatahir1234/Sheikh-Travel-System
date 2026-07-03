@@ -9,11 +9,10 @@ import {
 import { AssignmentItem } from '../fleet-dashboard.model';
 
 @Component({
-  selector: 'fleet-active-assignments-table',
-  standalone: true,
-  imports: [RouterLink, UiDataTableComponent, UiStatusBadgeComponent, UiTableCellDirective],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'fleet-active-assignments-table',
+    imports: [RouterLink, UiDataTableComponent, UiStatusBadgeComponent, UiTableCellDirective],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     <section class="rounded-xl border border-fleet-border bg-white">
       <div class="flex items-center justify-between border-b border-fleet-border px-6 py-4">
         <h3 class="text-lg font-bold text-fleet-text">Active Assignments</h3>
@@ -41,7 +40,7 @@ import { AssignmentItem } from '../fleet-dashboard.model';
       </ui-data-table>
     </section>
   `,
-  styles: [`:host { display: block; }`]
+    styles: [`:host { display: block; }`]
 })
 export class ActiveAssignmentsTableComponent {
   readonly rows = input<AssignmentItem[]>([]);

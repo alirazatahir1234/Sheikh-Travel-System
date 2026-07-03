@@ -12,11 +12,10 @@ const HEALTH_LEGEND = [
 ] as const;
 
 @Component({
-  selector: 'maintenance-vehicle-health',
-  standalone: true,
-  imports: [UiChartComponent],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'maintenance-vehicle-health',
+    imports: [UiChartComponent],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
   <div class="card">
     <h3>Vehicle Health Status</h3>
     <ui-chart
@@ -34,7 +33,7 @@ const HEALTH_LEGEND = [
     </ul>
   </div>
   `,
-  styles: [`
+    styles: [`
     .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 1.25rem; min-width: 0; }
     h3 { margin: 0 0 0.75rem; font-size: 1rem; font-weight: 700; }
     .legend {
@@ -95,11 +94,10 @@ export class MaintenanceVehicleHealthComponent {
 }
 
 @Component({
-  selector: 'maintenance-upcoming-services',
-  standalone: true,
-  imports: [DatePipe, DecimalPipe, RouterLink],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'maintenance-upcoming-services',
+    imports: [DatePipe, DecimalPipe, RouterLink],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     <div class="card">
       <div class="card__head">
         <h3>Upcoming Services</h3>
@@ -132,7 +130,7 @@ export class MaintenanceVehicleHealthComponent {
       </div>
     </div>
   `,
-  styles: [`
+    styles: [`
     .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 1.25rem; min-width: 0; }
     .card__head { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.75rem; flex-wrap: wrap; }
     h3 { margin: 0; font-size: 1rem; font-weight: 700; }

@@ -7,9 +7,10 @@ import { PaymentService } from '../../../core/services/payment.service';
 import { Payment, PaymentFilter, PaymentStatus } from '../../../core/models/payment.model';
 
 @Component({
-  selector: 'app-payment-list',
-  templateUrl: './payment-list.component.html',
-  styleUrls: ['./payment-list.component.scss']
+    selector: 'app-payment-list',
+    templateUrl: './payment-list.component.html',
+    styleUrls: ['./payment-list.component.scss'],
+    standalone: false
 })
 export class PaymentListComponent implements OnInit {
   displayedColumns = ['bookingId', 'amount', 'paymentMethod', 'status', 'paymentDate', 'actions'];

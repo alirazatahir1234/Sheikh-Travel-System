@@ -2,9 +2,10 @@ import { Component, Input } from '@angular/core';
 import { WeatherInfo } from '../ui.types';
 
 @Component({
-  selector: 'stb-weather-card',
-  templateUrl: './weather-card.component.html',
-  styleUrls: ['./weather-card.component.scss']
+    selector: 'stb-weather-card',
+    templateUrl: './weather-card.component.html',
+    styleUrls: ['./weather-card.component.scss'],
+    standalone: false
 })
 export class WeatherCardComponent {
   @Input() info: WeatherInfo = {

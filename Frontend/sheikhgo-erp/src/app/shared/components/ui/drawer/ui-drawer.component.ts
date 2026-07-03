@@ -12,31 +12,30 @@ import { MatIconModule } from '@angular/material/icon';
 import { UiDrawerPosition } from '../types/ui.types';
 
 @Component({
-  selector: 'ui-drawer',
-  standalone: true,
-  imports: [MatIconModule, NgTemplateOutlet],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  animations: [
-    trigger('backdrop', [
-      transition(':enter', [style({ opacity: 0 }), animate('150ms ease-out', style({ opacity: 1 }))]),
-      transition(':leave', [animate('120ms ease-in', style({ opacity: 0 }))])
-    ]),
-    trigger('panelLeft', [
-      transition(':enter', [
-        style({ transform: 'translateX(-100%)' }),
-        animate('220ms cubic-bezier(0.16, 1, 0.3, 1)', style({ transform: 'translateX(0)' }))
-      ]),
-      transition(':leave', [animate('180ms ease-in', style({ transform: 'translateX(-100%)' }))])
-    ]),
-    trigger('panelRight', [
-      transition(':enter', [
-        style({ transform: 'translateX(100%)' }),
-        animate('220ms cubic-bezier(0.16, 1, 0.3, 1)', style({ transform: 'translateX(0)' }))
-      ]),
-      transition(':leave', [animate('180ms ease-in', style({ transform: 'translateX(100%)' }))])
-    ])
-  ],
-  template: `
+    selector: 'ui-drawer',
+    imports: [MatIconModule, NgTemplateOutlet],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    animations: [
+        trigger('backdrop', [
+            transition(':enter', [style({ opacity: 0 }), animate('150ms ease-out', style({ opacity: 1 }))]),
+            transition(':leave', [animate('120ms ease-in', style({ opacity: 0 }))])
+        ]),
+        trigger('panelLeft', [
+            transition(':enter', [
+                style({ transform: 'translateX(-100%)' }),
+                animate('220ms cubic-bezier(0.16, 1, 0.3, 1)', style({ transform: 'translateX(0)' }))
+            ]),
+            transition(':leave', [animate('180ms ease-in', style({ transform: 'translateX(-100%)' }))])
+        ]),
+        trigger('panelRight', [
+            transition(':enter', [
+                style({ transform: 'translateX(100%)' }),
+                animate('220ms cubic-bezier(0.16, 1, 0.3, 1)', style({ transform: 'translateX(0)' }))
+            ]),
+            transition(':leave', [animate('180ms ease-in', style({ transform: 'translateX(100%)' }))])
+        ])
+    ],
+    template: `
     @if (open()) {
       <div class="fixed inset-0 z-[1000]">
         <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" @backdrop (click)="onOverlay()"></div>
@@ -79,7 +78,7 @@ import { UiDrawerPosition } from '../types/ui.types';
       </div>
     </ng-template>
   `,
-  styles: [`
+    styles: [`
     mat-icon { display: inline-flex; align-items: center; justify-content: center; }
     @media (max-width: 767px) {
       .ui-drawer-panel {

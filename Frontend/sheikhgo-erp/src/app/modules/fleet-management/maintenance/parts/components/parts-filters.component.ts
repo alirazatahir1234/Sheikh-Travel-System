@@ -7,11 +7,10 @@ export interface PartsFilterState {
 }
 
 @Component({
-  selector: 'parts-filters',
-  standalone: true,
-  imports: [FormsModule, MatIconModule],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'parts-filters',
+    imports: [FormsModule, MatIconModule],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     <div class="filters-card">
       <label class="filter-group">
         <span class="filter-label">Part Name / Number</span>
@@ -28,7 +27,7 @@ export interface PartsFilterState {
       </div>
     </div>
   `,
-  styles: [`
+    styles: [`
     .filters-card {
       display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: flex-end;
       background: #fff; border: 1px solid #e2e8f0; border-radius: 12px;

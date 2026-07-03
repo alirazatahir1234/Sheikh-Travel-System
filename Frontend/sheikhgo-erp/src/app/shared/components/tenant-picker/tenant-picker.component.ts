@@ -5,9 +5,10 @@ import { PlatformTenantContextService } from '../../../core/services/platform-te
 import { Tenant } from '../../../core/models/platform.model';
 
 @Component({
-  selector: 'app-tenant-picker',
-  templateUrl: './tenant-picker.component.html',
-  styleUrls: ['./tenant-picker.component.scss']
+    selector: 'app-tenant-picker',
+    templateUrl: './tenant-picker.component.html',
+    styleUrls: ['./tenant-picker.component.scss'],
+    standalone: false
 })
 export class TenantPickerComponent implements OnInit, OnDestroy {
   tenants: Tenant[] = [];

@@ -36,21 +36,20 @@ function defaultFilters(): ServiceHistoryFilterState {
 }
 
 @Component({
-  selector: 'app-service-history-page',
-  standalone: true,
-  imports: [
-    CommonModule,
-    MatIconModule,
-    AppBrandLoaderComponent,
-    VehicleHistoryProfileCardComponent,
-    ServiceHistoryFiltersComponent,
-    ServiceHistoryStatsComponent,
-    ServiceHistoryTimelineComponent,
-    ServiceHistoryExportDialogComponent
-  ],
-  templateUrl: './service-history-page.component.html',
-  styleUrls: ['./service-history-page.component.scss'],
-  changeDetection: ChangeDetectionStrategy.OnPush
+    selector: 'app-service-history-page',
+    imports: [
+        CommonModule,
+        MatIconModule,
+        AppBrandLoaderComponent,
+        VehicleHistoryProfileCardComponent,
+        ServiceHistoryFiltersComponent,
+        ServiceHistoryStatsComponent,
+        ServiceHistoryTimelineComponent,
+        ServiceHistoryExportDialogComponent
+    ],
+    templateUrl: './service-history-page.component.html',
+    styleUrls: ['./service-history-page.component.scss'],
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ServiceHistoryPageComponent implements OnInit {
   private readonly maintenanceService = inject(MaintenanceService);

@@ -7,11 +7,10 @@ import { MaintenanceReportFilters } from '../../../../../core/models/maintenance
 import { apiErrorMessage } from '../../../../../core/utils/api-error.util';
 
 @Component({
-  selector: 'report-schedule-dialog',
-  standalone: true,
-  imports: [FormsModule, MatIconModule],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'report-schedule-dialog',
+    imports: [FormsModule, MatIconModule],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     @if (open()) {
       <div class="overlay" (click)="onBackdrop($event)">
         <div class="modal" role="dialog">
@@ -40,7 +39,7 @@ import { apiErrorMessage } from '../../../../../core/utils/api-error.util';
       </div>
     }
   `,
-  styles: [`
+    styles: [`
     .overlay { position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 1rem; }
     .modal { background: #fff; border-radius: 12px; width: 100%; max-width: 440px; overflow: hidden; }
     .modal-head { display: flex; justify-content: space-between; align-items: center; padding: 1.25rem 1.5rem 1rem; border-bottom: 1px solid #f1f5f9; }

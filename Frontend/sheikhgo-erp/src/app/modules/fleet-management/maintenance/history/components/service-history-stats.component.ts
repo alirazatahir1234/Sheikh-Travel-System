@@ -10,11 +10,10 @@ export interface ServiceHistoryStats {
 }
 
 @Component({
-  selector: 'service-history-stats',
-  standalone: true,
-  imports: [CurrencyPipe, MatIconModule],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'service-history-stats',
+    imports: [CurrencyPipe, MatIconModule],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     <div class="stats-row">
       <div class="stat-card">
         <div class="stat-icon stat-icon--brand"><mat-icon>build</mat-icon></div>
@@ -52,7 +51,7 @@ export interface ServiceHistoryStats {
       </div>
     </div>
   `,
-  styles: [`
+    styles: [`
     .stats-row {
       display: grid;
       grid-template-columns: repeat(4, 1fr);

@@ -3,11 +3,10 @@ import { MatIconModule } from '@angular/material/icon';
 import { MaintenanceScheduleListItem } from '../../../../../core/models/maintenance.model';
 
 @Component({
-  selector: 'schedule-action-menu',
-  standalone: true,
-  imports: [MatIconModule],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'schedule-action-menu',
+    imports: [MatIconModule],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     <div class="actions">
       <button type="button" class="actions__btn" title="Reschedule" (click)="reschedule.emit(schedule())">
         <mat-icon>event_repeat</mat-icon>
@@ -17,7 +16,7 @@ import { MaintenanceScheduleListItem } from '../../../../../core/models/maintena
       </button>
     </div>
   `,
-  styles: [`
+    styles: [`
     .actions { display: flex; gap: 0.25rem; }
     .actions__btn {
       display: inline-flex;

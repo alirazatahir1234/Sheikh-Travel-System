@@ -29,6 +29,8 @@ import {
 import { VehicleListItem } from '../../../core/models/vehicle.model';
 import { resolveFleetStatus } from '../../../core/utils/gps-status.util';
 import { mergeVehicleLocations } from './live-map-state.util';
+import { ScrollingModule } from '@angular/cdk/scrolling';
+import { SharedModule } from '../../../shared/shared.module';
 
 type StatusFilter = 'all' | FleetTrackStatus;
 type TimePreset = 'today' | '24h' | '7d' | 'custom';
@@ -62,9 +64,11 @@ const TRAIL_COLORS: Record<FleetTrackStatus, string> = {
 };
 
 @Component({
-  selector: 'app-live-map',
-  templateUrl: './live-map.component.html',
-  styleUrls: ['./live-map.component.scss']
+    selector: 'app-live-map',
+    templateUrl: './live-map.component.html',
+    styleUrls: ['./live-map.component.scss'],
+    standalone: true,
+    imports: [SharedModule, ScrollingModule]
 })
 export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild('mapHost') mapHost?: ElementRef<HTMLElement>;

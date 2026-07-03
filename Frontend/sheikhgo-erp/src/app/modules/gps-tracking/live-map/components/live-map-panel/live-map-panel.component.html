@@ -1,0 +1,30 @@
+<div class="ft-panel ft-panel--map">
+  <div class="map-toolbar">
+    <div class="filter-chips">
+      <button
+        type="button"
+        class="filter-chip stb-touch"
+        *ngFor="let f of statusFilters"
+        [class.filter-chip--active]="statusFilter === f.id"
+        (click)="setStatusFilter(f.id)">
+        {{ f.label }}
+      </button>
+      <button
+        type="button"
+        class="filter-chip stb-touch"
+        [class.filter-chip--active]="batteryLowOnly"
+        (click)="toggleBatteryLowOnly()">
+        Battery Low
+      </button>
+    </div>
+  </div>
+
+  <div class="map-shell">
+    <div #mapContainer class="map-container"></div>
+
+    <div class="map-tiles-loading" *ngIf="mapTilesLoading">
+      <mat-spinner diameter="36"></mat-spinner>
+      <span>Loading map…</span>
+    </div>
+  </div>
+</div>

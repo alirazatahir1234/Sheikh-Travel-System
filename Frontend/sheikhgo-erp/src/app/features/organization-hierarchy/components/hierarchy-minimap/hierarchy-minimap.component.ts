@@ -10,11 +10,10 @@ import { CommonModule } from '@angular/common';
 import { OrganizationNode } from '../../models/organization.models';
 
 @Component({
-  selector: 'app-hierarchy-minimap',
-  standalone: true,
-  imports: [CommonModule],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'app-hierarchy-minimap',
+    imports: [CommonModule],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     <div class="bg-white rounded-lg border border-border shadow-sm overflow-hidden">
       <!-- Header -->
       <div class="px-3 py-2 border-b border-border bg-surface-alt">
@@ -106,7 +105,7 @@ import { OrganizationNode } from '../../models/organization.models';
         </div>
       }
     </div>
-  `,
+  `
 })
 export class HierarchyMinimapComponent {
   readonly nodes = input<OrganizationNode[]>([]);

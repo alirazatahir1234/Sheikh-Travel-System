@@ -12,11 +12,10 @@ import { FleetDashboardComponent } from '../../dashboards/fleet-dashboard/fleet-
  * inside the main STCC shell — one sidebar, selector always in the header.
  */
 @Component({
-  selector: 'app-dashboard-container',
-  standalone: true,
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CommonModule, DashboardSelectorComponent],
-  template: `
+    selector: 'app-dashboard-container',
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    imports: [CommonModule, DashboardSelectorComponent],
+    template: `
     <div class="dashboard-container">
       <header class="dashboard-container__header">
         <app-dashboard-selector></app-dashboard-selector>
@@ -24,7 +23,7 @@ import { FleetDashboardComponent } from '../../dashboards/fleet-dashboard/fleet-
       <ng-container *ngComponentOutlet="activeComponent()"></ng-container>
     </div>
   `,
-  styles: [`
+    styles: [`
     :host { display: block; min-height: 100%; }
 
     .dashboard-container {

@@ -17,11 +17,10 @@ const VARIANT_STYLES: Record<UiConfirmVariant, VariantStyle> = {
 };
 
 @Component({
-  selector: 'ui-confirm-dialog',
-  standalone: true,
-  imports: [MatIconModule, UiModalComponent, UiButtonComponent],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'ui-confirm-dialog',
+    imports: [MatIconModule, UiModalComponent, UiButtonComponent],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     <ui-modal
       [open]="open()"
       (openChange)="open.set($event)"
@@ -47,7 +46,7 @@ const VARIANT_STYLES: Record<UiConfirmVariant, VariantStyle> = {
       </div>
     </ui-modal>
   `,
-  styles: [`
+    styles: [`
     mat-icon { display: inline-flex; align-items: center; justify-content: center; }
   `]
 })

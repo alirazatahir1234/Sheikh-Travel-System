@@ -9,11 +9,10 @@ import { CommonModule } from '@angular/common';
 import { User } from '../../models/organization.models';
 
 @Component({
-  selector: 'app-user-list-item',
-  standalone: true,
-  imports: [CommonModule],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'app-user-list-item',
+    imports: [CommonModule],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     <div class="px-4 py-3 flex items-center gap-3 hover:bg-surface-alt transition-colors">
       <!-- Avatar -->
       <div class="relative flex-shrink-0">
@@ -92,9 +91,9 @@ import { User } from '../../models/organization.models';
       </div>
     </div>
   `,
-  host: {
-    '(document:click)': 'onDocumentClick($event)',
-  },
+    host: {
+        '(document:click)': 'onDocumentClick($event)',
+    }
 })
 export class UserListItemComponent {
   readonly user = input.required<User>();

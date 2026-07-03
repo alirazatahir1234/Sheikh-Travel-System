@@ -4,11 +4,10 @@ import { UiChartComponent, UiChartOptions } from '../../../../shared/components/
 import { MaintenanceCostTrendPoint } from '../../../../core/models/maintenance.model';
 
 @Component({
-  selector: 'maintenance-cost-trend',
-  standalone: true,
-  imports: [MatIconModule, UiChartComponent],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'maintenance-cost-trend',
+    imports: [MatIconModule, UiChartComponent],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     <div class="card">
       <div class="card-head">
         <h3>Maintenance Cost Trend</h3>
@@ -31,7 +30,7 @@ import { MaintenanceCostTrendPoint } from '../../../../core/models/maintenance.m
       <ui-chart [type]="chartType()" [data]="chartData()" [options]="options" height="280px"></ui-chart>
     </div>
   `,
-  styles: [`
+    styles: [`
     .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 1.25rem; min-width: 0; }
     .card-head { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: 0.75rem; flex-wrap: wrap; }
     h3 { margin: 0; font-size: 1rem; font-weight: 700; color: #0f172a; }

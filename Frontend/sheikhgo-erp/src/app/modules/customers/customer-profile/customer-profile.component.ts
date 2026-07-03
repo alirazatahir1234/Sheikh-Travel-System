@@ -8,9 +8,10 @@ import { Customer } from '../../../core/models/customer.model';
 import { Booking } from '../../../core/models/booking.model';
 
 @Component({
-  selector: 'app-customer-profile',
-  templateUrl: './customer-profile.component.html',
-  styleUrls: ['./customer-profile.component.scss']
+    selector: 'app-customer-profile',
+    templateUrl: './customer-profile.component.html',
+    styleUrls: ['./customer-profile.component.scss'],
+    standalone: false
 })
 export class CustomerProfileComponent implements OnInit {
   customer: Customer | null = null;

@@ -10,11 +10,10 @@ interface CalendarDay {
 }
 
 @Component({
-  selector: 'schedule-calendar-view',
-  standalone: true,
-  imports: [DatePipe, DecimalPipe],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'schedule-calendar-view',
+    imports: [DatePipe, DecimalPipe],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     <div class="cal">
       <header class="cal__head">
         <button type="button" class="cal__nav" (click)="shiftMonth(-1)">‹</button>
@@ -64,7 +63,7 @@ interface CalendarDay {
       }
     </div>
   `,
-  styles: [`
+    styles: [`
     .cal { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 1rem; }
     .cal__head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem; }
     .cal__head h3 { margin: 0; font-size: 1rem; font-weight: 700; }

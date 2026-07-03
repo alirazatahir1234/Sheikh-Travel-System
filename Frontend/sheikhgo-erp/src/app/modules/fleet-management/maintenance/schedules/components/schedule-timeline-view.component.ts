@@ -9,11 +9,10 @@ interface TimelineRow {
 }
 
 @Component({
-  selector: 'schedule-timeline-view',
-  standalone: true,
-  imports: [DatePipe, DecimalPipe],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'schedule-timeline-view',
+    imports: [DatePipe, DecimalPipe],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     <div class="tl">
       <header class="tl__head">
         <button type="button" (click)="shiftWeeks(-1)">‹</button>
@@ -48,7 +47,7 @@ interface TimelineRow {
       }
     </div>
   `,
-  styles: [`
+    styles: [`
     .tl { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 1rem; overflow-x: auto; }
     .tl__head { display: flex; align-items: center; justify-content: center; gap: 1rem; margin-bottom: 1rem; font-weight: 700; }
     .tl__head button { border: none; background: #f1f5f9; width: 2rem; height: 2rem; border-radius: 8px; cursor: pointer; }

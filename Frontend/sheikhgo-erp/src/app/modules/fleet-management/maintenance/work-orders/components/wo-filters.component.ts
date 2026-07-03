@@ -11,11 +11,10 @@ export interface WoFilterState {
 }
 
 @Component({
-  selector: 'wo-filters',
-  standalone: true,
-  imports: [FormsModule],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'wo-filters',
+    imports: [FormsModule],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     <div class="filters">
       <label>Vehicle
         <select [ngModel]="filters().vehicleId" (ngModelChange)="patch({ vehicleId: +$event })">
@@ -55,7 +54,7 @@ export interface WoFilterState {
       </div>
     </div>
   `,
-  styles: [`
+    styles: [`
     .filters {
       display: flex; gap: 0.75rem; align-items: flex-end; flex-wrap: wrap;
       background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 0.875rem 1rem;

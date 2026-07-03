@@ -51,9 +51,10 @@ const DARK_MAP_STYLES: google.maps.MapTypeStyle[] = [
 ];
 
 @Component({
-  selector: 'app-route-form',
-  templateUrl: './route-form.component.html',
-  styleUrls: ['./route-form.component.scss']
+    selector: 'app-route-form',
+    templateUrl: './route-form.component.html',
+    styleUrls: ['./route-form.component.scss'],
+    standalone: false
 })
 export class RouteFormComponent implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild('originInput') originInput?: ElementRef<HTMLInputElement>;

@@ -3,11 +3,10 @@ import { DatePipe } from '@angular/common';
 import { MaintenanceRequest } from '../../../../../core/models/maintenance.model';
 
 @Component({
-  selector: 'request-mobile-cards',
-  standalone: true,
-  imports: [DatePipe],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'request-mobile-cards',
+    imports: [DatePipe],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     <div class="cards">
       @for (r of requests(); track r.id) {
         <button type="button" class="card" (click)="cardSelect.emit(r.id)">
@@ -23,7 +22,7 @@ import { MaintenanceRequest } from '../../../../../core/models/maintenance.model
       }
     </div>
   `,
-  styles: [`
+    styles: [`
     .cards { display: flex; flex-direction: column; gap: 0.625rem; }
     .card {
       text-align: left; background: #fff; border: 1px solid #e2e8f0; border-radius: 12px;

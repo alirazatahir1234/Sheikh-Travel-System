@@ -2,11 +2,10 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
 
 @Component({
-  selector: 'ui-empty-state',
-  standalone: true,
-  imports: [MatIconModule],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'ui-empty-state',
+    imports: [MatIconModule],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     <div class="flex flex-col items-center justify-center px-6 py-12 text-center">
       <span class="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-fleet-surface-muted text-fleet-text-muted">
         <mat-icon class="!text-[28px]">{{ icon() }}</mat-icon>
@@ -20,7 +19,7 @@ import { MatIconModule } from '@angular/material/icon';
       </div>
     </div>
   `,
-  styles: [`
+    styles: [`
     :host { display: block; }
     mat-icon { display: inline-flex; align-items: center; justify-content: center; }
   `]

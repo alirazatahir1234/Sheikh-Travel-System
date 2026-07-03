@@ -1,0 +1,62 @@
+<section class="ft-analytics" aria-label="Fleet analytics">
+  <article class="ft-analytics-card stb-elevated">
+    <header class="ft-analytics-card__head">
+      <mat-icon>show_chart</mat-icon>
+      <div>
+        <h2>Fleet Overview</h2>
+        <p>7-day activity trend</p>
+      </div>
+    </header>
+    <div class="ft-analytics-card__body">
+      <mat-spinner *ngIf="loading" diameter="28"></mat-spinner>
+      <ui-chart
+        *ngIf="!loading"
+        type="line"
+        [data]="lineChartData"
+        [options]="chartOptions"
+        height="220px"></ui-chart>
+    </div>
+  </article>
+
+  <article class="ft-analytics-card stb-elevated">
+    <header class="ft-analytics-card__head">
+      <mat-icon>donut_large</mat-icon>
+      <div>
+        <h2>Fleet Health</h2>
+        <p>Status distribution</p>
+      </div>
+    </header>
+    <div class="ft-analytics-card__body ft-analytics-card__body--donut">
+      <mat-spinner *ngIf="loading" diameter="28"></mat-spinner>
+      <ui-chart
+        *ngIf="!loading"
+        type="doughnut"
+        [data]="doughnutChartData"
+        [options]="chartOptions"
+        height="220px"></ui-chart>
+    </div>
+  </article>
+
+  <article class="ft-analytics-card stb-elevated">
+    <header class="ft-analytics-card__head">
+      <mat-icon>notifications_active</mat-icon>
+      <div>
+        <h2>Recent Events</h2>
+        <p>Live telemetry feed</p>
+      </div>
+      <span class="events-count">{{ events.length }}</span>
+    </header>
+    <ul class="events-list" *ngIf="events.length; else noEvents">
+      <li *ngFor="let ev of events" [class]="'ev ev--' + ev.type">
+        <mat-icon class="ev-icon">{{ ev.icon }}</mat-icon>
+        <div class="ev-body">
+          <span class="ev-time">{{ ev.time | date:'shortTime' }}</span>
+          <span class="ev-msg">{{ ev.message }}</span>
+        </div>
+      </li>
+    </ul>
+    <ng-template #noEvents>
+      <p class="events-empty">Telemetry events appear as vehicles move or trigger alerts.</p>
+    </ng-template>
+  </article>
+</section>

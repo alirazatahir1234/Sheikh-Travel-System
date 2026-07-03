@@ -13,11 +13,10 @@ import { UiSelectOption } from '../../../../shared/components/ui/types/ui.types'
 import { buildDriverAssignOptions, parseOptionalBookingId } from '../../utils/vehicle-assign.util';
 
 @Component({
-  selector: 'vehicle-assign-dialog',
-  standalone: true,
-  imports: [FormsModule, UiModalComponent, UiButtonComponent, UiSelectComponent, UiInputComponent],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'vehicle-assign-dialog',
+    imports: [FormsModule, UiModalComponent, UiButtonComponent, UiSelectComponent, UiInputComponent],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     <ui-modal [(open)]="open" title="Assign Driver" size="sm">
       <ui-select
         label="Driver"

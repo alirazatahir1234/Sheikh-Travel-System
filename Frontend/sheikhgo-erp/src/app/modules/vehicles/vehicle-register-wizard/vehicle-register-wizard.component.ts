@@ -23,24 +23,23 @@ import { WizardStepReviewComponent } from './components/steps/wizard-step-review
 import { resolveUploadUrl } from '../../../core/utils/upload-url.util';
 
 @Component({
-  selector: 'app-vehicle-register-wizard',
-  standalone: true,
-  imports: [
-    MatProgressSpinnerModule,
-    AppBrandLoaderComponent,
-    WizardStepperComponent,
-    WizardSummaryPanelComponent,
-    WizardFooterComponent,
-    WizardStepDetailsComponent,
-    WizardStepTechnicalComponent,
-    WizardStepGpsComponent,
-    WizardStepDocumentsComponent,
-    WizardStepReviewComponent
-  ],
-  providers: [VehicleWizardFacade],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  templateUrl: './vehicle-register-wizard.component.html',
-  styleUrls: ['./vehicle-register-wizard.component.scss']
+    selector: 'app-vehicle-register-wizard',
+    imports: [
+        MatProgressSpinnerModule,
+        AppBrandLoaderComponent,
+        WizardStepperComponent,
+        WizardSummaryPanelComponent,
+        WizardFooterComponent,
+        WizardStepDetailsComponent,
+        WizardStepTechnicalComponent,
+        WizardStepGpsComponent,
+        WizardStepDocumentsComponent,
+        WizardStepReviewComponent
+    ],
+    providers: [VehicleWizardFacade],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    templateUrl: './vehicle-register-wizard.component.html',
+    styleUrls: ['./vehicle-register-wizard.component.scss']
 })
 export class VehicleRegisterWizardComponent implements OnInit, OnDestroy {
   readonly facade = inject(VehicleWizardFacade);

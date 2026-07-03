@@ -5,11 +5,10 @@ import { formatFieldValue } from '../utils/report-column.util';
 import { AppBrandLoaderComponent } from '../../../../../shared/components/app-brand-loader/app-brand-loader.component';
 
 @Component({
-  selector: 'report-preview',
-  standalone: true,
-  imports: [CurrencyPipe, AppBrandLoaderComponent],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'report-preview',
+    imports: [CurrencyPipe, AppBrandLoaderComponent],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     @if (!hasPreview()) {
       <div class="empty">Select a report and click Preview to load data.</div>
     } @else if (loading()) {
@@ -50,7 +49,7 @@ import { AppBrandLoaderComponent } from '../../../../../shared/components/app-br
       </div>
     }
   `,
-  styles: [`
+    styles: [`
     .empty, .loading { text-align: center; color: #94a3b8; padding: 2.5rem; background: #fff; border: 1px dashed #cbd5e1; border-radius: 12px; }
     .preview { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; }
     .preview-head { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: 1rem 1.25rem; border-bottom: 1px solid #f1f5f9; flex-wrap: wrap; }

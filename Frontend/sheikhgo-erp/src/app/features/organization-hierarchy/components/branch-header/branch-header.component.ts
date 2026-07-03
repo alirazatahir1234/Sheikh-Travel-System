@@ -19,11 +19,10 @@ export interface BranchManagerInfo {
 }
 
 @Component({
-  selector: 'app-branch-header',
-  standalone: true,
-  imports: [CommonModule, StatusBadgeComponent, TabNavigationComponent],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'app-branch-header',
+    imports: [CommonModule, StatusBadgeComponent, TabNavigationComponent],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     <div class="bg-white rounded-t-lg border border-border border-b-0">
       <!-- Top Section -->
       <div class="px-6 py-4">
@@ -167,7 +166,7 @@ export interface BranchManagerInfo {
         (tabChange)="tabChange.emit($event)"
       />
     </div>
-  `,
+  `
 })
 export class BranchHeaderComponent {
   readonly branch = input.required<Branch>();

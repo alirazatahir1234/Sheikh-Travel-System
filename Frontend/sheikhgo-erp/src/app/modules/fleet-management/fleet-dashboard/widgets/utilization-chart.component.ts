@@ -4,11 +4,10 @@ import { UiChartComponent, UiChartOptions } from '../../../../shared/components/
 import { UtilizationChart } from '../fleet-dashboard.model';
 
 @Component({
-  selector: 'fleet-utilization-chart',
-  standalone: true,
-  imports: [UiChartComponent],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'fleet-utilization-chart',
+    imports: [UiChartComponent],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     <section class="flex h-full flex-col rounded-xl border border-fleet-border bg-white p-6">
       <div class="mb-6 flex items-center justify-between">
         <div>
@@ -30,7 +29,7 @@ import { UtilizationChart } from '../fleet-dashboard.model';
       </div>
     </section>
   `,
-  styles: [`:host { display: block; height: 100%; }`]
+    styles: [`:host { display: block; height: 100%; }`]
 })
 export class UtilizationChartComponent {
   readonly data = input.required<UtilizationChart>();

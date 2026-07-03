@@ -3,11 +3,10 @@ import { MatIconModule } from '@angular/material/icon';
 import { REPORT_CATALOG, ReportCatalogId } from '../utils/report-column.util';
 
 @Component({
-  selector: 'report-catalog',
-  standalone: true,
-  imports: [MatIconModule],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'report-catalog',
+    imports: [MatIconModule],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     <div class="catalog">
       @for (item of catalog; track item.id) {
         <button type="button" class="catalog-card"
@@ -20,7 +19,7 @@ import { REPORT_CATALOG, ReportCatalogId } from '../utils/report-column.util';
       }
     </div>
   `,
-  styles: [`
+    styles: [`
     .catalog { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.75rem; margin-bottom: 1rem; }
     .catalog-card {
       display: flex; flex-direction: column; align-items: flex-start; gap: 0.35rem;

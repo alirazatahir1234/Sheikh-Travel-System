@@ -5,11 +5,10 @@ import { VehicleImageSlotState } from '../../models/vehicle-wizard.model';
 import { resolveUploadUrl, vehicleUploadSizeError } from '../../../../../core/utils/upload-url.util';
 
 @Component({
-  selector: 'app-vehicle-image-gallery',
-  standalone: true,
-  imports: [MatIconModule, NgClass],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'app-vehicle-image-gallery',
+    imports: [MatIconModule, NgClass],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     <div class="space-y-3">
       <div class="flex items-center justify-between gap-3">
         <div>

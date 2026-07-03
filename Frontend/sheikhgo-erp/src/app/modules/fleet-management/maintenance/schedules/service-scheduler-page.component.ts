@@ -22,21 +22,20 @@ import { apiErrorMessage } from '../../../../core/utils/api-error.util';
 import { AuthService } from '../../../../core/services/auth.service';
 
 @Component({
-  selector: 'app-service-scheduler-page',
-  standalone: true,
-  imports: [
-    CommonModule,
-    FormsModule,
-    AppBrandLoaderComponent,
-    ScheduleViewToggleComponent,
-    ScheduleListViewComponent,
-    ScheduleCalendarViewComponent,
-    ScheduleTimelineViewComponent,
-    ScheduleFormDrawerComponent
-  ],
-  templateUrl: './service-scheduler-page.component.html',
-  styleUrls: ['./service-scheduler-page.component.scss'],
-  changeDetection: ChangeDetectionStrategy.OnPush
+    selector: 'app-service-scheduler-page',
+    imports: [
+        CommonModule,
+        FormsModule,
+        AppBrandLoaderComponent,
+        ScheduleViewToggleComponent,
+        ScheduleListViewComponent,
+        ScheduleCalendarViewComponent,
+        ScheduleTimelineViewComponent,
+        ScheduleFormDrawerComponent
+    ],
+    templateUrl: './service-scheduler-page.component.html',
+    styleUrls: ['./service-scheduler-page.component.scss'],
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ServiceSchedulerPageComponent implements OnInit {
   private readonly maintenanceService = inject(MaintenanceService);

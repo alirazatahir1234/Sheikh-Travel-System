@@ -1,0 +1,71 @@
+<ui-drawer [open]="open" position="right" width="720px" [title]="title" (closed)="onClose()">
+  <ng-container *ngIf="trip as t">
+    <section class="drawer-info-grid">
+      <div class="info-block">
+        <span class="info-label">Vehicle</span>
+        <span class="info-value">{{ t.vehicleName ?? ('Vehicle #' + t.vehicleId) }}</span>
+      </div>
+      <div class="info-block">
+        <span class="info-label">Plate</span>
+        <span class="info-value">{{ t.plateNumber ?? '—' }}</span>
+      </div>
+      <div class="info-block">
+        <span class="info-label">Driver</span>
+        <span class="info-value">{{ t.driverName ?? '—' }}</span>
+      </div>
+      <div class="info-block">
+        <span class="info-label">Tracker</span>
+        <span class="info-value">{{ t.deviceName ?? '—' }}</span>
+      </div>
+      <div class="info-block">
+        <span class="info-label">Status</span>
+        <span class="status-pill" [ngClass]="statusClass">{{ statusLabel }}</span>
+      </div>
+      <div class="info-block">
+        <span class="info-label">Duration</span>
+        <span class="info-value">{{ durationLabel }}</span>
+      </div>
+      <div class="info-block">
+        <span class="info-label">Started</span>
+        <span class="info-value">{{ t.startTime | date:'dd MMM yyyy, HH:mm' }}</span>
+      </div>
+      <div class="info-block">
+        <span class="info-label">Ended</span>
+        <span class="info-value">{{ t.endTime | date:'dd MMM yyyy, HH:mm' }}</span>
+      </div>
+      <div class="info-block info-block--wide">
+        <span class="info-label">Route</span>
+        <span class="info-value">{{ t.startAddress ?? 'Unknown' }} → {{ t.endAddress ?? 'Unknown' }}</span>
+      </div>
+      <div class="info-block">
+        <span class="info-label">Distance</span>
+        <span class="info-value">{{ t.distanceKm | number:'1.1-1' }} km</span>
+      </div>
+      <div class="info-block">
+        <span class="info-label">Avg / Max Speed</span>
+        <span class="info-value">{{ t.avgSpeedKmh | number:'1.0-0' }} / {{ t.maxSpeedKmh | number:'1.0-0' }} km/h</span>
+      </div>
+      <div class="info-block">
+        <span class="info-label">Fuel</span>
+        <span class="info-value">{{ t.fuelLiters != null ? (t.fuelLiters | number:'1.1-1') + ' L' : '—' }}</span>
+      </div>
+    </section>
+
+    <section class="drawer-map">
+      <app-trip-replay-map
+        [routePoints]="replayRoute"
+        [positions]="replayPlayback"
+        [stops]="replayStops"
+        [events]="replayEvents"
+        [loading]="replayLoading">
+      </app-trip-replay-map>
+    </section>
+
+    <app-trip-route-analysis-panel
+      [summary]="summary"
+      [events]="events"
+      [selectedTrip]="t"
+      [loading]="replayLoading">
+    </app-trip-route-analysis-panel>
+  </ng-container>
+</ui-drawer>

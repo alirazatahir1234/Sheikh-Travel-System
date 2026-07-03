@@ -10,11 +10,10 @@ import { apiErrorMessage } from '../../../../../core/utils/api-error.util';
 const VENDOR_CATEGORIES = ['Parts', 'Fluids', 'Tires', 'Electrical', 'Other'] as const;
 
 @Component({
-  selector: 'vendor-form-drawer',
-  standalone: true,
-  imports: [FormsModule, UiDrawerComponent, PhoneDigitsOnlyDirective],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'vendor-form-drawer',
+    imports: [FormsModule, UiDrawerComponent, PhoneDigitsOnlyDirective],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     <ui-drawer [open]="open()" [title]="vendor() ? 'Edit Vendor' : 'Add Vendor'" (closed)="closed.emit()">
       <form class="form" (ngSubmit)="submit()">
         <label>Vendor Name<input [(ngModel)]="form.name" name="name" required /></label>
@@ -38,7 +37,7 @@ const VENDOR_CATEGORIES = ['Parts', 'Fluids', 'Tires', 'Electrical', 'Other'] as
       </form>
     </ui-drawer>
   `,
-  styles: [`
+    styles: [`
     .form { display: grid; gap: 0.875rem; }
     label { display: grid; gap: 0.35rem; font-size: 0.8125rem; font-weight: 600; color: #334155; }
     .check { display: flex; align-items: center; gap: 0.5rem; flex-direction: row; }

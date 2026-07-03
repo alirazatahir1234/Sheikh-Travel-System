@@ -1,0 +1,41 @@
+<ui-drawer
+  [open]="open"
+  [title]="drawerTitle"
+  width="min(960px, 100vw)"
+  (closed)="onDrawerClosed()">
+  <div class="trip-drawer" *ngIf="trip">
+    <div class="trip-drawer__meta">
+      <div>
+        <span class="trip-drawer__label">Period</span>
+        <span>{{ trip.startTime | date:'medium' }} – {{ trip.endTime | date:'shortTime' }}</span>
+      </div>
+      <div>
+        <span class="trip-drawer__label">Distance</span>
+        <span>{{ trip.distanceKm | number:'1.1-1' }} km</span>
+      </div>
+      <div>
+        <span class="trip-drawer__label">Duration</span>
+        <span>{{ trip.durationMinutes }} min</span>
+      </div>
+      <div *ngIf="trip.driverName">
+        <span class="trip-drawer__label">Driver</span>
+        <span>{{ trip.driverName }}</span>
+      </div>
+    </div>
+
+    <app-trip-replay-map
+      [routePoints]="replayRoute"
+      [positions]="replayPlayback"
+      [stops]="replayStops"
+      [events]="replayEvents"
+      [loading]="replayLoading">
+    </app-trip-replay-map>
+
+    <app-trip-route-analysis-panel
+      [summary]="summary"
+      [events]="events"
+      [selectedTrip]="trip"
+      [loading]="replayLoading">
+    </app-trip-route-analysis-panel>
+  </div>
+</ui-drawer>

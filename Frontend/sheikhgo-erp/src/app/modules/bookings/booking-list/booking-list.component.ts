@@ -11,9 +11,10 @@ import { Booking, BookingFilter, BookingStatus } from '../../../core/models/book
 import { ConfirmDialogComponent, ConfirmDialogData } from '../../../shared/components/confirm-dialog/confirm-dialog.component';
 
 @Component({
-  selector: 'app-booking-list',
-  templateUrl: './booking-list.component.html',
-  styleUrls: ['./booking-list.component.scss']
+    selector: 'app-booking-list',
+    templateUrl: './booking-list.component.html',
+    styleUrls: ['./booking-list.component.scss'],
+    standalone: false
 })
 export class BookingListComponent implements OnInit, OnDestroy {
   displayedColumns = ['select', 'bookingNumber', 'customerName', 'routeName', 'pickupTime', 'passengerCount', 'totalAmount', 'status', 'actions'];

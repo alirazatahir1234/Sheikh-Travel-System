@@ -264,6 +264,7 @@ public static class PlatformSchemaMigration
             ("Operations", "Booking.View", "View bookings"),
             ("Operations", "Booking.Create", "Create bookings"),
             ("Operations", "Trip.View", "View trips"),
+            ("Operations", "Trip.Export", "Export trip reports"),
             ("Operations", "Route.View", "View routes"),
             ("Fleet", "Vehicle.View", "View vehicles"),
             ("Fleet", "Vehicle.Create", "Create vehicles"),

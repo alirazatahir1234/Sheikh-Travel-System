@@ -1,12 +1,13 @@
 import { Component, Input } from '@angular/core';
 
 @Component({
-  selector: 'fleet-page-header',
-  template: `
+    selector: 'fleet-page-header',
+    template: `
     <ui-page-header [title]="title" [subtitle]="subtitle" [eyebrow]="eyebrow" [icon]="icon">
       <ng-content></ng-content>
     </ui-page-header>
-  `
+  `,
+    standalone: false
 })
 export class FleetPageHeaderComponent {
   @Input() title = '';

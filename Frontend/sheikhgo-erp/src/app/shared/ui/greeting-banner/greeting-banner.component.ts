@@ -1,9 +1,10 @@
 import { Component, Input } from '@angular/core';
 
 @Component({
-  selector: 'stb-greeting-banner',
-  templateUrl: './greeting-banner.component.html',
-  styleUrls: ['./greeting-banner.component.scss']
+    selector: 'stb-greeting-banner',
+    templateUrl: './greeting-banner.component.html',
+    styleUrls: ['./greeting-banner.component.scss'],
+    standalone: false
 })
 export class GreetingBannerComponent {
   @Input() userName = 'there';

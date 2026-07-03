@@ -3,11 +3,14 @@ import { FormBuilder, Validators } from '@angular/forms';
 import { GpsTrackingService } from '../../../core/services/gps-tracking.service';
 import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
 import { GpsAlertEvent, GpsAlertRule, Geofence } from '../../../core/models/gps-tracking.model';
+import { SharedModule } from '../../../shared/shared.module';
 
 @Component({
-  selector: 'app-gps-alerts',
-  templateUrl: './gps-alerts.component.html',
-  styleUrls: ['./gps-alerts.component.scss']
+    selector: 'app-gps-alerts',
+    templateUrl: './gps-alerts.component.html',
+    styleUrls: ['./gps-alerts.component.scss'],
+    standalone: true,
+    imports: [SharedModule]
 })
 export class GpsAlertsComponent implements OnInit, OnDestroy {
   rules: GpsAlertRule[] = [];

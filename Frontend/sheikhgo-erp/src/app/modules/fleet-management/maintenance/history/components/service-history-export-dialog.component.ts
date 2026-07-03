@@ -4,11 +4,10 @@ import { MatIconModule } from '@angular/material/icon';
 export type ServiceHistoryExportFormat = 'pdf' | 'excel';
 
 @Component({
-  selector: 'service-history-export-dialog',
-  standalone: true,
-  imports: [MatIconModule],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'service-history-export-dialog',
+    imports: [MatIconModule],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     @if (open()) {
       <div class="modal-overlay" (click)="onBackdropClick($event)">
         <div class="modal" role="dialog" aria-labelledby="export-title">
@@ -45,7 +44,7 @@ export type ServiceHistoryExportFormat = 'pdf' | 'excel';
       </div>
     }
   `,
-  styles: [`
+    styles: [`
     .modal-overlay {
       position: fixed;
       inset: 0;

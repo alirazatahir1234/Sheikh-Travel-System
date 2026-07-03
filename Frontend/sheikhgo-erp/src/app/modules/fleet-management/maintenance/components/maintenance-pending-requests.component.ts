@@ -3,11 +3,10 @@ import { RouterLink } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 
 @Component({
-  selector: 'maintenance-pending-requests',
-  standalone: true,
-  imports: [RouterLink, MatIconModule],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'maintenance-pending-requests',
+    imports: [RouterLink, MatIconModule],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     <a class="pending-card" routerLink="/fleet/maintenance/requests" [queryParams]="{ status: 'Open' }">
       <div class="pending-icon"><mat-icon>pending_actions</mat-icon></div>
       <div>
@@ -18,7 +17,7 @@ import { MatIconModule } from '@angular/material/icon';
       <mat-icon class="pending-arrow">chevron_right</mat-icon>
     </a>
   `,
-  styles: [`
+    styles: [`
     .pending-card {
       display: flex; align-items: center; gap: 1rem; padding: 1rem 1.25rem;
       background: #fff; border: 1px solid #fde68a; border-radius: 14px;

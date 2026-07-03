@@ -7,11 +7,10 @@ import { CreatePartPayload } from '../../../../../core/models/maintenance.model'
 import { apiErrorMessage } from '../../../../../core/utils/api-error.util';
 
 @Component({
-  selector: 'part-form-drawer',
-  standalone: true,
-  imports: [FormsModule, UiDrawerComponent],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'part-form-drawer',
+    imports: [FormsModule, UiDrawerComponent],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     <ui-drawer [open]="open()" title="Add Part" (closed)="closed.emit()">
       <form class="form" (ngSubmit)="submit()">
         <label>Part Number<input [(ngModel)]="form.partNumber" name="partNumber" required /></label>
@@ -31,7 +30,7 @@ import { apiErrorMessage } from '../../../../../core/utils/api-error.util';
       </form>
     </ui-drawer>
   `,
-  styles: [`
+    styles: [`
     .form { display: grid; gap: 0.875rem; }
     label { display: grid; gap: 0.35rem; font-size: 0.8125rem; font-weight: 600; color: #334155; }
     label small { font-weight: 500; color: #94a3b8; }

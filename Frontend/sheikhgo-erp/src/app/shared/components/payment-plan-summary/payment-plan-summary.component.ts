@@ -18,12 +18,11 @@ import {
 export type PaymentPlanSummaryVariant = 'compact' | 'detailed';
 
 @Component({
-  selector: 'stb-payment-plan-summary',
-  standalone: true,
-  imports: [CommonModule, MatIconModule, MatTooltipModule],
-  templateUrl: './payment-plan-summary.component.html',
-  styleUrls: ['./payment-plan-summary.component.scss'],
-  changeDetection: ChangeDetectionStrategy.OnPush
+    selector: 'stb-payment-plan-summary',
+    imports: [CommonModule, MatIconModule, MatTooltipModule],
+    templateUrl: './payment-plan-summary.component.html',
+    styleUrls: ['./payment-plan-summary.component.scss'],
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class PaymentPlanSummaryComponent {
   @Input({ required: true }) paymentPlan!: PaymentPlan;

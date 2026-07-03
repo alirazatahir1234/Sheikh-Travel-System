@@ -1,4 +1,5 @@
 import { Component, OnInit } from '@angular/core';
+import { ChartData } from 'chart.js';
 import { forkJoin, of, TimeoutError } from 'rxjs';
 import { catchError, timeout } from 'rxjs/operators';
 import { HttpErrorResponse } from '@angular/common/http';
@@ -25,7 +26,17 @@ import {
   formatPeriodLabel,
   toDatetimeLocalInput
 } from '../utils/trip-date-preset.util';
-import { eventIconsForTrip } from '../utils/trip-event.util';
+import { computeSafetyScore, computeTripEfficiencyScore, eventIconsForTrip } from '../utils/trip-event.util';
+import {
+  distanceTrendData,
+  drivingVsIdleData,
+  fuelConsumptionData,
+  speedTrendData,
+  tripsPerDayData
+} from '../utils/trip-chart.util';
+import { SharedModule } from '../../../shared/shared.module';
+import { UiChartComponent } from '../../../shared/components/ui/chart/ui-chart.component';
+import { TripDetailsDrawerComponent } from './trip-details-drawer/trip-details-drawer.component';
 
 const EMPTY_EVENTS: TripEvent[] = [];
 const EMPTY_REPLAY: TripReplayBundle = { route: [], playback: [], stops: [], events: [], summary: null };
@@ -34,19 +45,39 @@ const ANALYTICS_TIMEOUT_MS = 90_000;
 const CONTEXT_TIMEOUT_MS = 20_000;
 const REPLAY_TIMEOUT_MS = 60_000;
 
+// Quick-filter thresholds — first-draft values, tune once real fleet data is observed at scale.
+const OVERSPEED_THRESHOLD_KMH = 90; // matches the existing speed-pill styling threshold
+const HIGH_FUEL_CONSUMPTION_L_PER_100KM = 15;
+const LONG_TRIP_DURATION_MINUTES = 120;
+
 interface FleetDriverOption {
   id: number;
   fullName: string;
 }
 
+type SortableTripKey = 'startTime' | 'endTime' | 'distanceKm' | 'avgSpeedKmh' | 'maxSpeedKmh'
+  | 'durationMinutes' | 'fuelLiters' | 'driverName' | 'vehicleName';
+
 @Component({
-  selector: 'app-gps-trips',
-  templateUrl: './gps-trips.component.html',
-  styleUrls: ['./gps-trips.component.scss']
+    selector: 'app-gps-trips',
+    templateUrl: './gps-trips.component.html',
+    styleUrls: ['./gps-trips.component.scss'],
+    standalone: true,
+    imports: [SharedModule, UiChartComponent, TripDetailsDrawerComponent]
 })
 export class GpsTripsComponent implements OnInit {
   readonly datePresets = TRIP_DATE_PRESETS;
-  readonly pageSize = 10;
+  readonly pageSizeOptions = [10, 25, 50, 100, 500];
+  readonly overspeedThresholdKmh = OVERSPEED_THRESHOLD_KMH;
+  readonly longTripThresholdMinutes = LONG_TRIP_DURATION_MINUTES;
+  pageSize = 25;
+
+  sortBy: SortableTripKey | null = null;
+  sortDirection: 'asc' | 'desc' = 'desc';
+
+  quickFilterOverspeed = false;
+  quickFilterHighFuel = false;
+  quickFilterLongTrip = false;
 
   datePreset: TripDatePreset = 'thisWeek';
 
@@ -169,6 +200,75 @@ export class GpsTripsComponent implements OnInit {
 
   get driveTimeValue(): string {
     return this.summary ? this.formatDuration(this.summary.drivingMinutes) : '—';
+  }
+
+  get drawerOpen(): boolean {
+    return this.selectedTrip !== null;
+  }
+
+  // ── Charts (derived client-side from filteredTrips/summary) ──────────────
+
+  get distanceTrendChartData(): ChartData {
+    return distanceTrendData(this.filteredTrips);
+  }
+
+  get speedTrendChartData(): ChartData {
+    return speedTrendData(this.filteredTrips);
+  }
+
+  get tripsPerDayChartData(): ChartData {
+    return tripsPerDayData(this.filteredTrips);
+  }
+
+  get drivingVsIdleChartData(): ChartData {
+    return drivingVsIdleData(this.summary);
+  }
+
+  get fuelConsumptionChartData(): ChartData {
+    return fuelConsumptionData(this.filteredTrips, this.isFleetWide);
+  }
+
+  // ── Advanced analytics tiles ──────────────────────────────────────────────
+
+  get efficiencyScoreValue(): number {
+    if (!this.summary) return 0;
+    const safety = computeSafetyScore(
+      this.summary.overspeedCount,
+      this.summary.harshBrakeCount,
+      this.summary.harshAccelCount
+    );
+    return computeTripEfficiencyScore(
+      safety,
+      this.summary.idleMinutes,
+      this.summary.drivingMinutes,
+      this.summary.fuelLiters,
+      this.summary.distanceKm
+    );
+  }
+
+  get fuelEfficiencyValue(): string {
+    if (!this.summary?.fuelLiters || !this.summary.distanceKm) return '—';
+    return (this.summary.distanceKm / this.summary.fuelLiters).toFixed(1);
+  }
+
+  get avgTripLengthValue(): string {
+    if (!this.filteredTrips.length) return '—';
+    const avg = this.filteredTrips.reduce((sum, t) => sum + (Number(t.distanceKm) || 0), 0) / this.filteredTrips.length;
+    return avg.toFixed(1);
+  }
+
+  get nightDrivingCount(): number {
+    return this.filteredTrips.filter(t => {
+      const h = new Date(t.startTime).getHours();
+      return h >= 22 || h < 6;
+    }).length;
+  }
+
+  get weekendTripsCount(): number {
+    return this.filteredTrips.filter(t => {
+      const day = new Date(t.startTime).getDay();
+      return day === 0 || day === 6;
+    }).length;
   }
 
   get emptyReasons(): string[] {
@@ -389,6 +489,18 @@ export class GpsTripsComponent implements OnInit {
     if (this.speedMin != null) rows = rows.filter(t => t.maxSpeedKmh >= this.speedMin!);
     if (this.speedMax != null) rows = rows.filter(t => t.maxSpeedKmh <= this.speedMax!);
 
+    if (this.quickFilterOverspeed) {
+      rows = rows.filter(t => t.maxSpeedKmh > OVERSPEED_THRESHOLD_KMH);
+    }
+    if (this.quickFilterHighFuel) {
+      rows = rows.filter(t =>
+        t.fuelLiters != null && t.distanceKm > 0
+        && (t.fuelLiters / t.distanceKm) * 100 > HIGH_FUEL_CONSUMPTION_L_PER_100KM);
+    }
+    if (this.quickFilterLongTrip) {
+      rows = rows.filter(t => t.durationMinutes > LONG_TRIP_DURATION_MINUTES);
+    }
+
     if (q) {
       rows = rows.filter(t =>
         [t.vehicleName, t.plateNumber, t.deviceName, t.driverName, t.startAddress, t.endAddress,
@@ -397,15 +509,65 @@ export class GpsTripsComponent implements OnInit {
       );
     }
 
-    this.filteredTrips = rows;
+    this.filteredTrips = this.sortTrips(rows);
     this.pageIndex = 0;
     this.updatePage();
     this.rebuildTripCaches();
   }
 
+  private sortTrips(rows: GpsTrip[]): GpsTrip[] {
+    if (!this.sortBy) return rows;
+    const key = this.sortBy;
+    const dir = this.sortDirection === 'asc' ? 1 : -1;
+    return [...rows].sort((a, b) => {
+      const av = a[key];
+      const bv = b[key];
+      if (av == null && bv == null) return 0;
+      if (av == null) return 1;
+      if (bv == null) return -1;
+      if (typeof av === 'string' && typeof bv === 'string') {
+        const an = Date.parse(av);
+        const bn = Date.parse(bv);
+        if (!Number.isNaN(an) && !Number.isNaN(bn)) return (an - bn) * dir;
+        return av.localeCompare(bv) * dir;
+      }
+      if (typeof av === 'number' && typeof bv === 'number') {
+        return (av - bv) * dir;
+      }
+      return 0;
+    });
+  }
+
+  onSortChange(column: SortableTripKey): void {
+    if (this.sortBy === column) {
+      this.sortDirection = this.sortDirection === 'asc' ? 'desc' : 'asc';
+    } else {
+      this.sortBy = column;
+      this.sortDirection = 'asc';
+    }
+    this.applyFilters();
+  }
+
+  sortIcon(column: SortableTripKey): string {
+    if (this.sortBy !== column) return 'unfold_more';
+    return this.sortDirection === 'asc' ? 'arrow_upward' : 'arrow_downward';
+  }
+
+  toggleQuickFilter(filter: 'overspeed' | 'highFuel' | 'longTrip'): void {
+    if (filter === 'overspeed') this.quickFilterOverspeed = !this.quickFilterOverspeed;
+    else if (filter === 'highFuel') this.quickFilterHighFuel = !this.quickFilterHighFuel;
+    else this.quickFilterLongTrip = !this.quickFilterLongTrip;
+    this.applyFilters();
+  }
+
   updatePage(): void {
     const start = this.pageIndex * this.pageSize;
     this.paginatedTrips = this.filteredTrips.slice(start, start + this.pageSize);
+  }
+
+  onPageSizeChange(): void {
+    this.pageIndex = 0;
+    this.updatePage();
   }
 
   prevPage(): void {
@@ -471,6 +633,10 @@ export class GpsTripsComponent implements OnInit {
     this.selectTrip(trip);
   }
 
+  closeDrawer(): void {
+    this.selectedTrip = null;
+  }
+
   tripEventIcons(trip: GpsTrip): string[] {
     return this.tripEventIconMap.get(this.tripKey(trip)) ?? [];
   }
@@ -478,6 +644,14 @@ export class GpsTripsComponent implements OnInit {
   vehicleLabel(trip: GpsTrip): string {
     const name = trip.vehicleName ?? `Vehicle #${trip.vehicleId}`;
     return trip.plateNumber ? `${name} (${trip.plateNumber})` : name;
+  }
+
+  statusLabelFor(trip: GpsTrip): string {
+    return trip.status ?? 'Completed';
+  }
+
+  statusClass(trip: GpsTrip): string {
+    return `status-pill--${this.statusLabelFor(trip).toLowerCase()}`;
   }
 
   shareReport(): void {
@@ -527,7 +701,8 @@ export class GpsTripsComponent implements OnInit {
       { header: 'Max speed', accessor: (t: GpsTrip) => t.maxSpeedKmh },
       { header: 'Duration (min)', accessor: (t: GpsTrip) => t.durationMinutes },
       { header: 'Fuel (L)', accessor: (t: GpsTrip) => t.fuelLiters ?? '-' },
-      { header: 'Driver', accessor: (t: GpsTrip) => t.driverName ?? '-' }
+      { header: 'Driver', accessor: (t: GpsTrip) => t.driverName ?? '-' },
+      { header: 'Status', accessor: (t: GpsTrip) => t.status ?? 'Completed' }
     ];
     const scopeLabel = this.isFleetWide ? 'Fleet Trips' : (this.selectedVehicle?.vehicleName ?? 'Trip Analytics');
     const meta = {

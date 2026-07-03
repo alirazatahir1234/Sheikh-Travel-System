@@ -2,9 +2,10 @@ import { Component, Input } from '@angular/core';
 import { PrayerTime } from '../ui.types';
 
 @Component({
-  selector: 'stb-prayer-times-card',
-  templateUrl: './prayer-times-card.component.html',
-  styleUrls: ['./prayer-times-card.component.scss']
+    selector: 'stb-prayer-times-card',
+    templateUrl: './prayer-times-card.component.html',
+    styleUrls: ['./prayer-times-card.component.scss'],
+    standalone: false
 })
 export class PrayerTimesCardComponent {
   @Input() title = 'Prayer Times';

@@ -13,11 +13,10 @@ import { apiErrorMessage } from '../../../../../core/utils/api-error.util';
 import { resolveUploadUrl } from '../../../../../core/utils/upload-url.util';
 
 @Component({
-  selector: 'request-detail-drawer',
-  standalone: true,
-  imports: [CommonModule, FormsModule, DatePipe, MatIconModule, UiDrawerComponent],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'request-detail-drawer',
+    imports: [CommonModule, FormsModule, DatePipe, MatIconModule, UiDrawerComponent],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     <ui-drawer [open]="!!requestId()" [title]="title()" (closed)="onClose()" width="460px" [padded]="false">
       @if (loading()) {
         <div class="pad"><p class="muted">Loading…</p></div>
@@ -93,7 +92,7 @@ import { resolveUploadUrl } from '../../../../../core/utils/upload-url.util';
       }
     </ui-drawer>
   `,
-  styles: [`
+    styles: [`
     .pad { padding: 1rem 1.25rem; }
     .drawer-body { display: flex; flex-direction: column; min-height: 100%; }
     .header-meta { border-bottom: 1px solid #f1f5f9; }

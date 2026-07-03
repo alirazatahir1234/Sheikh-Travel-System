@@ -25,9 +25,10 @@ import {
 type SectionKey = 'profile' | 'plan' | 'admin' | 'branding' | 'security' | 'organization' | 'billing';
 
 @Component({
-  selector: 'app-tenant-provision',
-  templateUrl: './tenant-provision.component.html',
-  styleUrls: ['./tenant-provision.component.scss']
+    selector: 'app-tenant-provision',
+    templateUrl: './tenant-provision.component.html',
+    styleUrls: ['./tenant-provision.component.scss'],
+    standalone: false
 })
 export class TenantProvisionComponent implements OnInit {
   saving = false;

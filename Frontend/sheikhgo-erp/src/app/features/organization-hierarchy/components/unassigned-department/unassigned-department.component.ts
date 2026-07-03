@@ -9,11 +9,10 @@ import { CommonModule } from '@angular/common';
 import { Department } from '../../models/organization.models';
 
 @Component({
-  selector: 'app-unassigned-department',
-  standalone: true,
-  imports: [CommonModule],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'app-unassigned-department',
+    imports: [CommonModule],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     <div class="p-3">
       <!-- Header -->
       <div class="flex items-center justify-between mb-2">
@@ -66,7 +65,7 @@ import { Department } from '../../models/organization.models';
         }
       </div>
     </div>
-  `,
+  `
 })
 export class UnassignedDepartmentComponent {
   readonly departments = input.required<Department[]>();

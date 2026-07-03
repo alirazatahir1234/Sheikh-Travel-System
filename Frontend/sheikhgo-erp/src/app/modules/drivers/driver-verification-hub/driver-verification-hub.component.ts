@@ -77,20 +77,19 @@ const DEFAULT_OCR_SETTINGS: OcrSettings = {
 };
 
 @Component({
-  selector: 'driver-verification-hub',
-  standalone: true,
-  imports: [
-    DatePipe,
-    NgClass,
-    RouterModule,
-    MatIconModule,
-    UiPageHeaderComponent,
-    UiButtonComponent,
-    UiStatusBadgeComponent
-  ],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  templateUrl: './driver-verification-hub.component.html',
-  styleUrls: ['./driver-verification-hub.component.scss']
+    selector: 'driver-verification-hub',
+    imports: [
+        DatePipe,
+        NgClass,
+        RouterModule,
+        MatIconModule,
+        UiPageHeaderComponent,
+        UiButtonComponent,
+        UiStatusBadgeComponent
+    ],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    templateUrl: './driver-verification-hub.component.html',
+    styleUrls: ['./driver-verification-hub.component.scss']
 })
 export class DriverVerificationHubComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);

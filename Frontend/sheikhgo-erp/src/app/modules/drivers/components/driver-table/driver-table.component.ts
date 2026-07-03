@@ -9,12 +9,11 @@ import { licenseExpiryLabel, licenseExpiryState, availabilityBucketLabel } from 
 import { resolveDriverPhotoUrl } from '../../../../core/utils/upload-url.util';
 
 @Component({
-  selector: 'driver-table',
-  standalone: true,
-  imports: [MatIconModule, RouterModule, UiStatusBadgeComponent, UiEmptyStateComponent],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  templateUrl: './driver-table.component.html',
-  styleUrls: ['./driver-table.component.scss']
+    selector: 'driver-table',
+    imports: [MatIconModule, RouterModule, UiStatusBadgeComponent, UiEmptyStateComponent],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    templateUrl: './driver-table.component.html',
+    styleUrls: ['./driver-table.component.scss']
 })
 export class DriverTableComponent {
   readonly rows = input<DriverListItem[]>([]);

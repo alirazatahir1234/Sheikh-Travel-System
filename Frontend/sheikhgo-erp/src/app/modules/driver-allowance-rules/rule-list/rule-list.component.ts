@@ -12,9 +12,10 @@ import {
 } from '../../../core/models/driver-allowance-rule.model';
 
 @Component({
-  selector: 'app-driver-allowance-rule-list',
-  templateUrl: './rule-list.component.html',
-  styleUrls: ['./rule-list.component.scss']
+    selector: 'app-driver-allowance-rule-list',
+    templateUrl: './rule-list.component.html',
+    styleUrls: ['./rule-list.component.scss'],
+    standalone: false
 })
 export class DriverAllowanceRuleListComponent implements OnInit {
   displayedColumns = [

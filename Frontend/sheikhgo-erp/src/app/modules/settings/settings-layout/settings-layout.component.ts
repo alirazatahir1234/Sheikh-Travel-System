@@ -3,9 +3,10 @@ import { SettingsService } from '../services/settings.service';
 import { SettingsCategory } from '../models/settings.model';
 
 @Component({
-  selector: 'app-settings-layout',
-  templateUrl: './settings-layout.component.html',
-  styleUrls: ['./settings-layout.component.scss']
+    selector: 'app-settings-layout',
+    templateUrl: './settings-layout.component.html',
+    styleUrls: ['./settings-layout.component.scss'],
+    standalone: false
 })
 export class SettingsLayoutComponent implements OnInit {
   private readonly settings = inject(SettingsService);

@@ -1,0 +1,98 @@
+:host {
+  display: block;
+  min-width: 0;
+}
+
+.ft-panel--map {
+  min-width: 0;
+}
+
+.map-toolbar {
+  margin-bottom: 8px;
+}
+
+.map-shell {
+  position: relative;
+  height: 600px;
+  border-radius: var(--stb-radius-lg);
+  overflow: hidden;
+  border: 1px solid var(--stb-border-strong);
+  box-shadow: var(--stb-shadow-lg);
+  background: #e5e7eb;
+}
+
+.map-container {
+  width: 100%;
+  height: 600px;
+  z-index: 1;
+  position: relative;
+  background: #e5e7eb;
+}
+
+.map-tiles-loading {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: rgba(248, 250, 252, 0.88);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--stb-text-muted);
+}
+
+:host ::ng-deep {
+  .leaflet-container {
+    width: 100%;
+    height: 600px;
+    background: #e5e7eb;
+  }
+
+  .fleet-marker-host,
+  .fleet-cluster-host {
+    background: transparent !important;
+    border: none !important;
+  }
+
+  .fleet-marker {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .fleet-marker-ring {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: 3px solid #fff;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  }
+
+  .fleet-marker--moving .fleet-marker-ring { background: var(--stb-success); }
+  .fleet-marker--idle .fleet-marker-ring { background: var(--stb-warning); }
+  .fleet-marker--parked .fleet-marker-ring { background: #3b82f6; }
+  .fleet-marker--offline .fleet-marker-ring { background: #94a3b8; }
+  .fleet-marker--never_seen .fleet-marker-ring { background: #cbd5e1; }
+  .fleet-marker--sos .fleet-marker-ring { background: #dc2626; }
+
+  .fleet-cluster {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #14b8a6, #0f766e);
+    color: #fff;
+    font-weight: 800;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 0 20px rgba(20, 184, 166, 0.55);
+    border: 2px solid rgba(255, 255, 255, 0.4);
+  }
+}

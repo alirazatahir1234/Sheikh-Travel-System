@@ -17,11 +17,16 @@ import {
 } from '../utils/relay-immobilizer.util';
 import { todayIsoDate } from '../tracker-register/tracker-register.validators';
 import { isTrackerInstalled } from '../utils/tracker-status.util';
+import { SharedModule } from '../../../shared/shared.module';
+import { UiInputComponent } from '../../../shared/components/ui/input/ui-input.component';
+import { UiSelectComponent } from '../../../shared/components/ui/select/ui-select.component';
 
 @Component({
-  selector: 'app-tracker-install-page',
-  templateUrl: './tracker-install-page.component.html',
-  styleUrls: ['./tracker-install-page.component.scss']
+    selector: 'app-tracker-install-page',
+    templateUrl: './tracker-install-page.component.html',
+    styleUrls: ['./tracker-install-page.component.scss'],
+    standalone: true,
+    imports: [SharedModule, UiInputComponent, UiSelectComponent]
 })
 export class TrackerInstallPageComponent implements OnInit {
   private readonly fb = inject(FormBuilder);

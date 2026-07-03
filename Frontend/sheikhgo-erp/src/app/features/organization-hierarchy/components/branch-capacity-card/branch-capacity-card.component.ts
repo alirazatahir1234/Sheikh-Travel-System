@@ -8,11 +8,10 @@ import { BranchCapacity, CapacityMetric } from '../../models/organization.models
 import { ProgressBarComponent } from '../progress-bar/progress-bar.component';
 
 @Component({
-  selector: 'app-branch-capacity-card',
-  standalone: true,
-  imports: [CommonModule, ProgressBarComponent],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'app-branch-capacity-card',
+    imports: [CommonModule, ProgressBarComponent],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     <div class="bg-white rounded-xl border border-border overflow-hidden">
       <!-- Header -->
       <div class="px-4 py-3 border-b border-border flex items-center justify-between">
@@ -45,7 +44,7 @@ import { ProgressBarComponent } from '../progress-bar/progress-bar.component';
         }
       </div>
     </div>
-  `,
+  `
 })
 export class BranchCapacityCardComponent {
   readonly capacity = input.required<BranchCapacity>();

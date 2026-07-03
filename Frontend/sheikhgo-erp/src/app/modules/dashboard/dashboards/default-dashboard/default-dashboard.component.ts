@@ -20,11 +20,10 @@ import { BookingReport } from '../../../../core/models/common.model';
 import { DEFAULT_DASHBOARD_FALLBACK } from '../../data/mock-dashboard-data';
 
 @Component({
-  selector: 'app-default-dashboard',
-  standalone: true,
-  imports: [SharedModule, DashboardAnalyticsComponent],
-  templateUrl: './default-dashboard.component.html',
-  styleUrls: ['./default-dashboard.component.scss']
+    selector: 'app-default-dashboard',
+    imports: [SharedModule, DashboardAnalyticsComponent],
+    templateUrl: './default-dashboard.component.html',
+    styleUrls: ['./default-dashboard.component.scss']
 })
 export class DefaultDashboardComponent implements OnInit, OnDestroy {
   loading = true;

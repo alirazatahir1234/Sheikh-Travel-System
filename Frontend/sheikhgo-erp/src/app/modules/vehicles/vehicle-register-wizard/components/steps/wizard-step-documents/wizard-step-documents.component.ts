@@ -4,11 +4,10 @@ import { DocumentUploadZoneComponent } from '../../document-upload-zone/document
 import { VehicleImageGalleryComponent } from '../../vehicle-image-gallery/vehicle-image-gallery.component';
 
 @Component({
-  selector: 'app-wizard-step-documents',
-  standalone: true,
-  imports: [DocumentUploadZoneComponent, VehicleImageGalleryComponent],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'app-wizard-step-documents',
+    imports: [DocumentUploadZoneComponent, VehicleImageGalleryComponent],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     <section class="rounded-lg border border-fleet-border bg-white p-6 shadow-sm pb-8 sm:pb-6">
       <h2 class="mb-1 text-lg font-semibold text-fleet-text">Documents</h2>
       <p class="mb-5 text-sm text-fleet-text-muted">Upload vehicle images and compliance documents.</p>

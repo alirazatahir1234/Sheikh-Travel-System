@@ -4,12 +4,16 @@ import {
 import { TripEvent, TripReplayPosition, TripStop } from '../../../../core/models/gps-tracking.model';
 import { MAP_TILE_STACKS } from '../../../../core/leaflet/leaflet-map-tiles';
 import { L } from '../../../../core/leaflet/leaflet-cluster';
+import { SPEED_HEATMAP_LEGEND, speedToColor } from '../../utils/speed-heatmap.util';
 import type * as LeafletTypes from 'leaflet';
+import { SharedModule } from '../../../../shared/shared.module';
 
 @Component({
-  selector: 'app-trip-replay-map',
-  templateUrl: './trip-replay-map.component.html',
-  styleUrls: ['./trip-replay-map.component.scss']
+    selector: 'app-trip-replay-map',
+    templateUrl: './trip-replay-map.component.html',
+    styleUrls: ['./trip-replay-map.component.scss'],
+    standalone: true,
+    imports: [SharedModule]
 })
 export class TripReplayMapComponent implements AfterViewInit, OnChanges, OnDestroy {
   @ViewChild('mapEl', { static: false }) mapEl!: ElementRef<HTMLDivElement>;
@@ -23,6 +27,7 @@ export class TripReplayMapComponent implements AfterViewInit, OnChanges, OnDestr
   replayPlaying = false;
   replaySpeed = 1;
   readonly speedOptions = [1, 2, 4, 8, 16];
+  readonly heatmapLegend = SPEED_HEATMAP_LEGEND;
   replayIndex = 0;
 
   private map: LeafletTypes.Map | null = null;
@@ -145,10 +150,9 @@ export class TripReplayMapComponent implements AfterViewInit, OnChanges, OnDestr
       for (let i = 1; i < drawPoints.length; i++) {
         const a = drawPoints[i - 1];
         const b = drawPoints[i];
-        const moving = (Number(b.speedKmh) || 0) > 5 || b.ignition === true;
         L.polyline(
           [[a.latitude, a.longitude], [b.latitude, b.longitude]],
-          { color: moving ? '#059669' : '#3b82f6', weight: 4, opacity: 0.85 }
+          { color: speedToColor(Number(b.speedKmh) || 0), weight: 4, opacity: 0.85 }
         ).addTo(layer);
       }
     } else {

@@ -6,11 +6,14 @@ import {
   mapTripEvent,
   safetyMessage
 } from '../../utils/trip-event.util';
+import { SharedModule } from '../../../../shared/shared.module';
 
 @Component({
-  selector: 'app-trip-route-analysis-panel',
-  templateUrl: './trip-route-analysis-panel.component.html',
-  styleUrls: ['./trip-route-analysis-panel.component.scss']
+    selector: 'app-trip-route-analysis-panel',
+    templateUrl: './trip-route-analysis-panel.component.html',
+    styleUrls: ['./trip-route-analysis-panel.component.scss'],
+    standalone: true,
+    imports: [SharedModule]
 })
 export class TripRouteAnalysisPanelComponent {
   @Input() summary: TripAnalyticsSummary | null = null;

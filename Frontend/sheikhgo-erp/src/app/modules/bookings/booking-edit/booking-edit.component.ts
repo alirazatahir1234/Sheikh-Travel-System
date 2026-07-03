@@ -21,9 +21,10 @@ import { Driver } from '../../../core/models/driver.model';
 import { dateTimeLocalToIso, toDateTimeLocalValue } from '../../../core/utils/date-input.util';
 
 @Component({
-  selector: 'app-booking-edit',
-  templateUrl: './booking-edit.component.html',
-  styleUrls: ['./booking-edit.component.scss']
+    selector: 'app-booking-edit',
+    templateUrl: './booking-edit.component.html',
+    styleUrls: ['./booking-edit.component.scss'],
+    standalone: false
 })
 export class BookingEditComponent implements OnInit {
   form: FormGroup;

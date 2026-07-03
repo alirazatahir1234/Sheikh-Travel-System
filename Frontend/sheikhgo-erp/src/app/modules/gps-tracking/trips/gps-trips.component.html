@@ -129,6 +129,18 @@
         <input matInput type="number" min="0" [(ngModel)]="speedMax" (ngModelChange)="applyFilters()">
       </mat-form-field>
     </div>
+
+    <div class="quick-filter-row">
+      <button type="button" class="quick-filter-chip" [class.active]="quickFilterOverspeed" (click)="toggleQuickFilter('overspeed')">
+        <mat-icon>speed</mat-icon> Overspeed (&gt;{{ overspeedThresholdKmh }} km/h)
+      </button>
+      <button type="button" class="quick-filter-chip" [class.active]="quickFilterHighFuel" (click)="toggleQuickFilter('highFuel')">
+        <mat-icon>local_gas_station</mat-icon> High Fuel Use
+      </button>
+      <button type="button" class="quick-filter-chip" [class.active]="quickFilterLongTrip" (click)="toggleQuickFilter('longTrip')">
+        <mat-icon>schedule</mat-icon> Long Trips (&gt;{{ longTripThresholdMinutes }} min)
+      </button>
+    </div>
   </section>
 
   <div *ngIf="apiWarning" class="warn-banner">
@@ -219,26 +231,76 @@
     </stb-stat-tile>
   </section>
 
+  <section class="analytics-row" *ngIf="!loading && trips.length > 0">
+    <h2 class="section-title">Advanced Analytics</h2>
+    <div class="analytics-tiles">
+      <stb-stat-tile
+        label="Efficiency Score"
+        [value]="efficiencyScoreValue"
+        suffix="/100"
+        icon="eco"
+        color="green"
+        [loading]="analyticsLoading">
+      </stb-stat-tile>
+      <stb-stat-tile
+        label="Fuel Efficiency"
+        [value]="fuelEfficiencyValue"
+        suffix=" km/L"
+        icon="local_gas_station"
+        color="teal"
+        [loading]="analyticsLoading">
+      </stb-stat-tile>
+      <stb-stat-tile
+        label="Avg Trip Length"
+        [value]="avgTripLengthValue"
+        suffix=" km"
+        icon="social_distance"
+        color="blue"
+        [loading]="analyticsLoading">
+      </stb-stat-tile>
+      <stb-stat-tile
+        label="Night Driving"
+        [value]="nightDrivingCount"
+        hint="10pm – 6am"
+        icon="nights_stay"
+        color="amber"
+        [loading]="analyticsLoading">
+      </stb-stat-tile>
+      <stb-stat-tile
+        label="Weekend Trips"
+        [value]="weekendTripsCount"
+        icon="weekend"
+        color="rose"
+        [loading]="analyticsLoading">
+      </stb-stat-tile>
+    </div>
+  </section>
+
   <div *ngIf="loading" class="loading-panel">
     <app-brand-loader size="md" message="Loading trip analytics…" />
   </div>
 
-  <section class="analytics-main" *ngIf="!loading && vehicleId">
-    <div class="analytics-map">
-      <app-trip-replay-map
-        [routePoints]="replayRoute"
-        [positions]="replayPlayback"
-        [stops]="replayStops"
-        [events]="replayEvents"
-        [loading]="replayLoading">
-      </app-trip-replay-map>
+  <section class="charts-grid" *ngIf="!loading && trips.length > 0">
+    <div class="chart-card">
+      <h3>Distance Trend</h3>
+      <ui-chart type="line" [data]="distanceTrendChartData" height="220px"></ui-chart>
     </div>
-    <app-trip-route-analysis-panel
-      [summary]="summary"
-      [events]="analyticsEvents"
-      [selectedTrip]="selectedTrip"
-      [loading]="analyticsLoading || replayLoading">
-    </app-trip-route-analysis-panel>
+    <div class="chart-card">
+      <h3>Speed Trend</h3>
+      <ui-chart type="line" [data]="speedTrendChartData" height="220px"></ui-chart>
+    </div>
+    <div class="chart-card">
+      <h3>Trips Per Day</h3>
+      <ui-chart type="bar" [data]="tripsPerDayChartData" height="220px"></ui-chart>
+    </div>
+    <div class="chart-card">
+      <h3>Driving vs Idle</h3>
+      <ui-chart type="doughnut" [data]="drivingVsIdleChartData" height="220px"></ui-chart>
+    </div>
+    <div class="chart-card chart-card--wide">
+      <h3>Fuel Consumption {{ isFleetWide ? 'by Vehicle' : 'by Day' }}</h3>
+      <ui-chart type="bar" [data]="fuelConsumptionChartData" height="220px"></ui-chart>
+    </div>
   </section>
 
   <div *ngIf="!loading && !trips.length && !error" class="empty-state">
@@ -268,57 +330,112 @@
     </div>
 
     <div class="table-card">
-      <table class="data-table">
-        <thead>
-          <tr>
-            <th *ngIf="isFleetWide">Vehicle</th>
-            <th>Trip Date</th>
-            <th>Start / End Location</th>
-            <th>Duration</th>
-            <th>Dist (km)</th>
-            <th>Avg Speed</th>
-            <th>Max Speed</th>
-            <th>Fuel</th>
-            <th>Events</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr *ngFor="let t of paginatedTrips"
-              [class.selected]="selectedTrip?.vehicleId === t.vehicleId && selectedTrip?.startTime === t.startTime && selectedTrip?.endTime === t.endTime"
-              (click)="selectTrip(t)"
-              class="clickable-row">
-            <td *ngIf="isFleetWide" class="vehicle-cell">{{ vehicleLabel(t) }}</td>
-            <td class="trip-date">{{ formatTripDate(t) }}</td>
-            <td class="location-cell">{{ formatLocation(t) }}</td>
-            <td>{{ formatDuration(t.durationMinutes) }}</td>
-            <td>{{ t.distanceKm | number:'1.1-1' }}</td>
-            <td>{{ t.avgSpeedKmh | number:'1.0-0' }} km/h</td>
-            <td>
-              <span class="speed-pill" [class.speed-pill--high]="t.maxSpeedKmh > 90">
-                {{ t.maxSpeedKmh | number:'1.0-0' }} km/h
-              </span>
-            </td>
-            <td>{{ t.fuelLiters != null ? (t.fuelLiters | number:'1.1-1') + ' L' : '—' }}</td>
-            <td>
-              <span class="event-badges">
-                <mat-icon *ngFor="let icon of tripEventIcons(t)" [title]="icon">{{ icon }}</mat-icon>
-              </span>
-            </td>
-            <td>
-              <button type="button" class="icon-btn" (click)="viewTrip(t, $event)" title="View / Replay">
-                <mat-icon>visibility</mat-icon>
-              </button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      <div class="table-scroll desktop-only">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th *ngIf="isFleetWide" class="sortable" (click)="onSortChange('vehicleName')">
+                Vehicle <mat-icon class="sort-icon">{{ sortIcon('vehicleName') }}</mat-icon>
+              </th>
+              <th class="sortable" (click)="onSortChange('startTime')">
+                Trip Date <mat-icon class="sort-icon">{{ sortIcon('startTime') }}</mat-icon>
+              </th>
+              <th>Start / End Location</th>
+              <th class="sortable" (click)="onSortChange('durationMinutes')">
+                Duration <mat-icon class="sort-icon">{{ sortIcon('durationMinutes') }}</mat-icon>
+              </th>
+              <th class="sortable" (click)="onSortChange('distanceKm')">
+                Dist (km) <mat-icon class="sort-icon">{{ sortIcon('distanceKm') }}</mat-icon>
+              </th>
+              <th class="sortable" (click)="onSortChange('avgSpeedKmh')">
+                Avg Speed <mat-icon class="sort-icon">{{ sortIcon('avgSpeedKmh') }}</mat-icon>
+              </th>
+              <th class="sortable" (click)="onSortChange('maxSpeedKmh')">
+                Max Speed <mat-icon class="sort-icon">{{ sortIcon('maxSpeedKmh') }}</mat-icon>
+              </th>
+              <th class="sortable" (click)="onSortChange('fuelLiters')">
+                Fuel <mat-icon class="sort-icon">{{ sortIcon('fuelLiters') }}</mat-icon>
+              </th>
+              <th class="sortable" (click)="onSortChange('driverName')">
+                Driver <mat-icon class="sort-icon">{{ sortIcon('driverName') }}</mat-icon>
+              </th>
+              <th>Status</th>
+              <th>Events</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let t of paginatedTrips"
+                [class.selected]="selectedTrip?.vehicleId === t.vehicleId && selectedTrip?.startTime === t.startTime && selectedTrip?.endTime === t.endTime"
+                (click)="selectTrip(t)"
+                class="clickable-row">
+              <td *ngIf="isFleetWide" class="vehicle-cell">{{ vehicleLabel(t) }}</td>
+              <td class="trip-date">{{ formatTripDate(t) }}</td>
+              <td class="location-cell">{{ formatLocation(t) }}</td>
+              <td>{{ formatDuration(t.durationMinutes) }}</td>
+              <td>{{ t.distanceKm | number:'1.1-1' }}</td>
+              <td>{{ t.avgSpeedKmh | number:'1.0-0' }} km/h</td>
+              <td>
+                <span class="speed-pill" [class.speed-pill--high]="t.maxSpeedKmh > overspeedThresholdKmh">
+                  {{ t.maxSpeedKmh | number:'1.0-0' }} km/h
+                </span>
+              </td>
+              <td>{{ t.fuelLiters != null ? (t.fuelLiters | number:'1.1-1') + ' L' : '—' }}</td>
+              <td>{{ t.driverName ?? '—' }}</td>
+              <td><span class="status-pill" [ngClass]="statusClass(t)">{{ statusLabelFor(t) }}</span></td>
+              <td>
+                <span class="event-badges">
+                  <mat-icon *ngFor="let icon of tripEventIcons(t)" [title]="icon">{{ icon }}</mat-icon>
+                </span>
+              </td>
+              <td>
+                <button type="button" class="icon-btn" (click)="viewTrip(t, $event)" title="View / Replay">
+                  <mat-icon>visibility</mat-icon>
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
 
-      <div class="table-footer" *ngIf="filteredTrips.length > pageSize">
+      <div class="mobile-cards mobile-only">
+        <article class="stb-record-card" *ngFor="let t of paginatedTrips" (click)="selectTrip(t)">
+          <div class="stb-record-card__head">
+            <div>
+              <strong *ngIf="isFleetWide">{{ vehicleLabel(t) }}</strong>
+              <div class="trip-date">{{ formatTripDate(t) }}</div>
+            </div>
+            <span class="speed-pill" [class.speed-pill--high]="t.maxSpeedKmh > overspeedThresholdKmh">
+              {{ t.maxSpeedKmh | number:'1.0-0' }} km/h
+            </span>
+          </div>
+          <div class="stb-record-card__meta">
+            <span>Distance: {{ t.distanceKm | number:'1.1-1' }} km</span>
+            <span>Duration: {{ formatDuration(t.durationMinutes) }}</span>
+            <span>Avg speed: {{ t.avgSpeedKmh | number:'1.0-0' }} km/h</span>
+            <span>Fuel: {{ t.fuelLiters != null ? (t.fuelLiters | number:'1.1-1') + ' L' : '—' }}</span>
+            <span>Driver: {{ t.driverName ?? '—' }}</span>
+            <span><span class="status-pill" [ngClass]="statusClass(t)">{{ statusLabelFor(t) }}</span></span>
+          </div>
+          <div class="stb-record-card__actions">
+            <button type="button" class="stb-btn-touch" (click)="viewTrip(t, $event)">
+              <mat-icon>visibility</mat-icon> View / Replay
+            </button>
+          </div>
+        </article>
+      </div>
+
+      <div class="table-footer" *ngIf="filteredTrips.length > 0">
         <span class="page-info">
           {{ pageIndex * pageSize + 1 }}–{{ pageIndex * pageSize + paginatedTrips.length }} of {{ filteredTrips.length }}
         </span>
         <div class="page-controls">
+          <label class="page-size-label">
+            Rows per page
+            <select class="page-size-select" [(ngModel)]="pageSize" (ngModelChange)="onPageSizeChange()">
+              <option *ngFor="let n of pageSizeOptions" [ngValue]="n">{{ n }}</option>
+            </select>
+          </label>
           <button type="button" class="btn btn-secondary btn-sm" (click)="prevPage()" [disabled]="pageIndex === 0">
             <mat-icon>chevron_left</mat-icon>
           </button>
@@ -330,5 +447,18 @@
       </div>
     </div>
   </section>
+
+  <app-trip-details-drawer
+    [open]="drawerOpen"
+    [trip]="selectedTrip"
+    [summary]="summary"
+    [events]="analyticsEvents"
+    [replayRoute]="replayRoute"
+    [replayPlayback]="replayPlayback"
+    [replayStops]="replayStops"
+    [replayEvents]="replayEvents"
+    [replayLoading]="replayLoading"
+    (closed)="closeDrawer()">
+  </app-trip-details-drawer>
 
 </div>

@@ -83,5 +83,72 @@ public class GpsEnterpriseTests
         dto.AvgSpeedKmh.Should().BeApproximately(19.3m, 0.1m);
         dto.StartAddress.Should().Be("Pasrur");
         dto.EndAddress.Should().Be("Pasrur");
+        dto.Status.Should().Be("Completed");
+    }
+
+    [Fact]
+    public void DetectTrips_LocallyDetected_DefaultsStatusToCompleted()
+    {
+        var baseTime = DateTime.UtcNow.AddHours(-2);
+        var points = new List<PositionDto>
+        {
+            new(1, 1, null, null, null, 31.50, 74.30, 0, null, null, false, baseTime),
+            new(2, 1, null, null, null, 31.51, 74.31, 40, null, null, true, baseTime.AddMinutes(5)),
+            new(3, 1, null, null, null, 31.52, 74.32, 50, null, null, true, baseTime.AddMinutes(10)),
+            new(4, 1, null, null, null, 31.53, 74.33, 0, null, null, false, baseTime.AddMinutes(20)),
+            new(5, 1, null, null, null, 31.53, 74.33, 0, null, null, false, baseTime.AddMinutes(30))
+        };
+
+        var trips = GpsTripDetector.DetectTrips(1, "Bus 1", null, points);
+        trips.Should().NotBeEmpty();
+        trips[0].Status.Should().Be("Completed");
+    }
+
+    [Fact]
+    public void DetectStops_StationaryPeriodAboveThreshold_ReturnsStop()
+    {
+        var baseTime = DateTime.UtcNow.AddHours(-2);
+        var points = new List<PositionDto>
+        {
+            new(1, 1, null, null, null, 31.50, 74.30, 40, null, null, true, baseTime),
+            new(2, 1, null, null, null, 31.51, 74.31, 0, null, null, false, baseTime.AddMinutes(5)),
+            new(3, 1, null, null, null, 31.51, 74.31, 0, null, null, false, baseTime.AddMinutes(10)),
+            new(4, 1, null, null, null, 31.51, 74.31, 0, null, null, false, baseTime.AddMinutes(15)),
+            new(5, 1, null, null, null, 31.52, 74.32, 45, null, null, true, baseTime.AddMinutes(16))
+        };
+
+        var stops = GpsStopDetector.DetectStops(points);
+
+        stops.Should().ContainSingle();
+        stops[0].DurationMinutes.Should().Be(10);
+        stops[0].Latitude.Should().Be(31.51);
+        stops[0].Longitude.Should().Be(74.31);
+    }
+
+    [Fact]
+    public void DetectStops_BriefPauseBelowThreshold_ReturnsNoStop()
+    {
+        var baseTime = DateTime.UtcNow.AddHours(-1);
+        var points = new List<PositionDto>
+        {
+            new(1, 1, null, null, null, 31.50, 74.30, 40, null, null, true, baseTime),
+            new(2, 1, null, null, null, 31.51, 74.31, 0, null, null, false, baseTime.AddMinutes(2)),
+            new(3, 1, null, null, null, 31.52, 74.32, 45, null, null, true, baseTime.AddMinutes(3))
+        };
+
+        var stops = GpsStopDetector.DetectStops(points);
+
+        stops.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void DetectStops_FewerThanTwoPoints_ReturnsNoStop()
+    {
+        var points = new List<PositionDto>
+        {
+            new(1, 1, null, null, null, 31.50, 74.30, 0, null, null, false, DateTime.UtcNow)
+        };
+
+        GpsStopDetector.DetectStops(points).Should().BeEmpty();
     }
 }

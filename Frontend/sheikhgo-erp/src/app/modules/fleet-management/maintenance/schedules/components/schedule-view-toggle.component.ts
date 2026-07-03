@@ -4,11 +4,10 @@ import { MatIconModule } from '@angular/material/icon';
 export type ScheduleView = 'list' | 'calendar' | 'timeline';
 
 @Component({
-  selector: 'schedule-view-toggle',
-  standalone: true,
-  imports: [MatIconModule],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'schedule-view-toggle',
+    imports: [MatIconModule],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     <div class="toggle" role="tablist">
       @for (opt of options; track opt.id) {
         <button
@@ -24,7 +23,7 @@ export type ScheduleView = 'list' | 'calendar' | 'timeline';
       }
     </div>
   `,
-  styles: [`
+    styles: [`
     .toggle {
       display: inline-flex;
       gap: 0.25rem;

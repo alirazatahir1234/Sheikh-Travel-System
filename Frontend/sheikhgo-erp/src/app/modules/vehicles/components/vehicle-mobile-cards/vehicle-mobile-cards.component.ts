@@ -10,12 +10,11 @@ import { formatRelativeTime } from '../../../../core/utils/relative-time.util';
 import { resolveVehicleImageUrl } from '../../../../core/utils/upload-url.util';
 
 @Component({
-  selector: 'vehicle-mobile-cards',
-  standalone: true,
-  imports: [DatePipe, DecimalPipe, MatIconModule, UiStatusBadgeComponent, UiEmptyStateComponent],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  templateUrl: './vehicle-mobile-cards.component.html',
-  styleUrls: ['./vehicle-mobile-cards.component.scss']
+    selector: 'vehicle-mobile-cards',
+    imports: [DatePipe, DecimalPipe, MatIconModule, UiStatusBadgeComponent, UiEmptyStateComponent],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    templateUrl: './vehicle-mobile-cards.component.html',
+    styleUrls: ['./vehicle-mobile-cards.component.scss']
 })
 export class VehicleMobileCardsComponent {
   readonly rows = input<VehicleListItem[]>([]);

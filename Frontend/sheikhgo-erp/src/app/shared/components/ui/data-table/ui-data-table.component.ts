@@ -16,11 +16,10 @@ import { UiTableColumn, UiTableSort } from '../types/ui.types';
 type TableRow = Record<string, unknown>;
 
 @Component({
-  selector: 'ui-data-table',
-  standalone: true,
-  imports: [NgTemplateOutlet, MatIconModule, UiEmptyStateComponent],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'ui-data-table',
+    imports: [NgTemplateOutlet, MatIconModule, UiEmptyStateComponent],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     <div class="overflow-hidden rounded-xl border border-fleet-border bg-white">
       @if (searchable() || title()) {
         <div class="flex flex-col gap-3 border-b border-fleet-border px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
@@ -141,7 +140,7 @@ type TableRow = Record<string, unknown>;
       }
     </div>
   `,
-  styles: [`
+    styles: [`
     :host { display: block; min-width: 0; }
     mat-icon { display: inline-flex; align-items: center; justify-content: center; }
     @media (max-width: 767px) {

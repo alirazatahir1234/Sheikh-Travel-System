@@ -13,11 +13,10 @@ import { FormsModule } from '@angular/forms';
 import { Tenant } from '../../../../core/models/platform.model';
 
 @Component({
-  selector: 'app-tenant-selector',
-  standalone: true,
-  imports: [CommonModule, FormsModule],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'app-tenant-selector',
+    imports: [CommonModule, FormsModule],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     <div class="relative">
       <label class="block text-xs font-medium text-text-muted mb-1">Select Tenant</label>
       <div class="relative">
@@ -87,9 +86,9 @@ import { Tenant } from '../../../../core/models/platform.model';
       </div>
     </div>
   `,
-  host: {
-    '(document:click)': 'onDocumentClick($event)',
-  },
+    host: {
+        '(document:click)': 'onDocumentClick($event)',
+    }
 })
 export class TenantSelectorComponent {
   readonly tenants = input<Tenant[]>([]);

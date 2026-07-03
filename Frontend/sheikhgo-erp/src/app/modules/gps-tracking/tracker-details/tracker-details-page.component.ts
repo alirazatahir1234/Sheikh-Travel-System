@@ -13,11 +13,14 @@ import {
   isTrackerInstalled,
   normalizeInventoryStatus
 } from '../utils/tracker-status.util';
+import { SharedModule } from '../../../shared/shared.module';
 
 @Component({
-  selector: 'app-tracker-details-page',
-  templateUrl: './tracker-details-page.component.html',
-  styleUrls: ['./tracker-details-page.component.scss']
+    selector: 'app-tracker-details-page',
+    templateUrl: './tracker-details-page.component.html',
+    styleUrls: ['./tracker-details-page.component.scss'],
+    standalone: true,
+    imports: [SharedModule]
 })
 export class TrackerDetailsPageComponent implements OnInit {
   private readonly gps = inject(GpsTrackingService);

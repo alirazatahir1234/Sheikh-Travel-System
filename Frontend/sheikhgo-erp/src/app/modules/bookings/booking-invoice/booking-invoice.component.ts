@@ -9,9 +9,10 @@ import { Payment } from '../../../core/models/payment.model';
 import { COMPANY_NAME, APP_LOGO_PATH } from '../../../core/constants/app-brand';
 
 @Component({
-  selector: 'app-booking-invoice',
-  templateUrl: './booking-invoice.component.html',
-  styleUrls: ['./booking-invoice.component.scss']
+    selector: 'app-booking-invoice',
+    templateUrl: './booking-invoice.component.html',
+    styleUrls: ['./booking-invoice.component.scss'],
+    standalone: false
 })
 export class BookingInvoiceComponent implements OnInit {
   readonly companyName = COMPANY_NAME;

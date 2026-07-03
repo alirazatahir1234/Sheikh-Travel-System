@@ -40,9 +40,10 @@ interface CnicBackendOcrMeta {
 type CnicSideUiStatus = 'empty' | 'uploading' | 'ocr' | 'done' | 'error';
 
 @Component({
-  selector: 'app-customer-form',
-  templateUrl: './customer-form.component.html',
-  styleUrls: ['./customer-form.component.scss']
+    selector: 'app-customer-form',
+    templateUrl: './customer-form.component.html',
+    styleUrls: ['./customer-form.component.scss'],
+    standalone: false
 })
 export class CustomerFormComponent implements OnInit, OnDestroy {
   form: FormGroup;

@@ -16,10 +16,11 @@ import {
 } from '../../../core/models/user.model';
 
 @Component({
-  selector: 'app-user-list',
-  templateUrl: './user-list.component.html',
-  styleUrls: ['./user-list.component.scss'],
-  providers: [DatePipe]
+    selector: 'app-user-list',
+    templateUrl: './user-list.component.html',
+    styleUrls: ['./user-list.component.scss'],
+    providers: [DatePipe],
+    standalone: false
 })
 export class UserListComponent implements OnInit {
   displayedColumns = ['select', 'fullName', 'email', 'phone', 'role', 'isActive', 'createdAt', 'actions'];

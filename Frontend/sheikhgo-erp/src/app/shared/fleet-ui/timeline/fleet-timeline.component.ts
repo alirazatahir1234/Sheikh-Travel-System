@@ -9,8 +9,8 @@ export interface FleetTimelineEvent {
 }
 
 @Component({
-  selector: 'fleet-timeline',
-  template: `
+    selector: 'fleet-timeline',
+    template: `
     <ol class="fleet-timeline">
       <li class="fleet-timeline__item" *ngFor="let e of events" [attr.data-tone]="e.tone || 'primary'">
         <span class="fleet-timeline__marker">
@@ -25,7 +25,8 @@ export interface FleetTimelineEvent {
       <li class="fleet-timeline__empty" *ngIf="!events?.length">No activity yet.</li>
     </ol>
   `,
-  styleUrls: ['./fleet-timeline.component.scss']
+    styleUrls: ['./fleet-timeline.component.scss'],
+    standalone: false
 })
 export class FleetTimelineComponent {
   @Input() events: FleetTimelineEvent[] = [];

@@ -4,11 +4,10 @@ import { FuelMaintenanceSummary } from '../../../../core/models/maintenance.mode
 import { UiChartComponent } from '../../../../shared/components/ui/chart/ui-chart.component';
 
 @Component({
-  selector: 'maintenance-fuel-summary',
-  standalone: true,
-  imports: [CurrencyPipe, UiChartComponent],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
+    selector: 'maintenance-fuel-summary',
+    imports: [CurrencyPipe, UiChartComponent],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
     @if (summary(); as s) {
       <div class="card">
         <h3>Fuel vs Maintenance Cost</h3>
@@ -27,7 +26,7 @@ import { UiChartComponent } from '../../../../shared/components/ui/chart/ui-char
       </div>
     }
   `,
-  styles: [`
+    styles: [`
     .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 1.25rem; min-width: 0; }
     h3 { margin: 0 0 1rem; font-size: 1rem; font-weight: 700; color: #0b6b50; }
     .sub { margin: 1rem 0 0.5rem; font-size: 0.75rem; font-weight: 600; color: #64748b; text-transform: uppercase; }

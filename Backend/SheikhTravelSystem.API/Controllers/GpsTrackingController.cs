@@ -39,10 +39,12 @@ public class GpsTrackingController : BaseApiController
         => Ok(await Mediator.Send(new GetPositionHistoryQuery(vehicleId, from, to)));
 
 
+    [RequirePermission(TripPermissions.TripView)]
     [HttpGet("trips/analytics")]
     public async Task<IActionResult> GetTripAnalytics([FromQuery] int? vehicleId, [FromQuery] DateTime? from, [FromQuery] DateTime? to)
         => Ok(await Mediator.Send(new GetTripAnalyticsQuery(vehicleId, from, to)));
 
+    [RequirePermission(TripPermissions.TripView)]
     [HttpGet("trips/replay")]
     public async Task<IActionResult> GetTripReplay([FromQuery] int? vehicleId, [FromQuery] DateTime? from, [FromQuery] DateTime? to)
         => Ok(await Mediator.Send(new GetTripReplayQuery(vehicleId, from, to)));
@@ -51,10 +53,16 @@ public class GpsTrackingController : BaseApiController
     public async Task<IActionResult> GetFleetStatus()
         => Ok(await Mediator.Send(new GetGpsFleetStatusQuery()));
 
+    [HttpGet("dashboard/summary")]
+    public async Task<IActionResult> GetDashboardSummary()
+        => Ok(await Mediator.Send(new GetGpsDashboardSummaryQuery()));
+
+    [RequirePermission(TripPermissions.TripView)]
     [HttpGet("trips/context")]
     public async Task<IActionResult> GetTripContext([FromQuery] int vehicleId)
         => Ok(await Mediator.Send(new GetTripContextQuery(vehicleId)));
 
+    [RequirePermission(TripPermissions.TripView)]
     [HttpGet("trips")]
     public async Task<IActionResult> GetTrips(
         [FromQuery] int? vehicleId,
@@ -65,6 +73,7 @@ public class GpsTrackingController : BaseApiController
         [FromQuery] int? driverId)
         => Ok(await Mediator.Send(new GetGpsTripsQuery(vehicleId, from, to, branchId, departmentId, driverId)));
 
+    [RequirePermission(TripPermissions.TripView)]
     [HttpGet("trips/fleet-summary")]
     public async Task<IActionResult> GetFleetTripSummary(
         [FromQuery] DateTime? from,
@@ -73,6 +82,31 @@ public class GpsTrackingController : BaseApiController
         [FromQuery] int? departmentId,
         [FromQuery] int? driverId)
         => Ok(await Mediator.Send(new GetFleetTripSummaryQuery(from, to, branchId, departmentId, driverId)));
+
+    [RequirePermission(TripPermissions.TripView)]
+    [HttpGet("trips/stops")]
+    public async Task<IActionResult> GetFleetStops(
+        [FromQuery] DateTime? from,
+        [FromQuery] DateTime? to,
+        [FromQuery] int? branchId,
+        [FromQuery] int? departmentId,
+        [FromQuery] int? driverId,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 25)
+        => Ok(await Mediator.Send(new GetFleetStopsQuery(from, to, branchId, departmentId, driverId, page, pageSize)));
+
+    [RequirePermission(TripPermissions.TripView)]
+    [HttpGet("trips/events")]
+    public async Task<IActionResult> GetFleetEvents(
+        [FromQuery] DateTime? from,
+        [FromQuery] DateTime? to,
+        [FromQuery] int? branchId,
+        [FromQuery] int? departmentId,
+        [FromQuery] int? driverId,
+        [FromQuery] string? eventType,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 25)
+        => Ok(await Mediator.Send(new GetFleetEventsQuery(from, to, branchId, departmentId, driverId, eventType, page, pageSize)));
 
     [HttpGet("geofences")]
     public async Task<IActionResult> GetGeofences()

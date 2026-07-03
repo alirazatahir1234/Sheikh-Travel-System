@@ -192,16 +192,74 @@
   margin-bottom: 20px;
 }
 
-.analytics-main {
-  display: grid;
-  grid-template-columns: 1.6fr 1fr;
-  gap: 16px;
-  margin-bottom: 24px;
-  align-items: stretch;
+.analytics-row {
+  margin-bottom: 20px;
 }
 
-.analytics-map {
-  min-height: 420px;
+.analytics-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.charts-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.chart-card {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 16px 18px;
+  min-width: 0;
+}
+
+.chart-card--wide {
+  grid-column: 1 / -1;
+}
+
+.chart-card h3 {
+  margin: 0 0 10px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.quick-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.quick-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid #d1d5db;
+  background: #fff;
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #374151;
+  cursor: pointer;
+}
+
+.quick-filter-chip mat-icon {
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
+}
+
+.quick-filter-chip.active {
+  background: #fef3c7;
+  border-color: #b45309;
+  color: #b45309;
 }
 
 .warn-banner {
@@ -311,6 +369,25 @@
   text-transform: uppercase;
   letter-spacing: 0.4px;
   border-bottom: 1px solid #e5e7eb;
+  white-space: nowrap;
+}
+
+.data-table th.sortable {
+  cursor: pointer;
+  user-select: none;
+  display: table-cell;
+}
+
+.data-table th.sortable:hover {
+  color: #0f766e;
+}
+
+.sort-icon {
+  font-size: 14px;
+  width: 14px;
+  height: 14px;
+  vertical-align: text-bottom;
+  opacity: 0.6;
 }
 
 .data-table td {
@@ -355,6 +432,52 @@
 .speed-pill--high {
   background: #fee2e2;
   color: #dc2626;
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  background: #f3f4f6;
+  color: #374151;
+  white-space: nowrap;
+}
+
+.status-pill--completed { background: #ecfdf5; color: #0f766e; }
+.status-pill--started { background: #eff6ff; color: #2563eb; }
+.status-pill--confirmed { background: #eff6ff; color: #2563eb; }
+.status-pill--cancelled { background: #fee2e2; color: #dc2626; }
+.status-pill--pending { background: #fef3c7; color: #b45309; }
+
+.mobile-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+}
+
+.mobile-cards .stb-record-card { cursor: pointer; }
+.mobile-cards .trip-date { font-size: 12px; color: #6b7280; margin-top: 2px; }
+
+.page-size-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.page-size-select {
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 13px;
+  color: #374151;
+  background: #fff;
 }
 
 .event-badges {
@@ -433,16 +556,20 @@
 
 @media (max-width: 1100px) {
   .kpi-row { grid-template-columns: repeat(3, 1fr); }
-  .analytics-main { grid-template-columns: 1fr; }
+  .charts-grid { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 900px) {
   .trips-page { padding: 16px; }
   .filter-card__row { grid-template-columns: 1fr; }
   .kpi-row { grid-template-columns: repeat(2, 1fr); }
+  .analytics-tiles { grid-template-columns: repeat(2, 1fr); }
   .header-actions { width: 100%; }
 }
 
 @media (max-width: 520px) {
   .kpi-row { grid-template-columns: 1fr; }
+  .analytics-tiles { grid-template-columns: 1fr; }
+  .table-footer { flex-direction: column; align-items: stretch; gap: 10px; }
+  .page-controls { justify-content: space-between; }
 }

@@ -273,6 +273,7 @@ export interface GpsTrip {
   driverName?: string | null;
   fuelLiters?: number | null;
   plateNumber?: string | null;
+  status?: string | null;
 }
 
 
@@ -307,6 +308,45 @@ export interface TripStop {
   longitude: number;
   address?: string | null;
   durationMinutes: number;
+}
+
+export interface FleetTripStop {
+  vehicleId: number;
+  vehicleName?: string | null;
+  plateNumber?: string | null;
+  driverName?: string | null;
+  startTime: string;
+  endTime: string;
+  latitude: number;
+  longitude: number;
+  address?: string | null;
+  durationMinutes: number;
+}
+
+export interface FleetTripEvent {
+  vehicleId: number;
+  vehicleName?: string | null;
+  plateNumber?: string | null;
+  driverName?: string | null;
+  time: string;
+  type: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  address?: string | null;
+  speedKmh?: number | null;
+}
+
+/**
+ * Page over a capped-fan-out fleet report (Stops/Events) — totalCount/pagination only cover
+ * vehiclesQueried, not the full vehiclesInScope. Surface the gap when vehiclesQueried < vehiclesInScope.
+ */
+export interface FleetReportPage<T> {
+  items: T[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+  vehiclesInScope: number;
+  vehiclesQueried: number;
 }
 
 export interface TripAnalyticsBundle {
@@ -356,6 +396,38 @@ export interface GpsFleetStatus {
   neverSeen: number;
   avgSpeedKmh?: number | null;
   todayDistanceKm?: number | null;
+}
+
+export interface GpsDashboardTrends {
+  online: number;
+  moving: number;
+  parked: number;
+  idle: number;
+  offline: number;
+  neverSeen: number;
+  totalFleet: number;
+  alertsToday: number;
+}
+
+export interface GpsDashboardSparkline {
+  moving: number[];
+  parked: number[];
+  idle: number[];
+  offline: number[];
+}
+
+export interface GpsDashboardSummary {
+  online: number;
+  moving: number;
+  parked: number;
+  idle: number;
+  offline: number;
+  neverSeen: number;
+  totalFleet: number;
+  alertsToday: number;
+  trends: GpsDashboardTrends;
+  sparkline: GpsDashboardSparkline;
+  lastSyncAt: string;
 }
 
 export interface TripDeviceContext {
