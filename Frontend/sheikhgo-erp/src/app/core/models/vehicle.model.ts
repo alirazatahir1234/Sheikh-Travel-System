@@ -321,7 +321,7 @@ export function normalizeVehicle(vehicle: Vehicle): Vehicle {
 }
 
 export function normalizeVehicleListItem(item: VehicleListItem & { Id?: number; Name?: string; RegistrationNumber?: string }): VehicleListItem {
-  const raw = item as Record<string, unknown>;
+  const raw = item as unknown as Record<string, unknown>;
   return {
     ...item,
     id: Number(item.id ?? raw['Id'] ?? 0),

@@ -9,6 +9,7 @@ import {
   ViewChild
 } from '@angular/core';
 import { Chart, registerables } from 'chart.js';
+import { AppChartInstance, createAppChart } from '../../../core/utils/chart.util';
 
 Chart.register(...registerables);
 
@@ -32,9 +33,9 @@ export class FuelLogAnalyticsComponent implements AfterViewInit, OnChanges, OnDe
   @Input() fleetEfficiency = 0;
   @Input() loading = false;
 
-  private expenseChart?: Chart;
-  private typeChart?: Chart;
-  private vehicleChart?: Chart;
+  private expenseChart?: AppChartInstance;
+  private typeChart?: AppChartInstance;
+  private vehicleChart?: AppChartInstance;
   private viewReady = false;
 
   ngAfterViewInit(): void {
@@ -78,7 +79,7 @@ export class FuelLogAnalyticsComponent implements AfterViewInit, OnChanges, OnDe
     const p = this.primary();
     g.addColorStop(0, `${p}50`);
     g.addColorStop(1, `${p}06`);
-    this.expenseChart = new Chart(ctx, {
+    this.expenseChart = createAppChart(ctx, {
       type: 'line',
       data: {
         labels: this.expenseLabels,
@@ -112,7 +113,7 @@ export class FuelLogAnalyticsComponent implements AfterViewInit, OnChanges, OnDe
     const ctx = el.getContext('2d');
     if (!ctx) return;
     const colors = ['#3B82F6', '#F97316', '#10B981', '#8B5CF6', '#14B8A6'];
-    this.typeChart = new Chart(ctx, {
+    this.typeChart = createAppChart(ctx, {
       type: 'doughnut',
       data: {
         labels: this.typeLabels,
@@ -139,7 +140,7 @@ export class FuelLogAnalyticsComponent implements AfterViewInit, OnChanges, OnDe
     this.vehicleChart?.destroy();
     const ctx = el.getContext('2d');
     if (!ctx) return;
-    this.vehicleChart = new Chart(ctx, {
+    this.vehicleChart = createAppChart(ctx, {
       type: 'bar',
       data: {
         labels: this.vehicleLabels,

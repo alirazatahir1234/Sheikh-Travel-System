@@ -456,7 +456,7 @@ function normalizeSchedulableVehicle(item: MaintenanceSchedulableVehicle & {
   VehicleCode?: string | null;
   Status?: number;
 }): MaintenanceSchedulableVehicle {
-  const raw = item as Record<string, unknown>;
+  const raw = item as unknown as Record<string, unknown>;
   return {
     vehicleId: Number(item.vehicleId ?? raw['VehicleId'] ?? 0),
     name: String(item.name ?? raw['Name'] ?? '').trim(),

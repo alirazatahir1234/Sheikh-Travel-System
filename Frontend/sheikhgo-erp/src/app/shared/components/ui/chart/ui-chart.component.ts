@@ -16,6 +16,7 @@ import {
   ChartType,
   registerables
 } from 'chart.js';
+import { AppChartInstance, createAppChart } from '../../../../core/utils/chart.util';
 
 Chart.register(...registerables);
 
@@ -42,7 +43,7 @@ export class UiChartComponent implements AfterViewInit, OnDestroy {
   readonly height = input('280px');
 
   private readonly canvasRef = viewChild<ElementRef<HTMLCanvasElement>>('canvas');
-  private chart?: Chart;
+  private chart?: AppChartInstance;
   private viewReady = false;
 
   constructor() {
@@ -68,12 +69,11 @@ export class UiChartComponent implements AfterViewInit, OnDestroy {
       return;
     }
     this.chart?.destroy();
-    const config = {
+    this.chart = createAppChart(canvas, {
       type: this.type(),
       data: this.data(),
       options: this.options() ?? this.defaultOptions()
-    } as ChartConfiguration<UiChartType>;
-    this.chart = new Chart(canvas, config);
+    } as ChartConfiguration<UiChartType>);
   }
 
   private defaultOptions(): UiChartOptions {
