@@ -439,6 +439,14 @@ export interface CreateMaintenanceSchedulePayload {
   priority: string;
 }
 
+export interface MaintenanceSchedulableVehicle {
+  vehicleId: number;
+  name: string;
+  registrationNumber?: string | null;
+  vehicleCode?: string | null;
+  status: number;
+}
+
 export interface RescheduleMaintenanceSchedulePayload {
   lastServiceDate?: string | null;
   lastServiceMileage?: number | null;

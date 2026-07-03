@@ -320,11 +320,15 @@ export function normalizeVehicle(vehicle: Vehicle): Vehicle {
   };
 }
 
-export function normalizeVehicleListItem(item: VehicleListItem): VehicleListItem {
+export function normalizeVehicleListItem(item: VehicleListItem & { Id?: number; Name?: string; RegistrationNumber?: string }): VehicleListItem {
+  const raw = item as Record<string, unknown>;
   return {
     ...item,
-    fuelType: normalizeFuelType(item.fuelType),
-    status: normalizeVehicleStatus(item.status)
+    id: Number(item.id ?? raw['Id'] ?? 0),
+    name: String(item.name ?? raw['Name'] ?? '').trim(),
+    registrationNumber: String(item.registrationNumber ?? raw['RegistrationNumber'] ?? '').trim(),
+    fuelType: normalizeFuelType(item.fuelType ?? raw['FuelType']),
+    status: normalizeVehicleStatus(item.status ?? raw['Status'])
   };
 }
 

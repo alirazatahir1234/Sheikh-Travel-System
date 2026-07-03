@@ -124,6 +124,20 @@ public class CreateVehicleCommandValidatorTests
         result.Errors.Count.Should().BeGreaterThanOrEqualTo(4);
     }
 
+    [Theory]
+    [InlineData("7687346587368")]
+    [InlineData("823789782789732")]
+    public void Validate_NumericOnlyDescriptiveFields_ShouldFail(string value)
+    {
+        var cmd = new CreateVehicleCommand(ValidCommand().Vehicle with { Name = value, Make = value, Model = value, Color = value });
+        var result = _validator.Validate(cmd);
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().Contain(e => e.PropertyName.Contains("Name"));
+        result.Errors.Should().Contain(e => e.PropertyName.Contains("Make"));
+        result.Errors.Should().Contain(e => e.PropertyName.Contains("Model"));
+        result.Errors.Should().Contain(e => e.PropertyName.Contains("Color"));
+    }
+
     [Fact]
     public void CreateVehicleDto_ShouldHoldAllFields()
     {
@@ -223,6 +237,20 @@ public class UpdateVehicleCommandValidatorTests
         var result = _validator.Validate(cmd);
         result.IsValid.Should().BeFalse();
         result.Errors.Should().Contain(e => e.PropertyName.Contains("FuelAverage"));
+    }
+
+    [Theory]
+    [InlineData("7687346587368")]
+    [InlineData("66786786786876186217681D")]
+    public void Validate_NumericOnlyDescriptiveFields_ShouldFail(string value)
+    {
+        var cmd = new UpdateVehicleCommand(1, ValidCommand().Vehicle with { Name = value, Make = value, Model = value, Color = value });
+        var result = _validator.Validate(cmd);
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().Contain(e => e.PropertyName.Contains("Name"));
+        result.Errors.Should().Contain(e => e.PropertyName.Contains("Make"));
+        result.Errors.Should().Contain(e => e.PropertyName.Contains("Model"));
+        result.Errors.Should().Contain(e => e.PropertyName.Contains("Color"));
     }
 
     [Fact]

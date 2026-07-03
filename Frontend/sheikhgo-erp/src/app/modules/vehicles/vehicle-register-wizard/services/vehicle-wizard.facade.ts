@@ -46,6 +46,11 @@ import {
   toSelectOptions,
   withSelectOption
 } from '../utils/vehicle-catalog.util';
+import {
+  descriptiveVehicleTextError,
+  descriptiveVehicleTextValidator,
+  isDescriptiveVehicleText
+} from '../../utils/vehicle-descriptive-text.util';
 
 @Injectable()
 export class VehicleWizardFacade {
@@ -91,18 +96,18 @@ export class VehicleWizardFacade {
   );
 
   readonly form: FormGroup = this.fb.group({
-    name: ['', [requiredTrimmed(), Validators.maxLength(100)]],
+    name: ['', [requiredTrimmed(), descriptiveVehicleTextValidator(), Validators.maxLength(100)]],
     vehicleCode: [generateVehicleCode()],
     registrationNumber: ['', [requiredTrimmed(), Validators.maxLength(20)]],
     vin: [''],
     year: [String(new Date().getFullYear()), [Validators.required]],
-    make: ['', [requiredTrimmed(), Validators.maxLength(80)]],
-    model: ['', [requiredTrimmed(), Validators.maxLength(80)]],
-    color: ['', [requiredTrimmed(), Validators.maxLength(40)]],
+    make: ['', [requiredTrimmed(), descriptiveVehicleTextValidator(), Validators.maxLength(80)]],
+    model: ['', [requiredTrimmed(), descriptiveVehicleTextValidator(), Validators.maxLength(80)]],
+    color: ['', [requiredTrimmed(), descriptiveVehicleTextValidator(), Validators.maxLength(40)]],
     fuelType: [String(FuelType.Petrol), Validators.required],
     fuelAverage: [null as number | null, [Validators.required, Validators.min(0.1)]],
-    engineNo: ['', [requiredTrimmed(), Validators.maxLength(60)]],
-    chassisNo: ['', [requiredTrimmed(), Validators.maxLength(60)]],
+    engineNo: ['', [requiredTrimmed(), Validators.maxLength(60), Validators.pattern(/^(?=.*\d)[A-Za-z0-9]+$/)]],
+    chassisNo: ['', [requiredTrimmed(), Validators.maxLength(60), Validators.pattern(/^(?=.*\d)[A-Za-z0-9]+$/)]],
     purchaseCurrencyCode: ['', Validators.required],
     purchasePrice: [{ value: null as number | null, disabled: true }, [Validators.required, Validators.min(1)]],
     insuranceExpiryDate: [''],
@@ -118,7 +123,7 @@ export class VehicleWizardFacade {
     mode: ['new' as GpsWizardMode],
     model: ['Teltonika FMB920'],
     uniqueId: [''],
-    simNumber: [''],
+    simNumber: ['', [Validators.pattern(/^[0-9]*$/)]],
     vendor: ['Teltonika'],
     existingDeviceId: [''],
     deviceName: ['']
@@ -181,13 +186,17 @@ export class VehicleWizardFacade {
     const errors: string[] = [];
     const f = this.formValues();
     if (!f.name?.trim()) errors.push('Vehicle name is required');
+    else if (!isDescriptiveVehicleText(f.name)) errors.push(descriptiveVehicleTextError('name'));
     if (!f.registrationNumber?.trim()) errors.push('License plate is required');
     if (getVinValidationState(f.vin) === 'invalid') errors.push('VIN format is invalid');
     if (getVinValidationState(f.vin) === 'incomplete') errors.push('VIN must be 17 characters');
     if (!f.year) errors.push('Year is required');
     if (!f.make?.trim()) errors.push('Make is required');
+    else if (!isDescriptiveVehicleText(f.make)) errors.push(descriptiveVehicleTextError('make'));
     if (!f.model?.trim()) errors.push('Model is required');
+    else if (!isDescriptiveVehicleText(f.model)) errors.push(descriptiveVehicleTextError('model'));
     if (!f.color?.trim()) errors.push('Color is required');
+    else if (!isDescriptiveVehicleText(f.color)) errors.push(descriptiveVehicleTextError('color'));
     if (!f.seatingCapacity || Number(f.seatingCapacity) < 1) errors.push('Seating capacity is required');
     if (!f.fuelAverage || Number(f.fuelAverage) <= 0) errors.push('Fuel economy is required');
     if (!f.engineNo?.trim()) errors.push('Engine number is required');
@@ -325,7 +334,7 @@ export class VehicleWizardFacade {
       const mode = this.gpsForm.get('mode')?.value as GpsWizardMode;
       if (mode === 'skip') return true;
       if (mode === 'existing') return !!this.gpsForm.get('existingDeviceId')?.valid;
-      return this.gpsControlsValid(['uniqueId', 'model', 'vendor']);
+      return this.gpsControlsValid(['uniqueId', 'model', 'vendor', 'simNumber']);
     }
     if (step === 'documents') {
       return this.requiredDocumentSlotsValid();
@@ -1020,6 +1029,7 @@ export class VehicleWizardFacade {
       } else if (mode === 'new') {
         this.markTouched(this.gpsForm.get('uniqueId'));
         this.markTouched(this.gpsForm.get('model'));
+        this.markTouched(this.gpsForm.get('simNumber'));
         this.markTouched(this.gpsForm.get('vendor'));
       }
       return;

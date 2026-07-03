@@ -23,7 +23,7 @@ import {
   normalizeVehicleListItem,
   normalizeVehicleStatus
 } from '../models/vehicle.model';
-import { PagedResult } from '../models/common.model';
+import { PagedResult, normalizePagedResult } from '../models/common.model';
 
 @Injectable({ providedIn: 'root' })
 export class VehicleService {
@@ -37,10 +37,13 @@ export class VehicleService {
       params = params.set('includeDrafts', 'true');
     }
     return this.http.get<PagedResult<VehicleListItem>>(this.base, { params }).pipe(
-      map(result => ({
-        ...result,
-        items: result.items.map(normalizeVehicleListItem)
-      }))
+      map(result => {
+        const page = normalizePagedResult(result);
+        return {
+          ...page,
+          items: page.items.map(normalizeVehicleListItem).filter(v => v.id > 0)
+        };
+      })
     );
   }
 

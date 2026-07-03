@@ -90,6 +90,11 @@ public partial class MaintenanceController : BaseApiController
         => Ok(await Mediator.Send(new GetMaintenanceScheduleTemplatesQuery()));
 
     [RequirePermission(MaintenancePermissions.View)]
+    [HttpGet("schedules/vehicles")]
+    public async Task<IActionResult> GetSchedulableVehicles()
+        => Ok(await Mediator.Send(new ListSchedulableMaintenanceVehiclesQuery()));
+
+    [RequirePermission(MaintenancePermissions.View)]
     [HttpGet("schedules")]
     public async Task<IActionResult> GetSchedules([FromQuery] ListMaintenanceSchedulesQuery query)
         => Ok(await Mediator.Send(query));

@@ -91,22 +91,43 @@
 }
 
 .allowance-stat-card {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 14px 16px;
   min-height: 72px;
+  padding: 0;
+
+  ::ng-deep .mat-mdc-card-content {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    min-height: 72px;
+    box-sizing: border-box;
+  }
+}
+
+.allowance-stat-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  background: var(--stb-primary-50, #ecfdf5);
+  color: var(--stb-primary, #0f766e);
 
   mat-icon {
-    color: var(--stb-primary, #0f766e);
-    background: var(--stb-primary-50, #ecfdf5);
-    border-radius: 10px;
-    padding: 8px;
-    font-size: 24px;
-    width: 24px;
-    height: 24px;
-    flex-shrink: 0;
+    font-size: 22px;
+    width: 22px;
+    height: 22px;
+    line-height: 1;
   }
+}
+
+.allowance-stat-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
 .allowance-stat-label {
