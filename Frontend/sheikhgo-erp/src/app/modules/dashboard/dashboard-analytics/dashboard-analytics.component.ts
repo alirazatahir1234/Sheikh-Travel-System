@@ -9,6 +9,7 @@ import {
   ViewChild
 } from '@angular/core';
 import { Chart, registerables } from 'chart.js';
+import { AppChartInstance, createAppChart } from '../../../core/utils/chart.util';
 import { SharedModule } from '../../../shared/shared.module';
 
 Chart.register(...registerables);
@@ -37,9 +38,9 @@ export class DashboardAnalyticsComponent implements AfterViewInit, OnChanges, On
   readonly skeletonBars = [0, 1, 2, 3, 4, 5, 6];
   readonly skeletonLegend = [0, 1, 2, 3];
 
-  private revenueChart?: Chart;
-  private bookingsChart?: Chart;
-  private fleetChart?: Chart;
+  private revenueChart?: AppChartInstance;
+  private bookingsChart?: AppChartInstance;
+  private fleetChart?: AppChartInstance;
   private viewReady = false;
   private resizeObserver?: ResizeObserver;
 
@@ -113,7 +114,7 @@ export class DashboardAnalyticsComponent implements AfterViewInit, OnChanges, On
     }
     if (!values.length) values = labels.map(() => 0);
 
-    this.revenueChart = new Chart(el, {
+    this.revenueChart = createAppChart(el, {
       type: 'line',
       data: {
         labels,
@@ -121,7 +122,7 @@ export class DashboardAnalyticsComponent implements AfterViewInit, OnChanges, On
           label: 'Revenue (PKR)',
           data: values,
           borderColor: primary,
-          backgroundColor: (context) => {
+          backgroundColor: (context: any) => {
             const chart = context.chart;
             const { ctx, chartArea } = chart;
             if (!chartArea) return `${primary}22`;
@@ -150,7 +151,7 @@ export class DashboardAnalyticsComponent implements AfterViewInit, OnChanges, On
             bodyFont: { size: 12 },
             padding: 12,
             callbacks: {
-              label: (ctx) => ` PKR ${Number(ctx.parsed.y).toLocaleString()}`
+              label: (ctx: any) => ` PKR ${Number(ctx.parsed.y).toLocaleString()}`
             }
           }
         },
@@ -162,7 +163,7 @@ export class DashboardAnalyticsComponent implements AfterViewInit, OnChanges, On
             ticks: {
               font: { size: 11 },
               color: '#64748B',
-              callback: (v) => (Number(v) >= 1000 ? `${Number(v) / 1000}k` : String(v))
+              callback: (v: string | number) => (Number(v) >= 1000 ? `${Number(v) / 1000}k` : String(v))
             }
           }
         }
@@ -184,7 +185,7 @@ export class DashboardAnalyticsComponent implements AfterViewInit, OnChanges, On
     };
     const colors = labels.map(l => statusColors[l] ?? '#94A3B8');
 
-    this.bookingsChart = new Chart(el, {
+    this.bookingsChart = createAppChart(el, {
       type: 'doughnut',
       data: {
         labels,
@@ -220,7 +221,7 @@ export class DashboardAnalyticsComponent implements AfterViewInit, OnChanges, On
     const info = getComputedStyle(document.documentElement).getPropertyValue('--stb-info').trim() || '#3B82F6';
     const warn = getComputedStyle(document.documentElement).getPropertyValue('--stb-warning').trim() || '#F59E0B';
 
-    this.fleetChart = new Chart(el, {
+    this.fleetChart = createAppChart(el, {
       type: 'bar',
       data: {
         labels: this.fleetLabels,

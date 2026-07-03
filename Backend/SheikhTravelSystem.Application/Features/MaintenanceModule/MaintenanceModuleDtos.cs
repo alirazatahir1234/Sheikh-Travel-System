@@ -1,3 +1,5 @@
+using SheikhTravelSystem.Domain.Enums;
+
 namespace SheikhTravelSystem.Application.Features.MaintenanceModule;
 
 public record MaintenanceDashboardDto(
@@ -365,6 +367,13 @@ public record CreateMaintenanceScheduleDto(
     decimal? LastServiceMileage,
     decimal? LastServiceEngineHours,
     string Priority);
+
+public record MaintenanceSchedulableVehicleDto(
+    int VehicleId,
+    string Name,
+    string? RegistrationNumber,
+    string? VehicleCode,
+    VehicleStatus Status);
 
 public record PartDto(
     int Id,

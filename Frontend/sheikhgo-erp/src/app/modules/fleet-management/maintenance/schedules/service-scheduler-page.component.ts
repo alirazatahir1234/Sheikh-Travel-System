@@ -5,14 +5,13 @@ import { Router } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { UiToastService } from '../../../../shared/components/ui/toast/ui-toast.service';
 import { MaintenanceService } from '../../../../core/services/maintenance.service';
-import { VehicleService } from '../../../../core/services/vehicle.service';
 import { MaintenanceContextService } from '../maintenance-context.service';
 import {
   MaintenanceScheduleCalendarItem,
   MaintenanceScheduleListItem,
+  MaintenanceSchedulableVehicle,
   ScheduleStatus
 } from '../../../../core/models/maintenance.model';
-import { VehicleListItem } from '../../../../core/models/vehicle.model';
 import { ScheduleViewToggleComponent, ScheduleView } from './components/schedule-view-toggle.component';
 import { ScheduleListViewComponent } from './components/schedule-list-view.component';
 import { ScheduleCalendarViewComponent } from './components/schedule-calendar-view.component';
@@ -41,7 +40,6 @@ import { AuthService } from '../../../../core/services/auth.service';
 })
 export class ServiceSchedulerPageComponent implements OnInit {
   private readonly maintenanceService = inject(MaintenanceService);
-  private readonly vehicleService = inject(VehicleService);
   private readonly toast = inject(UiToastService);
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
@@ -50,7 +48,7 @@ export class ServiceSchedulerPageComponent implements OnInit {
 
   readonly schedules = signal<MaintenanceScheduleListItem[]>([]);
   readonly calendarItems = signal<MaintenanceScheduleCalendarItem[]>([]);
-  readonly vehicles = signal<VehicleListItem[]>([]);
+  readonly vehicles = signal<MaintenanceSchedulableVehicle[]>([]);
   readonly view = signal<ScheduleView>('list');
   readonly statusFilter = signal<ScheduleStatus | ''>('');
   readonly drawerOpen = signal(false);
@@ -82,8 +80,8 @@ export class ServiceSchedulerPageComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    this.vehicleService.getAll(1, 500).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: r => this.vehicles.set(r.items),
+    this.maintenanceService.getSchedulableVehicles().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: vehicles => this.vehicles.set(vehicles),
       error: err => this.toast.error(apiErrorMessage(err, 'Failed to load vehicles'))
     });
     this.loadCalendarRange(this.monthRange());

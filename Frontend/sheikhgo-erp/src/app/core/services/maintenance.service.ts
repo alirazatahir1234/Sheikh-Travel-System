@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 import { PagedResult } from '../models/common.model';
 import {
@@ -32,6 +33,7 @@ import {
   MaintenanceScheduleTemplate,
   CreateMaintenanceSchedulePayload,
   RescheduleMaintenanceSchedulePayload,
+  MaintenanceSchedulableVehicle,
   VehicleServiceHistoryItem,
   Part,
   PartsInventoryStats,
@@ -302,7 +304,13 @@ export class MaintenanceService {
   }
 
   createSchedule(body: CreateMaintenanceSchedulePayload | Record<string, unknown>): Observable<number> {
-    return this.http.post<number>(`${this.base}/schedules`, body);
+    return this.http.post<number>(`${this.base}/schedules`, sanitizeCreateMaintenanceSchedulePayload(body));
+  }
+
+  getSchedulableVehicles(): Observable<MaintenanceSchedulableVehicle[]> {
+    return this.http.get<MaintenanceSchedulableVehicle[]>(`${this.base}/schedules/vehicles`).pipe(
+      map(items => items.map(normalizeSchedulableVehicle).filter(v => v.vehicleId > 0))
+    );
   }
 
   getParts(search?: string): Observable<Part[]> {
@@ -401,4 +409,59 @@ function roundMoney(value: number | undefined): number {
   const amount = Number(value);
   if (!Number.isFinite(amount) || amount < 0) return 0;
   return Math.round(amount * 100) / 100;
+}
+
+function sanitizeCreateMaintenanceSchedulePayload(
+  body: CreateMaintenanceSchedulePayload | Record<string, unknown>
+): CreateMaintenanceSchedulePayload {
+  const raw = body as CreateMaintenanceSchedulePayload;
+  const vehicleId = Number(raw.vehicleId ?? (body as Record<string, unknown>)['VehicleId']) || 0;
+  const serviceTypeId = Number(raw.serviceTypeId ?? (body as Record<string, unknown>)['ServiceTypeId']);
+  const intervalValue = Number(raw.intervalValue ?? (body as Record<string, unknown>)['IntervalValue']);
+
+  const payload: CreateMaintenanceSchedulePayload = {
+    vehicleId,
+    serviceTypeName: String(raw.serviceTypeName ?? (body as Record<string, unknown>)['ServiceTypeName'] ?? '').trim(),
+    intervalType: String(raw.intervalType ?? (body as Record<string, unknown>)['IntervalType'] ?? 'Mileage').trim(),
+    intervalValue: Number.isFinite(intervalValue) ? intervalValue : 0,
+    priority: String(raw.priority ?? (body as Record<string, unknown>)['Priority'] ?? 'Medium').trim() || 'Medium'
+  };
+
+  if (Number.isFinite(serviceTypeId) && serviceTypeId > 0) {
+    payload.serviceTypeId = serviceTypeId;
+  }
+
+  const lastMileage = raw.lastServiceMileage ?? (body as Record<string, unknown>)['LastServiceMileage'];
+  if (lastMileage !== null && lastMileage !== undefined && lastMileage !== '') {
+    payload.lastServiceMileage = Number(lastMileage);
+  }
+
+  const lastHours = raw.lastServiceEngineHours ?? (body as Record<string, unknown>)['LastServiceEngineHours'];
+  if (lastHours !== null && lastHours !== undefined && lastHours !== '') {
+    payload.lastServiceEngineHours = Number(lastHours);
+  }
+
+  const lastDate = raw.lastServiceDate ?? (body as Record<string, unknown>)['LastServiceDate'];
+  if (typeof lastDate === 'string' && lastDate.trim()) {
+    payload.lastServiceDate = lastDate.trim();
+  }
+
+  return payload;
+}
+
+function normalizeSchedulableVehicle(item: MaintenanceSchedulableVehicle & {
+  VehicleId?: number;
+  Name?: string;
+  RegistrationNumber?: string | null;
+  VehicleCode?: string | null;
+  Status?: number;
+}): MaintenanceSchedulableVehicle {
+  const raw = item as unknown as Record<string, unknown>;
+  return {
+    vehicleId: Number(item.vehicleId ?? raw['VehicleId'] ?? 0),
+    name: String(item.name ?? raw['Name'] ?? '').trim(),
+    registrationNumber: (item.registrationNumber ?? raw['RegistrationNumber'] ?? null) as string | null,
+    vehicleCode: (item.vehicleCode ?? raw['VehicleCode'] ?? null) as string | null,
+    status: Number(item.status ?? raw['Status'] ?? 0)
+  };
 }

@@ -4,6 +4,7 @@ using MediatR;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Exceptions;
 using SheikhTravelSystem.Application.Common.Interfaces;
+using SheikhTravelSystem.Domain.Enums;
 
 namespace SheikhTravelSystem.Application.Features.MaintenanceModule;
 
@@ -20,6 +21,9 @@ public record GetMaintenanceScheduleCalendarQuery(DateTime From, DateTime To)
 
 public record GetMaintenanceScheduleTemplatesQuery()
     : IRequest<ApiResponse<IReadOnlyList<MaintenanceScheduleTemplateDto>>>;
+
+public record ListSchedulableMaintenanceVehiclesQuery()
+    : IRequest<ApiResponse<IReadOnlyList<MaintenanceSchedulableVehicleDto>>>;
 
 // ── Commands ──────────────────────────────────────────────────────────────────
 
@@ -208,6 +212,43 @@ public class GetMaintenanceScheduleTemplatesQueryHandler
             MaintenanceScheduleHelper.DefaultTemplates));
 }
 
+public class ListSchedulableMaintenanceVehiclesQueryHandler(
+    IDbConnectionFactory dbFactory,
+    ITenantContext tenantContext)
+    : IRequestHandler<ListSchedulableMaintenanceVehiclesQuery, ApiResponse<IReadOnlyList<MaintenanceSchedulableVehicleDto>>>
+{
+    public async Task<ApiResponse<IReadOnlyList<MaintenanceSchedulableVehicleDto>>> Handle(
+        ListSchedulableMaintenanceVehiclesQuery request, CancellationToken cancellationToken)
+    {
+        using var connection = dbFactory.CreateConnection();
+        var tenantId = tenantContext.GetRequiredTenantId();
+
+        var rows = await connection.QueryAsync<MaintenanceSchedulableVehicleDto>(new CommandDefinition(
+            """
+            SELECT
+                v.Id AS VehicleId,
+                v.Name,
+                v.RegistrationNumber,
+                v.VehicleCode,
+                v.Status
+            FROM Vehicles v
+            WHERE v.TenantId = @TenantId
+              AND v.IsDeleted = 0
+              AND v.Status NOT IN (@Retired, @Draft)
+            ORDER BY v.Name
+            """,
+            new
+            {
+                TenantId = tenantId,
+                Retired = (int)VehicleStatus.Retired,
+                Draft = (int)VehicleStatus.Draft
+            },
+            cancellationToken: cancellationToken));
+
+        return ApiResponse<IReadOnlyList<MaintenanceSchedulableVehicleDto>>.SuccessResponse(rows.ToList());
+    }
+}
+
 public class CreateMaintenanceScheduleCommandHandler(
     IDbConnectionFactory dbFactory,
     ITenantContext tenantContext)
@@ -219,14 +260,20 @@ public class CreateMaintenanceScheduleCommandHandler(
         var body = request.Body;
         using var connection = dbFactory.CreateConnection();
 
-        var vehicle = await connection.QuerySingleOrDefaultAsync<(decimal CurrentMileage, decimal? CurrentEngineHours)?>(
+        var vehicle = await connection.QuerySingleOrDefaultAsync<(decimal CurrentMileage, decimal? CurrentEngineHours, int Status)?>(
             new CommandDefinition(
-                "SELECT CurrentMileage, CurrentEngineHours FROM Vehicles WHERE Id = @Id AND TenantId = @TenantId AND IsDeleted = 0",
+                "SELECT CurrentMileage, CurrentEngineHours, Status FROM Vehicles WHERE Id = @Id AND TenantId = @TenantId AND IsDeleted = 0",
                 new { Id = body.VehicleId, TenantId = tenantId },
                 cancellationToken: cancellationToken));
 
         if (vehicle is null)
             throw new NotFoundException("Vehicle", body.VehicleId);
+
+        if (vehicle.Value.Status == (int)VehicleStatus.Draft)
+            throw new ValidationException("This vehicle is still a draft. Publish it in Fleet Management before scheduling maintenance.");
+
+        if (vehicle.Value.Status == (int)VehicleStatus.Retired)
+            throw new ValidationException("Cannot schedule maintenance for a retired vehicle.");
 
         var lastMileage = body.LastServiceMileage ?? vehicle.Value.CurrentMileage;
         var lastEngineHours = body.LastServiceEngineHours ?? vehicle.Value.CurrentEngineHours;

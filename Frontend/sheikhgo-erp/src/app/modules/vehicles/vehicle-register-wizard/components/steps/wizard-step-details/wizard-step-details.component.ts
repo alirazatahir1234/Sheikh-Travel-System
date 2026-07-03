@@ -6,6 +6,7 @@ import { UiSelectOption } from '../../../../../../shared/components/ui/types/ui.
 import { UiStatusBadgeComponent } from '../../../../../../shared/components/ui/status-badge/ui-status-badge.component';
 import { VehicleCodeFieldComponent } from '../../vehicle-code-field/vehicle-code-field.component';
 import { VinValidationState } from '../../../models/vehicle-wizard.model';
+import { descriptiveVehicleTextError } from '../../../../utils/vehicle-descriptive-text.util';
 
 @Component({
   selector: 'app-wizard-step-details',
@@ -118,6 +119,9 @@ export class WizardStepDetailsComponent {
     if (!control.errors) return undefined;
 
     if (control.hasError('required')) return 'This field is required.';
+    if (control.hasError('descriptiveText') && (name === 'name' || name === 'make' || name === 'model' || name === 'color')) {
+      return descriptiveVehicleTextError(name);
+    }
     if (name === 'registrationNumber' && control.hasError('conflict')) return 'This license plate is already in use.';
     if (control.hasError('maxlength')) return 'Maximum length exceeded.';
     if (name === 'vin' && control.hasError('pattern')) return 'VIN must be alphanumeric and cannot include I, O, or Q.';

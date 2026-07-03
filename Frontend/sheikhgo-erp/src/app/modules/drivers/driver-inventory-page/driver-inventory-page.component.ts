@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject, model, signal, OnInit, DestroyRef, ViewChild } from '@angular/core';
-import { NgClass } from '@angular/common';
+import { DatePipe, NgClass } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
@@ -10,6 +10,7 @@ import { Subject, forkJoin, catchError, of, switchMap, debounceTime, distinctUnt
 import { ChartData } from 'chart.js';
 import { UiChartOptions } from '../../../shared/components/ui';
 import { DriverService } from '../../../core/services/driver.service';
+import { ExportService, ExportColumn } from '../../../core/services/export.service';
 import { PlatformService } from '../../../core/services/platform.service';
 import { DriverListItem, DriverStats, DriverStatus, DriverStatusLabels, DriversAvailabilitySummary } from '../../../core/models/driver.model';
 import { PagedResult } from '../../../core/models/common.model';
@@ -30,6 +31,7 @@ import { EMPTY_DRIVER_FILTERS, DriverFilters, DriverPagination, DEFAULT_DRIVER_P
 @Component({
   selector: 'app-driver-inventory-page',
   standalone: true,
+  providers: [DatePipe],
   imports: [
     NgClass,
     RouterModule,
@@ -53,8 +55,10 @@ export class DriverInventoryPageComponent implements OnInit {
   @ViewChild(DriverBulkAssignDialogComponent) bulkAssignDialog?: DriverBulkAssignDialogComponent;
 
   private readonly driverService = inject(DriverService);
+  private readonly exportService = inject(ExportService);
   private readonly platformService = inject(PlatformService);
   private readonly confirm = inject(UiConfirmService);
+  private readonly datePipe = inject(DatePipe);
   private readonly toast = inject(UiToastService);
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
@@ -404,7 +408,45 @@ export class DriverInventoryPageComponent implements OnInit {
   }
 
   exportReport(): void {
-    this.toast.info('Export not yet implemented');
+    const rows = this.rows();
+    if (!rows.length) {
+      this.toast.info('No drivers available to export');
+      return;
+    }
+
+    const columns: ExportColumn<DriverListItem>[] = [
+      { header: 'Name', accessor: row => row.fullName, excelWidth: 24, pdfWeight: 2.2 },
+      { header: 'Phone', accessor: row => row.phone, excelWidth: 16, pdfWeight: 1.3 },
+      { header: 'License #', accessor: row => row.licenseNumber, excelWidth: 16, pdfWeight: 1.3 },
+      { header: 'License Expiry', accessor: row => row.licenseExpiryDate ? this.datePipe.transform(row.licenseExpiryDate, 'mediumDate') ?? '' : '', excelWidth: 16, pdfWeight: 1.2 },
+      { header: 'Status', accessor: row => DriverStatusLabels[row.status] ?? 'Unknown', excelWidth: 14, pdfWeight: 1 },
+      { header: 'Branch', accessor: row => row.branchName ?? '', excelWidth: 18, pdfWeight: 1.2 },
+      { header: 'Vehicle', accessor: row => row.assignedVehicleRegistration || row.assignedVehicleCode || row.assignedVehicleName || '', excelWidth: 16, pdfWeight: 1.2 },
+      { header: 'Verified', accessor: row => row.verificationStatus, excelWidth: 16, pdfWeight: 1 }
+    ];
+
+    const stamp = this.datePipe.transform(new Date(), 'yyyyMMdd-HHmm') ?? '';
+    const filters = this.filters();
+    const filterSummary = [
+      filters.search?.trim() ? `Search: ${filters.search.trim()}` : null,
+      filters.status === 'ALL' ? null : `Status: ${DriverStatusLabels[filters.status as DriverStatus] ?? filters.status}`,
+      filters.branchId === 'ALL' ? null : `Branch: ${this.branchOptions().find(option => option.value === String(filters.branchId))?.label ?? filters.branchId}`,
+      filters.licenseExpiry === 'ALL' ? null : `License: ${filters.licenseExpiry}`,
+      filters.verificationStatus === 'ALL' ? null : `Verification: ${filters.verificationStatus}`,
+      filters.availability === 'ALL' ? null : `Availability: ${filters.availability}`
+    ].filter(Boolean).join(' · ');
+
+    this.exportService.exportExcel(rows, columns, {
+      filename: `drivers-report-${stamp}`,
+      title: 'Drivers Report',
+      subtitle: [
+        `${rows.length} driver(s)`,
+        filterSummary || 'All drivers'
+      ].filter(Boolean).join(' · '),
+      sheetName: 'Drivers'
+    });
+
+    this.toast.success('Drivers report downloaded');
   }
 
   importDrivers(): void {

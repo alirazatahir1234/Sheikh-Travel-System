@@ -20,11 +20,26 @@ import { apiErrorMessage } from '../../../../../core/utils/api-error.util';
             <input [(ngModel)]="fromLocation" name="from" [placeholder]="p.location || 'Main warehouse'" />
           </label>
           <label>To Location<input [(ngModel)]="toLocation" name="to" required placeholder="Workshop B" /></label>
-          <label>Quantity<input type="number" min="1" [max]="p.stockQuantity" [(ngModel)]="quantity" name="qty" required /></label>
+          <label>
+            Quantity
+            <input
+              type="number"
+              min="1"
+              step="1"
+              [max]="p.stockQuantity"
+              [(ngModel)]="quantity"
+              (ngModelChange)="onQuantityChange($event)"
+              name="qty"
+              [disabled]="p.stockQuantity <= 0"
+              required />
+            @if (quantityError()) {
+              <span class="input-error">{{ quantityError() }}</span>
+            }
+          </label>
           <label>Notes<textarea [(ngModel)]="notes" name="notes" rows="2"></textarea></label>
           <footer class="footer">
             <button type="button" class="btn-muted" (click)="closed.emit()">Cancel</button>
-            <button type="submit" class="btn-primary" [disabled]="saving()">{{ saving() ? 'Transferring…' : 'Transfer' }}</button>
+            <button type="submit" class="btn-primary" [disabled]="saving() || !canSubmit()">{{ saving() ? 'Transferring…' : 'Transfer' }}</button>
           </footer>
         </form>
       }
@@ -39,6 +54,7 @@ import { apiErrorMessage } from '../../../../../core/utils/api-error.util';
     .btn-primary { background: #0B6B50; color: #fff; border: none; border-radius: 8px; padding: 0.5rem 1rem; font-weight: 600; cursor: pointer; }
     .btn-muted { background: #f1f5f9; color: #475569; border: none; border-radius: 8px; padding: 0.5rem 1rem; cursor: pointer; }
     .btn-primary:disabled { opacity: 0.6; }
+    .input-error { color: #b91c1c; font-size: 0.8125rem; margin-top: 0.25rem; display: block; }
   `]
 })
 export class TransferStockDrawerComponent {
@@ -51,6 +67,7 @@ export class TransferStockDrawerComponent {
   readonly saved = output<void>();
 
   readonly saving = signal(false);
+  readonly quantityError = signal<string | null>(null);
   fromLocation = '';
   toLocation = '';
   quantity = 1;
@@ -62,14 +79,40 @@ export class TransferStockDrawerComponent {
       const p = this.part();
       this.fromLocation = p?.location ?? '';
       this.toLocation = '';
-      this.quantity = 1;
+      this.quantity = p?.stockQuantity && p.stockQuantity > 0 ? 1 : 0;
       this.notes = '';
+      this.quantityError.set(p?.stockQuantity && p.stockQuantity > 0 ? null : 'No available stock for transfer');
     }, { allowSignalWrites: true });
+  }
+
+  onQuantityChange(value: number | string): void {
+    const p = this.part();
+    let next = typeof value === 'string' ? Number(value) : value;
+    if (Number.isNaN(next) || next < 0) next = 0;
+    if (p) {
+      next = Math.min(next, p.stockQuantity);
+      if (next > 0 && next < 1) next = 1;
+    }
+    this.quantity = next;
+    this.quantityError.set(this.getQuantityError(p, next));
+  }
+
+  private getQuantityError(p: Part | null, next: number): string | null {
+    if (!p) return null;
+    if (p.stockQuantity <= 0) return 'No available stock for transfer';
+    if (next < 1) return 'Enter a quantity of at least 1';
+    if (next > p.stockQuantity) return `Quantity cannot exceed available stock (${p.stockQuantity})`;
+    return null;
+  }
+
+  canSubmit(): boolean {
+    const p = this.part();
+    return !!p && this.quantity >= 1 && this.quantity <= p.stockQuantity && !!this.toLocation.trim();
   }
 
   submit(): void {
     const p = this.part();
-    if (!p || this.quantity <= 0 || !this.toLocation.trim()) return;
+    if (!p || !this.canSubmit()) return;
     this.saving.set(true);
     this.maintenanceService.transferPartStock(p.id, {
       quantity: this.quantity,

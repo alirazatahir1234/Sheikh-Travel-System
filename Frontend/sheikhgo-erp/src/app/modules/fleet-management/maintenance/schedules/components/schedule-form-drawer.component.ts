@@ -8,10 +8,10 @@ import {
   CreateMaintenanceSchedulePayload,
   MaintenanceScheduleListItem,
   MaintenanceScheduleTemplate,
+  MaintenanceSchedulableVehicle,
   RescheduleMaintenanceSchedulePayload,
   ServiceType
 } from '../../../../../core/models/maintenance.model';
-import { VehicleListItem } from '../../../../../core/models/vehicle.model';
 import { apiErrorMessage } from '../../../../../core/utils/api-error.util';
 import { buildCreateMaintenanceSchedulePayload } from '../utils/schedule-form.util';
 
@@ -32,11 +32,14 @@ export type ScheduleDrawerMode = 'create' | 'reschedule';
           <label>Vehicle
             <select [(ngModel)]="form.vehicleId" name="vehicleId" required>
               <option [ngValue]="0">Select vehicle</option>
-              @for (v of vehicles(); track v.id) {
-                <option [ngValue]="v.id">{{ v.name }}</option>
+              @for (v of vehicles(); track v.vehicleId) {
+                <option [ngValue]="v.vehicleId">{{ vehicleLabel(v) }}</option>
               }
             </select>
           </label>
+          @if (mode() === 'create' && !vehicles().length) {
+            <p class="form-hint">No published fleet vehicles are available. Publish a vehicle in Fleet Management first.</p>
+          }
         }
 
         <label>Service Type
@@ -128,6 +131,7 @@ export type ScheduleDrawerMode = 'create' | 'reschedule';
     .btn-primary { background: #0B6B50; color: #fff; border: none; border-radius: 8px; padding: 0.5rem 1rem; font-weight: 600; cursor: pointer; }
     .btn-muted { background: #f1f5f9; color: #475569; border: none; border-radius: 8px; padding: 0.5rem 1rem; cursor: pointer; }
     .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+    .form-hint { margin: 0; font-size: 0.8125rem; color: #b45309; }
   `]
 })
 export class ScheduleFormDrawerComponent implements OnInit {
@@ -137,7 +141,7 @@ export class ScheduleFormDrawerComponent implements OnInit {
   readonly open = input(false);
   readonly mode = input<ScheduleDrawerMode>('create');
   readonly schedule = input<MaintenanceScheduleListItem | null>(null);
-  readonly vehicles = input<VehicleListItem[]>([]);
+  readonly vehicles = input<MaintenanceSchedulableVehicle[]>([]);
   readonly closed = output<void>();
   readonly saved = output<void>();
 
@@ -199,6 +203,13 @@ export class ScheduleFormDrawerComponent implements OnInit {
     this.form.intervalValue = t.intervalValue;
   }
 
+  vehicleLabel(v: MaintenanceSchedulableVehicle): string {
+    const plate = v.registrationNumber?.trim();
+    const code = v.vehicleCode?.trim();
+    const base = [v.name, plate].filter(Boolean).join(' — ');
+    return code ? `${base} · ${code}` : base;
+  }
+
   submit(): void {
     if (this.mode() === 'reschedule' && this.schedule()) {
       this.saving.set(true);
@@ -222,6 +233,12 @@ export class ScheduleFormDrawerComponent implements OnInit {
     const payload = buildCreateMaintenanceSchedulePayload(this.form);
     if (!payload) {
       this.toast.error('Select a vehicle, service type, and interval value of at least 1.');
+      return;
+    }
+
+    const vehicleAllowed = this.vehicles().some(v => v.vehicleId === payload.vehicleId);
+    if (!vehicleAllowed) {
+      this.toast.error('Selected vehicle is not eligible for scheduling. Choose a published fleet vehicle.');
       return;
     }
 

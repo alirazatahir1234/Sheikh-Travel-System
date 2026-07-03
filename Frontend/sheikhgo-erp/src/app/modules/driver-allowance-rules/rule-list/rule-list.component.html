@@ -14,22 +14,28 @@
 
   <div class="allowance-stats" *ngIf="!loading" aria-label="Rule statistics">
     <mat-card class="allowance-stat-card">
-      <mat-icon aria-hidden="true">rule</mat-icon>
-      <div>
+      <div class="allowance-stat-icon" aria-hidden="true">
+        <mat-icon>rule</mat-icon>
+      </div>
+      <div class="allowance-stat-body">
         <p class="allowance-stat-label">Total rules</p>
         <p class="allowance-stat-value">{{ dataSource.data.length }}</p>
       </div>
     </mat-card>
     <mat-card class="allowance-stat-card">
-      <mat-icon aria-hidden="true">low_priority</mat-icon>
-      <div>
+      <div class="allowance-stat-icon" aria-hidden="true">
+        <mat-icon>low_priority</mat-icon>
+      </div>
+      <div class="allowance-stat-body">
         <p class="allowance-stat-label">Evaluation</p>
         <p class="allowance-stat-value allowance-stat-value--text">Priority order</p>
       </div>
     </mat-card>
     <mat-card class="allowance-stat-card">
-      <mat-icon aria-hidden="true">payments</mat-icon>
-      <div>
+      <div class="allowance-stat-icon" aria-hidden="true">
+        <mat-icon>payments</mat-icon>
+      </div>
+      <div class="allowance-stat-body">
         <p class="allowance-stat-label">Allowance types</p>
         <p class="allowance-stat-value">4</p>
       </div>

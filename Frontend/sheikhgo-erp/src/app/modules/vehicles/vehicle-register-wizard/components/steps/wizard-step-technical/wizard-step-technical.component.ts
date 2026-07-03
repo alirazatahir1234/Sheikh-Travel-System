@@ -35,8 +35,18 @@ import { todayDateInputValue } from '../../../../../../core/utils/date-input.uti
             type="number"
             [required]="true"
             [error]="controlError('seatingCapacity')" />
-          <ui-input formControlName="engineNo" label="Engine Number" [required]="true" [error]="controlError('engineNo')" />
-          <ui-input formControlName="chassisNo" label="Chassis Number" [required]="true" [error]="controlError('chassisNo')" />
+          <ui-input
+            formControlName="engineNo"
+            label="Engine Number"
+            [required]="true"
+            hint="Alphanumeric value; must include a digit"
+            [error]="controlError('engineNo')" />
+          <ui-input
+            formControlName="chassisNo"
+            label="Chassis Number"
+            [required]="true"
+            hint="Alphanumeric value; must include a digit"
+            [error]="controlError('chassisNo')" />
           <ui-select
             formControlName="purchaseCurrencyCode"
             label="Purchase Currency"
@@ -119,6 +129,11 @@ export class WizardStepTechnicalComponent {
         : 'This field is required.';
     }
     if (control.hasError('maxlength')) return 'Maximum length exceeded.';
+    if (control.hasError('pattern')) {
+      return name === 'engineNo' || name === 'chassisNo'
+        ? 'Value must be alphanumeric and include at least one digit.'
+        : 'Invalid value.';
+    }
     if (control.hasError('min')) {
       return name === 'seatingCapacity'
         ? 'Seating capacity must be at least 1.'

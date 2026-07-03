@@ -9,6 +9,7 @@ import {
   ViewChild
 } from '@angular/core';
 import { Chart, registerables } from 'chart.js';
+import { AppChartInstance, createAppChart } from '../../../core/utils/chart.util';
 
 Chart.register(...registerables);
 
@@ -32,9 +33,9 @@ export class MaintenanceAnalyticsComponent implements AfterViewInit, OnChanges, 
   @Input() completionRate = 0;
   @Input() loading = false;
 
-  private costChart?: Chart;
-  private statusChart?: Chart;
-  private vehicleChart?: Chart;
+  private costChart?: AppChartInstance;
+  private statusChart?: AppChartInstance;
+  private vehicleChart?: AppChartInstance;
   private viewReady = false;
 
   ngAfterViewInit(): void {
@@ -78,7 +79,7 @@ export class MaintenanceAnalyticsComponent implements AfterViewInit, OnChanges, 
     const p = this.primary();
     g.addColorStop(0, `${p}55`);
     g.addColorStop(1, `${p}06`);
-    this.costChart = new Chart(ctx, {
+    this.costChart = createAppChart(ctx, {
       type: 'line',
       data: {
         labels: this.costLabels,
@@ -113,7 +114,7 @@ export class MaintenanceAnalyticsComponent implements AfterViewInit, OnChanges, 
     const ctx = el.getContext('2d');
     if (!ctx) return;
     const colors = ['#3B82F6', '#F59E0B', '#10B981', '#EF4444'];
-    this.statusChart = new Chart(ctx, {
+    this.statusChart = createAppChart(ctx, {
       type: 'doughnut',
       data: {
         labels: this.statusLabels,
@@ -140,7 +141,7 @@ export class MaintenanceAnalyticsComponent implements AfterViewInit, OnChanges, 
     this.vehicleChart?.destroy();
     const ctx = el.getContext('2d');
     if (!ctx) return;
-    this.vehicleChart = new Chart(ctx, {
+    this.vehicleChart = createAppChart(ctx, {
       type: 'bar',
       data: {
         labels: this.vehicleLabels,

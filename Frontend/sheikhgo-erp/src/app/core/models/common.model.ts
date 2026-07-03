@@ -12,6 +12,25 @@ export interface PagedResult<T> {
   totalPages: number;
 }
 
+type PagedResultWire<T> = Partial<PagedResult<T>> & {
+  Items?: T[];
+  TotalCount?: number;
+  Page?: number;
+  PageSize?: number;
+  TotalPages?: number;
+};
+
+/** Normalizes API paged results that may use PascalCase property names. */
+export function normalizePagedResult<T>(result: PagedResultWire<T>): PagedResult<T> {
+  const items = result.items ?? result.Items ?? [];
+  const totalCount = result.totalCount ?? result.TotalCount ?? items.length;
+  const page = result.page ?? result.Page ?? 1;
+  const pageSize = result.pageSize ?? result.PageSize ?? items.length;
+  const totalPages = result.totalPages ?? result.TotalPages
+    ?? (pageSize > 0 ? Math.max(1, Math.ceil(totalCount / pageSize)) : 1);
+  return { items, totalCount, page, pageSize, totalPages };
+}
+
 export interface DashboardStats {
   totalBookings: number;
   totalRevenue: number;

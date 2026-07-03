@@ -37,7 +37,12 @@ import { TRACKER_MODELS, TRACKER_VENDORS } from '../../../models/vehicle-wizard.
               label="IMEI / Unique ID"
               [required]="true"
               [error]="controlError('uniqueId')" />
-            <ui-input formControlName="simNumber" label="SIM Number" />
+            <ui-input
+              formControlName="simNumber"
+              label="SIM Number"
+              type="tel"
+              hint="Enter digits only"
+              [error]="controlError('simNumber')" />
             <ui-select
               formControlName="vendor"
               label="Provider"
@@ -88,6 +93,7 @@ export class WizardStepGpsComponent {
     if (!control || !this.shouldShow(control)) return undefined;
     if (!control.errors) return undefined;
     if (control.hasError('required')) return 'This field is required.';
+    if (name === 'simNumber' && control.hasError('pattern')) return 'SIM Number must contain digits only.';
     if (name === 'uniqueId' && control.hasError('minlength')) return 'IMEI / Unique ID is too short.';
     if (name === 'uniqueId' && control.hasError('maxlength')) return 'IMEI / Unique ID is too long.';
     return undefined;

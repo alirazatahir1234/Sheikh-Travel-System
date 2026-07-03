@@ -1,6 +1,7 @@
 import { Component, OnInit, OnDestroy, AfterViewInit, ElementRef, ViewChild, NgZone } from '@angular/core';
 import { MatTabChangeEvent } from '@angular/material/tabs';
 import { Chart, registerables } from 'chart.js';
+import { AppChartInstance, createAppChart } from '../../core/utils/chart.util';
 import { DashboardService, RevenueReportDto } from '../../core/services/dashboard.service';
 import { ReportService } from '../../core/services/report.service';
 import { ExportService, ExportColumn } from '../../core/services/export.service';
@@ -48,10 +49,10 @@ export class ReportsComponent implements OnInit, AfterViewInit, OnDestroy {
   paymentCols = ['paymentDate', 'bookingId', 'amount', 'paymentMethod', 'status'];
   loadingPayments = false;
 
-  private revenueChart?: Chart;
-  private statusChart?: Chart;
-  private vehicleProfitChart?: Chart;
-  private driverChart?: Chart;
+  private revenueChart?: AppChartInstance;
+  private statusChart?: AppChartInstance;
+  private vehicleProfitChart?: AppChartInstance;
+  private driverChart?: AppChartInstance;
 
   constructor(
     private dashboardService: DashboardService,
@@ -209,7 +210,7 @@ export class ReportsComponent implements OnInit, AfterViewInit, OnDestroy {
   private doRenderRevenueChart(labels: string[], data: number[]): void {
     if (this.revenueChart) this.revenueChart.destroy();
     if (!this.revenueCanvasRef?.nativeElement) return;
-    this.revenueChart = new Chart(this.revenueCanvasRef.nativeElement, {
+    this.revenueChart = createAppChart(this.revenueCanvasRef.nativeElement, {
       type: 'bar',
       data: {
         labels,
@@ -241,7 +242,7 @@ export class ReportsComponent implements OnInit, AfterViewInit, OnDestroy {
   private doRenderStatusChart(labels: string[], data: number[]): void {
     if (this.statusChart) this.statusChart.destroy();
     if (!this.statusCanvasRef?.nativeElement) return;
-    this.statusChart = new Chart(this.statusCanvasRef.nativeElement, {
+    this.statusChart = createAppChart(this.statusCanvasRef.nativeElement, {
       type: 'doughnut',
       data: {
         labels,
@@ -260,7 +261,7 @@ export class ReportsComponent implements OnInit, AfterViewInit, OnDestroy {
   private doRenderVehicleProfitChart(rows: VehicleProfitDto[]): void {
     if (this.vehicleProfitChart) this.vehicleProfitChart.destroy();
     if (!this.vehicleProfitCanvasRef?.nativeElement || rows.length === 0) return;
-    this.vehicleProfitChart = new Chart(this.vehicleProfitCanvasRef.nativeElement, {
+    this.vehicleProfitChart = createAppChart(this.vehicleProfitCanvasRef.nativeElement, {
       type: 'bar',
       data: {
         labels: rows.map(r => r.vehicleName),
@@ -287,7 +288,7 @@ export class ReportsComponent implements OnInit, AfterViewInit, OnDestroy {
   private doRenderDriverChart(rows: DriverPerformanceDto[]): void {
     if (this.driverChart) this.driverChart.destroy();
     if (!this.driverCanvasRef?.nativeElement || rows.length === 0) return;
-    this.driverChart = new Chart(this.driverCanvasRef.nativeElement, {
+    this.driverChart = createAppChart(this.driverCanvasRef.nativeElement, {
       type: 'bar',
       data: {
         labels: rows.map(r => r.driverName),
