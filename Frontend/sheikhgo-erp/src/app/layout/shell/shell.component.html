@@ -129,12 +129,14 @@
       <div class="stb-search" [class.active]="showSearchResults">
         <mat-icon>search</mat-icon>
         <input type="text"
-               placeholder="Search plate, driver, IMEI, VIN, vehicle…"
+               placeholder="Search anything…"
                [ngModel]="searchQuery"
                (ngModelChange)="onSearchInput($event)"
                (focus)="onSearchFocus()"
                (blur)="onSearchBlur()"
-               autocomplete="off" />
+               (keydown.enter)="onSearchEnter()"
+               autocomplete="off"
+               aria-label="Global search" />
         <mat-spinner *ngIf="searchLoading" diameter="18" class="search-spinner"></mat-spinner>
 
         <div class="search-dropdown" *ngIf="showSearchResults">

@@ -168,7 +168,7 @@ export class FuelLogListComponent implements OnInit {
     return {
       ...log,
       fuelType: resolvedType,
-      vehicleName: vehicle?.name ?? '—',
+      vehicleName: vehicle?.name ?? 'Unknown Vehicle',
       vehicleRegistration: vehicle?.registrationNumber ?? '',
       driverName: log.driverId ? (this.drivers.find(d => d.id === log.driverId)?.fullName ?? '—') : '—'
     };

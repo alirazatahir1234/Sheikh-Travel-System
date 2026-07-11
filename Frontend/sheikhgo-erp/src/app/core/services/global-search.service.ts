@@ -9,16 +9,32 @@ import { RouteService } from './route.service';
 import { PaymentService } from './payment.service';
 import { FuelLogService } from './fuel-log.service';
 import { MaintenanceService } from './maintenance.service';
+import { NavItem, ResolvedMenu } from '../navigation/nav-models';
 
-export type SearchResultType = 'booking' | 'vehicle' | 'driver' | 'customer' | 'route' | 'payment' | 'fuel_log' | 'maintenance';
+export type SearchResultType =
+  | 'module'
+  | 'booking'
+  | 'vehicle'
+  | 'driver'
+  | 'customer'
+  | 'route'
+  | 'payment'
+  | 'fuel_log'
+  | 'maintenance';
 
 export interface SearchResult {
   type: SearchResultType;
-  id: number;
+  id: number | string;
   title: string;
   subtitle: string;
   icon: string;
   route: string;
+  queryParams?: Record<string, string>;
+}
+
+export interface GlobalSearchOptions {
+  /** Flattened nav from the current shell menu — used for module/page jumps. */
+  menu?: ResolvedMenu | null;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -34,37 +50,38 @@ export class GlobalSearchService {
     private maintenanceService: MaintenanceService
   ) {}
 
-  search(query: string): Observable<SearchResult[]> {
+  search(query: string, options: GlobalSearchOptions = {}): Observable<SearchResult[]> {
     if (!query || query.trim().length < 2) {
       return of([]);
     }
 
     const q = query.trim().toLowerCase();
+    const moduleResults = this.searchModules(q, options.menu);
 
     return forkJoin({
-      vehicles: this.vehicleService.getAll(1, 100).pipe(catchError(() => of({ items: [] }))),
-      drivers: this.driverService.getAll(1, 100).pipe(catchError(() => of({ items: [] }))),
-      customers: this.customerService.getAll(1, 100).pipe(catchError(() => of({ items: [] }))),
-      bookings: this.bookingService.getAll(1, 100).pipe(catchError(() => of({ items: [] }))),
-      routes: this.routeService.getAll(1, 100).pipe(catchError(() => of({ items: [] }))),
-      payments: this.paymentService.getAll(1, 100).pipe(catchError(() => of({ items: [] }))),
-      fuelLogs: this.fuelLogService.getAll(1, 100).pipe(catchError(() => of({ items: [] }))),
-      maintenance: this.maintenanceService.getAll(1, 100).pipe(catchError(() => of({ items: [] })))
+      vehicles: this.vehicleService.getAll(1, 100).pipe(catchError(() => of({ items: [] as never[] }))),
+      drivers: this.driverService.getAll(1, 100).pipe(catchError(() => of({ items: [] as never[] }))),
+      customers: this.customerService.getAll(1, 100).pipe(catchError(() => of({ items: [] as never[] }))),
+      bookings: this.bookingService.getAll(1, 100).pipe(catchError(() => of({ items: [] as never[] }))),
+      routes: this.routeService.getAll(1, 100).pipe(catchError(() => of({ items: [] as never[] }))),
+      payments: this.paymentService.getAll(1, 100).pipe(catchError(() => of({ items: [] as never[] }))),
+      fuelLogs: this.fuelLogService.getAll(1, 100).pipe(catchError(() => of({ items: [] as never[] }))),
+      maintenance: this.maintenanceService.getAll(1, 100).pipe(catchError(() => of({ items: [] as never[] })))
     }).pipe(
       map(({ vehicles, drivers, customers, bookings, routes, payments, fuelLogs, maintenance }) => {
-        const results: SearchResult[] = [];
+        const results: SearchResult[] = [...moduleResults];
 
-        // Search vehicles
-        vehicles.items
+        const vehicleItems = asItems(vehicles);
+        vehicleItems
           .filter(v =>
-            v.name?.toLowerCase().includes(q) ||
-            v.registrationNumber?.toLowerCase().includes(q) ||
-            v.vehicleCode?.toLowerCase().includes(q) ||
-            v.model?.toLowerCase().includes(q) ||
-            v.driverName?.toLowerCase().includes(q) ||
-            v.gpsImei?.toLowerCase().includes(q) ||
-            v.gpsSim?.toLowerCase().includes(q) ||
-            v.vin?.toLowerCase().includes(q)
+            includes(v.name, q) ||
+            includes(v.registrationNumber, q) ||
+            includes(v.vehicleCode, q) ||
+            includes(v.model, q) ||
+            includes(v.driverName, q) ||
+            includes(v.gpsImei, q) ||
+            includes(v.gpsSim, q) ||
+            includes(v.vin, q)
           )
           .slice(0, 4)
           .forEach(v => {
@@ -78,12 +95,12 @@ export class GlobalSearchService {
             });
           });
 
-        // Search drivers
-        drivers.items
+        const driverItems = asItems(drivers);
+        driverItems
           .filter(d =>
-            d.fullName?.toLowerCase().includes(q) ||
-            d.licenseNumber?.toLowerCase().includes(q) ||
-            d.phone?.toLowerCase().includes(q)
+            includes(d.fullName, q) ||
+            includes(d.licenseNumber, q) ||
+            includes(d.phone, q)
           )
           .slice(0, 4)
           .forEach(d => {
@@ -97,12 +114,12 @@ export class GlobalSearchService {
             });
           });
 
-        // Search customers
-        customers.items
+        const customerItems = asItems(customers);
+        customerItems
           .filter(c =>
-            c.fullName?.toLowerCase().includes(q) ||
-            c.email?.toLowerCase().includes(q) ||
-            c.phone?.toLowerCase().includes(q)
+            includes(c.fullName, q) ||
+            includes(c.email, q) ||
+            includes(c.phone, q)
           )
           .slice(0, 4)
           .forEach(c => {
@@ -116,13 +133,13 @@ export class GlobalSearchService {
             });
           });
 
-        // Search bookings
-        bookings.items
+        const bookingItems = asItems(bookings);
+        bookingItems
           .filter(b =>
             b.id?.toString().includes(q) ||
-            b.bookingNumber?.toLowerCase().includes(q) ||
-            b.customerName?.toLowerCase().includes(q) ||
-            b.routeName?.toLowerCase().includes(q)
+            includes(b.bookingNumber, q) ||
+            includes(b.customerName, q) ||
+            includes(b.routeName, q)
           )
           .slice(0, 4)
           .forEach(b => {
@@ -136,12 +153,12 @@ export class GlobalSearchService {
             });
           });
 
-        // Search routes
-        routes.items
+        const routeItems = asItems(routes);
+        routeItems
           .filter(r =>
-            r.name?.toLowerCase().includes(q) ||
-            r.source?.toLowerCase().includes(q) ||
-            r.destination?.toLowerCase().includes(q)
+            includes(r.name, q) ||
+            includes(r.source, q) ||
+            includes(r.destination, q)
           )
           .slice(0, 3)
           .forEach(r => {
@@ -155,12 +172,12 @@ export class GlobalSearchService {
             });
           });
 
-        // Search payments
-        payments.items
+        const paymentItems = asItems(payments);
+        paymentItems
           .filter(p =>
             p.id?.toString().includes(q) ||
             p.bookingId?.toString().includes(q) ||
-            p.transactionReference?.toLowerCase().includes(q)
+            includes(p.transactionReference, q)
           )
           .slice(0, 3)
           .forEach(p => {
@@ -174,11 +191,11 @@ export class GlobalSearchService {
             });
           });
 
-        // Search fuel logs
-        fuelLogs.items
+        const fuelItems = asItems(fuelLogs);
+        fuelItems
           .filter(f =>
-            f.vehicleName?.toLowerCase().includes(q) ||
-            f.driverName?.toLowerCase().includes(q)
+            includes(f.vehicleName, q) ||
+            includes(f.driverName, q)
           )
           .slice(0, 3)
           .forEach(f => {
@@ -192,12 +209,12 @@ export class GlobalSearchService {
             });
           });
 
-        // Search maintenance
-        maintenance.items
+        const maintenanceItems = asItems(maintenance);
+        maintenanceItems
           .filter(m =>
-            m.vehicleName?.toLowerCase().includes(q) ||
-            m.description?.toLowerCase().includes(q) ||
-            m.serviceProvider?.toLowerCase().includes(q)
+            includes(m.vehicleName, q) ||
+            includes(m.description, q) ||
+            includes(m.serviceProvider, q)
           )
           .slice(0, 3)
           .forEach(m => {
@@ -212,7 +229,70 @@ export class GlobalSearchService {
           });
 
         return results.slice(0, 20);
-      })
+      }),
+      catchError(() => of(moduleResults))
     );
   }
+
+  /** Instant module/page matches from the resolved sidebar menu. */
+  searchModules(query: string, menu?: ResolvedMenu | null): SearchResult[] {
+    const q = query.trim().toLowerCase();
+    if (q.length < 2 || !menu) return [];
+
+    const seen = new Set<string>();
+    const results: SearchResult[] = [];
+
+    const matchesQuery = (text: string): boolean => {
+      const hay = text.toLowerCase();
+      if (hay.includes(q)) return true;
+      const words = q.split(/\s+/).filter(Boolean);
+      return words.length > 1 && words.every(w => hay.includes(w));
+    };
+
+    const consider = (item: NavItem, groupLabel?: string) => {
+      const haystack = [item.label, groupLabel, item.route, item.id, item.moduleKey]
+        .filter(Boolean)
+        .join(' ');
+      if (!matchesQuery(haystack)) return;
+
+      const key = `${item.route}|${JSON.stringify(item.queryParams ?? {})}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+
+      results.push({
+        type: 'module',
+        id: item.id,
+        title: item.label,
+        subtitle: groupLabel ? `${groupLabel} · Go to page` : 'Go to page',
+        icon: item.icon || 'open_in_new',
+        route: item.route,
+        queryParams: item.queryParams
+      });
+    };
+
+    for (const group of menu.groups ?? []) {
+      // Typing a group name (e.g. "Fleet Management") surfaces its first page
+      if (matchesQuery(group.label) && group.items.length) {
+        consider(group.items[0], group.label);
+      }
+      for (const item of group.items ?? []) {
+        consider(item, group.label);
+      }
+    }
+    for (const item of menu.standaloneItems ?? []) {
+      consider(item);
+    }
+
+    return results.slice(0, 8);
+  }
+}
+
+function includes(value: string | null | undefined, q: string): boolean {
+  return !!value && value.toLowerCase().includes(q);
+}
+
+function asItems<T>(page: { items?: T[] } | T[] | null | undefined): T[] {
+  if (!page) return [];
+  if (Array.isArray(page)) return page;
+  return Array.isArray(page.items) ? page.items : [];
 }

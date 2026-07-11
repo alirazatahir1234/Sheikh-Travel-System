@@ -589,6 +589,7 @@
     height: 18px;
   }
 
+  &[data-type="module"]  { background: #E0F2FE; color: #0369A1; }
   &[data-type="booking"] { background: #DBEAFE; color: #1E40AF; }
   &[data-type="vehicle"] { background: #DCFCE7; color: #166534; }
   &[data-type="driver"]  { background: #FEF3C7; color: #92400E; }

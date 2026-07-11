@@ -148,7 +148,7 @@ export class FuelLogAnalyticsComponent implements AfterViewInit, OnChanges, OnDe
         datasets: [{
           label: 'Liters',
           data: this.vehicleLiters,
-          backgroundColor: 'rgba(15, 118, 110, 0.8)',
+          backgroundColor: '#0F766E',
           borderRadius: 6,
           maxBarThickness: 36
         }]

@@ -1,6 +1,6 @@
 import { Component, OnInit, OnDestroy, ViewChild, ElementRef } from '@angular/core';
 import { NavigationEnd, Router } from '@angular/router';
-import { Subject, BehaviorSubject, debounceTime, distinctUntilChanged, exhaustMap, switchMap, of, Observable, Subscription, map, filter, combineLatest, startWith, tap, finalize, shareReplay } from 'rxjs';
+import { Subject, BehaviorSubject, debounceTime, distinctUntilChanged, exhaustMap, switchMap, of, Observable, Subscription, map, filter, combineLatest, startWith, tap, finalize, shareReplay, catchError } from 'rxjs';
 import { MatDialog } from '@angular/material/dialog';
 import { AuthService } from '../../core/services/auth.service';
 import { NotificationService } from '../../core/services/notification.service';
@@ -171,19 +171,31 @@ export class ShellComponent implements OnInit, OnDestroy {
 
   private initSearch(): void {
     this.searchSub = this.searchSubject.pipe(
-      debounceTime(300),
+      debounceTime(250),
       distinctUntilChanged(),
       switchMap(query => {
-        if (!query || query.trim().length < 2) {
-          return of([]);
+        const trimmed = (query ?? '').trim();
+        if (trimmed.length < 2) {
+          this.searchLoading = false;
+          this.searchResults = [];
+          this.showSearchResults = false;
+          return of([] as SearchResult[]);
         }
+
+        // Show module hits immediately while entity APIs load
+        const quickModules = this.globalSearch.searchModules(trimmed, this.menu ?? this.latestMenu);
+        this.searchResults = quickModules;
+        this.showSearchResults = true;
         this.searchLoading = true;
-        return this.globalSearch.search(query);
+
+        return this.globalSearch.search(trimmed, { menu: this.menu ?? this.latestMenu }).pipe(
+          catchError(() => of(quickModules)),
+          finalize(() => { this.searchLoading = false; })
+        );
       })
     ).subscribe(results => {
       this.searchResults = results;
-      this.searchLoading = false;
-      this.showSearchResults = results.length > 0 || this.searchQuery.length >= 2;
+      this.showSearchResults = this.searchQuery.trim().length >= 2;
     });
   }
 
@@ -192,8 +204,25 @@ export class ShellComponent implements OnInit, OnDestroy {
     this.searchSubject.next(query);
   }
 
+  onSearchEnter(): void {
+    const q = this.searchQuery.trim();
+    if (q.length < 2) return;
+
+    if (this.searchResults.length > 0) {
+      this.navigateToResult(this.searchResults[0]);
+      return;
+    }
+
+    // If still loading, wait briefly for results then navigate
+    if (this.searchLoading) {
+      this.globalSearch.search(q, { menu: this.menu ?? this.latestMenu }).subscribe(results => {
+        if (results.length) this.navigateToResult(results[0]);
+      });
+    }
+  }
+
   onSearchFocus(): void {
-    if (this.searchQuery.length >= 2) {
+    if (this.searchQuery.trim().length >= 2) {
       this.showSearchResults = true;
     }
   }
@@ -309,11 +338,15 @@ export class ShellComponent implements OnInit, OnDestroy {
   navigateToResult(result: SearchResult): void {
     this.showSearchResults = false;
     this.searchQuery = '';
-    this.router.navigate([result.route]);
+    this.searchResults = [];
+    void this.router.navigate([result.route], {
+      queryParams: result.queryParams ?? undefined
+    });
   }
 
   getResultTypeLabel(type: string): string {
     const labels: Record<string, string> = {
+      module: 'Page',
       booking: 'Booking',
       vehicle: 'Vehicle',
       driver: 'Driver',
