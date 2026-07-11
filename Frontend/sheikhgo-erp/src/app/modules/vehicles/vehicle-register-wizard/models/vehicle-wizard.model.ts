@@ -1,6 +1,6 @@
 import { FuelType } from '../../../../core/models/vehicle.model';
 
-export type WizardStepId = 'details' | 'technical' | 'gps' | 'documents' | 'review';
+export type WizardStepId = 'documents' | 'details' | 'technical' | 'gps' | 'review';
 
 export interface WizardStep {
   id: WizardStepId;
@@ -9,10 +9,10 @@ export interface WizardStep {
 }
 
 export const WIZARD_STEPS: WizardStep[] = [
-  { id: 'details', label: 'Details', number: 1 },
-  { id: 'technical', label: 'Technical', number: 2 },
-  { id: 'gps', label: 'GPS Tracker', number: 3 },
-  { id: 'documents', label: 'Documents', number: 4 },
+  { id: 'documents', label: 'Documents', number: 1 },
+  { id: 'details', label: 'Details', number: 2 },
+  { id: 'technical', label: 'Technical', number: 3 },
+  { id: 'gps', label: 'GPS Tracker', number: 4 },
   { id: 'review', label: 'Review', number: 5 }
 ];
 
@@ -59,7 +59,6 @@ export interface DocumentSlotState {
   fileUrl?: string;
   documentId?: number;
   uploading?: boolean;
-  progress?: number;
   error?: string;
 }
 
@@ -67,6 +66,28 @@ export const WIZARD_DOCUMENT_SLOTS: Omit<DocumentSlotState, 'file' | 'fileUrl' |
   { documentType: 'Registration', label: 'Registration Card', required: true },
   { documentType: 'Insurance', label: 'Insurance Policy', required: false }
 ];
+
+/** UI-facing document state for badges and messaging. */
+export type DocumentDisplayStatus = 'Empty' | 'Processing' | 'Verified' | 'Failed';
+
+export function resolveDocumentDisplayStatus(slot: DocumentSlotState): DocumentDisplayStatus {
+  if (slot.uploading) return 'Processing';
+  if (slot.error && !slot.fileUrl) return 'Failed';
+  if (slot.fileUrl) return 'Verified';
+  return 'Empty';
+}
+
+export function documentContinueMessage(slot: DocumentSlotState): string | null {
+  const display = resolveDocumentDisplayStatus(slot);
+  switch (display) {
+    case 'Failed':
+      return slot.error || 'Upload failed. Try again.';
+    case 'Empty':
+      return slot.required ? `${slot.label} is required.` : null;
+    default:
+      return null;
+  }
+}
 
 export const TRACKER_MODELS = ['Teltonika FMB920', 'Queclink GV500', 'Concox GT06N', 'Other'];
 export const TRACKER_VENDORS = ['Teltonika', 'Queclink', 'Concox', 'Traccar', 'Other'];

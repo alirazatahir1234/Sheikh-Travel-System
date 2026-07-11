@@ -81,8 +81,8 @@ export function resolveDriverPhotoUrl(url: string | null | undefined): string | 
   return resolveUploadUrl(url);
 }
 
-export const VEHICLE_UPLOAD_MAX_BYTES = 2 * 1024 * 1024;
-export const UPLOAD_MAX_SIZE_LABEL = 'Max size: 2 MB';
+export const VEHICLE_UPLOAD_MAX_BYTES = 5 * 1024 * 1024;
+export const UPLOAD_MAX_SIZE_LABEL = 'Max size: 5 MB';
 export const VEHICLE_UPLOAD_SIZE_ERROR = `File exceeds the maximum upload size. ${UPLOAD_MAX_SIZE_LABEL}.`;
 
 export function vehicleUploadSizeError(file: File): string | null {

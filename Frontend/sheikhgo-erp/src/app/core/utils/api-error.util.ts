@@ -36,5 +36,5 @@ export function apiErrorMessage(error: unknown, fallback: string): string {
 }
 
 function normalizeUploadSizeError(message: string): string {
-  return /2\s*mb|maximum size|file size/i.test(message) ? VEHICLE_UPLOAD_SIZE_ERROR : message;
+  return /5\s*mb|2\s*mb|maximum size|file size/i.test(message) ? VEHICLE_UPLOAD_SIZE_ERROR : message;
 }

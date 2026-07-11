@@ -37,7 +37,8 @@ import {
   VEHICLE_IMAGE_ANGLES,
   VehicleImageSlotState,
   parseVehicleImageAngle,
-  isPrimaryVehicleImage
+  isPrimaryVehicleImage,
+  documentContinueMessage
 } from '../models/vehicle-wizard.model';
 import {
   buildDefaultDetailCatalogOptions,
@@ -65,7 +66,7 @@ export class VehicleWizardFacade {
   private autosaveSubscribed = false;
 
   readonly steps = WIZARD_STEPS;
-  readonly currentStep = signal<WizardStepId>('details');
+  readonly currentStep = signal<WizardStepId>('documents');
   readonly vehicleId = signal<number | null>(null);
   readonly vehicleStatus = signal<VehicleStatus | null>(null);
   readonly isEditMode = signal(false);
@@ -209,9 +210,9 @@ export class VehicleWizardFacade {
     }
     const slots = this.documentSlots();
     for (const slot of slots.filter(s => s.required)) {
-      if (!slot.fileUrl) {
-        errors.push(`${slot.label} is required`);
-      }
+      if (slot.uploading) continue;
+      const msg = documentContinueMessage(slot);
+      if (msg) errors.push(msg);
     }
     return errors;
   });
@@ -530,17 +531,20 @@ export class VehicleWizardFacade {
     this.documentSlots.set(slots);
 
     try {
-      const result = await firstValueFrom(this.vehicleService.uploadDocument(
+      const rawResult = await firstValueFrom(this.vehicleService.uploadDocument(
         vehicleId,
         file,
         slots[slotIndex].documentType
       ));
 
+      const result = this.unwrapUploadResult(rawResult);
       const updated = [...this.documentSlots()];
+      const fileUrl = this.readFileUrl(result) ?? updated[slotIndex].fileUrl;
+
       updated[slotIndex] = {
         ...updated[slotIndex],
         file: undefined,
-        fileUrl: this.readFileUrl(result) ?? updated[slotIndex].fileUrl,
+        fileUrl,
         documentId: this.extractDocumentId(result) ?? updated[slotIndex].documentId,
         uploading: false,
         error: undefined
@@ -551,10 +555,26 @@ export class VehicleWizardFacade {
       updated[slotIndex] = {
         ...updated[slotIndex],
         uploading: false,
+        fileUrl: undefined,
+        documentId: undefined,
         error: apiErrorMessage(err, 'Upload failed')
       };
       this.documentSlots.set(updated);
     }
+  }
+
+  private unwrapUploadResult(raw: unknown): UploadVehicleDocumentResult {
+    if (!raw || typeof raw !== 'object') {
+      return raw as UploadVehicleDocumentResult;
+    }
+    const rec = raw as Record<string, unknown>;
+    if (rec['data'] && typeof rec['data'] === 'object') {
+      return rec['data'] as UploadVehicleDocumentResult;
+    }
+    if (rec['Data'] && typeof rec['Data'] === 'object') {
+      return rec['Data'] as UploadVehicleDocumentResult;
+    }
+    return raw as UploadVehicleDocumentResult;
   }
 
   async publish(): Promise<void> {
@@ -802,7 +822,9 @@ export class VehicleWizardFacade {
       const doc = documents.find(d =>
         d.documentType === slot.documentType && !!d.fileUrl?.trim()
       );
-      return doc ? { ...slot, fileUrl: doc.fileUrl, documentId: this.readDocumentId(doc) } : slot;
+      return doc
+        ? { ...slot, fileUrl: doc.fileUrl, documentId: this.readDocumentId(doc) }
+        : slot;
     });
     this.documentSlots.set(docSlots);
 
@@ -1038,8 +1060,13 @@ export class VehicleWizardFacade {
       const slots = [...this.documentSlots()];
       let changed = false;
       for (let i = 0; i < slots.length; i++) {
-        if (slots[i].required && !slots[i].fileUrl && !slots[i].uploading) {
-          slots[i] = { ...slots[i], error: `${slots[i].label} is required.` };
+        if (slots[i].uploading) continue;
+        const msg = documentContinueMessage(slots[i]);
+        if (msg && slots[i].error !== msg) {
+          slots[i] = { ...slots[i], error: msg };
+          changed = true;
+        } else if (!msg && slots[i].error) {
+          slots[i] = { ...slots[i], error: undefined };
           changed = true;
         }
       }
@@ -1097,9 +1124,17 @@ export class VehicleWizardFacade {
 
   private requiredDocumentSlotsValid(): boolean {
     const hasVehicleImage = this.vehicleImageSlots().some(slot => !!slot.fileUrl);
-    const docsValid = this.documentSlots().every(slot => !slot.required || !!slot.fileUrl);
+    const docsValid = this.documentSlots().every(slot => {
+      if (!slot.required) return true;
+      if (slot.uploading) return false;
+      return !!slot.fileUrl;
+    });
     return hasVehicleImage && docsValid;
   }
+}
+
+function normalizeCompare(value: string): string {
+  return value.trim().toLowerCase().replace(/[\s\-]/g, '');
 }
 
 function requiredTrimmed(): ValidatorFn {

@@ -266,6 +266,7 @@ using (var scope = app.Services.CreateScope())
         await SubscriptionBillingMigration.ApplyAsync(dbFactory, logger);
         await FleetSchemaMigration.ApplyAsync(dbFactory, logger);
         await FleetComplianceMigration.ApplyAsync(dbFactory, logger);
+        await VehicleDocumentOcrMigration.ApplyAsync(dbFactory, logger);
         await DriverPerformanceMigration.ApplyAsync(dbFactory, logger);
         await DriverVerificationMigration.ApplyAsync(dbFactory, logger);
         await AssignmentSchemaMigration.ApplyAsync(dbFactory, logger);

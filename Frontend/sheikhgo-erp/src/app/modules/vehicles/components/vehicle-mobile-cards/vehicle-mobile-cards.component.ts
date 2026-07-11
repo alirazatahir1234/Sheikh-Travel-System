@@ -23,8 +23,10 @@ export class VehicleMobileCardsComponent {
   readonly pagination = input.required<VehiclePagination>();
 
   readonly cardSelect = output<VehicleListItem>();
+  readonly edit = output<VehicleListItem>();
   readonly track = output<VehicleListItem>();
   readonly assign = output<VehicleListItem>();
+  readonly delete = output<VehicleListItem>();
   readonly pageChange = output<number>();
   readonly pageSizeChange = output<number>();
 

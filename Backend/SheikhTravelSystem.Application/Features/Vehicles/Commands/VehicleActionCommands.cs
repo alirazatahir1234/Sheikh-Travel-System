@@ -279,9 +279,9 @@ public class PublishVehicleCommandHandler(IDbConnectionFactory dbFactory, ITenan
         using var connection = dbFactory.CreateConnection();
         var tenantId = tenantContext.GetRequiredTenantId();
 
-        var row = await connection.QuerySingleOrDefaultAsync<(string Name, string RegistrationNumber, int SeatingCapacity, decimal FuelAverage, int Status)>(
+        var row = await connection.QuerySingleOrDefaultAsync<(string Name, string RegistrationNumber, int SeatingCapacity, decimal FuelAverage, int Status, string? EngineNo, string? ChassisNo)>(
             new CommandDefinition(
-                @"SELECT Name, RegistrationNumber, SeatingCapacity, FuelAverage, Status
+                @"SELECT Name, RegistrationNumber, SeatingCapacity, FuelAverage, Status, EngineNo, ChassisNo
                   FROM Vehicles WHERE Id = @Id AND TenantId = @TenantId AND IsDeleted = 0",
                 new { request.Id, TenantId = tenantId },
                 cancellationToken: cancellationToken));
@@ -297,6 +297,60 @@ public class PublishVehicleCommandHandler(IDbConnectionFactory dbFactory, ITenan
             throw new ValidationException("Seating capacity is required before publishing.");
         if (row.FuelAverage <= 0)
             throw new ValidationException("Fuel economy is required before publishing.");
+
+        var hasRegistrationDoc = await connection.ExecuteScalarAsync<bool>(new CommandDefinition(
+            @"SELECT CASE WHEN EXISTS(
+                SELECT 1 FROM VehicleDocuments
+                WHERE VehicleId = @Id AND TenantId = @TenantId AND IsDeleted = 0
+                  AND DocumentType = N'Registration'
+                  AND NULLIF(LTRIM(RTRIM(FileUrl)), '') IS NOT NULL
+              ) THEN 1 ELSE 0 END",
+            new { request.Id, TenantId = tenantId },
+            cancellationToken: cancellationToken));
+
+        if (!hasRegistrationDoc)
+            throw new ValidationException("A registration card is required before publishing.");
+
+        var hasVehicleImage = await connection.ExecuteScalarAsync<bool>(new CommandDefinition(
+            @"SELECT CASE WHEN EXISTS(
+                SELECT 1 FROM VehicleDocuments
+                WHERE VehicleId = @Id AND TenantId = @TenantId AND IsDeleted = 0
+                  AND DocumentType = N'VehicleImage'
+                  AND NULLIF(LTRIM(RTRIM(FileUrl)), '') IS NOT NULL
+              ) THEN 1 ELSE 0 END",
+            new { request.Id, TenantId = tenantId },
+            cancellationToken: cancellationToken));
+
+        if (!hasVehicleImage)
+            throw new ValidationException("At least one vehicle image is required before publishing.");
+
+        if (!string.IsNullOrWhiteSpace(row.EngineNo))
+        {
+            var engineDup = await connection.ExecuteScalarAsync<bool>(new CommandDefinition(
+                @"SELECT CASE WHEN EXISTS(
+                    SELECT 1 FROM Vehicles
+                    WHERE TenantId = @TenantId AND IsDeleted = 0 AND Id <> @Id
+                      AND EngineNo IS NOT NULL AND LOWER(LTRIM(RTRIM(EngineNo))) = LOWER(LTRIM(RTRIM(@EngineNo)))
+                  ) THEN 1 ELSE 0 END",
+                new { request.Id, TenantId = tenantId, EngineNo = row.EngineNo },
+                cancellationToken: cancellationToken));
+            if (engineDup)
+                throw new ConflictException("Vehicle already registered with this engine number.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(row.ChassisNo))
+        {
+            var chassisDup = await connection.ExecuteScalarAsync<bool>(new CommandDefinition(
+                @"SELECT CASE WHEN EXISTS(
+                    SELECT 1 FROM Vehicles
+                    WHERE TenantId = @TenantId AND IsDeleted = 0 AND Id <> @Id
+                      AND ChassisNo IS NOT NULL AND LOWER(LTRIM(RTRIM(ChassisNo))) = LOWER(LTRIM(RTRIM(@ChassisNo)))
+                  ) THEN 1 ELSE 0 END",
+                new { request.Id, TenantId = tenantId, ChassisNo = row.ChassisNo },
+                cancellationToken: cancellationToken));
+            if (chassisDup)
+                throw new ConflictException("Vehicle already registered with this chassis number.");
+        }
 
         await connection.ExecuteAsync(
             new CommandDefinition(

@@ -11,7 +11,11 @@ import {
 } from '@angular/core';
 import { NgClass } from '@angular/common';
 import { MatIconModule } from '@angular/material/icon';
-import { DocumentSlotState } from '../../models/vehicle-wizard.model';
+import {
+  DocumentDisplayStatus,
+  DocumentSlotState,
+  resolveDocumentDisplayStatus
+} from '../../models/vehicle-wizard.model';
 import {
   isImageFile,
   isImageUploadUrl,
@@ -34,7 +38,9 @@ type DocumentPreview = { kind: 'image' | 'pdf'; src: string };
       [ngClass]="{
         'border-fleet-primary bg-fleet-primary-soft': dragOver,
         'border-fleet-border': !dragOver,
-        'border-solid': !!preview()
+        'border-solid': !!preview() || isProcessing(),
+        'border-emerald-300': displayStatus() === 'Verified',
+        'border-red-300': displayStatus() === 'Failed'
       }"
       (dragover)="onDragOver($event)"
       (dragleave)="dragOver = false"
@@ -47,10 +53,14 @@ type DocumentPreview = { kind: 'image' | 'pdf'; src: string };
         [accept]="acceptTypes()"
         (change)="onFileSelected($event)" />
 
-      @if (slot().uploading) {
-        <div class="flex flex-col items-center gap-2 py-4 text-center">
+      @if (isProcessing()) {
+        <div class="flex flex-col items-center gap-3 py-6 text-center">
           <div class="h-8 w-8 animate-spin rounded-full border-2 border-fleet-primary border-t-transparent"></div>
-          <p class="text-sm text-fleet-text-muted">Uploading {{ slot().label }}…</p>
+          <span class="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-800">
+            Processing
+          </span>
+          <p class="text-sm font-medium text-fleet-text">{{ processingMessage() }}</p>
+          <p class="max-w-sm text-xs text-fleet-text-muted">Please wait — do not navigate away.</p>
         </div>
       } @else if (preview()) {
         <div class="space-y-3">
@@ -66,10 +76,10 @@ type DocumentPreview = { kind: 'image' | 'pdf'; src: string };
             }
           </div>
 
-          <div class="flex items-center justify-between gap-3">
-            <div class="flex min-w-0 flex-1 items-center gap-3">
-              <mat-icon class="shrink-0 text-emerald-600">{{ preview()!.kind === 'pdf' ? 'picture_as_pdf' : 'check_circle' }}</mat-icon>
-              <div class="min-w-0">
+          <div class="flex items-start justify-between gap-3">
+            <div class="flex min-w-0 flex-1 items-start gap-3">
+              <mat-icon class="mt-0.5 shrink-0" [ngClass]="statusIconClass()">{{ statusIcon() }}</mat-icon>
+              <div class="min-w-0 space-y-1">
                 <p class="truncate text-sm font-medium text-fleet-text">{{ slot().label }}</p>
               </div>
             </div>
@@ -94,28 +104,28 @@ type DocumentPreview = { kind: 'image' | 'pdf'; src: string };
             </button>
           </div>
         </div>
-      } @else if (slot().file && slot().error) {
-        <div class="flex items-center justify-between gap-3">
-          <div class="flex min-w-0 flex-1 items-center gap-3">
-            <mat-icon class="shrink-0 text-fleet-error">error</mat-icon>
-            <div class="min-w-0">
-              <p class="truncate text-sm font-medium text-fleet-text">{{ slot().label }}</p>
-            </div>
-          </div>
-        </div>
-        <div class="mt-3 border-t border-fleet-border pt-3">
+      } @else if (slot().error && !slot().fileUrl) {
+        <div class="flex flex-col items-center gap-3 py-4 text-center">
+          <span class="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-semibold text-red-800">
+            Upload Failed
+          </span>
+          <mat-icon class="text-fleet-error">error</mat-icon>
+          <p class="text-sm font-medium text-fleet-text">{{ slot().label }}</p>
+          <p class="max-w-md text-xs text-red-700">
+            {{ slot().error || 'Couldn\'t upload this document. Try again.' }}
+          </p>
           <button
             type="button"
-            class="w-full rounded-sm border border-fleet-primary/50 bg-white px-3 py-1.5 text-xs font-semibold text-fleet-primary transition-colors hover:bg-fleet-primary-soft"
+            class="mt-1 w-full max-w-xs rounded-sm border border-fleet-primary/50 bg-white px-3 py-1.5 text-xs font-semibold text-fleet-primary transition-colors hover:bg-fleet-primary-soft"
             (click)="$event.stopPropagation(); openFilePicker()">
-            Retry
+            Retry upload
           </button>
         </div>
       } @else {
         <div class="flex flex-col items-center gap-2 py-4 text-center">
           <mat-icon class="text-fleet-text-muted/50" style="font-size:36px;width:36px;height:36px;">cloud_upload</mat-icon>
           <p class="text-sm font-medium text-fleet-text">{{ slot().label }}</p>
-          <p class="text-xs text-fleet-text-muted">Drag & drop or click — JPG, PNG, or PDF (max 2 MB)</p>
+          <p class="text-xs text-fleet-text-muted">{{ hintText() }}</p>
           @if (slot().required) {
             <span class="text-xs font-medium text-fleet-error">Required</span>
           }
@@ -124,7 +134,7 @@ type DocumentPreview = { kind: 'image' | 'pdf'; src: string };
 
       @if (sizeError()) {
         <p class="mt-2 text-center text-xs text-fleet-error">{{ sizeError() }}</p>
-      } @else if (slot().error) {
+      } @else if (showFooterError()) {
         <p class="mt-2 text-center text-xs text-fleet-error">{{ slot().error }}</p>
       }
     </div>
@@ -141,13 +151,20 @@ export class DocumentUploadZoneComponent {
 
   private readonly localPreviewUrl = signal<string | null>(null);
 
+  readonly displayStatus = computed((): DocumentDisplayStatus => resolveDocumentDisplayStatus(this.slot()));
+
+  readonly isProcessing = computed(() => this.displayStatus() === 'Processing');
+
+  readonly processingMessage = computed(() => 'Uploading…');
+
   readonly acceptTypes = computed(() =>
-    this.slot().documentType === 'VehicleImage'
-      ? '.jpg,.jpeg,.png,.webp,.gif'
-      : '.jpg,.jpeg,.png,.pdf'
+    this.slot().documentType === 'VehicleImage' ? '.jpg,.jpeg,.png,.webp,.gif' : '.jpg,.jpeg,.png,.pdf'
   );
 
+  readonly hintText = computed(() => 'Drag & drop or click — JPG, PNG, or PDF (max 5 MB)');
+
   readonly preview = computed((): DocumentPreview | null => {
+    if (this.isProcessing()) return null;
     const slot = this.slot();
     const remoteUrl = slot.fileUrl ? resolveUploadUrl(slot.fileUrl) : null;
 
@@ -179,6 +196,30 @@ export class DocumentUploadZoneComponent {
     onCleanup(() => URL.revokeObjectURL(blobUrl));
   });
 
+  statusIcon(): string {
+    switch (this.displayStatus()) {
+      case 'Verified': return 'check_circle';
+      case 'Failed': return 'error';
+      default: return this.preview()?.kind === 'pdf' ? 'picture_as_pdf' : 'check_circle';
+    }
+  }
+
+  statusIconClass(): string {
+    switch (this.displayStatus()) {
+      case 'Verified': return 'text-emerald-600';
+      case 'Failed': return 'text-red-600';
+      default: return 'text-emerald-600';
+    }
+  }
+
+  showFooterError(): boolean {
+    const err = this.slot().error;
+    if (!err || this.isProcessing()) return false;
+    // Failed state already shows the message in the body
+    if (this.displayStatus() === 'Failed' && !this.preview()) return false;
+    return true;
+  }
+
   openFilePicker(): void {
     this.fileInput()?.nativeElement.click();
   }
@@ -188,6 +229,7 @@ export class DocumentUploadZoneComponent {
   }
 
   onZoneClick(event: MouseEvent): void {
+    if (this.isProcessing()) return;
     if ((event.target as HTMLElement).closest('a,button,iframe')) return;
     this.openFilePicker();
   }
@@ -200,6 +242,7 @@ export class DocumentUploadZoneComponent {
   onDrop(e: DragEvent): void {
     e.preventDefault();
     this.dragOver = false;
+    if (this.isProcessing()) return;
     const file = e.dataTransfer?.files?.[0];
     if (!file || !this.isAcceptedFile(file)) return;
     this.queueFile(file);

@@ -84,7 +84,7 @@ import { resolveUploadUrl, vehicleUploadSizeError } from '../../../../../core/ut
                 (click)="$event.stopPropagation(); angleFileInput.click()">
                 <mat-icon class="text-fleet-text-muted/50" style="font-size:28px;width:28px;height:28px;">add_a_photo</mat-icon>
                 <p class="text-xs font-medium text-fleet-text">{{ slot.label }}</p>
-                <p class="text-[10px] text-fleet-text-muted">JPG, PNG, WEBP · max 2 MB</p>
+                <p class="text-[10px] text-fleet-text-muted">JPG, PNG, WEBP · max 5 MB</p>
               </button>
             }
 

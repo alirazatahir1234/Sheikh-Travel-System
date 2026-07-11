@@ -76,7 +76,7 @@ public class VehiclesController : BaseApiController
 
     [HttpPost("{id}/documents/upload")]
     [Consumes("multipart/form-data")]
-    [RequestSizeLimit(3 * 1024 * 1024)]
+    [RequestSizeLimit(6 * 1024 * 1024)]
     public async Task<IActionResult> UploadDocument(int id, [FromForm] UploadVehicleDocumentForm form)
     {
         if (form.File is null || form.File.Length == 0)

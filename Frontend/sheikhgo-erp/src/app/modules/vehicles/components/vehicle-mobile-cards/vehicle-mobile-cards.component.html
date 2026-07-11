@@ -59,16 +59,18 @@
           <button type="button" class="action" (click)="cardSelect.emit(row)">
             <mat-icon>visibility</mat-icon> View
           </button>
-          @if (canTrack(row)) {
-            <button type="button" class="action" (click)="track.emit(row)">
-              <mat-icon>my_location</mat-icon> Track
-            </button>
-          }
-          @if (!row.driverName) {
-            <button type="button" class="action action--primary" (click)="assign.emit(row)">
-              <mat-icon>person_add</mat-icon> Assign
-            </button>
-          }
+          <button type="button" class="action" (click)="edit.emit(row)">
+            <mat-icon>edit</mat-icon> Edit
+          </button>
+          <button type="button" class="action" [disabled]="!canTrack(row)" (click)="track.emit(row)">
+            <mat-icon>my_location</mat-icon> Track
+          </button>
+          <button type="button" class="action action--primary" (click)="assign.emit(row)">
+            <mat-icon>person_add</mat-icon> Assign
+          </button>
+          <button type="button" class="action action--danger" (click)="delete.emit(row)">
+            <mat-icon>delete</mat-icon> Delete
+          </button>
         </div>
       </article>
     }

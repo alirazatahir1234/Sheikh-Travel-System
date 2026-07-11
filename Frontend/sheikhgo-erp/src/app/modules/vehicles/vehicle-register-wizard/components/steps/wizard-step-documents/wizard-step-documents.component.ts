@@ -11,16 +11,11 @@ import { VehicleImageGalleryComponent } from '../../vehicle-image-gallery/vehicl
   template: `
     <section class="rounded-lg border border-fleet-border bg-white p-6 shadow-sm pb-8 sm:pb-6">
       <h2 class="mb-1 text-lg font-semibold text-fleet-text">Documents</h2>
-      <p class="mb-5 text-sm text-fleet-text-muted">Upload vehicle images and compliance documents.</p>
+      <p class="mb-5 text-sm text-fleet-text-muted">
+        Upload the registration card and vehicle photos.
+      </p>
 
       <div class="space-y-6">
-        <app-vehicle-image-gallery
-          [slots]="vehicleImageSlots()"
-          [showRequiredError]="showImageRequiredError()"
-          (fileSelected)="vehicleImageSelected.emit($event)"
-          (fileRejected)="vehicleImageRejected.emit($event)"
-          (selectPrimary)="selectPrimaryImage.emit($event)" />
-
         <div class="grid gap-4 md:grid-cols-1">
           @for (slot of slots(); track slot.documentType; let i = $index) {
             <app-document-upload-zone
@@ -29,6 +24,13 @@ import { VehicleImageGalleryComponent } from '../../vehicle-image-gallery/vehicl
               (fileSelected)="fileSelected.emit($event)" />
           }
         </div>
+
+        <app-vehicle-image-gallery
+          [slots]="vehicleImageSlots()"
+          [showRequiredError]="showImageRequiredError()"
+          (fileSelected)="vehicleImageSelected.emit($event)"
+          (fileRejected)="vehicleImageRejected.emit($event)"
+          (selectPrimary)="selectPrimaryImage.emit($event)" />
       </div>
     </section>
   `

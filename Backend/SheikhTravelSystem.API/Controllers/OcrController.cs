@@ -9,17 +9,10 @@ using SheikhTravelSystem.Application.Features.Ocr.DTOs;
 namespace SheikhTravelSystem.API.Controllers;
 
 [Authorize]
-public class OcrController : BaseApiController
+public class OcrController(
+    IIdentityOcrService ocrService,
+    ILogger<OcrController> logger) : BaseApiController
 {
-    private readonly IIdentityOcrService _ocrService;
-    private readonly ILogger<OcrController> _logger;
-
-    public OcrController(IIdentityOcrService ocrService, ILogger<OcrController> logger)
-    {
-        _ocrService = ocrService;
-        _logger = logger;
-    }
-
     [HttpPost("extract-identity")]
     [Consumes("multipart/form-data")]
     [RequestSizeLimit(15 * 1024 * 1024)]
@@ -51,8 +44,6 @@ public class OcrController : BaseApiController
             }
             catch (JsonException)
             {
-                // Keep OCR resilient: if optional settings are malformed,
-                // continue with defaults rather than failing file extraction.
                 parsedRequest = new ExtractIdentityOcrRequest();
             }
         }
@@ -60,7 +51,7 @@ public class OcrController : BaseApiController
         try
         {
             await using var stream = file.OpenReadStream();
-            var result = await _ocrService.ExtractAsync(stream, file.FileName ?? "upload.jpg", parsedRequest, cancellationToken);
+            var result = await ocrService.ExtractAsync(stream, file.FileName ?? "upload.jpg", parsedRequest, cancellationToken);
             var api = IdentityOcrApiMapper.ToApiResponse(
                 result,
                 parsedRequest.Mode,
@@ -70,12 +61,12 @@ public class OcrController : BaseApiController
         }
         catch (InvalidOperationException ex) when (ex.Message.Contains("Azure OCR", StringComparison.OrdinalIgnoreCase))
         {
-            _logger.LogWarning(ex, "OCR extract-identity: Azure is not configured.");
+            logger.LogWarning(ex, "OCR extract-identity: Azure is not configured.");
             return StatusCode(StatusCodes.Status503ServiceUnavailable, "CNIC OCR is temporarily unavailable (Azure not configured).");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "OCR extract-identity failed for {FileName}.", file.FileName);
+            logger.LogError(ex, "OCR extract-identity failed for {FileName}.", file.FileName);
             return StatusCode(StatusCodes.Status503ServiceUnavailable, "CNIC OCR failed. Try a clearer photo or enter details manually.");
         }
     }

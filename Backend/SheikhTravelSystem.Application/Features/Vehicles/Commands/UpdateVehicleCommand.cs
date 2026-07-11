@@ -90,6 +90,34 @@ public class UpdateVehicleCommandHandler(IDbConnectionFactory dbFactory, ITenant
                 throw new ConflictException($"Registration '{registration}' is already in use.");
         }
 
+        if (!string.IsNullOrWhiteSpace(dto.EngineNo))
+        {
+            var engineDup = await connection.ExecuteScalarAsync<bool>(new CommandDefinition(
+                @"SELECT CASE WHEN EXISTS(
+                    SELECT 1 FROM Vehicles
+                    WHERE TenantId = @TenantId AND IsDeleted = 0 AND Id != @Id
+                      AND EngineNo IS NOT NULL AND LOWER(LTRIM(RTRIM(EngineNo))) = LOWER(LTRIM(RTRIM(@EngineNo)))
+                  ) THEN 1 ELSE 0 END",
+                new { request.Id, TenantId = tenantId, EngineNo = dto.EngineNo },
+                cancellationToken: cancellationToken));
+            if (engineDup)
+                throw new ConflictException("Vehicle already registered with this engine number.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(dto.ChassisNo))
+        {
+            var chassisDup = await connection.ExecuteScalarAsync<bool>(new CommandDefinition(
+                @"SELECT CASE WHEN EXISTS(
+                    SELECT 1 FROM Vehicles
+                    WHERE TenantId = @TenantId AND IsDeleted = 0 AND Id != @Id
+                      AND ChassisNo IS NOT NULL AND LOWER(LTRIM(RTRIM(ChassisNo))) = LOWER(LTRIM(RTRIM(@ChassisNo)))
+                  ) THEN 1 ELSE 0 END",
+                new { request.Id, TenantId = tenantId, ChassisNo = dto.ChassisNo },
+                cancellationToken: cancellationToken));
+            if (chassisDup)
+                throw new ConflictException("Vehicle already registered with this chassis number.");
+        }
+
         int rows;
         try
         {

@@ -28,7 +28,6 @@ export class OcrService {
     };
     formData.append('request', JSON.stringify(payload));
 
-    // Preferred hybrid endpoint; backend can map/fallback.
     return this.http.post<OcrExtractResult>(this.hybridEndpoint, formData);
   }
 
