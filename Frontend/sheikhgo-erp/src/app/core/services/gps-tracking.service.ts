@@ -20,6 +20,8 @@ import {
   GpsAlertRule,
   GpsAlertEvent,
   GpsTrip,
+  TripDetailBundle,
+  TripListQuery,
   TripAnalyticsBundle,
   TripAnalyticsSummary,
   TripFleetFilters,
@@ -37,7 +39,7 @@ import {
   TraccarSyncRunResult,
   TraccarSyncStatusDto
 } from '../models/gps-tracking.model';
-import { PagedResult } from '../models/common.model';
+import { PagedResult, normalizePagedResult } from '../models/common.model';
 import { VehicleService } from './vehicle.service';
 import { DriverService } from './driver.service';
 import { VehicleStatus } from '../models/vehicle.model';
@@ -245,7 +247,13 @@ export class GpsTrackingService {
     });
   }
 
-  getTrips(vehicleId?: number | null, from?: Date, to?: Date, filters?: TripFleetFilters): Observable<GpsTrip[]> {
+  getTrips(
+    vehicleId?: number | null,
+    from?: Date,
+    to?: Date,
+    filters?: TripFleetFilters,
+    query?: TripListQuery
+  ): Observable<PagedResult<GpsTrip>> {
     const params: Record<string, string> = {};
     if (vehicleId) params['vehicleId'] = String(vehicleId);
     if (from) params['from'] = from.toISOString();
@@ -253,7 +261,38 @@ export class GpsTrackingService {
     if (filters?.branchId) params['branchId'] = String(filters.branchId);
     if (filters?.departmentId) params['departmentId'] = String(filters.departmentId);
     if (filters?.driverId) params['driverId'] = String(filters.driverId);
-    return this.http.get<GpsTrip[]>(`${this.base}/trips`, { params });
+    if (query?.page) params['page'] = String(query.page);
+    if (query?.pageSize) params['pageSize'] = String(query.pageSize);
+    if (query?.search) params['search'] = query.search;
+    if (query?.sortBy) params['sortBy'] = query.sortBy;
+    if (query?.sortDir) params['sortDir'] = query.sortDir;
+    if (query?.minDistanceKm != null) params['minDistanceKm'] = String(query.minDistanceKm);
+    if (query?.maxDistanceKm != null) params['maxDistanceKm'] = String(query.maxDistanceKm);
+    if (query?.minAvgSpeedKmh != null) params['minAvgSpeedKmh'] = String(query.minAvgSpeedKmh);
+    if (query?.maxAvgSpeedKmh != null) params['maxAvgSpeedKmh'] = String(query.maxAvgSpeedKmh);
+    if (query?.status) params['status'] = query.status;
+    return this.http.get<PagedResult<GpsTrip>>(`${this.base}/trips`, { params }).pipe(
+      map(r => normalizePagedResult(r))
+    );
+  }
+
+  private tripDetailCache = new Map<string, TripDetailBundle>();
+
+  getTripDetail(tripKey: string, useCache = true): Observable<TripDetailBundle> {
+    if (useCache && this.tripDetailCache.has(tripKey)) {
+      return of(this.tripDetailCache.get(tripKey)!);
+    }
+    return this.http.get<TripDetailBundle>(`${this.base}/trips/${encodeURIComponent(tripKey)}`).pipe(
+      map(bundle => {
+        this.tripDetailCache.set(tripKey, bundle);
+        return bundle;
+      })
+    );
+  }
+
+  clearTripDetailCache(tripKey?: string): void {
+    if (tripKey) this.tripDetailCache.delete(tripKey);
+    else this.tripDetailCache.clear();
   }
 
   getFleetTripSummary(from?: Date, to?: Date, filters?: TripFleetFilters): Observable<TripAnalyticsSummary> {

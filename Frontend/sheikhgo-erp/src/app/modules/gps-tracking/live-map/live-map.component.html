@@ -44,54 +44,54 @@
       icon="wifi_tethering"
       color="sky"
       [hint]="(fleetStatusLocal?.totalVehicles ?? fleetCounts.total) + ' total fleet'"
-      [trend]="trendFor('online')?.trend"
-      [trendUp]="trendFor('online')?.trendUp"
-      [sparkline]="sparklineFor('online')">
+      [trend]="kpiTiles['online']?.trend"
+      [trendUp]="kpiTiles['online']?.trendUp"
+      [sparkline]="kpiTiles['online']?.sparkline">
     </stb-stat-tile>
     <stb-stat-tile
       label="Moving"
       [value]="fleetStatusLocal?.moving ?? fleetCounts.moving"
       icon="directions_bus"
       color="green"
-      [trend]="trendFor('moving')?.trend"
-      [trendUp]="trendFor('moving')?.trendUp"
-      [sparkline]="sparklineFor('moving')">
+      [trend]="kpiTiles['moving']?.trend"
+      [trendUp]="kpiTiles['moving']?.trendUp"
+      [sparkline]="kpiTiles['moving']?.sparkline">
     </stb-stat-tile>
     <stb-stat-tile
       label="Parked"
       [value]="fleetStatusLocal?.parked ?? fleetCounts.parked"
       icon="local_parking"
       color="blue"
-      [trend]="trendFor('parked')?.trend"
-      [trendUp]="trendFor('parked')?.trendUp"
-      [sparkline]="sparklineFor('parked')">
+      [trend]="kpiTiles['parked']?.trend"
+      [trendUp]="kpiTiles['parked']?.trendUp"
+      [sparkline]="kpiTiles['parked']?.sparkline">
     </stb-stat-tile>
     <stb-stat-tile
       label="Idle"
       [value]="fleetStatusLocal?.idle ?? fleetCounts.idle"
       icon="local_shipping"
       color="amber"
-      [trend]="trendFor('idle')?.trend"
-      [trendUp]="trendFor('idle')?.trendUp"
-      [sparkline]="sparklineFor('idle')">
+      [trend]="kpiTiles['idle']?.trend"
+      [trendUp]="kpiTiles['idle']?.trendUp"
+      [sparkline]="kpiTiles['idle']?.sparkline">
     </stb-stat-tile>
     <stb-stat-tile
       label="Offline"
       [value]="fleetStatusLocal?.offline ?? fleetCounts.offline"
       icon="signal_wifi_off"
       color="rose"
-      [trend]="trendFor('offline')?.trend"
-      [trendUp]="trendFor('offline')?.trendUp"
-      [sparkline]="sparklineFor('offline')">
+      [trend]="kpiTiles['offline']?.trend"
+      [trendUp]="kpiTiles['offline']?.trendUp"
+      [sparkline]="kpiTiles['offline']?.sparkline">
     </stb-stat-tile>
     <stb-stat-tile
       label="Never Seen"
       [value]="fleetStatusLocal?.neverSeen ?? fleetCounts.neverSeen"
       icon="help_outline"
       color="purple"
-      [trend]="trendFor('neverSeen')?.trend"
-      [trendUp]="trendFor('neverSeen')?.trendUp"
-      [sparkline]="sparklineFor('neverSeen')">
+      [trend]="kpiTiles['neverSeen']?.trend"
+      [trendUp]="kpiTiles['neverSeen']?.trendUp"
+      [sparkline]="kpiTiles['neverSeen']?.sparkline">
     </stb-stat-tile>
     <stb-stat-tile
       label="Total Fleet"
@@ -106,9 +106,9 @@
       icon="notifications_active"
       color="orange"
       hint="Total alerts"
-      [trend]="trendFor('alertsToday')?.trend"
-      [trendUp]="trendFor('alertsToday')?.trendUp"
-      [sparkline]="sparklineFor('alertsToday')">
+      [trend]="kpiTiles['alertsToday']?.trend"
+      [trendUp]="kpiTiles['alertsToday']?.trendUp"
+      [sparkline]="kpiTiles['alertsToday']?.sparkline">
     </stb-stat-tile>
     <div class="stat-chip stat-chip--sos" *ngIf="fleetCounts.sos > 0">
       <mat-icon>sos</mat-icon>
@@ -371,7 +371,12 @@
               <mat-icon>person</mat-icon>
               <div>
                 <span class="detail-metric-lbl">Driver</span>
-                <span class="detail-metric-val">{{ loc.driverName }}</span>
+                <span class="detail-metric-val">
+                  {{ loc.driverName }}
+                  <a *ngIf="loc.driverPhone" [href]="'tel:' + loc.driverPhone" class="detail-call-link" title="Call driver">
+                    <mat-icon>call</mat-icon>
+                  </a>
+                </span>
               </div>
             </div>
             <div class="detail-metric" *ngIf="loc.trackerName">
@@ -423,6 +428,13 @@
                 <span class="detail-metric-val">{{ loc.totalDistanceKm | number:'1.0-0' }} km</span>
               </div>
             </div>
+            <div class="detail-metric" title="Not tracked by installed hardware">
+              <mat-icon>thermostat</mat-icon>
+              <div>
+                <span class="detail-metric-lbl">Temperature</span>
+                <span class="detail-metric-val">—</span>
+              </div>
+            </div>
             <div class="detail-metric" *ngIf="loc.relayOutput">
               <mat-icon>electrical_services</mat-icon>
               <div>
@@ -464,14 +476,42 @@
             </div>
           </div>
 
-          <button
-            mat-stroked-button
-            type="button"
-            class="detail-profile-btn stb-touch"
-            (click)="goToVehicleProfile(loc.vehicleId)">
-            <mat-icon>open_in_new</mat-icon>
-            View vehicle profile
-          </button>
+          <div class="detail-trip-eta" *ngIf="loc.bookingId != null && selectedEta as eta">
+            <div class="detail-metric">
+              <mat-icon>route</mat-icon>
+              <div>
+                <span class="detail-metric-lbl">Trip</span>
+                <span class="detail-metric-val">{{ eta.distanceKm | number:'1.1-1' }} km</span>
+              </div>
+            </div>
+            <div class="detail-metric" *ngIf="eta.etaMinutes != null">
+              <mat-icon>schedule</mat-icon>
+              <div>
+                <span class="detail-metric-lbl">ETA</span>
+                <span class="detail-metric-val">{{ eta.etaMinutes }} min</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="detail-action-row">
+            <button type="button" class="detail-action-btn stb-touch" (click)="focusVehicle(loc)">
+              <mat-icon>my_location</mat-icon> Track
+            </button>
+            <button type="button" class="detail-action-btn stb-touch" (click)="setTimePreset('today'); showHistory = true">
+              <mat-icon>history</mat-icon> History
+            </button>
+            <button type="button" class="detail-action-btn stb-touch" (click)="goToCommands()">
+              <mat-icon>settings_remote</mat-icon> Command
+            </button>
+            <button
+              mat-stroked-button
+              type="button"
+              class="detail-profile-btn stb-touch"
+              (click)="goToVehicleProfile(loc.vehicleId)">
+              <mat-icon>open_in_new</mat-icon>
+              More
+            </button>
+          </div>
         </div>
       </ng-container>
 
@@ -481,6 +521,37 @@
       </div>
     </aside>
   </div>
+
+  <section class="fleet-analytics-row">
+    <div class="fleet-analytics-card stb-elevated">
+      <div class="fleet-analytics-head">
+        <h2 class="stb-heading-section">Fleet Overview</h2>
+        <div class="range-toggle">
+          <button type="button"
+            *ngFor="let r of fleetOverviewRangeOptions"
+            [class.active]="fleetOverviewRangeDays === r.days"
+            (click)="setFleetOverviewRange(r.days)">{{ r.label }}</button>
+        </div>
+      </div>
+      <ui-chart type="line" [data]="fleetOverviewChartData" height="220px"></ui-chart>
+    </div>
+
+    <div class="fleet-analytics-card stb-elevated">
+      <div class="fleet-analytics-head">
+        <h2 class="stb-heading-section">Fleet Health</h2>
+      </div>
+      <div class="fleet-health-body">
+        <ui-chart type="doughnut" [data]="fleetHealthChartData" height="180px"></ui-chart>
+        <div class="fleet-health-legend">
+          <div class="fleet-health-total">{{ fleetHealth.total }}<span>Total</span></div>
+          <div class="fleet-health-row"><span class="dot dot--optimal"></span>Optimal <strong>{{ fleetHealth.optimal }}</strong></div>
+          <div class="fleet-health-row"><span class="dot dot--attention"></span>Attention <strong>{{ fleetHealth.attention }}</strong></div>
+          <div class="fleet-health-row"><span class="dot dot--critical"></span>Critical <strong>{{ fleetHealth.critical }}</strong></div>
+          <div class="fleet-health-row"><span class="dot dot--unknown"></span>Unknown <strong>{{ fleetHealth.unknown }}</strong></div>
+        </div>
+      </div>
+    </div>
+  </section>
 
   <section class="track-bottom">
     <div class="history-block stb-elevated">

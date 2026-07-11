@@ -13,16 +13,39 @@
     <div class="rs-item"><span class="rs-val">{{ routeSummary.pointCount }}</span><span class="rs-lbl">Points</span></div>
   </div>
 
+  <div class="replay-hud" *ngIf="currentPosition && !loading">
+    <span>{{ currentPosition.timestamp | date:'medium' }}</span>
+    <span>{{ currentPosition.speedKmh | number:'1.0-0' }} km/h</span>
+    <span *ngIf="currentPosition.address">{{ currentPosition.address }}</span>
+    <span *ngIf="driverName">Driver: {{ driverName }}</span>
+    <span *ngIf="currentPosition.ignition != null">Ignition: {{ currentPosition.ignition ? 'ON' : 'OFF' }}</span>
+    <span>{{ distanceTravelledKm | number:'1.1-1' }} / {{ totalDistanceKm | number:'1.1-1' }} km</span>
+    <span>{{ elapsedLabel }} / {{ totalDurationLabel }}</span>
+  </div>
+
   <div class="playback-bar" *ngIf="positions.length > 0 && !loading">
     <div class="replay-controls">
+      <button type="button" class="btn btn-secondary btn-sm" (click)="stepBack()" [disabled]="replayIndex <= 0" aria-label="Step back">
+        <mat-icon>skip_previous</mat-icon>
+      </button>
       <button type="button" class="btn btn-primary btn-sm" (click)="toggleReplay()">
         <mat-icon>{{ replayPlaying ? 'pause' : 'play_arrow' }}</mat-icon>
         {{ replayPlaying ? 'Pause' : 'Play' }}
+      </button>
+      <button type="button" class="btn btn-secondary btn-sm" (click)="stopAndReset()" aria-label="Stop">
+        <mat-icon>stop</mat-icon>
+      </button>
+      <button type="button" class="btn btn-secondary btn-sm" (click)="stepForward()" [disabled]="replayIndex >= positions.length - 1" aria-label="Step forward">
+        <mat-icon>skip_next</mat-icon>
       </button>
       <button type="button" class="btn btn-secondary btn-sm"
         *ngFor="let s of speedOptions"
         [class.active]="replaySpeed === s"
         (click)="setReplaySpeed(s)">{{ s }}×</button>
+      <label class="follow-toggle">
+        <input type="checkbox" [(ngModel)]="followVehicle" />
+        Follow
+      </label>
     </div>
     <label class="timeline-scrub">
       <div class="timeline-labels">
@@ -35,6 +58,12 @@
       <input type="range" min="0" max="100" [value]="replayProgress" (input)="onReplayScrub($event)" />
       <span class="timeline-pct">{{ replayProgress }}%</span>
     </label>
+    <div class="jump-row">
+      <label>
+        Jump to time
+        <input type="datetime-local" class="jump-input" [value]="jumpInputValue" (change)="onJumpToTime($event)" />
+      </label>
+    </div>
   </div>
 
   <div class="replay-empty" *ngIf="!loading && positions.length === 0">

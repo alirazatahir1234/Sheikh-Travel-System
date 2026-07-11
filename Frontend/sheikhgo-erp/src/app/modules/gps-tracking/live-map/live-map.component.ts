@@ -27,7 +27,8 @@ import {
   FleetTrackStatus,
   SosAlertPayload,
   GpsFleetStatusLocal,
-  GpsFleetStatusSnapshot
+  GpsFleetStatusSnapshot,
+  GpsEta
 } from '../../../core/models/gps-tracking.model';
 import { VehicleListItem } from '../../../core/models/vehicle.model';
 import { resolveFleetStatus } from '../../../core/utils/gps-status.util';
@@ -155,6 +156,7 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
   ];
 
   geofenceBreachCount = 0;
+  selectedEta: GpsEta | null = null;
 
   fleetStatusLocal: GpsFleetStatusLocal | null = null;
   fleetStatusHistory: GpsFleetStatusSnapshot[] = [];
@@ -566,7 +568,11 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
     const to = new Date();
     const from = new Date(to.getTime() - this.fleetOverviewRangeDays * 24 * 60 * 60 * 1000);
     this.gpsService.getFleetStatusHistory(from, to).subscribe({
-      next: rows => { this.fleetStatusHistory = rows; },
+      next: rows => {
+        this.fleetStatusHistory = rows;
+        this.recomputeKpiTiles();
+        this.recomputeFleetOverviewChart();
+      },
       error: () => {}
     });
   }
@@ -576,14 +582,32 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
     this.loadFleetStatusHistory();
   }
 
-  /** Last ~24 history points for a given metric — feeds each KPI tile's sparkline canvas. */
-  sparklineFor(metric: keyof GpsFleetStatusSnapshot): number[] {
-    return this.fleetStatusHistory.slice(-24).map(s => Number(s[metric]) || 0);
+  /**
+   * Pre-computed sparkline/trend data per KPI metric, recomputed only when fleetStatusHistory
+   * actually changes — NOT exposed as a template-callable method. Binding a method call directly
+   * in a template (e.g. [sparkline]="sparklineFor('online')") makes Angular invoke it, and allocate
+   * a brand-new array/object, on every single change-detection cycle; stb-stat-tile treats a new
+   * array reference as a change and redraws its canvas in response, and with this page's 1-second
+   * sync timer driving frequent CD cycles that turned into a runaway redraw loop that froze the tab.
+   */
+  kpiTiles: Record<string, { trend?: string; trendUp?: boolean; sparkline: number[] }> = {};
+
+  private recomputeKpiTiles(): void {
+    const metrics: (keyof GpsFleetStatusSnapshot)[] =
+      ['online', 'moving', 'idle', 'parked', 'offline', 'neverSeen', 'alertsToday'];
+    const tiles: Record<string, { trend?: string; trendUp?: boolean; sparkline: number[] }> = {};
+    for (const metric of metrics) {
+      tiles[metric] = {
+        ...this.computeTrend(metric),
+        sparkline: this.fleetStatusHistory.slice(-24).map(s => Number(s[metric]) || 0)
+      };
+    }
+    this.kpiTiles = tiles;
   }
 
   /** Day-over-day delta (latest snapshot vs. ~24h-ago) for a given metric's trend indicator. */
-  trendFor(metric: keyof GpsFleetStatusSnapshot): { trend: string; trendUp: boolean } | null {
-    if (this.fleetStatusHistory.length < 2) return null;
+  private computeTrend(metric: keyof GpsFleetStatusSnapshot): { trend?: string; trendUp?: boolean } {
+    if (this.fleetStatusHistory.length < 2) return {};
 
     const latest = this.fleetStatusHistory[this.fleetStatusHistory.length - 1];
     const latestTime = new Date(latest.snapshotAt).getTime();
@@ -596,33 +620,21 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
 
     const latestVal = Number(latest[metric]) || 0;
     const compareVal = Number(compare[metric]) || 0;
-    if (compareVal === 0) return null;
+    if (compareVal === 0) return {};
 
     const pct = ((latestVal - compareVal) / compareVal) * 100;
     return { trend: `${pct >= 0 ? '+' : ''}${pct.toFixed(1)}%`, trendUp: pct >= 0 };
   }
 
-  get fleetHealth(): FleetHealthBreakdown {
-    return computeFleetHealth(this.locations);
-  }
+  /** Pre-computed, stable fields — see kpiTiles doc comment for why these aren't template getters. */
+  fleetHealth: FleetHealthBreakdown = { optimal: 0, attention: 0, critical: 0, unknown: 0, total: 0 };
+  fleetHealthChartData: ChartData = { labels: [], datasets: [] };
+  fleetOverviewChartData: ChartData = { labels: [], datasets: [] };
 
-  get fleetOverviewChartData(): ChartData {
-    const labels = this.fleetStatusHistory.map(s =>
-      new Date(s.snapshotAt).toLocaleDateString(undefined, { day: '2-digit', month: 'short' }));
-    return {
-      labels,
-      datasets: [
-        { label: 'Moving', data: this.fleetStatusHistory.map(s => s.moving), borderColor: '#10B981', backgroundColor: '#10B98133', tension: 0.4, pointRadius: 0 },
-        { label: 'Idle', data: this.fleetStatusHistory.map(s => s.idle), borderColor: '#8B5CF6', backgroundColor: '#8B5CF633', tension: 0.4, pointRadius: 0 },
-        { label: 'Parked', data: this.fleetStatusHistory.map(s => s.parked), borderColor: '#F97316', backgroundColor: '#F9731633', tension: 0.4, pointRadius: 0 },
-        { label: 'Offline', data: this.fleetStatusHistory.map(s => s.offline), borderColor: '#EF4444', backgroundColor: '#EF444433', tension: 0.4, pointRadius: 0 }
-      ]
-    };
-  }
-
-  get fleetHealthChartData(): ChartData {
+  private recomputeFleetHealth(): void {
+    this.fleetHealth = computeFleetHealth(this.locations);
     const h = this.fleetHealth;
-    return {
+    this.fleetHealthChartData = {
       labels: ['Optimal', 'Attention', 'Critical', 'Unknown'],
       datasets: [{
         data: [h.optimal, h.attention, h.critical, h.unknown],
@@ -630,6 +642,20 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
         borderWidth: 0,
         hoverOffset: 6
       }]
+    };
+  }
+
+  private recomputeFleetOverviewChart(): void {
+    const labels = this.fleetStatusHistory.map(s =>
+      new Date(s.snapshotAt).toLocaleDateString(undefined, { day: '2-digit', month: 'short' }));
+    this.fleetOverviewChartData = {
+      labels,
+      datasets: [
+        { label: 'Moving', data: this.fleetStatusHistory.map(s => s.moving), borderColor: '#10B981', backgroundColor: '#10B98133', tension: 0.4, pointRadius: 0 },
+        { label: 'Idle', data: this.fleetStatusHistory.map(s => s.idle), borderColor: '#8B5CF6', backgroundColor: '#8B5CF633', tension: 0.4, pointRadius: 0 },
+        { label: 'Parked', data: this.fleetStatusHistory.map(s => s.parked), borderColor: '#F97316', backgroundColor: '#F9731633', tension: 0.4, pointRadius: 0 },
+        { label: 'Offline', data: this.fleetStatusHistory.map(s => s.offline), borderColor: '#EF4444', backgroundColor: '#EF444433', tension: 0.4, pointRadius: 0 }
+      ]
     };
   }
 
@@ -785,6 +811,18 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
     } else {
       this.pushEvent(`${loc.vehicleName} has no GPS coordinates yet`, 'warning', 'gps_off');
     }
+
+    this.selectedEta = null;
+    if (loc.bookingId != null) {
+      this.gpsService.getEta(loc.bookingId).subscribe({
+        next: eta => { this.selectedEta = eta; },
+        error: () => { this.selectedEta = null; }
+      });
+    }
+  }
+
+  goToCommands(): void {
+    this.router.navigate(['/gps-tracking/commands']);
   }
 
   onVehicleCardEnter(loc: VehicleLocation): void {
@@ -880,6 +918,7 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
         );
         const previousLocations = this.locations;
         this.locations = mergeVehicleLocations(previousLocations, locs);
+        this.recomputeFleetHealth();
         this.loading = false;
         this.syncError = null;
         this.lastSyncAt = new Date();

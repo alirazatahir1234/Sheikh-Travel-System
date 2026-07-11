@@ -277,6 +277,30 @@ export interface GpsTrip {
   driverName?: string | null;
   fuelLiters?: number | null;
   plateNumber?: string | null;
+  tripKey?: string | null;
+  status?: string | null;
+}
+
+export interface TripDetailBundle {
+  trip: GpsTrip;
+  summary?: TripReplaySummary | null;
+  stops: TripStop[];
+  events: TripEvent[];
+  route: TripReplayPosition[];
+  playback: TripReplayPosition[];
+}
+
+export interface TripListQuery {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+  sortBy?: string;
+  sortDir?: 'asc' | 'desc';
+  minDistanceKm?: number;
+  maxDistanceKm?: number;
+  minAvgSpeedKmh?: number;
+  maxAvgSpeedKmh?: number;
+  status?: string;
 }
 
 

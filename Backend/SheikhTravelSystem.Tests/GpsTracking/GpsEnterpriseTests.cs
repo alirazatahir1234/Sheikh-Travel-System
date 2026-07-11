@@ -83,5 +83,19 @@ public class GpsEnterpriseTests
         dto.AvgSpeedKmh.Should().BeApproximately(19.3m, 0.1m);
         dto.StartAddress.Should().Be("Pasrur");
         dto.EndAddress.Should().Be("Pasrur");
+        dto.TripKey.Should().NotBeNullOrWhiteSpace();
+        TripKeyHelper.TryParse(dto.TripKey!, out var vehicleId, out var parsedStart).Should().BeTrue();
+        vehicleId.Should().Be(5);
+        parsedStart.Should().BeCloseTo(start, TimeSpan.FromSeconds(1));
+    }
+
+    [Fact]
+    public void TripKeyHelper_RoundTrip_ParsesVehicleAndStart()
+    {
+        var start = DateTime.UtcNow.AddHours(-3);
+        var key = TripKeyHelper.Build(42, start);
+        TripKeyHelper.TryParse(key, out var vehicleId, out var parsedStart).Should().BeTrue();
+        vehicleId.Should().Be(42);
+        parsedStart.Should().BeCloseTo(start, TimeSpan.FromSeconds(1));
     }
 }

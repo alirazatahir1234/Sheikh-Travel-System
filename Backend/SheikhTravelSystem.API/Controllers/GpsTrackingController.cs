@@ -70,8 +70,25 @@ public class GpsTrackingController : BaseApiController
         [FromQuery] DateTime? to,
         [FromQuery] int? branchId,
         [FromQuery] int? departmentId,
-        [FromQuery] int? driverId)
-        => Ok(await Mediator.Send(new GetGpsTripsQuery(vehicleId, from, to, branchId, departmentId, driverId)));
+        [FromQuery] int? driverId,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 100,
+        [FromQuery] string? search = null,
+        [FromQuery] string? sortBy = null,
+        [FromQuery] string? sortDir = null,
+        [FromQuery] double? minDistanceKm = null,
+        [FromQuery] double? maxDistanceKm = null,
+        [FromQuery] decimal? minAvgSpeedKmh = null,
+        [FromQuery] decimal? maxAvgSpeedKmh = null,
+        [FromQuery] string? status = null)
+        => Ok(await Mediator.Send(new GetGpsTripsQuery(
+            vehicleId, from, to, branchId, departmentId, driverId,
+            page, pageSize, false, search, sortBy, sortDir,
+            minDistanceKm, maxDistanceKm, minAvgSpeedKmh, maxAvgSpeedKmh, status)));
+
+    [HttpGet("trips/{tripKey}")]
+    public async Task<IActionResult> GetTripDetail(string tripKey)
+        => Ok(await Mediator.Send(new GetTripDetailQuery(tripKey)));
 
     [HttpGet("trips/fleet-summary")]
     public async Task<IActionResult> GetFleetTripSummary(

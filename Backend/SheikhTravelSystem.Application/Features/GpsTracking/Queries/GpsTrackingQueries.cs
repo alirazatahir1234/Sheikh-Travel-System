@@ -63,7 +63,6 @@ public class GetLivePositionsQueryHandler(IDbConnectionFactory dbFactory, ITenan
                      vcl.AlarmType,
                      dr.Phone AS DriverPhone
               {whereClause}
-              LEFT JOIN Drivers dr ON dr.Id = vcl.DriverId AND dr.IsDeleted = 0
               ORDER BY vcl.VehicleId
               OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY
             """,
@@ -123,8 +122,19 @@ public record GetGpsTripsQuery(
     DateTime? ToDate,
     int? BranchId = null,
     int? DepartmentId = null,
-    int? DriverId = null)
-    : IRequest<ApiResponse<List<GpsTripDto>>>;
+    int? DriverId = null,
+    int Page = 1,
+    int PageSize = 100,
+    bool Unpaged = false,
+    string? Search = null,
+    string? SortBy = null,
+    string? SortDir = null,
+    double? MinDistanceKm = null,
+    double? MaxDistanceKm = null,
+    decimal? MinAvgSpeedKmh = null,
+    decimal? MaxAvgSpeedKmh = null,
+    string? Status = null)
+    : IRequest<ApiResponse<PagedResult<GpsTripDto>>>;
 
 public class GetGpsTripsQueryHandler(
     IDbConnectionFactory dbFactory,
@@ -132,14 +142,13 @@ public class GetGpsTripsQueryHandler(
     ITraccarClient traccarClient,
     IOptions<TraccarOptions> traccarOptions,
     ITenantContext tenantContext)
-    : IRequestHandler<GetGpsTripsQuery, ApiResponse<List<GpsTripDto>>>
+    : IRequestHandler<GetGpsTripsQuery, ApiResponse<PagedResult<GpsTripDto>>>
 {
     private static readonly TimeSpan MaxRange = TimeSpan.FromDays(30);
 
     // Fleet-wide fallback calls are capped since each is a live Traccar HTTP round trip (or a
-    // GpsPositions scan) — background persistence of trips would remove the need for this cap,
-    // but that's explicitly out of scope for now (see plan doc).
-    private const int MaxFleetTraccarCalls = 10;
+    // GpsPositions scan) — background persistence of trips would remove the need for this cap.
+    private const int MaxFleetTraccarCalls = 25;
     private const int MaxFleetDetectorCalls = 10;
 
     private sealed record VehicleTripSource(
@@ -159,30 +168,142 @@ public class GetGpsTripsQueryHandler(
         int? TraccarDeviceId,
         string? DriverName);
 
-    public async Task<ApiResponse<List<GpsTripDto>>> Handle(GetGpsTripsQuery request, CancellationToken cancellationToken)
+    public async Task<ApiResponse<PagedResult<GpsTripDto>>> Handle(GetGpsTripsQuery request, CancellationToken cancellationToken)
     {
         var fromDate = request.FromDate ?? DateTime.UtcNow.AddDays(-7);
         var toDate = request.ToDate ?? DateTime.UtcNow;
 
         if (fromDate > toDate)
         {
-            return ApiResponse<List<GpsTripDto>>.FailResponse("'from' must be before 'to'.");
+            return ApiResponse<PagedResult<GpsTripDto>>.FailResponse("'from' must be before 'to'.");
         }
 
         if (toDate - fromDate > MaxRange)
         {
-            return ApiResponse<List<GpsTripDto>>.FailResponse("Date range cannot exceed 30 days.");
+            return ApiResponse<PagedResult<GpsTripDto>>.FailResponse("Date range cannot exceed 30 days.");
         }
 
         using var connection = dbFactory.CreateConnection();
         var tenantId = tenantContext.GetRequiredTenantId();
 
+        List<GpsTripDto> allTrips;
         if (request.VehicleId.HasValue)
         {
-            return await HandleSingleVehicleAsync(connection, tenantId, request.VehicleId.Value, fromDate, toDate, cancellationToken);
+            var single = await HandleSingleVehicleAsync(connection, tenantId, request.VehicleId.Value, fromDate, toDate, cancellationToken);
+            if (!single.Success || single.Data is null)
+            {
+                return ApiResponse<PagedResult<GpsTripDto>>.FailResponse(single.Message ?? "Failed to load trips.");
+            }
+
+            allTrips = single.Data;
+        }
+        else
+        {
+            var fleet = await HandleFleetWideAsync(connection, tenantId, request, fromDate, toDate, cancellationToken);
+            if (!fleet.Success || fleet.Data is null)
+            {
+                return ApiResponse<PagedResult<GpsTripDto>>.FailResponse(fleet.Message ?? "Failed to load trips.");
+            }
+
+            allTrips = fleet.Data;
         }
 
-        return await HandleFleetWideAsync(connection, tenantId, request, fromDate, toDate, cancellationToken);
+        allTrips = ApplyFilters(allTrips, request);
+        allTrips = ApplySort(allTrips, request.SortBy, request.SortDir);
+        return ApiResponse<PagedResult<GpsTripDto>>.SuccessResponse(ToPage(allTrips, request));
+    }
+
+    private static List<GpsTripDto> ApplyFilters(List<GpsTripDto> trips, GetGpsTripsQuery request)
+    {
+        IEnumerable<GpsTripDto> query = trips;
+
+        if (!string.IsNullOrWhiteSpace(request.Search))
+        {
+            var term = request.Search.Trim();
+            query = query.Where(t =>
+                (t.VehicleName?.Contains(term, StringComparison.OrdinalIgnoreCase) ?? false)
+                || (t.DeviceName?.Contains(term, StringComparison.OrdinalIgnoreCase) ?? false)
+                || (t.DriverName?.Contains(term, StringComparison.OrdinalIgnoreCase) ?? false)
+                || (t.StartAddress?.Contains(term, StringComparison.OrdinalIgnoreCase) ?? false)
+                || (t.EndAddress?.Contains(term, StringComparison.OrdinalIgnoreCase) ?? false)
+                || (t.PlateNumber?.Contains(term, StringComparison.OrdinalIgnoreCase) ?? false));
+        }
+
+        if (request.MinDistanceKm.HasValue)
+        {
+            query = query.Where(t => t.DistanceKm >= request.MinDistanceKm.Value);
+        }
+
+        if (request.MaxDistanceKm.HasValue)
+        {
+            query = query.Where(t => t.DistanceKm <= request.MaxDistanceKm.Value);
+        }
+
+        if (request.MinAvgSpeedKmh.HasValue)
+        {
+            query = query.Where(t => t.AvgSpeedKmh >= request.MinAvgSpeedKmh.Value);
+        }
+
+        if (request.MaxAvgSpeedKmh.HasValue)
+        {
+            query = query.Where(t => t.AvgSpeedKmh <= request.MaxAvgSpeedKmh.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.Status))
+        {
+            query = query.Where(t => string.Equals(t.Status, request.Status, StringComparison.OrdinalIgnoreCase));
+        }
+
+        return query.ToList();
+    }
+
+    private static List<GpsTripDto> ApplySort(List<GpsTripDto> trips, string? sortBy, string? sortDir)
+    {
+        var desc = !string.Equals(sortDir, "asc", StringComparison.OrdinalIgnoreCase);
+        return (sortBy?.ToLowerInvariant()) switch
+        {
+            "distance" => desc
+                ? trips.OrderByDescending(t => t.DistanceKm).ToList()
+                : trips.OrderBy(t => t.DistanceKm).ToList(),
+            "duration" => desc
+                ? trips.OrderByDescending(t => t.DurationMinutes).ToList()
+                : trips.OrderBy(t => t.DurationMinutes).ToList(),
+            "avgspeed" => desc
+                ? trips.OrderByDescending(t => t.AvgSpeedKmh).ToList()
+                : trips.OrderBy(t => t.AvgSpeedKmh).ToList(),
+            "vehicle" => desc
+                ? trips.OrderByDescending(t => t.VehicleName).ToList()
+                : trips.OrderBy(t => t.VehicleName).ToList(),
+            _ => desc
+                ? trips.OrderByDescending(t => t.StartTime).ToList()
+                : trips.OrderBy(t => t.StartTime).ToList()
+        };
+    }
+
+    private static PagedResult<GpsTripDto> ToPage(List<GpsTripDto> trips, GetGpsTripsQuery request)
+    {
+        var enriched = TraccarTripMapper.EnrichAll(trips);
+        if (request.Unpaged || request.PageSize <= 0)
+        {
+            return new PagedResult<GpsTripDto>
+            {
+                Items = enriched,
+                TotalCount = enriched.Count,
+                Page = 1,
+                PageSize = enriched.Count == 0 ? 1 : enriched.Count
+            };
+        }
+
+        var page = request.Page < 1 ? 1 : request.Page;
+        var pageSize = Math.Min(request.PageSize, 500);
+        var skip = (page - 1) * pageSize;
+        return new PagedResult<GpsTripDto>
+        {
+            Items = enriched.Skip(skip).Take(pageSize).ToList(),
+            TotalCount = enriched.Count,
+            Page = page,
+            PageSize = pageSize
+        };
     }
 
     private async Task<ApiResponse<List<GpsTripDto>>> HandleSingleVehicleAsync(
@@ -229,7 +350,7 @@ public class GetGpsTripsQueryHandler(
                 .OrderByDescending(t => t.StartTime)
                 .ToList();
 
-            return ApiResponse<List<GpsTripDto>>.SuccessResponse(mapped);
+            return ApiResponse<List<GpsTripDto>>.SuccessResponse(TraccarTripMapper.EnrichAll(mapped));
         }
 
         if (opts.IsConfigured && opts.Enabled && !source.TraccarDeviceId.HasValue)
@@ -256,7 +377,7 @@ public class GetGpsTripsQueryHandler(
 
         if (persisted.Count > 0)
         {
-            return ApiResponse<List<GpsTripDto>>.SuccessResponse(persisted);
+            return ApiResponse<List<GpsTripDto>>.SuccessResponse(TraccarTripMapper.EnrichAll(persisted));
         }
 
         var history = await mediator.Send(
@@ -275,7 +396,7 @@ public class GetGpsTripsQueryHandler(
             history.Data);
 
         return ApiResponse<List<GpsTripDto>>.SuccessResponse(
-            trips.OrderByDescending(t => t.StartTime).ToList());
+            TraccarTripMapper.EnrichAll(trips.OrderByDescending(t => t.StartTime).ToList()));
     }
 
     /// <summary>
@@ -359,9 +480,9 @@ public class GetGpsTripsQueryHandler(
             new { VehicleIds = vehicleIds, FromDate = fromDate, ToDate = toDate },
             cancellationToken: cancellationToken))).ToList();
 
-        results.AddRange(localTrips.Select(t => vehicleInfoById.TryGetValue(t.VehicleId, out var vi)
+        results.AddRange(TraccarTripMapper.EnrichAll(localTrips.Select(t => vehicleInfoById.TryGetValue(t.VehicleId, out var vi)
             ? t with { DriverName = vi.DriverName ?? t.DriverName }
-            : t));
+            : t)));
 
         var covered = localTrips.Select(t => t.VehicleId).ToHashSet();
         var uncovered = vehicles.Where(v => !covered.Contains(v.VehicleId)).ToList();
@@ -383,7 +504,7 @@ public class GetGpsTripsQueryHandler(
                     });
                 }));
 
-                results.AddRange(traccarResults.SelectMany(r => r));
+                results.AddRange(TraccarTripMapper.EnrichAll(traccarResults.SelectMany(r => r)));
                 var traccarCovered = traccarCandidates.Select(v => v.VehicleId).ToHashSet();
                 uncovered = uncovered.Where(v => !traccarCovered.Contains(v.VehicleId)).ToList();
             }
@@ -416,7 +537,7 @@ public class GetGpsTripsQueryHandler(
                     continue;
                 }
 
-                results.AddRange(GpsTripDetector.DetectTrips(v.VehicleId, v.VehicleName, v.GpsDeviceId, vehiclePositions));
+                results.AddRange(TraccarTripMapper.EnrichAll(GpsTripDetector.DetectTrips(v.VehicleId, v.VehicleName, v.GpsDeviceId, vehiclePositions)));
             }
         }
 

@@ -26,6 +26,14 @@ public record TripReplayBundleDto(
     IReadOnlyList<TripEventDto> Events,
     TripReplaySummaryDto? Summary);
 
+public record TripDetailBundleDto(
+    GpsTripDto Trip,
+    TripReplaySummaryDto? Summary,
+    IReadOnlyList<TripStopDto> Stops,
+    IReadOnlyList<TripEventDto> Events,
+    IReadOnlyList<TripReplayPositionDto> Route,
+    IReadOnlyList<TripReplayPositionDto> Playback);
+
 public record TripReplaySummaryDto(
     double DistanceKm,
     int DrivingMinutes,

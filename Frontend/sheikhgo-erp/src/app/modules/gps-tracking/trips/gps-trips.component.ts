@@ -1,4 +1,5 @@
 import { Component, OnInit } from '@angular/core';
+import { ActivatedRoute, Router } from '@angular/router';
 import { forkJoin, of, TimeoutError } from 'rxjs';
 import { catchError, timeout } from 'rxjs/operators';
 import { HttpErrorResponse } from '@angular/common/http';
@@ -26,6 +27,7 @@ import {
   toDatetimeLocalInput
 } from '../utils/trip-date-preset.util';
 import { eventIconsForTrip } from '../utils/trip-event.util';
+import { resolveTripKey } from '../utils/trip-key.util';
 
 const EMPTY_EVENTS: TripEvent[] = [];
 const EMPTY_REPLAY: TripReplayBundle = { route: [], playback: [], stops: [], events: [], summary: null };
@@ -76,6 +78,9 @@ export class GpsTripsComponent implements OnInit {
   filteredTrips: GpsTrip[] = [];
   paginatedTrips: GpsTrip[] = [];
   pageIndex = 0;
+  totalCount = 0;
+  sortBy = 'startTime';
+  sortDir: 'asc' | 'desc' = 'desc';
 
   analytics: TripAnalyticsBundle | null = null;
   fleetSummary: TripAnalyticsSummary | null = null;
@@ -135,7 +140,11 @@ export class GpsTripsComponent implements OnInit {
   }
 
   get totalPages(): number {
-    return Math.max(1, Math.ceil(this.filteredTrips.length / this.pageSize));
+    return Math.max(1, Math.ceil(this.totalCount / this.pageSize));
+  }
+
+  get replayDriverName(): string {
+    return this.selectedTrip?.driverName ?? '';
   }
 
   get distanceValue(): string | number {
@@ -189,7 +198,9 @@ export class GpsTripsComponent implements OnInit {
     private gps: GpsTrackingService,
     private exportService: ExportService,
     private platform: PlatformService,
-    private driverService: DriverService
+    private driverService: DriverService,
+    private route: ActivatedRoute,
+    private router: Router
   ) {}
 
   ngOnInit(): void {
@@ -217,7 +228,16 @@ export class GpsTripsComponent implements OnInit {
       },
       error: () => {}
     });
-    this.load();
+    this.route.queryParamMap.subscribe(params => {
+      const vehicleParam = params.get('vehicleId');
+      if (vehicleParam) {
+        const id = Number(vehicleParam);
+        if (!Number.isNaN(id) && id > 0) {
+          this.vehicleId = id;
+        }
+      }
+      this.load();
+    });
   }
 
   applyPreset(preset: TripDatePreset): void {
@@ -278,9 +298,20 @@ export class GpsTripsComponent implements OnInit {
     this.analyticsEvents = EMPTY_EVENTS;
 
     const fleetFilters = { branchId: this.branchId, departmentId: this.departmentId, driverId: this.fleetDriverId };
+    const listQuery = {
+      page: this.pageIndex + 1,
+      pageSize: this.pageSize,
+      search: this.logSearch.trim() || undefined,
+      sortBy: this.sortBy,
+      sortDir: this.sortDir,
+      minDistanceKm: this.distanceMin ?? undefined,
+      maxDistanceKm: this.distanceMax ?? undefined,
+      minAvgSpeedKmh: this.speedMin ?? undefined,
+      maxAvgSpeedKmh: this.speedMax ?? undefined
+    };
 
     forkJoin({
-      trips: this.gps.getTrips(this.vehicleId, fromDate, toDate, fleetFilters).pipe(
+      trips: this.gps.getTrips(this.vehicleId, fromDate, toDate, fleetFilters, listQuery).pipe(
         timeout(TRIPS_TIMEOUT_MS),
         catchError((err: HttpErrorResponse | TimeoutError) => {
           if (err instanceof TimeoutError) {
@@ -288,7 +319,7 @@ export class GpsTripsComponent implements OnInit {
           } else if ((err as HttpErrorResponse).status !== 404) {
             this.error = (err as HttpErrorResponse).error?.message ?? 'Failed to load trips.';
           }
-          return of([] as GpsTrip[]);
+          return of({ items: [] as GpsTrip[], totalCount: 0, page: 1, pageSize: this.pageSize, totalPages: 0, hasNextPage: false, hasPreviousPage: false });
         })
       ),
       context: this.vehicleId
@@ -306,9 +337,12 @@ export class GpsTripsComponent implements OnInit {
         : of(null)
     }).subscribe({
       next: ({ trips, context }) => {
-        this.trips = trips;
+        this.trips = trips.items;
+        this.totalCount = trips.totalCount;
+        this.paginatedTrips = trips.items;
+        this.filteredTrips = trips.items;
         this.context = context;
-        this.applyFilters();
+        this.applyClientDriverFilter();
         this.loading = false;
         this.lastRefreshedAt = new Date();
       },
@@ -370,57 +404,45 @@ export class GpsTripsComponent implements OnInit {
     }
   }
 
-  private tripKey(trip: GpsTrip): string {
-    return `${trip.vehicleId}|${trip.startTime}|${trip.endTime}`;
+  tripKey(trip: GpsTrip): string {
+    return resolveTripKey(trip);
   }
 
   applyFilters(): void {
-    const q = this.logSearch.trim().toLowerCase();
-    const opt = this.vehicleId ? this.vehicleOptions.find(v => v.vehicleId === this.vehicleId) : undefined;
-    let rows = [...this.trips];
-
-    // Driver-name filter only applies in single-vehicle mode (fleet-wide driver filtering already
-    // happened server-side via fleetDriverId).
-    if (!this.isFleetWide && this.driverFilter) {
-      rows = rows.filter(t => t.driverName === this.driverFilter);
-    }
-
-    if (this.distanceMin != null) rows = rows.filter(t => t.distanceKm >= this.distanceMin!);
-    if (this.distanceMax != null) rows = rows.filter(t => t.distanceKm <= this.distanceMax!);
-    if (this.speedMin != null) rows = rows.filter(t => t.maxSpeedKmh >= this.speedMin!);
-    if (this.speedMax != null) rows = rows.filter(t => t.maxSpeedKmh <= this.speedMax!);
-
-    if (q) {
-      rows = rows.filter(t =>
-        [t.vehicleName, t.plateNumber, t.deviceName, t.driverName, t.startAddress, t.endAddress,
-          opt?.plateNumber, opt?.uniqueId, String(t.vehicleId)]
-          .some(v => v?.toLowerCase().includes(q))
-      );
-    }
-
-    this.filteredTrips = rows;
     this.pageIndex = 0;
-    this.updatePage();
-    this.rebuildTripCaches();
+    this.load();
   }
 
-  updatePage(): void {
-    const start = this.pageIndex * this.pageSize;
-    this.paginatedTrips = this.filteredTrips.slice(start, start + this.pageSize);
+  applyClientDriverFilter(): void {
+    if (this.isFleetWide || !this.driverFilter) {
+      this.filteredTrips = this.trips;
+      this.paginatedTrips = this.trips;
+      this.rebuildTripCaches();
+      return;
+    }
+    const rows = this.trips.filter(t => t.driverName === this.driverFilter);
+    this.filteredTrips = rows;
+    this.paginatedTrips = rows;
+    this.rebuildTripCaches();
   }
 
   prevPage(): void {
     if (this.pageIndex > 0) {
       this.pageIndex--;
-      this.updatePage();
+      this.load();
     }
   }
 
   nextPage(): void {
     if (this.pageIndex < this.totalPages - 1) {
       this.pageIndex++;
-      this.updatePage();
+      this.load();
     }
+  }
+
+  openTripDetail(trip: GpsTrip, event?: Event): void {
+    event?.stopPropagation();
+    void this.router.navigate(['/gps-tracking/trips', resolveTripKey(trip)]);
   }
 
   selectTrip(trip: GpsTrip): void {
@@ -514,7 +536,27 @@ export class GpsTripsComponent implements OnInit {
   }
 
   private exportRows(kind: 'excel' | 'pdf' | 'csv'): void {
-    const rows = this.filteredTrips.length ? this.filteredTrips : this.trips;
+    const fromDate = this.from ? new Date(this.from) : undefined;
+    const toDate = this.to ? new Date(this.to) : undefined;
+    const fleetFilters = { branchId: this.branchId, departmentId: this.departmentId, driverId: this.fleetDriverId };
+    const listQuery = {
+      page: 1,
+      pageSize: 500,
+      search: this.logSearch.trim() || undefined,
+      sortBy: this.sortBy,
+      sortDir: this.sortDir,
+      minDistanceKm: this.distanceMin ?? undefined,
+      maxDistanceKm: this.distanceMax ?? undefined,
+      minAvgSpeedKmh: this.speedMin ?? undefined,
+      maxAvgSpeedKmh: this.speedMax ?? undefined
+    };
+
+    this.gps.getTrips(this.vehicleId, fromDate, toDate, fleetFilters, listQuery).subscribe({
+      next: page => this.exportTripRows(kind, page.items)
+    });
+  }
+
+  private exportTripRows(kind: 'excel' | 'pdf' | 'csv', rows: GpsTrip[]): void {
     if (!rows.length) return;
     const cols = [
       { header: 'Vehicle', accessor: (t: GpsTrip) => this.vehicleLabel(t) },

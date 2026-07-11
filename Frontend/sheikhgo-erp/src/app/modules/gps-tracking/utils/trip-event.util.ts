@@ -60,6 +60,10 @@ export function safetyMessage(score: number): string {
   return 'Multiple safety alerts detected during this period.';
 }
 
+export function formatTripEventType(type: string): string {
+  return mapTripEvent({ time: '', type, latitude: null, longitude: null, address: null, speedKmh: null }).label;
+}
+
 export function eventIconsForTrip(events: TripEvent[], start: string, end: string): string[] {
   const startMs = new Date(start).getTime();
   const endMs = new Date(end).getTime();

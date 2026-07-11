@@ -21,14 +21,17 @@ import {
   deviceMatchesSearch,
   formatLastSeenLabel,
   formatLastSeenTooltip,
-  gsmSignalLabel,
-  gsmSignalClass,
-  ignitionDisplay,
+  gsmSignalLabelForView,
+  gsmSignalClassForView,
+  ignitionDisplayForView,
   isTrackerIdle,
   isTrackerMoving,
   isTrackerNeverSeen,
   isTrackerOffline,
   isTrackerUnassigned,
+  isTelemetryStale,
+  isTraccarReachable,
+  resolveDisplayTrackerStatus,
   resolveTrackerStatus,
   trackerBrandLabel,
   trackerModelLabel,
@@ -142,7 +145,20 @@ export class GpsDevicesComponent implements OnInit, AfterViewInit, OnDestroy {
   get filteredCount(): number { return this.dataSource.filteredData.length; }
   get totalCount():    number { return this.devices.length; }
 
-  get connectedOnServer(): number { return this.traccarStatus?.deviceCount ?? 0; }
+  /** Single source of truth for Traccar connectivity — drives stale UI across the page. */
+  get isTraccarReachable(): boolean {
+    return isTraccarReachable(this.traccarStatus?.connected);
+  }
+
+  get connectedOnServer(): number | null {
+    if (!this.isTraccarReachable) return null;
+    return this.traccarStatus?.deviceCount ?? 0;
+  }
+
+  get traccarRegistrationLabel(): string {
+    if (!this.isTraccarReachable) return 'Unavailable';
+    return String(this.connectedOnServer ?? 0);
+  }
   get syncIntervalSeconds(): number { return this.traccarSyncStatus?.positionSyncIntervalSeconds ?? 5; }
 
   get lastSyncSecondsAgo(): number | null {
@@ -152,10 +168,42 @@ export class GpsDevicesComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   get lastSyncLabel(): string {
+    if (!this.isTraccarReachable) return 'Traccar unreachable';
     const secs = this.lastSyncSecondsAgo;
     if (secs === null) return 'Awaiting first sync';
     if (secs < 60) return `${secs} sec ago`;
     return `${Math.floor(secs / 60)} min ago`;
+  }
+
+  get lastSyncHintClass(): string {
+    return this.isTraccarReachable ? '' : 'sync-stat-hint--offline';
+  }
+
+  get erpPollLabel(): string {
+    if (!this.traccarSyncStatus) return '—';
+    if (!this.traccarSyncStatus.enabled) return 'Disabled';
+    return `Every ${this.syncIntervalSeconds}s`;
+  }
+
+  get kpiStaleHint(): string | null {
+    if (this.isTraccarReachable) return null;
+    const latest = this.latestTelemetryAt;
+    if (!latest) return 'Cached';
+    return `as of ${formatLastSeenLabel(latest, this.clockNow)}`;
+  }
+
+  private get latestTelemetryAt(): string | undefined {
+    let latest: number | null = null;
+    let iso: string | undefined;
+    for (const d of this.devices) {
+      if (!d.lastSeenAt) continue;
+      const t = new Date(d.lastSeenAt).getTime();
+      if (latest == null || t > latest) {
+        latest = t;
+        iso = d.lastSeenAt;
+      }
+    }
+    return iso;
   }
 
   get autoSyncLabel(): string {
@@ -214,7 +262,7 @@ export class GpsDevicesComponent implements OnInit, AfterViewInit, OnDestroy {
     this.gps.getTraccarSyncStatus().subscribe({
       next: s => {
         this.traccarSyncStatus = s;
-        if (s?.lastPositionSyncAt && s.lastPositionSyncAt !== prevSyncAt) {
+        if (s?.lastPositionSyncAt && s.lastPositionSyncAt !== prevSyncAt && this.isTraccarReachable) {
           this.load(true);
         }
       },
@@ -222,7 +270,14 @@ export class GpsDevicesComponent implements OnInit, AfterViewInit, OnDestroy {
     });
     this.gps.getTraccarStatus().subscribe({
       next: s => { this.traccarStatus = s; },
-      error: () => {}
+      error: () => {
+        this.traccarStatus = {
+          connected: false,
+          deviceCount: this.traccarStatus?.deviceCount ?? 0,
+          serverVersion: null,
+          lastError: 'Traccar server unreachable.',
+        };
+      }
     });
   }
 
@@ -278,24 +333,41 @@ export class GpsDevicesComponent implements OnInit, AfterViewInit, OnDestroy {
   assignmentText = assignmentLabel;
   assignmentClass = assignmentBadgeClass;
   assignmentHint = assignmentTooltip;
-  ignitionView = ignitionDisplay;
-  signalLabel = gsmSignalLabel;
-  signalClass = gsmSignalClass;
   batteryLabel = batteryDisplayLabel;
 
   connectionLabel(d: GpsDevice): string {
-    return resolveTrackerStatus(d).label;
+    return resolveDisplayTrackerStatus(d, this.clockNow, this.isTraccarReachable).label;
   }
 
   connectionBadgeClass(d: GpsDevice): string {
-    return resolveTrackerStatus(d).badgeClass;
+    return resolveDisplayTrackerStatus(d, this.clockNow, this.isTraccarReachable).badgeClass;
   }
 
   rowStatusClass(d: GpsDevice): string {
-    return resolveTrackerStatus(d).rowClass;
+    return resolveDisplayTrackerStatus(d, this.clockNow, this.isTraccarReachable).rowClass;
+  }
+
+  ignitionView(d: GpsDevice) {
+    return ignitionDisplayForView(d, this.clockNow, this.isTraccarReachable);
+  }
+
+  signalLabel(d: GpsDevice): string {
+    return gsmSignalLabelForView(d, this.clockNow, this.isTraccarReachable);
+  }
+
+  signalClass(d: GpsDevice): string {
+    return gsmSignalClassForView(d, this.clockNow, this.isTraccarReachable);
+  }
+
+  isRowStale(d: GpsDevice): boolean {
+    return isTelemetryStale(d, this.clockNow, this.isTraccarReachable);
   }
 
   speedLabel(d: GpsDevice): string {
+    if (this.isRowStale(d)) {
+      if (d.lastSpeed == null || !d.lastSeenAt || d.lastSpeed <= 0) return '—';
+      return `${Math.round(d.lastSpeed)} km/h (cached)`;
+    }
     if (d.lastSpeed == null || !d.lastSeenAt || d.lastSpeed <= 0) return '—';
     return `${Math.round(d.lastSpeed)} km/h`;
   }
@@ -317,7 +389,7 @@ export class GpsDevicesComponent implements OnInit, AfterViewInit, OnDestroy {
   lastSeenTooltip(d: GpsDevice): string {
     const when = formatLastSeenTooltip(d.lastSeenAt);
     if (!d.lastSeenAt) return when;
-    if (!this.traccarStatus?.connected) return `${when} (last known — cached)`;
+    if (this.isRowStale(d)) return `${when} (last known — not verified live)`;
     return when;
   }
 
@@ -331,16 +403,18 @@ export class GpsDevicesComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   get kpiTiles() {
+    const stale = !this.isTraccarReachable;
+    const hint = this.kpiStaleHint;
     return [
-      { filter: 'all' as DeviceFilter,        label: 'Total',      value: this.devices.length,                                            icon: 'sensors',      color: '#64748b' },
-      { filter: 'online' as DeviceFilter,     label: 'Online',     value: this.devices.filter(d => !!d.isOnline).length,                  icon: 'wifi',         color: '#22c55e' },
-      { filter: 'moving' as DeviceFilter,     label: 'Moving',     value: this.devices.filter(d => isTrackerMoving(d)).length,            icon: 'speed',        color: '#3b82f6' },
-      { filter: 'idle' as DeviceFilter,       label: 'Idle',       value: this.devices.filter(d => isTrackerIdle(d)).length,              icon: 'pause_circle', color: '#f59e0b' },
-      { filter: 'parked' as DeviceFilter,     label: 'Parked',     value: this.devices.filter(d => resolveTrackerStatus(d).key === 'parked').length, icon: 'local_parking', color: '#10b981' },
-      { filter: 'offline' as DeviceFilter,    label: 'Offline',    value: this.devices.filter(d => isTrackerOffline(d)).length,           icon: 'wifi_off',     color: '#ef4444' },
-      { filter: 'available' as DeviceFilter,  label: 'In Stock',   value: this.devices.filter(d => isTrackerInInventory(d)).length,       icon: 'inventory_2',  color: '#8b5cf6' },
-      { filter: 'never' as DeviceFilter,      label: 'Provisioned', value: this.devices.filter(d => isTrackerNeverSeen(d)).length,          icon: 'sensors_off',  color: '#94a3b8' },
-      { filter: 'unassigned' as DeviceFilter, label: 'Unassigned', value: this.devices.filter(d => isTrackerUnassigned(d)).length,        icon: 'link_off',     color: '#a855f7' },
+      { filter: 'all' as DeviceFilter,        label: 'Total',      value: this.devices.length,                                            icon: 'sensors',      color: stale ? '#94a3b8' : '#64748b', stale, hint },
+      { filter: 'online' as DeviceFilter,     label: 'Online',     value: this.devices.filter(d => !!d.isOnline).length,                  icon: 'wifi',         color: stale ? '#94a3b8' : '#22c55e', stale, hint },
+      { filter: 'moving' as DeviceFilter,     label: 'Moving',     value: this.devices.filter(d => isTrackerMoving(d)).length,            icon: 'speed',        color: stale ? '#94a3b8' : '#3b82f6', stale, hint },
+      { filter: 'idle' as DeviceFilter,       label: 'Idle',       value: this.devices.filter(d => isTrackerIdle(d)).length,              icon: 'pause_circle', color: stale ? '#94a3b8' : '#f59e0b', stale, hint },
+      { filter: 'parked' as DeviceFilter,     label: 'Parked',     value: this.devices.filter(d => resolveTrackerStatus(d).key === 'parked').length, icon: 'local_parking', color: stale ? '#94a3b8' : '#10b981', stale, hint },
+      { filter: 'offline' as DeviceFilter,    label: 'Offline',    value: this.devices.filter(d => isTrackerOffline(d)).length,           icon: 'wifi_off',     color: stale ? '#94a3b8' : '#ef4444', stale, hint },
+      { filter: 'available' as DeviceFilter,  label: 'In Stock',   value: this.devices.filter(d => isTrackerInInventory(d)).length,       icon: 'inventory_2',  color: stale ? '#94a3b8' : '#8b5cf6', stale, hint },
+      { filter: 'never' as DeviceFilter,      label: 'Provisioned', value: this.devices.filter(d => isTrackerNeverSeen(d)).length,          icon: 'sensors_off',  color: '#94a3b8', stale, hint },
+      { filter: 'unassigned' as DeviceFilter, label: 'Unassigned', value: this.devices.filter(d => isTrackerUnassigned(d)).length,        icon: 'link_off',     color: stale ? '#94a3b8' : '#a855f7', stale, hint },
     ];
   }
 

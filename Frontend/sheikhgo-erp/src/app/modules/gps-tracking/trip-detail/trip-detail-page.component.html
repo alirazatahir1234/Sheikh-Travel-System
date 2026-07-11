@@ -1,0 +1,121 @@
+<div class="trip-detail-page stb-page">
+  <header class="page-header">
+    <div class="page-header-left">
+      <button mat-icon-button type="button" (click)="back()" aria-label="Back">
+        <mat-icon>arrow_back</mat-icon>
+      </button>
+      <div>
+        <nav class="breadcrumb">
+          <span>GPS Tracking</span>
+          <mat-icon>chevron_right</mat-icon>
+          <a routerLink="/gps-tracking/trips">Trips</a>
+          <mat-icon>chevron_right</mat-icon>
+          <span class="current">Trip Detail</span>
+        </nav>
+        <h1 *ngIf="trip">{{ trip.vehicleName ?? ('Vehicle #' + trip.vehicleId) }}</h1>
+        <p class="page-sub" *ngIf="trip">{{ trip.startAddress || 'Start' }} → {{ trip.endAddress || 'End' }}</p>
+      </div>
+    </div>
+    <div class="page-header-actions no-print">
+      <button mat-stroked-button type="button" [matMenuTriggerFor]="exportMenu" [disabled]="!trip">
+        <mat-icon>download</mat-icon> Export
+      </button>
+      <mat-menu #exportMenu="matMenu">
+        <button mat-menu-item type="button" (click)="exportDetail('excel')">Excel</button>
+        <button mat-menu-item type="button" (click)="exportDetail('csv')">CSV</button>
+        <button mat-menu-item type="button" (click)="exportDetail('pdf')">PDF</button>
+      </mat-menu>
+      <button mat-stroked-button type="button" (click)="printPage()" [disabled]="!trip">
+        <mat-icon>print</mat-icon> Print
+      </button>
+    </div>
+  </header>
+
+  <app-brand-loader *ngIf="loading" />
+
+  <p class="error-banner" *ngIf="error && !loading">{{ error }}</p>
+
+  <ng-container *ngIf="!loading && bundle && trip">
+    <mat-card class="section-card summary-card">
+      <h2>Trip Summary</h2>
+      <div class="summary-grid">
+        <div><span class="label">Vehicle</span><strong>{{ trip.vehicleName }} <ng-container *ngIf="trip.plateNumber">({{ trip.plateNumber }})</ng-container></strong></div>
+        <div><span class="label">Driver</span><strong>{{ trip.driverName || '—' }}</strong></div>
+        <div><span class="label">Start</span><strong>{{ trip.startTime | date:'medium' }}</strong></div>
+        <div><span class="label">End</span><strong>{{ trip.endTime | date:'medium' }}</strong></div>
+        <div><span class="label">Duration</span><strong>{{ formatDuration(trip.durationMinutes) }}</strong></div>
+        <div><span class="label">Distance</span><strong>{{ trip.distanceKm }} km</strong></div>
+        <div><span class="label">Avg Speed</span><strong>{{ trip.avgSpeedKmh }} km/h</strong></div>
+        <div><span class="label">Max Speed</span><strong>{{ trip.maxSpeedKmh }} km/h</strong></div>
+        <div><span class="label">Fuel</span><strong>{{ trip.fuelLiters ?? '—' }}</strong></div>
+        <div><span class="label">Engine Hours</span><strong>{{ bundle.summary?.engineHours ?? '—' }}</strong></div>
+        <div class="span-2"><span class="label">Start Location</span><strong>{{ trip.startAddress || '—' }}</strong></div>
+        <div class="span-2"><span class="label">End Location</span><strong>{{ trip.endAddress || '—' }}</strong></div>
+      </div>
+    </mat-card>
+
+    <mat-card class="section-card map-card">
+      <h2>Route &amp; Replay</h2>
+      <app-trip-replay-map
+        [routePoints]="replayRoute"
+        [positions]="replayPlayback"
+        [stops]="stops"
+        [events]="events"
+        [driverName]="driverName"
+        [loading]="false">
+      </app-trip-replay-map>
+    </mat-card>
+
+    <div class="charts-row" *ngIf="speedChartData.labels?.length">
+      <mat-card class="section-card">
+        <h2>Speed Chart</h2>
+        <ui-chart type="line" [data]="speedChartData" height="220px"></ui-chart>
+      </mat-card>
+      <mat-card class="section-card" *ngIf="altitudeChartData.labels?.length">
+        <h2>Altitude Chart</h2>
+        <ui-chart type="line" [data]="altitudeChartData" height="220px"></ui-chart>
+      </mat-card>
+    </div>
+
+    <div class="tables-row">
+      <mat-card class="section-card">
+        <h2>Stops ({{ stops.length }})</h2>
+        <div class="table-wrap" *ngIf="stops.length; else noStops">
+          <table class="data-table">
+            <thead>
+              <tr><th>Location</th><th>Duration</th><th>Address</th></tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let s of stops">
+                <td>{{ s.startTime | date:'short' }}</td>
+                <td>{{ s.durationMinutes }} min</td>
+                <td>{{ s.address || '—' }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <ng-template #noStops><p class="empty-note">No stops recorded for this trip.</p></ng-template>
+      </mat-card>
+
+      <mat-card class="section-card">
+        <h2>Events ({{ events.length }})</h2>
+        <div class="table-wrap" *ngIf="events.length; else noEvents">
+          <table class="data-table">
+            <thead>
+              <tr><th>Time</th><th>Event</th><th>Speed</th><th>Address</th></tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let e of events">
+                <td>{{ e.time | date:'short' }}</td>
+                <td>{{ formatEventType(e.type) }}</td>
+                <td>{{ e.speedKmh != null ? (e.speedKmh | number:'1.0-0') + ' km/h' : '—' }}</td>
+                <td>{{ e.address || '—' }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <ng-template #noEvents><p class="empty-note">No events recorded for this trip.</p></ng-template>
+      </mat-card>
+    </div>
+  </ng-container>
+</div>

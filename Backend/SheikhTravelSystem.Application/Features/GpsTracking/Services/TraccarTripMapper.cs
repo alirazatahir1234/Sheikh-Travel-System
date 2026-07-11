@@ -15,11 +15,12 @@ public static class TraccarTripMapper
         string? deviceName,
         string? plateNumber = null)
     {
+        var start = trip.StartTime;
         return new GpsTripDto(
             vehicleId,
             vehicleName,
             gpsDeviceId,
-            trip.StartTime,
+            start,
             trip.EndTime,
             Math.Round(trip.Distance / 1000.0, 2),
             Math.Round((decimal)(trip.AverageSpeed * KnotsToKmh), 1),
@@ -30,7 +31,9 @@ public static class TraccarTripMapper
             trip.EndAddress,
             trip.DriverName,
             trip.SpentFuel,
-            plateNumber);
+            plateNumber,
+            TripKeyHelper.Build(vehicleId, start),
+            "Completed");
     }
 
     /// <summary>
@@ -49,4 +52,17 @@ public static class TraccarTripMapper
 
         return Math.Max(1, minutes);
     }
+
+    /// <summary>Attach a stable composite key when missing (e.g. rows loaded from SQL).</summary>
+    public static GpsTripDto Enrich(GpsTripDto trip)
+    {
+        var key = string.IsNullOrWhiteSpace(trip.TripKey)
+            ? TripKeyHelper.Build(trip.VehicleId, trip.StartTime)
+            : trip.TripKey;
+        var status = string.IsNullOrWhiteSpace(trip.Status) ? "Completed" : trip.Status;
+        return trip with { TripKey = key, Status = status };
+    }
+
+    public static List<GpsTripDto> EnrichAll(IEnumerable<GpsTripDto> trips)
+        => trips.Select(Enrich).ToList();
 }

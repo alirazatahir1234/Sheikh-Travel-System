@@ -98,6 +98,62 @@
   border-top: 1px solid #f3f4f6;
 }
 
+.replay-hud {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  padding: 10px 16px;
+  border-top: 1px solid #f3f4f6;
+  background: #f0fdf4;
+  font-size: 12px;
+  color: #374151;
+}
+
+.follow-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: #4b5563;
+  margin-left: 4px;
+}
+
+.jump-row {
+  margin-top: 10px;
+
+  label {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 12px;
+    color: #6b7280;
+  }
+}
+
+.jump-input {
+  max-width: 220px;
+  padding: 6px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font: inherit;
+}
+
+:host ::ng-deep .replay-vehicle-wrap {
+  background: transparent;
+  border: none;
+}
+
+:host ::ng-deep .replay-vehicle-icon {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #0f766e;
+  font-size: 18px;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.35));
+}
+
 @media (max-width: 768px) {
   .replay-map { height: 280px; }
   .timeline-scrub { grid-template-columns: 1fr; }

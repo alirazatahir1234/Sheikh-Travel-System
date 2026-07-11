@@ -14,7 +14,9 @@ export const TRIP_DATE_PRESETS: { id: TripDatePreset; label: string }[] = [
   { id: 'yesterday', label: 'Yesterday' },
   { id: 'thisWeek', label: 'This Week' },
   { id: 'last7Days', label: 'Last 7 Days' },
+  { id: 'lastWeek', label: 'Last Week' },
   { id: 'thisMonth', label: 'This Month' },
+  { id: 'previousMonth', label: 'Previous Month' },
   { id: 'custom', label: 'Custom' }
 ];
 

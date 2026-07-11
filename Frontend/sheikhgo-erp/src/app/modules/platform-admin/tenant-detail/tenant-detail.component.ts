@@ -44,6 +44,7 @@ export class TenantDetailComponent implements OnInit {
   timezones: string[] = [];
   countrySearch = '';
   currencySearch = '';
+  hideAdminPassword = true;
   readonly tenantDisplayCode = tenantDisplayCode;
   readonly tenantPlanMeta = tenantPlanMeta;
 
@@ -225,6 +226,15 @@ export class TenantDetailComponent implements OnInit {
 
   clearCurrencySearch(): void {
     this.currencySearch = '';
+  }
+
+  get primaryColorPreview(): string {
+    return this.form.controls.primaryColor.value?.trim() || '#007A57';
+  }
+
+  selectPlan(planName: string): void {
+    this.form.controls.subscriptionPlan.setValue(planName);
+    this.form.markAsDirty();
   }
 
   applyPlan(planName: string): void {

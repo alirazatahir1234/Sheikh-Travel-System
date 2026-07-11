@@ -33,16 +33,19 @@ public static class GpsTripDetector
             }
 
             var duration = (int)Math.Max(1, (endPoint.Timestamp - tripStart.Value).TotalMinutes);
+            var start = tripStart.Value;
             trips.Add(new GpsTripDto(
                 vehicleId,
                 vehicleName,
                 gpsDeviceId,
-                tripStart.Value,
+                start,
                 endPoint.Timestamp,
                 Math.Round(segmentDistance, 2),
                 segmentSpeeds.Count > 0 ? Math.Round(segmentSpeeds.Average(), 1) : 0,
                 segmentSpeeds.Count > 0 ? segmentSpeeds.Max() : 0,
-                duration));
+                duration,
+                TripKey: TripKeyHelper.Build(vehicleId, start),
+                Status: "Completed"));
 
             tripStart = null;
             segmentDistance = 0;

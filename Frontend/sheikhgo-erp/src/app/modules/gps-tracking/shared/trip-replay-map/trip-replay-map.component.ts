@@ -19,17 +19,20 @@ export class TripReplayMapComponent implements AfterViewInit, OnChanges, OnDestr
   @Input() stops: TripStop[] = [];
   @Input() events: TripEvent[] = [];
   @Input() loading = false;
+  @Input() driverName = '';
   @Output() positionSelected = new EventEmitter<TripReplayPosition>();
 
   replayPlaying = false;
   replaySpeed = 1;
+  followVehicle = true;
   readonly speedOptions = [1, 2, 4, 8, 16];
   replayIndex = 0;
 
   private map: LeafletTypes.Map | null = null;
   private routeLayer: LeafletTypes.LayerGroup | null = null;
-  private replayMarker: LeafletTypes.CircleMarker | null = null;
+  private replayMarker: LeafletTypes.Marker | null = null;
   private replayTimer?: ReturnType<typeof setInterval>;
+  private segmentDistances: number[] = [];
 
   get replayProgress(): number {
     if (!this.positions.length) return 0;
@@ -49,6 +52,36 @@ export class TripReplayMapComponent implements AfterViewInit, OnChanges, OnDestr
     return last ? new Date(last.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—';
   }
 
+  get totalDistanceKm(): number {
+    return this.segmentDistances.reduce((a, b) => a + b, 0);
+  }
+
+  get distanceTravelledKm(): number {
+    return this.segmentDistances.slice(0, this.replayIndex).reduce((a, b) => a + b, 0);
+  }
+
+  get elapsedLabel(): string {
+    if (!this.positions.length) return '0:00';
+    const start = new Date(this.positions[0].timestamp).getTime();
+    const cur = new Date(this.positions[this.replayIndex].timestamp).getTime();
+    return this.formatMs(cur - start);
+  }
+
+  get totalDurationLabel(): string {
+    if (this.positions.length < 2) return '0:00';
+    const start = new Date(this.positions[0].timestamp).getTime();
+    const end = new Date(this.positions[this.positions.length - 1].timestamp).getTime();
+    return this.formatMs(end - start);
+  }
+
+  get jumpInputValue(): string {
+    const p = this.currentPosition;
+    if (!p) return '';
+    const d = new Date(p.timestamp);
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+
   get routeSummary() {
     if (!this.positions.length) return null;
     const speeds = this.positions.map(p => Number(p.speedKmh) || 0);
@@ -56,14 +89,8 @@ export class TripReplayMapComponent implements AfterViewInit, OnChanges, OnDestr
     const avgSpeed = speeds.length ? speeds.reduce((a, b) => a + b, 0) / speeds.length : 0;
     const first = new Date(this.positions[0].timestamp).getTime();
     const last = new Date(this.positions[this.positions.length - 1].timestamp).getTime();
-    let distanceKm = 0;
-    for (let i = 1; i < this.positions.length; i++) {
-      const a = this.positions[i - 1];
-      const b = this.positions[i];
-      distanceKm += this.haversineKm(a.latitude, a.longitude, b.latitude, b.longitude);
-    }
     return {
-      distanceKm: Math.round(distanceKm * 10) / 10,
+      distanceKm: Math.round(this.totalDistanceKm * 10) / 10,
       durationMinutes: Math.max(1, Math.round((last - first) / 60000)),
       avgSpeed: Math.round(avgSpeed),
       maxSpeed: Math.round(maxSpeed),
@@ -77,33 +104,55 @@ export class TripReplayMapComponent implements AfterViewInit, OnChanges, OnDestr
 
   ngOnChanges(changes: SimpleChanges): void {
     if ((changes['positions'] || changes['routePoints'] || changes['stops'] || changes['events']) && this.map) {
-      this.stopReplay();
-      this.replayIndex = 0;
+      this.stopAndReset();
       requestAnimationFrame(() => this.renderRoute());
     }
   }
 
   ngOnDestroy(): void {
-    this.stopReplay();
+    this.stopReplayTimer();
     this.map?.remove();
     this.map = null;
   }
 
   toggleReplay(): void {
     if (this.replayPlaying) {
-      this.stopReplay();
+      this.stopReplayTimer();
       return;
     }
     if (!this.positions.length) return;
+    if (this.replayIndex >= this.positions.length - 1) {
+      this.replayIndex = 0;
+    }
     this.replayPlaying = true;
     const stepMs = 350 / this.replaySpeed;
     this.replayTimer = setInterval(() => this.advanceReplay(), stepMs);
   }
 
+  stopAndReset(): void {
+    this.stopReplayTimer();
+    this.replayIndex = 0;
+    this.updateReplayMarker();
+  }
+
+  stepBack(): void {
+    if (this.replayIndex > 0) {
+      this.replayIndex--;
+      this.updateReplayMarker();
+    }
+  }
+
+  stepForward(): void {
+    if (this.replayIndex < this.positions.length - 1) {
+      this.replayIndex++;
+      this.updateReplayMarker();
+    }
+  }
+
   setReplaySpeed(mult: number): void {
     this.replaySpeed = mult;
     if (this.replayPlaying) {
-      this.stopReplay();
+      this.stopReplayTimer();
       this.toggleReplay();
     }
   }
@@ -118,6 +167,23 @@ export class TripReplayMapComponent implements AfterViewInit, OnChanges, OnDestr
     this.updateReplayMarker();
   }
 
+  onJumpToTime(event: Event): void {
+    const raw = (event.target as HTMLInputElement).value;
+    if (!raw || !this.positions.length) return;
+    const target = new Date(raw).getTime();
+    let best = 0;
+    let bestDiff = Number.MAX_SAFE_INTEGER;
+    for (let i = 0; i < this.positions.length; i++) {
+      const diff = Math.abs(new Date(this.positions[i].timestamp).getTime() - target);
+      if (diff < bestDiff) {
+        bestDiff = diff;
+        best = i;
+      }
+    }
+    this.replayIndex = best;
+    this.updateReplayMarker();
+  }
+
   private initMap(): void {
     if (!this.mapEl?.nativeElement || this.map) return;
     const tiles = MAP_TILE_STACKS['light'][0];
@@ -128,7 +194,17 @@ export class TripReplayMapComponent implements AfterViewInit, OnChanges, OnDestr
       maxZoom: tiles.maxZoom ?? 19
     }).addTo(this.map);
     this.routeLayer = L.layerGroup().addTo(this.map);
+    this.rebuildSegmentDistances();
     this.renderRoute();
+  }
+
+  private rebuildSegmentDistances(): void {
+    this.segmentDistances = [];
+    for (let i = 1; i < this.positions.length; i++) {
+      const a = this.positions[i - 1];
+      const b = this.positions[i];
+      this.segmentDistances.push(this.haversineKm(a.latitude, a.longitude, b.latitude, b.longitude));
+    }
   }
 
   private renderRoute(): void {
@@ -136,6 +212,7 @@ export class TripReplayMapComponent implements AfterViewInit, OnChanges, OnDestr
     const layer = this.routeLayer;
     layer.clearLayers();
     this.replayMarker = null;
+    this.rebuildSegmentDistances();
 
     const pathPoints = this.routePoints.length ? this.routePoints : this.positions;
     if (!pathPoints.length) return;
@@ -178,19 +255,30 @@ export class TripReplayMapComponent implements AfterViewInit, OnChanges, OnDestr
 
     this.stops.slice(0, 30).forEach(stop => {
       L.circleMarker([stop.latitude, stop.longitude], {
-        radius: 7, color: '#7c3aed', fillColor: '#a78bfa', fillOpacity: 0.95
+        radius: 7, color: '#dc2626', fillColor: '#fca5a5', fillOpacity: 0.95
       }).bindPopup(
         `<strong>Stop</strong><br>${stop.durationMinutes} min<br>${stop.address ?? ''}`
       ).addTo(layer);
     });
 
     const playback = this.positions.length ? this.positions : pathPoints;
-    this.replayMarker = L.circleMarker([playback[0].latitude, playback[0].longitude], {
-      radius: 10, color: '#0f766e', fillColor: '#14b8a6', fillOpacity: 1
-    }).addTo(layer);
+    this.replayMarker = this.createVehicleMarker(playback[0]);
+    this.replayMarker.addTo(layer);
 
     const bounds = L.latLngBounds(drawPoints.map(p => [p.latitude, p.longitude] as [number, number]));
     this.map.fitBounds(bounds, { padding: [40, 40], maxZoom: 16 });
+  }
+
+  private createVehicleMarker(p: TripReplayPosition): LeafletTypes.Marker {
+    const heading = p.heading ?? 0;
+    const html = `<div class="replay-vehicle-icon" style="transform: rotate(${heading}deg)"><span>▲</span></div>`;
+    const icon = L.divIcon({
+      className: 'replay-vehicle-wrap',
+      html,
+      iconSize: [24, 24],
+      iconAnchor: [12, 12]
+    });
+    return L.marker([p.latitude, p.longitude], { icon, zIndexOffset: 1000 });
   }
 
   private downsampleForDraw(positions: TripReplayPosition[], maxPoints: number): TripReplayPosition[] {
@@ -214,7 +302,7 @@ export class TripReplayMapComponent implements AfterViewInit, OnChanges, OnDestr
 
   private advanceReplay(): void {
     if (this.replayIndex >= this.positions.length - 1) {
-      this.stopReplay();
+      this.stopReplayTimer();
       return;
     }
     this.replayIndex++;
@@ -227,15 +315,34 @@ export class TripReplayMapComponent implements AfterViewInit, OnChanges, OnDestr
     const row = this.currentPosition;
     if (!row || !this.replayMarker) return;
     this.replayMarker.setLatLng([row.latitude, row.longitude]);
+    const heading = row.heading ?? 0;
+    const html = `<div class="replay-vehicle-icon" style="transform: rotate(${heading}deg)"><span>▲</span></div>`;
+    const icon = L.divIcon({
+      className: 'replay-vehicle-wrap',
+      html,
+      iconSize: [24, 24],
+      iconAnchor: [12, 12]
+    });
+    this.replayMarker.setIcon(icon);
     this.replayMarker.bindPopup(this.popupHtml(row, 'Current'));
+    if (this.followVehicle && this.map) {
+      this.map.panTo([row.latitude, row.longitude], { animate: true, duration: 0.25 });
+    }
   }
 
-  private stopReplay(): void {
+  private stopReplayTimer(): void {
     this.replayPlaying = false;
     if (this.replayTimer) {
       clearInterval(this.replayTimer);
       this.replayTimer = undefined;
     }
+  }
+
+  private formatMs(ms: number): string {
+    const totalSec = Math.max(0, Math.floor(ms / 1000));
+    const m = Math.floor(totalSec / 60);
+    const s = totalSec % 60;
+    return `${m}:${String(s).padStart(2, '0')}`;
   }
 
   private haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {

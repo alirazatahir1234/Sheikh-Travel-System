@@ -20,6 +20,57 @@ export interface TrackerStatusView {
 const MOVING_THRESHOLD_KMH = 0;
 const IGNITION_INFER_THRESHOLD_KMH = 5;
 
+/** When Last Seen exceeds this, status/ignition are shown as last-known, not live. */
+export const TELEMETRY_STALE_MS = 15 * 60 * 1000;
+
+export function isTraccarReachable(connected: boolean | undefined | null): boolean {
+  return connected === true;
+}
+
+export function telemetryAgeMs(device: GpsDevice, nowMs: number): number | null {
+  if (!device.lastSeenAt) return null;
+  const age = nowMs - new Date(device.lastSeenAt).getTime();
+  return Number.isFinite(age) ? Math.max(0, age) : null;
+}
+
+/** True when telemetry cannot be treated as live (source offline or Last Seen too old). */
+export function isTelemetryStale(
+  device: GpsDevice,
+  nowMs: number,
+  traccarReachable: boolean
+): boolean {
+  if (!traccarReachable) return !!device.lastSeenAt;
+  const age = telemetryAgeMs(device, nowMs);
+  if (age == null) return false;
+  return age > TELEMETRY_STALE_MS;
+}
+
+export function resolveDisplayTrackerStatus(
+  device: GpsDevice,
+  nowMs: number,
+  traccarReachable: boolean
+): TrackerStatusView {
+  const base = resolveTrackerStatus(device);
+  if (!isTelemetryStale(device, nowMs, traccarReachable)) {
+    return base;
+  }
+
+  if (!device.lastSeenAt) {
+    return status('offline', 'Unknown', 'badge-gray', 'row-stale');
+  }
+
+  if (base.key === 'never_seen' || base.key === 'offline' || base.key === 'disabled') {
+    return status(base.key, 'Unknown', 'badge-gray', 'row-stale');
+  }
+
+  return {
+    ...base,
+    label: `Last known: ${base.label}`,
+    badgeClass: 'badge-gray',
+    rowClass: 'row-stale',
+  };
+}
+
 export function resolveTrackerStatus(device: GpsDevice): TrackerStatusView {
   if (device.disabled || !device.isActive) {
     return status('disabled', 'Device Disabled', 'badge-gray', 'row-disabled');
@@ -160,6 +211,25 @@ export function ignitionDisplay(device: GpsDevice): { icon: string; label: strin
   return { icon: 'help_outline', label: '—', className: 'ignition--unknown' };
 }
 
+export function ignitionDisplayForView(
+  device: GpsDevice,
+  nowMs: number,
+  traccarReachable: boolean
+): { icon: string; label: string; className: string } {
+  const base = ignitionDisplay(device);
+  if (!isTelemetryStale(device, nowMs, traccarReachable)) {
+    return base;
+  }
+  if (base.className === 'ignition--none') {
+    return base;
+  }
+  return {
+    icon: 'history',
+    label: base.label === '—' ? 'Unknown' : `${base.label} (cached)`,
+    className: 'ignition--stale',
+  };
+}
+
 export function gsmSignalLabel(device: GpsDevice): string {
   if (device.lastRssi != null) {
     if (device.lastRssi >= -70) return 'Excellent';
@@ -182,6 +252,28 @@ export function gsmSignalClass(device: GpsDevice): string {
   }
   if (device.isOnline) return 'signal-active';
   return 'signal-none';
+}
+
+export function gsmSignalLabelForView(
+  device: GpsDevice,
+  nowMs: number,
+  traccarReachable: boolean
+): string {
+  if (isTelemetryStale(device, nowMs, traccarReachable) && device.lastSeenAt) {
+    return 'Cached';
+  }
+  return gsmSignalLabel(device);
+}
+
+export function gsmSignalClassForView(
+  device: GpsDevice,
+  nowMs: number,
+  traccarReachable: boolean
+): string {
+  if (isTelemetryStale(device, nowMs, traccarReachable) && device.lastSeenAt) {
+    return 'signal-cached';
+  }
+  return gsmSignalClass(device);
 }
 
 export function batteryDisplayLabel(device: GpsDevice): string {

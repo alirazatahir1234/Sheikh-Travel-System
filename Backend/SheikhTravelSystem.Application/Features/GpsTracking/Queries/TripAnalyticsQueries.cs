@@ -31,7 +31,7 @@ public class GetTripAnalyticsQueryHandler(
         var source = await TripVehicleQueryHelper.ResolveVehicleAsync(dbFactory, tenantContext, vehicleId, cancellationToken);
         if (source is null) return ApiResponse<TripAnalyticsBundleDto>.FailResponse("Vehicle not found.");
 
-        var tripsTask = mediator.Send(new GetGpsTripsQuery(vehicleId, fromDate, toDate), cancellationToken);
+        var tripsTask = mediator.Send(new GetGpsTripsQuery(vehicleId, fromDate, toDate, Unpaged: true), cancellationToken);
         var summaries = Array.Empty<TraccarSummary>();
         var stops = Array.Empty<TraccarStop>();
         var events = Array.Empty<TraccarEvent>();
@@ -59,7 +59,7 @@ public class GetTripAnalyticsQueryHandler(
             return ApiResponse<TripAnalyticsBundleDto>.FailResponse(tripsResponse.Message ?? "Failed to load trips.");
         }
 
-        var trips = tripsResponse.Data;
+        var trips = tripsResponse.Data.Items;
         var summary = TripAnalyticsMapper.BuildSummary(trips, summaries, stops, events);
         var eventDtos = events.Select(TripAnalyticsMapper.ToEventDto).OrderByDescending(e => e.Time).ToList();
         var stopDtos = stops.Select(TripAnalyticsMapper.ToStopDto).OrderByDescending(s => s.EndTime).ToList();
@@ -94,56 +94,77 @@ public class GetTripReplayQueryHandler(
         var opts = traccarOptions.Value;
         if (opts.IsConfigured && opts.Enabled && source.TraccarDeviceId.HasValue)
         {
-            var deviceId = source.TraccarDeviceId.Value;
-            var routeTask = traccarClient.GetRouteAsync(deviceId, fromDate, toDate, cancellationToken);
-            var stopsTask = traccarClient.GetStopsAsync(deviceId, fromDate, toDate, cancellationToken);
-            var eventsTask = traccarClient.GetEventsAsync(deviceId, fromDate, toDate, ct: cancellationToken);
-            var summaryTask = traccarClient.GetSummaryAsync(deviceId, fromDate, toDate, cancellationToken);
-            await Task.WhenAll(routeTask, stopsTask, eventsTask, summaryTask);
-
-            var routeFull = (await routeTask)
-                .Select(TripAnalyticsMapper.ToReplayPosition)
-                .OrderBy(p => p.Timestamp)
-                .ToList();
-            var route = TripAnalyticsMapper.DownsampleReplay(routeFull, maxPoints: 2000);
-            var playback = TripAnalyticsMapper.DownsampleReplay(routeFull, maxPoints: 800);
-
-            var stops = (await stopsTask)
-                .Where(s => TripAnalyticsMapper.OverlapsWindow(s.StartTime, s.EndTime, fromDate, toDate))
-                .Select(TripAnalyticsMapper.ToStopDto)
-                .OrderBy(s => s.StartTime)
-                .ToList();
-
-            var events = (await eventsTask)
-                .Where(e => e.EventTime >= fromDate && e.EventTime <= toDate)
-                .Select(TripAnalyticsMapper.ToEventDto)
-                .OrderBy(e => e.Time)
-                .ToList();
-
-            var summaries = (await summaryTask).ToArray();
-            var replaySummary = TripAnalyticsMapper.BuildReplaySummary(summaries, route);
-
-            return ApiResponse<TripReplayBundleDto>.SuccessResponse(
-                new TripReplayBundleDto(route, playback, stops, events, replaySummary));
+            var bundle = await TripReplayLoader.LoadFromTraccarAsync(
+                traccarClient,
+                source.TraccarDeviceId.Value,
+                fromDate,
+                toDate,
+                cancellationToken);
+            return ApiResponse<TripReplayBundleDto>.SuccessResponse(bundle);
         }
 
-        var history = await mediator.Send(new GetPositionHistoryQuery(vehicleId, fromDate, toDate), cancellationToken);
-        if (!history.Success || history.Data is null)
+        var localBundle = await TripReplayLoader.LoadFromLocalHistoryAsync(
+            mediator, vehicleId, fromDate, toDate, cancellationToken);
+        if (localBundle.Route.Count == 0 && localBundle.Playback.Count == 0)
         {
-            return ApiResponse<TripReplayBundleDto>.FailResponse(history.Message ?? "Failed to load replay positions.");
+            return ApiResponse<TripReplayBundleDto>.FailResponse("Failed to load replay positions.");
         }
 
-        var fallbackRoute = TripAnalyticsMapper.DownsampleReplay(
-            history.Data.Select(TripAnalyticsMapper.ToReplayPosition).OrderBy(p => p.Timestamp).ToList());
-        var fallbackPlayback = TripAnalyticsMapper.DownsampleReplay(fallbackRoute, maxPoints: 800);
+        return ApiResponse<TripReplayBundleDto>.SuccessResponse(localBundle);
+    }
+}
 
-        return ApiResponse<TripReplayBundleDto>.SuccessResponse(
-            new TripReplayBundleDto(
-                fallbackRoute,
-                fallbackPlayback,
-                [],
-                [],
-                TripAnalyticsMapper.BuildReplaySummary([], fallbackRoute)));
+public record GetTripDetailQuery(string TripKey) : IRequest<ApiResponse<TripDetailBundleDto>>;
+
+public class GetTripDetailQueryHandler(IMediator mediator)
+    : IRequestHandler<GetTripDetailQuery, ApiResponse<TripDetailBundleDto>>
+{
+    public async Task<ApiResponse<TripDetailBundleDto>> Handle(GetTripDetailQuery request, CancellationToken cancellationToken)
+    {
+        if (!TripKeyHelper.TryParse(request.TripKey, out var vehicleId, out var startTimeUtc))
+        {
+            return ApiResponse<TripDetailBundleDto>.FailResponse("Invalid trip key.");
+        }
+
+        var fromDate = startTimeUtc.AddHours(-12);
+        var toDate = startTimeUtc.AddDays(2);
+        var tripsResponse = await mediator.Send(
+            new GetGpsTripsQuery(vehicleId, fromDate, toDate, Unpaged: true),
+            cancellationToken);
+
+        if (!tripsResponse.Success || tripsResponse.Data is null)
+        {
+            return ApiResponse<TripDetailBundleDto>.FailResponse(tripsResponse.Message ?? "Failed to load trip.");
+        }
+
+        var trip = tripsResponse.Data.Items.FirstOrDefault(t =>
+            string.Equals(t.TripKey, request.TripKey, StringComparison.Ordinal)
+            || Math.Abs((t.StartTime.ToUniversalTime() - startTimeUtc).TotalSeconds) < 2);
+
+        if (trip is null)
+        {
+            return ApiResponse<TripDetailBundleDto>.FailResponse("Trip not found.");
+        }
+
+        var replayResponse = await mediator.Send(
+            new GetTripReplayQuery(vehicleId, trip.StartTime, trip.EndTime),
+            cancellationToken);
+
+        if (!replayResponse.Success || replayResponse.Data is null)
+        {
+            return ApiResponse<TripDetailBundleDto>.FailResponse(replayResponse.Message ?? "Failed to load trip replay.");
+        }
+
+        var replay = replayResponse.Data;
+        var detail = new TripDetailBundleDto(
+            TraccarTripMapper.Enrich(trip),
+            replay.Summary,
+            replay.Stops,
+            replay.Events,
+            replay.Route,
+            replay.Playback);
+
+        return ApiResponse<TripDetailBundleDto>.SuccessResponse(detail);
     }
 }
 
@@ -196,7 +217,7 @@ public class GetFleetTripSummaryQueryHandler(
         var toDate = request.ToDate ?? DateTime.UtcNow;
 
         var tripsResponse = await mediator.Send(
-            new GetGpsTripsQuery(null, fromDate, toDate, request.BranchId, request.DepartmentId, request.DriverId),
+            new GetGpsTripsQuery(null, fromDate, toDate, request.BranchId, request.DepartmentId, request.DriverId, Unpaged: true),
             cancellationToken);
 
         if (!tripsResponse.Success || tripsResponse.Data is null)
@@ -204,7 +225,7 @@ public class GetFleetTripSummaryQueryHandler(
             return ApiResponse<TripAnalyticsSummaryDto>.FailResponse(tripsResponse.Message ?? "Failed to load trips.");
         }
 
-        var trips = tripsResponse.Data;
+        var trips = tripsResponse.Data.Items;
         var stops = Array.Empty<TraccarStop>();
         var events = Array.Empty<TraccarEvent>();
 
