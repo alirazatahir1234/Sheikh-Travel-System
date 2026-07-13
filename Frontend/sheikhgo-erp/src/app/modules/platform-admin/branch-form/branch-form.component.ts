@@ -16,6 +16,7 @@ import {
 } from '../../../core/models/platform.model';
 import { User } from '../../../core/models/user.model';
 import { apiErrorMessage } from '../../../core/utils/api-error.util';
+import { branchNameValidator, phoneMaxDigitsValidator } from './branch-form.validators';
 
 @Component({
   standalone: false,
@@ -51,11 +52,11 @@ export class BranchFormComponent implements OnInit {
   ) {
     this.form = this.fb.group({
       branchCode: ['', [Validators.required, Validators.maxLength(50)]],
-      name: ['', [Validators.required, Validators.maxLength(200)]],
+      name: ['', [Validators.required, Validators.maxLength(200), branchNameValidator()]],
       branchType: ['Hub'],
       parentBranchId: [null as number | null],
       branchManagerUserId: [null as number | null],
-      phone: [''],
+      phone: ['', [phoneMaxDigitsValidator(15)]],
       email: ['', Validators.email],
       address: [''],
       city: [''],

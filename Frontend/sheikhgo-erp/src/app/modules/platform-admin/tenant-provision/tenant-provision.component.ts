@@ -21,6 +21,7 @@ import {
   applyPlanDefaults,
   tenantPlanMeta
 } from '../../../core/models/platform.model';
+import { blockNonOrgNameKey, orgNameListValidator, orgNameValidator } from './org-name.validator';
 
 type SectionKey = 'profile' | 'plan' | 'admin' | 'branding' | 'security' | 'organization' | 'billing';
 
@@ -117,9 +118,9 @@ export class TenantProvisionComponent implements OnInit, OnDestroy {
         isVatEnabled: [false]
       }),
       organization: this.fb.group({
-        headOfficeName: ['Head Office'],
-        defaultBranchName: ['Main Operations Center'],
-        defaultDepartments: ['Operations,Finance,Fleet,HR'],
+        headOfficeName: ['Head Office', orgNameValidator()],
+        defaultBranchName: ['Main Operations Center', orgNameValidator()],
+        defaultDepartments: ['Operations,Finance,Fleet,HR', orgNameListValidator()],
         generateOrganizationStructure: [true]
       }),
       billing: this.fb.group({
@@ -177,6 +178,10 @@ export class TenantProvisionComponent implements OnInit, OnDestroy {
   get securityGroup(): FormGroup { return this.form.get('security') as FormGroup; }
   get organizationGroup(): FormGroup { return this.form.get('organization') as FormGroup; }
   get billingGroup(): FormGroup { return this.form.get('billing') as FormGroup; }
+
+  blockOrgNameKey(event: KeyboardEvent): void {
+    blockNonOrgNameKey(event);
+  }
 
   get activeModuleCount(): number {
     return (this.planGroup.get('moduleCodes')?.value as string[] ?? []).length;

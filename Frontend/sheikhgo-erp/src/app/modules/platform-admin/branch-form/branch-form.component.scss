@@ -62,6 +62,14 @@
 
 .full { width: 100%; }
 
+.stb-textarea {
+  height: auto;
+  min-height: 72px;
+  padding: 10px 14px;
+  resize: vertical;
+  line-height: 1.45;
+}
+
 .status-row { margin-bottom: 12px; }
 
 .toggle-row {

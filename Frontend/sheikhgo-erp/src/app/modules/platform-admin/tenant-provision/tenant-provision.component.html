@@ -282,16 +282,19 @@
         <div class="field-row">
           <div class="stb-field">
             <label for="org-head-office">Head Office Name</label>
-            <input id="org-head-office" class="stb-input" type="text" formControlName="headOfficeName" />
+            <input id="org-head-office" class="stb-input" type="text" formControlName="headOfficeName" (keydown)="blockOrgNameKey($event)" />
+            <span class="stb-error" *ngIf="organizationGroup.get('headOfficeName')?.hasError('lettersOnly') && organizationGroup.get('headOfficeName')?.touched">Letters only, no numbers</span>
           </div>
           <div class="stb-field">
             <label for="org-default-branch">Default Branch</label>
-            <input id="org-default-branch" class="stb-input" type="text" formControlName="defaultBranchName" />
+            <input id="org-default-branch" class="stb-input" type="text" formControlName="defaultBranchName" (keydown)="blockOrgNameKey($event)" />
+            <span class="stb-error" *ngIf="organizationGroup.get('defaultBranchName')?.hasError('lettersOnly') && organizationGroup.get('defaultBranchName')?.touched">Letters only, no numbers</span>
           </div>
         </div>
         <div class="stb-field stb-field--full">
           <label for="org-departments">Department Structure</label>
           <input id="org-departments" class="stb-input" type="text" formControlName="defaultDepartments" placeholder="Operations, Finance, Fleet, HR" />
+          <span class="stb-error" *ngIf="organizationGroup.get('defaultDepartments')?.hasError('lettersOnly') && organizationGroup.get('defaultDepartments')?.touched">Each department name must contain letters only (no numbers)</span>
         </div>
         <div class="info-callout">
           <mat-icon>info</mat-icon>

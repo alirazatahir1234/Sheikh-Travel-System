@@ -31,6 +31,7 @@
           <label for="branch-name">Branch Name</label>
           <input id="branch-name" class="stb-input" type="text" formControlName="name" placeholder="e.g. Dubai Main Hub" />
           <span class="stb-error" *ngIf="form.get('name')?.hasError('required') && form.get('name')?.touched">Branch name is required</span>
+          <span class="stb-error" *ngIf="(form.get('name')?.hasError('numericOnly') || form.get('name')?.hasError('invalidBranchName')) && form.get('name')?.touched">Branch name cannot be numeric only.</span>
         </div>
         <div class="stb-field">
           <label for="branch-code">Branch Code</label>
@@ -68,6 +69,7 @@
         <div class="stb-field">
           <label for="branch-phone">Phone Number</label>
           <input id="branch-phone" class="stb-input" type="tel" formControlName="phone" placeholder="971400000000" />
+          <span class="stb-error" *ngIf="form.get('phone')?.hasError('phoneMaxDigits') && form.get('phone')?.touched">Phone number cannot exceed 15 digits.</span>
         </div>
       </div>
       <div class="stb-field full">
@@ -79,10 +81,11 @@
 
     <mat-card class="section-card">
       <h2>Location</h2>
-      <mat-form-field appearance="outline" class="full">
-        <mat-label>Full Address</mat-label>
-        <textarea matInput formControlName="address" rows="3" placeholder="Enter physical street address..."></textarea>
-      </mat-form-field>
+      <div class="stb-field full">
+        <label for="branch-address">Full Address</label>
+        <textarea id="branch-address" class="stb-input stb-textarea" formControlName="address" rows="3"
+          placeholder="Enter physical street address..."></textarea>
+      </div>
       <div class="field-row">
         <div class="stb-field">
           <label for="branch-city">City</label>

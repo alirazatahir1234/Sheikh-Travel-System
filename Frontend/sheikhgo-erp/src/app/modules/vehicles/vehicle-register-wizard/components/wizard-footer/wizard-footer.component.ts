@@ -41,22 +41,31 @@ import { UiButtonComponent } from '../../../../../shared/components/ui/button/ui
     </div>
   `,
   styles: [`
+    :host {
+      display: block;
+      width: 100%;
+    }
+
     .wizard-footer-wrap {
       margin-top: 1.5rem;
+      width: 100%;
     }
 
     .wizard-footer-bar {
-      border-top: 1px solid var(--fleet-border, #e2e8f0);
+      width: 100%;
+      box-sizing: border-box;
+      border: 1px solid var(--fleet-border, #e2e8f0);
+      border-radius: 0.5rem;
       background: #fff;
-      box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.06);
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
     }
 
     .wizard-footer-inner {
       display: flex;
       flex-direction: column;
       gap: 0.75rem;
-      padding-top: 1rem;
-      padding-bottom: 1rem;
+      padding: 1rem 1.5rem;
+      box-sizing: border-box;
     }
 
     .wizard-footer-actions {
@@ -74,6 +83,12 @@ import { UiButtonComponent } from '../../../../../shared/components/ui/button/ui
         right: 0;
         bottom: 0;
         z-index: 30;
+        width: auto;
+        border-radius: 0;
+        border-left: none;
+        border-right: none;
+        border-bottom: none;
+        box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.06);
         padding-left: max(1rem, env(safe-area-inset-left, 0px));
         padding-right: max(1rem, env(safe-area-inset-right, 0px));
         padding-bottom: env(safe-area-inset-bottom, 0px);
@@ -82,6 +97,8 @@ import { UiButtonComponent } from '../../../../../shared/components/ui/button/ui
       .wizard-footer-inner {
         max-width: 80rem;
         margin: 0 auto;
+        padding-left: 0;
+        padding-right: 0;
         padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
       }
     }
@@ -92,19 +109,17 @@ import { UiButtonComponent } from '../../../../../shared/components/ui/button/ui
       }
 
       .wizard-footer-wrap {
-        margin-top: 2rem;
+        margin-top: 1.5rem;
       }
 
       .wizard-footer-bar {
         position: relative;
-        box-shadow: none;
       }
 
       .wizard-footer-inner {
         flex-direction: row;
         align-items: center;
         justify-content: space-between;
-        padding-bottom: 0;
       }
     }
   `]
