@@ -17,6 +17,9 @@ import {
   TrackerInstallVehicle,
   TrackerRegisteredResult,
   Geofence,
+  GeofenceAssignment,
+  GeofenceStats,
+  UpsertGeofenceAssignments,
   GpsAlertRule,
   GpsAlertEvent,
   GpsTrip,
@@ -26,11 +29,14 @@ import {
   TripAnalyticsSummary,
   TripFleetFilters,
   TripReplayBundle,
+  HistoryReplayBundle,
   GpsFleetStatus,
   GpsFleetStatusLocal,
   GpsFleetStatusSnapshot,
   TripDeviceContext,
   GpsDeviceCommand,
+  GpsDeviceCommandDetail,
+  SupportedCommand,
   GpsEta,
   IngestPositionPayload,
   TraccarStatusDto,
@@ -44,6 +50,7 @@ import { VehicleService } from './vehicle.service';
 import { DriverService } from './driver.service';
 import { VehicleStatus } from '../models/vehicle.model';
 import { resolveFleetStatus } from '../utils/gps-status.util';
+import { parseGpsTimestamp } from '../utils/gps-timestamp.util';
 
 const STALE_MS = 30 * 60 * 1000;
 const RECENT_MS = STALE_MS;
@@ -119,6 +126,7 @@ export class GpsTrackingService {
                 totalDistanceKm: live.totalDistanceKm,
                 address: live.address,
                 alarmType: live.alarmType,
+                temperature: live.temperature,
                 vehicleType: v.vehicleType,
                 driverPhone: live.driverPhone,
                 bookingId: live.bookingId,
@@ -196,7 +204,7 @@ export class GpsTrackingService {
 
   private isRecentTelemetry(timestamp: string): boolean {
     if (!timestamp) return false;
-    const age = Date.now() - new Date(timestamp).getTime();
+    const age = Date.now() - parseGpsTimestamp(timestamp);
     return Number.isFinite(age) && age >= 0 && age <= RECENT_MS;
   }
 
@@ -211,6 +219,29 @@ export class GpsTrackingService {
     return this.http.get<PositionDto[]>(`${this.base}/history/${vehicleId}`, { params });
   }
 
+  getHistoryReplay(vehicleId: number, from?: Date, to?: Date): Observable<HistoryReplayBundle> {
+    const params: Record<string, string> = { vehicleId: String(vehicleId) };
+    if (from) params['from'] = from.toISOString();
+    if (to) params['to'] = to.toISOString();
+    return this.http.get<HistoryReplayBundle>(`${this.base}/history/replay`, { params });
+  }
+
+  exportHistory(
+    vehicleId: number,
+    from: Date,
+    to: Date,
+    format: 'csv' | 'gpx' | 'geojson'
+  ): Observable<Blob> {
+    const params: Record<string, string> = {
+      from: from.toISOString(),
+      to: to.toISOString(),
+      format
+    };
+    return this.http.get(`${this.base}/history/${vehicleId}/export`, {
+      params,
+      responseType: 'blob'
+    });
+  }
 
   getTripAnalytics(vehicleId: number, from?: Date, to?: Date): Observable<TripAnalyticsBundle> {
     const params: Record<string, string> = { vehicleId: String(vehicleId) };
@@ -305,8 +336,22 @@ export class GpsTrackingService {
     return this.http.get<TripAnalyticsSummary>(`${this.base}/trips/fleet-summary`, { params });
   }
 
-  getGeofences(): Observable<Geofence[]> {
-    return this.http.get<Geofence[]>(`${this.base}/geofences`);
+  getGeofences(filters?: {
+    search?: string;
+    areaType?: string;
+    isActive?: boolean;
+    vehicleId?: number;
+  }): Observable<Geofence[]> {
+    const params: Record<string, string> = {};
+    if (filters?.search) params['search'] = filters.search;
+    if (filters?.areaType) params['areaType'] = filters.areaType;
+    if (filters?.isActive != null) params['isActive'] = String(filters.isActive);
+    if (filters?.vehicleId) params['vehicleId'] = String(filters.vehicleId);
+    return this.http.get<Geofence[]>(`${this.base}/geofences`, { params });
+  }
+
+  getGeofenceStats(): Observable<GeofenceStats> {
+    return this.http.get<GeofenceStats>(`${this.base}/geofences/stats`);
   }
 
   createGeofence(body: Partial<Geofence>): Observable<number> {
@@ -319,6 +364,29 @@ export class GpsTrackingService {
 
   deleteGeofence(id: number): Observable<boolean> {
     return this.http.delete<boolean>(`${this.base}/geofences/${id}`);
+  }
+
+  duplicateGeofence(id: number): Observable<number> {
+    return this.http.post<number>(`${this.base}/geofences/${id}/duplicate`, {});
+  }
+
+  getGeofenceAssignments(geofenceId: number): Observable<GeofenceAssignment[]> {
+    return this.http.get<GeofenceAssignment[]>(`${this.base}/geofences/${geofenceId}/assignments`);
+  }
+
+  upsertGeofenceAssignments(geofenceId: number, body: UpsertGeofenceAssignments): Observable<boolean> {
+    return this.http.post<boolean>(`${this.base}/geofences/${geofenceId}/assignments`, body);
+  }
+
+  deleteGeofenceAssignment(geofenceId: number, assignmentId: number): Observable<boolean> {
+    return this.http.delete<boolean>(`${this.base}/geofences/${geofenceId}/assignments/${assignmentId}`);
+  }
+
+  getGeofenceEvents(geofenceId: number, from?: string, to?: string): Observable<GpsAlertEvent[]> {
+    const params: Record<string, string> = {};
+    if (from) params['from'] = from;
+    if (to) params['to'] = to;
+    return this.http.get<GpsAlertEvent[]>(`${this.base}/geofences/${geofenceId}/events`, { params });
   }
 
   getAlertRules(): Observable<GpsAlertRule[]> {
@@ -401,12 +469,49 @@ export class GpsTrackingService {
     return this.http.delete<boolean>(`${this.base}/devices/${id}`);
   }
 
-  sendCommand(gpsDeviceId: number, commandType: string, reason?: string): Observable<number> {
-    return this.http.post<number>(`${this.base}/commands/send`, { gpsDeviceId, commandType, reason });
+  sendCommand(
+    gpsDeviceId: number,
+    commandType: string,
+    reason?: string,
+    attributes?: Record<string, unknown>
+  ): Observable<number> {
+    return this.http.post<number>(`${this.base}/commands/send`, { gpsDeviceId, commandType, reason, attributes });
   }
 
-  getCommands(deviceId: number): Observable<GpsDeviceCommand[]> {
-    return this.http.get<GpsDeviceCommand[]>(`${this.base}/commands/${deviceId}`);
+  getCommands(
+    deviceId: number,
+    filters?: { status?: string; commandType?: string; from?: Date; to?: Date; page?: number; pageSize?: number }
+  ): Observable<GpsDeviceCommand[]> {
+    const params: Record<string, string> = {};
+    if (filters?.status) params['status'] = filters.status;
+    if (filters?.commandType) params['commandType'] = filters.commandType;
+    if (filters?.from) params['from'] = filters.from.toISOString();
+    if (filters?.to) params['to'] = filters.to.toISOString();
+    if (filters?.page) params['page'] = String(filters.page);
+    if (filters?.pageSize) params['pageSize'] = String(filters.pageSize);
+    return this.http.get<GpsDeviceCommand[]>(`${this.base}/commands/${deviceId}`, { params });
+  }
+
+  getCommandById(id: number): Observable<GpsDeviceCommandDetail> {
+    return this.http.get<GpsDeviceCommandDetail>(`${this.base}/commands/item/${id}`);
+  }
+
+  getVehicleCommands(vehicleId: number): Observable<GpsDeviceCommand[]> {
+    return this.http.get<GpsDeviceCommand[]>(`${this.base}/commands/vehicle/${vehicleId}`);
+  }
+
+  getSupportedCommands(deviceId: number): Observable<SupportedCommand[]> {
+    return this.http.get<SupportedCommand[]>(`${this.base}/commands/supported/${deviceId}`);
+  }
+
+  retryCommand(id: number): Observable<boolean> {
+    return this.http.post<boolean>(`${this.base}/commands/${id}/retry`, {});
+  }
+
+  cancelCommand(id: number, reason?: string): Observable<boolean> {
+    const params: Record<string, string> = {};
+    if (reason) params['reason'] = reason;
+    return this.http.post<boolean>(`${this.base}/commands/${id}/cancel`, {}, { params });
   }
 
   getEta(bookingId: number): Observable<GpsEta> {

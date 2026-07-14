@@ -1,101 +1,17 @@
+using System.Text.Json;
 using Dapper;
 using FluentValidation;
 using MediatR;
+using Microsoft.Extensions.Options;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Interfaces;
+using SheikhTravelSystem.Application.Features.GpsTracking;
 using SheikhTravelSystem.Application.Features.GpsTracking.DTOs;
+using SheikhTravelSystem.Application.Features.GpsTracking.Services;
 using SheikhTravelSystem.Application.Features.GpsTracking.Traccar;
 using SheikhTravelSystem.Domain.Enums;
 
 namespace SheikhTravelSystem.Application.Features.GpsTracking.Commands;
-
-public record CreateGeofenceCommand(CreateGeofenceDto Geofence) : IRequest<ApiResponse<int>>;
-
-public class CreateGeofenceCommandValidator : AbstractValidator<CreateGeofenceCommand>
-{
-    public CreateGeofenceCommandValidator()
-    {
-        RuleFor(x => x.Geofence.Name).NotEmpty().MaximumLength(200);
-        RuleFor(x => x.Geofence.RadiusMeters).GreaterThan(0);
-    }
-}
-
-public class CreateGeofenceCommandHandler(IDbConnectionFactory dbFactory, ICurrentUserService currentUser)
-    : IRequestHandler<CreateGeofenceCommand, ApiResponse<int>>
-{
-    public async Task<ApiResponse<int>> Handle(CreateGeofenceCommand request, CancellationToken cancellationToken)
-    {
-        using var connection = dbFactory.CreateConnection();
-        var dto = request.Geofence;
-        var id = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
-            @"INSERT INTO Geofences (Name, AreaType, CenterLat, CenterLng, RadiusMeters, GeoJson, IsActive, CreatedAt, CreatedBy, IsDeleted)
-              OUTPUT INSERTED.Id
-              VALUES (@Name, 'circle', @CenterLat, @CenterLng, @RadiusMeters, @GeoJson, 1, GETUTCDATE(), @CreatedBy, 0)",
-            new
-            {
-                dto.Name,
-                dto.CenterLat,
-                dto.CenterLng,
-                dto.RadiusMeters,
-                dto.GeoJson,
-                CreatedBy = currentUser.UserId?.ToString()
-            },
-            cancellationToken: cancellationToken));
-
-        return ApiResponse<int>.SuccessResponse(id, "Geofence created.");
-    }
-}
-
-public record UpdateGeofenceCommand(int Id, UpdateGeofenceDto Geofence) : IRequest<ApiResponse<bool>>;
-
-public class UpdateGeofenceCommandHandler(IDbConnectionFactory dbFactory, ICurrentUserService currentUser)
-    : IRequestHandler<UpdateGeofenceCommand, ApiResponse<bool>>
-{
-    public async Task<ApiResponse<bool>> Handle(UpdateGeofenceCommand request, CancellationToken cancellationToken)
-    {
-        using var connection = dbFactory.CreateConnection();
-        var dto = request.Geofence;
-        var rows = await connection.ExecuteAsync(new CommandDefinition(
-            @"UPDATE Geofences SET Name = @Name, CenterLat = @CenterLat, CenterLng = @CenterLng,
-              RadiusMeters = @RadiusMeters, GeoJson = @GeoJson, IsActive = @IsActive, UpdatedAt = GETUTCDATE(), UpdatedBy = @UpdatedBy
-              WHERE Id = @Id AND IsDeleted = 0",
-            new
-            {
-                request.Id,
-                dto.Name,
-                dto.CenterLat,
-                dto.CenterLng,
-                dto.RadiusMeters,
-                dto.GeoJson,
-                dto.IsActive,
-                UpdatedBy = currentUser.UserId?.ToString()
-            },
-            cancellationToken: cancellationToken));
-
-        return rows > 0
-            ? ApiResponse<bool>.SuccessResponse(true, "Geofence updated.")
-            : ApiResponse<bool>.FailResponse("Geofence not found.");
-    }
-}
-
-public record DeleteGeofenceCommand(int Id) : IRequest<ApiResponse<bool>>;
-
-public class DeleteGeofenceCommandHandler(IDbConnectionFactory dbFactory)
-    : IRequestHandler<DeleteGeofenceCommand, ApiResponse<bool>>
-{
-    public async Task<ApiResponse<bool>> Handle(DeleteGeofenceCommand request, CancellationToken cancellationToken)
-    {
-        using var connection = dbFactory.CreateConnection();
-        var rows = await connection.ExecuteAsync(new CommandDefinition(
-            "UPDATE Geofences SET IsDeleted = 1, UpdatedAt = GETUTCDATE() WHERE Id = @Id",
-            new { request.Id },
-            cancellationToken: cancellationToken));
-
-        return rows > 0
-            ? ApiResponse<bool>.SuccessResponse(true, "Geofence deleted.")
-            : ApiResponse<bool>.FailResponse("Geofence not found.");
-    }
-}
 
 public record CreateGpsAlertRuleCommand(CreateGpsAlertRuleDto Rule) : IRequest<ApiResponse<int>>;
 
@@ -127,93 +43,273 @@ public class CreateGpsAlertRuleCommandHandler(IDbConnectionFactory dbFactory, IC
 
 public record AcknowledgeGpsAlertCommand(int Id) : IRequest<ApiResponse<bool>>;
 
-public class AcknowledgeGpsAlertCommandHandler(IDbConnectionFactory dbFactory)
+public class AcknowledgeGpsAlertCommandHandler(IDbConnectionFactory dbFactory, ICurrentUserService currentUser)
     : IRequestHandler<AcknowledgeGpsAlertCommand, ApiResponse<bool>>
 {
     public async Task<ApiResponse<bool>> Handle(AcknowledgeGpsAlertCommand request, CancellationToken cancellationToken)
     {
         using var connection = dbFactory.CreateConnection();
         var rows = await connection.ExecuteAsync(new CommandDefinition(
-            "UPDATE GpsAlertEvents SET IsAcknowledged = 1 WHERE Id = @Id AND IsDeleted = 0",
-            new { request.Id },
+            """
+            UPDATE GpsAlertEvents
+            SET IsAcknowledged = 1, Status = 'acknowledged', AcknowledgedAt = GETUTCDATE(), AcknowledgedBy = @AcknowledgedBy
+            WHERE Id = @Id AND IsDeleted = 0 AND Status = 'active'
+            """,
+            new { request.Id, AcknowledgedBy = currentUser.UserId?.ToString() },
             cancellationToken: cancellationToken));
 
         return rows > 0
             ? ApiResponse<bool>.SuccessResponse(true, "Alert acknowledged.")
+            : ApiResponse<bool>.FailResponse("Alert not found or already processed.");
+    }
+}
+
+public record ResolveGpsAlertCommand(int Id, ResolveGpsAlertDto Resolution) : IRequest<ApiResponse<bool>>;
+
+public class ResolveGpsAlertCommandHandler(IDbConnectionFactory dbFactory, ICurrentUserService currentUser)
+    : IRequestHandler<ResolveGpsAlertCommand, ApiResponse<bool>>
+{
+    public async Task<ApiResponse<bool>> Handle(ResolveGpsAlertCommand request, CancellationToken cancellationToken)
+    {
+        using var connection = dbFactory.CreateConnection();
+        var rows = await connection.ExecuteAsync(new CommandDefinition(
+            """
+            UPDATE GpsAlertEvents
+            SET IsAcknowledged = 1, Status = 'resolved', ResolvedAt = GETUTCDATE(), ResolvedBy = @ResolvedBy,
+                ResolutionNotes = @ResolutionNotes,
+                AcknowledgedAt = COALESCE(AcknowledgedAt, GETUTCDATE()),
+                AcknowledgedBy = COALESCE(AcknowledgedBy, @ResolvedBy)
+            WHERE Id = @Id AND IsDeleted = 0 AND Status <> 'resolved'
+            """,
+            new
+            {
+                request.Id,
+                ResolvedBy = currentUser.UserId?.ToString(),
+                request.Resolution.ResolutionNotes
+            },
+            cancellationToken: cancellationToken));
+
+        return rows > 0
+            ? ApiResponse<bool>.SuccessResponse(true, "Alert resolved.")
+            : ApiResponse<bool>.FailResponse("Alert not found or already resolved.");
+    }
+}
+
+public record DeleteGpsAlertEventCommand(int Id) : IRequest<ApiResponse<bool>>;
+
+public class DeleteGpsAlertEventCommandHandler(IDbConnectionFactory dbFactory)
+    : IRequestHandler<DeleteGpsAlertEventCommand, ApiResponse<bool>>
+{
+    public async Task<ApiResponse<bool>> Handle(DeleteGpsAlertEventCommand request, CancellationToken cancellationToken)
+    {
+        using var connection = dbFactory.CreateConnection();
+        var rows = await connection.ExecuteAsync(new CommandDefinition(
+            "UPDATE GpsAlertEvents SET IsDeleted = 1 WHERE Id = @Id AND IsDeleted = 0",
+            new { request.Id },
+            cancellationToken: cancellationToken));
+
+        return rows > 0
+            ? ApiResponse<bool>.SuccessResponse(true, "Alert deleted.")
             : ApiResponse<bool>.FailResponse("Alert not found.");
     }
 }
 
-public record SendDeviceCommandCommand(SendDeviceCommandDto Command) : IRequest<ApiResponse<int>>;
+public record UpdateAlertSettingsCommand(UpdateAlertSettingsDto Settings) : IRequest<ApiResponse<bool>>;
+
+public class UpdateAlertSettingsCommandHandler(IDbConnectionFactory dbFactory, ICurrentUserService currentUser)
+    : IRequestHandler<UpdateAlertSettingsCommand, ApiResponse<bool>>
+{
+    public async Task<ApiResponse<bool>> Handle(UpdateAlertSettingsCommand request, CancellationToken cancellationToken)
+    {
+        var userId = currentUser.UserId;
+        if (userId is null)
+            return ApiResponse<bool>.FailResponse("No authenticated user.");
+
+        using var connection = dbFactory.CreateConnection();
+        foreach (var s in request.Settings.Settings)
+        {
+            await connection.ExecuteAsync(new CommandDefinition(
+                """
+                MERGE AlertSettings AS target
+                USING (SELECT @UserId AS UserId, @AlertType AS AlertType) AS source
+                ON target.UserId = source.UserId AND target.AlertType = source.AlertType
+                WHEN MATCHED THEN
+                    UPDATE SET InAppEnabled = @InAppEnabled, EmailEnabled = @EmailEnabled,
+                               PushEnabled = @PushEnabled, SmsEnabled = @SmsEnabled, UpdatedAt = GETUTCDATE()
+                WHEN NOT MATCHED THEN
+                    INSERT (UserId, AlertType, InAppEnabled, EmailEnabled, PushEnabled, SmsEnabled, CreatedAt)
+                    VALUES (@UserId, @AlertType, @InAppEnabled, @EmailEnabled, @PushEnabled, @SmsEnabled, GETUTCDATE());
+                """,
+                new
+                {
+                    UserId = userId.Value,
+                    s.AlertType,
+                    s.InAppEnabled,
+                    s.EmailEnabled,
+                    s.PushEnabled,
+                    s.SmsEnabled
+                },
+                cancellationToken: cancellationToken));
+        }
+
+        return ApiResponse<bool>.SuccessResponse(true, "Alert settings saved.");
+    }
+}
+
+public record SendDeviceCommandCommand(SendDeviceCommandDto Command) : IRequest<ApiResponse<int>>, IAuditableCommand
+{
+    public string AuditAction => "Send";
+    public string AuditEntityName => "GpsDeviceCommand";
+    public int? AuditEntityId => null;
+}
 
 public class SendDeviceCommandCommandValidator : AbstractValidator<SendDeviceCommandCommand>
 {
-    private static readonly string[] Allowed = ["engineStop", "engineResume", "positionSingle", "custom"];
-
     public SendDeviceCommandCommandValidator()
     {
         RuleFor(x => x.Command.GpsDeviceId).GreaterThan(0);
-        RuleFor(x => x.Command.CommandType).Must(t => Allowed.Contains(t, StringComparer.OrdinalIgnoreCase));
+        RuleFor(x => x.Command.CommandType).Must(t => GpsCommandCatalog.Find(t) is not null)
+            .WithMessage("Unknown command type.");
     }
 }
 
 public class SendDeviceCommandCommandHandler(
     IDbConnectionFactory dbFactory,
     ICurrentUserService currentUser,
-    IAuditService auditService,
     ITraccarClient traccar,
     ITenantContext tenantContext,
-    INotificationService notifications)
+    INotificationService notifications,
+    IOptions<GpsSettings> gpsSettings)
     : IRequestHandler<SendDeviceCommandCommand, ApiResponse<int>>
 {
     public async Task<ApiResponse<int>> Handle(SendDeviceCommandCommand request, CancellationToken cancellationToken)
     {
+        var definition = GpsCommandCatalog.Find(request.Command.CommandType);
+        if (definition is null)
+            return ApiResponse<int>.FailResponse("Unknown command type.");
+
+        if (!currentUser.HasPermission(definition.Permission))
+            return ApiResponse<int>.FailResponse("Insufficient permission for this command type.");
+
         using var connection = dbFactory.CreateConnection();
-        var device = await connection.QueryFirstOrDefaultAsync<(int Id, bool SupportsEngineCutoff, string Name, int? TraccarDeviceId)>(
+        var device = await connection.QueryFirstOrDefaultAsync<(int Id, bool SupportsEngineCutoff, bool SupportsRelay, string Name, int? TraccarDeviceId, int? VehicleId, string? RelayPurpose)>(
             new CommandDefinition(
-                "SELECT Id, SupportsEngineCutoff, Name, TraccarDeviceId FROM GpsDevices WHERE Id = @Id AND IsDeleted = 0",
+                "SELECT Id, SupportsEngineCutoff, SupportsRelay, Name, TraccarDeviceId, VehicleId, RelayPurpose FROM GpsDevices WHERE Id = @Id AND IsDeleted = 0",
                 new { Id = request.Command.GpsDeviceId },
                 cancellationToken: cancellationToken));
 
         if (device.Id == 0)
             return ApiResponse<int>.FailResponse("Device not found.");
 
-        if (request.Command.CommandType.Equals("engineStop", StringComparison.OrdinalIgnoreCase)
-            && !device.SupportsEngineCutoff)
-            return ApiResponse<int>.FailResponse("Device does not support engine cut-off.");
+        if (definition.CapabilityColumn is not null)
+        {
+            var hasCapability = definition.CapabilityColumn switch
+            {
+                "SupportsEngineCutoff" => device.SupportsEngineCutoff,
+                "SupportsRelay" => device.SupportsRelay,
+                _ => true
+            };
+            if (!hasCapability)
+                return ApiResponse<int>.FailResponse($"Device does not support {definition.Label}.");
+        }
+
+        if (definition.RequiresEngineSafetyCheck)
+        {
+            var isRelayCommand = request.Command.CommandType is "relayOn" or "relayOff";
+            var needsSafetyCheck = !isRelayCommand
+                || GpsCommandSafetyChecker.RelayNeedsEngineSafetyCheck(request.Command.CommandType, device.RelayPurpose);
+
+            if (needsSafetyCheck)
+            {
+                var safetyError = await GpsCommandSafetyChecker.CheckEngineCutoffPreconditionAsync(
+                    connection, device.VehicleId, cancellationToken);
+                if (safetyError is not null)
+                    return ApiResponse<int>.FailResponse(safetyError);
+            }
+        }
+
+        var duplicatePending = await connection.ExecuteScalarAsync<bool>(new CommandDefinition(
+            """
+            SELECT CASE WHEN EXISTS(
+                SELECT 1 FROM GpsDeviceCommands
+                WHERE GpsDeviceId = @GpsDeviceId AND CommandType = @CommandType
+                  AND Status IN ('pending', 'sent') AND IsDeleted = 0
+            ) THEN 1 ELSE 0 END
+            """,
+            new { request.Command.GpsDeviceId, request.Command.CommandType },
+            cancellationToken: cancellationToken));
+
+        if (duplicatePending)
+            return ApiResponse<int>.FailResponse($"A {definition.Label} command is already in flight for this device.");
+
+        var attributesJson = request.Command.Attributes is { Count: > 0 }
+            ? JsonSerializer.Serialize(request.Command.Attributes)
+            : null;
 
         var id = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
             """
             INSERT INTO GpsDeviceCommands
-                (GpsDeviceId, CommandType, Status, Reason, TenantId, RequestedBy, RequestedAt, CreatedAt, IsDeleted)
+                (GpsDeviceId, CommandType, Status, Reason, Attributes, MaxRetries, TenantId, RequestedBy, RequestedAt, CreatedAt, IsDeleted)
             OUTPUT INSERTED.Id
             VALUES
-                (@GpsDeviceId, @CommandType, 'pending', @Reason, @TenantId, @RequestedBy, GETUTCDATE(), GETUTCDATE(), 0)
+                (@GpsDeviceId, @CommandType, 'pending', @Reason, @Attributes, @MaxRetries, @TenantId, @RequestedBy, GETUTCDATE(), GETUTCDATE(), 0)
             """,
             new
             {
                 request.Command.GpsDeviceId,
                 request.Command.CommandType,
                 request.Command.Reason,
+                Attributes = attributesJson,
+                MaxRetries = gpsSettings.Value.CommandMaxRetries,
                 TenantId = tenantContext.TenantId,
                 RequestedBy = currentUser.UserId?.ToString()
             },
             cancellationToken: cancellationToken));
 
-        // Forward to Traccar immediately if the device is linked; device will relay to hardware.
-        if (device.TraccarDeviceId.HasValue)
+        var dispatchSucceeded = false;
+
+        if (definition.TraccarType is null)
         {
-            var sent = await traccar.SendCommandAsync(device.TraccarDeviceId.Value, request.Command.CommandType, cancellationToken);
+            // customSms (or any future channel with no Traccar equivalent) — no gateway wired yet.
+            await connection.ExecuteAsync(new CommandDefinition(
+                "UPDATE GpsDeviceCommands SET Status = 'not_configured' WHERE Id = @Id",
+                new { Id = id },
+                cancellationToken: cancellationToken));
+
+            await connection.ExecuteAsync(new CommandDefinition(
+                """
+                INSERT INTO GpsCommandResponses (CommandId, Source, ResponseText, ReceivedAt, CreatedAt)
+                VALUES (@CommandId, 'system', 'No SMS gateway configured for this tenant.', GETUTCDATE(), GETUTCDATE())
+                """,
+                new { CommandId = id },
+                cancellationToken: cancellationToken));
+        }
+        else if (device.TraccarDeviceId.HasValue)
+        {
+            var sent = await traccar.SendCommandAsync(device.TraccarDeviceId.Value, definition.TraccarType, request.Command.Attributes, cancellationToken);
             if (sent)
+            {
+                dispatchSucceeded = true;
                 await connection.ExecuteAsync(new CommandDefinition(
-                    "UPDATE GpsDeviceCommands SET Status = 'sent' WHERE Id = @Id",
+                    "UPDATE GpsDeviceCommands SET Status = 'sent', UpdatedAt = GETUTCDATE() WHERE Id = @Id",
                     new { Id = id },
                     cancellationToken: cancellationToken));
+            }
+            else
+            {
+                await connection.ExecuteAsync(new CommandDefinition(
+                    """
+                    UPDATE GpsDeviceCommands
+                    SET ErrorMessage = 'Traccar dispatch failed', NextRetryAt = DATEADD(SECOND, @RetrySeconds, GETUTCDATE()), UpdatedAt = GETUTCDATE()
+                    WHERE Id = @Id
+                    """,
+                    new { Id = id, RetrySeconds = gpsSettings.Value.CommandRetryIntervalSeconds },
+                    cancellationToken: cancellationToken));
+            }
         }
+        // Else: device has no TraccarDeviceId — stays 'pending', owned by the commands/pending polling path.
 
-        await auditService.LogAsync("Send", "GpsDeviceCommand", id, cancellationToken);
-
-        if (request.Command.CommandType is "engineStop" or "engineResume")
+        if (definition.NotifyAllUsers && dispatchSucceeded)
         {
             var verb = request.Command.CommandType == "engineStop" ? "cut off" : "restored";
             await notifications.CreateForAllAsync(
@@ -228,7 +324,128 @@ public class SendDeviceCommandCommandHandler(
     }
 }
 
-public record CompleteDeviceCommandCommand(int Id, string Status) : IRequest<ApiResponse<bool>>;
+public record RetryDeviceCommandCommand(int Id) : IRequest<ApiResponse<bool>>, IAuditableCommand
+{
+    public string AuditAction => "Retry";
+    public string AuditEntityName => "GpsDeviceCommand";
+    public int? AuditEntityId => Id;
+}
+
+public class RetryDeviceCommandCommandHandler(
+    IDbConnectionFactory dbFactory,
+    ICurrentUserService currentUser,
+    ITraccarClient traccar)
+    : IRequestHandler<RetryDeviceCommandCommand, ApiResponse<bool>>
+{
+    public async Task<ApiResponse<bool>> Handle(RetryDeviceCommandCommand request, CancellationToken cancellationToken)
+    {
+        using var connection = dbFactory.CreateConnection();
+        var row = await connection.QueryFirstOrDefaultAsync<(int Id, string CommandType, string Status, int GpsDeviceId, string? Attributes, int? TraccarDeviceId, int? VehicleId, string? RelayPurpose)>(
+            new CommandDefinition(
+                """
+                SELECT c.Id, c.CommandType, c.Status, c.GpsDeviceId, c.Attributes, d.TraccarDeviceId, d.VehicleId, d.RelayPurpose
+                FROM GpsDeviceCommands c
+                INNER JOIN GpsDevices d ON d.Id = c.GpsDeviceId
+                WHERE c.Id = @Id AND c.IsDeleted = 0
+                """,
+                new { request.Id },
+                cancellationToken: cancellationToken));
+
+        if (row.Id == 0)
+            return ApiResponse<bool>.FailResponse("Command not found.");
+
+        if (row.Status is not ("failed" or "timeout"))
+            return ApiResponse<bool>.FailResponse("Only failed or timed-out commands can be retried.");
+
+        var definition = GpsCommandCatalog.Find(row.CommandType);
+        if (definition is null || definition.TraccarType is null)
+            return ApiResponse<bool>.FailResponse("Command type cannot be retried.");
+
+        if (!currentUser.HasPermission(GpsPermissions.CommandRetry))
+            return ApiResponse<bool>.FailResponse("Insufficient permission to retry commands.");
+
+        if (!row.TraccarDeviceId.HasValue)
+            return ApiResponse<bool>.FailResponse("Device is not linked to Traccar.");
+
+        if (definition.RequiresEngineSafetyCheck)
+        {
+            var isRelayCommand = row.CommandType is "relayOn" or "relayOff";
+            var needsSafetyCheck = !isRelayCommand
+                || GpsCommandSafetyChecker.RelayNeedsEngineSafetyCheck(row.CommandType, row.RelayPurpose);
+
+            if (needsSafetyCheck)
+            {
+                // Vehicle state may have changed since the original (failed/timed-out) attempt.
+                var safetyError = await GpsCommandSafetyChecker.CheckEngineCutoffPreconditionAsync(
+                    connection, row.VehicleId, cancellationToken);
+                if (safetyError is not null)
+                    return ApiResponse<bool>.FailResponse(safetyError);
+            }
+        }
+
+        var attributes = string.IsNullOrWhiteSpace(row.Attributes)
+            ? null
+            : JsonSerializer.Deserialize<Dictionary<string, object>>(row.Attributes);
+
+        var sent = await traccar.SendCommandAsync(row.TraccarDeviceId.Value, definition.TraccarType, attributes, cancellationToken);
+
+        if (sent)
+        {
+            await connection.ExecuteAsync(new CommandDefinition(
+                """
+                UPDATE GpsDeviceCommands
+                SET Status = 'sent', RetryCount = RetryCount + 1, ErrorMessage = NULL, UpdatedAt = GETUTCDATE()
+                WHERE Id = @Id
+                """,
+                new { request.Id },
+                cancellationToken: cancellationToken));
+
+            return ApiResponse<bool>.SuccessResponse(true, "Command retried.");
+        }
+
+        await connection.ExecuteAsync(new CommandDefinition(
+            """
+            UPDATE GpsDeviceCommands
+            SET Status = 'failed', RetryCount = RetryCount + 1, ErrorMessage = 'Retry dispatch failed', UpdatedAt = GETUTCDATE()
+            WHERE Id = @Id
+            """,
+            new { request.Id },
+            cancellationToken: cancellationToken));
+
+        return ApiResponse<bool>.FailResponse("Retry dispatch failed.");
+    }
+}
+
+public record CancelDeviceCommandCommand(int Id, string? Reason) : IRequest<ApiResponse<bool>>, IAuditableCommand
+{
+    public string AuditAction => "Cancel";
+    public string AuditEntityName => "GpsDeviceCommand";
+    public int? AuditEntityId => Id;
+}
+
+public class CancelDeviceCommandCommandHandler(IDbConnectionFactory dbFactory, ICurrentUserService currentUser)
+    : IRequestHandler<CancelDeviceCommandCommand, ApiResponse<bool>>
+{
+    public async Task<ApiResponse<bool>> Handle(CancelDeviceCommandCommand request, CancellationToken cancellationToken)
+    {
+        using var connection = dbFactory.CreateConnection();
+        var rows = await connection.ExecuteAsync(new CommandDefinition(
+            """
+            UPDATE GpsDeviceCommands
+            SET Status = 'cancelled', CancelledAt = GETUTCDATE(), CancelledBy = @CancelledBy, UpdatedAt = GETUTCDATE()
+            WHERE Id = @Id AND Status = 'pending' AND IsDeleted = 0
+            """,
+            new { request.Id, CancelledBy = currentUser.UserId?.ToString() },
+            cancellationToken: cancellationToken));
+
+        return rows > 0
+            ? ApiResponse<bool>.SuccessResponse(true, "Command cancelled.")
+            : ApiResponse<bool>.FailResponse("Only pending commands can be cancelled.");
+    }
+}
+
+public record CompleteDeviceCommandCommand(int Id, string UniqueId, string Status, string? ResponseText = null, string? ErrorMessage = null)
+    : IRequest<ApiResponse<bool>>;
 
 public class CompleteDeviceCommandCommandHandler(IDbConnectionFactory dbFactory)
     : IRequestHandler<CompleteDeviceCommandCommand, ApiResponse<bool>>
@@ -237,13 +454,30 @@ public class CompleteDeviceCommandCommandHandler(IDbConnectionFactory dbFactory)
     {
         using var connection = dbFactory.CreateConnection();
         var rows = await connection.ExecuteAsync(new CommandDefinition(
-            @"UPDATE GpsDeviceCommands SET Status = @Status, CompletedAt = GETUTCDATE()
-              WHERE Id = @Id AND IsDeleted = 0",
-            new { request.Id, request.Status },
+            """
+            UPDATE c
+            SET c.Status = @Status, c.CompletedAt = GETUTCDATE(), c.ErrorMessage = @ErrorMessage, c.UpdatedAt = GETUTCDATE()
+            FROM GpsDeviceCommands c
+            INNER JOIN GpsDevices d ON d.Id = c.GpsDeviceId
+            WHERE c.Id = @Id AND c.IsDeleted = 0 AND d.UniqueId = @UniqueId
+            """,
+            new { request.Id, request.UniqueId, request.Status, request.ErrorMessage },
             cancellationToken: cancellationToken));
 
-        return rows > 0
-            ? ApiResponse<bool>.SuccessResponse(true, "Command updated.")
-            : ApiResponse<bool>.FailResponse("Command not found.");
+        if (rows == 0)
+            return ApiResponse<bool>.FailResponse("Command not found.");
+
+        if (!string.IsNullOrWhiteSpace(request.ResponseText) || !string.IsNullOrWhiteSpace(request.ErrorMessage))
+        {
+            await connection.ExecuteAsync(new CommandDefinition(
+                """
+                INSERT INTO GpsCommandResponses (CommandId, Source, ResponseText, ReceivedAt, CreatedAt)
+                VALUES (@CommandId, 'device', @ResponseText, GETUTCDATE(), GETUTCDATE())
+                """,
+                new { CommandId = request.Id, ResponseText = request.ResponseText ?? request.ErrorMessage },
+                cancellationToken: cancellationToken));
+        }
+
+        return ApiResponse<bool>.SuccessResponse(true, "Command updated.");
     }
 }

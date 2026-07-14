@@ -33,5 +33,8 @@ public interface ITraccarClient
     Task<IReadOnlyList<TraccarEvent>> GetEventsAsync(int deviceId, DateTime from, DateTime to, string? type = null, CancellationToken ct = default);
     Task<IReadOnlyList<TraccarSummary>> GetSummaryAsync(int deviceId, DateTime from, DateTime to, CancellationToken ct = default);
 
-    Task<bool> SendCommandAsync(int deviceId, string type, CancellationToken ct = default);
+    Task<bool> SendCommandAsync(int deviceId, string type, IDictionary<string, object>? attributes = null, CancellationToken ct = default);
+
+    /// <summary>Best-effort — returns an empty list (not a throw) if Traccar is unreachable; callers should fall back to the local capability catalog.</summary>
+    Task<IReadOnlyList<string>> GetSupportedCommandTypesAsync(int deviceId, CancellationToken ct = default);
 }

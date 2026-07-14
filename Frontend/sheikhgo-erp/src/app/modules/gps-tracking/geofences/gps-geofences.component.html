@@ -1,98 +1,449 @@
 <div class="geo-page">
 
-  <!-- Header -->
   <div class="page-header">
     <div>
       <h2 class="page-title">Geofences</h2>
-      <p class="page-sub">Click the map to pick a center point, or add coordinates manually.</p>
+      <p class="page-sub">Draw circle, polygon, or rectangle boundaries. Assign vehicles by fleet org scope.</p>
     </div>
-    <button class="btn btn-primary" (click)="openCreate()">
+    <button class="btn btn-primary" type="button" (click)="openCreate()">
       <mat-icon>add_location_alt</mat-icon>
       Add Geofence
     </button>
   </div>
 
-  <!-- Split layout -->
+  <div class="stats-strip" *ngIf="stats as s">
+    <div class="stat"><span class="stat-val">{{ s.total }}</span><span class="stat-lbl">Total</span></div>
+    <div class="stat"><span class="stat-val">{{ s.active }}</span><span class="stat-lbl">Active</span></div>
+    <div class="stat"><span class="stat-val">{{ s.vehiclesInside }}</span><span class="stat-lbl">Inside</span></div>
+    <div class="stat"><span class="stat-val">{{ s.todayEntries }}</span><span class="stat-lbl">Entries today</span></div>
+    <div class="stat"><span class="stat-val">{{ s.todayExits }}</span><span class="stat-lbl">Exits today</span></div>
+    <div class="stat warn" *ngIf="s.unackedBreaches"><span class="stat-val">{{ s.unackedBreaches }}</span><span class="stat-lbl">Unacked 24h</span></div>
+  </div>
+
   <div class="split-layout">
 
-    <!-- Map panel -->
     <div class="map-panel">
       <div #mapEl class="leaflet-map"></div>
     </div>
 
-    <!-- List panel -->
-    <div class="list-panel">
-      <div *ngIf="loading" class="loading-row"><mat-spinner diameter="28"></mat-spinner></div>
-
-      <div *ngIf="!loading && geofences.length === 0" class="empty-state">
-        <mat-icon>location_off</mat-icon>
-        <p>No geofences defined.</p>
-        <p class="sub">Click on the map or use the button above to add one.</p>
+    <div class="side-panel">
+      <div class="filters">
+        <input class="search" type="search" placeholder="Search name / category…" [(ngModel)]="search" />
+        <select [(ngModel)]="filterType">
+          <option value="">All shapes</option>
+          <option value="circle">Circle</option>
+          <option value="polygon">Polygon</option>
+          <option value="rectangle">Rectangle</option>
+        </select>
+        <select [(ngModel)]="filterStatus">
+          <option value="">All status</option>
+          <option value="active">Active</option>
+          <option value="inactive">Inactive</option>
+        </select>
       </div>
 
-      <div *ngFor="let g of geofences" class="geo-card" [class.inactive]="!g.isActive">
+      <div *ngIf="loading" class="loading-row"><mat-spinner diameter="28"></mat-spinner></div>
+
+      <div *ngIf="!loading && filteredGeofences.length === 0" class="empty-state">
+        <mat-icon>location_off</mat-icon>
+        <p>No geofences match.</p>
+        <p class="sub">Use the map draw tools or Add Geofence.</p>
+      </div>
+
+      <div
+        *ngFor="let g of filteredGeofences"
+        class="geo-card"
+        [class.inactive]="!g.isActive"
+        [class.selected]="selected?.id === g.id"
+        (click)="selectFence(g)">
+        <div class="swatch" [style.background]="g.color || '#0f766e'"></div>
         <div class="geo-info">
           <div class="geo-name">{{ g.name }}</div>
-          <div class="geo-meta">{{ g.centerLat | number:'1.4-4' }}, {{ g.centerLng | number:'1.4-4' }} · {{ g.radiusMeters | number }}m</div>
+          <div class="geo-meta">
+            {{ shapeLabel(g) }}
+            <span *ngIf="g.category"> · {{ g.category }}</span>
+            <span *ngIf="g.assignedVehicleCount"> · {{ g.assignedVehicleCount }} vehicles</span>
+          </div>
         </div>
-        <div class="geo-actions">
+        <div class="geo-actions" (click)="$event.stopPropagation()">
           <span class="badge" [class.badge-green]="g.isActive" [class.badge-gray]="!g.isActive">
             {{ g.isActive ? 'Active' : 'Inactive' }}
           </span>
-          <button mat-icon-button (click)="openEdit(g)" matTooltip="Edit"><mat-icon>edit</mat-icon></button>
-          <button mat-icon-button (click)="toggleActive(g)" [matTooltip]="g.isActive ? 'Deactivate' : 'Activate'">
+          <button mat-icon-button type="button" (click)="openEdit(g)" matTooltip="Edit"><mat-icon>edit</mat-icon></button>
+          <button mat-icon-button type="button" (click)="openAssign(g)" matTooltip="Assign"><mat-icon>group_add</mat-icon></button>
+          <button mat-icon-button type="button" (click)="duplicate(g)" matTooltip="Duplicate"><mat-icon>content_copy</mat-icon></button>
+          <button mat-icon-button type="button" (click)="toggleActive(g)" [matTooltip]="g.isActive ? 'Deactivate' : 'Activate'">
             <mat-icon>{{ g.isActive ? 'toggle_on' : 'toggle_off' }}</mat-icon>
           </button>
-          <button mat-icon-button (click)="delete(g)" matTooltip="Delete" class="delete-btn">
+          <button mat-icon-button type="button" (click)="delete(g)" matTooltip="Delete" class="delete-btn">
             <mat-icon>delete_outline</mat-icon>
           </button>
         </div>
       </div>
+
+      <div class="detail-block" *ngIf="selected">
+        <h4>{{ selected.name }} — recent events</h4>
+        <div *ngIf="events.length === 0" class="empty-mini">No enter/exit events yet.</div>
+        <div class="event-row" *ngFor="let e of events.slice(0, 12)">
+          <span class="ev-type" [class.enter]="e.eventType === 'geofence_enter'">{{ eventLabel(e) }}</span>
+          <span class="ev-who">{{ e.vehicleName || ('#' + e.vehicleId) }}</span>
+          <span class="ev-when">{{ e.timestamp | date:'short' }}</span>
+        </div>
+
+        <h4 class="mt">Assignments</h4>
+        <div *ngIf="assignments.length === 0" class="empty-mini">None — open Assign to link vehicles.</div>
+        <div class="assign-row" *ngFor="let a of assignments">
+          <span *ngIf="a.vehicleId">{{ a.vehicleName }} · {{ a.registrationNumber }}</span>
+          <span *ngIf="a.branchId">Branch: {{ a.branchName || a.branchId }}</span>
+          <span *ngIf="a.departmentId">Dept: {{ a.departmentName || a.departmentId }}</span>
+          <button mat-icon-button type="button" (click)="removeAssignment(a)" matTooltip="Remove"><mat-icon>close</mat-icon></button>
+        </div>
+      </div>
     </div>
-
   </div>
-
 </div>
 
-<!-- Drawer overlay -->
-<div class="drawer-overlay" *ngIf="showForm" (click)="showForm = false"></div>
-<div class="drawer" [class.open]="showForm">
+<!-- Create / Edit drawer -->
+<div class="drawer-overlay" *ngIf="showForm" (click)="closeForm()"></div>
+<div class="drawer drawer-wide" [class.open]="showForm">
   <div class="drawer-header">
     <h3>{{ editGeofence ? 'Edit Geofence' : 'New Geofence' }}</h3>
-    <button mat-icon-button (click)="showForm = false"><mat-icon>close</mat-icon></button>
+    <button mat-icon-button type="button" (click)="closeForm()"><mat-icon>close</mat-icon></button>
   </div>
   <div class="drawer-body">
+    <p class="hint">{{ drawHint }}</p>
+
     <form [formGroup]="form" (ngSubmit)="save()">
-      <mat-form-field appearance="outline" class="full-width">
-        <mat-label>Name</mat-label>
-        <input matInput formControlName="name" placeholder="e.g. Lahore Airport">
-        <mat-error>Required</mat-error>
-      </mat-form-field>
 
-      <div class="coord-row">
-        <mat-form-field appearance="outline">
-          <mat-label>Latitude</mat-label>
-          <input matInput type="number" step="any" formControlName="centerLat">
-        </mat-form-field>
-        <mat-form-field appearance="outline">
-          <mat-label>Longitude</mat-label>
-          <input matInput type="number" step="any" formControlName="centerLng">
-        </mat-form-field>
-      </div>
+      <section class="form-section">
+        <h4 class="section-title">Basic Information</h4>
 
-      <mat-form-field appearance="outline" class="full-width">
-        <mat-label>Radius (meters)</mat-label>
-        <input matInput type="number" formControlName="radiusMeters">
-        <mat-hint>Min 50m</mat-hint>
-        <mat-error>Min 50m</mat-error>
-      </mat-form-field>
+        <label class="geo-label" for="geo-name">Geofence Name *</label>
+        <input
+          id="geo-name"
+          class="geo-input"
+          type="text"
+          formControlName="name"
+          maxlength="100"
+          autocomplete="off"
+          placeholder="e.g. SheikhGo Warehouse" />
+        <div class="geo-field-meta">
+          <span class="geo-error" *ngIf="form.controls['name'].touched && form.controls['name'].hasError('required')">
+            Geofence name is required.
+          </span>
+          <span class="geo-error" *ngIf="form.controls['name'].hasError('maxlength')">
+            Maximum 100 characters.
+          </span>
+          <span class="geo-counter">{{ form.value.name?.length || 0 }} / 100</span>
+        </div>
 
-      <div class="form-actions">
-        <button type="button" class="btn btn-secondary" (click)="showForm = false">Cancel</button>
-        <button type="submit" class="btn btn-primary" [disabled]="form.invalid">
-          {{ editGeofence ? 'Update' : 'Create' }}
+        <label class="geo-label" for="geo-desc">Description (Optional)</label>
+        <textarea
+          id="geo-desc"
+          class="geo-input geo-textarea"
+          formControlName="description"
+          rows="3"
+          maxlength="250"
+          placeholder="Main warehouse boundary"></textarea>
+        <div class="geo-field-meta">
+          <span class="geo-counter">{{ form.value.description?.length || 0 }} / 250 characters</span>
+        </div>
+
+        <label class="geo-label" for="geo-category">Category *</label>
+        <div class="geo-select-wrap">
+          <select id="geo-category" class="geo-input geo-select" formControlName="category">
+            <option *ngFor="let c of categories" [value]="c">{{ c }}</option>
+          </select>
+          <mat-icon class="geo-select-caret" aria-hidden="true">expand_more</mat-icon>
+        </div>
+        <div class="geo-field-meta">
+          <span class="geo-error" *ngIf="form.controls['category'].touched && form.controls['category'].hasError('required')">
+            Category is required.
+          </span>
+        </div>
+
+        <div class="color-block">
+          <label class="geo-label">Boundary Color *</label>
+          <div class="color-row">
+            <button
+              type="button"
+              class="color-swatch"
+              *ngFor="let c of colorPresets"
+              [style.background]="c.hex"
+              [class.active]="form.value.color === c.hex"
+              [matTooltip]="c.label"
+              (click)="selectColor(c.hex)"></button>
+            <input class="color-native" type="color" formControlName="color" title="Custom color" />
+          </div>
+          <div class="color-preview-bar" [style.background]="form.value.color"></div>
+          <div class="color-preview">
+            <span>{{ colorLabel }} · {{ form.value.color }}</span>
+            <span class="muted">Map boundary updates live</span>
+          </div>
+        </div>
+
+        <div class="status-block">
+          <label class="geo-label">Status *</label>
+          <mat-radio-group formControlName="isActive" color="primary" class="status-radios">
+            <mat-radio-button [value]="true" color="primary">Active</mat-radio-button>
+            <mat-radio-button [value]="false" color="primary">Inactive</mat-radio-button>
+          </mat-radio-group>
+        </div>
+      </section>
+
+      <section class="form-section">
+        <h4 class="section-title">Boundary</h4>
+
+        <div class="shape-card">
+          <div class="boundary-grid">
+            <div class="bound-item">
+              <span class="bound-label">Shape</span>
+              <span class="bound-value capitalize">{{ form.value.areaType || 'circle' }}</span>
+            </div>
+
+            <ng-container *ngIf="form.value.areaType === 'circle'">
+              <div class="bound-item bound-item--wide">
+                <span class="bound-label">Radius *</span>
+                <div class="radius-editor">
+                  <button type="button" class="step-btn" (click)="bumpRadius(-50)" [disabled]="shapeLocked">−</button>
+                  <input
+                    type="number"
+                    formControlName="radiusMeters"
+                    min="50"
+                    max="100000"
+                    step="10"
+                    [readonly]="shapeLocked" />
+                  <button type="button" class="step-btn" (click)="bumpRadius(50)" [disabled]="shapeLocked">+</button>
+                  <span class="unit">m</span>
+                </div>
+              </div>
+              <div class="bound-item">
+                <span class="bound-label">Radius</span>
+                <span class="bound-value">{{ radiusKmLabel }}</span>
+              </div>
+              <div class="bound-item" *ngIf="areaSqMeters != null">
+                <span class="bound-label">Area</span>
+                <span class="bound-value">{{ formatArea(areaSqMeters) }} m²</span>
+              </div>
+            </ng-container>
+
+            <div class="bound-item">
+              <span class="bound-label">Latitude</span>
+              <span class="bound-value mono">{{ form.value.centerLat | number:'1.4-6' }}</span>
+            </div>
+            <div class="bound-item">
+              <span class="bound-label">Longitude</span>
+              <span class="bound-value mono">{{ form.value.centerLng | number:'1.4-6' }}</span>
+            </div>
+          </div>
+
+          <div class="inline-err" *ngIf="form.controls['radiusMeters'].touched && form.controls['radiusMeters'].invalid">
+            Radius must be between 50 and 100,000 meters.
+          </div>
+
+          <div class="lock-block">
+            <mat-checkbox formControlName="lockShape">Lock Geofence Shape</mat-checkbox>
+            <p class="lock-help">Prevents accidental movement after drawing.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="form-section" *ngIf="!editGeofence">
+        <h4 class="section-title">Assign Vehicles <span class="optional">(Optional)</span></h4>
+
+        <div class="selected-summary">
+          <div class="selected-summary__head">
+            <strong>Selected Vehicles</strong>
+            <span class="count-pill">{{ formVehicleIds.size }} selected</span>
+          </div>
+          <div *ngIf="selectedFormVehicles.length === 0" class="empty-selected">No vehicles selected.</div>
+          <div class="selected-chips" *ngIf="selectedFormVehicles.length">
+            <span class="sel-chip" *ngFor="let v of selectedFormVehicles">
+              ✓ {{ v.name }}
+              <button type="button" class="chip-x" (click)="toggleFormVehicle(v.id)" aria-label="Remove">×</button>
+            </span>
+          </div>
+        </div>
+
+        <div class="search-wrap">
+          <mat-icon class="search-ico">search</mat-icon>
+          <input
+            class="search-input"
+            type="search"
+            [(ngModel)]="formVehicleSearch"
+            [ngModelOptions]="{standalone: true}"
+            placeholder="Search by vehicle name, plate, driver or IMEI" />
+        </div>
+
+        <div class="vehicle-pick-list">
+          <button
+            type="button"
+            class="veh-card"
+            *ngFor="let v of formAssignableVehicles"
+            [class.veh-card--on]="formVehicleIds.has(v.id)"
+            (click)="toggleFormVehicle(v.id)">
+            <span class="veh-check" [class.on]="formVehicleIds.has(v.id)">
+              <mat-icon>{{ formVehicleIds.has(v.id) ? 'check_box' : 'check_box_outline_blank' }}</mat-icon>
+            </span>
+            <span class="veh-body">
+              <span class="veh-name" [innerHTML]="highlightMatch(v.name, formVehicleSearch)"></span>
+              <span class="veh-meta">Plate: <span [innerHTML]="highlightMatch(v.registrationNumber, formVehicleSearch)"></span></span>
+              <span class="veh-meta" *ngIf="v.driverName">Driver: <span [innerHTML]="highlightMatch(v.driverName, formVehicleSearch)"></span></span>
+              <span class="veh-meta" *ngIf="v.gpsImei">IMEI: <span [innerHTML]="highlightMatch(v.gpsImei, formVehicleSearch)"></span></span>
+            </span>
+          </button>
+          <div class="empty-mini" *ngIf="formAssignableVehicles.length === 0">No vehicles match your search.</div>
+        </div>
+
+        <div class="coord-row org-row">
+          <div class="org-field">
+            <label class="geo-label" for="geo-branch">Branch (Optional)</label>
+            <div class="geo-select-wrap">
+              <select id="geo-branch" class="geo-input geo-select"
+                [(ngModel)]="assignBranchId" [ngModelOptions]="{standalone: true}">
+                <option [ngValue]="null">—</option>
+                <option *ngFor="let b of branches" [ngValue]="b.id">{{ b.name }}</option>
+              </select>
+              <mat-icon class="geo-select-caret" aria-hidden="true">expand_more</mat-icon>
+            </div>
+          </div>
+          <div class="org-field">
+            <label class="geo-label" for="geo-dept">Department (Optional)</label>
+            <div class="geo-select-wrap">
+              <select id="geo-dept" class="geo-input geo-select"
+                [(ngModel)]="assignDepartmentId" [ngModelOptions]="{standalone: true}">
+                <option [ngValue]="null">—</option>
+                <option *ngFor="let d of departments" [ngValue]="d.id">{{ d.name }}</option>
+              </select>
+              <mat-icon class="geo-select-caret" aria-hidden="true">expand_more</mat-icon>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="form-section">
+        <h4 class="section-title">Monitoring <span class="optional">(Optional)</span></h4>
+        <div class="monitor-list">
+          <mat-checkbox formControlName="notifyOnEntry">Entry Alert</mat-checkbox>
+          <mat-checkbox formControlName="notifyOnExit">Exit Alert</mat-checkbox>
+        </div>
+      </section>
+
+      <section class="form-section">
+        <h4 class="section-title">Notes <span class="optional">(Optional)</span></h4>
+        <label class="geo-label" for="geo-notes">Operational Notes</label>
+        <textarea
+          id="geo-notes"
+          class="geo-input geo-textarea"
+          formControlName="notes"
+          rows="3"
+          maxlength="250"
+          placeholder="Example: Warehouse boundary for delivery vehicles only."></textarea>
+        <div class="geo-field-meta">
+          <span class="geo-counter">{{ form.value.notes?.length || 0 }} / 250 characters</span>
+        </div>
+      </section>
+
+      <div class="form-actions sticky-actions">
+        <button type="button" class="btn btn-secondary" (click)="closeForm()">Cancel</button>
+        <button type="submit" class="btn btn-primary" [disabled]="form.invalid || saving">
+          {{ saving ? 'Saving…' : (editGeofence ? 'Update Geofence' : 'Create Geofence') }}
         </button>
       </div>
     </form>
+  </div>
+</div>
+
+<!-- Post-create prompt -->
+<div class="drawer-overlay" *ngIf="showPostCreatePrompt" (click)="postCreateAssignLater()"></div>
+<div class="prompt-card" *ngIf="showPostCreatePrompt">
+  <h3>Geofence created</h3>
+  <p>Assign vehicles or a branch/department now?</p>
+  <div class="form-actions">
+    <button type="button" class="btn btn-secondary" (click)="postCreateAssignLater()">Later</button>
+    <button type="button" class="btn btn-primary" (click)="postCreateAssignYes()">Yes, assign</button>
+  </div>
+</div>
+
+<!-- Assign drawer -->
+<div class="drawer-overlay" *ngIf="showAssign" (click)="showAssign = false"></div>
+<div class="drawer drawer-wide assign-drawer" [class.open]="showAssign">
+  <div class="drawer-header">
+    <h3>Assign — {{ selected?.name }}</h3>
+    <button mat-icon-button type="button" (click)="showAssign = false"><mat-icon>close</mat-icon></button>
+  </div>
+  <div class="drawer-body">
+    <div class="selected-summary">
+      <div class="selected-summary__head">
+        <strong>Selected Vehicles</strong>
+        <span class="count-pill">{{ selectedVehicleIds.size }} selected</span>
+      </div>
+      <div *ngIf="selectedAssignVehicles.length === 0" class="empty-selected">No vehicles selected.</div>
+      <div class="selected-chips" *ngIf="selectedAssignVehicles.length">
+        <span class="sel-chip" *ngFor="let v of selectedAssignVehicles">
+          ✓ {{ v.name }}
+          <button type="button" class="chip-x" (click)="toggleVehiclePick(v.id)" aria-label="Remove">×</button>
+        </span>
+      </div>
+    </div>
+
+    <div class="search-wrap">
+      <mat-icon class="search-ico">search</mat-icon>
+      <input
+        class="search-input"
+        type="search"
+        [(ngModel)]="vehiclePickSearch"
+        [ngModelOptions]="{standalone: true}"
+        placeholder="Search by vehicle name, plate, driver or IMEI" />
+    </div>
+
+    <div class="vehicle-pick-list">
+      <button
+        type="button"
+        class="veh-card"
+        *ngFor="let v of assignableVehicles"
+        [class.veh-card--on]="selectedVehicleIds.has(v.id)"
+        (click)="toggleVehiclePick(v.id)">
+        <span class="veh-check" [class.on]="selectedVehicleIds.has(v.id)">
+          <mat-icon>{{ selectedVehicleIds.has(v.id) ? 'check_box' : 'check_box_outline_blank' }}</mat-icon>
+        </span>
+        <span class="veh-body">
+          <span class="veh-name" [innerHTML]="highlightMatch(v.name, vehiclePickSearch)"></span>
+          <span class="veh-meta">Plate: <span [innerHTML]="highlightMatch(v.registrationNumber, vehiclePickSearch)"></span></span>
+          <span class="veh-meta" *ngIf="v.driverName">Driver: <span [innerHTML]="highlightMatch(v.driverName, vehiclePickSearch)"></span></span>
+          <span class="veh-meta" *ngIf="v.gpsImei">IMEI: <span [innerHTML]="highlightMatch(v.gpsImei, vehiclePickSearch)"></span></span>
+        </span>
+      </button>
+    </div>
+
+    <div class="coord-row org-row">
+      <div class="org-field">
+        <label class="geo-label" for="assign-branch">Branch (Optional)</label>
+        <div class="geo-select-wrap">
+          <select id="assign-branch" class="geo-input geo-select"
+            [(ngModel)]="assignBranchId" [ngModelOptions]="{standalone: true}">
+            <option [ngValue]="null">—</option>
+            <option *ngFor="let b of branches" [ngValue]="b.id">{{ b.name }}</option>
+          </select>
+          <mat-icon class="geo-select-caret" aria-hidden="true">expand_more</mat-icon>
+        </div>
+      </div>
+      <div class="org-field">
+        <label class="geo-label" for="assign-dept">Department (Optional)</label>
+        <div class="geo-select-wrap">
+          <select id="assign-dept" class="geo-input geo-select"
+            [(ngModel)]="assignDepartmentId" [ngModelOptions]="{standalone: true}">
+            <option [ngValue]="null">—</option>
+            <option *ngFor="let d of departments" [ngValue]="d.id">{{ d.name }}</option>
+          </select>
+          <mat-icon class="geo-select-caret" aria-hidden="true">expand_more</mat-icon>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-actions">
+      <button type="button" class="btn btn-secondary" (click)="showAssign = false">Cancel</button>
+      <button type="button" class="btn btn-primary" (click)="saveAssignments()">Save Assignments</button>
+    </div>
   </div>
 </div>

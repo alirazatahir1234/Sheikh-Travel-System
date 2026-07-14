@@ -61,7 +61,8 @@ public class GetLivePositionsQueryHandler(IDbConnectionFactory dbFactory, ITenan
                      vcl.TotalDistanceKm,
                      vcl.Address,
                      vcl.AlarmType,
-                     dr.Phone AS DriverPhone
+                     dr.Phone AS DriverPhone,
+                     vcl.Temperature
               {whereClause}
               ORDER BY vcl.VehicleId
               OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY
@@ -69,9 +70,13 @@ public class GetLivePositionsQueryHandler(IDbConnectionFactory dbFactory, ITenan
             new { TenantId = tenantId, Offset = (page - 1) * pageSize, PageSize = pageSize },
             cancellationToken: cancellationToken));
 
+        var items = rows
+            .Select(r => r with { Timestamp = GpsUtcDateTime.AsUtc(r.Timestamp) })
+            .ToList();
+
         return ApiResponse<PagedResult<PositionDto>>.SuccessResponse(new PagedResult<PositionDto>
         {
-            Items = rows.ToList(),
+            Items = items,
             TotalCount = totalCount,
             Page = page,
             PageSize = pageSize
@@ -82,15 +87,24 @@ public class GetLivePositionsQueryHandler(IDbConnectionFactory dbFactory, ITenan
 public record GetPositionHistoryQuery(int VehicleId, DateTime? FromDate, DateTime? ToDate)
     : IRequest<ApiResponse<List<PositionDto>>>;
 
-public class GetPositionHistoryQueryHandler(IDbConnectionFactory dbFactory)
+public class GetPositionHistoryQueryHandler(
+    IDbConnectionFactory dbFactory,
+    ITraccarClient traccarClient,
+    IOptions<TraccarOptions> traccarOptions)
     : IRequestHandler<GetPositionHistoryQuery, ApiResponse<List<PositionDto>>>
 {
-    private static readonly TimeSpan MaxRange = TimeSpan.FromDays(30);
+    private static readonly TimeSpan MaxRange = TimeSpan.FromDays(366);
+    private const int SparseRemoteThreshold = 5;
 
     public async Task<ApiResponse<List<PositionDto>>> Handle(GetPositionHistoryQuery request, CancellationToken cancellationToken)
     {
         var fromDate = request.FromDate ?? DateTime.UtcNow.AddDays(-1);
         var toDate = request.ToDate ?? DateTime.UtcNow;
+
+        if (fromDate.Kind == DateTimeKind.Unspecified)
+            fromDate = DateTime.SpecifyKind(fromDate, DateTimeKind.Utc);
+        if (toDate.Kind == DateTimeKind.Unspecified)
+            toDate = DateTime.SpecifyKind(toDate, DateTimeKind.Utc);
 
         if (fromDate > toDate)
         {
@@ -99,11 +113,11 @@ public class GetPositionHistoryQueryHandler(IDbConnectionFactory dbFactory)
 
         if (toDate - fromDate > MaxRange)
         {
-            return ApiResponse<List<PositionDto>>.FailResponse("Date range cannot exceed 30 days.");
+            return ApiResponse<List<PositionDto>>.FailResponse("Date range cannot exceed 366 days.");
         }
 
         using var connection = dbFactory.CreateConnection();
-        var rows = await connection.QueryAsync<PositionDto>(new CommandDefinition(
+        var localRows = await connection.QueryAsync<GpsPositionHistoryRow>(new CommandDefinition(
             @"SELECT Id, VehicleId, DriverId, BookingId, GpsDeviceId, Latitude, Longitude, Speed,
                      Heading, Altitude, Ignition, RecordedAt AS Timestamp
               FROM GpsPositions
@@ -112,7 +126,49 @@ public class GetPositionHistoryQueryHandler(IDbConnectionFactory dbFactory)
             new { request.VehicleId, FromDate = fromDate, ToDate = toDate },
             cancellationToken: cancellationToken));
 
-        return ApiResponse<List<PositionDto>>.SuccessResponse(rows.ToList());
+        var local = localRows.Select(GpsPositionHistoryMapper.ToPositionDto).ToList();
+
+        // Prefer Traccar when the device is linked — local GpsPositions is only as complete as
+        // our ingest window and often under-reports weekly mileage vs Traccar's full archive.
+        if (traccarOptions.Value.Enabled)
+        {
+            var link = await connection.QuerySingleOrDefaultAsync<(int? GpsDeviceId, int? TraccarDeviceId)>(
+                new CommandDefinition(
+                    """
+                    SELECT TOP 1 d.Id AS GpsDeviceId, d.TraccarDeviceId
+                    FROM GpsDevices d
+                    WHERE d.VehicleId = @VehicleId AND d.IsDeleted = 0 AND d.TraccarDeviceId IS NOT NULL
+                    ORDER BY d.Id DESC
+                    """,
+                    new { request.VehicleId },
+                    cancellationToken: cancellationToken));
+
+            if (link.TraccarDeviceId is int traccarDeviceId)
+            {
+                var route = await traccarClient.GetRouteAsync(traccarDeviceId, fromDate, toDate, cancellationToken);
+                if (route.Count < SparseRemoteThreshold)
+                {
+                    var remotePositions = await traccarClient.GetPositionsByDeviceAsync(
+                        traccarDeviceId, fromDate, toDate, cancellationToken);
+                    if (remotePositions.Count > route.Count)
+                        route = remotePositions;
+                }
+
+                if (route.Count > 0)
+                {
+                    var remote = route
+                        .Select(p => GpsPositionHistoryMapper.FromTraccar(p, request.VehicleId, link.GpsDeviceId))
+                        .OrderBy(p => p.Timestamp)
+                        .ToList();
+
+                    return ApiResponse<List<PositionDto>>.SuccessResponse(
+                        GpsPositionHistoryMapper.DownsampleForPlayback(remote));
+                }
+            }
+        }
+
+        return ApiResponse<List<PositionDto>>.SuccessResponse(
+            GpsPositionHistoryMapper.DownsampleForPlayback(local));
     }
 }
 
@@ -515,7 +571,7 @@ public class GetGpsTripsQueryHandler(
         if (detectorCandidates.Count > 0)
         {
             var detectorVehicleIds = detectorCandidates.Select(v => v.VehicleId).ToList();
-            var positions = (await connection.QueryAsync<PositionDto>(new CommandDefinition(
+            var positions = (await connection.QueryAsync<GpsPositionHistoryRow>(new CommandDefinition(
                 """
                 SELECT Id, VehicleId, DriverId, BookingId, GpsDeviceId, Latitude, Longitude, Speed,
                        Heading, Altitude, Ignition, RecordedAt AS Timestamp
@@ -524,7 +580,9 @@ public class GetGpsTripsQueryHandler(
                 ORDER BY VehicleId, RecordedAt ASC
                 """,
                 new { VehicleIds = detectorVehicleIds, FromDate = fromDate, ToDate = toDate },
-                cancellationToken: cancellationToken))).ToList();
+                cancellationToken: cancellationToken)))
+                .Select(GpsPositionHistoryMapper.ToPositionDto)
+                .ToList();
 
             // GpsTripDetector has no internal grouping — feeding it mixed-vehicle positions would
             // silently splice unrelated vehicles' points into fake trips, so group first.
@@ -543,23 +601,6 @@ public class GetGpsTripsQueryHandler(
 
         return ApiResponse<List<GpsTripDto>>.SuccessResponse(
             results.OrderByDescending(t => t.StartTime).ToList());
-    }
-}
-
-public record GetGeofencesQuery : IRequest<ApiResponse<List<GeofenceDto>>>;
-
-public class GetGeofencesQueryHandler(IDbConnectionFactory dbFactory)
-    : IRequestHandler<GetGeofencesQuery, ApiResponse<List<GeofenceDto>>>
-{
-    public async Task<ApiResponse<List<GeofenceDto>>> Handle(GetGeofencesQuery request, CancellationToken cancellationToken)
-    {
-        using var connection = dbFactory.CreateConnection();
-        var rows = await connection.QueryAsync<GeofenceDto>(new CommandDefinition(
-            @"SELECT Id, Name, AreaType, CenterLat, CenterLng, RadiusMeters, GeoJson, IsActive
-              FROM Geofences WHERE IsDeleted = 0 ORDER BY Name",
-            cancellationToken: cancellationToken));
-
-        return ApiResponse<List<GeofenceDto>>.SuccessResponse(rows.ToList());
     }
 }
 
@@ -584,7 +625,15 @@ public class GetGpsAlertRulesQueryHandler(IDbConnectionFactory dbFactory)
     }
 }
 
-public record GetGpsAlertEventsQuery(int? VehicleId, bool? UnacknowledgedOnly)
+public record GetGpsAlertEventsQuery(
+    int? VehicleId,
+    bool? UnacknowledgedOnly,
+    DateTime? From = null,
+    DateTime? To = null,
+    int? DriverId = null,
+    string? EventType = null,
+    string? Severity = null,
+    string? Status = null)
     : IRequest<ApiResponse<List<GpsAlertEventDto>>>;
 
 public class GetGpsAlertEventsQueryHandler(IDbConnectionFactory dbFactory)
@@ -595,9 +644,14 @@ public class GetGpsAlertEventsQueryHandler(IDbConnectionFactory dbFactory)
         using var connection = dbFactory.CreateConnection();
         var sql = """
             SELECT e.Id, e.RuleId, e.VehicleId, v.Name AS VehicleName, e.EventType,
-                   e.Latitude, e.Longitude, e.Speed, e.Message, e.Timestamp, e.IsAcknowledged
+                   e.Latitude, e.Longitude, e.Speed, e.Message, e.Timestamp, e.IsAcknowledged,
+                   e.Severity, e.Status, e.GeofenceId, g.Name AS GeofenceName,
+                   e.DriverId, d.FullName AS DriverName,
+                   e.AcknowledgedAt, e.AcknowledgedBy, e.ResolvedAt, e.ResolvedBy, e.ResolutionNotes
             FROM GpsAlertEvents e
             LEFT JOIN Vehicles v ON v.Id = e.VehicleId
+            LEFT JOIN Geofences g ON g.Id = e.GeofenceId
+            LEFT JOIN Drivers d ON d.Id = e.DriverId
             WHERE e.IsDeleted = 0
             """;
 
@@ -611,14 +665,134 @@ public class GetGpsAlertEventsQueryHandler(IDbConnectionFactory dbFactory)
             sql += " AND e.IsAcknowledged = 0";
         }
 
+        if (request.From.HasValue)
+        {
+            sql += " AND e.Timestamp >= @From";
+        }
+
+        if (request.To.HasValue)
+        {
+            sql += " AND e.Timestamp <= @To";
+        }
+
+        if (request.DriverId.HasValue)
+        {
+            sql += " AND e.DriverId = @DriverId";
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.EventType))
+        {
+            sql += " AND e.EventType = @EventType";
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.Severity))
+        {
+            sql += " AND e.Severity = @Severity";
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.Status))
+        {
+            sql += " AND e.Status = @Status";
+        }
+
         sql += " ORDER BY e.Timestamp DESC";
 
         var rows = await connection.QueryAsync<GpsAlertEventDto>(new CommandDefinition(
             sql,
-            new { request.VehicleId },
+            new
+            {
+                request.VehicleId,
+                request.From,
+                request.To,
+                request.DriverId,
+                request.EventType,
+                request.Severity,
+                request.Status
+            },
             cancellationToken: cancellationToken));
 
         return ApiResponse<List<GpsAlertEventDto>>.SuccessResponse(rows.ToList());
+    }
+}
+
+public record GetGpsAlertEventByIdQuery(int Id) : IRequest<ApiResponse<GpsAlertEventDto>>;
+
+public class GetGpsAlertEventByIdQueryHandler(IDbConnectionFactory dbFactory)
+    : IRequestHandler<GetGpsAlertEventByIdQuery, ApiResponse<GpsAlertEventDto>>
+{
+    public async Task<ApiResponse<GpsAlertEventDto>> Handle(GetGpsAlertEventByIdQuery request, CancellationToken cancellationToken)
+    {
+        using var connection = dbFactory.CreateConnection();
+        var row = await connection.QueryFirstOrDefaultAsync<GpsAlertEventDto>(new CommandDefinition(
+            """
+            SELECT e.Id, e.RuleId, e.VehicleId, v.Name AS VehicleName, e.EventType,
+                   e.Latitude, e.Longitude, e.Speed, e.Message, e.Timestamp, e.IsAcknowledged,
+                   e.Severity, e.Status, e.GeofenceId, g.Name AS GeofenceName,
+                   e.DriverId, d.FullName AS DriverName,
+                   e.AcknowledgedAt, e.AcknowledgedBy, e.ResolvedAt, e.ResolvedBy, e.ResolutionNotes
+            FROM GpsAlertEvents e
+            LEFT JOIN Vehicles v ON v.Id = e.VehicleId
+            LEFT JOIN Geofences g ON g.Id = e.GeofenceId
+            LEFT JOIN Drivers d ON d.Id = e.DriverId
+            WHERE e.Id = @Id AND e.IsDeleted = 0
+            """,
+            new { request.Id },
+            cancellationToken: cancellationToken));
+
+        return row is not null
+            ? ApiResponse<GpsAlertEventDto>.SuccessResponse(row)
+            : ApiResponse<GpsAlertEventDto>.FailResponse("Alert event not found.");
+    }
+}
+
+public record GetGpsAlertStatsQuery : IRequest<ApiResponse<GpsAlertStatsDto>>;
+
+public class GetGpsAlertStatsQueryHandler(IDbConnectionFactory dbFactory)
+    : IRequestHandler<GetGpsAlertStatsQuery, ApiResponse<GpsAlertStatsDto>>
+{
+    public async Task<ApiResponse<GpsAlertStatsDto>> Handle(GetGpsAlertStatsQuery request, CancellationToken cancellationToken)
+    {
+        using var connection = dbFactory.CreateConnection();
+        var stats = await connection.QueryFirstAsync<GpsAlertStatsDto>(new CommandDefinition(
+            """
+            SELECT
+                COUNT(*) AS Total,
+                SUM(CASE WHEN CAST(Timestamp AS DATE) = CAST(GETUTCDATE() AS DATE) THEN 1 ELSE 0 END) AS Today,
+                SUM(CASE WHEN Status = 'active' THEN 1 ELSE 0 END) AS Active,
+                SUM(CASE WHEN Status = 'resolved' THEN 1 ELSE 0 END) AS Resolved,
+                SUM(CASE WHEN Severity = 'critical' THEN 1 ELSE 0 END) AS Critical
+            FROM GpsAlertEvents
+            WHERE IsDeleted = 0
+            """,
+            cancellationToken: cancellationToken));
+
+        return ApiResponse<GpsAlertStatsDto>.SuccessResponse(stats);
+    }
+}
+
+public record GetAlertSettingsQuery : IRequest<ApiResponse<List<AlertSettingDto>>>;
+
+public class GetAlertSettingsQueryHandler(IDbConnectionFactory dbFactory, ICurrentUserService currentUser)
+    : IRequestHandler<GetAlertSettingsQuery, ApiResponse<List<AlertSettingDto>>>
+{
+    public async Task<ApiResponse<List<AlertSettingDto>>> Handle(GetAlertSettingsQuery request, CancellationToken cancellationToken)
+    {
+        using var connection = dbFactory.CreateConnection();
+        var saved = (await connection.QueryAsync<AlertSettingDto>(new CommandDefinition(
+            """
+            SELECT AlertType, InAppEnabled, EmailEnabled, PushEnabled, SmsEnabled
+            FROM AlertSettings
+            WHERE UserId = @UserId
+            """,
+            new { UserId = currentUser.UserId },
+            cancellationToken: cancellationToken)))
+            .ToDictionary(s => s.AlertType, StringComparer.OrdinalIgnoreCase);
+
+        var settings = AlertTypeCatalog.Types
+            .Select(t => saved.TryGetValue(t, out var s) ? s : new AlertSettingDto(t, true, false, false, false))
+            .ToList();
+
+        return ApiResponse<List<AlertSettingDto>>.SuccessResponse(settings);
     }
 }
 
@@ -637,7 +811,7 @@ public class GetGpsDevicesQueryHandler(IDbConnectionFactory dbFactory)
                           ELSE v.RegistrationNumber END AS PlateNumber,
                      COALESCE(drVcl.FullName, assignDrv.DriverName) AS DriverName,
                      d.UniqueId, d.Name, d.Protocol,
-                     d.SupportsEngineCutoff, d.LastIgnition, d.LastSeenAt, d.IsActive,
+                     d.SupportsEngineCutoff, d.SupportsRelay, d.LastIgnition, d.LastSeenAt, d.IsActive,
                      CASE WHEN d.LastSeenAt IS NOT NULL AND d.LastSeenAt > DATEADD(minute, -30, GETUTCDATE())
                           THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END AS IsOnline,
                      COALESCE(d.LastSpeed, vcl.Speed) AS LastSpeed,
@@ -664,11 +838,27 @@ public class GetGpsDevicesQueryHandler(IDbConnectionFactory dbFactory)
               ORDER BY CASE WHEN v.Name IS NULL THEN 1 ELSE 0 END, v.Name, d.Name",
             cancellationToken: cancellationToken));
 
-        return ApiResponse<List<GpsDeviceDto>>.SuccessResponse(rows.ToList());
+        var items = rows
+            .Select(r => r with
+            {
+                LastSeenAt = GpsUtcDateTime.AsUtc(r.LastSeenAt),
+                InstallationDate = GpsUtcDateTime.AsUtc(r.InstallationDate)
+            })
+            .ToList();
+
+        return ApiResponse<List<GpsDeviceDto>>.SuccessResponse(items);
     }
 }
 
-public record GetDeviceCommandsQuery(int GpsDeviceId) : IRequest<ApiResponse<List<GpsDeviceCommandDto>>>;
+public record GetDeviceCommandsQuery(
+    int GpsDeviceId,
+    string? Status = null,
+    string? CommandType = null,
+    DateTime? From = null,
+    DateTime? To = null,
+    int Page = 1,
+    int PageSize = 50)
+    : IRequest<ApiResponse<List<GpsDeviceCommandDto>>>;
 
 public class GetDeviceCommandsQueryHandler(IDbConnectionFactory dbFactory)
     : IRequestHandler<GetDeviceCommandsQuery, ApiResponse<List<GpsDeviceCommandDto>>>
@@ -676,17 +866,164 @@ public class GetDeviceCommandsQueryHandler(IDbConnectionFactory dbFactory)
     public async Task<ApiResponse<List<GpsDeviceCommandDto>>> Handle(GetDeviceCommandsQuery request, CancellationToken cancellationToken)
     {
         using var connection = dbFactory.CreateConnection();
+        var sql = """
+            SELECT c.Id, c.GpsDeviceId, d.Name AS DeviceName, c.CommandType, c.Status,
+                   c.RequestedBy, c.RequestedAt, c.CompletedAt,
+                   c.RetryCount, c.MaxRetries, c.ErrorMessage, c.NextRetryAt, c.Reason
+            FROM GpsDeviceCommands c
+            INNER JOIN GpsDevices d ON d.Id = c.GpsDeviceId
+            WHERE c.GpsDeviceId = @GpsDeviceId AND c.IsDeleted = 0
+            """;
+
+        if (!string.IsNullOrWhiteSpace(request.Status)) sql += " AND c.Status = @Status";
+        if (!string.IsNullOrWhiteSpace(request.CommandType)) sql += " AND c.CommandType = @CommandType";
+        if (request.From.HasValue) sql += " AND c.RequestedAt >= @From";
+        if (request.To.HasValue) sql += " AND c.RequestedAt <= @To";
+
+        sql += " ORDER BY c.RequestedAt DESC OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY";
+
         var rows = await connection.QueryAsync<GpsDeviceCommandDto>(new CommandDefinition(
-            @"SELECT c.Id, c.GpsDeviceId, d.Name AS DeviceName, c.CommandType, c.Status,
-                     c.RequestedBy, c.RequestedAt, c.CompletedAt
-              FROM GpsDeviceCommands c
-              INNER JOIN GpsDevices d ON d.Id = c.GpsDeviceId
-              WHERE c.GpsDeviceId = @GpsDeviceId AND c.IsDeleted = 0
-              ORDER BY c.RequestedAt DESC",
-            new { request.GpsDeviceId },
+            sql,
+            new
+            {
+                request.GpsDeviceId,
+                request.Status,
+                request.CommandType,
+                request.From,
+                request.To,
+                Offset = (Math.Max(request.Page, 1) - 1) * request.PageSize,
+                request.PageSize
+            },
             cancellationToken: cancellationToken));
 
         return ApiResponse<List<GpsDeviceCommandDto>>.SuccessResponse(rows.ToList());
+    }
+}
+
+public record GetDeviceCommandByIdQuery(int Id) : IRequest<ApiResponse<GpsDeviceCommandDetailDto>>;
+
+public class GetDeviceCommandByIdQueryHandler(IDbConnectionFactory dbFactory)
+    : IRequestHandler<GetDeviceCommandByIdQuery, ApiResponse<GpsDeviceCommandDetailDto>>
+{
+    public async Task<ApiResponse<GpsDeviceCommandDetailDto>> Handle(GetDeviceCommandByIdQuery request, CancellationToken cancellationToken)
+    {
+        using var connection = dbFactory.CreateConnection();
+        var raw = await connection.QueryFirstOrDefaultAsync<(
+            int Id, int GpsDeviceId, string? DeviceName, string CommandType, string Status,
+            string? RequestedBy, DateTime RequestedAt, DateTime? CompletedAt,
+            int RetryCount, int MaxRetries, string? ErrorMessage, DateTime? NextRetryAt, string? Reason,
+            string? Attributes)>(
+            new CommandDefinition(
+                """
+                SELECT c.Id, c.GpsDeviceId, d.Name AS DeviceName, c.CommandType, c.Status,
+                       c.RequestedBy, c.RequestedAt, c.CompletedAt,
+                       c.RetryCount, c.MaxRetries, c.ErrorMessage, c.NextRetryAt, c.Reason,
+                       c.Attributes
+                FROM GpsDeviceCommands c
+                INNER JOIN GpsDevices d ON d.Id = c.GpsDeviceId
+                WHERE c.Id = @Id AND c.IsDeleted = 0
+                """,
+                new { request.Id },
+                cancellationToken: cancellationToken));
+
+        if (raw.Id == 0)
+            return ApiResponse<GpsDeviceCommandDetailDto>.FailResponse("Command not found.");
+
+        var dto = new GpsDeviceCommandDto(raw.Id, raw.GpsDeviceId, raw.DeviceName, raw.CommandType, raw.Status,
+            raw.RequestedBy, raw.RequestedAt, raw.CompletedAt, raw.RetryCount, raw.MaxRetries,
+            raw.ErrorMessage, raw.NextRetryAt, raw.Reason);
+
+        var responses = (await connection.QueryAsync<GpsCommandResponseDto>(new CommandDefinition(
+            """
+            SELECT Id, Source, ResponseCode, ResponseText, ReceivedAt
+            FROM GpsCommandResponses
+            WHERE CommandId = @Id
+            ORDER BY ReceivedAt
+            """,
+            new { request.Id },
+            cancellationToken: cancellationToken))).ToList();
+
+        return ApiResponse<GpsDeviceCommandDetailDto>.SuccessResponse(
+            new GpsDeviceCommandDetailDto(dto, raw.Attributes, responses));
+    }
+}
+
+public record GetVehicleCommandsQuery(int VehicleId, int Page = 1, int PageSize = 50)
+    : IRequest<ApiResponse<List<GpsDeviceCommandDto>>>;
+
+public class GetVehicleCommandsQueryHandler(IDbConnectionFactory dbFactory)
+    : IRequestHandler<GetVehicleCommandsQuery, ApiResponse<List<GpsDeviceCommandDto>>>
+{
+    public async Task<ApiResponse<List<GpsDeviceCommandDto>>> Handle(GetVehicleCommandsQuery request, CancellationToken cancellationToken)
+    {
+        using var connection = dbFactory.CreateConnection();
+        var rows = await connection.QueryAsync<GpsDeviceCommandDto>(new CommandDefinition(
+            """
+            SELECT c.Id, c.GpsDeviceId, d.Name AS DeviceName, c.CommandType, c.Status,
+                   c.RequestedBy, c.RequestedAt, c.CompletedAt,
+                   c.RetryCount, c.MaxRetries, c.ErrorMessage, c.NextRetryAt, c.Reason
+            FROM GpsDeviceCommands c
+            INNER JOIN GpsDevices d ON d.Id = c.GpsDeviceId
+            WHERE d.VehicleId = @VehicleId AND c.IsDeleted = 0
+            ORDER BY c.RequestedAt DESC OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY
+            """,
+            new { request.VehicleId, Offset = (Math.Max(request.Page, 1) - 1) * request.PageSize, request.PageSize },
+            cancellationToken: cancellationToken));
+
+        return ApiResponse<List<GpsDeviceCommandDto>>.SuccessResponse(rows.ToList());
+    }
+}
+
+public record GetDeviceSupportedCommandsQuery(int GpsDeviceId) : IRequest<ApiResponse<List<SupportedCommandDto>>>;
+
+public class GetDeviceSupportedCommandsQueryHandler(IDbConnectionFactory dbFactory, ITraccarClient traccar)
+    : IRequestHandler<GetDeviceSupportedCommandsQuery, ApiResponse<List<SupportedCommandDto>>>
+{
+    public async Task<ApiResponse<List<SupportedCommandDto>>> Handle(GetDeviceSupportedCommandsQuery request, CancellationToken cancellationToken)
+    {
+        using var connection = dbFactory.CreateConnection();
+        var device = await connection.QueryFirstOrDefaultAsync<(int Id, bool SupportsEngineCutoff, bool SupportsRelay, int? TraccarDeviceId)>(
+            new CommandDefinition(
+                "SELECT Id, SupportsEngineCutoff, SupportsRelay, TraccarDeviceId FROM GpsDevices WHERE Id = @Id AND IsDeleted = 0",
+                new { Id = request.GpsDeviceId },
+                cancellationToken: cancellationToken));
+
+        if (device.Id == 0)
+            return ApiResponse<List<SupportedCommandDto>>.FailResponse("Device not found.");
+
+        IReadOnlyList<string> traccarTypes = [];
+        var traccarChecked = false;
+        if (device.TraccarDeviceId.HasValue)
+        {
+            traccarTypes = await traccar.GetSupportedCommandTypesAsync(device.TraccarDeviceId.Value, cancellationToken);
+            traccarChecked = traccarTypes.Count > 0;
+        }
+
+        var result = GpsCommandCatalog.All.Select(def =>
+        {
+            var hasCapability = def.CapabilityColumn switch
+            {
+                "SupportsEngineCutoff" => device.SupportsEngineCutoff,
+                "SupportsRelay" => device.SupportsRelay,
+                _ => true
+            };
+
+            if (!hasCapability)
+                return new SupportedCommandDto(def.Type, def.Label, false, "Not supported by this device model.");
+
+            if (def.TraccarType is null)
+                return new SupportedCommandDto(def.Type, def.Label, true, "Delivery channel not yet configured for this tenant.");
+
+            if (!traccarChecked)
+                return new SupportedCommandDto(def.Type, def.Label, true, "Traccar unreachable — showing catalog defaults.");
+
+            var supportedByTraccar = traccarTypes.Contains(def.TraccarType, StringComparer.OrdinalIgnoreCase);
+            return supportedByTraccar
+                ? new SupportedCommandDto(def.Type, def.Label, true, null)
+                : new SupportedCommandDto(def.Type, def.Label, false, "Not supported by this device's Traccar profile.");
+        }).ToList();
+
+        return ApiResponse<List<SupportedCommandDto>>.SuccessResponse(result);
     }
 }
 

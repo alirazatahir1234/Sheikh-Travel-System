@@ -1,4 +1,5 @@
 import { FleetTrackStatus } from '../models/gps-tracking.model';
+import { parseGpsTimestamp } from './gps-timestamp.util';
 
 export interface GpsStatusInput {
   speed?: number | null;
@@ -41,7 +42,7 @@ export function resolveFleetStatus(input: GpsStatusInput, nowMs: number = Date.n
     return 'never_seen';
   }
 
-  const ageMs = nowMs - new Date(input.lastUpdated).getTime();
+  const ageMs = nowMs - parseGpsTimestamp(input.lastUpdated);
   if (!Number.isFinite(ageMs) || ageMs > OFFLINE_STALE_MS) {
     return 'offline';
   }

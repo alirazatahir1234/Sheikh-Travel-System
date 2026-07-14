@@ -4,6 +4,18 @@ public static class GpsPermissions
 {
     public const string CommandSend = "Gps.CommandSend";
     public const string CommandView = "Gps.CommandView";
+    public const string CommandEngineCutoff = "Gps.CommandEngineCutoff";
+    public const string CommandPositionRequest = "Gps.CommandPositionRequest";
+    public const string CommandRestart = "Gps.CommandRestart";
+    public const string CommandRelay = "Gps.CommandRelay";
+    public const string CommandBuzzer = "Gps.CommandBuzzer";
+    public const string CommandCustomSms = "Gps.CommandCustomSms";
+    public const string CommandRetry = "Gps.CommandRetry";
+    public const string CommandCancel = "Gps.CommandCancel";
 
-    public static readonly string[] All = [CommandSend, CommandView];
+    public static readonly string[] All =
+    [
+        CommandSend, CommandView, CommandEngineCutoff, CommandPositionRequest,
+        CommandRestart, CommandRelay, CommandBuzzer, CommandCustomSms, CommandRetry, CommandCancel
+    ];
 }

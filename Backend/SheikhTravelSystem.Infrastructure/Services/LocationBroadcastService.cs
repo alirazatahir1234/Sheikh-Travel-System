@@ -21,6 +21,7 @@ public class LocationBroadcastService(IHubContext<TrackingHub> hubContext) : ILo
         decimal? totalDistanceKm = null,
         string? address = null,
         string? alarmType = null,
+        decimal? temperature = null,
         CancellationToken cancellationToken = default)
     {
         var payload = new
@@ -38,7 +39,8 @@ public class LocationBroadcastService(IHubContext<TrackingHub> hubContext) : ILo
             GsmSignal = gsmSignal,
             TotalDistanceKm = totalDistanceKm,
             Address = address,
-            AlarmType = alarmType
+            AlarmType = alarmType,
+            Temperature = temperature
         };
 
         await hubContext.Clients.Group("dispatchers").SendAsync("ReceiveLocationUpdate", payload, cancellationToken);

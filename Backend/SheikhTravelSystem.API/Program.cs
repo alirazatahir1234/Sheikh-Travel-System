@@ -231,7 +231,10 @@ using (var scope = app.Services.CreateScope())
         await GpsDeviceAssignmentMigration.ApplyAsync(dbFactory, logger);
         await TrackerRelayMigration.ApplyAsync(dbFactory, logger);
         await GpsTelemetryFieldsMigration.ApplyAsync(dbFactory, logger);
+        await GpsGeofenceModuleMigration.ApplyAsync(dbFactory, logger);
         await GpsFleetStatusHistoryMigration.ApplyAsync(dbFactory, logger);
+        await GpsAlertsPhase8Migration.ApplyAsync(dbFactory, logger);
+        await GpsCommandsPhase9Migration.ApplyAsync(dbFactory, logger);
 
         var gpsSettings = scope.ServiceProvider.GetRequiredService<IOptions<GpsSettings>>().Value;
         await GpsSchemaMigration.ApplyRetentionAsync(dbFactory, gpsSettings.PositionRetentionDays, logger);

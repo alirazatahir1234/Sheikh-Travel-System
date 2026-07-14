@@ -61,7 +61,7 @@ public class GetTripAnalyticsQueryHandler(
 
         var trips = tripsResponse.Data.Items;
         var summary = TripAnalyticsMapper.BuildSummary(trips, summaries, stops, events);
-        var eventDtos = events.Select(TripAnalyticsMapper.ToEventDto).OrderByDescending(e => e.Time).ToList();
+        var eventDtos = events.Select(e => TripAnalyticsMapper.ToEventDto(e)).OrderByDescending(e => e.Time).ToList();
         var stopDtos = stops.Select(TripAnalyticsMapper.ToStopDto).OrderByDescending(s => s.EndTime).ToList();
 
         return ApiResponse<TripAnalyticsBundleDto>.SuccessResponse(

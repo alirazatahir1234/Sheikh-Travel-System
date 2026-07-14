@@ -17,6 +17,7 @@ public interface ILocationBroadcastService
         decimal? totalDistanceKm = null,
         string? address = null,
         string? alarmType = null,
+        decimal? temperature = null,
         CancellationToken cancellationToken = default);
 
     Task BroadcastSosAlertAsync(

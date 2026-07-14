@@ -1,73 +1,158 @@
-<div class="replay-map-wrap">
-  <div class="replay-map" #mapEl></div>
+<div class="replay-map-wrap" [style.--replay-map-height]="mapHeight">
+  <div class="replay-map-toolbar" *ngIf="showLayerControls">
+    <div class="layer-menu">
+      <button type="button" class="map-tool-btn" (click)="toggleMapThemeMenu()" matTooltip="Map base layer">
+        <mat-icon>layers</mat-icon>
+        <span>{{ mapTheme | titlecase }}</span>
+      </button>
+      <div class="layer-dropdown" *ngIf="mapThemeMenuOpen">
+        <button
+          type="button"
+          class="layer-option"
+          *ngFor="let opt of mapThemeOptions"
+          [class.active]="mapTheme === opt.id"
+          (click)="selectMapTheme(opt.id)">
+          <mat-icon>{{ opt.icon }}</mat-icon> {{ opt.label }}
+        </button>
+      </div>
+    </div>
+
+    <label
+      class="gps-toggle"
+      *ngIf="!historyMode"
+      [class.gps-toggle--on]="showGpsPoints"
+      (click)="toggleGpsPoints()">
+      <span class="gps-toggle__box" [attr.aria-checked]="showGpsPoints" role="checkbox">
+        <mat-icon>{{ showGpsPoints ? 'check_box' : 'check_box_outline_blank' }}</mat-icon>
+      </span>
+      <span>Show GPS points</span>
+    </label>
+    <span class="gps-status" *ngIf="historyMode" [class.gps-status--on]="showGpsPointsLayer">
+      <mat-icon>{{ showGpsPointsLayer ? 'visibility' : 'visibility_off' }}</mat-icon>
+      GPS points {{ showGpsPointsLayer ? 'on' : 'off' }}
+      <em>— use “Show on map” filters</em>
+    </span>
+  </div>
+
+  <div class="replay-map" #mapEl>
+    <div class="route-legend" *ngIf="showLegend && positions.length && !loading">
+      <span class="legend-item legend-item--start"><i></i> Start</span>
+      <span class="legend-item legend-item--route"><i></i> Route</span>
+      <span class="legend-item legend-item--stop"><i></i> Stop</span>
+      <span class="legend-item legend-item--end"><i></i> End</span>
+      <span class="legend-item legend-item--slow"><i></i> &lt;30</span>
+      <span class="legend-item legend-item--mid"><i></i> 30–60</span>
+      <span class="legend-item legend-item--fast"><i></i> &gt;60 km/h</span>
+    </div>
+  </div>
 
   <div class="replay-overlay" *ngIf="loading">
-    <app-brand-loader size="sm" message="Loading route…" />
+    <div class="loading-panel">
+      <app-brand-loader size="sm" message="Loading route…" />
+      <div class="loading-progress">
+        <div class="loading-progress__bar" [style.width.%]="loadingProgress"></div>
+      </div>
+      <span class="loading-progress__pct">{{ loadingProgress | number:'1.0-0' }}%</span>
+      <p class="loading-timeout" *ngIf="loadingTimedOut">
+        This is taking longer than expected. The server may be fetching a large route from Traccar.
+      </p>
+      <button type="button" class="btn btn-secondary btn-sm" *ngIf="loadingTimedOut" (click)="requestRetry()">
+        <mat-icon>refresh</mat-icon> Retry
+      </button>
+    </div>
   </div>
 
-  <div class="route-summary" *ngIf="routeSummary && !loading">
-    <div class="rs-item"><span class="rs-val">{{ routeSummary.distanceKm }} km</span><span class="rs-lbl">Distance</span></div>
-    <div class="rs-item"><span class="rs-val">{{ routeSummary.durationMinutes }} min</span><span class="rs-lbl">Driving</span></div>
-    <div class="rs-item"><span class="rs-val">{{ routeSummary.avgSpeed }} km/h</span><span class="rs-lbl">Avg speed</span></div>
-    <div class="rs-item"><span class="rs-val">{{ routeSummary.maxSpeed }} km/h</span><span class="rs-lbl">Max speed</span></div>
-    <div class="rs-item"><span class="rs-val">{{ routeSummary.pointCount }}</span><span class="rs-lbl">Points</span></div>
+  <div class="replay-empty replay-empty--nodata" *ngIf="!loading && noData">
+    <mat-icon>search_off</mat-icon>
+    <strong>No historical data found</strong>
+    <span>Try another date range or confirm the vehicle had GPS activity in this period.</span>
   </div>
 
-  <div class="replay-hud" *ngIf="currentPosition && !loading">
-    <span>{{ currentPosition.timestamp | date:'medium' }}</span>
-    <span>{{ currentPosition.speedKmh | number:'1.0-0' }} km/h</span>
-    <span *ngIf="currentPosition.address">{{ currentPosition.address }}</span>
-    <span *ngIf="driverName">Driver: {{ driverName }}</span>
-    <span *ngIf="currentPosition.ignition != null">Ignition: {{ currentPosition.ignition ? 'ON' : 'OFF' }}</span>
-    <span>{{ distanceTravelledKm | number:'1.1-1' }} / {{ totalDistanceKm | number:'1.1-1' }} km</span>
-    <span>{{ elapsedLabel }} / {{ totalDurationLabel }}</span>
+  <div class="replay-empty" *ngIf="!loading && !noData && positions.length === 0">
+    <mat-icon>map</mat-icon>
+    <strong>No route loaded</strong>
+    <span>Select a vehicle and date range, then press <em>Load route</em>.</span>
   </div>
 
   <div class="playback-bar" *ngIf="positions.length > 0 && !loading">
+    <div class="replay-hud" *ngIf="currentPosition">
+      <span>{{ currentPosition.timestamp | date:'medium' }}</span>
+      <span>{{ currentPosition.speedKmh | number:'1.0-0' }} km/h</span>
+      <span *ngIf="currentPosition.address">{{ currentPosition.address }}</span>
+      <span *ngIf="!currentPosition.address" class="muted">Address unavailable</span>
+      <span>{{ distanceTravelledKm | number:'1.1-1' }} / {{ totalDistanceKm | number:'1.1-1' }} km</span>
+      <span>{{ elapsedLabel }} / {{ totalDurationLabel }}</span>
+    </div>
+
     <div class="replay-controls">
-      <button type="button" class="btn btn-secondary btn-sm" (click)="stepBack()" [disabled]="replayIndex <= 0" aria-label="Step back">
+      <button type="button" class="btn btn-secondary btn-sm" (click)="jumpToStart()"
+        matTooltip="First position" aria-label="First position">
+        <mat-icon>first_page</mat-icon>
+      </button>
+      <button type="button" class="btn btn-secondary btn-sm" (click)="stepBack()" [disabled]="replayIndex <= 0"
+        matTooltip="Previous point" aria-label="Previous point">
         <mat-icon>skip_previous</mat-icon>
       </button>
-      <button type="button" class="btn btn-primary btn-sm" (click)="toggleReplay()">
+      <button type="button" class="btn btn-primary btn-sm" (click)="toggleReplay()"
+        [matTooltip]="replayPlaying ? 'Pause' : 'Play'" [attr.aria-label]="replayPlaying ? 'Pause' : 'Play'">
         <mat-icon>{{ replayPlaying ? 'pause' : 'play_arrow' }}</mat-icon>
-        {{ replayPlaying ? 'Pause' : 'Play' }}
       </button>
-      <button type="button" class="btn btn-secondary btn-sm" (click)="stopAndReset()" aria-label="Stop">
+      <button type="button" class="btn btn-secondary btn-sm" (click)="stopAndReset()"
+        matTooltip="Stop and reset" aria-label="Stop">
         <mat-icon>stop</mat-icon>
       </button>
-      <button type="button" class="btn btn-secondary btn-sm" (click)="stepForward()" [disabled]="replayIndex >= positions.length - 1" aria-label="Step forward">
+      <button type="button" class="btn btn-secondary btn-sm" (click)="stepForward()" [disabled]="replayIndex >= positions.length - 1"
+        matTooltip="Next point" aria-label="Next point">
         <mat-icon>skip_next</mat-icon>
       </button>
-      <button type="button" class="btn btn-secondary btn-sm"
-        *ngFor="let s of speedOptions"
+      <button type="button" class="btn btn-secondary btn-sm" (click)="jumpToEnd()"
+        matTooltip="Last position" aria-label="Last position">
+        <mat-icon>last_page</mat-icon>
+      </button>
+
+      <span class="speed-label">Speed</span>
+      <button type="button" class="btn btn-secondary btn-sm speed-btn"
+        *ngFor="let s of activeSpeedOptions"
         [class.active]="replaySpeed === s"
-        (click)="setReplaySpeed(s)">{{ s }}×</button>
+        (click)="setReplaySpeed(s)"
+        [matTooltip]="s + '× playback speed'">{{ s }}×</button>
+
       <label class="follow-toggle">
         <input type="checkbox" [(ngModel)]="followVehicle" />
         Follow
       </label>
     </div>
-    <label class="timeline-scrub">
-      <div class="timeline-labels">
-        <span>Start: {{ startTimeLabel }}</span>
-        <span class="timeline-current" *ngIf="currentPosition">
-          {{ currentPosition.timestamp | date:'hh:mm a' }} · {{ currentPosition.speedKmh | number:'1.0-0' }} km/h
-        </span>
-        <span>End: {{ endTimeLabel }}</span>
+
+    <label class="timeline-scrub timeline-scrub--lg">
+      <div class="timeline-ticks">
+        <span *ngFor="let t of timelineTicks">{{ t }}</span>
       </div>
-      <input type="range" min="0" max="100" [value]="replayProgress" (input)="onReplayScrub($event)" />
-      <span class="timeline-pct">{{ replayProgress }}%</span>
+      <input
+        type="range"
+        min="0"
+        max="100"
+        step="0.1"
+        [value]="replayProgress"
+        (input)="onReplayScrub($event)"
+        aria-label="Playback timeline" />
+      <div class="timeline-labels">
+        <span>{{ startTimeLabel }}</span>
+        <span class="timeline-current" *ngIf="currentPosition">
+          {{ currentPosition.timestamp | date:'mediumTime' }} · {{ currentPosition.speedKmh | number:'1.0-0' }} km/h
+        </span>
+        <span>{{ endTimeLabel }}</span>
+      </div>
     </label>
+
     <div class="jump-row">
       <label>
+        Jump to date
+        <input type="date" class="jump-input" [value]="jumpDateValue" (change)="onJumpDate($event)" />
+      </label>
+      <label>
         Jump to time
-        <input type="datetime-local" class="jump-input" [value]="jumpInputValue" (change)="onJumpToTime($event)" />
+        <input type="time" class="jump-input" step="1" [value]="jumpTimeValue" (change)="onJumpTime($event)" />
       </label>
     </div>
-  </div>
-
-  <div class="replay-empty" *ngIf="!loading && positions.length === 0">
-    <mat-icon>map</mat-icon>
-    <span>Select a trip or refresh to load route replay.</span>
   </div>
 </div>

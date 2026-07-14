@@ -8,12 +8,23 @@ public static class TripReplayLoader
 {
     private const int SparseRouteThreshold = 5;
 
+    private static bool IsOverlayEventType(string type) =>
+        type.Contains("geofenceEnter", StringComparison.OrdinalIgnoreCase)
+        || type.Contains("geofenceExit", StringComparison.OrdinalIgnoreCase)
+        || type.Contains("alarm", StringComparison.OrdinalIgnoreCase)
+        || type.Contains("overspeed", StringComparison.OrdinalIgnoreCase)
+        || type.Contains("hardBraking", StringComparison.OrdinalIgnoreCase)
+        || type.Contains("hardAcceleration", StringComparison.OrdinalIgnoreCase);
+
     public static async Task<TripReplayBundleDto> LoadFromTraccarAsync(
         ITraccarClient traccarClient,
         int traccarDeviceId,
         DateTime fromDate,
         DateTime toDate,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        IReadOnlyDictionary<int, string>? geofenceNames = null,
+        int routeMaxPoints = 2000,
+        int playbackMaxPoints = 800)
     {
         var routeTask = traccarClient.GetRouteAsync(traccarDeviceId, fromDate, toDate, cancellationToken);
         var stopsTask = traccarClient.GetStopsAsync(traccarDeviceId, fromDate, toDate, cancellationToken);
@@ -40,8 +51,8 @@ public static class TripReplayLoader
             }
         }
 
-        var route = TripAnalyticsMapper.DownsampleReplay(routeFull, maxPoints: 2000);
-        var playback = TripAnalyticsMapper.DownsampleReplay(routeFull, maxPoints: 800);
+        var route = TripAnalyticsMapper.DownsampleReplay(routeFull, maxPoints: routeMaxPoints);
+        var playback = TripAnalyticsMapper.DownsampleReplay(routeFull, maxPoints: playbackMaxPoints);
 
         var stops = (await stopsTask)
             .Where(s => TripAnalyticsMapper.OverlapsWindow(s.StartTime, s.EndTime, fromDate, toDate))
@@ -51,7 +62,14 @@ public static class TripReplayLoader
 
         var events = (await eventsTask)
             .Where(e => e.EventTime >= fromDate && e.EventTime <= toDate)
-            .Select(TripAnalyticsMapper.ToEventDto)
+            .Where(e => IsOverlayEventType(e.Type))
+            .Select(e =>
+            {
+                string? geofenceName = null;
+                if (e.GeofenceId is int gid && geofenceNames is not null)
+                    geofenceNames.TryGetValue(gid, out geofenceName);
+                return TripAnalyticsMapper.ToEventDto(e, geofenceName);
+            })
             .OrderBy(e => e.Time)
             .ToList();
 

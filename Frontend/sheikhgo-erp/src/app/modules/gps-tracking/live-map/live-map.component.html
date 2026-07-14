@@ -11,14 +11,18 @@
       <p class="track-subtitle stb-body desktop-only">Monitor vehicles, routes, and telemetry in real time</p>
     </div>
     <div class="track-header-right stb-actions stb-actions--mobile-stack">
-      <div class="sync-pill" [class.sync-pill--active]="trackingActive">
+      <div class="sync-pill"
+           [class.sync-pill--active]="trackingActive"
+           [class.sync-pill--offline]="!isTraccarOnline || traccarStatus?.syncEnabled === false">
         <span class="sync-dot sync-dot--live"></span>
         <span>{{ trackingStatusLabel }}</span>
-        <span class="sync-meta">Last sync {{ formatSyncAgo() }}</span>
+        <span class="sync-meta">ERP poll {{ formatSyncAgo() }}</span>
       </div>
-      <div class="gps-pill" [class.gps-pill--ok]="gpsHealthy">
-        <mat-icon>{{ gpsHealthy ? 'gps_fixed' : 'gps_off' }}</mat-icon>
-        {{ gpsHealthy ? 'GPS healthy' : 'GPS limited' }}
+      <div class="gps-pill"
+           [class.gps-pill--ok]="gpsHealthy"
+           [class.gps-pill--warn]="!isTraccarOnline || traccarStatus?.syncEnabled === false">
+        <mat-icon>{{ gpsHealthy ? 'gps_fixed' : (traccarStatus?.syncEnabled === false ? 'sync_disabled' : (!isTraccarOnline ? 'cloud_off' : 'gps_off')) }}</mat-icon>
+        {{ gpsStatusPillLabel }}
       </div>
       <label class="refresh-rate-select" aria-label="Auto-refresh interval">
         <mat-icon>update</mat-icon>
@@ -219,12 +223,17 @@
                 <span class="vehicle-badge">{{ statusLabel(loc.status) }}</span>
               </div>
               <span class="vehicle-reg">{{ loc.registrationNumber }}</span>
+              <span class="vehicle-route" *ngIf="loc.imei || loc.trackerName">
+                {{ loc.trackerName || 'Tracker' }}<ng-container *ngIf="loc.imei"> · {{ loc.imei }}</ng-container>
+              </span>
               <div class="vehicle-meta">
                 <span class="vehicle-speed">
                   <mat-icon>speed</mat-icon>
                   {{ speedLabel(loc) }}
                 </span>
-                <span class="signal-bars" [attr.aria-label]="'Signal ' + signalBars(loc) + ' of 4'">
+                <span class="signal-bars"
+                      [attr.aria-label]="'Freshness ' + signalFreshnessLabel(loc)"
+                      [matTooltip]="'Signal freshness: ' + signalFreshnessLabel(loc) + (loc.gsmSignal != null ? (' · GSM ' + loc.gsmSignal + ' dBm') : '')">
                   <i *ngFor="let b of [1,2,3,4]" class="bar" [class.bar--on]="b <= signalBars(loc)"></i>
                 </span>
               </div>
@@ -261,18 +270,6 @@
               [class.filter-chip--active]="statusFilter === f.id"
               (click)="setStatusFilter(f.id)">
               {{ f.label }}
-            </button>
-          </div>
-        </div>
-        <div class="map-toolbar__row">
-          <div class="filter-chips filter-chips--time">
-            <button
-              type="button"
-              class="filter-chip filter-chip--ghost stb-touch"
-              *ngFor="let t of timePresets"
-              [class.filter-chip--active]="timePreset === t.id"
-              (click)="setTimePreset(t.id)">
-              {{ t.label }}
             </button>
           </div>
         </div>
@@ -330,9 +327,41 @@
           <button type="button" class="glass-btn stb-touch" matTooltip="Refresh" aria-label="Refresh map" (click)="refreshNow()">
             <mat-icon>refresh</mat-icon>
           </button>
-          <button type="button" class="glass-btn stb-touch" matTooltip="Map style" aria-label="Change map style" (click)="cycleMapTheme()">
-            <mat-icon>{{ mapTheme === 'satellite' ? 'satellite_alt' : 'layers' }}</mat-icon>
+          <button
+            type="button"
+            class="glass-btn stb-touch"
+            [class.glass-btn--accent]="showGeofences"
+            matTooltip="Show geofence boundaries"
+            aria-label="Toggle geofences"
+            (click)="toggleGeofenceLayer()">
+            <mat-icon>fence</mat-icon>
           </button>
+          <div class="map-theme-control">
+            <button
+              type="button"
+              class="glass-btn stb-touch"
+              [class.glass-btn--accent]="mapThemeMenuOpen"
+              matTooltip="Map style"
+              aria-label="Change map style"
+              aria-haspopup="true"
+              [attr.aria-expanded]="mapThemeMenuOpen"
+              (click)="toggleMapThemeMenu()">
+              <mat-icon>{{ mapTheme === 'satellite' ? 'satellite_alt' : (mapTheme === 'traffic' ? 'traffic' : (mapTheme === 'dark' ? 'dark_mode' : 'map')) }}</mat-icon>
+            </button>
+            <div class="map-theme-menu" *ngIf="mapThemeMenuOpen" role="menu">
+              <button
+                type="button"
+                class="map-theme-option"
+                *ngFor="let opt of mapThemeOptions"
+                role="menuitemradio"
+                [attr.aria-checked]="mapTheme === opt.id"
+                [class.map-theme-option--active]="mapTheme === opt.id"
+                (click)="selectMapTheme(opt.id)">
+                <mat-icon>{{ opt.icon }}</mat-icon>
+                <span>{{ opt.label }}</span>
+              </button>
+            </div>
+          </div>
           <button type="button" class="glass-btn stb-touch" matTooltip="Reset zoom" aria-label="Reset zoom" (click)="resetZoom()">
             <mat-icon>zoom_out_map</mat-icon>
           </button>
@@ -379,11 +408,14 @@
                 </span>
               </div>
             </div>
-            <div class="detail-metric" *ngIf="loc.trackerName">
+            <div class="detail-metric" *ngIf="loc.trackerName || loc.imei">
               <mat-icon>router</mat-icon>
               <div>
                 <span class="detail-metric-lbl">Tracker</span>
-                <span class="detail-metric-val">{{ loc.trackerName }}</span>
+                <span class="detail-metric-val">
+                  {{ loc.trackerName || 'Device' }}
+                  <span *ngIf="loc.imei" class="detail-metric-val--mono"> · IMEI {{ loc.imei }}</span>
+                </span>
               </div>
             </div>
             <div class="detail-metric">
@@ -391,6 +423,13 @@
               <div>
                 <span class="detail-metric-lbl">Speed</span>
                 <span class="detail-metric-val">{{ speedLabel(loc) }}</span>
+              </div>
+            </div>
+            <div class="detail-metric" *ngIf="headingLabel(loc) as heading">
+              <mat-icon>explore</mat-icon>
+              <div>
+                <span class="detail-metric-lbl">Heading</span>
+                <span class="detail-metric-val">{{ heading }}</span>
               </div>
             </div>
             <div class="detail-metric" *ngIf="loc.ignition !== undefined">
@@ -421,6 +460,13 @@
                 <span class="detail-metric-val">{{ loc.gsmSignal }} dBm</span>
               </div>
             </div>
+            <div class="detail-metric">
+              <mat-icon>network_check</mat-icon>
+              <div>
+                <span class="detail-metric-lbl">Signal freshness</span>
+                <span class="detail-metric-val">{{ signalFreshnessLabel(loc) }}</span>
+              </div>
+            </div>
             <div class="detail-metric" *ngIf="loc.totalDistanceKm != null">
               <mat-icon>timeline</mat-icon>
               <div>
@@ -428,11 +474,11 @@
                 <span class="detail-metric-val">{{ loc.totalDistanceKm | number:'1.0-0' }} km</span>
               </div>
             </div>
-            <div class="detail-metric" title="Not tracked by installed hardware">
+            <div class="detail-metric" [title]="temperatureLabel(loc) ? '' : 'Not tracked by installed hardware'">
               <mat-icon>thermostat</mat-icon>
               <div>
                 <span class="detail-metric-lbl">Temperature</span>
-                <span class="detail-metric-val">—</span>
+                <span class="detail-metric-val">{{ temperatureLabel(loc) || 'Not tracked' }}</span>
               </div>
             </div>
             <div class="detail-metric" *ngIf="loc.relayOutput">
@@ -497,7 +543,7 @@
             <button type="button" class="detail-action-btn stb-touch" (click)="focusVehicle(loc)">
               <mat-icon>my_location</mat-icon> Track
             </button>
-            <button type="button" class="detail-action-btn stb-touch" (click)="setTimePreset('today'); showHistory = true">
+            <button type="button" class="detail-action-btn stb-touch" (click)="openHistoryForSelected()">
               <mat-icon>history</mat-icon> History
             </button>
             <button type="button" class="detail-action-btn stb-touch" (click)="goToCommands()">
@@ -554,152 +600,25 @@
   </section>
 
   <section class="track-bottom">
-    <div class="history-block stb-elevated">
+    <div class="history-block stb-elevated history-cta">
       <div class="history-head">
         <div class="history-title">
           <mat-icon>history</mat-icon>
           <h2 class="stb-heading-section">Vehicle history &amp; playback</h2>
         </div>
-        <div class="history-toolbar stb-filter-bar">
-          <mat-form-field appearance="outline" class="tb-field tb-field--vehicle stb-filter-bar__search">
-            <mat-label>Vehicle</mat-label>
-            <mat-select
-              [(ngModel)]="selectedVehicleId"
-              [compareWith]="compareVehicleId"
-              panelClass="history-vehicle-panel"
-              (selectionChange)="onHistoryVehicleSelected($event.value)">
-              <mat-select-trigger>
-                {{ selectedHistoryVehicleLabel }}
-              </mat-select-trigger>
-              <mat-option [value]="null">Select vehicle</mat-option>
-              <mat-option *ngFor="let v of historyVehicleOptions" [value]="v.id">
-                <span class="vehicle-option">
-                  <span class="vehicle-option-name">{{ v.name }}</span>
-                  <span class="vehicle-option-reg">{{ v.registrationNumber }}</span>
-                </span>
-              </mat-option>
-            </mat-select>
-          </mat-form-field>
-
-          <mat-form-field appearance="outline" class="tb-field tb-field--date" *ngIf="timePreset === 'custom'">
-            <mat-label>From</mat-label>
-            <input matInput type="datetime-local" [(ngModel)]="historyFrom">
-          </mat-form-field>
-          <mat-form-field appearance="outline" class="tb-field tb-field--date" *ngIf="timePreset === 'custom'">
-            <mat-label>To</mat-label>
-            <input matInput type="datetime-local" [(ngModel)]="historyTo">
-          </mat-form-field>
-
-          <button
-            mat-flat-button
-            color="primary"
-            type="button"
-            class="stb-touch history-load-btn"
-            (click)="loadHistory()"
-            [disabled]="!selectedVehicleId || loadingHistory">
-            <mat-icon>search</mat-icon>
-            Load route
-          </button>
-        </div>
+        <p class="history-cta__text">
+          Open the dedicated History module for full route replay, speed heatmap, stops, geofence events, export, and timeline playback.
+        </p>
+        <button
+          mat-flat-button
+          color="primary"
+          type="button"
+          class="stb-touch history-cta__btn"
+          (click)="openFullHistory()">
+          <mat-icon>open_in_new</mat-icon>
+          Open full history
+        </button>
       </div>
-
-      <div class="trip-summary" *ngIf="tripSummary">
-        <div class="trip-metric">
-          <span class="trip-val">{{ tripSummary.distanceKm }} km</span>
-          <span class="trip-lbl">Distance</span>
-        </div>
-        <div class="trip-metric">
-          <span class="trip-val">{{ tripSummary.durationMinutes }} min</span>
-          <span class="trip-lbl">Duration</span>
-        </div>
-        <div class="trip-metric">
-          <span class="trip-val">{{ tripSummary.avgSpeed }} km/h</span>
-          <span class="trip-lbl">Avg speed</span>
-        </div>
-        <div class="trip-metric">
-          <span class="trip-val">{{ tripSummary.stopMinutes }} min</span>
-          <span class="trip-lbl">Stop time</span>
-        </div>
-        <div class="trip-metric">
-          <span class="trip-val">{{ tripSummary.pointCount }}</span>
-          <span class="trip-lbl">GPS points</span>
-        </div>
-      </div>
-
-      <div class="playback-bar" *ngIf="historyRows.length > 0">
-        <div class="replay-controls">
-          <button mat-flat-button color="primary" type="button" class="stb-touch" (click)="toggleReplay()">
-            <mat-icon>{{ replayPlaying ? 'pause' : 'play_arrow' }}</mat-icon>
-            {{ replayPlaying ? 'Pause' : 'Play' }}
-          </button>
-          <button mat-stroked-button type="button" class="stb-touch" [class.replay-speed--active]="replaySpeed === 1" (click)="setReplaySpeed(1)">1×</button>
-          <button mat-stroked-button type="button" class="stb-touch" [class.replay-speed--active]="replaySpeed === 2" (click)="setReplaySpeed(2)">2×</button>
-          <button mat-stroked-button type="button" class="stb-touch" [class.replay-speed--active]="replaySpeed === 4" (click)="setReplaySpeed(4)">4×</button>
-        </div>
-        <label class="timeline-scrub">
-          <span>Timeline</span>
-          <input
-            type="range"
-            min="0"
-            max="100"
-            [value]="replayProgress"
-            (input)="onReplayScrub($event)"
-            aria-label="Playback timeline" />
-          <span class="timeline-pct">{{ replayProgress }}%</span>
-        </label>
-      </div>
-
-      <app-brand-loader *ngIf="loadingHistory" size="sm" />
-      <div *ngIf="historyError" class="history-error"><mat-icon>error</mat-icon> {{ historyError }}</div>
-
-      <ng-container *ngIf="showHistory && !loadingHistory && !historyError">
-        <div *ngIf="historyRows.length === 0" class="history-empty">
-          <mat-icon>timeline</mat-icon>
-          <span>Select a vehicle and date range to replay its route on the map.</span>
-        </div>
-
-        <div class="history-cards mobile-only" *ngIf="historyRows.length > 0">
-          <article class="history-card" *ngFor="let r of historyRows">
-            <div class="history-card-row">
-              <span class="history-card-lbl">Time</span>
-              <span class="history-card-val">{{ r.timestamp | date:'short' }}</span>
-            </div>
-            <div class="history-card-row">
-              <span class="history-card-lbl">Lat / Lng</span>
-              <span class="history-card-val history-card-val--mono">
-                {{ r.latitude | number:'1.4-4' }}, {{ r.longitude | number:'1.4-4' }}
-              </span>
-            </div>
-            <div class="history-card-row">
-              <span class="history-card-lbl">Speed</span>
-              <span class="history-card-val">{{ r.speed | number:'1.0-0' }} km/h</span>
-            </div>
-          </article>
-        </div>
-
-        <div class="history-table-wrap stb-table-scroll desktop-only" *ngIf="historyRows.length > 0">
-          <table mat-table [dataSource]="historyRows" class="history-table">
-            <ng-container matColumnDef="timestamp">
-              <th mat-header-cell *matHeaderCellDef>Time</th>
-              <td mat-cell *matCellDef="let r">{{ r.timestamp | date:'short' }}</td>
-            </ng-container>
-            <ng-container matColumnDef="latitude">
-              <th mat-header-cell *matHeaderCellDef>Lat</th>
-              <td mat-cell *matCellDef="let r">{{ r.latitude | number:'1.4-4' }}</td>
-            </ng-container>
-            <ng-container matColumnDef="longitude">
-              <th mat-header-cell *matHeaderCellDef>Lng</th>
-              <td mat-cell *matCellDef="let r">{{ r.longitude | number:'1.4-4' }}</td>
-            </ng-container>
-            <ng-container matColumnDef="speed">
-              <th mat-header-cell *matHeaderCellDef>Speed</th>
-              <td mat-cell *matCellDef="let r">{{ r.speed | number:'1.0-0' }} km/h</td>
-            </ng-container>
-            <tr mat-header-row *matHeaderRowDef="['timestamp','latitude','longitude','speed']"></tr>
-            <tr mat-row *matRowDef="let row; columns: ['timestamp','latitude','longitude','speed'];"></tr>
-          </table>
-        </div>
-      </ng-container>
     </div>
 
     <aside class="events-block stb-elevated">

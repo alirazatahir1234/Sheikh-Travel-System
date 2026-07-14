@@ -34,6 +34,8 @@ import { apiErrorMessage } from '../../../../../core/utils/api-error.util';
               required />
             @if (quantityError()) {
               <span class="input-error">{{ quantityError() }}</span>
+            } @else if (p.stockQuantity > 0 && quantity === p.stockQuantity) {
+              <span class="input-hint">Max available: {{ p.stockQuantity }}</span>
             }
           </label>
           <label>Notes<textarea [(ngModel)]="notes" name="notes" rows="2"></textarea></label>
@@ -55,6 +57,7 @@ import { apiErrorMessage } from '../../../../../core/utils/api-error.util';
     .btn-muted { background: #f1f5f9; color: #475569; border: none; border-radius: 8px; padding: 0.5rem 1rem; cursor: pointer; }
     .btn-primary:disabled { opacity: 0.6; }
     .input-error { color: #b91c1c; font-size: 0.8125rem; margin-top: 0.25rem; display: block; }
+    .input-hint { color: #64748b; font-size: 0.8125rem; margin-top: 0.25rem; display: block; }
   `]
 })
 export class TransferStockDrawerComponent {

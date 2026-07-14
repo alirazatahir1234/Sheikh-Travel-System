@@ -10,6 +10,113 @@
 @import 'leaflet/dist/leaflet.css';
 @import 'leaflet.markercluster/dist/MarkerCluster.css';
 @import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
+@import '@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css';
+
+/* Shared fleet vehicle markers (Live Map + History replay) */
+.fv-marker-host {
+  background: transparent !important;
+  border: none !important;
+}
+
+.fv-marker {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  filter: drop-shadow(0 1px 3px rgba(15, 23, 42, 0.45));
+  pointer-events: none;
+}
+
+.fv-rotator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  transform-origin: 50% 50%;
+  will-change: transform;
+}
+
+.fv-svg {
+  display: block;
+  overflow: visible;
+}
+
+.fv-badge {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  border-radius: 999px;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 14px;
+  text-align: center;
+  box-shadow: 0 0 0 1.5px #fff;
+}
+
+.fv-marker--moving .fv-rotator {
+  filter: drop-shadow(0 0 4px rgba(16, 185, 129, 0.55));
+}
+
+.fv-marker--offline,
+.fv-marker--never_seen {
+  opacity: 0.72;
+}
+
+.fv-popup {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 140px;
+  font-size: 12px;
+  color: #374151;
+}
+
+.fv-popup__title {
+  font-size: 13px;
+  color: #111827;
+}
+
+.fv-popup__plate {
+  font-weight: 600;
+  color: #0f766e;
+}
+
+.fv-popup__addr {
+  color: #6b7280;
+  font-size: 11px;
+}
+
+.fv-popup + .map-popup-link,
+.leaflet-popup-content .map-popup-link {
+  display: inline-block;
+  margin-top: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #0f766e;
+  text-decoration: none;
+}
+
+.fv-cluster {
+  background: linear-gradient(135deg, #0f766e, #0d9488);
+  color: #fff;
+  border-radius: 999px;
+  border: 2px solid #fff;
+  box-shadow: 0 2px 8px rgba(15, 118, 110, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 12px;
+}
+
+.fv-cluster span {
+  line-height: 1;
+}
 
 /* Tailwind preflight breaks Leaflet tiles and controls — reset inside map containers. */
 .leaflet-container img.leaflet-tile,

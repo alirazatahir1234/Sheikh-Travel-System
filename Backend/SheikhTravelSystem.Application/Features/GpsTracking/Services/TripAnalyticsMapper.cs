@@ -9,6 +9,10 @@ public static class TripAnalyticsMapper
 
     public static TripReplayPositionDto ToReplayPosition(TraccarPosition position)
     {
+        decimal? odometerKm = position.Attributes?.TotalDistance is { } meters
+            ? Math.Round(meters / 1000m, 3)
+            : null;
+
         return new TripReplayPositionDto(
             position.FixTime,
             position.Latitude,
@@ -19,7 +23,8 @@ public static class TripAnalyticsMapper
             position.Altitude,
             position.Address,
             position.Attributes?.BatteryLevel,
-            position.Attributes?.Rssi);
+            position.Attributes?.Rssi,
+            odometerKm);
     }
 
     public static TripReplayPositionDto ToReplayPosition(PositionDto position)
@@ -32,20 +37,47 @@ public static class TripAnalyticsMapper
             position.Heading,
             position.Ignition,
             position.Altitude,
-            null,
-            null,
-            null);
+            position.Address,
+            position.BatteryLevel,
+            position.GsmSignal,
+            position.TotalDistanceKm);
     }
 
-    public static TripEventDto ToEventDto(TraccarEvent evt)
+    public static TripEventDto ToEventDto(TraccarEvent evt, string? geofenceName = null)
     {
+        var label = FormatEventLabel(evt.Type, geofenceName);
         return new TripEventDto(
             evt.EventTime,
             evt.Type,
             evt.Latitude,
             evt.Longitude,
             evt.Address,
-            evt.SpeedKnots is null ? null : Math.Round((decimal)(evt.SpeedKnots.Value * KnotsToKmh), 1));
+            evt.SpeedKnots is null ? null : Math.Round((decimal)(evt.SpeedKnots.Value * KnotsToKmh), 1),
+            evt.GeofenceId,
+            geofenceName,
+            label);
+    }
+
+    public static string FormatEventLabel(string type, string? geofenceName)
+    {
+        if (type.Contains("geofenceEnter", StringComparison.OrdinalIgnoreCase))
+            return geofenceName is null ? "Entered geofence" : $"Entered {geofenceName}";
+        if (type.Contains("geofenceExit", StringComparison.OrdinalIgnoreCase))
+            return geofenceName is null ? "Exited geofence" : $"Exited {geofenceName}";
+        if (type.Contains("alarm", StringComparison.OrdinalIgnoreCase))
+            return "Alarm";
+        if (type.Contains("overspeed", StringComparison.OrdinalIgnoreCase))
+            return "Overspeed";
+        return type;
+    }
+
+    public static double? ComputeOdometerMileageKm(IReadOnlyList<TripReplayPositionDto> route)
+    {
+        if (route.Count < 2) return null;
+        var first = route[0].TotalDistanceKm;
+        var last = route[^1].TotalDistanceKm;
+        if (first is null || last is null || last < first) return null;
+        return Math.Round((double)(last.Value - first.Value), 1);
     }
 
     public static TripStopDto ToStopDto(TraccarStop stop)
@@ -126,12 +158,81 @@ public static class TripAnalyticsMapper
             engineHours);
     }
 
+    /// <summary>
+    /// Traccar report durations are usually milliseconds. Small values may be seconds.
+    /// Returns whole minutes.
+    /// </summary>
     private static int ToDurationMinutes(long engineHours)
     {
         if (engineHours <= 0) return 0;
-        return engineHours >= 100_000
-            ? (int)(engineHours / 60_000)
-            : (int)(engineHours / 60);
+        // Milliseconds (≥ ~1.7 min)
+        if (engineHours >= 100_000)
+            return (int)(engineHours / 60_000);
+        // Seconds (legacy / some protocols)
+        if (engineHours >= 3_600)
+            return (int)(engineHours / 60);
+        // Already minutes
+        return (int)engineHours;
+    }
+
+    /// <summary>
+    /// History-range statistics: prefer odometer distance, stop-based idle, and clamp driving
+    /// time to the selected window (Traccar engineHours can report lifetime totals).
+    /// </summary>
+    public static TripAnalyticsSummaryDto BuildHistoryStatistics(
+        TripAnalyticsSummaryDto? baseSummary,
+        IReadOnlyList<TripReplayPositionDto> route,
+        IReadOnlyList<TripStopDto> stops,
+        DateTime fromDate,
+        DateTime toDate,
+        double? mileageKm)
+    {
+        var rangeMinutes = Math.Max(1, (int)Math.Ceiling((toDate - fromDate).TotalMinutes));
+        var stopIdle = Math.Min(rangeMinutes, stops.Sum(s => Math.Max(0, s.DurationMinutes)));
+
+        int drivingMinutes;
+        if (baseSummary is not null && baseSummary.DrivingMinutes > 0 && baseSummary.DrivingMinutes <= rangeMinutes)
+        {
+            drivingMinutes = baseSummary.DrivingMinutes;
+        }
+        else
+        {
+            drivingMinutes = Math.Max(0, rangeMinutes - stopIdle);
+            if (route.Count >= 2)
+            {
+                var first = route[0].Timestamp;
+                var last = route[^1].Timestamp;
+                var span = Math.Max(1, (int)Math.Ceiling((last - first).TotalMinutes));
+                drivingMinutes = Math.Min(drivingMinutes, Math.Max(0, Math.Min(span, rangeMinutes) - Math.Min(stopIdle, span)));
+            }
+        }
+
+        var distanceKm = mileageKm
+            ?? baseSummary?.DistanceKm
+            ?? (BuildReplaySummary([], route)?.DistanceKm ?? 0);
+
+        decimal avgSpeed = baseSummary?.AvgSpeedKmh ?? 0;
+        decimal maxSpeed = baseSummary?.MaxSpeedKmh ?? 0;
+        if ((avgSpeed <= 0 || maxSpeed <= 0) && route.Count > 0)
+        {
+            var speeds = route.Select(p => (double)p.SpeedKmh).ToList();
+            if (avgSpeed <= 0) avgSpeed = Math.Round((decimal)speeds.Average(), 1);
+            if (maxSpeed <= 0) maxSpeed = Math.Round((decimal)speeds.Max(), 1);
+        }
+
+        return new TripAnalyticsSummaryDto(
+            baseSummary?.TripCount ?? 0,
+            Math.Round(distanceKm, 2),
+            drivingMinutes,
+            stopIdle,
+            baseSummary?.FuelLiters,
+            avgSpeed,
+            maxSpeed,
+            stops.Count,
+            baseSummary?.OverspeedCount ?? 0,
+            baseSummary?.HarshBrakeCount ?? 0,
+            baseSummary?.HarshAccelCount ?? 0,
+            Math.Round(drivingMinutes / 60m, 1));
     }
 
     private static int CountEvents(IReadOnlyList<TraccarEvent> events, params string[] types)
@@ -145,6 +246,9 @@ public static class TripAnalyticsMapper
     {
         if (points.Count <= maxPoints) return points;
 
+        var firstOd = points[0].TotalDistanceKm;
+        var lastOd = points[^1].TotalDistanceKm;
+
         var step = (double)points.Count / maxPoints;
         var result = new List<TripReplayPositionDto>(maxPoints + 1);
         for (var i = 0; i < maxPoints; i++)
@@ -156,6 +260,12 @@ public static class TripAnalyticsMapper
         var last = points[^1];
         if (result[^1].Timestamp != last.Timestamp)
             result.Add(last);
+
+        if (result.Count >= 2)
+        {
+            result[0] = result[0] with { TotalDistanceKm = firstOd ?? result[0].TotalDistanceKm };
+            result[^1] = result[^1] with { TotalDistanceKm = lastOd ?? result[^1].TotalDistanceKm };
+        }
 
         return result;
     }

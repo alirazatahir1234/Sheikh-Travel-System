@@ -254,14 +254,14 @@ public class TraccarClient(
         return await GetListAsync<TraccarSummary>($"/api/reports/summary?deviceId={deviceId}&from={f}&to={t}", ct);
     }
 
-    public async Task<bool> SendCommandAsync(int deviceId, string type, CancellationToken ct = default)
+    public async Task<bool> SendCommandAsync(int deviceId, string type, IDictionary<string, object>? attributes = null, CancellationToken ct = default)
     {
         var uri = ResolveRequestUri("/api/commands/send");
         if (uri is null) return false;
 
         try
         {
-            var payload = new { deviceId, type };
+            var payload = new { deviceId, type, attributes = attributes ?? new Dictionary<string, object>(0) };
             var response = await http.PostAsJsonAsync(uri, payload, ct);
             return response.IsSuccessStatusCode;
         }
@@ -269,6 +269,20 @@ public class TraccarClient(
         {
             logger.LogWarning(ex, "Traccar SendCommand exception");
             return false;
+        }
+    }
+
+    public async Task<IReadOnlyList<string>> GetSupportedCommandTypesAsync(int deviceId, CancellationToken ct = default)
+    {
+        try
+        {
+            var types = await GetListAsync<TraccarCommandType>($"/api/commands/types?deviceId={deviceId}", ct);
+            return types.Select(t => t.Type).ToList();
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Traccar GetSupportedCommandTypes failed for device {DeviceId}", deviceId);
+            return [];
         }
     }
 

@@ -48,6 +48,7 @@
           <tr>
             <th>Type</th>
             <th>Vehicle</th>
+            <th>Geofence</th>
             <th>Speed</th>
             <th>Message</th>
             <th>Time</th>
@@ -60,6 +61,7 @@
               <span class="badge" [ngClass]="eventTypeBadge(e.eventType)">{{ eventTypeLabel(e.eventType) }}</span>
             </td>
             <td class="fw-med">{{ e.vehicleName || ('#' + e.vehicleId) }}</td>
+            <td class="muted">{{ e.geofenceName || '—' }}</td>
             <td>{{ e.speed | number:'1.0-1' }} km/h</td>
             <td class="muted">{{ e.message }}</td>
             <td class="muted small">{{ e.timestamp | date:'dd MMM, HH:mm' }}</td>

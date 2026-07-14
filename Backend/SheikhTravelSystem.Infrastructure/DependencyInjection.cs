@@ -53,6 +53,7 @@ public static class DependencyInjection
         services.AddHostedService<MaintenanceAlertHostedService>();
         services.AddHostedService<GpsFleetStatusSnapshotHostedService>();
         services.AddHostedService<GpsOfflineDetectionHostedService>();
+        services.AddHostedService<GpsCommandRetryHostedService>();
         services.Configure<GpsSettings>(configuration.GetSection(GpsSettings.SectionName));
         services.Configure<OcrOptions>(configuration.GetSection(OcrOptions.SectionName));
         services.Configure<FileStorageOptions>(configuration.GetSection(FileStorageOptions.SectionName));
@@ -88,7 +89,7 @@ public static class DependencyInjection
                 var encoded = Convert.ToBase64String(Encoding.ASCII.GetBytes($"{opts.Username}:{opts.Password}"));
                 client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", encoded);
             }
-            client.Timeout = TimeSpan.FromSeconds(30);
+            client.Timeout = TimeSpan.FromSeconds(90);
         });
         services.AddHostedService<TraccarSyncService>();
         services.AddSingleton<ITraccarSyncState, TraccarSyncState>();

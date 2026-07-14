@@ -46,6 +46,24 @@
         {{ dev.supportsEngineCutoff ? 'Supported' : 'Not supported' }}
       </span>
     </div>
+    <div class="device-strip-item">
+      <span class="strip-label">Relay</span>
+      <span class="badge" [class.badge-green]="dev.supportsRelay" [class.badge-gray]="!dev.supportsRelay">
+        {{ dev.supportsRelay ? 'Supported' : 'Not supported' }}
+      </span>
+    </div>
+  </div>
+
+  <!-- KPI strip / status filter -->
+  <div class="kpi-strip" *ngIf="devices.length > 0">
+    <button class="kpi-tile" type="button"
+      *ngFor="let t of kpiTiles"
+      [class.kpi-tile--active]="statusFilter === t.filter"
+      (click)="setStatusFilter(t.filter)">
+      <mat-icon class="kpi-icon" [style.color]="t.color">{{ t.icon }}</mat-icon>
+      <span class="kpi-value">{{ t.value }}</span>
+      <span class="kpi-label">{{ t.label }}</span>
+    </button>
   </div>
 
   <!-- Inline confirmation panel -->
@@ -54,7 +72,8 @@
       <mat-icon class="confirm-icon" [class.icon-danger]="pendingCard.type === 'engineStop'">{{ pendingCard.icon }}</mat-icon>
       <div class="confirm-text">
         <p class="confirm-title">Send <strong>{{ pendingCard.label }}</strong> to <strong>{{ selectedDevice()?.name }}</strong>?</p>
-        <p class="confirm-sub" *ngIf="pendingCard.type === 'engineStop'">This will cut engine power remotely. Ensure the vehicle is safely stopped.</p>
+        <p class="confirm-sub" *ngIf="pendingCard.type === 'engineStop'">This will cut engine power remotely. Ensure the vehicle is safely stopped and below the configured speed limit.</p>
+        <p class="confirm-sub" *ngIf="pendingCard.type === 'customSms'">No SMS gateway is configured yet — this will be queued and logged as not configured.</p>
       </div>
     </div>
     <mat-form-field appearance="outline" class="reason-field">
@@ -63,9 +82,19 @@
         <mat-option *ngFor="let r of REASONS" [value]="r">{{ r }}</mat-option>
       </mat-select>
     </mat-form-field>
+    <ng-container *ngIf="pendingCard.type === 'customSms'">
+      <mat-form-field appearance="outline" class="reason-field">
+        <mat-label>Phone number *</mat-label>
+        <input matInput [(ngModel)]="smsPhone" placeholder="+92...">
+      </mat-form-field>
+      <mat-form-field appearance="outline" class="reason-field">
+        <mat-label>Message *</mat-label>
+        <input matInput [(ngModel)]="smsMessage" placeholder="Raw command text">
+      </mat-form-field>
+    </ng-container>
     <div class="confirm-actions">
       <button mat-stroked-button (click)="cancelSend()" [disabled]="sending">Cancel</button>
-      <button mat-raised-button color="warn" (click)="confirmSend()" [disabled]="!selectedReason || sending">
+      <button mat-raised-button color="warn" (click)="confirmSend()" [disabled]="!canConfirm() || sending">
         <mat-icon *ngIf="sending" class="spin">hourglass_empty</mat-icon>
         {{ sending ? 'Sending…' : 'Confirm' }}
       </button>
@@ -74,7 +103,9 @@
 
   <!-- Command cards -->
   <div class="command-cards" *ngIf="devices.length > 0 && !pendingCard">
-    <div *ngFor="let card of commandCards" class="command-card" [class]="card.colorClass" [class.disabled]="isCardDisabled(card)" (click)="send(card)">
+    <div *ngFor="let card of commandCards" class="command-card" [class]="card.colorClass" [class.disabled]="isCardDisabled(card)"
+      [matTooltip]="cardDisabledReason(card) || ''" [matTooltipDisabled]="!cardDisabledReason(card)"
+      (click)="send(card)">
       <mat-icon class="card-icon">{{ card.icon }}</mat-icon>
       <div class="card-body">
         <div class="card-title">{{ card.label }}</div>
@@ -85,7 +116,7 @@
   </div>
 
   <!-- Command history -->
-  <div *ngIf="devices.length > 0">
+  <div *ngIf="devices.length > 0 && canView()">
     <div class="section-header">
       <h3 class="section-title">Command History</h3>
       <span class="refresh-note">Auto-refresh every 15s</span>
@@ -103,20 +134,30 @@
           <tr>
             <th>Command</th>
             <th>Status</th>
+            <th>Retries</th>
             <th>Reason</th>
             <th>Requested By</th>
             <th>Requested At</th>
             <th>Completed At</th>
+            <th>Actions</th>
           </tr>
         </thead>
         <tbody>
           <tr *ngFor="let c of commands">
             <td class="fw-med">{{ c.commandType }}</td>
-            <td><span class="badge" [ngClass]="statusBadgeClass(c.status)">{{ c.status }}</span></td>
+            <td>
+              <span class="badge" [ngClass]="statusBadgeClass(c.status)">{{ c.status }}</span>
+              <div class="error-note" *ngIf="c.errorMessage">{{ c.errorMessage }}</div>
+            </td>
+            <td class="muted small">{{ c.retryCount }}/{{ c.maxRetries }}</td>
             <td class="muted">{{ c.reason || '—' }}</td>
             <td class="muted">{{ c.requestedBy || '—' }}</td>
             <td class="muted small">{{ c.requestedAt | date:'dd MMM, HH:mm:ss' }}</td>
             <td class="muted small">{{ c.completedAt ? (c.completedAt | date:'dd MMM, HH:mm:ss') : '—' }}</td>
+            <td class="row-actions">
+              <button mat-stroked-button class="btn-sm" *ngIf="canRetry(c)" (click)="retry(c)">Retry</button>
+              <button mat-stroked-button class="btn-sm" *ngIf="canCancel(c)" (click)="cancel(c)">Cancel</button>
+            </td>
           </tr>
         </tbody>
       </table>

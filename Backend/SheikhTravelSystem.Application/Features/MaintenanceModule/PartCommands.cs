@@ -327,7 +327,7 @@ public class TransferPartStockCommandHandler(
             new CommandDefinition("""
                 SELECT TOP 1 Id, StockQuantity, Location FROM PartInventory
                 WHERE PartId = @PartId AND TenantId = @TenantId
-                  AND ISNULL(Location, '') = @FromLocation
+                  AND LOWER(LTRIM(RTRIM(ISNULL(Location, '')))) = LOWER(LTRIM(RTRIM(@FromLocation)))
                 ORDER BY Id
                 """, new { PartId = request.PartId, TenantId = tenantId, FromLocation = fromLocation },
                 cancellationToken: cancellationToken));
@@ -352,7 +352,8 @@ public class TransferPartStockCommandHandler(
 
             var dest = await connection.QuerySingleOrDefaultAsync<int?>(new CommandDefinition("""
                 SELECT TOP 1 Id FROM PartInventory
-                WHERE PartId = @PartId AND TenantId = @TenantId AND ISNULL(Location, '') = @ToLocation
+                WHERE PartId = @PartId AND TenantId = @TenantId
+                  AND LOWER(LTRIM(RTRIM(ISNULL(Location, '')))) = LOWER(LTRIM(RTRIM(@ToLocation)))
                 """, new { PartId = request.PartId, TenantId = tenantId, ToLocation = toLocation },
                 cancellationToken: cancellationToken));
 

@@ -33,6 +33,7 @@ export interface PositionDto {
   address?: string;
   alarmType?: string;
   driverPhone?: string;
+  temperature?: number;
 }
 
 export interface VehicleLocation {
@@ -62,6 +63,7 @@ export interface VehicleLocation {
   imei?: string;
   relayOutput?: string;
   driverPhone?: string;
+  temperature?: number;
   /** Active booking this vehicle is currently on, if any — drives the Trip/ETA panel section. */
   bookingId?: number;
 }
@@ -85,6 +87,7 @@ export interface GpsDevice {
   protocol?: string;
   disabled?: boolean;
   supportsEngineCutoff: boolean;
+  supportsRelay?: boolean;
   lastIgnition?: boolean;
   lastSeenAt?: string;
   isActive: boolean;
@@ -225,8 +228,40 @@ export interface Geofence {
   centerLat: number;
   centerLng: number;
   radiusMeters: number;
-  geoJson?: string;
+  geoJson?: string | null;
   isActive: boolean;
+  color?: string | null;
+  category?: string | null;
+  description?: string | null;
+  assignedVehicleCount?: number;
+}
+
+export interface GeofenceAssignment {
+  id: number;
+  geofenceId: number;
+  vehicleId?: number | null;
+  vehicleName?: string | null;
+  registrationNumber?: string | null;
+  branchId?: number | null;
+  branchName?: string | null;
+  departmentId?: number | null;
+  departmentName?: string | null;
+}
+
+export interface GeofenceStats {
+  total: number;
+  active: number;
+  vehiclesInside: number;
+  todayEntries: number;
+  todayExits: number;
+  unackedBreaches: number;
+}
+
+export interface UpsertGeofenceAssignments {
+  vehicleIds?: number[];
+  branchId?: number | null;
+  departmentId?: number | null;
+  replaceVehicles?: boolean;
 }
 
 export interface GpsAlertRule {
@@ -253,6 +288,8 @@ export interface GpsAlertEvent {
   message: string;
   timestamp: string;
   isAcknowledged: boolean;
+  geofenceId?: number | null;
+  geofenceName?: string | null;
 }
 
 export interface TripFleetFilters {
@@ -326,6 +363,9 @@ export interface TripEvent {
   longitude?: number | null;
   address?: string | null;
   speedKmh?: number | null;
+  geofenceId?: number | null;
+  geofenceName?: string | null;
+  label?: string | null;
 }
 
 export interface TripStop {
@@ -354,6 +394,7 @@ export interface TripReplayPosition {
   address?: string | null;
   batteryLevel?: number | null;
   satellites?: number | null;
+  totalDistanceKm?: number | null;
 }
 
 export interface TripReplaySummary {
@@ -372,6 +413,18 @@ export interface TripReplayBundle {
   stops: TripStop[];
   events: TripEvent[];
   summary?: TripReplaySummary | null;
+}
+
+/** Unified history replay bundle (route, stats, vehicle context). */
+export interface HistoryReplayBundle {
+  route: TripReplayPosition[];
+  playback: TripReplayPosition[];
+  stops: TripStop[];
+  events: TripEvent[];
+  summary?: TripReplaySummary | null;
+  statistics?: TripAnalyticsSummary | null;
+  mileageKm?: number | null;
+  vehicle?: TripDeviceContext | null;
 }
 
 export interface GpsFleetStatus {
@@ -442,16 +495,48 @@ export interface TripVehicleOption {
   isOnline: boolean;
 }
 
+export type CommandType =
+  | 'engineStop' | 'engineResume' | 'positionSingle' | 'restart'
+  | 'relayOn' | 'relayOff' | 'buzzer' | 'customSms' | 'custom';
+
+export type CommandStatus =
+  | 'pending' | 'sent' | 'acknowledged' | 'failed' | 'timeout' | 'cancelled' | 'not_configured';
+
 export interface GpsDeviceCommand {
   id: number;
   gpsDeviceId: number;
   deviceName?: string;
-  commandType: string;
-  status: string;
+  commandType: CommandType | string;
+  status: CommandStatus | string;
   reason?: string;
   requestedBy?: string;
   requestedAt: string;
   completedAt?: string;
+  retryCount: number;
+  maxRetries: number;
+  errorMessage?: string;
+  nextRetryAt?: string;
+}
+
+export interface GpsCommandResponse {
+  id: number;
+  source: string;
+  responseCode?: string;
+  responseText?: string;
+  receivedAt: string;
+}
+
+export interface GpsDeviceCommandDetail {
+  command: GpsDeviceCommand;
+  attributesJson?: string;
+  responses: GpsCommandResponse[];
+}
+
+export interface SupportedCommand {
+  type: string;
+  label: string;
+  available: boolean;
+  reason?: string;
 }
 
 export interface GpsEta {
@@ -489,6 +574,8 @@ export interface TraccarStatusDto {
   serverVersion?: string | null;
   deviceCount: number;
   lastError?: string | null;
+  /** False when Traccar:Enabled=false — HTTP may still work but positions are not polled. */
+  syncEnabled?: boolean;
 }
 
 export interface TraccarDeviceDto {

@@ -41,6 +41,9 @@ export class GpsRealtimeService implements OnDestroy {
     this.hub.onclose(() => this.connectionState.next('disconnected'));
 
     this.hub.on('ReceiveLocationUpdate', (payload: PositionDto & { bookingId?: number }) => {
+      if (!payload?.timestamp) {
+        return;
+      }
       this.updates$.next({
         id: payload.id ?? payload.vehicleId,
         vehicleId: payload.vehicleId,
@@ -49,14 +52,15 @@ export class GpsRealtimeService implements OnDestroy {
         longitude: payload.longitude,
         speed: Number(payload.speed) || 0,
         ignition: payload.ignition,
-        timestamp: payload.timestamp ?? new Date().toISOString(),
+        timestamp: payload.timestamp,
         heading: payload.heading,
         fuelLevel: payload.fuelLevel,
         batteryLevel: payload.batteryLevel,
         gsmSignal: payload.gsmSignal,
         totalDistanceKm: payload.totalDistanceKm,
         address: payload.address,
-        alarmType: payload.alarmType
+        alarmType: payload.alarmType,
+        temperature: payload.temperature
       });
     });
 

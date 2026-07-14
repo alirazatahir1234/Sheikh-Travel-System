@@ -1,22 +1,41 @@
 export type TripDatePreset =
   | 'today'
   | 'yesterday'
+  | 'last24Hours'
   | 'thisWeek'
   | 'last7Days'
+  | 'last30Days'
   | 'lastWeek'
   | 'thisMonth'
   | 'previousMonth'
+  | 'thisYear'
   | 'custom';
 
-/** Presets shown in the Trip Analytics filter bar (mockup-aligned). */
+/** Presets for Trip Analytics and Live Map history playback. */
 export const TRIP_DATE_PRESETS: { id: TripDatePreset; label: string }[] = [
   { id: 'today', label: 'Today' },
   { id: 'yesterday', label: 'Yesterday' },
+  { id: 'last24Hours', label: 'Last 24h' },
   { id: 'thisWeek', label: 'This Week' },
   { id: 'last7Days', label: 'Last 7 Days' },
+  { id: 'last30Days', label: 'Last 30 Days' },
   { id: 'lastWeek', label: 'Last Week' },
   { id: 'thisMonth', label: 'This Month' },
-  { id: 'previousMonth', label: 'Previous Month' },
+  { id: 'previousMonth', label: 'Last Month' },
+  { id: 'thisYear', label: 'This Year' },
+  { id: 'custom', label: 'Custom' }
+];
+
+/** Compact chip set for the Live Map history toolbar (avoids overcrowding). */
+export const HISTORY_DATE_PRESETS: { id: TripDatePreset; label: string }[] = [
+  { id: 'today', label: 'Today' },
+  { id: 'yesterday', label: 'Yesterday' },
+  { id: 'last24Hours', label: 'Last 24h' },
+  { id: 'last7Days', label: 'Last 7 Days' },
+  { id: 'last30Days', label: 'Last 30 Days' },
+  { id: 'thisMonth', label: 'This Month' },
+  { id: 'previousMonth', label: 'Last Month' },
+  { id: 'thisYear', label: 'This Year' },
   { id: 'custom', label: 'Custom' }
 ];
 
@@ -60,10 +79,14 @@ export function applyTripDatePreset(preset: TripDatePreset, now = new Date()): {
       y.setDate(y.getDate() - 1);
       return { from: y, to: endOfDay(y) };
     }
+    case 'last24Hours':
+      return { from: new Date(now.getTime() - 24 * 60 * 60 * 1000), to: now };
     case 'thisWeek':
       return { from: startOfWeek(now), to: endOfDay(now) };
     case 'last7Days':
       return { from: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000), to: endOfDay(now) };
+    case 'last30Days':
+      return { from: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000), to: endOfDay(now) };
     case 'lastWeek': {
       const end = new Date(startOfWeek(now));
       end.setDate(end.getDate() - 1);
@@ -77,6 +100,8 @@ export function applyTripDatePreset(preset: TripDatePreset, now = new Date()): {
       const end = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
       return { from: start, to: end };
     }
+    case 'thisYear':
+      return { from: new Date(now.getFullYear(), 0, 1), to: endOfDay(now) };
     default:
       return { from: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000), to: now };
   }

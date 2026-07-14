@@ -1,104 +1,296 @@
 <div class="history-page">
-
-  <!-- Header + filter bar -->
-  <div class="page-header">
-    <h2 class="page-title">Route History</h2>
-  </div>
-
-  <div class="filter-bar">
-    <mat-form-field appearance="outline">
-      <mat-label>Vehicle</mat-label>
-      <mat-select [(value)]="vehicleId">
-        <mat-option *ngFor="let v of vehicles" [value]="v.id">
-          {{ v.name }} <span *ngIf="v.registrationNumber">({{ v.registrationNumber }})</span>
-        </mat-option>
-      </mat-select>
-    </mat-form-field>
-
-    <mat-form-field appearance="outline">
-      <mat-label>From</mat-label>
-      <input matInput type="datetime-local" [(ngModel)]="from">
-    </mat-form-field>
-
-    <mat-form-field appearance="outline">
-      <mat-label>To</mat-label>
-      <input matInput type="datetime-local" [(ngModel)]="to">
-    </mat-form-field>
-
-    <button class="btn btn-primary" (click)="load()" [disabled]="loading || !vehicleId">
+  <!-- Single compact toolbar -->
+  <header class="history-toolbar">
+    <div class="toolbar-search">
       <mat-icon>search</mat-icon>
-      Load History
-    </button>
+      <input
+        type="search"
+        [(ngModel)]="vehicleSearch"
+        placeholder="Search vehicle, plate, driver, IMEI…"
+        aria-label="Search vehicles" />
+    </div>
+
+    <div class="date-pills" role="group" aria-label="Date presets">
+      <button
+        type="button"
+        class="date-pill"
+        *ngFor="let p of presets"
+        [class.date-pill--active]="preset === p.id"
+        (click)="setPreset(p.id)">
+        {{ p.label }}
+      </button>
+    </div>
+
+    <div class="custom-dates" *ngIf="preset === 'custom'">
+      <label class="date-field">
+        <span>From</span>
+        <input type="datetime-local" [(ngModel)]="from" (change)="onCustomDatesChange()" />
+      </label>
+      <label class="date-field">
+        <span>To</span>
+        <input type="datetime-local" [(ngModel)]="to" (change)="onCustomDatesChange()" />
+      </label>
+    </div>
+
+    <p class="period-chip" *ngIf="from && to && preset !== 'custom'">
+      <mat-icon>schedule</mat-icon>
+      {{ periodLabelDetailed }}
+    </p>
+
+    <div class="history-toolbar__actions">
+      <button
+        mat-flat-button
+        color="primary"
+        type="button"
+        class="action-btn"
+        (click)="load()"
+        [disabled]="!canLoad"
+        [matTooltip]="!vehicleId ? 'Select a vehicle first' : ''">
+        <mat-icon>{{ bundle ? 'refresh' : 'play_circle' }}</mat-icon>
+        {{ loadButtonLabel }}
+      </button>
+
+      <button mat-stroked-button type="button" [matMenuTriggerFor]="exportMenu" [disabled]="!bundle" class="action-btn">
+        <mat-icon>download</mat-icon> Export
+      </button>
+      <mat-menu #exportMenu="matMenu">
+        <button mat-menu-item (click)="exportClient('pdf')"><mat-icon>picture_as_pdf</mat-icon> PDF</button>
+        <button mat-menu-item (click)="exportClient('excel')"><mat-icon>table_chart</mat-icon> Excel</button>
+        <button mat-menu-item (click)="exportClient('csv')"><mat-icon>description</mat-icon> CSV</button>
+        <button mat-menu-item (click)="exportServer('gpx')"><mat-icon>route</mat-icon> GPX</button>
+        <button mat-menu-item (click)="exportServer('geojson')"><mat-icon>map</mat-icon> GeoJSON</button>
+        <button mat-menu-item (click)="printRoute()"><mat-icon>print</mat-icon> Print snapshot</button>
+      </mat-menu>
+
+      <button mat-stroked-button type="button" [matMenuTriggerFor]="shareMenu" [disabled]="!vehicleId" class="action-btn">
+        <mat-icon>share</mat-icon> Share
+      </button>
+      <mat-menu #shareMenu="matMenu">
+        <button mat-menu-item (click)="copyShareUrl()"><mat-icon>link</mat-icon> Copy link</button>
+        <button mat-menu-item (click)="shareRouteText()"><mat-icon>content_copy</mat-icon> Share route summary</button>
+        <button mat-menu-item (click)="printRoute()"><mat-icon>image</mat-icon> Download snapshot</button>
+      </mat-menu>
+    </div>
+
+    <div class="route-filters" *ngIf="vehicleId">
+      <span class="route-filters__label">Show on map</span>
+      <button
+        type="button"
+        class="layer-pill"
+        *ngFor="let f of routeFilters"
+        [class.layer-pill--active]="isRouteFilterActive(f.id)"
+        (click)="toggleRouteFilter(f.id)">
+        <mat-icon>{{ f.icon }}</mat-icon>
+        {{ f.label }}
+      </button>
+    </div>
+
+    <p class="load-hint" *ngIf="loadHint && !error">{{ loadHint }}</p>
+    <div class="history-error" *ngIf="error">
+      <mat-icon>error</mat-icon> {{ error }}
+      <button mat-stroked-button type="button" (click)="retryLoad()">Retry</button>
+    </div>
+  </header>
+
+  <!-- Quick stats (single summary strip — right panel has the detail card) -->
+  <div class="quick-stats" *ngIf="bundle">
+    <div class="qs-item">
+      <span class="qs-val">{{ quickStats.distanceKm != null ? (quickStats.distanceKm | number:'1.1-1') + ' km' : '—' }}</span>
+      <span class="qs-lbl">Distance</span>
+    </div>
+    <div class="qs-item">
+      <span class="qs-val">{{ quickStats.moving }}</span>
+      <span class="qs-lbl">Moving</span>
+    </div>
+    <div class="qs-item">
+      <span class="qs-val">{{ quickStats.idle }}</span>
+      <span class="qs-lbl">Idle / stops</span>
+    </div>
+    <div class="qs-item">
+      <span class="qs-val">{{ quickStats.stops }}</span>
+      <span class="qs-lbl">Stops</span>
+    </div>
+    <div class="qs-item">
+      <span class="qs-val">{{ quickStats.parking }}</span>
+      <span class="qs-lbl">Parking</span>
+    </div>
+    <div class="qs-item">
+      <span class="qs-val">{{ quickStats.maxSpeed != null ? quickStats.maxSpeed + ' km/h' : '—' }}</span>
+      <span class="qs-lbl">Max speed</span>
+    </div>
+    <div class="qs-item">
+      <span class="qs-val">{{ quickStats.avgSpeed != null ? quickStats.avgSpeed + ' km/h' : '—' }}</span>
+      <span class="qs-lbl">Avg speed</span>
+    </div>
   </div>
 
-  <div *ngIf="error" class="error-banner">
-    <mat-icon>error_outline</mat-icon>
-    {{ error }}
-  </div>
+  <div class="history-grid">
+    <aside class="history-panel history-panel--left">
+      <div class="recent-block" *ngIf="recentVehicles.length && !vehicleSearch">
+        <h3 class="panel-subtitle">Recent</h3>
+        <button
+          type="button"
+          class="vehicle-card"
+          *ngFor="let v of recentVehicles"
+          [class.vehicle-card--active]="vehicleId === v.id"
+          (click)="selectVehicle(v.id)">
+          <ng-container *ngTemplateOutlet="vehicleCardBody; context: { $implicit: v }"></ng-container>
+        </button>
+      </div>
 
-  <!-- Map -->
-  <div class="map-card">
-    <div #mapEl class="leaflet-map"></div>
-    <div *ngIf="loading" class="map-overlay"><mat-spinner diameter="36"></mat-spinner></div>
-    <div *ngIf="!loading && rows.length === 0 && !error" class="map-placeholder">
-      <mat-icon>route</mat-icon>
-      <p>Select a vehicle and date range, then click Load History</p>
-    </div>
-  </div>
+      <div class="vehicle-scroll">
+        <h3 class="panel-subtitle" *ngIf="!vehicleSearch">All vehicles</h3>
+        <button
+          type="button"
+          class="vehicle-card"
+          *ngFor="let v of filteredVehicles"
+          [class.vehicle-card--active]="vehicleId === v.id"
+          (click)="selectVehicle(v.id)">
+          <ng-container *ngTemplateOutlet="vehicleCardBody; context: { $implicit: v }"></ng-container>
+        </button>
+        <p class="panel-empty" *ngIf="!filteredVehicles.length">No vehicles match your search.</p>
+      </div>
+    </aside>
 
-  <!-- Summary strip -->
-  <div *ngIf="summary" class="summary-strip">
-    <div class="summary-chip">
-      <mat-icon>timeline</mat-icon>
-      <span>{{ summary.points }} points</span>
-    </div>
-    <div class="summary-chip">
-      <mat-icon>timer</mat-icon>
-      <span>{{ summary.durationMin }} min</span>
-    </div>
-    <div class="summary-chip">
-      <mat-icon>speed</mat-icon>
-      <span>Avg {{ summary.avgSpeed }} km/h</span>
-    </div>
-    <div class="summary-chip">
-      <mat-icon>speed</mat-icon>
-      <span>Max {{ summary.maxSpeed }} km/h</span>
-    </div>
-  </div>
+    <main class="history-panel history-panel--center">
+      <app-trip-replay-map
+        [routePoints]="bundle?.route ?? []"
+        [positions]="playbackPositions"
+        [rawPoints]="rawPositions"
+        [stops]="bundle?.stops ?? []"
+        [events]="bundle?.events ?? []"
+        [loading]="loading"
+        [loadingProgress]="loadingProgress"
+        [loadingTimedOut]="loadingTimedOut"
+        [noData]="noData"
+        [driverName]="driverLabel(vehicleId ?? 0)"
+        [vehicleName]="selectedVehicle?.name ?? ''"
+        [plateNumber]="selectedVehicle?.registrationNumber ?? ''"
+        [vehicleType]="selectedVehicle?.vehicleType ?? ''"
+        [mapHeight]="'min(70vh, 620px)'"
+        [showLayerControls]="true"
+        [showLegend]="true"
+        [showGpsPointsLayer]="showGpsPoints"
+        [showStopsLayer]="showStopsLayer"
+        [showParkingLayer]="showParkingLayer"
+        [showGeofencesLayer]="showGeofencesLayer"
+        [showHeatmap]="showHeatmap"
+        [showRouteLayer]="showRouteLayer"
+        [historyMode]="true"
+        (positionSelected)="onPositionSelected($event)"
+        (retryRequested)="retryLoad()">
+      </app-trip-replay-map>
+    </main>
 
-  <!-- Positions table -->
-  <div class="table-card" *ngIf="rows.length > 0">
-    <div class="table-scroll">
-      <table class="data-table">
-        <thead>
-          <tr>
-            <th>#</th>
-            <th>Time</th>
-            <th>Latitude</th>
-            <th>Longitude</th>
-            <th>Speed (km/h)</th>
-            <th>Heading</th>
-            <th>Ignition</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr *ngFor="let r of rows; let i = index">
-            <td class="muted small">{{ i + 1 }}</td>
-            <td>{{ r.timestamp | date:'dd MMM, HH:mm:ss' }}</td>
-            <td class="mono">{{ r.latitude | number:'1.5-5' }}</td>
-            <td class="mono">{{ r.longitude | number:'1.5-5' }}</td>
-            <td>{{ r.speed | number:'1.0-1' }}</td>
-            <td class="muted">{{ r.heading != null ? (r.heading | number:'1.0-0') + '°' : '—' }}</td>
-            <td>
-              <span *ngIf="r.ignition != null" class="badge" [class.badge-green]="r.ignition" [class.badge-red]="!r.ignition">
-                {{ r.ignition ? 'ON' : 'OFF' }}
+    <aside class="history-panel history-panel--right">
+      <section class="detail-card">
+        <h2 class="panel-title">
+          <mat-icon>my_location</mat-icon> Position details
+        </h2>
+        <ng-container *ngIf="selectedPosition; else noPosition">
+          <dl class="detail-grid">
+            <dt>Time</dt>
+            <dd>{{ selectedPosition.timestamp | date:'medium' }}</dd>
+            <dt>Latitude</dt>
+            <dd>{{ selectedPosition.latitude | number:'1.5-5' }}</dd>
+            <dt>Longitude</dt>
+            <dd>{{ selectedPosition.longitude | number:'1.5-5' }}</dd>
+            <dt>Speed</dt>
+            <dd>{{ selectedPosition.speedKmh | number:'1.0-0' }} km/h</dd>
+            <dt>Heading</dt>
+            <dd>{{ headingLabel(selectedPosition.heading) }}</dd>
+            <dt>Ignition</dt>
+            <dd>
+              <span class="ignition-badge" [class.on]="selectedPosition.ignition === true" [class.off]="selectedPosition.ignition === false">
+                {{ selectedPosition.ignition == null ? '—' : (selectedPosition.ignition ? 'ON' : 'OFF') }}
               </span>
-              <span *ngIf="r.ignition == null" class="muted">—</span>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
+            </dd>
+            <dt>Address</dt>
+            <dd>{{ addressLabel(selectedPosition) }}</dd>
+            <dt>Battery</dt>
+            <dd>{{ selectedPosition.batteryLevel != null ? selectedPosition.batteryLevel + '%' : '—' }}</dd>
+            <dt>Altitude</dt>
+            <dd>{{ selectedPosition.altitude != null ? selectedPosition.altitude + ' m' : '—' }}</dd>
+            <dt>GSM signal</dt>
+            <dd>{{ gsmLabel(selectedPosition) }}</dd>
+            <dt>Odometer</dt>
+            <dd>{{ selectedPosition.totalDistanceKm != null ? (selectedPosition.totalDistanceKm | number:'1.1-1') + ' km' : '—' }}</dd>
+            <dt>Driver</dt>
+            <dd>{{ driverLabel(vehicleId ?? 0) }}</dd>
+          </dl>
+        </ng-container>
+        <ng-template #noPosition>
+          <div class="panel-empty-state">
+            <mat-icon>touch_app</mat-icon>
+            <p>Scrub the timeline or click the route to inspect a point.</p>
+          </div>
+        </ng-template>
+      </section>
 
+      <section class="detail-card">
+        <h2 class="panel-title">
+          <mat-icon>analytics</mat-icon> Route summary
+        </h2>
+        <ng-container *ngIf="bundle; else noStats">
+          <dl class="detail-grid">
+            <dt>Distance</dt>
+            <dd>{{ mileageKm != null ? (mileageKm | number:'1.1-1') + ' km' : '—' }}</dd>
+            <dt>Moving time</dt>
+            <dd>{{ formatDuration(movingMinutes) }}</dd>
+            <dt>Idle / stopped</dt>
+            <dd>{{ formatDuration(statistics?.idleMinutes ?? 0) }}</dd>
+            <dt>Max speed</dt>
+            <dd>{{ statistics?.maxSpeedKmh ?? bundle.summary?.maxSpeedKmh ?? '—' }} km/h</dd>
+            <dt>Avg speed</dt>
+            <dd>{{ statistics?.avgSpeedKmh ?? bundle.summary?.avgSpeedKmh ?? '—' }} km/h</dd>
+            <dt>Stops</dt>
+            <dd>{{ statistics?.stopCount ?? bundle.stops.length }}</dd>
+            <dt>Parking (≥2h)</dt>
+            <dd>{{ parkingCount }}</dd>
+            <dt>Engine hours</dt>
+            <dd>{{ statistics?.engineHours ?? '—' }} h</dd>
+            <dt>GPS points</dt>
+            <dd>{{ quickStats.points }}</dd>
+          </dl>
+          <div class="mileage-row" *ngIf="mileageKm != null">
+            <span class="mileage-chip">Odometer Δ {{ mileageKm | number:'1.1-1' }} km</span>
+            <span class="mileage-chip mileage-chip--today" *ngIf="showTodayMileageChip">Includes today</span>
+          </div>
+        </ng-container>
+        <ng-template #noStats>
+          <div class="panel-empty-state">
+            <mat-icon>route</mat-icon>
+            <p>Route statistics appear here after you load history.</p>
+          </div>
+        </ng-template>
+      </section>
+
+      <section class="detail-card" *ngIf="bundle?.stops?.length">
+        <h2 class="panel-title"><mat-icon>pause_circle</mat-icon> Stops &amp; parking</h2>
+        <ul class="stops-list">
+          <li *ngFor="let s of bundle!.stops | slice:0:15">
+            <span class="stop-type" [class.stop-type--parking]="s.durationMinutes >= 120">{{ stopLabel(s) }}</span>
+            <span class="stop-dur">{{ formatDuration(s.durationMinutes) }}</span>
+            <span class="stop-time">{{ s.startTime | date:'short' }}</span>
+            <span class="stop-addr">{{ s.address ?? '' }}</span>
+          </li>
+        </ul>
+      </section>
+    </aside>
+  </div>
 </div>
+
+<ng-template #vehicleCardBody let-v>
+  <div class="vehicle-card__head">
+    <span class="vehicle-card__name">{{ v.name }}</span>
+    <span class="vehicle-card__status" [class]="'vehicle-card__status--' + vehicleStatusClass(v)">
+      <span class="status-dot"></span>
+      {{ vehicleStatusLabel(v) }}
+    </span>
+  </div>
+  <span class="vehicle-card__plate">Plate: {{ v.registrationNumber || '—' }}</span>
+  <span class="vehicle-card__driver">Driver: {{ driverLabel(v.id) }}</span>
+  <span class="vehicle-card__tracker">Tracker: {{ trackerLabel(v.id) }}</span>
+  <span class="vehicle-card__imei" *ngIf="imeiLabel(v.id) !== '—'">IMEI: {{ imeiLabel(v.id) }}</span>
+  <span class="vehicle-card__imei vehicle-card__imei--missing" *ngIf="imeiLabel(v.id) === '—'">No tracker linked</span>
+</ng-template>

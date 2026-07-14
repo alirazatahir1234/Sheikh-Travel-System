@@ -98,7 +98,8 @@ public record TripReplayPositionDto(
     double? Altitude,
     string? Address,
     decimal? BatteryLevel,
-    int? Satellites);
+    int? Satellites,
+    decimal? TotalDistanceKm = null);
 
 public record TripEventDto(
     DateTime Time,
@@ -106,7 +107,20 @@ public record TripEventDto(
     double? Latitude,
     double? Longitude,
     string? Address,
-    decimal? SpeedKmh);
+    decimal? SpeedKmh,
+    int? GeofenceId = null,
+    string? GeofenceName = null,
+    string? Label = null);
+
+public record HistoryReplayBundleDto(
+    IReadOnlyList<TripReplayPositionDto> Route,
+    IReadOnlyList<TripReplayPositionDto> Playback,
+    IReadOnlyList<TripStopDto> Stops,
+    IReadOnlyList<TripEventDto> Events,
+    TripReplaySummaryDto? Summary,
+    TripAnalyticsSummaryDto? Statistics,
+    double? MileageKm,
+    TripDeviceContextDto? Vehicle);
 
 public record TripStopDto(
     DateTime StartTime,

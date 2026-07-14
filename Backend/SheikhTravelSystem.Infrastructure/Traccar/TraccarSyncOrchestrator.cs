@@ -120,7 +120,8 @@ public sealed class TraccarSyncOrchestrator(
                     // Traccar reports totalDistance in meters; convert to km for storage/display.
                     TotalDistanceKm: pos.Attributes.TotalDistance.HasValue ? pos.Attributes.TotalDistance / 1000m : null,
                     Address: pos.Address,
-                    AlarmType: pos.Attributes.Alarm);
+                    AlarmType: pos.Attributes.Alarm,
+                    Temperature: pos.Attributes.ResolvedTemperature);
 
                 try
                 {
@@ -307,7 +308,8 @@ public sealed class TraccarSyncOrchestrator(
                         // Traccar reports totalDistance in meters; convert to km for storage/display.
                         TotalDistanceKm: pos.Attributes.TotalDistance.HasValue ? pos.Attributes.TotalDistance / 1000m : null,
                         Address: pos.Address,
-                        AlarmType: pos.Attributes.Alarm);
+                        AlarmType: pos.Attributes.Alarm,
+                        Temperature: pos.Attributes.ResolvedTemperature);
 
                     try
                     {
@@ -425,25 +427,21 @@ public sealed class TraccarSyncOrchestrator(
                         continue;
                     }
 
-                    var eventType = MapEventType(ev.Type);
-                    var message = FormatEventMessage(ev.Type);
+                    var eventType = MapEventType(ev);
+                    var message = FormatEventMessage(eventType);
                     var timestamp = ev.EventTime.ToUniversalTime();
 
-                    await connection.ExecuteAsync(new CommandDefinition(
-                        @"INSERT INTO GpsAlertEvents
-                          (RuleId, VehicleId, GeofenceId, EventType, Latitude, Longitude, Speed, Message,
-                           Timestamp, ExternalEventId, CreatedAt, IsDeleted)
-                          VALUES (NULL, @VehicleId, NULL, @EventType, 0, 0, 0, @Message,
-                                  @Timestamp, @ExternalEventId, GETUTCDATE(), 0)",
-                        new
-                        {
-                            device.VehicleId,
-                            EventType = eventType,
-                            Message = message,
-                            Timestamp = timestamp,
-                            ExternalEventId = externalId
-                        },
-                        cancellationToken: ct));
+                    await GpsAlertWriter.InsertAsync(
+                        connection,
+                        device.VehicleId,
+                        ev.Latitude ?? 0,
+                        ev.Longitude ?? 0,
+                        (decimal)(ev.SpeedKnots.HasValue ? ev.SpeedKnots.Value * 1.852 : 0),
+                        eventType,
+                        message,
+                        timestamp,
+                        externalEventId: externalId,
+                        cancellationToken: ct);
                     imported++;
                 }
 
@@ -465,24 +463,35 @@ public sealed class TraccarSyncOrchestrator(
         }
     }
 
-    private static string MapEventType(string traccarType) => traccarType switch
+    private static string MapEventType(TraccarEvent ev) => ev.Type switch
     {
         "deviceOnline" => "device_online",
         "deviceOffline" => "device_offline",
         "geofenceEnter" => "geofence_enter",
         "geofenceExit" => "geofence_exit",
-        "alarm" => "alarm",
-        _ => traccarType.ToLowerInvariant()
+        "alarm" => MapAlarmType(ev.Attributes?.Alarm),
+        _ => ev.Type.ToLowerInvariant()
     };
 
-    private static string FormatEventMessage(string traccarType) => traccarType switch
+    private static string MapAlarmType(string? alarm) => alarm?.ToLowerInvariant() switch
     {
-        "deviceOnline" => "Device came online",
-        "deviceOffline" => "Device went offline",
-        "geofenceEnter" => "Entered geofence",
-        "geofenceExit" => "Exited geofence",
+        "sos" or "panic" => "sos",
+        "powercut" or "poweroff" or "powerdisconnect" => "power_cut",
+        "gpsantennacut" or "gpslost" or "nofix" or "gpsjamming" => "gps_lost",
+        _ => "alarm"
+    };
+
+    private static string FormatEventMessage(string eventType) => eventType switch
+    {
+        "device_online" => "Device came online",
+        "device_offline" => "Device went offline",
+        "geofence_enter" => "Entered geofence",
+        "geofence_exit" => "Exited geofence",
+        "sos" => "SOS / panic alarm triggered",
+        "power_cut" => "External power disconnected",
+        "gps_lost" => "GPS signal lost",
         "alarm" => "Device alarm",
-        _ => $"Traccar event: {traccarType}"
+        _ => $"Traccar event: {eventType}"
     };
 
     private static TraccarSyncRunResult SingleJob(

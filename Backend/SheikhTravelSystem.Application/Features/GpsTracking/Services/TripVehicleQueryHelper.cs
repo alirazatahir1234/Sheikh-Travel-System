@@ -8,6 +8,7 @@ namespace SheikhTravelSystem.Application.Features.GpsTracking.Services;
 internal static class TripVehicleQueryHelper
 {
     internal static readonly TimeSpan MaxRange = TimeSpan.FromDays(30);
+    internal static readonly TimeSpan MaxHistoryRange = TimeSpan.FromDays(366);
     private static readonly TimeSpan OnlineWindow = TimeSpan.FromMinutes(30);
 
     internal sealed record VehicleTripSource(
@@ -35,6 +36,26 @@ internal static class TripVehicleQueryHelper
         if (!vehicleId.HasValue)
         {
             return ApiResponse<T>.FailResponse("Select a vehicle to view trips.");
+        }
+
+        return null;
+    }
+
+    internal static ApiResponse<T>? ValidateHistoryRequest<T>(int? vehicleId, DateTime fromDate, DateTime toDate)
+    {
+        if (fromDate > toDate)
+        {
+            return ApiResponse<T>.FailResponse("End Date cannot be earlier than Start Date.");
+        }
+
+        if (toDate - fromDate > MaxHistoryRange)
+        {
+            return ApiResponse<T>.FailResponse("Date range cannot exceed 366 days.");
+        }
+
+        if (!vehicleId.HasValue)
+        {
+            return ApiResponse<T>.FailResponse("Select a vehicle to view history.");
         }
 
         return null;

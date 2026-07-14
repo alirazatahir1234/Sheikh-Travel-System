@@ -25,6 +25,8 @@ public static class GpsTelemetryFieldsMigration
                     ALTER TABLE VehicleCurrentLocation ADD Address NVARCHAR(500) NULL;
                 IF COL_LENGTH('VehicleCurrentLocation', 'AlarmType') IS NULL
                     ALTER TABLE VehicleCurrentLocation ADD AlarmType NVARCHAR(50) NULL;
+                IF COL_LENGTH('VehicleCurrentLocation', 'Temperature') IS NULL
+                    ALTER TABLE VehicleCurrentLocation ADD Temperature DECIMAL(6,2) NULL;
                 """, cancellationToken: cancellationToken));
 
             await connection.ExecuteAsync(new CommandDefinition("""
@@ -40,6 +42,8 @@ public static class GpsTelemetryFieldsMigration
                     ALTER TABLE GpsPositions ADD Address NVARCHAR(500) NULL;
                 IF COL_LENGTH('GpsPositions', 'AlarmType') IS NULL
                     ALTER TABLE GpsPositions ADD AlarmType NVARCHAR(50) NULL;
+                IF COL_LENGTH('GpsPositions', 'Temperature') IS NULL
+                    ALTER TABLE GpsPositions ADD Temperature DECIMAL(6,2) NULL;
                 """, cancellationToken: cancellationToken));
 
             logger.LogInformation("GpsTelemetryFieldsMigration applied successfully.");

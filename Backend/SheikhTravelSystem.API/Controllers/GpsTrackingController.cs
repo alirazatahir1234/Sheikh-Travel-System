@@ -38,6 +38,22 @@ public class GpsTrackingController : BaseApiController
     public async Task<IActionResult> GetHistory(int vehicleId, [FromQuery] DateTime? from, [FromQuery] DateTime? to)
         => Ok(await Mediator.Send(new GetPositionHistoryQuery(vehicleId, from, to)));
 
+    [HttpGet("history/replay")]
+    public async Task<IActionResult> GetHistoryReplay([FromQuery] int? vehicleId, [FromQuery] DateTime? from, [FromQuery] DateTime? to)
+        => Ok(await Mediator.Send(new GetHistoryReplayQuery(vehicleId, from, to)));
+
+    [HttpGet("history/{vehicleId:int}/export")]
+    public async Task<IActionResult> ExportHistory(
+        int vehicleId,
+        [FromQuery] DateTime? from,
+        [FromQuery] DateTime? to,
+        [FromQuery] string format = "csv")
+    {
+        var result = await Mediator.Send(new GetHistoryExportQuery(vehicleId, from, to, format));
+        if (!result.Success || result.Data is null)
+            return Ok(result);
+        return File(result.Data.Bytes, result.Data.ContentType, result.Data.FileName);
+    }
 
     [HttpGet("trips/analytics")]
     public async Task<IActionResult> GetTripAnalytics([FromQuery] int? vehicleId, [FromQuery] DateTime? from, [FromQuery] DateTime? to)
@@ -100,8 +116,16 @@ public class GpsTrackingController : BaseApiController
         => Ok(await Mediator.Send(new GetFleetTripSummaryQuery(from, to, branchId, departmentId, driverId)));
 
     [HttpGet("geofences")]
-    public async Task<IActionResult> GetGeofences()
-        => Ok(await Mediator.Send(new GetGeofencesQuery()));
+    public async Task<IActionResult> GetGeofences(
+        [FromQuery] string? search,
+        [FromQuery] string? areaType,
+        [FromQuery] bool? isActive,
+        [FromQuery] int? vehicleId)
+        => Ok(await Mediator.Send(new GetGeofencesQuery(search, areaType, isActive, vehicleId)));
+
+    [HttpGet("geofences/stats")]
+    public async Task<IActionResult> GetGeofenceStats()
+        => Ok(await Mediator.Send(new GetGeofenceStatsQuery()));
 
     [HttpPost("geofences")]
     public async Task<IActionResult> CreateGeofence([FromBody] CreateGeofenceDto geofence)
@@ -118,6 +142,29 @@ public class GpsTrackingController : BaseApiController
     public async Task<IActionResult> DeleteGeofence(int id)
         => Ok(await Mediator.Send(new DeleteGeofenceCommand(id)));
 
+    [HttpPost("geofences/{id:int}/duplicate")]
+    public async Task<IActionResult> DuplicateGeofence(int id)
+    {
+        var result = await Mediator.Send(new DuplicateGeofenceCommand(id));
+        return Created(string.Empty, result);
+    }
+
+    [HttpGet("geofences/{id:int}/assignments")]
+    public async Task<IActionResult> GetGeofenceAssignments(int id)
+        => Ok(await Mediator.Send(new GetGeofenceAssignmentsQuery(id)));
+
+    [HttpPost("geofences/{id:int}/assignments")]
+    public async Task<IActionResult> UpsertGeofenceAssignments(int id, [FromBody] UpsertGeofenceAssignmentsDto body)
+        => Ok(await Mediator.Send(new UpsertGeofenceAssignmentsCommand(id, body)));
+
+    [HttpDelete("geofences/{id:int}/assignments/{assignmentId:int}")]
+    public async Task<IActionResult> DeleteGeofenceAssignment(int id, int assignmentId)
+        => Ok(await Mediator.Send(new DeleteGeofenceAssignmentCommand(id, assignmentId)));
+
+    [HttpGet("geofences/{id:int}/events")]
+    public async Task<IActionResult> GetGeofenceEvents(int id, [FromQuery] DateTime? from, [FromQuery] DateTime? to)
+        => Ok(await Mediator.Send(new GetGeofenceEventsQuery(id, from, to)));
+
     [HttpGet("alerts/rules")]
     public async Task<IActionResult> GetAlertRules()
         => Ok(await Mediator.Send(new GetGpsAlertRulesQuery()));
@@ -130,12 +177,45 @@ public class GpsTrackingController : BaseApiController
     }
 
     [HttpGet("alerts/events")]
-    public async Task<IActionResult> GetAlertEvents([FromQuery] int? vehicleId, [FromQuery] bool? unacknowledgedOnly)
-        => Ok(await Mediator.Send(new GetGpsAlertEventsQuery(vehicleId, unacknowledgedOnly)));
+    public async Task<IActionResult> GetAlertEvents(
+        [FromQuery] int? vehicleId,
+        [FromQuery] bool? unacknowledgedOnly,
+        [FromQuery] DateTime? from,
+        [FromQuery] DateTime? to,
+        [FromQuery] int? driverId,
+        [FromQuery] string? eventType,
+        [FromQuery] string? severity,
+        [FromQuery] string? status)
+        => Ok(await Mediator.Send(new GetGpsAlertEventsQuery(
+            vehicleId, unacknowledgedOnly, from, to, driverId, eventType, severity, status)));
+
+    [HttpGet("alerts/events/{id:int}")]
+    public async Task<IActionResult> GetAlertEvent(int id)
+        => Ok(await Mediator.Send(new GetGpsAlertEventByIdQuery(id)));
+
+    [HttpGet("alerts/stats")]
+    public async Task<IActionResult> GetAlertStats()
+        => Ok(await Mediator.Send(new GetGpsAlertStatsQuery()));
 
     [HttpPost("alerts/events/{id:int}/acknowledge")]
     public async Task<IActionResult> AcknowledgeAlert(int id)
         => Ok(await Mediator.Send(new AcknowledgeGpsAlertCommand(id)));
+
+    [HttpPost("alerts/events/{id:int}/resolve")]
+    public async Task<IActionResult> ResolveAlert(int id, [FromBody] ResolveGpsAlertDto resolution)
+        => Ok(await Mediator.Send(new ResolveGpsAlertCommand(id, resolution)));
+
+    [HttpDelete("alerts/events/{id:int}")]
+    public async Task<IActionResult> DeleteAlertEvent(int id)
+        => Ok(await Mediator.Send(new DeleteGpsAlertEventCommand(id)));
+
+    [HttpGet("alerts/settings")]
+    public async Task<IActionResult> GetAlertSettings()
+        => Ok(await Mediator.Send(new GetAlertSettingsQuery()));
+
+    [HttpPut("alerts/settings")]
+    public async Task<IActionResult> UpdateAlertSettings([FromBody] UpdateAlertSettingsDto settings)
+        => Ok(await Mediator.Send(new UpdateAlertSettingsCommand(settings)));
 
     [HttpGet("alerts/geofence-breaches/count")]
     public async Task<IActionResult> GetGeofenceBreachCount()
@@ -280,6 +360,11 @@ public class GpsTrackingController : BaseApiController
         return match.Key ?? "teltonika_fmb920";
     }
 
+    [RequirePermission(GpsPermissions.CommandView)]
+    [HttpGet("commands/supported/{deviceId:int}")]
+    public async Task<IActionResult> GetSupportedCommands(int deviceId)
+        => Ok(await Mediator.Send(new GetDeviceSupportedCommandsQuery(deviceId)));
+
     [RequirePermission(GpsPermissions.CommandSend)]
     [HttpPost("commands/send")]
     public async Task<IActionResult> SendCommand([FromBody] SendDeviceCommandDto command)
@@ -288,9 +373,37 @@ public class GpsTrackingController : BaseApiController
         return Created(string.Empty, result);
     }
 
+    [RequirePermission(GpsPermissions.CommandView)]
     [HttpGet("commands/{deviceId:int}")]
-    public async Task<IActionResult> GetCommands(int deviceId)
-        => Ok(await Mediator.Send(new GetDeviceCommandsQuery(deviceId)));
+    public async Task<IActionResult> GetCommands(
+        int deviceId,
+        [FromQuery] string? status,
+        [FromQuery] string? commandType,
+        [FromQuery] DateTime? from,
+        [FromQuery] DateTime? to,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 50)
+        => Ok(await Mediator.Send(new GetDeviceCommandsQuery(deviceId, status, commandType, from, to, page, pageSize)));
+
+    [RequirePermission(GpsPermissions.CommandView)]
+    [HttpGet("commands/item/{id:int}")]
+    public async Task<IActionResult> GetCommandById(int id)
+        => Ok(await Mediator.Send(new GetDeviceCommandByIdQuery(id)));
+
+    [RequirePermission(GpsPermissions.CommandView)]
+    [HttpGet("commands/vehicle/{vehicleId:int}")]
+    public async Task<IActionResult> GetVehicleCommands(int vehicleId, [FromQuery] int page = 1, [FromQuery] int pageSize = 50)
+        => Ok(await Mediator.Send(new GetVehicleCommandsQuery(vehicleId, page, pageSize)));
+
+    [RequirePermission(GpsPermissions.CommandRetry)]
+    [HttpPost("commands/{id:int}/retry")]
+    public async Task<IActionResult> RetryCommand(int id)
+        => Ok(await Mediator.Send(new RetryDeviceCommandCommand(id)));
+
+    [RequirePermission(GpsPermissions.CommandCancel)]
+    [HttpPost("commands/{id:int}/cancel")]
+    public async Task<IActionResult> CancelCommand(int id, [FromQuery] string? reason)
+        => Ok(await Mediator.Send(new CancelDeviceCommandCommand(id, reason)));
 
     [HttpGet("commands/pending")]
     [AllowAnonymous]
@@ -299,8 +412,8 @@ public class GpsTrackingController : BaseApiController
 
     [HttpPost("commands/{id:int}/complete")]
     [AllowAnonymous]
-    public async Task<IActionResult> CompleteCommand(int id, [FromQuery] string status = "ack")
-        => Ok(await Mediator.Send(new CompleteDeviceCommandCommand(id, status)));
+    public async Task<IActionResult> CompleteCommand(int id, [FromBody] CompleteDeviceCommandDto body)
+        => Ok(await Mediator.Send(new CompleteDeviceCommandCommand(id, body.UniqueId, body.Status, body.ResponseText, body.ErrorMessage)));
 
     [HttpGet("eta")]
     public async Task<IActionResult> GetEta([FromQuery] int bookingId)
@@ -313,8 +426,10 @@ public class GpsTrackingController : BaseApiController
     public async Task<IActionResult> GetTraccarStatus(
         [FromServices] ITraccarClient traccar,
         [FromServices] IDbConnectionFactory dbFactory,
-        [FromServices] ITenantContext tenantContext)
+        [FromServices] ITenantContext tenantContext,
+        [FromServices] IOptions<TraccarOptions> traccarOptions)
     {
+        var syncEnabled = traccarOptions.Value.Enabled;
         var server = await traccar.GetServerAsync(HttpContext.RequestAborted);
         var devices = await traccar.GetDevicesAsync(HttpContext.RequestAborted);
         var connected = server is not null || devices.Count > 0;
@@ -322,23 +437,37 @@ public class GpsTrackingController : BaseApiController
         var tenantId = tenantContext.GetRequiredTenantId();
         using var connection = dbFactory.CreateConnection();
         var linkedCount = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
-            """
+            $"""
             SELECT COUNT(*)
             FROM GpsDevices d
             LEFT JOIN Vehicles v ON v.Id = d.VehicleId AND v.IsDeleted = 0
             WHERE d.IsDeleted = 0
               AND d.TraccarDeviceId IS NOT NULL
-            """ + TrackerTenantSql.DeviceScopeFilter,
+              {TrackerTenantSql.DeviceScopeFilter}
+            """,
             new { TenantId = tenantId },
             cancellationToken: HttpContext.RequestAborted));
 
+        if (!syncEnabled)
+        {
+            var reachabilityNote = connected
+                ? "Traccar reachable but sync is disabled (Traccar:Enabled=false)."
+                : "Traccar sync is disabled (Traccar:Enabled=false).";
+            return Ok(new TraccarStatusDto(
+                Connected: connected,
+                ServerVersion: server?.Version,
+                DeviceCount: linkedCount,
+                LastError: reachabilityNote,
+                SyncEnabled: false));
+        }
+
         if (server is not null)
-            return Ok(new TraccarStatusDto(true, server.Version, linkedCount));
+            return Ok(new TraccarStatusDto(true, server.Version, linkedCount, SyncEnabled: true));
 
         if (connected)
-            return Ok(new TraccarStatusDto(true, null, linkedCount, "Server info unavailable; device API reachable."));
+            return Ok(new TraccarStatusDto(true, null, linkedCount, "Server info unavailable; device API reachable.", SyncEnabled: true));
 
-        return Ok(new TraccarStatusDto(false, null, linkedCount, "Traccar server unreachable."));
+        return Ok(new TraccarStatusDto(false, null, linkedCount, "Traccar server unreachable.", SyncEnabled: true));
     }
 
     [HttpGet("traccar/devices")]

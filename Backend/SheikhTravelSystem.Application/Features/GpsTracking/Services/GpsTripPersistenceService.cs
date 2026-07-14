@@ -18,7 +18,7 @@ public static class GpsTripPersistenceService
         var fromDate = lastTripEnd ?? DateTime.UtcNow.AddHours(-24);
         var toDate = DateTime.UtcNow;
 
-        var rows = await connection.QueryAsync<PositionDto>(new CommandDefinition(
+        var rows = await connection.QueryAsync<GpsPositionHistoryRow>(new CommandDefinition(
             @"SELECT Id, VehicleId, DriverId, BookingId, GpsDeviceId, Latitude, Longitude, Speed,
                      Heading, Altitude, Ignition, RecordedAt AS Timestamp
               FROM GpsPositions
@@ -27,7 +27,7 @@ public static class GpsTripPersistenceService
             new { VehicleId = vehicleId, FromDate = fromDate, ToDate = toDate },
             cancellationToken: cancellationToken));
 
-        var positions = rows.ToList();
+        var positions = rows.Select(GpsPositionHistoryMapper.ToPositionDto).ToList();
         if (positions.Count < 2)
         {
             return;

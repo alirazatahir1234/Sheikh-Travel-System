@@ -53,9 +53,9 @@ public static class GpsPositionIngestionHelper
         await connection.ExecuteAsync(new CommandDefinition(
             @"INSERT INTO GpsPositions
               (VehicleId, GpsDeviceId, DriverId, BookingId, Latitude, Longitude, Speed, Heading, Altitude, Ignition, RecordedAt, CreatedAt,
-               FuelLevel, BatteryLevel, GsmSignal, TotalDistanceKm, Address, AlarmType)
+               FuelLevel, BatteryLevel, GsmSignal, TotalDistanceKm, Address, AlarmType, Temperature)
               VALUES (@VehicleId, @GpsDeviceId, @DriverId, @BookingId, @Latitude, @Longitude, @Speed, @Heading, @Altitude, @Ignition, @RecordedAt, @RecordedAt,
-               @FuelLevel, @BatteryLevel, @GsmSignal, @TotalDistanceKm, @Address, @AlarmType)",
+               @FuelLevel, @BatteryLevel, @GsmSignal, @TotalDistanceKm, @Address, @AlarmType, @Temperature)",
             new
             {
                 dto.VehicleId,
@@ -74,7 +74,8 @@ public static class GpsPositionIngestionHelper
                 dto.GsmSignal,
                 dto.TotalDistanceKm,
                 dto.Address,
-                dto.AlarmType
+                dto.AlarmType,
+                dto.Temperature
             },
             cancellationToken: cancellationToken));
 
@@ -88,12 +89,13 @@ public static class GpsPositionIngestionHelper
                 Latitude = @Latitude, Longitude = @Longitude, Speed = @Speed, Heading = @Heading,
                 Ignition = @Ignition, LastUpdate = @LastUpdate,
                 FuelLevel = @FuelLevel, BatteryLevel = @BatteryLevel, GsmSignal = @GsmSignal,
-                TotalDistanceKm = @TotalDistanceKm, Address = @Address, AlarmType = @AlarmType
+                TotalDistanceKm = @TotalDistanceKm, Address = @Address, AlarmType = @AlarmType,
+                Temperature = @Temperature
             WHEN NOT MATCHED THEN
               INSERT (VehicleId, GpsDeviceId, DriverId, BookingId, Latitude, Longitude, Speed, Heading, Ignition, LastUpdate,
-                FuelLevel, BatteryLevel, GsmSignal, TotalDistanceKm, Address, AlarmType)
+                FuelLevel, BatteryLevel, GsmSignal, TotalDistanceKm, Address, AlarmType, Temperature)
               VALUES (@VehicleId, @GpsDeviceId, @DriverId, @BookingId, @Latitude, @Longitude, @Speed, @Heading, @Ignition, @LastUpdate,
-                @FuelLevel, @BatteryLevel, @GsmSignal, @TotalDistanceKm, @Address, @AlarmType);
+                @FuelLevel, @BatteryLevel, @GsmSignal, @TotalDistanceKm, @Address, @AlarmType, @Temperature);
             """,
             new
             {
@@ -112,7 +114,8 @@ public static class GpsPositionIngestionHelper
                 dto.GsmSignal,
                 dto.TotalDistanceKm,
                 dto.Address,
-                dto.AlarmType
+                dto.AlarmType,
+                dto.Temperature
             },
             cancellationToken: cancellationToken));
 

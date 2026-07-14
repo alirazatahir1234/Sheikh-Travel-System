@@ -4,6 +4,7 @@ using MediatR;
 using Microsoft.Extensions.Options;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Interfaces;
+using SheikhTravelSystem.Application.Features.GpsTracking;
 using SheikhTravelSystem.Application.Features.GpsTracking.DTOs;
 using SheikhTravelSystem.Application.Features.GpsTracking.Services;
 using SheikhTravelSystem.Application.Features.GpsTracking.Traccar;
@@ -28,7 +29,8 @@ public class IngestPositionCommandHandler(
     INotificationService notifications,
     ILocationBroadcastService broadcaster,
     ICurrentUserService currentUser,
-    IOptions<TraccarOptions> traccarOptions)
+    IOptions<TraccarOptions> traccarOptions,
+    IOptions<GpsSettings> gpsSettings)
     : IRequestHandler<IngestPositionCommand, ApiResponse<bool>>
 {
     public async Task<ApiResponse<bool>> Handle(IngestPositionCommand request, CancellationToken cancellationToken)
@@ -89,14 +91,25 @@ public class IngestPositionCommandHandler(
         await EvaluateSosAsync(connection, ingestDto, recordedAt, cancellationToken);
         await EvaluateIgnitionTransitionAsync(connection, ingestDto, previousIgnition, recordedAt, cancellationToken);
         await EvaluateLowFuelAsync(connection, ingestDto, recordedAt, cancellationToken);
+        await EvaluateLowBatteryAsync(connection, ingestDto, recordedAt, cancellationToken);
+        await EvaluatePowerCutAsync(connection, ingestDto, recordedAt, cancellationToken);
+        await EvaluateGpsLostAsync(connection, ingestDto, recordedAt, cancellationToken);
 
         // A position just arrived for this vehicle, so it's no longer offline — clear any
-        // outstanding offline alert the background detector raised while it was unreachable.
-        await connection.ExecuteAsync(new CommandDefinition(
-            @"UPDATE GpsAlertEvents SET IsAcknowledged = 1
+        // outstanding offline alert the background detector raised while it was unreachable, and
+        // fire a one-time "online" event (rows affected > 0 means it actually was flagged offline).
+        var clearedOffline = await connection.ExecuteAsync(new CommandDefinition(
+            @"UPDATE GpsAlertEvents
+              SET IsAcknowledged = 1, Status = 'acknowledged', AcknowledgedAt = GETUTCDATE(), AcknowledgedBy = 'system'
               WHERE VehicleId = @VehicleId AND EventType = 'vehicle_offline' AND IsAcknowledged = 0 AND IsDeleted = 0",
             new { dto.VehicleId },
             cancellationToken: cancellationToken));
+
+        if (clearedOffline > 0)
+        {
+            await InsertAlertAsync(connection, null, ingestDto, null, "online",
+                "Vehicle back online", recordedAt, cancellationToken);
+        }
 
         if (GpsPositionIngestionHelper.ShouldAttemptTripPersistence(dto.Speed, dto.Ignition, previousSpeed))
         {
@@ -118,6 +131,7 @@ public class IngestPositionCommandHandler(
             dto.TotalDistanceKm,
             dto.Address,
             dto.AlarmType,
+            dto.Temperature,
             cancellationToken);
 
         return ApiResponse<bool>.SuccessResponse(true, "Position recorded.");
@@ -189,6 +203,22 @@ public class IngestPositionCommandHandler(
         {
             if (rule.SpeedLimitKmh.HasValue && dto.Speed > rule.SpeedLimitKmh.Value)
             {
+                // Re-alert at most every OverspeedDedupMinutes while continuously over the limit,
+                // rather than once per position tick.
+                var recentOverspeed = await connection.ExecuteScalarAsync<bool>(new CommandDefinition(
+                    @"SELECT CASE WHEN EXISTS(
+                        SELECT 1 FROM GpsAlertEvents
+                        WHERE VehicleId = @VehicleId AND EventType = 'speed_exceeded' AND IsDeleted = 0
+                        AND Timestamp > DATEADD(MINUTE, -@Minutes, @Timestamp)
+                      ) THEN 1 ELSE 0 END",
+                    new { dto.VehicleId, Minutes = OverspeedDedupMinutes, Timestamp = timestamp },
+                    cancellationToken: cancellationToken));
+
+                if (recentOverspeed)
+                {
+                    continue;
+                }
+
                 await InsertAlertAsync(connection, rule.Id, dto, null, "speed_exceeded",
                     $"Speed {dto.Speed:F0} km/h exceeds limit {rule.SpeedLimitKmh:F0} km/h",
                     timestamp, cancellationToken);
@@ -199,45 +229,102 @@ public class IngestPositionCommandHandler(
                     dto.VehicleId,
                     cancellationToken);
             }
+        }
 
-            if (!rule.GeofenceId.HasValue)
+        await EvaluateGeofenceCrossingsAsync(connection, dto, rules.ToList(), timestamp, cancellationToken);
+    }
+
+    private const int OverspeedDedupMinutes = 5;
+
+    private static async Task EvaluateGeofenceCrossingsAsync(
+        System.Data.IDbConnection connection,
+        IngestPositionDto dto,
+        IReadOnlyList<(int Id, int? VehicleId, decimal? SpeedLimitKmh, int? GeofenceId, bool AlertOnEnter, bool AlertOnExit)> rules,
+        DateTime timestamp,
+        CancellationToken cancellationToken)
+    {
+        var vehicle = await connection.QueryFirstOrDefaultAsync<(int? BranchId, int? DepartmentId)>(
+            new CommandDefinition(
+                "SELECT BranchId, DepartmentId FROM Vehicles WHERE Id = @Id AND IsDeleted = 0",
+                new { Id = dto.VehicleId },
+                cancellationToken: cancellationToken));
+
+        var assigned = (await connection.QueryAsync<(int Id, string Name, string AreaType, double CenterLat, double CenterLng, double RadiusMeters, string? GeoJson)>(
+            new CommandDefinition(
+                """
+                SELECT DISTINCT g.Id, g.Name, g.AreaType, g.CenterLat, g.CenterLng, g.RadiusMeters, g.GeoJson
+                FROM Geofences g
+                INNER JOIN GeofenceAssignments a ON a.GeofenceId = g.Id AND a.IsDeleted = 0
+                WHERE g.IsActive = 1 AND g.IsDeleted = 0
+                  AND (
+                    a.VehicleId = @VehicleId
+                    OR (@BranchId IS NOT NULL AND a.BranchId = @BranchId)
+                    OR (@DepartmentId IS NOT NULL AND a.DepartmentId = @DepartmentId)
+                  )
+                """,
+                new { dto.VehicleId, vehicle.BranchId, vehicle.DepartmentId },
+                cancellationToken: cancellationToken))).ToList();
+
+        // Flags: AlertOnEnter / AlertOnExit. Assignments always use (true, true).
+        var watch = new Dictionary<int, (string Name, string AreaType, double CenterLat, double CenterLng, double RadiusMeters, string? GeoJson, bool OnEnter, bool OnExit, int? RuleId)>();
+
+        foreach (var g in assigned)
+        {
+            watch[g.Id] = (g.Name, g.AreaType, g.CenterLat, g.CenterLng, g.RadiusMeters, g.GeoJson, true, true, null);
+        }
+
+        foreach (var rule in rules.Where(r => r.GeofenceId.HasValue))
+        {
+            var gid = rule.GeofenceId!.Value;
+            if (watch.ContainsKey(gid))
             {
+                var existing = watch[gid];
+                watch[gid] = existing with
+                {
+                    OnEnter = existing.OnEnter || rule.AlertOnEnter,
+                    OnExit = existing.OnExit || rule.AlertOnExit,
+                    RuleId = rule.Id
+                };
                 continue;
             }
 
-            var geofence = await connection.QueryFirstOrDefaultAsync<(int Id, string Name, double CenterLat, double CenterLng, double RadiusMeters)>(
+            var geofence = await connection.QueryFirstOrDefaultAsync<(int Id, string Name, string AreaType, double CenterLat, double CenterLng, double RadiusMeters, string? GeoJson)>(
                 new CommandDefinition(
-                    "SELECT Id, Name, CenterLat, CenterLng, RadiusMeters FROM Geofences WHERE Id = @Id AND IsActive = 1 AND IsDeleted = 0",
-                    new { Id = rule.GeofenceId.Value },
+                    @"SELECT Id, Name, AreaType, CenterLat, CenterLng, RadiusMeters, GeoJson
+                      FROM Geofences WHERE Id = @Id AND IsActive = 1 AND IsDeleted = 0",
+                    new { Id = gid },
                     cancellationToken: cancellationToken));
 
-            if (geofence.Id == 0)
-            {
-                continue;
-            }
+            if (geofence.Id == 0) continue;
 
-            var inside = GpsGeoHelper.IsInsideCircle(
-                dto.Latitude, dto.Longitude, geofence.CenterLat, geofence.CenterLng, geofence.RadiusMeters);
+            watch[gid] = (geofence.Name, geofence.AreaType, geofence.CenterLat, geofence.CenterLng,
+                geofence.RadiusMeters, geofence.GeoJson, rule.AlertOnEnter, rule.AlertOnExit, rule.Id);
+        }
 
-            var lastEvent = await connection.QueryFirstOrDefaultAsync<string?>(
-                new CommandDefinition(
-                    @"SELECT TOP 1 EventType FROM GpsAlertEvents
-                      WHERE VehicleId = @VehicleId AND GeofenceId = @GeofenceId AND IsDeleted = 0
-                      ORDER BY Timestamp DESC",
-                    new { dto.VehicleId, GeofenceId = geofence.Id },
-                    cancellationToken: cancellationToken));
+        foreach (var (geofenceId, g) in watch)
+        {
+            var inside = GpsGeoHelper.IsInsideGeofence(
+                dto.Latitude, dto.Longitude, g.AreaType, g.CenterLat, g.CenterLng, g.RadiusMeters, g.GeoJson);
+
+            var lastEvent = await connection.QueryFirstOrDefaultAsync<string?>(new CommandDefinition(
+                @"SELECT TOP 1 EventType FROM GpsAlertEvents
+                  WHERE VehicleId = @VehicleId AND GeofenceId = @GeofenceId AND IsDeleted = 0
+                    AND EventType IN ('geofence_enter', 'geofence_exit')
+                  ORDER BY Timestamp DESC",
+                new { dto.VehicleId, GeofenceId = geofenceId },
+                cancellationToken: cancellationToken));
 
             var wasInside = lastEvent == "geofence_enter";
 
-            if (inside && !wasInside && rule.AlertOnEnter)
+            if (inside && !wasInside && g.OnEnter)
             {
-                await InsertAlertAsync(connection, rule.Id, dto, geofence.Id, "geofence_enter",
-                    $"Entered geofence: {geofence.Name}", timestamp, cancellationToken);
+                await InsertAlertAsync(connection, g.RuleId, dto, geofenceId, "geofence_enter",
+                    $"Entered geofence: {g.Name}", timestamp, cancellationToken);
             }
-            else if (!inside && wasInside && rule.AlertOnExit)
+            else if (!inside && wasInside && g.OnExit)
             {
-                await InsertAlertAsync(connection, rule.Id, dto, geofence.Id, "geofence_exit",
-                    $"Exited geofence: {geofence.Name}", timestamp, cancellationToken);
+                await InsertAlertAsync(connection, g.RuleId, dto, geofenceId, "geofence_exit",
+                    $"Exited geofence: {g.Name}", timestamp, cancellationToken);
             }
         }
     }
@@ -293,7 +380,104 @@ public class IngestPositionCommandHandler(
             $"Low fuel — {dto.FuelLevel.Value:F0}%", timestamp, cancellationToken);
     }
 
-    private static async Task InsertAlertAsync(
+    private async Task EvaluateLowBatteryAsync(
+        System.Data.IDbConnection connection,
+        IngestPositionDto dto,
+        DateTime timestamp,
+        CancellationToken cancellationToken)
+    {
+        var threshold = gpsSettings.Value.LowBatteryThresholdPercent;
+        if (!dto.BatteryLevel.HasValue || dto.BatteryLevel.Value >= threshold)
+        {
+            return;
+        }
+
+        // 1h dedup — mirrors EvaluateLowFuelAsync, since battery level also changes slowly.
+        var recentAlert = await connection.ExecuteScalarAsync<bool>(new CommandDefinition(
+            @"SELECT CASE WHEN EXISTS(
+                SELECT 1 FROM GpsAlertEvents
+                WHERE VehicleId = @VehicleId AND EventType = 'low_battery' AND IsDeleted = 0
+                AND Timestamp > DATEADD(HOUR, -1, @Timestamp)
+              ) THEN 1 ELSE 0 END",
+            new { dto.VehicleId, Timestamp = timestamp },
+            cancellationToken: cancellationToken));
+
+        if (recentAlert)
+        {
+            return;
+        }
+
+        await InsertAlertAsync(connection, null, dto, null, "low_battery",
+            $"Low device battery — {dto.BatteryLevel.Value:F0}%", timestamp, cancellationToken);
+    }
+
+    private static readonly string[] PowerCutAlarmValues = ["powercut", "poweroff", "powerdisconnect"];
+    private const int PowerCutDedupMinutes = 5;
+
+    private static async Task EvaluatePowerCutAsync(
+        System.Data.IDbConnection connection,
+        IngestPositionDto dto,
+        DateTime timestamp,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(dto.AlarmType) ||
+            !PowerCutAlarmValues.Contains(dto.AlarmType.ToLowerInvariant()))
+        {
+            return;
+        }
+
+        var recentAlert = await connection.ExecuteScalarAsync<bool>(new CommandDefinition(
+            @"SELECT CASE WHEN EXISTS(
+                SELECT 1 FROM GpsAlertEvents
+                WHERE VehicleId = @VehicleId AND EventType = 'power_cut' AND IsDeleted = 0
+                AND Timestamp > DATEADD(MINUTE, -@Minutes, @Timestamp)
+              ) THEN 1 ELSE 0 END",
+            new { dto.VehicleId, Minutes = PowerCutDedupMinutes, Timestamp = timestamp },
+            cancellationToken: cancellationToken));
+
+        if (recentAlert)
+        {
+            return;
+        }
+
+        await InsertAlertAsync(connection, null, dto, null, "power_cut",
+            "External power disconnected", timestamp, cancellationToken);
+    }
+
+    private static readonly string[] GpsLostAlarmValues = ["gpsantennacut", "gpslost", "nofix", "gpsjamming"];
+    private const int GpsLostDedupMinutes = 5;
+
+    private static async Task EvaluateGpsLostAsync(
+        System.Data.IDbConnection connection,
+        IngestPositionDto dto,
+        DateTime timestamp,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(dto.AlarmType) ||
+            !GpsLostAlarmValues.Contains(dto.AlarmType.ToLowerInvariant()))
+        {
+            return;
+        }
+
+        var recentAlert = await connection.ExecuteScalarAsync<bool>(new CommandDefinition(
+            @"SELECT CASE WHEN EXISTS(
+                SELECT 1 FROM GpsAlertEvents
+                WHERE VehicleId = @VehicleId AND EventType = 'gps_lost' AND IsDeleted = 0
+                AND Timestamp > DATEADD(MINUTE, -@Minutes, @Timestamp)
+              ) THEN 1 ELSE 0 END",
+            new { dto.VehicleId, Minutes = GpsLostDedupMinutes, Timestamp = timestamp },
+            cancellationToken: cancellationToken));
+
+        if (recentAlert)
+        {
+            return;
+        }
+
+        await InsertAlertAsync(connection, null, dto, null, "gps_lost",
+            "GPS signal lost", timestamp, cancellationToken);
+    }
+
+    private static Task InsertAlertAsync(
         System.Data.IDbConnection connection,
         int? ruleId,
         IngestPositionDto dto,
@@ -302,23 +486,8 @@ public class IngestPositionCommandHandler(
         string message,
         DateTime timestamp,
         CancellationToken cancellationToken)
-    {
-        await connection.ExecuteAsync(new CommandDefinition(
-            @"INSERT INTO GpsAlertEvents
-              (RuleId, VehicleId, GeofenceId, EventType, Latitude, Longitude, Speed, Message, Timestamp, CreatedAt, IsDeleted)
-              VALUES (@RuleId, @VehicleId, @GeofenceId, @EventType, @Latitude, @Longitude, @Speed, @Message, @Timestamp, GETUTCDATE(), 0)",
-            new
-            {
-                RuleId = ruleId,
-                dto.VehicleId,
-                GeofenceId = geofenceId,
-                EventType = eventType,
-                dto.Latitude,
-                dto.Longitude,
-                dto.Speed,
-                Message = message,
-                Timestamp = timestamp
-            },
-            cancellationToken: cancellationToken));
-    }
+        => GpsAlertWriter.InsertAsync(
+            connection, dto.VehicleId, dto.Latitude, dto.Longitude, dto.Speed,
+            eventType, message, timestamp, ruleId, geofenceId, dto.DriverId,
+            cancellationToken: cancellationToken);
 }

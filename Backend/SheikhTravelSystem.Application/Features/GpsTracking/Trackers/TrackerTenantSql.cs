@@ -6,6 +6,7 @@ public static class TrackerTenantSql
     /// Tenant-owned devices, or Traccar-imported rows linked to this tenant's vehicles.
     /// </summary>
     public const string DeviceScopeFilter = """
+
         AND (
             d.TenantId = @TenantId
             OR (d.TenantId IS NULL AND v.TenantId = @TenantId)

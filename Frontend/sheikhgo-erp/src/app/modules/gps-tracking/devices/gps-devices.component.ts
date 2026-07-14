@@ -150,6 +150,36 @@ export class GpsDevicesComponent implements OnInit, AfterViewInit, OnDestroy {
     return isTraccarReachable(this.traccarStatus?.connected);
   }
 
+  get isTraccarSyncEnabled(): boolean {
+    return this.traccarStatus?.syncEnabled !== false
+      && this.traccarSyncStatus?.enabled !== false;
+  }
+
+  get lastSyncLabel(): string {
+    if (this.traccarStatus?.syncEnabled === false || this.traccarSyncStatus?.enabled === false) {
+      return 'Sync disabled';
+    }
+    if (!this.isTraccarReachable) return 'Traccar unreachable';
+    const secs = this.lastSyncSecondsAgo;
+    if (secs === null) return 'Awaiting first sync';
+    if (secs < 60) return `${secs} sec ago`;
+    return `${Math.floor(secs / 60)} min ago`;
+  }
+
+  get lastSyncHintClass(): string {
+    return this.isTraccarReachable && this.isTraccarSyncEnabled ? '' : 'sync-stat-hint--offline';
+  }
+
+  get kpiStaleHint(): string | null {
+    if (this.traccarStatus?.syncEnabled === false || this.traccarSyncStatus?.enabled === false) {
+      return 'Sync disabled';
+    }
+    if (this.isTraccarReachable) return null;
+    const latest = this.latestTelemetryAt;
+    if (!latest) return 'Cached';
+    return `as of ${formatLastSeenLabel(latest, this.clockNow)}`;
+  }
+
   get connectedOnServer(): number | null {
     if (!this.isTraccarReachable) return null;
     return this.traccarStatus?.deviceCount ?? 0;
@@ -167,29 +197,10 @@ export class GpsDevicesComponent implements OnInit, AfterViewInit, OnDestroy {
     return Math.max(0, Math.floor((this.clockNow - new Date(last).getTime()) / 1000));
   }
 
-  get lastSyncLabel(): string {
-    if (!this.isTraccarReachable) return 'Traccar unreachable';
-    const secs = this.lastSyncSecondsAgo;
-    if (secs === null) return 'Awaiting first sync';
-    if (secs < 60) return `${secs} sec ago`;
-    return `${Math.floor(secs / 60)} min ago`;
-  }
-
-  get lastSyncHintClass(): string {
-    return this.isTraccarReachable ? '' : 'sync-stat-hint--offline';
-  }
-
   get erpPollLabel(): string {
     if (!this.traccarSyncStatus) return '—';
     if (!this.traccarSyncStatus.enabled) return 'Disabled';
     return `Every ${this.syncIntervalSeconds}s`;
-  }
-
-  get kpiStaleHint(): string | null {
-    if (this.isTraccarReachable) return null;
-    const latest = this.latestTelemetryAt;
-    if (!latest) return 'Cached';
-    return `as of ${formatLastSeenLabel(latest, this.clockNow)}`;
   }
 
   private get latestTelemetryAt(): string | undefined {

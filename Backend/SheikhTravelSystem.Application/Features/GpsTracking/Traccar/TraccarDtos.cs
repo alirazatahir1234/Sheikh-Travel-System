@@ -50,7 +50,13 @@ public record TraccarPositionAttributes(
     [property: JsonPropertyName("distance")] decimal? Distance,
     [property: JsonPropertyName("totalDistance")] decimal? TotalDistance,
     [property: JsonPropertyName("motion")] bool? Motion,
-    [property: JsonPropertyName("alarm")] string? Alarm = null);
+    [property: JsonPropertyName("alarm")] string? Alarm = null,
+    [property: JsonPropertyName("temperature")] decimal? Temperature = null,
+    [property: JsonPropertyName("temp")] decimal? Temp = null,
+    [property: JsonPropertyName("deviceTemp")] decimal? DeviceTemp = null)
+{
+    public decimal? ResolvedTemperature => Temperature ?? Temp ?? DeviceTemp;
+}
 
 public record TraccarGeofence(
     int Id,
@@ -100,7 +106,11 @@ public record TraccarEvent(
     double? Latitude = null,
     double? Longitude = null,
     string? Address = null,
-    [property: JsonPropertyName("speed")] double? SpeedKnots = null);
+    [property: JsonPropertyName("speed")] double? SpeedKnots = null,
+    [property: JsonPropertyName("attributes")] TraccarEventAttributes? Attributes = null);
+
+public record TraccarEventAttributes(
+    [property: JsonPropertyName("alarm")] string? Alarm = null);
 
 public record TraccarSummary(
     [property: JsonPropertyName("deviceId")] int DeviceId,
@@ -111,6 +121,14 @@ public record TraccarSummary(
     [property: JsonPropertyName("engineHours")] long EngineHours,
     [property: JsonPropertyName("spentFuel")] decimal SpentFuel);
 
-public record TraccarStatusDto(bool Connected, string? ServerVersion, int DeviceCount, string? LastError = null);
+public record TraccarCommandType(
+    [property: JsonPropertyName("type")] string Type);
+
+public record TraccarStatusDto(
+    bool Connected,
+    string? ServerVersion,
+    int DeviceCount,
+    string? LastError = null,
+    bool SyncEnabled = true);
 
 public record TraccarSyncResultDto(int Imported, int Updated, int Skipped);
