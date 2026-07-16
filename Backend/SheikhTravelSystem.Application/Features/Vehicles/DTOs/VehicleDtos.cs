@@ -21,7 +21,17 @@ public record VehicleDto(
     string? EngineNo, string? ChassisNo,
     decimal CurrentMileage, DateTime? InsuranceExpiryDate, int? GpsDeviceId,
     DateTime? PurchaseDate, decimal? PurchasePrice, string? PurchaseCurrencyCode, int? BranchId, int? DepartmentId,
-    VehicleStatus Status, bool IsActive, DateTime CreatedAt, DateTime? UpdatedAt);
+    VehicleStatus Status, bool IsActive, DateTime CreatedAt, DateTime? UpdatedAt,
+    // Profile enrichment (joined from driver / GPS / documents)
+    string? DriverName = null, int? DriverId = null, string? DriverPhone = null, string? DriverLicenseNumber = null,
+    string? GpsImei = null, string? GpsSim = null, bool? EngineIgnition = null,
+    DateTime? GpsLastSeenAt = null, bool GpsOnline = false, bool HasGpsDevice = false,
+    double? LocationLatitude = null, double? LocationLongitude = null, DateTime? LocationLastUpdate = null,
+    decimal? LocationSpeed = null, decimal? TotalDistanceKm = null,
+    decimal? BatteryLevel = null, int? GsmSignal = null, string? Address = null,
+    string? ImageUrl = null, string? TrackerName = null, string? TrackerModel = null,
+    string? TrackerBrand = null, DateTime? TrackerInstallationDate = null,
+    DateTime? NextServiceDue = null, decimal? NextDueMileage = null, string? ServiceAlert = null);
 
 public record CreateVehicleDto(
     string Name, string RegistrationNumber, string? Model, int? Year,
@@ -59,7 +69,11 @@ public record VehicleFuelSummaryDto(
 public record VehicleGpsDto(
     int? GpsDeviceId, string? DeviceName, string? UniqueId, bool? IsActive,
     DateTime? LastSeenAt, bool? LastIgnition,
-    double? Latitude, double? Longitude, decimal? Speed, DateTime? LastUpdate);
+    double? Latitude, double? Longitude, decimal? Speed, DateTime? LastUpdate,
+    string? SimNumber = null, string? ModelName = null, string? BrandName = null,
+    DateTime? InstallationDate = null, decimal? TotalDistanceKm = null,
+    decimal? BatteryLevel = null, int? GsmSignal = null, string? Address = null,
+    bool GpsOnline = false, decimal? Heading = null, decimal? FuelLevel = null);
 
 public record ChangeVehicleStatusRequest(VehicleStatus Status, string? Reason);
 

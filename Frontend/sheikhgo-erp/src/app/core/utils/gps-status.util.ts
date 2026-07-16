@@ -18,7 +18,7 @@ export const DEFAULT_SOS_ALARM_VALUES = ['sos', 'panic'];
 const OFFLINE_STALE_MS = 30 * 60 * 1000;
 
 /** Matches the backend's moving/stopped threshold (GpsPositionIngestionHelper.MovingSpeedKmh). */
-const MOVING_THRESHOLD_KMH = 5;
+export const MOVING_THRESHOLD_KMH = 5;
 
 export function isSosAlarm(alarmType?: string | null, sosValues: string[] = DEFAULT_SOS_ALARM_VALUES): boolean {
   if (!alarmType) return false;
@@ -27,11 +27,12 @@ export function isSosAlarm(alarmType?: string | null, sosValues: string[] = DEFA
 
 /**
  * Single source of truth for deriving a live-map vehicle's status from telemetry.
- * Matches the backend's already-correct GetGpsFleetStatusQuery rule: ignition OFF -> parked
- * (regardless of speed), ignition ON -> moving/idle by speed. Unlike that endpoint, an
- * unknown/unreported ignition value falls back to a speed-based moving/idle guess rather than
- * being treated as "off" — trackers that don't wire ignition sensing shouldn't show a moving
- * vehicle as a stationary "Parked" marker.
+ *
+ * Priority (when online):
+ * 1. SOS alarm
+ * 2. Speed > 5 km/h → Moving (wins over Ignition OFF — bad/missing ignition wires are common)
+ * 3. Ignition OFF → Parked
+ * 4. Otherwise → Idle
  */
 export function resolveFleetStatus(input: GpsStatusInput, nowMs: number = Date.now()): FleetTrackStatus {
   if (isSosAlarm(input.alarmType)) {
@@ -47,11 +48,16 @@ export function resolveFleetStatus(input: GpsStatusInput, nowMs: number = Date.n
     return 'offline';
   }
 
-  const speed = input.speed ?? 0;
+  const speed = Number(input.speed) || 0;
+
+  // Motion always wins: a vehicle reporting 14 km/h is not Parked.
+  if (speed > MOVING_THRESHOLD_KMH) {
+    return 'moving';
+  }
 
   if (input.ignition === false) {
     return 'parked';
   }
 
-  return speed > MOVING_THRESHOLD_KMH ? 'moving' : 'idle';
+  return 'idle';
 }

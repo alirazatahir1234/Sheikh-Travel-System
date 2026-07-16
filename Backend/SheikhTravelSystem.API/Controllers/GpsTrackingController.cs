@@ -20,10 +20,12 @@ namespace SheikhTravelSystem.API.Controllers;
 
 [Authorize(Roles = "Admin,Dispatcher,Accountant,Driver")]
 /// <summary>
-/// GPS fleet tracking — live positions, history, trips, geofences, alerts, devices, and commands.
+/// GPS fleet tracking — live positions, history, trips, geofences, alerts, devices, commands, and
+/// analytics. Analytics routes live in the GpsTrackingController.Analytics.cs partial to keep this
+/// file from growing past a screenful of unrelated resource areas.
 /// </summary>
 [Route("api/gps")]
-public class GpsTrackingController : BaseApiController
+public partial class GpsTrackingController : BaseApiController
 {
     [HttpPost("positions")]
     [Authorize(Roles = "Admin,Dispatcher,Driver")]

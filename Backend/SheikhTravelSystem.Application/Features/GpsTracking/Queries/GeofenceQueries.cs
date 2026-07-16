@@ -89,13 +89,18 @@ public class GetGeofenceAssignmentsQueryHandler(IDbConnectionFactory dbFactory)
 
 public record GetGeofenceStatsQuery : IRequest<ApiResponse<GeofenceStatsDto>>;
 
-public class GetGeofenceStatsQueryHandler(IDbConnectionFactory dbFactory)
+public class GetGeofenceStatsQueryHandler(IDbConnectionFactory dbFactory, ITenantContext tenantContext)
     : IRequestHandler<GetGeofenceStatsQuery, ApiResponse<GeofenceStatsDto>>
 {
     public async Task<ApiResponse<GeofenceStatsDto>> Handle(GetGeofenceStatsQuery request, CancellationToken cancellationToken)
     {
         using var connection = dbFactory.CreateConnection();
+        var tenantId = tenantContext.GetRequiredTenantId();
 
+        // Geofences itself has no TenantId column (geofences were never made tenant-scoped at the
+        // schema level) — Total/Active are intentionally left as-is here, a separate pre-existing
+        // gap this fix doesn't attempt to close. The counts below are tenant-scoped via the
+        // GpsAlertEvents -> Vehicles join, since alert events and vehicles are tenant-owned.
         var total = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
             "SELECT COUNT(1) FROM Geofences WHERE IsDeleted = 0",
             cancellationToken: cancellationToken));
@@ -103,22 +108,28 @@ public class GetGeofenceStatsQueryHandler(IDbConnectionFactory dbFactory)
             "SELECT COUNT(1) FROM Geofences WHERE IsDeleted = 0 AND IsActive = 1",
             cancellationToken: cancellationToken));
         var todayEntries = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
-            @"SELECT COUNT(1) FROM GpsAlertEvents
-              WHERE EventType = 'geofence_enter' AND IsDeleted = 0
-              AND Timestamp >= CAST(GETUTCDATE() AS DATE)",
+            @"SELECT COUNT(1) FROM GpsAlertEvents e
+              INNER JOIN Vehicles v ON v.Id = e.VehicleId AND v.TenantId = @TenantId
+              WHERE e.EventType = 'geofence_enter' AND e.IsDeleted = 0
+              AND e.Timestamp >= CAST(GETUTCDATE() AS DATE)",
+            new { TenantId = tenantId },
             cancellationToken: cancellationToken));
         var todayExits = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
-            @"SELECT COUNT(1) FROM GpsAlertEvents
-              WHERE EventType = 'geofence_exit' AND IsDeleted = 0
-              AND Timestamp >= CAST(GETUTCDATE() AS DATE)",
+            @"SELECT COUNT(1) FROM GpsAlertEvents e
+              INNER JOIN Vehicles v ON v.Id = e.VehicleId AND v.TenantId = @TenantId
+              WHERE e.EventType = 'geofence_exit' AND e.IsDeleted = 0
+              AND e.Timestamp >= CAST(GETUTCDATE() AS DATE)",
+            new { TenantId = tenantId },
             cancellationToken: cancellationToken));
         var unacked = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
-            @"SELECT COUNT(*) FROM GpsAlertEvents
-              WHERE EventType IN ('geofence_enter', 'geofence_exit') AND IsAcknowledged = 0 AND IsDeleted = 0
-              AND Timestamp > DATEADD(HOUR, -24, GETUTCDATE())",
+            @"SELECT COUNT(*) FROM GpsAlertEvents e
+              INNER JOIN Vehicles v ON v.Id = e.VehicleId AND v.TenantId = @TenantId
+              WHERE e.EventType IN ('geofence_enter', 'geofence_exit') AND e.IsAcknowledged = 0 AND e.IsDeleted = 0
+              AND e.Timestamp > DATEADD(HOUR, -24, GETUTCDATE())",
+            new { TenantId = tenantId },
             cancellationToken: cancellationToken));
 
-        var vehiclesInside = await CountVehiclesInsideAsync(connection, cancellationToken);
+        var vehiclesInside = await CountVehiclesInsideAsync(connection, tenantId, cancellationToken);
 
         return ApiResponse<GeofenceStatsDto>.SuccessResponse(new GeofenceStatsDto(
             total, active, vehiclesInside, todayEntries, todayExits, unacked));
@@ -126,6 +137,7 @@ public class GetGeofenceStatsQueryHandler(IDbConnectionFactory dbFactory)
 
     internal static async Task<int> CountVehiclesInsideAsync(
         System.Data.IDbConnection connection,
+        int tenantId,
         CancellationToken cancellationToken)
     {
         var fences = (await connection.QueryAsync<(
@@ -141,8 +153,9 @@ public class GetGeofenceStatsQueryHandler(IDbConnectionFactory dbFactory)
             new CommandDefinition(
                 @"SELECT c.VehicleId, c.Latitude, c.Longitude, v.BranchId, v.DepartmentId
                   FROM VehicleCurrentLocation c
-                  INNER JOIN Vehicles v ON v.Id = c.VehicleId AND v.IsDeleted = 0
+                  INNER JOIN Vehicles v ON v.Id = c.VehicleId AND v.TenantId = @TenantId AND v.IsDeleted = 0
                   WHERE c.Latitude IS NOT NULL AND c.Longitude IS NOT NULL",
+                new { TenantId = tenantId },
                 cancellationToken: cancellationToken))).ToList();
 
         if (positions.Count == 0) return 0;

@@ -41,6 +41,9 @@ interface FleetDriverOption {
   fullName: string;
 }
 
+/** Fast retry chips shown inside the empty state — a small subset of the full preset row. */
+const QUICK_RETRY_PRESETS: TripDatePreset[] = ['today', 'yesterday', 'last7Days'];
+
 @Component({
   standalone: false,
   selector: 'app-gps-trips',
@@ -181,6 +184,10 @@ export class GpsTripsComponent implements OnInit {
     return this.summary ? this.formatDuration(this.summary.drivingMinutes) : '—';
   }
 
+  get quickRetryPresets(): { id: TripDatePreset; label: string }[] {
+    return this.datePresets.filter(p => QUICK_RETRY_PRESETS.includes(p.id));
+  }
+
   get emptyReasons(): string[] {
     if (this.isFleetWide) {
       return ['No trips match the selected filters and date range.'];
@@ -236,6 +243,13 @@ export class GpsTripsComponent implements OnInit {
           this.vehicleId = id;
         }
       }
+      const driverParam = params.get('driverId');
+      if (driverParam) {
+        const id = Number(driverParam);
+        if (!Number.isNaN(id) && id > 0) {
+          this.fleetDriverId = id;
+        }
+      }
       this.load();
     });
   }
@@ -274,6 +288,16 @@ export class GpsTripsComponent implements OnInit {
 
   statusLabel(option: TripVehicleOption): string {
     return option.isOnline ? 'Online' : 'Offline';
+  }
+
+  goLiveTracking(): void {
+    const queryParams = this.vehicleId ? { vehicleId: this.vehicleId } : undefined;
+    this.router.navigate(['/gps-tracking/live'], { queryParams });
+  }
+
+  goToHistory(): void {
+    const queryParams = this.vehicleId ? { vehicleId: this.vehicleId } : undefined;
+    this.router.navigate(['/gps-tracking/history'], { queryParams });
   }
 
   load(): void {

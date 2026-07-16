@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, forkJoin, of } from 'rxjs';
 import { map, catchError } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
@@ -43,7 +43,27 @@ import {
   TraccarDeviceDto,
   TraccarSyncResultDto,
   TraccarSyncRunResult,
-  TraccarSyncStatusDto
+  TraccarSyncStatusDto,
+  AnalyticsFilters,
+  AnalyticsOverview,
+  DistanceAnalytics,
+  SpeedAnalytics,
+  IdleAnalytics,
+  StopAnalytics,
+  DriverScore,
+  FleetUtilization,
+  FuelAnalytics,
+  GeofenceAnalytics,
+  AlertEventStats,
+  HeatmapPoint,
+  GpsVehicleHealth,
+  VehicleRanking,
+  CostAnalytics,
+  Trends,
+  ComparativeAnalytics,
+  AnalyticsReportSchedule,
+  CreateAnalyticsReportSchedule,
+  UpdateAnalyticsReportSchedule
 } from '../models/gps-tracking.model';
 import { PagedResult, normalizePagedResult } from '../models/common.model';
 import { VehicleService } from './vehicle.service';
@@ -397,11 +417,21 @@ export class GpsTrackingService {
     return this.http.post<number>(`${this.base}/alerts/rules`, body);
   }
 
-  getAlertEvents(vehicleId?: number, unacknowledgedOnly?: boolean): Observable<GpsAlertEvent[]> {
+  getAlertEvents(
+    vehicleId?: number,
+    unacknowledgedOnly?: boolean,
+    severity?: string,
+    status?: string,
+    limit?: number
+  ): Observable<GpsAlertEvent[]> {
     const params: Record<string, string> = {};
     if (vehicleId) params['vehicleId'] = String(vehicleId);
     if (unacknowledgedOnly) params['unacknowledgedOnly'] = 'true';
-    return this.http.get<GpsAlertEvent[]>(`${this.base}/alerts/events`, { params });
+    if (severity) params['severity'] = severity;
+    if (status) params['status'] = status;
+    return this.http.get<GpsAlertEvent[]>(`${this.base}/alerts/events`, { params }).pipe(
+      map(events => (limit ? events.slice(0, limit) : events))
+    );
   }
 
   acknowledgeAlert(id: number): Observable<boolean> {
@@ -516,6 +546,111 @@ export class GpsTrackingService {
 
   getEta(bookingId: number): Observable<GpsEta> {
     return this.http.get<GpsEta>(`${this.base}/eta`, { params: { bookingId: String(bookingId) } });
+  }
+
+  // ── Analytics ────────────────────────────────────────────────────────────────
+
+  private analyticsParams(filters?: AnalyticsFilters): Record<string, string> {
+    const params: Record<string, string> = {};
+    if (filters?.from) params['from'] = filters.from;
+    if (filters?.to) params['to'] = filters.to;
+    if (filters?.branchId) params['branchId'] = String(filters.branchId);
+    if (filters?.departmentId) params['departmentId'] = String(filters.departmentId);
+    if (filters?.driverId) params['driverId'] = String(filters.driverId);
+    return params;
+  }
+
+  getAnalyticsOverview(filters?: AnalyticsFilters): Observable<AnalyticsOverview> {
+    return this.http.get<AnalyticsOverview>(`${this.base}/analytics/overview`, { params: this.analyticsParams(filters) });
+  }
+
+  getDistanceAnalytics(filters?: AnalyticsFilters): Observable<DistanceAnalytics> {
+    return this.http.get<DistanceAnalytics>(`${this.base}/analytics/distance`, { params: this.analyticsParams(filters) });
+  }
+
+  getSpeedAnalytics(filters?: AnalyticsFilters): Observable<SpeedAnalytics> {
+    return this.http.get<SpeedAnalytics>(`${this.base}/analytics/speed`, { params: this.analyticsParams(filters) });
+  }
+
+  getIdleAnalytics(filters?: AnalyticsFilters): Observable<IdleAnalytics> {
+    return this.http.get<IdleAnalytics>(`${this.base}/analytics/idle`, { params: this.analyticsParams(filters) });
+  }
+
+  getStopAnalytics(filters?: AnalyticsFilters): Observable<StopAnalytics> {
+    return this.http.get<StopAnalytics>(`${this.base}/analytics/stops`, { params: this.analyticsParams(filters) });
+  }
+
+  getDriverScoreRanking(filters?: AnalyticsFilters): Observable<DriverScore[]> {
+    return this.http.get<DriverScore[]>(`${this.base}/analytics/drivers/ranking`, { params: this.analyticsParams(filters) });
+  }
+
+  getFleetUtilization(filters?: AnalyticsFilters): Observable<FleetUtilization> {
+    return this.http.get<FleetUtilization>(`${this.base}/analytics/utilization`, { params: this.analyticsParams(filters) });
+  }
+
+  getFuelAnalytics(filters?: AnalyticsFilters): Observable<FuelAnalytics> {
+    return this.http.get<FuelAnalytics>(`${this.base}/analytics/fuel`, { params: this.analyticsParams(filters) });
+  }
+
+  getGeofenceAnalytics(filters?: AnalyticsFilters): Observable<GeofenceAnalytics> {
+    return this.http.get<GeofenceAnalytics>(`${this.base}/analytics/geofences`, { params: this.analyticsParams(filters) });
+  }
+
+  getAlertEventStats(filters?: AnalyticsFilters): Observable<AlertEventStats> {
+    return this.http.get<AlertEventStats>(`${this.base}/analytics/events`, { params: this.analyticsParams(filters) });
+  }
+
+  getPositionHeatmap(vehicleIds: number[], filters?: AnalyticsFilters): Observable<HeatmapPoint[]> {
+    let params = new HttpParams();
+    vehicleIds.forEach(id => { params = params.append('vehicleIds', String(id)); });
+    const f = this.analyticsParams(filters);
+    Object.keys(f).forEach(key => { params = params.set(key, f[key]); });
+    return this.http.get<HeatmapPoint[]>(`${this.base}/analytics/heatmap`, { params });
+  }
+
+  getVehicleHealth(branchId?: number, departmentId?: number): Observable<GpsVehicleHealth[]> {
+    const params: Record<string, string> = {};
+    if (branchId) params['branchId'] = String(branchId);
+    if (departmentId) params['departmentId'] = String(departmentId);
+    return this.http.get<GpsVehicleHealth[]>(`${this.base}/analytics/vehicle-health`, { params });
+  }
+
+  getVehicleRanking(filters?: AnalyticsFilters): Observable<VehicleRanking[]> {
+    return this.http.get<VehicleRanking[]>(`${this.base}/analytics/vehicles/ranking`, { params: this.analyticsParams(filters) });
+  }
+
+  getCostAnalytics(filters?: AnalyticsFilters): Observable<CostAnalytics> {
+    return this.http.get<CostAnalytics>(`${this.base}/analytics/cost`, { params: this.analyticsParams(filters) });
+  }
+
+  getAnalyticsTrends(filters?: AnalyticsFilters, granularity: 'daily' | 'weekly' | 'monthly' = 'daily'): Observable<Trends> {
+    const params = { ...this.analyticsParams(filters), granularity };
+    return this.http.get<Trends>(`${this.base}/analytics/trends`, { params });
+  }
+
+  getComparativeAnalytics(fromA: string, toA: string, fromB?: string, toB?: string, filters?: AnalyticsFilters): Observable<ComparativeAnalytics> {
+    const params: Record<string, string> = { fromA, toA };
+    if (fromB) params['fromB'] = fromB;
+    if (toB) params['toB'] = toB;
+    if (filters?.branchId) params['branchId'] = String(filters.branchId);
+    if (filters?.departmentId) params['departmentId'] = String(filters.departmentId);
+    return this.http.get<ComparativeAnalytics>(`${this.base}/analytics/comparative`, { params });
+  }
+
+  getAnalyticsReportSchedules(): Observable<AnalyticsReportSchedule[]> {
+    return this.http.get<AnalyticsReportSchedule[]>(`${this.base}/analytics/reports/schedules`);
+  }
+
+  createAnalyticsReportSchedule(body: CreateAnalyticsReportSchedule): Observable<number> {
+    return this.http.post<number>(`${this.base}/analytics/reports/schedules`, body);
+  }
+
+  updateAnalyticsReportSchedule(id: number, body: UpdateAnalyticsReportSchedule): Observable<boolean> {
+    return this.http.put<boolean>(`${this.base}/analytics/reports/schedules/${id}`, body);
+  }
+
+  deleteAnalyticsReportSchedule(id: number): Observable<boolean> {
+    return this.http.delete<boolean>(`${this.base}/analytics/reports/schedules/${id}`);
   }
 
   // ── Traccar admin ───────────────────────────────────────────────────────────

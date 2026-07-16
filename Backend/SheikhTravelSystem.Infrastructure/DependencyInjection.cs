@@ -52,6 +52,7 @@ public static class DependencyInjection
         services.AddHostedService<ComplianceReminderHostedService>();
         services.AddHostedService<MaintenanceAlertHostedService>();
         services.AddHostedService<GpsFleetStatusSnapshotHostedService>();
+        services.AddHostedService<GpsDailyRollupHostedService>();
         services.AddHostedService<GpsOfflineDetectionHostedService>();
         services.AddHostedService<GpsCommandRetryHostedService>();
         services.Configure<GpsSettings>(configuration.GetSection(GpsSettings.SectionName));

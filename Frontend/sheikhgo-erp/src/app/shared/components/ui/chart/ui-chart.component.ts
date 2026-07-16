@@ -20,7 +20,7 @@ import { AppChartInstance, createAppChart } from '../../../../core/utils/chart.u
 
 Chart.register(...registerables);
 
-export type UiChartType = Extract<ChartType, 'line' | 'bar' | 'doughnut'>;
+export type UiChartType = Extract<ChartType, 'line' | 'bar' | 'doughnut' | 'pie'>;
 
 /** Chart options accepted by ui-chart (avoids doughnut/line/bar generic conflicts in templates). */
 export type UiChartOptions = ChartOptions<UiChartType>;

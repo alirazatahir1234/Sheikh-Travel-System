@@ -27,4 +27,32 @@ describe('resolveFleetStatus timezone handling', () => {
     );
     expect(status).toBe('offline');
   });
+
+  it('treats speed > 5 km/h as moving even when ignition is OFF', () => {
+    const nowMs = Date.parse('2026-07-13T08:00:30.000Z');
+    const status = resolveFleetStatus(
+      {
+        hasGps: true,
+        lastUpdated: '2026-07-13T08:00:00',
+        speed: 14,
+        ignition: false
+      },
+      nowMs
+    );
+    expect(status).toBe('moving');
+  });
+
+  it('treats ignition OFF and near-zero speed as parked', () => {
+    const nowMs = Date.parse('2026-07-13T08:00:30.000Z');
+    const status = resolveFleetStatus(
+      {
+        hasGps: true,
+        lastUpdated: '2026-07-13T08:00:00',
+        speed: 0,
+        ignition: false
+      },
+      nowMs
+    );
+    expect(status).toBe('parked');
+  });
 });

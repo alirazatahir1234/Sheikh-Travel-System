@@ -1,8 +1,10 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Dapper;
 using SheikhTravelSystem.Application.Common.Interfaces;
+using SheikhTravelSystem.Application.Features.GpsTracking;
 using SheikhTravelSystem.Application.Features.GpsTracking.Services;
 
 namespace SheikhTravelSystem.Infrastructure.Services;
@@ -12,10 +14,13 @@ namespace SheikhTravelSystem.Infrastructure.Services;
 /// GetGpsFleetStatusLocalQuery uses on-demand) into GpsFleetStatusSnapshots, powering the Live Map
 /// screen's KPI sparklines/trend deltas and the Fleet Overview trend chart. Hourly rather than daily
 /// so a handful of points can still form a meaningful sparkline and a missed tick doesn't lose a
-/// whole day; the trend chart aggregates these up to daily buckets on the frontend.
+/// whole day; the trend chart aggregates these up to daily buckets on the frontend. Also runs a
+/// once-daily retention sweep (gated on the UTC hour) since this table has no other cleanup job and
+/// would otherwise grow unboundedly.
 /// </summary>
 public class GpsFleetStatusSnapshotHostedService(
     IServiceProvider serviceProvider,
+    IOptions<GpsSettings> gpsSettings,
     ILogger<GpsFleetStatusSnapshotHostedService> logger) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -61,6 +66,20 @@ public class GpsFleetStatusSnapshotHostedService(
             cancellationToken: cancellationToken))).ToList();
 
         var snapshotAt = DateTime.UtcNow;
+
+        if (snapshotAt.Hour == 0)
+        {
+            var deleted = await connection.ExecuteAsync(new CommandDefinition(
+                "DELETE FROM GpsFleetStatusSnapshots WHERE SnapshotAt < DATEADD(DAY, -@RetentionDays, GETUTCDATE())",
+                new { RetentionDays = gpsSettings.Value.FleetStatusSnapshotRetentionDays },
+                cancellationToken: cancellationToken));
+
+            if (deleted > 0)
+            {
+                logger.LogInformation("GPS fleet-status snapshot retention: deleted {Count} snapshot(s) older than {Days} days.",
+                    deleted, gpsSettings.Value.FleetStatusSnapshotRetentionDays);
+            }
+        }
 
         foreach (var tenantId in tenants)
         {

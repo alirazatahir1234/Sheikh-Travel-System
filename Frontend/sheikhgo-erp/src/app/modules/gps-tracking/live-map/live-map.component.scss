@@ -1482,15 +1482,39 @@
 
   .track-header-right {
     width: 100%;
+    gap: 8px;
   }
 
-  .sync-pill {
-    flex: 1 1 100%;
+  // Status pills + refresh controls compact onto ~2 rows instead of one full-width
+  // row each (the generic .stb-actions--mobile-stack utility was dropped from this
+  // header in the template for exactly this reason — 5 heterogeneous controls
+  // stacking individually ate most of the first mobile screen).
+  .sync-pill,
+  .gps-pill {
+    flex: 1 1 auto;
+    padding: 6px 10px;
+    font-size: 0.75rem;
   }
 
   .sync-meta {
-    margin-left: 0;
-    flex-basis: 100%;
+    display: none;
+  }
+
+  .refresh-rate-select {
+    flex: 0 1 auto;
+    padding: 6px 8px;
+  }
+
+  .track-header-right button.stb-touch {
+    flex: 1 1 auto;
+    padding: 0 14px;
+    font-size: 0.8125rem;
+  }
+
+  .track-kpi-strip {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    margin-bottom: 0;
   }
 
   .track-stats {
@@ -1589,13 +1613,51 @@
     padding: 6px 10px;
   }
 
+  // Filter rows scroll horizontally instead of wrapping into 3+ rows — wrapping
+  // was the single biggest contributor to pushing the map below the fold.
+  .map-toolbar {
+    padding: 8px 10px;
+    gap: 6px;
+  }
+
+  .map-toolbar__row {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    &::-webkit-scrollbar { display: none; }
+  }
+
+  .filter-chips {
+    flex-wrap: nowrap;
+  }
+
   .filter-chip {
-    min-height: 44px;
-    padding: 8px 14px;
+    flex: 0 0 auto;
+    white-space: nowrap;
+    min-height: 40px;
+    padding: 7px 14px;
+  }
+
+  .detail-empty {
+    padding: 18px 16px;
+
+    mat-icon {
+      font-size: 32px;
+      width: 32px;
+      height: 32px;
+      margin-bottom: 8px;
+    }
   }
 
   .vehicle-card {
     min-height: 44px;
+    padding: 10px 12px;
+    gap: 10px;
+  }
+
+  .vehicle-card-body {
+    gap: 1px;
   }
 
   .playback-bar {

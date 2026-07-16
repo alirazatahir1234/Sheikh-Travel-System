@@ -636,12 +636,13 @@ public record GetGpsAlertEventsQuery(
     string? Status = null)
     : IRequest<ApiResponse<List<GpsAlertEventDto>>>;
 
-public class GetGpsAlertEventsQueryHandler(IDbConnectionFactory dbFactory)
+public class GetGpsAlertEventsQueryHandler(IDbConnectionFactory dbFactory, ITenantContext tenantContext)
     : IRequestHandler<GetGpsAlertEventsQuery, ApiResponse<List<GpsAlertEventDto>>>
 {
     public async Task<ApiResponse<List<GpsAlertEventDto>>> Handle(GetGpsAlertEventsQuery request, CancellationToken cancellationToken)
     {
         using var connection = dbFactory.CreateConnection();
+        var tenantId = tenantContext.GetRequiredTenantId();
         var sql = """
             SELECT e.Id, e.RuleId, e.VehicleId, v.Name AS VehicleName, e.EventType,
                    e.Latitude, e.Longitude, e.Speed, e.Message, e.Timestamp, e.IsAcknowledged,
@@ -649,7 +650,7 @@ public class GetGpsAlertEventsQueryHandler(IDbConnectionFactory dbFactory)
                    e.DriverId, d.FullName AS DriverName,
                    e.AcknowledgedAt, e.AcknowledgedBy, e.ResolvedAt, e.ResolvedBy, e.ResolutionNotes
             FROM GpsAlertEvents e
-            LEFT JOIN Vehicles v ON v.Id = e.VehicleId
+            INNER JOIN Vehicles v ON v.Id = e.VehicleId AND v.TenantId = @TenantId
             LEFT JOIN Geofences g ON g.Id = e.GeofenceId
             LEFT JOIN Drivers d ON d.Id = e.DriverId
             WHERE e.IsDeleted = 0
@@ -701,6 +702,7 @@ public class GetGpsAlertEventsQueryHandler(IDbConnectionFactory dbFactory)
             sql,
             new
             {
+                TenantId = tenantId,
                 request.VehicleId,
                 request.From,
                 request.To,
@@ -717,12 +719,14 @@ public class GetGpsAlertEventsQueryHandler(IDbConnectionFactory dbFactory)
 
 public record GetGpsAlertEventByIdQuery(int Id) : IRequest<ApiResponse<GpsAlertEventDto>>;
 
-public class GetGpsAlertEventByIdQueryHandler(IDbConnectionFactory dbFactory)
+public class GetGpsAlertEventByIdQueryHandler(IDbConnectionFactory dbFactory, ITenantContext tenantContext)
     : IRequestHandler<GetGpsAlertEventByIdQuery, ApiResponse<GpsAlertEventDto>>
 {
     public async Task<ApiResponse<GpsAlertEventDto>> Handle(GetGpsAlertEventByIdQuery request, CancellationToken cancellationToken)
     {
         using var connection = dbFactory.CreateConnection();
+        var tenantId = tenantContext.GetRequiredTenantId();
+
         var row = await connection.QueryFirstOrDefaultAsync<GpsAlertEventDto>(new CommandDefinition(
             """
             SELECT e.Id, e.RuleId, e.VehicleId, v.Name AS VehicleName, e.EventType,
@@ -731,12 +735,12 @@ public class GetGpsAlertEventByIdQueryHandler(IDbConnectionFactory dbFactory)
                    e.DriverId, d.FullName AS DriverName,
                    e.AcknowledgedAt, e.AcknowledgedBy, e.ResolvedAt, e.ResolvedBy, e.ResolutionNotes
             FROM GpsAlertEvents e
-            LEFT JOIN Vehicles v ON v.Id = e.VehicleId
+            INNER JOIN Vehicles v ON v.Id = e.VehicleId AND v.TenantId = @TenantId
             LEFT JOIN Geofences g ON g.Id = e.GeofenceId
             LEFT JOIN Drivers d ON d.Id = e.DriverId
             WHERE e.Id = @Id AND e.IsDeleted = 0
             """,
-            new { request.Id },
+            new { request.Id, TenantId = tenantId },
             cancellationToken: cancellationToken));
 
         return row is not null
@@ -747,23 +751,27 @@ public class GetGpsAlertEventByIdQueryHandler(IDbConnectionFactory dbFactory)
 
 public record GetGpsAlertStatsQuery : IRequest<ApiResponse<GpsAlertStatsDto>>;
 
-public class GetGpsAlertStatsQueryHandler(IDbConnectionFactory dbFactory)
+public class GetGpsAlertStatsQueryHandler(IDbConnectionFactory dbFactory, ITenantContext tenantContext)
     : IRequestHandler<GetGpsAlertStatsQuery, ApiResponse<GpsAlertStatsDto>>
 {
     public async Task<ApiResponse<GpsAlertStatsDto>> Handle(GetGpsAlertStatsQuery request, CancellationToken cancellationToken)
     {
         using var connection = dbFactory.CreateConnection();
+        var tenantId = tenantContext.GetRequiredTenantId();
+
         var stats = await connection.QueryFirstAsync<GpsAlertStatsDto>(new CommandDefinition(
             """
             SELECT
                 COUNT(*) AS Total,
-                SUM(CASE WHEN CAST(Timestamp AS DATE) = CAST(GETUTCDATE() AS DATE) THEN 1 ELSE 0 END) AS Today,
-                SUM(CASE WHEN Status = 'active' THEN 1 ELSE 0 END) AS Active,
-                SUM(CASE WHEN Status = 'resolved' THEN 1 ELSE 0 END) AS Resolved,
-                SUM(CASE WHEN Severity = 'critical' THEN 1 ELSE 0 END) AS Critical
-            FROM GpsAlertEvents
-            WHERE IsDeleted = 0
+                SUM(CASE WHEN CAST(e.Timestamp AS DATE) = CAST(GETUTCDATE() AS DATE) THEN 1 ELSE 0 END) AS Today,
+                SUM(CASE WHEN e.Status = 'active' THEN 1 ELSE 0 END) AS Active,
+                SUM(CASE WHEN e.Status = 'resolved' THEN 1 ELSE 0 END) AS Resolved,
+                SUM(CASE WHEN e.Severity = 'critical' THEN 1 ELSE 0 END) AS Critical
+            FROM GpsAlertEvents e
+            INNER JOIN Vehicles v ON v.Id = e.VehicleId AND v.TenantId = @TenantId AND v.IsDeleted = 0
+            WHERE e.IsDeleted = 0
             """,
+            new { TenantId = tenantId },
             cancellationToken: cancellationToken));
 
         return ApiResponse<GpsAlertStatsDto>.SuccessResponse(stats);
