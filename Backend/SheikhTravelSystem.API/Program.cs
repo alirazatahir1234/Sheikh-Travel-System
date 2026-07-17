@@ -236,6 +236,7 @@ using (var scope = app.Services.CreateScope())
         await GpsAlertsPhase8Migration.ApplyAsync(dbFactory, logger);
         await GpsCommandsPhase9Migration.ApplyAsync(dbFactory, logger);
         await GpsAnalyticsPhase10Migration.ApplyAsync(dbFactory, logger);
+        await GpsAddressCacheMigration.ApplyAsync(dbFactory, logger);
 
         var gpsSettings = scope.ServiceProvider.GetRequiredService<IOptions<GpsSettings>>().Value;
         await GpsSchemaMigration.ApplyRetentionAsync(dbFactory, gpsSettings.PositionRetentionDays, logger);

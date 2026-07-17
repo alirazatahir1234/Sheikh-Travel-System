@@ -1,0 +1,39 @@
+<div class="fleet-reports-page">
+  <header class="page-head">
+    <div>
+      <h2>Fleet Reports</h2>
+      <p>Trip, vehicle, driver, fuel, speed, idle, stop, event, alert, and maintenance reports — with filters, preview, print, and export.</p>
+    </div>
+  </header>
+
+  <fleet-report-catalog [selected]="selectedReport()" (select)="onSelectReport($event)" />
+
+  <fleet-report-filters
+    [filters]="draftFilters()"
+    [reportType]="selectedReport()"
+    [preset]="datePreset()"
+    [vehicles]="vehicles()"
+    [drivers]="drivers()"
+    [branches]="branches()"
+    [departments]="departments()"
+    [showStatus]="showStatus()"
+    [statusOptions]="statusOptions()"
+    (filtersChange)="onDraftChange($event)"
+    (presetChange)="onPresetChange($event)"
+    (apply)="onApply()"
+    (reset)="onReset()" />
+
+  <fleet-report-export-actions
+    [loading]="loading()"
+    [canExport]="canExport()"
+    (preview)="onPreview()"
+    (print)="print()"
+    (exportPdf)="exportPdf()"
+    (exportExcel)="exportExcel()"
+    (exportCsv)="exportCsv()" />
+
+  <fleet-report-preview
+    [report]="report()"
+    [loading]="loading()"
+    [hasPreview]="hasPreview()" />
+</div>

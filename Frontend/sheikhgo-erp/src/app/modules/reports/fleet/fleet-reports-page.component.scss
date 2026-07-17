@@ -1,0 +1,45 @@
+.fleet-reports-page {
+  padding: 0 0 1.5rem;
+}
+
+.page-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+  flex-wrap: wrap;
+}
+
+.page-head h2 {
+  margin: 0;
+  font-size: 1.375rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.page-head p {
+  margin: 0.25rem 0 0;
+  font-size: 0.8125rem;
+  color: #64748b;
+  max-width: 60ch;
+}
+
+@media (max-width: 767px) {
+  .page-head {
+    flex-direction: column;
+  }
+}
+
+// Print scope: only the report preview (its own #fleet-report-print-area + branded letterhead) is
+// meant to print. The surrounding app shell (topbar/sidebar) isn't hidden by this page alone — that's
+// a pre-existing gap shared by every other print flow in this app (payment-receipt, booking-invoice,
+// trip-detail), not something newly introduced here.
+@media print {
+  .page-head,
+  fleet-report-catalog,
+  fleet-report-filters,
+  fleet-report-export-actions {
+    display: none !important;
+  }
+}
