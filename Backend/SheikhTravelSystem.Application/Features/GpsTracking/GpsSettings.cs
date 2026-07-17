@@ -15,4 +15,7 @@ public class GpsSettings
     public int CommandAckTimeoutMinutes { get; set; } = 5;
 
     public int CommandMaxRetries { get; set; } = 3;
+
+    /// <summary>Must exceed a year so Trends/Analytics can show 12 months of fleet-status history.</summary>
+    public int FleetStatusSnapshotRetentionDays { get; set; } = 400;
 }

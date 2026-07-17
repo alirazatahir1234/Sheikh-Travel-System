@@ -21,7 +21,7 @@
       </mat-menu>
       <button type="button" class="btn btn-primary btn-refresh" (click)="load()" [disabled]="loading">
         <mat-icon>{{ loading ? 'hourglass_top' : 'refresh' }}</mat-icon>
-        {{ loading ? 'Refreshing…' : 'Refresh Data' }}
+        {{ loading ? 'Generating…' : 'Load Trips' }}
       </button>
     </div>
   </header>
@@ -111,21 +111,21 @@
       <button type="button" class="btn btn-secondary" (click)="load()">Apply</button>
     </div>
 
-    <div class="range-filters-row">
+    <div class="range-filters-row" *ngIf="trips.length">
       <mat-form-field appearance="outline" class="range-field">
-        <mat-label>Min distance (km)</mat-label>
+        <mat-label>Distance from (km)</mat-label>
         <input matInput type="number" min="0" [(ngModel)]="distanceMin" (ngModelChange)="applyFilters()">
       </mat-form-field>
       <mat-form-field appearance="outline" class="range-field">
-        <mat-label>Max distance (km)</mat-label>
+        <mat-label>Distance to (km)</mat-label>
         <input matInput type="number" min="0" [(ngModel)]="distanceMax" (ngModelChange)="applyFilters()">
       </mat-form-field>
       <mat-form-field appearance="outline" class="range-field">
-        <mat-label>Min speed (km/h)</mat-label>
+        <mat-label>Speed from (km/h)</mat-label>
         <input matInput type="number" min="0" [(ngModel)]="speedMin" (ngModelChange)="applyFilters()">
       </mat-form-field>
       <mat-form-field appearance="outline" class="range-field">
-        <mat-label>Max speed (km/h)</mat-label>
+        <mat-label>Speed to (km/h)</mat-label>
         <input matInput type="number" min="0" [(ngModel)]="speedMax" (ngModelChange)="applyFilters()">
       </mat-form-field>
     </div>
@@ -151,7 +151,7 @@
     <stb-stat-tile
       label="Distance"
       [value]="distanceValue"
-      suffix=" km"
+      [suffix]="distanceValue === '—' ? '' : ' km'"
       icon="straighten"
       color="blue"
       [loading]="loading || analyticsLoading">
@@ -174,7 +174,7 @@
     <stb-stat-tile
       label="Avg Speed"
       [value]="avgSpeedValue"
-      suffix=" km/h"
+      [suffix]="avgSpeedValue === '—' ? '' : ' km/h'"
       icon="speed"
       color="blue"
       [loading]="loading || analyticsLoading">
@@ -182,7 +182,7 @@
     <stb-stat-tile
       label="Max Speed"
       [value]="maxSpeedValue"
-      suffix=" km/h"
+      [suffix]="maxSpeedValue === '—' ? '' : ' km/h'"
       icon="speed"
       color="rose"
       [loading]="loading || analyticsLoading">
@@ -204,7 +204,7 @@
     <stb-stat-tile
       label="Engine Hours"
       [value]="engineHoursValue"
-      suffix=" h"
+      [suffix]="engineHoursValue === '—' ? '' : ' h'"
       icon="timer"
       color="teal"
       [loading]="loading || analyticsLoading">
@@ -212,7 +212,7 @@
     <stb-stat-tile
       label="Fuel Est."
       [value]="fuelValue"
-      suffix=" L"
+      [suffix]="fuelValue === '—' ? '' : ' L'"
       icon="local_gas_station"
       color="green"
       [loading]="loading || analyticsLoading">
@@ -220,7 +220,7 @@
   </section>
 
   <div *ngIf="loading" class="loading-panel">
-    <app-brand-loader size="md" message="Loading trip analytics…" />
+    <app-brand-loader size="md" message="Generating trip report…" />
   </div>
 
   <section class="analytics-main" *ngIf="!loading && selectedTrip">
@@ -244,18 +244,31 @@
 
   <div *ngIf="!loading && !trips.length && !error" class="empty-state">
     <mat-icon>directions_car</mat-icon>
-    <h3>No trips found</h3>
-    <p *ngIf="!isFleetWide">Possible reasons:</p>
-    <ul *ngIf="!isFleetWide">
-      <li *ngFor="let r of emptyReasons">{{ r }}</li>
-    </ul>
-    <p *ngIf="isFleetWide">{{ emptyReasons[0] }}</p>
-    <div class="context-card" *ngIf="context">
-      <div><strong>Last communication:</strong> {{ context.lastPositionAt ? (context.lastPositionAt | date:'dd MMM yyyy, HH:mm') : '—' }}</div>
-      <div><strong>Current status:</strong> {{ context.isOnline ? 'Online' : 'Offline' }}</div>
-      <div *ngIf="context.lastLatitude != null"><strong>Last position:</strong> {{ context.lastLatitude | number:'1.4-4' }}, {{ context.lastLongitude | number:'1.4-4' }}</div>
-      <div *ngIf="context.deviceName"><strong>Device:</strong> {{ context.deviceName }} ({{ context.uniqueId }})</div>
+    <h3>No trips found for the selected date range</h3>
+    <p class="empty-hint">Try another date, or check the vehicle's live status below.</p>
+
+    <div class="empty-retry-row">
+      <button type="button" class="preset-chip" *ngFor="let p of quickRetryPresets" (click)="onPresetChange(p.id)">{{ p.label }}</button>
+      <button type="button" class="preset-chip" (click)="goToHistory()">Open History</button>
     </div>
+
+    <div class="context-card" *ngIf="context">
+      <div class="context-status">
+        <span class="status-dot" [class.online]="context.isOnline"></span>
+        {{ context.isOnline ? 'Online' : 'Offline' }}
+      </div>
+      <div><strong>Last GPS update:</strong> {{ context.lastPositionAt ? (context.lastPositionAt | date:'dd MMM yyyy, HH:mm') : '—' }}</div>
+      <div *ngIf="context.lastLatitude != null"><strong>Last position:</strong> {{ context.lastLatitude | number:'1.4-4' }}, {{ context.lastLongitude | number:'1.4-4' }}</div>
+      <button type="button" class="btn btn-secondary btn-sm" (click)="goLiveTracking()">Open Live Tracking</button>
+    </div>
+
+    <details class="empty-reasons" *ngIf="!isFleetWide && emptyReasons.length">
+      <summary>Why might this be empty?</summary>
+      <ul>
+        <li *ngFor="let r of emptyReasons">{{ r }}</li>
+      </ul>
+    </details>
+    <p *ngIf="isFleetWide" class="empty-hint">{{ emptyReasons[0] }}</p>
   </div>
 
   <section class="trip-logs" *ngIf="!loading && trips.length > 0">

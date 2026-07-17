@@ -20,6 +20,7 @@ export class GpsTrackingLayoutComponent {
     { label: 'Geofences', icon: 'fence', route: 'geofences' },
     { label: 'Trips', icon: 'route', route: 'trips' },
     { label: 'History', icon: 'history', route: 'history' },
-    { label: 'Commands', icon: 'power_settings_new', route: 'commands' }
+    { label: 'Commands', icon: 'power_settings_new', route: 'commands' },
+    { label: 'Analytics', icon: 'insights', route: 'analytics' }
   ];
 }

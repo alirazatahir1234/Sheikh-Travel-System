@@ -1,10 +1,32 @@
 <div class="page-header">
-  <h2>Vehicle Profile</h2>
-  <div class="header-actions">
-    <button mat-stroked-button routerLink="/vehicles">
-      <mat-icon>arrow_back</mat-icon> Back to List
+  <div class="header-left">
+    <nav class="breadcrumb" aria-label="Breadcrumb">
+      <a routerLink="/vehicles">Fleet</a>
+      <mat-icon>chevron_right</mat-icon>
+      <a routerLink="/vehicles">Vehicles</a>
+      <mat-icon>chevron_right</mat-icon>
+      <span>{{ vehicle?.name || 'Vehicle Profile' }}</span>
+    </nav>
+    <h2>{{ vehicle?.name || 'Vehicle Profile' }}</h2>
+  </div>
+  <div class="header-actions" *ngIf="vehicle">
+    <button mat-stroked-button type="button" [matMenuTriggerFor]="actionsMenu">
+      <mat-icon>bolt</mat-icon> Quick Actions
+      <mat-icon>arrow_drop_down</mat-icon>
     </button>
-    <button mat-raised-button color="primary" (click)="editVehicle()" *ngIf="vehicle">
+    <mat-menu #actionsMenu="matMenu">
+      <button mat-menu-item type="button" (click)="editVehicle()"><mat-icon>edit</mat-icon> Edit Vehicle</button>
+      <button mat-menu-item type="button" (click)="assignDriver()"><mat-icon>person_add</mat-icon> Assign Driver</button>
+      <button mat-menu-item type="button" (click)="installTracker()"><mat-icon>gps_fixed</mat-icon> Change Tracker</button>
+      <button mat-menu-item type="button" (click)="goLiveTracking()"><mat-icon>my_location</mat-icon> Live Tracking</button>
+      <button mat-menu-item type="button" (click)="goTripHistory()"><mat-icon>route</mat-icon> Trip History</button>
+      <button mat-menu-item type="button" (click)="goReplay()"><mat-icon>replay</mat-icon> Replay</button>
+      <button mat-menu-item type="button" (click)="goCommands()"><mat-icon>terminal</mat-icon> Commands</button>
+      <button mat-menu-item type="button" (click)="addFuel()"><mat-icon>local_gas_station</mat-icon> Add Fuel</button>
+      <button mat-menu-item type="button" (click)="scheduleMaintenance()"><mat-icon>build</mat-icon> Maintenance</button>
+      <button mat-menu-item type="button" class="danger-item" (click)="deleteVehicle()"><mat-icon>delete</mat-icon> Delete Vehicle</button>
+    </mat-menu>
+    <button mat-raised-button color="primary" type="button" (click)="editVehicle()">
       <mat-icon>edit</mat-icon> Edit Vehicle
     </button>
   </div>
@@ -14,104 +36,461 @@
 <div *ngIf="error" class="error-message"><mat-icon>error</mat-icon> {{ error }}</div>
 
 <div *ngIf="vehicle && !loading" class="profile-container">
-  <!-- Vehicle Info Card -->
-  <mat-card class="info-card">
-    <mat-card-header>
-      <mat-icon mat-card-avatar class="vehicle-icon">directions_bus</mat-icon>
-      <mat-card-title>{{ vehicle.name }}</mat-card-title>
-      <mat-card-subtitle>{{ vehicle.registrationNumber }}</mat-card-subtitle>
-    </mat-card-header>
-    <mat-card-content>
-      <div class="info-grid">
-        <div class="info-item">
-          <span class="label">Fuel Type</span>
-          <span class="value">{{ fuelTypeLabel(vehicle.fuelType) }}</span>
+
+  <!-- Hero: photo + info + live status -->
+  <section class="hero-grid">
+    <mat-card class="hero-card photo-card">
+      <div class="hero-photo" [class.has-image]="primaryImageUrl">
+        <img *ngIf="primaryImageUrl as img" [src]="img" [alt]="vehicle.name" (click)="openPhotoPreview(img, vehicle.name)" />
+        <div *ngIf="!primaryImageUrl" class="photo-placeholder">
+          <mat-icon>directions_bus</mat-icon>
+          <span>No display photo</span>
         </div>
-        <div class="info-item">
-          <span class="label">Capacity</span>
-          <span class="value">{{ vehicle.seatingCapacity }} seats</span>
-        </div>
-        <div class="info-item">
-          <span class="label">Model</span>
-          <span class="value">{{ vehicle.model || '—' }}</span>
-        </div>
-        <div class="info-item">
-          <span class="label">Year</span>
-          <span class="value">{{ vehicle.year || '—' }}</span>
-        </div>
-        <div class="info-item">
-          <span class="label">Mileage</span>
-          <span class="value">{{ vehicle.currentMileage | number:'1.0-0' }} km</span>
-        </div>
-        <div class="info-item">
-          <span class="label">Status</span>
-          <span class="value status-chip" [class.active]="vehicle.status === 1 || vehicle.status === 2">
-            {{ vehicleStatusLabel(vehicle) }}
-          </span>
+        <div class="live-pill" [ngClass]="liveStatusClass">
+          <span class="live-dot"></span>
+          {{ isGpsOnline ? 'Online' : (hasTracker ? 'Offline' : 'No GPS') }}
+          <ng-container *ngIf="motionLabel"> · {{ motionLabel }}</ng-container>
+          <ng-container *ngIf="displaySpeed != null && liveStatus === 'moving'"> · {{ displaySpeed | number:'1.0-0' }} km/h</ng-container>
         </div>
       </div>
-    </mat-card-content>
-  </mat-card>
+      <div class="photo-slots">
+        <button
+          type="button"
+          class="photo-slot"
+          *ngFor="let slot of photoSlots"
+          [class.filled]="!!slot.document"
+          [class.primary]="slot.isPrimary"
+          (click)="photoUrl(slot.document) && openPhotoPreview(photoUrl(slot.document)!, slot.label)">
+          <img *ngIf="photoUrl(slot.document) as url" [src]="url" [alt]="slot.label" />
+          <mat-icon *ngIf="!photoUrl(slot.document)">photo_camera</mat-icon>
+          <span>{{ slot.label }}</span>
+        </button>
+      </div>
+    </mat-card>
 
-  <mat-card class="info-card" *ngIf="documents.length">
-    <mat-card-header>
-      <mat-card-title>Documents &amp; compliance</mat-card-title>
-    </mat-card-header>
-    <mat-card-content>
-      <table mat-table [dataSource]="documents" class="full-width">
-        <ng-container matColumnDef="documentType">
-          <th mat-header-cell *matHeaderCellDef>Type</th>
-          <td mat-cell *matCellDef="let d">{{ d.documentType }}</td>
+    <mat-card class="hero-card info-card">
+      <div class="info-title-row">
+        <div>
+          <h3>{{ vehicle.name }}</h3>
+          <p class="plate">{{ vehicle.registrationNumber }}
+            <span *ngIf="vehicle.vehicleCode"> · {{ vehicle.vehicleCode }}</span>
+          </p>
+        </div>
+        <span class="ops-badge" [ngClass]="liveStatusClass">
+          {{ isGpsOnline ? (motionLabel || 'Online') : (hasTracker ? 'Offline' : liveStatusLabel) }}
+        </span>
+      </div>
+
+      <div class="info-grid">
+        <div class="info-item"><span class="label">Make</span><span class="value">{{ vehicle.make || '—' }}</span></div>
+        <div class="info-item"><span class="label">Model</span><span class="value">{{ vehicle.model || '—' }}</span></div>
+        <div class="info-item"><span class="label">Year</span><span class="value">{{ vehicle.year || '—' }}</span></div>
+        <div class="info-item"><span class="label">Color</span><span class="value">{{ vehicle.color || '—' }}</span></div>
+        <div class="info-item"><span class="label">Type</span><span class="value">{{ vehicle.vehicleType || '—' }}</span></div>
+        <div class="info-item"><span class="label">Fuel</span><span class="value">{{ fuelTypeLabel(vehicle.fuelType) }}</span></div>
+        <div class="info-item"><span class="label">Capacity</span><span class="value">{{ vehicle.seatingCapacity }} seats</span></div>
+        <div class="info-item"><span class="label">Odometer</span><span class="value">{{ displayMileage | number:'1.0-0' }} km</span></div>
+        <div class="info-item"><span class="label">VIN</span><span class="value mono">{{ vehicle.vin || '—' }}</span></div>
+        <div class="info-item"><span class="label">Engine No</span><span class="value mono">{{ vehicle.engineNo || '—' }}</span></div>
+        <div class="info-item"><span class="label">Chassis No</span><span class="value mono">{{ vehicle.chassisNo || '—' }}</span></div>
+        <div class="info-item"><span class="label">Registration</span><span class="value">{{ vehicle.registrationNumber }}</span></div>
+        <div class="info-item"><span class="label">Purchase Date</span><span class="value">{{ vehicle.purchaseDate ? (vehicle.purchaseDate | date:'mediumDate') : '—' }}</span></div>
+        <div class="info-item"><span class="label">Purchase Cost</span><span class="value">{{ vehicle.purchasePrice != null ? ((vehicle.purchaseCurrencyCode || 'PKR') + ' ' + (vehicle.purchasePrice | number:'1.0-0')) : '—' }}</span></div>
+        <div class="info-item">
+          <span class="label">Insurance Expiry</span>
+          <span class="value">
+            {{ vehicle.insuranceExpiryDate ? (vehicle.insuranceExpiryDate | date:'mediumDate') : '—' }}
+            <span class="expiry-chip" *ngIf="vehicle.insuranceExpiryDate as d" [ngClass]="docStatusClass(d)">{{ docStatus(d) }}</span>
+          </span>
+        </div>
+        <div class="info-item">
+          <span class="label">Next Service</span>
+          <span class="value">
+            {{ vehicle.nextServiceDue ? (vehicle.nextServiceDue | date:'mediumDate') : '—' }}
+            <span class="expiry-chip" *ngIf="vehicle.nextServiceDue as d" [ngClass]="docStatusClass(d)">{{ docStatus(d) }}</span>
+          </span>
+        </div>
+        <div class="info-item"><span class="label">Last Trip</span><span class="value">{{ lastTripLabel }}</span></div>
+        <div class="info-item"><span class="label">Registered</span><span class="value">{{ vehicle.createdAt | date:'mediumDate' }}</span></div>
+      </div>
+      <div class="status-legend">
+        <span><i class="lg moving"></i> Moving</span>
+        <span><i class="lg idle"></i> Idle</span>
+        <span><i class="lg parked"></i> Parked</span>
+        <span><i class="lg offline"></i> Offline</span>
+      </div>
+    </mat-card>
+  </section>
+
+  <!-- Driver / Tracker / Live GPS -->
+  <section class="triple-grid">
+    <mat-card class="panel-card">
+      <div class="panel-head">
+        <h4>Driver</h4>
+        <div class="head-actions">
+          <button mat-button type="button" color="primary" *ngIf="vehicle.driverId" (click)="viewDriver()">View Driver</button>
+          <button mat-button type="button" color="primary" (click)="assignDriver()">
+            {{ vehicle.driverName ? 'Change Driver' : 'Assign Driver' }}
+          </button>
+        </div>
+      </div>
+      <div *ngIf="vehicle.driverName || driver; else noDriver" class="driver-block stacked">
+        <div class="driver-top">
+          <div class="avatar" *ngIf="!driverPhotoUrl">{{ driverInitials() }}</div>
+          <img *ngIf="driverPhotoUrl" class="avatar-img" [src]="driverPhotoUrl" alt="" />
+          <div class="driver-meta">
+            <strong>{{ driver?.fullName || vehicle.driverName }}</strong>
+            <span class="chip chip-ok">{{ driverStatusLabel }}</span>
+          </div>
+        </div>
+        <div class="detail-grid compact">
+          <div class="info-item"><span class="label">Phone</span><span class="value">{{ driver?.phone || vehicle.driverPhone || '—' }}</span></div>
+          <div class="info-item">
+            <span class="label">License</span>
+            <span class="value">
+              {{ driver?.licenseNumber || vehicle.driverLicenseNumber || '—' }}
+              <span class="expiry-chip" *ngIf="driver?.licenseExpiryDate as d" [ngClass]="docStatusClass(d)">{{ docStatus(d) }}</span>
+            </span>
+          </div>
+          <div class="info-item"><span class="label">License Expiry</span><span class="value">{{ driver?.licenseExpiryDate ? (driver!.licenseExpiryDate | date:'mediumDate') : '—' }}</span></div>
+          <div class="info-item"><span class="label">Branch</span><span class="value">{{ driver?.branchName || '—' }}</span></div>
+          <div class="info-item"><span class="label">Department</span><span class="value">{{ driver?.departmentName || '—' }}</span></div>
+          <div class="info-item"><span class="label">Experience</span><span class="value">{{ driver?.yearsExperience != null ? driver!.yearsExperience + ' yrs' : '—' }}</span></div>
+          <div class="info-item"><span class="label">Rating</span><span class="value">{{ driver?.rating != null ? (driver!.rating | number:'1.0-1') : '—' }}</span></div>
+          <div class="info-item"><span class="label">Emergency</span><span class="value">{{ driver?.emergencyContact || driver?.emergencyContactName || '—' }}</span></div>
+        </div>
+        <div class="driver-quick-actions">
+          <a mat-stroked-button *ngIf="driver?.phone || vehicle.driverPhone" [href]="'tel:' + (driver?.phone || vehicle.driverPhone)">
+            <mat-icon>call</mat-icon> Call
+          </a>
+          <button mat-stroked-button type="button" *ngIf="vehicle.driverId" (click)="viewDriver()">
+            <mat-icon>person</mat-icon> View Profile
+          </button>
+          <button mat-stroked-button type="button" (click)="createBooking()">
+            <mat-icon>event</mat-icon> Assign Booking
+          </button>
+        </div>
+      </div>
+      <ng-template #noDriver>
+        <div class="empty-inline compact">
+          <mat-icon class="empty-icon">person_off</mat-icon>
+          <p>No driver assigned</p>
+          <button mat-stroked-button color="primary" type="button" (click)="assignDriver()">Assign Driver</button>
+        </div>
+      </ng-template>
+    </mat-card>
+
+    <mat-card class="panel-card">
+      <div class="panel-head">
+        <h4>Tracker</h4>
+        <div class="head-actions">
+          <button mat-button type="button" color="primary" *ngIf="hasTracker" (click)="viewTracker()">View Tracker</button>
+          <button mat-button type="button" color="primary" (click)="installTracker()">
+            {{ hasTracker ? 'Change Tracker' : 'Install Tracker' }}
+          </button>
+        </div>
+      </div>
+      <div *ngIf="hasTracker; else noTracker" class="detail-grid compact">
+        <div class="info-item"><span class="label">Model</span><span class="value">{{ tracker?.modelName || gps?.modelName || vehicle.trackerModel || tracker?.name || gps?.deviceName || '—' }}</span></div>
+        <div class="info-item"><span class="label">Brand</span><span class="value">{{ tracker?.trackerBrandName || gps?.brandName || vehicle.trackerBrand || '—' }}</span></div>
+        <div class="info-item"><span class="label">IMEI</span><span class="value mono">{{ tracker?.uniqueId || gps?.uniqueId || vehicle.gpsImei || '—' }}</span></div>
+        <div class="info-item"><span class="label">SIM</span><span class="value">{{ tracker?.simNumber || gps?.simNumber || vehicle.gpsSim || '—' }}</span></div>
+        <div class="info-item"><span class="label">Network</span><span class="value">{{ tracker?.simProvider || '—' }}</span></div>
+        <div class="info-item"><span class="label">Status</span><span class="value" [class.text-ok]="isGpsOnline" [class.text-bad]="!isGpsOnline">{{ trackerStatusLabel }}</span></div>
+        <div class="info-item"><span class="label">Vendor</span><span class="value">{{ tracker?.vendor || '—' }}</span></div>
+        <div class="info-item"><span class="label">Installed</span><span class="value">{{ (tracker?.installationDate || gps?.installationDate || vehicle.trackerInstallationDate) | date:'mediumDate' }}</span></div>
+        <div class="info-item"><span class="label">Warranty</span><span class="value">{{ tracker?.warrantyEnd ? (tracker!.warrantyEnd | date:'mediumDate') : '—' }}</span></div>
+        <div class="info-item"><span class="label">Relay</span><span class="value">{{ tracker?.relayOutput || '—' }}</span></div>
+        <div class="info-item"><span class="label">Immobilizer</span><span class="value">{{ tracker?.supportsEngineCutoff ? 'Supported' : '—' }}</span></div>
+        <div class="info-item"><span class="label">Last Sync</span><span class="value">{{ lastUpdateRelative }}</span></div>
+        <div class="info-item"><span class="label">Battery</span><span class="value">{{ displayBattery }}</span></div>
+        <div class="info-item"><span class="label">Signal</span><span class="value">{{ displayGsm }}</span></div>
+      </div>
+      <ng-template #noTracker>
+        <div class="empty-inline compact">
+          <mat-icon class="empty-icon">gps_off</mat-icon>
+          <p>No tracker installed</p>
+          <button mat-stroked-button color="primary" type="button" (click)="installTracker()">Install Tracker</button>
+        </div>
+      </ng-template>
+    </mat-card>
+
+    <mat-card class="panel-card">
+      <div class="panel-head">
+        <h4>Live GPS</h4>
+        <div class="head-actions">
+          <button mat-button type="button" color="primary" (click)="goLiveTracking()">Open Live Tracking</button>
+          <button mat-button type="button" (click)="goReplay()">Replay Route</button>
+        </div>
+      </div>
+      <div *ngIf="hasTracker; else noGpsLive" class="gps-live">
+        <div class="gps-strip" [class.offline]="!isGpsOnline">
+          <span class="live-dot"></span>
+          {{ isGpsOnline ? 'LIVE' : 'OFFLINE' }}
+          <ng-container *ngIf="motionLabel"> · {{ motionLabel }}</ng-container>
+          · Updated {{ lastUpdateRelative }}
+        </div>
+        <div class="detail-grid compact">
+          <div class="info-item">
+            <span class="label">Speed</span>
+            <span class="value">
+              {{ displaySpeed != null ? (displaySpeed | number:'1.0-0') + ' km/h' : reportedOrDash }}
+              <span class="hint-note" *ngIf="displaySpeed != null && displaySpeed > 0 && liveStatus !== 'moving'">below moving threshold</span>
+            </span>
+          </div>
+          <div class="info-item">
+            <span class="label">Ignition</span>
+            <span class="value" [class.text-ok]="displayIgnition === true">{{ displayIgnition == null ? reportedOrDash : (displayIgnition ? 'ON' : 'OFF') }}</span>
+          </div>
+          <div class="info-item"><span class="label">Motion</span><span class="value">{{ displayMotion }}</span></div>
+          <div class="info-item"><span class="label">Heading</span><span class="value">{{ displayHeading }}</span></div>
+          <div class="info-item"><span class="label">Battery</span><span class="value">{{ displayBattery }}</span></div>
+          <div class="info-item"><span class="label">GSM</span><span class="value">{{ displayGsm }}</span></div>
+          <div class="info-item"><span class="label">Fuel Level</span><span class="value">{{ displayFuelLevel }}</span></div>
+          <div class="info-item"><span class="label">Odometer</span><span class="value">{{ displayMileage > 0 ? (displayMileage | number:'1.0-0') + ' km' : reportedOrDash }}</span></div>
+          <div class="info-item span-2"><span class="label">Coordinates</span><span class="value mono">{{ displayCoords }}</span></div>
+          <div class="info-item span-2"><span class="label">Address</span><span class="value">{{ displayAddress }}</span></div>
+          <div class="info-item span-2"><span class="label">Last GPS Update</span><span class="value">{{ lastTelemetryAt ? (lastTelemetryAt | date:'medium') : reportedOrDash }} ({{ lastUpdateRelative }})</span></div>
+        </div>
+        <a *ngIf="mapsUrl" [href]="mapsUrl" target="_blank" rel="noopener" class="maps-link">Open in Google Maps →</a>
+      </div>
+      <ng-template #noGpsLive>
+        <div class="empty-inline compact">
+          <mat-icon class="empty-icon">location_off</mat-icon>
+          <p>Assign a tracker to see live telemetry</p>
+          <button mat-stroked-button color="primary" type="button" (click)="installTracker()">Install Tracker</button>
+        </div>
+      </ng-template>
+    </mat-card>
+  </section>
+
+  <!-- Compliance + Documents -->
+  <section class="compliance-row">
+    <mat-card class="panel-card compliance-summary">
+      <div class="panel-head"><h4>Compliance</h4></div>
+      <div class="compliance-progress">
+        <div class="progress-meta">
+          <strong>{{ compliancePercent }}%</strong>
+          <span>Valid</span>
+        </div>
+        <div class="progress-bar"><div class="progress-fill" [style.width.%]="compliancePercent"></div></div>
+      </div>
+      <div class="compliance-stats">
+        <div class="c-stat valid"><span class="n">{{ complianceValid }}</span><span class="l">Valid</span></div>
+        <div class="c-stat expiring"><span class="n">{{ complianceExpiring }}</span><span class="l">Expiring</span></div>
+        <div class="c-stat expired"><span class="n">{{ complianceExpired }}</span><span class="l">Expired / Missing</span></div>
+      </div>
+      <div class="next-expiring" *ngIf="nextExpiringItem as next">
+        <mat-icon>warning</mat-icon>
+        <span>Next: {{ next.label }} · {{ next.expiryDate | date:'mediumDate' }}</span>
+        <button mat-button type="button" color="primary" (click)="renewCompliance(next)">Renew</button>
+      </div>
+      <div class="compliance-list">
+        <div class="compliance-item" *ngFor="let item of complianceItems">
+          <span class="c-label">{{ item.label }}</span>
+          <span class="c-status" [ngClass]="item.statusClass">{{ item.status }}</span>
+          <span class="c-expiry">{{ item.expiryDate ? (item.expiryDate | date:'mediumDate') : '—' }}</span>
+          <button mat-button type="button" color="primary" class="renew-btn"
+            *ngIf="item.status === 'Expired' || item.status === 'Expiring Soon' || item.status === 'Missing'"
+            (click)="renewCompliance(item)">Renew</button>
+        </div>
+      </div>
+    </mat-card>
+
+    <mat-card class="panel-card docs-card">
+      <div class="panel-head"><h4>Documents</h4></div>
+      <table mat-table [dataSource]="complianceDocuments" class="full-width" *ngIf="complianceDocuments.length; else noDocs">
+        <ng-container matColumnDef="document">
+          <th mat-header-cell *matHeaderCellDef>Document</th>
+          <td mat-cell *matCellDef="let d">{{ docLabel(d.documentType) }}</td>
         </ng-container>
-        <ng-container matColumnDef="expiryDate">
+        <ng-container matColumnDef="status">
+          <th mat-header-cell *matHeaderCellDef>Status</th>
+          <td mat-cell *matCellDef="let d">
+            <span class="doc-status" [ngClass]="docStatusClass(d.expiryDate)">{{ docStatus(d.expiryDate) }}</span>
+          </td>
+        </ng-container>
+        <ng-container matColumnDef="expiry">
           <th mat-header-cell *matHeaderCellDef>Expiry</th>
           <td mat-cell *matCellDef="let d">{{ d.expiryDate | date:'mediumDate' }}</td>
         </ng-container>
-        <tr mat-header-row *matHeaderRowDef="['documentType','expiryDate']"></tr>
-        <tr mat-row *matRowDef="let row; columns: ['documentType','expiryDate']"></tr>
+        <ng-container matColumnDef="action">
+          <th mat-header-cell *matHeaderCellDef>Action</th>
+          <td mat-cell *matCellDef="let d">
+            <ng-container *ngIf="docFileUrl(d) as url; else noDocFile">
+              <button mat-icon-button type="button" *ngIf="!isPdf(d)" matTooltip="Preview" (click)="openPhotoPreview(url, docLabel(d.documentType))">
+                <mat-icon>visibility</mat-icon>
+              </button>
+              <button mat-icon-button type="button" matTooltip="Download" (click)="openDoc(d)">
+                <mat-icon>download</mat-icon>
+              </button>
+            </ng-container>
+            <ng-template #noDocFile><span>—</span></ng-template>
+          </td>
+        </ng-container>
+        <tr mat-header-row *matHeaderRowDef="docColumns"></tr>
+        <tr mat-row *matRowDef="let row; columns: docColumns"></tr>
       </table>
-    </mat-card-content>
-  </mat-card>
+      <ng-template #noDocs>
+        <div class="empty-inline">
+          <mat-icon class="empty-icon">description</mat-icon>
+          <p>No compliance documents uploaded yet.</p>
+        </div>
+      </ng-template>
+    </mat-card>
+  </section>
 
-  <!-- Stats Cards -->
-  <div class="stats-row">
+  <!-- KPI cards — "—" means no data yet; real zeros only when records exist -->
+  <section class="stats-row">
+    <mat-card class="stat-card">
+      <mat-icon>speed</mat-icon>
+      <div class="stat-content">
+        <span class="stat-value">{{ displayMileage > 0 ? (displayMileage | number:'1.0-0') : '—' }}</span>
+        <span class="stat-label">Odometer (km)</span>
+      </div>
+    </mat-card>
+    <mat-card class="stat-card">
+      <mat-icon>route</mat-icon>
+      <div class="stat-content">
+        <span class="stat-value" [class.is-loading]="tripsKpi === 'Loading'">{{ tripsKpi }}</span>
+        <span class="stat-label">Trips (30d)</span>
+      </div>
+    </mat-card>
+    <mat-card class="stat-card">
+      <mat-icon>straighten</mat-icon>
+      <div class="stat-content">
+        <span class="stat-value" [class.is-loading]="distanceKpi === 'Loading'">{{ distanceKpi }}</span>
+        <span class="stat-label">Distance</span>
+      </div>
+    </mat-card>
+    <mat-card class="stat-card">
+      <mat-icon>timer</mat-icon>
+      <div class="stat-content">
+        <span class="stat-value" [class.is-loading]="engineHoursKpi === 'Loading'">{{ engineHoursKpi }}</span>
+        <span class="stat-label">Engine Hours</span>
+      </div>
+    </mat-card>
+    <mat-card class="stat-card">
+      <mat-icon>pause_circle</mat-icon>
+      <div class="stat-content">
+        <span class="stat-value" [class.is-loading]="idleKpi === 'Loading'">{{ idleKpi }}</span>
+        <span class="stat-label">Idle (min)</span>
+      </div>
+    </mat-card>
     <mat-card class="stat-card">
       <mat-icon>local_gas_station</mat-icon>
       <div class="stat-content">
-        <span class="stat-value">{{ totalFuelLiters | number:'1.0-0' }} L</span>
-        <span class="stat-label">Total Fuel Used</span>
+        <span class="stat-value" [class.is-loading]="fuelUsedKpi === 'Loading'">{{ fuelUsedKpi }}</span>
+        <span class="stat-label">Fuel Used</span>
       </div>
     </mat-card>
     <mat-card class="stat-card">
       <mat-icon>payments</mat-icon>
       <div class="stat-content">
-        <span class="stat-value">PKR {{ totalFuelCost | number:'1.0-0' }}</span>
+        <span class="stat-value" [class.is-loading]="fuelCostKpi === 'Loading'">{{ fuelCostKpi }}</span>
         <span class="stat-label">Fuel Expense</span>
       </div>
     </mat-card>
     <mat-card class="stat-card">
       <mat-icon>build</mat-icon>
       <div class="stat-content">
-        <span class="stat-value">PKR {{ totalMaintenanceCost | number:'1.0-0' }}</span>
+        <span class="stat-value" [class.is-loading]="maintCostKpi === 'Loading'">{{ maintCostKpi }}</span>
         <span class="stat-label">Maintenance Cost</span>
       </div>
     </mat-card>
-    <mat-card class="stat-card" *ngIf="fuelEfficiency > 0">
-      <mat-icon>speed</mat-icon>
+    <mat-card class="stat-card">
+      <mat-icon>trending_up</mat-icon>
       <div class="stat-content">
-        <span class="stat-value">{{ fuelEfficiency }} km/L</span>
-        <span class="stat-label">Fuel Efficiency</span>
+        <span class="stat-value">{{ vehicle.fuelAverage | number:'1.0-1' }}</span>
+        <span class="stat-label">Fuel Avg (km/L)</span>
       </div>
     </mat-card>
-  </div>
+    <mat-card class="stat-card">
+      <mat-icon>av_timer</mat-icon>
+      <div class="stat-content">
+        <span class="stat-value" [class.is-loading]="avgSpeedKpi === 'Loading'">{{ avgSpeedKpi }}</span>
+        <span class="stat-label">Avg Speed</span>
+      </div>
+    </mat-card>
+  </section>
 
-  <!-- Recent Bookings -->
+  <!-- Cost summary -->
+  <mat-card class="panel-card cost-card">
+    <div class="panel-head"><h4>Cost Summary</h4></div>
+    <div class="cost-grid">
+      <div class="cost-item"><span class="label">Purchase</span><span class="value">{{ vehicle.purchasePrice != null ? ((vehicle.purchaseCurrencyCode || 'PKR') + ' ' + (vehicle.purchasePrice | number:'1.0-0')) : '—' }}</span></div>
+      <div class="cost-item"><span class="label">Fuel</span><span class="value">{{ fuelSummary?.totalCount ? ('PKR ' + (totalFuelCost | number:'1.0-0')) : '—' }}</span></div>
+      <div class="cost-item"><span class="label">Maintenance</span><span class="value">{{ recentMaintenance.length ? ('PKR ' + (totalMaintenanceCost | number:'1.0-0')) : '—' }}</span></div>
+      <div class="cost-item"><span class="label">Insurance</span><span class="value">{{ vehicle.insuranceExpiryDate ? (vehicle.insuranceExpiryDate | date:'mediumDate') : '—' }}</span></div>
+      <div class="cost-item"><span class="label">Last Refuel</span><span class="value">{{ lastFuelLog ? (lastFuelLog.fuelDate | date:'mediumDate') : '—' }}</span></div>
+      <div class="cost-item"><span class="label">Lifetime Cost</span><span class="value">{{ lifetimeCost != null ? ((vehicle.purchaseCurrencyCode || 'PKR') + ' ' + (lifetimeCost | number:'1.0-0')) : '—' }}</span></div>
+    </div>
+  </mat-card>
+
+  <!-- Charts -->
+  <section class="charts-row" *ngIf="fuelChartData.labels?.length || tripChartData.labels?.length">
+    <mat-card class="panel-card" *ngIf="fuelChartData.labels?.length">
+      <div class="panel-head"><h4>Fuel Trend</h4></div>
+      <ui-chart type="line" [data]="fuelChartData" [options]="chartOptions" height="220px"></ui-chart>
+    </mat-card>
+    <mat-card class="panel-card" *ngIf="tripChartData.labels?.length">
+      <div class="panel-head"><h4>Trip Distance Trend</h4></div>
+      <ui-chart type="bar" [data]="tripChartData" [options]="chartOptions" height="220px"></ui-chart>
+    </mat-card>
+  </section>
+
+  <!-- Recent trips -->
+  <mat-card class="data-card">
+    <mat-card-header>
+      <mat-card-title>Recent Trips</mat-card-title>
+      <button mat-button type="button" *ngIf="recentTrips.length" (click)="goTripHistory()">View All</button>
+    </mat-card-header>
+    <mat-card-content>
+      <table mat-table [dataSource]="recentTrips" *ngIf="recentTrips.length; else noTrips">
+        <ng-container matColumnDef="date">
+          <th mat-header-cell *matHeaderCellDef>Date</th>
+          <td mat-cell *matCellDef="let t">{{ t.startTime | date:'short' }}</td>
+        </ng-container>
+        <ng-container matColumnDef="distance">
+          <th mat-header-cell *matHeaderCellDef class="text-right">Distance</th>
+          <td mat-cell *matCellDef="let t" class="text-right">{{ t.distanceKm | number:'1.1-1' }} km</td>
+        </ng-container>
+        <ng-container matColumnDef="duration">
+          <th mat-header-cell *matHeaderCellDef class="text-right">Duration</th>
+          <td mat-cell *matCellDef="let t" class="text-right">{{ t.durationMinutes }} min</td>
+        </ng-container>
+        <ng-container matColumnDef="avgSpeed">
+          <th mat-header-cell *matHeaderCellDef class="text-right">Avg Speed</th>
+          <td mat-cell *matCellDef="let t" class="text-right">{{ t.avgSpeedKmh | number:'1.0-0' }} km/h</td>
+        </ng-container>
+        <ng-container matColumnDef="fuel">
+          <th mat-header-cell *matHeaderCellDef class="text-right">Fuel</th>
+          <td mat-cell *matCellDef="let t" class="text-right">{{ t.fuelLiters != null ? (t.fuelLiters | number:'1.1-1') + ' L' : '—' }}</td>
+        </ng-container>
+        <tr mat-header-row *matHeaderRowDef="tripColumns"></tr>
+        <tr mat-row *matRowDef="let row; columns: tripColumns"></tr>
+      </table>
+      <ng-template #noTrips>
+        <div class="empty-state compact">
+          <mat-icon class="empty-icon">route</mat-icon>
+          <p>No trips recorded in the last 30 days.</p>
+          <div class="empty-actions">
+            <button mat-stroked-button color="primary" type="button" (click)="goLiveTracking()">Open Live Tracking</button>
+            <button mat-button type="button" (click)="goTripHistory()">View History</button>
+          </div>
+        </div>
+      </ng-template>
+    </mat-card-content>
+  </mat-card>
+
+  <!-- Bookings -->
   <mat-card class="data-card">
     <mat-card-header>
       <mat-card-title>Recent Bookings</mat-card-title>
+      <button mat-button type="button" *ngIf="recentBookings.length" routerLink="/bookings">View All</button>
     </mat-card-header>
     <mat-card-content>
-      <table mat-table [dataSource]="recentBookings" *ngIf="recentBookings.length > 0">
+      <table mat-table [dataSource]="recentBookings" *ngIf="recentBookings.length; else noBookings">
         <ng-container matColumnDef="bookingNumber">
           <th mat-header-cell *matHeaderCellDef>Booking #</th>
           <td mat-cell *matCellDef="let b">
@@ -133,20 +512,33 @@
           </td>
         </ng-container>
         <tr mat-header-row *matHeaderRowDef="bookingColumns"></tr>
-        <tr mat-row *matRowDef="let row; columns: bookingColumns;"></tr>
+        <tr mat-row *matRowDef="let row; columns: bookingColumns"></tr>
       </table>
-      <div *ngIf="recentBookings.length === 0" class="empty-state">No bookings assigned to this vehicle yet.</div>
+      <ng-template #noBookings>
+        <div class="empty-state compact">
+          <mat-icon class="empty-icon">event_busy</mat-icon>
+          <p>No bookings assigned to this vehicle yet.</p>
+          <button mat-raised-button color="primary" type="button" (click)="createBooking()">
+            <mat-icon>add</mat-icon> Create Booking
+          </button>
+        </div>
+      </ng-template>
     </mat-card-content>
   </mat-card>
 
-  <!-- Recent Fuel Logs -->
+  <!-- Fuel -->
   <mat-card class="data-card">
     <mat-card-header>
       <mat-card-title>Recent Fuel Logs</mat-card-title>
-      <button mat-button routerLink="/fuel-logs">View All</button>
+      <div class="header-btns">
+        <button mat-button type="button" *ngIf="fuelSummary?.items?.length" routerLink="/fuel-logs">View All</button>
+        <button mat-stroked-button color="primary" type="button" (click)="addFuel()">
+          <mat-icon>add</mat-icon> Add Fuel
+        </button>
+      </div>
     </mat-card-header>
     <mat-card-content>
-      <table mat-table [dataSource]="recentFuelLogs" *ngIf="recentFuelLogs.length > 0">
+      <table mat-table [dataSource]="fuelSummary!.items" *ngIf="fuelSummary?.items?.length; else noFuel">
         <ng-container matColumnDef="fuelDate">
           <th mat-header-cell *matHeaderCellDef>Date</th>
           <td mat-cell *matCellDef="let f">{{ f.fuelDate | date:'mediumDate' }}</td>
@@ -164,20 +556,34 @@
           <td mat-cell *matCellDef="let f" class="text-right">{{ f.totalCost | number:'1.0-0' }}</td>
         </ng-container>
         <tr mat-header-row *matHeaderRowDef="fuelColumns"></tr>
-        <tr mat-row *matRowDef="let row; columns: fuelColumns;"></tr>
+        <tr mat-row *matRowDef="let row; columns: fuelColumns"></tr>
       </table>
-      <div *ngIf="recentFuelLogs.length === 0" class="empty-state">No fuel logs recorded for this vehicle.</div>
+      <ng-template #noFuel>
+        <div class="empty-state compact">
+          <mat-icon class="empty-icon">local_gas_station</mat-icon>
+          <p>No fuel logs recorded for this vehicle.</p>
+          <button mat-raised-button color="primary" type="button" (click)="addFuel()">
+            <mat-icon>add</mat-icon> Add Fuel
+          </button>
+        </div>
+      </ng-template>
     </mat-card-content>
   </mat-card>
 
-  <!-- Recent Maintenance -->
+  <!-- Maintenance -->
   <mat-card class="data-card">
     <mat-card-header>
       <mat-card-title>Maintenance History</mat-card-title>
-      <button mat-button *ngIf="vehicle" [routerLink]="['/fleet/maintenance/history']" [queryParams]="{ vehicleId: vehicle.id }">View full history</button>
+      <div class="header-btns">
+        <button mat-button type="button" *ngIf="recentMaintenance.length"
+          [routerLink]="['/fleet/maintenance/history']" [queryParams]="{ vehicleId: vehicle.id }">View full history</button>
+        <button mat-stroked-button color="primary" type="button" (click)="scheduleMaintenance()">
+          <mat-icon>event</mat-icon> Schedule Maintenance
+        </button>
+      </div>
     </mat-card-header>
     <mat-card-content>
-      <table mat-table [dataSource]="recentMaintenance" *ngIf="recentMaintenance.length > 0">
+      <table mat-table [dataSource]="recentMaintenance" *ngIf="recentMaintenance.length; else noMaint">
         <ng-container matColumnDef="maintenanceDate">
           <th mat-header-cell *matHeaderCellDef>Date</th>
           <td mat-cell *matCellDef="let m">{{ m.maintenanceDate | date:'mediumDate' }}</td>
@@ -199,9 +605,45 @@
           <td mat-cell *matCellDef="let m" class="text-right">{{ m.cost | number:'1.0-0' }}</td>
         </ng-container>
         <tr mat-header-row *matHeaderRowDef="maintenanceColumns"></tr>
-        <tr mat-row *matRowDef="let row; columns: maintenanceColumns;"></tr>
+        <tr mat-row *matRowDef="let row; columns: maintenanceColumns"></tr>
       </table>
-      <div *ngIf="recentMaintenance.length === 0" class="empty-state">No maintenance records for this vehicle.</div>
+      <ng-template #noMaint>
+        <div class="empty-state compact">
+          <mat-icon class="empty-icon">build</mat-icon>
+          <p>No maintenance records for this vehicle.</p>
+          <button mat-raised-button color="primary" type="button" (click)="scheduleMaintenance()">
+            <mat-icon>event</mat-icon> Schedule Maintenance
+          </button>
+        </div>
+      </ng-template>
     </mat-card-content>
   </mat-card>
+
+  <!-- Timeline -->
+  <mat-card class="panel-card timeline-card">
+    <div class="panel-head"><h4>Activity Timeline</h4></div>
+    <div class="timeline" *ngIf="timelineEvents.length; else noTimeline">
+      <div class="timeline-item" *ngFor="let ev of timelineEvents" [attr.data-tone]="ev.tone">
+        <div class="tl-icon"><mat-icon>{{ ev.icon }}</mat-icon></div>
+        <div class="tl-body">
+          <strong>{{ ev.title }}</strong>
+          <span *ngIf="ev.detail">{{ ev.detail }}</span>
+          <span class="tl-time" *ngIf="ev.timestamp">{{ ev.timestamp | date:'medium' }}</span>
+        </div>
+      </div>
+    </div>
+    <ng-template #noTimeline>
+      <div class="empty-inline">
+        <mat-icon class="empty-icon">history</mat-icon>
+        <p>Activity will appear as the vehicle is used.</p>
+      </div>
+    </ng-template>
+  </mat-card>
+</div>
+
+<!-- Photo lightbox -->
+<div class="photo-lightbox" *ngIf="photoPreviewUrl" (click)="closePhotoPreview()">
+  <button type="button" class="lb-close" (click)="closePhotoPreview()" aria-label="Close"><mat-icon>close</mat-icon></button>
+  <img [src]="photoPreviewUrl" [alt]="photoPreviewLabel" (click)="$event.stopPropagation()" />
+  <p>{{ photoPreviewLabel }}</p>
 </div>

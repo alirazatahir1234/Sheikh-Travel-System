@@ -10,7 +10,7 @@
       <h1 class="track-title stb-heading-page">Fleet map</h1>
       <p class="track-subtitle stb-body desktop-only">Monitor vehicles, routes, and telemetry in real time</p>
     </div>
-    <div class="track-header-right stb-actions stb-actions--mobile-stack">
+    <div class="track-header-right stb-actions">
       <div class="sync-pill"
            [class.sync-pill--active]="trackingActive"
            [class.sync-pill--offline]="!isTraccarOnline || traccarStatus?.syncEnabled === false">
@@ -223,7 +223,7 @@
                 <span class="vehicle-badge">{{ statusLabel(loc.status) }}</span>
               </div>
               <span class="vehicle-reg">{{ loc.registrationNumber }}</span>
-              <span class="vehicle-route" *ngIf="loc.imei || loc.trackerName">
+              <span class="vehicle-route desktop-only" *ngIf="loc.imei || loc.trackerName">
                 {{ loc.trackerName || 'Tracker' }}<ng-container *ngIf="loc.imei"> · {{ loc.imei }}</ng-container>
               </span>
               <div class="vehicle-meta">

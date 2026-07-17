@@ -8,6 +8,7 @@ using Microsoft.Extensions.Options;
 using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Application.Features.CustomerPortal;
 using SheikhTravelSystem.Application.Features.GpsTracking;
+using SheikhTravelSystem.Application.Features.GpsTracking.Services;
 using SheikhTravelSystem.Application.Features.GpsTracking.Traccar;
 using SheikhTravelSystem.Application.Features.GpsTracking.Trackers;
 using SheikhTravelSystem.Infrastructure.Authentication;
@@ -52,6 +53,7 @@ public static class DependencyInjection
         services.AddHostedService<ComplianceReminderHostedService>();
         services.AddHostedService<MaintenanceAlertHostedService>();
         services.AddHostedService<GpsFleetStatusSnapshotHostedService>();
+        services.AddHostedService<GpsDailyRollupHostedService>();
         services.AddHostedService<GpsOfflineDetectionHostedService>();
         services.AddHostedService<GpsCommandRetryHostedService>();
         services.Configure<GpsSettings>(configuration.GetSection(GpsSettings.SectionName));
@@ -95,6 +97,20 @@ public static class DependencyInjection
         services.AddSingleton<ITraccarSyncState, TraccarSyncState>();
         services.AddScoped<ITraccarSyncOrchestrator, TraccarSyncOrchestrator>();
         services.AddScoped<ITrackerRegistrationService, TrackerRegistrationService>();
+
+        // Reverse-geocoding backfill for positions Traccar's own geocoder didn't resolve.
+        services.Configure<GeocodingOptions>(configuration.GetSection(GeocodingOptions.SectionName));
+        services.AddHttpClient("Nominatim", (sp, client) =>
+        {
+            var opts = sp.GetRequiredService<IOptions<GeocodingOptions>>().Value;
+            client.BaseAddress = new Uri(opts.BaseUrl);
+            client.DefaultRequestHeaders.UserAgent.ParseAdd(
+                string.IsNullOrWhiteSpace(opts.UserAgent) ? "SheikhGoERP/1.0" : opts.UserAgent);
+            client.Timeout = TimeSpan.FromSeconds(10);
+        });
+        services.AddSingleton<GpsAddressBackfillHostedService>();
+        services.AddSingleton<IGpsAddressBackfillQueue>(sp => sp.GetRequiredService<GpsAddressBackfillHostedService>());
+        services.AddHostedService(sp => sp.GetRequiredService<GpsAddressBackfillHostedService>());
 
         return services;
     }

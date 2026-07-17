@@ -290,6 +290,10 @@ export interface GpsAlertEvent {
   isAcknowledged: boolean;
   geofenceId?: number | null;
   geofenceName?: string | null;
+  severity?: string;
+  status?: string;
+  driverId?: number | null;
+  driverName?: string | null;
 }
 
 export interface TripFleetFilters {
@@ -620,4 +624,262 @@ export interface TraccarSyncStatusDto {
   lastSyncCompletedAt?: string | null;
   lastError?: string | null;
   positionSyncIntervalSeconds?: number;
+}
+
+export interface AnalyticsFilters {
+  from?: string;
+  to?: string;
+  branchId?: number;
+  departmentId?: number;
+  driverId?: number;
+}
+
+export interface AnalyticsOverview {
+  totalVehicles: number;
+  online: number;
+  offline: number;
+  moving: number;
+  idle: number;
+  stopped: number;
+  distanceKm: number;
+  drivingMinutes: number;
+  idleMinutes: number;
+  avgSpeedKmh: number;
+  maxSpeedKmh: number;
+  fuelLiters?: number;
+  engineHours?: number;
+  tripsToday: number;
+  stopsToday: number;
+  geofenceEntriesToday: number;
+  overspeedEventsToday: number;
+  utilizationPercent?: number;
+}
+
+export interface DailyMetric {
+  date: string;
+  distanceKm: number;
+  tripCount: number;
+  avgSpeedKmh: number;
+}
+
+export interface DistanceAnalytics {
+  daily: DailyMetric[];
+  totalDistanceKm: number;
+  totalTrips: number;
+}
+
+export interface SpeedHistogramBucket {
+  label: string;
+  count: number;
+}
+
+export interface SpeedAnalytics {
+  avgSpeedKmh: number;
+  maxSpeedKmh: number;
+  histogram: SpeedHistogramBucket[];
+  dailyAvgSpeed: DailyMetric[];
+}
+
+export interface VehicleIdle {
+  vehicleId: number;
+  vehicleName?: string;
+  idleMinutes: number;
+}
+
+export interface IdleAnalytics {
+  totalIdleMinutes: number;
+  longestIdleMinutes: number;
+  topIdleVehicles: VehicleIdle[];
+  isPartial: boolean;
+}
+
+export interface StopAnalytics {
+  totalStops: number;
+  avgStopDurationMinutes: number;
+  longestStopMinutes: number;
+  isPartial: boolean;
+}
+
+export interface DriverScoreFactors {
+  tripCount: number;
+  distanceKm: number;
+  overspeedCount: number;
+  idleMinutes: number;
+  harshEventCount: number;
+  nightDrivingPercent: number;
+  fuelLiters?: number;
+}
+
+export interface DriverScore {
+  driverId: number;
+  driverName: string;
+  score: number;
+  rating: string;
+  factors: DriverScoreFactors;
+  isPartial: boolean;
+}
+
+export interface DailyUtilization {
+  date: string;
+  utilizationPercent: number;
+}
+
+export interface FleetUtilization {
+  runningHours: number;
+  idleHours: number;
+  parkingHours: number;
+  offlineHours: number;
+  utilizationPercent: number;
+  utilizationLabel: string;
+  daily: DailyUtilization[];
+}
+
+export interface DailyFuel {
+  date: string;
+  liters: number;
+  cost: number;
+}
+
+export interface VehicleFuel {
+  vehicleId: number;
+  vehicleName?: string;
+  liters: number;
+  cost: number;
+  distanceKm?: number;
+  litersPer100Km?: number;
+}
+
+export interface FuelAnalytics {
+  totalLiters: number;
+  totalCost: number;
+  fleetLitersPer100Km?: number;
+  daily: DailyFuel[];
+  byVehicle: VehicleFuel[];
+}
+
+export interface GeofenceVisit {
+  geofenceId: number;
+  geofenceName: string;
+  entryCount: number;
+  exitCount: number;
+  avgDwellMinutes?: number;
+}
+
+export interface GeofenceAnalytics {
+  mostVisited: GeofenceVisit[];
+  leastVisited: GeofenceVisit[];
+  totalEntries: number;
+  totalExits: number;
+}
+
+export interface EventTypeCount {
+  key: string;
+  count: number;
+}
+
+export interface DailyEventCount {
+  date: string;
+  count: number;
+}
+
+export interface AlertEventStats {
+  byType: EventTypeCount[];
+  bySeverity: EventTypeCount[];
+  daily: DailyEventCount[];
+  total: number;
+}
+
+export interface HeatmapPoint {
+  latitude: number;
+  longitude: number;
+  count: number;
+}
+
+export interface GpsVehicleHealth {
+  vehicleId: number;
+  vehicleName: string;
+  batteryLevel?: number;
+  gpsSignal?: number;
+  maintenanceStatus: string;
+  insuranceExpiryDate?: string;
+  insuranceStatus: string;
+  trackerWarrantyEnd?: string;
+  trackerWarrantyStatus: string;
+}
+
+export interface VehicleRanking {
+  vehicleId: number;
+  vehicleName: string;
+  distanceKm: number;
+  tripCount: number;
+  avgSpeedKmh: number;
+  fuelCost: number;
+  maintenanceCost: number;
+  costPerKm?: number;
+}
+
+export interface CostAnalytics {
+  totalFuelCost: number;
+  totalMaintenanceCost: number;
+  totalCost: number;
+  totalDistanceKm: number;
+  costPerKm?: number;
+  costBasisNote: string;
+}
+
+export interface TrendPoint {
+  period: string;
+  distanceKm: number;
+  tripCount: number;
+  overspeedCount: number;
+}
+
+export interface Trends {
+  points: TrendPoint[];
+}
+
+export interface ComparativePeriod {
+  label: string;
+  distanceKm: number;
+  tripCount: number;
+  avgSpeedKmh: number;
+  overspeedCount: number;
+}
+
+export interface ComparativeAnalytics {
+  periodA: ComparativePeriod;
+  periodB?: ComparativePeriod;
+}
+
+export interface AnalyticsReportFilters {
+  branchId?: number | null;
+  departmentId?: number | null;
+  from?: string | null;
+  to?: string | null;
+}
+
+export interface AnalyticsReportSchedule {
+  id: number;
+  reportType: string;
+  filters: AnalyticsReportFilters;
+  frequency: string;
+  recipients: string;
+  nextRunAt?: string | null;
+  lastRunAt?: string | null;
+  lastRunStatus?: string | null;
+  isActive: boolean;
+}
+
+export interface CreateAnalyticsReportSchedule {
+  reportType: string;
+  filters: AnalyticsReportFilters;
+  frequency: string;
+  recipients: string;
+}
+
+export interface UpdateAnalyticsReportSchedule {
+  frequency?: string;
+  recipients?: string;
+  isActive?: boolean;
+  filters?: AnalyticsReportFilters;
 }

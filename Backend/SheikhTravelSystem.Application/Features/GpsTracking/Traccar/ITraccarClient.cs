@@ -19,6 +19,8 @@ public interface ITraccarClient
     Task<bool> UpdateDeviceAsync(int deviceId, string name, string uniqueId, bool disabled, CancellationToken ct = default);
 
     Task<IReadOnlyList<TraccarPosition>> GetLivePositionsAsync(CancellationToken ct = default);
+    /// <summary>Latest position(s) for one device — prefer this over <see cref="GetLivePositionsAsync"/> on hot paths.</summary>
+    Task<TraccarPosition?> GetLatestPositionByDeviceAsync(int deviceId, CancellationToken ct = default);
     Task<IReadOnlyList<TraccarPosition>> GetPositionsByDeviceAsync(int deviceId, DateTime from, DateTime to, CancellationToken ct = default);
 
     Task<IReadOnlyList<TraccarGeofence>> GetGeofencesAsync(CancellationToken ct = default);

@@ -30,7 +30,8 @@ public class IngestPositionCommandHandler(
     ILocationBroadcastService broadcaster,
     ICurrentUserService currentUser,
     IOptions<TraccarOptions> traccarOptions,
-    IOptions<GpsSettings> gpsSettings)
+    IOptions<GpsSettings> gpsSettings,
+    IGpsAddressBackfillQueue addressBackfillQueue)
     : IRequestHandler<IngestPositionCommand, ApiResponse<bool>>
 {
     public async Task<ApiResponse<bool>> Handle(IngestPositionCommand request, CancellationToken cancellationToken)
@@ -71,6 +72,11 @@ public class IngestPositionCommandHandler(
         var previousIgnition = previous.Ignition;
 
         await GpsPositionIngestionHelper.IngestAsync(connection, dto, recordedAt, cancellationToken);
+
+        if (string.IsNullOrWhiteSpace(dto.Address))
+        {
+            addressBackfillQueue.Enqueue(dto.VehicleId, dto.Latitude, dto.Longitude);
+        }
 
         var bookingId = await GpsPositionIngestionHelper.ResolveActiveBookingIdAsync(
             connection, dto.VehicleId, dto.BookingId, cancellationToken);

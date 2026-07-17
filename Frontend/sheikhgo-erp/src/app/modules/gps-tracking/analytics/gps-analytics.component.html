@@ -1,0 +1,348 @@
+<div class="analytics-page">
+  <div class="page-header">
+    <div>
+      <h2 class="page-title">Analytics</h2>
+      <p class="page-sub">Fleet performance, driver scoring, and business insights</p>
+    </div>
+    <div class="header-actions" *ngIf="overview">
+      <button type="button" class="btn btn-secondary" [matMenuTriggerFor]="overviewExportMenu">
+        <mat-icon>download</mat-icon> Export Overview
+      </button>
+      <mat-menu #overviewExportMenu="matMenu">
+        <button mat-menu-item (click)="exportOverview('excel')">Excel (.xlsx)</button>
+        <button mat-menu-item (click)="exportOverview('pdf')">PDF Report</button>
+        <button mat-menu-item (click)="exportOverview('csv')">CSV (.csv)</button>
+      </mat-menu>
+    </div>
+  </div>
+
+  <div class="filter-bar">
+    <div class="preset-row">
+      <button type="button" class="preset-chip"
+        *ngFor="let p of datePresets"
+        [class.active]="datePreset === p.id"
+        (click)="onPresetChange(p.id)">{{ p.label }}</button>
+    </div>
+
+    <div class="custom-dates" *ngIf="datePreset === 'custom'">
+      <mat-form-field appearance="outline">
+        <mat-label>From</mat-label>
+        <input matInput type="datetime-local" [(ngModel)]="from">
+      </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label>To</mat-label>
+        <input matInput type="datetime-local" [(ngModel)]="to">
+      </mat-form-field>
+      <button type="button" class="btn btn-secondary" (click)="load()">Apply</button>
+    </div>
+  </div>
+
+  <div *ngIf="loading" class="loading-row"><mat-spinner diameter="28"></mat-spinner></div>
+
+  <ng-container *ngIf="!loading && overview">
+    <section class="kpi-strip">
+      <div *ngFor="let t of fleetStatusTiles" [class.kpi-clickable]="t.route" (click)="onKpiTileClick(t)">
+        <stb-stat-tile [label]="t.label" [value]="t.value" [icon]="t.icon" [color]="t.color" [suffix]="t.suffix ?? ''"></stb-stat-tile>
+      </div>
+    </section>
+
+    <section class="kpi-strip">
+      <div *ngFor="let t of totalsTiles" [class.kpi-clickable]="t.route" (click)="onKpiTileClick(t)">
+        <stb-stat-tile [label]="t.label" [value]="t.value" [icon]="t.icon" [color]="t.color" [suffix]="t.suffix ?? ''"></stb-stat-tile>
+      </div>
+    </section>
+
+    <section class="kpi-strip">
+      <div *ngFor="let t of todayTiles" [class.kpi-clickable]="t.route" (click)="onKpiTileClick(t)">
+        <stb-stat-tile [label]="t.label" [value]="t.value" [icon]="t.icon" [color]="t.color" [suffix]="t.suffix ?? ''"></stb-stat-tile>
+      </div>
+    </section>
+  </ng-container>
+
+  <div *ngIf="!loading && !overview" class="empty-state">
+    <mat-icon>insights</mat-icon>
+    <p>No analytics data available.</p>
+  </div>
+
+  <section class="charts-grid" *ngIf="!loading && overview">
+    <div class="chart-card">
+      <h3 class="chart-title">Distance Trend</h3>
+      <ui-chart type="line" [data]="distanceChartData" height="240px"></ui-chart>
+    </div>
+    <div class="chart-card">
+      <h3 class="chart-title">Speed Distribution</h3>
+      <ui-chart type="bar" [data]="speedHistogramChartData" height="240px"></ui-chart>
+    </div>
+  </section>
+
+  <section class="idle-stop-grid" *ngIf="!loading && overview">
+    <div class="metric-card" *ngIf="idleAnalytics as idle">
+      <div class="metric-card-header">
+        <h3 class="chart-title">Idle Analytics</h3>
+        <span class="badge badge-amber" *ngIf="idle.isPartial" matTooltip="Some vehicles have no Traccar link and cannot report idle data">Partial data</span>
+      </div>
+      <div class="metric-row"><span>Total Idle Time</span><strong>{{ formatMinutes(idle.totalIdleMinutes) }}</strong></div>
+      <div class="metric-row"><span>Longest Idle</span><strong>{{ formatMinutes(idle.longestIdleMinutes) }}</strong></div>
+      <div class="metric-subheading" *ngIf="idle.topIdleVehicles.length">Top idle vehicles</div>
+      <div class="metric-row drill-row" *ngFor="let v of idle.topIdleVehicles" (click)="goToVehicleTrips(v.vehicleId)">
+        <span>{{ v.vehicleName ?? ('Vehicle #' + v.vehicleId) }}</span><strong>{{ formatMinutes(v.idleMinutes) }}</strong>
+      </div>
+    </div>
+
+    <div class="metric-card" *ngIf="stopAnalytics as stop">
+      <div class="metric-card-header">
+        <h3 class="chart-title">Stop Analytics</h3>
+        <span class="badge badge-amber" *ngIf="stop.isPartial" matTooltip="Some vehicles have no Traccar link and cannot report stop data">Partial data</span>
+      </div>
+      <div class="metric-row"><span>Total Stops</span><strong>{{ stop.totalStops }}</strong></div>
+      <div class="metric-row"><span>Average Stop Duration</span><strong>{{ formatMinutes(stop.avgStopDurationMinutes) }}</strong></div>
+      <div class="metric-row"><span>Longest Stop</span><strong>{{ formatMinutes(stop.longestStopMinutes) }}</strong></div>
+    </div>
+  </section>
+
+  <section class="chart-card" *ngIf="!loading && overview">
+    <div class="metric-card-header">
+      <h3 class="chart-title">Driver Performance Ranking</h3>
+      <div class="header-actions">
+        <span class="badge badge-amber" *ngIf="driverRanking.length && driverRanking[0].isPartial"
+          matTooltip="Idle/harsh-braking factors are unavailable for some drivers whose vehicles have no Traccar link">
+          Partial data
+        </span>
+        <button type="button" class="btn btn-secondary" [matMenuTriggerFor]="driverExportMenu" [disabled]="!driverRanking.length">
+          <mat-icon>download</mat-icon>
+        </button>
+        <mat-menu #driverExportMenu="matMenu">
+          <button mat-menu-item (click)="exportDriverRanking('excel')">Excel (.xlsx)</button>
+          <button mat-menu-item (click)="exportDriverRanking('pdf')">PDF Report</button>
+          <button mat-menu-item (click)="exportDriverRanking('csv')">CSV (.csv)</button>
+        </mat-menu>
+      </div>
+    </div>
+    <ui-data-table [columns]="driverColumns" [data]="driverRanking" [loading]="driverRankingLoading"
+      [searchable]="true" searchPlaceholder="Search drivers..." [pageSize]="10"
+      emptyTitle="No driver activity in this range">
+      <ng-template uiTableCell="driverName" let-row>
+        <a class="drill-link" (click)="goToDriverTrips(row.driverId)">{{ row.driverName }}</a>
+      </ng-template>
+      <ng-template uiTableCell="score" let-row>
+        <strong>{{ row.score }}</strong>
+      </ng-template>
+      <ng-template uiTableCell="rating" let-row>
+        <span class="badge" [ngClass]="ratingBadgeClass(row.rating)">{{ row.rating }}</span>
+      </ng-template>
+      <ng-template uiTableCell="trips" let-row>{{ row.factors.tripCount }}</ng-template>
+      <ng-template uiTableCell="distance" let-row>{{ row.factors.distanceKm.toFixed(1) }} km</ng-template>
+      <ng-template uiTableCell="overspeed" let-row>{{ row.factors.overspeedCount }}</ng-template>
+    </ui-data-table>
+  </section>
+
+  <section class="idle-stop-grid" *ngIf="!loading && overview">
+    <div class="metric-card" *ngIf="utilization as u">
+      <div class="metric-card-header">
+        <h3 class="chart-title">Vehicle Utilization</h3>
+        <span class="badge" [ngClass]="utilizationBadgeClass(u.utilizationLabel)">{{ u.utilizationLabel }}</span>
+      </div>
+      <div class="utilization-headline">{{ u.utilizationPercent.toFixed(0) }}%</div>
+      <div class="metric-row"><span>Running Hours</span><strong>{{ u.runningHours.toFixed(0) }}h</strong></div>
+      <div class="metric-row"><span>Idle Hours</span><strong>{{ u.idleHours.toFixed(0) }}h</strong></div>
+      <div class="metric-row"><span>Parking Hours</span><strong>{{ u.parkingHours.toFixed(0) }}h</strong></div>
+      <div class="metric-row"><span>Offline Hours</span><strong>{{ u.offlineHours.toFixed(0) }}h</strong></div>
+    </div>
+
+    <div class="chart-card" *ngIf="fuelAnalytics as fuel">
+      <h3 class="chart-title">Fuel Trend</h3>
+      <ui-chart type="bar" [data]="fuelChartData" height="180px"></ui-chart>
+      <div class="metric-row"><span>Total Fuel</span><strong>{{ fuel.totalLiters.toFixed(1) }} L</strong></div>
+      <div class="metric-row"><span>Total Cost</span><strong>{{ fuel.totalCost.toFixed(0) }}</strong></div>
+      <div class="metric-row"><span>Fleet Economy</span><strong>{{ fuel.fleetLitersPer100Km != null ? fuel.fleetLitersPer100Km.toFixed(1) + ' L/100km' : '—' }}</strong></div>
+    </div>
+  </section>
+
+  <section class="chart-card" *ngIf="!loading && overview && fuelAnalytics as fuel">
+    <div class="metric-card-header">
+      <h3 class="chart-title">Fuel by Vehicle</h3>
+      <button type="button" class="btn btn-secondary" [matMenuTriggerFor]="fuelExportMenu" [disabled]="!fuel.byVehicle.length">
+        <mat-icon>download</mat-icon>
+      </button>
+      <mat-menu #fuelExportMenu="matMenu">
+        <button mat-menu-item (click)="exportFuelByVehicle('excel')">Excel (.xlsx)</button>
+        <button mat-menu-item (click)="exportFuelByVehicle('pdf')">PDF Report</button>
+        <button mat-menu-item (click)="exportFuelByVehicle('csv')">CSV (.csv)</button>
+      </mat-menu>
+    </div>
+    <ui-data-table [columns]="fuelColumns" [data]="fuel.byVehicle" [searchable]="true"
+      searchPlaceholder="Search vehicles..." [pageSize]="10" emptyTitle="No fuel entries in this range">
+      <ng-template uiTableCell="vehicleName" let-row>
+        <a class="drill-link" (click)="goToVehicleTrips(row.vehicleId)">{{ row.vehicleName ?? ('Vehicle #' + row.vehicleId) }}</a>
+      </ng-template>
+      <ng-template uiTableCell="liters" let-row>{{ row.liters.toFixed(1) }}</ng-template>
+      <ng-template uiTableCell="cost" let-row>{{ row.cost.toFixed(0) }}</ng-template>
+      <ng-template uiTableCell="economy" let-row>{{ row.litersPer100Km != null ? row.litersPer100Km.toFixed(1) : '—' }}</ng-template>
+    </ui-data-table>
+  </section>
+
+  <section class="charts-grid" *ngIf="!loading && overview">
+    <div class="chart-card">
+      <h3 class="chart-title">Event Categories</h3>
+      <ui-chart type="pie" [data]="eventCategoryChartData" height="240px"></ui-chart>
+    </div>
+    <div class="chart-card">
+      <h3 class="chart-title">Event Trend</h3>
+      <ui-chart type="line" [data]="eventTrendChartData" height="240px"></ui-chart>
+    </div>
+  </section>
+
+  <section class="idle-stop-grid" *ngIf="!loading && overview && geofenceAnalytics as geo">
+    <div class="metric-card">
+      <h3 class="chart-title">Most Visited Geofences</h3>
+      <div class="metric-row" *ngFor="let g of geo.mostVisited">
+        <span>{{ g.geofenceName }}</span>
+        <strong>{{ g.entryCount + g.exitCount }} visits{{ g.avgDwellMinutes != null ? ' · ' + formatMinutes(g.avgDwellMinutes) + ' avg' : '' }}</strong>
+      </div>
+      <p *ngIf="!geo.mostVisited.length" class="muted-note">No geofence activity in this range.</p>
+    </div>
+
+    <div class="metric-card">
+      <h3 class="chart-title">Least Visited Geofences</h3>
+      <div class="metric-row" *ngFor="let g of geo.leastVisited">
+        <span>{{ g.geofenceName }}</span>
+        <strong>{{ g.entryCount + g.exitCount }} visits</strong>
+      </div>
+      <p *ngIf="!geo.leastVisited.length" class="muted-note">No geofence activity in this range.</p>
+    </div>
+  </section>
+
+  <section class="chart-card" *ngIf="!loading && overview">
+    <h3 class="chart-title">Heatmap — Most Driven Routes</h3>
+    <p class="muted-note" style="text-align: left; padding: 0 0 12px;">
+      Select up to {{ heatmapMaxVehicles }} vehicles ({{ selectedHeatmapVehicleIds.length }}/{{ heatmapMaxVehicles }} selected). Full-fleet heatmaps aren't supported yet — see the vehicle picker below.
+    </p>
+    <div class="heatmap-vehicle-picker">
+      <label class="heatmap-vehicle-chip" *ngFor="let d of devices">
+        <input type="checkbox"
+          [checked]="selectedHeatmapVehicleIds.includes(d.vehicleId!)"
+          [disabled]="!selectedHeatmapVehicleIds.includes(d.vehicleId!) && selectedHeatmapVehicleIds.length >= heatmapMaxVehicles"
+          (change)="toggleHeatmapVehicle(d.vehicleId!, $any($event.target).checked)">
+        {{ d.vehicleName ?? d.name }}
+      </label>
+    </div>
+    <button type="button" class="btn btn-secondary" style="margin: 12px 0"
+      [disabled]="!selectedHeatmapVehicleIds.length || heatmapLoading" (click)="loadHeatmap()">
+      {{ heatmapLoading ? 'Loading…' : 'Load Heatmap' }}
+    </button>
+    <div #heatmapMap class="heatmap-map"></div>
+  </section>
+
+  <section class="chart-card" *ngIf="!loading && overview">
+    <div class="metric-card-header">
+      <h3 class="chart-title">Vehicle Health</h3>
+      <button type="button" class="btn btn-secondary" [matMenuTriggerFor]="healthExportMenu" [disabled]="!vehicleHealth.length">
+        <mat-icon>download</mat-icon>
+      </button>
+      <mat-menu #healthExportMenu="matMenu">
+        <button mat-menu-item (click)="exportVehicleHealth('excel')">Excel (.xlsx)</button>
+        <button mat-menu-item (click)="exportVehicleHealth('pdf')">PDF Report</button>
+        <button mat-menu-item (click)="exportVehicleHealth('csv')">CSV (.csv)</button>
+      </mat-menu>
+    </div>
+    <ui-data-table [columns]="healthColumns" [data]="vehicleHealth" [loading]="vehicleHealthLoading"
+      [searchable]="true" searchPlaceholder="Search vehicles..." [pageSize]="10"
+      emptyTitle="No vehicles found">
+      <ng-template uiTableCell="vehicleName" let-row>
+        <a class="drill-link" (click)="goToVehicleTrips(row.vehicleId)">{{ row.vehicleName }}</a>
+      </ng-template>
+      <ng-template uiTableCell="battery" let-row>{{ row.batteryLevel != null ? row.batteryLevel.toFixed(0) + '%' : '—' }}</ng-template>
+      <ng-template uiTableCell="signal" let-row>{{ row.gpsSignal != null ? row.gpsSignal : '—' }}</ng-template>
+      <ng-template uiTableCell="maintenance" let-row>
+        <span class="badge" [ngClass]="healthBadgeClass(row.maintenanceStatus)">{{ row.maintenanceStatus }}</span>
+      </ng-template>
+      <ng-template uiTableCell="insurance" let-row>
+        <span class="badge" [ngClass]="healthBadgeClass(row.insuranceStatus)">{{ row.insuranceStatus }}</span>
+      </ng-template>
+      <ng-template uiTableCell="warranty" let-row>
+        <span class="badge" [ngClass]="healthBadgeClass(row.trackerWarrantyStatus)">{{ row.trackerWarrantyStatus }}</span>
+      </ng-template>
+    </ui-data-table>
+  </section>
+
+  <section class="chart-card" *ngIf="!loading && overview">
+    <div class="metric-card-header">
+      <h3 class="chart-title">Vehicle Ranking</h3>
+      <button type="button" class="btn btn-secondary" [matMenuTriggerFor]="vehicleRankingExportMenu" [disabled]="!vehicleRanking.length">
+        <mat-icon>download</mat-icon>
+      </button>
+      <mat-menu #vehicleRankingExportMenu="matMenu">
+        <button mat-menu-item (click)="exportVehicleRanking('excel')">Excel (.xlsx)</button>
+        <button mat-menu-item (click)="exportVehicleRanking('pdf')">PDF Report</button>
+        <button mat-menu-item (click)="exportVehicleRanking('csv')">CSV (.csv)</button>
+      </mat-menu>
+    </div>
+    <ui-data-table [columns]="vehicleRankingColumns" [data]="vehicleRanking" [loading]="vehicleRankingLoading"
+      [searchable]="true" searchPlaceholder="Search vehicles..." [pageSize]="10"
+      emptyTitle="No vehicle activity in this range">
+      <ng-template uiTableCell="vehicleName" let-row>
+        <a class="drill-link" (click)="goToVehicleTrips(row.vehicleId)">{{ row.vehicleName }}</a>
+      </ng-template>
+      <ng-template uiTableCell="distance" let-row>{{ row.distanceKm.toFixed(1) }} km</ng-template>
+      <ng-template uiTableCell="trips" let-row>{{ row.tripCount }}</ng-template>
+      <ng-template uiTableCell="avgSpeed" let-row>{{ row.avgSpeedKmh.toFixed(0) }} km/h</ng-template>
+      <ng-template uiTableCell="cost" let-row>{{ (row.fuelCost + row.maintenanceCost).toFixed(0) }}</ng-template>
+      <ng-template uiTableCell="costPerKm" let-row>{{ row.costPerKm != null ? row.costPerKm.toFixed(2) : 'N/A' }}</ng-template>
+    </ui-data-table>
+  </section>
+
+  <section class="idle-stop-grid" *ngIf="!loading && overview">
+    <div class="metric-card" *ngIf="costAnalytics as cost">
+      <h3 class="chart-title">Operational Cost</h3>
+      <div class="metric-row"><span>Fuel Cost</span><strong>{{ cost.totalFuelCost.toFixed(0) }}</strong></div>
+      <div class="metric-row"><span>Maintenance Cost</span><strong>{{ cost.totalMaintenanceCost.toFixed(0) }}</strong></div>
+      <div class="metric-row"><span>Total Cost</span><strong>{{ cost.totalCost.toFixed(0) }}</strong></div>
+      <div class="metric-row"><span>Cost per KM</span><strong>{{ cost.costPerKm != null ? cost.costPerKm.toFixed(2) : 'N/A' }}</strong></div>
+      <p class="muted-note">{{ cost.costBasisNote }}</p>
+    </div>
+
+    <div class="metric-card" *ngIf="comparative as comp">
+      <h3 class="chart-title">This Month vs Last Month</h3>
+      <div class="comparison-row">
+        <div class="comparison-col">
+          <div class="comparison-label">This Month</div>
+          <div class="comparison-value">{{ comp.periodA.distanceKm.toFixed(0) }} km</div>
+          <div class="metric-row"><span>Trips</span><strong>{{ comp.periodA.tripCount }}</strong></div>
+          <div class="metric-row"><span>Avg Speed</span><strong>{{ comp.periodA.avgSpeedKmh.toFixed(0) }} km/h</strong></div>
+          <div class="metric-row"><span>Overspeed</span><strong>{{ comp.periodA.overspeedCount }}</strong></div>
+        </div>
+        <div class="comparison-col" *ngIf="comp.periodB as b">
+          <div class="comparison-label">Last Month</div>
+          <div class="comparison-value">{{ b.distanceKm.toFixed(0) }} km</div>
+          <div class="metric-row"><span>Trips</span><strong>{{ b.tripCount }}</strong></div>
+          <div class="metric-row"><span>Avg Speed</span><strong>{{ b.avgSpeedKmh.toFixed(0) }} km/h</strong></div>
+          <div class="metric-row"><span>Overspeed</span><strong>{{ b.overspeedCount }}</strong></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="chart-card" *ngIf="!loading && overview">
+    <div class="metric-card-header">
+      <h3 class="chart-title">Distance Trend (6 months)</h3>
+      <div class="preset-row">
+        <button type="button" class="preset-chip" [class.active]="trendGranularity === 'daily'" (click)="onTrendGranularityChange('daily')">Daily</button>
+        <button type="button" class="preset-chip" [class.active]="trendGranularity === 'weekly'" (click)="onTrendGranularityChange('weekly')">Weekly</button>
+        <button type="button" class="preset-chip" [class.active]="trendGranularity === 'monthly'" (click)="onTrendGranularityChange('monthly')">Monthly</button>
+      </div>
+    </div>
+    <ui-chart type="line" [data]="trendsChartData" height="240px"></ui-chart>
+  </section>
+
+  <section class="chart-card" *ngIf="!loading && overview">
+    <analytics-report-schedules></analytics-report-schedules>
+  </section>
+
+  <section class="widgets-grid">
+    <fleet-quick-actions-card [actions]="quickActions"></fleet-quick-actions-card>
+    <fleet-critical-alerts-card [alerts]="criticalAlerts"></fleet-critical-alerts-card>
+    <fleet-recent-activities-card [events]="recentActivities"></fleet-recent-activities-card>
+  </section>
+
+  <fleet-active-assignments-table [rows]="assignments" [loading]="assignmentsLoading"></fleet-active-assignments-table>
+</div>

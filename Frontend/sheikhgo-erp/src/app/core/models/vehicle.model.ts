@@ -58,7 +58,7 @@ export interface VehicleListItem {
   imageUrl?: string | null;
 }
 
-/** Full vehicle detail (drawer / edit). */
+/** Full vehicle detail (drawer / profile / edit). */
 export interface Vehicle {
   id: number;
   name: string;
@@ -87,6 +87,33 @@ export interface Vehicle {
   isActive?: boolean;
   createdAt: string;
   updatedAt?: string | null;
+  /** Profile enrichment from GetVehicleById */
+  driverName?: string | null;
+  driverId?: number | null;
+  driverPhone?: string | null;
+  driverLicenseNumber?: string | null;
+  gpsImei?: string | null;
+  gpsSim?: string | null;
+  engineIgnition?: boolean | null;
+  gpsLastSeenAt?: string | null;
+  gpsOnline?: boolean;
+  hasGpsDevice?: boolean;
+  locationLatitude?: number | null;
+  locationLongitude?: number | null;
+  locationLastUpdate?: string | null;
+  locationSpeed?: number | null;
+  totalDistanceKm?: number | null;
+  batteryLevel?: number | null;
+  gsmSignal?: number | null;
+  address?: string | null;
+  imageUrl?: string | null;
+  trackerName?: string | null;
+  trackerModel?: string | null;
+  trackerBrand?: string | null;
+  trackerInstallationDate?: string | null;
+  nextServiceDue?: string | null;
+  nextDueMileage?: number | null;
+  serviceAlert?: string | null;
 }
 
 /** Inner DTO — POST body sends `{ "vehicle": CreateVehicleDto }`. */
@@ -182,6 +209,17 @@ export interface VehicleGps {
   longitude?: number | null;
   speed?: number | null;
   lastUpdate?: string | null;
+  simNumber?: string | null;
+  modelName?: string | null;
+  brandName?: string | null;
+  installationDate?: string | null;
+  totalDistanceKm?: number | null;
+  batteryLevel?: number | null;
+  gsmSignal?: number | null;
+  address?: string | null;
+  gpsOnline?: boolean;
+  heading?: number | null;
+  fuelLevel?: number | null;
 }
 
 export interface ChangeVehicleStatusRequest {

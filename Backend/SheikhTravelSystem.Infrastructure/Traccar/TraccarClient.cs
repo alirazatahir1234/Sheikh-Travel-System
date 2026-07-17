@@ -150,6 +150,16 @@ public class TraccarClient(
     public async Task<IReadOnlyList<TraccarPosition>> GetLivePositionsAsync(CancellationToken ct = default)
         => await GetListAsync<TraccarPosition>("/api/positions", ct);
 
+    public async Task<TraccarPosition?> GetLatestPositionByDeviceAsync(int deviceId, CancellationToken ct = default)
+    {
+        // Traccar returns the current/latest fix when deviceId is supplied without a from/to window.
+        var positions = await GetListAsync<TraccarPosition>($"/api/positions?deviceId={deviceId}", ct);
+        return positions
+            .Where(p => p.DeviceId == deviceId)
+            .OrderByDescending(p => p.FixTime)
+            .FirstOrDefault();
+    }
+
     public async Task<IReadOnlyList<TraccarPosition>> GetPositionsByDeviceAsync(int deviceId, DateTime from, DateTime to, CancellationToken ct = default)
     {
         var f = Uri.EscapeDataString(from.ToString("yyyy-MM-ddTHH:mm:ssZ"));

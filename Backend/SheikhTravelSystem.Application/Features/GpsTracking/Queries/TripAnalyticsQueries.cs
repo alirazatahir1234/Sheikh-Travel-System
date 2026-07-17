@@ -195,11 +195,17 @@ public record GetFleetTripSummaryQuery(
     : IRequest<ApiResponse<TripAnalyticsSummaryDto>>;
 
 /// <summary>
-/// Fleet-wide KPI cards for the Trips ledger. Distance/duration/speed/fuel are summed directly
-/// from the (already fleet-complete, local+Traccar+detector-merged) trip list rather than reused
-/// from <see cref="GetGpsFleetStatusQuery"/>'s per-vehicle Traccar summaries — those only cover a
-/// capped subset of devices and would under-count a large fleet. Stop/idle/overspeed/harsh-event
-/// counts still require a capped Traccar events/stops fan-out since there's no local equivalent.
+/// Fleet-wide KPI cards for the Trips ledger. Distance/duration/speed/fuel prefer live Traccar
+/// per-device summaries (BuildSummary's hasSummary branch) when the tenant's fleet is Traccar-linked
+/// and reachable — Traccar is the source of truth for GPS telemetry, not a re-derivation. No
+/// artificial fan-out cap: every Traccar-linked device in the trip set is queried concurrently via
+/// Task.WhenAll (Traccar has no fleet-wide summary endpoint, only per-device). This is O(devices)
+/// concurrent HTTP calls per load — acceptable at today's fleet sizes; revisit with
+/// batching/caching if a tenant's fleet grows large enough to make this slow. Vehicles with no
+/// TraccarDeviceId (never Traccar-linked) or when Traccar is unreachable/disabled fall back to the
+/// local trip list, which is always fleet-complete regardless of Traccar status. Trip *count* stays
+/// local (GpsTrips) — it was never subject to the fan-out concern, since local trip detection is
+/// already fleet-complete with no capped dependency.
 /// </summary>
 public class GetFleetTripSummaryQueryHandler(
     IDbConnectionFactory dbFactory,
@@ -209,8 +215,6 @@ public class GetFleetTripSummaryQueryHandler(
     ITenantContext tenantContext)
     : IRequestHandler<GetFleetTripSummaryQuery, ApiResponse<TripAnalyticsSummaryDto>>
 {
-    private const int MaxSummaryFetches = 20;
-
     public async Task<ApiResponse<TripAnalyticsSummaryDto>> Handle(GetFleetTripSummaryQuery request, CancellationToken cancellationToken)
     {
         var fromDate = request.FromDate ?? DateTime.UtcNow.AddDays(-7);
@@ -226,6 +230,7 @@ public class GetFleetTripSummaryQueryHandler(
         }
 
         var trips = tripsResponse.Data.Items;
+        var summaries = Array.Empty<TraccarSummary>();
         var stops = Array.Empty<TraccarStop>();
         var events = Array.Empty<TraccarEvent>();
 
@@ -244,23 +249,25 @@ public class GetFleetTripSummaryQueryHandler(
                   AND v.Id IN @VehicleIds
                 """,
                 new { TenantId = tenantId, VehicleIds = trips.Select(t => t.VehicleId).Distinct().ToList() },
-                cancellationToken: cancellationToken))).Take(MaxSummaryFetches).ToList();
+                cancellationToken: cancellationToken))).ToList();
 
             if (deviceIds.Count > 0)
             {
+                var summaryTasks = deviceIds.Select(id => traccarClient.GetSummaryAsync(id, fromDate, toDate, cancellationToken));
                 var stopsTasks = deviceIds.Select(id => traccarClient.GetStopsAsync(id, fromDate, toDate, cancellationToken));
                 var eventsTasks = deviceIds.Select(id => traccarClient.GetEventsAsync(id, fromDate, toDate, ct: cancellationToken));
+
+                var allSummaries = await Task.WhenAll(summaryTasks);
                 var allStops = await Task.WhenAll(stopsTasks);
                 var allEvents = await Task.WhenAll(eventsTasks);
+
+                summaries = allSummaries.SelectMany(s => s).ToArray();
                 stops = allStops.SelectMany(s => s).ToArray();
                 events = allEvents.SelectMany(e => e).ToArray();
             }
         }
 
-        // Empty summaries forces BuildSummary's trips-derived branch for distance/duration/speed,
-        // which is fleet-complete — the capped stops/events fetch above only feeds the
-        // stop/idle/overspeed/harsh-event counts, which have no local-data equivalent anyway.
-        var summary = TripAnalyticsMapper.BuildSummary(trips, [], stops, events);
+        var summary = TripAnalyticsMapper.BuildSummary(trips, summaries, stops, events);
 
         return ApiResponse<TripAnalyticsSummaryDto>.SuccessResponse(summary);
     }
@@ -317,17 +324,17 @@ public class GetGpsFleetStatusQueryHandler(
                 continue;
             }
 
-            var ignition = pos.Attributes?.Ignition == true;
             var speedKnots = pos.Speed;
             speedSum += speedKnots * 1.852;
             speedCount++;
 
-            if (speedKnots > MovingSpeedKnots && ignition)
+            // Speed wins over Ignition OFF (align with resolveFleetStatus / local calculator).
+            if (speedKnots > MovingSpeedKnots)
                 moving++;
-            else if (ignition)
-                idle++;
-            else
+            else if (pos.Attributes?.Ignition == false)
                 parked++;
+            else
+                idle++;
         }
 
         var todayStart = DateTime.UtcNow.Date;
