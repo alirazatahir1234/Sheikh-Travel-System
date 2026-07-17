@@ -17,8 +17,12 @@ export interface TrackerStatusView {
   rowClass: string;
 }
 
-const MOVING_THRESHOLD_KMH = 0;
+/** Speed above this (km/h) counts as moving — matches live map. */
+const MOVING_THRESHOLD_KMH = 5;
 const IGNITION_INFER_THRESHOLD_KMH = 5;
+
+/** Telemetry must be this fresh to classify as currently moving. */
+export const TELEMETRY_MOVING_MAX_AGE_MS = 2 * 60 * 1000;
 
 /** When Last Seen exceeds this, status/ignition are shown as last-known, not live. */
 export const TELEMETRY_STALE_MS = 15 * 60 * 1000;
@@ -50,7 +54,7 @@ export function resolveDisplayTrackerStatus(
   nowMs: number,
   traccarReachable: boolean
 ): TrackerStatusView {
-  const base = resolveTrackerStatus(device);
+  const base = resolveTrackerStatus(device, nowMs);
   if (!isTelemetryStale(device, nowMs, traccarReachable)) {
     return base;
   }
@@ -71,7 +75,17 @@ export function resolveDisplayTrackerStatus(
   };
 }
 
-export function resolveTrackerStatus(device: GpsDevice): TrackerStatusView {
+export function isFreshForMovement(device: GpsDevice, nowMs: number): boolean {
+  const age = telemetryAgeMs(device, nowMs);
+  if (age == null) return false;
+  return age <= TELEMETRY_MOVING_MAX_AGE_MS;
+}
+
+export function isSpeedMoving(speed: number): boolean {
+  return speed > MOVING_THRESHOLD_KMH;
+}
+
+export function resolveTrackerStatus(device: GpsDevice, nowMs?: number): TrackerStatusView {
   if (device.disabled || !device.isActive) {
     return status('disabled', 'Device Disabled', 'badge-gray', 'row-disabled');
   }
@@ -86,16 +100,21 @@ export function resolveTrackerStatus(device: GpsDevice): TrackerStatusView {
 
   const speed = device.lastSpeed ?? 0;
   const ignition = device.lastIgnition;
+  const fresh = nowMs == null || isFreshForMovement(device, nowMs);
+  const moving = fresh && isSpeedMoving(speed);
 
   if (ignition == null) {
-    if (speed > MOVING_THRESHOLD_KMH) {
+    if (moving) {
       return status('moving', 'Moving', 'badge-blue', 'row-moving');
+    }
+    if (speed > MOVING_THRESHOLD_KMH && !fresh) {
+      return status('idle', 'Online', 'badge-teal', 'row-online');
     }
     return status('waiting_telemetry', 'Online', 'badge-teal', 'row-online');
   }
 
   if (ignition) {
-    if (speed > MOVING_THRESHOLD_KMH) {
+    if (moving) {
       return status('moving', 'Moving', 'badge-blue', 'row-moving');
     }
     return status('idle', 'Idle', 'badge-amber', 'row-idle');
@@ -105,15 +124,19 @@ export function resolveTrackerStatus(device: GpsDevice): TrackerStatusView {
     return status('parked', 'Parked', 'badge-green', 'row-parked');
   }
 
+  if (!fresh) {
+    return status('parked', 'Parked', 'badge-green', 'row-parked');
+  }
+
   return status('stopped', 'Stopped', 'badge-gray', 'row-stopped');
 }
 
-export function isTrackerMoving(device: GpsDevice): boolean {
-  return resolveTrackerStatus(device).key === 'moving';
+export function isTrackerMoving(device: GpsDevice, nowMs: number = Date.now()): boolean {
+  return resolveTrackerStatus(device, nowMs).key === 'moving';
 }
 
-export function isTrackerIdle(device: GpsDevice): boolean {
-  return resolveTrackerStatus(device).key === 'idle';
+export function isTrackerIdle(device: GpsDevice, nowMs: number = Date.now()): boolean {
+  return resolveTrackerStatus(device, nowMs).key === 'idle';
 }
 
 export function isTrackerOffline(device: GpsDevice): boolean {

@@ -1,7 +1,9 @@
+using System.IO.Compression;
 using System.Text;
 using System.Threading.RateLimiting;
 using Dapper;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
@@ -14,6 +16,7 @@ using SheikhTravelSystem.Application.Features.CustomerPortal.Commands;
 using SheikhTravelSystem.Application.Features.GpsTracking;
 using SheikhTravelSystem.Infrastructure;
 using SheikhTravelSystem.Infrastructure.Authentication;
+using SheikhTravelSystem.Infrastructure.Health;
 using SheikhTravelSystem.Infrastructure.Persistence.Migrations;
 using SheikhTravelSystem.Infrastructure.SignalR;
 
@@ -31,6 +34,12 @@ builder.Host.UseSerilog((context, config) => config.ReadFrom.Configuration(conte
 // Application & Infrastructure DI
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
+
+builder.Services.AddHealthChecks()
+    .AddCheck<SqlHealthCheck>("sql")
+    .AddCheck<RedisHealthCheck>("redis")
+    .AddCheck<TraccarHealthCheck>("traccar")
+    .AddCheck<SignalRHealthCheck>("signalr");
 
 // JWT Authentication
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
@@ -73,6 +82,18 @@ builder.Services.AddAuthorization(options =>
 {
     SheikhTravelSystem.Infrastructure.Authentication.PermissionPolicyRegistration.AddPermissionPolicies(options);
 });
+
+// Response compression — reduces outbound bandwidth from API
+builder.Services.AddResponseCompression(options =>
+{
+    options.EnableForHttps = true;
+    options.Providers.Add<BrotliCompressionProvider>();
+    options.Providers.Add<GzipCompressionProvider>();
+    options.MimeTypes = ResponseCompressionDefaults.MimeTypes.Concat(
+        ["application/json", "application/problem+json"]);
+});
+builder.Services.Configure<BrotliCompressionProviderOptions>(o => o.Level = CompressionLevel.Fastest);
+builder.Services.Configure<GzipCompressionProviderOptions>(o => o.Level = CompressionLevel.Fastest);
 
 // Rate Limiting (built-in)
 builder.Services.AddRateLimiter(options =>
@@ -237,9 +258,11 @@ using (var scope = app.Services.CreateScope())
         await GpsCommandsPhase9Migration.ApplyAsync(dbFactory, logger);
         await GpsAnalyticsPhase10Migration.ApplyAsync(dbFactory, logger);
         await GpsAddressCacheMigration.ApplyAsync(dbFactory, logger);
+        await NotificationCenterMigration.ApplyAsync(dbFactory, logger);
 
         var gpsSettings = scope.ServiceProvider.GetRequiredService<IOptions<GpsSettings>>().Value;
         await GpsSchemaMigration.ApplyRetentionAsync(dbFactory, gpsSettings.PositionRetentionDays, logger);
+        await PerformanceIndexesMigration.ApplyAsync(dbFactory, logger);
     }
     catch (Exception ex)
     {
@@ -314,6 +337,7 @@ if (app.Environment.IsDevelopment())
 // TLS is terminated at Railway/Vercel in production; local dev uses HTTP on :5082 via the Angular proxy.
 
 app.UseCors("AllowFrontendClients");
+app.UseResponseCompression();
 app.UseRateLimiter();
 
 var fileStorageRoot = Path.Combine(app.Environment.ContentRootPath,
@@ -331,6 +355,9 @@ app.UseMiddleware<TenantResolutionMiddleware>();
 app.UseAuthorization();
 app.MapControllers();
 app.MapHub<TrackingHub>("/hubs/tracking");
+app.MapHub<NotificationHub>("/hubs/notifications");
+app.MapHealthChecks("/health");
+app.MapHealthChecks("/health/ready");
 
 {
     var fileStorage = app.Configuration.GetSection("FileStorage");

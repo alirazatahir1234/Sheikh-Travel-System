@@ -7,10 +7,17 @@ namespace SheikhTravelSystem.Application.Features.GpsTracking.Trackers.Queries;
 
 public record GetTrackerBrandsQuery : IRequest<ApiResponse<List<TrackerBrandDto>>>;
 
-public class GetTrackerBrandsQueryHandler(IDbConnectionFactory dbFactory)
+public class GetTrackerBrandsQueryHandler(IDbConnectionFactory dbFactory, IAppCache cache)
     : IRequestHandler<GetTrackerBrandsQuery, ApiResponse<List<TrackerBrandDto>>>
 {
-    public async Task<ApiResponse<List<TrackerBrandDto>>> Handle(GetTrackerBrandsQuery request, CancellationToken cancellationToken)
+    public Task<ApiResponse<List<TrackerBrandDto>>> Handle(GetTrackerBrandsQuery request, CancellationToken cancellationToken) =>
+        cache.GetOrCreateAsync(
+            "trackers:brands",
+            AppCacheTtl.TrackerCatalog,
+            LoadAsync,
+            cancellationToken);
+
+    private async Task<ApiResponse<List<TrackerBrandDto>>> LoadAsync(CancellationToken cancellationToken)
     {
         using var connection = dbFactory.CreateConnection();
         var rows = await connection.QueryAsync<TrackerBrandDto>(new CommandDefinition(
@@ -27,10 +34,25 @@ public class GetTrackerBrandsQueryHandler(IDbConnectionFactory dbFactory)
 
 public record GetTrackerModelsQuery(int? BrandId = null) : IRequest<ApiResponse<List<TrackerModelDto>>>;
 
-public class GetTrackerModelsQueryHandler(IDbConnectionFactory dbFactory)
+public class GetTrackerModelsQueryHandler(IDbConnectionFactory dbFactory, IAppCache cache)
     : IRequestHandler<GetTrackerModelsQuery, ApiResponse<List<TrackerModelDto>>>
 {
-    public async Task<ApiResponse<List<TrackerModelDto>>> Handle(GetTrackerModelsQuery request, CancellationToken cancellationToken)
+    public Task<ApiResponse<List<TrackerModelDto>>> Handle(GetTrackerModelsQuery request, CancellationToken cancellationToken)
+    {
+        var key = request.BrandId.HasValue
+            ? $"trackers:models:brand:{request.BrandId.Value}"
+            : "trackers:models:all";
+
+        return cache.GetOrCreateAsync(
+            key,
+            AppCacheTtl.TrackerCatalog,
+            ct => LoadAsync(request, ct),
+            cancellationToken);
+    }
+
+    private async Task<ApiResponse<List<TrackerModelDto>>> LoadAsync(
+        GetTrackerModelsQuery request,
+        CancellationToken cancellationToken)
     {
         using var connection = dbFactory.CreateConnection();
         var sql = """

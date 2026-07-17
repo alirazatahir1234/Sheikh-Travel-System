@@ -126,13 +126,13 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
   private traccarStatusPoll?: ReturnType<typeof setInterval>;
 
   readonly refreshRateOptions: { id: RefreshRateMs; label: string }[] = [
-    { id: 5000, label: '5 sec' },
-    { id: 10000, label: '10 sec' },
     { id: 30000, label: '30 sec' },
-    { id: 60000, label: '1 min' },
+    { id: 60000, label: '1 min (SignalR primary)' },
+    { id: 10000, label: '10 sec (fallback)' },
     { id: null, label: 'Pause' }
   ];
-  refreshRateMs: RefreshRateMs = 5000;
+  /** User-selected cap; effective poll interval adapts to SignalR connection state. */
+  refreshRateMs: RefreshRateMs = 60000;
   followSelected = false;
   connectionState: GpsConnectionState = 'disconnected';
   private connectionStateSub?: { unsubscribe(): void };
@@ -248,6 +248,7 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
       } else if (state === 'connected' && wasDisconnected) {
         this.pushEvent('Realtime connection restored', 'success', 'wifi');
       }
+      this.startAutoRefresh();
     });
     this.sosSub = this.realtime.sosAlerts$.subscribe(alert => {
       const idx = this.locations.findIndex(l => l.vehicleId === alert.vehicleId);
@@ -682,10 +683,20 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private startAutoRefresh(): void {
     if (this.refreshInterval) clearInterval(this.refreshInterval);
-    if (this.refreshRateMs == null) return;
+    const intervalMs = this.effectivePollIntervalMs();
+    if (intervalMs == null) return;
     this.refreshInterval = setInterval(() => {
       if (this.liveTracking && !this.userInteractionActive) this.loadLocations(true);
-    }, this.refreshRateMs);
+    }, intervalMs);
+  }
+
+  /** SignalR connected → slow REST sanity poll; disconnected → faster fallback. */
+  private effectivePollIntervalMs(): number | null {
+    if (this.refreshRateMs == null) return null;
+    if (this.connectionState === 'connected') {
+      return Math.max(this.refreshRateMs, 60_000);
+    }
+    return Math.min(this.refreshRateMs, 10_000);
   }
 
   setRefreshRate(rate: RefreshRateMs): void {

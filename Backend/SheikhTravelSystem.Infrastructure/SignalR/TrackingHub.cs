@@ -6,6 +6,18 @@ namespace SheikhTravelSystem.Infrastructure.SignalR;
 [Authorize]
 public class TrackingHub : Hub
 {
+    public override Task OnConnectedAsync()
+    {
+        TrackingHubMetrics.Increment();
+        return base.OnConnectedAsync();
+    }
+
+    public override Task OnDisconnectedAsync(Exception? exception)
+    {
+        TrackingHubMetrics.Decrement();
+        return base.OnDisconnectedAsync(exception);
+    }
+
     public async Task SendLocationUpdate(int vehicleId, double latitude, double longitude, decimal speed)
     {
         await Clients.Group("dispatchers").SendAsync("ReceiveLocationUpdate", new

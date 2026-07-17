@@ -182,10 +182,13 @@
         <mat-menu #notifMenu="matMenu" class="notif-menu" xPosition="before">
           <div class="notif-header" (click)="$event.stopPropagation()">
             <span class="notif-title">Notifications</span>
-            <button mat-button color="primary" (click)="markAllAsRead()"
-                    *ngIf="(unreadCount$ | async) as count">
-              Mark all read
-            </button>
+            <div class="notif-header-actions">
+              <a mat-button color="primary" routerLink="/notifications" (click)="$event.stopPropagation()">View all</a>
+              <button mat-button color="primary" (click)="markAllAsRead()"
+                      *ngIf="(unreadCount$ | async) as count">
+                Mark all read
+              </button>
+            </div>
           </div>
 
           <div class="notif-list" (click)="$event.stopPropagation()">

@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Caching.StackExchangeRedis;
 using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Application.Features.CustomerPortal;
 using SheikhTravelSystem.Application.Features.GpsTracking;
@@ -19,7 +20,10 @@ using SheikhTravelSystem.Infrastructure.Services.Payments;
 using SheikhTravelSystem.Infrastructure.Services.Ocr;
 using SheikhTravelSystem.Infrastructure.Traccar;
 using Azure.Storage.Blobs;
+using SheikhTravelSystem.Infrastructure.Services.Notifications;
 using SheikhTravelSystem.Infrastructure.Services.Storage;
+using SheikhTravelSystem.Infrastructure.Caching;
+using SheikhTravelSystem.Infrastructure.SignalR;
 
 namespace SheikhTravelSystem.Infrastructure;
 
@@ -27,6 +31,19 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
+        services.Configure<CacheOptions>(configuration.GetSection(CacheOptions.SectionName));
+        var cacheOptions = configuration.GetSection(CacheOptions.SectionName).Get<CacheOptions>() ?? new CacheOptions();
+        services.AddMemoryCache();
+        if (!string.IsNullOrWhiteSpace(cacheOptions.RedisConnectionString))
+        {
+            services.AddStackExchangeRedisCache(o => o.Configuration = cacheOptions.RedisConnectionString);
+        }
+        else
+        {
+            services.AddDistributedMemoryCache();
+        }
+        services.AddSingleton<IAppCache, AppCacheService>();
+
         services.AddSingleton<IDbConnectionFactory, SqlConnectionFactory>();
         services.AddSingleton<IPasswordHasher, BcryptPasswordHasher>();
         services.AddSingleton<IJwtTokenService, JwtTokenService>();
@@ -44,6 +61,13 @@ public static class DependencyInjection
         services.AddScoped<IDatabaseSeeder, DatabaseSeeder>();
         services.AddScoped<IAuditService, AuditService>();
         services.AddScoped<INotificationService, NotificationService>();
+        services.AddScoped<INotificationRealtimePublisher, NotificationRealtimePublisher>();
+        services.AddScoped<INotificationChannelSender, EmailNotificationSender>();
+        services.AddScoped<INotificationChannelSender, SmsNotificationSender>();
+        services.AddScoped<INotificationChannelSender, PushNotificationSender>();
+        services.AddScoped<INotificationChannelSender, BrowserNotificationSender>();
+        services.AddScoped<INotificationChannelSender, WhatsAppNotificationSender>();
+        services.AddHostedService<NotificationDispatchHostedService>();
         services.AddScoped<ISmsOtpService, ConsoleSmsOtpService>();
         services.AddScoped<PaymentGatewayPaymentRecorder>();
         services.AddScoped<IPaymentGatewayProvider, StripePaymentGatewayService>();

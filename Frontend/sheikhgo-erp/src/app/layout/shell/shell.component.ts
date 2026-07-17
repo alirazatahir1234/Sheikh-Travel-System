@@ -129,7 +129,10 @@ export class ShellComponent implements OnInit, OnDestroy {
 
     this.sessionSub = this.auth.currentUser$.subscribe(user => {
       if (user && this.auth.getToken()) {
-        queueMicrotask(() => this.notificationService.startPolling(60000));
+        queueMicrotask(() => {
+          this.notificationService.startPolling(120000);
+          void this.notificationService.requestBrowserPermission();
+        });
       } else {
         this.notificationService.reset();
       }

@@ -1,0 +1,184 @@
+<div class="page-header">
+  <div>
+    <h2>Notification Center</h2>
+    <p class="page-sub">In-app, email, SMS, push, browser, and WhatsApp delivery</p>
+  </div>
+  <div class="header-actions">
+    <button mat-stroked-button (click)="markAllRead()">
+      <mat-icon>done_all</mat-icon> Mark all read
+    </button>
+    <button mat-stroked-button (click)="exportExcel()">
+      <mat-icon>download</mat-icon> Export
+    </button>
+    <button mat-stroked-button (click)="load(); loadStats()">
+      <mat-icon>refresh</mat-icon> Refresh
+    </button>
+  </div>
+</div>
+
+<div class="stats-grid" *ngIf="stats as s">
+  <div class="stat-card">
+    <mat-icon>mark_email_unread</mat-icon>
+    <div>
+      <div class="stat-value">{{ s.unread }}</div>
+      <div class="stat-label">Unread</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <mat-icon>email</mat-icon>
+    <div>
+      <div class="stat-value">{{ s.email }}</div>
+      <div class="stat-label">Email</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <mat-icon>sms</mat-icon>
+    <div>
+      <div class="stat-value">{{ s.sms }}</div>
+      <div class="stat-label">SMS</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <mat-icon>phone_android</mat-icon>
+    <div>
+      <div class="stat-value">{{ s.push }}</div>
+      <div class="stat-label">Push</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <mat-icon>web_asset</mat-icon>
+    <div>
+      <div class="stat-value">{{ s.browser }}</div>
+      <div class="stat-label">Browser</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <mat-icon>chat</mat-icon>
+    <div>
+      <div class="stat-value">{{ s.whatsApp }}</div>
+      <div class="stat-label">WhatsApp</div>
+    </div>
+  </div>
+</div>
+
+<div class="tabs">
+  <button type="button" [class.active]="tab === 'all'" (click)="setTab('all')">All</button>
+  <button type="button" [class.active]="tab === 'unread'" (click)="setTab('unread')">Unread</button>
+  <button type="button" [class.active]="tab === 'read'" (click)="setTab('read')">Read</button>
+  <button type="button" [class.active]="tab === 'sent'" (click)="setTab('sent')">Sent</button>
+  <button type="button" [class.active]="tab === 'failed'" (click)="setTab('failed')">Failed</button>
+</div>
+
+<mat-card class="filter-card">
+  <div class="filter-row">
+    <div class="stb-field stb-field--filter stb-field--filter-wide">
+      <label for="notif-search">Search</label>
+      <input id="notif-search" class="stb-input" [(ngModel)]="search"
+             (keyup.enter)="applyFilters()" placeholder="Title or message" />
+    </div>
+    <div class="stb-field stb-field--filter">
+      <label for="notif-channel">Channel</label>
+      <select id="notif-channel" class="stb-select" [(ngModel)]="channelFilter" (ngModelChange)="applyFilters()">
+        <option value="">All</option>
+        <option *ngFor="let c of channels" [value]="c">{{ c }}</option>
+      </select>
+    </div>
+    <div class="stb-field stb-field--filter">
+      <label for="notif-priority">Priority</label>
+      <select id="notif-priority" class="stb-select" [(ngModel)]="priorityFilter" (ngModelChange)="applyFilters()">
+        <option [ngValue]="null">All</option>
+        <option [ngValue]="1">Low</option>
+        <option [ngValue]="2">Normal</option>
+        <option [ngValue]="3">High</option>
+        <option [ngValue]="4">Critical</option>
+      </select>
+    </div>
+    <div class="stb-field stb-field--filter">
+      <label for="notif-from">From</label>
+      <input id="notif-from" type="date" class="stb-input" [(ngModel)]="fromDateStr" (change)="applyFilters()" />
+    </div>
+    <div class="stb-field stb-field--filter">
+      <label for="notif-to">To</label>
+      <input id="notif-to" type="date" class="stb-input" [(ngModel)]="toDateStr" (change)="applyFilters()" />
+    </div>
+    <button mat-flat-button color="primary" (click)="applyFilters()">Apply</button>
+  </div>
+</mat-card>
+
+<mat-card class="table-card">
+  <div class="loading" *ngIf="loading">
+    <mat-spinner diameter="36"></mat-spinner>
+  </div>
+
+  <table mat-table [dataSource]="items" *ngIf="!loading" class="notif-table">
+    <ng-container matColumnDef="status">
+      <th mat-header-cell *matHeaderCellDef></th>
+      <td mat-cell *matCellDef="let n">
+        <span class="dot" [class.unread]="!n.isRead"></span>
+      </td>
+    </ng-container>
+
+    <ng-container matColumnDef="title">
+      <th mat-header-cell *matHeaderCellDef>Notification</th>
+      <td mat-cell *matCellDef="let n">
+        <div class="title-cell">
+          <span class="type-icon" [style.color]="colorFor(n)">
+            <mat-icon>{{ iconFor(n) }}</mat-icon>
+          </span>
+          <div>
+            <div class="title">{{ n.title }}</div>
+            <div class="message">{{ n.message }}</div>
+          </div>
+        </div>
+      </td>
+    </ng-container>
+
+    <ng-container matColumnDef="channel">
+      <th mat-header-cell *matHeaderCellDef>Channel</th>
+      <td mat-cell *matCellDef="let n">
+        <span class="badge">{{ n.channel || 'InApp' }}</span>
+      </td>
+    </ng-container>
+
+    <ng-container matColumnDef="priority">
+      <th mat-header-cell *matHeaderCellDef>Priority</th>
+      <td mat-cell *matCellDef="let n">{{ priorityLabels[n.priority || 2] }}</td>
+    </ng-container>
+
+    <ng-container matColumnDef="createdAt">
+      <th mat-header-cell *matHeaderCellDef>Created</th>
+      <td mat-cell *matCellDef="let n">{{ n.createdAt | date:'medium' }}</td>
+    </ng-container>
+
+    <ng-container matColumnDef="actions">
+      <th mat-header-cell *matHeaderCellDef></th>
+      <td mat-cell *matCellDef="let n" class="actions">
+        <button mat-icon-button matTooltip="Mark read" *ngIf="!n.isRead" (click)="markRead(n)">
+          <mat-icon>done</mat-icon>
+        </button>
+        <button mat-icon-button matTooltip="Resend" (click)="resend(n)">
+          <mat-icon>send</mat-icon>
+        </button>
+        <button mat-icon-button matTooltip="Delete" color="warn" (click)="deleteOne(n)">
+          <mat-icon>delete</mat-icon>
+        </button>
+      </td>
+    </ng-container>
+
+    <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+    <tr mat-row *matRowDef="let row; columns: displayedColumns" [class.row-unread]="!row.isRead"></tr>
+  </table>
+
+  <div class="empty" *ngIf="!loading && items.length === 0">
+    <mat-icon>notifications_off</mat-icon>
+    <p>No notifications match your filters</p>
+  </div>
+
+  <mat-paginator
+    [length]="totalCount"
+    [pageIndex]="pageIndex"
+    [pageSize]="pageSize"
+    [pageSizeOptions]="[10, 20, 50]"
+    (page)="onPage($event)">
+  </mat-paginator>
+</mat-card>

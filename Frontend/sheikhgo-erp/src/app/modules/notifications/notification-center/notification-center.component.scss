@@ -1,0 +1,112 @@
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+
+  h2 { margin: 0; font-size: 1.5rem; font-weight: 700; }
+  .page-sub { margin: 0.25rem 0 0; color: #64748b; }
+  .header-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.stat-card {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.9rem 1rem;
+  border-radius: 12px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+
+  mat-icon { color: #3b82f6; }
+  .stat-value { font-size: 1.25rem; font-weight: 700; }
+  .stat-label { font-size: 0.75rem; color: #64748b; }
+}
+
+.tabs {
+  display: flex;
+  gap: 0.35rem;
+  margin-bottom: 0.75rem;
+  flex-wrap: wrap;
+
+  button {
+    border: 1px solid #e2e8f0;
+    background: #fff;
+    border-radius: 999px;
+    padding: 0.35rem 0.9rem;
+    cursor: pointer;
+    font-size: 0.85rem;
+
+    &.active {
+      background: #0f172a;
+      color: #fff;
+      border-color: #0f172a;
+    }
+  }
+}
+
+.filter-card, .table-card {
+  margin-bottom: 1rem;
+  padding: 1rem;
+}
+
+.filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: flex-end;
+}
+
+.title-cell {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+
+  .title { font-weight: 600; }
+  .message { color: #64748b; font-size: 0.85rem; max-width: 420px; }
+  .type-icon mat-icon { font-size: 20px; width: 20px; height: 20px; }
+}
+
+.badge {
+  display: inline-block;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  background: #f1f5f9;
+  font-size: 0.75rem;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  background: #cbd5e1;
+
+  &.unread { background: #3b82f6; }
+}
+
+.row-unread { background: #f8fafc; }
+
+.loading, .empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2.5rem;
+  color: #94a3b8;
+  gap: 0.5rem;
+}
+
+.actions {
+  white-space: nowrap;
+}
+
+.notif-table { width: 100%; }

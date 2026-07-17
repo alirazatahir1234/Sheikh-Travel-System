@@ -114,6 +114,7 @@ const analyticsGroup: NavGroup = {
     { id: 'fleet-analytics', label: 'Fleet Analytics', icon: 'analytics', route: '/reports', moduleKey: 'reports' },
     { id: 'driver-performance', label: 'Driver Performance', icon: 'speed', route: '/reports', moduleKey: 'reports' },
     { id: 'audit-logs', label: 'Audit Logs', icon: 'history', route: '/audit-logs', adminOnly: true, moduleKey: 'audit-logs' },
+    { id: 'notifications', label: 'Notification Center', icon: 'notifications', route: '/notifications', moduleKey: 'dashboard' },
     { id: 'performance-analytics', label: 'Performance Analytics', icon: 'speed', route: '/reports', moduleKey: 'reports' }
   ]
 };

@@ -8,9 +8,11 @@ import { GpsTrackingService } from '../../../core/services/gps-tracking.service'
 import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
 import {
   GpsDevice,
+  PositionDto,
   TraccarStatusDto,
   TraccarSyncStatusDto
 } from '../../../core/models/gps-tracking.model';
+import { GpsRealtimeService } from '../../../core/services/gps-realtime.service';
 import {
   assignmentLabel,
   assignmentBadgeClass,
@@ -89,10 +91,14 @@ export class GpsDevicesComponent implements OnInit, AfterViewInit, OnDestroy {
   private devicePollTimer?: ReturnType<typeof setInterval>;
   private syncPollTimer?: ReturnType<typeof setInterval>;
   private clockTimer?: ReturnType<typeof setInterval>;
+  private realtimeSub?: { unsubscribe(): void };
+  private connectionSub?: { unsubscribe(): void };
   private paginatorReady = false;
+  realtimeConnected = false;
 
   constructor(
     private gps: GpsTrackingService,
+    private realtime: GpsRealtimeService,
     private toast: UiToastService,
     private cdr: ChangeDetectorRef,
     private router: Router,
@@ -101,9 +107,14 @@ export class GpsDevicesComponent implements OnInit, AfterViewInit, OnDestroy {
 
   ngOnInit(): void {
     this.loadInitial();
-    this.devicePollTimer = setInterval(() => this.load(true), 30_000);
-    this.syncPollTimer   = setInterval(() => this.loadSyncStatus(), 5_000);
-    this.clockTimer      = setInterval(() => {
+    void this.realtime.connect().catch(() => {});
+    this.realtimeSub = this.realtime.locationUpdates$.subscribe(update => this.applyRealtimeUpdate(update));
+    this.connectionSub = this.realtime.connectionState$.subscribe(state => {
+      this.realtimeConnected = state === 'connected';
+      this.applyDevicePollInterval();
+    });
+    this.syncPollTimer = setInterval(() => this.loadSyncStatus(), 5_000);
+    this.clockTimer = setInterval(() => {
       this.clockNow = Date.now();
       this.cdr.markForCheck();
     }, 1_000);
@@ -113,6 +124,8 @@ export class GpsDevicesComponent implements OnInit, AfterViewInit, OnDestroy {
     if (this.devicePollTimer) clearInterval(this.devicePollTimer);
     if (this.syncPollTimer)   clearInterval(this.syncPollTimer);
     if (this.clockTimer)      clearInterval(this.clockTimer);
+    this.realtimeSub?.unsubscribe();
+    this.connectionSub?.unsubscribe();
   }
 
   ngAfterViewInit(): void {
@@ -321,9 +334,9 @@ export class GpsDevicesComponent implements OnInit, AfterViewInit, OnDestroy {
     let rows = [...this.devices];
 
     if (this.deviceFilter === 'online')        rows = rows.filter(d => !!d.isOnline);
-    else if (this.deviceFilter === 'moving')   rows = rows.filter(d => isTrackerMoving(d));
-    else if (this.deviceFilter === 'idle')     rows = rows.filter(d => isTrackerIdle(d));
-    else if (this.deviceFilter === 'parked')   rows = rows.filter(d => resolveTrackerStatus(d).key === 'parked');
+    else if (this.deviceFilter === 'moving')   rows = rows.filter(d => isTrackerMoving(d, this.clockNow));
+    else if (this.deviceFilter === 'idle')     rows = rows.filter(d => isTrackerIdle(d, this.clockNow));
+    else if (this.deviceFilter === 'parked')   rows = rows.filter(d => resolveTrackerStatus(d, this.clockNow).key === 'parked');
     else if (this.deviceFilter === 'offline')  rows = rows.filter(d => isTrackerOffline(d));
     else if (this.deviceFilter === 'available') rows = rows.filter(d => isTrackerInInventory(d));
     else if (this.deviceFilter === 'unassigned') rows = rows.filter(d => isTrackerUnassigned(d));
@@ -419,9 +432,9 @@ export class GpsDevicesComponent implements OnInit, AfterViewInit, OnDestroy {
     return [
       { filter: 'all' as DeviceFilter,        label: 'Total',      value: this.devices.length,                                            icon: 'sensors',      color: stale ? '#94a3b8' : '#64748b', stale, hint },
       { filter: 'online' as DeviceFilter,     label: 'Online',     value: this.devices.filter(d => !!d.isOnline).length,                  icon: 'wifi',         color: stale ? '#94a3b8' : '#22c55e', stale, hint },
-      { filter: 'moving' as DeviceFilter,     label: 'Moving',     value: this.devices.filter(d => isTrackerMoving(d)).length,            icon: 'speed',        color: stale ? '#94a3b8' : '#3b82f6', stale, hint },
-      { filter: 'idle' as DeviceFilter,       label: 'Idle',       value: this.devices.filter(d => isTrackerIdle(d)).length,              icon: 'pause_circle', color: stale ? '#94a3b8' : '#f59e0b', stale, hint },
-      { filter: 'parked' as DeviceFilter,     label: 'Parked',     value: this.devices.filter(d => resolveTrackerStatus(d).key === 'parked').length, icon: 'local_parking', color: stale ? '#94a3b8' : '#10b981', stale, hint },
+      { filter: 'moving' as DeviceFilter,     label: 'Moving',     value: this.devices.filter(d => isTrackerMoving(d, this.clockNow)).length,            icon: 'speed',        color: stale ? '#94a3b8' : '#3b82f6', stale, hint },
+      { filter: 'idle' as DeviceFilter,       label: 'Idle',       value: this.devices.filter(d => isTrackerIdle(d, this.clockNow)).length,              icon: 'pause_circle', color: stale ? '#94a3b8' : '#f59e0b', stale, hint },
+      { filter: 'parked' as DeviceFilter,     label: 'Parked',     value: this.devices.filter(d => resolveTrackerStatus(d, this.clockNow).key === 'parked').length, icon: 'local_parking', color: stale ? '#94a3b8' : '#10b981', stale, hint },
       { filter: 'offline' as DeviceFilter,    label: 'Offline',    value: this.devices.filter(d => isTrackerOffline(d)).length,           icon: 'wifi_off',     color: stale ? '#94a3b8' : '#ef4444', stale, hint },
       { filter: 'available' as DeviceFilter,  label: 'In Stock',   value: this.devices.filter(d => isTrackerInInventory(d)).length,       icon: 'inventory_2',  color: stale ? '#94a3b8' : '#8b5cf6', stale, hint },
       { filter: 'never' as DeviceFilter,      label: 'Provisioned', value: this.devices.filter(d => isTrackerNeverSeen(d)).length,          icon: 'sensors_off',  color: '#94a3b8', stale, hint },
@@ -433,6 +446,27 @@ export class GpsDevicesComponent implements OnInit, AfterViewInit, OnDestroy {
     this.refreshIntervalMs = ms;
     if (this.devicePollTimer) clearInterval(this.devicePollTimer);
     if (ms > 0) this.devicePollTimer = setInterval(() => this.load(true), ms);
+  }
+
+  private applyDevicePollInterval(): void {
+    const ms = this.realtimeConnected ? 60_000 : 30_000;
+    this.setRefreshInterval(ms);
+  }
+
+  private applyRealtimeUpdate(update: PositionDto): void {
+    const idx = this.devices.findIndex(d => d.vehicleId === update.vehicleId);
+    if (idx < 0) return;
+
+    const current = this.devices[idx];
+    this.devices[idx] = {
+      ...current,
+      lastSeenAt: update.timestamp,
+      lastSpeed: Number(update.speed) || 0,
+      lastIgnition: update.ignition ?? current.lastIgnition,
+      isOnline: true,
+    };
+    this.applyFilters();
+    this.cdr.markForCheck();
   }
 
   openView(d: GpsDevice): void {

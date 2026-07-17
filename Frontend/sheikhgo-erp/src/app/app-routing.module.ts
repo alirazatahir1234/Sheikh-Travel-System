@@ -33,6 +33,7 @@ const routes: Routes = [
       { path: 'maintenance', redirectTo: 'fleet/maintenance', pathMatch: 'full' },
       { path: 'maintenance/service-records', loadChildren: () => import('./modules/maintenance/maintenance.module').then(m => m.MaintenanceModule) },
       { path: 'audit-logs', loadChildren: () => import('./modules/audit-logs/audit-logs.module').then(m => m.AuditLogsModule) },
+      { path: 'notifications', loadChildren: () => import('./modules/notifications/notifications.module').then(m => m.NotificationsModule) },
       { path: 'profile', loadChildren: () => import('./modules/profile/profile.module').then(m => m.ProfileModule) }
     ]
   },
