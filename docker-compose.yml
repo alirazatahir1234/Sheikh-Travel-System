@@ -1,11 +1,24 @@
 services:
+  redis:
+    image: redis:7-alpine
+    container_name: sheikh-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    networks:
+      - sheikh-network
+
   api:
     build:
       context: ./Backend
       dockerfile: SheikhTravelSystem.API/Dockerfile
     container_name: sheikh-api
+    environment:
+      Cache__RedisConnectionString: redis:6379
     expose:
       - "5082"
+    depends_on:
+      - redis
     networks:
       - sheikh-network
 

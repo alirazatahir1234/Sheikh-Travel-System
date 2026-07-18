@@ -9,10 +9,19 @@ namespace SheikhTravelSystem.Application.Features.Dashboard.Queries;
 
 public record GetDashboardSummaryQuery : IRequest<ApiResponse<DashboardSummaryDto>>;
 
-public class GetDashboardSummaryQueryHandler(IDbConnectionFactory dbFactory)
+public class GetDashboardSummaryQueryHandler(
+    IDbConnectionFactory dbFactory,
+    IAppCache cache)
     : IRequestHandler<GetDashboardSummaryQuery, ApiResponse<DashboardSummaryDto>>
 {
-    public async Task<ApiResponse<DashboardSummaryDto>> Handle(GetDashboardSummaryQuery request, CancellationToken cancellationToken)
+    public Task<ApiResponse<DashboardSummaryDto>> Handle(GetDashboardSummaryQuery request, CancellationToken cancellationToken) =>
+        cache.GetOrCreateAsync(
+            "dashboard:summary",
+            AppCacheTtl.Dashboard,
+            LoadAsync,
+            cancellationToken);
+
+    private async Task<ApiResponse<DashboardSummaryDto>> LoadAsync(CancellationToken cancellationToken)
     {
         async Task<T> Scalar<T>(string sql, object? param = null)
         {

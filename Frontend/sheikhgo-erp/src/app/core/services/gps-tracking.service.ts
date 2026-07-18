@@ -232,6 +232,30 @@ export class GpsTrackingService {
     return this.http.post<boolean>(`${this.base}/positions`, payload);
   }
 
+  reverseGeocode(lat: number, lng: number): Observable<{
+    formattedAddress: string;
+    road?: string;
+    city?: string;
+    state?: string;
+    country?: string;
+    postalCode?: string;
+    fromCache?: boolean;
+  } | null> {
+    return this.http
+      .get<{
+        formattedAddress: string;
+        road?: string;
+        city?: string;
+        state?: string;
+        country?: string;
+        postalCode?: string;
+        fromCache?: boolean;
+      }>(`${this.base}/location/reverse`, {
+        params: { lat: String(lat), lng: String(lng) }
+      })
+      .pipe(catchError(() => of(null)));
+  }
+
   getHistory(vehicleId: number, from?: Date, to?: Date): Observable<PositionDto[]> {
     const params: Record<string, string> = {};
     if (from) params['from'] = from.toISOString();

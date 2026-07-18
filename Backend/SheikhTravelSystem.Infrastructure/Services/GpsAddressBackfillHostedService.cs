@@ -1,7 +1,3 @@
-using System.Globalization;
-using System.Net.Http.Json;
-using System.Text.Json.Serialization;
-using System.Threading.Channels;
 using Dapper;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -10,48 +6,30 @@ using Microsoft.Extensions.Options;
 using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Application.Features.GpsTracking;
 using SheikhTravelSystem.Application.Features.GpsTracking.Services;
+using System.Threading.Channels;
 
 namespace SheikhTravelSystem.Infrastructure.Services;
 
 /// <summary>
-/// Backfills human-readable addresses for GPS positions that arrive without one (Traccar's own
-/// geocoder is unconfigured on our server as of writing, so it always sends address: null). Queries
-/// the free Nominatim public API, which caps requests at 1/sec and requires a real User-Agent — both
-/// enforced here. A DB-backed cache keyed by ~11m-rounded coordinates means only genuinely new
-/// locations ever hit the network; parked/idle vehicles and repeat routes resolve from cache
-/// instantly. Enqueue is fire-and-forget from the position-ingest path so a cache miss never blocks
-/// a live GPS ping — the resolved address lands in VehicleCurrentLocation a few seconds later, well
-/// in time for the next live-map poll.
+/// Background reverse-geocode queue. Enqueue is fire-and-forget from position ingest.
+/// Only re-resolves when the vehicle has moved ~150 m from the last resolved point
+/// (or the current location still has no address).
 /// </summary>
 public class GpsAddressBackfillHostedService(
     IServiceProvider serviceProvider,
-    IHttpClientFactory httpClientFactory,
     IOptions<GeocodingOptions> options,
     ILogger<GpsAddressBackfillHostedService> logger)
     : BackgroundService, IGpsAddressBackfillQueue
 {
-    // ~11m grid at the equator — street-level precision with a good cache-hit rate for idle/parked
-    // vehicles and slow-moving traffic between consecutive pings.
-    private const int CoordinateDecimals = 4;
-
-    // Nominatim's usage policy hard-caps public API usage at 1 request/sec.
-    private static readonly TimeSpan ThrottleInterval = TimeSpan.FromSeconds(1);
-
     private readonly Channel<(int VehicleId, double Latitude, double Longitude)> _queue =
-        Channel.CreateBounded<(int, double, double)>(new BoundedChannelOptions(500)
+        Channel.CreateBounded<(int, double, double)>(new BoundedChannelOptions(1000)
         {
             FullMode = BoundedChannelFullMode.DropOldest
         });
 
-    private DateTime _nextAllowedCallUtc = DateTime.MinValue;
-
     public void Enqueue(int vehicleId, double latitude, double longitude)
     {
-        if (!options.Value.Enabled)
-        {
-            return;
-        }
-
+        if (!options.Value.Enabled) return;
         _queue.Writer.TryWrite((vehicleId, latitude, longitude));
     }
 
@@ -82,71 +60,53 @@ public class GpsAddressBackfillHostedService(
     {
         using var scope = serviceProvider.CreateScope();
         var dbFactory = scope.ServiceProvider.GetRequiredService<IDbConnectionFactory>();
+        var geocoder = scope.ServiceProvider.GetRequiredService<IReverseGeocodingService>();
+        var broadcaster = scope.ServiceProvider.GetRequiredService<ILocationBroadcastService>();
+
         using var connection = dbFactory.CreateConnection();
 
-        var latKey = Math.Round(latitude, CoordinateDecimals, MidpointRounding.AwayFromZero);
-        var lngKey = Math.Round(longitude, CoordinateDecimals, MidpointRounding.AwayFromZero);
-
-        var address = await connection.ExecuteScalarAsync<string?>(new CommandDefinition(
-            "SELECT TOP 1 Address FROM GpsAddressCache WHERE LatitudeKey = @LatKey AND LongitudeKey = @LngKey",
-            new { LatKey = latKey, LngKey = lngKey },
-            cancellationToken: cancellationToken));
-
-        if (string.IsNullOrWhiteSpace(address))
-        {
-            address = await ResolveFromNominatimAsync(latitude, longitude, cancellationToken);
-            if (string.IsNullOrWhiteSpace(address))
-            {
-                return;
-            }
-
-            await connection.ExecuteAsync(new CommandDefinition(
-                """
-                MERGE GpsAddressCache AS target
-                USING (SELECT @LatKey AS LatitudeKey, @LngKey AS LongitudeKey) AS source
-                ON target.LatitudeKey = source.LatitudeKey AND target.LongitudeKey = source.LongitudeKey
-                WHEN MATCHED THEN UPDATE SET Address = @Address, ResolvedAt = @ResolvedAt
-                WHEN NOT MATCHED THEN INSERT (LatitudeKey, LongitudeKey, Address, ResolvedAt)
-                    VALUES (@LatKey, @LngKey, @Address, @ResolvedAt);
+        var current = await connection.QuerySingleOrDefaultAsync<(
+            string? Address, decimal? Speed, bool? Ignition)?>(
+            new CommandDefinition("""
+                SELECT Address, Speed, Ignition
+                FROM VehicleCurrentLocation WHERE VehicleId = @VehicleId
                 """,
-                new { LatKey = latKey, LngKey = lngKey, Address = address, ResolvedAt = DateTime.UtcNow },
+                new { VehicleId = vehicleId },
                 cancellationToken: cancellationToken));
-        }
 
-        // Only fill a gap — never clobber a fresher address a normal ingest may have set meanwhile.
-        await connection.ExecuteAsync(new CommandDefinition(
-            "UPDATE VehicleCurrentLocation SET Address = @Address WHERE VehicleId = @VehicleId AND (Address IS NULL OR Address = '')",
-            new { VehicleId = vehicleId, Address = address },
+        // Cache-first resolve (~11 m grid). Nominatim only on miss.
+        var result = await geocoder.GetAddressAsync(latitude, longitude, forceRefresh: false, cancellationToken);
+        if (result is null || string.IsNullOrWhiteSpace(result.FormattedAddress))
+            return;
+
+        if (string.Equals(current?.Address, result.FormattedAddress, StringComparison.Ordinal))
+            return;
+
+        await connection.ExecuteAsync(new CommandDefinition("""
+            UPDATE VehicleCurrentLocation
+            SET Address = @Address
+            WHERE VehicleId = @VehicleId
+            """,
+            new { VehicleId = vehicleId, Address = result.FormattedAddress },
             cancellationToken: cancellationToken));
+
+        await connection.ExecuteAsync(new CommandDefinition("""
+            UPDATE TOP (1) GpsPositions
+            SET Address = @Address
+            WHERE VehicleId = @VehicleId AND (Address IS NULL OR Address = '')
+            """,
+            new { VehicleId = vehicleId, Address = result.FormattedAddress },
+            cancellationToken: cancellationToken));
+
+        await broadcaster.BroadcastLocationUpdateAsync(
+            vehicleId,
+            null,
+            latitude,
+            longitude,
+            current?.Speed ?? 0m,
+            current?.Ignition,
+            DateTime.UtcNow,
+            address: result.FormattedAddress,
+            cancellationToken: cancellationToken);
     }
-
-    private async Task<string?> ResolveFromNominatimAsync(double latitude, double longitude, CancellationToken cancellationToken)
-    {
-        var waitMs = (_nextAllowedCallUtc - DateTime.UtcNow).TotalMilliseconds;
-        if (waitMs > 0)
-        {
-            await Task.Delay(TimeSpan.FromMilliseconds(waitMs), cancellationToken);
-        }
-
-        _nextAllowedCallUtc = DateTime.UtcNow.Add(ThrottleInterval);
-
-        var client = httpClientFactory.CreateClient("Nominatim");
-        var url =
-            $"/reverse?format=jsonv2&lat={latitude.ToString(CultureInfo.InvariantCulture)}" +
-            $"&lon={longitude.ToString(CultureInfo.InvariantCulture)}&zoom=18&addressdetails=0&accept-language=en";
-
-        try
-        {
-            var response = await client.GetFromJsonAsync<NominatimReverseResponse>(url, cancellationToken);
-            return response?.DisplayName;
-        }
-        catch (Exception ex)
-        {
-            logger.LogDebug(ex, "Nominatim reverse geocode failed for {Latitude},{Longitude}", latitude, longitude);
-            return null;
-        }
-    }
-
-    private sealed record NominatimReverseResponse(
-        [property: JsonPropertyName("display_name")] string? DisplayName);
 }

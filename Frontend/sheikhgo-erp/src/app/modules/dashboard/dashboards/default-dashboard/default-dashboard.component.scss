@@ -30,12 +30,51 @@
 /* Header */
 .dash-header {
   display: grid;
-  grid-template-columns: minmax(260px, 1fr) minmax(360px, 1.5fr);
+  grid-template-columns: minmax(260px, 1fr) minmax(280px, 0.8fr);
   gap: 16px;
   align-items: stretch;
 
   @media (max-width: 1000px) {
     grid-template-columns: 1fr;
+  }
+}
+
+.notif-widget {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 1rem 1.1rem;
+  border-radius: 14px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  text-decoration: none;
+  color: inherit;
+  min-width: 0;
+
+  &:hover { border-color: #93c5fd; box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06); }
+
+  .notif-widget-title {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-weight: 700;
+    mat-icon { color: #3b82f6; }
+  }
+
+  .notif-widget-unread { color: #475569; font-size: 0.9rem; }
+
+  .notif-widget-channels {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+    font-size: 0.75rem;
+    color: #64748b;
+
+    span {
+      background: #f1f5f9;
+      border-radius: 999px;
+      padding: 0.15rem 0.5rem;
+    }
   }
 }
 

@@ -12,6 +12,7 @@ import { AuthService } from '../../../../core/services/auth.service';
 import { NotificationService } from '../../../../core/services/notification.service';
 import { DashboardSummary } from '../../../../core/models/common.model';
 import { Booking } from '../../../../core/models/booking.model';
+import { NotificationStats } from '../../../../core/models/notification.model';
 
 import {
   StatTile, TaskItem, DataTableColumn
@@ -34,6 +35,7 @@ export class DefaultDashboardComponent implements OnInit, OnDestroy {
   summary: DashboardSummary | null = null;
 
   unreadCount$: Observable<number>;
+  notifStats: NotificationStats | null = null;
   private destroy$ = new Subject<void>();
 
   /** Summary KPI row (mirrors DashboardSummaryDto). */
@@ -83,10 +85,12 @@ export class DefaultDashboardComponent implements OnInit, OnDestroy {
     this.userName = this.auth.getCurrentUser()?.fullName?.split(' ')[0] ?? 'there';
 
     this.loadDashboardData();
+    this.notificationService.getStats().subscribe(s => this.notifStats = s);
 
     // Auto-refresh every 60 seconds
     interval(60000).pipe(takeUntil(this.destroy$)).subscribe(() => {
       this.loadDashboardData();
+      this.notificationService.getStats().subscribe(s => this.notifStats = s);
     });
   }
 

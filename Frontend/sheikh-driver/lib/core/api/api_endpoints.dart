@@ -26,6 +26,8 @@ abstract class ApiEndpoints {
 
   // Notifications
   static const notifications = '/driver-app/notifications';
+  static const deviceToken = '/ai/device-tokens';
+  static const mobileHeartbeat = '/ai/presence/mobile-heartbeat';
 
   // Timeline
   static const timeline = '/driver-app/timeline';

@@ -30,7 +30,16 @@ public class GetLivePositionsQueryHandler(IDbConnectionFactory dbFactory, ITenan
         const string whereClause = """
               FROM VehicleCurrentLocation vcl
               INNER JOIN Vehicles v ON v.Id = vcl.VehicleId AND v.TenantId = @TenantId AND v.IsDeleted = 0
-              LEFT JOIN Drivers dr ON dr.Id = vcl.DriverId AND dr.IsDeleted = 0
+              OUTER APPLY (
+                  -- AssignmentHistory is the current ownership source. VehicleCurrentLocation is
+                  -- telemetry and can retain the driver from the previous position report.
+                  SELECT TOP 1 a.DriverId
+                  FROM AssignmentHistory a
+                  WHERE a.VehicleId = vcl.VehicleId AND a.IsDeleted = 0
+                    AND a.Status IN (N'Active', N'Scheduled') AND a.DriverId IS NOT NULL
+                  ORDER BY CASE WHEN a.Status = N'Active' THEN 0 ELSE 1 END, a.StartAt DESC
+              ) assignDrv
+              LEFT JOIN Drivers dr ON dr.Id = COALESCE(assignDrv.DriverId, vcl.DriverId) AND dr.IsDeleted = 0
               WHERE vcl.Latitude IS NOT NULL
                 AND vcl.Longitude IS NOT NULL
                 AND NOT (vcl.Latitude = 0 AND vcl.Longitude = 0)
@@ -45,7 +54,7 @@ public class GetLivePositionsQueryHandler(IDbConnectionFactory dbFactory, ITenan
             $"""
               SELECT CAST(vcl.VehicleId AS BIGINT) AS Id,
                      vcl.VehicleId,
-                     vcl.DriverId,
+                     COALESCE(assignDrv.DriverId, vcl.DriverId) AS DriverId,
                      vcl.BookingId,
                      vcl.GpsDeviceId,
                      vcl.Latitude,
@@ -847,7 +856,7 @@ public class GetGpsDevicesQueryHandler(IDbConnectionFactory dbFactory)
                      CASE WHEN v.Status = 5 THEN NULL ELSE v.Name END AS VehicleName,
                      CASE WHEN v.Status = 5 OR v.RegistrationNumber LIKE 'DRAFT-%' THEN NULL
                           ELSE v.RegistrationNumber END AS PlateNumber,
-                     COALESCE(drVcl.FullName, assignDrv.DriverName) AS DriverName,
+                     COALESCE(assignDrv.DriverName, drVcl.FullName) AS DriverName,
                      d.UniqueId, d.Name, d.Protocol,
                      d.SupportsEngineCutoff, d.SupportsRelay, d.LastIgnition, d.LastSeenAt, d.IsActive,
                      CASE WHEN d.LastSeenAt IS NOT NULL AND d.LastSeenAt > DATEADD(minute, -30, GETUTCDATE())

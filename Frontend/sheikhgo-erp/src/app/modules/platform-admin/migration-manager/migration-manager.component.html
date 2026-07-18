@@ -1,0 +1,63 @@
+<div class="page-container migration-manager">
+  <ui-page-header
+    title="Migration Manager"
+    subtitle="View schema migration history and apply pending database changes."
+    icon="storage"
+    [breadcrumbs]="breadcrumbs">
+    <div class="header-actions">
+      <button mat-stroked-button type="button" (click)="load()" [disabled]="loading || applying">
+        <mat-icon>refresh</mat-icon>
+        Refresh
+      </button>
+      <button
+        mat-flat-button
+        color="primary"
+        type="button"
+        (click)="applyPending()"
+        [disabled]="loading || applying || pendingCount === 0">
+        <mat-icon>play_arrow</mat-icon>
+        Apply Pending{{ pendingCount > 0 ? ' (' + pendingCount + ')' : '' }}
+      </button>
+    </div>
+  </ui-page-header>
+
+  <div class="summary-strip" *ngIf="!loading">
+    <div class="summary-card">
+      <span class="label">Total</span>
+      <strong>{{ migrations.length }}</strong>
+    </div>
+    <div class="summary-card applied">
+      <span class="label">Applied</span>
+      <strong>{{ appliedCount }}</strong>
+    </div>
+    <div class="summary-card" [class.pending]="pendingCount > 0">
+      <span class="label">Pending</span>
+      <strong>{{ pendingCount }}</strong>
+    </div>
+  </div>
+
+  <div class="loading" *ngIf="loading">
+    <mat-spinner diameter="36"></mat-spinner>
+  </div>
+
+  <ui-data-table
+    *ngIf="!loading"
+    title="Schema migrations"
+    [columns]="columns"
+    [data]="migrations"
+    [searchable]="true"
+    searchPlaceholder="Search migrations..."
+    [pageSize]="25">
+    <ng-template uiTableCell="isApplied" let-row>
+      <span class="status-chip" [class.applied]="row.isApplied" [class.pending]="!row.isApplied">
+        {{ row.isApplied ? 'Applied' : 'Pending' }}
+      </span>
+    </ng-template>
+    <ng-template uiTableCell="appliedAtUtc" let-row>
+      {{ formatAppliedAt(row.appliedAtUtc) }}
+    </ng-template>
+    <ng-template uiTableCell="appliedBy" let-row>
+      {{ row.appliedBy || '—' }}
+    </ng-template>
+  </ui-data-table>
+</div>

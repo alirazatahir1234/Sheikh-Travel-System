@@ -8,6 +8,17 @@ namespace SheikhTravelSystem.Tests.GpsTracking;
 public class GpsEnterpriseTests
 {
     [Fact]
+    public void GpsDriverQueries_PreferCurrentAssignmentOverTelemetrySnapshot()
+    {
+        var path = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..",
+            "SheikhTravelSystem.Application", "Features", "GpsTracking", "Queries", "GpsTrackingQueries.cs");
+        var source = File.ReadAllText(Path.GetFullPath(path));
+
+        source.Should().Contain("COALESCE(assignDrv.DriverId, vcl.DriverId) AS DriverId");
+        source.Should().Contain("COALESCE(assignDrv.DriverName, drVcl.FullName) AS DriverName");
+    }
+
+    [Fact]
     public void HaversineKm_SamePoint_ReturnsZero()
     {
         var km = GpsGeoHelper.HaversineKm(31.5, 74.3, 31.5, 74.3);

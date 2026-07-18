@@ -6,6 +6,8 @@ using Dapper;
 using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Application.Features.GpsTracking;
 using SheikhTravelSystem.Application.Features.GpsTracking.Services;
+using SheikhTravelSystem.Application.Features.Notifications;
+using SheikhTravelSystem.Domain.Enums;
 
 namespace SheikhTravelSystem.Infrastructure.Services;
 
@@ -59,6 +61,8 @@ public class GpsOfflineDetectionHostedService(
     {
         using var scope = serviceProvider.CreateScope();
         var dbFactory = scope.ServiceProvider.GetRequiredService<IDbConnectionFactory>();
+        var decisionEngine = scope.ServiceProvider.GetRequiredService<INotificationDecisionEngine>();
+        var escalation = scope.ServiceProvider.GetRequiredService<IEscalationService>();
         using var connection = dbFactory.CreateConnection();
 
         var staleMinutes = gpsSettings.Value.OfflineStaleMinutes;
@@ -81,7 +85,7 @@ public class GpsOfflineDetectionHostedService(
 
         foreach (var v in staleVehicles)
         {
-            await GpsAlertWriter.InsertAsync(
+            var alertId = await GpsAlertWriter.InsertAsync(
                 connection,
                 v.VehicleId,
                 v.Latitude,
@@ -91,6 +95,22 @@ public class GpsOfflineDetectionHostedService(
                 "Vehicle went offline",
                 DateTime.UtcNow,
                 cancellationToken: cancellationToken);
+
+            await decisionEngine.DispatchIfAllowedAsync(new NotificationDecisionRequest(
+                "vehicle_offline",
+                "Vehicle offline",
+                $"Vehicle #{v.VehicleId} has not reported GPS for {staleMinutes}+ minutes.",
+                NotificationType.VehicleOffline,
+                ReferenceId: v.VehicleId,
+                AlertEventId: alertId,
+                SuggestedPriority: 3,
+                RequestedChannels:
+                [
+                    NotificationChannels.InApp, NotificationChannels.Browser,
+                    NotificationChannels.Push, NotificationChannels.Sms
+                ]), cancellationToken);
+
+            await escalation.StartAsync("vehicle_offline", v.VehicleId, alertEventId: alertId, cancellationToken: cancellationToken);
         }
 
         if (staleVehicles.Count > 0)

@@ -1,0 +1,464 @@
+/* Floating notification drawer — matches Notification Center quick panel mockup */
+
+.notif-drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1190;
+  background: rgba(15, 23, 42, 0.18);
+}
+
+.notif-drawer {
+  position: fixed;
+  top: 4.75rem;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 1200;
+  width: min(420px, calc(100vw - 1.5rem));
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  box-shadow: 0 18px 48px rgba(15, 23, 42, 0.18);
+  overflow: hidden;
+  animation: notif-drawer-in 0.18s ease-out;
+}
+
+@keyframes notif-drawer-in {
+  from {
+    opacity: 0;
+    transform: translateX(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.notif-drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.9rem 1rem;
+  border-bottom: 1px solid #e2e8f0;
+  flex: 0 0 auto;
+}
+
+.notif-drawer-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.notif-drawer-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.notif-drawer-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.4rem;
+  height: 1.4rem;
+  padding: 0 0.4rem;
+  border-radius: 999px;
+  background: #0f766e;
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.notif-drawer-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+  flex: 0 0 auto;
+}
+
+.notif-drawer-mark-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  border: 0;
+  background: transparent;
+  color: #0f766e;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0.35rem 0.5rem;
+  border-radius: 8px;
+}
+
+.notif-drawer-mark-all:hover {
+  background: rgba(15, 118, 110, 0.08);
+}
+
+.notif-drawer-mark-all mat-icon {
+  font-size: 1.05rem;
+  width: 1.05rem;
+  height: 1.05rem;
+}
+
+.notif-drawer-close {
+  color: #64748b !important;
+}
+
+.notif-drawer-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  background: #f8fafc;
+}
+
+.notif-drawer-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 3rem 1rem;
+  color: #64748b;
+  text-align: center;
+}
+
+.notif-drawer-empty mat-icon {
+  font-size: 2.5rem;
+  width: 2.5rem;
+  height: 2.5rem;
+  opacity: 0.45;
+}
+
+.notif-card {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  text-align: left;
+  width: 100%;
+}
+
+.notif-card.critical {
+  border-left: 3px solid #ef4444;
+}
+
+.notif-card.unread:not(.critical) {
+  border-left: 3px solid #0f766e;
+}
+
+.notif-card--expanded {
+  padding: 1rem;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.06);
+}
+
+.notif-card--collapsed {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 0.75rem;
+  align-items: start;
+  padding: 0.85rem 0.9rem;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+  font: inherit;
+  color: inherit;
+}
+
+.notif-card--collapsed:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
+
+.notif-card-top {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+  margin-bottom: 0.75rem;
+}
+
+.notif-card-icon {
+  width: 2.6rem;
+  height: 2.6rem;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+}
+
+.notif-card-icon mat-icon {
+  font-size: 1.25rem;
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.notif-card-heading {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.notif-card-title-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.45rem;
+}
+
+.notif-card-title {
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #0f172a;
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+.notif-card--collapsed .notif-card-title {
+  font-size: 0.875rem;
+}
+
+.notif-card-sub {
+  margin-top: 0.2rem;
+  font-size: 0.72rem;
+  color: #94a3b8;
+}
+
+.notif-card-snippet {
+  margin-top: 0.2rem;
+  font-size: 0.8rem;
+  color: #64748b;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.notif-card-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 999px;
+  background: #2563eb;
+  flex: 0 0 auto;
+  margin-top: 0.35rem;
+}
+
+.notif-card-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-bottom: 0.75rem;
+}
+
+.notif-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.45rem;
+  border-radius: 6px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.notif-badge--module {
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+.notif-badge--channel {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.notif-badge--low {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.notif-badge--normal {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.notif-badge--high {
+  background: #ffedd5;
+  color: #c2410c;
+}
+
+.notif-badge--critical,
+.notif-badge--critical-mini {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.notif-badge--protected {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.notif-badge--new {
+  background: #0f766e;
+  color: #fff;
+  letter-spacing: 0.04em;
+  font-size: 0.62rem;
+}
+
+.notif-card-message {
+  margin: 0 0 0.85rem;
+  font-size: 0.85rem;
+  color: #334155;
+  line-height: 1.5;
+}
+
+.notif-card-meta {
+  list-style: none;
+  margin: 0 0 1rem;
+  padding: 0.65rem 0.75rem;
+  background: #f8fafc;
+  border: 1px solid #eef2f7;
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.notif-card-meta li {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr);
+  gap: 0.45rem 0.55rem;
+  align-items: center;
+  font-size: 0.8rem;
+}
+
+.notif-card-meta mat-icon {
+  font-size: 1rem;
+  width: 1rem;
+  height: 1rem;
+  color: #94a3b8;
+}
+
+.notif-card-meta .meta-label {
+  color: #64748b;
+  font-weight: 600;
+}
+
+.notif-card-meta .meta-value {
+  color: #0f172a;
+  text-align: right;
+  word-break: break-word;
+}
+
+.notif-card-meta .meta-value.is-critical {
+  color: #dc2626;
+  font-weight: 700;
+}
+
+.notif-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.notif-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border-radius: 8px;
+  padding: 0.5rem 0.85rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+
+.notif-btn mat-icon {
+  font-size: 1rem;
+  width: 1rem;
+  height: 1rem;
+}
+
+.notif-btn--primary {
+  background: #0f766e;
+  color: #fff;
+  border-color: #0f766e;
+}
+
+.notif-btn--primary:hover {
+  background: #0d9488;
+}
+
+.notif-btn--ghost {
+  background: #fff;
+  color: #0f172a;
+  border-color: #cbd5e1;
+}
+
+.notif-btn--ghost:hover {
+  background: #f8fafc;
+}
+
+.notif-btn-more {
+  margin-left: auto;
+  color: #64748b !important;
+}
+
+.notif-drawer-footer {
+  flex: 0 0 auto;
+  padding: 0.85rem 1rem;
+  border-top: 1px solid #e2e8f0;
+  background: #fff;
+}
+
+.notif-view-all-btn {
+  width: 100%;
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  color: #0f172a;
+  font-weight: 700;
+  font-size: 0.875rem;
+  border-radius: 10px;
+  padding: 0.7rem 1rem;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.notif-view-all-btn:hover {
+  background: #f8fafc;
+  border-color: #0f766e;
+  color: #0f766e;
+}
+
+@media (max-width: 560px) {
+  .notif-drawer {
+    top: 0.5rem;
+    right: 0.5rem;
+    bottom: 0.5rem;
+    left: 0.5rem;
+    width: auto;
+    border-radius: 14px;
+  }
+
+  .notif-drawer-mark-all span {
+    display: none;
+  }
+
+  .notif-card-meta li {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .notif-card-meta .meta-label {
+    display: none;
+  }
+
+  .notif-card-meta .meta-value {
+    text-align: left;
+  }
+}

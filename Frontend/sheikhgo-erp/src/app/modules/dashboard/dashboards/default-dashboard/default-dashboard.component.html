@@ -25,6 +25,20 @@
       </div>
     </div>
 
+    <a class="notif-widget" routerLink="/notifications" *ngIf="notifStats as ns">
+      <div class="notif-widget-title">
+        <mat-icon>notifications</mat-icon>
+        <span>Notifications</span>
+      </div>
+      <div class="notif-widget-unread">Unread: <strong>{{ ns.unread }}</strong></div>
+      <div class="notif-widget-channels">
+        <span>Email {{ ns.email }}</span>
+        <span>SMS {{ ns.sms }}</span>
+        <span>Push {{ ns.push }}</span>
+        <span>Browser {{ ns.browser }}</span>
+        <span>WhatsApp {{ ns.whatsApp }}</span>
+      </div>
+    </a>
   </section>
 
   <!-- KPIs -->

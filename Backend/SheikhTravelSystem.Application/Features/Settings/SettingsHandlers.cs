@@ -17,6 +17,7 @@ public static class SettingsCategories
     public const string Localization = "Localization";
     public const string Security = "Security";
     public const string Notifications = "Notifications";
+    public const string NotificationRetention = "NotificationRetention";
     public const string Documents = "Documents";
     public const string Workflows = "Workflows";
     public const string Numbering = "Numbering";
@@ -35,6 +36,7 @@ public static class SettingsCategories
         new(Localization, "Localization", "language", "Language, direction, region and number formats.", true),
         new(Security, "Security", "security", "Authentication, API security, IP management and compliance.", true),
         new(Notifications, "Notifications", "notifications", "Email, SMS, WhatsApp, push and alert preferences.", true),
+        new(NotificationRetention, "Notification Retention", "policy", "Inbox archive and permanent-delete retention policy.", true),
         new(Documents, "Documents", "description", "Upload limits, extensions and document lifecycle.", true),
         new(Workflows, "Workflows", "account_tree", "Approval levels, auto-approval and escalation.", true),
         new(Numbering, "Numbering", "tag", "Prefixes and sequences for records.", true),
@@ -54,15 +56,23 @@ public static class SettingsCategories
         All.Any(c => string.Equals(c.Id, category, StringComparison.OrdinalIgnoreCase) && c.IsImplemented);
 }
 
-public class GetSettingsCategoriesQueryHandler
+public class GetSettingsCategoriesQueryHandler(IAppCache cache)
     : IRequestHandler<GetSettingsCategoriesQuery, ApiResponse<IReadOnlyList<SettingsCategoryDto>>>
 {
     public Task<ApiResponse<IReadOnlyList<SettingsCategoryDto>>> Handle(
         GetSettingsCategoriesQuery request, CancellationToken cancellationToken) =>
-        Task.FromResult(ApiResponse<IReadOnlyList<SettingsCategoryDto>>.SuccessResponse(SettingsCategories.All));
+        cache.GetOrCreateAsync(
+            "settings:categories",
+            AppCacheTtl.SettingsCategories,
+            static _ => Task.FromResult(
+                ApiResponse<IReadOnlyList<SettingsCategoryDto>>.SuccessResponse(SettingsCategories.All)),
+            cancellationToken);
 }
 
-public class GetSettingsByCategoryQueryHandler(IDbConnectionFactory dbFactory, ITenantContext tenantContext)
+public class GetSettingsByCategoryQueryHandler(
+    IDbConnectionFactory dbFactory,
+    ITenantContext tenantContext,
+    IAppCache cache)
     : IRequestHandler<GetSettingsByCategoryQuery, ApiResponse<IReadOnlyDictionary<string, string?>>>
 {
     public async Task<ApiResponse<IReadOnlyDictionary<string, string?>>> Handle(
@@ -73,14 +83,27 @@ public class GetSettingsByCategoryQueryHandler(IDbConnectionFactory dbFactory, I
                 $"Settings category '{request.Category}' is not available yet.");
 
         var tenantId = tenantContext.GetRequiredTenantId();
+        var cacheKey = $"settings:{tenantId}:{request.Category}".ToLowerInvariant();
+
+        return await cache.GetOrCreateAsync(
+            cacheKey,
+            AppCacheTtl.Settings,
+            ct => LoadAsync(tenantId, request.Category, ct),
+            cancellationToken);
+    }
+
+    private async Task<ApiResponse<IReadOnlyDictionary<string, string?>>> LoadAsync(
+        int tenantId,
+        string category,
+        CancellationToken cancellationToken)
+    {
         using var connection = dbFactory.CreateConnection();
 
-        var values = await LoadGenericAsync(connection, tenantId, request.Category, cancellationToken);
+        var values = await LoadGenericAsync(connection, tenantId, category, cancellationToken);
 
-        // Overlay dedicated-table values (source of truth for their known keys).
-        if (string.Equals(request.Category, SettingsCategories.Security, StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(category, SettingsCategories.Security, StringComparison.OrdinalIgnoreCase))
             await SettingsCategoryAdapters.OverlaySecurityAsync(connection, tenantId, values, cancellationToken);
-        else if (string.Equals(request.Category, SettingsCategories.Branding, StringComparison.OrdinalIgnoreCase))
+        else if (string.Equals(category, SettingsCategories.Branding, StringComparison.OrdinalIgnoreCase))
             await SettingsCategoryAdapters.OverlayBrandingAsync(connection, tenantId, values, cancellationToken);
 
         return ApiResponse<IReadOnlyDictionary<string, string?>>.SuccessResponse(values);
@@ -98,7 +121,10 @@ public class GetSettingsByCategoryQueryHandler(IDbConnectionFactory dbFactory, I
     }
 }
 
-public class UpdateSettingsCommandHandler(IDbConnectionFactory dbFactory, ITenantContext tenantContext)
+public class UpdateSettingsCommandHandler(
+    IDbConnectionFactory dbFactory,
+    ITenantContext tenantContext,
+    IAppCache cache)
     : IRequestHandler<UpdateSettingsCommand, ApiResponse<bool>>
 {
     public async Task<ApiResponse<bool>> Handle(UpdateSettingsCommand request, CancellationToken cancellationToken)
@@ -113,7 +139,6 @@ public class UpdateSettingsCommandHandler(IDbConnectionFactory dbFactory, ITenan
         var isSecurity = string.Equals(request.Category, SettingsCategories.Security, StringComparison.OrdinalIgnoreCase);
         var isBranding = string.Equals(request.Category, SettingsCategories.Branding, StringComparison.OrdinalIgnoreCase);
 
-        // Keys backed by a dedicated table are written there, not duplicated in the generic store.
         var tableManagedKeys = isSecurity
             ? SettingsCategoryAdapters.SecurityKeys
             : isBranding
@@ -131,6 +156,8 @@ public class UpdateSettingsCommandHandler(IDbConnectionFactory dbFactory, ITenan
             await SettingsCategoryAdapters.SaveSecurityAsync(connection, tenantId, request.Values, cancellationToken);
         else if (isBranding)
             await SettingsCategoryAdapters.SaveBrandingAsync(connection, tenantId, request.Values, cancellationToken);
+
+        cache.Remove($"settings:{tenantId}:{request.Category}".ToLowerInvariant());
 
         return ApiResponse<bool>.SuccessResponse(true, "Settings updated.");
     }

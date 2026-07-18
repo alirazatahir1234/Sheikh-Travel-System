@@ -9,6 +9,7 @@ using SheikhTravelSystem.Application.Features.GpsTracking;
 using SheikhTravelSystem.Application.Features.GpsTracking.DTOs;
 using SheikhTravelSystem.Application.Features.GpsTracking.Services;
 using SheikhTravelSystem.Application.Features.GpsTracking.Traccar;
+using SheikhTravelSystem.Application.Features.Notifications;
 using SheikhTravelSystem.Domain.Enums;
 
 namespace SheikhTravelSystem.Application.Features.GpsTracking.Commands;
@@ -312,12 +313,15 @@ public class SendDeviceCommandCommandHandler(
         if (definition.NotifyAllUsers && dispatchSucceeded)
         {
             var verb = request.Command.CommandType == "engineStop" ? "cut off" : "restored";
-            await notifications.CreateForAllAsync(
+            await notifications.CreateForAllChannelsAsync(
                 $"Engine {verb} — {device.Name}",
                 $"Reason: {request.Command.Reason ?? "Not specified"}",
                 NotificationType.EngineCommandSent,
-                id,
-                cancellationToken);
+                [NotificationChannels.InApp, NotificationChannels.Browser],
+                priority: 3,
+                module: "Fleet",
+                referenceId: id,
+                cancellationToken: cancellationToken);
         }
 
         return ApiResponse<int>.SuccessResponse(id, "Command queued.");

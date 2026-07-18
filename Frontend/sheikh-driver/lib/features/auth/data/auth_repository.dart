@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:dio/dio.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -6,22 +7,28 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../../../core/api/dio_client.dart';
 import '../domain/auth_models.dart';
 import 'auth_api.dart';
+import '../../notifications/services/push_registration_service.dart';
 
 const _sessionKey = 'driver_session';
 const _accessTokenKey = 'driver_access_token';
 const _refreshTokenKey = 'driver_refresh_token';
 
 final authRepositoryProvider = ChangeNotifierProvider<AuthRepository>(
-  (ref) => AuthRepository(ref.read(secureStorageProvider), ref.read(authApiProvider)),
+  (ref) => AuthRepository(
+    ref.read(secureStorageProvider),
+    ref.read(authApiProvider),
+    ref.read(dioProvider),
+  ),
 );
 
 class AuthRepository extends ChangeNotifier {
-  AuthRepository(this._storage, this._api) {
+  AuthRepository(this._storage, this._api, this._dio) {
     _restoreSession();
   }
 
   final FlutterSecureStorage _storage;
   final AuthApi _api;
+  final Dio _dio;
 
   DriverSession? _session;
   bool _loading = true;
@@ -51,6 +58,9 @@ class AuthRepository extends ChangeNotifier {
     _session = session;
     _setCrashlyticsIdentity(session);
     notifyListeners();
+    // Register FCM after auth so Authorization header is available.
+    // ignore: unawaited_futures
+    PushRegistrationService.instance.start(_dio);
   }
 
   void _setCrashlyticsIdentity(DriverSession session) {

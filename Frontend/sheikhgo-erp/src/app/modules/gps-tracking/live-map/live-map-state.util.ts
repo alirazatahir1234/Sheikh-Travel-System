@@ -24,7 +24,9 @@ export function mergeVehicleLocations(
     }
     byId.set(location.vehicleId, {
       ...(previous ?? {}),
-      ...location
+      ...location,
+      // Don't wipe a resolved address with a null/empty poll/SignalR payload.
+      address: location.address?.trim() || previous?.address
     });
   });
 

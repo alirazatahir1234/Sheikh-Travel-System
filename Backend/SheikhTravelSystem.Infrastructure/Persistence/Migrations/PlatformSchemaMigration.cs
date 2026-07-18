@@ -386,6 +386,9 @@ public static class PlatformSchemaMigration
             await UpsertMenuUnderModuleAsync(connection, "access_control", name, route, icon, permission, sort, ct);
 
         await UpsertMenuUnderModuleAsync(connection, "administration", "Settings", "/settings", "tune", "Platform.Settings.View", 10, ct);
+        await UpsertMenuUnderModuleAsync(
+            connection, "administration", "Notification Center", "/notifications", "notifications",
+            "Platform.Dashboard.View", 11, ct);
 
         await connection.ExecuteAsync(new CommandDefinition("""
             UPDATE pm SET pm.IsActive = 0
@@ -596,6 +599,8 @@ public static class PlatformSchemaMigration
         await SeedMenuItemAsync(connection, "administration", null, "Users", "/users", "manage_accounts", "Platform.Users.View", 1, ct);
         await SeedMenuItemAsync(connection, "administration", null, "Roles", "/users", "security", "Platform.Roles.View", 2, ct);
         await SeedMenuItemAsync(connection, "administration", null, "Allowance Rules", "/driver-allowance-rules", "rule", "Platform.Roles.Manage", 3, ct);
+        await SeedMenuItemAsync(connection, "administration", null, "Notification Center", "/notifications", "notifications", "Platform.Dashboard.View", 11, ct);
+        await SeedMenuItemAsync(connection, "administration", null, "Settings", "/settings", "tune", "Platform.Settings.View", 10, ct);
     }
 
     private static async Task SeedMenuItemAsync(
