@@ -16,7 +16,8 @@ import {
 } from '../../../core/models/platform.model';
 import { User } from '../../../core/models/user.model';
 import { apiErrorMessage } from '../../../core/utils/api-error.util';
-import { branchNameValidator, phoneMaxDigitsValidator } from './branch-form.validators';
+import { branchNameValidator, phoneMaxDigitsValidator, branchAddressValidator, branchCityValidator, BRANCH_ADDRESS_MAX_LENGTH, BRANCH_CITY_MAX_LENGTH } from './branch-form.validators';
+import { UiSelectOption } from '../../../shared/components/ui/types/ui.types';
 
 @Component({
   standalone: false,
@@ -36,8 +37,13 @@ export class BranchFormComponent implements OnInit {
   countries: string[] = [];
   timezones: string[] = [];
   currencies: string[] = [];
+  countryOptions: UiSelectOption[] = [];
+  timezoneOptions: UiSelectOption[] = [];
+  currencyOptions: UiSelectOption[] = [];
   readonly statusOptions = BRANCH_STATUS_OPTIONS;
   readonly BranchStatus = BranchStatus;
+  readonly addressMaxLength = BRANCH_ADDRESS_MAX_LENGTH;
+  readonly cityMaxLength = BRANCH_CITY_MAX_LENGTH;
 
   form;
 
@@ -57,9 +63,9 @@ export class BranchFormComponent implements OnInit {
       parentBranchId: [null as number | null],
       branchManagerUserId: [null as number | null],
       phone: ['', [phoneMaxDigitsValidator(15)]],
-      email: ['', Validators.email],
-      address: [''],
-      city: [''],
+      email: ['', [Validators.email, Validators.maxLength(200)]],
+      address: ['', [Validators.maxLength(BRANCH_ADDRESS_MAX_LENGTH), branchAddressValidator()]],
+      city: ['', [Validators.maxLength(BRANCH_CITY_MAX_LENGTH), branchCityValidator()]],
       country: ['United Arab Emirates'],
       timeZone: ['Asia/Dubai'],
       currencyCode: [DEFAULT_CURRENCY],
@@ -81,6 +87,10 @@ export class BranchFormComponent implements OnInit {
       this.countries = countries;
       this.currencies = currencies;
       this.timezones = timezones;
+      this.countryOptions = this.toSelectOptions(countries);
+      this.currencyOptions = this.toSelectOptions(currencies);
+      this.timezoneOptions = this.toSelectOptions(timezones);
+      this.ensureLookupSelections();
     });
 
     const requests = {
@@ -108,6 +118,10 @@ export class BranchFormComponent implements OnInit {
     }
   }
 
+  get addressLength(): number {
+    return String(this.form.get('address')?.value ?? '').length;
+  }
+
   private initForm(branches: Branch[], users: User[], branch?: Branch): void {
     this.branches = branches.filter(b => !this.branchId || b.id !== this.branchId);
     this.managers = users.filter(u => u.isActive);
@@ -131,7 +145,37 @@ export class BranchFormComponent implements OnInit {
       });
     }
 
+    this.ensureLookupSelections();
     this.loading = false;
+  }
+
+  private toSelectOptions(values: string[]): UiSelectOption[] {
+    return values.map(value => ({ value, label: value }));
+  }
+
+  private ensureLookupSelections(): void {
+    const country = this.pickExistingOrDefault(
+      this.form.get('country')?.value,
+      this.countries,
+      'United Arab Emirates'
+    );
+    const timeZone = this.pickExistingOrDefault(
+      this.form.get('timeZone')?.value,
+      this.timezones,
+      'Asia/Dubai'
+    );
+    const currencyCode = this.pickExistingOrDefault(
+      this.form.get('currencyCode')?.value,
+      this.currencies,
+      DEFAULT_CURRENCY
+    );
+    this.form.patchValue({ country, timeZone, currencyCode }, { emitEvent: false });
+  }
+
+  private pickExistingOrDefault(current: string | null | undefined, options: string[], fallback: string): string {
+    if (current && options.includes(current)) return current;
+    if (options.includes(fallback)) return fallback;
+    return options[0] ?? fallback;
   }
 
   reset(): void {

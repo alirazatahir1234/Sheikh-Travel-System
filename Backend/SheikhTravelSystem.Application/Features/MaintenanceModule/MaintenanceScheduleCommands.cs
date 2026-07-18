@@ -254,29 +254,53 @@ public class CreateMaintenanceScheduleCommandHandler(
     ITenantContext tenantContext)
     : IRequestHandler<CreateMaintenanceScheduleCommand, ApiResponse<int>>
 {
+    private sealed class VehicleLookupRow
+    {
+        public decimal CurrentMileage { get; init; }
+        public decimal CurrentEngineHours { get; init; }
+        public int Status { get; init; }
+    }
+
     public async Task<ApiResponse<int>> Handle(CreateMaintenanceScheduleCommand request, CancellationToken cancellationToken)
     {
         var tenantId = tenantContext.GetRequiredTenantId();
         var body = request.Body;
         using var connection = dbFactory.CreateConnection();
 
-        var vehicle = await connection.QuerySingleOrDefaultAsync<(decimal CurrentMileage, decimal? CurrentEngineHours, int Status)?>(
+        // Use a concrete class — Dapper cannot reliably map Nullable<ValueTuple>, which
+        // previously made existing vehicles look "not found" on schedule create.
+        var vehicle = await connection.QuerySingleOrDefaultAsync<VehicleLookupRow>(
             new CommandDefinition(
-                "SELECT CurrentMileage, CurrentEngineHours, Status FROM Vehicles WHERE Id = @Id AND TenantId = @TenantId AND IsDeleted = 0",
+                """
+                SELECT CurrentMileage, ISNULL(CurrentEngineHours, 0) AS CurrentEngineHours, Status
+                FROM Vehicles
+                WHERE Id = @Id AND TenantId = @TenantId AND IsDeleted = 0
+                """,
                 new { Id = body.VehicleId, TenantId = tenantId },
                 cancellationToken: cancellationToken));
 
         if (vehicle is null)
-            throw new NotFoundException("Vehicle", body.VehicleId);
+        {
+            var orphan = await connection.ExecuteScalarAsync<int?>(new CommandDefinition(
+                "SELECT TenantId FROM Vehicles WHERE Id = @Id AND IsDeleted = 0",
+                new { Id = body.VehicleId },
+                cancellationToken: cancellationToken));
 
-        if (vehicle.Value.Status == (int)VehicleStatus.Draft)
+            if (orphan is null)
+                throw new NotFoundException("Vehicle", body.VehicleId);
+
+            throw new ValidationException(
+                "Selected vehicle belongs to a different organization. Refresh the page and choose a vehicle from the current tenant.");
+        }
+
+        if (vehicle.Status == (int)VehicleStatus.Draft)
             throw new ValidationException("This vehicle is still a draft. Publish it in Fleet Management before scheduling maintenance.");
 
-        if (vehicle.Value.Status == (int)VehicleStatus.Retired)
+        if (vehicle.Status == (int)VehicleStatus.Retired)
             throw new ValidationException("Cannot schedule maintenance for a retired vehicle.");
 
-        var lastMileage = body.LastServiceMileage ?? vehicle.Value.CurrentMileage;
-        var lastEngineHours = body.LastServiceEngineHours ?? vehicle.Value.CurrentEngineHours;
+        var lastMileage = body.LastServiceMileage ?? vehicle.CurrentMileage;
+        var lastEngineHours = body.LastServiceEngineHours ?? vehicle.CurrentEngineHours;
         var lastDate = body.LastServiceDate ?? DateTime.UtcNow.Date;
 
         var (nextMileage, nextEngineHours, nextDate) = MaintenanceScheduleHelper.RecomputeNextDue(

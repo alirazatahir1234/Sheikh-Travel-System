@@ -338,14 +338,22 @@
 }
 
 .col-actions {
-  min-width: 280px;
+  width: 1%;
+  min-width: 17.5rem;
+  white-space: nowrap;
+  vertical-align: middle;
 }
 
 .user-table-actions {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 6px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+
+  ui-button {
+    flex: 0 0 auto;
+  }
 }
 
 .empty-row td {

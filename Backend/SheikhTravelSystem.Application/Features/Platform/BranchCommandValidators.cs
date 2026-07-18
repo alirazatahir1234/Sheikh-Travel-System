@@ -43,6 +43,9 @@ internal static class BranchPayloadRules
     private static readonly Regex BranchNamePattern =
         new(@"^[A-Za-z0-9]+(?:[\s'&\-][A-Za-z0-9]+)*$", RegexOptions.Compiled);
 
+    private static readonly Regex BranchCityPattern =
+        new(@"^[\p{L}]+(?:[\s'.\-][\p{L}]+)*$", RegexOptions.Compiled | RegexOptions.CultureInvariant);
+
     public static void Apply<T>(IRuleBuilder<T, BranchUpsertPayload> rule) where T : notnull
     {
         rule.NotNull();
@@ -68,8 +71,16 @@ internal static class BranchPayloadRules
                 .MaximumLength(200)
                 .EmailAddress()
                 .When(x => !string.IsNullOrWhiteSpace(x.Email));
-            payload.RuleFor(x => x.Address).MaximumLength(500);
-            payload.RuleFor(x => x.City).MaximumLength(100);
+            payload.RuleFor(x => x.Address)
+                .MaximumLength(500)
+                .Must(BeValidBranchAddress)
+                .WithMessage("Address must include letters and common address characters only.")
+                .When(x => !string.IsNullOrWhiteSpace(x.Address));
+            payload.RuleFor(x => x.City)
+                .MaximumLength(100)
+                .Must(BeValidBranchCity)
+                .WithMessage("City must be a valid name with letters only — numbers are not allowed.")
+                .When(x => !string.IsNullOrWhiteSpace(x.City));
             payload.RuleFor(x => x.Country).MaximumLength(100);
             payload.RuleFor(x => x.TimeZone).MaximumLength(100);
             payload.RuleFor(x => x.CurrencyCode).MaximumLength(10);
@@ -86,6 +97,27 @@ internal static class BranchPayloadRules
         if (string.IsNullOrEmpty(v)) return true;
         if (v.All(char.IsDigit) || !v.Any(char.IsLetter)) return false;
         return BranchNamePattern.IsMatch(v);
+    }
+
+    private static bool BeValidBranchAddress(string? address)
+    {
+        var v = (address ?? string.Empty).Trim();
+        if (string.IsNullOrEmpty(v)) return true;
+        if (v.Length < 5 || v.Length > 500) return false;
+        if (v.All(char.IsDigit) || !v.Any(char.IsLetter)) return false;
+        return v.All(c =>
+            char.IsLetterOrDigit(c) ||
+            char.IsWhiteSpace(c) ||
+            c is '.' or ',' or '#' or '/' or '-' or '\'' or '&' or '(' or ')');
+    }
+
+    private static bool BeValidBranchCity(string? city)
+    {
+        var v = (city ?? string.Empty).Trim();
+        if (string.IsNullOrEmpty(v)) return true;
+        if (v.Length < 2 || v.Length > 100) return false;
+        if (v.Any(char.IsDigit) || !v.Any(char.IsLetter)) return false;
+        return BranchCityPattern.IsMatch(v);
     }
 
     private static bool HaveAtMostFifteenDigits(string? phone)

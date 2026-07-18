@@ -66,10 +66,14 @@ const routes: Routes = [
     AssignmentBoardComponent,
     AssignmentCalendarComponent,
     MaintenanceShellComponent,
-    MaintenanceReportsPageComponent,
+    MaintenanceDashboardComponent,
+    MaintenanceRequestsPageComponent,
+    WorkOrdersPageComponent,
+    WorkshopsVendorsPageComponent,
     ServiceSchedulerPageComponent,
     ServiceHistoryPageComponent,
-    WorkshopsVendorsPageComponent,
+    PartsInventoryPageComponent,
+    MaintenanceReportsPageComponent,
     RouterModule.forChild(routes)
   ]
 })

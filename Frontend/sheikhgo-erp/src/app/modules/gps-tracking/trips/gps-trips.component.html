@@ -50,41 +50,40 @@
         </mat-select>
       </mat-form-field>
 
-      <!-- Single-vehicle mode: filter by driver within this vehicle's own trip history. -->
-      <mat-form-field appearance="outline" class="filter-field" *ngIf="!isFleetWide">
-        <mat-label>Driver</mat-label>
-        <mat-select [(value)]="driverFilter" (selectionChange)="applyClientDriverFilter()" [disabled]="!trips.length">
-          <mat-option value="">All Drivers</mat-option>
-          <mat-option *ngFor="let d of driverOptions" [value]="d">{{ d }}</mat-option>
-        </mat-select>
-      </mat-form-field>
-
-      <!-- Fleet-wide mode: narrow which vehicles are included, server-side. -->
       <ng-container *ngIf="isFleetWide">
-        <mat-form-field appearance="outline" class="filter-field">
-          <mat-label>Branch</mat-label>
-          <mat-select [(value)]="branchId" (selectionChange)="onFleetFilterChange()">
-            <mat-option [value]="null">All Branches</mat-option>
-            <mat-option *ngFor="let b of branches" [value]="b.id">{{ b.name }}</mat-option>
-          </mat-select>
-        </mat-form-field>
+        <ui-select
+          class="filter-select"
+          label="Branch"
+          [options]="branchOptions"
+          [searchable]="true"
+          searchPlaceholder="Search branch"
+          placeholder="All Branches"
+          [(ngModel)]="branchKey"
+          (ngModelChange)="onFleetFilterChange()">
+        </ui-select>
 
-        <mat-form-field appearance="outline" class="filter-field">
-          <mat-label>Department</mat-label>
-          <mat-select [(value)]="departmentId" (selectionChange)="onFleetFilterChange()">
-            <mat-option [value]="null">All Departments</mat-option>
-            <mat-option *ngFor="let d of departments" [value]="d.id">{{ d.name }}</mat-option>
-          </mat-select>
-        </mat-form-field>
-
-        <mat-form-field appearance="outline" class="filter-field">
-          <mat-label>Driver</mat-label>
-          <mat-select [(value)]="fleetDriverId" (selectionChange)="onFleetFilterChange()">
-            <mat-option [value]="null">All Drivers</mat-option>
-            <mat-option *ngFor="let d of fleetDrivers" [value]="d.id">{{ d.fullName }}</mat-option>
-          </mat-select>
-        </mat-form-field>
+        <ui-select
+          class="filter-select"
+          label="Department"
+          [options]="departmentOptions"
+          [searchable]="true"
+          searchPlaceholder="Search department"
+          placeholder="All Departments"
+          [(ngModel)]="departmentKey"
+          (ngModelChange)="onFleetFilterChange()">
+        </ui-select>
       </ng-container>
+
+      <ui-select
+        class="filter-select"
+        label="Driver"
+        [options]="driverSelectOptions"
+        [searchable]="true"
+        searchPlaceholder="Search driver"
+        placeholder="All Drivers"
+        [(ngModel)]="fleetDriverKey"
+        (ngModelChange)="onDriverFilterChange()">
+      </ui-select>
 
       <div class="period-display">
         <span class="period-label">Time period</span>
@@ -111,23 +110,55 @@
       <button type="button" class="btn btn-secondary" (click)="load()">Apply</button>
     </div>
 
-    <div class="range-filters-row" *ngIf="trips.length">
-      <mat-form-field appearance="outline" class="range-field">
-        <mat-label>Distance from (km)</mat-label>
-        <input matInput type="number" min="0" [(ngModel)]="distanceMin" (ngModelChange)="applyFilters()">
-      </mat-form-field>
-      <mat-form-field appearance="outline" class="range-field">
-        <mat-label>Distance to (km)</mat-label>
-        <input matInput type="number" min="0" [(ngModel)]="distanceMax" (ngModelChange)="applyFilters()">
-      </mat-form-field>
-      <mat-form-field appearance="outline" class="range-field">
-        <mat-label>Speed from (km/h)</mat-label>
-        <input matInput type="number" min="0" [(ngModel)]="speedMin" (ngModelChange)="applyFilters()">
-      </mat-form-field>
-      <mat-form-field appearance="outline" class="range-field">
-        <mat-label>Speed to (km/h)</mat-label>
-        <input matInput type="number" min="0" [(ngModel)]="speedMax" (ngModelChange)="applyFilters()">
-      </mat-form-field>
+    <div class="range-filters-row">
+      <label class="range-field">
+        <span class="range-field__label">Min distance (km)</span>
+        <input
+          class="range-field__input"
+          type="text"
+          inputmode="decimal"
+          maxlength="8"
+          autocomplete="off"
+          placeholder="0"
+          [ngModel]="formatRangeValue(distanceMin)"
+          (ngModelChange)="onRangeChange('distanceMin', $event)" />
+      </label>
+      <label class="range-field">
+        <span class="range-field__label">Max distance (km)</span>
+        <input
+          class="range-field__input"
+          type="text"
+          inputmode="decimal"
+          maxlength="8"
+          autocomplete="off"
+          placeholder="Any"
+          [ngModel]="formatRangeValue(distanceMax)"
+          (ngModelChange)="onRangeChange('distanceMax', $event)" />
+      </label>
+      <label class="range-field">
+        <span class="range-field__label">Min speed (km/h)</span>
+        <input
+          class="range-field__input"
+          type="text"
+          inputmode="decimal"
+          maxlength="6"
+          autocomplete="off"
+          placeholder="0"
+          [ngModel]="formatRangeValue(speedMin)"
+          (ngModelChange)="onRangeChange('speedMin', $event)" />
+      </label>
+      <label class="range-field">
+        <span class="range-field__label">Max speed (km/h)</span>
+        <input
+          class="range-field__input"
+          type="text"
+          inputmode="decimal"
+          maxlength="6"
+          autocomplete="off"
+          placeholder="Any"
+          [ngModel]="formatRangeValue(speedMax)"
+          (ngModelChange)="onRangeChange('speedMax', $event)" />
+      </label>
     </div>
   </section>
 

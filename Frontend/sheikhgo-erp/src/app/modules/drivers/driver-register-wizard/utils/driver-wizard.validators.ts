@@ -52,6 +52,36 @@ export const PERSON_NAME_MAX_LENGTH = 15;
 
 /** Latin letters; optional hyphen/apostrophe between letter groups (e.g. Al-Mansoor). */
 const PERSON_NAME_PATTERN = /^[A-Za-z]+(?:['-][A-Za-z]+)*$/;
+const PERSON_NAME_VOWELS = /[aeiouy]/i;
+
+/**
+ * Rejects keyboard-mash / nonsense letter strings while allowing real names
+ * (including hyphenated names and consonant-heavy names like Schmidt, Nguyen).
+ */
+export function isPlausiblePersonName(value: string): boolean {
+  const segments = value.trim().split(/['-]/).filter(Boolean);
+  if (!segments.length) return false;
+
+  for (const segment of segments) {
+    const letters = segment.toLowerCase();
+    if (!PERSON_NAME_VOWELS.test(letters)) return false;
+    if (/(.)\1{2,}/.test(letters)) return false;
+    if (/[bcdfghjklmnpqrstvwxz]{5,}/.test(letters)) return false;
+    if (/[aeiouy]{4,}/.test(letters)) return false;
+
+    const vowelCount = (letters.match(/[aeiouy]/g) ?? []).length;
+    const ratio = vowelCount / letters.length;
+    if (letters.length >= 8 && ratio < 0.22) return false;
+    if (letters.length >= 11 && ratio < 0.28) return false;
+
+    // Long all-lowercase mashed strings rarely look like given names.
+    if (letters.length >= 10 && !/[aeiouy]{1}[bcdfghjklmnpqrstvwxz]{1,3}[aeiouy]/.test(letters)) {
+      return false;
+    }
+  }
+
+  return true;
+}
 
 export function sanitizePersonNameInput(value: string): string {
   return value.replace(/[^A-Za-z'-]/g, '').slice(0, PERSON_NAME_MAX_LENGTH);
@@ -82,6 +112,9 @@ export function personNameValidator(
     if (/\d/.test(v) || !PERSON_NAME_PATTERN.test(v)) {
       return { lettersOnly: true };
     }
+    if (!isPlausiblePersonName(v)) {
+      return { gibberish: true };
+    }
     return null;
   };
 }
@@ -93,6 +126,9 @@ export function personNameErrorMessage(
   if (!control?.invalid) return null;
   if (control.hasError('required')) return `${label} is required`;
   if (control.hasError('lettersOnly')) return `${label} must contain letters only (no numbers)`;
+  if (control.hasError('gibberish')) {
+    return `Enter a valid ${label.toLowerCase()} (not random or meaningless text)`;
+  }
   if (control.hasError('minlength')) {
     return `${label} must be at least ${PERSON_NAME_MIN_LENGTH} characters`;
   }
@@ -137,6 +173,10 @@ export function contactNameValidator(
     if (/\d/.test(v) || !CONTACT_NAME_PATTERN.test(v)) {
       return { lettersOnly: true };
     }
+    const words = v.split(/[\s'-]+/).filter(Boolean);
+    if (!words.every(word => isPlausiblePersonName(word))) {
+      return { gibberish: true };
+    }
     return null;
   };
 }
@@ -148,6 +188,9 @@ export function contactNameErrorMessage(
   if (!control?.invalid) return null;
   if (control.hasError('required')) return `${label} is required`;
   if (control.hasError('lettersOnly')) return `${label} must contain letters only (no numbers)`;
+  if (control.hasError('gibberish')) {
+    return `Enter a valid ${label.toLowerCase()} (not random or meaningless text)`;
+  }
   if (control.hasError('minlength')) {
     return `${label} must be at least ${CONTACT_NAME_MIN_LENGTH} characters`;
   }

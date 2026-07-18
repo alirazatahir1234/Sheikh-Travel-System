@@ -2,7 +2,10 @@
   <header class="page-head">
     <div>
       <h2>Service Requests</h2>
-      <p>Review, approve, and convert driver maintenance requests</p>
+      <p>
+        Review, approve, and convert driver maintenance requests
+        <span class="period-chip">Showing: {{ activePeriod() }}</span>
+      </p>
     </div>
     <button type="button" class="btn-new" (click)="showForm() ? closeForm() : showForm.set(true)">
       <mat-icon>{{ showForm() ? 'close' : 'add' }}</mat-icon>

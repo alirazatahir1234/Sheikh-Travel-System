@@ -77,7 +77,9 @@ export class AuthService {
 
   hasPermission(permission: string): boolean {
     const user = this.getCurrentUser();
-    return user?.permissions?.includes(permission) ?? false;
+    if (!user) return false;
+    if (user.roles?.some(r => r.toUpperCase() === 'SUPER_ADMIN')) return true;
+    return user.permissions?.includes(permission) ?? false;
   }
 
   /** Backend sends role(s) and permissions; normalize for the rest of the app. */

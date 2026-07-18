@@ -1,9 +1,10 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, effect, inject, OnInit, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, inject, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
-import { finalize } from 'rxjs/operators';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { toObservable, takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { combineLatest, of } from 'rxjs';
+import { catchError, debounceTime, finalize, map, switchMap, tap } from 'rxjs/operators';
 import { UiToastService } from '../../../../shared/components/ui/toast/ui-toast.service';
 import { MaintenanceService } from '../../../../core/services/maintenance.service';
 import { VehicleService } from '../../../../core/services/vehicle.service';
@@ -56,16 +57,44 @@ export class MaintenanceRequestsPageComponent implements OnInit {
   readonly formResetKey = signal(0);
   readonly saving = signal(false);
   readonly selectedId = signal<number | null>(null);
+  readonly loading = signal(false);
+  readonly activePeriod = this.ctx.period;
+
+  private readonly reloadTick = signal(0);
 
   constructor() {
-    effect(() => {
-      this.ctx.searchTerm();
-      this.ctx.period();
-      this.statusFilter();
-      this.load();
-    }, { allowSignalWrites: true });
+    combineLatest([
+      toObservable(this.ctx.searchTerm),
+      toObservable(this.ctx.period),
+      toObservable(this.statusFilter),
+      toObservable(this.reloadTick)
+    ]).pipe(
+      debounceTime(0),
+      tap(() => this.loading.set(true)),
+      switchMap(([search, period, status]) =>
+        this.maintenanceService.getRequests(1, 500, status || undefined, search || undefined).pipe(
+          map(r => ({
+            items: r.items.filter(item =>
+              isWithinMaintenancePeriod(this.requestFilterDate(item), period)
+            ),
+            period
+          })),
+          catchError(err => {
+            this.toast.error(apiErrorMessage(err, 'Failed to load requests'));
+            return of({ items: [] as MaintenanceRequest[], period });
+          })
+        )
+      ),
+      takeUntilDestroyed(this.destroyRef)
+    ).subscribe(({ items }) => {
+      this.requests.set(items);
+      this.stats.set(this.buildStats(items));
+      this.loading.set(false);
+    });
 
-    this.ctx.exportRequested$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => this.exportReport());
+    this.ctx.exportRequested$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
+      this.exportReport();
+    });
   }
 
   ngOnInit(): void {
@@ -73,27 +102,15 @@ export class MaintenanceRequestsPageComponent implements OnInit {
     if (status) this.statusFilter.set(status);
     if (this.route.snapshot.queryParamMap.get('create') === 'true') this.showForm.set(true);
 
-    this.vehicleService.getAll(1, 500).subscribe({
+    this.vehicleService.getAll(1, 500).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: r => this.vehicles.set(r.items),
       error: err => this.toast.error(apiErrorMessage(err, 'Failed to load vehicles'))
     });
   }
 
-  load(): void {
-    const search = this.ctx.searchTerm() || undefined;
-    const status = this.statusFilter() || undefined;
-    const period = this.ctx.period();
-
-    this.maintenanceService.getRequests(1, 500, status, search).subscribe({
-      next: r => {
-        const filtered = r.items.filter(item =>
-          isWithinMaintenancePeriod(item.createdAt || item.requestDate, period)
-        );
-        this.requests.set(filtered);
-        this.stats.set(this.buildStats(filtered));
-      },
-      error: err => this.toast.error(apiErrorMessage(err, 'Failed to load requests'))
-    });
+  /** Prefer the date shown in the table so Week/Month filters match what users see. */
+  private requestFilterDate(item: MaintenanceRequest): string | null | undefined {
+    return item.requestDate || item.createdAt;
   }
 
   private buildStats(items: MaintenanceRequest[]): MaintenanceRequestStats {
@@ -133,13 +150,17 @@ export class MaintenanceRequestsPageComponent implements OnInit {
       this.ctx.searchTerm() ? `Search: ${this.ctx.searchTerm()}` : null
     ].filter(Boolean).join(' · ');
 
-    this.exportService.exportExcel(rows, cols, {
-      title: 'Service Requests',
-      subtitle,
-      filename: `service-requests-${period.toLowerCase()}`,
-      sheetName: 'Service Requests'
-    });
-    this.toast.success('Report exported');
+    try {
+      this.exportService.exportExcel(rows, cols, {
+        title: 'Service Requests',
+        subtitle,
+        filename: `service-requests-${period.toLowerCase()}`,
+        sheetName: 'Service Requests'
+      });
+      this.toast.success(`Exported ${rows.length} service request${rows.length === 1 ? '' : 's'}.`);
+    } catch (err) {
+      this.toast.error(apiErrorMessage(err, 'Export failed. Check browser download permissions.'));
+    }
   }
 
   onFilterChange(status: string): void {
@@ -151,7 +172,7 @@ export class MaintenanceRequestsPageComponent implements OnInit {
   }
 
   onChanged(): void {
-    this.load();
+    this.reloadTick.update(n => n + 1);
   }
 
   submit(form: CreateMaintenanceRequestPayload): void {
@@ -165,7 +186,7 @@ export class MaintenanceRequestsPageComponent implements OnInit {
       next: () => {
         this.showForm.set(false);
         this.formResetKey.update(k => k + 1);
-        this.load();
+        this.reloadTick.update(n => n + 1);
         this.toast.success('Request created');
       },
       error: err => {

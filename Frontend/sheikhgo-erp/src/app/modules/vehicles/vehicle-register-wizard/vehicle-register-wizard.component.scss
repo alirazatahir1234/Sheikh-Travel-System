@@ -6,8 +6,14 @@
   min-height: calc(100vh - 120px);
 }
 
+.vehicle-wizard__summary {
+  display: block;
+  min-width: 0;
+}
+
 @media (max-width: 639px) {
-  .vehicle-wizard main {
-    scroll-padding-bottom: calc(10.5rem + env(safe-area-inset-bottom, 0px));
+  .vehicle-wizard {
+    /* Anchor in-page scroll targets above the fixed action bar */
+    scroll-padding-bottom: calc(12.5rem + env(safe-area-inset-bottom, 0px));
   }
 }

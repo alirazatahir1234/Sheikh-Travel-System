@@ -16,6 +16,7 @@ import { UiButtonComponent } from '../../shared/components/ui/button/ui-button.c
 import { UiPageHeaderComponent } from '../../shared/components/ui/page-header/ui-page-header.component';
 import { UiDataTableComponent } from '../../shared/components/ui/data-table/ui-data-table.component';
 import { UiTableCellDirective } from '../../shared/components/ui/data-table/ui-table-cell.directive';
+import { UiSelectComponent } from '../../shared/components/ui/select/ui-select.component';
 
 const routes: Routes = [
   { path: 'tenants', component: TenantListComponent },
@@ -62,7 +63,8 @@ const routes: Routes = [
     UiButtonComponent,
     UiPageHeaderComponent,
     UiDataTableComponent,
-    UiTableCellDirective
+    UiTableCellDirective,
+    UiSelectComponent
   ]
 })
 export class PlatformAdminModule {}

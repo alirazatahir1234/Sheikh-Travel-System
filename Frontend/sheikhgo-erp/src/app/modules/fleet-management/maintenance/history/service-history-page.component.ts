@@ -7,6 +7,7 @@ import { MaintenanceService } from '../../../../core/services/maintenance.servic
 import { UiToastService } from '../../../../shared/components/ui/toast/ui-toast.service';
 import { VehicleService } from '../../../../core/services/vehicle.service';
 import { ExportService, ExportColumn } from '../../../../core/services/export.service';
+import { MaintenanceContextService } from '../maintenance-context.service';
 import { VehicleServiceHistoryItem, ServiceType } from '../../../../core/models/maintenance.model';
 import { Vehicle, VehicleListItem } from '../../../../core/models/vehicle.model';
 import { VehicleHistoryProfileCardComponent } from './components/vehicle-history-profile-card.component';
@@ -59,6 +60,7 @@ export class ServiceHistoryPageComponent implements OnInit {
   private readonly toast = inject(UiToastService);
   private readonly route = inject(ActivatedRoute);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly ctx = inject(MaintenanceContextService);
 
   readonly vehicles = signal<VehicleListItem[]>([]);
   readonly serviceTypes = signal<ServiceType[]>([]);
@@ -101,6 +103,11 @@ export class ServiceHistoryPageComponent implements OnInit {
       .sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
     return dates[0] ?? null;
   });
+
+  constructor() {
+    // Shell "Export Report" button → open format picker for current history filters
+    this.ctx.exportRequested$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => this.openExport());
+  }
 
   ngOnInit(): void {
     const vehicleId = this.route.snapshot.queryParamMap.get('vehicleId');
@@ -145,6 +152,10 @@ export class ServiceHistoryPageComponent implements OnInit {
   }
 
   openExport(): void {
+    if (!this.items().length) {
+      this.toast.warning('No service history records to export for the current filters.');
+      return;
+    }
     this.exportOpen.set(true);
   }
 

@@ -611,6 +611,14 @@ $card-pad: 1rem;    // 16px
   display: flex;
   flex-direction: column;
   gap: $dash-gap;
+  align-items: stretch;
+
+  // Keep the list card height tied to visible rows (no stretched empty body).
+  driver-table {
+    display: block;
+    height: fit-content;
+    min-height: 0;
+  }
 }
 
 .filters-bar {

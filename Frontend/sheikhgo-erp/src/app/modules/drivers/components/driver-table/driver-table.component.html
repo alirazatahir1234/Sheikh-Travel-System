@@ -21,7 +21,7 @@
           <th class="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-fleet-text-muted">Vehicle</th>
           <th class="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-fleet-text-muted">Availability</th>
           <th class="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-fleet-text-muted">Status</th>
-          <th class="px-4 py-3 text-right text-[11px] font-bold uppercase tracking-wider text-fleet-text-muted">Actions</th>
+          <th class="col-actions sticky right-0 bg-fleet-surface-alt/80 px-4 py-3 text-right text-[11px] font-bold uppercase tracking-wider text-fleet-text-muted">Actions</th>
         </tr>
       </thead>
       <tbody class="divide-y divide-fleet-border">
@@ -29,7 +29,7 @@
           @for (i of [1,2,3,4,5]; track i) {
             <tr>
               @for (c of [1,2,3,4,5,6,7,8,9,10,11,12]; track c) {
-                <td class="px-4 py-4"><div class="h-3.5 w-3/4 animate-pulse rounded bg-fleet-surface-muted"></div></td>
+                <td class="px-4 py-3"><div class="h-3.5 w-3/4 animate-pulse rounded bg-fleet-surface-muted"></div></td>
               }
             </tr>
           }
@@ -82,7 +82,7 @@
               <td class="px-4 py-3">
                 <ui-status-badge [status]="statusLabel(row)" variant="info"></ui-status-badge>
               </td>
-              <td class="sticky right-0 bg-white px-4 py-3 text-right" (click)="$event.stopPropagation()">
+              <td class="col-actions sticky right-0 bg-white px-4 py-3 text-right" (click)="$event.stopPropagation()">
                 <div class="inline-flex items-center gap-0.5">
                   <button type="button" class="action-btn" title="View" (click)="view.emit(row)">
                     <mat-icon>visibility</mat-icon>

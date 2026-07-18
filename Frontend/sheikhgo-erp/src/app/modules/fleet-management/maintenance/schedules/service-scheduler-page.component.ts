@@ -5,6 +5,7 @@ import { Router } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { UiToastService } from '../../../../shared/components/ui/toast/ui-toast.service';
 import { MaintenanceService } from '../../../../core/services/maintenance.service';
+import { ExportService, ExportColumn } from '../../../../core/services/export.service';
 import { MaintenanceContextService } from '../maintenance-context.service';
 import {
   MaintenanceScheduleCalendarItem,
@@ -40,6 +41,7 @@ import { AuthService } from '../../../../core/services/auth.service';
 })
 export class ServiceSchedulerPageComponent implements OnInit {
   private readonly maintenanceService = inject(MaintenanceService);
+  private readonly exportService = inject(ExportService);
   private readonly toast = inject(UiToastService);
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
@@ -77,6 +79,8 @@ export class ServiceSchedulerPageComponent implements OnInit {
       this.statusFilter();
       this.loadList();
     }, { allowSignalWrites: true });
+
+    this.ctx.exportRequested$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => this.exportReport());
   }
 
   ngOnInit(): void {
@@ -126,6 +130,41 @@ export class ServiceSchedulerPageComponent implements OnInit {
     if (v === 'calendar') this.loadCalendarRange(this.monthRange());
     if (v === 'timeline') this.loadCalendarRange(this.weekRange());
     this.toast.success('Schedule saved');
+  }
+
+  exportReport(): void {
+    const rows = this.schedules();
+    if (!rows.length) {
+      this.toast.warning('No schedules to export.');
+      return;
+    }
+
+    const status = this.statusFilter();
+    const cols: ExportColumn<MaintenanceScheduleListItem>[] = [
+      { header: 'Vehicle', accessor: r => r.vehicleName ?? '' },
+      { header: 'Registration', accessor: r => r.vehicleRegistration ?? '' },
+      { header: 'Current Mileage', accessor: r => r.currentMileage },
+      { header: 'Next Service Mileage', accessor: r => r.nextServiceMileage ?? '' },
+      { header: 'Due Date', accessor: r => r.dueDate ?? '' },
+      { header: 'Service Type', accessor: r => r.serviceTypeName },
+      { header: 'Interval', accessor: r => `${r.intervalValue} ${r.intervalType}` },
+      { header: 'Status', accessor: r => r.status },
+      { header: 'Priority', accessor: r => r.priority },
+      { header: 'Active', accessor: r => r.isActive ? 'Yes' : 'No' }
+    ];
+
+    const subtitle = [
+      status ? `Status: ${status}` : 'Status: All',
+      this.ctx.searchTerm() ? `Search: ${this.ctx.searchTerm()}` : null
+    ].filter(Boolean).join(' · ');
+
+    this.exportService.exportExcel(rows, cols, {
+      title: 'Service Schedules',
+      subtitle,
+      filename: 'service-schedules',
+      sheetName: 'Schedules'
+    });
+    this.toast.success('Report exported');
   }
 
   private loadList(): void {

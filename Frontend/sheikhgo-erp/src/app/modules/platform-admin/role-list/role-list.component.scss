@@ -527,58 +527,91 @@ tr.selected {
 
 .perm-panel__body {
   display: grid;
-  grid-template-columns: 1fr;
-  gap: 4px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 2px 16px;
+  align-items: start;
   padding: 0 10px 12px;
   border-top: 1px solid var(--stb-border, #e5e7eb);
 
-  @media (min-width: 576px) {
+  @media (min-width: 640px) {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  @media (min-width: 1200px) {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
 .perm-checkbox-row {
   display: block;
   min-width: 0;
-  padding: 6px 4px;
-  border-radius: 6px;
+  max-width: 100%;
+  padding: 8px 6px;
+  border-radius: 8px;
+  box-sizing: border-box;
 
   &:hover {
     background: var(--stb-surface-muted, #f8fafc);
   }
 
-  ::ng-deep .mdc-form-field {
+  ::ng-deep .mat-mdc-checkbox {
     width: 100%;
-    align-items: flex-start;
+    max-width: 100%;
   }
 
-  ::ng-deep .mdc-label {
+  ::ng-deep .mdc-form-field {
+    width: 100%;
+    max-width: 100%;
+    align-items: flex-start;
+    gap: 0;
+  }
+
+  ::ng-deep .mdc-checkbox {
+    flex: 0 0 auto;
+    margin-top: 1px;
+  }
+
+  ::ng-deep .mdc-label,
+  ::ng-deep .mat-mdc-checkbox-label {
     width: 100%;
     min-width: 0;
-    padding-top: 2px;
+    max-width: 100%;
+    margin: 0;
+    padding-left: 8px !important;
+    padding-top: 0 !important;
+    box-sizing: border-box;
   }
+}
+
+.perm-checkbox__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .perm-checkbox__code {
   display: block;
-  font-size: clamp(0.8125rem, 2vw, 0.875rem);
+  font-size: 0.8125rem;
   font-weight: 600;
   color: var(--stb-text, #0f172a);
-  overflow-wrap: anywhere;
   line-height: 1.35;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  word-break: normal;
+  overflow-wrap: normal;
 }
 
 .perm-checkbox__desc {
   display: block;
-  margin-top: 2px;
   font-size: 0.75rem;
   color: var(--stb-text-muted, #64748b);
   line-height: 1.35;
-  overflow-wrap: anywhere;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  word-break: normal;
+  overflow-wrap: normal;
 }
 
 .perm-actions {

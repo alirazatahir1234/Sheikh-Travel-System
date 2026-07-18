@@ -45,11 +45,31 @@
     height: 24px;
     padding-top: 0;
     padding-bottom: 0;
+    /* Keep typed text inset from the outline (matches other outline fields) */
+    padding-left: 16px;
+    padding-right: 16px;
+    box-sizing: border-box;
+  }
+
+  /* Prefix/suffix fields already inset via affix slots — avoid double padding */
+  .mdc-text-field--with-leading-icon input.mat-mdc-input-element,
+  .mat-mdc-form-field-icon-prefix ~ .mat-mdc-form-field-infix input.mat-mdc-input-element,
+  .mat-mdc-form-field:has(.mat-mdc-form-field-text-prefix) input.mat-mdc-input-element {
+    padding-left: 0;
+  }
+
+  .mdc-text-field--with-trailing-icon input.mat-mdc-input-element,
+  .mat-mdc-form-field-icon-suffix ~ .mat-mdc-form-field-infix input.mat-mdc-input-element,
+  .mat-mdc-form-field:has(.mat-mdc-form-field-text-suffix) input.mat-mdc-input-element {
+    padding-right: 0;
   }
 
   textarea.mat-mdc-input-element {
     height: auto;
     min-height: 24px;
+    padding-left: 16px;
+    padding-right: 16px;
+    box-sizing: border-box;
   }
 }
 
@@ -76,13 +96,19 @@
   }
 
   .mat-mdc-select-value {
-    display: flex;
+    display: flex !important;
     align-items: center;
     max-width: 100%;
+    min-width: 0;
+    min-height: 24px;
+    width: 100%;
     padding-left: 0;
+    opacity: 1 !important;
+    visibility: visible !important;
   }
 
-  .mat-mdc-select-value-text {
+  .mat-mdc-select-value-text,
+  .mat-mdc-select-min-line {
     padding-left: 0;
     line-height: 24px;
     flex: 1 1 auto;
@@ -91,7 +117,9 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    color: var(--stb-text, rgba(0, 0, 0, 0.87));
+    opacity: 1 !important;
+    visibility: visible !important;
+    color: var(--stb-text, rgba(0, 0, 0, 0.87)) !important;
   }
 
   .mat-mdc-select-arrow-wrapper {
@@ -133,7 +161,13 @@
   display: block;
   width: 100%;
   height: 44px;
+  min-height: 44px;
+  max-height: 44px;
   padding: 0 14px;
+  padding-inline: 14px;
+  /* Use normal line-height + fixed height so text stays centered without clipping */
+  line-height: normal;
+  vertical-align: middle;
 
   &[type='date'],
   &[type='datetime-local'],
@@ -165,11 +199,29 @@
   }
 }
 
+/* Textareas must not inherit single-line input height locks */
+.stb-textarea,
+textarea.stb-input {
+  display: block;
+  width: 100%;
+  height: auto !important;
+  min-height: 88px !important;
+  max-height: none !important;
+  padding: 10px 14px;
+  line-height: 1.45;
+  resize: vertical;
+  vertical-align: top;
+}
+
 .stb-select {
   display: block;
   width: 100%;
   height: 44px;
+  min-height: 44px;
+  max-height: 44px;
   padding: 0 36px 0 14px;
+  /* Native <select> clips selected text when line-height equals height in some browsers */
+  line-height: normal;
   border: 1px solid var(--stb-border);
   border-radius: 8px;
   font: inherit;

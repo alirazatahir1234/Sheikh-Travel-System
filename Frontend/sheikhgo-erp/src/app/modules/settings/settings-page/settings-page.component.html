@@ -3,8 +3,8 @@
     *ngIf="category"
     [title]="category.label"
     [subtitle]="category.description"
-    [breadcrumbs]="[{ label: 'Settings', route: '/settings/general' }, { label: category.label }]">
-    <div class="settings-header-actions" *ngIf="!loading && category.isImplemented">
+    [breadcrumbs]="[{ label: 'Settings', route: '/settings/General' }, { label: category.label }]">
+    <div class="settings-header-actions" *ngIf="!loading && category.isImplemented && schema.length">
       <ui-button
         variant="primary"
         type="submit"
@@ -21,21 +21,39 @@
     <span class="stb-shimmer-block settings-page-skeleton__section" *ngFor="let i of [1, 2, 3]"></span>
   </div>
 
+  <div class="settings-page__banner settings-page__banner--error" *ngIf="!loading && loadError" role="alert">
+    <mat-icon aria-hidden="true">error_outline</mat-icon>
+    <span>{{ loadError }}</span>
+  </div>
+
   <ng-container *ngIf="!loading && category">
     <app-dynamic-settings-form
-      *ngIf="category.isImplemented; else comingSoon"
+      *ngIf="category.isImplemented && schema.length; else noForm"
       [category]="category.id"
       [schema]="schema"
       [values]="values"
       (formStatusChange)="onFormStatusChange($event)">
     </app-dynamic-settings-form>
 
-    <ng-template #comingSoon>
-      <div class="settings-page__placeholder">
+    <ng-template #noForm>
+      <div class="settings-page__placeholder" *ngIf="!category.isImplemented; else emptySchema">
         <mat-icon>{{ category.icon }}</mat-icon>
         <h3>{{ category.label }} settings are coming soon</h3>
         <p>This section is part of the roadmap and will be configurable here shortly.</p>
       </div>
+      <ng-template #emptySchema>
+        <div class="settings-page__placeholder">
+          <mat-icon>tune</mat-icon>
+          <h3>No fields configured for {{ category.label }}</h3>
+          <p>The category is available, but no editable settings were found for this page.</p>
+        </div>
+      </ng-template>
     </ng-template>
   </ng-container>
+
+  <div class="settings-page__placeholder" *ngIf="!loading && !category">
+    <mat-icon>search_off</mat-icon>
+    <h3>Settings category not found</h3>
+    <p>Pick a category from the left navigation to continue.</p>
+  </div>
 </div>

@@ -7,6 +7,7 @@ export const SETTINGS_CATEGORIES_FALLBACK: SettingsCategory[] = [
   { id: 'Localization', label: 'Localization', icon: 'language', description: 'Language, direction, region and number formats.', isImplemented: true },
   { id: 'Security', label: 'Security', icon: 'security', description: 'Authentication, API security, IP management and compliance.', isImplemented: true },
   { id: 'Notifications', label: 'Notifications', icon: 'notifications', description: 'Email, SMS, WhatsApp, push and alert preferences.', isImplemented: true },
+  { id: 'NotificationRetention', label: 'Notification Retention', icon: 'policy', description: 'Inbox archive and permanent-delete retention policy.', isImplemented: true },
   { id: 'Documents', label: 'Documents', icon: 'description', description: 'Upload limits, extensions and document lifecycle.', isImplemented: true },
   { id: 'Workflows', label: 'Workflows', icon: 'account_tree', description: 'Approval levels, auto-approval and escalation.', isImplemented: true },
   { id: 'Numbering', label: 'Numbering', icon: 'tag', description: 'Prefixes and sequences for records.', isImplemented: true },

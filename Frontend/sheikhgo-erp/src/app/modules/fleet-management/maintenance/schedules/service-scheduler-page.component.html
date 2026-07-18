@@ -27,8 +27,11 @@
   } @else if (view() === 'list') {
     <schedule-list-view
       [schedules]="schedules()"
+      [hasActiveFilters]="!!statusFilter() || !!ctx.searchTerm()"
+      [canCreate]="canManageSchedules()"
       (reschedule)="openReschedule($event)"
-      (createWorkOrder)="createWorkOrder($event)" />
+      (createWorkOrder)="createWorkOrder($event)"
+      (createRequested)="openCreate()" />
   } @else if (view() === 'calendar') {
     <schedule-calendar-view
       [items]="calendarItems()"

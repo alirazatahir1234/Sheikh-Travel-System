@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, input, model, output, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, input, model, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
 import { UiSelectComponent } from '../../../../shared/components/ui/select/ui-select.component';
@@ -40,6 +40,15 @@ export interface AssignmentWizardForm extends CreateAssignmentRequest {
         @case (1) {
           <ui-select label="Select driver" placeholder="Search driver…" [searchable]="true"
             [options]="driverOptions()" [(ngModel)]="form().driverIdStr" [required]="true" />
+          <p class="hint">Suspended and on-leave drivers are hidden. Only verified, active drivers with a valid license can be assigned.</p>
+          @if (driverStepError(); as err) {
+            <div class="alert alert--error">{{ err }}</div>
+          }
+          @for (issue of driverIssues(); track issue.code + issue.message) {
+            <div class="alert" [class.alert--error]="issue.severity === 'Error'" [class.alert--warn]="issue.severity === 'Warning'">
+              {{ issue.message }}
+            </div>
+          }
         }
         @case (2) {
           <label class="field">
@@ -103,6 +112,7 @@ export interface AssignmentWizardForm extends CreateAssignmentRequest {
     .input { width: 100%; border: 1px solid #e2e8f0; border-radius: 8px; padding: 0.5rem 0.75rem; font-size: 0.8125rem; }
     .date-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.625rem; }
     .review p { margin: 0.35rem 0; font-size: 0.8125rem; }
+    .hint { margin: 0; font-size: 0.75rem; color: #64748b; line-height: 1.4; }
     .alert { padding: 0.5rem 0.75rem; border-radius: 8px; font-size: 0.8125rem; margin-top: 0.5rem; }
     .alert--error { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
     .alert--warn { background: #fffbeb; color: #b45309; border: 1px solid #fde68a; }
@@ -124,6 +134,7 @@ export interface AssignmentWizardForm extends CreateAssignmentRequest {
 export class AssignmentCreateWizardComponent {
   readonly vehicleOptions = input<UiSelectOption[]>([]);
   readonly driverOptions = input<UiSelectOption[]>([]);
+  readonly driverBlockReasons = input<Record<string, string>>({});
   readonly validationIssues = input<AssignmentValidationIssue[]>([]);
   readonly saving = input(false);
   readonly canSubmit = input(true);
@@ -133,6 +144,7 @@ export class AssignmentCreateWizardComponent {
   readonly validateRequest = output<void>();
 
   readonly step = signal(0);
+  readonly driverStepError = signal<string | null>(null);
   readonly steps = [
     { id: 'vehicle', label: 'Vehicle' },
     { id: 'driver', label: 'Driver' },
@@ -144,8 +156,17 @@ export class AssignmentCreateWizardComponent {
   readonly types = ASSIGNMENT_TYPES;
   readonly purposes = ASSIGNMENT_PURPOSES;
 
+  readonly driverIssues = computed(() =>
+    this.validationIssues().filter(i =>
+      i.code.startsWith('Driver') || i.message.toLowerCase().includes('driver')
+    )
+  );
+
   patch(partial: Partial<AssignmentWizardForm>): void {
     this.form.update(f => ({ ...f, ...partial }));
+    if (partial.driverIdStr !== undefined) {
+      this.driverStepError.set(null);
+    }
   }
 
   canNext(): boolean {
@@ -158,13 +179,38 @@ export class AssignmentCreateWizardComponent {
   }
 
   next(): void {
+    if (!this.canNext()) return;
+
+    if (this.step() === 1) {
+      const driverId = this.form().driverIdStr;
+      const option = this.driverOptions().find(o => o.value === driverId);
+      if (!option || option.disabled) {
+        const blockReason = this.driverBlockReasons()[driverId]
+          ?? 'Select an eligible driver. Suspended and ineligible drivers are not available.';
+        this.driverStepError.set(blockReason);
+        this.validateRequest.emit();
+        return;
+      }
+
+      const blockReason = this.driverBlockReasons()[driverId];
+      if (blockReason) {
+        this.driverStepError.set(blockReason);
+        this.validateRequest.emit();
+        return;
+      }
+
+      this.driverStepError.set(null);
+      this.validateRequest.emit();
+    }
+
     if (this.step() === 3) this.validateRequest.emit();
-    if (this.step() < 4 && this.canNext()) this.step.update(s => s + 1);
+    if (this.step() < 4) this.step.update(s => s + 1);
     if (this.step() === 4) this.validateRequest.emit();
   }
 
   back(): void {
     if (this.step() > 0) this.step.update(s => s - 1);
+    this.driverStepError.set(null);
   }
 
   vehicleLabel(): string {
@@ -174,10 +220,13 @@ export class AssignmentCreateWizardComponent {
 
   driverLabel(): string {
     const id = this.form().driverIdStr;
-    return this.driverOptions().find(o => o.value === id)?.label ?? '—';
+    const opt = this.driverOptions().find(o => o.value === id);
+    if (!opt) return '—';
+    return opt.label.split(' — ')[0];
   }
 
   reset(): void {
     this.step.set(0);
+    this.driverStepError.set(null);
   }
 }

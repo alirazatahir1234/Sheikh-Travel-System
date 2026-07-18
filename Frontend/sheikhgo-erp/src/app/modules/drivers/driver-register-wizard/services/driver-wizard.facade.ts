@@ -30,7 +30,8 @@ import {
   DriverDocSlot,
   DriverDocType,
   DriverWizardDraft,
-  DriverWizardStepId
+  DriverWizardStepId,
+  REQUIRED_DRIVER_DOC_TYPES
 } from '../models/driver-wizard.model';
 import {
   PHONE_COUNTRY_CODES,
@@ -111,6 +112,8 @@ export class DriverWizardFacade {
   readonly attemptedSubmit = signal(false);
   /** Bumped when step/submit validation runs so OnPush child steps re-render field errors. */
   readonly validationAttempted = signal(0);
+  /** Required document types missing after a validation attempt on the license step. */
+  readonly missingRequiredDocs = signal<DriverDocType[]>([]);
   readonly lastSavedAt = signal<Date | null>(null);
   /** Server record timestamp — shown as absolute "Last updated on …" in edit mode. */
   readonly recordUpdatedAt = signal<Date | null>(null);
@@ -697,15 +700,44 @@ export class DriverWizardFacade {
       }
     }
 
-    if (valid && step === 'license') {
-      const unique = await this.validateLicenseUniqueness();
-      if (!unique || this.form.get('licenseNumber')?.hasError('duplicate')) {
+    if (step === 'license') {
+      const missing = this.getMissingRequiredDocuments();
+      this.missingRequiredDocs.set(missing);
+      if (missing.length) {
         valid = false;
+      } else {
+        this.missingRequiredDocs.set([]);
       }
+
+      if (valid) {
+        const unique = await this.validateLicenseUniqueness();
+        if (!unique || this.form.get('licenseNumber')?.hasError('duplicate')) {
+          valid = false;
+        }
+      }
+    } else {
+      this.missingRequiredDocs.set([]);
     }
 
-    if (!valid) this.toast.error('Please fix validation errors');
+    if (!valid) {
+      if (step === 'license' && this.missingRequiredDocs().length) {
+        const labels = this.missingRequiredDocs()
+          .map(t => DRIVER_DOC_SLOTS.find(s => s.type === t)?.label ?? t)
+          .join(', ');
+        this.toast.error(`Please upload required documents: ${labels}`);
+      } else {
+        this.toast.error('Please fix validation errors');
+      }
+    }
     return valid;
+  }
+
+  private getMissingRequiredDocuments(): DriverDocType[] {
+    const slots = this.docSlots();
+    return REQUIRED_DRIVER_DOC_TYPES.filter(type => {
+      const slot = slots.find(s => s.type === type);
+      return !(slot?.file || slot?.previewUrl);
+    });
   }
 
   handlePrimaryAction(): void {
@@ -760,6 +792,7 @@ export class DriverWizardFacade {
         return { ...s, file, previewUrl: URL.createObjectURL(file) };
       })
     );
+    this.missingRequiredDocs.update(missing => missing.filter(t => t !== type));
   }
 
   saveDraft(): void {

@@ -48,6 +48,7 @@
               [minLicenseExpiry]="facade.minLicenseExpiry"
               [validationAttempted]="facade.validationAttempted()"
               [docSlots]="facade.docSlots()"
+              [missingRequiredDocs]="facade.missingRequiredDocs()"
               (docSelected)="onDocSelected($event)" />
           }
           @case ('organization') {

@@ -16,6 +16,7 @@ import {
   ASSIGNMENT_TYPES,
   AssignmentValidationIssue,
   assignmentEffectiveStatus,
+  driverAssignmentBlockReason,
   EMPTY_ASSIGNMENT_FILTERS,
   FleetAssignment,
   FleetAssignmentFilters,
@@ -79,6 +80,9 @@ export class AssignmentBoardComponent implements OnInit {
 
   readonly vehicleOptions = signal<UiSelectOption[]>([]);
   readonly driverOptions = signal<UiSelectOption[]>([]);
+  /** Drivers for create/transfer — unverified/ineligible are disabled with a reason. */
+  readonly assignableDriverOptions = signal<UiSelectOption[]>([]);
+  readonly driverBlockReasons = signal<Record<string, string>>({});
   readonly branchOptions = signal<UiSelectOption[]>([]);
 
   readonly wizardForm = signal<AssignmentWizardForm>(this.emptyWizardForm());
@@ -158,6 +162,25 @@ export class AssignmentBoardComponent implements OnInit {
         value: String(d.id),
         label: `${d.fullName}${d.driverCode ? ' · ' + d.driverCode : ''}`
       })));
+
+      const blockReasons: Record<string, string> = {};
+      // Only eligible drivers appear in assignment pickers (Suspended/OnLeave/etc. excluded).
+      this.assignableDriverOptions.set(
+        drivers.items
+          .filter(d => {
+            const reason = driverAssignmentBlockReason(d);
+            if (reason) {
+              blockReasons[String(d.id)] = reason;
+              return false;
+            }
+            return true;
+          })
+          .map(d => ({
+            value: String(d.id),
+            label: `${d.fullName}${d.driverCode ? ' · ' + d.driverCode : ''}`
+          }))
+      );
+      this.driverBlockReasons.set(blockReasons);
       this.branchOptions.set(branches.map(b => ({ value: String(b.id), label: b.name })));
     });
   }

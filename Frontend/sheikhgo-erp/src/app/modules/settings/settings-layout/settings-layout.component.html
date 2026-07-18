@@ -8,7 +8,7 @@
       </div>
     </div>
 
-    <nav class="settings-nav" *ngIf="!loading" aria-label="Settings navigation">
+    <nav class="settings-nav" aria-label="Settings navigation">
       <a
         *ngFor="let category of categories"
         class="settings-nav__item"
@@ -21,10 +21,6 @@
         <span class="settings-nav__badge" *ngIf="!category.isImplemented">Soon</span>
       </a>
     </nav>
-
-    <div class="settings-sidebar__loading" *ngIf="loading" aria-busy="true">
-      <span class="stb-shimmer-block settings-nav-skeleton" *ngFor="let i of [1, 2, 3, 4, 5]"></span>
-    </div>
   </aside>
 
   <section class="settings-content">

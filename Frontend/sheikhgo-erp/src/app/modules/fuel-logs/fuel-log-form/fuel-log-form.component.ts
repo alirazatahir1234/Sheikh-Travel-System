@@ -1,5 +1,5 @@
 import { Component, OnInit, AfterViewInit, ViewChild, ElementRef, OnDestroy, NgZone } from '@angular/core';
-import { FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { FormBuilder, FormGroup, AbstractControl, ValidationErrors, ValidatorFn, Validators } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
@@ -12,6 +12,37 @@ import { FuelType, FuelTypeLabels, CreateFuelLogDto, FuelLog } from '../../../co
 import { Vehicle } from '../../../core/models/vehicle.model';
 import { Driver } from '../../../core/models/driver.model';
 import { dateInputToIso, toDateInputValue } from '../../../core/utils/date-input.util';
+
+const STATION_MAX_LENGTH = 200;
+const STATION_NAME_PATTERN = /^[\p{L}\p{N}\s.,#/\-'&()+]+$/u;
+
+/** Optional station name: reject numeric-only / symbol-only values. */
+function fuelStationValidator(): ValidatorFn {
+  return (control: AbstractControl): ValidationErrors | null => {
+    const raw = String(control.value ?? '');
+    const v = raw.trim();
+    if (!v) return null;
+
+    if (raw.length > STATION_MAX_LENGTH) {
+      return { maxlength: { requiredLength: STATION_MAX_LENGTH, actualLength: raw.length } };
+    }
+
+    if (v.length < 2) {
+      return { minlength: { requiredLength: 2, actualLength: v.length } };
+    }
+
+    // Pure digits (with optional spaces) are not a station name
+    if (/^[\d\s]+$/.test(v) || !/\p{L}/u.test(v)) {
+      return { numericOnly: true };
+    }
+
+    if (!STATION_NAME_PATTERN.test(v)) {
+      return { invalidStation: true };
+    }
+
+    return null;
+  };
+}
 
 @Component({
   standalone: false,
@@ -57,7 +88,7 @@ export class FuelLogFormComponent implements OnInit, AfterViewInit, OnDestroy {
       pricePerLiter:  [null, [Validators.required, Validators.min(0)]],
       odometerReading:[null, [Validators.required, Validators.min(0)]],
       fuelDate:       [toDateInputValue(new Date()), Validators.required],
-      station:        ['']
+      station:        ['', [Validators.maxLength(STATION_MAX_LENGTH), fuelStationValidator()]]
     });
     this.mapsConfigured = this.mapsLoader.isConfigured;
   }
@@ -162,6 +193,9 @@ export class FuelLogFormComponent implements OnInit, AfterViewInit, OnDestroy {
   submit(): void {
     if (this.form.invalid) {
       this.form.markAllAsTouched();
+      if (this.form.get('station')?.invalid) {
+        this.toast.warning('Enter a valid fuel station name, or leave the field empty.');
+      }
       return;
     }
 

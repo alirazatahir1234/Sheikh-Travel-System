@@ -223,10 +223,15 @@
 /* Native form controls — avoid Material outline notch artifacts in the drawer */
 .geo-label {
   display: block;
+  position: static;
+  transform: none;
+  float: none;
   font-size: 13px;
   font-weight: 600;
   color: #374151;
-  margin: 0 0 8px;
+  margin: 0 0 6px;
+  line-height: 1.3;
+  background: transparent;
 }
 
 .geo-input {
@@ -234,22 +239,31 @@
   width: 100%;
   box-sizing: border-box;
   height: 44px;
+  min-height: 44px;
+  max-height: 44px;
+  /* Tailwind preflight uses line-height: inherit — keep typed text vertically centered */
   padding: 0 14px;
   border: 1px solid #cbd5e1;
   border-radius: 10px;
   background: #fff;
   color: #0f172a;
   font-size: 14px;
-  line-height: 1.4;
+  font-family: inherit;
+  font-weight: 500;
+  line-height: normal;
+  vertical-align: middle;
   outline: none;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
   caret-color: #0f766e;
+  -webkit-appearance: none;
+  appearance: none;
 
   &::placeholder {
     color: #94a3b8;
+    line-height: normal;
   }
 
-  &:hover {
+  &:hover:not(:disabled):not([readonly]) {
     border-color: #94a3b8;
   }
 
@@ -257,14 +271,47 @@
     border-color: #0f766e;
     box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.15);
   }
+
+  &[readonly] {
+    background: #f8fafc;
+    color: #334155;
+  }
+
+  &[type='number'] {
+    -moz-appearance: textfield;
+  }
+
+  &[type='number']::-webkit-outer-spin-button,
+  &[type='number']::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  &--compact {
+    width: 120px;
+    flex: 1 1 auto;
+    min-width: 0;
+    text-align: center;
+    padding-left: 8px;
+    padding-right: 8px;
+  }
 }
 
 .geo-textarea {
-  height: auto;
-  min-height: 88px;
-  padding: 12px 14px;
+  height: auto !important;
+  min-height: 88px !important;
+  max-height: none !important;
+  padding: 12px 14px !important;
   resize: vertical;
-  line-height: 1.45;
+  line-height: 1.45 !important;
+  vertical-align: top;
+}
+
+.geo-hint {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  color: #64748b;
 }
 
 .geo-select-wrap {
@@ -453,26 +500,30 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  input {
-    width: 88px;
-    border: 1px solid #cbd5e1;
-    border-radius: 8px;
-    padding: 6px 8px;
-    font-size: 14px;
-    font-weight: 600;
-    text-align: center;
+
+  .geo-input--compact {
+    width: 120px;
   }
-  .unit { font-size: 12px; color: #64748b; }
+
+  .unit {
+    font-size: 12px;
+    color: #64748b;
+    flex-shrink: 0;
+  }
 }
 .step-btn {
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 44px;
   border-radius: 8px;
   border: 1px solid #cbd5e1;
   background: #fff;
   font-size: 18px;
   line-height: 1;
   cursor: pointer;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   &:disabled { opacity: 0.4; cursor: not-allowed; }
 }
 .inline-err {
@@ -589,13 +640,23 @@
   color: #94a3b8;
 }
 .search-input {
+  display: block;
   width: 100%;
+  box-sizing: border-box;
+  height: 44px;
+  min-height: 44px;
+  max-height: 44px;
   border: 1px solid #cbd5e1;
   border-radius: 10px;
-  padding: 11px 12px 11px 38px;
+  padding: 0 12px 0 38px;
   font-size: 13px;
+  font-family: inherit;
+  line-height: normal;
   background: #fff;
+  color: #0f172a;
   outline: none;
+  -webkit-appearance: none;
+  appearance: none;
   &:focus {
     border-color: #0f766e;
     box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.12);

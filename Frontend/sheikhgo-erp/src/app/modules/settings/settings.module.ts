@@ -12,7 +12,7 @@ const routes: Routes = [
     path: '',
     component: SettingsLayoutComponent,
     children: [
-      { path: '', redirectTo: 'general', pathMatch: 'full' },
+      { path: '', redirectTo: 'General', pathMatch: 'full' },
       { path: ':category', component: SettingsPageComponent }
     ]
   }

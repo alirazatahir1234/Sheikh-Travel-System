@@ -92,33 +92,41 @@
 
 .allowance-stat-card {
   min-height: 72px;
-  padding: 0;
+  padding: 14px 16px !important;
+  display: flex !important;
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+  box-sizing: border-box;
 
+  // Content is placed directly in mat-card (no mat-card-content wrapper).
   ::ng-deep .mat-mdc-card-content {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 14px 16px;
-    min-height: 72px;
-    box-sizing: border-box;
+    display: contents;
+    padding: 0 !important;
   }
 }
 
 .allowance-stat-icon {
   width: 40px;
   height: 40px;
-  border-radius: 10px;
-  display: grid;
-  place-items: center;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
   background: var(--stb-primary-50, #ecfdf5);
   color: var(--stb-primary, #0f766e);
 
   mat-icon {
-    font-size: 22px;
-    width: 22px;
-    height: 22px;
-    line-height: 1;
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px !important;
+    width: 22px !important;
+    height: 22px !important;
+    line-height: 22px !important;
+    margin: 0 !important;
+    overflow: hidden;
   }
 }
 

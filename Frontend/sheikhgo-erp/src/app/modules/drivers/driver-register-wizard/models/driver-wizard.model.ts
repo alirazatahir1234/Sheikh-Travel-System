@@ -39,13 +39,19 @@ export interface DriverDocSlot {
   label: string;
   file: File | null;
   previewUrl: string | null;
+  required?: boolean;
 }
 
 export const DRIVER_DOC_SLOTS: Omit<DriverDocSlot, 'file' | 'previewUrl'>[] = [
-  { type: 'DrivingLicense', label: 'Driving License' },
-  { type: 'MedicalCertificate', label: 'Medical Certificate' },
-  { type: 'BackgroundCheck', label: 'Background Check' }
+  { type: 'DrivingLicense', label: 'Driving License', required: true },
+  { type: 'MedicalCertificate', label: 'Medical Certificate', required: true },
+  { type: 'BackgroundCheck', label: 'Background Check', required: true }
 ];
+
+/** Document types that must be uploaded before leaving the License & Documents step. */
+export const REQUIRED_DRIVER_DOC_TYPES: readonly DriverDocType[] = DRIVER_DOC_SLOTS
+  .filter(s => s.required !== false)
+  .map(s => s.type);
 
 export const DRIVER_WIZARD_DRAFT_KEY = 'driver-wizard-draft';
 

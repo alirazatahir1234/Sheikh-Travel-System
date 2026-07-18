@@ -397,9 +397,11 @@
     [open]="drawerOpen()"
     (openChange)="onDrawerOpenChange($event)"
     [driverId]="selectedDriverId()"
+    [preferredTab]="drawerPreferredTab()"
     (changed)="onDrawerChanged()">
   </driver-details-drawer>
 
   <driver-bulk-assign-dialog (assigned)="load()" />
+  <driver-log-incident-dialog (logged)="onIncidentLogged($event)" />
 
 </div>

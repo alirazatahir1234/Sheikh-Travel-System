@@ -23,12 +23,10 @@ export function driverAssignBlockReason(driver: DriverListItem): string | null {
 }
 
 export function buildDriverAssignOptions(drivers: DriverListItem[]): UiSelectOption[] {
-  return drivers.map(driver => {
-    const issue = driverAssignBlockReason(driver);
-    return {
+  return drivers
+    .filter(driver => !driverAssignBlockReason(driver))
+    .map(driver => ({
       value: String(driver.id),
-      label: issue ? `${driver.fullName} (${driver.phone}) — ${issue}` : `${driver.fullName} (${driver.phone})`,
-      disabled: !!issue
-    };
-  });
+      label: `${driver.fullName} (${driver.phone})`
+    }));
 }

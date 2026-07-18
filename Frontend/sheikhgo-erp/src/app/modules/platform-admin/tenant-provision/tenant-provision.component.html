@@ -40,42 +40,77 @@
             <mat-icon>info_outline</mat-icon>
           </button>
         </div>
-        <div class="field-row">
-          <div class="stb-field">
-            <label for="tenant-name">Tenant Name <span class="req" aria-hidden="true">*</span></label>
-            <input id="tenant-name" class="stb-input" type="text" formControlName="name" placeholder="e.g. Sheikh Travel Agency" />
-            <span class="stb-error" *ngIf="profileGroup.get('name')?.hasError('required') && profileGroup.get('name')?.touched">Required</span>
+
+        <div class="profile-grid">
+          <div class="profile-field">
+            <label class="profile-label" for="tenant-name">
+              Tenant Name <span class="req" aria-hidden="true">*</span>
+            </label>
+            <input
+              id="tenant-name"
+              class="stb-input"
+              type="text"
+              formControlName="name"
+              placeholder="e.g. Sheikh Travel Agency"
+              autocomplete="organization" />
+            <span
+              class="stb-error"
+              *ngIf="profileGroup.get('name')?.hasError('required') && profileGroup.get('name')?.touched">
+              Required
+            </span>
+            <span class="profile-hint profile-hint--spacer" aria-hidden="true" *ngIf="!(profileGroup.get('name')?.hasError('required') && profileGroup.get('name')?.touched)">&nbsp;</span>
           </div>
-          <div class="stb-field">
-            <label for="tenant-type">Tenant Type</label>
-            <select id="tenant-type" class="stb-select" formControlName="tenantType">
-              <option *ngFor="let t of tenantTypes" [ngValue]="t">{{ t }}</option>
-            </select>
+
+          <div class="profile-field">
+            <label class="profile-label" for="tenant-code">Internal Code</label>
+            <input
+              id="tenant-code"
+              class="stb-input"
+              type="text"
+              formControlName="code"
+              placeholder="e.g. SHTRAVEL"
+              autocomplete="off" />
+            <span class="profile-hint">Auto-generated if empty</span>
           </div>
-        </div>
-        <div class="field-row">
-          <div class="field-cell">
-            <div class="stb-field">
-              <label for="tenant-code">Internal Code</label>
-              <input id="tenant-code" class="stb-input" type="text" formControlName="code" placeholder="e.g. SHTRAVEL" />
+
+          <ui-select
+            class="profile-select"
+            label="Tenant Type"
+            formControlName="tenantType"
+            [options]="tenantTypeOptions"
+            placeholder="Select tenant type" />
+
+          <ui-select
+            class="profile-select"
+            label="Industry Type"
+            formControlName="industryType"
+            [options]="industryTypeOptions"
+            placeholder="Select industry type" />
+
+          <div class="profile-field profile-field--full">
+            <label class="profile-label" for="tenant-slug">
+              URL Slug <span class="req" aria-hidden="true">*</span>
+            </label>
+            <div class="stb-input-wrap stb-input-wrap--slug">
+              <span class="slug-prefix" aria-hidden="true">sheikh-travel.app/</span>
+              <input
+                id="tenant-slug"
+                class="stb-input stb-input--slug"
+                type="text"
+                formControlName="slug"
+                placeholder="tenant-slug"
+                autocomplete="off" />
             </div>
-            <p class="slug-preview" *ngIf="slugPreview">
-              sheikh-travel.app/<span>{{ slugPreview }}</span>
-            </p>
-            <p class="field-helper" *ngIf="!slugPreview">Auto-generated if empty</p>
+            <span class="stb-error" *ngIf="profileGroup.get('slug')?.hasError('required') && profileGroup.get('slug')?.touched">Required</span>
+            <span class="stb-error" *ngIf="profileGroup.get('slug')?.hasError('pattern') && profileGroup.get('slug')?.touched">Lowercase letters, numbers, and hyphens only</span>
           </div>
-          <div class="stb-field">
-            <label for="tenant-industry">Industry Type</label>
-            <select id="tenant-industry" class="stb-select" formControlName="industryType">
-              <option *ngFor="let i of industryTypes" [ngValue]="i">{{ i }}</option>
-            </select>
-          </div>
-        </div>
-        <div class="stb-field stb-field--full">
-          <label for="tenant-storage">Tenant Storage Model</label>
-          <select id="tenant-storage" class="stb-select" formControlName="storageModel">
-            <option *ngFor="let m of storageModels" [ngValue]="m.value">{{ m.label }}</option>
-          </select>
+
+          <ui-select
+            class="profile-select profile-select--full"
+            label="Tenant Storage Model"
+            formControlName="storageModel"
+            [options]="storageModelOptions"
+            placeholder="Select storage model" />
         </div>
       </mat-card>
 
@@ -85,11 +120,24 @@
           <h3>Plan &amp; Module Selection</h3>
         </div>
         <div class="stb-field stb-field--full plan-select">
-          <label for="tenant-plan">Plan Type</label>
-          <select id="tenant-plan" class="stb-select" formControlName="planName">
-            <option *ngFor="let tier of planTiers" [ngValue]="tier">{{ tier }}</option>
+          <label for="tenant-plan">Subscription Plan <span class="req" aria-hidden="true">*</span></label>
+          <select
+            id="tenant-plan"
+            class="stb-select"
+            formControlName="planName"
+            (change)="onPlanChange($any($event.target).value)">
+            <option *ngFor="let tier of planTiers" [value]="tier">{{ tier }}</option>
           </select>
           <span class="stb-hint">Changing the plan updates license limits and module selection</span>
+          <p class="plan-quota-hint" *ngIf="planDefinitions[summaryPlanName] as planDef">
+            {{ planDef.description }}
+            · Limits:
+            {{ formatQuota(planDef.quotas.maxUsers) }} users,
+            {{ formatQuota(planDef.quotas.maxVehicles) }} vehicles,
+            {{ formatQuota(planDef.quotas.maxDrivers) }} drivers,
+            {{ formatQuota(planDef.quotas.maxBranches) }} branches,
+            {{ formatQuota(planDef.quotas.maxGpsDevices) }} GPS devices
+          </p>
         </div>
         <p class="section-label">Select Modules</p>
         <div *ngIf="loadingModules" class="module-loading"><app-brand-loader size="sm" message="Loading modules…" /></div>
@@ -102,6 +150,7 @@
           </button>
         </div>
         <p class="section-label">License Limits</p>
+        <p class="stb-hint limits-hint">Leave blank for unlimited. Values reset when you change the subscription plan.</p>
         <div class="limits-row">
           <div class="stb-field">
             <label for="limit-users">Max Users</label>
@@ -172,43 +221,56 @@
           <span class="section-badge">4</span>
           <h3>Localization &amp; Branding</h3>
         </div>
-        <div class="field-row field-row--3">
-          <div class="stb-field stb-field--searchable-select">
-            <label for="tenant-country">Country</label>
-            <input class="stb-input stb-input--filter" type="search" placeholder="Search country"
-              [(ngModel)]="countrySearch" [ngModelOptions]="{ standalone: true }" aria-label="Search country" />
-            <select id="tenant-country" class="stb-select" formControlName="country">
-              <option *ngFor="let c of filteredCountries" [ngValue]="c">{{ c }}</option>
-            </select>
-          </div>
-          <div class="stb-field stb-field--searchable-select">
-            <label for="tenant-currency">Currency</label>
-            <input class="stb-input stb-input--filter" type="search" placeholder="Search currency"
-              [(ngModel)]="currencySearch" [ngModelOptions]="{ standalone: true }" aria-label="Search currency" />
-            <select id="tenant-currency" class="stb-select" formControlName="currencyCode">
-              <option *ngFor="let cur of filteredCurrencies" [ngValue]="cur">{{ cur }}</option>
-            </select>
-          </div>
-          <div class="stb-field">
-            <label for="tenant-timezone">Timezone</label>
-            <select id="tenant-timezone" class="stb-select" formControlName="timeZone">
-              <option *ngFor="let tz of timezones" [ngValue]="tz">{{ tz }}</option>
-            </select>
-          </div>
+
+        <div class="field-row field-row--3 branding-selects">
+          <ui-select
+            label="Country"
+            formControlName="country"
+            [options]="countryOptions"
+            [searchable]="true"
+            searchPlaceholder="Search country"
+            placeholder="Select country" />
+          <ui-select
+            label="Currency"
+            formControlName="currencyCode"
+            [options]="currencyOptions"
+            [searchable]="true"
+            searchPlaceholder="Search currency"
+            placeholder="Select currency" />
+          <ui-select
+            label="Timezone"
+            formControlName="timeZone"
+            [options]="timezoneOptions"
+            [searchable]="true"
+            searchPlaceholder="Search timezone"
+            placeholder="Select timezone" />
         </div>
+
         <div class="branding-row">
           <div class="stb-field color-field">
-            <label for="tenant-brand-color">Brand Code</label>
+            <label for="tenant-brand-color">Brand Primary Color</label>
             <div class="stb-input-wrap stb-input-wrap--suffix color-input-wrap">
-              <input id="tenant-brand-color" class="stb-input" type="text" formControlName="primaryColor" />
-              <span class="color-swatch-wrap stb-input-suffix-btn color-swatch-btn">
-                <input type="color" class="color-native" [value]="primaryColorPreview"
-                  (input)="brandingGroup.get('primaryColor')?.setValue($any($event.target).value)" aria-label="Pick brand color" />
+              <input
+                id="tenant-brand-color"
+                class="stb-input"
+                type="text"
+                formControlName="primaryColor"
+                placeholder="#007A57"
+                autocomplete="off"
+                spellcheck="false" />
+              <span class="color-swatch-wrap stb-input-suffix-btn color-swatch-btn" aria-hidden="true">
+                <input
+                  type="color"
+                  class="color-native"
+                  [value]="primaryColorPreview"
+                  (input)="onBrandColorPicked($any($event.target).value)"
+                  aria-label="Pick brand color" />
                 <span class="color-swatch" [style.background]="primaryColorPreview"></span>
               </span>
             </div>
           </div>
-          <div class="logo-upload"
+          <div
+            class="logo-upload"
             [class.logo-upload--active]="logoDragOver"
             (dragover)="onLogoDragOver($event)"
             (dragleave)="logoDragOver = false"
@@ -226,12 +288,47 @@
             </ng-template>
           </div>
         </div>
-        <button type="button" class="link-btn" (click)="showLogoUrlField = !showLogoUrlField">
-          {{ showLogoUrlField ? 'Hide logo URL' : 'Paste logo URL' }}
-        </button>
-        <div class="stb-field stb-field--full" *ngIf="showLogoUrlField">
-          <label for="tenant-logo-url">Logo URL</label>
-          <input id="tenant-logo-url" class="stb-input" type="url" formControlName="logoUrl" placeholder="https://…" />
+
+        <div class="field-row branding-text-fields">
+          <div class="stb-field">
+            <label for="tenant-website">Company Website</label>
+            <input
+              id="tenant-website"
+              class="stb-input"
+              type="text"
+              inputmode="url"
+              formControlName="website"
+              placeholder="https://example.com"
+              autocomplete="url" />
+          </div>
+          <div class="stb-field">
+            <label for="tenant-support-email">Support Email</label>
+            <input
+              id="tenant-support-email"
+              class="stb-input"
+              type="text"
+              inputmode="email"
+              formControlName="supportEmail"
+              placeholder="support@example.com"
+              autocomplete="email" />
+            <span
+              class="stb-error"
+              *ngIf="brandingGroup.get('supportEmail')?.hasError('email') && brandingGroup.get('supportEmail')?.touched">
+              Enter a valid email address
+            </span>
+          </div>
+        </div>
+
+        <div class="stb-field stb-field--full branding-text-fields">
+          <label for="tenant-logo-url">Logo URL <span class="field-optional">(optional)</span></label>
+          <input
+            id="tenant-logo-url"
+            class="stb-input"
+            type="text"
+            inputmode="url"
+            formControlName="logoUrl"
+            placeholder="https://cdn.example.com/logo.png"
+            autocomplete="off" />
         </div>
       </mat-card>
 
@@ -311,30 +408,63 @@
           <span class="section-badge">7</span>
           <h3>Billing &amp; Future Provisioning</h3>
         </div>
-        <div class="field-row">
-          <div class="stb-field">
-            <label for="billing-contact">Billing Contact Name</label>
-            <input id="billing-contact" class="stb-input" type="text" formControlName="billingContactName" />
+
+        <div class="billing-grid">
+          <div class="profile-field">
+            <label class="profile-label" for="billing-contact">Billing Contact Name</label>
+            <input
+              id="billing-contact"
+              class="stb-input"
+              type="text"
+              formControlName="billingContactName"
+              placeholder="e.g. Muhammad Ali"
+              autocomplete="name" />
           </div>
-          <div class="stb-field">
-            <label for="billing-trn">Company TRN</label>
-            <input id="billing-trn" class="stb-input" type="text" formControlName="companyTRN" />
+
+          <div class="profile-field">
+            <label class="profile-label" for="billing-trn">Company TRN</label>
+            <input
+              id="billing-trn"
+              class="stb-input"
+              type="text"
+              formControlName="companyTRN"
+              placeholder="Tax registration number"
+              autocomplete="off" />
           </div>
-        </div>
-        <div class="stb-field stb-field--full">
-          <label for="billing-email">Billing Email</label>
-          <input id="billing-email" class="stb-input" type="email" formControlName="billingEmail" />
-        </div>
-        <div class="stb-field stb-field--full">
-          <label for="billing-address">Billing Address</label>
-          <textarea id="billing-address" class="stb-input stb-textarea" formControlName="billingAddress" rows="2"></textarea>
-        </div>
-        <div class="stb-field stb-field--full">
-          <label for="billing-gps-provider">Default Hardware Provider (GPS)</label>
-          <select id="billing-gps-provider" class="stb-select" formControlName="gpsProviderName">
-            <option value="">None</option>
-            <option *ngFor="let p of gpsProviders" [ngValue]="p">{{ p }}</option>
-          </select>
+
+          <div class="profile-field profile-field--full">
+            <label class="profile-label" for="billing-email">Billing Email</label>
+            <input
+              id="billing-email"
+              class="stb-input"
+              type="text"
+              inputmode="email"
+              formControlName="billingEmail"
+              placeholder="billing@example.com"
+              autocomplete="email" />
+            <span
+              class="stb-error"
+              *ngIf="billingGroup.get('billingEmail')?.hasError('email') && billingGroup.get('billingEmail')?.touched">
+              Enter a valid email address
+            </span>
+          </div>
+
+          <div class="profile-field profile-field--full">
+            <label class="profile-label" for="billing-address">Billing Address</label>
+            <textarea
+              id="billing-address"
+              class="stb-textarea"
+              formControlName="billingAddress"
+              rows="3"
+              placeholder="Street, city, country"></textarea>
+          </div>
+
+          <ui-select
+            class="profile-select profile-select--full"
+            label="Default Hardware Provider (GPS)"
+            formControlName="gpsProviderName"
+            [options]="gpsProviderOptions"
+            placeholder="Select GPS provider" />
         </div>
       </mat-card>
     </div>

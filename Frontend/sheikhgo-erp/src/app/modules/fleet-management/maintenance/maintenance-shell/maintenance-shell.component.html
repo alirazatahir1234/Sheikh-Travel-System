@@ -21,14 +21,18 @@
           </div>
         }
       </div>
-      <select class="period-select" [ngModel]="period()" (ngModelChange)="onPeriodChange($event)">
+      <select
+        class="period-select"
+        [ngModel]="period()"
+        (ngModelChange)="onPeriodChange($event)"
+        aria-label="Filter by time period">
         <option value="Today">Today</option>
         <option value="Week">Week</option>
         <option value="Month">Month</option>
         <option value="Quarter">Quarter</option>
         <option value="Year">Year</option>
       </select>
-      <button type="button" class="export-btn" (click)="exportReport()">
+      <button type="button" class="export-btn" (click)="exportReport()" aria-label="Export report">
         <mat-icon>download</mat-icon> Export Report
       </button>
     </div>

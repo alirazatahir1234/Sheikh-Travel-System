@@ -2,11 +2,13 @@ import { Component, ElementRef, OnDestroy, OnInit } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
-import { forkJoin } from 'rxjs';
+import { forkJoin, of } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 import { PlatformService } from '../../../core/services/platform.service';
 import { LookupService } from '../../../core/services/lookup.service';
 import { apiErrorMessage } from '../../../core/utils/api-error.util';
 import {
+  BRANCH_CURRENCIES,
   DEFAULT_CURRENCY,
   DEFAULT_TENANT_MODULE_CODES,
   GPS_PROVIDERS,
@@ -22,8 +24,35 @@ import {
   tenantPlanMeta
 } from '../../../core/models/platform.model';
 import { blockNonOrgNameKey, orgNameListValidator, orgNameValidator } from './org-name.validator';
+import { parseOptionalPositiveInt } from '../../../core/utils/integer-input.util';
+import { UiSelectOption } from '../../../shared/components/ui/types/ui.types';
 
 type SectionKey = 'profile' | 'plan' | 'admin' | 'branding' | 'security' | 'organization' | 'billing';
+
+const FALLBACK_COUNTRIES = [
+  'United Arab Emirates',
+  'Saudi Arabia',
+  'Pakistan',
+  'Qatar',
+  'Oman',
+  'Bahrain',
+  'Kuwait',
+  'United States',
+  'United Kingdom'
+];
+
+const FALLBACK_TIMEZONES = [
+  'Asia/Dubai',
+  'Asia/Riyadh',
+  'Asia/Karachi',
+  'Asia/Qatar',
+  'Asia/Muscat',
+  'Asia/Bahrain',
+  'Asia/Kuwait',
+  'UTC',
+  'Europe/London',
+  'America/New_York'
+];
 
 @Component({
   standalone: false,
@@ -34,9 +63,9 @@ type SectionKey = 'profile' | 'plan' | 'admin' | 'branding' | 'security' | 'orga
 export class TenantProvisionComponent implements OnInit, OnDestroy {
   saving = false;
   loadingModules = true;
+  lookupLoading = true;
   modules: TenantModuleDefinition[] = [];
   hideAdminPassword = true;
-  showLogoUrlField = false;
   logoDragOver = false;
   logoPreviewUrl: string | null = null;
 
@@ -48,11 +77,19 @@ export class TenantProvisionComponent implements OnInit, OnDestroy {
   readonly gpsProviders = GPS_PROVIDERS;
   readonly moduleIcons = MODULE_ICONS;
   readonly tenantPlanMeta = tenantPlanMeta;
-  countries: string[] = [];
-  currencies: string[] = [];
-  timezones: string[] = [];
-  countrySearch = '';
-  currencySearch = '';
+  readonly tenantTypeOptions: UiSelectOption[] = TENANT_TYPES.map(value => ({ value, label: value }));
+  readonly industryTypeOptions: UiSelectOption[] = INDUSTRY_TYPES.map(value => ({ value, label: value }));
+  readonly storageModelOptions: UiSelectOption[] = STORAGE_MODELS.map(m => ({ value: m.value, label: m.label }));
+  readonly gpsProviderOptions: UiSelectOption[] = [
+    { value: '', label: 'None' },
+    ...GPS_PROVIDERS.map(value => ({ value, label: value }))
+  ];
+  countries: string[] = [...FALLBACK_COUNTRIES];
+  currencies: string[] = [...BRANCH_CURRENCIES];
+  timezones: string[] = [...FALLBACK_TIMEZONES];
+  countryOptions: UiSelectOption[] = FALLBACK_COUNTRIES.map(value => ({ value, label: value }));
+  currencyOptions: UiSelectOption[] = BRANCH_CURRENCIES.map(value => ({ value, label: value }));
+  timezoneOptions: UiSelectOption[] = FALLBACK_TIMEZONES.map(value => ({ value, label: value }));
 
   form: FormGroup;
 
@@ -135,7 +172,7 @@ export class TenantProvisionComponent implements OnInit, OnDestroy {
     this.applyPlan(this.planGroup.get('planName')?.value ?? 'Enterprise');
 
     this.planGroup.get('planName')?.valueChanges.subscribe(plan => {
-      if (plan) this.applyPlan(plan);
+      if (plan) this.applyPlan(String(plan));
     });
 
     this.profileGroup.get('name')?.valueChanges.subscribe(name => {
@@ -152,21 +189,27 @@ export class TenantProvisionComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     forkJoin({
-      modules: this.platform.getModules(),
-      countries: this.lookup.getCountryNames(),
-      currencies: this.lookup.getCurrencyCodes(),
-      timezones: this.lookup.getTimezoneIds()
+      modules: this.platform.getModules().pipe(catchError(() => of([] as TenantModuleDefinition[]))),
+      countries: this.lookup.getCountryNames().pipe(catchError(() => of([...FALLBACK_COUNTRIES]))),
+      currencies: this.lookup.getCurrencyCodes().pipe(catchError(() => of([...BRANCH_CURRENCIES]))),
+      timezones: this.lookup.getTimezoneIds().pipe(catchError(() => of([...FALLBACK_TIMEZONES])))
     }).subscribe({
       next: ({ modules, countries, currencies, timezones }) => {
         this.modules = modules;
-        this.countries = countries;
-        this.currencies = currencies;
-        this.timezones = timezones;
+        this.countries = countries?.length ? countries : [...FALLBACK_COUNTRIES];
+        this.currencies = currencies?.length ? currencies : [...BRANCH_CURRENCIES];
+        this.timezones = timezones?.length ? timezones : [...FALLBACK_TIMEZONES];
+        this.refreshBrandingOptions();
         this.loadingModules = false;
+        this.lookupLoading = false;
+        this.syncBrandingSelectValues();
       },
       error: () => {
         this.loadingModules = false;
-        this.toast.error('Failed to load catalog.');
+        this.lookupLoading = false;
+        this.refreshBrandingOptions();
+        this.toast.error('Failed to load catalog. Using default country/currency/timezone lists.');
+        this.syncBrandingSelectValues();
       }
     });
   }
@@ -191,38 +234,81 @@ export class TenantProvisionComponent implements OnInit, OnDestroy {
     return this.planGroup.get('planName')?.value ?? 'Enterprise';
   }
 
+  formatQuota(value: number | null | undefined): string {
+    return value == null ? 'Unlimited' : String(value);
+  }
+
+  onPlanChange(planName: string): void {
+    const next = (planName || 'Enterprise').trim();
+    const ctrl = this.planGroup.get('planName');
+    if (ctrl && ctrl.value !== next) {
+      ctrl.setValue(next);
+    } else {
+      this.applyPlan(next);
+    }
+  }
+
   get summaryUserQuota(): string | number {
     const value = this.planGroup.get('maxUsers')?.value;
     return value === null || value === undefined ? 'Unlimited' : value;
   }
 
   get primaryColorPreview(): string {
-    return this.brandingGroup.get('primaryColor')?.value || '#007A57';
+    return this.sanitizeHexColor(this.brandingGroup.get('primaryColor')?.value) || '#007A57';
   }
 
-  get slugPreview(): string {
-    const slug = (this.profileGroup.get('slug')?.value as string | null)?.trim();
-    return slug ?? '';
+  onBrandColorPicked(value: string): void {
+    const hex = this.sanitizeHexColor(value);
+    if (!hex) return;
+    this.brandingGroup.get('primaryColor')?.setValue(hex);
+    this.brandingGroup.get('primaryColor')?.markAsDirty();
   }
 
-  get filteredCountries(): string[] {
-    const query = this.countrySearch.trim().toLowerCase();
-    if (!query) return this.countries;
-    return this.countries.filter(c => c.toLowerCase().includes(query));
+  private refreshBrandingOptions(): void {
+    this.countryOptions = this.toSelectOptions(this.countries);
+    this.currencyOptions = this.toSelectOptions(this.currencies);
+    this.timezoneOptions = this.toSelectOptions(this.timezones);
   }
 
-  get filteredCurrencies(): string[] {
-    const query = this.currencySearch.trim().toLowerCase();
-    if (!query) return this.currencies;
-    return this.currencies.filter(c => c.toLowerCase().includes(query));
+  private toSelectOptions(values: string[]): UiSelectOption[] {
+    return values.map(value => ({ value, label: value }));
   }
 
-  clearCountrySearch(): void {
-    this.countrySearch = '';
+  private sanitizeHexColor(value: unknown): string | null {
+    const raw = String(value ?? '').trim();
+    const match = raw.match(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/);
+    if (!match) return null;
+    if (match[1].length === 3) {
+      const [r, g, b] = match[1].split('');
+      return `#${r}${r}${g}${g}${b}${b}`.toLowerCase();
+    }
+    return `#${match[1]}`.toLowerCase();
   }
 
-  clearCurrencySearch(): void {
-    this.currencySearch = '';
+  private syncBrandingSelectValues(): void {
+    const country = this.pickExistingOrDefault(
+      this.brandingGroup.get('country')?.value,
+      this.countries,
+      'United Arab Emirates'
+    );
+    const currencyCode = this.pickExistingOrDefault(
+      this.brandingGroup.get('currencyCode')?.value,
+      this.currencies,
+      DEFAULT_CURRENCY
+    );
+    const timeZone = this.pickExistingOrDefault(
+      this.brandingGroup.get('timeZone')?.value,
+      this.timezones,
+      'Asia/Dubai'
+    );
+
+    this.brandingGroup.patchValue({ country, currencyCode, timeZone }, { emitEvent: false });
+  }
+
+  private pickExistingOrDefault(current: string | null | undefined, options: string[], fallback: string): string {
+    if (current && options.includes(current)) return current;
+    if (options.includes(fallback)) return fallback;
+    return options[0] ?? fallback;
   }
 
   generatePassword(): void {
@@ -295,15 +381,20 @@ export class TenantProvisionComponent implements OnInit, OnDestroy {
   }
 
   applyPlan(planName: string): void {
-    const def = applyPlanDefaults(planName);
+    const resolved = PLAN_DEFINITIONS[planName] ? planName : 'Enterprise';
+    const def = applyPlanDefaults(resolved);
+    const planCtrl = this.planGroup.get('planName');
+    if (planCtrl && planCtrl.value !== resolved) {
+      planCtrl.setValue(resolved, { emitEvent: false });
+    }
     this.planGroup.patchValue({
-      maxUsers: def.quotas.maxUsers,
-      maxVehicles: def.quotas.maxVehicles,
-      maxDrivers: def.quotas.maxDrivers,
-      maxBranches: def.quotas.maxBranches,
-      maxGpsDevices: def.quotas.maxGpsDevices,
+      maxUsers: parseOptionalPositiveInt(def.quotas.maxUsers),
+      maxVehicles: parseOptionalPositiveInt(def.quotas.maxVehicles),
+      maxDrivers: parseOptionalPositiveInt(def.quotas.maxDrivers),
+      maxBranches: parseOptionalPositiveInt(def.quotas.maxBranches),
+      maxGpsDevices: parseOptionalPositiveInt(def.quotas.maxGpsDevices),
       moduleCodes: [...def.moduleCodes]
-    });
+    }, { emitEvent: false });
     this.planGroup.markAsDirty();
   }
 

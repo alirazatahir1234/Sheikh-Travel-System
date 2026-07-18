@@ -190,8 +190,10 @@
               <label class="perm-checkbox-row" *ngFor="let p of group.items">
                 <mat-checkbox [checked]="selectedPermissionCodes.has(p.permissionCode)"
                               (change)="togglePermission(p.permissionCode)">
-                  <span class="perm-checkbox__code">{{ p.permissionCode }}</span>
-                  <span class="perm-checkbox__desc" *ngIf="p.description">{{ p.description }}</span>
+                  <span class="perm-checkbox__text">
+                    <span class="perm-checkbox__code" [attr.title]="p.permissionCode">{{ p.permissionCode }}</span>
+                    <span class="perm-checkbox__desc" *ngIf="p.description" [attr.title]="p.description">{{ p.description }}</span>
+                  </span>
                 </mat-checkbox>
               </label>
             </div>
