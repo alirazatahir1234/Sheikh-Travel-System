@@ -58,16 +58,37 @@ public static class DependencyInjection
         services.AddScoped<ITenantRoleSeedService, TenantRoleSeedService>();
         services.AddScoped<ITenantProvisioningService, TenantProvisioningService>();
         services.AddSingleton<IAuthorizationHandler, PermissionAuthorizationHandler>();
+        services.AddScoped<IDatabaseMigrationRunner, DatabaseMigrationRunner>();
         services.AddScoped<IDatabaseSeeder, DatabaseSeeder>();
         services.AddScoped<IAuditService, AuditService>();
         services.AddScoped<INotificationService, NotificationService>();
+        services.AddScoped<INotificationRetentionService, NotificationRetentionService>();
         services.AddScoped<INotificationRealtimePublisher, NotificationRealtimePublisher>();
         services.AddScoped<INotificationChannelSender, EmailNotificationSender>();
         services.AddScoped<INotificationChannelSender, SmsNotificationSender>();
         services.AddScoped<INotificationChannelSender, PushNotificationSender>();
         services.AddScoped<INotificationChannelSender, BrowserNotificationSender>();
         services.AddScoped<INotificationChannelSender, WhatsAppNotificationSender>();
+        services.AddSingleton<FcmHttpV1Client>();
+        services.AddHttpClient("FcmHttpV1");
         services.AddHostedService<NotificationDispatchHostedService>();
+        services.AddHostedService<NotificationRetentionHostedService>();
+
+        // SheikhGo AI Platform
+        services.AddScoped<INotificationDecisionEngine, SheikhTravelSystem.Infrastructure.Services.Ai.NotificationDecisionEngine>();
+        services.AddScoped<IUserPresenceService, SheikhTravelSystem.Infrastructure.Services.Ai.UserPresenceService>();
+        services.AddScoped<IDeviceTokenService, SheikhTravelSystem.Infrastructure.Services.Ai.DeviceTokenService>();
+        services.AddScoped<IAlertNotificationAudit, SheikhTravelSystem.Infrastructure.Services.Ai.AlertNotificationAudit>();
+        services.AddScoped<IFleetHealthService, SheikhTravelSystem.Infrastructure.Services.Ai.FleetHealthService>();
+        services.AddScoped<IAiDigestService, SheikhTravelSystem.Infrastructure.Services.Ai.AiDigestService>();
+        services.AddScoped<IAiRecommendationService, SheikhTravelSystem.Infrastructure.Services.Ai.AiRecommendationService>();
+        services.AddScoped<IAiPredictionService, SheikhTravelSystem.Infrastructure.Services.Ai.AiPredictionService>();
+        services.AddScoped<IAiManagementService, SheikhTravelSystem.Infrastructure.Services.Ai.AiManagementService>();
+        services.AddScoped<IAiCopilotService, SheikhTravelSystem.Infrastructure.Services.Ai.AiCopilotService>();
+        services.AddScoped<IEscalationService, SheikhTravelSystem.Infrastructure.Services.Ai.EscalationService>();
+        services.AddHostedService<SheikhTravelSystem.Infrastructure.Services.Ai.EscalationHostedService>();
+        services.AddHostedService<SheikhTravelSystem.Infrastructure.Services.Ai.AiJobsHostedService>();
+
         services.AddScoped<ISmsOtpService, ConsoleSmsOtpService>();
         services.AddScoped<PaymentGatewayPaymentRecorder>();
         services.AddScoped<IPaymentGatewayProvider, StripePaymentGatewayService>();
@@ -92,6 +113,7 @@ public static class DependencyInjection
         services.AddScoped<IIdentityOcrService, HybridIdentityOcrService>();
         RegisterFileStorage(services, configuration);
         services.AddScoped<ILocationBroadcastService, LocationBroadcastService>();
+        services.AddScoped<IReverseGeocodingService, NominatimReverseGeocodingService>();
         services.AddHttpContextAccessor();
         services.AddSignalR();
 

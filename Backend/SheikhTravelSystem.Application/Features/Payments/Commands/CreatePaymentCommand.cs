@@ -5,6 +5,7 @@ using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Exceptions;
 using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Application.Features.Payments.DTOs;
+using SheikhTravelSystem.Application.Features.Notifications;
 using SheikhTravelSystem.Domain.Enums;
 
 namespace SheikhTravelSystem.Application.Features.Payments.Commands;
@@ -26,7 +27,7 @@ public class CreatePaymentCommandValidator : AbstractValidator<CreatePaymentComm
     }
 }
 
-public class CreatePaymentCommandHandler(IDbConnectionFactory dbFactory, INotificationService notificationService)
+public class CreatePaymentCommandHandler(IDbConnectionFactory dbFactory, INotificationDecisionEngine decisionEngine)
     : IRequestHandler<CreatePaymentCommand, ApiResponse<int>>
 {
     /// <summary>
@@ -86,14 +87,19 @@ public class CreatePaymentCommandHandler(IDbConnectionFactory dbFactory, INotifi
                 },
                 cancellationToken: cancellationToken));
 
-        // Create notification for payment received
+        // Create notification for payment received (decision-gated)
         var bookingNumber = booking.BookingNumber ?? $"#{dto.BookingId}";
-        await notificationService.CreateForAllAsync(
+        await decisionEngine.DispatchIfAllowedAsync(new NotificationDecisionRequest(
+            "payment_received",
             $"Payment Received: {bookingNumber}",
             $"PKR {dto.Amount:N0} received via {dto.PaymentMethod}. Status: {paymentStatus}",
             NotificationType.PaymentReceived,
-            id,
-            cancellationToken);
+            ReferenceId: id,
+            SuggestedPriority: 2,
+            RequestedChannels:
+            [
+                NotificationChannels.InApp, NotificationChannels.Browser, NotificationChannels.Email
+            ]), cancellationToken);
 
         return ApiResponse<int>.SuccessResponse(id, "Payment recorded successfully.");
     }

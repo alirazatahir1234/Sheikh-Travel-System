@@ -6,6 +6,7 @@ using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Exceptions;
 using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Application.Features.Bookings.DTOs;
+using SheikhTravelSystem.Application.Features.Notifications;
 using SheikhTravelSystem.Domain.Enums;
 
 namespace SheikhTravelSystem.Application.Features.Bookings.Commands;
@@ -41,7 +42,7 @@ public class CreateBookingCommandValidator : AbstractValidator<CreateBookingComm
 /// </summary>
 public class CreateBookingCommandHandler(
     IDbConnectionFactory dbFactory,
-    INotificationService notificationService,
+    INotificationDecisionEngine decisionEngine,
     ILogger<CreateBookingCommandHandler> logger)
     : IRequestHandler<CreateBookingCommand, ApiResponse<int>>
 {
@@ -94,13 +95,18 @@ public class CreateBookingCommandHandler(
                 new { BookingNumber = bookingNumber, Id = id },
                 cancellationToken: cancellationToken));
 
-        // Create notification for all admin/dispatcher users
-        await notificationService.CreateForAllAsync(
+        // Create notification for all admin/dispatcher users (decision-gated)
+        await decisionEngine.DispatchIfAllowedAsync(new NotificationDecisionRequest(
+            "booking_created",
             $"New Booking: {bookingNumber}",
             $"A new booking has been created for {routeName}. Pickup: {dto.PickupTime:g}",
             NotificationType.BookingCreated,
-            id,
-            cancellationToken);
+            ReferenceId: id,
+            SuggestedPriority: 2,
+            RequestedChannels:
+            [
+                NotificationChannels.InApp, NotificationChannels.Browser, NotificationChannels.Email
+            ]), cancellationToken);
 
         logger.LogInformation("Booking {BookingId} ({BookingNumber}) created for customer {CustomerId} on route {RouteId}", id, bookingNumber, dto.CustomerId, dto.RouteId);
         return ApiResponse<int>.SuccessResponse(id, "Booking created successfully.");

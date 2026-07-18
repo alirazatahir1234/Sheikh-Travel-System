@@ -5,22 +5,39 @@ using SheikhTravelSystem.Application.Common.Interfaces;
 namespace SheikhTravelSystem.Infrastructure.SignalR;
 
 [Authorize]
-public class NotificationHub : Hub
+public class NotificationHub(IUserPresenceService presence) : Hub
 {
     public static string UserGroup(int userId) => $"user_{userId}";
 
     public override async Task OnConnectedAsync()
     {
         if (int.TryParse(Context.User?.FindFirst("userId")?.Value, out var userId))
+        {
             await Groups.AddToGroupAsync(Context.ConnectionId, UserGroup(userId));
+            await presence.SetBrowserOnlineAsync(userId, true);
+        }
 
         await Groups.AddToGroupAsync(Context.ConnectionId, "notification_dispatchers");
         await base.OnConnectedAsync();
     }
 
+    public override async Task OnDisconnectedAsync(Exception? exception)
+    {
+        if (int.TryParse(Context.User?.FindFirst("userId")?.Value, out var userId))
+            await presence.SetBrowserOnlineAsync(userId, false);
+
+        await base.OnDisconnectedAsync(exception);
+    }
+
     public async Task JoinUserGroup(int userId)
     {
         await Groups.AddToGroupAsync(Context.ConnectionId, UserGroup(userId));
+    }
+
+    public async Task Heartbeat()
+    {
+        if (int.TryParse(Context.User?.FindFirst("userId")?.Value, out var userId))
+            await presence.SetBrowserOnlineAsync(userId, true);
     }
 }
 

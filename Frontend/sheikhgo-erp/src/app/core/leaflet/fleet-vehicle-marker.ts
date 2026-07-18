@@ -177,6 +177,7 @@ export function buildFleetVehiclePopup(fields: {
   speedKmh?: number | null;
   headingLabel?: string | null;
   address?: string | null;
+  mapsUrl?: string | null;
   lastPing?: string | null;
   statusLabel?: string | null;
 }): string {
@@ -198,7 +199,14 @@ export function buildFleetVehiclePopup(fields: {
     lines.push(`<span>${Math.round(fields.speedKmh)} km/h${h}</span>`);
   }
   if (fields.lastPing) lines.push(`<small>${esc(fields.lastPing)}</small>`);
-  if (fields.address) lines.push(`<span class="fv-popup__addr">${esc(fields.address)}</span>`);
+  if (fields.address) {
+    lines.push(`<span class="fv-popup__addr">📍 ${esc(fields.address)}</span>`);
+    if (fields.mapsUrl) {
+      lines.push(
+        `<a class="fv-popup__maps" href="${esc(fields.mapsUrl)}" target="_blank" rel="noopener noreferrer">View on Google Maps</a>`
+      );
+    }
+  }
   lines.push(`</div>`);
   return lines.join('');
 }

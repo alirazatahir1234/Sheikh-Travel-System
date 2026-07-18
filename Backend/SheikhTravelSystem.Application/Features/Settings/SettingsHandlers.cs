@@ -17,6 +17,7 @@ public static class SettingsCategories
     public const string Localization = "Localization";
     public const string Security = "Security";
     public const string Notifications = "Notifications";
+    public const string NotificationRetention = "NotificationRetention";
     public const string Documents = "Documents";
     public const string Workflows = "Workflows";
     public const string Numbering = "Numbering";
@@ -35,6 +36,7 @@ public static class SettingsCategories
         new(Localization, "Localization", "language", "Language, direction, region and number formats.", true),
         new(Security, "Security", "security", "Authentication, API security, IP management and compliance.", true),
         new(Notifications, "Notifications", "notifications", "Email, SMS, WhatsApp, push and alert preferences.", true),
+        new(NotificationRetention, "Notification Retention", "policy", "Inbox archive and permanent-delete retention policy.", true),
         new(Documents, "Documents", "description", "Upload limits, extensions and document lifecycle.", true),
         new(Workflows, "Workflows", "account_tree", "Approval levels, auto-approval and escalation.", true),
         new(Numbering, "Numbering", "tag", "Prefixes and sequences for records.", true),

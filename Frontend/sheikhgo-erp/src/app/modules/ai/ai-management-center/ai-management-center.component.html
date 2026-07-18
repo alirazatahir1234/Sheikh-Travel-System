@@ -1,0 +1,196 @@
+<div class="ai-page">
+  <header class="ai-header">
+    <div>
+      <h1>AI Management Center</h1>
+      <p>Decision engine, fleet intelligence, predictions, and optional LLM copilot — rules first.</p>
+    </div>
+    <button mat-stroked-button type="button" (click)="reload()">
+      <mat-icon>refresh</mat-icon> Refresh
+    </button>
+  </header>
+
+  <div class="ai-loading" *ngIf="loading">
+    <mat-spinner diameter="36"></mat-spinner>
+  </div>
+
+  <ng-container *ngIf="!loading">
+    <section class="health-strip" *ngIf="health as h">
+      <div class="health-card primary">
+        <span class="label">Fleet Health</span>
+        <strong>{{ h.healthPercent | number:'1.0-1' }}%</strong>
+        <small>{{ h.summary }}</small>
+      </div>
+      <div class="health-card">
+        <span class="label">GPS Online</span>
+        <strong>{{ h.gpsOnlineRate | number:'1.0-1' }}%</strong>
+      </div>
+      <div class="health-card">
+        <span class="label">Maintenance</span>
+        <strong>{{ h.maintenanceScore | number:'1.0-1' }}%</strong>
+      </div>
+      <div class="health-card">
+        <span class="label">Compliance</span>
+        <strong>{{ h.complianceScore | number:'1.0-1' }}%</strong>
+      </div>
+      <div class="health-card">
+        <span class="label">Driver Score</span>
+        <strong>{{ h.driverScore | number:'1.0-1' }}</strong>
+      </div>
+      <div class="health-card alert" *ngIf="h.criticalAlerts > 0">
+        <span class="label">Critical</span>
+        <strong>{{ h.criticalAlerts }}</strong>
+      </div>
+    </section>
+
+    <mat-tab-group animationDuration="0ms">
+      <mat-tab label="Management">
+        <div class="panel">
+          <h3>Provider &amp; feature toggles</h3>
+          <div class="form-grid">
+            <mat-form-field appearance="outline">
+              <mat-label>Provider</mat-label>
+              <mat-select [(ngModel)]="config.provider">
+                <mat-option value="None">None (rules only)</mat-option>
+                <mat-option value="AzureOpenAI">Azure OpenAI</mat-option>
+                <mat-option value="OpenAI">OpenAI</mat-option>
+                <mat-option value="Ollama">Ollama</mat-option>
+              </mat-select>
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>Model</mat-label>
+              <input matInput [(ngModel)]="config.modelName" placeholder="gpt-4o-mini" />
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>Endpoint</mat-label>
+              <input matInput [(ngModel)]="config.apiEndpoint" />
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>Monthly budget (USD)</mat-label>
+              <input matInput type="number" [(ngModel)]="config.monthlyBudgetUsd" />
+            </mat-form-field>
+          </div>
+          <div class="toggles">
+            <mat-slide-toggle [(ngModel)]="config.isEnabled">Provider enabled</mat-slide-toggle>
+            <mat-slide-toggle [(ngModel)]="config.copilotEnabled">Copilot (LLM language layer)</mat-slide-toggle>
+            <mat-slide-toggle [(ngModel)]="config.decisionEngineEnabled">Decision engine</mat-slide-toggle>
+            <mat-slide-toggle [(ngModel)]="config.digestEnabled">Morning digests</mat-slide-toggle>
+            <mat-slide-toggle [(ngModel)]="config.predictionsEnabled">Predictions</mat-slide-toggle>
+          </div>
+          <div class="actions">
+            <button mat-flat-button color="primary" type="button" (click)="saveConfig()">Save configuration</button>
+            <button mat-stroked-button type="button" (click)="generateDigest()">Send morning digest</button>
+            <button mat-stroked-button type="button" (click)="runPredictions()">Run predictions</button>
+          </div>
+        </div>
+      </mat-tab>
+
+      <mat-tab label="Copilot">
+        <div class="panel">
+          <h3>Fleet assistant</h3>
+          <p class="hint">Ask about offline vehicles, critical alerts, maintenance, fleet health, or driver risk. Answers come from SheikhGo engines — LLM only formats when enabled.</p>
+          <mat-form-field appearance="outline" class="full">
+            <mat-label>Question</mat-label>
+            <input matInput [(ngModel)]="question" (keyup.enter)="ask()" placeholder="How many vehicles are offline?" />
+          </mat-form-field>
+          <button mat-flat-button color="primary" type="button" [disabled]="asking" (click)="ask()">
+            {{ asking ? 'Thinking…' : 'Ask' }}
+          </button>
+          <div class="answer" *ngIf="copilotAnswer as a">
+            <pre>{{ a.answer }}</pre>
+            <small>Mode: {{ a.mode }} · Tools: {{ a.toolsUsed.join(', ') || 'none' }} · LLM: {{ a.usedLlm ? 'yes' : 'no' }}</small>
+          </div>
+        </div>
+      </mat-tab>
+
+      <mat-tab label="Recommendations">
+        <div class="panel">
+          <div class="card-list" *ngIf="recommendations.length; else noRecs">
+            <article *ngFor="let r of recommendations" class="rec-card" [attr.data-sev]="r.severity">
+              <header>
+                <strong>{{ r.title }}</strong>
+                <span>{{ r.severity }} · {{ r.category }}</span>
+              </header>
+              <p>{{ r.action }}</p>
+              <button mat-button type="button" (click)="dismissRec(r)">Dismiss</button>
+            </article>
+          </div>
+          <ng-template #noRecs><p class="empty">No active recommendations.</p></ng-template>
+        </div>
+      </mat-tab>
+
+      <mat-tab label="Predictions">
+        <div class="panel">
+          <h3>AI datasets</h3>
+          <div class="table-wrap" *ngIf="datasets.length">
+            <table>
+              <thead><tr><th>Dataset</th><th>Rows</th><th>Freshness</th><th>Last capture</th></tr></thead>
+              <tbody>
+                <tr *ngFor="let d of datasets">
+                  <td>{{ d.name }}</td>
+                  <td>{{ d.rowCount | number }}</td>
+                  <td>{{ d.freshness }}</td>
+                  <td>{{ d.lastCapturedAt ? (d.lastCapturedAt | date:'short') : '—' }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <h3>Predictions</h3>
+          <div class="card-list" *ngIf="predictions.length; else noPreds">
+            <article *ngFor="let p of predictions" class="rec-card">
+              <header>
+                <strong>{{ p.entityType }} #{{ p.entityId }}</strong>
+                <span>{{ p.probability | number:'1.0-0' }}% · {{ p.predictionType }}</span>
+              </header>
+              <p>{{ p.label || '—' }}</p>
+              <small *ngIf="p.expectedDays">ETA ~{{ p.expectedDays }} days · {{ p.modelVersion }}</small>
+            </article>
+          </div>
+          <ng-template #noPreds><p class="empty">No predictions yet — run predictions from Management.</p></ng-template>
+        </div>
+      </mat-tab>
+
+      <mat-tab label="Escalation">
+        <div class="panel">
+          <h3>Awaiting acknowledgement</h3>
+          <div class="table-wrap" *ngIf="pending.length; else noPending">
+            <table>
+              <thead>
+                <tr><th>Event</th><th>Level</th><th>Ref</th><th>Next</th><th></th></tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let p of pending">
+                  <td>{{ p.eventType }}</td>
+                  <td>L{{ p.currentLevel }}</td>
+                  <td>{{ p.referenceId || '—' }}</td>
+                  <td>{{ p.nextEscalateAt | date:'short' }}</td>
+                  <td><button mat-button type="button" (click)="ack(p.id)">Ack</button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <ng-template #noPending><p class="empty">No pending escalations.</p></ng-template>
+
+          <h3>Rules</h3>
+          <div class="table-wrap" *ngIf="rules.length">
+            <table>
+              <thead>
+                <tr><th>Event</th><th>Level</th><th>Role</th><th>Timeout</th><th>Channel</th><th>Active</th><th></th></tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let r of rules">
+                  <td><input [(ngModel)]="r.eventType" /></td>
+                  <td><input type="number" [(ngModel)]="r.levelOrder" style="width:4rem" /></td>
+                  <td><input [(ngModel)]="r.targetRole" /></td>
+                  <td><input type="number" [(ngModel)]="r.timeoutMinutes" style="width:4rem" /></td>
+                  <td><input [(ngModel)]="r.channel" style="width:5rem" /></td>
+                  <td><mat-slide-toggle [(ngModel)]="r.isActive"></mat-slide-toggle></td>
+                  <td><button mat-button type="button" (click)="saveRule(r)">Save</button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </mat-tab>
+    </mat-tab-group>
+  </ng-container>
+</div>

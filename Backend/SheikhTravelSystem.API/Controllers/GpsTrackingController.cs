@@ -36,6 +36,11 @@ public partial class GpsTrackingController : BaseApiController
     public async Task<IActionResult> GetLive([FromQuery] int page = 1, [FromQuery] int pageSize = 500)
         => Ok(await Mediator.Send(new GetLivePositionsQuery(page, pageSize)));
 
+    /// <summary>On-demand reverse geocode (cache-first via Nominatim).</summary>
+    [HttpGet("location/reverse")]
+    public async Task<IActionResult> ReverseGeocode([FromQuery] double lat, [FromQuery] double lng)
+        => Ok(await Mediator.Send(new ReverseGeocodeQuery(lat, lng)));
+
     [HttpGet("history/{vehicleId:int}")]
     public async Task<IActionResult> GetHistory(int vehicleId, [FromQuery] DateTime? from, [FromQuery] DateTime? to)
         => Ok(await Mediator.Send(new GetPositionHistoryQuery(vehicleId, from, to)));

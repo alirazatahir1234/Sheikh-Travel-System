@@ -74,6 +74,8 @@ const fleetAdminGroup: NavGroup = {
   items: [
     { id: 'tracker-config', label: 'Tracker Configuration', icon: 'settings_input_antenna', route: '/gps-tracking/devices', moduleKey: 'gps-tracking' },
     { id: 'geofencing', label: 'Geofencing', icon: 'fence', route: '/gps-tracking/geofences', moduleKey: 'gps-tracking' },
+    { id: 'notifications', label: 'Notification Center', icon: 'notifications', route: '/notifications', moduleKey: 'dashboard' },
+    { id: 'ai-center', label: 'AI Management', icon: 'smart_toy', route: '/ai', moduleKey: 'dashboard' },
     { id: 'fleet-settings', label: 'Settings', icon: 'tune', route: '/settings', moduleKey: 'platform' }
   ]
 };
@@ -115,6 +117,7 @@ const analyticsGroup: NavGroup = {
     { id: 'driver-performance', label: 'Driver Performance', icon: 'speed', route: '/reports', moduleKey: 'reports' },
     { id: 'audit-logs', label: 'Audit Logs', icon: 'history', route: '/audit-logs', adminOnly: true, moduleKey: 'audit-logs' },
     { id: 'notifications', label: 'Notification Center', icon: 'notifications', route: '/notifications', moduleKey: 'dashboard' },
+    { id: 'ai-center', label: 'AI Management', icon: 'smart_toy', route: '/ai', moduleKey: 'dashboard' },
     { id: 'performance-analytics', label: 'Performance Analytics', icon: 'speed', route: '/reports', moduleKey: 'reports' }
   ]
 };
@@ -154,6 +157,7 @@ const platformGroup: NavGroup = {
     { id: 'modules', label: 'Modules', icon: 'extension', route: '/platform/module-management', adminOnly: true, moduleKey: 'platform' },
     { id: 'plans', label: 'Plans', icon: 'subscriptions', route: '/platform/subscription-management', adminOnly: true, moduleKey: 'platform' },
     { id: 'billing', label: 'Billing', icon: 'payments', route: '/platform/subscription-management', queryParams: { tab: 'billing' }, adminOnly: true, moduleKey: 'platform' },
+    { id: 'migration-manager', label: 'Migration Manager', icon: 'storage', route: '/platform/migrations', adminOnly: true, moduleKey: 'platform' },
     { id: 'settings', label: 'Settings', icon: 'tune', route: '/settings', adminOnly: true, moduleKey: 'platform' },
     { id: 'audit-logs-platform', label: 'Audit Logs', icon: 'history', route: '/audit-logs', adminOnly: true, moduleKey: 'audit-logs' }
   ]
@@ -179,6 +183,7 @@ const administrationGroup: NavGroup = {
   items: [
     { id: 'users', label: 'Users', icon: 'manage_accounts', route: '/users', adminOnly: true, moduleKey: 'users' },
     { id: 'roles-permissions', label: 'Roles & Permissions', icon: 'security', route: '/users', adminOnly: true, moduleKey: 'users' },
+    { id: 'notifications', label: 'Notification Center', icon: 'notifications', route: '/notifications', moduleKey: 'dashboard' },
     { id: 'tenant-settings', label: 'Tenant Settings', icon: 'tune', route: '/settings', adminOnly: true },
     { id: 'allowance-rules', label: 'Allowance Rules', icon: 'rule', route: '/driver-allowance-rules', adminOnly: true, moduleKey: 'driver-allowance-rules' },
     { id: 'system-configuration', label: 'System Configuration', icon: 'settings_suggest', route: '/settings', adminOnly: true }
@@ -247,6 +252,8 @@ const tenantItemIds: Partial<Record<TenantType, Set<string>>> = {
     'fleet-reports',
     'tracker-config',
     'geofencing',
+    'notifications',
+    'fleet-settings',
     'fleet-analytics',
     'driver-performance',
     'reports',

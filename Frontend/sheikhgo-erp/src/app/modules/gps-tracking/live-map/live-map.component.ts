@@ -531,6 +531,20 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
     return `${loc.temperature.toFixed(1)} °C`;
   }
 
+  /** First 1–2 segments of a reverse-geocoded address for compact cards. */
+  shortAddress(loc: VehicleLocation): string | null {
+    const raw = loc.address?.trim();
+    if (!raw) return null;
+    const parts = raw.split(',').map(p => p.trim()).filter(Boolean);
+    if (parts.length === 0) return null;
+    if (parts.length === 1) return parts[0];
+    return `${parts[0]}, ${parts[1]}`;
+  }
+
+  googleMapsUrl(loc: VehicleLocation): string {
+    return `https://maps.google.com/?q=${loc.latitude},${loc.longitude}`;
+  }
+
   private refreshTraccarStatus(): void {
     this.gpsService.getTraccarStatus().pipe(
       catchError(() => of({ connected: false, serverVersion: null, deviceCount: 0, lastError: 'Unavailable' } as TraccarStatusDto))
@@ -1176,6 +1190,7 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
         speedKmh: loc.speed,
         headingLabel: headingText || null,
         address: addr,
+        mapsUrl: this.googleMapsUrl(loc),
         lastPing: this.formatLastPing(loc),
         statusLabel: this.statusLabel(loc.status)
       }) + `<a href="#" class="map-popup-link" data-vid="${loc.vehicleId}">View details →</a>`;
@@ -1341,7 +1356,7 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
         batteryLevel: update.batteryLevel,
         gsmSignal: update.gsmSignal,
         totalDistanceKm: update.totalDistanceKm,
-        address: update.address,
+        address: update.address?.trim() || this.locations[idx].address,
         alarmType: update.alarmType,
         temperature: update.temperature,
         routeHint: this.realtimeRouteHint(status, speed)

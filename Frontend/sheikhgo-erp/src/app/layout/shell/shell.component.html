@@ -171,53 +171,19 @@
         <button mat-icon-button class="stb-icon-btn stb-topbar-help" matTooltip="Help" (click)="openHelp()">
           <mat-icon>help_outline</mat-icon>
         </button>
-        <button mat-icon-button class="stb-icon-btn" matTooltip="Notifications"
-                [matMenuTriggerFor]="notifMenu"
+        <button mat-icon-button class="stb-icon-btn stb-notif-bell"
+                matTooltip="Notifications"
+                type="button"
+                (click)="toggleNotifPanel($event)"
+                [class.has-unread]="!!(unreadCount$ | async)"
+                [class.is-open]="notifPanelOpen"
                 [matBadge]="(unreadCount$ | async) || null"
                 [matBadgeHidden]="!(unreadCount$ | async)"
-                matBadgeColor="warn" matBadgeSize="small">
+                matBadgeColor="warn" matBadgeSize="small"
+                [attr.aria-expanded]="notifPanelOpen"
+                aria-haspopup="dialog">
           <mat-icon>notifications_none</mat-icon>
         </button>
-
-        <mat-menu #notifMenu="matMenu" class="notif-menu" xPosition="before">
-          <div class="notif-header" (click)="$event.stopPropagation()">
-            <span class="notif-title">Notifications</span>
-            <div class="notif-header-actions">
-              <a mat-button color="primary" routerLink="/notifications" (click)="$event.stopPropagation()">View all</a>
-              <button mat-button color="primary" (click)="markAllAsRead()"
-                      *ngIf="(unreadCount$ | async) as count">
-                Mark all read
-              </button>
-            </div>
-          </div>
-
-          <div class="notif-list" (click)="$event.stopPropagation()">
-            <ng-container *ngIf="notifications$ | async as notifications">
-              <div *ngIf="notifications.length === 0" class="notif-empty">
-                <mat-icon>notifications_off</mat-icon>
-                <span>No notifications</span>
-              </div>
-
-              <div *ngFor="let n of notifications; trackBy: trackByNotifId"
-                   class="notif-item" [class.unread]="!n.isRead"
-                   (click)="onNotificationClick(n)">
-                <div class="notif-icon" [style.background-color]="getNotifColor(n.type) + '20'"
-                     [style.color]="getNotifColor(n.type)">
-                  <mat-icon>{{ getNotifIcon(n.type) }}</mat-icon>
-                </div>
-                <div class="notif-content">
-                  <div class="notif-item-title">{{ n.title }}</div>
-                  <div class="notif-message">{{ n.message }}</div>
-                  <div class="notif-time">{{ formatTimeAgo(n.createdAt) }}</div>
-                </div>
-                <button mat-icon-button class="notif-mark" *ngIf="!n.isRead"
-                        (click)="markAsRead(n, $event)" matTooltip="Mark as read">
-                  <mat-icon>check_circle_outline</mat-icon>
-                </button>
-              </div>
-            </ng-container>
-          </div>
-        </mat-menu>
 
         <ng-container *ngIf="currentUser$ | async as user; else guestBtn">
           <button mat-button [matMenuTriggerFor]="userMenu" class="stb-user-chip">
@@ -247,4 +213,123 @@
       <router-outlet></router-outlet>
     </main>
   </section>
+
+  <!-- Floating notification drawer (bell) -->
+  <div class="notif-drawer-backdrop" *ngIf="notifPanelOpen" (click)="closeNotifPanel()" aria-hidden="true"></div>
+  <aside class="notif-drawer" *ngIf="notifPanelOpen" role="dialog" aria-label="Notifications" (click)="$event.stopPropagation()">
+    <div class="notif-drawer-header">
+      <div class="notif-drawer-title-row">
+        <h2 class="notif-drawer-title">Notifications</h2>
+        <span class="notif-drawer-count" *ngIf="(unreadCount$ | async) as count">{{ count }}</span>
+      </div>
+      <div class="notif-drawer-header-actions">
+        <button type="button" class="notif-drawer-mark-all" (click)="markAllAsRead()"
+                *ngIf="(unreadCount$ | async) as count" matTooltip="Mark all as read">
+          <mat-icon>done_all</mat-icon>
+          <span>Mark all as read</span>
+        </button>
+        <button mat-icon-button type="button" class="notif-drawer-close" (click)="closeNotifPanel()" aria-label="Close">
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+    </div>
+
+    <div class="notif-drawer-body">
+      <ng-container *ngIf="notifications$ | async as notifications">
+        <div *ngIf="notifications.length === 0" class="notif-drawer-empty">
+          <mat-icon>notifications_off</mat-icon>
+          <span>No notifications</span>
+        </div>
+
+        <ng-container *ngFor="let n of notifications | slice:0:10; trackBy: trackByNotifId">
+          <!-- Expanded detail card -->
+          <article *ngIf="expandedNotifId === n.id"
+                   class="notif-card notif-card--expanded"
+                   [class.unread]="!n.isRead"
+                   [class.critical]="(n.priority ?? 2) >= 4">
+            <div class="notif-card-top">
+              <div class="notif-card-icon" [style.background]="getNotifColor(n.type) + '18'" [style.color]="getNotifColor(n.type)">
+                <mat-icon>{{ getNotifIcon(n.type) }}</mat-icon>
+              </div>
+              <div class="notif-card-heading">
+                <div class="notif-card-title-row">
+                  <h3 class="notif-card-title">{{ displayTitle(n) }}</h3>
+                  <span class="notif-card-dot" *ngIf="!n.isRead"></span>
+                </div>
+                <div class="notif-card-sub">{{ formatTimeAgo(n.createdAt) }}</div>
+              </div>
+            </div>
+
+            <div class="notif-card-badges">
+              <span class="notif-badge notif-badge--module" *ngIf="n.module">{{ n.module }}</span>
+              <span class="notif-badge notif-badge--channel" *ngIf="n.channel">{{ channelLabel(n.channel) }}</span>
+              <span class="notif-badge" [ngClass]="priorityBadgeClass(n)">{{ priorityLabel(n) }}</span>
+              <span class="notif-badge notif-badge--protected" *ngIf="n.neverAutoDelete">Protected</span>
+              <span class="notif-badge notif-badge--new" *ngIf="!n.isRead">NEW</span>
+            </div>
+
+            <p class="notif-card-message" *ngIf="previewMessage(n.message) as msg">{{ msg }}</p>
+
+            <ul class="notif-card-meta" *ngIf="notifMeta(n) as meta">
+              <li *ngFor="let row of meta">
+                <mat-icon>{{ row.icon }}</mat-icon>
+                <span class="meta-label">{{ row.label }}</span>
+                <span class="meta-value" [class.is-critical]="row.critical">{{ row.value }}</span>
+              </li>
+            </ul>
+
+            <div class="notif-card-actions">
+              <button type="button" class="notif-btn notif-btn--primary" (click)="viewNotificationDetails(n, $event)">
+                <mat-icon>open_in_new</mat-icon>
+                View Details
+              </button>
+              <button type="button" class="notif-btn notif-btn--ghost" *ngIf="!n.isRead" (click)="markAsRead(n, $event)">
+                Mark as Read
+              </button>
+              <button mat-icon-button type="button" class="notif-btn-more" [matMenuTriggerFor]="notifMoreMenu" (click)="$event.stopPropagation()">
+                <mat-icon>more_horiz</mat-icon>
+              </button>
+              <mat-menu #notifMoreMenu="matMenu">
+                <button mat-menu-item (click)="closeNotifPanel(); openNotificationCenter($event)">
+                  <mat-icon>inbox</mat-icon>
+                  <span>Open Notification Center</span>
+                </button>
+                <button mat-menu-item *ngIf="!n.isRead" (click)="markAsRead(n, $event)">
+                  <mat-icon>done</mat-icon>
+                  <span>Mark as read</span>
+                </button>
+              </mat-menu>
+            </div>
+          </article>
+
+          <!-- Collapsed row -->
+          <button *ngIf="expandedNotifId !== n.id"
+                  type="button"
+                  class="notif-card notif-card--collapsed"
+                  [class.unread]="!n.isRead"
+                  [class.critical]="(n.priority ?? 2) >= 4"
+                  (click)="expandNotif(n)">
+            <div class="notif-card-icon" [style.background]="getNotifColor(n.type) + '18'" [style.color]="getNotifColor(n.type)">
+              <mat-icon>{{ getNotifIcon(n.type) }}</mat-icon>
+            </div>
+            <div class="notif-card-heading">
+              <div class="notif-card-title-row">
+                <span class="notif-card-title">{{ displayTitle(n) }}</span>
+                <span class="notif-badge notif-badge--critical-mini" *ngIf="(n.priority ?? 2) >= 4">Critical</span>
+              </div>
+              <div class="notif-card-snippet" *ngIf="previewMessage(n.message) as msg">{{ msg }}</div>
+              <div class="notif-card-sub">{{ formatTimeAgo(n.createdAt) }}</div>
+            </div>
+            <span class="notif-card-dot" *ngIf="!n.isRead"></span>
+          </button>
+        </ng-container>
+      </ng-container>
+    </div>
+
+    <div class="notif-drawer-footer">
+      <button type="button" class="notif-view-all-btn" (click)="openNotificationCenter($event); closeNotifPanel()">
+        View All Notifications
+      </button>
+    </div>
+  </aside>
 </div>

@@ -8,6 +8,7 @@ using SheikhTravelSystem.Application.Features.GpsTracking;
 using SheikhTravelSystem.Application.Features.GpsTracking.DTOs;
 using SheikhTravelSystem.Application.Features.GpsTracking.Services;
 using SheikhTravelSystem.Application.Features.GpsTracking.Traccar;
+using SheikhTravelSystem.Application.Features.Notifications;
 using SheikhTravelSystem.Domain.Enums;
 
 namespace SheikhTravelSystem.Application.Features.GpsTracking.Commands;
@@ -26,7 +27,8 @@ public class IngestPositionCommandValidator : AbstractValidator<IngestPositionCo
 
 public class IngestPositionCommandHandler(
     IDbConnectionFactory dbFactory,
-    INotificationService notifications,
+    INotificationDecisionEngine decisionEngine,
+    IEscalationService escalation,
     ILocationBroadcastService broadcaster,
     ICurrentUserService currentUser,
     IOptions<TraccarOptions> traccarOptions,
@@ -64,8 +66,9 @@ public class IngestPositionCommandHandler(
         // trip-persistence detection below) and previousIgnition (for the ignition-transition
         // alert) depend on this happening first; a future reordering of these calls would
         // silently break both.
-        var previous = await connection.QueryFirstOrDefaultAsync<(decimal? Speed, bool? Ignition)>(new CommandDefinition(
-            "SELECT Speed, Ignition FROM VehicleCurrentLocation WHERE VehicleId = @VehicleId",
+        var previous = await connection.QueryFirstOrDefaultAsync<(
+            decimal? Speed, bool? Ignition, double? Latitude, double? Longitude, string? Address)>(new CommandDefinition(
+            "SELECT Speed, Ignition, Latitude, Longitude, Address FROM VehicleCurrentLocation WHERE VehicleId = @VehicleId",
             new { dto.VehicleId },
             cancellationToken: cancellationToken));
         var previousSpeed = previous.Speed;
@@ -73,7 +76,13 @@ public class IngestPositionCommandHandler(
 
         await GpsPositionIngestionHelper.IngestAsync(connection, dto, recordedAt, cancellationToken);
 
-        if (string.IsNullOrWhiteSpace(dto.Address))
+        var needsGeocode = string.IsNullOrWhiteSpace(dto.Address)
+            && (string.IsNullOrWhiteSpace(previous.Address)
+                || previous.Latitude is null
+                || previous.Longitude is null
+                || DistanceMeters(previous.Latitude.Value, previous.Longitude.Value, dto.Latitude, dto.Longitude) >= 150);
+
+        if (needsGeocode)
         {
             addressBackfillQueue.Enqueue(dto.VehicleId, dto.Latitude, dto.Longitude);
         }
@@ -135,7 +144,7 @@ public class IngestPositionCommandHandler(
             dto.BatteryLevel,
             dto.GsmSignal,
             dto.TotalDistanceKm,
-            dto.Address,
+            dto.Address ?? previous.Address,
             dto.AlarmType,
             dto.Temperature,
             cancellationToken);
@@ -178,15 +187,25 @@ public class IngestPositionCommandHandler(
             return;
         }
 
-        await InsertAlertAsync(connection, null, dto, null, "sos",
+        var alertId = await InsertAlertAsync(connection, null, dto, null, "sos",
             "SOS / panic alarm triggered", timestamp, cancellationToken);
 
-        await notifications.CreateForAllAsync(
+        await decisionEngine.DispatchIfAllowedAsync(new NotificationDecisionRequest(
+            "sos",
             "SOS alert",
             $"Vehicle #{dto.VehicleId} triggered an SOS/panic alarm.",
             NotificationType.Sos,
-            dto.VehicleId,
-            cancellationToken);
+            ReferenceId: dto.VehicleId,
+            AlertEventId: alertId,
+            SuggestedPriority: 4,
+            RequestedChannels:
+            [
+                NotificationChannels.InApp, NotificationChannels.Browser,
+                NotificationChannels.Push, NotificationChannels.Sms
+            ],
+            RequireEscalation: true), cancellationToken);
+
+        await escalation.StartAsync("sos", dto.VehicleId, alertEventId: alertId, cancellationToken: cancellationToken);
 
         await broadcaster.BroadcastSosAlertAsync(dto.VehicleId, dto.Latitude, dto.Longitude, timestamp, cancellationToken);
     }
@@ -225,15 +244,22 @@ public class IngestPositionCommandHandler(
                     continue;
                 }
 
-                await InsertAlertAsync(connection, rule.Id, dto, null, "speed_exceeded",
+                var alertId = await InsertAlertAsync(connection, rule.Id, dto, null, "speed_exceeded",
                     $"Speed {dto.Speed:F0} km/h exceeds limit {rule.SpeedLimitKmh:F0} km/h",
                     timestamp, cancellationToken);
-                await notifications.CreateForAllAsync(
+                await decisionEngine.DispatchIfAllowedAsync(new NotificationDecisionRequest(
+                    "speed_exceeded",
                     "Speed alert",
                     $"Vehicle #{dto.VehicleId} exceeded {rule.SpeedLimitKmh:F0} km/h (current {dto.Speed:F0} km/h).",
                     NotificationType.TripDelayed,
-                    dto.VehicleId,
-                    cancellationToken);
+                    ReferenceId: dto.VehicleId,
+                    AlertEventId: alertId,
+                    SuggestedPriority: 3,
+                    RequestedChannels:
+                    [
+                        NotificationChannels.InApp, NotificationChannels.Browser,
+                        NotificationChannels.Push, NotificationChannels.Sms
+                    ]), cancellationToken);
             }
         }
 
@@ -483,7 +509,7 @@ public class IngestPositionCommandHandler(
             "GPS signal lost", timestamp, cancellationToken);
     }
 
-    private static Task InsertAlertAsync(
+    private static Task<int> InsertAlertAsync(
         System.Data.IDbConnection connection,
         int? ruleId,
         IngestPositionDto dto,
@@ -496,4 +522,16 @@ public class IngestPositionCommandHandler(
             connection, dto.VehicleId, dto.Latitude, dto.Longitude, dto.Speed,
             eventType, message, timestamp, ruleId, geofenceId, dto.DriverId,
             cancellationToken: cancellationToken);
+
+    private static double DistanceMeters(double lat1, double lon1, double lat2, double lon2)
+    {
+        const double R = 6371000;
+        static double Rad(double d) => d * Math.PI / 180.0;
+        var dLat = Rad(lat2 - lat1);
+        var dLon = Rad(lon2 - lon1);
+        var a = Math.Sin(dLat / 2) * Math.Sin(dLat / 2)
+              + Math.Cos(Rad(lat1)) * Math.Cos(Rad(lat2))
+              * Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
+        return 2 * R * Math.Asin(Math.Sqrt(a));
+    }
 }

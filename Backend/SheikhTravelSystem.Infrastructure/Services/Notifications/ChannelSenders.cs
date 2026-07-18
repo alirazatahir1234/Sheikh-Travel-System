@@ -1,5 +1,9 @@
+using Dapper;
+using MailKit.Net.Smtp;
+using MailKit.Security;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using MimeKit;
 using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Application.Features.Notifications;
 
@@ -7,6 +11,7 @@ namespace SheikhTravelSystem.Infrastructure.Services.Notifications;
 
 public sealed class EmailNotificationSender(
     IConfiguration configuration,
+    IDbConnectionFactory dbFactory,
     ILogger<EmailNotificationSender> logger) : INotificationChannelSender
 {
     public string Channel => NotificationChannels.Email;
@@ -16,50 +21,80 @@ public sealed class EmailNotificationSender(
         var section = configuration.GetSection("Notifications:Email");
         var enabled = section.GetValue("Enabled", false);
         var host = section.GetValue<string>("SmtpHost");
+        var user = section.GetValue<string>("Username");
+        var pass = section.GetValue<string>("Password");
+
+        var to = request.Email;
+        if (string.IsNullOrWhiteSpace(to) && request.UserId is int uid)
+        {
+            using var connection = dbFactory.CreateConnection();
+            to = await connection.ExecuteScalarAsync<string?>(new CommandDefinition(
+                "SELECT Email FROM Users WHERE Id = @Id AND IsDeleted = 0",
+                new { Id = uid }, cancellationToken: cancellationToken));
+        }
+        to ??= section.GetValue<string>("DefaultTo");
 
         if (!enabled || string.IsNullOrWhiteSpace(host))
         {
             logger.LogInformation(
                 "Email notification {Id} queued (SMTP not configured): {Title} → {Email}",
-                request.NotificationId, request.Title, request.Email ?? "(user)");
-            return new ChannelSendResult(true, "Sent", "Logged (SMTP not configured — console mode)");
+                request.NotificationId, request.Title, to ?? "(user)");
+            return new ChannelSendResult(true, "Sent", "Logged (SMTP not configured — console mode)", "SmtpConsole");
         }
+
+        if (string.IsNullOrWhiteSpace(user) || string.IsNullOrWhiteSpace(pass))
+            return new ChannelSendResult(false, "Failed", "SMTP Username/Password missing", "Smtp");
+
+        if (string.IsNullOrWhiteSpace(to))
+            return new ChannelSendResult(false, "Failed", "No recipient email address", "Smtp");
 
         try
         {
             var port = section.GetValue("SmtpPort", 587);
-            var user = section.GetValue<string>("Username");
-            var pass = section.GetValue<string>("Password");
             var from = section.GetValue<string>("FromAddress") ?? user ?? "noreply@sheikhgo.com";
-            var to = request.Email ?? section.GetValue<string>("DefaultTo");
+            var enableSsl = section.GetValue("EnableSsl", true);
 
-            if (string.IsNullOrWhiteSpace(to))
-                return new ChannelSendResult(false, "Failed", "No recipient email address");
-
-            using var client = new System.Net.Mail.SmtpClient(host, port)
-            {
-                EnableSsl = section.GetValue("EnableSsl", true),
-                Credentials = string.IsNullOrWhiteSpace(user)
-                    ? null
-                    : new System.Net.NetworkCredential(user, pass)
-            };
-
-            using var mail = new System.Net.Mail.MailMessage(from, to, request.Title, request.Message)
-            {
-                IsBodyHtml = request.Message.Contains('<')
-            };
+            var message = new MimeMessage();
+            message.From.Add(MailboxAddress.Parse(from));
+            message.To.Add(MailboxAddress.Parse(to));
 
             var cc = section.GetValue<string>("Cc");
             if (!string.IsNullOrWhiteSpace(cc))
-                mail.CC.Add(cc);
+                message.Cc.Add(MailboxAddress.Parse(cc));
 
-            await client.SendMailAsync(mail, cancellationToken);
-            return new ChannelSendResult(true, "Sent", $"SMTP ok → {to}");
+            message.Subject = request.Title;
+
+            // Prefer HTML (branded templates); fall back to plain text.
+            if (EmailTemplateRenderer.IsHtmlDocument(request.Message)
+                || EmailTemplateRenderer.LooksLikeHtmlFragment(request.Message))
+            {
+                message.Body = new TextPart("html") { Text = request.Message };
+            }
+            else
+            {
+                message.Body = new TextPart("plain") { Text = request.Message };
+            }
+
+            using var client = new SmtpClient();
+            // SpaceMail: 587 = STARTTLS, 465 = SSL on connect
+            var secure = !enableSsl
+                ? SecureSocketOptions.None
+                : port == 465
+                    ? SecureSocketOptions.SslOnConnect
+                    : SecureSocketOptions.StartTls;
+
+            await client.ConnectAsync(host, port, secure, cancellationToken);
+            await client.AuthenticateAsync(user, pass, cancellationToken);
+            await client.SendAsync(message, cancellationToken);
+            await client.DisconnectAsync(true, cancellationToken);
+
+            logger.LogInformation("SMTP ok notification {Id} → {Email}", request.NotificationId, to);
+            return new ChannelSendResult(true, "Sent", $"SMTP ok → {to}", "Smtp");
         }
         catch (Exception ex)
         {
             logger.LogWarning(ex, "SMTP send failed for notification {Id}", request.NotificationId);
-            return new ChannelSendResult(false, "Failed", ex.Message);
+            return new ChannelSendResult(false, "Failed", ex.Message, "Smtp");
         }
     }
 }
@@ -84,7 +119,6 @@ public sealed class SmsNotificationSender(
             return Task.FromResult(new ChannelSendResult(true, "Sent", $"Logged via {provider}"));
         }
 
-        // Twilio / Vonage hooks — credentials required; fall back to log until configured.
         logger.LogWarning(
             "SMS provider {Provider} is selected but not fully wired; logging notification {Id}",
             provider, request.NotificationId);
@@ -94,23 +128,44 @@ public sealed class SmsNotificationSender(
 
 public sealed class PushNotificationSender(
     IConfiguration configuration,
+    IDeviceTokenService deviceTokens,
+    FcmHttpV1Client fcm,
     ILogger<PushNotificationSender> logger) : INotificationChannelSender
 {
     public string Channel => NotificationChannels.Push;
 
-    public Task<ChannelSendResult> SendAsync(ChannelSendRequest request, CancellationToken cancellationToken = default)
+    public async Task<ChannelSendResult> SendAsync(ChannelSendRequest request, CancellationToken cancellationToken = default)
     {
         var enabled = configuration.GetValue("Notifications:Push:Enabled", false);
-        if (!enabled)
+        var projectId = configuration.GetValue<string>("Notifications:Push:ProjectId");
+        var credentialsPath = configuration.GetValue<string>("Notifications:Push:CredentialsPath");
+
+        IReadOnlyList<string> tokens = [];
+        if (request.UserId is int uid)
+            tokens = await deviceTokens.GetActiveTokensAsync(uid, cancellationToken);
+
+        if (!enabled || string.IsNullOrWhiteSpace(projectId) || string.IsNullOrWhiteSpace(credentialsPath))
         {
             logger.LogInformation(
-                "FCM push (disabled) notification {Id}: {Title}", request.NotificationId, request.Title);
-            return Task.FromResult(new ChannelSendResult(true, "Sent", "Logged (FCM not configured)"));
+                "FCM push (stub) notification {Id}: {Title} → {TokenCount} device token(s)",
+                request.NotificationId, request.Title, tokens.Count);
+            return new ChannelSendResult(
+                true, "Sent",
+                tokens.Count == 0
+                    ? "Logged (FCM not configured; no device tokens)"
+                    : $"Logged (FCM stub) for {tokens.Count} token(s)",
+                "FcmStub");
         }
 
-        // Device tokens + FCM HTTP v1 can be wired when Firebase credentials are present.
-        logger.LogInformation("FCM push stub for notification {Id}", request.NotificationId);
-        return Task.FromResult(new ChannelSendResult(true, "Sent", "FCM stub accepted"));
+        if (tokens.Count == 0)
+            return new ChannelSendResult(false, "Failed", "No active device tokens for user", "Fcm");
+
+        var (ok, detail) = await fcm.SendAsync(
+            projectId!, credentialsPath!, tokens, request.Title, request.Message, cancellationToken);
+
+        return ok
+            ? new ChannelSendResult(true, "Sent", detail, "FcmHttpV1")
+            : new ChannelSendResult(false, "Failed", detail, "FcmHttpV1");
     }
 }
 

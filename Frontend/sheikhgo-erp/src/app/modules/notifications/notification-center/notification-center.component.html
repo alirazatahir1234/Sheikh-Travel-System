@@ -1,184 +1,576 @@
-<div class="page-header">
-  <div>
-    <h2>Notification Center</h2>
-    <p class="page-sub">In-app, email, SMS, push, browser, and WhatsApp delivery</p>
+<div class="nc-page">
+  <div class="nc-header">
+    <div class="nc-header-text">
+      <div class="nc-title-row">
+        <h1>Notification Center</h1>
+        <span class="nc-unread-pill" *ngIf="stats?.unread">{{ stats?.unread }} Unread</span>
+      </div>
+      <p class="nc-sub">
+        Stay updated with important alerts, reminders and system notifications.
+      </p>
+    </div>
+    <div class="nc-header-actions" *ngIf="section === 'inbox'">
+      <button type="button" class="nc-btn nc-btn--primary" (click)="openCompose()">
+        <mat-icon>edit</mat-icon> Send Email / Message
+      </button>
+      <button
+        type="button"
+        class="nc-btn nc-btn--danger"
+        *ngIf="selectedCount > 0 && tab !== 'trash'"
+        [disabled]="bulkDeleting"
+        (click)="bulkDeleteSelected()">
+        <mat-icon>delete_outline</mat-icon>
+        {{ bulkDeleting ? 'Deleting…' : ('Delete selected (' + selectedCount + ')') }}
+      </button>
+      <button
+        type="button"
+        class="nc-btn nc-btn--ghost"
+        *ngIf="selectedCount > 0 && (tab === 'trash' || tab === 'archived')"
+        (click)="bulkRestoreSelected()">
+        <mat-icon>unarchive</mat-icon> Restore selected ({{ selectedCount }})
+      </button>
+      <button type="button" class="nc-btn nc-btn--ghost" (click)="markAllRead()">
+        <mat-icon>done_all</mat-icon> Mark all read
+      </button>
+      <button type="button" class="nc-btn nc-btn--ghost" (click)="exportExcel()">
+        <mat-icon>download</mat-icon> Export
+      </button>
+      <button type="button" class="nc-btn nc-btn--ghost" (click)="load(); loadStats()">
+        <mat-icon>refresh</mat-icon> Refresh
+      </button>
+    </div>
   </div>
-  <div class="header-actions">
-    <button mat-stroked-button (click)="markAllRead()">
-      <mat-icon>done_all</mat-icon> Mark all read
-    </button>
-    <button mat-stroked-button (click)="exportExcel()">
-      <mat-icon>download</mat-icon> Export
-    </button>
-    <button mat-stroked-button (click)="load(); loadStats()">
-      <mat-icon>refresh</mat-icon> Refresh
-    </button>
-  </div>
-</div>
 
-<div class="stats-grid" *ngIf="stats as s">
-  <div class="stat-card">
-    <mat-icon>mark_email_unread</mat-icon>
-    <div>
-      <div class="stat-value">{{ s.unread }}</div>
-      <div class="stat-label">Unread</div>
-    </div>
+  <div class="nc-section-tabs">
+    <button type="button" [class.active]="section === 'inbox'" (click)="setSection('inbox')">
+      <mat-icon>inbox</mat-icon> Inbox
+    </button>
+    <button type="button" [class.active]="section === 'preferences'" (click)="setSection('preferences')">
+      <mat-icon>tune</mat-icon> Preferences
+    </button>
+    <button type="button" [class.active]="section === 'templates'" (click)="setSection('templates')">
+      <mat-icon>description</mat-icon> Templates
+    </button>
+    <button type="button" [class.active]="section === 'retention'" (click)="setSection('retention')">
+      <mat-icon>policy</mat-icon> Retention
+    </button>
   </div>
-  <div class="stat-card">
-    <mat-icon>email</mat-icon>
-    <div>
-      <div class="stat-value">{{ s.email }}</div>
-      <div class="stat-label">Email</div>
-    </div>
-  </div>
-  <div class="stat-card">
-    <mat-icon>sms</mat-icon>
-    <div>
-      <div class="stat-value">{{ s.sms }}</div>
-      <div class="stat-label">SMS</div>
-    </div>
-  </div>
-  <div class="stat-card">
-    <mat-icon>phone_android</mat-icon>
-    <div>
-      <div class="stat-value">{{ s.push }}</div>
-      <div class="stat-label">Push</div>
-    </div>
-  </div>
-  <div class="stat-card">
-    <mat-icon>web_asset</mat-icon>
-    <div>
-      <div class="stat-value">{{ s.browser }}</div>
-      <div class="stat-label">Browser</div>
-    </div>
-  </div>
-  <div class="stat-card">
-    <mat-icon>chat</mat-icon>
-    <div>
-      <div class="stat-value">{{ s.whatsApp }}</div>
-      <div class="stat-label">WhatsApp</div>
-    </div>
-  </div>
-</div>
 
-<div class="tabs">
-  <button type="button" [class.active]="tab === 'all'" (click)="setTab('all')">All</button>
-  <button type="button" [class.active]="tab === 'unread'" (click)="setTab('unread')">Unread</button>
-  <button type="button" [class.active]="tab === 'read'" (click)="setTab('read')">Read</button>
-  <button type="button" [class.active]="tab === 'sent'" (click)="setTab('sent')">Sent</button>
-  <button type="button" [class.active]="tab === 'failed'" (click)="setTab('failed')">Failed</button>
-</div>
-
-<mat-card class="filter-card">
-  <div class="filter-row">
-    <div class="stb-field stb-field--filter stb-field--filter-wide">
-      <label for="notif-search">Search</label>
-      <input id="notif-search" class="stb-input" [(ngModel)]="search"
-             (keyup.enter)="applyFilters()" placeholder="Title or message" />
+  <ng-container *ngIf="section === 'inbox'">
+    <div class="nc-stat-chips" *ngIf="stats as s">
+      <div class="nc-chip nc-chip--unread">
+        <mat-icon>mark_email_unread</mat-icon>
+        <strong>{{ s.unread }}</strong>
+        <span>Unread</span>
+      </div>
+      <div class="nc-chip">
+        <mat-icon>email</mat-icon>
+        <strong>{{ s.email }}</strong>
+        <span>Email</span>
+      </div>
+      <div class="nc-chip">
+        <mat-icon>sms</mat-icon>
+        <strong>{{ s.sms }}</strong>
+        <span>SMS</span>
+      </div>
+      <div class="nc-chip">
+        <mat-icon>notifications_active</mat-icon>
+        <strong>{{ s.push }}</strong>
+        <span>Push</span>
+      </div>
+      <div class="nc-chip">
+        <mat-icon>chat</mat-icon>
+        <strong>{{ s.whatsApp }}</strong>
+        <span>WhatsApp</span>
+      </div>
     </div>
-    <div class="stb-field stb-field--filter">
-      <label for="notif-channel">Channel</label>
-      <select id="notif-channel" class="stb-select" [(ngModel)]="channelFilter" (ngModelChange)="applyFilters()">
-        <option value="">All</option>
-        <option *ngFor="let c of channels" [value]="c">{{ c }}</option>
+
+    <div class="nc-tabs">
+      <button type="button" [class.active]="tab === 'all'" (click)="setTab('all')">
+        All <span class="nc-count">{{ stats?.total ?? 0 }}</span>
+      </button>
+      <button type="button" [class.active]="tab === 'unread'" (click)="setTab('unread')">
+        Unread
+        <span class="nc-count" [class.nc-count--alert]="(stats?.unread ?? 0) > 0">{{ stats?.unread ?? 0 }}</span>
+      </button>
+      <button type="button" [class.active]="tab === 'read'" (click)="setTab('read')">
+        Read <span class="nc-count">{{ readCount }}</span>
+      </button>
+      <button type="button" [class.active]="tab === 'failed'" (click)="setTab('failed')">
+        Failed
+        <span class="nc-count" [class.nc-count--alert]="(stats?.failed ?? 0) > 0">{{ stats?.failed ?? 0 }}</span>
+      </button>
+      <button type="button" [class.active]="tab === 'archived'" (click)="setTab('archived')">
+        Archived
+      </button>
+      <button type="button" [class.active]="tab === 'trash'" (click)="setTab('trash')">
+        Trash
+      </button>
+    </div>
+
+    <div class="nc-undo-banner" *ngIf="undoIds?.length">
+      <span>Notification deleted.</span>
+      <button type="button" (click)="undoDelete()">Undo</button>
+    </div>
+
+    <div class="nc-bulk-bar" *ngIf="selectedCount > 0">
+      <label class="nc-bulk-select-all">
+        <input type="checkbox" [checked]="allPageSelected" (change)="toggleSelectAll($event)" />
+        {{ selectedCount }} selected
+      </label>
+      <button type="button" class="nc-btn nc-btn--ghost" (click)="bulkMarkRead()" *ngIf="tab !== 'archived' && tab !== 'trash'">
+        <mat-icon>done_all</mat-icon> Mark read
+      </button>
+      <button type="button" class="nc-btn nc-btn--ghost" (click)="bulkArchive()" *ngIf="tab !== 'archived' && tab !== 'trash'">
+        <mat-icon>archive</mat-icon> Archive
+      </button>
+      <button type="button" class="nc-btn nc-btn--ghost" (click)="bulkRestoreSelected()" *ngIf="tab === 'trash' || tab === 'archived'">
+        <mat-icon>unarchive</mat-icon> Restore
+      </button>
+      <button
+        type="button"
+        class="nc-btn nc-btn--danger"
+        *ngIf="tab !== 'trash'"
+        [disabled]="bulkDeleting"
+        (click)="bulkDeleteSelected()">
+        <mat-icon>delete_outline</mat-icon>
+        {{ bulkDeleting ? 'Deleting…' : 'Delete' }}
+      </button>
+      <button type="button" class="nc-btn nc-btn--ghost" (click)="exportExcel()">
+        <mat-icon>download</mat-icon> Export
+      </button>
+      <button type="button" class="nc-btn nc-btn--ghost" (click)="clearSelection()">Clear</button>
+    </div>
+
+    <div class="nc-filter-bar">
+      <div class="nc-filter-search">
+        <mat-icon>search</mat-icon>
+        <input
+          type="search"
+          [(ngModel)]="search"
+          (keyup.enter)="applyFilters()"
+          placeholder="Search title or message…" />
+      </div>
+      <select class="nc-select" [(ngModel)]="moduleFilter">
+        <option value="">All Modules</option>
+        <option *ngFor="let m of modules" [value]="m">{{ m }}</option>
       </select>
-    </div>
-    <div class="stb-field stb-field--filter">
-      <label for="notif-priority">Priority</label>
-      <select id="notif-priority" class="stb-select" [(ngModel)]="priorityFilter" (ngModelChange)="applyFilters()">
-        <option [ngValue]="null">All</option>
+      <select class="nc-select" [(ngModel)]="channelFilter">
+        <option value="">All Channels</option>
+        <option *ngFor="let c of channels" [value]="c">{{ channelLabel(c) }}</option>
+      </select>
+      <select class="nc-select" [(ngModel)]="priorityFilter">
+        <option [ngValue]="null">All Priorities</option>
         <option [ngValue]="1">Low</option>
         <option [ngValue]="2">Normal</option>
         <option [ngValue]="3">High</option>
         <option [ngValue]="4">Critical</option>
       </select>
+      <select class="nc-select" [(ngModel)]="datePreset">
+        <option value="">Any date</option>
+        <option value="today">Today</option>
+        <option value="yesterday">Yesterday</option>
+        <option value="7d">Last 7 days</option>
+        <option value="30d">Last 30 days</option>
+      </select>
+      <ng-container *ngIf="!datePreset">
+        <input type="date" class="nc-select nc-date" [(ngModel)]="fromDateStr" />
+        <input type="date" class="nc-select nc-date" [(ngModel)]="toDateStr" />
+      </ng-container>
+      <button type="button" class="nc-btn nc-btn--ghost" (click)="resetFilters()">Reset</button>
+      <button type="button" class="nc-btn nc-btn--primary" (click)="applyFilters()">
+        <mat-icon>filter_list</mat-icon> Apply Filters
+      </button>
     </div>
-    <div class="stb-field stb-field--filter">
-      <label for="notif-from">From</label>
-      <input id="notif-from" type="date" class="stb-input" [(ngModel)]="fromDateStr" (change)="applyFilters()" />
-    </div>
-    <div class="stb-field stb-field--filter">
-      <label for="notif-to">To</label>
-      <input id="notif-to" type="date" class="stb-input" [(ngModel)]="toDateStr" (change)="applyFilters()" />
-    </div>
-    <button mat-flat-button color="primary" (click)="applyFilters()">Apply</button>
-  </div>
-</mat-card>
 
-<mat-card class="table-card">
-  <div class="loading" *ngIf="loading">
-    <mat-spinner diameter="36"></mat-spinner>
-  </div>
+    <div class="nc-list-panel">
+      <div class="nc-loading" *ngIf="loading">
+        <mat-spinner diameter="36"></mat-spinner>
+      </div>
 
-  <table mat-table [dataSource]="items" *ngIf="!loading" class="notif-table">
-    <ng-container matColumnDef="status">
-      <th mat-header-cell *matHeaderCellDef></th>
-      <td mat-cell *matCellDef="let n">
-        <span class="dot" [class.unread]="!n.isRead"></span>
-      </td>
-    </ng-container>
+      <div class="nc-list" *ngIf="!loading && items.length > 0">
+        <article
+          *ngFor="let n of items; trackBy: trackById"
+          class="nc-card"
+          [class.nc-card--unread]="!n.isRead"
+          [class.nc-card--expanded]="expandedId === n.id"
+          [class.nc-card--selected]="isSelected(n.id)"
+          [ngClass]="priorityClass(n)"
+          (click)="toggleExpand(n)">
+          <div class="nc-card-accent"></div>
 
-    <ng-container matColumnDef="title">
-      <th mat-header-cell *matHeaderCellDef>Notification</th>
-      <td mat-cell *matCellDef="let n">
-        <div class="title-cell">
-          <span class="type-icon" [style.color]="colorFor(n)">
+          <label class="nc-card-check" (click)="$event.stopPropagation()">
+            <input type="checkbox" [checked]="isSelected(n.id)" (change)="toggleSelect(n.id, $event)" />
+          </label>
+
+          <div class="nc-card-icon" [style.color]="colorFor(n)" [style.background]="colorFor(n) + '18'">
             <mat-icon>{{ iconFor(n) }}</mat-icon>
-          </span>
-          <div>
-            <div class="title">{{ n.title }}</div>
-            <div class="message">{{ n.message }}</div>
           </div>
-        </div>
-      </td>
-    </ng-container>
 
-    <ng-container matColumnDef="channel">
-      <th mat-header-cell *matHeaderCellDef>Channel</th>
-      <td mat-cell *matCellDef="let n">
-        <span class="badge">{{ n.channel || 'InApp' }}</span>
-      </td>
-    </ng-container>
+          <div class="nc-card-body">
+            <div class="nc-card-title-row">
+              <h3>{{ n.title }}</h3>
+              <span class="nc-new" *ngIf="!n.isRead && tab !== 'trash' && tab !== 'archived'">NEW</span>
+              <span class="nc-unread-dot" *ngIf="!n.isRead && tab !== 'trash' && tab !== 'archived'"></span>
+            </div>
+            <p class="nc-card-message">{{ n.message }}</p>
+            <div class="nc-meta">
+              <span class="nc-badge nc-badge--module">{{ n.module || 'System' }}</span>
+              <span class="nc-badge">{{ channelLabel(n.channel) }}</span>
+              <span class="nc-badge" [ngClass]="priorityClass(n)">{{ priorityLabel(n) }}</span>
+              <span class="nc-badge" *ngIf="n.neverAutoDelete">Protected</span>
+            </div>
+          </div>
 
-    <ng-container matColumnDef="priority">
-      <th mat-header-cell *matHeaderCellDef>Priority</th>
-      <td mat-cell *matCellDef="let n">{{ priorityLabels[n.priority || 2] }}</td>
-    </ng-container>
+          <div class="nc-card-aside">
+            <div class="nc-time">
+              <span class="nc-time-abs">{{ formatAbsolute(n.createdAt) }}</span>
+              <span class="nc-time-rel">{{ formatRelative(n.createdAt) }}</span>
+            </div>
+            <div class="nc-actions" (click)="$event.stopPropagation()">
+              <button type="button" class="nc-icon-btn" matTooltip="View" (click)="toggleExpand(n)">
+                <mat-icon>visibility</mat-icon>
+              </button>
+              <ng-container *ngIf="tab === 'trash' || tab === 'archived'; else inboxActions">
+                <button type="button" class="nc-icon-btn" matTooltip="Restore" (click)="restoreOne(n, $event)">
+                  <mat-icon>unarchive</mat-icon>
+                </button>
+              </ng-container>
+              <ng-template #inboxActions>
+                <button type="button" class="nc-icon-btn" matTooltip="Mark read" *ngIf="!n.isRead" (click)="markRead(n)">
+                  <mat-icon>done</mat-icon>
+                </button>
+                <button type="button" class="nc-icon-btn" matTooltip="Archive" (click)="archiveOne(n, $event)">
+                  <mat-icon>archive</mat-icon>
+                </button>
+                <button type="button" class="nc-icon-btn" matTooltip="Resend" (click)="resend(n, $event)">
+                  <mat-icon>send</mat-icon>
+                </button>
+                <button type="button" class="nc-icon-btn nc-icon-btn--danger" matTooltip="Delete" (click)="deleteOne(n, $event)">
+                  <mat-icon>delete_outline</mat-icon>
+                </button>
+              </ng-template>
+            </div>
+          </div>
 
-    <ng-container matColumnDef="createdAt">
-      <th mat-header-cell *matHeaderCellDef>Created</th>
-      <td mat-cell *matCellDef="let n">{{ n.createdAt | date:'medium' }}</td>
-    </ng-container>
+          <div class="nc-card-detail" *ngIf="expandedId === n.id" (click)="$event.stopPropagation()">
+            <div class="nc-detail-grid">
+              <div><label>Type</label><span>{{ typeName(n.type) }}</span></div>
+              <div><label>Status</label><span>{{ n.isRead ? 'Read' : 'Unread' }} · {{ n.deliveryStatus || (n.isSent ? 'Sent' : 'Pending') }}</span></div>
+              <div><label>Channel</label><span>{{ channelLabel(n.channel) }}</span></div>
+              <div><label>Priority</label><span>{{ priorityLabel(n) }}</span></div>
+              <div *ngIf="n.retentionCategory"><label>Retention</label><span>{{ n.retentionCategory }}</span></div>
+            </div>
+            <p>{{ n.message }}</p>
+          </div>
+        </article>
+      </div>
 
-    <ng-container matColumnDef="actions">
-      <th mat-header-cell *matHeaderCellDef></th>
-      <td mat-cell *matCellDef="let n" class="actions">
-        <button mat-icon-button matTooltip="Mark read" *ngIf="!n.isRead" (click)="markRead(n)">
-          <mat-icon>done</mat-icon>
-        </button>
-        <button mat-icon-button matTooltip="Resend" (click)="resend(n)">
-          <mat-icon>send</mat-icon>
-        </button>
-        <button mat-icon-button matTooltip="Delete" color="warn" (click)="deleteOne(n)">
-          <mat-icon>delete</mat-icon>
-        </button>
-      </td>
-    </ng-container>
+      <div class="nc-empty" *ngIf="!loading && items.length === 0">
+        <mat-icon>notifications_off</mat-icon>
+        <h3>No notifications match your filters</h3>
+        <p>Try clearing filters or check another tab.</p>
+      </div>
 
-    <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-    <tr mat-row *matRowDef="let row; columns: displayedColumns" [class.row-unread]="!row.isRead"></tr>
-  </table>
+      <mat-paginator
+        [length]="totalCount"
+        [pageIndex]="pageIndex"
+        [pageSize]="pageSize"
+        [pageSizeOptions]="[10, 20, 50]"
+        (page)="onPage($event)">
+      </mat-paginator>
+    </div>
+  </ng-container>
 
-  <div class="empty" *ngIf="!loading && items.length === 0">
-    <mat-icon>notifications_off</mat-icon>
-    <p>No notifications match your filters</p>
+  <div class="nc-panel" *ngIf="section === 'preferences'">
+    <h2>Channel preferences</h2>
+    <p class="nc-sub">Choose which channels can deliver notifications to you. In-app inbox is always available.</p>
+
+    <div class="nc-prefs">
+      <label class="nc-pref">
+        <mat-slide-toggle [(ngModel)]="prefs.emailEnabled" color="primary"></mat-slide-toggle>
+        <span>
+          <strong>Email</strong>
+          <small>SMTP delivery for booking and finance alerts</small>
+        </span>
+      </label>
+      <label class="nc-pref">
+        <mat-slide-toggle [(ngModel)]="prefs.smsEnabled" color="primary"></mat-slide-toggle>
+        <span>
+          <strong>SMS</strong>
+          <small>Critical fleet alerts (SOS, offline, overspeed)</small>
+        </span>
+      </label>
+      <label class="nc-pref">
+        <mat-slide-toggle [(ngModel)]="prefs.pushEnabled" color="primary"></mat-slide-toggle>
+        <span>
+          <strong>Push</strong>
+          <small>Mobile push (FCM stub until credentials configured)</small>
+        </span>
+      </label>
+      <label class="nc-pref">
+        <mat-slide-toggle [(ngModel)]="prefs.browserEnabled" color="primary"></mat-slide-toggle>
+        <span>
+          <strong>Browser</strong>
+          <small>Desktop browser notifications via SignalR</small>
+        </span>
+      </label>
+      <label class="nc-pref">
+        <mat-slide-toggle [(ngModel)]="prefs.whatsAppEnabled" color="primary"></mat-slide-toggle>
+        <span>
+          <strong>WhatsApp</strong>
+          <small>WhatsApp Business API stub (off by default)</small>
+        </span>
+      </label>
+    </div>
+
+    <button type="button" class="nc-btn nc-btn--primary" [disabled]="prefsSaving" (click)="savePreferences()">
+      {{ prefsSaving ? 'Saving…' : 'Save preferences' }}
+    </button>
   </div>
 
-  <mat-paginator
-    [length]="totalCount"
-    [pageIndex]="pageIndex"
-    [pageSize]="pageSize"
-    [pageSizeOptions]="[10, 20, 50]"
-    (page)="onPage($event)">
-  </mat-paginator>
-</mat-card>
+  <div class="nc-panel" *ngIf="section === 'retention'">
+    <h2>Notification Retention</h2>
+    <p class="nc-sub">
+      Soft-deleted and archived notifications are cleaned up by a nightly job. Critical alerts are never auto-deleted.
+    </p>
+
+    <div class="nc-retention-estimate" *ngIf="retentionEstimate as e">
+      <div class="nc-chip"><strong>{{ e.eligibleAutoArchive }}</strong><span>Eligible to archive</span></div>
+      <div class="nc-chip"><strong>{{ e.eligibleHardDelete }}</strong><span>Eligible to purge</span></div>
+      <div class="nc-chip"><strong>{{ e.protectedCritical }}</strong><span>Protected critical</span></div>
+    </div>
+
+    <div class="nc-retention-grid">
+      <label class="nc-field">
+        <span class="nc-field-label">Read → archive (days)</span>
+        <input class="nc-input" type="number" min="1" [(ngModel)]="retention.readArchiveDays" />
+      </label>
+      <label class="nc-field">
+        <span class="nc-field-label">Archived → delete (days)</span>
+        <input class="nc-input" type="number" min="1" [(ngModel)]="retention.archivedDeleteDays" />
+      </label>
+      <label class="nc-field">
+        <span class="nc-field-label">Failed → delete (days)</span>
+        <input class="nc-input" type="number" min="1" [(ngModel)]="retention.failedDeleteDays" />
+      </label>
+      <label class="nc-field">
+        <span class="nc-field-label">Draft → delete (days)</span>
+        <input class="nc-input" type="number" min="1" [(ngModel)]="retention.draftDeleteDays" />
+      </label>
+      <label class="nc-field">
+        <span class="nc-field-label">Operational delete (days)</span>
+        <input class="nc-input" type="number" min="1" [(ngModel)]="retention.operationalDeleteDays" />
+      </label>
+      <label class="nc-field">
+        <span class="nc-field-label">Maintenance delete (days)</span>
+        <input class="nc-input" type="number" min="1" [(ngModel)]="retention.maintenanceDeleteDays" />
+      </label>
+      <label class="nc-field">
+        <span class="nc-field-label">Compliance delete (days)</span>
+        <input class="nc-input" type="number" min="1" [(ngModel)]="retention.complianceDeleteDays" />
+      </label>
+      <label class="nc-field">
+        <span class="nc-field-label">Security delete (days)</span>
+        <input class="nc-input" type="number" min="1" [(ngModel)]="retention.securityDeleteDays" />
+      </label>
+      <label class="nc-pref nc-field--wide">
+        <mat-slide-toggle [(ngModel)]="retention.criticalNeverDelete" color="primary"></mat-slide-toggle>
+        <span>
+          <strong>Critical alerts — never auto delete</strong>
+          <small>SOS, panic, theft, accident stay until an admin acts</small>
+        </span>
+      </label>
+    </div>
+
+    <div class="nc-header-actions">
+      <button type="button" class="nc-btn nc-btn--primary" [disabled]="retentionSaving" (click)="saveRetention()">
+        {{ retentionSaving ? 'Saving…' : 'Save policy' }}
+      </button>
+      <button type="button" class="nc-btn nc-btn--ghost" (click)="loadRetentionEstimate()">
+        Refresh estimate
+      </button>
+      <button type="button" class="nc-btn nc-btn--ghost" [disabled]="retentionRunning" (click)="runRetentionNow()">
+        {{ retentionRunning ? 'Running…' : 'Run cleanup now' }}
+      </button>
+    </div>
+  </div>
+
+  <ng-container *ngIf="section === 'templates'">
+    <div class="nc-panel">
+      <h2>{{ editingTemplate ? 'Edit template' : 'New template' }}</h2>
+      <div class="nc-template-form">
+        <div class="nc-field">
+          <label>Key</label>
+          <input class="nc-input" [(ngModel)]="templateForm.templateKey" placeholder="booking_created" />
+        </div>
+        <div class="nc-field">
+          <label>Name</label>
+          <input class="nc-input" [(ngModel)]="templateForm.templateName" />
+        </div>
+        <div class="nc-field">
+          <label>Channel</label>
+          <select class="nc-select" [(ngModel)]="templateForm.channel">
+            <option *ngFor="let c of channels" [value]="c">{{ c }}</option>
+          </select>
+        </div>
+        <div class="nc-field">
+          <label>Language</label>
+          <input class="nc-input" [(ngModel)]="templateForm.language" placeholder="en" />
+        </div>
+        <div class="nc-field nc-field--wide">
+          <label>Subject</label>
+          <input class="nc-input" [(ngModel)]="templateForm.subject" />
+        </div>
+        <div class="nc-field nc-field--wide">
+          <label>Body (use double-brace placeholders, e.g. title / message)</label>
+          <textarea class="nc-input" rows="4" [(ngModel)]="templateForm.body"></textarea>
+        </div>
+        <div class="nc-field nc-field--wide">
+          <label>Variables (JSON list)</label>
+          <input class="nc-input" [(ngModel)]="templateForm.variables" placeholder='["title","message"]' />
+        </div>
+        <label class="nc-pref">
+          <mat-slide-toggle [(ngModel)]="templateForm.isActive" color="primary"></mat-slide-toggle>
+          <span>Active</span>
+        </label>
+      </div>
+      <div class="nc-header-actions">
+        <button type="button" class="nc-btn nc-btn--primary" (click)="saveTemplate()">
+          {{ editingTemplate ? 'Update' : 'Create' }}
+        </button>
+        <button type="button" class="nc-btn nc-btn--ghost" (click)="cancelEditTemplate()">
+          {{ editingTemplate ? 'Cancel' : 'Clear' }}
+        </button>
+      </div>
+    </div>
+
+    <div class="nc-panel">
+      <div class="nc-loading" *ngIf="templatesLoading">
+        <mat-spinner diameter="36"></mat-spinner>
+      </div>
+      <div class="nc-template-list" *ngIf="!templatesLoading">
+        <div class="nc-template-row" *ngFor="let t of templates">
+          <div>
+            <strong>{{ t.templateName }}</strong>
+            <div class="nc-meta">
+              <span class="nc-badge">{{ t.templateKey }}</span>
+              <span class="nc-badge">{{ t.channel }}</span>
+              <span class="nc-badge">{{ t.language || 'en' }}</span>
+              <span class="nc-badge" *ngIf="t.isActive">Active</span>
+            </div>
+          </div>
+          <button type="button" class="nc-icon-btn" matTooltip="Edit" (click)="startEditTemplate(t)">
+            <mat-icon>edit</mat-icon>
+          </button>
+        </div>
+        <div class="nc-empty" *ngIf="templates.length === 0">
+          <mat-icon>description</mat-icon>
+          <p>No templates yet</p>
+        </div>
+      </div>
+    </div>
+  </ng-container>
+
+  <!-- Compose drawer -->
+  <div class="nc-compose-backdrop" *ngIf="composeOpen" (click)="closeCompose()"></div>
+  <aside class="nc-compose" *ngIf="composeOpen" role="dialog" aria-label="Send Email / Message">
+    <header class="nc-compose__head">
+      <div>
+        <h2>Send Email / Message</h2>
+        <p>Manual communication — also saved in Notification Center history.</p>
+      </div>
+      <button type="button" class="nc-icon-btn" (click)="closeCompose()" aria-label="Close">
+        <mat-icon>close</mat-icon>
+      </button>
+    </header>
+
+    <div class="nc-compose__body">
+      <label class="nc-label">Channel</label>
+      <div class="nc-compose-channels">
+        <button type="button" [class.active]="compose.channels.Email" (click)="toggleComposeChannel('Email')">
+          <mat-icon>email</mat-icon> Email
+        </button>
+        <button type="button" [class.active]="compose.channels.Push" (click)="toggleComposeChannel('Push')">
+          <mat-icon>notifications_active</mat-icon> Push
+        </button>
+        <button type="button" [class.active]="compose.channels.Sms" (click)="toggleComposeChannel('Sms')">
+          <mat-icon>sms</mat-icon> SMS
+        </button>
+        <button type="button" [class.active]="compose.channels.Browser" (click)="toggleComposeChannel('Browser')">
+          <mat-icon>web</mat-icon> Browser
+        </button>
+        <button type="button" [class.active]="compose.channels.InApp" (click)="toggleComposeChannel('InApp')">
+          <mat-icon>inbox</mat-icon> In-App
+        </button>
+      </div>
+
+      <label class="nc-label">Recipients</label>
+      <div class="nc-compose-modes">
+        <label><input type="radio" name="rmode" [(ngModel)]="compose.recipientMode" value="users" /> Users</label>
+        <label><input type="radio" name="rmode" [(ngModel)]="compose.recipientMode" value="role" /> Role</label>
+        <label><input type="radio" name="rmode" [(ngModel)]="compose.recipientMode" value="custom" /> Custom email</label>
+      </div>
+
+      <div class="nc-field" *ngIf="compose.recipientMode === 'users'">
+        <div class="nc-user-list" *ngIf="!usersLoading; else usersBusy">
+          <label class="nc-user-row" *ngFor="let u of users">
+            <input type="checkbox" [checked]="compose.selectedUserIds.includes(u.id)" (change)="toggleUser(u.id, $event)" />
+            <span class="nc-user-name">{{ u.fullName }}</span>
+            <span class="nc-muted">{{ u.email }}</span>
+          </label>
+          <p class="nc-hint" *ngIf="users.length === 0">No users found for this tenant.</p>
+        </div>
+        <ng-template #usersBusy><p class="nc-hint">Loading users…</p></ng-template>
+      </div>
+
+      <div class="nc-field" *ngIf="compose.recipientMode === 'role'">
+        <select class="nc-input" [(ngModel)]="compose.role">
+          <option value="">Select role</option>
+          <option *ngFor="let r of roleOptions" [value]="r.value">{{ r.label }}</option>
+        </select>
+      </div>
+
+      <div class="nc-field" *ngIf="compose.recipientMode === 'custom'">
+        <input class="nc-input" [(ngModel)]="compose.customEmails" placeholder="a@sheikhgo.com, b@sheikhgo.com" />
+        <p class="nc-hint">Comma-separated. Uses Email channel.</p>
+      </div>
+
+      <div class="nc-field">
+        <label class="nc-field-label">Template (optional)</label>
+        <select class="nc-input" [(ngModel)]="compose.templateKey" (ngModelChange)="onComposeTemplateChange()">
+          <option value="">None — plain branded email</option>
+          <option *ngFor="let t of composeTemplates" [value]="t.templateKey">{{ t.templateName }} ({{ t.channel }})</option>
+        </select>
+        <p class="nc-hint">Subject and message are the real content. Template placeholders are filled on the server.</p>
+      </div>
+
+      <div class="nc-field">
+        <label class="nc-field-label">Subject / title</label>
+        <input class="nc-input" [(ngModel)]="compose.subject" maxlength="200" placeholder="e.g. Driver pressed SOS — Vehicle #12" />
+      </div>
+
+      <div class="nc-field">
+        <label class="nc-field-label">Message</label>
+        <textarea class="nc-input nc-textarea" rows="8" [(ngModel)]="compose.body"
+          placeholder="Write the real message (do not paste template placeholders)"></textarea>
+      </div>
+
+      <label class="nc-label">Priority</label>
+      <div class="nc-compose-priority">
+        <button type="button" [class.active]="compose.priority === 1" (click)="compose.priority = 1">Low</button>
+        <button type="button" [class.active]="compose.priority === 2" (click)="compose.priority = 2">Normal</button>
+        <button type="button" [class.active]="compose.priority === 3" (click)="compose.priority = 3">High</button>
+        <button type="button" [class.active]="compose.priority === 4" (click)="compose.priority = 4">Critical</button>
+      </div>
+    </div>
+
+    <footer class="nc-compose__foot">
+      <button type="button" class="nc-btn nc-btn--ghost" (click)="closeCompose()" [disabled]="composeSending">Cancel</button>
+      <button type="button" class="nc-btn nc-btn--primary" (click)="sendCompose()" [disabled]="composeSending">
+        <mat-spinner *ngIf="composeSending" diameter="18"></mat-spinner>
+        <ng-container *ngIf="!composeSending"><mat-icon>send</mat-icon> Send Now</ng-container>
+      </button>
+    </footer>
+  </aside>
+</div>

@@ -17,6 +17,7 @@ public class LoginCommandHandler(
     IPasswordHasher passwordHasher,
     IJwtTokenService jwtTokenService,
     IUserAccessService userAccessService,
+    IUserPresenceService presence,
     IConfiguration configuration,
     ILogger<LoginCommandHandler> logger) : IRequestHandler<LoginCommand, ApiResponse<LoginResponse>>
 {
@@ -62,6 +63,7 @@ public class LoginCommandHandler(
                 cancellationToken: cancellationToken));
 
         logger.LogInformation("User {Email} logged in successfully", request.Email);
+        await presence.MarkLoginAsync(user.Id, cancellationToken);
         var primaryRole = access.RoleCodes.FirstOrDefault() ?? user.Role.ToString();
         var response = new LoginResponse(
             accessToken,

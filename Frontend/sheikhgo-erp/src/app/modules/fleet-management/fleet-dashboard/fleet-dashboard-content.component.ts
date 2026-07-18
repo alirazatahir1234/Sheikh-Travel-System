@@ -1,10 +1,13 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
+import { DecimalPipe } from '@angular/common';
+import { RouterLink } from '@angular/router';
 import { catchError, of } from 'rxjs';
 
 import { UiModule } from '../../../shared/components/ui';
 import { FleetService } from '../services/fleet.service';
 import { MaintenanceService } from '../../../core/services/maintenance.service';
+import { AiPlatformService } from '../../../core/services/ai-platform.service';
 import { AssignmentRow, FleetDashboardSummary } from '../models/fleet.model';
 import { AssignmentItem, FleetKpi, FuelMaintenanceChart } from './fleet-dashboard.model';
 import {
@@ -35,6 +38,8 @@ import { FleetFabComponent } from './widgets/fleet-fab.component';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     UiModule,
+    RouterLink,
+    DecimalPipe,
     DashboardKpiRowComponent,
     UtilizationChartComponent,
     FuelMaintenanceChartComponent,
@@ -53,10 +58,42 @@ import { FleetFabComponent } from './widgets/fleet-fab.component';
             <p class="text-sm text-fleet-text-muted">Real-time logistics performance and health metrics.</p>
           </div>
           <div class="flex flex-wrap gap-3">
+            <a routerLink="/ai" class="inline-flex items-center gap-1 rounded-lg border border-fleet-border bg-white px-3 py-2 text-sm font-medium text-fleet-text hover:border-fleet-primary">
+              AI Center
+            </a>
             <ui-button variant="neutral" size="md" icon="calendar_today">Last 30 Days</ui-button>
             <ui-button variant="primary" size="md" icon="add">Export Report</ui-button>
           </div>
         </div>
+
+        @if (aiHealth(); as h) {
+          <div class="rounded-xl border border-teal-200 bg-gradient-to-r from-teal-50 to-white p-4 flex flex-wrap items-center gap-6">
+            <div>
+              <p class="text-[11px] font-bold uppercase tracking-wider text-teal-700">Fleet Health</p>
+              <p class="text-3xl font-bold text-teal-800">{{ h.healthPercent | number:'1.0-1' }}%</p>
+            </div>
+            <p class="text-sm text-slate-600 flex-1 min-w-[200px]">{{ h.summary }}</p>
+            <div class="flex gap-4 text-sm text-slate-600">
+              <span>GPS {{ h.gpsOnlineRate | number:'1.0-0' }}%</span>
+              <span>Drivers {{ h.driverScore | number:'1.0-0' }}</span>
+              @if (h.criticalAlerts > 0) {
+                <span class="text-red-600">{{ h.criticalAlerts }} critical</span>
+              }
+            </div>
+          </div>
+        }
+
+        @if (recommendations().length) {
+          <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+            @for (r of recommendations().slice(0, 3); track r.id) {
+              <div class="rounded-xl border border-fleet-border bg-white p-4">
+                <p class="text-[11px] font-bold uppercase tracking-wider text-fleet-text-muted">{{ r.category }} · {{ r.severity }}</p>
+                <p class="mt-1 font-semibold text-fleet-text">{{ r.title }}</p>
+                <p class="mt-1 text-sm text-fleet-text-muted">{{ r.action }}</p>
+              </div>
+            }
+          </div>
+        }
 
         <fleet-dashboard-kpi-row [kpis]="kpis()"></fleet-dashboard-kpi-row>
 
@@ -101,6 +138,7 @@ import { FleetFabComponent } from './widgets/fleet-fab.component';
 export class FleetDashboardContentComponent {
   private readonly fleet = inject(FleetService);
   private readonly maintenanceService = inject(MaintenanceService);
+  private readonly ai = inject(AiPlatformService);
 
   private readonly summary = toSignal<FleetDashboardSummary | null>(this.fleet.getDashboard(), {
     initialValue: null
@@ -112,6 +150,10 @@ export class FleetDashboardContentComponent {
     this.maintenanceService.getDashboard('Month').pipe(catchError(() => of(null))),
     { initialValue: null }
   );
+  readonly aiHealth = toSignal(this.ai.getHealth().pipe(catchError(() => of(null))), { initialValue: null });
+  readonly recommendations = toSignal(this.ai.getRecommendations().pipe(catchError(() => of([]))), {
+    initialValue: [] as import('../../../core/services/ai-platform.service').AiRecommendation[]
+  });
 
   readonly loadingAssignments = computed(() => this.assignmentRows() === null);
 
@@ -129,13 +171,45 @@ export class FleetDashboardContentComponent {
 
   readonly kpis = computed<FleetKpi[]>(() => {
     const s = this.summary();
+    const health = this.aiHealth();
     return [
-      { id: 'total', label: 'Total Vehicles', value: this.count(s?.totalVehicles, 1284), icon: 'local_shipping', tone: 'primary', trend: '+12% vs last month', trendUp: true },
-      { id: 'active', label: 'Active', value: this.count(s?.activeVehicles, 1102), icon: 'radar', tone: 'secondary', trend: '86% utilization' },
-      { id: 'maintenance', label: 'In Maintenance', value: this.count(this.maintenanceDashboard()?.kpis?.underMaintenance ?? s?.maintenanceDue, 0), icon: 'build', tone: 'error', alert: (this.maintenanceDashboard()?.kpis?.overdueServices ?? 0) > 0, trend: `${this.maintenanceDashboard()?.kpis?.overdueServices ?? 0} overdue service`, trendUp: false },
-      { id: 'drivers', label: 'Active Drivers', value: this.count(s?.driversOnDuty, 942), icon: 'person', tone: 'primary', trend: '14 currently standby' },
-      { id: 'fuel', label: 'Fuel Cost', value: this.currency(s?.monthlyFuelCost, 142000), icon: 'local_gas_station', tone: 'secondary', trend: '+4.2% price surge', trendUp: false },
-      { id: 'trips', label: 'Monthly Trips', value: '8.4k', icon: 'route', tone: 'primary', trend: '99.2% on-time', trendUp: true }
+      {
+        id: 'health',
+        label: 'Fleet Health',
+        value: health ? `${Math.round(health.healthPercent)}%` : '—',
+        icon: 'monitor_heart',
+        tone: 'primary',
+        trend: health?.summary?.slice(0, 40) ?? 'AI health score',
+        alert: (health?.criticalAlerts ?? 0) > 0
+      },
+      { id: 'total', label: 'Total Vehicles', value: this.count(s?.totalVehicles, 0), icon: 'local_shipping', tone: 'primary' },
+      {
+        id: 'active',
+        label: 'Active',
+        value: this.count(s?.activeVehicles, 0),
+        icon: 'radar',
+        tone: 'secondary',
+        trend: health ? `GPS ${Math.round(health.gpsOnlineRate)}% online` : undefined
+      },
+      {
+        id: 'maintenance',
+        label: 'In Maintenance',
+        value: this.count(this.maintenanceDashboard()?.kpis?.underMaintenance ?? s?.maintenanceDue, 0),
+        icon: 'build',
+        tone: 'error',
+        alert: (this.maintenanceDashboard()?.kpis?.overdueServices ?? 0) > 0,
+        trend: `${this.maintenanceDashboard()?.kpis?.overdueServices ?? 0} overdue service`,
+        trendUp: false
+      },
+      {
+        id: 'drivers',
+        label: 'Active Drivers',
+        value: this.count(s?.driversOnDuty, 0),
+        icon: 'person',
+        tone: 'primary',
+        trend: health ? `Score ${Math.round(health.driverScore)}` : undefined
+      },
+      { id: 'fuel', label: 'Fuel Cost', value: this.currency(s?.monthlyFuelCost, 0), icon: 'local_gas_station', tone: 'secondary' }
     ];
   });
 
@@ -156,11 +230,11 @@ export class FleetDashboardContentComponent {
   });
 
   private count(value: number | undefined, fallback: number): string {
-    return (value && value > 0 ? value : fallback).toLocaleString();
+    return (value != null ? value : fallback).toLocaleString();
   }
 
   private currency(value: number | undefined, fallback: number): string {
-    const amount = value && value > 0 ? value : fallback;
+    const amount = value != null && value > 0 ? value : fallback;
     return amount >= 1000 ? `$${Math.round(amount / 1000)}k` : `$${amount}`;
   }
 

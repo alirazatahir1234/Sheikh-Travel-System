@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using SheikhTravelSystem.Application.Common.Interfaces;
+using SheikhTravelSystem.Application.Features.Notifications;
 using SheikhTravelSystem.Domain.Enums;
 
 namespace SheikhTravelSystem.Infrastructure.Services;
@@ -50,7 +51,7 @@ public class ComplianceReminderHostedService(
     {
         using var scope = serviceProvider.CreateScope();
         var dbFactory = scope.ServiceProvider.GetRequiredService<IDbConnectionFactory>();
-        var notifications = scope.ServiceProvider.GetRequiredService<INotificationService>();
+        var decisionEngine = scope.ServiceProvider.GetRequiredService<INotificationDecisionEngine>();
 
         using var connection = dbFactory.CreateConnection();
         var threshold = DateTime.UtcNow.AddDays(30);
@@ -64,12 +65,14 @@ public class ComplianceReminderHostedService(
 
         foreach (var d in expiringDrivers)
         {
-            await notifications.CreateForAllAsync(
+            await decisionEngine.DispatchIfAllowedAsync(new NotificationDecisionRequest(
+                "compliance_reminder",
                 "Driver license expiring",
                 $"{d.Name} license expires on {d.Expiry:yyyy-MM-dd}.",
                 NotificationType.TripDelayed,
-                d.Id,
-                cancellationToken);
+                ReferenceId: d.Id,
+                SuggestedPriority: 3,
+                RequestedChannels: [NotificationChannels.InApp, NotificationChannels.Email]), cancellationToken);
         }
 
         var expiringVehicles = await connection.QueryAsync<(int Id, string Name, DateTime? Expiry)>(
@@ -81,12 +84,14 @@ public class ComplianceReminderHostedService(
 
         foreach (var v in expiringVehicles)
         {
-            await notifications.CreateForAllAsync(
+            await decisionEngine.DispatchIfAllowedAsync(new NotificationDecisionRequest(
+                "compliance_reminder",
                 "Vehicle insurance expiring",
                 $"{v.Name} insurance expires on {v.Expiry:yyyy-MM-dd}.",
                 NotificationType.VehicleOffline,
-                v.Id,
-                cancellationToken);
+                ReferenceId: v.Id,
+                SuggestedPriority: 3,
+                RequestedChannels: [NotificationChannels.InApp, NotificationChannels.Email]), cancellationToken);
         }
 
         var maintenanceDue = await connection.QueryAsync<(int Id, int VehicleId, DateTime Due)>(
@@ -98,12 +103,14 @@ public class ComplianceReminderHostedService(
 
         foreach (var m in maintenanceDue)
         {
-            await notifications.CreateForAllAsync(
+            await decisionEngine.DispatchIfAllowedAsync(new NotificationDecisionRequest(
+                "compliance_reminder",
                 "Maintenance due",
                 $"Vehicle #{m.VehicleId} maintenance due on {m.Due:yyyy-MM-dd}.",
                 NotificationType.VehicleOffline,
-                m.VehicleId,
-                cancellationToken);
+                ReferenceId: m.VehicleId,
+                SuggestedPriority: 3,
+                RequestedChannels: [NotificationChannels.InApp, NotificationChannels.Email]), cancellationToken);
         }
 
         var docExpiring = await connection.QueryAsync<(int VehicleId, string Type, DateTime Expiry)>(
@@ -115,12 +122,14 @@ public class ComplianceReminderHostedService(
 
         foreach (var doc in docExpiring)
         {
-            await notifications.CreateForAllAsync(
+            await decisionEngine.DispatchIfAllowedAsync(new NotificationDecisionRequest(
+                "compliance_reminder",
                 "Vehicle document expiring",
                 $"{doc.Type} for vehicle #{doc.VehicleId} expires on {doc.Expiry:yyyy-MM-dd}.",
                 NotificationType.VehicleOffline,
-                doc.VehicleId,
-                cancellationToken);
+                ReferenceId: doc.VehicleId,
+                SuggestedPriority: 3,
+                RequestedChannels: [NotificationChannels.InApp, NotificationChannels.Email]), cancellationToken);
         }
     }
 }

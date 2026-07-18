@@ -89,7 +89,9 @@ public static class GpsPositionIngestionHelper
                 Latitude = @Latitude, Longitude = @Longitude, Speed = @Speed, Heading = @Heading,
                 Ignition = @Ignition, LastUpdate = @LastUpdate,
                 FuelLevel = @FuelLevel, BatteryLevel = @BatteryLevel, GsmSignal = @GsmSignal,
-                TotalDistanceKm = @TotalDistanceKm, Address = @Address, AlarmType = @AlarmType,
+                TotalDistanceKm = @TotalDistanceKm,
+                Address = COALESCE(@Address, Address),
+                AlarmType = @AlarmType,
                 Temperature = @Temperature
             WHEN NOT MATCHED THEN
               INSERT (VehicleId, GpsDeviceId, DriverId, BookingId, Latitude, Longitude, Speed, Heading, Ignition, LastUpdate,

@@ -529,6 +529,44 @@
 
 .vehicle-route--hint { color: var(--stb-text-soft); font-size: 0.7rem; }
 
+.vehicle-route--addr {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+  color: #475569;
+  font-size: 0.72rem;
+  line-height: 1.25;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  mat-icon {
+    font-size: 14px;
+    width: 14px;
+    height: 14px;
+    color: #3b82f6;
+    flex-shrink: 0;
+  }
+}
+
+.detail-metric--address {
+  .detail-maps-link {
+    display: inline-block;
+    margin-top: 0.2rem;
+    font-size: 0.75rem;
+    color: #2563eb;
+    text-decoration: none;
+    &:hover { text-decoration: underline; }
+  }
+  .detail-metric-sub {
+    display: block;
+    margin-top: 0.15rem;
+    font-size: 0.7rem;
+    color: #94a3b8;
+  }
+}
+
 .vehicle-card-body {
   flex: 1;
   min-width: 0;

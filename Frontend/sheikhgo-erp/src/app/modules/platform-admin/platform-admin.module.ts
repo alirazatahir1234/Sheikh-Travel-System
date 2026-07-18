@@ -11,8 +11,11 @@ import { RoleListComponent } from './role-list/role-list.component';
 import { AccessControlComponent } from './access-control/access-control.component';
 import { ModuleManagementComponent } from './module-management/module-management.component';
 import { SubscriptionManagementComponent } from './subscription-management/subscription-management.component';
+import { MigrationManagerComponent } from './migration-manager/migration-manager.component';
 import { UiButtonComponent } from '../../shared/components/ui/button/ui-button.component';
 import { UiPageHeaderComponent } from '../../shared/components/ui/page-header/ui-page-header.component';
+import { UiDataTableComponent } from '../../shared/components/ui/data-table/ui-data-table.component';
+import { UiTableCellDirective } from '../../shared/components/ui/data-table/ui-table-cell.directive';
 
 const routes: Routes = [
   { path: 'tenants', component: TenantListComponent },
@@ -35,6 +38,7 @@ const routes: Routes = [
   { path: 'access-control', component: AccessControlComponent },
   { path: 'module-management', component: ModuleManagementComponent },
   { path: 'subscription-management', component: SubscriptionManagementComponent },
+  { path: 'migrations', component: MigrationManagerComponent },
   { path: '', redirectTo: 'branches', pathMatch: 'full' }
 ];
 
@@ -49,8 +53,16 @@ const routes: Routes = [
     RoleListComponent,
     AccessControlComponent,
     ModuleManagementComponent,
-    SubscriptionManagementComponent
+    SubscriptionManagementComponent,
+    MigrationManagerComponent
   ],
-  imports: [SharedModule, RouterModule.forChild(routes), UiButtonComponent, UiPageHeaderComponent]
+  imports: [
+    SharedModule,
+    RouterModule.forChild(routes),
+    UiButtonComponent,
+    UiPageHeaderComponent,
+    UiDataTableComponent,
+    UiTableCellDirective
+  ]
 })
 export class PlatformAdminModule {}

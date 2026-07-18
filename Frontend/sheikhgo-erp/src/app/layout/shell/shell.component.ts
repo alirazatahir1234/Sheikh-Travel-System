@@ -1,6 +1,6 @@
-import { Component, OnInit, OnDestroy, ViewChild, ElementRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, ViewChild, ElementRef, HostListener } from '@angular/core';
 import { NavigationEnd, Router } from '@angular/router';
-import { Subject, BehaviorSubject, debounceTime, distinctUntilChanged, exhaustMap, switchMap, of, Observable, Subscription, map, filter, combineLatest, startWith, tap, finalize, shareReplay, catchError } from 'rxjs';
+import { Subject, BehaviorSubject, debounceTime, distinctUntilChanged, exhaustMap, switchMap, of, Observable, Subscription, map, filter, combineLatest, startWith, tap, finalize, shareReplay, catchError, take } from 'rxjs';
 import { MatDialog } from '@angular/material/dialog';
 import { AuthService } from '../../core/services/auth.service';
 import { NotificationService } from '../../core/services/notification.service';
@@ -9,7 +9,8 @@ import {
   Notification,
   NotificationType,
   NotificationTypeIcons,
-  NotificationTypeColors
+  NotificationTypeColors,
+  NotificationPriorityLabels
 } from '../../core/models/notification.model';
 import { HelpDialogComponent } from '../../shared/components/help-dialog/help-dialog.component';
 import { LocalTimeContextService, LocalTimeDisplay } from '../../core/services/local-time-context.service';
@@ -24,6 +25,12 @@ import {
 import { resolveTenantType } from '../../core/navigation/tenant-type';
 import { APP_PRODUCT_NAME, APP_SIDEBAR_LOGO_PATH } from '../../core/constants/app-brand';
 
+interface NotifMetaRow {
+  icon: string;
+  label: string;
+  value: string;
+  critical?: boolean;
+}
 @Component({
   standalone: false,
   selector: 'app-shell',
@@ -41,7 +48,8 @@ export class ShellComponent implements OnInit, OnDestroy {
   currentUser$: AuthService['currentUser$'];
   unreadCount$!: NotificationService['unreadCount'];
   notifications$!: NotificationService['notifications'];
-
+  notifPanelOpen = false;
+  expandedNotifId: number | null = null;
   @ViewChild('mainContent') mainContent!: ElementRef<HTMLElement>;
 
   expandedGroupIds = new Set<string>();
@@ -389,6 +397,93 @@ export class ShellComponent implements OnInit, OnDestroy {
     return NotificationTypeColors[type] ?? '#64748B';
   }
 
+  @HostListener('document:keydown.escape')
+  onEscape(): void {
+    if (this.notifPanelOpen) {
+      this.closeNotifPanel();
+    }
+  }
+
+  toggleNotifPanel(event?: Event): void {
+    event?.stopPropagation();
+    if (this.notifPanelOpen) {
+      this.closeNotifPanel();
+      return;
+    }
+    this.notifPanelOpen = true;
+    this.notifications$.pipe(take(1)).subscribe(list => {
+      const firstUnread = list.find(n => !n.isRead);
+      this.expandedNotifId = (firstUnread ?? list[0])?.id ?? null;
+    });
+  }
+
+  closeNotifPanel(): void {
+    this.notifPanelOpen = false;
+  }
+
+  expandNotif(n: Notification): void {
+    this.expandedNotifId = n.id;
+  }
+
+  displayTitle(n: Notification): string {
+    return this.previewMessage(n.title) || n.title || 'Notification';
+  }
+
+  channelLabel(channel?: string | null): string {
+    if (!channel) return '';
+    if (channel === 'InApp') return 'In-App';
+    if (channel === 'Sms') return 'SMS';
+    return channel;
+  }
+
+  priorityLabel(n: Notification): string {
+    return NotificationPriorityLabels[n.priority ?? 2] ?? 'Normal';
+  }
+
+  priorityBadgeClass(n: Notification): string {
+    switch (n.priority ?? 2) {
+      case 1: return 'notif-badge--low';
+      case 3: return 'notif-badge--high';
+      case 4: return 'notif-badge--critical';
+      default: return 'notif-badge--normal';
+    }
+  }
+
+  notifMeta(n: Notification): NotifMetaRow[] | null {
+    const rows: NotifMetaRow[] = [];
+    const plain = this.previewMessage(n.message);
+    const pick = (label: string, icon: string) => {
+      const re = new RegExp(`${label}\\s*[:\\-]\\s*(.+)`, 'i');
+      const m = plain.match(re);
+      if (m?.[1]) {
+        rows.push({ icon, label, value: m[1].split(/[.|•]/)[0].trim() });
+      }
+    };
+    pick('Vehicle', 'directions_car');
+    pick('Driver', 'person');
+    pick('Location', 'place');
+    pick('Address', 'place');
+
+    rows.push({
+      icon: 'schedule',
+      label: 'Time',
+      value: new Date(n.createdAt).toLocaleString(undefined, {
+        year: 'numeric', month: 'long', day: 'numeric',
+        hour: 'numeric', minute: '2-digit'
+      })
+    });
+
+    const priority = this.priorityLabel(n);
+    rows.push({
+      icon: 'flag',
+      label: 'Priority',
+      value: priority,
+      critical: (n.priority ?? 2) >= 4
+    });
+
+    return rows.length ? rows : null;
+  }
+
   markAsRead(n: Notification, event: Event): void {
     event.stopPropagation();
     if (!n.isRead) {
@@ -400,25 +495,39 @@ export class ShellComponent implements OnInit, OnDestroy {
     this.notificationService.markAllAsRead().subscribe();
   }
 
-  onNotificationClick(n: Notification): void {
+  openNotificationCenter(event: Event): void {
+    event.stopPropagation();
+    void this.router.navigate(['/notifications']);
+  }
+
+  viewNotificationDetails(n: Notification, event: Event): void {
+    event.stopPropagation();
+    this.closeNotifPanel();
     if (!n.isRead) {
       this.notificationService.markAsRead([n.id]).subscribe();
     }
-    if (n.referenceId) {
-      switch (n.type) {
-        case NotificationType.BookingCreated:
-          this.router.navigate(['/bookings', n.referenceId]);
-          break;
-        case NotificationType.PaymentReceived:
-          this.router.navigate(['/payments']);
-          break;
-        case NotificationType.VehicleOffline:
-          this.router.navigate(['/vehicles', n.referenceId, 'edit']);
-          break;
-        default:
-          break;
-      }
+    void this.router.navigate(['/notifications'], { queryParams: { id: n.id } });
+  }
+
+  onNotificationClick(n: Notification): void {
+    this.expandNotif(n);
+    if (!n.isRead) {
+      this.notificationService.markAsRead([n.id]).subscribe();
     }
+  }
+
+  previewMessage(message?: string | null): string {
+    if (!message) return '';
+    const plain = message
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/\{\{\s*[\w.]+\s*\}\}/g, ' ')
+      .replace(/&nbsp;/gi, ' ')
+      .replace(/&amp;/gi, '&')
+      .replace(/&lt;/gi, '<')
+      .replace(/&gt;/gi, '>')
+      .replace(/\s+/g, ' ')
+      .trim();
+    return plain;
   }
 
   formatTimeAgo(dateStr: string): string {

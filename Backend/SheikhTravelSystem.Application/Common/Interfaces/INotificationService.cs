@@ -14,7 +14,10 @@ public record NotificationCreateOptions(
     string? TemplateKey = null,
     bool SendNow = true,
     string? Email = null,
-    string? Phone = null);
+    string? Phone = null,
+    string? Module = null,
+    IReadOnlyDictionary<string, string>? Variables = null,
+    IReadOnlyList<string>? Channels = null);
 
 public record ChannelSendRequest(
     int NotificationId,
@@ -26,7 +29,7 @@ public record ChannelSendRequest(
     string? Phone = null,
     string? TemplateKey = null);
 
-public record ChannelSendResult(bool Success, string Status, string? Response);
+public record ChannelSendResult(bool Success, string Status, string? Response, string? Provider = null);
 
 public interface INotificationChannelSender
 {
@@ -57,9 +60,27 @@ public interface INotificationService
         int? referenceId = null,
         CancellationToken cancellationToken = default);
 
+    /// <summary>Broadcast to all active tenant users across one or more channels.</summary>
+    Task CreateForAllChannelsAsync(
+        string title,
+        string message,
+        NotificationType type,
+        IReadOnlyList<string> channels,
+        int priority = 2,
+        string? module = null,
+        int? referenceId = null,
+        string? templateKey = null,
+        IReadOnlyDictionary<string, string>? variables = null,
+        CancellationToken cancellationToken = default);
+
     Task<int> CreateAndDispatchAsync(NotificationCreateOptions options, CancellationToken cancellationToken = default);
 
     Task DispatchByIdAsync(int notificationId, CancellationToken cancellationToken = default);
 
     Task DispatchPendingAsync(int maxBatch = 50, CancellationToken cancellationToken = default);
+
+    /// <summary>Highest Priority among due pending non-InApp deliveries (0 if none).</summary>
+    Task<int> PeekHighestPendingPriorityAsync(CancellationToken cancellationToken = default);
+
+    Task InvalidateUnreadCacheAsync(int? userId, CancellationToken cancellationToken = default);
 }

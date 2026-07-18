@@ -43,6 +43,8 @@ export const NotificationPriorityLabels: Record<number, string> = {
   4: 'Critical'
 };
 
+export const NotificationModules = ['System', 'Fleet', 'Booking', 'Finance', 'Compliance'] as const;
+
 export interface Notification {
   id: number;
   userId?: number | null;
@@ -58,6 +60,31 @@ export interface Notification {
   isSent?: boolean;
   sentDate?: string | null;
   templateKey?: string | null;
+  module?: string | null;
+  readDate?: string | null;
+  deliveryStatus?: string | null;
+  isArchived?: boolean;
+  isDeleted?: boolean;
+  retentionCategory?: string | null;
+  neverAutoDelete?: boolean;
+}
+
+export interface NotificationRetentionPolicy {
+  readArchiveDays: number;
+  archivedDeleteDays: number;
+  failedDeleteDays: number;
+  draftDeleteDays: number;
+  operationalDeleteDays: number;
+  maintenanceDeleteDays: number;
+  complianceDeleteDays: number;
+  criticalNeverDelete: boolean;
+  securityDeleteDays: number;
+}
+
+export interface NotificationRetentionEstimate {
+  eligibleAutoArchive: number;
+  eligibleHardDelete: number;
+  protectedCritical: number;
 }
 
 export interface NotificationStats {
@@ -71,6 +98,14 @@ export interface NotificationStats {
   failed: number;
 }
 
+export interface NotificationPreferences {
+  emailEnabled: boolean;
+  smsEnabled: boolean;
+  pushEnabled: boolean;
+  browserEnabled: boolean;
+  whatsAppEnabled: boolean;
+}
+
 export interface NotificationTemplate {
   id: number;
   templateKey: string;
@@ -79,6 +114,8 @@ export interface NotificationTemplate {
   body: string;
   channel: string;
   isActive: boolean;
+  language?: string;
+  variables?: string | null;
 }
 
 export interface NotificationDeliveryLog {
@@ -88,6 +125,9 @@ export interface NotificationDeliveryLog {
   status: string;
   response?: string | null;
   createdAt: string;
+  provider?: string | null;
+  retryCount?: number;
+  nextRetryAt?: string | null;
 }
 
 export interface NotificationFilter {
@@ -100,4 +140,8 @@ export interface NotificationFilter {
   search?: string;
   fromDate?: string;
   toDate?: string;
+  module?: string;
+  archived?: boolean;
+  trash?: boolean;
+  datePreset?: string;
 }

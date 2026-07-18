@@ -1,7 +1,6 @@
 using System.IO.Compression;
 using System.Text;
 using System.Threading.RateLimiting;
-using Dapper;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.AspNetCore.RateLimiting;
@@ -207,103 +206,53 @@ builder.Services.AddSwaggerGen(c =>
 
 var app = builder.Build();
 
-// Run database migrations before seeding
+// Run pending database migrations before seeding (gated by config).
 using (var scope = app.Services.CreateScope())
 {
-    try
+    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+    var runMigrationsOnStartup = app.Configuration.GetValue("Database:RunMigrationsOnStartup", true);
+
+    if (runMigrationsOnStartup)
     {
-        var dbFactory = scope.ServiceProvider.GetRequiredService<IDbConnectionFactory>();
-        var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-        
-        using var connection = dbFactory.CreateConnection();
-        
-        // Add BookingNumber column if missing
-        var columnExists = await connection.ExecuteScalarAsync<int>(
-            "SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'Bookings' AND COLUMN_NAME = 'BookingNumber'");
-        
-        if (columnExists == 0)
+        try
         {
-            logger.LogInformation("Adding BookingNumber column to Bookings table...");
-            await connection.ExecuteAsync("ALTER TABLE Bookings ADD BookingNumber NVARCHAR(20) NOT NULL DEFAULT ''");
-            
-            // Backfill existing rows
-            var rows = await connection.QueryAsync<int>("SELECT Id FROM Bookings WHERE BookingNumber = '' OR BookingNumber IS NULL");
-            foreach (var id in rows)
+            var runner = scope.ServiceProvider.GetRequiredService<IDatabaseMigrationRunner>();
+            var result = await runner.ApplyPendingAsync(appliedBy: "Startup");
+            if (!string.IsNullOrEmpty(result.FailedMigration))
             {
-                var year = DateTime.UtcNow.Year;
-                await connection.ExecuteAsync(
-                    "UPDATE Bookings SET BookingNumber = @BN WHERE Id = @Id",
-                    new { BN = $"BK-{year}-{id:D4}", Id = id });
+                logger.LogError(
+                    "Database migration failed at startup on {Migration}: {Error}",
+                    result.FailedMigration,
+                    result.ErrorMessage);
             }
-            logger.LogInformation("BookingNumber column added and backfilled for {Count} rows.", rows.Count());
+            else if (result.AppliedCount > 0)
+            {
+                logger.LogInformation(
+                    "Startup migrations complete: applied {AppliedCount}, already applied {SkippedCount}.",
+                    result.AppliedCount,
+                    result.SkippedCount);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Database migration failed at startup.");
         }
 
-        await GpsSchemaMigration.ApplyAsync(dbFactory, logger);
-        await GpsTraccarMigration.ApplyAsync(dbFactory, logger);
-        await GpsDeviceUniqueIdMigration.ApplyAsync(dbFactory, logger);
-        await GpsDevicesTenantMigration.ApplyAsync(dbFactory, logger);
-        await GpsTraccarEventMigration.ApplyAsync(dbFactory, logger);
-        await GpsDeviceCommandsMigration.ApplyAsync(dbFactory, logger);
-        await GpsDeviceTelemetryMigration.ApplyAsync(dbFactory, logger);
-        await GpsDeviceInstallationMigration.ApplyAsync(dbFactory, logger);
-        await GpsTrackerBusinessMigration.ApplyAsync(dbFactory, logger);
-        await TrackerCatalogMigration.ApplyAsync(dbFactory, logger);
-        await TrackerStatusMigration.ApplyAsync(dbFactory, logger);
-        await GpsDeviceAssignmentMigration.ApplyAsync(dbFactory, logger);
-        await TrackerRelayMigration.ApplyAsync(dbFactory, logger);
-        await GpsTelemetryFieldsMigration.ApplyAsync(dbFactory, logger);
-        await GpsGeofenceModuleMigration.ApplyAsync(dbFactory, logger);
-        await GpsFleetStatusHistoryMigration.ApplyAsync(dbFactory, logger);
-        await GpsAlertsPhase8Migration.ApplyAsync(dbFactory, logger);
-        await GpsCommandsPhase9Migration.ApplyAsync(dbFactory, logger);
-        await GpsAnalyticsPhase10Migration.ApplyAsync(dbFactory, logger);
-        await GpsAddressCacheMigration.ApplyAsync(dbFactory, logger);
-        await NotificationCenterMigration.ApplyAsync(dbFactory, logger);
-
-        var gpsSettings = scope.ServiceProvider.GetRequiredService<IOptions<GpsSettings>>().Value;
-        await GpsSchemaMigration.ApplyRetentionAsync(dbFactory, gpsSettings.PositionRetentionDays, logger);
-        await PerformanceIndexesMigration.ApplyAsync(dbFactory, logger);
+        // GPS position retention is data maintenance, not schema — run with startup migrations only.
+        try
+        {
+            var dbFactory = scope.ServiceProvider.GetRequiredService<IDbConnectionFactory>();
+            var gpsSettings = scope.ServiceProvider.GetRequiredService<IOptions<GpsSettings>>().Value;
+            await GpsSchemaMigration.ApplyRetentionAsync(dbFactory, gpsSettings.PositionRetentionDays, logger);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "GPS position retention failed at startup.");
+        }
     }
-    catch (Exception ex)
+    else
     {
-        var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-        logger.LogError(ex, "Database migration failed at startup.");
-    }
-
-    try
-    {
-        var dbFactory = scope.ServiceProvider.GetRequiredService<IDbConnectionFactory>();
-        var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-        await PortalSchemaMigration.ApplyAsync(dbFactory, logger);
-    }
-    catch (Exception ex)
-    {
-        var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-        logger.LogError(ex, "Portal schema migration failed at startup.");
-    }
-
-    try
-    {
-        var dbFactory = scope.ServiceProvider.GetRequiredService<IDbConnectionFactory>();
-        var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-        await TenantSchemaMigration.ApplyAsync(dbFactory, logger);
-        await PlatformSchemaMigration.ApplyAsync(dbFactory, logger);
-        await TenantNormalizationMigration.ApplyAsync(dbFactory, logger);
-        await PlatformSettingsMigration.ApplyAsync(dbFactory, logger);
-        await OrganizationDesignerMigration.ApplyAsync(dbFactory, logger);
-        await SubscriptionBillingMigration.ApplyAsync(dbFactory, logger);
-        await FleetSchemaMigration.ApplyAsync(dbFactory, logger);
-        await FleetComplianceMigration.ApplyAsync(dbFactory, logger);
-        await VehicleDocumentOcrMigration.ApplyAsync(dbFactory, logger);
-        await DriverPerformanceMigration.ApplyAsync(dbFactory, logger);
-        await DriverVerificationMigration.ApplyAsync(dbFactory, logger);
-        await AssignmentSchemaMigration.ApplyAsync(dbFactory, logger);
-        await MaintenanceModuleMigration.ApplyAsync(dbFactory, logger);
-    }
-    catch (Exception ex)
-    {
-        var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-        logger.LogError(ex, "Tenant schema migration failed at startup.");
+        logger.LogInformation("Startup DB migrations disabled (Database:RunMigrationsOnStartup=false).");
     }
 }
 

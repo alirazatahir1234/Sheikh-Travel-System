@@ -238,6 +238,9 @@
                 </span>
               </div>
               <span class="vehicle-route" *ngIf="loc.driverName">{{ loc.driverName }}</span>
+              <span class="vehicle-route vehicle-route--addr" *ngIf="shortAddress(loc) as addr" [title]="loc.address || ''">
+                <mat-icon>place</mat-icon> {{ addr }}
+              </span>
               <span class="vehicle-route vehicle-route--hint">{{ loc.routeHint }}</span>
               <span class="vehicle-time">{{ formatLastPing(loc) }}</span>
             </div>
@@ -488,24 +491,27 @@
                 <span class="detail-metric-val">{{ loc.relayOutput }}</span>
               </div>
             </div>
-            <div class="detail-metric" *ngIf="loc.address; else coordsFallback">
+            <div class="detail-metric detail-metric--address">
               <mat-icon>place</mat-icon>
               <div>
-                <span class="detail-metric-lbl">Address</span>
-                <span class="detail-metric-val">{{ loc.address }}</span>
-              </div>
-            </div>
-            <ng-template #coordsFallback>
-              <div class="detail-metric">
-                <mat-icon>place</mat-icon>
-                <div>
-                  <span class="detail-metric-lbl">Coordinates</span>
+                <span class="detail-metric-lbl">Current location</span>
+                <span class="detail-metric-val" *ngIf="loc.address; else coordsOnly">{{ loc.address }}</span>
+                <ng-template #coordsOnly>
                   <span class="detail-metric-val detail-metric-val--mono">
                     {{ loc.latitude | number:'1.4-4' }}, {{ loc.longitude | number:'1.4-4' }}
                   </span>
-                </div>
+                </ng-template>
+                <a class="detail-maps-link"
+                   [href]="googleMapsUrl(loc)"
+                   target="_blank"
+                   rel="noopener noreferrer">
+                  View on Google Maps
+                </a>
+                <span class="detail-metric-sub detail-metric-val--mono" *ngIf="loc.address">
+                  {{ loc.latitude | number:'1.5-5' }}, {{ loc.longitude | number:'1.5-5' }}
+                </span>
               </div>
-            </ng-template>
+            </div>
             <div class="detail-metric" *ngIf="loc.routeHint">
               <mat-icon>route</mat-icon>
               <div>
