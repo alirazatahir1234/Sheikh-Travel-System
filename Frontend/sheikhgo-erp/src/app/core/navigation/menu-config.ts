@@ -18,9 +18,9 @@ const operationsGroup: NavGroup = {
   collapsible: true,
   items: [
     { id: 'bookings', label: 'Bookings', icon: 'confirmation_number', route: '/bookings', moduleKey: 'bookings' },
-    { id: 'trips', label: 'Trips', icon: 'route', route: '/bookings', moduleKey: 'bookings' },
+    { id: 'trips', label: 'Trips', icon: 'route', route: '/trips', moduleKey: 'trips' },
     { id: 'routes', label: 'Routes', icon: 'alt_route', route: '/routes', moduleKey: 'routes' },
-    { id: 'dispatch-board', label: 'Dispatch Board', icon: 'view_kanban', route: '/bookings', moduleKey: 'bookings' }
+    { id: 'dispatch-board', label: 'Dispatch Board', icon: 'view_kanban', route: '/trips/live', moduleKey: 'trips' }
   ]
 };
 

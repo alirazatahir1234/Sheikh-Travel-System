@@ -26,6 +26,40 @@ public enum BookingStatus
     Cancelled = 5
 }
 
+/// <summary>Operational trip lifecycle (dispatch hub).</summary>
+public enum TripStatus
+{
+    Draft = 1,
+    Scheduled = 2,
+    DriverAssigned = 3,
+    VehicleAssigned = 4,
+    Started = 5,
+    AtPickup = 6,
+    Enroute = 7,
+    Delayed = 8,
+    Completed = 9,
+    Cancelled = 10,
+    Failed = 11
+}
+
+public enum TripType
+{
+    Rental = 1,
+    Transfer = 2,
+    Tour = 3,
+    Shuttle = 4,
+    EmployeeTransport = 5,
+    SchoolTransport = 6
+}
+
+public enum TripPriority
+{
+    Low = 1,
+    Normal = 2,
+    High = 3,
+    Urgent = 4
+}
+
 public enum PaymentStatus
 {
     Pending = 1,
@@ -50,7 +84,13 @@ public enum NotificationType
     VehicleOffline = 3,
     PaymentReceived = 4,
     EngineCommandSent = 5,
-    Sos = 6
+    Sos = 6,
+    TripDriverAssigned = 7,
+    TripStarted = 8,
+    TripCompleted = 9,
+    TripCancelled = 10,
+    TripUpdated = 11,
+    TripDriverArriving = 12
 }
 
 public enum MaintenanceStatus

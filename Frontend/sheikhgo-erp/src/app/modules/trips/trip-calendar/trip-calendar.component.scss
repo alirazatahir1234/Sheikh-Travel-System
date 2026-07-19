@@ -1,0 +1,183 @@
+.trip-calendar {
+  .page-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+    margin-bottom: 1rem;
+
+    h2 { margin: 0 0 0.25rem; font-size: 1.25rem; }
+    p { margin: 0; color: var(--stb-text-muted, #6b7280); font-size: 0.875rem; }
+  }
+}
+
+.cal {
+  background: var(--stb-surface, #fff);
+  border: 1px solid var(--stb-border, #e5e7eb);
+  border-radius: 12px;
+  padding: 1rem;
+}
+
+.cal__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+
+  h3 { margin: 0; font-size: 1rem; font-weight: 700; }
+}
+
+.cal__nav {
+  border: none;
+  background: var(--stb-surface-muted, #f3f4f6);
+  width: 2rem;
+  height: 2rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 1.25rem;
+}
+
+.cal__weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.25rem;
+  margin-bottom: 0.25rem;
+
+  span {
+    text-align: center;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    color: #94a3b8;
+    text-transform: uppercase;
+  }
+}
+
+.cal__grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.25rem;
+}
+
+.cal__cell {
+  min-height: 5.5rem;
+  border: 1px solid #f1f5f9;
+  border-radius: 8px;
+  background: #fff;
+  padding: 0.35rem;
+  text-align: left;
+  cursor: pointer;
+  position: relative;
+
+  &--muted { opacity: 0.45; }
+  &--selected { border-color: #0B6B50; box-shadow: inset 0 0 0 1px #0B6B50; }
+  &--has { background: #f8fafc; }
+}
+
+.cal__num { font-size: 0.8125rem; font-weight: 700; }
+.cal__count {
+  position: absolute;
+  top: 0.35rem;
+  right: 0.35rem;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: #0B6B50;
+  background: #d1fae5;
+  border-radius: 999px;
+  padding: 0 0.35rem;
+}
+
+.cal__chips {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  margin-top: 0.35rem;
+}
+
+.cal__chip {
+  font-size: 0.625rem;
+  font-weight: 600;
+  padding: 0.1rem 0.25rem;
+  border-radius: 4px;
+  background: #e2e8f0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cal__more { font-size: 0.625rem; color: #94a3b8; }
+
+.cal__panel {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e2e8f0;
+
+  h4 { margin: 0 0 0.5rem; font-size: 0.875rem; }
+
+  ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.5rem; }
+
+  li {
+    display: flex;
+    gap: 0.5rem;
+    align-items: flex-start;
+    font-size: 0.8125rem;
+    padding: 0.5rem;
+    border-radius: 8px;
+    cursor: pointer;
+
+    &:hover { background: #f8fafc; }
+  }
+}
+
+.meta {
+  flex: 1;
+  display: grid;
+  gap: 0.1rem;
+
+  .muted { color: #94a3b8; }
+}
+
+.dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  margin-top: 0.35rem;
+  flex-shrink: 0;
+  background: #94a3b8;
+}
+
+.badge {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  padding: 0.15rem 0.4rem;
+  border-radius: 6px;
+  background: #e2e8f0;
+  white-space: nowrap;
+}
+
+.status-Started, .status-AtPickup, .status-Enroute {
+  background: #dbeafe; color: #1d4ed8;
+  &.dot, &.cal__chip { background: #3b82f6; color: #fff; }
+}
+.status-Delayed {
+  background: #fef3c7; color: #b45309;
+  &.dot, &.cal__chip { background: #f59e0b; color: #fff; }
+}
+.status-Completed {
+  background: #d1fae5; color: #047857;
+  &.dot, &.cal__chip { background: #10b981; color: #fff; }
+}
+.status-Cancelled, .status-Failed {
+  background: #fee2e2; color: #b91c1c;
+  &.dot, &.cal__chip { background: #ef4444; color: #fff; }
+}
+.status-Scheduled, .status-DriverAssigned, .status-VehicleAssigned, .status-Draft {
+  background: #e2e8f0; color: #475569;
+  &.dot, &.cal__chip { background: #64748b; color: #fff; }
+}
+
+.loading { padding: 2rem; text-align: center; color: #6b7280; }
+
+@media (max-width: 768px) {
+  .cal__cell { min-height: 3.5rem; }
+  .cal__chips { display: none; }
+}

@@ -1,0 +1,54 @@
+.trip-dashboard {
+  .toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+
+    h2 {
+      margin: 0;
+    }
+  }
+
+  .loading {
+    display: flex;
+    justify-content: center;
+    padding: 48px;
+  }
+
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 12px;
+  }
+
+  .kpi-card {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    text-align: left;
+    border: 1px solid var(--stb-border, #e5e7eb);
+    border-radius: 12px;
+    background: #fff;
+    padding: 14px 16px;
+    cursor: pointer;
+
+    mat-icon {
+      color: var(--stb-primary, #0f766e);
+    }
+
+    .label {
+      display: block;
+      font-size: 12px;
+      color: #6b7280;
+    }
+
+    strong {
+      font-size: 1.4rem;
+    }
+
+    &:hover {
+      border-color: var(--stb-primary, #0f766e);
+    }
+  }
+}

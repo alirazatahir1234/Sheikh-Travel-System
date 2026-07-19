@@ -1,0 +1,22 @@
+<div class="trips-module">
+  <header class="trips-module-header">
+    <div>
+      <h1>Trips</h1>
+      <p>Operational hub for dispatch — from schedule to live execution</p>
+    </div>
+  </header>
+
+  <nav class="trips-subnav" aria-label="Trips module navigation">
+    <a *ngFor="let item of navItems"
+       [routerLink]="item.route"
+       routerLinkActive="active"
+       class="trips-subnav-link">
+      <mat-icon>{{ item.icon }}</mat-icon>
+      <span>{{ item.label }}</span>
+    </a>
+  </nav>
+
+  <div class="trips-module-content">
+    <router-outlet></router-outlet>
+  </div>
+</div>

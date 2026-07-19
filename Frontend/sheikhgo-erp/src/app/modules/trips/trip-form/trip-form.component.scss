@@ -1,0 +1,44 @@
+.trip-form {
+  h2 { margin: 0 0 16px; }
+
+  mat-card {
+    margin-bottom: 12px;
+  }
+
+  mat-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 8px 12px;
+  }
+
+  .full {
+    grid-column: 1 / -1;
+  }
+
+  .stop-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    .grow { flex: 1; }
+  }
+
+  .actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 8px;
+  }
+}
+
+.loading {
+  display: flex;
+  justify-content: center;
+  padding: 48px;
+}
