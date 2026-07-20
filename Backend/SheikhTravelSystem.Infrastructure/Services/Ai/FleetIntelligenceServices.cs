@@ -98,7 +98,7 @@ public sealed class FleetHealthService(IDbConnectionFactory dbFactory) : IFleetH
 
 public sealed class AiDigestService(
     IDbConnectionFactory dbFactory,
-    INotificationService notifications,
+    INotificationDecisionEngine decisionEngine,
     IAiManagementService aiManagement,
     ILogger<AiDigestService> logger) : IAiDigestService
 {
@@ -147,11 +147,19 @@ public sealed class AiDigestService(
             new { TenantId = tenantId, Title = title, Body = body, StatsJson = statsJson },
             cancellationToken: cancellationToken));
 
-        await notifications.CreateForAllChannelsAsync(
-            title, body, NotificationType.TripDelayed,
-            [NotificationChannels.InApp, NotificationChannels.Browser, NotificationChannels.Email],
-            priority: 2, module: "Fleet", referenceId: digestId, templateKey: null,
-            cancellationToken: cancellationToken);
+        await decisionEngine.DispatchIfAllowedAsync(new NotificationDecisionRequest(
+            "compliance_reminder",
+            title,
+            body,
+            NotificationType.TripDelayed,
+            ReferenceId: digestId,
+            TenantId: tenantId,
+            SuggestedPriority: 2,
+            RequestedChannels:
+            [
+                NotificationChannels.InApp, NotificationChannels.Browser, NotificationChannels.Email
+            ],
+            Broadcast: false), cancellationToken);
 
         await connection.ExecuteAsync(new CommandDefinition(
             "UPDATE AiDigests SET SentAt = GETUTCDATE() WHERE Id = @Id",

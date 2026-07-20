@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import '../../../core/config/app_config.dart';
 import '../../../core/constants/app_theme.dart';
+import '../../../core/offline/trips_cache.dart';
 import '../../trips/domain/trip_model.dart';
 import '../../trips/presentation/trips_notifier.dart';
 import '../data/navigation_api.dart';
@@ -108,9 +110,28 @@ class _TripNavigationScreenState extends ConsumerState<TripNavigationScreen> {
     }
   }
 
+  bool get _mapsAvailable => AppConfig.googleMapsApiKey.isNotEmpty;
+
+  Trip? _findTrip(List<Trip> trips) {
+    return trips
+        .where((t) => t.id == widget.tripId || t.bookingId == widget.tripId)
+        .firstOrNull;
+  }
+
+  Trip? _tripFromCache() {
+    try {
+      return TripsCache.load()
+          .map(Trip.fromJson)
+          .where((t) => t.id == widget.tripId || t.bookingId == widget.tripId)
+          .firstOrNull;
+    } catch (_) {
+      return null;
+    }
+  }
+
   Trip? get _trip {
-    final trips = ref.read(tripsProvider).valueOrNull ?? [];
-    return trips.where((t) => t.id == widget.tripId).firstOrNull;
+    final fromProvider = _findTrip(ref.read(tripsProvider).valueOrNull ?? []);
+    return fromProvider ?? _tripFromCache();
   }
 
   LatLng get _initialTarget {
@@ -260,14 +281,14 @@ class _TripNavigationScreenState extends ConsumerState<TripNavigationScreen> {
   }
 
   LatLng? _navTarget(Trip trip) {
-    // Enroute / onboard → drop-off; otherwise navigate to pickup
+    // Enroute / at drop-off phase → navigate to destination
     final toDrop = trip.lifecycleStatus == 7 || // Enroute
-        trip.lifecycleStatus == 6 || // AtPickup — still near pickup, but after onboard use drop
-        (trip.isStarted && trip.canComplete);
-    if (toDrop && trip.hasDropCoords && trip.lifecycleStatus == 7) {
+        trip.lifecycleStatus == 6 || // AtPickup — after onboard, head to drop
+        trip.canComplete;
+    if (toDrop && trip.hasDropCoords) {
       return LatLng(trip.dropLatitude!, trip.dropLongitude!);
     }
-    if (trip.hasPickupCoords && trip.lifecycleStatus != 7) {
+    if (trip.hasPickupCoords && !toDrop) {
       return LatLng(trip.pickupLatitude!, trip.pickupLongitude!);
     }
     if (trip.hasDropCoords) {
@@ -282,6 +303,20 @@ class _TripNavigationScreenState extends ConsumerState<TripNavigationScreen> {
   Future<void> _startExternal(Trip trip, String app) async {
     final target = _navTarget(trip);
     if (target == null) {
+      final fallback = trip.googleDirectionsUrl;
+      if (fallback != null && fallback.isNotEmpty) {
+        setState(() => _navigating = true);
+        final ok = await ExternalMapsLauncher.openUrl(fallback);
+        if (mounted) {
+          setState(() => _navigating = false);
+          if (!ok) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Could not open maps app')),
+            );
+          }
+        }
+        return;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('No destination coordinates available')),
       );
@@ -326,13 +361,25 @@ class _TripNavigationScreenState extends ConsumerState<TripNavigationScreen> {
   @override
   Widget build(BuildContext context) {
     final tripsAsync = ref.watch(tripsProvider);
+    final cached = _tripFromCache();
+
+    if (cached != null && tripsAsync.isLoading) {
+      return _buildScaffold(cached);
+    }
+
     return tripsAsync.when(
-      loading: () => const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      ),
-      error: (e, _) => Scaffold(body: Center(child: Text('$e'))),
+      loading: () {
+        if (cached != null) return _buildScaffold(cached);
+        return const Scaffold(
+          body: Center(child: CircularProgressIndicator()),
+        );
+      },
+      error: (e, _) {
+        if (cached != null) return _buildScaffold(cached);
+        return Scaffold(body: Center(child: Text('$e')));
+      },
       data: (trips) {
-        final trip = trips.where((t) => t.id == widget.tripId).firstOrNull;
+        final trip = _findTrip(trips) ?? cached;
         if (trip == null) {
           return const Scaffold(body: Center(child: Text('Trip not found')));
         }
@@ -342,6 +389,19 @@ class _TripNavigationScreenState extends ConsumerState<TripNavigationScreen> {
   }
 
   Widget _buildScaffold(Trip trip) {
+    if (!_mapsAvailable) {
+      return _NavigationFallback(
+        trip: trip,
+        onGoogle: () => _startExternal(trip, 'google'),
+        onApple: () => _startExternal(trip, 'apple'),
+        onWaze: () => _startExternal(trip, 'waze'),
+      );
+    }
+
+    return _buildMapScaffold(trip);
+  }
+
+  Widget _buildMapScaffold(Trip trip) {
     final speedKmh = _position == null
         ? 0.0
         : (_position!.speed * 3.6).clamp(0, 200).toDouble();
@@ -453,7 +513,121 @@ class _TripNavigationScreenState extends ConsumerState<TripNavigationScreen> {
       target.latitude,
       target.longitude,
     );
-    return (km, etaMinutesFromKm(km));
+    return (km, etaMinutesFromKm(km)    );
+  }
+}
+
+/// In-app map requires a Google Maps API key. Without it, offer external navigation.
+class _NavigationFallback extends StatelessWidget {
+  const _NavigationFallback({
+    required this.trip,
+    required this.onGoogle,
+    required this.onApple,
+    required this.onWaze,
+  });
+
+  final Trip trip;
+  final VoidCallback onGoogle;
+  final VoidCallback onApple;
+  final VoidCallback onWaze;
+
+  @override
+  Widget build(BuildContext context) {
+    final pickup = trip.pickupAddress ?? trip.routeName;
+    final drop = trip.dropoffAddress ?? 'Drop-off';
+
+    return Scaffold(
+      appBar: AppBar(title: const Text('Navigate')),
+      body: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Icon(Icons.map_outlined,
+                size: 56, color: AppColors.primary.withValues(alpha: 0.85)),
+            const SizedBox(height: 12),
+            const Text(
+              'Turn-by-turn navigation',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'In-app map is unavailable (Google Maps key not configured). '
+              'Open your preferred maps app for directions.',
+              style: TextStyle(color: AppColors.textSecondary.withValues(alpha: 0.95)),
+            ),
+            const SizedBox(height: 20),
+            _RouteLine(label: 'Pickup', value: pickup, color: AppColors.success),
+            const SizedBox(height: 10),
+            _RouteLine(label: 'Drop-off', value: drop, color: AppColors.error),
+            const Spacer(),
+            FilledButton.icon(
+              onPressed: onGoogle,
+              icon: const Icon(Icons.navigation_rounded),
+              label: const Text('OPEN GOOGLE MAPS'),
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                minimumSize: const Size.fromHeight(48),
+              ),
+            ),
+            const SizedBox(height: 10),
+            OutlinedButton.icon(
+              onPressed: onApple,
+              icon: const Icon(Icons.map),
+              label: const Text('OPEN APPLE MAPS'),
+              style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+            ),
+            const SizedBox(height: 10),
+            OutlinedButton.icon(
+              onPressed: onWaze,
+              icon: const Icon(Icons.directions_car),
+              label: const Text('OPEN WAZE'),
+              style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _RouteLine extends StatelessWidget {
+  const _RouteLine({
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+
+  final String label;
+  final String value;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(Icons.circle, size: 10, color: color),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label,
+                  style: const TextStyle(
+                      fontSize: 12, color: AppColors.textSecondary)),
+              Text(value,
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+            ],
+          ),
+        ),
+      ],
+    );
   }
 }
 

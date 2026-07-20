@@ -25,6 +25,10 @@ class Trip {
     this.lifecycleStatus = 0,
     this.lifecycleStatusName = '',
     this.nextActions = const [],
+    this.paidAmount = 0,
+    this.balanceDue = 0,
+    this.paymentRequired = false,
+    this.paymentStatus = 'Pending',
   });
 
   final int id;
@@ -53,6 +57,10 @@ class Trip {
   final int lifecycleStatus;
   final String lifecycleStatusName;
   final List<String> nextActions;
+  final double paidAmount;
+  final double balanceDue;
+  final bool paymentRequired;
+  final String paymentStatus;
 
   // Legacy booking status helpers (kept for list filters)
   bool get isConfirmed => status == 2 || lifecycleStatus == 2 ||
@@ -98,7 +106,9 @@ class Trip {
         : <String>[];
 
     return Trip(
-      id: json['id'] as int,
+      id: (json['id'] as num?)?.toInt() ??
+          (json['Id'] as num?)?.toInt() ??
+          0,
       bookingNumber: json['bookingNumber'] as String? ?? '',
       customerName: json['customerName'] as String? ?? '',
       routeName: json['routeName'] as String? ?? '',
@@ -127,6 +137,10 @@ class Trip {
       lifecycleStatusName: json['lifecycleStatusName'] as String? ??
           (json['statusName'] as String? ?? ''),
       nextActions: actions,
+      paidAmount: (json['paidAmount'] as num?)?.toDouble() ?? 0.0,
+      balanceDue: (json['balanceDue'] as num?)?.toDouble() ?? 0.0,
+      paymentRequired: json['paymentRequired'] as bool? ?? false,
+      paymentStatus: json['paymentStatus'] as String? ?? 'Pending',
     );
   }
 }

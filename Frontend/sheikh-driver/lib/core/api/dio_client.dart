@@ -13,6 +13,17 @@ import 'api_endpoints.dart';
 const _accessTokenKey = 'driver_access_token';
 const _refreshTokenKey = 'driver_refresh_token';
 
+/// Signals that the server rejected the saved refresh token. Keeping this
+/// separate from the HTTP client avoids a dependency cycle with AuthRepository.
+final sessionInvalidationProvider =
+    ChangeNotifierProvider<SessionInvalidationNotifier>(
+  (_) => SessionInvalidationNotifier(),
+);
+
+class SessionInvalidationNotifier extends ChangeNotifier {
+  void invalidate() => notifyListeners();
+}
+
 final secureStorageProvider = Provider(
   (_) => const FlutterSecureStorage(
     // Avoid Data Protection Keychain on macOS desktop (-34018 missing entitlement).
@@ -22,6 +33,7 @@ final secureStorageProvider = Provider(
 
 final dioProvider = Provider<Dio>((ref) {
   final storage = ref.read(secureStorageProvider);
+  final sessionInvalidation = ref.read(sessionInvalidationProvider);
   final dio = Dio(BaseOptions(
     baseUrl: AppConfig.baseUrl,
     connectTimeout: const Duration(seconds: 20),
@@ -43,7 +55,7 @@ final dioProvider = Provider<Dio>((ref) {
   }
 
   dio.interceptors.add(_RetryInterceptor(dio));
-  dio.interceptors.add(_AuthInterceptor(dio, storage));
+  dio.interceptors.add(_AuthInterceptor(dio, storage, sessionInvalidation));
 
   if (AppConfig.shouldPinCertificates) {
     _applyCertPinning(dio);
@@ -69,14 +81,16 @@ void _applyCertPinning(Dio dio) {
       final client = HttpClient();
       // Still reject untrusted CAs unless they match a pin (rotation / custom CA).
       client.badCertificateCallback = (cert, host, port) {
-        final fp = AppConfig.normalizeCertPin(sha256.convert(cert.der).toString());
+        final fp =
+            AppConfig.normalizeCertPin(sha256.convert(cert.der).toString());
         return pins.contains(fp);
       };
       return client;
     },
     validateCertificate: (cert, host, port) {
       if (cert == null) return false;
-      final fp = AppConfig.normalizeCertPin(sha256.convert(cert.der).toString());
+      final fp =
+          AppConfig.normalizeCertPin(sha256.convert(cert.der).toString());
       final ok = pins.contains(fp);
       if (!ok) {
         debugPrint('[Security] TLS pin mismatch for $host ($fp)');
@@ -107,7 +121,8 @@ class _RetryInterceptor extends Interceptor {
   }
 
   @override
-  Future<void> onError(DioException err, ErrorInterceptorHandler handler) async {
+  Future<void> onError(
+      DioException err, ErrorInterceptorHandler handler) async {
     // Skip retry for auth endpoints to avoid refresh-token loops
     if (err.requestOptions.path.contains('/auth/')) {
       return handler.next(err);
@@ -132,16 +147,25 @@ class _RetryInterceptor extends Interceptor {
 
 // ── Auth interceptor ───────────────────────────────────────────────────────
 class _AuthInterceptor extends QueuedInterceptor {
-  _AuthInterceptor(this._dio, this._storage);
+  _AuthInterceptor(this._dio, this._storage, this._sessionInvalidation);
 
   final Dio _dio;
   final FlutterSecureStorage _storage;
+  final SessionInvalidationNotifier _sessionInvalidation;
+
+  static bool _isAuthRequest(RequestOptions options) =>
+      options.path.contains('/auth/');
 
   @override
   Future<void> onRequest(
     RequestOptions options,
     RequestInterceptorHandler handler,
   ) async {
+    // Login, logout and token refresh must never carry a stale access token.
+    if (_isAuthRequest(options)) {
+      return handler.next(options);
+    }
+
     final token = await _storage.read(key: _accessTokenKey);
     if (token != null) {
       options.headers['Authorization'] = 'Bearer $token';
@@ -154,7 +178,11 @@ class _AuthInterceptor extends QueuedInterceptor {
     DioException err,
     ErrorInterceptorHandler handler,
   ) async {
-    if (err.response?.statusCode == 401) {
+    // A refresh-token 401 is terminal. Retrying it would recurse forever and
+    // leaving only the persisted credentials cleared keeps the UI "logged in".
+    if (err.response?.statusCode == 401 &&
+        !_isAuthRequest(err.requestOptions) &&
+        err.requestOptions.extra['retriedAfterRefresh'] != true) {
       final refreshToken = await _storage.read(key: _refreshTokenKey);
       if (refreshToken != null) {
         try {
@@ -172,15 +200,25 @@ class _AuthInterceptor extends QueuedInterceptor {
               await _storage.write(key: _refreshTokenKey, value: newRefresh);
             }
             err.requestOptions.headers['Authorization'] = 'Bearer $newToken';
+            err.requestOptions.extra['retriedAfterRefresh'] = true;
             final retried = await _dio.fetch(err.requestOptions);
             return handler.resolve(retried);
           }
         } catch (_) {
-          await _storage.deleteAll();
+          await _invalidateSession();
+          return handler.next(err);
         }
       }
+
+      // Missing or malformed refresh credentials cannot restore this session.
+      await _invalidateSession();
     }
     handler.next(err);
+  }
+
+  Future<void> _invalidateSession() async {
+    await _storage.deleteAll();
+    _sessionInvalidation.invalidate();
   }
 }
 

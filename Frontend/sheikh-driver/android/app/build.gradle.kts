@@ -36,7 +36,13 @@ android {
         if (localPropertiesFile.exists()) {
             localPropertiesFile.inputStream().use { localProperties.load(it) }
         }
+        val mapsProperties = Properties()
+        val mapsPropertiesFile = rootProject.file("maps.properties")
+        if (mapsPropertiesFile.exists()) {
+            mapsPropertiesFile.inputStream().use { mapsProperties.load(it) }
+        }
         val mapsKey = localProperties.getProperty("GOOGLE_MAPS_API_KEY")
+            ?: mapsProperties.getProperty("GOOGLE_MAPS_API_KEY")
             ?: (project.findProperty("GOOGLE_MAPS_API_KEY") as String?)
             ?: System.getenv("GOOGLE_MAPS_API_KEY")
             ?: ""

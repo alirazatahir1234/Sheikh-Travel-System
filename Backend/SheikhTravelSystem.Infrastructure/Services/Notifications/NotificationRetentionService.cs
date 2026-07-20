@@ -14,7 +14,8 @@ public sealed class NotificationRetentionService(
         int? tenantId = null, CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
-        var tid = tenantId ?? 1;
+        if (tenantId is not int tid || tid <= 0)
+            throw new InvalidOperationException("TenantId is required for notification retention cleanup.");
 
         var rows = (await connection.QueryAsync<(string Key, string? Value)>(new CommandDefinition("""
             SELECT [Key], Value FROM PlatformSettings
@@ -35,12 +36,13 @@ public sealed class NotificationRetentionService(
             FROM NotificationRecipients r
             INNER JOIN Notifications n ON n.Id = r.NotificationId
             WHERE r.IsDeleted = 0 AND r.IsArchived = 0 AND r.IsRead = 1
+              AND n.TenantId = @TenantId
               AND ISNULL(n.NeverAutoDelete, 0) = 0
               AND ISNULL(n.RetentionCategory, 'Standard') <> 'Critical'
               AND ISNULL(r.ReadAt, n.ReadDate) IS NOT NULL
               AND ISNULL(r.ReadAt, n.ReadDate) < @Cutoff
             """,
-            new { Cutoff = archiveCutoff },
+            new { Cutoff = archiveCutoff, TenantId = tid },
             cancellationToken: cancellationToken));
 
         // Hard-delete recipient rows past retention (skip NeverAutoDelete / Critical when configured)
@@ -63,13 +65,14 @@ public sealed class NotificationRetentionService(
                 FROM NotificationRecipients r
                 INNER JOIN Notifications n ON n.Id = r.NotificationId
                 WHERE ISNULL(n.NeverAutoDelete, 0) = 0
+                  AND n.TenantId = @TenantId
                   AND ISNULL(n.RetentionCategory, 'Standard') = @Category
                   AND (
                         (r.IsDeleted = 1 AND r.DeletedAt IS NOT NULL AND r.DeletedAt < DATEADD(DAY, -@Days, GETUTCDATE()))
                      OR (r.IsArchived = 1 AND r.ArchivedAt IS NOT NULL AND r.ArchivedAt < DATEADD(DAY, -@Days, GETUTCDATE()))
                   )
                 """,
-                new { Category = category, Days = days },
+                new { Category = category, Days = days, TenantId = tid },
                 cancellationToken: cancellationToken));
         }
 
@@ -79,11 +82,12 @@ public sealed class NotificationRetentionService(
             FROM NotificationRecipients r
             INNER JOIN Notifications n ON n.Id = r.NotificationId
             WHERE ISNULL(n.NeverAutoDelete, 0) = 0
+              AND n.TenantId = @TenantId
               AND ISNULL(n.DeliveryStatus, '') = 'Failed'
               AND ISNULL(n.RetentionCategory, 'Standard') <> 'Critical'
               AND n.CreatedAt < DATEADD(DAY, -@Days, GETUTCDATE())
             """,
-            new { Days = Math.Max(1, policy.FailedDeleteDays) },
+            new { Days = Math.Max(1, policy.FailedDeleteDays), TenantId = tid },
             cancellationToken: cancellationToken));
 
         // Orphan notifications with no recipients left (and not NeverAutoDelete)
@@ -91,7 +95,8 @@ public sealed class NotificationRetentionService(
             DELETE FROM NotificationDeliveryLogs
             WHERE NotificationId IN (
                 SELECT n.Id FROM Notifications n
-                WHERE ISNULL(n.NeverAutoDelete, 0) = 0
+                WHERE n.TenantId = @TenantId
+                  AND ISNULL(n.NeverAutoDelete, 0) = 0
                   AND NOT EXISTS (SELECT 1 FROM NotificationRecipients r WHERE r.NotificationId = n.Id)
                   AND (
                         n.IsDeleted = 1
@@ -103,6 +108,7 @@ public sealed class NotificationRetentionService(
 
             DELETE FROM Notifications
             WHERE ISNULL(NeverAutoDelete, 0) = 0
+              AND TenantId = @TenantId
               AND NOT EXISTS (SELECT 1 FROM NotificationRecipients r WHERE r.NotificationId = Notifications.Id)
               AND (
                     IsDeleted = 1
@@ -111,13 +117,14 @@ public sealed class NotificationRetentionService(
               )
               AND CreatedAt < DATEADD(DAY, -@Days, GETUTCDATE());
             """,
-            new { Days = Math.Max(1, policy.ArchivedDeleteDays) },
+            new { Days = Math.Max(1, policy.ArchivedDeleteDays), TenantId = tid },
             cancellationToken: cancellationToken));
 
         var protectedCritical = await connection.ExecuteScalarAsync<int>(new CommandDefinition("""
             SELECT COUNT(*) FROM Notifications
-            WHERE ISNULL(NeverAutoDelete, 0) = 1 OR RetentionCategory = 'Critical'
-            """, cancellationToken: cancellationToken));
+            WHERE TenantId = @TenantId
+              AND (ISNULL(NeverAutoDelete, 0) = 1 OR RetentionCategory = 'Critical')
+            """, new { TenantId = tid }, cancellationToken: cancellationToken));
 
         logger.LogInformation(
             "Notification retention: archived {Archived}, removed recipients {Recipients}+{Failed}, orphans {Orphans}",

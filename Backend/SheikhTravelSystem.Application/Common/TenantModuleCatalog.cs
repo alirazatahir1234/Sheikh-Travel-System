@@ -11,7 +11,7 @@ public static class TenantModuleCatalog
     [
         new("DASHBOARD", "Dashboard", ["dashboard"]),
         new("FLEET", "Fleet Management", ["vehicles", "drivers", "fuel-logs", "maintenance"]),
-        new("GPS", "GPS Tracking", ["gps-tracking"]),
+        new("GPS", "Fleet Tracking", ["gps-tracking"]),
         new("RENTAL", "Vehicle Rental", ["rental"]),
         new("TRAVEL", "Travel Agency", ["bookings", "routes", "trips"]),
         new("CRM", "CRM", ["customers"]),

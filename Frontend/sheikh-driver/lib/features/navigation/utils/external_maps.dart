@@ -6,6 +6,8 @@ import 'package:url_launcher/url_launcher.dart';
 class ExternalMapsLauncher {
   ExternalMapsLauncher._();
 
+  static Future<bool> openUrl(String url) => _launch(Uri.parse(url));
+
   static Future<bool> openGoogleMaps({
     required double? originLat,
     required double? originLng,

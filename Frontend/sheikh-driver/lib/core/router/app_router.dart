@@ -20,6 +20,7 @@ import '../../features/navigation/presentation/trip_navigation_screen.dart';
 import '../../features/offline/presentation/offline_queue_screen.dart';
 import '../../features/security/presentation/security_status_screen.dart';
 import '../../features/legal/presentation/legal_document_screen.dart';
+import '../../features/payments/presentation/collect_payment_screen.dart';
 import '../../shared/widgets/app_shell.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -43,6 +44,12 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/trips/:id/navigate',
         builder: (_, state) => TripNavigationScreen(
+          tripId: int.parse(state.pathParameters['id']!),
+        ),
+      ),
+      GoRoute(
+        path: '/trips/:id/collect-payment',
+        builder: (_, state) => CollectPaymentScreen(
           tripId: int.parse(state.pathParameters['id']!),
         ),
       ),

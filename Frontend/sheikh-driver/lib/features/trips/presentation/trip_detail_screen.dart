@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../core/constants/app_theme.dart';
+import '../../../core/errors/error_handler.dart';
 import '../../../shared/widgets/sg_ui.dart';
 import '../domain/trip_model.dart';
 import 'trips_notifier.dart';
@@ -19,7 +20,9 @@ class TripDetailScreen extends ConsumerWidget {
           const Scaffold(body: Center(child: CircularProgressIndicator())),
       error: (e, _) => Scaffold(body: Center(child: Text(e.toString()))),
       data: (trips) {
-        final trip = trips.where((t) => t.id == tripId).firstOrNull;
+        final trip = trips
+            .where((t) => t.id == tripId || t.bookingId == tripId)
+            .firstOrNull;
         if (trip == null) {
           return const Scaffold(body: Center(child: Text('Trip not found')));
         }
@@ -51,19 +54,30 @@ class _TripDetailContentState extends ConsumerState<_TripDetailContent> {
             reason: reason,
           );
       if (mounted) {
+        final message = offlineMsg ?? _successMessage(action);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(offlineMsg ?? '$action successful'),
+            content: Text(message),
             backgroundColor:
                 offlineMsg != null ? AppColors.warning : AppColors.success,
           ),
         );
+        if (action == 'Complete' && offlineMsg == null) {
+          final updated = ref.read(tripsProvider).valueOrNull
+              ?.where((t) => t.id == trip.id || t.bookingId == trip.id)
+              .firstOrNull;
+          final paymentRequired = updated?.paymentRequired ?? false;
+          final targetId = updated?.actionId ?? trip.actionId;
+          if (paymentRequired) {
+            context.push('/trips/$targetId/collect-payment');
+          }
+        }
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(e.toString()),
+            content: Text(ErrorHandler.message(e)),
             backgroundColor: AppColors.error,
           ),
         );
@@ -72,6 +86,15 @@ class _TripDetailContentState extends ConsumerState<_TripDetailContent> {
       if (mounted) setState(() => _busy = false);
     }
   }
+
+  String _successMessage(String action) => switch (action) {
+        'Accept' => 'Trip accepted. Navigate to pickup.',
+        'Arrived' => 'Arrived at pickup. Notify passenger to board.',
+        'Onboard' => 'Passenger onboard. Navigate to drop-off.',
+        'Complete' => 'Trip completed successfully.',
+        'Reject' => 'Trip declined.',
+        _ => '$action successful',
+      };
 
   Future<void> _confirmReject(Trip latest) async {
     final ctrl = TextEditingController();
@@ -106,7 +129,7 @@ class _TripDetailContentState extends ConsumerState<_TripDetailContent> {
   @override
   Widget build(BuildContext context) {
     final latest = ref.watch(tripsProvider).valueOrNull
-            ?.where((t) => t.id == trip.id)
+            ?.where((t) => t.id == trip.id || t.bookingId == trip.id)
             .firstOrNull ??
         trip;
 
@@ -245,7 +268,14 @@ class _TripDetailContentState extends ConsumerState<_TripDetailContent> {
                 onPressed: () => _run('Onboard'),
               ),
             ],
-            if (latest.canComplete) ...[
+            if (latest.isCompleted) ...[
+              const SizedBox(height: 10),
+              Text(
+                'This trip is already completed.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: AppColors.textSecondary.withValues(alpha: 0.95)),
+              ),
+            ] else if (latest.canComplete) ...[
               const SizedBox(height: 10),
               SgPrimaryButton(
                 label: 'Complete Trip',

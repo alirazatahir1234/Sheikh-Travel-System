@@ -41,6 +41,7 @@ public static class DatabaseMigrationRegistry
             M("GpsAddressCacheMigration", GpsAddressCacheMigration.ApplyAsync),
             M("NotificationCenterMigration", NotificationCenterMigration.ApplyAsync),
             M("NotificationCenterV2Migration", NotificationCenterV2Migration.ApplyAsync),
+            M("NotificationTenantIsolationMigration", NotificationTenantIsolationMigration.ApplyAsync),
             M("AiPlatformMigration", AiPlatformMigration.ApplyAsync),
             M("PerformanceIndexesMigration", PerformanceIndexesMigration.ApplyAsync),
             M("PortalSchemaMigration", PortalSchemaMigration.ApplyAsync),
@@ -65,6 +66,7 @@ public static class DatabaseMigrationRegistry
             M("DriverInspectionMigration", DriverInspectionMigration.ApplyAsync),
             M("DriverFuelReceiptMigration", DriverFuelReceiptMigration.ApplyAsync),
             M("DriverDeviceRegistrationMigration", DriverDeviceRegistrationMigration.ApplyAsync),
+            M("FleetTrackingRenameMigration", FleetTrackingRenameMigration.ApplyAsync),
         ];
     }
 }

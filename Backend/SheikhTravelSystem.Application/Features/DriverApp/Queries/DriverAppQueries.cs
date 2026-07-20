@@ -23,20 +23,17 @@ public class GetDriverProfileQueryHandler(
 
         using var connection = dbFactory.CreateConnection();
         var row = await connection.QuerySingleOrDefaultAsync<DriverProfileDto>(new CommandDefinition(
-            @"SELECT d.Id, d.FullName, d.Phone, d.Email, d.PhotoUrl, d.DriverCode,
+            $@"SELECT d.Id, d.FullName, d.Phone, d.Email, d.PhotoUrl, d.DriverCode,
                      d.LicenseNumber, d.LicenseExpiryDate, d.Status,
                      CASE d.Status
                        WHEN 1 THEN 'Available' WHEN 2 THEN 'On Trip' WHEN 3 THEN 'Off Duty'
                        WHEN 4 THEN 'Suspended' WHEN 5 THEN 'On Leave' ELSE 'Unknown' END AS StatusName,
                      d.IsActive,
-                     v.Name AS CurrentVehicleName, v.RegistrationNumber AS CurrentVehiclePlate,
+                     cv.Name AS CurrentVehicleName, cv.RegistrationNumber AS CurrentVehiclePlate,
                      b.Name AS BranchName,
                      d.Rating, d.YearsExperience, d.VerificationStatus
               FROM Drivers d
-              LEFT JOIN Vehicles v ON v.Id = (
-                  SELECT TOP 1 VehicleId FROM Bookings
-                  WHERE DriverId = d.Id AND Status IN (2,3) AND IsDeleted = 0
-                  ORDER BY PickupTime DESC)
+              {DriverAppSql.CurrentVehicleApply}
               LEFT JOIN Branches b ON b.Id = d.BranchId
               WHERE d.Id = @DriverId AND d.TenantId = @TenantId AND d.IsDeleted = 0",
             new { DriverId = driverId.Value, TenantId = tenantContext.GetRequiredTenantId() },
@@ -90,11 +87,10 @@ public class GetDriverDashboardQueryHandler(
             new { UserId = currentUser.UserId }, cancellationToken: cancellationToken));
 
         var statusRow = await connection.QuerySingleOrDefaultAsync<(string? Vehicle, string? Plate, int Status)>(new CommandDefinition(
-            @"SELECT v.Name, v.RegistrationNumber, d.Status FROM Drivers d
-              LEFT JOIN Vehicles v ON v.Id=(
-                  SELECT TOP 1 VehicleId FROM Bookings WHERE DriverId=d.Id AND Status IN(2,3) AND IsDeleted=0 ORDER BY PickupTime DESC)
-              WHERE d.Id=@D AND d.IsDeleted=0",
-            new { D = driverId.Value }, cancellationToken: cancellationToken));
+            $@"SELECT cv.Name, cv.RegistrationNumber, d.Status FROM Drivers d
+              {DriverAppSql.CurrentVehicleApply}
+              WHERE d.Id=@DriverId AND d.TenantId=@TenantId AND d.IsDeleted=0",
+            new { DriverId = driverId.Value, TenantId = tenantId }, cancellationToken: cancellationToken));
 
         var statusName = statusRow.Status switch
         {
@@ -169,7 +165,8 @@ public class GetDriverTripsQueryHandler(
                      t.PickupAddress, t.PickupLatitude, t.PickupLongitude,
                      t.DestinationAddress AS DropoffAddress,
                      t.DestinationLatitude AS DropLatitude,
-                     t.DestinationLongitude AS DropLongitude
+                     t.DestinationLongitude AS DropLongitude,
+                     r.Source AS RouteSource, r.Destination AS RouteDestination
               FROM Trips t
               LEFT JOIN Bookings b ON b.Id = t.BookingId
               LEFT JOIN Customers c ON c.Id = t.CustomerId
@@ -194,8 +191,10 @@ public class GetDriverTripsQueryHandler(
         {
             if (r.BookingId is int bid) linkedBookingIds.Add(bid);
             var status = (TripStatus)r.Status;
-            var (plat, plng) = (r.PickupLatitude, r.PickupLongitude);
-            var (dlat, dlng) = (r.DropLatitude, r.DropLongitude);
+            var pickupAddr = string.IsNullOrWhiteSpace(r.PickupAddress) ? r.RouteSource : r.PickupAddress;
+            var dropAddr = string.IsNullOrWhiteSpace(r.DropoffAddress) ? r.RouteDestination : r.DropoffAddress;
+            var (plat, plng) = DriverAppGeo.ResolveCoords(r.PickupLatitude, r.PickupLongitude, pickupAddr);
+            var (dlat, dlng) = DriverAppGeo.ResolveCoords(r.DropLatitude, r.DropLongitude, dropAddr);
             results.Add(new DriverTripDto(
                 Id: r.Id,
                 BookingNumber: !string.IsNullOrWhiteSpace(r.BookingNumber) ? r.BookingNumber! : r.TripNumber ?? $"T-{r.Id}",
@@ -208,14 +207,14 @@ public class GetDriverTripsQueryHandler(
                 VehicleId: r.VehicleId,
                 VehicleName: r.VehicleName,
                 TotalAmount: r.TotalAmount,
-                PickupAddress: r.PickupAddress,
+                PickupAddress: pickupAddr,
                 PickupLatitude: plat,
                 PickupLongitude: plng,
-                DropoffAddress: r.DropoffAddress,
+                DropoffAddress: dropAddr,
                 DropLatitude: dlat,
                 DropLongitude: dlng,
-                GoogleMapsUrl: BuildGoogleMapsUrl(plat, plng, r.PickupAddress, dlat, dlng, r.DropoffAddress),
-                GoogleDirectionsUrl: BuildGoogleMapsUrl(plat, plng, r.PickupAddress, dlat, dlng, r.DropoffAddress),
+                GoogleMapsUrl: DriverAppGeo.BuildGoogleMapsUrl(plat, plng, pickupAddr, dlat, dlng, dropAddr),
+                GoogleDirectionsUrl: DriverAppGeo.BuildGoogleMapsUrl(plat, plng, pickupAddr, dlat, dlng, dropAddr),
                 TripId: r.Id,
                 BookingId: r.BookingId,
                 Source: "Trip",
@@ -242,6 +241,10 @@ public class GetDriverTripsQueryHandler(
               LEFT JOIN Vehicles v ON v.Id = b.VehicleId
               WHERE b.DriverId = @DriverId AND b.TenantId = @TenantId AND b.IsDeleted = 0
                 AND b.Status IN (@Confirmed, @Started)
+                AND NOT EXISTS (
+                    SELECT 1 FROM Trips t2
+                    WHERE t2.BookingId = b.Id AND t2.TenantId = @TenantId AND t2.IsDeleted = 0
+                )
               ORDER BY b.PickupTime ASC",
             new
             {
@@ -256,8 +259,8 @@ public class GetDriverTripsQueryHandler(
         {
             if (linkedBookingIds.Contains(r.Id)) continue;
 
-            var (plat, plng) = ResolveCoords(r.PickupLatitude, r.PickupLongitude, r.RouteSource);
-            var (dlat, dlng) = ResolveCoords(r.DropLatitude, r.DropLongitude, r.RouteDestination);
+            var (plat, plng) = DriverAppGeo.ResolveCoords(r.PickupLatitude, r.PickupLongitude, r.RouteSource);
+            var (dlat, dlng) = DriverAppGeo.ResolveCoords(r.DropLatitude, r.DropLongitude, r.RouteDestination);
             var pickupAddr = string.IsNullOrWhiteSpace(r.PickupAddress) ? r.RouteSource : r.PickupAddress;
             var dropAddr = string.IsNullOrWhiteSpace(r.DropoffAddress) ? r.RouteDestination : r.DropoffAddress;
             var bookingStatus = (BookingStatus)r.Status;
@@ -268,14 +271,54 @@ public class GetDriverTripsQueryHandler(
                 r.PickupTime, r.DropoffTime, r.Status, r.StatusName ?? "",
                 r.VehicleId, r.VehicleName, r.TotalAmount,
                 pickupAddr, plat, plng, dropAddr, dlat, dlng,
-                BuildGoogleMapsUrl(plat, plng, pickupAddr, dlat, dlng, dropAddr),
-                BuildGoogleMapsUrl(plat, plng, pickupAddr, dlat, dlng, dropAddr),
+                DriverAppGeo.BuildGoogleMapsUrl(plat, plng, pickupAddr, dlat, dlng, dropAddr),
+                DriverAppGeo.BuildGoogleMapsUrl(plat, plng, pickupAddr, dlat, dlng, dropAddr),
                 TripId: null,
                 BookingId: r.Id,
                 Source: "Booking",
                 LifecycleStatus: (int)lifecycle,
                 LifecycleStatusName: DriverTripLabels.Name(lifecycle),
                 NextActions: DriverTripLabels.NextActionsFromBooking(bookingStatus)));
+        }
+
+        var bookingIds = results
+            .Select(t => t.BookingId ?? 0)
+            .Where(id => id > 0)
+            .Distinct()
+            .ToArray();
+        if (bookingIds.Length > 0)
+        {
+            var paidRows = await connection.QueryAsync<(int BookingId, decimal PaidAmount)>(new CommandDefinition(
+                @"SELECT BookingId, ISNULL(SUM(Amount), 0) AS PaidAmount
+                  FROM Payments
+                  WHERE BookingId IN @BookingIds
+                    AND IsDeleted = 0
+                    AND Status IN (@Paid, @Partial)
+                  GROUP BY BookingId",
+                new
+                {
+                    BookingIds = bookingIds,
+                    Paid = (int)PaymentStatus.Paid,
+                    Partial = (int)PaymentStatus.PartiallyPaid
+                },
+                cancellationToken: cancellationToken));
+            var paidMap = paidRows.ToDictionary(x => x.BookingId, x => x.PaidAmount);
+
+            for (var i = 0; i < results.Count; i++)
+            {
+                var t = results[i];
+                var bookingId = t.BookingId ?? 0;
+                var paid = bookingId > 0 && paidMap.TryGetValue(bookingId, out var p) ? p : 0m;
+                var balance = Math.Max(0, t.TotalAmount - paid);
+                var payStatus = balance <= 0 ? "Paid" : (paid > 0 ? "PartiallyPaid" : "Pending");
+                results[i] = t with
+                {
+                    PaidAmount = paid,
+                    BalanceDue = balance,
+                    PaymentRequired = balance > 0,
+                    PaymentStatus = payStatus
+                };
+            }
         }
 
         return ApiResponse<List<DriverTripDto>>.SuccessResponse(
@@ -300,40 +343,6 @@ public class GetDriverTripsQueryHandler(
         _ => (int)BookingStatus.Confirmed
     };
 
-    private static (double? Lat, double? Lng) ResolveCoords(double? lat, double? lng, string? placeHint)
-    {
-        if (lat.HasValue && lng.HasValue && !(lat.Value == 0 && lng.Value == 0))
-            return (lat, lng);
-
-        if (string.IsNullOrWhiteSpace(placeHint)) return (null, null);
-        var source = placeHint.ToLowerInvariant();
-        if (source.Contains("lahore")) return (31.5204, 74.3587);
-        if (source.Contains("islamabad")) return (33.6844, 73.0479);
-        if (source.Contains("sialkot")) return (32.4945, 74.5229);
-        if (source.Contains("karachi")) return (24.8607, 67.0011);
-        if (source.Contains("multan")) return (30.1575, 71.5249);
-        return (null, null);
-    }
-
-    private static string? BuildGoogleMapsUrl(
-        double? plat, double? plng, string? pAddr,
-        double? dlat, double? dlng, string? dAddr)
-    {
-        static string? Format(double? lat, double? lng, string? address)
-        {
-            if (lat.HasValue && lng.HasValue)
-                return string.Create(System.Globalization.CultureInfo.InvariantCulture, $"{lat.Value},{lng.Value}");
-            return string.IsNullOrWhiteSpace(address) ? null : address.Trim();
-        }
-
-        var origin = Format(plat, plng, pAddr);
-        var dest = Format(dlat, dlng, dAddr);
-        if (origin is null && dest is null) return null;
-        if (dest is null) return $"https://www.google.com/maps/search/?api=1&query={Uri.EscapeDataString(origin!)}";
-        if (origin is null) return $"https://www.google.com/maps/search/?api=1&query={Uri.EscapeDataString(dest)}";
-        return $"https://www.google.com/maps/dir/?api=1&origin={Uri.EscapeDataString(origin)}&destination={Uri.EscapeDataString(dest)}";
-    }
-
     private sealed class OpTripRow
     {
         public int Id { get; init; }
@@ -354,6 +363,8 @@ public class GetDriverTripsQueryHandler(
         public string? DropoffAddress { get; init; }
         public double? DropLatitude { get; init; }
         public double? DropLongitude { get; init; }
+        public string? RouteSource { get; init; }
+        public string? RouteDestination { get; init; }
     }
 
     private sealed class DriverTripRow
@@ -486,6 +497,20 @@ public class GetDriverTimelineQueryHandler(
                        n.Id
                 FROM Notifications n
                 WHERE n.UserId = @UserId AND n.IsDeleted = 0
+
+                UNION ALL
+
+                SELECT p.Id,
+                       N'Payment',
+                       N'Payment collected',
+                       COALESCE(p.PaymentDate, p.CreatedAt),
+                       CONCAT(N'PKR ', FORMAT(p.Amount, 'N0'), N' via ', ISNULL(p.PaymentMethod, N'Unknown')),
+                       CAST(p.Status AS NVARCHAR(20)),
+                       p.BookingId
+                FROM Payments p
+                INNER JOIN Bookings b ON b.Id = p.BookingId
+                WHERE b.DriverId = @DriverId AND b.TenantId = @TenantId
+                  AND b.IsDeleted = 0 AND p.IsDeleted = 0
             )
             SELECT Id, EventType, Title, EventTime, Description, Status, ReferenceId
             FROM Events

@@ -33,6 +33,16 @@ public class DriverAppController : BaseApiController
     public async Task<IActionResult> GetDashboard()
         => Ok(await Mediator.Send(new GetDriverDashboardQuery()));
 
+    [Authorize(Roles = "Driver")]
+    [HttpGet("status")]
+    public async Task<IActionResult> GetDriverStatus()
+        => Ok(await Mediator.Send(new GetDriverStatusQuery()));
+
+    [Authorize(Roles = "Driver")]
+    [HttpPost("status")]
+    public async Task<IActionResult> SetDriverStatus([FromBody] SetDriverStatusRequest request)
+        => Ok(await Mediator.Send(new SetDriverStatusCommand(request.Status)));
+
     // ── Trips ────────────────────────────────────────────────────────────────
 
     [Authorize(Roles = "Driver")]
@@ -73,6 +83,17 @@ public class DriverAppController : BaseApiController
     [HttpPost("trips/{id:int}/reject")]
     public async Task<IActionResult> RejectTrip(int id, [FromBody] string reason)
         => Ok(await Mediator.Send(new DriverAdvanceTripCommand(id, DriverTripAction.Reject, reason)));
+
+    [Authorize(Roles = "Driver")]
+    [HttpGet("trips/{id:int}/payment-summary")]
+    public async Task<IActionResult> GetTripPaymentSummary(int id)
+        => Ok(await Mediator.Send(new GetDriverTripPaymentSummaryQuery(id)));
+
+    [Authorize(Roles = "Driver")]
+    [HttpPost("trips/{id:int}/collect-payment")]
+    public async Task<IActionResult> CollectTripPayment(int id, [FromBody] DriverCollectPaymentRequest request)
+        => Ok(await Mediator.Send(new DriverCollectPaymentCommand(
+            id, request.AmountReceived, request.PaymentMethod, request.ReferenceNumber, request.Notes)));
 
     [Authorize(Roles = "Driver")]
     [HttpPost("trips/location")]
@@ -187,22 +208,22 @@ public class DriverAppController : BaseApiController
         [FromQuery] string? module = null,
         [FromQuery] bool archived = false)
     {
-        if (!TryGetCurrentUserId(out var userId))
+        if (!TryGetCurrentUserId(out var userId) || !TryGetCurrentTenantId(out var tenantId))
             return Unauthorized();
 
         return Ok(await Mediator.Send(new SheikhTravelSystem.Application.Features.Notifications.Queries.GetNotificationsQuery(
-            userId, page, pageSize, unreadOnly, Module: module, Archived: archived)));
+            tenantId, userId, page, pageSize, unreadOnly, Module: module, Archived: archived)));
     }
 
     [Authorize(Roles = "Driver")]
     [HttpGet("notifications/unread-count")]
     public async Task<IActionResult> GetUnreadNotificationCount()
     {
-        if (!TryGetCurrentUserId(out var userId))
+        if (!TryGetCurrentUserId(out var userId) || !TryGetCurrentTenantId(out var tenantId))
             return Unauthorized();
 
         return Ok(await Mediator.Send(
-            new SheikhTravelSystem.Application.Features.Notifications.Queries.GetUnreadNotificationCountQuery(userId)));
+            new SheikhTravelSystem.Application.Features.Notifications.Queries.GetUnreadNotificationCountQuery(tenantId, userId)));
     }
 
     [Authorize(Roles = "Driver")]
@@ -261,6 +282,12 @@ public class DriverAppController : BaseApiController
         return int.TryParse(claim, out userId);
     }
 
+    private bool TryGetCurrentTenantId(out int tenantId)
+    {
+        var claim = User.FindFirst("tenantId")?.Value ?? User.FindFirst("tenant_id")?.Value;
+        return int.TryParse(claim, out tenantId);
+    }
+
     // ── SOS ───────────────────────────────────────────────────────────────────
 
     [Authorize(Roles = "Driver")]
@@ -305,8 +332,8 @@ public class DriverAppController : BaseApiController
         [FromForm] string? comments,
         [FromForm] string resultsJson,
         [FromForm] string? overallResult,
-        [FromForm] List<IFormFile>? photos,
-        [FromForm] IFormFile? signature)
+        List<IFormFile>? photos,
+        IFormFile? signature)
     {
         List<InspectionResultItemDto> results;
         try
@@ -386,3 +413,11 @@ public class DriverAppController : BaseApiController
     public IActionResult GetAppVersion()
         => Ok(new { MinVersion = "1.0.0", LatestVersion = "1.0.0", ForceUpdate = false });
 }
+
+public record DriverCollectPaymentRequest(
+    decimal AmountReceived,
+    string PaymentMethod,
+    string? ReferenceNumber,
+    string? Notes);
+
+public record SetDriverStatusRequest(string Status);

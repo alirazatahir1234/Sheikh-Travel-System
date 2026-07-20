@@ -13,7 +13,7 @@ public record NotificationDecisionRequest(
     int? TargetUserId = null,
     IReadOnlyList<string>? RequestedChannels = null,
     int? SuggestedPriority = null,
-    bool Broadcast = true,
+    bool Broadcast = false,
     bool RequireEscalation = false);
 
 public record NotificationDecisionResult(
@@ -61,7 +61,7 @@ public record UserPresenceSnapshot(
 public interface IDeviceTokenService
 {
     Task RegisterAsync(int userId, string token, string platform, string appName, CancellationToken cancellationToken = default);
-    Task<IReadOnlyList<string>> GetActiveTokensAsync(int userId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<string>> GetActiveTokensAsync(int userId, int? tenantId = null, CancellationToken cancellationToken = default);
 }
 
 public interface IAlertNotificationAudit

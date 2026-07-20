@@ -179,7 +179,7 @@ public class SendDeviceCommandCommandHandler(
     ICurrentUserService currentUser,
     ITraccarClient traccar,
     ITenantContext tenantContext,
-    INotificationService notifications,
+    INotificationDecisionEngine decisionEngine,
     IOptions<GpsSettings> gpsSettings)
     : IRequestHandler<SendDeviceCommandCommand, ApiResponse<int>>
 {
@@ -313,15 +313,16 @@ public class SendDeviceCommandCommandHandler(
         if (definition.NotifyAllUsers && dispatchSucceeded)
         {
             var verb = request.Command.CommandType == "engineStop" ? "cut off" : "restored";
-            await notifications.CreateForAllChannelsAsync(
+            await decisionEngine.DispatchIfAllowedAsync(new NotificationDecisionRequest(
+                "vehicle_offline",
                 $"Engine {verb} — {device.Name}",
                 $"Reason: {request.Command.Reason ?? "Not specified"}",
                 NotificationType.EngineCommandSent,
-                [NotificationChannels.InApp, NotificationChannels.Browser],
-                priority: 3,
-                module: "Fleet",
-                referenceId: id,
-                cancellationToken: cancellationToken);
+                ReferenceId: id,
+                TenantId: tenantContext.GetRequiredTenantId(),
+                SuggestedPriority: 3,
+                RequestedChannels: [NotificationChannels.InApp, NotificationChannels.Browser],
+                Broadcast: false), cancellationToken);
         }
 
         return ApiResponse<int>.SuccessResponse(id, "Command queued.");

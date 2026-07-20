@@ -9,6 +9,7 @@ using SheikhTravelSystem.Application.Features.FuelLogs.Commands;
 using SheikhTravelSystem.Application.Features.FuelLogs.DTOs;
 using SheikhTravelSystem.Application.Features.GpsTracking.Commands;
 using SheikhTravelSystem.Application.Features.GpsTracking.DTOs;
+using SheikhTravelSystem.Application.Features.Notifications;
 using SheikhTravelSystem.Domain.Enums;
 
 namespace SheikhTravelSystem.Application.Features.DriverApp.Commands;
@@ -392,7 +393,7 @@ public class DriverSosCommandHandler(
     ICurrentUserService currentUser,
     ITenantContext tenantContext,
     ILocationBroadcastService broadcaster,
-    INotificationService notifications)
+    INotificationDecisionEngine decisionEngine)
     : IRequestHandler<DriverSosCommand, ApiResponse<DriverSosResultDto>>
 {
     public async Task<ApiResponse<DriverSosResultDto>> Handle(DriverSosCommand request, CancellationToken cancellationToken)
@@ -458,23 +459,16 @@ public class DriverSosCommandHandler(
         var title = $"SOS — {driver.FullName}";
         var message = $"Driver {driver.FullName} ({driver.Phone}) triggered SOS{loc}.";
 
-        await notifications.CreateForAllChannelsAsync(
+        await decisionEngine.DispatchIfAllowedAsync(new NotificationDecisionRequest(
+            "sos",
             title,
             message,
             NotificationType.Sos,
-            ["InApp", "Sms"],
-            priority: 1,
-            module: "DriverApp",
-            referenceId: id,
-            templateKey: "sos_alert",
-            variables: new Dictionary<string, string>
-            {
-                ["title"] = title,
-                ["message"] = message,
-                ["Title"] = title,
-                ["Message"] = message
-            },
-            cancellationToken: cancellationToken);
+            ReferenceId: id,
+            TenantId: tenantId,
+            SuggestedPriority: 4,
+            RequestedChannels: [NotificationChannels.InApp, NotificationChannels.Sms],
+            Broadcast: false), cancellationToken);
 
         return ApiResponse<DriverSosResultDto>.SuccessResponse(
             new DriverSosResultDto(id, createdAt),

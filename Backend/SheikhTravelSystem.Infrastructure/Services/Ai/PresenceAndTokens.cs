@@ -158,13 +158,16 @@ public sealed class DeviceTokenService(IDbConnectionFactory dbFactory) : IDevice
             cancellationToken: cancellationToken));
     }
 
-    public async Task<IReadOnlyList<string>> GetActiveTokensAsync(int userId, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<string>> GetActiveTokensAsync(int userId, int? tenantId = null, CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
         var rows = await connection.QueryAsync<string>(new CommandDefinition("""
             SELECT Token FROM UserDeviceTokens
             WHERE UserId = @UserId AND IsActive = 1
-            """, new { UserId = userId }, cancellationToken: cancellationToken));
+              AND (@TenantId IS NULL OR EXISTS (
+                    SELECT 1 FROM Users u
+                    WHERE u.Id = @UserId AND u.IsDeleted = 0 AND u.TenantId = @TenantId))
+            """, new { UserId = userId, TenantId = tenantId }, cancellationToken: cancellationToken));
         return rows.ToList();
     }
 }

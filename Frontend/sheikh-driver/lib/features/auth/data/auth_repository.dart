@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
@@ -21,17 +22,25 @@ final authRepositoryProvider = ChangeNotifierProvider<AuthRepository>(
     ref.read(secureStorageProvider),
     ref.read(authApiProvider),
     ref.read(dioProvider),
+    ref.read(sessionInvalidationProvider),
   ),
 );
 
 class AuthRepository extends ChangeNotifier {
-  AuthRepository(this._storage, this._api, this._dio) {
+  AuthRepository(
+    this._storage,
+    this._api,
+    this._dio,
+    this._sessionInvalidation,
+  ) {
+    _sessionInvalidation.addListener(_onSessionInvalidated);
     _restoreSession();
   }
 
   final FlutterSecureStorage _storage;
   final AuthApi _api;
   final Dio _dio;
+  final SessionInvalidationNotifier _sessionInvalidation;
 
   DriverSession? _session;
   bool _loading = true;
@@ -52,6 +61,24 @@ class AuthRepository extends ChangeNotifier {
       }
     }
     _loading = false;
+    notifyListeners();
+  }
+
+  void _onSessionInvalidated() {
+    unawaited(_endExpiredSession());
+  }
+
+  Future<void> _endExpiredSession() async {
+    if (_session == null) return;
+
+    try {
+      await BackgroundGpsTracker.instance.stop();
+    } catch (_) {}
+    _session = null;
+    // ignore: unawaited_futures
+    AnalyticsService.instance.logout();
+    // ignore: unawaited_futures
+    AnalyticsService.instance.setDriverId(null);
     notifyListeners();
   }
 
@@ -111,5 +138,11 @@ class AuthRepository extends ChangeNotifier {
 
   Future<void> _clear() async {
     await _storage.deleteAll();
+  }
+
+  @override
+  void dispose() {
+    _sessionInvalidation.removeListener(_onSessionInvalidated);
+    super.dispose();
   }
 }

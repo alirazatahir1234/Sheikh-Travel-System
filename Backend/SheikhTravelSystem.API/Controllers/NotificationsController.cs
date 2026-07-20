@@ -14,6 +14,7 @@ namespace SheikhTravelSystem.API.Controllers;
 public class NotificationsController : BaseApiController
 {
     private int CurrentUserId => int.Parse(User.FindFirst("userId")!.Value);
+    private int CurrentTenantId([FromServices] IPlatformScope platformScope) => platformScope.TenantId;
 
     [HttpGet("recipients")]
     public async Task<IActionResult> GetRecipients(
@@ -45,6 +46,7 @@ public class NotificationsController : BaseApiController
 
     [HttpGet]
     public async Task<IActionResult> GetAll(
+        [FromServices] IPlatformScope platformScope,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
         [FromQuery] bool? unreadOnly = null,
@@ -59,16 +61,16 @@ public class NotificationsController : BaseApiController
         [FromQuery] bool trash = false,
         [FromQuery] string? datePreset = null)
         => Ok(await Mediator.Send(new GetNotificationsQuery(
-            CurrentUserId, page, pageSize, unreadOnly, isSent, channel, priority, search,
+            CurrentTenantId(platformScope), CurrentUserId, page, pageSize, unreadOnly, isSent, channel, priority, search,
             fromDate, toDate, module, archived, datePreset, trash)));
 
     [HttpGet("stats")]
-    public async Task<IActionResult> GetStats()
-        => Ok(await Mediator.Send(new GetNotificationStatsQuery(CurrentUserId)));
+    public async Task<IActionResult> GetStats([FromServices] IPlatformScope platformScope)
+        => Ok(await Mediator.Send(new GetNotificationStatsQuery(CurrentTenantId(platformScope), CurrentUserId)));
 
     [HttpGet("unread-count")]
-    public async Task<IActionResult> GetUnreadCount()
-        => Ok(await Mediator.Send(new GetUnreadNotificationCountQuery(CurrentUserId)));
+    public async Task<IActionResult> GetUnreadCount([FromServices] IPlatformScope platformScope)
+        => Ok(await Mediator.Send(new GetUnreadNotificationCountQuery(CurrentTenantId(platformScope), CurrentUserId)));
 
     [HttpGet("preferences")]
     public async Task<IActionResult> GetPreferences()
@@ -109,16 +111,16 @@ public class NotificationsController : BaseApiController
         => Ok(await Mediator.Send(new UpsertNotificationTemplateCommand(request, id)));
 
     [HttpGet("{id:int}/history")]
-    public async Task<IActionResult> GetHistory(int id)
-        => Ok(await Mediator.Send(new GetNotificationHistoryQuery(id, CurrentUserId)));
+    public async Task<IActionResult> GetHistory(int id, [FromServices] IPlatformScope platformScope)
+        => Ok(await Mediator.Send(new GetNotificationHistoryQuery(CurrentTenantId(platformScope), id, CurrentUserId)));
 
     [HttpPost]
-    public async Task<IActionResult> Create([FromBody] CreateNotificationRequest request)
-        => Ok(await Mediator.Send(new CreateNotificationCommand(CurrentUserId, request)));
+    public async Task<IActionResult> Create([FromBody] CreateNotificationRequest request, [FromServices] IPlatformScope platformScope)
+        => Ok(await Mediator.Send(new CreateNotificationCommand(CurrentUserId, CurrentTenantId(platformScope), request)));
 
     [HttpPost("bulk")]
-    public async Task<IActionResult> Bulk([FromBody] BulkNotificationRequest request)
-        => Ok(await Mediator.Send(new BulkNotificationCommand(request)));
+    public async Task<IActionResult> Bulk([FromBody] BulkNotificationRequest request, [FromServices] IPlatformScope platformScope)
+        => Ok(await Mediator.Send(new BulkNotificationCommand(CurrentTenantId(platformScope), request)));
 
     [HttpPost("{id:int}/send")]
     public async Task<IActionResult> Send(int id)
@@ -126,19 +128,21 @@ public class NotificationsController : BaseApiController
 
     /// <summary>Admin compose — send email / multi-channel message; appears in Notification Center history.</summary>
     [HttpPost("send-email")]
-    public async Task<IActionResult> SendEmail([FromBody] SendManualMessageRequest request)
-        => Ok(await Mediator.Send(new SendManualMessageCommand(CurrentUserId, request)));
+    public async Task<IActionResult> SendEmail([FromBody] SendManualMessageRequest request, [FromServices] IPlatformScope platformScope)
+        => Ok(await Mediator.Send(new SendManualMessageCommand(CurrentUserId, CurrentTenantId(platformScope), request)));
 
     /// <summary>Sends one test email via configured SMTP (SpaceMail). Optional body.to overrides recipient.</summary>
     [HttpPost("test-email")]
     public async Task<IActionResult> TestEmail(
         [FromBody] TestEmailRequest? body,
         [FromServices] INotificationService notifications,
+        [FromServices] IPlatformScope platformScope,
         CancellationToken ct)
     {
         var to = body?.To;
         var id = await notifications.CreateAndDispatchAsync(new NotificationCreateOptions(
             CurrentUserId,
+            CurrentTenantId(platformScope),
             body?.Subject ?? "SheikhGo SMTP test",
             body?.Message ?? "If you received this message, email delivery from SheikhGo is working.",
             SheikhTravelSystem.Domain.Enums.NotificationType.TripDelayed,

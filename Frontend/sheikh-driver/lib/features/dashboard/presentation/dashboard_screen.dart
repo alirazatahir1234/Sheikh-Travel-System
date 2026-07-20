@@ -4,7 +4,9 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../core/constants/app_theme.dart';
 import '../../../features/auth/data/auth_repository.dart';
+import '../../../core/offline/offline_sync_service.dart';
 import '../../../shared/widgets/sg_ui.dart';
+import '../../trips/presentation/trips_notifier.dart';
 import '../domain/dashboard_models.dart';
 import 'dashboard_notifier.dart';
 
@@ -33,6 +35,17 @@ class DashboardScreen extends ConsumerWidget {
         ),
         title: const Text('Dashboard'),
         actions: [
+          PopupMenuButton<String>(
+            tooltip: 'Set availability',
+            onSelected: (v) => ref.read(dashboardProvider.notifier).setStatus(v),
+            itemBuilder: (_) => const [
+              PopupMenuItem(value: 'Online', child: Text('Online')),
+              PopupMenuItem(value: 'Busy', child: Text('Busy (On Trip)')),
+              PopupMenuItem(value: 'Break', child: Text('Break')),
+              PopupMenuItem(value: 'Unavailable', child: Text('Unavailable')),
+            ],
+            icon: const Icon(Icons.toggle_on_outlined),
+          ),
           IconButton(
             icon: const Icon(Icons.notifications_none_rounded),
             onPressed: () => context.go('/notifications'),
@@ -47,7 +60,11 @@ class DashboardScreen extends ConsumerWidget {
         ),
         data: (summary) => RefreshIndicator(
           color: AppColors.primary,
-          onRefresh: () => ref.read(dashboardProvider.notifier).refresh(),
+          onRefresh: () async {
+            await ref.read(dashboardProvider.notifier).refresh();
+            await ref.read(offlineSyncProvider).syncNow();
+            ref.invalidate(tripsProvider);
+          },
           child: ListView(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
             children: [

@@ -4,6 +4,7 @@ namespace SheikhTravelSystem.Application.Common.Interfaces;
 
 public record NotificationCreateOptions(
     int? UserId,
+    int? TenantId,
     string Title,
     string Message,
     NotificationType Type,
@@ -22,6 +23,7 @@ public record NotificationCreateOptions(
 public record ChannelSendRequest(
     int NotificationId,
     int? UserId,
+    int? TenantId,
     string Title,
     string Message,
     string Channel,

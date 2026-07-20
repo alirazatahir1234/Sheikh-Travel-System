@@ -57,7 +57,7 @@ public class NotificationService : INotificationService
         int? referenceId = null,
         CancellationToken cancellationToken = default) =>
         CreateAndDispatchAsync(new NotificationCreateOptions(
-            userId, title, message, type, referenceId,
+            userId, _tenantContext.TenantId, title, message, type, referenceId,
             Channel: NotificationChannels.InApp,
             Module: "System",
             SendNow: true), cancellationToken);
@@ -89,7 +89,7 @@ public class NotificationService : INotificationService
         CancellationToken cancellationToken = default)
     {
         using var connection = _dbFactory.CreateConnection();
-        var tenantId = _tenantContext.TenantId ?? 1;
+        var tenantId = _tenantContext.GetRequiredTenantId();
         var userIds = (await connection.QueryAsync<int>(
             new CommandDefinition(
                 "SELECT Id FROM Users WHERE IsDeleted = 0 AND IsActive = 1 AND TenantId = @TenantId",
@@ -103,10 +103,11 @@ public class NotificationService : INotificationService
             foreach (var channel in channelList)
             {
                 await CreateAndDispatchAsync(new NotificationCreateOptions(
-                    userId, title, message, type, referenceId, priority,
+                    userId, tenantId, title, message, type, referenceId, priority,
                     Channel: channel,
+                    RecipientType: "SystemAnnouncement",
                     TemplateKey: templateKey,
-                    Module: module,
+                    Module: module ?? "SystemAnnouncement",
                     Variables: variables,
                     SendNow: true), cancellationToken);
             }
@@ -116,6 +117,7 @@ public class NotificationService : INotificationService
     public async Task<int> CreateAndDispatchAsync(NotificationCreateOptions options, CancellationToken cancellationToken = default)
     {
         var channel = NotificationChannels.Normalize(options.Channel);
+        var tenantId = options.TenantId ?? _tenantContext.GetRequiredTenantId();
         var resolved = await ResolveContentAsync(options, channel, cancellationToken);
 
         if (options.UserId is int uid && !await IsChannelAllowedAsync(uid, channel, options.TemplateKey, cancellationToken))
@@ -131,18 +133,19 @@ public class NotificationService : INotificationService
 
         var id = await connection.ExecuteScalarAsync<int>(new CommandDefinition("""
             INSERT INTO Notifications
-                (UserId, Title, Message, Type, ReferenceId, IsRead, Priority, Channel, RecipientType,
+                (TenantId, UserId, Title, Message, Type, ReferenceId, IsRead, Priority, Channel, RecipientType,
                  IsSent, SentDate, TemplateKey, Module, RetryCount, NextRetryAt, DeliveryStatus,
                  RetentionCategory, NeverAutoDelete, IsArchived, CreatedAt, IsDeleted)
             OUTPUT INSERTED.Id
             VALUES
-                (@UserId, @Title, @Message, @Type, @ReferenceId, 0, @Priority, @Channel, @RecipientType,
+                (@TenantId, @UserId, @Title, @Message, @Type, @ReferenceId, 0, @Priority, @Channel, @RecipientType,
                  0, NULL, @TemplateKey, @Module, 0, NULL, 'Pending',
                  @RetentionCategory, @NeverAutoDelete, 0, @CreatedAt, 0)
             """,
             new
             {
                 options.UserId,
+                TenantId = tenantId,
                 Title = resolved.Title,
                 Message = resolved.PlainMessage,
                 Type = (int)options.Type,
@@ -162,15 +165,16 @@ public class NotificationService : INotificationService
         {
             await connection.ExecuteAsync(new CommandDefinition("""
                 INSERT INTO NotificationRecipients
-                    (NotificationId, UserId, DeliveryStatus, IsRead, CreatedAt, IsArchived, IsDeleted)
-                VALUES (@NotificationId, @UserId, 'Pending', 0, GETUTCDATE(), 0, 0)
+                    (NotificationId, TenantId, UserId, DeliveryStatus, IsRead, CreatedAt, IsArchived, IsDeleted)
+                VALUES (@NotificationId, @TenantId, @UserId, 'Pending', 0, GETUTCDATE(), 0, 0)
                 """,
-                new { NotificationId = id, UserId = recipientId },
+                new { NotificationId = id, TenantId = tenantId, UserId = recipientId },
                 cancellationToken: cancellationToken));
         }
 
         var dispatchOptions = options with
         {
+            TenantId = tenantId,
             Title = resolved.Title,
             Message = resolved.EmailHtml ?? resolved.PlainMessage
         };
@@ -186,6 +190,7 @@ public class NotificationService : INotificationService
             await _realtime.PublishToUserAsync(realtimeUser, new
             {
                 id,
+                tenantId,
                 userId = realtimeUser,
                 title = resolved.Title,
                 message = resolved.PlainMessage,
@@ -211,7 +216,7 @@ public class NotificationService : INotificationService
         var row = await connection.QuerySingleOrDefaultAsync<PendingRow>(
             new CommandDefinition("""
                 SELECT Id, UserId, Title, Message, ISNULL(Channel,'InApp') AS Channel, TemplateKey,
-                       ISNULL(Module,'System') AS Module, ISNULL(RetryCount,0) AS RetryCount, Priority, Type
+                   ISNULL(Module,'System') AS Module, ISNULL(RetryCount,0) AS RetryCount, Priority, Type, TenantId
                 FROM Notifications WHERE Id = @Id AND IsDeleted = 0
                 """,
                 new { Id = notificationId },
@@ -220,7 +225,7 @@ public class NotificationService : INotificationService
         if (row is null) return;
 
         var options = new NotificationCreateOptions(
-            row.UserId, row.Title, row.Message, (NotificationType)row.Type,
+            row.UserId, row.TenantId, row.Title, row.Message, (NotificationType)row.Type,
             Priority: row.Priority, Channel: row.Channel, TemplateKey: row.TemplateKey,
             Module: row.Module, SendNow: true);
 
@@ -269,7 +274,8 @@ public class NotificationService : INotificationService
                     ISNULL(INSERTED.Module,'System') AS Module,
                     ISNULL(INSERTED.RetryCount,0) AS RetryCount,
                     ISNULL(INSERTED.Priority,2) AS Priority,
-                    INSERTED.Type
+                    INSERTED.Type,
+                    INSERTED.TenantId
                 FROM Notifications n
                 INNER JOIN cte ON cte.Id = n.Id
                 """,
@@ -279,7 +285,7 @@ public class NotificationService : INotificationService
         foreach (var row in pending)
         {
             var options = new NotificationCreateOptions(
-                row.UserId, row.Title, row.Message, (NotificationType)row.Type,
+                row.UserId, row.TenantId, row.Title, row.Message, (NotificationType)row.Type,
                 Priority: row.Priority, Channel: row.Channel, TemplateKey: row.TemplateKey,
                 Module: row.Module, SendNow: true);
 
@@ -355,7 +361,7 @@ public class NotificationService : INotificationService
         try
         {
             var result = await sender.SendAsync(new ChannelSendRequest(
-                notificationId, options.UserId, options.Title, options.Message, channel,
+                notificationId, options.UserId, options.TenantId, options.Title, options.Message, channel,
                 options.Email, options.Phone, options.TemplateKey), ct);
 
             if (result.Success)
@@ -413,8 +419,10 @@ public class NotificationService : INotificationService
 
         await connection.ExecuteAsync(new CommandDefinition("""
             INSERT INTO NotificationDeliveryLogs
-                (NotificationId, Channel, Status, Response, Provider, RetryCount, NextRetryAt, CreatedAt)
-            VALUES (@NotificationId, @Channel, 'Failed', @Response, @Provider, @RetryCount, @NextRetryAt, GETUTCDATE())
+                (NotificationId, TenantId, Channel, Status, Response, Provider, RetryCount, NextRetryAt, CreatedAt)
+            SELECT @NotificationId, n.TenantId, @Channel, 'Failed', @Response, @Provider, @RetryCount, @NextRetryAt, GETUTCDATE()
+            FROM Notifications n
+            WHERE n.Id = @NotificationId
             """,
             new
             {
@@ -472,8 +480,8 @@ public class NotificationService : INotificationService
 
         await connection.ExecuteAsync(new CommandDefinition("""
             INSERT INTO NotificationDeliveryLogs
-                (NotificationId, Channel, Status, Response, Provider, RetryCount, CreatedAt)
-            SELECT Id, ISNULL(Channel,'InApp'), @Status, @Response, @Provider, @RetryCount, GETUTCDATE()
+                (NotificationId, TenantId, Channel, Status, Response, Provider, RetryCount, CreatedAt)
+            SELECT Id, TenantId, ISNULL(Channel,'InApp'), @Status, @Response, @Provider, @RetryCount, GETUTCDATE()
             FROM Notifications WHERE Id = @Id
             """,
             new { Id = id, Status = status, Response = response, Provider = provider, RetryCount = retryCount },
@@ -487,7 +495,7 @@ public class NotificationService : INotificationService
 
         TemplateRow? template = null;
         if (!string.IsNullOrWhiteSpace(options.TemplateKey))
-            template = await FindTemplateAsync(options.TemplateKey!, channel, ct);
+            template = await FindTemplateAsync(options.TemplateKey!, channel, options.TenantId ?? _tenantContext.GetRequiredTenantId(), ct);
 
         string title;
         string renderedBody;
@@ -596,8 +604,8 @@ public class NotificationService : INotificationService
             using var connection = _dbFactory.CreateConnection();
             var user = await connection.QuerySingleOrDefaultAsync<(string? FullName, string? Email)>(
                 new CommandDefinition(
-                    "SELECT FullName, Email FROM Users WHERE Id = @Id AND IsDeleted = 0",
-                    new { Id = uid }, cancellationToken: ct));
+                    "SELECT FullName, Email FROM Users WHERE Id = @Id AND IsDeleted = 0 AND TenantId = @TenantId",
+                    new { Id = uid, TenantId = options.TenantId ?? _tenantContext.GetRequiredTenantId() }, cancellationToken: ct));
             if (!string.IsNullOrWhiteSpace(user.FullName))
                 vars["RecipientName"] = user.FullName;
             if (!string.IsNullOrWhiteSpace(user.Email))
@@ -608,7 +616,7 @@ public class NotificationService : INotificationService
         return vars;
     }
 
-    private async Task<TemplateRow?> FindTemplateAsync(string templateKey, string channel, CancellationToken ct)
+    private async Task<TemplateRow?> FindTemplateAsync(string templateKey, string channel, int tenantId, CancellationToken ct)
     {
         using var connection = _dbFactory.CreateConnection();
 
@@ -618,7 +626,9 @@ public class NotificationService : INotificationService
                 SELECT TOP 1 TemplateKey, TemplateName, Subject, Body, Channel
                 FROM NotificationTemplates
                 WHERE TemplateKey = @Key AND IsActive = 1 AND IsDeleted = 0
+                  AND (TenantId = @TenantId OR TenantId IS NULL)
                 ORDER BY
+                  CASE WHEN TenantId = @TenantId THEN 0 WHEN TenantId IS NULL THEN 1 ELSE 2 END,
                   CASE
                     WHEN Channel = @Channel THEN 0
                     WHEN Channel = 'Email' THEN 1
@@ -626,7 +636,7 @@ public class NotificationService : INotificationService
                     ELSE 3
                   END
                 """,
-                new { Key = templateKey, Channel = channel },
+                new { Key = templateKey, Channel = channel, TenantId = tenantId },
                 cancellationToken: ct));
 
         return row;
@@ -697,7 +707,7 @@ public class NotificationService : INotificationService
 
     private sealed record PendingRow(
         int Id, int? UserId, string Title, string Message, string Channel,
-        string? TemplateKey, string Module, int RetryCount, int Priority, int Type);
+        string? TemplateKey, string Module, int RetryCount, int Priority, int Type, int TenantId);
 
     private sealed record TemplateRow(
         string TemplateKey, string TemplateName, string Subject, string Body, string Channel);

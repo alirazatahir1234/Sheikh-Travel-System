@@ -8,6 +8,7 @@ using SheikhTravelSystem.Application.Features.Notifications.DTOs;
 namespace SheikhTravelSystem.Application.Features.Notifications.Queries;
 
 public record GetNotificationsQuery(
+    int TenantId,
     int UserId,
     int Page = 1,
     int PageSize = 20,
@@ -62,9 +63,10 @@ public class GetNotificationsQueryHandler(IDbConnectionFactory dbFactory)
                     EXISTS (SELECT 1 FROM NotificationRecipients rx
                             WHERE rx.NotificationId = n.Id AND rx.UserId = @UserId)
                  OR n.UserId = @UserId
-                 OR (n.UserId IS NULL AND NOT EXISTS (
+                 OR (n.UserId IS NULL AND n.RecipientType = 'SystemAnnouncement' AND NOT EXISTS (
                         SELECT 1 FROM NotificationRecipients rx WHERE rx.NotificationId = n.Id))
                   )
+              AND n.TenantId = @TenantId
             {mailbox}
             """;
 
@@ -111,6 +113,7 @@ public class GetNotificationsQueryHandler(IDbConnectionFactory dbFactory)
         var param = new
         {
             request.UserId,
+            request.TenantId,
             Offset = offset,
             request.PageSize,
             request.Channel,
@@ -152,7 +155,7 @@ public class GetNotificationsQueryHandler(IDbConnectionFactory dbFactory)
     }
 }
 
-public record GetNotificationStatsQuery(int UserId) : IRequest<ApiResponse<NotificationStatsDto>>;
+public record GetNotificationStatsQuery(int TenantId, int UserId) : IRequest<ApiResponse<NotificationStatsDto>>;
 
 public class GetNotificationStatsQueryHandler(IDbConnectionFactory dbFactory)
     : IRequestHandler<GetNotificationStatsQuery, ApiResponse<NotificationStatsDto>>
@@ -173,7 +176,9 @@ public class GetNotificationStatsQueryHandler(IDbConnectionFactory dbFactory)
                 ISNULL((SELECT COUNT(*) FROM NotificationDeliveryLogs l
                  INNER JOIN Notifications xn ON xn.Id = l.NotificationId
                  LEFT JOIN NotificationRecipients xr ON xr.NotificationId = xn.Id AND xr.UserId = @UserId
-                 WHERE (xr.UserId = @UserId OR xn.UserId = @UserId OR xn.UserId IS NULL)
+                 WHERE xn.TenantId = @TenantId
+                   AND (xr.UserId = @UserId OR xn.UserId = @UserId
+                        OR (xn.UserId IS NULL AND xn.RecipientType = 'SystemAnnouncement'))
                    AND ISNULL(xr.IsDeleted, xn.IsDeleted) = 0
                    AND ISNULL(xr.IsArchived, ISNULL(xn.IsArchived,0)) = 0
                    AND l.Status = 'Failed'), 0) AS Failed
@@ -182,18 +187,19 @@ public class GetNotificationStatsQueryHandler(IDbConnectionFactory dbFactory)
             WHERE (
                     r.Id IS NOT NULL
                  OR n.UserId = @UserId
-                 OR (n.UserId IS NULL AND NOT EXISTS (
+                 OR (n.UserId IS NULL AND n.RecipientType = 'SystemAnnouncement' AND NOT EXISTS (
                         SELECT 1 FROM NotificationRecipients rx WHERE rx.NotificationId = n.Id))
                   )
+              AND n.TenantId = @TenantId
               AND ISNULL(r.IsDeleted, n.IsDeleted) = 0
               AND ISNULL(r.IsArchived, ISNULL(n.IsArchived, 0)) = 0
-            """, new { request.UserId }, cancellationToken: cancellationToken));
+            """, new { request.UserId, request.TenantId }, cancellationToken: cancellationToken));
 
         return ApiResponse<NotificationStatsDto>.SuccessResponse(row);
     }
 }
 
-public record GetUnreadNotificationCountQuery(int UserId) : IRequest<ApiResponse<int>>;
+public record GetUnreadNotificationCountQuery(int TenantId, int UserId) : IRequest<ApiResponse<int>>;
 
 public class GetUnreadNotificationCountQueryHandler(IDbConnectionFactory dbFactory, IDistributedCache cache)
     : IRequestHandler<GetUnreadNotificationCountQuery, ApiResponse<int>>
@@ -222,14 +228,15 @@ public class GetUnreadNotificationCountQueryHandler(IDbConnectionFactory dbFacto
             WHERE (
                     r.Id IS NOT NULL
                  OR n.UserId = @UserId
-                 OR (n.UserId IS NULL AND NOT EXISTS (
+                 OR (n.UserId IS NULL AND n.RecipientType = 'SystemAnnouncement' AND NOT EXISTS (
                         SELECT 1 FROM NotificationRecipients rx WHERE rx.NotificationId = n.Id))
                   )
+              AND n.TenantId = @TenantId
               AND ISNULL(r.IsDeleted, n.IsDeleted) = 0
               AND ISNULL(r.IsArchived, ISNULL(n.IsArchived, 0)) = 0
               AND ISNULL(r.IsRead, n.IsRead) = 0
               AND ISNULL(n.Channel, 'InApp') IN ('InApp', 'Browser', 'Push')
-            """, new { request.UserId }, cancellationToken: cancellationToken));
+            """, new { request.UserId, request.TenantId }, cancellationToken: cancellationToken));
 
         try
         {
@@ -293,7 +300,7 @@ public class GetNotificationTemplatesQueryHandler(IDbConnectionFactory dbFactory
     }
 }
 
-public record GetNotificationHistoryQuery(int NotificationId, int UserId)
+public record GetNotificationHistoryQuery(int TenantId, int NotificationId, int UserId)
     : IRequest<ApiResponse<List<NotificationDeliveryLogDto>>>;
 
 public class GetNotificationHistoryQueryHandler(IDbConnectionFactory dbFactory)
@@ -307,8 +314,9 @@ public class GetNotificationHistoryQueryHandler(IDbConnectionFactory dbFactory)
             SELECT COUNT(*) FROM Notifications n
             LEFT JOIN NotificationRecipients r ON r.NotificationId = n.Id AND r.UserId = @UserId
             WHERE n.Id = @NotificationId
-              AND (r.Id IS NOT NULL OR n.UserId = @UserId OR n.UserId IS NULL)
-            """, new { request.NotificationId, request.UserId }, cancellationToken: cancellationToken));
+              AND n.TenantId = @TenantId
+              AND (r.Id IS NOT NULL OR n.UserId = @UserId OR (n.UserId IS NULL AND n.RecipientType = 'SystemAnnouncement'))
+            """, new { request.NotificationId, request.UserId, request.TenantId }, cancellationToken: cancellationToken));
 
         if (owned == 0)
             return ApiResponse<List<NotificationDeliveryLogDto>>.FailResponse("Notification not found.");
