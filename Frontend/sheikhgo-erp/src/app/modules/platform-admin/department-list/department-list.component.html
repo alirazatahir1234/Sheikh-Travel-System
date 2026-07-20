@@ -29,15 +29,55 @@
         <div class="table-header">
           <div class="table-title">
             <h3 class="dept-section-title">All Departments</h3>
-            <span class="count-badge">{{ departments.length }} TOTAL</span>
+            <span class="count-badge">{{ filteredCount }} TOTAL</span>
           </div>
-          <ui-button variant="ghost" size="sm" icon="filter_list" title="Filter">
-            Filter
-          </ui-button>
+          <div class="table-header-actions">
+            <ui-button
+              class="dept-filter-btn"
+              variant="ghost"
+              size="sm"
+              icon="filter_list"
+              [attr.aria-expanded]="showFilters"
+              title="Filter"
+              (clicked)="toggleFilters()">
+              Filter
+            </ui-button>
+          </div>
         </div>
 
-        <div *ngIf="departments.length" class="dept-mobile-cards">
-          <article class="dept-mobile-card" *ngFor="let d of departments">
+        <div class="dept-filter-panel" *ngIf="showFilters">
+          <div class="stb-field dept-filter-field">
+            <label for="dept-filter-search">Search</label>
+            <input
+              id="dept-filter-search"
+              class="stb-input"
+              type="search"
+              placeholder="Name or department head…"
+              [(ngModel)]="filters.search"
+              (ngModelChange)="applyFilters()"
+              autocomplete="off" />
+          </div>
+          <div class="stb-field dept-filter-field">
+            <label for="dept-filter-status">Status</label>
+            <select
+              id="dept-filter-status"
+              class="stb-select"
+              [(ngModel)]="filters.status"
+              (ngModelChange)="applyFilters()">
+              <option value="all">All</option>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+          </div>
+          <div class="dept-filter-actions">
+            <ui-button variant="outline" size="sm" [disabled]="!hasActiveFilters" (clicked)="clearFilters()">
+              Clear
+            </ui-button>
+          </div>
+        </div>
+
+        <div *ngIf="filteredDepartments.length" class="dept-mobile-cards">
+          <article class="dept-mobile-card" *ngFor="let d of filteredDepartments">
             <div class="dept-mobile-card__head">
               <div class="dept-name-cell">
                 <span class="dept-avatar" [style.background]="avatarColor(d.name)">{{ initials(d.name) }}</span>
@@ -117,14 +157,19 @@
           </table>
         </div>
 
-        <div *ngIf="!departments.length" class="empty dept-empty">
+        <div *ngIf="!filteredDepartments.length" class="empty dept-empty">
           <mat-icon>domain</mat-icon>
-          <p>No departments yet.</p>
-          <span>Add one using the form below.</span>
+          <p *ngIf="!departments.length">No departments yet.</p>
+          <p *ngIf="departments.length">No departments match your filters.</p>
+          <span *ngIf="!departments.length">Add one using the form on this page.</span>
+          <span *ngIf="departments.length">Try adjusting search or status, or clear filters.</span>
+          <ui-button *ngIf="departments.length && hasActiveFilters" variant="outline" size="sm" (clicked)="clearFilters()">
+            Clear filters
+          </ui-button>
         </div>
 
         <mat-paginator
-          *ngIf="departments.length > pageSize"
+          *ngIf="filteredDepartments.length > pageSize"
           class="dept-paginator"
           [pageSize]="pageSize"
           [pageSizeOptions]="[5, 10, 25]"

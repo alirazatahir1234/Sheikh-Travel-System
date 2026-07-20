@@ -203,9 +203,16 @@ public class GetUnreadNotificationCountQueryHandler(IDbConnectionFactory dbFacto
     public async Task<ApiResponse<int>> Handle(
         GetUnreadNotificationCountQuery request, CancellationToken cancellationToken)
     {
-        var cached = await cache.GetStringAsync(CacheKey(request.UserId), cancellationToken);
-        if (int.TryParse(cached, out var cachedCount))
-            return ApiResponse<int>.SuccessResponse(cachedCount);
+        try
+        {
+            var cached = await cache.GetStringAsync(CacheKey(request.UserId), cancellationToken);
+            if (int.TryParse(cached, out var cachedCount))
+                return ApiResponse<int>.SuccessResponse(cachedCount);
+        }
+        catch (Exception) when (!cancellationToken.IsCancellationRequested)
+        {
+            // Redis optional — continue with DB
+        }
 
         using var connection = dbFactory.CreateConnection();
         var count = await connection.ExecuteScalarAsync<int>(new CommandDefinition("""
@@ -224,11 +231,18 @@ public class GetUnreadNotificationCountQueryHandler(IDbConnectionFactory dbFacto
               AND ISNULL(n.Channel, 'InApp') IN ('InApp', 'Browser', 'Push')
             """, new { request.UserId }, cancellationToken: cancellationToken));
 
-        await cache.SetStringAsync(
-            CacheKey(request.UserId),
-            count.ToString(),
-            new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(2) },
-            cancellationToken);
+        try
+        {
+            await cache.SetStringAsync(
+                CacheKey(request.UserId),
+                count.ToString(),
+                new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(2) },
+                cancellationToken);
+        }
+        catch (Exception) when (!cancellationToken.IsCancellationRequested)
+        {
+            // ignore cache write failures
+        }
 
         return ApiResponse<int>.SuccessResponse(count);
     }

@@ -13,7 +13,7 @@ public static class TenantModuleCatalog
         new("FLEET", "Fleet Management", ["vehicles", "drivers", "fuel-logs", "maintenance"]),
         new("GPS", "GPS Tracking", ["gps-tracking"]),
         new("RENTAL", "Vehicle Rental", ["rental"]),
-        new("TRAVEL", "Travel Agency", ["bookings", "routes"]),
+        new("TRAVEL", "Travel Agency", ["bookings", "routes", "trips"]),
         new("CRM", "CRM", ["customers"]),
         new("FINANCE", "Finance", ["payments"]),
         new("HR", "HR", ["hr"]),

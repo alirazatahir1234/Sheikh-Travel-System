@@ -9,6 +9,13 @@ import { Department } from '../../../core/models/platform.model';
 import { User } from '../../../core/models/user.model';
 import { apiErrorMessage } from '../../../core/utils/api-error.util';
 
+type DeptStatusFilter = 'all' | 'active' | 'inactive';
+
+interface DepartmentFilters {
+  search: string;
+  status: DeptStatusFilter;
+}
+
 @Component({
   standalone: false,
   selector: 'app-department-list',
@@ -20,11 +27,17 @@ export class DepartmentListComponent implements OnInit {
 
   loading = true;
   saving = false;
+  showFilters = false;
   managers: User[] = [];
   departments: Department[] = [];
   dataSource = new MatTableDataSource<Department>([]);
   readonly pageSize = 5;
   readonly displayedColumns = ['name', 'staffCount', 'status', 'actions'];
+
+  filters: DepartmentFilters = {
+    search: '',
+    status: 'all'
+  };
 
   form;
 
@@ -38,6 +51,7 @@ export class DepartmentListComponent implements OnInit {
       name: ['', [Validators.required, Validators.maxLength(100)]],
       departmentHeadUserId: [null as number | null]
     });
+    this.dataSource.filterPredicate = (dept, raw) => this.matchesFilters(dept, raw);
   }
 
   ngOnInit(): void {
@@ -60,12 +74,25 @@ export class DepartmentListComponent implements OnInit {
     }).length;
   }
 
+  get filteredDepartments(): Department[] {
+    return this.dataSource.filteredData;
+  }
+
+  get filteredCount(): number {
+    return this.dataSource.filteredData.length;
+  }
+
+  get hasActiveFilters(): boolean {
+    return this.filters.status !== 'all' || !!this.filters.search.trim();
+  }
+
   load(): void {
     this.loading = true;
     this.platform.getDepartments().subscribe({
       next: rows => {
         this.departments = rows;
         this.dataSource.data = rows;
+        this.applyFilters();
         setTimeout(() => { if (this.paginator) this.dataSource.paginator = this.paginator; });
         this.loading = false;
       },
@@ -74,6 +101,42 @@ export class DepartmentListComponent implements OnInit {
         this.toast.error(apiErrorMessage(err, 'Failed to load departments.'));
       }
     });
+  }
+
+  toggleFilters(): void {
+    this.showFilters = !this.showFilters;
+  }
+
+  applyFilters(): void {
+    this.dataSource.filter = JSON.stringify(this.filters);
+    if (this.paginator) {
+      this.paginator.firstPage();
+    }
+  }
+
+  clearFilters(): void {
+    this.filters = { search: '', status: 'all' };
+    this.applyFilters();
+  }
+
+  private matchesFilters(dept: Department, raw: string): boolean {
+    let f: DepartmentFilters;
+    try {
+      f = JSON.parse(raw || '{}') as DepartmentFilters;
+    } catch {
+      return true;
+    }
+
+    const q = (f.search || '').trim().toLowerCase();
+    if (q) {
+      const haystack = `${dept.name} ${dept.departmentHeadName || ''}`.toLowerCase();
+      if (!haystack.includes(q)) return false;
+    }
+
+    if (f.status === 'active' && !dept.isActive) return false;
+    if (f.status === 'inactive' && dept.isActive) return false;
+
+    return true;
   }
 
   create(): void {
@@ -113,6 +176,7 @@ export class DepartmentListComponent implements OnInit {
       next: () => {
         dept.isActive = !dept.isActive;
         this.dataSource.data = [...this.departments];
+        this.applyFilters();
       },
       error: (err) => this.toast.error(apiErrorMessage(err, 'Update failed.'))
     });

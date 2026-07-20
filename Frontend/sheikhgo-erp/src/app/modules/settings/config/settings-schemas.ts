@@ -216,6 +216,19 @@ const notificationSchema: SettingFieldSchema[] = [
   { key: 'MaintenanceAlerts', label: 'Maintenance Alerts', type: 'toggle', section: 'Alert Types' }
 ];
 
+// 5b. Notification Retention
+const notificationRetentionSchema: SettingFieldSchema[] = [
+  { key: 'ReadArchiveDays', label: 'Archive read notifications after (days)', type: 'number', section: 'Lifecycle', min: 1, max: 3650 },
+  { key: 'ArchivedDeleteDays', label: 'Delete archived after (days)', type: 'number', section: 'Lifecycle', min: 1, max: 3650 },
+  { key: 'FailedDeleteDays', label: 'Delete failed after (days)', type: 'number', section: 'Lifecycle', min: 1, max: 3650 },
+  { key: 'DraftDeleteDays', label: 'Delete drafts after (days)', type: 'number', section: 'Lifecycle', min: 1, max: 3650 },
+  { key: 'OperationalDeleteDays', label: 'Operational retention (days)', type: 'number', section: 'By Category', min: 1, max: 3650 },
+  { key: 'MaintenanceDeleteDays', label: 'Maintenance retention (days)', type: 'number', section: 'By Category', min: 1, max: 3650 },
+  { key: 'ComplianceDeleteDays', label: 'Compliance retention (days)', type: 'number', section: 'By Category', min: 1, max: 3650 },
+  { key: 'SecurityDeleteDays', label: 'Security retention (days)', type: 'number', section: 'By Category', min: 1, max: 3650 },
+  { key: 'CriticalNeverDelete', label: 'Never auto-delete critical', type: 'toggle', section: 'Critical' }
+];
+
 // 6. Document Settings
 const documentSchema: SettingFieldSchema[] = [
   { key: 'MaxUploadSizeMb', label: 'Max Upload Size (MB)', type: 'number', section: 'Uploads', min: 1 },
@@ -343,6 +356,7 @@ export const SETTINGS_SCHEMAS: Record<string, SettingFieldSchema[]> = {
   Localization: localizationSchema,
   Security: securitySchema,
   Notifications: notificationSchema,
+  NotificationRetention: notificationRetentionSchema,
   Documents: documentSchema,
   Workflows: workflowSchema,
   Numbering: numberingSchema,

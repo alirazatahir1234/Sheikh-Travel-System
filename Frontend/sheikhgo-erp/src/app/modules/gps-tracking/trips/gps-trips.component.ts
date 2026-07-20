@@ -28,6 +28,7 @@ import {
 } from '../utils/trip-date-preset.util';
 import { eventIconsForTrip } from '../utils/trip-event.util';
 import { resolveTripKey } from '../utils/trip-key.util';
+import { UiSelectOption } from '../../../shared/components/ui/types/ui.types';
 
 const EMPTY_EVENTS: TripEvent[] = [];
 const EMPTY_REPLAY: TripReplayBundle = { route: [], playback: [], stops: [], events: [], summary: null };
@@ -35,6 +36,8 @@ const TRIPS_TIMEOUT_MS = 90_000;
 const ANALYTICS_TIMEOUT_MS = 90_000;
 const CONTEXT_TIMEOUT_MS = 20_000;
 const REPLAY_TIMEOUT_MS = 60_000;
+const DISTANCE_MAX_KM = 999_999;
+const SPEED_MAX_KMH = 999;
 
 interface FleetDriverOption {
   id: number;
@@ -58,20 +61,20 @@ export class GpsTripsComponent implements OnInit {
 
   vehicleOptions: TripVehicleOption[] = [];
   vehicleId: number | null = null;
-  driverFilter = '';
   from = '';
   to = '';
   logSearch = '';
 
   // Fleet-wide filters (server-side query params) — only meaningful when vehicleId is null.
+  // Keys are strings for ui-select; '' means "all".
   branches: Branch[] = [];
   departments: Department[] = [];
   fleetDrivers: FleetDriverOption[] = [];
-  branchId: number | null = null;
-  departmentId: number | null = null;
-  fleetDriverId: number | null = null;
+  branchKey = '';
+  departmentKey = '';
+  fleetDriverKey = '';
 
-  // Client-side range filters, applied over whatever page of trips is loaded.
+  // Client/server range filters
   distanceMin: number | null = null;
   distanceMax: number | null = null;
   speedMin: number | null = null;
@@ -128,6 +131,44 @@ export class GpsTripsComponent implements OnInit {
 
   get driverOptions(): string[] {
     return this.driverOptionsList;
+  }
+
+  get branchOptions(): UiSelectOption[] {
+    return [
+      { value: '', label: 'All Branches' },
+      ...this.branches.map(b => ({ value: String(b.id), label: b.name }))
+    ];
+  }
+
+  get departmentOptions(): UiSelectOption[] {
+    return [
+      { value: '', label: 'All Departments' },
+      ...this.departments.map(d => ({ value: String(d.id), label: d.name }))
+    ];
+  }
+
+  get driverSelectOptions(): UiSelectOption[] {
+    const fromFleet = this.fleetDrivers.map(d => ({ value: String(d.id), label: d.fullName }));
+    // Include trip-only driver names (no id) so single-vehicle history still filters.
+    const known = new Set(fromFleet.map(o => o.label.toLowerCase()));
+    const extras = this.driverOptionsList
+      .filter(name => !known.has(name.toLowerCase()))
+      .map(name => ({ value: `name:${name}`, label: name }));
+    return [{ value: '', label: 'All Drivers' }, ...fromFleet, ...extras];
+  }
+
+  private get branchId(): number | null {
+    return this.branchKey ? Number(this.branchKey) : null;
+  }
+
+  private get departmentId(): number | null {
+    return this.departmentKey ? Number(this.departmentKey) : null;
+  }
+
+  private get fleetDriverId(): number | null {
+    if (!this.fleetDriverKey || this.fleetDriverKey.startsWith('name:')) return null;
+    const id = Number(this.fleetDriverKey);
+    return Number.isFinite(id) && id > 0 ? id : null;
   }
 
   get distanceSparkline(): number[] {
@@ -247,7 +288,7 @@ export class GpsTripsComponent implements OnInit {
       if (driverParam) {
         const id = Number(driverParam);
         if (!Number.isNaN(id) && id > 0) {
-          this.fleetDriverId = id;
+          this.fleetDriverKey = String(id);
         }
       }
       this.load();
@@ -268,12 +309,37 @@ export class GpsTripsComponent implements OnInit {
   }
 
   onVehicleChange(): void {
-    this.driverFilter = '';
     this.load();
   }
 
   onFleetFilterChange(): void {
     this.load();
+  }
+
+  onDriverFilterChange(): void {
+    if (this.isFleetWide) {
+      this.onFleetFilterChange();
+      return;
+    }
+    this.applyClientDriverFilter();
+  }
+
+  formatRangeValue(value: number | null): string {
+    return value == null ? '' : String(value);
+  }
+
+  onRangeChange(field: 'distanceMin' | 'distanceMax' | 'speedMin' | 'speedMax', raw: string): void {
+    const max = field.startsWith('speed') ? SPEED_MAX_KMH : DISTANCE_MAX_KM;
+    this[field] = this.parseRangeInput(raw, max);
+    this.applyFilters();
+  }
+
+  private parseRangeInput(raw: string, max: number): number | null {
+    const cleaned = String(raw ?? '').replace(/[^\d.]/g, '');
+    if (!cleaned) return null;
+    const n = Number(cleaned);
+    if (!Number.isFinite(n) || n < 0) return null;
+    return Math.min(n, max);
   }
 
   formatLastUpdated(): string {
@@ -438,13 +504,23 @@ export class GpsTripsComponent implements OnInit {
   }
 
   applyClientDriverFilter(): void {
-    if (this.isFleetWide || !this.driverFilter) {
+    if (this.isFleetWide || !this.fleetDriverKey) {
       this.filteredTrips = this.trips;
       this.paginatedTrips = this.trips;
       this.rebuildTripCaches();
       return;
     }
-    const rows = this.trips.filter(t => t.driverName === this.driverFilter);
+
+    let driverName: string | undefined;
+    if (this.fleetDriverKey.startsWith('name:')) {
+      driverName = this.fleetDriverKey.slice(5);
+    } else {
+      driverName = this.fleetDrivers.find(d => String(d.id) === this.fleetDriverKey)?.fullName;
+    }
+
+    const rows = driverName
+      ? this.trips.filter(t => (t.driverName ?? '').trim() === driverName)
+      : this.trips;
     this.filteredTrips = rows;
     this.paginatedTrips = rows;
     this.rebuildTripCaches();

@@ -82,35 +82,93 @@
     <mat-card class="section-card">
       <h2>Location</h2>
       <div class="stb-field full">
-        <label for="branch-address">Full Address</label>
-        <textarea id="branch-address" class="stb-input stb-textarea" formControlName="address" rows="3"
-          placeholder="Enter physical street address..."></textarea>
+        <label class="profile-label" for="branch-address">Full Address</label>
+        <textarea
+          id="branch-address"
+          class="stb-textarea"
+          formControlName="address"
+          rows="3"
+          [attr.maxlength]="addressMaxLength"
+          placeholder="Enter physical street address..."
+          autocomplete="street-address"></textarea>
+        <div class="address-meta">
+          <div class="address-meta__errors">
+            <span
+              class="stb-error"
+              *ngIf="form.get('address')?.hasError('minlength') && form.get('address')?.touched">
+              Enter at least {{ form.get('address')?.getError('minlength')?.requiredLength }} characters.
+            </span>
+            <span
+              class="stb-error"
+              *ngIf="form.get('address')?.hasError('maxlength') && form.get('address')?.touched">
+              Address cannot exceed {{ addressMaxLength }} characters.
+            </span>
+            <span
+              class="stb-error"
+              *ngIf="form.get('address')?.hasError('numericOnly') && form.get('address')?.touched">
+              Enter a real street address — numbers alone are not valid.
+            </span>
+            <span
+              class="stb-error"
+              *ngIf="form.get('address')?.hasError('invalidAddress') && form.get('address')?.touched">
+              Use letters, numbers, and common address punctuation only.
+            </span>
+          </div>
+          <span class="address-counter" [class.address-counter--warn]="addressLength > addressMaxLength - 40">
+            {{ addressLength }} / {{ addressMaxLength }}
+          </span>
+        </div>
       </div>
       <div class="field-row">
         <div class="stb-field">
           <label for="branch-city">City</label>
-          <input id="branch-city" class="stb-input" type="text" formControlName="city" placeholder="Dubai" />
+          <input
+            id="branch-city"
+            class="stb-input"
+            type="text"
+            formControlName="city"
+            [attr.maxlength]="cityMaxLength"
+            placeholder="Dubai"
+            autocomplete="address-level2" />
+          <span class="stb-error" *ngIf="form.get('city')?.hasError('minlength') && form.get('city')?.touched">
+            Enter at least {{ form.get('city')?.getError('minlength')?.requiredLength }} characters.
+          </span>
+          <span class="stb-error" *ngIf="form.get('city')?.hasError('maxlength') && form.get('city')?.touched">
+            City cannot exceed {{ cityMaxLength }} characters.
+          </span>
+          <span class="stb-error" *ngIf="form.get('city')?.hasError('numericOnly') && form.get('city')?.touched">
+            City must be a name with letters only — numbers are not allowed.
+          </span>
+          <span class="stb-error" *ngIf="form.get('city')?.hasError('invalidCity') && form.get('city')?.touched">
+            Enter a valid city name (letters, spaces, hyphens, or apostrophes).
+          </span>
         </div>
-        <div class="stb-field">
-          <label for="branch-country">Country</label>
-          <select id="branch-country" class="stb-select" formControlName="country">
-            <option *ngFor="let c of countries" [ngValue]="c">{{ c }}</option>
-          </select>
-        </div>
+        <ui-select
+          class="branch-select"
+          label="Country"
+          formControlName="country"
+          [options]="countryOptions"
+          [searchable]="true"
+          searchPlaceholder="Search country"
+          placeholder="Select country" />
       </div>
       <div class="field-row">
-        <div class="stb-field">
-          <label for="branch-timezone">Timezone</label>
-          <select id="branch-timezone" class="stb-select" formControlName="timeZone">
-            <option *ngFor="let tz of timezones" [ngValue]="tz">{{ tz }}</option>
-          </select>
-        </div>
-        <div class="stb-field">
-          <label for="branch-currency">Default Currency</label>
-          <select id="branch-currency" class="stb-select" formControlName="currencyCode">
-            <option *ngFor="let c of currencies" [ngValue]="c">{{ c }}</option>
-          </select>
-        </div>
+        <ui-select
+          class="branch-select"
+          label="Timezone"
+          formControlName="timeZone"
+          [options]="timezoneOptions"
+          [searchable]="true"
+          searchPlaceholder="Search timezone (e.g. Regina, Dubai)"
+          placeholder="Select timezone" />
+        <ui-select
+          class="branch-select"
+          label="Default Currency"
+          formControlName="currencyCode"
+          [options]="currencyOptions"
+          [searchable]="true"
+          searchPlaceholder="Search currency"
+          placeholder="Select currency" />
       </div>
     </mat-card>
 

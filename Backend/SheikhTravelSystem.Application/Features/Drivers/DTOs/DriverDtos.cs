@@ -241,21 +241,25 @@ public record DriverAttendanceDto(
     string? Notes,
     DateTime CreatedAt);
 
-public record DriverLocationDto(
-    decimal? Latitude,
-    decimal? Longitude,
-    decimal? Speed,
-    bool? Ignition,
-    DateTime? LastSeen,
-    int? VehicleId,
-    string? VehicleRegistration,
-    bool GpsOnline);
+public class DriverLocationDto
+{
+    public double? Latitude { get; set; }
+    public double? Longitude { get; set; }
+    public decimal? Speed { get; set; }
+    public bool? Ignition { get; set; }
+    public DateTime? LastSeen { get; set; }
+    public int? VehicleId { get; set; }
+    public string? VehicleRegistration { get; set; }
+    public bool GpsOnline { get; set; }
+}
 
-public record DriverLocationPointDto(
-    decimal Latitude,
-    decimal Longitude,
-    decimal? Speed,
-    DateTime Timestamp);
+public class DriverLocationPointDto
+{
+    public double Latitude { get; set; }
+    public double Longitude { get; set; }
+    public decimal? Speed { get; set; }
+    public DateTime Timestamp { get; set; }
+}
 
 public record UpdateDriverRatingRequest(decimal Rating);
 

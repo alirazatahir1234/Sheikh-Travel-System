@@ -51,7 +51,18 @@ import { ScheduleActionMenuComponent } from './schedule-action-menu.component';
               </td>
             </tr>
           } @empty {
-            <tr><td colspan="7" class="empty">No schedules match your filters.</td></tr>
+            <tr>
+              <td colspan="7" class="empty">
+                @if (hasActiveFilters()) {
+                  No schedules match your filters.
+                } @else {
+                  No service schedules yet.
+                  @if (canCreate()) {
+                    <button type="button" class="empty-link" (click)="createRequested.emit()">Schedule a service</button>
+                  }
+                }
+              </td>
+            </tr>
           }
         </tbody>
       </table>
@@ -64,10 +75,24 @@ import { ScheduleActionMenuComponent } from './schedule-action-menu.component';
     td { padding: 0.625rem 0.75rem; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
     .muted { display: block; font-size: 0.75rem; color: #94a3b8; font-weight: 400; }
     .empty { text-align: center; color: #94a3b8; padding: 2rem !important; }
+    .empty-link {
+      display: inline-block;
+      margin-left: 0.35rem;
+      border: 0;
+      background: transparent;
+      color: #0f766e;
+      font: inherit;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: underline;
+    }
   `]
 })
 export class ScheduleListViewComponent {
   readonly schedules = input.required<MaintenanceScheduleListItem[]>();
+  readonly hasActiveFilters = input(false);
+  readonly canCreate = input(false);
   readonly reschedule = output<MaintenanceScheduleListItem>();
   readonly createWorkOrder = output<MaintenanceScheduleListItem>();
+  readonly createRequested = output<void>();
 }

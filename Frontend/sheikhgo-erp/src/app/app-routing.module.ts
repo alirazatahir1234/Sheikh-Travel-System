@@ -21,6 +21,7 @@ const routes: Routes = [
       { path: 'customers', loadChildren: () => import('./modules/customers/customers.module').then(m => m.CustomersModule) },
       { path: 'routes', loadChildren: () => import('./modules/routes/routes.module').then(m => m.RoutesModule) },
       { path: 'bookings', loadChildren: () => import('./modules/bookings/bookings.module').then(m => m.BookingsModule) },
+      { path: 'trips', loadChildren: () => import('./modules/trips/trips.module').then(m => m.TripsModule) },
       { path: 'payments', loadChildren: () => import('./modules/payments/payments.module').then(m => m.PaymentsModule) },
       { path: 'reports', loadChildren: () => import('./modules/reports/reports.module').then(m => m.ReportsModule) },
       { path: 'gps-tracking', loadChildren: () => import('./modules/gps-tracking/gps-tracking.module').then(m => m.GpsTrackingModule) },

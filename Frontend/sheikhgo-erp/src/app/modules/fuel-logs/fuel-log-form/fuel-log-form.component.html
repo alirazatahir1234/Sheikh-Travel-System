@@ -67,14 +67,47 @@
         <span class="stb-error" *ngIf="form.get('odometerReading')?.hasError('required') && form.get('odometerReading')?.touched">Required</span>
       </div>
 
-      <mat-form-field appearance="outline" class="span-2">
-        <mat-label>Fuel Station (optional)</mat-label>
-        <input matInput #stationInput formControlName="station"
-               [placeholder]="mapsConfigured ? 'Search for fuel station...' : 'e.g. PSO DHA Phase 5'"
-               autocomplete="off">
-        <mat-icon matPrefix>local_gas_station</mat-icon>
-        <mat-hint *ngIf="mapsConfigured">Start typing to search nearby fuel stations</mat-hint>
-      </mat-form-field>
+      <div class="stb-field span-2 station-field">
+        <label for="fuel-station">Fuel Station (optional)</label>
+        <div class="stb-input-wrap stb-input-wrap--prefix station-input-wrap">
+          <mat-icon class="station-prefix-icon" aria-hidden="true">local_gas_station</mat-icon>
+          <input
+            id="fuel-station"
+            #stationInput
+            class="stb-input stb-input--prefixed"
+            type="text"
+            formControlName="station"
+            [placeholder]="mapsConfigured ? 'Search for fuel station…' : 'e.g. PSO DHA Phase 5'"
+            autocomplete="off"
+            maxlength="200" />
+        </div>
+        <span class="stb-hint" *ngIf="mapsConfigured && !form.get('station')?.invalid">
+          Start typing to search nearby fuel stations, then select a suggestion.
+        </span>
+        <span class="stb-hint" *ngIf="!mapsConfigured && !form.get('station')?.invalid">
+          Enter a station name (letters required). Numbers alone are not allowed.
+        </span>
+        <span
+          class="stb-error"
+          *ngIf="form.get('station')?.hasError('numericOnly') && form.get('station')?.touched">
+          Enter a valid fuel station name — numbers alone are not allowed.
+        </span>
+        <span
+          class="stb-error"
+          *ngIf="form.get('station')?.hasError('invalidStation') && form.get('station')?.touched">
+          Use letters, numbers, and common punctuation for the station name.
+        </span>
+        <span
+          class="stb-error"
+          *ngIf="form.get('station')?.hasError('maxlength') && form.get('station')?.touched">
+          Station name cannot exceed 200 characters.
+        </span>
+        <span
+          class="stb-error"
+          *ngIf="form.get('station')?.hasError('minlength') && form.get('station')?.touched">
+          Enter at least 2 characters for the station name.
+        </span>
+      </div>
     </div>
 
     <div class="actions">

@@ -33,10 +33,36 @@
   gap: 12px;
 }
 
+.settings-page__banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  font-size: 0.875rem;
+  line-height: 1.45;
+
+  mat-icon {
+    flex-shrink: 0;
+    font-size: 20px;
+    width: 20px;
+    height: 20px;
+  }
+
+  &--error {
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    color: #991b1b;
+  }
+}
+
 .settings-page-skeleton__section {
   height: 180px;
   width: 100%;
   border-radius: 12px;
+  background: linear-gradient(90deg, #eef2f7 25%, #dfe6ee 50%, #eef2f7 75%);
+  background-size: 200% 100%;
+  animation: stb-shimmer 1.4s ease-in-out infinite;
 }
 
 .settings-page__placeholder {

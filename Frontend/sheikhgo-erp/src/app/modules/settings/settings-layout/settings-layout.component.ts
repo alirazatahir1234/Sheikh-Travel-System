@@ -1,6 +1,7 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { SettingsService } from '../services/settings.service';
 import { SettingsCategory } from '../models/settings.model';
+import { SETTINGS_CATEGORIES_FALLBACK } from '../config/settings-categories';
 
 @Component({
   standalone: false,
@@ -11,17 +12,16 @@ import { SettingsCategory } from '../models/settings.model';
 export class SettingsLayoutComponent implements OnInit {
   private readonly settings = inject(SettingsService);
 
-  categories: SettingsCategory[] = [];
-  loading = true;
+  /** Always start with local catalog so nav is never empty while API loads. */
+  categories: SettingsCategory[] = [...SETTINGS_CATEGORIES_FALLBACK];
 
   ngOnInit(): void {
     this.settings.getCategories().subscribe({
       next: (categories) => {
-        this.categories = categories;
-        this.loading = false;
+        this.categories = categories?.length ? categories : [...SETTINGS_CATEGORIES_FALLBACK];
       },
       error: () => {
-        this.loading = false;
+        this.categories = [...SETTINGS_CATEGORIES_FALLBACK];
       }
     });
   }

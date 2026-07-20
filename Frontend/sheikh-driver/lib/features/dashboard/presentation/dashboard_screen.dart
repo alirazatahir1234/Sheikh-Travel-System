@@ -4,34 +4,38 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../core/constants/app_theme.dart';
 import '../../../features/auth/data/auth_repository.dart';
+import '../../../shared/widgets/sg_ui.dart';
+import '../domain/dashboard_models.dart';
 import 'dashboard_notifier.dart';
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
 
+  String _greeting() {
+    final h = DateTime.now().hour;
+    if (h < 12) return 'Good Morning';
+    if (h < 17) return 'Good Afternoon';
+    return 'Good Evening';
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final session = ref.watch(authRepositoryProvider).session;
     final dashAsync = ref.watch(dashboardProvider);
+    final name = session?.fullName.split(' ').first ?? 'Driver';
 
     return Scaffold(
       backgroundColor: AppColors.surface,
       appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('SheikhGo Driver'),
-            if (session != null)
-              Text(
-                session.fullName,
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w400),
-              ),
-          ],
+        leading: IconButton(
+          icon: const Icon(Icons.menu_rounded),
+          onPressed: () => context.push('/settings'),
         ),
+        title: const Text('Dashboard'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: () => ref.read(dashboardProvider.notifier).refresh(),
+            icon: const Icon(Icons.notifications_none_rounded),
+            onPressed: () => context.go('/notifications'),
           ),
         ],
       ),
@@ -42,16 +46,28 @@ class DashboardScreen extends ConsumerWidget {
           onRetry: () => ref.read(dashboardProvider.notifier).refresh(),
         ),
         data: (summary) => RefreshIndicator(
+          color: AppColors.primary,
           onRefresh: () => ref.read(dashboardProvider.notifier).refresh(),
           child: ListView(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
             children: [
-              _StatusBanner(summary: summary),
+              Text(
+                '${_greeting()}, $name 👋',
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textPrimary,
+                ),
+              ),
               const SizedBox(height: 16),
-              _buildGrid(summary),
-              const SizedBox(height: 16),
+              _VehicleCard(summary: summary),
+              const SizedBox(height: 14),
+              _StatsRow(summary: summary),
+              const SizedBox(height: 14),
               _EarningsCard(summary: summary),
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
+              const SgSectionTitle('Quick Actions'),
+              const SizedBox(height: 12),
               _QuickActions(),
             ],
           ),
@@ -59,174 +75,147 @@ class DashboardScreen extends ConsumerWidget {
       ),
     );
   }
+}
 
-  Widget _buildGrid(summary) {
-    return GridView.count(
-      crossAxisCount: 2,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      crossAxisSpacing: 12,
-      mainAxisSpacing: 12,
-      childAspectRatio: 1.4,
+class _VehicleCard extends StatelessWidget {
+  const _VehicleCard({required this.summary});
+  final DashboardSummary summary;
+
+  @override
+  Widget build(BuildContext context) {
+    return SgCard(
+      child: Row(
+        children: [
+          Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(AppRadii.md),
+            ),
+            child: const Icon(Icons.airport_shuttle_rounded,
+                color: AppColors.primary, size: 30),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  summary.currentVehicle ?? 'No vehicle assigned',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 16,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  summary.currentVehiclePlate ?? '—',
+                  style: const TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          StatusBadge(
+            summary.driverStatus.isNotEmpty ? summary.driverStatus : 'Active',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StatsRow extends StatelessWidget {
+  const _StatsRow({required this.summary});
+  final DashboardSummary summary;
+
+  @override
+  Widget build(BuildContext context) {
+    final assigned = summary.assignedTripsToday;
+    final completed = summary.completedToday;
+    final remaining = (assigned - completed).clamp(0, 999);
+    final unread = summary.unreadNotifications;
+
+    return Row(
       children: [
-        _StatCard(
-          icon: Icons.directions_car,
-          iconColor: AppColors.primary,
-          label: 'Assigned Today',
-          value: '${summary.assignedTripsToday}',
+        Expanded(
+          child: _MiniStat(
+            label: 'Trips Today',
+            value: '$assigned',
+            color: AppColors.primary,
+          ),
         ),
-        _StatCard(
-          icon: Icons.check_circle_outline,
-          iconColor: AppColors.success,
-          label: 'Completed',
-          value: '${summary.completedToday}',
+        const SizedBox(width: 10),
+        Expanded(
+          child: _MiniStat(
+            label: 'Completed',
+            value: '$completed',
+            color: AppColors.success,
+          ),
         ),
-        _StatCard(
-          icon: summary.clockedIn ? Icons.login : Icons.logout,
-          iconColor: summary.clockedIn ? AppColors.success : AppColors.textSecondary,
-          label: 'Attendance',
-          value: summary.clockedIn ? 'Clocked In' : 'Not Clocked In',
-          valueSize: 14,
+        const SizedBox(width: 10),
+        Expanded(
+          child: _MiniStat(
+            label: 'Remaining',
+            value: '$remaining',
+            color: AppColors.warning,
+          ),
         ),
-        _StatCard(
-          icon: Icons.notifications_outlined,
-          iconColor: summary.unreadNotifications > 0 ? AppColors.warning : AppColors.textSecondary,
-          label: 'Alerts',
-          value: '${summary.unreadNotifications}',
+        const SizedBox(width: 10),
+        Expanded(
+          child: _MiniStat(
+            label: 'Alerts',
+            value: '$unread',
+            color: AppColors.error,
+          ),
         ),
       ],
     );
   }
 }
 
-class _StatusBanner extends StatelessWidget {
-  const _StatusBanner({required this.summary});
-  final dynamic summary;
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Icon(Icons.local_shipping, color: AppColors.primary),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    summary.currentVehicle ?? 'No vehicle assigned',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                  if (summary.currentVehiclePlate != null)
-                    Text(
-                      summary.currentVehiclePlate!,
-                      style: const TextStyle(
-                        color: AppColors.textSecondary,
-                        fontSize: 13,
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            _StatusChip(status: summary.driverStatus),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _StatusChip extends StatelessWidget {
-  const _StatusChip({required this.status});
-  final String status;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = switch (status.toLowerCase()) {
-      'available' => AppColors.success,
-      'ontwip' || 'on trip' => AppColors.primary,
-      'offduty' || 'off duty' => AppColors.textSecondary,
-      _ => AppColors.warning,
-    };
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Text(
-        status,
-        style: TextStyle(
-          color: color,
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-    );
-  }
-}
-
-class _StatCard extends StatelessWidget {
-  const _StatCard({
-    required this.icon,
-    required this.iconColor,
+class _MiniStat extends StatelessWidget {
+  const _MiniStat({
     required this.label,
     required this.value,
-    this.valueSize = 22,
+    required this.color,
   });
 
-  final IconData icon;
-  final Color iconColor;
   final String label;
   final String value;
-  final double valueSize;
+  final Color color;
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Icon(icon, color: iconColor, size: 24),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  value,
-                  style: TextStyle(
-                    fontSize: valueSize,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-                Text(
-                  label,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ],
+    return SgCard(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+      child: Column(
+        children: [
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+              color: color,
             ),
-          ],
-        ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textSecondary,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -234,114 +223,149 @@ class _StatCard extends StatelessWidget {
 
 class _EarningsCard extends StatelessWidget {
   const _EarningsCard({required this.summary});
-  final dynamic summary;
+  final DashboardSummary summary;
 
   @override
   Widget build(BuildContext context) {
-    final fmt = NumberFormat('#,##0.00');
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            const Icon(Icons.account_balance_wallet_outlined, color: AppColors.success, size: 32),
-            const SizedBox(width: 16),
-            Column(
+    final fmt = NumberFormat('#,##0');
+    return SgCard(
+      onTap: () => context.push('/earnings'),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'Earnings this week',
-                  style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                  'Weekly Earnings',
+                  style: TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
+                const SizedBox(height: 4),
                 Text(
                   'PKR ${fmt.format(summary.earningsThisWeek)}',
                   style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w700,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
                     color: AppColors.textPrimary,
                   ),
                 ),
+                const SizedBox(height: 6),
+                const Row(
+                  children: [
+                    Icon(Icons.trending_up, size: 14, color: AppColors.success),
+                    SizedBox(width: 4),
+                    Text(
+                      'View details',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.success,
+                      ),
+                    ),
+                  ],
+                ),
               ],
             ),
-          ],
-        ),
+          ),
+          SizedBox(
+            width: 72,
+            height: 40,
+            child: CustomPaint(
+              painter: _SparklinePainter(color: AppColors.info),
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
+class _SparklinePainter extends CustomPainter {
+  _SparklinePainter({required this.color});
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = 2
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+    final path = Path();
+    final pts = [0.2, 0.45, 0.35, 0.7, 0.55, 0.85, 0.65];
+    for (var i = 0; i < pts.length; i++) {
+      final x = size.width * i / (pts.length - 1);
+      final y = size.height * (1 - pts[i]);
+      if (i == 0) {
+        path.moveTo(x, y);
+      } else {
+        path.lineTo(x, y);
+      }
+    }
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
 class _QuickActions extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Quick Actions',
-          style: TextStyle(
-              fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
-        ),
-        const SizedBox(height: 10),
-        Row(
-          children: [
-            Expanded(
-              child: _ActionButton(
-                icon: Icons.fingerprint,
-                label: 'Attendance',
-                color: AppColors.success,
-                onTap: () => context.push('/attendance'),
+    final actions = [
+      (Icons.route_rounded, 'Trips', AppColors.primary, '/trips'),
+      (Icons.fingerprint, 'Attendance', AppColors.success, '/attendance'),
+      (Icons.local_gas_station_rounded, 'Fuel', AppColors.warning, '/fuel'),
+      (Icons.fact_check_rounded, 'Inspection', AppColors.info, '/inspection'),
+    ];
+
+    return SizedBox(
+      height: 104,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: actions.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 12),
+        itemBuilder: (_, i) {
+          final a = actions[i];
+          return SizedBox(
+            width: 88,
+            child: SgCard(
+              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+              onTap: () => context.push(a.$4),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: a.$3.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(AppRadii.sm),
+                    ),
+                    child: Icon(a.$1, color: a.$3, size: 22),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    a.$2,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                      height: 1.1,
+                    ),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _ActionButton(
-                icon: Icons.local_gas_station,
-                label: 'Fuel Log',
-                color: AppColors.warning,
-                onTap: () => context.push('/fuel'),
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-}
-
-class _ActionButton extends StatelessWidget {
-  const _ActionButton({
-    required this.icon,
-    required this.label,
-    required this.color,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-  final Color color;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 14),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withValues(alpha: 0.2)),
-        ),
-        child: Column(
-          children: [
-            Icon(icon, color: color, size: 26),
-            const SizedBox(height: 6),
-            Text(label,
-                style: TextStyle(
-                    color: color, fontWeight: FontWeight.w600, fontSize: 13)),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
@@ -360,16 +384,14 @@ class _ErrorView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.cloud_off_outlined, size: 48, color: AppColors.textSecondary),
+            const Icon(Icons.cloud_off_outlined,
+                size: 48, color: AppColors.textSecondary),
             const SizedBox(height: 12),
-            Text(message, textAlign: TextAlign.center,
+            Text(message,
+                textAlign: TextAlign.center,
                 style: const TextStyle(color: AppColors.textSecondary)),
             const SizedBox(height: 16),
-            FilledButton.icon(
-              onPressed: onRetry,
-              icon: const Icon(Icons.refresh),
-              label: const Text('Retry'),
-            ),
+            SgPrimaryButton(label: 'Retry', onPressed: onRetry),
           ],
         ),
       ),

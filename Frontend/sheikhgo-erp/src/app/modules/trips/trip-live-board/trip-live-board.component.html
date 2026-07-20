@@ -1,0 +1,60 @@
+<div class="live-board">
+  <div class="page-head">
+    <div>
+      <h2>Dispatch Board</h2>
+      <p>
+        Live operational board · {{ items.length }} active
+        · {{ gpsOnlineCount }} GPS online
+        · auto-refresh 30s
+      </p>
+    </div>
+    <div class="actions">
+      <ui-button variant="secondary" size="sm" (clicked)="toggleScope()">
+        {{ todayOnly ? "Today's trips" : 'All active' }}
+      </ui-button>
+      <ui-button variant="secondary" size="sm" icon="refresh" (clicked)="load()">Refresh</ui-button>
+    </div>
+  </div>
+
+  <div class="board" *ngIf="!loading; else loadingTpl">
+    <section class="column" *ngFor="let col of columns">
+      <header>
+        <h3>{{ col.label }}</h3>
+        <span class="count">{{ tripsFor(col).length }}</span>
+      </header>
+      <div class="cards" *ngIf="tripsFor(col).length; else emptyCol">
+        <article class="card" *ngFor="let trip of tripsFor(col)" (click)="openTrip(trip.id)">
+          <div class="card-top">
+            <strong>{{ trip.tripNumber }}</strong>
+            <span class="gps" [class.online]="trip.gpsOnline" [class.offline]="!trip.gpsOnline">
+              {{ trip.gpsOnline ? 'GPS' : 'Offline' }}
+            </span>
+          </div>
+          <div class="customer">{{ trip.customerName || '—' }}</div>
+          <div class="route-line">
+            <span>{{ trip.pickupAddress || 'Pickup TBD' }}</span>
+            <mat-icon>arrow_forward</mat-icon>
+            <span>{{ trip.destinationAddress || 'Dest TBD' }}</span>
+          </div>
+          <div class="meta">
+            <span><mat-icon>person</mat-icon>{{ trip.driverName || 'Unassigned' }}</span>
+            <span><mat-icon>directions_car</mat-icon>{{ trip.vehicleName || 'Unassigned' }}</span>
+          </div>
+          <div class="card-foot">
+            <span class="time">{{ trip.plannedStart | date:'shortTime' }}</span>
+            <button type="button" class="gps-btn" *ngIf="trip.vehicleId" (click)="openLiveGps(trip, $event)">
+              Live map
+            </button>
+          </div>
+        </article>
+      </div>
+      <ng-template #emptyCol>
+        <div class="empty">No trips</div>
+      </ng-template>
+    </section>
+  </div>
+
+  <ng-template #loadingTpl>
+    <div class="loading">Loading dispatch board…</div>
+  </ng-template>
+</div>

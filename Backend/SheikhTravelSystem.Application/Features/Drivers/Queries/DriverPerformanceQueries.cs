@@ -147,17 +147,17 @@ public class GetDriverLocationQueryHandler(IDbConnectionFactory dbFactory, ITena
         var row = await connection.QuerySingleOrDefaultAsync<DriverLocationDto>(
             new CommandDefinition(
                 @"SELECT TOP 1
-                    gp.Latitude, gp.Longitude, gp.Speed, gp.Ignition, gp.Timestamp AS LastSeen,
+                    gp.Latitude, gp.Longitude, gp.Speed, gp.Ignition, gp.RecordedAt AS LastSeen,
                     v.Id AS VehicleId, v.RegistrationNumber AS VehicleRegistration,
                     CAST(CASE WHEN gd.LastSeenAt >= DATEADD(minute, -15, GETUTCDATE()) THEN 1 ELSE 0 END AS BIT) AS GpsOnline
                   FROM AssignmentHistory ah
                   INNER JOIN Vehicles v ON v.Id = ah.VehicleId AND v.IsDeleted = 0
                   LEFT JOIN GpsDevices gd ON gd.Id = v.GpsDeviceId AND gd.IsDeleted = 0
                   OUTER APPLY (
-                    SELECT TOP 1 p.Latitude, p.Longitude, p.Speed, p.Ignition, p.Timestamp
+                    SELECT TOP 1 p.Latitude, p.Longitude, p.Speed, p.Ignition, p.RecordedAt
                     FROM GpsPositions p
                     WHERE (p.DriverId = @DriverId OR p.VehicleId = v.Id)
-                    ORDER BY p.Timestamp DESC
+                    ORDER BY p.RecordedAt DESC
                   ) gp
                   WHERE ah.DriverId = @DriverId AND ah.TenantId = @TenantId
                     AND ah.Status = N'Active' AND ah.IsDeleted = 0
@@ -197,11 +197,11 @@ public class GetDriverLocationHistoryQueryHandler(IDbConnectionFactory dbFactory
 
         var points = (await connection.QueryAsync<DriverLocationPointDto>(
             new CommandDefinition(
-                @"SELECT Latitude, Longitude, Speed, Timestamp
+                @"SELECT Latitude, Longitude, Speed, RecordedAt AS Timestamp
                   FROM GpsPositions
                   WHERE (DriverId = @DriverId OR VehicleId = @VehicleId)
-                    AND Timestamp >= @From AND Timestamp <= @To
-                  ORDER BY Timestamp ASC",
+                    AND RecordedAt >= @From AND RecordedAt <= @To
+                  ORDER BY RecordedAt ASC",
                 new { request.DriverId, VehicleId = vehicleId.Value, request.From, request.To },
                 cancellationToken: cancellationToken))).ToList();
 

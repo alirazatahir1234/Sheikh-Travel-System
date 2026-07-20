@@ -20,7 +20,10 @@ export function resolveMaintenancePeriodRange(period: string, now = new Date()):
     case 'today':
       return { from: new Date(now.getFullYear(), now.getMonth(), now.getDate()), to: end };
     case 'week': {
-      const from = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay());
+      // Monday-start week so "Week" matches ops expectation (not Sunday-start JS default).
+      const day = now.getDay(); // 0 Sun .. 6 Sat
+      const daysFromMonday = day === 0 ? 6 : day - 1;
+      const from = new Date(now.getFullYear(), now.getMonth(), now.getDate() - daysFromMonday);
       return { from, to: end };
     }
     case 'quarter': {
@@ -34,14 +37,37 @@ export function resolveMaintenancePeriodRange(period: string, now = new Date()):
   }
 }
 
+/** Parse API dates (ISO or date-only) into local calendar dates for period checks. */
+export function parseMaintenanceDate(value: string | Date | null | undefined): Date | null {
+  if (!value) return null;
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value;
+  }
+
+  const raw = String(value).trim();
+  if (!raw) return null;
+
+  // Date-only (yyyy-MM-dd) → local midnight to avoid UTC shifting the calendar day.
+  const dateOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);
+  if (dateOnly) {
+    const y = Number(dateOnly[1]);
+    const m = Number(dateOnly[2]) - 1;
+    const d = Number(dateOnly[3]);
+    const local = new Date(y, m, d);
+    return Number.isNaN(local.getTime()) ? null : local;
+  }
+
+  const parsed = new Date(raw);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
 export function isWithinMaintenancePeriod(
   value: string | Date | null | undefined,
   period: string,
   now = new Date()
 ): boolean {
-  if (!value) return false;
-  const date = value instanceof Date ? value : new Date(value);
-  if (Number.isNaN(date.getTime())) return false;
+  const date = parseMaintenanceDate(value);
+  if (!date) return false;
 
   const { from, to } = resolveMaintenancePeriodRange(period, now);
   return date >= from && date < to;

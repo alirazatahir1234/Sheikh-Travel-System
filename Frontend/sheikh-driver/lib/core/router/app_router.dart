@@ -13,6 +13,13 @@ import '../../features/attendance/presentation/attendance_screen.dart';
 import '../../features/fuel/presentation/fuel_screen.dart';
 import '../../features/timeline/presentation/timeline_screen.dart';
 import '../../features/settings/presentation/settings_screen.dart';
+import '../../features/documents/presentation/documents_screen.dart';
+import '../../features/earnings/presentation/earnings_screen.dart';
+import '../../features/inspection/presentation/inspection_screen.dart';
+import '../../features/navigation/presentation/trip_navigation_screen.dart';
+import '../../features/offline/presentation/offline_queue_screen.dart';
+import '../../features/security/presentation/security_status_screen.dart';
+import '../../features/legal/presentation/legal_document_screen.dart';
 import '../../shared/widgets/app_shell.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -32,6 +39,12 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/login',
         builder: (_, __) => const LoginScreen(),
+      ),
+      GoRoute(
+        path: '/trips/:id/navigate',
+        builder: (_, state) => TripNavigationScreen(
+          tripId: int.parse(state.pathParameters['id']!),
+        ),
       ),
       ShellRoute(
         builder: (context, state, child) => AppShell(child: child),
@@ -73,12 +86,42 @@ final routerProvider = Provider<GoRouter>((ref) {
             builder: (_, __) => const FuelScreen(),
           ),
           GoRoute(
+            path: '/inspection',
+            builder: (_, __) => const InspectionScreen(),
+          ),
+          GoRoute(
+            path: '/documents',
+            builder: (_, __) => const DocumentsScreen(),
+          ),
+          GoRoute(
+            path: '/earnings',
+            builder: (_, __) => const EarningsScreen(),
+          ),
+          GoRoute(
             path: '/timeline',
             builder: (_, __) => const TimelineScreen(),
           ),
           GoRoute(
             path: '/settings',
             builder: (_, __) => const SettingsScreen(),
+          ),
+          GoRoute(
+            path: '/offline-queue',
+            builder: (_, __) => const OfflineQueueScreen(),
+          ),
+          GoRoute(
+            path: '/security',
+            builder: (_, __) => const SecurityStatusScreen(),
+          ),
+          GoRoute(
+            path: '/legal/privacy',
+            builder: (_, __) =>
+                const LegalDocumentScreen(kind: LegalDocumentKind.privacy),
+          ),
+          GoRoute(
+            path: '/legal/terms',
+            builder: (_, __) =>
+                const LegalDocumentScreen(kind: LegalDocumentKind.terms),
           ),
         ],
       ),

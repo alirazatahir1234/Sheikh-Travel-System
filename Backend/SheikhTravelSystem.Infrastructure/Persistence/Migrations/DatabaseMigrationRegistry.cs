@@ -60,6 +60,11 @@ public static class DatabaseMigrationRegistry
             M("DriverVerificationMigration", DriverVerificationMigration.ApplyAsync),
             M("AssignmentSchemaMigration", AssignmentSchemaMigration.ApplyAsync),
             M("MaintenanceModuleMigration", MaintenanceModuleMigration.ApplyAsync),
+            M("TripsModuleMigration", TripsModuleMigration.ApplyAsync),
+            M("DriverAppSosMigration", DriverAppSosMigration.ApplyAsync),
+            M("DriverInspectionMigration", DriverInspectionMigration.ApplyAsync),
+            M("DriverFuelReceiptMigration", DriverFuelReceiptMigration.ApplyAsync),
+            M("DriverDeviceRegistrationMigration", DriverDeviceRegistrationMigration.ApplyAsync),
         ];
     }
 }

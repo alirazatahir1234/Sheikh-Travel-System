@@ -28,6 +28,12 @@ export type ScheduleDrawerMode = 'create' | 'reschedule';
       [title]="mode() === 'create' ? 'Schedule Service' : 'Reschedule Service'"
       (closed)="onClose()">
       <form class="form" (ngSubmit)="submit()">
+        @if (formError()) {
+          <div class="form-error" role="alert">
+            <span>{{ formError() }}</span>
+          </div>
+        }
+
         @if (mode() === 'create') {
           <label>Vehicle
             <select [(ngModel)]="form.vehicleId" name="vehicleId" required>
@@ -109,6 +115,18 @@ export type ScheduleDrawerMode = 'create' | 'reschedule';
   `,
   styles: [`
     .form { display: grid; gap: 0.875rem; }
+    .form-error {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.5rem;
+      padding: 0.75rem 0.875rem;
+      border-radius: 8px;
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      color: #991b1b;
+      font-size: 0.8125rem;
+      line-height: 1.4;
+    }
     label { display: grid; gap: 0.35rem; font-size: 0.8125rem; font-weight: 600; color: #334155; }
     input, select {
       padding: 0.5rem 0.625rem;
@@ -148,6 +166,7 @@ export class ScheduleFormDrawerComponent implements OnInit {
   readonly serviceTypes = signal<ServiceType[]>([]);
   readonly templates = signal<MaintenanceScheduleTemplate[]>([]);
   readonly saving = signal(false);
+  readonly formError = signal<string | null>(null);
 
   form: CreateMaintenanceSchedulePayload & { serviceTypeId?: number | null } = {
     vehicleId: 0,
@@ -211,6 +230,8 @@ export class ScheduleFormDrawerComponent implements OnInit {
   }
 
   submit(): void {
+    this.formError.set(null);
+
     if (this.mode() === 'reschedule' && this.schedule()) {
       this.saving.set(true);
       const body: RescheduleMaintenanceSchedulePayload = {
@@ -224,7 +245,9 @@ export class ScheduleFormDrawerComponent implements OnInit {
         next: () => { this.saving.set(false); this.saved.emit(); this.onClose(); },
         error: err => {
           this.saving.set(false);
-          this.toast.error(apiErrorMessage(err, 'Reschedule failed'));
+          const msg = apiErrorMessage(err, 'Reschedule failed');
+          this.formError.set(msg);
+          this.toast.error(msg);
         }
       });
       return;
@@ -232,13 +255,17 @@ export class ScheduleFormDrawerComponent implements OnInit {
 
     const payload = buildCreateMaintenanceSchedulePayload(this.form);
     if (!payload) {
-      this.toast.error('Select a vehicle, service type, and interval value of at least 1.');
+      const msg = 'Select a vehicle, service type, and interval value of at least 1.';
+      this.formError.set(msg);
+      this.toast.error(msg);
       return;
     }
 
     const vehicleAllowed = this.vehicles().some(v => v.vehicleId === payload.vehicleId);
     if (!vehicleAllowed) {
-      this.toast.error('Selected vehicle is not eligible for scheduling. Choose a published fleet vehicle.');
+      const msg = 'Selected vehicle is not eligible for scheduling. Choose a published fleet vehicle.';
+      this.formError.set(msg);
+      this.toast.error(msg);
       return;
     }
 
@@ -247,12 +274,15 @@ export class ScheduleFormDrawerComponent implements OnInit {
       next: () => { this.saving.set(false); this.saved.emit(); this.onClose(); },
       error: err => {
         this.saving.set(false);
-        this.toast.error(apiErrorMessage(err, 'Failed to schedule'));
+        const msg = apiErrorMessage(err, 'Failed to schedule');
+        this.formError.set(msg);
+        this.toast.error(msg);
       }
     });
   }
 
   onClose(): void {
+    this.formError.set(null);
     this.closed.emit();
   }
 }

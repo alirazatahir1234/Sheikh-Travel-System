@@ -1,0 +1,284 @@
+<div class="loading" *ngIf="loading">
+  <mat-spinner diameter="36"></mat-spinner>
+</div>
+
+<div class="empty-state" *ngIf="!loading && loadError">
+  <mat-icon>error_outline</mat-icon>
+  <h3>Could not open trip</h3>
+  <p>{{ loadError }}</p>
+  <button mat-flat-button color="primary" type="button" (click)="backToList()">Back to Trip List</button>
+</div>
+
+<div class="trip-detail" *ngIf="!loading && !loadError && trip as t">
+  <header class="header">
+    <div>
+      <h2>{{ t.tripNumber }} — {{ t.tripName }}</h2>
+      <p>{{ t.status }} · {{ t.tripType }} · Priority {{ t.priority }}</p>
+    </div>
+    <div class="header-actions">
+      <button mat-stroked-button type="button" [routerLink]="['/trips', t.id, 'edit']">
+        <mat-icon>edit</mat-icon> Edit
+      </button>
+      <button mat-stroked-button type="button" (click)="openAlerts()" *ngIf="t.openAlertCount > 0">
+        <mat-icon>warning</mat-icon> {{ t.openAlertCount }} Alert{{ t.openAlertCount === 1 ? '' : 's' }}
+      </button>
+      <button mat-flat-button color="primary" type="button" (click)="openLiveMap()">
+        <mat-icon>my_location</mat-icon> Open Live GPS
+      </button>
+    </div>
+  </header>
+
+  <div class="live-strip" *ngIf="routeSummary as rs">
+    <div class="live-kpi">
+      <span>Speed</span>
+      <strong>{{ rs.liveSpeedKmh != null ? (rs.liveSpeedKmh | number:'1.0-0') + ' km/h' : '—' }}</strong>
+    </div>
+    <div class="live-kpi">
+      <span>Covered</span>
+      <strong>{{ rs.distanceCoveredKm != null ? (rs.distanceCoveredKm | number:'1.1-1') + ' km' : '—' }}</strong>
+    </div>
+    <div class="live-kpi">
+      <span>Remaining</span>
+      <strong>{{ rs.remainingDistanceKm != null ? (rs.remainingDistanceKm | number:'1.1-1') + ' km' : '—' }}</strong>
+    </div>
+    <div class="live-kpi">
+      <span>ETA</span>
+      <strong>{{ rs.etaMinutes != null ? rs.etaMinutes + ' min' : '—' }}</strong>
+    </div>
+    <div class="live-kpi">
+      <span>Ignition</span>
+      <strong>{{ rs.ignition == null ? '—' : (rs.ignition ? 'On' : 'Off') }}</strong>
+    </div>
+    <div class="live-kpi">
+      <span>Last GPS</span>
+      <strong>{{ rs.lastGpsAt ? (rs.lastGpsAt | date:'HH:mm:ss') : '—' }}</strong>
+    </div>
+  </div>
+
+  <div class="panels">
+    <mat-card>
+      <mat-card-title>Trip Information</mat-card-title>
+      <mat-card-content class="info-grid">
+        <div><span>Booking</span><strong>{{ t.bookingNumber || '—' }}</strong></div>
+        <div><span>Customer</span><strong>{{ t.customerName || '—' }}</strong></div>
+        <div><span>Driver</span><strong>{{ t.driverName || '—' }}</strong></div>
+        <div><span>Vehicle</span><strong>{{ t.vehicleName || '—' }}</strong></div>
+        <div><span>Route</span><strong>{{ t.routeName || '—' }}</strong></div>
+        <div><span>Pickup</span><strong>{{ t.pickupAddress || '—' }}</strong></div>
+        <div><span>Drop-off</span><strong>{{ t.destinationAddress || '—' }}</strong></div>
+        <div><span>Start</span><strong>{{ t.plannedStart | date:'dd-MMM-yyyy HH:mm' }}</strong></div>
+        <div><span>End</span><strong>{{ t.plannedEnd ? (t.plannedEnd | date:'dd-MMM-yyyy HH:mm') : '—' }}</strong></div>
+        <div><span>GPS</span><strong [class.live]="t.gpsOnline">{{ t.gpsOnline ? 'Live' : 'Offline' }}</strong></div>
+        <div><span>Passengers</span><strong>{{ t.passengerCount }}</strong></div>
+        <div><span>Distance</span><strong>{{ t.plannedDistanceKm != null ? t.plannedDistanceKm + ' km' : '—' }}</strong></div>
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card>
+      <mat-card-header>
+        <mat-card-title>Route Management</mat-card-title>
+        <div class="route-actions">
+          <button mat-stroked-button type="button" (click)="openGoogleMaps()">
+            <mat-icon>map</mat-icon> Open Google Maps
+          </button>
+          <button mat-flat-button color="primary" type="button" (click)="optimizeRoute()"
+                  [disabled]="optimizing || !(routeSummary?.canOptimize)">
+            <mat-icon>alt_route</mat-icon> Optimize Route
+          </button>
+        </div>
+      </mat-card-header>
+      <mat-card-content class="info-grid" *ngIf="routeSummary as rs; else routeEmpty">
+        <div><span>Linked Route</span><strong>{{ rs.routeName || '—' }}</strong></div>
+        <div><span>Planned Distance</span><strong>{{ rs.plannedDistanceKm != null ? (rs.plannedDistanceKm | number:'1.1-1') + ' km' : '—' }}</strong></div>
+        <div><span>Estimated Time</span><strong>{{ rs.estimatedDurationMinutes != null ? rs.estimatedDurationMinutes + ' min' : '—' }}</strong></div>
+        <div><span>Actual Distance</span><strong>{{ rs.actualDistanceKm != null ? (rs.actualDistanceKm | number:'1.1-1') + ' km' : '—' }}</strong></div>
+        <div><span>Coordinates</span><strong>{{ rs.hasCoordinates ? 'Available' : 'Missing' }}</strong></div>
+        <div><span>Note</span><strong class="muted">Optimize uses linked route distance/ETA, or straight-line estimate at 40 km/h</strong></div>
+      </mat-card-content>
+      <ng-template #routeEmpty>
+        <mat-card-content><p class="muted">Loading route…</p></mat-card-content>
+      </ng-template>
+    </mat-card>
+
+    <mat-card>
+      <mat-card-title>Assign</mat-card-title>
+      <mat-card-content class="assign-row">
+        <mat-form-field appearance="outline">
+          <mat-label>Driver</mat-label>
+          <mat-select [(ngModel)]="driverId">
+            <mat-option *ngFor="let d of drivers" [value]="d.id">{{ d.fullName }}</mat-option>
+          </mat-select>
+        </mat-form-field>
+        <button mat-stroked-button type="button" (click)="assignDriver()">Assign Driver</button>
+        <mat-form-field appearance="outline">
+          <mat-label>Vehicle</mat-label>
+          <mat-select [(ngModel)]="vehicleId">
+            <mat-option *ngFor="let v of vehicles" [value]="v.id">{{ v.name }}</mat-option>
+          </mat-select>
+        </mat-form-field>
+        <button mat-stroked-button type="button" (click)="assignVehicle()">Assign Vehicle</button>
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card>
+      <mat-card-title>Update Status</mat-card-title>
+      <mat-card-content class="assign-row">
+        <mat-form-field appearance="outline">
+          <mat-label>Next Status</mat-label>
+          <mat-select [(ngModel)]="nextStatus">
+            <mat-option *ngFor="let s of statuses" [value]="s">{{ s }}</mat-option>
+          </mat-select>
+        </mat-form-field>
+        <mat-form-field appearance="outline" class="grow">
+          <mat-label>Note</mat-label>
+          <input matInput [(ngModel)]="statusNote" />
+        </mat-form-field>
+        <mat-form-field appearance="outline" class="grow" *ngIf="nextStatus === 'Cancelled'">
+          <mat-label>Cancellation Reason</mat-label>
+          <input matInput [(ngModel)]="cancelReason" />
+        </mat-form-field>
+        <button mat-flat-button color="primary" type="button" (click)="applyStatus()">Apply</button>
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card>
+      <mat-card-title>Timeline</mat-card-title>
+      <mat-card-content>
+        <ol class="timeline" *ngIf="t.timeline?.length; else emptyTimeline">
+          <li *ngFor="let h of t.timeline">
+            <strong>{{ h.toStatus }}</strong>
+            <span>{{ h.changedAtUtc | date:'dd-MMM-yyyy HH:mm' }}</span>
+            <small *ngIf="h.note">{{ h.note }}</small>
+          </li>
+        </ol>
+        <ng-template #emptyTimeline><p>No status history yet.</p></ng-template>
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card *ngIf="t.stops?.length">
+      <mat-card-title>Stops</mat-card-title>
+      <mat-card-content>
+        <ul>
+          <li *ngFor="let s of t.stops">{{ s.sequence }}. {{ s.location }}</li>
+        </ul>
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card>
+      <mat-card-header>
+        <mat-card-title>Passengers</mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        <div class="assign-row">
+          <mat-form-field appearance="outline" class="grow">
+            <mat-label>Full name</mat-label>
+            <input matInput [(ngModel)]="passengerName" />
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>Phone</mat-label>
+            <input matInput [(ngModel)]="passengerPhone" />
+          </mat-form-field>
+          <button mat-stroked-button type="button" (click)="addPassenger()">Add</button>
+        </div>
+        <table class="mini-table" *ngIf="t.passengers?.length">
+          <tr *ngFor="let p of t.passengers">
+            <td>{{ p.fullName }}</td>
+            <td>{{ p.phone || '—' }}</td>
+            <td>
+              <mat-select [(ngModel)]="p.boardingStatus" (selectionChange)="updatePassengerStatus(p)">
+                <mat-option *ngFor="let s of boardingStatuses" [value]="s">{{ s }}</mat-option>
+              </mat-select>
+            </td>
+            <td>
+              <mat-select [(ngModel)]="p.dropStatus" (selectionChange)="updatePassengerStatus(p)">
+                <mat-option *ngFor="let s of dropStatuses" [value]="s">{{ s }}</mat-option>
+              </mat-select>
+            </td>
+            <td>
+              <button mat-icon-button type="button" (click)="deletePassenger(p.id)"><mat-icon>delete</mat-icon></button>
+            </td>
+          </tr>
+        </table>
+        <p *ngIf="!t.passengers?.length" class="muted">No passengers listed yet.</p>
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card>
+      <mat-card-header>
+        <mat-card-title>Expenses</mat-card-title>
+        <span class="total">Total: {{ totalExpenses | number:'1.2-2' }}</span>
+      </mat-card-header>
+      <mat-card-content>
+        <div class="assign-row">
+          <mat-form-field appearance="outline">
+            <mat-label>Type</mat-label>
+            <mat-select [(ngModel)]="expenseType">
+              <mat-option *ngFor="let e of expenseTypes" [value]="e">{{ e }}</mat-option>
+            </mat-select>
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>Amount</mat-label>
+            <input matInput type="number" [(ngModel)]="expenseAmount" />
+          </mat-form-field>
+          <mat-form-field appearance="outline" class="grow">
+            <mat-label>Description</mat-label>
+            <input matInput [(ngModel)]="expenseDescription" />
+          </mat-form-field>
+          <button mat-stroked-button type="button" (click)="addExpense()">Add</button>
+        </div>
+        <table class="mini-table" *ngIf="t.expenses?.length">
+          <tr *ngFor="let e of t.expenses">
+            <td>{{ e.expenseType }}</td>
+            <td>{{ e.amount | number:'1.2-2' }}</td>
+            <td>{{ e.description || '—' }}</td>
+            <td>{{ e.expenseDate | date:'dd-MMM-yyyy' }}</td>
+            <td>
+              <button mat-icon-button type="button" (click)="deleteExpense(e.id)"><mat-icon>delete</mat-icon></button>
+            </td>
+          </tr>
+        </table>
+        <p *ngIf="!t.expenses?.length" class="muted">No expenses recorded.</p>
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card>
+      <mat-card-title>Documents</mat-card-title>
+      <mat-card-content>
+        <div class="assign-row">
+          <mat-form-field appearance="outline">
+            <mat-label>Type</mat-label>
+            <mat-select [(ngModel)]="documentType">
+              <mat-option *ngFor="let d of documentTypes" [value]="d">{{ d }}</mat-option>
+            </mat-select>
+          </mat-form-field>
+          <input type="file" (change)="onFileSelected($event)" />
+          <button mat-stroked-button type="button" (click)="uploadDocument()" [disabled]="!selectedFile">Upload</button>
+        </div>
+        <table class="mini-table" *ngIf="t.documents?.length">
+          <tr *ngFor="let d of t.documents">
+            <td>{{ d.documentType }}</td>
+            <td><a [href]="d.fileUrl" target="_blank" rel="noopener">{{ d.fileName }}</a></td>
+            <td>{{ d.createdAt | date:'dd-MMM-yyyy HH:mm' }}</td>
+            <td>
+              <button mat-icon-button type="button" (click)="deleteDocument(d.id)"><mat-icon>delete</mat-icon></button>
+            </td>
+          </tr>
+        </table>
+        <p *ngIf="!t.documents?.length" class="muted">No documents uploaded.</p>
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card *ngIf="t.vehicleId">
+      <mat-card-title>Alerts</mat-card-title>
+      <mat-card-content>
+        <p *ngIf="t.openAlertCount > 0">
+          {{ t.openAlertCount }} active GPS alert{{ t.openAlertCount === 1 ? '' : 's' }} in the last 7 days for this vehicle.
+        </p>
+        <p *ngIf="!t.openAlertCount" class="muted">No active GPS alerts for this vehicle.</p>
+        <button mat-stroked-button type="button" (click)="openAlerts()">
+          <mat-icon>notifications_active</mat-icon> Open GPS Alerts
+        </button>
+      </mat-card-content>
+    </mat-card>
+  </div>
+</div>

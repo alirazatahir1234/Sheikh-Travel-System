@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Run from repo root: ./Frontend/sheikhgo-driver/setup.sh
+# Run from repo root: ./Frontend/sheikh-driver/setup.sh
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
@@ -23,10 +23,10 @@ flutter --version
 
 # Generate android/, ios/, etc. without overwriting lib/
 if [ ! -d android ]; then
-  flutter create . --project-name sheikh_driver
+  flutter create . --project-name sheikh_go_driver --org com.sheikhgo
 fi
 
 flutter pub get
 echo ""
-echo "Run the app (API must be up on port 5082):"
+echo "SheikhGo Driver ready. Run (API must be up on port 5082):"
 echo "  flutter run --dart-define=API_BASE_URL=http://127.0.0.1:5082/api"

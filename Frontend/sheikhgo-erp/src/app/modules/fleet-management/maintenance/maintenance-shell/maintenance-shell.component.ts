@@ -17,7 +17,8 @@ import { COMPANY_NAME } from '../../../../core/constants/app-brand';
   imports: [CommonModule, FormsModule, RouterOutlet, RouterLink, RouterLinkActive, MatIconModule],
   templateUrl: './maintenance-shell.component.html',
   styleUrls: ['./maintenance-shell.component.scss'],
-  changeDetection: ChangeDetectionStrategy.OnPush
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  providers: [MaintenanceContextService]
 })
 export class MaintenanceShellComponent {
   readonly companyName = COMPANY_NAME;
@@ -48,7 +49,9 @@ export class MaintenanceShellComponent {
   }
 
   exportReport(): void {
-    this.ctx.requestExport();
+    // Child pages subscribe to exportRequested$; fire after a tick so the
+    // active routed page has finished binding if navigation just completed.
+    queueMicrotask(() => this.ctx.requestExport());
   }
 
   navigateResult(r: MaintenanceSearchResult): void {

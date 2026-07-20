@@ -1,0 +1,26 @@
+<div class="trip-dashboard">
+  <div class="toolbar">
+    <h2>Trip Dashboard</h2>
+    <button mat-stroked-button type="button" (click)="load()" [disabled]="loading">
+      <mat-icon>refresh</mat-icon> Refresh
+    </button>
+  </div>
+
+  <div class="loading" *ngIf="loading">
+    <mat-spinner diameter="36"></mat-spinner>
+  </div>
+
+  <div class="kpi-grid" *ngIf="!loading && stats as s">
+    <button
+      type="button"
+      class="kpi-card"
+      *ngFor="let card of cards"
+      (click)="openCard(card)">
+      <mat-icon>{{ card.icon }}</mat-icon>
+      <div>
+        <span class="label">{{ card.label }}</span>
+        <strong>{{ s[card.key] }}</strong>
+      </div>
+    </button>
+  </div>
+</div>

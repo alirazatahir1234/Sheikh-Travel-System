@@ -120,10 +120,11 @@ public class GetDriverStatsQueryHandler(IDbConnectionFactory dbFactory, ITenantC
     {
         using var connection = dbFactory.CreateConnection();
         var tenantId = tenantContext.GetRequiredTenantId();
+        var bucketSql = DriverAvailabilityHelper.BucketSqlExpression;
 
         var stats = await connection.QuerySingleAsync<DriverStatsDto>(
             new CommandDefinition(
-                @"SELECT
+                $@"SELECT
                     COUNT(*) AS TotalDrivers,
                     SUM(CASE WHEN IsActive = 1 THEN 1 ELSE 0 END) AS Active,
                     SUM(CASE WHEN IsActive = 0 THEN 1 ELSE 0 END) AS Inactive,
@@ -144,18 +145,16 @@ public class GetDriverStatsQueryHandler(IDbConnectionFactory dbFactory, ITenantC
                          THEN 1 ELSE 0 END) AS LicensesExpired,
                     SUM(CASE WHEN VerificationStatus = N'Verified' THEN 1 ELSE 0 END) AS VerifiedDrivers,
                     SUM(CASE WHEN VerificationStatus = N'Pending'  THEN 1 ELSE 0 END) AS PendingVerification,
-                    SUM(CASE WHEN EXISTS (
-                        SELECT 1 FROM AssignmentHistory ah
-                        WHERE ah.DriverId = d.Id AND ah.IsDeleted = 0 AND ah.Status = N'Active'
-                    ) THEN 1 ELSE 0 END) AS AssignedDrivers
+                    SUM(CASE WHEN isAssigned = 1 THEN 1 ELSE 0 END) AS AssignedDrivers
                   FROM (
                     SELECT d.*,
                            CASE WHEN av.GpsDeviceId IS NOT NULL AND gd.LastSeenAt >= DATEADD(minute, -15, GETUTCDATE())
                                 THEN 1 ELSE 0 END AS gpsOnline,
-                           """ + DriverAvailabilityHelper.BucketSqlExpression + @" AS bucket
+                           CASE WHEN av.HasAssignment = 1 THEN 1 ELSE 0 END AS isAssigned,
+                           {bucketSql} AS bucket
                     FROM Drivers d
                     OUTER APPLY (
-                        SELECT TOP 1 v.GpsDeviceId
+                        SELECT TOP 1 v.GpsDeviceId, 1 AS HasAssignment
                         FROM AssignmentHistory ah
                         INNER JOIN Vehicles v ON v.Id = ah.VehicleId AND v.IsDeleted = 0
                         WHERE ah.DriverId = d.Id AND ah.IsDeleted = 0 AND ah.Status = N'Active'

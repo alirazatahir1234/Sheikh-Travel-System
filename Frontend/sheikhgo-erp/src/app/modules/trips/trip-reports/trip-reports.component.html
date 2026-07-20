@@ -1,0 +1,83 @@
+<div class="trip-reports">
+  <div class="page-head">
+    <div>
+      <h2>Trip Reports & Analytics</h2>
+      <p>Operational performance for the selected date range</p>
+    </div>
+    <div class="filters">
+      <label>
+        From
+        <input type="date" [(ngModel)]="from" />
+      </label>
+      <label>
+        To
+        <input type="date" [(ngModel)]="to" />
+      </label>
+      <ui-button variant="primary" size="sm" (clicked)="load()">Apply</ui-button>
+      <ui-button variant="secondary" size="sm" icon="download" (clicked)="exportSummary()" [disabled]="!analytics">Excel</ui-button>
+      <ui-button variant="secondary" size="sm" icon="table_view" (clicked)="exportTripsCsv()" [disabled]="exporting">CSV</ui-button>
+    </div>
+  </div>
+
+  <div *ngIf="!loading && analytics; else loadingTpl">
+    <div class="kpi-grid">
+      <div class="kpi"><span class="label">Total</span><strong>{{ analytics.totalTrips }}</strong></div>
+      <div class="kpi"><span class="label">Completed</span><strong>{{ analytics.completedTrips }}</strong></div>
+      <div class="kpi"><span class="label">Cancelled</span><strong>{{ analytics.cancelledTrips }}</strong></div>
+      <div class="kpi"><span class="label">Delayed</span><strong>{{ analytics.delayedTrips }}</strong></div>
+      <div class="kpi"><span class="label">Ongoing</span><strong>{{ analytics.ongoingTrips }}</strong></div>
+      <div class="kpi"><span class="label">Completion</span><strong>{{ analytics.completionRate }}%</strong></div>
+      <div class="kpi"><span class="label">Expenses</span><strong>{{ analytics.totalExpenses | number:'1.2-2' }}</strong></div>
+      <div class="kpi">
+        <span class="label">Distance (actual)</span>
+        <strong>{{ (analytics.totalActualDistanceKm || 0) | number:'1.1-1' }} km</strong>
+      </div>
+    </div>
+
+    <div class="charts">
+      <section>
+        <h3>By Status</h3>
+        <div class="bar-row" *ngFor="let row of analytics.byStatus">
+          <span class="name">{{ row.name }}</span>
+          <div class="track"><div class="fill" [style.width]="barWidth(row.count, analytics.byStatus)"></div></div>
+          <span class="val">{{ row.count }}</span>
+        </div>
+        <p class="empty" *ngIf="!analytics.byStatus.length">No data</p>
+      </section>
+
+      <section>
+        <h3>By Type</h3>
+        <div class="bar-row" *ngFor="let row of analytics.byType">
+          <span class="name">{{ row.name }}</span>
+          <div class="track"><div class="fill fill--teal" [style.width]="barWidth(row.count, analytics.byType)"></div></div>
+          <span class="val">{{ row.count }}</span>
+        </div>
+        <p class="empty" *ngIf="!analytics.byType.length">No data</p>
+      </section>
+
+      <section>
+        <h3>Top Drivers</h3>
+        <div class="bar-row" *ngFor="let row of analytics.byDriver">
+          <span class="name">{{ row.name }}</span>
+          <div class="track"><div class="fill fill--blue" [style.width]="barWidth(row.count, analytics.byDriver)"></div></div>
+          <span class="val">{{ row.count }}</span>
+        </div>
+        <p class="empty" *ngIf="!analytics.byDriver.length">No data</p>
+      </section>
+
+      <section>
+        <h3>Top Vehicles</h3>
+        <div class="bar-row" *ngFor="let row of analytics.byVehicle">
+          <span class="name">{{ row.name }}</span>
+          <div class="track"><div class="fill fill--amber" [style.width]="barWidth(row.count, analytics.byVehicle)"></div></div>
+          <span class="val">{{ row.count }}</span>
+        </div>
+        <p class="empty" *ngIf="!analytics.byVehicle.length">No data</p>
+      </section>
+    </div>
+  </div>
+
+  <ng-template #loadingTpl>
+    <div class="loading">Loading analytics…</div>
+  </ng-template>
+</div>

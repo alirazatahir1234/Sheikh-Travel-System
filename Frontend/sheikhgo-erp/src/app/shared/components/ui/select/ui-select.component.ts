@@ -1,5 +1,6 @@
 import {
   ChangeDetectionStrategy,
+  ChangeDetectorRef,
   Component,
   computed,
   ElementRef,
@@ -72,7 +73,7 @@ import { UiSelectOption } from '../types/ui.types';
                     class="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm hover:bg-fleet-surface-alt disabled:cursor-not-allowed disabled:opacity-50"
                     [class.text-fleet-primary]="isSelected(option.value)"
                     [class.font-semibold]="isSelected(option.value)"
-                    (click)="selectOption(option)">
+                    (click)="selectOption(option); $event.stopPropagation()">
                     <span class="truncate">{{ option.label }}</span>
                     @if (isSelected(option.value)) { <mat-icon class="!text-[18px]">check</mat-icon> }
                   </button>
@@ -97,6 +98,7 @@ import { UiSelectOption } from '../types/ui.types';
 })
 export class UiSelectComponent implements ControlValueAccessor {
   private readonly host = inject(ElementRef<HTMLElement>);
+  private readonly cdr = inject(ChangeDetectorRef);
 
   readonly label = input<string>();
   readonly options = input<UiSelectOption[]>([]);
@@ -136,7 +138,8 @@ export class UiSelectComponent implements ControlValueAccessor {
     if (this.multiple()) {
       return labels.length > 2 ? `${labels.slice(0, 2).join(', ')} +${labels.length - 2}` : labels.join(', ');
     }
-    return labels[0] ?? this.placeholder();
+    // Fall back to the raw value so the trigger never looks blank after selection.
+    return labels[0] ?? values[0] ?? this.placeholder();
   });
 
   toggle(): void {
@@ -173,24 +176,27 @@ export class UiSelectComponent implements ControlValueAccessor {
       this.open.set(false);
       this.onTouched();
     }
+    this.cdr.markForCheck();
   }
 
   @HostListener('document:click', ['$event'])
   onDocumentClick(event: MouseEvent): void {
-    if (this.open() && !this.host.nativeElement.contains(event.target)) {
+    if (this.open() && !this.host.nativeElement.contains(event.target as Node)) {
       this.open.set(false);
       this.onTouched();
+      this.cdr.markForCheck();
     }
   }
 
   writeValue(value: string | string[] | null): void {
-    if (value == null) {
+    if (value == null || value === '') {
       this.selected.set([]);
     } else if (Array.isArray(value)) {
-      this.selected.set(value);
+      this.selected.set(value.map(String));
     } else {
-      this.selected.set([value]);
+      this.selected.set([String(value)]);
     }
+    this.cdr.markForCheck();
   }
 
   registerOnChange(fn: (value: string | string[] | null) => void): void {
@@ -203,5 +209,6 @@ export class UiSelectComponent implements ControlValueAccessor {
 
   setDisabledState(isDisabled: boolean): void {
     this.disabled.set(isDisabled);
+    this.cdr.markForCheck();
   }
 }

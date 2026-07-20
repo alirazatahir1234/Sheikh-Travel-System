@@ -36,7 +36,18 @@ public static class DependencyInjection
         services.AddMemoryCache();
         if (!string.IsNullOrWhiteSpace(cacheOptions.RedisConnectionString))
         {
-            services.AddStackExchangeRedisCache(o => o.Configuration = cacheOptions.RedisConnectionString);
+            // AbortOnConnectFail=false keeps the app usable when Redis is down;
+            // AppCacheService also fail-opens to the factory on Redis errors.
+            services.AddStackExchangeRedisCache(o =>
+            {
+                var redisOpts = StackExchange.Redis.ConfigurationOptions.Parse(
+                    cacheOptions.RedisConnectionString);
+                redisOpts.AbortOnConnectFail = false;
+                redisOpts.ConnectTimeout = 2000;
+                redisOpts.SyncTimeout = 2000;
+                redisOpts.AsyncTimeout = 2000;
+                o.ConfigurationOptions = redisOpts;
+            });
         }
         else
         {

@@ -203,19 +203,23 @@
 
             <ng-container *ngIf="form.value.areaType === 'circle'">
               <div class="bound-item bound-item--wide">
-                <span class="bound-label">Radius *</span>
+                <label class="geo-label" for="geo-radius">Radius (meters) *</label>
                 <div class="radius-editor">
-                  <button type="button" class="step-btn" (click)="bumpRadius(-50)" [disabled]="shapeLocked">−</button>
+                  <button type="button" class="step-btn" (click)="bumpRadius(-50)" [disabled]="shapeLocked" aria-label="Decrease radius">−</button>
                   <input
+                    id="geo-radius"
+                    class="geo-input geo-input--compact"
                     type="number"
                     formControlName="radiusMeters"
                     min="50"
                     max="100000"
                     step="10"
-                    [readonly]="shapeLocked" />
-                  <button type="button" class="step-btn" (click)="bumpRadius(50)" [disabled]="shapeLocked">+</button>
+                    [readonly]="shapeLocked"
+                    autocomplete="off" />
+                  <button type="button" class="step-btn" (click)="bumpRadius(50)" [disabled]="shapeLocked" aria-label="Increase radius">+</button>
                   <span class="unit">m</span>
                 </div>
+                <span class="geo-hint">Min 50m · Max 100,000m</span>
               </div>
               <div class="bound-item">
                 <span class="bound-label">Radius</span>
@@ -228,12 +232,26 @@
             </ng-container>
 
             <div class="bound-item">
-              <span class="bound-label">Latitude</span>
-              <span class="bound-value mono">{{ form.value.centerLat | number:'1.4-6' }}</span>
+              <label class="geo-label" for="geo-lat">Latitude *</label>
+              <input
+                id="geo-lat"
+                class="geo-input"
+                type="number"
+                formControlName="centerLat"
+                step="any"
+                [readonly]="shapeLocked"
+                autocomplete="off" />
             </div>
             <div class="bound-item">
-              <span class="bound-label">Longitude</span>
-              <span class="bound-value mono">{{ form.value.centerLng | number:'1.4-6' }}</span>
+              <label class="geo-label" for="geo-lng">Longitude *</label>
+              <input
+                id="geo-lng"
+                class="geo-input"
+                type="number"
+                formControlName="centerLng"
+                step="any"
+                [readonly]="shapeLocked"
+                autocomplete="off" />
             </div>
           </div>
 

@@ -27,7 +27,9 @@ class SignalRService {
     _onCommand = onCommand;
     _statusController ??= StreamController<String>.broadcast();
 
-    const storage = FlutterSecureStorage();
+    const storage = FlutterSecureStorage(
+      mOptions: MacOsOptions(useDataProtectionKeyChain: false),
+    );
     final token = await storage.read(key: 'driver_access_token');
     if (token == null) return;
 

@@ -251,7 +251,7 @@
               <div><dt>Completed</dt><dd>{{ perf.completedTrips }}</dd></div>
               <div><dt>Completion Rate</dt><dd>{{ perf.completionRate }}%</dd></div>
               <div><dt>Revenue</dt><dd>{{ perf.totalRevenue | number:'1.0-0' }}</dd></div>
-              <div><dt>Violations</dt><dd>{{ perf.violationCount }}</dd></div>
+              <div><dt>Incidents</dt><dd>{{ perf.violationCount }}</dd></div>
               <div><dt>Attendance (Present)</dt><dd>{{ perf.attendancePresentCount }}</dd></div>
             </dl>
           }
@@ -263,27 +263,36 @@
             </div>
           </label>
           <div class="rounded-lg border border-fleet-border p-3 space-y-2">
-            <h4 class="font-semibold">Log Violation</h4>
-            <select class="w-full rounded-md border border-fleet-border px-3 py-2 text-sm" [value]="violationForm().type" (change)="updateViolationField('type', $any($event.target).value)">
+            <h4 class="font-semibold">Log Incident</h4>
+            <select class="w-full rounded-md border border-fleet-border px-3 py-2 text-sm" [value]="violationForm().type" (change)="updateViolationField('type', $any($event.target).value)" aria-label="Incident type">
               <option value="Overspeed">Overspeed</option>
               <option value="Accident">Accident</option>
               <option value="Complaint">Complaint</option>
               <option value="Policy">Policy Breach</option>
             </select>
-            <select class="w-full rounded-md border border-fleet-border px-3 py-2 text-sm" [value]="violationForm().severity" (change)="updateViolationField('severity', $any($event.target).value)">
+            <select class="w-full rounded-md border border-fleet-border px-3 py-2 text-sm" [value]="violationForm().severity" (change)="updateViolationField('severity', $any($event.target).value)" aria-label="Severity">
               <option value="Low">Low</option>
               <option value="Medium">Medium</option>
               <option value="High">High</option>
             </select>
-            <textarea class="w-full rounded-md border border-fleet-border px-3 py-2 text-sm" rows="2" placeholder="Description" [value]="violationForm().description" (input)="updateViolationField('description', $any($event.target).value)"></textarea>
-            <ui-button variant="outline" (clicked)="logViolation()">Log Violation</ui-button>
+            <textarea class="w-full rounded-md border border-fleet-border px-3 py-2 text-sm" rows="2" placeholder="Incident description" [value]="violationForm().description" (input)="updateViolationField('description', $any($event.target).value)"></textarea>
+            <ui-button variant="outline" (clicked)="logViolation()">Log Incident</ui-button>
           </div>
           @if (violations().length) {
-            <ul class="timeline-list">
-              @for (v of violations(); track v.id) {
-                <li><strong>{{ v.violationType }}</strong> ({{ v.severity }}) — {{ v.description || '—' }}</li>
-              }
-            </ul>
+            <div class="space-y-2">
+              <h4 class="font-semibold text-sm text-fleet-text-muted">Incident History</h4>
+              <ul class="timeline-list">
+                @for (v of violations(); track v.id) {
+                  <li>
+                    <strong>{{ v.violationType }}</strong> ({{ v.severity }})
+                    — {{ v.description || '—' }}
+                    @if (v.occurredAt) {
+                      <span class="text-fleet-text-muted"> · {{ v.occurredAt | date:'medium' }}</span>
+                    }
+                  </li>
+                }
+              </ul>
+            </div>
           }
           <div class="rounded-lg border border-fleet-border p-3 space-y-2">
             <h4 class="font-semibold">Record Attendance (Today)</h4>

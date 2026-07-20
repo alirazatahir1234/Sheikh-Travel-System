@@ -96,6 +96,35 @@
   cursor: default;
 }
 
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  min-height: 2.75rem;
+  box-sizing: border-box;
+  padding: 0.625rem 0.75rem;
+  border: 1px solid var(--fleet-border, #e2e8f0);
+  border-radius: 0.5rem;
+  background: #f0f7ff;
+  cursor: pointer;
+  font-weight: 400;
+  color: var(--fleet-text, #0f172a);
+  line-height: 1.35;
+
+  input[type='checkbox'] {
+    width: 1.05rem;
+    height: 1.05rem;
+    margin: 0;
+    flex-shrink: 0;
+    accent-color: var(--fleet-primary, #006b54);
+  }
+
+  > span {
+    font-weight: 400;
+    color: var(--fleet-text, #0f172a);
+  }
+}
+
 .textarea {
   resize: vertical;
   min-height: 5rem;

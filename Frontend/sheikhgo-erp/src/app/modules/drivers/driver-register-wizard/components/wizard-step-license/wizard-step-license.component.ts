@@ -39,7 +39,7 @@ import { DriverDocSlot, DriverDocType } from '../../models/driver-wizard.model';
 
       <section class="wizard-card">
         <h2 class="wizard-card-title">Verification Documents</h2>
-        <p class="wizard-card-desc">Upload license, medical certificate, and background check documents (JPG, PNG, or PDF).</p>
+        <p class="wizard-card-desc">Upload license, medical certificate, and background check documents (JPG, PNG, or PDF). All three are required.</p>
         <p class="upload-limit-note">
           <mat-icon>info</mat-icon>
           <span>{{ uploadMaxSizeLabel }}</span>
@@ -50,20 +50,26 @@ import { DriverDocSlot, DriverDocType } from '../../models/driver-wizard.model';
             <span>{{ sizeError() }}</span>
           </p>
         }
+        @if (docsErrorMessage(); as msg) {
+          <p class="upload-validation-error">
+            <mat-icon>error_outline</mat-icon>
+            <span>{{ msg }}</span>
+          </p>
+        }
         <div class="doc-grid">
           @for (slot of docSlots(); track slot.type) {
             <div
               class="doc-zone"
-              [class.has-file]="!!slot.file"
-              [class.doc-zone--error]="!!sizeError()"
+              [class.has-file]="!!(slot.file || slot.previewUrl)"
+              [class.doc-zone--error]="isDocMissing(slot.type)"
               (click)="openDocPicker(slot.type)">
-              @if (slot.previewUrl) {
+              @if (slot.file || slot.previewUrl) {
                 <mat-icon class="doc-zone-icon text-emerald-600">check_circle</mat-icon>
-                <span class="doc-zone-label">{{ slot.label }}</span>
+                <span class="doc-zone-label">{{ slot.label }} *</span>
                 <span class="doc-zone-hint">Uploaded</span>
               } @else {
                 <mat-icon class="doc-zone-icon">upload_file</mat-icon>
-                <span class="doc-zone-label">{{ slot.label }}</span>
+                <span class="doc-zone-label">{{ slot.label }} *</span>
                 <span class="doc-zone-hint">Click to upload</span>
                 <span class="doc-zone-limit">{{ uploadMaxSizeLabel }}</span>
               }
@@ -86,12 +92,27 @@ export class WizardStepLicenseComponent {
   readonly minLicenseExpiry = input('');
   readonly validationAttempted = input(0);
   readonly docSlots = input.required<DriverDocSlot[]>();
+  readonly missingRequiredDocs = input<DriverDocType[]>([]);
   readonly docSelected = output<{ type: DriverDocType; file: File | null }>();
 
   private readonly docFileInput = viewChild<ElementRef<HTMLInputElement>>('docFileInput');
   private pendingType: DriverDocType | null = null;
   readonly sizeError = signal<string | null>(null);
   readonly uploadMaxSizeLabel = UPLOAD_MAX_SIZE_LABEL;
+
+  docsErrorMessage(): string | null {
+    if (this.validationAttempted() <= 0) return null;
+    const missing = this.missingRequiredDocs();
+    if (!missing.length) return null;
+    const labels = missing
+      .map(t => this.docSlots().find(s => s.type === t)?.label ?? t)
+      .join(', ');
+    return `Please upload: ${labels}`;
+  }
+
+  isDocMissing(type: DriverDocType): boolean {
+    return this.validationAttempted() > 0 && this.missingRequiredDocs().includes(type);
+  }
 
   showError(controlName: string, errorKey?: string): boolean {
     const c = this.form().get(controlName);

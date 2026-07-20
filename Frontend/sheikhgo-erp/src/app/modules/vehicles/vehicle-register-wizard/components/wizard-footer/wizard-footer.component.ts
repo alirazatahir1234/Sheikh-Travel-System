@@ -11,16 +11,16 @@ import { UiButtonComponent } from '../../../../../shared/components/ui/button/ui
       <div class="wizard-footer-spacer" aria-hidden="true"></div>
       <footer class="wizard-footer-bar">
         <div class="wizard-footer-inner">
-          <div class="flex items-center gap-3 min-w-0">
+          <div class="wizard-footer-left">
             <ui-button variant="ghost" (clicked)="cancel.emit()">Cancel</ui-button>
             @if (saveStatusLabel()) {
-              <span class="text-sm text-fleet-text-muted truncate">{{ saveStatusLabel() }}</span>
+              <span class="wizard-footer-status">{{ saveStatusLabel() }}</span>
             } @else if (lastSavedLabel()) {
-              <span class="text-sm text-fleet-text-muted truncate">{{ lastSavedLabel() }}</span>
+              <span class="wizard-footer-status">{{ lastSavedLabel() }}</span>
             }
           </div>
 
-          <div class="flex flex-wrap items-center gap-3 wizard-footer-actions">
+          <div class="wizard-footer-actions">
             @if (showBack()) {
               <ui-button variant="outline" (clicked)="back.emit()">Back</ui-button>
             }
@@ -64,17 +64,42 @@ import { UiButtonComponent } from '../../../../../shared/components/ui/button/ui
       display: flex;
       flex-direction: column;
       gap: 0.75rem;
-      padding: 1rem 1.5rem;
+      padding: 0.875rem 1.25rem;
       box-sizing: border-box;
+    }
+
+    .wizard-footer-left,
+    .wizard-footer-actions {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.75rem;
+      min-width: 0;
+
+      > * {
+        margin: 0;
+      }
     }
 
     .wizard-footer-actions {
       justify-content: flex-end;
+      flex-wrap: nowrap;
+    }
+
+    .wizard-footer-status {
+      font-size: 0.8125rem;
+      color: var(--fleet-text-muted, #64748b);
+      line-height: 1.3;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: min(360px, 45vw);
     }
 
     @media (max-width: 639px) {
       .wizard-footer-spacer {
-        height: calc(10.5rem + env(safe-area-inset-bottom, 0px));
+        /* Two-row footer (Cancel + action buttons) + safe area */
+        height: calc(12.5rem + env(safe-area-inset-bottom, 0px));
       }
 
       .wizard-footer-bar {
@@ -97,9 +122,19 @@ import { UiButtonComponent } from '../../../../../shared/components/ui/button/ui
       .wizard-footer-inner {
         max-width: 80rem;
         margin: 0 auto;
-        padding-left: 0;
-        padding-right: 0;
-        padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+        padding: 0.75rem 0;
+        padding-bottom: max(0.75rem, env(safe-area-inset-bottom, 0px));
+        gap: 0.625rem;
+      }
+
+      .wizard-footer-actions {
+        width: 100%;
+        flex-wrap: wrap;
+      }
+
+      .wizard-footer-actions > * {
+        flex: 1 1 auto;
+        min-width: 0;
       }
     }
 
@@ -120,6 +155,7 @@ import { UiButtonComponent } from '../../../../../shared/components/ui/button/ui
         flex-direction: row;
         align-items: center;
         justify-content: space-between;
+        gap: 1rem;
       }
     }
   `]

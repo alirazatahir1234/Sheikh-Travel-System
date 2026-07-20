@@ -74,7 +74,8 @@
           <assignment-create-wizard
             [(form)]="wizardForm"
             [vehicleOptions]="vehicleOptions()"
-            [driverOptions]="driverOptions()"
+            [driverOptions]="assignableDriverOptions()"
+            [driverBlockReasons]="driverBlockReasons()"
             [validationIssues]="validationIssues()"
             [saving]="saving()"
             [canSubmit]="canSubmitWizard()"
@@ -119,8 +120,8 @@
                 <select class="ab-select" [value]="transferForm().newDriverId"
                   (change)="updateTransferForm('newDriverId', $any($event.target).value)">
                   <option value="">— Select —</option>
-                  @for (d of driverOptions(); track d.value) {
-                    <option [value]="d.value" [disabled]="d.value === '' + a.driverId">{{ d.label }}</option>
+                  @for (d of assignableDriverOptions(); track d.value) {
+                    <option [value]="d.value" [disabled]="!!d.disabled || d.value === '' + a.driverId">{{ d.label }}</option>
                   }
                 </select>
               </label>

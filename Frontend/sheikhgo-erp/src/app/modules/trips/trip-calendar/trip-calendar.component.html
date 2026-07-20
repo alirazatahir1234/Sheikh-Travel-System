@@ -1,0 +1,68 @@
+<div class="trip-calendar">
+  <div class="page-head">
+    <div>
+      <h2>Trip Calendar</h2>
+      <p>Month view of planned trips — click a day for details</p>
+    </div>
+      <ui-button variant="secondary" size="sm" icon="refresh" (clicked)="load()">Refresh</ui-button>
+  </div>
+
+  <div class="cal" *ngIf="!loading; else loadingTpl">
+    <header class="cal__head">
+      <button type="button" class="cal__nav" (click)="shiftMonth(-1)" aria-label="Previous month">‹</button>
+      <h3>{{ monthLabel }}</h3>
+      <button type="button" class="cal__nav" (click)="shiftMonth(1)" aria-label="Next month">›</button>
+    </header>
+
+    <div class="cal__weekdays">
+      <span *ngFor="let d of weekdays">{{ d }}</span>
+    </div>
+
+    <div class="cal__grid">
+      <button
+        type="button"
+        class="cal__cell"
+        *ngFor="let day of days"
+        [class.cal__cell--muted]="!day.inMonth"
+        [class.cal__cell--selected]="selectedKey === day.key"
+        [class.cal__cell--has]="day.items.length > 0"
+        (click)="selectDay(day)">
+        <span class="cal__num">{{ day.date.getDate() }}</span>
+        <span class="cal__count" *ngIf="day.items.length">{{ day.items.length }}</span>
+        <div class="cal__chips">
+          <span
+            class="cal__chip"
+            *ngFor="let item of day.items.slice(0, 2)"
+            [ngClass]="statusClass(item.status)">
+            {{ item.tripNumber }}
+          </span>
+          <span class="cal__more" *ngIf="day.items.length > 2">+{{ day.items.length - 2 }}</span>
+        </div>
+      </button>
+    </div>
+
+    <aside class="cal__panel" *ngIf="selectedItems.length">
+      <h4>{{ selectedDate | date:'fullDate' }} · {{ selectedItems.length }} trip(s)</h4>
+      <ul>
+        <li *ngFor="let item of selectedItems" (click)="openTrip(item.id)">
+          <span class="dot" [ngClass]="statusClass(item.status)"></span>
+          <div class="meta">
+            <strong>{{ item.tripNumber }}</strong>
+            <span>{{ item.tripName }}</span>
+            <span class="muted">
+              {{ item.plannedStart | date:'shortTime' }}
+              · {{ item.customerName || '—' }}
+              · {{ item.driverName || 'No driver' }}
+              · {{ item.vehicleName || 'No vehicle' }}
+            </span>
+          </div>
+          <span class="badge" [ngClass]="statusClass(item.status)">{{ item.status }}</span>
+        </li>
+      </ul>
+    </aside>
+  </div>
+
+  <ng-template #loadingTpl>
+    <div class="loading">Loading calendar…</div>
+  </ng-template>
+</div>

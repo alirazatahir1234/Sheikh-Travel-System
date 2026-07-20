@@ -355,8 +355,20 @@ export function driverDisplayName(d: Pick<DriverListItem | Driver, 'firstName' |
 }
 
 export function normalizeDriverStatus(value: unknown, fallback = DriverStatus.Available): DriverStatus {
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) return fallback;
+    const byName = (DriverStatus as unknown as Record<string, DriverStatus | string>)[trimmed];
+    if (typeof byName === 'number') return byName;
+    const byLabel = Object.entries(DriverStatusLabels).find(
+      ([, label]) => label.toLowerCase() === trimmed.toLowerCase()
+    );
+    if (byLabel) return Number(byLabel[0]) as DriverStatus;
+  }
   const n = Number(value);
-  return Object.values(DriverStatus).includes(n) ? (n as DriverStatus) : fallback;
+  return (Object.values(DriverStatus) as Array<string | number>).includes(n)
+    ? (n as DriverStatus)
+    : fallback;
 }
 
 function pickField<T>(raw: Record<string, unknown>, camel: string, pascal: string): T | undefined {

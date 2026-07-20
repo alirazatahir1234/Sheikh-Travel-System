@@ -47,13 +47,13 @@ import { UiSelectOption } from '../../../../../shared/components/ui/types/ui.typ
                 }
               </select>
             </label>
-            <label class="field">
+            <div class="field">
               <span>Account</span>
               <label class="checkbox-row">
                 <input type="checkbox" formControlName="isActive" />
                 <span>Active account (can log in and be assigned)</span>
               </label>
-            </label>
+            </div>
           </div>
         </section>
       }

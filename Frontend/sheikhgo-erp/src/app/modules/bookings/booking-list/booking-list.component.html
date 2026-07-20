@@ -77,7 +77,7 @@
     <div *ngIf="error" class="error-message"><mat-icon>error</mat-icon> {{ error }}</div>
 
     <div class="table-wrap" *ngIf="!loading && !error">
-    <table mat-table [dataSource]="dataSource" class="full-width responsive-table">
+    <table mat-table [dataSource]="dataSource" [trackBy]="trackById" class="full-width responsive-table">
       <ng-container matColumnDef="select">
         <th mat-header-cell *matHeaderCellDef class="select-col">
           <mat-checkbox
@@ -144,7 +144,7 @@
       </ng-container>
 
       <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-      <tr mat-row *matRowDef="let row; columns: displayedColumns; trackBy: trackById"></tr>
+      <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
     </table>
     </div>
 

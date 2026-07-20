@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/offline/offline_models.dart';
 import '../data/trips_api.dart';
 import '../domain/trip_model.dart';
 
@@ -16,18 +17,22 @@ class TripsNotifier extends AsyncNotifier<List<Trip>> {
     state = await AsyncValue.guard(_fetch);
   }
 
-  Future<void> startTrip(int id) async {
-    await ref.read(tripsApiProvider).startTrip(id);
-    await refresh();
+  /// Returns an offline queue message when the action was saved locally.
+  Future<String?> advance(int id, String action, {String? reason}) async {
+    try {
+      await ref.read(tripsApiProvider).advance(id, action, reason: reason);
+      await refresh();
+      return null;
+    } on OfflineQueuedException catch (e) {
+      try {
+        state = AsyncData(await _fetch());
+      } catch (_) {}
+      return e.message;
+    }
   }
 
-  Future<void> completeTrip(int id) async {
-    await ref.read(tripsApiProvider).completeTrip(id);
-    await refresh();
-  }
-
-  Future<void> rejectTrip(int id, String reason) async {
-    await ref.read(tripsApiProvider).rejectTrip(id, reason);
-    await refresh();
-  }
+  Future<String?> startTrip(int id) => advance(id, 'Accept');
+  Future<String?> completeTrip(int id) => advance(id, 'Complete');
+  Future<String?> rejectTrip(int id, String reason) =>
+      advance(id, 'Reject', reason: reason);
 }

@@ -19,7 +19,7 @@ public class GetFuelLogsQueryHandler(IDbConnectionFactory dbFactory)
         var logs = await connection.QueryAsync<FuelLogDto>(
             new CommandDefinition(
                 @"SELECT Id, VehicleId, DriverId, Liters, PricePerLiter, TotalCost,
-                  OdometerReading, FuelType, FuelDate, Station, CreatedAt
+                  OdometerReading, FuelType, FuelDate, Station, CreatedAt, ReceiptUrl
                   FROM FuelLogs WHERE IsDeleted = 0
                   ORDER BY FuelDate DESC
                   OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY",

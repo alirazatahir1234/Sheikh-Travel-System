@@ -55,11 +55,18 @@ public sealed class NotificationDecisionEngine(
 
         if (cooldownMinutes > 0)
         {
-            var existing = await cache.GetStringAsync(cooldownKey, cancellationToken);
-            if (!string.IsNullOrEmpty(existing))
+            try
             {
-                await WriteAuditAsync(tenantId, request, "Suppress", "Cooldown active", priority, [], cooldownKey, cancellationToken);
-                return new NotificationDecisionResult(false, "Suppress", "Cooldown active", priority, [], cooldownKey);
+                var existing = await cache.GetStringAsync(cooldownKey, cancellationToken);
+                if (!string.IsNullOrEmpty(existing))
+                {
+                    await WriteAuditAsync(tenantId, request, "Suppress", "Cooldown active", priority, [], cooldownKey, cancellationToken);
+                    return new NotificationDecisionResult(false, "Suppress", "Cooldown active", priority, [], cooldownKey);
+                }
+            }
+            catch (Exception) when (!cancellationToken.IsCancellationRequested)
+            {
+                // Redis optional — skip cooldown when cache unavailable
             }
         }
 
@@ -70,10 +77,17 @@ public sealed class NotificationDecisionEngine(
             foreach (var rel in related)
             {
                 var relKey = $"ai:cd:{tenantId}:{rel}:{refId}";
-                if (!string.IsNullOrEmpty(await cache.GetStringAsync(relKey, cancellationToken)))
+                try
                 {
-                    await WriteAuditAsync(tenantId, request, "Correlate", $"Correlated with {rel}", priority, [], cooldownKey, cancellationToken);
-                    return new NotificationDecisionResult(false, "Correlate", $"Suppressed — correlated with {rel}", priority, [], cooldownKey);
+                    if (!string.IsNullOrEmpty(await cache.GetStringAsync(relKey, cancellationToken)))
+                    {
+                        await WriteAuditAsync(tenantId, request, "Correlate", $"Correlated with {rel}", priority, [], cooldownKey, cancellationToken);
+                        return new NotificationDecisionResult(false, "Correlate", $"Suppressed — correlated with {rel}", priority, [], cooldownKey);
+                    }
+                }
+                catch (Exception) when (!cancellationToken.IsCancellationRequested)
+                {
+                    // Redis optional
                 }
             }
         }
@@ -89,10 +103,17 @@ public sealed class NotificationDecisionEngine(
 
         if (cooldownMinutes > 0)
         {
-            await cache.SetStringAsync(
-                cooldownKey, "1",
-                new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(cooldownMinutes) },
-                cancellationToken);
+            try
+            {
+                await cache.SetStringAsync(
+                    cooldownKey, "1",
+                    new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(cooldownMinutes) },
+                    cancellationToken);
+            }
+            catch (Exception) when (!cancellationToken.IsCancellationRequested)
+            {
+                // Redis optional
+            }
         }
 
         await WriteAuditAsync(tenantId, request, "Notify", "Allowed", priority, channels, cooldownKey, cancellationToken);
@@ -196,6 +217,8 @@ public sealed class NotificationDecisionEngine(
     private static string ModuleFor(string eventType) => eventType.ToLowerInvariant() switch
     {
         "booking_created" => "Booking",
+        "trip_driver_assigned" or "trip_started" or "trip_completed"
+            or "trip_delayed" or "trip_cancelled" or "trip_updated" or "trip_driver_arriving" => "Trip",
         "payment_received" => "Finance",
         "compliance_reminder" => "Compliance",
         _ => "Fleet"
@@ -207,6 +230,13 @@ public sealed class NotificationDecisionEngine(
         "speed_exceeded" => "speed_alert",
         "vehicle_offline" => "vehicle_offline",
         "booking_created" => "booking_created",
+        "trip_driver_assigned" => "trip_driver_assigned",
+        "trip_started" => "trip_started",
+        "trip_completed" => "trip_completed",
+        "trip_delayed" => "trip_delayed",
+        "trip_cancelled" => "trip_cancelled",
+        "trip_updated" => "trip_updated",
+        "trip_driver_arriving" => "trip_driver_arriving",
         "payment_received" => "payment_received",
         "compliance_reminder" => "compliance_reminder",
         _ => null

@@ -82,6 +82,8 @@ export class DriverDetailsDrawerComponent {
 
   readonly open = model(false);
   readonly driverId = input<number | null>(null);
+  /** When set, drawer opens on this tab (e.g. 'performance' after logging an incident). */
+  readonly preferredTab = input<DrawerTab | null>(null);
   readonly changed = output<void>();
 
   readonly tab = signal<DrawerTab>('overview');
@@ -154,6 +156,13 @@ export class DriverDetailsDrawerComponent {
       const id = this.driverId();
       const isOpen = this.open();
       if (isOpen && id) this.load(id);
+      if (!isOpen) this.tab.set('overview');
+    }, { allowSignalWrites: true });
+
+    effect(() => {
+      const isOpen = this.open();
+      const preferred = this.preferredTab();
+      if (isOpen && preferred) this.tab.set(preferred);
     }, { allowSignalWrites: true });
   }
 
@@ -450,7 +459,7 @@ export class DriverDetailsDrawerComponent {
     const id = this.driverId();
     const form = this.violationForm();
     if (!id || !form.description.trim()) {
-      this.toast.warning('Enter a violation description');
+      this.toast.warning('Enter an incident description');
       return;
     }
     this.driverService.createViolation(id, {
@@ -460,12 +469,12 @@ export class DriverDetailsDrawerComponent {
       description: form.description.trim()
     }).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: () => {
-        this.toast.success('Violation logged');
+        this.toast.success('Incident logged successfully');
         this.violationForm.set({ ...form, description: '' });
         this.load(id);
         this.changed.emit();
       },
-      error: err => this.toast.error(apiErrorMessage(err, 'Failed to log violation'))
+      error: err => this.toast.error(apiErrorMessage(err, 'Failed to log incident'))
     });
   }
 

@@ -200,3 +200,23 @@ export function statusBadgeClass(status: string): string {
   if (s === 'completed') return 'info';
   return 'slate';
 }
+
+import { DriverStatus, normalizeDriverStatus } from './driver.model';
+
+/** Matches backend DriverAssignmentGuard.EnsureAssignable eligibility for fleet assignments. */
+export function driverAssignmentBlockReason(driver: {
+  isActive: boolean;
+  status: number | string;
+  verificationStatus?: string | null;
+  licenseExpired?: boolean;
+}): string | null {
+  if (!driver.isActive) return 'Driver account is inactive';
+  const status = normalizeDriverStatus(driver.status);
+  if (status === DriverStatus.Suspended) return 'Driver is Suspended and cannot be assigned';
+  if (status === DriverStatus.OnLeave) return 'Driver is On Leave and cannot be assigned';
+  if (driver.licenseExpired) return 'Driver license is expired';
+  if ((driver.verificationStatus ?? '').toLowerCase() !== 'verified') {
+    return 'Driver must be verified before vehicle assignment';
+  }
+  return null;
+}

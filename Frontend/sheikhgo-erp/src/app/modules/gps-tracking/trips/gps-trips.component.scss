@@ -63,31 +63,105 @@
 }
 
 .filter-card__row {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: minmax(220px, 1.4fr) repeat(auto-fit, minmax(180px, 1fr)) minmax(200px, 0.9fr);
   gap: 12px;
-  align-items: start;
+  align-items: end;
 }
 
 .filter-field {
-  flex: 1 1 200px;
-  min-width: 180px;
-  max-width: 260px;
+  width: 100%;
+  min-width: 0;
+  max-width: none;
 }
 
-.vehicle-field { flex-basis: 260px; max-width: 320px; }
+.filter-select {
+  display: block;
+  width: 100%;
+  min-width: 0;
+}
+
+.vehicle-field { min-width: 0; }
 
 .range-filters-row {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
-  margin-top: 12px;
+  margin-top: 14px;
+  align-items: stretch;
 }
 
 .range-field {
-  flex: 1 1 150px;
-  min-width: 140px;
-  max-width: 200px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  margin: 0;
+}
+
+.range-field__label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #374151;
+  line-height: 1.2;
+}
+
+.range-field__input {
+  display: block;
+  width: 100%;
+  height: 44px;
+  min-height: 44px;
+  max-height: 44px;
+  box-sizing: border-box;
+  padding: 0 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  font: inherit;
+  font-size: 14px;
+  line-height: normal;
+  color: #111827;
+  background: #fff;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  /* Hide native number spinners if browser coerces type */
+  appearance: textfield;
+  -moz-appearance: textfield;
+
+  &::-webkit-outer-spin-button,
+  &::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  &:focus {
+    outline: none;
+    border-color: #0f766e;
+    box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.12);
+  }
+
+  &::placeholder {
+    color: #9ca3af;
+  }
+}
+
+@media (max-width: 1100px) {
+  .filter-card__row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .period-display {
+    margin-left: 0;
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 720px) {
+  .filter-card__row,
+  .range-filters-row {
+    grid-template-columns: 1fr;
+  }
 }
 
 .vehicle-trigger {
@@ -134,8 +208,7 @@
   border-radius: 8px;
   border: 1px solid #e5e7eb;
   min-height: 56px;
-  flex: 0 0 auto;
-  margin-left: auto;
+  min-width: 0;
 }
 
 .period-label {

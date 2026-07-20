@@ -25,6 +25,7 @@ import { QuickActionsCardComponent } from '../../fleet-management/fleet-dashboar
 import { QuickAction } from '../../fleet-management/fleet-dashboard/fleet-dashboard.model';
 import { DriverTableComponent } from '../components/driver-table/driver-table.component';
 import { DriverBulkAssignDialogComponent } from '../components/driver-bulk-assign-dialog/driver-bulk-assign-dialog.component';
+import { DriverLogIncidentDialogComponent, LogIncidentResult } from '../components/driver-log-incident-dialog/driver-log-incident-dialog.component';
 import { DriverDetailsDrawerComponent } from '../driver-details-drawer/driver-details-drawer.component';
 import { EMPTY_DRIVER_FILTERS, DriverFilters, DriverPagination, DEFAULT_DRIVER_PAGE_SIZE, buildDriverKpiGroups, buildOperationsSummary, buildAssignmentCoverage, computeDriverScore, scoreTone } from '../models/driver-inventory.model';
 
@@ -45,6 +46,7 @@ import { EMPTY_DRIVER_FILTERS, DriverFilters, DriverPagination, DEFAULT_DRIVER_P
     QuickActionsCardComponent,
     DriverTableComponent,
     DriverBulkAssignDialogComponent,
+    DriverLogIncidentDialogComponent,
     DriverDetailsDrawerComponent
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -53,6 +55,8 @@ import { EMPTY_DRIVER_FILTERS, DriverFilters, DriverPagination, DEFAULT_DRIVER_P
 })
 export class DriverInventoryPageComponent implements OnInit {
   @ViewChild(DriverBulkAssignDialogComponent) bulkAssignDialog?: DriverBulkAssignDialogComponent;
+  @ViewChild(DriverLogIncidentDialogComponent) logIncidentDialog?: DriverLogIncidentDialogComponent;
+  @ViewChild(DriverDetailsDrawerComponent) detailsDrawer?: DriverDetailsDrawerComponent;
 
   private readonly driverService = inject(DriverService);
   private readonly exportService = inject(ExportService);
@@ -78,6 +82,7 @@ export class DriverInventoryPageComponent implements OnInit {
   readonly error = signal<string | null>(null);
   readonly drawerOpen = model(false);
   readonly selectedDriverId = signal<number | null>(null);
+  readonly drawerPreferredTab = signal<'performance' | null>(null);
   readonly branchOptions = signal<UiSelectOption[]>([]);
 
   readonly availabilityOptions: UiSelectOption[] = [
@@ -352,8 +357,9 @@ export class DriverInventoryPageComponent implements OnInit {
     this.load();
   }
 
-  openDrawer(row: DriverListItem): void {
+  openDrawer(row: DriverListItem, preferredTab: 'performance' | null = null): void {
     this.selectedDriverId.set(row.id);
+    this.drawerPreferredTab.set(preferredTab);
     this.drawerOpen.set(true);
   }
 
@@ -361,6 +367,7 @@ export class DriverInventoryPageComponent implements OnInit {
     this.drawerOpen.set(open);
     if (!open) {
       this.selectedDriverId.set(null);
+      this.drawerPreferredTab.set(null);
     }
   }
 
@@ -457,6 +464,14 @@ export class DriverInventoryPageComponent implements OnInit {
     this.bulkAssignDialog?.show();
   }
 
+  onIncidentLogged(result: LogIncidentResult): void {
+    this.load();
+    this.selectedDriverId.set(result.driverId);
+    this.drawerPreferredTab.set('performance');
+    this.drawerOpen.set(true);
+    queueMicrotask(() => this.detailsDrawer?.load(result.driverId));
+  }
+
   exportExcel(): void {
     this.exportReport();
   }
@@ -500,13 +515,12 @@ export class DriverInventoryPageComponent implements OnInit {
         break;
       }
       case 'incident': {
-        const target = this.rows()[0];
-        if (!target) {
+        if (!this.rows().length) {
           this.toast.warning('No drivers in current view');
           break;
         }
-        this.openDrawer(target);
-        this.toast.info('Open Performance tab to log an incident');
+        const preselect = this.selectedDriverId() ?? this.rows()[0]?.id ?? null;
+        this.logIncidentDialog?.show(preselect);
         break;
       }
     }

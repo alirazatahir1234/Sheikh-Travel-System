@@ -111,7 +111,7 @@
     </div>
 
     <div class="table-scroll" *ngIf="!loading && !error && dataSource.data.length > 0">
-      <table mat-table [dataSource]="dataSource" class="full-width">
+      <table mat-table [dataSource]="dataSource" [trackBy]="trackById" class="full-width">
         <ng-container matColumnDef="select">
           <th mat-header-cell *matHeaderCellDef>
             <mat-checkbox (change)="$event ? masterToggle() : null"
@@ -179,7 +179,7 @@
         </ng-container>
 
         <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-        <tr mat-row *matRowDef="let row; columns: displayedColumns; trackBy: trackById"
+        <tr mat-row *matRowDef="let row; columns: displayedColumns"
             [class.row-selected]="selection.isSelected(row)"></tr>
       </table>
     </div>
