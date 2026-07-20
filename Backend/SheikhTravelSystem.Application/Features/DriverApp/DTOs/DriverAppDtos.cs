@@ -37,7 +37,11 @@ public record DriverTripDto(
     /// <summary>ERP TripStatus int (mapped for booking rows).</summary>
     int LifecycleStatus = 0,
     string LifecycleStatusName = "",
-    IReadOnlyList<string>? NextActions = null);
+    IReadOnlyList<string>? NextActions = null,
+    decimal PaidAmount = 0,
+    decimal BalanceDue = 0,
+    bool PaymentRequired = false,
+    string PaymentStatus = "Pending");
 
 public record DriverEarningsDto(
     decimal TripAllowances,
@@ -74,6 +78,8 @@ public record DriverDashboardDto(
     decimal EarningsThisWeek,
     int UnreadNotifications,
     string DriverStatus);
+
+public record DriverStatusDto(int Status, string StatusName);
 
 public record DriverProfileDto(
     int Id,

@@ -77,16 +77,15 @@ public class GetDriverAppDocumentsQueryHandler(
         }
 
         var vehicle = await connection.QuerySingleOrDefaultAsync<(int Id, string Name)?>(new CommandDefinition(
-            @"SELECT TOP 1 v.Id, v.Name FROM (
-                SELECT VehicleId FROM Trips
-                WHERE DriverId = @DriverId AND TenantId = @TenantId AND IsDeleted = 0 AND VehicleId IS NOT NULL
-                  AND Status NOT IN (9, 10, 11)
-                UNION ALL
-                SELECT VehicleId FROM Bookings
-                WHERE DriverId = @DriverId AND TenantId = @TenantId AND IsDeleted = 0 AND VehicleId IS NOT NULL
-                  AND Status IN (2, 3)
+            $@"SELECT TOP 1 v.Id, v.Name FROM (
+                {DriverAppSql.AssignedVehicleIdsUnion}
               ) x
-              INNER JOIN Vehicles v ON v.Id = x.VehicleId AND v.IsDeleted = 0",
+              INNER JOIN Vehicles v ON v.Id = x.VehicleId AND v.IsDeleted = 0
+              ORDER BY CASE WHEN EXISTS(
+                SELECT 1 FROM AssignmentHistory ah
+                WHERE ah.DriverId = @DriverId AND ah.VehicleId = x.VehicleId
+                  AND ah.TenantId = @TenantId AND ah.IsDeleted = 0 AND ah.Status = N'Active'
+              ) THEN 0 ELSE 1 END",
             new { DriverId = driverId.Value, TenantId = tenantId },
             cancellationToken: cancellationToken));
 

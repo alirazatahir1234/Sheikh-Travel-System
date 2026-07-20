@@ -451,7 +451,7 @@ public static class PlatformSchemaMigration
             ("Vehicles", "/vehicles", "directions_bus", "Vehicle.View", 1),
             ("Drivers", "/drivers", "badge", "Driver.View", 2),
             ("Assignments", "/fleet/assignments", "event_available", "Vehicle.View", 3),
-            ("GPS Tracking", "/gps-tracking", "my_location", "GPS.View", 4),
+            ("Fleet Tracking", "/gps-tracking", "my_location", "GPS.View", 4),
             ("Maintenance", "/maintenance", "build", "Maintenance.View", 5),
             ("Inspection", "/fleet/inspections", "fact_check", "Vehicle.View", 6),
             ("Compliance", "/fleet/compliance", "verified_user", "Vehicle.View", 7),
@@ -594,7 +594,7 @@ public static class PlatformSchemaMigration
         await SeedMenuItemAsync(connection, "fleet", null, "Vehicles", "/vehicles", "directions_bus", "Vehicle.View", 1, ct);
         await SeedMenuItemAsync(connection, "fleet", null, "Drivers", "/drivers", "badge", "Driver.View", 2, ct);
         await SeedMenuItemAsync(connection, "fleet", null, "Assignments", "/fleet/assignments", "event_available", "Vehicle.View", 3, ct);
-        await SeedMenuItemAsync(connection, "fleet", null, "GPS Tracking", "/gps-tracking", "my_location", "GPS.View", 4, ct);
+        await SeedMenuItemAsync(connection, "fleet", null, "Fleet Tracking", "/gps-tracking", "my_location", "GPS.View", 4, ct);
         await SeedMenuItemAsync(connection, "fleet", null, "Maintenance", "/maintenance", "build", "Maintenance.View", 5, ct);
         await SeedMenuItemAsync(connection, "fleet", null, "Inspection", "/fleet/inspections", "fact_check", "Vehicle.View", 6, ct);
         await SeedMenuItemAsync(connection, "fleet", null, "Compliance", "/fleet/compliance", "verified_user", "Vehicle.View", 7, ct);

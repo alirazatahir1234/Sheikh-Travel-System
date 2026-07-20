@@ -3,6 +3,7 @@ using MediatR;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Application.Features.DriverApp.DTOs;
+using static SheikhTravelSystem.Application.Features.DriverApp.DriverAppSql;
 
 namespace SheikhTravelSystem.Application.Features.DriverApp.Queries;
 
@@ -120,15 +121,9 @@ public class GetDriverVehiclesForInspectionQueryHandler(
         var tenantId = tenantContext.GetRequiredTenantId();
 
         var rows = await connection.QueryAsync<DriverInspectionVehicleDto>(new CommandDefinition(
-            """
+            $"""
             SELECT DISTINCT v.Id, v.Name, v.RegistrationNumber AS Plate FROM (
-                SELECT VehicleId FROM Trips
-                WHERE DriverId = @DriverId AND TenantId = @TenantId AND IsDeleted = 0 AND VehicleId IS NOT NULL
-                  AND Status NOT IN (9, 10, 11)
-                UNION
-                SELECT VehicleId FROM Bookings
-                WHERE DriverId = @DriverId AND TenantId = @TenantId AND IsDeleted = 0 AND VehicleId IS NOT NULL
-                  AND Status IN (2, 3)
+                {DriverAppSql.AssignedVehicleIdsUnion}
                 UNION
                 SELECT TOP 1 VehicleId FROM Bookings
                 WHERE DriverId = @DriverId AND TenantId = @TenantId AND IsDeleted = 0 AND VehicleId IS NOT NULL

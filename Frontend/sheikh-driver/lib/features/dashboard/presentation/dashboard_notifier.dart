@@ -16,4 +16,9 @@ class DashboardNotifier extends AsyncNotifier<DashboardSummary> {
     state = const AsyncLoading();
     state = await AsyncValue.guard(_fetch);
   }
+
+  Future<void> setStatus(String status) async {
+    await ref.read(dashboardApiProvider).setStatus(status);
+    await refresh();
+  }
 }

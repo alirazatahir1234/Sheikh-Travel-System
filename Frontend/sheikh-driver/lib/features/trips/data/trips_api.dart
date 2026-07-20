@@ -6,6 +6,7 @@ import '../../../core/offline/connectivity_provider.dart';
 import '../../../core/offline/offline_models.dart';
 import '../../../core/offline/offline_sync_service.dart';
 import '../../../core/offline/trips_cache.dart';
+import '../../../core/api/api_response.dart';
 import '../../../core/analytics/analytics_service.dart';
 import '../domain/trip_model.dart';
 
@@ -20,9 +21,7 @@ class TripsApi {
   Future<List<Trip>> getTrips() async {
     try {
       final res = await _dio.get<Map<String, dynamic>>(ApiEndpoints.trips);
-      final body = res.data;
-      final list = (body?['data'] as List?) ?? (body as List?) ?? [];
-      final maps = list.cast<Map<String, dynamic>>();
+      final maps = ApiResponseParser.dataList(res.data);
       await TripsCache.save(maps);
       return maps.map(Trip.fromJson).toList();
     } catch (e) {
@@ -45,9 +44,11 @@ class TripsApi {
               _ => throw ArgumentError('Unknown action: $action'),
             };
             if (action == 'Reject') {
-              await _dio.post(path, data: reason ?? '');
+              final res = await _dio.post<Map<String, dynamic>>(path, data: reason ?? '');
+              ApiResponseParser.ensureSuccess(res.data);
             } else {
-              await _dio.post(path);
+              final res = await _dio.post<Map<String, dynamic>>(path);
+              ApiResponseParser.ensureSuccess(res.data);
             }
             // ignore: unawaited_futures
             AnalyticsService.instance.tripAction(action, tripId: id);

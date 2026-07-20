@@ -741,6 +741,7 @@ public class GetUserMenuQueryHandler(
             var items = menus
                 .Where(m => m.ModuleId == module.Id)
                 .Where(m => string.IsNullOrEmpty(m.PermissionCode) || permissionSet.Contains(m.PermissionCode))
+                .Where(m => IsMenuItemEnabled(m.PermissionCode, enabledModules))
                 .Select(m => new MenuItemDto(
                     Slugify(m.Name),
                     m.Name,
@@ -762,6 +763,14 @@ public class GetUserMenuQueryHandler(
         }
 
         return ApiResponse<IReadOnlyList<MenuModuleDto>>.SuccessResponse(result);
+    }
+
+    private static bool IsMenuItemEnabled(string? permissionCode, IReadOnlyList<string> enabled)
+    {
+        if (string.IsNullOrWhiteSpace(permissionCode)) return true;
+        if (permissionCode.StartsWith("GPS.", StringComparison.OrdinalIgnoreCase))
+            return enabled.Contains("gps-tracking", StringComparer.OrdinalIgnoreCase);
+        return true;
     }
 
     private static bool IsModuleEnabled(string moduleKey, IReadOnlyList<string> enabled) =>

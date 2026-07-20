@@ -69,22 +69,32 @@ public class DriverAdvanceTripCommandHandler(
             new { Id = request.Id, DriverId = driverId.Value, TenantId = tenantId },
             cancellationToken: cancellationToken));
 
-        if (trip is not null)
-            return await AdvanceOperationalTripAsync(trip, request, cancellationToken);
+        if (trip is null)
+        {
+            var ownsBooking = await connection.ExecuteScalarAsync<bool>(new CommandDefinition(
+                @"SELECT CASE WHEN EXISTS(
+                    SELECT 1 FROM Bookings
+                    WHERE Id = @Id AND DriverId = @DriverId AND TenantId = @TenantId AND IsDeleted = 0
+                  ) THEN 1 ELSE 0 END",
+                new { request.Id, DriverId = driverId.Value, TenantId = tenantId },
+                cancellationToken: cancellationToken));
 
-        // Legacy booking-only assignment (no Trips row yet).
-        var ownsBooking = await connection.ExecuteScalarAsync<bool>(new CommandDefinition(
-            @"SELECT CASE WHEN EXISTS(
-                SELECT 1 FROM Bookings
-                WHERE Id = @Id AND DriverId = @DriverId AND TenantId = @TenantId AND IsDeleted = 0
-              ) THEN 1 ELSE 0 END",
-            new { request.Id, DriverId = driverId.Value, TenantId = tenantId },
-            cancellationToken: cancellationToken));
+            if (!ownsBooking)
+                return ApiResponse<bool>.FailResponse("Trip not found or not assigned to you.");
 
-        if (!ownsBooking)
-            return ApiResponse<bool>.FailResponse("Trip not found or not assigned to you.");
+            trip = await EnsureOperationalTripForBookingAsync(
+                request.Id, driverId.Value, tenantId, cancellationToken);
+            if (trip is null)
+                return ApiResponse<bool>.FailResponse("Could not prepare trip for this booking.");
+        }
 
-        return await AdvanceLegacyBookingAsync(request, cancellationToken);
+        await EnsureTripVehicleAsync(trip.Id, trip.BookingId, driverId.Value, tenantId, cancellationToken);
+        trip = await ReloadTripRefAsync(trip.Id, driverId.Value, tenantId, cancellationToken) ?? trip;
+
+        await BootstrapTripIfBookingAlreadyStartedAsync(trip, cancellationToken);
+        trip = await ReloadTripRefAsync(trip.Id, driverId.Value, tenantId, cancellationToken) ?? trip;
+
+        return await AdvanceOperationalTripAsync(trip, request, cancellationToken);
     }
 
     private async Task<ApiResponse<bool>> AdvanceOperationalTripAsync(
@@ -93,8 +103,16 @@ public class DriverAdvanceTripCommandHandler(
         var current = (TripStatus)trip.Status;
         var target = MapAction(current, request.Action);
         if (target is null)
+        {
+            if (request.Action == DriverTripAction.Complete && current == TripStatus.Completed)
+                return ApiResponse<bool>.SuccessResponse(true, "Trip is already completed.");
+
+            if (request.Action == DriverTripAction.Reject && current == TripStatus.Cancelled)
+                return ApiResponse<bool>.SuccessResponse(true, "Trip is already cancelled.");
+
             return ApiResponse<bool>.FailResponse(
                 $"Action {request.Action} is not allowed from status {DriverTripLabels.Name(current)}.");
+        }
 
         if (!TripLifecycle.CanTransition(current, target.Value))
             return ApiResponse<bool>.FailResponse(
@@ -115,31 +133,96 @@ public class DriverAdvanceTripCommandHandler(
         return ApiResponse<bool>.SuccessResponse(true, $"Trip updated to {DriverTripLabels.Name(target.Value)}.");
     }
 
-    private async Task<ApiResponse<bool>> AdvanceLegacyBookingAsync(
-        DriverAdvanceTripCommand request, CancellationToken cancellationToken)
+    /// <summary>
+    /// Booking-only assignments get an operational Trips row so Arrived / Onboard / Complete
+    /// use the same lifecycle as dispatch-created trips.
+    /// </summary>
+    private async Task<TripRef?> EnsureOperationalTripForBookingAsync(
+        int bookingId, int driverId, int tenantId, CancellationToken cancellationToken)
     {
-        var bookingStatus = request.Action switch
-        {
-            DriverTripAction.Accept or DriverTripAction.Arrived or DriverTripAction.Onboard
-                => BookingStatus.Started,
-            DriverTripAction.Complete => BookingStatus.Completed,
-            DriverTripAction.Reject => BookingStatus.Cancelled,
-            _ => (BookingStatus?)null
-        };
+        using var connection = dbFactory.CreateConnection();
+        var existing = await connection.QuerySingleOrDefaultAsync<TripRef>(new CommandDefinition(
+            @"SELECT TOP 1 Id, Status, BookingId, VehicleId
+              FROM Trips
+              WHERE BookingId = @BookingId AND TenantId = @TenantId AND DriverId = @DriverId AND IsDeleted = 0
+              ORDER BY Id DESC",
+            new { BookingId = bookingId, TenantId = tenantId, DriverId = driverId },
+            cancellationToken: cancellationToken));
 
-        if (bookingStatus is null)
-            return ApiResponse<bool>.FailResponse("Unsupported action.");
+        if (existing is not null)
+            return existing;
 
-        return request.Action switch
-        {
-            DriverTripAction.Accept or DriverTripAction.Arrived or DriverTripAction.Onboard
-                => await mediator.Send(new DriverStartTripCommand(request.Id), cancellationToken),
-            DriverTripAction.Complete
-                => await mediator.Send(new DriverCompleteTripCommand(request.Id), cancellationToken),
-            DriverTripAction.Reject
-                => await mediator.Send(new DriverRejectTripCommand(request.Id, request.Reason ?? "Rejected"), cancellationToken),
-            _ => ApiResponse<bool>.FailResponse("Unsupported action.")
-        };
+        var create = await mediator.Send(new CreateTripFromBookingCommand(bookingId), cancellationToken);
+        if (!create.Success || create.Data <= 0)
+            return null;
+
+        return await ReloadTripRefAsync(create.Data, driverId, tenantId, cancellationToken);
+    }
+
+    private async Task<TripRef?> ReloadTripRefAsync(
+        int tripId, int driverId, int tenantId, CancellationToken cancellationToken)
+    {
+        using var connection = dbFactory.CreateConnection();
+        return await connection.QuerySingleOrDefaultAsync<TripRef>(new CommandDefinition(
+            @"SELECT Id, Status, BookingId, VehicleId
+              FROM Trips
+              WHERE Id = @Id AND TenantId = @TenantId AND DriverId = @DriverId AND IsDeleted = 0",
+            new { Id = tripId, TenantId = tenantId, DriverId = driverId },
+            cancellationToken: cancellationToken));
+    }
+
+    /// <summary>Copies active fleet assignment vehicle onto the trip/booking when missing.</summary>
+    private async Task EnsureTripVehicleAsync(
+        int tripId, int? bookingId, int driverId, int tenantId, CancellationToken cancellationToken)
+    {
+        using var connection = dbFactory.CreateConnection();
+        var vehicleId = await connection.ExecuteScalarAsync<int?>(new CommandDefinition(
+            @"SELECT TOP 1 COALESCE(t.VehicleId, ah.VehicleId)
+              FROM Trips t
+              OUTER APPLY (
+                  SELECT TOP 1 VehicleId FROM AssignmentHistory
+                  WHERE DriverId = @DriverId AND TenantId = @TenantId AND IsDeleted = 0 AND Status = N'Active'
+                  ORDER BY StartAt DESC
+              ) ah
+              WHERE t.Id = @TripId AND t.TenantId = @TenantId",
+            new { TripId = tripId, DriverId = driverId, TenantId = tenantId },
+            cancellationToken: cancellationToken));
+
+        if (!vehicleId.HasValue) return;
+
+        await connection.ExecuteAsync(new CommandDefinition(
+            @"UPDATE Trips SET VehicleId = @VehicleId, UpdatedAt = GETUTCDATE()
+              WHERE Id = @TripId AND TenantId = @TenantId AND (VehicleId IS NULL OR VehicleId = 0);
+              UPDATE Bookings SET VehicleId = @VehicleId, UpdatedAt = GETUTCDATE()
+              WHERE Id = @BookingId AND TenantId = @TenantId AND (VehicleId IS NULL OR VehicleId = 0);",
+            new { VehicleId = vehicleId.Value, TripId = tripId, BookingId = bookingId, TenantId = tenantId },
+            cancellationToken: cancellationToken));
+    }
+
+    /// <summary>
+    /// When dispatch confirmed a booking (Started) before a Trips row existed, align trip status.
+    /// </summary>
+    private async Task BootstrapTripIfBookingAlreadyStartedAsync(
+        TripRef trip, CancellationToken cancellationToken)
+    {
+        if (!trip.BookingId.HasValue) return;
+
+        using var connection = dbFactory.CreateConnection();
+        var bookingStatus = await connection.ExecuteScalarAsync<int?>(new CommandDefinition(
+            "SELECT Status FROM Bookings WHERE Id = @Id AND IsDeleted = 0",
+            new { Id = trip.BookingId.Value },
+            cancellationToken: cancellationToken));
+
+        if (bookingStatus != (int)BookingStatus.Started)
+            return;
+
+        var current = (TripStatus)trip.Status;
+        if (current >= TripStatus.Started)
+            return;
+
+        await mediator.Send(
+            new UpdateTripStatusCommand(trip.Id, TripStatus.Started, Note: "Driver:Bootstrap"),
+            cancellationToken);
     }
 
     private async Task SyncLinkedBookingAsync(

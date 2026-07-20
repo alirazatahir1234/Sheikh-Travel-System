@@ -327,7 +327,7 @@ const auditSchema: SettingFieldSchema[] = [
 // 14. Feature Management
 const featureSchema: SettingFieldSchema[] = [
   { key: 'FleetEnabled', label: 'Fleet', type: 'toggle', section: 'Modules' },
-  { key: 'GpsEnabled', label: 'GPS Tracking', type: 'toggle', section: 'Modules' },
+  { key: 'GpsEnabled', label: 'Fleet Tracking', type: 'toggle', section: 'Modules' },
   { key: 'CrmEnabled', label: 'CRM', type: 'toggle', section: 'Modules' },
   { key: 'HrEnabled', label: 'HR', type: 'toggle', section: 'Modules' },
   { key: 'PayrollEnabled', label: 'Payroll', type: 'toggle', section: 'Modules' },

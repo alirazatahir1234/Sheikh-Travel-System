@@ -91,13 +91,7 @@ public class UploadDriverAppDocumentCommandHandler(
         using var connection = dbFactory.CreateConnection();
         var tenantId = tenantContext.GetRequiredTenantId();
         var assigned = await connection.ExecuteScalarAsync<bool>(new CommandDefinition(
-            @"SELECT CASE WHEN EXISTS(
-                SELECT 1 FROM Trips WHERE DriverId = @DriverId AND VehicleId = @VehicleId
-                  AND TenantId = @TenantId AND IsDeleted = 0 AND Status NOT IN (9,10,11)
-                UNION ALL
-                SELECT 1 FROM Bookings WHERE DriverId = @DriverId AND VehicleId = @VehicleId
-                  AND TenantId = @TenantId AND IsDeleted = 0 AND Status IN (2,3)
-              ) THEN 1 ELSE 0 END",
+            DriverAppSql.DriverOwnsVehicleExists,
             new { DriverId = driverId.Value, VehicleId = vehicleId, TenantId = tenantId },
             cancellationToken: cancellationToken));
 

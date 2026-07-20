@@ -39,7 +39,7 @@ public sealed class EscalationHostedService(
 
         var due = (await connection.QueryAsync<EscalationDueRow>(
             new CommandDefinition("""
-                SELECT TOP 20 Id, EventType, CurrentLevel, ReferenceId
+                SELECT TOP 20 Id, TenantId, EventType, CurrentLevel, ReferenceId
                 FROM EscalationState
                 WHERE Status = 'Pending' AND NextEscalateAt IS NOT NULL AND NextEscalateAt <= GETUTCDATE()
                 ORDER BY NextEscalateAt
@@ -52,9 +52,10 @@ public sealed class EscalationHostedService(
                 new CommandDefinition("""
                     SELECT TOP 1 TargetRole, TimeoutMinutes, Channel FROM EscalationRules
                     WHERE IsActive = 1 AND EventType = @EventType AND LevelOrder = @Level
+                      AND (TenantId = @TenantId OR TenantId IS NULL)
                     ORDER BY CASE WHEN TenantId IS NULL THEN 1 ELSE 0 END
                     """,
-                    new { item.EventType, Level = nextLevel },
+                    new { item.EventType, Level = nextLevel, item.TenantId },
                     cancellationToken: ct));
 
             if (rule is null)
@@ -90,6 +91,7 @@ public sealed class EscalationHostedService(
     private sealed class EscalationDueRow
     {
         public int Id { get; init; }
+        public int? TenantId { get; init; }
         public string EventType { get; init; } = "";
         public int CurrentLevel { get; init; }
         public int? ReferenceId { get; init; }
@@ -222,7 +224,12 @@ public sealed class AiJobsHostedService(
             {
                 using var scope = scopeFactory.CreateScope();
                 var tenantContext = scope.ServiceProvider.GetRequiredService<ITenantContext>();
-                var tenantId = tenantContext.TenantId ?? 1;
+                if (tenantContext.TenantId is not int tenantId || tenantId <= 0)
+                {
+                    logger.LogDebug("Skipping AI jobs cycle because tenant context is unavailable.");
+                    await Task.Delay(TimeSpan.FromMinutes(1), stoppingToken);
+                    continue;
+                }
 
                 var health = scope.ServiceProvider.GetRequiredService<IFleetHealthService>();
                 var digest = scope.ServiceProvider.GetRequiredService<IAiDigestService>();

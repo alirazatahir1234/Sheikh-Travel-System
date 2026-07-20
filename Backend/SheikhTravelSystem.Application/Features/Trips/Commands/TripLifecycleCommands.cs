@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Exceptions;
 using SheikhTravelSystem.Application.Common.Interfaces;
+using SheikhTravelSystem.Application.Features.DriverApp;
 using SheikhTravelSystem.Application.Features.Drivers;
 using SheikhTravelSystem.Application.Features.Notifications;
 using SheikhTravelSystem.Application.Features.Trips.DTOs;
@@ -64,7 +65,11 @@ public class UpdateTripStatusCommandHandler(
             if (request.Status == TripStatus.Cancelled && string.IsNullOrWhiteSpace(request.CancellationReason))
                 return ApiResponse<bool>.FailResponse("Cancellation reason is required.");
 
-            if (request.Status == TripStatus.Started && (trip.DriverId is null || trip.VehicleId is null))
+            if (request.Status == TripStatus.Started && trip.DriverId is null)
+                return ApiResponse<bool>.FailResponse("Assign a driver before starting the trip.");
+
+            if (request.Status == TripStatus.Started && trip.VehicleId is null
+                && request.Note?.StartsWith("Driver:", StringComparison.Ordinal) != true)
                 return ApiResponse<bool>.FailResponse("Assign both driver and vehicle before starting the trip.");
 
             await connection.ExecuteAsync(new CommandDefinition("""
@@ -530,6 +535,7 @@ public class CreateTripFromBookingCommandHandler(
         var booking = await connection.QuerySingleOrDefaultAsync<BookingSeedRow>(new CommandDefinition("""
             SELECT b.CustomerId, b.RouteId, b.VehicleId, b.DriverId, b.PickupTime, b.DropoffTime,
                    b.PassengerCount, b.Notes, b.BookingNumber,
+                   b.PickupAddress, b.PickupLat, b.PickupLng, b.DropoffAddress, b.DropLat, b.DropLng,
                    r.Source, r.Destination, r.Distance
             FROM Bookings b
             LEFT JOIN Routes r ON b.RouteId = r.Id
@@ -541,6 +547,13 @@ public class CreateTripFromBookingCommandHandler(
         if (booking is null)
             throw new NotFoundException("Booking", request.BookingId);
 
+        var pickupAddr = booking.PickupAddress ?? booking.Source;
+        var dropAddr = booking.DestinationAddress ?? booking.Destination;
+        var (pickupLat, pickupLng) = DriverAppGeo.ResolveCoords(
+            booking.PickupLat, booking.PickupLng, pickupAddr);
+        var (dropLat, dropLng) = DriverAppGeo.ResolveCoords(
+            booking.DropLat, booking.DropLng, dropAddr);
+
         var create = new CreateTripDto(
             TripName: $"Trip for {booking.BookingNumber ?? $"Booking {request.BookingId}"}",
             TripType: TripType.Transfer,
@@ -549,12 +562,12 @@ public class CreateTripFromBookingCommandHandler(
             RouteId: booking.RouteId,
             PassengerCount: booking.PassengerCount,
             Priority: TripPriority.Normal,
-            PickupAddress: booking.Source,
-            PickupLatitude: null,
-            PickupLongitude: null,
-            DestinationAddress: booking.Destination,
-            DestinationLatitude: null,
-            DestinationLongitude: null,
+            PickupAddress: pickupAddr,
+            PickupLatitude: pickupLat,
+            PickupLongitude: pickupLng,
+            DestinationAddress: dropAddr,
+            DestinationLatitude: dropLat,
+            DestinationLongitude: dropLng,
             TripDate: booking.PickupTime.Date,
             PlannedStart: booking.PickupTime,
             PlannedEnd: booking.DropoffTime,
@@ -582,6 +595,12 @@ public class CreateTripFromBookingCommandHandler(
         public string? BookingNumber { get; init; }
         public string? Source { get; init; }
         public string? Destination { get; init; }
+        public string? PickupAddress { get; init; }
+        public double? PickupLat { get; init; }
+        public double? PickupLng { get; init; }
+        public string? DestinationAddress { get; init; }
+        public double? DropLat { get; init; }
+        public double? DropLng { get; init; }
         public decimal? Distance { get; init; }
     }
 }

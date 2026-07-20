@@ -7,6 +7,7 @@ abstract class ApiEndpoints {
   // Driver profile & dashboard
   static const driverProfile = '/driver-app/profile';
   static const driverDashboard = '/driver-app/dashboard';
+  static const driverStatus = '/driver-app/status';
 
   // Trips
   static const trips = '/driver-app/trips';
@@ -16,6 +17,8 @@ abstract class ApiEndpoints {
   static String onboardTrip(int id) => '/driver-app/trips/$id/onboard';
   static String completeTrip(int id) => '/driver-app/trips/$id/complete';
   static String rejectTrip(int id) => '/driver-app/trips/$id/reject';
+  static String tripPaymentSummary(int id) => '/driver-app/trips/$id/payment-summary';
+  static String collectTripPayment(int id) => '/driver-app/trips/$id/collect-payment';
   static const tripLocation = '/driver-app/trips/location';
   static const tripLocationBatch = '/driver-app/location/batch';
 

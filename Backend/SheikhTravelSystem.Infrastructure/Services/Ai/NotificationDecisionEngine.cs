@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Application.Features.Notifications;
 using SheikhTravelSystem.Domain.Enums;
+using SheikhTravelSystem.Infrastructure.Services.Notifications;
 
 namespace SheikhTravelSystem.Infrastructure.Services.Ai;
 
@@ -12,6 +13,7 @@ public sealed class NotificationDecisionEngine(
     IDbConnectionFactory dbFactory,
     IDistributedCache cache,
     INotificationService notifications,
+    NotificationRecipientResolver recipientResolver,
     IUserPresenceService presence,
     IAlertNotificationAudit alertAudit,
     IAiManagementService aiManagement,
@@ -124,6 +126,7 @@ public sealed class NotificationDecisionEngine(
         NotificationDecisionRequest request,
         CancellationToken cancellationToken = default)
     {
+        var tenantId = request.TenantId ?? tenantContext.GetRequiredTenantId();
         var decision = await EvaluateAsync(request, cancellationToken);
         if (!decision.ShouldNotify)
         {
@@ -134,6 +137,12 @@ public sealed class NotificationDecisionEngine(
 
         if (request.Broadcast)
         {
+            if (!NotificationRecipientPolicy.AllowsBroadcast(request.EventType))
+            {
+                logger.LogWarning("Rejected broadcast for non-system event {EventType}", request.EventType);
+                return 0;
+            }
+
             await notifications.CreateForAllChannelsAsync(
                 request.Title, request.Message, request.Type, decision.Channels,
                 decision.Priority, ModuleFor(request.EventType), request.ReferenceId,
@@ -149,24 +158,28 @@ public sealed class NotificationDecisionEngine(
             return decision.Channels.Count;
         }
 
-        if (request.TargetUserId is not int userId)
+        var recipientIds = await recipientResolver.ResolveUserIdsAsync(request, tenantId, cancellationToken);
+        if (recipientIds.Count == 0)
             return 0;
 
         var count = 0;
-        foreach (var channel in decision.Channels)
+        foreach (var userId in recipientIds)
         {
-            if (!await alertAudit.IsAlertTypeEnabledAsync(userId, request.EventType, channel, cancellationToken))
-                continue;
+            foreach (var channel in decision.Channels)
+            {
+                if (!await alertAudit.IsAlertTypeEnabledAsync(userId, request.EventType, channel, cancellationToken))
+                    continue;
 
-            await notifications.CreateAndDispatchAsync(new NotificationCreateOptions(
-                userId, request.Title, request.Message, request.Type, request.ReferenceId,
-                decision.Priority, channel, Module: ModuleFor(request.EventType),
-                TemplateKey: TemplateFor(request.EventType)), cancellationToken);
+                await notifications.CreateAndDispatchAsync(new NotificationCreateOptions(
+                    userId, tenantId, request.Title, request.Message, request.Type, request.ReferenceId,
+                    decision.Priority, channel, Module: ModuleFor(request.EventType),
+                    TemplateKey: TemplateFor(request.EventType)), cancellationToken);
 
-            if (request.AlertEventId is int alertId)
-                await alertAudit.LogAsync(alertId, channel, userId.ToString(), "Sent", null, cancellationToken);
+                if (request.AlertEventId is int alertId)
+                    await alertAudit.LogAsync(alertId, channel, userId.ToString(), "Sent", null, cancellationToken);
 
-            count++;
+                count++;
+            }
         }
         return count;
     }

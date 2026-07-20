@@ -19,6 +19,16 @@ class _TripsScreenState extends ConsumerState<TripsScreen> {
   String _query = '';
 
   @override
+  void initState() {
+    super.initState();
+    // Dashboard and trips use separate providers — refresh when opening this tab
+    // so newly assigned trips appear without requiring a full app restart.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(tripsProvider.notifier).refresh();
+    });
+  }
+
+  @override
   void dispose() {
     _searchCtrl.dispose();
     super.dispose();

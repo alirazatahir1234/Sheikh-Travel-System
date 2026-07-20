@@ -263,6 +263,18 @@ class OfflineSyncService {
           data: form,
           options: Options(headers: headers),
         );
+      case OfflineOpType.paymentCollect:
+        final tripId = op.payload['tripId'] as int;
+        await _dio.post(
+          ApiEndpoints.collectTripPayment(tripId),
+          data: {
+            'amountReceived': op.payload['amountReceived'],
+            'paymentMethod': op.payload['paymentMethod'],
+            'referenceNumber': op.payload['referenceNumber'],
+            'notes': op.payload['notes'],
+          },
+          options: Options(headers: headers),
+        );
     }
   }
 

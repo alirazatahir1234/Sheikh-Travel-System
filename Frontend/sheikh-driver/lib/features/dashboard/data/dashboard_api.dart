@@ -19,4 +19,8 @@ class DashboardApi {
     final data = (body['data'] as Map<String, dynamic>?) ?? body;
     return DashboardSummary.fromJson(data);
   }
+
+  Future<void> setStatus(String status) async {
+    await _dio.post(ApiEndpoints.driverStatus, data: {'status': status});
+  }
 }

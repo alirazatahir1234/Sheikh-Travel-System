@@ -3,10 +3,11 @@ import '../../../core/offline/offline_models.dart';
 import '../data/trips_api.dart';
 import '../domain/trip_model.dart';
 
-final tripsProvider =
-    AsyncNotifierProvider<TripsNotifier, List<Trip>>(TripsNotifier.new);
+final tripsProvider = AsyncNotifierProvider.autoDispose<TripsNotifier, List<Trip>>(
+  TripsNotifier.new,
+);
 
-class TripsNotifier extends AsyncNotifier<List<Trip>> {
+class TripsNotifier extends AutoDisposeAsyncNotifier<List<Trip>> {
   @override
   Future<List<Trip>> build() => _fetch();
 

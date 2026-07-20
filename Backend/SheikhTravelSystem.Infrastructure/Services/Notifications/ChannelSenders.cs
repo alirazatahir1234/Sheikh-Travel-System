@@ -29,8 +29,8 @@ public sealed class EmailNotificationSender(
         {
             using var connection = dbFactory.CreateConnection();
             to = await connection.ExecuteScalarAsync<string?>(new CommandDefinition(
-                "SELECT Email FROM Users WHERE Id = @Id AND IsDeleted = 0",
-                new { Id = uid }, cancellationToken: cancellationToken));
+                "SELECT Email FROM Users WHERE Id = @Id AND IsDeleted = 0 AND TenantId = @TenantId",
+                new { Id = uid, TenantId = request.TenantId ?? 1 }, cancellationToken: cancellationToken));
         }
         to ??= section.GetValue<string>("DefaultTo");
 
@@ -84,7 +84,7 @@ public sealed class EmailNotificationSender(
                     : SecureSocketOptions.StartTls;
 
             await client.ConnectAsync(host, port, secure, cancellationToken);
-            await client.AuthenticateAsync(user, pass, cancellationToken);
+            await client.AuthenticateAsync(user!, pass!, cancellationToken);
             await client.SendAsync(message, cancellationToken);
             await client.DisconnectAsync(true, cancellationToken);
 
@@ -142,7 +142,7 @@ public sealed class PushNotificationSender(
 
         IReadOnlyList<string> tokens = [];
         if (request.UserId is int uid)
-            tokens = await deviceTokens.GetActiveTokensAsync(uid, cancellationToken);
+            tokens = await deviceTokens.GetActiveTokensAsync(uid, request.TenantId, cancellationToken);
 
         if (!enabled || string.IsNullOrWhiteSpace(projectId) || string.IsNullOrWhiteSpace(credentialsPath))
         {
@@ -182,6 +182,7 @@ public sealed class BrowserNotificationSender(
 
         await realtime.PublishToUserAsync(userId, new
         {
+            tenantId = request.TenantId ?? 1,
             kind = "browser",
             title = request.Title,
             message = request.Message,

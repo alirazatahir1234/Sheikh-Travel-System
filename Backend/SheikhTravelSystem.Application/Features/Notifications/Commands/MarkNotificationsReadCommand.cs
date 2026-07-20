@@ -234,7 +234,7 @@ internal static class NotificationLifecycle
             WHERE n.Id = @NotificationId
               AND (
                     n.UserId = @UserId
-                 OR n.UserId IS NULL
+                 OR (n.UserId IS NULL AND n.RecipientType = 'SystemAnnouncement')
                  OR EXISTS (
                         SELECT 1 FROM NotificationRecipients rx
                         WHERE rx.NotificationId = n.Id AND rx.UserId = @UserId)
@@ -256,7 +256,7 @@ internal static class NotificationLifecycle
             WHERE n.Id IN @Ids
               AND (
                     n.UserId = @UserId
-                 OR n.UserId IS NULL
+                 OR (n.UserId IS NULL AND n.RecipientType = 'SystemAnnouncement')
               )
               AND NOT EXISTS (
                     SELECT 1 FROM NotificationRecipients r
@@ -282,7 +282,7 @@ internal static class NotificationLifecycle
             SELECT n.Id, @UserId, ISNULL(n.DeliveryStatus, 'Pending'), n.IsRead, GETUTCDATE(),
                    ISNULL(n.IsArchived, 0), 0
             FROM Notifications n
-            WHERE (n.UserId = @UserId OR n.UserId IS NULL)
+            WHERE (n.UserId = @UserId OR (n.UserId IS NULL AND n.RecipientType = 'SystemAnnouncement'))
               AND ISNULL(n.IsDeleted, 0) = 0
               AND (
                     (@ArchivedOnly = 1 AND ISNULL(n.IsArchived, 0) = 1)
@@ -476,7 +476,7 @@ internal static class NotificationLifecycle
 }
 
 
-public record CreateNotificationCommand(int ActorUserId, CreateNotificationRequest Request)
+public record CreateNotificationCommand(int ActorUserId, int TenantId, CreateNotificationRequest Request)
     : IRequest<ApiResponse<int>>;
 
 public class CreateNotificationCommandHandler(INotificationService notifications)
@@ -487,6 +487,9 @@ public class CreateNotificationCommandHandler(INotificationService notifications
         var r = request.Request;
         if (r.Broadcast)
         {
+            if (!string.Equals(r.RecipientType, "SystemAnnouncement", StringComparison.OrdinalIgnoreCase))
+                return ApiResponse<int>.FailResponse("Broadcast is allowed only for SystemAnnouncement recipient type.");
+
             var channels = r.Channels is { Count: > 0 }
                 ? r.Channels
                 : [NotificationChannels.Normalize(r.Channel)];
@@ -499,6 +502,7 @@ public class CreateNotificationCommandHandler(INotificationService notifications
 
         var id = await notifications.CreateAndDispatchAsync(new NotificationCreateOptions(
             r.UserId ?? request.ActorUserId,
+            request.TenantId,
             r.Title,
             r.Message,
             r.Type,
@@ -526,7 +530,7 @@ public class SendNotificationCommandHandler(INotificationService notifications)
     }
 }
 
-public record BulkNotificationCommand(BulkNotificationRequest Request) : IRequest<ApiResponse<int>>;
+public record BulkNotificationCommand(int TenantId, BulkNotificationRequest Request) : IRequest<ApiResponse<int>>;
 
 public class BulkNotificationCommandHandler(INotificationService notifications)
     : IRequestHandler<BulkNotificationCommand, ApiResponse<int>>
@@ -541,6 +545,9 @@ public class BulkNotificationCommandHandler(INotificationService notifications)
         var userIds = r.UserIds ?? [];
         if (userIds.Count == 0)
         {
+            if (!string.Equals(r.Module, "SystemAnnouncement", StringComparison.OrdinalIgnoreCase))
+                return ApiResponse<int>.FailResponse("Bulk broadcast is allowed only for SystemAnnouncement recipient type.");
+
             await notifications.CreateForAllChannelsAsync(
                 r.Title, r.Message, r.Type, channels, r.Priority, r.Module, r.ReferenceId, r.TemplateKey,
                 cancellationToken: cancellationToken);
@@ -553,7 +560,7 @@ public class BulkNotificationCommandHandler(INotificationService notifications)
             foreach (var channel in channels)
             {
                 await notifications.CreateAndDispatchAsync(new NotificationCreateOptions(
-                    userId, r.Title, r.Message, r.Type, r.ReferenceId, r.Priority,
+                    userId, request.TenantId, r.Title, r.Message, r.Type, r.ReferenceId, r.Priority,
                     NotificationChannels.Normalize(channel), TemplateKey: r.TemplateKey,
                     SendNow: r.SendNow, Module: r.Module),
                     cancellationToken);
@@ -565,7 +572,7 @@ public class BulkNotificationCommandHandler(INotificationService notifications)
     }
 }
 
-public record SendManualMessageCommand(int ActorUserId, SendManualMessageRequest Request)
+public record SendManualMessageCommand(int ActorUserId, int TenantId, SendManualMessageRequest Request)
     : IRequest<ApiResponse<int>>;
 
 public class SendManualMessageCommandHandler(
@@ -596,8 +603,8 @@ public class SendManualMessageCommandHandler(
 
             var roleUsers = await connection.QueryAsync<int>(new CommandDefinition("""
                 SELECT Id FROM Users
-                WHERE IsDeleted = 0 AND IsActive = 1 AND Role = @Role
-                """, new { Role = (int)roleEnum }, cancellationToken: cancellationToken));
+                WHERE IsDeleted = 0 AND IsActive = 1 AND Role = @Role AND TenantId = @TenantId
+                """, new { Role = (int)roleEnum, request.TenantId }, cancellationToken: cancellationToken));
             foreach (var id in roleUsers)
                 userIds.Add(id);
         }
@@ -619,6 +626,7 @@ public class SendManualMessageCommandHandler(
             {
                 await notifications.CreateAndDispatchAsync(new NotificationCreateOptions(
                     userId,
+                    request.TenantId,
                     r.Subject.Trim(),
                     r.Body.Trim(),
                     NotificationType.BookingCreated,
@@ -638,11 +646,12 @@ public class SendManualMessageCommandHandler(
             foreach (var email in customEmails)
             {
                 var matchedUserId = await connection.ExecuteScalarAsync<int?>(new CommandDefinition(
-                    "SELECT TOP 1 Id FROM Users WHERE Email = @Email AND IsDeleted = 0",
-                    new { Email = email }, cancellationToken: cancellationToken));
+                    "SELECT TOP 1 Id FROM Users WHERE Email = @Email AND IsDeleted = 0 AND TenantId = @TenantId",
+                    new { Email = email, request.TenantId }, cancellationToken: cancellationToken));
 
                 await notifications.CreateAndDispatchAsync(new NotificationCreateOptions(
                     matchedUserId,
+                    request.TenantId,
                     r.Subject.Trim(),
                     r.Body.Trim(),
                     NotificationType.BookingCreated,
