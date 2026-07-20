@@ -55,11 +55,18 @@ public sealed class NotificationDecisionEngine(
 
         if (cooldownMinutes > 0)
         {
-            var existing = await cache.GetStringAsync(cooldownKey, cancellationToken);
-            if (!string.IsNullOrEmpty(existing))
+            try
             {
-                await WriteAuditAsync(tenantId, request, "Suppress", "Cooldown active", priority, [], cooldownKey, cancellationToken);
-                return new NotificationDecisionResult(false, "Suppress", "Cooldown active", priority, [], cooldownKey);
+                var existing = await cache.GetStringAsync(cooldownKey, cancellationToken);
+                if (!string.IsNullOrEmpty(existing))
+                {
+                    await WriteAuditAsync(tenantId, request, "Suppress", "Cooldown active", priority, [], cooldownKey, cancellationToken);
+                    return new NotificationDecisionResult(false, "Suppress", "Cooldown active", priority, [], cooldownKey);
+                }
+            }
+            catch (Exception) when (!cancellationToken.IsCancellationRequested)
+            {
+                // Redis optional — skip cooldown when cache unavailable
             }
         }
 
@@ -70,10 +77,17 @@ public sealed class NotificationDecisionEngine(
             foreach (var rel in related)
             {
                 var relKey = $"ai:cd:{tenantId}:{rel}:{refId}";
-                if (!string.IsNullOrEmpty(await cache.GetStringAsync(relKey, cancellationToken)))
+                try
                 {
-                    await WriteAuditAsync(tenantId, request, "Correlate", $"Correlated with {rel}", priority, [], cooldownKey, cancellationToken);
-                    return new NotificationDecisionResult(false, "Correlate", $"Suppressed — correlated with {rel}", priority, [], cooldownKey);
+                    if (!string.IsNullOrEmpty(await cache.GetStringAsync(relKey, cancellationToken)))
+                    {
+                        await WriteAuditAsync(tenantId, request, "Correlate", $"Correlated with {rel}", priority, [], cooldownKey, cancellationToken);
+                        return new NotificationDecisionResult(false, "Correlate", $"Suppressed — correlated with {rel}", priority, [], cooldownKey);
+                    }
+                }
+                catch (Exception) when (!cancellationToken.IsCancellationRequested)
+                {
+                    // Redis optional
                 }
             }
         }
@@ -89,10 +103,17 @@ public sealed class NotificationDecisionEngine(
 
         if (cooldownMinutes > 0)
         {
-            await cache.SetStringAsync(
-                cooldownKey, "1",
-                new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(cooldownMinutes) },
-                cancellationToken);
+            try
+            {
+                await cache.SetStringAsync(
+                    cooldownKey, "1",
+                    new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(cooldownMinutes) },
+                    cancellationToken);
+            }
+            catch (Exception) when (!cancellationToken.IsCancellationRequested)
+            {
+                // Redis optional
+            }
         }
 
         await WriteAuditAsync(tenantId, request, "Notify", "Allowed", priority, channels, cooldownKey, cancellationToken);

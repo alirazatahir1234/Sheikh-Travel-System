@@ -1,31 +1,52 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 import '../../../core/constants/app_theme.dart';
+import '../../../features/auth/data/auth_repository.dart';
+import '../../../shared/widgets/sg_ui.dart';
 import '../domain/driver_profile_model.dart';
 import 'profile_notifier.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
 
+  Future<void> _signOut(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Sign out'),
+        content: const Text('Are you sure you want to sign out?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
+            child: const Text('Sign out'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    await ref.read(authRepositoryProvider).logout();
+    if (context.mounted) context.go('/login');
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final profileAsync = ref.watch(profileProvider);
 
     return Scaffold(
+      backgroundColor: AppColors.surface,
       appBar: AppBar(
-        title: const Text('My Profile'),
+        title: const Text('Profile'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.history_outlined),
-            tooltip: 'Timeline',
-            onPressed: () => context.push('/timeline'),
-          ),
-          IconButton(
-            icon: const Icon(Icons.settings_outlined),
-            tooltip: 'Settings',
-            onPressed: () => context.push('/settings'),
+            icon: const Icon(Icons.logout_rounded, color: AppColors.error),
+            tooltip: 'Sign out',
+            onPressed: () => _signOut(context, ref),
           ),
         ],
       ),
@@ -35,29 +56,85 @@ class ProfileScreen extends ConsumerWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.person_off_outlined, size: 48, color: AppColors.textSecondary),
+              const Icon(Icons.person_off_outlined,
+                  size: 48, color: AppColors.textSecondary),
               const SizedBox(height: 12),
               Text(e.toString(), textAlign: TextAlign.center),
               const SizedBox(height: 16),
-              FilledButton(
+              SgPrimaryButton(
+                label: 'Retry',
                 onPressed: () => ref.read(profileProvider.notifier).refresh(),
-                child: const Text('Retry'),
               ),
             ],
           ),
         ),
         data: (profile) => RefreshIndicator(
+          color: AppColors.primary,
           onRefresh: () => ref.read(profileProvider.notifier).refresh(),
           child: ListView(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
             children: [
               _ProfileHeader(profile: profile),
-              const SizedBox(height: 16),
-              if (profile.isLicenseExpiringSoon) _LicenseWarning(profile: profile),
-              if (profile.isLicenseExpiringSoon) const SizedBox(height: 12),
-              _InfoCard(profile: profile),
-              const SizedBox(height: 12),
-              if (profile.rating != null) _StatsCard(profile: profile),
+              const SizedBox(height: 20),
+              SgCard(
+                padding: EdgeInsets.zero,
+                child: Column(
+                  children: [
+                    _MenuTile(
+                      icon: Icons.badge_outlined,
+                      label: 'Profile Info',
+                      onTap: () => _showInfoSheet(context, profile),
+                    ),
+                    const Divider(height: 1),
+                    _MenuTile(
+                      icon: Icons.fingerprint,
+                      label: 'Attendance',
+                      onTap: () => context.push('/attendance'),
+                    ),
+                    const Divider(height: 1),
+                    _MenuTile(
+                      icon: Icons.local_gas_station_outlined,
+                      label: 'Fuel History',
+                      onTap: () => context.push('/fuel'),
+                    ),
+                    const Divider(height: 1),
+                    _MenuTile(
+                      icon: Icons.payments_outlined,
+                      label: 'Earnings',
+                      onTap: () => context.push('/earnings'),
+                    ),
+                    const Divider(height: 1),
+                    _MenuTile(
+                      icon: Icons.folder_outlined,
+                      label: 'Documents',
+                      onTap: () => context.push('/documents'),
+                    ),
+                    const Divider(height: 1),
+                    _MenuTile(
+                      icon: Icons.fact_check_outlined,
+                      label: 'Inspection',
+                      onTap: () => context.push('/inspection'),
+                    ),
+                    const Divider(height: 1),
+                    _MenuTile(
+                      icon: Icons.history_outlined,
+                      label: 'Timeline',
+                      onTap: () => context.push('/timeline'),
+                    ),
+                    const Divider(height: 1),
+                    _MenuTile(
+                      icon: Icons.settings_outlined,
+                      label: 'Settings',
+                      onTap: () => context.push('/settings'),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+              SgDangerOutlineButton(
+                label: 'Sign Out',
+                onPressed: () => _signOut(context, ref),
+              ),
             ],
           ),
         ),
@@ -65,6 +142,33 @@ class ProfileScreen extends ConsumerWidget {
     );
   }
 
+  void _showInfoSheet(BuildContext context, DriverProfile profile) {
+    showModalBottomSheet(
+      context: context,
+      showDragHandle: true,
+      builder: (_) => Padding(
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Profile Info',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 16),
+            _InfoLine('Phone', profile.phone),
+            if (profile.email != null) _InfoLine('Email', profile.email!),
+            _InfoLine('License', profile.licenseNumber),
+            if (profile.currentVehicleName != null)
+              _InfoLine('Vehicle', profile.currentVehicleName!),
+            if (profile.branchName != null)
+              _InfoLine('Branch', profile.branchName!),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class _ProfileHeader extends StatelessWidget {
@@ -73,246 +177,128 @@ class _ProfileHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Row(
-          children: [
-            CircleAvatar(
-              radius: 36,
-              backgroundColor: AppColors.primary.withValues(alpha: 0.1),
-              backgroundImage: profile.photoUrl != null
-                  ? NetworkImage(profile.photoUrl!)
-                  : null,
-              child: profile.photoUrl == null
-                  ? Text(
-                      _initials(profile.fullName),
-                      style: const TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.primary,
-                      ),
-                    )
-                  : null,
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    profile.fullName,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    profile.driverCode,
-                    style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
-                  ),
-                  const SizedBox(height: 6),
-                  _StatusBadge(statusName: profile.statusName),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  String _initials(String name) {
-    final parts = name.trim().split(' ');
-    if (parts.length >= 2) return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
-    return name.isNotEmpty ? name[0].toUpperCase() : 'D';
-  }
-}
-
-class _StatusBadge extends StatelessWidget {
-  const _StatusBadge({required this.statusName});
-  final String statusName;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = switch (statusName.toLowerCase()) {
-      'available' => AppColors.success,
-      'ontwip' || 'on trip' => AppColors.primary,
-      _ => AppColors.textSecondary,
-    };
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Text(statusName,
-          style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w600)),
-    );
-  }
-}
-
-class _LicenseWarning extends StatelessWidget {
-  const _LicenseWarning({required this.profile});
-  final DriverProfile profile;
-
-  @override
-  Widget build(BuildContext context) {
-    final days = profile.licenseExpiryDate!.difference(DateTime.now()).inDays;
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColors.warning.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppColors.warning.withValues(alpha: 0.4)),
-      ),
+    return SgCard(
       child: Row(
         children: [
-          const Icon(Icons.warning_amber_outlined, color: AppColors.warning),
-          const SizedBox(width: 10),
+          CircleAvatar(
+            radius: 36,
+            backgroundColor: AppColors.primary.withValues(alpha: 0.12),
+            backgroundImage: profile.photoUrl != null
+                ? NetworkImage(profile.photoUrl!)
+                : null,
+            child: profile.photoUrl == null
+                ? Text(
+                    _initials(profile.fullName),
+                    style: const TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.primary,
+                    ),
+                  )
+                : null,
+          ),
+          const SizedBox(width: 16),
           Expanded(
-            child: Text(
-              'License expires in $days days. Please renew it soon.',
-              style: const TextStyle(color: AppColors.warning, fontSize: 13),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  profile.fullName,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Driver ID: ${profile.driverCode}',
+                  style: const TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 13,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                StatusBadge(profile.statusName),
+              ],
             ),
           ),
         ],
       ),
     );
   }
-}
 
-class _InfoCard extends StatelessWidget {
-  const _InfoCard({required this.profile});
-  final DriverProfile profile;
-
-  @override
-  Widget build(BuildContext context) {
-    final fmt = DateFormat('dd MMM yyyy');
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Details',
-                style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
-            const SizedBox(height: 12),
-            const Divider(height: 1),
-            const SizedBox(height: 10),
-            _Row(Icons.phone_outlined, 'Phone', profile.phone),
-            if (profile.email != null) _Row(Icons.email_outlined, 'Email', profile.email!),
-            _Row(Icons.badge_outlined, 'License', profile.licenseNumber),
-            if (profile.licenseExpiryDate != null)
-              _Row(Icons.event_outlined, 'License Expiry',
-                  fmt.format(profile.licenseExpiryDate!)),
-            if (profile.currentVehicleName != null)
-              _Row(Icons.directions_car_outlined, 'Vehicle', profile.currentVehicleName!),
-            if (profile.branchName != null)
-              _Row(Icons.business_outlined, 'Branch', profile.branchName!),
-            if (profile.verificationStatus != null)
-              _Row(Icons.verified_outlined, 'Verification', profile.verificationStatus!),
-          ],
-        ),
-      ),
-    );
+  String _initials(String name) {
+    final parts = name.trim().split(' ');
+    if (parts.length >= 2) {
+      return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
+    }
+    return name.isNotEmpty ? name[0].toUpperCase() : 'D';
   }
 }
 
-class _StatsCard extends StatelessWidget {
-  const _StatsCard({required this.profile});
-  final DriverProfile profile;
+class _MenuTile extends StatelessWidget {
+  const _MenuTile({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
 
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Performance',
-                style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
-            const SizedBox(height: 12),
-            const Divider(height: 1),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                Expanded(
-                  child: _Stat(
-                    icon: Icons.star_rounded,
-                    color: AppColors.warning,
-                    value: profile.rating!.toStringAsFixed(1),
-                    label: 'Rating',
-                  ),
-                ),
-                if (profile.yearsExperience != null)
-                  Expanded(
-                    child: _Stat(
-                      icon: Icons.work_history_outlined,
-                      color: AppColors.primary,
-                      value: '${profile.yearsExperience}y',
-                      label: 'Experience',
-                    ),
-                  ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _Stat extends StatelessWidget {
-  const _Stat({required this.icon, required this.color, required this.value, required this.label});
   final IconData icon;
-  final Color color;
-  final String value;
   final String label;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Icon(icon, color: color, size: 28),
-        const SizedBox(height: 4),
-        Text(value,
-            style: const TextStyle(
-                fontSize: 20, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
-        Text(label, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-      ],
+    return ListTile(
+      onTap: onTap,
+      leading: Container(
+        width: 36,
+        height: 36,
+        decoration: BoxDecoration(
+          color: AppColors.primary.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(AppRadii.sm),
+        ),
+        child: Icon(icon, color: AppColors.primary, size: 20),
+      ),
+      title: Text(
+        label,
+        style: const TextStyle(
+          fontWeight: FontWeight.w600,
+          color: AppColors.textPrimary,
+        ),
+      ),
+      trailing: const Icon(
+        Icons.chevron_right_rounded,
+        color: AppColors.textMuted,
+      ),
     );
   }
 }
 
-class _Row extends StatelessWidget {
-  const _Row(this.icon, this.label, this.value);
-  final IconData icon;
+class _InfoLine extends StatelessWidget {
+  const _InfoLine(this.label, this.value);
   final String label;
   final String value;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 5),
+      padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
         children: [
-          Icon(icon, size: 16, color: AppColors.textSecondary),
-          const SizedBox(width: 8),
           SizedBox(
-            width: 110,
-            child: Text(label,
-                style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+            width: 90,
+            child: Text(
+              label,
+              style: const TextStyle(color: AppColors.textSecondary),
+            ),
           ),
           Expanded(
-            child: Text(value,
-                style: const TextStyle(
-                    color: AppColors.textPrimary,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500)),
+            child: Text(
+              value,
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
           ),
         ],
       ),

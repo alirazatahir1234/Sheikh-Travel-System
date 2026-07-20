@@ -1,14 +1,23 @@
-import 'dart:async';
-import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:intl/intl.dart';
 import '../../../core/api/dio_client.dart';
 import '../../../core/api/api_endpoints.dart';
 import '../../../core/constants/app_theme.dart';
+import '../../../core/analytics/analytics_service.dart';
 import '../../../features/trips/presentation/trips_notifier.dart';
-import '../services/location_queue.dart';
+import '../../../shared/widgets/sg_ui.dart';
+import '../services/background_gps_tracker.dart';
 import '../services/signalr_service.dart';
+
+final backgroundGpsProvider = ChangeNotifierProvider<BackgroundGpsTracker>(
+  (ref) {
+    final tracker = BackgroundGpsTracker.instance;
+    tracker.bindDio(ref.read(dioProvider));
+    return tracker;
+  },
+);
 
 class LiveMapScreen extends ConsumerStatefulWidget {
   const LiveMapScreen({super.key});
@@ -18,57 +27,34 @@ class LiveMapScreen extends ConsumerStatefulWidget {
 }
 
 class _LiveMapScreenState extends ConsumerState<LiveMapScreen> {
-  Position? _position;
-  StreamSubscription<Position>? _positionSub;
-  StreamSubscription<List<ConnectivityResult>>? _connectivitySub;
-  bool _online = true;
-  bool _tracking = false;
-  int _queuedCount = 0;
   String _signalrStatus = 'disconnected';
-  StreamSubscription<String>? _signalrStatusSub;
 
   @override
   void initState() {
     super.initState();
-    _watchConnectivity();
-    _watchSignalR();
-  }
-
-  @override
-  void dispose() {
-    _positionSub?.cancel();
-    _connectivitySub?.cancel();
-    _signalrStatusSub?.cancel();
-    SignalRService.instance.disconnect();
-    super.dispose();
-  }
-
-  void _watchConnectivity() {
-    _connectivitySub = Connectivity().onConnectivityChanged.listen((results) {
-      final online = results.any((r) => r != ConnectivityResult.none);
-      if (mounted) setState(() => _online = online);
-      if (online && _queuedCount > 0) _drainQueue();
-    });
-  }
-
-  void _watchSignalR() {
-    _signalrStatusSub = SignalRService.instance.statusStream.listen((status) {
+    SignalRService.instance.statusStream.listen((status) {
       if (mounted) setState(() => _signalrStatus = status);
     });
   }
 
+  @override
+  void dispose() {
+    SignalRService.instance.disconnect();
+    super.dispose();
+  }
+
   Future<void> _startTracking() async {
-    final perm = await Geolocator.requestPermission();
-    if (perm == LocationPermission.denied || perm == LocationPermission.deniedForever) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Location permission required')),
-        );
-      }
+    final trips = ref.read(tripsProvider).valueOrNull ?? [];
+    final active = trips.where((t) => t.isStarted || t.isConfirmed).firstOrNull;
+    if (active?.vehicleId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Assign/start a trip with a vehicle before tracking'),
+        ),
+      );
       return;
     }
 
-    // Connect SignalR for engine command listening
     await SignalRService.instance.connect((type, id) async {
       await ref.read(dioProvider).post(ApiEndpoints.completeCommand(id));
       if (mounted) {
@@ -81,133 +67,178 @@ class _LiveMapScreenState extends ConsumerState<LiveMapScreen> {
       }
     });
 
-    setState(() => _tracking = true);
+    final err = await ref.read(backgroundGpsProvider).start(
+          vehicleId: active!.vehicleId!,
+          bookingId: active.bookingId ?? active.id,
+          dio: ref.read(dioProvider),
+        );
 
-    _positionSub = Geolocator.getPositionStream(
-      locationSettings: const LocationSettings(
-        accuracy: LocationAccuracy.high,
-        distanceFilter: 10, // Update every 10 metres
-        timeLimit: Duration(seconds: 10),
-      ),
-    ).listen((pos) async {
-      if (!mounted) return;
-      setState(() => _position = pos);
-      await _postOrQueue(pos);
-    });
-  }
-
-  Future<void> _postOrQueue(Position pos) async {
-    final trips = ref.read(tripsProvider).valueOrNull ?? [];
-    final active = trips.where((t) => t.isStarted).firstOrNull;
-    if (active?.vehicleId == null) return;
-
-    final loc = QueuedLocation(
-      vehicleId: active!.vehicleId!,
-      lat: pos.latitude,
-      lng: pos.longitude,
-      speed: pos.speed * 3.6,
-      ts: pos.timestamp.millisecondsSinceEpoch,
-      bookingId: active.id,
-    );
-
-    if (_online) {
-      try {
-        // Try to drain any backlog first
-        if (_queuedCount > 0) await _drainQueue();
-
-        await ref.read(dioProvider).post(ApiEndpoints.tripLocation, data: {
-          'vehicleId': loc.vehicleId,
-          'latitude': loc.lat,
-          'longitude': loc.lng,
-          'speed': loc.speed,
-          'bookingId': loc.bookingId,
-        });
-      } catch (_) {
-        await LocationQueue.enqueue(loc);
-        if (mounted) setState(() => _queuedCount = LocationQueue.length);
-      }
-    } else {
-      await LocationQueue.enqueue(loc);
-      if (mounted) setState(() => _queuedCount = LocationQueue.length);
+    if (err != null && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(err), backgroundColor: AppColors.error),
+      );
     }
   }
 
-  Future<void> _drainQueue() async {
-    final positions = LocationQueue.getAll();
-    if (positions.isEmpty) return;
-    try {
-      await ref.read(dioProvider).post(ApiEndpoints.tripLocationBatch, data: {
-        'positions': positions
-            .map((p) => {
-                  'vehicleId': p.vehicleId,
-                  'latitude': p.lat,
-                  'longitude': p.lng,
-                  'speed': p.speed,
-                  if (p.bookingId != null) 'bookingId': p.bookingId,
-                })
-            .toList(),
-      });
-      await LocationQueue.clear();
-      if (mounted) setState(() => _queuedCount = 0);
-    } catch (_) {
-      // Leave intact for next attempt
-    }
-  }
-
-  void _stopTracking() {
-    _positionSub?.cancel();
-    _positionSub = null;
+  Future<void> _stopTracking() async {
+    await ref.read(backgroundGpsProvider).stop();
     SignalRService.instance.disconnect();
-    setState(() {
-      _tracking = false;
-      _position = null;
-    });
   }
 
   @override
   Widget build(BuildContext context) {
+    final gps = ref.watch(backgroundGpsProvider);
+    final lastUpdate = gps.lastHeartbeatAt ??
+        (gps.lastPosition != null ? DateTime.now() : null);
+    final timeFmt = DateFormat('hh:mm:ss a');
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Live Tracking'),
-        actions: [
-          if (!_online)
-            const Padding(
-              padding: EdgeInsets.only(right: 4),
-              child: Icon(Icons.cloud_off, color: Colors.orangeAccent, size: 20),
-            ),
-          IconButton(
-            icon: Icon(_tracking ? Icons.gps_fixed : Icons.gps_not_fixed),
-            tooltip: _tracking ? 'Stop' : 'Start',
-            onPressed: _tracking ? _stopTracking : _startTracking,
-          ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _showSosDialog,
-        backgroundColor: AppColors.error,
-        icon: const Icon(Icons.sos, color: Colors.white),
-        label: const Text('SOS', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
-      ),
-      body: Column(
+      backgroundColor: AppColors.surface,
+      appBar: AppBar(title: const Text('Live Tracking')),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
         children: [
-          _StatusBar(
-            tracking: _tracking,
-            online: _online,
-            queuedCount: _queuedCount,
-            signalrStatus: _signalrStatus,
-            position: _position,
+          SgCard(
+            child: Column(
+              children: [
+                _StatusRow(
+                  label: 'GPS Status',
+                  value: gps.isTracking
+                      ? (gps.isOnline ? 'Active' : 'Offline buffer')
+                      : 'Idle',
+                  valueColor: gps.isTracking
+                      ? (gps.isOnline ? AppColors.success : AppColors.warning)
+                      : AppColors.textSecondary,
+                ),
+                const Divider(height: 1),
+                _StatusRow(
+                  label: 'SignalR',
+                  value: _signalrStatus == 'connected'
+                      ? 'Connected'
+                      : _signalrStatus,
+                  valueColor: _signalrStatus == 'connected'
+                      ? AppColors.success
+                      : AppColors.textSecondary,
+                ),
+                const Divider(height: 1),
+                _StatusRow(
+                  label: 'Internet',
+                  value: gps.isOnline ? 'Online' : 'Offline',
+                  valueColor:
+                      gps.isOnline ? AppColors.success : AppColors.warning,
+                ),
+                const Divider(height: 1),
+                _StatusRow(
+                  label: 'Last Update',
+                  value: lastUpdate != null
+                      ? timeFmt.format(lastUpdate.toLocal())
+                      : '—',
+                ),
+                if (gps.queuedCount > 0) ...[
+                  const Divider(height: 1),
+                  _StatusRow(
+                    label: 'Queued points',
+                    value: '${gps.queuedCount}',
+                    valueColor: AppColors.warning,
+                  ),
+                ],
+              ],
+            ),
           ),
-          Expanded(
-            child: _tracking && _position != null
-                ? _PositionCard(position: _position!)
-                : _IdleView(tracking: _tracking, onStart: _startTracking),
+          const SizedBox(height: 36),
+          Center(
+            child: GestureDetector(
+              onTap: gps.isTracking ? _stopTracking : _startTracking,
+              child: Container(
+                width: 168,
+                height: 168,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white,
+                  border: Border.all(
+                    color: gps.isTracking
+                        ? AppColors.primary
+                        : AppColors.primary.withValues(alpha: 0.45),
+                    width: 6,
+                  ),
+                  boxShadow: AppShadows.card,
+                ),
+                alignment: Alignment.center,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      gps.isTracking
+                          ? Icons.stop_rounded
+                          : Icons.play_arrow_rounded,
+                      size: 40,
+                      color: AppColors.primary,
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      gps.isTracking ? 'STOP\nTRACKING' : 'START\nTRACKING',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.primary,
+                        height: 1.2,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          if (gps.lastPosition != null) ...[
+            const SizedBox(height: 28),
+            SgCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Current Position',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 15,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  _PosRow('Latitude',
+                      gps.lastPosition!.latitude.toStringAsFixed(6)),
+                  _PosRow('Longitude',
+                      gps.lastPosition!.longitude.toStringAsFixed(6)),
+                  _PosRow(
+                    'Speed',
+                    '${(gps.lastPosition!.speed * 3.6).toStringAsFixed(1)} km/h',
+                  ),
+                  if (gps.lastError != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Text(
+                        gps.lastError!,
+                        style: const TextStyle(
+                          color: AppColors.error,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
+          const SizedBox(height: 28),
+          SgDangerOutlineButton(
+            label: 'SOS',
+            onPressed: () => _showSosDialog(gps.lastPosition),
           ),
         ],
       ),
     );
   }
 
-  Future<void> _showSosDialog() async {
+  Future<void> _showSosDialog(Position? position) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
@@ -241,10 +272,12 @@ class _LiveMapScreenState extends ConsumerState<LiveMapScreen> {
       await ref.read(dioProvider).post(
         ApiEndpoints.sos,
         data: {
-          if (_position != null) 'latitude': _position!.latitude,
-          if (_position != null) 'longitude': _position!.longitude,
+          if (position != null) 'latitude': position.latitude,
+          if (position != null) 'longitude': position.longitude,
         },
       );
+      // ignore: unawaited_futures
+      AnalyticsService.instance.sosSent();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -257,55 +290,47 @@ class _LiveMapScreenState extends ConsumerState<LiveMapScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('SOS failed: $e'), backgroundColor: AppColors.error),
+          SnackBar(
+              content: Text('SOS failed: $e'),
+              backgroundColor: AppColors.error),
         );
       }
     }
   }
 }
 
-class _StatusBar extends StatelessWidget {
-  const _StatusBar({
-    required this.tracking,
-    required this.online,
-    required this.queuedCount,
-    required this.signalrStatus,
-    this.position,
+class _StatusRow extends StatelessWidget {
+  const _StatusRow({
+    required this.label,
+    required this.value,
+    this.valueColor,
   });
 
-  final bool tracking;
-  final bool online;
-  final int queuedCount;
-  final String signalrStatus;
-  final Position? position;
+  final String label;
+  final String value;
+  final Color? valueColor;
 
   @override
   Widget build(BuildContext context) {
-    if (!tracking) return const SizedBox.shrink();
-
-    final gpsColor = online ? AppColors.success : AppColors.warning;
-    return Container(
-      color: gpsColor,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
       child: Row(
         children: [
-          const Icon(Icons.gps_fixed, color: Colors.white, size: 15),
-          const SizedBox(width: 6),
           Text(
-            online ? 'Live' : 'Offline — queued $queuedCount',
-            style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
+            label,
+            style: const TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 14,
+            ),
           ),
           const Spacer(),
-          if (position != null)
-            Text(
-              '${(position!.speed * 3.6).toStringAsFixed(0)} km/h',
-              style: const TextStyle(color: Colors.white, fontSize: 13),
+          Text(
+            value,
+            style: TextStyle(
+              color: valueColor ?? AppColors.textPrimary,
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
             ),
-          const SizedBox(width: 10),
-          Icon(
-            signalrStatus == 'connected' ? Icons.wifi : Icons.wifi_off,
-            color: Colors.white,
-            size: 15,
           ),
         ],
       ),
@@ -313,97 +338,35 @@ class _StatusBar extends StatelessWidget {
   }
 }
 
-class _IdleView extends StatelessWidget {
-  const _IdleView({required this.tracking, required this.onStart});
-  final bool tracking;
-  final VoidCallback onStart;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.map_outlined, size: 72, color: AppColors.textSecondary),
-            const SizedBox(height: 16),
-            const Text(
-              'Live Tracking',
-              style: TextStyle(
-                  fontSize: 20, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Tap Start to begin sending your location to the ERP.\nPosition updates every 10 metres. Offline positions are queued in Hive and synced when connection restores.',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
-            ),
-            const SizedBox(height: 24),
-            if (!tracking)
-              FilledButton.icon(
-                onPressed: onStart,
-                icon: const Icon(Icons.play_arrow_rounded),
-                label: const Text('Start Tracking'),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _PositionCard extends StatelessWidget {
-  const _PositionCard({required this.position});
-  final Position position;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Card(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text('Current Position',
-                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
-              const SizedBox(height: 14),
-              const Divider(height: 1),
-              const SizedBox(height: 14),
-              _Row('Latitude', position.latitude.toStringAsFixed(6)),
-              _Row('Longitude', position.longitude.toStringAsFixed(6)),
-              _Row('Speed', '${(position.speed * 3.6).toStringAsFixed(1)} km/h'),
-              _Row('Accuracy', '±${position.accuracy.toStringAsFixed(0)} m'),
-              _Row('Altitude', '${position.altitude.toStringAsFixed(0)} m'),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _Row extends StatelessWidget {
-  const _Row(this.label, this.value);
+class _PosRow extends StatelessWidget {
+  const _PosRow(this.label, this.value);
   final String label;
   final String value;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 5),
+      padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         children: [
           SizedBox(
-              width: 100,
-              child: Text(label,
-                  style: const TextStyle(color: AppColors.textSecondary, fontSize: 13))),
-          Text(value,
+            width: 100,
+            child: Text(
+              label,
               style: const TextStyle(
-                  fontWeight: FontWeight.w600, color: AppColors.textPrimary, fontSize: 13)),
+                color: AppColors.textSecondary,
+                fontSize: 13,
+              ),
+            ),
+          ),
+          Text(
+            value,
+            style: const TextStyle(
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
+              fontSize: 13,
+            ),
+          ),
         ],
       ),
     );

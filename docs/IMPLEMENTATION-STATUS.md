@@ -146,7 +146,7 @@ General, Tenant, Localization, Security, Notifications, Notification Retention, 
 | App | Path | Status |
 |-----|------|--------|
 | **SheikhGo ERP** | `Frontend/sheikhgo-erp` | Primary — production/UAT |
-| **Sheikh Driver** | `Frontend/sheikh-driver` | MVP / CI added; not full Phase-1 mobile delivery |
+| **SheikhGo Driver** | `Frontend/sheikh-driver` | Phases A–N complete (store assets + release checklist under `store/`) |
 | **Customer Hub** | `Frontend/sheikh-travel-customer-hub` | Partial portal |
 | **sheikh-go** | `Frontend/sheikh-go` | Ancillary / marketing or alternate shell |
 

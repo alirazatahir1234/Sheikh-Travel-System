@@ -74,7 +74,7 @@ public class UploadDriverDocumentCommandValidator : AbstractValidator<UploadDriv
 {
     private static readonly HashSet<string> AllowedTypes = new(StringComparer.OrdinalIgnoreCase)
     {
-        "DrivingLicense", "MedicalCertificate", "BackgroundCheck"
+        "DrivingLicense", "CNIC", "MedicalCertificate", "BackgroundCheck"
     };
 
     public UploadDriverDocumentCommandValidator()

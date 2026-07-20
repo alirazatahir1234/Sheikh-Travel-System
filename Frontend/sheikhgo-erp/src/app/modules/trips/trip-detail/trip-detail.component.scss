@@ -116,3 +116,19 @@
   justify-content: center;
   padding: 48px;
 }
+
+.empty-state {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: #64748b;
+
+  mat-icon {
+    font-size: 40px;
+    width: 40px;
+    height: 40px;
+    color: #dc2626;
+  }
+
+  h3 { margin: 0.75rem 0 0.35rem; color: #0f172a; }
+  p { margin: 0 0 1rem; }
+}

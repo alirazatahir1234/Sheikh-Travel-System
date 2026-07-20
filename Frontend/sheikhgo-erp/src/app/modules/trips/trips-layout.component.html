@@ -8,8 +8,9 @@
 
   <nav class="trips-subnav" aria-label="Trips module navigation">
     <a *ngFor="let item of navItems"
-       [routerLink]="item.route"
+       [routerLink]="['/trips', item.route]"
        routerLinkActive="active"
+       [routerLinkActiveOptions]="{ exact: item.route === 'dashboard' }"
        class="trips-subnav-link">
       <mat-icon>{{ item.icon }}</mat-icon>
       <span>{{ item.label }}</span>

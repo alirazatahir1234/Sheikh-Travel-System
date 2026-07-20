@@ -66,5 +66,39 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>SheikhGo Driver needs your location to navigate trips and share live GPS with dispatch.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>SheikhGo Driver needs background location to keep trip tracking active while the app is minimized or the screen is locked.</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>SheikhGo Driver needs background location to keep trip tracking active while the app is minimized or the screen is locked.</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>SheikhGo Driver needs local network access to reach your development API server while debugging.</string>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
+	<key>NSCameraUsageDescription</key>
+	<string>SheikhGo Driver needs the camera to capture fuel receipts, inspection photos, and compliance documents.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>SheikhGo Driver needs photo library access to attach fuel receipts, inspection photos, and documents.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>SheikhGo Driver may save captured receipts or inspection photos to your library when you choose to.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>location</string>
+		<string>fetch</string>
+		<string>remote-notification</string>
+		<string>processing</string>
+	</array>
+	<key>GMSApiKey</key>
+	<string>$(GOOGLE_MAPS_API_KEY)</string>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>comgooglemaps</string>
+		<string>waze</string>
+		<string>googlechromes</string>
+	</array>
 </dict>
 </plist>

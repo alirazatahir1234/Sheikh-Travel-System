@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:intl/intl.dart';
 import '../../../core/constants/app_theme.dart';
+import '../../../core/offline/offline_models.dart';
 import '../domain/attendance_model.dart';
 import 'attendance_notifier.dart';
 
@@ -57,6 +58,12 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
           ),
         );
       }
+    } on OfflineQueuedException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message), backgroundColor: AppColors.warning),
+        );
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -73,6 +80,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
     final historyAsync = ref.watch(attendanceHistoryProvider);
 
     return Scaffold(
+      backgroundColor: AppColors.surface,
       appBar: AppBar(
         title: const Text('Attendance'),
         actions: [
@@ -170,8 +178,8 @@ class _ClockWidget extends StatelessWidget {
                     )
                   : Icon(clockedIn ? Icons.logout : Icons.login),
               label: Text(
-                clockedIn ? 'Clock Out' : 'Clock In',
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                clockedIn ? 'CHECK OUT' : 'CHECK IN',
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
               ),
             ),
           ),
@@ -192,8 +200,8 @@ class _ClockWidget extends StatelessWidget {
                 ),
                 const SizedBox(width: 6),
                 Text(
-                  clockedIn ? 'Currently clocked in' : 'Not clocked in',
-                  style: TextStyle(color: color, fontSize: 13, fontWeight: FontWeight.w500),
+                  clockedIn ? 'Checked In' : 'Not checked in',
+                  style: TextStyle(color: color, fontSize: 13, fontWeight: FontWeight.w600),
                 ),
               ],
             ),

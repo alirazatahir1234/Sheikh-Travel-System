@@ -167,12 +167,32 @@ public class DriverPostLocationCommandHandler(
             return ApiResponse<bool>.FailResponse("Driver identity required.");
 
         using var connection = dbFactory.CreateConnection();
-        var active = await connection.QuerySingleOrDefaultAsync<(int VehicleId, int BookingId)?>(new CommandDefinition(
-            @"SELECT TOP 1 VehicleId, Id FROM Bookings
-              WHERE DriverId = @DriverId AND Status = @Started AND VehicleId IS NOT NULL AND IsDeleted = 0
-              ORDER BY PickupTime DESC",
-            new { DriverId = driverId.Value, Started = (int)BookingStatus.Started },
+
+        var active = await connection.QuerySingleOrDefaultAsync<(int VehicleId, int? BookingId)?>(new CommandDefinition(
+            @"SELECT TOP 1 VehicleId, BookingId FROM Trips
+              WHERE DriverId = @DriverId AND IsDeleted = 0
+                AND Status IN (@Started, @AtPickup, @Enroute, @Delayed)
+                AND VehicleId IS NOT NULL
+              ORDER BY PlannedStart DESC",
+            new
+            {
+                DriverId = driverId.Value,
+                Started = (int)TripStatus.Started,
+                AtPickup = (int)TripStatus.AtPickup,
+                Enroute = (int)TripStatus.Enroute,
+                Delayed = (int)TripStatus.Delayed
+            },
             cancellationToken: cancellationToken));
+
+        if (active is null)
+        {
+            active = await connection.QuerySingleOrDefaultAsync<(int VehicleId, int? BookingId)?>(new CommandDefinition(
+                @"SELECT TOP 1 VehicleId, Id FROM Bookings
+                  WHERE DriverId = @DriverId AND Status = @Started AND VehicleId IS NOT NULL AND IsDeleted = 0
+                  ORDER BY PickupTime DESC",
+                new { DriverId = driverId.Value, Started = (int)BookingStatus.Started },
+                cancellationToken: cancellationToken));
+        }
 
         if (active is null)
             return ApiResponse<bool>.FailResponse("No active started trip with a vehicle.");
@@ -219,12 +239,53 @@ public class DriverCheckInCommandHandler(
         var driverId = currentUser.DriverId;
         if (!driverId.HasValue) return ApiResponse<bool>.FailResponse("Driver identity required.");
 
+        var now = DateTime.UtcNow;
         using var connection = dbFactory.CreateConnection();
-        await connection.ExecuteAsync(new CommandDefinition(
-            @"INSERT INTO DriverAttendance (DriverId, TenantId, AttendanceType, RecordedAt, Latitude, Longitude, IsDeleted)
-              VALUES (@DriverId, @TenantId, 'CheckIn', GETUTCDATE(), @Lat, @Lng, 0)",
-            new { DriverId = driverId.Value, TenantId = tenantContext.GetRequiredTenantId(), Lat = request.Latitude, Lng = request.Longitude },
+
+        var updated = await connection.ExecuteAsync(new CommandDefinition(
+            @"UPDATE DriverAttendance
+              SET Status = N'Present',
+                  CheckInAt = COALESCE(CheckInAt, @Now),
+                  CheckOutAt = NULL,
+                  AttendanceType = N'CheckIn',
+                  RecordedAt = @Now,
+                  Latitude = COALESCE(@Lat, Latitude),
+                  Longitude = COALESCE(@Lng, Longitude)
+              WHERE Id = (
+                  SELECT TOP 1 Id FROM DriverAttendance
+                  WHERE DriverId = @DriverId AND TenantId = @TenantId AND IsDeleted = 0
+                    AND AttendanceDate = @AttendanceDate
+                  ORDER BY Id DESC
+              )",
+            new
+            {
+                DriverId = driverId.Value,
+                TenantId = tenantContext.GetRequiredTenantId(),
+                AttendanceDate = now.Date,
+                Now = now,
+                Lat = request.Latitude,
+                Lng = request.Longitude
+            },
             cancellationToken: cancellationToken));
+
+        if (updated == 0)
+        {
+            await connection.ExecuteAsync(new CommandDefinition(
+                @"INSERT INTO DriverAttendance
+                    (DriverId, TenantId, AttendanceDate, Status, CheckInAt, AttendanceType, RecordedAt, Latitude, Longitude, IsDeleted, CreatedAt)
+                  VALUES
+                    (@DriverId, @TenantId, @AttendanceDate, N'Present', @Now, N'CheckIn', @Now, @Lat, @Lng, 0, @Now)",
+                new
+                {
+                    DriverId = driverId.Value,
+                    TenantId = tenantContext.GetRequiredTenantId(),
+                    AttendanceDate = now.Date,
+                    Now = now,
+                    Lat = request.Latitude,
+                    Lng = request.Longitude
+                },
+                cancellationToken: cancellationToken));
+        }
 
         return ApiResponse<bool>.SuccessResponse(true, "Checked in successfully.");
     }
@@ -241,12 +302,54 @@ public class DriverCheckOutCommandHandler(
         var driverId = currentUser.DriverId;
         if (!driverId.HasValue) return ApiResponse<bool>.FailResponse("Driver identity required.");
 
+        var now = DateTime.UtcNow;
         using var connection = dbFactory.CreateConnection();
-        await connection.ExecuteAsync(new CommandDefinition(
-            @"INSERT INTO DriverAttendance (DriverId, TenantId, AttendanceType, RecordedAt, Latitude, Longitude, IsDeleted)
-              VALUES (@DriverId, @TenantId, 'CheckOut', GETUTCDATE(), @Lat, @Lng, 0)",
-            new { DriverId = driverId.Value, TenantId = tenantContext.GetRequiredTenantId(), Lat = request.Latitude, Lng = request.Longitude },
+
+        // Prefer closing today's open check-in row; otherwise insert a checkout event.
+        var updated = await connection.ExecuteAsync(new CommandDefinition(
+            @"UPDATE DriverAttendance
+              SET CheckOutAt = @Now,
+                  AttendanceType = N'CheckOut',
+                  RecordedAt = @Now,
+                  Latitude = COALESCE(@Lat, Latitude),
+                  Longitude = COALESCE(@Lng, Longitude),
+                  Status = N'Present'
+              WHERE Id = (
+                  SELECT TOP 1 Id FROM DriverAttendance
+                  WHERE DriverId = @DriverId AND TenantId = @TenantId AND IsDeleted = 0
+                    AND AttendanceDate = @AttendanceDate
+                    AND CheckOutAt IS NULL
+                  ORDER BY COALESCE(CheckInAt, RecordedAt, CreatedAt) DESC
+              )",
+            new
+            {
+                DriverId = driverId.Value,
+                TenantId = tenantContext.GetRequiredTenantId(),
+                AttendanceDate = now.Date,
+                Now = now,
+                Lat = request.Latitude,
+                Lng = request.Longitude
+            },
             cancellationToken: cancellationToken));
+
+        if (updated == 0)
+        {
+            await connection.ExecuteAsync(new CommandDefinition(
+                @"INSERT INTO DriverAttendance
+                    (DriverId, TenantId, AttendanceDate, Status, CheckOutAt, AttendanceType, RecordedAt, Latitude, Longitude, IsDeleted, CreatedAt)
+                  VALUES
+                    (@DriverId, @TenantId, @AttendanceDate, N'Present', @Now, N'CheckOut', @Now, @Lat, @Lng, 0, @Now)",
+                new
+                {
+                    DriverId = driverId.Value,
+                    TenantId = tenantContext.GetRequiredTenantId(),
+                    AttendanceDate = now.Date,
+                    Now = now,
+                    Lat = request.Latitude,
+                    Lng = request.Longitude
+                },
+                cancellationToken: cancellationToken));
+        }
 
         return ApiResponse<bool>.SuccessResponse(true, "Checked out successfully.");
     }
@@ -266,6 +369,116 @@ public class DriverPostLocationBatchCommandHandler(IMediator mediator)
             await mediator.Send(new DriverPostLocationCommand(pos), cancellationToken);
         }
         return ApiResponse<bool>.SuccessResponse(true, $"{request.Positions.Count} positions ingested.");
+    }
+}
+
+// ── SOS ───────────────────────────────────────────────────────────────────────
+
+public record DriverSosCommand(double? Latitude, double? Longitude, string? Message)
+    : IRequest<ApiResponse<DriverSosResultDto>>;
+
+public class DriverSosCommandValidator : AbstractValidator<DriverSosCommand>
+{
+    public DriverSosCommandValidator()
+    {
+        RuleFor(x => x.Message).MaximumLength(500);
+        RuleFor(x => x.Latitude).InclusiveBetween(-90, 90).When(x => x.Latitude.HasValue);
+        RuleFor(x => x.Longitude).InclusiveBetween(-180, 180).When(x => x.Longitude.HasValue);
+    }
+}
+
+public class DriverSosCommandHandler(
+    IDbConnectionFactory dbFactory,
+    ICurrentUserService currentUser,
+    ITenantContext tenantContext,
+    ILocationBroadcastService broadcaster,
+    INotificationService notifications)
+    : IRequestHandler<DriverSosCommand, ApiResponse<DriverSosResultDto>>
+{
+    public async Task<ApiResponse<DriverSosResultDto>> Handle(DriverSosCommand request, CancellationToken cancellationToken)
+    {
+        var driverId = currentUser.DriverId;
+        if (!driverId.HasValue)
+            return ApiResponse<DriverSosResultDto>.FailResponse("Driver identity required.");
+
+        var tenantId = tenantContext.GetRequiredTenantId();
+        using var connection = dbFactory.CreateConnection();
+
+        var driver = await connection.QuerySingleOrDefaultAsync<(string FullName, string Phone)>(new CommandDefinition(
+            "SELECT FullName, Phone FROM Drivers WHERE Id = @Id AND TenantId = @TenantId AND IsDeleted = 0",
+            new { Id = driverId.Value, TenantId = tenantId },
+            cancellationToken: cancellationToken));
+
+        if (driver.FullName is null)
+            return ApiResponse<DriverSosResultDto>.FailResponse("Driver not found.");
+
+        var active = await connection.QuerySingleOrDefaultAsync<(int? VehicleId, int? BookingId)>(new CommandDefinition(
+            @"SELECT TOP 1 VehicleId, Id FROM Bookings
+              WHERE DriverId = @DriverId AND Status = @Started AND IsDeleted = 0
+              ORDER BY PickupTime DESC",
+            new { DriverId = driverId.Value, Started = (int)BookingStatus.Started },
+            cancellationToken: cancellationToken));
+
+        var vehicleId = active.VehicleId;
+        var bookingId = active.BookingId;
+        var createdAt = DateTime.UtcNow;
+
+        var id = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
+            @"INSERT INTO DriverSosAlerts
+                (TenantId, DriverId, VehicleId, BookingId, Latitude, Longitude, Message, Status, CreatedAt, IsDeleted)
+              VALUES
+                (@TenantId, @DriverId, @VehicleId, @BookingId, @Latitude, @Longitude, @Message, N'Open', @CreatedAt, 0);
+              SELECT CAST(SCOPE_IDENTITY() AS INT);",
+            new
+            {
+                TenantId = tenantId,
+                DriverId = driverId.Value,
+                VehicleId = vehicleId,
+                BookingId = bookingId,
+                request.Latitude,
+                request.Longitude,
+                Message = string.IsNullOrWhiteSpace(request.Message) ? null : request.Message.Trim(),
+                CreatedAt = createdAt
+            },
+            cancellationToken: cancellationToken));
+
+        if (vehicleId.HasValue && request.Latitude.HasValue && request.Longitude.HasValue)
+        {
+            await broadcaster.BroadcastSosAlertAsync(
+                vehicleId.Value,
+                request.Latitude.Value,
+                request.Longitude.Value,
+                createdAt,
+                cancellationToken);
+        }
+
+        var loc = request.Latitude.HasValue && request.Longitude.HasValue
+            ? $" at {request.Latitude:F5},{request.Longitude:F5}"
+            : "";
+        var title = $"SOS — {driver.FullName}";
+        var message = $"Driver {driver.FullName} ({driver.Phone}) triggered SOS{loc}.";
+
+        await notifications.CreateForAllChannelsAsync(
+            title,
+            message,
+            NotificationType.Sos,
+            ["InApp", "Sms"],
+            priority: 1,
+            module: "DriverApp",
+            referenceId: id,
+            templateKey: "sos_alert",
+            variables: new Dictionary<string, string>
+            {
+                ["title"] = title,
+                ["message"] = message,
+                ["Title"] = title,
+                ["Message"] = message
+            },
+            cancellationToken: cancellationToken);
+
+        return ApiResponse<DriverSosResultDto>.SuccessResponse(
+            new DriverSosResultDto(id, createdAt),
+            "SOS alert sent.");
     }
 }
 

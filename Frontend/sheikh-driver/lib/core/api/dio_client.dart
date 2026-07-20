@@ -13,7 +13,12 @@ import 'api_endpoints.dart';
 const _accessTokenKey = 'driver_access_token';
 const _refreshTokenKey = 'driver_refresh_token';
 
-final secureStorageProvider = Provider((_) => const FlutterSecureStorage());
+final secureStorageProvider = Provider(
+  (_) => const FlutterSecureStorage(
+    // Avoid Data Protection Keychain on macOS desktop (-34018 missing entitlement).
+    mOptions: MacOsOptions(useDataProtectionKeyChain: false),
+  ),
+);
 
 final dioProvider = Provider<Dio>((ref) {
   final storage = ref.read(secureStorageProvider);
@@ -28,7 +33,6 @@ final dioProvider = Provider<Dio>((ref) {
     },
   ));
 
-  // Debug-only request/response logging
   if (kDebugMode) {
     dio.interceptors.add(LogInterceptor(
       requestBody: true,
@@ -38,29 +42,48 @@ final dioProvider = Provider<Dio>((ref) {
     ));
   }
 
-  // Retry on transient failures (before auth so retries still get fresh tokens)
   dio.interceptors.add(_RetryInterceptor(dio));
-
-  // Auth token injection + silent 401 refresh (last so error handling fires first)
   dio.interceptors.add(_AuthInterceptor(dio, storage));
 
-  // Certificate pinning — production only, only when fingerprints are configured
-  if (!kDebugMode && AppConfig.certFingerprints.isNotEmpty) {
+  if (AppConfig.shouldPinCertificates) {
     _applyCertPinning(dio);
+    debugPrint(
+      '[Security] TLS pinning enabled (${AppConfig.certFingerprints.length} pin(s))',
+    );
+  } else if (AppConfig.isProd && !kDebugMode) {
+    debugPrint(
+      '[Security] WARNING: production build without CERT_PIN_* dart-defines',
+    );
   }
 
   return dio;
 });
 
+/// Enforces leaf-certificate SHA-256 pins on every TLS handshake (not only
+/// when the system rejects the cert — unlike badCertificateCallback alone).
 void _applyCertPinning(Dio dio) {
-  (dio.httpClientAdapter as IOHttpClientAdapter).createHttpClient = () {
-    final client = HttpClient();
-    client.badCertificateCallback = (cert, host, port) {
-      final fingerprint = sha256.convert(cert.der).toString();
-      return AppConfig.certFingerprints.contains(fingerprint);
-    };
-    return client;
-  };
+  final pins = AppConfig.certFingerprints.toSet();
+
+  dio.httpClientAdapter = IOHttpClientAdapter(
+    createHttpClient: () {
+      final client = HttpClient();
+      // Still reject untrusted CAs unless they match a pin (rotation / custom CA).
+      client.badCertificateCallback = (cert, host, port) {
+        final fp = AppConfig.normalizeCertPin(sha256.convert(cert.der).toString());
+        return pins.contains(fp);
+      };
+      return client;
+    },
+    validateCertificate: (cert, host, port) {
+      if (cert == null) return false;
+      final fp = AppConfig.normalizeCertPin(sha256.convert(cert.der).toString());
+      final ok = pins.contains(fp);
+      if (!ok) {
+        debugPrint('[Security] TLS pin mismatch for $host ($fp)');
+      }
+      return ok;
+    },
+  );
 }
 
 // ── Retry interceptor ──────────────────────────────────────────────────────

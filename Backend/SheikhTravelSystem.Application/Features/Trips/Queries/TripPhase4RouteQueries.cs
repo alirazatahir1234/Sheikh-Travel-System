@@ -46,21 +46,22 @@ public class GetTripRouteSummaryQueryHandler(IDbConnectionFactory dbFactory, ITe
         bool? ignition = null;
         if (trip.VehicleId is int vehicleId)
         {
-            var live = await connection.QuerySingleOrDefaultAsync<(double Latitude, double Longitude, double? Speed, bool? Ignition, DateTime Timestamp)>(
+            var live = await connection.QuerySingleOrDefaultAsync<(double Latitude, double Longitude, decimal? Speed, bool? Ignition, DateTime LastUpdate)>(
                 new CommandDefinition("""
-                    SELECT Latitude, Longitude, Speed, Ignition, Timestamp
+                    SELECT Latitude, Longitude, Speed, Ignition, LastUpdate
                     FROM VehicleCurrentLocation WHERE VehicleId = @VehicleId
                     """,
                     new { VehicleId = vehicleId },
                     cancellationToken: cancellationToken));
 
-            if (live.Timestamp != default)
+            // Dapper returns default tuple when no row — LastUpdate == default means no live position.
+            if (live.LastUpdate != default)
             {
                 liveLat = live.Latitude;
                 liveLng = live.Longitude;
-                liveSpeed = live.Speed;
+                liveSpeed = live.Speed.HasValue ? (double)live.Speed.Value : null;
                 ignition = live.Ignition;
-                liveAt = live.Timestamp;
+                liveAt = live.LastUpdate;
             }
         }
 

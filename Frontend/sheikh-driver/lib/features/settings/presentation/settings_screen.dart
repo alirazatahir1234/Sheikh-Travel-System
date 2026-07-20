@@ -6,6 +6,7 @@ import '../../../core/api/dio_client.dart';
 import '../../../core/constants/app_theme.dart';
 import '../../../core/providers/theme_provider.dart';
 import '../../../features/auth/data/auth_repository.dart';
+import '../../gps/services/background_gps_tracker.dart';
 import '../services/app_version_service.dart';
 
 class SettingsScreen extends ConsumerWidget {
@@ -52,6 +53,55 @@ class SettingsScreen extends ConsumerWidget {
           // ── Activity ──────────────────────────
           const _SectionHeader('Activity'),
           _SettingTile(
+            icon: Icons.cloud_sync_outlined,
+            iconColor: AppColors.warning,
+            title: 'Offline queue',
+            subtitle: 'Pending sync & conflicts',
+            onTap: () => context.push('/offline-queue'),
+          ),
+          _SettingTile(
+            icon: Icons.gps_fixed,
+            iconColor: AppColors.primary,
+            title: 'Background GPS',
+            subtitle: 'Stop live tracking / open live map',
+            onTap: () async {
+              final tracking = BackgroundGpsTracker.instance.isTracking;
+              if (tracking) {
+                final stop = await showDialog<bool>(
+                  context: context,
+                  builder: (dialogContext) => AlertDialog(
+                    title: const Text('Stop background GPS?'),
+                    content: const Text(
+                      'Dispatch will stop receiving live location until you start tracking again.',
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () =>
+                            Navigator.of(dialogContext).pop(false),
+                        child: const Text('Cancel'),
+                      ),
+                      FilledButton(
+                        onPressed: () =>
+                            Navigator.of(dialogContext).pop(true),
+                        child: const Text('Stop'),
+                      ),
+                    ],
+                  ),
+                );
+                if (stop == true) {
+                  await BackgroundGpsTracker.instance.stop();
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Background GPS stopped')),
+                    );
+                  }
+                }
+              } else {
+                context.push('/live');
+              }
+            },
+          ),
+          _SettingTile(
             icon: Icons.history,
             iconColor: AppColors.accent,
             title: 'Activity Timeline',
@@ -68,6 +118,25 @@ class SettingsScreen extends ConsumerWidget {
 
           // ── App ───────────────────────────────
           const _SectionHeader('App'),
+          _SettingTile(
+            icon: Icons.security,
+            iconColor: AppColors.primary,
+            title: 'Security status',
+            subtitle: 'Root, jailbreak, emulator, pinning',
+            onTap: () => context.push('/security'),
+          ),
+          _SettingTile(
+            icon: Icons.privacy_tip_outlined,
+            iconColor: AppColors.accent,
+            title: 'Privacy Policy',
+            onTap: () => context.push('/legal/privacy'),
+          ),
+          _SettingTile(
+            icon: Icons.gavel_outlined,
+            iconColor: AppColors.textSecondary,
+            title: 'Terms of Service',
+            onTap: () => context.push('/legal/terms'),
+          ),
           _SettingTile(
             icon: Icons.info_outline,
             iconColor: AppColors.textSecondary,
@@ -124,15 +193,16 @@ class SettingsScreen extends ConsumerWidget {
   Future<void> _confirmLogout(BuildContext context, WidgetRef ref) async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('Sign out'),
         content: const Text('Are you sure you want to sign out?'),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel')),
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancel'),
+          ),
           FilledButton(
-            onPressed: () => Navigator.pop(context, true),
+            onPressed: () => Navigator.of(dialogContext).pop(true),
             style: FilledButton.styleFrom(backgroundColor: AppColors.error),
             child: const Text('Sign out'),
           ),
@@ -141,6 +211,7 @@ class SettingsScreen extends ConsumerWidget {
     );
     if (confirmed == true && context.mounted) {
       await ref.read(authRepositoryProvider).logout();
+      if (context.mounted) context.go('/login');
     }
   }
 }

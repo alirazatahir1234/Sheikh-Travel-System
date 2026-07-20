@@ -23,11 +23,16 @@ const routes: Routes = [
       { path: 'live', component: TripLiveBoardComponent },
       { path: 'reports', component: TripReportsComponent },
       { path: 'new', component: TripFormComponent },
-      { path: ':id/edit', component: TripFormComponent },
-      { path: ':id', component: TripDetailComponent }
+      { path: ':id/edit', component: TripFormComponent, canMatch: [tripIdCanMatch] },
+      { path: ':id', component: TripDetailComponent, canMatch: [tripIdCanMatch] }
     ]
   }
 ];
+
+function tripIdCanMatch(route: import('@angular/router').Route, segments: import('@angular/router').UrlSegment[]): boolean {
+  const id = segments[0]?.path;
+  return !!id && /^\d+$/.test(id);
+}
 
 @NgModule({
   declarations: [

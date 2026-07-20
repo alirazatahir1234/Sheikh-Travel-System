@@ -46,4 +46,9 @@
     color: #9a3412;
     &.live { color: #166534; }
   }
+
+  .clickable-row {
+    cursor: pointer;
+    &:hover { background: #f8fafc; }
+  }
 }

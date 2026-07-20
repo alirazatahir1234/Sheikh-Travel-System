@@ -1,16 +1,21 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/constants/app_theme.dart';
+import '../../../features/notifications/presentation/notifications_notifier.dart';
+import '../../../features/offline/presentation/offline_status_banner.dart';
+import '../../../core/offline/offline_sync_service.dart';
 
-class AppShell extends StatelessWidget {
+class AppShell extends ConsumerWidget {
   const AppShell({super.key, required this.child});
   final Widget child;
 
   static const _tabs = [
-    _Tab(icon: Icons.home_outlined, activeIcon: Icons.home, label: 'Home', path: '/dashboard'),
-    _Tab(icon: Icons.directions_car_outlined, activeIcon: Icons.directions_car, label: 'Trips', path: '/trips'),
-    _Tab(icon: Icons.map_outlined, activeIcon: Icons.map, label: 'Live', path: '/live'),
-    _Tab(icon: Icons.notifications_outlined, activeIcon: Icons.notifications, label: 'Alerts', path: '/notifications'),
-    _Tab(icon: Icons.person_outlined, activeIcon: Icons.person, label: 'Profile', path: '/profile'),
+    _Tab(icon: Icons.home_outlined, activeIcon: Icons.home_rounded, label: 'Home', path: '/dashboard'),
+    _Tab(icon: Icons.route_outlined, activeIcon: Icons.route_rounded, label: 'Trips', path: '/trips'),
+    _Tab(icon: Icons.my_location_outlined, activeIcon: Icons.my_location, label: 'Live', path: '/live'),
+    _Tab(icon: Icons.notifications_outlined, activeIcon: Icons.notifications_rounded, label: 'Alerts', path: '/notifications'),
+    _Tab(icon: Icons.person_outline_rounded, activeIcon: Icons.person_rounded, label: 'Profile', path: '/profile'),
   ];
 
   int _currentIndex(BuildContext context) {
@@ -22,20 +27,56 @@ class AppShell extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final idx = _currentIndex(context);
+    final unread = ref.watch(unreadNotificationsCountProvider).valueOrNull ?? 0;
+    ref.watch(offlineSyncProvider);
+    ref.watch(offlinePendingCountProvider);
+
     return Scaffold(
-      body: child,
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: idx,
-        onTap: (i) => context.go(_tabs[i].path),
-        items: _tabs
-            .map((t) => BottomNavigationBarItem(
-                  icon: Icon(t.icon),
-                  activeIcon: Icon(t.activeIcon),
-                  label: t.label,
-                ))
-            .toList(),
+      body: Column(
+        children: [
+          const OfflineStatusBanner(),
+          Expanded(child: child),
+        ],
+      ),
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.06),
+              blurRadius: 16,
+              offset: const Offset(0, -4),
+            ),
+          ],
+        ),
+        child: SafeArea(
+          child: BottomNavigationBar(
+            currentIndex: idx,
+            onTap: (i) => context.go(_tabs[i].path),
+            items: [
+              for (var i = 0; i < _tabs.length; i++)
+                BottomNavigationBarItem(
+                  icon: i == 3 && unread > 0
+                      ? Badge(
+                          backgroundColor: AppColors.error,
+                          label: Text(unread > 99 ? '99+' : '$unread'),
+                          child: Icon(_tabs[i].icon),
+                        )
+                      : Icon(_tabs[i].icon),
+                  activeIcon: i == 3 && unread > 0
+                      ? Badge(
+                          backgroundColor: AppColors.error,
+                          label: Text(unread > 99 ? '99+' : '$unread'),
+                          child: Icon(_tabs[i].activeIcon),
+                        )
+                      : Icon(_tabs[i].activeIcon),
+                  label: _tabs[i].label,
+                ),
+            ],
+          ),
+        ),
       ),
     );
   }

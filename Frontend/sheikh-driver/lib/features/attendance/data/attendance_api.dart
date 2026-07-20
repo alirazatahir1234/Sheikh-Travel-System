@@ -2,26 +2,38 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api/dio_client.dart';
 import '../../../core/api/api_endpoints.dart';
+import '../../../core/offline/offline_models.dart';
+import '../../../core/offline/offline_sync_service.dart';
 import '../domain/attendance_model.dart';
 
-final attendanceApiProvider = Provider<AttendanceApi>((ref) => AttendanceApi(ref.read(dioProvider)));
+final attendanceApiProvider =
+    Provider<AttendanceApi>((ref) => AttendanceApi(ref.read(dioProvider), ref));
 
 class AttendanceApi {
-  AttendanceApi(this._dio);
+  AttendanceApi(this._dio, this._ref);
   final Dio _dio;
+  final Ref _ref;
 
   Future<void> checkIn({double? lat, double? lng}) async {
-    await _dio.post(ApiEndpoints.attendanceCheckIn, data: {
-      'latitude': lat,
-      'longitude': lng,
-    });
+    await _ref.read(offlineSyncProvider).runOrQueue(
+          online: () => _dio.post(ApiEndpoints.attendanceCheckIn, data: {
+            'latitude': lat,
+            'longitude': lng,
+          }),
+          type: OfflineOpType.attendanceCheckIn,
+          payload: {'latitude': lat, 'longitude': lng},
+        );
   }
 
   Future<void> checkOut({double? lat, double? lng}) async {
-    await _dio.post(ApiEndpoints.attendanceCheckOut, data: {
-      'latitude': lat,
-      'longitude': lng,
-    });
+    await _ref.read(offlineSyncProvider).runOrQueue(
+          online: () => _dio.post(ApiEndpoints.attendanceCheckOut, data: {
+            'latitude': lat,
+            'longitude': lng,
+          }),
+          type: OfflineOpType.attendanceCheckOut,
+          payload: {'latitude': lat, 'longitude': lng},
+        );
   }
 
   Future<List<AttendanceRecord>> getHistory({

@@ -2,7 +2,14 @@
   <mat-spinner diameter="36"></mat-spinner>
 </div>
 
-<div class="trip-detail" *ngIf="!loading && trip as t">
+<div class="empty-state" *ngIf="!loading && loadError">
+  <mat-icon>error_outline</mat-icon>
+  <h3>Could not open trip</h3>
+  <p>{{ loadError }}</p>
+  <button mat-flat-button color="primary" type="button" (click)="backToList()">Back to Trip List</button>
+</div>
+
+<div class="trip-detail" *ngIf="!loading && !loadError && trip as t">
   <header class="header">
     <div>
       <h2>{{ t.tripNumber }} — {{ t.tripName }}</h2>

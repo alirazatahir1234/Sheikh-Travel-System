@@ -1,6 +1,6 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { forkJoin } from 'rxjs';
+import { forkJoin, Subscription } from 'rxjs';
 import { TripService } from '../../../core/services/trip.service';
 import { DriverService } from '../../../core/services/driver.service';
 import { VehicleService } from '../../../core/services/vehicle.service';
@@ -28,6 +28,7 @@ export class TripDetailComponent implements OnInit, OnDestroy {
   trip: TripDetail | null = null;
   routeSummary: TripRouteSummary | null = null;
   loading = true;
+  loadError = '';
   optimizing = false;
   nextStatus: TripStatus | '' = '';
   cancelReason = '';
@@ -49,7 +50,9 @@ export class TripDetailComponent implements OnInit, OnDestroy {
   passengerPhone = '';
   documentType = 'TripSheet';
   selectedFile: File | null = null;
+
   private routePoll: ReturnType<typeof setInterval> | null = null;
+  private paramSub: Subscription | null = null;
 
   get totalExpenses(): number {
     return (this.trip?.expenses || []).reduce((sum, e) => sum + (e.amount || 0), 0);
@@ -65,7 +68,6 @@ export class TripDetailComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
-    const id = +(this.route.snapshot.paramMap.get('id') || 0);
     forkJoin({
       drivers: this.driversApi.getAll(1, 500),
       vehicles: this.vehiclesApi.getAll(1, 500)
@@ -75,7 +77,18 @@ export class TripDetailComponent implements OnInit, OnDestroy {
         this.vehicles = res.vehicles.items.map(v => ({ id: v.id, name: v.name }));
       }
     });
-    this.load(id);
+
+    this.paramSub = this.route.paramMap.subscribe(params => {
+      const id = Number(params.get('id') || 0);
+      if (!id) {
+        this.loading = false;
+        this.loadError = 'Invalid trip id.';
+        this.trip = null;
+        return;
+      }
+      this.load(id);
+    });
+
     this.routePoll = setInterval(() => {
       if (this.trip?.id && this.isLiveStatus(this.trip.status)) {
         this.loadRouteSummary(this.trip.id, true);
@@ -85,10 +98,14 @@ export class TripDetailComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     if (this.routePoll) clearInterval(this.routePoll);
+    this.paramSub?.unsubscribe();
   }
 
   load(id: number): void {
     this.loading = true;
+    this.loadError = '';
+    this.trip = null;
+    this.routeSummary = null;
     this.trips.getById(id).subscribe({
       next: trip => {
         this.trip = {
@@ -96,16 +113,20 @@ export class TripDetailComponent implements OnInit, OnDestroy {
           expenses: trip.expenses || [],
           documents: trip.documents || [],
           passengers: trip.passengers || [],
-          openAlertCount: trip.openAlertCount || 0
+          openAlertCount: trip.openAlertCount || 0,
+          stops: trip.stops || [],
+          timeline: trip.timeline || []
         };
         this.driverId = trip.driverId ?? null;
         this.vehicleId = trip.vehicleId ?? null;
         this.loading = false;
-        this.loadRouteSummary(id);
+        this.loadRouteSummary(id, true);
       },
       error: err => {
         this.loading = false;
-        this.toast.error(apiErrorMessage(err, 'Failed to load trip.'));
+        this.trip = null;
+        this.loadError = apiErrorMessage(err, 'Failed to load trip.');
+        this.toast.error(this.loadError);
       }
     });
   }
@@ -143,6 +164,10 @@ export class TripDetailComponent implements OnInit, OnDestroy {
       return;
     }
     window.open(url, '_blank', 'noopener');
+  }
+
+  backToList(): void {
+    this.router.navigate(['/trips/list']);
   }
 
   applyStatus(): void {

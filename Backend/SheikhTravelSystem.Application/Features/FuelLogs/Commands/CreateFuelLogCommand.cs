@@ -37,15 +37,15 @@ public class CreateFuelLogCommandHandler(IDbConnectionFactory dbFactory)
         var id = await connection.ExecuteScalarAsync<int>(
             new CommandDefinition(
                 @"INSERT INTO FuelLogs (VehicleId, DriverId, Liters, PricePerLiter, TotalCost,
-                  OdometerReading, FuelType, FuelDate, Station, CreatedAt, IsDeleted)
+                  OdometerReading, FuelType, FuelDate, Station, ReceiptUrl, CreatedAt, IsDeleted)
                   VALUES (@VehicleId, @DriverId, @Liters, @PricePerLiter, @TotalCost,
-                  @OdometerReading, @FuelType, @FuelDate, @Station, @CreatedAt, 0);
+                  @OdometerReading, @FuelType, @FuelDate, @Station, @ReceiptUrl, @CreatedAt, 0);
                   SELECT SCOPE_IDENTITY();",
                 new
                 {
                     dto.VehicleId, dto.DriverId, dto.Liters, dto.PricePerLiter, TotalCost = totalCost,
                     dto.OdometerReading, FuelType = (int)dto.FuelType, dto.FuelDate,
-                    dto.Station, CreatedAt = DateTime.UtcNow
+                    dto.Station, dto.ReceiptUrl, CreatedAt = DateTime.UtcNow
                 },
                 cancellationToken: cancellationToken));
 

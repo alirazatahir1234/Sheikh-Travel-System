@@ -310,11 +310,17 @@ public class NotificationService : INotificationService
             cancellationToken: cancellationToken));
     }
 
-    public Task InvalidateUnreadCacheAsync(int? userId, CancellationToken cancellationToken = default)
+    public async Task InvalidateUnreadCacheAsync(int? userId, CancellationToken cancellationToken = default)
     {
-        if (userId is int id)
-            return _cache.RemoveAsync(UnreadKey(id), cancellationToken);
-        return Task.CompletedTask;
+        if (userId is not int id) return;
+        try
+        {
+            await _cache.RemoveAsync(UnreadKey(id), cancellationToken);
+        }
+        catch (Exception) when (!cancellationToken.IsCancellationRequested)
+        {
+            // Redis optional
+        }
     }
 
     private async Task DispatchOneAsync(
