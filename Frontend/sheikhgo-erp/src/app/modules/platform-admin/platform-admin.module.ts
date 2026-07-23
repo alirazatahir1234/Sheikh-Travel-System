@@ -15,6 +15,8 @@ import { MenuManagementComponent } from './menu-management/menu-management.compo
 import { WorkspaceManagementComponent } from './workspace-management/workspace-management.component';
 import { DashboardManagementComponent } from './dashboard-management/dashboard-management.component';
 import { SecurityCenterComponent } from './security-center/security-center.component';
+import { AuditCenterComponent } from './audit-center/audit-center.component';
+import { PermissionCoverageComponent } from './permission-coverage/permission-coverage.component';
 import { SubscriptionManagementComponent } from './subscription-management/subscription-management.component';
 import { MigrationManagerComponent } from './migration-manager/migration-manager.component';
 import { DatabaseResetComponent } from './database-reset/database-reset.component';
@@ -146,6 +148,18 @@ const routes: Routes = [
     data: { permissions: ['Platform.Security.View', 'Platform.Security.Manage'] }
   },
   {
+    path: 'permission-coverage',
+    component: PermissionCoverageComponent,
+    canActivate: [permissionGuard],
+    data: { permissions: ['Platform.Security.Manage'] }
+  },
+  {
+    path: 'audit-center',
+    component: AuditCenterComponent,
+    canActivate: [permissionGuard],
+    data: { permissions: ['Platform.Audit.View', 'Platform.AuditLogs.View', 'Platform.Audit.Manage'] }
+  },
+  {
     path: 'subscription-management',
     component: SubscriptionManagementComponent,
     canActivate: [permissionGuard],
@@ -181,6 +195,8 @@ const routes: Routes = [
     WorkspaceManagementComponent,
     DashboardManagementComponent,
     SecurityCenterComponent,
+    AuditCenterComponent,
+    PermissionCoverageComponent,
     SubscriptionManagementComponent,
     MigrationManagerComponent,
     DatabaseResetComponent,

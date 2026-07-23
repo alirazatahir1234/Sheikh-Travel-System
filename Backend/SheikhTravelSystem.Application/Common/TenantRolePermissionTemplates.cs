@@ -9,16 +9,20 @@ public static class TenantRolePermissionTemplates
     [
         "Platform.Dashboard.View", "Platform.Users.View", "Platform.Users.Create", "Platform.Users.Edit",
         "Platform.Roles.View", "Platform.Roles.Manage", "Platform.Branches.Manage", "Platform.Departments.Manage",
-        "Platform.AuditLogs.View", "Platform.Menus.Manage", "Platform.Workspaces.Manage",
+        "Platform.AuditLogs.View", "Platform.Audit.View", "Platform.Audit.Manage",
+        "Platform.Menus.Manage", "Platform.Workspaces.Manage",
         "Platform.Dashboards.View", "Platform.Dashboards.Manage",
         "Platform.Security.View", "Platform.Security.Manage",
         "Platform.Settings.View", "Platform.Settings.Manage",
-        "Booking.View", "Booking.Create", "Trip.View", "Route.View",
+        "Booking.View", "Booking.Create", "Booking.Update", "Booking.Delete",
+        "Trip.View", "Trip.Create", "Trip.Update", "Trip.Delete", "Trip.Assign",
+        "Route.View", "Route.Create", "Route.Update", "Route.Delete",
         "Vehicle.View", "Vehicle.Create", "Vehicle.Update", "Vehicle.Delete", "Driver.View", "Driver.Create", "Driver.Update", "Driver.Delete", "Driver.Assign", "Driver.Manage", "Driver.ManageStatus", "Driver.ViewPerformance",
-        "GPS.View", "Fuel.View", "Maintenance.View", "Maintenance.Manage", "Maintenance.Request.Create", "Maintenance.Request.Approve",
+        "GPS.View", "Fuel.View", "Fuel.Create", "Fuel.Update", "Maintenance.View", "Maintenance.Manage", "Maintenance.Request.Create", "Maintenance.Request.Approve",
         "Gps.AlertView", "Gps.AlertAcknowledge", "Gps.AlertResolve", "Gps.AlertArchive", "Gps.AlertDelete",
         "Maintenance.WorkOrder.Manage", "Maintenance.Workshop.Manage", "Maintenance.Vendor.Manage", "Maintenance.Report.View",
-        "Customer.View", "Payment.View", "Invoice.View", "Report.View",
+        "Customer.View", "Customer.Create", "Customer.Update", "Customer.Delete",
+        "Payment.View", "Payment.Create", "Payment.Update", "Invoice.View", "Report.View",
         "Gps.CommandView", "Gps.CommandSend", "Gps.CommandEngineCutoff", "Gps.CommandPositionRequest",
         "Gps.CommandRestart", "Gps.CommandRelay", "Gps.CommandBuzzer", "Gps.CommandCustomSms", "Gps.CommandRetry", "Gps.CommandCancel",
         "Ai.View", "Ai.Manage", "Ai.ExecuteWrite",
@@ -27,8 +31,9 @@ public static class TenantRolePermissionTemplates
 
     public static readonly string[] FleetManager =
     [
-        "Platform.Dashboard.View", "Trip.View", "Vehicle.View", "Vehicle.Create", "Vehicle.Update", "Vehicle.Delete",
-        "Driver.View", "Driver.Create", "Driver.Update", "Driver.Delete", "Driver.Assign", "Driver.Manage", "Driver.ManageStatus", "Driver.ViewPerformance", "GPS.View", "Fuel.View",
+        "Platform.Dashboard.View", "Trip.View", "Trip.Create", "Trip.Update", "Trip.Delete", "Trip.Assign",
+        "Vehicle.View", "Vehicle.Create", "Vehicle.Update", "Vehicle.Delete",
+        "Driver.View", "Driver.Create", "Driver.Update", "Driver.Delete", "Driver.Assign", "Driver.Manage", "Driver.ManageStatus", "Driver.ViewPerformance", "GPS.View", "Fuel.View", "Fuel.Create", "Fuel.Update",
         "Gps.AlertView", "Gps.AlertAcknowledge", "Gps.AlertResolve", "Gps.AlertArchive",
         "Maintenance.View", "Maintenance.Manage", "Maintenance.Request.Create", "Maintenance.Request.Approve", "Maintenance.WorkOrder.Manage", "Maintenance.Workshop.Manage", "Maintenance.Vendor.Manage", "Maintenance.Report.View", "Report.View",
         "Gps.CommandView", "Gps.CommandSend", "Gps.CommandEngineCutoff", "Gps.CommandPositionRequest",
@@ -51,8 +56,10 @@ public static class TenantRolePermissionTemplates
 
     public static readonly string[] Dispatcher =
     [
-        "Platform.Dashboard.View", "Booking.View", "Booking.Create", "Trip.View", "Route.View",
-        "Vehicle.View", "Driver.View", "GPS.View", "Customer.View",
+        "Platform.Dashboard.View", "Booking.View", "Booking.Create", "Booking.Update", "Booking.Delete",
+        "Trip.View", "Trip.Create", "Trip.Update", "Trip.Delete", "Trip.Assign",
+        "Route.View", "Route.Create", "Route.Update", "Route.Delete",
+        "Vehicle.View", "Driver.View", "GPS.View", "Customer.View", "Customer.Create", "Customer.Update",
         "Gps.AlertView", "Gps.AlertAcknowledge",
         "Gps.CommandView", "Gps.CommandSend", "Gps.CommandPositionRequest",
         "Ai.View",
@@ -61,14 +68,15 @@ public static class TenantRolePermissionTemplates
 
     public static readonly string[] Accountant =
     [
-        "Platform.Dashboard.View", "Payment.View", "Invoice.View", "Report.View", "Fuel.View",
+        "Platform.Dashboard.View", "Payment.View", "Payment.Create", "Payment.Update", "Invoice.View", "Report.View",
+        "Fuel.View", "Fuel.Create", "Fuel.Update",
         "Maintenance.Report.View", "Maintenance.View",
         "Notification.View"
     ];
 
     public static readonly string[] Driver =
     [
-        "Trip.View", "GPS.View", "Fuel.View", "Maintenance.Request.Create", "Maintenance.View",
+        "Trip.View", "GPS.View", "Fuel.View", "Fuel.Create", "Maintenance.Request.Create", "Maintenance.View",
         "Gps.AlertView", "Gps.AlertAcknowledge",
         "Gps.CommandView",
         "Notification.View"

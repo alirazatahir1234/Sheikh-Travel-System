@@ -106,7 +106,8 @@ public record CompanyContextDto(
     ResolvedWorkspaceDto? Workspace = null,
     CompanyDashboardSummaryDto? Dashboard = null,
     CompanyDataScopeDto? DataScope = null,
-    SecurityCompanySummaryDto? Security = null);
+    SecurityCompanySummaryDto? Security = null,
+    AuditCompanySummaryDto? Audit = null);
 
 public record GetCompanyContextQuery : IRequest<ApiResponse<CompanyContextDto>>;
 
@@ -140,7 +141,8 @@ public class GetCompanyContextQueryHandler(
     ITenantModuleService tenantModuleService,
     IPermissionEngine permissionEngine,
     IDataScopeEngine dataScopeEngine,
-    ISecurityEngine securityEngine)
+    ISecurityEngine securityEngine,
+    IAuditEngine auditEngine)
     : IRequestHandler<GetCompanyContextQuery, ApiResponse<CompanyContextDto>>
 {
     public async Task<ApiResponse<CompanyContextDto>> Handle(
@@ -179,6 +181,7 @@ public class GetCompanyContextQueryHandler(
         CompanyDashboardSummaryDto? dashboardSummary = null;
         CompanyDataScopeDto? dataScopeDto = null;
         SecurityCompanySummaryDto? securitySummary = null;
+        AuditCompanySummaryDto? auditSummary = null;
         DateTime? passwordChangedAt = null;
 
         if (currentUser.UserId is int userId)
@@ -258,6 +261,15 @@ public class GetCompanyContextQueryHandler(
                 catch
                 {
                     // Security registry optional until migration applied.
+                }
+
+                try
+                {
+                    auditSummary = await auditEngine.GetSafeSummaryAsync(tenantId, cancellationToken);
+                }
+                catch
+                {
+                    // Audit registry optional until migration applied.
                 }
 
                 try
@@ -360,6 +372,18 @@ public class GetCompanyContextQueryHandler(
                 departmentName = org.DepartmentName;
                 if (!string.IsNullOrWhiteSpace(org.RoleCode))
                     roleCode = org.RoleCode;
+            }
+        }
+
+        if (auditSummary is null)
+        {
+            try
+            {
+                auditSummary = await auditEngine.GetSafeSummaryAsync(tenantId, cancellationToken);
+            }
+            catch
+            {
+                // Audit registry optional.
             }
         }
 
@@ -586,7 +610,8 @@ public class GetCompanyContextQueryHandler(
             Workspace: resolvedWorkspace,
             Dashboard: dashboardSummary,
             DataScope: dataScopeDto,
-            Security: securitySummary);
+            Security: securitySummary,
+            Audit: auditSummary);
 
         return ApiResponse<CompanyContextDto>.SuccessResponse(dto);
     }

@@ -13,12 +13,13 @@ public record LogoutCommand : IRequest<ApiResponse<bool>>;
 /// <summary>
 /// Handles logout token cleanup for the current user.
 /// </summary>
-public class LogoutCommandHandler(IDbConnectionFactory dbFactory, ICurrentUserService currentUser)
+public class LogoutCommandHandler(
+    IDbConnectionFactory dbFactory,
+    ICurrentUserService currentUser,
+    ITenantContext tenantContext,
+    IAuditEngine auditEngine)
     : IRequestHandler<LogoutCommand, ApiResponse<bool>>
 {
-    /// <summary>
-    /// Clears persisted refresh token fields for the current user.
-    /// </summary>
     public async Task<ApiResponse<bool>> Handle(LogoutCommand request, CancellationToken cancellationToken)
     {
         var userId = currentUser.UserId
@@ -31,6 +32,25 @@ public class LogoutCommandHandler(IDbConnectionFactory dbFactory, ICurrentUserSe
                 "UPDATE Users SET RefreshToken = NULL, RefreshTokenExpiryTime = NULL WHERE Id = @UserId",
                 new { UserId = userId },
                 cancellationToken: cancellationToken));
+
+        try
+        {
+            int? tenantId = null;
+            try { tenantId = tenantContext.TenantId; } catch { /* optional */ }
+            await auditEngine.RecordAsync(new AuditEventWrite(
+                EventKey: AuditEventKeys.Logout,
+                EntityType: "User",
+                EntityId: userId,
+                Action: "Logout",
+                Success: true,
+                Message: "Logged out",
+                TenantId: tenantId,
+                UserId: userId), cancellationToken);
+        }
+        catch
+        {
+            // never block logout
+        }
 
         return ApiResponse<bool>.SuccessResponse(true, "Logged out successfully.");
     }

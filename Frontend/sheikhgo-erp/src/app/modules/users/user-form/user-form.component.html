@@ -198,6 +198,19 @@
         </div>
       </mat-card>
 
+      <mat-card class="role-info-card" *ngIf="isEdit && recentActivity.length">
+        <mat-icon>history</mat-icon>
+        <div>
+          <strong>Recent User Activity</strong>
+          <ul class="user-activity-list">
+            <li *ngFor="let e of recentActivity">
+              {{ e.displayName || e.action }}
+              <span class="muted"> · {{ e.createdOn | date:'short' }}</span>
+            </li>
+          </ul>
+        </div>
+      </mat-card>
+
       <div class="form-actions">
         <a routerLink="/users" class="users-header-link users-header-link--ghost">Cancel</a>
         <ui-button variant="primary" type="submit" [loading]="submitting" [disabled]="submitting || form.invalid">

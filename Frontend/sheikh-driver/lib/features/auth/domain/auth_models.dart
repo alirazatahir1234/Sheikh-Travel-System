@@ -398,6 +398,7 @@ class CompanyContext {
     this.dashboard,
     this.dataScope,
     this.security,
+    this.audit,
   });
 
   final int companyId;
@@ -425,6 +426,7 @@ class CompanyContext {
   final CompanyDashboardSummary? dashboard;
   final CompanyDataScope? dataScope;
   final CompanySecuritySummary? security;
+  final CompanyAuditSummary? audit;
 
   String? get jobTitle => currentUser?.jobTitle;
   String? get employeeType => currentUser?.employeeType;
@@ -571,6 +573,16 @@ class CompanyContext {
     return out;
   }
 
+  /// Audit summary chips (Stage 14, read-only — no event list).
+  List<String> get auditDisplayLabels {
+    final a = audit;
+    if (a == null) return const [];
+    final out = <String>[];
+    out.add(a.enabled ? 'Audit on' : 'Audit off');
+    if (a.retentionDays > 0) out.add('Retain ${a.retentionDays}d');
+    return out;
+  }
+
   factory CompanyContext.fromJson(Map<String, dynamic> json) {
     final featuresRaw = json['features'] ?? json['Features'];
     final featureKeys = <String>[];
@@ -696,6 +708,14 @@ class CompanyContext {
           CompanySecuritySummary.fromJson(Map<String, dynamic>.from(secRaw));
     }
 
+    CompanyAuditSummary? audit;
+    final auditRaw = json['audit'] ?? json['Audit'];
+    if (auditRaw is Map<String, dynamic>) {
+      audit = CompanyAuditSummary.fromJson(auditRaw);
+    } else if (auditRaw is Map) {
+      audit = CompanyAuditSummary.fromJson(Map<String, dynamic>.from(auditRaw));
+    }
+
     final parsedFeatureKeys = featureKeys.isNotEmpty
         ? featureKeys
         : FleetSession._parseStringList(
@@ -747,6 +767,7 @@ class CompanyContext {
       dashboard: dashboard,
       dataScope: dataScope,
       security: security,
+      audit: audit,
     );
   }
 
@@ -777,6 +798,37 @@ class CompanyContext {
         if (dashboard != null) 'dashboard': dashboard!.toJson(),
         if (dataScope != null) 'dataScope': dataScope!.toJson(),
         if (security != null) 'security': security!.toJson(),
+        if (audit != null) 'audit': audit!.toJson(),
+      };
+}
+
+/// Safe audit summary from company context (Stage 14, read-only).
+class CompanyAuditSummary {
+  const CompanyAuditSummary({
+    this.enabled = true,
+    this.retentionDays = 90,
+  });
+
+  final bool enabled;
+  final int retentionDays;
+
+  factory CompanyAuditSummary.fromJson(Map<String, dynamic> json) {
+    int? asInt(dynamic v) {
+      if (v is int) return v;
+      if (v == null) return null;
+      return int.tryParse(v.toString());
+    }
+
+    return CompanyAuditSummary(
+      enabled: json['enabled'] as bool? ?? json['Enabled'] as bool? ?? true,
+      retentionDays:
+          asInt(json['retentionDays'] ?? json['RetentionDays']) ?? 90,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'enabled': enabled,
+        'retentionDays': retentionDays,
       };
 }
 

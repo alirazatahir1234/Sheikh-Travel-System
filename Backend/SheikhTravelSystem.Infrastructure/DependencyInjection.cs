@@ -77,6 +77,7 @@ public static class DependencyInjection
         services.AddScoped<IDatabaseSeeder, DatabaseSeeder>();
         services.AddScoped<IDatabaseResetService, DatabaseResetService>();
         services.AddScoped<IAuditService, AuditService>();
+        services.AddScoped<IAuditEngine, AuditEngine>();
         services.AddScoped<INotificationService, NotificationService>();
         services.AddScoped<NotificationRecipientResolver>();
         services.AddScoped<INotificationRetentionService, NotificationRetentionService>();

@@ -4,6 +4,14 @@
     subtitle="Manage company security policies. Soft enforcement applies at login, password change, audit, and ERP idle timeout."
   >
     <button appUiButton variant="ghost" type="button" (click)="back()">Back to Platform</button>
+    <a
+      appUiButton
+      variant="secondary"
+      routerLink="/platform/audit-center"
+      [queryParams]="selectedTenant ? { tenantId: selectedTenant.id, category: 'Security' } : { category: 'Security' }"
+    >
+      View security events
+    </a>
   </ui-page-header>
 
   <div class="filters">

@@ -115,7 +115,7 @@ const analyticsGroup: NavGroup = {
     { id: 'reports', label: 'Reports', icon: 'insights', route: '/reports', moduleKey: 'reports' },
     { id: 'fleet-analytics', label: 'Fleet Analytics', icon: 'analytics', route: '/reports', moduleKey: 'reports' },
     { id: 'driver-performance', label: 'Driver Performance', icon: 'speed', route: '/reports', moduleKey: 'reports' },
-    { id: 'audit-logs', label: 'Audit Logs', icon: 'history', route: '/audit-logs', adminOnly: true, moduleKey: 'audit-logs' },
+    { id: 'audit-logs', label: 'Audit Center', icon: 'history', route: '/platform/audit-center', adminOnly: true, moduleKey: 'audit-logs' },
     { id: 'notifications', label: 'Notification Center', icon: 'notifications', route: '/notifications', moduleKey: 'dashboard' },
     { id: 'ai-center', label: 'AI Management', icon: 'smart_toy', route: '/ai', moduleKey: 'dashboard' },
     { id: 'performance-analytics', label: 'Performance Analytics', icon: 'speed', route: '/reports', moduleKey: 'reports' }
@@ -160,12 +160,12 @@ const platformGroup: NavGroup = {
     { id: 'workspaces', label: 'Workspaces', icon: 'workspaces', route: '/platform/workspace-management', adminOnly: true, moduleKey: 'platform' },
     { id: 'dashboards', label: 'Dashboards', icon: 'dashboard_customize', route: '/platform/dashboard-management', adminOnly: true, moduleKey: 'platform' },
     { id: 'security-center', label: 'Security Center', icon: 'security', route: '/platform/security-center', adminOnly: true, moduleKey: 'platform' },
+    { id: 'audit-logs-platform', label: 'Audit Center', icon: 'history', route: '/platform/audit-center', adminOnly: true, moduleKey: 'audit-logs' },
     { id: 'plans', label: 'Plans', icon: 'subscriptions', route: '/platform/subscription-management', adminOnly: true, moduleKey: 'platform' },
     { id: 'billing', label: 'Billing', icon: 'payments', route: '/platform/subscription-management', queryParams: { tab: 'billing' }, adminOnly: true, moduleKey: 'platform' },
     { id: 'migration-manager', label: 'Migration Manager', icon: 'storage', route: '/platform/migrations', adminOnly: true, moduleKey: 'platform' },
     { id: 'database-reset', label: 'Database Reset', icon: 'build_circle', route: '/platform/maintenance', adminOnly: true, moduleKey: 'platform' },
-    { id: 'settings', label: 'Settings', icon: 'tune', route: '/settings', adminOnly: true, moduleKey: 'platform' },
-    { id: 'audit-logs-platform', label: 'Audit Logs', icon: 'history', route: '/audit-logs', adminOnly: true, moduleKey: 'audit-logs' }
+    { id: 'settings', label: 'Settings', icon: 'tune', route: '/settings', adminOnly: true, moduleKey: 'platform' }
   ]
 };
 

@@ -133,9 +133,8 @@ const routes: Routes = [
       },
       {
         path: 'audit-logs',
-        canActivate: [permissionGuard],
-        data: { permissions: ['Platform.AuditLogs.View'] },
-        loadChildren: () => import('./modules/audit-logs/audit-logs.module').then(m => m.AuditLogsModule)
+        redirectTo: 'platform/audit-center',
+        pathMatch: 'full'
       },
       {
         path: 'notifications',
