@@ -18,7 +18,10 @@ public class AuthController : BaseApiController
     [HttpPost("login")]
     [AllowAnonymous]
     public async Task<IActionResult> Login([FromBody] LoginCommand command)
-        => Ok(await Mediator.Send(command));
+    {
+        var clientIp = HttpContext.Connection.RemoteIpAddress?.ToString();
+        return Ok(await Mediator.Send(command with { ClientIp = clientIp }));
+    }
 
     /// <summary>
     /// Refreshes access token using a valid refresh token.

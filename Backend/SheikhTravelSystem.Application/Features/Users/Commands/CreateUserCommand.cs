@@ -63,6 +63,7 @@ public class CreateUserCommandHandler(
         var isActive = UserLifecycle.IsActiveStatus(status);
         var employeeType = EmployeeTypes.Normalize(dto.EmployeeType);
         var passwordHash = passwordHasher.Hash(dto.Password);
+        var now = DateTime.UtcNow;
 
         try
         {
@@ -71,11 +72,13 @@ public class CreateUserCommandHandler(
                     @"INSERT INTO Users (
                         TenantId, FullName, Email, PasswordHash, Phone, Role, IsActive, CreatedAt, IsDeleted,
                         BranchId, DepartmentId, JobTitle, EmployeeCode, EmployeeType, Status,
-                        DefaultWorkspaceKey, DefaultDashboardKey, HomeRoute, TimeZone, Language, Theme, AvatarUrl)
+                        DefaultWorkspaceKey, DefaultDashboardKey, HomeRoute, TimeZone, Language, Theme, AvatarUrl,
+                        PasswordChangedAt)
                       VALUES (
                         @TenantId, @FullName, @Email, @PasswordHash, @Phone, @Role, @IsActive, @CreatedAt, 0,
                         @BranchId, @DepartmentId, @JobTitle, @EmployeeCode, @EmployeeType, @Status,
-                        @DefaultWorkspaceKey, @DefaultDashboardKey, @HomeRoute, @TimeZone, @Language, @Theme, @AvatarUrl);
+                        @DefaultWorkspaceKey, @DefaultDashboardKey, @HomeRoute, @TimeZone, @Language, @Theme, @AvatarUrl,
+                        @PasswordChangedAt);
                       SELECT SCOPE_IDENTITY();",
                     new
                     {
@@ -86,7 +89,8 @@ public class CreateUserCommandHandler(
                         dto.Phone,
                         Role = (int)dto.Role,
                         IsActive = isActive,
-                        CreatedAt = DateTime.UtcNow,
+                        CreatedAt = now,
+                        PasswordChangedAt = now,
                         dto.BranchId,
                         dto.DepartmentId,
                         dto.JobTitle,

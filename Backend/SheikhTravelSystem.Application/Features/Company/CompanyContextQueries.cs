@@ -105,7 +105,8 @@ public record CompanyContextDto(
     CompanyNavSummaryDto? NavSummary = null,
     ResolvedWorkspaceDto? Workspace = null,
     CompanyDashboardSummaryDto? Dashboard = null,
-    CompanyDataScopeDto? DataScope = null);
+    CompanyDataScopeDto? DataScope = null,
+    SecurityCompanySummaryDto? Security = null);
 
 public record GetCompanyContextQuery : IRequest<ApiResponse<CompanyContextDto>>;
 
@@ -138,7 +139,8 @@ public class GetCompanyContextQueryHandler(
     ICurrentUserService currentUser,
     ITenantModuleService tenantModuleService,
     IPermissionEngine permissionEngine,
-    IDataScopeEngine dataScopeEngine)
+    IDataScopeEngine dataScopeEngine,
+    ISecurityEngine securityEngine)
     : IRequestHandler<GetCompanyContextQuery, ApiResponse<CompanyContextDto>>
 {
     public async Task<ApiResponse<CompanyContextDto>> Handle(
@@ -176,6 +178,8 @@ public class GetCompanyContextQueryHandler(
         ResolvedWorkspaceDto? resolvedWorkspace = null;
         CompanyDashboardSummaryDto? dashboardSummary = null;
         CompanyDataScopeDto? dataScopeDto = null;
+        SecurityCompanySummaryDto? securitySummary = null;
+        DateTime? passwordChangedAt = null;
 
         if (currentUser.UserId is int userId)
         {
@@ -214,6 +218,11 @@ public class GetCompanyContextQueryHandler(
                 if (!string.IsNullOrWhiteSpace(org.RoleCode))
                     roleCode = org.RoleCode;
 
+                passwordChangedAt = await connection.ExecuteScalarAsync<DateTime?>(new CommandDefinition(
+                    "SELECT PasswordChangedAt FROM Users WHERE Id = @UserId",
+                    new { UserId = userId },
+                    cancellationToken: cancellationToken));
+
                 currentUserProfile = new CompanyCurrentUserDto(
                     org.JobTitle,
                     org.EmployeeType,
@@ -239,6 +248,16 @@ public class GetCompanyContextQueryHandler(
                 catch
                 {
                     // Data scope migration optional.
+                }
+
+                try
+                {
+                    securitySummary = await securityEngine.GetSafeSummaryAsync(
+                        tenantId, passwordChangedAt, cancellationToken);
+                }
+                catch
+                {
+                    // Security registry optional until migration applied.
                 }
 
                 try
@@ -566,7 +585,8 @@ public class GetCompanyContextQueryHandler(
             NavSummary: navSummary,
             Workspace: resolvedWorkspace,
             Dashboard: dashboardSummary,
-            DataScope: dataScopeDto);
+            DataScope: dataScopeDto,
+            Security: securitySummary);
 
         return ApiResponse<CompanyContextDto>.SuccessResponse(dto);
     }

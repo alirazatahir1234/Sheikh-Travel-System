@@ -66,9 +66,18 @@ public class ResetUserPasswordCommandHandler(
                   SET PasswordHash = @PasswordHash,
                       RefreshToken = NULL,
                       RefreshTokenExpiryTime = NULL,
+                      PasswordChangedAt = @PasswordChangedAt,
+                      FailedLoginAttempts = 0,
+                      LockoutEndUtc = NULL,
                       UpdatedAt = @UpdatedAt
                   WHERE Id = @Id",
-                new { PasswordHash = passwordHash, UpdatedAt = DateTime.UtcNow, request.Id },
+                new
+                {
+                    PasswordHash = passwordHash,
+                    PasswordChangedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow,
+                    request.Id
+                },
                 cancellationToken: cancellationToken));
 
         var response = new ResetUserPasswordResponse(temporaryPassword);

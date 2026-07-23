@@ -12,14 +12,15 @@ public class SecurityEngine(IDbConnectionFactory dbFactory) : ISecurityEngine
         bool activeOnly = false, CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
-        var where = activeOnly ? "WHERE IsActive = 1 AND Visible = 1" : "";
-        var rows = await connection.QueryAsync<SecurityPolicyDefinitionDto>(new CommandDefinition($"""
+        var sql = """
             SELECT PolicyKey, DisplayName, Category, Description, DefaultValue, ValueType,
                    SortOrder, Visible, IsActive, IsSystem
             FROM SecurityPolicyDefinitions
-            {where}
+            WHERE (@ActiveOnly = 0 OR (IsActive = 1 AND Visible = 1))
             ORDER BY Category, SortOrder, DisplayName
-            """, cancellationToken: cancellationToken));
+            """;
+        var rows = await connection.QueryAsync<SecurityPolicyDefinitionDto>(new CommandDefinition(
+            sql, new { ActiveOnly = activeOnly ? 1 : 0 }, cancellationToken: cancellationToken));
         return rows.ToList();
     }
 
@@ -27,12 +28,12 @@ public class SecurityEngine(IDbConnectionFactory dbFactory) : ISecurityEngine
         int tenantId, CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
-        var rows = await connection.QueryAsync<(
-            string PolicyKey, string DisplayName, string Category, string? Description,
-            string ValueType, string DefaultValue, string? TenantValue,
-            DateTime? UpdatedDate, int? UpdatedBy)>(new CommandDefinition("""
+        var rows = await connection.QueryAsync<SecurityPolicyValueDto>(new CommandDefinition("""
             SELECT d.PolicyKey, d.DisplayName, d.Category, d.Description, d.ValueType, d.DefaultValue,
-                   p.PolicyValue AS TenantValue, p.UpdatedDate, p.UpdatedBy
+                   COALESCE(p.PolicyValue, d.DefaultValue) AS EffectiveValue,
+                   p.PolicyValue AS TenantValue,
+                   p.UpdatedDate, p.UpdatedBy,
+                   CAST(CASE WHEN p.PolicyKey IS NOT NULL THEN 1 ELSE 0 END AS BIT) AS IsOverridden
             FROM SecurityPolicyDefinitions d
             LEFT JOIN TenantSecurityPolicies p
                 ON p.PolicyKey = d.PolicyKey AND p.TenantId = @TenantId
@@ -41,15 +42,7 @@ public class SecurityEngine(IDbConnectionFactory dbFactory) : ISecurityEngine
             """,
             new { TenantId = tenantId },
             cancellationToken: cancellationToken));
-
-        return rows.Select(r =>
-        {
-            var effective = string.IsNullOrWhiteSpace(r.TenantValue) ? r.DefaultValue : r.TenantValue!;
-            return new SecurityPolicyValueDto(
-                r.PolicyKey, r.DisplayName, r.Category, r.Description, r.ValueType,
-                r.DefaultValue, effective, r.TenantValue, r.UpdatedDate, r.UpdatedBy,
-                !string.IsNullOrWhiteSpace(r.TenantValue));
-        }).ToList();
+        return rows.ToList();
     }
 
     public async Task SetCompanyPoliciesAsync(
@@ -61,13 +54,14 @@ public class SecurityEngine(IDbConnectionFactory dbFactory) : ISecurityEngine
         if (values.Count == 0) return;
 
         using var connection = dbFactory.CreateConnection();
-        var validKeys = (await connection.QueryAsync<string>(new CommandDefinition(
+        var known = (await connection.QueryAsync<string>(new CommandDefinition(
             "SELECT PolicyKey FROM SecurityPolicyDefinitions WHERE IsActive = 1",
             cancellationToken: cancellationToken))).ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         foreach (var (key, value) in values)
         {
-            if (!validKeys.Contains(key)) continue;
+            if (!known.Contains(key)) continue;
+            var normalized = value ?? string.Empty;
             await connection.ExecuteAsync(new CommandDefinition("""
                 IF EXISTS (SELECT 1 FROM TenantSecurityPolicies WHERE TenantId = @TenantId AND PolicyKey = @PolicyKey)
                     UPDATE TenantSecurityPolicies
@@ -77,7 +71,13 @@ public class SecurityEngine(IDbConnectionFactory dbFactory) : ISecurityEngine
                     INSERT INTO TenantSecurityPolicies (TenantId, PolicyKey, PolicyValue, UpdatedBy, UpdatedDate)
                     VALUES (@TenantId, @PolicyKey, @PolicyValue, @UpdatedBy, SYSUTCDATETIME());
                 """,
-                new { TenantId = tenantId, PolicyKey = key, PolicyValue = value ?? "", UpdatedBy = updatedBy },
+                new
+                {
+                    TenantId = tenantId,
+                    PolicyKey = key,
+                    PolicyValue = normalized,
+                    UpdatedBy = updatedBy
+                },
                 cancellationToken: cancellationToken));
         }
 
@@ -88,7 +88,10 @@ public class SecurityEngine(IDbConnectionFactory dbFactory) : ISecurityEngine
         int tenantId, CancellationToken cancellationToken = default)
     {
         var policies = await GetCompanyPoliciesAsync(tenantId, cancellationToken);
-        return policies.ToDictionary(p => p.PolicyKey, p => p.EffectiveValue, StringComparer.OrdinalIgnoreCase);
+        return policies.ToDictionary(
+            p => p.PolicyKey,
+            p => p.EffectiveValue ?? p.DefaultValue ?? string.Empty,
+            StringComparer.OrdinalIgnoreCase);
     }
 
     public async Task<SecurityCompanySummaryDto> GetSafeSummaryAsync(
@@ -99,7 +102,7 @@ public class SecurityEngine(IDbConnectionFactory dbFactory) : ISecurityEngine
         var map = await GetEffectiveMapAsync(tenantId, cancellationToken);
         var maxAge = GetInt(map, SecurityPolicyKeys.PasswordMaxAgeDays, 90);
         var idle = GetInt(map, SecurityPolicyKeys.SessionIdleTimeoutMinutes, 30);
-        var absolute = GetInt(map, SecurityPolicyKeys.SessionAbsoluteTimeoutMinutes, 0);
+        var absolute = GetInt(map, SecurityPolicyKeys.SessionAbsoluteTimeoutMinutes, 480);
         var maxAttempts = GetInt(map, SecurityPolicyKeys.LockoutMaxAttempts, 5);
         var auditLevel = GetString(map, SecurityPolicyKeys.AuditLevel, "Always");
         var mfa = GetBool(map, SecurityPolicyKeys.ComplianceMfaRequired, false);
@@ -108,39 +111,43 @@ public class SecurityEngine(IDbConnectionFactory dbFactory) : ISecurityEngine
         var expired = false;
         if (maxAge > 0 && passwordChangedAt.HasValue)
         {
-            var age = (DateTime.UtcNow.Date - passwordChangedAt.Value.Date).TotalDays;
-            daysRemaining = Math.Max(0, maxAge - (int)age);
-            expired = age >= maxAge;
+            var ageDays = (int)(DateTime.UtcNow.Date - passwordChangedAt.Value.Date).TotalDays;
+            daysRemaining = Math.Max(0, maxAge - ageDays);
+            expired = ageDays >= maxAge;
         }
 
         return new SecurityCompanySummaryDto(
-            maxAge > 0 ? maxAge : null,
-            idle > 0 ? idle : null,
-            absolute > 0 ? absolute : null,
-            auditLevel,
-            maxAttempts > 0,
-            mfa,
-            expired,
-            daysRemaining);
+            PasswordExpiryDays: maxAge > 0 ? maxAge : null,
+            IdleTimeoutMinutes: idle > 0 ? idle : null,
+            AbsoluteTimeoutMinutes: absolute > 0 ? absolute : null,
+            AuditLevel: auditLevel,
+            LockoutEnabled: maxAttempts > 0,
+            MfaRequired: mfa,
+            PasswordExpired: expired,
+            PasswordDaysRemaining: daysRemaining);
     }
 
     public int GetInt(IReadOnlyDictionary<string, string> map, string key, int fallback)
     {
-        if (map.TryGetValue(key, out var raw) && int.TryParse(raw, out var n)) return n;
-        return fallback;
+        if (!map.TryGetValue(key, out var raw) || string.IsNullOrWhiteSpace(raw)) return fallback;
+        return int.TryParse(raw.Trim(), out var n) ? n : fallback;
     }
 
     public bool GetBool(IReadOnlyDictionary<string, string> map, string key, bool fallback)
     {
         if (!map.TryGetValue(key, out var raw) || string.IsNullOrWhiteSpace(raw)) return fallback;
+        raw = raw.Trim();
         if (bool.TryParse(raw, out var b)) return b;
-        if (raw is "1" or "yes" or "Yes" or "YES") return true;
-        if (raw is "0" or "no" or "No" or "NO") return false;
+        if (raw is "1" or "yes" or "on") return true;
+        if (raw is "0" or "no" or "off") return false;
         return fallback;
     }
 
     public string GetString(IReadOnlyDictionary<string, string> map, string key, string fallback)
-        => map.TryGetValue(key, out var raw) && !string.IsNullOrWhiteSpace(raw) ? raw.Trim() : fallback;
+    {
+        if (!map.TryGetValue(key, out var raw) || string.IsNullOrWhiteSpace(raw)) return fallback;
+        return raw.Trim();
+    }
 
     public bool IsPasswordExpired(DateTime? passwordChangedAt, int maxAgeDays)
     {
@@ -152,9 +159,8 @@ public class SecurityEngine(IDbConnectionFactory dbFactory) : ISecurityEngine
     {
         if (!restrictEnabled) return true;
         if (string.IsNullOrWhiteSpace(allowedCidrs)) return true;
-        if (string.IsNullOrWhiteSpace(clientIp)) return true; // soft: missing IP does not hard-block
-
-        if (!IPAddress.TryParse(clientIp, out var ip)) return true;
+        if (string.IsNullOrWhiteSpace(clientIp)) return true; // soft: missing IP does not hard-fail
+        if (!IPAddress.TryParse(clientIp.Trim(), out var ip)) return true;
 
         foreach (var line in allowedCidrs.Split(['\r', '\n', ',', ';'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
         {
@@ -166,11 +172,12 @@ public class SecurityEngine(IDbConnectionFactory dbFactory) : ISecurityEngine
 
     public bool ShouldWriteAudit(string auditLevel, bool isError = false, bool isCritical = false)
     {
-        return (auditLevel ?? "Always").Trim() switch
+        var level = (auditLevel ?? "Always").Trim();
+        return level.ToLowerInvariant() switch
         {
-            "Disabled" => false,
-            "Critical" => isCritical,
-            "Errors" => isError || isCritical,
+            "disabled" => false,
+            "critical" => isCritical,
+            "errors" => isError || isCritical,
             _ => true // Always
         };
     }
@@ -178,34 +185,27 @@ public class SecurityEngine(IDbConnectionFactory dbFactory) : ISecurityEngine
     private static async Task DualWriteLegacyAsync(
         System.Data.IDbConnection connection, int tenantId, CancellationToken cancellationToken)
     {
-        var map = (await connection.QueryAsync<(string PolicyKey, string EffectiveValue)>(new CommandDefinition("""
-            SELECT d.PolicyKey,
-                   COALESCE(NULLIF(LTRIM(RTRIM(p.PolicyValue)), ''), d.DefaultValue) AS EffectiveValue
+        var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var rows = await connection.QueryAsync<(string PolicyKey, string EffectiveValue)>(new CommandDefinition("""
+            SELECT d.PolicyKey, COALESCE(p.PolicyValue, d.DefaultValue) AS EffectiveValue
             FROM SecurityPolicyDefinitions d
             LEFT JOIN TenantSecurityPolicies p ON p.PolicyKey = d.PolicyKey AND p.TenantId = @TenantId
-            WHERE d.PolicyKey IN (
-                @MaxAge, @Idle, @Gdpr, @Mfa, @Vat, @Audit)
-            """,
-            new
-            {
-                TenantId = tenantId,
-                MaxAge = SecurityPolicyKeys.PasswordMaxAgeDays,
-                Idle = SecurityPolicyKeys.SessionIdleTimeoutMinutes,
-                Gdpr = SecurityPolicyKeys.ComplianceGdprLogging,
-                Mfa = SecurityPolicyKeys.ComplianceMfaRequired,
-                Vat = SecurityPolicyKeys.ComplianceVatEnabled,
-                Audit = SecurityPolicyKeys.AuditLevel
-            },
-            cancellationToken: cancellationToken)))
-            .ToDictionary(x => x.PolicyKey, x => x.EffectiveValue, StringComparer.OrdinalIgnoreCase);
+            WHERE d.IsActive = 1
+            """, new { TenantId = tenantId }, cancellationToken: cancellationToken));
+        foreach (var row in rows) map[row.PolicyKey] = row.EffectiveValue;
 
         static bool AsBool(string? v) =>
-            bool.TryParse(v, out var b) ? b : v is "1" or "true" or "True";
-
+            string.Equals(v, "true", StringComparison.OrdinalIgnoreCase) || v == "1";
         static int? AsInt(string? v) => int.TryParse(v, out var n) ? n : null;
 
-        var auditLevel = map.GetValueOrDefault(SecurityPolicyKeys.AuditLevel, "Always");
-        var auditEnabled = !string.Equals(auditLevel, "Disabled", StringComparison.OrdinalIgnoreCase);
+        map.TryGetValue(SecurityPolicyKeys.ComplianceMfaRequired, out var mfa);
+        map.TryGetValue(SecurityPolicyKeys.PasswordMaxAgeDays, out var age);
+        map.TryGetValue(SecurityPolicyKeys.SessionIdleTimeoutMinutes, out var idle);
+        map.TryGetValue(SecurityPolicyKeys.ComplianceGdprLogging, out var gdpr);
+        map.TryGetValue(SecurityPolicyKeys.AuditLevel, out var audit);
+        map.TryGetValue(SecurityPolicyKeys.ComplianceVatEnabled, out var vat);
+
+        var auditEnabled = !string.Equals(audit, "Disabled", StringComparison.OrdinalIgnoreCase);
 
         await connection.ExecuteAsync(new CommandDefinition("""
             IF EXISTS (SELECT 1 FROM TenantSecuritySettings WHERE TenantId = @TenantId)
@@ -226,25 +226,25 @@ public class SecurityEngine(IDbConnectionFactory dbFactory) : ISecurityEngine
             new
             {
                 TenantId = tenantId,
-                IsMfaRequired = AsBool(map.GetValueOrDefault(SecurityPolicyKeys.ComplianceMfaRequired)),
-                PasswordExpiryDays = AsInt(map.GetValueOrDefault(SecurityPolicyKeys.PasswordMaxAgeDays)) ?? 90,
-                SessionTimeoutMinutes = AsInt(map.GetValueOrDefault(SecurityPolicyKeys.SessionIdleTimeoutMinutes)) ?? 30,
-                IsGdprEnabled = AsBool(map.GetValueOrDefault(SecurityPolicyKeys.ComplianceGdprLogging, "true")),
+                IsMfaRequired = AsBool(mfa),
+                PasswordExpiryDays = AsInt(age) ?? 90,
+                SessionTimeoutMinutes = AsInt(idle) ?? 30,
+                IsGdprEnabled = AsBool(gdpr),
                 IsAuditLoggingEnabled = auditEnabled,
-                IsVatEnabled = AsBool(map.GetValueOrDefault(SecurityPolicyKeys.ComplianceVatEnabled))
+                IsVatEnabled = AsBool(vat)
             },
             cancellationToken: cancellationToken));
     }
 
     private static bool CidrContains(string cidrOrIp, IPAddress address)
     {
-        if (IPAddress.TryParse(cidrOrIp, out var single))
-            return single.Equals(address);
+        if (string.IsNullOrWhiteSpace(cidrOrIp)) return false;
+        if (!cidrOrIp.Contains('/'))
+            return IPAddress.TryParse(cidrOrIp, out var single) && single.Equals(address);
 
-        var parts = cidrOrIp.Split('/', 2, StringSplitOptions.TrimEntries);
+        var parts = cidrOrIp.Split('/', 2);
         if (parts.Length != 2 || !IPAddress.TryParse(parts[0], out var network) || !int.TryParse(parts[1], out var prefix))
             return false;
-
         if (network.AddressFamily != address.AddressFamily) return false;
 
         var networkBytes = network.GetAddressBytes();
@@ -254,10 +254,7 @@ public class SecurityEngine(IDbConnectionFactory dbFactory) : ISecurityEngine
         var fullBytes = prefix / 8;
         var remBits = prefix % 8;
         for (var i = 0; i < fullBytes; i++)
-        {
             if (networkBytes[i] != addressBytes[i]) return false;
-        }
-
         if (remBits == 0) return true;
         var mask = (byte)(0xFF << (8 - remBits));
         return (networkBytes[fullBytes] & mask) == (addressBytes[fullBytes] & mask);

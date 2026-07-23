@@ -1470,31 +1470,58 @@ public class GetTenantSecuritySettingsQueryHandler(IDbConnectionFactory dbFactor
     }
 }
 
-public class UpdateTenantSecuritySettingsCommandHandler(IDbConnectionFactory dbFactory, IPlatformScope platformScope)
+public class UpdateTenantSecuritySettingsCommandHandler(
+    IDbConnectionFactory dbFactory,
+    IPlatformScope platformScope,
+    ISecurityEngine securityEngine,
+    ICurrentUserService currentUser)
     : IRequestHandler<UpdateTenantSecuritySettingsCommand, ApiResponse<bool>>
 {
     public async Task<ApiResponse<bool>> Handle(
         UpdateTenantSecuritySettingsCommand request, CancellationToken cancellationToken)
     {
         platformScope.EnsureTenantAccess(request.TenantId);
-        using var connection = dbFactory.CreateConnection();
         var p = request.Payload;
 
+        var values = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            [SecurityPolicyKeys.ComplianceMfaRequired] = p.IsMfaRequired ? "true" : "false",
+            [SecurityPolicyKeys.PasswordMaxAgeDays] = (p.PasswordExpiryDays ?? 90).ToString(),
+            [SecurityPolicyKeys.SessionIdleTimeoutMinutes] = (p.SessionTimeoutMinutes ?? 30).ToString(),
+            [SecurityPolicyKeys.ComplianceGdprLogging] = p.IsGdprEnabled ? "true" : "false",
+            [SecurityPolicyKeys.AuditLevel] = p.IsAuditLoggingEnabled ? "Always" : "Disabled",
+            [SecurityPolicyKeys.ComplianceVatEnabled] = p.IsVatEnabled ? "true" : "false"
+        };
+
+        try
+        {
+            await securityEngine.SetCompanyPoliciesAsync(
+                request.TenantId, values, currentUser.UserId, cancellationToken);
+        }
+        catch
+        {
+            // Security registry may not be migrated yet — legacy write below still applies.
+        }
+
+        using var connection = dbFactory.CreateConnection();
         await connection.ExecuteAsync(new CommandDefinition("""
-            IF EXISTS (SELECT 1 FROM TenantSecuritySettings WHERE TenantId = @TenantId)
-                UPDATE TenantSecuritySettings SET
-                    IsMfaRequired = @IsMfaRequired,
-                    PasswordExpiryDays = @PasswordExpiryDays,
-                    SessionTimeoutMinutes = @SessionTimeoutMinutes,
-                    IsGdprEnabled = @IsGdprEnabled,
-                    IsAuditLoggingEnabled = @IsAuditLoggingEnabled,
-                    IsVatEnabled = @IsVatEnabled
-                WHERE TenantId = @TenantId;
-            ELSE
-                INSERT INTO TenantSecuritySettings (TenantId, IsMfaRequired, PasswordExpiryDays, SessionTimeoutMinutes,
-                    IsGdprEnabled, IsAuditLoggingEnabled, IsVatEnabled)
-                VALUES (@TenantId, @IsMfaRequired, @PasswordExpiryDays, @SessionTimeoutMinutes,
-                    @IsGdprEnabled, @IsAuditLoggingEnabled, @IsVatEnabled);
+            IF EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'TenantSecuritySettings')
+            BEGIN
+                IF EXISTS (SELECT 1 FROM TenantSecuritySettings WHERE TenantId = @TenantId)
+                    UPDATE TenantSecuritySettings SET
+                        IsMfaRequired = @IsMfaRequired,
+                        PasswordExpiryDays = @PasswordExpiryDays,
+                        SessionTimeoutMinutes = @SessionTimeoutMinutes,
+                        IsGdprEnabled = @IsGdprEnabled,
+                        IsAuditLoggingEnabled = @IsAuditLoggingEnabled,
+                        IsVatEnabled = @IsVatEnabled
+                    WHERE TenantId = @TenantId;
+                ELSE
+                    INSERT INTO TenantSecuritySettings (TenantId, IsMfaRequired, PasswordExpiryDays, SessionTimeoutMinutes,
+                        IsGdprEnabled, IsAuditLoggingEnabled, IsVatEnabled)
+                    VALUES (@TenantId, @IsMfaRequired, @PasswordExpiryDays, @SessionTimeoutMinutes,
+                        @IsGdprEnabled, @IsAuditLoggingEnabled, @IsVatEnabled);
+            END
             """, new
         {
             request.TenantId,

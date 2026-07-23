@@ -210,6 +210,36 @@ public record SetCompanyWorkspacesRequest(int TenantId, IReadOnlyList<string>? E
 
 [Authorize]
 [ApiController]
+[Route("api/platform/security")]
+public class PlatformSecurityController : BaseApiController
+{
+    [HttpGet]
+    [RequirePermission(PlatformPermissions.SecurityView)]
+    public async Task<IActionResult> GetCompanyPolicies([FromQuery] int? tenantId = null)
+        => Ok(await Mediator.Send(new GetSecurityCompanyPoliciesQuery(tenantId)));
+
+    [HttpGet("catalog")]
+    [RequirePermission(PlatformPermissions.SecurityView)]
+    public async Task<IActionResult> GetCatalog([FromQuery] bool activeOnly = false)
+        => Ok(await Mediator.Send(new GetSecurityCatalogQuery(activeOnly)));
+
+    [HttpGet("company")]
+    [RequirePermission(PlatformPermissions.SecurityView)]
+    public async Task<IActionResult> GetCompany([FromQuery] int? tenantId = null)
+        => Ok(await Mediator.Send(new GetSecurityCompanyPoliciesQuery(tenantId)));
+
+    [HttpPut("company")]
+    [RequirePermission(PlatformPermissions.SecurityManage)]
+    public async Task<IActionResult> UpdateCompany([FromBody] UpdateSecurityCompanyPoliciesPayload payload)
+        => Ok(await Mediator.Send(new UpdateSecurityCompanyPoliciesCommand(payload)));
+
+    [HttpGet("me")]
+    public async Task<IActionResult> GetMine()
+        => Ok(await Mediator.Send(new GetMySecuritySummaryQuery()));
+}
+
+[Authorize]
+[ApiController]
 [Route("api/platform/dashboards")]
 public class PlatformDashboardsController : BaseApiController
 {

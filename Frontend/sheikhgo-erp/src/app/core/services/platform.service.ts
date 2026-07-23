@@ -43,7 +43,11 @@ import {
   ResolvedDashboard,
   UpdateDashboardDefinitionPayload,
   UpdateDashboardLayoutPayload,
-  CompanyDataScope
+  CompanyDataScope,
+  SecurityPolicyValue,
+  SecurityPolicyDefinition,
+  UpdateSecurityCompanyPoliciesPayload,
+  SecurityCompanySummary
 } from '../models/platform.model';
 
 @Injectable({ providedIn: 'root' })
@@ -408,5 +412,25 @@ export class PlatformService {
       `${this.base}/dashboards/${encodeURIComponent(key)}/layout`,
       payload
     );
+  }
+
+  getSecurityCompanyPolicies(tenantId?: number | null): Observable<SecurityPolicyValue[]> {
+    const params: Record<string, string | number | boolean> = {};
+    if (tenantId != null) params['tenantId'] = tenantId;
+    return this.http.get<SecurityPolicyValue[]>(`${this.base}/security/company`, { params });
+  }
+
+  getSecurityCatalog(activeOnly = false): Observable<SecurityPolicyDefinition[]> {
+    return this.http.get<SecurityPolicyDefinition[]>(`${this.base}/security/catalog`, {
+      params: { activeOnly }
+    });
+  }
+
+  updateSecurityCompanyPolicies(payload: UpdateSecurityCompanyPoliciesPayload): Observable<boolean> {
+    return this.http.put<boolean>(`${this.base}/security/company`, payload);
+  }
+
+  getMySecuritySummary(): Observable<SecurityCompanySummary> {
+    return this.http.get<SecurityCompanySummary>(`${this.base}/security/me`);
   }
 }

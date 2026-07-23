@@ -68,6 +68,7 @@ public static class DependencyInjection
         services.AddScoped<IUserAccessService, UserAccessService>();
         services.AddScoped<IPermissionEngine, PermissionEngine>();
         services.AddScoped<IDataScopeEngine, DataScopeEngine>();
+        services.AddScoped<ISecurityEngine, SecurityEngine>();
         services.AddScoped<ITenantModuleService, TenantModuleService>();
         services.AddScoped<ITenantRoleSeedService, TenantRoleSeedService>();
         services.AddScoped<ITenantProvisioningService, TenantProvisioningService>();

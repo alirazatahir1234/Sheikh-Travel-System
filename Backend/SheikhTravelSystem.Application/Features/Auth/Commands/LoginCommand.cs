@@ -3,7 +3,8 @@ using SheikhTravelSystem.Application.Common;
 
 namespace SheikhTravelSystem.Application.Features.Auth.Commands;
 
-public record LoginCommand(string Email, string Password) : IRequest<ApiResponse<LoginResponse>>;
+public record LoginCommand(string Email, string Password, string? ClientIp = null)
+    : IRequest<ApiResponse<LoginResponse>>;
 
 public record LoginResponse(
     string AccessToken,

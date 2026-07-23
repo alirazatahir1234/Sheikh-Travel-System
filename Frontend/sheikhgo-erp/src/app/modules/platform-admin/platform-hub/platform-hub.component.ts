@@ -95,6 +95,13 @@ export class PlatformHubComponent {
           route: '/platform/access-control',
           queryParams: { tab: 'roles' },
           permissions: ['Platform.Roles.View']
+        },
+        {
+          label: 'Security Center',
+          description: 'Company security policy registry.',
+          icon: 'policy',
+          route: '/platform/security-center',
+          permissions: ['Platform.Security.View', 'Platform.Security.Manage']
         }
       ]
     },
@@ -137,6 +144,13 @@ export class PlatformHubComponent {
           icon: 'dashboard_customize',
           route: '/platform/dashboard-management',
           permissions: ['Platform.Dashboards.View', 'Platform.Dashboards.Manage']
+        },
+        {
+          label: 'Security Center',
+          description: 'Password, session, lockout, IP, and compliance policies.',
+          icon: 'security',
+          route: '/platform/security-center',
+          permissions: ['Platform.Security.View', 'Platform.Security.Manage']
         },
         {
           label: 'Subscriptions',

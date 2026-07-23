@@ -89,6 +89,7 @@ public static class DatabaseMigrationRegistry
             M("WorkspaceBuilderFoundationMigration", WorkspaceBuilderFoundationMigration.ApplyAsync),
             M("DashboardBuilderFoundationMigration", DashboardBuilderFoundationMigration.ApplyAsync),
             M("DataScopeFoundationMigration", DataScopeFoundationMigration.ApplyAsync),
+            M("SecurityCenterFoundationMigration", SecurityCenterFoundationMigration.ApplyAsync),
         ];
     }
 }

@@ -835,6 +835,51 @@ export interface TenantSecuritySettings {
   isVatEnabled: boolean;
 }
 
+/** Stage 13 Security Center — effective policy row for a company. */
+export interface SecurityPolicyValue {
+  policyKey: string;
+  displayName: string;
+  category: string;
+  description?: string | null;
+  valueType: string;
+  defaultValue: string;
+  effectiveValue: string;
+  tenantValue?: string | null;
+  updatedDate?: string | null;
+  updatedBy?: number | null;
+  isOverridden: boolean;
+}
+
+export interface SecurityPolicyDefinition {
+  policyKey: string;
+  displayName: string;
+  category: string;
+  description?: string | null;
+  defaultValue: string;
+  valueType: string;
+  sortOrder: number;
+  visible: boolean;
+  isActive: boolean;
+  isSystem: boolean;
+}
+
+export interface UpdateSecurityCompanyPoliciesPayload {
+  tenantId?: number | null;
+  values: Record<string, string>;
+}
+
+/** Safe session summary — no IP lists or complexity rules. */
+export interface SecurityCompanySummary {
+  passwordExpiryDays?: number | null;
+  idleTimeoutMinutes?: number | null;
+  absoluteTimeoutMinutes?: number | null;
+  auditLevel: string;
+  lockoutEnabled: boolean;
+  mfaRequired: boolean;
+  passwordExpired?: boolean;
+  passwordDaysRemaining?: number | null;
+}
+
 export interface RoleTemplate {
   code: string;
   name: string;
