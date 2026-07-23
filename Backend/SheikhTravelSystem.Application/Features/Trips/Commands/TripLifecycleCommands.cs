@@ -1,6 +1,7 @@
 using Dapper;
 using FluentValidation;
 using MediatR;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Exceptions;
@@ -34,7 +35,7 @@ public class UpdateTripStatusCommandHandler(
     IDbConnectionFactory dbFactory,
     ITenantContext tenantContext,
     ICurrentUserService currentUser,
-    INotificationDecisionEngine decisionEngine,
+    IServiceScopeFactory scopeFactory,
     ILogger<UpdateTripStatusCommandHandler> logger)
     : IRequestHandler<UpdateTripStatusCommand, ApiResponse<bool>>
 {
@@ -119,76 +120,10 @@ public class UpdateTripStatusCommandHandler(
             tx.Commit();
             logger.LogInformation("Trip {TripId} status {From} → {To}", request.Id, current, request.Status);
 
-            if (request.Status == TripStatus.Started)
-            {
-                await decisionEngine.DispatchIfAllowedAsync(new NotificationDecisionRequest(
-                    "trip_started",
-                    $"Trip Started: {tripNumber}",
-                    $"Trip {tripNumber} has started.",
-                    NotificationType.TripStarted,
-                    ReferenceId: request.Id,
-                    SuggestedPriority: 2,
-                    RequestedChannels:
-                    [
-                        NotificationChannels.InApp, NotificationChannels.Browser, NotificationChannels.Email
-                    ]), cancellationToken);
-            }
-            else if (request.Status == TripStatus.Completed)
-            {
-                await decisionEngine.DispatchIfAllowedAsync(new NotificationDecisionRequest(
-                    "trip_completed",
-                    $"Trip Completed: {tripNumber}",
-                    $"Trip {tripNumber} has been completed.",
-                    NotificationType.TripCompleted,
-                    ReferenceId: request.Id,
-                    SuggestedPriority: 2,
-                    RequestedChannels:
-                    [
-                        NotificationChannels.InApp, NotificationChannels.Browser, NotificationChannels.Email
-                    ]), cancellationToken);
-            }
-            else if (request.Status == TripStatus.Delayed)
-            {
-                await decisionEngine.DispatchIfAllowedAsync(new NotificationDecisionRequest(
-                    "trip_delayed",
-                    $"Trip Delayed: {tripNumber}",
-                    $"Trip {tripNumber} is marked delayed." + (string.IsNullOrWhiteSpace(request.Note) ? "" : $" Note: {request.Note}"),
-                    NotificationType.TripDelayed,
-                    ReferenceId: request.Id,
-                    SuggestedPriority: 3,
-                    RequestedChannels:
-                    [
-                        NotificationChannels.InApp, NotificationChannels.Browser, NotificationChannels.Email
-                    ]), cancellationToken);
-            }
-            else if (request.Status == TripStatus.Cancelled)
-            {
-                await decisionEngine.DispatchIfAllowedAsync(new NotificationDecisionRequest(
-                    "trip_cancelled",
-                    $"Trip Cancelled: {tripNumber}",
-                    $"Trip {tripNumber} was cancelled." + (string.IsNullOrWhiteSpace(request.CancellationReason) ? "" : $" Reason: {request.CancellationReason}"),
-                    NotificationType.TripCancelled,
-                    ReferenceId: request.Id,
-                    SuggestedPriority: 3,
-                    RequestedChannels:
-                    [
-                        NotificationChannels.InApp, NotificationChannels.Browser, NotificationChannels.Email
-                    ]), cancellationToken);
-            }
-            else if (request.Status == TripStatus.AtPickup)
-            {
-                await decisionEngine.DispatchIfAllowedAsync(new NotificationDecisionRequest(
-                    "trip_driver_arriving",
-                    $"Driver Arriving: {tripNumber}",
-                    $"Driver has arrived at pickup for trip {tripNumber}.",
-                    NotificationType.TripDriverArriving,
-                    ReferenceId: request.Id,
-                    SuggestedPriority: 2,
-                    RequestedChannels:
-                    [
-                        NotificationChannels.InApp, NotificationChannels.Browser, NotificationChannels.Email
-                    ]), cancellationToken);
-            }
+            // Notify after commit on a background scope so Accept/Arrived/Complete
+            // stay under the driver-app 20s timeout while Email/Browser still fire.
+            QueueTripStatusNotifications(
+                tenantId, request.Id, tripNumber, request.Status, request.Note, request.CancellationReason);
 
             return ApiResponse<bool>.SuccessResponse(true, $"Trip status updated to {request.Status}.");
         }
@@ -197,6 +132,97 @@ public class UpdateTripStatusCommandHandler(
             tx.Rollback();
             throw;
         }
+    }
+
+    private void QueueTripStatusNotifications(
+        int tenantId,
+        int tripId,
+        string? tripNumber,
+        TripStatus status,
+        string? note,
+        string? cancellationReason)
+    {
+        NotificationDecisionRequest? payload = status switch
+        {
+            TripStatus.Started => new(
+                "trip_started",
+                $"Trip Started: {tripNumber}",
+                $"Trip {tripNumber} has started.",
+                NotificationType.TripStarted,
+                ReferenceId: tripId,
+                TenantId: tenantId,
+                SuggestedPriority: 2,
+                RequestedChannels:
+                [
+                    NotificationChannels.InApp, NotificationChannels.Browser, NotificationChannels.Email
+                ]),
+            TripStatus.Completed => new(
+                "trip_completed",
+                $"Trip Completed: {tripNumber}",
+                $"Trip {tripNumber} has been completed.",
+                NotificationType.TripCompleted,
+                ReferenceId: tripId,
+                TenantId: tenantId,
+                SuggestedPriority: 2,
+                RequestedChannels:
+                [
+                    NotificationChannels.InApp, NotificationChannels.Browser, NotificationChannels.Email
+                ]),
+            TripStatus.Delayed => new(
+                "trip_delayed",
+                $"Trip Delayed: {tripNumber}",
+                $"Trip {tripNumber} is marked delayed." + (string.IsNullOrWhiteSpace(note) ? "" : $" Note: {note}"),
+                NotificationType.TripDelayed,
+                ReferenceId: tripId,
+                TenantId: tenantId,
+                SuggestedPriority: 3,
+                RequestedChannels:
+                [
+                    NotificationChannels.InApp, NotificationChannels.Browser, NotificationChannels.Email
+                ]),
+            TripStatus.Cancelled => new(
+                "trip_cancelled",
+                $"Trip Cancelled: {tripNumber}",
+                $"Trip {tripNumber} was cancelled." + (string.IsNullOrWhiteSpace(cancellationReason) ? "" : $" Reason: {cancellationReason}"),
+                NotificationType.TripCancelled,
+                ReferenceId: tripId,
+                TenantId: tenantId,
+                SuggestedPriority: 3,
+                RequestedChannels:
+                [
+                    NotificationChannels.InApp, NotificationChannels.Browser, NotificationChannels.Email
+                ]),
+            TripStatus.AtPickup => new(
+                "trip_driver_arriving",
+                $"Driver Arriving: {tripNumber}",
+                $"Driver has arrived at pickup for trip {tripNumber}.",
+                NotificationType.TripDriverArriving,
+                ReferenceId: tripId,
+                TenantId: tenantId,
+                SuggestedPriority: 2,
+                RequestedChannels:
+                [
+                    NotificationChannels.InApp, NotificationChannels.Browser, NotificationChannels.Email
+                ]),
+            _ => null
+        };
+
+        if (payload is null) return;
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await using var scope = scopeFactory.CreateAsyncScope();
+                scope.ServiceProvider.GetRequiredService<ITenantContext>().SetTenant(tenantId);
+                var engine = scope.ServiceProvider.GetRequiredService<INotificationDecisionEngine>();
+                await engine.DispatchIfAllowedAsync(payload, CancellationToken.None);
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Background trip notification failed for trip {TripId} status {Status}", tripId, status);
+            }
+        });
     }
 
     private sealed class TripStatusRow

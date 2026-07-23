@@ -2,14 +2,39 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api/api_endpoints.dart';
 import '../../../core/api/dio_client.dart';
+import '../../auth/data/auth_repository.dart';
 import '../domain/notification_models.dart';
 
-final notificationsApiProvider =
-    Provider<NotificationsApi>((ref) => NotificationsApi(ref.read(dioProvider)));
+final notificationsApiProvider = Provider<NotificationsApi>((ref) {
+  return NotificationsApi(
+    ref.read(dioProvider),
+    () => ref.read(fleetSessionProvider)?.isDriverOnly ?? true,
+  );
+});
 
 class NotificationsApi {
-  NotificationsApi(this._dio);
+  NotificationsApi(this._dio, this._isDriverOnly);
   final Dio _dio;
+  final bool Function() _isDriverOnly;
+
+  bool get _driver => _isDriverOnly();
+
+  String get _listPath =>
+      _driver ? ApiEndpoints.notifications : ApiEndpoints.staffNotifications;
+  String get _unreadPath => _driver
+      ? ApiEndpoints.notificationsUnreadCount
+      : ApiEndpoints.staffNotificationsUnreadCount;
+  String get _readPath =>
+      _driver ? ApiEndpoints.notificationsRead : ApiEndpoints.staffNotificationsRead;
+  String get _archivePath => _driver
+      ? ApiEndpoints.notificationsArchive
+      : ApiEndpoints.staffNotificationsArchive;
+  String get _restorePath => _driver
+      ? ApiEndpoints.notificationsRestore
+      : ApiEndpoints.staffNotificationsRestore;
+  String _byId(int id) => _driver
+      ? ApiEndpoints.notificationById(id)
+      : ApiEndpoints.staffNotificationById(id);
 
   Future<List<AppNotification>> list({
     bool archived = false,
@@ -18,7 +43,7 @@ class NotificationsApi {
     int page = 1,
   }) async {
     final res = await _dio.get<Map<String, dynamic>>(
-      ApiEndpoints.notifications,
+      _listPath,
       queryParameters: {
         'page': page,
         'pageSize': 50,
@@ -40,9 +65,7 @@ class NotificationsApi {
   }
 
   Future<int> unreadCount() async {
-    final res = await _dio.get<Map<String, dynamic>>(
-      ApiEndpoints.notificationsUnreadCount,
-    );
+    final res = await _dio.get<Map<String, dynamic>>(_unreadPath);
     final data = res.data?['data'];
     if (data is int) return data;
     if (data is num) return data.toInt();
@@ -50,18 +73,18 @@ class NotificationsApi {
   }
 
   Future<void> markRead(List<int>? ids) async {
-    await _dio.put(ApiEndpoints.notificationsRead, data: ids);
+    await _dio.put(_readPath, data: ids);
   }
 
   Future<void> archive(List<int> ids) async {
-    await _dio.post(ApiEndpoints.notificationsArchive, data: {'ids': ids});
+    await _dio.post(_archivePath, data: {'ids': ids});
   }
 
   Future<void> restore(List<int> ids) async {
-    await _dio.post(ApiEndpoints.notificationsRestore, data: {'ids': ids});
+    await _dio.post(_restorePath, data: {'ids': ids});
   }
 
   Future<void> delete(int id) async {
-    await _dio.delete(ApiEndpoints.notificationById(id));
+    await _dio.delete(_byId(id));
   }
 }

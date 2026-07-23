@@ -158,6 +158,7 @@ const platformGroup: NavGroup = {
     { id: 'plans', label: 'Plans', icon: 'subscriptions', route: '/platform/subscription-management', adminOnly: true, moduleKey: 'platform' },
     { id: 'billing', label: 'Billing', icon: 'payments', route: '/platform/subscription-management', queryParams: { tab: 'billing' }, adminOnly: true, moduleKey: 'platform' },
     { id: 'migration-manager', label: 'Migration Manager', icon: 'storage', route: '/platform/migrations', adminOnly: true, moduleKey: 'platform' },
+    { id: 'maintenance', label: 'Maintenance', icon: 'build_circle', route: '/platform/maintenance', adminOnly: true, moduleKey: 'platform' },
     { id: 'settings', label: 'Settings', icon: 'tune', route: '/settings', adminOnly: true, moduleKey: 'platform' },
     { id: 'audit-logs-platform', label: 'Audit Logs', icon: 'history', route: '/audit-logs', adminOnly: true, moduleKey: 'audit-logs' }
   ]

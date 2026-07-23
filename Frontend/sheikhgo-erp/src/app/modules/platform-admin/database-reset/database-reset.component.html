@@ -1,0 +1,67 @@
+<div class="page-container database-reset-page">
+  <ui-page-header
+    title="Maintenance"
+    subtitle="Development tools for resetting the database during testing."
+    icon="build_circle"
+    [breadcrumbs]="breadcrumbs">
+  </ui-page-header>
+
+  <div class="loading" *ngIf="loading">
+    <mat-spinner diameter="36"></mat-spinner>
+  </div>
+
+  <ng-container *ngIf="!loading">
+    <section class="dev-tools-card" *ngIf="available; else unavailable">
+      <div class="card-header">
+        <mat-icon>warning_amber</mat-icon>
+        <div>
+          <h3>Development Tools</h3>
+          <p>Environment: <strong>{{ environmentName }}</strong></p>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="reset-section">
+        <div>
+          <h4>Reset Database</h4>
+          <p>
+            This will permanently delete all operational data from every company,
+            restore the default tenant, recreate the system administrator, and reseed demo data.
+          </p>
+        </div>
+        <button
+          mat-flat-button
+          color="warn"
+          type="button"
+          (click)="openResetDialog()"
+          [disabled]="resetting">
+          <mat-icon>delete_forever</mat-icon>
+          Reset Database
+        </button>
+      </div>
+    </section>
+
+    <section class="result-card" *ngIf="lastResult">
+      <h4>Last Reset Summary</h4>
+      <div class="result-grid">
+        <div><span>Companies</span><strong>{{ lastResult.deletedCompanies }}</strong></div>
+        <div><span>Users</span><strong>{{ lastResult.deletedUsers }}</strong></div>
+        <div><span>Trips</span><strong>{{ lastResult.deletedTrips }}</strong></div>
+        <div><span>Vehicles</span><strong>{{ lastResult.deletedVehicles }}</strong></div>
+      </div>
+      <p class="result-message">{{ lastResult.message }}</p>
+    </section>
+  </ng-container>
+</div>
+
+<ng-template #unavailable>
+  <section class="unavailable-card">
+    <mat-icon>lock</mat-icon>
+    <h3>Not Available</h3>
+    <p>
+      Database reset is only available in Development and Staging environments
+      for Super Admin users.
+    </p>
+  </section>
+</ng-template>

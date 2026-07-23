@@ -50,7 +50,7 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.text('1 action waiting to sync'), findsOneWidget);
+    expect(find.textContaining('1 action(s) waiting to sync'), findsOneWidget);
     expect(find.text('Sync'), findsOneWidget);
   });
 }

@@ -12,6 +12,8 @@ public class AiController(
     IAiRecommendationService recommendations,
     IAiPredictionService predictions,
     IAiCopilotService copilot,
+    IAiChatGateway chatGateway,
+    IAiToolEngine toolEngine,
     IAiManagementService management,
     INotificationDecisionEngine decisionEngine,
     IDeviceTokenService deviceTokens,
@@ -67,6 +69,47 @@ public class AiController(
             return BadRequest(new { message = "Question is required." });
         return Ok(await copilot.AskAsync(TenantId, UserId, request.Question, ct));
     }
+
+    /// <summary>Phase 1 AI Gateway chat (Ollama/Mistral with session memory; rules fallback).</summary>
+    [HttpPost("chat")]
+    public async Task<IActionResult> Chat([FromBody] AiChatRequest request, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(request.Message) && !request.ConfirmWrite)
+            return BadRequest(new { message = "Message is required." });
+        if (request.ConfirmWrite && request.SessionId is null)
+            return BadRequest(new { message = "SessionId is required to confirm a pending action." });
+
+        var result = await chatGateway.ChatAsync(
+            TenantId,
+            UserId,
+            new AiChatTurnRequest(
+                request.Message ?? string.Empty,
+                request.SessionId,
+                request.Title,
+                request.ConfirmWrite),
+            ct);
+        return Ok(result);
+    }
+
+    [HttpGet("chat/sessions/{sessionId:guid}/pending")]
+    public async Task<IActionResult> GetPendingAction(Guid sessionId, CancellationToken ct)
+        => Ok(await chatGateway.GetPendingActionAsync(TenantId, UserId, sessionId, ct));
+
+    [HttpGet("chat/sessions")]
+    public async Task<IActionResult> ListChatSessions(CancellationToken ct)
+        => Ok(await chatGateway.ListSessionsAsync(TenantId, UserId, ct));
+
+    [HttpGet("chat/sessions/{sessionId:guid}/messages")]
+    public async Task<IActionResult> GetChatMessages(Guid sessionId, CancellationToken ct)
+        => Ok(await chatGateway.GetMessagesAsync(TenantId, UserId, sessionId, ct));
+
+    [HttpGet("chat/provider-health")]
+    public async Task<IActionResult> GetChatProviderHealth(CancellationToken ct)
+        => Ok(await chatGateway.GetProviderHealthAsync(TenantId, ct));
+
+    [HttpGet("chat/tools")]
+    public IActionResult ListTools()
+        => Ok(toolEngine.ListTools(includeWriteTools: true));
 
     [HttpGet("management/config")]
     public async Task<IActionResult> GetConfig(CancellationToken ct)
@@ -136,5 +179,10 @@ public class AiController(
 }
 
 public record AiAskRequest(string Question);
+public record AiChatRequest(
+    string Message,
+    Guid? SessionId = null,
+    string? Title = null,
+    bool ConfirmWrite = false);
 public record AiLearningRequest(string EventType, string Action);
 public record RegisterDeviceTokenRequest(string Token, string? Platform = null, string? AppName = null);

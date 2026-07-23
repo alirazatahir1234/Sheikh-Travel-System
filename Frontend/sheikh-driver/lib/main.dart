@@ -3,12 +3,17 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:sheikh_go_driver/l10n/generated/app_localizations.dart';
 import 'core/constants/app_theme.dart';
+import 'core/providers/locale_provider.dart';
 import 'core/providers/theme_provider.dart';
 import 'core/router/app_router.dart';
+import 'core/security/app_lock.dart';
+import 'features/auth/data/auth_repository.dart';
 import 'features/gps/services/location_queue.dart';
 import 'features/gps/services/gps_background_service.dart';
 import 'features/gps/services/gps_session_store.dart';
@@ -48,24 +53,34 @@ void main() async {
   await GpsBackgroundService.initialize();
   await GpsBackgroundService.registerDrainTask();
   final isDark = prefsBox.get('darkMode', defaultValue: false) as bool;
+  final localeCode =
+      prefsBox.get(localePrefsKey, defaultValue: 'en') as String? ?? 'en';
+  final biometricLock =
+      prefsBox.get(biometricLockPrefsKey, defaultValue: false) as bool? ??
+          false;
   runApp(ProviderScope(
     overrides: [
       darkModeProvider.overrideWith((ref) => isDark),
+      localeCodeProvider.overrideWith(
+        (ref) => localeCode == 'ar' ? 'ar' : 'en',
+      ),
+      biometricLockEnabledProvider.overrideWith((ref) => biometricLock),
     ],
-    child: const SheikhGoDriverApp(),
+    child: const SheikhGoFleetApp(),
   ));
 }
 
-class SheikhGoDriverApp extends ConsumerStatefulWidget {
-  const SheikhGoDriverApp({super.key});
+class SheikhGoFleetApp extends ConsumerStatefulWidget {
+  const SheikhGoFleetApp({super.key});
 
   @override
-  ConsumerState<SheikhGoDriverApp> createState() => _SheikhGoDriverAppState();
+  ConsumerState<SheikhGoFleetApp> createState() => _SheikhGoFleetAppState();
 }
 
-class _SheikhGoDriverAppState extends ConsumerState<SheikhGoDriverApp> {
+class _SheikhGoFleetAppState extends ConsumerState<SheikhGoFleetApp> {
   StreamSubscription? _bannerSub;
   StreamSubscription? _refreshSub;
+  bool _coldLockApplied = false;
 
   @override
   void initState() {
@@ -91,7 +106,28 @@ class _SheikhGoDriverAppState extends ConsumerState<SheikhGoDriverApp> {
       final dio = ref.read(dioProvider);
       BackgroundGpsTracker.instance.bindDio(dio);
       BackgroundGpsTracker.instance.resumeIfNeeded(dio: dio);
+      _applyColdStartLock();
     });
+  }
+
+  void _applyColdStartLock() {
+    if (_coldLockApplied) return;
+    _coldLockApplied = true;
+    final auth = ref.read(authRepositoryProvider);
+    if (auth.isLoading) {
+      // Session still restoring — try once more shortly.
+      Future<void>.delayed(const Duration(milliseconds: 400), () {
+        if (!mounted) return;
+        _coldLockApplied = false;
+        _applyColdStartLock();
+      });
+      return;
+    }
+    final session = auth.session;
+    final bio = ref.read(biometricLockEnabledProvider);
+    if (session != null && bio) {
+      ref.read(appUnlockedProvider.notifier).state = false;
+    }
   }
 
   @override
@@ -106,9 +142,18 @@ class _SheikhGoDriverAppState extends ConsumerState<SheikhGoDriverApp> {
     final integrity = ref.watch(deviceIntegrityProvider);
     final router = ref.watch(routerProvider);
     final isDark = ref.watch(darkModeProvider);
+    final locale = ref.watch(appLocaleProvider);
 
     return integrity.when(
       loading: () => MaterialApp(
+        locale: locale,
+        supportedLocales: AppLocalizations.supportedLocales,
+        localizationsDelegates: const [
+          AppLocalizations.delegate,
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
         theme: AppTheme.light,
         darkTheme: AppTheme.dark,
         themeMode: isDark ? ThemeMode.dark : ThemeMode.light,
@@ -117,10 +162,18 @@ class _SheikhGoDriverAppState extends ConsumerState<SheikhGoDriverApp> {
         ),
         debugShowCheckedModeBanner: false,
       ),
-      error: (_, __) => _buildRouterApp(router, isDark),
+      error: (_, __) => _buildRouterApp(router, isDark, locale),
       data: (report) {
         if (report.hasBlockingIssue) {
           return MaterialApp(
+            locale: locale,
+            supportedLocales: AppLocalizations.supportedLocales,
+            localizationsDelegates: const [
+              AppLocalizations.delegate,
+              GlobalMaterialLocalizations.delegate,
+              GlobalWidgetsLocalizations.delegate,
+              GlobalCupertinoLocalizations.delegate,
+            ],
             theme: AppTheme.light,
             darkTheme: AppTheme.dark,
             themeMode: isDark ? ThemeMode.dark : ThemeMode.light,
@@ -128,24 +181,40 @@ class _SheikhGoDriverAppState extends ConsumerState<SheikhGoDriverApp> {
             debugShowCheckedModeBanner: false,
           );
         }
-        return _buildRouterApp(router, isDark);
+        return _buildRouterApp(router, isDark, locale);
       },
     );
   }
 
-  Widget _buildRouterApp(GoRouter router, bool isDark) {
-    return MaterialApp.router(
-      title: 'SheikhGo Driver',
-      theme: AppTheme.light,
-      darkTheme: AppTheme.dark,
-      themeMode: isDark ? ThemeMode.dark : ThemeMode.light,
-      routerConfig: router,
-      debugShowCheckedModeBanner: false,
-      builder: (context, child) => Stack(
-        children: [
-          child ?? const SizedBox.shrink(),
-          const ForegroundNotificationBanner(),
+  Widget _buildRouterApp(GoRouter router, bool isDark, Locale locale) {
+    final session = ref.watch(fleetSessionProvider);
+    final bio = ref.watch(biometricLockEnabledProvider);
+    final unlocked = ref.watch(appUnlockedProvider);
+    final locked = session != null && bio && !unlocked;
+
+    return AppLockLifecycle(
+      child: MaterialApp.router(
+        title: 'SheikhGo Fleet',
+        locale: locale,
+        supportedLocales: AppLocalizations.supportedLocales,
+        localizationsDelegates: const [
+          AppLocalizations.delegate,
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
         ],
+        theme: AppTheme.light,
+        darkTheme: AppTheme.dark,
+        themeMode: isDark ? ThemeMode.dark : ThemeMode.light,
+        routerConfig: router,
+        debugShowCheckedModeBanner: false,
+        builder: (context, child) => Stack(
+          children: [
+            child ?? const SizedBox.shrink(),
+            const ForegroundNotificationBanner(),
+            if (locked) const AppLockScreen(),
+          ],
+        ),
       ),
     );
   }

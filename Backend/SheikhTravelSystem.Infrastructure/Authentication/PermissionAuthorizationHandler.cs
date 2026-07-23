@@ -48,7 +48,12 @@ public static class PermissionPolicyRegistration
             .Concat(FleetPermissions.All)
             .Concat(DriverPermissions.All)
             .Concat(MaintenancePermissions.All)
-            .Concat(GpsPermissions.All))
+            .Concat(GpsPermissions.All)
+            .Concat(OperationsPermissions.All)
+            .Concat(FinancePermissions.All)
+            .Concat(AnalyticsPermissions.All)
+            .Concat(AiPermissions.All)
+            .Concat(NotificationPermissions.All))
         {
             options.AddPolicy(permission, policy =>
                 policy.Requirements.Add(new PermissionRequirement(permission)));

@@ -36,10 +36,31 @@ final notificationsListProvider =
   final items = await ref.read(notificationsApiProvider).list(
         archived: filter.mailbox == NotificationMailbox.archived,
       );
+  final deduped = _dedupeByReferenceAndType(items);
   final cat = filter.category;
-  if (cat == null || cat.isEmpty) return items;
-  return items.where((n) => n.category == cat).toList();
+  if (cat == null || cat.isEmpty) return deduped;
+  return deduped.where((n) => n.category == cat).toList();
 });
+
+/// Keep the newest alert per trip/event so Accept retries don't spam Alerts.
+List<AppNotification> _dedupeByReferenceAndType(List<AppNotification> items) {
+  final best = <String, AppNotification>{};
+  final passthrough = <AppNotification>[];
+  for (final n in items) {
+    if (n.referenceId == null) {
+      passthrough.add(n);
+      continue;
+    }
+    final key = '${n.referenceId}|${n.type}|${n.title}';
+    final existing = best[key];
+    if (existing == null || n.createdAt.isAfter(existing.createdAt)) {
+      best[key] = n;
+    }
+  }
+  final merged = [...best.values, ...passthrough]
+    ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+  return merged;
+}
 
 final unreadNotificationsCountProvider =
     FutureProvider.autoDispose<int>((ref) async {

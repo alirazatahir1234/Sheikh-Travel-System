@@ -198,20 +198,31 @@ public record GpsAlertEventDto(
     string? GeofenceName = null,
     int? DriverId = null,
     string? DriverName = null,
+    DateTime? ReadAt = null,
+    string? ReadBy = null,
     DateTime? AcknowledgedAt = null,
     string? AcknowledgedBy = null,
     DateTime? ResolvedAt = null,
     string? ResolvedBy = null,
-    string? ResolutionNotes = null);
+    string? ResolutionNotes = null,
+    DateTime? ArchivedAt = null,
+    string? ArchivedBy = null,
+    bool CanAcknowledge = false,
+    bool CanResolve = false,
+    bool CanArchive = false,
+    bool CanDelete = false);
 
 public record GpsAlertStatsDto(
     int Total,
     int Today,
+    int Unread,
     int Active,
     int Resolved,
-    int Critical);
+    int Critical,
+    int Archived);
 
 public record ResolveGpsAlertDto(string? ResolutionNotes);
+public record ArchiveGpsAlertDto(string? ArchiveReason);
 
 public record AlertSettingDto(
     string AlertType,

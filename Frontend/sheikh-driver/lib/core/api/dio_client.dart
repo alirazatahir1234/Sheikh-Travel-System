@@ -10,8 +10,10 @@ import '../errors/app_exception.dart';
 import '../errors/error_handler.dart';
 import 'api_endpoints.dart';
 
-const _accessTokenKey = 'driver_access_token';
-const _refreshTokenKey = 'driver_refresh_token';
+const _accessTokenKey = 'fleet_access_token';
+const _refreshTokenKey = 'fleet_refresh_token';
+const _legacyAccessTokenKey = 'driver_access_token';
+const _legacyRefreshTokenKey = 'driver_refresh_token';
 
 /// Signals that the server rejected the saved refresh token. Keeping this
 /// separate from the HTTP client avoids a dependency cycle with AuthRepository.
@@ -35,13 +37,13 @@ final dioProvider = Provider<Dio>((ref) {
   final storage = ref.read(secureStorageProvider);
   final sessionInvalidation = ref.read(sessionInvalidationProvider);
   final dio = Dio(BaseOptions(
-    baseUrl: AppConfig.baseUrl,
+    baseUrl: AppConfig.resolvedBaseUrl,
     connectTimeout: const Duration(seconds: 20),
     receiveTimeout: const Duration(seconds: 20),
     headers: {
       'X-Tenant-Slug': AppConfig.tenantSlug,
       'Content-Type': 'application/json',
-      'User-Agent': 'SheikhGoDriver/${AppConfig.appVersion} Flutter',
+      'User-Agent': 'SheikhGoFleet/${AppConfig.appVersion} Flutter',
     },
   ));
 
@@ -166,7 +168,8 @@ class _AuthInterceptor extends QueuedInterceptor {
       return handler.next(options);
     }
 
-    final token = await _storage.read(key: _accessTokenKey);
+    var token = await _storage.read(key: _accessTokenKey);
+    token ??= await _storage.read(key: _legacyAccessTokenKey);
     if (token != null) {
       options.headers['Authorization'] = 'Bearer $token';
     }
@@ -183,7 +186,8 @@ class _AuthInterceptor extends QueuedInterceptor {
     if (err.response?.statusCode == 401 &&
         !_isAuthRequest(err.requestOptions) &&
         err.requestOptions.extra['retriedAfterRefresh'] != true) {
-      final refreshToken = await _storage.read(key: _refreshTokenKey);
+      var refreshToken = await _storage.read(key: _refreshTokenKey);
+      refreshToken ??= await _storage.read(key: _legacyRefreshTokenKey);
       if (refreshToken != null) {
         try {
           final res = await _dio.post<Map<String, dynamic>>(

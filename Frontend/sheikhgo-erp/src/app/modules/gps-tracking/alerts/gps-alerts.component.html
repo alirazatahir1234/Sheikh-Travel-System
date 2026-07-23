@@ -1,3 +1,4 @@
+<div class="alerts-shell">
 <div class="alerts-page">
 
   <!-- Header -->
@@ -28,18 +29,42 @@
 
   <!-- Events tab -->
   <div *ngIf="activeTab === 'events'">
-    <div class="filter-row">
-      <label class="toggle-label">
-        <mat-slide-toggle [(ngModel)]="showUnackOnly" (change)="loadEvents()">Unacknowledged only</mat-slide-toggle>
-      </label>
-      <span class="count-note">{{ events.length }} event{{ events.length !== 1 ? 's' : '' }}</span>
+    <div class="stats-grid">
+      <div class="stat-card"><span class="stat-value">{{ stats.today }}</span><span class="stat-label">Today</span></div>
+      <div class="stat-card"><span class="stat-value stat-warn">{{ stats.unread }}</span><span class="stat-label">Unread</span></div>
+      <div class="stat-card"><span class="stat-value">{{ stats.active }}</span><span class="stat-label">Active</span></div>
+      <div class="stat-card"><span class="stat-value stat-warn">{{ stats.critical }}</span><span class="stat-label">Critical</span></div>
+      <div class="stat-card"><span class="stat-value">{{ stats.resolved }}</span><span class="stat-label">Resolved</span></div>
+      <div class="stat-card"><span class="stat-value">{{ stats.archived }}</span><span class="stat-label">Archived</span></div>
+    </div>
+
+    <div class="filter-stack">
+      <div class="chip-row">
+        <button class="chip" [class.active]="isLifecycleSelected('unread')" (click)="toggleLifecycle('unread')">Unread</button>
+        <button class="chip" [class.active]="isLifecycleSelected('read')" (click)="toggleLifecycle('read')">Read</button>
+        <button class="chip" [class.active]="isLifecycleSelected('acknowledged')" (click)="toggleLifecycle('acknowledged')">Acknowledged</button>
+        <button class="chip" [class.active]="isLifecycleSelected('resolved')" (click)="toggleLifecycle('resolved')">Resolved</button>
+        <button class="chip" [class.active]="isLifecycleSelected('archived')" (click)="toggleLifecycle('archived')">Archived</button>
+      </div>
+      <div class="chip-row">
+        <button class="chip" [class.active]="severityFilter === 'critical'" (click)="toggleSeverity('critical')">Critical</button>
+        <button class="chip" [class.active]="severityFilter === 'high'" (click)="toggleSeverity('high')">High</button>
+        <button class="chip" [class.active]="severityFilter === 'medium'" (click)="toggleSeverity('medium')">Medium</button>
+        <button class="chip" [class.active]="severityFilter === 'low'" (click)="toggleSeverity('low')">Low</button>
+      </div>
+      <div class="chip-row">
+        <button class="chip" [class.active]="datePreset === 'today'" (click)="setDatePreset('today')">Today</button>
+        <button class="chip" [class.active]="datePreset === 'yesterday'" (click)="setDatePreset('yesterday')">Yesterday</button>
+        <button class="chip" [class.active]="datePreset === 'last7'" (click)="setDatePreset('last7')">Last 7</button>
+        <button class="chip" [class.active]="datePreset === 'last30'" (click)="setDatePreset('last30')">Last 30</button>
+      </div>
     </div>
 
     <div *ngIf="loading" class="loading-row"><mat-spinner diameter="28"></mat-spinner></div>
 
     <div *ngIf="!loading && events.length === 0" class="empty-state">
       <mat-icon>check_circle</mat-icon>
-      <p>No {{ showUnackOnly ? 'unacknowledged ' : '' }}alert events.</p>
+      <p>No alert events for the current filters.</p>
     </div>
 
     <div class="table-card" *ngIf="!loading && events.length > 0">
@@ -52,11 +77,12 @@
             <th>Speed</th>
             <th>Message</th>
             <th>Time</th>
+            <th>Status</th>
             <th>Action</th>
           </tr>
         </thead>
         <tbody>
-          <tr *ngFor="let e of events" [class.acknowledged]="e.isAcknowledged">
+          <tr *ngFor="let e of events" [class.acknowledged]="e.isAcknowledged" (click)="openEvent(e)">
             <td>
               <span class="badge" [ngClass]="eventTypeBadge(e.eventType)">{{ eventTypeLabel(e.eventType) }}</span>
             </td>
@@ -65,11 +91,20 @@
             <td>{{ e.speed | number:'1.0-1' }} km/h</td>
             <td class="muted">{{ e.message }}</td>
             <td class="muted small">{{ e.timestamp | date:'dd MMM, HH:mm' }}</td>
+            <td><span class="badge" [ngClass]="statusClass(e)">{{ statusLabel(e) }}</span></td>
             <td>
-              <button *ngIf="!e.isAcknowledged" class="btn btn-secondary btn-sm" (click)="acknowledge(e)">
+              <button *ngIf="!e.readAt && e.status !== 'archived'" class="btn btn-secondary btn-sm" (click)="markRead(e); $event.stopPropagation()">
+                Read
+              </button>
+              <button *ngIf="e.canAcknowledge" class="btn btn-secondary btn-sm" (click)="acknowledge(e); $event.stopPropagation()">
                 Acknowledge
               </button>
-              <span *ngIf="e.isAcknowledged" class="muted small">Acknowledged</span>
+              <button *ngIf="e.canResolve" class="btn btn-secondary btn-sm" (click)="resolve(e); $event.stopPropagation()">
+                Resolve
+              </button>
+              <button *ngIf="e.canArchive" class="btn btn-secondary btn-sm" (click)="archive(e); $event.stopPropagation()">
+                Archive
+              </button>
             </td>
           </tr>
         </tbody>
@@ -115,6 +150,44 @@
     </div>
   </div>
 
+</div>
+
+<div class="drawer-overlay" *ngIf="selectedEvent" (click)="closeDetail()"></div>
+<div class="drawer alert-detail-drawer" [class.open]="!!selectedEvent">
+  <div class="drawer-header">
+    <h3>{{ selectedEvent ? eventTypeLabel(selectedEvent.eventType) : 'Alert detail' }}</h3>
+    <button mat-icon-button (click)="closeDetail()"><mat-icon>close</mat-icon></button>
+  </div>
+  <div class="drawer-body" *ngIf="selectedEvent as event">
+    <div class="detail-stack">
+      <div class="detail-badges">
+        <span class="badge" [ngClass]="eventTypeBadge(event.eventType)">{{ eventTypeLabel(event.eventType) }}</span>
+        <span class="badge" [ngClass]="statusClass(event)">{{ statusLabel(event) }}</span>
+      </div>
+      <p class="detail-message">{{ event.message }}</p>
+      <div class="detail-grid">
+        <div><span class="label">Vehicle</span><span>{{ event.vehicleName || ('#' + event.vehicleId) }}</span></div>
+        <div><span class="label">Driver</span><span>{{ event.driverName || '—' }}</span></div>
+        <div><span class="label">Severity</span><span>{{ eventTypeLabel(event.severity || 'medium') }}</span></div>
+        <div><span class="label">Time</span><span>{{ event.timestamp | date:'dd MMM yyyy, HH:mm' }}</span></div>
+        <div><span class="label">Location</span><span>{{ event.latitude | number:'1.4-4' }}, {{ event.longitude | number:'1.4-4' }}</span></div>
+        <div><span class="label">Speed</span><span>{{ event.speed | number:'1.0-1' }} km/h</span></div>
+        <div><span class="label">Geofence</span><span>{{ event.geofenceName || '—' }}</span></div>
+        <div><span class="label">Read</span><span>{{ event.readAt ? (event.readAt | date:'dd MMM, HH:mm') : 'Unread' }}</span></div>
+        <div *ngIf="event.acknowledgedAt"><span class="label">Acknowledged</span><span>{{ event.acknowledgedAt | date:'dd MMM, HH:mm' }}</span></div>
+        <div *ngIf="event.resolvedAt"><span class="label">Resolved</span><span>{{ event.resolvedAt | date:'dd MMM, HH:mm' }}</span></div>
+        <div *ngIf="event.archivedAt"><span class="label">Archived</span><span>{{ event.archivedAt | date:'dd MMM, HH:mm' }}</span></div>
+        <div class="full" *ngIf="event.resolutionNotes"><span class="label">Notes</span><span>{{ event.resolutionNotes }}</span></div>
+      </div>
+      <div class="form-actions">
+        <button *ngIf="!event.readAt && event.status !== 'archived'" class="btn btn-secondary" (click)="markRead(event)">Mark Read</button>
+        <button *ngIf="event.canAcknowledge" class="btn btn-secondary" (click)="acknowledge(event)">Acknowledge</button>
+        <button *ngIf="event.canResolve" class="btn btn-secondary" (click)="resolve(event)">Resolve</button>
+        <button *ngIf="event.canArchive" class="btn btn-secondary" (click)="archive(event)">Archive</button>
+      </div>
+    </div>
+  </div>
+</div>
 </div>
 
 <!-- Rule form drawer -->

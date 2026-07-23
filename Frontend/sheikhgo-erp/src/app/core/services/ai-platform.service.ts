@@ -58,6 +58,46 @@ export interface AiCopilotResponse {
   usedLlm: boolean;
 }
 
+export interface AiChatMessage {
+  role: string;
+  content: string;
+}
+
+export interface AiChatSession {
+  id: string;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+  messageCount: number;
+}
+
+export interface AiChatTurnResponse {
+  sessionId: string;
+  answer: string;
+  mode: string;
+  usedLlm: boolean;
+  provider: string;
+  model?: string;
+  suggestedPrompts: string[];
+  toolsUsed: string[];
+  pendingAction?: AiPendingAction | null;
+}
+
+export interface AiPendingAction {
+  toolName: string;
+  summary: string;
+  expiresAt: string;
+}
+
+export interface AiProviderHealth {
+  provider: string;
+  model?: string;
+  endpoint?: string;
+  configured: boolean;
+  reachable: boolean;
+  statusMessage: string;
+}
+
 export interface EscalationRule {
   id: number;
   tenantId?: number;
@@ -109,6 +149,34 @@ export class AiPlatformService {
 
   ask(question: string): Observable<AiCopilotResponse> {
     return this.http.post<AiCopilotResponse>(`${this.base}/copilot/ask`, { question });
+  }
+
+  chat(
+    message: string,
+    sessionId?: string | null,
+    confirmWrite = false
+  ): Observable<AiChatTurnResponse> {
+    return this.http.post<AiChatTurnResponse>(`${this.base}/chat`, {
+      message: confirmWrite ? (message || 'CONFIRM') : message,
+      sessionId: sessionId ?? null,
+      confirmWrite
+    });
+  }
+
+  getPendingAction(sessionId: string): Observable<AiPendingAction | null> {
+    return this.http.get<AiPendingAction | null>(`${this.base}/chat/sessions/${sessionId}/pending`);
+  }
+
+  listChatSessions(): Observable<AiChatSession[]> {
+    return this.http.get<AiChatSession[]>(`${this.base}/chat/sessions`);
+  }
+
+  getChatMessages(sessionId: string): Observable<AiChatMessage[]> {
+    return this.http.get<AiChatMessage[]>(`${this.base}/chat/sessions/${sessionId}/messages`);
+  }
+
+  getProviderHealth(): Observable<AiProviderHealth> {
+    return this.http.get<AiProviderHealth>(`${this.base}/chat/provider-health`);
   }
 
   getConfig(): Observable<AiProviderConfig> {

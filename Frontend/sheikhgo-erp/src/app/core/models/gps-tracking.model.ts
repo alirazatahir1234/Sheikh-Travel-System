@@ -294,6 +294,29 @@ export interface GpsAlertEvent {
   status?: string;
   driverId?: number | null;
   driverName?: string | null;
+  readAt?: string | null;
+  readBy?: string | null;
+  acknowledgedAt?: string | null;
+  acknowledgedBy?: string | null;
+  resolvedAt?: string | null;
+  resolvedBy?: string | null;
+  resolutionNotes?: string | null;
+  archivedAt?: string | null;
+  archivedBy?: string | null;
+  canAcknowledge?: boolean;
+  canResolve?: boolean;
+  canArchive?: boolean;
+  canDelete?: boolean;
+}
+
+export interface GpsAlertStats {
+  total: number;
+  today: number;
+  unread: number;
+  active: number;
+  critical: number;
+  resolved: number;
+  archived: number;
 }
 
 export interface TripFleetFilters {

@@ -3,14 +3,15 @@ import '../data/dashboard_api.dart';
 import '../domain/dashboard_models.dart';
 
 final dashboardProvider =
-    AsyncNotifierProvider<DashboardNotifier, DashboardSummary>(DashboardNotifier.new);
+    AsyncNotifierProvider<DashboardNotifier, RoleDashboardData>(
+        DashboardNotifier.new);
 
-class DashboardNotifier extends AsyncNotifier<DashboardSummary> {
+class DashboardNotifier extends AsyncNotifier<RoleDashboardData> {
   @override
-  Future<DashboardSummary> build() => _fetch();
+  Future<RoleDashboardData> build() => _fetch();
 
-  Future<DashboardSummary> _fetch() =>
-      ref.read(dashboardApiProvider).getSummary();
+  Future<RoleDashboardData> _fetch() =>
+      ref.read(dashboardApiProvider).getRoleDashboard();
 
   Future<void> refresh() async {
     state = const AsyncLoading();

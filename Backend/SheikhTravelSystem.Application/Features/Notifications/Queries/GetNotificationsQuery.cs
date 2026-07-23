@@ -199,19 +199,23 @@ public class GetNotificationStatsQueryHandler(IDbConnectionFactory dbFactory)
     }
 }
 
-public record GetUnreadNotificationCountQuery(int TenantId, int UserId) : IRequest<ApiResponse<int>>;
+public record GetUnreadNotificationCountQuery(
+    int TenantId,
+    int UserId,
+    string? Channel = null) : IRequest<ApiResponse<int>>;
 
 public class GetUnreadNotificationCountQueryHandler(IDbConnectionFactory dbFactory, IDistributedCache cache)
     : IRequestHandler<GetUnreadNotificationCountQuery, ApiResponse<int>>
 {
-    private static string CacheKey(int userId) => $"notifications:unread:{userId}";
+    private static string CacheKey(int userId, string? channel) =>
+        $"notifications:unread:{userId}:{channel ?? "inbox"}";
 
     public async Task<ApiResponse<int>> Handle(
         GetUnreadNotificationCountQuery request, CancellationToken cancellationToken)
     {
         try
         {
-            var cached = await cache.GetStringAsync(CacheKey(request.UserId), cancellationToken);
+            var cached = await cache.GetStringAsync(CacheKey(request.UserId, request.Channel), cancellationToken);
             if (int.TryParse(cached, out var cachedCount))
                 return ApiResponse<int>.SuccessResponse(cachedCount);
         }
@@ -221,7 +225,11 @@ public class GetUnreadNotificationCountQueryHandler(IDbConnectionFactory dbFacto
         }
 
         using var connection = dbFactory.CreateConnection();
-        var count = await connection.ExecuteScalarAsync<int>(new CommandDefinition("""
+        var channelFilter = string.IsNullOrWhiteSpace(request.Channel)
+            ? "AND ISNULL(n.Channel, 'InApp') IN ('InApp', 'Browser', 'Push')"
+            : "AND ISNULL(n.Channel, 'InApp') = @Channel";
+
+        var count = await connection.ExecuteScalarAsync<int>(new CommandDefinition($"""
             SELECT COUNT(*)
             FROM Notifications n
             LEFT JOIN NotificationRecipients r ON r.NotificationId = n.Id AND r.UserId = @UserId
@@ -235,13 +243,13 @@ public class GetUnreadNotificationCountQueryHandler(IDbConnectionFactory dbFacto
               AND ISNULL(r.IsDeleted, n.IsDeleted) = 0
               AND ISNULL(r.IsArchived, ISNULL(n.IsArchived, 0)) = 0
               AND ISNULL(r.IsRead, n.IsRead) = 0
-              AND ISNULL(n.Channel, 'InApp') IN ('InApp', 'Browser', 'Push')
-            """, new { request.UserId, request.TenantId }, cancellationToken: cancellationToken));
+              {channelFilter}
+            """, new { request.UserId, request.TenantId, request.Channel }, cancellationToken: cancellationToken));
 
         try
         {
             await cache.SetStringAsync(
-                CacheKey(request.UserId),
+                CacheKey(request.UserId, request.Channel),
                 count.ToString(),
                 new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(2) },
                 cancellationToken);

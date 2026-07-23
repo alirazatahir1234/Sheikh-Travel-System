@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:sheikh_go_driver/l10n/generated/app_localizations.dart';
 import '../../../core/api/api_endpoints.dart';
 import '../../../core/api/dio_client.dart';
+import '../../../core/config/app_config.dart';
 import '../../../core/constants/app_theme.dart';
+import '../../../core/providers/locale_provider.dart';
 import '../../../core/providers/theme_provider.dart';
+import '../../../core/security/biometric_auth_service.dart';
 import '../../../features/auth/data/auth_repository.dart';
 import '../../gps/services/background_gps_tracker.dart';
 import '../services/app_version_service.dart';
@@ -14,15 +18,18 @@ class SettingsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
     final isDark = ref.watch(darkModeProvider);
+    final localeCode = ref.watch(localeCodeProvider);
+    final biometricOn = ref.watch(biometricLockEnabledProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Settings')),
+      appBar: AppBar(title: Text(l10n.settings)),
       body: ListView(
         padding: const EdgeInsets.symmetric(vertical: 12),
         children: [
           // ── Account ──────────────────────────
-          const _SectionHeader('Account'),
+          _SectionHeader(l10n.account),
           _SettingTile(
             icon: Icons.lock_outline,
             iconColor: AppColors.primary,
@@ -31,16 +38,18 @@ class SettingsScreen extends ConsumerWidget {
           ),
 
           // ── Appearance ────────────────────────
-          const _SectionHeader('Appearance'),
+          _SectionHeader(l10n.appearance),
           SwitchListTile(
             secondary: const _IconBox(
               icon: Icons.dark_mode_outlined,
               color: AppColors.primary,
             ),
-            title: const Text('Dark Mode',
-                style: TextStyle(fontWeight: FontWeight.w500, color: AppColors.textPrimary)),
-            subtitle: const Text('Switch to dark theme',
-                style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+            title: Text(l10n.darkMode,
+                style: const TextStyle(
+                    fontWeight: FontWeight.w500, color: AppColors.textPrimary)),
+            subtitle: Text(l10n.darkModeSubtitle,
+                style: const TextStyle(
+                    fontSize: 12, color: AppColors.textSecondary)),
             value: isDark,
             activeThumbColor: AppColors.primary,
             activeTrackColor: AppColors.primaryLight,
@@ -49,14 +58,65 @@ class SettingsScreen extends ConsumerWidget {
               ref.read(prefsBoxProvider).put('darkMode', v);
             },
           ),
+          ListTile(
+            leading: const _IconBox(
+              icon: Icons.language_outlined,
+              color: AppColors.accent,
+            ),
+            title: Text(l10n.language,
+                style: const TextStyle(
+                    fontWeight: FontWeight.w500, color: AppColors.textPrimary)),
+            subtitle: Text(l10n.languageSubtitle,
+                style: const TextStyle(
+                    fontSize: 12, color: AppColors.textSecondary)),
+            trailing: DropdownButton<String>(
+              value: localeCode == 'ar' ? 'ar' : 'en',
+              underline: const SizedBox.shrink(),
+              items: [
+                DropdownMenuItem(
+                    value: 'en', child: Text(l10n.languageEnglish)),
+                DropdownMenuItem(
+                    value: 'ar', child: Text(l10n.languageArabic)),
+              ],
+              onChanged: (v) {
+                if (v != null) setAppLocale(ref, v);
+              },
+            ),
+          ),
+
+          // ── Security ──────────────────────────
+          _SectionHeader(l10n.security),
+          SwitchListTile(
+            secondary: const _IconBox(
+              icon: Icons.fingerprint_rounded,
+              color: AppColors.success,
+            ),
+            title: Text(l10n.biometricLock,
+                style: const TextStyle(
+                    fontWeight: FontWeight.w500, color: AppColors.textPrimary)),
+            subtitle: Text(l10n.biometricLockSubtitle,
+                style: const TextStyle(
+                    fontSize: 12, color: AppColors.textSecondary)),
+            value: biometricOn,
+            activeThumbColor: AppColors.primary,
+            activeTrackColor: AppColors.primaryLight,
+            onChanged: (v) => _toggleBiometric(context, ref, v),
+          ),
+          _SettingTile(
+            icon: Icons.security,
+            iconColor: AppColors.primary,
+            title: 'Security status',
+            subtitle: 'Root, jailbreak, emulator, pinning',
+            onTap: () => context.push('/security'),
+          ),
 
           // ── Activity ──────────────────────────
-          const _SectionHeader('Activity'),
+          _SectionHeader(l10n.activity),
           _SettingTile(
             icon: Icons.cloud_sync_outlined,
             iconColor: AppColors.warning,
-            title: 'Offline queue',
-            subtitle: 'Pending sync & conflicts',
+            title: l10n.offlineQueue,
+            subtitle: l10n.offlineQueueSubtitle,
             onTap: () => context.push('/offline-queue'),
           ),
           _SettingTile(
@@ -78,7 +138,7 @@ class SettingsScreen extends ConsumerWidget {
                       TextButton(
                         onPressed: () =>
                             Navigator.of(dialogContext).pop(false),
-                        child: const Text('Cancel'),
+                        child: Text(l10n.cancel),
                       ),
                       FilledButton(
                         onPressed: () =>
@@ -117,14 +177,7 @@ class SettingsScreen extends ConsumerWidget {
           ),
 
           // ── App ───────────────────────────────
-          const _SectionHeader('App'),
-          _SettingTile(
-            icon: Icons.security,
-            iconColor: AppColors.primary,
-            title: 'Security status',
-            subtitle: 'Root, jailbreak, emulator, pinning',
-            onTap: () => context.push('/security'),
-          ),
+          _SectionHeader(l10n.appSection),
           _SettingTile(
             icon: Icons.privacy_tip_outlined,
             iconColor: AppColors.accent,
@@ -141,10 +194,19 @@ class SettingsScreen extends ConsumerWidget {
             icon: Icons.info_outline,
             iconColor: AppColors.textSecondary,
             title: 'Version',
-            trailing: Text(
-              AppVersionService.currentVersion,
-              style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
+            trailing: FutureBuilder<String>(
+              future: AppVersionService.displayVersion(),
+              builder: (context, snap) => Text(
+                snap.data ?? AppVersionService.currentVersion,
+                style: const TextStyle(
+                    color: AppColors.textSecondary, fontSize: 13),
+              ),
             ),
+          ),
+          _SettingTile(
+            icon: Icons.dns_outlined,
+            iconColor: AppColors.textMuted,
+            title: l10n.environmentLabel(AppConfig.environment.name),
           ),
           _SettingTile(
             icon: Icons.system_update_outlined,
@@ -164,7 +226,8 @@ class SettingsScreen extends ConsumerWidget {
             child: OutlinedButton.icon(
               onPressed: () => _confirmLogout(context, ref),
               icon: const Icon(Icons.logout, color: AppColors.error),
-              label: const Text('Sign Out', style: TextStyle(color: AppColors.error)),
+              label: Text(l10n.signOut,
+                  style: const TextStyle(color: AppColors.error)),
               style: OutlinedButton.styleFrom(
                 side: const BorderSide(color: AppColors.error),
                 padding: const EdgeInsets.symmetric(vertical: 14),
@@ -175,6 +238,38 @@ class SettingsScreen extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _toggleBiometric(
+    BuildContext context,
+    WidgetRef ref,
+    bool enable,
+  ) async {
+    final l10n = AppLocalizations.of(context);
+    if (!enable) {
+      await setBiometricLockEnabled(ref, false);
+      return;
+    }
+    final bio = ref.read(biometricAuthServiceProvider);
+    final supported = await bio.isSupported();
+    if (!supported) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.biometricUnavailable)),
+        );
+      }
+      return;
+    }
+    final ok = await bio.authenticate(reason: l10n.biometricLockSubtitle);
+    if (!ok) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.biometricEnableFailed)),
+        );
+      }
+      return;
+    }
+    await setBiometricLockEnabled(ref, true);
   }
 
   // ── Change Password ─────────────────────────────
@@ -191,20 +286,21 @@ class SettingsScreen extends ConsumerWidget {
 
   // ── Logout ───────────────────────────────────────
   Future<void> _confirmLogout(BuildContext context, WidgetRef ref) async {
+    final l10n = AppLocalizations.of(context);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Sign out'),
-        content: const Text('Are you sure you want to sign out?'),
+        title: Text(l10n.signOutConfirmTitle),
+        content: Text(l10n.signOutConfirmBody),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('Cancel'),
+            child: Text(l10n.cancel),
           ),
           FilledButton(
             onPressed: () => Navigator.of(dialogContext).pop(true),
             style: FilledButton.styleFrom(backgroundColor: AppColors.error),
-            child: const Text('Sign out'),
+            child: Text(l10n.signOut),
           ),
         ],
       ),

@@ -2,6 +2,11 @@ namespace SheikhTravelSystem.Application.Common;
 
 public static class GpsPermissions
 {
+    public const string AlertView = "Gps.AlertView";
+    public const string AlertAcknowledge = "Gps.AlertAcknowledge";
+    public const string AlertResolve = "Gps.AlertResolve";
+    public const string AlertArchive = "Gps.AlertArchive";
+    public const string AlertDelete = "Gps.AlertDelete";
     public const string CommandSend = "Gps.CommandSend";
     public const string CommandView = "Gps.CommandView";
     public const string CommandEngineCutoff = "Gps.CommandEngineCutoff";
@@ -15,6 +20,7 @@ public static class GpsPermissions
 
     public static readonly string[] All =
     [
+        AlertView, AlertAcknowledge, AlertResolve, AlertArchive, AlertDelete,
         CommandSend, CommandView, CommandEngineCutoff, CommandPositionRequest,
         CommandRestart, CommandRelay, CommandBuzzer, CommandCustomSms, CommandRetry, CommandCancel
     ];

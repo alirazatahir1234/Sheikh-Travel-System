@@ -44,19 +44,41 @@ public class CreateGpsAlertRuleCommandHandler(IDbConnectionFactory dbFactory, IC
 
 public record AcknowledgeGpsAlertCommand(int Id) : IRequest<ApiResponse<bool>>;
 
-public class AcknowledgeGpsAlertCommandHandler(IDbConnectionFactory dbFactory, ICurrentUserService currentUser)
+public class AcknowledgeGpsAlertCommandHandler(
+    IDbConnectionFactory dbFactory,
+    ICurrentUserService currentUser,
+    ITenantContext tenantContext)
     : IRequestHandler<AcknowledgeGpsAlertCommand, ApiResponse<bool>>
 {
     public async Task<ApiResponse<bool>> Handle(AcknowledgeGpsAlertCommand request, CancellationToken cancellationToken)
     {
+        if (!GpsAlertAccess.CanAcknowledge(currentUser))
+            return ApiResponse<bool>.FailResponse("Insufficient permission to acknowledge alerts.");
+
         using var connection = dbFactory.CreateConnection();
         var rows = await connection.ExecuteAsync(new CommandDefinition(
             """
-            UPDATE GpsAlertEvents
-            SET IsAcknowledged = 1, Status = 'acknowledged', AcknowledgedAt = GETUTCDATE(), AcknowledgedBy = @AcknowledgedBy
-            WHERE Id = @Id AND IsDeleted = 0 AND Status = 'active'
+            UPDATE e
+            SET e.IsAcknowledged = 1,
+                e.Status = CASE WHEN e.Status = 'active' THEN 'acknowledged' ELSE e.Status END,
+                e.AcknowledgedAt = COALESCE(e.AcknowledgedAt, GETUTCDATE()),
+                e.AcknowledgedBy = COALESCE(e.AcknowledgedBy, @AcknowledgedBy),
+                e.ReadAt = COALESCE(e.ReadAt, GETUTCDATE()),
+                e.ReadBy = COALESCE(e.ReadBy, @AcknowledgedBy)
+            FROM GpsAlertEvents e
+            INNER JOIN Vehicles v ON v.Id = e.VehicleId
+            WHERE e.Id = @Id
+              AND e.IsDeleted = 0
+              AND v.TenantId = @TenantId
+              AND v.IsDeleted = 0
+              AND e.Status IN ('active', 'acknowledged')
             """,
-            new { request.Id, AcknowledgedBy = currentUser.UserId?.ToString() },
+            new
+            {
+                request.Id,
+                TenantId = tenantContext.GetRequiredTenantId(),
+                AcknowledgedBy = currentUser.UserId?.ToString()
+            },
             cancellationToken: cancellationToken));
 
         return rows > 0
@@ -65,26 +87,87 @@ public class AcknowledgeGpsAlertCommandHandler(IDbConnectionFactory dbFactory, I
     }
 }
 
-public record ResolveGpsAlertCommand(int Id, ResolveGpsAlertDto Resolution) : IRequest<ApiResponse<bool>>;
+public record MarkGpsAlertReadCommand(int Id) : IRequest<ApiResponse<bool>>;
 
-public class ResolveGpsAlertCommandHandler(IDbConnectionFactory dbFactory, ICurrentUserService currentUser)
-    : IRequestHandler<ResolveGpsAlertCommand, ApiResponse<bool>>
+public class MarkGpsAlertReadCommandHandler(
+    IDbConnectionFactory dbFactory,
+    ICurrentUserService currentUser,
+    ITenantContext tenantContext)
+    : IRequestHandler<MarkGpsAlertReadCommand, ApiResponse<bool>>
 {
-    public async Task<ApiResponse<bool>> Handle(ResolveGpsAlertCommand request, CancellationToken cancellationToken)
+    public async Task<ApiResponse<bool>> Handle(MarkGpsAlertReadCommand request, CancellationToken cancellationToken)
     {
+        if (!GpsAlertAccess.CanView(currentUser))
+            return ApiResponse<bool>.FailResponse("Insufficient permission to read alerts.");
+
         using var connection = dbFactory.CreateConnection();
         var rows = await connection.ExecuteAsync(new CommandDefinition(
             """
-            UPDATE GpsAlertEvents
-            SET IsAcknowledged = 1, Status = 'resolved', ResolvedAt = GETUTCDATE(), ResolvedBy = @ResolvedBy,
-                ResolutionNotes = @ResolutionNotes,
-                AcknowledgedAt = COALESCE(AcknowledgedAt, GETUTCDATE()),
-                AcknowledgedBy = COALESCE(AcknowledgedBy, @ResolvedBy)
-            WHERE Id = @Id AND IsDeleted = 0 AND Status <> 'resolved'
+            UPDATE e
+            SET e.ReadAt = COALESCE(e.ReadAt, GETUTCDATE()),
+                e.ReadBy = COALESCE(e.ReadBy, @ReadBy)
+            FROM GpsAlertEvents e
+            INNER JOIN Vehicles v ON v.Id = e.VehicleId
+            WHERE e.Id = @Id
+              AND e.IsDeleted = 0
+              AND v.TenantId = @TenantId
+              AND v.IsDeleted = 0
+              AND e.Status <> 'archived'
+              AND e.ReadAt IS NULL
             """,
             new
             {
                 request.Id,
+                TenantId = tenantContext.GetRequiredTenantId(),
+                ReadBy = currentUser.UserId?.ToString()
+            },
+            cancellationToken: cancellationToken));
+
+        return rows > 0
+            ? ApiResponse<bool>.SuccessResponse(true, "Alert marked as read.")
+            : ApiResponse<bool>.FailResponse("Alert not found or already read.");
+    }
+}
+
+public record ResolveGpsAlertCommand(int Id, ResolveGpsAlertDto Resolution) : IRequest<ApiResponse<bool>>;
+
+public class ResolveGpsAlertCommandHandler(
+    IDbConnectionFactory dbFactory,
+    ICurrentUserService currentUser,
+    ITenantContext tenantContext)
+    : IRequestHandler<ResolveGpsAlertCommand, ApiResponse<bool>>
+{
+    public async Task<ApiResponse<bool>> Handle(ResolveGpsAlertCommand request, CancellationToken cancellationToken)
+    {
+        if (!GpsAlertAccess.CanResolve(currentUser))
+            return ApiResponse<bool>.FailResponse("Insufficient permission to resolve alerts.");
+
+        using var connection = dbFactory.CreateConnection();
+        var rows = await connection.ExecuteAsync(new CommandDefinition(
+            """
+            UPDATE e
+            SET e.IsAcknowledged = 1,
+                e.Status = 'resolved',
+                e.ResolvedAt = COALESCE(e.ResolvedAt, GETUTCDATE()),
+                e.ResolvedBy = COALESCE(e.ResolvedBy, @ResolvedBy),
+                e.ResolutionNotes = @ResolutionNotes,
+                e.AcknowledgedAt = COALESCE(e.AcknowledgedAt, GETUTCDATE()),
+                e.AcknowledgedBy = COALESCE(e.AcknowledgedBy, @ResolvedBy),
+                e.ReadAt = COALESCE(e.ReadAt, GETUTCDATE()),
+                e.ReadBy = COALESCE(e.ReadBy, @ResolvedBy)
+            FROM GpsAlertEvents e
+            INNER JOIN Vehicles v ON v.Id = e.VehicleId
+            WHERE e.Id = @Id
+              AND e.IsDeleted = 0
+              AND v.TenantId = @TenantId
+              AND v.IsDeleted = 0
+              AND e.Status <> 'resolved'
+              AND e.Status <> 'archived'
+            """,
+            new
+            {
+                request.Id,
+                TenantId = tenantContext.GetRequiredTenantId(),
                 ResolvedBy = currentUser.UserId?.ToString(),
                 request.Resolution.ResolutionNotes
             },
@@ -96,17 +179,78 @@ public class ResolveGpsAlertCommandHandler(IDbConnectionFactory dbFactory, ICurr
     }
 }
 
+public record ArchiveGpsAlertCommand(int Id, ArchiveGpsAlertDto Archive) : IRequest<ApiResponse<bool>>;
+
+public class ArchiveGpsAlertCommandHandler(
+    IDbConnectionFactory dbFactory,
+    ICurrentUserService currentUser,
+    ITenantContext tenantContext)
+    : IRequestHandler<ArchiveGpsAlertCommand, ApiResponse<bool>>
+{
+    public async Task<ApiResponse<bool>> Handle(ArchiveGpsAlertCommand request, CancellationToken cancellationToken)
+    {
+        if (!GpsAlertAccess.CanArchive(currentUser))
+            return ApiResponse<bool>.FailResponse("Insufficient permission to archive alerts.");
+
+        using var connection = dbFactory.CreateConnection();
+        var rows = await connection.ExecuteAsync(new CommandDefinition(
+            """
+            UPDATE e
+            SET e.Status = 'archived',
+                e.ArchivedAt = COALESCE(e.ArchivedAt, GETUTCDATE()),
+                e.ArchivedBy = COALESCE(e.ArchivedBy, @ArchivedBy),
+                e.ReadAt = COALESCE(e.ReadAt, GETUTCDATE()),
+                e.ReadBy = COALESCE(e.ReadBy, @ArchivedBy),
+                e.ResolutionNotes = COALESCE(NULLIF(@ArchiveReason, ''), e.ResolutionNotes)
+            FROM GpsAlertEvents e
+            INNER JOIN Vehicles v ON v.Id = e.VehicleId
+            WHERE e.Id = @Id
+              AND e.IsDeleted = 0
+              AND v.TenantId = @TenantId
+              AND v.IsDeleted = 0
+              AND e.Status IN ('acknowledged', 'resolved')
+            """,
+            new
+            {
+                request.Id,
+                TenantId = tenantContext.GetRequiredTenantId(),
+                ArchivedBy = currentUser.UserId?.ToString(),
+                request.Archive.ArchiveReason
+            },
+            cancellationToken: cancellationToken));
+
+        return rows > 0
+            ? ApiResponse<bool>.SuccessResponse(true, "Alert archived.")
+            : ApiResponse<bool>.FailResponse("Only acknowledged or resolved alerts can be archived.");
+    }
+}
+
 public record DeleteGpsAlertEventCommand(int Id) : IRequest<ApiResponse<bool>>;
 
-public class DeleteGpsAlertEventCommandHandler(IDbConnectionFactory dbFactory)
+public class DeleteGpsAlertEventCommandHandler(
+    IDbConnectionFactory dbFactory,
+    ICurrentUserService currentUser,
+    ITenantContext tenantContext)
     : IRequestHandler<DeleteGpsAlertEventCommand, ApiResponse<bool>>
 {
     public async Task<ApiResponse<bool>> Handle(DeleteGpsAlertEventCommand request, CancellationToken cancellationToken)
     {
+        if (!GpsAlertAccess.CanDelete(currentUser))
+            return ApiResponse<bool>.FailResponse("Insufficient permission to delete alerts.");
+
         using var connection = dbFactory.CreateConnection();
         var rows = await connection.ExecuteAsync(new CommandDefinition(
-            "UPDATE GpsAlertEvents SET IsDeleted = 1 WHERE Id = @Id AND IsDeleted = 0",
-            new { request.Id },
+            """
+            UPDATE e
+            SET e.IsDeleted = 1
+            FROM GpsAlertEvents e
+            INNER JOIN Vehicles v ON v.Id = e.VehicleId
+            WHERE e.Id = @Id
+              AND e.IsDeleted = 0
+              AND v.TenantId = @TenantId
+              AND v.IsDeleted = 0
+            """,
+            new { request.Id, TenantId = tenantContext.GetRequiredTenantId() },
             cancellationToken: cancellationToken));
 
         return rows > 0

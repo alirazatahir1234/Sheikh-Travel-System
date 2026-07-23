@@ -18,7 +18,7 @@ using SheikhTravelSystem.Application.Features.Tracking.Queries;
 
 namespace SheikhTravelSystem.API.Controllers;
 
-[Authorize(Roles = "Admin,Dispatcher,Accountant,Driver")]
+[Authorize]
 /// <summary>
 /// GPS fleet tracking — live positions, history, trips, geofences, alerts, devices, commands, and
 /// analytics. Analytics routes live in the GpsTrackingController.Analytics.cs partial to keep this
@@ -184,6 +184,7 @@ public partial class GpsTrackingController : BaseApiController
     }
 
     [HttpGet("alerts/events")]
+    [RequirePermission(GpsPermissions.AlertView)]
     public async Task<IActionResult> GetAlertEvents(
         [FromQuery] int? vehicleId,
         [FromQuery] bool? unacknowledgedOnly,
@@ -192,27 +193,45 @@ public partial class GpsTrackingController : BaseApiController
         [FromQuery] int? driverId,
         [FromQuery] string? eventType,
         [FromQuery] string? severity,
-        [FromQuery] string? status)
+        [FromQuery] string? status,
+        [FromQuery] string? readState,
+        [FromQuery] string? datePreset,
+        [FromQuery] int? geofenceId)
         => Ok(await Mediator.Send(new GetGpsAlertEventsQuery(
-            vehicleId, unacknowledgedOnly, from, to, driverId, eventType, severity, status)));
+            vehicleId, unacknowledgedOnly, from, to, driverId, eventType, severity, status, readState, datePreset, geofenceId)));
 
     [HttpGet("alerts/events/{id:int}")]
+    [RequirePermission(GpsPermissions.AlertView)]
     public async Task<IActionResult> GetAlertEvent(int id)
         => Ok(await Mediator.Send(new GetGpsAlertEventByIdQuery(id)));
 
     [HttpGet("alerts/stats")]
+    [RequirePermission(GpsPermissions.AlertView)]
     public async Task<IActionResult> GetAlertStats()
         => Ok(await Mediator.Send(new GetGpsAlertStatsQuery()));
 
     [HttpPost("alerts/events/{id:int}/acknowledge")]
+    [RequirePermission(GpsPermissions.AlertAcknowledge)]
     public async Task<IActionResult> AcknowledgeAlert(int id)
         => Ok(await Mediator.Send(new AcknowledgeGpsAlertCommand(id)));
 
+    [HttpPost("alerts/events/{id:int}/read")]
+    [RequirePermission(GpsPermissions.AlertView)]
+    public async Task<IActionResult> MarkAlertRead(int id)
+        => Ok(await Mediator.Send(new MarkGpsAlertReadCommand(id)));
+
     [HttpPost("alerts/events/{id:int}/resolve")]
+    [RequirePermission(GpsPermissions.AlertResolve)]
     public async Task<IActionResult> ResolveAlert(int id, [FromBody] ResolveGpsAlertDto resolution)
         => Ok(await Mediator.Send(new ResolveGpsAlertCommand(id, resolution)));
 
+    [HttpPost("alerts/events/{id:int}/archive")]
+    [RequirePermission(GpsPermissions.AlertArchive)]
+    public async Task<IActionResult> ArchiveAlert(int id, [FromBody] ArchiveGpsAlertDto? archive)
+        => Ok(await Mediator.Send(new ArchiveGpsAlertCommand(id, archive ?? new ArchiveGpsAlertDto(null))));
+
     [HttpDelete("alerts/events/{id:int}")]
+    [RequirePermission(GpsPermissions.AlertDelete)]
     public async Task<IActionResult> DeleteAlertEvent(int id)
         => Ok(await Mediator.Send(new DeleteGpsAlertEventCommand(id)));
 

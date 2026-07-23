@@ -13,9 +13,13 @@ import '../../gps/services/background_gps_tracker.dart';
 import '../../../core/security/device_registration_service.dart';
 import '../../../core/analytics/analytics_service.dart';
 
-const _sessionKey = 'driver_session';
-const _accessTokenKey = 'driver_access_token';
-const _refreshTokenKey = 'driver_refresh_token';
+const _sessionKey = 'fleet_session';
+const _legacySessionKey = 'driver_session';
+const _accessTokenKey = 'fleet_access_token';
+const _refreshTokenKey = 'fleet_refresh_token';
+const _legacyAccessTokenKey = 'driver_access_token';
+const _legacyRefreshTokenKey = 'driver_refresh_token';
+const _migrationDoneKey = 'fleet_session_migrated';
 
 final authRepositoryProvider = ChangeNotifierProvider<AuthRepository>(
   (ref) => AuthRepository(
@@ -25,6 +29,10 @@ final authRepositoryProvider = ChangeNotifierProvider<AuthRepository>(
     ref.read(sessionInvalidationProvider),
   ),
 );
+
+final fleetSessionProvider = Provider<FleetSession?>((ref) {
+  return ref.watch(authRepositoryProvider).session;
+});
 
 class AuthRepository extends ChangeNotifier {
   AuthRepository(
@@ -42,18 +50,20 @@ class AuthRepository extends ChangeNotifier {
   final Dio _dio;
   final SessionInvalidationNotifier _sessionInvalidation;
 
-  DriverSession? _session;
+  FleetSession? _session;
   bool _loading = true;
 
-  DriverSession? get session => _session;
+  FleetSession? get session => _session;
   bool get isLoggedIn => _session != null;
   bool get isLoading => _loading;
 
   Future<void> _restoreSession() async {
+    await _migrateLegacySessionIfNeeded();
+
     final raw = await _storage.read(key: _sessionKey);
     if (raw != null) {
       try {
-        _session = DriverSession.fromJson(
+        _session = FleetSession.fromJson(
           jsonDecode(raw) as Map<String, dynamic>,
         );
       } catch (_) {
@@ -62,6 +72,38 @@ class AuthRepository extends ChangeNotifier {
     }
     _loading = false;
     notifyListeners();
+  }
+
+  Future<void> _migrateLegacySessionIfNeeded() async {
+    final migrated = await _storage.read(key: _migrationDoneKey);
+    if (migrated == 'true') return;
+
+    final legacyRaw = await _storage.read(key: _legacySessionKey);
+    if (legacyRaw != null) {
+      try {
+        final legacySession = FleetSession.fromLegacyDriverJson(
+          jsonDecode(legacyRaw) as Map<String, dynamic>,
+        );
+        await _persist(legacySession);
+        _session = legacySession;
+      } catch (_) {
+        await _storage.delete(key: _legacySessionKey);
+      }
+    }
+
+    final legacyAccess = await _storage.read(key: _legacyAccessTokenKey);
+    final legacyRefresh = await _storage.read(key: _legacyRefreshTokenKey);
+    if (legacyAccess != null) {
+      await _storage.write(key: _accessTokenKey, value: legacyAccess);
+      await _storage.delete(key: _legacyAccessTokenKey);
+    }
+    if (legacyRefresh != null) {
+      await _storage.write(key: _refreshTokenKey, value: legacyRefresh);
+      await _storage.delete(key: _legacyRefreshTokenKey);
+    }
+
+    await _storage.delete(key: _legacySessionKey);
+    await _storage.write(key: _migrationDoneKey, value: 'true');
   }
 
   void _onSessionInvalidated() {
@@ -93,19 +135,26 @@ class AuthRepository extends ChangeNotifier {
     AnalyticsService.instance.loginSuccess();
     notifyListeners();
     // Register FCM after auth so Authorization header is available.
+    final appName =
+        session.authMode == AuthMode.driver || session.isDriverOnly
+            ? 'driver'
+            : 'fleet';
     // ignore: unawaited_futures
-    PushRegistrationService.instance.start(_dio);
+    PushRegistrationService.instance.start(_dio, appName: appName);
     // ignore: unawaited_futures
     DeviceRegistrationService(_dio).registerCurrentDevice();
   }
 
-  void _setCrashlyticsIdentity(DriverSession session) {
+  void _setCrashlyticsIdentity(FleetSession session) {
     try {
-      // Do not attach phone / PII — driver id + tenant are enough for support.
+      final identifier = session.driverId?.toString() ?? session.userId.toString();
       FirebaseCrashlytics.instance
-        ..setUserIdentifier(session.driverId.toString())
-        ..setCustomKey('driver_id', session.driverId)
+        ..setUserIdentifier(identifier)
+        ..setCustomKey('user_id', session.userId)
         ..setCustomKey('tenant_id', session.tenantId);
+      if (session.driverId != null) {
+        FirebaseCrashlytics.instance.setCustomKey('driver_id', session.driverId!);
+      }
     } catch (_) {
       // Firebase may not be initialized in dev — ignore silently
     }
@@ -130,7 +179,7 @@ class AuthRepository extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> _persist(DriverSession session) async {
+  Future<void> _persist(FleetSession session) async {
     await _storage.write(key: _sessionKey, value: jsonEncode(session.toJson()));
     await _storage.write(key: _accessTokenKey, value: session.accessToken);
     await _storage.write(key: _refreshTokenKey, value: session.refreshToken);

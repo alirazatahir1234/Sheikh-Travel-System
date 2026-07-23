@@ -22,6 +22,7 @@ public class DatabaseSeeder(
         await EnsureSchemaEvolutionAsync(connection, cancellationToken);
 
         await SeedUsersAsync(connection, cancellationToken);
+        await SeedDriverManagerUserAsync(connection, cancellationToken);
         await SeedCustomersAsync(connection, cancellationToken);
         await SeedVehiclesAsync(connection, cancellationToken);
         await SeedDriversAsync(connection, cancellationToken);
@@ -61,7 +62,7 @@ public class DatabaseSeeder(
                 "DELETE FROM Drivers",
                 "DELETE FROM Routes",
                 // Keep admin login usable — only remove users the seeder added.
-                "DELETE FROM Users WHERE Email IN ('dispatcher@sheikhtravel.com','driver@sheikhtravel.com','accountant@sheikhtravel.com')"
+                "DELETE FROM Users WHERE Email IN ('dispatcher@sheikhtravel.com','driver@sheikhtravel.com','accountant@sheikhtravel.com','drivermanager@sheikhtravel.com')"
             };
 
             foreach (var sql in deleteStatements)
@@ -157,6 +158,97 @@ public class DatabaseSeeder(
 
             logger.LogInformation("Seeded user {Email}", u.Email);
         }
+    }
+
+    /// <summary>
+    /// Seeds a DRIVER_MANAGER demo user and links UserRoles (legacy Users.Role has no DRIVER_MANAGER enum).
+    /// </summary>
+    private async Task SeedDriverManagerUserAsync(System.Data.IDbConnection connection, CancellationToken ct)
+    {
+        const string email = "drivermanager@sheikhtravel.com";
+        const string password = "Pass@123";
+
+        var hasTenantId = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
+            "SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'Users' AND COLUMN_NAME = 'TenantId'",
+            cancellationToken: ct)) > 0;
+
+        var exists = await connection.ExecuteScalarAsync<bool>(new CommandDefinition(
+            "SELECT CASE WHEN EXISTS(SELECT 1 FROM Users WHERE Email = @Email) THEN 1 ELSE 0 END",
+            new { Email = email },
+            cancellationToken: ct));
+
+        if (!exists)
+        {
+            if (hasTenantId)
+            {
+                await connection.ExecuteAsync(new CommandDefinition(
+                    @"INSERT INTO Users (TenantId, FullName, Email, PasswordHash, Phone, Role, IsActive, CreatedAt, CreatedBy, IsDeleted)
+                      VALUES (1, @FullName, @Email, @PasswordHash, @Phone, @Role, 1, @CreatedAt, 'seeder', 0);",
+                    new
+                    {
+                        FullName = "Driver Supervisor",
+                        Email = email,
+                        PasswordHash = passwordHasher.Hash(password),
+                        Phone = "03041234567",
+                        // Legacy enum has no DRIVER_MANAGER; Dispatcher is a safe placeholder.
+                        // UserRoles below is the real RBAC assignment.
+                        Role = (int)UserRole.Dispatcher,
+                        CreatedAt = DateTime.UtcNow
+                    },
+                    cancellationToken: ct));
+            }
+            else
+            {
+                await connection.ExecuteAsync(new CommandDefinition(
+                    @"INSERT INTO Users (FullName, Email, PasswordHash, Phone, Role, IsActive, CreatedAt, CreatedBy, IsDeleted)
+                      VALUES (@FullName, @Email, @PasswordHash, @Phone, @Role, 1, @CreatedAt, 'seeder', 0);",
+                    new
+                    {
+                        FullName = "Driver Supervisor",
+                        Email = email,
+                        PasswordHash = passwordHasher.Hash(password),
+                        Phone = "03041234567",
+                        Role = (int)UserRole.Dispatcher,
+                        CreatedAt = DateTime.UtcNow
+                    },
+                    cancellationToken: ct));
+            }
+
+            logger.LogInformation("Seeded user {Email}", email);
+        }
+        else
+        {
+            await connection.ExecuteAsync(new CommandDefinition(
+                "UPDATE Users SET PasswordHash = @PasswordHash, IsActive = 1, IsDeleted = 0 WHERE Email = @Email",
+                new { PasswordHash = passwordHasher.Hash(password), Email = email },
+                cancellationToken: ct));
+        }
+
+        var hasUserRoles = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
+            "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'UserRoles'",
+            cancellationToken: ct)) > 0;
+        if (!hasUserRoles) return;
+
+        // Ensure DRIVER_MANAGER is the only platform role for this demo user.
+        await connection.ExecuteAsync(new CommandDefinition("""
+            DELETE ur
+            FROM UserRoles ur
+            INNER JOIN Users u ON u.Id = ur.UserId
+            INNER JOIN Roles r ON r.Id = ur.RoleId
+            WHERE u.Email = @Email AND r.Code <> N'DRIVER_MANAGER';
+
+            INSERT INTO UserRoles (UserId, RoleId)
+            SELECT u.Id, r.Id
+            FROM Users u
+            INNER JOIN Roles r ON r.Code = N'DRIVER_MANAGER'
+              AND (r.TenantId = u.TenantId OR (u.TenantId IS NULL AND r.TenantId = 1))
+            WHERE u.Email = @Email AND u.IsDeleted = 0
+              AND NOT EXISTS (
+                SELECT 1 FROM UserRoles x WHERE x.UserId = u.Id AND x.RoleId = r.Id
+              );
+            """,
+            new { Email = email },
+            cancellationToken: ct));
     }
 
     // ---------------------------------------------------------------------

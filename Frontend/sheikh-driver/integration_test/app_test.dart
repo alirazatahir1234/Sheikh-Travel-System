@@ -12,15 +12,15 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [integrityOverride()],
-        child: const SheikhGoDriverApp(),
+        child: const SheikhGoFleetApp(),
       ),
     );
 
     await tester.pump(const Duration(seconds: 1));
     await tester.pumpAndSettle(const Duration(seconds: 2));
 
-    expect(find.text('SheikhGo Driver'), findsAny);
-    expect(find.text('Sign in'), findsWidgets);
-    expect(find.text('Phone number'), findsOneWidget);
+    expect(find.text('SheikhGo Fleet'), findsAny);
+    expect(find.text('LOGIN'), findsWidgets);
+    expect(find.text('Email or phone'), findsOneWidget);
   });
 }

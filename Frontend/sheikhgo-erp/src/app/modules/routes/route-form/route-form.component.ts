@@ -3,12 +3,15 @@ import {
   ChangeDetectorRef,
   Component,
   ElementRef,
+  HostListener,
   NgZone,
   OnDestroy,
   OnInit,
-  ViewChild
+  QueryList,
+  ViewChild,
+  ViewChildren
 } from '@angular/core';
-import { FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { AbstractControl, FormBuilder, FormGroup, ValidationErrors, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { GoogleMap, MapDirectionsService } from '@angular/google-maps';
 import { Observable, Subscription } from 'rxjs';
@@ -19,6 +22,8 @@ import { GoogleMapsLoaderService } from '../../../core/services/google-maps-load
 import {
   CreateRouteDto,
   CreateRouteRequest,
+  parseRouteWaypoints,
+  serializeRouteWaypoints,
   UpdateRouteDto,
   UpdateRouteRequest
 } from '../../../core/models/route.model';
@@ -30,7 +35,7 @@ interface RoutePreset {
 }
 
 type RouteOptimizeMode = 'balanced' | 'fastest' | 'efficient' | 'no_tolls';
-type TrafficLevel = 'clear' | 'moderate' | 'heavy';
+type TrafficLevel = 'clear' | 'moderate' | 'heavy' | 'unknown';
 type MapPinRole = 'origin' | 'stop' | 'destination';
 
 interface MapMarkerPoint {
@@ -40,15 +45,19 @@ interface MapMarkerPoint {
   role: MapPinRole;
 }
 
-const DARK_MAP_STYLES: google.maps.MapTypeStyle[] = [
-  { elementType: 'geometry', stylers: [{ color: '#1d2c4d' }] },
-  { elementType: 'labels.text.fill', stylers: [{ color: '#8ec3b9' }] },
-  { elementType: 'labels.text.stroke', stylers: [{ color: '#1a3646' }] },
-  { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#304a7d' }] },
-  { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#2c6675' }] },
-  { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#0e1626' }] },
-  { featureType: 'poi', stylers: [{ visibility: 'off' }] }
+const LIGHT_MAP_STYLES: google.maps.MapTypeStyle[] = [
+  { featureType: 'poi', stylers: [{ visibility: 'off' }] },
+  { featureType: 'transit', stylers: [{ visibility: 'simplified' }] }
 ];
+
+const DRAFT_KEY = 'stb-route-draft';
+
+function differentEndpointsValidator(group: AbstractControl): ValidationErrors | null {
+  const source = (group.get('source')?.value || '').toString().trim().toLowerCase();
+  const destination = (group.get('destination')?.value || '').toString().trim().toLowerCase();
+  if (!source || !destination) return null;
+  return source === destination ? { sameEndpoints: true } : null;
+}
 
 @Component({
   standalone: false,
@@ -59,12 +68,14 @@ const DARK_MAP_STYLES: google.maps.MapTypeStyle[] = [
 export class RouteFormComponent implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild('originInput') originInput?: ElementRef<HTMLInputElement>;
   @ViewChild('destinationInput') destinationInput?: ElementRef<HTMLInputElement>;
+  @ViewChildren('stopInput') stopInputs?: QueryList<ElementRef<HTMLInputElement>>;
   @ViewChild(GoogleMap) googleMap?: GoogleMap;
 
   form: FormGroup;
   loading = false;
   isEdit = false;
   routeId: number | null = null;
+  formDirty = false;
 
   mapsReady = false;
   mapsConfigured: boolean;
@@ -77,9 +88,10 @@ export class RouteFormComponent implements OnInit, AfterViewInit, OnDestroy {
   optimizeMode: RouteOptimizeMode = 'balanced';
   mapMarkers: MapMarkerPoint[] = [];
   routePathLabels: string[] = [];
-  trafficLevel: TrafficLevel = 'clear';
+  trafficLevel: TrafficLevel = 'unknown';
   metricsUpdated = false;
   routeLineActive = false;
+  draftBannerVisible = false;
 
   stops: string[] = [];
   readonly presets: RoutePreset[] = [
@@ -90,11 +102,11 @@ export class RouteFormComponent implements OnInit, AfterViewInit, OnDestroy {
     { label: 'Multan → Faisalabad', source: 'Multan, Pakistan', destination: 'Faisalabad, Pakistan' }
   ];
 
-  readonly optimizeModes: { id: RouteOptimizeMode; label: string; icon: string }[] = [
-    { id: 'balanced', label: 'Balanced', icon: 'route' },
-    { id: 'fastest', label: 'Fastest', icon: 'bolt' },
-    { id: 'efficient', label: 'Fuel efficient', icon: 'eco' },
-    { id: 'no_tolls', label: 'Avoid tolls', icon: 'toll' }
+  readonly optimizeModes: { id: RouteOptimizeMode; label: string; icon: string; hint: string }[] = [
+    { id: 'balanced', label: 'Balanced', icon: 'route', hint: 'Best overall driving route' },
+    { id: 'fastest', label: 'Fastest', icon: 'bolt', hint: 'Prefer lowest ETA with live traffic' },
+    { id: 'efficient', label: 'Shortest', icon: 'eco', hint: 'Prefer lowest distance among alternatives' },
+    { id: 'no_tolls', label: 'Avoid tolls', icon: 'toll', hint: 'Exclude toll roads when possible' }
   ];
 
   mapCenter: google.maps.LatLngLiteral = { lat: 30.3753, lng: 69.3451 };
@@ -104,8 +116,8 @@ export class RouteFormComponent implements OnInit, AfterViewInit, OnDestroy {
     streetViewControl: false,
     fullscreenControl: false,
     zoomControl: true,
-    styles: DARK_MAP_STYLES,
-    backgroundColor: '#0e1626'
+    styles: LIGHT_MAP_STYLES,
+    backgroundColor: '#f1f5f9'
   };
   directionsResult: google.maps.DirectionsResult | null = null;
 
@@ -116,21 +128,21 @@ export class RouteFormComponent implements OnInit, AfterViewInit, OnDestroy {
       suppressMarkers: true,
       preserveViewport: true,
       polylineOptions: {
-        strokeColor: '#14B8A6',
-        strokeWeight: 7,
-        strokeOpacity: 0.92,
+        strokeColor: '#0f766e',
+        strokeWeight: 6,
+        strokeOpacity: 0.9,
         icons: [
           {
             icon: {
               path: arrow,
-              scale: 3.2,
-              fillColor: '#99f6e4',
+              scale: 3,
+              fillColor: '#14b8a6',
               fillOpacity: 1,
               strokeColor: '#0f766e',
               strokeWeight: 1
             },
             offset: '0',
-            repeat: '90px'
+            repeat: '100px'
           }
         ]
       }
@@ -139,10 +151,15 @@ export class RouteFormComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private originAutocomplete: google.maps.places.Autocomplete | null = null;
   private destinationAutocomplete: google.maps.places.Autocomplete | null = null;
+  private stopAutocompletes: google.maps.places.Autocomplete[] = [];
   private placesListeners: google.maps.MapsEventListener[] = [];
+  private stopListeners: google.maps.MapsEventListener[] = [];
   private recomputeTimer: ReturnType<typeof setTimeout> | null = null;
   private directionsSub: Subscription | null = null;
   private routeParamSub: Subscription | null = null;
+  private formSub: Subscription | null = null;
+  private stopInputsSub: Subscription | null = null;
+  private allowNavigate = false;
 
   constructor(
     private fb: FormBuilder,
@@ -156,15 +173,18 @@ export class RouteFormComponent implements OnInit, AfterViewInit, OnDestroy {
     private cdr: ChangeDetectorRef
   ) {
     this.mapsConfigured = this.mapsLoader.isConfigured;
-    this.form = this.fb.group({
-      name: ['', [Validators.maxLength(200)]],
-      source: ['', [Validators.required, Validators.maxLength(200)]],
-      destination: ['', [Validators.required, Validators.maxLength(200)]],
-      distance: [null, [Validators.required, Validators.min(0.1)]],
-      estimatedMinutes: [null, [Validators.min(1)]],
-      basePrice: [0, [Validators.required, Validators.min(0)]],
-      isActive: [true]
-    });
+    this.form = this.fb.group(
+      {
+        name: ['', [Validators.maxLength(200)]],
+        source: ['', [Validators.required, Validators.maxLength(200)]],
+        destination: ['', [Validators.required, Validators.maxLength(200)]],
+        distance: [null as number | null, [Validators.required, Validators.min(0.1)]],
+        estimatedMinutes: [null as number | null, [Validators.min(1)]],
+        basePrice: [0, [Validators.required, Validators.min(0)]],
+        isActive: [true]
+      },
+      { validators: differentEndpointsValidator }
+    );
   }
 
   get hasRoutePreview(): boolean {
@@ -185,7 +205,8 @@ export class RouteFormComponent implements OnInit, AfterViewInit, OnDestroy {
     const labels: Record<TrafficLevel, string> = {
       clear: 'Clear roads',
       moderate: 'Moderate traffic',
-      heavy: 'Heavy traffic'
+      heavy: 'Heavy traffic',
+      unknown: 'Traffic n/a'
     };
     return labels[this.trafficLevel];
   }
@@ -194,7 +215,8 @@ export class RouteFormComponent implements OnInit, AfterViewInit, OnDestroy {
     const icons: Record<TrafficLevel, string> = {
       clear: 'traffic',
       moderate: 'warning',
-      heavy: 'report'
+      heavy: 'report',
+      unknown: 'help_outline'
     };
     return icons[this.trafficLevel];
   }
@@ -211,6 +233,10 @@ export class RouteFormComponent implements OnInit, AfterViewInit, OnDestroy {
     return Math.round(km * 2.5);
   }
 
+  get activeStopCount(): number {
+    return this.stops.map(s => s.trim()).filter(Boolean).length;
+  }
+
   get formattedDuration(): string {
     const min = Number(this.form.get('estimatedMinutes')?.value);
     if (!min) return '—';
@@ -219,16 +245,34 @@ export class RouteFormComponent implements OnInit, AfterViewInit, OnDestroy {
     return h > 0 ? `${h}h ${m}m` : `${m} min`;
   }
 
+  get sameEndpointsError(): boolean {
+    return !!this.form.hasError('sameEndpoints') &&
+      !!(this.form.get('source')?.touched || this.form.get('destination')?.touched);
+  }
+
+  @HostListener('window:beforeunload', ['$event'])
+  onBeforeUnload(event: BeforeUnloadEvent): void {
+    if (this.formDirty && !this.allowNavigate) {
+      event.preventDefault();
+      event.returnValue = '';
+    }
+  }
+
   ngOnInit(): void {
+    this.formSub = this.form.valueChanges.subscribe(() => {
+      this.formDirty = true;
+    });
+
     this.routeParamSub = this.route.paramMap.subscribe(params => {
       const id = params.get('id');
       if (id) {
         this.isEdit = true;
         this.routeId = +id;
+        this.draftBannerVisible = false;
         this.loadRoute(this.routeId);
       } else {
         this.resetForm();
-        this.loadDraft();
+        this.promptDraftRestore();
       }
     });
   }
@@ -246,6 +290,7 @@ export class RouteFormComponent implements OnInit, AfterViewInit, OnDestroy {
       isActive: true
     });
     this.stops = [];
+    this.optimizeMode = 'balanced';
     this.directionsResult = null;
     this.mapMarkers = [];
     this.routePathLabels = [];
@@ -254,6 +299,45 @@ export class RouteFormComponent implements OnInit, AfterViewInit, OnDestroy {
     this.computedDurationText = '';
     this.computedBasePriceText = '';
     this.mapsError = null;
+    this.trafficLevel = 'unknown';
+    this.formDirty = false;
+  }
+
+  private promptDraftRestore(): void {
+    try {
+      const raw = localStorage.getItem(DRAFT_KEY);
+      if (!raw) return;
+      this.draftBannerVisible = true;
+    } catch {
+      /* ignore */
+    }
+  }
+
+  restoreDraft(): void {
+    try {
+      const raw = localStorage.getItem(DRAFT_KEY);
+      if (!raw) {
+        this.draftBannerVisible = false;
+        return;
+      }
+      const { form, stops, optimizeMode } = JSON.parse(raw);
+      if (form) this.form.patchValue(form);
+      if (Array.isArray(stops)) this.stops = stops;
+      if (optimizeMode) this.optimizeMode = optimizeMode;
+      this.draftBannerVisible = false;
+      this.formDirty = true;
+      this.scheduleRecompute();
+      setTimeout(() => this.attachStopAutocompletes(), 0);
+      this.toast.success('Draft restored.');
+    } catch {
+      this.toast.error('Could not restore draft.');
+      this.discardDraft();
+    }
+  }
+
+  discardDraft(): void {
+    localStorage.removeItem(DRAFT_KEY);
+    this.draftBannerVisible = false;
   }
 
   private loadRoute(id: number): void {
@@ -268,12 +352,16 @@ export class RouteFormComponent implements OnInit, AfterViewInit, OnDestroy {
           basePrice: r.basePrice ?? 0,
           isActive: r.isActive
         });
+        this.stops = parseRouteWaypoints(r.waypointsJson);
+        this.optimizeMode = (r.optimizeMode as RouteOptimizeMode) || 'balanced';
         this.computedDistanceText = r.distance ? `${r.distance} km` : '';
         this.computedDurationText = r.estimatedMinutes ? `${r.estimatedMinutes} min` : '';
         this.computedBasePriceText = r.basePrice ? `PKR ${r.basePrice.toLocaleString('en-PK')}` : '';
+        this.formDirty = false;
         if (this.mapsReady && r.source && r.destination) {
           this.scheduleRecompute();
         }
+        setTimeout(() => this.attachStopAutocompletes(), 0);
       },
       error: () => this.toast.error('Failed to load route.')
     });
@@ -284,7 +372,7 @@ export class RouteFormComponent implements OnInit, AfterViewInit, OnDestroy {
 
     const loaded = await this.mapsLoader.load();
     if (!loaded) {
-      this.mapsError = 'Could not load Google Maps. Check your API key in environment.ts.';
+      this.mapsError = 'Could not load Google Maps. Check your API key configuration.';
       this.cdr.markForCheck();
       return;
     }
@@ -299,6 +387,10 @@ export class RouteFormComponent implements OnInit, AfterViewInit, OnDestroy {
       await this.mapsLoader.importLibrary('routes');
       this.zone.run(() => {
         this.attachAutocomplete();
+        this.attachStopAutocompletes();
+        this.stopInputsSub = this.stopInputs?.changes.subscribe(() => {
+          this.attachStopAutocompletes();
+        }) ?? null;
         const source = this.form.get('source')?.value;
         const destination = this.form.get('destination')?.value;
         if (source && destination) {
@@ -314,9 +406,13 @@ export class RouteFormComponent implements OnInit, AfterViewInit, OnDestroy {
   ngOnDestroy(): void {
     if (this.recomputeTimer) clearTimeout(this.recomputeTimer);
     this.placesListeners.forEach(l => l.remove());
+    this.stopListeners.forEach(l => l.remove());
     this.placesListeners = [];
+    this.stopListeners = [];
     this.directionsSub?.unsubscribe();
     this.routeParamSub?.unsubscribe();
+    this.formSub?.unsubscribe();
+    this.stopInputsSub?.unsubscribe();
   }
 
   applyPreset(p: RoutePreset): void {
@@ -330,44 +426,47 @@ export class RouteFormComponent implements OnInit, AfterViewInit, OnDestroy {
 
   setOptimizeMode(mode: RouteOptimizeMode): void {
     this.optimizeMode = mode;
+    this.formDirty = true;
     this.scheduleRecompute();
   }
 
   addStop(): void {
     this.stops.push('');
+    this.formDirty = true;
     this.cdr.markForCheck();
+    setTimeout(() => this.attachStopAutocompletes(), 0);
   }
 
   removeStop(index: number): void {
     this.stops.splice(index, 1);
+    this.formDirty = true;
     this.scheduleRecompute();
+    setTimeout(() => this.attachStopAutocompletes(), 0);
   }
 
   onStopBlur(): void {
+    this.formDirty = true;
     this.scheduleRecompute();
   }
 
   saveDraft(): void {
-    const payload = { form: this.form.getRawValue(), stops: this.stops };
-    localStorage.setItem('stb-route-draft', JSON.stringify(payload));
+    const payload = {
+      form: this.form.getRawValue(),
+      stops: this.stops,
+      optimizeMode: this.optimizeMode
+    };
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(payload));
+    this.draftBannerVisible = false;
     this.toast.success('Draft saved locally.');
-  }
-
-  private loadDraft(): void {
-    try {
-      const raw = localStorage.getItem('stb-route-draft');
-      if (!raw) return;
-      const { form, stops } = JSON.parse(raw);
-      if (form) this.form.patchValue(form);
-      if (Array.isArray(stops)) this.stops = stops;
-    } catch {
-      /* ignore */
-    }
   }
 
   previewRoute(): void {
     if (!this.form.get('source')?.value || !this.form.get('destination')?.value) {
       this.toast.warning('Enter origin and destination first.');
+      return;
+    }
+    if (this.form.hasError('sameEndpoints')) {
+      this.toast.warning('Origin and destination must be different.');
       return;
     }
     this.computeRoute();
@@ -378,11 +477,7 @@ export class RouteFormComponent implements OnInit, AfterViewInit, OnDestroy {
     const map = this.googleMap?.googleMap;
     if (map) {
       map.setMapTypeId(this.mapTypeSatellite ? 'hybrid' : 'roadmap');
-      if (!this.mapTypeSatellite) {
-        map.setOptions({ styles: DARK_MAP_STYLES });
-      } else {
-        map.setOptions({ styles: [] });
-      }
+      map.setOptions({ styles: this.mapTypeSatellite ? [] : LIGHT_MAP_STYLES });
     }
   }
 
@@ -405,13 +500,25 @@ export class RouteFormComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
+  confirmLeave(target: string[] = ['/routes']): void {
+    if (!this.formDirty || this.allowNavigate) {
+      void this.router.navigate(target);
+      return;
+    }
+    if (window.confirm('You have unsaved changes. Leave this page?')) {
+      this.allowNavigate = true;
+      void this.router.navigate(target);
+    }
+  }
+
   private attachAutocomplete(): void {
     if (!this.originInput || !this.destinationInput) return;
     if (typeof google === 'undefined' || !google.maps?.places?.Autocomplete) return;
 
     const options: google.maps.places.AutocompleteOptions = {
       fields: ['formatted_address', 'name', 'geometry'],
-      types: ['geocode']
+      types: ['geocode'],
+      componentRestrictions: { country: 'pk' }
     };
 
     this.originAutocomplete = new google.maps.places.Autocomplete(
@@ -433,6 +540,38 @@ export class RouteFormComponent implements OnInit, AfterViewInit, OnDestroy {
         this.onPlaceSelected('destination', this.destinationAutocomplete!)
       )
     );
+  }
+
+  private attachStopAutocompletes(): void {
+    if (!this.stopInputs?.length) return;
+    if (typeof google === 'undefined' || !google.maps?.places?.Autocomplete) return;
+
+    this.stopListeners.forEach(l => l.remove());
+    this.stopListeners = [];
+    this.stopAutocompletes = [];
+
+    const options: google.maps.places.AutocompleteOptions = {
+      fields: ['formatted_address', 'name', 'geometry'],
+      types: ['geocode'],
+      componentRestrictions: { country: 'pk' }
+    };
+
+    this.stopInputs.forEach((ref, index) => {
+      const ac = new google.maps.places.Autocomplete(ref.nativeElement, options);
+      this.stopAutocompletes.push(ac);
+      this.stopListeners.push(
+        ac.addListener('place_changed', () => {
+          const place = ac.getPlace();
+          const label = place?.formatted_address || place?.name || '';
+          this.zone.run(() => {
+            this.stops[index] = label;
+            this.formDirty = true;
+            this.scheduleRecompute();
+            this.cdr.markForCheck();
+          });
+        })
+      );
+    });
   }
 
   private onPlaceSelected(field: 'source' | 'destination', ac: google.maps.places.Autocomplete): void {
@@ -470,6 +609,7 @@ export class RouteFormComponent implements OnInit, AfterViewInit, OnDestroy {
     };
     return {
       animation: google.maps.Animation?.DROP,
+      label: undefined,
       icon: {
         path: google.maps.SymbolPath.CIRCLE,
         scale: 11,
@@ -498,6 +638,13 @@ export class RouteFormComponent implements OnInit, AfterViewInit, OnDestroy {
       this.cdr.markForCheck();
       return;
     }
+    if (source.toLowerCase() === destination.toLowerCase()) {
+      this.mapsError = 'Origin and destination must be different.';
+      this.directionsResult = null;
+      this.routeLineActive = false;
+      this.cdr.markForCheck();
+      return;
+    }
 
     this.calculating = true;
     this.mapsError = null;
@@ -515,18 +662,17 @@ export class RouteFormComponent implements OnInit, AfterViewInit, OnDestroy {
       destination,
       waypoints: waypoints.length ? waypoints : undefined,
       optimizeWaypoints: waypoints.length > 1,
-      travelMode: 'DRIVING' as google.maps.TravelMode,
+      travelMode: google.maps.TravelMode.DRIVING,
       region: 'PK',
+      provideRouteAlternatives: this.optimizeMode === 'fastest' || this.optimizeMode === 'efficient',
       drivingOptions: {
-        departureTime: new Date()
+        departureTime: new Date(),
+        trafficModel: google.maps.TrafficModel.BEST_GUESS
       }
     };
 
     if (this.optimizeMode === 'no_tolls') {
       request.avoidTolls = true;
-    }
-    if (this.optimizeMode === 'efficient') {
-      request.avoidHighways = false;
     }
 
     this.directionsSub = this.directionsService.route(request).subscribe({
@@ -541,35 +687,52 @@ export class RouteFormComponent implements OnInit, AfterViewInit, OnDestroy {
           return;
         }
 
-        this.directionsResult = result;
-        this.updateMarkersFromDirections(result);
+        const selected = this.pickRoute(result);
+        const selectedResult: google.maps.DirectionsResult = {
+          ...result,
+          routes: [selected]
+        };
+
+        this.directionsResult = selectedResult;
+        this.updateMarkersFromDirections(selectedResult);
         this.buildRoutePathLabels(source, destination, waypoints.length);
-        this.fitMapToRoute(result);
+        this.fitMapToRoute(selectedResult);
         this.routeLineActive = true;
 
         let totalMeters = 0;
         let totalSeconds = 0;
         let trafficSeconds = 0;
-        result.routes[0].legs.forEach(leg => {
+        let hasTraffic = false;
+        selected.legs.forEach(leg => {
           totalMeters += leg.distance?.value ?? 0;
           totalSeconds += leg.duration?.value ?? 0;
-          trafficSeconds += leg.duration_in_traffic?.value ?? leg.duration?.value ?? 0;
+          if (leg.duration_in_traffic?.value != null) {
+            hasTraffic = true;
+            trafficSeconds += leg.duration_in_traffic.value;
+          } else {
+            trafficSeconds += leg.duration?.value ?? 0;
+          }
         });
 
         const km = Math.round(totalMeters / 100) / 10;
-        const minutes = Math.max(1, Math.round(totalSeconds / 60));
+        const minutes = Math.max(1, Math.round((hasTraffic ? trafficSeconds : totalSeconds) / 60));
         const basePrice = this.calculateBasePrice(km);
-        this.trafficLevel = this.deriveTrafficLevel(km, totalSeconds, trafficSeconds);
+        this.trafficLevel = hasTraffic
+          ? this.deriveTrafficLevel(totalSeconds, trafficSeconds)
+          : 'unknown';
 
         this.computedDistanceText = `${km} km`;
         this.computedDurationText = `${minutes} min`;
         this.computedBasePriceText = `PKR ${basePrice.toLocaleString('en-PK')}`;
 
         if (!this.form.get('name')?.value?.trim()) {
-          this.form.patchValue({ name: this.routePathLabels.join(' → ') });
+          this.form.patchValue({ name: this.routePathLabels.join(' → ') }, { emitEvent: false });
         }
 
-        this.form.patchValue({ distance: km, estimatedMinutes: minutes, basePrice });
+        this.form.patchValue(
+          { distance: km, estimatedMinutes: minutes, basePrice },
+          { emitEvent: false }
+        );
         this.flashMetricsUpdated();
         this.cdr.markForCheck();
       },
@@ -579,6 +742,29 @@ export class RouteFormComponent implements OnInit, AfterViewInit, OnDestroy {
         this.cdr.markForCheck();
       }
     });
+  }
+
+  private pickRoute(result: google.maps.DirectionsResult): google.maps.DirectionsRoute {
+    const routes = result.routes;
+    if (routes.length === 1) return routes[0];
+
+    const score = (route: google.maps.DirectionsRoute) => {
+      let meters = 0;
+      let seconds = 0;
+      route.legs.forEach(leg => {
+        meters += leg.distance?.value ?? 0;
+        seconds += leg.duration_in_traffic?.value ?? leg.duration?.value ?? 0;
+      });
+      return { meters, seconds };
+    };
+
+    if (this.optimizeMode === 'fastest') {
+      return [...routes].sort((a, b) => score(a).seconds - score(b).seconds)[0];
+    }
+    if (this.optimizeMode === 'efficient') {
+      return [...routes].sort((a, b) => score(a).meters - score(b).meters)[0];
+    }
+    return routes[0];
   }
 
   private updateMarkersFromDirections(result: google.maps.DirectionsResult): void {
@@ -610,19 +796,21 @@ export class RouteFormComponent implements OnInit, AfterViewInit, OnDestroy {
     const origin = source.split(',')[0].trim();
     const dest = destination.split(',')[0].trim();
     if (stopCount > 0) {
-      this.routePathLabels = [origin, ...this.stops.filter(s => s.trim()).map((s, i) => s.split(',')[0] || `Stop ${i + 1}`), dest];
+      this.routePathLabels = [
+        origin,
+        ...this.stops.filter(s => s.trim()).map((s, i) => s.split(',')[0] || `Stop ${i + 1}`),
+        dest
+      ];
     } else {
       this.routePathLabels = [origin, dest];
     }
   }
 
-  private deriveTrafficLevel(km: number, baseSec: number, trafficSec: number): TrafficLevel {
-    const hours = baseSec / 3600;
-    if (hours <= 0 || km <= 0) return 'clear';
-    const avgKmh = km / hours;
-    const delayRatio = trafficSec > 0 ? trafficSec / baseSec : 1;
-    if (delayRatio > 1.25 || avgKmh < 35) return 'heavy';
-    if (delayRatio > 1.08 || avgKmh < 50) return 'moderate';
+  private deriveTrafficLevel(baseSec: number, trafficSec: number): TrafficLevel {
+    if (baseSec <= 0) return 'unknown';
+    const delayRatio = trafficSec / baseSec;
+    if (delayRatio > 1.25) return 'heavy';
+    if (delayRatio > 1.08) return 'moderate';
     return 'clear';
   }
 
@@ -643,7 +831,7 @@ export class RouteFormComponent implements OnInit, AfterViewInit, OnDestroy {
         bounds.extend(leg.start_location);
         bounds.extend(leg.end_location);
       });
-      map.fitBounds(bounds, { top: 80, right: 48, bottom: 120, left: 320 });
+      map.fitBounds(bounds, { top: 72, right: 56, bottom: 56, left: 56 });
     }, 200);
   }
 
@@ -669,10 +857,16 @@ export class RouteFormComponent implements OnInit, AfterViewInit, OnDestroy {
   submit(): void {
     if (this.form.invalid) {
       this.form.markAllAsTouched();
+      if (this.form.hasError('sameEndpoints')) {
+        this.toast.warning('Origin and destination must be different.');
+      } else if (this.form.get('distance')?.invalid) {
+        this.toast.warning('Enter distance or preview the route on the map first.');
+      }
       return;
     }
     this.loading = true;
     const f = this.form.value;
+    const waypointsJson = serializeRouteWaypoints(this.stops);
 
     const dto: CreateRouteDto = {
       name: f.name?.trim() || null,
@@ -680,7 +874,9 @@ export class RouteFormComponent implements OnInit, AfterViewInit, OnDestroy {
       destination: f.destination.trim(),
       distance: Number(f.distance),
       estimatedMinutes: f.estimatedMinutes != null ? Number(f.estimatedMinutes) : null,
-      basePrice: Number(f.basePrice ?? 0)
+      basePrice: Number(f.basePrice ?? 0),
+      waypointsJson,
+      optimizeMode: this.optimizeMode
     };
 
     const obs: Observable<unknown> = this.isEdit
@@ -692,7 +888,9 @@ export class RouteFormComponent implements OnInit, AfterViewInit, OnDestroy {
 
     obs.subscribe({
       next: () => {
-        localStorage.removeItem('stb-route-draft');
+        localStorage.removeItem(DRAFT_KEY);
+        this.allowNavigate = true;
+        this.formDirty = false;
         this.toast.success(`Route ${this.isEdit ? 'updated' : 'created'}.`);
         this.router.navigate(['/routes']);
       },

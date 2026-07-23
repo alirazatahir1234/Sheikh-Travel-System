@@ -10,18 +10,29 @@ class AuthApi {
   AuthApi(this._dio);
   final Dio _dio;
 
-  Future<DriverSession> login(LoginRequest request) async {
+  Future<FleetSession> login(LoginRequest request) {
+    if (request.isEmailLogin) {
+      return _staffLogin(request);
+    }
+    return _driverLogin(request);
+  }
+
+  Future<FleetSession> _staffLogin(LoginRequest request) async {
+    final res = await _dio.post<Map<String, dynamic>>(
+      ApiEndpoints.staffLogin,
+      data: request.toStaffJson(),
+    );
+    final data = _unwrapData(res.data);
+    return FleetSession.fromStaffJson(data);
+  }
+
+  Future<FleetSession> _driverLogin(LoginRequest request) async {
     final res = await _dio.post<Map<String, dynamic>>(
       ApiEndpoints.driverLogin,
-      data: request.toJson(),
+      data: request.toDriverJson(),
     );
-    final body = res.data;
-    if (body == null) throw Exception('Empty response');
-    if (body['success'] == false) {
-      throw Exception(body['message']?.toString() ?? 'Login failed');
-    }
-    final data = (body['data'] as Map<String, dynamic>?) ?? body;
-    return DriverSession.fromJson(data);
+    final data = _unwrapData(res.data);
+    return FleetSession.fromDriverJson(data);
   }
 
   Future<void> logout(String refreshToken) async {
@@ -30,5 +41,13 @@ class AuthApi {
     } catch (_) {
       // Ignore logout errors — local session is cleared regardless
     }
+  }
+
+  Map<String, dynamic> _unwrapData(Map<String, dynamic>? body) {
+    if (body == null) throw Exception('Empty response');
+    if (body['success'] == false) {
+      throw Exception(body['message']?.toString() ?? 'Login failed');
+    }
+    return (body['data'] as Map<String, dynamic>?) ?? body;
   }
 }

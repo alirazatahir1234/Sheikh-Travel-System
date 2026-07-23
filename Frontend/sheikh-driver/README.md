@@ -1,8 +1,8 @@
-# SheikhGo Driver (Flutter)
+# SheikhGo Fleet (Flutter)
 
-Driver login, assigned trips, start/complete, attendance, fuel, live GPS, SOS, and timeline for the SheikhGo fleet platform.
+Mobile fleet operations for drivers and staff: trips, live GPS, attendance, fuel, and role-based fleet navigation for the SheikhGo platform.
 
-**Package:** `com.sheikhgo.driver`  
+**Package:** `com.sheikhgo.fleet`  
 **Folder:** `Frontend/sheikh-driver`
 
 ## Prerequisites
@@ -42,30 +42,64 @@ Alternatively, after install:
 xattr -dr com.apple.quarantine /opt/homebrew/Caskroom/flutter
 ```
 
-## Run on iPhone Simulator
+## API base URL (`AppConfig.resolvedBaseUrl`)
 
-1. Open Simulator (or boot one):
+Defaults when **no** `--dart-define=API_BASE_URL` is set:
+
+| Target | Default |
+|--------|---------|
+| Android emulator | `http://10.0.2.2:5082/api` (host machine) |
+| iOS Simulator / desktop | `http://localhost:5082/api` |
+
+**Physical devices** (USB or wireless) must pass your Mac’s LAN IP — `localhost` / `10.0.2.2` will not reach the host API. Ensure the API listens on `0.0.0.0:5082`.
 
 ```bash
-open -a Simulator
-# optional — pick a device
-xcrun simctl boot "iPhone 17 Pro"
+# Find Mac LAN IP
+ipconfig getifaddr en0
 ```
 
-2. Quit any existing Flutter run, then from `Frontend/sheikh-driver`:
+## Run targets
+
+From `Frontend/sheikh-driver` (or use the absolute path below).
+
+### Android emulator
+
+No dart-define required (uses `10.0.2.2`):
 
 ```bash
 flutter devices
-flutter run -d ios --dart-define=API_BASE_URL=http://127.0.0.1:5082/api
+flutter run -d <android-emulator-id>
 ```
 
-If several iOS devices appear, pick the simulator id from the list, or:
+### iOS Simulator
 
 ```bash
-flutter run -d "iPhone 17 Pro" --dart-define=API_BASE_URL=http://127.0.0.1:5082/api
+open -a Simulator
+flutter devices
+# Prefer the simulator UUID or name — `-d ios` is not a device id
+flutter run -d "iPhone 17 Pro Max" \
+  --dart-define=API_BASE_URL=http://127.0.0.1:5082/api
 ```
 
-Requires Xcode installed and `sudo xcode-select -s /Applications/Xcode.app/Contents/Developer` once.
+Requires Xcode and `sudo xcode-select -s /Applications/Xcode.app/Contents/Developer` once.
+
+### Physical / wireless iPhone
+
+1. Xcode → **Window → Devices and Simulators** → enable **Connect via network**.
+2. Same Wi‑Fi as the Mac. Trust the computer on the phone.
+
+```bash
+flutter devices
+flutter run -d 00008120-001E6C1E0EA3601E \
+  --dart-define=API_BASE_URL=http://YOUR_MAC_LAN_IP:5082/api
+```
+
+Example:
+
+```bash
+flutter run -d 00008120-001E6C1E0EA3601E \
+  --dart-define=API_BASE_URL=http://10.171.139.91:5082/api
+```
 
 ## App icon / branding
 
@@ -114,6 +148,19 @@ Open **http://localhost:7357** in Safari or any browser.
 3. Open Xcode once and accept the license.
 4. Then: `flutter run -d macos --dart-define=API_BASE_URL=http://127.0.0.1:5082/api`
 
+## Clear Xcode “Stale file” warnings
+
+These are usually DerivedData / Pods cache noise after Flutter rebuilds, not app bugs:
+
+```bash
+cd Frontend/sheikh-driver
+flutter clean
+rm -rf ios/Pods ios/.symlinks ios/Flutter/Flutter.framework ios/Flutter/Flutter.podspec
+rm -rf ~/Library/Developer/Xcode/DerivedData/*
+flutter pub get
+cd ios && pod install && cd ..
+```
+
 ## Maps (Phase C)
 
 Trip detail → **Open Trip Map** opens in-app Google Maps with live location, route line, traffic toggle, ETA (`GET /gps/eta`), and deep links to Google Maps / Apple Maps / Waze.
@@ -144,26 +191,37 @@ flutter run --dart-define=API_BASE_URL=http://127.0.0.1:5082/api --dart-define=G
 - `POST /api/driver-app/fuel-receipts`
 - `GET /api/driver-app/notifications`
 
-## Store release (Phase N)
+## Store release (Phase N / Sprint 6)
 
 See `store/` for privacy, terms, listing copy, screenshots guide, release notes, and the full checklist.
 
+**Bundle ID:** `com.sheikhgo.fleet`
+
+### Sprint 6 features
+
+- **Biometric lock** — Settings → Security (Face ID / fingerprint); locks after ~15s in background
+- **Offline queue** — auto-sync on reconnect + manual retry for failed/conflict items
+- **i18n** — English + Arabic (Settings → Language); RTL for Arabic via Flutter Material
+- **Prod builds** — `scripts/build_prod.sh`
+
 ```bash
 # Android App Bundle (requires android/key.properties — see key.properties.example)
+export API_BASE_URL=https://api.example.com/api
+export PRIVACY_URL=https://example.com/fleet/privacy
+export TERMS_URL=https://example.com/fleet/terms
+export CERT_PIN_1=YOUR_SHA256_HEX
+./scripts/build_prod.sh android
+
+# Or direct flutter:
 flutter build appbundle --release \
   --dart-define=ENV=prod \
   --dart-define=API_BASE_URL=https://api.example.com/api \
-  --dart-define=PRIVACY_URL=https://example.com/driver/privacy \
-  --dart-define=TERMS_URL=https://example.com/driver/terms \
+  --dart-define=PRIVACY_URL=https://example.com/fleet/privacy \
+  --dart-define=TERMS_URL=https://example.com/fleet/terms \
   --dart-define=CERT_PIN_1=YOUR_SHA256_HEX
 
 # iOS IPA
-flutter build ipa --release \
-  --dart-define=ENV=prod \
-  --dart-define=API_BASE_URL=https://api.example.com/api \
-  --dart-define=PRIVACY_URL=https://example.com/driver/privacy \
-  --dart-define=TERMS_URL=https://example.com/driver/terms \
-  --dart-define=CERT_PIN_1=YOUR_SHA256_HEX
+./scripts/build_prod.sh ios
 ```
 
 In-app: **Settings → Privacy Policy / Terms of Service**. Host the markdown (or HTML) publicly and pass those URLs via `PRIVACY_URL` / `TERMS_URL`.

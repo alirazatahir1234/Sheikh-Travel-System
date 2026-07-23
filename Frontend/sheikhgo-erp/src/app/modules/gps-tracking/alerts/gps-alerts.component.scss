@@ -1,3 +1,4 @@
+.alerts-shell { position: relative; }
 .alerts-page { padding: 24px; }
 
 .page-header {
@@ -32,6 +33,29 @@
 .toggle-label { display: flex; align-items: center; gap: 8px; }
 .count-note { font-size: 13px; color: #6b7280; }
 
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.stat-card {
+  background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 14px 16px;
+  display: flex; flex-direction: column; gap: 4px;
+}
+.stat-value { font-size: 22px; font-weight: 700; color: #111827; }
+.stat-value.stat-warn { color: #dc2626; }
+.stat-label { font-size: 12px; color: #6b7280; text-transform: uppercase; letter-spacing: .4px; }
+
+.filter-stack { display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; }
+.chip-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip {
+  border: 1px solid #d1d5db; background: #fff; color: #374151; border-radius: 999px;
+  padding: 6px 12px; font-size: 13px; cursor: pointer;
+  &.active { background: #0f766e; color: #fff; border-color: #0f766e; }
+}
+
 .loading-row { display: flex; justify-content: center; padding: 32px; }
 
 .empty-state {
@@ -51,7 +75,7 @@
        color: #6b7280; text-transform: uppercase; letter-spacing: .5px; border-bottom: 1px solid #e5e7eb; }
   td { padding: 12px 14px; font-size: 14px; border-bottom: 1px solid #f3f4f6; vertical-align: middle; }
   tbody tr:last-child td { border-bottom: none; }
-  tbody tr:hover { background: #f9fafb; }
+  tbody tr:hover { background: #f9fafb; cursor: pointer; }
   tbody tr.acknowledged { opacity: .6; }
 }
 
@@ -95,3 +119,18 @@
 .full-width { width: 100%; }
 .checkbox-row { display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px; }
 .form-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 12px; }
+
+.alert-detail-drawer { width: 460px; right: -460px; }
+.detail-stack { display: flex; flex-direction: column; gap: 16px; }
+.detail-badges { display: flex; gap: 8px; flex-wrap: wrap; }
+.detail-message { margin: 0; color: #374151; line-height: 1.5; }
+.detail-grid {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 16px;
+  .label { display: block; font-size: 11px; color: #6b7280; text-transform: uppercase; margin-bottom: 4px; }
+  .full { grid-column: 1 / -1; }
+}
+
+@media (max-width: 900px) {
+  .alert-detail-drawer { width: 100%; right: -100%; }
+  .detail-grid { grid-template-columns: 1fr; }
+}

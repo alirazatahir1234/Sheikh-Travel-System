@@ -1,0 +1,103 @@
+<div class="chat-shell">
+  <aside class="sessions" *ngIf="sessions.length">
+    <div class="sessions-head">
+      <strong>Recent</strong>
+      <button mat-icon-button type="button" (click)="newChat()" title="New chat">
+        <mat-icon>add</mat-icon>
+      </button>
+    </div>
+    <button
+      type="button"
+      class="session-item"
+      *ngFor="let s of sessions"
+      [class.active]="sessionId === s.id"
+      (click)="openSession(s)">
+      <span class="title">{{ s.title }}</span>
+      <small>{{ s.messageCount }} msgs</small>
+    </button>
+  </aside>
+
+  <section class="chat-main">
+    <div class="provider-strip" *ngIf="providerHealth as h">
+      <mat-icon [class.ok]="h.reachable" [class.warn]="!h.reachable">
+        {{ h.reachable ? 'check_circle' : 'error_outline' }}
+      </mat-icon>
+      <div>
+        <strong>{{ h.provider }}</strong>
+        <span *ngIf="h.model"> · {{ h.model }}</span>
+        <p>{{ h.statusMessage }}</p>
+      </div>
+    </div>
+
+    <div class="chat-loading" *ngIf="loading">
+      <mat-spinner diameter="32"></mat-spinner>
+    </div>
+
+    <div class="messages" *ngIf="!loading">
+      <div class="empty" *ngIf="!messages.length">
+        <mat-icon>smart_toy</mat-icon>
+        <h3>SheikhGo AI</h3>
+        <p>Ask about fleet health, offline vehicles, alerts, maintenance, or drivers.</p>
+        <p class="hint" *ngIf="providerHealth && !providerHealth.reachable">
+          Ollama is offline — answers will use rule engines until you run <code>ollama serve</code> and <code>ollama pull mistral</code>.
+        </p>
+      </div>
+
+      <article
+        *ngFor="let m of messages"
+        class="bubble"
+        [class.user]="m.role === 'user'"
+        [class.assistant]="m.role === 'assistant'">
+        <pre>{{ m.content }}</pre>
+        <footer *ngIf="m.role === 'assistant' && m.mode">
+          {{ m.mode }}<span *ngIf="m.usedLlm"> · LLM</span>
+          <span *ngIf="m.tools && m.tools.length"> · {{ m.tools.join(', ') }}</span>
+        </footer>
+      </article>
+
+      <div class="typing" *ngIf="sending">
+        <mat-spinner diameter="20"></mat-spinner>
+        <span>Thinking…</span>
+      </div>
+      <div #scrollAnchor></div>
+    </div>
+
+    <div class="suggestions" *ngIf="!sending && suggestions.length">
+      <button
+        mat-stroked-button
+        type="button"
+        *ngFor="let s of suggestions"
+        (click)="useSuggestion(s)">
+        {{ s }}
+      </button>
+    </div>
+
+    <div class="confirm-bar" *ngIf="pendingAction && !sending">
+      <div>
+        <strong>Confirm: {{ pendingAction.toolName }}</strong>
+        <p>{{ pendingAction.summary }}</p>
+        <small>Expires {{ pendingAction.expiresAt | date:'short' }} · or type CONFIRM</small>
+      </div>
+      <div class="confirm-actions">
+        <button mat-stroked-button type="button" (click)="dismissConfirm()">Cancel</button>
+        <button mat-flat-button color="primary" type="button" (click)="confirmWrite()">Confirm</button>
+      </div>
+    </div>
+
+    <form class="composer" (ngSubmit)="send()">
+      <mat-form-field appearance="outline" class="composer-field">
+        <mat-label>Message SheikhGo AI</mat-label>
+        <input
+          matInput
+          [(ngModel)]="draft"
+          name="draft"
+          [disabled]="sending"
+          (keydown.enter)="$event.preventDefault(); send()"
+          placeholder="How healthy is my fleet today?" />
+      </mat-form-field>
+      <button mat-flat-button color="primary" type="submit" [disabled]="sending || !draft.trim()">
+        <mat-icon>send</mat-icon>
+      </button>
+    </form>
+  </section>
+</div>

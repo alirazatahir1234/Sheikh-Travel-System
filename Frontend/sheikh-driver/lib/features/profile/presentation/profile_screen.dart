@@ -85,42 +85,44 @@ class ProfileScreen extends ConsumerWidget {
                       label: 'Profile Info',
                       onTap: () => _showInfoSheet(context, profile),
                     ),
-                    const Divider(height: 1),
-                    _MenuTile(
-                      icon: Icons.fingerprint,
-                      label: 'Attendance',
-                      onTap: () => context.push('/attendance'),
-                    ),
-                    const Divider(height: 1),
-                    _MenuTile(
-                      icon: Icons.local_gas_station_outlined,
-                      label: 'Fuel History',
-                      onTap: () => context.push('/fuel'),
-                    ),
-                    const Divider(height: 1),
-                    _MenuTile(
-                      icon: Icons.payments_outlined,
-                      label: 'Earnings',
-                      onTap: () => context.push('/earnings'),
-                    ),
-                    const Divider(height: 1),
-                    _MenuTile(
-                      icon: Icons.folder_outlined,
-                      label: 'Documents',
-                      onTap: () => context.push('/documents'),
-                    ),
-                    const Divider(height: 1),
-                    _MenuTile(
-                      icon: Icons.fact_check_outlined,
-                      label: 'Inspection',
-                      onTap: () => context.push('/inspection'),
-                    ),
-                    const Divider(height: 1),
-                    _MenuTile(
-                      icon: Icons.history_outlined,
-                      label: 'Timeline',
-                      onTap: () => context.push('/timeline'),
-                    ),
+                    if (!profile.isStaffProfile) ...[
+                      const Divider(height: 1),
+                      _MenuTile(
+                        icon: Icons.fingerprint,
+                        label: 'Attendance',
+                        onTap: () => context.push('/attendance'),
+                      ),
+                      const Divider(height: 1),
+                      _MenuTile(
+                        icon: Icons.local_gas_station_outlined,
+                        label: 'Fuel History',
+                        onTap: () => context.push('/fuel'),
+                      ),
+                      const Divider(height: 1),
+                      _MenuTile(
+                        icon: Icons.payments_outlined,
+                        label: 'Earnings',
+                        onTap: () => context.push('/earnings'),
+                      ),
+                      const Divider(height: 1),
+                      _MenuTile(
+                        icon: Icons.folder_outlined,
+                        label: 'Documents',
+                        onTap: () => context.push('/documents'),
+                      ),
+                      const Divider(height: 1),
+                      _MenuTile(
+                        icon: Icons.fact_check_outlined,
+                        label: 'Inspection',
+                        onTap: () => context.push('/inspection'),
+                      ),
+                      const Divider(height: 1),
+                      _MenuTile(
+                        icon: Icons.history_outlined,
+                        label: 'Timeline',
+                        onTap: () => context.push('/timeline'),
+                      ),
+                    ],
                     const Divider(height: 1),
                     _MenuTile(
                       icon: Icons.settings_outlined,
@@ -157,13 +159,18 @@ class ProfileScreen extends ConsumerWidget {
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: 16),
-            _InfoLine('Phone', profile.phone),
+            if (profile.phone.isNotEmpty) _InfoLine('Phone', profile.phone),
             if (profile.email != null) _InfoLine('Email', profile.email!),
-            _InfoLine('License', profile.licenseNumber),
-            if (profile.currentVehicleName != null)
-              _InfoLine('Vehicle', profile.currentVehicleName!),
-            if (profile.branchName != null)
-              _InfoLine('Branch', profile.branchName!),
+            if (profile.isStaffProfile) ...[
+              if (profile.roleLabel != null)
+                _InfoLine('Role', profile.roleLabel!),
+            ] else ...[
+              _InfoLine('License', profile.licenseNumber),
+              if (profile.currentVehicleName != null)
+                _InfoLine('Vehicle', profile.currentVehicleName!),
+              if (profile.branchName != null)
+                _InfoLine('Branch', profile.branchName!),
+            ],
           ],
         ),
       ),
@@ -212,7 +219,9 @@ class _ProfileHeader extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Driver ID: ${profile.driverCode}',
+                  profile.isStaffProfile
+                      ? (profile.roleLabel ?? 'Staff')
+                      : 'Driver ID: ${profile.driverCode}',
                   style: const TextStyle(
                     color: AppColors.textSecondary,
                     fontSize: 13,

@@ -62,6 +62,18 @@ class OfflineOutbox {
     await _box?.delete(id);
   }
 
+  static Future<void> requeue(String id) async {
+    final box = _box;
+    if (box == null) return;
+    final raw = box.get(id);
+    if (raw == null) return;
+    final op = OfflineOperation.fromMap(raw);
+    op.status = OfflineOpStatus.pending;
+    op.lastError = null;
+    op.attempts = 0;
+    await box.put(id, op.toMap());
+  }
+
   static Future<void> clearResolved() async {
     final box = _box;
     if (box == null) return;

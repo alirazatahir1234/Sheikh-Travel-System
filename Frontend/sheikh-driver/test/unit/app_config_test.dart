@@ -16,8 +16,8 @@ void main() {
   });
 
   group('AppConfig basics', () {
-    test('expected package id is sheikhgo driver', () {
-      expect(AppConfig.expectedPackageId, 'com.sheikhgo.driver');
+    test('expected package id is sheikhgo fleet', () {
+      expect(AppConfig.expectedPackageId, 'com.sheikhgo.fleet');
     });
 
     test('appVersion is set', () {

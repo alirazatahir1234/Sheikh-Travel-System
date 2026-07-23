@@ -32,7 +32,7 @@ void main() {
                 ),
                 const SizedBox(height: 16),
                 const Text(
-                  'SheikhGo Driver',
+                  'SheikhGo Fleet',
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 26,

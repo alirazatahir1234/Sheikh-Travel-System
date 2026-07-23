@@ -22,6 +22,18 @@ class NotificationDeepLink {
         data['bookingId']?.toString() ?? data['BookingId']?.toString() ?? '');
     if (bookingId != null && bookingId > 0) return '/trips/$bookingId';
 
+    final driverId = int.tryParse(
+        data['driverId']?.toString() ?? data['DriverId']?.toString() ?? '');
+    if (driverId != null && driverId > 0) return '/more/drivers/$driverId';
+
+    final vehicleId = int.tryParse(
+        data['vehicleId']?.toString() ?? data['VehicleId']?.toString() ?? '');
+    if (vehicleId != null && vehicleId > 0) return '/fleet/vehicles/$vehicleId';
+
+    final alertId = int.tryParse(
+        data['alertId']?.toString() ?? data['AlertId']?.toString() ?? '');
+    if (alertId != null && alertId > 0) return '/alerts/$alertId';
+
     final referenceId = int.tryParse(
         data['referenceId']?.toString() ?? data['ReferenceId']?.toString() ?? '');
 
@@ -40,7 +52,10 @@ class NotificationDeepLink {
     final t = (type ?? '').toLowerCase();
     final m = (module ?? '').toLowerCase();
 
-    if (t.contains('sos') || m.contains('sos')) return '/notifications';
+    if (t.contains('sos') || m.contains('sos') || m.contains('alert')) {
+      if (referenceId != null && referenceId > 0) return '/alerts/$referenceId';
+      return '/alerts';
+    }
     if (m.contains('fuel') || t.contains('fuel')) return '/fuel';
     if (m.contains('inspection')) return '/inspection';
     if (m.contains('document') || m.contains('compliance')) return '/documents';
@@ -48,8 +63,20 @@ class NotificationDeepLink {
       return '/earnings';
     }
     if (m.contains('attendance')) return '/attendance';
-    if (m.contains('gps') || t.contains('vehicleoffline') || m.contains('fleet')) {
-      return '/live';
+    if (m.contains('driver')) {
+      if (referenceId != null && referenceId > 0) {
+        return '/more/drivers/$referenceId';
+      }
+      return '/more/drivers';
+    }
+    if (m.contains('gps') ||
+        t.contains('vehicleoffline') ||
+        m.contains('fleet') ||
+        m.contains('vehicle')) {
+      if (referenceId != null && referenceId > 0) {
+        return '/fleet/vehicles/$referenceId';
+      }
+      return '/fleet/map';
     }
 
     final isTrip = m.contains('trip') ||
@@ -61,6 +88,6 @@ class NotificationDeepLink {
     }
     if (isTrip) return '/trips';
 
-    return null;
+    return '/notifications';
   }
 }

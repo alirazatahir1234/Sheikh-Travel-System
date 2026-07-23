@@ -28,5 +28,5 @@ fi
 
 flutter pub get
 echo ""
-echo "SheikhGo Driver ready. Run (API must be up on port 5082):"
+echo "SheikhGo Fleet ready. Run (API must be up on port 5082):"
 echo "  flutter run --dart-define=API_BASE_URL=http://127.0.0.1:5082/api"

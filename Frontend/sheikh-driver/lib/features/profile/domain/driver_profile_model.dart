@@ -1,3 +1,5 @@
+import '../../auth/domain/auth_models.dart';
+
 class DriverProfile {
   const DriverProfile({
     required this.id,
@@ -17,6 +19,8 @@ class DriverProfile {
     this.rating,
     this.yearsExperience,
     this.verificationStatus,
+    this.isStaffProfile = false,
+    this.roleLabel,
   });
 
   final int id;
@@ -36,6 +40,8 @@ class DriverProfile {
   final double? rating;
   final int? yearsExperience;
   final String? verificationStatus;
+  final bool isStaffProfile;
+  final String? roleLabel;
 
   bool get isLicenseExpiringSoon {
     if (licenseExpiryDate == null) return false;
@@ -64,5 +70,81 @@ class DriverProfile {
       yearsExperience: json['yearsExperience'] as int?,
       verificationStatus: json['verificationStatus'] as String?,
     );
+  }
+
+  factory DriverProfile.fromStaffUserJson(
+    Map<String, dynamic> json,
+    FleetSession session,
+  ) {
+    final roleRaw = json['role'];
+    String? roleFromApi;
+    if (roleRaw is String && roleRaw.trim().isNotEmpty) {
+      roleFromApi = roleRaw;
+    } else if (roleRaw is num) {
+      roleFromApi = switch (roleRaw.toInt()) {
+        1 => 'Admin',
+        2 => 'Dispatcher',
+        3 => 'Driver',
+        4 => 'Accountant',
+        _ => null,
+      };
+    }
+    final roleLabel = _prettyRole(
+      roleFromApi ??
+          (session.roles.isNotEmpty ? session.roles.first : 'Staff'),
+    );
+    final active = json['isActive'] as bool? ?? true;
+
+    return DriverProfile(
+      id: json['id'] as int? ?? session.userId,
+      fullName: json['fullName'] as String? ?? session.displayName,
+      phone: (json['phone'] as String?)?.trim().isNotEmpty == true
+          ? json['phone'] as String
+          : (session.phone ?? ''),
+      email: json['email'] as String? ?? session.email,
+      driverCode: 'U${json['id'] as int? ?? session.userId}',
+      licenseNumber: '—',
+      status: active ? 1 : 0,
+      statusName: active ? 'Active' : 'Inactive',
+      isActive: active,
+      isStaffProfile: true,
+      roleLabel: roleLabel,
+    );
+  }
+
+  factory DriverProfile.fromStaffSession(FleetSession session) {
+    final roleLabel = _prettyRole(
+      session.roles.isNotEmpty ? session.roles.first : 'Staff',
+    );
+    return DriverProfile(
+      id: session.userId,
+      fullName: session.displayName,
+      phone: session.phone ?? '',
+      email: session.email,
+      driverCode: 'U${session.userId}',
+      licenseNumber: '—',
+      status: 1,
+      statusName: 'Active',
+      isActive: true,
+      isStaffProfile: true,
+      roleLabel: roleLabel,
+    );
+  }
+
+  static String _prettyRole(String raw) {
+    final cleaned = raw
+        .replaceAll('_', ' ')
+        .replaceAllMapped(
+          RegExp(r'([a-z])([A-Z])'),
+          (m) => '${m[1]} ${m[2]}',
+        )
+        .trim();
+    if (cleaned.isEmpty) return 'Staff';
+    return cleaned
+        .split(RegExp(r'\s+'))
+        .map((w) => w.isEmpty
+            ? w
+            : '${w[0].toUpperCase()}${w.substring(1).toLowerCase()}')
+        .join(' ');
   }
 }

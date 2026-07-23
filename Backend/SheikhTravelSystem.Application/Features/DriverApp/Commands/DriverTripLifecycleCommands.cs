@@ -104,6 +104,18 @@ public class DriverAdvanceTripCommandHandler(
         var target = MapAction(current, request.Action);
         if (target is null)
         {
+            // Idempotent retries after client timeout (SMTP used to block Accept >20s).
+            if (request.Action == DriverTripAction.Accept &&
+                current is TripStatus.Started or TripStatus.AtPickup or TripStatus.Enroute)
+                return ApiResponse<bool>.SuccessResponse(true, "Trip is already accepted.");
+
+            if (request.Action == DriverTripAction.Arrived &&
+                current is TripStatus.AtPickup or TripStatus.Enroute)
+                return ApiResponse<bool>.SuccessResponse(true, "Already marked arrived at pickup.");
+
+            if (request.Action == DriverTripAction.Onboard && current == TripStatus.Enroute)
+                return ApiResponse<bool>.SuccessResponse(true, "Passenger already onboard.");
+
             if (request.Action == DriverTripAction.Complete && current == TripStatus.Completed)
                 return ApiResponse<bool>.SuccessResponse(true, "Trip is already completed.");
 

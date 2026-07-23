@@ -1,6 +1,6 @@
-# SheikhGo Driver — ProGuard / R8 keep rules
+# SheikhGo Fleet — ProGuard / R8 keep rules
 -keep class io.flutter.** { *; }
--keep class com.sheikhgo.driver.** { *; }
+-keep class com.sheikhgo.fleet.** { *; }
 -dontwarn com.google.firebase.**
 -keepattributes *Annotation*
 -keepattributes SourceFile,LineNumberTable

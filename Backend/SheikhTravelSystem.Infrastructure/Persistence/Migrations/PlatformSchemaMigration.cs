@@ -42,6 +42,9 @@ public static class PlatformSchemaMigration
         await EnsureOrganizationAndAccessMenusAsync(connection, cancellationToken);
         await EnsureFleetMenusAsync(connection, cancellationToken);
         await EnsurePlatformAdminMenusAsync(connection, cancellationToken);
+        await UpsertMenuUnderModuleAsync(
+            connection, "administration", "Maintenance", "/platform/maintenance", "build_circle",
+            "Platform.Settings.Manage", 12, cancellationToken);
         await DeduplicatePlatformMenusAsync(connection, cancellationToken);
         await EnsurePlatformMenuUniqueIndexAsync(connection, cancellationToken);
         await EnsureDefaultSuperAdminAsync(connection, cancellationToken);
@@ -278,6 +281,11 @@ public static class PlatformSchemaMigration
             ("Fleet", "Driver.ManageStatus", "Change driver operational status"),
             ("Fleet", "Driver.ViewPerformance", "View driver performance and violations"),
             ("Fleet", "GPS.View", "View GPS tracking"),
+            ("Fleet", "Gps.AlertView", "View GPS alert events"),
+            ("Fleet", "Gps.AlertAcknowledge", "Acknowledge GPS alerts"),
+            ("Fleet", "Gps.AlertResolve", "Resolve GPS alerts"),
+            ("Fleet", "Gps.AlertArchive", "Archive GPS alerts"),
+            ("Fleet", "Gps.AlertDelete", "Soft-delete GPS alerts"),
             ("Fleet", "Gps.CommandView", "View GPS device command history"),
             ("Fleet", "Gps.CommandSend", "Send GPS device commands"),
             ("Fleet", "Gps.CommandEngineCutoff", "Send engine cut-off/resume commands"),

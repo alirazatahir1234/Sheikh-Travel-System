@@ -42,7 +42,7 @@ flutter build appbundle --release \
 
 ## iOS (TestFlight / App Store)
 
-- [ ] Apple Developer team + App ID `com.sheikhgo.driver`
+- [ ] Apple Developer team + App ID `com.sheikhgo.fleet`
 - [ ] Push capability + APNs key in Firebase
 - [ ] Privacy Nutrition Labels match `STORE_LISTING.md`
 - [ ] Location purpose strings accurate in `Info.plist`

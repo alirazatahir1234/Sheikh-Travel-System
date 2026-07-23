@@ -7,7 +7,7 @@ Use these drafts in Google Play Console and App Store Connect. Replace `[Company
 | Field | Value |
 |-------|-------|
 | App name | SheikhGo Driver |
-| Package / Bundle ID | `com.sheikhgo.driver` |
+| Package / Bundle ID | `com.sheikhgo.fleet` |
 | Category | Business / Productivity |
 | Content rating | PEGI 3 / Everyone (no user-generated social content) |
 | Contact email | support@sheikhgo.local |

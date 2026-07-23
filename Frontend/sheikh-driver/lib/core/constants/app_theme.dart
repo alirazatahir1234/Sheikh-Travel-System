@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// SheikhGo Driver — Figma design tokens
+/// SheikhGo Fleet — ERP-aligned design tokens
 abstract class AppColors {
   /// Primary teal from Figma (~#1D836C / Material teal)
   static const primary = Color(0xFF1D836C);

@@ -12,6 +12,8 @@ import { AccessControlComponent } from './access-control/access-control.componen
 import { ModuleManagementComponent } from './module-management/module-management.component';
 import { SubscriptionManagementComponent } from './subscription-management/subscription-management.component';
 import { MigrationManagerComponent } from './migration-manager/migration-manager.component';
+import { DatabaseResetComponent } from './database-reset/database-reset.component';
+import { ResetDatabaseDialogComponent } from './database-reset/reset-database-dialog.component';
 import { UiButtonComponent } from '../../shared/components/ui/button/ui-button.component';
 import { UiPageHeaderComponent } from '../../shared/components/ui/page-header/ui-page-header.component';
 import { UiDataTableComponent } from '../../shared/components/ui/data-table/ui-data-table.component';
@@ -40,6 +42,7 @@ const routes: Routes = [
   { path: 'module-management', component: ModuleManagementComponent },
   { path: 'subscription-management', component: SubscriptionManagementComponent },
   { path: 'migrations', component: MigrationManagerComponent },
+  { path: 'maintenance', component: DatabaseResetComponent },
   { path: '', redirectTo: 'branches', pathMatch: 'full' }
 ];
 
@@ -55,7 +58,9 @@ const routes: Routes = [
     AccessControlComponent,
     ModuleManagementComponent,
     SubscriptionManagementComponent,
-    MigrationManagerComponent
+    MigrationManagerComponent,
+    DatabaseResetComponent,
+    ResetDatabaseDialogComponent
   ],
   imports: [
     SharedModule,

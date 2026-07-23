@@ -36,6 +36,7 @@ public static class DatabaseMigrationRegistry
             M("GpsGeofenceModuleMigration", GpsGeofenceModuleMigration.ApplyAsync),
             M("GpsFleetStatusHistoryMigration", GpsFleetStatusHistoryMigration.ApplyAsync),
             M("GpsAlertsPhase8Migration", GpsAlertsPhase8Migration.ApplyAsync),
+            M("GpsAlertsLifecycleV2Migration", GpsAlertsLifecycleV2Migration.ApplyAsync),
             M("GpsCommandsPhase9Migration", GpsCommandsPhase9Migration.ApplyAsync),
             M("GpsAnalyticsPhase10Migration", GpsAnalyticsPhase10Migration.ApplyAsync),
             M("GpsAddressCacheMigration", GpsAddressCacheMigration.ApplyAsync),
@@ -62,11 +63,17 @@ public static class DatabaseMigrationRegistry
             M("AssignmentSchemaMigration", AssignmentSchemaMigration.ApplyAsync),
             M("MaintenanceModuleMigration", MaintenanceModuleMigration.ApplyAsync),
             M("TripsModuleMigration", TripsModuleMigration.ApplyAsync),
+            M("TripsPhase2Migration", TripsPhase2Migration.ApplyAsync),
+            M("TripsPhase4Migration", TripsPhase4Migration.ApplyAsync),
             M("DriverAppSosMigration", DriverAppSosMigration.ApplyAsync),
             M("DriverInspectionMigration", DriverInspectionMigration.ApplyAsync),
             M("DriverFuelReceiptMigration", DriverFuelReceiptMigration.ApplyAsync),
             M("DriverDeviceRegistrationMigration", DriverDeviceRegistrationMigration.ApplyAsync),
             M("FleetTrackingRenameMigration", FleetTrackingRenameMigration.ApplyAsync),
+            M("RouteWaypointsMigration", RouteWaypointsMigration.ApplyAsync),
+            M("AiChatPhase1Migration", AiChatPhase1Migration.ApplyAsync),
+            M("AiPendingActionsPhase3Migration", AiPendingActionsPhase3Migration.ApplyAsync),
+            M("DriverManagerRoleTemplateMigration", DriverManagerRoleTemplateMigration.ApplyAsync),
         ];
     }
 }
