@@ -19,6 +19,7 @@ public class LoginCommandHandler(
     IUserAccessService userAccessService,
     IUserPresenceService presence,
     ISecurityEngine securityEngine,
+    IAuditEngine auditEngine,
     IConfiguration configuration,
     ILogger<LoginCommandHandler> logger) : IRequestHandler<LoginCommand, ApiResponse<LoginResponse>>
 {
@@ -38,6 +39,17 @@ public class LoginCommandHandler(
         if (user is null)
         {
             logger.LogWarning("Failed login attempt for email {Email}", request.Email);
+            try
+            {
+                await auditEngine.RecordAsync(new AuditEventWrite(
+                    EventKey: AuditEventKeys.LoginFailed,
+                    EntityType: "User",
+                    Action: "LoginFailed",
+                    Success: false,
+                    Message: "Unknown user",
+                    IpAddress: request.ClientIp), cancellationToken);
+            }
+            catch { /* never block login */ }
             return ApiResponse<LoginResponse>.FailResponse("Invalid email or password.");
         }
 
@@ -54,6 +66,20 @@ public class LoginCommandHandler(
 
         if (user.LockoutEndUtc is DateTime lockoutEnd && lockoutEnd > DateTime.UtcNow)
         {
+            try
+            {
+                await auditEngine.RecordAsync(new AuditEventWrite(
+                    EventKey: AuditEventKeys.Lockout,
+                    EntityType: "User",
+                    EntityId: user.Id,
+                    Action: "Lockout",
+                    Success: false,
+                    Message: "Login attempted while locked",
+                    TenantId: user.TenantId,
+                    UserId: user.Id,
+                    IpAddress: request.ClientIp), cancellationToken);
+            }
+            catch { /* never block login */ }
             return ApiResponse<LoginResponse>.FailResponse(
                 $"Account locked. Try again after {lockoutEnd:u}.");
         }
@@ -71,6 +97,23 @@ public class LoginCommandHandler(
         {
             logger.LogWarning("Failed login attempt for email {Email}", request.Email);
             await RecordFailedAttemptAsync(connection, user, policies, securityEngine, cancellationToken);
+            try
+            {
+                var maxAttempts = securityEngine.GetInt(policies, SecurityPolicyKeys.LockoutMaxAttempts, 0);
+                var nextAttempts = user.FailedLoginAttempts + 1;
+                var locked = maxAttempts > 0 && nextAttempts >= maxAttempts;
+                await auditEngine.RecordAsync(new AuditEventWrite(
+                    EventKey: locked ? AuditEventKeys.Lockout : AuditEventKeys.LoginFailed,
+                    EntityType: "User",
+                    EntityId: user.Id,
+                    Action: locked ? "Lockout" : "LoginFailed",
+                    Success: false,
+                    Message: locked ? "Account locked after failed attempts" : "Invalid password",
+                    TenantId: user.TenantId,
+                    UserId: user.Id,
+                    IpAddress: request.ClientIp), cancellationToken);
+            }
+            catch { /* never block login */ }
             return ApiResponse<LoginResponse>.FailResponse("Invalid email or password.");
         }
 
@@ -131,6 +174,24 @@ public class LoginCommandHandler(
         catch (Exception ex)
         {
             logger.LogWarning(ex, "Failed to record login presence for user {UserId}", user.Id);
+        }
+
+        try
+        {
+            await auditEngine.RecordAsync(new AuditEventWrite(
+                EventKey: AuditEventKeys.LoginSuccess,
+                EntityType: "User",
+                EntityId: user.Id,
+                Action: "Login",
+                Success: true,
+                Message: "Login successful",
+                TenantId: user.TenantId,
+                UserId: user.Id,
+                IpAddress: request.ClientIp), cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            logger.LogDebug(ex, "Failed to record login audit for user {UserId}", user.Id);
         }
 
         var primaryRole = access.RoleCodes.FirstOrDefault() ?? user.Role.ToString();

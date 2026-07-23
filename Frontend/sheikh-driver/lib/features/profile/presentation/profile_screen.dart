@@ -458,6 +458,32 @@ class _CompanyContextCard extends StatelessWidget {
               ],
             ),
           ],
+          if (contextData.auditDisplayLabels.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                for (final label in contextData.auditDisplayLabels.take(4))
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppColors.chipBg,
+                      borderRadius: BorderRadius.circular(AppRadii.sm),
+                    ),
+                    child: Text(
+                      label,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ],
           if (moduleLabels.isNotEmpty) ...[
             const SizedBox(height: 12),
             Wrap(

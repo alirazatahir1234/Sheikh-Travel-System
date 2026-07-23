@@ -9,7 +9,12 @@ using SheikhTravelSystem.Application.Features.Trips.DTOs;
 
 namespace SheikhTravelSystem.Application.Features.Trips.Commands;
 
-public record AddTripExpenseCommand(int TripId, CreateTripExpenseDto Expense) : IRequest<ApiResponse<int>>;
+public record AddTripExpenseCommand(int TripId, CreateTripExpenseDto Expense) : IRequest<ApiResponse<int>>, IAuditableCommand
+{
+    public string AuditAction => "Create";
+    public string AuditEntityName => "TripExpense";
+    public int? AuditEntityId => null;
+}
 
 public class AddTripExpenseCommandValidator : AbstractValidator<AddTripExpenseCommand>
 {
@@ -66,7 +71,12 @@ public class AddTripExpenseCommandHandler(
     }
 }
 
-public record DeleteTripExpenseCommand(int TripId, int ExpenseId) : IRequest<ApiResponse<bool>>;
+public record DeleteTripExpenseCommand(int TripId, int ExpenseId) : IRequest<ApiResponse<bool>>, IAuditableCommand
+{
+    public string AuditAction => "Delete";
+    public string AuditEntityName => "TripExpense";
+    public int? AuditEntityId => ExpenseId;
+}
 
 public class DeleteTripExpenseCommandHandler(IDbConnectionFactory dbFactory, ITenantContext tenantContext)
     : IRequestHandler<DeleteTripExpenseCommand, ApiResponse<bool>>
@@ -83,7 +93,12 @@ public class DeleteTripExpenseCommandHandler(IDbConnectionFactory dbFactory, ITe
     }
 }
 
-public record AddTripPassengerCommand(int TripId, CreateTripPassengerDto Passenger) : IRequest<ApiResponse<int>>;
+public record AddTripPassengerCommand(int TripId, CreateTripPassengerDto Passenger) : IRequest<ApiResponse<int>>, IAuditableCommand
+{
+    public string AuditAction => "Create";
+    public string AuditEntityName => "TripPassenger";
+    public int? AuditEntityId => null;
+}
 
 public class AddTripPassengerCommandValidator : AbstractValidator<AddTripPassengerCommand>
 {
@@ -128,8 +143,12 @@ public class AddTripPassengerCommandHandler(IDbConnectionFactory dbFactory, ITen
     }
 }
 
-public record UpdateTripPassengerCommand(int TripId, int PassengerId, UpdateTripPassengerDto Passenger)
-    : IRequest<ApiResponse<bool>>;
+public record UpdateTripPassengerCommand(int TripId, int PassengerId, UpdateTripPassengerDto Passenger) : IRequest<ApiResponse<bool>>, IAuditableCommand
+{
+    public string AuditAction => "Update";
+    public string AuditEntityName => "TripPassenger";
+    public int? AuditEntityId => PassengerId;
+}
 
 public class UpdateTripPassengerCommandHandler(IDbConnectionFactory dbFactory, ITenantContext tenantContext)
     : IRequestHandler<UpdateTripPassengerCommand, ApiResponse<bool>>
@@ -162,7 +181,12 @@ public class UpdateTripPassengerCommandHandler(IDbConnectionFactory dbFactory, I
     }
 }
 
-public record DeleteTripPassengerCommand(int TripId, int PassengerId) : IRequest<ApiResponse<bool>>;
+public record DeleteTripPassengerCommand(int TripId, int PassengerId) : IRequest<ApiResponse<bool>>, IAuditableCommand
+{
+    public string AuditAction => "Delete";
+    public string AuditEntityName => "TripPassenger";
+    public int? AuditEntityId => PassengerId;
+}
 
 public class DeleteTripPassengerCommandHandler(IDbConnectionFactory dbFactory, ITenantContext tenantContext)
     : IRequestHandler<DeleteTripPassengerCommand, ApiResponse<bool>>
@@ -193,7 +217,12 @@ public record UploadTripDocumentCommand(
     string FileName,
     string ContentType,
     string DocumentType,
-    long FileLength) : IRequest<ApiResponse<TripDocumentDto>>;
+    long FileLength) : IRequest<ApiResponse<TripDocumentDto>>, IAuditableCommand
+{
+    public string AuditAction => "Create";
+    public string AuditEntityName => "TripDocument";
+    public int? AuditEntityId => null;
+}
 
 public class UploadTripDocumentCommandValidator : AbstractValidator<UploadTripDocumentCommand>
 {
@@ -252,7 +281,12 @@ public class UploadTripDocumentCommandHandler(
     }
 }
 
-public record DeleteTripDocumentCommand(int TripId, int DocumentId) : IRequest<ApiResponse<bool>>;
+public record DeleteTripDocumentCommand(int TripId, int DocumentId) : IRequest<ApiResponse<bool>>, IAuditableCommand
+{
+    public string AuditAction => "Delete";
+    public string AuditEntityName => "TripDocument";
+    public int? AuditEntityId => DocumentId;
+}
 
 public class DeleteTripDocumentCommandHandler(IDbConnectionFactory dbFactory, ITenantContext tenantContext)
     : IRequestHandler<DeleteTripDocumentCommand, ApiResponse<bool>>

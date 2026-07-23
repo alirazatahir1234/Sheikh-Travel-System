@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using SheikhTravelSystem.API.Authorization;
+using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Features.GpsTracking.Traccar;
 using SheikhTravelSystem.Infrastructure.SignalR;
 using SheikhTravelSystem.Infrastructure.Traccar;
@@ -9,6 +11,7 @@ namespace SheikhTravelSystem.API.Controllers;
 [ApiController]
 [Route("api/ops")]
 [Authorize]
+[RequirePermission(AnalyticsPermissions.GpsView)]
 public class OpsController(ITraccarSyncState syncState, ITraccarClient traccar) : ControllerBase
 {
     [HttpGet("metrics")]

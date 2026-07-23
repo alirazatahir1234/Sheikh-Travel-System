@@ -180,4 +180,41 @@ public static class DataScopeSql
             // Prefer home/branch ids already collected; if empty, pass-through (avoid locking out).
         }
     }
+
+    /// <summary>
+    /// Soft fleet-linked scope for Bookings/Trips/Payments: clamp via joined vehicle/driver branch (or dept).
+    /// Unassigned rows (no vehicle and no driver) remain visible so dispatchers can claim work.
+    /// </summary>
+    public static void ApplyLinkedFleetScope(
+        DynamicParameters p,
+        DataScopeResult scope,
+        List<string> clauses,
+        string vehicleAlias = "v",
+        string driverAlias = "d")
+    {
+        if (scope.IsCompanyWide)
+            return;
+
+        if (scope.Mode == DataScopeMode.Department && scope.DepartmentIds.Count > 0)
+        {
+            clauses.Add($@"(
+                ({vehicleAlias}.Id IS NULL AND {driverAlias}.Id IS NULL)
+                OR {vehicleAlias}.DepartmentId IN @DsDepartmentIds
+                OR ({vehicleAlias}.Id IS NULL AND {driverAlias}.BranchId IN @DsBranchIdsFallback)
+            )");
+            p.Add("DsDepartmentIds", scope.DepartmentIds.ToArray());
+            p.Add("DsBranchIdsFallback", scope.BranchIds.Count > 0 ? scope.BranchIds.ToArray() : new[] { -1 });
+            return;
+        }
+
+        if (scope.BranchIds.Count > 0)
+        {
+            clauses.Add($@"(
+                ({vehicleAlias}.Id IS NULL AND {driverAlias}.Id IS NULL)
+                OR {vehicleAlias}.BranchId IN @DsBranchIds
+                OR {driverAlias}.BranchId IN @DsBranchIds
+            )");
+            p.Add("DsBranchIds", scope.BranchIds.ToArray());
+        }
+    }
 }

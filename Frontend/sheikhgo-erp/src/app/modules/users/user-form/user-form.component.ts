@@ -19,7 +19,7 @@ import {
   EMPLOYEE_TYPES,
   AssignedRole
 } from '../../../core/models/user.model';
-import { Branch, Department, RoleSummary, EffectivePermission, WorkspaceDefinition, DashboardDefinition, CompanyDataScope } from '../../../core/models/platform.model';
+import { Branch, Department, RoleSummary, EffectivePermission, WorkspaceDefinition, DashboardDefinition, CompanyDataScope, AuditEventListItem } from '../../../core/models/platform.model';
 
 @Component({
   standalone: false,
@@ -44,6 +44,7 @@ export class UserFormComponent implements OnInit {
   effectivePermissions: EffectivePermission[] = [];
   effectiveCategoryChips: string[] = [];
   dataScope: CompanyDataScope | null = null;
+  recentActivity: AuditEventListItem[] = [];
 
   readonly roles = [
     UserRole.Admin,
@@ -108,9 +109,12 @@ export class UserFormComponent implements OnInit {
           : of([] as EffectivePermission[]),
         dataScope: id
           ? this.userService.getUserDataScope(+id).pipe(catchError(() => of(null as CompanyDataScope | null)))
-          : of(null as CompanyDataScope | null)
+          : of(null as CompanyDataScope | null),
+        recentActivity: id
+          ? this.platform.getRecentAuditEvents(null, +id, 12).pipe(catchError(() => of([] as AuditEventListItem[])))
+          : of([] as AuditEventListItem[])
       }).subscribe({
-        next: ({ branches, departments, roles, workspaces, dashboards, user, assigned, effective, dataScope }) => {
+        next: ({ branches, departments, roles, workspaces, dashboards, user, assigned, effective, dataScope, recentActivity }) => {
           this.branches = branches;
           this.departments = departments;
           this.assignableRoles = roles;
@@ -119,6 +123,7 @@ export class UserFormComponent implements OnInit {
           this.selectedRoleIds = new Set(assigned.map(r => r.roleId));
           this.effectivePermissions = effective;
           this.dataScope = dataScope;
+          this.recentActivity = recentActivity ?? [];
           this.effectiveCategoryChips = [...new Set(
             effective.map(p => p.category).filter((c): c is string => !!c && c.trim().length > 0)
           )].sort((a, b) => a.localeCompare(b)).slice(0, 8);

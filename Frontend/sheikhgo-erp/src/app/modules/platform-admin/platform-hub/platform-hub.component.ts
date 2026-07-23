@@ -102,6 +102,13 @@ export class PlatformHubComponent {
           icon: 'policy',
           route: '/platform/security-center',
           permissions: ['Platform.Security.View', 'Platform.Security.Manage']
+        },
+        {
+          label: 'Permission Coverage',
+          description: 'API endpoint permission inventory (read-only).',
+          icon: 'verified_user',
+          route: '/platform/permission-coverage',
+          permissions: ['Platform.Security.Manage']
         }
       ]
     },
@@ -153,6 +160,13 @@ export class PlatformHubComponent {
           permissions: ['Platform.Security.View', 'Platform.Security.Manage']
         },
         {
+          label: 'Audit Center',
+          description: 'Company audit event explorer.',
+          icon: 'history',
+          route: '/platform/audit-center',
+          permissions: ['Platform.Audit.View', 'Platform.AuditLogs.View']
+        },
+        {
           label: 'Subscriptions',
           description: 'Plans, renewals, and invoices.',
           icon: 'subscriptions',
@@ -197,11 +211,11 @@ export class PlatformHubComponent {
           permissions: ['Platform.Settings.View']
         },
         {
-          label: 'Audit Logs',
-          description: 'Security and change history.',
+          label: 'Audit Center',
+          description: 'Search company audit events.',
           icon: 'history',
-          route: '/audit-logs',
-          permissions: ['Platform.AuditLogs.View']
+          route: '/platform/audit-center',
+          permissions: ['Platform.Audit.View', 'Platform.AuditLogs.View']
         }
       ]
     }

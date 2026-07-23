@@ -1,0 +1,155 @@
+<div class="pa-page audit-center">
+  <ui-page-header
+    title="Audit Center"
+    subtitle="Search company audit events. Retention and write level are controlled in Security Center."
+  >
+    <button appUiButton variant="ghost" type="button" (click)="back()">Back to Platform</button>
+    <button
+      appUiButton
+      variant="secondary"
+      type="button"
+      aria-label="Export audit events as CSV"
+      [disabled]="!selectedTenant || exporting"
+      (click)="exportCsv()"
+    >
+      Export CSV
+    </button>
+  </ui-page-header>
+
+  <div class="filters">
+    <label>
+      Category
+      <select [(ngModel)]="categoryFilter" (change)="applyFilters()">
+        <option value="">All</option>
+        <option *ngFor="let c of categories" [value]="c">{{ c }}</option>
+      </select>
+    </label>
+    <label>
+      Severity
+      <select [(ngModel)]="severityFilter" (change)="applyFilters()">
+        <option value="">All</option>
+        <option value="Information">Information</option>
+        <option value="Warning">Warning</option>
+        <option value="Error">Error</option>
+        <option value="Critical">Critical</option>
+      </select>
+    </label>
+    <label>
+      Success
+      <select [(ngModel)]="successFilter" (change)="applyFilters()">
+        <option value="">All</option>
+        <option value="true">Success</option>
+        <option value="false">Failed</option>
+      </select>
+    </label>
+    <label>
+      Entity
+      <input [(ngModel)]="entityTypeFilter" (keyup.enter)="applyFilters()" placeholder="User, Vehicle…" />
+    </label>
+    <label>
+      From
+      <input type="date" [(ngModel)]="fromDate" (change)="applyFilters()" />
+    </label>
+    <label>
+      To
+      <input type="date" [(ngModel)]="toDate" (change)="applyFilters()" />
+    </label>
+    <label class="grow">
+      Search
+      <input [(ngModel)]="searchFilter" (keyup.enter)="applyFilters()" placeholder="Action, message…" />
+    </label>
+    <button appUiButton variant="primary" type="button" (click)="applyFilters()" [disabled]="!selectedTenant">
+      Apply
+    </button>
+  </div>
+
+  <div class="meta-row">
+    <span class="tenant-chip" *ngIf="selectedTenant">Company: {{ selectedTenant.name }}</span>
+    <span class="muted" *ngIf="retentionLabel">{{ retentionLabel }}</span>
+    <a class="link" routerLink="/platform/security-center" [queryParams]="selectedTenant ? { tenantId: selectedTenant.id } : {}">
+      Security policies
+    </a>
+  </div>
+
+  <div class="loading" *ngIf="loading">Loading events…</div>
+  <div class="empty" *ngIf="!loading && !selectedTenant">
+    Select a company from the platform tenant switcher.
+  </div>
+  <div class="empty" *ngIf="!loading && selectedTenant && items.length === 0">
+    No audit events match these filters.
+  </div>
+
+  <div class="table-wrap" *ngIf="!loading && items.length">
+    <table class="audit-table">
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>User</th>
+          <th>Company</th>
+          <th>Category</th>
+          <th>Action</th>
+          <th>Entity</th>
+          <th>Success</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let row of items" (click)="openDetail(row)" class="clickable">
+          <td>{{ formatDate(row.createdOn) }}</td>
+          <td>{{ row.userName || '—' }}</td>
+          <td>{{ row.companyName || '—' }}</td>
+          <td>
+            <span class="badge">{{ row.category }}</span>
+            <div class="muted">{{ row.severity }}</div>
+          </td>
+          <td>
+            <strong>{{ row.displayName || row.action }}</strong>
+            <div class="muted">{{ row.eventKey }}</div>
+          </td>
+          <td>
+            {{ row.entityType || '—' }}
+            <span *ngIf="row.entityId != null">#{{ row.entityId }}</span>
+          </td>
+          <td>
+            <span class="ok" *ngIf="row.success">Yes</span>
+            <span class="fail" *ngIf="!row.success">No</span>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="pager" *ngIf="selectedTenant && totalCount > 0">
+    <button type="button" class="link" [disabled]="page <= 1" (click)="prevPage()">Previous</button>
+    <span>Page {{ page }} / {{ totalPages }} · {{ totalCount }} events</span>
+    <button type="button" class="link" [disabled]="page >= totalPages" (click)="nextPage()">Next</button>
+  </div>
+</div>
+
+<aside class="drawer" *ngIf="drawerOpen" role="dialog" aria-modal="true" aria-label="Audit event detail">
+  <div class="drawer-panel">
+    <header>
+      <h2>Audit detail</h2>
+      <button type="button" class="link" aria-label="Close audit detail" (click)="closeDrawer()">Close</button>
+    </header>
+    <div *ngIf="!detail" class="muted">Loading…</div>
+    <ng-container *ngIf="detail">
+      <p><strong>{{ detail.displayName }}</strong></p>
+      <p class="muted">{{ detail.eventKey }} · {{ detail.category }} · {{ detail.severity }}</p>
+      <dl class="meta">
+        <dt>When</dt><dd>{{ formatDate(detail.createdOn) }}</dd>
+        <dt>User</dt><dd>{{ detail.userName || '—' }}</dd>
+        <dt>Company</dt><dd>{{ detail.companyName || '—' }}</dd>
+        <dt>Entity</dt><dd>{{ detail.entityType || '—' }} <span *ngIf="detail.entityId != null">#{{ detail.entityId }}</span></dd>
+        <dt>Success</dt><dd>{{ detail.success ? 'Yes' : 'No' }}</dd>
+        <dt>IP</dt><dd>{{ detail.ipAddress || '—' }}</dd>
+        <dt>Browser</dt><dd class="break">{{ detail.userAgent || '—' }}</dd>
+        <dt>Correlation</dt><dd class="break">{{ detail.correlationId || '—' }}</dd>
+        <dt>Message</dt><dd>{{ detail.message || '—' }}</dd>
+      </dl>
+      <h3>Before</h3>
+      <pre class="json">{{ detail.oldValues || '—' }}</pre>
+      <h3>After</h3>
+      <pre class="json">{{ detail.newValues || '—' }}</pre>
+    </ng-container>
+  </div>
+</aside>

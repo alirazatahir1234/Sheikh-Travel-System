@@ -880,6 +880,66 @@ export interface SecurityCompanySummary {
   passwordDaysRemaining?: number | null;
 }
 
+export interface AuditEventListItem {
+  id: number;
+  tenantId: number;
+  companyName?: string | null;
+  userId?: number | null;
+  userName?: string | null;
+  eventKey: string;
+  displayName: string;
+  category: string;
+  severity: string;
+  entityType?: string | null;
+  entityId?: number | null;
+  action?: string | null;
+  success: boolean;
+  message?: string | null;
+  ipAddress?: string | null;
+  createdOn: string;
+}
+
+export interface AuditEventDetail extends AuditEventListItem {
+  oldValues?: string | null;
+  newValues?: string | null;
+  userAgent?: string | null;
+  correlationId?: string | null;
+}
+
+export interface AuditEventDefinition {
+  eventKey: string;
+  displayName: string;
+  category: string;
+  severity: string;
+  description?: string | null;
+  sortOrder: number;
+  visible: boolean;
+  isActive: boolean;
+  isSystem: boolean;
+}
+
+export interface AuditEventSearchFilter {
+  page?: number;
+  pageSize?: number;
+  tenantId?: number | null;
+  userId?: number | null;
+  category?: string;
+  eventKey?: string;
+  entityType?: string;
+  entityId?: number | null;
+  severity?: string;
+  success?: boolean | null;
+  fromDate?: string;
+  toDate?: string;
+  search?: string;
+}
+
+export interface AuditRetention {
+  retentionDays: number;
+  auditEnabled: boolean;
+  auditLevel: string;
+}
+
 export interface RoleTemplate {
   code: string;
   name: string;

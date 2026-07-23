@@ -1,0 +1,74 @@
+<div class="page-container permission-coverage">
+  <ui-page-header
+    title="Permission Coverage"
+    subtitle="Read-only inventory of API endpoints and RequirePermission coverage."
+    icon="verified_user"
+    [breadcrumbs]="breadcrumbs">
+    <div class="header-actions">
+      <button mat-stroked-button type="button" (click)="load()" [disabled]="loading">
+        <mat-icon>refresh</mat-icon>
+        Refresh
+      </button>
+    </div>
+  </ui-page-header>
+
+  <div class="summary-strip" *ngIf="!loading && report">
+    <div class="summary-card">
+      <span class="label">Total</span>
+      <strong>{{ report.totalEndpoints }}</strong>
+    </div>
+    <div class="summary-card ok">
+      <span class="label">Protected</span>
+      <strong>{{ report.protectedCount }}</strong>
+    </div>
+    <div class="summary-card" [class.warn]="report.partiallyProtectedCount > 0">
+      <span class="label">Partial</span>
+      <strong>{{ report.partiallyProtectedCount }}</strong>
+    </div>
+    <div class="summary-card public">
+      <span class="label">Public</span>
+      <strong>{{ report.publicCount }}</strong>
+    </div>
+    <div class="summary-card internal">
+      <span class="label">Internal</span>
+      <strong>{{ report.internalCount }}</strong>
+    </div>
+  </div>
+
+  <div class="filters" *ngIf="!loading">
+    <ui-select
+      label="Status"
+      [options]="statusOptions"
+      [(ngModel)]="statusFilter"
+      name="statusFilter"
+      placeholder="All statuses" />
+    <ui-select
+      label="Module"
+      [options]="moduleOptions"
+      [(ngModel)]="moduleFilter"
+      name="moduleFilter"
+      placeholder="All modules" />
+  </div>
+
+  <div class="loading" *ngIf="loading">
+    <mat-spinner diameter="36"></mat-spinner>
+  </div>
+
+  <ui-data-table
+    *ngIf="!loading"
+    title="API permission coverage"
+    [columns]="columns"
+    [data]="filteredEndpoints"
+    [searchable]="true"
+    searchPlaceholder="Search controller, route, permission..."
+    [pageSize]="50">
+    <ng-template uiTableCell="requiredPermission" let-row>
+      {{ row.requiredPermission || (row.notes || '—') }}
+    </ng-template>
+    <ng-template uiTableCell="coverageStatus" let-row>
+      <span class="status-chip" [ngClass]="statusClass(row.coverageStatus)">
+        {{ row.coverageStatus }}
+      </span>
+    </ng-template>
+  </ui-data-table>
+</div>

@@ -79,6 +79,23 @@
       <mat-icon>security</mat-icon>
       <span>Security</span>
     </a>
+    <a class="capability-chip" routerLink="/platform/audit-center" [queryParams]="{ tenantId: tenantId }">
+      <mat-icon>history</mat-icon>
+      <span>Audit</span>
+    </a>
+  </div>
+
+  <div *ngIf="!loading && tenant && recentActivity.length" class="recent-activity" aria-label="Recent activity">
+    <div class="recent-activity__head">
+      <h3>Recent Activity</h3>
+      <a [routerLink]="['/platform/audit-center']" [queryParams]="{ tenantId: tenantId }">View all</a>
+    </div>
+    <ul>
+      <li *ngFor="let e of recentActivity">
+        <strong>{{ e.displayName || e.action }}</strong>
+        <span class="muted">{{ e.userName || '—' }} · {{ e.createdOn | date:'short' }}</span>
+      </li>
+    </ul>
   </div>
 
   <div *ngIf="!loading && tenant && license" class="subscription-summary" aria-label="Subscription summary">

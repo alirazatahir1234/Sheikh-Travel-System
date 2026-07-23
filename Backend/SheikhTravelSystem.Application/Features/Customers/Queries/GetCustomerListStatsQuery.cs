@@ -11,17 +11,21 @@ public record GetCustomerListStatsQuery(
     bool? IsActive = null
 ) : IRequest<ApiResponse<CustomerListStatsDto>>;
 
-public class GetCustomerListStatsQueryHandler(IDbConnectionFactory dbFactory)
+public class GetCustomerListStatsQueryHandler(
+    IDbConnectionFactory dbFactory,
+    ITenantContext tenantContext)
     : IRequestHandler<GetCustomerListStatsQuery, ApiResponse<CustomerListStatsDto>>
 {
     public async Task<ApiResponse<CustomerListStatsDto>> Handle(GetCustomerListStatsQuery request, CancellationToken cancellationToken)
     {
         using var connection = dbFactory.CreateConnection();
+        var tenantId = tenantContext.GetRequiredTenantId();
         var (whereClause, parameters) = CustomerQueryFilters.Build(
             request.Search,
             request.IsActive,
             recency: null,
-            applyRecency: false);
+            applyRecency: false,
+            tenantId: tenantId);
 
         var stats = await connection.QuerySingleAsync<CustomerListStatsDto>(
             new CommandDefinition(

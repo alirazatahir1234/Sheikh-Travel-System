@@ -210,6 +210,78 @@ public record SetCompanyWorkspacesRequest(int TenantId, IReadOnlyList<string>? E
 
 [Authorize]
 [ApiController]
+[Route("api/platform/audit")]
+public class PlatformAuditController : BaseApiController
+{
+    [HttpGet("catalog")]
+    [RequirePermission(PlatformPermissions.AuditView)]
+    public async Task<IActionResult> GetCatalog([FromQuery] bool activeOnly = false)
+        => Ok(await Mediator.Send(new GetAuditCatalogQuery(activeOnly)));
+
+    [HttpGet]
+    [RequirePermission(PlatformPermissions.AuditView)]
+    public async Task<IActionResult> Search(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        [FromQuery] int? tenantId = null,
+        [FromQuery] int? userId = null,
+        [FromQuery] string? category = null,
+        [FromQuery] string? eventKey = null,
+        [FromQuery] string? entityType = null,
+        [FromQuery] int? entityId = null,
+        [FromQuery] string? severity = null,
+        [FromQuery] bool? success = null,
+        [FromQuery] DateTime? fromDate = null,
+        [FromQuery] DateTime? toDate = null,
+        [FromQuery] string? search = null)
+        => Ok(await Mediator.Send(new SearchAuditEventsQuery(
+            page, pageSize, tenantId, userId, category, eventKey, entityType, entityId,
+            severity, success, fromDate, toDate, search)));
+
+    [HttpGet("retention")]
+    [RequirePermission(PlatformPermissions.AuditView)]
+    public async Task<IActionResult> GetRetention([FromQuery] int? tenantId = null)
+        => Ok(await Mediator.Send(new GetAuditRetentionQuery(tenantId)));
+
+    [HttpGet("recent")]
+    [RequirePermission(PlatformPermissions.AuditView)]
+    public async Task<IActionResult> GetRecent(
+        [FromQuery] int? tenantId = null,
+        [FromQuery] int? userId = null,
+        [FromQuery] int take = 20)
+        => Ok(await Mediator.Send(new GetRecentAuditEventsQuery(tenantId, userId, take)));
+
+    [HttpGet("export")]
+    [RequirePermission(PlatformPermissions.AuditView)]
+    public async Task<IActionResult> Export(
+        [FromQuery] int? tenantId = null,
+        [FromQuery] int? userId = null,
+        [FromQuery] string? category = null,
+        [FromQuery] string? eventKey = null,
+        [FromQuery] string? entityType = null,
+        [FromQuery] string? severity = null,
+        [FromQuery] bool? success = null,
+        [FromQuery] DateTime? fromDate = null,
+        [FromQuery] DateTime? toDate = null,
+        [FromQuery] string? search = null,
+        [FromQuery] string format = "csv")
+    {
+        var result = await Mediator.Send(new ExportAuditEventsQuery(
+            tenantId, userId, category, eventKey, entityType, severity, success,
+            fromDate, toDate, search, format));
+        if (!result.Success || result.Data is null)
+            return Ok(result);
+        return File(result.Data.Content, result.Data.ContentType, result.Data.FileName);
+    }
+
+    [HttpGet("{id:int}")]
+    [RequirePermission(PlatformPermissions.AuditView)]
+    public async Task<IActionResult> GetById(int id, [FromQuery] int? tenantId = null)
+        => Ok(await Mediator.Send(new GetAuditEventByIdQuery(id, tenantId)));
+}
+
+[Authorize]
+[ApiController]
 [Route("api/platform/security")]
 public class PlatformSecurityController : BaseApiController
 {
@@ -428,6 +500,7 @@ public class SubscriptionsController : BaseApiController
 }
 
 [Authorize]
+[RequirePermission(PlatformPermissions.SettingsView)]
 [ApiController]
 [Route("api/platform/license")]
 public class LicenseController : BaseApiController

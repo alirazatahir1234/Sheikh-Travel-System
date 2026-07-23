@@ -47,8 +47,14 @@ import {
   SecurityPolicyValue,
   SecurityPolicyDefinition,
   UpdateSecurityCompanyPoliciesPayload,
-  SecurityCompanySummary
+  SecurityCompanySummary,
+  AuditEventListItem,
+  AuditEventDetail,
+  AuditEventDefinition,
+  AuditEventSearchFilter,
+  AuditRetention
 } from '../models/platform.model';
+import { PagedResult } from '../models/common.model';
 
 @Injectable({ providedIn: 'root' })
 export class PlatformService {
@@ -432,5 +438,68 @@ export class PlatformService {
 
   getMySecuritySummary(): Observable<SecurityCompanySummary> {
     return this.http.get<SecurityCompanySummary>(`${this.base}/security/me`);
+  }
+
+  searchAuditEvents(filter: AuditEventSearchFilter = {}): Observable<PagedResult<AuditEventListItem>> {
+    const params: Record<string, string | number | boolean> = {
+      page: filter.page ?? 1,
+      pageSize: filter.pageSize ?? 20
+    };
+    if (filter.tenantId != null) params['tenantId'] = filter.tenantId;
+    if (filter.userId != null) params['userId'] = filter.userId;
+    if (filter.category) params['category'] = filter.category;
+    if (filter.eventKey) params['eventKey'] = filter.eventKey;
+    if (filter.entityType) params['entityType'] = filter.entityType;
+    if (filter.entityId != null) params['entityId'] = filter.entityId;
+    if (filter.severity) params['severity'] = filter.severity;
+    if (filter.success != null) params['success'] = filter.success;
+    if (filter.fromDate) params['fromDate'] = filter.fromDate;
+    if (filter.toDate) params['toDate'] = filter.toDate;
+    if (filter.search) params['search'] = filter.search;
+    return this.http.get<PagedResult<AuditEventListItem>>(`${this.base}/audit`, { params });
+  }
+
+  getAuditCatalog(activeOnly = false): Observable<AuditEventDefinition[]> {
+    return this.http.get<AuditEventDefinition[]>(`${this.base}/audit/catalog`, {
+      params: { activeOnly }
+    });
+  }
+
+  getAuditEventById(id: number, tenantId?: number | null): Observable<AuditEventDetail> {
+    const params: Record<string, string | number | boolean> = {};
+    if (tenantId != null) params['tenantId'] = tenantId;
+    return this.http.get<AuditEventDetail>(`${this.base}/audit/${id}`, { params });
+  }
+
+  getAuditRetention(tenantId?: number | null): Observable<AuditRetention> {
+    const params: Record<string, string | number | boolean> = {};
+    if (tenantId != null) params['tenantId'] = tenantId;
+    return this.http.get<AuditRetention>(`${this.base}/audit/retention`, { params });
+  }
+
+  getRecentAuditEvents(
+    tenantId?: number | null,
+    userId?: number | null,
+    take = 20
+  ): Observable<AuditEventListItem[]> {
+    const params: Record<string, string | number | boolean> = { take };
+    if (tenantId != null) params['tenantId'] = tenantId;
+    if (userId != null) params['userId'] = userId;
+    return this.http.get<AuditEventListItem[]>(`${this.base}/audit/recent`, { params });
+  }
+
+  exportAuditEvents(filter: AuditEventSearchFilter = {}, format: 'csv' | 'excel' = 'csv'): Observable<Blob> {
+    const params: Record<string, string | number | boolean> = { format };
+    if (filter.tenantId != null) params['tenantId'] = filter.tenantId;
+    if (filter.userId != null) params['userId'] = filter.userId;
+    if (filter.category) params['category'] = filter.category;
+    if (filter.eventKey) params['eventKey'] = filter.eventKey;
+    if (filter.entityType) params['entityType'] = filter.entityType;
+    if (filter.severity) params['severity'] = filter.severity;
+    if (filter.success != null) params['success'] = filter.success;
+    if (filter.fromDate) params['fromDate'] = filter.fromDate;
+    if (filter.toDate) params['toDate'] = filter.toDate;
+    if (filter.search) params['search'] = filter.search;
+    return this.http.get(`${this.base}/audit/export`, { params, responseType: 'blob' });
   }
 }

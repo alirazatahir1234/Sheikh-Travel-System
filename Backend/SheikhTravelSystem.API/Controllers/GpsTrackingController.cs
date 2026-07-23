@@ -530,6 +530,7 @@ public partial class GpsTrackingController : BaseApiController
 /// Deprecated aliases — use /api/gps/* instead.
 /// </summary>
 [Authorize]
+[RequirePermission(AnalyticsPermissions.GpsView)]
 [Route("api/tracking")]
 public class TrackingController : BaseApiController
 {
