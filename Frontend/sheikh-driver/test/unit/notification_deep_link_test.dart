@@ -15,8 +15,8 @@ void main() {
       );
     });
 
-    test('maps sos to notifications', () {
-      expect(NotificationDeepLink.resolve(type: 'Sos'), '/notifications');
+    test('maps sos to alerts', () {
+      expect(NotificationDeepLink.resolve(type: 'Sos'), '/alerts');
     });
 
     test('maps payment to earnings', () {
@@ -26,11 +26,15 @@ void main() {
       );
     });
 
-    test('maps gps / fleet to live', () {
+    test('maps gps / fleet to fleet map', () {
       expect(
         NotificationDeepLink.resolve(type: 'VehicleOffline'),
-        '/live',
+        '/fleet/map',
       );
+    });
+
+    test('maps driver module to drivers list', () {
+      expect(NotificationDeepLink.resolve(module: 'Drivers'), '/more/drivers');
     });
   });
 
@@ -46,6 +50,13 @@ void main() {
       expect(
         NotificationDeepLink.fromData({'tripId': '15'}),
         '/trips/15',
+      );
+    });
+
+    test('uses alertId', () {
+      expect(
+        NotificationDeepLink.fromData({'alertId': '7'}),
+        '/alerts/7',
       );
     });
   });

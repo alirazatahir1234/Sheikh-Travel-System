@@ -50,12 +50,33 @@ class AppNotification {
       message: json['message'] as String? ?? '',
       type: typeName,
       isRead: json['isRead'] as bool? ?? false,
-      createdAt:
-          DateTime.tryParse(json['createdAt']?.toString() ?? '') ?? DateTime.now(),
+      createdAt: parseApiDateTime(json['createdAt']?.toString()),
       module: json['module'] as String?,
       referenceId: json['referenceId'] as int?,
       priority: (json['priority'] as num?)?.toInt() ?? 2,
       isArchived: json['isArchived'] as bool? ?? false,
+    );
+  }
+
+  /// API stores UTC; values often arrive without a `Z` suffix. Treat bare timestamps as UTC.
+  static DateTime parseApiDateTime(String? raw) {
+    if (raw == null || raw.isEmpty) return DateTime.now().toUtc();
+    final parsed = DateTime.tryParse(raw);
+    if (parsed == null) return DateTime.now().toUtc();
+    if (parsed.isUtc) return parsed;
+    final hasZone = raw.endsWith('Z') ||
+        raw.contains('+') ||
+        RegExp(r'-\d{2}:\d{2}$').hasMatch(raw);
+    if (hasZone) return parsed.toUtc();
+    return DateTime.utc(
+      parsed.year,
+      parsed.month,
+      parsed.day,
+      parsed.hour,
+      parsed.minute,
+      parsed.second,
+      parsed.millisecond,
+      parsed.microsecond,
     );
   }
 

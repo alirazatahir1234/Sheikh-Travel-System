@@ -11,10 +11,44 @@ class AppConfig {
         _ => AppEnvironment.dev,
       };
 
-  static const String baseUrl = String.fromEnvironment(
+  /// Compile-time override from `--dart-define=API_BASE_URL=...`.
+  /// Empty means “use [resolvedBaseUrl] platform default”.
+  static const String _apiBaseUrlDefine = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://localhost:5082/api',
+    defaultValue: '',
   );
+
+  static const String _defaultIosHostApi = 'http://localhost:5082/api';
+  static const String _defaultAndroidEmulatorApi = 'http://10.0.2.2:5082/api';
+
+  /// Whether an explicit `API_BASE_URL` dart-define was provided.
+  static bool get hasExplicitApiBaseUrl => _apiBaseUrlDefine.trim().isNotEmpty;
+
+  /// API root used by Dio / SignalR.
+  ///
+  /// - Explicit `--dart-define=API_BASE_URL=...` always wins (required for
+  ///   physical devices — use your Mac LAN IP, e.g. `http://10.x.x.x:5082/api`).
+  /// - Android emulator default: `http://10.0.2.2:5082/api` (host loopback).
+  /// - iOS simulator / desktop default: `http://localhost:5082/api`.
+  static String get resolvedBaseUrl {
+    final defined = _apiBaseUrlDefine.trim();
+    if (defined.isNotEmpty) return defined;
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+      return _defaultAndroidEmulatorApi;
+    }
+    return _defaultIosHostApi;
+  }
+
+  /// Alias for [resolvedBaseUrl] (call sites historically used `baseUrl`).
+  static String get baseUrl => resolvedBaseUrl;
+
+  /// Origin without `/api` suffix (SignalR hubs).
+  static String get apiOrigin {
+    final u = resolvedBaseUrl;
+    if (u.endsWith('/api')) return u.substring(0, u.length - 4);
+    if (u.endsWith('/api/')) return u.substring(0, u.length - 5);
+    return u.replaceFirst(RegExp(r'/api/?$'), '');
+  }
 
   static const String tenantSlug = String.fromEnvironment(
     'TENANT_SLUG',
@@ -41,10 +75,15 @@ class AppConfig {
   static bool get isUat => environment == AppEnvironment.uat;
   static bool get isProd => environment == AppEnvironment.prod;
 
-  static const String appVersion = '1.0.0';
+  static const String appVersion = String.fromEnvironment(
+    'APP_VERSION',
+    defaultValue: '1.0.0',
+  );
+
+  static String get environmentLabel => environment.name.toUpperCase();
 
   /// Expected Android applicationId / iOS bundle id.
-  static const String expectedPackageId = 'com.sheikhgo.driver';
+  static const String expectedPackageId = 'com.sheikhgo.fleet';
 
   /// When true (prod release), rooted/jailbroken devices are blocked.
   static bool get blockCompromisedDevices =>

@@ -1,10 +1,13 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using SheikhTravelSystem.API.Authorization;
+using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Features.Reports.Queries;
 
 namespace SheikhTravelSystem.API.Controllers;
 
 [Authorize]
+[RequirePermission(AnalyticsPermissions.ReportView)]
 /// <summary>
 /// Provides analytical reporting endpoints.
 /// </summary>

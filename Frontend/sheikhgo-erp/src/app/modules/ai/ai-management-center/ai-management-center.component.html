@@ -49,20 +49,20 @@
           <div class="form-grid">
             <mat-form-field appearance="outline">
               <mat-label>Provider</mat-label>
-              <mat-select [(ngModel)]="config.provider">
+              <mat-select [(ngModel)]="config.provider" (selectionChange)="onProviderChange()">
                 <mat-option value="None">None (rules only)</mat-option>
                 <mat-option value="AzureOpenAI">Azure OpenAI</mat-option>
                 <mat-option value="OpenAI">OpenAI</mat-option>
-                <mat-option value="Ollama">Ollama</mat-option>
+                <mat-option value="Ollama">Ollama (local · Mistral)</mat-option>
               </mat-select>
             </mat-form-field>
             <mat-form-field appearance="outline">
               <mat-label>Model</mat-label>
-              <input matInput [(ngModel)]="config.modelName" placeholder="gpt-4o-mini" />
+              <input matInput [(ngModel)]="config.modelName" [placeholder]="config.provider === 'Ollama' ? 'mistral' : 'gpt-4o-mini'" />
             </mat-form-field>
             <mat-form-field appearance="outline">
               <mat-label>Endpoint</mat-label>
-              <input matInput [(ngModel)]="config.apiEndpoint" />
+              <input matInput [(ngModel)]="config.apiEndpoint" [placeholder]="config.provider === 'Ollama' ? 'http://127.0.0.1:11434' : ''" />
             </mat-form-field>
             <mat-form-field appearance="outline">
               <mat-label>Monthly budget (USD)</mat-label>
@@ -84,7 +84,13 @@
         </div>
       </mat-tab>
 
-      <mat-tab label="Copilot">
+      <mat-tab label="Chat">
+        <div class="panel chat-panel">
+          <app-ai-chat></app-ai-chat>
+        </div>
+      </mat-tab>
+
+      <mat-tab label="Copilot (legacy)">
         <div class="panel">
           <h3>Fleet assistant</h3>
           <p class="hint">Ask about offline vehicles, critical alerts, maintenance, fleet health, or driver risk. Answers come from SheikhGo engines — LLM only formats when enabled.</p>

@@ -16,7 +16,7 @@ class LoginScreen extends ConsumerStatefulWidget {
 }
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
-  final _phoneCtrl = TextEditingController();
+  final _identifierCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   bool _loading = false;
@@ -24,9 +24,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _rememberMe = true;
   String? _error;
 
+  bool get _isEmailMode => _identifierCtrl.text.trim().contains('@');
+
   @override
   void dispose() {
-    _phoneCtrl.dispose();
+    _identifierCtrl.dispose();
     _passwordCtrl.dispose();
     super.dispose();
   }
@@ -40,7 +42,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     try {
       await ref.read(authRepositoryProvider).login(
             LoginRequest(
-              phone: _phoneCtrl.text.trim(),
+              identifier: _identifierCtrl.text.trim(),
               password: _passwordCtrl.text,
             ),
           );
@@ -114,7 +116,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           ),
                           const SizedBox(height: 14),
                           const Text(
-                            'SheikhGo DRIVER',
+                            'SheikhGo Fleet',
                             style: TextStyle(
                               fontSize: 22,
                               fontWeight: FontWeight.w800,
@@ -131,15 +133,26 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           TextFormField(
-                            controller: _phoneCtrl,
-                            keyboardType: TextInputType.phone,
-                            decoration: const InputDecoration(
-                              labelText: 'Phone Number',
-                              hintText: '03021234567',
-                              prefixIcon: Icon(Icons.phone_outlined),
+                            controller: _identifierCtrl,
+                            // Always use email/text keyboard so users can type
+                            // letters and @. Phone dialer blocks email entry
+                            // before @ is typed (which would flip _isEmailMode).
+                            keyboardType: TextInputType.emailAddress,
+                            textInputAction: TextInputAction.next,
+                            autocorrect: false,
+                            enableSuggestions: false,
+                            onChanged: (_) => setState(() {}),
+                            decoration: InputDecoration(
+                              labelText: 'Email or phone',
+                              hintText: _isEmailMode
+                                  ? 'ops@company.com'
+                                  : 'email or 03021234567',
+                              prefixIcon: Icon(_isEmailMode
+                                  ? Icons.email_outlined
+                                  : Icons.person_outline),
                             ),
                             validator: (v) => (v == null || v.trim().isEmpty)
-                                ? 'Phone is required'
+                                ? 'Email or phone is required'
                                 : null,
                           ),
                           const SizedBox(height: 14),

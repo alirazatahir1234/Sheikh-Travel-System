@@ -1,5 +1,6 @@
 using MediatR;
 using SheikhTravelSystem.Application.Common;
+using SheikhTravelSystem.Application.Common.Interfaces;
 
 namespace SheikhTravelSystem.Application.Features.Platform;
 
@@ -35,8 +36,31 @@ public record DepartmentDto(
     int StaffCount);
 
 public record DepartmentUpsertPayload(string Name, int? DepartmentHeadUserId);
-public record RoleDto(int Id, int TenantId, string Name, string Code, bool IsSystem, bool IsActive, IReadOnlyList<string> Permissions);
-public record PermissionDto(int Id, string ModuleName, string PermissionCode, string? Description);
+public record RoleDto(
+    int Id,
+    int TenantId,
+    string Name,
+    string Code,
+    bool IsSystem,
+    bool IsActive,
+    IReadOnlyList<string> Permissions,
+    string? DisplayName = null,
+    string? Description = null,
+    string? Category = null,
+    string? RoleType = null,
+    int SortOrder = 0,
+    bool Visible = true);
+public record PermissionDto(
+    int Id,
+    string ModuleName,
+    string PermissionCode,
+    string? Description,
+    string? DisplayName = null,
+    string? Category = null,
+    int SortOrder = 0,
+    bool Visible = true,
+    string? Action = null,
+    string? ModuleKey = null);
 public record TenantListDto(
     int Id,
     string Name,
@@ -57,7 +81,12 @@ public record TenantListDto(
     int? MaxVehicles,
     string? ModuleCodes,
     DateTime? SubscriptionEndDate,
-    string? SubscriptionStatus);
+    string? SubscriptionStatus)
+{
+    /// <summary>Company alias for product language (persistence remains Tenant).</summary>
+    public int CompanyId => Id;
+    public string CompanyName => Name;
+}
 
 public record TenantManagementStatsDto(
     int ActiveTenants,
@@ -74,14 +103,98 @@ public record MenuModuleDto(
     string Icon,
     bool Collapsible,
     int SortOrder,
-    IReadOnlyList<MenuItemDto> Items);
+    IReadOnlyList<MenuItemDto> Items,
+    string? DisplayName = null,
+    string? Description = null,
+    bool Visible = true);
 public record MenuItemDto(
     string Id,
     string Label,
     string Icon,
     string Route,
     string? PermissionCode,
-    int SortOrder);
+    int SortOrder,
+    string? DisplayName = null,
+    string? Description = null,
+    string? Category = null,
+    string? FeatureKey = null,
+    string? ModuleKey = null,
+    bool IsMobileSupported = false,
+    bool Visible = true);
+
+public record MenuCatalogModuleDto(
+    int Id,
+    string ModuleKey,
+    string Name,
+    string DisplayName,
+    string? Description,
+    string? Icon,
+    int SortOrder,
+    bool IsCollapsible,
+    bool Visible,
+    IReadOnlyList<MenuCatalogItemDto> Items);
+
+public record MenuCatalogItemDto(
+    int Id,
+    int ModuleId,
+    string Name,
+    string DisplayName,
+    string? Description,
+    string? Category,
+    string? Route,
+    string? Icon,
+    string? PermissionCode,
+    int SortOrder,
+    bool IsActive,
+    bool Visible,
+    string? FeatureKey,
+    string? ModuleKey,
+    bool IsMobileSupported,
+    int? ParentId = null);
+
+public record MenuCatalogDto(IReadOnlyList<MenuCatalogModuleDto> Modules);
+
+public record UpdateMenuModulePayload(
+    string? DisplayName,
+    string? Icon,
+    int SortOrder,
+    bool Visible,
+    bool IsCollapsible);
+
+public record UpdateMenuItemPayload(
+    string? DisplayName,
+    string? Description,
+    string? Category,
+    string? Route,
+    string? Icon,
+    string? PermissionCode,
+    int SortOrder,
+    bool IsActive,
+    bool Visible,
+    string? FeatureKey,
+    string? ModuleKey,
+    bool IsMobileSupported);
+
+public record CreateMenuItemPayload(
+    int ModuleId,
+    string Name,
+    string? DisplayName,
+    string? Description,
+    string? Category,
+    string? Route,
+    string? Icon,
+    string? PermissionCode,
+    int SortOrder,
+    bool Visible = true,
+    string? FeatureKey = null,
+    string? ModuleKey = null,
+    bool IsMobileSupported = false);
+
+public record CompanyNavSummaryDto(
+    int ModuleCount,
+    int ItemCount,
+    IReadOnlyList<string> TopModuleLabels,
+    IReadOnlyList<string> MobileItemLabels);
 
 public record BranchUpsertPayload(
     string BranchCode,
@@ -114,10 +227,63 @@ public record GetRolesQuery : IRequest<ApiResponse<IReadOnlyList<RoleDto>>>;
 public record CreateRoleCommand(string Name, string Code) : IRequest<ApiResponse<int>>;
 public record UpdateRolePermissionsCommand(int RoleId, IReadOnlyList<string> PermissionCodes) : IRequest<ApiResponse<bool>>;
 
-public record GetPermissionsQuery : IRequest<ApiResponse<IReadOnlyList<PermissionDto>>>;
+public record GetPermissionsQuery(
+    string? Category = null,
+    string? ModuleKey = null,
+    string? Action = null,
+    bool? Visible = null) : IRequest<ApiResponse<IReadOnlyList<PermissionDto>>>;
 
-public record TenantModuleDefinitionDto(string Code, string Name, IReadOnlyList<string> LegacyKeys);
+public record GetEffectivePermissionsQuery : IRequest<ApiResponse<IReadOnlyList<EffectivePermissionDto>>>;
+public record GetUserPermissionsQuery(int UserId) : IRequest<ApiResponse<IReadOnlyList<EffectivePermissionDto>>>;
+
+public record TenantModuleDefinitionDto(
+    string Code,
+    string Name,
+    IReadOnlyList<string> LegacyKeys,
+    string? DisplayName = null,
+    string? Description = null,
+    string? Category = null,
+    string? Version = null,
+    string? Icon = null,
+    string? Route = null,
+    int SortOrder = 0,
+    IReadOnlyList<string>? Dependencies = null,
+    bool Visible = true,
+    bool IsMobileSupported = false,
+    bool IsAISupported = false,
+    bool IsGPSSupported = false,
+    string Status = "Active",
+    string? DocumentationUrl = null,
+    bool IsEnableable = true,
+    int? Id = null);
+
+public record ModuleRegistryDto(
+    string Code,
+    string Name,
+    string DisplayName,
+    string? Description,
+    string? Category,
+    string Version,
+    string? Icon,
+    string? Route,
+    int SortOrder,
+    IReadOnlyList<string> Dependencies,
+    bool Visible,
+    bool IsMobileSupported,
+    bool IsAISupported,
+    bool IsGPSSupported,
+    string Status,
+    string? DocumentationUrl,
+    IReadOnlyList<string> LegacyKeys,
+    bool IsEnableable,
+    int? Id = null,
+    bool IsInstalled = false,
+    bool IsLicensed = false);
+
 public record GetTenantModulesQuery : IRequest<ApiResponse<IReadOnlyList<TenantModuleDefinitionDto>>>;
+public record GetModuleCatalogQuery : IRequest<ApiResponse<IReadOnlyList<ModuleRegistryDto>>>;
+public record GetCompanyModulesQuery : IRequest<ApiResponse<IReadOnlyList<ModuleRegistryDto>>>;
+public record GetModuleByKeyQuery(string CodeOrId) : IRequest<ApiResponse<ModuleRegistryDto>>;
 
 public record GetTenantsQuery : IRequest<ApiResponse<IReadOnlyList<TenantListDto>>>;
 
@@ -165,6 +331,10 @@ public record TenantDetailDto(
 {
     public IReadOnlyList<string> ModuleCodes { get; init; } = [];
     public TenantAdminInfoDto? AdminInfo { get; init; }
+
+    /// <summary>Company alias for product language (persistence remains Tenant).</summary>
+    public int CompanyId => Id;
+    public string CompanyName => Name;
 }
 
 public record GetTenantByIdQuery(int Id) : IRequest<ApiResponse<TenantDetailDto>>;
@@ -184,6 +354,11 @@ public record UpdateTenantCommand(
     : IRequest<ApiResponse<bool>>;
 
 public record GetUserMenuQuery : IRequest<ApiResponse<IReadOnlyList<MenuModuleDto>>>;
+public record GetMenuCatalogQuery : IRequest<ApiResponse<MenuCatalogDto>>;
+public record UpdateMenuModuleCommand(int Id, UpdateMenuModulePayload Payload) : IRequest<ApiResponse<bool>>;
+public record UpdateMenuItemCommand(int Id, UpdateMenuItemPayload Payload) : IRequest<ApiResponse<bool>>;
+public record CreateMenuItemCommand(CreateMenuItemPayload Payload) : IRequest<ApiResponse<int>>;
+public record DeleteMenuItemCommand(int Id) : IRequest<ApiResponse<bool>>;
 
 public record UpdateDepartmentRequest(DepartmentUpsertPayload Payload, bool IsActive);
 
@@ -242,7 +417,13 @@ public record RoleSummaryDto(
     bool IsActive,
     int UserCount,
     int PermissionCount,
-    IReadOnlyList<string> Permissions);
+    IReadOnlyList<string> Permissions,
+    string? DisplayName = null,
+    string? Description = null,
+    string? Category = null,
+    string? RoleType = null,
+    int SortOrder = 0,
+    bool Visible = true);
 
 public record TenantSecuritySettingsDto(
     bool IsMfaRequired,
@@ -256,11 +437,22 @@ public record RoleTemplateDto(
     string Code,
     string Name,
     int PermissionCount,
-    IReadOnlyList<string> Permissions);
+    IReadOnlyList<string> Permissions,
+    string? DisplayName = null,
+    string? Description = null,
+    string? Category = null);
 
 public record GetRolesForTenantQuery(int TenantId) : IRequest<ApiResponse<IReadOnlyList<RoleSummaryDto>>>;
+public record GetCompanyRolesQuery(int? TenantId = null) : IRequest<ApiResponse<IReadOnlyList<RoleSummaryDto>>>;
 public record CreateRoleForTenantCommand(int TenantId, string Name, string Code) : IRequest<ApiResponse<int>>;
-public record UpdateRoleForTenantCommand(int TenantId, int RoleId, string Name, bool IsActive) : IRequest<ApiResponse<bool>>;
+public record UpdateRoleForTenantCommand(
+    int TenantId,
+    int RoleId,
+    string Name,
+    bool IsActive,
+    string? DisplayName = null,
+    string? Description = null,
+    string? Category = null) : IRequest<ApiResponse<bool>>;
 public record DeleteRoleForTenantCommand(int TenantId, int RoleId) : IRequest<ApiResponse<bool>>;
 public record UpdateRolePermissionsForTenantCommand(int TenantId, int RoleId, IReadOnlyList<string> PermissionCodes) : IRequest<ApiResponse<bool>>;
 
@@ -270,11 +462,28 @@ public record UpdateTenantSecuritySettingsCommand(int TenantId, TenantSecuritySe
 public record GetRoleTemplatesQuery : IRequest<ApiResponse<IReadOnlyList<RoleTemplateDto>>>;
 public record ApplyRoleTemplateCommand(int TenantId, string RoleCode) : IRequest<ApiResponse<bool>>;
 
-// Module Management (Sprint 3)
+// Module Management / Module Registry (Stage 3)
 public record ModuleStatusDto(
     string Code,
     string Name,
-    bool IsEnabled);
+    bool IsEnabled,
+    string? DisplayName = null,
+    string? Description = null,
+    string? Category = null,
+    string? Version = null,
+    string? Icon = null,
+    string? Route = null,
+    int SortOrder = 0,
+    IReadOnlyList<string>? Dependencies = null,
+    bool Visible = true,
+    bool IsMobileSupported = false,
+    bool IsAISupported = false,
+    bool IsGPSSupported = false,
+    string Status = "Active",
+    string? DocumentationUrl = null,
+    bool IsInstalled = false,
+    bool IsLicensed = false,
+    bool CanToggle = true);
 
 public record LicenseLimitDto(
     string Resource,
@@ -291,12 +500,13 @@ public record TenantModuleOverviewDto(
 public record GetTenantModuleOverviewQuery(int TenantId) : IRequest<ApiResponse<TenantModuleOverviewDto>>;
 public record SetTenantModulesCommand(int TenantId, IReadOnlyList<string> ModuleCodes) : IRequest<ApiResponse<bool>>;
 
-// Subscription Management (Sprint 4)
+// Subscription Management / License (Stage 4)
 public record SubscriptionDetailDto
 {
     public int TenantId { get; init; }
     public string TenantName { get; init; } = string.Empty;
     public string? PlanName { get; init; }
+    public string? SubscriptionCode { get; init; }
     public string Status { get; init; } = "Active";
     public string BillingCycle { get; init; } = "Monthly";
     public decimal? MonthlyAmount { get; init; }
@@ -310,7 +520,79 @@ public record SubscriptionDetailDto
     public int? MaxDrivers { get; init; }
     public int? MaxBranches { get; init; }
     public int? MaxGpsDevices { get; init; }
+    public int? StorageQuotaGb { get; init; }
+    public int? AICredits { get; init; }
+    public bool GPSEnabled { get; init; } = true;
+    public IReadOnlyList<string> LicensedModuleCodes { get; init; } = [];
 }
+
+public record SubscriptionPlanDto(
+    string SubscriptionCode,
+    string DisplayName,
+    string? Description,
+    string PlanType,
+    string Status,
+    int SortOrder,
+    int? DurationMonths,
+    bool IsDefault,
+    bool Visible,
+    string? DocumentationUrl,
+    IReadOnlyList<string> DefaultModuleCodes,
+    int? MaxUsers,
+    int? MaxVehicles,
+    int? MaxDrivers,
+    int? MaxBranches,
+    int? MaxGpsDevices,
+    int? StorageQuotaGb,
+    int? AICredits,
+    bool GPSEnabled);
+
+public record CompanyLicenseDto(
+    int CompanyId,
+    int TenantId,
+    string CompanyName,
+    string? SubscriptionCode,
+    string? PlanName,
+    string? PlanDisplayName,
+    string Status,
+    DateTime? StartDate,
+    DateTime? EndDate,
+    bool AutoRenew,
+    IReadOnlyList<string> LicensedModules,
+    IReadOnlyList<string> InstalledModules,
+    int? MaxUsers,
+    int? MaxDrivers,
+    int? MaxVehicles,
+    int? MaxBranches,
+    int? MaxGpsDevices,
+    int? StorageQuotaGb,
+    int? AICredits,
+    bool GPSEnabled,
+    int UsedUsers,
+    int UsedDrivers,
+    int UsedVehicles,
+    int UsedBranches,
+    int UsedGpsDevices);
+
+public record LicenseSummaryDto(
+    string? SubscriptionCode,
+    string? PlanName,
+    string? PlanDisplayName,
+    string Status,
+    DateTime? StartDate,
+    DateTime? EndDate,
+    bool AutoRenew,
+    IReadOnlyList<string> LicensedModuleCodes,
+    int? MaxUsers,
+    int? MaxDrivers,
+    int? MaxVehicles,
+    int? StorageQuotaGb,
+    int? AICredits,
+    bool GPSEnabled);
+
+public record GetSubscriptionCatalogQuery : IRequest<ApiResponse<IReadOnlyList<SubscriptionPlanDto>>>;
+public record GetCompanyLicenseQuery(int? TenantId = null) : IRequest<ApiResponse<CompanyLicenseDto>>;
+public record GetLicenseSummaryQuery(int? TenantId = null) : IRequest<ApiResponse<LicenseSummaryDto>>;
 
 public record InvoiceDto(
     int Id,
@@ -336,7 +618,8 @@ public record PaymentDto(
 public record SubscriptionOverviewDto(
     SubscriptionDetailDto Subscription,
     IReadOnlyList<InvoiceDto> Invoices,
-    IReadOnlyList<PaymentDto> Payments);
+    IReadOnlyList<PaymentDto> Payments,
+    CompanyLicenseDto? License = null);
 
 public record GetSubscriptionOverviewQuery(int TenantId) : IRequest<ApiResponse<SubscriptionOverviewDto>>;
 

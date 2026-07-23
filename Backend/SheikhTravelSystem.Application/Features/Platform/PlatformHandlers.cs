@@ -282,26 +282,181 @@ public class DeleteDepartmentCommandHandler(IDbConnectionFactory dbFactory, ITen
 public class GetPermissionsQueryHandler(IDbConnectionFactory dbFactory)
     : IRequestHandler<GetPermissionsQuery, ApiResponse<IReadOnlyList<PermissionDto>>>
 {
-    public async Task<ApiResponse<IReadOnlyList<PermissionDto>>> Handle(GetPermissionsQuery request, CancellationToken cancellationToken)
+    public async Task<ApiResponse<IReadOnlyList<PermissionDto>>> Handle(
+        GetPermissionsQuery request, CancellationToken cancellationToken)
     {
         using var connection = dbFactory.CreateConnection();
-        var rows = await connection.QueryAsync<PermissionDto>(new CommandDefinition(
-            "SELECT Id, ModuleName, PermissionCode, Description FROM Permissions ORDER BY ModuleName, PermissionCode",
-            cancellationToken: cancellationToken));
-        return ApiResponse<IReadOnlyList<PermissionDto>>.SuccessResponse(rows.ToList());
+        List<PermissionDto> rows;
+        try
+        {
+            rows = (await connection.QueryAsync<PermissionDto>(new CommandDefinition("""
+                SELECT Id, ModuleName, PermissionCode, Description,
+                       COALESCE(DisplayName, PermissionCode) AS DisplayName,
+                       Category, COALESCE(SortOrder, 0) AS SortOrder,
+                       COALESCE(Visible, 1) AS Visible, Action, ModuleKey
+                FROM Permissions
+                ORDER BY COALESCE(SortOrder, 0), ModuleName, PermissionCode
+                """, cancellationToken: cancellationToken))).ToList();
+        }
+        catch
+        {
+            rows = (await connection.QueryAsync<PermissionDto>(new CommandDefinition(
+                "SELECT Id, ModuleName, PermissionCode, Description FROM Permissions ORDER BY ModuleName, PermissionCode",
+                cancellationToken: cancellationToken))).ToList();
+        }
+
+        var enriched = rows.Select(r =>
+        {
+            var seed = PermissionRegistrySeed.Find(r.PermissionCode);
+            return r with
+            {
+                DisplayName = r.DisplayName ?? seed?.DisplayName ?? PermissionRegistrySeed.DeriveDisplayName(r.PermissionCode),
+                Category = r.Category ?? seed?.Category,
+                SortOrder = r.SortOrder != 0 ? r.SortOrder : (seed?.SortOrder ?? 0),
+                Visible = r.Visible,
+                Action = r.Action ?? seed?.Action ?? PermissionRegistrySeed.DeriveAction(r.PermissionCode),
+                ModuleKey = r.ModuleKey ?? seed?.ModuleKey
+            };
+        });
+
+        IEnumerable<PermissionDto> filtered = enriched;
+        if (!string.IsNullOrWhiteSpace(request.Category))
+            filtered = filtered.Where(p => string.Equals(p.Category, request.Category, StringComparison.OrdinalIgnoreCase));
+        if (!string.IsNullOrWhiteSpace(request.ModuleKey))
+            filtered = filtered.Where(p => string.Equals(p.ModuleKey, request.ModuleKey, StringComparison.OrdinalIgnoreCase));
+        if (!string.IsNullOrWhiteSpace(request.Action))
+            filtered = filtered.Where(p => string.Equals(p.Action, request.Action, StringComparison.OrdinalIgnoreCase));
+        if (request.Visible.HasValue)
+            filtered = filtered.Where(p => p.Visible == request.Visible.Value);
+
+        return ApiResponse<IReadOnlyList<PermissionDto>>.SuccessResponse(filtered.ToList());
     }
 }
 
-public class GetTenantModulesQueryHandler
+public class GetEffectivePermissionsQueryHandler(
+    IPermissionEngine permissionEngine,
+    ICurrentUserService currentUser,
+    ITenantContext tenantContext)
+    : IRequestHandler<GetEffectivePermissionsQuery, ApiResponse<IReadOnlyList<EffectivePermissionDto>>>
+{
+    public async Task<ApiResponse<IReadOnlyList<EffectivePermissionDto>>> Handle(
+        GetEffectivePermissionsQuery request, CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not int userId)
+            return ApiResponse<IReadOnlyList<EffectivePermissionDto>>.FailResponse("Not authenticated.");
+
+        var tenantId = tenantContext.GetRequiredTenantId();
+        var result = await permissionEngine.EvaluateAsync(userId, tenantId, cancellationToken);
+        return ApiResponse<IReadOnlyList<EffectivePermissionDto>>.SuccessResponse(result.EffectivePermissions);
+    }
+}
+
+
+public class GetTenantModulesQueryHandler(IDbConnectionFactory dbFactory)
     : IRequestHandler<GetTenantModulesQuery, ApiResponse<IReadOnlyList<TenantModuleDefinitionDto>>>
 {
-    public Task<ApiResponse<IReadOnlyList<TenantModuleDefinitionDto>>> Handle(
+    public async Task<ApiResponse<IReadOnlyList<TenantModuleDefinitionDto>>> Handle(
         GetTenantModulesQuery request, CancellationToken cancellationToken)
     {
-        var modules = TenantModuleCatalog.All
-            .Select(m => new TenantModuleDefinitionDto(m.Code, m.Name, m.LegacyKeys))
+        IReadOnlyList<ModuleRegistryDto> catalog;
+        try
+        {
+            using var connection = dbFactory.CreateConnection();
+            catalog = await ModuleRegistryQueries.LoadCatalogAsync(connection, cancellationToken);
+        }
+        catch
+        {
+            catalog = ModuleRegistrySeed.All
+                .Where(e => e.Visible)
+                .OrderBy(e => e.SortOrder)
+                .Select(e => ModuleRegistryQueries.FromSeed(e))
+                .ToList();
+        }
+
+        var enableable = catalog
+            .Where(m => m.IsEnableable)
+            .Select(ModuleRegistryQueries.ToDefinitionDto)
             .ToList();
-        return Task.FromResult(ApiResponse<IReadOnlyList<TenantModuleDefinitionDto>>.SuccessResponse(modules));
+
+        if (enableable.Count == 0)
+        {
+            enableable = TenantModuleCatalog.All
+                .Select(m =>
+                {
+                    var seed = ModuleRegistrySeed.All.FirstOrDefault(s => s.Code == m.Code);
+                    var dto = seed is null
+                        ? ModuleRegistryQueries.FromSeed(new ModuleRegistrySeed.Entry(
+                            m.Code, m.Name, m.Name, m.Name, "Platform", "1.0.0", "extension", null, 0,
+                            [], true, false, false, false, "Active", null, m.LegacyKeys))
+                        : ModuleRegistryQueries.FromSeed(seed);
+                    return ModuleRegistryQueries.ToDefinitionDto(dto);
+                })
+                .ToList();
+        }
+
+        return ApiResponse<IReadOnlyList<TenantModuleDefinitionDto>>.SuccessResponse(enableable);
+    }
+}
+
+public class GetModuleCatalogQueryHandler(IDbConnectionFactory dbFactory)
+    : IRequestHandler<GetModuleCatalogQuery, ApiResponse<IReadOnlyList<ModuleRegistryDto>>>
+{
+    public async Task<ApiResponse<IReadOnlyList<ModuleRegistryDto>>> Handle(
+        GetModuleCatalogQuery request, CancellationToken cancellationToken)
+    {
+        using var connection = dbFactory.CreateConnection();
+        var catalog = await ModuleRegistryQueries.LoadCatalogAsync(connection, cancellationToken);
+        return ApiResponse<IReadOnlyList<ModuleRegistryDto>>.SuccessResponse(catalog);
+    }
+}
+
+public class GetCompanyModulesQueryHandler(
+    IDbConnectionFactory dbFactory,
+    ITenantContext tenantContext)
+    : IRequestHandler<GetCompanyModulesQuery, ApiResponse<IReadOnlyList<ModuleRegistryDto>>>
+{
+    public async Task<ApiResponse<IReadOnlyList<ModuleRegistryDto>>> Handle(
+        GetCompanyModulesQuery request, CancellationToken cancellationToken)
+    {
+        var tenantId = tenantContext.GetRequiredTenantId();
+        using var connection = dbFactory.CreateConnection();
+        var catalog = await ModuleRegistryQueries.LoadCatalogAsync(connection, cancellationToken);
+
+        var installed = (await connection.QueryAsync<string>(new CommandDefinition("""
+            SELECT m.ModuleCode
+            FROM TenantModules tm
+            INNER JOIN Modules m ON m.Id = tm.ModuleId
+            WHERE tm.TenantId = @TenantId
+            """, new { TenantId = tenantId }, cancellationToken: cancellationToken)))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var planName = await LicenseQueries.ResolvePlanNameAsync(connection, tenantId, cancellationToken);
+        var licensed = SubscriptionPlanCatalog.LicensedModuleCodes(planName)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var result = catalog
+            .Select(m => m with
+            {
+                IsInstalled = installed.Contains(m.Code),
+                IsLicensed = licensed.Contains(m.Code)
+            })
+            .ToList();
+
+        return ApiResponse<IReadOnlyList<ModuleRegistryDto>>.SuccessResponse(result);
+    }
+}
+
+public class GetModuleByKeyQueryHandler(IDbConnectionFactory dbFactory)
+    : IRequestHandler<GetModuleByKeyQuery, ApiResponse<ModuleRegistryDto>>
+{
+    public async Task<ApiResponse<ModuleRegistryDto>> Handle(
+        GetModuleByKeyQuery request, CancellationToken cancellationToken)
+    {
+        using var connection = dbFactory.CreateConnection();
+        var module = await ModuleRegistryQueries.LoadByKeyAsync(connection, request.CodeOrId, cancellationToken);
+        if (module is null)
+            return ApiResponse<ModuleRegistryDto>.FailResponse("Module not found.");
+        return ApiResponse<ModuleRegistryDto>.SuccessResponse(module);
     }
 }
 
@@ -312,39 +467,26 @@ public class GetRolesQueryHandler(IDbConnectionFactory dbFactory, ITenantContext
     {
         using var connection = dbFactory.CreateConnection();
         var tenantId = tenantContext.GetRequiredTenantId();
-
-        var roles = (await connection.QueryAsync<(int Id, int TenantId, string Name, string Code, bool IsSystem, bool IsActive)>(
-            new CommandDefinition(
-                "SELECT Id, TenantId, Name, Code, IsSystem, IsActive FROM Roles WHERE TenantId = @TenantId ORDER BY Name",
-                new { TenantId = tenantId }, cancellationToken: cancellationToken))).ToList();
-
-        var roleIds = roles.Select(r => r.Id).ToArray();
-        var permMap = new Dictionary<int, List<string>>();
-        if (roleIds.Length > 0)
-        {
-            var pairs = await connection.QueryAsync<(int RoleId, string PermissionCode)>(new CommandDefinition(
-                @"SELECT rp.RoleId, p.PermissionCode
-                  FROM RolePermissions rp
-                  INNER JOIN Permissions p ON p.Id = rp.PermissionId
-                  WHERE rp.RoleId IN @RoleIds",
-                new { RoleIds = roleIds }, cancellationToken: cancellationToken));
-
-            foreach (var pair in pairs)
-            {
-                if (!permMap.TryGetValue(pair.RoleId, out var list))
-                {
-                    list = [];
-                    permMap[pair.RoleId] = list;
-                }
-                list.Add(pair.PermissionCode);
-            }
-        }
-
-        var dtos = roles.Select(r => new RoleDto(
-            r.Id, r.TenantId, r.Name, r.Code, r.IsSystem, r.IsActive,
-            permMap.TryGetValue(r.Id, out var perms) ? perms : Array.Empty<string>())).ToList();
-
+        var summaries = await TenantRoleQueryHelper.LoadRoleSummariesAsync(connection, tenantId, cancellationToken);
+        var dtos = summaries.Select(r => new RoleDto(
+            r.Id, r.TenantId, r.Name, r.Code, r.IsSystem, r.IsActive, r.Permissions,
+            r.DisplayName, r.Description, r.Category, r.RoleType, r.SortOrder, r.Visible)).ToList();
         return ApiResponse<IReadOnlyList<RoleDto>>.SuccessResponse(dtos);
+    }
+}
+
+public class GetCompanyRolesQueryHandler(IDbConnectionFactory dbFactory, IPlatformScope platformScope)
+    : IRequestHandler<GetCompanyRolesQuery, ApiResponse<IReadOnlyList<RoleSummaryDto>>>
+{
+    public async Task<ApiResponse<IReadOnlyList<RoleSummaryDto>>> Handle(
+        GetCompanyRolesQuery request, CancellationToken cancellationToken)
+    {
+        var tenantId = request.TenantId ?? platformScope.TenantId;
+        platformScope.EnsureTenantAccess(tenantId);
+        using var connection = dbFactory.CreateConnection();
+        var rows = await TenantRoleQueryHelper.LoadRoleSummariesAsync(
+            connection, tenantId, cancellationToken, visibleOnly: true);
+        return ApiResponse<IReadOnlyList<RoleSummaryDto>>.SuccessResponse(rows);
     }
 }
 
@@ -721,75 +863,35 @@ public class GetUserMenuQueryHandler(
         var permissionSet = access.Permissions.ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         var enabledModules = await tenantModuleService.GetLegacyModuleKeysAsync(tenantId, cancellationToken);
+        var featureFlags = await MenuBuilderQueries.LoadTenantFeatureFlagsAsync(connection, tenantId, cancellationToken);
+        var (modules, menus) = await MenuBuilderQueries.LoadNavTablesAsync(connection, cancellationToken, activeMenusOnly: true);
 
-        var modules = (await connection.QueryAsync<(int Id, string Name, string ModuleKey, string? Icon, int SortOrder, bool IsCollapsible)>(
-            new CommandDefinition(
-                "SELECT Id, Name, ModuleKey, Icon, SortOrder, IsCollapsible FROM PlatformModules ORDER BY SortOrder",
-                cancellationToken: cancellationToken))).ToList();
-
-        var menus = (await connection.QueryAsync<(int Id, int ModuleId, string Name, string? Route, string? Icon, string? PermissionCode, int SortOrder)>(
-            new CommandDefinition(
-                "SELECT Id, ModuleId, Name, Route, Icon, PermissionCode, SortOrder FROM PlatformMenus WHERE IsActive = 1 ORDER BY SortOrder",
-                cancellationToken: cancellationToken))).ToList();
-
-        var result = new List<MenuModuleDto>();
-        foreach (var module in modules)
+        IReadOnlyList<string>? workspaceModuleKeys = null;
+        try
         {
-            if (enabledModules.Count > 0 && !IsModuleEnabled(module.ModuleKey, enabledModules))
-                continue;
-
-            var items = menus
-                .Where(m => m.ModuleId == module.Id)
-                .Where(m => string.IsNullOrEmpty(m.PermissionCode) || permissionSet.Contains(m.PermissionCode))
-                .Where(m => IsMenuItemEnabled(m.PermissionCode, enabledModules))
-                .Select(m => new MenuItemDto(
-                    Slugify(m.Name),
-                    m.Name,
-                    m.Icon ?? "circle",
-                    m.Route ?? "/dashboard",
-                    m.PermissionCode,
-                    m.SortOrder))
-                .ToList();
-
-            if (items.Count == 0) continue;
-
-            result.Add(new MenuModuleDto(
-                module.ModuleKey,
-                module.Name,
-                module.Icon ?? "folder",
-                module.IsCollapsible,
-                module.SortOrder,
-                items));
+            var profile = await connection.QuerySingleOrDefaultAsync<(string? DefaultWorkspaceKey, string? HomeRoute, string? RoleCode)>(
+                new CommandDefinition("""
+                    SELECT u.DefaultWorkspaceKey, u.HomeRoute,
+                           (SELECT TOP 1 r.Code FROM UserRoles ur
+                            INNER JOIN Roles r ON r.Id = ur.RoleId
+                            WHERE ur.UserId = u.Id ORDER BY r.Id) AS RoleCode
+                    FROM Users u WHERE u.Id = @UserId AND u.TenantId = @TenantId AND u.IsDeleted = 0
+                    """, new { UserId = userId, TenantId = tenantId }, cancellationToken: cancellationToken));
+            var catalog = await WorkspaceBuilderQueries.LoadCatalogAsync(connection, cancellationToken, activeOnly: true);
+            var flags = await WorkspaceBuilderQueries.LoadTenantFlagsAsync(connection, tenantId, cancellationToken);
+            var resolved = WorkspaceBuilderQueries.Resolve(
+                catalog, flags, profile.DefaultWorkspaceKey, profile.HomeRoute, profile.RoleCode ?? access.RoleCodes.FirstOrDefault());
+            workspaceModuleKeys = resolved.ModuleKeys;
+        }
+        catch
+        {
+            // Workspace catalog optional until Stage 10 migration applied.
         }
 
+        var result = MenuBuilderQueries.BuildUserMenu(
+            modules, menus, permissionSet, enabledModules, featureFlags, workspaceModuleKeys);
         return ApiResponse<IReadOnlyList<MenuModuleDto>>.SuccessResponse(result);
     }
-
-    private static bool IsMenuItemEnabled(string? permissionCode, IReadOnlyList<string> enabled)
-    {
-        if (string.IsNullOrWhiteSpace(permissionCode)) return true;
-        if (permissionCode.StartsWith("GPS.", StringComparison.OrdinalIgnoreCase))
-            return enabled.Contains("gps-tracking", StringComparer.OrdinalIgnoreCase);
-        return true;
-    }
-
-    private static bool IsModuleEnabled(string moduleKey, IReadOnlyList<string> enabled) =>
-        moduleKey switch
-        {
-            "dashboard" => enabled.Contains("dashboard", StringComparer.OrdinalIgnoreCase),
-            "operations" => enabled.Any(k => k is "bookings" or "routes"),
-            "fleet" => enabled.Any(k => k is "vehicles" or "drivers" or "gps-tracking" or "fuel-logs" or "maintenance"),
-            "customers" => enabled.Contains("customers", StringComparer.OrdinalIgnoreCase),
-            "finance" => enabled.Contains("payments", StringComparer.OrdinalIgnoreCase),
-            "analytics" => enabled.Any(k => k is "reports" or "audit-logs"),
-            "administration" => enabled.Any(k => k is "users" or "driver-allowance-rules"),
-            "organization" => enabled.Any(k => k is "users" or "driver-allowance-rules"),
-            "access_control" => enabled.Any(k => k is "users" or "driver-allowance-rules"),
-            _ => true
-        };
-
-    private static string Slugify(string value) =>
-        value.Trim().ToLowerInvariant().Replace(' ', '-').Replace('&', '-');
 }
 
 // Organization Designer Handlers
@@ -1078,12 +1180,42 @@ internal static class TenantRoleQueryHelper
     internal static async Task<IReadOnlyList<RoleSummaryDto>> LoadRoleSummariesAsync(
         System.Data.IDbConnection connection,
         int tenantId,
-        CancellationToken ct)
+        CancellationToken ct,
+        bool visibleOnly = false)
     {
-        var roles = (await connection.QueryAsync<(int Id, int TenantId, string Name, string Code, bool IsSystem, bool IsActive)>(
-            new CommandDefinition(
-                "SELECT Id, TenantId, Name, Code, IsSystem, IsActive FROM Roles WHERE TenantId = @TenantId ORDER BY Name",
-                new { TenantId = tenantId }, cancellationToken: ct))).ToList();
+        List<(int Id, int TenantId, string Name, string Code, bool IsSystem, bool IsActive,
+            string? DisplayName, string? Description, string? Category, string? RoleType, int SortOrder, bool Visible)> roles;
+        try
+        {
+            var sql = """
+                SELECT Id, TenantId, Name, Code, IsSystem, IsActive,
+                       COALESCE(DisplayName, Name) AS DisplayName, Description, Category,
+                       COALESCE(RoleType, CASE WHEN IsSystem = 1 THEN N'System' ELSE N'Custom' END) AS RoleType,
+                       COALESCE(SortOrder, 0) AS SortOrder,
+                       COALESCE(Visible, 1) AS Visible
+                FROM Roles WHERE TenantId = @TenantId
+                """ + (visibleOnly ? " AND COALESCE(Visible, 1) = 1 AND IsActive = 1" : "") + """
+                ORDER BY COALESCE(SortOrder, 0), Name
+                """;
+            roles = (await connection.QueryAsync<(int Id, int TenantId, string Name, string Code, bool IsSystem, bool IsActive,
+                string? DisplayName, string? Description, string? Category, string? RoleType, int SortOrder, bool Visible)>(
+                new CommandDefinition(sql, new { TenantId = tenantId }, cancellationToken: ct))).ToList();
+        }
+        catch
+        {
+            roles = (await connection.QueryAsync<(int Id, int TenantId, string Name, string Code, bool IsSystem, bool IsActive,
+                string? DisplayName, string? Description, string? Category, string? RoleType, int SortOrder, bool Visible)>(
+                new CommandDefinition(
+                    """
+                    SELECT Id, TenantId, Name, Code, IsSystem, IsActive,
+                           Name AS DisplayName, CAST(NULL AS NVARCHAR(500)) AS Description,
+                           CAST(NULL AS NVARCHAR(100)) AS Category,
+                           CASE WHEN IsSystem = 1 THEN N'System' ELSE N'Custom' END AS RoleType,
+                           0 AS SortOrder, CAST(1 AS bit) AS Visible
+                    FROM Roles WHERE TenantId = @TenantId ORDER BY Name
+                    """,
+                    new { TenantId = tenantId }, cancellationToken: ct))).ToList();
+        }
 
         if (roles.Count == 0) return Array.Empty<RoleSummaryDto>();
 
@@ -1117,12 +1249,19 @@ internal static class TenantRoleQueryHelper
 
         return roles.Select(r =>
         {
+            var seed = RoleRegistrySeed.Find(r.Code);
             var perms = permMap.TryGetValue(r.Id, out var list) ? list : [];
             return new RoleSummaryDto(
                 r.Id, r.TenantId, r.Name, r.Code, r.IsSystem, r.IsActive,
                 userCounts.GetValueOrDefault(r.Id),
                 perms.Count,
-                perms);
+                perms,
+                r.DisplayName ?? seed?.DisplayName ?? r.Name,
+                r.Description ?? seed?.Description,
+                r.Category ?? seed?.Category,
+                r.RoleType ?? seed?.RoleType ?? (r.IsSystem ? "System" : "Custom"),
+                r.SortOrder != 0 ? r.SortOrder : (seed?.SortOrder ?? 0),
+                r.Visible);
         }).ToList();
     }
 }
@@ -1154,13 +1293,33 @@ public class CreateRoleForTenantCommandHandler(IDbConnectionFactory dbFactory, I
             new { request.TenantId, Code = code }, cancellationToken: cancellationToken));
         if (exists) throw new ConflictException($"Role code '{code}' already exists.");
 
-        var id = await connection.ExecuteScalarAsync<int>(new CommandDefinition("""
-            INSERT INTO Roles (TenantId, Name, Code, IsSystem, IsActive, CreatedAt)
-            VALUES (@TenantId, @Name, @Code, 0, 1, GETUTCDATE());
-            SELECT CAST(SCOPE_IDENTITY() AS INT);
-            """, new { request.TenantId, Name = request.Name.Trim(), Code = code },
-            cancellationToken: cancellationToken));
-        return ApiResponse<int>.SuccessResponse(id, "Role created.");
+        try
+        {
+            var id = await connection.ExecuteScalarAsync<int>(new CommandDefinition("""
+                INSERT INTO Roles (TenantId, Name, Code, IsSystem, IsActive, CreatedAt,
+                    DisplayName, Description, Category, SortOrder, Visible, RoleType)
+                VALUES (@TenantId, @Name, @Code, 0, 1, GETUTCDATE(),
+                    @DisplayName, NULL, N'Custom', 100, 1, N'Custom');
+                SELECT CAST(SCOPE_IDENTITY() AS INT);
+                """, new
+            {
+                request.TenantId,
+                Name = request.Name.Trim(),
+                Code = code,
+                DisplayName = request.Name.Trim()
+            }, cancellationToken: cancellationToken));
+            return ApiResponse<int>.SuccessResponse(id, "Role created.");
+        }
+        catch
+        {
+            var id = await connection.ExecuteScalarAsync<int>(new CommandDefinition("""
+                INSERT INTO Roles (TenantId, Name, Code, IsSystem, IsActive, CreatedAt)
+                VALUES (@TenantId, @Name, @Code, 0, 1, GETUTCDATE());
+                SELECT CAST(SCOPE_IDENTITY() AS INT);
+                """, new { request.TenantId, Name = request.Name.Trim(), Code = code },
+                cancellationToken: cancellationToken));
+            return ApiResponse<int>.SuccessResponse(id, "Role created.");
+        }
     }
 }
 
@@ -1174,21 +1333,56 @@ public class UpdateRoleForTenantCommandHandler(IDbConnectionFactory dbFactory, I
 
         var role = await connection.QuerySingleOrDefaultAsync<(bool IsSystem, string Code)>(new CommandDefinition(
             "SELECT IsSystem, Code FROM Roles WHERE Id = @Id AND TenantId = @TenantId",
-            new { request.RoleId, request.TenantId }, cancellationToken: cancellationToken));
+            new { Id = request.RoleId, request.TenantId }, cancellationToken: cancellationToken));
         if (role.Code is null) throw new NotFoundException("Role", request.RoleId);
 
-        var affected = await connection.ExecuteAsync(new CommandDefinition("""
-            UPDATE Roles SET Name = @Name, IsActive = @IsActive, UpdatedAt = GETUTCDATE()
-            WHERE Id = @Id AND TenantId = @TenantId
-            """, new
-        {
-            Id = request.RoleId,
-            request.TenantId,
-            Name = request.Name.Trim(),
-            request.IsActive
-        }, cancellationToken: cancellationToken));
+        var displayName = string.IsNullOrWhiteSpace(request.DisplayName) ? request.Name.Trim() : request.DisplayName.Trim();
+        var description = request.Description?.Trim();
+        var category = request.Category?.Trim();
 
-        if (affected == 0) throw new NotFoundException("Role", request.RoleId);
+        try
+        {
+            var affected = await connection.ExecuteAsync(new CommandDefinition("""
+                UPDATE Roles SET
+                    Name = @Name,
+                    IsActive = @IsActive,
+                    DisplayName = @DisplayName,
+                    Description = @Description,
+                    Category = @Category,
+                    UpdatedAt = GETUTCDATE()
+                WHERE Id = @Id AND TenantId = @TenantId
+                """, new
+            {
+                Id = request.RoleId,
+                request.TenantId,
+                Name = request.Name.Trim(),
+                request.IsActive,
+                DisplayName = displayName,
+                Description = description,
+                Category = category
+            }, cancellationToken: cancellationToken));
+
+            if (affected == 0) throw new NotFoundException("Role", request.RoleId);
+        }
+        catch (NotFoundException)
+        {
+            throw;
+        }
+        catch
+        {
+            var affected = await connection.ExecuteAsync(new CommandDefinition("""
+                UPDATE Roles SET Name = @Name, IsActive = @IsActive, UpdatedAt = GETUTCDATE()
+                WHERE Id = @Id AND TenantId = @TenantId
+                """, new
+            {
+                Id = request.RoleId,
+                request.TenantId,
+                Name = request.Name.Trim(),
+                request.IsActive
+            }, cancellationToken: cancellationToken));
+            if (affected == 0) throw new NotFoundException("Role", request.RoleId);
+        }
+
         return ApiResponse<bool>.SuccessResponse(true, "Role updated.");
     }
 }
@@ -1276,31 +1470,58 @@ public class GetTenantSecuritySettingsQueryHandler(IDbConnectionFactory dbFactor
     }
 }
 
-public class UpdateTenantSecuritySettingsCommandHandler(IDbConnectionFactory dbFactory, IPlatformScope platformScope)
+public class UpdateTenantSecuritySettingsCommandHandler(
+    IDbConnectionFactory dbFactory,
+    IPlatformScope platformScope,
+    ISecurityEngine securityEngine,
+    ICurrentUserService currentUser)
     : IRequestHandler<UpdateTenantSecuritySettingsCommand, ApiResponse<bool>>
 {
     public async Task<ApiResponse<bool>> Handle(
         UpdateTenantSecuritySettingsCommand request, CancellationToken cancellationToken)
     {
         platformScope.EnsureTenantAccess(request.TenantId);
-        using var connection = dbFactory.CreateConnection();
         var p = request.Payload;
 
+        var values = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            [SecurityPolicyKeys.ComplianceMfaRequired] = p.IsMfaRequired ? "true" : "false",
+            [SecurityPolicyKeys.PasswordMaxAgeDays] = (p.PasswordExpiryDays ?? 90).ToString(),
+            [SecurityPolicyKeys.SessionIdleTimeoutMinutes] = (p.SessionTimeoutMinutes ?? 30).ToString(),
+            [SecurityPolicyKeys.ComplianceGdprLogging] = p.IsGdprEnabled ? "true" : "false",
+            [SecurityPolicyKeys.AuditLevel] = p.IsAuditLoggingEnabled ? "Always" : "Disabled",
+            [SecurityPolicyKeys.ComplianceVatEnabled] = p.IsVatEnabled ? "true" : "false"
+        };
+
+        try
+        {
+            await securityEngine.SetCompanyPoliciesAsync(
+                request.TenantId, values, currentUser.UserId, cancellationToken);
+        }
+        catch
+        {
+            // Security registry may not be migrated yet — legacy write below still applies.
+        }
+
+        using var connection = dbFactory.CreateConnection();
         await connection.ExecuteAsync(new CommandDefinition("""
-            IF EXISTS (SELECT 1 FROM TenantSecuritySettings WHERE TenantId = @TenantId)
-                UPDATE TenantSecuritySettings SET
-                    IsMfaRequired = @IsMfaRequired,
-                    PasswordExpiryDays = @PasswordExpiryDays,
-                    SessionTimeoutMinutes = @SessionTimeoutMinutes,
-                    IsGdprEnabled = @IsGdprEnabled,
-                    IsAuditLoggingEnabled = @IsAuditLoggingEnabled,
-                    IsVatEnabled = @IsVatEnabled
-                WHERE TenantId = @TenantId;
-            ELSE
-                INSERT INTO TenantSecuritySettings (TenantId, IsMfaRequired, PasswordExpiryDays, SessionTimeoutMinutes,
-                    IsGdprEnabled, IsAuditLoggingEnabled, IsVatEnabled)
-                VALUES (@TenantId, @IsMfaRequired, @PasswordExpiryDays, @SessionTimeoutMinutes,
-                    @IsGdprEnabled, @IsAuditLoggingEnabled, @IsVatEnabled);
+            IF EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'TenantSecuritySettings')
+            BEGIN
+                IF EXISTS (SELECT 1 FROM TenantSecuritySettings WHERE TenantId = @TenantId)
+                    UPDATE TenantSecuritySettings SET
+                        IsMfaRequired = @IsMfaRequired,
+                        PasswordExpiryDays = @PasswordExpiryDays,
+                        SessionTimeoutMinutes = @SessionTimeoutMinutes,
+                        IsGdprEnabled = @IsGdprEnabled,
+                        IsAuditLoggingEnabled = @IsAuditLoggingEnabled,
+                        IsVatEnabled = @IsVatEnabled
+                    WHERE TenantId = @TenantId;
+                ELSE
+                    INSERT INTO TenantSecuritySettings (TenantId, IsMfaRequired, PasswordExpiryDays, SessionTimeoutMinutes,
+                        IsGdprEnabled, IsAuditLoggingEnabled, IsVatEnabled)
+                    VALUES (@TenantId, @IsMfaRequired, @PasswordExpiryDays, @SessionTimeoutMinutes,
+                        @IsGdprEnabled, @IsAuditLoggingEnabled, @IsVatEnabled);
+            END
             """, new
         {
             request.TenantId,
@@ -1319,26 +1540,23 @@ public class UpdateTenantSecuritySettingsCommandHandler(IDbConnectionFactory dbF
 public class GetRoleTemplatesQueryHandler
     : IRequestHandler<GetRoleTemplatesQuery, ApiResponse<IReadOnlyList<RoleTemplateDto>>>
 {
-    private static readonly Dictionary<string, string> RoleNames = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ["TENANT_ADMIN"] = "Tenant Admin",
-        ["FLEET_MANAGER"] = "Fleet Manager",
-        ["DISPATCHER"] = "Dispatcher",
-        ["ACCOUNTANT"] = "Accountant",
-        ["DRIVER"] = "Driver",
-        ["SUPER_ADMIN"] = "Super Admin",
-        ["DRIVER_MANAGER"] = "Driver Manager"
-    };
-
     public Task<ApiResponse<IReadOnlyList<RoleTemplateDto>>> Handle(
         GetRoleTemplatesQuery request, CancellationToken cancellationToken)
     {
         var templates = TenantRolePermissionTemplates.StandardRoles
-            .Select(t => new RoleTemplateDto(
-                t.RoleCode,
-                RoleNames.GetValueOrDefault(t.RoleCode, t.RoleCode.Replace('_', ' ')),
-                t.Permissions.Length,
-                t.Permissions))
+            .Select(t =>
+            {
+                var seed = RoleRegistrySeed.Find(t.RoleCode);
+                var name = seed?.Name ?? t.RoleCode.Replace('_', ' ');
+                return new RoleTemplateDto(
+                    t.RoleCode,
+                    name,
+                    t.Permissions.Length,
+                    t.Permissions,
+                    seed?.DisplayName ?? name,
+                    seed?.Description,
+                    seed?.Category);
+            })
             .ToList();
 
         return Task.FromResult(ApiResponse<IReadOnlyList<RoleTemplateDto>>.SuccessResponse(templates));
@@ -1358,7 +1576,8 @@ public class ApplyRoleTemplateCommandHandler(IDbConnectionFactory dbFactory, IPl
 
         using var connection = dbFactory.CreateConnection();
         var code = template.RoleCode.ToUpperInvariant();
-        var name = code.Replace('_', ' ');
+        var seed = RoleRegistrySeed.Find(code);
+        var name = seed?.Name ?? code.Replace('_', ' ');
 
         var roleId = await connection.ExecuteScalarAsync<int?>(new CommandDefinition(
             "SELECT Id FROM Roles WHERE TenantId = @TenantId AND Code = @Code",
@@ -1366,12 +1585,61 @@ public class ApplyRoleTemplateCommandHandler(IDbConnectionFactory dbFactory, IPl
 
         if (!roleId.HasValue)
         {
-            roleId = await connection.ExecuteScalarAsync<int>(new CommandDefinition("""
-                INSERT INTO Roles (TenantId, Name, Code, IsSystem, IsActive, CreatedAt)
-                VALUES (@TenantId, @Name, @Code, 1, 1, GETUTCDATE());
-                SELECT CAST(SCOPE_IDENTITY() AS INT);
-                """, new { request.TenantId, Name = name, Code = code },
-                cancellationToken: cancellationToken));
+            try
+            {
+                roleId = await connection.ExecuteScalarAsync<int>(new CommandDefinition("""
+                    INSERT INTO Roles (TenantId, Name, Code, IsSystem, IsActive, CreatedAt,
+                        DisplayName, Description, Category, SortOrder, Visible, RoleType)
+                    VALUES (@TenantId, @Name, @Code, 1, 1, GETUTCDATE(),
+                        @DisplayName, @Description, @Category, @SortOrder, 1, N'System');
+                    SELECT CAST(SCOPE_IDENTITY() AS INT);
+                    """, new
+                {
+                    request.TenantId,
+                    Name = name,
+                    Code = code,
+                    DisplayName = seed?.DisplayName ?? name,
+                    Description = seed?.Description,
+                    Category = seed?.Category,
+                    SortOrder = seed?.SortOrder ?? 0
+                }, cancellationToken: cancellationToken));
+            }
+            catch
+            {
+                roleId = await connection.ExecuteScalarAsync<int>(new CommandDefinition("""
+                    INSERT INTO Roles (TenantId, Name, Code, IsSystem, IsActive, CreatedAt)
+                    VALUES (@TenantId, @Name, @Code, 1, 1, GETUTCDATE());
+                    SELECT CAST(SCOPE_IDENTITY() AS INT);
+                    """, new { request.TenantId, Name = name, Code = code },
+                    cancellationToken: cancellationToken));
+            }
+        }
+        else if (seed is not null)
+        {
+            try
+            {
+                await connection.ExecuteAsync(new CommandDefinition("""
+                    UPDATE Roles SET
+                        DisplayName = COALESCE(DisplayName, @DisplayName),
+                        Description = COALESCE(Description, @Description),
+                        Category = COALESCE(Category, @Category),
+                        SortOrder = CASE WHEN SortOrder = 0 THEN @SortOrder ELSE SortOrder END,
+                        RoleType = N'System',
+                        Visible = 1
+                    WHERE Id = @RoleId
+                    """, new
+                {
+                    RoleId = roleId.Value,
+                    DisplayName = seed.DisplayName,
+                    Description = seed.Description,
+                    Category = seed.Category,
+                    SortOrder = seed.SortOrder
+                }, cancellationToken: cancellationToken));
+            }
+            catch
+            {
+                // Metadata columns may not exist yet.
+            }
         }
 
         await connection.ExecuteAsync(new CommandDefinition(
@@ -1433,9 +1701,35 @@ public class GetTenantModuleOverviewQueryHandler(IDbConnectionFactory dbFactory,
             }
         }
 
-        var modules = TenantModuleCatalog.All
-            .Select(m => new ModuleStatusDto(m.Code, m.Name, enabledCodes.Contains(m.Code)))
+        var catalog = await ModuleRegistryQueries.LoadCatalogAsync(connection, cancellationToken);
+        var planName = await LicenseQueries.ResolvePlanNameAsync(connection, request.TenantId, cancellationToken);
+        var licensedCodes = SubscriptionPlanCatalog.LicensedModuleCodes(planName)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var modules = catalog
+            .Select(m => ModuleRegistryQueries.ToStatusDto(
+                m, enabledCodes.Contains(m.Code), licensedCodes.Contains(m.Code)))
+            .OrderBy(m => m.SortOrder)
+            .ThenBy(m => m.Code)
             .ToList();
+
+        // Always include enableable Active modules even if catalog empty
+        if (modules.Count == 0)
+        {
+            modules = TenantModuleCatalog.All
+                .Select(m =>
+                {
+                    var seed = ModuleRegistrySeed.All.FirstOrDefault(s => s.Code == m.Code);
+                    var dto = seed is null
+                        ? ModuleRegistryQueries.FromSeed(new ModuleRegistrySeed.Entry(
+                            m.Code, m.Name, m.Name, m.Name, "Platform", "1.0.0", "extension", null, 0,
+                            [], true, false, false, false, "Active", null, m.LegacyKeys))
+                        : ModuleRegistryQueries.FromSeed(seed);
+                    return ModuleRegistryQueries.ToStatusDto(
+                        dto, enabledCodes.Contains(m.Code), licensedCodes.Contains(m.Code));
+                })
+                .ToList();
+        }
 
         var limits = await connection.QuerySingleAsync<(int? MaxUsers, int? MaxVehicles, int? MaxDrivers, int? MaxBranches, int? MaxGpsDevices,
             int UsedUsers, int UsedVehicles, int UsedDrivers, int UsedBranches, int UsedGps)>(new CommandDefinition("""
@@ -1506,7 +1800,103 @@ public class SetTenantModulesCommandHandler(
     }
 }
 
-// Subscription Management (Sprint 4)
+// Subscription Management / License (Stage 4)
+
+public class GetSubscriptionCatalogQueryHandler(IDbConnectionFactory dbFactory)
+    : IRequestHandler<GetSubscriptionCatalogQuery, ApiResponse<IReadOnlyList<SubscriptionPlanDto>>>
+{
+    public async Task<ApiResponse<IReadOnlyList<SubscriptionPlanDto>>> Handle(
+        GetSubscriptionCatalogQuery request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            using var connection = dbFactory.CreateConnection();
+            var rows = (await connection.QueryAsync<(
+                string SubscriptionCode, string DisplayName, string? Description, string PlanType, string Status,
+                int SortOrder, int? DurationMonths, bool IsDefault, bool Visible, string? DocumentationUrl,
+                string? DefaultModuleCodesJson, int? MaxUsers, int? MaxVehicles, int? MaxDrivers,
+                int? MaxBranches, int? MaxGpsDevices, int? StorageQuotaGb, int? AICredits, bool GPSEnabled)>(
+                new CommandDefinition("""
+                    SELECT SubscriptionCode, DisplayName, Description, PlanType, Status, SortOrder,
+                           DurationMonths, IsDefault, Visible, DocumentationUrl, DefaultModuleCodesJson,
+                           MaxUsers, MaxVehicles, MaxDrivers, MaxBranches, MaxGpsDevices,
+                           StorageQuotaGb, AICredits, GPSEnabled
+                    FROM SubscriptionPlans
+                    WHERE Visible = 1
+                    ORDER BY SortOrder, DisplayName
+                    """, cancellationToken: cancellationToken))).ToList();
+
+            if (rows.Count > 0)
+            {
+                var list = rows.Select(r => new SubscriptionPlanDto(
+                    r.SubscriptionCode,
+                    r.DisplayName,
+                    r.Description,
+                    r.PlanType,
+                    r.Status,
+                    r.SortOrder,
+                    r.DurationMonths,
+                    r.IsDefault,
+                    r.Visible,
+                    r.DocumentationUrl,
+                    SubscriptionPlanCatalog.ParseModuleCodes(r.DefaultModuleCodesJson),
+                    r.MaxUsers,
+                    r.MaxVehicles,
+                    r.MaxDrivers,
+                    r.MaxBranches,
+                    r.MaxGpsDevices,
+                    r.StorageQuotaGb,
+                    r.AICredits,
+                    r.GPSEnabled)).ToList();
+                return ApiResponse<IReadOnlyList<SubscriptionPlanDto>>.SuccessResponse(list);
+            }
+        }
+        catch
+        {
+            // Table may not exist yet.
+        }
+
+        return ApiResponse<IReadOnlyList<SubscriptionPlanDto>>.SuccessResponse(LicenseQueries.FromSeed());
+    }
+}
+
+public class GetCompanyLicenseQueryHandler(
+    IDbConnectionFactory dbFactory,
+    ITenantContext tenantContext,
+    IPlatformScope platformScope)
+    : IRequestHandler<GetCompanyLicenseQuery, ApiResponse<CompanyLicenseDto>>
+{
+    public async Task<ApiResponse<CompanyLicenseDto>> Handle(
+        GetCompanyLicenseQuery request, CancellationToken cancellationToken)
+    {
+        var tenantId = request.TenantId ?? tenantContext.GetRequiredTenantId();
+        platformScope.EnsureTenantAccess(tenantId);
+        using var connection = dbFactory.CreateConnection();
+        var license = await LicenseQueries.LoadCompanyLicenseAsync(connection, tenantId, cancellationToken);
+        if (license is null)
+            return ApiResponse<CompanyLicenseDto>.FailResponse("Company not found.");
+        return ApiResponse<CompanyLicenseDto>.SuccessResponse(license);
+    }
+}
+
+public class GetLicenseSummaryQueryHandler(
+    IDbConnectionFactory dbFactory,
+    ITenantContext tenantContext,
+    IPlatformScope platformScope)
+    : IRequestHandler<GetLicenseSummaryQuery, ApiResponse<LicenseSummaryDto>>
+{
+    public async Task<ApiResponse<LicenseSummaryDto>> Handle(
+        GetLicenseSummaryQuery request, CancellationToken cancellationToken)
+    {
+        var tenantId = request.TenantId ?? tenantContext.GetRequiredTenantId();
+        platformScope.EnsureTenantAccess(tenantId);
+        using var connection = dbFactory.CreateConnection();
+        var license = await LicenseQueries.LoadCompanyLicenseAsync(connection, tenantId, cancellationToken);
+        if (license is null)
+            return ApiResponse<LicenseSummaryDto>.FailResponse("Company not found.");
+        return ApiResponse<LicenseSummaryDto>.SuccessResponse(LicenseQueries.ToSummary(license));
+    }
+}
 
 public class GetSubscriptionOverviewQueryHandler(IDbConnectionFactory dbFactory, IPlatformScope platformScope)
     : IRequestHandler<GetSubscriptionOverviewQuery, ApiResponse<SubscriptionOverviewDto>>
@@ -1517,26 +1907,57 @@ public class GetSubscriptionOverviewQueryHandler(IDbConnectionFactory dbFactory,
         platformScope.EnsureTenantAccess(request.TenantId);
         using var connection = dbFactory.CreateConnection();
 
-        var subscription = await connection.QuerySingleOrDefaultAsync<SubscriptionDetailDto>(new CommandDefinition("""
-            SELECT
-                t.Id AS TenantId,
-                t.Name AS TenantName,
-                COALESCE(s.PlanName, t.SubscriptionPlan) AS PlanName,
-                COALESCE(s.Status, N'Active') AS Status,
-                COALESCE(s.BillingCycle, N'Monthly') AS BillingCycle,
-                s.MonthlyAmount,
-                COALESCE(s.CurrencyCode, N'PKR') AS CurrencyCode,
-                COALESCE(s.AutoRenew, 1) AS AutoRenew,
-                s.SubscriptionStartDate,
-                s.SubscriptionEndDate,
-                s.TrialEndDate,
-                s.MaxUsers, s.MaxVehicles, s.MaxDrivers, s.MaxBranches, s.MaxGpsDevices
-            FROM Tenants t
-            LEFT JOIN TenantSubscriptions s ON s.TenantId = t.Id
-            WHERE t.Id = @TenantId
-            """, new { request.TenantId }, cancellationToken: cancellationToken));
+        SubscriptionDetailDto? subscription;
+        try
+        {
+            subscription = await connection.QuerySingleOrDefaultAsync<SubscriptionDetailDto>(new CommandDefinition("""
+                SELECT
+                    t.Id AS TenantId,
+                    t.Name AS TenantName,
+                    COALESCE(s.PlanName, t.SubscriptionPlan) AS PlanName,
+                    s.SubscriptionCode,
+                    COALESCE(s.Status, N'Active') AS Status,
+                    COALESCE(s.BillingCycle, N'Monthly') AS BillingCycle,
+                    s.MonthlyAmount,
+                    COALESCE(s.CurrencyCode, N'PKR') AS CurrencyCode,
+                    COALESCE(s.AutoRenew, 1) AS AutoRenew,
+                    s.SubscriptionStartDate,
+                    s.SubscriptionEndDate,
+                    s.TrialEndDate,
+                    s.MaxUsers, s.MaxVehicles, s.MaxDrivers, s.MaxBranches, s.MaxGpsDevices,
+                    s.StorageQuotaGb, s.AICredits, COALESCE(s.GPSEnabled, 1) AS GPSEnabled
+                FROM Tenants t
+                LEFT JOIN TenantSubscriptions s ON s.TenantId = t.Id
+                WHERE t.Id = @TenantId
+                """, new { request.TenantId }, cancellationToken: cancellationToken));
+        }
+        catch
+        {
+            subscription = await connection.QuerySingleOrDefaultAsync<SubscriptionDetailDto>(new CommandDefinition("""
+                SELECT
+                    t.Id AS TenantId,
+                    t.Name AS TenantName,
+                    COALESCE(s.PlanName, t.SubscriptionPlan) AS PlanName,
+                    COALESCE(s.Status, N'Active') AS Status,
+                    COALESCE(s.BillingCycle, N'Monthly') AS BillingCycle,
+                    s.MonthlyAmount,
+                    COALESCE(s.CurrencyCode, N'PKR') AS CurrencyCode,
+                    COALESCE(s.AutoRenew, 1) AS AutoRenew,
+                    s.SubscriptionStartDate,
+                    s.SubscriptionEndDate,
+                    s.TrialEndDate,
+                    s.MaxUsers, s.MaxVehicles, s.MaxDrivers, s.MaxBranches, s.MaxGpsDevices
+                FROM Tenants t
+                LEFT JOIN TenantSubscriptions s ON s.TenantId = t.Id
+                WHERE t.Id = @TenantId
+                """, new { request.TenantId }, cancellationToken: cancellationToken));
+        }
 
         if (subscription is null) throw new NotFoundException("Tenant", request.TenantId);
+
+        var licensed = SubscriptionPlanCatalog.LicensedModuleCodes(
+            subscription.SubscriptionCode ?? subscription.PlanName);
+        subscription = subscription with { LicensedModuleCodes = licensed.ToList() };
 
         var invoices = (await connection.QueryAsync<InvoiceDto>(new CommandDefinition("""
             SELECT Id, InvoiceNumber, PlanName, Amount, CurrencyCode, Status, IssuedDate, DueDate, PaidDate
@@ -1552,8 +1973,10 @@ public class GetSubscriptionOverviewQueryHandler(IDbConnectionFactory dbFactory,
             ORDER BY PaidAt DESC
             """, new { request.TenantId }, cancellationToken: cancellationToken))).ToList();
 
+        var license = await LicenseQueries.LoadCompanyLicenseAsync(connection, request.TenantId, cancellationToken);
+
         return ApiResponse<SubscriptionOverviewDto>.SuccessResponse(
-            new SubscriptionOverviewDto(subscription, invoices, payments));
+            new SubscriptionOverviewDto(subscription, invoices, payments, license));
     }
 }
 
@@ -1575,18 +1998,44 @@ public class UpdateSubscriptionCommandHandler(IDbConnectionFactory dbFactory, IP
         switch (request.Action)
         {
             case SubscriptionAction.Upgrade:
+            {
+                var plan = SubscriptionPlanCatalog.Resolve(request.PlanName);
                 await connection.ExecuteAsync(new CommandDefinition("""
                     UPDATE TenantSubscriptions
                     SET PlanName = COALESCE(@PlanName, PlanName),
+                        SubscriptionCode = @SubscriptionCode,
                         MonthlyAmount = COALESCE(@MonthlyAmount, MonthlyAmount),
                         BillingCycle = COALESCE(@BillingCycle, BillingCycle),
+                        MaxUsers = @MaxUsers,
+                        MaxVehicles = @MaxVehicles,
+                        MaxDrivers = @MaxDrivers,
+                        MaxBranches = @MaxBranches,
+                        MaxGpsDevices = @MaxGpsDevices,
+                        StorageQuotaGb = @StorageQuotaGb,
+                        AICredits = @AICredits,
+                        GPSEnabled = @GPSEnabled,
                         Status = N'Active',
                         UpdatedAt = GETUTCDATE()
                     WHERE TenantId = @TenantId;
-                    """, new { request.TenantId, request.PlanName, request.MonthlyAmount, request.BillingCycle },
-                    cancellationToken: cancellationToken));
-                await SyncTenantPlanAsync(connection, request.TenantId, request.PlanName, cancellationToken);
+                    """, new
+                {
+                    request.TenantId,
+                    PlanName = request.PlanName ?? plan.DisplayName,
+                    SubscriptionCode = plan.SubscriptionCode,
+                    request.MonthlyAmount,
+                    request.BillingCycle,
+                    plan.MaxUsers,
+                    plan.MaxVehicles,
+                    plan.MaxDrivers,
+                    plan.MaxBranches,
+                    plan.MaxGpsDevices,
+                    plan.StorageQuotaGb,
+                    plan.AICredits,
+                    plan.GPSEnabled
+                }, cancellationToken: cancellationToken));
+                await SyncTenantPlanAsync(connection, request.TenantId, request.PlanName ?? plan.DisplayName, cancellationToken);
                 break;
+            }
 
             case SubscriptionAction.Renew:
                 await connection.ExecuteAsync(new CommandDefinition("""

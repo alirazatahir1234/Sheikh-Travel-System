@@ -126,7 +126,9 @@ public sealed class NotificationDecisionEngine(
         NotificationDecisionRequest request,
         CancellationToken cancellationToken = default)
     {
-        var tenantId = request.TenantId ?? tenantContext.GetRequiredTenantId();
+        var tenantId = request.TenantId
+            ?? tenantContext.TenantId
+            ?? tenantContext.GetRequiredTenantId();
         var decision = await EvaluateAsync(request, cancellationToken);
         if (!decision.ShouldNotify)
         {
@@ -170,10 +172,25 @@ public sealed class NotificationDecisionEngine(
                 if (!await alertAudit.IsAlertTypeEnabledAsync(userId, request.EventType, channel, cancellationToken))
                     continue;
 
+                var templateKey = TemplateFor(request.EventType);
+                if (await AlreadyDispatchedAsync(
+                        userId, tenantId, request.ReferenceId, templateKey, channel,
+                        DefaultCooldown(request.EventType), cancellationToken))
+                {
+                    logger.LogDebug(
+                        "Skip duplicate {Channel} for user {UserId} event {EventType} ref {ReferenceId}",
+                        channel, userId, request.EventType, request.ReferenceId);
+                    continue;
+                }
+
+                // InApp/Browser/Push: deliver immediately for realtime UX.
+                // Email/SMS/WhatsApp: queue for NotificationDispatchHostedService so
+                // SMTP latency cannot block driver actions (Accept Trip times out at 20s).
                 await notifications.CreateAndDispatchAsync(new NotificationCreateOptions(
                     userId, tenantId, request.Title, request.Message, request.Type, request.ReferenceId,
                     decision.Priority, channel, Module: ModuleFor(request.EventType),
-                    TemplateKey: TemplateFor(request.EventType)), cancellationToken);
+                    TemplateKey: templateKey,
+                    SendNow: IsRealtimeChannel(channel)), cancellationToken);
 
                 if (request.AlertEventId is int alertId)
                     await alertAudit.LogAsync(alertId, channel, userId.ToString(), "Sent", null, cancellationToken);
@@ -182,6 +199,43 @@ public sealed class NotificationDecisionEngine(
             }
         }
         return count;
+    }
+
+    private async Task<bool> AlreadyDispatchedAsync(
+        int userId,
+        int tenantId,
+        int? referenceId,
+        string? templateKey,
+        string channel,
+        int cooldownMinutes,
+        CancellationToken cancellationToken)
+    {
+        if (referenceId is null || cooldownMinutes <= 0)
+            return false;
+
+        using var connection = dbFactory.CreateConnection();
+        return await connection.ExecuteScalarAsync<bool>(new CommandDefinition("""
+            SELECT CASE WHEN EXISTS(
+                SELECT 1 FROM Notifications
+                WHERE UserId = @UserId
+                  AND TenantId = @TenantId
+                  AND IsDeleted = 0
+                  AND ReferenceId = @ReferenceId
+                  AND ISNULL(TemplateKey, '') = ISNULL(@TemplateKey, '')
+                  AND ISNULL(Channel, 'InApp') = @Channel
+                  AND CreatedAt >= DATEADD(MINUTE, -@CooldownMinutes, GETUTCDATE())
+            ) THEN 1 ELSE 0 END
+            """,
+            new
+            {
+                UserId = userId,
+                TenantId = tenantId,
+                ReferenceId = referenceId.Value,
+                TemplateKey = templateKey,
+                Channel = channel,
+                CooldownMinutes = Math.Max(cooldownMinutes, 1)
+            },
+            cancellationToken: cancellationToken));
     }
 
     private async Task WriteAuditAsync(
@@ -217,6 +271,8 @@ public sealed class NotificationDecisionEngine(
         "speed_exceeded" => 15,
         "low_fuel" or "low_battery" => 60,
         "compliance_reminder" => 1440,
+        "trip_started" or "trip_completed" or "trip_driver_arriving"
+            or "trip_delayed" or "trip_cancelled" or "trip_updated" => 1,
         _ => 5
     };
 
@@ -254,6 +310,11 @@ public sealed class NotificationDecisionEngine(
         "compliance_reminder" => "compliance_reminder",
         _ => null
     };
+
+    private static bool IsRealtimeChannel(string channel) =>
+        channel is NotificationChannels.InApp
+            or NotificationChannels.Browser
+            or NotificationChannels.Push;
 
     private static List<string> ParseChannels(string? json, IReadOnlyList<string>? requested, int priority)
     {

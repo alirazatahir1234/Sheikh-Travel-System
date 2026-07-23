@@ -10,9 +10,11 @@ class PushRegistrationService {
   static final instance = PushRegistrationService._();
 
   Dio? _dio;
+  String _appName = 'fleet';
 
-  Future<void> start(Dio dio) async {
+  Future<void> start(Dio dio, {String appName = 'fleet'}) async {
     _dio = dio;
+    _appName = appName;
     try {
       await FcmService.instance.initialize(onTokenRefresh: _registerToken);
     } catch (e) {
@@ -27,10 +29,10 @@ class PushRegistrationService {
       await dio.post(ApiEndpoints.deviceToken, data: {
         'token': token,
         'platform': Platform.isIOS ? 'ios' : 'android',
-        'appName': 'driver',
+        'appName': _appName,
       });
       await dio.post(ApiEndpoints.mobileHeartbeat);
-      debugPrint('[Push] Device token registered');
+      debugPrint('[Push] Device token registered (appName=$_appName)');
     } catch (e) {
       debugPrint('[Push] Token registration failed: $e');
     }

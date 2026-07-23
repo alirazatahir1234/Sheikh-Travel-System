@@ -11,7 +11,7 @@
           <span class="current">Subscription Management</span>
         </nav>
         <h2>Subscription Management</h2>
-        <p class="page-sub">Track subscription plans, billing history, and payment status for the selected tenant.</p>
+        <p class="page-sub">Track subscription plans, licensed modules, and commercial limits for the selected company.</p>
       </div>
     </div>
     <div class="header-right">
@@ -27,8 +27,8 @@
   <ng-container *ngIf="!loading">
     <div class="content-placeholder" *ngIf="!overview">
       <mat-icon>subscriptions</mat-icon>
-      <h3>Select a Tenant</h3>
-      <p>Choose a tenant from the picker above to manage their subscription and billing.</p>
+      <h3>Select a Company</h3>
+      <p>Choose a company from the picker above to manage their subscription and license.</p>
     </div>
 
     <div class="subscription-layout" *ngIf="overview && subscription">
@@ -102,6 +102,55 @@
                     *ngIf="subscription.status !== 'Active'" [disabled]="saving">
               Reactivate
             </button>
+          </div>
+        </mat-card-content>
+      </mat-card>
+
+      <!-- Licensed Modules & Limits -->
+      <mat-card class="license-card">
+        <mat-card-header>
+          <mat-card-title>License</mat-card-title>
+          <mat-card-subtitle>Commercial entitlement from subscription plan (Module Registry)</mat-card-subtitle>
+        </mat-card-header>
+        <mat-card-content>
+          <p class="section-label">Licensed Modules</p>
+          <div class="module-chips" *ngIf="licensedModules.length; else noLicensed">
+            <span class="module-chip" *ngFor="let code of licensedModules">{{ code }}</span>
+          </div>
+          <ng-template #noLicensed>
+            <p class="muted">No licensed modules resolved for this plan.</p>
+          </ng-template>
+
+          <p class="section-label" style="margin-top: 16px">Limits</p>
+          <div class="limits-grid">
+            <div class="limit-tile">
+              <span class="label">Users</span>
+              <strong>{{ formatLimit(license?.usedUsers ?? 0, subscription.maxUsers) }}</strong>
+            </div>
+            <div class="limit-tile">
+              <span class="label">Drivers</span>
+              <strong>{{ formatLimit(license?.usedDrivers ?? 0, subscription.maxDrivers) }}</strong>
+            </div>
+            <div class="limit-tile">
+              <span class="label">Vehicles</span>
+              <strong>{{ formatLimit(license?.usedVehicles ?? 0, subscription.maxVehicles) }}</strong>
+            </div>
+            <div class="limit-tile">
+              <span class="label">GPS Devices</span>
+              <strong>{{ formatLimit(license?.usedGpsDevices ?? 0, subscription.maxGpsDevices) }}</strong>
+            </div>
+            <div class="limit-tile">
+              <span class="label">Storage</span>
+              <strong>{{ subscription.storageQuotaGb != null ? (subscription.storageQuotaGb + ' GB') : '∞' }}</strong>
+            </div>
+            <div class="limit-tile">
+              <span class="label">AI Credits</span>
+              <strong>{{ subscription.aiCredits != null ? (subscription.aiCredits | number) : '∞' }}</strong>
+            </div>
+            <div class="limit-tile">
+              <span class="label">GPS</span>
+              <strong>{{ (subscription.gpsEnabled ?? license?.gpsEnabled ?? true) ? 'Enabled' : 'Disabled' }}</strong>
+            </div>
           </div>
         </mat-card-content>
       </mat-card>

@@ -1,11 +1,14 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using SheikhTravelSystem.API.Authorization;
+using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Features.Customers.Commands;
 using SheikhTravelSystem.Application.Features.Customers.Queries;
 
 namespace SheikhTravelSystem.API.Controllers;
 
 [Authorize]
+[RequirePermission(AnalyticsPermissions.CustomerView)]
 /// <summary>
 /// Manages customer operations.
 /// </summary>

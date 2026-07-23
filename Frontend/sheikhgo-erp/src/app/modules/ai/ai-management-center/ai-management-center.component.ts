@@ -20,6 +20,7 @@ import {
   FleetHealth
 } from '../../../core/services/ai-platform.service';
 import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
+import { AiChatComponent } from '../ai-chat/ai-chat.component';
 
 @Component({
   selector: 'app-ai-management-center',
@@ -34,7 +35,8 @@ import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.ser
     MatSlideToggleModule,
     MatSelectModule,
     MatTabsModule,
-    MatProgressSpinnerModule
+    MatProgressSpinnerModule,
+    AiChatComponent
   ],
   templateUrl: './ai-management-center.component.html',
   styleUrls: ['./ai-management-center.component.scss']
@@ -111,6 +113,15 @@ export class AiManagementCenterComponent implements OnInit {
       },
       error: () => this.toast.error('Failed to save AI config')
     });
+  }
+
+  onProviderChange(): void {
+    if (this.config.provider === 'Ollama') {
+      this.config.apiEndpoint = this.config.apiEndpoint || 'http://127.0.0.1:11434';
+      this.config.modelName = this.config.modelName || 'mistral';
+      this.config.isEnabled = true;
+      this.config.copilotEnabled = true;
+    }
   }
 
   ask(): void {

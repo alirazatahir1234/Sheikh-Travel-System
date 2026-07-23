@@ -28,6 +28,10 @@ public class UpdateRouteCommandValidator : AbstractValidator<UpdateRouteCommand>
             .GreaterThan(0)
             .When(x => x.Route.EstimatedMinutes.HasValue);
         RuleFor(x => x.Route.BasePrice).GreaterThanOrEqualTo(0);
+        RuleFor(x => x.Route.OptimizeMode).MaximumLength(50);
+        RuleFor(x => x.Route)
+            .Must(r => !string.Equals(r.Source.Trim(), r.Destination.Trim(), StringComparison.OrdinalIgnoreCase))
+            .WithMessage("Origin and destination must be different.");
     }
 }
 
@@ -52,11 +56,14 @@ public class UpdateRouteCommandHandler(IDbConnectionFactory dbFactory)
             new CommandDefinition(
                 @"UPDATE Routes SET Name = @Name, Source = @Source, Destination = @Destination,
                   Distance = @Distance, EstimatedMinutes = @EstimatedMinutes, BasePrice = @BasePrice,
-                  IsActive = @IsActive, UpdatedAt = @UpdatedAt WHERE Id = @Id",
+                  IsActive = @IsActive, UpdatedAt = @UpdatedAt,
+                  WaypointsJson = @WaypointsJson, OptimizeMode = @OptimizeMode
+                  WHERE Id = @Id",
                 new
                 {
                     dto.Name, dto.Source, dto.Destination, dto.Distance,
                     dto.EstimatedMinutes, dto.BasePrice, dto.IsActive,
+                    dto.WaypointsJson, dto.OptimizeMode,
                     UpdatedAt = DateTime.UtcNow, request.Id
                 },
                 cancellationToken: cancellationToken));

@@ -1,7 +1,7 @@
 # SheikhGo Driver — Privacy Policy
 
 **Effective date:** 19 July 2026  
-**App:** SheikhGo Driver (`com.sheikhgo.driver`)  
+**App:** SheikhGo Fleet (`com.sheikhgo.fleet`)  
 **Operator:** SheikhGo / fleet tenant administrators using the SheikhGo platform
 
 This policy describes how the SheikhGo Driver mobile application collects, uses, and shares information when drivers use the app for fleet operations.

@@ -80,6 +80,7 @@ const TRAIL_COLORS: Record<FleetTrackStatus, string> = {
 export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild('mapHost') mapHost?: ElementRef<HTMLElement>;
   @ViewChild('mapContainer', { static: false }) mapContainer?: ElementRef<HTMLElement>;
+  @ViewChild('vehicleSearchInput') vehicleSearchInput?: ElementRef<HTMLInputElement>;
 
   private map!: LeafletTypes.Map;
   private tileLayer?: LeafletTypes.TileLayer;
@@ -106,6 +107,10 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
   statusFilter: StatusFilter = 'all';
   ignitionFilter: IgnitionFilter = 'all';
   batteryLowOnly = false;
+  panelCollapsed = false;
+  filterApplying = false;
+  private searchDebounceTimer?: ReturnType<typeof setTimeout>;
+  private static readonly FILTER_STORAGE_KEY = 'stb-live-map-filters';
   mapTheme: MapTheme = readStoredMapTheme();
   mapThemeMenuOpen = false;
   readonly mapThemeOptions = MAP_THEME_OPTIONS;
@@ -192,6 +197,8 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
+    this.restoreFilters();
+
     const vehicleIdParam = this.route.snapshot.queryParamMap.get('vehicleId');
     if (vehicleIdParam) {
       const id = Number(vehicleIdParam);
@@ -254,7 +261,7 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
       const idx = this.locations.findIndex(l => l.vehicleId === alert.vehicleId);
       if (idx >= 0) {
         this.locations[idx] = { ...this.locations[idx], status: 'sos', alarmType: 'sos' };
-        this.updateMarkers(this.mappableLocations(this.locations));
+        this.updateMarkers(this.mappableLocations(this.filteredLocations));
         this.pushEvent(`${this.locations[idx].vehicleName} — SOS / panic alarm!`, 'alert', 'sos');
       } else {
         this.pushEvent(`Vehicle #${alert.vehicleId} — SOS / panic alarm!`, 'alert', 'sos');
@@ -272,6 +279,7 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
   ngAfterViewInit(): void {
     // Defer until the routed view and map container dimensions are ready.
     this._bootstrapTimer = setTimeout(() => void this.bootstrapMap(), 100);
+    setTimeout(() => this.vehicleSearchInput?.nativeElement?.focus(), 250);
   }
 
   @HostListener('window:resize')
@@ -326,6 +334,7 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
 
   ngOnDestroy(): void {
     if (this._bootstrapTimer) clearTimeout(this._bootstrapTimer);
+    if (this.searchDebounceTimer) clearTimeout(this.searchDebounceTimer);
     if (this.refreshInterval) clearInterval(this.refreshInterval);
     if (this.syncTick) clearInterval(this.syncTick);
     if (this.traccarStatusPoll) clearInterval(this.traccarStatusPoll);
@@ -375,12 +384,34 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
+  get hasActiveFilters(): boolean {
+    return (
+      this.searchQuery.trim().length > 0 ||
+      this.statusFilter !== 'all' ||
+      this.ignitionFilter !== 'all' ||
+      this.batteryLowOnly
+    );
+  }
+
+  get emptyStateKind(): 'loading' | 'no-data' | 'no-match' | null {
+    if (this.loading && this.locations.length === 0) return 'loading';
+    if (this.locations.length === 0) return 'no-data';
+    if (this.filteredLocations.length === 0) return 'no-match';
+    return null;
+  }
+
   setIgnitionFilter(id: IgnitionFilter): void {
     this.ignitionFilter = this.ignitionFilter === id ? 'all' : id;
+    this.persistFilters();
+    this.markUserActive();
+    this.applyVisibleMarkers();
   }
 
   toggleBatteryLowOnly(): void {
     this.batteryLowOnly = !this.batteryLowOnly;
+    this.persistFilters();
+    this.markUserActive();
+    this.applyVisibleMarkers();
   }
 
   get statusCounts(): Record<FleetTrackStatus | 'all', number> {
@@ -556,11 +587,89 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
   onSearchQueryChanged(value: string): void {
     this.searchQuery = value;
     this.markUserActive();
+    this.filterApplying = true;
+    if (this.searchDebounceTimer) clearTimeout(this.searchDebounceTimer);
+    this.searchDebounceTimer = setTimeout(() => {
+      this.persistFilters();
+      this.applyVisibleMarkers();
+      this.filterApplying = false;
+    }, 300);
+  }
+
+  onSearchEnter(): void {
+    if (this.searchDebounceTimer) {
+      clearTimeout(this.searchDebounceTimer);
+      this.searchDebounceTimer = undefined;
+    }
+    this.persistFilters();
+    this.applyVisibleMarkers();
+    this.filterApplying = false;
+    const first = this.filteredLocations[0];
+    if (first) this.selectVehicle(first);
   }
 
   setStatusFilter(id: StatusFilter): void {
     this.statusFilter = id;
+    this.persistFilters();
     this.markUserActive();
+    this.applyVisibleMarkers();
+  }
+
+  clearFilters(): void {
+    this.searchQuery = '';
+    this.statusFilter = 'all';
+    this.ignitionFilter = 'all';
+    this.batteryLowOnly = false;
+    this.persistFilters();
+    this.markUserActive();
+    this.applyVisibleMarkers();
+  }
+
+  togglePanelCollapsed(): void {
+    this.panelCollapsed = !this.panelCollapsed;
+    setTimeout(() => {
+      this.map?.invalidateSize();
+      this.scheduleMapResize();
+    }, 220);
+  }
+
+  private applyVisibleMarkers(): void {
+    this.updateMarkers(this.mappableLocations(this.filteredLocations));
+  }
+
+  private persistFilters(): void {
+    try {
+      localStorage.setItem(
+        LiveMapComponent.FILTER_STORAGE_KEY,
+        JSON.stringify({
+          searchQuery: this.searchQuery,
+          statusFilter: this.statusFilter,
+          ignitionFilter: this.ignitionFilter,
+          batteryLowOnly: this.batteryLowOnly
+        })
+      );
+    } catch {
+      /* ignore */
+    }
+  }
+
+  private restoreFilters(): void {
+    try {
+      const raw = localStorage.getItem(LiveMapComponent.FILTER_STORAGE_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as {
+        searchQuery?: string;
+        statusFilter?: StatusFilter;
+        ignitionFilter?: IgnitionFilter;
+        batteryLowOnly?: boolean;
+      };
+      if (typeof parsed.searchQuery === 'string') this.searchQuery = parsed.searchQuery;
+      if (parsed.statusFilter) this.statusFilter = parsed.statusFilter;
+      if (parsed.ignitionFilter) this.ignitionFilter = parsed.ignitionFilter;
+      if (typeof parsed.batteryLowOnly === 'boolean') this.batteryLowOnly = parsed.batteryLowOnly;
+    } catch {
+      /* ignore */
+    }
   }
 
   openHistoryForSelected(): void {
@@ -992,7 +1101,7 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
       this.updateMarkers(this.pendingMarkerLocations);
       this.pendingMarkerLocations = null;
     } else if (this.locations.length) {
-      this.updateMarkers(this.mappableLocations(this.locations));
+      this.updateMarkers(this.mappableLocations(this.filteredLocations));
     }
   }
 
@@ -1016,10 +1125,10 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
         this.syncError = null;
         this.lastSyncAt = new Date();
         this.secondsSinceSync = 0;
-        const gpsLocs = this.mappableLocations(this.locations);
+        const gpsLocs = this.mappableLocations(this.filteredLocations);
         this.updateMarkers(gpsLocs);
-        this.emitTelemetryEvents(gpsLocs, prevMoving);
-        this.emitSyncSummary(gpsLocs, manual || !silent);
+        this.emitTelemetryEvents(this.mappableLocations(this.locations), prevMoving);
+        this.emitSyncSummary(this.mappableLocations(this.locations), manual || !silent);
         if (this.pendingFocusVehicleId != null) {
           const target = this.locations.find(l => l.vehicleId === this.pendingFocusVehicleId);
           if (target) {
@@ -1361,7 +1470,7 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
         temperature: update.temperature,
         routeHint: this.realtimeRouteHint(status, speed)
       };
-      this.updateMarkers(this.mappableLocations(this.locations));
+      this.updateMarkers(this.mappableLocations(this.filteredLocations));
       if (this.followSelected && this.selectedVehicleId === update.vehicleId) {
         this.map?.panTo([update.latitude, update.longitude], { animate: true });
       }

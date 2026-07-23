@@ -8,11 +8,11 @@
         <nav class="breadcrumb">
           <span>Organization</span>
           <mat-icon>chevron_right</mat-icon>
-          <a routerLink="/platform/tenants">Tenants</a>
+          <a routerLink="/platform/tenants">Companies</a>
           <mat-icon>chevron_right</mat-icon>
-          <span class="current">{{ tenant?.name || 'Tenant Details' }}</span>
+          <span class="current">{{ tenant?.name || 'Company Details' }}</span>
         </nav>
-        <h1>{{ tenant?.name || 'Tenant Details' }}</h1>
+        <h1>{{ tenant?.name || 'Company Details' }}</h1>
         <p class="page-sub" *ngIf="tenant">
           {{ tenantDisplayCode(tenant) }} · {{ tenant.slug }}
           <span *ngIf="tenant.location"> · {{ tenant.location }}</span>
@@ -26,14 +26,126 @@
 
   <app-brand-loader *ngIf="loading" />
 
+  <div *ngIf="!loading && tenant" class="capability-strip" aria-label="Company hierarchy and capabilities">
+    <a class="capability-chip" routerLink="/platform/branches">
+      <mat-icon>account_tree</mat-icon>
+      <span>Branches</span>
+      <strong>{{ tenant.branchCount }}</strong>
+    </a>
+    <a class="capability-chip" routerLink="/platform/departments">
+      <mat-icon>corporate_fare</mat-icon>
+      <span>Departments</span>
+      <strong>{{ tenant.departmentCount }}</strong>
+    </a>
+    <a class="capability-chip" routerLink="/users">
+      <mat-icon>groups</mat-icon>
+      <span>Users</span>
+      <strong>{{ tenant.activeUserCount ?? '—' }}</strong>
+    </a>
+    <a class="capability-chip" routerLink="/drivers">
+      <mat-icon>badge</mat-icon>
+      <span>Drivers</span>
+      <strong>—</strong>
+    </a>
+    <a class="capability-chip" routerLink="/vehicles">
+      <mat-icon>local_shipping</mat-icon>
+      <span>Vehicles</span>
+      <strong>{{ tenant.activeVehicleCount ?? '—' }}</strong>
+    </a>
+    <a class="capability-chip" routerLink="/platform/module-management" [queryParams]="{ tenantId: tenantId }">
+      <mat-icon>extension</mat-icon>
+      <span>Modules</span>
+      <strong>{{ tenant.moduleCodes?.length || 0 }}</strong>
+    </a>
+    <a class="capability-chip" routerLink="/platform/feature-management" [queryParams]="{ tenantId: tenantId }">
+      <mat-icon>tune</mat-icon>
+      <span>Features</span>
+      <strong>{{ features.length }}</strong>
+    </a>
+    <a class="capability-chip" routerLink="/platform/menu-management">
+      <mat-icon>menu</mat-icon>
+      <span>Menus</span>
+      <strong>{{ menuModuleCount }}</strong>
+    </a>
+    <a class="capability-chip" routerLink="/platform/workspace-management" [queryParams]="{ tenantId: tenantId }">
+      <mat-icon>workspaces</mat-icon>
+      <span>Workspaces</span>
+    </a>
+    <a class="capability-chip" routerLink="/platform/dashboard-management">
+      <mat-icon>dashboard_customize</mat-icon>
+      <span>Dashboards</span>
+    </a>
+    <a class="capability-chip" routerLink="/platform/security-center" [queryParams]="{ tenantId: tenantId }">
+      <mat-icon>security</mat-icon>
+      <span>Security</span>
+    </a>
+  </div>
+
+  <div *ngIf="!loading && tenant && license" class="subscription-summary" aria-label="Subscription summary">
+    <div class="subscription-summary__main">
+      <div>
+        <span class="eyebrow">Subscription</span>
+        <strong>{{ license.planDisplayName || license.planName || '—' }}</strong>
+        <span class="status-pill">{{ license.status }}</span>
+      </div>
+      <div>
+        <span class="eyebrow">Expires</span>
+        <strong>{{ (license.endDate | date:'mediumDate') || '—' }}</strong>
+      </div>
+      <div>
+        <span class="eyebrow">Limits</span>
+        <strong>
+          Users {{ license.usedUsers }}/{{ license.maxUsers ?? '∞' }}
+          · Drivers {{ license.usedDrivers }}/{{ license.maxDrivers ?? '∞' }}
+          · Vehicles {{ license.usedVehicles }}/{{ license.maxVehicles ?? '∞' }}
+        </strong>
+      </div>
+    </div>
+    <div class="subscription-summary__modules" *ngIf="license.licensedModules?.length">
+      <span class="eyebrow">Licensed modules</span>
+      <div class="module-chips">
+        <span class="module-chip" *ngFor="let code of license.licensedModules">{{ code }}</span>
+      </div>
+    </div>
+    <a class="subscription-summary__link"
+       [routerLink]="['/platform/subscription-management']"
+       [queryParams]="{ tenantId: tenantId }">
+      Manage subscription
+      <mat-icon>arrow_forward</mat-icon>
+    </a>
+  </div>
+
+  <div *ngIf="!loading && tenant && userSummary" class="users-summary" aria-label="Users summary">
+    <a class="users-summary__chip" [routerLink]="['/users']" [queryParams]="{ tenantId: tenantId }">
+      <span class="eyebrow">Users</span>
+      <strong>{{ userSummary.totalUsers }}</strong>
+    </a>
+    <a class="users-summary__chip" [routerLink]="['/users']" [queryParams]="{ tenantId: tenantId }">
+      <span class="eyebrow">Drivers</span>
+      <strong>{{ userSummary.drivers }}</strong>
+    </a>
+    <a class="users-summary__chip" [routerLink]="['/users']" [queryParams]="{ tenantId: tenantId }">
+      <span class="eyebrow">Managers</span>
+      <strong>{{ userSummary.managers }}</strong>
+    </a>
+    <a class="users-summary__chip" [routerLink]="['/users']" [queryParams]="{ tenantId: tenantId }">
+      <span class="eyebrow">Administrators</span>
+      <strong>{{ userSummary.administrators }}</strong>
+    </a>
+    <a class="users-summary__chip" routerLink="/platform/departments">
+      <span class="eyebrow">Departments</span>
+      <strong>{{ userSummary.departmentCount }}</strong>
+    </a>
+  </div>
+
   <div *ngIf="!loading && tenant" class="detail-layout">
     <form [formGroup]="form" (ngSubmit)="submit()" class="form-column">
       <mat-card class="section-card">
         <div class="section-head">
           <span class="section-icon section-icon--profile"><mat-icon>domain</mat-icon></span>
           <div class="section-head-text">
-            <h3>Tenant Profile</h3>
-            <p class="section-sub">Basic information about the tenant organization</p>
+            <h3>Company Profile</h3>
+            <p class="section-sub">Basic information about the company organization</p>
           </div>
         </div>
         <div class="stb-field stb-field--full">
@@ -43,7 +155,7 @@
         </div>
         <div class="field-row field-row--4">
           <div class="stb-field">
-            <label for="tenant-code">Tenant Code</label>
+              <label for="tenant-code">Company Code</label>
             <input id="tenant-code" class="stb-input stb-input--readonly" type="text" [value]="tenantDisplayCode(tenant)" readonly tabindex="-1" />
           </div>
           <div class="field-cell">
@@ -74,7 +186,7 @@
           <div class="toggle-row toggle-row--field">
             <div>
               <strong>Active Status</strong>
-              <p>Inactive tenants cannot sign in or access the platform.</p>
+              <p>Inactive companies cannot sign in or access the platform.</p>
             </div>
             <mat-slide-toggle formControlName="isActive" color="primary"></mat-slide-toggle>
           </div>
@@ -86,7 +198,7 @@
           <span class="section-icon section-icon--plan"><mat-icon>layers</mat-icon></span>
           <div class="section-head-text">
             <h3>Subscription &amp; Modules</h3>
-            <p class="section-sub">Choose a plan and enable modules for this tenant</p>
+            <p class="section-sub">Choose a plan and enable modules for this company</p>
           </div>
           <button mat-stroked-button type="button" class="apply-plan-btn"
             (click)="applyPlan(form.controls.subscriptionPlan.value ?? 'Enterprise')">
@@ -165,7 +277,7 @@
           <span class="section-icon section-icon--admin"><mat-icon>manage_accounts</mat-icon></span>
           <div class="section-head-text">
             <h3>Administrator Account</h3>
-            <p class="section-sub">Primary admin user provisioned with this tenant</p>
+            <p class="section-sub">Primary admin user provisioned with this company</p>
           </div>
           <span class="admin-status-badge"
             [class.active]="adminInfo?.isActive"
@@ -220,7 +332,7 @@
         <ng-template #noAdmin>
           <div class="no-admin-notice">
             <mat-icon>info_outline</mat-icon>
-            <span>No administrator account found for this tenant.</span>
+            <span>No administrator account found for this company.</span>
           </div>
         </ng-template>
       </mat-card>
@@ -230,7 +342,7 @@
           <span class="section-icon section-icon--branding"><mat-icon>palette</mat-icon></span>
           <div class="section-head-text">
             <h3>Branding &amp; Contact Information</h3>
-            <p class="section-sub">Customize tenant branding and contact details</p>
+            <p class="section-sub">Customize company branding and contact details</p>
           </div>
         </div>
         <div class="field-row">
@@ -293,6 +405,40 @@
         </div>
       </mat-card>
 
+      <mat-card class="section-card" id="company-features">
+        <div class="section-head">
+          <span class="section-icon section-icon--features"><mat-icon>tune</mat-icon></span>
+          <div class="section-head-text">
+            <h3>Features</h3>
+            <p class="section-sub">Read-only company feature enablement by category</p>
+          </div>
+          <a class="section-link"
+             [routerLink]="['/platform/feature-management']"
+             [queryParams]="{ tenantId: tenantId }">
+            Manage features
+            <mat-icon>arrow_forward</mat-icon>
+          </a>
+        </div>
+        <div *ngIf="featuresLoading" class="features-loading">Loading features…</div>
+        <div *ngIf="!featuresLoading && features.length === 0" class="features-empty">
+          No feature metadata found for this company yet.
+        </div>
+        <div *ngIf="!featuresLoading && featureGroups.length" class="feature-groups">
+          <div class="feature-group" *ngFor="let group of featureGroups">
+            <h4 class="feature-group-title">{{ group.category }}</h4>
+            <ul class="feature-list">
+              <li *ngFor="let f of group.features" class="feature-row" [class.feature-row--off]="!f.isEnabled">
+                <span class="feature-mark" aria-hidden="true">{{ f.isEnabled ? '✓' : '✗' }}</span>
+                <div>
+                  <strong>{{ f.displayName || f.name }}</strong>
+                  <span class="feature-key">{{ f.featureKey }}</span>
+                </div>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </mat-card>
+
       <div class="form-actions">
         <button mat-button type="button" (click)="cancel()" [disabled]="saving">Cancel</button>
         <button mat-flat-button color="primary" type="submit" [disabled]="saving">
@@ -319,11 +465,66 @@
             <strong>{{ tenant.departmentCount }}</strong>
           </div>
         </div>
-        <div class="stat-row">
+        <div class="stat-row roles-strip">
           <mat-icon>security</mat-icon>
           <div>
             <span>Roles</span>
-            <strong>{{ tenant.roleCount }}</strong>
+            <strong>{{ companyRoles.length || tenant.roleCount }}</strong>
+            <div class="role-name-chips" *ngIf="companyRoles.length">
+              <span class="role-chip" *ngFor="let r of companyRoles | slice:0:4">{{ r.displayName || r.name }}</span>
+              <span class="role-more" *ngIf="companyRoles.length > 4">+{{ companyRoles.length - 4 }}</span>
+            </div>
+            <a class="roles-link" [routerLink]="['/platform/access-control']"
+               [queryParams]="{ tab: 'roles', tenantId: tenantId }">Manage roles</a>
+          </div>
+        </div>
+        <div class="stat-row roles-strip">
+          <mat-icon>filter_alt</mat-icon>
+          <div>
+            <span>Data Scope</span>
+            <strong>Engine</strong>
+            <a class="roles-link" [routerLink]="['/platform/access-control']"
+               [queryParams]="{ tab: 'data-scope', tenantId: tenantId }">View scope</a>
+          </div>
+        </div>
+        <div class="stat-row roles-strip">
+          <mat-icon>verified_user</mat-icon>
+          <div>
+            <span>Permissions</span>
+            <strong>{{ permissionCatalogCount }}</strong>
+            <div class="role-name-chips" *ngIf="permissionCategories.length">
+              <span class="role-chip" *ngFor="let c of permissionCategories | slice:0:4">{{ c }}</span>
+            </div>
+            <a class="roles-link" [routerLink]="['/platform/access-control']"
+               [queryParams]="{ tab: 'permissions', tenantId: tenantId }">View catalog</a>
+          </div>
+        </div>
+        <div class="stat-row roles-strip">
+          <mat-icon>menu</mat-icon>
+          <div>
+            <span>Menus</span>
+            <strong>{{ menuModuleCount }} / {{ menuItemCount }}</strong>
+            <div class="role-name-chips" *ngIf="menuTopLabels.length">
+              <span class="role-chip" *ngFor="let label of menuTopLabels">{{ label }}</span>
+            </div>
+            <a class="roles-link" routerLink="/platform/menu-management">Manage menus</a>
+          </div>
+        </div>
+        <div class="stat-row roles-strip">
+          <mat-icon>workspaces</mat-icon>
+          <div>
+            <span>Workspaces</span>
+            <strong>Catalog</strong>
+            <a class="roles-link" routerLink="/platform/workspace-management"
+               [queryParams]="{ tenantId: tenantId }">Manage workspaces</a>
+          </div>
+        </div>
+        <div class="stat-row roles-strip">
+          <mat-icon>dashboard_customize</mat-icon>
+          <div>
+            <span>Dashboards</span>
+            <strong>Layouts</strong>
+            <a class="roles-link" routerLink="/platform/dashboard-management">Manage dashboards</a>
           </div>
         </div>
         <div class="stat-row">

@@ -1,5 +1,6 @@
 using Dapper;
 using SheikhTravelSystem.Application.Common;
+using SheikhTravelSystem.Application.Common.Interfaces;
 
 namespace SheikhTravelSystem.Application.Features.Reports.Fleet;
 
@@ -7,7 +8,7 @@ public partial class GetFleetReportQueryHandler
 {
     private static async Task<ReportResponseDto> BuildFuelReportAsync(
         System.Data.IDbConnection connection, int tenantId, DateTime from, DateTime to,
-        int? vehicleId, int? branchId, CancellationToken ct)
+        int? vehicleId, int? branchId, CancellationToken ct, DataScopeResult? scope = null)
     {
         var columns = new[]
         {
@@ -26,7 +27,7 @@ public partial class GetFleetReportQueryHandler
         p.Add("TenantId", tenantId);
         p.Add("From", from);
         p.Add("To", to);
-        FleetReportSql.ApplyVehicleBranchFilters(p, vehicleId, branchId, "v", null, clauses);
+        FleetReportSql.ApplyEffectiveVehicleScope(p, scope, vehicleId, branchId, null, "v", clauses);
         var where = FleetReportSql.BuildWhere(clauses);
 
         // Per-row consumption from the odometer delta since this vehicle's previous fill-up

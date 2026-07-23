@@ -123,11 +123,23 @@
     </div>
   </section>
 
-  <div class="track-main">
+  <div class="track-main" [class.track-main--panel-collapsed]="panelCollapsed">
+
+    <button
+      *ngIf="panelCollapsed"
+      type="button"
+      class="panel-expand-btn desktop-only stb-touch"
+      matTooltip="Show vehicle panel"
+      aria-label="Expand vehicle panel"
+      (click)="togglePanelCollapsed()">
+      <mat-icon>directions_bus</mat-icon>
+      <span>{{ filteredLocations.length }}</span>
+    </button>
 
     <aside
       class="track-panel track-panel--sheet stb-elevated"
-      [class.track-panel--peek]="!listSheetOpen">
+      [class.track-panel--peek]="!listSheetOpen"
+      [class.track-panel--collapsed]="panelCollapsed">
       <button
         type="button"
         class="track-panel__handle mobile-only"
@@ -139,14 +151,89 @@
       </button>
 
       <div class="track-panel__body">
+        <div class="panel-toolbar desktop-only">
+          <div>
+            <h2 class="panel-heading">Vehicles</h2>
+            <p class="panel-subheading">
+              {{ filteredLocations.length }} of {{ locations.length }} shown
+              <span *ngIf="lastSyncAt"> · Updated {{ formatSyncAgo() }}</span>
+            </p>
+          </div>
+          <button
+            type="button"
+            mat-icon-button
+            class="stb-touch"
+            matTooltip="Collapse vehicle panel"
+            aria-label="Collapse vehicle panel"
+            (click)="togglePanelCollapsed()">
+            <mat-icon>chevron_left</mat-icon>
+          </button>
+        </div>
+
         <div class="panel-search">
           <mat-icon>search</mat-icon>
           <input
+            #vehicleSearchInput
             type="search"
-            placeholder="Search vehicle, plate, driver, IMEI, tracker…"
+            placeholder="Search by vehicle, plate, driver, IMEI…"
             [(ngModel)]="searchQuery"
             (ngModelChange)="onSearchQueryChanged($event)"
+            (keydown.enter)="onSearchEnter()"
             aria-label="Search vehicles" />
+          <mat-spinner *ngIf="filterApplying" diameter="18"></mat-spinner>
+          <button
+            *ngIf="searchQuery"
+            type="button"
+            mat-icon-button
+            class="search-clear stb-touch"
+            aria-label="Clear search"
+            (click)="searchQuery = ''; onSearchQueryChanged('')">
+            <mat-icon>close</mat-icon>
+          </button>
+        </div>
+
+        <div class="panel-filters">
+          <div class="filter-chips">
+            <button
+              type="button"
+              class="filter-chip stb-touch"
+              *ngFor="let f of statusFilters"
+              [class.filter-chip--active]="statusFilter === f.id"
+              (click)="setStatusFilter(f.id)">
+              {{ f.label }}
+            </button>
+          </div>
+          <div class="filter-chips filter-chips--ghost">
+            <button
+              type="button"
+              class="filter-chip filter-chip--ghost stb-touch"
+              [class.filter-chip--active]="ignitionFilter === 'on'"
+              (click)="setIgnitionFilter('on')">
+              Ignition ON
+            </button>
+            <button
+              type="button"
+              class="filter-chip filter-chip--ghost stb-touch"
+              [class.filter-chip--active]="ignitionFilter === 'off'"
+              (click)="setIgnitionFilter('off')">
+              Ignition OFF
+            </button>
+            <button
+              type="button"
+              class="filter-chip filter-chip--ghost stb-touch"
+              [class.filter-chip--active]="batteryLowOnly"
+              (click)="toggleBatteryLowOnly()">
+              Battery Low
+            </button>
+          </div>
+          <div class="applied-filters" *ngIf="hasActiveFilters">
+            <span class="applied-label">Active filters</span>
+            <span class="filter-tag" *ngIf="searchQuery.trim()">“{{ searchQuery.trim() }}”</span>
+            <span class="filter-tag" *ngIf="statusFilter !== 'all'">Status: {{ statusFilter }}</span>
+            <span class="filter-tag" *ngIf="ignitionFilter !== 'all'">Ignition: {{ ignitionFilter }}</span>
+            <span class="filter-tag" *ngIf="batteryLowOnly">Battery low</span>
+            <button type="button" class="clear-filters stb-touch" (click)="clearFilters()">Clear all</button>
+          </div>
         </div>
 
         <div class="panel-status">
@@ -167,22 +254,32 @@
           </span>
         </div>
 
-        <div class="panel-list-header desktop-only">
-          <span>Vehicles</span>
-          <span class="panel-count">{{ filteredLocations.length }}</span>
+        <mat-spinner *ngIf="loading && locations.length === 0" diameter="28" class="panel-spinner"></mat-spinner>
+        <div *ngIf="loading && locations.length > 0" class="panel-refreshing">
+          <mat-spinner diameter="18"></mat-spinner>
+          <span>Refreshing fleet…</span>
         </div>
 
-        <mat-spinner *ngIf="loading" diameter="28" class="panel-spinner"></mat-spinner>
-
-        <div *ngIf="!loading && filteredLocations.length === 0" class="panel-empty">
+        <div *ngIf="emptyStateKind === 'no-data'" class="panel-empty">
           <div class="panel-empty-art"><mat-icon>gps_off</mat-icon></div>
-          <h3>No vehicles match</h3>
-          <p>Adjust filters or assign GPS-enabled vehicles to start live tracking.</p>
+          <h3>No vehicles to track</h3>
+          <p>Assign GPS-enabled vehicles to start live tracking.</p>
           <button mat-flat-button color="primary" type="button" class="stb-touch" (click)="goToVehicles()">
             <mat-icon>directions_bus</mat-icon>
             Manage fleet
           </button>
         </div>
+
+        <div *ngIf="emptyStateKind === 'no-match'" class="panel-empty">
+          <div class="panel-empty-art"><mat-icon>search_off</mat-icon></div>
+          <h3>No matching vehicles</h3>
+          <p>No vehicles match your search or filters. Try a different query or clear filters.</p>
+          <button mat-stroked-button type="button" class="stb-touch" (click)="clearFilters()">
+            <mat-icon>filter_alt_off</mat-icon>
+            Clear filters
+          </button>
+        </div>
+
         <div *ngIf="syncError && !loading" class="panel-error">
           <mat-icon>cloud_off</mat-icon>
           <p>{{ syncError }}</p>
@@ -193,7 +290,7 @@
         </div>
 
         <cdk-virtual-scroll-viewport
-          *ngIf="!loading && filteredLocations.length > 0"
+          *ngIf="filteredLocations.length > 0"
           class="panel-list"
           itemSize="112"
           role="list">
@@ -305,6 +402,10 @@
 
       <div class="map-shell" #mapHost [class.map-shell--fs]="isMapFullscreen">
         <div #mapContainer class="map-container"></div>
+        <div class="map-loading-overlay" *ngIf="loading && locations.length === 0 && !mapError" aria-live="polite">
+          <mat-spinner diameter="36"></mat-spinner>
+          <p>Loading map and vehicles…</p>
+        </div>
         <div class="map-load-error" *ngIf="mapError" role="alert">
           <mat-icon>map</mat-icon>
           <p>{{ mapError }}</p>

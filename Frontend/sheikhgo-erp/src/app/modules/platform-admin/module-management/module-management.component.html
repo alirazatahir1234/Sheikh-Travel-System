@@ -10,8 +10,8 @@
           <mat-icon>chevron_right</mat-icon>
           <span class="current">Module Management</span>
         </nav>
-        <h2>Module Management</h2>
-        <p class="page-sub">Enable or disable system modules and monitor license limits for the selected tenant.</p>
+        <h2>Module Registry</h2>
+        <p class="page-sub">Review module metadata and enable Active modules for the selected company. Coming Soon entries are display-only.</p>
       </div>
     </div>
     <div class="header-right">
@@ -27,8 +27,8 @@
   <ng-container *ngIf="!loading">
     <div class="content-placeholder" *ngIf="!overview">
       <mat-icon>extension</mat-icon>
-      <h3>Select a Tenant</h3>
-      <p>Choose a tenant from the picker above to manage their module configuration.</p>
+      <h3>Select a Company</h3>
+      <p>Choose a company from the picker above to manage module configuration.</p>
     </div>
 
     <div class="module-layout" *ngIf="overview">
@@ -36,29 +36,54 @@
         <mat-card-header>
           <div class="card-head">
             <div>
-              <mat-card-title>Available Modules</mat-card-title>
+              <mat-card-title>Module Catalog</mat-card-title>
               <mat-card-subtitle>
                 {{ overview.tenantName }}
                 <span class="plan-chip" *ngIf="overview.planName">{{ overview.planName }}</span>
               </mat-card-subtitle>
             </div>
+            <div class="filter-chips" role="group" aria-label="Module filter">
+              <button type="button" class="filter-chip" [class.active]="filter === 'all'" (click)="filter = 'all'">All</button>
+              <button type="button" class="filter-chip" [class.active]="filter === 'installed'" (click)="filter = 'installed'">Installed</button>
+              <button type="button" class="filter-chip" [class.active]="filter === 'comingSoon'" (click)="filter = 'comingSoon'">Coming Soon</button>
+            </div>
           </div>
         </mat-card-header>
         <mat-card-content>
           <div class="module-grid">
-            <div class="module-item" *ngFor="let module of modules" [class.enabled]="module.isEnabled">
+            <div class="module-item" *ngFor="let module of filteredModules"
+                 [class.enabled]="module.isEnabled"
+                 [class.readonly]="!canToggle(module)">
               <div class="module-info">
-                <mat-icon>{{ getModuleIcon(module.code) }}</mat-icon>
-                <div>
-                  <strong>{{ module.name }}</strong>
-                  <p class="module-code">{{ module.code }}</p>
+                <mat-icon>{{ moduleIcon(module) }}</mat-icon>
+                <div class="module-copy">
+                  <div class="module-title-row">
+                    <strong>{{ module.displayName || module.name }}</strong>
+                    <span class="status-badge" [attr.data-status]="module.status || 'Active'">{{ formatStatus(module.status) }}</span>
+                  </div>
+                  <p class="module-code">{{ module.code }} · {{ module.category || 'General' }} · v{{ module.version || '1.0.0' }}</p>
+                  <p class="module-desc" *ngIf="module.description">{{ module.description }}</p>
+                  <div class="module-meta">
+                    <span class="meta-chip" *ngIf="module.isInstalled || module.isEnabled">Installed</span>
+                    <span class="meta-chip meta-chip--licensed" *ngIf="module.isLicensed || module.isEnabled">Licensed</span>
+                    <span class="meta-chip" *ngIf="module.isMobileSupported">Mobile</span>
+                    <span class="meta-chip" *ngIf="module.isAISupported">AI</span>
+                    <span class="meta-chip" *ngIf="module.isGPSSupported">GPS</span>
+                    <span class="meta-chip meta-chip--deps" *ngIf="module.dependencies?.length">
+                      Depends: {{ module.dependencies!.join(', ') }}
+                    </span>
+                  </div>
                 </div>
               </div>
               <mat-slide-toggle
+                *ngIf="canToggle(module); else comingSoonLabel"
                 [checked]="module.isEnabled"
                 (change)="toggleModule(module, $event.checked)">
                 {{ module.isEnabled ? 'Enabled' : 'Disabled' }}
               </mat-slide-toggle>
+              <ng-template #comingSoonLabel>
+                <span class="coming-soon-label">{{ formatStatus(module.status) }}</span>
+              </ng-template>
             </div>
           </div>
 

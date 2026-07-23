@@ -142,6 +142,14 @@ class OfflineSyncService {
     return synced;
   }
 
+  /// Reset a failed/conflict item and attempt sync for that op only.
+  Future<bool> retryOne(String id) async {
+    await OfflineOutbox.requeue(id);
+    _notifyCount();
+    final n = await syncNow();
+    return n > 0;
+  }
+
   Future<void> _dispatch(OfflineOperation op) async {
     final headers = {
       'Idempotency-Key': op.id,

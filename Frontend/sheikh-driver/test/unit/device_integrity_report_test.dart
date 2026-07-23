@@ -20,7 +20,7 @@ void main() {
           model: 'Pixel',
           osVersion: '14',
           appVersion: '1.0.0+1',
-          packageName: 'com.sheikhgo.driver',
+          packageName: 'com.sheikhgo.fleet',
           installerStore: 'com.android.vending',
           issues: [
             if (emulator) 'Running on emulator/simulator',
@@ -38,7 +38,7 @@ void main() {
       final p = report(emulator: true).toRegistrationPayload();
       expect(p['deviceId'], 'dev-1');
       expect(p['isEmulator'], isTrue);
-      expect(p['packageName'], 'com.sheikhgo.driver');
+      expect(p['packageName'], 'com.sheikhgo.fleet');
     });
 
     test('fingerprintHash is stable', () {

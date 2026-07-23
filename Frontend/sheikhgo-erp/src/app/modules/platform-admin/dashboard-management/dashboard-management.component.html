@@ -1,0 +1,157 @@
+<div class="pa-page dashboard-mgmt">
+  <ui-page-header
+    title="Dashboard Management"
+    subtitle="Compose catalog dashboards from seeded widgets. Runtime screens still own rendering."
+  >
+    <button appUiButton variant="ghost" type="button" (click)="back()">Back to Platform</button>
+    <button
+      appUiButton
+      variant="primary"
+      type="button"
+      [disabled]="!selected || saving"
+      (click)="saveLayout()"
+    >
+      Save layout
+    </button>
+  </ui-page-header>
+
+  <div class="filters">
+    <label>
+      Audience
+      <select [(ngModel)]="audienceFilter">
+        <option value="">All</option>
+        <option value="ERP">ERP</option>
+        <option value="Mobile">Mobile</option>
+        <option value="Both">Both</option>
+      </select>
+    </label>
+    <label>
+      Status
+      <select [(ngModel)]="statusFilter">
+        <option value="all">All</option>
+        <option value="active">Active</option>
+        <option value="inactive">Inactive</option>
+      </select>
+    </label>
+  </div>
+
+  <div class="loading" *ngIf="loading && !selected">Loading dashboards…</div>
+
+  <div class="split">
+    <section class="catalog">
+      <h3>Catalog</h3>
+      <article
+        class="dash-card"
+        *ngFor="let d of filtered"
+        [class.active]="selected?.definition?.dashboardKey === d.dashboardKey"
+        (click)="selectDashboard(d)"
+      >
+        <div class="dash-head">
+          <div>
+            <strong>{{ d.displayName }}</strong>
+            <div class="muted">{{ d.dashboardKey }} · {{ d.audience }}</div>
+          </div>
+          <span class="count">{{ d.widgetCount }} widgets</span>
+        </div>
+        <p class="desc" *ngIf="d.description">{{ d.description }}</p>
+        <div class="actions" (click)="$event.stopPropagation()">
+          <button type="button" class="link" (click)="openEdit(d)">Edit metadata</button>
+        </div>
+      </article>
+      <div class="empty" *ngIf="!loading && filtered.length === 0">No dashboards match filters.</div>
+    </section>
+
+    <section class="layout" *ngIf="selected">
+      <header>
+        <div>
+          <h3>{{ selected.definition.displayName }}</h3>
+          <div class="muted">{{ selected.definition.dashboardKey }}</div>
+        </div>
+        <label class="add-widget" *ngIf="availableWidgets.length">
+          Add widget
+          <select #addSelect (change)="addWidget(addSelect.value); addSelect.value = ''">
+            <option value="">Select…</option>
+            <option *ngFor="let w of availableWidgets" [value]="w.widgetKey">
+              {{ w.displayName }} ({{ w.widgetKey }})
+            </option>
+          </select>
+        </label>
+      </header>
+
+      <div class="layout-list">
+        <div class="layout-row" *ngFor="let item of layoutDraft; let i = index">
+          <div class="meta">
+            <strong>{{ item.displayName }}</strong>
+            <div class="muted">{{ item.widgetKey }} · {{ item.category || 'General' }}</div>
+          </div>
+          <mat-slide-toggle
+            [checked]="item.isVisible"
+            (change)="toggleVisible(item, $event.checked)"
+          ></mat-slide-toggle>
+          <div class="order-btns">
+            <button type="button" class="link" [disabled]="i === 0" (click)="move(item, -1)">Up</button>
+            <button
+              type="button"
+              class="link"
+              [disabled]="i === layoutDraft.length - 1"
+              (click)="move(item, 1)"
+            >
+              Down
+            </button>
+            <button type="button" class="link danger" (click)="removeWidget(item)">Remove</button>
+          </div>
+        </div>
+        <div class="empty" *ngIf="layoutDraft.length === 0">No widgets in this layout.</div>
+      </div>
+    </section>
+
+    <section class="layout empty-panel" *ngIf="!selected && !loading">
+      Select a dashboard to edit its widget layout.
+    </section>
+  </div>
+</div>
+
+<aside class="drawer" *ngIf="drawerOpen">
+  <div class="drawer-panel">
+    <header>
+      <h2>Edit dashboard</h2>
+      <button type="button" class="link" (click)="closeDrawer()">Close</button>
+    </header>
+    <form [formGroup]="form" (ngSubmit)="saveDefinition()">
+      <label>
+        Display name
+        <input formControlName="displayName" />
+      </label>
+      <label>
+        Description
+        <textarea formControlName="description" rows="2"></textarea>
+      </label>
+      <label>
+        Audience
+        <select formControlName="audience">
+          <option value="ERP">ERP</option>
+          <option value="Mobile">Mobile</option>
+          <option value="Both">Both</option>
+        </select>
+      </label>
+      <label>
+        Default workspace key
+        <input formControlName="defaultWorkspaceKey" />
+      </label>
+      <label>
+        Category
+        <input formControlName="category" />
+      </label>
+      <label>
+        Sort order
+        <input type="number" formControlName="sortOrder" />
+      </label>
+      <label class="check"><input type="checkbox" formControlName="visible" /> Visible</label>
+      <label class="check"><input type="checkbox" formControlName="isActive" /> Active</label>
+      <footer>
+        <button appUiButton variant="ghost" type="button" (click)="closeDrawer()">Cancel</button>
+        <button appUiButton variant="primary" type="submit" [disabled]="saving">Save</button>
+      </footer>
+    </form>
+  </div>
+</aside>

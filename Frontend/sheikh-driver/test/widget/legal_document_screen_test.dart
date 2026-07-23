@@ -10,7 +10,7 @@ void main() {
       ),
     );
     expect(find.text('Privacy Policy'), findsOneWidget);
-    expect(find.textContaining('workforce app'), findsOneWidget);
+    expect(find.textContaining('mobile app for authorized fleet'), findsOneWidget);
   });
 
   testWidgets('Terms screen shows title', (tester) async {

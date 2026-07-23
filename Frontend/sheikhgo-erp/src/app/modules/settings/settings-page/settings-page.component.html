@@ -21,6 +21,15 @@
     <span class="stb-shimmer-block settings-page-skeleton__section" *ngFor="let i of [1, 2, 3]"></span>
   </div>
 
+  <div class="settings-page__banner settings-page__banner--info" *ngIf="!loading && category?.id === 'Security'" role="status">
+    <mat-icon aria-hidden="true">security</mat-icon>
+    <span>
+      Password, session, lockout, IP, and compliance policies live in
+      <a routerLink="/platform/security-center">Security Center</a>.
+      This page only covers API token lifetimes.
+    </span>
+  </div>
+
   <div class="settings-page__banner settings-page__banner--error" *ngIf="!loading && loadError" role="alert">
     <mat-icon aria-hidden="true">error_outline</mat-icon>
     <span>{{ loadError }}</span>

@@ -26,6 +26,10 @@ public class CreateRouteCommandValidator : AbstractValidator<CreateRouteCommand>
             .GreaterThan(0)
             .When(x => x.Route.EstimatedMinutes.HasValue);
         RuleFor(x => x.Route.BasePrice).GreaterThanOrEqualTo(0);
+        RuleFor(x => x.Route.OptimizeMode).MaximumLength(50);
+        RuleFor(x => x.Route)
+            .Must(r => !string.Equals(r.Source.Trim(), r.Destination.Trim(), StringComparison.OrdinalIgnoreCase))
+            .WithMessage("Origin and destination must be different.");
     }
 }
 
@@ -39,13 +43,14 @@ public class CreateRouteCommandHandler(IDbConnectionFactory dbFactory)
 
         var id = await connection.ExecuteScalarAsync<int>(
             new CommandDefinition(
-                @"INSERT INTO Routes (Name, Source, Destination, Distance, EstimatedMinutes, BasePrice, IsActive, CreatedAt, IsDeleted)
-                  VALUES (@Name, @Source, @Destination, @Distance, @EstimatedMinutes, @BasePrice, 1, @CreatedAt, 0);
+                @"INSERT INTO Routes (Name, Source, Destination, Distance, EstimatedMinutes, BasePrice, IsActive, CreatedAt, IsDeleted, WaypointsJson, OptimizeMode)
+                  VALUES (@Name, @Source, @Destination, @Distance, @EstimatedMinutes, @BasePrice, 1, @CreatedAt, 0, @WaypointsJson, @OptimizeMode);
                   SELECT SCOPE_IDENTITY();",
                 new
                 {
                     dto.Name, dto.Source, dto.Destination, dto.Distance,
                     dto.EstimatedMinutes, dto.BasePrice,
+                    dto.WaypointsJson, dto.OptimizeMode,
                     CreatedAt = DateTime.UtcNow
                 },
                 cancellationToken: cancellationToken));

@@ -39,10 +39,19 @@ public class TenantResolutionMiddleware(RequestDelegate next)
 
         if (!tenantId.HasValue && !string.IsNullOrEmpty(slug))
         {
-            using var connection = dbFactory.CreateConnection();
-            tenantId = await connection.ExecuteScalarAsync<int?>(
-                "SELECT Id FROM Tenants WHERE Slug = @Slug AND IsActive = 1",
-                new { Slug = slug });
+            try
+            {
+                using var connection = dbFactory.CreateConnection();
+                tenantId = await connection.ExecuteScalarAsync<int?>(
+                    "SELECT Id FROM Tenants WHERE Slug = @Slug AND IsActive = 1",
+                    new { Slug = slug });
+            }
+            catch (Microsoft.Data.SqlClient.SqlException) when (
+                string.Equals(slug, "default", StringComparison.OrdinalIgnoreCase))
+            {
+                // Unauthenticated slug lookup should not 500 the whole pipeline when SQL is down.
+                tenantId = 1;
+            }
         }
 
         if (!tenantId.HasValue && context.User.Identity?.IsAuthenticated != true)

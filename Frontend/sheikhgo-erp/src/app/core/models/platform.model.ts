@@ -53,6 +53,40 @@ export interface TenantDetail extends Omit<Tenant, 'moduleCodes'> {
   currencyCode?: string | null;
   timeZone?: string | null;
   adminInfo?: TenantAdminInfo | null;
+  /** Company aliases (optional; API may omit — id/name remain canonical). */
+  companyId?: number;
+  companyName?: string;
+}
+
+export interface CompanyFeature {
+  featureKey: string;
+  moduleKey: string;
+  moduleCode?: string;
+  name: string;
+  displayName?: string | null;
+  description?: string | null;
+  category?: string | null;
+  icon?: string | null;
+  route?: string | null;
+  status?: string | null;
+  isEnabled: boolean;
+  sortOrder: number;
+  isMobileSupported?: boolean;
+  isAISupported?: boolean;
+  isGPSSupported?: boolean;
+  visible?: boolean;
+  canToggle?: boolean;
+  isModuleInstalled?: boolean;
+}
+
+export interface CompanyHierarchyCounts {
+  branchCount: number;
+  departmentCount: number;
+  userCount: number;
+  driverCount: number;
+  vehicleCount: number;
+  moduleCount: number;
+  featureCount: number;
 }
 
 export interface UpdateTenantPayload {
@@ -90,6 +124,46 @@ export interface TenantModuleDefinition {
   code: string;
   name: string;
   legacyKeys: string[];
+  displayName?: string | null;
+  description?: string | null;
+  category?: string | null;
+  version?: string | null;
+  icon?: string | null;
+  route?: string | null;
+  sortOrder?: number;
+  dependencies?: string[] | null;
+  visible?: boolean;
+  isMobileSupported?: boolean;
+  isAISupported?: boolean;
+  isGPSSupported?: boolean;
+  status?: string;
+  documentationUrl?: string | null;
+  isEnableable?: boolean;
+  id?: number | null;
+}
+
+export interface ModuleRegistryEntry {
+  code: string;
+  name: string;
+  displayName: string;
+  description?: string | null;
+  category?: string | null;
+  version: string;
+  icon?: string | null;
+  route?: string | null;
+  sortOrder: number;
+  dependencies: string[];
+  visible: boolean;
+  isMobileSupported: boolean;
+  isAISupported: boolean;
+  isGPSSupported: boolean;
+  status: string;
+  documentationUrl?: string | null;
+  legacyKeys: string[];
+  isEnableable: boolean;
+  id?: number | null;
+  isInstalled?: boolean;
+  isLicensed?: boolean;
 }
 
 export const DEFAULT_TENANT_MODULE_CODES = [
@@ -365,6 +439,275 @@ export interface Permission {
   moduleName: string;
   permissionCode: string;
   description?: string | null;
+  displayName?: string | null;
+  category?: string | null;
+  sortOrder?: number;
+  visible?: boolean;
+  action?: string | null;
+  moduleKey?: string | null;
+}
+
+export interface EffectivePermission {
+  code: string;
+  displayName: string;
+  category?: string | null;
+  moduleKey?: string | null;
+  action?: string;
+  sourceRoleCodes?: string[] | null;
+}
+
+export interface MenuCatalogItem {
+  id: number;
+  moduleId: number;
+  name: string;
+  displayName: string;
+  description?: string | null;
+  category?: string | null;
+  route?: string | null;
+  icon?: string | null;
+  permissionCode?: string | null;
+  sortOrder: number;
+  isActive: boolean;
+  visible: boolean;
+  featureKey?: string | null;
+  moduleKey?: string | null;
+  isMobileSupported: boolean;
+  parentId?: number | null;
+}
+
+export interface MenuCatalogModule {
+  id: number;
+  moduleKey: string;
+  name: string;
+  displayName: string;
+  description?: string | null;
+  icon?: string | null;
+  sortOrder: number;
+  isCollapsible: boolean;
+  visible: boolean;
+  items: MenuCatalogItem[];
+}
+
+export interface MenuCatalog {
+  modules: MenuCatalogModule[];
+}
+
+export interface UpdateMenuModulePayload {
+  displayName?: string | null;
+  icon?: string | null;
+  sortOrder: number;
+  visible: boolean;
+  isCollapsible: boolean;
+}
+
+export interface UpdateMenuItemPayload {
+  displayName?: string | null;
+  description?: string | null;
+  category?: string | null;
+  route?: string | null;
+  icon?: string | null;
+  permissionCode?: string | null;
+  sortOrder: number;
+  isActive: boolean;
+  visible: boolean;
+  featureKey?: string | null;
+  moduleKey?: string | null;
+  isMobileSupported: boolean;
+}
+
+export interface CreateMenuItemPayload {
+  moduleId: number;
+  name: string;
+  displayName?: string | null;
+  description?: string | null;
+  category?: string | null;
+  route?: string | null;
+  icon?: string | null;
+  permissionCode?: string | null;
+  sortOrder: number;
+  visible?: boolean;
+  featureKey?: string | null;
+  moduleKey?: string | null;
+  isMobileSupported?: boolean;
+}
+
+export interface CompanyNavSummary {
+  moduleCount: number;
+  itemCount: number;
+  topModuleLabels: string[];
+  mobileItemLabels: string[];
+}
+
+export interface CompanyDataScope {
+  mode: string;
+  isCompanyWide: boolean;
+  branchIds: number[];
+  departmentIds: number[];
+  branchLabels: string[];
+  departmentLabels: string[];
+  source: string;
+  homeBranchId?: number | null;
+  homeDepartmentId?: number | null;
+}
+
+export interface ResolvedWorkspace {
+  key: string;
+  displayName: string;
+  homeRoute: string;
+  icon?: string | null;
+  defaultDashboardKey?: string | null;
+  source: string;
+  moduleKeys: string[];
+  isMobileSupported?: boolean;
+}
+
+export interface WorkspaceDefinition {
+  workspaceKey: string;
+  displayName: string;
+  description?: string | null;
+  category?: string | null;
+  icon?: string | null;
+  homeRoute: string;
+  sortOrder: number;
+  visible: boolean;
+  isActive: boolean;
+  isMobileSupported: boolean;
+  moduleKeys: string[];
+  featureKey?: string | null;
+  defaultDashboardKey?: string | null;
+  isEnabled?: boolean;
+  canToggle?: boolean;
+}
+
+export interface CompanyWorkspace {
+  workspaceKey: string;
+  displayName: string;
+  description?: string | null;
+  category?: string | null;
+  icon?: string | null;
+  homeRoute: string;
+  isEnabled: boolean;
+  isMobileSupported: boolean;
+  moduleKeys: string[];
+  defaultDashboardKey?: string | null;
+  canToggle: boolean;
+}
+
+export interface UpdateWorkspaceDefinitionPayload {
+  displayName: string;
+  description?: string | null;
+  category?: string | null;
+  icon?: string | null;
+  homeRoute: string;
+  sortOrder: number;
+  visible: boolean;
+  isActive: boolean;
+  isMobileSupported: boolean;
+  moduleKeys?: string[];
+  featureKey?: string | null;
+  defaultDashboardKey?: string | null;
+}
+
+export interface CreateWorkspaceDefinitionPayload {
+  workspaceKey: string;
+  displayName: string;
+  description?: string | null;
+  category?: string | null;
+  icon?: string | null;
+  homeRoute: string;
+  sortOrder: number;
+  visible: boolean;
+  isMobileSupported: boolean;
+  moduleKeys?: string[];
+  featureKey?: string | null;
+  defaultDashboardKey?: string | null;
+}
+
+export interface DashboardDefinition {
+  dashboardKey: string;
+  displayName: string;
+  description?: string | null;
+  audience: string;
+  defaultWorkspaceKey?: string | null;
+  category?: string | null;
+  sortOrder: number;
+  status: string;
+  visible: boolean;
+  isSystem: boolean;
+  isActive: boolean;
+  widgetCount?: number;
+}
+
+export interface DashboardWidgetDefinition {
+  widgetKey: string;
+  displayName: string;
+  category?: string | null;
+  icon?: string | null;
+  permissionCode?: string | null;
+  featureKey?: string | null;
+  moduleKey?: string | null;
+  supportsErp: boolean;
+  supportsMobile: boolean;
+  sortOrder: number;
+  status: string;
+  visible: boolean;
+  isActive: boolean;
+}
+
+export interface DashboardLayoutItem {
+  widgetKey: string;
+  displayName: string;
+  category?: string | null;
+  icon?: string | null;
+  sortOrder: number;
+  isVisible: boolean;
+  permissionCode?: string | null;
+  featureKey?: string | null;
+  moduleKey?: string | null;
+  supportsErp?: boolean;
+  supportsMobile?: boolean;
+}
+
+export interface DashboardDetail {
+  definition: DashboardDefinition;
+  layout: DashboardLayoutItem[];
+}
+
+export interface ResolvedDashboard {
+  key: string;
+  displayName: string;
+  audience: string;
+  source: string;
+  widgetKeys: string[];
+  widgets: DashboardLayoutItem[];
+}
+
+export interface CompanyDashboardSummary {
+  key?: string | null;
+  displayName?: string | null;
+  widgetKeys: string[];
+  source: string;
+}
+
+export interface UpdateDashboardDefinitionPayload {
+  displayName: string;
+  description?: string | null;
+  audience: string;
+  defaultWorkspaceKey?: string | null;
+  category?: string | null;
+  sortOrder: number;
+  visible: boolean;
+  isActive: boolean;
+}
+
+export interface UpdateDashboardLayoutItemPayload {
+  widgetKey: string;
+  sortOrder: number;
+  isVisible?: boolean;
+}
+
+export interface UpdateDashboardLayoutPayload {
+  items: UpdateDashboardLayoutItemPayload[];
 }
 
 export const BRANCH_TYPES = ['Hub', 'Office', 'Depot', 'Warehouse'] as const;
@@ -475,6 +818,12 @@ export interface RoleSummary {
   userCount: number;
   permissionCount: number;
   permissions: string[];
+  displayName?: string | null;
+  description?: string | null;
+  category?: string | null;
+  roleType?: string | null;
+  sortOrder?: number;
+  visible?: boolean;
 }
 
 export interface TenantSecuritySettings {
@@ -486,17 +835,82 @@ export interface TenantSecuritySettings {
   isVatEnabled: boolean;
 }
 
+/** Stage 13 Security Center — effective policy row for a company. */
+export interface SecurityPolicyValue {
+  policyKey: string;
+  displayName: string;
+  category: string;
+  description?: string | null;
+  valueType: string;
+  defaultValue: string;
+  effectiveValue: string;
+  tenantValue?: string | null;
+  updatedDate?: string | null;
+  updatedBy?: number | null;
+  isOverridden: boolean;
+}
+
+export interface SecurityPolicyDefinition {
+  policyKey: string;
+  displayName: string;
+  category: string;
+  description?: string | null;
+  defaultValue: string;
+  valueType: string;
+  sortOrder: number;
+  visible: boolean;
+  isActive: boolean;
+  isSystem: boolean;
+}
+
+export interface UpdateSecurityCompanyPoliciesPayload {
+  tenantId?: number | null;
+  values: Record<string, string>;
+}
+
+/** Safe session summary — no IP lists or complexity rules. */
+export interface SecurityCompanySummary {
+  passwordExpiryDays?: number | null;
+  idleTimeoutMinutes?: number | null;
+  absoluteTimeoutMinutes?: number | null;
+  auditLevel: string;
+  lockoutEnabled: boolean;
+  mfaRequired: boolean;
+  passwordExpired?: boolean;
+  passwordDaysRemaining?: number | null;
+}
+
 export interface RoleTemplate {
   code: string;
   name: string;
   permissionCount: number;
   permissions: string[];
+  displayName?: string | null;
+  description?: string | null;
+  category?: string | null;
 }
 
 export interface ModuleStatus {
   code: string;
   name: string;
   isEnabled: boolean;
+  displayName?: string | null;
+  description?: string | null;
+  category?: string | null;
+  version?: string | null;
+  icon?: string | null;
+  route?: string | null;
+  sortOrder?: number;
+  dependencies?: string[] | null;
+  visible?: boolean;
+  isMobileSupported?: boolean;
+  isAISupported?: boolean;
+  isGPSSupported?: boolean;
+  status?: string;
+  documentationUrl?: string | null;
+  isInstalled?: boolean;
+  isLicensed?: boolean;
+  canToggle?: boolean;
 }
 
 export interface LicenseLimit {
@@ -517,6 +931,7 @@ export interface SubscriptionDetail {
   tenantId: number;
   tenantName: string;
   planName?: string | null;
+  subscriptionCode?: string | null;
   status: string;
   billingCycle: string;
   monthlyAmount?: number | null;
@@ -530,6 +945,38 @@ export interface SubscriptionDetail {
   maxDrivers?: number | null;
   maxBranches?: number | null;
   maxGpsDevices?: number | null;
+  storageQuotaGb?: number | null;
+  aiCredits?: number | null;
+  gpsEnabled?: boolean;
+  licensedModuleCodes?: string[];
+}
+
+export interface CompanyLicense {
+  companyId: number;
+  tenantId: number;
+  companyName: string;
+  subscriptionCode?: string | null;
+  planName?: string | null;
+  planDisplayName?: string | null;
+  status: string;
+  startDate?: string | null;
+  endDate?: string | null;
+  autoRenew: boolean;
+  licensedModules: string[];
+  installedModules: string[];
+  maxUsers?: number | null;
+  maxDrivers?: number | null;
+  maxVehicles?: number | null;
+  maxBranches?: number | null;
+  maxGpsDevices?: number | null;
+  storageQuotaGb?: number | null;
+  aiCredits?: number | null;
+  gpsEnabled: boolean;
+  usedUsers: number;
+  usedDrivers: number;
+  usedVehicles: number;
+  usedBranches: number;
+  usedGpsDevices: number;
 }
 
 export interface Invoice {
@@ -559,6 +1006,7 @@ export interface SubscriptionOverview {
   subscription: SubscriptionDetail;
   invoices: Invoice[];
   payments: Payment[];
+  license?: CompanyLicense | null;
 }
 
 export type SubscriptionAction = 'Upgrade' | 'Renew' | 'Suspend' | 'Cancel' | 'Reactivate';

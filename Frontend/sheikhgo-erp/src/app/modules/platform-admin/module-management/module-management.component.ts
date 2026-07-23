@@ -24,6 +24,7 @@ export class ModuleManagementComponent implements OnInit, OnDestroy {
   saving = false;
   selectedTenant: Tenant | null = null;
   overview: TenantModuleOverview | null = null;
+  filter: 'all' | 'installed' | 'comingSoon' = 'all';
 
   modules: ModuleStatus[] = [];
   private originalEnabled = new Set<string>();
@@ -70,6 +71,32 @@ export class ModuleManagementComponent implements OnInit, OnDestroy {
     this.destroy$.complete();
   }
 
+  get filteredModules(): ModuleStatus[] {
+    if (this.filter === 'installed') {
+      return this.modules.filter(m => m.isEnabled || m.isInstalled);
+    }
+    if (this.filter === 'comingSoon') {
+      return this.modules.filter(m => !this.canToggle(m));
+    }
+    return this.modules;
+  }
+
+  canToggle(module: ModuleStatus): boolean {
+    if (module.canToggle === false) return false;
+    const status = (module.status || 'Active').replace(/\s+/g, '');
+    return status === 'Active' || module.canToggle === true;
+  }
+
+  formatStatus(status?: string | null): string {
+    if (!status) return 'Active';
+    if (status === 'ComingSoon') return 'Coming Soon';
+    return status;
+  }
+
+  moduleIcon(module: ModuleStatus): string {
+    return module.icon || MODULE_ICONS[module.code] || 'extension';
+  }
+
   private loadOverview(tenantId: number): void {
     this.loading = true;
     this.platform.getTenantModuleOverview(tenantId).subscribe({
@@ -87,11 +114,14 @@ export class ModuleManagementComponent implements OnInit, OnDestroy {
   }
 
   toggleModule(module: ModuleStatus, enabled: boolean): void {
+    if (!this.canToggle(module)) return;
     module.isEnabled = enabled;
+    module.isInstalled = enabled;
+    module.isLicensed = enabled;
   }
 
   get hasChanges(): boolean {
-    const current = new Set(this.modules.filter(m => m.isEnabled).map(m => m.code));
+    const current = new Set(this.modules.filter(m => m.isEnabled && this.canToggle(m)).map(m => m.code));
     if (current.size !== this.originalEnabled.size) return true;
     for (const code of current) {
       if (!this.originalEnabled.has(code)) return true;
@@ -103,7 +133,7 @@ export class ModuleManagementComponent implements OnInit, OnDestroy {
     if (!this.overview) return;
 
     const tenantId = this.overview.tenantId;
-    const enabledCodes = this.modules.filter(m => m.isEnabled).map(m => m.code);
+    const enabledCodes = this.modules.filter(m => m.isEnabled && this.canToggle(m)).map(m => m.code);
 
     this.saving = true;
     this.platform.setTenantModules(tenantId, enabledCodes).subscribe({

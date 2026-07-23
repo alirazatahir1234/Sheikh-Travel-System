@@ -1,10 +1,13 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using SheikhTravelSystem.API.Authorization;
+using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Interfaces;
 
 namespace SheikhTravelSystem.API.Controllers;
 
 [Authorize]
+[RequirePermission(AiPermissions.View)]
 [Route("api/ai")]
 public class AiController(
     IFleetHealthService fleetHealth,
@@ -12,6 +15,8 @@ public class AiController(
     IAiRecommendationService recommendations,
     IAiPredictionService predictions,
     IAiCopilotService copilot,
+    IAiChatGateway chatGateway,
+    IAiToolEngine toolEngine,
     IAiManagementService management,
     INotificationDecisionEngine decisionEngine,
     IDeviceTokenService deviceTokens,
@@ -68,10 +73,53 @@ public class AiController(
         return Ok(await copilot.AskAsync(TenantId, UserId, request.Question, ct));
     }
 
+    /// <summary>Phase 1 AI Gateway chat (Ollama/Mistral with session memory; rules fallback).</summary>
+    [HttpPost("chat")]
+    public async Task<IActionResult> Chat([FromBody] AiChatRequest request, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(request.Message) && !request.ConfirmWrite)
+            return BadRequest(new { message = "Message is required." });
+        if (request.ConfirmWrite && request.SessionId is null)
+            return BadRequest(new { message = "SessionId is required to confirm a pending action." });
+
+        var result = await chatGateway.ChatAsync(
+            TenantId,
+            UserId,
+            new AiChatTurnRequest(
+                request.Message ?? string.Empty,
+                request.SessionId,
+                request.Title,
+                request.ConfirmWrite),
+            ct);
+        return Ok(result);
+    }
+
+    [HttpGet("chat/sessions/{sessionId:guid}/pending")]
+    public async Task<IActionResult> GetPendingAction(Guid sessionId, CancellationToken ct)
+        => Ok(await chatGateway.GetPendingActionAsync(TenantId, UserId, sessionId, ct));
+
+    [HttpGet("chat/sessions")]
+    public async Task<IActionResult> ListChatSessions(CancellationToken ct)
+        => Ok(await chatGateway.ListSessionsAsync(TenantId, UserId, ct));
+
+    [HttpGet("chat/sessions/{sessionId:guid}/messages")]
+    public async Task<IActionResult> GetChatMessages(Guid sessionId, CancellationToken ct)
+        => Ok(await chatGateway.GetMessagesAsync(TenantId, UserId, sessionId, ct));
+
+    [HttpGet("chat/provider-health")]
+    public async Task<IActionResult> GetChatProviderHealth(CancellationToken ct)
+        => Ok(await chatGateway.GetProviderHealthAsync(TenantId, ct));
+
+    [HttpGet("chat/tools")]
+    public IActionResult ListTools()
+        => Ok(toolEngine.ListTools(includeWriteTools: true));
+
+    [RequirePermission(AiPermissions.Manage)]
     [HttpGet("management/config")]
     public async Task<IActionResult> GetConfig(CancellationToken ct)
         => Ok(await management.GetConfigAsync(TenantId, ct));
 
+    [RequirePermission(AiPermissions.Manage)]
     [HttpPut("management/config")]
     public async Task<IActionResult> UpsertConfig([FromBody] AiProviderConfigDto config, CancellationToken ct)
         => Ok(await management.UpsertConfigAsync(TenantId, config, ct));
@@ -107,10 +155,12 @@ public class AiController(
     public async Task<IActionResult> Evaluate([FromBody] NotificationDecisionRequest request, CancellationToken ct)
         => Ok(await decisionEngine.EvaluateAsync(request, ct));
 
+    [RequirePermission(AiPermissions.Manage)]
     [HttpGet("escalation/rules")]
     public async Task<IActionResult> GetEscalationRules(CancellationToken ct)
         => Ok(await escalation.GetRulesAsync(TenantId, ct));
 
+    [RequirePermission(AiPermissions.Manage)]
     [HttpPut("escalation/rules")]
     public async Task<IActionResult> UpsertEscalationRule([FromBody] EscalationRuleDto rule, CancellationToken ct)
         => Ok(await escalation.UpsertRuleAsync(rule with { TenantId = rule.TenantId ?? TenantId }, ct));
@@ -126,6 +176,7 @@ public class AiController(
         return Ok(new { acknowledged = true });
     }
 
+    [RequirePermission(AiPermissions.Manage)]
     [HttpGet("datasets")]
     public async Task<IActionResult> GetDatasets(CancellationToken ct)
     {
@@ -136,5 +187,10 @@ public class AiController(
 }
 
 public record AiAskRequest(string Question);
+public record AiChatRequest(
+    string Message,
+    Guid? SessionId = null,
+    string? Title = null,
+    bool ConfirmWrite = false);
 public record AiLearningRequest(string EventType, string Action);
 public record RegisterDeviceTokenRequest(string Token, string? Platform = null, string? AppName = null);

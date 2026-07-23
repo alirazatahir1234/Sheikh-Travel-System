@@ -33,7 +33,8 @@ public class GetRoutesQueryHandler(IDbConnectionFactory dbFactory)
 
         var routes = await connection.QueryAsync<RouteDto>(
             new CommandDefinition(
-                $@"SELECT Id, Name, Source, Destination, Distance, EstimatedMinutes, BasePrice, IsActive, CreatedAt
+                $@"SELECT Id, Name, Source, Destination, Distance, EstimatedMinutes, BasePrice, IsActive, CreatedAt,
+                         WaypointsJson, OptimizeMode
                   FROM Routes
                   {whereClause}
                   ORDER BY CreatedAt DESC

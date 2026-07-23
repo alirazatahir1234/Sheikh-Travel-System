@@ -21,6 +21,7 @@ using SheikhTravelSystem.Infrastructure.Services.Ocr;
 using SheikhTravelSystem.Infrastructure.Traccar;
 using Azure.Storage.Blobs;
 using SheikhTravelSystem.Infrastructure.Services.Notifications;
+using SheikhTravelSystem.Infrastructure.Services.Ai.Tools;
 using SheikhTravelSystem.Infrastructure.Services.Storage;
 using SheikhTravelSystem.Infrastructure.Caching;
 using SheikhTravelSystem.Infrastructure.SignalR;
@@ -65,12 +66,16 @@ public static class DependencyInjection
         services.AddScoped<ITenantContext, TenantContext>();
         services.AddScoped<IPlatformScope, PlatformScope>();
         services.AddScoped<IUserAccessService, UserAccessService>();
+        services.AddScoped<IPermissionEngine, PermissionEngine>();
+        services.AddScoped<IDataScopeEngine, DataScopeEngine>();
+        services.AddScoped<ISecurityEngine, SecurityEngine>();
         services.AddScoped<ITenantModuleService, TenantModuleService>();
         services.AddScoped<ITenantRoleSeedService, TenantRoleSeedService>();
         services.AddScoped<ITenantProvisioningService, TenantProvisioningService>();
         services.AddSingleton<IAuthorizationHandler, PermissionAuthorizationHandler>();
         services.AddScoped<IDatabaseMigrationRunner, DatabaseMigrationRunner>();
         services.AddScoped<IDatabaseSeeder, DatabaseSeeder>();
+        services.AddScoped<IDatabaseResetService, DatabaseResetService>();
         services.AddScoped<IAuditService, AuditService>();
         services.AddScoped<INotificationService, NotificationService>();
         services.AddScoped<NotificationRecipientResolver>();
@@ -97,6 +102,27 @@ public static class DependencyInjection
         services.AddScoped<IAiPredictionService, SheikhTravelSystem.Infrastructure.Services.Ai.AiPredictionService>();
         services.AddScoped<IAiManagementService, SheikhTravelSystem.Infrastructure.Services.Ai.AiManagementService>();
         services.AddScoped<IAiCopilotService, SheikhTravelSystem.Infrastructure.Services.Ai.AiCopilotService>();
+
+        // Phase 2 AI Tool Engine
+        services.AddScoped<AiEntityResolver>();
+        services.AddScoped<IAiTool, GetFleetHealthTool>();
+        services.AddScoped<IAiTool, GetOfflineVehiclesTool>();
+        services.AddScoped<IAiTool, GetCriticalAlertsTool>();
+        services.AddScoped<IAiTool, GetMaintenancePrioritiesTool>();
+        services.AddScoped<IAiTool, GetDriverRiskTool>();
+        services.AddScoped<IAiTool, GetVehicleStatusTool>();
+        services.AddScoped<IAiTool, AssignDriverTool>();
+        services.AddScoped<IAiTool, SendNotificationTool>();
+        services.AddScoped<IAiToolEngine, AiToolEngine>();
+
+        services.AddScoped<SheikhTravelSystem.Infrastructure.Services.Ai.Providers.OllamaAiProvider>();
+        services.AddScoped<SheikhTravelSystem.Infrastructure.Services.Ai.Providers.IAiProviderResolver,
+            SheikhTravelSystem.Infrastructure.Services.Ai.Providers.AiProviderResolver>();
+        services.AddScoped<IAiChatGateway, SheikhTravelSystem.Infrastructure.Services.Ai.AiChatGateway>();
+        services.AddHttpClient(SheikhTravelSystem.Infrastructure.Services.Ai.Providers.OllamaAiProvider.HttpClientName, client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(120);
+        });
         services.AddScoped<IEscalationService, SheikhTravelSystem.Infrastructure.Services.Ai.EscalationService>();
         services.AddHostedService<SheikhTravelSystem.Infrastructure.Services.Ai.EscalationHostedService>();
         services.AddHostedService<SheikhTravelSystem.Infrastructure.Services.Ai.AiJobsHostedService>();

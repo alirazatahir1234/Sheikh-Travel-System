@@ -16,6 +16,15 @@ public static class BookingNumberMigration
     {
         using var connection = dbFactory.CreateConnection();
 
+        var bookingsExists = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
+            "SELECT CASE WHEN OBJECT_ID(N'dbo.Bookings', N'U') IS NULL THEN 0 ELSE 1 END",
+            cancellationToken: cancellationToken));
+        if (bookingsExists == 0)
+        {
+            logger.LogWarning("BookingNumberMigration skipped — Bookings table does not exist yet.");
+            return;
+        }
+
         var columnExists = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
             "SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'Bookings' AND COLUMN_NAME = 'BookingNumber'",
             cancellationToken: cancellationToken));

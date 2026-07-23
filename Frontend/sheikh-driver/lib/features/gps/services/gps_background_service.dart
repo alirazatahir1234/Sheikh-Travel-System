@@ -37,7 +37,7 @@ Future<void> _backgroundGpsMaintenance({required bool captureFix}) async {
   if (token == null) return;
 
   final dio = Dio(BaseOptions(
-    baseUrl: AppConfig.baseUrl,
+    baseUrl: AppConfig.resolvedBaseUrl,
     headers: {
       'Authorization': 'Bearer $token',
       'X-Tenant-Slug': AppConfig.tenantSlug,

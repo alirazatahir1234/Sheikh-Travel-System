@@ -4,33 +4,29 @@ using MediatR;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Exceptions;
 using SheikhTravelSystem.Application.Common.Interfaces;
+using SheikhTravelSystem.Application.Features.Users.DTOs;
 
 namespace SheikhTravelSystem.Application.Features.Users.Commands;
 
-/// <summary>
-/// Updates user activation status.
-/// </summary>
-public record UpdateUserStatusCommand(int Id, bool IsActive) : IRequest<ApiResponse<bool>>, IAuditableCommand
+public record UpdateUserStatusCommand(int Id, bool IsActive, string? Status = null)
+    : IRequest<ApiResponse<bool>>, IAuditableCommand
 {
     public string AuditAction => "UpdateStatus";
     public string AuditEntityName => "User";
     public int? AuditEntityId => Id;
 }
 
-/// <summary>
-/// Validates user status update request.
-/// </summary>
 public class UpdateUserStatusCommandValidator : AbstractValidator<UpdateUserStatusCommand>
 {
     public UpdateUserStatusCommandValidator()
     {
         RuleFor(x => x.Id).GreaterThan(0);
+        RuleFor(x => x.Status)
+            .Must(s => s == null || UserLifecycle.All.Contains(s))
+            .WithMessage("Invalid status.");
     }
 }
 
-/// <summary>
-/// Handles activation/deactivation of users.
-/// </summary>
 public class UpdateUserStatusCommandHandler(
     IDbConnectionFactory dbFactory,
     IPlatformScope platformScope) : IRequestHandler<UpdateUserStatusCommand, ApiResponse<bool>>
@@ -50,13 +46,26 @@ public class UpdateUserStatusCommandHandler(
 
         platformScope.EnsureTenantAccess(tenantId.Value);
 
-        await connection.ExecuteAsync(
-            new CommandDefinition(
-                "UPDATE Users SET IsActive = @IsActive, UpdatedAt = @UpdatedAt WHERE Id = @Id",
-                new { request.IsActive, UpdatedAt = DateTime.UtcNow, request.Id },
-                cancellationToken: cancellationToken));
+        var status = UserLifecycle.Normalize(request.Status, request.IsActive);
+        var isActive = UserLifecycle.IsActiveStatus(status);
 
-        var state = request.IsActive ? "activated" : "deactivated";
-        return ApiResponse<bool>.SuccessResponse(true, $"User {state} successfully.");
+        try
+        {
+            await connection.ExecuteAsync(
+                new CommandDefinition(
+                    "UPDATE Users SET IsActive = @IsActive, Status = @Status, UpdatedAt = @UpdatedAt WHERE Id = @Id",
+                    new { IsActive = isActive, Status = status, UpdatedAt = DateTime.UtcNow, request.Id },
+                    cancellationToken: cancellationToken));
+        }
+        catch
+        {
+            await connection.ExecuteAsync(
+                new CommandDefinition(
+                    "UPDATE Users SET IsActive = @IsActive, UpdatedAt = @UpdatedAt WHERE Id = @Id",
+                    new { IsActive = isActive, UpdatedAt = DateTime.UtcNow, request.Id },
+                    cancellationToken: cancellationToken));
+        }
+
+        return ApiResponse<bool>.SuccessResponse(true, $"User status set to {status}.");
     }
 }

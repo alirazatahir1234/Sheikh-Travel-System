@@ -212,7 +212,7 @@ public class DriverAppController : BaseApiController
             return Unauthorized();
 
         return Ok(await Mediator.Send(new SheikhTravelSystem.Application.Features.Notifications.Queries.GetNotificationsQuery(
-            tenantId, userId, page, pageSize, unreadOnly, Module: module, Archived: archived)));
+            tenantId, userId, page, pageSize, unreadOnly, Channel: "InApp", Module: module, Archived: archived)));
     }
 
     [Authorize(Roles = "Driver")]
@@ -223,7 +223,8 @@ public class DriverAppController : BaseApiController
             return Unauthorized();
 
         return Ok(await Mediator.Send(
-            new SheikhTravelSystem.Application.Features.Notifications.Queries.GetUnreadNotificationCountQuery(tenantId, userId)));
+            new SheikhTravelSystem.Application.Features.Notifications.Queries.GetUnreadNotificationCountQuery(
+                tenantId, userId, Channel: "InApp")));
     }
 
     [Authorize(Roles = "Driver")]

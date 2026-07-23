@@ -24,13 +24,22 @@ public class CreateUserCommandValidator : AbstractValidator<CreateUserCommand>
         RuleFor(x => x.User.Password).NotEmpty().MinimumLength(6);
         RuleFor(x => x.User.Phone).NotEmpty();
         RuleFor(x => x.User.Role).IsInEnum();
+        RuleFor(x => x.User.JobTitle).MaximumLength(200).When(x => x.User.JobTitle != null);
+        RuleFor(x => x.User.EmployeeCode).MaximumLength(50).When(x => x.User.EmployeeCode != null);
+        RuleFor(x => x.User.Status)
+            .Must(s => s == null || UserLifecycle.All.Contains(s))
+            .WithMessage("Invalid status.");
+        RuleFor(x => x.User.EmployeeType)
+            .Must(t => t == null || EmployeeTypes.All.Contains(t))
+            .WithMessage("Invalid employee type.");
     }
 }
 
 public class CreateUserCommandHandler(
     IDbConnectionFactory dbFactory,
     IPasswordHasher passwordHasher,
-    IPlatformScope platformScope) : IRequestHandler<CreateUserCommand, ApiResponse<int>>
+    IPlatformScope platformScope,
+    ICurrentUserService currentUser) : IRequestHandler<CreateUserCommand, ApiResponse<int>>
 {
     public async Task<ApiResponse<int>> Handle(CreateUserCommand request, CancellationToken cancellationToken)
     {
@@ -47,25 +56,91 @@ public class CreateUserCommandHandler(
         if (exists)
             throw new ConflictException($"User with email '{dto.Email}' already exists.");
 
+        await UserQueries.EnsureOrgBelongsToTenantAsync(
+            connection, tenantId, dto.BranchId, dto.DepartmentId, cancellationToken);
+
+        var status = UserLifecycle.Normalize(dto.Status, true);
+        var isActive = UserLifecycle.IsActiveStatus(status);
+        var employeeType = EmployeeTypes.Normalize(dto.EmployeeType);
         var passwordHash = passwordHasher.Hash(dto.Password);
+        var now = DateTime.UtcNow;
 
-        var id = await connection.ExecuteScalarAsync<int>(
-            new CommandDefinition(
-                @"INSERT INTO Users (TenantId, FullName, Email, PasswordHash, Phone, Role, IsActive, CreatedAt, IsDeleted)
-                  VALUES (@TenantId, @FullName, @Email, @PasswordHash, @Phone, @Role, 1, @CreatedAt, 0);
-                  SELECT SCOPE_IDENTITY();",
-                new
-                {
-                    TenantId = tenantId,
-                    dto.FullName,
-                    dto.Email,
-                    PasswordHash = passwordHash,
-                    dto.Phone,
-                    Role = (int)dto.Role,
-                    CreatedAt = DateTime.UtcNow
-                },
-                cancellationToken: cancellationToken));
+        try
+        {
+            var id = await connection.ExecuteScalarAsync<int>(
+                new CommandDefinition(
+                    @"INSERT INTO Users (
+                        TenantId, FullName, Email, PasswordHash, Phone, Role, IsActive, CreatedAt, IsDeleted,
+                        BranchId, DepartmentId, JobTitle, EmployeeCode, EmployeeType, Status,
+                        DefaultWorkspaceKey, DefaultDashboardKey, HomeRoute, TimeZone, Language, Theme, AvatarUrl,
+                        PasswordChangedAt)
+                      VALUES (
+                        @TenantId, @FullName, @Email, @PasswordHash, @Phone, @Role, @IsActive, @CreatedAt, 0,
+                        @BranchId, @DepartmentId, @JobTitle, @EmployeeCode, @EmployeeType, @Status,
+                        @DefaultWorkspaceKey, @DefaultDashboardKey, @HomeRoute, @TimeZone, @Language, @Theme, @AvatarUrl,
+                        @PasswordChangedAt);
+                      SELECT SCOPE_IDENTITY();",
+                    new
+                    {
+                        TenantId = tenantId,
+                        dto.FullName,
+                        dto.Email,
+                        PasswordHash = passwordHash,
+                        dto.Phone,
+                        Role = (int)dto.Role,
+                        IsActive = isActive,
+                        CreatedAt = now,
+                        PasswordChangedAt = now,
+                        dto.BranchId,
+                        dto.DepartmentId,
+                        dto.JobTitle,
+                        dto.EmployeeCode,
+                        EmployeeType = employeeType,
+                        Status = status,
+                        dto.DefaultWorkspaceKey,
+                        dto.DefaultDashboardKey,
+                        dto.HomeRoute,
+                        dto.TimeZone,
+                        dto.Language,
+                        dto.Theme,
+                        dto.AvatarUrl
+                    },
+                    cancellationToken: cancellationToken));
 
-        return ApiResponse<int>.SuccessResponse(id, "User created successfully.");
+            await UserRoleAssignment.SyncLegacyRoleAsync(
+                connection, id, tenantId, dto.Role, dto.BranchId, dto.DepartmentId,
+                currentUser.UserId, cancellationToken);
+
+            return ApiResponse<int>.SuccessResponse(id, "User created successfully.");
+        }
+        catch (Exception ex) when (ex.Message.Contains("Invalid column", StringComparison.OrdinalIgnoreCase)
+                                   || ex.Message.Contains("Invalid column name", StringComparison.OrdinalIgnoreCase))
+        {
+            var id = await connection.ExecuteScalarAsync<int>(
+                new CommandDefinition(
+                    @"INSERT INTO Users (TenantId, FullName, Email, PasswordHash, Phone, Role, IsActive, CreatedAt, IsDeleted, BranchId, DepartmentId)
+                      VALUES (@TenantId, @FullName, @Email, @PasswordHash, @Phone, @Role, @IsActive, @CreatedAt, 0, @BranchId, @DepartmentId);
+                      SELECT SCOPE_IDENTITY();",
+                    new
+                    {
+                        TenantId = tenantId,
+                        dto.FullName,
+                        dto.Email,
+                        PasswordHash = passwordHash,
+                        dto.Phone,
+                        Role = (int)dto.Role,
+                        IsActive = isActive,
+                        CreatedAt = DateTime.UtcNow,
+                        dto.BranchId,
+                        dto.DepartmentId
+                    },
+                    cancellationToken: cancellationToken));
+
+            await UserRoleAssignment.SyncLegacyRoleAsync(
+                connection, id, tenantId, dto.Role, dto.BranchId, dto.DepartmentId,
+                currentUser.UserId, cancellationToken);
+
+            return ApiResponse<int>.SuccessResponse(id, "User created successfully.");
+        }
     }
 }

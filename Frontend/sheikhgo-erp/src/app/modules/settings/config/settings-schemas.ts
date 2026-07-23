@@ -181,22 +181,11 @@ const localizationSchema: SettingFieldSchema[] = [
   ] }
 ];
 
-// 4. Security Settings (IsMfaRequired, PasswordExpiryDays, SessionTimeoutMinutes,
-// IsGdprEnabled, IsAuditLoggingEnabled, IsVatEnabled map to TenantSecuritySettings)
+// 4. Security Settings — company policies live in Security Center.
+// JWT/token TTL remain here as API-level knobs (not soft-enforced tenant policies).
 const securitySchema: SettingFieldSchema[] = [
-  { key: 'IsMfaRequired', label: 'Require Multi-Factor Authentication', type: 'toggle', section: 'Authentication', hint: 'Force all users to set up MFA at next sign-in.' },
-  { key: 'IsOtpEnabled', label: 'OTP on Login', type: 'toggle', section: 'Authentication' },
-  { key: 'PasswordExpiryDays', label: 'Password Expiry (days)', type: 'number', section: 'Authentication', min: 0, max: 365, hint: 'Leave at 0 to disable expiry.' },
-  { key: 'SessionTimeoutMinutes', label: 'Session Timeout (minutes)', type: 'number', section: 'Authentication', min: 5, max: 1440 },
-  { key: 'MaxLoginAttempts', label: 'Maximum Login Attempts', type: 'number', section: 'Authentication', min: 0, max: 20 },
-  { key: 'AccountLockoutMinutes', label: 'Account Lockout (minutes)', type: 'number', section: 'Authentication', min: 0 },
-  { key: 'JwtExpiryMinutes', label: 'JWT Expiry (minutes)', type: 'number', section: 'API Security', min: 5 },
-  { key: 'RefreshTokenExpiryDays', label: 'Refresh Token Expiry (days)', type: 'number', section: 'API Security', min: 1 },
-  { key: 'IpWhitelist', label: 'IP Whitelist', type: 'textarea', section: 'IP Management', placeholder: 'One IP/CIDR per line' },
-  { key: 'BlockedIps', label: 'Blocked IPs', type: 'textarea', section: 'IP Management', placeholder: 'One IP/CIDR per line' },
-  { key: 'IsGdprEnabled', label: 'GDPR Compliance', type: 'toggle', section: 'Compliance' },
-  { key: 'IsAuditLoggingEnabled', label: 'Audit Logging', type: 'toggle', section: 'Compliance' },
-  { key: 'IsVatEnabled', label: 'VAT / Tax Enabled', type: 'toggle', section: 'Compliance' }
+  { key: 'JwtExpiryMinutes', label: 'JWT Expiry (minutes)', type: 'number', section: 'API Security', min: 5, hint: 'Access token lifetime. Company password/session policies are in Security Center.' },
+  { key: 'RefreshTokenExpiryDays', label: 'Refresh Token Expiry (days)', type: 'number', section: 'API Security', min: 1 }
 ];
 
 // 5. Notification Settings

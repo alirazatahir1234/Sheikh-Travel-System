@@ -55,6 +55,7 @@ import {
   FuelAnalytics,
   GeofenceAnalytics,
   AlertEventStats,
+  GpsAlertStats,
   HeatmapPoint,
   GpsVehicleHealth,
   VehicleRanking,
@@ -443,23 +444,60 @@ export class GpsTrackingService {
 
   getAlertEvents(
     vehicleId?: number,
-    unacknowledgedOnly?: boolean,
+    optionsOrUnacknowledgedOnly?: boolean | {
+      severity?: string;
+      status?: string;
+      readState?: string;
+      datePreset?: string;
+      driverId?: number;
+      eventType?: string;
+      geofenceId?: number;
+      limit?: number;
+    },
     severity?: string,
     status?: string,
     limit?: number
   ): Observable<GpsAlertEvent[]> {
+    const options = typeof optionsOrUnacknowledgedOnly === 'object'
+      ? optionsOrUnacknowledgedOnly
+      : {
+          readState: optionsOrUnacknowledgedOnly ? 'unread' : undefined,
+          severity,
+          status,
+          limit
+        };
     const params: Record<string, string> = {};
     if (vehicleId) params['vehicleId'] = String(vehicleId);
-    if (unacknowledgedOnly) params['unacknowledgedOnly'] = 'true';
-    if (severity) params['severity'] = severity;
-    if (status) params['status'] = status;
+    if (options?.severity) params['severity'] = options.severity;
+    if (options?.status) params['status'] = options.status;
+    if (options?.readState) params['readState'] = options.readState;
+    if (options?.datePreset) params['datePreset'] = options.datePreset;
+    if (options?.driverId) params['driverId'] = String(options.driverId);
+    if (options?.eventType) params['eventType'] = options.eventType;
+    if (options?.geofenceId) params['geofenceId'] = String(options.geofenceId);
     return this.http.get<GpsAlertEvent[]>(`${this.base}/alerts/events`, { params }).pipe(
-      map(events => (limit ? events.slice(0, limit) : events))
+      map(events => (options?.limit ? events.slice(0, options.limit) : events))
     );
+  }
+
+  getAlertStats(): Observable<GpsAlertStats> {
+    return this.http.get<GpsAlertStats>(`${this.base}/alerts/stats`);
   }
 
   acknowledgeAlert(id: number): Observable<boolean> {
     return this.http.post<boolean>(`${this.base}/alerts/events/${id}/acknowledge`, {});
+  }
+
+  markRead(id: number): Observable<boolean> {
+    return this.http.post<boolean>(`${this.base}/alerts/events/${id}/read`, {});
+  }
+
+  resolveAlert(id: number, resolutionNotes?: string): Observable<boolean> {
+    return this.http.post<boolean>(`${this.base}/alerts/events/${id}/resolve`, { resolutionNotes });
+  }
+
+  archiveAlert(id: number, archiveReason?: string): Observable<boolean> {
+    return this.http.post<boolean>(`${this.base}/alerts/events/${id}/archive`, { archiveReason });
   }
 
   getGeofenceBreachCount(): Observable<number> {

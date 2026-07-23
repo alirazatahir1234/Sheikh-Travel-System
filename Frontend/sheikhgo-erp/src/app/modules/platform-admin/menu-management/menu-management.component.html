@@ -1,0 +1,174 @@
+<div class="page-container">
+  <header class="page-header">
+    <div class="header-left">
+      <button mat-icon-button type="button" (click)="goBack()" class="back-btn" aria-label="Back">
+        <mat-icon>arrow_back</mat-icon>
+      </button>
+      <div>
+        <nav class="breadcrumb">
+          <span>Platform</span>
+          <mat-icon>chevron_right</mat-icon>
+          <span class="current">Menu Management</span>
+        </nav>
+        <h2>Menu Management</h2>
+        <p class="page-sub">
+          Edit the navigation catalog (labels, routes, permissions, visibility). Runtime sidebar still uses permission-aware menus/me.
+        </p>
+      </div>
+    </div>
+    <div class="header-right">
+      <button mat-stroked-button type="button" (click)="refresh()" [disabled]="loading">
+        <mat-icon>refresh</mat-icon> Refresh
+      </button>
+    </div>
+  </header>
+
+  <app-brand-loader *ngIf="loading" />
+
+  <ng-container *ngIf="!loading">
+    <div class="filters" role="group" aria-label="Menu filters">
+      <label>
+        Category
+        <select [(ngModel)]="categoryFilter">
+          <option value="">All</option>
+          <option *ngFor="let c of categories" [value]="c">{{ c }}</option>
+        </select>
+      </label>
+      <label>
+        Module
+        <select [(ngModel)]="moduleFilter">
+          <option value="">All</option>
+          <option *ngFor="let m of modules" [value]="m.moduleKey">{{ m.displayName || m.name }}</option>
+        </select>
+      </label>
+      <label>
+        Active
+        <select [(ngModel)]="activeFilter">
+          <option value="all">All</option>
+          <option value="active">Active</option>
+          <option value="inactive">Inactive</option>
+        </select>
+      </label>
+      <label>
+        Visible
+        <select [(ngModel)]="visibleFilter">
+          <option value="all">All</option>
+          <option value="visible">Visible</option>
+          <option value="hidden">Hidden</option>
+        </select>
+      </label>
+      <label>
+        Permission
+        <select [(ngModel)]="permissionFilter">
+          <option value="all">All</option>
+          <option value="with">Has permission</option>
+          <option value="without">No permission</option>
+        </select>
+      </label>
+    </div>
+
+    <div class="empty-state" *ngIf="filteredModules.length === 0">
+      No menu modules match the current filters.
+    </div>
+
+    <section class="module-block" *ngFor="let module of filteredModules">
+      <header class="module-head">
+        <button type="button" class="expand-btn" (click)="toggleExpand(module.id)" [attr.aria-expanded]="isExpanded(module.id)">
+          <mat-icon>{{ isExpanded(module.id) ? 'expand_more' : 'chevron_right' }}</mat-icon>
+          <mat-icon class="mod-icon">{{ module.icon || 'folder' }}</mat-icon>
+          <div>
+            <strong>{{ module.displayName || module.name }}</strong>
+            <span class="meta">{{ module.moduleKey }} · {{ module.items.length }} items</span>
+          </div>
+        </button>
+        <div class="module-actions">
+          <span class="pill" [class.off]="!module.visible">{{ module.visible ? 'Visible' : 'Hidden' }}</span>
+          <button mat-stroked-button type="button" (click)="openEditModule(module)">Edit module</button>
+          <button mat-flat-button color="primary" type="button" (click)="openCreateItem(module)">Add item</button>
+        </div>
+      </header>
+
+      <div class="item-list" *ngIf="isExpanded(module.id)">
+        <div class="item-row" *ngFor="let item of module.items" [class.inactive]="!item.isActive">
+          <mat-icon>{{ item.icon || 'circle' }}</mat-icon>
+          <div class="item-copy">
+            <div class="title-row">
+              <strong>{{ item.displayName || item.name }}</strong>
+              <span class="pill" *ngIf="item.category">{{ item.category }}</span>
+              <span class="pill" [class.off]="!item.visible">{{ item.visible ? 'Visible' : 'Hidden' }}</span>
+              <span class="pill" [class.off]="!item.isActive">{{ item.isActive ? 'Active' : 'Inactive' }}</span>
+              <span class="pill" *ngIf="item.isMobileSupported">Mobile</span>
+            </div>
+            <p class="route">{{ item.route || '—' }}</p>
+            <p class="perm" *ngIf="item.permissionCode">{{ item.permissionCode }}</p>
+            <p class="feat" *ngIf="item.featureKey">Feature: {{ item.featureKey }}</p>
+          </div>
+          <div class="item-actions">
+            <span class="sort">#{{ item.sortOrder }}</span>
+            <button mat-icon-button type="button" (click)="openEditItem(item)" aria-label="Edit item">
+              <mat-icon>edit</mat-icon>
+            </button>
+            <button mat-icon-button type="button" (click)="deactivateItem(item)" aria-label="Deactivate item" [disabled]="!item.isActive">
+              <mat-icon>visibility_off</mat-icon>
+            </button>
+          </div>
+        </div>
+        <div class="empty-items" *ngIf="module.items.length === 0">No items in this module.</div>
+      </div>
+    </section>
+  </ng-container>
+
+  <aside class="drawer" *ngIf="drawerOpen" role="dialog" aria-modal="true">
+    <div class="drawer-backdrop" (click)="closeDrawer()"></div>
+    <div class="drawer-panel">
+      <header>
+        <h3 *ngIf="editingModule">Edit module</h3>
+        <h3 *ngIf="editingItem">Edit menu item</h3>
+        <h3 *ngIf="creatingUnder">New item in {{ creatingUnder.displayName || creatingUnder.name }}</h3>
+        <button mat-icon-button type="button" (click)="closeDrawer()" aria-label="Close">
+          <mat-icon>close</mat-icon>
+        </button>
+      </header>
+
+      <form *ngIf="editingModule" [formGroup]="moduleForm" class="drawer-form" (ngSubmit)="saveDrawer()">
+        <label>Display name<input formControlName="displayName" /></label>
+        <label>Icon<input formControlName="icon" placeholder="material icon name" /></label>
+        <label>Sort order<input type="number" formControlName="sortOrder" /></label>
+        <label class="check"><input type="checkbox" formControlName="visible" /> Visible</label>
+        <label class="check"><input type="checkbox" formControlName="isCollapsible" /> Collapsible</label>
+        <div class="drawer-actions">
+          <button mat-button type="button" (click)="closeDrawer()">Cancel</button>
+          <button mat-flat-button color="primary" type="submit" [disabled]="saving || moduleForm.invalid">Save</button>
+        </div>
+      </form>
+
+      <form *ngIf="editingItem || creatingUnder" [formGroup]="itemForm" class="drawer-form" (ngSubmit)="saveDrawer()">
+        <label *ngIf="creatingUnder">Name<input formControlName="name" /></label>
+        <label>Display name<input formControlName="displayName" /></label>
+        <label>Description<textarea formControlName="description" rows="2"></textarea></label>
+        <label>Category<input formControlName="category" /></label>
+        <label>Route<input formControlName="route" placeholder="/platform/..." /></label>
+        <label>Icon<input formControlName="icon" /></label>
+        <label>
+          Permission code
+          <select formControlName="permissionCode">
+            <option value="">None</option>
+            <option *ngFor="let p of permissions" [value]="p.permissionCode">
+              {{ p.displayName || p.permissionCode }}
+            </option>
+          </select>
+        </label>
+        <label>Feature key<input formControlName="featureKey" placeholder="optional soft gate" /></label>
+        <label>Module key<input formControlName="moduleKey" /></label>
+        <label>Sort order<input type="number" formControlName="sortOrder" /></label>
+        <label class="check" *ngIf="editingItem"><input type="checkbox" formControlName="isActive" /> Active</label>
+        <label class="check"><input type="checkbox" formControlName="visible" /> Visible</label>
+        <label class="check"><input type="checkbox" formControlName="isMobileSupported" /> Mobile supported</label>
+        <div class="drawer-actions">
+          <button mat-button type="button" (click)="closeDrawer()">Cancel</button>
+          <button mat-flat-button color="primary" type="submit" [disabled]="saving || itemForm.invalid">Save</button>
+        </div>
+      </form>
+    </div>
+  </aside>
+</div>

@@ -3,7 +3,7 @@ class LegalDocuments {
   static const effectiveDate = '19 July 2026';
 
   static const privacyBody = '''
-SheikhGo Driver is a workforce app for authorized fleet drivers.
+SheikhGo Fleet is the mobile app for authorized fleet drivers and operations staff.
 
 We collect account details (phone, driver id), trip and attendance records, GPS location while on duty or on active trips, device integrity signals, photos for fuel/inspections/documents, push tokens, and crash diagnostics.
 
@@ -15,7 +15,7 @@ For access or correction requests, contact your fleet administrator or privacy@s
 ''';
 
   static const termsBody = '''
-By using SheikhGo Driver you agree to these terms and the Privacy Policy.
+By using SheikhGo Fleet you agree to these terms and the Privacy Policy.
 
 You must be an authorized driver of a SheikhGo customer organization. Use the app only for assigned fleet duties. Do not spoof location, tamper with the app, or misuse SOS.
 

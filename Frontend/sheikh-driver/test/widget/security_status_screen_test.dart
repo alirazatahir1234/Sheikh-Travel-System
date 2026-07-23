@@ -17,7 +17,7 @@ void main() {
 
     expect(find.text('Security status'), findsOneWidget);
     expect(find.text('Device OK'), findsOneWidget);
-    expect(find.text('com.sheikhgo.driver'), findsOneWidget);
+    expect(find.text('com.sheikhgo.fleet'), findsOneWidget);
     await tester.scrollUntilVisible(
       find.text('Re-run checks'),
       200,

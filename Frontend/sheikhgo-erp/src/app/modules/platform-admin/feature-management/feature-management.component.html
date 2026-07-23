@@ -1,0 +1,108 @@
+<div class="page-container">
+  <header class="page-header">
+    <div class="header-left">
+      <button mat-icon-button type="button" (click)="goBack()" class="back-btn" aria-label="Back">
+        <mat-icon>arrow_back</mat-icon>
+      </button>
+      <div>
+        <nav class="breadcrumb">
+          <span>Platform</span>
+          <mat-icon>chevron_right</mat-icon>
+          <span class="current">Feature Management</span>
+        </nav>
+        <h2>Feature Management</h2>
+        <p class="page-sub">
+          Enable or disable functional capabilities within licensed modules. This is configuration metadata — not a feature-flag engine.
+        </p>
+      </div>
+    </div>
+    <div class="header-right">
+      <app-tenant-picker></app-tenant-picker>
+      <button mat-stroked-button type="button" (click)="refresh()" [disabled]="!selectedTenant || loading">
+        <mat-icon>refresh</mat-icon> Refresh
+      </button>
+    </div>
+  </header>
+
+  <app-brand-loader *ngIf="loading" />
+
+  <ng-container *ngIf="!loading">
+    <div class="content-placeholder" *ngIf="!selectedTenant">
+      <mat-icon>tune</mat-icon>
+      <h3>Select a Company</h3>
+      <p>Choose a company from the picker above to manage feature configuration.</p>
+    </div>
+
+    <mat-card class="features-card" *ngIf="selectedTenant">
+      <mat-card-header>
+        <div class="card-head">
+          <div>
+            <mat-card-title>Feature Registry</mat-card-title>
+            <mat-card-subtitle>{{ selectedTenant.name }}</mat-card-subtitle>
+          </div>
+          <div class="filter-chips" role="group" aria-label="Feature filter">
+            <button type="button" class="filter-chip" [class.active]="filter === 'all'" (click)="filter = 'all'">All</button>
+            <button type="button" class="filter-chip" [class.active]="filter === 'enabled'" (click)="filter = 'enabled'">Enabled</button>
+            <button type="button" class="filter-chip" [class.active]="filter === 'comingSoon'" (click)="filter = 'comingSoon'">Coming Soon</button>
+          </div>
+        </div>
+      </mat-card-header>
+      <mat-card-content>
+        <div *ngIf="filteredFeatures.length === 0" class="empty-state">
+          No features match this filter.
+        </div>
+
+        <section class="category-block" *ngFor="let category of categories">
+          <h3 class="category-title">{{ category }}</h3>
+          <div class="feature-grid">
+            <div class="feature-item"
+                 *ngFor="let feature of featuresInCategory(category)"
+                 [class.enabled]="feature.isEnabled"
+                 [class.readonly]="!canToggle(feature)">
+              <div class="feature-info">
+                <mat-icon>{{ featureIcon(feature) }}</mat-icon>
+                <div class="feature-copy">
+                  <div class="feature-title-row">
+                    <strong>{{ feature.displayName || feature.name }}</strong>
+                    <span class="status-badge" [attr.data-status]="feature.status || 'Active'">
+                      {{ formatStatus(feature.status) }}
+                    </span>
+                  </div>
+                  <p class="feature-key">
+                    {{ feature.featureKey }} · {{ feature.moduleKey }}
+                  </p>
+                  <p class="feature-desc" *ngIf="feature.description">{{ feature.description }}</p>
+                  <div class="feature-meta">
+                    <span class="meta-chip" *ngIf="feature.isEnabled">Enabled</span>
+                    <span class="meta-chip" *ngIf="feature.isModuleInstalled">Module installed</span>
+                    <span class="meta-chip" *ngIf="feature.isMobileSupported">Mobile</span>
+                    <span class="meta-chip" *ngIf="feature.isAISupported">AI</span>
+                    <span class="meta-chip" *ngIf="feature.isGPSSupported">GPS</span>
+                  </div>
+                </div>
+              </div>
+              <mat-slide-toggle
+                *ngIf="canToggle(feature); else comingSoonLabel"
+                [checked]="feature.isEnabled"
+                (change)="toggleFeature(feature, $event.checked)">
+                {{ feature.isEnabled ? 'Enabled' : 'Disabled' }}
+              </mat-slide-toggle>
+              <ng-template #comingSoonLabel>
+                <span class="coming-soon-label">{{ formatStatus(feature.status) }}</span>
+              </ng-template>
+            </div>
+          </div>
+        </section>
+
+        <div class="feature-actions">
+          <button mat-stroked-button type="button" (click)="resetFeatures()" [disabled]="saving || !hasChanges">
+            Reset
+          </button>
+          <button mat-raised-button color="primary" type="button" (click)="saveFeatures()" [disabled]="saving || !hasChanges">
+            {{ saving ? 'Saving...' : 'Save Changes' }}
+          </button>
+        </div>
+      </mat-card-content>
+    </mat-card>
+  </ng-container>
+</div>

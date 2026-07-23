@@ -35,7 +35,9 @@ public partial class GetFleetReportQueryHandler(
     IMediator mediator,
     ITenantContext tenantContext,
     ITraccarClient traccarClient,
-    IOptions<TraccarOptions> traccarOptions)
+    IOptions<TraccarOptions> traccarOptions,
+    ICurrentUserService currentUser,
+    IDataScopeEngine dataScopeEngine)
     : IRequestHandler<GetFleetReportQuery, ApiResponse<ReportResponseDto>>
 {
     public async Task<ApiResponse<ReportResponseDto>> Handle(GetFleetReportQuery request, CancellationToken cancellationToken)
@@ -44,6 +46,14 @@ public partial class GetFleetReportQueryHandler(
         var reportType = FleetReportHelper.NormalizeReportType(request.ReportType);
         var (from, to) = FleetReportHelper.ResolveDateRange(request.From, request.To);
         using var connection = dbFactory.CreateConnection();
+
+        DataScopeResult? scope = null;
+        if (currentUser.UserId is int userId)
+        {
+            scope = await dataScopeEngine.ResolveAsync(userId, tenantId, cancellationToken);
+            if (!DataScopeSql.TryIntersectOptional(scope, request.BranchId, request.DepartmentId, out _, out _, out var scopeError))
+                return ApiResponse<ReportResponseDto>.FailResponse(scopeError ?? "Outside data scope.");
+        }
 
         // Expanded day by day — each report type's builder lands in its own FleetReportQueries.*.cs
         // partial file as it's implemented (see the Phase 11 plan). Unrecognized/not-yet-built types
@@ -55,11 +65,11 @@ public partial class GetFleetReportQueryHandler(
             "alert" => await BuildAlertReportAsync(connection, tenantId, from, to, request.VehicleId,
                 request.DriverId, request.BranchId, request.DepartmentId, request.Status, cancellationToken),
             "vehicle" => await BuildVehicleReportAsync(connection, tenantId, request.BranchId,
-                request.DepartmentId, request.Status, cancellationToken),
+                request.DepartmentId, request.Status, cancellationToken, scope),
             "driver" => await BuildDriverReportAsync(connection, tenantId, from, to, request.BranchId,
                 request.DepartmentId, cancellationToken),
             "fuel" => await BuildFuelReportAsync(connection, tenantId, from, to, request.VehicleId,
-                request.BranchId, cancellationToken),
+                request.BranchId, cancellationToken, scope),
             "speed" => await BuildSpeedReportAsync(connection, tenantId, from, to, request.VehicleId,
                 request.DriverId, cancellationToken),
             "idle" => await BuildIdleReportAsync(tenantId, from, to, request.VehicleId, cancellationToken),

@@ -206,7 +206,9 @@ public class GetGpsTripsQueryHandler(
     IMediator mediator,
     ITraccarClient traccarClient,
     IOptions<TraccarOptions> traccarOptions,
-    ITenantContext tenantContext)
+    ITenantContext tenantContext,
+    ICurrentUserService currentUser,
+    IDataScopeEngine dataScopeEngine)
     : IRequestHandler<GetGpsTripsQuery, ApiResponse<PagedResult<GpsTripDto>>>
 {
     private static readonly TimeSpan MaxRange = TimeSpan.FromDays(30);
@@ -512,16 +514,27 @@ public class GetGpsTripsQueryHandler(
         var parameters = new DynamicParameters();
         parameters.Add("TenantId", tenantId);
 
-        if (request.BranchId.HasValue)
+        if (currentUser.UserId is int userId)
         {
-            filters.Add("v.BranchId = @BranchId");
-            parameters.Add("BranchId", request.BranchId.Value);
-        }
+            var scope = await dataScopeEngine.ResolveAsync(userId, tenantId, cancellationToken);
+            if (!DataScopeSql.TryIntersectOptional(scope, request.BranchId, request.DepartmentId, out _, out _, out var scopeError))
+                return ApiResponse<List<GpsTripDto>>.FailResponse(scopeError ?? "Outside data scope.");
 
-        if (request.DepartmentId.HasValue)
+            DataScopeSql.ApplyVehicleScope(parameters, scope, "v", filters, request.BranchId, request.DepartmentId);
+        }
+        else
         {
-            filters.Add("v.DepartmentId = @DepartmentId");
-            parameters.Add("DepartmentId", request.DepartmentId.Value);
+            if (request.BranchId.HasValue)
+            {
+                filters.Add("v.BranchId = @BranchId");
+                parameters.Add("BranchId", request.BranchId.Value);
+            }
+
+            if (request.DepartmentId.HasValue)
+            {
+                filters.Add("v.DepartmentId = @DepartmentId");
+                parameters.Add("DepartmentId", request.DepartmentId.Value);
+            }
         }
 
         if (request.DriverId.HasValue)
@@ -672,22 +685,34 @@ public record GetGpsAlertEventsQuery(
     int? DriverId = null,
     string? EventType = null,
     string? Severity = null,
-    string? Status = null)
+    string? Status = null,
+    string? ReadState = null,
+    string? DatePreset = null,
+    int? GeofenceId = null)
     : IRequest<ApiResponse<List<GpsAlertEventDto>>>;
 
-public class GetGpsAlertEventsQueryHandler(IDbConnectionFactory dbFactory, ITenantContext tenantContext)
+public class GetGpsAlertEventsQueryHandler(
+    IDbConnectionFactory dbFactory,
+    ITenantContext tenantContext,
+    ICurrentUserService currentUser)
     : IRequestHandler<GetGpsAlertEventsQuery, ApiResponse<List<GpsAlertEventDto>>>
 {
     public async Task<ApiResponse<List<GpsAlertEventDto>>> Handle(GetGpsAlertEventsQuery request, CancellationToken cancellationToken)
     {
+        if (!GpsAlertAccess.CanView(currentUser))
+            return ApiResponse<List<GpsAlertEventDto>>.FailResponse("Insufficient permission to view alerts.");
+
         using var connection = dbFactory.CreateConnection();
         var tenantId = tenantContext.GetRequiredTenantId();
+        var allowedEventTypes = GpsAlertAccess.AllowedEventTypes(currentUser.Role);
+        var (from, to) = ResolveDateRange(request.DatePreset, request.From, request.To);
         var sql = """
             SELECT e.Id, e.RuleId, e.VehicleId, v.Name AS VehicleName, e.EventType,
                    e.Latitude, e.Longitude, e.Speed, e.Message, e.Timestamp, e.IsAcknowledged,
                    e.Severity, e.Status, e.GeofenceId, g.Name AS GeofenceName,
                    e.DriverId, d.FullName AS DriverName,
-                   e.AcknowledgedAt, e.AcknowledgedBy, e.ResolvedAt, e.ResolvedBy, e.ResolutionNotes
+                   e.ReadAt, e.ReadBy, e.AcknowledgedAt, e.AcknowledgedBy,
+                   e.ResolvedAt, e.ResolvedBy, e.ResolutionNotes, e.ArchivedAt, e.ArchivedBy
             FROM GpsAlertEvents e
             INNER JOIN Vehicles v ON v.Id = e.VehicleId AND v.TenantId = @TenantId
             LEFT JOIN Geofences g ON g.Id = e.GeofenceId
@@ -705,12 +730,12 @@ public class GetGpsAlertEventsQueryHandler(IDbConnectionFactory dbFactory, ITena
             sql += " AND e.IsAcknowledged = 0";
         }
 
-        if (request.From.HasValue)
+        if (from.HasValue)
         {
             sql += " AND e.Timestamp >= @From";
         }
 
-        if (request.To.HasValue)
+        if (to.HasValue)
         {
             sql += " AND e.Timestamp <= @To";
         }
@@ -725,6 +750,11 @@ public class GetGpsAlertEventsQueryHandler(IDbConnectionFactory dbFactory, ITena
             sql += " AND e.EventType = @EventType";
         }
 
+        if (request.GeofenceId.HasValue)
+        {
+            sql += " AND e.GeofenceId = @GeofenceId";
+        }
+
         if (!string.IsNullOrWhiteSpace(request.Severity))
         {
             sql += " AND e.Severity = @Severity";
@@ -732,7 +762,28 @@ public class GetGpsAlertEventsQueryHandler(IDbConnectionFactory dbFactory, ITena
 
         if (!string.IsNullOrWhiteSpace(request.Status))
         {
-            sql += " AND e.Status = @Status";
+            var normalizedStatus = request.Status.Trim().ToLowerInvariant();
+            sql += normalizedStatus switch
+            {
+                "unread" => " AND e.Status = 'active' AND e.ReadAt IS NULL",
+                "read" => " AND e.Status = 'active' AND e.ReadAt IS NOT NULL",
+                _ => " AND e.Status = @Status"
+            };
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.ReadState))
+        {
+            sql += request.ReadState.Trim().ToLowerInvariant() switch
+            {
+                "unread" => " AND e.ReadAt IS NULL AND e.Status <> 'archived'",
+                "read" => " AND e.ReadAt IS NOT NULL",
+                _ => string.Empty
+            };
+        }
+
+        if (allowedEventTypes is not null)
+        {
+            sql += " AND LOWER(e.EventType) IN @AllowedEventTypes";
         }
 
         sql += " ORDER BY e.Timestamp DESC";
@@ -743,78 +794,139 @@ public class GetGpsAlertEventsQueryHandler(IDbConnectionFactory dbFactory, ITena
             {
                 TenantId = tenantId,
                 request.VehicleId,
-                request.From,
-                request.To,
+                From = from,
+                To = to,
                 request.DriverId,
                 request.EventType,
                 request.Severity,
-                request.Status
+                Status = request.Status?.Trim().ToLowerInvariant(),
+                request.GeofenceId,
+                AllowedEventTypes = allowedEventTypes
             },
             cancellationToken: cancellationToken));
 
-        return ApiResponse<List<GpsAlertEventDto>>.SuccessResponse(rows.ToList());
+        return ApiResponse<List<GpsAlertEventDto>>.SuccessResponse(GpsAlertQueryProjection.Decorate(rows, currentUser).ToList());
+    }
+
+    private static (DateTime? From, DateTime? To) ResolveDateRange(string? datePreset, DateTime? from, DateTime? to)
+    {
+        if (string.IsNullOrWhiteSpace(datePreset))
+            return (from, to);
+
+        var today = DateTime.UtcNow.Date;
+        return datePreset.Trim().ToLowerInvariant() switch
+        {
+            "today" => (today, today.AddDays(1).AddTicks(-1)),
+            "yesterday" => (today.AddDays(-1), today.AddTicks(-1)),
+            "last7" => (today.AddDays(-6), today.AddDays(1).AddTicks(-1)),
+            "last30" => (today.AddDays(-29), today.AddDays(1).AddTicks(-1)),
+            _ => (from, to)
+        };
     }
 }
 
 public record GetGpsAlertEventByIdQuery(int Id) : IRequest<ApiResponse<GpsAlertEventDto>>;
 
-public class GetGpsAlertEventByIdQueryHandler(IDbConnectionFactory dbFactory, ITenantContext tenantContext)
+public class GetGpsAlertEventByIdQueryHandler(
+    IDbConnectionFactory dbFactory,
+    ITenantContext tenantContext,
+    ICurrentUserService currentUser)
     : IRequestHandler<GetGpsAlertEventByIdQuery, ApiResponse<GpsAlertEventDto>>
 {
     public async Task<ApiResponse<GpsAlertEventDto>> Handle(GetGpsAlertEventByIdQuery request, CancellationToken cancellationToken)
     {
+        if (!GpsAlertAccess.CanView(currentUser))
+            return ApiResponse<GpsAlertEventDto>.FailResponse("Insufficient permission to view alerts.");
+
         using var connection = dbFactory.CreateConnection();
         var tenantId = tenantContext.GetRequiredTenantId();
+        var allowedEventTypes = GpsAlertAccess.AllowedEventTypes(currentUser.Role);
 
-        var row = await connection.QueryFirstOrDefaultAsync<GpsAlertEventDto>(new CommandDefinition(
-            """
+        var sql = """
             SELECT e.Id, e.RuleId, e.VehicleId, v.Name AS VehicleName, e.EventType,
                    e.Latitude, e.Longitude, e.Speed, e.Message, e.Timestamp, e.IsAcknowledged,
                    e.Severity, e.Status, e.GeofenceId, g.Name AS GeofenceName,
                    e.DriverId, d.FullName AS DriverName,
-                   e.AcknowledgedAt, e.AcknowledgedBy, e.ResolvedAt, e.ResolvedBy, e.ResolutionNotes
+                   e.ReadAt, e.ReadBy, e.AcknowledgedAt, e.AcknowledgedBy,
+                   e.ResolvedAt, e.ResolvedBy, e.ResolutionNotes, e.ArchivedAt, e.ArchivedBy
             FROM GpsAlertEvents e
             INNER JOIN Vehicles v ON v.Id = e.VehicleId AND v.TenantId = @TenantId
             LEFT JOIN Geofences g ON g.Id = e.GeofenceId
             LEFT JOIN Drivers d ON d.Id = e.DriverId
             WHERE e.Id = @Id AND e.IsDeleted = 0
-            """,
-            new { request.Id, TenantId = tenantId },
+            """;
+        if (allowedEventTypes is not null)
+        {
+            sql += " AND LOWER(e.EventType) IN @AllowedEventTypes";
+        }
+
+        var row = await connection.QueryFirstOrDefaultAsync<GpsAlertEventDto>(new CommandDefinition(
+            sql,
+            new { request.Id, TenantId = tenantId, AllowedEventTypes = allowedEventTypes },
             cancellationToken: cancellationToken));
 
         return row is not null
-            ? ApiResponse<GpsAlertEventDto>.SuccessResponse(row)
+            ? ApiResponse<GpsAlertEventDto>.SuccessResponse(GpsAlertQueryProjection.Decorate(row, currentUser))
             : ApiResponse<GpsAlertEventDto>.FailResponse("Alert event not found.");
     }
 }
 
 public record GetGpsAlertStatsQuery : IRequest<ApiResponse<GpsAlertStatsDto>>;
 
-public class GetGpsAlertStatsQueryHandler(IDbConnectionFactory dbFactory, ITenantContext tenantContext)
+public class GetGpsAlertStatsQueryHandler(
+    IDbConnectionFactory dbFactory,
+    ITenantContext tenantContext,
+    ICurrentUserService currentUser)
     : IRequestHandler<GetGpsAlertStatsQuery, ApiResponse<GpsAlertStatsDto>>
 {
     public async Task<ApiResponse<GpsAlertStatsDto>> Handle(GetGpsAlertStatsQuery request, CancellationToken cancellationToken)
     {
+        if (!GpsAlertAccess.CanView(currentUser))
+            return ApiResponse<GpsAlertStatsDto>.FailResponse("Insufficient permission to view alerts.");
+
         using var connection = dbFactory.CreateConnection();
         var tenantId = tenantContext.GetRequiredTenantId();
+        var allowedEventTypes = GpsAlertAccess.AllowedEventTypes(currentUser.Role);
 
-        var stats = await connection.QueryFirstAsync<GpsAlertStatsDto>(new CommandDefinition(
-            """
+        var sql = """
             SELECT
                 COUNT(*) AS Total,
                 SUM(CASE WHEN CAST(e.Timestamp AS DATE) = CAST(GETUTCDATE() AS DATE) THEN 1 ELSE 0 END) AS Today,
-                SUM(CASE WHEN e.Status = 'active' THEN 1 ELSE 0 END) AS Active,
+                SUM(CASE WHEN e.ReadAt IS NULL AND e.Status <> 'archived' THEN 1 ELSE 0 END) AS Unread,
+                SUM(CASE WHEN e.Status IN ('active', 'acknowledged') THEN 1 ELSE 0 END) AS Active,
                 SUM(CASE WHEN e.Status = 'resolved' THEN 1 ELSE 0 END) AS Resolved,
-                SUM(CASE WHEN e.Severity = 'critical' THEN 1 ELSE 0 END) AS Critical
+                SUM(CASE WHEN e.Severity = 'critical' AND e.Status IN ('active', 'acknowledged') THEN 1 ELSE 0 END) AS Critical,
+                SUM(CASE WHEN e.Status = 'archived' THEN 1 ELSE 0 END) AS Archived
             FROM GpsAlertEvents e
             INNER JOIN Vehicles v ON v.Id = e.VehicleId AND v.TenantId = @TenantId AND v.IsDeleted = 0
             WHERE e.IsDeleted = 0
-            """,
-            new { TenantId = tenantId },
+            """;
+        if (allowedEventTypes is not null)
+        {
+            sql += " AND LOWER(e.EventType) IN @AllowedEventTypes";
+        }
+
+        var stats = await connection.QueryFirstAsync<GpsAlertStatsDto>(new CommandDefinition(
+            sql,
+            new { TenantId = tenantId, AllowedEventTypes = allowedEventTypes },
             cancellationToken: cancellationToken));
 
         return ApiResponse<GpsAlertStatsDto>.SuccessResponse(stats);
     }
+}
+
+file static class GpsAlertQueryProjection
+{
+    public static IEnumerable<GpsAlertEventDto> Decorate(IEnumerable<GpsAlertEventDto> rows, ICurrentUserService currentUser) =>
+        rows.Select(row => Decorate(row, currentUser));
+
+    public static GpsAlertEventDto Decorate(GpsAlertEventDto row, ICurrentUserService currentUser) => row with
+    {
+        CanAcknowledge = row.Status != "archived" && row.Status != "resolved" && GpsAlertAccess.CanAcknowledge(currentUser),
+        CanResolve = row.Status != "resolved" && row.Status != "archived" && GpsAlertAccess.CanResolve(currentUser),
+        CanArchive = row.Status is "acknowledged" or "resolved" && GpsAlertAccess.CanArchive(currentUser),
+        CanDelete = GpsAlertAccess.CanDelete(currentUser)
+    };
 }
 
 public record GetAlertSettingsQuery : IRequest<ApiResponse<List<AlertSettingDto>>>;

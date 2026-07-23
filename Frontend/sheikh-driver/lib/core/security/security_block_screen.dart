@@ -37,7 +37,7 @@ class SecurityBlockScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 12),
               const Text(
-                'SheikhGo Driver cannot run on this device because a security check failed.',
+                'SheikhGo Fleet cannot run on this device because a security check failed.',
                 textAlign: TextAlign.center,
                 style: TextStyle(color: Colors.white70, fontSize: 14),
               ),

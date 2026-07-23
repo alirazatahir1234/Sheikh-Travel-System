@@ -1,11 +1,14 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using SheikhTravelSystem.API.Authorization;
+using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Features.FuelLogs.Commands;
 using SheikhTravelSystem.Application.Features.FuelLogs.Queries;
 
 namespace SheikhTravelSystem.API.Controllers;
 
 [Authorize]
+[RequirePermission(FinancePermissions.FuelView)]
 /// <summary>
 /// Manages fuel log operations.
 /// </summary>

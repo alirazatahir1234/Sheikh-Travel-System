@@ -19,7 +19,7 @@ class SignalRService {
 
   String get _hubUrl {
     // Convert http(s) to ws(s) for SignalR
-    final base = AppConfig.baseUrl.replaceFirst('/api', '');
+    final base = AppConfig.apiOrigin;
     return '$base/hubs/tracking';
   }
 
@@ -30,7 +30,8 @@ class SignalRService {
     const storage = FlutterSecureStorage(
       mOptions: MacOsOptions(useDataProtectionKeyChain: false),
     );
-    final token = await storage.read(key: 'driver_access_token');
+    final token = await storage.read(key: 'fleet_access_token') ??
+        await storage.read(key: 'driver_access_token');
     if (token == null) return;
 
     try {

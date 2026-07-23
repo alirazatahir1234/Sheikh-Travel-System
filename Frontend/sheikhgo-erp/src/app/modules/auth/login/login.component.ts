@@ -1,7 +1,9 @@
 import { Component, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
+import { catchError, of, switchMap } from 'rxjs';
 import { AuthService } from '../../../core/services/auth.service';
+import { PlatformService } from '../../../core/services/platform.service';
 import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
 
 @Component({
@@ -20,10 +22,10 @@ export class LoginComponent implements OnInit {
   constructor(
     private fb: FormBuilder,
     private auth: AuthService,
+    private platform: PlatformService,
     private router: Router,
     private toast: UiToastService
   ) {
-    // Pre-fill with admin credentials for easy access
     this.form = this.fb.group({
       email: ['admin@sheikhtravel.com', [Validators.required, Validators.email]],
       password: ['Pass@123', Validators.required]
@@ -57,8 +59,27 @@ export class LoginComponent implements OnInit {
     }
 
     this.loading = true;
-    this.auth.login(this.form.value).subscribe({
-      next: user => this.router.navigate([user.roles?.includes('Driver') ? '/my-trips' : '/dashboard']),
+    this.auth.login(this.form.value).pipe(
+      switchMap(user =>
+        this.platform.getMyWorkspace().pipe(
+          catchError(() => of(null)),
+          switchMap(ws => {
+            if (ws?.homeRoute) this.auth.setHomeRoute(ws.homeRoute);
+            return this.platform.getMySecuritySummary().pipe(
+              catchError(() => of(null)),
+              switchMap(security => {
+                this.auth.applySecuritySessionPolicy(security);
+                return of(user);
+              })
+            );
+          })
+        )
+      )
+    ).subscribe({
+      next: () => {
+        this.loading = false;
+        this.router.navigate([this.auth.getHomeRoute()]);
+      },
       error: err => {
         this.loading = false;
         const message = err?.error?.message || err?.message || 'Invalid email or password';

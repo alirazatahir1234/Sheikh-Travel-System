@@ -2,13 +2,16 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using SheikhTravelSystem.API.Authorization;
 using SheikhTravelSystem.API.Models;
+using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Application.Features.Ocr.DTOs;
 
 namespace SheikhTravelSystem.API.Controllers;
 
 [Authorize]
+[RequirePermission(DriverPermissions.DriverCreate)]
 public class OcrController(
     IIdentityOcrService ocrService,
     ILogger<OcrController> logger) : BaseApiController

@@ -1,0 +1,36 @@
+<div class="platform-hub page-container">
+  <ui-page-header
+    title="Platform Administration"
+    subtitle="Control plane for companies, access, commercial settings, and system operations. Reuses existing hubs—does not duplicate them."
+    icon="settings_applications">
+  </ui-page-header>
+
+  <div class="hub-grid">
+    <section class="hub-section" *ngFor="let section of visibleSections">
+      <header class="section-header">
+        <h2>{{ section.title }}</h2>
+        <p>{{ section.description }}</p>
+      </header>
+
+      <div class="link-grid">
+        <button
+          type="button"
+          class="hub-card"
+          *ngFor="let link of section.links"
+          (click)="open(link)">
+          <mat-icon>{{ link.icon }}</mat-icon>
+          <div class="hub-card-copy">
+            <span class="hub-card-title">{{ link.label }}</span>
+            <span class="hub-card-desc">{{ link.description }}</span>
+          </div>
+          <mat-icon class="chevron">chevron_right</mat-icon>
+        </button>
+      </div>
+    </section>
+  </div>
+
+  <div class="empty-hub" *ngIf="visibleSections.length === 0">
+    <mat-icon>lock</mat-icon>
+    <p>No platform administration areas are available for your role.</p>
+  </div>
+</div>

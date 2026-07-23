@@ -1,5 +1,6 @@
 using Dapper;
 using SheikhTravelSystem.Application.Common;
+using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Domain.Enums;
 
 namespace SheikhTravelSystem.Application.Features.Reports.Fleet;
@@ -17,7 +18,7 @@ public partial class GetFleetReportQueryHandler
 
     private static async Task<ReportResponseDto> BuildVehicleReportAsync(
         System.Data.IDbConnection connection, int tenantId, int? branchId, int? departmentId,
-        string? status, CancellationToken ct)
+        string? status, CancellationToken ct, DataScopeResult? scope = null)
     {
         // Registration Expiry is intentionally not a column — the schema only tracks Insurance
         // Expiry (v.InsuranceExpiryDate); a Registration Expiry date doesn't exist anywhere in this
@@ -41,8 +42,7 @@ public partial class GetFleetReportQueryHandler
         var clauses = new List<string> { "v.TenantId = @TenantId", "v.IsDeleted = 0" };
         var p = new DynamicParameters();
         p.Add("TenantId", tenantId);
-        FleetReportSql.ApplyDepartmentFilter(p, departmentId, "v", clauses);
-        if (branchId.HasValue) { clauses.Add("v.BranchId = @BranchId"); p.Add("BranchId", branchId.Value); }
+        FleetReportSql.ApplyEffectiveVehicleScope(p, scope, null, branchId, departmentId, "v", clauses);
         var where = FleetReportSql.BuildWhere(clauses);
 
         var raw = await connection.QueryAsync<dynamic>(new CommandDefinition($"""

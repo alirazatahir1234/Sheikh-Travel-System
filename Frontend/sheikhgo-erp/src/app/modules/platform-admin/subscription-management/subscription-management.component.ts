@@ -11,6 +11,7 @@ import {
   Invoice,
   Payment,
   SubscriptionAction,
+  CompanyLicense,
   TENANT_PLAN_TIERS,
   formatCurrency
 } from '../../../core/models/platform.model';
@@ -91,12 +92,27 @@ export class SubscriptionManagementComponent implements OnInit, OnDestroy {
     return this.overview?.subscription ?? null;
   }
 
+  get license(): CompanyLicense | null {
+    return this.overview?.license ?? null;
+  }
+
+  get licensedModules(): string[] {
+    return this.subscription?.licensedModuleCodes
+      ?? this.license?.licensedModules
+      ?? [];
+  }
+
   get invoices(): Invoice[] {
     return this.overview?.invoices ?? [];
   }
 
   get payments(): Payment[] {
     return this.overview?.payments ?? [];
+  }
+
+  formatLimit(used: number, limit?: number | null): string {
+    if (limit == null) return `${used} / ∞`;
+    return `${used} / ${limit}`;
   }
 
   formatMoney(amount?: number | null, currency?: string | null): string {

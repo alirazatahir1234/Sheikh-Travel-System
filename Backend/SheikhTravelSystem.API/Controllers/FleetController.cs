@@ -1,10 +1,13 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using SheikhTravelSystem.API.Authorization;
+using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Features.Fleet;
 
 namespace SheikhTravelSystem.API.Controllers;
 
 [Authorize]
+[RequirePermission(FleetPermissions.VehicleView)]
 /// <summary>
 /// Read endpoints powering the Fleet hub (dashboard, compliance, inspections, assignments).
 /// </summary>

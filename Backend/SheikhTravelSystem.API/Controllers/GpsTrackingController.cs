@@ -18,7 +18,8 @@ using SheikhTravelSystem.Application.Features.Tracking.Queries;
 
 namespace SheikhTravelSystem.API.Controllers;
 
-[Authorize(Roles = "Admin,Dispatcher,Accountant,Driver")]
+[Authorize]
+[RequirePermission(AnalyticsPermissions.GpsView)]
 /// <summary>
 /// GPS fleet tracking — live positions, history, trips, geofences, alerts, devices, commands, and
 /// analytics. Analytics routes live in the GpsTrackingController.Analytics.cs partial to keep this
@@ -28,7 +29,7 @@ namespace SheikhTravelSystem.API.Controllers;
 public partial class GpsTrackingController : BaseApiController
 {
     [HttpPost("positions")]
-    [Authorize(Roles = "Admin,Dispatcher,Driver")]
+    [RequirePermission(AnalyticsPermissions.GpsView)]
     public async Task<IActionResult> IngestPosition([FromBody] IngestPositionDto position)
         => Ok(await Mediator.Send(new IngestPositionCommand(position)));
 
@@ -184,6 +185,7 @@ public partial class GpsTrackingController : BaseApiController
     }
 
     [HttpGet("alerts/events")]
+    [RequirePermission(GpsPermissions.AlertView)]
     public async Task<IActionResult> GetAlertEvents(
         [FromQuery] int? vehicleId,
         [FromQuery] bool? unacknowledgedOnly,
@@ -192,27 +194,45 @@ public partial class GpsTrackingController : BaseApiController
         [FromQuery] int? driverId,
         [FromQuery] string? eventType,
         [FromQuery] string? severity,
-        [FromQuery] string? status)
+        [FromQuery] string? status,
+        [FromQuery] string? readState,
+        [FromQuery] string? datePreset,
+        [FromQuery] int? geofenceId)
         => Ok(await Mediator.Send(new GetGpsAlertEventsQuery(
-            vehicleId, unacknowledgedOnly, from, to, driverId, eventType, severity, status)));
+            vehicleId, unacknowledgedOnly, from, to, driverId, eventType, severity, status, readState, datePreset, geofenceId)));
 
     [HttpGet("alerts/events/{id:int}")]
+    [RequirePermission(GpsPermissions.AlertView)]
     public async Task<IActionResult> GetAlertEvent(int id)
         => Ok(await Mediator.Send(new GetGpsAlertEventByIdQuery(id)));
 
     [HttpGet("alerts/stats")]
+    [RequirePermission(GpsPermissions.AlertView)]
     public async Task<IActionResult> GetAlertStats()
         => Ok(await Mediator.Send(new GetGpsAlertStatsQuery()));
 
     [HttpPost("alerts/events/{id:int}/acknowledge")]
+    [RequirePermission(GpsPermissions.AlertAcknowledge)]
     public async Task<IActionResult> AcknowledgeAlert(int id)
         => Ok(await Mediator.Send(new AcknowledgeGpsAlertCommand(id)));
 
+    [HttpPost("alerts/events/{id:int}/read")]
+    [RequirePermission(GpsPermissions.AlertView)]
+    public async Task<IActionResult> MarkAlertRead(int id)
+        => Ok(await Mediator.Send(new MarkGpsAlertReadCommand(id)));
+
     [HttpPost("alerts/events/{id:int}/resolve")]
+    [RequirePermission(GpsPermissions.AlertResolve)]
     public async Task<IActionResult> ResolveAlert(int id, [FromBody] ResolveGpsAlertDto resolution)
         => Ok(await Mediator.Send(new ResolveGpsAlertCommand(id, resolution)));
 
+    [HttpPost("alerts/events/{id:int}/archive")]
+    [RequirePermission(GpsPermissions.AlertArchive)]
+    public async Task<IActionResult> ArchiveAlert(int id, [FromBody] ArchiveGpsAlertDto? archive)
+        => Ok(await Mediator.Send(new ArchiveGpsAlertCommand(id, archive ?? new ArchiveGpsAlertDto(null))));
+
     [HttpDelete("alerts/events/{id:int}")]
+    [RequirePermission(GpsPermissions.AlertDelete)]
     public async Task<IActionResult> DeleteAlertEvent(int id)
         => Ok(await Mediator.Send(new DeleteGpsAlertEventCommand(id)));
 
@@ -258,17 +278,14 @@ public partial class GpsTrackingController : BaseApiController
     // ── Tracker registration (SheikhGo master, Traccar engine) ─────────────
 
     [HttpGet("trackers")]
-    [Authorize(Roles = "Admin,Dispatcher,Accountant")]
     public async Task<IActionResult> GetTrackers()
         => Ok(await Mediator.Send(new GetTrackersQuery()));
 
     [HttpGet("trackers/{id:int}")]
-    [Authorize(Roles = "Admin,Dispatcher")]
     public async Task<IActionResult> GetTracker(int id)
         => Ok(await Mediator.Send(new GetTrackerByIdQuery(id)));
 
     [HttpPost("trackers/register")]
-    [Authorize(Roles = "Admin,Dispatcher")]
     public async Task<IActionResult> RegisterTracker([FromBody] RegisterTrackerDto tracker)
     {
         var result = await Mediator.Send(new RegisterTrackerCommand(tracker));
@@ -276,17 +293,14 @@ public partial class GpsTrackingController : BaseApiController
     }
 
     [HttpPut("trackers/{id:int}")]
-    [Authorize(Roles = "Admin,Dispatcher")]
     public async Task<IActionResult> UpdateTracker(int id, [FromBody] UpdateTrackerDto tracker)
         => Ok(await Mediator.Send(new UpdateTrackerCommand(id, tracker)));
 
     [HttpDelete("trackers/{id:int}")]
-    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> DeleteTracker(int id)
         => Ok(await Mediator.Send(new DeleteTrackerCommand(id)));
 
     [HttpPost("trackers/{id:int}/install")]
-    [Authorize(Roles = "Admin,Dispatcher")]
     public async Task<IActionResult> InstallTracker(int id, [FromBody] InstallTrackerDto body)
     {
         var result = await Mediator.Send(new InstallTrackerCommand(id, body));
@@ -294,7 +308,6 @@ public partial class GpsTrackingController : BaseApiController
     }
 
     [HttpPost("trackers/{id:int}/uninstall")]
-    [Authorize(Roles = "Admin,Dispatcher")]
     public async Task<IActionResult> UninstallTracker(int id, [FromBody] UninstallTrackerDto? body = null)
     {
         var result = await Mediator.Send(new UninstallTrackerCommand(id, body));
@@ -302,7 +315,6 @@ public partial class GpsTrackingController : BaseApiController
     }
 
     [HttpPost("trackers/{id:int}/transfer")]
-    [Authorize(Roles = "Admin,Dispatcher")]
     public async Task<IActionResult> TransferTracker(int id, [FromBody] TransferTrackerDto body)
     {
         var result = await Mediator.Send(new TransferTrackerCommand(id, body));
@@ -310,22 +322,18 @@ public partial class GpsTrackingController : BaseApiController
     }
 
     [HttpGet("trackers/install-vehicles")]
-    [Authorize(Roles = "Admin,Dispatcher")]
     public async Task<IActionResult> GetTrackerInstallVehicles([FromQuery] int? trackerId)
         => Ok(await Mediator.Send(new GetTrackerInstallVehiclesQuery(trackerId)));
 
     [HttpGet("trackers/{id:int}/assignments")]
-    [Authorize(Roles = "Admin,Dispatcher,Accountant")]
     public async Task<IActionResult> GetTrackerAssignments(int id)
         => Ok(await Mediator.Send(new GetTrackerAssignmentsQuery(id)));
 
     [HttpPost("trackers/{id:int}/sync")]
-    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> SyncTracker(int id)
         => Ok(await Mediator.Send(new SyncTrackerCommand(id)));
 
     [HttpPost("trackers/sync-all")]
-    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> SyncAllTrackers()
         => Ok(await Mediator.Send(new SyncAllTrackersCommand()));
 
@@ -414,11 +422,13 @@ public partial class GpsTrackingController : BaseApiController
 
     [HttpGet("commands/pending")]
     [AllowAnonymous]
+    [GpsDeviceApiKey]
     public async Task<IActionResult> GetPendingCommands([FromQuery] string uniqueId)
         => Ok(await Mediator.Send(new GetPendingDeviceCommandsQuery(uniqueId)));
 
     [HttpPost("commands/{id:int}/complete")]
     [AllowAnonymous]
+    [GpsDeviceApiKey]
     public async Task<IActionResult> CompleteCommand(int id, [FromBody] CompleteDeviceCommandDto body)
         => Ok(await Mediator.Send(new CompleteDeviceCommandCommand(id, body.UniqueId, body.Status, body.ResponseText, body.ErrorMessage)));
 
@@ -429,7 +439,7 @@ public partial class GpsTrackingController : BaseApiController
     // ── Traccar admin endpoints ────────────────────────────────────────────
 
     [HttpGet("traccar/status")]
-    [Authorize(Roles = "Admin,Dispatcher")]
+    [RequirePermission(AnalyticsPermissions.GpsView)]
     public async Task<IActionResult> GetTraccarStatus(
         [FromServices] ITraccarClient traccar,
         [FromServices] IDbConnectionFactory dbFactory,
@@ -478,7 +488,6 @@ public partial class GpsTrackingController : BaseApiController
     }
 
     [HttpGet("traccar/devices")]
-    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> GetTraccarDevices(
         [FromServices] ITraccarClient traccar)
     {
@@ -487,13 +496,11 @@ public partial class GpsTrackingController : BaseApiController
     }
 
     [HttpPost("traccar/sync")]
-    [Authorize(Roles = "Admin,Dispatcher")]
     public async Task<IActionResult> RunTraccarSync(
         [FromServices] ITraccarSyncOrchestrator orchestrator)
         => Ok(await orchestrator.RunManualSyncAsync(HttpContext.RequestAborted));
 
     [HttpGet("traccar/sync-status")]
-    [Authorize(Roles = "Admin,Dispatcher")]
     public async Task<IActionResult> GetTraccarSyncStatus(
         [FromServices] ITraccarSyncState syncState,
         [FromServices] ITraccarClient traccar,
@@ -510,7 +517,6 @@ public partial class GpsTrackingController : BaseApiController
 
     /// <summary>Deprecated — use POST traccar/sync for full manual sync.</summary>
     [HttpPost("traccar/sync-devices")]
-    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> SyncTraccarDevices(
         [FromServices] ITraccarSyncOrchestrator orchestrator)
     {

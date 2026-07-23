@@ -10,6 +10,7 @@ using SheikhTravelSystem.Application.Features.Vehicles.Queries;
 namespace SheikhTravelSystem.API.Controllers;
 
 [Authorize]
+[RequirePermission(FleetPermissions.VehicleView)]
 /// <summary>
 /// Manages vehicle operations.
 /// </summary>
@@ -32,6 +33,7 @@ public class VehiclesController : BaseApiController
     /// <summary>
     /// Creates a new vehicle.
     /// </summary>
+    [RequirePermission(FleetPermissions.VehicleCreate)]
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateVehicleApiRequest request)
     {
@@ -42,6 +44,7 @@ public class VehiclesController : BaseApiController
     /// <summary>
     /// Updates an existing vehicle by identifier.
     /// </summary>
+    [RequirePermission(FleetPermissions.VehicleUpdate)]
     [HttpPut("{id}")]
     public async Task<IActionResult> Update(int id, [FromBody] UpdateVehicleCommand command)
         => Ok(await Mediator.Send(command with { Id = id }));
@@ -57,6 +60,7 @@ public class VehiclesController : BaseApiController
     /// <summary>
     /// Toggles vehicle status between Available and Retired.
     /// </summary>
+    [RequirePermission(FleetPermissions.VehicleUpdate)]
     [HttpPatch("{id}/toggle-status")]
     public async Task<IActionResult> ToggleStatus(int id)
         => Ok(await Mediator.Send(new ToggleVehicleStatusCommand(id)));
@@ -65,15 +69,18 @@ public class VehiclesController : BaseApiController
     public async Task<IActionResult> GetDocuments(int id)
         => Ok(await Mediator.Send(new GetVehicleDocumentsQuery(id)));
 
+    [RequirePermission(FleetPermissions.VehicleUpdate)]
     [HttpPost("{id}/documents")]
     public async Task<IActionResult> AddDocument(int id, [FromBody] CreateVehicleDocumentRequest body)
         => Ok(await Mediator.Send(new CreateVehicleDocumentCommand(
             id, body.DocumentType, body.FileUrl, body.ExpiryDate, body.Notes)));
 
+    [RequirePermission(FleetPermissions.VehicleUpdate)]
     [HttpPost("{id}/documents/{documentId}/set-primary-image")]
     public async Task<IActionResult> SetPrimaryImage(int id, int documentId)
         => Ok(await Mediator.Send(new SetPrimaryVehicleImageCommand(id, documentId)));
 
+    [RequirePermission(FleetPermissions.VehicleUpdate)]
     [HttpPost("{id}/documents/upload")]
     [Consumes("multipart/form-data")]
     [RequestSizeLimit(6 * 1024 * 1024)]
@@ -95,6 +102,7 @@ public class VehiclesController : BaseApiController
         return Ok(result);
     }
 
+    [RequirePermission(FleetPermissions.VehicleUpdate)]
     [HttpPost("{id}/publish")]
     public async Task<IActionResult> Publish(int id)
         => Ok(await Mediator.Send(new PublishVehicleCommand(id)));
@@ -111,14 +119,17 @@ public class VehiclesController : BaseApiController
     public async Task<IActionResult> GetGps(int id)
         => Ok(await Mediator.Send(new GetVehicleGpsQuery(id)));
 
+    [RequirePermission(FleetPermissions.VehicleUpdate)]
     [HttpPost("{id}/change-status")]
     public async Task<IActionResult> ChangeStatus(int id, [FromBody] ChangeVehicleStatusRequest body)
         => Ok(await Mediator.Send(new ChangeVehicleStatusCommand(id, body)));
 
+    [RequirePermission(FleetPermissions.VehicleUpdate)]
     [HttpPost("{id}/assign-driver")]
     public async Task<IActionResult> AssignDriver(int id, [FromBody] AssignVehicleDriverRequest body)
         => Ok(await Mediator.Send(new AssignVehicleDriverCommand(id, body)));
 
+    [RequirePermission(FleetPermissions.VehicleUpdate)]
     [HttpPost("{id}/assign-gps")]
     public async Task<IActionResult> AssignGps(int id, [FromBody] AssignVehicleGpsRequest body)
         => Ok(await Mediator.Send(new AssignVehicleGpsCommand(id, body)));

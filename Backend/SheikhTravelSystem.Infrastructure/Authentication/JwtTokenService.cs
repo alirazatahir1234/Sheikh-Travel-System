@@ -4,8 +4,10 @@ using System.Security.Cryptography;
 using System.Text;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
+using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Domain.Entities;
+using SheikhTravelSystem.Domain.Enums;
 
 namespace SheikhTravelSystem.Infrastructure.Authentication;
 
@@ -23,9 +25,18 @@ public class JwtTokenService(IConfiguration configuration) : IJwtTokenService
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(
             jwtSettings["Secret"] ?? throw new InvalidOperationException("JWT Secret not configured.")));
 
-        var roleCodes = access?.RoleCodes ?? [];
-        var primaryRole = roleCodes.FirstOrDefault() ?? user.Role.ToString();
+        var roleCodes = (access?.RoleCodes ?? []).ToList();
+        var primaryRole = roleCodes.FirstOrDefault() ?? MapLegacyRoleCode(user.Role);
         var legacyRole = user.Role.ToString();
+
+        // Prefer RBAC role codes; always bridge legacy Admin → TENANT_ADMIN claim surface.
+        if (user.Role == UserRole.Admin
+            && !roleCodes.Contains(PlatformRoles.TenantAdmin, StringComparer.OrdinalIgnoreCase))
+        {
+            roleCodes.Add(PlatformRoles.TenantAdmin);
+            if (string.Equals(primaryRole, legacyRole, StringComparison.OrdinalIgnoreCase))
+                primaryRole = PlatformRoles.TenantAdmin;
+        }
 
         var claims = new List<Claim>
         {
@@ -46,9 +57,20 @@ public class JwtTokenService(IConfiguration configuration) : IJwtTokenService
         foreach (var roleCode in roleCodes.Distinct(StringComparer.OrdinalIgnoreCase))
         {
             claims.Add(new Claim("role", roleCode));
+            if (!string.Equals(roleCode, legacyRole, StringComparison.OrdinalIgnoreCase)
+                && !string.Equals(roleCode, primaryRole, StringComparison.OrdinalIgnoreCase))
+            {
+                claims.Add(new Claim(ClaimTypes.Role, roleCode));
+            }
         }
 
-        foreach (var permission in access?.Permissions ?? [])
+        var permissions = access?.Permissions?.ToList() ?? [];
+        if (permissions.Count == 0 && roleCodes.Count > 0)
+        {
+            permissions = ResolveTemplatePermissions(roleCodes);
+        }
+
+        foreach (var permission in permissions)
         {
             claims.Add(new Claim("permission", permission));
         }
@@ -122,8 +144,15 @@ public class JwtTokenService(IConfiguration configuration) : IJwtTokenService
             new(ClaimTypes.Name, fullName.Trim()),
             new(ClaimTypes.MobilePhone, phone.Trim()),
             new(ClaimTypes.Role, "Driver"),
+            new("role", "DRIVER"),
+            new("primary_role", "DRIVER"),
             new("tenant_id", tenantId.ToString())
         };
+
+        foreach (var permission in TenantRolePermissionTemplates.Driver)
+        {
+            claims.Add(new Claim("permission", permission));
+        }
 
         var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
         var expiryMinutes = int.Parse(jwtSettings["ExpiryMinutes"] ?? "480");
@@ -147,5 +176,31 @@ public class JwtTokenService(IConfiguration configuration) : IJwtTokenService
         using var rng = RandomNumberGenerator.Create();
         rng.GetBytes(randomBytes);
         return Convert.ToBase64String(randomBytes);
+    }
+
+    private static string MapLegacyRoleCode(UserRole role) => role switch
+    {
+        UserRole.Admin => PlatformRoles.TenantAdmin,
+        UserRole.Dispatcher => "DISPATCHER",
+        UserRole.Driver => "DRIVER",
+        UserRole.Accountant => "ACCOUNTANT",
+        _ => PlatformRoles.TenantAdmin
+    };
+
+    private static List<string> ResolveTemplatePermissions(IEnumerable<string> roleCodes)
+    {
+        var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var code in roleCodes)
+        {
+            var match = TenantRolePermissionTemplates.StandardRoles
+                .FirstOrDefault(r => string.Equals(r.RoleCode, code, StringComparison.OrdinalIgnoreCase));
+            if (match.Permissions is { Length: > 0 } perms)
+            {
+                foreach (var p in perms)
+                    set.Add(p);
+            }
+        }
+
+        return set.OrderBy(p => p).ToList();
     }
 }

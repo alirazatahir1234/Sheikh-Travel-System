@@ -2,16 +2,18 @@ import { Component, OnInit, OnDestroy } from '@angular/core';
 import { FormBuilder, FormGroup } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
-import { Subject, forkJoin, takeUntil } from 'rxjs';
+import { Subject, forkJoin, takeUntil, catchError, of } from 'rxjs';
 import { PlatformTenantContextService } from '../../../core/services/platform-tenant-context.service';
 import { PlatformService } from '../../../core/services/platform.service';
 import { UserService } from '../../../core/services/user.service';
 import {
   Permission,
+  EffectivePermission,
   RoleSummary,
   RoleTemplate,
   Tenant,
-  TenantSecuritySettings
+  TenantSecuritySettings,
+  CompanyDataScope
 } from '../../../core/models/platform.model';
 import { User, UserRole, UserRoleLabels } from '../../../core/models/user.model';
 import { apiErrorMessage } from '../../../core/utils/api-error.util';
@@ -36,16 +38,69 @@ export class AccessControlComponent implements OnInit, OnDestroy {
   readonly usersPageSize = 10;
 
   roles: RoleSummary[] = [];
+  filteredRoles: RoleSummary[] = [];
   permissions: Permission[] = [];
+  filteredPermissions: Permission[] = [];
+  effectivePermissions: EffectivePermission[] = [];
+  myDataScope: CompanyDataScope | null = null;
   selectedRole: RoleSummary | null = null;
   selectedPermissionCodes = new Set<string>();
   newRoleName = '';
   newRoleCode = '';
   editingRoleName = '';
   editingRoleActive = true;
+  editingRoleDescription = '';
+  editingRoleCategory = '';
+  roleCategoryFilter: string | 'ALL' = 'ALL';
+  roleTypeFilter: 'ALL' | 'System' | 'Custom' = 'ALL';
+  roleVisibleFilter: 'ALL' | 'Visible' | 'Hidden' = 'ALL';
+
+  permCategoryFilter: string | 'ALL' = 'ALL';
+  permModuleFilter: string | 'ALL' = 'ALL';
+  permActionFilter: string | 'ALL' = 'ALL';
+  permVisibleFilter: 'ALL' | 'Visible' | 'Hidden' = 'ALL';
 
   securityForm!: FormGroup;
   roleTemplates: RoleTemplate[] = [];
+
+  get roleCategories(): string[] {
+    const set = new Set(
+      this.roles.map(r => r.category).filter((c): c is string => !!c && c.trim().length > 0)
+    );
+    return [...set].sort((a, b) => a.localeCompare(b));
+  }
+
+  get permissionCategories(): string[] {
+    const set = new Set(
+      this.permissions.map(p => p.category).filter((c): c is string => !!c && c.trim().length > 0)
+    );
+    return [...set].sort((a, b) => a.localeCompare(b));
+  }
+
+  get permissionModules(): string[] {
+    const set = new Set(
+      this.permissions
+        .map(p => p.moduleKey || p.moduleName)
+        .filter((c): c is string => !!c && c.trim().length > 0)
+    );
+    return [...set].sort((a, b) => a.localeCompare(b));
+  }
+
+  get permissionActions(): string[] {
+    const set = new Set(
+      this.permissions.map(p => p.action).filter((c): c is string => !!c && c.trim().length > 0)
+    );
+    return [...set].sort((a, b) => a.localeCompare(b));
+  }
+
+  get effectiveCategoryChips(): string[] {
+    const set = new Set(
+      this.effectivePermissions
+        .map(p => p.category)
+        .filter((c): c is string => !!c && c.trim().length > 0)
+    );
+    return [...set].sort((a, b) => a.localeCompare(b)).slice(0, 8);
+  }
 
   private destroy$ = new Subject<void>();
 
@@ -69,8 +124,19 @@ export class AccessControlComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
-    const tab = this.route.snapshot.queryParamMap.get('tab');
-    if (tab === 'policies') this.activeTab = 3;
+    const tab = this.route.snapshot.queryParamMap.get('tab')
+      ?? (this.route.snapshot.data['defaultTab'] as string | undefined);
+    if (tab === 'policies') {
+      const q: Record<string, string> = {};
+      const tid = this.route.snapshot.queryParamMap.get('tenantId');
+      if (tid) q['tenantId'] = tid;
+      this.router.navigate(['/platform/security-center'], { queryParams: q });
+      return;
+    }
+    if (tab === 'roles') this.activeTab = 1;
+    else if (tab === 'permissions') this.activeTab = 2;
+    else if (tab === 'scope' || tab === 'data-scope') this.activeTab = 3;
+    else if (tab === 'templates') this.activeTab = 5;
 
     const tenantIdParam = this.route.snapshot.queryParamMap.get('tenantId');
     if (tenantIdParam) {
@@ -82,6 +148,13 @@ export class AccessControlComponent implements OnInit, OnDestroy {
 
     this.platform.getPermissions().subscribe(perms => {
       this.permissions = perms;
+      this.applyPermissionFilters();
+    });
+
+    this.platform.getEffectivePermissions().pipe(
+      catchError(() => of([] as EffectivePermission[]))
+    ).subscribe(rows => {
+      this.effectivePermissions = rows;
     });
 
     this.platform.getRoleTemplates().subscribe(templates => {
@@ -122,6 +195,7 @@ export class AccessControlComponent implements OnInit, OnDestroy {
   private resetData(): void {
     this.users = [];
     this.roles = [];
+    this.filteredRoles = [];
     this.selectedRole = null;
     this.roleTemplates = [];
   }
@@ -154,14 +228,32 @@ export class AccessControlComponent implements OnInit, OnDestroy {
         this.loadRoles(tenantId);
         break;
       case 3:
-        this.loadSecurity(tenantId);
+        this.loadDataScope();
         break;
       case 4:
+        this.tabLoading = false;
+        break;
+      case 5:
         this.tabLoading = false;
         break;
       default:
         this.tabLoading = false;
     }
+  }
+
+  private loadDataScope(): void {
+    this.platform.getMyDataScope().pipe(
+      catchError(() => of(null as CompanyDataScope | null))
+    ).subscribe({
+      next: scope => {
+        this.myDataScope = scope;
+        this.tabLoading = false;
+      },
+      error: () => {
+        this.myDataScope = null;
+        this.tabLoading = false;
+      }
+    });
   }
 
   private loadUsers(tenantId: number): void {
@@ -182,12 +274,11 @@ export class AccessControlComponent implements OnInit, OnDestroy {
     this.platform.getRolesForTenant(tenantId).subscribe({
       next: (roles) => {
         this.roles = roles;
+        this.applyRoleFilters();
         if (this.selectedRole) {
           this.selectedRole = roles.find(r => r.id === this.selectedRole!.id) ?? null;
           if (this.selectedRole) {
-            this.selectedPermissionCodes = new Set(this.selectedRole.permissions);
-            this.editingRoleName = this.selectedRole.name;
-            this.editingRoleActive = this.selectedRole.isActive;
+            this.selectRole(this.selectedRole);
           }
         }
         this.tabLoading = false;
@@ -197,6 +288,24 @@ export class AccessControlComponent implements OnInit, OnDestroy {
         this.toast.error(apiErrorMessage(err, 'Failed to load roles.'));
       }
     });
+  }
+
+  applyRoleFilters(): void {
+    this.filteredRoles = this.roles.filter(r => {
+      if (this.roleCategoryFilter !== 'ALL' && (r.category || '') !== this.roleCategoryFilter) {
+        return false;
+      }
+      const type = (r.roleType || (r.isSystem ? 'System' : 'Custom')).toLowerCase();
+      if (this.roleTypeFilter === 'System' && type !== 'system') return false;
+      if (this.roleTypeFilter === 'Custom' && type === 'system') return false;
+      if (this.roleVisibleFilter === 'Visible' && r.visible === false) return false;
+      if (this.roleVisibleFilter === 'Hidden' && r.visible !== false) return false;
+      return true;
+    });
+  }
+
+  onRoleFiltersChange(): void {
+    this.applyRoleFilters();
   }
 
   private loadSecurity(tenantId: number): void {
@@ -230,8 +339,10 @@ export class AccessControlComponent implements OnInit, OnDestroy {
   selectRole(role: RoleSummary): void {
     this.selectedRole = role;
     this.selectedPermissionCodes = new Set(role.permissions);
-    this.editingRoleName = role.name;
+    this.editingRoleName = role.displayName || role.name;
     this.editingRoleActive = role.isActive;
+    this.editingRoleDescription = role.description || '';
+    this.editingRoleCategory = role.category || '';
   }
 
   togglePermission(code: string): void {
@@ -266,8 +377,13 @@ export class AccessControlComponent implements OnInit, OnDestroy {
     this.platform.updateRoleForTenant(
       this.tenantId,
       this.selectedRole.id,
-      this.editingRoleName.trim(),
-      this.editingRoleActive
+      this.editingRoleName.trim() || this.selectedRole.name,
+      this.editingRoleActive,
+      {
+        displayName: this.editingRoleName.trim() || this.selectedRole.name,
+        description: this.editingRoleDescription.trim() || null,
+        category: this.editingRoleCategory.trim() || null
+      }
     ).subscribe({
       next: () => {
         this.saving = false;
@@ -357,17 +473,40 @@ export class AccessControlComponent implements OnInit, OnDestroy {
 
   permissionsByModule(): { module: string; items: Permission[] }[] {
     const map = new Map<string, Permission[]>();
-    for (const p of this.permissions) {
-      if (!map.has(p.moduleName)) map.set(p.moduleName, []);
-      map.get(p.moduleName)!.push(p);
+    for (const p of this.filteredPermissions.length ? this.filteredPermissions : this.permissions) {
+      const key = p.category || p.moduleName || 'Other';
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(p);
     }
     return [...map.entries()].map(([module, items]) => ({ module, items }));
+  }
+
+  applyPermissionFilters(): void {
+    this.filteredPermissions = this.permissions.filter(p => {
+      if (this.permCategoryFilter !== 'ALL' && (p.category || '') !== this.permCategoryFilter) {
+        return false;
+      }
+      const mod = p.moduleKey || p.moduleName || '';
+      if (this.permModuleFilter !== 'ALL' && mod !== this.permModuleFilter) {
+        return false;
+      }
+      if (this.permActionFilter !== 'ALL' && (p.action || '') !== this.permActionFilter) {
+        return false;
+      }
+      if (this.permVisibleFilter === 'Visible' && p.visible === false) return false;
+      if (this.permVisibleFilter === 'Hidden' && p.visible !== false) return false;
+      return true;
+    });
+  }
+
+  onPermissionFiltersChange(): void {
+    this.applyPermissionFilters();
   }
 
   rolesWithPermission(code: string): string[] {
     return this.roles
       .filter(r => r.permissions.some(p => p.toLowerCase() === code.toLowerCase()))
-      .map(r => r.name);
+      .map(r => r.displayName || r.name);
   }
 
   roleLabel(role: UserRole): string {

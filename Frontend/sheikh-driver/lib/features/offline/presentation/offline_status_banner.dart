@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:sheikh_go_driver/l10n/generated/app_localizations.dart';
 import '../../../core/constants/app_theme.dart';
 import '../../../core/offline/connectivity_provider.dart';
 import '../../../core/offline/offline_sync_service.dart';
@@ -11,14 +12,18 @@ class OfflineStatusBanner extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = Localizations.of<AppLocalizations>(context, AppLocalizations);
     final online = ref.watch(isOnlineProvider);
     final pending = ref.watch(offlinePendingCountProvider);
     if (online && pending == 0) return const SizedBox.shrink();
 
     final color = online ? AppColors.accent : AppColors.warning;
     final text = !online
-        ? 'You are offline${pending > 0 ? ' · $pending queued' : ''}'
-        : '$pending action${pending == 1 ? '' : 's'} waiting to sync';
+        ? (pending > 0
+            ? '${l10n?.offlineBannerOffline ?? 'You are offline'} · ${l10n?.offlineBannerQueued(pending) ?? '$pending queued'}'
+            : (l10n?.offlineBannerOffline ?? 'You are offline'))
+        : (l10n?.offlineBannerPending(pending) ??
+            '$pending action(s) waiting to sync');
 
     return Material(
       color: color,
@@ -51,7 +56,7 @@ class OfflineStatusBanner extends ConsumerWidget {
                     foregroundColor: Colors.white,
                     visualDensity: VisualDensity.compact,
                   ),
-                  child: const Text('Sync'),
+                  child: Text(l10n?.sync ?? 'Sync'),
                 ),
               const Icon(Icons.chevron_right, color: Colors.white70, size: 18),
             ],

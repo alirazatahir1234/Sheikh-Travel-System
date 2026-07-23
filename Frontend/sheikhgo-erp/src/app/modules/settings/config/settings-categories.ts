@@ -5,7 +5,7 @@ export const SETTINGS_CATEGORIES_FALLBACK: SettingsCategory[] = [
   { id: 'General', label: 'General', icon: 'tune', description: 'Company identity, contact details and regional defaults.', isImplemented: true },
   { id: 'Tenant', label: 'Tenant', icon: 'apartment', description: 'Subscription plan, limits and tenant status.', isImplemented: true },
   { id: 'Localization', label: 'Localization', icon: 'language', description: 'Language, direction, region and number formats.', isImplemented: true },
-  { id: 'Security', label: 'Security', icon: 'security', description: 'Authentication, API security, IP management and compliance.', isImplemented: true },
+  { id: 'Security', label: 'Security', icon: 'security', description: 'API token lifetimes. Company password, session, lockout, and IP policies are managed in Security Center.', isImplemented: true },
   { id: 'Notifications', label: 'Notifications', icon: 'notifications', description: 'Email, SMS, WhatsApp, push and alert preferences.', isImplemented: true },
   { id: 'NotificationRetention', label: 'Notification Retention', icon: 'policy', description: 'Inbox archive and permanent-delete retention policy.', isImplemented: true },
   { id: 'Documents', label: 'Documents', icon: 'description', description: 'Upload limits, extensions and document lifecycle.', isImplemented: true },

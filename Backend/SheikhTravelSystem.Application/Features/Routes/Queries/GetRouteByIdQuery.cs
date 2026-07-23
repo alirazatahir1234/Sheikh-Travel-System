@@ -18,7 +18,8 @@ public class GetRouteByIdQueryHandler(IDbConnectionFactory dbFactory)
 
         var route = await connection.QuerySingleOrDefaultAsync<RouteDto>(
             new CommandDefinition(
-                @"SELECT Id, Name, Source, Destination, Distance, EstimatedMinutes, BasePrice, IsActive, CreatedAt
+                @"SELECT Id, Name, Source, Destination, Distance, EstimatedMinutes, BasePrice, IsActive, CreatedAt,
+                         WaypointsJson, OptimizeMode
                   FROM Routes WHERE Id = @Id AND IsDeleted = 0",
                 new { request.Id },
                 cancellationToken: cancellationToken));

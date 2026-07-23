@@ -1,11 +1,14 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using SheikhTravelSystem.API.Authorization;
+using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Features.Payments.Commands;
 using SheikhTravelSystem.Application.Features.Payments.Queries;
 
 namespace SheikhTravelSystem.API.Controllers;
 
 [Authorize]
+[RequirePermission(FinancePermissions.PaymentView)]
 /// <summary>
 /// Manages payment operations and reporting endpoints.
 /// </summary>

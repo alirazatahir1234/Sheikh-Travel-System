@@ -11,9 +11,9 @@ void main() {
       ),
     );
 
-    expect(find.text('SheikhGo Driver'), findsOneWidget);
-    expect(find.text('Sign in'), findsWidgets);
-    expect(find.text('Phone number'), findsOneWidget);
+    expect(find.text('SheikhGo Fleet'), findsOneWidget);
+    expect(find.text('LOGIN'), findsOneWidget);
+    expect(find.text('Email or phone'), findsOneWidget);
     expect(find.text('Password'), findsOneWidget);
   });
 
@@ -24,10 +24,10 @@ void main() {
       ),
     );
 
-    await tester.tap(find.widgetWithText(FilledButton, 'Sign in'));
+    await tester.tap(find.widgetWithText(FilledButton, 'LOGIN'));
     await tester.pump();
 
-    expect(find.text('Phone is required'), findsOneWidget);
+    expect(find.text('Email or phone is required'), findsOneWidget);
     expect(find.text('Password is required'), findsOneWidget);
   });
 }

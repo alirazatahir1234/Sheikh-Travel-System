@@ -1,7 +1,7 @@
 # SheikhGo Driver — Terms of Service
 
 **Effective date:** 19 July 2026  
-**App:** SheikhGo Driver (`com.sheikhgo.driver`)
+**App:** SheikhGo Fleet (`com.sheikhgo.fleet`)
 
 ## 1. Agreement
 

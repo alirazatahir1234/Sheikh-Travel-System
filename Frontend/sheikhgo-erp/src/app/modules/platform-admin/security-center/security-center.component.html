@@ -1,0 +1,111 @@
+<div class="pa-page security-center">
+  <ui-page-header
+    title="Security Center"
+    subtitle="Manage company security policies. Soft enforcement applies at login, password change, audit, and ERP idle timeout."
+  >
+    <button appUiButton variant="ghost" type="button" (click)="back()">Back to Platform</button>
+  </ui-page-header>
+
+  <div class="filters">
+    <label>
+      Category
+      <select [(ngModel)]="categoryFilter">
+        <option value="">All</option>
+        <option *ngFor="let c of categories" [value]="c">{{ c }}</option>
+      </select>
+    </label>
+    <span class="tenant-chip" *ngIf="selectedTenant">Company: {{ selectedTenant.name }}</span>
+  </div>
+
+  <div class="loading" *ngIf="loading">Loading policies…</div>
+
+  <div class="empty" *ngIf="!loading && !selectedTenant">
+    Select a company from the platform tenant switcher to manage security policies.
+  </div>
+
+  <div class="empty" *ngIf="!loading && selectedTenant && policies.length === 0">
+    No security policies found. Apply the Security Center migration if this is a fresh environment.
+  </div>
+
+  <section class="category-block" *ngFor="let category of categories">
+    <h3>{{ category }}</h3>
+    <div class="policy-table-wrap" *ngIf="policiesInCategory(category).length">
+      <table class="policy-table">
+        <thead>
+          <tr>
+            <th>Policy</th>
+            <th>Current Value</th>
+            <th>Default</th>
+            <th>Last Updated</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let p of policiesInCategory(category)" [class.overridden]="p.isOverridden">
+            <td>
+              <strong>{{ p.displayName }}</strong>
+              <div class="muted">{{ p.policyKey }}</div>
+              <div class="desc" *ngIf="p.description">{{ p.description }}</div>
+            </td>
+            <td>
+              <code>{{ p.effectiveValue }}</code>
+              <span class="badge" *ngIf="p.isOverridden">Override</span>
+            </td>
+            <td><code class="muted">{{ p.defaultValue }}</code></td>
+            <td class="muted">{{ formatUpdated(p) }}</td>
+            <td class="actions">
+              <button type="button" class="link" (click)="openEdit(p)">Edit</button>
+              <button
+                type="button"
+                class="link"
+                *ngIf="p.isOverridden"
+                [disabled]="saving"
+                (click)="resetToDefault(p)"
+              >
+                Reset
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+<aside class="drawer" *ngIf="drawerOpen && editing">
+  <div class="drawer-panel">
+    <header>
+      <h2>Edit policy</h2>
+      <button type="button" class="link" (click)="closeDrawer()">Close</button>
+    </header>
+    <p class="drawer-meta">
+      <strong>{{ editing.displayName }}</strong>
+      <span class="muted">{{ editing.policyKey }} · {{ editing.category }} · {{ editing.valueType }}</span>
+    </p>
+    <p class="desc" *ngIf="editing.description">{{ editing.description }}</p>
+    <form [formGroup]="form" (ngSubmit)="savePolicy()">
+      <label *ngIf="isBool(editing); else valueInput">
+        Value
+        <select formControlName="policyValue">
+          <option value="true">true</option>
+          <option value="false">false</option>
+        </select>
+      </label>
+      <ng-template #valueInput>
+        <label>
+          Value
+          <input
+            [type]="isInt(editing!) ? 'number' : 'text'"
+            formControlName="policyValue"
+            [attr.placeholder]="editing!.defaultValue"
+          />
+        </label>
+      </ng-template>
+      <p class="hint">Default: <code>{{ editing.defaultValue }}</code></p>
+      <footer>
+        <button appUiButton variant="ghost" type="button" (click)="closeDrawer()">Cancel</button>
+        <button appUiButton variant="primary" type="submit" [disabled]="saving || form.invalid">Save</button>
+      </footer>
+    </form>
+  </div>
+</aside>

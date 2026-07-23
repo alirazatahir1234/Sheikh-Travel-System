@@ -9,7 +9,9 @@ public record RouteDto(
     int? EstimatedMinutes,
     decimal BasePrice,
     bool IsActive,
-    DateTime CreatedAt);
+    DateTime CreatedAt,
+    string? WaypointsJson = null,
+    string? OptimizeMode = null);
 
 public record CreateRouteDto(
     string? Name,
@@ -17,7 +19,9 @@ public record CreateRouteDto(
     string Destination,
     decimal Distance,
     int? EstimatedMinutes,
-    decimal BasePrice);
+    decimal BasePrice,
+    string? WaypointsJson = null,
+    string? OptimizeMode = null);
 
 public record UpdateRouteDto(
     string? Name,
@@ -26,7 +30,9 @@ public record UpdateRouteDto(
     decimal Distance,
     int? EstimatedMinutes,
     decimal BasePrice,
-    bool IsActive);
+    bool IsActive,
+    string? WaypointsJson = null,
+    string? OptimizeMode = null);
 
 public record RouteListStatsDto(
     int Total,

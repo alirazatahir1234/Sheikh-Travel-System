@@ -1,8 +1,8 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import '../../../core/api/api_endpoints.dart';
-
-const _currentVersion = '1.0.0';
+import '../../../core/config/app_config.dart';
 
 class _AppVersionInfo {
   const _AppVersionInfo({
@@ -16,10 +16,26 @@ class _AppVersionInfo {
 }
 
 class AppVersionService {
-  static String get currentVersion => _currentVersion;
+  static String? _cachedVersion;
+
+  /// Fallback when package_info is unavailable (tests).
+  static String get currentVersion =>
+      _cachedVersion ?? AppConfig.appVersion;
+
+  static Future<String> displayVersion() async {
+    try {
+      final info = await PackageInfo.fromPlatform();
+      _cachedVersion = '${info.version}+${info.buildNumber}';
+      return _cachedVersion!;
+    } catch (_) {
+      return AppConfig.appVersion;
+    }
+  }
 
   static Future<void> checkAndPrompt(BuildContext context, Dio dio) async {
     try {
+      final version = await displayVersion();
+      final semantic = version.split('+').first;
       final res = await dio.get<Map<String, dynamic>>(ApiEndpoints.appVersion);
       final data = res.data;
       if (data == null) return;
@@ -32,13 +48,13 @@ class AppVersionService {
 
       if (!context.mounted) return;
 
-      final outdated = isOutdated(_currentVersion, info.minVersion);
+      final outdated = isOutdated(semantic, info.minVersion);
       if (outdated || info.forceUpdate) {
         await _showForceUpdateDialog(context, info.latestVersion);
         return;
       }
 
-      final updateAvailable = isOutdated(_currentVersion, info.latestVersion);
+      final updateAvailable = isOutdated(semantic, info.latestVersion);
       if (updateAvailable) {
         _showUpdateSnackBar(context, info.latestVersion);
       }
@@ -47,18 +63,19 @@ class AppVersionService {
     }
   }
 
-  static Future<void> _showForceUpdateDialog(BuildContext context, String newVersion) {
+  static Future<void> _showForceUpdateDialog(
+      BuildContext context, String newVersion) {
     return showDialog(
       context: context,
       barrierDismissible: false,
       builder: (_) => AlertDialog(
         title: const Text('Update Required'),
         content: Text(
-          'Version $newVersion is required to continue using SheikhGo Driver. Please update the app from your app store.',
+          'Version $newVersion is required to continue using SheikhGo Fleet. Please update the app from your app store.',
         ),
         actions: [
           FilledButton(
-            onPressed: () {}, // In production, open store URL via url_launcher
+            onPressed: () {},
             child: const Text('Update Now'),
           ),
         ],
@@ -88,6 +105,7 @@ class AppVersionService {
 
   static List<int> _parse(String v) {
     final parts = v.split('.');
-    return List.generate(3, (i) => int.tryParse(i < parts.length ? parts[i] : '0') ?? 0);
+    return List.generate(
+        3, (i) => int.tryParse(i < parts.length ? parts[i] : '0') ?? 0);
   }
 }

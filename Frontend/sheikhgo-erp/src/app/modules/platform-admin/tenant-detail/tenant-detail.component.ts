@@ -3,9 +3,11 @@ import { FormBuilder, FormControl, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { MatDialog } from '@angular/material/dialog';
 import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
-import { forkJoin } from 'rxjs';
+import { forkJoin, of } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 import { PlatformService } from '../../../core/services/platform.service';
 import { LookupService } from '../../../core/services/lookup.service';
+import { UserService } from '../../../core/services/user.service';
 import { apiErrorMessage } from '../../../core/utils/api-error.util';
 import {
   DEFAULT_CURRENCY,
@@ -16,10 +18,15 @@ import {
   TenantAdminInfo,
   TenantDetail,
   TenantModuleDefinition,
+  CompanyFeature,
+  CompanyLicense,
+  RoleSummary,
+  MenuCatalog,
   applyPlanDefaults,
   tenantDisplayCode,
   tenantPlanMeta
 } from '../../../core/models/platform.model';
+import { CompanyUserSummary } from '../../../core/models/user.model';
 
 @Component({
   standalone: false,
@@ -31,9 +38,19 @@ export class TenantDetailComponent implements OnInit {
   loading = true;
   saving = false;
   resettingPassword = false;
+  featuresLoading = false;
   tenantId?: number;
   tenant?: TenantDetail;
   modules: TenantModuleDefinition[] = [];
+  features: CompanyFeature[] = [];
+  license: CompanyLicense | null = null;
+  userSummary: CompanyUserSummary | null = null;
+  companyRoles: RoleSummary[] = [];
+  permissionCatalogCount = 0;
+  permissionCategories: string[] = [];
+  menuModuleCount = 0;
+  menuItemCount = 0;
+  menuTopLabels: string[] = [];
   adminInfo?: TenantAdminInfo | null;
 
   readonly planTiers = TENANT_PLAN_TIERS;
@@ -55,6 +72,7 @@ export class TenantDetailComponent implements OnInit {
     private route: ActivatedRoute,
     private router: Router,
     private platform: PlatformService,
+    private users: UserService,
     private lookup: LookupService,
     private toast: UiToastService,
     private dialog: MatDialog
@@ -90,19 +108,54 @@ export class TenantDetailComponent implements OnInit {
     forkJoin({
       tenant: this.platform.getTenantById(this.tenantId),
       modules: this.platform.getModules(),
+      features: this.platform.getCompanyFeatures(this.tenantId).pipe(
+        catchError(() => of([] as CompanyFeature[]))
+      ),
+      license: this.platform.getCompanyLicense(this.tenantId).pipe(
+        catchError(() => of(null as CompanyLicense | null))
+      ),
+      userSummary: this.users.getCompanySummary(this.tenantId).pipe(
+        catchError(() => of(null as CompanyUserSummary | null))
+      ),
+      roles: this.platform.getRolesForTenant(this.tenantId).pipe(
+        catchError(() => of([] as RoleSummary[]))
+      ),
+      permissions: this.platform.getPermissions().pipe(
+        catchError(() => of([]))
+      ),
+      menuCatalog: this.platform.getMenuCatalog().pipe(
+        catchError(() => of(null as MenuCatalog | null))
+      ),
       countries: this.lookup.getCountryNames(),
       currencies: this.lookup.getCurrencyCodes(),
       timezones: this.lookup.getTimezoneIds()
     }).subscribe({
-      next: ({ tenant, modules, countries, currencies, timezones }) => {
+      next: ({ tenant, modules, features, license, userSummary, roles, permissions, menuCatalog, countries, currencies, timezones }) => {
         this.countries = countries;
         this.currencies = currencies;
         this.timezones = timezones;
+        this.features = features ?? [];
+        this.license = license;
+        this.userSummary = userSummary;
+        this.companyRoles = roles ?? [];
+        this.permissionCatalogCount = permissions?.length ?? 0;
+        this.permissionCategories = [...new Set(
+          (permissions ?? [])
+            .map(p => p.category)
+            .filter((c): c is string => !!c && c.trim().length > 0)
+        )].sort((a, b) => a.localeCompare(b));
+        const menuModules = menuCatalog?.modules ?? [];
+        this.menuModuleCount = menuModules.length;
+        this.menuItemCount = menuModules.reduce((sum, m) => sum + (m.items?.length ?? 0), 0);
+        this.menuTopLabels = menuModules
+          .slice(0, 4)
+          .map(m => m.displayName || m.name)
+          .filter(Boolean);
         this.initForm(tenant, modules);
       },
       error: () => {
         this.loading = false;
-        this.toast.error('Failed to load tenant.');
+        this.toast.error('Failed to load company.');
         void this.router.navigate(['/platform/tenants']);
       }
     });
@@ -157,6 +210,22 @@ export class TenantDetailComponent implements OnInit {
 
   isModuleSelected(code: string): boolean {
     return (this.form.controls.moduleCodes.value ?? []).includes(code);
+  }
+
+  get featureGroups(): { category: string; features: CompanyFeature[] }[] {
+    const map = new Map<string, CompanyFeature[]>();
+    for (const f of this.features) {
+      const category = f.category || f.moduleKey || 'General';
+      const list = map.get(category) ?? [];
+      list.push(f);
+      map.set(category, list);
+    }
+    return [...map.entries()]
+      .map(([category, features]) => ({
+        category,
+        features: [...features].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+      }))
+      .sort((a, b) => a.category.localeCompare(b.category));
   }
 
   submit(): void {
