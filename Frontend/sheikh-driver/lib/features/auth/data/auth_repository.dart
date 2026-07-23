@@ -72,6 +72,10 @@ class AuthRepository extends ChangeNotifier {
     }
     _loading = false;
     notifyListeners();
+    if (_session != null && _session!.companyContext == null) {
+      // ignore: unawaited_futures
+      _hydrateCompanyContext();
+    }
   }
 
   Future<void> _migrateLegacySessionIfNeeded() async {
@@ -143,6 +147,19 @@ class AuthRepository extends ChangeNotifier {
     PushRegistrationService.instance.start(_dio, appName: appName);
     // ignore: unawaited_futures
     DeviceRegistrationService(_dio).registerCurrentDevice();
+    // ignore: unawaited_futures
+    _hydrateCompanyContext();
+  }
+
+  Future<void> _hydrateCompanyContext() async {
+    final current = _session;
+    if (current == null) return;
+    final context = await _api.fetchCompanyContext();
+    if (context == null || _session?.userId != current.userId) return;
+    final enriched = current.copyWith(companyContext: context);
+    await _persist(enriched);
+    _session = enriched;
+    notifyListeners();
   }
 
   void _setCrashlyticsIdentity(FleetSession session) {

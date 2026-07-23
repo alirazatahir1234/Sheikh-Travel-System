@@ -8,11 +8,11 @@
         <nav class="breadcrumb">
           <span>Organization</span>
           <mat-icon>chevron_right</mat-icon>
-          <a routerLink="/platform/tenants">Tenants</a>
+          <a routerLink="/platform/tenants">Companies</a>
           <mat-icon>chevron_right</mat-icon>
-          <span class="current">{{ tenant?.name || 'Tenant Details' }}</span>
+          <span class="current">{{ tenant?.name || 'Company Details' }}</span>
         </nav>
-        <h1>{{ tenant?.name || 'Tenant Details' }}</h1>
+        <h1>{{ tenant?.name || 'Company Details' }}</h1>
         <p class="page-sub" *ngIf="tenant">
           {{ tenantDisplayCode(tenant) }} · {{ tenant.slug }}
           <span *ngIf="tenant.location"> · {{ tenant.location }}</span>
@@ -26,14 +26,52 @@
 
   <app-brand-loader *ngIf="loading" />
 
+  <div *ngIf="!loading && tenant" class="capability-strip" aria-label="Company hierarchy and capabilities">
+    <a class="capability-chip" routerLink="/platform/branches">
+      <mat-icon>account_tree</mat-icon>
+      <span>Branches</span>
+      <strong>{{ tenant.branchCount }}</strong>
+    </a>
+    <a class="capability-chip" routerLink="/platform/departments">
+      <mat-icon>corporate_fare</mat-icon>
+      <span>Departments</span>
+      <strong>{{ tenant.departmentCount }}</strong>
+    </a>
+    <a class="capability-chip" routerLink="/users">
+      <mat-icon>groups</mat-icon>
+      <span>Users</span>
+      <strong>{{ tenant.activeUserCount ?? '—' }}</strong>
+    </a>
+    <a class="capability-chip" routerLink="/drivers">
+      <mat-icon>badge</mat-icon>
+      <span>Drivers</span>
+      <strong>—</strong>
+    </a>
+    <a class="capability-chip" routerLink="/vehicles">
+      <mat-icon>local_shipping</mat-icon>
+      <span>Vehicles</span>
+      <strong>{{ tenant.activeVehicleCount ?? '—' }}</strong>
+    </a>
+    <a class="capability-chip" routerLink="/platform/module-management">
+      <mat-icon>extension</mat-icon>
+      <span>Modules</span>
+      <strong>{{ tenant.moduleCodes?.length || 0 }}</strong>
+    </a>
+    <a class="capability-chip" href="#company-features">
+      <mat-icon>tune</mat-icon>
+      <span>Features</span>
+      <strong>{{ features.length }}</strong>
+    </a>
+  </div>
+
   <div *ngIf="!loading && tenant" class="detail-layout">
     <form [formGroup]="form" (ngSubmit)="submit()" class="form-column">
       <mat-card class="section-card">
         <div class="section-head">
           <span class="section-icon section-icon--profile"><mat-icon>domain</mat-icon></span>
           <div class="section-head-text">
-            <h3>Tenant Profile</h3>
-            <p class="section-sub">Basic information about the tenant organization</p>
+            <h3>Company Profile</h3>
+            <p class="section-sub">Basic information about the company organization</p>
           </div>
         </div>
         <div class="stb-field stb-field--full">
@@ -43,7 +81,7 @@
         </div>
         <div class="field-row field-row--4">
           <div class="stb-field">
-            <label for="tenant-code">Tenant Code</label>
+              <label for="tenant-code">Company Code</label>
             <input id="tenant-code" class="stb-input stb-input--readonly" type="text" [value]="tenantDisplayCode(tenant)" readonly tabindex="-1" />
           </div>
           <div class="field-cell">
@@ -74,7 +112,7 @@
           <div class="toggle-row toggle-row--field">
             <div>
               <strong>Active Status</strong>
-              <p>Inactive tenants cannot sign in or access the platform.</p>
+              <p>Inactive companies cannot sign in or access the platform.</p>
             </div>
             <mat-slide-toggle formControlName="isActive" color="primary"></mat-slide-toggle>
           </div>
@@ -86,7 +124,7 @@
           <span class="section-icon section-icon--plan"><mat-icon>layers</mat-icon></span>
           <div class="section-head-text">
             <h3>Subscription &amp; Modules</h3>
-            <p class="section-sub">Choose a plan and enable modules for this tenant</p>
+            <p class="section-sub">Choose a plan and enable modules for this company</p>
           </div>
           <button mat-stroked-button type="button" class="apply-plan-btn"
             (click)="applyPlan(form.controls.subscriptionPlan.value ?? 'Enterprise')">
@@ -165,7 +203,7 @@
           <span class="section-icon section-icon--admin"><mat-icon>manage_accounts</mat-icon></span>
           <div class="section-head-text">
             <h3>Administrator Account</h3>
-            <p class="section-sub">Primary admin user provisioned with this tenant</p>
+            <p class="section-sub">Primary admin user provisioned with this company</p>
           </div>
           <span class="admin-status-badge"
             [class.active]="adminInfo?.isActive"
@@ -220,7 +258,7 @@
         <ng-template #noAdmin>
           <div class="no-admin-notice">
             <mat-icon>info_outline</mat-icon>
-            <span>No administrator account found for this tenant.</span>
+            <span>No administrator account found for this company.</span>
           </div>
         </ng-template>
       </mat-card>
@@ -230,7 +268,7 @@
           <span class="section-icon section-icon--branding"><mat-icon>palette</mat-icon></span>
           <div class="section-head-text">
             <h3>Branding &amp; Contact Information</h3>
-            <p class="section-sub">Customize tenant branding and contact details</p>
+            <p class="section-sub">Customize company branding and contact details</p>
           </div>
         </div>
         <div class="field-row">
@@ -291,6 +329,30 @@
             </select>
           </div>
         </div>
+      </mat-card>
+
+      <mat-card class="section-card" id="company-features">
+        <div class="section-head">
+          <span class="section-icon section-icon--features"><mat-icon>tune</mat-icon></span>
+          <div class="section-head-text">
+            <h3>Feature Registry</h3>
+            <p class="section-sub">Read-only capability metadata for enabled modules (Feature Management comes in Stage 5)</p>
+          </div>
+        </div>
+        <div *ngIf="featuresLoading" class="features-loading">Loading features…</div>
+        <div *ngIf="!featuresLoading && features.length === 0" class="features-empty">
+          No feature metadata found for this company yet.
+        </div>
+        <ul *ngIf="!featuresLoading && features.length" class="feature-list">
+          <li *ngFor="let f of features" class="feature-row" [class.feature-row--off]="!f.isEnabled">
+            <div>
+              <strong>{{ f.name }}</strong>
+              <span class="feature-key">{{ f.featureKey }} · {{ f.moduleKey }}</span>
+              <p *ngIf="f.description">{{ f.description }}</p>
+            </div>
+            <span class="feature-badge" [class.on]="f.isEnabled">{{ f.isEnabled ? 'Enabled' : 'Off' }}</span>
+          </li>
+        </ul>
       </mat-card>
 
       <div class="form-actions">

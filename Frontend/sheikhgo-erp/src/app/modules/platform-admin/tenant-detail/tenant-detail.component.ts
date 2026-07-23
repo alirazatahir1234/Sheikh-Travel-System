@@ -3,7 +3,8 @@ import { FormBuilder, FormControl, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { MatDialog } from '@angular/material/dialog';
 import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
-import { forkJoin } from 'rxjs';
+import { forkJoin, of } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 import { PlatformService } from '../../../core/services/platform.service';
 import { LookupService } from '../../../core/services/lookup.service';
 import { apiErrorMessage } from '../../../core/utils/api-error.util';
@@ -16,6 +17,7 @@ import {
   TenantAdminInfo,
   TenantDetail,
   TenantModuleDefinition,
+  CompanyFeature,
   applyPlanDefaults,
   tenantDisplayCode,
   tenantPlanMeta
@@ -31,9 +33,11 @@ export class TenantDetailComponent implements OnInit {
   loading = true;
   saving = false;
   resettingPassword = false;
+  featuresLoading = false;
   tenantId?: number;
   tenant?: TenantDetail;
   modules: TenantModuleDefinition[] = [];
+  features: CompanyFeature[] = [];
   adminInfo?: TenantAdminInfo | null;
 
   readonly planTiers = TENANT_PLAN_TIERS;
@@ -90,19 +94,23 @@ export class TenantDetailComponent implements OnInit {
     forkJoin({
       tenant: this.platform.getTenantById(this.tenantId),
       modules: this.platform.getModules(),
+      features: this.platform.getCompanyFeatures(this.tenantId).pipe(
+        catchError(() => of([] as CompanyFeature[]))
+      ),
       countries: this.lookup.getCountryNames(),
       currencies: this.lookup.getCurrencyCodes(),
       timezones: this.lookup.getTimezoneIds()
     }).subscribe({
-      next: ({ tenant, modules, countries, currencies, timezones }) => {
+      next: ({ tenant, modules, features, countries, currencies, timezones }) => {
         this.countries = countries;
         this.currencies = currencies;
         this.timezones = timezones;
+        this.features = features ?? [];
         this.initForm(tenant, modules);
       },
       error: () => {
         this.loading = false;
-        this.toast.error('Failed to load tenant.');
+        this.toast.error('Failed to load company.');
         void this.router.navigate(['/platform/tenants']);
       }
     });

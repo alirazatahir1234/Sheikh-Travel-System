@@ -101,6 +101,7 @@ class FleetSession {
     this.driverId,
     this.email,
     this.phone,
+    this.companyContext,
   });
 
   final String accessToken;
@@ -114,6 +115,11 @@ class FleetSession {
   final int? driverId;
   final String? email;
   final String? phone;
+  final CompanyContext? companyContext;
+
+  /// Product alias — persistence remains tenantId.
+  int get companyId => companyContext?.companyId ?? tenantId;
+  String? get companyName => companyContext?.companyName;
 
   /// Backward-compatible alias used across existing screens.
   String get fullName => displayName;
@@ -303,16 +309,20 @@ class FleetSession {
 
   factory FleetSession.fromJson(Map<String, dynamic> json) {
     final mode = json['authMode'] as String?;
+    FleetSession session;
     if (mode == AuthMode.driver.name) {
-      return FleetSession.fromDriverJson(json);
+      session = FleetSession.fromDriverJson(json);
+    } else if (mode == AuthMode.staff.name) {
+      session = FleetSession.fromStaffJson(json);
+    } else if (json.containsKey('driverId') && !json.containsKey('roles')) {
+      session = FleetSession.fromLegacyDriverJson(json);
+    } else {
+      session = FleetSession.fromStaffJson(json);
     }
-    if (mode == AuthMode.staff.name) {
-      return FleetSession.fromStaffJson(json);
-    }
-    if (json.containsKey('driverId') && !json.containsKey('roles')) {
-      return FleetSession.fromLegacyDriverJson(json);
-    }
-    return FleetSession.fromStaffJson(json);
+
+    final rawContext = json['companyContext'] as Map<String, dynamic>?;
+    if (rawContext == null) return session;
+    return session.copyWith(companyContext: CompanyContext.fromJson(rawContext));
   }
 
   Map<String, dynamic> toJson() => {
@@ -328,11 +338,13 @@ class FleetSession {
         if (driverId != null) 'driverId': driverId,
         if (email != null) 'email': email,
         if (phone != null) 'phone': phone,
+        if (companyContext != null) 'companyContext': companyContext!.toJson(),
       };
 
   FleetSession copyWith({
     String? accessToken,
     String? refreshToken,
+    CompanyContext? companyContext,
   }) {
     return FleetSession(
       accessToken: accessToken ?? this.accessToken,
@@ -346,6 +358,7 @@ class FleetSession {
       driverId: driverId,
       email: email,
       phone: phone,
+      companyContext: companyContext ?? this.companyContext,
     );
   }
 
@@ -355,6 +368,110 @@ class FleetSession {
     }
     return const [];
   }
+}
+
+/// Read-only company context for mobile (no admin CRUD).
+class CompanyContext {
+  const CompanyContext({
+    required this.companyId,
+    required this.tenantId,
+    required this.companyName,
+    this.slug,
+    this.logoUrl,
+    this.primaryColor,
+    this.branchId,
+    this.branchName,
+    this.departmentId,
+    this.departmentName,
+    this.enabledModuleKeys = const [],
+    this.featureKeys = const [],
+    this.workspaceHint,
+    this.roleCode,
+  });
+
+  final int companyId;
+  final int tenantId;
+  final String companyName;
+  final String? slug;
+  final String? logoUrl;
+  final String? primaryColor;
+  final int? branchId;
+  final String? branchName;
+  final int? departmentId;
+  final String? departmentName;
+  final List<String> enabledModuleKeys;
+  final List<String> featureKeys;
+  final String? workspaceHint;
+  final String? roleCode;
+
+  factory CompanyContext.fromJson(Map<String, dynamic> json) {
+    final featuresRaw = json['features'] ?? json['Features'];
+    final featureKeys = <String>[];
+    if (featuresRaw is List) {
+      for (final item in featuresRaw) {
+        if (item is Map) {
+          final key = item['featureKey'] ?? item['FeatureKey'];
+          if (key != null) featureKeys.add(key.toString());
+        } else if (item != null) {
+          featureKeys.add(item.toString());
+        }
+      }
+    }
+
+    return CompanyContext(
+      companyId: json['companyId'] as int? ??
+          json['CompanyId'] as int? ??
+          json['tenantId'] as int? ??
+          json['TenantId'] as int? ??
+          0,
+      tenantId: json['tenantId'] as int? ??
+          json['TenantId'] as int? ??
+          json['companyId'] as int? ??
+          json['CompanyId'] as int? ??
+          0,
+      companyName: json['companyName'] as String? ??
+          json['CompanyName'] as String? ??
+          '',
+      slug: json['slug'] as String? ?? json['Slug'] as String?,
+      logoUrl: json['logoUrl'] as String? ?? json['LogoUrl'] as String?,
+      primaryColor:
+          json['primaryColor'] as String? ?? json['PrimaryColor'] as String?,
+      branchId: json['branchId'] as int? ?? json['BranchId'] as int?,
+      branchName: json['branchName'] as String? ?? json['BranchName'] as String?,
+      departmentId:
+          json['departmentId'] as int? ?? json['DepartmentId'] as int?,
+      departmentName: json['departmentName'] as String? ??
+          json['DepartmentName'] as String?,
+      enabledModuleKeys: FleetSession._parseStringList(
+        json['enabledModuleKeys'] ?? json['EnabledModuleKeys'],
+      ),
+      featureKeys: featureKeys.isNotEmpty
+          ? featureKeys
+          : FleetSession._parseStringList(
+              json['featureKeys'] ?? json['FeatureKeys'],
+            ),
+      workspaceHint:
+          json['workspaceHint'] as String? ?? json['WorkspaceHint'] as String?,
+      roleCode: json['roleCode'] as String? ?? json['RoleCode'] as String?,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'companyId': companyId,
+        'tenantId': tenantId,
+        'companyName': companyName,
+        if (slug != null) 'slug': slug,
+        if (logoUrl != null) 'logoUrl': logoUrl,
+        if (primaryColor != null) 'primaryColor': primaryColor,
+        if (branchId != null) 'branchId': branchId,
+        if (branchName != null) 'branchName': branchName,
+        if (departmentId != null) 'departmentId': departmentId,
+        if (departmentName != null) 'departmentName': departmentName,
+        'enabledModuleKeys': enabledModuleKeys,
+        'featureKeys': featureKeys,
+        if (workspaceHint != null) 'workspaceHint': workspaceHint,
+        if (roleCode != null) 'roleCode': roleCode,
+      };
 }
 
 /// @deprecated Use [FleetSession]. Kept for incremental migration in tests.

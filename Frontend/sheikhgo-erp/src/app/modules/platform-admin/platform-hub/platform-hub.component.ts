@@ -30,10 +30,10 @@ export class PlatformHubComponent {
     {
       id: 'company',
       title: 'Company',
-      description: 'Tenant directory, provision, and company profile.',
+      description: 'Company directory, provision, and company profile.',
       links: [
         {
-          label: 'Tenants',
+          label: 'Companies',
           description: 'List, provision, and manage companies.',
           icon: 'business',
           route: '/platform/tenants',

@@ -34,7 +34,13 @@ class MoreScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            session.isDriverOnly ? 'Driver workspace' : 'Fleet operations',
+            [
+              if (session.companyName != null && session.companyName!.isNotEmpty)
+                session.companyName!,
+              if (session.companyContext?.branchName != null)
+                session.companyContext!.branchName!,
+              session.isDriverOnly ? 'Driver workspace' : 'Fleet operations',
+            ].join(' · '),
             style: const TextStyle(
               fontSize: 13,
               color: AppColors.textSecondary,

@@ -31,7 +31,11 @@ class DashboardScreen extends ConsumerWidget {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Fleet'),
+            Text(
+              session?.companyName?.isNotEmpty == true
+                  ? session!.companyName!
+                  : 'Fleet',
+            ),
             if (session != null && !session.isDriverOnly)
               Text(
                 DashboardRoleX.fromNavRole(session.primaryNavRole).subtitle,

@@ -128,7 +128,7 @@ const organizationGroup: NavGroup = {
   icon: 'corporate_fare',
   collapsible: true,
   items: [
-    { id: 'tenants', label: 'Tenants', icon: 'business', route: '/platform/tenants', adminOnly: true, moduleKey: 'organization' },
+    { id: 'tenants', label: 'Companies', icon: 'business', route: '/platform/tenants', adminOnly: true, moduleKey: 'organization' },
     { id: 'organization-designer', label: 'Hierarchy', icon: 'account_tree', route: '/platform/organization-designer', adminOnly: true, moduleKey: 'organization' },
     { id: 'branches', label: 'Branches', icon: 'location_city', route: '/platform/branches', adminOnly: true, moduleKey: 'organization' },
     { id: 'departments', label: 'Departments', icon: 'domain', route: '/platform/departments', adminOnly: true, moduleKey: 'organization' }

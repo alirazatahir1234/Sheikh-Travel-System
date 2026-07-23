@@ -57,7 +57,12 @@ public record TenantListDto(
     int? MaxVehicles,
     string? ModuleCodes,
     DateTime? SubscriptionEndDate,
-    string? SubscriptionStatus);
+    string? SubscriptionStatus)
+{
+    /// <summary>Company alias for product language (persistence remains Tenant).</summary>
+    public int CompanyId => Id;
+    public string CompanyName => Name;
+}
 
 public record TenantManagementStatsDto(
     int ActiveTenants,
@@ -165,6 +170,10 @@ public record TenantDetailDto(
 {
     public IReadOnlyList<string> ModuleCodes { get; init; } = [];
     public TenantAdminInfoDto? AdminInfo { get; init; }
+
+    /// <summary>Company alias for product language (persistence remains Tenant).</summary>
+    public int CompanyId => Id;
+    public string CompanyName => Name;
 }
 
 public record GetTenantByIdQuery(int Id) : IRequest<ApiResponse<TenantDetailDto>>;

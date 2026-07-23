@@ -24,7 +24,13 @@ public record TenantBrandingDto(
     string Slug,
     string? LogoUrl,
     string? PrimaryColor,
-    IReadOnlyList<string> EnabledModules);
+    IReadOnlyList<string> EnabledModules)
+{
+    /// <summary>Company alias for product language (persistence remains Tenant).</summary>
+    public int CompanyId => Id;
+    public string CompanyName => Name;
+    public int TenantId => Id;
+}
 
 public class GetTenantBrandingQueryHandler(
     IDbConnectionFactory dbFactory,

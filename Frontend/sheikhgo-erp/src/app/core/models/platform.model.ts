@@ -53,6 +53,28 @@ export interface TenantDetail extends Omit<Tenant, 'moduleCodes'> {
   currencyCode?: string | null;
   timeZone?: string | null;
   adminInfo?: TenantAdminInfo | null;
+  /** Company aliases (optional; API may omit — id/name remain canonical). */
+  companyId?: number;
+  companyName?: string;
+}
+
+export interface CompanyFeature {
+  featureKey: string;
+  moduleKey: string;
+  name: string;
+  description?: string | null;
+  isEnabled: boolean;
+  sortOrder: number;
+}
+
+export interface CompanyHierarchyCounts {
+  branchCount: number;
+  departmentCount: number;
+  userCount: number;
+  driverCount: number;
+  vehicleCount: number;
+  moduleCount: number;
+  featureCount: number;
 }
 
 export interface UpdateTenantPayload {

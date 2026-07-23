@@ -43,6 +43,24 @@ class AuthApi {
     }
   }
 
+  Future<CompanyContext?> fetchCompanyContext() async {
+    try {
+      final res = await _dio.get<Map<String, dynamic>>(ApiEndpoints.companyContext);
+      final data = _unwrapData(res.data);
+      return CompanyContext.fromJson(data);
+    } catch (_) {
+      try {
+        final res = await _dio.get<Map<String, dynamic>>(
+          ApiEndpoints.companyContextAlias,
+        );
+        final data = _unwrapData(res.data);
+        return CompanyContext.fromJson(data);
+      } catch (_) {
+        return null;
+      }
+    }
+  }
+
   Map<String, dynamic> _unwrapData(Map<String, dynamic>? body) {
     if (body == null) throw Exception('Empty response');
     if (body['success'] == false) {

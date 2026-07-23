@@ -5,6 +5,8 @@ abstract class ApiEndpoints {
   static const refreshToken = '/auth/refresh-token';
   static const logout = '/auth/logout';
   static const authMe = '/auth/me';
+  static const companyContext = '/platform/company/context';
+  static const companyContextAlias = '/tenants/me/company-context';
 
   // Driver profile & dashboard
   static const driverProfile = '/driver-app/profile';

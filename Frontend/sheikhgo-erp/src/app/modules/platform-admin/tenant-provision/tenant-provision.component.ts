@@ -439,7 +439,7 @@ export class TenantProvisionComponent implements OnInit, OnDestroy {
     this.platform.provisionTenant(payload).subscribe({
       next: () => {
         this.saving = false;
-        this.toast.success('Tenant provisioned successfully.');
+        this.toast.success('Company provisioned successfully.');
         void this.router.navigate(['/platform/tenants']);
       },
       error: (err: unknown) => {

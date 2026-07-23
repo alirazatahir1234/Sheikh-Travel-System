@@ -8,15 +8,15 @@
         <nav class="breadcrumb">
           <span>Organization</span>
           <mat-icon>chevron_right</mat-icon>
-          <a routerLink="/platform/tenants">Tenants</a>
+          <a routerLink="/platform/tenants">Companies</a>
           <mat-icon>chevron_right</mat-icon>
-          <span class="current">Configure Enterprise Tenant</span>
+          <span class="current">Configure Enterprise Company</span>
         </nav>
         <div class="title-row">
           <span class="title-icon"><mat-icon>domain</mat-icon></span>
           <div>
-            <h1>Configure Enterprise Tenant</h1>
-            <p class="page-sub">Architect the tenant's architecture, security policies, and initial administrative hierarchy.</p>
+            <h1>Configure Enterprise Company</h1>
+            <p class="page-sub">Architect the company's architecture, security policies, and initial administrative hierarchy.</p>
           </div>
         </div>
       </div>
@@ -25,7 +25,7 @@
       <button mat-stroked-button type="button" (click)="cancel()" [disabled]="saving">Cancel</button>
       <button mat-flat-button color="primary" type="button" (click)="submit()" [disabled]="saving">
         <mat-icon>add_business</mat-icon>
-        {{ saving ? 'Creating…' : 'Create Tenant & Initialize Hierarchy' }}
+        {{ saving ? 'Creating…' : 'Create Company & Initialize Hierarchy' }}
       </button>
     </div>
   </header>
@@ -35,8 +35,8 @@
       <mat-card class="section-card" id="section-profile" formGroupName="profile">
         <div class="section-head">
           <span class="section-badge">1</span>
-          <h3>Tenant Profile</h3>
-          <button mat-icon-button type="button" class="section-info" matTooltip="Core tenant identity and routing details">
+          <h3>Company Profile</h3>
+          <button mat-icon-button type="button" class="section-info" matTooltip="Core company identity and routing details">
             <mat-icon>info_outline</mat-icon>
           </button>
         </div>
@@ -44,7 +44,7 @@
         <div class="profile-grid">
           <div class="profile-field">
             <label class="profile-label" for="tenant-name">
-              Tenant Name <span class="req" aria-hidden="true">*</span>
+              Company Name <span class="req" aria-hidden="true">*</span>
             </label>
             <input
               id="tenant-name"

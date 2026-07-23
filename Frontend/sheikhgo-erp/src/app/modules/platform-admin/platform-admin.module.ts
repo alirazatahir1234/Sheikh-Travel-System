@@ -45,6 +45,9 @@ const routes: Routes = [
     canActivate: [permissionGuard],
     data: { permissions: ['Platform.Tenants.View'] }
   },
+  { path: 'companies', redirectTo: 'tenants', pathMatch: 'full' },
+  { path: 'companies/new', redirectTo: 'tenants/new', pathMatch: 'full' },
+  { path: 'companies/:id', redirectTo: 'tenants/:id' },
   {
     path: 'branches',
     component: BranchListComponent,

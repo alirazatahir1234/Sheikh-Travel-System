@@ -23,7 +23,8 @@ import {
   TenantManagementStats,
   TenantModuleDefinition,
   UpdateTenantBrandingPayload,
-  UpdateTenantPayload
+  UpdateTenantPayload,
+  CompanyFeature
 } from '../models/platform.model';
 
 @Injectable({ providedIn: 'root' })
@@ -38,6 +39,14 @@ export class PlatformService {
 
   getTenantById(id: number): Observable<TenantDetail> {
     return this.http.get<TenantDetail>(`${environment.apiUrl}/tenants/${id}`);
+  }
+
+  getCompanyFeatures(tenantId: number): Observable<CompanyFeature[]> {
+    return this.http.get<CompanyFeature[]>(`${this.base}/features/company/${tenantId}`);
+  }
+
+  getFeatureCatalog(): Observable<CompanyFeature[]> {
+    return this.http.get<CompanyFeature[]>(`${this.base}/features/catalog`);
   }
 
   getTenantManagementStats(): Observable<TenantManagementStats> {

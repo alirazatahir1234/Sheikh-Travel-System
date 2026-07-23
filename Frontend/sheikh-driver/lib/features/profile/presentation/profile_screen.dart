@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_theme.dart';
 import '../../../features/auth/data/auth_repository.dart';
+import '../../../features/auth/domain/auth_models.dart';
 import '../../../shared/widgets/sg_ui.dart';
 import '../domain/driver_profile_model.dart';
 import 'profile_notifier.dart';
@@ -37,6 +38,7 @@ class ProfileScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final profileAsync = ref.watch(profileProvider);
+    final session = ref.watch(fleetSessionProvider);
 
     return Scaffold(
       backgroundColor: AppColors.surface,
@@ -74,7 +76,11 @@ class ProfileScreen extends ConsumerWidget {
           child: ListView(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
             children: [
-              _ProfileHeader(profile: profile),
+              _ProfileHeader(profile: profile, company: session?.companyContext),
+              if (session?.companyContext != null) ...[
+                const SizedBox(height: 12),
+                _CompanyContextCard(contextData: session!.companyContext!),
+              ],
               const SizedBox(height: 20),
               SgCard(
                 padding: EdgeInsets.zero,
@@ -83,7 +89,11 @@ class ProfileScreen extends ConsumerWidget {
                     _MenuTile(
                       icon: Icons.badge_outlined,
                       label: 'Profile Info',
-                      onTap: () => _showInfoSheet(context, profile),
+                      onTap: () => _showInfoSheet(
+                        context,
+                        profile,
+                        session?.companyContext,
+                      ),
                     ),
                     if (!profile.isStaffProfile) ...[
                       const Divider(height: 1),
@@ -144,7 +154,11 @@ class ProfileScreen extends ConsumerWidget {
     );
   }
 
-  void _showInfoSheet(BuildContext context, DriverProfile profile) {
+  void _showInfoSheet(
+    BuildContext context,
+    DriverProfile profile,
+    CompanyContext? company,
+  ) {
     showModalBottomSheet(
       context: context,
       showDragHandle: true,
@@ -159,6 +173,12 @@ class ProfileScreen extends ConsumerWidget {
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: 16),
+            if (company != null && company.companyName.isNotEmpty)
+              _InfoLine('Company', company.companyName),
+            if (company?.branchName != null)
+              _InfoLine('Branch', company!.branchName!),
+            if (company?.departmentName != null)
+              _InfoLine('Department', company!.departmentName!),
             if (profile.phone.isNotEmpty) _InfoLine('Phone', profile.phone),
             if (profile.email != null) _InfoLine('Email', profile.email!),
             if (profile.isStaffProfile) ...[
@@ -178,9 +198,65 @@ class ProfileScreen extends ConsumerWidget {
   }
 }
 
+class _CompanyContextCard extends StatelessWidget {
+  const _CompanyContextCard({required this.contextData});
+  final CompanyContext contextData;
+
+  @override
+  Widget build(BuildContext context) {
+    final parts = <String>[
+      if (contextData.branchName != null) contextData.branchName!,
+      if (contextData.departmentName != null) contextData.departmentName!,
+    ];
+    return SgCard(
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 22,
+            backgroundColor: AppColors.primary.withValues(alpha: 0.12),
+            backgroundImage: contextData.logoUrl != null
+                ? NetworkImage(contextData.logoUrl!)
+                : null,
+            child: contextData.logoUrl == null
+                ? const Icon(Icons.business_outlined, color: AppColors.primary)
+                : null,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  contextData.companyName,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                if (parts.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    parts.join(' · '),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _ProfileHeader extends StatelessWidget {
-  const _ProfileHeader({required this.profile});
+  const _ProfileHeader({required this.profile, this.company});
   final DriverProfile profile;
+  final CompanyContext? company;
 
   @override
   Widget build(BuildContext context) {
@@ -227,6 +303,18 @@ class _ProfileHeader extends StatelessWidget {
                     fontSize: 13,
                   ),
                 ),
+                if (company?.companyName != null &&
+                    company!.companyName.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    company!.companyName,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 8),
                 StatusBadge(profile.statusName),
               ],

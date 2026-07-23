@@ -1,14 +1,14 @@
-# Platform Administration Foundation (Stage 1)
+# Platform Administration Foundation
 
 Living gap analysis for the 15-stage Platform Administration roadmap.
-Stage 1 delivers the **shell + IA + nav + gates** only. Later stages upgrade existing hubs—they do not replace them.
+Stage 1 delivered the **shell + IA + nav + gates**. Stage 2 reframes tenants as the **Company** business model (product language) with a thin Feature Registry—without renaming `Tenants` / `TenantId`.
 
 ## Role visibility
 
 | Capability | Super Admin (`SUPER_ADMIN`) | Tenant Admin (`TENANT_ADMIN`) |
 |------------|----------------------------|--------------------------------|
 | Platform hub `/platform` | Yes (default home) | Yes if any platform permission |
-| Tenants (cross-tenant) | Yes | No (`Platform.Tenants.*` excluded from template) |
+| Companies (cross-tenant; permission `Platform.Tenants.*`) | Yes | No (`Platform.Tenants.*` excluded from template) |
 | Organization (hierarchy / branches / departments) | Yes | Own tenant |
 | Access Control hub + Users | Yes | Own tenant |
 | Modules / Subscriptions | Yes | View/manage own tenant via existing hubs |
@@ -20,8 +20,8 @@ Stage 1 delivers the **shell + IA + nav + gates** only. Later stages upgrade exi
 
 | Section | Canonical route | Existing surface |
 |---------|-----------------|------------------|
-| Hub | `/platform` | `platform-hub` (Stage 1) |
-| Company | `/platform/tenants` | `tenant-list` / provision / detail |
+| Hub | `/platform` | `platform-hub` |
+| Company | `/platform/tenants` (alias `/platform/companies`) | `tenant-list` / provision / detail — UI says **Companies** |
 | Organization | `/platform/organization-designer` | hierarchy feature |
 | Branches / Departments | `/platform/branches`, `/platform/departments` | existing CRUD lists |
 | Identity | `/platform/access-control` | Users / Roles / Permissions / Policies / Templates tabs |
@@ -42,15 +42,24 @@ Stage 1 delivers the **shell + IA + nav + gates** only. Later stages upgrade exi
 | Local `organization-designer` component (unwired) | Leave unused; hierarchy feature is canonical |
 | Nav label “Maintenance” under Platform | Renamed to **Database Reset** / System Maintenance |
 
+### Stage 2 aliases
+
+| Entry | Action |
+|-------|--------|
+| `/platform/companies` | Redirect → `/platform/tenants` |
+| Company UI copy | Tenants → Companies (routes + `Platform.Tenants.*` codes unchanged) |
+| `GET /api/platform/company/context` | Read-only company context (branding, branch/dept, modules, features) |
+| Feature Registry | `FeatureDefinitions` + `TenantFeatures` metadata; list APIs only |
+
 ## Stage matrix (1–15)
 
 | # | Stage | Status | Notes |
 |---|-------|--------|-------|
-| 1 | Platform Administration Foundation | **Done (this stage)** | Hub, nav sync, ops permissions, child gates, gap doc |
-| 2 | Company Management | Existing | Upgrade tenants/branches/depts from hub—do not rebuild |
-| 3 | Subscription & License | Partial | UI + schema exist; hard license enforcement later |
+| 1 | Platform Administration Foundation | **Done** | Hub, nav sync, ops permissions, child gates, gap doc |
+| 2 | Company Business Model | **Done (this stage)** | Company vocabulary; DTO aliases; hierarchy/capabilities strip; thin Feature Registry; mobile read-only context |
+| 3 | Subscription & License | Partial | Continues on Company (tenant) record; hard license enforcement later |
 | 4 | Module Management | Existing | Keep `module-management` |
-| 5 | Feature Management | Missing | No feature-flag product yet |
+| 5 | Feature Management | Missing | Upgrades Feature Registry into Feature Management / flags |
 | 6 | User Management | Existing | `/users` + Access Control Users tab |
 | 7 | Role Management | Existing | Access Control Roles tab (canonical) |
 | 8 | Permission Management | Existing | Access Control Permissions tab |
@@ -66,17 +75,26 @@ Stage 1 delivers the **shell + IA + nav + gates** only. Later stages upgrade exi
 
 | Code | Purpose |
 |------|---------|
-| `Platform.Migrations.View` | View migration status |
+| `Platform.Migrations.View` | View schema migration status |
 | `Platform.Migrations.Manage` | Apply pending migrations |
 | `Platform.System.Reset` | Database reset (still Super Admin + Dev/Staging) |
 
-## Deferred (explicit non-goals of Stage 1)
+## Stage 2 deliverables
 
-- New Company / User / Role / Module / Subscription CRUD modules
-- Feature flags, Menu Builder UI, Workspace/Dashboard builders, Data Scope engine
-- Full Security Center / Audit Center productization
+- **Persistence:** `Tenants` / `TenantId` unchanged; Company is product/API alias language (`companyId` / `companyName`).
+- **Feature Registry:** Seeded catalog + per-company enablement rows; read-only list endpoints (`/api/platform/features/*`). No Feature Builder / runtime flags.
+- **ERP:** Companies copy in hub/list/menus; company detail Hierarchy/Capabilities strip + feature metadata list.
+- **Mobile:** Read-only company context after login (profile / more / dashboard header). No company admin CRUD on Flutter.
+
+## Deferred (explicit non-goals of Stages 1–2)
+
+- Renaming `Tenants` table or `TenantId` columns
+- Feature Management / Feature Builder / runtime feature flags (Stage 5)
+- Mobile Company / Branch / Department / Module admin CRUD
+- Data Scope Engine (Stage 12)
+- Rebuilding tenant/branch/department modules from scratch
 - Blanket `[RequirePermission]` across Bookings, Customers, Payments, Routes, Trips
 
-## Handoff to Stage 2
+## Handoff to Stage 3
 
-Start from the hub **Company** section and harden the existing tenant/branch/department flows (validation, limits, branding), without introducing a parallel company module.
+Continue Subscription & License on the Company (tenant) record. Stage 5 upgrades the Feature Registry into Feature Management.

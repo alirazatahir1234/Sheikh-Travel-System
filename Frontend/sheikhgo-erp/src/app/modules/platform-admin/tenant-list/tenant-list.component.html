@@ -1,26 +1,26 @@
 <div class="tenant-page stb-page">
   <ui-page-header
-    title="Organization Management"
-    subtitle="Monitor and govern all tenant entities across the platform."
-    [breadcrumbs]="[{ label: 'Platform' }, { label: 'Tenants' }]">
+    title="Company Management"
+    subtitle="Monitor and govern all companies across the platform."
+    [breadcrumbs]="[{ label: 'Platform' }, { label: 'Companies' }]">
     <a routerLink="/platform/tenants/new" class="tenant-header-link tenant-header-link--primary">
       <mat-icon>add_business</mat-icon>
-      <span>Add Tenant</span>
+      <span>Add Company</span>
     </a>
   </ui-page-header>
 
-  <div *ngIf="loading" class="tenant-loading" aria-busy="true" aria-label="Loading tenants">
+  <div *ngIf="loading" class="tenant-loading" aria-busy="true" aria-label="Loading companies">
     <span class="stb-shimmer-block tenant-skeleton__metric" *ngFor="let i of [1, 2, 3, 4, 5]"></span>
     <span class="stb-shimmer-block tenant-skeleton__filter"></span>
     <span class="stb-shimmer-block tenant-skeleton__row" *ngFor="let i of [1, 2, 3, 4]"></span>
   </div>
 
   <ng-container *ngIf="!loading">
-    <div class="metric-grid" aria-label="Tenant statistics">
+    <div class="metric-grid" aria-label="Company statistics">
       <mat-card class="metric-card">
         <div class="metric-icon metric-icon--tenants"><mat-icon>domain</mat-icon></div>
         <div>
-          <p class="metric-label">Active Tenants</p>
+          <p class="metric-label">Active Companies</p>
           <p class="metric-value">{{ stats.activeTenants | number }}</p>
           <span class="metric-badge metric-badge--positive">{{ tenantGrowthPercent() }}</span>
         </div>
@@ -71,7 +71,7 @@
         <div class="stb-field stb-field--search">
           <label for="tenant-search">Search</label>
           <input id="tenant-search" class="stb-input" type="search"
-                 placeholder="Search tenants by name or ID…"
+                 placeholder="Search companies by name or ID…"
                  [(ngModel)]="filters.search" (ngModelChange)="applyFilters()" />
         </div>
 
@@ -95,7 +95,7 @@
         </div>
 
         <div class="stb-field stb-field--filter">
-          <label for="tenant-type-filter">Tenant Type</label>
+          <label for="tenant-type-filter">Company Type</label>
           <select id="tenant-type-filter" class="stb-select"
                   [(ngModel)]="filters.tenantType" (ngModelChange)="applyFilters()">
             <option value="all">All</option>
@@ -216,7 +216,7 @@
           </ng-container>
 
           <ng-container matColumnDef="tenant">
-            <th mat-header-cell *matHeaderCellDef>Tenant</th>
+            <th mat-header-cell *matHeaderCellDef>Company</th>
             <td mat-cell *matCellDef="let t">
               <div class="tenant-details">
                 <span class="tenant-avatar" [style.background]="avatarColor(t.name)">{{ initials(t.name) }}</span>
@@ -296,7 +296,7 @@
           <mat-icon>visibility</mat-icon><span>View Details</span>
         </button>
         <button mat-menu-item type="button" (click)="openTenant(selectedRow!)">
-          <mat-icon>edit</mat-icon><span>Edit Tenant</span>
+          <mat-icon>edit</mat-icon><span>Edit Company</span>
         </button>
         <button mat-menu-item type="button" (click)="openOrganizationDesigner(selectedRow!)">
           <mat-icon>account_tree</mat-icon><span>Organization Structure</span>
@@ -321,10 +321,10 @@
 
       <div *ngIf="!dataSource.filteredData.length" class="tenant-empty">
         <mat-icon>domain_disabled</mat-icon>
-        <p>No tenants match your filters</p>
-        <span>Adjust search or filters, or add a new tenant to get started.</span>
+        <p>No companies match your filters</p>
+        <span>Adjust search or filters, or add a new company to get started.</span>
         <button mat-stroked-button type="button" class="tenant-empty__cta" (click)="openAddTenant()">
-          <mat-icon>add_business</mat-icon> Add Tenant
+          <mat-icon>add_business</mat-icon> Add Company
         </button>
       </div>
 
@@ -332,7 +332,7 @@
         <span class="table-footer__text">
           Showing {{ (paginator?.pageIndex ?? 0) * pageSize + 1 }} to
           {{ Math.min(((paginator?.pageIndex ?? 0) + 1) * pageSize, dataSource.filteredData.length) }}
-          of {{ dataSource.filteredData.length }} tenants
+          of {{ dataSource.filteredData.length }} companies
         </span>
         <mat-paginator [pageSize]="pageSize" [pageSizeOptions]="[5, 10, 25, 50]" showFirstLastButtons></mat-paginator>
       </div>

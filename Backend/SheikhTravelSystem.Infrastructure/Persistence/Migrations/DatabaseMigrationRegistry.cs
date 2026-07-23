@@ -76,6 +76,7 @@ public static class DatabaseMigrationRegistry
             M("DriverManagerRoleTemplateMigration", DriverManagerRoleTemplateMigration.ApplyAsync),
             M("AccessManagementPermissionsMigration", AccessManagementPermissionsMigration.ApplyAsync),
             M("PlatformAdminFoundationMigration", PlatformAdminFoundationMigration.ApplyAsync),
+            M("CompanyFeatureRegistryMigration", CompanyFeatureRegistryMigration.ApplyAsync),
         ];
     }
 }
