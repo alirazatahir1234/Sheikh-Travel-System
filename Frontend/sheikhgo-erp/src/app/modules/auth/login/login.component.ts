@@ -65,7 +65,13 @@ export class LoginComponent implements OnInit {
           catchError(() => of(null)),
           switchMap(ws => {
             if (ws?.homeRoute) this.auth.setHomeRoute(ws.homeRoute);
-            return of(user);
+            return this.platform.getMySecuritySummary().pipe(
+              catchError(() => of(null)),
+              switchMap(security => {
+                this.auth.applySecuritySessionPolicy(security);
+                return of(user);
+              })
+            );
           })
         )
       )

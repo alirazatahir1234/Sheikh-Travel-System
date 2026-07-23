@@ -155,8 +155,12 @@
 
         <div class="stb-field">
           <label for="user-dashboard">Default Dashboard</label>
-          <input id="user-dashboard" class="stb-input" type="text" formControlName="defaultDashboardKey"
-                 placeholder="e.g. ops-home" />
+          <select id="user-dashboard" class="stb-select" formControlName="defaultDashboardKey">
+            <option value="">— None —</option>
+            <option *ngFor="let d of dashboards" [value]="d.dashboardKey">
+              {{ d.displayName }} ({{ d.dashboardKey }})
+            </option>
+          </select>
         </div>
 
         <div class="stb-field">

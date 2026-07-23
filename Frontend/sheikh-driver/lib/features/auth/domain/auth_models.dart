@@ -397,6 +397,7 @@ class CompanyContext {
     this.navSummary,
     this.dashboard,
     this.dataScope,
+    this.security,
   });
 
   final int companyId;
@@ -423,6 +424,7 @@ class CompanyContext {
   final CompanyNavSummary? navSummary;
   final CompanyDashboardSummary? dashboard;
   final CompanyDataScope? dataScope;
+  final CompanySecuritySummary? security;
 
   String? get jobTitle => currentUser?.jobTitle;
   String? get employeeType => currentUser?.employeeType;
@@ -549,6 +551,26 @@ class CompanyContext {
     return currentUser?.defaultDashboardKey;
   }
 
+  /// Safe security summary chips (Stage 13, read-only — no IP/complexity).
+  List<String> get securityDisplayLabels {
+    final s = security;
+    if (s == null) return const [];
+    final out = <String>[];
+    if (s.passwordExpired == true) {
+      out.add('Password expired');
+    } else if (s.passwordDaysRemaining != null) {
+      out.add('Password expires in ${s.passwordDaysRemaining}d');
+    } else if (s.passwordExpiryDays != null && s.passwordExpiryDays! > 0) {
+      out.add('Password max age ${s.passwordExpiryDays}d');
+    }
+    if (s.idleTimeoutMinutes != null && s.idleTimeoutMinutes! > 0) {
+      out.add('Idle ${s.idleTimeoutMinutes}m');
+    }
+    if (s.lockoutEnabled) out.add('Lockout on');
+    if (s.auditLevel.isNotEmpty) out.add('Audit ${s.auditLevel}');
+    return out;
+  }
+
   factory CompanyContext.fromJson(Map<String, dynamic> json) {
     final featuresRaw = json['features'] ?? json['Features'];
     final featureKeys = <String>[];
@@ -665,6 +687,15 @@ class CompanyContext {
           CompanyDataScope.fromJson(Map<String, dynamic>.from(scopeRaw));
     }
 
+    CompanySecuritySummary? security;
+    final secRaw = json['security'] ?? json['Security'];
+    if (secRaw is Map<String, dynamic>) {
+      security = CompanySecuritySummary.fromJson(secRaw);
+    } else if (secRaw is Map) {
+      security =
+          CompanySecuritySummary.fromJson(Map<String, dynamic>.from(secRaw));
+    }
+
     final parsedFeatureKeys = featureKeys.isNotEmpty
         ? featureKeys
         : FleetSession._parseStringList(
@@ -715,6 +746,7 @@ class CompanyContext {
       navSummary: navSummary,
       dashboard: dashboard,
       dataScope: dataScope,
+      security: security,
     );
   }
 
@@ -744,6 +776,73 @@ class CompanyContext {
         if (navSummary != null) 'navSummary': navSummary!.toJson(),
         if (dashboard != null) 'dashboard': dashboard!.toJson(),
         if (dataScope != null) 'dataScope': dataScope!.toJson(),
+        if (security != null) 'security': security!.toJson(),
+      };
+}
+
+/// Safe security summary from company context (Stage 13, read-only).
+class CompanySecuritySummary {
+  const CompanySecuritySummary({
+    this.passwordExpiryDays,
+    this.idleTimeoutMinutes,
+    this.absoluteTimeoutMinutes,
+    this.auditLevel = 'Always',
+    this.lockoutEnabled = false,
+    this.mfaRequired = false,
+    this.passwordExpired = false,
+    this.passwordDaysRemaining,
+  });
+
+  final int? passwordExpiryDays;
+  final int? idleTimeoutMinutes;
+  final int? absoluteTimeoutMinutes;
+  final String auditLevel;
+  final bool lockoutEnabled;
+  final bool mfaRequired;
+  final bool passwordExpired;
+  final int? passwordDaysRemaining;
+
+  factory CompanySecuritySummary.fromJson(Map<String, dynamic> json) {
+    int? asInt(dynamic v) {
+      if (v is int) return v;
+      if (v == null) return null;
+      return int.tryParse(v.toString());
+    }
+
+    return CompanySecuritySummary(
+      passwordExpiryDays:
+          asInt(json['passwordExpiryDays'] ?? json['PasswordExpiryDays']),
+      idleTimeoutMinutes:
+          asInt(json['idleTimeoutMinutes'] ?? json['IdleTimeoutMinutes']),
+      absoluteTimeoutMinutes: asInt(
+          json['absoluteTimeoutMinutes'] ?? json['AbsoluteTimeoutMinutes']),
+      auditLevel: json['auditLevel'] as String? ??
+          json['AuditLevel'] as String? ??
+          'Always',
+      lockoutEnabled: json['lockoutEnabled'] as bool? ??
+          json['LockoutEnabled'] as bool? ??
+          false,
+      mfaRequired:
+          json['mfaRequired'] as bool? ?? json['MfaRequired'] as bool? ?? false,
+      passwordExpired: json['passwordExpired'] as bool? ??
+          json['PasswordExpired'] as bool? ??
+          false,
+      passwordDaysRemaining: asInt(
+          json['passwordDaysRemaining'] ?? json['PasswordDaysRemaining']),
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        if (passwordExpiryDays != null) 'passwordExpiryDays': passwordExpiryDays,
+        if (idleTimeoutMinutes != null) 'idleTimeoutMinutes': idleTimeoutMinutes,
+        if (absoluteTimeoutMinutes != null)
+          'absoluteTimeoutMinutes': absoluteTimeoutMinutes,
+        'auditLevel': auditLevel,
+        'lockoutEnabled': lockoutEnabled,
+        'mfaRequired': mfaRequired,
+        'passwordExpired': passwordExpired,
+        if (passwordDaysRemaining != null)
+          'passwordDaysRemaining': passwordDaysRemaining,
       };
 }
 

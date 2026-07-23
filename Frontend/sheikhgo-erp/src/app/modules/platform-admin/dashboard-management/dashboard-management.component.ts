@@ -140,9 +140,9 @@ export class DashboardManagementComponent implements OnInit {
     }
     const raw = this.form.getRawValue();
     const payload: UpdateDashboardDefinitionPayload = {
-      displayName: raw.displayName,
+      displayName: raw.displayName || '',
       description: raw.description || null,
-      audience: raw.audience,
+      audience: raw.audience || 'Both',
       defaultWorkspaceKey: raw.defaultWorkspaceKey || null,
       category: raw.category || null,
       sortOrder: Number(raw.sortOrder) || 0,

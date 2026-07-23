@@ -54,6 +54,17 @@
     border: 1px solid #fecaca;
     color: #991b1b;
   }
+
+  &--info {
+    background: #f0fdf9;
+    border: 1px solid #b7ebdb;
+    color: #145a4a;
+
+    a {
+      color: #1d836c;
+      font-weight: 600;
+    }
+  }
 }
 
 .settings-page-skeleton__section {

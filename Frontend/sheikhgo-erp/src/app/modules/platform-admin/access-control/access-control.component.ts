@@ -126,10 +126,16 @@ export class AccessControlComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     const tab = this.route.snapshot.queryParamMap.get('tab')
       ?? (this.route.snapshot.data['defaultTab'] as string | undefined);
+    if (tab === 'policies') {
+      const q: Record<string, string> = {};
+      const tid = this.route.snapshot.queryParamMap.get('tenantId');
+      if (tid) q['tenantId'] = tid;
+      this.router.navigate(['/platform/security-center'], { queryParams: q });
+      return;
+    }
     if (tab === 'roles') this.activeTab = 1;
     else if (tab === 'permissions') this.activeTab = 2;
     else if (tab === 'scope' || tab === 'data-scope') this.activeTab = 3;
-    else if (tab === 'policies') this.activeTab = 4;
     else if (tab === 'templates') this.activeTab = 5;
 
     const tenantIdParam = this.route.snapshot.queryParamMap.get('tenantId');
@@ -225,7 +231,7 @@ export class AccessControlComponent implements OnInit, OnDestroy {
         this.loadDataScope();
         break;
       case 4:
-        this.loadSecurity(tenantId);
+        this.tabLoading = false;
         break;
       case 5:
         this.tabLoading = false;

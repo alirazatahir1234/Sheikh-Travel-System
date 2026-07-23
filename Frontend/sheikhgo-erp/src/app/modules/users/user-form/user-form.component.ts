@@ -19,7 +19,7 @@ import {
   EMPLOYEE_TYPES,
   AssignedRole
 } from '../../../core/models/user.model';
-import { Branch, Department, RoleSummary, EffectivePermission, WorkspaceDefinition, CompanyDataScope } from '../../../core/models/platform.model';
+import { Branch, Department, RoleSummary, EffectivePermission, WorkspaceDefinition, DashboardDefinition, CompanyDataScope } from '../../../core/models/platform.model';
 
 @Component({
   standalone: false,
@@ -39,6 +39,7 @@ export class UserFormComponent implements OnInit {
   departments: Department[] = [];
   assignableRoles: RoleSummary[] = [];
   workspaces: WorkspaceDefinition[] = [];
+  dashboards: DashboardDefinition[] = [];
   selectedRoleIds = new Set<number>();
   effectivePermissions: EffectivePermission[] = [];
   effectiveCategoryChips: string[] = [];
@@ -95,6 +96,7 @@ export class UserFormComponent implements OnInit {
         departments: this.platform.getDepartments().pipe(catchError(() => of([] as Department[]))),
         roles: this.platform.getCompanyRoles().pipe(catchError(() => of([] as RoleSummary[]))),
         workspaces: this.platform.getWorkspaceCatalog().pipe(catchError(() => of([] as WorkspaceDefinition[]))),
+        dashboards: this.platform.getDashboardCatalog(true).pipe(catchError(() => of([] as DashboardDefinition[]))),
         user: id
           ? this.userService.getById(+id)
           : of(null as User | null),
@@ -108,11 +110,12 @@ export class UserFormComponent implements OnInit {
           ? this.userService.getUserDataScope(+id).pipe(catchError(() => of(null as CompanyDataScope | null)))
           : of(null as CompanyDataScope | null)
       }).subscribe({
-        next: ({ branches, departments, roles, workspaces, user, assigned, effective, dataScope }) => {
+        next: ({ branches, departments, roles, workspaces, dashboards, user, assigned, effective, dataScope }) => {
           this.branches = branches;
           this.departments = departments;
           this.assignableRoles = roles;
           this.workspaces = (workspaces ?? []).filter(w => w.isActive && w.visible);
+          this.dashboards = (dashboards ?? []).filter(d => d.isActive && d.visible);
           this.selectedRoleIds = new Set(assigned.map(r => r.roleId));
           this.effectivePermissions = effective;
           this.dataScope = dataScope;

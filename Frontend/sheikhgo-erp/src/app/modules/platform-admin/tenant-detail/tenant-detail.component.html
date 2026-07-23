@@ -75,6 +75,10 @@
       <mat-icon>dashboard_customize</mat-icon>
       <span>Dashboards</span>
     </a>
+    <a class="capability-chip" routerLink="/platform/security-center" [queryParams]="{ tenantId: tenantId }">
+      <mat-icon>security</mat-icon>
+      <span>Security</span>
+    </a>
   </div>
 
   <div *ngIf="!loading && tenant && license" class="subscription-summary" aria-label="Subscription summary">

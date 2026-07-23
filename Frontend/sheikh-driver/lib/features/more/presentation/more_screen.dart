@@ -224,6 +224,38 @@ class MoreScreen extends ConsumerWidget {
               ],
             ),
           ],
+          if (session.companyContext?.securityDisplayLabels.isNotEmpty ==
+              true) ...[
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                for (final label in session
+                    .companyContext!.securityDisplayLabels
+                    .take(6))
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.06),
+                      borderRadius: BorderRadius.circular(AppRadii.sm),
+                      border: Border.all(
+                        color: AppColors.primary.withValues(alpha: 0.18),
+                      ),
+                    ),
+                    child: Text(
+                      label,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ],
           if (session.companyContext?.moduleDisplayLabels.isNotEmpty ==
               true) ...[
             const SizedBox(height: 10),

@@ -145,7 +145,7 @@ flowchart TB
 | 10 | Workspace Builder | **Done (foundation)** | Catalog + company enablement; resolve me/home; soft nav focus; ERP + mobile label |
 | 11 | Dashboard Builder | **Done (foundation)** | Registry + layout APIs; ERP management; mobile consume + soft gates |
 | 12 | Data Scope Engine | **Done (foundation)** | ScopeLevel + engine; pilot Vehicles/Drivers/GPS/fleet reports; soft scopes |
-| 13 | Security Center | Partial → **Plan ready** | Access Policies tab + settings flags (dead UI); foundation plan below |
+| 13 | Security Center | **Done (foundation)** | Policy registry + soft enforce; Security Center UX; mobile safe summary |
 | 14 | Audit Center | Partial | View/filter audit logs |
 | 15 | Backend Permission Enforcement | Partial | Strong on platform/fleet; gaps on bookings/payments/etc. |
 
@@ -420,16 +420,24 @@ Stage 12 **Data Scope Engine** filters **data inside** dashboard widgets (branch
 - **Feeds:** Stage 11 widget payloads (row filter), Stage 13 (orthogonal), Stage 15 broader query coverage.
 - **Non-goals:** ABAC/deny-lists, Access Policies rewrite, travel schema rewrite, JWT redesign, mobile scope admin, visual policy designer.
 
-## Stage 13 plan — Security Center (foundation)
+## Stage 13 — Security Center (foundation) — **Done**
 
-> **Status:** Plan ready (not implemented). Baseline today = Access Policies tab + Settings Security category writing six columns on `TenantSecuritySettings` with **almost no runtime enforcement**.
+> **Status:** **Done (foundation).** Policy registry + tenant values + Security Engine soft enforcement; dual-write to `TenantSecuritySettings`.
 > **Depends on:** Stage 8 Permission Engine (gates), Stage 12 Data Scope foundation (**done** — Security Center does not own row scope).
-> **Route (ERP):** `/platform/security-center` — company security policy hub; Access Control `?tab=policies` redirects / deep-links here; Settings → Security soft-delegates persistence.
+> **Route (ERP):** `/platform/security-center` — company security policy hub; Access Control `?tab=policies` redirects / deep-links here; Settings → Security soft-delegates (JWT TTL only; policies in Security Center).
 > **Does not replace:** Audit Center UI (`/audit-logs`, Stage 14), JWT secret/issuer architecture, Identity / MFA product, Permission Engine, Data Scope Engine.
 
-### Problem statement
+### Deliverables
 
-Security flags are **stored but largely dead**:
+- **Schema:** `SecurityPolicyDefinitions` + `TenantSecurityPolicies`; Users `FailedLoginAttempts` / `LockoutEndUtc` / `PasswordChangedAt`.
+- **Engine + APIs:** `ISecurityEngine`; `/api/platform/security` catalog/company/me; legacy tenants/{id}/security façade + dual-write.
+- **Soft enforce:** login lockout + soft IP allowlist + password age; password min/complexity on change; `audit.level` gate; ERP idle/absolute timeout from `security/me`.
+- **ERP:** Security Center page; hub + nav; Access Policies deep-link; Settings Security pointer.
+- **Mobile:** company-context safe `security` summary chips (no IP/complexity). No admin.
+
+### Problem statement (historical)
+
+Security flags were **stored but largely dead**:
 
 | Surface | Today |
 |---------|--------|
@@ -620,6 +628,6 @@ Stage 14 upgrades audit **browse/export/retention UX**. Stage 13 only soft-gates
 - Security Center hard MFA / SSO (beyond Stage 13 soft consume)
 - Stage 15 mass `[RequirePermission]` rollout
 
-## Handoff to Stage 13
+## Handoff to Stage 14
 
-Stage 13 builds the **Security Center** (policy registry + company values + `/platform/security-center` + soft session/login/audit consume) on top of existing `TenantSecuritySettings` — without MFA product rewrite or replacing Audit Center.
+Stage 13 Security Center foundation is **done**. Stage 14 upgrades audit **browse/export/retention UX** — Security Center only soft-gates writes via `audit.level`.

@@ -225,11 +225,11 @@ export class WorkspaceManagementComponent implements OnInit, OnDestroy {
     if (this.creating) {
       const payload: CreateWorkspaceDefinitionPayload = {
         workspaceKey: String(raw.workspaceKey || '').trim(),
-        displayName: raw.displayName,
+        displayName: raw.displayName || '',
         description: raw.description || null,
         category: raw.category || null,
         icon: raw.icon || null,
-        homeRoute: raw.homeRoute,
+        homeRoute: raw.homeRoute || '/dashboard',
         sortOrder: Number(raw.sortOrder) || 0,
         visible: !!raw.visible,
         isMobileSupported: !!raw.isMobileSupported,
@@ -255,11 +255,11 @@ export class WorkspaceManagementComponent implements OnInit, OnDestroy {
 
     if (!this.editing) return;
     const payload: UpdateWorkspaceDefinitionPayload = {
-      displayName: raw.displayName,
+      displayName: raw.displayName || '',
       description: raw.description || null,
       category: raw.category || null,
       icon: raw.icon || null,
-      homeRoute: raw.homeRoute,
+      homeRoute: raw.homeRoute || '/dashboard',
       sortOrder: Number(raw.sortOrder) || 0,
       visible: !!raw.visible,
       isActive: !!raw.isActive,
