@@ -42,6 +42,15 @@ class MoreScreen extends ConsumerWidget {
                 session.companyName!,
               if (session.companyContext?.branchName != null)
                 session.companyContext!.branchName!,
+              if (session.companyContext?.departmentName != null)
+                session.companyContext!.departmentName!,
+              if (session.companyContext?.jobTitle != null &&
+                  session.companyContext!.jobTitle!.isNotEmpty)
+                session.companyContext!.jobTitle!,
+              if (session.companyContext?.effectiveWorkspace != null)
+                'Workspace ${session.companyContext!.effectiveWorkspace}',
+              if (session.companyContext?.theme != null)
+                'Theme ${session.companyContext!.theme}',
               session.isDriverOnly ? 'Driver workspace' : 'Fleet operations',
             ].join(' · '),
             style: const TextStyle(

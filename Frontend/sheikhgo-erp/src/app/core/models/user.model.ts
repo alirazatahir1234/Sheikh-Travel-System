@@ -24,6 +24,17 @@ export const UserRoleDescriptions: Record<UserRole, string> = {
   [UserRole.Accountant]: 'Finance team — view payments, reports, revenue data'
 };
 
+export type UserLifecycleStatus = 'Pending' | 'Active' | 'Inactive' | 'Suspended' | 'Locked';
+export type EmployeeType = 'Driver' | 'Staff' | 'Admin' | 'Manager';
+
+export const USER_LIFECYCLE_STATUSES: UserLifecycleStatus[] = [
+  'Pending', 'Active', 'Inactive', 'Suspended', 'Locked'
+];
+
+export const EMPLOYEE_TYPES: EmployeeType[] = [
+  'Driver', 'Staff', 'Admin', 'Manager'
+];
+
 /** API returns enum names as strings (JsonStringEnumConverter); mat-select needs numeric UserRole. */
 export function parseUserRole(value: unknown): UserRole {
   if (typeof value === 'number' && UserRoleLabels[value as UserRole]) {
@@ -54,6 +65,23 @@ export interface User {
   role: UserRole;
   isActive: boolean;
   createdAt: string;
+  companyId?: number | null;
+  companyName?: string | null;
+  branchId?: number | null;
+  branchName?: string | null;
+  departmentId?: number | null;
+  departmentName?: string | null;
+  jobTitle?: string | null;
+  employeeCode?: string | null;
+  employeeType?: EmployeeType | string | null;
+  status?: UserLifecycleStatus | string;
+  defaultWorkspaceKey?: string | null;
+  defaultDashboardKey?: string | null;
+  homeRoute?: string | null;
+  timeZone?: string | null;
+  language?: string | null;
+  theme?: string | null;
+  avatarUrl?: string | null;
 }
 
 export interface CreateUserDto {
@@ -62,6 +90,19 @@ export interface CreateUserDto {
   password: string;
   phone: string;
   role: UserRole;
+  branchId?: number | null;
+  departmentId?: number | null;
+  jobTitle?: string | null;
+  employeeCode?: string | null;
+  employeeType?: string | null;
+  status?: string | null;
+  defaultWorkspaceKey?: string | null;
+  defaultDashboardKey?: string | null;
+  homeRoute?: string | null;
+  timeZone?: string | null;
+  language?: string | null;
+  theme?: string | null;
+  avatarUrl?: string | null;
 }
 
 export interface UpdateUserDto {
@@ -70,6 +111,19 @@ export interface UpdateUserDto {
   phone: string;
   role: UserRole;
   isActive: boolean;
+  branchId?: number | null;
+  departmentId?: number | null;
+  jobTitle?: string | null;
+  employeeCode?: string | null;
+  employeeType?: string | null;
+  status?: string | null;
+  defaultWorkspaceKey?: string | null;
+  defaultDashboardKey?: string | null;
+  homeRoute?: string | null;
+  timeZone?: string | null;
+  language?: string | null;
+  theme?: string | null;
+  avatarUrl?: string | null;
 }
 
 export interface CreateUserRequest {
@@ -84,8 +138,28 @@ export interface UpdateUserRequest {
 export interface UpdateUserStatusRequest {
   id: number;
   isActive: boolean;
+  status?: string | null;
 }
 
 export interface ResetPasswordResponse {
   temporaryPassword: string;
+}
+
+export interface CompanyUserSummary {
+  companyId: number;
+  totalUsers: number;
+  drivers: number;
+  managers: number;
+  administrators: number;
+  staff: number;
+  departmentCount: number;
+}
+
+export interface UserListFilters {
+  tenantId?: number | null;
+  branchId?: number | null;
+  departmentId?: number | null;
+  status?: string | null;
+  employeeType?: string | null;
+  search?: string | null;
 }

@@ -24,6 +24,14 @@ public class UpdateUserCommandValidator : AbstractValidator<UpdateUserCommand>
         RuleFor(x => x.User.Email).NotEmpty().EmailAddress();
         RuleFor(x => x.User.Phone).NotEmpty();
         RuleFor(x => x.User.Role).IsInEnum();
+        RuleFor(x => x.User.JobTitle).MaximumLength(200).When(x => x.User.JobTitle != null);
+        RuleFor(x => x.User.EmployeeCode).MaximumLength(50).When(x => x.User.EmployeeCode != null);
+        RuleFor(x => x.User.Status)
+            .Must(s => s == null || UserLifecycle.All.Contains(s))
+            .WithMessage("Invalid status.");
+        RuleFor(x => x.User.EmployeeType)
+            .Must(t => t == null || EmployeeTypes.All.Contains(t))
+            .WithMessage("Invalid employee type.");
     }
 }
 
@@ -58,12 +66,75 @@ public class UpdateUserCommandHandler(
         if (emailConflict)
             throw new ConflictException($"Email '{dto.Email}' is already in use.");
 
-        await connection.ExecuteAsync(
-            new CommandDefinition(
-                @"UPDATE Users SET FullName = @FullName, Email = @Email, Phone = @Phone,
-                  Role = @Role, IsActive = @IsActive, UpdatedAt = @UpdatedAt WHERE Id = @Id",
-                new { dto.FullName, dto.Email, dto.Phone, Role = (int)dto.Role, dto.IsActive, UpdatedAt = DateTime.UtcNow, request.Id },
-                cancellationToken: cancellationToken));
+        await UserQueries.EnsureOrgBelongsToTenantAsync(
+            connection, tenantId.Value, dto.BranchId, dto.DepartmentId, cancellationToken);
+
+        var status = UserLifecycle.Normalize(dto.Status, dto.IsActive);
+        var isActive = UserLifecycle.IsActiveStatus(status);
+        var employeeType = EmployeeTypes.Normalize(dto.EmployeeType);
+
+        try
+        {
+            await connection.ExecuteAsync(
+                new CommandDefinition(
+                    @"UPDATE Users SET
+                        FullName = @FullName, Email = @Email, Phone = @Phone,
+                        Role = @Role, IsActive = @IsActive, UpdatedAt = @UpdatedAt,
+                        BranchId = @BranchId, DepartmentId = @DepartmentId,
+                        JobTitle = @JobTitle, EmployeeCode = @EmployeeCode, EmployeeType = @EmployeeType,
+                        Status = @Status,
+                        DefaultWorkspaceKey = @DefaultWorkspaceKey,
+                        DefaultDashboardKey = @DefaultDashboardKey,
+                        HomeRoute = @HomeRoute, TimeZone = @TimeZone,
+                        Language = @Language, Theme = @Theme, AvatarUrl = @AvatarUrl
+                      WHERE Id = @Id",
+                    new
+                    {
+                        dto.FullName,
+                        dto.Email,
+                        dto.Phone,
+                        Role = (int)dto.Role,
+                        IsActive = isActive,
+                        UpdatedAt = DateTime.UtcNow,
+                        request.Id,
+                        dto.BranchId,
+                        dto.DepartmentId,
+                        dto.JobTitle,
+                        dto.EmployeeCode,
+                        EmployeeType = employeeType,
+                        Status = status,
+                        dto.DefaultWorkspaceKey,
+                        dto.DefaultDashboardKey,
+                        dto.HomeRoute,
+                        dto.TimeZone,
+                        dto.Language,
+                        dto.Theme,
+                        dto.AvatarUrl
+                    },
+                    cancellationToken: cancellationToken));
+        }
+        catch
+        {
+            await connection.ExecuteAsync(
+                new CommandDefinition(
+                    @"UPDATE Users SET FullName = @FullName, Email = @Email, Phone = @Phone,
+                      Role = @Role, IsActive = @IsActive, UpdatedAt = @UpdatedAt,
+                      BranchId = @BranchId, DepartmentId = @DepartmentId
+                      WHERE Id = @Id",
+                    new
+                    {
+                        dto.FullName,
+                        dto.Email,
+                        dto.Phone,
+                        Role = (int)dto.Role,
+                        IsActive = isActive,
+                        UpdatedAt = DateTime.UtcNow,
+                        request.Id,
+                        dto.BranchId,
+                        dto.DepartmentId
+                    },
+                    cancellationToken: cancellationToken));
+        }
 
         return ApiResponse<bool>.SuccessResponse(true, "User updated successfully.");
     }

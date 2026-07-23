@@ -92,6 +92,39 @@
   }
 }
 
+.users-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 4px;
+
+  &__chip {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 110px;
+    padding: 10px 14px;
+    border-radius: 10px;
+    border: 1px solid var(--stb-border, #e2e8f0);
+    background: var(--stb-surface-elevated, #fff);
+    text-decoration: none;
+    color: inherit;
+
+    .eyebrow {
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--stb-text-muted, #64748b);
+    }
+
+    strong {
+      font-size: 1.1rem;
+      color: var(--stb-text, #0f172a);
+    }
+  }
+}
+
 .capability-chip {
   display: inline-flex;
   align-items: center;

@@ -10,32 +10,32 @@ import {
   UpdateUserRequest,
   UpdateUserStatusRequest,
   ResetPasswordResponse,
+  CompanyUserSummary,
+  UserListFilters,
   parseUserRole
 } from '../models/user.model';
 
-/**
- * Front door to the /api/users endpoints (Admin-only).
- *
- * Capabilities:
- * - List all users (paginated)
- * - Get single user by ID
- * - Create new user
- * - Update existing user (profile + role)
- * - Toggle active status (activate/deactivate)
- * - Reset password (returns temporary password)
- * - Delete user (soft delete)
- */
 @Injectable({ providedIn: 'root' })
 export class UserService {
   private readonly base = `${environment.apiUrl}/users`;
 
   constructor(private http: HttpClient) {}
 
-  getAll(page = 1, pageSize = 20, tenantId?: number | null): Observable<PagedResult<User>> {
+  getAll(
+    page = 1,
+    pageSize = 20,
+    tenantId?: number | null,
+    filters?: UserListFilters
+  ): Observable<PagedResult<User>> {
     let params = new HttpParams().set('page', page).set('pageSize', pageSize);
-    if (tenantId != null) {
-      params = params.set('tenantId', tenantId);
-    }
+    const tid = filters?.tenantId ?? tenantId;
+    if (tid != null) params = params.set('tenantId', tid);
+    if (filters?.branchId != null) params = params.set('branchId', filters.branchId);
+    if (filters?.departmentId != null) params = params.set('departmentId', filters.departmentId);
+    if (filters?.status) params = params.set('status', filters.status);
+    if (filters?.employeeType) params = params.set('employeeType', filters.employeeType);
+    if (filters?.search) params = params.set('search', filters.search);
+
     return this.http.get<PagedResult<User>>(this.base, { params }).pipe(
       map(result => ({
         ...result,
@@ -50,10 +50,17 @@ export class UserService {
     );
   }
 
+  getCompanySummary(tenantId?: number | null): Observable<CompanyUserSummary> {
+    let params = new HttpParams();
+    if (tenantId != null) params = params.set('tenantId', tenantId);
+    return this.http.get<CompanyUserSummary>(`${this.base}/company/summary`, { params });
+  }
+
   private normalizeUser(user: User): User {
     return {
       ...user,
       role: parseUserRole(user.role),
+      status: user.status || (user.isActive ? 'Active' : 'Inactive'),
     };
   }
 
@@ -66,7 +73,10 @@ export class UserService {
   }
 
   updateStatus(request: UpdateUserStatusRequest): Observable<boolean> {
-    return this.http.put<boolean>(`${this.base}/${request.id}/status`, { isActive: request.isActive });
+    return this.http.put<boolean>(`${this.base}/${request.id}/status`, {
+      isActive: request.isActive,
+      status: request.status
+    });
   }
 
   resetPassword(id: number): Observable<ResetPasswordResponse> {

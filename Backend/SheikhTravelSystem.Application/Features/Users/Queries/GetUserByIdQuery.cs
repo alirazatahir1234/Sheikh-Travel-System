@@ -4,7 +4,6 @@ using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Exceptions;
 using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Application.Features.Users.DTOs;
-using SheikhTravelSystem.Domain.Enums;
 
 namespace SheikhTravelSystem.Application.Features.Users.Queries;
 
@@ -18,31 +17,36 @@ public class GetUserByIdQueryHandler(
     {
         using var connection = dbFactory.CreateConnection();
 
-        var row = await connection.QuerySingleOrDefaultAsync<UserRow>(
-            new CommandDefinition(
-                @"SELECT Id, TenantId, FullName, Email, Phone, Role, IsActive, CreatedAt
-                  FROM Users WHERE Id = @Id AND IsDeleted = 0",
-                new { request.Id },
-                cancellationToken: cancellationToken));
+        UserQueries.UserRow? row;
+        try
+        {
+            row = await connection.QuerySingleOrDefaultAsync<UserQueries.UserRow>(
+                new CommandDefinition(
+                    UserQueries.SelectSql + " WHERE u.Id = @Id AND u.IsDeleted = 0",
+                    new { request.Id },
+                    cancellationToken: cancellationToken));
+        }
+        catch
+        {
+            row = await connection.QuerySingleOrDefaultAsync<UserQueries.UserRow>(
+                new CommandDefinition(
+                    @"SELECT Id, FullName, Email, Phone, Role, IsActive, CreatedAt,
+                             TenantId AS CompanyId,
+                             CAST(NULL AS NVARCHAR(200)) AS CompanyName,
+                             BranchId, CAST(NULL AS NVARCHAR(200)) AS BranchName,
+                             DepartmentId, CAST(NULL AS NVARCHAR(200)) AS DepartmentName
+                      FROM Users WHERE Id = @Id AND IsDeleted = 0",
+                    new { request.Id },
+                    cancellationToken: cancellationToken));
+        }
 
         if (row is null)
             throw new NotFoundException("User", request.Id);
 
-        platformScope.EnsureTenantAccess(row.TenantId);
+        var tenantId = row.CompanyId ?? 0;
+        if (tenantId > 0)
+            platformScope.EnsureTenantAccess(tenantId);
 
-        return ApiResponse<UserDto>.SuccessResponse(new UserDto(
-            row.Id, row.FullName, row.Email, row.Phone, row.Role, row.IsActive, row.CreatedAt));
-    }
-
-    private sealed class UserRow
-    {
-        public int Id { get; set; }
-        public int TenantId { get; set; }
-        public string FullName { get; set; } = string.Empty;
-        public string Email { get; set; } = string.Empty;
-        public string Phone { get; set; } = string.Empty;
-        public UserRole Role { get; set; }
-        public bool IsActive { get; set; }
-        public DateTime CreatedAt { get; set; }
+        return ApiResponse<UserDto>.SuccessResponse(UserQueries.ToDto(row));
     }
 }

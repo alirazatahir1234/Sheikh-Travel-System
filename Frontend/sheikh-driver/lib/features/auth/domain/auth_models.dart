@@ -390,6 +390,7 @@ class CompanyContext {
     this.workspaceHint,
     this.roleCode,
     this.subscription,
+    this.currentUser,
   });
 
   final int companyId;
@@ -409,6 +410,14 @@ class CompanyContext {
   final String? workspaceHint;
   final String? roleCode;
   final CompanySubscription? subscription;
+  final CompanyCurrentUser? currentUser;
+
+  String? get jobTitle => currentUser?.jobTitle;
+  String? get employeeType => currentUser?.employeeType;
+  String? get theme => currentUser?.theme;
+  String? get language => currentUser?.language;
+  String? get effectiveWorkspace =>
+      currentUser?.defaultWorkspaceKey ?? workspaceHint;
 
   /// Display labels for installed modules (Fleet, GPS, …).
   List<String> get moduleDisplayLabels {
@@ -502,6 +511,15 @@ class CompanyContext {
           CompanySubscription.fromJson(Map<String, dynamic>.from(subRaw));
     }
 
+    CompanyCurrentUser? currentUser;
+    final userRaw = json['currentUser'] ?? json['CurrentUser'];
+    if (userRaw is Map<String, dynamic>) {
+      currentUser = CompanyCurrentUser.fromJson(userRaw);
+    } else if (userRaw is Map) {
+      currentUser =
+          CompanyCurrentUser.fromJson(Map<String, dynamic>.from(userRaw));
+    }
+
     final parsedFeatureKeys = featureKeys.isNotEmpty
         ? featureKeys
         : FleetSession._parseStringList(
@@ -542,6 +560,7 @@ class CompanyContext {
           json['workspaceHint'] as String? ?? json['WorkspaceHint'] as String?,
       roleCode: json['roleCode'] as String? ?? json['RoleCode'] as String?,
       subscription: subscription,
+      currentUser: currentUser,
     );
   }
 
@@ -563,6 +582,68 @@ class CompanyContext {
         if (workspaceHint != null) 'workspaceHint': workspaceHint,
         if (roleCode != null) 'roleCode': roleCode,
         if (subscription != null) 'subscription': subscription!.toJson(),
+        if (currentUser != null) 'currentUser': currentUser!.toJson(),
+      };
+}
+
+/// Current-user profile slice from company context (Stage 6).
+class CompanyCurrentUser {
+  const CompanyCurrentUser({
+    this.jobTitle,
+    this.employeeType,
+    this.status,
+    this.defaultWorkspaceKey,
+    this.defaultDashboardKey,
+    this.homeRoute,
+    this.language,
+    this.theme,
+    this.avatarUrl,
+    this.employeeCode,
+  });
+
+  final String? jobTitle;
+  final String? employeeType;
+  final String? status;
+  final String? defaultWorkspaceKey;
+  final String? defaultDashboardKey;
+  final String? homeRoute;
+  final String? language;
+  final String? theme;
+  final String? avatarUrl;
+  final String? employeeCode;
+
+  factory CompanyCurrentUser.fromJson(Map<String, dynamic> json) {
+    return CompanyCurrentUser(
+      jobTitle: json['jobTitle'] as String? ?? json['JobTitle'] as String?,
+      employeeType:
+          json['employeeType'] as String? ?? json['EmployeeType'] as String?,
+      status: json['status'] as String? ?? json['Status'] as String?,
+      defaultWorkspaceKey: json['defaultWorkspaceKey'] as String? ??
+          json['DefaultWorkspaceKey'] as String?,
+      defaultDashboardKey: json['defaultDashboardKey'] as String? ??
+          json['DefaultDashboardKey'] as String?,
+      homeRoute: json['homeRoute'] as String? ?? json['HomeRoute'] as String?,
+      language: json['language'] as String? ?? json['Language'] as String?,
+      theme: json['theme'] as String? ?? json['Theme'] as String?,
+      avatarUrl: json['avatarUrl'] as String? ?? json['AvatarUrl'] as String?,
+      employeeCode:
+          json['employeeCode'] as String? ?? json['EmployeeCode'] as String?,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        if (jobTitle != null) 'jobTitle': jobTitle,
+        if (employeeType != null) 'employeeType': employeeType,
+        if (status != null) 'status': status,
+        if (defaultWorkspaceKey != null)
+          'defaultWorkspaceKey': defaultWorkspaceKey,
+        if (defaultDashboardKey != null)
+          'defaultDashboardKey': defaultDashboardKey,
+        if (homeRoute != null) 'homeRoute': homeRoute,
+        if (language != null) 'language': language,
+        if (theme != null) 'theme': theme,
+        if (avatarUrl != null) 'avatarUrl': avatarUrl,
+        if (employeeCode != null) 'employeeCode': employeeCode,
       };
 }
 

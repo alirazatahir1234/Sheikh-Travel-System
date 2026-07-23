@@ -7,6 +7,7 @@ import { forkJoin, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { PlatformService } from '../../../core/services/platform.service';
 import { LookupService } from '../../../core/services/lookup.service';
+import { UserService } from '../../../core/services/user.service';
 import { apiErrorMessage } from '../../../core/utils/api-error.util';
 import {
   DEFAULT_CURRENCY,
@@ -23,6 +24,7 @@ import {
   tenantDisplayCode,
   tenantPlanMeta
 } from '../../../core/models/platform.model';
+import { CompanyUserSummary } from '../../../core/models/user.model';
 
 @Component({
   standalone: false,
@@ -40,6 +42,7 @@ export class TenantDetailComponent implements OnInit {
   modules: TenantModuleDefinition[] = [];
   features: CompanyFeature[] = [];
   license: CompanyLicense | null = null;
+  userSummary: CompanyUserSummary | null = null;
   adminInfo?: TenantAdminInfo | null;
 
   readonly planTiers = TENANT_PLAN_TIERS;
@@ -61,6 +64,7 @@ export class TenantDetailComponent implements OnInit {
     private route: ActivatedRoute,
     private router: Router,
     private platform: PlatformService,
+    private users: UserService,
     private lookup: LookupService,
     private toast: UiToastService,
     private dialog: MatDialog
@@ -102,16 +106,20 @@ export class TenantDetailComponent implements OnInit {
       license: this.platform.getCompanyLicense(this.tenantId).pipe(
         catchError(() => of(null as CompanyLicense | null))
       ),
+      userSummary: this.users.getCompanySummary(this.tenantId).pipe(
+        catchError(() => of(null as CompanyUserSummary | null))
+      ),
       countries: this.lookup.getCountryNames(),
       currencies: this.lookup.getCurrencyCodes(),
       timezones: this.lookup.getTimezoneIds()
     }).subscribe({
-      next: ({ tenant, modules, features, license, countries, currencies, timezones }) => {
+      next: ({ tenant, modules, features, license, userSummary, countries, currencies, timezones }) => {
         this.countries = countries;
         this.currencies = currencies;
         this.timezones = timezones;
         this.features = features ?? [];
         this.license = license;
+        this.userSummary = userSummary;
         this.initForm(tenant, modules);
       },
       error: () => {

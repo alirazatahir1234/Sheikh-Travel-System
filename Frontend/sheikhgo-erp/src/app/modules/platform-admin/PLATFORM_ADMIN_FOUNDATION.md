@@ -6,7 +6,8 @@ Living gap analysis for the 15-stage Platform Administration roadmap.
 - Stage 2: Company business model + thin Feature Registry
 - Stage 3: Module Registry metadata on existing `Modules` / Module Management
 - Stage 4: Subscription & License foundation
-- Stage 5: Feature Management foundation (this stage)
+- Stage 5: Feature Management foundation
+- Stage 6: User Management enhancement (this stage)
 
 ## Role visibility
 
@@ -30,7 +31,7 @@ Living gap analysis for the 15-stage Platform Administration roadmap.
 | Organization | `/platform/organization-designer` | hierarchy feature |
 | Branches / Departments | `/platform/branches`, `/platform/departments` | existing CRUD lists |
 | Identity | `/platform/access-control` | Users / Roles / Permissions / Policies / Templates tabs |
-| Users (standalone) | `/users` | users module (deep link OK) |
+| Users (standalone) | `/users` | users module — org assignment + profile metadata (Stage 6) |
 | Modules | `/platform/module-management` | Module Registry UI (reuse; no new CRUD) |
 | Features | `/platform/feature-management` | Feature Management (enable/disable only) |
 | Subscriptions | `/platform/subscription-management` | license panels + existing billing |
@@ -126,8 +127,8 @@ flowchart TB
 | 3 | Module Registry | **Done** | Metadata on `Modules`; catalog/company APIs; Module Management enrichment; mobile module list |
 | 4 | Subscription & License | **Done (foundation)** | Plan catalog + license APIs; soft Licensed semantics; consumes Module Registry; hard enforcement deferred |
 | 5 | Feature Management | **Done (foundation)** | Extends Feature Registry; company enablement; no runtime flags / builders |
-| 6 | User Management | Existing | `/users` + Access Control Users tab — Stage 6 enhances company-aware admin |
-| 7 | Role Management | Existing | Access Control Roles tab (canonical) |
+| 6 | User Management | **Done (foundation)** | Org-aware Users; Branch/Department; lifecycle Status; workspace defaults metadata |
+| 7 | Role Management | Existing | Access Control Roles tab — Stage 7 enhances business roles / templates |
 | 8 | Permission Management | Existing | Access Control Permissions tab; future Permission Engine |
 | 9 | Menu Builder | Partial | Schema + `menus/me`; no CRUD builder UI |
 | 10 | Workspace Builder | Missing | |
@@ -176,17 +177,29 @@ flowchart TB
 - **Mobile:** Parse enriched features; enabled category chips on profile / more. No feature admin.
 - **Still missing (later):** Runtime flags / A/B; Permission Engine (Stage 8); Menu / Workspace / Dashboard builders.
 
-## Deferred (explicit non-goals of Stages 1–5)
+## Stage 6 deliverables
+
+- **Users table:** Additive profile/lifecycle/workspace columns (`JobTitle`, `EmployeeCode`, `EmployeeType`, `Status`, workspace/dashboard keys, language/theme/avatar). `IsActive` remains the auth gate; `Status` syncs with it.
+- **APIs:** Enriched `/api/Users` list/detail/create/update; filters for branch/department/status/employee type; `GET me` / `profile` / `company/summary`; self-service profile preferences.
+- **Company context:** Nested `currentUser` (job title, workspace, theme, language, …); prefer stored workspace key over derived hint.
+- **ERP:** Users list columns/filters; form org + metadata fields; Access Control Users tab Branch/Department/Status; company detail user summary strip.
+- **Mobile:** Read-only Company / Branch / Department / Job Title / Workspace / Theme. No user admin.
+- **Consumes:** Company, Modules, Features. **Produces:** Organization-aware users. **Feeds:** Role Management (Stage 7), Permission Engine (Stage 8).
+
+## Deferred (explicit non-goals of Stages 1–6)
 
 - Renaming `Tenants` table or `TenantId` columns
-- Duplicate Module / Feature CRUD / installer / Feature Builder
+- Duplicate Module / Feature / User CRUD or Identity replacement
 - Runtime feature flags, A/B testing, canary, rollout percentages
 - Runtime subscription / quota enforcement
 - Billing rebuild, payment gateways, marketplace, self-service purchasing
-- Permission Engine, Menu/Workspace/Dashboard builders
-- Mobile Company / Branch / Department / Module / Feature / Subscription admin CRUD
+- Role Management enhancement (Stage 7), Permission Engine (Stage 8)
+- Menu/Workspace/Dashboard builders
+- Auth / JWT / MFA / password policy redesign
+- Mobile Company / Branch / Department / Module / Feature / User admin CRUD
+- Employee onboarding workflows / HR module
 - Data Scope Engine (Stage 12)
 
-## Handoff to Stage 6
+## Handoff to Stage 7
 
-Stage 6 enhances existing **User Management** with company-aware administration, Branch/Department assignment, workspace defaults, and lifecycle improvements — preparing Role Management (Stage 7) and the Permission Engine (Stage 8) without a new identity system. Feature configuration from Stage 5 remains the capability layer those stages consume.
+Stage 7 enhances existing **Role Management** with business roles, role templates, company-aware role assignment, and organizational role scoping — reusing ASP.NET-style role codes and Access Control without replacing the identity model or introducing a new RBAC system. Organization-aware Users from Stage 6 are the assignment targets.

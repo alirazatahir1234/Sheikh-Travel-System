@@ -98,6 +98,29 @@
     </a>
   </div>
 
+  <div *ngIf="!loading && tenant && userSummary" class="users-summary" aria-label="Users summary">
+    <a class="users-summary__chip" [routerLink]="['/users']" [queryParams]="{ tenantId: tenantId }">
+      <span class="eyebrow">Users</span>
+      <strong>{{ userSummary.totalUsers }}</strong>
+    </a>
+    <a class="users-summary__chip" [routerLink]="['/users']" [queryParams]="{ tenantId: tenantId }">
+      <span class="eyebrow">Drivers</span>
+      <strong>{{ userSummary.drivers }}</strong>
+    </a>
+    <a class="users-summary__chip" [routerLink]="['/users']" [queryParams]="{ tenantId: tenantId }">
+      <span class="eyebrow">Managers</span>
+      <strong>{{ userSummary.managers }}</strong>
+    </a>
+    <a class="users-summary__chip" [routerLink]="['/users']" [queryParams]="{ tenantId: tenantId }">
+      <span class="eyebrow">Administrators</span>
+      <strong>{{ userSummary.administrators }}</strong>
+    </a>
+    <a class="users-summary__chip" routerLink="/platform/departments">
+      <span class="eyebrow">Departments</span>
+      <strong>{{ userSummary.departmentCount }}</strong>
+    </a>
+  </div>
+
   <div *ngIf="!loading && tenant" class="detail-layout">
     <form [formGroup]="form" (ngSubmit)="submit()" class="form-column">
       <mat-card class="section-card">

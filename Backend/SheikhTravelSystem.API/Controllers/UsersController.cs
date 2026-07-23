@@ -14,6 +14,28 @@ public class UsersController : BaseApiController
     public async Task<IActionResult> GetAll([FromQuery] GetUsersQuery query)
         => Ok(await Mediator.Send(query));
 
+    /// <summary>Current authenticated user (enriched profile).</summary>
+    [HttpGet("me")]
+    [Authorize]
+    public async Task<IActionResult> GetMe()
+        => Ok(await Mediator.Send(new GetCurrentUserProfileQuery()));
+
+    /// <summary>Company-scoped user list (alias of GET with tenant filter).</summary>
+    [HttpGet("company")]
+    public async Task<IActionResult> GetCompanyUsers([FromQuery] GetUsersQuery query)
+        => Ok(await Mediator.Send(query));
+
+    /// <summary>Self-service profile read.</summary>
+    [HttpGet("profile")]
+    [Authorize]
+    public async Task<IActionResult> GetProfile()
+        => Ok(await Mediator.Send(new GetCurrentUserProfileQuery()));
+
+    /// <summary>Company user counts for company detail strip.</summary>
+    [HttpGet("company/summary")]
+    public async Task<IActionResult> GetCompanySummary([FromQuery] int? tenantId = null)
+        => Ok(await Mediator.Send(new GetCompanyUserSummaryQuery(tenantId)));
+
     [HttpGet("{id:int}")]
     public async Task<IActionResult> GetById(int id)
         => Ok(await Mediator.Send(new GetUserByIdQuery(id)));
@@ -52,6 +74,10 @@ public class UsersController : BaseApiController
 [Route("api/users")]
 public class ProfileController : BaseApiController
 {
+    [HttpGet("profile")]
+    public async Task<IActionResult> GetProfile()
+        => Ok(await Mediator.Send(new GetCurrentUserProfileQuery()));
+
     [HttpPut("profile")]
     public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileCommand command)
     {

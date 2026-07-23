@@ -208,6 +208,8 @@ class _CompanyContextCard extends StatelessWidget {
     final parts = <String>[
       if (contextData.branchName != null) contextData.branchName!,
       if (contextData.departmentName != null) contextData.departmentName!,
+      if (contextData.jobTitle != null && contextData.jobTitle!.isNotEmpty)
+        contextData.jobTitle!,
     ];
     final moduleLabels = contextData.moduleDisplayLabels;
     return SgCard(
@@ -247,6 +249,22 @@ class _CompanyContextCard extends StatelessWidget {
                         style: const TextStyle(
                           fontSize: 12,
                           color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                    if (contextData.effectiveWorkspace != null ||
+                        contextData.theme != null) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        [
+                          if (contextData.effectiveWorkspace != null)
+                            'Workspace ${contextData.effectiveWorkspace}',
+                          if (contextData.theme != null)
+                            'Theme ${contextData.theme}',
+                        ].join(' · '),
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: AppColors.textMuted,
                         ),
                       ),
                     ],

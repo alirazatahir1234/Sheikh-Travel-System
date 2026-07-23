@@ -2,8 +2,11 @@ import { Component, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
+import { forkJoin, of } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
 import { UserService } from '../../../core/services/user.service';
+import { PlatformService } from '../../../core/services/platform.service';
 import {
   User,
   UserRole,
@@ -11,8 +14,11 @@ import {
   UserRoleDescriptions,
   CreateUserDto,
   UpdateUserDto,
-  parseUserRole
+  parseUserRole,
+  USER_LIFECYCLE_STATUSES,
+  EMPLOYEE_TYPES
 } from '../../../core/models/user.model';
+import { Branch, Department } from '../../../core/models/platform.model';
 
 @Component({
   standalone: false,
@@ -27,6 +33,9 @@ export class UserFormComponent implements OnInit {
   isEdit = false;
   userId: number | null = null;
   hidePassword = true;
+  companyName = '';
+  branches: Branch[] = [];
+  departments: Department[] = [];
 
   readonly roles = [
     UserRole.Admin,
@@ -34,10 +43,15 @@ export class UserFormComponent implements OnInit {
     UserRole.Driver,
     UserRole.Accountant
   ];
+  readonly lifecycleStatuses = USER_LIFECYCLE_STATUSES;
+  readonly employeeTypes = EMPLOYEE_TYPES;
+  readonly themes = ['light', 'dark', 'system'];
+  readonly languages = ['en', 'ar'];
 
   constructor(
     private fb: FormBuilder,
     private userService: UserService,
+    private platform: PlatformService,
     private route: ActivatedRoute,
     private router: Router,
     private toast: UiToastService) {
@@ -47,38 +61,73 @@ export class UserFormComponent implements OnInit {
       password: ['', [Validators.required, Validators.minLength(6)]],
       phone:    ['', [Validators.required]],
       role:     [UserRole.Dispatcher, Validators.required],
-      isActive: [true]
+      isActive: [true],
+      status: ['Active'],
+      branchId: [null as number | null],
+      departmentId: [null as number | null],
+      jobTitle: [''],
+      employeeCode: [''],
+      employeeType: [null as string | null],
+      defaultWorkspaceKey: [''],
+      defaultDashboardKey: [''],
+      homeRoute: [''],
+      timeZone: [''],
+      language: ['en'],
+      theme: ['system'],
+      avatarUrl: ['']
     });
   }
 
   ngOnInit(): void {
     this.route.paramMap.subscribe(params => {
       const id = params.get('id');
-      if (!id) return;
-
-      this.isEdit = true;
-      this.userId = +id;
       this.loading = true;
 
-      // Password not required when editing
-      this.form.get('password')?.clearValidators();
-      this.form.get('password')?.updateValueAndValidity();
+      forkJoin({
+        branches: this.platform.getBranches().pipe(catchError(() => of([] as Branch[]))),
+        departments: this.platform.getDepartments().pipe(catchError(() => of([] as Department[]))),
+        user: id
+          ? this.userService.getById(+id)
+          : of(null as User | null)
+      }).subscribe({
+        next: ({ branches, departments, user }) => {
+          this.branches = branches;
+          this.departments = departments;
 
-      this.userService.getById(this.userId).subscribe({
-        next: (user: User) => {
-          this.form.patchValue({
-            fullName: user.fullName,
-            email:    user.email,
-            phone:    user.phone,
-            role:     parseUserRole(user.role),
-            isActive: user.isActive
-          });
+          if (user) {
+            this.isEdit = true;
+            this.userId = user.id;
+            this.companyName = user.companyName || '';
+            this.form.get('password')?.clearValidators();
+            this.form.get('password')?.updateValueAndValidity();
+            this.form.patchValue({
+              fullName: user.fullName,
+              email: user.email,
+              phone: user.phone,
+              role: parseUserRole(user.role),
+              isActive: user.isActive,
+              status: user.status || (user.isActive ? 'Active' : 'Inactive'),
+              branchId: user.branchId ?? null,
+              departmentId: user.departmentId ?? null,
+              jobTitle: user.jobTitle || '',
+              employeeCode: user.employeeCode || '',
+              employeeType: user.employeeType || null,
+              defaultWorkspaceKey: user.defaultWorkspaceKey || '',
+              defaultDashboardKey: user.defaultDashboardKey || '',
+              homeRoute: user.homeRoute || '',
+              timeZone: user.timeZone || '',
+              language: user.language || 'en',
+              theme: user.theme || 'system',
+              avatarUrl: user.avatarUrl || ''
+            });
+          }
+
           this.loading = false;
         },
         error: () => {
           this.loading = false;
-          this.toast.error('Failed to load user.');
-          this.router.navigate(['/users']);
+          this.toast.error('Failed to load user form.');
+          void this.router.navigate(['/users']);
         }
       });
     });
@@ -92,6 +141,21 @@ export class UserFormComponent implements OnInit {
 
     this.submitting = true;
     const f = this.form.value;
+    const orgFields = {
+      branchId: f.branchId,
+      departmentId: f.departmentId,
+      jobTitle: f.jobTitle?.trim() || null,
+      employeeCode: f.employeeCode?.trim() || null,
+      employeeType: f.employeeType || null,
+      status: f.status || null,
+      defaultWorkspaceKey: f.defaultWorkspaceKey?.trim() || null,
+      defaultDashboardKey: f.defaultDashboardKey?.trim() || null,
+      homeRoute: f.homeRoute?.trim() || null,
+      timeZone: f.timeZone?.trim() || null,
+      language: f.language || null,
+      theme: f.theme || null,
+      avatarUrl: f.avatarUrl?.trim() || null
+    };
 
     if (this.isEdit && this.userId) {
       const payload: UpdateUserDto = {
@@ -99,7 +163,9 @@ export class UserFormComponent implements OnInit {
         email:    f.email.trim(),
         phone:    f.phone.trim(),
         role:     Number(f.role),
-        isActive: f.isActive
+        isActive: f.status === 'Active' ? true : !!f.isActive,
+        ...orgFields,
+        status: f.status
       };
 
       this.userService.update({ id: this.userId, user: payload }).subscribe({
@@ -112,7 +178,8 @@ export class UserFormComponent implements OnInit {
         email:    f.email.trim(),
         password: f.password,
         phone:    f.phone.trim(),
-        role:     Number(f.role)
+        role:     Number(f.role),
+        ...orgFields
       };
 
       this.userService.create({ user: payload }).subscribe({
@@ -122,36 +189,23 @@ export class UserFormComponent implements OnInit {
     }
   }
 
+  roleLabel(r: UserRole): string {
+    return UserRoleLabels[r] ?? 'Unknown';
+  }
+
+  roleDescription(r: UserRole): string {
+    return UserRoleDescriptions[r] ?? '';
+  }
+
   private onSuccess(action: string): void {
     this.submitting = false;
     this.toast.success(`User ${action} successfully.`);
-    this.router.navigate(['/users']);
+    void this.router.navigate(['/users']);
   }
 
   private onError(err: HttpErrorResponse): void {
     this.submitting = false;
-    this.toast.error(this.extractError(err));
-  }
-
-  private extractError(err: HttpErrorResponse): string {
-    const body: any = err?.error;
-    if (body?.errors) {
-      const flat = Object.values(body.errors).flat();
-      if (flat.length) return String(flat[0]);
-    }
-    if (body?.message) return String(body.message);
-    return `Operation failed (${err?.status || 'network'}).`;
-  }
-
-  roleLabel(r: UserRole | unknown): string {
-    return UserRoleLabels[parseUserRole(r)] ?? 'Unknown';
-  }
-
-  roleDescription(r: UserRole | unknown): string {
-    return UserRoleDescriptions[parseUserRole(r)] ?? '';
-  }
-
-  compareRoles(a: UserRole, b: UserRole): boolean {
-    return parseUserRole(a) === parseUserRole(b);
+    const msg = (err.error as { message?: string })?.message || 'Failed to save user.';
+    this.toast.error(msg);
   }
 }

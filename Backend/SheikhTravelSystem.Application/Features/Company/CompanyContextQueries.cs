@@ -67,6 +67,18 @@ public record CompanySubscriptionDto(
     int UsedDrivers = 0,
     int UsedVehicles = 0);
 
+public record CompanyCurrentUserDto(
+    string? JobTitle,
+    string? EmployeeType,
+    string? Status,
+    string? DefaultWorkspaceKey,
+    string? DefaultDashboardKey,
+    string? HomeRoute,
+    string? Language,
+    string? Theme,
+    string? AvatarUrl,
+    string? EmployeeCode = null);
+
 public record CompanyContextDto(
     int CompanyId,
     int TenantId,
@@ -84,7 +96,8 @@ public record CompanyContextDto(
     CompanyHierarchyCountsDto Hierarchy,
     string? WorkspaceHint,
     string? RoleCode,
-    CompanySubscriptionDto? Subscription = null);
+    CompanySubscriptionDto? Subscription = null,
+    CompanyCurrentUserDto? CurrentUser = null);
 
 public record GetCompanyContextQuery : IRequest<ApiResponse<CompanyContextDto>>;
 
@@ -146,35 +159,86 @@ public class GetCompanyContextQueryHandler(
         int? departmentId = null;
         string? departmentName = null;
         string? roleCode = currentUser.Role;
+        CompanyCurrentUserDto? currentUserProfile = null;
 
         if (currentUser.UserId is int userId)
         {
-            var org = await connection.QuerySingleOrDefaultAsync<(
-                int? BranchId, string? BranchName, int? DepartmentId, string? DepartmentName, string? RoleCode)>(
-                new CommandDefinition("""
-                    SELECT u.BranchId,
-                           br.Name AS BranchName,
-                           u.DepartmentId,
-                           d.Name AS DepartmentName,
-                           (SELECT TOP 1 r.Code
-                            FROM UserRoles ur
-                            INNER JOIN Roles r ON r.Id = ur.RoleId
-                            WHERE ur.UserId = u.Id
-                            ORDER BY r.Id) AS RoleCode
-                    FROM Users u
-                    LEFT JOIN Branches br ON br.Id = u.BranchId
-                    LEFT JOIN Departments d ON d.Id = u.DepartmentId
-                    WHERE u.Id = @UserId AND u.TenantId = @TenantId AND u.IsDeleted = 0
-                    """,
-                    new { UserId = userId, TenantId = tenantId },
-                    cancellationToken: cancellationToken));
+            try
+            {
+                var org = await connection.QuerySingleOrDefaultAsync<(
+                    int? BranchId, string? BranchName, int? DepartmentId, string? DepartmentName, string? RoleCode,
+                    string? JobTitle, string? EmployeeType, string? Status, string? DefaultWorkspaceKey,
+                    string? DefaultDashboardKey, string? HomeRoute, string? Language, string? Theme,
+                    string? AvatarUrl, string? EmployeeCode)>(
+                    new CommandDefinition("""
+                        SELECT u.BranchId,
+                               br.Name AS BranchName,
+                               u.DepartmentId,
+                               d.Name AS DepartmentName,
+                               (SELECT TOP 1 r.Code
+                                FROM UserRoles ur
+                                INNER JOIN Roles r ON r.Id = ur.RoleId
+                                WHERE ur.UserId = u.Id
+                                ORDER BY r.Id) AS RoleCode,
+                               u.JobTitle, u.EmployeeType, u.Status,
+                               u.DefaultWorkspaceKey, u.DefaultDashboardKey, u.HomeRoute,
+                               u.Language, u.Theme, u.AvatarUrl, u.EmployeeCode
+                        FROM Users u
+                        LEFT JOIN Branches br ON br.Id = u.BranchId
+                        LEFT JOIN Departments d ON d.Id = u.DepartmentId
+                        WHERE u.Id = @UserId AND u.TenantId = @TenantId AND u.IsDeleted = 0
+                        """,
+                        new { UserId = userId, TenantId = tenantId },
+                        cancellationToken: cancellationToken));
 
-            branchId = org.BranchId;
-            branchName = org.BranchName;
-            departmentId = org.DepartmentId;
-            departmentName = org.DepartmentName;
-            if (!string.IsNullOrWhiteSpace(org.RoleCode))
-                roleCode = org.RoleCode;
+                branchId = org.BranchId;
+                branchName = org.BranchName;
+                departmentId = org.DepartmentId;
+                departmentName = org.DepartmentName;
+                if (!string.IsNullOrWhiteSpace(org.RoleCode))
+                    roleCode = org.RoleCode;
+
+                currentUserProfile = new CompanyCurrentUserDto(
+                    org.JobTitle,
+                    org.EmployeeType,
+                    org.Status,
+                    org.DefaultWorkspaceKey,
+                    org.DefaultDashboardKey,
+                    org.HomeRoute,
+                    org.Language,
+                    org.Theme,
+                    org.AvatarUrl,
+                    org.EmployeeCode);
+            }
+            catch
+            {
+                var org = await connection.QuerySingleOrDefaultAsync<(
+                    int? BranchId, string? BranchName, int? DepartmentId, string? DepartmentName, string? RoleCode)>(
+                    new CommandDefinition("""
+                        SELECT u.BranchId,
+                               br.Name AS BranchName,
+                               u.DepartmentId,
+                               d.Name AS DepartmentName,
+                               (SELECT TOP 1 r.Code
+                                FROM UserRoles ur
+                                INNER JOIN Roles r ON r.Id = ur.RoleId
+                                WHERE ur.UserId = u.Id
+                                ORDER BY r.Id) AS RoleCode
+                        FROM Users u
+                        LEFT JOIN Branches br ON br.Id = u.BranchId
+                        LEFT JOIN Departments d ON d.Id = u.DepartmentId
+                        WHERE u.Id = @UserId AND u.TenantId = @TenantId AND u.IsDeleted = 0
+                        """,
+                        new { UserId = userId, TenantId = tenantId },
+                        cancellationToken: cancellationToken));
+
+                branchId = org.BranchId;
+                branchName = org.BranchName;
+                departmentId = org.DepartmentId;
+                departmentName = org.DepartmentName;
+                if (!string.IsNullOrWhiteSpace(org.RoleCode))
+                    roleCode = org.RoleCode;
+            }
         }
 
         List<(string ModuleCode, string Name, string? DisplayName, string? Description, string? Category,
@@ -309,7 +373,9 @@ public class GetCompanyContextQueryHandler(
                 },
                 cancellationToken: cancellationToken));
 
-        var workspaceHint = ResolveWorkspaceHint(roleCode);
+        var workspaceHint = !string.IsNullOrWhiteSpace(currentUserProfile?.DefaultWorkspaceKey)
+            ? currentUserProfile!.DefaultWorkspaceKey
+            : ResolveWorkspaceHint(roleCode);
 
         CompanySubscriptionDto? subscription = null;
         try
@@ -361,7 +427,8 @@ public class GetCompanyContextQueryHandler(
             Hierarchy: counts,
             WorkspaceHint: workspaceHint,
             RoleCode: roleCode,
-            Subscription: subscription);
+            Subscription: subscription,
+            CurrentUser: currentUserProfile);
 
         return ApiResponse<CompanyContextDto>.SuccessResponse(dto);
     }

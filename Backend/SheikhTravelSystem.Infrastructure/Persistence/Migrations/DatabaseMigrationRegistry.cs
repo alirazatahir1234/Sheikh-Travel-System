@@ -80,6 +80,7 @@ public static class DatabaseMigrationRegistry
             M("ModuleRegistryMigration", ModuleRegistryMigration.ApplyAsync),
             M("SubscriptionLicenseMigration", SubscriptionLicenseMigration.ApplyAsync),
             M("FeatureManagementMigration", FeatureManagementMigration.ApplyAsync),
+            M("UserManagementFoundationMigration", UserManagementFoundationMigration.ApplyAsync),
         ];
     }
 }
