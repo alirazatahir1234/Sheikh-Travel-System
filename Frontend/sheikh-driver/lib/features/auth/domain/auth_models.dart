@@ -385,6 +385,7 @@ class CompanyContext {
     this.departmentName,
     this.enabledModuleKeys = const [],
     this.featureKeys = const [],
+    this.modules = const [],
     this.workspaceHint,
     this.roleCode,
   });
@@ -401,8 +402,37 @@ class CompanyContext {
   final String? departmentName;
   final List<String> enabledModuleKeys;
   final List<String> featureKeys;
+  final List<CompanyModule> modules;
   final String? workspaceHint;
   final String? roleCode;
+
+  /// Display labels for installed modules (Fleet, GPS, …).
+  List<String> get moduleDisplayLabels {
+    if (modules.isNotEmpty) {
+      return modules
+          .map((m) => m.displayName.isNotEmpty ? m.displayName : m.name)
+          .where((n) => n.isNotEmpty)
+          .toList();
+    }
+    // Fallback from legacy keys when modules[] missing
+    const labels = <String, String>{
+      'vehicles': 'Fleet',
+      'drivers': 'Fleet',
+      'maintenance': 'Maintenance',
+      'fuel-logs': 'Fuel',
+      'gps-tracking': 'GPS',
+      'reports': 'Reports',
+      'bookings': 'Travel',
+      'trips': 'Trips',
+    };
+    final seen = <String>{};
+    final out = <String>[];
+    for (final key in enabledModuleKeys) {
+      final label = labels[key.toLowerCase()];
+      if (label != null && seen.add(label)) out.add(label);
+    }
+    return out;
+  }
 
   factory CompanyContext.fromJson(Map<String, dynamic> json) {
     final featuresRaw = json['features'] ?? json['Features'];
@@ -414,6 +444,18 @@ class CompanyContext {
           if (key != null) featureKeys.add(key.toString());
         } else if (item != null) {
           featureKeys.add(item.toString());
+        }
+      }
+    }
+
+    final modulesRaw = json['modules'] ?? json['Modules'];
+    final modules = <CompanyModule>[];
+    if (modulesRaw is List) {
+      for (final item in modulesRaw) {
+        if (item is Map<String, dynamic>) {
+          modules.add(CompanyModule.fromJson(item));
+        } else if (item is Map) {
+          modules.add(CompanyModule.fromJson(Map<String, dynamic>.from(item)));
         }
       }
     }
@@ -450,6 +492,7 @@ class CompanyContext {
           : FleetSession._parseStringList(
               json['featureKeys'] ?? json['FeatureKeys'],
             ),
+      modules: modules,
       workspaceHint:
           json['workspaceHint'] as String? ?? json['WorkspaceHint'] as String?,
       roleCode: json['roleCode'] as String? ?? json['RoleCode'] as String?,
@@ -469,8 +512,81 @@ class CompanyContext {
         if (departmentName != null) 'departmentName': departmentName,
         'enabledModuleKeys': enabledModuleKeys,
         'featureKeys': featureKeys,
+        'modules': modules.map((m) => m.toJson()).toList(),
         if (workspaceHint != null) 'workspaceHint': workspaceHint,
         if (roleCode != null) 'roleCode': roleCode,
+      };
+}
+
+/// Installed company module (read-only registry metadata).
+class CompanyModule {
+  const CompanyModule({
+    required this.moduleCode,
+    required this.name,
+    this.displayName = '',
+    this.description,
+    this.category,
+    this.version,
+    this.icon,
+    this.status,
+    this.isMobileSupported = false,
+    this.isAISupported = false,
+    this.isGPSSupported = false,
+  });
+
+  final String moduleCode;
+  final String name;
+  final String displayName;
+  final String? description;
+  final String? category;
+  final String? version;
+  final String? icon;
+  final String? status;
+  final bool isMobileSupported;
+  final bool isAISupported;
+  final bool isGPSSupported;
+
+  factory CompanyModule.fromJson(Map<String, dynamic> json) {
+    return CompanyModule(
+      moduleCode: json['moduleCode'] as String? ??
+          json['ModuleCode'] as String? ??
+          json['code'] as String? ??
+          '',
+      name: json['name'] as String? ?? json['Name'] as String? ?? '',
+      displayName: json['displayName'] as String? ??
+          json['DisplayName'] as String? ??
+          json['name'] as String? ??
+          json['Name'] as String? ??
+          '',
+      description:
+          json['description'] as String? ?? json['Description'] as String?,
+      category: json['category'] as String? ?? json['Category'] as String?,
+      version: json['version'] as String? ?? json['Version'] as String?,
+      icon: json['icon'] as String? ?? json['Icon'] as String?,
+      status: json['status'] as String? ?? json['Status'] as String?,
+      isMobileSupported: json['isMobileSupported'] as bool? ??
+          json['IsMobileSupported'] as bool? ??
+          false,
+      isAISupported:
+          json['isAISupported'] as bool? ?? json['IsAISupported'] as bool? ?? false,
+      isGPSSupported: json['isGPSSupported'] as bool? ??
+          json['IsGPSSupported'] as bool? ??
+          false,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'moduleCode': moduleCode,
+        'name': name,
+        'displayName': displayName,
+        if (description != null) 'description': description,
+        if (category != null) 'category': category,
+        if (version != null) 'version': version,
+        if (icon != null) 'icon': icon,
+        if (status != null) 'status': status,
+        'isMobileSupported': isMobileSupported,
+        'isAISupported': isAISupported,
+        'isGPSSupported': isGPSSupported,
       };
 }
 

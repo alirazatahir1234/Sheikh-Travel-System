@@ -121,8 +121,54 @@ public record UpdateRolePermissionsCommand(int RoleId, IReadOnlyList<string> Per
 
 public record GetPermissionsQuery : IRequest<ApiResponse<IReadOnlyList<PermissionDto>>>;
 
-public record TenantModuleDefinitionDto(string Code, string Name, IReadOnlyList<string> LegacyKeys);
+public record TenantModuleDefinitionDto(
+    string Code,
+    string Name,
+    IReadOnlyList<string> LegacyKeys,
+    string? DisplayName = null,
+    string? Description = null,
+    string? Category = null,
+    string? Version = null,
+    string? Icon = null,
+    string? Route = null,
+    int SortOrder = 0,
+    IReadOnlyList<string>? Dependencies = null,
+    bool Visible = true,
+    bool IsMobileSupported = false,
+    bool IsAISupported = false,
+    bool IsGPSSupported = false,
+    string Status = "Active",
+    string? DocumentationUrl = null,
+    bool IsEnableable = true,
+    int? Id = null);
+
+public record ModuleRegistryDto(
+    string Code,
+    string Name,
+    string DisplayName,
+    string? Description,
+    string? Category,
+    string Version,
+    string? Icon,
+    string? Route,
+    int SortOrder,
+    IReadOnlyList<string> Dependencies,
+    bool Visible,
+    bool IsMobileSupported,
+    bool IsAISupported,
+    bool IsGPSSupported,
+    string Status,
+    string? DocumentationUrl,
+    IReadOnlyList<string> LegacyKeys,
+    bool IsEnableable,
+    int? Id = null,
+    bool IsInstalled = false,
+    bool IsLicensed = false);
+
 public record GetTenantModulesQuery : IRequest<ApiResponse<IReadOnlyList<TenantModuleDefinitionDto>>>;
+public record GetModuleCatalogQuery : IRequest<ApiResponse<IReadOnlyList<ModuleRegistryDto>>>;
+public record GetCompanyModulesQuery : IRequest<ApiResponse<IReadOnlyList<ModuleRegistryDto>>>;
+public record GetModuleByKeyQuery(string CodeOrId) : IRequest<ApiResponse<ModuleRegistryDto>>;
 
 public record GetTenantsQuery : IRequest<ApiResponse<IReadOnlyList<TenantListDto>>>;
 
@@ -279,11 +325,28 @@ public record UpdateTenantSecuritySettingsCommand(int TenantId, TenantSecuritySe
 public record GetRoleTemplatesQuery : IRequest<ApiResponse<IReadOnlyList<RoleTemplateDto>>>;
 public record ApplyRoleTemplateCommand(int TenantId, string RoleCode) : IRequest<ApiResponse<bool>>;
 
-// Module Management (Sprint 3)
+// Module Management / Module Registry (Stage 3)
 public record ModuleStatusDto(
     string Code,
     string Name,
-    bool IsEnabled);
+    bool IsEnabled,
+    string? DisplayName = null,
+    string? Description = null,
+    string? Category = null,
+    string? Version = null,
+    string? Icon = null,
+    string? Route = null,
+    int SortOrder = 0,
+    IReadOnlyList<string>? Dependencies = null,
+    bool Visible = true,
+    bool IsMobileSupported = false,
+    bool IsAISupported = false,
+    bool IsGPSSupported = false,
+    string Status = "Active",
+    string? DocumentationUrl = null,
+    bool IsInstalled = false,
+    bool IsLicensed = false,
+    bool CanToggle = true);
 
 public record LicenseLimitDto(
     string Resource,

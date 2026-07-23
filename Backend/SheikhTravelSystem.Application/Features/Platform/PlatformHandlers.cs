@@ -292,16 +292,103 @@ public class GetPermissionsQueryHandler(IDbConnectionFactory dbFactory)
     }
 }
 
-public class GetTenantModulesQueryHandler
+public class GetTenantModulesQueryHandler(IDbConnectionFactory dbFactory)
     : IRequestHandler<GetTenantModulesQuery, ApiResponse<IReadOnlyList<TenantModuleDefinitionDto>>>
 {
-    public Task<ApiResponse<IReadOnlyList<TenantModuleDefinitionDto>>> Handle(
+    public async Task<ApiResponse<IReadOnlyList<TenantModuleDefinitionDto>>> Handle(
         GetTenantModulesQuery request, CancellationToken cancellationToken)
     {
-        var modules = TenantModuleCatalog.All
-            .Select(m => new TenantModuleDefinitionDto(m.Code, m.Name, m.LegacyKeys))
+        IReadOnlyList<ModuleRegistryDto> catalog;
+        try
+        {
+            using var connection = dbFactory.CreateConnection();
+            catalog = await ModuleRegistryQueries.LoadCatalogAsync(connection, cancellationToken);
+        }
+        catch
+        {
+            catalog = ModuleRegistrySeed.All
+                .Where(e => e.Visible)
+                .OrderBy(e => e.SortOrder)
+                .Select(e => ModuleRegistryQueries.FromSeed(e))
+                .ToList();
+        }
+
+        var enableable = catalog
+            .Where(m => m.IsEnableable)
+            .Select(ModuleRegistryQueries.ToDefinitionDto)
             .ToList();
-        return Task.FromResult(ApiResponse<IReadOnlyList<TenantModuleDefinitionDto>>.SuccessResponse(modules));
+
+        if (enableable.Count == 0)
+        {
+            enableable = TenantModuleCatalog.All
+                .Select(m =>
+                {
+                    var seed = ModuleRegistrySeed.All.FirstOrDefault(s => s.Code == m.Code);
+                    var dto = seed is null
+                        ? ModuleRegistryQueries.FromSeed(new ModuleRegistrySeed.Entry(
+                            m.Code, m.Name, m.Name, m.Name, "Platform", "1.0.0", "extension", null, 0,
+                            [], true, false, false, false, "Active", null, m.LegacyKeys))
+                        : ModuleRegistryQueries.FromSeed(seed);
+                    return ModuleRegistryQueries.ToDefinitionDto(dto);
+                })
+                .ToList();
+        }
+
+        return ApiResponse<IReadOnlyList<TenantModuleDefinitionDto>>.SuccessResponse(enableable);
+    }
+}
+
+public class GetModuleCatalogQueryHandler(IDbConnectionFactory dbFactory)
+    : IRequestHandler<GetModuleCatalogQuery, ApiResponse<IReadOnlyList<ModuleRegistryDto>>>
+{
+    public async Task<ApiResponse<IReadOnlyList<ModuleRegistryDto>>> Handle(
+        GetModuleCatalogQuery request, CancellationToken cancellationToken)
+    {
+        using var connection = dbFactory.CreateConnection();
+        var catalog = await ModuleRegistryQueries.LoadCatalogAsync(connection, cancellationToken);
+        return ApiResponse<IReadOnlyList<ModuleRegistryDto>>.SuccessResponse(catalog);
+    }
+}
+
+public class GetCompanyModulesQueryHandler(
+    IDbConnectionFactory dbFactory,
+    ITenantContext tenantContext)
+    : IRequestHandler<GetCompanyModulesQuery, ApiResponse<IReadOnlyList<ModuleRegistryDto>>>
+{
+    public async Task<ApiResponse<IReadOnlyList<ModuleRegistryDto>>> Handle(
+        GetCompanyModulesQuery request, CancellationToken cancellationToken)
+    {
+        var tenantId = tenantContext.GetRequiredTenantId();
+        using var connection = dbFactory.CreateConnection();
+        var catalog = await ModuleRegistryQueries.LoadCatalogAsync(connection, cancellationToken);
+
+        var installed = (await connection.QueryAsync<string>(new CommandDefinition("""
+            SELECT m.ModuleCode
+            FROM TenantModules tm
+            INNER JOIN Modules m ON m.Id = tm.ModuleId
+            WHERE tm.TenantId = @TenantId
+            """, new { TenantId = tenantId }, cancellationToken: cancellationToken)))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var result = catalog
+            .Select(m => m with { IsInstalled = installed.Contains(m.Code), IsLicensed = installed.Contains(m.Code) })
+            .ToList();
+
+        return ApiResponse<IReadOnlyList<ModuleRegistryDto>>.SuccessResponse(result);
+    }
+}
+
+public class GetModuleByKeyQueryHandler(IDbConnectionFactory dbFactory)
+    : IRequestHandler<GetModuleByKeyQuery, ApiResponse<ModuleRegistryDto>>
+{
+    public async Task<ApiResponse<ModuleRegistryDto>> Handle(
+        GetModuleByKeyQuery request, CancellationToken cancellationToken)
+    {
+        using var connection = dbFactory.CreateConnection();
+        var module = await ModuleRegistryQueries.LoadByKeyAsync(connection, request.CodeOrId, cancellationToken);
+        if (module is null)
+            return ApiResponse<ModuleRegistryDto>.FailResponse("Module not found.");
+        return ApiResponse<ModuleRegistryDto>.SuccessResponse(module);
     }
 }
 
@@ -1434,9 +1521,29 @@ public class GetTenantModuleOverviewQueryHandler(IDbConnectionFactory dbFactory,
             }
         }
 
-        var modules = TenantModuleCatalog.All
-            .Select(m => new ModuleStatusDto(m.Code, m.Name, enabledCodes.Contains(m.Code)))
+        var catalog = await ModuleRegistryQueries.LoadCatalogAsync(connection, cancellationToken);
+        var modules = catalog
+            .Select(m => ModuleRegistryQueries.ToStatusDto(m, enabledCodes.Contains(m.Code)))
+            .OrderBy(m => m.SortOrder)
+            .ThenBy(m => m.Code)
             .ToList();
+
+        // Always include enableable Active modules even if catalog empty
+        if (modules.Count == 0)
+        {
+            modules = TenantModuleCatalog.All
+                .Select(m =>
+                {
+                    var seed = ModuleRegistrySeed.All.FirstOrDefault(s => s.Code == m.Code);
+                    var dto = seed is null
+                        ? ModuleRegistryQueries.FromSeed(new ModuleRegistrySeed.Entry(
+                            m.Code, m.Name, m.Name, m.Name, "Platform", "1.0.0", "extension", null, 0,
+                            [], true, false, false, false, "Active", null, m.LegacyKeys))
+                        : ModuleRegistryQueries.FromSeed(seed);
+                    return ModuleRegistryQueries.ToStatusDto(dto, enabledCodes.Contains(m.Code));
+                })
+                .ToList();
+        }
 
         var limits = await connection.QuerySingleAsync<(int? MaxUsers, int? MaxVehicles, int? MaxDrivers, int? MaxBranches, int? MaxGpsDevices,
             int UsedUsers, int UsedVehicles, int UsedDrivers, int UsedBranches, int UsedGps)>(new CommandDefinition("""

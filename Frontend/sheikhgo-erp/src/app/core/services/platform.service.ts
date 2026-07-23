@@ -24,7 +24,8 @@ import {
   TenantModuleDefinition,
   UpdateTenantBrandingPayload,
   UpdateTenantPayload,
-  CompanyFeature
+  CompanyFeature,
+  ModuleRegistryEntry
 } from '../models/platform.model';
 
 @Injectable({ providedIn: 'root' })
@@ -47,6 +48,18 @@ export class PlatformService {
 
   getFeatureCatalog(): Observable<CompanyFeature[]> {
     return this.http.get<CompanyFeature[]>(`${this.base}/features/catalog`);
+  }
+
+  getModuleCatalog(): Observable<ModuleRegistryEntry[]> {
+    return this.http.get<ModuleRegistryEntry[]>(`${this.base}/modules/catalog`);
+  }
+
+  getCompanyModules(): Observable<ModuleRegistryEntry[]> {
+    return this.http.get<ModuleRegistryEntry[]>(`${this.base}/modules/company`);
+  }
+
+  getModuleByKey(codeOrId: string): Observable<ModuleRegistryEntry> {
+    return this.http.get<ModuleRegistryEntry>(`${this.base}/modules/${encodeURIComponent(codeOrId)}`);
   }
 
   getTenantManagementStats(): Observable<TenantManagementStats> {

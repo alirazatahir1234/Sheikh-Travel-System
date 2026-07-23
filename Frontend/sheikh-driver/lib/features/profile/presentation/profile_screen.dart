@@ -208,45 +208,78 @@ class _CompanyContextCard extends StatelessWidget {
       if (contextData.branchName != null) contextData.branchName!,
       if (contextData.departmentName != null) contextData.departmentName!,
     ];
+    final moduleLabels = contextData.moduleDisplayLabels;
     return SgCard(
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          CircleAvatar(
-            radius: 22,
-            backgroundColor: AppColors.primary.withValues(alpha: 0.12),
-            backgroundImage: contextData.logoUrl != null
-                ? NetworkImage(contextData.logoUrl!)
-                : null,
-            child: contextData.logoUrl == null
-                ? const Icon(Icons.business_outlined, color: AppColors.primary)
-                : null,
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  contextData.companyName,
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary,
-                  ),
+          Row(
+            children: [
+              CircleAvatar(
+                radius: 22,
+                backgroundColor: AppColors.primary.withValues(alpha: 0.12),
+                backgroundImage: contextData.logoUrl != null
+                    ? NetworkImage(contextData.logoUrl!)
+                    : null,
+                child: contextData.logoUrl == null
+                    ? const Icon(Icons.business_outlined,
+                        color: AppColors.primary)
+                    : null,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      contextData.companyName,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    if (parts.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        parts.join(' · '),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
-                if (parts.isNotEmpty) ...[
-                  const SizedBox(height: 2),
-                  Text(
-                    parts.join(' · '),
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: AppColors.textSecondary,
+              ),
+            ],
+          ),
+          if (moduleLabels.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                for (final label in moduleLabels.take(8))
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(AppRadii.sm),
+                    ),
+                    child: Text(
+                      label,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.primary,
+                      ),
                     ),
                   ),
-                ],
               ],
             ),
-          ),
+          ],
         ],
       ),
     );

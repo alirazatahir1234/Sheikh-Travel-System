@@ -92,6 +92,18 @@ public class TenantModulesController : BaseApiController
     [HttpGet]
     public async Task<IActionResult> GetAll()
         => Ok(await Mediator.Send(new GetTenantModulesQuery()));
+
+    [HttpGet("catalog")]
+    public async Task<IActionResult> GetCatalog()
+        => Ok(await Mediator.Send(new GetModuleCatalogQuery()));
+
+    [HttpGet("company")]
+    public async Task<IActionResult> GetCompanyModules()
+        => Ok(await Mediator.Send(new GetCompanyModulesQuery()));
+
+    [HttpGet("{codeOrId}")]
+    public async Task<IActionResult> GetByKey(string codeOrId)
+        => Ok(await Mediator.Send(new GetModuleByKeyQuery(codeOrId)));
 }
 
 [Authorize]

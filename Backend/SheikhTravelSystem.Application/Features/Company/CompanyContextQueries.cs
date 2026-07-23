@@ -13,7 +13,18 @@ public record CompanyFeatureDto(
     bool IsEnabled,
     int SortOrder);
 
-public record CompanyModuleDto(string ModuleCode, string Name);
+public record CompanyModuleDto(
+    string ModuleCode,
+    string Name,
+    string? DisplayName = null,
+    string? Description = null,
+    string? Category = null,
+    string? Version = null,
+    string? Icon = null,
+    string? Status = null,
+    bool IsMobileSupported = false,
+    bool IsAISupported = false,
+    bool IsGPSSupported = false);
 
 public record CompanyHierarchyCountsDto(
     int BranchCount,
@@ -123,16 +134,55 @@ public class GetCompanyContextQueryHandler(
                 roleCode = org.RoleCode;
         }
 
-        var moduleCodes = (await connection.QueryAsync<(string ModuleCode, string Name)>(
-            new CommandDefinition("""
-                SELECT m.ModuleCode, m.ModuleName AS Name
-                FROM TenantModules tm
-                INNER JOIN Modules m ON m.Id = tm.ModuleId
-                WHERE tm.TenantId = @TenantId
-                ORDER BY m.ModuleCode
-                """,
-                new { TenantId = tenantId },
-                cancellationToken: cancellationToken))).ToList();
+        List<(string ModuleCode, string Name, string? DisplayName, string? Description, string? Category,
+            string? Version, string? Icon, string? Status, bool IsMobileSupported, bool IsAISupported, bool IsGPSSupported)> moduleCodes;
+
+        try
+        {
+            moduleCodes = (await connection.QueryAsync<(
+                string ModuleCode, string Name, string? DisplayName, string? Description, string? Category,
+                string? Version, string? Icon, string? Status, bool IsMobileSupported, bool IsAISupported, bool IsGPSSupported)>(
+                new CommandDefinition("""
+                    SELECT m.ModuleCode,
+                           m.ModuleName AS Name,
+                           COALESCE(m.DisplayName, m.ModuleName) AS DisplayName,
+                           m.Description, m.Category, m.Version, m.Icon,
+                           COALESCE(m.Status, N'Active') AS Status,
+                           COALESCE(m.IsMobileSupported, 0) AS IsMobileSupported,
+                           COALESCE(m.IsAISupported, 0) AS IsAISupported,
+                           COALESCE(m.IsGPSSupported, 0) AS IsGPSSupported
+                    FROM TenantModules tm
+                    INNER JOIN Modules m ON m.Id = tm.ModuleId
+                    WHERE tm.TenantId = @TenantId
+                    ORDER BY COALESCE(m.SortOrder, 0), m.ModuleCode
+                    """,
+                    new { TenantId = tenantId },
+                    cancellationToken: cancellationToken))).ToList();
+        }
+        catch
+        {
+            moduleCodes = (await connection.QueryAsync<(
+                string ModuleCode, string Name, string? DisplayName, string? Description, string? Category,
+                string? Version, string? Icon, string? Status, bool IsMobileSupported, bool IsAISupported, bool IsGPSSupported)>(
+                new CommandDefinition("""
+                    SELECT m.ModuleCode, m.ModuleName AS Name,
+                           m.ModuleName AS DisplayName,
+                           CAST(NULL AS NVARCHAR(500)) AS Description,
+                           CAST(NULL AS NVARCHAR(100)) AS Category,
+                           CAST(N'1.0.0' AS NVARCHAR(50)) AS Version,
+                           CAST(NULL AS NVARCHAR(100)) AS Icon,
+                           CAST(N'Active' AS NVARCHAR(50)) AS Status,
+                           CAST(0 AS bit) AS IsMobileSupported,
+                           CAST(0 AS bit) AS IsAISupported,
+                           CAST(0 AS bit) AS IsGPSSupported
+                    FROM TenantModules tm
+                    INNER JOIN Modules m ON m.Id = tm.ModuleId
+                    WHERE tm.TenantId = @TenantId
+                    ORDER BY m.ModuleCode
+                    """,
+                    new { TenantId = tenantId },
+                    cancellationToken: cancellationToken))).ToList();
+        }
 
         IReadOnlyList<string> enabledLegacyKeys;
         if (moduleCodes.Count == 0)
@@ -141,13 +191,43 @@ public class GetCompanyContextQueryHandler(
             moduleCodes = TenantModuleCatalog.All
                 .Where(m => enabledLegacyKeys.Any(k =>
                     m.LegacyKeys.Contains(k, StringComparer.OrdinalIgnoreCase)))
-                .Select(m => (m.Code, m.Name))
+                .Select(m =>
+                {
+                    var seed = ModuleRegistrySeed.All.FirstOrDefault(s => s.Code == m.Code);
+                    return (
+                        ModuleCode: m.Code,
+                        Name: m.Name,
+                        DisplayName: (string?)(seed?.DisplayName ?? m.Name),
+                        Description: seed?.Description,
+                        Category: seed?.Category,
+                        Version: (string?)(seed?.Version ?? "1.0.0"),
+                        Icon: seed?.Icon,
+                        Status: (string?)(seed?.Status ?? "Active"),
+                        IsMobileSupported: seed?.IsMobileSupported ?? false,
+                        IsAISupported: seed?.IsAISupported ?? false,
+                        IsGPSSupported: seed?.IsGPSSupported ?? false);
+                })
                 .ToList();
         }
         else
         {
             enabledLegacyKeys = TenantModuleCatalog.LegacyKeysFromCodes(moduleCodes.Select(m => m.ModuleCode));
         }
+
+        var moduleDtos = moduleCodes
+            .Select(m => new CompanyModuleDto(
+                m.ModuleCode,
+                m.Name,
+                m.DisplayName,
+                m.Description,
+                m.Category,
+                m.Version,
+                m.Icon,
+                m.Status,
+                m.IsMobileSupported,
+                m.IsAISupported,
+                m.IsGPSSupported))
+            .ToList();
 
         var moduleCodeArray = moduleCodes.Select(m => m.ModuleCode).DefaultIfEmpty("__none__").ToArray();
         var features = new List<CompanyFeatureDto>();
@@ -207,7 +287,7 @@ public class GetCompanyContextQueryHandler(
             DepartmentId: departmentId,
             DepartmentName: departmentName,
             EnabledModuleKeys: enabledLegacyKeys.ToList(),
-            Modules: moduleCodes.Select(m => new CompanyModuleDto(m.ModuleCode, m.Name)).ToList(),
+            Modules: moduleDtos,
             Features: features,
             Hierarchy: counts,
             WorkspaceHint: workspaceHint,

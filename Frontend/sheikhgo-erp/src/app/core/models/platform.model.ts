@@ -112,6 +112,46 @@ export interface TenantModuleDefinition {
   code: string;
   name: string;
   legacyKeys: string[];
+  displayName?: string | null;
+  description?: string | null;
+  category?: string | null;
+  version?: string | null;
+  icon?: string | null;
+  route?: string | null;
+  sortOrder?: number;
+  dependencies?: string[] | null;
+  visible?: boolean;
+  isMobileSupported?: boolean;
+  isAISupported?: boolean;
+  isGPSSupported?: boolean;
+  status?: string;
+  documentationUrl?: string | null;
+  isEnableable?: boolean;
+  id?: number | null;
+}
+
+export interface ModuleRegistryEntry {
+  code: string;
+  name: string;
+  displayName: string;
+  description?: string | null;
+  category?: string | null;
+  version: string;
+  icon?: string | null;
+  route?: string | null;
+  sortOrder: number;
+  dependencies: string[];
+  visible: boolean;
+  isMobileSupported: boolean;
+  isAISupported: boolean;
+  isGPSSupported: boolean;
+  status: string;
+  documentationUrl?: string | null;
+  legacyKeys: string[];
+  isEnableable: boolean;
+  id?: number | null;
+  isInstalled?: boolean;
+  isLicensed?: boolean;
 }
 
 export const DEFAULT_TENANT_MODULE_CODES = [
@@ -519,6 +559,23 @@ export interface ModuleStatus {
   code: string;
   name: string;
   isEnabled: boolean;
+  displayName?: string | null;
+  description?: string | null;
+  category?: string | null;
+  version?: string | null;
+  icon?: string | null;
+  route?: string | null;
+  sortOrder?: number;
+  dependencies?: string[] | null;
+  visible?: boolean;
+  isMobileSupported?: boolean;
+  isAISupported?: boolean;
+  isGPSSupported?: boolean;
+  status?: string;
+  documentationUrl?: string | null;
+  isInstalled?: boolean;
+  isLicensed?: boolean;
+  canToggle?: boolean;
 }
 
 export interface LicenseLimit {

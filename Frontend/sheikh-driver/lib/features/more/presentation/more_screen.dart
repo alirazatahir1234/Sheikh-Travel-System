@@ -46,6 +46,34 @@ class MoreScreen extends ConsumerWidget {
               color: AppColors.textSecondary,
             ),
           ),
+          if (session.companyContext?.moduleDisplayLabels.isNotEmpty ==
+              true) ...[
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                for (final label
+                    in session.companyContext!.moduleDisplayLabels.take(6))
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(AppRadii.sm),
+                    ),
+                    child: Text(
+                      label,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ],
           const SizedBox(height: 16),
           GridView.builder(
             shrinkWrap: true,
