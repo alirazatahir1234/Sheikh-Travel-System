@@ -43,8 +43,8 @@ public static class PlatformSchemaMigration
         await EnsureFleetMenusAsync(connection, cancellationToken);
         await EnsurePlatformAdminMenusAsync(connection, cancellationToken);
         await UpsertMenuUnderModuleAsync(
-            connection, "administration", "Maintenance", "/platform/maintenance", "build_circle",
-            "Platform.Settings.Manage", 12, cancellationToken);
+            connection, "administration", "Database Reset", "/platform/maintenance", "build_circle",
+            PlatformPermissions.SystemReset, 12, cancellationToken);
         await DeduplicatePlatformMenusAsync(connection, cancellationToken);
         await EnsurePlatformMenuUniqueIndexAsync(connection, cancellationToken);
         await EnsureDefaultSuperAdminAsync(connection, cancellationToken);
@@ -264,6 +264,9 @@ public static class PlatformSchemaMigration
             ("Platform", "Platform.Menus.Manage", "Manage navigation menus"),
             ("Platform", "Platform.Settings.View", "View platform settings"),
             ("Platform", "Platform.Settings.Manage", "Manage platform settings"),
+            ("Platform", "Platform.Migrations.View", "View schema migration status"),
+            ("Platform", "Platform.Migrations.Manage", "Apply pending schema migrations"),
+            ("Platform", "Platform.System.Reset", "Reset database (Dev/Staging Super Admin only)"),
             ("Operations", "Booking.View", "View bookings"),
             ("Operations", "Booking.Create", "Create bookings"),
             ("Operations", "Trip.View", "View trips"),
@@ -383,15 +386,17 @@ public static class PlatformSchemaMigration
         var orgMenus = new (string Name, string Route, string Icon, string Permission, int Sort)[]
         {
             ("Tenants", "/platform/tenants", "business", "Platform.Tenants.View", 0),
-            ("Branches", "/platform/branches", "account_tree", "Platform.Branches.Manage", 1),
-            ("Departments", "/platform/departments", "domain", "Platform.Departments.Manage", 2),
+            ("Hierarchy", "/platform/organization-designer", "account_tree", "Platform.Branches.Manage", 1),
+            ("Branches", "/platform/branches", "location_city", "Platform.Branches.Manage", 2),
+            ("Departments", "/platform/departments", "domain", "Platform.Departments.Manage", 3),
         };
 
         var accessMenus = new (string Name, string Route, string Icon, string Permission, int Sort)[]
         {
-            ("Users", "/users", "manage_accounts", "Platform.Users.View", 0),
-            ("Roles", "/platform/roles", "security", "Platform.Roles.View", 1),
-            ("Allowance Rules", "/driver-allowance-rules", "rule", "Platform.Roles.Manage", 2),
+            ("Access Control", "/platform/access-control", "verified_user", "Platform.Roles.View", 0),
+            ("Users", "/users", "manage_accounts", "Platform.Users.View", 1),
+            ("Roles", "/platform/access-control?tab=roles", "security", "Platform.Roles.View", 2),
+            ("Allowance Rules", "/driver-allowance-rules", "rule", "Platform.Roles.Manage", 3),
         };
 
         foreach (var (name, route, icon, permission, sort) in orgMenus)

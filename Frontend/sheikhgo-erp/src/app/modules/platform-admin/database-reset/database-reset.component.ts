@@ -23,7 +23,7 @@ export class DatabaseResetComponent implements OnInit {
 
   readonly breadcrumbs = [
     { label: 'Platform', route: '/platform' },
-    { label: 'Maintenance' }
+    { label: 'Database Reset' }
   ];
 
   constructor(

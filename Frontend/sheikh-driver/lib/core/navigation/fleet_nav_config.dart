@@ -274,6 +274,12 @@ abstract final class FleetNavConfig {
       route: '/timeline',
       isVisible: _driverWorkflow,
     ),
+        MoreMenuEntry(
+      label: 'AI Copilot',
+      icon: Icons.auto_awesome_outlined,
+      route: '/ai',
+      isVisible: _aiMenu,
+    ),
     MoreMenuEntry(
       label: 'Profile',
       icon: Icons.person_outline_rounded,
@@ -360,6 +366,7 @@ abstract final class FleetNavConfig {
     '/bookings',
     '/finance',
     '/users',
+    '/ai',
   ];
 
   static bool _alwaysEntry(FleetSession _) => true;
@@ -380,4 +387,5 @@ abstract final class FleetNavConfig {
   static bool _bookingsMenu(FleetSession s) => s.canSeeBookingsTab;
   static bool _financeMenu(FleetSession s) => s.canSeeFinanceTab;
   static bool _usersMenu(FleetSession s) => s.canSeeUsersTab;
+  static bool _aiMenu(FleetSession s) => s.canSeeAiTab;
 }

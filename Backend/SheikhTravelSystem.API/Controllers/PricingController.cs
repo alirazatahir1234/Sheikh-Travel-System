@@ -1,11 +1,14 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using SheikhTravelSystem.API.Authorization;
+using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Features.Pricing.Commands;
 using SheikhTravelSystem.Application.Features.Pricing.DTOs;
 
 namespace SheikhTravelSystem.API.Controllers;
 
 [Authorize]
+[RequirePermission(OperationsPermissions.BookingView)]
 /// <summary>
 /// Provides pricing and fare calculation endpoints.
 /// </summary>

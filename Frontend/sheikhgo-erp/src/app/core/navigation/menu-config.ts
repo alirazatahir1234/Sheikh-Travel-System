@@ -142,8 +142,8 @@ const identityGroup: NavGroup = {
   collapsible: true,
   items: [
     { id: 'users', label: 'Users', icon: 'manage_accounts', route: '/users', adminOnly: true, moduleKey: 'access_control' },
-    { id: 'roles', label: 'Roles', icon: 'security', route: '/platform/roles', adminOnly: true, moduleKey: 'access_control' },
-    { id: 'permissions', label: 'Permissions', icon: 'verified_user', route: '/platform/access-control', adminOnly: true, moduleKey: 'access_control' },
+    { id: 'roles', label: 'Roles', icon: 'security', route: '/platform/access-control', queryParams: { tab: 'roles' }, adminOnly: true, moduleKey: 'access_control' },
+    { id: 'permissions', label: 'Access Control', icon: 'verified_user', route: '/platform/access-control', adminOnly: true, moduleKey: 'access_control' },
     { id: 'access-policies', label: 'Access Policies', icon: 'policy', route: '/platform/access-control', queryParams: { tab: 'policies' }, adminOnly: true, moduleKey: 'access_control' }
   ]
 };
@@ -154,11 +154,12 @@ const platformGroup: NavGroup = {
   icon: 'settings_applications',
   collapsible: true,
   items: [
+    { id: 'platform-home', label: 'Platform Home', icon: 'settings_applications', route: '/platform', adminOnly: true, moduleKey: 'platform' },
     { id: 'modules', label: 'Modules', icon: 'extension', route: '/platform/module-management', adminOnly: true, moduleKey: 'platform' },
     { id: 'plans', label: 'Plans', icon: 'subscriptions', route: '/platform/subscription-management', adminOnly: true, moduleKey: 'platform' },
     { id: 'billing', label: 'Billing', icon: 'payments', route: '/platform/subscription-management', queryParams: { tab: 'billing' }, adminOnly: true, moduleKey: 'platform' },
     { id: 'migration-manager', label: 'Migration Manager', icon: 'storage', route: '/platform/migrations', adminOnly: true, moduleKey: 'platform' },
-    { id: 'maintenance', label: 'Maintenance', icon: 'build_circle', route: '/platform/maintenance', adminOnly: true, moduleKey: 'platform' },
+    { id: 'database-reset', label: 'Database Reset', icon: 'build_circle', route: '/platform/maintenance', adminOnly: true, moduleKey: 'platform' },
     { id: 'settings', label: 'Settings', icon: 'tune', route: '/settings', adminOnly: true, moduleKey: 'platform' },
     { id: 'audit-logs-platform', label: 'Audit Logs', icon: 'history', route: '/audit-logs', adminOnly: true, moduleKey: 'audit-logs' }
   ]
@@ -171,7 +172,7 @@ const accessControlGroup: NavGroup = {
   collapsible: true,
   items: [
     { id: 'users', label: 'Users', icon: 'manage_accounts', route: '/users', adminOnly: true, moduleKey: 'access_control' },
-    { id: 'roles', label: 'Roles', icon: 'security', route: '/platform/roles', adminOnly: true, moduleKey: 'access_control' },
+    { id: 'roles', label: 'Roles', icon: 'security', route: '/platform/access-control', queryParams: { tab: 'roles' }, adminOnly: true, moduleKey: 'access_control' },
     { id: 'allowance-rules', label: 'Allowance Rules', icon: 'rule', route: '/driver-allowance-rules', adminOnly: true, moduleKey: 'driver-allowance-rules' }
   ]
 };
@@ -292,7 +293,13 @@ export function resolveMenu(options: {
     return { groups: [], standaloneItems: driverItems, isDriverLayout: true };
   }
 
-  const isAdmin = roles.includes('Admin');
+  const isAdmin = roles.some(r => {
+    const code = r.toUpperCase();
+    return code === 'ADMIN'
+      || code === 'SUPER_ADMIN'
+      || code === 'TENANT_ADMIN'
+      || code === 'SUPERADMIN';
+  });
   const groupIds = tenantGroupIds[tenantType] ?? tenantGroupIds[TenantType.TravelAgency];
   const itemFilter = tenantItemIds[tenantType];
 

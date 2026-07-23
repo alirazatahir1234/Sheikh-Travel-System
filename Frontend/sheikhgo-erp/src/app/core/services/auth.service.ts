@@ -72,7 +72,9 @@ export class AuthService {
   }
 
   getHomeRoute(): string {
-    return this.hasRole('Driver') ? '/my-trips' : '/dashboard';
+    if (this.hasRole('Driver')) return '/my-trips';
+    if (this.hasRole('SUPER_ADMIN') || this.hasRole('SuperAdmin')) return '/platform';
+    return '/dashboard';
   }
 
   hasPermission(permission: string): boolean {
@@ -80,6 +82,12 @@ export class AuthService {
     if (!user) return false;
     if (user.roles?.some(r => r.toUpperCase() === 'SUPER_ADMIN')) return true;
     return user.permissions?.includes(permission) ?? false;
+  }
+
+  hasAnyPermission(permissions: string[]): boolean {
+    if (!permissions.length) return true;
+    if (this.hasRole('SUPER_ADMIN')) return true;
+    return permissions.some(p => this.hasPermission(p));
   }
 
   /** Backend sends role(s) and permissions; normalize for the rest of the app. */

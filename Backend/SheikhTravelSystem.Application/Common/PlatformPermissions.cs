@@ -16,13 +16,16 @@ public static class PlatformPermissions
     public const string MenusManage = "Platform.Menus.Manage";
     public const string SettingsView = "Platform.Settings.View";
     public const string SettingsManage = "Platform.Settings.Manage";
+    public const string MigrationsView = "Platform.Migrations.View";
+    public const string MigrationsManage = "Platform.Migrations.Manage";
+    public const string SystemReset = "Platform.System.Reset";
 
     public static readonly string[] All =
     [
         DashboardView, UsersView, UsersCreate, UsersEdit,
         RolesView, RolesManage, TenantsView, TenantsManage,
         BranchesManage, DepartmentsManage, AuditLogsView, MenusManage,
-        SettingsView, SettingsManage
+        SettingsView, SettingsManage, MigrationsView, MigrationsManage, SystemReset
     ];
 }
 

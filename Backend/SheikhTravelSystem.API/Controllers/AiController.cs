@@ -1,10 +1,13 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using SheikhTravelSystem.API.Authorization;
+using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Interfaces;
 
 namespace SheikhTravelSystem.API.Controllers;
 
 [Authorize]
+[RequirePermission(AiPermissions.View)]
 [Route("api/ai")]
 public class AiController(
     IFleetHealthService fleetHealth,
@@ -111,10 +114,12 @@ public class AiController(
     public IActionResult ListTools()
         => Ok(toolEngine.ListTools(includeWriteTools: true));
 
+    [RequirePermission(AiPermissions.Manage)]
     [HttpGet("management/config")]
     public async Task<IActionResult> GetConfig(CancellationToken ct)
         => Ok(await management.GetConfigAsync(TenantId, ct));
 
+    [RequirePermission(AiPermissions.Manage)]
     [HttpPut("management/config")]
     public async Task<IActionResult> UpsertConfig([FromBody] AiProviderConfigDto config, CancellationToken ct)
         => Ok(await management.UpsertConfigAsync(TenantId, config, ct));
@@ -150,10 +155,12 @@ public class AiController(
     public async Task<IActionResult> Evaluate([FromBody] NotificationDecisionRequest request, CancellationToken ct)
         => Ok(await decisionEngine.EvaluateAsync(request, ct));
 
+    [RequirePermission(AiPermissions.Manage)]
     [HttpGet("escalation/rules")]
     public async Task<IActionResult> GetEscalationRules(CancellationToken ct)
         => Ok(await escalation.GetRulesAsync(TenantId, ct));
 
+    [RequirePermission(AiPermissions.Manage)]
     [HttpPut("escalation/rules")]
     public async Task<IActionResult> UpsertEscalationRule([FromBody] EscalationRuleDto rule, CancellationToken ct)
         => Ok(await escalation.UpsertRuleAsync(rule with { TenantId = rule.TenantId ?? TenantId }, ct));
@@ -169,6 +176,7 @@ public class AiController(
         return Ok(new { acknowledged = true });
     }
 
+    [RequirePermission(AiPermissions.Manage)]
     [HttpGet("datasets")]
     public async Task<IActionResult> GetDatasets(CancellationToken ct)
     {

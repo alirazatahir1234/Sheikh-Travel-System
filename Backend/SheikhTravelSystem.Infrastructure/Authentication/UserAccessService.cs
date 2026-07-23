@@ -22,17 +22,19 @@ public class UserAccessService(IDbConnectionFactory dbFactory) : IUserAccessServ
             ORDER BY r.Code
             """, new { UserId = userId, TenantId = tenantId }, cancellationToken: cancellationToken))).ToList();
 
-        if (roleCodes.Count == 0)
-        {
-            var legacyRole = await connection.ExecuteScalarAsync<int?>(new CommandDefinition(
-                "SELECT Role FROM Users WHERE Id = @UserId AND IsDeleted = 0",
-                new { UserId = userId },
-                cancellationToken: cancellationToken));
+        var legacyRole = await connection.ExecuteScalarAsync<int?>(new CommandDefinition(
+            "SELECT Role FROM Users WHERE Id = @UserId AND IsDeleted = 0",
+            new { UserId = userId },
+            cancellationToken: cancellationToken));
 
-            if (legacyRole.HasValue)
-            {
-                roleCodes.Add(MapLegacyRole((UserRole)legacyRole.Value));
-            }
+        if (roleCodes.Count == 0 && legacyRole.HasValue)
+        {
+            roleCodes.Add(MapLegacyRole((UserRole)legacyRole.Value));
+        }
+        else if (legacyRole.HasValue)
+        {
+            // Bridge legacy Admin → TENANT_ADMIN even when UserRoles already exist.
+            EnsureLegacyBridge(roleCodes, (UserRole)legacyRole.Value);
         }
 
         if (roleCodes.Contains(PlatformRoles.SuperAdmin, StringComparer.OrdinalIgnoreCase))
@@ -54,15 +56,40 @@ public class UserAccessService(IDbConnectionFactory dbFactory) : IUserAccessServ
                 ORDER BY p.PermissionCode
                 """, new { TenantId = tenantId, RoleCodes = roleCodes }, cancellationToken: cancellationToken))).ToList();
 
+        // If RolePermissions rows are missing (fresh DB / partial seed), fall back to templates.
+        if (permissions.Count == 0 && roleCodes.Count > 0)
+        {
+            var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var code in roleCodes)
+            {
+                var match = TenantRolePermissionTemplates.StandardRoles
+                    .FirstOrDefault(r => string.Equals(r.RoleCode, code, StringComparison.OrdinalIgnoreCase));
+                if (match.Permissions is { Length: > 0 } perms)
+                {
+                    foreach (var p in perms)
+                        set.Add(p);
+                }
+            }
+
+            permissions = set.OrderBy(p => p).ToList();
+        }
+
         return new UserAccessContext(userId, tenantId, roleCodes, permissions);
+    }
+
+    private static void EnsureLegacyBridge(List<string> roleCodes, UserRole legacyRole)
+    {
+        var mapped = MapLegacyRole(legacyRole);
+        if (!roleCodes.Contains(mapped, StringComparer.OrdinalIgnoreCase))
+            roleCodes.Add(mapped);
     }
 
     private static string MapLegacyRole(UserRole role) => role switch
     {
-        UserRole.Admin => "TENANT_ADMIN",
+        UserRole.Admin => PlatformRoles.TenantAdmin,
         UserRole.Dispatcher => "DISPATCHER",
         UserRole.Driver => "DRIVER",
         UserRole.Accountant => "ACCOUNTANT",
-        _ => "TENANT_ADMIN"
+        _ => PlatformRoles.TenantAdmin
     };
 }

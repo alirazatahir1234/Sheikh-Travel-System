@@ -1,11 +1,14 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using SheikhTravelSystem.API.Authorization;
+using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Features.Routes.Commands;
 using SheikhTravelSystem.Application.Features.Routes.Queries;
 
 namespace SheikhTravelSystem.API.Controllers;
 
 [Authorize]
+[RequirePermission(OperationsPermissions.RouteView)]
 /// <summary>
 /// Manages route operations.
 /// </summary>

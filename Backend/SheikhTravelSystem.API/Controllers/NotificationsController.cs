@@ -1,6 +1,7 @@
 using Dapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using SheikhTravelSystem.API.Authorization;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Application.Features.Notifications;
@@ -11,6 +12,7 @@ using SheikhTravelSystem.Application.Features.Notifications.Queries;
 namespace SheikhTravelSystem.API.Controllers;
 
 [Authorize]
+[RequirePermission(NotificationPermissions.View)]
 public class NotificationsController : BaseApiController
 {
     private int CurrentUserId => int.Parse(User.FindFirst("userId")!.Value);
@@ -84,6 +86,7 @@ public class NotificationsController : BaseApiController
     public async Task<IActionResult> GetRetention([FromServices] IPlatformScope platformScope)
         => Ok(await Mediator.Send(new GetNotificationRetentionQuery(platformScope.TenantId)));
 
+    [RequirePermission(NotificationPermissions.Manage)]
     [HttpPut("retention")]
     public async Task<IActionResult> UpsertRetention(
         [FromBody] NotificationRetentionDto request,
@@ -94,6 +97,7 @@ public class NotificationsController : BaseApiController
     public async Task<IActionResult> RetentionEstimate([FromServices] IPlatformScope platformScope)
         => Ok(await Mediator.Send(new GetNotificationRetentionEstimateQuery(platformScope.TenantId)));
 
+    [RequirePermission(NotificationPermissions.Manage)]
     [HttpPost("retention/run")]
     public async Task<IActionResult> RunRetention([FromServices] IPlatformScope platformScope)
         => Ok(await Mediator.Send(new RunNotificationRetentionCleanupCommand(platformScope.TenantId)));
@@ -102,10 +106,12 @@ public class NotificationsController : BaseApiController
     public async Task<IActionResult> GetTemplates([FromQuery] string? channel = null)
         => Ok(await Mediator.Send(new GetNotificationTemplatesQuery(channel)));
 
+    [RequirePermission(NotificationPermissions.Manage)]
     [HttpPost("templates")]
     public async Task<IActionResult> UpsertTemplate([FromBody] UpsertNotificationTemplateRequest request)
         => Ok(await Mediator.Send(new UpsertNotificationTemplateCommand(request)));
 
+    [RequirePermission(NotificationPermissions.Manage)]
     [HttpPut("templates/{id:int}")]
     public async Task<IActionResult> UpdateTemplate(int id, [FromBody] UpsertNotificationTemplateRequest request)
         => Ok(await Mediator.Send(new UpsertNotificationTemplateCommand(request, id)));
@@ -114,24 +120,29 @@ public class NotificationsController : BaseApiController
     public async Task<IActionResult> GetHistory(int id, [FromServices] IPlatformScope platformScope)
         => Ok(await Mediator.Send(new GetNotificationHistoryQuery(CurrentTenantId(platformScope), id, CurrentUserId)));
 
+    [RequirePermission(NotificationPermissions.Manage)]
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateNotificationRequest request, [FromServices] IPlatformScope platformScope)
         => Ok(await Mediator.Send(new CreateNotificationCommand(CurrentUserId, CurrentTenantId(platformScope), request)));
 
+    [RequirePermission(NotificationPermissions.Manage)]
     [HttpPost("bulk")]
     public async Task<IActionResult> Bulk([FromBody] BulkNotificationRequest request, [FromServices] IPlatformScope platformScope)
         => Ok(await Mediator.Send(new BulkNotificationCommand(CurrentTenantId(platformScope), request)));
 
+    [RequirePermission(NotificationPermissions.Manage)]
     [HttpPost("{id:int}/send")]
     public async Task<IActionResult> Send(int id)
         => Ok(await Mediator.Send(new SendNotificationCommand(id, CurrentUserId)));
 
     /// <summary>Admin compose — send email / multi-channel message; appears in Notification Center history.</summary>
+    [RequirePermission(NotificationPermissions.Manage)]
     [HttpPost("send-email")]
     public async Task<IActionResult> SendEmail([FromBody] SendManualMessageRequest request, [FromServices] IPlatformScope platformScope)
         => Ok(await Mediator.Send(new SendManualMessageCommand(CurrentUserId, CurrentTenantId(platformScope), request)));
 
     /// <summary>Sends one test email via configured SMTP (SpaceMail). Optional body.to overrides recipient.</summary>
+    [RequirePermission(NotificationPermissions.Manage)]
     [HttpPost("test-email")]
     public async Task<IActionResult> TestEmail(
         [FromBody] TestEmailRequest? body,

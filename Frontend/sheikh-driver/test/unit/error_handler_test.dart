@@ -50,6 +50,14 @@ void main() {
       expect(ErrorHandler.fromDio(e), isA<NotFoundException>());
     });
 
+    test('403 response → ForbiddenException', () {
+      final e = _makeDioException(
+        type: DioExceptionType.badResponse,
+        statusCode: 403,
+      );
+      expect(ErrorHandler.fromDio(e), isA<ForbiddenException>());
+    });
+
     test('400 response with message → ValidationException with that message', () {
       final e = _makeDioException(
         type: DioExceptionType.badResponse,

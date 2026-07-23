@@ -783,8 +783,9 @@ public class GetUserMenuQueryHandler(
             "finance" => enabled.Contains("payments", StringComparer.OrdinalIgnoreCase),
             "analytics" => enabled.Any(k => k is "reports" or "audit-logs"),
             "administration" => enabled.Any(k => k is "users" or "driver-allowance-rules"),
-            "organization" => enabled.Any(k => k is "users" or "driver-allowance-rules"),
-            "access_control" => enabled.Any(k => k is "users" or "driver-allowance-rules"),
+            "organization" => enabled.Any(k => k is "users" or "driver-allowance-rules" or "organization" or "platform"),
+            "access_control" => enabled.Any(k => k is "users" or "driver-allowance-rules" or "access_control"),
+            "platform" => true,
             _ => true
         };
 

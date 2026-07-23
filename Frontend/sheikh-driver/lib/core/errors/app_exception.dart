@@ -30,6 +30,12 @@ class NotFoundException extends AppException {
   ]);
 }
 
+class ForbiddenException extends AppException {
+  const ForbiddenException([
+    super.message = 'You do not have permission to perform this action.',
+  ]);
+}
+
 class ValidationException extends AppException {
   const ValidationException(super.message);
 }

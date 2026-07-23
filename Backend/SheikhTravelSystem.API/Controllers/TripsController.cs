@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using SheikhTravelSystem.API.Authorization;
+using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Features.Trips.Commands;
 using SheikhTravelSystem.Application.Features.Trips.DTOs;
 using SheikhTravelSystem.Application.Features.Trips.Queries;
@@ -8,6 +10,7 @@ using SheikhTravelSystem.Domain.Enums;
 namespace SheikhTravelSystem.API.Controllers;
 
 [Authorize]
+[RequirePermission(OperationsPermissions.TripView)]
 [Route("api/trips")]
 public class TripsController : BaseApiController
 {

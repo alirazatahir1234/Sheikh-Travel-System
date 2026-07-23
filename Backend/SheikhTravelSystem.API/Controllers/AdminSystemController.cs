@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using SheikhTravelSystem.API.Authorization;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Interfaces;
 
@@ -19,6 +20,7 @@ public class AdminSystemController(
     ILogger<AdminSystemController> logger) : ControllerBase
 {
     [HttpGet("reset-database/availability")]
+    [RequirePermission(PlatformPermissions.SystemReset)]
     public IActionResult GetResetAvailability()
     {
         if (!IsResetEnvironment())
@@ -31,6 +33,7 @@ public class AdminSystemController(
     }
 
     [HttpPost("reset-database")]
+    [RequirePermission(PlatformPermissions.SystemReset)]
     public async Task<IActionResult> ResetDatabase(
         [FromBody] ResetDatabaseRequest request,
         CancellationToken cancellationToken)

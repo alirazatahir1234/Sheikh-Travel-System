@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using SheikhTravelSystem.API.Authorization;
+using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Features.Reports.Fleet;
 
 namespace SheikhTravelSystem.API.Controllers;
@@ -9,7 +11,8 @@ namespace SheikhTravelSystem.API.Controllers;
 /// one self-describing endpoint, see GetFleetReportQueryHandler for per-report-type builders.
 /// Excludes Driver — fleet-wide reports aren't appropriate for that role.
 /// </summary>
-[Authorize(Roles = "Admin,Dispatcher,Accountant")]
+[Authorize]
+[RequirePermission(AnalyticsPermissions.ReportView)]
 [Route("api/fleet-reports")]
 public class FleetReportsController : BaseApiController
 {

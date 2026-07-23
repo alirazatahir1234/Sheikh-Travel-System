@@ -18,9 +18,12 @@ public sealed class AiChatGateway(
     IAiToolEngine toolEngine,
     IFleetHealthService fleetHealth,
     IAiManagementService aiManagement,
+    ICurrentUserService currentUser,
     ILogger<AiChatGateway> logger) : IAiChatGateway
 {
     private static readonly TimeSpan PendingTtl = TimeSpan.FromMinutes(15);
+
+    private bool CanExecuteWrite => currentUser.HasPermission(Application.Common.AiPermissions.ExecuteWrite);
 
     private static readonly string[] DefaultSuggestions =
     [
@@ -82,7 +85,8 @@ public sealed class AiChatGateway(
         else
         {
             var history = await LoadHistoryAsync(sessionId, cancellationToken);
-            var toolCtx = new AiToolExecutionContext(tenantId, userId, AllowWriteTools: true, ConfirmWrite: false);
+            var toolCtx = new AiToolExecutionContext(
+                tenantId, userId, AllowWriteTools: true, ConfirmWrite: false, CanExecuteWrite: CanExecuteWrite);
             var toolResults = await toolEngine.SelectAndExecuteAsync(toolCtx, message, cancellationToken);
             foreach (var tr in toolResults.Where(tr => tr.Success && !tr.PendingConfirmation))
                 tools.Add(tr.ToolName);
@@ -299,7 +303,8 @@ public sealed class AiChatGateway(
             args = doc.RootElement.Clone();
         }
 
-        var ctx = new AiToolExecutionContext(tenantId, userId, AllowWriteTools: true, ConfirmWrite: true);
+        var ctx = new AiToolExecutionContext(
+            tenantId, userId, AllowWriteTools: true, ConfirmWrite: true, CanExecuteWrite: CanExecuteWrite);
         var result = await toolEngine.ExecuteAsync(pending.ToolName, ctx, args, cancellationToken);
         await ClearPendingActionAsync(sessionId, cancellationToken);
 

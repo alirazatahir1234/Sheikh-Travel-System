@@ -1,11 +1,14 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using SheikhTravelSystem.API.Authorization;
+using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Features.Maintenance.Commands;
 using SheikhTravelSystem.Application.Features.Maintenance.Queries;
 
 namespace SheikhTravelSystem.API.Controllers;
 
 [Authorize]
+[RequirePermission(MaintenancePermissions.View)]
 /// <summary>
 /// Manages vehicle maintenance operations.
 /// </summary>

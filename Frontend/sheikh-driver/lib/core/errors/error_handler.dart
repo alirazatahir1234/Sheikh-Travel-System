@@ -14,6 +14,9 @@ class ErrorHandler {
       case DioExceptionType.badResponse:
         final status = e.response?.statusCode;
         if (status == 401) return const AuthException();
+        if (status == 403) {
+          return const ForbiddenException();
+        }
         if (status == 404) return const NotFoundException();
         if (status == 400 || status == 422) {
           final body = e.response?.data;

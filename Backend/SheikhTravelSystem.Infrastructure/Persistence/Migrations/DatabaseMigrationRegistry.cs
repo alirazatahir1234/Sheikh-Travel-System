@@ -74,6 +74,8 @@ public static class DatabaseMigrationRegistry
             M("AiChatPhase1Migration", AiChatPhase1Migration.ApplyAsync),
             M("AiPendingActionsPhase3Migration", AiPendingActionsPhase3Migration.ApplyAsync),
             M("DriverManagerRoleTemplateMigration", DriverManagerRoleTemplateMigration.ApplyAsync),
+            M("AccessManagementPermissionsMigration", AccessManagementPermissionsMigration.ApplyAsync),
+            M("PlatformAdminFoundationMigration", PlatformAdminFoundationMigration.ApplyAsync),
         ];
     }
 }

@@ -26,8 +26,19 @@ public class PermissionAuthorizationHandler : AuthorizationHandler<PermissionReq
             return Task.CompletedTask;
         }
 
+        // Legacy Admin retains Platform.* bypass for platform-tenant operators still on Users.Role=Admin.
+        // New tenants should use SUPER_ADMIN / TENANT_ADMIN with explicit RolePermissions.
         if (context.User.IsInRole("Admin") &&
             requirement.Permission.StartsWith("Platform.", StringComparison.Ordinal))
+        {
+            context.Succeed(requirement);
+            return Task.CompletedTask;
+        }
+
+        // TENANT_ADMIN role claim also satisfies Platform tenant-admin surface when permissions lag seed.
+        if (HasRole(context, PlatformRoles.TenantAdmin) &&
+            requirement.Permission.StartsWith("Platform.", StringComparison.Ordinal) &&
+            !requirement.Permission.StartsWith("Platform.Tenants.", StringComparison.Ordinal))
         {
             context.Succeed(requirement);
             return Task.CompletedTask;

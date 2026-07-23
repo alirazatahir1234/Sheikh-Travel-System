@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using SheikhTravelSystem.API.Authorization;
+using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Features.GpsTracking.Trackers.Queries;
 
 namespace SheikhTravelSystem.API.Controllers;
@@ -7,7 +9,8 @@ namespace SheikhTravelSystem.API.Controllers;
 /// <summary>
 /// GPS tracker hardware catalog — brands and models used during registration.
 /// </summary>
-[Authorize(Roles = "Admin,Dispatcher,Accountant")]
+[Authorize]
+[RequirePermission(AnalyticsPermissions.GpsView)]
 [Route("api")]
 public class TrackerCatalogController : BaseApiController
 {

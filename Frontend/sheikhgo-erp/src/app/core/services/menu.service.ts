@@ -54,11 +54,22 @@ export class MenuService {
   }
 
   private toNavItem(item: MenuItemDto): NavItem {
+    const rawRoute = item.route || '/dashboard';
+    const [path, queryString] = rawRoute.split('?', 2);
+    let queryParams: Record<string, string> | undefined;
+    if (queryString) {
+      const params = new URLSearchParams(queryString);
+      queryParams = {};
+      params.forEach((value, key) => {
+        queryParams![key] = value;
+      });
+    }
     return {
       id: item.id,
       label: item.label,
       icon: item.icon,
-      route: item.route,
+      route: path,
+      queryParams: queryParams && Object.keys(queryParams).length ? queryParams : undefined,
       moduleKey: item.permissionCode?.split('.')[0]?.toLowerCase()
     };
   }

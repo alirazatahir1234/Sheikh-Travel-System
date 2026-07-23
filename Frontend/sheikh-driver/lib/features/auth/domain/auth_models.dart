@@ -54,12 +54,17 @@ abstract final class FleetPermissions {
   static const gpsCommandView = 'Gps.CommandView';
   static const gpsCommandSend = 'Gps.CommandSend';
   static const gpsCommandEngineCutoff = 'Gps.CommandEngineCutoff';
+  static const aiView = 'Ai.View';
+  static const aiManage = 'Ai.Manage';
+  static const aiExecuteWrite = 'Ai.ExecuteWrite';
+  static const notificationView = 'Notification.View';
 
   static const driverDefaults = [
     tripView,
     gpsView,
     fuelView,
     maintenanceView,
+    notificationView,
   ];
 }
 
@@ -180,7 +185,9 @@ class FleetSession {
   bool get canSeeTripsTab =>
       hasPermission(FleetPermissions.tripView) || isDriverSession;
 
-  bool get canSeeAiTab => hasAnyRole(const [
+  bool get canSeeAiTab =>
+      hasPermission(FleetPermissions.aiView) ||
+      hasAnyRole(const [
         FleetRole.superAdmin,
         FleetRole.tenantAdmin,
         FleetRole.fleetManager,

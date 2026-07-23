@@ -36,6 +36,9 @@ public sealed class AiToolEngine(
             if (tool.Kind == "write" && !context.AllowWriteTools)
                 continue;
 
+            if (tool.Kind == "write" && !context.CanExecuteWrite)
+                continue;
+
             if (tool.TriggerKeywords.Any(k => q.Contains(k, StringComparison.OrdinalIgnoreCase)))
                 selected.Add(tool);
         }
@@ -159,6 +162,9 @@ public sealed class AiToolEngine(
 
         if (tool.Kind == "write" && !context.AllowWriteTools)
             return new AiToolExecutionResult(toolName, false, string.Empty, Error: "Write tools are disabled for this session.");
+
+        if (tool.Kind == "write" && !context.CanExecuteWrite)
+            return new AiToolExecutionResult(toolName, false, string.Empty, Error: "Missing Ai.ExecuteWrite permission.");
 
         if (tool.RequiresConfirmation && !context.ConfirmWrite)
         {

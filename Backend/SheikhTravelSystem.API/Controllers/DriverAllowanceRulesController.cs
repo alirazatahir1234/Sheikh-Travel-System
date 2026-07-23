@@ -1,11 +1,14 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using SheikhTravelSystem.API.Authorization;
+using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Features.DriverAllowance.Commands;
 using SheikhTravelSystem.Application.Features.DriverAllowance.Queries;
 
 namespace SheikhTravelSystem.API.Controllers;
 
 [Authorize]
+[RequirePermission(DriverPermissions.DriverManage)]
 /// <summary>
 /// Admin CRUD for driver allowance rules plus the rule evaluator endpoint.
 /// </summary>

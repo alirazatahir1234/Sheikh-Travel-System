@@ -44,7 +44,8 @@ public record AiToolExecutionContext(
     int TenantId,
     int UserId,
     bool AllowWriteTools = false,
-    bool ConfirmWrite = false);
+    bool ConfirmWrite = false,
+    bool CanExecuteWrite = false);
 
 public record AiToolExecutionResult(
     string ToolName,

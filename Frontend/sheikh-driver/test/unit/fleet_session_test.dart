@@ -67,6 +67,7 @@ void main() {
           FleetPermissions.tripView,
           FleetPermissions.gpsView,
           FleetPermissions.vehicleView,
+          FleetPermissions.aiView,
         ],
         authMode: AuthMode.staff,
         driverId: null,
