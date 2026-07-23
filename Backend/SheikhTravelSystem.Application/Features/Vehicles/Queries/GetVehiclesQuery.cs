@@ -12,6 +12,8 @@ public record GetVehiclesQuery(int Page = 1, int PageSize = 20, bool IncludeDraf
 public class GetVehiclesQueryHandler(
     IDbConnectionFactory dbFactory,
     ITenantContext tenantContext,
+    ICurrentUserService currentUser,
+    IDataScopeEngine dataScopeEngine,
     IFileStorageService fileStorage)
     : IRequestHandler<GetVehiclesQuery, ApiResponse<PagedResult<VehicleListItemDto>>>
 {
@@ -21,16 +23,33 @@ public class GetVehiclesQueryHandler(
         var offset = (request.Page - 1) * request.PageSize;
         var tenantId = tenantContext.GetRequiredTenantId();
 
-        var draftFilter = request.IncludeDrafts ? "" : " AND v.Status <> 5";
+        var clauses = new List<string> { "v.IsDeleted = 0", "v.TenantId = @TenantId" };
+        if (!request.IncludeDrafts)
+            clauses.Add("v.Status <> 5");
+
+        var parameters = new DynamicParameters(new
+        {
+            Offset = offset,
+            request.PageSize,
+            TenantId = tenantId
+        });
+
+        if (currentUser.UserId is int userId)
+        {
+            var scope = await dataScopeEngine.ResolveAsync(userId, tenantId, cancellationToken);
+            DataScopeSql.ApplyVehicleScope(parameters, scope, "v", clauses);
+        }
+
+        var whereClause = string.Join(" AND ", clauses);
 
         var vehicles = (await connection.QueryAsync<VehicleListItemDto>(
             new CommandDefinition(
                 $@"SELECT {VehicleSql.ListSelect}
                   {VehicleSql.ListFrom}
-                  WHERE v.IsDeleted = 0 AND v.TenantId = @TenantId{draftFilter}
+                  WHERE {whereClause}
                   ORDER BY v.CreatedAt DESC
                   OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY",
-                new { Offset = offset, request.PageSize, TenantId = tenantId },
+                parameters,
                 cancellationToken: cancellationToken)))
             .Select(v => string.IsNullOrWhiteSpace(v.ImageUrl)
                 ? v
@@ -39,8 +58,8 @@ public class GetVehiclesQueryHandler(
 
         var totalCount = await connection.ExecuteScalarAsync<int>(
             new CommandDefinition(
-                $"SELECT COUNT(*) FROM Vehicles WHERE IsDeleted = 0 AND TenantId = @TenantId{draftFilter.Replace("v.", "")}",
-                new { TenantId = tenantId },
+                $@"SELECT COUNT(*) FROM Vehicles v WHERE {whereClause}",
+                parameters,
                 cancellationToken: cancellationToken));
 
         var result = new PagedResult<VehicleListItemDto>

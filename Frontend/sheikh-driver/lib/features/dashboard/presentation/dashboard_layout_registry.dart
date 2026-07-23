@@ -2,8 +2,41 @@ import '../domain/dashboard_layout.dart';
 import '../domain/dashboard_role.dart';
 
 /// Maps [DashboardRole] → ordered widget IDs + quick actions (Fleet Command).
+/// When [overrideKeys] is provided from company context / dashboards/me, known
+/// keys reorder/filter the layout; unknown keys are skipped; empty → role default.
 abstract final class DashboardLayoutRegistry {
-  static List<DashboardWidgetId> widgetsFor(DashboardRole role) {
+  static List<DashboardWidgetId> widgetsFor(
+    DashboardRole role, {
+    List<String>? overrideKeys,
+  }) {
+    final defaults = _defaultsFor(role);
+    return applyOverrideKeys(defaults, overrideKeys);
+  }
+
+  static List<DashboardWidgetId> applyOverrideKeys(
+    List<DashboardWidgetId> defaults,
+    List<String>? overrideKeys,
+  ) {
+    if (overrideKeys == null || overrideKeys.isEmpty) return defaults;
+    final resolved = <DashboardWidgetId>[];
+    final seen = <DashboardWidgetId>{};
+    for (final key in overrideKeys) {
+      final id = tryParseWidgetKey(key);
+      if (id != null && seen.add(id)) resolved.add(id);
+    }
+    return resolved.isEmpty ? defaults : resolved;
+  }
+
+  static DashboardWidgetId? tryParseWidgetKey(String key) {
+    final normalized = key.trim();
+    if (normalized.isEmpty) return null;
+    for (final id in DashboardWidgetId.values) {
+      if (id.name == normalized) return id;
+    }
+    return null;
+  }
+
+  static List<DashboardWidgetId> _defaultsFor(DashboardRole role) {
     switch (role) {
       case DashboardRole.driver:
         return const [

@@ -64,14 +64,41 @@ public static class NotificationTenantIsolationMigration
                 WHERE p.TenantId IS NULL;
                 """, cancellationToken: cancellationToken));
 
+            // INCLUDE only columns that exist on this DB (schema drift across environments).
             await connection.ExecuteAsync(new CommandDefinition("""
                 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Notifications_TenantId_UserId_CreatedAt' AND object_id = OBJECT_ID('Notifications'))
-                    CREATE INDEX IX_Notifications_TenantId_UserId_CreatedAt
-                    ON Notifications (TenantId, UserId, CreatedAt DESC) INCLUDE (IsDeleted, IsArchived, IsRead, Channel, Priority, Module);
+                BEGIN
+                    DECLARE @notifInclude NVARCHAR(500) = N'';
+                    IF COL_LENGTH('Notifications', 'IsDeleted') IS NOT NULL SET @notifInclude = @notifInclude + N'IsDeleted,';
+                    IF COL_LENGTH('Notifications', 'IsArchived') IS NOT NULL SET @notifInclude = @notifInclude + N'IsArchived,';
+                    IF COL_LENGTH('Notifications', 'IsRead') IS NOT NULL SET @notifInclude = @notifInclude + N'IsRead,';
+                    IF COL_LENGTH('Notifications', 'Channel') IS NOT NULL SET @notifInclude = @notifInclude + N'Channel,';
+                    IF COL_LENGTH('Notifications', 'Priority') IS NOT NULL SET @notifInclude = @notifInclude + N'Priority,';
+                    IF COL_LENGTH('Notifications', 'Module') IS NOT NULL SET @notifInclude = @notifInclude + N'Module,';
+                    IF LEN(@notifInclude) > 0
+                    BEGIN
+                        SET @notifInclude = LEFT(@notifInclude, LEN(@notifInclude) - 1);
+                        EXEC(N'CREATE INDEX IX_Notifications_TenantId_UserId_CreatedAt ON Notifications (TenantId, UserId, CreatedAt DESC) INCLUDE (' + @notifInclude + N')');
+                    END
+                    ELSE
+                        CREATE INDEX IX_Notifications_TenantId_UserId_CreatedAt ON Notifications (TenantId, UserId, CreatedAt DESC);
+                END
 
                 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_NotificationRecipients_TenantId_UserId_NotificationId' AND object_id = OBJECT_ID('NotificationRecipients'))
-                    CREATE INDEX IX_NotificationRecipients_TenantId_UserId_NotificationId
-                    ON NotificationRecipients (TenantId, UserId, NotificationId) INCLUDE (IsRead, IsDeleted, IsArchived, DeliveryStatus);
+                BEGIN
+                    DECLARE @recipInclude NVARCHAR(500) = N'';
+                    IF COL_LENGTH('NotificationRecipients', 'IsRead') IS NOT NULL SET @recipInclude = @recipInclude + N'IsRead,';
+                    IF COL_LENGTH('NotificationRecipients', 'IsDeleted') IS NOT NULL SET @recipInclude = @recipInclude + N'IsDeleted,';
+                    IF COL_LENGTH('NotificationRecipients', 'IsArchived') IS NOT NULL SET @recipInclude = @recipInclude + N'IsArchived,';
+                    IF COL_LENGTH('NotificationRecipients', 'DeliveryStatus') IS NOT NULL SET @recipInclude = @recipInclude + N'DeliveryStatus,';
+                    IF LEN(@recipInclude) > 0
+                    BEGIN
+                        SET @recipInclude = LEFT(@recipInclude, LEN(@recipInclude) - 1);
+                        EXEC(N'CREATE INDEX IX_NotificationRecipients_TenantId_UserId_NotificationId ON NotificationRecipients (TenantId, UserId, NotificationId) INCLUDE (' + @recipInclude + N')');
+                    END
+                    ELSE
+                        CREATE INDEX IX_NotificationRecipients_TenantId_UserId_NotificationId ON NotificationRecipients (TenantId, UserId, NotificationId);
+                END
 
                 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_NotificationDeliveryLogs_TenantId_NotificationId' AND object_id = OBJECT_ID('NotificationDeliveryLogs'))
                     CREATE INDEX IX_NotificationDeliveryLogs_TenantId_NotificationId

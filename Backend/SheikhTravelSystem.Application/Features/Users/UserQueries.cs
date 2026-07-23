@@ -1,5 +1,6 @@
 using System.Data;
 using Dapper;
+using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Application.Features.Users.DTOs;
 using SheikhTravelSystem.Domain.Enums;
 
@@ -51,7 +52,9 @@ internal static class UserQueries
         public string? AvatarUrl { get; init; }
     }
 
-    public static UserDto ToDto(UserRow row) => new(
+    public static UserDto ToDto(
+        UserRow row,
+        IReadOnlyList<AssignedRoleDto>? assignedRoles = null) => new(
         row.Id,
         row.FullName,
         row.Email,
@@ -75,9 +78,13 @@ internal static class UserQueries
         row.TimeZone,
         row.Language,
         row.Theme,
-        row.AvatarUrl);
+        row.AvatarUrl,
+        assignedRoles);
 
-    public static UserProfileDto ToProfileDto(UserRow row) => new(
+    public static UserProfileDto ToProfileDto(
+        UserRow row,
+        IReadOnlyList<AssignedRoleDto>? assignedRoles = null,
+        IReadOnlyList<EffectivePermissionDto>? effectivePermissions = null) => new(
         row.Id,
         row.FullName,
         row.Email,
@@ -98,7 +105,63 @@ internal static class UserQueries
         row.TimeZone,
         row.Language,
         row.Theme,
-        row.AvatarUrl);
+        row.AvatarUrl,
+        assignedRoles,
+        effectivePermissions);
+
+    public static async Task<Dictionary<int, List<AssignedRoleDto>>> LoadAssignedRolesMapAsync(
+        IDbConnection connection,
+        IReadOnlyList<int> userIds,
+        CancellationToken cancellationToken)
+    {
+        var map = new Dictionary<int, List<AssignedRoleDto>>();
+        if (userIds.Count == 0) return map;
+
+        try
+        {
+            var rows = await connection.QueryAsync<(
+                int UserId, int RoleId, string Code, string Name, string? DisplayName,
+                string? Category, string? RoleType, int? BranchId, int? DepartmentId)>(
+                new CommandDefinition("""
+                    SELECT ur.UserId, r.Id AS RoleId, r.Code, r.Name,
+                           COALESCE(r.DisplayName, r.Name) AS DisplayName,
+                           r.Category,
+                           COALESCE(r.RoleType, CASE WHEN r.IsSystem = 1 THEN N'System' ELSE N'Custom' END) AS RoleType,
+                           ur.BranchId, ur.DepartmentId
+                    FROM UserRoles ur
+                    INNER JOIN Roles r ON r.Id = ur.RoleId
+                    WHERE ur.UserId IN @UserIds
+                    ORDER BY COALESCE(r.SortOrder, 0), r.Name
+                    """,
+                    new { UserIds = userIds },
+                    cancellationToken: cancellationToken));
+
+            foreach (var row in rows)
+            {
+                if (!map.TryGetValue(row.UserId, out var list))
+                {
+                    list = [];
+                    map[row.UserId] = list;
+                }
+
+                list.Add(new AssignedRoleDto(
+                    row.RoleId,
+                    row.Code,
+                    row.Name,
+                    string.IsNullOrWhiteSpace(row.DisplayName) ? row.Name : row.DisplayName!,
+                    row.Category,
+                    row.RoleType,
+                    row.BranchId,
+                    row.DepartmentId));
+            }
+        }
+        catch
+        {
+            // UserRoles / metadata may be unavailable.
+        }
+
+        return map;
+    }
 
     public static async Task EnsureOrgBelongsToTenantAsync(
         IDbConnection connection,

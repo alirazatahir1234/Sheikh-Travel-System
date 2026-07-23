@@ -11,7 +11,8 @@ public record GetCurrentUserProfileQuery : IRequest<ApiResponse<UserProfileDto>>
 
 public class GetCurrentUserProfileQueryHandler(
     IDbConnectionFactory dbFactory,
-    ICurrentUserService currentUser)
+    ICurrentUserService currentUser,
+    IPermissionEngine permissionEngine)
     : IRequestHandler<GetCurrentUserProfileQuery, ApiResponse<UserProfileDto>>
 {
     public async Task<ApiResponse<UserProfileDto>> Handle(
@@ -31,7 +32,24 @@ public class GetCurrentUserProfileQueryHandler(
         if (row is null)
             throw new NotFoundException("User", userId);
 
-        return ApiResponse<UserProfileDto>.SuccessResponse(UserQueries.ToProfileDto(row));
+        var roles = await UserRoleAssignment.LoadAssignedAsync(connection, userId, cancellationToken);
+        IReadOnlyList<EffectivePermissionDto>? effective = null;
+        try
+        {
+            var tenantId = row.CompanyId ?? 0;
+            if (tenantId > 0)
+            {
+                var eval = await permissionEngine.EvaluateAsync(userId, tenantId, cancellationToken);
+                effective = eval.EffectivePermissions;
+            }
+        }
+        catch
+        {
+            // optional
+        }
+
+        return ApiResponse<UserProfileDto>.SuccessResponse(
+            UserQueries.ToProfileDto(row, roles.Select(UserRoleAssignment.ToDto).ToList(), effective));
     }
 }
 

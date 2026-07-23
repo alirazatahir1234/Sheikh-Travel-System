@@ -38,7 +38,8 @@ public class CreateUserCommandValidator : AbstractValidator<CreateUserCommand>
 public class CreateUserCommandHandler(
     IDbConnectionFactory dbFactory,
     IPasswordHasher passwordHasher,
-    IPlatformScope platformScope) : IRequestHandler<CreateUserCommand, ApiResponse<int>>
+    IPlatformScope platformScope,
+    ICurrentUserService currentUser) : IRequestHandler<CreateUserCommand, ApiResponse<int>>
 {
     public async Task<ApiResponse<int>> Handle(CreateUserCommand request, CancellationToken cancellationToken)
     {
@@ -102,6 +103,10 @@ public class CreateUserCommandHandler(
                     },
                     cancellationToken: cancellationToken));
 
+            await UserRoleAssignment.SyncLegacyRoleAsync(
+                connection, id, tenantId, dto.Role, dto.BranchId, dto.DepartmentId,
+                currentUser.UserId, cancellationToken);
+
             return ApiResponse<int>.SuccessResponse(id, "User created successfully.");
         }
         catch (Exception ex) when (ex.Message.Contains("Invalid column", StringComparison.OrdinalIgnoreCase)
@@ -126,6 +131,10 @@ public class CreateUserCommandHandler(
                         dto.DepartmentId
                     },
                     cancellationToken: cancellationToken));
+
+            await UserRoleAssignment.SyncLegacyRoleAsync(
+                connection, id, tenantId, dto.Role, dto.BranchId, dto.DepartmentId,
+                currentUser.UserId, cancellationToken);
 
             return ApiResponse<int>.SuccessResponse(id, "User created successfully.");
         }

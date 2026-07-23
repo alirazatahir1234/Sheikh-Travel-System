@@ -82,6 +82,23 @@ export interface User {
   language?: string | null;
   theme?: string | null;
   avatarUrl?: string | null;
+  assignedRoles?: AssignedRole[] | null;
+}
+
+export interface AssignedRole {
+  roleId: number;
+  code: string;
+  name: string;
+  displayName: string;
+  category?: string | null;
+  roleType?: string | null;
+  branchId?: number | null;
+  departmentId?: number | null;
+}
+
+export interface SetUserRolesRequest {
+  roleIds: number[];
+  scopes?: { roleId: number; branchId?: number | null; departmentId?: number | null }[] | null;
 }
 
 export interface CreateUserDto {

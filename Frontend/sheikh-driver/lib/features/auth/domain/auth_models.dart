@@ -388,9 +388,15 @@ class CompanyContext {
     this.features = const [],
     this.modules = const [],
     this.workspaceHint,
+    this.workspace,
     this.roleCode,
     this.subscription,
     this.currentUser,
+    this.assignedRoles = const [],
+    this.effectivePermissions = const [],
+    this.navSummary,
+    this.dashboard,
+    this.dataScope,
   });
 
   final int companyId;
@@ -408,16 +414,56 @@ class CompanyContext {
   final List<CompanyFeature> features;
   final List<CompanyModule> modules;
   final String? workspaceHint;
+  final CompanyWorkspace? workspace;
   final String? roleCode;
   final CompanySubscription? subscription;
   final CompanyCurrentUser? currentUser;
+  final List<AssignedRole> assignedRoles;
+  final List<EffectivePermission> effectivePermissions;
+  final CompanyNavSummary? navSummary;
+  final CompanyDashboardSummary? dashboard;
+  final CompanyDataScope? dataScope;
 
   String? get jobTitle => currentUser?.jobTitle;
   String? get employeeType => currentUser?.employeeType;
   String? get theme => currentUser?.theme;
   String? get language => currentUser?.language;
+
+  /// Display label for the resolved workspace (Stage 10).
   String? get effectiveWorkspace =>
-      currentUser?.defaultWorkspaceKey ?? workspaceHint;
+      workspace?.displayName ??
+      workspace?.key ??
+      currentUser?.defaultWorkspaceKey ??
+      workspaceHint;
+
+  String? get workspaceKey =>
+      workspace?.key ?? currentUser?.defaultWorkspaceKey ?? workspaceHint;
+
+  /// Display names for assigned platform roles (prefer over legacy roleCode).
+  List<String> get roleDisplayLabels {
+    if (assignedRoles.isNotEmpty) {
+      return assignedRoles
+          .map((r) => r.displayName.isNotEmpty ? r.displayName : r.code)
+          .where((n) => n.isNotEmpty)
+          .toList();
+    }
+    if (roleCode != null && roleCode!.isNotEmpty) return [roleCode!];
+    return const [];
+  }
+
+  /// Category labels derived from effective permissions (Stage 8).
+  List<String> get permissionCategoryLabels {
+    if (effectivePermissions.isEmpty) return const [];
+    final seen = <String>{};
+    final out = <String>[];
+    for (final p in effectivePermissions) {
+      final label = (p.category != null && p.category!.isNotEmpty)
+          ? p.category!
+          : (p.displayName.isNotEmpty ? p.displayName : p.code);
+      if (label.isNotEmpty && seen.add(label)) out.add(label);
+    }
+    return out;
+  }
 
   /// Display labels for installed modules (Fleet, GPS, …).
   List<String> get moduleDisplayLabels {
@@ -463,6 +509,44 @@ class CompanyContext {
       return out;
     }
     return featureKeys;
+  }
+
+  /// Nav module / mobile item labels from company context (Stage 9, read-only).
+  List<String> get navDisplayLabels {
+    final summary = navSummary;
+    if (summary == null) return const [];
+    final seen = <String>{};
+    final out = <String>[];
+    for (final label in [
+      ...summary.topModuleLabels,
+      ...summary.mobileItemLabels,
+    ]) {
+      if (label.isNotEmpty && seen.add(label)) out.add(label);
+    }
+    return out;
+  }
+
+  /// Data scope labels (Stage 12, read-only).
+  List<String> get dataScopeDisplayLabels {
+    final scope = dataScope;
+    if (scope == null) return const [];
+    if (scope.isCompanyWide) return const ['Company-wide'];
+    final seen = <String>{};
+    final out = <String>[];
+    for (final label in [...scope.branchLabels, ...scope.departmentLabels]) {
+      if (label.isNotEmpty && seen.add(label)) out.add(label);
+    }
+    if (out.isEmpty && scope.mode.isNotEmpty) out.add(scope.mode);
+    return out;
+  }
+
+  /// Dashboard display chip (Stage 11, read-only).
+  String? get dashboardDisplayLabel {
+    final name = dashboard?.displayName?.trim();
+    if (name != null && name.isNotEmpty) return name;
+    final key = dashboard?.key?.trim();
+    if (key != null && key.isNotEmpty) return key;
+    return currentUser?.defaultDashboardKey;
   }
 
   factory CompanyContext.fromJson(Map<String, dynamic> json) {
@@ -520,11 +604,76 @@ class CompanyContext {
           CompanyCurrentUser.fromJson(Map<String, dynamic>.from(userRaw));
     }
 
+    final assignedRoles = <AssignedRole>[];
+    final rolesRaw = json['assignedRoles'] ?? json['AssignedRoles'];
+    if (rolesRaw is List) {
+      for (final item in rolesRaw) {
+        if (item is Map<String, dynamic>) {
+          assignedRoles.add(AssignedRole.fromJson(item));
+        } else if (item is Map) {
+          assignedRoles.add(
+              AssignedRole.fromJson(Map<String, dynamic>.from(item)));
+        }
+      }
+    }
+
+    final effectivePermissions = <EffectivePermission>[];
+    final permsRaw = json['effectivePermissions'] ?? json['EffectivePermissions'];
+    if (permsRaw is List) {
+      for (final item in permsRaw) {
+        if (item is Map<String, dynamic>) {
+          effectivePermissions.add(EffectivePermission.fromJson(item));
+        } else if (item is Map) {
+          effectivePermissions.add(
+              EffectivePermission.fromJson(Map<String, dynamic>.from(item)));
+        }
+      }
+    }
+
+    CompanyNavSummary? navSummary;
+    final navRaw = json['navSummary'] ?? json['NavSummary'];
+    if (navRaw is Map<String, dynamic>) {
+      navSummary = CompanyNavSummary.fromJson(navRaw);
+    } else if (navRaw is Map) {
+      navSummary =
+          CompanyNavSummary.fromJson(Map<String, dynamic>.from(navRaw));
+    }
+
+    CompanyWorkspace? workspace;
+    final wsRaw = json['workspace'] ?? json['Workspace'];
+    if (wsRaw is Map<String, dynamic>) {
+      workspace = CompanyWorkspace.fromJson(wsRaw);
+    } else if (wsRaw is Map) {
+      workspace = CompanyWorkspace.fromJson(Map<String, dynamic>.from(wsRaw));
+    }
+
+    CompanyDashboardSummary? dashboard;
+    final dashRaw = json['dashboard'] ?? json['Dashboard'];
+    if (dashRaw is Map<String, dynamic>) {
+      dashboard = CompanyDashboardSummary.fromJson(dashRaw);
+    } else if (dashRaw is Map) {
+      dashboard =
+          CompanyDashboardSummary.fromJson(Map<String, dynamic>.from(dashRaw));
+    }
+
+    CompanyDataScope? dataScope;
+    final scopeRaw = json['dataScope'] ?? json['DataScope'];
+    if (scopeRaw is Map<String, dynamic>) {
+      dataScope = CompanyDataScope.fromJson(scopeRaw);
+    } else if (scopeRaw is Map) {
+      dataScope =
+          CompanyDataScope.fromJson(Map<String, dynamic>.from(scopeRaw));
+    }
+
     final parsedFeatureKeys = featureKeys.isNotEmpty
         ? featureKeys
         : FleetSession._parseStringList(
             json['featureKeys'] ?? json['FeatureKeys'],
           );
+
+    final hint = json['workspaceHint'] as String? ??
+        json['WorkspaceHint'] as String? ??
+        workspace?.key;
 
     return CompanyContext(
       companyId: json['companyId'] as int? ??
@@ -556,11 +705,16 @@ class CompanyContext {
       featureKeys: parsedFeatureKeys,
       features: features,
       modules: modules,
-      workspaceHint:
-          json['workspaceHint'] as String? ?? json['WorkspaceHint'] as String?,
+      workspaceHint: hint,
+      workspace: workspace,
       roleCode: json['roleCode'] as String? ?? json['RoleCode'] as String?,
       subscription: subscription,
       currentUser: currentUser,
+      assignedRoles: assignedRoles,
+      effectivePermissions: effectivePermissions,
+      navSummary: navSummary,
+      dashboard: dashboard,
+      dataScope: dataScope,
     );
   }
 
@@ -580,9 +734,295 @@ class CompanyContext {
         'features': features.map((f) => f.toJson()).toList(),
         'modules': modules.map((m) => m.toJson()).toList(),
         if (workspaceHint != null) 'workspaceHint': workspaceHint,
+        if (workspace != null) 'workspace': workspace!.toJson(),
         if (roleCode != null) 'roleCode': roleCode,
         if (subscription != null) 'subscription': subscription!.toJson(),
         if (currentUser != null) 'currentUser': currentUser!.toJson(),
+        'assignedRoles': assignedRoles.map((r) => r.toJson()).toList(),
+        'effectivePermissions':
+            effectivePermissions.map((p) => p.toJson()).toList(),
+        if (navSummary != null) 'navSummary': navSummary!.toJson(),
+        if (dashboard != null) 'dashboard': dashboard!.toJson(),
+        if (dataScope != null) 'dataScope': dataScope!.toJson(),
+      };
+}
+
+/// Effective data scope from company context (Stage 12, read-only).
+class CompanyDataScope {
+  const CompanyDataScope({
+    this.mode = 'Company',
+    this.isCompanyWide = true,
+    this.branchIds = const [],
+    this.departmentIds = const [],
+    this.branchLabels = const [],
+    this.departmentLabels = const [],
+    this.source = 'default',
+    this.homeBranchId,
+    this.homeDepartmentId,
+  });
+
+  final String mode;
+  final bool isCompanyWide;
+  final List<int> branchIds;
+  final List<int> departmentIds;
+  final List<String> branchLabels;
+  final List<String> departmentLabels;
+  final String source;
+  final int? homeBranchId;
+  final int? homeDepartmentId;
+
+  factory CompanyDataScope.fromJson(Map<String, dynamic> json) {
+    List<int> parseIds(dynamic raw) {
+      if (raw is! List) return const [];
+      return raw
+          .map((e) => e is int ? e : int.tryParse(e.toString()))
+          .whereType<int>()
+          .toList();
+    }
+
+    return CompanyDataScope(
+      mode: json['mode'] as String? ?? json['Mode'] as String? ?? 'Company',
+      isCompanyWide: json['isCompanyWide'] as bool? ??
+          json['IsCompanyWide'] as bool? ??
+          true,
+      branchIds: parseIds(json['branchIds'] ?? json['BranchIds']),
+      departmentIds: parseIds(json['departmentIds'] ?? json['DepartmentIds']),
+      branchLabels: FleetSession._parseStringList(
+        json['branchLabels'] ?? json['BranchLabels'],
+      ),
+      departmentLabels: FleetSession._parseStringList(
+        json['departmentLabels'] ?? json['DepartmentLabels'],
+      ),
+      source: json['source'] as String? ?? json['Source'] as String? ?? 'default',
+      homeBranchId:
+          json['homeBranchId'] as int? ?? json['HomeBranchId'] as int?,
+      homeDepartmentId:
+          json['homeDepartmentId'] as int? ?? json['HomeDepartmentId'] as int?,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'mode': mode,
+        'isCompanyWide': isCompanyWide,
+        'branchIds': branchIds,
+        'departmentIds': departmentIds,
+        'branchLabels': branchLabels,
+        'departmentLabels': departmentLabels,
+        'source': source,
+        if (homeBranchId != null) 'homeBranchId': homeBranchId,
+        if (homeDepartmentId != null) 'homeDepartmentId': homeDepartmentId,
+      };
+}
+
+/// Resolved dashboard summary from company context (Stage 11, read-only).
+class CompanyDashboardSummary {
+  const CompanyDashboardSummary({
+    this.key,
+    this.displayName,
+    this.widgetKeys = const [],
+    this.source = 'default',
+  });
+
+  final String? key;
+  final String? displayName;
+  final List<String> widgetKeys;
+  final String source;
+
+  factory CompanyDashboardSummary.fromJson(Map<String, dynamic> json) {
+    return CompanyDashboardSummary(
+      key: json['key'] as String? ?? json['Key'] as String?,
+      displayName:
+          json['displayName'] as String? ?? json['DisplayName'] as String?,
+      widgetKeys: FleetSession._parseStringList(
+        json['widgetKeys'] ?? json['WidgetKeys'],
+      ),
+      source: json['source'] as String? ??
+          json['Source'] as String? ??
+          'default',
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        if (key != null) 'key': key,
+        if (displayName != null) 'displayName': displayName,
+        'widgetKeys': widgetKeys,
+        'source': source,
+      };
+}
+
+/// Resolved landing workspace from company context (Stage 10, read-only).
+class CompanyWorkspace {
+  const CompanyWorkspace({
+    required this.key,
+    required this.displayName,
+    required this.homeRoute,
+    this.icon,
+    this.defaultDashboardKey,
+    this.source,
+    this.moduleKeys = const [],
+    this.isMobileSupported = false,
+  });
+
+  final String key;
+  final String displayName;
+  final String homeRoute;
+  final String? icon;
+  final String? defaultDashboardKey;
+  final String? source;
+  final List<String> moduleKeys;
+  final bool isMobileSupported;
+
+  factory CompanyWorkspace.fromJson(Map<String, dynamic> json) =>
+      CompanyWorkspace(
+        key: json['key'] as String? ?? json['Key'] as String? ?? '',
+        displayName: json['displayName'] as String? ??
+            json['DisplayName'] as String? ??
+            json['key'] as String? ??
+            json['Key'] as String? ??
+            '',
+        homeRoute: json['homeRoute'] as String? ??
+            json['HomeRoute'] as String? ??
+            '/home',
+        icon: json['icon'] as String? ?? json['Icon'] as String?,
+        defaultDashboardKey: json['defaultDashboardKey'] as String? ??
+            json['DefaultDashboardKey'] as String?,
+        source: json['source'] as String? ?? json['Source'] as String?,
+        moduleKeys: FleetSession._parseStringList(
+          json['moduleKeys'] ?? json['ModuleKeys'],
+        ),
+        isMobileSupported: json['isMobileSupported'] as bool? ??
+            json['IsMobileSupported'] as bool? ??
+            false,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'key': key,
+        'displayName': displayName,
+        'homeRoute': homeRoute,
+        if (icon != null) 'icon': icon,
+        if (defaultDashboardKey != null)
+          'defaultDashboardKey': defaultDashboardKey,
+        if (source != null) 'source': source,
+        'moduleKeys': moduleKeys,
+        'isMobileSupported': isMobileSupported,
+      };
+}
+
+class CompanyNavSummary {
+  const CompanyNavSummary({
+    this.moduleCount = 0,
+    this.itemCount = 0,
+    this.topModuleLabels = const [],
+    this.mobileItemLabels = const [],
+  });
+
+  final int moduleCount;
+  final int itemCount;
+  final List<String> topModuleLabels;
+  final List<String> mobileItemLabels;
+
+  factory CompanyNavSummary.fromJson(Map<String, dynamic> json) =>
+      CompanyNavSummary(
+        moduleCount: json['moduleCount'] as int? ??
+            json['ModuleCount'] as int? ??
+            0,
+        itemCount:
+            json['itemCount'] as int? ?? json['ItemCount'] as int? ?? 0,
+        topModuleLabels: FleetSession._parseStringList(
+          json['topModuleLabels'] ?? json['TopModuleLabels'],
+        ),
+        mobileItemLabels: FleetSession._parseStringList(
+          json['mobileItemLabels'] ?? json['MobileItemLabels'],
+        ),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'moduleCount': moduleCount,
+        'itemCount': itemCount,
+        'topModuleLabels': topModuleLabels,
+        'mobileItemLabels': mobileItemLabels,
+      };
+}
+
+/// Effective permission summary from company context (Stage 8, read-only).
+class EffectivePermission {
+  const EffectivePermission({
+    required this.code,
+    required this.displayName,
+    this.category,
+    this.moduleKey,
+    this.action,
+  });
+
+  final String code;
+  final String displayName;
+  final String? category;
+  final String? moduleKey;
+  final String? action;
+
+  factory EffectivePermission.fromJson(Map<String, dynamic> json) {
+    final code = json['code'] as String? ?? json['Code'] as String? ?? '';
+    final display = json['displayName'] as String? ??
+        json['DisplayName'] as String? ??
+        code;
+    return EffectivePermission(
+      code: code,
+      displayName: display.isNotEmpty ? display : code,
+      category: json['category'] as String? ?? json['Category'] as String?,
+      moduleKey: json['moduleKey'] as String? ?? json['ModuleKey'] as String?,
+      action: json['action'] as String? ?? json['Action'] as String?,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'code': code,
+        'displayName': displayName,
+        if (category != null) 'category': category,
+        if (moduleKey != null) 'moduleKey': moduleKey,
+        if (action != null) 'action': action,
+      };
+}
+
+/// Assigned platform role from company context (Stage 7, read-only).
+class AssignedRole {
+  const AssignedRole({
+    required this.roleId,
+    required this.code,
+    required this.name,
+    required this.displayName,
+    this.category,
+    this.roleType,
+  });
+
+  final int roleId;
+  final String code;
+  final String name;
+  final String displayName;
+  final String? category;
+  final String? roleType;
+
+  factory AssignedRole.fromJson(Map<String, dynamic> json) {
+    final name = json['name'] as String? ?? json['Name'] as String? ?? '';
+    final display = json['displayName'] as String? ??
+        json['DisplayName'] as String? ??
+        name;
+    return AssignedRole(
+      roleId: json['roleId'] as int? ?? json['RoleId'] as int? ?? 0,
+      code: json['code'] as String? ?? json['Code'] as String? ?? '',
+      name: name,
+      displayName: display.isNotEmpty ? display : name,
+      category: json['category'] as String? ?? json['Category'] as String?,
+      roleType: json['roleType'] as String? ?? json['RoleType'] as String?,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'roleId': roleId,
+        'code': code,
+        'name': name,
+        'displayName': displayName,
+        if (category != null) 'category': category,
+        if (roleType != null) 'roleType': roleType,
       };
 }
 

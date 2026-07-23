@@ -2,7 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
-import { forkJoin, of } from 'rxjs';
+import { forkJoin, of, switchMap } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
 import { UserService } from '../../../core/services/user.service';
@@ -16,9 +16,10 @@ import {
   UpdateUserDto,
   parseUserRole,
   USER_LIFECYCLE_STATUSES,
-  EMPLOYEE_TYPES
+  EMPLOYEE_TYPES,
+  AssignedRole
 } from '../../../core/models/user.model';
-import { Branch, Department } from '../../../core/models/platform.model';
+import { Branch, Department, RoleSummary, EffectivePermission, WorkspaceDefinition, CompanyDataScope } from '../../../core/models/platform.model';
 
 @Component({
   standalone: false,
@@ -36,6 +37,12 @@ export class UserFormComponent implements OnInit {
   companyName = '';
   branches: Branch[] = [];
   departments: Department[] = [];
+  assignableRoles: RoleSummary[] = [];
+  workspaces: WorkspaceDefinition[] = [];
+  selectedRoleIds = new Set<number>();
+  effectivePermissions: EffectivePermission[] = [];
+  effectiveCategoryChips: string[] = [];
+  dataScope: CompanyDataScope | null = null;
 
   readonly roles = [
     UserRole.Admin,
@@ -86,13 +93,32 @@ export class UserFormComponent implements OnInit {
       forkJoin({
         branches: this.platform.getBranches().pipe(catchError(() => of([] as Branch[]))),
         departments: this.platform.getDepartments().pipe(catchError(() => of([] as Department[]))),
+        roles: this.platform.getCompanyRoles().pipe(catchError(() => of([] as RoleSummary[]))),
+        workspaces: this.platform.getWorkspaceCatalog().pipe(catchError(() => of([] as WorkspaceDefinition[]))),
         user: id
           ? this.userService.getById(+id)
-          : of(null as User | null)
+          : of(null as User | null),
+        assigned: id
+          ? this.userService.getUserRoles(+id).pipe(catchError(() => of([] as AssignedRole[])))
+          : of([] as AssignedRole[]),
+        effective: id
+          ? this.userService.getUserPermissions(+id).pipe(catchError(() => of([] as EffectivePermission[])))
+          : of([] as EffectivePermission[]),
+        dataScope: id
+          ? this.userService.getUserDataScope(+id).pipe(catchError(() => of(null as CompanyDataScope | null)))
+          : of(null as CompanyDataScope | null)
       }).subscribe({
-        next: ({ branches, departments, user }) => {
+        next: ({ branches, departments, roles, workspaces, user, assigned, effective, dataScope }) => {
           this.branches = branches;
           this.departments = departments;
+          this.assignableRoles = roles;
+          this.workspaces = (workspaces ?? []).filter(w => w.isActive && w.visible);
+          this.selectedRoleIds = new Set(assigned.map(r => r.roleId));
+          this.effectivePermissions = effective;
+          this.dataScope = dataScope;
+          this.effectiveCategoryChips = [...new Set(
+            effective.map(p => p.category).filter((c): c is string => !!c && c.trim().length > 0)
+          )].sort((a, b) => a.localeCompare(b)).slice(0, 8);
 
           if (user) {
             this.isEdit = true;
@@ -100,6 +126,9 @@ export class UserFormComponent implements OnInit {
             this.companyName = user.companyName || '';
             this.form.get('password')?.clearValidators();
             this.form.get('password')?.updateValueAndValidity();
+            if (user.assignedRoles?.length) {
+              this.selectedRoleIds = new Set(user.assignedRoles.map(r => r.roleId));
+            }
             this.form.patchValue({
               fullName: user.fullName,
               email: user.email,
@@ -133,6 +162,18 @@ export class UserFormComponent implements OnInit {
     });
   }
 
+  isRoleSelected(roleId: number): boolean {
+    return this.selectedRoleIds.has(roleId);
+  }
+
+  togglePlatformRole(roleId: number): void {
+    if (this.selectedRoleIds.has(roleId)) {
+      this.selectedRoleIds.delete(roleId);
+    } else {
+      this.selectedRoleIds.add(roleId);
+    }
+  }
+
   submit(): void {
     if (this.form.invalid) {
       this.form.markAllAsTouched();
@@ -157,6 +198,13 @@ export class UserFormComponent implements OnInit {
       avatarUrl: f.avatarUrl?.trim() || null
     };
 
+    const roleIds = [...this.selectedRoleIds];
+    const scopes = roleIds.map(roleId => ({
+      roleId,
+      branchId: f.branchId as number | null,
+      departmentId: f.departmentId as number | null
+    }));
+
     if (this.isEdit && this.userId) {
       const payload: UpdateUserDto = {
         fullName: f.fullName.trim(),
@@ -168,7 +216,9 @@ export class UserFormComponent implements OnInit {
         status: f.status
       };
 
-      this.userService.update({ id: this.userId, user: payload }).subscribe({
+      this.userService.update({ id: this.userId, user: payload }).pipe(
+        switchMap(() => this.userService.setUserRoles(this.userId!, { roleIds, scopes }))
+      ).subscribe({
         next: () => this.onSuccess('updated'),
         error: (err) => this.onError(err)
       });
@@ -182,7 +232,14 @@ export class UserFormComponent implements OnInit {
         ...orgFields
       };
 
-      this.userService.create({ user: payload }).subscribe({
+      this.userService.create({ user: payload }).pipe(
+        switchMap((id) => {
+          if (!roleIds.length) {
+            return of(true);
+          }
+          return this.userService.setUserRoles(id, { roleIds, scopes });
+        })
+      ).subscribe({
         next: () => this.onSuccess('created'),
         error: (err) => this.onError(err)
       });

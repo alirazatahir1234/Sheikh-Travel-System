@@ -10,6 +10,7 @@ export class AuthService {
   private readonly tokenKey = 'access_token';
   private readonly refreshKey = 'refresh_token';
   private readonly userKey = 'current_user';
+  private readonly homeRouteKey = 'home_route';
 
   private currentUserSubject = new BehaviorSubject<LoginResponse | null>(this.getStoredUser());
   currentUser$ = this.currentUserSubject.asObservable();
@@ -25,6 +26,16 @@ export class AuthService {
       );
   }
 
+  /** Persist resolved workspace home route (Stage 10). */
+  setHomeRoute(route: string | null | undefined): void {
+    const cleaned = (route || '').trim();
+    if (!cleaned) {
+      localStorage.removeItem(this.homeRouteKey);
+      return;
+    }
+    localStorage.setItem(this.homeRouteKey, cleaned.startsWith('/') ? cleaned : `/${cleaned}`);
+  }
+
   logout(): void {
     const refreshToken = this.getRefreshToken();
     if (refreshToken) {
@@ -35,6 +46,7 @@ export class AuthService {
     localStorage.removeItem(this.tokenKey);
     localStorage.removeItem(this.refreshKey);
     localStorage.removeItem(this.userKey);
+    localStorage.removeItem(this.homeRouteKey);
     this.currentUserSubject.next(null);
     this.router.navigate(['/auth/login']);
   }
@@ -72,6 +84,8 @@ export class AuthService {
   }
 
   getHomeRoute(): string {
+    const stored = localStorage.getItem(this.homeRouteKey);
+    if (stored?.startsWith('/')) return stored;
     if (this.hasRole('Driver')) return '/my-trips';
     if (this.hasRole('SUPER_ADMIN') || this.hasRole('SuperAdmin')) return '/platform';
     return '/dashboard';

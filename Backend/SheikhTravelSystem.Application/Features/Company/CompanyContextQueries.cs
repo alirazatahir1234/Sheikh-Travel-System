@@ -3,6 +3,8 @@ using MediatR;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Application.Features.Platform;
+using SheikhTravelSystem.Application.Features.Users;
+using SheikhTravelSystem.Application.Features.Users.DTOs;
 
 namespace SheikhTravelSystem.Application.Features.Company;
 
@@ -97,7 +99,13 @@ public record CompanyContextDto(
     string? WorkspaceHint,
     string? RoleCode,
     CompanySubscriptionDto? Subscription = null,
-    CompanyCurrentUserDto? CurrentUser = null);
+    CompanyCurrentUserDto? CurrentUser = null,
+    IReadOnlyList<AssignedRoleDto>? AssignedRoles = null,
+    IReadOnlyList<EffectivePermissionDto>? EffectivePermissions = null,
+    CompanyNavSummaryDto? NavSummary = null,
+    ResolvedWorkspaceDto? Workspace = null,
+    CompanyDashboardSummaryDto? Dashboard = null,
+    CompanyDataScopeDto? DataScope = null);
 
 public record GetCompanyContextQuery : IRequest<ApiResponse<CompanyContextDto>>;
 
@@ -128,7 +136,9 @@ public class GetCompanyContextQueryHandler(
     IDbConnectionFactory dbFactory,
     ITenantContext tenantContext,
     ICurrentUserService currentUser,
-    ITenantModuleService tenantModuleService)
+    ITenantModuleService tenantModuleService,
+    IPermissionEngine permissionEngine,
+    IDataScopeEngine dataScopeEngine)
     : IRequestHandler<GetCompanyContextQuery, ApiResponse<CompanyContextDto>>
 {
     public async Task<ApiResponse<CompanyContextDto>> Handle(
@@ -160,6 +170,12 @@ public class GetCompanyContextQueryHandler(
         string? departmentName = null;
         string? roleCode = currentUser.Role;
         CompanyCurrentUserDto? currentUserProfile = null;
+        IReadOnlyList<AssignedRoleDto>? assignedRoles = null;
+        IReadOnlyList<EffectivePermissionDto>? effectivePermissions = null;
+        CompanyNavSummaryDto? navSummary = null;
+        ResolvedWorkspaceDto? resolvedWorkspace = null;
+        CompanyDashboardSummaryDto? dashboardSummary = null;
+        CompanyDataScopeDto? dataScopeDto = null;
 
         if (currentUser.UserId is int userId)
         {
@@ -209,6 +225,93 @@ public class GetCompanyContextQueryHandler(
                     org.Theme,
                     org.AvatarUrl,
                     org.EmployeeCode);
+
+                var roleRows = await UserRoleAssignment.LoadAssignedAsync(connection, userId, cancellationToken);
+                assignedRoles = roleRows.Select(UserRoleAssignment.ToDto).ToList();
+                if (assignedRoles.Count > 0 && string.IsNullOrWhiteSpace(roleCode))
+                    roleCode = assignedRoles[0].Code;
+
+                try
+                {
+                    var scope = await dataScopeEngine.ResolveAsync(userId, tenantId, cancellationToken);
+                    dataScopeDto = await DataScopeDtoMapper.ToDtoAsync(dbFactory, scope, cancellationToken);
+                }
+                catch
+                {
+                    // Data scope migration optional.
+                }
+
+                try
+                {
+                    var eval = await permissionEngine.EvaluateAsync(userId, tenantId, cancellationToken);
+                    effectivePermissions = eval.EffectivePermissions
+                        .Select(p => new EffectivePermissionDto(
+                            p.Code, p.DisplayName, p.Category, p.ModuleKey, p.Action, null))
+                        .Take(200)
+                        .ToList();
+
+                    var enabledLegacy = await tenantModuleService.GetLegacyModuleKeysAsync(tenantId, cancellationToken);
+                    var featureFlags = await MenuBuilderQueries.LoadTenantFeatureFlagsAsync(connection, tenantId, cancellationToken);
+                    var (navModules, navMenus) = await MenuBuilderQueries.LoadNavTablesAsync(connection, cancellationToken, activeMenusOnly: true);
+                    var permissionSet = eval.EffectivePermissions
+                        .Select(p => p.Code)
+                        .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+                    IReadOnlyList<string>? workspaceModuleKeys = null;
+                    try
+                    {
+                        var wsCatalog = await WorkspaceBuilderQueries.LoadCatalogAsync(connection, cancellationToken, activeOnly: true);
+                        var wsFlags = await WorkspaceBuilderQueries.LoadTenantFlagsAsync(connection, tenantId, cancellationToken);
+                        resolvedWorkspace = WorkspaceBuilderQueries.Resolve(
+                            wsCatalog,
+                            wsFlags,
+                            org.DefaultWorkspaceKey,
+                            org.HomeRoute,
+                            roleCode);
+                        workspaceModuleKeys = resolvedWorkspace.ModuleKeys;
+                    }
+                    catch
+                    {
+                        resolvedWorkspace = null;
+                    }
+
+                    var userMenu = MenuBuilderQueries.BuildUserMenu(
+                        navModules, navMenus, permissionSet, enabledLegacy, featureFlags, workspaceModuleKeys);
+                    navSummary = MenuBuilderQueries.ToNavSummary(userMenu);
+
+                    try
+                    {
+                        var preferMobile = IsMobilePreferringRole(roleCode)
+                            || (org.DefaultDashboardKey?.StartsWith("mobile.", StringComparison.OrdinalIgnoreCase) ?? false);
+                        var resolvedDash = await DashboardBuilderQueries.ResolveForUserAsync(
+                            connection,
+                            org.DefaultDashboardKey,
+                            resolvedWorkspace?.DefaultDashboardKey,
+                            resolvedWorkspace?.Key ?? org.DefaultWorkspaceKey,
+                            roleCode,
+                            preferMobile,
+                            permissionSet,
+                            enabledLegacy.ToHashSet(StringComparer.OrdinalIgnoreCase),
+                            featureFlags,
+                            cancellationToken);
+                        if (resolvedDash is not null)
+                        {
+                            dashboardSummary = new CompanyDashboardSummaryDto(
+                                resolvedDash.Key,
+                                resolvedDash.DisplayName,
+                                resolvedDash.WidgetKeys,
+                                resolvedDash.Source);
+                        }
+                    }
+                    catch
+                    {
+                        dashboardSummary = null;
+                    }
+                }
+                catch
+                {
+                    // Engine / menu metadata optional if migration not applied yet.
+                }
             }
             catch
             {
@@ -377,6 +480,35 @@ public class GetCompanyContextQueryHandler(
             ? currentUserProfile!.DefaultWorkspaceKey
             : ResolveWorkspaceHint(roleCode);
 
+        if (resolvedWorkspace is null)
+        {
+            try
+            {
+                var wsCatalog = await WorkspaceBuilderQueries.LoadCatalogAsync(connection, cancellationToken, activeOnly: true);
+                var wsFlags = await WorkspaceBuilderQueries.LoadTenantFlagsAsync(connection, tenantId, cancellationToken);
+                resolvedWorkspace = WorkspaceBuilderQueries.Resolve(
+                    wsCatalog,
+                    wsFlags,
+                    currentUserProfile?.DefaultWorkspaceKey,
+                    currentUserProfile?.HomeRoute,
+                    roleCode);
+            }
+            catch
+            {
+                resolvedWorkspace = new ResolvedWorkspaceDto(
+                    workspaceHint ?? "home",
+                    workspaceHint ?? "Home",
+                    currentUserProfile?.HomeRoute ?? "/dashboard",
+                    null,
+                    currentUserProfile?.DefaultDashboardKey,
+                    "default",
+                    Array.Empty<string>());
+            }
+        }
+
+        if (resolvedWorkspace is not null)
+            workspaceHint = resolvedWorkspace.Key;
+
         CompanySubscriptionDto? subscription = null;
         try
         {
@@ -428,26 +560,23 @@ public class GetCompanyContextQueryHandler(
             WorkspaceHint: workspaceHint,
             RoleCode: roleCode,
             Subscription: subscription,
-            CurrentUser: currentUserProfile);
+            CurrentUser: currentUserProfile,
+            AssignedRoles: assignedRoles,
+            EffectivePermissions: effectivePermissions,
+            NavSummary: navSummary,
+            Workspace: resolvedWorkspace,
+            Dashboard: dashboardSummary,
+            DataScope: dataScopeDto);
 
         return ApiResponse<CompanyContextDto>.SuccessResponse(dto);
     }
 
     private static string ResolveWorkspaceHint(string? roleCode)
-    {
-        var code = (roleCode ?? string.Empty).ToUpperInvariant();
-        return code switch
-        {
-            "SUPER_ADMIN" => "platform",
-            "TENANT_ADMIN" => "company",
-            "FLEET_MANAGER" => "fleet",
-            "DRIVER_MANAGER" => "drivers",
-            "DISPATCHER" => "trips",
-            "ACCOUNTANT" => "finance",
-            "DRIVER" => "driver",
-            _ => "home"
-        };
-    }
+        => WorkspaceBuilderQueries.RoleHint(roleCode);
+
+    private static bool IsMobilePreferringRole(string? roleCode) =>
+        roleCode?.ToUpperInvariant() is "DRIVER" or "FIELD_DRIVER" or "FLEET_MANAGER"
+            or "DRIVER_MANAGER" or "DISPATCHER" or "SUPER_ADMIN" or "TENANT_ADMIN" or "ADMIN";
 }
 
 public class GetFeatureCatalogQueryHandler(IDbConnectionFactory dbFactory)

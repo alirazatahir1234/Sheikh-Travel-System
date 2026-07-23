@@ -1,5 +1,6 @@
 using MediatR;
 using SheikhTravelSystem.Application.Common;
+using SheikhTravelSystem.Application.Common.Interfaces;
 
 namespace SheikhTravelSystem.Application.Features.Platform;
 
@@ -35,8 +36,31 @@ public record DepartmentDto(
     int StaffCount);
 
 public record DepartmentUpsertPayload(string Name, int? DepartmentHeadUserId);
-public record RoleDto(int Id, int TenantId, string Name, string Code, bool IsSystem, bool IsActive, IReadOnlyList<string> Permissions);
-public record PermissionDto(int Id, string ModuleName, string PermissionCode, string? Description);
+public record RoleDto(
+    int Id,
+    int TenantId,
+    string Name,
+    string Code,
+    bool IsSystem,
+    bool IsActive,
+    IReadOnlyList<string> Permissions,
+    string? DisplayName = null,
+    string? Description = null,
+    string? Category = null,
+    string? RoleType = null,
+    int SortOrder = 0,
+    bool Visible = true);
+public record PermissionDto(
+    int Id,
+    string ModuleName,
+    string PermissionCode,
+    string? Description,
+    string? DisplayName = null,
+    string? Category = null,
+    int SortOrder = 0,
+    bool Visible = true,
+    string? Action = null,
+    string? ModuleKey = null);
 public record TenantListDto(
     int Id,
     string Name,
@@ -79,14 +103,98 @@ public record MenuModuleDto(
     string Icon,
     bool Collapsible,
     int SortOrder,
-    IReadOnlyList<MenuItemDto> Items);
+    IReadOnlyList<MenuItemDto> Items,
+    string? DisplayName = null,
+    string? Description = null,
+    bool Visible = true);
 public record MenuItemDto(
     string Id,
     string Label,
     string Icon,
     string Route,
     string? PermissionCode,
-    int SortOrder);
+    int SortOrder,
+    string? DisplayName = null,
+    string? Description = null,
+    string? Category = null,
+    string? FeatureKey = null,
+    string? ModuleKey = null,
+    bool IsMobileSupported = false,
+    bool Visible = true);
+
+public record MenuCatalogModuleDto(
+    int Id,
+    string ModuleKey,
+    string Name,
+    string DisplayName,
+    string? Description,
+    string? Icon,
+    int SortOrder,
+    bool IsCollapsible,
+    bool Visible,
+    IReadOnlyList<MenuCatalogItemDto> Items);
+
+public record MenuCatalogItemDto(
+    int Id,
+    int ModuleId,
+    string Name,
+    string DisplayName,
+    string? Description,
+    string? Category,
+    string? Route,
+    string? Icon,
+    string? PermissionCode,
+    int SortOrder,
+    bool IsActive,
+    bool Visible,
+    string? FeatureKey,
+    string? ModuleKey,
+    bool IsMobileSupported,
+    int? ParentId = null);
+
+public record MenuCatalogDto(IReadOnlyList<MenuCatalogModuleDto> Modules);
+
+public record UpdateMenuModulePayload(
+    string? DisplayName,
+    string? Icon,
+    int SortOrder,
+    bool Visible,
+    bool IsCollapsible);
+
+public record UpdateMenuItemPayload(
+    string? DisplayName,
+    string? Description,
+    string? Category,
+    string? Route,
+    string? Icon,
+    string? PermissionCode,
+    int SortOrder,
+    bool IsActive,
+    bool Visible,
+    string? FeatureKey,
+    string? ModuleKey,
+    bool IsMobileSupported);
+
+public record CreateMenuItemPayload(
+    int ModuleId,
+    string Name,
+    string? DisplayName,
+    string? Description,
+    string? Category,
+    string? Route,
+    string? Icon,
+    string? PermissionCode,
+    int SortOrder,
+    bool Visible = true,
+    string? FeatureKey = null,
+    string? ModuleKey = null,
+    bool IsMobileSupported = false);
+
+public record CompanyNavSummaryDto(
+    int ModuleCount,
+    int ItemCount,
+    IReadOnlyList<string> TopModuleLabels,
+    IReadOnlyList<string> MobileItemLabels);
 
 public record BranchUpsertPayload(
     string BranchCode,
@@ -119,7 +227,14 @@ public record GetRolesQuery : IRequest<ApiResponse<IReadOnlyList<RoleDto>>>;
 public record CreateRoleCommand(string Name, string Code) : IRequest<ApiResponse<int>>;
 public record UpdateRolePermissionsCommand(int RoleId, IReadOnlyList<string> PermissionCodes) : IRequest<ApiResponse<bool>>;
 
-public record GetPermissionsQuery : IRequest<ApiResponse<IReadOnlyList<PermissionDto>>>;
+public record GetPermissionsQuery(
+    string? Category = null,
+    string? ModuleKey = null,
+    string? Action = null,
+    bool? Visible = null) : IRequest<ApiResponse<IReadOnlyList<PermissionDto>>>;
+
+public record GetEffectivePermissionsQuery : IRequest<ApiResponse<IReadOnlyList<EffectivePermissionDto>>>;
+public record GetUserPermissionsQuery(int UserId) : IRequest<ApiResponse<IReadOnlyList<EffectivePermissionDto>>>;
 
 public record TenantModuleDefinitionDto(
     string Code,
@@ -239,6 +354,11 @@ public record UpdateTenantCommand(
     : IRequest<ApiResponse<bool>>;
 
 public record GetUserMenuQuery : IRequest<ApiResponse<IReadOnlyList<MenuModuleDto>>>;
+public record GetMenuCatalogQuery : IRequest<ApiResponse<MenuCatalogDto>>;
+public record UpdateMenuModuleCommand(int Id, UpdateMenuModulePayload Payload) : IRequest<ApiResponse<bool>>;
+public record UpdateMenuItemCommand(int Id, UpdateMenuItemPayload Payload) : IRequest<ApiResponse<bool>>;
+public record CreateMenuItemCommand(CreateMenuItemPayload Payload) : IRequest<ApiResponse<int>>;
+public record DeleteMenuItemCommand(int Id) : IRequest<ApiResponse<bool>>;
 
 public record UpdateDepartmentRequest(DepartmentUpsertPayload Payload, bool IsActive);
 
@@ -297,7 +417,13 @@ public record RoleSummaryDto(
     bool IsActive,
     int UserCount,
     int PermissionCount,
-    IReadOnlyList<string> Permissions);
+    IReadOnlyList<string> Permissions,
+    string? DisplayName = null,
+    string? Description = null,
+    string? Category = null,
+    string? RoleType = null,
+    int SortOrder = 0,
+    bool Visible = true);
 
 public record TenantSecuritySettingsDto(
     bool IsMfaRequired,
@@ -311,11 +437,22 @@ public record RoleTemplateDto(
     string Code,
     string Name,
     int PermissionCount,
-    IReadOnlyList<string> Permissions);
+    IReadOnlyList<string> Permissions,
+    string? DisplayName = null,
+    string? Description = null,
+    string? Category = null);
 
 public record GetRolesForTenantQuery(int TenantId) : IRequest<ApiResponse<IReadOnlyList<RoleSummaryDto>>>;
+public record GetCompanyRolesQuery(int? TenantId = null) : IRequest<ApiResponse<IReadOnlyList<RoleSummaryDto>>>;
 public record CreateRoleForTenantCommand(int TenantId, string Name, string Code) : IRequest<ApiResponse<int>>;
-public record UpdateRoleForTenantCommand(int TenantId, int RoleId, string Name, bool IsActive) : IRequest<ApiResponse<bool>>;
+public record UpdateRoleForTenantCommand(
+    int TenantId,
+    int RoleId,
+    string Name,
+    bool IsActive,
+    string? DisplayName = null,
+    string? Description = null,
+    string? Category = null) : IRequest<ApiResponse<bool>>;
 public record DeleteRoleForTenantCommand(int TenantId, int RoleId) : IRequest<ApiResponse<bool>>;
 public record UpdateRolePermissionsForTenantCommand(int TenantId, int RoleId, IReadOnlyList<string> PermissionCodes) : IRequest<ApiResponse<bool>>;
 

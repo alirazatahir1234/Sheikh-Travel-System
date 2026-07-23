@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import {
@@ -10,6 +10,7 @@ import {
   DepartmentPayloadWithBranch,
   OrganizationTree,
   Permission,
+  EffectivePermission,
   PlatformRole,
   RoleSummary,
   RoleTemplate,
@@ -26,7 +27,23 @@ import {
   UpdateTenantPayload,
   CompanyFeature,
   ModuleRegistryEntry,
-  CompanyLicense
+  CompanyLicense,
+  MenuCatalog,
+  UpdateMenuModulePayload,
+  UpdateMenuItemPayload,
+  CreateMenuItemPayload,
+  WorkspaceDefinition,
+  CompanyWorkspace,
+  ResolvedWorkspace,
+  UpdateWorkspaceDefinitionPayload,
+  CreateWorkspaceDefinitionPayload,
+  DashboardDefinition,
+  DashboardWidgetDefinition,
+  DashboardDetail,
+  ResolvedDashboard,
+  UpdateDashboardDefinitionPayload,
+  UpdateDashboardLayoutPayload,
+  CompanyDataScope
 } from '../models/platform.model';
 
 @Injectable({ providedIn: 'root' })
@@ -141,8 +158,30 @@ export class PlatformService {
     return this.http.post<number>(`${this.base}/roles`, { name, code });
   }
 
-  getPermissions(): Observable<Permission[]> {
-    return this.http.get<Permission[]>(`${this.base}/permissions`);
+  getPermissions(filters?: {
+    category?: string | null;
+    moduleKey?: string | null;
+    action?: string | null;
+    visible?: boolean | null;
+  }): Observable<Permission[]> {
+    let params = new HttpParams();
+    if (filters?.category) params = params.set('category', filters.category);
+    if (filters?.moduleKey) params = params.set('moduleKey', filters.moduleKey);
+    if (filters?.action) params = params.set('action', filters.action);
+    if (filters?.visible != null) params = params.set('visible', String(filters.visible));
+    return this.http.get<Permission[]>(`${this.base}/permissions`, { params });
+  }
+
+  getEffectivePermissions(): Observable<EffectivePermission[]> {
+    return this.http.get<EffectivePermission[]>(`${this.base}/permissions/effective`);
+  }
+
+  getMyDataScope(): Observable<CompanyDataScope> {
+    return this.http.get<CompanyDataScope>(`${this.base}/data-scope/me`);
+  }
+
+  getUserDataScope(userId: number): Observable<CompanyDataScope> {
+    return this.http.get<CompanyDataScope>(`${environment.apiUrl}/Users/${userId}/data-scope`);
   }
 
   updateRolePermissions(roleId: number, permissionCodes: string[]): Observable<boolean> {
@@ -197,12 +236,30 @@ export class PlatformService {
     return this.http.get<RoleSummary[]>(`${this.base}/tenants/${tenantId}/roles`);
   }
 
+  getCompanyRoles(tenantId?: number | null): Observable<RoleSummary[]> {
+    let params = new HttpParams();
+    if (tenantId != null) params = params.set('tenantId', tenantId);
+    return this.http.get<RoleSummary[]>(`${this.base}/roles/company`, { params });
+  }
+
   createRoleForTenant(tenantId: number, name: string, code: string): Observable<number> {
     return this.http.post<number>(`${this.base}/tenants/${tenantId}/roles`, { name, code });
   }
 
-  updateRoleForTenant(tenantId: number, roleId: number, name: string, isActive: boolean): Observable<boolean> {
-    return this.http.put<boolean>(`${this.base}/tenants/${tenantId}/roles/${roleId}`, { name, isActive });
+  updateRoleForTenant(
+    tenantId: number,
+    roleId: number,
+    name: string,
+    isActive: boolean,
+    extras?: { displayName?: string | null; description?: string | null; category?: string | null }
+  ): Observable<boolean> {
+    return this.http.put<boolean>(`${this.base}/tenants/${tenantId}/roles/${roleId}`, {
+      name,
+      isActive,
+      displayName: extras?.displayName ?? name,
+      description: extras?.description ?? null,
+      category: extras?.category ?? null
+    });
   }
 
   deleteRoleForTenant(tenantId: number, roleId: number): Observable<boolean> {
@@ -259,5 +316,97 @@ export class PlatformService {
 
   updateSubscription(tenantId: number, request: UpdateSubscriptionRequest): Observable<boolean> {
     return this.http.post<boolean>(`${this.base}/tenants/${tenantId}/subscription/action`, request);
+  }
+
+  // Menu Builder (Stage 9)
+
+  getMenuCatalog(): Observable<MenuCatalog> {
+    return this.http.get<MenuCatalog>(`${this.base}/menus/catalog`);
+  }
+
+  updateMenuModule(id: number, payload: UpdateMenuModulePayload): Observable<boolean> {
+    return this.http.put<boolean>(`${this.base}/menus/modules/${id}`, payload);
+  }
+
+  updateMenuItem(id: number, payload: UpdateMenuItemPayload): Observable<boolean> {
+    return this.http.put<boolean>(`${this.base}/menus/${id}`, payload);
+  }
+
+  createMenuItem(payload: CreateMenuItemPayload): Observable<number> {
+    return this.http.post<number>(`${this.base}/menus`, payload);
+  }
+
+  deactivateMenuItem(id: number): Observable<boolean> {
+    return this.http.delete<boolean>(`${this.base}/menus/${id}`);
+  }
+
+  // Workspace Builder (Stage 10)
+
+  getMyWorkspace(): Observable<ResolvedWorkspace> {
+    return this.http.get<ResolvedWorkspace>(`${this.base}/workspaces/me`);
+  }
+
+  getWorkspaceCatalog(): Observable<WorkspaceDefinition[]> {
+    return this.http.get<WorkspaceDefinition[]>(`${this.base}/workspaces/catalog`);
+  }
+
+  getCompanyWorkspaces(tenantId: number): Observable<CompanyWorkspace[]> {
+    return this.http.get<CompanyWorkspace[]>(`${this.base}/workspaces/company`, {
+      params: { tenantId }
+    });
+  }
+
+  setCompanyWorkspaces(tenantId: number, enabledWorkspaceKeys: string[]): Observable<boolean> {
+    return this.http.put<boolean>(`${this.base}/workspaces/company`, {
+      tenantId,
+      enabledWorkspaceKeys
+    });
+  }
+
+  updateWorkspaceDefinition(key: string, payload: UpdateWorkspaceDefinitionPayload): Observable<boolean> {
+    return this.http.put<boolean>(`${this.base}/workspaces/${encodeURIComponent(key)}`, payload);
+  }
+
+  createWorkspaceDefinition(payload: CreateWorkspaceDefinitionPayload): Observable<string> {
+    return this.http.post<string>(`${this.base}/workspaces`, payload);
+  }
+
+  deactivateWorkspaceDefinition(key: string): Observable<boolean> {
+    return this.http.delete<boolean>(`${this.base}/workspaces/${encodeURIComponent(key)}`);
+  }
+
+  // Dashboard Builder (Stage 11)
+
+  getMyDashboard(audience?: string): Observable<ResolvedDashboard> {
+    return this.http.get<ResolvedDashboard>(`${this.base}/dashboards/me`, {
+      params: audience ? { audience } : undefined
+    });
+  }
+
+  getDashboardCatalog(activeOnly = false): Observable<DashboardDefinition[]> {
+    return this.http.get<DashboardDefinition[]>(`${this.base}/dashboards/catalog`, {
+      params: { activeOnly }
+    });
+  }
+
+  getDashboardWidgets(activeOnly = false): Observable<DashboardWidgetDefinition[]> {
+    return this.http.get<DashboardWidgetDefinition[]>(`${this.base}/dashboards/widgets`, {
+      params: { activeOnly }
+    });
+  }
+
+  getDashboardByKey(key: string): Observable<DashboardDetail> {
+    return this.http.get<DashboardDetail>(`${this.base}/dashboards/${encodeURIComponent(key)}`);
+  }
+
+  updateDashboardDefinition(key: string, payload: UpdateDashboardDefinitionPayload): Observable<boolean> {
+    return this.http.put<boolean>(`${this.base}/dashboards/${encodeURIComponent(key)}`, payload);
+  }
+
+  updateDashboardLayout(key: string, payload: UpdateDashboardLayoutPayload): Observable<boolean> {
+    return this.http.put<boolean>(
+      `${this.base}/dashboards/${encodeURIComponent(key)}/layout`,
+      payload
+    );
   }
 }

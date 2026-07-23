@@ -13,6 +13,9 @@ export interface MenuModuleDto {
   collapsible: boolean;
   sortOrder: number;
   items: MenuItemDto[];
+  displayName?: string | null;
+  description?: string | null;
+  visible?: boolean;
 }
 
 export interface MenuItemDto {
@@ -22,6 +25,13 @@ export interface MenuItemDto {
   route: string;
   permissionCode?: string | null;
   sortOrder: number;
+  displayName?: string | null;
+  description?: string | null;
+  category?: string | null;
+  featureKey?: string | null;
+  moduleKey?: string | null;
+  isMobileSupported?: boolean;
+  visible?: boolean;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -42,7 +52,7 @@ export class MenuService {
       .sort((a, b) => a.sortOrder - b.sortOrder)
       .map(module => ({
         id: module.id,
-        label: module.label,
+        label: module.displayName || module.label,
         icon: module.icon,
         collapsible: module.collapsible,
         items: module.items
@@ -66,11 +76,11 @@ export class MenuService {
     }
     return {
       id: item.id,
-      label: item.label,
+      label: item.displayName || item.label,
       icon: item.icon,
       route: path,
       queryParams: queryParams && Object.keys(queryParams).length ? queryParams : undefined,
-      moduleKey: item.permissionCode?.split('.')[0]?.toLowerCase()
+      moduleKey: item.moduleKey || item.permissionCode?.split('.')[0]?.toLowerCase()
     };
   }
 

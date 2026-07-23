@@ -9,7 +9,9 @@ public static class TenantRolePermissionTemplates
     [
         "Platform.Dashboard.View", "Platform.Users.View", "Platform.Users.Create", "Platform.Users.Edit",
         "Platform.Roles.View", "Platform.Roles.Manage", "Platform.Branches.Manage", "Platform.Departments.Manage",
-        "Platform.AuditLogs.View", "Platform.Menus.Manage", "Platform.Settings.View", "Platform.Settings.Manage",
+        "Platform.AuditLogs.View", "Platform.Menus.Manage", "Platform.Workspaces.Manage",
+        "Platform.Dashboards.View", "Platform.Dashboards.Manage",
+        "Platform.Settings.View", "Platform.Settings.Manage",
         "Booking.View", "Booking.Create", "Trip.View", "Route.View",
         "Vehicle.View", "Vehicle.Create", "Vehicle.Update", "Vehicle.Delete", "Driver.View", "Driver.Create", "Driver.Update", "Driver.Delete", "Driver.Assign", "Driver.Manage", "Driver.ManageStatus", "Driver.ViewPerformance",
         "GPS.View", "Fuel.View", "Maintenance.View", "Maintenance.Manage", "Maintenance.Request.Create", "Maintenance.Request.Approve",

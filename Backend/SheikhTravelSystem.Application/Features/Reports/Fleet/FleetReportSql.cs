@@ -1,5 +1,7 @@
 using System.Data;
 using Dapper;
+using SheikhTravelSystem.Application.Common;
+using SheikhTravelSystem.Application.Common.Interfaces;
 
 namespace SheikhTravelSystem.Application.Features.Reports.Fleet;
 
@@ -20,6 +22,32 @@ public static class FleetReportSql
             clauses.Add($"{alias}.BranchId = @BranchId");
             p.Add("BranchId", branchId.Value);
         }
+    }
+
+    /// <summary>Stage 12: apply optional vehicle/branch filters intersected with effective data scope.</summary>
+    public static void ApplyEffectiveVehicleScope(
+        DynamicParameters p,
+        DataScopeResult? scope,
+        int? vehicleId,
+        int? branchId,
+        int? departmentId,
+        string vehicleAlias,
+        List<string> clauses)
+    {
+        if (vehicleId.HasValue)
+        {
+            clauses.Add($"{vehicleAlias}.Id = @VehicleId");
+            p.Add("VehicleId", vehicleId.Value);
+        }
+
+        if (scope is null)
+        {
+            ApplyVehicleBranchFilters(p, null, branchId, vehicleAlias, null, clauses);
+            ApplyDepartmentFilter(p, departmentId, vehicleAlias, clauses);
+            return;
+        }
+
+        DataScopeSql.ApplyVehicleScope(p, scope, vehicleAlias, clauses, branchId, departmentId);
     }
 
     public static void ApplyDepartmentFilter(

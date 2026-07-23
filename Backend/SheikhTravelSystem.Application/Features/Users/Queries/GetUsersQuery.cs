@@ -77,9 +77,13 @@ public class GetUsersQueryHandler(
                     args,
                     cancellationToken: cancellationToken));
 
+            var roleMap = await UserQueries.LoadAssignedRolesMapAsync(
+                connection, rows.Select(r => r.Id).ToList(), cancellationToken);
+
             return ApiResponse<PagedResult<UserDto>>.SuccessResponse(new PagedResult<UserDto>
             {
-                Items = rows.Select(UserQueries.ToDto).ToList(),
+                Items = rows.Select(r => UserQueries.ToDto(
+                    r, roleMap.TryGetValue(r.Id, out var roles) ? roles : null)).ToList(),
                 TotalCount = totalCount,
                 Page = request.Page,
                 PageSize = request.PageSize

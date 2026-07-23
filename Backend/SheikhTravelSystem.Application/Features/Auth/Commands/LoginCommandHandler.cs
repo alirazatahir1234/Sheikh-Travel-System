@@ -63,7 +63,16 @@ public class LoginCommandHandler(
                 cancellationToken: cancellationToken));
 
         logger.LogInformation("User {Email} logged in successfully", request.Email);
-        await presence.MarkLoginAsync(user.Id, cancellationToken);
+        try
+        {
+            await presence.MarkLoginAsync(user.Id, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            // Presence is ancillary — missing AI tables must not block authentication.
+            logger.LogWarning(ex, "Failed to record login presence for user {UserId}", user.Id);
+        }
+
         var primaryRole = access.RoleCodes.FirstOrDefault() ?? user.Role.ToString();
         var response = new LoginResponse(
             accessToken,

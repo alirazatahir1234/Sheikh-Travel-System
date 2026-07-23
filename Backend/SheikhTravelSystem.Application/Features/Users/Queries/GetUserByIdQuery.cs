@@ -47,6 +47,8 @@ public class GetUserByIdQueryHandler(
         if (tenantId > 0)
             platformScope.EnsureTenantAccess(tenantId);
 
-        return ApiResponse<UserDto>.SuccessResponse(UserQueries.ToDto(row));
+        var roles = await UserRoleAssignment.LoadAssignedAsync(connection, request.Id, cancellationToken);
+        return ApiResponse<UserDto>.SuccessResponse(
+            UserQueries.ToDto(row, roles.Select(UserRoleAssignment.ToDto).ToList()));
     }
 }

@@ -20,6 +20,8 @@ import {
   TenantModuleDefinition,
   CompanyFeature,
   CompanyLicense,
+  RoleSummary,
+  MenuCatalog,
   applyPlanDefaults,
   tenantDisplayCode,
   tenantPlanMeta
@@ -43,6 +45,12 @@ export class TenantDetailComponent implements OnInit {
   features: CompanyFeature[] = [];
   license: CompanyLicense | null = null;
   userSummary: CompanyUserSummary | null = null;
+  companyRoles: RoleSummary[] = [];
+  permissionCatalogCount = 0;
+  permissionCategories: string[] = [];
+  menuModuleCount = 0;
+  menuItemCount = 0;
+  menuTopLabels: string[] = [];
   adminInfo?: TenantAdminInfo | null;
 
   readonly planTiers = TENANT_PLAN_TIERS;
@@ -109,17 +117,40 @@ export class TenantDetailComponent implements OnInit {
       userSummary: this.users.getCompanySummary(this.tenantId).pipe(
         catchError(() => of(null as CompanyUserSummary | null))
       ),
+      roles: this.platform.getRolesForTenant(this.tenantId).pipe(
+        catchError(() => of([] as RoleSummary[]))
+      ),
+      permissions: this.platform.getPermissions().pipe(
+        catchError(() => of([]))
+      ),
+      menuCatalog: this.platform.getMenuCatalog().pipe(
+        catchError(() => of(null as MenuCatalog | null))
+      ),
       countries: this.lookup.getCountryNames(),
       currencies: this.lookup.getCurrencyCodes(),
       timezones: this.lookup.getTimezoneIds()
     }).subscribe({
-      next: ({ tenant, modules, features, license, userSummary, countries, currencies, timezones }) => {
+      next: ({ tenant, modules, features, license, userSummary, roles, permissions, menuCatalog, countries, currencies, timezones }) => {
         this.countries = countries;
         this.currencies = currencies;
         this.timezones = timezones;
         this.features = features ?? [];
         this.license = license;
         this.userSummary = userSummary;
+        this.companyRoles = roles ?? [];
+        this.permissionCatalogCount = permissions?.length ?? 0;
+        this.permissionCategories = [...new Set(
+          (permissions ?? [])
+            .map(p => p.category)
+            .filter((c): c is string => !!c && c.trim().length > 0)
+        )].sort((a, b) => a.localeCompare(b));
+        const menuModules = menuCatalog?.modules ?? [];
+        this.menuModuleCount = menuModules.length;
+        this.menuItemCount = menuModules.reduce((sum, m) => sum + (m.items?.length ?? 0), 0);
+        this.menuTopLabels = menuModules
+          .slice(0, 4)
+          .map(m => m.displayName || m.name)
+          .filter(Boolean);
         this.initForm(tenant, modules);
       },
       error: () => {

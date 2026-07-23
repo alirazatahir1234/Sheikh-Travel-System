@@ -439,6 +439,275 @@ export interface Permission {
   moduleName: string;
   permissionCode: string;
   description?: string | null;
+  displayName?: string | null;
+  category?: string | null;
+  sortOrder?: number;
+  visible?: boolean;
+  action?: string | null;
+  moduleKey?: string | null;
+}
+
+export interface EffectivePermission {
+  code: string;
+  displayName: string;
+  category?: string | null;
+  moduleKey?: string | null;
+  action?: string;
+  sourceRoleCodes?: string[] | null;
+}
+
+export interface MenuCatalogItem {
+  id: number;
+  moduleId: number;
+  name: string;
+  displayName: string;
+  description?: string | null;
+  category?: string | null;
+  route?: string | null;
+  icon?: string | null;
+  permissionCode?: string | null;
+  sortOrder: number;
+  isActive: boolean;
+  visible: boolean;
+  featureKey?: string | null;
+  moduleKey?: string | null;
+  isMobileSupported: boolean;
+  parentId?: number | null;
+}
+
+export interface MenuCatalogModule {
+  id: number;
+  moduleKey: string;
+  name: string;
+  displayName: string;
+  description?: string | null;
+  icon?: string | null;
+  sortOrder: number;
+  isCollapsible: boolean;
+  visible: boolean;
+  items: MenuCatalogItem[];
+}
+
+export interface MenuCatalog {
+  modules: MenuCatalogModule[];
+}
+
+export interface UpdateMenuModulePayload {
+  displayName?: string | null;
+  icon?: string | null;
+  sortOrder: number;
+  visible: boolean;
+  isCollapsible: boolean;
+}
+
+export interface UpdateMenuItemPayload {
+  displayName?: string | null;
+  description?: string | null;
+  category?: string | null;
+  route?: string | null;
+  icon?: string | null;
+  permissionCode?: string | null;
+  sortOrder: number;
+  isActive: boolean;
+  visible: boolean;
+  featureKey?: string | null;
+  moduleKey?: string | null;
+  isMobileSupported: boolean;
+}
+
+export interface CreateMenuItemPayload {
+  moduleId: number;
+  name: string;
+  displayName?: string | null;
+  description?: string | null;
+  category?: string | null;
+  route?: string | null;
+  icon?: string | null;
+  permissionCode?: string | null;
+  sortOrder: number;
+  visible?: boolean;
+  featureKey?: string | null;
+  moduleKey?: string | null;
+  isMobileSupported?: boolean;
+}
+
+export interface CompanyNavSummary {
+  moduleCount: number;
+  itemCount: number;
+  topModuleLabels: string[];
+  mobileItemLabels: string[];
+}
+
+export interface CompanyDataScope {
+  mode: string;
+  isCompanyWide: boolean;
+  branchIds: number[];
+  departmentIds: number[];
+  branchLabels: string[];
+  departmentLabels: string[];
+  source: string;
+  homeBranchId?: number | null;
+  homeDepartmentId?: number | null;
+}
+
+export interface ResolvedWorkspace {
+  key: string;
+  displayName: string;
+  homeRoute: string;
+  icon?: string | null;
+  defaultDashboardKey?: string | null;
+  source: string;
+  moduleKeys: string[];
+  isMobileSupported?: boolean;
+}
+
+export interface WorkspaceDefinition {
+  workspaceKey: string;
+  displayName: string;
+  description?: string | null;
+  category?: string | null;
+  icon?: string | null;
+  homeRoute: string;
+  sortOrder: number;
+  visible: boolean;
+  isActive: boolean;
+  isMobileSupported: boolean;
+  moduleKeys: string[];
+  featureKey?: string | null;
+  defaultDashboardKey?: string | null;
+  isEnabled?: boolean;
+  canToggle?: boolean;
+}
+
+export interface CompanyWorkspace {
+  workspaceKey: string;
+  displayName: string;
+  description?: string | null;
+  category?: string | null;
+  icon?: string | null;
+  homeRoute: string;
+  isEnabled: boolean;
+  isMobileSupported: boolean;
+  moduleKeys: string[];
+  defaultDashboardKey?: string | null;
+  canToggle: boolean;
+}
+
+export interface UpdateWorkspaceDefinitionPayload {
+  displayName: string;
+  description?: string | null;
+  category?: string | null;
+  icon?: string | null;
+  homeRoute: string;
+  sortOrder: number;
+  visible: boolean;
+  isActive: boolean;
+  isMobileSupported: boolean;
+  moduleKeys?: string[];
+  featureKey?: string | null;
+  defaultDashboardKey?: string | null;
+}
+
+export interface CreateWorkspaceDefinitionPayload {
+  workspaceKey: string;
+  displayName: string;
+  description?: string | null;
+  category?: string | null;
+  icon?: string | null;
+  homeRoute: string;
+  sortOrder: number;
+  visible: boolean;
+  isMobileSupported: boolean;
+  moduleKeys?: string[];
+  featureKey?: string | null;
+  defaultDashboardKey?: string | null;
+}
+
+export interface DashboardDefinition {
+  dashboardKey: string;
+  displayName: string;
+  description?: string | null;
+  audience: string;
+  defaultWorkspaceKey?: string | null;
+  category?: string | null;
+  sortOrder: number;
+  status: string;
+  visible: boolean;
+  isSystem: boolean;
+  isActive: boolean;
+  widgetCount?: number;
+}
+
+export interface DashboardWidgetDefinition {
+  widgetKey: string;
+  displayName: string;
+  category?: string | null;
+  icon?: string | null;
+  permissionCode?: string | null;
+  featureKey?: string | null;
+  moduleKey?: string | null;
+  supportsErp: boolean;
+  supportsMobile: boolean;
+  sortOrder: number;
+  status: string;
+  visible: boolean;
+  isActive: boolean;
+}
+
+export interface DashboardLayoutItem {
+  widgetKey: string;
+  displayName: string;
+  category?: string | null;
+  icon?: string | null;
+  sortOrder: number;
+  isVisible: boolean;
+  permissionCode?: string | null;
+  featureKey?: string | null;
+  moduleKey?: string | null;
+  supportsErp?: boolean;
+  supportsMobile?: boolean;
+}
+
+export interface DashboardDetail {
+  definition: DashboardDefinition;
+  layout: DashboardLayoutItem[];
+}
+
+export interface ResolvedDashboard {
+  key: string;
+  displayName: string;
+  audience: string;
+  source: string;
+  widgetKeys: string[];
+  widgets: DashboardLayoutItem[];
+}
+
+export interface CompanyDashboardSummary {
+  key?: string | null;
+  displayName?: string | null;
+  widgetKeys: string[];
+  source: string;
+}
+
+export interface UpdateDashboardDefinitionPayload {
+  displayName: string;
+  description?: string | null;
+  audience: string;
+  defaultWorkspaceKey?: string | null;
+  category?: string | null;
+  sortOrder: number;
+  visible: boolean;
+  isActive: boolean;
+}
+
+export interface UpdateDashboardLayoutItemPayload {
+  widgetKey: string;
+  sortOrder: number;
+  isVisible?: boolean;
+}
+
+export interface UpdateDashboardLayoutPayload {
+  items: UpdateDashboardLayoutItemPayload[];
 }
 
 export const BRANCH_TYPES = ['Hub', 'Office', 'Depot', 'Warehouse'] as const;
@@ -549,6 +818,12 @@ export interface RoleSummary {
   userCount: number;
   permissionCount: number;
   permissions: string[];
+  displayName?: string | null;
+  description?: string | null;
+  category?: string | null;
+  roleType?: string | null;
+  sortOrder?: number;
+  visible?: boolean;
 }
 
 export interface TenantSecuritySettings {
@@ -565,6 +840,9 @@ export interface RoleTemplate {
   name: string;
   permissionCount: number;
   permissions: string[];
+  displayName?: string | null;
+  description?: string | null;
+  category?: string | null;
 }
 
 export interface ModuleStatus {

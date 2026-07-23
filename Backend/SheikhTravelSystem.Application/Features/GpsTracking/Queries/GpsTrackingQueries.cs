@@ -206,7 +206,9 @@ public class GetGpsTripsQueryHandler(
     IMediator mediator,
     ITraccarClient traccarClient,
     IOptions<TraccarOptions> traccarOptions,
-    ITenantContext tenantContext)
+    ITenantContext tenantContext,
+    ICurrentUserService currentUser,
+    IDataScopeEngine dataScopeEngine)
     : IRequestHandler<GetGpsTripsQuery, ApiResponse<PagedResult<GpsTripDto>>>
 {
     private static readonly TimeSpan MaxRange = TimeSpan.FromDays(30);
@@ -512,16 +514,27 @@ public class GetGpsTripsQueryHandler(
         var parameters = new DynamicParameters();
         parameters.Add("TenantId", tenantId);
 
-        if (request.BranchId.HasValue)
+        if (currentUser.UserId is int userId)
         {
-            filters.Add("v.BranchId = @BranchId");
-            parameters.Add("BranchId", request.BranchId.Value);
-        }
+            var scope = await dataScopeEngine.ResolveAsync(userId, tenantId, cancellationToken);
+            if (!DataScopeSql.TryIntersectOptional(scope, request.BranchId, request.DepartmentId, out _, out _, out var scopeError))
+                return ApiResponse<List<GpsTripDto>>.FailResponse(scopeError ?? "Outside data scope.");
 
-        if (request.DepartmentId.HasValue)
+            DataScopeSql.ApplyVehicleScope(parameters, scope, "v", filters, request.BranchId, request.DepartmentId);
+        }
+        else
         {
-            filters.Add("v.DepartmentId = @DepartmentId");
-            parameters.Add("DepartmentId", request.DepartmentId.Value);
+            if (request.BranchId.HasValue)
+            {
+                filters.Add("v.BranchId = @BranchId");
+                parameters.Add("BranchId", request.BranchId.Value);
+            }
+
+            if (request.DepartmentId.HasValue)
+            {
+                filters.Add("v.DepartmentId = @DepartmentId");
+                parameters.Add("DepartmentId", request.DepartmentId.Value);
+            }
         }
 
         if (request.DriverId.HasValue)

@@ -3,7 +3,9 @@ using Microsoft.AspNetCore.Mvc;
 using SheikhTravelSystem.API.Authorization;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Features.Users.Commands;
+using SheikhTravelSystem.Application.Features.Users.DTOs;
 using SheikhTravelSystem.Application.Features.Users.Queries;
+using SheikhTravelSystem.Application.Features.Platform;
 
 namespace SheikhTravelSystem.API.Controllers;
 
@@ -40,6 +42,18 @@ public class UsersController : BaseApiController
     public async Task<IActionResult> GetById(int id)
         => Ok(await Mediator.Send(new GetUserByIdQuery(id)));
 
+    [HttpGet("{id:int}/roles")]
+    public async Task<IActionResult> GetRoles(int id)
+        => Ok(await Mediator.Send(new GetUserRolesQuery(id)));
+
+    [HttpGet("{id:int}/permissions")]
+    public async Task<IActionResult> GetPermissions(int id)
+        => Ok(await Mediator.Send(new GetUserPermissionsQuery(id)));
+
+    [HttpGet("{id:int}/data-scope")]
+    public async Task<IActionResult> GetDataScope(int id)
+        => Ok(await Mediator.Send(new GetUserDataScopeQuery(id)));
+
     [RequirePermission(PlatformPermissions.UsersCreate)]
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateUserCommand command)
@@ -52,6 +66,11 @@ public class UsersController : BaseApiController
     [HttpPut("{id}")]
     public async Task<IActionResult> Update(int id, [FromBody] UpdateUserCommand command)
         => Ok(await Mediator.Send(command with { Id = id }));
+
+    [RequirePermission(PlatformPermissions.UsersEdit)]
+    [HttpPut("{id:int}/roles")]
+    public async Task<IActionResult> SetRoles(int id, [FromBody] SetUserRolesRequest payload)
+        => Ok(await Mediator.Send(new SetUserRolesCommand(id, payload)));
 
     [RequirePermission(PlatformPermissions.UsersEdit)]
     [HttpPut("{id}/status")]

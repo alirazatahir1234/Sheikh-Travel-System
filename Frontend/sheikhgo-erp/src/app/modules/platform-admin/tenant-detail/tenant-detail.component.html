@@ -62,6 +62,19 @@
       <span>Features</span>
       <strong>{{ features.length }}</strong>
     </a>
+    <a class="capability-chip" routerLink="/platform/menu-management">
+      <mat-icon>menu</mat-icon>
+      <span>Menus</span>
+      <strong>{{ menuModuleCount }}</strong>
+    </a>
+    <a class="capability-chip" routerLink="/platform/workspace-management" [queryParams]="{ tenantId: tenantId }">
+      <mat-icon>workspaces</mat-icon>
+      <span>Workspaces</span>
+    </a>
+    <a class="capability-chip" routerLink="/platform/dashboard-management">
+      <mat-icon>dashboard_customize</mat-icon>
+      <span>Dashboards</span>
+    </a>
   </div>
 
   <div *ngIf="!loading && tenant && license" class="subscription-summary" aria-label="Subscription summary">
@@ -448,11 +461,66 @@
             <strong>{{ tenant.departmentCount }}</strong>
           </div>
         </div>
-        <div class="stat-row">
+        <div class="stat-row roles-strip">
           <mat-icon>security</mat-icon>
           <div>
             <span>Roles</span>
-            <strong>{{ tenant.roleCount }}</strong>
+            <strong>{{ companyRoles.length || tenant.roleCount }}</strong>
+            <div class="role-name-chips" *ngIf="companyRoles.length">
+              <span class="role-chip" *ngFor="let r of companyRoles | slice:0:4">{{ r.displayName || r.name }}</span>
+              <span class="role-more" *ngIf="companyRoles.length > 4">+{{ companyRoles.length - 4 }}</span>
+            </div>
+            <a class="roles-link" [routerLink]="['/platform/access-control']"
+               [queryParams]="{ tab: 'roles', tenantId: tenantId }">Manage roles</a>
+          </div>
+        </div>
+        <div class="stat-row roles-strip">
+          <mat-icon>filter_alt</mat-icon>
+          <div>
+            <span>Data Scope</span>
+            <strong>Engine</strong>
+            <a class="roles-link" [routerLink]="['/platform/access-control']"
+               [queryParams]="{ tab: 'data-scope', tenantId: tenantId }">View scope</a>
+          </div>
+        </div>
+        <div class="stat-row roles-strip">
+          <mat-icon>verified_user</mat-icon>
+          <div>
+            <span>Permissions</span>
+            <strong>{{ permissionCatalogCount }}</strong>
+            <div class="role-name-chips" *ngIf="permissionCategories.length">
+              <span class="role-chip" *ngFor="let c of permissionCategories | slice:0:4">{{ c }}</span>
+            </div>
+            <a class="roles-link" [routerLink]="['/platform/access-control']"
+               [queryParams]="{ tab: 'permissions', tenantId: tenantId }">View catalog</a>
+          </div>
+        </div>
+        <div class="stat-row roles-strip">
+          <mat-icon>menu</mat-icon>
+          <div>
+            <span>Menus</span>
+            <strong>{{ menuModuleCount }} / {{ menuItemCount }}</strong>
+            <div class="role-name-chips" *ngIf="menuTopLabels.length">
+              <span class="role-chip" *ngFor="let label of menuTopLabels">{{ label }}</span>
+            </div>
+            <a class="roles-link" routerLink="/platform/menu-management">Manage menus</a>
+          </div>
+        </div>
+        <div class="stat-row roles-strip">
+          <mat-icon>workspaces</mat-icon>
+          <div>
+            <span>Workspaces</span>
+            <strong>Catalog</strong>
+            <a class="roles-link" routerLink="/platform/workspace-management"
+               [queryParams]="{ tenantId: tenantId }">Manage workspaces</a>
+          </div>
+        </div>
+        <div class="stat-row roles-strip">
+          <mat-icon>dashboard_customize</mat-icon>
+          <div>
+            <span>Dashboards</span>
+            <strong>Layouts</strong>
+            <a class="roles-link" routerLink="/platform/dashboard-management">Manage dashboards</a>
           </div>
         </div>
         <div class="stat-row">

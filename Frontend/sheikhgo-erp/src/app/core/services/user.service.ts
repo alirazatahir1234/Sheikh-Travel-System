@@ -12,8 +12,11 @@ import {
   ResetPasswordResponse,
   CompanyUserSummary,
   UserListFilters,
+  AssignedRole,
+  SetUserRolesRequest,
   parseUserRole
 } from '../models/user.model';
+import { EffectivePermission, CompanyDataScope } from '../models/platform.model';
 
 @Injectable({ providedIn: 'root' })
 export class UserService {
@@ -48,6 +51,22 @@ export class UserService {
     return this.http.get<User>(`${this.base}/${id}`).pipe(
       map(user => this.normalizeUser(user))
     );
+  }
+
+  getUserRoles(userId: number): Observable<AssignedRole[]> {
+    return this.http.get<AssignedRole[]>(`${this.base}/${userId}/roles`);
+  }
+
+  getUserPermissions(userId: number): Observable<EffectivePermission[]> {
+    return this.http.get<EffectivePermission[]>(`${this.base}/${userId}/permissions`);
+  }
+
+  getUserDataScope(userId: number): Observable<CompanyDataScope> {
+    return this.http.get<CompanyDataScope>(`${this.base}/${userId}/data-scope`);
+  }
+
+  setUserRoles(userId: number, request: SetUserRolesRequest): Observable<boolean> {
+    return this.http.put<boolean>(`${this.base}/${userId}/roles`, request);
   }
 
   getCompanySummary(tenantId?: number | null): Observable<CompanyUserSummary> {

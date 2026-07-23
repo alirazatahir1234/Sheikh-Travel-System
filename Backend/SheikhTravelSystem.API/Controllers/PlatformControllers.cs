@@ -63,6 +63,10 @@ public class RolesController : BaseApiController
     public async Task<IActionResult> GetAll()
         => Ok(await Mediator.Send(new GetRolesQuery()));
 
+    [HttpGet("company")]
+    public async Task<IActionResult> GetCompanyRoles([FromQuery] int? tenantId = null)
+        => Ok(await Mediator.Send(new GetCompanyRolesQuery(tenantId)));
+
     [RequirePermission(PlatformPermissions.RolesManage)]
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateRoleCommand command)
@@ -80,8 +84,17 @@ public class RolesController : BaseApiController
 public class PermissionsController : BaseApiController
 {
     [HttpGet]
-    public async Task<IActionResult> GetAll()
-        => Ok(await Mediator.Send(new GetPermissionsQuery()));
+    public async Task<IActionResult> GetAll(
+        [FromQuery] string? category = null,
+        [FromQuery] string? moduleKey = null,
+        [FromQuery] string? action = null,
+        [FromQuery] bool? visible = null)
+        => Ok(await Mediator.Send(new GetPermissionsQuery(category, moduleKey, action, visible)));
+
+    [HttpGet("effective")]
+    [Authorize]
+    public async Task<IActionResult> GetEffective()
+        => Ok(await Mediator.Send(new GetEffectivePermissionsQuery()));
 }
 
 [RequirePermission(PlatformPermissions.TenantsManage)]
@@ -114,6 +127,125 @@ public class PlatformMenusController : BaseApiController
     [HttpGet("me")]
     public async Task<IActionResult> GetMyMenu()
         => Ok(await Mediator.Send(new GetUserMenuQuery()));
+
+    [HttpGet]
+    [RequirePermission(PlatformPermissions.MenusManage)]
+    public async Task<IActionResult> GetCatalog()
+        => Ok(await Mediator.Send(new GetMenuCatalogQuery()));
+
+    [HttpGet("catalog")]
+    [Authorize]
+    public async Task<IActionResult> GetCatalogAlias()
+        => Ok(await Mediator.Send(new GetMenuCatalogQuery()));
+
+    [HttpPut("modules/{id:int}")]
+    [RequirePermission(PlatformPermissions.MenusManage)]
+    public async Task<IActionResult> UpdateModule(int id, [FromBody] UpdateMenuModulePayload payload)
+        => Ok(await Mediator.Send(new UpdateMenuModuleCommand(id, payload)));
+
+    [HttpPut("{id:int}")]
+    [RequirePermission(PlatformPermissions.MenusManage)]
+    public async Task<IActionResult> UpdateItem(int id, [FromBody] UpdateMenuItemPayload payload)
+        => Ok(await Mediator.Send(new UpdateMenuItemCommand(id, payload)));
+
+    [HttpPost]
+    [RequirePermission(PlatformPermissions.MenusManage)]
+    public async Task<IActionResult> CreateItem([FromBody] CreateMenuItemPayload payload)
+        => Ok(await Mediator.Send(new CreateMenuItemCommand(payload)));
+
+    [HttpDelete("{id:int}")]
+    [RequirePermission(PlatformPermissions.MenusManage)]
+    public async Task<IActionResult> DeleteItem(int id)
+        => Ok(await Mediator.Send(new DeleteMenuItemCommand(id)));
+}
+
+[Authorize]
+[ApiController]
+[Route("api/platform/workspaces")]
+public class PlatformWorkspacesController : BaseApiController
+{
+    [HttpGet("me")]
+    public async Task<IActionResult> GetMine()
+        => Ok(await Mediator.Send(new GetMyWorkspaceQuery()));
+
+    [HttpGet]
+    [RequirePermission(PlatformPermissions.WorkspacesManage)]
+    public async Task<IActionResult> GetCatalog()
+        => Ok(await Mediator.Send(new GetWorkspaceCatalogQuery()));
+
+    [HttpGet("catalog")]
+    [Authorize]
+    public async Task<IActionResult> GetCatalogAlias()
+        => Ok(await Mediator.Send(new GetWorkspaceCatalogQuery()));
+
+    [HttpGet("company")]
+    [RequirePermission(PlatformPermissions.WorkspacesManage)]
+    public async Task<IActionResult> GetCompany([FromQuery] int? tenantId = null)
+        => Ok(await Mediator.Send(new GetCompanyWorkspacesQuery(tenantId)));
+
+    [HttpPut("company")]
+    [RequirePermission(PlatformPermissions.WorkspacesManage)]
+    public async Task<IActionResult> SetCompany([FromBody] SetCompanyWorkspacesRequest request)
+        => Ok(await Mediator.Send(new SetCompanyWorkspacesCommand(
+            request.TenantId,
+            request.EnabledWorkspaceKeys ?? Array.Empty<string>())));
+
+    [HttpPut("{key}")]
+    [RequirePermission(PlatformPermissions.WorkspacesManage)]
+    public async Task<IActionResult> Update(string key, [FromBody] UpdateWorkspaceDefinitionPayload payload)
+        => Ok(await Mediator.Send(new UpdateWorkspaceDefinitionCommand(key, payload)));
+
+    [HttpPost]
+    [RequirePermission(PlatformPermissions.WorkspacesManage)]
+    public async Task<IActionResult> Create([FromBody] CreateWorkspaceDefinitionPayload payload)
+        => Ok(await Mediator.Send(new CreateWorkspaceDefinitionCommand(payload)));
+
+    [HttpDelete("{key}")]
+    [RequirePermission(PlatformPermissions.WorkspacesManage)]
+    public async Task<IActionResult> Deactivate(string key)
+        => Ok(await Mediator.Send(new DeactivateWorkspaceDefinitionCommand(key)));
+}
+
+public record SetCompanyWorkspacesRequest(int TenantId, IReadOnlyList<string>? EnabledWorkspaceKeys);
+
+[Authorize]
+[ApiController]
+[Route("api/platform/dashboards")]
+public class PlatformDashboardsController : BaseApiController
+{
+    [HttpGet("me")]
+    public async Task<IActionResult> GetMine([FromQuery] string? audience = null)
+        => Ok(await Mediator.Send(new GetMyDashboardQuery(audience)));
+
+    [HttpGet]
+    [RequirePermission(PlatformPermissions.DashboardsView)]
+    public async Task<IActionResult> GetCatalog([FromQuery] bool activeOnly = false)
+        => Ok(await Mediator.Send(new GetDashboardCatalogQuery(activeOnly)));
+
+    [HttpGet("catalog")]
+    [Authorize]
+    public async Task<IActionResult> GetCatalogAlias([FromQuery] bool activeOnly = false)
+        => Ok(await Mediator.Send(new GetDashboardCatalogQuery(activeOnly)));
+
+    [HttpGet("widgets")]
+    [RequirePermission(PlatformPermissions.DashboardsView)]
+    public async Task<IActionResult> GetWidgets([FromQuery] bool activeOnly = false)
+        => Ok(await Mediator.Send(new GetDashboardWidgetsQuery(activeOnly)));
+
+    [HttpGet("{key}")]
+    [RequirePermission(PlatformPermissions.DashboardsView)]
+    public async Task<IActionResult> GetByKey(string key)
+        => Ok(await Mediator.Send(new GetDashboardByKeyQuery(key)));
+
+    [HttpPut("{key}")]
+    [RequirePermission(PlatformPermissions.DashboardsManage)]
+    public async Task<IActionResult> UpdateDefinition(string key, [FromBody] UpdateDashboardDefinitionPayload payload)
+        => Ok(await Mediator.Send(new UpdateDashboardDefinitionCommand(key, payload)));
+
+    [HttpPut("{key}/layout")]
+    [RequirePermission(PlatformPermissions.DashboardsManage)]
+    public async Task<IActionResult> UpdateLayout(string key, [FromBody] UpdateDashboardLayoutPayload payload)
+        => Ok(await Mediator.Send(new UpdateDashboardLayoutCommand(key, payload)));
 }
 
 [RequirePermission(PlatformPermissions.TenantsManage)]
@@ -182,7 +314,9 @@ public class TenantAccessController : BaseApiController
     [RequirePermission(PlatformPermissions.RolesManage)]
     [HttpPut("roles/{roleId:int}")]
     public async Task<IActionResult> UpdateRole(int tenantId, int roleId, [FromBody] UpdateRoleForTenantRequest request)
-        => Ok(await Mediator.Send(new UpdateRoleForTenantCommand(tenantId, roleId, request.Name, request.IsActive)));
+        => Ok(await Mediator.Send(new UpdateRoleForTenantCommand(
+            tenantId, roleId, request.Name, request.IsActive,
+            request.DisplayName, request.Description, request.Category)));
 
     [RequirePermission(PlatformPermissions.RolesManage)]
     [HttpDelete("roles/{roleId:int}")]
@@ -220,7 +354,12 @@ public class RoleTemplatesController : BaseApiController
 }
 
 public record CreateRoleRequest(string Name, string Code);
-public record UpdateRoleForTenantRequest(string Name, bool IsActive);
+public record UpdateRoleForTenantRequest(
+    string Name,
+    bool IsActive,
+    string? DisplayName = null,
+    string? Description = null,
+    string? Category = null);
 public record UpdateRolePermissionsRequest(IReadOnlyList<string> PermissionCodes);
 public record ApplyRoleTemplateRequest(string RoleCode);
 
@@ -306,3 +445,13 @@ public record UpdateSubscriptionRequest(
     decimal? MonthlyAmount,
     bool? AutoRenew,
     string? BillingCycle);
+
+[Authorize]
+[ApiController]
+[Route("api/platform/data-scope")]
+public class DataScopeController : BaseApiController
+{
+    [HttpGet("me")]
+    public async Task<IActionResult> GetMine()
+        => Ok(await Mediator.Send(new GetMyDataScopeQuery()));
+}

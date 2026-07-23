@@ -156,6 +156,9 @@ const platformGroup: NavGroup = {
   items: [
     { id: 'platform-home', label: 'Platform Home', icon: 'settings_applications', route: '/platform', adminOnly: true, moduleKey: 'platform' },
     { id: 'modules', label: 'Modules', icon: 'extension', route: '/platform/module-management', adminOnly: true, moduleKey: 'platform' },
+    { id: 'menus', label: 'Menus', icon: 'menu', route: '/platform/menu-management', adminOnly: true, moduleKey: 'platform' },
+    { id: 'workspaces', label: 'Workspaces', icon: 'workspaces', route: '/platform/workspace-management', adminOnly: true, moduleKey: 'platform' },
+    { id: 'dashboards', label: 'Dashboards', icon: 'dashboard_customize', route: '/platform/dashboard-management', adminOnly: true, moduleKey: 'platform' },
     { id: 'plans', label: 'Plans', icon: 'subscriptions', route: '/platform/subscription-management', adminOnly: true, moduleKey: 'platform' },
     { id: 'billing', label: 'Billing', icon: 'payments', route: '/platform/subscription-management', queryParams: { tab: 'billing' }, adminOnly: true, moduleKey: 'platform' },
     { id: 'migration-manager', label: 'Migration Manager', icon: 'storage', route: '/platform/migrations', adminOnly: true, moduleKey: 'platform' },

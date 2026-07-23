@@ -42,6 +42,8 @@ public static class DatabaseMigrationRegistry
             M("GpsAddressCacheMigration", GpsAddressCacheMigration.ApplyAsync),
             M("NotificationCenterMigration", NotificationCenterMigration.ApplyAsync),
             M("NotificationCenterV2Migration", NotificationCenterV2Migration.ApplyAsync),
+            // Runs before NotificationTenantIsolation so a missing UserPresence is fixed even when later migrations fail.
+            M("UserPresenceEnsureMigration", UserPresenceEnsureMigration.ApplyAsync),
             M("NotificationTenantIsolationMigration", NotificationTenantIsolationMigration.ApplyAsync),
             M("AiPlatformMigration", AiPlatformMigration.ApplyAsync),
             M("PerformanceIndexesMigration", PerformanceIndexesMigration.ApplyAsync),
@@ -81,6 +83,12 @@ public static class DatabaseMigrationRegistry
             M("SubscriptionLicenseMigration", SubscriptionLicenseMigration.ApplyAsync),
             M("FeatureManagementMigration", FeatureManagementMigration.ApplyAsync),
             M("UserManagementFoundationMigration", UserManagementFoundationMigration.ApplyAsync),
+            M("RoleManagementFoundationMigration", RoleManagementFoundationMigration.ApplyAsync),
+            M("PermissionEngineFoundationMigration", PermissionEngineFoundationMigration.ApplyAsync),
+            M("MenuBuilderFoundationMigration", MenuBuilderFoundationMigration.ApplyAsync),
+            M("WorkspaceBuilderFoundationMigration", WorkspaceBuilderFoundationMigration.ApplyAsync),
+            M("DashboardBuilderFoundationMigration", DashboardBuilderFoundationMigration.ApplyAsync),
+            M("DataScopeFoundationMigration", DataScopeFoundationMigration.ApplyAsync),
         ];
     }
 }

@@ -7,8 +7,16 @@ Living gap analysis for the 15-stage Platform Administration roadmap.
 - Stage 3: Module Registry metadata on existing `Modules` / Module Management
 - Stage 4: Subscription & License foundation
 - Stage 5: Feature Management foundation
-- Stage 6: User Management enhancement (this stage)
-
+- Stage 6: User Management enhancement
+- Stage 7: Role Management foundation
+- Stage 8: Permission Management / Permission Engine
+- Stage 9: Menu Builder foundation
+- Stage 10: Workspace Builder foundation
+- Stage 11: Dashboard Builder foundation
+- Stage 12: Data Scope Engine foundation
+- Stage 13: Security Center foundation
+- Stage 14: Audit Center
+- Stage 15: Backend Permission Enforcement
 ## Role visibility
 
 | Capability | Super Admin (`SUPER_ADMIN`) | Tenant Admin (`TENANT_ADMIN`) |
@@ -16,8 +24,8 @@ Living gap analysis for the 15-stage Platform Administration roadmap.
 | Platform hub `/platform` | Yes (default home) | Yes if any platform permission |
 | Companies (cross-tenant; permission `Platform.Tenants.*`) | Yes | No (`Platform.Tenants.*` excluded from template) |
 | Organization (hierarchy / branches / departments) | Yes | Own tenant |
-| Access Control hub + Users | Yes | Own tenant |
-| Modules / Features / Subscriptions | Yes | View/manage own tenant via existing hubs |
+| Access Control hub + Users + Data Scope tab | Yes | Own tenant |
+| Modules / Features / Subscriptions / Menus / Workspaces | Yes | View/manage own tenant via existing hubs (Menus: `Platform.Menus.Manage`; Workspaces: `Platform.Workspaces.Manage`) |
 | Migrations | Yes (`Platform.Migrations.*`) | No |
 | Database Reset / System Maintenance | Yes + Dev/Staging only (`Platform.System.Reset`) | No |
 | Settings / Audit Logs | Yes | Own tenant (existing permissions) |
@@ -34,11 +42,14 @@ Living gap analysis for the 15-stage Platform Administration roadmap.
 | Users (standalone) | `/users` | users module — org assignment + profile metadata (Stage 6) |
 | Modules | `/platform/module-management` | Module Registry UI (reuse; no new CRUD) |
 | Features | `/platform/feature-management` | Feature Management (enable/disable only) |
+| Menus | `/platform/menu-management` | Menu catalog CRUD (labels/visibility; not a page builder) |
+| Workspaces | `/platform/workspace-management` | Workspace catalog + company enablement (not a page designer) |
 | Subscriptions | `/platform/subscription-management` | license panels + existing billing |
+| Security | `/platform/security-center` | **Stage 13** — policy registry + soft consume (Access Policies tab becomes deep-link / alias) |
 | Migrations | `/platform/migrations` | existing |
 | System Maintenance | `/platform/maintenance` | database reset (label clarified) |
-| Settings | `/settings` | settings module |
-| Audit | `/audit-logs` | audit-logs module |
+| Settings | `/settings` | settings module (Security category soft-delegates to Security Center) |
+| Audit | `/audit-logs` | audit-logs module (Stage 14) |
 
 ### Stage 1 redirects / duplicates
 
@@ -128,13 +139,13 @@ flowchart TB
 | 4 | Subscription & License | **Done (foundation)** | Plan catalog + license APIs; soft Licensed semantics; consumes Module Registry; hard enforcement deferred |
 | 5 | Feature Management | **Done (foundation)** | Extends Feature Registry; company enablement; no runtime flags / builders |
 | 6 | User Management | **Done (foundation)** | Org-aware Users; Branch/Department; lifecycle Status; workspace defaults metadata |
-| 7 | Role Management | Existing | Access Control Roles tab — Stage 7 enhances business roles / templates |
-| 8 | Permission Management | Existing | Access Control Permissions tab; future Permission Engine |
-| 9 | Menu Builder | Partial | Schema + `menus/me`; no CRUD builder UI |
-| 10 | Workspace Builder | Missing | |
-| 11 | Dashboard Builder | Missing | Fixed dashboards only |
-| 12 | Data Scope Engine | Missing | Tenant isolation only today |
-| 13 | Security Center | Partial | Access Policies tab + settings flags |
+| 7 | Role Management | **Done (foundation)** | Business-role metadata; UserRoles assignment + soft scope; Access Control / Users UX |
+| 8 | Permission Management | **Done (foundation)** | Catalog metadata; Permission Engine; effective permissions + Access Control Permissions tab |
+| 9 | Menu Builder | **Done (foundation)** | Catalog metadata; manage APIs; Menu Management UX; soft FeatureKey gate on `menus/me` |
+| 10 | Workspace Builder | **Done (foundation)** | Catalog + company enablement; resolve me/home; soft nav focus; ERP + mobile label |
+| 11 | Dashboard Builder | **Done (foundation)** | Registry + layout APIs; ERP management; mobile consume + soft gates |
+| 12 | Data Scope Engine | **Done (foundation)** | ScopeLevel + engine; pilot Vehicles/Drivers/GPS/fleet reports; soft scopes |
+| 13 | Security Center | Partial → **Plan ready** | Access Policies tab + settings flags (dead UI); foundation plan below |
 | 14 | Audit Center | Partial | View/filter audit logs |
 | 15 | Backend Permission Enforcement | Partial | Strong on platform/fleet; gaps on bookings/payments/etc. |
 
@@ -186,20 +197,429 @@ flowchart TB
 - **Mobile:** Read-only Company / Branch / Department / Job Title / Workspace / Theme. No user admin.
 - **Consumes:** Company, Modules, Features. **Produces:** Organization-aware users. **Feeds:** Role Management (Stage 7), Permission Engine (Stage 8).
 
-## Deferred (explicit non-goals of Stages 1–6)
+## Stage 7 deliverables
+
+- **Roles metadata:** Additive columns on `Roles` (`DisplayName`, `Description`, `Category`, `SortOrder`, `Visible`, `RoleType`) + `RoleRegistrySeed` for system roles.
+- **UserRoles assignment:** Soft `BranchId` / `DepartmentId` scope + audit (`AssignedAt` / `AssignedBy`); no Data Scope enforcement.
+- **APIs:** `GET/PUT /api/Users/{id}/roles`; `GET /api/platform/roles/company`; enriched role/templates DTOs; legacy `Users.Role` sync into `UserRoles` on create/update (without wiping extra business roles).
+- **Company context:** `AssignedRoles[]` (code, displayName, category) for ERP/mobile display.
+- **ERP:** Access Control Roles/Templates metadata + filters; Users form multi-role assignment; list role chips; company detail roles strip → Access Control.
+- **Mobile:** Parse assigned roles; display chips on profile / More. No role admin.
+- **Consumes:** Stage 6 Users. **Produces:** Company-aware role assignment + business-role metadata. **Feeds:** Permission Engine (Stage 8).
+- **Non-goals:** Permission Engine, Data Scope Engine, template builder, ASP.NET Identity replacement, mobile role admin.
+
+## Stage 8 deliverables
+
+- **Permissions metadata:** Additive columns on `Permissions` (`DisplayName`, `Category`, `SortOrder`, `Visible`, `Action`, `ModuleKey`) + `PermissionRegistrySeed` from existing `*Permissions` catalogs.
+- **Permission Engine:** `IPermissionEngine` resolves UserRoles → RolePermissions (template fallback) → soft intersect with installed modules / enabled features when mapped; unmapped permissions pass through. Super Admin = full catalog; Tenant Admin Platform.* bypass mirrored for effective lists.
+- **APIs:** Enriched `GET /api/platform/permissions` (filters); `GET /api/platform/permissions/effective`; `GET /api/Users/{id}/permissions`; company context / profile `EffectivePermissions[]`.
+- **Wiring:** `UserAccessService` delegates to engine (login/refresh JWT claims from engine result). Matrix write path unchanged.
+- **ERP:** Access Control Permissions tab metadata + filters + “My effective” strip; company detail roles/permissions deep-links; Users form read-only effective categories.
+- **Mobile:** Parse effective permissions; category chips on Profile / More. No permission admin.
+- **Consumes:** Stage 7 roles. **Produces:** Effective permission evaluation + catalog metadata. **Feeds:** Menu Builder (9), Stage 15 enforcement expansion.
+- **Non-goals:** JWT/MFA redesign, Data Scope, deny-lists, permission marketplace, Stage 15 blanket attributes, mobile permission admin.
+
+## Stage 9 deliverables
+
+- **Menu metadata:** Additive columns on `PlatformMenus` / `PlatformModules` + `MenuRegistrySeed` backfill; `MenuBuilderFoundationMigration`.
+- **Runtime nav:** `GET /api/platform/menus/me` keeps Permission Engine + tenant modules; soft FeatureKey gate when tenant feature rows exist; respects `Visible` / `IsActive`; enriched display fields.
+- **Manage APIs:** Catalog (`GET /menus`, `/menus/catalog`); PUT module/item; POST item under existing module; DELETE soft-deactivates. Gated by `Platform.Menus.Manage`.
+- **Company context:** Compact `NavSummary` (module/item counts + top/mobile labels) derived from same filter logic as `menus/me`.
+- **ERP:** `/platform/menu-management` (filters, edit drawer, create under module, deactivate); hub + nav + company detail strip; shell uses enriched `menus/me` labels; `menu-config.ts` fallback kept.
+- **Mobile:** Parse `navSummary`; read-only chips on Profile / More. App chrome remains `fleet_nav_config.dart`. No menu admin.
+- **Consumes:** Permission Engine + Modules + Features. **Produces:** Editable permission-aware nav catalog. **Feeds:** Workspace (10) / Dashboard (11).
+- **Non-goals:** Visual/drag-drop page builder, per-tenant menu marketplace, nested ParentId tree UI, Workspace/Dashboard builders, mobile menu admin, JWT redesign, replacing Access Control matrix.
+
+## Stage 10 deliverables
+
+- **Persistence:** `WorkspaceDefinitions` + `TenantWorkspaces` (company enablement); `WorkspaceBuilderFoundationMigration` after Menu Builder.
+- **Seed catalog:** `platform`, `company`, `fleet`, `drivers`, `trips`, `finance`, `driver`, `home` with display metadata, home routes, and soft `ModuleKeysJson`.
+- **Permission:** `Platform.Workspaces.Manage` (SUPER_ADMIN / TENANT_ADMIN template); Platform nav item → `/platform/workspace-management`.
+- **APIs:** `/api/platform/workspaces` catalog / company / me; PUT company enablement; Super-Admin create/update/deactivate definitions.
+- **Resolver:** Prefer `Users.DefaultWorkspaceKey` when catalog-visible + company-enabled; else role hint; else `home`. Nested `Workspace` on company context; keep `workspaceHint` alias.
+- **Soft nav focus:** `menus/me` soft-orders / soft-hides modules via resolved workspace `ModuleKeysJson` when non-empty.
+- **ERP:** `/platform/workspace-management`; hub tile + `menu-config` fallback + company detail strip; Users form workspace select; login `getHomeRoute()` from resolved workspace.
+- **Mobile:** Parse nested `workspace`; Profile / More label chips. No workspace admin.
+- **Consumes:** Stage 6 user defaults + Stage 9 menus. **Produces:** Editable landing workspace catalog. **Feeds:** Dashboard Builder (11) via `DefaultDashboardKey` metadata.
+- **Non-goals:** Visual/drag-drop page designer, replacing Menu Management, A/B/canary workspaces, Dashboard Builder UI, Data Scope Engine, mobile workspace admin, JWT/MFA changes.
+
+## Stage 11 plan — Dashboard Builder (foundation)
+
+> **Status:** Done (foundation). Runtime ERP `/dashboard` hosts remain fixed (optional Phase B soft host deferred). Matrix: registry + layout assignment live.
+> **Depends on:** Stage 6 (`DefaultDashboardKey`), Stage 8 (Permission Engine), Stage 9 (menus/me soft gates), Stage 10 Workspace Builder (**done** — workspace→dashboard binding via `DefaultDashboardKey` metadata).
+> **Route (ERP):** `/platform/dashboard-management` — catalog + layout compose; does **not** replace `/dashboard` runtime screens.
+
+### Problem statement
+
+Today dashboards are **hard-coded**:
+
+| Surface | Today |
+|---------|--------|
+| ERP `/dashboard` | Role/feature switches fixed components (`default-dashboard`, fleet dashboard content, trip dashboard, …) |
+| Flutter Fleet/Driver home | `dashboard_layout.dart` + `dashboard_layout_registry.dart` fixed widget lists per role |
+| Users | `DefaultDashboardKey` column exists but is **not resolved** to a layout catalog |
+
+Stage 11 introduces a **Dashboard Registry + company/user layout assignment** so operators can choose/order widgets from a seeded catalog — without a visual page designer.
+
+### Semantics
+
+| Term | Meaning |
+|------|---------|
+| **Dashboard Definition** | Catalog row: `DashboardKey`, display name, audience (ERP / Mobile / Both), default workspace key, status |
+| **Widget Definition** | Catalog row: `WidgetKey` (stable code e.g. `fleetKpis`, `liveFleetCard`), category, permission/feature/module soft gates, platforms |
+| **Dashboard Layout** | Ordered list of widget keys for a dashboard definition (company override optional later) |
+| **Assigned dashboard** | User `DefaultDashboardKey` → definition; fallback: workspace default → role default → system `default` |
+| **Available widget** | Visible + Active in registry **and** soft-pass Permission Engine / installed module / enabled feature (same soft style as menus) |
+
+### Persistence (additive, no duplicate app dashboards)
+
+| Table / column | Purpose |
+|----------------|---------|
+| `DashboardDefinitions` | Catalog of dashboards (`DashboardKey` PK/unique, `DisplayName`, `Description`, `Audience`, `DefaultWorkspaceKey`, `Category`, `SortOrder`, `Status`, `Visible`, `IsSystem`) |
+| `DashboardWidgetDefinitions` | Widget catalog (`WidgetKey`, `DisplayName`, `Category`, `Icon`, `PermissionCode`, `FeatureKey`, `ModuleKey`, `SupportsErp`, `SupportsMobile`, `SortOrder`, `Status`, `Visible`) |
+| `DashboardLayouts` | `(DashboardKey, WidgetKey, SortOrder, ColumnSpan?, IsVisible)` composition |
+| `TenantDashboardOverrides` *(optional Phase B)* | Per-company layout override of a system dashboard |
+| Existing `Users.DefaultDashboardKey` | Assignment target (already migrated Stage 6) |
+
+Migration: `DashboardBuilderFoundationMigration` + seed from current Flutter `DashboardWidgetId` + ERP fleet/default widgets.
+
+### Seed catalog (initial)
+
+**Dashboards (system):**
+
+| Key | Audience | Default workspace hint |
+|-----|----------|------------------------|
+| `erp.default` | ERP | `erp.ops` |
+| `erp.fleet` | ERP | `erp.fleet` |
+| `erp.trips` | ERP | `erp.trips` |
+| `mobile.driver` | Mobile | `mobile.driver` |
+| `mobile.fleet_ops` | Mobile | `mobile.fleet` |
+| `mobile.admin` | Mobile | `mobile.admin` |
+
+**Widgets:** map 1:1 from Flutter `DashboardWidgetId` + ERP fleet KPI/alerts/assignments cards (codes stable; UI still owns rendering).
+
+### APIs
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| `GET` | `/api/platform/dashboards` | Tenant-filtered catalog (definitions) |
+| `GET` | `/api/platform/dashboards/catalog` | Full registry (incl. Coming Soon widgets) |
+| `GET` | `/api/platform/dashboards/{key}` | Definition + ordered layout widgets |
+| `GET` | `/api/platform/dashboards/me` | Resolved layout for current user (assignment + soft gates) |
+| `GET` | `/api/platform/dashboards/widgets` | Widget catalog |
+| `PUT` | `/api/platform/dashboards/{key}/layout` | Reorder / show-hide widgets (manage) |
+| `PUT` | `/api/platform/dashboards/{key}` | Update definition metadata (not create arbitrary keys in v1) |
+| `POST` | `/api/platform/dashboards` *(optional Phase B)* | Clone system dashboard for company |
+
+**Permissions:**
+
+| Code | Purpose |
+|------|---------|
+| `Platform.Dashboards.View` | View catalog / company layouts |
+| `Platform.Dashboards.Manage` | Edit layout order/visibility + metadata |
+
+Gate like Menus: Super Admin + Tenant Admin with permission; no mobile admin.
+
+**Company context enrichment:**
+
+```json
+"dashboard": {
+  "key": "mobile.fleet_ops",
+  "displayName": "Fleet operations",
+  "widgetKeys": ["greeting", "fleetKpis", "liveFleetCard", "aiAttention", "quickActions"]
+}
+```
+
+### Resolution order (`/dashboards/me`)
+
+```mermaid
+flowchart TD
+  u[Users.DefaultDashboardKey]
+  w[Workspace default dashboard Stage10 or DefaultWorkspaceKey hint]
+  r[Role default from seed map]
+  s[System fallback erp.default / mobile.driver]
+  u -->|if valid Visible| layout[Load DashboardLayouts]
+  u -->|missing/invalid| w
+  w -->|missing| r
+  r -->|missing| s
+  layout --> soft[Soft filter widgets by Permission/Module/Feature]
+  soft --> dto[DashboardMeDto]
+```
+
+### ERP deliverables
+
+- **`/platform/dashboard-management`:** list definitions; filter by audience/status; edit drawer (label, description, workspace hint); layout editor = ordered checklist / up-down (not drag canvas); widget metadata read-only.
+- **Platform hub card** + company detail strip: current default dashboards counts → deep-link.
+- **Runtime `/dashboard`:** keep existing screens; optional Phase B: if `dashboards/me` returns keys, prefer registered widget host for fleet/default only — **do not** rewrite all dashboards in Stage 11 foundation.
+- **Users form:** dropdown of Visible dashboard keys for `DefaultDashboardKey` (already field; wire to catalog).
+
+### Mobile deliverables
+
+- Parse `dashboard` / `dashboards/me` widget key list.
+- `dashboard_layout_registry.dart`: if API keys present, **filter/reorder** existing widgets; unknown keys skipped.
+- Profile / More: read-only “Dashboard: {displayName}” chip.
+- **No** dashboard admin UI on Flutter.
+
+### Consumes / Produces / Feeds
+
+| | |
+|--|--|
+| **Consumes** | Users (`DefaultDashboardKey`), Permission Engine, Modules, Features, Menus (nav), Workspace keys (Stage 10 when ready) |
+| **Produces** | Dashboard + widget registry; resolved `/dashboards/me` layout |
+| **Feeds** | Stage 12 Data Scope (widget data filtering), Stage 13 Security Center (dashboard access policy), Stage 15 enforcement |
+
+### Explicit non-goals (Stage 11)
+
+- Visual drag-drop / WYSIWYG page builder or widget marketplace
+- Custom SQL / BI query widgets / Looker embeds
+- Per-user free-form layouts (assignment is catalog key only in v1)
+- Runtime A/B dashboard experiments
+- Replacing ERP fleet/trip dashboard component implementations wholesale
+- Mobile dashboard admin CRUD
+- Hard fail when widget permission missing (soft hide, same as menus)
+
+### Implementation slices
+
+| Slice | Work | Exit criteria |
+|-------|------|----------------|
+| **11.1 Schema + seed** | Migration + Dashboard/Widget/Layout seed from current Flutter + ERP widgets | Migration applies; catalog rows present |
+| **11.2 Read APIs** | Catalog / by-key / widgets / `me` resolution + company context | `dashboards/me` returns gated widget keys for Admin + Driver |
+| **11.3 Manage APIs + ERP page** | PUT layout/metadata; `/platform/dashboard-management`; hub + Users dropdown | Tenant Admin can reorder visible widgets on a system dashboard |
+| **11.4 Mobile consume** | Parse layout; registry filter/reorder; profile chip | Driver/Fleet home honors API order without code change for known widgets |
+| **11.5 Soft ERP host (optional)** | Fleet/default dashboard hosts registered widget subset | Feature-flagged; fallback to fixed UI if API empty |
+
+### Test plan
+
+- [ ] Super Admin sees full catalog; Tenant Admin only own-tenant manage
+- [ ] User with `DefaultDashboardKey=mobile.fleet_ops` gets that layout on `me`
+- [ ] Invalid/missing key falls back to workspace → role → system default
+- [ ] Widget with missing permission/feature is omitted (soft), not 403 on whole dashboard
+- [ ] Layout PUT rejects unknown widget keys; preserves IsSystem definitions
+- [ ] Flutter: API order changes widget sequence; unknown key ignored
+- [ ] Company context includes compact dashboard summary
+- [ ] No regression: ERP `/dashboard` and Flutter home still render when API empty (offline/fallback)
+
+### Handoff from Stage 10 (Workspace Builder)
+
+Stage 10 exposes **workspace → default dashboard key** (`WorkspaceDefinitions.DefaultDashboardKey` + resolved company-context `Workspace`) so Stage 11 resolution can prefer workspace defaults over role seed maps.
+
+### Handoff to Stage 12
+
+Stage 12 **Data Scope Engine** filters **data inside** dashboard widgets (branch/department/fleet scope). Stage 11 only decides **which widgets appear**, not row-level data.
+
+## Stage 12 deliverables
+
+- **Roles.ScopeLevel:** Additive metadata (`Company` / `Branch` / `Department` / `Assigned`) via `DataScopeFoundationMigration`; backfill Super/Tenant Admin → Company, fleet ops roles → Branch.
+- **Data Scope Engine:** `IDataScopeEngine` + `DataScopeResolver` resolve Users home org ∪ UserRoles soft scopes; Super/Tenant Admin company-wide; unscoped legacy soft pass-through.
+- **APIs:** `GET /api/platform/data-scope/me`; `GET /api/Users/{id}/data-scope`; company context nested `dataScope` (mode, ids, labels, source).
+- **Pilot enforcement:** Vehicles / Drivers / GPS fleet trips + fleet fuel/vehicle reports intersect optional filters with effective scope (`DataScopeSql`). Travel bookings/trips deferred.
+- **ERP:** Access Control **Data Scope** tab (my effective scope); Users form read-only effective chips; company detail deep-link. Role scope writes remain Stage 7 Users UX. Not folded into Access Policies.
+- **Mobile:** Parse `dataScope`; chips on Profile / More. No scope admin; server remains source of truth.
+- **Consumes:** Stage 6 Users org, Stage 7 soft scopes, Stage 8 permissions, tenant isolation.
+- **Produces:** Effective data scope + pilot fleet enforcement.
+- **Feeds:** Stage 11 widget payloads (row filter), Stage 13 (orthogonal), Stage 15 broader query coverage.
+- **Non-goals:** ABAC/deny-lists, Access Policies rewrite, travel schema rewrite, JWT redesign, mobile scope admin, visual policy designer.
+
+## Stage 13 plan — Security Center (foundation)
+
+> **Status:** Plan ready (not implemented). Baseline today = Access Policies tab + Settings Security category writing six columns on `TenantSecuritySettings` with **almost no runtime enforcement**.
+> **Depends on:** Stage 8 Permission Engine (gates), Stage 12 Data Scope foundation (**done** — Security Center does not own row scope).
+> **Route (ERP):** `/platform/security-center` — company security policy hub; Access Control `?tab=policies` redirects / deep-links here; Settings → Security soft-delegates persistence.
+> **Does not replace:** Audit Center UI (`/audit-logs`, Stage 14), JWT secret/issuer architecture, Identity / MFA product, Permission Engine, Data Scope Engine.
+
+### Problem statement
+
+Security flags are **stored but largely dead**:
+
+| Surface | Today |
+|---------|--------|
+| Access Control → Policies | Edit MFA / password expiry / session timeout / GDPR / audit / VAT for selected tenant |
+| Settings → Security | Same six keys persisted; UI also shows lockout, OTP, JWT, IP lists that are **dropped on save** |
+| Stub cards | IP whitelist, working hours — “Soon”, not wired |
+| Login / session | BCrypt + JWT + refresh; **no** MFA challenge, lockout, password-age gate, idle logout, IP check |
+| Audit write path | Always writes; ignores `IsAuditLoggingEnabled` |
+| Platform hub | No Security Center tile |
+
+Stage 13 introduces a **Security Policy Registry + company policy values + soft consume** so operators manage one coherent policy catalog and ERP honors at least session timeout / audit toggle / password-age soft checks — without an IAM rewrite.
+
+### Semantics
+
+| Term | Meaning |
+|------|---------|
+| **Security Policy Definition** | Catalog row: stable `PolicyKey`, display name, category (Authentication / Session / Network / Compliance), value type (bool / int / string / string-list), default, min/max, status |
+| **Company Security Policy** | Per-tenant value for a policy key (extends / replaces flat `TenantSecuritySettings` columns) |
+| **Effective security summary** | Resolved company values + appsettings JWT fallbacks for token TTLs when tenant override absent |
+| **Soft consume** | Login / ERP / AuditService read effective summary; warn or soft-block; **no** full MFA challenge product in foundation |
+| **Hard consume (deferred)** | TOTP/OTP challenge, hard IP firewall, working-hours deny, forced password rotate UX |
+
+### Persistence (additive)
+
+| Table / column | Purpose |
+|----------------|---------|
+| `SecurityPolicyDefinitions` | Catalog (`PolicyKey` unique, `DisplayName`, `Description`, `Category`, `ValueType`, `DefaultValueJson`, `MinValue`, `MaxValue`, `SortOrder`, `Status`, `Visible`, `IsSystem`) |
+| `TenantSecurityPolicies` | `(TenantId, PolicyKey, ValueJson, UpdatedAt, UpdatedBy)` company overrides |
+| Existing `TenantSecuritySettings` | **Keep** as compatibility projection of core keys during foundation; dual-write from Security Center PUT; Settings adapter reads/writes via same projection |
+| Optional additive columns on `TenantSecuritySettings` | `MaxLoginAttempts`, `AccountLockoutMinutes`, `IpWhitelistJson`, `BlockedIpsJson`, `JwtExpiryMinutes`, `RefreshTokenExpiryDays` — if dual-write preferred over JSON store for hot paths |
+
+Migration: `SecurityCenterFoundationMigration` + `SecurityPolicyRegistrySeed` from current Access Policies + Settings Security schema keys.
+
+**Seed policy keys (initial):**
+
+| PolicyKey | Category | Type | Soft consume in Stage 13 |
+|-----------|----------|------|---------------------------|
+| `auth.mfa_required` | Authentication | bool | Expose on company context / login summary; **no** challenge UI yet (flag + banner only) |
+| `auth.otp_on_login` | Authentication | bool | Catalog + store only (Coming Soon enforce) |
+| `auth.password_expiry_days` | Authentication | int | Soft warn / soft-block login when `Users` password age exceeds (if `PasswordChangedAt` exists or use `CreatedAt` fallback) |
+| `auth.max_login_attempts` | Authentication | int | Soft lockout counter on `Users` (additive columns) when &gt; 0 |
+| `auth.lockout_minutes` | Authentication | int | Soft lockout window |
+| `session.timeout_minutes` | Session | int | ERP idle logout when &gt; 0 |
+| `session.jwt_expiry_minutes` | Session | int | Soft override on token issue when set (else appsettings) |
+| `session.refresh_expiry_days` | Session | int | Soft override on refresh token issue when set |
+| `network.ip_whitelist` | Network | string-list | Soft allow-check on login when non-empty (Coming Soon → soft in 13.4 if cheap) |
+| `network.ip_blocklist` | Network | string-list | Soft deny on login when match |
+| `compliance.gdpr_enabled` | Compliance | bool | Company context flag only |
+| `compliance.audit_logging_enabled` | Compliance | bool | `AuditService` respects flag (skip write when false) |
+| `compliance.vat_enabled` | Compliance | bool | Company context / finance hint only |
+
+### APIs
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| `GET` | `/api/platform/security/policies` | Tenant-filtered effective policies (definitions + values) |
+| `GET` | `/api/platform/security/policies/catalog` | Full registry (incl. Coming Soon) |
+| `GET` | `/api/platform/security/company` | Current company effective summary DTO |
+| `GET` | `/api/platform/security/me` | Compact summary for session (timeout, MFA required, password expired?) |
+| `PUT` | `/api/platform/security/company` | Upsert policy values (manage) |
+| `GET/PUT` | `/api/platform/tenants/{id}/security` | **Keep** as compatibility façade mapping to core keys |
+
+**Permissions:**
+
+| Code | Purpose |
+|------|---------|
+| `Platform.Security.View` | View Security Center / company policies |
+| `Platform.Security.Manage` | Edit company security policies |
+
+Gate: Super Admin + Tenant Admin with permission (own tenant only for Tenant Admin). Reuse existing tenant security PUT authorization patterns.
+
+**Company context enrichment:**
+
+```json
+"security": {
+  "mfaRequired": false,
+  "sessionTimeoutMinutes": 30,
+  "passwordExpiryDays": 90,
+  "auditLoggingEnabled": true,
+  "passwordExpired": false
+}
+```
+
+### Soft consume (foundation)
+
+```mermaid
+flowchart TD
+  put[PUT security/company]
+  store[TenantSecurityPolicies + TenantSecuritySettings projection]
+  me[GET security/me + company context]
+  erpIdle[ERP idle timer AuthService]
+  login[LoginCommandHandler soft checks]
+  audit[AuditService IsAuditLoggingEnabled]
+  put --> store
+  store --> me
+  me --> erpIdle
+  store --> login
+  store --> audit
+```
+
+| Consumer | Behavior |
+|----------|----------|
+| ERP `AuthService` | If `sessionTimeoutMinutes` &gt; 0, idle → logout / refresh fail UX |
+| `LoginCommandHandler` | Soft: lockout when attempts exceeded; soft-block or warning when password expired; optional IP soft-check |
+| `JwtTokenService` / login issue | Prefer tenant JWT/refresh TTLs when policy set |
+| `AuditService` | Skip insert when `audit_logging_enabled` is false |
+| Mobile | Parse `security` chip (MFA/session); **no** admin; idle optional later |
+
+### ERP deliverables
+
+- **`/platform/security-center`:** policy list by category; edit drawer / inline toggles + numbers + textarea for IP lists; status badges (Enforced soft / Stored only / Coming Soon).
+- **Platform hub** Identity/Security card → Security Center.
+- **Access Control Policies tab:** redirect or embed link to Security Center (avoid two editors drifting).
+- **Settings → Security:** keep UX; adapter dual-writes through Security Center APIs / projection so keys no longer drop silently (lockout/IP/JWT persist).
+- **Company detail strip:** MFA / session / audit flags → deep-link.
+- **Nav:** `menu-config` + PlatformMenus seed item `Platform.Security.View`.
+
+### Mobile deliverables
+
+- Parse company-context `security` summary.
+- Profile / More: read-only chips (e.g. “MFA required”, “Session 30m”).
+- **No** security admin CRUD on Flutter.
+
+### Consumes / Produces / Feeds
+
+| | |
+|--|--|
+| **Consumes** | Permission Engine (manage gates), Company/Tenant context, Stage 12 Data Scope (**orthogonal** — do not mix branch scope into Security Center) |
+| **Produces** | Security policy registry; effective `/security/me` + company `security` summary; soft session / login / audit consume |
+| **Feeds** | Stage 14 Audit Center (security events taxonomy / deep-link), Stage 15 enforcement (authz remains separate from authn policy) |
+
+### Explicit non-goals (Stage 13)
+
+- Full MFA/TOTP/OTP challenge product, SMS/email OTP providers, recovery codes UI
+- SSO / SAML / OIDC / ASP.NET Identity replacement
+- Hard network firewall / WAF / geo-blocking product
+- Working-hours access deny as v1 hard gate
+- Replacing Audit Center list/filter/export (Stage 14)
+- Changing global JWT signing secret / issuer design
+- Mobile security admin CRUD
+- Data Scope / Permission Engine redesign
+- Stage 15 mass `[RequirePermission]` rollout
+
+### Implementation slices
+
+| Slice | Work | Exit criteria |
+|-------|------|----------------|
+| **13.1 Schema + seed** | `SecurityCenterFoundationMigration` + policy catalog seed; optional additive lockout/IP/JWT columns; dual-write projection helpers | Migration applies; catalog rows present; legacy GET/PUT security still works |
+| **13.2 Read/Manage APIs** | Catalog / company / me / PUT company; permissions; company context `security` | Tenant Admin can read/write own policies; Super Admin any tenant |
+| **13.3 ERP Security Center** | `/platform/security-center`; hub + nav + company strip; Access Policies → redirect/deep-link; Settings adapter persists full schema keys | One coherent editor; Settings no longer drops lockout/IP/JWT |
+| **13.4 Soft consume** | ERP idle timeout; AuditService flag; login soft lockout + password-age; optional IP soft-check; JWT/refresh soft TTL | At least session idle + audit flag + one login soft-check verified |
+| **13.5 Mobile consume** | Parse `security`; Profile/More chips | Display-only; no admin |
+
+### Test plan
+
+- [ ] Super Admin sees catalog + can edit any company; Tenant Admin only own tenant
+- [ ] PUT company policy updates both registry store and `TenantSecuritySettings` projection for core keys
+- [ ] Settings → Security save persists lockout / IP / JWT keys (no silent drop)
+- [ ] Access Policies tab does not diverge (redirect or shared API)
+- [ ] ERP idle logout fires when `session.timeout_minutes` &gt; 0
+- [ ] `IsAuditLoggingEnabled=false` skips new audit rows
+- [ ] Login soft-lockout after `max_login_attempts`; clears after `lockout_minutes`
+- [ ] Password expiry soft-block/warn when days exceeded
+- [ ] Company context includes compact `security` summary
+- [ ] Mobile chips render; no security admin routes
+- [ ] No regression: login/refresh still work when policies empty / defaults
+
+### Handoff from Stage 12 (Data Scope)
+
+Stage 12 clamps **which rows** a user sees. Stage 13 clamps **how users authenticate / stay signed in / whether audits write**. Do not put `ScopeLevel` or branch filters into Security Center.
+
+### Handoff to Stage 14 (Audit Center)
+
+Stage 14 upgrades audit **browse/export/retention UX**. Stage 13 only soft-gates writes via `compliance.audit_logging_enabled` and may emit richer security event types later — not a second audit UI.
+
+## Deferred (explicit non-goals of Stages 1–11)
 
 - Renaming `Tenants` table or `TenantId` columns
 - Duplicate Module / Feature / User CRUD or Identity replacement
 - Runtime feature flags, A/B testing, canary, rollout percentages
 - Runtime subscription / quota enforcement
 - Billing rebuild, payment gateways, marketplace, self-service purchasing
-- Role Management enhancement (Stage 7), Permission Engine (Stage 8)
-- Menu/Workspace/Dashboard builders
+- Visual page builder / widget marketplace / A/B menus
 - Auth / JWT / MFA / password policy redesign
-- Mobile Company / Branch / Department / Module / Feature / User admin CRUD
+- Mobile Company / Branch / Department / Module / Feature / User / Role / Permission / Menu / Workspace admin CRUD
 - Employee onboarding workflows / HR module
-- Data Scope Engine (Stage 12)
+- Data Scope Engine (Stage 12) — foundation done; expand pilots separately
+- Security Center hard MFA / SSO (beyond Stage 13 soft consume)
+- Stage 15 mass `[RequirePermission]` rollout
 
-## Handoff to Stage 7
+## Handoff to Stage 13
 
-Stage 7 enhances existing **Role Management** with business roles, role templates, company-aware role assignment, and organizational role scoping — reusing ASP.NET-style role codes and Access Control without replacing the identity model or introducing a new RBAC system. Organization-aware Users from Stage 6 are the assignment targets.
+Stage 13 builds the **Security Center** (policy registry + company values + `/platform/security-center` + soft session/login/audit consume) on top of existing `TenantSecuritySettings` — without MFA product rewrite or replacing Audit Center.

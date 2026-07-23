@@ -11,6 +11,9 @@ import { DepartmentListComponent } from './department-list/department-list.compo
 import { AccessControlComponent } from './access-control/access-control.component';
 import { ModuleManagementComponent } from './module-management/module-management.component';
 import { FeatureManagementComponent } from './feature-management/feature-management.component';
+import { MenuManagementComponent } from './menu-management/menu-management.component';
+import { WorkspaceManagementComponent } from './workspace-management/workspace-management.component';
+import { DashboardManagementComponent } from './dashboard-management/dashboard-management.component';
 import { SubscriptionManagementComponent } from './subscription-management/subscription-management.component';
 import { MigrationManagerComponent } from './migration-manager/migration-manager.component';
 import { DatabaseResetComponent } from './database-reset/database-reset.component';
@@ -118,6 +121,24 @@ const routes: Routes = [
     data: { permissions: ['Platform.Tenants.View', 'Platform.Tenants.Manage'] }
   },
   {
+    path: 'menu-management',
+    component: MenuManagementComponent,
+    canActivate: [permissionGuard],
+    data: { permissions: ['Platform.Menus.Manage'] }
+  },
+  {
+    path: 'workspace-management',
+    component: WorkspaceManagementComponent,
+    canActivate: [permissionGuard],
+    data: { permissions: ['Platform.Workspaces.Manage'] }
+  },
+  {
+    path: 'dashboard-management',
+    component: DashboardManagementComponent,
+    canActivate: [permissionGuard],
+    data: { permissions: ['Platform.Dashboards.View', 'Platform.Dashboards.Manage'] }
+  },
+  {
     path: 'subscription-management',
     component: SubscriptionManagementComponent,
     canActivate: [permissionGuard],
@@ -149,6 +170,9 @@ const routes: Routes = [
     AccessControlComponent,
     ModuleManagementComponent,
     FeatureManagementComponent,
+    MenuManagementComponent,
+    WorkspaceManagementComponent,
+    DashboardManagementComponent,
     SubscriptionManagementComponent,
     MigrationManagerComponent,
     DatabaseResetComponent,

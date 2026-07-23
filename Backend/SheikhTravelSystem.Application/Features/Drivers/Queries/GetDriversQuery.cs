@@ -17,7 +17,11 @@ public record GetDriversQuery(
     string? VerificationStatus = null,
     string? Availability = null) : IRequest<ApiResponse<PagedResult<DriverListItemDto>>>;
 
-public class GetDriversQueryHandler(IDbConnectionFactory dbFactory, ITenantContext tenantContext)
+public class GetDriversQueryHandler(
+    IDbConnectionFactory dbFactory,
+    ITenantContext tenantContext,
+    ICurrentUserService currentUser,
+    IDataScopeEngine dataScopeEngine)
     : IRequestHandler<GetDriversQuery, ApiResponse<PagedResult<DriverListItemDto>>>
 {
     public async Task<ApiResponse<PagedResult<DriverListItemDto>>> Handle(GetDriversQuery request, CancellationToken cancellationToken)
@@ -51,7 +55,15 @@ public class GetDriversQueryHandler(IDbConnectionFactory dbFactory, ITenantConte
             parameters.Add("Status", (int)request.Status.Value);
         }
 
-        if (request.BranchId.HasValue)
+        if (currentUser.UserId is int userId)
+        {
+            var scope = await dataScopeEngine.ResolveAsync(userId, tenantId, cancellationToken);
+            if (!DataScopeSql.TryIntersectOptional(scope, request.BranchId, null, out _, out _, out var scopeError))
+                return ApiResponse<PagedResult<DriverListItemDto>>.FailResponse(scopeError ?? "Outside data scope.");
+
+            DataScopeSql.ApplyDriverScope(parameters, scope, "d", where, request.BranchId);
+        }
+        else if (request.BranchId.HasValue)
         {
             where.Add("d.BranchId = @BranchId");
             parameters.Add("BranchId", request.BranchId.Value);

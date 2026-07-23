@@ -118,6 +118,27 @@ export class PlatformHubComponent {
           permissions: ['Platform.Tenants.View', 'Platform.Tenants.Manage']
         },
         {
+          label: 'Menus',
+          description: 'Navigation catalog labels, routes, and visibility.',
+          icon: 'menu',
+          route: '/platform/menu-management',
+          permissions: ['Platform.Menus.Manage']
+        },
+        {
+          label: 'Workspaces',
+          description: 'Landing workspaces and company enablement.',
+          icon: 'workspaces',
+          route: '/platform/workspace-management',
+          permissions: ['Platform.Workspaces.Manage']
+        },
+        {
+          label: 'Dashboards',
+          description: 'Dashboard catalog layouts and widget order.',
+          icon: 'dashboard_customize',
+          route: '/platform/dashboard-management',
+          permissions: ['Platform.Dashboards.View', 'Platform.Dashboards.Manage']
+        },
+        {
           label: 'Subscriptions',
           description: 'Plans, renewals, and invoices.',
           icon: 'subscriptions',

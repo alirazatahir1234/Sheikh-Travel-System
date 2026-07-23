@@ -1,0 +1,129 @@
+<div class="pa-page workspace-mgmt">
+  <app-ui-page-header
+    title="Workspace Management"
+    subtitle="Catalog landing workspaces and enable them per company."
+  >
+    <button appUiButton variant="ghost" type="button" (click)="back()">Back to Platform</button>
+    <button appUiButton variant="secondary" type="button" (click)="openCreate()">New workspace</button>
+    <button
+      appUiButton
+      variant="primary"
+      type="button"
+      [disabled]="!selectedTenant || saving"
+      (click)="saveCompany()"
+    >
+      Save company enablement
+    </button>
+  </app-ui-page-header>
+
+  <div class="filters">
+    <label>
+      Category
+      <select [(ngModel)]="categoryFilter">
+        <option value="">All</option>
+        <option *ngFor="let c of categories" [value]="c">{{ c }}</option>
+      </select>
+    </label>
+    <label>
+      Status
+      <select [(ngModel)]="enabledFilter">
+        <option value="all">All</option>
+        <option value="enabled">Enabled</option>
+        <option value="disabled">Disabled</option>
+      </select>
+    </label>
+    <span class="tenant-chip" *ngIf="selectedTenant">Company: {{ selectedTenant.name }}</span>
+  </div>
+
+  <div class="loading" *ngIf="loading">Loading workspaces…</div>
+
+  <div class="empty" *ngIf="!loading && !selectedTenant">
+    Select a company from the platform tenant switcher to manage enablement.
+  </div>
+
+  <section class="category-block" *ngFor="let category of categories">
+    <h3>{{ category }}</h3>
+    <div class="ws-grid">
+      <article class="ws-card" *ngFor="let ws of workspacesInCategory(category)">
+        <div class="ws-head">
+          <mat-icon>{{ ws.icon || 'workspaces' }}</mat-icon>
+          <div>
+            <strong>{{ ws.displayName }}</strong>
+            <div class="muted">{{ ws.workspaceKey }} · {{ ws.homeRoute }}</div>
+          </div>
+          <mat-slide-toggle
+            [checked]="ws.isEnabled"
+            [disabled]="!ws.canToggle || saving"
+            (change)="toggle(ws, $event.checked)"
+          ></mat-slide-toggle>
+        </div>
+        <p class="desc" *ngIf="ws.description">{{ ws.description }}</p>
+        <div class="chips" *ngIf="ws.moduleKeys?.length">
+          <span class="chip" *ngFor="let k of ws.moduleKeys">{{ k }}</span>
+        </div>
+        <div class="actions">
+          <button type="button" class="link" (click)="openEdit(ws)">Edit</button>
+          <button type="button" class="link danger" (click)="deactivate(ws)">Deactivate</button>
+        </div>
+      </article>
+    </div>
+  </section>
+</div>
+
+<aside class="drawer" *ngIf="drawerOpen">
+  <div class="drawer-panel">
+    <header>
+      <h2>{{ creating ? 'Create workspace' : 'Edit workspace' }}</h2>
+      <button type="button" class="link" (click)="closeDrawer()">Close</button>
+    </header>
+    <form [formGroup]="form" (ngSubmit)="saveDefinition()">
+      <label *ngIf="creating">
+        Key
+        <input formControlName="workspaceKey" placeholder="fleet-ops" />
+      </label>
+      <label>
+        Display name
+        <input formControlName="displayName" />
+      </label>
+      <label>
+        Description
+        <textarea formControlName="description" rows="2"></textarea>
+      </label>
+      <label>
+        Category
+        <input formControlName="category" />
+      </label>
+      <label>
+        Icon
+        <input formControlName="icon" />
+      </label>
+      <label>
+        Home route
+        <input formControlName="homeRoute" />
+      </label>
+      <label>
+        Sort order
+        <input type="number" formControlName="sortOrder" />
+      </label>
+      <label>
+        Module keys (comma-separated)
+        <input formControlName="moduleKeys" placeholder="fleet, dashboard" />
+      </label>
+      <label>
+        Feature key
+        <input formControlName="featureKey" />
+      </label>
+      <label>
+        Default dashboard key
+        <input formControlName="defaultDashboardKey" />
+      </label>
+      <label class="check"><input type="checkbox" formControlName="visible" /> Visible</label>
+      <label class="check" *ngIf="!creating"><input type="checkbox" formControlName="isActive" /> Active</label>
+      <label class="check"><input type="checkbox" formControlName="isMobileSupported" /> Mobile supported</label>
+      <footer>
+        <button appUiButton variant="ghost" type="button" (click)="closeDrawer()">Cancel</button>
+        <button appUiButton variant="primary" type="submit" [disabled]="saving">Save</button>
+      </footer>
+    </form>
+  </div>
+</aside>

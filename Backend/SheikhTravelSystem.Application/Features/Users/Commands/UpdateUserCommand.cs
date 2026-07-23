@@ -37,7 +37,8 @@ public class UpdateUserCommandValidator : AbstractValidator<UpdateUserCommand>
 
 public class UpdateUserCommandHandler(
     IDbConnectionFactory dbFactory,
-    IPlatformScope platformScope) : IRequestHandler<UpdateUserCommand, ApiResponse<bool>>
+    IPlatformScope platformScope,
+    ICurrentUserService currentUser) : IRequestHandler<UpdateUserCommand, ApiResponse<bool>>
 {
     public async Task<ApiResponse<bool>> Handle(UpdateUserCommand request, CancellationToken cancellationToken)
     {
@@ -135,6 +136,16 @@ public class UpdateUserCommandHandler(
                     },
                     cancellationToken: cancellationToken));
         }
+
+        await UserRoleAssignment.SyncLegacyRoleAsync(
+            connection,
+            request.Id,
+            tenantId.Value,
+            dto.Role,
+            dto.BranchId,
+            dto.DepartmentId,
+            currentUser.UserId,
+            cancellationToken);
 
         return ApiResponse<bool>.SuccessResponse(true, "User updated successfully.");
     }

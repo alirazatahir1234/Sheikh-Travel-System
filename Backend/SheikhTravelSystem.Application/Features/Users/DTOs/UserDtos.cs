@@ -1,3 +1,4 @@
+using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Domain.Enums;
 
 namespace SheikhTravelSystem.Application.Features.Users.DTOs;
@@ -74,7 +75,8 @@ public record UserDto(
     string? TimeZone = null,
     string? Language = null,
     string? Theme = null,
-    string? AvatarUrl = null);
+    string? AvatarUrl = null,
+    IReadOnlyList<AssignedRoleDto>? AssignedRoles = null);
 
 public record CreateUserDto(
     string FullName,
@@ -137,7 +139,9 @@ public record UserProfileDto(
     string? TimeZone,
     string? Language,
     string? Theme,
-    string? AvatarUrl);
+    string? AvatarUrl,
+    IReadOnlyList<AssignedRoleDto>? AssignedRoles = null,
+    IReadOnlyList<EffectivePermissionDto>? EffectivePermissions = null);
 
 public record CompanyUserSummaryDto(
     int CompanyId,
@@ -147,3 +151,19 @@ public record CompanyUserSummaryDto(
     int Administrators,
     int Staff,
     int DepartmentCount);
+
+public record AssignedRoleDto(
+    int RoleId,
+    string Code,
+    string Name,
+    string DisplayName,
+    string? Category,
+    string? RoleType,
+    int? BranchId = null,
+    int? DepartmentId = null);
+
+public record RoleAssignmentScopeDto(int RoleId, int? BranchId = null, int? DepartmentId = null);
+
+public record SetUserRolesRequest(
+    IReadOnlyList<int> RoleIds,
+    IReadOnlyList<RoleAssignmentScopeDto>? Scopes = null);

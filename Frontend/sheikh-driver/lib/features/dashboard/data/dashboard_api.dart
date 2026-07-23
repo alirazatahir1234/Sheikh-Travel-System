@@ -38,7 +38,11 @@ class DashboardApi {
         ? DashboardRole.driver
         : DashboardRoleX.fromNavRole(session.primaryNavRole);
 
-    final widgets = DashboardLayoutRegistry.widgetsFor(role);
+    final overrideKeys = session?.companyContext?.dashboard?.widgetKeys;
+    final widgets = DashboardLayoutRegistry.widgetsFor(
+      role,
+      overrideKeys: overrideKeys,
+    );
     final quickActions = DashboardLayoutRegistry.quickActionsFor(role);
 
     if (role == DashboardRole.driver ||
@@ -100,7 +104,10 @@ class DashboardApi {
       displayName: displayName,
       tenantId: tenantId,
       lastSyncedAt: DateTime.now(),
-      widgets: DashboardLayoutRegistry.widgetsFor(DashboardRole.driver),
+      widgets: DashboardLayoutRegistry.widgetsFor(
+        DashboardRole.driver,
+        overrideKeys: _session()?.companyContext?.dashboard?.widgetKeys,
+      ),
       quickActions:
           DashboardLayoutRegistry.quickActionsFor(DashboardRole.driver),
       primaryKpis: _driverPrimaryKpis(driver),

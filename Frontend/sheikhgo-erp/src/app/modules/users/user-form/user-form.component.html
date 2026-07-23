@@ -62,6 +62,46 @@
           </select>
         </div>
 
+        <div class="stb-field span-2">
+          <label>Platform Roles</label>
+          <div class="platform-roles" *ngIf="assignableRoles.length; else noRoles">
+            <label class="platform-role-option" *ngFor="let r of assignableRoles">
+              <input type="checkbox"
+                     [checked]="isRoleSelected(r.id)"
+                     (change)="togglePlatformRole(r.id)" />
+              <span>
+                <strong>{{ r.displayName || r.name }}</strong>
+                <small>{{ r.code }}<ng-container *ngIf="r.category"> · {{ r.category }}</ng-container></small>
+              </span>
+            </label>
+          </div>
+          <ng-template #noRoles>
+            <p class="muted">No assignable roles for this company. Apply role templates in Access Control first.</p>
+          </ng-template>
+          <p class="hint">Branch/department on this user are stored as soft scope hints on each assignment.</p>
+        </div>
+
+        <div class="stb-field span-2" *ngIf="isEdit && effectivePermissions.length">
+          <label>Effective Permissions</label>
+          <p class="hint">Read-only · {{ effectivePermissions.length }} after role grants ∩ module/feature gates</p>
+          <div class="effective-chips">
+            <span class="eff-chip" *ngFor="let c of effectiveCategoryChips">{{ c }}</span>
+            <span class="eff-chip eff-chip--muted" *ngIf="!effectiveCategoryChips.length">
+              {{ effectivePermissions.length }} permissions
+            </span>
+          </div>
+        </div>
+
+        <div class="stb-field span-2" *ngIf="isEdit && dataScope">
+          <label>Effective Data Scope</label>
+          <p class="hint">Read-only · {{ dataScope.mode }} · {{ dataScope.source }}</p>
+          <div class="effective-chips">
+            <span class="eff-chip" *ngIf="dataScope.isCompanyWide">Company-wide</span>
+            <span class="eff-chip" *ngFor="let label of dataScope.branchLabels">{{ label }}</span>
+            <span class="eff-chip" *ngFor="let label of dataScope.departmentLabels">{{ label }}</span>
+          </div>
+        </div>
+
         <div class="stb-field">
           <label for="user-status">Status</label>
           <select id="user-status" class="stb-select" formControlName="status">
@@ -105,8 +145,12 @@
 
         <div class="stb-field">
           <label for="user-workspace">Default Workspace</label>
-          <input id="user-workspace" class="stb-input" type="text" formControlName="defaultWorkspaceKey"
-                 placeholder="e.g. fleet" />
+          <select id="user-workspace" class="stb-select" formControlName="defaultWorkspaceKey">
+            <option value="">— None —</option>
+            <option *ngFor="let w of workspaces" [value]="w.workspaceKey">
+              {{ w.displayName }} ({{ w.workspaceKey }})
+            </option>
+          </select>
         </div>
 
         <div class="stb-field">
