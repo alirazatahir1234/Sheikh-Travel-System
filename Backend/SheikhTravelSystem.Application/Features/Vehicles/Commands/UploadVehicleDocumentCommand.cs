@@ -16,7 +16,12 @@ public record UploadVehicleDocumentCommand(
     string DocumentType,
     DateTime? ExpiryDate,
     string? Notes,
-    long FileLength) : IRequest<ApiResponse<UploadVehicleDocumentResult>>;
+    long FileLength) : IRequest<ApiResponse<UploadVehicleDocumentResult>>, IAuditableCommand
+{
+    public string AuditAction => "Create";
+    public string AuditEntityName => "VehicleDocument";
+    public int? AuditEntityId => null;
+}
 
 public record UploadVehicleDocumentResult(
     int DocumentId,

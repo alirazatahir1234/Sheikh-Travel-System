@@ -38,6 +38,7 @@ public class RoutesController : BaseApiController
     /// <summary>
     /// Creates a new route.
     /// </summary>
+    [RequirePermission(OperationsPermissions.RouteCreate)]
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateRouteCommand command)
     {
@@ -48,6 +49,7 @@ public class RoutesController : BaseApiController
     /// <summary>
     /// Updates an existing route by identifier.
     /// </summary>
+    [RequirePermission(OperationsPermissions.RouteUpdate)]
     [HttpPut("{id}")]
     public async Task<IActionResult> Update(int id, [FromBody] UpdateRouteCommand command)
         => Ok(await Mediator.Send(command with { Id = id }));
@@ -55,6 +57,7 @@ public class RoutesController : BaseApiController
     /// <summary>
     /// Soft-deletes a route by identifier.
     /// </summary>
+    [RequirePermission(OperationsPermissions.RouteDelete)]
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(int id)
         => Ok(await Mediator.Send(new DeleteRouteCommand(id)));

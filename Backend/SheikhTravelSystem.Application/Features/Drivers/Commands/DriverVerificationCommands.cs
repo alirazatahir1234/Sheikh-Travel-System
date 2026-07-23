@@ -14,7 +14,12 @@ public record UpdateDocumentStatusCommand(
     int DriverId,
     int DocumentId,
     string Status,
-    string? RejectionReason = null) : IRequest<ApiResponse<bool>>;
+    string? RejectionReason = null) : IRequest<ApiResponse<bool>>, IAuditableCommand
+{
+    public string AuditAction => "Update";
+    public string AuditEntityName => "DriverDocument";
+    public int? AuditEntityId => DocumentId;
+}
 
 public class UpdateDocumentStatusCommandValidator : AbstractValidator<UpdateDocumentStatusCommand>
 {
@@ -82,7 +87,12 @@ public class UpdateDocumentStatusCommandHandler(
 public record AddDriverReviewNoteCommand(
     int DriverId,
     string Note,
-    string? DocumentType = null) : IRequest<ApiResponse<DriverReviewNoteDto>>;
+    string? DocumentType = null) : IRequest<ApiResponse<DriverReviewNoteDto>>, IAuditableCommand
+{
+    public string AuditAction => "Create";
+    public string AuditEntityName => "DriverReviewNote";
+    public int? AuditEntityId => null;
+}
 
 public class AddDriverReviewNoteCommandValidator : AbstractValidator<AddDriverReviewNoteCommand>
 {

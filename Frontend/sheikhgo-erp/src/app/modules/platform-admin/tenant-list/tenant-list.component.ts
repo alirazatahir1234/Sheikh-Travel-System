@@ -227,7 +227,7 @@ export class TenantListComponent implements OnInit {
   }
 
   openAuditLogs(): void {
-    void this.router.navigate(['/audit-logs']);
+    void this.router.navigate(['/platform/audit-center']);
   }
 
   isSelected(tenant: Tenant): boolean {

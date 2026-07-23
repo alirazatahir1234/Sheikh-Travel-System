@@ -69,7 +69,11 @@ public record GetTripsQuery(
     bool UpcomingOnly = false
 ) : IRequest<ApiResponse<PagedResult<TripListItemDto>>>;
 
-public class GetTripsQueryHandler(IDbConnectionFactory dbFactory, ITenantContext tenantContext)
+public class GetTripsQueryHandler(
+    IDbConnectionFactory dbFactory,
+    ITenantContext tenantContext,
+    ICurrentUserService currentUser,
+    IDataScopeEngine dataScopeEngine)
     : IRequestHandler<GetTripsQuery, ApiResponse<PagedResult<TripListItemDto>>>
 {
     public async Task<ApiResponse<PagedResult<TripListItemDto>>> Handle(GetTripsQuery request, CancellationToken cancellationToken)
@@ -78,14 +82,14 @@ public class GetTripsQueryHandler(IDbConnectionFactory dbFactory, ITenantContext
         var tenantId = tenantContext.GetRequiredTenantId();
         var offset = (request.Page - 1) * request.PageSize;
 
-        var where = "WHERE t.IsDeleted = 0 AND t.TenantId = @TenantId";
-        if (request.Status.HasValue) where += " AND t.Status = @Status";
-        if (request.DriverId.HasValue) where += " AND t.DriverId = @DriverId";
-        if (request.VehicleId.HasValue) where += " AND t.VehicleId = @VehicleId";
-        if (request.RouteId.HasValue) where += " AND t.RouteId = @RouteId";
-        if (request.CustomerId.HasValue) where += " AND t.CustomerId = @CustomerId";
+        var clauses = new List<string> { "t.IsDeleted = 0", "t.TenantId = @TenantId" };
+        if (request.Status.HasValue) clauses.Add("t.Status = @Status");
+        if (request.DriverId.HasValue) clauses.Add("t.DriverId = @DriverId");
+        if (request.VehicleId.HasValue) clauses.Add("t.VehicleId = @VehicleId");
+        if (request.RouteId.HasValue) clauses.Add("t.RouteId = @RouteId");
+        if (request.CustomerId.HasValue) clauses.Add("t.CustomerId = @CustomerId");
         if (!string.IsNullOrWhiteSpace(request.Search))
-            where += " AND (t.TripNumber LIKE @SearchPattern OR t.TripName LIKE @SearchPattern OR c.FullName LIKE @SearchPattern OR b.BookingNumber LIKE @SearchPattern)";
+            clauses.Add("(t.TripNumber LIKE @SearchPattern OR t.TripName LIKE @SearchPattern OR c.FullName LIKE @SearchPattern OR b.BookingNumber LIKE @SearchPattern)");
 
         DateTime? dateFrom = request.DateFrom;
         DateTime? dateToExclusive = request.DateTo?.Date.AddDays(1);
@@ -103,13 +107,13 @@ public class GetTripsQueryHandler(IDbConnectionFactory dbFactory, ITenantContext
         {
             dateFrom = DateTime.UtcNow.Date.AddDays(1);
             dateToExclusive = null;
-            where += " AND t.Status NOT IN (@Completed, @Cancelled, @Failed)";
+            clauses.Add("t.Status NOT IN (@Completed, @Cancelled, @Failed)");
         }
 
-        if (dateFrom.HasValue) where += " AND t.TripDate >= @DateFrom";
-        if (dateToExclusive.HasValue) where += " AND t.TripDate < @DateTo";
+        if (dateFrom.HasValue) clauses.Add("t.TripDate >= @DateFrom");
+        if (dateToExclusive.HasValue) clauses.Add("t.TripDate < @DateTo");
 
-        var parms = new
+        var parameters = new DynamicParameters(new
         {
             Offset = offset,
             request.PageSize,
@@ -125,19 +129,29 @@ public class GetTripsQueryHandler(IDbConnectionFactory dbFactory, ITenantContext
             Completed = (int)TripStatus.Completed,
             Cancelled = (int)TripStatus.Cancelled,
             Failed = (int)TripStatus.Failed
-        };
+        });
+
+        if (currentUser.UserId is int userId)
+        {
+            var scope = await dataScopeEngine.ResolveAsync(userId, tenantId, cancellationToken);
+            DataScopeSql.ApplyLinkedFleetScope(parameters, scope, clauses, "v", "d");
+        }
+
+        var where = "WHERE " + string.Join(" AND ", clauses);
 
         var items = await connection.QueryAsync<TripListItemDto>(new CommandDefinition(
             $"{TripSql.ListSelect} {where} ORDER BY t.PlannedStart DESC OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY",
-            parms,
+            parameters,
             cancellationToken: cancellationToken));
 
         var total = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
             $@"SELECT COUNT(*) FROM Trips t
                LEFT JOIN Customers c ON t.CustomerId = c.Id
                LEFT JOIN Bookings b ON t.BookingId = b.Id
+               LEFT JOIN Drivers d ON t.DriverId = d.Id
+               LEFT JOIN Vehicles v ON t.VehicleId = v.Id
                {where}",
-            parms,
+            parameters,
             cancellationToken: cancellationToken));
 
         return ApiResponse<PagedResult<TripListItemDto>>.SuccessResponse(new PagedResult<TripListItemDto>

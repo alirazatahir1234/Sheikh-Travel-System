@@ -7,7 +7,12 @@ using SheikhTravelSystem.Application.Common.Interfaces;
 
 namespace SheikhTravelSystem.Application.Features.Vehicles.Commands;
 
-public record SetPrimaryVehicleImageCommand(int VehicleId, int DocumentId) : IRequest<ApiResponse<bool>>;
+public record SetPrimaryVehicleImageCommand(int VehicleId, int DocumentId) : IRequest<ApiResponse<bool>>, IAuditableCommand
+{
+    public string AuditAction => "Update";
+    public string AuditEntityName => "Vehicle";
+    public int? AuditEntityId => VehicleId;
+}
 
 public class SetPrimaryVehicleImageCommandValidator : AbstractValidator<SetPrimaryVehicleImageCommand>
 {

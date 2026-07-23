@@ -28,12 +28,20 @@ public class AccessManagementPermissionCatalogTests
             .ToHashSet(StringComparer.Ordinal);
 
         catalog.Should().Contain(OperationsPermissions.BookingView);
+        catalog.Should().Contain(OperationsPermissions.BookingUpdate);
+        catalog.Should().Contain(OperationsPermissions.BookingDelete);
         catalog.Should().Contain(OperationsPermissions.TripView);
+        catalog.Should().Contain(OperationsPermissions.TripCreate);
+        catalog.Should().Contain(OperationsPermissions.TripAssign);
+        catalog.Should().Contain(OperationsPermissions.RouteCreate);
         catalog.Should().Contain(FinancePermissions.PaymentView);
+        catalog.Should().Contain(FinancePermissions.PaymentCreate);
         catalog.Should().Contain(FinancePermissions.FuelView);
+        catalog.Should().Contain(FinancePermissions.FuelCreate);
         catalog.Should().Contain(AnalyticsPermissions.ReportView);
         catalog.Should().Contain(AnalyticsPermissions.GpsView);
         catalog.Should().Contain(AnalyticsPermissions.CustomerView);
+        catalog.Should().Contain(AnalyticsPermissions.CustomerCreate);
         catalog.Should().Contain(AiPermissions.View);
         catalog.Should().Contain(AiPermissions.Manage);
         catalog.Should().Contain(AiPermissions.ExecuteWrite);
@@ -68,11 +76,15 @@ public class AccessManagementPermissionCatalogTests
     public void Role_templates_match_expected_matrix()
     {
         TenantRolePermissionTemplates.Dispatcher.Should().Contain(OperationsPermissions.BookingView);
+        TenantRolePermissionTemplates.Dispatcher.Should().Contain(OperationsPermissions.BookingUpdate);
+        TenantRolePermissionTemplates.Dispatcher.Should().Contain(OperationsPermissions.TripCreate);
         TenantRolePermissionTemplates.Dispatcher.Should().Contain(AiPermissions.View);
         TenantRolePermissionTemplates.Dispatcher.Should().NotContain(AiPermissions.ExecuteWrite);
         TenantRolePermissionTemplates.Dispatcher.Should().NotContain(FinancePermissions.PaymentView);
 
         TenantRolePermissionTemplates.Accountant.Should().Contain(FinancePermissions.PaymentView);
+        TenantRolePermissionTemplates.Accountant.Should().Contain(FinancePermissions.PaymentCreate);
+        TenantRolePermissionTemplates.Accountant.Should().Contain(FinancePermissions.FuelUpdate);
         TenantRolePermissionTemplates.Accountant.Should().Contain(AnalyticsPermissions.ReportView);
         TenantRolePermissionTemplates.Accountant.Should().NotContain(OperationsPermissions.BookingCreate);
         TenantRolePermissionTemplates.Accountant.Should().NotContain(GpsPermissions.CommandEngineCutoff);

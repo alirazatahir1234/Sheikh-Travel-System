@@ -24,7 +24,7 @@ public class BookingsController : BaseApiController
     /// <summary>
     /// Soft-deletes multiple bookings in one request. Declared before POST create so routing stays unambiguous.
     /// </summary>
-    [RequirePermission(OperationsPermissions.BookingCreate)]
+    [RequirePermission(OperationsPermissions.BookingDelete)]
     [HttpPost("bulk/delete")]
     public async Task<IActionResult> BulkDelete([FromBody] BulkDeleteBookingsCommand command)
         => Ok(await Mediator.Send(command));
@@ -50,7 +50,7 @@ public class BookingsController : BaseApiController
     /// <summary>
     /// Updates a booking.
     /// </summary>
-    [RequirePermission(OperationsPermissions.BookingCreate)]
+    [RequirePermission(OperationsPermissions.BookingUpdate)]
     [HttpPut("{id:int}")]
     public async Task<IActionResult> Update(int id, [FromBody] UpdateBookingCommand command)
         => Ok(await Mediator.Send(command with { Id = id }));
@@ -58,7 +58,7 @@ public class BookingsController : BaseApiController
     /// <summary>
     /// Updates booking status.
     /// </summary>
-    [RequirePermission(OperationsPermissions.BookingCreate)]
+    [RequirePermission(OperationsPermissions.BookingUpdate)]
     [HttpPut("{id:int}/status")]
     public async Task<IActionResult> UpdateStatus(int id, [FromBody] UpdateBookingStatusCommand command)
         => Ok(await Mediator.Send(command with { Id = id }));
@@ -66,7 +66,7 @@ public class BookingsController : BaseApiController
     /// <summary>
     /// Assigns a driver to a booking.
     /// </summary>
-    [RequirePermission(OperationsPermissions.BookingCreate)]
+    [RequirePermission(OperationsPermissions.BookingUpdate)]
     [HttpPut("{id:int}/assign-driver")]
     public async Task<IActionResult> AssignDriver(int id, [FromBody] AssignDriverCommand command)
         => Ok(await Mediator.Send(command with { BookingId = id }));
@@ -74,7 +74,7 @@ public class BookingsController : BaseApiController
     /// <summary>
     /// Assigns a vehicle to a booking.
     /// </summary>
-    [RequirePermission(OperationsPermissions.BookingCreate)]
+    [RequirePermission(OperationsPermissions.BookingUpdate)]
     [HttpPut("{id:int}/assign-vehicle")]
     public async Task<IActionResult> AssignVehicle(int id, [FromBody] AssignVehicleCommand command)
         => Ok(await Mediator.Send(command with { BookingId = id }));
@@ -82,7 +82,7 @@ public class BookingsController : BaseApiController
     /// <summary>
     /// Soft-deletes a booking by identifier.
     /// </summary>
-    [RequirePermission(OperationsPermissions.BookingCreate)]
+    [RequirePermission(OperationsPermissions.BookingDelete)]
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(int id)
         => Ok(await Mediator.Send(new DeleteBookingCommand(id)));
