@@ -58,7 +58,7 @@ internal static class ModuleRegistryQueries
         }
     }
 
-    public static ModuleRegistryDto ToRegistryDto(ModuleRow row, bool installed = false)
+    public static ModuleRegistryDto ToRegistryDto(ModuleRow row, bool installed = false, bool licensed = false)
     {
         var enableable = ModuleRegistrySeed.IsEnableable(row.Code)
             && string.Equals(row.Status, "Active", StringComparison.OrdinalIgnoreCase);
@@ -83,10 +83,10 @@ internal static class ModuleRegistryQueries
             IsEnableable: enableable,
             Id: row.Id,
             IsInstalled: installed,
-            IsLicensed: installed);
+            IsLicensed: licensed);
     }
 
-    public static ModuleRegistryDto FromSeed(ModuleRegistrySeed.Entry e, bool installed = false)
+    public static ModuleRegistryDto FromSeed(ModuleRegistrySeed.Entry e, bool installed = false, bool licensed = false)
     {
         var enableable = ModuleRegistrySeed.IsEnableable(e.Code)
             && string.Equals(e.Status, "Active", StringComparison.OrdinalIgnoreCase);
@@ -111,7 +111,7 @@ internal static class ModuleRegistryQueries
             IsEnableable: enableable,
             Id: null,
             IsInstalled: installed,
-            IsLicensed: installed);
+            IsLicensed: licensed);
     }
 
     public static TenantModuleDefinitionDto ToDefinitionDto(ModuleRegistryDto m)
@@ -136,7 +136,7 @@ internal static class ModuleRegistryQueries
             m.IsEnableable,
             m.Id);
 
-    public static ModuleStatusDto ToStatusDto(ModuleRegistryDto m, bool enabled)
+    public static ModuleStatusDto ToStatusDto(ModuleRegistryDto m, bool enabled, bool licensed)
         => new(
             m.Code,
             m.Name,
@@ -156,7 +156,7 @@ internal static class ModuleRegistryQueries
             m.Status,
             m.DocumentationUrl,
             IsInstalled: enabled,
-            IsLicensed: enabled,
+            IsLicensed: licensed,
             CanToggle: m.IsEnableable);
 
     public static async Task<IReadOnlyList<ModuleRegistryDto>> LoadCatalogAsync(

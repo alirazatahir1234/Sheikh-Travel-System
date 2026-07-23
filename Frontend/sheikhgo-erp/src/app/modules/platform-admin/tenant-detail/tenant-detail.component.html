@@ -52,15 +52,49 @@
       <span>Vehicles</span>
       <strong>{{ tenant.activeVehicleCount ?? '—' }}</strong>
     </a>
-    <a class="capability-chip" routerLink="/platform/module-management">
+    <a class="capability-chip" routerLink="/platform/module-management" [queryParams]="{ tenantId: tenantId }">
       <mat-icon>extension</mat-icon>
       <span>Modules</span>
       <strong>{{ tenant.moduleCodes?.length || 0 }}</strong>
     </a>
-    <a class="capability-chip" href="#company-features">
+    <a class="capability-chip" routerLink="/platform/feature-management" [queryParams]="{ tenantId: tenantId }">
       <mat-icon>tune</mat-icon>
       <span>Features</span>
       <strong>{{ features.length }}</strong>
+    </a>
+  </div>
+
+  <div *ngIf="!loading && tenant && license" class="subscription-summary" aria-label="Subscription summary">
+    <div class="subscription-summary__main">
+      <div>
+        <span class="eyebrow">Subscription</span>
+        <strong>{{ license.planDisplayName || license.planName || '—' }}</strong>
+        <span class="status-pill">{{ license.status }}</span>
+      </div>
+      <div>
+        <span class="eyebrow">Expires</span>
+        <strong>{{ (license.endDate | date:'mediumDate') || '—' }}</strong>
+      </div>
+      <div>
+        <span class="eyebrow">Limits</span>
+        <strong>
+          Users {{ license.usedUsers }}/{{ license.maxUsers ?? '∞' }}
+          · Drivers {{ license.usedDrivers }}/{{ license.maxDrivers ?? '∞' }}
+          · Vehicles {{ license.usedVehicles }}/{{ license.maxVehicles ?? '∞' }}
+        </strong>
+      </div>
+    </div>
+    <div class="subscription-summary__modules" *ngIf="license.licensedModules?.length">
+      <span class="eyebrow">Licensed modules</span>
+      <div class="module-chips">
+        <span class="module-chip" *ngFor="let code of license.licensedModules">{{ code }}</span>
+      </div>
+    </div>
+    <a class="subscription-summary__link"
+       [routerLink]="['/platform/subscription-management']"
+       [queryParams]="{ tenantId: tenantId }">
+      Manage subscription
+      <mat-icon>arrow_forward</mat-icon>
     </a>
   </div>
 
@@ -335,24 +369,34 @@
         <div class="section-head">
           <span class="section-icon section-icon--features"><mat-icon>tune</mat-icon></span>
           <div class="section-head-text">
-            <h3>Feature Registry</h3>
-            <p class="section-sub">Read-only capability metadata for enabled modules (Feature Management comes in Stage 5)</p>
+            <h3>Features</h3>
+            <p class="section-sub">Read-only company feature enablement by category</p>
           </div>
+          <a class="section-link"
+             [routerLink]="['/platform/feature-management']"
+             [queryParams]="{ tenantId: tenantId }">
+            Manage features
+            <mat-icon>arrow_forward</mat-icon>
+          </a>
         </div>
         <div *ngIf="featuresLoading" class="features-loading">Loading features…</div>
         <div *ngIf="!featuresLoading && features.length === 0" class="features-empty">
           No feature metadata found for this company yet.
         </div>
-        <ul *ngIf="!featuresLoading && features.length" class="feature-list">
-          <li *ngFor="let f of features" class="feature-row" [class.feature-row--off]="!f.isEnabled">
-            <div>
-              <strong>{{ f.name }}</strong>
-              <span class="feature-key">{{ f.featureKey }} · {{ f.moduleKey }}</span>
-              <p *ngIf="f.description">{{ f.description }}</p>
-            </div>
-            <span class="feature-badge" [class.on]="f.isEnabled">{{ f.isEnabled ? 'Enabled' : 'Off' }}</span>
-          </li>
-        </ul>
+        <div *ngIf="!featuresLoading && featureGroups.length" class="feature-groups">
+          <div class="feature-group" *ngFor="let group of featureGroups">
+            <h4 class="feature-group-title">{{ group.category }}</h4>
+            <ul class="feature-list">
+              <li *ngFor="let f of group.features" class="feature-row" [class.feature-row--off]="!f.isEnabled">
+                <span class="feature-mark" aria-hidden="true">{{ f.isEnabled ? '✓' : '✗' }}</span>
+                <div>
+                  <strong>{{ f.displayName || f.name }}</strong>
+                  <span class="feature-key">{{ f.featureKey }}</span>
+                </div>
+              </li>
+            </ul>
+          </div>
+        </div>
       </mat-card>
 
       <div class="form-actions">

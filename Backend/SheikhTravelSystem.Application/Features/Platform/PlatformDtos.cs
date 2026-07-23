@@ -363,12 +363,13 @@ public record TenantModuleOverviewDto(
 public record GetTenantModuleOverviewQuery(int TenantId) : IRequest<ApiResponse<TenantModuleOverviewDto>>;
 public record SetTenantModulesCommand(int TenantId, IReadOnlyList<string> ModuleCodes) : IRequest<ApiResponse<bool>>;
 
-// Subscription Management (Sprint 4)
+// Subscription Management / License (Stage 4)
 public record SubscriptionDetailDto
 {
     public int TenantId { get; init; }
     public string TenantName { get; init; } = string.Empty;
     public string? PlanName { get; init; }
+    public string? SubscriptionCode { get; init; }
     public string Status { get; init; } = "Active";
     public string BillingCycle { get; init; } = "Monthly";
     public decimal? MonthlyAmount { get; init; }
@@ -382,7 +383,79 @@ public record SubscriptionDetailDto
     public int? MaxDrivers { get; init; }
     public int? MaxBranches { get; init; }
     public int? MaxGpsDevices { get; init; }
+    public int? StorageQuotaGb { get; init; }
+    public int? AICredits { get; init; }
+    public bool GPSEnabled { get; init; } = true;
+    public IReadOnlyList<string> LicensedModuleCodes { get; init; } = [];
 }
+
+public record SubscriptionPlanDto(
+    string SubscriptionCode,
+    string DisplayName,
+    string? Description,
+    string PlanType,
+    string Status,
+    int SortOrder,
+    int? DurationMonths,
+    bool IsDefault,
+    bool Visible,
+    string? DocumentationUrl,
+    IReadOnlyList<string> DefaultModuleCodes,
+    int? MaxUsers,
+    int? MaxVehicles,
+    int? MaxDrivers,
+    int? MaxBranches,
+    int? MaxGpsDevices,
+    int? StorageQuotaGb,
+    int? AICredits,
+    bool GPSEnabled);
+
+public record CompanyLicenseDto(
+    int CompanyId,
+    int TenantId,
+    string CompanyName,
+    string? SubscriptionCode,
+    string? PlanName,
+    string? PlanDisplayName,
+    string Status,
+    DateTime? StartDate,
+    DateTime? EndDate,
+    bool AutoRenew,
+    IReadOnlyList<string> LicensedModules,
+    IReadOnlyList<string> InstalledModules,
+    int? MaxUsers,
+    int? MaxDrivers,
+    int? MaxVehicles,
+    int? MaxBranches,
+    int? MaxGpsDevices,
+    int? StorageQuotaGb,
+    int? AICredits,
+    bool GPSEnabled,
+    int UsedUsers,
+    int UsedDrivers,
+    int UsedVehicles,
+    int UsedBranches,
+    int UsedGpsDevices);
+
+public record LicenseSummaryDto(
+    string? SubscriptionCode,
+    string? PlanName,
+    string? PlanDisplayName,
+    string Status,
+    DateTime? StartDate,
+    DateTime? EndDate,
+    bool AutoRenew,
+    IReadOnlyList<string> LicensedModuleCodes,
+    int? MaxUsers,
+    int? MaxDrivers,
+    int? MaxVehicles,
+    int? StorageQuotaGb,
+    int? AICredits,
+    bool GPSEnabled);
+
+public record GetSubscriptionCatalogQuery : IRequest<ApiResponse<IReadOnlyList<SubscriptionPlanDto>>>;
+public record GetCompanyLicenseQuery(int? TenantId = null) : IRequest<ApiResponse<CompanyLicenseDto>>;
+public record GetLicenseSummaryQuery(int? TenantId = null) : IRequest<ApiResponse<LicenseSummaryDto>>;
 
 public record InvoiceDto(
     int Id,
@@ -408,7 +481,8 @@ public record PaymentDto(
 public record SubscriptionOverviewDto(
     SubscriptionDetailDto Subscription,
     IReadOnlyList<InvoiceDto> Invoices,
-    IReadOnlyList<PaymentDto> Payments);
+    IReadOnlyList<PaymentDto> Payments,
+    CompanyLicenseDto? License = null);
 
 public record GetSubscriptionOverviewQuery(int TenantId) : IRequest<ApiResponse<SubscriptionOverviewDto>>;
 

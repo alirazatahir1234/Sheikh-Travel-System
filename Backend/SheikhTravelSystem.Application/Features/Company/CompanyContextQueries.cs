@@ -2,6 +2,7 @@ using Dapper;
 using MediatR;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Interfaces;
+using SheikhTravelSystem.Application.Features.Platform;
 
 namespace SheikhTravelSystem.Application.Features.Company;
 
@@ -11,7 +12,17 @@ public record CompanyFeatureDto(
     string Name,
     string? Description,
     bool IsEnabled,
-    int SortOrder);
+    int SortOrder,
+    string? DisplayName = null,
+    string? Category = null,
+    string? Icon = null,
+    string? Route = null,
+    string? Status = null,
+    bool IsMobileSupported = false,
+    bool IsAISupported = false,
+    bool IsGPSSupported = false,
+    bool Visible = true,
+    bool CanToggle = false);
 
 public record CompanyModuleDto(
     string ModuleCode,
@@ -35,6 +46,27 @@ public record CompanyHierarchyCountsDto(
     int ModuleCount,
     int FeatureCount);
 
+public record CompanySubscriptionDto(
+    string? SubscriptionCode,
+    string? PlanName,
+    string? PlanDisplayName,
+    string Status,
+    DateTime? StartDate,
+    DateTime? EndDate,
+    bool AutoRenew,
+    IReadOnlyList<string> LicensedModuleCodes,
+    int? MaxUsers,
+    int? MaxDrivers,
+    int? MaxVehicles,
+    int? MaxBranches,
+    int? MaxGpsDevices,
+    int? StorageQuotaGb,
+    int? AICredits,
+    bool GPSEnabled,
+    int UsedUsers = 0,
+    int UsedDrivers = 0,
+    int UsedVehicles = 0);
+
 public record CompanyContextDto(
     int CompanyId,
     int TenantId,
@@ -51,7 +83,8 @@ public record CompanyContextDto(
     IReadOnlyList<CompanyFeatureDto> Features,
     CompanyHierarchyCountsDto Hierarchy,
     string? WorkspaceHint,
-    string? RoleCode);
+    string? RoleCode,
+    CompanySubscriptionDto? Subscription = null);
 
 public record GetCompanyContextQuery : IRequest<ApiResponse<CompanyContextDto>>;
 
@@ -61,7 +94,17 @@ public record FeatureDefinitionDto(
     string Name,
     string? Description,
     int SortOrder,
-    bool IsActive);
+    bool IsActive,
+    string? DisplayName = null,
+    string? Category = null,
+    string? Icon = null,
+    string? Route = null,
+    string? Status = null,
+    bool Visible = true,
+    bool IsMobileSupported = false,
+    bool IsAISupported = false,
+    bool IsGPSSupported = false,
+    string? DocumentationUrl = null);
 
 public record GetFeatureCatalogQuery : IRequest<ApiResponse<IReadOnlyList<FeatureDefinitionDto>>>;
 
@@ -233,20 +276,13 @@ public class GetCompanyContextQueryHandler(
         var features = new List<CompanyFeatureDto>();
         try
         {
-            features = (await connection.QueryAsync<CompanyFeatureDto>(
-                new CommandDefinition("""
-                    SELECT fd.FeatureKey, fd.ModuleKey, fd.Name, fd.Description,
-                           CAST(COALESCE(tf.IsEnabled, 1) AS bit) AS IsEnabled,
-                           fd.SortOrder
-                    FROM FeatureDefinitions fd
-                    LEFT JOIN TenantFeatures tf
-                        ON tf.FeatureKey = fd.FeatureKey AND tf.TenantId = @TenantId
-                    WHERE fd.IsActive = 1
-                      AND fd.ModuleKey IN @ModuleCodes
-                    ORDER BY fd.SortOrder, fd.FeatureKey
-                    """,
-                    new { TenantId = tenantId, ModuleCodes = moduleCodeArray },
-                    cancellationToken: cancellationToken))).ToList();
+            var registry = await FeatureRegistryQueries.LoadCompanyFeaturesAsync(
+                connection, tenantId, cancellationToken);
+            features = registry
+                .Where(f => moduleCodeArray.Contains(f.ModuleKey, StringComparer.OrdinalIgnoreCase))
+                .Where(f => f.IsEnabled)
+                .Select(FeatureRegistryQueries.ToCompanyFeatureDto)
+                .ToList();
         }
         catch
         {
@@ -275,6 +311,39 @@ public class GetCompanyContextQueryHandler(
 
         var workspaceHint = ResolveWorkspaceHint(roleCode);
 
+        CompanySubscriptionDto? subscription = null;
+        try
+        {
+            var license = await LicenseQueries.LoadCompanyLicenseAsync(connection, tenantId, cancellationToken);
+            if (license is not null)
+            {
+                subscription = new CompanySubscriptionDto(
+                    license.SubscriptionCode,
+                    license.PlanName,
+                    license.PlanDisplayName,
+                    license.Status,
+                    license.StartDate,
+                    license.EndDate,
+                    license.AutoRenew,
+                    license.LicensedModules,
+                    license.MaxUsers,
+                    license.MaxDrivers,
+                    license.MaxVehicles,
+                    license.MaxBranches,
+                    license.MaxGpsDevices,
+                    license.StorageQuotaGb,
+                    license.AICredits,
+                    license.GPSEnabled,
+                    license.UsedUsers,
+                    license.UsedDrivers,
+                    license.UsedVehicles);
+            }
+        }
+        catch
+        {
+            // License columns / catalog may not exist yet.
+        }
+
         var dto = new CompanyContextDto(
             CompanyId: company.Id,
             TenantId: company.Id,
@@ -291,7 +360,8 @@ public class GetCompanyContextQueryHandler(
             Features: features,
             Hierarchy: counts,
             WorkspaceHint: workspaceHint,
-            RoleCode: roleCode);
+            RoleCode: roleCode,
+            Subscription: subscription);
 
         return ApiResponse<CompanyContextDto>.SuccessResponse(dto);
     }
@@ -321,14 +391,26 @@ public class GetFeatureCatalogQueryHandler(IDbConnectionFactory dbFactory)
         CancellationToken cancellationToken)
     {
         using var connection = dbFactory.CreateConnection();
-        var rows = (await connection.QueryAsync<FeatureDefinitionDto>(new CommandDefinition("""
-            SELECT FeatureKey, ModuleKey, Name, Description, SortOrder, IsActive
-            FROM FeatureDefinitions
-            WHERE IsActive = 1
-            ORDER BY SortOrder, FeatureKey
-            """, cancellationToken: cancellationToken))).ToList();
+        var rows = await FeatureRegistryQueries.LoadVisibleAsync(connection, cancellationToken);
+        var dtos = rows.Select(r => new FeatureDefinitionDto(
+            r.FeatureKey,
+            r.ModuleKey,
+            r.Name,
+            r.Description,
+            r.SortOrder,
+            r.IsActive,
+            string.IsNullOrWhiteSpace(r.DisplayName) ? r.Name : r.DisplayName,
+            r.Category,
+            r.Icon,
+            r.Route,
+            r.Status,
+            r.Visible,
+            r.IsMobileSupported,
+            r.IsAISupported,
+            r.IsGPSSupported,
+            r.DocumentationUrl)).ToList();
 
-        return ApiResponse<IReadOnlyList<FeatureDefinitionDto>>.SuccessResponse(rows);
+        return ApiResponse<IReadOnlyList<FeatureDefinitionDto>>.SuccessResponse(dtos);
     }
 }
 
@@ -346,17 +428,9 @@ public class GetCompanyFeaturesQueryHandler(
         platformScope.EnsureTenantAccess(tenantId);
 
         using var connection = dbFactory.CreateConnection();
-        var rows = (await connection.QueryAsync<CompanyFeatureDto>(new CommandDefinition("""
-            SELECT fd.FeatureKey, fd.ModuleKey, fd.Name, fd.Description,
-                   CAST(COALESCE(tf.IsEnabled, 1) AS bit) AS IsEnabled,
-                   fd.SortOrder
-            FROM FeatureDefinitions fd
-            LEFT JOIN TenantFeatures tf
-                ON tf.FeatureKey = fd.FeatureKey AND tf.TenantId = @TenantId
-            WHERE fd.IsActive = 1
-            ORDER BY fd.SortOrder, fd.FeatureKey
-            """, new { TenantId = tenantId }, cancellationToken: cancellationToken))).ToList();
-
-        return ApiResponse<IReadOnlyList<CompanyFeatureDto>>.SuccessResponse(rows);
+        var rows = await FeatureRegistryQueries.LoadCompanyFeaturesAsync(
+            connection, tenantId, cancellationToken);
+        var dtos = rows.Select(FeatureRegistryQueries.ToCompanyFeatureDto).ToList();
+        return ApiResponse<IReadOnlyList<CompanyFeatureDto>>.SuccessResponse(dtos);
     }
 }

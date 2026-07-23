@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 import '../../../core/constants/app_theme.dart';
 import '../../../features/auth/data/auth_repository.dart';
 import '../../../features/auth/domain/auth_models.dart';
@@ -280,8 +281,156 @@ class _CompanyContextCard extends StatelessWidget {
               ],
             ),
           ],
+          if (contextData.featureDisplayLabels.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            const Text(
+              'Enabled Features',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                for (final label in contextData.featureDisplayLabels.take(8))
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppColors.chipBg,
+                      borderRadius: BorderRadius.circular(AppRadii.sm),
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    child: Text(
+                      label,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ],
+          if (contextData.subscription != null) ...[
+            const SizedBox(height: 14),
+            const Divider(height: 1),
+            const SizedBox(height: 12),
+            _SubscriptionSummary(subscription: contextData.subscription!),
+          ],
         ],
       ),
+    );
+  }
+}
+
+class _SubscriptionSummary extends StatelessWidget {
+  const _SubscriptionSummary({required this.subscription});
+  final CompanySubscription subscription;
+
+  @override
+  Widget build(BuildContext context) {
+    final df = DateFormat('dd MMM yyyy');
+    final expiry = subscription.endDate != null
+        ? df.format(subscription.endDate!.toLocal())
+        : '—';
+    final limitBits = <String>[
+      if (subscription.maxUsers != null)
+        'Users ${subscription.usedUsers}/${subscription.maxUsers}',
+      if (subscription.maxDrivers != null)
+        'Drivers ${subscription.usedDrivers}/${subscription.maxDrivers}',
+      if (subscription.maxVehicles != null)
+        'Vehicles ${subscription.usedVehicles}/${subscription.maxVehicles}',
+      if (subscription.storageQuotaGb != null)
+        'Storage ${subscription.storageQuotaGb} GB',
+      if (subscription.aiCredits != null)
+        'AI ${subscription.aiCredits} credits',
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                subscription.displayPlanName,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: AppColors.success.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(AppRadii.sm),
+              ),
+              child: Text(
+                subscription.status,
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.success,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Expires $expiry',
+          style: const TextStyle(
+            fontSize: 12,
+            color: AppColors.textSecondary,
+          ),
+        ),
+        if (limitBits.isNotEmpty) ...[
+          const SizedBox(height: 4),
+          Text(
+            limitBits.join(' · '),
+            style: const TextStyle(
+              fontSize: 11,
+              color: AppColors.textSecondary,
+            ),
+          ),
+        ],
+        if (subscription.licensedModuleCodes.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              for (final code in subscription.licensedModuleCodes.take(8))
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.chipBg,
+                    borderRadius: BorderRadius.circular(AppRadii.sm),
+                    border: Border.all(color: AppColors.border),
+                  ),
+                  child: Text(
+                    code,
+                    style: const TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textSecondary,
+                      fontFamily: 'monospace',
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ],
+      ],
     );
   }
 }

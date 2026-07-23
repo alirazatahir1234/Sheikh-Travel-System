@@ -242,12 +242,52 @@ public record SetTenantModulesRequest(IReadOnlyList<string> ModuleCodes);
 
 [RequirePermission(PlatformPermissions.TenantsManage)]
 [ApiController]
+[Route("api/platform/subscriptions")]
+public class SubscriptionsController : BaseApiController
+{
+    [HttpGet]
+    public async Task<IActionResult> GetAll()
+        => Ok(await Mediator.Send(new GetSubscriptionCatalogQuery()));
+
+    [HttpGet("catalog")]
+    public async Task<IActionResult> GetCatalog()
+        => Ok(await Mediator.Send(new GetSubscriptionCatalogQuery()));
+
+    [HttpGet("company")]
+    public async Task<IActionResult> GetCompany()
+        => Ok(await Mediator.Send(new GetCompanyLicenseQuery()));
+}
+
+[Authorize]
+[ApiController]
+[Route("api/platform/license")]
+public class LicenseController : BaseApiController
+{
+    [HttpGet]
+    public async Task<IActionResult> GetLicense()
+        => Ok(await Mediator.Send(new GetCompanyLicenseQuery()));
+
+    [HttpGet("summary")]
+    public async Task<IActionResult> GetSummary()
+        => Ok(await Mediator.Send(new GetLicenseSummaryQuery()));
+}
+
+[RequirePermission(PlatformPermissions.TenantsManage)]
+[ApiController]
 [Route("api/platform/tenants/{tenantId:int}")]
 public class TenantSubscriptionController : BaseApiController
 {
     [HttpGet("subscription")]
     public async Task<IActionResult> GetSubscription(int tenantId)
         => Ok(await Mediator.Send(new GetSubscriptionOverviewQuery(tenantId)));
+
+    [HttpGet("license")]
+    public async Task<IActionResult> GetLicense(int tenantId)
+        => Ok(await Mediator.Send(new GetCompanyLicenseQuery(tenantId)));
+
+    [HttpGet("license/summary")]
+    public async Task<IActionResult> GetLicenseSummary(int tenantId)
+        => Ok(await Mediator.Send(new GetLicenseSummaryQuery(tenantId)));
 
     [HttpPost("subscription/action")]
     public async Task<IActionResult> UpdateSubscription(int tenantId, [FromBody] UpdateSubscriptionRequest request)

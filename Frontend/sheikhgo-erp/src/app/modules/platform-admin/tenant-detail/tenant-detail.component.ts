@@ -18,6 +18,7 @@ import {
   TenantDetail,
   TenantModuleDefinition,
   CompanyFeature,
+  CompanyLicense,
   applyPlanDefaults,
   tenantDisplayCode,
   tenantPlanMeta
@@ -38,6 +39,7 @@ export class TenantDetailComponent implements OnInit {
   tenant?: TenantDetail;
   modules: TenantModuleDefinition[] = [];
   features: CompanyFeature[] = [];
+  license: CompanyLicense | null = null;
   adminInfo?: TenantAdminInfo | null;
 
   readonly planTiers = TENANT_PLAN_TIERS;
@@ -97,15 +99,19 @@ export class TenantDetailComponent implements OnInit {
       features: this.platform.getCompanyFeatures(this.tenantId).pipe(
         catchError(() => of([] as CompanyFeature[]))
       ),
+      license: this.platform.getCompanyLicense(this.tenantId).pipe(
+        catchError(() => of(null as CompanyLicense | null))
+      ),
       countries: this.lookup.getCountryNames(),
       currencies: this.lookup.getCurrencyCodes(),
       timezones: this.lookup.getTimezoneIds()
     }).subscribe({
-      next: ({ tenant, modules, features, countries, currencies, timezones }) => {
+      next: ({ tenant, modules, features, license, countries, currencies, timezones }) => {
         this.countries = countries;
         this.currencies = currencies;
         this.timezones = timezones;
         this.features = features ?? [];
+        this.license = license;
         this.initForm(tenant, modules);
       },
       error: () => {
@@ -165,6 +171,22 @@ export class TenantDetailComponent implements OnInit {
 
   isModuleSelected(code: string): boolean {
     return (this.form.controls.moduleCodes.value ?? []).includes(code);
+  }
+
+  get featureGroups(): { category: string; features: CompanyFeature[] }[] {
+    const map = new Map<string, CompanyFeature[]>();
+    for (const f of this.features) {
+      const category = f.category || f.moduleKey || 'General';
+      const list = map.get(category) ?? [];
+      list.push(f);
+      map.set(category, list);
+    }
+    return [...map.entries()]
+      .map(([category, features]) => ({
+        category,
+        features: [...features].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+      }))
+      .sort((a, b) => a.category.localeCompare(b.category));
   }
 
   submit(): void {

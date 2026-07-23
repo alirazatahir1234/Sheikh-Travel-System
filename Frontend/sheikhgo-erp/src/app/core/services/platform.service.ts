@@ -25,7 +25,8 @@ import {
   UpdateTenantBrandingPayload,
   UpdateTenantPayload,
   CompanyFeature,
-  ModuleRegistryEntry
+  ModuleRegistryEntry,
+  CompanyLicense
 } from '../models/platform.model';
 
 @Injectable({ providedIn: 'root' })
@@ -48,6 +49,13 @@ export class PlatformService {
 
   getFeatureCatalog(): Observable<CompanyFeature[]> {
     return this.http.get<CompanyFeature[]>(`${this.base}/features/catalog`);
+  }
+
+  setCompanyFeatures(tenantId: number, enabledFeatureKeys: string[]): Observable<boolean> {
+    return this.http.put<boolean>(`${this.base}/features/company`, {
+      tenantId,
+      enabledFeatureKeys
+    });
   }
 
   getModuleCatalog(): Observable<ModuleRegistryEntry[]> {
@@ -231,10 +239,22 @@ export class PlatformService {
     return this.http.put<boolean>(`${this.base}/tenants/${tenantId}/modules`, { moduleCodes });
   }
 
-  // Subscription Management (Sprint 4)
+  // Subscription Management (Stage 4)
 
   getSubscriptionOverview(tenantId: number): Observable<SubscriptionOverview> {
     return this.http.get<SubscriptionOverview>(`${this.base}/tenants/${tenantId}/subscription`);
+  }
+
+  getCompanyLicense(tenantId: number): Observable<CompanyLicense> {
+    return this.http.get<CompanyLicense>(`${this.base}/tenants/${tenantId}/license`);
+  }
+
+  getLicenseSummary(tenantId: number): Observable<CompanyLicense> {
+    return this.http.get<CompanyLicense>(`${this.base}/tenants/${tenantId}/license/summary`);
+  }
+
+  getSubscriptionCatalog(): Observable<unknown[]> {
+    return this.http.get<unknown[]>(`${this.base}/subscriptions/catalog`);
   }
 
   updateSubscription(tenantId: number, request: UpdateSubscriptionRequest): Observable<boolean> {

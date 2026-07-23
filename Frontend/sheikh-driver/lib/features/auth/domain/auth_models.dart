@@ -385,9 +385,11 @@ class CompanyContext {
     this.departmentName,
     this.enabledModuleKeys = const [],
     this.featureKeys = const [],
+    this.features = const [],
     this.modules = const [],
     this.workspaceHint,
     this.roleCode,
+    this.subscription,
   });
 
   final int companyId;
@@ -402,9 +404,11 @@ class CompanyContext {
   final String? departmentName;
   final List<String> enabledModuleKeys;
   final List<String> featureKeys;
+  final List<CompanyFeature> features;
   final List<CompanyModule> modules;
   final String? workspaceHint;
   final String? roleCode;
+  final CompanySubscription? subscription;
 
   /// Display labels for installed modules (Fleet, GPS, …).
   List<String> get moduleDisplayLabels {
@@ -434,14 +438,43 @@ class CompanyContext {
     return out;
   }
 
+  /// Category / display labels for enabled features.
+  List<String> get featureDisplayLabels {
+    if (features.isNotEmpty) {
+      final seen = <String>{};
+      final out = <String>[];
+      for (final f in features.where((x) => x.isEnabled)) {
+        final label = f.category?.isNotEmpty == true
+            ? f.category!
+            : (f.displayName.isNotEmpty
+                ? f.displayName
+                : (f.name.isNotEmpty ? f.name : f.featureKey));
+        if (label.isNotEmpty && seen.add(label)) out.add(label);
+      }
+      return out;
+    }
+    return featureKeys;
+  }
+
   factory CompanyContext.fromJson(Map<String, dynamic> json) {
     final featuresRaw = json['features'] ?? json['Features'];
     final featureKeys = <String>[];
+    final features = <CompanyFeature>[];
     if (featuresRaw is List) {
       for (final item in featuresRaw) {
-        if (item is Map) {
-          final key = item['featureKey'] ?? item['FeatureKey'];
-          if (key != null) featureKeys.add(key.toString());
+        if (item is Map<String, dynamic>) {
+          final feature = CompanyFeature.fromJson(item);
+          features.add(feature);
+          if (feature.isEnabled && feature.featureKey.isNotEmpty) {
+            featureKeys.add(feature.featureKey);
+          }
+        } else if (item is Map) {
+          final feature =
+              CompanyFeature.fromJson(Map<String, dynamic>.from(item));
+          features.add(feature);
+          if (feature.isEnabled && feature.featureKey.isNotEmpty) {
+            featureKeys.add(feature.featureKey);
+          }
         } else if (item != null) {
           featureKeys.add(item.toString());
         }
@@ -459,6 +492,21 @@ class CompanyContext {
         }
       }
     }
+
+    CompanySubscription? subscription;
+    final subRaw = json['subscription'] ?? json['Subscription'];
+    if (subRaw is Map<String, dynamic>) {
+      subscription = CompanySubscription.fromJson(subRaw);
+    } else if (subRaw is Map) {
+      subscription =
+          CompanySubscription.fromJson(Map<String, dynamic>.from(subRaw));
+    }
+
+    final parsedFeatureKeys = featureKeys.isNotEmpty
+        ? featureKeys
+        : FleetSession._parseStringList(
+            json['featureKeys'] ?? json['FeatureKeys'],
+          );
 
     return CompanyContext(
       companyId: json['companyId'] as int? ??
@@ -487,15 +535,13 @@ class CompanyContext {
       enabledModuleKeys: FleetSession._parseStringList(
         json['enabledModuleKeys'] ?? json['EnabledModuleKeys'],
       ),
-      featureKeys: featureKeys.isNotEmpty
-          ? featureKeys
-          : FleetSession._parseStringList(
-              json['featureKeys'] ?? json['FeatureKeys'],
-            ),
+      featureKeys: parsedFeatureKeys,
+      features: features,
       modules: modules,
       workspaceHint:
           json['workspaceHint'] as String? ?? json['WorkspaceHint'] as String?,
       roleCode: json['roleCode'] as String? ?? json['RoleCode'] as String?,
+      subscription: subscription,
     );
   }
 
@@ -512,9 +558,211 @@ class CompanyContext {
         if (departmentName != null) 'departmentName': departmentName,
         'enabledModuleKeys': enabledModuleKeys,
         'featureKeys': featureKeys,
+        'features': features.map((f) => f.toJson()).toList(),
         'modules': modules.map((m) => m.toJson()).toList(),
         if (workspaceHint != null) 'workspaceHint': workspaceHint,
         if (roleCode != null) 'roleCode': roleCode,
+        if (subscription != null) 'subscription': subscription!.toJson(),
+      };
+}
+
+/// Enabled company feature (read-only registry metadata).
+class CompanyFeature {
+  const CompanyFeature({
+    required this.featureKey,
+    required this.moduleKey,
+    required this.name,
+    this.displayName = '',
+    this.description,
+    this.category,
+    this.icon,
+    this.status,
+    this.isEnabled = true,
+    this.sortOrder = 0,
+    this.isMobileSupported = false,
+    this.isAISupported = false,
+    this.isGPSSupported = false,
+  });
+
+  final String featureKey;
+  final String moduleKey;
+  final String name;
+  final String displayName;
+  final String? description;
+  final String? category;
+  final String? icon;
+  final String? status;
+  final bool isEnabled;
+  final int sortOrder;
+  final bool isMobileSupported;
+  final bool isAISupported;
+  final bool isGPSSupported;
+
+  factory CompanyFeature.fromJson(Map<String, dynamic> json) {
+    return CompanyFeature(
+      featureKey: json['featureKey'] as String? ??
+          json['FeatureKey'] as String? ??
+          '',
+      moduleKey: json['moduleKey'] as String? ??
+          json['ModuleKey'] as String? ??
+          json['moduleCode'] as String? ??
+          json['ModuleCode'] as String? ??
+          '',
+      name: json['name'] as String? ?? json['Name'] as String? ?? '',
+      displayName: json['displayName'] as String? ??
+          json['DisplayName'] as String? ??
+          json['name'] as String? ??
+          json['Name'] as String? ??
+          '',
+      description:
+          json['description'] as String? ?? json['Description'] as String?,
+      category: json['category'] as String? ?? json['Category'] as String?,
+      icon: json['icon'] as String? ?? json['Icon'] as String?,
+      status: json['status'] as String? ?? json['Status'] as String?,
+      isEnabled: json['isEnabled'] as bool? ??
+          json['IsEnabled'] as bool? ??
+          true,
+      sortOrder: json['sortOrder'] as int? ?? json['SortOrder'] as int? ?? 0,
+      isMobileSupported: json['isMobileSupported'] as bool? ??
+          json['IsMobileSupported'] as bool? ??
+          false,
+      isAISupported:
+          json['isAISupported'] as bool? ?? json['IsAISupported'] as bool? ?? false,
+      isGPSSupported: json['isGPSSupported'] as bool? ??
+          json['IsGPSSupported'] as bool? ??
+          false,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'featureKey': featureKey,
+        'moduleKey': moduleKey,
+        'name': name,
+        'displayName': displayName,
+        if (description != null) 'description': description,
+        if (category != null) 'category': category,
+        if (icon != null) 'icon': icon,
+        if (status != null) 'status': status,
+        'isEnabled': isEnabled,
+        'sortOrder': sortOrder,
+        'isMobileSupported': isMobileSupported,
+        'isAISupported': isAISupported,
+        'isGPSSupported': isGPSSupported,
+      };
+}
+
+/// Read-only subscription / license summary from company context.
+class CompanySubscription {
+  const CompanySubscription({
+    this.subscriptionCode,
+    this.planName,
+    this.planDisplayName,
+    this.status = 'Unknown',
+    this.startDate,
+    this.endDate,
+    this.autoRenew = false,
+    this.licensedModuleCodes = const [],
+    this.maxUsers,
+    this.maxDrivers,
+    this.maxVehicles,
+    this.maxBranches,
+    this.maxGpsDevices,
+    this.storageQuotaGb,
+    this.aiCredits,
+    this.gpsEnabled = true,
+    this.usedUsers = 0,
+    this.usedDrivers = 0,
+    this.usedVehicles = 0,
+  });
+
+  final String? subscriptionCode;
+  final String? planName;
+  final String? planDisplayName;
+  final String status;
+  final DateTime? startDate;
+  final DateTime? endDate;
+  final bool autoRenew;
+  final List<String> licensedModuleCodes;
+  final int? maxUsers;
+  final int? maxDrivers;
+  final int? maxVehicles;
+  final int? maxBranches;
+  final int? maxGpsDevices;
+  final int? storageQuotaGb;
+  final int? aiCredits;
+  final bool gpsEnabled;
+  final int usedUsers;
+  final int usedDrivers;
+  final int usedVehicles;
+
+  String get displayPlanName =>
+      (planDisplayName != null && planDisplayName!.isNotEmpty)
+          ? planDisplayName!
+          : (planName ?? subscriptionCode ?? '—');
+
+  factory CompanySubscription.fromJson(Map<String, dynamic> json) {
+    DateTime? parseDate(dynamic v) {
+      if (v == null) return null;
+      return DateTime.tryParse(v.toString());
+    }
+
+    int? parseInt(dynamic v) {
+      if (v == null) return null;
+      if (v is int) return v;
+      return int.tryParse(v.toString());
+    }
+
+    return CompanySubscription(
+      subscriptionCode: json['subscriptionCode'] as String? ??
+          json['SubscriptionCode'] as String?,
+      planName: json['planName'] as String? ?? json['PlanName'] as String?,
+      planDisplayName: json['planDisplayName'] as String? ??
+          json['PlanDisplayName'] as String?,
+      status: json['status'] as String? ?? json['Status'] as String? ?? 'Unknown',
+      startDate: parseDate(json['startDate'] ?? json['StartDate']),
+      endDate: parseDate(json['endDate'] ?? json['EndDate']),
+      autoRenew: json['autoRenew'] as bool? ??
+          json['AutoRenew'] as bool? ??
+          false,
+      licensedModuleCodes: FleetSession._parseStringList(
+        json['licensedModuleCodes'] ?? json['LicensedModuleCodes'],
+      ),
+      maxUsers: parseInt(json['maxUsers'] ?? json['MaxUsers']),
+      maxDrivers: parseInt(json['maxDrivers'] ?? json['MaxDrivers']),
+      maxVehicles: parseInt(json['maxVehicles'] ?? json['MaxVehicles']),
+      maxBranches: parseInt(json['maxBranches'] ?? json['MaxBranches']),
+      maxGpsDevices: parseInt(json['maxGpsDevices'] ?? json['MaxGpsDevices']),
+      storageQuotaGb:
+          parseInt(json['storageQuotaGb'] ?? json['StorageQuotaGb']),
+      aiCredits: parseInt(json['aiCredits'] ?? json['AICredits']),
+      gpsEnabled:
+          json['gpsEnabled'] as bool? ?? json['GPSEnabled'] as bool? ?? true,
+      usedUsers: parseInt(json['usedUsers'] ?? json['UsedUsers']) ?? 0,
+      usedDrivers: parseInt(json['usedDrivers'] ?? json['UsedDrivers']) ?? 0,
+      usedVehicles: parseInt(json['usedVehicles'] ?? json['UsedVehicles']) ?? 0,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        if (subscriptionCode != null) 'subscriptionCode': subscriptionCode,
+        if (planName != null) 'planName': planName,
+        if (planDisplayName != null) 'planDisplayName': planDisplayName,
+        'status': status,
+        if (startDate != null) 'startDate': startDate!.toIso8601String(),
+        if (endDate != null) 'endDate': endDate!.toIso8601String(),
+        'autoRenew': autoRenew,
+        'licensedModuleCodes': licensedModuleCodes,
+        if (maxUsers != null) 'maxUsers': maxUsers,
+        if (maxDrivers != null) 'maxDrivers': maxDrivers,
+        if (maxVehicles != null) 'maxVehicles': maxVehicles,
+        if (maxBranches != null) 'maxBranches': maxBranches,
+        if (maxGpsDevices != null) 'maxGpsDevices': maxGpsDevices,
+        if (storageQuotaGb != null) 'storageQuotaGb': storageQuotaGb,
+        if (aiCredits != null) 'aiCredits': aiCredits,
+        'gpsEnabled': gpsEnabled,
+        'usedUsers': usedUsers,
+        'usedDrivers': usedDrivers,
+        'usedVehicles': usedVehicles,
       };
 }
 

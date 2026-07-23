@@ -370,8 +370,16 @@ public class GetCompanyModulesQueryHandler(
             """, new { TenantId = tenantId }, cancellationToken: cancellationToken)))
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
+        var planName = await LicenseQueries.ResolvePlanNameAsync(connection, tenantId, cancellationToken);
+        var licensed = SubscriptionPlanCatalog.LicensedModuleCodes(planName)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
         var result = catalog
-            .Select(m => m with { IsInstalled = installed.Contains(m.Code), IsLicensed = installed.Contains(m.Code) })
+            .Select(m => m with
+            {
+                IsInstalled = installed.Contains(m.Code),
+                IsLicensed = licensed.Contains(m.Code)
+            })
             .ToList();
 
         return ApiResponse<IReadOnlyList<ModuleRegistryDto>>.SuccessResponse(result);
@@ -1522,8 +1530,13 @@ public class GetTenantModuleOverviewQueryHandler(IDbConnectionFactory dbFactory,
         }
 
         var catalog = await ModuleRegistryQueries.LoadCatalogAsync(connection, cancellationToken);
+        var planName = await LicenseQueries.ResolvePlanNameAsync(connection, request.TenantId, cancellationToken);
+        var licensedCodes = SubscriptionPlanCatalog.LicensedModuleCodes(planName)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
         var modules = catalog
-            .Select(m => ModuleRegistryQueries.ToStatusDto(m, enabledCodes.Contains(m.Code)))
+            .Select(m => ModuleRegistryQueries.ToStatusDto(
+                m, enabledCodes.Contains(m.Code), licensedCodes.Contains(m.Code)))
             .OrderBy(m => m.SortOrder)
             .ThenBy(m => m.Code)
             .ToList();
@@ -1540,7 +1553,8 @@ public class GetTenantModuleOverviewQueryHandler(IDbConnectionFactory dbFactory,
                             m.Code, m.Name, m.Name, m.Name, "Platform", "1.0.0", "extension", null, 0,
                             [], true, false, false, false, "Active", null, m.LegacyKeys))
                         : ModuleRegistryQueries.FromSeed(seed);
-                    return ModuleRegistryQueries.ToStatusDto(dto, enabledCodes.Contains(m.Code));
+                    return ModuleRegistryQueries.ToStatusDto(
+                        dto, enabledCodes.Contains(m.Code), licensedCodes.Contains(m.Code));
                 })
                 .ToList();
         }
@@ -1614,7 +1628,103 @@ public class SetTenantModulesCommandHandler(
     }
 }
 
-// Subscription Management (Sprint 4)
+// Subscription Management / License (Stage 4)
+
+public class GetSubscriptionCatalogQueryHandler(IDbConnectionFactory dbFactory)
+    : IRequestHandler<GetSubscriptionCatalogQuery, ApiResponse<IReadOnlyList<SubscriptionPlanDto>>>
+{
+    public async Task<ApiResponse<IReadOnlyList<SubscriptionPlanDto>>> Handle(
+        GetSubscriptionCatalogQuery request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            using var connection = dbFactory.CreateConnection();
+            var rows = (await connection.QueryAsync<(
+                string SubscriptionCode, string DisplayName, string? Description, string PlanType, string Status,
+                int SortOrder, int? DurationMonths, bool IsDefault, bool Visible, string? DocumentationUrl,
+                string? DefaultModuleCodesJson, int? MaxUsers, int? MaxVehicles, int? MaxDrivers,
+                int? MaxBranches, int? MaxGpsDevices, int? StorageQuotaGb, int? AICredits, bool GPSEnabled)>(
+                new CommandDefinition("""
+                    SELECT SubscriptionCode, DisplayName, Description, PlanType, Status, SortOrder,
+                           DurationMonths, IsDefault, Visible, DocumentationUrl, DefaultModuleCodesJson,
+                           MaxUsers, MaxVehicles, MaxDrivers, MaxBranches, MaxGpsDevices,
+                           StorageQuotaGb, AICredits, GPSEnabled
+                    FROM SubscriptionPlans
+                    WHERE Visible = 1
+                    ORDER BY SortOrder, DisplayName
+                    """, cancellationToken: cancellationToken))).ToList();
+
+            if (rows.Count > 0)
+            {
+                var list = rows.Select(r => new SubscriptionPlanDto(
+                    r.SubscriptionCode,
+                    r.DisplayName,
+                    r.Description,
+                    r.PlanType,
+                    r.Status,
+                    r.SortOrder,
+                    r.DurationMonths,
+                    r.IsDefault,
+                    r.Visible,
+                    r.DocumentationUrl,
+                    SubscriptionPlanCatalog.ParseModuleCodes(r.DefaultModuleCodesJson),
+                    r.MaxUsers,
+                    r.MaxVehicles,
+                    r.MaxDrivers,
+                    r.MaxBranches,
+                    r.MaxGpsDevices,
+                    r.StorageQuotaGb,
+                    r.AICredits,
+                    r.GPSEnabled)).ToList();
+                return ApiResponse<IReadOnlyList<SubscriptionPlanDto>>.SuccessResponse(list);
+            }
+        }
+        catch
+        {
+            // Table may not exist yet.
+        }
+
+        return ApiResponse<IReadOnlyList<SubscriptionPlanDto>>.SuccessResponse(LicenseQueries.FromSeed());
+    }
+}
+
+public class GetCompanyLicenseQueryHandler(
+    IDbConnectionFactory dbFactory,
+    ITenantContext tenantContext,
+    IPlatformScope platformScope)
+    : IRequestHandler<GetCompanyLicenseQuery, ApiResponse<CompanyLicenseDto>>
+{
+    public async Task<ApiResponse<CompanyLicenseDto>> Handle(
+        GetCompanyLicenseQuery request, CancellationToken cancellationToken)
+    {
+        var tenantId = request.TenantId ?? tenantContext.GetRequiredTenantId();
+        platformScope.EnsureTenantAccess(tenantId);
+        using var connection = dbFactory.CreateConnection();
+        var license = await LicenseQueries.LoadCompanyLicenseAsync(connection, tenantId, cancellationToken);
+        if (license is null)
+            return ApiResponse<CompanyLicenseDto>.FailResponse("Company not found.");
+        return ApiResponse<CompanyLicenseDto>.SuccessResponse(license);
+    }
+}
+
+public class GetLicenseSummaryQueryHandler(
+    IDbConnectionFactory dbFactory,
+    ITenantContext tenantContext,
+    IPlatformScope platformScope)
+    : IRequestHandler<GetLicenseSummaryQuery, ApiResponse<LicenseSummaryDto>>
+{
+    public async Task<ApiResponse<LicenseSummaryDto>> Handle(
+        GetLicenseSummaryQuery request, CancellationToken cancellationToken)
+    {
+        var tenantId = request.TenantId ?? tenantContext.GetRequiredTenantId();
+        platformScope.EnsureTenantAccess(tenantId);
+        using var connection = dbFactory.CreateConnection();
+        var license = await LicenseQueries.LoadCompanyLicenseAsync(connection, tenantId, cancellationToken);
+        if (license is null)
+            return ApiResponse<LicenseSummaryDto>.FailResponse("Company not found.");
+        return ApiResponse<LicenseSummaryDto>.SuccessResponse(LicenseQueries.ToSummary(license));
+    }
+}
 
 public class GetSubscriptionOverviewQueryHandler(IDbConnectionFactory dbFactory, IPlatformScope platformScope)
     : IRequestHandler<GetSubscriptionOverviewQuery, ApiResponse<SubscriptionOverviewDto>>
@@ -1625,26 +1735,57 @@ public class GetSubscriptionOverviewQueryHandler(IDbConnectionFactory dbFactory,
         platformScope.EnsureTenantAccess(request.TenantId);
         using var connection = dbFactory.CreateConnection();
 
-        var subscription = await connection.QuerySingleOrDefaultAsync<SubscriptionDetailDto>(new CommandDefinition("""
-            SELECT
-                t.Id AS TenantId,
-                t.Name AS TenantName,
-                COALESCE(s.PlanName, t.SubscriptionPlan) AS PlanName,
-                COALESCE(s.Status, N'Active') AS Status,
-                COALESCE(s.BillingCycle, N'Monthly') AS BillingCycle,
-                s.MonthlyAmount,
-                COALESCE(s.CurrencyCode, N'PKR') AS CurrencyCode,
-                COALESCE(s.AutoRenew, 1) AS AutoRenew,
-                s.SubscriptionStartDate,
-                s.SubscriptionEndDate,
-                s.TrialEndDate,
-                s.MaxUsers, s.MaxVehicles, s.MaxDrivers, s.MaxBranches, s.MaxGpsDevices
-            FROM Tenants t
-            LEFT JOIN TenantSubscriptions s ON s.TenantId = t.Id
-            WHERE t.Id = @TenantId
-            """, new { request.TenantId }, cancellationToken: cancellationToken));
+        SubscriptionDetailDto? subscription;
+        try
+        {
+            subscription = await connection.QuerySingleOrDefaultAsync<SubscriptionDetailDto>(new CommandDefinition("""
+                SELECT
+                    t.Id AS TenantId,
+                    t.Name AS TenantName,
+                    COALESCE(s.PlanName, t.SubscriptionPlan) AS PlanName,
+                    s.SubscriptionCode,
+                    COALESCE(s.Status, N'Active') AS Status,
+                    COALESCE(s.BillingCycle, N'Monthly') AS BillingCycle,
+                    s.MonthlyAmount,
+                    COALESCE(s.CurrencyCode, N'PKR') AS CurrencyCode,
+                    COALESCE(s.AutoRenew, 1) AS AutoRenew,
+                    s.SubscriptionStartDate,
+                    s.SubscriptionEndDate,
+                    s.TrialEndDate,
+                    s.MaxUsers, s.MaxVehicles, s.MaxDrivers, s.MaxBranches, s.MaxGpsDevices,
+                    s.StorageQuotaGb, s.AICredits, COALESCE(s.GPSEnabled, 1) AS GPSEnabled
+                FROM Tenants t
+                LEFT JOIN TenantSubscriptions s ON s.TenantId = t.Id
+                WHERE t.Id = @TenantId
+                """, new { request.TenantId }, cancellationToken: cancellationToken));
+        }
+        catch
+        {
+            subscription = await connection.QuerySingleOrDefaultAsync<SubscriptionDetailDto>(new CommandDefinition("""
+                SELECT
+                    t.Id AS TenantId,
+                    t.Name AS TenantName,
+                    COALESCE(s.PlanName, t.SubscriptionPlan) AS PlanName,
+                    COALESCE(s.Status, N'Active') AS Status,
+                    COALESCE(s.BillingCycle, N'Monthly') AS BillingCycle,
+                    s.MonthlyAmount,
+                    COALESCE(s.CurrencyCode, N'PKR') AS CurrencyCode,
+                    COALESCE(s.AutoRenew, 1) AS AutoRenew,
+                    s.SubscriptionStartDate,
+                    s.SubscriptionEndDate,
+                    s.TrialEndDate,
+                    s.MaxUsers, s.MaxVehicles, s.MaxDrivers, s.MaxBranches, s.MaxGpsDevices
+                FROM Tenants t
+                LEFT JOIN TenantSubscriptions s ON s.TenantId = t.Id
+                WHERE t.Id = @TenantId
+                """, new { request.TenantId }, cancellationToken: cancellationToken));
+        }
 
         if (subscription is null) throw new NotFoundException("Tenant", request.TenantId);
+
+        var licensed = SubscriptionPlanCatalog.LicensedModuleCodes(
+            subscription.SubscriptionCode ?? subscription.PlanName);
+        subscription = subscription with { LicensedModuleCodes = licensed.ToList() };
 
         var invoices = (await connection.QueryAsync<InvoiceDto>(new CommandDefinition("""
             SELECT Id, InvoiceNumber, PlanName, Amount, CurrencyCode, Status, IssuedDate, DueDate, PaidDate
@@ -1660,8 +1801,10 @@ public class GetSubscriptionOverviewQueryHandler(IDbConnectionFactory dbFactory,
             ORDER BY PaidAt DESC
             """, new { request.TenantId }, cancellationToken: cancellationToken))).ToList();
 
+        var license = await LicenseQueries.LoadCompanyLicenseAsync(connection, request.TenantId, cancellationToken);
+
         return ApiResponse<SubscriptionOverviewDto>.SuccessResponse(
-            new SubscriptionOverviewDto(subscription, invoices, payments));
+            new SubscriptionOverviewDto(subscription, invoices, payments, license));
     }
 }
 
@@ -1683,18 +1826,44 @@ public class UpdateSubscriptionCommandHandler(IDbConnectionFactory dbFactory, IP
         switch (request.Action)
         {
             case SubscriptionAction.Upgrade:
+            {
+                var plan = SubscriptionPlanCatalog.Resolve(request.PlanName);
                 await connection.ExecuteAsync(new CommandDefinition("""
                     UPDATE TenantSubscriptions
                     SET PlanName = COALESCE(@PlanName, PlanName),
+                        SubscriptionCode = @SubscriptionCode,
                         MonthlyAmount = COALESCE(@MonthlyAmount, MonthlyAmount),
                         BillingCycle = COALESCE(@BillingCycle, BillingCycle),
+                        MaxUsers = @MaxUsers,
+                        MaxVehicles = @MaxVehicles,
+                        MaxDrivers = @MaxDrivers,
+                        MaxBranches = @MaxBranches,
+                        MaxGpsDevices = @MaxGpsDevices,
+                        StorageQuotaGb = @StorageQuotaGb,
+                        AICredits = @AICredits,
+                        GPSEnabled = @GPSEnabled,
                         Status = N'Active',
                         UpdatedAt = GETUTCDATE()
                     WHERE TenantId = @TenantId;
-                    """, new { request.TenantId, request.PlanName, request.MonthlyAmount, request.BillingCycle },
-                    cancellationToken: cancellationToken));
-                await SyncTenantPlanAsync(connection, request.TenantId, request.PlanName, cancellationToken);
+                    """, new
+                {
+                    request.TenantId,
+                    PlanName = request.PlanName ?? plan.DisplayName,
+                    SubscriptionCode = plan.SubscriptionCode,
+                    request.MonthlyAmount,
+                    request.BillingCycle,
+                    plan.MaxUsers,
+                    plan.MaxVehicles,
+                    plan.MaxDrivers,
+                    plan.MaxBranches,
+                    plan.MaxGpsDevices,
+                    plan.StorageQuotaGb,
+                    plan.AICredits,
+                    plan.GPSEnabled
+                }, cancellationToken: cancellationToken));
+                await SyncTenantPlanAsync(connection, request.TenantId, request.PlanName ?? plan.DisplayName, cancellationToken);
                 break;
+            }
 
             case SubscriptionAction.Renew:
                 await connection.ExecuteAsync(new CommandDefinition("""

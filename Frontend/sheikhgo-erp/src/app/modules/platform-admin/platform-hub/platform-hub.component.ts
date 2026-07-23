@@ -101,13 +101,20 @@ export class PlatformHubComponent {
     {
       id: 'commercial',
       title: 'Commercial',
-      description: 'Modules, plans, and billing.',
+      description: 'Modules, features, plans, and billing.',
       links: [
         {
           label: 'Modules',
           description: 'Enable or disable tenant modules.',
           icon: 'extension',
           route: '/platform/module-management',
+          permissions: ['Platform.Tenants.View', 'Platform.Tenants.Manage']
+        },
+        {
+          label: 'Features',
+          description: 'Company feature enablement within modules.',
+          icon: 'tune',
+          route: '/platform/feature-management',
           permissions: ['Platform.Tenants.View', 'Platform.Tenants.Manage']
         },
         {

@@ -78,6 +78,8 @@ public static class DatabaseMigrationRegistry
             M("PlatformAdminFoundationMigration", PlatformAdminFoundationMigration.ApplyAsync),
             M("CompanyFeatureRegistryMigration", CompanyFeatureRegistryMigration.ApplyAsync),
             M("ModuleRegistryMigration", ModuleRegistryMigration.ApplyAsync),
+            M("SubscriptionLicenseMigration", SubscriptionLicenseMigration.ApplyAsync),
+            M("FeatureManagementMigration", FeatureManagementMigration.ApplyAsync),
         ];
     }
 }

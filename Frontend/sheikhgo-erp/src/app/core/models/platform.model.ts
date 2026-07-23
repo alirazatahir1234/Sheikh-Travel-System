@@ -61,10 +61,22 @@ export interface TenantDetail extends Omit<Tenant, 'moduleCodes'> {
 export interface CompanyFeature {
   featureKey: string;
   moduleKey: string;
+  moduleCode?: string;
   name: string;
+  displayName?: string | null;
   description?: string | null;
+  category?: string | null;
+  icon?: string | null;
+  route?: string | null;
+  status?: string | null;
   isEnabled: boolean;
   sortOrder: number;
+  isMobileSupported?: boolean;
+  isAISupported?: boolean;
+  isGPSSupported?: boolean;
+  visible?: boolean;
+  canToggle?: boolean;
+  isModuleInstalled?: boolean;
 }
 
 export interface CompanyHierarchyCounts {
@@ -596,6 +608,7 @@ export interface SubscriptionDetail {
   tenantId: number;
   tenantName: string;
   planName?: string | null;
+  subscriptionCode?: string | null;
   status: string;
   billingCycle: string;
   monthlyAmount?: number | null;
@@ -609,6 +622,38 @@ export interface SubscriptionDetail {
   maxDrivers?: number | null;
   maxBranches?: number | null;
   maxGpsDevices?: number | null;
+  storageQuotaGb?: number | null;
+  aiCredits?: number | null;
+  gpsEnabled?: boolean;
+  licensedModuleCodes?: string[];
+}
+
+export interface CompanyLicense {
+  companyId: number;
+  tenantId: number;
+  companyName: string;
+  subscriptionCode?: string | null;
+  planName?: string | null;
+  planDisplayName?: string | null;
+  status: string;
+  startDate?: string | null;
+  endDate?: string | null;
+  autoRenew: boolean;
+  licensedModules: string[];
+  installedModules: string[];
+  maxUsers?: number | null;
+  maxDrivers?: number | null;
+  maxVehicles?: number | null;
+  maxBranches?: number | null;
+  maxGpsDevices?: number | null;
+  storageQuotaGb?: number | null;
+  aiCredits?: number | null;
+  gpsEnabled: boolean;
+  usedUsers: number;
+  usedDrivers: number;
+  usedVehicles: number;
+  usedBranches: number;
+  usedGpsDevices: number;
 }
 
 export interface Invoice {
@@ -638,6 +683,7 @@ export interface SubscriptionOverview {
   subscription: SubscriptionDetail;
   invoices: Invoice[];
   payments: Payment[];
+  license?: CompanyLicense | null;
 }
 
 export type SubscriptionAction = 'Upgrade' | 'Renew' | 'Suspend' | 'Cancel' | 'Reactivate';

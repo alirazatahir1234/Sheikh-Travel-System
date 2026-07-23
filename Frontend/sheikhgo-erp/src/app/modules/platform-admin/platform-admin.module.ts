@@ -10,6 +10,7 @@ import { BranchFormComponent } from './branch-form/branch-form.component';
 import { DepartmentListComponent } from './department-list/department-list.component';
 import { AccessControlComponent } from './access-control/access-control.component';
 import { ModuleManagementComponent } from './module-management/module-management.component';
+import { FeatureManagementComponent } from './feature-management/feature-management.component';
 import { SubscriptionManagementComponent } from './subscription-management/subscription-management.component';
 import { MigrationManagerComponent } from './migration-manager/migration-manager.component';
 import { DatabaseResetComponent } from './database-reset/database-reset.component';
@@ -111,6 +112,12 @@ const routes: Routes = [
     data: { permissions: ['Platform.Tenants.View', 'Platform.Tenants.Manage'] }
   },
   {
+    path: 'feature-management',
+    component: FeatureManagementComponent,
+    canActivate: [permissionGuard],
+    data: { permissions: ['Platform.Tenants.View', 'Platform.Tenants.Manage'] }
+  },
+  {
     path: 'subscription-management',
     component: SubscriptionManagementComponent,
     canActivate: [permissionGuard],
@@ -141,6 +148,7 @@ const routes: Routes = [
     DepartmentListComponent,
     AccessControlComponent,
     ModuleManagementComponent,
+    FeatureManagementComponent,
     SubscriptionManagementComponent,
     MigrationManagerComponent,
     DatabaseResetComponent,
