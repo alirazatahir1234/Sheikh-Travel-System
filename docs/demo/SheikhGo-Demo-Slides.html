@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SheikhGo — Product Demo</title>
+  <style>
+    :root {
+      --ink: #0f172a;
+      --muted: #475569;
+      --line: #e2e8f0;
+      --accent: #0f766e;
+      --accent-2: #c2410c;
+      --cream: #f8fafc;
+      --card: #ffffff;
+      --web: #1d4ed8;
+      --mobile: #0f766e;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0; height: 100%;
+      font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+      background: #0b1220;
+      color: var(--ink);
+    }
+    .deck {
+      height: 100%;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+    }
+    .slide {
+      display: none;
+      width: min(1120px, 96vw);
+      min-height: min(680px, 88vh);
+      background: linear-gradient(160deg, #ffffff 0%, #f1f5f9 100%);
+      border-radius: 20px;
+      padding: 48px 56px;
+      box-shadow: 0 30px 80px rgba(0,0,0,.35);
+      position: relative;
+      overflow: hidden;
+    }
+    .slide.active { display: flex; flex-direction: column; }
+    .slide::before {
+      content: "";
+      position: absolute; inset: 0 auto 0 0; width: 8px;
+      background: linear-gradient(180deg, var(--accent), var(--accent-2));
+    }
+    .eyebrow {
+      font-size: 13px; letter-spacing: .14em; text-transform: uppercase;
+      color: var(--accent); font-weight: 700; margin-bottom: 12px;
+    }
+    h1 { font-size: clamp(2rem, 4vw, 3.2rem); line-height: 1.1; margin: 0 0 16px; }
+    h2 { font-size: clamp(1.6rem, 3vw, 2.4rem); margin: 0 0 12px; }
+    h3 { font-size: 1.15rem; margin: 0 0 8px; color: var(--ink); }
+    p, li { color: var(--muted); font-size: 1.05rem; line-height: 1.55; }
+    .hero-sub { font-size: 1.25rem; max-width: 42ch; }
+    .brand {
+      font-weight: 800; font-size: 1.1rem; letter-spacing: -.02em;
+      color: var(--ink); margin-bottom: 28px;
+    }
+    .brand span { color: var(--accent); }
+    .grid-2 {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px;
+    }
+    .grid-3 {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 20px;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 18px 20px;
+    }
+    .card.web { border-top: 4px solid var(--web); }
+    .card.mobile { border-top: 4px solid var(--mobile); }
+    .pill {
+      display: inline-block; font-size: 12px; font-weight: 700;
+      padding: 4px 10px; border-radius: 999px; margin-bottom: 10px;
+    }
+    .pill.web { background: #dbeafe; color: var(--web); }
+    .pill.mobile { background: #ccfbf1; color: var(--mobile); }
+    ul { margin: 8px 0 0; padding-left: 1.1rem; }
+    li { margin: 6px 0; }
+    .footer {
+      margin-top: auto; padding-top: 28px;
+      display: flex; justify-content: space-between; align-items: center;
+      font-size: 13px; color: #94a3b8;
+    }
+    .nav {
+      position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%);
+      display: flex; gap: 10px; z-index: 5;
+    }
+    .nav button {
+      border: 0; background: #1e293b; color: #fff;
+      padding: 10px 16px; border-radius: 999px; cursor: pointer; font-weight: 600;
+    }
+    .nav button:hover { background: var(--accent); }
+    .progress {
+      position: fixed; top: 0; left: 0; height: 4px; background: var(--accent);
+      width: 0; transition: width .2s ease; z-index: 6;
+    }
+    .big-list li { font-size: 1.15rem; margin: 10px 0; }
+    .flow {
+      display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 24px;
+    }
+    .flow .step {
+      background: #fff; border: 1px solid var(--line); border-radius: 12px;
+      padding: 12px 16px; font-weight: 600; color: var(--ink);
+    }
+    .flow .arrow { color: #94a3b8; font-weight: 700; }
+    .quote {
+      font-size: 1.35rem; color: var(--ink); font-weight: 600;
+      max-width: 36ch; line-height: 1.4; margin-top: 12px;
+    }
+    @media (max-width: 800px) {
+      .slide { padding: 28px 24px; }
+      .grid-2, .grid-3 { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="progress" id="progress"></div>
+  <div class="deck" id="deck">
+
+    <!-- 1 -->
+    <section class="slide active" data-title="Title">
+      <div class="brand">Sheikh<span>Go</span></div>
+      <p class="eyebrow">Product demonstration</p>
+      <h1>Fleet operations,<br>from office to road</h1>
+      <p class="hero-sub">One platform for dispatch, compliance, and live fleet control — on the web and in the driver’s pocket.</p>
+      <div class="flow">
+        <div class="step">Web ERP</div><div class="arrow">→</div>
+        <div class="step">Shared API</div><div class="arrow">→</div>
+        <div class="step">Mobile Fleet App</div>
+      </div>
+      <div class="footer"><span>Confidential · Demo</span><span>1 / 14</span></div>
+    </section>
+
+    <!-- 2 -->
+    <section class="slide" data-title="Agenda">
+      <p class="eyebrow">Agenda</p>
+      <h2>What we will cover</h2>
+      <ol class="big-list">
+        <li>The problem SheikhGo solves</li>
+        <li>Platform overview (Web + Mobile)</li>
+        <li>Live walkthrough — Web ERP</li>
+        <li>Live walkthrough — Mobile app</li>
+        <li>Security, roles &amp; audit</li>
+        <li>Roadmap &amp; next steps</li>
+      </ol>
+      <div class="footer"><span>SheikhGo Demo</span><span>2 / 14</span></div>
+    </section>
+
+    <!-- 3 -->
+    <section class="slide" data-title="Problem">
+      <p class="eyebrow">The challenge</p>
+      <h2>Fleet ops are fragmented</h2>
+      <div class="grid-2">
+        <div class="card">
+          <h3>Today (typical)</h3>
+          <ul>
+            <li>WhatsApp / calls for dispatch</li>
+            <li>Spreadsheets for vehicles &amp; drivers</li>
+            <li>No live GPS for the office</li>
+            <li>Paper fuel &amp; inspection records</li>
+            <li>Hard to prove who changed what</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>With SheikhGo</h3>
+          <ul>
+            <li>One ERP for bookings, fleet, trips</li>
+            <li>Drivers execute on mobile</li>
+            <li>Live map + alerts for dispatch</li>
+            <li>Digital fuel, attendance, inspections</li>
+            <li>Roles, security policies, audit trail</li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer"><span>SheikhGo Demo</span><span>3 / 14</span></div>
+    </section>
+
+    <!-- 4 -->
+    <section class="slide" data-title="Overview">
+      <p class="eyebrow">Solution</p>
+      <h2>Two surfaces · one system</h2>
+      <div class="grid-2">
+        <div class="card web">
+          <span class="pill web">Web · sheikhgo-erp</span>
+          <h3>Command center</h3>
+          <ul>
+            <li>Companies, users, roles, permissions</li>
+            <li>Bookings, payments, routes</li>
+            <li>Fleet, GPS, maintenance</li>
+            <li>Modules, subscriptions, menus</li>
+            <li>Security Center &amp; Audit Center</li>
+          </ul>
+        </div>
+        <div class="card mobile">
+          <span class="pill mobile">Mobile · SheikhGo Fleet</span>
+          <h3>Field execution</h3>
+          <ul>
+            <li>Trips &amp; navigation</li>
+            <li>Live GPS (incl. background)</li>
+            <li>Attendance, fuel, inspections</li>
+            <li>Alerts, SOS, notifications</li>
+            <li>Offline sync &amp; biometric lock</li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer"><span>SheikhGo Demo</span><span>4 / 14</span></div>
+    </section>
+
+    <!-- 5 -->
+    <section class="slide" data-title="Architecture">
+      <p class="eyebrow">Architecture</p>
+      <h2>Connected by design</h2>
+      <div class="flow" style="margin-top:32px">
+        <div class="step">ERP (Angular)</div>
+        <div class="arrow">+</div>
+        <div class="step">Fleet App (Flutter)</div>
+        <div class="arrow">→</div>
+        <div class="step">HTTPS API</div>
+        <div class="arrow">→</div>
+        <div class="step">SQL + SignalR</div>
+      </div>
+      <div class="grid-3" style="margin-top:28px">
+        <div class="card"><h3>Tenant isolation</h3><p>Each company sees only its data.</p></div>
+        <div class="card"><h3>Permission engine</h3><p>Screen + API access by role.</p></div>
+        <div class="card"><h3>Real-time</h3><p>Live tracking &amp; push via hubs.</p></div>
+      </div>
+      <div class="footer"><span>SheikhGo Demo</span><span>5 / 14</span></div>
+    </section>
+
+    <!-- 6 -->
+    <section class="slide" data-title="Web 1">
+      <p class="eyebrow">Web walkthrough · Part 1</p>
+      <h2>Platform administration</h2>
+      <div class="grid-2">
+        <div class="card web">
+          <span class="pill web">Demo path</span>
+          <ul>
+            <li>Login as Super Admin / Tenant Admin</li>
+            <li>Open <strong>Platform</strong> hub</li>
+            <li>Companies → org / branches</li>
+            <li>Access Control → users &amp; roles</li>
+            <li>Modules · Features · Subscriptions</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Talking points</h3>
+          <ul>
+            <li>Multi-company ready</li>
+            <li>License &amp; module catalog</li>
+            <li>Menus &amp; workspaces configurable</li>
+            <li>Not a blank CMS — operational fleet ERP</li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer"><span>SheikhGo Demo</span><span>6 / 14</span></div>
+    </section>
+
+    <!-- 7 -->
+    <section class="slide" data-title="Web 2">
+      <p class="eyebrow">Web walkthrough · Part 2</p>
+      <h2>Day-to-day operations</h2>
+      <div class="grid-3">
+        <div class="card"><h3>Bookings</h3><p>Create / confirm / assign vehicles &amp; drivers.</p></div>
+        <div class="card"><h3>Fleet &amp; GPS</h3><p>Live map, devices, geofences, alerts.</p></div>
+        <div class="card"><h3>Trips</h3><p>Lifecycle from schedule to complete.</p></div>
+        <div class="card"><h3>Maintenance</h3><p>Schedules, workshops, compliance docs.</p></div>
+        <div class="card"><h3>Payments</h3><p>Collections linked to bookings.</p></div>
+        <div class="card"><h3>Reports</h3><p>Ops visibility for managers.</p></div>
+      </div>
+      <div class="footer"><span>SheikhGo Demo</span><span>7 / 14</span></div>
+    </section>
+
+    <!-- 8 -->
+    <section class="slide" data-title="Web 3">
+      <p class="eyebrow">Web walkthrough · Part 3</p>
+      <h2>Security &amp; Audit</h2>
+      <div class="grid-2">
+        <div class="card web">
+          <h3>Security Center</h3>
+          <ul>
+            <li>Password age &amp; complexity</li>
+            <li>Lockout after failed logins</li>
+            <li>Session idle timeout</li>
+            <li>Audit level policies</li>
+          </ul>
+        </div>
+        <div class="card web">
+          <h3>Audit Center</h3>
+          <ul>
+            <li>Searchable company events</li>
+            <li>Login / permission / entity actions</li>
+            <li>Retention from security policy</li>
+            <li>CSV export for review</li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer"><span>SheikhGo Demo</span><span>8 / 14</span></div>
+    </section>
+
+    <!-- 9 -->
+    <section class="slide" data-title="Mobile 1">
+      <p class="eyebrow">Mobile walkthrough · Part 1</p>
+      <h2>SheikhGo Fleet app</h2>
+      <div class="grid-2">
+        <div class="card mobile">
+          <span class="pill mobile">Demo path</span>
+          <ul>
+            <li>Login with driver / staff credentials</li>
+            <li>Role-aware dashboard</li>
+            <li>Open assigned trips</li>
+            <li>Start navigation / share GPS</li>
+            <li>Attendance check-in</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Talking points</h3>
+          <ul>
+            <li>Same production API as ERP</li>
+            <li>Works on device with internet only</li>
+            <li>Push notifications for ops events</li>
+            <li>Arabic + English · RTL ready</li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer"><span>SheikhGo Demo</span><span>9 / 14</span></div>
+    </section>
+
+    <!-- 10 -->
+    <section class="slide" data-title="Mobile 2">
+      <p class="eyebrow">Mobile walkthrough · Part 2</p>
+      <h2>Field workflows</h2>
+      <div class="grid-3">
+        <div class="card mobile"><h3>Fuel</h3><p>Submit receipt with photo evidence.</p></div>
+        <div class="card mobile"><h3>Inspections</h3><p>Pre-trip vehicle checklist.</p></div>
+        <div class="card mobile"><h3>Documents</h3><p>Compliance docs on hand.</p></div>
+        <div class="card mobile"><h3>Alerts</h3><p>Overspeed, geofence, offline.</p></div>
+        <div class="card mobile"><h3>SOS</h3><p>Emergency signal to dispatch.</p></div>
+        <div class="card mobile"><h3>Offline</h3><p>Queue actions · sync when back online.</p></div>
+      </div>
+      <div class="footer"><span>SheikhGo Demo</span><span>10 / 14</span></div>
+    </section>
+
+    <!-- 11 -->
+    <section class="slide" data-title="Roles">
+      <p class="eyebrow">Who uses what</p>
+      <h2>Role-based experience</h2>
+      <div class="grid-2">
+        <div class="card">
+          <h3>Web-first</h3>
+          <ul>
+            <li><strong>Super Admin</strong> — platform, companies, migrations</li>
+            <li><strong>Tenant Admin</strong> — company config &amp; access</li>
+            <li><strong>Fleet / Ops Manager</strong> — vehicles, GPS, trips</li>
+            <li><strong>Dispatcher</strong> — bookings &amp; assignment</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Mobile-first</h3>
+          <ul>
+            <li><strong>Driver</strong> — trips, GPS, fuel, attendance</li>
+            <li><strong>Driver Manager</strong> — team oversight on mobile</li>
+            <li><strong>Staff / Ops</strong> — role dashboards &amp; alerts</li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer"><span>SheikhGo Demo</span><span>11 / 14</span></div>
+    </section>
+
+    <!-- 12 -->
+    <section class="slide" data-title="Script">
+      <p class="eyebrow">Suggested live script · ~20 min</p>
+      <h2>Demo flow</h2>
+      <ol class="big-list">
+        <li><strong>2 min</strong> — Problem &amp; value (slides 1–4)</li>
+        <li><strong>7 min</strong> — Web: Platform → Booking → Live map</li>
+        <li><strong>7 min</strong> — Mobile: Trip → GPS → Fuel / Attendance</li>
+        <li><strong>3 min</strong> — Security / Audit highlight</li>
+        <li><strong>1 min</strong> — Q&amp;A / next steps</li>
+      </ol>
+      <div class="footer"><span>SheikhGo Demo</span><span>12 / 14</span></div>
+    </section>
+
+    <!-- 13 -->
+    <section class="slide" data-title="Checklist">
+      <p class="eyebrow">Before you present</p>
+      <h2>Demo readiness</h2>
+      <div class="grid-2">
+        <div class="card web">
+          <span class="pill web">Web</span>
+          <ul>
+            <li>ERP on prod or stable staging</li>
+            <li>Demo tenant + seeded vehicles/drivers</li>
+            <li>Admin + dispatcher logins ready</li>
+            <li>One open booking to assign live</li>
+          </ul>
+        </div>
+        <div class="card mobile">
+          <span class="pill mobile">Mobile</span>
+          <ul>
+            <li>Release APK / IPA on phone</li>
+            <li>Points at Production API</li>
+            <li>Driver login linked to Users</li>
+            <li>Location permission granted</li>
+            <li>Backup Wi‑Fi / hotspot</li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer"><span>SheikhGo Demo</span><span>13 / 14</span></div>
+    </section>
+
+    <!-- 14 -->
+    <section class="slide" data-title="Close">
+      <div class="brand">Sheikh<span>Go</span></div>
+      <p class="eyebrow">Closing</p>
+      <h1>Questions?</h1>
+      <p class="quote">Run the office on the web. Run the road on mobile. One SheikhGo platform.</p>
+      <div class="grid-2" style="margin-top:28px">
+        <div class="card"><h3>Next step</h3><p>Pilot company · train dispatchers · enroll drivers.</p></div>
+        <div class="card"><h3>Contact</h3><p>Replace with your sales / support email before presenting.</p></div>
+      </div>
+      <div class="footer"><span>Thank you</span><span>14 / 14</span></div>
+    </section>
+  </div>
+
+  <div class="nav">
+    <button type="button" id="prev" aria-label="Previous">← Prev</button>
+    <button type="button" id="next" aria-label="Next">Next →</button>
+  </div>
+
+  <script>
+    const slides = [...document.querySelectorAll('.slide')];
+    let i = 0;
+    const progress = document.getElementById('progress');
+    function show(n) {
+      i = (n + slides.length) % slides.length;
+      slides.forEach((s, idx) => s.classList.toggle('active', idx === i));
+      progress.style.width = ((i + 1) / slides.length * 100) + '%';
+      document.title = 'SheikhGo Demo — ' + (slides[i].dataset.title || '');
+    }
+    document.getElementById('prev').onclick = () => show(i - 1);
+    document.getElementById('next').onclick = () => show(i + 1);
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') { e.preventDefault(); show(i + 1); }
+      if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); show(i - 1); }
+      if (e.key === 'Home') show(0);
+      if (e.key === 'End') show(slides.length - 1);
+    });
+    show(0);
+  </script>
+</body>
+</html>

@@ -10,12 +10,19 @@ internal static class CustomerQueryFilters
         string? search,
         bool? isActive,
         string? recency,
-        bool applyRecency = true)
+        bool applyRecency = true,
+        int? tenantId = null)
     {
         var where = "WHERE IsDeleted = 0";
         var parameters = new DynamicParameters();
         var newSince = DateTime.UtcNow.Date.AddDays(-NewCustomerDays);
         parameters.Add("NewSince", newSince);
+
+        if (tenantId.HasValue)
+        {
+            where += " AND TenantId = @TenantId";
+            parameters.Add("TenantId", tenantId.Value);
+        }
 
         if (isActive.HasValue)
         {

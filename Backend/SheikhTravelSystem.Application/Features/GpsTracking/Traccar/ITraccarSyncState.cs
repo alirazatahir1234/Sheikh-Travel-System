@@ -7,4 +7,6 @@ public interface ITraccarSyncState
     void MarkRunning(bool running);
     void RecordJobComplete(string job, TraccarSyncJobResult result);
     void RecordError(string? error);
+    void SetAdaptivePositionInterval(int intervalSeconds, string reason);
+    int GetEffectivePositionIntervalSeconds();
 }

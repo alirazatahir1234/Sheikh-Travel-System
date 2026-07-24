@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SheikhTravelSystem.API.Authorization;
 using SheikhTravelSystem.Application.Common;
+using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Application.Features.Platform;
 
 namespace SheikhTravelSystem.API.Controllers;
@@ -207,6 +208,78 @@ public class PlatformWorkspacesController : BaseApiController
 }
 
 public record SetCompanyWorkspacesRequest(int TenantId, IReadOnlyList<string>? EnabledWorkspaceKeys);
+
+[Authorize]
+[ApiController]
+[Route("api/platform/audit")]
+public class PlatformAuditController : BaseApiController
+{
+    [HttpGet("catalog")]
+    [RequirePermission(PlatformPermissions.AuditView)]
+    public async Task<IActionResult> GetCatalog([FromQuery] bool activeOnly = false)
+        => Ok(await Mediator.Send(new GetAuditCatalogQuery(activeOnly)));
+
+    [HttpGet]
+    [RequirePermission(PlatformPermissions.AuditView)]
+    public async Task<IActionResult> Search(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        [FromQuery] int? tenantId = null,
+        [FromQuery] int? userId = null,
+        [FromQuery] string? category = null,
+        [FromQuery] string? eventKey = null,
+        [FromQuery] string? entityType = null,
+        [FromQuery] int? entityId = null,
+        [FromQuery] string? severity = null,
+        [FromQuery] bool? success = null,
+        [FromQuery] DateTime? fromDate = null,
+        [FromQuery] DateTime? toDate = null,
+        [FromQuery] string? search = null)
+        => Ok(await Mediator.Send(new SearchAuditEventsQuery(
+            page, pageSize, tenantId, userId, category, eventKey, entityType, entityId,
+            severity, success, fromDate, toDate, search)));
+
+    [HttpGet("retention")]
+    [RequirePermission(PlatformPermissions.AuditView)]
+    public async Task<IActionResult> GetRetention([FromQuery] int? tenantId = null)
+        => Ok(await Mediator.Send(new GetAuditRetentionQuery(tenantId)));
+
+    [HttpGet("recent")]
+    [RequirePermission(PlatformPermissions.AuditView)]
+    public async Task<IActionResult> GetRecent(
+        [FromQuery] int? tenantId = null,
+        [FromQuery] int? userId = null,
+        [FromQuery] int take = 20)
+        => Ok(await Mediator.Send(new GetRecentAuditEventsQuery(tenantId, userId, take)));
+
+    [HttpGet("export")]
+    [RequirePermission(PlatformPermissions.AuditView)]
+    public async Task<IActionResult> Export(
+        [FromQuery] int? tenantId = null,
+        [FromQuery] int? userId = null,
+        [FromQuery] string? category = null,
+        [FromQuery] string? eventKey = null,
+        [FromQuery] string? entityType = null,
+        [FromQuery] string? severity = null,
+        [FromQuery] bool? success = null,
+        [FromQuery] DateTime? fromDate = null,
+        [FromQuery] DateTime? toDate = null,
+        [FromQuery] string? search = null,
+        [FromQuery] string format = "csv")
+    {
+        var result = await Mediator.Send(new ExportAuditEventsQuery(
+            tenantId, userId, category, eventKey, entityType, severity, success,
+            fromDate, toDate, search, format));
+        if (!result.Success || result.Data is null)
+            return Ok(result);
+        return File(result.Data.Content, result.Data.ContentType, result.Data.FileName);
+    }
+
+    [HttpGet("{id:int}")]
+    [RequirePermission(PlatformPermissions.AuditView)]
+    public async Task<IActionResult> GetById(int id, [FromQuery] int? tenantId = null)
+        => Ok(await Mediator.Send(new GetAuditEventByIdQuery(id, tenantId)));
+}
 
 [Authorize]
 [ApiController]
@@ -428,6 +501,7 @@ public class SubscriptionsController : BaseApiController
 }
 
 [Authorize]
+[RequirePermission(PlatformPermissions.SettingsView)]
 [ApiController]
 [Route("api/platform/license")]
 public class LicenseController : BaseApiController
@@ -485,3 +559,90 @@ public class DataScopeController : BaseApiController
     public async Task<IActionResult> GetMine()
         => Ok(await Mediator.Send(new GetMyDataScopeQuery()));
 }
+
+[RequirePermission(PlatformPermissions.GpsControlView)]
+[ApiController]
+[Route("api/platform/gps-control")]
+public class PlatformGpsControlController : BaseApiController
+{
+    [HttpGet("dashboard")]
+    public async Task<IActionResult> Dashboard()
+        => Ok(await Mediator.Send(new GetGpsControlDashboardQuery()));
+
+    [HttpGet("manufacturers")]
+    public async Task<IActionResult> Manufacturers()
+        => Ok(await Mediator.Send(new GetGpsManufacturersQuery()));
+
+    [RequirePermission(PlatformPermissions.GpsManufacturersManage)]
+    [HttpPost("manufacturers")]
+    public async Task<IActionResult> UpsertManufacturer([FromBody] GpsManufacturerDto dto)
+        => Ok(await Mediator.Send(new UpsertGpsManufacturerCommand(dto)));
+
+    [HttpGet("models")]
+    public async Task<IActionResult> Models([FromQuery] int? brandId = null)
+        => Ok(await Mediator.Send(new GetGpsTrackerModelsQuery(brandId)));
+
+    [RequirePermission(PlatformPermissions.GpsModelsManage)]
+    [HttpPost("models")]
+    public async Task<IActionResult> UpsertModel([FromBody] GpsTrackerModelDto dto)
+        => Ok(await Mediator.Send(new UpsertGpsTrackerModelCommand(dto)));
+
+    [HttpGet("capabilities")]
+    public async Task<IActionResult> Capabilities()
+        => Ok(await Mediator.Send(new GetGpsCapabilitiesQuery()));
+
+    [HttpGet("models/{modelId:int}/capabilities")]
+    public async Task<IActionResult> ModelCapabilities(int modelId)
+        => Ok(await Mediator.Send(new GetGpsModelCapabilitiesQuery(modelId)));
+
+    [RequirePermission(PlatformPermissions.GpsModelsManage)]
+    [HttpPut("models/{modelId:int}/capabilities/{capabilityKey}")]
+    public async Task<IActionResult> SetModelCapability(int modelId, string capabilityKey, [FromQuery] bool enabled = true)
+        => Ok(await Mediator.Send(new SetGpsModelCapabilityCommand(modelId, capabilityKey, enabled)));
+
+    [HttpGet("commands")]
+    public async Task<IActionResult> Commands()
+        => Ok(await Mediator.Send(new GetGpsCommandDefinitionsQuery()));
+
+    [HttpGet("commands/parameters")]
+    public async Task<IActionResult> CommandParameters([FromQuery] string? commandKey = null)
+        => Ok(await Mediator.Send(new GetGpsCommandParametersQuery(commandKey)));
+
+    [HttpGet("templates")]
+    public async Task<IActionResult> Templates([FromQuery] int? modelId = null)
+        => Ok(await Mediator.Send(new GetGpsCommandTemplatesQuery(modelId)));
+
+    [RequirePermission(PlatformPermissions.GpsTemplatesManage)]
+    [HttpPost("templates")]
+    public async Task<IActionResult> UpsertTemplate([FromBody] GpsCommandTemplateDto dto)
+        => Ok(await Mediator.Send(new UpsertGpsCommandTemplateCommand(dto)));
+
+    [RequirePermission(PlatformPermissions.GpsSimulatorUse)]
+    [HttpPost("translate")]
+    public async Task<IActionResult> Translate([FromBody] GpsTranslateRequest request)
+        => Ok(await Mediator.Send(new TranslateGpsCommandQuery(request)));
+
+    [RequirePermission(PlatformPermissions.GpsSimulatorUse)]
+    [HttpPost("simulate")]
+    public async Task<IActionResult> Simulate([FromBody] GpsTranslateRequest request)
+        => Ok(await Mediator.Send(new SimulateGpsCommandCommand(request)));
+
+    [RequirePermission(PlatformPermissions.GpsApprove)]
+    [HttpPost("commands/{id:int}/approve")]
+    public async Task<IActionResult> Approve(int id, [FromBody] ApproveGpsRequest body)
+        => Ok(await Mediator.Send(new ApproveGpsDeviceCommandCommand(id, body.Approve, body.Note)));
+
+    [RequirePermission(PlatformPermissions.GpsBulkExecute)]
+    [HttpPost("commands/bulk")]
+    public async Task<IActionResult> Bulk([FromBody] BulkExecuteGpsRequest body)
+        => Ok(await Mediator.Send(new BulkExecuteGpsCommandCommand(
+            body.DeviceIds, body.CommandKey, body.Parameters, body.Reason)));
+}
+
+public record ApproveGpsRequest(bool Approve, string? Note = null);
+
+public record BulkExecuteGpsRequest(
+    IReadOnlyList<int> DeviceIds,
+    string CommandKey,
+    IReadOnlyDictionary<string, string>? Parameters = null,
+    string? Reason = null);

@@ -31,6 +31,7 @@ public class FuelLogsController : BaseApiController
     /// <summary>
     /// Creates a new fuel log entry.
     /// </summary>
+    [RequirePermission(FinancePermissions.FuelCreate)]
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateFuelLogCommand command)
     {
@@ -41,6 +42,7 @@ public class FuelLogsController : BaseApiController
     /// <summary>
     /// Updates an existing fuel log entry.
     /// </summary>
+    [RequirePermission(FinancePermissions.FuelUpdate)]
     [HttpPut("{id:int}")]
     public async Task<IActionResult> Update(int id, [FromBody] UpdateFuelLogCommand command)
         => Ok(await Mediator.Send(command with { Id = id }));
@@ -48,6 +50,7 @@ public class FuelLogsController : BaseApiController
     /// <summary>
     /// Deletes a fuel log entry.
     /// </summary>
+    [RequirePermission(FinancePermissions.FuelUpdate)]
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(int id)
         => Ok(await Mediator.Send(new DeleteFuelLogCommand(id)));

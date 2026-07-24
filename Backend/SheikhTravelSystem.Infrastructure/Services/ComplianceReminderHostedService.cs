@@ -56,10 +56,11 @@ public class ComplianceReminderHostedService(
         using var connection = dbFactory.CreateConnection();
         var threshold = DateTime.UtcNow.AddDays(30);
 
-        var expiringDrivers = await connection.QueryAsync<(int Id, string Name, DateTime Expiry)>(
+        var expiringDrivers = await connection.QueryAsync<(int Id, string Name, DateTime Expiry, int TenantId)>(
             new CommandDefinition(
-                @"SELECT Id, FullName, LicenseExpiryDate FROM Drivers
-                  WHERE IsDeleted = 0 AND IsActive = 1 AND LicenseExpiryDate <= @Threshold",
+                @"SELECT Id, FullName, LicenseExpiryDate, TenantId FROM Drivers
+                  WHERE IsDeleted = 0 AND IsActive = 1 AND LicenseExpiryDate <= @Threshold
+                    AND TenantId IS NOT NULL AND TenantId > 0",
                 new { Threshold = threshold },
                 cancellationToken: cancellationToken));
 
@@ -71,14 +72,16 @@ public class ComplianceReminderHostedService(
                 $"{d.Name} license expires on {d.Expiry:yyyy-MM-dd}.",
                 NotificationType.TripDelayed,
                 ReferenceId: d.Id,
+                TenantId: d.TenantId,
                 SuggestedPriority: 3,
                 RequestedChannels: [NotificationChannels.InApp, NotificationChannels.Email]), cancellationToken);
         }
 
-        var expiringVehicles = await connection.QueryAsync<(int Id, string Name, DateTime? Expiry)>(
+        var expiringVehicles = await connection.QueryAsync<(int Id, string Name, DateTime? Expiry, int TenantId)>(
             new CommandDefinition(
-                @"SELECT Id, Name, InsuranceExpiryDate FROM Vehicles
-                  WHERE IsDeleted = 0 AND InsuranceExpiryDate IS NOT NULL AND InsuranceExpiryDate <= @Threshold",
+                @"SELECT Id, Name, InsuranceExpiryDate, TenantId FROM Vehicles
+                  WHERE IsDeleted = 0 AND InsuranceExpiryDate IS NOT NULL AND InsuranceExpiryDate <= @Threshold
+                    AND TenantId IS NOT NULL AND TenantId > 0",
                 new { Threshold = threshold },
                 cancellationToken: cancellationToken));
 
@@ -90,14 +93,18 @@ public class ComplianceReminderHostedService(
                 $"{v.Name} insurance expires on {v.Expiry:yyyy-MM-dd}.",
                 NotificationType.VehicleOffline,
                 ReferenceId: v.Id,
+                TenantId: v.TenantId,
                 SuggestedPriority: 3,
                 RequestedChannels: [NotificationChannels.InApp, NotificationChannels.Email]), cancellationToken);
         }
 
-        var maintenanceDue = await connection.QueryAsync<(int Id, int VehicleId, DateTime Due)>(
+        var maintenanceDue = await connection.QueryAsync<(int Id, int VehicleId, DateTime Due, int TenantId)>(
             new CommandDefinition(
-                @"SELECT Id, VehicleId, NextDueDate FROM Maintenance
-                  WHERE IsDeleted = 0 AND NextDueDate IS NOT NULL AND NextDueDate <= @Threshold",
+                @"SELECT m.Id, m.VehicleId, m.NextDueDate, v.TenantId
+                  FROM Maintenance m
+                  INNER JOIN Vehicles v ON v.Id = m.VehicleId
+                  WHERE m.IsDeleted = 0 AND m.NextDueDate IS NOT NULL AND m.NextDueDate <= @Threshold
+                    AND v.TenantId IS NOT NULL AND v.TenantId > 0",
                 new { Threshold = threshold },
                 cancellationToken: cancellationToken));
 
@@ -109,14 +116,18 @@ public class ComplianceReminderHostedService(
                 $"Vehicle #{m.VehicleId} maintenance due on {m.Due:yyyy-MM-dd}.",
                 NotificationType.VehicleOffline,
                 ReferenceId: m.VehicleId,
+                TenantId: m.TenantId,
                 SuggestedPriority: 3,
                 RequestedChannels: [NotificationChannels.InApp, NotificationChannels.Email]), cancellationToken);
         }
 
-        var docExpiring = await connection.QueryAsync<(int VehicleId, string Type, DateTime Expiry)>(
+        var docExpiring = await connection.QueryAsync<(int VehicleId, string Type, DateTime Expiry, int TenantId)>(
             new CommandDefinition(
-                @"SELECT VehicleId, DocumentType, ExpiryDate FROM VehicleDocuments
-                  WHERE IsDeleted = 0 AND ExpiryDate IS NOT NULL AND ExpiryDate <= @Threshold",
+                @"SELECT d.VehicleId, d.DocumentType, d.ExpiryDate, v.TenantId
+                  FROM VehicleDocuments d
+                  INNER JOIN Vehicles v ON v.Id = d.VehicleId
+                  WHERE d.IsDeleted = 0 AND d.ExpiryDate IS NOT NULL AND d.ExpiryDate <= @Threshold
+                    AND v.TenantId IS NOT NULL AND v.TenantId > 0",
                 new { Threshold = threshold },
                 cancellationToken: cancellationToken));
 
@@ -128,6 +139,7 @@ public class ComplianceReminderHostedService(
                 $"{doc.Type} for vehicle #{doc.VehicleId} expires on {doc.Expiry:yyyy-MM-dd}.",
                 NotificationType.VehicleOffline,
                 ReferenceId: doc.VehicleId,
+                TenantId: doc.TenantId,
                 SuggestedPriority: 3,
                 RequestedChannels: [NotificationChannels.InApp, NotificationChannels.Email]), cancellationToken);
         }

@@ -126,10 +126,16 @@ public sealed class NotificationDecisionEngine(
         NotificationDecisionRequest request,
         CancellationToken cancellationToken = default)
     {
-        var tenantId = request.TenantId
-            ?? tenantContext.TenantId
-            ?? tenantContext.GetRequiredTenantId();
-        var decision = await EvaluateAsync(request, cancellationToken);
+        var tenantId = request.TenantId ?? tenantContext.TenantId;
+        if (tenantId is not int tid || tid <= 0)
+        {
+            logger.LogDebug(
+                "Skipping notification dispatch for {EventType}: no tenant context (background/hosted callers must pass TenantId).",
+                request.EventType);
+            return 0;
+        }
+
+        var decision = await EvaluateAsync(request with { TenantId = tid }, cancellationToken);
         if (!decision.ShouldNotify)
         {
             logger.LogDebug("Notification suppressed ({Decision}): {EventType} — {Reason}",
@@ -160,7 +166,7 @@ public sealed class NotificationDecisionEngine(
             return decision.Channels.Count;
         }
 
-        var recipientIds = await recipientResolver.ResolveUserIdsAsync(request, tenantId, cancellationToken);
+        var recipientIds = await recipientResolver.ResolveUserIdsAsync(request, tid, cancellationToken);
         if (recipientIds.Count == 0)
             return 0;
 
@@ -174,7 +180,7 @@ public sealed class NotificationDecisionEngine(
 
                 var templateKey = TemplateFor(request.EventType);
                 if (await AlreadyDispatchedAsync(
-                        userId, tenantId, request.ReferenceId, templateKey, channel,
+                        userId, tid, request.ReferenceId, templateKey, channel,
                         DefaultCooldown(request.EventType), cancellationToken))
                 {
                     logger.LogDebug(
@@ -187,7 +193,7 @@ public sealed class NotificationDecisionEngine(
                 // Email/SMS/WhatsApp: queue for NotificationDispatchHostedService so
                 // SMTP latency cannot block driver actions (Accept Trip times out at 20s).
                 await notifications.CreateAndDispatchAsync(new NotificationCreateOptions(
-                    userId, tenantId, request.Title, request.Message, request.Type, request.ReferenceId,
+                    userId, tid, request.Title, request.Message, request.Type, request.ReferenceId,
                     decision.Priority, channel, Module: ModuleFor(request.EventType),
                     TemplateKey: templateKey,
                     SendNow: IsRealtimeChannel(channel)), cancellationToken);

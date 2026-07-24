@@ -42,9 +42,7 @@ public static class PlatformSchemaMigration
         await EnsureOrganizationAndAccessMenusAsync(connection, cancellationToken);
         await EnsureFleetMenusAsync(connection, cancellationToken);
         await EnsurePlatformAdminMenusAsync(connection, cancellationToken);
-        await UpsertMenuUnderModuleAsync(
-            connection, "administration", "Database Reset", "/platform/maintenance", "build_circle",
-            PlatformPermissions.SystemReset, 12, cancellationToken);
+        // Database Reset / Settings live under Platform (see PlatformAdminFoundationMigration).
         await DeduplicatePlatformMenusAsync(connection, cancellationToken);
         await EnsurePlatformMenuUniqueIndexAsync(connection, cancellationToken);
         await EnsureDefaultSuperAdminAsync(connection, cancellationToken);
@@ -405,7 +403,6 @@ public static class PlatformSchemaMigration
         foreach (var (name, route, icon, permission, sort) in accessMenus)
             await UpsertMenuUnderModuleAsync(connection, "access_control", name, route, icon, permission, sort, ct);
 
-        await UpsertMenuUnderModuleAsync(connection, "administration", "Settings", "/settings", "tune", "Platform.Settings.View", 10, ct);
         await UpsertMenuUnderModuleAsync(
             connection, "administration", "Notification Center", "/notifications", "notifications",
             "Platform.Dashboard.View", 11, ct);
@@ -415,7 +412,8 @@ public static class PlatformSchemaMigration
             FROM PlatformMenus pm
             INNER JOIN PlatformModules m ON m.Id = pm.ModuleId
             WHERE m.ModuleKey = 'administration'
-              AND pm.Name IN (N'Tenants', N'Users', N'Roles', N'Branches', N'Departments', N'Allowance Rules');
+              AND pm.Name IN (N'Tenants', N'Users', N'Roles', N'Branches', N'Departments', N'Allowance Rules',
+                              N'Settings', N'Database Reset', N'Maintenance', N'Tenant Settings', N'System Configuration');
             """, cancellationToken: ct));
     }
 
@@ -616,11 +614,7 @@ public static class PlatformSchemaMigration
         await SeedMenuItemAsync(connection, "finance", null, "Payments", "/payments", "payments", "Payment.View", 1, ct);
         await SeedMenuItemAsync(connection, "analytics", null, "Reports", "/reports", "insights", "Report.View", 1, ct);
         await SeedMenuItemAsync(connection, "analytics", null, "Audit Logs", "/audit-logs", "history", "Platform.AuditLogs.View", 2, ct);
-        await SeedMenuItemAsync(connection, "administration", null, "Users", "/users", "manage_accounts", "Platform.Users.View", 1, ct);
-        await SeedMenuItemAsync(connection, "administration", null, "Roles", "/users", "security", "Platform.Roles.View", 2, ct);
-        await SeedMenuItemAsync(connection, "administration", null, "Allowance Rules", "/driver-allowance-rules", "rule", "Platform.Roles.Manage", 3, ct);
         await SeedMenuItemAsync(connection, "administration", null, "Notification Center", "/notifications", "notifications", "Platform.Dashboard.View", 11, ct);
-        await SeedMenuItemAsync(connection, "administration", null, "Settings", "/settings", "tune", "Platform.Settings.View", 10, ct);
     }
 
     private static async Task SeedMenuItemAsync(

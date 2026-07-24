@@ -47,7 +47,7 @@ public static class SecurityPolicyRegistrySeed
         new(SecurityPolicyKeys.PasswordComplexity, "Password complexity", "Password",
             "Require mixed case, digit, and symbol when true.", "false", "Bool", 20),
         new(SecurityPolicyKeys.PasswordMaxAgeDays, "Password max age (days)", "Password",
-            "Soft-block login when password age exceeds this. 0 = disabled.", "90", "Int", 30),
+            "Soft-block login when password age exceeds this. 0 = disabled.", "0", "Int", 30),
         new(SecurityPolicyKeys.PasswordHistoryCount, "Password history count", "Password",
             "Reserved for future history checks. Stored only in foundation.", "0", "Int", 40),
 

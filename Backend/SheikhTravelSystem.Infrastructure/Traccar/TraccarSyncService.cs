@@ -9,6 +9,7 @@ namespace SheikhTravelSystem.Infrastructure.Traccar;
 public class TraccarSyncService(
     IServiceScopeFactory scopeFactory,
     IOptions<TraccarOptions> options,
+    ITraccarSyncState syncState,
     ILogger<TraccarSyncService> logger) : BackgroundService
 {
     private DateTime _lastPositionSync = DateTime.MinValue;
@@ -33,14 +34,18 @@ public class TraccarSyncService(
             return;
         }
 
-        var positionInterval = TimeSpan.FromSeconds(Math.Max(1, opts.ResolvedPositionIntervalSeconds));
         var eventInterval = TimeSpan.FromSeconds(Math.Max(1, opts.EventSyncIntervalSeconds));
         var deviceInterval = TimeSpan.FromSeconds(Math.Max(60, opts.DeviceSyncIntervalSeconds));
+        var movingFloor = Math.Max(1, opts.ResolvedPositionIntervalSeconds);
+
+        // Seed adaptive cadence to moving floor until first position sync classifies the fleet.
+        syncState.SetAdaptivePositionInterval(movingFloor, TraccarAdaptiveInterval.ReasonDefault);
 
         logger.LogInformation(
-            "Traccar sync scheduler started from {Url}. Intervals: positions {Pos}s, events {Evt}s, devices {Dev}s",
+            "Traccar sync scheduler started from {Url}. Adaptive={Adaptive}. Floor positions {Pos}s, events {Evt}s, devices {Dev}s",
             opts.BaseUrl,
-            positionInterval.TotalSeconds,
+            opts.AdaptivePositionSync,
+            movingFloor,
             eventInterval.TotalSeconds,
             deviceInterval.TotalSeconds);
 
@@ -57,6 +62,10 @@ public class TraccarSyncService(
         while (!stoppingToken.IsCancellationRequested)
         {
             var now = DateTime.UtcNow;
+            var positionInterval = TimeSpan.FromSeconds(
+                opts.AdaptivePositionSync
+                    ? syncState.GetEffectivePositionIntervalSeconds()
+                    : movingFloor);
 
             try
             {

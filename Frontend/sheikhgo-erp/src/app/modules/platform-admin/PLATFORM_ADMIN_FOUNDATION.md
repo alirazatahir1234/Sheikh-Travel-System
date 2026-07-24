@@ -17,6 +17,7 @@ Living gap analysis for the 15-stage Platform Administration roadmap.
 - Stage 13: Security Center foundation
 - Stage 14: Audit Center
 - Stage 15: Backend Permission Enforcement
+- Stage 16: GPS Device Control Center
 ## Role visibility
 
 | Capability | Super Admin (`SUPER_ADMIN`) | Tenant Admin (`TENANT_ADMIN`) |
@@ -46,10 +47,11 @@ Living gap analysis for the 15-stage Platform Administration roadmap.
 | Workspaces | `/platform/workspace-management` | Workspace catalog + company enablement (not a page designer) |
 | Subscriptions | `/platform/subscription-management` | license panels + existing billing |
 | Security | `/platform/security-center` | **Stage 13** — policy registry + soft consume (Access Policies tab becomes deep-link / alias) |
+| Permission Coverage | `/platform/permission-coverage` | **Stage 15** — read-only API inventory vs `RequirePermission` |
 | Migrations | `/platform/migrations` | existing |
 | System Maintenance | `/platform/maintenance` | database reset (label clarified) |
 | Settings | `/settings` | settings module (Security category soft-delegates to Security Center) |
-| Audit | `/audit-logs` | audit-logs module (Stage 14) |
+| Audit | `/platform/audit-center` | **Stage 14** — Audit Center (registry + AuditEvents); `/audit-logs` redirects |
 
 ### Stage 1 redirects / duplicates
 
@@ -74,12 +76,12 @@ Living gap analysis for the 15-stage Platform Administration roadmap.
 | Entry | Action |
 |-------|--------|
 | `Modules` table | Metadata columns (category, version, status, capability flags, deps, …) |
-| Catalog seed | Active enableable codes + Coming Soon / Beta product modules |
+| Catalog seed | Active enableable codes + Active bundled (non-enableable) capability rows + Coming Soon / Beta |
 | `GET /api/platform/modules` | Enableable definitions (enriched) |
 | `GET /api/platform/modules/catalog` | Full registry catalog |
 | `GET /api/platform/modules/company` | Company installed + licensed (plan-allowed) |
 | `GET /api/platform/modules/{codeOrId}` | Single registry entry |
-| Module Management UI | Metadata display + filters; toggles only for Active enableable |
+| Module Management UI | Metadata display + filters; toggles only for Active enableable; bundled rows show “Included in {parent}” |
 | Mobile | Company context `modules[]` parsed; read-only chips on profile / more |
 
 ### Stage 4 Subscription & License
@@ -129,11 +131,12 @@ flowchart TB
   tenantFeatures --> permissions[Permissions_Stage8]
 ```
 
-## Stage matrix (1–15)
+## Stage matrix (1–16)
 
 | # | Stage | Status | Notes |
 |---|-------|--------|-------|
 | 1 | Platform Administration Foundation | **Done** | Hub, nav sync, ops permissions, child gates, gap doc |
+| 1b | Platform Navigation Cleanup | **Done** | Administration no longer duplicates Platform Settings / Database Reset |
 | 2 | Company Business Model | **Done** | Company vocabulary; Feature Registry; mobile context |
 | 3 | Module Registry | **Done** | Metadata on `Modules`; catalog/company APIs; Module Management enrichment; mobile module list |
 | 4 | Subscription & License | **Done (foundation)** | Plan catalog + license APIs; soft Licensed semantics; consumes Module Registry; hard enforcement deferred |
@@ -146,8 +149,9 @@ flowchart TB
 | 11 | Dashboard Builder | **Done (foundation)** | Registry + layout APIs; ERP management; mobile consume + soft gates |
 | 12 | Data Scope Engine | **Done (foundation)** | ScopeLevel + engine; pilot Vehicles/Drivers/GPS/fleet reports; soft scopes |
 | 13 | Security Center | **Done (foundation)** | Policy registry + soft enforce; Security Center UX; mobile safe summary |
-| 14 | Audit Center | Partial | View/filter audit logs |
-| 15 | Backend Permission Enforcement | Partial | Strong on platform/fleet; gaps on bookings/payments/etc. |
+| 14 | Audit Center | **Done (foundation)** | Registry + AuditEvents + engine; ERP explorer; mobile summary |
+| 15 | Backend Permission Enforcement | **Done (foundation)** | Catalog write codes; controller attrs; Data Scope expansion; audit markers; coverage page |
+| 16 | GPS Device Control Center | **Done (foundation)** | Manufacturers/models/capabilities/commands/templates; translator; transports; simulator; EV26R seed |
 
 ## Foundation permissions (Stage 1)
 
@@ -156,6 +160,17 @@ flowchart TB
 | `Platform.Migrations.View` | View schema migration status |
 | `Platform.Migrations.Manage` | Apply pending migrations |
 | `Platform.System.Reset` | Database reset (still Super Admin + Dev/Staging) |
+
+### Navigation ownership (post Stage 15 cleanup)
+
+| Menu | Canonical parent | Notes |
+|------|------------------|-------|
+| Settings | **Platform** | Retired from Administration |
+| Database Reset | **Platform** | Retired from Administration |
+| Notification Center | **Administration** | Operational tool, not Platform catalog |
+| Users / Roles / Permissions | **Access Control** | Identity hub |
+
+`PlatformNavigationCleanupMigration` deactivates Administration copies of Platform-owned routes. Live nav is driven by `GET /api/platform/menus/me` (DB), with `menu-config.ts` as API fallback only.
 
 ## Stage 2 deliverables
 
@@ -166,9 +181,9 @@ flowchart TB
 
 ## Stage 3 deliverables
 
-- **Module Registry:** Metadata on existing `Modules` (no duplicate tables). Status: Active / Beta / Coming Soon / Deprecated / Disabled.
+- **Module Registry:** Metadata on existing `Modules` (no duplicate tables). Status: Active / Beta / Coming Soon / Deprecated / Disabled. Shipped capability rows (Drivers, Vehicles, Bookings, …) are **Active + non-enableable** (included in parent `TenantModuleCatalog` toggles such as Fleet/Travel); Coming Soon is reserved for unfinished product modules.
 - **APIs:** Catalog, company, by-key read models; existing enable/disable PUT unchanged.
-- **ERP:** Module Management shows category, version, dependencies, status, Mobile/AI/GPS, Installed/Licensed.
+- **ERP:** Module Management shows category, version, dependencies, status, Mobile/AI/GPS, Installed/Licensed; bundled rows show Included-in chips.
 - **Mobile:** Parses installed `modules[]`; display-only chips. No module admin.
 
 ## Stage 4 deliverables
@@ -579,7 +594,7 @@ flowchart TD
 - Changing global JWT signing secret / issuer design
 - Mobile security admin CRUD
 - Data Scope / Permission Engine redesign
-- Stage 15 mass `[RequirePermission]` rollout
+- (Stage 15 foundation complete separately — see Stage 15 section)
 
 ### Implementation slices
 
@@ -609,11 +624,205 @@ flowchart TD
 
 Stage 12 clamps **which rows** a user sees. Stage 13 clamps **how users authenticate / stay signed in / whether audits write**. Do not put `ScopeLevel` or branch filters into Security Center.
 
-### Handoff to Stage 14 (Audit Center)
+---
 
-Stage 14 upgrades audit **browse/export/retention UX**. Stage 13 only soft-gates writes via `compliance.audit_logging_enabled` and may emit richer security event types later — not a second audit UI.
+## Stage 14 — Audit Center (foundation) — **Done**
 
-## Deferred (explicit non-goals of Stages 1–11)
+> **Status:** **Done (foundation).** Registry `AuditEventDefinitions` + store `AuditEvents` via `IAuditEngine`; dual-write legacy `AuditLogs`; Stage 13 `audit.level` / `audit.login_events` gate writes.
+> **Route (ERP):** `/platform/audit-center` (canonical); `/audit-logs` redirects. Security Center deep-links security events.
+> **Consumes:** Stage 13 Security Center policies.
+> **Produces:** Centralized audit events + company `audit` summary.
+> **Feeds:** Stage 15 Backend Enforcement (orthogonal).
+
+### Deliverables
+
+- **Schema:** `AuditEventDefinitions` + `AuditEvents`; permissions `Platform.Audit.View` / `Manage`.
+- **Engine:** `IAuditEngine` records + search/detail/recent/retention/export; MediatR + login/logout/lockout capture.
+- **APIs:** `/api/platform/audit/*`.
+- **ERP:** Audit Center explorer + export; company/user recent strips; Settings/Security deep-links.
+- **Mobile:** company-context `audit` chips only (no search/admin).
+
+---
+
+## Stage 14 plan — Audit Center (foundation) — historical notes
+
+> **Status:** Superseded by **Done (foundation)** above. Baseline before implementation was tenant-scoped `AuditLogs` list only.
+> **Depends on:** Stage 8 Permission Engine (gates), Stage 13 Security Center (`audit.level`, `audit.login_events`, `compliance.data_retention_days` — **consume**, do not fork a second policy UI).
+> **Route (ERP):** Keep canonical `/audit-logs` as Audit Center; optionally alias `/platform/audit-center` → same module. Security Center deep-links here with query filters.
+> **Does not replace:** Security Center policy editing, SIEM/log shipping, full before/after change-tracking product, mobile audit admin.
+
+### Problem statement
+
+Audit is **writable but shallow**:
+
+| Surface | Today |
+|---------|--------|
+| Write path | `AuditLoggingBehavior` → `AuditService` inserts Action / EntityName / EntityId / UserId / IpAddress only |
+| `OldValues` / `NewValues` | Columns exist — **never filled** |
+| Login / logout / failed login | Not audited; `audit.login_events` seeded but unused |
+| Failure path | Behavior only runs after success — failed commands not logged |
+| Read API | Filters: Action, EntityName, UserId, From/To, optional TenantId; no Category, free-text, IP, export |
+| ERP `/audit-logs` | List + filters + Excel/PDF of **current page**; no detail drawer, no tenant picker, static incomplete Action/Entity enums |
+| Retention | Settings `LogRetentionDays` + policy `compliance.data_retention_days` — **no purge job** |
+| Deep-links | Hub / tenant list → `/audit-logs`; Security Center has **no** filtered deep-link |
+
+Stage 14 upgrades **browse / detail / export / retention / auth-event soft emit** so operators can investigate company activity without building a SIEM.
+
+### Locked approach
+
+Treat Audit Center as **operations + soft enrichment of the existing `AuditLogs` table**, not a new telemetry platform.
+
+```mermaid
+flowchart LR
+  Commands[IAuditableCommand]
+  Auth[Login_Logout_soft]
+  Level[audit.level_gate]
+  Store[AuditLogs]
+  API[Audit_read_export]
+  UI[ERP_Audit_Center]
+  Retain[Retention_job]
+  Commands --> Level
+  Auth --> Level
+  Level --> Store
+  Store --> API
+  API --> UI
+  Retain --> Store
+```
+
+**Reuse:** `AuditLogs`, `IAuditService`, `AuditLoggingBehavior`, `GET /api/AuditLogs`, ERP `audit-logs` module, `Platform.AuditLogs.View`, Stage 13 `audit.level` / `audit.login_events` / `compliance.data_retention_days`.
+
+**Do not:** Elasticsearch/OpenSearch, immutable WORM storage, PII redaction engine, distributed tracing, replace MediatR pipeline with EventStore, mobile audit admin, Stage 15 permission blanket.
+
+### Semantics
+
+| Term | Meaning |
+|------|---------|
+| **Audit event** | One `AuditLogs` row: who / what / when / where (IP) / optional category + severity + JSON payloads |
+| **Category** | Soft taxonomy for filters: `Security`, `Auth`, `Data`, `Admin`, `System` (metadata column or derived from EntityName) |
+| **Severity** | Soft: `Info` / `Warning` / `Error` / `Critical` — aligns with Stage 13 `audit.level` heuristics |
+| **Retention** | Soft purge of soft-deleted or aged rows per company retention days (from Security policy or Settings adapter) |
+
+### 14.1 Schema + seed (additive)
+
+**Migration:** `AuditCenterFoundationMigration` registered in `DatabaseMigrationRegistry.cs`.
+
+| Change | Shape |
+|--------|--------|
+| `AuditLogs.Category` | NVARCHAR(50) NULL — backfill from EntityName heuristics where possible |
+| `AuditLogs.Severity` | NVARCHAR(20) NULL — default `Info`; Delete/Reset/SecurityPolicy → `Critical`; Fail* → `Error` |
+| `AuditLogs.CorrelationId` | NVARCHAR(64) NULL — optional request id |
+| `AuditLogs.UserAgent` | NVARCHAR(256) NULL — soft, truncated |
+| Indexes | `(TenantId, CreatedAt DESC)`, `(TenantId, Category, CreatedAt)`, `(TenantId, EntityName, EntityId)` if missing |
+
+**No new “AuditPolicyDefinitions” table** — retention/level stay in Security Center. Optionally seed `PlatformMenus` alias row for `/platform/audit-center` → same route as `/audit-logs`.
+
+**Permissions (additive):**
+
+| Code | Purpose |
+|------|---------|
+| `Platform.AuditLogs.View` | Existing — browse |
+| `Platform.AuditLogs.Export` | Server export / large CSV |
+| `Platform.AuditLogs.Manage` | Retention run / purge (Super Admin or Tenant Admin with manage) |
+
+### 14.2 Write-path enrichment (soft)
+
+| Area | Behavior |
+|------|----------|
+| `IAuditService` | Extend overload(s) for optional `oldValues` / `newValues` / `category` / `severity` / `correlationId` — **backward compatible** existing `LogAsync(action, entity, id)` |
+| `AuditLoggingBehavior` | Keep success-path; optionally log **failed** commands at Severity=Error when `audit.level` allows Errors/Always (soft, try/catch, never break request) |
+| Login / logout | When `audit.login_events=true`: emit Auth category events (`LoginSuccess`, `LoginFailed`, `Logout`, `Lockout`) — no password/PII in payloads |
+| Security policy changes | Already audited as `SecurityPolicy`; ensure Category=`Security`, Severity=`Critical` |
+| Old/New values | Soft: only for selected high-value commands (Users status, Security policies, Role permissions) — JSON truncated; **not** every entity |
+
+### 14.3 Read / export APIs
+
+Extend under existing `AuditLogsController` (or thin `/api/platform/audit` alias):
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET | `/api/AuditLogs` | Enhanced filters: Category, Severity, EntityId, IpAddress contains, free-text (Action/EntityName), TenantId (platform scope) |
+| GET | `/api/AuditLogs/{id}` | Detail including OldValues/NewValues |
+| GET | `/api/AuditLogs/export` | Server CSV/Excel stream (capped, e.g. 10k rows); requires `Platform.AuditLogs.Export` |
+| GET | `/api/AuditLogs/summary` | Soft counts by Category / last 24h (optional hub strip) |
+| POST | `/api/AuditLogs/retention/run` | Manual retention purge for tenant; `Manage` + dual-read retention days from Security Engine |
+
+Respect tenant isolation; Super Admin may pass `tenantId` (existing pattern).
+
+### 14.4 ERP Audit Center UX
+
+- Upgrade [`audit-log-list`](Frontend/sheikhgo-erp/src/app/modules/audit-logs/) into Audit Center: Category / Severity chips, tenant picker (platform), query-param deep-links (`?entity=SecurityPolicy&category=Security`), detail drawer (JSON Old/New).
+- Server export button (gated by Export permission); keep page export as fallback.
+- Hub card copy → “Audit Center”; menu label can stay “Audit Logs” or rename to Audit Center.
+- Security Center → “View security events” deep-link to `/audit-logs?category=Security`.
+- Settings → Audit category: stop owning dead toggles — pointer to Security Center (`audit.level`) + Audit Center (browse/retention); optional retention days write via Security policy dual-write only.
+
+### 14.5 Retention (soft)
+
+| Source of truth | `compliance.data_retention_days` via `ISecurityEngine` (fallback Settings `LogRetentionDays` if present) |
+|-----------------|----------------------------------------------------------------------------------------------------------|
+| Behavior | Hosted service or on-demand job: soft-delete or hard-delete rows older than N days **per tenant**; never touch other tenants |
+| Safety | Min floor (e.g. 30 days) in foundation; dry-run count in UI before purge |
+| Non-goal | Legal hold, archive cold storage, GDPR subject-export package |
+
+### 14.6 Company context + mobile
+
+**Company context** — optional nested summary only (no log dump):
+
+```json
+{
+  "audit": {
+    "level": "Errors",
+    "loginEvents": true,
+    "retentionDays": 365
+  }
+}
+```
+
+Or fold into existing `security` summary (prefer reuse Stage 13 `security.auditLevel` — **avoid duplicate** unless needed for retention display).
+
+**Flutter:** keep security chips only; **no** audit log list on mobile in foundation.
+
+### Explicit non-goals (Stage 14)
+
+- SIEM / syslog / OpenTelemetry export
+- Immutable tamper-proof ledger
+- Full entity change-data-capture for all tables
+- Cross-tenant global firehose UI for non–Super Admin
+- Replacing Stage 13 Security Center
+- Mobile audit browser / admin
+- (Stage 15 foundation complete separately — enforcement ≠ audit UX)
+
+### Implementation order
+
+1. Migration (Category/Severity/indexes) + permission seeds  
+2. Enrich `IAuditService` + login/logout soft events + selective Old/New  
+3. Expand GET filters + detail + export + retention run APIs  
+4. ERP Audit Center UX upgrade + Security Center / Settings deep-links  
+5. Soft retention hosted job + company-context retention hint (if any)  
+6. Update foundation matrix → Done (foundation)
+
+### Verification
+
+- [ ] Filters by Category/Severity/date/entity; detail shows payloads when present  
+- [ ] Export returns > page size (capped) and is permission-gated  
+- [ ] `audit.level=Disabled` still skips writes; `Errors` skips routine Info  
+- [ ] Login success/fail rows when `audit.login_events=true` (no secrets)  
+- [ ] Retention dry-run + purge respects tenant + floor days  
+- [ ] Security Center deep-link lands on filtered Audit Center  
+- [ ] Settings Audit no longer silently drops retention/level ownership  
+- [ ] JWT/login unchanged structurally; `dotnet build`, `ng build`, `dart analyze` OK  
+
+### Contracts with adjacent stages
+
+| Stage | Boundary |
+|-------|----------|
+| **13 Security Center** | Owns `audit.level` / login_events / retention days policy values; Audit Center **consumes** |
+| **12 Data Scope** | Orthogonal — audit list is tenant-scoped admin activity, not fleet row scope |
+| **15 Enforcement** | Authz gaps unrelated; do not conflate missing `[RequirePermission]` with audit coverage |
+
+---
+
+## Deferred (explicit non-goals of Stages 1–13)
 
 - Renaming `Tenants` table or `TenantId` columns
 - Duplicate Module / Feature / User CRUD or Identity replacement
@@ -626,8 +835,82 @@ Stage 14 upgrades audit **browse/export/retention UX**. Stage 13 only soft-gates
 - Employee onboarding workflows / HR module
 - Data Scope Engine (Stage 12) — foundation done; expand pilots separately
 - Security Center hard MFA / SSO (beyond Stage 13 soft consume)
-- Stage 15 mass `[RequirePermission]` rollout
 
-## Handoff to Stage 14
+## Stage 15 — Backend Permission Enforcement (Done foundation)
 
-Stage 13 Security Center foundation is **done**. Stage 14 upgrades audit **browse/export/retention UX** — Security Center only soft-gates writes via `audit.level`.
+**Consumes:** Stage 8 Permission Engine, Stage 12 Data Scope, Stage 13 Security (`Platform.Security.Manage`), Stage 14 `IAuditableCommand` / `AuditLoggingBehavior` / `IAuditService`.
+
+**Produces:** Consistent backend authorization on Travel/Finance/CRM writes; expanded list-query Data Scope; automatic audit markers on ERP mutations; read-only Permission Coverage inventory.
+
+**Completes:** Platform Administration Foundation (Stages 1–15) for reusable enterprise authorization — future business modules consume the same pipeline without redesign.
+
+### Deliverables
+
+| Slice | What shipped |
+|-------|----------------|
+| 15.1 Coverage inventory | `GET /api/platform/permission-coverage` + `PermissionCoverageClassifier` (Protected / PartiallyProtected / Public / Internal) |
+| 15.2 Controller rollout | Travel/Finance/CRM write codes; method-level attrs on Trips/Bookings/Customers/Payments/Fuel/Routes; Ops/Tracking/License gated |
+| 15.3 CQRS | Authz remains controller `RequirePermission`; reflection test that ERP mutation commands implement `IAuditableCommand` |
+| 15.4 Data Scope | Bookings/Trips via linked fleet scope; Customers/Payments **TenantId** + soft scope |
+| 15.5 Audit | Missing Phase2/driver/vehicle mutation commands marked `IAuditableCommand` |
+| 15.6 ERP | `/platform/permission-coverage` read-only page + hub link (`Platform.Security.Manage`) |
+| 15.7 Mobile | No Flutter authz changes; Company Context unchanged |
+| 15.8 Docs | This section; matrix row Done |
+
+### Catalog additions
+
+- Operations: `Booking.Update|Delete`, `Trip.Create|Update|Delete|Assign`, `Route.Create|Update|Delete`
+- Finance: `Payment.Create|Update`, `Fuel.Create|Update`
+- Analytics/CRM: `Customer.Create|Update|Delete`
+
+### Public / Internal allowlist (intentional)
+
+| Surface | Status |
+|---------|--------|
+| Auth login/refresh, Lookup | Public |
+| DevController | Internal |
+| DriverApp / Customer Portal | Protected-via-role |
+| Company context, `data-scope/me`, Profile | Protected-by-auth |
+| Business ERP controllers | RequirePermission (Protected) |
+
+### Explicit non-goals (Stage 15)
+
+- JWT / authentication redesign, ASP.NET Identity
+- New RBAC model, Policy Builder, Workflow Engine
+- MediatR permission behavior (dual gate)
+- Repository rewrite, mobile permission admin, UI-only authorization, API Gateway authz
+- Full Rental / Finance ledger Data Scope
+
+## Handoff to Stage 15
+
+Stage 14 Audit Center foundation is **done**. Stage 15 expands backend `[RequirePermission]` coverage — audit remains orthogonal. Security Center remains source of truth for `audit.level`.
+
+## Stage 16 — GPS Device Control Center (Done foundation)
+
+**Consumes:** TrackerBrands / TrackerModels / GpsDevices / GpsDeviceCommands, Traccar client, tenant `/gps-tracking/commands`, Stage 15 permissions.
+
+**Produces:** Platform Control Center for manufacturers, models, capabilities, command definitions + parameters, versioned templates, translator, transport providers (Traccar + SMS stub + Simulator + TCP/MQTT/HTTP stubs), validation/approval hooks, health dashboard KPIs, ~20 seeded operational commands (incl. EV26R).
+
+### Deliverables
+
+| Slice | What shipped |
+|-------|----------------|
+| 16.1 Manufacturers | Extended `TrackerBrands`; Super Admin CRUD via `/platform/gps-control-center` |
+| 16.2 Models | Extended `TrackerModels`; seeded **EV26R** (`jimi_ev26r`) |
+| 16.3 Capabilities | `GpsCapabilities` + `TrackerModelCapabilities`; dual-read `Supports*` |
+| 16.4 Commands | `GpsCommandDefinitions` + `GpsCommandParameterDefinitions` |
+| 16.5 Templates | Versioned `GpsCommandTemplates` (firmware range + version) |
+| 16.6 Translator | `IGpsCommandTranslator` + unit-tested template renderer |
+| 16.7 Execution | Soft-wired `SendDeviceCommand` → translator/transport; PendingApproval |
+| 16.8 Console | Testing console + Simulator transport |
+| 16.9 Gateways | Provider layer (Traccar live, SMS stub, other stubs) |
+| 16.10 Ops seed | 15–20 ops/install/diagnostic templates; tenant Commands UI reads library |
+
+### Permissions
+
+`Platform.Gps.Control.View`, `Manufacturers.Manage`, `Models.Manage`, `Commands.Manage`, `Templates.Manage`, `Gateways.Manage`, `Execute`, `BulkExecute`, `Approve`, `History.View`, `Simulator.Use`
+
+### Explicit non-goals
+
+- All 60 EV26R SMS commands, per-vendor ERP if-trees, tenant-editable global templates
+- Full TCP/MQTT/Bluetooth transports, multi-step approval SLA

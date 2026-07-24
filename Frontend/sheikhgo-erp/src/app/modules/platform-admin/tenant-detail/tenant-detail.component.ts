@@ -24,7 +24,8 @@ import {
   MenuCatalog,
   applyPlanDefaults,
   tenantDisplayCode,
-  tenantPlanMeta
+  tenantPlanMeta,
+  AuditEventListItem
 } from '../../../core/models/platform.model';
 import { CompanyUserSummary } from '../../../core/models/user.model';
 
@@ -51,6 +52,7 @@ export class TenantDetailComponent implements OnInit {
   menuModuleCount = 0;
   menuItemCount = 0;
   menuTopLabels: string[] = [];
+  recentActivity: AuditEventListItem[] = [];
   adminInfo?: TenantAdminInfo | null;
 
   readonly planTiers = TENANT_PLAN_TIERS;
@@ -126,11 +128,14 @@ export class TenantDetailComponent implements OnInit {
       menuCatalog: this.platform.getMenuCatalog().pipe(
         catchError(() => of(null as MenuCatalog | null))
       ),
+      recentActivity: this.platform.getRecentAuditEvents(this.tenantId, null, 20).pipe(
+        catchError(() => of([] as AuditEventListItem[]))
+      ),
       countries: this.lookup.getCountryNames(),
       currencies: this.lookup.getCurrencyCodes(),
       timezones: this.lookup.getTimezoneIds()
     }).subscribe({
-      next: ({ tenant, modules, features, license, userSummary, roles, permissions, menuCatalog, countries, currencies, timezones }) => {
+      next: ({ tenant, modules, features, license, userSummary, roles, permissions, menuCatalog, recentActivity, countries, currencies, timezones }) => {
         this.countries = countries;
         this.currencies = currencies;
         this.timezones = timezones;
@@ -138,6 +143,7 @@ export class TenantDetailComponent implements OnInit {
         this.license = license;
         this.userSummary = userSummary;
         this.companyRoles = roles ?? [];
+        this.recentActivity = recentActivity ?? [];
         this.permissionCatalogCount = permissions?.length ?? 0;
         this.permissionCategories = [...new Set(
           (permissions ?? [])

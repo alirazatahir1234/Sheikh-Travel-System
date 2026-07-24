@@ -880,6 +880,183 @@ export interface SecurityCompanySummary {
   passwordDaysRemaining?: number | null;
 }
 
+export interface AuditEventListItem {
+  id: number;
+  tenantId: number;
+  companyName?: string | null;
+  userId?: number | null;
+  userName?: string | null;
+  eventKey: string;
+  displayName: string;
+  category: string;
+  severity: string;
+  entityType?: string | null;
+  entityId?: number | null;
+  action?: string | null;
+  success: boolean;
+  message?: string | null;
+  ipAddress?: string | null;
+  createdOn: string;
+}
+
+export interface AuditEventDetail extends AuditEventListItem {
+  oldValues?: string | null;
+  newValues?: string | null;
+  userAgent?: string | null;
+  correlationId?: string | null;
+}
+
+export interface AuditEventDefinition {
+  eventKey: string;
+  displayName: string;
+  category: string;
+  severity: string;
+  description?: string | null;
+  sortOrder: number;
+  visible: boolean;
+  isActive: boolean;
+  isSystem: boolean;
+}
+
+export interface AuditEventSearchFilter {
+  page?: number;
+  pageSize?: number;
+  tenantId?: number | null;
+  userId?: number | null;
+  category?: string;
+  eventKey?: string;
+  entityType?: string;
+  entityId?: number | null;
+  severity?: string;
+  success?: boolean | null;
+  fromDate?: string;
+  toDate?: string;
+  search?: string;
+}
+
+// Stage 16 — GPS Device Control Center
+export interface GpsControlDashboard {
+  manufacturers: number;
+  models: number;
+  commands: number;
+  templates: number;
+  queued: number;
+  failed: number;
+  onlineDevices: number;
+  offlineDevices: number;
+}
+
+export interface GpsManufacturer {
+  id: number;
+  name: string;
+  vendorKey?: string | null;
+  website?: string | null;
+  description?: string | null;
+  defaultProtocol?: string | null;
+  supportsTraccar: boolean;
+  supportsSms: boolean;
+  isActive: boolean;
+}
+
+export interface GpsTrackerModel {
+  id: number;
+  trackerBrandId: number;
+  brandName: string;
+  name: string;
+  catalogKey?: string | null;
+  protocol: string;
+  protocolLabel: string;
+  defaultPort: number;
+  firmwareHint?: string | null;
+  supportsEngineCutOff: boolean;
+  supportsRelay: boolean;
+  isActive: boolean;
+}
+
+export interface GpsCapability {
+  capabilityKey: string;
+  displayName: string;
+  category: string;
+  description?: string | null;
+  sortOrder: number;
+  isActive: boolean;
+}
+
+export interface GpsCommandDefinition {
+  commandKey: string;
+  displayName: string;
+  category: string;
+  description?: string | null;
+  requiredCapabilityKey?: string | null;
+  dangerLevel: string;
+  requiresApproval: boolean;
+  requiresReason: boolean;
+  sortOrder: number;
+  isActive: boolean;
+}
+
+export interface GpsCommandParameter {
+  id: number;
+  commandKey: string;
+  paramKey: string;
+  displayName: string;
+  dataType: string;
+  isRequired: boolean;
+  defaultValue?: string | null;
+  minValue?: number | null;
+  maxValue?: number | null;
+  sortOrder: number;
+}
+
+export interface GpsCommandTemplate {
+  id: number;
+  trackerModelId: number;
+  modelName?: string | null;
+  commandKey: string;
+  transport: string;
+  payloadTemplate: string;
+  traccarType?: string | null;
+  parserKey?: string | null;
+  firmwareMin?: string | null;
+  firmwareMax?: string | null;
+  templateVersion: number;
+  isActive: boolean;
+}
+
+export interface GpsTranslateRequest {
+  deviceId?: number | null;
+  trackerModelId?: number | null;
+  commandKey: string;
+  parameters?: Record<string, string>;
+  firmwareVersion?: string;
+  useSimulator?: boolean;
+}
+
+export interface GpsTranslateResult {
+  success: boolean;
+  error?: string | null;
+  commandKey: string;
+  transport: string;
+  renderedPayload: string;
+  traccarType?: string | null;
+  templateId?: number | null;
+  parserKey?: string | null;
+  requiresApproval: boolean;
+  dangerLevel: string;
+}
+
+export interface GpsSimulateResult {
+  translation: GpsTranslateResult;
+  transport: { success: boolean; transport: string; responseText?: string | null; error?: string | null };
+  parsed?: Record<string, string> | null;
+}
+
+export interface AuditRetention {
+  retentionDays: number;
+  auditEnabled: boolean;
+  auditLevel: string;
+}
+
 export interface RoleTemplate {
   code: string;
   name: string;
@@ -1028,4 +1205,121 @@ export const BRANCH_STATUS_OPTIONS: { value: BranchStatus; label: string; hint: 
 
 export function branchStatusLabel(status: BranchStatus): string {
   return BRANCH_STATUS_OPTIONS.find(o => o.value === status)?.label ?? 'Unknown';
+}
+
+// Stage 16 — GPS Device Control Center
+export interface GpsControlDashboard {
+  manufacturers: number;
+  models: number;
+  commands: number;
+  templates: number;
+  queued: number;
+  failed: number;
+  onlineDevices: number;
+  offlineDevices: number;
+}
+
+export interface GpsManufacturer {
+  id: number;
+  name: string;
+  vendorKey?: string | null;
+  website?: string | null;
+  description?: string | null;
+  defaultProtocol?: string | null;
+  supportsTraccar: boolean;
+  supportsSms: boolean;
+  isActive: boolean;
+}
+
+export interface GpsTrackerModel {
+  id: number;
+  trackerBrandId: number;
+  brandName: string;
+  name: string;
+  catalogKey?: string | null;
+  protocol: string;
+  protocolLabel: string;
+  defaultPort: number;
+  firmwareHint?: string | null;
+  supportsEngineCutOff: boolean;
+  supportsRelay: boolean;
+  isActive: boolean;
+}
+
+export interface GpsCapability {
+  capabilityKey: string;
+  displayName: string;
+  category: string;
+  description?: string | null;
+  sortOrder: number;
+  isActive: boolean;
+}
+
+export interface GpsCommandDefinition {
+  commandKey: string;
+  displayName: string;
+  category: string;
+  description?: string | null;
+  requiredCapabilityKey?: string | null;
+  dangerLevel: string;
+  requiresApproval: boolean;
+  requiresReason: boolean;
+  sortOrder: number;
+  isActive: boolean;
+}
+
+export interface GpsCommandParameter {
+  id: number;
+  commandKey: string;
+  paramKey: string;
+  displayName: string;
+  dataType: string;
+  isRequired: boolean;
+  defaultValue?: string | null;
+  minValue?: number | null;
+  maxValue?: number | null;
+  sortOrder: number;
+}
+
+export interface GpsCommandTemplate {
+  id: number;
+  trackerModelId: number;
+  modelName?: string | null;
+  commandKey: string;
+  transport: string;
+  payloadTemplate: string;
+  traccarType?: string | null;
+  parserKey?: string | null;
+  firmwareMin?: string | null;
+  firmwareMax?: string | null;
+  templateVersion: number;
+  isActive: boolean;
+}
+
+export interface GpsTranslateRequest {
+  deviceId?: number | null;
+  trackerModelId?: number | null;
+  commandKey: string;
+  parameters?: Record<string, string>;
+  firmwareVersion?: string;
+  useSimulator?: boolean;
+}
+
+export interface GpsTranslateResult {
+  success: boolean;
+  error?: string | null;
+  commandKey: string;
+  transport: string;
+  renderedPayload: string;
+  traccarType?: string | null;
+  templateId?: number | null;
+  parserKey?: string | null;
+  requiresApproval: boolean;
+  dangerLevel: string;
+}
+
+export interface GpsSimulateResult {
+  translation: GpsTranslateResult;
+  transport: { success: boolean; transport: string; responseText?: string | null; error?: string | null };
+  parsed?: Record<string, string> | null;
 }

@@ -15,7 +15,7 @@ export const SETTINGS_CATEGORIES_FALLBACK: SettingsCategory[] = [
   { id: 'Branding', label: 'Branding', icon: 'palette', description: 'Logo, theme colors and public contact details.', isImplemented: true },
   { id: 'System', label: 'System Preferences', icon: 'settings', description: 'Landing page, pagination, theme and auto-save.', isImplemented: true },
   { id: 'Integrations', label: 'Integrations', icon: 'extension', description: 'Maps, payments, GPS and government APIs.', isImplemented: true },
-  { id: 'Audit', label: 'Audit & Logging', icon: 'history', description: 'Audit logs, activity tracking and retention.', isImplemented: true },
+  { id: 'Audit', label: 'Audit & Logging', icon: 'history', description: 'App error logging. Audit write level and retention are in Security Center; browse events in Audit Center.', isImplemented: true },
   { id: 'Features', label: 'Feature Management', icon: 'toggle_on', description: 'Enable or disable platform modules.', isImplemented: true },
   { id: 'AI', label: 'AI', icon: 'smart_toy', description: 'AI provider, keys and assistant capabilities.', isImplemented: true }
 ];

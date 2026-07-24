@@ -36,6 +36,8 @@ import {
   TripDeviceContext,
   GpsDeviceCommand,
   GpsDeviceCommandDetail,
+  GpsCommandLibraryItem,
+  GpsCommandLibraryParam,
   SupportedCommand,
   GpsEta,
   IngestPositionPayload,
@@ -582,6 +584,16 @@ export class GpsTrackingService {
     if (filters?.page) params['page'] = String(filters.page);
     if (filters?.pageSize) params['pageSize'] = String(filters.pageSize);
     return this.http.get<GpsDeviceCommand[]>(`${this.base}/commands/${deviceId}`, { params });
+  }
+
+  getCommandLibrary(): Observable<GpsCommandLibraryItem[]> {
+    return this.http.get<GpsCommandLibraryItem[]>(`${this.base}/commands/library`);
+  }
+
+  getCommandLibraryParameters(commandKey?: string): Observable<GpsCommandLibraryParam[]> {
+    const params: Record<string, string> = {};
+    if (commandKey) params['commandKey'] = commandKey;
+    return this.http.get<GpsCommandLibraryParam[]>(`${this.base}/commands/library/parameters`, { params });
   }
 
   getCommandById(id: number): Observable<GpsDeviceCommandDetail> {

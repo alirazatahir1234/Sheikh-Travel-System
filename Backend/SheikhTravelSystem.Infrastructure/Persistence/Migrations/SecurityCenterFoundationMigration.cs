@@ -133,7 +133,7 @@ public static class SecurityCenterFoundationMigration
             INSERT INTO TenantSecurityPolicies (TenantId, PolicyKey, PolicyValue, UpdatedDate)
             SELECT s.TenantId, d.PolicyKey,
                 CASE d.PolicyKey
-                    WHEN N'password.max_age_days' THEN CAST(COALESCE(s.PasswordExpiryDays, 90) AS NVARCHAR(32))
+                    WHEN N'password.max_age_days' THEN CAST(COALESCE(s.PasswordExpiryDays, 0) AS NVARCHAR(32))
                     WHEN N'session.idle_timeout_minutes' THEN CAST(COALESCE(s.SessionTimeoutMinutes, 30) AS NVARCHAR(32))
                     WHEN N'compliance.gdpr_logging' THEN CASE WHEN s.IsGdprEnabled = 1 THEN N'true' ELSE N'false' END
                     WHEN N'compliance.mfa_required' THEN CASE WHEN s.IsMfaRequired = 1 THEN N'true' ELSE N'false' END
@@ -156,7 +156,7 @@ public static class SecurityCenterFoundationMigration
             IF EXISTS (SELECT 1 FROM PlatformModules WHERE ModuleKey = N'platform')
             AND NOT EXISTS (
                 SELECT 1 FROM PlatformMenus pm
-                WHERE pm.Route = N'/platform/security-center' AND (pm.IsDeleted = 0 OR pm.IsDeleted IS NULL))
+                WHERE pm.Route = N'/platform/security-center')
             BEGIN
                 INSERT INTO PlatformMenus (ModuleId, ParentId, Name, Route, Icon, PermissionCode, SortOrder, IsActive,
                     DisplayName, Description, Category, Visible, FeatureKey, ModuleKey, IsMobileSupported, UpdatedAt)

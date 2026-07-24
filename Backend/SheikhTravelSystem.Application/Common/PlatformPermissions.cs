@@ -13,6 +13,8 @@ public static class PlatformPermissions
     public const string BranchesManage = "Platform.Branches.Manage";
     public const string DepartmentsManage = "Platform.Departments.Manage";
     public const string AuditLogsView = "Platform.AuditLogs.View";
+    public const string AuditView = "Platform.Audit.View";
+    public const string AuditManage = "Platform.Audit.Manage";
     public const string MenusManage = "Platform.Menus.Manage";
     public const string WorkspacesManage = "Platform.Workspaces.Manage";
     public const string DashboardsView = "Platform.Dashboards.View";
@@ -25,13 +27,28 @@ public static class PlatformPermissions
     public const string MigrationsManage = "Platform.Migrations.Manage";
     public const string SystemReset = "Platform.System.Reset";
 
+    // Stage 16 — GPS Device Control Center
+    public const string GpsControlView = "Platform.Gps.Control.View";
+    public const string GpsManufacturersManage = "Platform.Gps.Manufacturers.Manage";
+    public const string GpsModelsManage = "Platform.Gps.Models.Manage";
+    public const string GpsCommandsManage = "Platform.Gps.Commands.Manage";
+    public const string GpsTemplatesManage = "Platform.Gps.Templates.Manage";
+    public const string GpsGatewaysManage = "Platform.Gps.Gateways.Manage";
+    public const string GpsExecute = "Platform.Gps.Execute";
+    public const string GpsBulkExecute = "Platform.Gps.BulkExecute";
+    public const string GpsApprove = "Platform.Gps.Approve";
+    public const string GpsHistoryView = "Platform.Gps.History.View";
+    public const string GpsSimulatorUse = "Platform.Gps.Simulator.Use";
+
     public static readonly string[] All =
     [
         DashboardView, UsersView, UsersCreate, UsersEdit,
         RolesView, RolesManage, TenantsView, TenantsManage,
-        BranchesManage, DepartmentsManage, AuditLogsView, MenusManage, WorkspacesManage,
+        BranchesManage, DepartmentsManage, AuditLogsView, AuditView, AuditManage, MenusManage, WorkspacesManage,
         DashboardsView, DashboardsManage, SecurityView, SecurityManage,
-        SettingsView, SettingsManage, MigrationsView, MigrationsManage, SystemReset
+        SettingsView, SettingsManage, MigrationsView, MigrationsManage, SystemReset,
+        GpsControlView, GpsManufacturersManage, GpsModelsManage, GpsCommandsManage, GpsTemplatesManage,
+        GpsGatewaysManage, GpsExecute, GpsBulkExecute, GpsApprove, GpsHistoryView, GpsSimulatorUse
     ];
 }
 

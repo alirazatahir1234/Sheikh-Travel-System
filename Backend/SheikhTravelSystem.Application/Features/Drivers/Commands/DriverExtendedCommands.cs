@@ -10,8 +10,12 @@ using SheikhTravelSystem.Application.Features.Vehicles;
 
 namespace SheikhTravelSystem.Application.Features.Drivers.Commands;
 
-public record UploadDriverPhotoCommand(int DriverId, Stream FileStream, string FileName, string ContentType, long FileLength)
-    : IRequest<ApiResponse<string>>;
+public record UploadDriverPhotoCommand(int DriverId, Stream FileStream, string FileName, string ContentType, long FileLength) : IRequest<ApiResponse<string>>, IAuditableCommand
+{
+    public string AuditAction => "Update";
+    public string AuditEntityName => "Driver";
+    public int? AuditEntityId => DriverId;
+}
 
 public class UploadDriverPhotoCommandValidator : AbstractValidator<UploadDriverPhotoCommand>
 {
@@ -68,7 +72,12 @@ public record UploadDriverDocumentCommand(
     string ContentType,
     string DocumentType,
     DateTime? ExpiryDate,
-    long FileLength) : IRequest<ApiResponse<UploadDriverDocumentResult>>;
+    long FileLength) : IRequest<ApiResponse<UploadDriverDocumentResult>>, IAuditableCommand
+{
+    public string AuditAction => "Create";
+    public string AuditEntityName => "DriverDocument";
+    public int? AuditEntityId => null;
+}
 
 public class UploadDriverDocumentCommandValidator : AbstractValidator<UploadDriverDocumentCommand>
 {
@@ -144,7 +153,12 @@ public class UploadDriverDocumentCommandHandler(
     }
 }
 
-public record UpdateDriverVerificationCommand(int DriverId, string VerificationStatus) : IRequest<ApiResponse<bool>>;
+public record UpdateDriverVerificationCommand(int DriverId, string VerificationStatus) : IRequest<ApiResponse<bool>>, IAuditableCommand
+{
+    public string AuditAction => "Update";
+    public string AuditEntityName => "Driver";
+    public int? AuditEntityId => DriverId;
+}
 
 public class UpdateDriverVerificationCommandHandler(IDbConnectionFactory dbFactory, ITenantContext tenantContext)
     : IRequestHandler<UpdateDriverVerificationCommand, ApiResponse<bool>>
@@ -168,7 +182,12 @@ public class UpdateDriverVerificationCommandHandler(IDbConnectionFactory dbFacto
     }
 }
 
-public record AssignDriverVehicleCommand(int DriverId, AssignDriverVehicleRequest Body) : IRequest<ApiResponse<int>>;
+public record AssignDriverVehicleCommand(int DriverId, AssignDriverVehicleRequest Body) : IRequest<ApiResponse<int>>, IAuditableCommand
+{
+    public string AuditAction => "Assign";
+    public string AuditEntityName => "Driver";
+    public int? AuditEntityId => DriverId;
+}
 
 public class AssignDriverVehicleCommandHandler(
     IDbConnectionFactory dbFactory,

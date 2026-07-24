@@ -45,6 +45,7 @@ public class PaymentsController : BaseApiController
     /// <summary>
     /// Creates a new payment.
     /// </summary>
+    [RequirePermission(FinancePermissions.PaymentCreate)]
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreatePaymentCommand command)
     {
@@ -55,6 +56,7 @@ public class PaymentsController : BaseApiController
     /// <summary>
     /// Updates the status of a payment (e.g. mark as Refunded).
     /// </summary>
+    [RequirePermission(FinancePermissions.PaymentUpdate)]
     [HttpPut("{id:int}/status")]
     public async Task<IActionResult> UpdateStatus(int id, [FromBody] UpdatePaymentStatusCommand command)
         => Ok(await Mediator.Send(command with { Id = id }));

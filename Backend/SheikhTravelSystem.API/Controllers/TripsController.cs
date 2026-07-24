@@ -57,10 +57,12 @@ public class TripsController : BaseApiController
     public async Task<IActionResult> RouteSummary(int id)
         => Ok(await Mediator.Send(new GetTripRouteSummaryQuery(id)));
 
+    [RequirePermission(OperationsPermissions.TripUpdate)]
     [HttpPost("{id:int}/optimize-route")]
     public async Task<IActionResult> OptimizeRoute(int id)
         => Ok(await Mediator.Send(new OptimizeTripRouteCommand(id)));
 
+    [RequirePermission(OperationsPermissions.TripCreate)]
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateTripCommand command)
     {
@@ -68,6 +70,7 @@ public class TripsController : BaseApiController
         return CreatedAtAction(nameof(GetById), new { id = result.Data }, result);
     }
 
+    [RequirePermission(OperationsPermissions.TripCreate)]
     [HttpPost("from-booking/{bookingId:int}")]
     public async Task<IActionResult> CreateFromBooking(int bookingId)
     {
@@ -75,48 +78,59 @@ public class TripsController : BaseApiController
         return CreatedAtAction(nameof(GetById), new { id = result.Data }, result);
     }
 
+    [RequirePermission(OperationsPermissions.TripUpdate)]
     [HttpPut("{id:int}")]
     public async Task<IActionResult> Update(int id, [FromBody] UpdateTripCommand command)
         => Ok(await Mediator.Send(command with { Id = id }));
 
+    [RequirePermission(OperationsPermissions.TripUpdate)]
     [HttpPut("{id:int}/status")]
     public async Task<IActionResult> UpdateStatus(int id, [FromBody] UpdateTripStatusCommand command)
         => Ok(await Mediator.Send(command with { Id = id }));
 
+    [RequirePermission(OperationsPermissions.TripAssign)]
     [HttpPut("{id:int}/assign-driver")]
     public async Task<IActionResult> AssignDriver(int id, [FromBody] AssignTripDriverDto body)
         => Ok(await Mediator.Send(new AssignTripDriverCommand(id, body.DriverId, body.AssistantDriverId, body.DriverNotes)));
 
+    [RequirePermission(OperationsPermissions.TripAssign)]
     [HttpPut("{id:int}/assign-vehicle")]
     public async Task<IActionResult> AssignVehicle(int id, [FromBody] AssignTripVehicleDto body)
         => Ok(await Mediator.Send(new AssignTripVehicleCommand(id, body.VehicleId)));
 
+    [RequirePermission(OperationsPermissions.TripDelete)]
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(int id)
         => Ok(await Mediator.Send(new DeleteTripCommand(id)));
 
     // ── Phase 2: expenses / passengers / documents ──────────────────────────
 
+    [RequirePermission(OperationsPermissions.TripUpdate)]
     [HttpPost("{id:int}/expenses")]
     public async Task<IActionResult> AddExpense(int id, [FromBody] CreateTripExpenseDto body)
         => Ok(await Mediator.Send(new AddTripExpenseCommand(id, body)));
 
+    [RequirePermission(OperationsPermissions.TripUpdate)]
     [HttpDelete("{id:int}/expenses/{expenseId:int}")]
     public async Task<IActionResult> DeleteExpense(int id, int expenseId)
         => Ok(await Mediator.Send(new DeleteTripExpenseCommand(id, expenseId)));
 
+    [RequirePermission(OperationsPermissions.TripUpdate)]
     [HttpPost("{id:int}/passengers")]
     public async Task<IActionResult> AddPassenger(int id, [FromBody] CreateTripPassengerDto body)
         => Ok(await Mediator.Send(new AddTripPassengerCommand(id, body)));
 
+    [RequirePermission(OperationsPermissions.TripUpdate)]
     [HttpPut("{id:int}/passengers/{passengerId:int}")]
     public async Task<IActionResult> UpdatePassenger(int id, int passengerId, [FromBody] UpdateTripPassengerDto body)
         => Ok(await Mediator.Send(new UpdateTripPassengerCommand(id, passengerId, body)));
 
+    [RequirePermission(OperationsPermissions.TripUpdate)]
     [HttpDelete("{id:int}/passengers/{passengerId:int}")]
     public async Task<IActionResult> DeletePassenger(int id, int passengerId)
         => Ok(await Mediator.Send(new DeleteTripPassengerCommand(id, passengerId)));
 
+    [RequirePermission(OperationsPermissions.TripUpdate)]
     [HttpPost("{id:int}/documents/upload")]
     [Consumes("multipart/form-data")]
     [RequestSizeLimit(10 * 1024 * 1024)]
@@ -135,6 +149,7 @@ public class TripsController : BaseApiController
             form.File.Length)));
     }
 
+    [RequirePermission(OperationsPermissions.TripUpdate)]
     [HttpDelete("{id:int}/documents/{documentId:int}")]
     public async Task<IActionResult> DeleteDocument(int id, int documentId)
         => Ok(await Mediator.Send(new DeleteTripDocumentCommand(id, documentId)));

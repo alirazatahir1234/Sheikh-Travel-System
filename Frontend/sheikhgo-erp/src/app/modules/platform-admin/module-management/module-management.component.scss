@@ -264,6 +264,7 @@
 
   &--licensed { background: #dbeafe; color: #1e40af; }
   &--deps { background: #f1f5f9; color: #64748b; font-weight: 500; }
+  &--bundled { background: #ecfdf5; color: #047857; }
 }
 
 .coming-soon-label {
@@ -271,6 +272,10 @@
   font-weight: 600;
   color: #92400e;
   white-space: nowrap;
+
+  &.bundled-label {
+    color: #047857;
+  }
 }
 
 .plan-chip {

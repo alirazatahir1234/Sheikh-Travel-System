@@ -305,12 +305,9 @@ const integrationSchema: SettingFieldSchema[] = [
   { key: 'VisaApiKey', label: 'Visa API Key', type: 'password', section: 'Government' }
 ];
 
-// 13. Audit & Logging
+// 13. Audit & Logging — write level / retention live in Security Center; browse in Audit Center.
 const auditSchema: SettingFieldSchema[] = [
-  { key: 'AuditLogsEnabled', label: 'Enable Audit Logs', type: 'toggle', section: 'Audit' },
-  { key: 'ActivityTracking', label: 'Activity Tracking', type: 'toggle', section: 'Audit' },
-  { key: 'ErrorLoggingEnabled', label: 'Error Logging', type: 'toggle', section: 'Logging' },
-  { key: 'LogRetentionDays', label: 'Log Retention (days)', type: 'number', section: 'Logging', min: 0 }
+  { key: 'ErrorLoggingEnabled', label: 'Application error logging', type: 'toggle', section: 'Application logs', hint: 'Serilog/app logs — not Audit Center events.' }
 ];
 
 // 14. Feature Management

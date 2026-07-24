@@ -30,6 +30,16 @@
     </span>
   </div>
 
+  <div class="settings-page__banner settings-page__banner--info" *ngIf="!loading && category?.id === 'Audit'" role="status">
+    <mat-icon aria-hidden="true">history</mat-icon>
+    <span>
+      Audit write level and retention are managed in
+      <a routerLink="/platform/security-center">Security Center</a>.
+      Browse events in
+      <a routerLink="/platform/audit-center">Audit Center</a>.
+    </span>
+  </div>
+
   <div class="settings-page__banner settings-page__banner--error" *ngIf="!loading && loadError" role="alert">
     <mat-icon aria-hidden="true">error_outline</mat-icon>
     <span>{{ loadError }}</span>

@@ -57,7 +57,12 @@ public record CreateVehicleDocumentCommand(
     string DocumentType,
     string? FileUrl,
     DateTime? ExpiryDate,
-    string? Notes) : IRequest<ApiResponse<int>>;
+    string? Notes) : IRequest<ApiResponse<int>>, IAuditableCommand
+{
+    public string AuditAction => "Create";
+    public string AuditEntityName => "VehicleDocument";
+    public int? AuditEntityId => null;
+}
 
 public class CreateVehicleDocumentCommandHandler(IDbConnectionFactory dbFactory, ITenantContext tenantContext)
     : IRequestHandler<CreateVehicleDocumentCommand, ApiResponse<int>>

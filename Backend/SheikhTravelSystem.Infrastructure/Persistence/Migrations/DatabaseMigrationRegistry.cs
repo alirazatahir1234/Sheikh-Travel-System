@@ -90,6 +90,9 @@ public static class DatabaseMigrationRegistry
             M("DashboardBuilderFoundationMigration", DashboardBuilderFoundationMigration.ApplyAsync),
             M("DataScopeFoundationMigration", DataScopeFoundationMigration.ApplyAsync),
             M("SecurityCenterFoundationMigration", SecurityCenterFoundationMigration.ApplyAsync),
+            M("AuditCenterFoundationMigration", AuditCenterFoundationMigration.ApplyAsync),
+            M("GpsControlCenterFoundationMigration", GpsControlCenterFoundationMigration.ApplyAsync),
+            M("PlatformNavigationCleanupMigration", PlatformNavigationCleanupMigration.ApplyAsync),
         ];
     }
 }

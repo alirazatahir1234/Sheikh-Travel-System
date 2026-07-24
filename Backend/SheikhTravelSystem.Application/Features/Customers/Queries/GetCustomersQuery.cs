@@ -14,20 +14,30 @@ public record GetCustomersQuery(
     string? Recency = null
 ) : IRequest<ApiResponse<PagedResult<CustomerDto>>>;
 
-public class GetCustomersQueryHandler(IDbConnectionFactory dbFactory)
+public class GetCustomersQueryHandler(
+    IDbConnectionFactory dbFactory,
+    ITenantContext tenantContext,
+    ICurrentUserService currentUser,
+    IDataScopeEngine dataScopeEngine)
     : IRequestHandler<GetCustomersQuery, ApiResponse<PagedResult<CustomerDto>>>
 {
     public async Task<ApiResponse<PagedResult<CustomerDto>>> Handle(GetCustomersQuery request, CancellationToken cancellationToken)
     {
         using var connection = dbFactory.CreateConnection();
         var offset = (request.Page - 1) * request.PageSize;
+        var tenantId = tenantContext.GetRequiredTenantId();
         var (whereClause, parameters) = CustomerQueryFilters.Build(
             request.Search,
             request.IsActive,
-            request.Recency);
+            request.Recency,
+            tenantId: tenantId);
 
         parameters.Add("Offset", offset);
         parameters.Add("PageSize", request.PageSize);
+
+        // Customers have no BranchId/DepartmentId — tenant isolation + soft company-wide/pass-through only.
+        if (currentUser.UserId is int userId)
+            _ = await dataScopeEngine.ResolveAsync(userId, tenantId, cancellationToken);
 
         var customers = await connection.QueryAsync<CustomerDto>(
             new CommandDefinition(

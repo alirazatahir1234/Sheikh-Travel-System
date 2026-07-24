@@ -3,7 +3,7 @@ import { ActivatedRoute } from '@angular/router';
 import { GpsTrackingService } from '../../../core/services/gps-tracking.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
-import { GpsDevice, GpsDeviceCommand } from '../../../core/models/gps-tracking.model';
+import { GpsDevice, GpsDeviceCommand, GpsCommandLibraryItem } from '../../../core/models/gps-tracking.model';
 
 interface CommandCard {
   type: string;
@@ -39,7 +39,7 @@ export class GpsCommandsComponent implements OnInit, OnDestroy {
   smsMessage = '';
   readonly REASONS = ['Vehicle Theft', 'Unauthorized Driver', 'Police Request', 'Maintenance', 'Other'];
 
-  readonly commandCards: CommandCard[] = [
+  private readonly fallbackCards: CommandCard[] = [
     { type: 'engineStop',     label: 'Engine Stop',       description: 'Remotely cut engine power',        icon: 'power_off',       colorClass: 'card-red',    permission: 'Gps.CommandEngineCutoff',    requiresCutoff: true,  requiresRelay: false, needsAttributes: false },
     { type: 'engineResume',   label: 'Engine Resume',     description: 'Re-enable engine power',            icon: 'power',           colorClass: 'card-green',  permission: 'Gps.CommandEngineCutoff',    requiresCutoff: true,  requiresRelay: false, needsAttributes: false },
     { type: 'positionSingle', label: 'Request Position',  description: 'Get current GPS fix',               icon: 'location_on',    colorClass: 'card-blue',   permission: 'Gps.CommandPositionRequest', requiresCutoff: false, requiresRelay: false, needsAttributes: false },
@@ -50,6 +50,8 @@ export class GpsCommandsComponent implements OnInit, OnDestroy {
     { type: 'customSms',      label: 'Custom SMS',        description: 'Queue a raw SMS command (delivery not yet configured)', icon: 'sms', colorClass: 'card-gray', permission: 'Gps.CommandCustomSms', requiresCutoff: false, requiresRelay: false, needsAttributes: true },
     { type: 'custom',         label: 'Custom Command',    description: 'Send a raw command string',         icon: 'terminal',       colorClass: 'card-gray',   permission: 'Gps.CommandSend',            requiresCutoff: false, requiresRelay: false, needsAttributes: false },
   ];
+
+  commandCards: CommandCard[] = [...this.fallbackCards];
 
   private refreshTimer: ReturnType<typeof setInterval> | null = null;
 
@@ -63,6 +65,15 @@ export class GpsCommandsComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     const deepLinkDeviceId = Number(this.route.snapshot.queryParamMap.get('deviceId')) || null;
     const deepLinkCommand = this.route.snapshot.queryParamMap.get('command');
+
+    this.gps.getCommandLibrary().subscribe({
+      next: lib => {
+        if (lib?.length) {
+          this.commandCards = this.mergeLibraryCards(lib);
+        }
+      },
+      error: () => { /* keep fallback cards */ }
+    });
 
     this.gps.getDevices().subscribe({
       next: d => {
@@ -83,6 +94,29 @@ export class GpsCommandsComponent implements OnInit, OnDestroy {
       }
     });
     this.refreshTimer = setInterval(() => this.loadCommands(), 15_000);
+  }
+
+  private mergeLibraryCards(lib: GpsCommandLibraryItem[]): CommandCard[] {
+    const meta: Record<string, Partial<CommandCard>> = {};
+    for (const c of this.fallbackCards) meta[c.type] = c;
+
+    return lib
+      .filter(x => x.isActive)
+      .sort((a, b) => a.sortOrder - b.sortOrder)
+      .map(x => {
+        const known = meta[x.commandKey];
+        return {
+          type: x.commandKey,
+          label: x.displayName,
+          description: x.description || x.category,
+          icon: known?.icon || 'tune',
+          colorClass: known?.colorClass || (x.dangerLevel === 'Critical' || x.dangerLevel === 'High' ? 'card-red' : 'card-blue'),
+          permission: known?.permission || 'Gps.CommandSend',
+          requiresCutoff: x.requiredCapabilityKey === 'EngineCut' || !!known?.requiresCutoff,
+          requiresRelay: x.requiredCapabilityKey === 'Relay' || !!known?.requiresRelay,
+          needsAttributes: x.commandKey === 'customSms' || x.commandKey === 'apn' || x.commandKey === 'server' || x.commandKey === 'heartbeat' || x.commandKey === 'timezone'
+        } as CommandCard;
+      });
   }
 
   ngOnDestroy(): void {

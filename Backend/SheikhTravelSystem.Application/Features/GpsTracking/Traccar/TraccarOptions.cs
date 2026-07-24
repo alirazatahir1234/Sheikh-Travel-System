@@ -9,23 +9,35 @@ public class TraccarOptions
     public string Password { get; set; } = "";
     public bool Enabled { get; set; } = false;
 
-    /// <summary>Legacy — maps to position interval when PositionSyncIntervalSeconds is unset.</summary>
+    /// <summary>Legacy — maps to moving floor when PositionSyncIntervalSeconds / MovingIntervalSeconds unset.</summary>
     public int SyncIntervalSeconds { get; set; } = 10;
 
+    /// <summary>Moving-vehicle floor (also used when AdaptivePositionSync is false).</summary>
     public int PositionSyncIntervalSeconds { get; set; } = 5;
+
     public int EventSyncIntervalSeconds { get; set; } = 10;
     public int DeviceSyncIntervalSeconds { get; set; } = 300;
     public int GeofenceSyncIntervalSeconds { get; set; } = 1800;
     public int StatisticsSyncIntervalSeconds { get; set; } = 60;
 
+    /// <summary>When true, position sync delay adapts to fleet motion / ignition / SOS.</summary>
+    public bool AdaptivePositionSync { get; set; } = true;
+
+    /// <summary>Any vehicle ≥ this speed (km/h) → moving interval.</summary>
+    public decimal MovingSpeedKmh { get; set; } = 10m;
+
+    public int MovingIntervalSeconds { get; set; } = 5;
+    public int SlowTrafficIntervalSeconds { get; set; } = 15;
+    public int IdleIntervalSeconds { get; set; } = 30;
+    public int ParkedIntervalSeconds { get; set; } = 300;
+
     public int ResolvedPositionIntervalSeconds =>
-        PositionSyncIntervalSeconds > 0 ? PositionSyncIntervalSeconds : SyncIntervalSeconds;
+        PositionSyncIntervalSeconds > 0
+            ? PositionSyncIntervalSeconds
+            : (MovingIntervalSeconds > 0 ? MovingIntervalSeconds : SyncIntervalSeconds);
 
     /// <summary>
-    /// Values of the Traccar position `attributes.alarm` field treated as an SOS/panic alarm.
-    /// "sos" is Traccar's own normalized alarm constant (Position.ALARM_SOS) used by most protocol
-    /// decoders (Teltonika, Concox, Queclink, etc.); "panic" is included as a common alias. Adjust here
-    /// (Traccar:SosAlarmValues in appsettings) if real device payloads use a different value.
+    /// Values of the Traccar position <c>attributes.alarm</c> field treated as an SOS/panic alarm.
     /// </summary>
     public string[] SosAlarmValues { get; set; } = ["sos", "panic"];
 

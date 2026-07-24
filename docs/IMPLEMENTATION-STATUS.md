@@ -29,7 +29,7 @@ Recent work focused on **UAT bug fixing** (forms, settings, maintenance scheduli
 | **Auth / Tenancy** | JWT, permissions, shared-schema `TenantId` | Implemented |
 | **Realtime** | SignalR (notifications, GPS-related) | Implemented |
 | **Cache** | Memory + optional Redis (`IAppCache`) | Implemented (fail-open if Redis down) |
-| **GPS** | Traccar integration, devices, trips, geofences | Implemented (Jimi adapter still roadmap) |
+| **GPS** | Traccar integration, devices, trips, geofences | Implemented (adaptive sync + SignalR-primary clients; see [GPS_LIVE_TRACKING.md](../Backend/docs/GPS_LIVE_TRACKING.md); direct Jimi adapter still roadmap) |
 | **Driver App** | Flutter (`Frontend/sheikh-driver`) | Partial / MVP |
 | **Customer Portal** | Hub / portal APIs | Partial |
 | **Design System** | Shared UI (`design-system`, fleet UI) | In use |

@@ -3,10 +3,8 @@ using SheikhTravelSystem.Application.Common;
 namespace SheikhTravelSystem.Application.Features.GpsTracking.Services;
 
 /// <summary>
-/// Single source of truth for supported GPS device command types — what permission it requires,
-/// which device capability column gates it, whether it needs the engine-safety precondition, and
-/// what Traccar command type it dispatches as. Replaces the old hardcoded 4-value allowlist in
-/// SendDeviceCommandCommandValidator.
+/// Fallback catalog for legacy Traccar command types and tenant permission mapping.
+/// Prefer GpsCommandDefinitions + templates via the Control Center translator.
 /// </summary>
 public static class GpsCommandCatalog
 {
@@ -19,10 +17,6 @@ public static class GpsCommandCatalog
         bool RequiresEngineSafetyCheck,
         bool NotifyAllUsers);
 
-    // TraccarType values for "restart"/"relayOn"/"relayOff" ("rebootDevice"/"outputControl") are
-    // best-recollection of Traccar's command API, not verified against this deployment — confirm
-    // via GetSupportedCommandTypesAsync against a live linked device before relying on them.
-    // "buzzer" has no universal Traccar command type; it rides on "custom" as a per-model gap.
     public static readonly Definition[] All =
     [
         new("engineStop",     "Engine Stop",      "engineStop",     GpsPermissions.CommandEngineCutoff,    "SupportsEngineCutoff", true,  true),
@@ -34,6 +28,17 @@ public static class GpsCommandCatalog
         new("buzzer",         "Buzzer",           "custom",         GpsPermissions.CommandBuzzer,           null,                    false, false),
         new("customSms",      "Custom SMS",       null,             GpsPermissions.CommandCustomSms,        null,                    false, false),
         new("custom",         "Custom Command",   "custom",         GpsPermissions.CommandSend,             null,                    false, false),
+        new("status",         "Device Status",    null,             GpsPermissions.CommandSend,             null,                    false, false),
+        new("version",        "Firmware Version", null,             GpsPermissions.CommandSend,             null,                    false, false),
+        new("iccid",          "SIM ICCID",        null,             GpsPermissions.CommandSend,             null,                    false, false),
+        new("imsi",           "SIM IMSI",         null,             GpsPermissions.CommandSend,             null,                    false, false),
+        new("param",          "Basic Parameters", null,             GpsPermissions.CommandSend,             null,                    false, false),
+        new("battery",        "Battery Info",     null,             GpsPermissions.CommandSend,             null,                    false, false),
+        new("signal",         "Network / Signal", null,             GpsPermissions.CommandSend,             null,                    false, false),
+        new("apn",            "Set APN",          null,             GpsPermissions.CommandSend,             null,                    false, false),
+        new("server",         "Server Settings",  null,             GpsPermissions.CommandSend,             null,                    false, false),
+        new("heartbeat",      "Heartbeat Interval", null,           GpsPermissions.CommandSend,             null,                    false, false),
+        new("timezone",       "Timezone",         null,             GpsPermissions.CommandSend,             null,                    false, false),
     ];
 
     public static Definition? Find(string type) =>

@@ -49,29 +49,35 @@ public static class ModuleRegistrySeed
         E("ACCESS", "Access Control", "Access", "Users, roles, and allowance rules", "Platform", "admin_panel_settings", "/platform/access-control", 100,
             ["DASHBOARD"], true, false, false, false, "Active", ["users", "driver-allowance-rules"]),
 
-        // Coming soon / catalog-only product modules
+        // Active catalog-only (shipped under parent TenantModuleCatalog toggles — not separately enableable)
         E("PLATFORM", "Platform", "Platform", "Platform administration shell", "Platform", "settings_applications", "/platform", 5,
-            [], true, false, false, false, "ComingSoon", []),
-        E("BOOKINGS", "Bookings", "Bookings", "Travel booking workflows (covered by Travel)", "Travel", "event_note", "/bookings", 51,
-            ["TRAVEL"], true, true, false, false, "ComingSoon", []),
-        E("TRIPS", "Trips", "Trips", "Trip lifecycle and dispatch (covered by Travel)", "Travel", "route", "/trips", 52,
-            ["TRAVEL"], true, true, false, false, "ComingSoon", []),
-        E("DRIVERS", "Drivers", "Drivers", "Driver directory (covered by Fleet)", "Fleet", "badge", "/drivers", 21,
-            ["FLEET"], true, true, false, false, "ComingSoon", []),
-        E("VEHICLES", "Vehicles", "Vehicles", "Vehicle registry (covered by Fleet)", "Fleet", "local_shipping", "/vehicles", 22,
-            ["FLEET"], true, true, false, true, "ComingSoon", []),
-        E("MAINTENANCE", "Maintenance", "Maintenance", "Service workflows (covered by Fleet)", "Fleet", "build", "/maintenance", 23,
-            ["FLEET"], true, true, false, false, "ComingSoon", []),
-        E("FUEL", "Fuel", "Fuel", "Fuel logs and receipts (covered by Fleet)", "Fleet", "local_gas_station", "/fuel-logs", 24,
-            ["FLEET"], true, true, false, false, "ComingSoon", []),
-        E("PAYMENTS", "Payments", "Payments", "Collections (covered by Finance)", "Finance", "attach_money", "/payments", 71,
-            ["FINANCE"], true, false, false, false, "ComingSoon", []),
-        E("INVOICES", "Invoices", "Invoices", "Invoicing and billing documents", "Finance", "receipt_long", null, 72,
-            ["FINANCE"], true, false, false, false, "ComingSoon", []),
+            [], true, false, false, false, "Active", []),
+        E("BOOKINGS", "Bookings", "Bookings", "Travel booking workflows (included in Travel)", "Travel", "event_note", "/bookings", 51,
+            ["TRAVEL"], true, true, false, false, "Active", []),
+        E("TRIPS", "Trips", "Trips", "Trip lifecycle and dispatch (included in Travel)", "Travel", "route", "/trips", 52,
+            ["TRAVEL"], true, true, false, false, "Active", []),
+        E("DRIVERS", "Drivers", "Drivers", "Driver directory (included in Fleet)", "Fleet", "badge", "/drivers", 21,
+            ["FLEET"], true, true, false, false, "Active", []),
+        E("VEHICLES", "Vehicles", "Vehicles", "Vehicle registry (included in Fleet)", "Fleet", "local_shipping", "/vehicles", 22,
+            ["FLEET"], true, true, false, true, "Active", []),
+        E("MAINTENANCE", "Maintenance", "Maintenance", "Service workflows (included in Fleet)", "Fleet", "build", "/maintenance", 23,
+            ["FLEET"], true, true, false, false, "Active", []),
+        E("FUEL", "Fuel", "Fuel", "Fuel logs and receipts (included in Fleet)", "Fleet", "local_gas_station", "/fuel-logs", 24,
+            ["FLEET"], true, true, false, false, "Active", []),
+        E("PAYMENTS", "Payments", "Payments", "Collections (included in Finance)", "Finance", "attach_money", "/payments", 71,
+            ["FINANCE"], true, false, false, false, "Active", []),
+        E("SETTINGS", "Settings", "Settings", "Tenant and system settings", "Platform", "tune", "/settings", 160,
+            [], true, false, false, false, "Active", []),
+
+        // Beta
         E("NOTIFICATIONS", "Notifications", "Notifications", "Notification center and push", "Platform", "notifications", "/notifications", 110,
             [], true, true, true, false, "Beta", []),
         E("AI", "AI", "AI", "AI copilots and assistants", "Platform", "smart_toy", "/ai", 120,
             ["DASHBOARD"], true, true, true, false, "Beta", []),
+
+        // Coming soon / roadmap catalog-only product modules
+        E("INVOICES", "Invoices", "Invoices", "Invoicing and billing documents", "Finance", "receipt_long", null, 72,
+            ["FINANCE"], true, false, false, false, "ComingSoon", []),
         E("SUPPORT", "Support", "Support", "Support desk and tickets", "Platform", "support_agent", null, 130,
             [], true, false, false, false, "ComingSoon", []),
         E("PAYROLL", "Payroll", "Payroll", "Payroll processing", "HR", "account_balance_wallet", null, 81,
@@ -82,8 +88,6 @@ public static class ModuleRegistrySeed
             ["WAREHOUSE"], true, false, false, false, "ComingSoon", []),
         E("DOCUMENTS", "Documents", "Documents", "Document vault and compliance files", "Platform", "folder", null, 150,
             [], true, true, false, false, "ComingSoon", []),
-        E("SETTINGS", "Settings", "Settings", "Tenant and system settings", "Platform", "tune", "/settings", 160,
-            [], true, false, false, false, "ComingSoon", []),
     ];
 
     private static Entry E(

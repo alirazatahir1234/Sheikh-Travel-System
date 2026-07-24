@@ -1,0 +1,198 @@
+@import '../platform-admin.shared.scss';
+
+.gps-control-center {
+  .tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    margin: 1rem 0 1.25rem;
+  }
+
+  .tab {
+    border: 1px solid rgba(15, 23, 42, 0.12);
+    background: #fff;
+    padding: 0.45rem 0.85rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9rem;
+
+    &.active {
+      background: #0f172a;
+      color: #fff;
+      border-color: #0f172a;
+    }
+  }
+
+  .panel {
+    margin-bottom: 1.5rem;
+  }
+
+  .split {
+    display: grid;
+    grid-template-columns: minmax(0, 1.4fr) minmax(280px, 0.8fr);
+    gap: 1.25rem;
+
+    @media (max-width: 960px) {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 0.75rem;
+  }
+
+  .kpi {
+    background: #fff;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    border-radius: 8px;
+    padding: 0.85rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .kpi-label {
+    font-size: 0.8rem;
+    opacity: 0.7;
+  }
+
+  .kpi-value {
+    font-size: 1.4rem;
+    font-weight: 650;
+  }
+
+  .form-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+    background: #fff;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    border-radius: 8px;
+    padding: 1rem;
+
+    label {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+      font-size: 0.85rem;
+    }
+
+    input,
+    select,
+    textarea {
+      padding: 0.4rem 0.55rem;
+      border: 1px solid rgba(15, 23, 42, 0.15);
+      border-radius: 4px;
+    }
+
+    .check {
+      flex-direction: row;
+      align-items: center;
+      gap: 0.5rem;
+    }
+  }
+
+  .pa-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+
+    th,
+    td {
+      text-align: left;
+      padding: 0.5rem 0.6rem;
+      border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+      vertical-align: top;
+    }
+
+    code {
+      font-size: 0.78rem;
+      opacity: 0.85;
+    }
+  }
+
+  .linkish {
+    background: none;
+    border: none;
+    color: #1d4ed8;
+    cursor: pointer;
+    padding: 0;
+  }
+
+  .cap-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 0.65rem;
+    margin-top: 1rem;
+  }
+
+  .cap {
+    display: flex;
+    gap: 0.6rem;
+    align-items: flex-start;
+    background: #fff;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    border-radius: 8px;
+    padding: 0.65rem 0.75rem;
+
+    small {
+      display: block;
+      opacity: 0.65;
+      margin-top: 0.15rem;
+    }
+  }
+
+  .console-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    align-items: end;
+    margin-bottom: 1rem;
+
+    label {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+      font-size: 0.85rem;
+    }
+
+    select,
+    input {
+      min-width: 10rem;
+      padding: 0.4rem 0.55rem;
+    }
+  }
+
+  .preview,
+  .sim-result pre {
+    background: #0f172a;
+    color: #e2e8f0;
+    padding: 0.85rem 1rem;
+    border-radius: 8px;
+    overflow: auto;
+    font-size: 0.85rem;
+  }
+
+  .hint {
+    opacity: 0.75;
+    font-size: 0.9rem;
+  }
+
+  .error {
+    color: #b91c1c;
+  }
+
+  .inline {
+    display: inline-flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    font-size: 0.85rem;
+
+    select {
+      min-width: 16rem;
+      padding: 0.4rem 0.55rem;
+    }
+  }
+}

@@ -51,7 +51,7 @@ import { catchError } from 'rxjs/operators';
 
 type StatusFilter = 'all' | FleetTrackStatus;
 type IgnitionFilter = 'all' | 'on' | 'off';
-type RefreshRateMs = 5000 | 10000 | 30000 | 60000 | null;
+type RefreshRateMs = 5000 | 10000 | 120000 | null;
 
 interface TrackEvent {
   time: Date;
@@ -131,13 +131,13 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
   private traccarStatusPoll?: ReturnType<typeof setInterval>;
 
   readonly refreshRateOptions: { id: RefreshRateMs; label: string }[] = [
-    { id: 30000, label: '30 sec' },
-    { id: 60000, label: '1 min (SignalR primary)' },
-    { id: 10000, label: '10 sec (fallback)' },
-    { id: null, label: 'Pause' }
+    { id: null, label: 'Realtime (SignalR)' },
+    { id: 120000, label: '2 min REST sanity' },
+    { id: 10000, label: '10 sec (force poll)' },
+    { id: 5000, label: '5 sec (force poll)' }
   ];
-  /** User-selected cap; effective poll interval adapts to SignalR connection state. */
-  refreshRateMs: RefreshRateMs = 60000;
+  /** null = SignalR-only while connected; poll only when hub is down (or force/sanity selected). */
+  refreshRateMs: RefreshRateMs = null;
   followSelected = false;
   connectionState: GpsConnectionState = 'disconnected';
   private connectionStateSub?: { unsubscribe(): void };
@@ -813,12 +813,17 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
     }, intervalMs);
   }
 
-  /** SignalR connected → slow REST sanity poll; disconnected → faster fallback. */
+  /** SignalR connected → no REST poll (or optional ≥2 min sanity); disconnected → 5–10s fallback. */
   private effectivePollIntervalMs(): number | null {
-    if (this.refreshRateMs == null) return null;
     if (this.connectionState === 'connected') {
-      return Math.max(this.refreshRateMs, 60_000);
+      // Realtime mode: no HTTP poll. Optional REST sanity only when user picked ≥ 2 min.
+      if (this.refreshRateMs == null) return null;
+      if (this.refreshRateMs >= 120_000) return this.refreshRateMs;
+      // "Force poll" modes still poll while connected when explicitly selected.
+      return this.refreshRateMs;
     }
+    // Hub down: always poll for continuity (5–10s).
+    if (this.refreshRateMs == null) return 10_000;
     return Math.min(this.refreshRateMs, 10_000);
   }
 
@@ -826,11 +831,13 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
     this.refreshRateMs = rate;
     this.markUserActive();
     this.startAutoRefresh();
-    this.pushEvent(
-      rate == null ? 'Auto-refresh paused' : `Auto-refresh set to ${rate / 1000}s`,
-      'info',
-      rate == null ? 'pause_circle' : 'autorenew'
-    );
+    const label =
+      rate == null
+        ? 'Realtime (SignalR only while connected)'
+        : rate >= 120_000
+          ? `REST sanity every ${rate / 1000}s`
+          : `Force poll every ${rate / 1000}s`;
+    this.pushEvent(label, 'info', rate == null ? 'sensors' : 'autorenew');
   }
 
   toggleFollowSelected(): void {

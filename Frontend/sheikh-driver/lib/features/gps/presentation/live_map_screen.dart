@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
@@ -8,6 +10,7 @@ import '../../../core/constants/app_theme.dart';
 import '../../../core/analytics/analytics_service.dart';
 import '../../../features/trips/presentation/trips_notifier.dart';
 import '../../../shared/widgets/sg_ui.dart';
+import '../../fleet/domain/fleet_models.dart';
 import '../services/background_gps_tracker.dart';
 import '../services/signalr_service.dart';
 
@@ -28,19 +31,75 @@ class LiveMapScreen extends ConsumerStatefulWidget {
 
 class _LiveMapScreenState extends ConsumerState<LiveMapScreen> {
   String _signalrStatus = 'disconnected';
+  String? _serverAddress;
+  DateTime? _lastServerFixAt;
+  StreamSubscription<String>? _statusSub;
+  StreamSubscription<LiveLocationUpdate>? _locationSub;
+  Timer? _fallbackPoll;
+  int? _trackingVehicleId;
 
   @override
   void initState() {
     super.initState();
-    SignalRService.instance.statusStream.listen((status) {
-      if (mounted) setState(() => _signalrStatus = status);
+    _statusSub = SignalRService.instance.statusStream.listen((status) {
+      if (!mounted) return;
+      setState(() => _signalrStatus = status);
+      if (status == 'connected') {
+        _fallbackPoll?.cancel();
+        _fallbackPoll = null;
+      } else if (status == 'disconnected' || status == 'reconnecting') {
+        _ensureFallbackPoll();
+      }
+    });
+    _locationSub = SignalRService.instance.locationUpdates.listen((update) {
+      if (!mounted) return;
+      if (_trackingVehicleId != null && update.vehicleId != _trackingVehicleId) {
+        return;
+      }
+      setState(() {
+        _lastServerFixAt = update.timestamp.toLocal();
+        _serverAddress = update.address;
+      });
     });
   }
 
   @override
   void dispose() {
+    _statusSub?.cancel();
+    _locationSub?.cancel();
+    _fallbackPoll?.cancel();
     SignalRService.instance.disconnect();
     super.dispose();
+  }
+
+  void _ensureFallbackPoll() {
+    if (_trackingVehicleId == null) return;
+    if (_fallbackPoll != null) return;
+    _fallbackPoll = Timer.periodic(const Duration(seconds: 10), (_) {
+      unawaited(_pollVehicleGps(_trackingVehicleId!));
+    });
+    unawaited(_pollVehicleGps(_trackingVehicleId!));
+  }
+
+  Future<void> _pollVehicleGps(int vehicleId) async {
+    try {
+      final res = await ref.read(dioProvider).get(ApiEndpoints.vehicleGps(vehicleId));
+      final data = res.data;
+      if (data is! Map) return;
+      final map = Map<String, dynamic>.from(data);
+      final body = map['data'] is Map
+          ? Map<String, dynamic>.from(map['data'] as Map)
+          : map;
+      final info = VehicleGpsInfo.fromJson(body);
+      if (info.latitude == null || info.longitude == null) return;
+      if (!mounted) return;
+      setState(() {
+        _lastServerFixAt = info.lastUpdate?.toLocal() ?? DateTime.now();
+        _serverAddress = info.address;
+      });
+    } catch (_) {
+      // Ignore fallback errors — local GPS tracker remains source of truth for outbound.
+    }
   }
 
   Future<void> _startTracking() async {
@@ -55,23 +114,32 @@ class _LiveMapScreenState extends ConsumerState<LiveMapScreen> {
       return;
     }
 
-    await SignalRService.instance.connect((type, id) async {
-      await ref.read(dioProvider).post(ApiEndpoints.completeCommand(id));
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Engine command received: $type'),
-            backgroundColor: AppColors.warning,
-          ),
-        );
-      }
-    });
+    _trackingVehicleId = active!.vehicleId;
+
+    await SignalRService.instance.connect(
+      (type, id) async {
+        await ref.read(dioProvider).post(ApiEndpoints.completeCommand(id));
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Engine command received: $type'),
+              backgroundColor: AppColors.warning,
+            ),
+          );
+        }
+      },
+      vehicleId: active.vehicleId,
+    );
 
     final err = await ref.read(backgroundGpsProvider).start(
-          vehicleId: active!.vehicleId!,
+          vehicleId: active.vehicleId!,
           bookingId: active.bookingId ?? active.id,
           dio: ref.read(dioProvider),
         );
+
+    if (!SignalRService.instance.isConnected) {
+      _ensureFallbackPoll();
+    }
 
     if (err != null && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -81,8 +149,11 @@ class _LiveMapScreenState extends ConsumerState<LiveMapScreen> {
   }
 
   Future<void> _stopTracking() async {
+    _fallbackPoll?.cancel();
+    _fallbackPoll = null;
+    _trackingVehicleId = null;
     await ref.read(backgroundGpsProvider).stop();
-    SignalRService.instance.disconnect();
+    await SignalRService.instance.disconnect();
   }
 
   @override
@@ -134,6 +205,21 @@ class _LiveMapScreenState extends ConsumerState<LiveMapScreen> {
                       ? timeFmt.format(lastUpdate.toLocal())
                       : '—',
                 ),
+                if (_lastServerFixAt != null) ...[
+                  const Divider(height: 1),
+                  _StatusRow(
+                    label: 'Server Fix',
+                    value: timeFmt.format(_lastServerFixAt!),
+                    valueColor: AppColors.success,
+                  ),
+                ],
+                if (_serverAddress != null && _serverAddress!.isNotEmpty) ...[
+                  const Divider(height: 1),
+                  _StatusRow(
+                    label: 'Address',
+                    value: _serverAddress!,
+                  ),
+                ],
                 if (gps.queuedCount > 0) ...[
                   const Divider(height: 1),
                   _StatusRow(

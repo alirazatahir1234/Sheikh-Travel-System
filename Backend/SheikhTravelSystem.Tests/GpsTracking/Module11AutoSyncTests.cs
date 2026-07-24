@@ -26,6 +26,26 @@ public class Module11AutoSyncTests
         var snapshot = state.Snapshot(connected: true);
         snapshot.LastPositionSyncAt.Should().NotBeNull();
         snapshot.PositionSyncIntervalSeconds.Should().Be(5);
+        snapshot.EffectivePositionSyncIntervalSeconds.Should().Be(5);
+        snapshot.AdaptivePositionSync.Should().BeTrue();
+    }
+
+    [Fact]
+    public void TraccarSyncState_SetAdaptivePositionInterval_UpdatesEffective()
+    {
+        var state = new TraccarSyncState(Options.Create(new TraccarOptions
+        {
+            Enabled = true,
+            BaseUrl = "http://localhost:8082",
+            PositionSyncIntervalSeconds = 5,
+            AdaptivePositionSync = true
+        }));
+
+        state.SetAdaptivePositionInterval(300, TraccarAdaptiveInterval.ReasonParked);
+        var snapshot = state.Snapshot(connected: true);
+        snapshot.EffectivePositionSyncIntervalSeconds.Should().Be(300);
+        snapshot.AdaptiveIntervalReason.Should().Be(TraccarAdaptiveInterval.ReasonParked);
+        state.GetEffectivePositionIntervalSeconds().Should().Be(300);
     }
 
     [Fact]

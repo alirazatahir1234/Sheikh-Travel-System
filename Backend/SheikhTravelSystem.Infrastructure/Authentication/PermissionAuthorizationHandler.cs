@@ -20,6 +20,14 @@ public class PermissionAuthorizationHandler : AuthorizationHandler<PermissionReq
             return Task.CompletedTask;
         }
 
+        // Stage 14: legacy AuditLogs.View satisfies Audit.View
+        if (requirement.Permission == PlatformPermissions.AuditView &&
+            context.User.HasClaim("permission", PlatformPermissions.AuditLogsView))
+        {
+            context.Succeed(requirement);
+            return Task.CompletedTask;
+        }
+
         if (HasRole(context, PlatformRoles.SuperAdmin))
         {
             context.Succeed(requirement);

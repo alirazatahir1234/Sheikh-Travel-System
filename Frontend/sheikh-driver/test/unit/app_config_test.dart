@@ -23,5 +23,22 @@ void main() {
     test('appVersion is set', () {
       expect(AppConfig.appVersion, isNotEmpty);
     });
+
+    test('default production API matches ERP host', () {
+      expect(
+        AppConfig.defaultProductionApiBaseUrl,
+        'https://sheikh-travel-system-production.up.railway.app/api',
+      );
+    });
+
+    test('hubBaseUrl ends with tracking hub path', () {
+      expect(AppConfig.hubBaseUrl.endsWith('/hubs/tracking'), isTrue);
+    });
+
+    test('apiOrigin strips /api suffix from resolvedBaseUrl', () {
+      final origin = AppConfig.apiOrigin;
+      expect(origin.endsWith('/api'), isFalse);
+      expect(AppConfig.resolvedBaseUrl.startsWith(origin), isTrue);
+    });
   });
 }

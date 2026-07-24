@@ -1486,7 +1486,7 @@ public class UpdateTenantSecuritySettingsCommandHandler(
         var values = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
             [SecurityPolicyKeys.ComplianceMfaRequired] = p.IsMfaRequired ? "true" : "false",
-            [SecurityPolicyKeys.PasswordMaxAgeDays] = (p.PasswordExpiryDays ?? 90).ToString(),
+            [SecurityPolicyKeys.PasswordMaxAgeDays] = (p.PasswordExpiryDays ?? 0).ToString(),
             [SecurityPolicyKeys.SessionIdleTimeoutMinutes] = (p.SessionTimeoutMinutes ?? 30).ToString(),
             [SecurityPolicyKeys.ComplianceGdprLogging] = p.IsGdprEnabled ? "true" : "false",
             [SecurityPolicyKeys.AuditLevel] = p.IsAuditLoggingEnabled ? "Always" : "Disabled",

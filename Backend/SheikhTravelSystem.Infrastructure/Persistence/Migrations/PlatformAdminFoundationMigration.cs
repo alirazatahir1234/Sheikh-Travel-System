@@ -87,13 +87,17 @@ public static class PlatformAdminFoundationMigration
         await UpsertMenuAsync(connection, "platform", "Audit Logs", "/audit-logs", "history",
             PlatformPermissions.AuditLogsView, 6, cancellationToken);
 
-        // Retire ambiguous "Maintenance" under administration if it pointed at DB reset.
+        // Platform owns Settings + Database Reset. Retire legacy Administration copies.
         await connection.ExecuteAsync(new CommandDefinition("""
-            UPDATE pm SET pm.Name = N'Database Reset', pm.PermissionCode = @Permission, pm.Route = N'/platform/maintenance', pm.IsActive = 1
+            UPDATE pm SET pm.IsActive = 0
             FROM PlatformMenus pm
             INNER JOIN PlatformModules m ON m.Id = pm.ModuleId
-            WHERE m.ModuleKey = 'administration' AND pm.Name IN (N'Maintenance', N'Database Reset');
-            """, new { Permission = PlatformPermissions.SystemReset }, cancellationToken: cancellationToken));
+            WHERE m.ModuleKey = 'administration'
+              AND (
+                    pm.Name IN (N'Settings', N'Database Reset', N'Maintenance', N'Tenant Settings', N'System Configuration')
+                 OR pm.Route IN (N'/settings', N'/platform/maintenance')
+              );
+            """, cancellationToken: cancellationToken));
 
         logger.LogInformation("PlatformAdminFoundationMigration applied (ops permissions + platform menus).");
     }

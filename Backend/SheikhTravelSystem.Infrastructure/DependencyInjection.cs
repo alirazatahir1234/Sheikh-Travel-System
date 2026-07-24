@@ -22,6 +22,7 @@ using SheikhTravelSystem.Infrastructure.Traccar;
 using Azure.Storage.Blobs;
 using SheikhTravelSystem.Infrastructure.Services.Notifications;
 using SheikhTravelSystem.Infrastructure.Services.Ai.Tools;
+using SheikhTravelSystem.Infrastructure.Services.GpsControl;
 using SheikhTravelSystem.Infrastructure.Services.Storage;
 using SheikhTravelSystem.Infrastructure.Caching;
 using SheikhTravelSystem.Infrastructure.SignalR;
@@ -77,6 +78,7 @@ public static class DependencyInjection
         services.AddScoped<IDatabaseSeeder, DatabaseSeeder>();
         services.AddScoped<IDatabaseResetService, DatabaseResetService>();
         services.AddScoped<IAuditService, AuditService>();
+        services.AddScoped<IAuditEngine, AuditEngine>();
         services.AddScoped<INotificationService, NotificationService>();
         services.AddScoped<NotificationRecipientResolver>();
         services.AddScoped<INotificationRetentionService, NotificationRetentionService>();
@@ -181,6 +183,26 @@ public static class DependencyInjection
         services.AddSingleton<ITraccarSyncState, TraccarSyncState>();
         services.AddScoped<ITraccarSyncOrchestrator, TraccarSyncOrchestrator>();
         services.AddScoped<ITrackerRegistrationService, TrackerRegistrationService>();
+
+        // Stage 16 — GPS Device Control Center
+        services.AddScoped<IGpsControlCenterService, GpsControlCenterService>();
+        services.AddScoped<IGpsCommandTranslator, GpsCommandTranslator>();
+        services.AddScoped<IGpsTransportRouter, GpsTransportRouter>();
+        services.AddScoped<IGpsTransportProvider, TraccarGpsTransportProvider>();
+        services.AddScoped<IGpsTransportProvider, SmsGpsTransportProvider>();
+        services.AddScoped<IGpsTransportProvider, SimulatorGpsTransportProvider>();
+        services.AddScoped<IGpsTransportProvider>(_ => new StubGpsTransportProvider("Tcp"));
+        services.AddScoped<IGpsTransportProvider>(_ => new StubGpsTransportProvider("Mqtt"));
+        services.AddScoped<IGpsTransportProvider>(_ => new StubGpsTransportProvider("Http"));
+        services.AddScoped<IGpsTransportProvider>(_ => new StubGpsTransportProvider("Bluetooth"));
+        services.AddScoped<IGpsTransportProvider>(_ => new StubGpsTransportProvider("Serial"));
+        services.AddScoped<IGpsCommandResultParser, StatusGpsCommandResultParser>();
+        services.AddScoped<IGpsCommandResultParser, VersionGpsCommandResultParser>();
+        services.AddScoped<IGpsCommandResultParser, IccidGpsCommandResultParser>();
+        services.AddScoped<IGpsCommandResultParser, ImsiGpsCommandResultParser>();
+        services.AddScoped<IGpsCommandResultParser, ParamGpsCommandResultParser>();
+        services.AddScoped<IGpsCommandResultParser, SignalGpsCommandResultParser>();
+        services.AddScoped<IGpsCommandResultParserRegistry, GpsCommandResultParserRegistry>();
 
         // Reverse-geocoding backfill for positions Traccar's own geocoder didn't resolve.
         services.Configure<GeocodingOptions>(configuration.GetSection(GeocodingOptions.SectionName));

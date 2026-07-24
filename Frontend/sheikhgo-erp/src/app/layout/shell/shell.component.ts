@@ -22,6 +22,7 @@ import {
   groupContainingRoute,
   resolveMenu
 } from '../../core/navigation/menu-config';
+import { isNavItemActive } from '../../core/navigation/nav-route-active.util';
 import { resolveTenantType } from '../../core/navigation/tenant-type';
 import { APP_PRODUCT_NAME, APP_SIDEBAR_LOGO_PATH } from '../../core/constants/app-brand';
 
@@ -328,18 +329,22 @@ export class ShellComponent implements OnInit, OnDestroy {
     const tree = this.router.parseUrl(this.router.url);
     const path = tree.root.children['primary']?.segments.map(s => s.path).join('/') ?? '';
     const normalizedPath = '/' + path;
+    const queryParams: Record<string, string | undefined> = { ...tree.queryParams };
 
-    if (item.queryParams) {
-      const onRoute = normalizedPath === item.route;
-      return onRoute && Object.entries(item.queryParams).every(
-        ([key, value]) => tree.queryParams[key] === value
-      );
-    }
+    const candidates = this.latestMenu
+      ? [
+          ...this.latestMenu.groups.flatMap(g => g.items),
+          ...this.latestMenu.standaloneItems
+        ]
+      : [];
 
-    const onRoute = normalizedPath === item.route || normalizedPath.startsWith(item.route + '/');
-    if (!onRoute) return false;
-    if (this.aliasItemIds.has(item.id)) return false;
-    return true;
+    return isNavItemActive(
+      item,
+      normalizedPath,
+      queryParams,
+      candidates,
+      this.aliasItemIds
+    );
   }
 
   isGroupActive(group: NavGroup): boolean {

@@ -44,20 +44,35 @@ xattr -dr com.apple.quarantine /opt/homebrew/Caskroom/flutter
 
 ## API base URL (`AppConfig.resolvedBaseUrl`)
 
-Defaults when **no** `--dart-define=API_BASE_URL` is set:
+Resolution order:
 
-| Target | Default |
-|--------|---------|
-| Android emulator | `http://10.0.2.2:5082/api` (host machine) |
-| iOS Simulator / desktop | `http://localhost:5082/api` |
+1. Explicit `--dart-define=API_BASE_URL=...` (always wins)
+2. When `--dart-define=ENV=prod` or `ENV=uat`: Production HTTPS (same host as ERP)
+3. Otherwise platform local defaults
 
-**Physical devices** (USB or wireless) must pass your Mac’s LAN IP — `localhost` / `10.0.2.2` will not reach the host API. Ensure the API listens on `0.0.0.0:5082`.
+| Target | Default (no `API_BASE_URL`) |
+|--------|-----------------------------|
+| `ENV=prod` / `ENV=uat` | `https://sheikh-travel-system-production.up.railway.app/api` |
+| Android emulator (`ENV=dev`) | `http://10.0.2.2:5082/api` |
+| iOS Simulator / desktop (`ENV=dev`) | `http://localhost:5082/api` |
+
+SignalR uses `AppConfig.hubBaseUrl` (`{apiOrigin}/hubs/tracking`, or `--dart-define=HUB_URL=...`).
+
+**Local physical device against Mac API:** pass your Mac LAN IP — `localhost` / `10.0.2.2` will not reach the host. Ensure the API listens on `0.0.0.0:5082`.
 
 ```bash
 # Find Mac LAN IP
 ipconfig getifaddr en0
 ```
 
+**Production APK (any network, no Mac):**
+
+```bash
+./scripts/run_prod_device.sh
+# or: ./scripts/build_prod.sh apk
+```
+
+Install `build/app/outputs/flutter-apk/app-release.apk` on any Android phone with internet.
 ## Run targets
 
 From `Frontend/sheikh-driver` (or use the absolute path below).
@@ -205,17 +220,20 @@ See `store/` for privacy, terms, listing copy, screenshots guide, release notes,
 - **Prod builds** — `scripts/build_prod.sh`
 
 ```bash
+# Release APK for any physical device (defaults to Production Railway API)
+./scripts/run_prod_device.sh
+
 # Android App Bundle (requires android/key.properties — see key.properties.example)
-export API_BASE_URL=https://api.example.com/api
+# API_BASE_URL defaults to https://sheikh-travel-system-production.up.railway.app/api
 export PRIVACY_URL=https://example.com/fleet/privacy
 export TERMS_URL=https://example.com/fleet/terms
-export CERT_PIN_1=YOUR_SHA256_HEX
+export CERT_PIN_1=YOUR_SHA256_HEX   # optional; without pins HTTPS still works, pinning is off
 ./scripts/build_prod.sh android
 
 # Or direct flutter:
 flutter build appbundle --release \
   --dart-define=ENV=prod \
-  --dart-define=API_BASE_URL=https://api.example.com/api \
+  --dart-define=API_BASE_URL=https://sheikh-travel-system-production.up.railway.app/api \
   --dart-define=PRIVACY_URL=https://example.com/fleet/privacy \
   --dart-define=TERMS_URL=https://example.com/fleet/terms \
   --dart-define=CERT_PIN_1=YOUR_SHA256_HEX
