@@ -139,7 +139,7 @@ public static class AuditCenterFoundationMigration
             IF EXISTS (SELECT 1 FROM PlatformModules WHERE ModuleKey = N'platform')
             AND NOT EXISTS (
                 SELECT 1 FROM PlatformMenus pm
-                WHERE pm.Route = N'/platform/audit-center' AND (pm.IsDeleted = 0 OR pm.IsDeleted IS NULL))
+                WHERE pm.Route = N'/platform/audit-center')
             BEGIN
                 INSERT INTO PlatformMenus (ModuleId, ParentId, Name, Route, Icon, PermissionCode, SortOrder, IsActive,
                     DisplayName, Description, Category, Visible, FeatureKey, ModuleKey, IsMobileSupported, UpdatedAt)

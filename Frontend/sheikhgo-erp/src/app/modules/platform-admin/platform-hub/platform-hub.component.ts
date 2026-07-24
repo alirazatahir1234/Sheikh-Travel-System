@@ -216,6 +216,13 @@ export class PlatformHubComponent {
           icon: 'history',
           route: '/platform/audit-center',
           permissions: ['Platform.Audit.View', 'Platform.AuditLogs.View']
+        },
+        {
+          label: 'GPS Control Center',
+          description: 'Manufacturers, models, commands, templates, simulator.',
+          icon: 'gps_fixed',
+          route: '/platform/gps-control-center',
+          permissions: ['Platform.Gps.Control.View']
         }
       ]
     }

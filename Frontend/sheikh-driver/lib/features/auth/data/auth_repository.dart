@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../../../core/api/dio_client.dart';
+import '../../../core/config/app_config.dart';
 import '../domain/auth_models.dart';
 import 'auth_api.dart';
 import '../../notifications/services/push_registration_service.dart';
@@ -168,7 +169,8 @@ class AuthRepository extends ChangeNotifier {
       FirebaseCrashlytics.instance
         ..setUserIdentifier(identifier)
         ..setCustomKey('user_id', session.userId)
-        ..setCustomKey('tenant_id', session.tenantId);
+        ..setCustomKey('tenant_id', session.tenantId)
+        ..setCustomKey('env', AppConfig.environmentLabel);
       if (session.driverId != null) {
         FirebaseCrashlytics.instance.setCustomKey('driver_id', session.driverId!);
       }

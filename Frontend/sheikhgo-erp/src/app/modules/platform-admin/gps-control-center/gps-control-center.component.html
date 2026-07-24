@@ -1,0 +1,222 @@
+<div class="pa-page gps-control-center">
+  <ui-page-header
+    title="GPS Device Control Center"
+    subtitle="Manufacturers, models, capabilities, command library, templates, and simulator."
+  >
+    <button appUiButton variant="ghost" type="button" (click)="back()">Back to Platform</button>
+  </ui-page-header>
+
+  <nav class="tabs" aria-label="GPS Control sections">
+    <button
+      type="button"
+      *ngFor="let t of tabs"
+      class="tab"
+      [class.active]="activeTab === t.id"
+      (click)="setTab(t.id)"
+    >
+      {{ t.label }}
+    </button>
+  </nav>
+
+  <section *ngIf="activeTab === 'dashboard'" class="panel">
+    <div class="kpi-grid" *ngIf="dashboard as d">
+      <div class="kpi"><span class="kpi-label">Manufacturers</span><span class="kpi-value">{{ d.manufacturers }}</span></div>
+      <div class="kpi"><span class="kpi-label">Models</span><span class="kpi-value">{{ d.models }}</span></div>
+      <div class="kpi"><span class="kpi-label">Commands</span><span class="kpi-value">{{ d.commands }}</span></div>
+      <div class="kpi"><span class="kpi-label">Templates</span><span class="kpi-value">{{ d.templates }}</span></div>
+      <div class="kpi"><span class="kpi-label">Queued</span><span class="kpi-value">{{ d.queued }}</span></div>
+      <div class="kpi"><span class="kpi-label">Failed</span><span class="kpi-value">{{ d.failed }}</span></div>
+      <div class="kpi"><span class="kpi-label">Online devices</span><span class="kpi-value">{{ d.onlineDevices }}</span></div>
+      <div class="kpi"><span class="kpi-label">Offline devices</span><span class="kpi-value">{{ d.offlineDevices }}</span></div>
+    </div>
+    <p class="hint">Health KPIs use last-seen telemetry (30 min window). Weak signal / low battery placeholders arrive with richer telemetry later.</p>
+  </section>
+
+  <section *ngIf="activeTab === 'manufacturers'" class="panel split">
+    <div>
+      <h3>Registry</h3>
+      <table class="pa-table">
+        <thead>
+          <tr><th>Name</th><th>Vendor</th><th>Protocol</th><th>Traccar</th><th>SMS</th><th></th></tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let b of manufacturers">
+            <td>{{ b.name }}</td>
+            <td>{{ b.vendorKey }}</td>
+            <td>{{ b.defaultProtocol }}</td>
+            <td>{{ b.supportsTraccar ? 'Yes' : 'No' }}</td>
+            <td>{{ b.supportsSms ? 'Yes' : 'No' }}</td>
+            <td><button type="button" class="linkish" (click)="editBrand(b)">Edit</button></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <form class="form-card" (ngSubmit)="saveBrand()">
+      <h3>{{ brandForm.id ? 'Edit' : 'Add' }} manufacturer</h3>
+      <label>Name <input [(ngModel)]="brandForm.name" name="bname" required /></label>
+      <label>Vendor key <input [(ngModel)]="brandForm.vendorKey" name="bvk" /></label>
+      <label>Default protocol <input [(ngModel)]="brandForm.defaultProtocol" name="bproto" /></label>
+      <label>Website <input [(ngModel)]="brandForm.website" name="bweb" /></label>
+      <label class="check"><input type="checkbox" [(ngModel)]="brandForm.supportsTraccar" name="btr" /> Supports Traccar</label>
+      <label class="check"><input type="checkbox" [(ngModel)]="brandForm.supportsSms" name="bsms" /> Supports SMS</label>
+      <label class="check"><input type="checkbox" [(ngModel)]="brandForm.isActive" name="bact" /> Active</label>
+      <button appUiButton type="submit">Save</button>
+    </form>
+  </section>
+
+  <section *ngIf="activeTab === 'models'" class="panel split">
+    <div>
+      <h3>Models</h3>
+      <table class="pa-table">
+        <thead>
+          <tr><th>Brand</th><th>Model</th><th>Key</th><th>Protocol</th><th>Engine</th><th>Relay</th><th></th></tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let m of models">
+            <td>{{ m.brandName }}</td>
+            <td>{{ m.name }}</td>
+            <td>{{ m.catalogKey }}</td>
+            <td>{{ m.protocolLabel }}</td>
+            <td>{{ m.supportsEngineCutOff ? 'Yes' : 'No' }}</td>
+            <td>{{ m.supportsRelay ? 'Yes' : 'No' }}</td>
+            <td><button type="button" class="linkish" (click)="editModel(m)">Edit</button></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <form class="form-card" (ngSubmit)="saveModel()">
+      <h3>{{ modelForm.id ? 'Edit' : 'Add' }} model</h3>
+      <label>Brand
+        <select [(ngModel)]="modelForm.trackerBrandId" name="mbrand" required>
+          <option *ngFor="let b of manufacturers" [ngValue]="b.id">{{ b.name }}</option>
+        </select>
+      </label>
+      <label>Name <input [(ngModel)]="modelForm.name" name="mname" required /></label>
+      <label>Catalog key <input [(ngModel)]="modelForm.catalogKey" name="mkey" /></label>
+      <label>Protocol <input [(ngModel)]="modelForm.protocol" name="mproto" required /></label>
+      <label>Protocol label <input [(ngModel)]="modelForm.protocolLabel" name="mplabel" /></label>
+      <label>Default port <input type="number" [(ngModel)]="modelForm.defaultPort" name="mport" /></label>
+      <label>Firmware hint <input [(ngModel)]="modelForm.firmwareHint" name="mfirm" /></label>
+      <label class="check"><input type="checkbox" [(ngModel)]="modelForm.supportsEngineCutOff" name="meng" /> Engine cut</label>
+      <label class="check"><input type="checkbox" [(ngModel)]="modelForm.supportsRelay" name="mrel" /> Relay</label>
+      <label class="check"><input type="checkbox" [(ngModel)]="modelForm.isActive" name="mact" /> Active</label>
+      <button appUiButton type="submit">Save</button>
+    </form>
+  </section>
+
+  <section *ngIf="activeTab === 'capabilities'" class="panel">
+    <label class="inline">
+      Model
+      <select [(ngModel)]="selectedModelId" name="capModel" (ngModelChange)="loadModelCaps()">
+        <option *ngFor="let m of models" [ngValue]="m.id">{{ m.brandName }} — {{ m.name }}</option>
+      </select>
+    </label>
+    <div class="cap-grid">
+      <label class="cap" *ngFor="let c of capabilities">
+        <input
+          type="checkbox"
+          [checked]="hasCap(c.capabilityKey)"
+          (change)="toggleCapability(c.capabilityKey, $any($event.target).checked)"
+        />
+        <span>
+          <strong>{{ c.displayName }}</strong>
+          <small>{{ c.category }} · {{ c.capabilityKey }}</small>
+        </span>
+      </label>
+    </div>
+  </section>
+
+  <section *ngIf="activeTab === 'commands'" class="panel">
+    <p class="hint">ERP and tenant UIs bind to definitions — never raw SMS strings.</p>
+    <table class="pa-table">
+      <thead>
+        <tr><th>Command</th><th>Category</th><th>Capability</th><th>Danger</th><th>Approval</th><th>Reason</th></tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let c of commands">
+          <td>{{ c.displayName }} <code>{{ c.commandKey }}</code></td>
+          <td>{{ c.category }}</td>
+          <td>{{ c.requiredCapabilityKey || '—' }}</td>
+          <td>{{ c.dangerLevel }}</td>
+          <td>{{ c.requiresApproval ? 'Yes' : 'No' }}</td>
+          <td>{{ c.requiresReason ? 'Yes' : 'No' }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section *ngIf="activeTab === 'templates'" class="panel split">
+    <div>
+      <h3>Versioned templates</h3>
+      <table class="pa-table">
+        <thead>
+          <tr><th>Model</th><th>Command</th><th>Transport</th><th>Payload</th><th>Ver</th><th></th></tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let t of templates">
+            <td>{{ t.modelName }}</td>
+            <td>{{ t.commandKey }}</td>
+            <td>{{ t.transport }}</td>
+            <td><code>{{ t.payloadTemplate }}</code></td>
+            <td>{{ t.templateVersion }}</td>
+            <td><button type="button" class="linkish" (click)="editTemplate(t)">Edit</button></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <form class="form-card" (ngSubmit)="saveTemplate()">
+      <h3>{{ templateForm.id ? 'Edit' : 'Add' }} template</h3>
+      <label>Model
+        <select [(ngModel)]="templateForm.trackerModelId" name="tmodel" required>
+          <option *ngFor="let m of models" [ngValue]="m.id">{{ m.name }}</option>
+        </select>
+      </label>
+      <label>Command key
+        <select [(ngModel)]="templateForm.commandKey" name="tcmd">
+          <option *ngFor="let c of commands" [value]="c.commandKey">{{ c.displayName }}</option>
+        </select>
+      </label>
+      <label>Transport
+        <select [(ngModel)]="templateForm.transport" name="ttr">
+          <option>Auto</option>
+          <option>Traccar</option>
+          <option>Sms</option>
+          <option>Simulator</option>
+        </select>
+      </label>
+      <label>Payload template <textarea [(ngModel)]="templateForm.payloadTemplate" name="tpay" rows="3" required></textarea></label>
+      <label>Traccar type <input [(ngModel)]="templateForm.traccarType" name="ttype" /></label>
+      <label>Parser key <input [(ngModel)]="templateForm.parserKey" name="tparse" /></label>
+      <label>Firmware min <input [(ngModel)]="templateForm.firmwareMin" name="tfmin" /></label>
+      <label>Firmware max <input [(ngModel)]="templateForm.firmwareMax" name="tfmax" /></label>
+      <label>Version <input type="number" [(ngModel)]="templateForm.templateVersion" name="tver" /></label>
+      <button appUiButton type="submit">Save</button>
+    </form>
+  </section>
+
+  <section *ngIf="activeTab === 'console'" class="panel">
+    <h3>Testing console + simulator</h3>
+    <div class="console-row">
+      <label>Model
+        <select [(ngModel)]="consoleModelId" name="cmodel">
+          <option *ngFor="let m of models" [ngValue]="m.id">{{ m.brandName }} — {{ m.name }}</option>
+        </select>
+      </label>
+      <label>Command
+        <select [(ngModel)]="consoleCommandKey" name="ccmd">
+          <option *ngFor="let c of commands" [value]="c.commandKey">{{ c.displayName }}</option>
+        </select>
+      </label>
+      <label>Firmware <input [(ngModel)]="consoleFirmware" name="cfirm" placeholder="optional" /></label>
+      <button appUiButton type="button" variant="secondary" (click)="previewTranslate()">Translate</button>
+      <button appUiButton type="button" (click)="runSimulate()">Simulate</button>
+    </div>
+    <pre class="preview" *ngIf="consolePreview">{{ consolePreview }}</pre>
+    <div class="sim-result" *ngIf="consoleSimulate as s">
+      <p><strong>Transport:</strong> {{ s.transport.transport }} — {{ s.transport.success ? 'OK' : 'Fail' }}</p>
+      <pre *ngIf="s.transport.responseText">{{ s.transport.responseText }}</pre>
+      <pre *ngIf="s.parsed">{{ s.parsed | json }}</pre>
+      <p class="error" *ngIf="s.transport.error">{{ s.transport.error }}</p>
+    </div>
+  </section>
+</div>

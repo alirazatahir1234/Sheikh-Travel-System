@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SheikhTravelSystem.API.Authorization;
 using SheikhTravelSystem.Application.Common;
+using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Application.Features.Platform;
 
 namespace SheikhTravelSystem.API.Controllers;
@@ -558,3 +559,90 @@ public class DataScopeController : BaseApiController
     public async Task<IActionResult> GetMine()
         => Ok(await Mediator.Send(new GetMyDataScopeQuery()));
 }
+
+[RequirePermission(PlatformPermissions.GpsControlView)]
+[ApiController]
+[Route("api/platform/gps-control")]
+public class PlatformGpsControlController : BaseApiController
+{
+    [HttpGet("dashboard")]
+    public async Task<IActionResult> Dashboard()
+        => Ok(await Mediator.Send(new GetGpsControlDashboardQuery()));
+
+    [HttpGet("manufacturers")]
+    public async Task<IActionResult> Manufacturers()
+        => Ok(await Mediator.Send(new GetGpsManufacturersQuery()));
+
+    [RequirePermission(PlatformPermissions.GpsManufacturersManage)]
+    [HttpPost("manufacturers")]
+    public async Task<IActionResult> UpsertManufacturer([FromBody] GpsManufacturerDto dto)
+        => Ok(await Mediator.Send(new UpsertGpsManufacturerCommand(dto)));
+
+    [HttpGet("models")]
+    public async Task<IActionResult> Models([FromQuery] int? brandId = null)
+        => Ok(await Mediator.Send(new GetGpsTrackerModelsQuery(brandId)));
+
+    [RequirePermission(PlatformPermissions.GpsModelsManage)]
+    [HttpPost("models")]
+    public async Task<IActionResult> UpsertModel([FromBody] GpsTrackerModelDto dto)
+        => Ok(await Mediator.Send(new UpsertGpsTrackerModelCommand(dto)));
+
+    [HttpGet("capabilities")]
+    public async Task<IActionResult> Capabilities()
+        => Ok(await Mediator.Send(new GetGpsCapabilitiesQuery()));
+
+    [HttpGet("models/{modelId:int}/capabilities")]
+    public async Task<IActionResult> ModelCapabilities(int modelId)
+        => Ok(await Mediator.Send(new GetGpsModelCapabilitiesQuery(modelId)));
+
+    [RequirePermission(PlatformPermissions.GpsModelsManage)]
+    [HttpPut("models/{modelId:int}/capabilities/{capabilityKey}")]
+    public async Task<IActionResult> SetModelCapability(int modelId, string capabilityKey, [FromQuery] bool enabled = true)
+        => Ok(await Mediator.Send(new SetGpsModelCapabilityCommand(modelId, capabilityKey, enabled)));
+
+    [HttpGet("commands")]
+    public async Task<IActionResult> Commands()
+        => Ok(await Mediator.Send(new GetGpsCommandDefinitionsQuery()));
+
+    [HttpGet("commands/parameters")]
+    public async Task<IActionResult> CommandParameters([FromQuery] string? commandKey = null)
+        => Ok(await Mediator.Send(new GetGpsCommandParametersQuery(commandKey)));
+
+    [HttpGet("templates")]
+    public async Task<IActionResult> Templates([FromQuery] int? modelId = null)
+        => Ok(await Mediator.Send(new GetGpsCommandTemplatesQuery(modelId)));
+
+    [RequirePermission(PlatformPermissions.GpsTemplatesManage)]
+    [HttpPost("templates")]
+    public async Task<IActionResult> UpsertTemplate([FromBody] GpsCommandTemplateDto dto)
+        => Ok(await Mediator.Send(new UpsertGpsCommandTemplateCommand(dto)));
+
+    [RequirePermission(PlatformPermissions.GpsSimulatorUse)]
+    [HttpPost("translate")]
+    public async Task<IActionResult> Translate([FromBody] GpsTranslateRequest request)
+        => Ok(await Mediator.Send(new TranslateGpsCommandQuery(request)));
+
+    [RequirePermission(PlatformPermissions.GpsSimulatorUse)]
+    [HttpPost("simulate")]
+    public async Task<IActionResult> Simulate([FromBody] GpsTranslateRequest request)
+        => Ok(await Mediator.Send(new SimulateGpsCommandCommand(request)));
+
+    [RequirePermission(PlatformPermissions.GpsApprove)]
+    [HttpPost("commands/{id:int}/approve")]
+    public async Task<IActionResult> Approve(int id, [FromBody] ApproveGpsRequest body)
+        => Ok(await Mediator.Send(new ApproveGpsDeviceCommandCommand(id, body.Approve, body.Note)));
+
+    [RequirePermission(PlatformPermissions.GpsBulkExecute)]
+    [HttpPost("commands/bulk")]
+    public async Task<IActionResult> Bulk([FromBody] BulkExecuteGpsRequest body)
+        => Ok(await Mediator.Send(new BulkExecuteGpsCommandCommand(
+            body.DeviceIds, body.CommandKey, body.Parameters, body.Reason)));
+}
+
+public record ApproveGpsRequest(bool Approve, string? Note = null);
+
+public record BulkExecuteGpsRequest(
+    IReadOnlyList<int> DeviceIds,
+    string CommandKey,
+    IReadOnlyDictionary<string, string>? Parameters = null,
+    string? Reason = null);

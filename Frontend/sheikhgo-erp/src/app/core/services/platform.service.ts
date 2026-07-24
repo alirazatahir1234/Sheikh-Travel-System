@@ -52,7 +52,17 @@ import {
   AuditEventDetail,
   AuditEventDefinition,
   AuditEventSearchFilter,
-  AuditRetention
+  AuditRetention,
+  GpsControlDashboard,
+  GpsManufacturer,
+  GpsTrackerModel,
+  GpsCapability,
+  GpsCommandDefinition,
+  GpsCommandParameter,
+  GpsCommandTemplate,
+  GpsTranslateRequest,
+  GpsTranslateResult,
+  GpsSimulateResult
 } from '../models/platform.model';
 import { PagedResult } from '../models/common.model';
 
@@ -501,5 +511,72 @@ export class PlatformService {
     if (filter.toDate) params['toDate'] = filter.toDate;
     if (filter.search) params['search'] = filter.search;
     return this.http.get(`${this.base}/audit/export`, { params, responseType: 'blob' });
+  }
+
+  // Stage 16 — GPS Device Control Center
+  getGpsControlDashboard(): Observable<GpsControlDashboard> {
+    return this.http.get<GpsControlDashboard>(`${this.base}/gps-control/dashboard`);
+  }
+
+  getGpsManufacturers(): Observable<GpsManufacturer[]> {
+    return this.http.get<GpsManufacturer[]>(`${this.base}/gps-control/manufacturers`);
+  }
+
+  upsertGpsManufacturer(body: GpsManufacturer): Observable<number> {
+    return this.http.post<number>(`${this.base}/gps-control/manufacturers`, body);
+  }
+
+  getGpsTrackerModels(brandId?: number | null): Observable<GpsTrackerModel[]> {
+    const params: Record<string, string | number | boolean> = {};
+    if (brandId != null) params['brandId'] = brandId;
+    return this.http.get<GpsTrackerModel[]>(`${this.base}/gps-control/models`, { params });
+  }
+
+  upsertGpsTrackerModel(body: GpsTrackerModel): Observable<number> {
+    return this.http.post<number>(`${this.base}/gps-control/models`, body);
+  }
+
+  getGpsCapabilities(): Observable<GpsCapability[]> {
+    return this.http.get<GpsCapability[]>(`${this.base}/gps-control/capabilities`);
+  }
+
+  getGpsModelCapabilities(modelId: number): Observable<string[]> {
+    return this.http.get<string[]>(`${this.base}/gps-control/models/${modelId}/capabilities`);
+  }
+
+  setGpsModelCapability(modelId: number, capabilityKey: string, enabled: boolean): Observable<boolean> {
+    return this.http.put<boolean>(
+      `${this.base}/gps-control/models/${modelId}/capabilities/${encodeURIComponent(capabilityKey)}`,
+      null,
+      { params: { enabled } }
+    );
+  }
+
+  getGpsCommandDefinitions(): Observable<GpsCommandDefinition[]> {
+    return this.http.get<GpsCommandDefinition[]>(`${this.base}/gps-control/commands`);
+  }
+
+  getGpsCommandParameters(commandKey?: string): Observable<GpsCommandParameter[]> {
+    const params: Record<string, string | number | boolean> = {};
+    if (commandKey) params['commandKey'] = commandKey;
+    return this.http.get<GpsCommandParameter[]>(`${this.base}/gps-control/commands/parameters`, { params });
+  }
+
+  getGpsCommandTemplates(modelId?: number | null): Observable<GpsCommandTemplate[]> {
+    const params: Record<string, string | number | boolean> = {};
+    if (modelId != null) params['modelId'] = modelId;
+    return this.http.get<GpsCommandTemplate[]>(`${this.base}/gps-control/templates`, { params });
+  }
+
+  upsertGpsCommandTemplate(body: GpsCommandTemplate): Observable<number> {
+    return this.http.post<number>(`${this.base}/gps-control/templates`, body);
+  }
+
+  translateGpsCommand(body: GpsTranslateRequest): Observable<GpsTranslateResult> {
+    return this.http.post<GpsTranslateResult>(`${this.base}/gps-control/translate`, body);
+  }
+
+  simulateGpsCommand(body: GpsTranslateRequest): Observable<GpsSimulateResult> {
+    return this.http.post<GpsSimulateResult>(`${this.base}/gps-control/simulate`, body);
   }
 }

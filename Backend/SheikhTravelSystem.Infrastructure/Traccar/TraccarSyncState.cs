@@ -12,11 +12,18 @@ public sealed class TraccarSyncState(IOptions<TraccarOptions> options) : ITracca
     private DateTime? _lastEventSyncAt;
     private DateTime? _lastSyncCompletedAt;
     private string? _lastError;
+    private int _effectivePositionIntervalSeconds;
+    private string _adaptiveReason = TraccarAdaptiveInterval.ReasonDefault;
 
     public TraccarSyncStatusDto Snapshot(bool connected)
     {
         lock (_lock)
         {
+            var floor = Math.Max(1, options.Value.ResolvedPositionIntervalSeconds);
+            var effective = _effectivePositionIntervalSeconds > 0
+                ? _effectivePositionIntervalSeconds
+                : floor;
+
             return new TraccarSyncStatusDto(
                 options.Value.Enabled,
                 connected,
@@ -26,7 +33,10 @@ public sealed class TraccarSyncState(IOptions<TraccarOptions> options) : ITracca
                 _lastEventSyncAt,
                 _lastSyncCompletedAt,
                 _lastError,
-                options.Value.ResolvedPositionIntervalSeconds);
+                floor,
+                options.Value.AdaptivePositionSync,
+                _adaptiveReason,
+                effective);
         }
     }
 
@@ -68,6 +78,27 @@ public sealed class TraccarSyncState(IOptions<TraccarOptions> options) : ITracca
         lock (_lock)
         {
             _lastError = error;
+        }
+    }
+
+    public void SetAdaptivePositionInterval(int intervalSeconds, string reason)
+    {
+        lock (_lock)
+        {
+            _effectivePositionIntervalSeconds = Math.Max(1, intervalSeconds);
+            _adaptiveReason = string.IsNullOrWhiteSpace(reason)
+                ? TraccarAdaptiveInterval.ReasonDefault
+                : reason;
+        }
+    }
+
+    public int GetEffectivePositionIntervalSeconds()
+    {
+        lock (_lock)
+        {
+            if (_effectivePositionIntervalSeconds > 0)
+                return _effectivePositionIntervalSeconds;
+            return Math.Max(1, options.Value.ResolvedPositionIntervalSeconds);
         }
     }
 }

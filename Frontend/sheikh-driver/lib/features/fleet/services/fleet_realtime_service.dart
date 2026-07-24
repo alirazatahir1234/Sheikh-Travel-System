@@ -19,10 +19,7 @@ class FleetRealtimeService {
   bool get isConnected =>
       _connection?.state == HubConnectionState.Connected;
 
-  String get _hubUrl {
-    final base = AppConfig.apiOrigin;
-    return '$base/hubs/tracking';
-  }
+  String get _hubUrl => AppConfig.hubBaseUrl;
 
   Future<void> connect() async {
     if (_connection != null) return;

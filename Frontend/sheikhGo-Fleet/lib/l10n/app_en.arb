@@ -1,0 +1,71 @@
+{
+  "@@locale": "en",
+  "appTitle": "SheikhGo Fleet",
+  "settings": "Settings",
+  "account": "Account",
+  "appearance": "Appearance",
+  "security": "Security",
+  "activity": "Activity",
+  "appSection": "App",
+  "darkMode": "Dark Mode",
+  "darkModeSubtitle": "Switch to dark theme",
+  "language": "Language",
+  "languageSubtitle": "App display language",
+  "languageEnglish": "English",
+  "languageArabic": "Arabic",
+  "biometricLock": "Biometric lock",
+  "biometricLockSubtitle": "Require Face ID / fingerprint to open the app",
+  "biometricUnavailable": "Biometrics are not available on this device",
+  "biometricEnableFailed": "Could not enable biometric lock",
+  "unlockTitle": "Unlock SheikhGo Fleet",
+  "unlockSubtitle": "Authenticate to continue",
+  "unlockAction": "Unlock",
+  "unlockSignOut": "Sign out",
+  "offlineQueue": "Offline queue",
+  "offlineQueueSubtitle": "Pending sync & conflicts",
+  "offlineBannerOffline": "You are offline",
+  "offlineBannerQueued": "{count} queued",
+  "@offlineBannerQueued": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "offlineBannerPending": "{count} action(s) waiting to sync",
+  "@offlineBannerPending": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "sync": "Sync",
+  "syncNow": "Sync now",
+  "syncedItems": "Synced {count} item(s)",
+  "@syncedItems": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "online": "Online",
+  "offline": "Offline",
+  "offlineOnlineHint": "Pending actions sync automatically when connected",
+  "offlineOfflineHint": "Actions are saved locally until connection returns",
+  "pendingSection": "Pending ({count})",
+  "@pendingSection": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "nothingPending": "Nothing waiting to sync.",
+  "conflictsSection": "Conflicts (needs review)",
+  "conflictsHint": "Server rejected these after reconnect. Remove after checking ERP state.",
+  "retry": "Retry",
+  "signOut": "Sign Out",
+  "signOutConfirmTitle": "Sign out",
+  "signOutConfirmBody": "Are you sure you want to sign out?",
+  "cancel": "Cancel",
+  "environmentLabel": "Environment: {env}",
+  "@environmentLabel": {
+    "placeholders": {
+      "env": { "type": "String" }
+    }
+  }
+}

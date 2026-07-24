@@ -324,7 +324,9 @@ public class SendDeviceCommandCommandHandler(
     ITraccarClient traccar,
     ITenantContext tenantContext,
     INotificationDecisionEngine decisionEngine,
-    IOptions<GpsSettings> gpsSettings)
+    IOptions<GpsSettings> gpsSettings,
+    IGpsCommandTranslator translator,
+    IGpsTransportRouter transportRouter)
     : IRequestHandler<SendDeviceCommandCommand, ApiResponse<int>>
 {
     public async Task<ApiResponse<int>> Handle(SendDeviceCommandCommand request, CancellationToken cancellationToken)
@@ -337,9 +339,12 @@ public class SendDeviceCommandCommandHandler(
             return ApiResponse<int>.FailResponse("Insufficient permission for this command type.");
 
         using var connection = dbFactory.CreateConnection();
-        var device = await connection.QueryFirstOrDefaultAsync<(int Id, bool SupportsEngineCutoff, bool SupportsRelay, string Name, int? TraccarDeviceId, int? VehicleId, string? RelayPurpose)>(
+        var device = await connection.QueryFirstOrDefaultAsync<(int Id, bool SupportsEngineCutoff, bool SupportsRelay, string Name, int? TraccarDeviceId, int? VehicleId, string? RelayPurpose, int? TrackerModelId)>(
             new CommandDefinition(
-                "SELECT Id, SupportsEngineCutoff, SupportsRelay, Name, TraccarDeviceId, VehicleId, RelayPurpose FROM GpsDevices WHERE Id = @Id AND IsDeleted = 0",
+                """
+                SELECT Id, SupportsEngineCutoff, SupportsRelay, Name, TraccarDeviceId, VehicleId, RelayPurpose, TrackerModelId
+                FROM GpsDevices WHERE Id = @Id AND IsDeleted = 0
+                """,
                 new { Id = request.Command.GpsDeviceId },
                 cancellationToken: cancellationToken));
 
@@ -378,7 +383,7 @@ public class SendDeviceCommandCommandHandler(
             SELECT CASE WHEN EXISTS(
                 SELECT 1 FROM GpsDeviceCommands
                 WHERE GpsDeviceId = @GpsDeviceId AND CommandType = @CommandType
-                  AND Status IN ('pending', 'sent') AND IsDeleted = 0
+                  AND Status IN ('pending', 'sent', 'PendingApproval') AND IsDeleted = 0
             ) THEN 1 ELSE 0 END
             """,
             new { request.Command.GpsDeviceId, request.Command.CommandType },
@@ -387,22 +392,63 @@ public class SendDeviceCommandCommandHandler(
         if (duplicatePending)
             return ApiResponse<int>.FailResponse($"A {definition.Label} command is already in flight for this device.");
 
+        Dictionary<string, string>? stringParams = null;
+        if (request.Command.Attributes is { Count: > 0 })
+        {
+            stringParams = request.Command.Attributes.ToDictionary(
+                kv => kv.Key,
+                kv => kv.Value?.ToString() ?? string.Empty,
+                StringComparer.OrdinalIgnoreCase);
+        }
+
+        GpsTranslateResult? translated = null;
+        if (device.TrackerModelId is > 0)
+        {
+            translated = await translator.TranslateAsync(new GpsTranslateRequest(
+                request.Command.GpsDeviceId,
+                device.TrackerModelId,
+                request.Command.CommandType,
+                stringParams), cancellationToken);
+
+            if (!translated.Success && definition.TraccarType is null)
+                return ApiResponse<int>.FailResponse(translated.Error ?? "Command translation failed.");
+        }
+
+        var requiresApproval = translated?.RequiresApproval == true
+            && !currentUser.HasPermission(PlatformPermissions.GpsApprove)
+            && !currentUser.HasPermission("Gps.CommandApprove");
+
+        if (requiresApproval && string.IsNullOrWhiteSpace(request.Command.Reason))
+            return ApiResponse<int>.FailResponse("Reason is required for this command.");
+
         var attributesJson = request.Command.Attributes is { Count: > 0 }
             ? JsonSerializer.Serialize(request.Command.Attributes)
             : null;
 
+        var initialStatus = requiresApproval ? "PendingApproval" : "pending";
+        var traccarType = translated?.Success == true ? translated.TraccarType : definition.TraccarType;
+        var transport = translated?.Success == true ? translated.Transport : (definition.TraccarType is null ? "Sms" : "Traccar");
+        var rendered = translated?.Success == true ? translated.RenderedPayload : null;
+
         var id = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
             """
             INSERT INTO GpsDeviceCommands
-                (GpsDeviceId, CommandType, Status, Reason, Attributes, MaxRetries, TenantId, RequestedBy, RequestedAt, CreatedAt, IsDeleted)
+                (GpsDeviceId, CommandType, CommandKey, Transport, RenderedPayload, Status, ApprovalStatus,
+                 Reason, Attributes, MaxRetries, TenantId, RequestedBy, RequestedAt, CreatedAt, IsDeleted)
             OUTPUT INSERTED.Id
             VALUES
-                (@GpsDeviceId, @CommandType, 'pending', @Reason, @Attributes, @MaxRetries, @TenantId, @RequestedBy, GETUTCDATE(), GETUTCDATE(), 0)
+                (@GpsDeviceId, @CommandType, @CommandKey, @Transport, @RenderedPayload, @Status, @ApprovalStatus,
+                 @Reason, @Attributes, @MaxRetries, @TenantId, @RequestedBy, GETUTCDATE(), GETUTCDATE(), 0)
             """,
             new
             {
                 request.Command.GpsDeviceId,
                 request.Command.CommandType,
+                CommandKey = request.Command.CommandType,
+                Transport = transport,
+                RenderedPayload = rendered,
+                Status = initialStatus,
+                ApprovalStatus = requiresApproval ? "Pending" : null,
                 request.Command.Reason,
                 Attributes = attributesJson,
                 MaxRetries = gpsSettings.Value.CommandMaxRetries,
@@ -411,27 +457,79 @@ public class SendDeviceCommandCommandHandler(
             },
             cancellationToken: cancellationToken));
 
+        if (requiresApproval)
+            return ApiResponse<int>.SuccessResponse(id, "Command awaiting approval.");
+
         var dispatchSucceeded = false;
 
-        if (definition.TraccarType is null)
+        if (string.Equals(transport, "Sms", StringComparison.OrdinalIgnoreCase)
+            || (traccarType is null && translated?.Success != true))
         {
-            // customSms (or any future channel with no Traccar equivalent) — no gateway wired yet.
+            var smsResult = await transportRouter.SendAsync(new GpsTransportSendRequest(
+                "Sms", null, null, rendered ?? request.Command.CommandType, null,
+                stringParams?.GetValueOrDefault("phone")), cancellationToken);
+
             await connection.ExecuteAsync(new CommandDefinition(
-                "UPDATE GpsDeviceCommands SET Status = 'not_configured' WHERE Id = @Id",
-                new { Id = id },
+                "UPDATE GpsDeviceCommands SET Status = 'not_configured', ErrorMessage = @Err, UpdatedAt = GETUTCDATE() WHERE Id = @Id",
+                new { Id = id, Err = smsResult.Error },
                 cancellationToken: cancellationToken));
 
             await connection.ExecuteAsync(new CommandDefinition(
                 """
                 INSERT INTO GpsCommandResponses (CommandId, Source, ResponseText, ReceivedAt, CreatedAt)
-                VALUES (@CommandId, 'system', 'No SMS gateway configured for this tenant.', GETUTCDATE(), GETUTCDATE())
+                VALUES (@CommandId, 'system', @Text, GETUTCDATE(), GETUTCDATE())
                 """,
-                new { CommandId = id },
+                new { CommandId = id, Text = smsResult.Error ?? "No SMS gateway configured." },
                 cancellationToken: cancellationToken));
         }
-        else if (device.TraccarDeviceId.HasValue)
+        else if (device.TraccarDeviceId.HasValue && traccarType is not null)
         {
-            var sent = await traccar.SendCommandAsync(device.TraccarDeviceId.Value, definition.TraccarType, request.Command.Attributes, cancellationToken);
+            var attrs = request.Command.Attributes;
+            if (string.Equals(traccarType, "custom", StringComparison.OrdinalIgnoreCase)
+                && !string.IsNullOrWhiteSpace(rendered))
+            {
+                attrs ??= new Dictionary<string, object>();
+                if (!attrs.ContainsKey("data"))
+                    attrs["data"] = rendered;
+            }
+
+            var sent = await transportRouter.SendAsync(new GpsTransportSendRequest(
+                "Traccar",
+                device.TraccarDeviceId,
+                traccarType,
+                rendered ?? traccarType,
+                attrs is null ? null : attrs.ToDictionary(kv => kv.Key, kv => kv.Value)),
+                cancellationToken);
+
+            if (sent.Success)
+            {
+                dispatchSucceeded = true;
+                await connection.ExecuteAsync(new CommandDefinition(
+                    "UPDATE GpsDeviceCommands SET Status = 'sent', UpdatedAt = GETUTCDATE() WHERE Id = @Id",
+                    new { Id = id },
+                    cancellationToken: cancellationToken));
+            }
+            else
+            {
+                await connection.ExecuteAsync(new CommandDefinition(
+                    """
+                    UPDATE GpsDeviceCommands
+                    SET ErrorMessage = @Err, NextRetryAt = DATEADD(SECOND, @RetrySeconds, GETUTCDATE()), UpdatedAt = GETUTCDATE()
+                    WHERE Id = @Id
+                    """,
+                    new
+                    {
+                        Id = id,
+                        Err = sent.Error ?? "Traccar dispatch failed",
+                        RetrySeconds = gpsSettings.Value.CommandRetryIntervalSeconds
+                    },
+                    cancellationToken: cancellationToken));
+            }
+        }
+        else if (device.TraccarDeviceId.HasValue && definition.TraccarType is not null)
+        {
+            var sent = await traccar.SendCommandAsync(
+                device.TraccarDeviceId.Value, definition.TraccarType, request.Command.Attributes, cancellationToken);
             if (sent)
             {
                 dispatchSucceeded = true;
@@ -452,7 +550,6 @@ public class SendDeviceCommandCommandHandler(
                     cancellationToken: cancellationToken));
             }
         }
-        // Else: device has no TraccarDeviceId — stays 'pending', owned by the commands/pending polling path.
 
         if (definition.NotifyAllUsers && dispatchSucceeded)
         {

@@ -21,4 +21,7 @@ public record TraccarSyncStatusDto(
     DateTime? LastEventSyncAt,
     DateTime? LastSyncCompletedAt,
     string? LastError,
-    int PositionSyncIntervalSeconds = 5);
+    int PositionSyncIntervalSeconds = 5,
+    bool AdaptivePositionSync = true,
+    string? AdaptiveIntervalReason = null,
+    int EffectivePositionSyncIntervalSeconds = 5);

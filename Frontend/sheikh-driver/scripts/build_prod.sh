@@ -3,7 +3,10 @@
 # Usage:
 #   ./scripts/build_prod.sh android
 #   ./scripts/build_prod.sh ios
+#   ./scripts/build_prod.sh apk
 #   ./scripts/build_prod.sh android uat
+# Optional overrides:
+#   API_BASE_URL=https://... HUB_URL=https://.../hubs ./scripts/build_prod.sh apk
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -12,7 +15,9 @@ cd "$ROOT"
 TARGET="${1:-android}"
 ENV_NAME="${2:-prod}"
 
-: "${API_BASE_URL:?Set API_BASE_URL to your API root, e.g. https://api.example.com/api}"
+# Same host as ERP environment.prod.ts when unset.
+DEFAULT_PROD_API='https://sheikh-travel-system-production.up.railway.app/api'
+API_BASE_URL="${API_BASE_URL:-$DEFAULT_PROD_API}"
 
 DEFINES=(
   "--dart-define=ENV=${ENV_NAME}"
@@ -20,6 +25,9 @@ DEFINES=(
   "--dart-define=TENANT_SLUG=${TENANT_SLUG:-default}"
 )
 
+if [[ -n "${HUB_URL:-}" ]]; then
+  DEFINES+=("--dart-define=HUB_URL=${HUB_URL}")
+fi
 if [[ -n "${GOOGLE_MAPS_KEY:-}" ]]; then
   DEFINES+=("--dart-define=GOOGLE_MAPS_KEY=${GOOGLE_MAPS_KEY}")
 fi
@@ -37,6 +45,7 @@ if [[ -n "${CERT_PIN_2:-}" ]]; then
 fi
 
 echo "==> SheikhGo Fleet ${ENV_NAME} build (${TARGET})"
+echo "    API_BASE_URL=${API_BASE_URL}"
 flutter pub get
 
 case "$TARGET" in

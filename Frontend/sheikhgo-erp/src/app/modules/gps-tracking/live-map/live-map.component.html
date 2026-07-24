@@ -354,7 +354,11 @@
 
         <p class="panel-footer desktop-only">
           <mat-icon>autorenew</mat-icon>
-          {{ refreshRateMs ? 'Auto-refresh every ' + (refreshRateMs / 1000) + 's when live tracking is on' : 'Auto-refresh paused' }}
+          {{ refreshRateMs == null
+               ? 'Realtime via SignalR (HTTP poll only if connection drops)'
+               : (refreshRateMs >= 120000
+                   ? 'REST sanity every ' + (refreshRateMs / 1000) + 's + SignalR'
+                   : 'Force poll every ' + (refreshRateMs / 1000) + 's') }}
         </p>
       </div>
     </aside>

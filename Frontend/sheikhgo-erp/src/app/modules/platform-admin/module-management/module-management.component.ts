@@ -76,15 +76,38 @@ export class ModuleManagementComponent implements OnInit, OnDestroy {
       return this.modules.filter(m => m.isEnabled || m.isInstalled);
     }
     if (this.filter === 'comingSoon') {
-      return this.modules.filter(m => !this.canToggle(m));
+      return this.modules.filter(m => this.isComingSoon(m));
     }
     return this.modules;
   }
 
   canToggle(module: ModuleStatus): boolean {
     if (module.canToggle === false) return false;
+    if (module.canToggle === true) return true;
     const status = (module.status || 'Active').replace(/\s+/g, '');
-    return status === 'Active' || module.canToggle === true;
+    return status === 'Active';
+  }
+
+  isComingSoon(module: ModuleStatus): boolean {
+    return (module.status || '').replace(/\s+/g, '') === 'ComingSoon';
+  }
+
+  isBundledActive(module: ModuleStatus): boolean {
+    if (this.canToggle(module) || this.isComingSoon(module)) return false;
+    const status = (module.status || 'Active').replace(/\s+/g, '');
+    return status === 'Active' && !!module.dependencies?.length;
+  }
+
+  includedInLabel(module: ModuleStatus): string | null {
+    const parent = module.dependencies?.[0];
+    return parent ? `Included in ${parent}` : null;
+  }
+
+  readonlyActionLabel(module: ModuleStatus): string {
+    if (this.isComingSoon(module)) return this.formatStatus(module.status);
+    const included = this.includedInLabel(module);
+    if (included) return included;
+    return this.formatStatus(module.status);
   }
 
   formatStatus(status?: string | null): string {

@@ -524,10 +524,38 @@ export interface TripVehicleOption {
 
 export type CommandType =
   | 'engineStop' | 'engineResume' | 'positionSingle' | 'restart'
-  | 'relayOn' | 'relayOff' | 'buzzer' | 'customSms' | 'custom';
+  | 'relayOn' | 'relayOff' | 'buzzer' | 'customSms' | 'custom'
+  | 'status' | 'version' | 'iccid' | 'imsi' | 'param' | 'battery' | 'signal'
+  | 'apn' | 'server' | 'heartbeat' | 'timezone';
 
 export type CommandStatus =
-  | 'pending' | 'sent' | 'acknowledged' | 'failed' | 'timeout' | 'cancelled' | 'not_configured';
+  | 'pending' | 'sent' | 'acknowledged' | 'failed' | 'timeout' | 'cancelled' | 'not_configured' | 'PendingApproval';
+
+export interface GpsCommandLibraryItem {
+  commandKey: string;
+  displayName: string;
+  category: string;
+  description?: string | null;
+  requiredCapabilityKey?: string | null;
+  dangerLevel: string;
+  requiresApproval: boolean;
+  requiresReason: boolean;
+  sortOrder: number;
+  isActive: boolean;
+}
+
+export interface GpsCommandLibraryParam {
+  id: number;
+  commandKey: string;
+  paramKey: string;
+  displayName: string;
+  dataType: string;
+  isRequired: boolean;
+  defaultValue?: string | null;
+  minValue?: number | null;
+  maxValue?: number | null;
+  sortOrder: number;
+}
 
 export interface GpsDeviceCommand {
   id: number;
@@ -647,6 +675,9 @@ export interface TraccarSyncStatusDto {
   lastSyncCompletedAt?: string | null;
   lastError?: string | null;
   positionSyncIntervalSeconds?: number;
+  adaptivePositionSync?: boolean;
+  adaptiveIntervalReason?: string | null;
+  effectivePositionSyncIntervalSeconds?: number;
 }
 
 export interface AnalyticsFilters {

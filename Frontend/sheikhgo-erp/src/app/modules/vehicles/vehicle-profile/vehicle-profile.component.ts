@@ -116,7 +116,9 @@ export class VehicleProfileComponent implements OnInit, OnDestroy {
   private secondarySubs: Subscription[] = [];
   private gpsPollSub?: Subscription;
   private realtimeSub?: Subscription;
+  private connectionStateSub?: Subscription;
   private gpsPollTimer?: ReturnType<typeof setInterval>;
+  private liveTelemetryVehicleId: number | null = null;
   private vehicleId = 0;
   private pendingSecondary = 0;
 
@@ -160,7 +162,9 @@ export class VehicleProfileComponent implements OnInit, OnDestroy {
     this.secondarySubs = [];
     this.gpsPollSub?.unsubscribe();
     this.realtimeSub?.unsubscribe();
+    this.connectionStateSub?.unsubscribe();
     if (this.gpsPollTimer) clearInterval(this.gpsPollTimer);
+    this.liveTelemetryVehicleId = null;
     void this.realtime.subscribeVehicle(null);
   }
 
@@ -310,11 +314,13 @@ export class VehicleProfileComponent implements OnInit, OnDestroy {
     if (this.pendingSecondary === 0) this.secondaryLoading = false;
   }
 
-  /** Keep Vehicle Profile aligned with Live Map: SignalR + periodic Traccar-backed refresh. */
+  /** SignalR primary; HTTP poll only while hub is disconnected (5–10s). */
   private startLiveTelemetry(vehicleId: number): void {
     this.gpsPollSub?.unsubscribe();
     this.realtimeSub?.unsubscribe();
+    this.connectionStateSub?.unsubscribe();
     if (this.gpsPollTimer) clearInterval(this.gpsPollTimer);
+    this.liveTelemetryVehicleId = vehicleId;
 
     void this.realtime.connect().then(() => this.realtime.subscribeVehicle(vehicleId));
     this.realtimeSub = this.realtime.locationUpdates$.subscribe(update => {
@@ -322,7 +328,16 @@ export class VehicleProfileComponent implements OnInit, OnDestroy {
       this.applyRealtimePosition(update);
     });
 
-    this.gpsPollTimer = setInterval(() => this.refreshGps(vehicleId), 15_000);
+    this.connectionStateSub = this.realtime.connectionState$.subscribe(state => {
+      if (this.gpsPollTimer) {
+        clearInterval(this.gpsPollTimer);
+        this.gpsPollTimer = undefined;
+      }
+      if (state !== 'connected' && this.liveTelemetryVehicleId === vehicleId) {
+        this.refreshGps(vehicleId);
+        this.gpsPollTimer = setInterval(() => this.refreshGps(vehicleId), 10_000);
+      }
+    });
   }
 
   private refreshGps(vehicleId: number): void {

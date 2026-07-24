@@ -378,6 +378,18 @@ public class DatabaseSeeder(
             "IF COL_LENGTH('Customers', 'Gender') IS NULL ALTER TABLE Customers ADD Gender NVARCHAR(20) NULL;",
             "IF COL_LENGTH('Customers', 'DateOfBirth') IS NULL ALTER TABLE Customers ADD DateOfBirth DATE NULL;",
             "IF COL_LENGTH('Customers', 'Nationality') IS NULL ALTER TABLE Customers ADD Nationality NVARCHAR(120) NULL;",
+            "IF COL_LENGTH('Payments', 'ReceiptImageData') IS NULL ALTER TABLE Payments ADD ReceiptImageData NVARCHAR(MAX) NULL;",
+            "IF OBJECT_ID('EscalationState', 'U') IS NOT NULL AND COL_LENGTH('EscalationState', 'TenantId') IS NULL ALTER TABLE EscalationState ADD TenantId INT NULL;",
+            // Soft foundation: password max-age defaults to disabled (0). Prior seed used 90 and locked demo users.
+            @"IF OBJECT_ID('SecurityPolicyDefinitions', 'U') IS NOT NULL
+              UPDATE SecurityPolicyDefinitions SET DefaultValue = N'0'
+              WHERE PolicyKey = N'password.max_age_days' AND DefaultValue = N'90';",
+            @"IF OBJECT_ID('TenantSecurityPolicies', 'U') IS NOT NULL
+              UPDATE TenantSecurityPolicies SET PolicyValue = N'0', UpdatedDate = SYSUTCDATETIME()
+              WHERE PolicyKey = N'password.max_age_days' AND PolicyValue = N'90';",
+            @"IF COL_LENGTH('Users', 'PasswordChangedAt') IS NOT NULL
+              UPDATE Users SET PasswordChangedAt = SYSUTCDATETIME()
+              WHERE IsDeleted = 0 AND (PasswordChangedAt IS NULL OR PasswordChangedAt < DATEADD(day, -60, SYSUTCDATETIME()));",
             @"IF OBJECT_ID('DriverAllowanceRules', 'U') IS NULL
               CREATE TABLE DriverAllowanceRules (
                 Id              INT IDENTITY(1,1) PRIMARY KEY,

@@ -245,6 +245,7 @@ public sealed class TraccarSyncOrchestrator(
             var positions = await traccar.GetLivePositionsAsync(ct);
             if (positions.Count == 0)
             {
+                ApplyAdaptiveInterval([]);
                 var empty = SingleJob("positions", 0, 0, 0, 0);
                 syncState.RecordJobComplete("positions", empty.Jobs[0]);
                 return empty;
@@ -274,18 +275,21 @@ public sealed class TraccarSyncOrchestrator(
 
             int ingested = 0;
             int telemetryOnly = 0;
+            var adaptiveSamples = new List<TraccarAdaptiveInterval.Sample>(positions.Count);
 
             foreach (var pos in positions)
             {
                 if (!allDevices.TryGetValue(pos.DeviceId, out var device))
                     continue;
 
+                var ignition = pos.Attributes.Ignition;
+                var speedKmh = (decimal)(pos.Speed * 1.852);
+                adaptiveSamples.Add(new TraccarAdaptiveInterval.Sample(speedKmh, ignition, pos.Attributes.Alarm));
+
                 if (_lastIngested.TryGetValue(pos.DeviceId, out var last) && pos.FixTime <= last)
                     continue;
 
-                var ignition = pos.Attributes.Ignition;
                 var recordedAt = pos.FixTime.ToUniversalTime();
-                var speedKmh = (decimal)(pos.Speed * 1.852);
                 var battery = pos.Attributes.BatteryLevel;
                 var rssi = pos.Attributes.Rssi;
 
@@ -343,6 +347,8 @@ public sealed class TraccarSyncOrchestrator(
                 }
             }
 
+            ApplyAdaptiveInterval(adaptiveSamples);
+
             var result = new TraccarSyncRunResult(DateTime.UtcNow, [
                 new TraccarSyncJobResult("positions", positions.Count, ingested, telemetryOnly, 0)
             ]);
@@ -363,6 +369,24 @@ public sealed class TraccarSyncOrchestrator(
         {
             syncState.MarkRunning(false);
         }
+    }
+
+    private void ApplyAdaptiveInterval(IReadOnlyList<TraccarAdaptiveInterval.Sample> samples)
+    {
+        if (!options.Value.AdaptivePositionSync)
+        {
+            syncState.SetAdaptivePositionInterval(
+                Math.Max(1, options.Value.ResolvedPositionIntervalSeconds),
+                TraccarAdaptiveInterval.ReasonDefault);
+            return;
+        }
+
+        var resolved = TraccarAdaptiveInterval.Resolve(samples, options.Value);
+        syncState.SetAdaptivePositionInterval(resolved.IntervalSeconds, resolved.Reason);
+        logger.LogDebug(
+            "Traccar adaptive position interval → {Seconds}s ({Reason})",
+            resolved.IntervalSeconds,
+            resolved.Reason);
     }
 
     public async Task<TraccarSyncRunResult> SyncEventsAsync(CancellationToken ct = default)

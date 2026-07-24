@@ -1,0 +1,4 @@
+storePassword=REPLACE_ME
+keyPassword=REPLACE_ME
+keyAlias=sheikhgo-driver
+storeFile=../keystore/sheikhgo-driver-upload.jks

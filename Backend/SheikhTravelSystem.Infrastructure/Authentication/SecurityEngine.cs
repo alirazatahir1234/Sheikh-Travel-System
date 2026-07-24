@@ -100,7 +100,7 @@ public class SecurityEngine(IDbConnectionFactory dbFactory) : ISecurityEngine
         CancellationToken cancellationToken = default)
     {
         var map = await GetEffectiveMapAsync(tenantId, cancellationToken);
-        var maxAge = GetInt(map, SecurityPolicyKeys.PasswordMaxAgeDays, 90);
+        var maxAge = GetInt(map, SecurityPolicyKeys.PasswordMaxAgeDays, 0);
         var idle = GetInt(map, SecurityPolicyKeys.SessionIdleTimeoutMinutes, 30);
         var absolute = GetInt(map, SecurityPolicyKeys.SessionAbsoluteTimeoutMinutes, 480);
         var maxAttempts = GetInt(map, SecurityPolicyKeys.LockoutMaxAttempts, 5);

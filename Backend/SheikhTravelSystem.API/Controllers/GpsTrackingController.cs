@@ -12,6 +12,7 @@ using SheikhTravelSystem.Application.Features.GpsTracking.Queries;
 using SheikhTravelSystem.Application.Features.GpsTracking.Trackers.Commands;
 using SheikhTravelSystem.Application.Features.GpsTracking.Trackers.Queries;
 using SheikhTravelSystem.Application.Features.GpsTracking.Traccar;
+using SheikhTravelSystem.Application.Features.Platform;
 using SheikhTravelSystem.Application.Features.Tracking.Commands;
 using SheikhTravelSystem.Application.Features.Tracking.DTOs;
 using SheikhTravelSystem.Application.Features.Tracking.Queries;
@@ -379,6 +380,16 @@ public partial class GpsTrackingController : BaseApiController
     [HttpGet("commands/supported/{deviceId:int}")]
     public async Task<IActionResult> GetSupportedCommands(int deviceId)
         => Ok(await Mediator.Send(new GetDeviceSupportedCommandsQuery(deviceId)));
+
+    [RequirePermission(GpsPermissions.CommandView)]
+    [HttpGet("commands/library")]
+    public async Task<IActionResult> GetCommandLibrary()
+        => Ok(await Mediator.Send(new GetGpsCommandDefinitionsQuery()));
+
+    [RequirePermission(GpsPermissions.CommandView)]
+    [HttpGet("commands/library/parameters")]
+    public async Task<IActionResult> GetCommandLibraryParameters([FromQuery] string? commandKey = null)
+        => Ok(await Mediator.Send(new GetGpsCommandParametersQuery(commandKey)));
 
     [RequirePermission(GpsPermissions.CommandSend)]
     [HttpPost("commands/send")]

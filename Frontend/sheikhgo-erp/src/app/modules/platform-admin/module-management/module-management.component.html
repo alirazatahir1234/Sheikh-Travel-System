@@ -11,7 +11,7 @@
           <span class="current">Module Management</span>
         </nav>
         <h2>Module Registry</h2>
-        <p class="page-sub">Review module metadata and enable Active modules for the selected company. Coming Soon entries are display-only.</p>
+        <p class="page-sub">Enable Active parent modules for the selected company. Capability rows marked Active but non-toggleable are included in a parent module. Coming Soon means not built yet.</p>
       </div>
     </div>
     <div class="header-right">
@@ -66,23 +66,28 @@
                   <div class="module-meta">
                     <span class="meta-chip" *ngIf="module.isInstalled || module.isEnabled">Installed</span>
                     <span class="meta-chip meta-chip--licensed" *ngIf="module.isLicensed || module.isEnabled">Licensed</span>
+                    <span class="meta-chip meta-chip--bundled" *ngIf="isBundledActive(module) && includedInLabel(module)">
+                      {{ includedInLabel(module) }}
+                    </span>
                     <span class="meta-chip" *ngIf="module.isMobileSupported">Mobile</span>
                     <span class="meta-chip" *ngIf="module.isAISupported">AI</span>
                     <span class="meta-chip" *ngIf="module.isGPSSupported">GPS</span>
-                    <span class="meta-chip meta-chip--deps" *ngIf="module.dependencies?.length">
+                    <span class="meta-chip meta-chip--deps" *ngIf="module.dependencies?.length && !isBundledActive(module)">
                       Depends: {{ module.dependencies!.join(', ') }}
                     </span>
                   </div>
                 </div>
               </div>
               <mat-slide-toggle
-                *ngIf="canToggle(module); else comingSoonLabel"
+                *ngIf="canToggle(module); else readonlyLabel"
                 [checked]="module.isEnabled"
                 (change)="toggleModule(module, $event.checked)">
                 {{ module.isEnabled ? 'Enabled' : 'Disabled' }}
               </mat-slide-toggle>
-              <ng-template #comingSoonLabel>
-                <span class="coming-soon-label">{{ formatStatus(module.status) }}</span>
+              <ng-template #readonlyLabel>
+                <span class="coming-soon-label" [class.bundled-label]="isBundledActive(module)">
+                  {{ readonlyActionLabel(module) }}
+                </span>
               </ng-template>
             </div>
           </div>

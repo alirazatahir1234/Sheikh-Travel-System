@@ -17,6 +17,7 @@ Living gap analysis for the 15-stage Platform Administration roadmap.
 - Stage 13: Security Center foundation
 - Stage 14: Audit Center
 - Stage 15: Backend Permission Enforcement
+- Stage 16: GPS Device Control Center
 ## Role visibility
 
 | Capability | Super Admin (`SUPER_ADMIN`) | Tenant Admin (`TENANT_ADMIN`) |
@@ -75,12 +76,12 @@ Living gap analysis for the 15-stage Platform Administration roadmap.
 | Entry | Action |
 |-------|--------|
 | `Modules` table | Metadata columns (category, version, status, capability flags, deps, …) |
-| Catalog seed | Active enableable codes + Coming Soon / Beta product modules |
+| Catalog seed | Active enableable codes + Active bundled (non-enableable) capability rows + Coming Soon / Beta |
 | `GET /api/platform/modules` | Enableable definitions (enriched) |
 | `GET /api/platform/modules/catalog` | Full registry catalog |
 | `GET /api/platform/modules/company` | Company installed + licensed (plan-allowed) |
 | `GET /api/platform/modules/{codeOrId}` | Single registry entry |
-| Module Management UI | Metadata display + filters; toggles only for Active enableable |
+| Module Management UI | Metadata display + filters; toggles only for Active enableable; bundled rows show “Included in {parent}” |
 | Mobile | Company context `modules[]` parsed; read-only chips on profile / more |
 
 ### Stage 4 Subscription & License
@@ -130,11 +131,12 @@ flowchart TB
   tenantFeatures --> permissions[Permissions_Stage8]
 ```
 
-## Stage matrix (1–15)
+## Stage matrix (1–16)
 
 | # | Stage | Status | Notes |
 |---|-------|--------|-------|
 | 1 | Platform Administration Foundation | **Done** | Hub, nav sync, ops permissions, child gates, gap doc |
+| 1b | Platform Navigation Cleanup | **Done** | Administration no longer duplicates Platform Settings / Database Reset |
 | 2 | Company Business Model | **Done** | Company vocabulary; Feature Registry; mobile context |
 | 3 | Module Registry | **Done** | Metadata on `Modules`; catalog/company APIs; Module Management enrichment; mobile module list |
 | 4 | Subscription & License | **Done (foundation)** | Plan catalog + license APIs; soft Licensed semantics; consumes Module Registry; hard enforcement deferred |
@@ -149,6 +151,7 @@ flowchart TB
 | 13 | Security Center | **Done (foundation)** | Policy registry + soft enforce; Security Center UX; mobile safe summary |
 | 14 | Audit Center | **Done (foundation)** | Registry + AuditEvents + engine; ERP explorer; mobile summary |
 | 15 | Backend Permission Enforcement | **Done (foundation)** | Catalog write codes; controller attrs; Data Scope expansion; audit markers; coverage page |
+| 16 | GPS Device Control Center | **Done (foundation)** | Manufacturers/models/capabilities/commands/templates; translator; transports; simulator; EV26R seed |
 
 ## Foundation permissions (Stage 1)
 
@@ -157,6 +160,17 @@ flowchart TB
 | `Platform.Migrations.View` | View schema migration status |
 | `Platform.Migrations.Manage` | Apply pending migrations |
 | `Platform.System.Reset` | Database reset (still Super Admin + Dev/Staging) |
+
+### Navigation ownership (post Stage 15 cleanup)
+
+| Menu | Canonical parent | Notes |
+|------|------------------|-------|
+| Settings | **Platform** | Retired from Administration |
+| Database Reset | **Platform** | Retired from Administration |
+| Notification Center | **Administration** | Operational tool, not Platform catalog |
+| Users / Roles / Permissions | **Access Control** | Identity hub |
+
+`PlatformNavigationCleanupMigration` deactivates Administration copies of Platform-owned routes. Live nav is driven by `GET /api/platform/menus/me` (DB), with `menu-config.ts` as API fallback only.
 
 ## Stage 2 deliverables
 
@@ -167,9 +181,9 @@ flowchart TB
 
 ## Stage 3 deliverables
 
-- **Module Registry:** Metadata on existing `Modules` (no duplicate tables). Status: Active / Beta / Coming Soon / Deprecated / Disabled.
+- **Module Registry:** Metadata on existing `Modules` (no duplicate tables). Status: Active / Beta / Coming Soon / Deprecated / Disabled. Shipped capability rows (Drivers, Vehicles, Bookings, …) are **Active + non-enableable** (included in parent `TenantModuleCatalog` toggles such as Fleet/Travel); Coming Soon is reserved for unfinished product modules.
 - **APIs:** Catalog, company, by-key read models; existing enable/disable PUT unchanged.
-- **ERP:** Module Management shows category, version, dependencies, status, Mobile/AI/GPS, Installed/Licensed.
+- **ERP:** Module Management shows category, version, dependencies, status, Mobile/AI/GPS, Installed/Licensed; bundled rows show Included-in chips.
 - **Mobile:** Parses installed `modules[]`; display-only chips. No module admin.
 
 ## Stage 4 deliverables
@@ -870,3 +884,33 @@ Or fold into existing `security` summary (prefer reuse Stage 13 `security.auditL
 ## Handoff to Stage 15
 
 Stage 14 Audit Center foundation is **done**. Stage 15 expands backend `[RequirePermission]` coverage — audit remains orthogonal. Security Center remains source of truth for `audit.level`.
+
+## Stage 16 — GPS Device Control Center (Done foundation)
+
+**Consumes:** TrackerBrands / TrackerModels / GpsDevices / GpsDeviceCommands, Traccar client, tenant `/gps-tracking/commands`, Stage 15 permissions.
+
+**Produces:** Platform Control Center for manufacturers, models, capabilities, command definitions + parameters, versioned templates, translator, transport providers (Traccar + SMS stub + Simulator + TCP/MQTT/HTTP stubs), validation/approval hooks, health dashboard KPIs, ~20 seeded operational commands (incl. EV26R).
+
+### Deliverables
+
+| Slice | What shipped |
+|-------|----------------|
+| 16.1 Manufacturers | Extended `TrackerBrands`; Super Admin CRUD via `/platform/gps-control-center` |
+| 16.2 Models | Extended `TrackerModels`; seeded **EV26R** (`jimi_ev26r`) |
+| 16.3 Capabilities | `GpsCapabilities` + `TrackerModelCapabilities`; dual-read `Supports*` |
+| 16.4 Commands | `GpsCommandDefinitions` + `GpsCommandParameterDefinitions` |
+| 16.5 Templates | Versioned `GpsCommandTemplates` (firmware range + version) |
+| 16.6 Translator | `IGpsCommandTranslator` + unit-tested template renderer |
+| 16.7 Execution | Soft-wired `SendDeviceCommand` → translator/transport; PendingApproval |
+| 16.8 Console | Testing console + Simulator transport |
+| 16.9 Gateways | Provider layer (Traccar live, SMS stub, other stubs) |
+| 16.10 Ops seed | 15–20 ops/install/diagnostic templates; tenant Commands UI reads library |
+
+### Permissions
+
+`Platform.Gps.Control.View`, `Manufacturers.Manage`, `Models.Manage`, `Commands.Manage`, `Templates.Manage`, `Gateways.Manage`, `Execute`, `BulkExecute`, `Approve`, `History.View`, `Simulator.Use`
+
+### Explicit non-goals
+
+- All 60 EV26R SMS commands, per-vendor ERP if-trees, tenant-editable global templates
+- Full TCP/MQTT/Bluetooth transports, multi-step approval SLA

@@ -89,6 +89,7 @@ public static class AiPlatformMigration
                 IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'EscalationState')
                 CREATE TABLE EscalationState (
                     Id INT IDENTITY(1,1) PRIMARY KEY,
+                    TenantId INT NULL,
                     NotificationId INT NULL,
                     AlertEventId INT NULL,
                     EventType NVARCHAR(80) NOT NULL,
@@ -101,6 +102,9 @@ public static class AiPlatformMigration
                     CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
                     UpdatedAt DATETIME2 NULL
                 );
+
+                IF OBJECT_ID('EscalationState', 'U') IS NOT NULL AND COL_LENGTH('EscalationState', 'TenantId') IS NULL
+                    ALTER TABLE EscalationState ADD TenantId INT NULL;
 
                 IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'FleetHealthSnapshots')
                 CREATE TABLE FleetHealthSnapshots (

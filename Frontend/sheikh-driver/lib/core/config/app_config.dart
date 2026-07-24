@@ -11,10 +11,21 @@ class AppConfig {
         _ => AppEnvironment.dev,
       };
 
+  /// Same host as ERP `environment.prod.ts` — baked in for release APKs.
+  static const String defaultProductionApiBaseUrl =
+      'https://sheikh-travel-system-production.up.railway.app/api';
+
   /// Compile-time override from `--dart-define=API_BASE_URL=...`.
-  /// Empty means “use [resolvedBaseUrl] platform default”.
+  /// Empty means “use [resolvedBaseUrl] env/platform default”.
   static const String _apiBaseUrlDefine = String.fromEnvironment(
     'API_BASE_URL',
+    defaultValue: '',
+  );
+
+  /// Optional SignalR origin override (`https://host` or `https://host/hubs`).
+  /// Empty → derive from [apiOrigin] + `/hubs/tracking`.
+  static const String _hubUrlDefine = String.fromEnvironment(
+    'HUB_URL',
     defaultValue: '',
   );
 
@@ -24,15 +35,17 @@ class AppConfig {
   /// Whether an explicit `API_BASE_URL` dart-define was provided.
   static bool get hasExplicitApiBaseUrl => _apiBaseUrlDefine.trim().isNotEmpty;
 
-  /// API root used by Dio / SignalR.
+  /// API root used by Dio / uploads / background GPS.
   ///
-  /// - Explicit `--dart-define=API_BASE_URL=...` always wins (required for
-  ///   physical devices — use your Mac LAN IP, e.g. `http://10.x.x.x:5082/api`).
-  /// - Android emulator default: `http://10.0.2.2:5082/api` (host loopback).
-  /// - iOS simulator / desktop default: `http://localhost:5082/api`.
+  /// Resolution order:
+  /// 1. Explicit `--dart-define=API_BASE_URL=...` (LAN IP for local device testing).
+  /// 2. When `ENV=prod` or `ENV=uat`: [defaultProductionApiBaseUrl] (HTTPS).
+  /// 3. Android emulator: `http://10.0.2.2:5082/api`.
+  /// 4. iOS simulator / desktop: `http://localhost:5082/api`.
   static String get resolvedBaseUrl {
     final defined = _apiBaseUrlDefine.trim();
     if (defined.isNotEmpty) return defined;
+    if (isProd || isUat) return defaultProductionApiBaseUrl;
     if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
       return _defaultAndroidEmulatorApi;
     }
@@ -42,12 +55,27 @@ class AppConfig {
   /// Alias for [resolvedBaseUrl] (call sites historically used `baseUrl`).
   static String get baseUrl => resolvedBaseUrl;
 
-  /// Origin without `/api` suffix (SignalR hubs).
+  /// Origin without `/api` suffix (SignalR hubs / file hosts).
   static String get apiOrigin {
     final u = resolvedBaseUrl;
     if (u.endsWith('/api')) return u.substring(0, u.length - 4);
     if (u.endsWith('/api/')) return u.substring(0, u.length - 5);
     return u.replaceFirst(RegExp(r'/api/?$'), '');
+  }
+
+  /// Full tracking hub URL (no query string).
+  ///
+  /// Uses `--dart-define=HUB_URL=...` when set; otherwise `{apiOrigin}/hubs/tracking`.
+  /// `HUB_URL` may be either the hubs root (`.../hubs`) or the full tracking path.
+  static String get hubBaseUrl {
+    final defined = _hubUrlDefine.trim();
+    if (defined.isEmpty) return '$apiOrigin/hubs/tracking';
+    final trimmed = defined.endsWith('/')
+        ? defined.substring(0, defined.length - 1)
+        : defined;
+    if (trimmed.toLowerCase().endsWith('/hubs/tracking')) return trimmed;
+    if (trimmed.toLowerCase().endsWith('/hubs')) return '$trimmed/tracking';
+    return '$trimmed/hubs/tracking';
   }
 
   static const String tenantSlug = String.fromEnvironment(
