@@ -166,7 +166,8 @@ export interface BulkCreateUserSuccess {
   row: number;
   email: string;
   userId: number;
-  temporaryPassword?: string | null;
+  /** True when the API generated a password; value is never returned in the response body. */
+  temporaryPasswordGenerated?: boolean;
   dryRun?: boolean;
 }
 

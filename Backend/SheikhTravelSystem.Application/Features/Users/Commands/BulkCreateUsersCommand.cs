@@ -45,7 +45,7 @@ public record BulkCreateUserSuccess(
     int Row,
     string Email,
     int UserId,
-    string? TemporaryPassword,
+    bool TemporaryPasswordGenerated,
     bool DryRun = false);
 
 public record BulkCreateUserFailure(
@@ -74,7 +74,8 @@ public class BulkCreateUsersCommandValidator : AbstractValidator<BulkCreateUsers
 public class BulkCreateUsersCommandHandler(
     IMediator mediator,
     IDbConnectionFactory dbFactory,
-    IPlatformScope platformScope)
+    IPlatformScope platformScope,
+    ICurrentUserService currentUser)
     : IRequestHandler<BulkCreateUsersCommand, ApiResponse<BulkCreateUsersResult>>
 {
     public async Task<ApiResponse<BulkCreateUsersResult>> Handle(
@@ -132,6 +133,16 @@ public class BulkCreateUsersCommandHandler(
             if (!string.IsNullOrWhiteSpace(dto.PlatformRoleCode) && tenantId > 0)
             {
                 var code = dto.PlatformRoleCode.Trim().ToUpperInvariant();
+                try
+                {
+                    UserRoleAssignment.EnsureCanAssignPlatformRole(code, currentUser);
+                }
+                catch (ForbiddenException ex)
+                {
+                    errors.Add(new BulkCreateUserFailure(row, email, ex.Message));
+                    continue;
+                }
+
                 var roleExists = await connection.ExecuteScalarAsync<bool>(
                     new CommandDefinition(
                         "SELECT CASE WHEN EXISTS(SELECT 1 FROM Roles WHERE TenantId = @TenantId AND Code = @Code AND IsActive = 1) THEN 1 ELSE 0 END",
@@ -158,16 +169,16 @@ public class BulkCreateUsersCommandHandler(
 
             if (options.DryRun)
             {
-                created.Add(new BulkCreateUserSuccess(row, email, 0, null, DryRun: true));
+                created.Add(new BulkCreateUserSuccess(row, email, 0, TemporaryPasswordGenerated: false, DryRun: true));
                 continue;
             }
 
-            string? temporaryPassword = null;
+            var passwordGenerated = false;
             var password = dto.Password?.Trim() ?? "";
             if (string.IsNullOrWhiteSpace(password))
             {
-                temporaryPassword = GenerateTemporaryPassword();
-                password = temporaryPassword;
+                password = GenerateTemporaryPassword();
+                passwordGenerated = true;
             }
 
             var normalized = dto with
@@ -197,7 +208,7 @@ public class BulkCreateUsersCommandHandler(
                 var result = await mediator.Send(new CreateUserCommand(normalized), cancellationToken);
                 if (result.Success && result.Data > 0)
                 {
-                    created.Add(new BulkCreateUserSuccess(row, email, result.Data, temporaryPassword));
+                    created.Add(new BulkCreateUserSuccess(row, email, result.Data, passwordGenerated));
                 }
                 else
                 {
@@ -206,6 +217,10 @@ public class BulkCreateUsersCommandHandler(
                         email,
                         result.Message ?? "Create failed."));
                 }
+            }
+            catch (ForbiddenException ex)
+            {
+                errors.Add(new BulkCreateUserFailure(row, email, ex.Message));
             }
             catch (ConflictException ex)
             {
@@ -227,9 +242,9 @@ public class BulkCreateUsersCommandHandler(
             {
                 errors.Add(new BulkCreateUserFailure(row, email, ex.Message));
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                errors.Add(new BulkCreateUserFailure(row, email, ex.Message));
+                errors.Add(new BulkCreateUserFailure(row, email, "Create failed due to an unexpected error."));
             }
         }
 

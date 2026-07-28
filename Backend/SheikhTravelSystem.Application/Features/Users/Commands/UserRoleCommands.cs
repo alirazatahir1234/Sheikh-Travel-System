@@ -1,6 +1,5 @@
 using Dapper;
 using MediatR;
-using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Exceptions;
 using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Application.Features.Users.DTOs;
@@ -66,11 +65,8 @@ public class SetUserRolesCommandHandler(
                 new { TenantId = tenantId, RoleIds = roleIds.Distinct().ToList() },
                 cancellationToken: cancellationToken))).ToList();
 
-            if (assignedCodes.Any(c => string.Equals(c, PlatformRoles.SuperAdmin, StringComparison.OrdinalIgnoreCase))
-                && !currentUser.IsPlatformSuperAdmin)
-            {
-                throw new ForbiddenException("Only platform owners can assign the Super Admin role.");
-            }
+            foreach (var code in assignedCodes)
+                UserRoleAssignment.EnsureCanAssignPlatformRole(code, currentUser);
         }
 
         var scopes = new Dictionary<int, (int? BranchId, int? DepartmentId)>();

@@ -37,7 +37,7 @@ export interface BulkUserImportDialogResult {
 }
 
 interface PreviewRow extends ParsedUserImportRow {
-  temporaryPassword?: string | null;
+  temporaryPasswordGenerated?: boolean;
   serverError?: string | null;
   serverSkipped?: string | null;
   dryRunOk?: boolean;
@@ -110,11 +110,11 @@ export class BulkUserImportDialogComponent {
   }
 
   get hasTemporaryPasswords(): boolean {
-    return this.rows.some(r => !!r.temporaryPassword);
+    return this.rows.some(r => !!r.temporaryPasswordGenerated);
   }
 
   get temporaryPasswordRows(): PreviewRow[] {
-    return this.rows.filter(r => !!r.temporaryPassword);
+    return this.rows.filter(r => !!r.temporaryPasswordGenerated);
   }
 
   get autoFixMessages(): string[] {
@@ -384,7 +384,7 @@ export class BulkUserImportDialogComponent {
             return {
               ...row,
               created: true,
-              temporaryPassword: ok.temporaryPassword,
+              temporaryPasswordGenerated: !!ok.temporaryPasswordGenerated,
               serverError: null,
               serverSkipped: null
             };

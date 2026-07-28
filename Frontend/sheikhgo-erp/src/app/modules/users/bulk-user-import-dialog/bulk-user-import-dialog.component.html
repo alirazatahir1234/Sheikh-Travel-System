@@ -157,10 +157,13 @@
   </div>
 
   <div class="temp-passwords" *ngIf="done && hasTemporaryPasswords">
-    <p class="hint">Auto-generated temporary passwords (copy now — they are not shown again):</p>
+    <p class="hint">
+      Temporary passwords were generated for {{ temporaryPasswordRows.length }} user(s).
+      For security they are not returned by the API — use <strong>Reset password</strong> on each user to issue credentials.
+    </p>
     <ul>
       <li *ngFor="let row of temporaryPasswordRows">
-        <strong>{{ row.dto?.email }}</strong>: <code>{{ row.temporaryPassword }}</code>
+        <strong>{{ row.dto?.email }}</strong>
       </li>
     </ul>
   </div>

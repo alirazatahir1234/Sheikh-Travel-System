@@ -59,6 +59,8 @@ public class CreateUserCommandHandler(
         await UserQueries.EnsureOrgBelongsToTenantAsync(
             connection, tenantId, dto.BranchId, dto.DepartmentId, cancellationToken);
 
+        UserRoleAssignment.EnsureCanAssignPlatformRole(dto.PlatformRoleCode, currentUser);
+
         var status = UserLifecycle.Normalize(dto.Status, true);
         var isActive = UserLifecycle.IsActiveStatus(status);
         var employeeType = EmployeeTypes.Normalize(dto.EmployeeType);

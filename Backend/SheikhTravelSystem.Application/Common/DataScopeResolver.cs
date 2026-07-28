@@ -116,7 +116,12 @@ public static class DataScopeResolver
     }
 
     public static bool IsCompanyLevel(string? scopeLevel)
-        => string.Equals(NormalizeScopeLevel(scopeLevel), ScopeCompany, StringComparison.OrdinalIgnoreCase);
+    {
+        var normalized = NormalizeScopeLevel(scopeLevel);
+        return string.Equals(normalized, ScopeCompany, StringComparison.OrdinalIgnoreCase)
+            // Legacy alias used by early GPS_OPERATOR seed rows.
+            || string.Equals(normalized, "Tenant", StringComparison.OrdinalIgnoreCase);
+    }
 
     public static string NormalizeScopeLevel(string? scopeLevel)
     {
@@ -127,14 +132,14 @@ public static class DataScopeResolver
     public static string DefaultScopeLevelForRoleCode(string roleCode)
     {
         if (string.Equals(roleCode, PlatformRoles.SuperAdmin, StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(roleCode, PlatformRoles.TenantAdmin, StringComparison.OrdinalIgnoreCase))
+            string.Equals(roleCode, PlatformRoles.TenantAdmin, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(roleCode, "GPS_OPERATOR", StringComparison.OrdinalIgnoreCase))
             return ScopeCompany;
 
         if (string.Equals(roleCode, "BRANCH_MANAGER", StringComparison.OrdinalIgnoreCase) ||
             string.Equals(roleCode, "FLEET_MANAGER", StringComparison.OrdinalIgnoreCase) ||
             string.Equals(roleCode, "DRIVER_MANAGER", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(roleCode, "DISPATCHER", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(roleCode, "GPS_OPERATOR", StringComparison.OrdinalIgnoreCase))
+            string.Equals(roleCode, "DISPATCHER", StringComparison.OrdinalIgnoreCase))
             return ScopeBranch;
 
         return ScopeAssigned;

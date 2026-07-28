@@ -1,6 +1,8 @@
 using System.Data;
 using Dapper;
 using SheikhTravelSystem.Application.Common;
+using SheikhTravelSystem.Application.Common.Exceptions;
+using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Application.Features.Users.DTOs;
 using SheikhTravelSystem.Domain.Enums;
 
@@ -9,6 +11,21 @@ namespace SheikhTravelSystem.Application.Features.Users;
 /// <summary>Stage 7 helpers for UserRoles assignment + legacy sync.</summary>
 internal static class UserRoleAssignment
 {
+    /// <summary>
+    /// Blocks elevating a user to SUPER_ADMIN unless the caller is a platform Super Admin.
+    /// </summary>
+    public static void EnsureCanAssignPlatformRole(string? platformRoleCode, ICurrentUserService currentUser)
+    {
+        if (string.IsNullOrWhiteSpace(platformRoleCode))
+            return;
+
+        if (string.Equals(platformRoleCode.Trim(), PlatformRoles.SuperAdmin, StringComparison.OrdinalIgnoreCase)
+            && !currentUser.IsPlatformSuperAdmin)
+        {
+            throw new ForbiddenException("Only platform owners can assign the Super Admin role.");
+        }
+    }
+
     public sealed class AssignedRoleRow
     {
         public int RoleId { get; init; }

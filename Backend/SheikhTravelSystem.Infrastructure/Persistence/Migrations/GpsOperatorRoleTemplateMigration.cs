@@ -50,7 +50,7 @@ public static class GpsOperatorRoleTemplateMigration
         await ApplyOptionalRoleColumnUpdateAsync(
             connection,
             "ScopeLevel",
-            "UPDATE Roles SET ScopeLevel = N'Tenant' WHERE Code = N'GPS_OPERATOR' AND (ScopeLevel IS NULL OR ScopeLevel = N'')",
+            "UPDATE Roles SET ScopeLevel = N'Company' WHERE Code = N'GPS_OPERATOR' AND (ScopeLevel IS NULL OR ScopeLevel = N'' OR ScopeLevel = N'Tenant')",
             cancellationToken);
 
         await TenantRolePermissionSeeder.AssignRolePermissionsForAllTenantsAsync(

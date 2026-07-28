@@ -603,7 +603,7 @@ public class PostGpsOperatorInsightsHandler(
                     """
                     SELECT COUNT(*),
                            ISNULL(SUM(CASE WHEN LOWER(Severity) IN ('critical','high') THEN 1 ELSE 0 END), 0),
-                           ISNULL(SUM(CASE WHEN IsRead = 0 THEN 1 ELSE 0 END), 0)
+                           ISNULL(SUM(CASE WHEN e.ReadAt IS NULL AND e.Status <> 'archived' THEN 1 ELSE 0 END), 0)
                     FROM GpsAlertEvents e
                     INNER JOIN Vehicles v ON v.Id = e.VehicleId AND v.TenantId = @TenantId
                     WHERE e.IsDeleted = 0 AND e.Timestamp >= @TodayStart
