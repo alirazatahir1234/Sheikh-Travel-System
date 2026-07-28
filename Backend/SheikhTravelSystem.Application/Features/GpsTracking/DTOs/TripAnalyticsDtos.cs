@@ -76,6 +76,28 @@ public record GpsFleetStatusLocalDto(
     int Sos,
     int AlertsToday);
 
+/// <summary>Single poll payload for GPS Operator mobile control-room dashboard.</summary>
+public record GpsOperatorDashboardDto(
+    GpsFleetStatusLocalDto Fleet,
+    int TrackerHealthy,
+    int TrackerOffline,
+    int WeakGsm,
+    int LowBattery,
+    int NoGpsSignal,
+    int IgnitionOn,
+    int OverspeedAlertsToday,
+    int SosAlertsToday,
+    int GeofenceAlertsToday,
+    int OfflineAlertsToday,
+    int PowerCutAlertsToday,
+    int TodaysTrips,
+    double? TodayDistanceKm);
+
+public record GpsOperatorInsightDto(
+    string Title,
+    string Summary,
+    IReadOnlyList<string> Bullets);
+
 public record GpsFleetStatusSnapshotDto(
     DateTime SnapshotAt,
     int TotalVehicles,

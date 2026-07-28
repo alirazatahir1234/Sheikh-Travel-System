@@ -88,6 +88,30 @@ class FleetApi {
     return HistoryReplayBundle.fromJson(ApiResponseParser.dataMap(res.data));
   }
 
+  Future<({String title, String summary, List<String> bullets})> getReplayInsights(
+    int vehicleId, {
+    DateTime? from,
+    DateTime? to,
+  }) async {
+    final res = await _dio.post<Map<String, dynamic>>(
+      ApiEndpoints.gpsHistoryReplayInsights,
+      data: {
+        'vehicleId': vehicleId,
+        if (from != null) 'fromDate': from.toUtc().toIso8601String(),
+        if (to != null) 'toDate': to.toUtc().toIso8601String(),
+      },
+    );
+    final map = ApiResponseParser.dataMap(res.data);
+    final bullets = map['bullets'] ?? map['Bullets'];
+    return (
+      title: (map['title'] ?? map['Title'] ?? 'Trip insight').toString(),
+      summary: (map['summary'] ?? map['Summary'] ?? '').toString(),
+      bullets: bullets is List
+          ? bullets.map((e) => e.toString()).toList()
+          : const <String>[],
+    );
+  }
+
   Future<List<VehicleDocumentItem>> getVehicleDocuments(int vehicleId) async {
     final res = await _dio.get<Map<String, dynamic>>(
       ApiEndpoints.vehicleDocuments(vehicleId),

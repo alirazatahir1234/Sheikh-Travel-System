@@ -1,28 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:intl/intl.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../../../core/constants/app_theme.dart';
 import '../../../features/auth/data/auth_repository.dart';
 import '../../../features/auth/domain/auth_models.dart';
 import '../../../shared/widgets/sg_ui.dart';
+import '../../alerts/data/gps_alerts_api.dart';
+import '../../alerts/domain/gps_alert_models.dart';
 import '../data/fleet_api.dart';
 import '../domain/fleet_models.dart';
 import '../domain/fleet_status.dart';
 import 'fleet_hub_notifier.dart';
 import 'vehicle_commands_sheet.dart';
 import 'widgets/fleet_kpi_strip.dart';
-
-final vehicleDocumentsProvider =
-    FutureProvider.family<List<VehicleDocumentItem>, int>((ref, id) {
-  return ref.watch(fleetApiProvider).getVehicleDocuments(id);
-});
-
-final vehicleMaintenanceProvider =
-    FutureProvider.family<List<VehicleMaintenanceItem>, int>((ref, id) {
-  return ref.watch(fleetApiProvider).getVehicleMaintenance(id);
-});
+import 'widgets/vehicle_comms_buttons.dart';
 
 final vehicleFuelProvider =
     FutureProvider.family<VehicleFuelSummary, int>((ref, id) {
@@ -32,6 +25,14 @@ final vehicleFuelProvider =
 final vehicleGpsInfoProvider =
     FutureProvider.family<VehicleGpsInfo, int>((ref, id) {
   return ref.watch(fleetApiProvider).getVehicleGps(id);
+});
+
+final vehicleGpsAlertsProvider =
+    FutureProvider.family<List<GpsAlertEvent>, int>((ref, vehicleId) {
+  return ref.read(gpsAlertsApiProvider).listEvents(
+        vehicleId: vehicleId,
+        datePreset: 'last7',
+      );
 });
 
 class VehicleDetailScreen extends ConsumerWidget {
@@ -53,7 +54,7 @@ class VehicleDetailScreen extends ConsumerWidget {
         ]);
 
     return DefaultTabController(
-      length: 5,
+      length: 6,
       child: Scaffold(
         backgroundColor: AppColors.surface,
         appBar: AppBar(
@@ -82,10 +83,11 @@ class VehicleDetailScreen extends ConsumerWidget {
             isScrollable: true,
             tabs: [
               Tab(text: 'Overview'),
-              Tab(text: 'GPS'),
-              Tab(text: 'Docs'),
-              Tab(text: 'Maint'),
+              Tab(text: 'Live'),
+              Tab(text: 'Playback'),
+              Tab(text: 'Alerts'),
               Tab(text: 'Fuel'),
+              Tab(text: 'Device'),
             ],
           ),
         ),
@@ -112,9 +114,10 @@ class VehicleDetailScreen extends ConsumerWidget {
             children: [
               _OverviewTab(vehicle: v, live: hubLoc),
               _GpsTab(vehicleId: vehicleId, vehicle: v, live: hubLoc),
-              _DocsTab(vehicleId: vehicleId),
-              _MaintTab(vehicleId: vehicleId),
+              _PlaybackTab(vehicleId: vehicleId),
+              _AlertsShortcutTab(vehicleId: vehicleId),
               _FuelTab(vehicleId: vehicleId),
+              _DeviceTab(vehicleId: vehicleId),
             ],
           ),
         ),
@@ -143,6 +146,19 @@ class _OverviewTab extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
       children: [
+        if (vehicle.imageUrl != null && vehicle.imageUrl!.trim().isNotEmpty)
+          ClipRRect(
+            borderRadius: BorderRadius.circular(AppRadii.md),
+            child: Image.network(
+              vehicle.imageUrl!,
+              height: 160,
+              width: double.infinity,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+            ),
+          ),
+        if (vehicle.imageUrl != null && vehicle.imageUrl!.trim().isNotEmpty)
+          const SizedBox(height: 12),
         SgCard(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -209,6 +225,51 @@ class _OverviewTab extends StatelessWidget {
             ),
           ],
         ),
+        const SizedBox(height: 12),
+        VehicleCommsButtons(
+          phone: vehicle.driverPhone,
+          vehicleLabel: vehicle.name,
+        ),
+        const SizedBox(height: 12),
+        const SgSectionTitle('Live telemetry'),
+        const SizedBox(height: 8),
+        SgCard(
+          child: Column(
+            children: [
+              _Row(
+                'Speed',
+                live != null
+                    ? '${live!.speed.toStringAsFixed(0)} km/h'
+                    : vehicle.locationSpeed != null
+                        ? '${vehicle.locationSpeed!.toStringAsFixed(0)} km/h'
+                        : '—',
+              ),
+              _Row(
+                'Ignition',
+                (live?.ignition ?? vehicle.engineIgnition) == null
+                    ? '—'
+                    : (live?.ignition ?? vehicle.engineIgnition)!
+                        ? 'On'
+                        : 'Off',
+              ),
+              _Row(
+                'Last comms',
+                live?.lastUpdated != null
+                    ? df.format(live!.lastUpdated!.toLocal())
+                    : vehicle.locationLastUpdate != null
+                        ? df.format(vehicle.locationLastUpdate!.toLocal())
+                        : '—',
+              ),
+              _Row(
+                'Battery',
+                live?.batteryLevel != null
+                    ? '${live!.batteryLevel!.toStringAsFixed(0)}%'
+                    : '—',
+              ),
+              _Row('GSM', live?.gsmSignal != null ? '${live!.gsmSignal}' : '—'),
+            ],
+          ),
+        ),
         const SizedBox(height: 16),
         const SgSectionTitle('Assignment'),
         const SizedBox(height: 8),
@@ -264,9 +325,37 @@ class _GpsTab extends ConsumerWidget {
         onRetry: () => ref.invalidate(vehicleGpsInfoProvider(vehicleId)),
       ),
       data: (gps) {
+        final lat = live?.latitude ?? gps.latitude;
+        final lng = live?.longitude ?? gps.longitude;
+        final hasCoords = lat != null && lng != null;
         return ListView(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
           children: [
+            if (hasCoords)
+              ClipRRect(
+                borderRadius: BorderRadius.circular(AppRadii.md),
+                child: SizedBox(
+                  height: 200,
+                  child: GoogleMap(
+                    initialCameraPosition: CameraPosition(
+                      target: LatLng(lat!, lng!),
+                      zoom: 15,
+                    ),
+                    markers: {
+                      Marker(
+                        markerId: MarkerId('v$vehicleId'),
+                        position: LatLng(lat!, lng!),
+                        rotation: live?.heading ?? 0,
+                      ),
+                    },
+                    liteModeEnabled: true,
+                    zoomControlsEnabled: false,
+                    myLocationButtonEnabled: false,
+                    mapToolbarEnabled: false,
+                  ),
+                ),
+              ),
+            if (hasCoords) const SizedBox(height: 12),
             SgCard(
               child: Column(
                 children: [
@@ -353,135 +442,6 @@ class _GpsTab extends ConsumerWidget {
   }
 }
 
-class _DocsTab extends ConsumerWidget {
-  const _DocsTab({required this.vehicleId});
-  final int vehicleId;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final async = ref.watch(vehicleDocumentsProvider(vehicleId));
-    final df = DateFormat('dd MMM yyyy');
-
-    return async.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => _ErrorRetry(
-        error: e,
-        onRetry: () => ref.invalidate(vehicleDocumentsProvider(vehicleId)),
-      ),
-      data: (docs) {
-        if (docs.isEmpty) {
-          return const Center(child: Text('No documents on file.'));
-        }
-        return ListView.separated(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-          itemCount: docs.length,
-          separatorBuilder: (_, __) => const SizedBox(height: 8),
-          itemBuilder: (_, i) {
-            final d = docs[i];
-            return SgCard(
-              child: ListTile(
-                contentPadding: EdgeInsets.zero,
-                title: Text(
-                  d.documentType,
-                  style: const TextStyle(fontWeight: FontWeight.w700),
-                ),
-                subtitle: Text(
-                  d.expiryDate != null
-                      ? 'Expires ${df.format(d.expiryDate!.toLocal())}'
-                      : (d.notes ?? 'No expiry'),
-                ),
-                trailing: d.fileUrl == null
-                    ? null
-                    : IconButton(
-                        icon: const Icon(Icons.open_in_new),
-                        onPressed: () async {
-                          final uri = Uri.tryParse(d.fileUrl!);
-                          if (uri != null) {
-                            await launchUrl(
-                              uri,
-                              mode: LaunchMode.externalApplication,
-                            );
-                          }
-                        },
-                      ),
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-}
-
-class _MaintTab extends ConsumerWidget {
-  const _MaintTab({required this.vehicleId});
-  final int vehicleId;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final async = ref.watch(vehicleMaintenanceProvider(vehicleId));
-    final df = DateFormat('dd MMM yyyy');
-
-    return async.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => _ErrorRetry(
-        error: e,
-        onRetry: () => ref.invalidate(vehicleMaintenanceProvider(vehicleId)),
-      ),
-      data: (rows) {
-        if (rows.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text('No maintenance records.'),
-                const SizedBox(height: 12),
-                TextButton(
-                  onPressed: () => context.push('/more/maintenance'),
-                  child: const Text('Open maintenance hub'),
-                ),
-              ],
-            ),
-          );
-        }
-        return ListView.separated(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-          itemCount: rows.length,
-          separatorBuilder: (_, __) => const SizedBox(height: 8),
-          itemBuilder: (_, i) {
-            final m = rows[i];
-            return SgCard(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    m.description,
-                    style: const TextStyle(fontWeight: FontWeight.w700),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${df.format(m.maintenanceDate.toLocal())} · ${m.status}'
-                    '${m.serviceProvider != null ? ' · ${m.serviceProvider}' : ''}',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'PKR ${m.cost.toStringAsFixed(0)}',
-                    style: const TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-}
-
 class _FuelTab extends ConsumerWidget {
   const _FuelTab({required this.vehicleId});
   final int vehicleId;
@@ -529,30 +489,42 @@ class _FuelTab extends ConsumerWidget {
                 child: Center(child: Text('No fuel logs.')),
               )
             else
-              ...summary.items.map(
-                (f) => Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: SgCard(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          '${f.liters.toStringAsFixed(1)} L · PKR ${f.totalCost.toStringAsFixed(0)}',
-                          style: const TextStyle(fontWeight: FontWeight.w700),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '${df.format(f.fuelDate.toLocal())}'
-                          '${f.station != null ? ' · ${f.station}' : ''}',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: AppColors.textSecondary,
+              ...summary.items.take(12).map(
+                (f) {
+                  final maxLiters = summary.items
+                      .map((e) => e.liters)
+                      .fold<double>(0, (a, b) => a > b ? a : b);
+                  final frac = maxLiters > 0 ? f.liters / maxLiters : 0;
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: SgCard(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '${f.liters.toStringAsFixed(1)} L · PKR ${f.totalCost.toStringAsFixed(0)}',
+                            style: const TextStyle(fontWeight: FontWeight.w700),
                           ),
-                        ),
-                      ],
+                          const SizedBox(height: 6),
+                          LinearProgressIndicator(
+                            value: frac.toDouble(),
+                            backgroundColor: AppColors.border,
+                            color: AppColors.warning,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '${df.format(f.fuelDate.toLocal())}'
+                            '${f.station != null ? ' · ${f.station}' : ''}',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                ),
+                  );
+                },
               ),
             TextButton(
               onPressed: () => context.push('/fuel'),
@@ -654,4 +626,182 @@ class _Row extends StatelessWidget {
 
 extension on String {
   String ifEmpty(String fallback) => isEmpty ? fallback : this;
+}
+
+class _PlaybackTab extends StatelessWidget {
+  const _PlaybackTab({required this.vehicleId});
+  final int vehicleId;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        const Text(
+          'Pick a range and open the full playback player with map trail and stats.',
+          style: TextStyle(color: AppColors.textSecondary, height: 1.4),
+        ),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final label in ['Last 6h', 'Today', 'Yesterday', 'Last 3 days'])
+              ActionChip(
+                label: Text(label),
+                onPressed: () =>
+                    context.push('/fleet/vehicles/$vehicleId/history'),
+              ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        FilledButton.icon(
+          onPressed: () =>
+              context.push('/fleet/vehicles/$vehicleId/history'),
+          icon: const Icon(Icons.play_circle_outline),
+          label: const Text('Open history playback'),
+        ),
+      ],
+    );
+  }
+}
+
+class _AlertsShortcutTab extends ConsumerWidget {
+  const _AlertsShortcutTab({required this.vehicleId});
+  final int vehicleId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(vehicleGpsAlertsProvider(vehicleId));
+    final df = DateFormat('dd MMM, HH:mm');
+
+    return async.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) => _ErrorRetry(
+        error: e,
+        onRetry: () => ref.invalidate(vehicleGpsAlertsProvider(vehicleId)),
+      ),
+      data: (alerts) {
+        if (alerts.isEmpty) {
+          return const Center(child: Text('No GPS alerts in the last 7 days.'));
+        }
+        return ListView.builder(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+          itemCount: alerts.length,
+          itemBuilder: (_, i) {
+            final a = alerts[i];
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: SgCard(
+                onTap: () => context.push('/alerts/${a.id}'),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            a.eventType.replaceAll('_', ' '),
+                            style: const TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                          Text(
+                            a.message,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          Text(
+                            df.format(a.timestamp.toLocal()),
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: AppColors.textMuted,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (a.canAcknowledge)
+                      TextButton(
+                        onPressed: () async {
+                          await ref.read(gpsAlertsApiProvider).acknowledge(a.id);
+                          ref.invalidate(vehicleGpsAlertsProvider(vehicleId));
+                        },
+                        child: const Text('ACK'),
+                      ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+class _DeviceTab extends ConsumerWidget {
+  const _DeviceTab({required this.vehicleId});
+  final int vehicleId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(vehicleGpsInfoProvider(vehicleId));
+    final session = ref.watch(fleetSessionProvider);
+    final canCommands = session != null &&
+        session.hasAnyPermission(const [
+          FleetPermissions.gpsCommandSend,
+          FleetPermissions.gpsCommandView,
+        ]);
+
+    return async.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) => _ErrorRetry(
+        error: e,
+        onRetry: () => ref.invalidate(vehicleGpsInfoProvider(vehicleId)),
+      ),
+      data: (info) => ListView(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+        children: [
+          const SgSectionTitle('Diagnostics'),
+          const SizedBox(height: 8),
+          SgCard(
+            child: Column(
+              children: [
+                _Row('Device', info.deviceName ?? info.uniqueId ?? '—'),
+                _Row('IMEI / Unique ID', info.uniqueId ?? '—'),
+                _Row('SIM', info.simNumber ?? '—'),
+                _Row('Model', info.modelName ?? info.brandName ?? '—'),
+                _Row('Status', info.gpsOnline ? 'Online' : 'Offline'),
+                _Row(
+                  'Battery',
+                  info.batteryLevel != null
+                      ? '${info.batteryLevel!.toStringAsFixed(0)}%'
+                      : '—',
+                ),
+                _Row('GSM signal', '${info.gsmSignal ?? '—'}'),
+                _Row(
+                  'Last packet',
+                  info.lastUpdate?.toLocal().toString() ?? '—',
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          if (canCommands)
+            FilledButton.icon(
+              onPressed: () => showVehicleCommandsSheet(context, vehicleId),
+              icon: const Icon(Icons.power_settings_new),
+              label: const Text('Device commands'),
+            ),
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            onPressed: () =>
+                context.push('/fleet/vehicles/$vehicleId/device'),
+            icon: const Icon(Icons.sensors),
+            label: const Text('Full device health screen'),
+          ),
+        ],
+      ),
+    );
+  }
 }

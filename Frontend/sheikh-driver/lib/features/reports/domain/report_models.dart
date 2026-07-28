@@ -123,4 +123,7 @@ const fleetReportTypeOptions = [
   ReportTypeOption('trip', 'Trips'),
   ReportTypeOption('maintenance', 'Maintenance'),
   ReportTypeOption('alert', 'Alerts'),
+  ReportTypeOption('mileage', 'Mileage'),
+  ReportTypeOption('idle', 'Idle'),
+  ReportTypeOption('geofence', 'Geofence'),
 ];

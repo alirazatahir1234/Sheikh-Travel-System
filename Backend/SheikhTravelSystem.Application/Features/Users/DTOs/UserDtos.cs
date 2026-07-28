@@ -76,7 +76,8 @@ public record UserDto(
     string? Language = null,
     string? Theme = null,
     string? AvatarUrl = null,
-    IReadOnlyList<AssignedRoleDto>? AssignedRoles = null);
+    IReadOnlyList<AssignedRoleDto>? AssignedRoles = null,
+    DateTime? LastLoginAt = null);
 
 public record CreateUserDto(
     string FullName,
@@ -84,6 +85,7 @@ public record CreateUserDto(
     string Password,
     string Phone,
     UserRole Role,
+    string? PlatformRoleCode = null,
     int? BranchId = null,
     int? DepartmentId = null,
     string? JobTitle = null,

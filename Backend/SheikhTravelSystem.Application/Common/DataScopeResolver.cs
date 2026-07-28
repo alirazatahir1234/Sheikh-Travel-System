@@ -133,7 +133,8 @@ public static class DataScopeResolver
         if (string.Equals(roleCode, "BRANCH_MANAGER", StringComparison.OrdinalIgnoreCase) ||
             string.Equals(roleCode, "FLEET_MANAGER", StringComparison.OrdinalIgnoreCase) ||
             string.Equals(roleCode, "DRIVER_MANAGER", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(roleCode, "DISPATCHER", StringComparison.OrdinalIgnoreCase))
+            string.Equals(roleCode, "DISPATCHER", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(roleCode, "GPS_OPERATOR", StringComparison.OrdinalIgnoreCase))
             return ScopeBranch;
 
         return ScopeAssigned;

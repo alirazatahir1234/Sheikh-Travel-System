@@ -20,7 +20,7 @@ public sealed class EscalationHostedService(
             try
             {
                 using var scope = scopeFactory.CreateScope();
-                await ProcessAsync(scope.ServiceProvider, stoppingToken);
+                await ProcessAsync(scope.ServiceProvider, logger, stoppingToken);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
@@ -31,7 +31,7 @@ public sealed class EscalationHostedService(
         }
     }
 
-    private static async Task ProcessAsync(IServiceProvider sp, CancellationToken ct)
+    private static async Task ProcessAsync(IServiceProvider sp, ILogger<EscalationHostedService> logger, CancellationToken ct)
     {
         var db = sp.GetRequiredService<IDbConnectionFactory>();
         var notifications = sp.GetRequiredService<INotificationService>();
@@ -47,44 +47,58 @@ public sealed class EscalationHostedService(
 
         foreach (var item in due)
         {
-            var nextLevel = item.CurrentLevel + 1;
-            var rule = await connection.QuerySingleOrDefaultAsync<EscalationRuleRow>(
-                new CommandDefinition("""
-                    SELECT TOP 1 TargetRole, TimeoutMinutes, Channel FROM EscalationRules
-                    WHERE IsActive = 1 AND EventType = @EventType AND LevelOrder = @Level
-                      AND (TenantId = @TenantId OR TenantId IS NULL)
-                    ORDER BY CASE WHEN TenantId IS NULL THEN 1 ELSE 0 END
-                    """,
-                    new { item.EventType, Level = nextLevel, item.TenantId },
-                    cancellationToken: ct));
-
-            if (rule is null)
+            if (item.TenantId is not int tenantId || tenantId <= 0)
             {
-                await connection.ExecuteAsync(new CommandDefinition("""
-                    UPDATE EscalationState SET Status = 'Exhausted', UpdatedAt = GETUTCDATE() WHERE Id = @Id
-                    """, new { item.Id }, cancellationToken: ct));
+                logger.LogWarning("Escalation {Id} has no TenantId; skipping", item.Id);
                 continue;
             }
 
-            await notifications.CreateForAllChannelsAsync(
-                $"Escalation L{nextLevel}: {item.EventType}",
-                $"No acknowledgement for {item.EventType} (ref #{item.ReferenceId}). Notifying {rule.TargetRole}.",
-                NotificationType.Sos,
-                [rule.Channel, NotificationChannels.InApp],
-                priority: 4,
-                module: "Fleet",
-                referenceId: item.ReferenceId,
-                cancellationToken: ct);
+            try
+            {
+                var nextLevel = item.CurrentLevel + 1;
+                var rule = await connection.QuerySingleOrDefaultAsync<EscalationRuleRow>(
+                    new CommandDefinition("""
+                        SELECT TOP 1 TargetRole, TimeoutMinutes, Channel FROM EscalationRules
+                        WHERE IsActive = 1 AND EventType = @EventType AND LevelOrder = @Level
+                          AND (TenantId = @TenantId OR TenantId IS NULL)
+                        ORDER BY CASE WHEN TenantId IS NULL THEN 1 ELSE 0 END
+                        """,
+                        new { item.EventType, Level = nextLevel, item.TenantId },
+                        cancellationToken: ct));
 
-            await connection.ExecuteAsync(new CommandDefinition("""
-                UPDATE EscalationState SET
-                    CurrentLevel = @Level,
-                    NextEscalateAt = DATEADD(MINUTE, @Timeout, GETUTCDATE()),
-                    UpdatedAt = GETUTCDATE()
-                WHERE Id = @Id
-                """,
-                new { item.Id, Level = nextLevel, Timeout = rule.TimeoutMinutes },
-                cancellationToken: ct));
+                if (rule is null)
+                {
+                    await connection.ExecuteAsync(new CommandDefinition("""
+                        UPDATE EscalationState SET Status = 'Exhausted', UpdatedAt = GETUTCDATE() WHERE Id = @Id
+                        """, new { item.Id }, cancellationToken: ct));
+                    continue;
+                }
+
+                await notifications.CreateForAllChannelsAsync(
+                    $"Escalation L{nextLevel}: {item.EventType}",
+                    $"No acknowledgement for {item.EventType} (ref #{item.ReferenceId}). Notifying {rule.TargetRole}.",
+                    NotificationType.Sos,
+                    [rule.Channel, NotificationChannels.InApp],
+                    priority: 4,
+                    module: "Fleet",
+                    referenceId: item.ReferenceId,
+                    tenantId: tenantId,
+                    cancellationToken: ct);
+
+                await connection.ExecuteAsync(new CommandDefinition("""
+                    UPDATE EscalationState SET
+                        CurrentLevel = @Level,
+                        NextEscalateAt = DATEADD(MINUTE, @Timeout, GETUTCDATE()),
+                        UpdatedAt = GETUTCDATE()
+                    WHERE Id = @Id
+                    """,
+                    new { item.Id, Level = nextLevel, Timeout = rule.TimeoutMinutes },
+                    cancellationToken: ct));
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                logger.LogWarning(ex, "Escalation item {Id} failed", item.Id);
+            }
         }
     }
 

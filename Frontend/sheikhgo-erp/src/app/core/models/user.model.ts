@@ -65,6 +65,7 @@ export interface User {
   role: UserRole;
   isActive: boolean;
   createdAt: string;
+  lastLoginAt?: string | null;
   companyId?: number | null;
   companyName?: string | null;
   branchId?: number | null;
@@ -107,6 +108,7 @@ export interface CreateUserDto {
   password: string;
   phone: string;
   role: UserRole;
+  platformRoleCode?: string | null;
   branchId?: number | null;
   departmentId?: number | null;
   jobTitle?: string | null;
@@ -145,6 +147,49 @@ export interface UpdateUserDto {
 
 export interface CreateUserRequest {
   user: CreateUserDto;
+}
+
+export type BulkImportMode = 'CreateOnly' | 'CreateOrUpdate' | 'UpdateOnly';
+
+export interface BulkCreateUsersOptions {
+  dryRun?: boolean;
+  skipDuplicates?: boolean;
+  mode?: BulkImportMode;
+}
+
+export interface BulkCreateUsersRequest {
+  users: CreateUserDto[];
+  options?: BulkCreateUsersOptions | null;
+}
+
+export interface BulkCreateUserSuccess {
+  row: number;
+  email: string;
+  userId: number;
+  temporaryPassword?: string | null;
+  dryRun?: boolean;
+}
+
+export interface BulkCreateUserFailure {
+  row: number;
+  email?: string | null;
+  error: string;
+}
+
+export interface BulkCreateUserSkipped {
+  row: number;
+  email: string;
+  reason: string;
+}
+
+export interface BulkCreateUsersResult {
+  succeeded: number;
+  failed: number;
+  skipped: number;
+  dryRun: boolean;
+  created: BulkCreateUserSuccess[];
+  errors: BulkCreateUserFailure[];
+  skippedRows: BulkCreateUserSkipped[];
 }
 
 export interface UpdateUserRequest {

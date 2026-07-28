@@ -88,6 +88,39 @@ internal static class UserRoleAssignment
             connection, userId, roleId.Value, branchId, departmentId, assignedBy, cancellationToken);
     }
 
+    /// <summary>Assigns a platform role by code without removing other assignments.</summary>
+    public static async Task AssignPlatformRoleAsync(
+        IDbConnection connection,
+        int userId,
+        int tenantId,
+        string platformRoleCode,
+        int? branchId,
+        int? departmentId,
+        int? assignedBy,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(platformRoleCode))
+            return;
+
+        var code = platformRoleCode.Trim().ToUpperInvariant();
+        var roleId = await connection.ExecuteScalarAsync<int?>(new CommandDefinition("""
+            SELECT TOP 1 Id FROM Roles WHERE TenantId = @TenantId AND Code = @Code AND IsActive = 1
+            """, new { TenantId = tenantId, Code = code }, cancellationToken: cancellationToken));
+
+        if (!roleId.HasValue)
+            throw new Common.Exceptions.NotFoundException("Role", code);
+
+        var exists = await connection.ExecuteScalarAsync<bool>(new CommandDefinition("""
+            SELECT CASE WHEN EXISTS(SELECT 1 FROM UserRoles WHERE UserId = @UserId AND RoleId = @RoleId) THEN 1 ELSE 0 END
+            """, new { UserId = userId, RoleId = roleId.Value }, cancellationToken: cancellationToken));
+
+        if (exists)
+            return;
+
+        await InsertAssignmentAsync(
+            connection, userId, roleId.Value, branchId, departmentId, assignedBy, cancellationToken);
+    }
+
     public static async Task ReplaceAssignmentsAsync(
         IDbConnection connection,
         int userId,

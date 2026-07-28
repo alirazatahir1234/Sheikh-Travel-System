@@ -62,6 +62,12 @@ public class UsersController : BaseApiController
         return Created(string.Empty, result);
     }
 
+    /// <summary>Bulk-create users from an import-format payload (best-effort per row).</summary>
+    [RequirePermission(PlatformPermissions.UsersCreate)]
+    [HttpPost("bulk")]
+    public async Task<IActionResult> BulkCreate([FromBody] BulkCreateUsersCommand command)
+        => Ok(await Mediator.Send(command));
+
     [RequirePermission(PlatformPermissions.UsersEdit)]
     [HttpPut("{id}")]
     public async Task<IActionResult> Update(int id, [FromBody] UpdateUserCommand command)

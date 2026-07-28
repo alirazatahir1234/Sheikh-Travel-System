@@ -66,6 +66,21 @@ public static class TenantRolePermissionTemplates
         "Notification.View"
     ];
 
+    /// <summary>
+    /// GPS monitoring operator — live map, alerts, telemetry, playback, reports (no bookings/finance).
+    /// </summary>
+    public static readonly string[] GpsOperator =
+    [
+        "Platform.Dashboard.View",
+        "Vehicle.View", "Driver.View",
+        "GPS.View", "Report.View", "Fuel.View",
+        "Gps.AlertView", "Gps.AlertAcknowledge", "Gps.AlertResolve", "Gps.AlertArchive",
+        "Gps.CommandView", "Gps.CommandSend", "Gps.CommandPositionRequest",
+        "Gps.CommandRestart", "Gps.CommandRelay", "Gps.CommandBuzzer", "Gps.CommandRetry", "Gps.CommandCancel",
+        "Trip.View",
+        "Notification.View"
+    ];
+
     public static readonly string[] Accountant =
     [
         "Platform.Dashboard.View", "Payment.View", "Payment.Create", "Payment.Update", "Invoice.View", "Report.View",
@@ -88,6 +103,7 @@ public static class TenantRolePermissionTemplates
         ("FLEET_MANAGER", FleetManager),
         ("DRIVER_MANAGER", DriverManager),
         ("DISPATCHER", Dispatcher),
+        ("GPS_OPERATOR", GpsOperator),
         ("ACCOUNTANT", Accountant),
         ("DRIVER", Driver),
     ];

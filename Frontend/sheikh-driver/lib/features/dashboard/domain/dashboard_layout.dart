@@ -33,6 +33,9 @@ enum DashboardWidgetId {
   maintenanceCost,
   universalSearchBar,
   attentionVehicles,
+  gpsExceptionKpiGrid,
+  trackerHealthCard,
+  recentGpsAlertsFeed,
   quickActions,
 }
 

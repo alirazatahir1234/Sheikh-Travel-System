@@ -2,6 +2,7 @@
 enum DashboardRole {
   driver,
   dispatcher,
+  gpsOperator,
   fleetManager,
   driverManager,
   accountant,
@@ -13,6 +14,7 @@ extension DashboardRoleX on DashboardRole {
   String get label => switch (this) {
         DashboardRole.driver => 'Driver',
         DashboardRole.dispatcher => 'Dispatcher',
+        DashboardRole.gpsOperator => 'GPS Operator',
         DashboardRole.fleetManager => 'Fleet Manager',
         DashboardRole.driverManager => 'Driver Manager',
         DashboardRole.accountant => 'Accountant',
@@ -23,6 +25,7 @@ extension DashboardRoleX on DashboardRole {
   String get subtitle => switch (this) {
         DashboardRole.driver => 'Your trips and day status',
         DashboardRole.dispatcher => 'Trips, assignments, and delays',
+        DashboardRole.gpsOperator => 'Live fleet monitoring and GPS control',
         DashboardRole.fleetManager => 'Overview of your fleet in real-time',
         DashboardRole.driverManager => 'Drivers, docs, and performance',
         DashboardRole.accountant => 'Costs, fuel, and reports',
@@ -34,6 +37,7 @@ extension DashboardRoleX on DashboardRole {
   String get commandLabel => switch (this) {
         DashboardRole.driver => 'Driver',
         DashboardRole.dispatcher => 'Dispatcher',
+        DashboardRole.gpsOperator => 'GPS Operator',
         DashboardRole.fleetManager => 'Fleet Manager',
         DashboardRole.driverManager => 'Supervisor',
         DashboardRole.accountant => 'Accountant',
@@ -51,6 +55,8 @@ extension DashboardRoleX on DashboardRole {
         return DashboardRole.fleetManager;
       case 'DRIVER_MANAGER':
         return DashboardRole.driverManager;
+      case 'GPS_OPERATOR':
+        return DashboardRole.gpsOperator;
       case 'DISPATCHER':
         return DashboardRole.dispatcher;
       case 'ACCOUNTANT':

@@ -107,9 +107,18 @@ public class CreateUserCommandHandler(
                     },
                     cancellationToken: cancellationToken));
 
-            await UserRoleAssignment.SyncLegacyRoleAsync(
-                connection, id, tenantId, dto.Role, dto.BranchId, dto.DepartmentId,
-                currentUser.UserId, cancellationToken);
+            if (!string.IsNullOrWhiteSpace(dto.PlatformRoleCode))
+            {
+                await UserRoleAssignment.AssignPlatformRoleAsync(
+                    connection, id, tenantId, dto.PlatformRoleCode, dto.BranchId, dto.DepartmentId,
+                    currentUser.UserId, cancellationToken);
+            }
+            else
+            {
+                await UserRoleAssignment.SyncLegacyRoleAsync(
+                    connection, id, tenantId, dto.Role, dto.BranchId, dto.DepartmentId,
+                    currentUser.UserId, cancellationToken);
+            }
 
             return ApiResponse<int>.SuccessResponse(id, "User created successfully.");
         }
@@ -136,9 +145,18 @@ public class CreateUserCommandHandler(
                     },
                     cancellationToken: cancellationToken));
 
-            await UserRoleAssignment.SyncLegacyRoleAsync(
-                connection, id, tenantId, dto.Role, dto.BranchId, dto.DepartmentId,
-                currentUser.UserId, cancellationToken);
+            if (!string.IsNullOrWhiteSpace(dto.PlatformRoleCode))
+            {
+                await UserRoleAssignment.AssignPlatformRoleAsync(
+                    connection, id, tenantId, dto.PlatformRoleCode, dto.BranchId, dto.DepartmentId,
+                    currentUser.UserId, cancellationToken);
+            }
+            else
+            {
+                await UserRoleAssignment.SyncLegacyRoleAsync(
+                    connection, id, tenantId, dto.Role, dto.BranchId, dto.DepartmentId,
+                    currentUser.UserId, cancellationToken);
+            }
 
             return ApiResponse<int>.SuccessResponse(id, "User created successfully.");
         }

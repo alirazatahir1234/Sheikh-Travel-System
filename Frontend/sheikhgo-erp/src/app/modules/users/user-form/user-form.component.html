@@ -1,7 +1,7 @@
 <div class="user-form-page stb-page">
   <ui-page-header
     [title]="isEdit ? 'Edit User' : 'Add New User'"
-    [subtitle]="isEdit ? 'Update organization assignment and profile metadata.' : 'Create a company-scoped user account.'"
+    [subtitle]="isEdit ? 'Update profile, organization, and access.' : 'Guided setup — 5 steps to create a company user.'"
     [breadcrumbs]="[{ label: 'Users', route: '/users' }, { label: isEdit ? 'Edit' : 'New' }]">
     <a routerLink="/users" class="users-header-link users-header-link--ghost">
       <mat-icon>arrow_back</mat-icon>
@@ -13,210 +13,452 @@
     <span class="stb-shimmer-block form-skeleton__line" *ngFor="let i of [1, 2, 3, 4, 5]"></span>
   </div>
 
-  <mat-card *ngIf="!loading" class="form-card">
-    <form [formGroup]="form" (ngSubmit)="submit()">
-      <div class="form-grid">
-        <div class="stb-field span-2" *ngIf="companyName">
-          <label>Company</label>
-          <input class="stb-input stb-input--readonly" type="text" [value]="companyName" readonly tabindex="-1" />
+  <div class="wizard-layout" *ngIf="!loading">
+    <mat-card class="form-card">
+      <nav class="wizard-progress" aria-label="Form progress">
+        <ol class="wizard-steps">
+          <li *ngFor="let step of wizardSteps; let i = index"
+              [class.active]="currentStep === i"
+              [class.done]="currentStep > i">
+            <span class="step-marker" aria-hidden="true">{{ currentStep > i ? '✓' : (i + 1) }}</span>
+            <span class="step-label">{{ step.label }}</span>
+          </li>
+        </ol>
+        <div class="progress-track" role="progressbar"
+             [attr.aria-valuenow]="progressPercent" aria-valuemin="0" aria-valuemax="100">
+          <div class="progress-fill" [style.width.%]="progressPercent"></div>
         </div>
+        <p class="step-caption">Step {{ currentStep + 1 }} of {{ stepCount }}</p>
+      </nav>
 
-        <div class="stb-field span-2">
-          <label for="user-fullName">Full Name</label>
-          <input id="user-fullName" class="stb-input" type="text" formControlName="fullName"
-                 placeholder="e.g. Ahmed Khan" autocomplete="name" />
-          <span class="stb-error" *ngIf="form.get('fullName')?.hasError('required') && form.get('fullName')?.touched">Required</span>
-        </div>
+      <form [formGroup]="form" (ngSubmit)="$event.preventDefault()">
+        <mat-horizontal-stepper #stepper class="wizard-stepper" (selectionChange)="onStepSelection($event)">
+          <!-- Step 1 General -->
+          <mat-step [editable]="false">
+            <ng-template matStepLabel>General</ng-template>
+            <div class="tab-panel">
+              <div class="form-grid">
+                <div class="avatar-block span-2">
+                  <div class="avatar-preview"
+                       [class.avatar-preview--photo]="!!avatarDisplayUrl"
+                       aria-hidden="true">
+                    <img *ngIf="avatarDisplayUrl"
+                         class="avatar-preview__img"
+                         [src]="avatarDisplayUrl"
+                         alt="" />
+                    <span *ngIf="!avatarDisplayUrl">{{ userInitials }}</span>
+                  </div>
+                  <div class="avatar-actions">
+                    <p class="avatar-title">Profile photo</p>
+                    <div class="avatar-drop"
+                         [class.avatar-drop--over]="avatarDragOver"
+                         (dragover)="$event.preventDefault(); avatarDragOver = true"
+                         (dragleave)="avatarDragOver = false"
+                         (drop)="onAvatarDrop($event)">
+                      <mat-icon>cloud_upload</mat-icon>
+                      <span>Drag & drop or</span>
+                      <button type="button" class="link-btn" (click)="triggerAvatarPick()">upload photo</button>
+                      <input #avatarFileInput type="file" class="sr-only" accept="image/*" capture="user"
+                             (change)="onAvatarFile($event)" aria-label="Upload profile photo" />
+                    </div>
+                    <button type="button" class="link-btn" (click)="clearAvatarPhoto()" *ngIf="avatarDisplayUrl">
+                      Use initials only
+                    </button>
+                    <button type="button" class="link-btn link-btn--muted" (click)="showAdvancedAvatar = !showAdvancedAvatar">
+                      Advanced (URL)
+                    </button>
+                    <input *ngIf="showAdvancedAvatar" class="stb-input" type="url" formControlName="avatarUrl"
+                           placeholder="https://…" aria-label="Profile photo URL" />
+                  </div>
+                </div>
 
-        <div class="stb-field">
-          <label for="user-email">Email</label>
-          <input id="user-email" class="stb-input" type="email" formControlName="email"
-                 placeholder="email@example.com" autocomplete="email" />
-          <span class="stb-error" *ngIf="form.get('email')?.hasError('required') && form.get('email')?.touched">Required</span>
-        </div>
+                <div class="stb-field span-2">
+                  <label for="user-fullName">Full Name <span class="req">*</span></label>
+                  <input id="user-fullName" class="stb-input" type="text" formControlName="fullName"
+                         placeholder="e.g. Ahmed Khan" autocomplete="name" />
+                </div>
 
-        <div class="stb-field">
-          <label for="user-phone">Phone</label>
-          <input id="user-phone" class="stb-input" type="tel" formControlName="phone"
-                 placeholder="03001234567" autocomplete="tel" />
-          <span class="stb-error" *ngIf="form.get('phone')?.hasError('required') && form.get('phone')?.touched">Required</span>
-        </div>
+                <div class="stb-field">
+                  <label for="user-email">Email <span class="req">*</span></label>
+                  <input id="user-email" class="stb-input" type="email" formControlName="email"
+                         placeholder="email@example.com" autocomplete="email"
+                         [attr.aria-describedby]="'email-hint email-status'" />
+                  <p id="email-hint" class="hint">Used for sign-in and notifications.</p>
+                  <p id="email-status" class="field-status" *ngIf="emailCheckStatus === 'checking'">Checking availability…</p>
+                  <p id="email-status" class="field-status field-status--ok" *ngIf="emailCheckStatus === 'available'">
+                    <mat-icon>check_circle</mat-icon> Available
+                  </p>
+                  <p id="email-status" class="field-status field-status--err" *ngIf="emailCheckStatus === 'taken'">
+                    <mat-icon>cancel</mat-icon> Already in use
+                  </p>
+                </div>
 
-        <div class="stb-field" *ngIf="!isEdit">
-          <label for="user-password">Password</label>
-          <div class="stb-input-wrap stb-input-wrap--suffix">
-            <input id="user-password" class="stb-input" formControlName="password"
-                   [type]="hidePassword ? 'password' : 'text'"
-                   placeholder="Min 6 characters" autocomplete="new-password" />
-            <button type="button" class="stb-input-suffix-btn" (click)="hidePassword = !hidePassword"
-                    [attr.aria-label]="hidePassword ? 'Show password' : 'Hide password'">
-              <mat-icon>{{ hidePassword ? 'visibility_off' : 'visibility' }}</mat-icon>
+                <div class="stb-field">
+                  <label for="user-phone-national">Phone <span class="req">*</span></label>
+                  <div class="phone-row">
+                    <select id="user-phone-country" class="stb-select phone-country" formControlName="phoneCountry"
+                            aria-label="Country code">
+                      <option *ngFor="let c of phoneCountries" [value]="c.dial">{{ c.flag }} {{ c.dial }}</option>
+                    </select>
+                    <input id="user-phone-national" class="stb-input" type="tel" formControlName="phoneNational"
+                           placeholder="301 6169209" autocomplete="tel-national" />
+                  </div>
+                </div>
+
+                <div class="stb-field span-2" *ngIf="!isEdit">
+                  <label for="user-password">Password <span class="req">*</span></label>
+                  <div class="password-row">
+                    <div class="stb-input-wrap stb-input-wrap--suffix flex-1">
+                      <input id="user-password" class="stb-input" formControlName="password"
+                             [type]="hidePassword ? 'password' : 'text'"
+                             placeholder="Min 6 characters" autocomplete="new-password" />
+                      <button type="button" class="stb-input-suffix-btn" (click)="hidePassword = !hidePassword"
+                              [attr.aria-label]="hidePassword ? 'Show password' : 'Hide password'">
+                        <mat-icon>{{ hidePassword ? 'visibility_off' : 'visibility' }}</mat-icon>
+                      </button>
+                    </div>
+                    <button mat-stroked-button type="button" (click)="generatePassword()">
+                      <mat-icon>auto_fix_high</mat-icon> Generate
+                    </button>
+                    <button mat-stroked-button type="button" (click)="copyPassword()" [disabled]="!form.value.password">
+                      <mat-icon>content_copy</mat-icon> Copy
+                    </button>
+                  </div>
+                  <div class="password-strength-bar" *ngIf="passwordStrength" aria-live="polite">
+                    <div class="password-strength-bar__fill" [style.width.%]="passwordStrengthPercent"
+                         [attr.data-strength]="passwordStrength"></div>
+                  </div>
+                  <div class="password-strength" *ngIf="passwordStrength">
+                    <span class="pwd-label">Strength</span>
+                    <span class="pwd-meter" [attr.data-strength]="passwordStrength">{{ passwordStrength }}</span>
+                  </div>
+                  <div class="checkbox-stack">
+                    <mat-checkbox formControlName="requirePasswordChange">Require password change at first login</mat-checkbox>
+                    <mat-checkbox formControlName="sendWelcomeEmail">Send welcome email with credentials</mat-checkbox>
+                  </div>
+                </div>
+
+                <div class="stb-field">
+                  <label for="user-primary-role">Primary Role <span class="req">*</span></label>
+                  <select id="user-primary-role" class="stb-select" formControlName="primaryRoleId">
+                    <option *ngFor="let pr of primaryRoles" [ngValue]="pr.id">{{ pr.label }}</option>
+                  </select>
+                  <p class="hint">Defines the user's main job function and default permissions.</p>
+                </div>
+
+                <div class="stb-field">
+                  <label for="user-status">Account status</label>
+                  <select id="user-status" class="stb-select" formControlName="status">
+                    <option *ngFor="let s of lifecycleStatuses" [ngValue]="s">{{ s }}</option>
+                  </select>
+                </div>
+              </div>
+
+              <mat-card class="role-info-card" *ngIf="primaryRoleDef as def">
+                <mat-icon>verified_user</mat-icon>
+                <div class="role-info-body">
+                  <span class="role-info-kicker">Primary role</span>
+                  <strong>{{ def.label }}</strong>
+                  <p>{{ def.description }}</p>
+                  <div class="role-info-grid">
+                    <div>
+                      <span class="role-info-kicker">Modules</span>
+                      <ul class="module-list">
+                        <li *ngFor="let m of def.modules"><mat-icon>check</mat-icon>{{ m }}</li>
+                      </ul>
+                    </div>
+                    <div>
+                      <span class="role-info-kicker">Permissions</span>
+                      <p class="role-stat">{{ primaryPermissionCount }} permissions</p>
+                      <p class="role-stat muted">Read {{ primaryPermissionSplit.read }} · Write {{ primaryPermissionSplit.write }}</p>
+                      <p class="role-stat accent">{{ financialAccessLabel(def.financialAccess) }}</p>
+                      <p class="role-stat muted">Dashboard: {{ def.dashboardLabel }}</p>
+                      <p class="role-stat muted">Workspace: {{ def.workspaceLabel }}</p>
+                    </div>
+                  </div>
+                </div>
+              </mat-card>
+
+              <mat-card class="ai-card" *ngIf="primaryRoleDef as def">
+                <mat-icon>auto_awesome</mat-icon>
+                <div>
+                  <strong>AI recommendation</strong>
+                  <p>Based on <em>{{ def.label }}</em>, we suggest workspace <strong>{{ def.workspaceLabel }}</strong>
+                    and dashboard <strong>{{ def.dashboardLabel }}</strong>.</p>
+                  <div class="effective-chips">
+                    <span class="eff-chip" *ngFor="let m of def.modules | slice:0:4">{{ m }}</span>
+                  </div>
+                </div>
+              </mat-card>
+            </div>
+          </mat-step>
+
+          <!-- Step 2 Organization -->
+          <mat-step [editable]="false">
+            <ng-template matStepLabel>Organization</ng-template>
+            <div class="tab-panel form-grid">
+              <div class="stb-field span-2" *ngIf="companyName">
+                <label>Company</label>
+                <input class="stb-input stb-input--readonly" type="text" [value]="companyName" readonly tabindex="-1" />
+              </div>
+              <div class="stb-field">
+                <label for="user-branch">Branch</label>
+                <select id="user-branch" class="stb-select" formControlName="branchId">
+                  <option [ngValue]="null">— None —</option>
+                  <option *ngFor="let b of branches" [ngValue]="b.id">{{ b.name }}</option>
+                </select>
+              </div>
+              <div class="stb-field">
+                <label for="user-dept">Department</label>
+                <select id="user-dept" class="stb-select" formControlName="departmentId">
+                  <option [ngValue]="null">— None —</option>
+                  <option *ngFor="let d of departments" [ngValue]="d.id">{{ d.name }}</option>
+                </select>
+              </div>
+              <div class="stb-field">
+                <label for="user-job">Job title</label>
+                <input id="user-job" class="stb-input" type="text" formControlName="jobTitle" />
+              </div>
+              <div class="stb-field">
+                <label for="user-code">Employee ID</label>
+                <input id="user-code" class="stb-input" type="text" formControlName="employeeCode" />
+              </div>
+              <div class="stb-field">
+                <label for="user-type">Employee type</label>
+                <select id="user-type" class="stb-select" formControlName="employeeType">
+                  <option [ngValue]="null">— Select type —</option>
+                  <option *ngFor="let t of employeeTypes" [ngValue]="t">
+                    {{ t }} — {{ employeeTypeDescriptions[t] }}
+                  </option>
+                </select>
+                <p class="hint">
+                  HR reporting category (headcount dashboards). Use <strong>Primary role</strong> on step 1 for system access.
+                  Suggested for {{ primaryRoleDef?.label || 'this role' }}:
+                  <strong>{{ primaryRoleDef ? suggestEmployeeType(primaryRoleDef) : '—' }}</strong>.
+                </p>
+              </div>
+              <div class="stb-field span-2">
+                <label for="user-manager">Reporting manager</label>
+                <input id="user-manager" class="stb-input" type="text" formControlName="reportingManager"
+                       placeholder="Name or employee ID (reference)" />
+                <p class="hint">Link to user record coming soon — store as note for now.</p>
+              </div>
+
+              <div class="role-fields span-2" *ngIf="isDriverPrimary">
+                <h3>Driver details</h3>
+                <div class="form-grid">
+                  <div class="stb-field">
+                    <label for="driver-license">Driving license</label>
+                    <input id="driver-license" class="stb-input" formControlName="driverLicense" />
+                  </div>
+                  <div class="stb-field">
+                    <label for="license-expiry">License expiry</label>
+                    <input id="license-expiry" class="stb-input" type="date" formControlName="licenseExpiry" />
+                  </div>
+                  <div class="stb-field">
+                    <label for="assigned-vehicle">Assigned vehicle</label>
+                    <input id="assigned-vehicle" class="stb-input" formControlName="assignedVehicleNote"
+                           placeholder="Plate or vehicle ID" />
+                  </div>
+                  <div class="stb-field">
+                    <label for="gps-device">GPS device</label>
+                    <input id="gps-device" class="stb-input" formControlName="gpsDeviceNote" />
+                  </div>
+                  <div class="stb-field span-2">
+                    <label for="shift">Shift</label>
+                    <input id="shift" class="stb-input" formControlName="shiftPattern" placeholder="e.g. Morning / Night" />
+                  </div>
+                </div>
+                <p class="hint">Operational fields are saved to the driver profile after user creation.</p>
+              </div>
+
+              <div class="role-fields span-2" *ngIf="isAccountantPrimary">
+                <h3>Finance</h3>
+                <div class="stb-field">
+                  <label for="cost-center">Cost center</label>
+                  <input id="cost-center" class="stb-input" formControlName="costCenter" />
+                </div>
+              </div>
+
+              <div class="role-fields span-2" *ngIf="isFleetManagerPrimary">
+                <h3>Fleet assignment</h3>
+                <div class="stb-field">
+                  <label for="fleet-groups">Vehicle groups</label>
+                  <input id="fleet-groups" class="stb-input" formControlName="fleetGroupNote"
+                         placeholder="Group names or IDs" />
+                </div>
+              </div>
+            </div>
+          </mat-step>
+
+          <!-- Step 3 Access -->
+          <mat-step [editable]="false">
+            <ng-template matStepLabel>Access</ng-template>
+            <div class="tab-panel">
+              <section class="assigned-roles-preview" *ngIf="autoAssignedRoles.length">
+                <h3>Platform roles (auto-assigned)</h3>
+                <div class="assigned-role-chips">
+                  <span class="assigned-chip assigned-chip--locked" *ngFor="let r of autoAssignedRoles">
+                    <mat-icon>lock</mat-icon>
+                    {{ r.code }}
+                    <small>Primary · automatic</small>
+                  </span>
+                </div>
+              </section>
+
+              <section class="role-group" *ngIf="systemAccessRoles.length">
+                <h3>Additional system roles</h3>
+                <div class="platform-roles">
+                  <label class="platform-role-option" *ngFor="let r of systemAccessRoles"
+                         [class.platform-role-option--locked]="isPrimaryMappedRole(r.id)">
+                    <input type="checkbox" [checked]="isRoleSelected(r.id)"
+                           [disabled]="isPrimaryMappedRole(r.id)"
+                           (change)="toggleAccessRole(r.id)"
+                           [attr.aria-label]="'Toggle role ' + r.code" />
+                    <span>
+                      <strong>{{ r.displayName || r.name }}</strong>
+                      <small>{{ r.code }} · {{ r.permissionCount }} permissions</small>
+                    </span>
+                  </label>
+                </div>
+              </section>
+
+              <section class="role-group" *ngIf="customAccessRoles.length">
+                <h3>Custom roles</h3>
+                <div class="platform-roles">
+                  <label class="platform-role-option" *ngFor="let r of customAccessRoles">
+                    <input type="checkbox" [checked]="isRoleSelected(r.id)" (change)="toggleAccessRole(r.id)" />
+                    <span>
+                      <strong>{{ r.displayName || r.name }}</strong>
+                      <small>{{ r.code }}</small>
+                    </span>
+                  </label>
+                </div>
+              </section>
+
+              <div class="form-grid access-meta">
+                <div class="stb-field">
+                  <label for="user-workspace">Default workspace</label>
+                  <select id="user-workspace" class="stb-select" formControlName="defaultWorkspaceKey">
+                    <option value="">— Auto —</option>
+                    <option *ngFor="let w of workspaces" [value]="w.workspaceKey">{{ w.displayName }}</option>
+                  </select>
+                  <mat-checkbox formControlName="autoWorkspace">Auto from primary role</mat-checkbox>
+                </div>
+                <div class="stb-field">
+                  <label for="user-dashboard">Default dashboard</label>
+                  <select id="user-dashboard" class="stb-select" formControlName="defaultDashboardKey">
+                    <option value="">— Auto —</option>
+                    <option *ngFor="let d of dashboards" [value]="d.dashboardKey">{{ d.displayName }}</option>
+                  </select>
+                </div>
+                <div class="stb-field span-2">
+                  <label for="user-home">Home route</label>
+                  <input id="user-home" class="stb-input" type="text" formControlName="homeRoute" />
+                  <mat-checkbox formControlName="autoHomeRoute">Auto from primary role</mat-checkbox>
+                </div>
+              </div>
+
+              <mat-card class="preview-card muted-card security-soon">
+                <mat-icon>security</mat-icon>
+                <div>
+                  <strong>Security options</strong>
+                  <mat-checkbox formControlName="enableMfa">Enable MFA (when Security Center policy allows)</mat-checkbox>
+                </div>
+              </mat-card>
+            </div>
+          </mat-step>
+
+          <!-- Step 4 Preferences -->
+          <mat-step [editable]="false">
+            <ng-template matStepLabel>Preferences</ng-template>
+            <div class="tab-panel form-grid">
+              <div class="stb-field">
+                <label for="user-lang">Language</label>
+                <select id="user-lang" class="stb-select" formControlName="language">
+                  <option *ngFor="let l of languages" [ngValue]="l">{{ l }}</option>
+                </select>
+              </div>
+              <div class="stb-field">
+                <label for="user-theme">Theme</label>
+                <select id="user-theme" class="stb-select" formControlName="theme">
+                  <option *ngFor="let t of themes" [ngValue]="t">{{ t }}</option>
+                </select>
+              </div>
+              <div class="stb-field span-2">
+                <label for="user-tz">Time zone</label>
+                <input id="user-tz" class="stb-input" type="text" formControlName="timeZone" placeholder="Asia/Dubai" />
+              </div>
+              <div class="stb-field span-2 checkbox-stack">
+                <mat-checkbox formControlName="sendWelcomeEmail" *ngIf="!isEdit">Send welcome email</mat-checkbox>
+                <mat-checkbox formControlName="requirePasswordChange" *ngIf="!isEdit">Force password change on first login</mat-checkbox>
+                <mat-checkbox formControlName="notifyManager">Notify reporting manager</mat-checkbox>
+              </div>
+            </div>
+          </mat-step>
+
+          <!-- Step 5 Review -->
+          <mat-step [editable]="false">
+            <ng-template matStepLabel>Review</ng-template>
+            <div class="tab-panel review-panel">
+              <ul class="review-checklist">
+                <li [class.ok]="reviewCheck('name')"><mat-icon>{{ reviewCheck('name') ? 'check_circle' : 'radio_button_unchecked' }}</mat-icon> Name</li>
+                <li [class.ok]="reviewCheck('email')"><mat-icon>{{ reviewCheck('email') ? 'check_circle' : 'radio_button_unchecked' }}</mat-icon> Email</li>
+                <li [class.ok]="reviewCheck('org')"><mat-icon>{{ reviewCheck('org') ? 'check_circle' : 'radio_button_unchecked' }}</mat-icon> Organization</li>
+                <li [class.ok]="reviewCheck('role')"><mat-icon>{{ reviewCheck('role') ? 'check_circle' : 'radio_button_unchecked' }}</mat-icon> Primary role</li>
+                <li [class.ok]="reviewCheck('permissions')"><mat-icon>{{ reviewCheck('permissions') ? 'check_circle' : 'radio_button_unchecked' }}</mat-icon> Permissions</li>
+                <li [class.ok]="reviewCheck('workspace')"><mat-icon>{{ reviewCheck('workspace') ? 'check_circle' : 'radio_button_unchecked' }}</mat-icon> Workspace</li>
+                <li [class.ok]="reviewCheck('dashboard')"><mat-icon>{{ reviewCheck('dashboard') ? 'check_circle' : 'radio_button_unchecked' }}</mat-icon> Dashboard</li>
+              </ul>
+              <dl class="review-list">
+                <div><dt>Name</dt><dd>{{ form.value.fullName || '—' }}</dd></div>
+                <div><dt>Email</dt><dd>{{ form.value.email || '—' }}</dd></div>
+                <div><dt>Primary role</dt><dd>{{ primaryRoleDef?.label || '—' }}</dd></div>
+                <div><dt>Roles assigned</dt><dd>{{ selectedRoleIds.size }}</dd></div>
+              </dl>
+            </div>
+          </mat-step>
+        </mat-horizontal-stepper>
+
+        <footer class="wizard-footer">
+          <div class="wizard-footer__left">
+            <a routerLink="/users" class="users-header-link users-header-link--ghost">Cancel</a>
+            <button mat-stroked-button type="button" *ngIf="!isEdit" (click)="saveDraft()">Save draft</button>
+          </div>
+          <div class="wizard-footer__right">
+            <button mat-stroked-button type="button" *ngIf="currentStep > 0" (click)="goBack()">
+              <mat-icon>arrow_back</mat-icon> Back
             </button>
+            <button mat-flat-button color="primary" type="button" *ngIf="!isLastStep" (click)="goNext()">
+              Next <mat-icon>arrow_forward</mat-icon>
+            </button>
+            <ui-button variant="primary" type="button" *ngIf="isLastStep"
+                       [loading]="submitting" [disabled]="submitting || form.invalid"
+                       (clicked)="submit()">
+              {{ isEdit ? 'Save Changes' : 'Create User' }}
+            </ui-button>
           </div>
-        </div>
+        </footer>
+      </form>
+    </mat-card>
 
-        <div class="stb-field">
-          <label for="user-role">Legacy Role</label>
-          <select id="user-role" class="stb-select" formControlName="role">
-            <option *ngFor="let r of roles" [ngValue]="r">{{ roleLabel(r) }}</option>
-          </select>
-        </div>
-
-        <div class="stb-field span-2">
-          <label>Platform Roles</label>
-          <div class="platform-roles" *ngIf="assignableRoles.length; else noRoles">
-            <label class="platform-role-option" *ngFor="let r of assignableRoles">
-              <input type="checkbox"
-                     [checked]="isRoleSelected(r.id)"
-                     (change)="togglePlatformRole(r.id)" />
-              <span>
-                <strong>{{ r.displayName || r.name }}</strong>
-                <small>{{ r.code }}<ng-container *ngIf="r.category"> · {{ r.category }}</ng-container></small>
-              </span>
-            </label>
-          </div>
-          <ng-template #noRoles>
-            <p class="muted">No assignable roles for this company. Apply role templates in Access Control first.</p>
-          </ng-template>
-          <p class="hint">Branch/department on this user are stored as soft scope hints on each assignment.</p>
-        </div>
-
-        <div class="stb-field span-2" *ngIf="isEdit && effectivePermissions.length">
-          <label>Effective Permissions</label>
-          <p class="hint">Read-only · {{ effectivePermissions.length }} after role grants ∩ module/feature gates</p>
-          <div class="effective-chips">
-            <span class="eff-chip" *ngFor="let c of effectiveCategoryChips">{{ c }}</span>
-            <span class="eff-chip eff-chip--muted" *ngIf="!effectiveCategoryChips.length">
-              {{ effectivePermissions.length }} permissions
-            </span>
-          </div>
-        </div>
-
-        <div class="stb-field span-2" *ngIf="isEdit && dataScope">
-          <label>Effective Data Scope</label>
-          <p class="hint">Read-only · {{ dataScope.mode }} · {{ dataScope.source }}</p>
-          <div class="effective-chips">
-            <span class="eff-chip" *ngIf="dataScope.isCompanyWide">Company-wide</span>
-            <span class="eff-chip" *ngFor="let label of dataScope.branchLabels">{{ label }}</span>
-            <span class="eff-chip" *ngFor="let label of dataScope.departmentLabels">{{ label }}</span>
-          </div>
-        </div>
-
-        <div class="stb-field">
-          <label for="user-status">Status</label>
-          <select id="user-status" class="stb-select" formControlName="status">
-            <option *ngFor="let s of lifecycleStatuses" [ngValue]="s">{{ s }}</option>
-          </select>
-        </div>
-
-        <div class="stb-field">
-          <label for="user-branch">Branch</label>
-          <select id="user-branch" class="stb-select" formControlName="branchId">
-            <option [ngValue]="null">— None —</option>
-            <option *ngFor="let b of branches" [ngValue]="b.id">{{ b.name }}</option>
-          </select>
-        </div>
-
-        <div class="stb-field">
-          <label for="user-dept">Department</label>
-          <select id="user-dept" class="stb-select" formControlName="departmentId">
-            <option [ngValue]="null">— None —</option>
-            <option *ngFor="let d of departments" [ngValue]="d.id">{{ d.name }}</option>
-          </select>
-        </div>
-
-        <div class="stb-field">
-          <label for="user-job">Job Title</label>
-          <input id="user-job" class="stb-input" type="text" formControlName="jobTitle" />
-        </div>
-
-        <div class="stb-field">
-          <label for="user-code">Employee Code</label>
-          <input id="user-code" class="stb-input" type="text" formControlName="employeeCode" />
-        </div>
-
-        <div class="stb-field">
-          <label for="user-type">Employee Type</label>
-          <select id="user-type" class="stb-select" formControlName="employeeType">
-            <option [ngValue]="null">— None —</option>
-            <option *ngFor="let t of employeeTypes" [ngValue]="t">{{ t }}</option>
-          </select>
-        </div>
-
-        <div class="stb-field">
-          <label for="user-workspace">Default Workspace</label>
-          <select id="user-workspace" class="stb-select" formControlName="defaultWorkspaceKey">
-            <option value="">— None —</option>
-            <option *ngFor="let w of workspaces" [value]="w.workspaceKey">
-              {{ w.displayName }} ({{ w.workspaceKey }})
-            </option>
-          </select>
-        </div>
-
-        <div class="stb-field">
-          <label for="user-dashboard">Default Dashboard</label>
-          <select id="user-dashboard" class="stb-select" formControlName="defaultDashboardKey">
-            <option value="">— None —</option>
-            <option *ngFor="let d of dashboards" [value]="d.dashboardKey">
-              {{ d.displayName }} ({{ d.dashboardKey }})
-            </option>
-          </select>
-        </div>
-
-        <div class="stb-field">
-          <label for="user-home">Home Route</label>
-          <input id="user-home" class="stb-input" type="text" formControlName="homeRoute"
-                 placeholder="/dashboard" />
-        </div>
-
-        <div class="stb-field">
-          <label for="user-tz">Time Zone</label>
-          <input id="user-tz" class="stb-input" type="text" formControlName="timeZone"
-                 placeholder="Asia/Dubai" />
-        </div>
-
-        <div class="stb-field">
-          <label for="user-lang">Language</label>
-          <select id="user-lang" class="stb-select" formControlName="language">
-            <option *ngFor="let l of languages" [ngValue]="l">{{ l }}</option>
-          </select>
-        </div>
-
-        <div class="stb-field">
-          <label for="user-theme">Theme</label>
-          <select id="user-theme" class="stb-select" formControlName="theme">
-            <option *ngFor="let t of themes" [ngValue]="t">{{ t }}</option>
-          </select>
-        </div>
-      </div>
-
-      <mat-card class="role-info-card" *ngIf="form.value.role != null">
-        <mat-icon>info</mat-icon>
-        <div>
-          <strong>{{ roleLabel(form.value.role) }} Role</strong>
-          <p>{{ roleDescription(form.value.role) }}</p>
+    <aside class="summary-sidebar" aria-label="Live user summary">
+      <mat-card class="summary-card">
+        <h2>User summary</h2>
+        <dl>
+          <div><dt>Name</dt><dd>{{ form.value.fullName || '—' }}</dd></div>
+          <div><dt>Email</dt><dd>{{ form.value.email || '—' }}</dd></div>
+          <div><dt>Primary role</dt><dd>{{ primaryRoleDef?.label || '—' }}</dd></div>
+          <div><dt>Permissions</dt><dd>{{ primaryPermissionCount }}</dd></div>
+          <div><dt>Modules</dt><dd>{{ primaryRoleDef?.modules?.length ?? 0 }}</dd></div>
+          <div><dt>Workspace</dt><dd>{{ summaryWorkspaceLabel }}</dd></div>
+          <div><dt>Dashboard</dt><dd>{{ summaryDashboardLabel }}</dd></div>
+        </dl>
+        <div *ngIf="additionalAssignedRoles.length">
+          <p class="summary-kicker">Additional roles</p>
+          <span class="eff-chip" *ngFor="let r of additionalAssignedRoles">{{ r.code }}</span>
         </div>
       </mat-card>
-
-      <mat-card class="role-info-card" *ngIf="isEdit && recentActivity.length">
-        <mat-icon>history</mat-icon>
-        <div>
-          <strong>Recent User Activity</strong>
-          <ul class="user-activity-list">
-            <li *ngFor="let e of recentActivity">
-              {{ e.displayName || e.action }}
-              <span class="muted"> · {{ e.createdOn | date:'short' }}</span>
-            </li>
-          </ul>
-        </div>
-      </mat-card>
-
-      <div class="form-actions">
-        <a routerLink="/users" class="users-header-link users-header-link--ghost">Cancel</a>
-        <ui-button variant="primary" type="submit" [loading]="submitting" [disabled]="submitting || form.invalid">
-          {{ isEdit ? 'Save Changes' : 'Create User' }}
-        </ui-button>
-      </div>
-    </form>
-  </mat-card>
+    </aside>
+  </div>
 </div>

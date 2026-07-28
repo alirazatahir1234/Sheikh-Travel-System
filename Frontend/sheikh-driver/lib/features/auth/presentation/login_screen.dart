@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 import '../../../core/api/dio_client.dart';
 import '../../../core/config/app_config.dart';
 import '../../../core/constants/app_theme.dart';
+import '../../../core/providers/locale_provider.dart';
+import '../../../core/providers/theme_provider.dart';
 import '../../../shared/widgets/sg_ui.dart';
 import '../data/auth_repository.dart';
 import '../domain/auth_models.dart';
@@ -27,6 +29,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool get _isEmailMode => _identifierCtrl.text.trim().contains('@');
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final stored = ref.read(prefsBoxProvider).get(
+            rememberMePrefsKey,
+            defaultValue: true,
+          );
+      if (stored is bool && mounted) {
+        setState(() => _rememberMe = stored);
+      }
+    });
+  }
+
+  @override
   void dispose() {
     _identifierCtrl.dispose();
     _passwordCtrl.dispose();
@@ -40,10 +56,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       _error = null;
     });
     try {
+      await ref.read(prefsBoxProvider).put(rememberMePrefsKey, _rememberMe);
       await ref.read(authRepositoryProvider).login(
             LoginRequest(
               identifier: _identifierCtrl.text.trim(),
               password: _passwordCtrl.text,
+              rememberMe: _rememberMe,
             ),
           );
       if (mounted) context.go('/dashboard');
@@ -198,15 +216,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               ),
                               const Spacer(),
                               TextButton(
-                                onPressed: () {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text(
-                                        'Contact your fleet admin to reset password.',
-                                      ),
-                                    ),
-                                  );
-                                },
+                                onPressed: () => context.push('/forgot-password'),
                                 child: const Text(
                                   'Forgot Password?',
                                   style: TextStyle(

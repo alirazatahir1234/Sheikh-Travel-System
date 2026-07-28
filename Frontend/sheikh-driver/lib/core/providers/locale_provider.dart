@@ -4,6 +4,7 @@ import 'theme_provider.dart';
 
 const localePrefsKey = 'appLocale';
 const biometricLockPrefsKey = 'biometricLockEnabled';
+const rememberMePrefsKey = 'authRememberMe';
 
 final localeCodeProvider = StateProvider<String>((ref) => 'en');
 

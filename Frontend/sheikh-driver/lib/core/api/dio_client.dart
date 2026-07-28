@@ -22,8 +22,31 @@ final sessionInvalidationProvider =
   (_) => SessionInvalidationNotifier(),
 );
 
+enum SessionTerminationReason {
+  expiredToken,
+  refreshRejected,
+  manual,
+}
+
 class SessionInvalidationNotifier extends ChangeNotifier {
-  void invalidate() => notifyListeners();
+  bool _isTerminating = false;
+  SessionTerminationReason? _reason;
+
+  bool get isTerminating => _isTerminating;
+  SessionTerminationReason? get reason => _reason;
+
+  bool requestTermination(SessionTerminationReason reason) {
+    if (_isTerminating) return false;
+    _isTerminating = true;
+    _reason = reason;
+    notifyListeners();
+    return true;
+  }
+
+  void completeTermination() {
+    _isTerminating = false;
+    _reason = null;
+  }
 }
 
 final secureStorageProvider = Provider(
@@ -154,6 +177,7 @@ class _AuthInterceptor extends QueuedInterceptor {
   final Dio _dio;
   final FlutterSecureStorage _storage;
   final SessionInvalidationNotifier _sessionInvalidation;
+  final Set<CancelToken> _authSessionCancelTokens = <CancelToken>{};
 
   static bool _isAuthRequest(RequestOptions options) =>
       options.path.contains('/auth/');
@@ -172,8 +196,20 @@ class _AuthInterceptor extends QueuedInterceptor {
     token ??= await _storage.read(key: _legacyAccessTokenKey);
     if (token != null) {
       options.headers['Authorization'] = 'Bearer $token';
+      final cancelToken = options.cancelToken ?? CancelToken();
+      options.cancelToken = cancelToken;
+      _authSessionCancelTokens.add(cancelToken);
     }
     handler.next(options);
+  }
+
+  @override
+  void onResponse(Response response, ResponseInterceptorHandler handler) {
+    final cancelToken = response.requestOptions.cancelToken;
+    if (cancelToken != null) {
+      _authSessionCancelTokens.remove(cancelToken);
+    }
+    handler.next(response);
   }
 
   @override
@@ -181,6 +217,11 @@ class _AuthInterceptor extends QueuedInterceptor {
     DioException err,
     ErrorInterceptorHandler handler,
   ) async {
+    final cancelToken = err.requestOptions.cancelToken;
+    if (cancelToken != null) {
+      _authSessionCancelTokens.remove(cancelToken);
+    }
+
     // A refresh-token 401 is terminal. Retrying it would recurse forever and
     // leaving only the persisted credentials cleared keeps the UI "logged in".
     if (err.response?.statusCode == 401 &&
@@ -209,20 +250,29 @@ class _AuthInterceptor extends QueuedInterceptor {
             return handler.resolve(retried);
           }
         } catch (_) {
-          await _invalidateSession();
+          await _invalidateSession(SessionTerminationReason.refreshRejected);
           return handler.next(err);
         }
       }
 
       // Missing or malformed refresh credentials cannot restore this session.
-      await _invalidateSession();
+      await _invalidateSession(SessionTerminationReason.expiredToken);
     }
     handler.next(err);
   }
 
-  Future<void> _invalidateSession() async {
+  Future<void> _invalidateSession(SessionTerminationReason reason) async {
+    final shouldProceed = _sessionInvalidation.requestTermination(reason);
+    if (!shouldProceed) return;
+
+    for (final token in _authSessionCancelTokens) {
+      if (!token.isCancelled) {
+        token.cancel('Session terminated');
+      }
+    }
+    _authSessionCancelTokens.clear();
+
     await _storage.deleteAll();
-    _sessionInvalidation.invalidate();
   }
 }
 

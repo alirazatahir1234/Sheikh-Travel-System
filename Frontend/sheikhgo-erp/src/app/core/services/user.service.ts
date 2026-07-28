@@ -7,6 +7,8 @@ import { PagedResult } from '../models/common.model';
 import {
   User,
   CreateUserRequest,
+  BulkCreateUsersRequest,
+  BulkCreateUsersResult,
   UpdateUserRequest,
   UpdateUserStatusRequest,
   ResetPasswordResponse,
@@ -85,6 +87,29 @@ export class UserService {
 
   create(request: CreateUserRequest): Observable<number> {
     return this.http.post<number>(this.base, request);
+  }
+
+  bulkCreate(request: BulkCreateUsersRequest): Observable<BulkCreateUsersResult> {
+    return this.http.post<BulkCreateUsersResult>(`${this.base}/bulk`, {
+      users: request.users,
+      options: request.options
+        ? {
+            dryRun: request.options.dryRun ?? false,
+            skipDuplicates: request.options.skipDuplicates ?? true,
+            mode: request.options.mode ?? 'CreateOnly'
+          }
+        : null
+    }).pipe(
+      map(result => ({
+        succeeded: result.succeeded ?? (result as unknown as { Succeeded?: number }).Succeeded ?? 0,
+        failed: result.failed ?? (result as unknown as { Failed?: number }).Failed ?? 0,
+        skipped: result.skipped ?? (result as unknown as { Skipped?: number }).Skipped ?? 0,
+        dryRun: result.dryRun ?? (result as unknown as { DryRun?: boolean }).DryRun ?? false,
+        created: result.created ?? [],
+        errors: result.errors ?? [],
+        skippedRows: result.skippedRows ?? (result as unknown as { skippedRows?: never }).skippedRows ?? []
+      }))
+    );
   }
 
   update(request: UpdateUserRequest): Observable<boolean> {

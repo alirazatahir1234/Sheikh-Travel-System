@@ -6,4 +6,6 @@ public interface ICurrentUserService
     string? Role { get; }
     int? DriverId { get; }
     bool HasPermission(string permission);
+    bool IsPlatformSuperAdmin { get; }
+    IReadOnlyList<string> Roles { get; }
 }

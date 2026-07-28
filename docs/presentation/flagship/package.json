@@ -1,0 +1,21 @@
+{
+  "name": "sheikhgo-flagship-deck",
+  "private": true,
+  "version": "1.0.0",
+  "description": "SheikhGo flagship executive presentation builder",
+  "type": "module",
+  "scripts": {
+    "build": "node build_deck.mjs && node export_pdf_pdfkit.mjs",
+    "pptx": "node build_deck.mjs",
+    "pdf": "node export_pdf_pdfkit.mjs",
+    "pdf:browser": "node export_pdf.mjs"
+  },
+  "dependencies": {
+    "js-yaml": "^4.3.0",
+    "pdfkit": "^0.19.1",
+    "pptxgenjs": "^3.12.0"
+  },
+  "devDependencies": {
+    "playwright": "^1.62.0"
+  }
+}

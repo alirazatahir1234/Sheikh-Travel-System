@@ -80,6 +80,9 @@ abstract class ApiEndpoints {
   static const gpsEta = '/gps/eta';
   static const gpsLive = '/gps/live';
   static const gpsFleetStatusLocal = '/gps/dashboard/fleet-status-local';
+  static const gpsOperatorSummary = '/gps/dashboard/operator-summary';
+  static const gpsOperatorInsights = '/gps/operator/insights';
+  static const gpsHistoryReplayInsights = '/gps/history/replay/insights';
   static String gpsHistory(int vehicleId) => '/gps/history/$vehicleId';
   static const gpsHistoryReplay = '/gps/history/replay';
   static const gpsGeofences = '/gps/geofences';

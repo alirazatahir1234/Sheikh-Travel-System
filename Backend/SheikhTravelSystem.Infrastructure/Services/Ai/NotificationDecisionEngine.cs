@@ -155,6 +155,7 @@ public sealed class NotificationDecisionEngine(
                 request.Title, request.Message, request.Type, decision.Channels,
                 decision.Priority, ModuleFor(request.EventType), request.ReferenceId,
                 templateKey: TemplateFor(request.EventType),
+                tenantId: tid,
                 cancellationToken: cancellationToken);
 
             if (request.AlertEventId is int alertId)

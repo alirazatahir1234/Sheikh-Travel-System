@@ -59,6 +59,16 @@ abstract final class DashboardLayoutRegistry {
           DashboardWidgetId.attentionVehicles,
           DashboardWidgetId.quickActions,
         ];
+      case DashboardRole.gpsOperator:
+        return const [
+          DashboardWidgetId.opsHeader,
+          DashboardWidgetId.gpsExceptionKpiGrid,
+          DashboardWidgetId.recentGpsAlertsFeed,
+          DashboardWidgetId.liveTripsPreview,
+          DashboardWidgetId.trackerHealthCard,
+          DashboardWidgetId.liveMapPreview,
+          DashboardWidgetId.quickActions,
+        ];
       case DashboardRole.tenantAdmin:
       case DashboardRole.superAdmin:
         return const [
@@ -158,6 +168,39 @@ abstract final class DashboardLayoutRegistry {
             label: 'Trips',
             iconName: 'route',
             route: '/trips',
+          ),
+        ];
+      case DashboardRole.gpsOperator:
+        return const [
+          DashboardQuickAction(
+            label: 'Live Map',
+            iconName: 'map',
+            route: '/fleet/map',
+          ),
+          DashboardQuickAction(
+            label: 'Vehicles',
+            iconName: 'local_shipping',
+            route: '/fleet',
+          ),
+          DashboardQuickAction(
+            label: 'Alerts',
+            iconName: 'warning',
+            route: '/alerts',
+          ),
+          DashboardQuickAction(
+            label: 'Reports',
+            iconName: 'assessment',
+            route: '/more/reports',
+          ),
+          DashboardQuickAction(
+            label: 'Fuel',
+            iconName: 'local_gas_station',
+            route: '/gps/fuel',
+          ),
+          DashboardQuickAction(
+            label: 'Mileage',
+            iconName: 'speed',
+            route: '/gps/mileage',
           ),
         ];
       case DashboardRole.dispatcher:

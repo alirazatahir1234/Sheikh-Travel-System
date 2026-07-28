@@ -147,6 +147,64 @@ public class GetHistoryReplayQueryHandler(
     }
 }
 
+public record PostHistoryReplayInsightsCommand(
+    int VehicleId,
+    DateTime? FromDate,
+    DateTime? ToDate)
+    : IRequest<ApiResponse<GpsOperatorInsightDto>>;
+
+public class PostHistoryReplayInsightsHandler(IMediator mediator)
+    : IRequestHandler<PostHistoryReplayInsightsCommand, ApiResponse<GpsOperatorInsightDto>>
+{
+    public async Task<ApiResponse<GpsOperatorInsightDto>> Handle(
+        PostHistoryReplayInsightsCommand request,
+        CancellationToken cancellationToken)
+    {
+        var replay = await mediator.Send(
+            new GetHistoryReplayQuery(request.VehicleId, request.FromDate, request.ToDate),
+            cancellationToken);
+        if (!replay.Success || replay.Data is null)
+        {
+            return ApiResponse<GpsOperatorInsightDto>.FailResponse(
+                replay.Message ?? "Unable to load replay for this range.");
+        }
+
+        var data = replay.Data;
+        var stats = data.Statistics;
+        var summary = data.Summary;
+        var dist = data.MileageKm ?? stats?.DistanceKm ?? summary?.DistanceKm ?? 0;
+        var drive = stats?.DrivingMinutes ?? summary?.DrivingMinutes ?? 0;
+        var idle = stats?.IdleMinutes ?? 0;
+        var max = stats?.MaxSpeedKmh ?? summary?.MaxSpeedKmh ?? 0;
+        var overs = stats?.OverspeedCount ?? 0;
+        var stops = data.Stops.Count;
+        var geofence = data.Events.Count(e =>
+            e.Type.Contains("geofence", StringComparison.OrdinalIgnoreCase));
+
+        var bullets = new List<string>
+        {
+            $"Distance: {dist:0.1} km",
+            $"Driving: {drive / 60}h {drive % 60}m",
+            $"Idle: {idle} min",
+            $"Max speed: {max:0} km/h",
+            $"Stops: {stops}",
+            $"Overspeed events: {overs}",
+            $"Geofence events: {geofence}",
+        };
+
+        var narrative =
+            $"Vehicle traveled {dist:0.1} km in {drive / 60}h {drive % 60}m"
+            + (overs > 0 ? $", exceeded speed threshold {overs} time(s)" : "")
+            + (idle > 0 ? $", idled {idle} minutes" : "")
+            + (stops > 0 ? $", {stops} stop(s)" : "")
+            + (geofence > 0 ? $", {geofence} geofence event(s)" : "")
+            + ".";
+
+        return ApiResponse<GpsOperatorInsightDto>.SuccessResponse(
+            new GpsOperatorInsightDto("Trip replay insight", narrative, bullets));
+    }
+}
+
 public record HistoryExportFileDto(byte[] Bytes, string ContentType, string FileName);
 
 public record GetHistoryExportQuery(int VehicleId, DateTime? FromDate, DateTime? ToDate, string Format)

@@ -86,14 +86,15 @@ public class NotificationService : INotificationService
         int? referenceId = null,
         string? templateKey = null,
         IReadOnlyDictionary<string, string>? variables = null,
+        int? tenantId = null,
         CancellationToken cancellationToken = default)
     {
         using var connection = _dbFactory.CreateConnection();
-        var tenantId = _tenantContext.GetRequiredTenantId();
+        var effectiveTenantId = tenantId ?? _tenantContext.GetRequiredTenantId();
         var userIds = (await connection.QueryAsync<int>(
             new CommandDefinition(
                 "SELECT Id FROM Users WHERE IsDeleted = 0 AND IsActive = 1 AND TenantId = @TenantId",
-                new { TenantId = tenantId },
+                new { TenantId = effectiveTenantId },
                 cancellationToken: cancellationToken))).ToList();
 
         var channelList = channels is { Count: > 0 } ? channels : [NotificationChannels.InApp];
@@ -103,7 +104,7 @@ public class NotificationService : INotificationService
             foreach (var channel in channelList)
             {
                 await CreateAndDispatchAsync(new NotificationCreateOptions(
-                    userId, tenantId, title, message, type, referenceId, priority,
+                    userId, effectiveTenantId, title, message, type, referenceId, priority,
                     Channel: channel,
                     RecipientType: "SystemAnnouncement",
                     TemplateKey: templateKey,

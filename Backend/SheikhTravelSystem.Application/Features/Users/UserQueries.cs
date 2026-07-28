@@ -17,11 +17,13 @@ internal static class UserQueries
                u.JobTitle, u.EmployeeCode, u.EmployeeType,
                COALESCE(u.Status, CASE WHEN u.IsActive = 1 THEN N'Active' ELSE N'Inactive' END) AS Status,
                u.DefaultWorkspaceKey, u.DefaultDashboardKey, u.HomeRoute,
-               u.TimeZone, u.Language, u.Theme, u.AvatarUrl
+               u.TimeZone, u.Language, u.Theme, u.AvatarUrl,
+               up.LastLoginAt
         FROM Users u
         LEFT JOIN Tenants t ON t.Id = u.TenantId
         LEFT JOIN Branches br ON br.Id = u.BranchId
         LEFT JOIN Departments d ON d.Id = u.DepartmentId
+        LEFT JOIN UserPresence up ON up.UserId = u.Id
         """;
 
     public sealed class UserRow
@@ -29,7 +31,7 @@ internal static class UserQueries
         public int Id { get; init; }
         public string FullName { get; init; } = "";
         public string Email { get; init; } = "";
-        public string Phone { get; init; } = "";
+        public string? Phone { get; init; }
         public UserRole Role { get; init; }
         public bool IsActive { get; init; }
         public DateTime CreatedAt { get; init; }
@@ -42,7 +44,7 @@ internal static class UserQueries
         public string? JobTitle { get; init; }
         public string? EmployeeCode { get; init; }
         public string? EmployeeType { get; init; }
-        public string Status { get; init; } = UserLifecycle.Active;
+        public string? Status { get; init; }
         public string? DefaultWorkspaceKey { get; init; }
         public string? DefaultDashboardKey { get; init; }
         public string? HomeRoute { get; init; }
@@ -50,6 +52,7 @@ internal static class UserQueries
         public string? Language { get; init; }
         public string? Theme { get; init; }
         public string? AvatarUrl { get; init; }
+        public DateTime? LastLoginAt { get; init; }
     }
 
     public static UserDto ToDto(
@@ -79,7 +82,8 @@ internal static class UserQueries
         row.Language,
         row.Theme,
         row.AvatarUrl,
-        assignedRoles);
+        assignedRoles,
+        row.LastLoginAt);
 
     public static UserProfileDto ToProfileDto(
         UserRow row,

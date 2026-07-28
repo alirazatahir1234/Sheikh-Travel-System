@@ -74,6 +74,15 @@ class SignalRService {
 
   String get _hubUrl => AppConfig.hubBaseUrl;
 
+  Future<bool> _hasAuthToken() async {
+    const storage = FlutterSecureStorage(
+      mOptions: MacOsOptions(useDataProtectionKeyChain: false),
+    );
+    final token = await storage.read(key: 'fleet_access_token') ??
+        await storage.read(key: 'driver_access_token');
+    return token != null && token.isNotEmpty;
+  }
+
   Future<void> connect(
     CommandCallback onCommand, {
     int? vehicleId,
@@ -128,6 +137,10 @@ class SignalRService {
       });
 
       _connection!.onreconnected(({connectionId}) async {
+        if (!await _hasAuthToken()) {
+          await disconnect();
+          return;
+        }
         _statusController.add('connected');
         await _rejoinVehicleGroup();
       });

@@ -56,6 +56,23 @@ public class SetUserRolesCommandHandler(
         platformScope.EnsureTenantAccess(tenantId);
 
         var roleIds = request.Payload.RoleIds ?? Array.Empty<int>();
+        if (roleIds.Count > 0)
+        {
+            var assignedCodes = (await connection.QueryAsync<string>(new CommandDefinition(
+                """
+                SELECT Code FROM Roles
+                WHERE TenantId = @TenantId AND Id IN @RoleIds AND IsActive = 1
+                """,
+                new { TenantId = tenantId, RoleIds = roleIds.Distinct().ToList() },
+                cancellationToken: cancellationToken))).ToList();
+
+            if (assignedCodes.Any(c => string.Equals(c, PlatformRoles.SuperAdmin, StringComparison.OrdinalIgnoreCase))
+                && !currentUser.IsPlatformSuperAdmin)
+            {
+                throw new ForbiddenException("Only platform owners can assign the Super Admin role.");
+            }
+        }
+
         var scopes = new Dictionary<int, (int? BranchId, int? DepartmentId)>();
         foreach (var scope in request.Payload.Scopes ?? Array.Empty<RoleAssignmentScopeDto>())
         {

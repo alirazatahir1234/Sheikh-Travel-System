@@ -21,6 +21,13 @@ internal static class GpsAlertAccess
                 "overspeed", "idle_vehicle", "gps_offline", "vehicle_offline", "booking_cancellation",
                 "eta_delay", "vehicle_arrived", "vehicle_departed"
             ],
+            ["GPS_OPERATOR"] =
+            [
+                "speed_exceeded", "overspeed", "harsh_braking", "harsh_acceleration",
+                "ignition_on", "ignition_off", "power_cut", "low_battery",
+                "gps_offline", "vehicle_offline", "tow", "geofence_enter", "geofence_exit",
+                "sos", "idle_vehicle", "fuel_theft", "engine_fault"
+            ],
             ["FLEET_MANAGER"] =
             [
                 "speed_exceeded", "overspeed", "harsh_braking", "harsh_acceleration",
@@ -72,5 +79,25 @@ internal static class GpsAlertAccess
         return RoleEventTypes.TryGetValue(role.Trim(), out var set) && set.Count > 0
             ? set
             : null;
+    }
+
+    /// <summary>Merges allowed event types across all role claims (multi-role users).</summary>
+    public static IReadOnlyCollection<string>? AllowedEventTypesForRoles(IEnumerable<string?> roles)
+    {
+        var merged = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var role in roles)
+        {
+            if (string.IsNullOrWhiteSpace(role)) continue;
+            if (!RoleEventTypes.TryGetValue(role.Trim(), out var set) || set.Count == 0)
+            {
+                // Tenant/super admin — no event-type filter.
+                if (role.Equals("TENANT_ADMIN", StringComparison.OrdinalIgnoreCase)
+                    || role.Equals("SUPER_ADMIN", StringComparison.OrdinalIgnoreCase))
+                    return null;
+                continue;
+            }
+            foreach (var t in set) merged.Add(t);
+        }
+        return merged.Count > 0 ? merged : null;
     }
 }

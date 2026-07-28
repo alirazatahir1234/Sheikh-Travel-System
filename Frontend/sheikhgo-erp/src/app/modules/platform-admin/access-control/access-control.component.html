@@ -31,6 +31,127 @@
       <p>Choose a tenant from the picker above to manage access control settings.</p>
     </div>
 
+    <ng-template #roleDetailPanel>
+      <div class="detail-card-head">
+        <div class="detail-card-head__title">
+          <h4>{{ selectedRole!.displayName || selectedRole!.name }}</h4>
+          <p class="role-code">{{ selectedRole!.code }} · {{ roleVisibilityLabel(selectedRole!) }}</p>
+        </div>
+        <div class="detail-card-head__actions">
+          <span class="unsaved-dot" *ngIf="hasUnsavedRoleChanges" matTooltip="Unsaved changes">Unsaved</span>
+          <button mat-icon-button type="button"
+                  (click)="toggleRoleDetailFullscreen(); $event.stopPropagation()"
+                  [matTooltip]="roleDetailFullscreen ? 'Exit full screen' : 'Full screen'">
+            <mat-icon>{{ roleDetailFullscreen ? 'fullscreen_exit' : 'fullscreen' }}</mat-icon>
+          </button>
+        </div>
+      </div>
+
+      <div class="role-detail-card__body">
+        <div class="role-detail-meta">
+          <div class="stb-field full-width">
+            <label for="editing-role-name">Display name</label>
+            <input id="editing-role-name" class="stb-input" type="text" [(ngModel)]="editingRoleName" />
+          </div>
+
+          <div class="stb-field full-width">
+            <label for="editing-role-category">Category</label>
+            <select id="editing-role-category" class="stb-select" [(ngModel)]="editingRoleCategory">
+              <option *ngFor="let c of roleCategories" [ngValue]="c">{{ c }}</option>
+            </select>
+          </div>
+
+          <div class="stb-field full-width">
+            <label for="editing-role-desc">Description</label>
+            <textarea id="editing-role-desc" class="stb-input role-desc-input" rows="4"
+                      [(ngModel)]="editingRoleDescription"></textarea>
+          </div>
+
+          <div class="status-field">
+            <span class="status-field__label">Status</span>
+            <mat-radio-group [(ngModel)]="editingRoleActive" class="status-radio">
+              <mat-radio-button [value]="true">Active</mat-radio-button>
+              <mat-radio-button [value]="false">Disabled</mat-radio-button>
+            </mat-radio-group>
+          </div>
+
+          <div class="detail-actions detail-actions--primary">
+            <button mat-raised-button color="primary" type="button"
+                    (click)="saveRoleDetails()" [disabled]="saving || !hasUnsavedDetailChanges">
+              Save details
+            </button>
+            <button mat-stroked-button color="warn" type="button"
+                    *ngIf="!selectedRole!.isSystem"
+                    (click)="deleteRole(selectedRole!)"
+                    [disabled]="selectedRole!.userCount > 0">
+              Delete role
+            </button>
+          </div>
+          <p class="system-role-note" *ngIf="selectedRole!.isSystem">
+            This is a system role. Deletion is not allowed — disable it if users should not be assigned.
+          </p>
+        </div>
+
+        <div class="permission-matrix-section">
+          <div class="perm-matrix-head">
+            <h5>Permission matrix</h5>
+            <span class="perm-matrix-count">
+              {{ selectedRolePermissionCount }} of {{ totalPermissionCount }} selected
+            </span>
+          </div>
+
+          <div class="stb-field full-width">
+            <input class="stb-input" type="search" [(ngModel)]="rolePermissionSearch"
+                   (ngModelChange)="onRolePermissionSearchChange()"
+                   placeholder="Search permissions…" />
+          </div>
+
+          <div class="perm-matrix-toolbar">
+            <mat-checkbox [checked]="roleMatrixAllSelected()"
+                          [indeterminate]="roleMatrixSomeSelected()"
+                          (change)="setAllRoleMatrixPermissions($event.checked)">
+              Select all (filtered)
+            </mat-checkbox>
+          </div>
+
+          <div class="permission-matrix">
+            <div class="perm-module-block" *ngFor="let group of rolePermissionGroups; trackBy: trackRolePermissionGroup">
+              <div class="perm-module-header">
+                <button type="button" class="collapse-btn" (click)="togglePermissionModule(group.module)"
+                        [attr.aria-expanded]="!isPermissionModuleCollapsed(group.module)">
+                  <mat-icon>{{ isPermissionModuleCollapsed(group.module) ? 'chevron_right' : 'expand_more' }}</mat-icon>
+                </button>
+                <mat-checkbox
+                  [checked]="modulePermissionState(group.module) === 'all'"
+                  [indeterminate]="modulePermissionState(group.module) === 'some'"
+                  (change)="setModulePermissions(group.module, $event.checked)">
+                  {{ group.module }}
+                </mat-checkbox>
+                <span class="muted perm-module-meta">{{ group.items.length }} permissions</span>
+              </div>
+              <div class="perm-module-items" *ngIf="!isPermissionModuleCollapsed(group.module)">
+                <mat-checkbox *ngFor="let p of group.items; trackBy: trackPermissionCode"
+                              class="perm-item"
+                              [checked]="selectedPermissionCodes.has(p.permissionCode)"
+                              (change)="setPermissionChecked(p.permissionCode, $event.checked)"
+                              [matTooltip]="permissionDesc(p)">
+                  <span class="perm-item__label">{{ permissionLabel(p) }}</span>
+                  <span class="muted perm-item__code">{{ p.permissionCode }}</span>
+                </mat-checkbox>
+              </div>
+            </div>
+          </div>
+
+          <div class="detail-actions detail-actions--sticky">
+            <button mat-raised-button color="primary" type="button"
+                    (click)="saveRolePermissions()" [disabled]="saving || !hasUnsavedPermissionChanges">
+              Save permissions
+            </button>
+          </div>
+        </div>
+      </div>
+    </ng-template>
+
     <mat-card class="content-card" *ngIf="selectedTenant">
       <mat-tab-group [(selectedIndex)]="activeTab" (selectedIndexChange)="onTabChange($event)">
         <!-- Users -->
@@ -107,21 +228,62 @@
           <div class="tab-content roles-tab">
             <app-brand-loader *ngIf="tabLoading" size="sm" />
 
-            <div class="roles-layout" *ngIf="!tabLoading">
+            <div class="roles-layout"
+                 [class.roles-layout--detail-fullscreen]="roleDetailFullscreen"
+                 *ngIf="!tabLoading">
               <div class="roles-main">
-                <mat-card class="inline-form-card">
-                  <h4>Create Role</h4>
-                  <div class="inline-form">
+                <div class="roles-toolbar">
+                  <button mat-stroked-button type="button" (click)="toggleCreateRolePanel()">
+                    <mat-icon>{{ createRolePanelOpen ? 'expand_less' : 'add' }}</mat-icon>
+                    {{ createRolePanelOpen ? 'Hide' : 'New Role' }}
+                  </button>
+                  <div class="stb-field stb-field--grow roles-search">
+                    <label for="role-search">Search roles</label>
+                    <input id="role-search" class="stb-input" type="search"
+                           [(ngModel)]="roleSearchQuery" (ngModelChange)="onRoleSearchChange()"
+                           placeholder="Name or code…" />
+                  </div>
+                </div>
+
+                <mat-card class="inline-form-card create-role-panel" *ngIf="createRolePanelOpen">
+                  <h4>Create role</h4>
+                  <div class="create-role-grid">
                     <div class="stb-field">
-                      <label for="new-role-name">Name</label>
-                      <input id="new-role-name" class="stb-input" type="text" [(ngModel)]="newRoleName" />
+                      <label for="new-role-name">Role name <span class="req">*</span></label>
+                      <input id="new-role-name" class="stb-input" type="text" maxlength="100"
+                             [(ngModel)]="newRoleName" (ngModelChange)="onNewRoleNameChange()" />
+                      <span class="field-error" *ngIf="newRoleName && createRoleNameError">{{ createRoleNameError }}</span>
                     </div>
                     <div class="stb-field">
-                      <label for="new-role-code">Code</label>
-                      <input id="new-role-code" class="stb-input" type="text" [(ngModel)]="newRoleCode" placeholder="CUSTOM_ROLE" />
+                      <label for="new-role-code">Role code <span class="req">*</span></label>
+                      <div class="code-input-row">
+                        <input id="new-role-code" class="stb-input" type="text" maxlength="64"
+                               [(ngModel)]="newRoleCode" [readonly]="newRoleCodeLocked" />
+                        <button mat-icon-button type="button"
+                                [matTooltip]="newRoleCodeLocked ? 'Edit code manually' : 'Lock and auto-generate from name'"
+                                (click)="newRoleCodeLocked ? unlockNewRoleCode() : lockNewRoleCode()">
+                          <mat-icon>{{ newRoleCodeLocked ? 'lock' : 'lock_open' }}</mat-icon>
+                        </button>
+                      </div>
+                      <span class="field-hint" *ngIf="newRoleCodeLocked">Generated from name</span>
+                      <span class="field-error" *ngIf="newRoleCode && createRoleCodeError">{{ createRoleCodeError }}</span>
                     </div>
-                    <button mat-raised-button color="primary" type="button" (click)="createRole()">
-                      <mat-icon>add</mat-icon> Create
+                    <div class="stb-field">
+                      <label for="new-role-category">Category <span class="req">*</span></label>
+                      <select id="new-role-category" class="stb-select" [(ngModel)]="newRoleCategory">
+                        <option *ngFor="let c of roleCategoryOptions" [ngValue]="c">{{ c }}</option>
+                      </select>
+                    </div>
+                    <div class="stb-field stb-field--full">
+                      <label for="new-role-desc">Description</label>
+                      <textarea id="new-role-desc" class="stb-input" rows="3" maxlength="500"
+                                [(ngModel)]="newRoleDescription"></textarea>
+                    </div>
+                  </div>
+                  <div class="create-role-actions">
+                    <button mat-raised-button color="primary" type="button"
+                            (click)="createRole()" [disabled]="saving || !canSubmitCreateRole">
+                      <mat-icon>add</mat-icon> Create role
                     </button>
                   </div>
                 </mat-card>
@@ -152,89 +314,70 @@
                   </div>
                 </div>
 
-                <table mat-table [dataSource]="filteredRoles" class="admin-table">
+                <table mat-table [dataSource]="filteredRoles" class="admin-table role-table">
                   <ng-container matColumnDef="name">
                     <th mat-header-cell *matHeaderCellDef>Role</th>
                     <td mat-cell *matCellDef="let r">
                       <strong>{{ r.displayName || r.name }}</strong>
                       <div class="muted role-code-line">{{ r.code }}</div>
-                      <span class="system-badge" *ngIf="r.isSystem || r.roleType === 'System'">{{ r.roleType || 'System' }}</span>
                     </td>
                   </ng-container>
                   <ng-container matColumnDef="category">
                     <th mat-header-cell *matHeaderCellDef>Category</th>
-                    <td mat-cell *matCellDef="let r">{{ r.category || '—' }}</td>
+                    <td mat-cell *matCellDef="let r">{{ displayRoleCategory(r) }}</td>
+                  </ng-container>
+                  <ng-container matColumnDef="status">
+                    <th mat-header-cell *matHeaderCellDef>Status</th>
+                    <td mat-cell *matCellDef="let r">
+                      <span class="status-pill" [class.active]="r.isActive">{{ roleStatusLabel(r) }}</span>
+                    </td>
+                  </ng-container>
+                  <ng-container matColumnDef="visibility">
+                    <th mat-header-cell *matHeaderCellDef>Visibility</th>
+                    <td mat-cell *matCellDef="let r">
+                      <span class="visibility-badge" [class.system]="roleVisibilityLabel(r) === 'System'">
+                        {{ roleVisibilityLabel(r) }}
+                      </span>
+                    </td>
                   </ng-container>
                   <ng-container matColumnDef="users">
                     <th mat-header-cell *matHeaderCellDef>Users</th>
-                    <td mat-cell *matCellDef="let r">{{ r.userCount }}</td>
+                    <td mat-cell *matCellDef="let r">
+                      <button type="button" class="count-link" [disabled]="!r.userCount"
+                              (click)="openUsersForRole(r, $event)"
+                              [matTooltip]="r.userCount ? 'View users with this role' : 'No users assigned'">
+                        {{ r.userCount }}
+                      </button>
+                    </td>
                   </ng-container>
                   <ng-container matColumnDef="perms">
                     <th mat-header-cell *matHeaderCellDef>Permissions</th>
-                    <td mat-cell *matCellDef="let r">{{ r.permissionCount }}</td>
+                    <td mat-cell *matCellDef="let r">
+                      <button type="button" class="count-link perm-count"
+                              (click)="focusRolePermissions(r, $event)"
+                              [matTooltip]="'Configure permissions in the panel'">
+                        {{ r.permissionCount }}
+                        <span class="perm-count-label">· View</span>
+                      </button>
+                    </td>
                   </ng-container>
                   <ng-container matColumnDef="actions">
                     <th mat-header-cell *matHeaderCellDef></th>
                     <td mat-cell *matCellDef="let r">
-                      <button mat-button color="primary" type="button" (click)="selectRole(r)">Configure</button>
+                      <button mat-stroked-button color="primary" type="button" (click)="selectRole(r); $event.stopPropagation()">
+                        <mat-icon>tune</mat-icon> Configure
+                      </button>
                     </td>
                   </ng-container>
-                  <tr mat-header-row *matHeaderRowDef="['name','category','users','perms','actions']"></tr>
-                  <tr mat-row *matRowDef="let row; columns: ['name','category','users','perms','actions'];"
+                  <tr mat-header-row *matHeaderRowDef="roleTableColumns"></tr>
+                  <tr mat-row *matRowDef="let row; columns: roleTableColumns;"
                       [class.selected]="selectedRole?.id === row.id"
                       (click)="selectRole(row)"></tr>
                 </table>
               </div>
 
-              <mat-card class="role-detail-card" *ngIf="selectedRole">
-                <h4>{{ selectedRole.displayName || selectedRole.name }}</h4>
-                <p class="role-code">{{ selectedRole.code }} · {{ selectedRole.roleType || (selectedRole.isSystem ? 'System' : 'Custom') }}</p>
-                <p class="role-desc muted" *ngIf="selectedRole.description">{{ selectedRole.description }}</p>
-
-                <div class="stb-field full-width">
-                  <label for="editing-role-name">Display Name</label>
-                  <input id="editing-role-name" class="stb-input" type="text" [(ngModel)]="editingRoleName" />
-                </div>
-
-                <div class="stb-field full-width">
-                  <label for="editing-role-category">Category</label>
-                  <input id="editing-role-category" class="stb-input" type="text" [(ngModel)]="editingRoleCategory"
-                         placeholder="e.g. Fleet / Operations" />
-                </div>
-
-                <div class="stb-field full-width">
-                  <label for="editing-role-desc">Description</label>
-                  <textarea id="editing-role-desc" class="stb-input" rows="2" [(ngModel)]="editingRoleDescription"></textarea>
-                </div>
-
-                <mat-slide-toggle [(ngModel)]="editingRoleActive">Active</mat-slide-toggle>
-
-                <div class="detail-actions">
-                  <button mat-stroked-button type="button" (click)="saveRoleDetails()" [disabled]="saving">Save Details</button>
-                  <button mat-stroked-button color="warn" type="button"
-                          (click)="deleteRole(selectedRole)"
-                          [disabled]="selectedRole.isSystem || selectedRole.userCount > 0">
-                    Delete
-                  </button>
-                </div>
-
-                <h5>Permission Matrix</h5>
-                <div class="permission-grid">
-                  <ng-container *ngFor="let group of permissionsByModule()">
-                    <div class="permission-module">{{ group.module }}</div>
-                    <mat-checkbox *ngFor="let p of group.items"
-                                  [checked]="selectedPermissionCodes.has(p.permissionCode)"
-                                  (change)="togglePermission(p.permissionCode)">
-                      {{ p.permissionCode }}
-                    </mat-checkbox>
-                  </ng-container>
-                </div>
-
-                <div class="detail-actions">
-                  <button mat-raised-button color="primary" type="button" (click)="saveRolePermissions()" [disabled]="saving">
-                    Save Permissions
-                  </button>
-                </div>
+              <mat-card class="role-detail-card" *ngIf="selectedRole && !roleDetailFullscreen">
+                <ng-container *ngTemplateOutlet="roleDetailPanel"></ng-container>
               </mat-card>
             </div>
           </div>
@@ -403,5 +546,13 @@
         </mat-tab>
       </mat-tab-group>
     </mat-card>
+
+    <div class="role-detail-overlay" *ngIf="selectedTenant && selectedRole && roleDetailFullscreen && activeTab === rolesTabIndex"
+         role="dialog" aria-modal="true" [attr.aria-label]="'Configure role ' + (selectedRole.displayName || selectedRole.name)">
+      <div class="role-detail-backdrop" (click)="exitRoleDetailFullscreen()" aria-hidden="true"></div>
+      <mat-card class="role-detail-card role-detail-card--fullscreen">
+        <ng-container *ngTemplateOutlet="roleDetailPanel"></ng-container>
+      </mat-card>
+    </div>
   </ng-container>
 </div>
