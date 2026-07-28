@@ -317,25 +317,48 @@ Future<Set<Marker>> buildPlaybackMarkers({
   final finishIcon = await PlaybackMapAssets.markerForKind(PlaybackMarkerKind.finish);
   final stopIcon = await PlaybackMapAssets.markerForKind(PlaybackMarkerKind.stop);
 
-  markers.add(
-    Marker(
-      markerId: const MarkerId('start'),
-      position: LatLng(trail.first.latitude, trail.first.longitude),
-      icon: startIcon,
-      infoWindow: const InfoWindow(title: 'Start'),
-    ),
-  );
-  markers.add(
-    Marker(
-      markerId: const MarkerId('end'),
-      position: LatLng(trail.last.latitude, trail.last.longitude),
-      icon: finishIcon,
-      infoWindow: const InfoWindow(title: 'Finish'),
-    ),
-  );
+  HistoryReplayPoint? vehiclePoint;
+  if (playback.isNotEmpty) {
+    vehiclePoint = playback[playbackIndex.clamp(0, playback.length - 1)];
+  }
+
+  bool nearVehicle(double lat, double lng) {
+    final v = vehiclePoint;
+    if (v == null) return false;
+    // ~9 m — hide static markers that stack under the live playhead.
+    const eps = 0.00008;
+    return (v.latitude - lat).abs() < eps && (v.longitude - lng).abs() < eps;
+  }
+
+  final startPos = LatLng(trail.first.latitude, trail.first.longitude);
+  if (!nearVehicle(startPos.latitude, startPos.longitude)) {
+    markers.add(
+      Marker(
+        markerId: const MarkerId('start'),
+        position: startPos,
+        icon: startIcon,
+        infoWindow: const InfoWindow(title: 'Start'),
+        zIndexInt: 1,
+      ),
+    );
+  }
+
+  final endPos = LatLng(trail.last.latitude, trail.last.longitude);
+  if (!nearVehicle(endPos.latitude, endPos.longitude)) {
+    markers.add(
+      Marker(
+        markerId: const MarkerId('end'),
+        position: endPos,
+        icon: finishIcon,
+        infoWindow: const InfoWindow(title: 'Finish'),
+        zIndexInt: 1,
+      ),
+    );
+  }
 
   for (var i = 0; i < stops.length; i++) {
     final s = stops[i];
+    if (nearVehicle(s.latitude, s.longitude)) continue;
     markers.add(
       Marker(
         markerId: MarkerId('stop_$i'),
@@ -345,6 +368,7 @@ Future<Set<Marker>> buildPlaybackMarkers({
           title: 'Stop ${s.durationMinutes} min',
           snippet: s.address,
         ),
+        zIndexInt: 2,
       ),
     );
   }
@@ -352,24 +376,25 @@ Future<Set<Marker>> buildPlaybackMarkers({
   for (var i = 0; i < events.length; i++) {
     final e = events[i];
     if (e.latitude == null || e.longitude == null) continue;
+    if (nearVehicle(e.latitude!, e.longitude!)) continue;
     markers.add(
       Marker(
         markerId: MarkerId('evt_$i'),
         position: LatLng(e.latitude!, e.longitude!),
         icon: await PlaybackMapAssets.markerForEvent(e),
         infoWindow: InfoWindow(title: e.type, snippet: e.label),
+        zIndexInt: 3,
       ),
     );
   }
 
-  if (playback.isNotEmpty) {
-    final p = playback[playbackIndex.clamp(0, playback.length - 1)];
+  if (vehiclePoint != null) {
     markers.add(
       Marker(
         markerId: const MarkerId('vehicle'),
-        position: LatLng(p.latitude, p.longitude),
+        position: LatLng(vehiclePoint.latitude, vehiclePoint.longitude),
         icon: vehicleIcon,
-        rotation: p.heading ?? 0,
+        rotation: vehiclePoint.heading ?? 0,
         flat: true,
         anchor: const Offset(0.5, 0.5),
         zIndexInt: 10,

@@ -27,66 +27,79 @@ class PlaybackControls extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    return Row(
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            IconButton(
-              tooltip: 'First',
-              onPressed: onFirst,
-              icon: const Icon(Icons.skip_previous_rounded),
-            ),
-            IconButton(
-              tooltip: 'Previous event',
-              onPressed: onPrevEvent,
-              icon: const Icon(Icons.fast_rewind_rounded),
-            ),
-            IconButton.filledTonal(
-              tooltip: playing ? 'Pause' : 'Play',
-              onPressed: onPlayPause,
-              icon: Icon(playing ? Icons.pause : Icons.play_arrow),
-            ),
-            IconButton(
-              tooltip: 'Next event',
-              onPressed: onNextEvent,
-              icon: const Icon(Icons.fast_forward_rounded),
-            ),
-            IconButton(
-              tooltip: 'End',
-              onPressed: onEnd,
-              icon: const Icon(Icons.skip_next_rounded),
-            ),
-          ],
-        ),
-        const SizedBox(height: 4),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Text(
-              'Speed',
-              style: TextStyle(
-                fontWeight: FontWeight.w600,
-                color: AppColors.textSecondary,
+        Expanded(
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              IconButton(
+                visualDensity: VisualDensity.compact,
+                constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                tooltip: 'First',
+                onPressed: onFirst,
+                icon: const Icon(Icons.skip_previous_rounded),
               ),
+              IconButton(
+                visualDensity: VisualDensity.compact,
+                constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                tooltip: 'Previous event',
+                onPressed: onPrevEvent,
+                icon: const Icon(Icons.fast_rewind_rounded),
+              ),
+              IconButton.filledTonal(
+                visualDensity: VisualDensity.compact,
+                constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+                tooltip: playing ? 'Pause' : 'Play',
+                onPressed: onPlayPause,
+                icon: Icon(playing ? Icons.pause : Icons.play_arrow),
+              ),
+              IconButton(
+                visualDensity: VisualDensity.compact,
+                constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                tooltip: 'Next event',
+                onPressed: onNextEvent,
+                icon: const Icon(Icons.fast_forward_rounded),
+              ),
+              IconButton(
+                visualDensity: VisualDensity.compact,
+                constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                tooltip: 'End',
+                onPressed: onEnd,
+                icon: const Icon(Icons.skip_next_rounded),
+              ),
+            ],
+          ),
+        ),
+        PopupMenuButton<double>(
+          tooltip: 'Playback speed',
+          initialValue: speed,
+          onSelected: onSpeed,
+          itemBuilder: (_) => speeds
+              .map(
+                (s) => PopupMenuItem<double>(
+                  value: s,
+                  child: Text('${s}x'),
+                ),
+              )
+              .toList(),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '${speed}x',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                const Icon(Icons.speed, size: 18, color: AppColors.textSecondary),
+              ],
             ),
-            const SizedBox(width: 8),
-            DropdownButton<double>(
-              value: speed,
-              onChanged: (v) {
-                if (v != null) onSpeed(v);
-              },
-              items: speeds
-                  .map(
-                    (s) => DropdownMenuItem<double>(
-                      value: s,
-                      child: Text('${s}x'),
-                    ),
-                  )
-                  .toList(),
-            ),
-          ],
+          ),
         ),
       ],
     );

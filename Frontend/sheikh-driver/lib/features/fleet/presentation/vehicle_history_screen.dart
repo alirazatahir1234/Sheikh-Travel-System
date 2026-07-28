@@ -53,7 +53,9 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen> {
   MapType _mapType = MapType.normal;
   TripEventFilter _eventFilter = TripEventFilter.all;
   bool _infoExpanded = false;
-  bool _panelExpanded = false;
+  double _sheetExtent = 0.18;
+  final DraggableScrollableController _sheetController =
+      DraggableScrollableController();
   BitmapDescriptor? _vehicleIcon;
   Timer? _playTimer;
   Set<Polyline> _polylines = {};
@@ -101,6 +103,7 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen> {
   @override
   void dispose() {
     _playTimer?.cancel();
+    _sheetController.dispose();
     _map?.dispose();
     super.dispose();
   }
@@ -617,6 +620,7 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen> {
         : b.points[_index.clamp(0, b.points.length - 1)];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
       children: [
         _DateBar(
           from: _from,
@@ -633,12 +637,12 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen> {
           },
           onFitRoute: _fitRoute,
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 6),
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
           decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(14),
+            color: Colors.white.withValues(alpha: 0.96),
+            borderRadius: BorderRadius.circular(12),
             border: Border.all(color: AppColors.border),
           ),
           child: Row(
@@ -651,14 +655,14 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen> {
               _kpiTile('${b.stops.length}', 'Stops'),
               _kpiTile(
                 '${current?.speedKmh.toStringAsFixed(0) ?? '0'} km/h',
-                'Avg. speed',
+                'Speed',
               ),
             ],
           ),
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 4),
         SizedBox(
-          height: 40,
+          height: 34,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             itemCount: TripEventFilter.values.length,
@@ -667,7 +671,7 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen> {
               final f = TripEventFilter.values[i];
               final selected = _eventFilter == f;
               return FilterChip(
-                label: Text(_filterLabel(f)),
+                label: Text(_filterLabel(f), style: const TextStyle(fontSize: 12)),
                 selected: selected,
                 onSelected: (_) {
                   setState(() {
@@ -676,16 +680,30 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen> {
                   });
                 },
                 visualDensity: VisualDensity.compact,
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                padding: const EdgeInsets.symmetric(horizontal: 4),
                 side: BorderSide(
                   color: selected ? AppColors.success : AppColors.border,
                 ),
                 selectedColor: AppColors.success.withValues(alpha: 0.15),
-                showCheckmark: true,
+                showCheckmark: false,
               );
             },
           ),
         ),
       ],
+    );
+  }
+
+  void _toggleSheetExpanded() {
+    if (!_sheetController.isAttached) return;
+    final target = _sheetExtent < 0.28 ? 0.45 : 0.14;
+    unawaited(
+      _sheetController.animateTo(
+        target,
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOutCubic,
+      ),
     );
   }
 
@@ -695,176 +713,205 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen> {
     required HistoryReplayBundle? bundle,
     required double distSoFar,
   }) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 220),
-      curve: Curves.easeOutCubic,
-      height: _panelExpanded ? 318 : 116,
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        boxShadow: [
-          BoxShadow(
-            blurRadius: 20,
-            color: Color(0x22000000),
-            offset: Offset(0, -4),
-          ),
-        ],
-      ),
-      child: SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-          child: Column(
-            children: [
-              GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: () => setState(() => _panelExpanded = !_panelExpanded),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 38,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: AppColors.border,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        _playing ? 'Playing' : 'Finished',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
-                    Text(
-                      current == null ? '--' : _tf.format(current.timestamp.toLocal()),
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 12,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                    Icon(
-                      _panelExpanded ? Icons.expand_more : Icons.expand_less,
-                      size: 18,
-                      color: AppColors.textSecondary,
-                    ),
-                  ],
-                ),
-              ),
-              if (bundle != null) ...[
-                const SizedBox(height: 6),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: AppColors.surface,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: AppColors.border),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.directions_car_filled_outlined, size: 16, color: AppColors.textSecondary),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          bundle.vehicle?.vehicleName ?? 'Vehicle #${widget.vehicleId}',
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
-                        ),
-                      ),
-                      if ((bundle.vehicle?.plateNumber ?? '').isNotEmpty)
-                        Text(
-                          bundle.vehicle!.plateNumber!,
-                          style: const TextStyle(
-                            color: AppColors.textSecondary,
-                            fontWeight: FontWeight.w700,
-                            fontSize: 11,
+    return NotificationListener<DraggableScrollableNotification>(
+      onNotification: (notification) {
+        final next = notification.extent;
+        if ((next - _sheetExtent).abs() > 0.004) {
+          setState(() => _sheetExtent = next);
+        }
+        return false;
+      },
+      child: DraggableScrollableSheet(
+        controller: _sheetController,
+        initialChildSize: 0.18,
+        minChildSize: 0.14,
+        maxChildSize: 0.45,
+        snap: true,
+        snapSizes: const [0.14, 0.18, 0.45],
+        builder: (context, scrollController) {
+          return Material(
+            color: Colors.white,
+            elevation: 10,
+            shadowColor: const Color(0x33000000),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+            clipBehavior: Clip.antiAlias,
+            child: SafeArea(
+              top: false,
+              child: ListView(
+                controller: scrollController,
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+                children: [
+                  GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: _toggleSheetExpanded,
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 38,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: AppColors.border,
+                            borderRadius: BorderRadius.circular(4),
                           ),
                         ),
-                    ],
-                  ),
-                ),
-              ],
-              const SizedBox(height: 8),
-              PlaybackControls(
-                playing: _playing,
-                speed: _speed,
-                onPlayPause: _togglePlay,
-                onFirst: () => _setIndex(0),
-                onPrevEvent: () => _jumpEvent(-1),
-                onNextEvent: () => _jumpEvent(1),
-                onEnd: () => _setIndex(points.length - 1),
-                onSpeed: (s) {
-                  setState(() => _speed = s);
-                  if (_playing) {
-                    _stopPlay();
-                    _togglePlay();
-                  }
-                },
-              ),
-              if (_panelExpanded) ...[
-                const SizedBox(height: 8),
-                PlaybackTimeline(
-                  playback: points,
-                  stops: bundle?.stops ?? const [],
-                  events: bundle?.events ?? const [],
-                  filteredEvents: _filteredEvents,
-                  index: _index,
-                  onIndexChanged: _setIndex,
-                ),
-                const SizedBox(height: 6),
-                PlaybackScrubFooter(
-                  time: current?.timestamp ?? DateTime.now(),
-                  speedKmh: current?.speedKmh ?? 0,
-                  distanceKm: distSoFar,
-                ),
-                const SizedBox(height: 6),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        _follow ? 'Follow vehicle' : 'Free pan',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            _playing ? 'Playing' : 'Finished',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 12,
+                            ),
+                          ),
                         ),
-                      ),
-                    ),
-                    Switch(
-                      value: _follow,
-                      onChanged: (v) => setState(() => _follow = v),
-                    ),
-                    IconButton(
-                      tooltip: _infoExpanded ? 'Hide details' : 'Show details',
-                      onPressed: () =>
-                          setState(() => _infoExpanded = !_infoExpanded),
-                      icon: Icon(
-                        _infoExpanded
-                            ? Icons.info_outline
-                            : Icons.info_outline_rounded,
-                      ),
-                    ),
-                  ],
-                ),
-                if (_infoExpanded && current != null)
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: Column(
-                      children: [
-                        _infoRow('Heading', headingToCardinal(current.heading)),
-                        _infoRow('Address', current.address ?? '—'),
-                        _infoRow('Avg / Max', '${bundle?.summary?.avgSpeedKmh.toStringAsFixed(0) ?? '0'} / ${bundle?.summary?.maxSpeedKmh.toStringAsFixed(0) ?? '0'} km/h'),
+                        Text(
+                          current == null
+                              ? '--'
+                              : _tf.format(current.timestamp.toLocal()),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 12,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                        Icon(
+                          _sheetExtent > 0.28
+                              ? Icons.expand_more
+                              : Icons.expand_less,
+                          size: 18,
+                          color: AppColors.textSecondary,
+                        ),
                       ],
                     ),
                   ),
-              ],
-            ],
-          ),
-        ),
+                  const SizedBox(height: 4),
+                  PlaybackControls(
+                    playing: _playing,
+                    speed: _speed,
+                    onPlayPause: _togglePlay,
+                    onFirst: () => _setIndex(0),
+                    onPrevEvent: () => _jumpEvent(-1),
+                    onNextEvent: () => _jumpEvent(1),
+                    onEnd: () => _setIndex(points.length - 1),
+                    onSpeed: (s) {
+                      setState(() => _speed = s);
+                      if (_playing) {
+                        _stopPlay();
+                        _togglePlay();
+                      }
+                    },
+                  ),
+                  if (bundle != null) ...[
+                    const SizedBox(height: 8),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: AppColors.border),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.directions_car_filled_outlined,
+                            size: 16,
+                            color: AppColors.textSecondary,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              bundle.vehicle?.vehicleName ??
+                                  'Vehicle #${widget.vehicleId}',
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                          if ((bundle.vehicle?.plateNumber ?? '').isNotEmpty)
+                            Text(
+                              bundle.vehicle!.plateNumber!,
+                              style: const TextStyle(
+                                color: AppColors.textSecondary,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 11,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 8),
+                  PlaybackTimeline(
+                    playback: points,
+                    stops: bundle?.stops ?? const [],
+                    events: bundle?.events ?? const [],
+                    filteredEvents: _filteredEvents,
+                    index: _index,
+                    onIndexChanged: _setIndex,
+                  ),
+                  const SizedBox(height: 6),
+                  PlaybackScrubFooter(
+                    time: current?.timestamp ?? DateTime.now(),
+                    speedKmh: current?.speedKmh ?? 0,
+                    distanceKm: distSoFar,
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          _follow ? 'Follow vehicle' : 'Free pan',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      Switch(
+                        value: _follow,
+                        onChanged: (v) => setState(() => _follow = v),
+                      ),
+                      IconButton(
+                        tooltip:
+                            _infoExpanded ? 'Hide details' : 'Show details',
+                        onPressed: () =>
+                            setState(() => _infoExpanded = !_infoExpanded),
+                        icon: Icon(
+                          _infoExpanded
+                              ? Icons.info_outline
+                              : Icons.info_outline_rounded,
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (_infoExpanded && current != null)
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Column(
+                        children: [
+                          _infoRow(
+                            'Heading',
+                            headingToCardinal(current.heading),
+                          ),
+                          _infoRow('Address', current.address ?? '—'),
+                          _infoRow(
+                            'Avg / Max',
+                            '${bundle?.summary?.avgSpeedKmh.toStringAsFixed(0) ?? '0'} / ${bundle?.summary?.maxSpeedKmh.toStringAsFixed(0) ?? '0'} km/h',
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -995,14 +1042,18 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen> {
                           top: 8,
                           child: _buildTopOverlay(b!, distSoFar),
                         ),
-                        const Positioned(
+                        Positioned(
                           left: 12,
-                          bottom: 126,
-                          child: PlaybackLegend(),
+                          bottom: MediaQuery.sizeOf(context).height *
+                                  _sheetExtent +
+                              10,
+                          child: const PlaybackLegend(),
                         ),
                         Positioned(
                           right: 12,
-                          bottom: 126,
+                          bottom: MediaQuery.sizeOf(context).height *
+                                  _sheetExtent +
+                              10,
                           child: PlaybackMapFabs(
                             following: _follow,
                             onFitRoute: _fitRoute,
@@ -1016,10 +1067,7 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen> {
                           ),
                         ),
                         if (showContent)
-                          Positioned(
-                            left: 0,
-                            right: 0,
-                            bottom: 0,
+                          Positioned.fill(
                             child: _buildBottomPanel(
                               points: points,
                               current: current,
@@ -1076,7 +1124,7 @@ class _DateBar extends StatelessWidget {
     return Material(
       color: Colors.white,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 6, 12, 6),
+        padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
         child: Row(
           children: [
             PopupMenuButton<_HistoryPreset>(
