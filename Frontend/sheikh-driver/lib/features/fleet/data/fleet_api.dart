@@ -88,6 +88,22 @@ class FleetApi {
     return HistoryReplayBundle.fromJson(ApiResponseParser.dataMap(res.data));
   }
 
+  /// Resolves a human-readable address for map coordinates (cache-first on server).
+  Future<String?> reverseGeocode(double latitude, double longitude) async {
+    final res = await _dio.get<Map<String, dynamic>>(
+      ApiEndpoints.gpsLocationReverse,
+      queryParameters: {'lat': latitude, 'lng': longitude},
+      options: Options(
+        receiveTimeout: const Duration(seconds: 15),
+      ),
+    );
+    final data = ApiResponseParser.dataMap(res.data);
+    final formatted = data['formattedAddress'] as String? ??
+        data['FormattedAddress'] as String?;
+    final trimmed = formatted?.trim();
+    return trimmed != null && trimmed.isNotEmpty ? trimmed : null;
+  }
+
   Future<({String title, String summary, List<String> bullets})> getReplayInsights(
     int vehicleId, {
     DateTime? from,

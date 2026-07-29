@@ -208,14 +208,14 @@ double distanceAlongTrailKm(List<HistoryReplayPoint> trail, int trailIndex) {
   final end = trailIndex.clamp(0, trail.length - 1);
   double sum = 0;
   for (var i = 1; i <= end; i++) {
-    sum += _haversineKm(
-      trail[i - 1].latitude,
-      trail[i - 1].longitude,
-      trail[i].latitude,
-      trail[i].longitude,
-    );
+    sum += segmentDistanceKm(trail[i - 1], trail[i]);
   }
   return sum;
+}
+
+/// Single-segment distance for incremental `_distSoFar` during playback.
+double segmentDistanceKm(HistoryReplayPoint a, HistoryReplayPoint b) {
+  return _haversineKm(a.latitude, a.longitude, b.latitude, b.longitude);
 }
 
 double _haversineKm(double lat1, double lon1, double lat2, double lon2) {

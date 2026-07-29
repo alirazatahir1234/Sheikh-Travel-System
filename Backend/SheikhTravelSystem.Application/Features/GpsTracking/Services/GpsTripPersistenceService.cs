@@ -20,7 +20,7 @@ public static class GpsTripPersistenceService
 
         var rows = await connection.QueryAsync<GpsPositionHistoryRow>(new CommandDefinition(
             @"SELECT Id, VehicleId, DriverId, BookingId, GpsDeviceId, Latitude, Longitude, Speed,
-                     Heading, Altitude, Ignition, RecordedAt AS Timestamp
+                     Heading, Altitude, Ignition, RecordedAt AS Timestamp, Address
               FROM GpsPositions
               WHERE VehicleId = @VehicleId AND RecordedAt BETWEEN @FromDate AND @ToDate
               ORDER BY RecordedAt ASC",

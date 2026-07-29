@@ -18,7 +18,8 @@ public sealed record GpsPositionHistoryRow(
     double? Heading,
     double? Altitude,
     bool? Ignition,
-    DateTime Timestamp);
+    DateTime Timestamp,
+    string? Address = null);
 
 public static class GpsPositionHistoryMapper
 {
@@ -38,7 +39,8 @@ public static class GpsPositionHistoryMapper
             row.Heading,
             row.Altitude,
             row.Ignition,
-            GpsUtcDateTime.AsUtc(row.Timestamp));
+            GpsUtcDateTime.AsUtc(row.Timestamp),
+            Address: row.Address);
 
     public static PositionDto FromTraccar(
         Traccar.TraccarPosition position,
