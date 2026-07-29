@@ -3,6 +3,7 @@ using MediatR;
 using Microsoft.Extensions.Options;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Interfaces;
+using SheikhTravelSystem.Application.Features.GpsTracking;
 using SheikhTravelSystem.Application.Features.GpsTracking.DTOs;
 using SheikhTravelSystem.Application.Features.GpsTracking.Services;
 using SheikhTravelSystem.Application.Features.GpsTracking.Traccar;
@@ -77,7 +78,8 @@ public class GetTripReplayQueryHandler(
     IMediator mediator,
     ITraccarClient traccarClient,
     IOptions<TraccarOptions> traccarOptions,
-    ITenantContext tenantContext)
+    ITenantContext tenantContext,
+    IReverseGeocodingService reverseGeocodingService)
     : IRequestHandler<GetTripReplayQuery, ApiResponse<TripReplayBundleDto>>
 {
     public async Task<ApiResponse<TripReplayBundleDto>> Handle(GetTripReplayQuery request, CancellationToken cancellationToken)
@@ -100,6 +102,10 @@ public class GetTripReplayQueryHandler(
                 fromDate,
                 toDate,
                 cancellationToken);
+            bundle = await TripReplayAddressEnricher.EnrichAsync(
+                bundle,
+                reverseGeocodingService,
+                cancellationToken);
             return ApiResponse<TripReplayBundleDto>.SuccessResponse(bundle);
         }
 
@@ -109,6 +115,11 @@ public class GetTripReplayQueryHandler(
         {
             return ApiResponse<TripReplayBundleDto>.FailResponse("Failed to load replay positions.");
         }
+
+        localBundle = await TripReplayAddressEnricher.EnrichAsync(
+            localBundle,
+            reverseGeocodingService,
+            cancellationToken);
 
         return ApiResponse<TripReplayBundleDto>.SuccessResponse(localBundle);
     }

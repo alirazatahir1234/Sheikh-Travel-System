@@ -3,6 +3,7 @@ using MediatR;
 using Microsoft.Extensions.Options;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Interfaces;
+using SheikhTravelSystem.Application.Features.GpsTracking;
 using SheikhTravelSystem.Application.Features.GpsTracking.DTOs;
 using SheikhTravelSystem.Application.Features.GpsTracking.Services;
 using SheikhTravelSystem.Application.Features.GpsTracking.Traccar;
@@ -20,7 +21,8 @@ public class GetHistoryReplayQueryHandler(
     IMediator mediator,
     ITraccarClient traccarClient,
     IOptions<TraccarOptions> traccarOptions,
-    ITenantContext tenantContext)
+    ITenantContext tenantContext,
+    IReverseGeocodingService reverseGeocodingService)
     : IRequestHandler<GetHistoryReplayQuery, ApiResponse<HistoryReplayBundleDto>>
 {
     public async Task<ApiResponse<HistoryReplayBundleDto>> Handle(
@@ -70,6 +72,11 @@ public class GetHistoryReplayQueryHandler(
 
         if (bundle.Route.Count == 0 && bundle.Playback.Count == 0)
             return ApiResponse<HistoryReplayBundleDto>.FailResponse("No tracking points in this period.");
+
+        bundle = await TripReplayAddressEnricher.EnrichAsync(
+            bundle,
+            reverseGeocodingService,
+            cancellationToken);
 
         TripAnalyticsSummaryDto? rawStats = null;
         if (opts.IsConfigured && opts.Enabled && source.TraccarDeviceId.HasValue)
@@ -317,7 +324,7 @@ public class GetHistoryExportQueryHandler(
 
         var localRows = await connection.QueryAsync<GpsPositionHistoryRow>(new CommandDefinition(
             @"SELECT Id, VehicleId, DriverId, BookingId, GpsDeviceId, Latitude, Longitude, Speed,
-                     Heading, Altitude, Ignition, RecordedAt AS Timestamp
+                     Heading, Altitude, Ignition, RecordedAt AS Timestamp, Address
               FROM GpsPositions
               WHERE VehicleId = @VehicleId AND RecordedAt BETWEEN @FromDate AND @ToDate
               ORDER BY RecordedAt ASC",

@@ -1,5 +1,6 @@
 using Dapper;
 using MediatR;
+using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Exceptions;
 using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Application.Features.Users.DTOs;

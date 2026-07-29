@@ -20,6 +20,7 @@ class PlaybackLegend extends StatelessWidget {
             _LegendItem(color: PlaybackMapAssets.colorForKind(PlaybackMarkerKind.finish), label: 'Finish'),
             _LegendItem(color: PlaybackMapAssets.colorForKind(PlaybackMarkerKind.stop), label: 'Stop'),
             _LegendItem(color: PlaybackMapAssets.colorForKind(PlaybackMarkerKind.overspeed), label: 'Overspeed'),
+            _LegendItem(color: PlaybackMapAssets.colorForKind(PlaybackMarkerKind.ignitionOn), label: 'Ignition'),
             _LegendItem(color: PlaybackMapAssets.colorForKind(PlaybackMarkerKind.geofence), label: 'Geofence'),
             _LegendItem(color: PlaybackMapAssets.colorForKind(PlaybackMarkerKind.fuel), label: 'Fuel'),
             _LegendItem(color: PlaybackMapAssets.colorForKind(PlaybackMarkerKind.sos), label: 'SOS'),

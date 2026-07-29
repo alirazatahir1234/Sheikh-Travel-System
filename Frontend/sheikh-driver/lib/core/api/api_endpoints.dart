@@ -85,6 +85,7 @@ abstract class ApiEndpoints {
   static const gpsHistoryReplayInsights = '/gps/history/replay/insights';
   static String gpsHistory(int vehicleId) => '/gps/history/$vehicleId';
   static const gpsHistoryReplay = '/gps/history/replay';
+  static const gpsLocationReverse = '/gps/location/reverse';
   static const gpsGeofences = '/gps/geofences';
   static String gpsCommandsSupported(int deviceId) =>
       '/gps/commands/supported/$deviceId';
