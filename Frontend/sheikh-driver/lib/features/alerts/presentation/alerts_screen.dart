@@ -7,8 +7,45 @@ import '../domain/gps_alert_models.dart';
 import '../../../shared/widgets/sg_ui.dart';
 import 'alerts_notifier.dart';
 
-class AlertsScreen extends ConsumerWidget {
+class AlertsScreen extends ConsumerStatefulWidget {
   const AlertsScreen({super.key});
+
+  @override
+  ConsumerState<AlertsScreen> createState() => _AlertsScreenState();
+
+  static String titleCase(String input) {
+    return input
+        .split(' ')
+        .where((part) => part.isNotEmpty)
+        .map((part) =>
+            '${part[0].toUpperCase()}${part.substring(1).toLowerCase()}')
+        .join(' ');
+  }
+
+  static String statusLabel(GpsAlertEvent alert) {
+    if (alert.isUnread) return 'Unread';
+    if (alert.status.toLowerCase() == 'active' && alert.isRead) return 'Read';
+    return titleCase(alert.status);
+  }
+
+  static Color statusColor(GpsAlertEvent alert) {
+    if (alert.isUnread) return AppColors.primary;
+    switch (alert.status.toLowerCase()) {
+      case 'resolved':
+        return AppColors.success;
+      case 'archived':
+        return AppColors.textMuted;
+      case 'acknowledged':
+        return AppColors.warning;
+      default:
+        return AppColors.info;
+    }
+  }
+}
+
+class _AlertsScreenState extends ConsumerState<AlertsScreen> {
+  final Set<int> _selected = {};
+  bool _selectMode = false;
 
   Color _severityColor(String severity) {
     final s = severity.toLowerCase();
@@ -18,7 +55,7 @@ class AlertsScreen extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final async = ref.watch(alertsProvider);
     final df = DateFormat('dd MMM, HH:mm');
 
@@ -27,6 +64,16 @@ class AlertsScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('Alerts'),
         actions: [
+          IconButton(
+            tooltip: _selectMode ? 'Done selecting' : 'Bulk select',
+            icon: Icon(
+              _selectMode ? Icons.done_rounded : Icons.checklist_rounded,
+            ),
+            onPressed: () => setState(() {
+              _selectMode = !_selectMode;
+              if (!_selectMode) _selected.clear();
+            }),
+          ),
           IconButton(
             icon: const Icon(Icons.refresh_rounded),
             onPressed: () => ref.read(alertsProvider.notifier).refresh(),
@@ -49,6 +96,18 @@ class AlertsScreen extends ConsumerWidget {
         ),
         data: (state) {
           final visible = state.visible;
+          final laneCounts = <String, int>{
+            'critical': 0,
+            'high': 0,
+            'medium': 0,
+            'low': 0,
+          };
+          for (final a in visible) {
+            final s = a.severity.toLowerCase();
+            if (laneCounts.containsKey(s)) {
+              laneCounts[s] = laneCounts[s]! + 1;
+            }
+          }
           return RefreshIndicator(
             color: AppColors.primary,
             onRefresh: () => ref.read(alertsProvider.notifier).refresh(),
@@ -73,6 +132,77 @@ class AlertsScreen extends ConsumerWidget {
                     ),
                   ),
                 ),
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+                    child: Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        for (final lane in const [
+                          ('Critical', 'critical'),
+                          ('High', 'high'),
+                          ('Medium', 'medium'),
+                          ('Low', 'low'),
+                        ])
+                          FilterChip(
+                            label: Text(
+                              '${lane.$1} (${laneCounts[lane.$2] ?? 0})',
+                            ),
+                            selected: state.severityFilter == lane.$2,
+                            onSelected: (_) => ref
+                                .read(alertsProvider.notifier)
+                                .setSeverity(
+                                  state.severityFilter == lane.$2
+                                      ? null
+                                      : lane.$2,
+                                ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+                if (_selectMode && _selected.isNotEmpty)
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Wrap(
+                        spacing: 8,
+                        children: [
+                          FilledButton(
+                            onPressed: () async {
+                              final ids = _selected.toList();
+                              for (final id in ids) {
+                                await ref
+                                    .read(alertsProvider.notifier)
+                                    .markRead(id);
+                              }
+                              setState(() {
+                                _selected.clear();
+                                _selectMode = false;
+                              });
+                            },
+                            child: Text('Mark read (${_selected.length})'),
+                          ),
+                          OutlinedButton(
+                            onPressed: () async {
+                              final ids = _selected.toList();
+                              for (final id in ids) {
+                                await ref
+                                    .read(alertsProvider.notifier)
+                                    .resolve(id);
+                              }
+                              setState(() {
+                                _selected.clear();
+                                _selectMode = false;
+                              });
+                            },
+                            child: Text('Resolve (${_selected.length})'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -108,19 +238,28 @@ class AlertsScreen extends ConsumerWidget {
                           spacing: 8,
                           runSpacing: 8,
                           children: [
-                            for (final s in const ['critical', 'high', 'medium', 'low'])
+                            for (final s in const [
+                              'critical',
+                              'high',
+                              'medium',
+                              'low',
+                            ])
                               FilterChip(
-                                label: Text(_titleCase(s)),
-                                selected:
-                                    state.severityFilter?.toLowerCase() == s,
+                                label: Text(AlertsScreen.titleCase(s)),
+                                selected: state.severityFilter == s,
                                 onSelected: (_) => ref
                                     .read(alertsProvider.notifier)
                                     .setSeverity(
-                                      state.severityFilter?.toLowerCase() == s
-                                          ? null
-                                          : s,
+                                      state.severityFilter == s ? null : s,
                                     ),
                               ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
                             for (final preset in const ['today', 'yesterday', 'last7', 'last30'])
                               FilterChip(
                                 label: Text(_datePresetLabel(preset)),
@@ -195,10 +334,35 @@ class AlertsScreen extends ConsumerWidget {
                           ),
                           child: SgCard(
                             margin: const EdgeInsets.only(bottom: 10),
-                            onTap: () => context.push('/alerts/${a.id}'),
+                            onTap: () {
+                              if (_selectMode) {
+                                setState(() {
+                                  if (_selected.contains(a.id)) {
+                                    _selected.remove(a.id);
+                                  } else {
+                                    _selected.add(a.id);
+                                  }
+                                });
+                              } else {
+                                context.push('/alerts/${a.id}');
+                              }
+                            },
                             child: Row(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
+                                if (_selectMode)
+                                  Checkbox(
+                                    value: _selected.contains(a.id),
+                                    onChanged: (_) {
+                                      setState(() {
+                                        if (_selected.contains(a.id)) {
+                                          _selected.remove(a.id);
+                                        } else {
+                                          _selected.add(a.id);
+                                        }
+                                      });
+                                    },
+                                  ),
                                 Container(
                                   width: 8,
                                   height: 56,
@@ -217,7 +381,7 @@ class AlertsScreen extends ConsumerWidget {
                                         children: [
                                           Expanded(
                                             child: Text(
-                                              _titleCase(
+                                              AlertsScreen.titleCase(
                                                 a.eventType.replaceAll('_', ' '),
                                               ),
                                               style: TextStyle(
@@ -267,18 +431,36 @@ class AlertsScreen extends ConsumerWidget {
                                         runSpacing: 6,
                                         children: [
                                           StatusBadge(
-                                            _titleCase(a.severity),
+                                            AlertsScreen.titleCase(a.severity),
                                             color: _severityColor(a.severity),
                                           ),
                                           StatusBadge(
-                                            _statusLabel(a),
-                                            color: _statusColor(a),
+                                            AlertsScreen.statusLabel(a),
+                                            color: AlertsScreen.statusColor(a),
                                           ),
                                         ],
                                       ),
                                     ],
                                   ),
                                 ),
+                                if (a.canAcknowledge)
+                                  Padding(
+                                    padding: const EdgeInsets.only(left: 8),
+                                    child: FilledButton.tonal(
+                                      onPressed: () async {
+                                        await ref
+                                            .read(alertsProvider.notifier)
+                                            .acknowledge(a.id);
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
+                                          const SnackBar(
+                                            content: Text('Acknowledged'),
+                                          ),
+                                        );
+                                      },
+                                      child: const Text('ACK'),
+                                    ),
+                                  ),
                               ],
                             ),
                           ),
@@ -300,15 +482,6 @@ class AlertsScreen extends ConsumerWidget {
         state.statusFilter == value;
   }
 
-  static String _titleCase(String input) {
-    return input
-        .split(' ')
-        .where((part) => part.isNotEmpty)
-        .map((part) =>
-            '${part[0].toUpperCase()}${part.substring(1).toLowerCase()}')
-        .join(' ');
-  }
-
   static String _datePresetLabel(String preset) {
     switch (preset) {
       case 'today':
@@ -321,26 +494,6 @@ class AlertsScreen extends ConsumerWidget {
         return 'Last 30';
       default:
         return preset;
-    }
-  }
-
-  static String _statusLabel(GpsAlertEvent alert) {
-    if (alert.isUnread) return 'Unread';
-    if (alert.status.toLowerCase() == 'active' && alert.isRead) return 'Read';
-    return _titleCase(alert.status);
-  }
-
-  static Color _statusColor(GpsAlertEvent alert) {
-    if (alert.isUnread) return AppColors.primary;
-    switch (alert.status.toLowerCase()) {
-      case 'resolved':
-        return AppColors.success;
-      case 'archived':
-        return AppColors.textMuted;
-      case 'acknowledged':
-        return AppColors.warning;
-      default:
-        return AppColors.info;
     }
   }
 }
@@ -458,8 +611,8 @@ class AlertDetailScreen extends ConsumerWidget {
                     runSpacing: 8,
                     children: [
                       StatusBadge(a.severity),
-                      StatusBadge(AlertsScreen._statusLabel(a),
-                          color: AlertsScreen._statusColor(a)),
+                      StatusBadge(AlertsScreen.statusLabel(a),
+                          color: AlertsScreen.statusColor(a)),
                     ],
                   ),
                 ],
@@ -471,7 +624,7 @@ class AlertDetailScreen extends ConsumerWidget {
                 children: [
                   _Row('Vehicle', a.vehicleName ?? '#${a.vehicleId}'),
                   _Row('Driver', a.driverName ?? '—'),
-                  _Row('Type', AlertsScreen._titleCase(a.eventType.replaceAll('_', ' '))),
+                  _Row('Type', AlertsScreen.titleCase(a.eventType.replaceAll('_', ' '))),
                   _Row('Status', a.status),
                   _Row('Time', df.format(a.timestamp.toLocal())),
                   _Row(
@@ -479,7 +632,7 @@ class AlertDetailScreen extends ConsumerWidget {
                     '${a.latitude.toStringAsFixed(5)}, ${a.longitude.toStringAsFixed(5)}',
                   ),
                   _Row('Speed', '${a.speed.toStringAsFixed(0)} km/h'),
-                  _Row('Priority', AlertsScreen._titleCase(a.severity)),
+                  _Row('Priority', AlertsScreen.titleCase(a.severity)),
                   _Row('Read At', a.readAt != null ? df.format(a.readAt!.toLocal()) : 'Unread'),
                   if (a.acknowledgedAt != null)
                     _Row('Acknowledged', df.format(a.acknowledgedAt!.toLocal())),

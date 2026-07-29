@@ -1,0 +1,717 @@
+meta:
+  title: SheikhGo AI Fleet Operations Platform
+  subtitle: The Next Generation Intelligent Fleet Ecosystem
+  company: Sheikh Travel Group
+  product: SheikhGo
+  year: "2026"
+
+slides:
+  - id: 1
+    layout: cover
+    title: SheikhGo AI Fleet Operations Platform
+    subtitle: The Next Generation Intelligent Fleet Ecosystem
+    bullets:
+      - Enterprise · Government · Investors · Logistics · Fleet Operators
+    notes: Open with brand, not features.
+
+  - id: 2
+    layout: two_column
+    title: Company Vision
+    badge: Available
+    left_title: Where we are
+    left:
+      - Multi-tenant fleet and travel operations ERP
+      - Live GPS, maintenance, notifications, compliance
+      - Web command center plus mobile field apps
+      - Production-ready for regional operators
+    right_title: Where we are going
+    right:
+      - AI-augmented decisioning across the fleet
+      - Predictive maintenance and fleet health
+      - Copilot for dispatch, managers, and executives
+      - Regional expansion with Vision 2030 ambition
+    notes: Keep Available vs Vision crisp for tender credibility.
+
+  - id: 3
+    layout: bullets
+    title: Executive Summary
+    badge: Available
+    bullets:
+      - SheikhGo is a multi-tenant Fleet and Travel Operations Platform — not a single-purpose GPS tool
+      - One system for office (Angular ERP) and road (Flutter apps) on a shared ASP.NET Core API
+      - Core pillars live today — fleet, GPS (Traccar), maintenance, bookings, notifications, security and audit
+      - AI layer is the next-generation differentiator — Settings and Copilot hooks exist; full engines are Vision
+      - Built for enterprise tenants, government-grade control, and regional scale
+    kpis:
+      - { label: Control surfaces, value: Web + Mobile }
+      - { label: Tenancy, value: Shared-schema }
+      - { label: Realtime, value: SignalR }
+      - { label: AI maturity, value: Vision path }
+
+  - id: 4
+    layout: two_column
+    title: Mission & Vision
+    left_title: Mission
+    left:
+      - Give fleet and travel operators a single intelligent system for vehicles, drivers, trips, and customers
+      - Replace WhatsApp, spreadsheets, and fragmented GPS with structured, auditable operations
+      - Deliver realtime visibility from the office to the road
+    right_title: Vision
+    right:
+      - Become the leading AI Fleet Operations Platform for South Asia, the GCC, and emerging markets
+      - Turn every notification, trip, and maintenance event into actionable intelligence
+      - Power safer fleets, lower cost-per-km, and executive-grade decision support
+
+  - id: 5
+    layout: bullets
+    title: Why SheikhGo
+    badge: Available
+    bullets:
+      - Unified platform — fleet, travel, GPS, maintenance, and notifications in one tenant
+      - Role-first design — Super Admin, Tenant Admin, Fleet, Dispatcher, Driver Manager, Driver
+      - Enterprise foundations — JWT permissions, audit center, security settings, multi-branch scoping
+      - Field-ready mobile — trips, GPS, attendance, fuel, inspections, SOS, offline sync
+      - Honest AI roadmap — evolve Notification Center and dashboards into a true intelligence layer
+      - Regional fit — EN/AR readiness and operator workflows for Pakistan and GCC markets
+
+  - id: 6
+    layout: kpi_cards
+    title: Global Fleet Management Market
+    badge: Indicative
+    kpis:
+      - { label: Market size (2025), value: "$24–45B", hint: Scope varies by report }
+      - { label: Typical CAGR, value: "11–19%", hint: Through early 2030s }
+      - { label: Software (2025), value: "~$32B", hint: Fleet mgmt software }
+      - { label: Key drivers, value: Telematics · AI, hint: Cost and compliance }
+    bullets:
+      - Growth driven by telematics, IoT, fuel optimization, and regulatory compliance
+      - Asia-Pacific among the fastest-growing regions
+      - Software platforms capturing share from hardware-only tracking
+    footnote: "Indicative ranges — TBRC/GII, Data Bridge, Fortune Business Insights, Maximize, Research Nester (2025–2026)."
+
+  - id: 7
+    layout: two_column
+    title: Middle East & GCC Opportunity
+    badge: Indicative
+    left_title: Regional signals
+    left:
+      - MEA fleet management software ~$1.9B (2025, indicative)
+      - GCC software market ~$0.77B (2025, indicative)
+      - Government tracking mandates and smart-city logistics programs
+      - Large oil and gas, construction, and logistics fleets
+    right_title: Why it matters for SheikhGo
+    right:
+      - Demand for multi-tenant SaaS with strong admin and audit
+      - Preference for platforms that unify ops — not GPS alone
+      - Arabic-ready UX and regional operator workflows
+      - Partner opportunity with tracker manufacturers and telcos
+    footnote: "Indicative — Fortune Business Insights MEA/GCC software estimates (2025)."
+
+  - id: 8
+    layout: bullets
+    title: Pakistan Market Opportunity
+    badge: Indicative
+    bullets:
+      - Rapid growth in logistics, fleet rental, corporate transport, and intercity travel operators
+      - Fragmented tooling today — WhatsApp dispatch, Excel compliance, basic GPS portals
+      - Strong appetite for integrated ERP-style fleet systems with local support
+      - Opportunity to become the default operations platform for mid-to-large fleets
+      - Natural beachhead before GCC and wider South Asia expansion
+    kpis:
+      - { label: Buyer pain, value: Fragmentation }
+      - { label: Buying trigger, value: Scale & compliance }
+      - { label: SheikhGo fit, value: All-in-one ops }
+      - { label: Go-to-market, value: Pilot → expand }
+
+  - id: 9
+    layout: bullets
+    title: Digital Transformation in Transportation
+    bullets:
+      - Operators moving from voice/chat dispatch to structured bookings and trip lifecycle
+      - Digitization of fuel, inspections, attendance, and document compliance
+      - Realtime maps and geofences becoming table stakes for enterprise buyers
+      - Auditability and role-based access required for corporate and government tenders
+      - Mobile-first field execution expected alongside a web command center
+
+  - id: 10
+    layout: two_column
+    title: AI in Fleet Management
+    badge: Vision
+    left_title: Industry direction
+    left:
+      - Alert fatigue → prioritized, contextual notifications
+      - Reactive maintenance → predictive work orders
+      - Static reports → recommendation-driven ops
+      - Manual dispatch → assisted assignment and ETA intelligence
+    right_title: SheikhGo posture
+    right:
+      - Notification Center shipped today (Available)
+      - AI Settings and Copilot client hooks (Partial)
+      - Decision Engine, Health Score, Predictive Maintenance (Vision)
+      - Learning loop across fleet events (Vision)
+
+  - id: 11
+    layout: bullets
+    title: Business Opportunity
+    bullets:
+      - Sell a platform subscription — not a tracker SKU
+      - Expand wallet share with modules — GPS, maintenance, travel, AI add-ons
+      - Serve operators, rental companies, corporates, and government fleets
+      - Partner with GPS manufacturers as the intelligence layer above hardware
+      - Build durable SaaS revenue with multi-tenant deployment and professional services
+
+  - id: 12
+    layout: comparison
+    title: Current Industry Problems
+    left_title: Typical today
+    left:
+      - WhatsApp / phone dispatch
+      - Spreadsheet vehicle and driver lists
+      - Standalone GPS portals
+      - Paper fuel and inspection records
+      - Weak change history
+      - Alerts without prioritization
+    right_title: With SheikhGo
+    right:
+      - Structured bookings and trip lifecycle
+      - Vehicles and drivers in ERP
+      - Live map and geofences in the same system
+      - Digital evidence with photos and audit
+      - Security and Audit Center
+      - Notification Center with retention and channels
+
+  - id: 13
+    layout: bullets
+    title: Notification Overload
+    badge: Available
+    bullets:
+      - GPS systems generate high volumes of speed, geofence, ignition, and device alerts
+      - Without priority and context, managers ignore or mute channels
+      - Critical safety events get buried under routine noise
+      - SheikhGo ships a Notification Center with preferences, templates, and lifecycle
+      - Vision — AI Smart Notification Engine that scores, suppresses, and escalates intelligently
+
+  - id: 14
+    layout: kpi_cards
+    title: Rising Fleet Costs
+    kpis:
+      - { label: Fuel waste, value: Route & idle loss }
+      - { label: Downtime, value: Unplanned repair }
+      - { label: Compliance fines, value: Docs & licenses }
+      - { label: Labor leakage, value: Manual process }
+    bullets:
+      - Fuel, maintenance, insurance, and idle time dominate cost-per-km
+      - Lack of unified data makes savings hard to prove to finance
+      - Predictive and KPI-driven ops (Vision) amplify savings already available from visibility today
+
+  - id: 15
+    layout: bullets
+    title: Manual Operations
+    bullets:
+      - Dispatch, attendance, fuel logging, and compliance still rely on human chasing
+      - Errors and disputes increase without digital evidence
+      - Scaling fleet size without process redesign multiplies chaos
+      - SheikhGo digitizes core workflows on web and mobile — foundation for automation
+
+  - id: 16
+    layout: bullets
+    title: Lack of AI
+    badge: Vision
+    bullets:
+      - Most regional GPS tools stop at maps and raw alerts
+      - Few platforms connect maintenance, drivers, trips, and notifications into one intelligence model
+      - Executives lack a fleet health score and prioritized recommendations
+      - SheikhGo AI roadmap closes this gap on top of a real operations backbone
+
+  - id: 17
+    layout: comparison
+    title: Competitive Gaps
+    left_title: Category leaders
+    left:
+      - Samsara / Motive — strong telematics, global enterprise
+      - Verizon Connect — mature North American footprint
+      - Fleetio — maintenance-centric software
+      - Traccar — open GPS engine (hardware-agnostic)
+    right_title: White space for SheikhGo
+    right:
+      - Unified travel, fleet, bookings, and ERP admin
+      - Multi-tenant platform built for regional operators
+      - Government-friendly audit and RBAC depth
+      - AI layer as product story — not bolt-on analytics
+      - Partner-ready above Traccar and device OEMs
+
+  - id: 18
+    layout: diagram
+    diagram: platform_overview
+    title: Platform Overview
+    badge: Available
+    bullets:
+      - ERP web command center (Angular)
+      - ASP.NET Core API — MediatR, Dapper, SQL Server
+      - Flutter apps — Driver and Fleet field execution
+      - Traccar GPS · SignalR realtime · optional Redis
+
+  - id: 19
+    layout: bullets
+    title: Fleet Management
+    badge: Available
+    bullets:
+      - Vehicle inventory, register wizard, documents, GPS binding
+      - Driver inventory, licenses, assignments, incidents
+      - Fleet dashboard with KPIs and attention widgets
+      - Compliance and inspections foundation
+      - Branch and department scoping for multi-site operators
+
+  - id: 20
+    layout: bullets
+    title: Vehicle Rental
+    badge: Available
+    bullets:
+      - Vehicle lifecycle supports rental and ops fleets in one register
+      - Assignments and availability visible to dispatch and managers
+      - Document and compliance tracking for rental readiness
+      - Extensible toward dedicated rental commercial modules
+    notes: Capability within fleet register — not a consumer rental marketplace.
+
+  - id: 21
+    layout: bullets
+    title: Travel & Transport
+    badge: Available
+    bullets:
+      - Customers, routes, bookings, and payments
+      - Pricing flows and invoice-related UI
+      - Trip lifecycle connected to vehicles and drivers
+      - Fuel logs and driver allowance rules
+      - Reports export patterns (Excel / PDF)
+
+  - id: 22
+    layout: bullets
+    title: GPS Tracking
+    badge: Available
+    bullets:
+      - Live map with vehicle focus and history playback
+      - Trip analytics, filters, KPIs, export, and route replay
+      - Device register, install, transfer, and commands
+      - Geofences with map editing
+      - Alerts and GPS analytics / report schedules
+      - Traccar integration with adaptive sync and SignalR-primary clients
+
+  - id: 23
+    layout: bullets
+    title: Driver Management
+    badge: Available
+    bullets:
+      - Driver profiles, licenses, documents, and status
+      - Assignment board / calendar to vehicles
+      - Mobile driver app — trips, attendance, fuel, inspections, SOS
+      - Driver Manager hub — ranking, performance, violations
+      - EN/AR i18n and offline outbox for field reliability
+
+  - id: 24
+    layout: bullets
+    title: Maintenance
+    badge: Available
+    bullets:
+      - Service requests, work orders, schedules, history
+      - Spare parts inventory — stock, issue, transfer
+      - Workshops and vendors
+      - Maintenance reports catalog, preview, and schedule dialogs
+      - Foundation for predictive maintenance (Vision)
+
+  - id: 25
+    layout: mockup
+    mockup: notifications
+    title: Notification Center
+    badge: Available
+    bullets:
+      - In-app inbox with tabs, compose, preferences, templates
+      - SignalR realtime delivery
+      - Email channel (SMTP) and dispatch worker
+      - Retention, archive, and soft-delete lifecycle
+      - SMS / Push / WhatsApp — config-gated / evolving
+
+  - id: 26
+    layout: diagram
+    diagram: ai_notification_flow
+    title: AI Smart Notification Engine
+    badge: Vision
+    bullets:
+      - Ingest events from GPS, maintenance, trips, and security
+      - Score severity, suppress duplicates, escalate by role
+      - Prefer channels by preference and urgency
+      - Built atop today’s Notification Center
+
+  - id: 27
+    layout: diagram
+    diagram: ai_decision_engine
+    title: AI Decision Engine
+    badge: Vision
+    bullets:
+      - Correlate fleet signals into recommended actions
+      - Suggest dispatch, maintenance, and compliance next steps
+      - Explainability for managers and auditors
+      - Human-in-the-loop approvals
+
+  - id: 28
+    layout: bullets
+    title: Fleet Intelligence
+    badge: Vision
+    bullets:
+      - Utilization, idle, route efficiency, and cost signals in one model
+      - Attention lists for vehicles needing intervention
+      - Cross-module insights — GPS × maintenance × trips
+      - Feeds executive dashboards and Copilot
+
+  - id: 29
+    layout: bullets
+    title: Driver Intelligence
+    badge: Vision
+    bullets:
+      - Safety and performance scoring from trips and violations
+      - Coaching prompts for Driver Managers
+      - License and compliance risk forecasting
+      - Fair, transparent metrics for operations
+
+  - id: 30
+    layout: diagram
+    diagram: predictive_maintenance
+    title: Predictive Maintenance
+    badge: Vision
+    bullets:
+      - Combine service history, odometer, and fault patterns
+      - Forecast work orders before failures
+      - Optimize parts and workshop load
+      - Extends the shipped maintenance module
+
+  - id: 31
+    layout: diagram
+    diagram: fleet_health
+    title: Fleet Health Score
+    badge: Vision
+    bullets:
+      - Single 0–100 score per vehicle and fleet
+      - Blends compliance, maintenance, GPS health, and utilization
+      - Partial health widgets exist on mobile Command Dashboard today
+      - Full scoring engine remains Vision
+
+  - id: 32
+    layout: mockup
+    mockup: copilot
+    title: AI Copilot
+    badge: Vision
+    bullets:
+      - Conversational assistant for fleet questions and next actions
+      - Flutter AI chat client and ERP AI hooks already present (Partial)
+      - Grounded answers from tenant fleet data — not generic chat
+      - Role-aware — dispatcher vs executive vs driver manager
+
+  - id: 33
+    layout: mockup
+    mockup: ai_center
+    title: AI Management Center
+    badge: Vision
+    bullets:
+      - Configure providers, capabilities, and guardrails (Settings → AI exists)
+      - Monitor model usage, recommendation acceptance, and alert quality
+      - Tenant-level enablement for enterprise control
+      - Audit trail for AI-assisted decisions
+
+  - id: 34
+    layout: diagram
+    diagram: ai_learning
+    title: AI Learning Engine
+    badge: Vision
+    bullets:
+      - Feedback loop from accepted / rejected recommendations
+      - Per-tenant learning with privacy boundaries
+      - Improves notification scoring and maintenance forecasts over time
+      - Continuous evaluation for enterprise trust
+
+  - id: 35
+    layout: roadmap
+    title: AI Roadmap
+    badge: Vision
+    phases:
+      - name: Now
+        items: [Notification Center, AI Settings, Copilot client hooks, Dashboard AI blurbs]
+      - name: Next
+        items: [Smart notification scoring, Health score v1, Copilot grounded Q&A, Maintenance risk flags]
+      - name: Later
+        items: [Decision Engine, Predictive WO generation, Learning loop, Executive AI briefings]
+
+  - id: 36
+    layout: diagram
+    diagram: system_architecture
+    title: System Architecture
+    badge: Available
+    bullets:
+      - Users → SheikhGo ERP / Mobile → HTTPS API
+      - SQL Server · Redis (optional, fail-open) · Traccar · SMTP / channels
+      - SignalR for notifications and GPS-related realtime
+
+  - id: 37
+    layout: diagram
+    diagram: clean_architecture
+    title: Clean Architecture (.NET)
+    badge: Available
+    bullets:
+      - ASP.NET Core API with MediatR handlers
+      - Dapper data access and clear module boundaries
+      - Domain-aligned fleet, GPS, notifications, platform admin
+      - Documented coding standards and PR quality bars
+
+  - id: 38
+    layout: roadmap
+    title: Microservices Roadmap
+    badge: Vision
+    phases:
+      - name: Today
+        items: [Modular monolith API, Clear module boundaries, Shared tenancy and auth]
+      - name: Evolve
+        items: [Extract high-load GPS ingest, Independent notification workers, Bounded context services]
+      - name: Scale
+        items: [Azure containers, Independent deploy cadence, Event-driven integration]
+
+  - id: 39
+    layout: diagram
+    diagram: azure
+    title: Azure Deployment
+    badge: Available
+    bullets:
+      - Cloud-ready .NET stack for App Service / containers
+      - SQL, Redis, storage, and Key Vault patterns
+      - Environment-based configuration for UAT and production
+      - Path to sovereign / government cloud placements
+
+  - id: 40
+    layout: bullets
+    title: Security Architecture
+    badge: Available
+    bullets:
+      - JWT authentication with fine-grained permissions
+      - Security Center — password age, lockout, session idle, audit level
+      - Audit Center — searchable events, retention, CSV export
+      - Tenant isolation on shared-schema TenantId model
+      - Role templates for platform and fleet personas
+
+  - id: 41
+    layout: diagram
+    diagram: multi_tenant
+    title: Multi-Tenant Design
+    badge: Available
+    bullets:
+      - Shared-schema multi-tenancy with TenantId isolation
+      - Tenant provisioning — profile, branding, billing fields, logo/slug
+      - Modules, features, and subscriptions at platform level
+      - Branch and department scoping inside a tenant
+
+  - id: 42
+    layout: diagram
+    diagram: notification_arch
+    title: Notification Architecture
+    badge: Available
+    bullets:
+      - Compose → preferences → dispatch worker → channels
+      - SignalR hub for in-app realtime
+      - Email via SMTP; SMS/Push/WhatsApp gated
+      - Retention policy and cleanup job
+      - Vision path into AI Smart Notification Engine
+
+  - id: 43
+    layout: diagram
+    diagram: mobile_arch
+    title: Mobile Architecture
+    badge: Available
+    bullets:
+      - Flutter Driver and Fleet apps on shared production API
+      - JWT refresh, RBAC shells, role-first navigation
+      - Hive offline outbox, SignalR, FCM, biometric lock
+      - EN/AR i18n; store release assets and checklists
+
+  - id: 44
+    layout: mockup
+    mockup: analytics
+    title: Analytics Dashboard
+    badge: Available
+    bullets:
+      - Fleet, GPS, trip, and maintenance analytics surfaces
+      - Filters, KPIs, and export patterns
+      - Report schedules for recurring stakeholder packs
+
+  - id: 45
+    layout: mockup
+    mockup: kpi
+    title: KPI Dashboard
+    badge: Available
+    bullets:
+      - Vehicles active, trips, alerts, maintenance backlog
+      - Role-based widgets on web and mobile Command Dashboard
+      - Attention lists for vehicles needing action
+
+  - id: 46
+    layout: bullets
+    title: Cost Optimization
+    bullets:
+      - Visibility into fuel, idle, and maintenance spend drivers
+      - Reduce waste with trip analytics and geofence discipline
+      - Digitize inspections and documents to cut compliance risk
+      - Vision AI recommendations prioritize highest-ROI interventions
+
+  - id: 47
+    layout: bullets
+    title: Executive Reports
+    badge: Available
+    bullets:
+      - Excel / PDF export patterns across fleet and ops modules
+      - Scheduled GPS and maintenance report packs
+      - Audit exports for governance and tenders
+      - Board-ready narrative — pair with flagship KPIs
+
+  - id: 48
+    layout: bullets
+    title: AI Recommendations
+    badge: Vision
+    bullets:
+      - Ranked actions — maintain, reassign, coach, investigate alert
+      - Tied to Fleet Health Score and notification priority
+      - Acceptance tracking feeds the Learning Engine
+      - Partial recommendation surfaces exist on dashboards today
+
+  - id: 49
+    layout: bullets
+    title: Pricing Strategy
+    badge: Indicative
+    bullets:
+      - Tiered SaaS by fleet size and module pack (Core Ops · GPS · Maintenance · AI)
+      - Per-vehicle / per-tenant hybrid pricing for mid-market and enterprise
+      - Implementation and training professional services
+      - Optional premium support and dedicated environments
+    notes: Keep numbers indicative unless commercial team supplies a rate card.
+
+  - id: 50
+    layout: bullets
+    title: Customer Segments
+    bullets:
+      - Logistics and distribution fleets
+      - Travel and transport operators
+      - Vehicle rental companies
+      - Corporate and industrial fleets
+      - Government and municipal transport
+      - GPS tracker manufacturers seeking a software layer
+
+  - id: 51
+    layout: kpi_cards
+    title: Revenue Model
+    kpis:
+      - { label: Recurring, value: SaaS seats }
+      - { label: Expansion, value: Modules }
+      - { label: Services, value: Implement }
+      - { label: Partners, value: OEM / telco }
+    bullets:
+      - Land with Core Ops + GPS; expand into Maintenance and AI Vision packs
+      - Multi-year enterprise agreements for government and large logistics
+      - Channel revenue with device OEMs and system integrators
+
+  - id: 52
+    layout: comparison
+    title: Competitive Comparison
+    left_title: Global telematics
+    left:
+      - Deep hardware and camera ecosystems
+      - Strong in NA / EU enterprises
+      - Higher cost and complexity
+      - Less travel/booking ERP depth
+    right_title: SheikhGo advantage
+    right:
+      - Unified fleet and travel operations ERP
+      - Multi-tenant regional SaaS design
+      - Traccar-friendly / OEM-agnostic GPS layer
+      - Honest AI roadmap on a shipped backbone
+      - Fit for Pakistan → GCC expansion
+
+  - id: 53
+    layout: bullets
+    title: Why SheikhGo Wins
+    bullets:
+      - Category reframe — AI Fleet Operations Platform, not GPS software
+      - Breadth — admin, ops, GPS, maintenance, notifications, mobile
+      - Trust — audit, RBAC, security settings for enterprise buyers
+      - Path — Available today, Vision AI as credible roadmap
+      - Region — built for operators who need local fit and full ops
+
+  - id: 54
+    layout: kpi_cards
+    title: ROI for Customers
+    badge: Indicative
+    kpis:
+      - { label: Alert noise, value: "↓ 30–50%", hint: With smart priority (Vision) }
+      - { label: Fuel & idle, value: "↓ 5–15%", hint: Via visibility and discipline }
+      - { label: Admin time, value: "↓ 20–40%", hint: Digitized workflows }
+      - { label: Downtime, value: "↓ targeted", hint: Predictive path (Vision) }
+    bullets:
+      - ROI combines Available process gains with Vision intelligence upside
+      - Pilot measurement plan — baseline 30 days, then module expansion
+    footnote: "Illustrative ranges for business cases — validate per fleet during discovery."
+
+  - id: 55
+    layout: bullets
+    title: Vision 2030
+    badge: Vision
+    bullets:
+      - SheikhGo as the default intelligent fleet OS for regional operators
+      - AI Copilot embedded in every manager and executive workflow
+      - Predictive maintenance and health scores as standard operating practice
+      - Deep OEM and government partnerships across South Asia and the GCC
+
+  - id: 56
+    layout: bullets
+    title: Global Expansion
+    badge: Vision
+    bullets:
+      - Phase 1 — deepen Pakistan reference fleets
+      - Phase 2 — GCC enterprise and government programs
+      - Phase 3 — wider emerging markets with partner-led delivery
+      - Localization, compliance packs, and sovereign cloud options
+
+  - id: 57
+    layout: diagram
+    diagram: ai_ecosystem
+    title: AI Ecosystem
+    badge: Vision
+    bullets:
+      - Event fabric from GPS, ops, maintenance, and mobile
+      - Decision, notification, and learning services
+      - Copilot and Management Center as control planes
+      - Partner models and industry datasets over time
+
+  - id: 58
+    layout: roadmap
+    title: Product Roadmap
+    badge: Vision
+    phases:
+      - name: "2026"
+        items: [Harden Available platform, Smart notifications v1, Health score v1, Copilot grounded answers]
+      - name: "2027"
+        items: [Predictive maintenance, Decision Engine, Deeper Flutter role shells, Partner OEM packs]
+      - name: "2028+"
+        items: [Learning Engine at scale, Microservices extraction, GCC government suites, Ecosystem APIs]
+
+  - id: 59
+    layout: bullets
+    title: Investment Opportunity
+    badge: Vision
+    bullets:
+      - Category-defining product in a high-growth fleet software market
+      - Shipped multi-tenant platform reduces build risk vs pure greenfield AI
+      - Clear expansion path — modules, AI packs, geography, partners
+      - Use of funds — AI engines, enterprise sales, GCC GTM, scale engineering
+
+  - id: 60
+    layout: closing
+    title: Thank You
+    subtitle: SheikhGo AI Fleet Operations Platform
+    bullets:
+      - Sheikh Travel Group
+      - Run the office on the web. Run the road on mobile. Grow with Vision AI.
+      - Next step — discovery workshop · pilot tenant · executive briefing
+    notes: Close with a clear ask — pilot or investment conversation.

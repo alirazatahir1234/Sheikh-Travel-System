@@ -6,10 +6,17 @@ class ErrorHandler {
   static AppException fromDio(DioException e) {
     switch (e.type) {
       case DioExceptionType.connectionError:
+        final message = e.message?.toLowerCase() ?? '';
+        if (message.contains('connection refused')) {
+          return const NetworkException(
+            'Server unavailable right now. Please try again shortly.',
+          );
+        }
+        return const NetworkException();
       case DioExceptionType.connectionTimeout:
       case DioExceptionType.receiveTimeout:
       case DioExceptionType.sendTimeout:
-        return const NetworkException();
+        return const NetworkException('Request timed out. Please try again.');
 
       case DioExceptionType.badResponse:
         final status = e.response?.statusCode;
@@ -18,6 +25,9 @@ class ErrorHandler {
           return const ForbiddenException();
         }
         if (status == 404) return const NotFoundException();
+        if (status == 408) {
+          return const NetworkException('Request timed out. Please try again.');
+        }
         if (status == 400 || status == 422) {
           final body = e.response?.data;
           if (body is Map) {
@@ -25,12 +35,15 @@ class ErrorHandler {
             final errors = body['errors'];
             if (errors is Map && errors.isNotEmpty) {
               final first = errors.values.first;
-              final detail = first is List ? first.first?.toString() : first?.toString();
+              final detail =
+                  first is List ? first.first?.toString() : first?.toString();
               if (detail != null) return ValidationException(detail);
             }
             if (msg != null) return ValidationException(msg.toString());
           }
-          return const ValidationException('Invalid request. Please check your input.');
+          return const ValidationException(
+            'Invalid request. Please check your input.',
+          );
         }
         if (status != null && status >= 500) return const ServerException();
         return UnknownException('Error $status');

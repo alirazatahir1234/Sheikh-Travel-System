@@ -3,11 +3,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../core/constants/app_theme.dart';
+import '../../../features/auth/data/auth_repository.dart';
+import '../../../features/auth/domain/auth_models.dart';
 import '../data/fleet_api.dart';
 import '../domain/fleet_models.dart';
+import '../domain/fleet_status.dart';
 import 'fleet_hub_notifier.dart';
+import 'vehicle_commands_sheet.dart';
 import 'widgets/fleet_kpi_strip.dart';
+import 'widgets/geofence_distance.dart';
+import 'widgets/vehicle_comms_buttons.dart';
 
 class FleetLiveMapScreen extends ConsumerStatefulWidget {
   const FleetLiveMapScreen({super.key});
@@ -20,7 +27,12 @@ class _FleetLiveMapScreenState extends ConsumerState<FleetLiveMapScreen> {
   GoogleMapController? _map;
   int? _selectedId;
   bool _fitted = false;
+  bool _follow = false;
   List<GpsGeofenceItem> _geofences = const [];
+  Timer? _refreshTimer;
+  DateTime? _lastRefreshOk;
+  MapType _mapType = MapType.normal;
+  bool _sheetExpanded = false;
 
   static const _defaultCamera = CameraPosition(
     target: LatLng(24.8607, 67.0011), // Karachi default
@@ -31,6 +43,12 @@ class _FleetLiveMapScreenState extends ConsumerState<FleetLiveMapScreen> {
   void initState() {
     super.initState();
     _loadGeofences();
+    _refreshTimer = Timer.periodic(const Duration(seconds: 20), (_) {
+      if (!mounted) return;
+      ref.read(fleetHubProvider.notifier).refresh().then((_) {
+        if (mounted) setState(() => _lastRefreshOk = DateTime.now());
+      });
+    });
   }
 
   Future<void> _loadGeofences() async {
@@ -59,6 +77,7 @@ class _FleetLiveMapScreenState extends ConsumerState<FleetLiveMapScreen> {
 
   @override
   void dispose() {
+    _refreshTimer?.cancel();
     _map?.dispose();
     super.dispose();
   }
@@ -94,6 +113,15 @@ class _FleetLiveMapScreenState extends ConsumerState<FleetLiveMapScreen> {
         FleetTrackStatus.offline => BitmapDescriptor.hueViolet,
         FleetTrackStatus.neverSeen => BitmapDescriptor.hueRose,
       };
+
+  Color _connectionColor() {
+    final t = _lastRefreshOk;
+    if (t == null) return AppColors.textMuted;
+    final age = DateTime.now().difference(t);
+    if (age.inSeconds < 45) return AppColors.success;
+    if (age.inMinutes < 2) return AppColors.warning;
+    return AppColors.error;
+  }
 
   Future<void> _fitBounds(List<FleetVehicleLocation> locations) async {
     final map = _map;
@@ -131,20 +159,81 @@ class _FleetLiveMapScreenState extends ConsumerState<FleetLiveMapScreen> {
     _fitted = true;
   }
 
+  Future<void> _openExternalNav(FleetVehicleLocation v) async {
+    if (!v.hasMapCoords) return;
+    final uri = Uri.parse(
+      'https://www.google.com/maps/search/?api=1&query=${v.latitude},${v.longitude}',
+    );
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
+  Future<void> _searchVehicle(List<FleetVehicleLocation> visible) async {
+    final picked = await showDialog<int>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        title: const Text('Find vehicle'),
+        children: visible
+            .map(
+              (v) => SimpleDialogOption(
+                onPressed: () => Navigator.pop(ctx, v.vehicleId),
+                child: Text('${v.vehicleName} · ${v.registrationNumber}'),
+              ),
+            )
+            .toList(),
+      ),
+    );
+    if (picked != null) {
+      setState(() {
+        _selectedId = picked;
+        _follow = true;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final async = ref.watch(fleetHubProvider);
+    final session = ref.watch(fleetSessionProvider);
+    final canCommands = session != null &&
+        session.hasAnyPermission(const [
+          FleetPermissions.gpsCommandSend,
+          FleetPermissions.gpsCommandView,
+        ]);
 
     return Scaffold(
       backgroundColor: AppColors.surface,
       appBar: AppBar(
-        title: const Text('Fleet live map'),
+        title: Row(
+          children: [
+            const Text('Live map'),
+            const SizedBox(width: 8),
+            Icon(
+              Icons.circle,
+              size: 10,
+              color: _connectionColor(),
+            ),
+          ],
+        ),
         actions: [
+          IconButton(
+            tooltip: _follow ? 'Stop follow' : 'Follow vehicle',
+            icon: Icon(
+              _follow ? Icons.gps_fixed : Icons.gps_not_fixed,
+              color: _follow ? AppColors.primary : null,
+            ),
+            onPressed: _selectedId == null
+                ? null
+                : () => setState(() => _follow = !_follow),
+          ),
           IconButton(
             icon: const Icon(Icons.refresh_rounded),
             onPressed: () {
               _fitted = false;
-              ref.read(fleetHubProvider.notifier).refresh();
+              ref.read(fleetHubProvider.notifier).refresh().then((_) {
+                if (mounted) setState(() => _lastRefreshOk = DateTime.now());
+              });
             },
           ),
         ],
@@ -158,6 +247,17 @@ class _FleetLiveMapScreenState extends ConsumerState<FleetLiveMapScreen> {
           final selected = _selectedId == null
               ? null
               : visible.where((v) => v.vehicleId == _selectedId).firstOrNull;
+
+          if (_follow && selected?.hasMapCoords == true) {
+            unawaited(
+              _map?.animateCamera(
+                CameraUpdate.newLatLngZoom(
+                  LatLng(selected!.latitude!, selected.longitude!),
+                  15,
+                ),
+              ),
+            );
+          }
 
           return Column(
             children: [
@@ -178,6 +278,7 @@ class _FleetLiveMapScreenState extends ConsumerState<FleetLiveMapScreen> {
                       initialCameraPosition: _defaultCamera,
                       markers: markers,
                       circles: _geofenceCircles(),
+                      mapType: _mapType,
                       myLocationButtonEnabled: false,
                       zoomControlsEnabled: false,
                       mapToolbarEnabled: false,
@@ -200,6 +301,42 @@ class _FleetLiveMapScreenState extends ConsumerState<FleetLiveMapScreen> {
                           ),
                         ),
                       ),
+                    Positioned(
+                      top: 12,
+                      right: 12,
+                      child: Column(
+                        children: [
+                          _MapFab(
+                            icon: Icons.layers_outlined,
+                            tooltip: 'Map type',
+                            onPressed: () => setState(() {
+                              _mapType = _mapType == MapType.normal
+                                  ? MapType.hybrid
+                                  : MapType.normal;
+                            }),
+                          ),
+                          const SizedBox(height: 8),
+                          _MapFab(
+                            icon: Icons.search_rounded,
+                            tooltip: 'Search vehicle',
+                            onPressed: () => _searchVehicle(visible),
+                          ),
+                          const SizedBox(height: 8),
+                          _MapFab(
+                            icon: Icons.refresh_rounded,
+                            tooltip: 'Refresh',
+                            onPressed: () {
+                              _fitted = false;
+                              ref.read(fleetHubProvider.notifier).refresh().then((_) {
+                                if (mounted) {
+                                  setState(() => _lastRefreshOk = DateTime.now());
+                                }
+                              });
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
                     if (selected != null)
                       Positioned(
                         left: 12,
@@ -207,9 +344,28 @@ class _FleetLiveMapScreenState extends ConsumerState<FleetLiveMapScreen> {
                         bottom: 16,
                         child: _SelectedCard(
                           vehicle: selected,
+                          geofences: _geofences,
+                          follow: _follow,
+                          expanded: _sheetExpanded,
+                          canCommands: canCommands,
+                          onExpandToggle: () =>
+                              setState(() => _sheetExpanded = !_sheetExpanded),
+                          onFollowToggle: () =>
+                              setState(() => _follow = !_follow),
+                          onNavigate: () => _openExternalNav(selected),
+                          onCommands: canCommands
+                              ? () => showVehicleCommandsSheet(
+                                    context,
+                                    selected.vehicleId,
+                                  )
+                              : null,
                           onOpen: () => context
                               .push('/fleet/vehicles/${selected.vehicleId}'),
-                          onClose: () => setState(() => _selectedId = null),
+                          onClose: () => setState(() {
+                            _selectedId = null;
+                            _follow = false;
+                            _sheetExpanded = false;
+                          }),
                         ),
                       ),
                   ],
@@ -223,67 +379,239 @@ class _FleetLiveMapScreenState extends ConsumerState<FleetLiveMapScreen> {
   }
 }
 
+class _MapFab extends StatelessWidget {
+  const _MapFab({
+    required this.icon,
+    required this.tooltip,
+    required this.onPressed,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white,
+      elevation: 3,
+      shape: const CircleBorder(),
+      child: IconButton(
+        tooltip: tooltip,
+        icon: Icon(icon, size: 22),
+        onPressed: onPressed,
+      ),
+    );
+  }
+}
+
 class _SelectedCard extends StatelessWidget {
   const _SelectedCard({
     required this.vehicle,
+    required this.geofences,
     required this.onOpen,
     required this.onClose,
+    required this.follow,
+    required this.onFollowToggle,
+    required this.expanded,
+    required this.onExpandToggle,
+    required this.onNavigate,
+    required this.canCommands,
+    this.onCommands,
   });
 
   final FleetVehicleLocation vehicle;
+  final List<GpsGeofenceItem> geofences;
   final VoidCallback onOpen;
   final VoidCallback onClose;
+  final bool follow;
+  final VoidCallback onFollowToggle;
+  final bool expanded;
+  final VoidCallback onExpandToggle;
+  final VoidCallback onNavigate;
+  final bool canCommands;
+  final VoidCallback? onCommands;
 
   @override
   Widget build(BuildContext context) {
     final color = fleetStatusColor(vehicle.status);
+    NearestGeofenceInfo? nearest;
+    if (vehicle.hasMapCoords) {
+      nearest = nearestCircleGeofence(
+        lat: vehicle.latitude!,
+        lng: vehicle.longitude!,
+        fences: geofences,
+      );
+    }
     return Material(
       elevation: 6,
       borderRadius: BorderRadius.circular(AppRadii.lg),
       color: Colors.white,
       child: Padding(
         padding: const EdgeInsets.all(14),
-        child: Row(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              width: 10,
-              height: 40,
-              decoration: BoxDecoration(
-                color: color,
-                borderRadius: BorderRadius.circular(4),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    vehicle.vehicleName,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 15,
-                    ),
+            Row(
+              children: [
+                Container(
+                  width: 10,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: color,
+                    borderRadius: BorderRadius.circular(4),
                   ),
-                  Text(
-                    '${vehicle.registrationNumber} · ${vehicle.status.label}',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: AppColors.textSecondary,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        vehicle.vehicleName,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 15,
+                        ),
+                      ),
+                      Text(
+                        '${vehicle.registrationNumber} · ${vehicle.status.label} · ${vehicle.speed.toStringAsFixed(0)} km/h',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                      if ((vehicle.driverName ?? '').isNotEmpty)
+                        Text(
+                          'Driver ${vehicle.driverName}',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textMuted,
+                          ),
+                        ),
+                      if (nearest != null)
+                        Text(
+                          nearest.inside
+                              ? 'Inside ${nearest.name}'
+                              : '${nearest.name} · ${nearest.distanceMeters.toStringAsFixed(0)} m away',
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  tooltip: expanded ? 'Collapse' : 'Expand',
+                  onPressed: onExpandToggle,
+                  icon: Icon(
+                    expanded
+                        ? Icons.expand_less_rounded
+                        : Icons.expand_more_rounded,
+                  ),
+                ),
+                IconButton(
+                  tooltip: follow ? 'Stop follow' : 'Follow',
+                  onPressed: onFollowToggle,
+                  icon: Icon(
+                    follow ? Icons.gps_fixed : Icons.gps_not_fixed,
+                    color: follow ? AppColors.primary : AppColors.textMuted,
+                  ),
+                ),
+                IconButton(
+                  onPressed: onClose,
+                  icon: const Icon(Icons.close_rounded),
+                ),
+              ],
+            ),
+            if (expanded) ...[
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  _MiniChip(
+                    label: vehicle.ignition == true ? 'Ignition ON' : 'Ignition OFF',
+                  ),
+                  const SizedBox(width: 6),
+                  _MiniChip(
+                    label: vehicle.hasGps ? 'GPS' : 'No GPS',
+                  ),
+                  if (vehicle.batteryLevel != null) ...[
+                    const SizedBox(width: 6),
+                    _MiniChip(
+                      label: '${vehicle.batteryLevel!.toStringAsFixed(0)}% batt',
+                    ),
+                  ],
+                ],
+              ),
+              const SizedBox(height: 8),
+              VehicleCommsButtons(
+                phone: vehicle.driverPhone,
+                vehicleLabel: vehicle.vehicleName,
+              ),
+            ],
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: onNavigate,
+                    child: const Text('Navigate'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: onOpen,
+                    child: const Text('Details'),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: FilledButton(
+                    onPressed: () => context.push(
+                      '/fleet/vehicles/${vehicle.vehicleId}/history',
+                    ),
+                    child: const Text('Playback'),
+                  ),
+                ),
+                if (canCommands && onCommands != null) ...[
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: onCommands,
+                      child: const Text('Commands'),
                     ),
                   ),
                 ],
-              ),
-            ),
-            TextButton(onPressed: onOpen, child: const Text('Details')),
-            IconButton(
-              onPressed: onClose,
-              icon: const Icon(Icons.close_rounded),
+              ],
             ),
           ],
         ),
       ),
+    );
+  }
+}
+
+class _MiniChip extends StatelessWidget {
+  const _MiniChip({required this.label});
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppRadii.pill),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Text(label, style: const TextStyle(fontSize: 11)),
     );
   }
 }

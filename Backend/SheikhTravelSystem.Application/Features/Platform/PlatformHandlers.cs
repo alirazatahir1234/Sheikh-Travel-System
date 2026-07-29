@@ -282,41 +282,65 @@ public class DeleteDepartmentCommandHandler(IDbConnectionFactory dbFactory, ITen
 public class GetPermissionsQueryHandler(IDbConnectionFactory dbFactory)
     : IRequestHandler<GetPermissionsQuery, ApiResponse<IReadOnlyList<PermissionDto>>>
 {
+    private sealed class PermissionRow
+    {
+        public int Id { get; init; }
+        public string ModuleName { get; init; } = "";
+        public string PermissionCode { get; init; } = "";
+        public string? Description { get; init; }
+        public string? DisplayName { get; init; }
+        public string? Category { get; init; }
+        public int SortOrder { get; init; }
+        public bool Visible { get; init; } = true;
+        public string? Action { get; init; }
+        public string? ModuleKey { get; init; }
+    }
+
     public async Task<ApiResponse<IReadOnlyList<PermissionDto>>> Handle(
         GetPermissionsQuery request, CancellationToken cancellationToken)
     {
         using var connection = dbFactory.CreateConnection();
-        List<PermissionDto> rows;
+        List<PermissionRow> rows;
         try
         {
-            rows = (await connection.QueryAsync<PermissionDto>(new CommandDefinition("""
+            rows = (await connection.QueryAsync<PermissionRow>(new CommandDefinition("""
                 SELECT Id, ModuleName, PermissionCode, Description,
                        COALESCE(DisplayName, PermissionCode) AS DisplayName,
                        Category, COALESCE(SortOrder, 0) AS SortOrder,
-                       COALESCE(Visible, 1) AS Visible, Action, ModuleKey
+                       CONVERT(bit, COALESCE(Visible, 1)) AS Visible, Action, ModuleKey
                 FROM Permissions
                 ORDER BY COALESCE(SortOrder, 0), ModuleName, PermissionCode
                 """, cancellationToken: cancellationToken))).ToList();
         }
         catch
         {
-            rows = (await connection.QueryAsync<PermissionDto>(new CommandDefinition(
-                "SELECT Id, ModuleName, PermissionCode, Description FROM Permissions ORDER BY ModuleName, PermissionCode",
-                cancellationToken: cancellationToken))).ToList();
+            rows = (await connection.QueryAsync<PermissionRow>(new CommandDefinition("""
+                SELECT Id, ModuleName, PermissionCode, Description,
+                       PermissionCode AS DisplayName,
+                       CAST(NULL AS nvarchar(100)) AS Category,
+                       0 AS SortOrder,
+                       CONVERT(bit, 1) AS Visible,
+                       CAST(NULL AS nvarchar(50)) AS Action,
+                       CAST(NULL AS nvarchar(100)) AS ModuleKey
+                FROM Permissions
+                ORDER BY ModuleName, PermissionCode
+                """, cancellationToken: cancellationToken))).ToList();
         }
 
         var enriched = rows.Select(r =>
         {
             var seed = PermissionRegistrySeed.Find(r.PermissionCode);
-            return r with
-            {
-                DisplayName = r.DisplayName ?? seed?.DisplayName ?? PermissionRegistrySeed.DeriveDisplayName(r.PermissionCode),
-                Category = r.Category ?? seed?.Category,
-                SortOrder = r.SortOrder != 0 ? r.SortOrder : (seed?.SortOrder ?? 0),
-                Visible = r.Visible,
-                Action = r.Action ?? seed?.Action ?? PermissionRegistrySeed.DeriveAction(r.PermissionCode),
-                ModuleKey = r.ModuleKey ?? seed?.ModuleKey
-            };
+            return new PermissionDto(
+                r.Id,
+                r.ModuleName,
+                r.PermissionCode,
+                r.Description,
+                DisplayName: r.DisplayName ?? seed?.DisplayName ?? PermissionRegistrySeed.DeriveDisplayName(r.PermissionCode),
+                Category: r.Category ?? seed?.Category,
+                SortOrder: r.SortOrder != 0 ? r.SortOrder : (seed?.SortOrder ?? 0),
+                Visible: r.Visible,
+                Action: r.Action ?? seed?.Action ?? PermissionRegistrySeed.DeriveAction(r.PermissionCode),
+                ModuleKey: r.ModuleKey ?? seed?.ModuleKey);
         });
 
         IEnumerable<PermissionDto> filtered = enriched;

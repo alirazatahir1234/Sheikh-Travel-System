@@ -51,6 +51,14 @@ public partial class GpsTrackingController : BaseApiController
     public async Task<IActionResult> GetHistoryReplay([FromQuery] int? vehicleId, [FromQuery] DateTime? from, [FromQuery] DateTime? to)
         => Ok(await Mediator.Send(new GetHistoryReplayQuery(vehicleId, from, to)));
 
+    [HttpPost("history/replay/insights")]
+    [RequirePermission("GPS.View")]
+    public async Task<IActionResult> PostHistoryReplayInsights([FromBody] PostHistoryReplayInsightsRequest body)
+        => Ok(await Mediator.Send(new PostHistoryReplayInsightsCommand(
+            body.VehicleId,
+            body.FromDate,
+            body.ToDate)));
+
     [HttpGet("history/{vehicleId:int}/export")]
     public async Task<IActionResult> ExportHistory(
         int vehicleId,
@@ -79,6 +87,16 @@ public partial class GpsTrackingController : BaseApiController
     [HttpGet("dashboard/fleet-status-local")]
     public async Task<IActionResult> GetFleetStatusLocal()
         => Ok(await Mediator.Send(new GetGpsFleetStatusLocalQuery()));
+
+    [HttpGet("dashboard/operator-summary")]
+    [RequirePermission("GPS.View")]
+    public async Task<IActionResult> GetOperatorDashboard()
+        => Ok(await Mediator.Send(new GetGpsOperatorDashboardQuery()));
+
+    [HttpPost("operator/insights")]
+    [RequirePermission("GPS.View")]
+    public async Task<IActionResult> PostOperatorInsights([FromBody] PostGpsOperatorInsightsRequest body)
+        => Ok(await Mediator.Send(new PostGpsOperatorInsightsCommand(body.QueryKey ?? body.Query ?? string.Empty)));
 
     [HttpGet("dashboard/fleet-status-history")]
     public async Task<IActionResult> GetFleetStatusHistory([FromQuery] DateTime? from, [FromQuery] DateTime? to)
@@ -535,6 +553,19 @@ public partial class GpsTrackingController : BaseApiController
         var job = result.Jobs.FirstOrDefault(j => j.Job == "devices");
         return Ok(new TraccarSyncResultDto(job?.Imported ?? 0, job?.Updated ?? 0, job?.Skipped ?? 0));
     }
+}
+
+public sealed class PostGpsOperatorInsightsRequest
+{
+    public string? QueryKey { get; set; }
+    public string? Query { get; set; }
+}
+
+public sealed class PostHistoryReplayInsightsRequest
+{
+    public int VehicleId { get; set; }
+    public DateTime? FromDate { get; set; }
+    public DateTime? ToDate { get; set; }
 }
 
 /// <summary>

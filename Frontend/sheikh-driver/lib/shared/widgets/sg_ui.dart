@@ -141,3 +141,29 @@ class SgDangerOutlineButton extends StatelessWidget {
     );
   }
 }
+
+/// Lightweight shimmer placeholder for polling dashboards and lists.
+class SgSkeleton extends StatelessWidget {
+  const SgSkeleton({
+    super.key,
+    this.height = 16,
+    this.width,
+    this.radius = AppRadii.sm,
+  });
+
+  final double height;
+  final double? width;
+  final double radius;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: height,
+      width: width,
+      decoration: BoxDecoration(
+        color: AppColors.border.withValues(alpha: 0.55),
+        borderRadius: BorderRadius.circular(radius),
+      ),
+    );
+  }
+}

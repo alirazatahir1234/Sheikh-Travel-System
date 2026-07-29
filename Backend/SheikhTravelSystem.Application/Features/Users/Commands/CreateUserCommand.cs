@@ -59,6 +59,8 @@ public class CreateUserCommandHandler(
         await UserQueries.EnsureOrgBelongsToTenantAsync(
             connection, tenantId, dto.BranchId, dto.DepartmentId, cancellationToken);
 
+        UserRoleAssignment.EnsureCanAssignPlatformRole(dto.PlatformRoleCode, currentUser);
+
         var status = UserLifecycle.Normalize(dto.Status, true);
         var isActive = UserLifecycle.IsActiveStatus(status);
         var employeeType = EmployeeTypes.Normalize(dto.EmployeeType);
@@ -107,9 +109,18 @@ public class CreateUserCommandHandler(
                     },
                     cancellationToken: cancellationToken));
 
-            await UserRoleAssignment.SyncLegacyRoleAsync(
-                connection, id, tenantId, dto.Role, dto.BranchId, dto.DepartmentId,
-                currentUser.UserId, cancellationToken);
+            if (!string.IsNullOrWhiteSpace(dto.PlatformRoleCode))
+            {
+                await UserRoleAssignment.AssignPlatformRoleAsync(
+                    connection, id, tenantId, dto.PlatformRoleCode, dto.BranchId, dto.DepartmentId,
+                    currentUser.UserId, cancellationToken);
+            }
+            else
+            {
+                await UserRoleAssignment.SyncLegacyRoleAsync(
+                    connection, id, tenantId, dto.Role, dto.BranchId, dto.DepartmentId,
+                    currentUser.UserId, cancellationToken);
+            }
 
             return ApiResponse<int>.SuccessResponse(id, "User created successfully.");
         }
@@ -136,9 +147,18 @@ public class CreateUserCommandHandler(
                     },
                     cancellationToken: cancellationToken));
 
-            await UserRoleAssignment.SyncLegacyRoleAsync(
-                connection, id, tenantId, dto.Role, dto.BranchId, dto.DepartmentId,
-                currentUser.UserId, cancellationToken);
+            if (!string.IsNullOrWhiteSpace(dto.PlatformRoleCode))
+            {
+                await UserRoleAssignment.AssignPlatformRoleAsync(
+                    connection, id, tenantId, dto.PlatformRoleCode, dto.BranchId, dto.DepartmentId,
+                    currentUser.UserId, cancellationToken);
+            }
+            else
+            {
+                await UserRoleAssignment.SyncLegacyRoleAsync(
+                    connection, id, tenantId, dto.Role, dto.BranchId, dto.DepartmentId,
+                    currentUser.UserId, cancellationToken);
+            }
 
             return ApiResponse<int>.SuccessResponse(id, "User created successfully.");
         }

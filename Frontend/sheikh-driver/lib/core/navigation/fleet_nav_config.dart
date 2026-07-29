@@ -56,7 +56,7 @@ abstract final class FleetNavConfig {
 
   static const fleet = FleetNavTab(
     id: 'fleet',
-    label: 'Fleet',
+    label: 'Vehicles',
     icon: Icons.local_shipping_outlined,
     activeIcon: Icons.local_shipping_rounded,
     path: '/fleet',
@@ -128,11 +128,20 @@ abstract final class FleetNavConfig {
 
   static const map = FleetNavTab(
     id: 'map',
-    label: 'Map',
+    label: 'Live Map',
     icon: Icons.map_outlined,
     activeIcon: Icons.map_rounded,
     path: '/fleet/map',
     matchPaths: ['/fleet/map'],
+  );
+
+  static const alertsTab = FleetNavTab(
+    id: 'alerts',
+    label: 'Alerts',
+    icon: Icons.warning_amber_outlined,
+    activeIcon: Icons.warning_amber_rounded,
+    path: '/alerts',
+    matchPaths: ['/alerts'],
   );
 
   static const finance = FleetNavTab(
@@ -172,6 +181,7 @@ abstract final class FleetNavConfig {
     drivers,
     bookings,
     map,
+    alertsTab,
     finance,
     reports,
     users,
@@ -200,6 +210,24 @@ abstract final class FleetNavConfig {
       label: 'Alerts',
       icon: Icons.warning_amber_outlined,
       route: '/alerts',
+      isVisible: _alertsMenu,
+    ),
+    MoreMenuEntry(
+      label: 'GPS trips',
+      icon: Icons.route_outlined,
+      route: '/gps/trips',
+      isVisible: _alertsMenu,
+    ),
+    MoreMenuEntry(
+      label: 'Fuel analytics',
+      icon: Icons.local_gas_station_outlined,
+      route: '/gps/fuel',
+      isVisible: _alertsMenu,
+    ),
+    MoreMenuEntry(
+      label: 'Mileage',
+      icon: Icons.speed_outlined,
+      route: '/gps/mileage',
       isVisible: _alertsMenu,
     ),
     MoreMenuEntry(
@@ -294,6 +322,94 @@ abstract final class FleetNavConfig {
     ),
   ];
 
+  /// GPS Operator — ops-focused More grid (no fleet-admin chrome).
+  static const operatorMoreEntries = [
+    MoreMenuEntry(
+      label: 'Profile',
+      icon: Icons.person_outline_rounded,
+      route: '/profile',
+      isVisible: _alwaysEntry,
+    ),
+    MoreMenuEntry(
+      label: 'Notifications',
+      icon: Icons.notifications_outlined,
+      route: '/notifications',
+      isVisible: _alwaysEntry,
+    ),
+    MoreMenuEntry(
+      label: 'Documents',
+      icon: Icons.folder_outlined,
+      route: '/documents',
+      isVisible: _documentsMenu,
+    ),
+    MoreMenuEntry(
+      label: 'GPS commands',
+      icon: Icons.power_settings_new_outlined,
+      route: '/gps/commands',
+      isVisible: _gpsOperatorOps,
+    ),
+    MoreMenuEntry(
+      label: 'Incident center',
+      icon: Icons.emergency_outlined,
+      route: '/gps/incidents',
+      isVisible: _gpsOperatorOps,
+    ),
+    MoreMenuEntry(
+      label: 'Geofences',
+      icon: Icons.fence_outlined,
+      route: '/gps/geofences',
+      isVisible: _gpsOperatorOps,
+    ),
+    MoreMenuEntry(
+      label: 'GPS trips',
+      icon: Icons.route_outlined,
+      route: '/gps/trips',
+      isVisible: _gpsOperatorOps,
+    ),
+    MoreMenuEntry(
+      label: 'Fuel analytics',
+      icon: Icons.local_gas_station_outlined,
+      route: '/gps/fuel',
+      isVisible: _gpsOperatorOps,
+    ),
+    MoreMenuEntry(
+      label: 'Mileage',
+      icon: Icons.speed_outlined,
+      route: '/gps/mileage',
+      isVisible: _gpsOperatorOps,
+    ),
+    MoreMenuEntry(
+      label: 'Reports',
+      icon: Icons.bar_chart_outlined,
+      route: '/more/reports',
+      isVisible: _reportsMenu,
+    ),
+    MoreMenuEntry(
+      label: 'AI insights',
+      icon: Icons.auto_awesome_outlined,
+      route: '/gps/operator-ai',
+      isVisible: _gpsOperatorOps,
+    ),
+    MoreMenuEntry(
+      label: 'Support',
+      icon: Icons.support_agent_outlined,
+      route: '/legal/support',
+      isVisible: _alwaysEntry,
+    ),
+    MoreMenuEntry(
+      label: 'About',
+      icon: Icons.info_outline_rounded,
+      route: '/legal/about',
+      isVisible: _alwaysEntry,
+    ),
+    MoreMenuEntry(
+      label: 'Settings',
+      icon: Icons.settings_outlined,
+      route: '/settings',
+      isVisible: _alwaysEntry,
+    ),
+  ];
+
   static List<FleetNavTab> visibleTabs(FleetSession? session) {
     if (session == null) return const [];
     switch (session.primaryNavRole) {
@@ -301,6 +417,8 @@ abstract final class FleetNavConfig {
         return const [dashboard, trips, tracking, notifications, profile];
       case FleetRole.driverManager:
         return const [dashboard, drivers, trips, more];
+      case FleetRole.gpsOperator:
+        return const [dashboard, map, fleet, alertsTab, more];
       case FleetRole.dispatcher:
         return const [dashboard, bookings, trips, map, more];
       case FleetRole.accountant:
@@ -313,8 +431,12 @@ abstract final class FleetNavConfig {
     }
   }
 
-  static List<MoreMenuEntry> visibleMoreEntries(FleetSession session) =>
-      moreEntries.where((entry) => entry.isVisible(session)).toList();
+  static List<MoreMenuEntry> visibleMoreEntries(FleetSession session) {
+    if (session.isGpsOperator) {
+      return operatorMoreEntries.where((e) => e.isVisible(session)).toList();
+    }
+    return moreEntries.where((entry) => entry.isVisible(session)).toList();
+  }
 
   static bool isShellRoute(String path) {
     for (final tab in allTabs) {
@@ -367,6 +489,12 @@ abstract final class FleetNavConfig {
     '/finance',
     '/users',
     '/ai',
+    '/gps/',
+    '/gps/commands',
+    '/gps/incidents',
+    '/gps/geofences',
+    '/gps/operator-ai',
+    '/legal/',
   ];
 
   static bool _alwaysEntry(FleetSession _) => true;
@@ -388,4 +516,6 @@ abstract final class FleetNavConfig {
   static bool _financeMenu(FleetSession s) => s.canSeeFinanceTab;
   static bool _usersMenu(FleetSession s) => s.canSeeUsersTab;
   static bool _aiMenu(FleetSession s) => s.canSeeAiTab;
+  static bool _gpsOperatorOps(FleetSession s) =>
+      s.isGpsOperator || (!s.isDriverOnly && s.hasPermission(FleetPermissions.gpsView));
 }

@@ -4,6 +4,7 @@ import '../../compliance/domain/compliance_models.dart';
 import '../../drivers/domain/driver_models.dart';
 import '../../fleet/domain/fleet_models.dart';
 import '../../maintenance/domain/maintenance_models.dart';
+import '../../gps_operator/domain/operator_dashboard_models.dart';
 import '../../ops_trips/domain/ops_trip_models.dart';
 import 'dashboard_layout.dart';
 import 'dashboard_role.dart';
@@ -207,6 +208,7 @@ class RoleDashboardData {
     this.aiItems = const [],
     this.attentionVehicles = const [],
     this.healthSummary,
+    this.operatorSummary,
     this.unreadNotifications = 0,
     this.sectionErrors = const {},
   });
@@ -237,6 +239,7 @@ class RoleDashboardData {
 
   /// One-line AI / rule summary under Fleet Health.
   final String? healthSummary;
+  final GpsOperatorSummary? operatorSummary;
   final int unreadNotifications;
 
   /// Widget / section id → error message for soft failure UI.
@@ -368,6 +371,13 @@ class RoleDashboardData {
             driverStats != null;
       case DashboardWidgetId.aiAttention:
         return aiItems.isNotEmpty;
+      case DashboardWidgetId.gpsExceptionKpiGrid:
+        return operatorSummary != null || gps != null;
+      case DashboardWidgetId.trackerHealthCard:
+        return operatorSummary != null;
+      case DashboardWidgetId.recentGpsAlertsFeed:
+        return session.hasPermission(FleetPermissions.gpsView) ||
+            alertEvents.isNotEmpty;
     }
   }
 }

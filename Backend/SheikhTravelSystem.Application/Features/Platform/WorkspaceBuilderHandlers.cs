@@ -195,6 +195,7 @@ public static class WorkspaceBuilderQueries
             "FLEET_MANAGER" => "fleet",
             "DRIVER_MANAGER" => "drivers",
             "DISPATCHER" => "trips",
+            "GPS_OPERATOR" => "fleet",
             "ACCOUNTANT" => "finance",
             "DRIVER" => "driver",
             _ => "home"

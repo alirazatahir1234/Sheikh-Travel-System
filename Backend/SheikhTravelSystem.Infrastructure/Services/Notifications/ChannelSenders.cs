@@ -91,6 +91,14 @@ public sealed class EmailNotificationSender(
             logger.LogInformation("SMTP ok notification {Id} → {Email}", request.NotificationId, to);
             return new ChannelSendResult(true, "Sent", $"SMTP ok → {to}", "Smtp");
         }
+        catch (AuthenticationException ex)
+        {
+            logger.LogWarning(
+                ex,
+                "SMTP authentication failed for notification {Id} — check Notifications:Email Username/Password (host {Host}, port {Port}) or set Enabled=false for local dev",
+                request.NotificationId, host, section.GetValue("SmtpPort", 587));
+            return new ChannelSendResult(false, "Failed", ex.Message, "Smtp");
+        }
         catch (Exception ex)
         {
             logger.LogWarning(ex, "SMTP send failed for notification {Id}", request.NotificationId);

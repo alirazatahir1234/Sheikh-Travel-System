@@ -237,6 +237,7 @@ public sealed class DatabaseResetService(
             ("Tenant Admin", "TENANT_ADMIN"),
             ("Fleet Manager", "FLEET_MANAGER"),
             ("Dispatcher", "DISPATCHER"),
+            ("GPS Operator", "GPS_OPERATOR"),
             ("Driver Manager", "DRIVER_MANAGER"),
             ("Accountant", "ACCOUNTANT"),
             ("Driver", "DRIVER"),

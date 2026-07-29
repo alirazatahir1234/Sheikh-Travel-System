@@ -73,6 +73,7 @@ public interface INotificationService
         int? referenceId = null,
         string? templateKey = null,
         IReadOnlyDictionary<string, string>? variables = null,
+        int? tenantId = null,
         CancellationToken cancellationToken = default);
 
     Task<int> CreateAndDispatchAsync(NotificationCreateOptions options, CancellationToken cancellationToken = default);

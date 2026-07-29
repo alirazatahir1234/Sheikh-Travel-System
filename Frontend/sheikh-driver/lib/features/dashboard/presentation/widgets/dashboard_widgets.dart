@@ -99,6 +99,7 @@ class OpsHeaderCard extends StatelessWidget {
         ? '—'
         : DateFormat('h:mm a').format(lastSyncedAt!.toLocal());
     final isCommand = role == DashboardRole.fleetManager ||
+        role == DashboardRole.gpsOperator ||
         role == DashboardRole.tenantAdmin ||
         role == DashboardRole.superAdmin ||
         role == DashboardRole.dispatcher;

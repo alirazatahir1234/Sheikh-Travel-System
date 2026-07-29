@@ -11,6 +11,7 @@ import '../../drivers/domain/driver_models.dart';
 import '../../fleet/domain/fleet_models.dart';
 import '../../maintenance/domain/maintenance_models.dart';
 import '../../notifications/domain/notification_models.dart';
+import '../../gps_operator/domain/operator_dashboard_models.dart';
 import '../../ops_trips/domain/ops_trip_models.dart';
 import '../domain/dashboard_layout.dart';
 import '../domain/dashboard_models.dart';
@@ -64,6 +65,8 @@ class DashboardApi {
       case DashboardRole.superAdmin:
         return _buildFleetOps(
             role, displayName, tenantId, widgets, quickActions);
+      case DashboardRole.gpsOperator:
+        return _buildGpsOperator(displayName, tenantId, widgets, quickActions);
       case DashboardRole.driver:
         return _buildDriver(displayName, tenantId);
     }
@@ -209,6 +212,86 @@ class DashboardApi {
               : _tenantAdminAi(fleet, gps, trips, maintenance, alerts, fuel),
       sectionErrors: errors,
     );
+  }
+
+  Future<RoleDashboardData> _buildGpsOperator(
+    String displayName,
+    int? tenantId,
+    List<DashboardWidgetId> widgets,
+    List<DashboardQuickAction> quickActions,
+  ) async {
+    final errors = <String, String>{};
+    final results = await Future.wait([
+      _safeTagged(
+          'operatorSummary',
+          () => _getOperatorSummary(),
+          GpsOperatorSummary.empty,
+          errors),
+      _safeTagged(
+          'liveTrips', () => _getLiveTrips(), <OpsTripListItem>[], errors),
+      _safeTagged(
+          'alertEvents', () => _getAlertEvents(), <GpsAlertEvent>[], errors),
+      _safeTagged(
+          'alerts', () => _getAlertStats(), GpsAlertStats.empty, errors),
+      _safeTagged('live', () => _getLivePositions(), <GpsPosition>[], errors),
+      _safeTagged('notifications', () => _getRecentNotifications(),
+          <AppNotification>[], errors),
+      _safeTagged('unread', () => _getUnread(), 0, errors),
+    ]);
+
+    final summary = results[0] as GpsOperatorSummary;
+    final liveTrips = results[1] as List<OpsTripListItem>;
+    final alertEvents = results[2] as List<GpsAlertEvent>;
+    final alerts = results[3] as GpsAlertStats;
+    final live = results[4] as List<GpsPosition>;
+    final notifs = results[5] as List<AppNotification>;
+    final unread = results[6] as int;
+
+    final openAlerts =
+        _filterAlertsForRole(DashboardRole.gpsOperator, alertEvents);
+
+    final gps = GpsFleetStatusKpis(
+      totalVehicles: summary.totalVehicles,
+      online: summary.online,
+      offline: summary.offline,
+      moving: summary.moving,
+      idle: summary.idle,
+      parked: summary.parked,
+      neverSeen: summary.neverSeen,
+      sos: summary.sos,
+      alertsToday: summary.alertsToday,
+    );
+
+    return RoleDashboardData(
+      role: DashboardRole.gpsOperator,
+      displayName: displayName,
+      tenantId: tenantId,
+      lastSyncedAt: DateTime.now(),
+      widgets: List.from(widgets),
+      quickActions: List.from(quickActions),
+      primaryKpis: _gpsOperatorPrimaryKpis(summary),
+      gps: gps,
+      alerts: alerts,
+      alertEvents: openAlerts,
+      livePositions: live,
+      liveTrips: liveTrips.take(6).toList(),
+      operatorSummary: summary,
+      activities: _mergeActivities(notifs, alertEvents),
+      unreadNotifications: unread,
+      sectionErrors: errors,
+    );
+  }
+
+  List<KpiCell> _gpsOperatorPrimaryKpis(GpsOperatorSummary s) => [
+        KpiCell(label: 'Online', value: '${s.online}', route: '/fleet'),
+        KpiCell(label: 'Moving', value: '${s.moving}', route: '/fleet/map'),
+        KpiCell(label: 'Alerts', value: '${s.alertsToday}', route: '/alerts'),
+        KpiCell(label: 'Offline', value: '${s.offline}', route: '/fleet'),
+      ];
+
+  Future<GpsOperatorSummary> _getOperatorSummary() async {
+    final res = await _dio.get(ApiEndpoints.gpsOperatorSummary);
+    return GpsOperatorSummary.fromJson(ApiResponseParser.dataMap(res.data));
   }
 
   Future<RoleDashboardData> _buildDispatcher(
@@ -463,9 +546,13 @@ class DashboardApi {
               sev.contains('high') ||
               type.contains('business');
         case DashboardRole.fleetManager:
+        case DashboardRole.gpsOperator:
           return type.contains('overspeed') ||
               type.contains('offline') ||
               type.contains('geofence') ||
+              type.contains('ignition') ||
+              type.contains('battery') ||
+              type.contains('sos') ||
               type.contains('maint') ||
               sev.contains('critical') ||
               sev.contains('high') ||

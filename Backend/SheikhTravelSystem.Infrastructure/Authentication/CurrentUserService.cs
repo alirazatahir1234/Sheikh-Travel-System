@@ -16,7 +16,17 @@ public class CurrentUserService(IHttpContextAccessor httpContextAccessor) : ICur
         }
     }
 
-    public string? Role => httpContextAccessor.HttpContext?.User.FindFirst(ClaimTypes.Role)?.Value;
+    public string? Role => Roles.FirstOrDefault();
+
+    public IReadOnlyList<string> Roles
+    {
+        get
+        {
+            var user = httpContextAccessor.HttpContext?.User;
+            if (user is null) return Array.Empty<string>();
+            return user.FindAll(ClaimTypes.Role).Select(c => c.Value).ToList();
+        }
+    }
 
     public int? DriverId
     {
@@ -35,5 +45,16 @@ public class CurrentUserService(IHttpContextAccessor httpContextAccessor) : ICur
         return user.HasClaim("permission", permission)
             || user.HasClaim("role", PlatformRoles.SuperAdmin)
             || user.IsInRole(PlatformRoles.SuperAdmin);
+    }
+
+    public bool IsPlatformSuperAdmin
+    {
+        get
+        {
+            var user = httpContextAccessor.HttpContext?.User;
+            if (user is null) return false;
+            return user.HasClaim("role", PlatformRoles.SuperAdmin)
+                   || user.IsInRole(PlatformRoles.SuperAdmin);
+        }
     }
 }

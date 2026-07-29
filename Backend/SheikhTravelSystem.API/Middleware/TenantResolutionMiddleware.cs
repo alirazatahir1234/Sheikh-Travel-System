@@ -54,6 +54,26 @@ public class TenantResolutionMiddleware(RequestDelegate next)
             }
         }
 
+        if (!tenantId.HasValue && context.User.Identity?.IsAuthenticated == true)
+        {
+            var userIdClaim = context.User.FindFirst("userId")?.Value
+                ?? context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (int.TryParse(userIdClaim, out var userId))
+            {
+                try
+                {
+                    using var connection = dbFactory.CreateConnection();
+                    tenantId = await connection.ExecuteScalarAsync<int?>(
+                        "SELECT TenantId FROM Users WHERE Id = @UserId AND IsDeleted = 0",
+                        new { UserId = userId });
+                }
+                catch (Microsoft.Data.SqlClient.SqlException)
+                {
+                    // Fall through — handler may return a clearer error.
+                }
+            }
+        }
+
         if (!tenantId.HasValue && context.User.Identity?.IsAuthenticated != true)
         {
             tenantId = 1;

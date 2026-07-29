@@ -380,6 +380,273 @@ public class GetGpsFleetStatusLocalQueryHandler(
     }
 }
 
+public record GetGpsOperatorDashboardQuery : IRequest<ApiResponse<GpsOperatorDashboardDto>>;
+
+public class GetGpsOperatorDashboardQueryHandler(
+    IDbConnectionFactory dbFactory,
+    ITenantContext tenantContext)
+    : IRequestHandler<GetGpsOperatorDashboardQuery, ApiResponse<GpsOperatorDashboardDto>>
+{
+    private const int OfflineStaleMinutes = 30;
+    private const int WeakGsmThreshold = 12;
+    private const decimal LowBatteryThreshold = 25m;
+    private const decimal MovingThresholdKmh = 5m;
+
+    public async Task<ApiResponse<GpsOperatorDashboardDto>> Handle(
+        GetGpsOperatorDashboardQuery request,
+        CancellationToken cancellationToken)
+    {
+        using var connection = dbFactory.CreateConnection();
+        var tenantId = tenantContext.GetRequiredTenantId();
+        var fleet = await GpsFleetStatusCalculator.ComputeAsync(connection, tenantId, cancellationToken);
+        var todayStart = DateTime.UtcNow.Date;
+
+        var health = await connection.QuerySingleAsync<(int Healthy, int Offline, int WeakGsm, int LowBattery, int NoGps, int IgnitionOn)>(
+            new CommandDefinition(
+                """
+                SELECT
+                  ISNULL(SUM(CASE
+                    WHEN v.GpsDeviceId IS NOT NULL
+                     AND vcl.VehicleId IS NOT NULL
+                     AND DATEDIFF(MINUTE, vcl.LastUpdate, GETUTCDATE()) <= @OfflineStaleMinutes
+                     AND ISNULL(vcl.BatteryLevel, 100) >= @LowBatteryThreshold
+                     AND ISNULL(vcl.GsmSignal, 99) >= @WeakGsmThreshold
+                     AND vcl.Latitude IS NOT NULL AND vcl.Longitude IS NOT NULL
+                    THEN 1 ELSE 0 END), 0) AS Healthy,
+                  ISNULL(SUM(CASE
+                    WHEN v.GpsDeviceId IS NOT NULL
+                     AND (vcl.VehicleId IS NULL
+                          OR DATEDIFF(MINUTE, vcl.LastUpdate, GETUTCDATE()) > @OfflineStaleMinutes)
+                    THEN 1 ELSE 0 END), 0) AS Offline,
+                  ISNULL(SUM(CASE
+                    WHEN vcl.VehicleId IS NOT NULL
+                     AND DATEDIFF(MINUTE, vcl.LastUpdate, GETUTCDATE()) <= @OfflineStaleMinutes
+                     AND ISNULL(vcl.GsmSignal, 0) < @WeakGsmThreshold
+                    THEN 1 ELSE 0 END), 0) AS WeakGsm,
+                  ISNULL(SUM(CASE
+                    WHEN vcl.VehicleId IS NOT NULL
+                     AND vcl.BatteryLevel IS NOT NULL
+                     AND vcl.BatteryLevel < @LowBatteryThreshold
+                    THEN 1 ELSE 0 END), 0) AS LowBattery,
+                  ISNULL(SUM(CASE
+                    WHEN v.GpsDeviceId IS NOT NULL
+                     AND (vcl.VehicleId IS NULL OR vcl.Latitude IS NULL OR vcl.Longitude IS NULL)
+                    THEN 1 ELSE 0 END), 0) AS NoGps,
+                  ISNULL(SUM(CASE
+                    WHEN vcl.Ignition = 1
+                     AND DATEDIFF(MINUTE, vcl.LastUpdate, GETUTCDATE()) <= @OfflineStaleMinutes
+                    THEN 1 ELSE 0 END), 0) AS IgnitionOn
+                FROM Vehicles v
+                LEFT JOIN VehicleCurrentLocation vcl ON vcl.VehicleId = v.Id
+                WHERE v.TenantId = @TenantId AND v.IsDeleted = 0
+                """,
+                new
+                {
+                    TenantId = tenantId,
+                    OfflineStaleMinutes,
+                    WeakGsmThreshold,
+                    LowBatteryThreshold,
+                },
+                cancellationToken: cancellationToken));
+
+        var alertCounts = await connection.QuerySingleAsync<(int Overspeed, int Sos, int Geofence, int Offline, int PowerCut)>(
+            new CommandDefinition(
+                """
+                SELECT
+                  ISNULL(SUM(CASE WHEN LOWER(e.EventType) IN ('overspeed','speed_exceeded') THEN 1 ELSE 0 END), 0),
+                  ISNULL(SUM(CASE WHEN LOWER(e.EventType) IN ('sos','panic') THEN 1 ELSE 0 END), 0),
+                  ISNULL(SUM(CASE WHEN LOWER(e.EventType) IN ('geofence_enter','geofence_exit') THEN 1 ELSE 0 END), 0),
+                  ISNULL(SUM(CASE WHEN LOWER(e.EventType) IN ('gps_offline','vehicle_offline','offline') THEN 1 ELSE 0 END), 0),
+                  ISNULL(SUM(CASE WHEN LOWER(e.EventType) IN ('power_cut','power_off') THEN 1 ELSE 0 END), 0)
+                FROM GpsAlertEvents e
+                INNER JOIN Vehicles v ON v.Id = e.VehicleId AND v.TenantId = @TenantId
+                WHERE e.IsDeleted = 0 AND e.Timestamp >= @TodayStart
+                """,
+                new { TenantId = tenantId, TodayStart = todayStart },
+                cancellationToken: cancellationToken));
+
+        var tripsToday = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
+            """
+            SELECT COUNT(*) FROM GpsTrips t
+            INNER JOIN Vehicles v ON v.Id = t.VehicleId AND v.TenantId = @TenantId
+            WHERE t.IsDeleted = 0 AND t.StartTime >= @TodayStart
+            """,
+            new { TenantId = tenantId, TodayStart = todayStart },
+            cancellationToken: cancellationToken));
+
+        var todayDistance = await connection.ExecuteScalarAsync<decimal?>(new CommandDefinition(
+            """
+            SELECT SUM(ISNULL(t.DistanceKm, 0))
+            FROM GpsTrips t
+            INNER JOIN Vehicles v ON v.Id = t.VehicleId AND v.TenantId = @TenantId
+            WHERE t.IsDeleted = 0 AND t.StartTime >= @TodayStart
+            """,
+            new { TenantId = tenantId, TodayStart = todayStart },
+            cancellationToken: cancellationToken));
+
+        return ApiResponse<GpsOperatorDashboardDto>.SuccessResponse(new GpsOperatorDashboardDto(
+            fleet,
+            health.Healthy,
+            health.Offline,
+            health.WeakGsm,
+            health.LowBattery,
+            health.NoGps,
+            health.IgnitionOn,
+            alertCounts.Overspeed,
+            alertCounts.Sos,
+            alertCounts.Geofence,
+            alertCounts.Offline,
+            alertCounts.PowerCut,
+            tripsToday,
+            todayDistance.HasValue ? (double?)Math.Round(todayDistance.Value, 1) : null));
+    }
+}
+
+public record PostGpsOperatorInsightsCommand(string QueryKey)
+    : IRequest<ApiResponse<GpsOperatorInsightDto>>;
+
+public class PostGpsOperatorInsightsHandler(
+    IDbConnectionFactory dbFactory,
+    ITenantContext tenantContext)
+    : IRequestHandler<PostGpsOperatorInsightsCommand, ApiResponse<GpsOperatorInsightDto>>
+{
+    private const int OfflineStaleMinutes = 15;
+
+    public async Task<ApiResponse<GpsOperatorInsightDto>> Handle(
+        PostGpsOperatorInsightsCommand request,
+        CancellationToken cancellationToken)
+    {
+        using var connection = dbFactory.CreateConnection();
+        var tenantId = tenantContext.GetRequiredTenantId();
+        var key = (request.QueryKey ?? string.Empty).Trim().ToLowerInvariant();
+
+        if (key.Contains("offline") || key.Contains("15"))
+        {
+            var rows = await connection.QueryAsync<(string Name, string Plate, int Minutes)>(
+                new CommandDefinition(
+                    """
+                    SELECT v.Name, v.RegistrationNumber AS Plate,
+                           DATEDIFF(MINUTE, vcl.LastUpdate, GETUTCDATE()) AS Minutes
+                    FROM Vehicles v
+                    INNER JOIN VehicleCurrentLocation vcl ON vcl.VehicleId = v.Id
+                    WHERE v.TenantId = @TenantId AND v.IsDeleted = 0
+                      AND DATEDIFF(MINUTE, vcl.LastUpdate, GETUTCDATE()) >= @OfflineStaleMinutes
+                    ORDER BY Minutes DESC
+                    """,
+                    new { TenantId = tenantId, OfflineStaleMinutes },
+                    cancellationToken: cancellationToken));
+            var bullets = rows.Take(20)
+                .Select(r => $"{r.Name} ({r.Plate}) — offline {r.Minutes} min")
+                .ToList();
+            return ApiResponse<GpsOperatorInsightDto>.SuccessResponse(
+                new GpsOperatorInsightDto(
+                    "Vehicles offline > 15 minutes",
+                    bullets.Count == 0
+                        ? "All tracked vehicles have communicated within 15 minutes."
+                        : $"{bullets.Count} vehicle(s) exceed 15 minutes without updates.",
+                    bullets));
+        }
+
+        if (key.Contains("overspeed") || key.Contains("speed"))
+        {
+            var rows = await connection.QueryAsync<(string Name, string Plate, decimal Speed)>(
+                new CommandDefinition(
+                    """
+                    SELECT v.Name, v.RegistrationNumber AS Plate, vcl.Speed
+                    FROM Vehicles v
+                    INNER JOIN VehicleCurrentLocation vcl ON vcl.VehicleId = v.Id
+                    WHERE v.TenantId = @TenantId AND v.IsDeleted = 0
+                      AND vcl.Speed >= 90
+                    ORDER BY vcl.Speed DESC
+                    """,
+                    new { TenantId = tenantId },
+                    cancellationToken: cancellationToken));
+            var bullets = rows.Take(20)
+                .Select(r => $"{r.Name} ({r.Plate}) — {r.Speed:0} km/h")
+                .ToList();
+            return ApiResponse<GpsOperatorInsightDto>.SuccessResponse(
+                new GpsOperatorInsightDto(
+                    "Overspeed now (≥ 90 km/h)",
+                    bullets.Count == 0 ? "No vehicles above threshold right now." : $"{bullets.Count} vehicle(s) overspeeding.",
+                    bullets));
+        }
+
+        if (key.Contains("battery"))
+        {
+            var rows = await connection.QueryAsync<(string Name, decimal Batt)>(
+                new CommandDefinition(
+                    """
+                    SELECT v.Name, vcl.BatteryLevel AS Batt
+                    FROM Vehicles v
+                    INNER JOIN VehicleCurrentLocation vcl ON vcl.VehicleId = v.Id
+                    WHERE v.TenantId = @TenantId AND v.IsDeleted = 0
+                      AND vcl.BatteryLevel IS NOT NULL AND vcl.BatteryLevel < 25
+                    ORDER BY vcl.BatteryLevel
+                    """,
+                    new { TenantId = tenantId },
+                    cancellationToken: cancellationToken));
+            var bullets = rows.Take(20)
+                .Select(r => $"{r.Name} — {r.Batt:0}% battery")
+                .ToList();
+            return ApiResponse<GpsOperatorInsightDto>.SuccessResponse(
+                new GpsOperatorInsightDto(
+                    "Low battery trackers",
+                    bullets.Count == 0 ? "No low-battery trackers." : $"{bullets.Count} tracker(s) below 25%.",
+                    bullets));
+        }
+
+        if (key.Contains("alert") || key.Contains("summarize"))
+        {
+            var todayStart = DateTime.UtcNow.Date;
+            var stats = await connection.QuerySingleAsync<(int Total, int Critical, int Unread)>(
+                new CommandDefinition(
+                    """
+                    SELECT COUNT(*),
+                           ISNULL(SUM(CASE WHEN LOWER(Severity) IN ('critical','high') THEN 1 ELSE 0 END), 0),
+                           ISNULL(SUM(CASE WHEN e.ReadAt IS NULL AND e.Status <> 'archived' THEN 1 ELSE 0 END), 0)
+                    FROM GpsAlertEvents e
+                    INNER JOIN Vehicles v ON v.Id = e.VehicleId AND v.TenantId = @TenantId
+                    WHERE e.IsDeleted = 0 AND e.Timestamp >= @TodayStart
+                    """,
+                    new { TenantId = tenantId, TodayStart = todayStart },
+                    cancellationToken: cancellationToken));
+            var bullets = new List<string>
+            {
+                $"Total today: {stats.Total}",
+                $"Critical/high: {stats.Critical}",
+                $"Unread: {stats.Unread}",
+            };
+            return ApiResponse<GpsOperatorInsightDto>.SuccessResponse(
+                new GpsOperatorInsightDto("Today's GPS alerts", "Summary for today (UTC).", bullets));
+        }
+
+        if (key.Contains("geofence"))
+        {
+            var todayStart = DateTime.UtcNow.Date;
+            var count = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
+                """
+                SELECT COUNT(*) FROM GpsAlertEvents e
+                INNER JOIN Vehicles v ON v.Id = e.VehicleId AND v.TenantId = @TenantId
+                WHERE e.IsDeleted = 0 AND e.Timestamp >= @TodayStart
+                  AND LOWER(e.EventType) IN ('geofence_enter','geofence_exit')
+                """,
+                new { TenantId = tenantId, TodayStart = todayStart },
+                cancellationToken: cancellationToken));
+            return ApiResponse<GpsOperatorInsightDto>.SuccessResponse(
+                new GpsOperatorInsightDto(
+                    "Geofence violations today",
+                    count == 0 ? "No geofence enter/exit alerts today." : $"{count} geofence alert(s) today.",
+                    count == 0 ? new List<string>() : new List<string> { $"Count: {count}" }));
+        }
+
+        return ApiResponse<GpsOperatorInsightDto>.SuccessResponse(
+            new GpsOperatorInsightDto(
+                "Fleet insight",
+                "Try a canned query from the list (offline, overspeed, alerts, battery, geofence).",
+                new List<string>()));
+    }
+}
+
 public record GetGpsFleetStatusHistoryQuery(DateTime? FromDate, DateTime? ToDate)
     : IRequest<ApiResponse<List<GpsFleetStatusSnapshotDto>>>;
 

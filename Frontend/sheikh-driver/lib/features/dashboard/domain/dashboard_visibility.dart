@@ -11,11 +11,15 @@ abstract final class DashboardVisibility {
       role == DashboardRole.tenantAdmin || role == DashboardRole.superAdmin;
 
   static bool isFleetOps(DashboardRole role) =>
-      role == DashboardRole.fleetManager || isOwnerLike(role);
+      role == DashboardRole.fleetManager ||
+      role == DashboardRole.gpsOperator ||
+      isOwnerLike(role);
 
-  /// Interactive map preview (FM / Dispatcher). Owner gets [mapSummaryCard] instead.
+  /// Interactive map preview (FM / GPS Operator / Dispatcher). Owner gets [mapSummaryCard] instead.
   static bool showInteractiveMap(DashboardRole role) =>
-      role == DashboardRole.fleetManager || role == DashboardRole.dispatcher;
+      role == DashboardRole.fleetManager ||
+      role == DashboardRole.gpsOperator ||
+      role == DashboardRole.dispatcher;
 
   static bool showMapSummary(DashboardRole role) => isOwnerLike(role);
 

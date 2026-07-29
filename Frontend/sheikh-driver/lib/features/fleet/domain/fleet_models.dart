@@ -201,6 +201,7 @@ class VehicleListItem {
     this.vehicleType,
     this.driverName,
     this.driverId,
+    this.driverPhone,
     this.engineIgnition,
     this.gpsLastSeenAt,
     this.gpsOnline = false,
@@ -221,6 +222,7 @@ class VehicleListItem {
   final String? vehicleType;
   final String? driverName;
   final int? driverId;
+  final String? driverPhone;
   final bool? engineIgnition;
   final DateTime? gpsLastSeenAt;
   final bool gpsOnline;
@@ -252,6 +254,8 @@ class VehicleListItem {
       driverName:
           json['driverName'] as String? ?? json['DriverName'] as String?,
       driverId: json['driverId'] as int? ?? json['DriverId'] as int?,
+      driverPhone:
+          json['driverPhone'] as String? ?? json['DriverPhone'] as String?,
       engineIgnition:
           json['engineIgnition'] as bool? ?? json['EngineIgnition'] as bool?,
       gpsLastSeenAt:
@@ -403,6 +407,7 @@ class FleetVehicleLocation {
     this.lastUpdated,
     this.speed = 0,
     this.driverName,
+    this.driverPhone,
     this.hasGps = false,
     this.ignition,
     this.heading,
@@ -423,6 +428,7 @@ class FleetVehicleLocation {
   final DateTime? lastUpdated;
   final double speed;
   final String? driverName;
+  final String? driverPhone;
   final bool hasGps;
   final bool? ignition;
   final double? heading;
@@ -720,6 +726,10 @@ class HistoryReplayPoint {
     this.heading,
     this.ignition,
     this.address,
+    this.altitude,
+    this.batteryLevel,
+    this.satellites,
+    this.totalDistanceKm,
   });
 
   final DateTime timestamp;
@@ -729,6 +739,10 @@ class HistoryReplayPoint {
   final double? heading;
   final bool? ignition;
   final String? address;
+  final double? altitude;
+  final double? batteryLevel;
+  final int? satellites;
+  final double? totalDistanceKm;
 
   factory HistoryReplayPoint.fromJson(Map<String, dynamic> json) {
     return HistoryReplayPoint(
@@ -743,6 +757,249 @@ class HistoryReplayPoint {
       heading: (json['heading'] as num? ?? json['Heading'] as num?)?.toDouble(),
       ignition: json['ignition'] as bool? ?? json['Ignition'] as bool?,
       address: json['address'] as String? ?? json['Address'] as String?,
+      altitude: (json['altitude'] as num? ?? json['Altitude'] as num?)?.toDouble(),
+      batteryLevel: (json['batteryLevel'] as num? ??
+              json['BatteryLevel'] as num?)
+          ?.toDouble(),
+      satellites: json['satellites'] as int? ?? json['Satellites'] as int?,
+      totalDistanceKm: (json['totalDistanceKm'] as num? ??
+              json['TotalDistanceKm'] as num?)
+          ?.toDouble(),
+    );
+  }
+}
+
+class TripReplaySummary {
+  const TripReplaySummary({
+    required this.distanceKm,
+    required this.drivingMinutes,
+    required this.avgSpeedKmh,
+    required this.maxSpeedKmh,
+    this.fuelLiters,
+    this.engineHours,
+  });
+
+  final double distanceKm;
+  final int drivingMinutes;
+  final double avgSpeedKmh;
+  final double maxSpeedKmh;
+  final double? fuelLiters;
+  final double? engineHours;
+
+  factory TripReplaySummary.fromJson(Map<String, dynamic> json) {
+    return TripReplaySummary(
+      distanceKm: (json['distanceKm'] as num? ?? json['DistanceKm'] as num? ?? 0)
+          .toDouble(),
+      drivingMinutes:
+          json['drivingMinutes'] as int? ?? json['DrivingMinutes'] as int? ?? 0,
+      avgSpeedKmh:
+          (json['avgSpeedKmh'] as num? ?? json['AvgSpeedKmh'] as num? ?? 0)
+              .toDouble(),
+      maxSpeedKmh:
+          (json['maxSpeedKmh'] as num? ?? json['MaxSpeedKmh'] as num? ?? 0)
+              .toDouble(),
+      fuelLiters: (json['fuelLiters'] as num? ?? json['FuelLiters'] as num?)
+          ?.toDouble(),
+      engineHours: (json['engineHours'] as num? ?? json['EngineHours'] as num?)
+          ?.toDouble(),
+    );
+  }
+}
+
+class TripAnalyticsSummary {
+  const TripAnalyticsSummary({
+    required this.tripCount,
+    required this.distanceKm,
+    required this.drivingMinutes,
+    required this.idleMinutes,
+    required this.avgSpeedKmh,
+    required this.maxSpeedKmh,
+    required this.stopCount,
+    required this.overspeedCount,
+    required this.harshBrakeCount,
+    required this.harshAccelCount,
+    this.fuelLiters,
+    this.engineHours,
+  });
+
+  final int tripCount;
+  final double distanceKm;
+  final int drivingMinutes;
+  final int idleMinutes;
+  final double avgSpeedKmh;
+  final double maxSpeedKmh;
+  final int stopCount;
+  final int overspeedCount;
+  final int harshBrakeCount;
+  final int harshAccelCount;
+  final double? fuelLiters;
+  final double? engineHours;
+
+  factory TripAnalyticsSummary.fromJson(Map<String, dynamic> json) {
+    return TripAnalyticsSummary(
+      tripCount: json['tripCount'] as int? ?? json['TripCount'] as int? ?? 0,
+      distanceKm: (json['distanceKm'] as num? ?? json['DistanceKm'] as num? ?? 0)
+          .toDouble(),
+      drivingMinutes:
+          json['drivingMinutes'] as int? ?? json['DrivingMinutes'] as int? ?? 0,
+      idleMinutes:
+          json['idleMinutes'] as int? ?? json['IdleMinutes'] as int? ?? 0,
+      avgSpeedKmh:
+          (json['avgSpeedKmh'] as num? ?? json['AvgSpeedKmh'] as num? ?? 0)
+              .toDouble(),
+      maxSpeedKmh:
+          (json['maxSpeedKmh'] as num? ?? json['MaxSpeedKmh'] as num? ?? 0)
+              .toDouble(),
+      stopCount: json['stopCount'] as int? ?? json['StopCount'] as int? ?? 0,
+      overspeedCount:
+          json['overspeedCount'] as int? ?? json['OverspeedCount'] as int? ?? 0,
+      harshBrakeCount:
+          json['harshBrakeCount'] as int? ?? json['HarshBrakeCount'] as int? ?? 0,
+      harshAccelCount:
+          json['harshAccelCount'] as int? ?? json['HarshAccelCount'] as int? ?? 0,
+      fuelLiters: (json['fuelLiters'] as num? ?? json['FuelLiters'] as num?)
+          ?.toDouble(),
+      engineHours: (json['engineHours'] as num? ?? json['EngineHours'] as num?)
+          ?.toDouble(),
+    );
+  }
+}
+
+class TripStop {
+  const TripStop({
+    required this.startTime,
+    required this.endTime,
+    required this.latitude,
+    required this.longitude,
+    this.address,
+    required this.durationMinutes,
+  });
+
+  final DateTime startTime;
+  final DateTime endTime;
+  final double latitude;
+  final double longitude;
+  final String? address;
+  final int durationMinutes;
+
+  factory TripStop.fromJson(Map<String, dynamic> json) {
+    return TripStop(
+      startTime: _parseDate(json['startTime'] ?? json['StartTime']) ??
+          DateTime.fromMillisecondsSinceEpoch(0),
+      endTime: _parseDate(json['endTime'] ?? json['EndTime']) ??
+          DateTime.fromMillisecondsSinceEpoch(0),
+      latitude:
+          (json['latitude'] as num? ?? json['Latitude'] as num? ?? 0).toDouble(),
+      longitude: (json['longitude'] as num? ?? json['Longitude'] as num? ?? 0)
+          .toDouble(),
+      address: json['address'] as String? ?? json['Address'] as String?,
+      durationMinutes:
+          json['durationMinutes'] as int? ?? json['DurationMinutes'] as int? ?? 0,
+    );
+  }
+}
+
+class TripEvent {
+  const TripEvent({
+    required this.time,
+    required this.type,
+    this.latitude,
+    this.longitude,
+    this.address,
+    this.speedKmh,
+    this.geofenceId,
+    this.geofenceName,
+    this.label,
+  });
+
+  final DateTime time;
+  final String type;
+  final double? latitude;
+  final double? longitude;
+  final String? address;
+  final double? speedKmh;
+  final int? geofenceId;
+  final String? geofenceName;
+  final String? label;
+
+  factory TripEvent.fromJson(Map<String, dynamic> json) {
+    return TripEvent(
+      time: _parseDate(json['time'] ?? json['Time']) ??
+          DateTime.fromMillisecondsSinceEpoch(0),
+      type: json['type'] as String? ?? json['Type'] as String? ?? '',
+      latitude: (json['latitude'] as num? ?? json['Latitude'] as num?)?.toDouble(),
+      longitude: (json['longitude'] as num? ?? json['Longitude'] as num?)?.toDouble(),
+      address: json['address'] as String? ?? json['Address'] as String?,
+      speedKmh: (json['speedKmh'] as num? ?? json['SpeedKmh'] as num?)?.toDouble(),
+      geofenceId: json['geofenceId'] as int? ?? json['GeofenceId'] as int?,
+      geofenceName:
+          json['geofenceName'] as String? ?? json['GeofenceName'] as String?,
+      label: json['label'] as String? ?? json['Label'] as String?,
+    );
+  }
+}
+
+class TripDeviceContext {
+  const TripDeviceContext({
+    required this.vehicleId,
+    this.vehicleName,
+    this.plateNumber,
+    this.gpsDeviceId,
+    this.deviceName,
+    this.uniqueId,
+    this.hasTraccarLink = false,
+    this.isOnline = false,
+    this.lastPositionAt,
+    this.lastLatitude,
+    this.lastLongitude,
+    this.lastAddress,
+    this.lastSpeedKmh,
+    this.lastIgnition,
+  });
+
+  final int vehicleId;
+  final String? vehicleName;
+  final String? plateNumber;
+  final int? gpsDeviceId;
+  final String? deviceName;
+  final String? uniqueId;
+  final bool hasTraccarLink;
+  final bool isOnline;
+  final DateTime? lastPositionAt;
+  final double? lastLatitude;
+  final double? lastLongitude;
+  final String? lastAddress;
+  final double? lastSpeedKmh;
+  final bool? lastIgnition;
+
+  factory TripDeviceContext.fromJson(Map<String, dynamic> json) {
+    return TripDeviceContext(
+      vehicleId: json['vehicleId'] as int? ?? json['VehicleId'] as int? ?? 0,
+      vehicleName:
+          json['vehicleName'] as String? ?? json['VehicleName'] as String?,
+      plateNumber:
+          json['plateNumber'] as String? ?? json['PlateNumber'] as String?,
+      gpsDeviceId:
+          json['gpsDeviceId'] as int? ?? json['GpsDeviceId'] as int?,
+      deviceName: json['deviceName'] as String? ?? json['DeviceName'] as String?,
+      uniqueId: json['uniqueId'] as String? ?? json['UniqueId'] as String?,
+      hasTraccarLink:
+          json['hasTraccarLink'] as bool? ?? json['HasTraccarLink'] as bool? ?? false,
+      isOnline: json['isOnline'] as bool? ?? json['IsOnline'] as bool? ?? false,
+      lastPositionAt: _parseDate(
+        json['lastPositionAt'] ?? json['LastPositionAt'],
+      ),
+      lastLatitude: (json['lastLatitude'] as num? ?? json['LastLatitude'] as num?)
+          ?.toDouble(),
+      lastLongitude:
+          (json['lastLongitude'] as num? ?? json['LastLongitude'] as num?)
+              ?.toDouble(),
+      lastAddress: json['lastAddress'] as String? ?? json['LastAddress'] as String?,
+      lastSpeedKmh:
+          (json['lastSpeedKmh'] as num? ?? json['LastSpeedKmh'] as num?)
+              ?.toDouble(),
+      lastIgnition:
+          json['lastIgnition'] as bool? ?? json['LastIgnition'] as bool?,
     );
   }
 }
@@ -751,17 +1008,31 @@ class HistoryReplayBundle {
   const HistoryReplayBundle({
     required this.route,
     required this.playback,
+    this.stops = const [],
+    this.events = const [],
+    this.summary,
+    this.statistics,
     this.mileageKm,
+    this.vehicle,
     this.gpsDeviceId,
   });
 
   final List<HistoryReplayPoint> route;
   final List<HistoryReplayPoint> playback;
+  final List<TripStop> stops;
+  final List<TripEvent> events;
+  final TripReplaySummary? summary;
+  final TripAnalyticsSummary? statistics;
   final double? mileageKm;
+  final TripDeviceContext? vehicle;
   final int? gpsDeviceId;
 
   List<HistoryReplayPoint> get points =>
       playback.isNotEmpty ? playback : route;
+
+  /// Full trail for map coloring (prefer dense route).
+  List<HistoryReplayPoint> get trailPoints =>
+      route.isNotEmpty ? route : points;
 
   factory HistoryReplayBundle.fromJson(Map<String, dynamic> json) {
     List<HistoryReplayPoint> parsePoints(Object? raw) {
@@ -772,17 +1043,48 @@ class HistoryReplayBundle {
           .toList();
     }
 
-    final vehicle = json['vehicle'] ?? json['Vehicle'];
-    int? deviceId;
-    if (vehicle is Map) {
-      deviceId = vehicle['gpsDeviceId'] as int? ?? vehicle['GpsDeviceId'] as int?;
+    List<TripStop> parseStops(Object? raw) {
+      if (raw is! List) return const [];
+      return raw
+          .whereType<Map>()
+          .map((e) => TripStop.fromJson(Map<String, dynamic>.from(e)))
+          .toList();
     }
+
+    List<TripEvent> parseEvents(Object? raw) {
+      if (raw is! List) return const [];
+      return raw
+          .whereType<Map>()
+          .map((e) => TripEvent.fromJson(Map<String, dynamic>.from(e)))
+          .toList();
+    }
+
+    final vehicleRaw = json['vehicle'] ?? json['Vehicle'];
+    TripDeviceContext? vehicleCtx;
+    int? deviceId;
+    if (vehicleRaw is Map) {
+      final vm = Map<String, dynamic>.from(vehicleRaw);
+      vehicleCtx = TripDeviceContext.fromJson(vm);
+      deviceId = vehicleCtx.gpsDeviceId;
+    }
+
+    final summaryRaw = json['summary'] ?? json['Summary'];
+    final statsRaw = json['statistics'] ?? json['Statistics'];
 
     return HistoryReplayBundle(
       route: parsePoints(json['route'] ?? json['Route']),
       playback: parsePoints(json['playback'] ?? json['Playback']),
+      stops: parseStops(json['stops'] ?? json['Stops']),
+      events: parseEvents(json['events'] ?? json['Events']),
+      summary: summaryRaw is Map
+          ? TripReplaySummary.fromJson(Map<String, dynamic>.from(summaryRaw))
+          : null,
+      statistics: statsRaw is Map
+          ? TripAnalyticsSummary.fromJson(Map<String, dynamic>.from(statsRaw))
+          : null,
       mileageKm:
           (json['mileageKm'] as num? ?? json['MileageKm'] as num?)?.toDouble(),
+      vehicle: vehicleCtx,
       gpsDeviceId: deviceId,
     );
   }

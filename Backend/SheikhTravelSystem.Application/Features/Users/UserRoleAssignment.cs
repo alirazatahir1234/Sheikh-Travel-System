@@ -1,6 +1,8 @@
 using System.Data;
 using Dapper;
 using SheikhTravelSystem.Application.Common;
+using SheikhTravelSystem.Application.Common.Exceptions;
+using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Application.Features.Users.DTOs;
 using SheikhTravelSystem.Domain.Enums;
 
@@ -9,6 +11,21 @@ namespace SheikhTravelSystem.Application.Features.Users;
 /// <summary>Stage 7 helpers for UserRoles assignment + legacy sync.</summary>
 internal static class UserRoleAssignment
 {
+    /// <summary>
+    /// Blocks elevating a user to SUPER_ADMIN unless the caller is a platform Super Admin.
+    /// </summary>
+    public static void EnsureCanAssignPlatformRole(string? platformRoleCode, ICurrentUserService currentUser)
+    {
+        if (string.IsNullOrWhiteSpace(platformRoleCode))
+            return;
+
+        if (string.Equals(platformRoleCode.Trim(), PlatformRoles.SuperAdmin, StringComparison.OrdinalIgnoreCase)
+            && !currentUser.IsPlatformSuperAdmin)
+        {
+            throw new ForbiddenException("Only platform owners can assign the Super Admin role.");
+        }
+    }
+
     public sealed class AssignedRoleRow
     {
         public int RoleId { get; init; }
@@ -76,6 +93,39 @@ internal static class UserRoleAssignment
 
         if (!roleId.HasValue)
             return;
+
+        var exists = await connection.ExecuteScalarAsync<bool>(new CommandDefinition("""
+            SELECT CASE WHEN EXISTS(SELECT 1 FROM UserRoles WHERE UserId = @UserId AND RoleId = @RoleId) THEN 1 ELSE 0 END
+            """, new { UserId = userId, RoleId = roleId.Value }, cancellationToken: cancellationToken));
+
+        if (exists)
+            return;
+
+        await InsertAssignmentAsync(
+            connection, userId, roleId.Value, branchId, departmentId, assignedBy, cancellationToken);
+    }
+
+    /// <summary>Assigns a platform role by code without removing other assignments.</summary>
+    public static async Task AssignPlatformRoleAsync(
+        IDbConnection connection,
+        int userId,
+        int tenantId,
+        string platformRoleCode,
+        int? branchId,
+        int? departmentId,
+        int? assignedBy,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(platformRoleCode))
+            return;
+
+        var code = platformRoleCode.Trim().ToUpperInvariant();
+        var roleId = await connection.ExecuteScalarAsync<int?>(new CommandDefinition("""
+            SELECT TOP 1 Id FROM Roles WHERE TenantId = @TenantId AND Code = @Code AND IsActive = 1
+            """, new { TenantId = tenantId, Code = code }, cancellationToken: cancellationToken));
+
+        if (!roleId.HasValue)
+            throw new Common.Exceptions.NotFoundException("Role", code);
 
         var exists = await connection.ExecuteScalarAsync<bool>(new CommandDefinition("""
             SELECT CASE WHEN EXISTS(SELECT 1 FROM UserRoles WHERE UserId = @UserId AND RoleId = @RoleId) THEN 1 ELSE 0 END

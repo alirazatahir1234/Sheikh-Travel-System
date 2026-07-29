@@ -11,6 +11,16 @@ Mobile fleet operations for drivers and staff: trips, live GPS, attendance, fuel
 - Driver user linked to `Drivers.UserId` in the database
 - API running with tenant slug `default` (or set `TENANT_SLUG`)
 
+## Splash / native launch
+
+After changing `assets/branding/sheikhgo_logo.png` or `flutter_native_splash` in `pubspec.yaml`:
+
+```bash
+dart run flutter_native_splash:create
+```
+
+The in-app splash route is `/splash` (2s minimum, then login or dashboard).
+
 ## Install Flutter (one-time, macOS)
 
 If you see `zsh: command not found: flutter`, install the SDK first:

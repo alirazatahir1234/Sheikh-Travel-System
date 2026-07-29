@@ -4,7 +4,19 @@ import 'package:go_router/go_router.dart';
 import '../../features/auth/data/auth_repository.dart';
 import '../../features/auth/domain/auth_models.dart';
 import '../../features/auth/presentation/login_screen.dart';
+import '../../features/auth/presentation/splash_screen.dart';
+import '../../features/auth/presentation/session_expired_screen.dart';
+import '../../features/auth/presentation/forgot_password_screen.dart';
+import '../../features/auth/presentation/reset_password_screen.dart';
 import '../../features/dashboard/presentation/dashboard_screen.dart';
+import '../../features/gps_operator/presentation/gps_trips_screen.dart';
+import '../../features/gps_operator/presentation/gps_fuel_dashboard_screen.dart';
+import '../../features/gps_operator/presentation/gps_mileage_dashboard_screen.dart';
+import '../../features/gps_operator/presentation/device_health_screen.dart';
+import '../../features/gps_operator/presentation/gps_commands_hub_screen.dart';
+import '../../features/gps_operator/presentation/incident_center_screen.dart';
+import '../../features/gps_operator/presentation/geofence_operator_screen.dart';
+import '../../features/gps_operator/presentation/operator_ai_screen.dart';
 import '../../features/profile/presentation/profile_screen.dart';
 import '../../features/notifications/presentation/notifications_screen.dart';
 import '../../features/gps/presentation/live_map_screen.dart';
@@ -43,15 +55,32 @@ final routerProvider = Provider<GoRouter>((ref) {
   final authNotifier = ref.watch(authRepositoryProvider);
 
   return GoRouter(
-    initialLocation: '/dashboard',
+    initialLocation: '/splash',
     redirect: (context, state) {
       final session = authNotifier.session;
       final isLoggedIn = authNotifier.isLoggedIn;
       final loc = state.matchedLocation;
       final onLogin = loc == '/login';
+      final onSplash = loc == '/splash';
+      final onAuthFlow = onLogin ||
+          onSplash ||
+          loc == '/forgot-password' ||
+          loc == '/reset-password' ||
+          loc == '/session-expired';
 
-      if (!isLoggedIn && !onLogin) return '/login';
-      if (isLoggedIn && onLogin) return '/dashboard';
+      if (authNotifier.isLoading && onSplash) return null;
+
+      if (onSplash) {
+        if (isLoggedIn) return '/dashboard';
+        return null;
+      }
+
+      if (!isLoggedIn && !onAuthFlow) {
+        return authNotifier.sessionExpired ? '/session-expired' : '/login';
+      }
+      if (isLoggedIn && (onLogin || loc == '/session-expired' || onSplash)) {
+        return '/dashboard';
+      }
 
       if (session != null && FleetNavConfig.isShellRoute(loc)) {
         if (loc.startsWith('/fleet') && !session.canSeeFleetTab) {
@@ -92,6 +121,11 @@ final routerProvider = Provider<GoRouter>((ref) {
                 !session.hasPermission(FleetPermissions.reportView))) {
           return '/more';
         }
+        if (loc.startsWith('/gps/') &&
+            (session.isDriverOnly ||
+                !session.hasPermission(FleetPermissions.gpsView))) {
+          return '/dashboard';
+        }
         if (loc == '/live' && !session.isDriverSession) {
           return '/dashboard';
         }
@@ -102,8 +136,28 @@ final routerProvider = Provider<GoRouter>((ref) {
     refreshListenable: authNotifier,
     routes: [
       GoRoute(
+        path: '/splash',
+        builder: (_, __) => const SplashScreen(),
+      ),
+      GoRoute(
+        path: '/',
+        redirect: (_, __) => '/splash',
+      ),
+      GoRoute(
         path: '/login',
         builder: (_, __) => const LoginScreen(),
+      ),
+      GoRoute(
+        path: '/forgot-password',
+        builder: (_, __) => const ForgotPasswordScreen(),
+      ),
+      GoRoute(
+        path: '/reset-password',
+        builder: (_, __) => const ResetPasswordScreen(),
+      ),
+      GoRoute(
+        path: '/session-expired',
+        builder: (_, __) => const SessionExpiredScreen(),
       ),
       GoRoute(
         path: '/trips/:id/navigate',
@@ -144,9 +198,43 @@ final routerProvider = Provider<GoRouter>((ref) {
                       vehicleId: int.parse(state.pathParameters['id']!),
                     ),
                   ),
+                  GoRoute(
+                    path: 'device',
+                    builder: (_, state) => DeviceHealthScreen(
+                      vehicleId: int.parse(state.pathParameters['id']!),
+                    ),
+                  ),
                 ],
               ),
             ],
+          ),
+          GoRoute(
+            path: '/gps/trips',
+            builder: (_, __) => const GpsTripsScreen(),
+          ),
+          GoRoute(
+            path: '/gps/fuel',
+            builder: (_, __) => const GpsFuelDashboardScreen(),
+          ),
+          GoRoute(
+            path: '/gps/mileage',
+            builder: (_, __) => const GpsMileageDashboardScreen(),
+          ),
+          GoRoute(
+            path: '/gps/commands',
+            builder: (_, __) => const GpsCommandsHubScreen(),
+          ),
+          GoRoute(
+            path: '/gps/incidents',
+            builder: (_, __) => const IncidentCenterScreen(),
+          ),
+          GoRoute(
+            path: '/gps/geofences',
+            builder: (_, __) => const GeofenceOperatorScreen(),
+          ),
+          GoRoute(
+            path: '/gps/operator-ai',
+            builder: (_, __) => const OperatorAiScreen(),
           ),
           GoRoute(
             path: '/trips',

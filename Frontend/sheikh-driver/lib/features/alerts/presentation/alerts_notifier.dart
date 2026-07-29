@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../auth/data/auth_repository.dart';
 import '../data/gps_alerts_api.dart';
 import '../domain/gps_alert_models.dart';
 
@@ -9,6 +10,7 @@ class AlertsState {
     this.statusFilter,
     this.readStateFilter,
     this.severityFilter,
+    this.eventTypeFilter,
     this.datePreset = 'today',
   });
 
@@ -17,6 +19,7 @@ class AlertsState {
   final String? statusFilter;
   final String? readStateFilter;
   final String? severityFilter;
+  final String? eventTypeFilter;
   final String datePreset;
 
   List<GpsAlertEvent> get visible => events;
@@ -27,10 +30,12 @@ class AlertsState {
     String? statusFilter,
     String? readStateFilter,
     String? severityFilter,
+    String? eventTypeFilter,
     String? datePreset,
     bool clearStatus = false,
     bool clearReadState = false,
     bool clearSeverity = false,
+    bool clearEventType = false,
   }) {
     return AlertsState(
       stats: stats ?? this.stats,
@@ -40,6 +45,8 @@ class AlertsState {
           clearReadState ? null : (readStateFilter ?? this.readStateFilter),
       severityFilter:
           clearSeverity ? null : (severityFilter ?? this.severityFilter),
+      eventTypeFilter:
+          clearEventType ? null : (eventTypeFilter ?? this.eventTypeFilter),
       datePreset: datePreset ?? this.datePreset,
     );
   }
@@ -56,13 +63,18 @@ class AlertsNotifier extends AsyncNotifier<AlertsState> {
     String? statusFilter,
     String? readStateFilter,
     String? severityFilter,
+    String? eventTypeFilter,
     String? datePreset,
   }) async {
+    if (!ref.read(authRepositoryProvider).isLoggedIn) {
+      return const AlertsState();
+    }
     final api = ref.read(gpsAlertsApiProvider);
     final prev = state.valueOrNull;
     final selectedStatus = statusFilter ?? prev?.statusFilter;
     final selectedReadState = readStateFilter ?? prev?.readStateFilter;
     final selectedSeverity = severityFilter ?? prev?.severityFilter;
+    final selectedEventType = eventTypeFilter ?? prev?.eventTypeFilter;
     final selectedDatePreset = datePreset ?? prev?.datePreset ?? 'today';
 
     GpsAlertStats stats = GpsAlertStats.empty;
@@ -79,6 +91,7 @@ class AlertsNotifier extends AsyncNotifier<AlertsState> {
             status: selectedStatus,
             readState: selectedReadState,
             severity: selectedSeverity,
+            eventType: selectedEventType,
             datePreset: selectedDatePreset,
           );
         } catch (_) {}
@@ -91,6 +104,7 @@ class AlertsNotifier extends AsyncNotifier<AlertsState> {
       statusFilter: selectedStatus,
       readStateFilter: selectedReadState,
       severityFilter: selectedSeverity,
+      eventTypeFilter: selectedEventType,
       datePreset: selectedDatePreset,
     );
   }
@@ -131,6 +145,13 @@ class AlertsNotifier extends AsyncNotifier<AlertsState> {
   Future<void> setDatePreset(String datePreset) async {
     state = const AsyncLoading();
     state = await AsyncValue.guard(() => _load(datePreset: datePreset));
+  }
+
+  Future<void> setEventType(String? eventType) async {
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(
+      () => _load(eventTypeFilter: eventType),
+    );
   }
 
   Future<void> acknowledge(int id) async {

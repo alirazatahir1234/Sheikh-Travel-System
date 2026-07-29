@@ -697,6 +697,19 @@ public class GetGpsAlertEventsQueryHandler(
     ICurrentUserService currentUser)
     : IRequestHandler<GetGpsAlertEventsQuery, ApiResponse<List<GpsAlertEventDto>>>
 {
+    private const string AlertSelectColumns = """
+            e.Id, e.RuleId, e.VehicleId, v.Name AS VehicleName, e.EventType,
+            ISNULL(e.Latitude, 0) AS Latitude, ISNULL(e.Longitude, 0) AS Longitude,
+            ISNULL(e.Speed, 0) AS Speed, ISNULL(e.Message, '') AS Message,
+            e.Timestamp, e.IsAcknowledged,
+            COALESCE(e.Severity, 'medium') AS Severity,
+            COALESCE(e.Status, 'active') AS Status,
+            e.GeofenceId, g.Name AS GeofenceName,
+            e.DriverId, d.FullName AS DriverName,
+            e.ReadAt, e.ReadBy, e.AcknowledgedAt, e.AcknowledgedBy,
+            e.ResolvedAt, e.ResolvedBy, e.ResolutionNotes, e.ArchivedAt, e.ArchivedBy
+        """;
+
     public async Task<ApiResponse<List<GpsAlertEventDto>>> Handle(GetGpsAlertEventsQuery request, CancellationToken cancellationToken)
     {
         if (!GpsAlertAccess.CanView(currentUser))
@@ -704,15 +717,10 @@ public class GetGpsAlertEventsQueryHandler(
 
         using var connection = dbFactory.CreateConnection();
         var tenantId = tenantContext.GetRequiredTenantId();
-        var allowedEventTypes = GpsAlertAccess.AllowedEventTypes(currentUser.Role);
+        var allowedEventTypes = GpsAlertAccess.AllowedEventTypesForRoles(currentUser.Roles);
         var (from, to) = ResolveDateRange(request.DatePreset, request.From, request.To);
-        var sql = """
-            SELECT e.Id, e.RuleId, e.VehicleId, v.Name AS VehicleName, e.EventType,
-                   e.Latitude, e.Longitude, e.Speed, e.Message, e.Timestamp, e.IsAcknowledged,
-                   e.Severity, e.Status, e.GeofenceId, g.Name AS GeofenceName,
-                   e.DriverId, d.FullName AS DriverName,
-                   e.ReadAt, e.ReadBy, e.AcknowledgedAt, e.AcknowledgedBy,
-                   e.ResolvedAt, e.ResolvedBy, e.ResolutionNotes, e.ArchivedAt, e.ArchivedBy
+        var sql = $"""
+            SELECT {AlertSelectColumns}
             FROM GpsAlertEvents e
             INNER JOIN Vehicles v ON v.Id = e.VehicleId AND v.TenantId = @TenantId
             LEFT JOIN Geofences g ON g.Id = e.GeofenceId
@@ -840,12 +848,16 @@ public class GetGpsAlertEventByIdQueryHandler(
 
         using var connection = dbFactory.CreateConnection();
         var tenantId = tenantContext.GetRequiredTenantId();
-        var allowedEventTypes = GpsAlertAccess.AllowedEventTypes(currentUser.Role);
+        var allowedEventTypes = GpsAlertAccess.AllowedEventTypesForRoles(currentUser.Roles);
 
         var sql = """
             SELECT e.Id, e.RuleId, e.VehicleId, v.Name AS VehicleName, e.EventType,
-                   e.Latitude, e.Longitude, e.Speed, e.Message, e.Timestamp, e.IsAcknowledged,
-                   e.Severity, e.Status, e.GeofenceId, g.Name AS GeofenceName,
+                   ISNULL(e.Latitude, 0) AS Latitude, ISNULL(e.Longitude, 0) AS Longitude,
+                   ISNULL(e.Speed, 0) AS Speed, ISNULL(e.Message, '') AS Message,
+                   e.Timestamp, e.IsAcknowledged,
+                   COALESCE(e.Severity, 'medium') AS Severity,
+                   COALESCE(e.Status, 'active') AS Status,
+                   e.GeofenceId, g.Name AS GeofenceName,
                    e.DriverId, d.FullName AS DriverName,
                    e.ReadAt, e.ReadBy, e.AcknowledgedAt, e.AcknowledgedBy,
                    e.ResolvedAt, e.ResolvedBy, e.ResolutionNotes, e.ArchivedAt, e.ArchivedBy

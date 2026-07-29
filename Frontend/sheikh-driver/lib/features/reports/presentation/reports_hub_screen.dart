@@ -71,6 +71,31 @@ class _ReportsHubScreenState extends ConsumerState<ReportsHubScreen> {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
         children: [
+          const SgSectionTitle('Operator presets'),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              ActionChip(
+                label: const Text('Alert summary'),
+                onPressed: () => setState(() => _type = 'alert'),
+              ),
+              ActionChip(
+                label: const Text('Mileage'),
+                onPressed: () => setState(() => _type = 'mileage'),
+              ),
+              ActionChip(
+                label: const Text('Fuel'),
+                onPressed: () => setState(() => _type = 'fuel'),
+              ),
+              ActionChip(
+                label: const Text('Geofence'),
+                onPressed: () => setState(() => _type = 'geofence'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
           const SgSectionTitle('Report type'),
           const SizedBox(height: 8),
           Wrap(

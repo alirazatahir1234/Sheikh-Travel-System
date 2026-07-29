@@ -12,6 +12,9 @@ import '../domain/dashboard_role.dart';
 import 'dashboard_notifier.dart';
 import 'widgets/command_dashboard_widgets.dart';
 import 'widgets/dashboard_widgets.dart';
+import '../../gps_operator/presentation/operator_dashboard_widgets.dart';
+import '../../gps_operator/domain/operator_dashboard_models.dart';
+import '../../alerts/data/gps_alerts_api.dart';
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
@@ -68,7 +71,16 @@ class DashboardScreen extends ConsumerWidget {
         ],
       ),
       body: dashAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => ListView(
+          padding: const EdgeInsets.all(16),
+          children: const [
+            SgSkeleton(height: 108),
+            SizedBox(height: 12),
+            SgSkeleton(height: 120),
+            SizedBox(height: 12),
+            SgSkeleton(height: 200),
+          ],
+        ),
         error: (e, _) => _ErrorView(
           message: e.toString(),
           onRetry: () => ref.read(dashboardProvider.notifier).refresh(),
@@ -323,6 +335,24 @@ class DashboardScreen extends ConsumerWidget {
         );
       case DashboardWidgetId.quickActions:
         return QuickActionsGrid(actions: data.quickActions);
+      case DashboardWidgetId.gpsExceptionKpiGrid:
+        return GpsExceptionKpiGrid(
+          summary: data.operatorSummary ?? GpsOperatorSummary.empty,
+        );
+      case DashboardWidgetId.trackerHealthCard:
+        return TrackerHealthCard(
+          summary: data.operatorSummary ?? GpsOperatorSummary.empty,
+        );
+      case DashboardWidgetId.recentGpsAlertsFeed:
+        return Consumer(
+          builder: (context, ref, _) => RecentGpsAlertsFeed(
+            alerts: data.alertEvents,
+            onAcknowledge: (id) async {
+              await ref.read(gpsAlertsApiProvider).acknowledge(id);
+              await ref.read(dashboardProvider.notifier).silentRefresh();
+            },
+          ),
+        );
     }
   }
 

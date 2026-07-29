@@ -20,6 +20,7 @@ class MoreScreen extends ConsumerWidget {
 
     final entries = FleetNavConfig.visibleMoreEntries(session);
     final subscription = session.companyContext?.subscription;
+    final operatorShell = session.isGpsOperator;
 
     return Scaffold(
       backgroundColor: AppColors.surface,
@@ -37,26 +38,37 @@ class MoreScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            [
-              if (session.companyName != null && session.companyName!.isNotEmpty)
-                session.companyName!,
-              if (session.companyContext?.branchName != null)
-                session.companyContext!.branchName!,
-              if (session.companyContext?.departmentName != null)
-                session.companyContext!.departmentName!,
-              if (session.companyContext?.jobTitle != null &&
-                  session.companyContext!.jobTitle!.isNotEmpty)
-                session.companyContext!.jobTitle!,
-              if (session.companyContext?.theme != null)
-                'Theme ${session.companyContext!.theme}',
-              session.isDriverOnly ? 'Driver workspace' : 'Fleet operations',
-            ].join(' · '),
+            operatorShell
+                ? [
+                    if (session.companyName != null &&
+                        session.companyName!.isNotEmpty)
+                      session.companyName!,
+                    if (session.companyContext?.branchName != null)
+                      session.companyContext!.branchName!,
+                    'GPS operations',
+                  ].join(' · ')
+                : [
+                    if (session.companyName != null &&
+                        session.companyName!.isNotEmpty)
+                      session.companyName!,
+                    if (session.companyContext?.branchName != null)
+                      session.companyContext!.branchName!,
+                    if (session.companyContext?.departmentName != null)
+                      session.companyContext!.departmentName!,
+                    if (session.companyContext?.jobTitle != null &&
+                        session.companyContext!.jobTitle!.isNotEmpty)
+                      session.companyContext!.jobTitle!,
+                    if (session.companyContext?.theme != null)
+                      'Theme ${session.companyContext!.theme}',
+                    session.isDriverOnly ? 'Driver workspace' : 'Fleet operations',
+                  ].join(' · '),
             style: const TextStyle(
               fontSize: 13,
               color: AppColors.textSecondary,
             ),
           ),
-          if (session.companyContext?.effectiveWorkspace != null) ...[
+          if (!operatorShell &&
+              session.companyContext?.effectiveWorkspace != null) ...[
             const SizedBox(height: 10),
             Wrap(
               spacing: 6,
@@ -81,7 +93,8 @@ class MoreScreen extends ConsumerWidget {
               ],
             ),
           ],
-          if (session.companyContext?.roleDisplayLabels.isNotEmpty == true) ...[
+          if (!operatorShell &&
+              session.companyContext?.roleDisplayLabels.isNotEmpty == true) ...[
             const SizedBox(height: 10),
             Wrap(
               spacing: 6,
@@ -108,7 +121,8 @@ class MoreScreen extends ConsumerWidget {
               ],
             ),
           ],
-          if (session.companyContext?.permissionCategoryLabels.isNotEmpty ==
+          if (!operatorShell &&
+              session.companyContext?.permissionCategoryLabels.isNotEmpty ==
               true) ...[
             const SizedBox(height: 8),
             Wrap(
@@ -137,7 +151,8 @@ class MoreScreen extends ConsumerWidget {
               ],
             ),
           ],
-          if (session.companyContext?.navDisplayLabels.isNotEmpty == true) ...[
+          if (!operatorShell &&
+              session.companyContext?.navDisplayLabels.isNotEmpty == true) ...[
             const SizedBox(height: 8),
             Wrap(
               spacing: 6,
@@ -167,7 +182,8 @@ class MoreScreen extends ConsumerWidget {
               ],
             ),
           ],
-          if (session.companyContext?.dashboardDisplayLabel != null) ...[
+          if (!operatorShell &&
+              session.companyContext?.dashboardDisplayLabel != null) ...[
             const SizedBox(height: 8),
             Wrap(
               spacing: 6,
@@ -195,7 +211,8 @@ class MoreScreen extends ConsumerWidget {
               ],
             ),
           ],
-          if (session.companyContext?.dataScopeDisplayLabels.isNotEmpty ==
+          if (!operatorShell &&
+              session.companyContext?.dataScopeDisplayLabels.isNotEmpty ==
               true) ...[
             const SizedBox(height: 8),
             Wrap(
@@ -224,7 +241,8 @@ class MoreScreen extends ConsumerWidget {
               ],
             ),
           ],
-          if (session.companyContext?.securityDisplayLabels.isNotEmpty ==
+          if (!operatorShell &&
+              session.companyContext?.securityDisplayLabels.isNotEmpty ==
               true) ...[
             const SizedBox(height: 8),
             Wrap(
@@ -256,7 +274,8 @@ class MoreScreen extends ConsumerWidget {
               ],
             ),
           ],
-          if (session.companyContext?.auditDisplayLabels.isNotEmpty == true) ...[
+          if (!operatorShell &&
+              session.companyContext?.auditDisplayLabels.isNotEmpty == true) ...[
             const SizedBox(height: 8),
             Wrap(
               spacing: 6,
@@ -283,7 +302,8 @@ class MoreScreen extends ConsumerWidget {
               ],
             ),
           ],
-          if (session.companyContext?.moduleDisplayLabels.isNotEmpty ==
+          if (!operatorShell &&
+              session.companyContext?.moduleDisplayLabels.isNotEmpty ==
               true) ...[
             const SizedBox(height: 10),
             Wrap(
@@ -311,7 +331,8 @@ class MoreScreen extends ConsumerWidget {
               ],
             ),
           ],
-          if (session.companyContext?.featureDisplayLabels.isNotEmpty ==
+          if (!operatorShell &&
+              session.companyContext?.featureDisplayLabels.isNotEmpty ==
               true) ...[
             const SizedBox(height: 10),
             const Text(
@@ -349,7 +370,7 @@ class MoreScreen extends ConsumerWidget {
               ],
             ),
           ],
-          if (subscription != null) ...[
+          if (!operatorShell && subscription != null) ...[
             const SizedBox(height: 12),
             _LicenseStrip(subscription: subscription),
           ],

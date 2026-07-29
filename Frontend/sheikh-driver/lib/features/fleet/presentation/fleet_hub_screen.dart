@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_theme.dart';
+import '../../auth/data/auth_repository.dart';
 import 'fleet_hub_notifier.dart';
 import 'widgets/fleet_kpi_strip.dart';
 import 'widgets/fleet_vehicle_tile.dart';
@@ -16,7 +17,11 @@ class FleetHubScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: AppColors.surface,
       appBar: AppBar(
-        title: const Text('Fleet'),
+        title: Text(
+          ref.watch(fleetSessionProvider)?.isGpsOperator == true
+              ? 'Vehicles'
+              : 'Fleet',
+        ),
         actions: [
           IconButton(
             tooltip: 'Live map',
@@ -69,7 +74,10 @@ class FleetHubScreen extends ConsumerWidget {
                     child: Row(
                       children: [
                         Text(
-                          '${hub.kpis.totalVehicles} vehicles',
+                          '${hub.kpis.totalVehicles} vehicles · '
+                          '${hub.kpis.online} online · '
+                          '${hub.kpis.moving} moving · '
+                          '${hub.kpis.idle} idle',
                           style: const TextStyle(
                             fontWeight: FontWeight.w700,
                             fontSize: 16,

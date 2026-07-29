@@ -24,6 +24,12 @@ abstract class AppColors {
   static const border = Color(0xFFD1D5DB);
   static const chipBg = Color(0xFFF3F4F6);
 
+  /// Splash / launch branding
+  static const splashNavyTop = Color(0xFF0A1628);
+  static const splashNavyBottom = Color(0xFF0F2137);
+  static const splashLightTop = Color(0xFFF4F8FB);
+  static const splashLightBottom = Color(0xFFFFFFFF);
+
   /// Trip status badge colors
   static Color statusColor(String status) {
     final s = status.toLowerCase().replaceAll(' ', '');

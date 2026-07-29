@@ -63,6 +63,7 @@ List<FleetVehicleLocation> mergeVehiclesWithLive({
         lastUpdated: livePos.timestamp,
         speed: livePos.speed,
         driverName: v.driverName,
+        driverPhone: v.driverPhone,
         hasGps: true,
         ignition: livePos.ignition,
         heading: livePos.heading,
@@ -97,6 +98,7 @@ List<FleetVehicleLocation> mergeVehiclesWithLive({
         lastUpdated: lastUpdated,
         speed: 0,
         driverName: v.driverName,
+        driverPhone: v.driverPhone,
         hasGps: true,
         ignition: v.engineIgnition,
         vehicleType: v.vehicleType,
@@ -112,6 +114,7 @@ List<FleetVehicleLocation> mergeVehiclesWithLive({
           ? FleetTrackStatus.neverSeen
           : FleetTrackStatus.offline,
       driverName: v.driverName,
+      driverPhone: v.driverPhone,
       hasGps: v.hasGpsDevice,
       vehicleType: v.vehicleType,
       serviceAlert: v.serviceAlert,

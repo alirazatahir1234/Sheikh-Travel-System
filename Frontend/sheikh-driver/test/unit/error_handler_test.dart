@@ -7,6 +7,7 @@ DioException _makeDioException({
   DioExceptionType type = DioExceptionType.unknown,
   int? statusCode,
   dynamic responseData,
+  String? message,
 }) {
   final response = statusCode != null
       ? Response(
@@ -19,6 +20,7 @@ DioException _makeDioException({
     requestOptions: RequestOptions(path: '/test'),
     type: type,
     response: response,
+    message: message,
   );
 }
 
@@ -96,6 +98,26 @@ void main() {
         statusCode: 503,
       );
       expect(ErrorHandler.fromDio(e), isA<ServerException>());
+    });
+
+    test('408 response → NetworkException', () {
+      final e = _makeDioException(
+        type: DioExceptionType.badResponse,
+        statusCode: 408,
+      );
+      final ex = ErrorHandler.fromDio(e);
+      expect(ex, isA<NetworkException>());
+      expect(ex.message, contains('timed out'));
+    });
+
+    test('connection refused maps to server unavailable message', () {
+      final e = _makeDioException(
+        type: DioExceptionType.connectionError,
+        message: 'SocketException: Connection refused',
+      );
+      final ex = ErrorHandler.fromDio(e);
+      expect(ex, isA<NetworkException>());
+      expect(ex.message, contains('Server unavailable'));
     });
   });
 

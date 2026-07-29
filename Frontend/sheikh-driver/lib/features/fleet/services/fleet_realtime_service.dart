@@ -21,6 +21,15 @@ class FleetRealtimeService {
 
   String get _hubUrl => AppConfig.hubBaseUrl;
 
+  Future<bool> _hasAuthToken() async {
+    const storage = FlutterSecureStorage(
+      mOptions: MacOsOptions(useDataProtectionKeyChain: false),
+    );
+    final token = await storage.read(key: 'fleet_access_token') ??
+        await storage.read(key: 'driver_access_token');
+    return token != null && token.isNotEmpty;
+  }
+
   Future<void> connect() async {
     if (_connection != null) return;
 
@@ -61,6 +70,10 @@ class FleetRealtimeService {
 
       _connection!.onreconnecting(({error}) => _status.add('reconnecting'));
       _connection!.onreconnected(({connectionId}) async {
+        if (!await _hasAuthToken()) {
+          await disconnect();
+          return;
+        }
         _status.add('connected');
         await _joinDispatcher();
       });

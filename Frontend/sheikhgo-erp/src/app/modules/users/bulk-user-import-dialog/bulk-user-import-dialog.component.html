@@ -1,0 +1,184 @@
+<h2 mat-dialog-title>
+  <mat-icon>upload_file</mat-icon>
+  Import users
+</h2>
+
+<mat-dialog-content class="dialog-body">
+  <p class="hint">
+    Upload CSV or Excel using the SheikhGo import format.
+    Required: <strong>FullName, Email, Phone, Role</strong>.
+    <strong>Role</strong> accepts display names (<code>Fleet Manager</code>), legacy labels (<code>Admin</code>), or codes (<code>FLEET_MANAGER</code>).
+    Optional <code>PlatformRoleCode</code> overrides <code>Role</code>. Blank <strong>Password</strong> → auto-generated.
+  </p>
+
+  <div class="toolbar">
+    <button mat-stroked-button type="button" [matMenuTriggerFor]="templateMenu" [disabled]="submitting">
+      <mat-icon>download</mat-icon>
+      Download
+    </button>
+    <mat-menu #templateMenu="matMenu">
+      <button mat-menu-item type="button" (click)="downloadTemplateCsv(true)">Basic template (CSV)</button>
+      <button mat-menu-item type="button" (click)="downloadTemplateExcel(true)">Basic template (Excel)</button>
+      <button mat-menu-item type="button" (click)="downloadEnterpriseTemplate()">Enterprise template (Excel)</button>
+      <button mat-menu-item type="button" (click)="downloadTemplateExcel(false)">Sample data (Excel)</button>
+    </mat-menu>
+
+    <button mat-stroked-button type="button" color="primary" (click)="pickFile()" [disabled]="submitting">
+      <mat-icon>folder_open</mat-icon>
+      Choose file
+    </button>
+
+    <button mat-stroked-button type="button" (click)="downloadErrorReportExcel()"
+            [disabled]="!rows.length" *ngIf="rows.length">
+      <mat-icon>report</mat-icon>
+      Error report
+    </button>
+
+    <input #fileInput type="file" class="file-input"
+           accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+           (change)="onFileSelected($event)" />
+    <span class="spacer"></span>
+    <span class="file-name" *ngIf="fileName">{{ fileName }}</span>
+  </div>
+
+  <div class="options-panel" *ngIf="rows.length">
+    <mat-checkbox [(ngModel)]="skipDuplicates" [disabled]="submitting || done">Skip duplicates</mat-checkbox>
+    <mat-checkbox [(ngModel)]="ignoreInvalidRows" [disabled]="submitting || done">Ignore invalid rows</mat-checkbox>
+    <mat-checkbox [(ngModel)]="generatePasswords" [disabled]="submitting || done">Generate passwords</mat-checkbox>
+    <mat-checkbox [disabled]="true" matTooltip="Welcome email requires SMTP configuration">
+      Send welcome email
+    </mat-checkbox>
+    <span class="mode-toggle">
+      <button mat-stroked-button type="button"
+              [color]="!dryRun ? 'primary' : undefined"
+              (click)="dryRun = false"
+              [disabled]="submitting || done">Create only</button>
+      <button mat-stroked-button type="button"
+              [color]="dryRun ? 'primary' : undefined"
+              (click)="dryRun = true"
+              [disabled]="submitting || done">Dry run</button>
+    </span>
+  </div>
+
+  <div class="summary-cards" *ngIf="rows.length">
+    <div class="summary-bar">
+      <span><strong>{{ totalCount }}</strong> total</span>
+      <span class="dot">·</span>
+      <span class="ok"><strong>{{ readyCount }}</strong> ready</span>
+      <span class="dot" *ngIf="warningCount">·</span>
+      <span class="warn" *ngIf="warningCount"><strong>{{ warningCount }}</strong> warning</span>
+      <span class="dot" *ngIf="errorCount">·</span>
+      <span class="err" *ngIf="errorCount"><strong>{{ errorCount }}</strong> error</span>
+    </div>
+    <div class="preview-meta" *ngIf="previewSummary.roles.length">
+      <span>Roles: {{ previewSummary.roles.join(', ') }}</span>
+      <span *ngIf="previewSummary.branches"> · Branches: {{ previewSummary.branches }}</span>
+      <span *ngIf="previewSummary.departments"> · Departments: {{ previewSummary.departments }}</span>
+    </div>
+  </div>
+
+  <div class="auto-fixes" *ngIf="autoFixMessages.length && rows.length">
+    <mat-icon>auto_fix_high</mat-icon>
+    <div>
+      <strong>Auto-fixes &amp; detections</strong>
+      <ul>
+        <li *ngFor="let msg of autoFixMessages">{{ msg }}</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="preview" *ngIf="rows.length">
+    <table class="preview-table">
+      <thead>
+        <tr>
+          <th class="col-row">#</th>
+          <th>Name</th>
+          <th>Email</th>
+          <th>Role</th>
+          <th>Phone</th>
+          <th>Org</th>
+          <th>Issue</th>
+          <th>Suggestion</th>
+          <th>Result</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let row of rows"
+            [class.invalid]="row.severity === 'error'"
+            [class.warn]="row.severity === 'warning'"
+            [class.submitted]="row.created"
+            [class.failed]="row.serverError">
+          <td class="col-row">{{ row.rowNumber }}</td>
+          <td>{{ row.dto?.fullName || row.raw?.FullName || '—' }}</td>
+          <td>{{ row.dto?.email || row.rawEmail || '—' }}</td>
+          <td class="role-cell">
+            <ng-container *ngIf="row.dto && row.resolvedRole; else roleBroken">
+              <span class="role-label">{{ row.resolvedRole.displayLabel }}</span>
+              <span class="role-code">{{ row.resolvedRole.platformRoleCode }}</span>
+              <span class="perm-hint" *ngIf="row.severity !== 'error'">{{ permissionHint(row) }}</span>
+              <mat-form-field appearance="outline" class="role-fix" *ngIf="row.severity === 'error'">
+                <mat-label>Fix role</mat-label>
+                <mat-select [value]="row.roleOverrideCode || row.resolvedRole.platformRoleCode"
+                            (selectionChange)="onRoleFix(row, $event.value)">
+                  <mat-option *ngFor="let opt of roleOptions()" [value]="opt.code">{{ opt.label }}</mat-option>
+                </mat-select>
+              </mat-form-field>
+            </ng-container>
+            <ng-template #roleBroken>
+              <mat-form-field appearance="outline" class="role-fix">
+                <mat-label>Role</mat-label>
+                <mat-select (selectionChange)="onRoleFix(row, $event.value)">
+                  <mat-option *ngFor="let opt of roleOptions()" [value]="opt.code">{{ opt.label }}</mat-option>
+                </mat-select>
+              </mat-form-field>
+            </ng-template>
+          </td>
+          <td>
+            {{ row.displayPhone || row.dto?.phone || row.raw?.Phone || '—' }}
+            <span class="pwd-pill" *ngIf="row.passwordPreview === 'blank'">Auto-generated</span>
+          </td>
+          <td class="org-cell">
+            <span>{{ row.branchStatus || '—' }}</span>
+            <span class="org-sub">{{ row.departmentStatus }}</span>
+          </td>
+          <td class="issue-cell">{{ primaryIssue(row) || '—' }}</td>
+          <td class="suggestion-cell">{{ primarySuggestion(row) || '—' }}</td>
+          <td>
+            <span class="pill ok" *ngIf="row.created">Created</span>
+            <span class="pill ok" *ngIf="row.dryRunOk">Would create</span>
+            <span class="pill warn" *ngIf="row.serverSkipped">Skipped</span>
+            <span class="pill err" *ngIf="row.serverError">Failed</span>
+            <span class="pill pending" *ngIf="!row.created && !row.serverError && !row.serverSkipped && !row.dryRunOk && !done && row.dto">Ready</span>
+            <span class="pill err" *ngIf="!row.dto && !done">Invalid</span>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="temp-passwords" *ngIf="done && hasTemporaryPasswords">
+    <p class="hint">
+      Temporary passwords were generated for {{ temporaryPasswordRows.length }} user(s).
+      For security they are not returned by the API — use <strong>Reset password</strong> on each user to issue credentials.
+    </p>
+    <ul>
+      <li *ngFor="let row of temporaryPasswordRows">
+        <strong>{{ row.dto?.email }}</strong>
+      </li>
+    </ul>
+  </div>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button type="button" (click)="cancel()" [disabled]="submitting" *ngIf="!done">Cancel</button>
+  <button mat-button type="button" (click)="close()" *ngIf="done">Close</button>
+  <button mat-raised-button color="primary" type="button"
+          (click)="submit()"
+          [disabled]="submitting || importableCount === 0 || done"
+          [matTooltip]="importDisabledReason || ''"
+          [matTooltipDisabled]="!importDisabledReason">
+    <mat-spinner *ngIf="submitting" diameter="18" class="inline-spinner"></mat-spinner>
+    <mat-icon *ngIf="!submitting">{{ dryRun ? 'fact_check' : 'cloud_upload' }}</mat-icon>
+    {{ submitting ? (dryRun ? 'Validating…' : 'Importing…') : (dryRun ? ('Dry run ' + importableCount + ' user' + (importableCount === 1 ? '' : 's')) : ('Import ' + importableCount + ' user' + (importableCount === 1 ? '' : 's'))) }}
+  </button>
+</mat-dialog-actions>

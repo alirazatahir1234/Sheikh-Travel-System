@@ -59,6 +59,41 @@ class FleetVehicleTile extends StatelessWidget {
                     ),
                   ),
                 ],
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 4,
+                  children: [
+                    _meta(
+                      '${vehicle.speed.toStringAsFixed(0)} km/h',
+                      Icons.speed,
+                    ),
+                    _meta(
+                      vehicle.ignition == true ? 'IGN on' : 'IGN off',
+                      Icons.power_settings_new,
+                    ),
+                    _meta(
+                      vehicle.hasGps && vehicle.status.label.toLowerCase() != 'offline'
+                          ? 'GPS'
+                          : 'No GPS',
+                      Icons.satellite_alt_outlined,
+                      online: vehicle.hasGps &&
+                          vehicle.status.label.toLowerCase() != 'offline',
+                    ),
+                    if (vehicle.batteryLevel != null)
+                      _meta(
+                        '${vehicle.batteryLevel!.toStringAsFixed(0)}%',
+                        Icons.battery_charging_full,
+                      ),
+                    if (vehicle.gsmSignal != null)
+                      _meta('GSM ${vehicle.gsmSignal}', Icons.signal_cellular_alt),
+                    if (vehicle.lastUpdated != null)
+                      _meta(
+                        _relTime(vehicle.lastUpdated!),
+                        Icons.schedule,
+                      ),
+                  ],
+                ),
               ],
             ),
           ),
@@ -82,5 +117,34 @@ class FleetVehicleTile extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  Widget _meta(String text, IconData icon, {bool online = true}) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(
+          icon,
+          size: 12,
+          color: online ? AppColors.textMuted : AppColors.error,
+        ),
+        const SizedBox(width: 2),
+        Text(
+          text,
+          style: TextStyle(
+            fontSize: 11,
+            color: online ? AppColors.textMuted : AppColors.error,
+          ),
+        ),
+      ],
+    );
+  }
+
+  String _relTime(DateTime t) {
+    final d = DateTime.now().difference(t);
+    if (d.inMinutes < 1) return 'now';
+    if (d.inMinutes < 60) return '${d.inMinutes}m';
+    if (d.inHours < 24) return '${d.inHours}h';
+    return '${d.inDays}d';
   }
 }

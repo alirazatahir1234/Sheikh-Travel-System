@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../auth/data/auth_repository.dart';
 import '../data/fleet_api.dart';
 import '../domain/fleet_models.dart';
 import '../domain/fleet_status.dart';
@@ -80,6 +81,9 @@ class FleetHubNotifier extends AsyncNotifier<FleetHubState> {
   }
 
   Future<FleetHubState> _load() async {
+    if (!ref.read(authRepositoryProvider).isLoggedIn) {
+      return const FleetHubState();
+    }
     final api = ref.read(fleetApiProvider);
     GpsFleetStatusKpis kpis = GpsFleetStatusKpis.empty;
     FleetOpsDashboard ops = FleetOpsDashboard.empty;
@@ -114,6 +118,7 @@ class FleetHubNotifier extends AsyncNotifier<FleetHubState> {
   }
 
   void _startRealtime() {
+    if (!ref.read(authRepositoryProvider).isLoggedIn) return;
     unawaited(FleetRealtimeService.instance.connect());
     _liveSub?.cancel();
     _liveSub = FleetRealtimeService.instance.locationUpdates.listen((pos) {

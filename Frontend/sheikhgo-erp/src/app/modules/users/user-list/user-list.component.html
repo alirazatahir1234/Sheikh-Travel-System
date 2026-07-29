@@ -5,6 +5,32 @@
     [breadcrumbs]="[{ label: 'Administration' }, { label: 'Users' }]">
     <div class="header-actions">
       <ui-button variant="outline" icon="refresh" (clicked)="load()">Refresh</ui-button>
+      <button mat-stroked-button type="button" class="export-trigger" [matMenuTriggerFor]="formatMenu">
+        <mat-icon>import_export</mat-icon>
+        <span>Import / Format</span>
+      </button>
+      <mat-menu #formatMenu="matMenu">
+        <button mat-menu-item type="button" (click)="openImportDialog()">
+          <mat-icon>upload_file</mat-icon>
+          <span>Import users…</span>
+        </button>
+        <button mat-menu-item type="button" (click)="downloadImportTemplateCsv()">
+          <mat-icon>description</mat-icon>
+          <span>Download template (CSV)</span>
+        </button>
+        <button mat-menu-item type="button" (click)="downloadImportTemplateExcel()">
+          <mat-icon>table_chart</mat-icon>
+          <span>Download template (Excel)</span>
+        </button>
+        <button mat-menu-item type="button" (click)="exportImportFormatCsv()">
+          <mat-icon>download</mat-icon>
+          <span>Export import format (CSV)</span>
+        </button>
+        <button mat-menu-item type="button" (click)="exportImportFormatExcel()">
+          <mat-icon>download</mat-icon>
+          <span>Export import format (Excel)</span>
+        </button>
+      </mat-menu>
       <a routerLink="new" class="users-header-link users-header-link--primary">
         <mat-icon>person_add</mat-icon>
         <span>Add User</span>
@@ -16,22 +42,36 @@
     <mat-card class="user-stat-card">
       <mat-icon aria-hidden="true">groups</mat-icon>
       <div>
-        <p class="user-stat-label">Total users</p>
-        <p class="user-stat-value">{{ allUsers.length }}</p>
+        <p class="user-stat-label">Total</p>
+        <p class="user-stat-value">{{ kpiTotal }}</p>
       </div>
     </mat-card>
     <mat-card class="user-stat-card">
-      <mat-icon aria-hidden="true">filter_list</mat-icon>
+      <mat-icon aria-hidden="true">check_circle</mat-icon>
       <div>
-        <p class="user-stat-label">Matching filters</p>
-        <p class="user-stat-value">{{ dataSource.data.length }}</p>
+        <p class="user-stat-label">Active</p>
+        <p class="user-stat-value">{{ kpiActive }}</p>
       </div>
     </mat-card>
     <mat-card class="user-stat-card">
-      <mat-icon aria-hidden="true">how_to_reg</mat-icon>
+      <mat-icon aria-hidden="true">pause_circle</mat-icon>
       <div>
-        <p class="user-stat-label">Selected</p>
-        <p class="user-stat-value">{{ selection.selected.length }}</p>
+        <p class="user-stat-label">Inactive</p>
+        <p class="user-stat-value">{{ kpiInactive }}</p>
+      </div>
+    </mat-card>
+    <mat-card class="user-stat-card">
+      <mat-icon aria-hidden="true">block</mat-icon>
+      <div>
+        <p class="user-stat-label">Suspended</p>
+        <p class="user-stat-value">{{ kpiSuspended }}</p>
+      </div>
+    </mat-card>
+    <mat-card class="user-stat-card">
+      <mat-icon aria-hidden="true">lock</mat-icon>
+      <div>
+        <p class="user-stat-label">Locked</p>
+        <p class="user-stat-value">{{ kpiLocked }}</p>
       </div>
     </mat-card>
   </div>
@@ -42,7 +82,7 @@
         <label for="user-search">Search</label>
         <input id="user-search" class="stb-input" type="search"
                [ngModel]="searchTerm" (ngModelChange)="onSearch($event)"
-               placeholder="Search name, email, phone…" />
+               placeholder="Search name, email, phone, employee ID, job title…" />
       </div>
 
       <div class="stb-field stb-field--filter">
@@ -102,19 +142,42 @@
       <button mat-menu-item (click)="exportExcel()">
         <mat-icon>table_chart</mat-icon> Excel (.xlsx)
       </button>
+      <button mat-menu-item (click)="exportCsv()">
+        <mat-icon>description</mat-icon> CSV
+      </button>
       <button mat-menu-item (click)="exportPdf()">
         <mat-icon>picture_as_pdf</mat-icon> PDF
+      </button>
+      <button mat-menu-item (click)="printTable()">
+        <mat-icon>print</mat-icon> Print
       </button>
     </mat-menu>
 
     <div class="bulk-bar" *ngIf="selection.selected.length > 0">
-      <span>{{ selection.selected.length }} user(s) selected</span>
-      <ui-button variant="danger" icon="delete" size="sm" (clicked)="bulkDelete()">Delete selected</ui-button>
+      <span class="bulk-bar__count">{{ selection.selected.length }} selected</span>
+      <div class="bulk-bar__actions">
+        <ui-button variant="outline" size="sm" icon="check_circle" (clicked)="bulkActivate()">Activate</ui-button>
+        <ui-button variant="outline" size="sm" icon="pause_circle" (clicked)="bulkDeactivate()">Deactivate</ui-button>
+        <ui-button variant="outline" size="sm" icon="lock_reset" (clicked)="bulkResetPassword()">Reset password</ui-button>
+        <button mat-stroked-button type="button" class="bulk-export" [matMenuTriggerFor]="bulkExportMenu">
+          <mat-icon>download</mat-icon>
+          <span>Export</span>
+        </button>
+        <ui-button variant="danger" size="sm" icon="delete" (clicked)="bulkDelete()">Delete</ui-button>
+      </div>
+      <mat-menu #bulkExportMenu="matMenu">
+        <button mat-menu-item (click)="exportSelectedExcel()">
+          <mat-icon>table_chart</mat-icon> Excel (.xlsx)
+        </button>
+        <button mat-menu-item (click)="exportSelectedPdf()">
+          <mat-icon>picture_as_pdf</mat-icon> PDF
+        </button>
+      </mat-menu>
     </div>
   </mat-card>
 
   <div *ngIf="loading" class="users-loading" aria-busy="true" aria-label="Loading users">
-    <span class="stb-shimmer-block users-skeleton__stat" *ngFor="let i of [1, 2, 3]"></span>
+    <span class="stb-shimmer-block users-skeleton__stat" *ngFor="let i of [1, 2, 3, 4, 5]"></span>
     <span class="stb-shimmer-block users-skeleton__filter"></span>
     <span class="stb-shimmer-block users-skeleton__row" *ngFor="let i of [1, 2, 3, 4]"></span>
   </div>
@@ -134,27 +197,23 @@
             <strong class="user-mobile-card__name">{{ u.fullName }}</strong>
             <span class="user-mobile-card__email">{{ u.email }}</span>
           </div>
-          <span class="role-chip" [attr.data-role]="u.role">{{ roleLabel(u.role) }}</span>
+          <span class="role-chip" [attr.data-role]="u.role">{{ primaryRoleLabel(u) }}</span>
         </div>
 
         <dl class="user-mobile-card__meta">
           <div class="user-mobile-card__field">
-            <dt>Phone</dt>
-            <dd>{{ u.phone || '—' }}</dd>
+            <dt>Created</dt>
+            <dd>{{ formatCreated(u.createdAt) }}</dd>
           </div>
           <div class="user-mobile-card__field">
-            <dt>Created</dt>
-            <dd>{{ u.createdAt | date:'mediumDate' }}</dd>
+            <dt>Last login</dt>
+            <dd>{{ formatLastLogin(u.lastLoginAt) }}</dd>
           </div>
           <div class="user-mobile-card__field user-mobile-card__field--status">
             <dt>Status</dt>
             <dd>
-              <mat-slide-toggle [checked]="u.isActive"
-                                (change)="toggleStatus(u)"
-                                color="primary">
-              </mat-slide-toggle>
-              <span class="status-label" [class.active]="u.isActive" [class.inactive]="!u.isActive">
-                {{ u.isActive ? 'Active' : 'Inactive' }}
+              <span class="lifecycle-pill" [attr.data-status]="lifecycleStatus(u)">
+                {{ lifecycleStatus(u) }}
               </span>
             </dd>
           </div>
@@ -169,7 +228,7 @@
     </div>
 
     <div class="user-table-wrap stb-table-scroll">
-      <table mat-table [dataSource]="dataSource" class="user-table">
+      <table mat-table [dataSource]="dataSource" matSort class="user-table">
         <ng-container matColumnDef="select">
           <th mat-header-cell *matHeaderCellDef class="select-col">
             <mat-checkbox (change)="toggleAllRows()"
@@ -186,18 +245,16 @@
         </ng-container>
 
         <ng-container matColumnDef="fullName">
-          <th mat-header-cell *matHeaderCellDef>Name</th>
-          <td mat-cell *matCellDef="let u">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header class="col-name">Name</th>
+          <td mat-cell *matCellDef="let u" class="col-name">
             <div class="user-cell">
               <div class="user-avatar user-avatar--sm">{{ u.fullName.charAt(0).toUpperCase() || '?' }}</div>
-              <span class="name">{{ u.fullName }}</span>
+              <div class="name-block">
+                <span class="name" [title]="u.fullName">{{ u.fullName }}</span>
+                <span class="sub-email" [title]="u.email">{{ u.email }}</span>
+              </div>
             </div>
           </td>
-        </ng-container>
-
-        <ng-container matColumnDef="email">
-          <th mat-header-cell *matHeaderCellDef>Email</th>
-          <td mat-cell *matCellDef="let u">{{ u.email }}</td>
         </ng-container>
 
         <ng-container matColumnDef="branchName">
@@ -211,13 +268,8 @@
         </ng-container>
 
         <ng-container matColumnDef="employeeType">
-          <th mat-header-cell *matHeaderCellDef>Type</th>
-          <td mat-cell *matCellDef="let u">{{ u.employeeType || '—' }}</td>
-        </ng-container>
-
-        <ng-container matColumnDef="status">
-          <th mat-header-cell *matHeaderCellDef>Lifecycle</th>
-          <td mat-cell *matCellDef="let u">{{ u.status || (u.isActive ? 'Active' : 'Inactive') }}</td>
+          <th mat-header-cell *matHeaderCellDef>Employee Type</th>
+          <td mat-cell *matCellDef="let u">{{ employeeTypeLabel(u) }}</td>
         </ng-container>
 
         <ng-container matColumnDef="defaultWorkspaceKey">
@@ -226,34 +278,74 @@
         </ng-container>
 
         <ng-container matColumnDef="role">
-          <th mat-header-cell *matHeaderCellDef>Role</th>
+          <th mat-header-cell *matHeaderCellDef mat-sort-header>Primary Role</th>
           <td mat-cell *matCellDef="let u">
-            <span class="role-chip" [attr.data-role]="u.role">{{ roleLabel(u.role) }}</span>
+            <span class="role-chip" [attr.data-role]="u.role">{{ primaryRoleLabel(u) }}</span>
           </td>
         </ng-container>
 
-        <ng-container matColumnDef="isActive">
-          <th mat-header-cell *matHeaderCellDef>Active</th>
-          <td mat-cell *matCellDef="let u" class="status-cell">
-            <mat-slide-toggle [checked]="u.isActive"
-                              (change)="toggleStatus(u)"
-                              color="primary"
-                              matTooltip="{{ u.isActive ? 'Deactivate' : 'Activate' }} user">
-            </mat-slide-toggle>
-            <span class="status-label" [class.active]="u.isActive" [class.inactive]="!u.isActive">
-              {{ u.isActive ? 'On' : 'Off' }}
+        <ng-container matColumnDef="status">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header>Status</th>
+          <td mat-cell *matCellDef="let u">
+            <span class="lifecycle-pill" [attr.data-status]="lifecycleStatus(u)">
+              {{ lifecycleStatus(u) }}
             </span>
           </td>
+        </ng-container>
+
+        <ng-container matColumnDef="createdAt">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header>Created</th>
+          <td mat-cell *matCellDef="let u" class="date-cell" [matTooltip]="createdMeta(u)">{{ formatCreated(u.createdAt) }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="lastLoginAt">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header>Last login</th>
+          <td mat-cell *matCellDef="let u" class="date-cell">{{ formatLastLogin(u.lastLoginAt) }}</td>
         </ng-container>
 
         <ng-container matColumnDef="actions">
           <th mat-header-cell *matHeaderCellDef class="col-actions">Actions</th>
           <td mat-cell *matCellDef="let u" class="col-actions">
-            <div class="user-table-actions">
-              <ui-button variant="outline" size="sm" icon="edit" (clicked)="edit(u.id)">Edit</ui-button>
-              <ui-button variant="outline" size="sm" icon="lock_reset" (clicked)="resetPassword(u)">Reset</ui-button>
-              <ui-button variant="danger" size="sm" icon="delete" (clicked)="delete(u)">Delete</ui-button>
-            </div>
+            <button mat-icon-button type="button"
+                    [matMenuTriggerFor]="rowActions"
+                    aria-label="User actions"
+                    (click)="$event.stopPropagation()">
+              <mat-icon>more_vert</mat-icon>
+            </button>
+            <mat-menu #rowActions="matMenu">
+              <button mat-menu-item type="button" (click)="edit(u.id)">
+                <mat-icon>edit</mat-icon>
+                <span>Edit</span>
+              </button>
+              <button mat-menu-item type="button" (click)="edit(u.id)">
+                <mat-icon>security</mat-icon>
+                <span>Assign Roles</span>
+              </button>
+              <button mat-menu-item type="button" (click)="resetPassword(u)">
+                <mat-icon>lock_reset</mat-icon>
+                <span>Reset password</span>
+              </button>
+              <button mat-menu-item type="button" (click)="setLifecycleStatus(u, 'Active')">
+                <mat-icon>check_circle</mat-icon>
+                <span>Activate</span>
+              </button>
+              <button mat-menu-item type="button" (click)="setLifecycleStatus(u, 'Suspended')">
+                <mat-icon>pause_circle</mat-icon>
+                <span>Suspend</span>
+              </button>
+              <button mat-menu-item type="button" (click)="setLifecycleStatus(u, 'Locked')">
+                <mat-icon>lock</mat-icon>
+                <span>Lock</span>
+              </button>
+              <button mat-menu-item type="button" (click)="setLifecycleStatus(u, 'Inactive')">
+                <mat-icon>person_off</mat-icon>
+                <span>Deactivate</span>
+              </button>
+              <button mat-menu-item type="button" class="menu-item--danger" (click)="delete(u)">
+                <mat-icon>delete</mat-icon>
+                <span>Delete</span>
+              </button>
+            </mat-menu>
           </td>
         </ng-container>
 
@@ -278,8 +370,16 @@
       </a>
     </div>
 
-    <div class="paginator-wrap">
-      <mat-paginator [pageSize]="10" [pageSizeOptions]="[10, 25, 50]" showFirstLastButtons></mat-paginator>
+    <div class="paginator-wrap" *ngIf="dataSource.data.length">
+      <span class="paginator-summary">
+        Showing {{ pageRangeStart }}–{{ pageRangeEnd }} of {{ dataSource.data.length }} users · Page {{ currentPage }} of {{ totalPages }}
+      </span>
+      <mat-paginator
+        [length]="dataSource.data.length"
+        [pageSize]="10"
+        [pageSizeOptions]="[10, 25, 50]"
+        showFirstLastButtons>
+      </mat-paginator>
     </div>
   </mat-card>
 </div>

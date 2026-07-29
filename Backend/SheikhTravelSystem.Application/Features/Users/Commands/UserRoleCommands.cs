@@ -1,6 +1,5 @@
 using Dapper;
 using MediatR;
-using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Exceptions;
 using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Application.Features.Users.DTOs;
@@ -56,6 +55,20 @@ public class SetUserRolesCommandHandler(
         platformScope.EnsureTenantAccess(tenantId);
 
         var roleIds = request.Payload.RoleIds ?? Array.Empty<int>();
+        if (roleIds.Count > 0)
+        {
+            var assignedCodes = (await connection.QueryAsync<string>(new CommandDefinition(
+                """
+                SELECT Code FROM Roles
+                WHERE TenantId = @TenantId AND Id IN @RoleIds AND IsActive = 1
+                """,
+                new { TenantId = tenantId, RoleIds = roleIds.Distinct().ToList() },
+                cancellationToken: cancellationToken))).ToList();
+
+            foreach (var code in assignedCodes)
+                UserRoleAssignment.EnsureCanAssignPlatformRole(code, currentUser);
+        }
+
         var scopes = new Dictionary<int, (int? BranchId, int? DepartmentId)>();
         foreach (var scope in request.Payload.Scopes ?? Array.Empty<RoleAssignmentScopeDto>())
         {

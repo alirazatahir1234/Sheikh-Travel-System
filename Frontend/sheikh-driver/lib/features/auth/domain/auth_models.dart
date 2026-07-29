@@ -8,6 +8,7 @@ abstract final class FleetRole {
   static const tenantAdmin = 'TENANT_ADMIN';
   static const fleetManager = 'FLEET_MANAGER';
   static const driverManager = 'DRIVER_MANAGER';
+  static const gpsOperator = 'GPS_OPERATOR';
   static const dispatcher = 'DISPATCHER';
   static const driver = 'DRIVER';
   static const accountant = 'ACCOUNTANT';
@@ -18,6 +19,7 @@ abstract final class FleetRole {
     tenantAdmin,
     fleetManager,
     driverManager,
+    gpsOperator,
     dispatcher,
     accountant,
     driver,
@@ -28,6 +30,7 @@ abstract final class FleetRole {
     tenantAdmin,
     fleetManager,
     driverManager,
+    gpsOperator,
     dispatcher,
     accountant,
   };
@@ -69,11 +72,18 @@ abstract final class FleetPermissions {
 }
 
 class LoginRequest {
-  const LoginRequest({required this.identifier, required this.password});
+  const LoginRequest({
+    required this.identifier,
+    required this.password,
+    this.rememberMe = true,
+  });
 
   /// Email for staff login, phone for driver login.
   final String identifier;
   final String password;
+
+  /// Client-only: when false, session is not restored after app restart.
+  final bool rememberMe;
 
   bool get isEmailLogin => identifier.contains('@');
 
@@ -176,12 +186,17 @@ class FleetSession {
     return FleetRole.driver;
   }
 
+  /// True when primary shell is GPS Operator (mobile V1 monitoring role).
+  bool get isGpsOperator =>
+      !isDriverOnly && hasRole(FleetRole.gpsOperator) && primaryNavRole == FleetRole.gpsOperator;
+
   bool get canSeeFleetTab =>
       !isDriverOnly &&
       (hasAnyRole(const [
             FleetRole.superAdmin,
             FleetRole.tenantAdmin,
             FleetRole.fleetManager,
+            FleetRole.gpsOperator,
             FleetRole.dispatcher,
             FleetRole.driverManager,
           ]) ||
