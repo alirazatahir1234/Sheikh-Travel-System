@@ -3,10 +3,10 @@ import '../../../../core/constants/app_theme.dart';
 import '../../domain/fleet_models.dart';
 
 Color fleetStatusColor(FleetTrackStatus status) => switch (status) {
-      FleetTrackStatus.moving => const Color(0xFF16A34A),
-      FleetTrackStatus.idle => const Color(0xFFCA8A04),
-      FleetTrackStatus.parked => const Color(0xFF2563EB),
-      FleetTrackStatus.offline => AppColors.textMuted,
+      FleetTrackStatus.moving => const Color(0xFF2563EB),
+      FleetTrackStatus.idle => const Color(0xFFF59E0B),
+      FleetTrackStatus.parked => const Color(0xFF7C3AED),
+      FleetTrackStatus.offline => const Color(0xFF94A3B8),
       FleetTrackStatus.neverSeen => const Color(0xFF94A3B8),
       FleetTrackStatus.sos => AppColors.error,
     };
@@ -26,7 +26,7 @@ class FleetKpiStrip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final chips = <_KpiChipData>[
-      _KpiChipData('Online', kpis.online, null, AppColors.primary),
+      _KpiChipData('Online', kpis.online, null, const Color(0xFF16A34A)),
       _KpiChipData(
           'Moving', kpis.moving, FleetTrackStatus.moving, fleetStatusColor(FleetTrackStatus.moving)),
       _KpiChipData(
@@ -41,7 +41,7 @@ class FleetKpiStrip extends StatelessWidget {
     ];
 
     return SizedBox(
-      height: 80,
+      height: 64,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -63,8 +63,8 @@ class FleetKpiStrip extends StatelessWidget {
             },
             borderRadius: BorderRadius.circular(AppRadii.md),
             child: Container(
-              width: 88,
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              width: 82,
+              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
               decoration: BoxDecoration(
                 color: active
                     ? chip.color.withValues(alpha: 0.14)
@@ -83,17 +83,17 @@ class FleetKpiStrip extends StatelessWidget {
                   Text(
                     '${chip.value}',
                     style: TextStyle(
-                      fontSize: 20,
+                      fontSize: 17,
                       fontWeight: FontWeight.w800,
                       height: 1.1,
                       color: chip.color,
                     ),
                   ),
-                  const SizedBox(height: 2),
+                  const SizedBox(height: 1),
                   Text(
                     chip.label,
                     style: const TextStyle(
-                      fontSize: 11,
+                      fontSize: 10,
                       fontWeight: FontWeight.w600,
                       height: 1.1,
                       color: AppColors.textSecondary,

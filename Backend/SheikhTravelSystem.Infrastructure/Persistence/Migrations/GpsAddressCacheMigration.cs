@@ -38,6 +38,10 @@ public static class GpsAddressCacheMigration
                     ALTER TABLE GpsAddressCache ADD Country NVARCHAR(120) NULL;
                 IF COL_LENGTH('GpsAddressCache', 'PostalCode') IS NULL
                     ALTER TABLE GpsAddressCache ADD PostalCode NVARCHAR(40) NULL;
+                IF COL_LENGTH('GpsAddressCache', 'PlaceName') IS NULL
+                    ALTER TABLE GpsAddressCache ADD PlaceName NVARCHAR(200) NULL;
+                IF COL_LENGTH('GpsAddressCache', 'PlaceType') IS NULL
+                    ALTER TABLE GpsAddressCache ADD PlaceType NVARCHAR(80) NULL;
                 """, cancellationToken: cancellationToken));
 
             logger.LogInformation("GpsAddressCacheMigration applied successfully.");

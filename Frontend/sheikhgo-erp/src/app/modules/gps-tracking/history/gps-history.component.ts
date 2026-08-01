@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Subscription, timer } from 'rxjs';
 import { GpsTrackingService } from '../../../core/services/gps-tracking.service';
@@ -20,6 +20,7 @@ import {
   formatPeriodLabel,
   toDatetimeLocalInput
 } from '../utils/trip-date-preset.util';
+import { TripReplayMapComponent } from '../shared/trip-replay-map/trip-replay-map.component';
 
 const RECENT_VEHICLES_KEY = 'gps_history_recent';
 const MAX_RECENT = 5;
@@ -40,6 +41,7 @@ export type HistoryRouteFilter =
   styleUrls: ['./gps-history.component.scss']
 })
 export class GpsHistoryComponent implements OnInit, OnDestroy {
+  @ViewChild(TripReplayMapComponent) replayMap?: TripReplayMapComponent;
   vehicles: VehicleListItem[] = [];
   devices: GpsDevice[] = [];
   vehicleId: number | null = null;
@@ -68,7 +70,7 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
     { id: 'geofences', label: 'Geofences', icon: 'fence' }
   ];
   activeRouteFilters = new Set<HistoryRouteFilter>([
-    'route', 'heatmap', 'stops', 'parking', 'geofences'
+    'route', 'stops', 'parking', 'geofences'
   ]);
 
   private loadSub?: Subscription;
@@ -376,12 +378,12 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
   }
 
   formatDuration(minutes: number): string {
-    if (!minutes || minutes < 1) return '0m';
+    if (!minutes || minutes < 1) return '0 min';
     const h = Math.floor(minutes / 60);
     const m = minutes % 60;
-    if (h === 0) return `${m}m`;
-    if (m === 0) return `${h}h`;
-    return `${h}h ${m}m`;
+    if (h === 0) return `${m} min`;
+    if (m === 0) return `${h} hr`;
+    return `${h} hr ${m} min`;
   }
 
   vehicleStatusLabel(v: VehicleListItem): string {
@@ -453,7 +455,7 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
     else this.exportService.exportPdf(rows, columns, meta);
   }
 
-  exportServer(format: 'gpx' | 'geojson'): void {
+  exportServer(format: 'gpx' | 'geojson' | 'kml'): void {
     if (!this.vehicleId) return;
     const fromDate = new Date(this.from);
     const toDate = new Date(this.to);
@@ -468,6 +470,10 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
       },
       error: () => this.toast.error('Export failed.')
     });
+  }
+
+  focusStop(stop: TripStop): void {
+    this.replayMap?.focusStop(stop.latitude, stop.longitude, stop.startTime);
   }
 
   printRoute(): void {

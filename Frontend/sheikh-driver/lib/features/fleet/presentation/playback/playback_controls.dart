@@ -6,8 +6,12 @@ class PlaybackControls extends StatelessWidget {
     super.key,
     required this.playing,
     required this.speed,
+    required this.atEnd,
     required this.onPlayPause,
+    required this.onStop,
     required this.onFirst,
+    required this.onPrevPoint,
+    required this.onNextPoint,
     required this.onPrevEvent,
     required this.onNextEvent,
     required this.onEnd,
@@ -16,14 +20,18 @@ class PlaybackControls extends StatelessWidget {
 
   final bool playing;
   final double speed;
+  final bool atEnd;
   final VoidCallback onPlayPause;
+  final VoidCallback onStop;
   final VoidCallback onFirst;
+  final VoidCallback onPrevPoint;
+  final VoidCallback onNextPoint;
   final VoidCallback onPrevEvent;
   final VoidCallback onNextEvent;
   final VoidCallback onEnd;
   final ValueChanged<double> onSpeed;
 
-  static const speeds = <double>[0.5, 1, 2, 4, 8];
+  static const speeds = <double>[0.5, 1, 2, 4, 8, 16];
 
   @override
   Widget build(BuildContext context) {
@@ -35,14 +43,21 @@ class PlaybackControls extends StatelessWidget {
             children: [
               IconButton(
                 visualDensity: VisualDensity.compact,
-                constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                constraints: const BoxConstraints(minWidth: 36, minHeight: 40),
                 tooltip: 'First',
                 onPressed: onFirst,
                 icon: const Icon(Icons.skip_previous_rounded),
               ),
               IconButton(
                 visualDensity: VisualDensity.compact,
-                constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                constraints: const BoxConstraints(minWidth: 36, minHeight: 40),
+                tooltip: 'Previous point',
+                onPressed: onPrevPoint,
+                icon: const Icon(Icons.chevron_left_rounded),
+              ),
+              IconButton(
+                visualDensity: VisualDensity.compact,
+                constraints: const BoxConstraints(minWidth: 36, minHeight: 40),
                 tooltip: 'Previous event',
                 onPressed: onPrevEvent,
                 icon: const Icon(Icons.fast_rewind_rounded),
@@ -50,20 +65,40 @@ class PlaybackControls extends StatelessWidget {
               IconButton.filledTonal(
                 visualDensity: VisualDensity.compact,
                 constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
-                tooltip: playing ? 'Pause' : 'Play',
+                tooltip: playing
+                    ? 'Pause'
+                    : (atEnd ? 'Replay from start' : 'Play'),
                 onPressed: onPlayPause,
-                icon: Icon(playing ? Icons.pause : Icons.play_arrow),
+                icon: Icon(
+                  playing
+                      ? Icons.pause
+                      : (atEnd ? Icons.replay_rounded : Icons.play_arrow),
+                ),
               ),
               IconButton(
                 visualDensity: VisualDensity.compact,
-                constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                constraints: const BoxConstraints(minWidth: 36, minHeight: 40),
+                tooltip: 'Stop',
+                onPressed: onStop,
+                icon: const Icon(Icons.stop_rounded),
+              ),
+              IconButton(
+                visualDensity: VisualDensity.compact,
+                constraints: const BoxConstraints(minWidth: 36, minHeight: 40),
                 tooltip: 'Next event',
                 onPressed: onNextEvent,
                 icon: const Icon(Icons.fast_forward_rounded),
               ),
               IconButton(
                 visualDensity: VisualDensity.compact,
-                constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                constraints: const BoxConstraints(minWidth: 36, minHeight: 40),
+                tooltip: 'Next point',
+                onPressed: onNextPoint,
+                icon: const Icon(Icons.chevron_right_rounded),
+              ),
+              IconButton(
+                visualDensity: VisualDensity.compact,
+                constraints: const BoxConstraints(minWidth: 36, minHeight: 40),
                 tooltip: 'End',
                 onPressed: onEnd,
                 icon: const Icon(Icons.skip_next_rounded),

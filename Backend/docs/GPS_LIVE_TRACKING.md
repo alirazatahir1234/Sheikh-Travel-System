@@ -49,9 +49,12 @@ With `Traccar:AdaptivePositionSync` = `true` (default), after each position sync
 |--------------|--------------------|----------------------|
 | Any vehicle speed ≥ `MovingSpeedKmh` (10) | Moving | `MovingIntervalSeconds` (**5**) |
 | 0–10 km/h, ignition ON | Slow traffic | `SlowTrafficIntervalSeconds` (**15**) |
-| Ignition ON, speed ≈ 0 | Idle | `IdleIntervalSeconds` (**30**) |
-| All parked (ignition OFF / empty fleet) | Parked | `ParkedIntervalSeconds` (**300**) |
+| Ignition **null** and speed &gt; `UnknownIgnitionMovingSpeedKmh` (2) | Moving | `MovingIntervalSeconds` (**5**) |
+| Ignition ON at rest, **or ignition null at rest** | Idle | `IdleIntervalSeconds` (**30**) |
+| Ignition **explicitly OFF** (whole sample) / empty fleet | Parked | `ParkedIntervalSeconds` (**30**) |
 | SOS / alarm on sample | ASAP (moving floor) | uses `MovingIntervalSeconds` |
+
+`Ignition == null` must **never** force the Parked multi-minute cadence — VG03 often omits ignition.
 
 `PositionSyncIntervalSeconds` is the **moving floor** (default **5**), not a static 30 s cadence. FixTime dedup still prevents duplicate history rows when parked sync is slow.
 

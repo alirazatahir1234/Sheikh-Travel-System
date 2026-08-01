@@ -24,8 +24,17 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  filter: drop-shadow(0 1px 3px rgba(15, 23, 42, 0.45));
   pointer-events: none;
+}
+
+.fv-body {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  filter: drop-shadow(0 2px 4px rgba(15, 23, 42, 0.5))
+    drop-shadow(0 0 1px rgba(255, 255, 255, 0.9));
 }
 
 .fv-rotator {
@@ -45,27 +54,84 @@
 
 .fv-badge {
   position: absolute;
-  top: -2px;
-  right: -2px;
-  min-width: 14px;
-  height: 14px;
+  top: -3px;
+  right: -3px;
+  min-width: 15px;
+  height: 15px;
   padding: 0 3px;
   border-radius: 999px;
   color: #fff;
   font-size: 9px;
   font-weight: 800;
-  line-height: 14px;
+  line-height: 15px;
   text-align: center;
-  box-shadow: 0 0 0 1.5px #fff;
+  box-shadow: 0 0 0 2px #fff;
+  z-index: 3;
 }
 
-.fv-marker--moving .fv-rotator {
-  filter: drop-shadow(0 0 4px rgba(16, 185, 129, 0.55));
+.fv-pulse {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.fv-pulse__ring {
+  position: absolute;
+  width: 72%;
+  height: 72%;
+  border-radius: 50%;
+  border: 2px solid var(--fv-pulse, #2563eb);
+  opacity: 0;
+  animation: fv-pulse-ring 1.2s ease-out infinite;
+}
+
+.fv-pulse__ring--delay {
+  animation-delay: 0.6s;
+}
+
+@keyframes fv-pulse-ring {
+  0% {
+    transform: scale(0.55);
+    opacity: 0.4;
+  }
+  70% {
+    opacity: 0.1;
+  }
+  100% {
+    transform: scale(1.25);
+    opacity: 0;
+  }
+}
+
+.fv-marker--moving .fv-body {
+  filter: drop-shadow(0 2px 3px rgba(15, 23, 42, 0.45))
+    drop-shadow(0 0 5px rgba(37, 99, 235, 0.45));
+}
+
+.fv-marker--selected .fv-body {
+  filter: drop-shadow(0 2px 4px rgba(15, 23, 42, 0.5))
+    drop-shadow(0 0 7px rgba(37, 99, 235, 0.55))
+    drop-shadow(0 0 1px rgba(255, 255, 255, 0.95));
+}
+
+.fv-marker--selected::after {
+  content: '';
+  position: absolute;
+  z-index: 0;
+  width: 76%;
+  height: 76%;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.5), 0 0 8px rgba(37, 99, 235, 0.3);
+  pointer-events: none;
 }
 
 .fv-marker--offline,
 .fv-marker--never_seen {
-  opacity: 0.72;
+  opacity: 0.78;
 }
 
 .fv-popup {

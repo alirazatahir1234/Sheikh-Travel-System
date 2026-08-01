@@ -378,15 +378,32 @@ public sealed class TraccarSyncOrchestrator(
             syncState.SetAdaptivePositionInterval(
                 Math.Max(1, options.Value.ResolvedPositionIntervalSeconds),
                 TraccarAdaptiveInterval.ReasonDefault);
+            logger.LogInformation(
+                "Traccar adaptive sync disabled — using fixed interval {Seconds}s (Default). Samples={SampleCount}",
+                Math.Max(1, options.Value.ResolvedPositionIntervalSeconds),
+                samples.Count);
             return;
         }
 
         var resolved = TraccarAdaptiveInterval.Resolve(samples, options.Value);
         syncState.SetAdaptivePositionInterval(resolved.IntervalSeconds, resolved.Reason);
-        logger.LogDebug(
-            "Traccar adaptive position interval → {Seconds}s ({Reason})",
+
+        var maxSpeed = samples.Count == 0 ? 0m : samples.Max(s => s.SpeedKmh);
+        var ignitionOn = samples.Count(s => s.Ignition == true);
+        var ignitionOff = samples.Count(s => s.Ignition == false);
+        var ignitionUnknown = samples.Count(s => s.Ignition == null);
+        var movingCount = samples.Count(s => s.SpeedKmh >= (options.Value.MovingSpeedKmh > 0 ? options.Value.MovingSpeedKmh : 10m));
+
+        logger.LogInformation(
+            "Traccar adaptive position interval → {Seconds}s reason={Reason}. Samples={SampleCount} MaxSpeedKmh={MaxSpeed} Moving={MovingCount} IgnitionOn={IgnitionOn} IgnitionOff={IgnitionOff} IgnitionUnknown={IgnitionUnknown}",
             resolved.IntervalSeconds,
-            resolved.Reason);
+            resolved.Reason,
+            samples.Count,
+            maxSpeed,
+            movingCount,
+            ignitionOn,
+            ignitionOff,
+            ignitionUnknown);
     }
 
     public async Task<TraccarSyncRunResult> SyncEventsAsync(CancellationToken ct = default)

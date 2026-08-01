@@ -58,6 +58,7 @@
         <button mat-menu-item (click)="exportClient('excel')"><mat-icon>table_chart</mat-icon> Excel</button>
         <button mat-menu-item (click)="exportClient('csv')"><mat-icon>description</mat-icon> CSV</button>
         <button mat-menu-item (click)="exportServer('gpx')"><mat-icon>route</mat-icon> GPX</button>
+        <button mat-menu-item (click)="exportServer('kml')"><mat-icon>public</mat-icon> KML</button>
         <button mat-menu-item (click)="exportServer('geojson')"><mat-icon>map</mat-icon> GeoJSON</button>
         <button mat-menu-item (click)="printRoute()"><mat-icon>print</mat-icon> Print snapshot</button>
       </mat-menu>
@@ -268,7 +269,8 @@
       <section class="detail-card" *ngIf="bundle?.stops?.length">
         <h2 class="panel-title"><mat-icon>pause_circle</mat-icon> Stops &amp; parking</h2>
         <ul class="stops-list">
-          <li *ngFor="let s of bundle!.stops | slice:0:15">
+          <li *ngFor="let s of bundle!.stops | slice:0:15" class="stops-list__item" (click)="focusStop(s)" role="button" tabindex="0"
+            (keydown.enter)="focusStop(s)">
             <span class="stop-type" [class.stop-type--parking]="s.durationMinutes >= 120">{{ stopLabel(s) }}</span>
             <span class="stop-dur">{{ formatDuration(s.durationMinutes) }}</span>
             <span class="stop-time">{{ s.startTime | date:'short' }}</span>

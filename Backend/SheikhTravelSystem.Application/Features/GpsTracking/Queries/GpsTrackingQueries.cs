@@ -932,13 +932,14 @@ file static class GpsAlertQueryProjection
     public static IEnumerable<GpsAlertEventDto> Decorate(IEnumerable<GpsAlertEventDto> rows, ICurrentUserService currentUser) =>
         rows.Select(row => Decorate(row, currentUser));
 
-    public static GpsAlertEventDto Decorate(GpsAlertEventDto row, ICurrentUserService currentUser) => row with
+    public static GpsAlertEventDto Decorate(GpsAlertEventDto row, ICurrentUserService currentUser)
     {
-        CanAcknowledge = row.Status != "archived" && row.Status != "resolved" && GpsAlertAccess.CanAcknowledge(currentUser),
-        CanResolve = row.Status != "resolved" && row.Status != "archived" && GpsAlertAccess.CanResolve(currentUser),
-        CanArchive = row.Status is "acknowledged" or "resolved" && GpsAlertAccess.CanArchive(currentUser),
-        CanDelete = GpsAlertAccess.CanDelete(currentUser)
-    };
+        row.CanAcknowledge = row.Status != "archived" && row.Status != "resolved" && GpsAlertAccess.CanAcknowledge(currentUser);
+        row.CanResolve = row.Status != "resolved" && row.Status != "archived" && GpsAlertAccess.CanResolve(currentUser);
+        row.CanArchive = row.Status is "acknowledged" or "resolved" && GpsAlertAccess.CanArchive(currentUser);
+        row.CanDelete = GpsAlertAccess.CanDelete(currentUser);
+        return row;
+    }
 }
 
 public record GetAlertSettingsQuery : IRequest<ApiResponse<List<AlertSettingDto>>>;

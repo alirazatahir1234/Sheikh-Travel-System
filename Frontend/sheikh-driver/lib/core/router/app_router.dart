@@ -196,6 +196,7 @@ final routerProvider = Provider<GoRouter>((ref) {
                     path: 'history',
                     builder: (_, state) => VehicleHistoryScreen(
                       vehicleId: int.parse(state.pathParameters['id']!),
+                      tripKey: state.uri.queryParameters['tripKey'],
                     ),
                   ),
                   GoRoute(

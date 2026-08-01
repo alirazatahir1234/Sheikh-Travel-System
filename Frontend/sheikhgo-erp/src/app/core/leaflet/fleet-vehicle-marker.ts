@@ -20,13 +20,18 @@ export interface FleetVehicleMarkerOptions {
   /** Show small badge: ignition | parked | sos | offline */
   badge?: 'ignition' | 'parked' | 'sos' | 'offline' | null;
   size?: number;
+  /** Emphasize focused / selected vehicle. */
+  selected?: boolean;
+  /** Show decorative live GPS pulse ring (non-rotating). Selected only. */
+  pulse?: boolean;
 }
 
+/** Enterprise fleet palette — keep in sync with Live Map pills / trails. */
 const STATUS_COLORS: Record<FleetTrackStatus, { fill: string; stroke: string }> = {
-  moving: { fill: '#10B981', stroke: '#047857' },
+  moving: { fill: '#2563EB', stroke: '#1D4ED8' },
   idle: { fill: '#F59E0B', stroke: '#B45309' },
-  parked: { fill: '#F97316', stroke: '#C2410C' },
-  offline: { fill: '#EF4444', stroke: '#B91C1C' },
+  parked: { fill: '#8B5CF6', stroke: '#6D28D9' },
+  offline: { fill: '#94A3B8', stroke: '#64748B' },
   never_seen: { fill: '#94A3B8', stroke: '#64748B' },
   sos: { fill: '#DC2626', stroke: '#7F1D1D' },
   scheduled: { fill: '#3B82F6', stroke: '#1D4ED8' },
@@ -51,66 +56,74 @@ export function resolveVehicleKind(vehicleType?: string | null): FleetVehicleKin
 
 /**
  * Top-down SVG silhouettes pointing "up" (north). Caller rotates the wrapper by heading.
- * Paths are compact (~32 CSS px) so the route stays readable under the marker.
+ * Strong nose chevron makes heading obvious at 28–34px.
  */
 function vehicleSvgPath(kind: FleetVehicleKind): string {
+  const nose = `<path d="M16 1 L20 6 L12 6 Z" fill="#ffffff" stroke="none"/>`;
   switch (kind) {
     case 'truck':
       return `
-        <rect x="9" y="2" width="14" height="10" rx="1.5"/>
-        <rect x="7" y="12" width="18" height="16" rx="1.5"/>
-        <rect x="10" y="4" width="12" height="5" rx="1" fill="rgba(255,255,255,0.35)"/>
-        <circle cx="11" cy="26" r="2.2" fill="rgba(0,0,0,0.35)"/>
-        <circle cx="21" cy="26" r="2.2" fill="rgba(0,0,0,0.35)"/>`;
+        ${nose}
+        <rect x="9" y="5" width="14" height="8" rx="1.5"/>
+        <rect x="7" y="13" width="18" height="14" rx="1.5"/>
+        <rect x="10" y="7" width="12" height="4" rx="1" fill="rgba(255,255,255,0.35)"/>
+        <circle cx="11" cy="25" r="2" fill="rgba(0,0,0,0.35)"/>
+        <circle cx="21" cy="25" r="2" fill="rgba(0,0,0,0.35)"/>`;
     case 'bus':
       return `
-        <rect x="8" y="2" width="16" height="26" rx="3"/>
-        <rect x="10" y="5" width="12" height="4" rx="1" fill="rgba(255,255,255,0.35)"/>
-        <rect x="10" y="11" width="12" height="3" rx="0.5" fill="rgba(255,255,255,0.25)"/>
-        <rect x="10" y="16" width="12" height="3" rx="0.5" fill="rgba(255,255,255,0.25)"/>
-        <circle cx="11" cy="26" r="2" fill="rgba(0,0,0,0.35)"/>
-        <circle cx="21" cy="26" r="2" fill="rgba(0,0,0,0.35)"/>`;
+        ${nose}
+        <rect x="8" y="5" width="16" height="22" rx="3"/>
+        <rect x="10" y="8" width="12" height="3" rx="1" fill="rgba(255,255,255,0.35)"/>
+        <rect x="10" y="13" width="12" height="2.5" rx="0.5" fill="rgba(255,255,255,0.25)"/>
+        <rect x="10" y="17" width="12" height="2.5" rx="0.5" fill="rgba(255,255,255,0.25)"/>
+        <circle cx="11" cy="25" r="1.8" fill="rgba(0,0,0,0.35)"/>
+        <circle cx="21" cy="25" r="1.8" fill="rgba(0,0,0,0.35)"/>`;
     case 'van':
       return `
-        <path d="M8 10 L10 4 H22 L24 10 V24 H8 Z"/>
-        <rect x="10" y="5" width="12" height="5" rx="1" fill="rgba(255,255,255,0.35)"/>
-        <circle cx="11" cy="24" r="2.2" fill="rgba(0,0,0,0.35)"/>
-        <circle cx="21" cy="24" r="2.2" fill="rgba(0,0,0,0.35)"/>`;
+        ${nose}
+        <path d="M8 11 L10 5 H22 L24 11 V24 H8 Z"/>
+        <rect x="10" y="7" width="12" height="4" rx="1" fill="rgba(255,255,255,0.35)"/>
+        <circle cx="11" cy="23" r="2" fill="rgba(0,0,0,0.35)"/>
+        <circle cx="21" cy="23" r="2" fill="rgba(0,0,0,0.35)"/>`;
     case 'pickup':
       return `
-        <path d="M9 8 L11 3 H21 L23 8 V14 H25 V24 H7 V14 H9 Z"/>
-        <rect x="11" y="4" width="10" height="4" rx="1" fill="rgba(255,255,255,0.35)"/>
-        <rect x="9" y="14" width="14" height="6" rx="0.5" fill="rgba(0,0,0,0.12)"/>
-        <circle cx="11" cy="24" r="2.2" fill="rgba(0,0,0,0.35)"/>
-        <circle cx="21" cy="24" r="2.2" fill="rgba(0,0,0,0.35)"/>`;
+        ${nose}
+        <path d="M9 9 L11 4 H21 L23 9 V14 H25 V24 H7 V14 H9 Z"/>
+        <rect x="11" y="5" width="10" height="3.5" rx="1" fill="rgba(255,255,255,0.35)"/>
+        <rect x="9" y="14" width="14" height="5" rx="0.5" fill="rgba(0,0,0,0.12)"/>
+        <circle cx="11" cy="23" r="2" fill="rgba(0,0,0,0.35)"/>
+        <circle cx="21" cy="23" r="2" fill="rgba(0,0,0,0.35)"/>`;
     case 'suv':
       return `
-        <path d="M8 11 L10 5 H22 L24 11 V23 H8 Z"/>
-        <rect x="10" y="6" width="12" height="5" rx="1" fill="rgba(255,255,255,0.35)"/>
-        <circle cx="11" cy="23" r="2.4" fill="rgba(0,0,0,0.35)"/>
-        <circle cx="21" cy="23" r="2.4" fill="rgba(0,0,0,0.35)"/>`;
+        ${nose}
+        <path d="M8 12 L10 6 H22 L24 12 V23 H8 Z"/>
+        <rect x="10" y="7" width="12" height="4" rx="1" fill="rgba(255,255,255,0.35)"/>
+        <circle cx="11" cy="22" r="2.2" fill="rgba(0,0,0,0.35)"/>
+        <circle cx="21" cy="22" r="2.2" fill="rgba(0,0,0,0.35)"/>`;
     case 'motorcycle':
       return `
-        <circle cx="16" cy="8" r="3"/>
-        <rect x="14.5" y="10" width="3" height="10" rx="1"/>
-        <path d="M10 22 L16 14 L22 22" fill="none" stroke="currentColor" stroke-width="2"/>
-        <circle cx="11" cy="24" r="2.5" fill="rgba(0,0,0,0.35)"/>
-        <circle cx="21" cy="24" r="2.5" fill="rgba(0,0,0,0.35)"/>`;
+        ${nose}
+        <circle cx="16" cy="9" r="2.5"/>
+        <rect x="14.5" y="11" width="3" height="9" rx="1"/>
+        <path d="M10 22 L16 14 L22 22" fill="none" stroke="#ffffff" stroke-width="1.5"/>
+        <circle cx="11" cy="24" r="2.2" fill="rgba(0,0,0,0.35)"/>
+        <circle cx="21" cy="24" r="2.2" fill="rgba(0,0,0,0.35)"/>`;
     case 'tractor':
       return `
-        <rect x="10" y="4" width="12" height="8" rx="1.5"/>
-        <rect x="8" y="12" width="16" height="10" rx="1"/>
-        <circle cx="12" cy="24" r="3.5" fill="rgba(0,0,0,0.4)"/>
-        <circle cx="22" cy="22" r="2.5" fill="rgba(0,0,0,0.35)"/>`;
+        ${nose}
+        <rect x="10" y="5" width="12" height="7" rx="1.5"/>
+        <rect x="8" y="12" width="16" height="9" rx="1"/>
+        <circle cx="12" cy="23" r="3" fill="rgba(0,0,0,0.4)"/>
+        <circle cx="22" cy="21" r="2.2" fill="rgba(0,0,0,0.35)"/>`;
     case 'car':
     default:
       return `
+        ${nose}
         <path d="M9 12 L11 5 H21 L23 12 V22 H9 Z"/>
-        <rect x="11" y="6" width="10" height="5" rx="1" fill="rgba(255,255,255,0.4)"/>
+        <rect x="11" y="7" width="10" height="4" rx="1" fill="rgba(255,255,255,0.4)"/>
         <path d="M11 12 H21" stroke="rgba(0,0,0,0.15)" stroke-width="1"/>
-        <circle cx="11.5" cy="22" r="2.3" fill="rgba(0,0,0,0.35)"/>
-        <circle cx="20.5" cy="22" r="2.3" fill="rgba(0,0,0,0.35)"/>
-        <path d="M14 3 L16 1 L18 3" fill="rgba(255,255,255,0.7)"/>`;
+        <circle cx="11.5" cy="21.5" r="2.1" fill="rgba(0,0,0,0.35)"/>
+        <circle cx="20.5" cy="21.5" r="2.1" fill="rgba(0,0,0,0.35)"/>`;
   }
 }
 
@@ -118,7 +131,7 @@ function badgeHtml(badge: FleetVehicleMarkerOptions['badge']): string {
   if (!badge) return '';
   const map: Record<string, { label: string; bg: string }> = {
     ignition: { label: 'I', bg: '#0f766e' },
-    parked: { label: 'P', bg: '#1d4ed8' },
+    parked: { label: 'P', bg: '#6D28D9' },
     sos: { label: '!', bg: '#dc2626' },
     offline: { label: '×', bg: '#64748b' }
   };
@@ -137,33 +150,55 @@ export function resolveReplayStatus(speedKmh: number, ignition?: boolean | null)
 }
 
 /**
- * Compact rotating SVG vehicle DivIcon — shared by Live Map + History replay.
- * Do not use emoji/pin defaults; heading rotates the vehicle silhouette.
+ * Compact rotating SVG vehicle DivIcon for Live Map.
+ * Pulse rings sit outside the rotator so they stay screen-aligned.
  */
 export function createFleetVehicleDivIcon(options: FleetVehicleMarkerOptions): LeafletTypes.DivIcon {
-  const size = options.size ?? 32;
+  const size = options.size ?? 30;
   const heading = options.heading != null && Number.isFinite(options.heading) ? options.heading : 0;
   const kind = resolveVehicleKind(options.vehicleType);
   const colors = STATUS_COLORS[options.status] ?? STATUS_COLORS.offline;
   const path = vehicleSvgPath(kind);
+  const selected = !!options.selected;
+  const pulse = !!options.pulse;
+  const pad = pulse ? 12 : selected ? 8 : 4;
+  const host = size + pad;
+
+  const classes = [
+    'fv-marker',
+    `fv-marker--${options.status}`,
+    selected ? 'fv-marker--selected' : '',
+    pulse ? 'fv-marker--pulse' : ''
+  ].filter(Boolean).join(' ');
+
+  const pulseHtml = pulse
+    ? `<span class="fv-pulse" style="--fv-pulse:${colors.fill}" aria-hidden="true">
+         <span class="fv-pulse__ring"></span>
+         <span class="fv-pulse__ring fv-pulse__ring--delay"></span>
+       </span>`
+    : '';
 
   const html = `
-    <div class="fv-marker fv-marker--${options.status}" style="width:${size}px;height:${size}px">
-      <div class="fv-rotator" style="transform:rotate(${heading}deg)">
-        <svg class="fv-svg" viewBox="0 0 32 32" width="${size}" height="${size}" aria-hidden="true">
-          <g fill="${colors.fill}" stroke="${colors.stroke}" stroke-width="1.2" stroke-linejoin="round">
-            ${path}
-          </g>
-        </svg>
+    <div class="${classes}" style="width:${host}px;height:${host}px;--fv-status:${colors.fill}">
+      ${pulseHtml}
+      <div class="fv-body" style="width:${size}px;height:${size}px">
+        <div class="fv-rotator" style="transform:rotate(${heading}deg)">
+          <svg class="fv-svg" viewBox="0 0 32 32" width="${size}" height="${size}" aria-hidden="true">
+            <g fill="${colors.fill}" stroke="#ffffff" stroke-width="1.5" stroke-linejoin="round"
+               paint-order="stroke fill">
+              ${path}
+            </g>
+          </svg>
+        </div>
+        ${badgeHtml(options.badge)}
       </div>
-      ${badgeHtml(options.badge)}
     </div>`;
 
   return L.divIcon({
     className: 'fv-marker-host',
     html,
-    iconSize: [size, size],
-    iconAnchor: [size / 2, size / 2],
+    iconSize: [host, host],
+    iconAnchor: [host / 2, host / 2],
     popupAnchor: [0, -(size / 2) - 4]
   });
 }

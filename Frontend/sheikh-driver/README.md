@@ -54,21 +54,25 @@ xattr -dr com.apple.quarantine /opt/homebrew/Caskroom/flutter
 
 ## API base URL (`AppConfig.resolvedBaseUrl`)
 
+Supports **Android emulator + physical Samsung (or any phone)** without editing source.
+
 Resolution order:
 
-1. Explicit `--dart-define=API_BASE_URL=...` (always wins)
+1. Explicit `--dart-define=API_BASE_URL=...` (full URL always wins)
 2. When `--dart-define=ENV=prod` or `ENV=uat`: Production HTTPS (same host as ERP)
-3. Otherwise platform local defaults
+3. `--dart-define=DEV_LAN_HOST=192.168.x.x` → `http://{host}:5082/api` (physical device)
+4. Otherwise platform local defaults
 
-| Target | Default (no `API_BASE_URL`) |
-|--------|-----------------------------|
+| Target | Default |
+|--------|---------|
 | `ENV=prod` / `ENV=uat` | `https://sheikh-travel-system-production.up.railway.app/api` |
-| Android emulator (`ENV=dev`) | `http://10.0.2.2:5082/api` |
+| Physical phone + `DEV_LAN_HOST` / `API_BASE_URL` | `http://{MacLAN}:5082/api` |
+| Android emulator (`ENV=dev`, no LAN define) | `http://10.0.2.2:5082/api` |
 | iOS Simulator / desktop (`ENV=dev`) | `http://localhost:5082/api` |
 
 SignalR uses `AppConfig.hubBaseUrl` (`{apiOrigin}/hubs/tracking`, or `--dart-define=HUB_URL=...`).
 
-**Local physical device against Mac API:** pass your Mac LAN IP — `localhost` / `10.0.2.2` will not reach the host. Ensure the API listens on `0.0.0.0:5082`.
+**Local physical device against Mac API:** pass your Mac LAN IP — `localhost` / `10.0.2.2` will not reach the host. Ensure the API listens on `0.0.0.0:5082` (already set in `launchSettings.json`).
 
 ```bash
 # Find Mac LAN IP
@@ -94,6 +98,29 @@ No dart-define required (uses `10.0.2.2`):
 ```bash
 flutter devices
 flutter run -d <android-emulator-id>
+# or
+./scripts/run_android_emu.sh
+```
+
+### Physical / wireless Android (Samsung A05)
+
+Phone + Mac on the **same Wi‑Fi**. API must be up on `0.0.0.0:5082`.
+
+```bash
+# One-shot helper (auto-detects Mac LAN IP + first wireless/USB phone)
+./scripts/run_android_device.sh
+
+# Or explicit device + defines
+LAN=$(ipconfig getifaddr en0)
+flutter run -d 192.168.100.59:41619 \
+  --dart-define=ENV=dev \
+  --dart-define=API_BASE_URL=http://$LAN:5082/api
+```
+
+Equivalent short form:
+
+```bash
+flutter run -d <phone_id> --dart-define=DEV_LAN_HOST=$(ipconfig getifaddr en0)
 ```
 
 ### iOS Simulator

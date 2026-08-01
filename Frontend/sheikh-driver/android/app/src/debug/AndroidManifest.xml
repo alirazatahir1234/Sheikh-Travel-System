@@ -4,4 +4,6 @@
          to allow setting breakpoints, to provide hot reload, etc.
     -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Local HTTP to Mac LAN / emulator during debug (http://192.168.x.x:5082). -->
+    <application android:usesCleartextTraffic="true" />
 </manifest>

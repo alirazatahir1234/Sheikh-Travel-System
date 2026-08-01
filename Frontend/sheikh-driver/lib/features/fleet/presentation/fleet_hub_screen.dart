@@ -71,24 +71,33 @@ class FleetHubScreen extends ConsumerWidget {
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-                    child: Row(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          '${hub.kpis.totalVehicles} vehicles · '
-                          '${hub.kpis.online} online · '
-                          '${hub.kpis.moving} moving · '
-                          '${hub.kpis.idle} idle',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 16,
-                            color: AppColors.textPrimary,
-                          ),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                'Vehicles (${hub.kpis.totalVehicles})',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 18,
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                            ),
+                            TextButton.icon(
+                              onPressed: () => context.push('/fleet/map'),
+                              icon: const Icon(Icons.map_rounded, size: 18),
+                              label: const Text('Live map'),
+                            ),
+                          ],
                         ),
-                        const Spacer(),
-                        TextButton.icon(
-                          onPressed: () => context.push('/fleet/map'),
-                          icon: const Icon(Icons.map_rounded, size: 18),
-                          label: const Text('Live map'),
+                        const SizedBox(height: 4),
+                        const Row(
+                          children: [
+                            _LiveBadge(),
+                          ],
                         ),
                       ],
                     ),
@@ -113,7 +122,12 @@ class FleetHubScreen extends ConsumerWidget {
                           ref.read(fleetHubProvider.notifier).setSearch(v),
                       decoration: InputDecoration(
                         hintText: 'Search plate, name, driver…',
-                        prefixIcon: const Icon(Icons.search_rounded),
+                        isDense: true,
+                        contentPadding:
+                            const EdgeInsets.symmetric(vertical: 12),
+                        prefixIcon: const Icon(Icons.search_rounded, size: 20),
+                        prefixIconConstraints:
+                            const BoxConstraints(minWidth: 40, minHeight: 40),
                         filled: true,
                         fillColor: Colors.white,
                         border: OutlineInputBorder(
@@ -128,9 +142,31 @@ class FleetHubScreen extends ConsumerWidget {
                   const SliverFillRemaining(
                     hasScrollBody: false,
                     child: Center(
-                      child: Text(
-                        'No vehicles match this filter',
-                        style: TextStyle(color: AppColors.textSecondary),
+                      child: Padding(
+                        padding: EdgeInsets.all(24),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.directions_car_outlined,
+                              size: 40,
+                              color: AppColors.textMuted,
+                            ),
+                            SizedBox(height: 10),
+                            Text(
+                              'No Vehicles Found',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                            SizedBox(height: 6),
+                            Text(
+                              'Try another filter.',
+                              style: TextStyle(color: AppColors.textSecondary),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   )
@@ -147,6 +183,71 @@ class FleetHubScreen extends ConsumerWidget {
             ),
           );
         },
+      ),
+    );
+  }
+}
+
+class _LiveBadge extends StatefulWidget {
+  const _LiveBadge();
+
+  @override
+  State<_LiveBadge> createState() => _LiveBadgeState();
+}
+
+class _LiveBadgeState extends State<_LiveBadge>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _scale;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..repeat(reverse: true);
+    _scale = Tween<double>(begin: 0.85, end: 1.25).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: const Color(0xFF16A34A).withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(AppRadii.pill),
+        border: Border.all(color: const Color(0xFF16A34A).withValues(alpha: 0.35)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ScaleTransition(
+            scale: _scale,
+            child: const Icon(
+              Icons.circle,
+              size: 8,
+              color: Color(0xFF16A34A),
+            ),
+          ),
+          const SizedBox(width: 6),
+          const Text(
+            'Live',
+            style: TextStyle(
+              color: Color(0xFF166534),
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
       ),
     );
   }

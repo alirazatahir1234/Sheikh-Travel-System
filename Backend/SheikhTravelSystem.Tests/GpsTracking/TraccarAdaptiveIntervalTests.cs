@@ -9,10 +9,11 @@ public class TraccarAdaptiveIntervalTests
     {
         AdaptivePositionSync = true,
         MovingSpeedKmh = 10,
+        UnknownIgnitionMovingSpeedKmh = 2,
         MovingIntervalSeconds = 5,
         SlowTrafficIntervalSeconds = 15,
         IdleIntervalSeconds = 30,
-        ParkedIntervalSeconds = 300,
+        ParkedIntervalSeconds = 30,
         PositionSyncIntervalSeconds = 5,
         SosAlarmValues = ["sos", "panic"]
     };
@@ -21,7 +22,7 @@ public class TraccarAdaptiveIntervalTests
     public void Empty_fleet_resolves_to_Parked()
     {
         var r = TraccarAdaptiveInterval.Resolve([], Options());
-        r.IntervalSeconds.Should().Be(300);
+        r.IntervalSeconds.Should().Be(30);
         r.Reason.Should().Be(TraccarAdaptiveInterval.ReasonParked);
     }
 
@@ -61,8 +62,28 @@ public class TraccarAdaptiveIntervalTests
         var r = TraccarAdaptiveInterval.Resolve(
             [new TraccarAdaptiveInterval.Sample(0m, false, null)],
             Options());
-        r.IntervalSeconds.Should().Be(300);
+        r.IntervalSeconds.Should().Be(30);
         r.Reason.Should().Be(TraccarAdaptiveInterval.ReasonParked);
+    }
+
+    [Fact]
+    public void Null_ignition_at_rest_uses_idle_not_parked()
+    {
+        var r = TraccarAdaptiveInterval.Resolve(
+            [new TraccarAdaptiveInterval.Sample(0m, null, null)],
+            Options());
+        r.IntervalSeconds.Should().Be(30);
+        r.Reason.Should().Be(TraccarAdaptiveInterval.ReasonIdle);
+    }
+
+    [Fact]
+    public void Null_ignition_with_motion_uses_moving_interval()
+    {
+        var r = TraccarAdaptiveInterval.Resolve(
+            [new TraccarAdaptiveInterval.Sample(5m, null, null)],
+            Options());
+        r.IntervalSeconds.Should().Be(5);
+        r.Reason.Should().Be(TraccarAdaptiveInterval.ReasonMoving);
     }
 
     [Fact]

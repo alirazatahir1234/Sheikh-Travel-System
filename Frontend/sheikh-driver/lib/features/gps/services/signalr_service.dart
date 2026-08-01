@@ -75,9 +75,7 @@ class SignalRService {
   String get _hubUrl => AppConfig.hubBaseUrl;
 
   Future<bool> _hasAuthToken() async {
-    const storage = FlutterSecureStorage(
-      mOptions: MacOsOptions(useDataProtectionKeyChain: false),
-    );
+    const storage = FlutterSecureStorage();
     final token = await storage.read(key: 'fleet_access_token') ??
         await storage.read(key: 'driver_access_token');
     return token != null && token.isNotEmpty;
@@ -89,9 +87,7 @@ class SignalRService {
   }) async {
     _onCommand = onCommand;
 
-    const storage = FlutterSecureStorage(
-      mOptions: MacOsOptions(useDataProtectionKeyChain: false),
-    );
+    const storage = FlutterSecureStorage();
     final token = await storage.read(key: 'fleet_access_token') ??
         await storage.read(key: 'driver_access_token');
     if (token == null) return;
@@ -107,7 +103,7 @@ class SignalRService {
               logMessageContent: kDebugMode,
             ),
           )
-          .withAutomaticReconnect(retryDelays: [2000, 5000, 10000, 30000])
+          .withAutomaticReconnect(retryDelays: [0, 1000, 2000, 5000, 10000])
           .build();
 
       _connection!.on('EngineCommand', (args) {

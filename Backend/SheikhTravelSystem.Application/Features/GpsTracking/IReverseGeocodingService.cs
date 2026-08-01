@@ -7,7 +7,11 @@ public record ReverseGeocodeResult(
     string? State = null,
     string? Country = null,
     string? PostalCode = null,
-    bool FromCache = false);
+    bool FromCache = false,
+    /// <summary>Nearest shop / landmark / POI name when available.</summary>
+    string? PlaceName = null,
+    /// <summary>Google/OSM place type (e.g. store, mosque, premise).</summary>
+    string? PlaceType = null);
 
 public interface IReverseGeocodingService
 {

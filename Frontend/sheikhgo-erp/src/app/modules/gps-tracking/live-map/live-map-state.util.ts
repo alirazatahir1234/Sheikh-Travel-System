@@ -26,7 +26,9 @@ export function mergeVehicleLocations(
       ...(previous ?? {}),
       ...location,
       // Don't wipe a resolved address with a null/empty poll/SignalR payload.
-      address: location.address?.trim() || previous?.address
+      address: location.address?.trim() || previous?.address,
+      placeName: location.placeName?.trim() || previous?.placeName,
+      placeType: location.placeType?.trim() || previous?.placeType
     });
   });
 

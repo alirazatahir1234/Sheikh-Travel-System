@@ -61,12 +61,12 @@ interface TrackEvent {
 }
 
 const TRAIL_COLORS: Record<FleetTrackStatus, string> = {
-  moving: '#10B981',
+  moving: '#2563EB',
   idle: '#F59E0B',
-  parked: '#3B82F6',
+  parked: '#8B5CF6',
   delayed: '#EF4444',
-  offline: '#64748B',
-  never_seen: '#CBD5E1',
+  offline: '#94A3B8',
+  never_seen: '#94A3B8',
   sos: '#DC2626',
   scheduled: '#3B82F6'
 };
@@ -101,6 +101,8 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
 
   locations: VehicleLocation[] = [];
   loading = true;
+  /** Manual refresh UI — not set by silent auto-poll. */
+  refreshing = false;
   syncError: string | null = null;
   mapError: string | null = null;
   searchQuery = '';
@@ -183,6 +185,11 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private pendingFocusVehicleId: number | null = null;
   private isRefreshingLocations = false;
+  /** When true, run another manual load after the in-flight request finishes. */
+  private queuedManualRefresh = false;
+  private refreshUiStartedAt = 0;
+  private refreshUiClearTimer?: ReturnType<typeof setTimeout>;
+  private static readonly REFRESH_UI_MIN_MS = 500;
   private userInteractionActive = false;
   private interactionPauseTimer?: ReturnType<typeof setTimeout>;
 
@@ -339,6 +346,7 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
     if (this.syncTick) clearInterval(this.syncTick);
     if (this.traccarStatusPoll) clearInterval(this.traccarStatusPoll);
     if (this.interactionPauseTimer) clearTimeout(this.interactionPauseTimer);
+    if (this.refreshUiClearTimer) clearTimeout(this.refreshUiClearTimer);
     this.markerAnimFrames.forEach(id => cancelAnimationFrame(id));
     this.markerAnimFrames.clear();
     this.trafficBasemap.detach();
@@ -686,9 +694,43 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
 
   refreshNow(): void {
     this.pushEvent('Manual refresh requested', 'info', 'refresh');
+    this.beginRefreshUi();
     this.loadLocations(true, true);
     this.loadRecentAlertEvents();
     this.loadFleetStatus();
+  }
+
+  zoomIn(): void {
+    this.map?.zoomIn();
+  }
+
+  zoomOut(): void {
+    this.map?.zoomOut();
+  }
+
+  private beginRefreshUi(): void {
+    this.refreshing = true;
+    this.refreshUiStartedAt = Date.now();
+    if (this.refreshUiClearTimer) {
+      clearTimeout(this.refreshUiClearTimer);
+      this.refreshUiClearTimer = undefined;
+    }
+  }
+
+  /** Keep spin/chip visible at least REFRESH_UI_MIN_MS so fast APIs still feel responsive. */
+  private endRefreshUi(): void {
+    if (!this.refreshing) return;
+    const elapsed = Date.now() - this.refreshUiStartedAt;
+    const remain = LiveMapComponent.REFRESH_UI_MIN_MS - elapsed;
+    if (remain <= 0) {
+      this.refreshing = false;
+      return;
+    }
+    if (this.refreshUiClearTimer) clearTimeout(this.refreshUiClearTimer);
+    this.refreshUiClearTimer = setTimeout(() => {
+      this.refreshing = false;
+      this.refreshUiClearTimer = undefined;
+    }, remain);
   }
 
   private loadFleetStatus(): void {
@@ -1014,8 +1056,10 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
     this.selectedVehicleId = loc.vehicleId;
     this.markUserActive();
     void this.realtime.subscribeVehicle(loc.vehicleId);
+    this.updateMarkers(this.mappableLocations(this.filteredLocations));
     if (loc.hasGps && this.isValidCoord(loc.latitude, loc.longitude)) {
       this.focusVehicle(loc);
+      this.enrichSelectedAddress(loc);
     } else {
       this.pushEvent(`${loc.vehicleName} has no GPS coordinates yet`, 'warning', 'gps_off');
     }
@@ -1027,6 +1071,47 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
         error: () => { this.selectedEta = null; }
       });
     }
+  }
+
+  /** Resolve street + nearby shop/POI for the selected vehicle detail panel. */
+  private enrichSelectedAddress(loc: VehicleLocation): void {
+    const coarse = this.isCoarseAddress(loc.address);
+    this.gpsService.reverseGeocode(loc.latitude, loc.longitude, coarse).subscribe(info => {
+      if (!info?.formattedAddress) return;
+      const idx = this.locations.findIndex(l => l.vehicleId === loc.vehicleId);
+      if (idx < 0) return;
+      const nextAddress = info.formattedAddress.trim();
+      const nextPlace = info.placeName?.trim() || undefined;
+      const nextType = info.placeType?.trim() || undefined;
+      const cur = this.locations[idx];
+      if (
+        cur.address === nextAddress &&
+        cur.placeName === nextPlace &&
+        cur.placeType === nextType
+      ) {
+        return;
+      }
+      this.locations[idx] = {
+        ...cur,
+        address: nextAddress,
+        placeName: nextPlace,
+        placeType: nextType
+      };
+      // Trigger change detection for filtered views that clone arrays.
+      this.locations = [...this.locations];
+    });
+  }
+
+  private isCoarseAddress(address?: string | null): boolean {
+    const raw = address?.trim();
+    if (!raw) return true;
+    const lower = raw.toLowerCase();
+    if (lower.includes('tehsil') || lower.includes('district') || lower.includes('division')) {
+      return true;
+    }
+    const parts = raw.split(',').map(p => p.trim()).filter(Boolean);
+    if (parts.some(p => /\d/.test(p))) return false;
+    return parts.length <= 3;
   }
 
   goToCommands(): void {
@@ -1117,7 +1202,10 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private loadLocations(silent = false, manual = false): void {
-    if (this.isRefreshingLocations) return;
+    if (this.isRefreshingLocations) {
+      if (manual) this.queuedManualRefresh = true;
+      return;
+    }
     this.isRefreshingLocations = true;
     if (!silent) this.loading = true;
     this.gpsService.getAllVehicleLocations().subscribe({
@@ -1149,14 +1237,28 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
           this.scheduleMapResize();
         }
         this.isRefreshingLocations = false;
+        this.finishLocationLoad(manual);
       },
       error: () => {
         this.loading = false;
         this.isRefreshingLocations = false;
         this.syncError = 'Could not reach tracking service.';
         this.pushEvent('Tracking sync failed', 'alert', 'cloud_off');
+        this.finishLocationLoad(manual);
       }
     });
+  }
+
+  private finishLocationLoad(manual: boolean): void {
+    if (this.queuedManualRefresh) {
+      this.queuedManualRefresh = false;
+      this.beginRefreshUi();
+      this.loadLocations(true, true);
+      return;
+    }
+    if (manual || this.refreshing) {
+      this.endRefreshUi();
+    }
   }
 
   private emitSyncSummary(gpsLocs: VehicleLocation[], announce: boolean): void {
@@ -1219,7 +1321,14 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
     return ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
   }
 
-  private createMarkerIcon(status: FleetTrackStatus, bearing = 0, vehicleType?: string | null, ignition?: boolean | null): LeafletTypes.DivIcon {
+  private createMarkerIcon(
+    status: FleetTrackStatus,
+    bearing = 0,
+    vehicleType?: string | null,
+    ignition?: boolean | null,
+    vehicleId?: number
+  ): LeafletTypes.DivIcon {
+    const selected = vehicleId != null && vehicleId === this.selectedVehicleId;
     const badge =
       status === 'sos' ? 'sos' :
       status === 'offline' || status === 'never_seen' ? 'offline' :
@@ -1231,7 +1340,9 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
       heading: bearing,
       vehicleType,
       badge,
-      size: 34
+      size: selected ? 34 : 30,
+      selected,
+      pulse: selected
     });
   }
 
@@ -1295,7 +1406,9 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
 
       const headingText = this.headingLabel(loc);
       const addr =
-        loc.address?.trim() ||
+        [loc.placeName?.trim(), loc.address?.trim()]
+          .filter(Boolean)
+          .join(' · ') ||
         `${loc.latitude.toFixed(5)}, ${loc.longitude.toFixed(5)}`;
       const popupContent = buildFleetVehiclePopup({
         name: loc.vehicleName,
@@ -1310,7 +1423,7 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
         lastPing: this.formatLastPing(loc),
         statusLabel: this.statusLabel(loc.status)
       }) + `<a href="#" class="map-popup-link" data-vid="${loc.vehicleId}">View details →</a>`;
-      const icon = this.createMarkerIcon(loc.status, bearing, loc.vehicleType, loc.ignition);
+      const icon = this.createMarkerIcon(loc.status, bearing, loc.vehicleType, loc.ignition, loc.vehicleId);
 
       if (this.markers.has(loc.vehicleId)) {
         const m = this.markers.get(loc.vehicleId)!;

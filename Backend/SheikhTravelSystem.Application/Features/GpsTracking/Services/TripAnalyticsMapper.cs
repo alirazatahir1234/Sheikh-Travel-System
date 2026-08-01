@@ -189,9 +189,14 @@ public static class TripAnalyticsMapper
     {
         var rangeMinutes = Math.Max(1, (int)Math.Ceiling((toDate - fromDate).TotalMinutes));
         var stopIdle = Math.Min(rangeMinutes, stops.Sum(s => Math.Max(0, s.DurationMinutes)));
+        var motionDriving = ComputeMotionDrivingMinutes(route, rangeMinutes);
 
         int drivingMinutes;
-        if (baseSummary is not null && baseSummary.DrivingMinutes > 0 && baseSummary.DrivingMinutes <= rangeMinutes)
+        if (motionDriving > 0)
+        {
+            drivingMinutes = motionDriving;
+        }
+        else if (baseSummary is not null && baseSummary.DrivingMinutes > 0 && baseSummary.DrivingMinutes <= rangeMinutes)
         {
             drivingMinutes = baseSummary.DrivingMinutes;
         }
@@ -233,6 +238,42 @@ public static class TripAnalyticsMapper
             baseSummary?.HarshBrakeCount ?? 0,
             baseSummary?.HarshAccelCount ?? 0,
             Math.Round(drivingMinutes / 60m, 1));
+    }
+
+    private static int ComputeMotionDrivingMinutes(
+        IReadOnlyList<TripReplayPositionDto> route,
+        int rangeMinutes)
+    {
+        if (route.Count < 2) return 0;
+        var movingMinutes = 0.0;
+
+        for (var i = 1; i < route.Count; i++)
+        {
+            var prev = route[i - 1];
+            var next = route[i];
+            var deltaMinutes = (next.Timestamp - prev.Timestamp).TotalMinutes;
+            if (deltaMinutes <= 0) continue;
+            // Ignore very large gaps so sparse histories don't inflate driving time.
+            if (deltaMinutes > 20) continue;
+
+            var segmentDistanceKm = HaversineKm(
+                prev.Latitude, prev.Longitude,
+                next.Latitude, next.Longitude);
+
+            var movingBySpeed =
+                prev.SpeedKmh >= 3m || next.SpeedKmh >= 3m;
+            var movingByIgnition =
+                (prev.Ignition == true || next.Ignition == true) &&
+                (prev.SpeedKmh > 0m || next.SpeedKmh > 0m);
+            var movingByDistance = segmentDistanceKm >= 0.03; // ~30m
+
+            if (movingBySpeed || movingByIgnition || movingByDistance)
+            {
+                movingMinutes += deltaMinutes;
+            }
+        }
+
+        return Math.Clamp((int)Math.Round(movingMinutes), 0, rangeMinutes);
     }
 
     private static int CountEvents(IReadOnlyList<TraccarEvent> events, params string[] types)

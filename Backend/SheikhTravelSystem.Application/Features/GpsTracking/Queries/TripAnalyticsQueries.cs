@@ -480,7 +480,7 @@ public class GetGpsOperatorDashboardQueryHandler(
             """
             SELECT COUNT(*) FROM GpsTrips t
             INNER JOIN Vehicles v ON v.Id = t.VehicleId AND v.TenantId = @TenantId
-            WHERE t.IsDeleted = 0 AND t.StartTime >= @TodayStart
+            WHERE t.StartTime >= @TodayStart
             """,
             new { TenantId = tenantId, TodayStart = todayStart },
             cancellationToken: cancellationToken));
@@ -490,7 +490,7 @@ public class GetGpsOperatorDashboardQueryHandler(
             SELECT SUM(ISNULL(t.DistanceKm, 0))
             FROM GpsTrips t
             INNER JOIN Vehicles v ON v.Id = t.VehicleId AND v.TenantId = @TenantId
-            WHERE t.IsDeleted = 0 AND t.StartTime >= @TodayStart
+            WHERE t.StartTime >= @TodayStart
             """,
             new { TenantId = tenantId, TodayStart = todayStart },
             cancellationToken: cancellationToken));

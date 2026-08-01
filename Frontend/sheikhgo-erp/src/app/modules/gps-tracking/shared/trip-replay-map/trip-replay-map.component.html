@@ -76,6 +76,10 @@
 
   <div class="playback-bar" *ngIf="positions.length > 0 && !loading">
     <div class="replay-hud" *ngIf="currentPosition">
+      <span *ngIf="vehicleName || plateNumber" class="hud-vehicle">
+        <strong>{{ vehicleName || 'Vehicle' }}</strong>
+        <em *ngIf="plateNumber">{{ plateNumber }}</em>
+      </span>
       <span>{{ currentPosition.timestamp | date:'medium' }}</span>
       <span>{{ currentPosition.speedKmh | number:'1.0-0' }} km/h</span>
       <span *ngIf="currentPosition.address">{{ currentPosition.address }}</span>

@@ -177,6 +177,7 @@ public static class DependencyInjection
                 var encoded = Convert.ToBase64String(Encoding.ASCII.GetBytes($"{opts.Username}:{opts.Password}"));
                 client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", encoded);
             }
+            client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
             client.Timeout = TimeSpan.FromSeconds(90);
         });
         services.AddHostedService<TraccarSyncService>();
@@ -213,6 +214,11 @@ public static class DependencyInjection
             client.DefaultRequestHeaders.UserAgent.ParseAdd(
                 string.IsNullOrWhiteSpace(opts.UserAgent) ? "SheikhGoERP/1.0" : opts.UserAgent);
             client.Timeout = TimeSpan.FromSeconds(10);
+        });
+        services.AddHttpClient("GoogleMaps", client =>
+        {
+            client.BaseAddress = new Uri("https://maps.googleapis.com/");
+            client.Timeout = TimeSpan.FromSeconds(12);
         });
         services.AddSingleton<GpsAddressBackfillHostedService>();
         services.AddSingleton<IGpsAddressBackfillQueue>(sp => sp.GetRequiredService<GpsAddressBackfillHostedService>());

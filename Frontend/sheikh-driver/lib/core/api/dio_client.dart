@@ -50,10 +50,7 @@ class SessionInvalidationNotifier extends ChangeNotifier {
 }
 
 final secureStorageProvider = Provider(
-  (_) => const FlutterSecureStorage(
-    // Avoid Data Protection Keychain on macOS desktop (-34018 missing entitlement).
-    mOptions: MacOsOptions(useDataProtectionKeyChain: false),
-  ),
+  (_) => const FlutterSecureStorage(),
 );
 
 final dioProvider = Provider<Dio>((ref) {

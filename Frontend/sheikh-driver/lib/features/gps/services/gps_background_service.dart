@@ -30,9 +30,7 @@ Future<void> _backgroundGpsMaintenance({required bool captureFix}) async {
   await LocationQueue.init();
   await GpsSessionStore.init();
 
-  const storage = FlutterSecureStorage(
-    mOptions: MacOsOptions(useDataProtectionKeyChain: false),
-  );
+  const storage = FlutterSecureStorage();
   final token = await storage.read(key: 'driver_access_token');
   if (token == null) return;
 

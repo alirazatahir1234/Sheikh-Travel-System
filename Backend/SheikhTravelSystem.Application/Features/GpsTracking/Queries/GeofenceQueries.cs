@@ -211,6 +211,8 @@ public class GetGeofenceEventsQueryHandler(IDbConnectionFactory dbFactory)
             """
             SELECT TOP 200 e.Id, e.RuleId, e.VehicleId, v.Name AS VehicleName, e.EventType,
                    e.Latitude, e.Longitude, e.Speed, e.Message, e.Timestamp, e.IsAcknowledged,
+                   COALESCE(e.Severity, 'medium') AS Severity,
+                   COALESCE(e.Status, 'active') AS Status,
                    e.GeofenceId, g.Name AS GeofenceName
             FROM GpsAlertEvents e
             LEFT JOIN Vehicles v ON v.Id = e.VehicleId

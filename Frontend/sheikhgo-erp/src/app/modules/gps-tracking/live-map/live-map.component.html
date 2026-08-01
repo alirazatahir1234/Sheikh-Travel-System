@@ -15,6 +15,7 @@
            [class.sync-pill--active]="trackingActive"
            [class.sync-pill--offline]="!isTraccarOnline || traccarStatus?.syncEnabled === false">
         <span class="sync-dot sync-dot--live"></span>
+        <span class="sync-live-label" *ngIf="trackingActive">Live</span>
         <span>{{ trackingStatusLabel }}</span>
         <span class="sync-meta">ERP poll {{ formatSyncAgo() }}</span>
       </div>
@@ -30,8 +31,8 @@
           <option *ngFor="let r of refreshRateOptions" [ngValue]="r.id">{{ r.label }}</option>
         </select>
       </label>
-      <button mat-stroked-button type="button" class="stb-touch" (click)="refreshNow()" [disabled]="loading">
-        <mat-icon>refresh</mat-icon>
+      <button mat-stroked-button type="button" class="stb-touch" (click)="refreshNow()" [disabled]="loading || refreshing">
+        <mat-icon [class.spinning]="refreshing">refresh</mat-icon>
         Refresh
       </button>
       <button mat-stroked-button type="button" class="stb-touch" (click)="toggleLiveTracking()">
@@ -410,6 +411,10 @@
           <mat-spinner diameter="36"></mat-spinner>
           <p>Loading map and vehicles…</p>
         </div>
+        <div class="map-refresh-overlay" *ngIf="refreshing && !mapError" aria-live="polite">
+          <mat-icon class="spinning">sync</mat-icon>
+          <span>Updating vehicles…</span>
+        </div>
         <div class="map-load-error" *ngIf="mapError" role="alert">
           <mat-icon>map</mat-icon>
           <p>{{ mapError }}</p>
@@ -422,6 +427,12 @@
           <button type="button" class="glass-btn stb-touch" matTooltip="Center fleet" aria-label="Center fleet" (click)="centerMap()">
             <mat-icon>my_location</mat-icon>
           </button>
+          <button type="button" class="glass-btn stb-touch" matTooltip="Zoom in" aria-label="Zoom in" (click)="zoomIn()">
+            <mat-icon>add</mat-icon>
+          </button>
+          <button type="button" class="glass-btn stb-touch" matTooltip="Zoom out" aria-label="Zoom out" (click)="zoomOut()">
+            <mat-icon>remove</mat-icon>
+          </button>
           <button
             type="button"
             class="glass-btn stb-touch"
@@ -432,8 +443,9 @@
             (click)="toggleFollowSelected()">
             <mat-icon>{{ followSelected ? 'location_disabled' : 'directions_run' }}</mat-icon>
           </button>
-          <button type="button" class="glass-btn stb-touch" matTooltip="Refresh" aria-label="Refresh map" (click)="refreshNow()">
-            <mat-icon>refresh</mat-icon>
+          <button type="button" class="glass-btn stb-touch" matTooltip="Refresh" aria-label="Refresh map"
+            (click)="refreshNow()" [disabled]="loading || refreshing">
+            <mat-icon [class.spinning]="refreshing">refresh</mat-icon>
           </button>
           <button
             type="button"
@@ -600,21 +612,26 @@
               <mat-icon>place</mat-icon>
               <div>
                 <span class="detail-metric-lbl">Current location</span>
+                <span class="detail-metric-val detail-metric-val--place"
+                      *ngIf="loc.placeName">{{ loc.placeName }}</span>
+                <span class="detail-place-type" *ngIf="loc.placeType">
+                  {{ loc.placeType | titlecase }}
+                </span>
                 <span class="detail-metric-val" *ngIf="loc.address; else coordsOnly">{{ loc.address }}</span>
                 <ng-template #coordsOnly>
                   <span class="detail-metric-val detail-metric-val--mono">
-                    {{ loc.latitude | number:'1.4-4' }}, {{ loc.longitude | number:'1.4-4' }}
+                    {{ loc.latitude | number:'1.5-5' }}, {{ loc.longitude | number:'1.5-5' }}
                   </span>
                 </ng-template>
+                <span class="detail-metric-sub detail-metric-val--mono">
+                  {{ loc.latitude | number:'1.5-5' }}, {{ loc.longitude | number:'1.5-5' }}
+                </span>
                 <a class="detail-maps-link"
                    [href]="googleMapsUrl(loc)"
                    target="_blank"
                    rel="noopener noreferrer">
                   View on Google Maps
                 </a>
-                <span class="detail-metric-sub detail-metric-val--mono" *ngIf="loc.address">
-                  {{ loc.latitude | number:'1.5-5' }}, {{ loc.longitude | number:'1.5-5' }}
-                </span>
               </div>
             </div>
             <div class="detail-metric" *ngIf="loc.routeHint">

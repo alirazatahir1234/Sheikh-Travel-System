@@ -209,11 +209,22 @@ class _GpsTripsScreenState extends ConsumerState<GpsTripsScreen> {
                               itemBuilder: (context, i) {
                                 final t = _trips[i];
                                 return SgCard(
-                                  onTap: t.vehicleId > 0
+                                  onTap: t.vehicleId > 0 &&
+                                          t.tripKey.trim().isNotEmpty
                                       ? () => context.push(
-                                            '/fleet/vehicles/${t.vehicleId}/history',
+                                            Uri(
+                                              path:
+                                                  '/fleet/vehicles/${t.vehicleId}/history',
+                                              queryParameters: {
+                                                'tripKey': t.tripKey,
+                                              },
+                                            ).toString(),
                                           )
-                                      : null,
+                                      : t.vehicleId > 0
+                                          ? () => context.push(
+                                                '/fleet/vehicles/${t.vehicleId}/history',
+                                              )
+                                          : null,
                                   child: Column(
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,

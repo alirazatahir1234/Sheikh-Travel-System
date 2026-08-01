@@ -97,6 +97,34 @@ void main() {
     expect(idx, 1);
   });
 
+  test('lowerBoundPlaybackIndex finds first index not before time', () {
+    final playback = [
+      HistoryReplayPoint(
+        timestamp: DateTime.parse('2026-07-22T10:00:00Z'),
+        latitude: 0,
+        longitude: 0,
+        speedKmh: 0,
+      ),
+      HistoryReplayPoint(
+        timestamp: DateTime.parse('2026-07-22T10:10:00Z'),
+        latitude: 1,
+        longitude: 1,
+        speedKmh: 0,
+      ),
+      HistoryReplayPoint(
+        timestamp: DateTime.parse('2026-07-22T10:20:00Z'),
+        latitude: 2,
+        longitude: 2,
+        speedKmh: 0,
+      ),
+    ];
+    final idx = lowerBoundPlaybackIndex(
+      playback,
+      DateTime.parse('2026-07-22T10:11:00Z'),
+    );
+    expect(idx, 2);
+  });
+
   test('buildSpeedSegments classifies overspeed', () {
     final points = [
       HistoryReplayPoint(
@@ -136,5 +164,37 @@ void main() {
     ]);
     expect(csv.contains('timestamp,latitude,longitude'), isTrue);
     expect(csv.contains('Karachi'), isTrue);
+  });
+
+  test('PlaybackStats resolves from bundle and events', () {
+    final bundle = HistoryReplayBundle.fromJson({
+      'route': [],
+      'playback': [
+        {
+          'timestamp': '2026-07-22T10:01:00Z',
+          'latitude': 24.87,
+          'longitude': 67.01,
+          'speedKmh': 20,
+        },
+      ],
+      'events': [
+        {'time': '2026-07-22T10:04:00Z', 'type': 'overspeed'},
+        {'time': '2026-07-22T10:05:00Z', 'type': 'sos'},
+        {'time': '2026-07-22T10:06:00Z', 'type': 'fuel_drop'},
+        {'time': '2026-07-22T10:07:00Z', 'type': 'ignition_off'},
+      ],
+      'summary': {
+        'distanceKm': 18.4,
+        'drivingMinutes': 138,
+        'avgSpeedKmh': 44,
+        'maxSpeedKmh': 92,
+      },
+    });
+    final stats = PlaybackStats.fromBundle(bundle);
+    expect(stats.distanceKm, 18.4);
+    expect(stats.overspeedCount, 1);
+    expect(stats.sosCount, 1);
+    expect(stats.fuelEvents, 1);
+    expect(stats.ignitionEvents, 1);
   });
 }

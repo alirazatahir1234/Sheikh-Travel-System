@@ -85,6 +85,11 @@ abstract class ApiEndpoints {
   static const gpsHistoryReplayInsights = '/gps/history/replay/insights';
   static String gpsHistory(int vehicleId) => '/gps/history/$vehicleId';
   static const gpsHistoryReplay = '/gps/history/replay';
+  static const gpsTrips = '/gps/trips';
+  static String gpsTripByKey(String tripKey) =>
+      '/gps/trips/${Uri.encodeComponent(tripKey)}';
+  static const gpsTripsReplay = '/gps/trips/replay';
+  static const gpsTripsAnalytics = '/gps/trips/analytics';
   static const gpsLocationReverse = '/gps/location/reverse';
   static const gpsGeofences = '/gps/geofences';
   static String gpsCommandsSupported(int deviceId) =>

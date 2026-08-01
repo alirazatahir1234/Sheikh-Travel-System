@@ -1,20 +1,22 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
+
 import '../../../core/constants/app_theme.dart';
 import '../../../features/auth/data/auth_repository.dart';
 import '../../../features/auth/domain/auth_models.dart';
 import '../data/fleet_api.dart';
 import '../domain/fleet_models.dart';
-import '../domain/fleet_status.dart';
 import 'fleet_hub_notifier.dart';
 import 'vehicle_commands_sheet.dart';
+import '../services/fleet_realtime_service.dart';
 import 'widgets/fleet_kpi_strip.dart';
-import 'widgets/geofence_distance.dart';
-import 'widgets/vehicle_comms_buttons.dart';
+import 'widgets/pulse_vehicle_overlay.dart';
+import 'widgets/vehicle_live_map_sheet.dart';
+import 'widgets/vehicle_pulse_icons.dart';
 
 class FleetLiveMapScreen extends ConsumerStatefulWidget {
   const FleetLiveMapScreen({super.key});
@@ -26,28 +28,54 @@ class FleetLiveMapScreen extends ConsumerStatefulWidget {
 class _FleetLiveMapScreenState extends ConsumerState<FleetLiveMapScreen> {
   GoogleMapController? _map;
   int? _selectedId;
-  bool _fitted = false;
+  bool _initialFitDone = false;
+  bool _userMovedCamera = false;
+  bool _programmaticCamera = false;
   bool _follow = false;
   List<GpsGeofenceItem> _geofences = const [];
-  Timer? _refreshTimer;
-  DateTime? _lastRefreshOk;
   MapType _mapType = MapType.normal;
-  bool _sheetExpanded = false;
+  double _devicePixelRatio = 2;
+  final Map<FleetTrackStatus, BitmapDescriptor> _icons = {};
+  bool _iconsReady = false;
+  LatLng? _lastFollowPos;
+  BitmapDescriptor? _transparentIcon;
+  Offset? _pulseScreenPos;
+  final GlobalKey _mapStackKey = GlobalKey();
+  bool _pulseSyncScheduled = false;
 
-  static const _defaultCamera = CameraPosition(
-    target: LatLng(24.8607, 67.0011), // Karachi default
+  static const _fallbackCamera = CameraPosition(
+    target: LatLng(24.8607, 67.0011), // Karachi — only when no vehicles
     zoom: 11,
   );
 
   @override
   void initState() {
     super.initState();
-    _loadGeofences();
-    _refreshTimer = Timer.periodic(const Duration(seconds: 20), (_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      ref.read(fleetHubProvider.notifier).refresh().then((_) {
-        if (mounted) setState(() => _lastRefreshOk = DateTime.now());
-      });
+      _devicePixelRatio = MediaQuery.devicePixelRatioOf(context);
+      unawaited(_loadIcons());
+    });
+    _loadGeofences();
+  }
+
+  Future<void> _loadIcons() async {
+    VehiclePulseIcons.clearCache();
+    final next = <FleetTrackStatus, BitmapDescriptor>{};
+    for (final s in FleetTrackStatus.values) {
+      next[s] = await VehiclePulseIcons.iconFor(
+        s,
+        devicePixelRatio: _devicePixelRatio,
+      );
+    }
+    final transparent = await VehiclePulseIcons.transparentIcon();
+    if (!mounted) return;
+    setState(() {
+      _icons
+        ..clear()
+        ..addAll(next);
+      _transparentIcon = transparent;
+      _iconsReady = true;
     });
   }
 
@@ -77,64 +105,148 @@ class _FleetLiveMapScreenState extends ConsumerState<FleetLiveMapScreen> {
 
   @override
   void dispose() {
-    _refreshTimer?.cancel();
     _map?.dispose();
     super.dispose();
+  }
+
+  BitmapDescriptor _iconFor(
+    FleetTrackStatus status, {
+    required bool selected,
+    required bool hideForPulseOverlay,
+  }) {
+    if (selected && hideForPulseOverlay && _transparentIcon != null) {
+      return _transparentIcon!;
+    }
+    return _icons[status] ??
+        BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure);
   }
 
   Set<Marker> _markers(List<FleetVehicleLocation> locations) {
     return locations
         .where((v) => v.hasMapCoords)
         .map(
-          (v) => Marker(
-            markerId: MarkerId('v${v.vehicleId}'),
-            position: LatLng(v.latitude!, v.longitude!),
-            rotation: v.heading ?? 0,
-            icon: BitmapDescriptor.defaultMarkerWithHue(
-              _hueFor(v.status),
-            ),
-            infoWindow: InfoWindow(
-              title: v.vehicleName,
-              snippet:
-                  '${v.status.label} · ${v.speed.toStringAsFixed(0)} km/h',
-              onTap: () => context.push('/fleet/vehicles/${v.vehicleId}'),
-            ),
-            onTap: () => setState(() => _selectedId = v.vehicleId),
-          ),
+          (v) {
+            final selected = v.vehicleId == _selectedId;
+            return Marker(
+              markerId: MarkerId('v${v.vehicleId}'),
+              position: LatLng(v.latitude!, v.longitude!),
+              rotation: v.heading ?? 0,
+              flat: true,
+              anchor: const Offset(0.5, 0.5),
+              zIndexInt: selected ? 10 : 1,
+              icon: _iconFor(
+                v.status,
+                selected: selected,
+                // Keep bitmap visible until overlay position is actually synced.
+                hideForPulseOverlay: selected && _pulseScreenPos != null,
+              ),
+              infoWindow: InfoWindow.noText,
+              onTap: () => _selectVehicle(v.vehicleId),
+            );
+          },
         )
         .toSet();
   }
 
-  double _hueFor(FleetTrackStatus status) => switch (status) {
-        FleetTrackStatus.moving => BitmapDescriptor.hueGreen,
-        FleetTrackStatus.idle => BitmapDescriptor.hueYellow,
-        FleetTrackStatus.parked => BitmapDescriptor.hueAzure,
-        FleetTrackStatus.sos => BitmapDescriptor.hueRed,
-        FleetTrackStatus.offline => BitmapDescriptor.hueViolet,
-        FleetTrackStatus.neverSeen => BitmapDescriptor.hueRose,
-      };
+  void _schedulePulseSync(LatLng? target) {
+    if (_pulseSyncScheduled) return;
+    _pulseSyncScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      _pulseSyncScheduled = false;
+      if (!mounted) return;
+      final offset = await mapLatLngToOverlayOffset(
+        map: _map,
+        target: target,
+        stackKey: _mapStackKey,
+        devicePixelRatio: _devicePixelRatio,
+      );
+      if (!mounted) return;
+      if (offset != _pulseScreenPos) {
+        setState(() => _pulseScreenPos = offset);
+      }
+    });
+  }
+
+  void _selectVehicle(int id) {
+    setState(() {
+      _selectedId = id;
+      _follow = true;
+      _userMovedCamera = false;
+      _pulseScreenPos = null;
+    });
+    final hub = ref.read(fleetHubProvider).valueOrNull;
+    final v = hub?.locations.where((e) => e.vehicleId == id).firstOrNull;
+    if (v?.hasMapCoords == true) {
+      final ll = LatLng(v!.latitude!, v.longitude!);
+      unawaited(_centerOn(ll, zoom: 15));
+      _schedulePulseSync(ll);
+    }
+  }
 
   Color _connectionColor() {
-    final t = _lastRefreshOk;
-    if (t == null) return AppColors.textMuted;
-    final age = DateTime.now().difference(t);
-    if (age.inSeconds < 45) return AppColors.success;
-    if (age.inMinutes < 2) return AppColors.warning;
+    final hub = ref.read(fleetHubProvider).valueOrNull;
+    final status = hub?.realtimeStatus ?? 'disconnected';
+    if (status == 'connected') return AppColors.success;
+    if (status == 'reconnecting') return AppColors.warning;
+    if (status == 'no_token') return AppColors.textMuted;
     return AppColors.error;
+  }
+
+  /// Prefer SignalR last event, then last quiet/manual poll from hub state.
+  DateTime? get _lastSyncAt {
+    final hub = ref.read(fleetHubProvider).valueOrNull;
+    final signalrAt = FleetRealtimeService.instance.lastLocationAt;
+    final pollAt = hub?.lastLiveAt;
+    if (signalrAt == null) return pollAt;
+    if (pollAt == null) return signalrAt;
+    return signalrAt.isAfter(pollAt) ? signalrAt : pollAt;
+  }
+
+  CameraPosition _initialCamera(List<FleetVehicleLocation> locations) {
+    final pts = locations
+        .where((v) => v.hasMapCoords)
+        .map((v) => LatLng(v.latitude!, v.longitude!))
+        .toList();
+    if (pts.isEmpty) return _fallbackCamera;
+    if (pts.length == 1) {
+      return CameraPosition(target: pts.first, zoom: 14);
+    }
+    var sumLat = 0.0;
+    var sumLng = 0.0;
+    for (final p in pts) {
+      sumLat += p.latitude;
+      sumLng += p.longitude;
+    }
+    return CameraPosition(
+      target: LatLng(sumLat / pts.length, sumLng / pts.length),
+      zoom: 11,
+    );
+  }
+
+  Future<void> _animateCamera(CameraUpdate update) async {
+    final map = _map;
+    if (map == null || !mounted) return;
+    _programmaticCamera = true;
+    try {
+      await map.animateCamera(update);
+    } catch (_) {
+    } finally {
+      Future<void>.delayed(const Duration(milliseconds: 400), () {
+        _programmaticCamera = false;
+      });
+    }
   }
 
   Future<void> _fitBounds(List<FleetVehicleLocation> locations) async {
     final map = _map;
-    if (map == null || _fitted) return;
+    if (map == null || _initialFitDone || _userMovedCamera) return;
     final pts = locations
         .where((v) => v.hasMapCoords)
         .map((v) => LatLng(v.latitude!, v.longitude!))
         .toList();
     if (pts.isEmpty) return;
     if (pts.length == 1) {
-      await map.animateCamera(
-        CameraUpdate.newLatLngZoom(pts.first, 14),
-      );
+      await _animateCamera(CameraUpdate.newLatLngZoom(pts.first, 14));
     } else {
       var minLat = pts.first.latitude;
       var maxLat = pts.first.latitude;
@@ -146,7 +258,7 @@ class _FleetLiveMapScreenState extends ConsumerState<FleetLiveMapScreen> {
         minLng = minLng < p.longitude ? minLng : p.longitude;
         maxLng = maxLng > p.longitude ? maxLng : p.longitude;
       }
-      await map.animateCamera(
+      await _animateCamera(
         CameraUpdate.newLatLngBounds(
           LatLngBounds(
             southwest: LatLng(minLat, minLng),
@@ -156,7 +268,34 @@ class _FleetLiveMapScreenState extends ConsumerState<FleetLiveMapScreen> {
         ),
       );
     }
-    _fitted = true;
+    _initialFitDone = true;
+  }
+
+  Future<void> _centerOn(LatLng target, {double? zoom}) async {
+    if (zoom != null) {
+      await _animateCamera(CameraUpdate.newLatLngZoom(target, zoom));
+    } else {
+      await _animateCamera(CameraUpdate.newLatLng(target));
+    }
+  }
+
+  void _maybeFollowSelected(List<FleetVehicleLocation> visible) {
+    if (!_follow || _selectedId == null) return;
+    final selected =
+        visible.where((v) => v.vehicleId == _selectedId).firstOrNull;
+    if (selected?.hasMapCoords != true) return;
+    final pos = LatLng(selected!.latitude!, selected.longitude!);
+    final last = _lastFollowPos;
+    if (last != null &&
+        (last.latitude - pos.latitude).abs() < 0.00001 &&
+        (last.longitude - pos.longitude).abs() < 0.00001) {
+      return;
+    }
+    _lastFollowPos = pos;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_follow) return;
+      unawaited(_centerOn(pos));
+    });
   }
 
   Future<void> _openExternalNav(FleetVehicleLocation v) async {
@@ -184,11 +323,18 @@ class _FleetLiveMapScreenState extends ConsumerState<FleetLiveMapScreen> {
             .toList(),
       ),
     );
-    if (picked != null) {
-      setState(() {
-        _selectedId = picked;
-        _follow = true;
-      });
+    if (picked != null) _selectVehicle(picked);
+  }
+
+  Future<void> _manualRefresh({bool refit = false}) async {
+    if (refit) {
+      _initialFitDone = false;
+      _userMovedCamera = false;
+    }
+    await ref.read(fleetHubProvider.notifier).refresh();
+    if (refit && mounted) {
+      final hub = ref.read(fleetHubProvider).valueOrNull;
+      if (hub != null) unawaited(_fitBounds(hub.visible));
     }
   }
 
@@ -202,6 +348,19 @@ class _FleetLiveMapScreenState extends ConsumerState<FleetLiveMapScreen> {
           FleetPermissions.gpsCommandView,
         ]);
 
+    ref.listen<AsyncValue<FleetHubState>>(fleetHubProvider, (prev, next) {
+      final hub = next.valueOrNull;
+      if (hub == null) return;
+      _maybeFollowSelected(hub.visible);
+      if (_selectedId != null) {
+        final sel =
+            hub.visible.where((v) => v.vehicleId == _selectedId).firstOrNull;
+        if (sel?.hasMapCoords == true) {
+          _schedulePulseSync(LatLng(sel!.latitude!, sel.longitude!));
+        }
+      }
+    });
+
     return Scaffold(
       backgroundColor: AppColors.surface,
       appBar: AppBar(
@@ -209,11 +368,30 @@ class _FleetLiveMapScreenState extends ConsumerState<FleetLiveMapScreen> {
           children: [
             const Text('Live map'),
             const SizedBox(width: 8),
-            Icon(
-              Icons.circle,
-              size: 10,
-              color: _connectionColor(),
+            Tooltip(
+              message: () {
+                final hub = async.valueOrNull;
+                final status = hub?.realtimeStatus ?? 'disconnected';
+                final sync = _lastSyncAt;
+                final age = sync == null
+                    ? 'no sync yet'
+                    : '${DateTime.now().difference(sync).inSeconds}s ago';
+                return 'Realtime: $status · Last update $age';
+              }(),
+              child: Icon(
+                Icons.circle,
+                size: 10,
+                color: _connectionColor(),
+              ),
             ),
+            if (async.valueOrNull?.isRefreshing == true) ...[
+              const SizedBox(width: 10),
+              const SizedBox(
+                width: 14,
+                height: 14,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ],
           ],
         ),
         actions: [
@@ -225,156 +403,206 @@ class _FleetLiveMapScreenState extends ConsumerState<FleetLiveMapScreen> {
             ),
             onPressed: _selectedId == null
                 ? null
-                : () => setState(() => _follow = !_follow),
+                : () {
+                    setState(() {
+                      _follow = !_follow;
+                      if (_follow) _userMovedCamera = false;
+                    });
+                    if (_follow) {
+                      final hub = async.valueOrNull;
+                      final v = hub?.visible
+                          .where((e) => e.vehicleId == _selectedId)
+                          .firstOrNull;
+                      if (v?.hasMapCoords == true) {
+                        unawaited(
+                          _centerOn(
+                            LatLng(v!.latitude!, v.longitude!),
+                            zoom: 15,
+                          ),
+                        );
+                      }
+                    }
+                  },
           ),
           IconButton(
+            tooltip: 'Refresh & fit',
             icon: const Icon(Icons.refresh_rounded),
-            onPressed: () {
-              _fitted = false;
-              ref.read(fleetHubProvider.notifier).refresh().then((_) {
-                if (mounted) setState(() => _lastRefreshOk = DateTime.now());
-              });
-            },
+            onPressed: () => unawaited(_manualRefresh(refit: true)),
           ),
         ],
       ),
       body: async.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => async.hasValue
+            ? _buildMapBody(
+                async.requireValue,
+                canCommands: canCommands,
+              )
+            : const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('$e')),
-        data: (hub) {
-          final visible = hub.visible;
-          final markers = _markers(visible);
-          final selected = _selectedId == null
-              ? null
-              : visible.where((v) => v.vehicleId == _selectedId).firstOrNull;
+        data: (hub) => _buildMapBody(hub, canCommands: canCommands),
+      ),
+    );
+  }
 
-          if (_follow && selected?.hasMapCoords == true) {
-            unawaited(
-              _map?.animateCamera(
-                CameraUpdate.newLatLngZoom(
-                  LatLng(selected!.latitude!, selected.longitude!),
-                  15,
-                ),
-              ),
-            );
-          }
+  Widget _buildMapBody(
+    FleetHubState hub, {
+    required bool canCommands,
+  }) {
+    final visible = hub.visible;
+    final markers = _iconsReady ? _markers(visible) : <Marker>{};
+    final selected = _selectedId == null
+        ? null
+        : visible.where((v) => v.vehicleId == _selectedId).firstOrNull;
 
-          return Column(
+    return Column(
+      children: [
+        const SizedBox(height: 8),
+        FleetKpiStrip(
+          kpis: hub.kpis,
+          selected: hub.filter,
+          onSelect: (s) {
+            _initialFitDone = false;
+            _userMovedCamera = false;
+            ref.read(fleetHubProvider.notifier).setFilter(s);
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (!mounted) return;
+              final next = ref.read(fleetHubProvider).valueOrNull;
+              if (next != null) unawaited(_fitBounds(next.visible));
+            });
+          },
+        ),
+        const SizedBox(height: 8),
+        Expanded(
+          child: Stack(
+            key: _mapStackKey,
             children: [
-              const SizedBox(height: 8),
-              FleetKpiStrip(
-                kpis: hub.kpis,
-                selected: hub.filter,
-                onSelect: (s) {
-                  _fitted = false;
-                  ref.read(fleetHubProvider.notifier).setFilter(s);
+              GoogleMap(
+                initialCameraPosition: _initialCamera(visible),
+                markers: markers,
+                circles: _geofenceCircles(),
+                mapType: _mapType,
+                myLocationButtonEnabled: false,
+                zoomControlsEnabled: false,
+                mapToolbarEnabled: false,
+                onMapCreated: (c) {
+                  _map = c;
+                  unawaited(_fitBounds(visible));
+                  if (selected?.hasMapCoords == true) {
+                    _schedulePulseSync(
+                      LatLng(selected!.latitude!, selected.longitude!),
+                    );
+                  }
                 },
+                onCameraMove: (_) {
+                  if (selected?.hasMapCoords == true) {
+                    _schedulePulseSync(
+                      LatLng(selected!.latitude!, selected.longitude!),
+                    );
+                  }
+                },
+                onCameraMoveStarted: () {
+                  if (!_programmaticCamera) {
+                    _userMovedCamera = true;
+                    if (_follow) {
+                      setState(() => _follow = false);
+                    }
+                  }
+                },
+                onTap: (_) => setState(() {
+                  _selectedId = null;
+                  _follow = false;
+                  _lastFollowPos = null;
+                  _pulseScreenPos = null;
+                }),
               ),
-              const SizedBox(height: 8),
-              Expanded(
-                child: Stack(
+              if (selected != null && selected.hasMapCoords)
+                PulseVehicleOverlay(
+                  screenPosition: _pulseScreenPos,
+                  status: selected.status,
+                  headingDegrees: selected.heading ?? 0,
+                  visible: true,
+                ),
+              if (visible.where((v) => v.hasMapCoords).isEmpty)
+                const Positioned.fill(
+                  child: IgnorePointer(
+                    child: Center(
+                      child: Card(
+                        child: Padding(
+                          padding: EdgeInsets.all(16),
+                          child: Text('No vehicles with GPS positions'),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              Positioned(
+                top: 12,
+                right: 12,
+                child: Column(
                   children: [
-                    GoogleMap(
-                      initialCameraPosition: _defaultCamera,
-                      markers: markers,
-                      circles: _geofenceCircles(),
-                      mapType: _mapType,
-                      myLocationButtonEnabled: false,
-                      zoomControlsEnabled: false,
-                      mapToolbarEnabled: false,
-                      onMapCreated: (c) {
-                        _map = c;
-                        unawaited(_fitBounds(visible));
-                      },
-                      onTap: (_) => setState(() => _selectedId = null),
+                    _MapFab(
+                      icon: Icons.layers_outlined,
+                      tooltip: 'Map type',
+                      onPressed: () => setState(() {
+                        _mapType = _mapType == MapType.normal
+                            ? MapType.hybrid
+                            : MapType.normal;
+                      }),
                     ),
-                    if (visible.where((v) => v.hasMapCoords).isEmpty)
-                      const Positioned.fill(
-                        child: IgnorePointer(
-                          child: Center(
-                            child: Card(
-                              child: Padding(
-                                padding: EdgeInsets.all(16),
-                                child: Text('No vehicles with GPS positions'),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    Positioned(
-                      top: 12,
-                      right: 12,
-                      child: Column(
-                        children: [
-                          _MapFab(
-                            icon: Icons.layers_outlined,
-                            tooltip: 'Map type',
-                            onPressed: () => setState(() {
-                              _mapType = _mapType == MapType.normal
-                                  ? MapType.hybrid
-                                  : MapType.normal;
-                            }),
-                          ),
-                          const SizedBox(height: 8),
-                          _MapFab(
-                            icon: Icons.search_rounded,
-                            tooltip: 'Search vehicle',
-                            onPressed: () => _searchVehicle(visible),
-                          ),
-                          const SizedBox(height: 8),
-                          _MapFab(
-                            icon: Icons.refresh_rounded,
-                            tooltip: 'Refresh',
-                            onPressed: () {
-                              _fitted = false;
-                              ref.read(fleetHubProvider.notifier).refresh().then((_) {
-                                if (mounted) {
-                                  setState(() => _lastRefreshOk = DateTime.now());
-                                }
-                              });
-                            },
-                          ),
-                        ],
-                      ),
+                    const SizedBox(height: 8),
+                    _MapFab(
+                      icon: Icons.search_rounded,
+                      tooltip: 'Search vehicle',
+                      onPressed: () => _searchVehicle(visible),
                     ),
-                    if (selected != null)
-                      Positioned(
-                        left: 12,
-                        right: 12,
-                        bottom: 16,
-                        child: _SelectedCard(
-                          vehicle: selected,
-                          geofences: _geofences,
-                          follow: _follow,
-                          expanded: _sheetExpanded,
-                          canCommands: canCommands,
-                          onExpandToggle: () =>
-                              setState(() => _sheetExpanded = !_sheetExpanded),
-                          onFollowToggle: () =>
-                              setState(() => _follow = !_follow),
-                          onNavigate: () => _openExternalNav(selected),
-                          onCommands: canCommands
-                              ? () => showVehicleCommandsSheet(
-                                    context,
-                                    selected.vehicleId,
-                                  )
-                              : null,
-                          onOpen: () => context
-                              .push('/fleet/vehicles/${selected.vehicleId}'),
-                          onClose: () => setState(() {
-                            _selectedId = null;
-                            _follow = false;
-                            _sheetExpanded = false;
-                          }),
-                        ),
-                      ),
+                    const SizedBox(height: 8),
+                    _MapFab(
+                      icon: Icons.refresh_rounded,
+                      tooltip: 'Refresh',
+                      onPressed: () => unawaited(_manualRefresh()),
+                    ),
                   ],
                 ),
               ),
+              if (selected != null)
+                Positioned.fill(
+                  child: VehicleLiveMapSheet(
+                    vehicle: selected,
+                    follow: _follow,
+                    canCommands: canCommands,
+                    onFollowToggle: () => setState(() {
+                      _follow = !_follow;
+                      if (_follow) _userMovedCamera = false;
+                    }),
+                    onCenter: () {
+                      if (selected.hasMapCoords) {
+                        unawaited(
+                          _centerOn(
+                            LatLng(selected.latitude!, selected.longitude!),
+                            zoom: 15,
+                          ),
+                        );
+                      }
+                    },
+                    onNavigate: () => _openExternalNav(selected),
+                    onCommands: canCommands
+                        ? () => showVehicleCommandsSheet(
+                              context,
+                              selected.vehicleId,
+                            )
+                        : null,
+                    onClose: () => setState(() {
+                      _selectedId = null;
+                      _follow = false;
+                      _lastFollowPos = null;
+                      _pulseScreenPos = null;
+                    }),
+                  ),
+                ),
             ],
-          );
-        },
-      ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -401,217 +629,6 @@ class _MapFab extends StatelessWidget {
         icon: Icon(icon, size: 22),
         onPressed: onPressed,
       ),
-    );
-  }
-}
-
-class _SelectedCard extends StatelessWidget {
-  const _SelectedCard({
-    required this.vehicle,
-    required this.geofences,
-    required this.onOpen,
-    required this.onClose,
-    required this.follow,
-    required this.onFollowToggle,
-    required this.expanded,
-    required this.onExpandToggle,
-    required this.onNavigate,
-    required this.canCommands,
-    this.onCommands,
-  });
-
-  final FleetVehicleLocation vehicle;
-  final List<GpsGeofenceItem> geofences;
-  final VoidCallback onOpen;
-  final VoidCallback onClose;
-  final bool follow;
-  final VoidCallback onFollowToggle;
-  final bool expanded;
-  final VoidCallback onExpandToggle;
-  final VoidCallback onNavigate;
-  final bool canCommands;
-  final VoidCallback? onCommands;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = fleetStatusColor(vehicle.status);
-    NearestGeofenceInfo? nearest;
-    if (vehicle.hasMapCoords) {
-      nearest = nearestCircleGeofence(
-        lat: vehicle.latitude!,
-        lng: vehicle.longitude!,
-        fences: geofences,
-      );
-    }
-    return Material(
-      elevation: 6,
-      borderRadius: BorderRadius.circular(AppRadii.lg),
-      color: Colors.white,
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 10,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: color,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        vehicle.vehicleName,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 15,
-                        ),
-                      ),
-                      Text(
-                        '${vehicle.registrationNumber} · ${vehicle.status.label} · ${vehicle.speed.toStringAsFixed(0)} km/h',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                      if ((vehicle.driverName ?? '').isNotEmpty)
-                        Text(
-                          'Driver ${vehicle.driverName}',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: AppColors.textMuted,
-                          ),
-                        ),
-                      if (nearest != null)
-                        Text(
-                          nearest.inside
-                              ? 'Inside ${nearest.name}'
-                              : '${nearest.name} · ${nearest.distanceMeters.toStringAsFixed(0)} m away',
-                          style: const TextStyle(
-                            fontSize: 11,
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-                IconButton(
-                  tooltip: expanded ? 'Collapse' : 'Expand',
-                  onPressed: onExpandToggle,
-                  icon: Icon(
-                    expanded
-                        ? Icons.expand_less_rounded
-                        : Icons.expand_more_rounded,
-                  ),
-                ),
-                IconButton(
-                  tooltip: follow ? 'Stop follow' : 'Follow',
-                  onPressed: onFollowToggle,
-                  icon: Icon(
-                    follow ? Icons.gps_fixed : Icons.gps_not_fixed,
-                    color: follow ? AppColors.primary : AppColors.textMuted,
-                  ),
-                ),
-                IconButton(
-                  onPressed: onClose,
-                  icon: const Icon(Icons.close_rounded),
-                ),
-              ],
-            ),
-            if (expanded) ...[
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  _MiniChip(
-                    label: vehicle.ignition == true ? 'Ignition ON' : 'Ignition OFF',
-                  ),
-                  const SizedBox(width: 6),
-                  _MiniChip(
-                    label: vehicle.hasGps ? 'GPS' : 'No GPS',
-                  ),
-                  if (vehicle.batteryLevel != null) ...[
-                    const SizedBox(width: 6),
-                    _MiniChip(
-                      label: '${vehicle.batteryLevel!.toStringAsFixed(0)}% batt',
-                    ),
-                  ],
-                ],
-              ),
-              const SizedBox(height: 8),
-              VehicleCommsButtons(
-                phone: vehicle.driverPhone,
-                vehicleLabel: vehicle.vehicleName,
-              ),
-            ],
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: onNavigate,
-                    child: const Text('Navigate'),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: onOpen,
-                    child: const Text('Details'),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: FilledButton(
-                    onPressed: () => context.push(
-                      '/fleet/vehicles/${vehicle.vehicleId}/history',
-                    ),
-                    child: const Text('Playback'),
-                  ),
-                ),
-                if (canCommands && onCommands != null) ...[
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: onCommands,
-                      child: const Text('Commands'),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _MiniChip extends StatelessWidget {
-  const _MiniChip({required this.label});
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(AppRadii.pill),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Text(label, style: const TextStyle(fontSize: 11)),
     );
   }
 }

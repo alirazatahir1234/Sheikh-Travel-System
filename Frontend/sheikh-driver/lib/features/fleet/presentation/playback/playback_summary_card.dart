@@ -3,6 +3,7 @@ import '../../../../core/constants/app_theme.dart';
 import '../../../../shared/widgets/sg_ui.dart';
 import '../../domain/fleet_models.dart';
 import 'package:intl/intl.dart';
+import 'playback_helpers.dart';
 
 class PlaybackSummaryCard extends StatelessWidget {
   const PlaybackSummaryCard({super.key, required this.bundle});
@@ -17,8 +18,9 @@ class PlaybackSummaryCard extends StatelessWidget {
         stats?.distanceKm ??
         summary?.distanceKm ??
         0;
-    final driveMin = stats?.drivingMinutes ?? summary?.drivingMinutes ?? 0;
+    final driveMin = effectiveDrivingMinutes(bundle);
     final idle = stats?.idleMinutes ?? 0;
+    final parking = bundle.stops.fold<int>(0, (sum, s) => sum + s.durationMinutes);
     final avg = stats?.avgSpeedKmh ?? summary?.avgSpeedKmh ?? 0;
     final max = stats?.maxSpeedKmh ?? summary?.maxSpeedKmh ?? 0;
     final stops = bundle.stops.isNotEmpty
@@ -26,6 +28,14 @@ class PlaybackSummaryCard extends StatelessWidget {
         : stats?.stopCount ?? 0;
     final points = bundle.points.isNotEmpty ? bundle.points : bundle.trailPoints;
     final tf = DateFormat('dd MMM, HH:mm');
+    final tripDurationMin = points.length >= 2
+        ? points.last.timestamp.difference(points.first.timestamp).inMinutes
+        : driveMin + idle;
+    final fuel = summary?.fuelLiters ?? stats?.fuelLiters;
+    final engineHours = summary?.engineHours ?? stats?.engineHours;
+    final overspeed = stats?.overspeedCount ?? 0;
+    final harshBrake = stats?.harshBrakeCount ?? 0;
+    final harshAccel = stats?.harshAccelCount ?? 0;
 
     return SgCard(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -35,15 +45,28 @@ class PlaybackSummaryCard extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: _primaryCell('Distance', '${dist.toStringAsFixed(1)} km'),
+                child: _primaryCell('Distance', formatDistanceKm(dist)),
               ),
               Expanded(
-                child: _primaryCell('Driving time', _fmtDur(driveMin)),
+                child: _primaryCell('Driving', formatDurationMinutes(driveMin)),
               ),
-              if (idle > 0)
-                Expanded(
-                  child: _primaryCell('Idle time', _fmtDur(idle)),
-                ),
+              Expanded(
+                child: _primaryCell('Trip', formatDurationMinutes(tripDurationMin)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: _secondaryCell('Idle', formatDurationMinutes(idle)),
+              ),
+              Expanded(
+                child: _secondaryCell('Parking', formatDurationMinutes(parking)),
+              ),
+              Expanded(
+                child: _secondaryCell('Stops', '$stops'),
+              ),
             ],
           ),
           const SizedBox(height: 10),
@@ -51,21 +74,47 @@ class PlaybackSummaryCard extends StatelessWidget {
             children: [
               Expanded(
                 child: _secondaryCell(
-                  'Average speed',
+                  'Avg speed',
                   '${avg.toStringAsFixed(0)} km/h',
                 ),
               ),
               Expanded(
                 child: _secondaryCell(
-                  'Maximum speed',
+                  'Max speed',
                   '${max.toStringAsFixed(0)} km/h',
                 ),
               ),
-              Expanded(
-                child: _secondaryCell('Stops', '$stops'),
-              ),
+              if (fuel != null)
+                Expanded(
+                  child: _secondaryCell(
+                    'Fuel',
+                    '${fuel.toStringAsFixed(1)} L',
+                  ),
+                )
+              else if (engineHours != null)
+                Expanded(
+                  child: _secondaryCell(
+                    'Engine',
+                    '${engineHours.toStringAsFixed(1)} h',
+                  ),
+                )
+              else
+                const Expanded(child: SizedBox.shrink()),
             ],
           ),
+          if (overspeed > 0 || harshBrake > 0 || harshAccel > 0) ...[
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                if (overspeed > 0)
+                  Expanded(child: _secondaryCell('Overspeed', '$overspeed')),
+                if (harshBrake > 0)
+                  Expanded(child: _secondaryCell('Harsh brake', '$harshBrake')),
+                if (harshAccel > 0)
+                  Expanded(child: _secondaryCell('Harsh accel', '$harshAccel')),
+              ],
+            ),
+          ],
           if (points.isNotEmpty) ...[
             const SizedBox(height: 10),
             const Divider(height: 1),
@@ -86,15 +135,18 @@ class PlaybackSummaryCard extends StatelessWidget {
                 ),
               ],
             ),
+            if ((points.first.address ?? '').trim().isNotEmpty ||
+                (points.last.address ?? '').trim().isNotEmpty) ...[
+              const SizedBox(height: 6),
+              if ((points.first.address ?? '').trim().isNotEmpty)
+                _windowCell('From', points.first.address!.trim()),
+              if ((points.last.address ?? '').trim().isNotEmpty)
+                _windowCell('To', points.last.address!.trim()),
+            ],
           ],
         ],
       ),
     );
-  }
-
-  String _fmtDur(int minutes) {
-    if (minutes < 60) return '${minutes}m';
-    return '${minutes ~/ 60}h ${minutes % 60}m';
   }
 
   Widget _primaryCell(String label, String value) {
@@ -102,9 +154,10 @@ class PlaybackSummaryCard extends StatelessWidget {
       children: [
         Text(
           value,
+          textAlign: TextAlign.center,
           style: const TextStyle(
             fontWeight: FontWeight.w800,
-            fontSize: 16,
+            fontSize: 15,
             color: AppColors.primary,
           ),
         ),
@@ -125,6 +178,7 @@ class PlaybackSummaryCard extends StatelessWidget {
       children: [
         Text(
           value,
+          textAlign: TextAlign.center,
           style: const TextStyle(
             fontWeight: FontWeight.w700,
             fontSize: 13,
@@ -141,28 +195,31 @@ class PlaybackSummaryCard extends StatelessWidget {
   }
 
   Widget _windowCell(String label, String value) {
-    return Row(
-      children: [
-        Text(
-          '$label: ',
-          style: const TextStyle(
-            color: AppColors.textMuted,
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        Flexible(
-          child: Text(
-            value,
-            overflow: TextOverflow.ellipsis,
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 2),
+      child: Row(
+        children: [
+          Text(
+            '$label: ',
             style: const TextStyle(
-              color: AppColors.textPrimary,
+              color: AppColors.textMuted,
               fontSize: 11,
-              fontWeight: FontWeight.w700,
+              fontWeight: FontWeight.w600,
             ),
           ),
-        ),
-      ],
+          Flexible(
+            child: Text(
+              value,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: AppColors.textPrimary,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

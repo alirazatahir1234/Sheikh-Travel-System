@@ -4,8 +4,8 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:intl/intl.dart';
 
-import '../../../../core/constants/app_theme.dart';
 import '../../domain/fleet_models.dart';
 import 'playback_helpers.dart';
 
@@ -29,8 +29,21 @@ typedef PlaybackMarkerTapCallback = void Function(PlaybackMarkerTap tap);
 String formatPlaybackCoords(double latitude, double longitude) =>
     '${latitude.toStringAsFixed(5)}, ${longitude.toStringAsFixed(5)}';
 
+/// True when address is city/province only (e.g. "Pasrur, Punjab, Pakistan").
+bool isCoarsePlaybackAddress(String? address) {
+  final a = address?.trim();
+  if (a == null || a.isEmpty) return true;
+  final parts =
+      a.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+  if (parts.any((p) => RegExp(r'\d').hasMatch(p))) return false;
+  return parts.length <= 3;
+}
+
 String playbackAddressLine(HistoryReplayPoint point) {
   final addr = point.address?.trim();
+  if (addr != null && addr.isNotEmpty && !isCoarsePlaybackAddress(addr)) {
+    return addr;
+  }
   if (addr != null && addr.isNotEmpty) return addr;
   return formatPlaybackCoords(point.latitude, point.longitude);
 }
@@ -64,7 +77,7 @@ enum PlaybackPinGlyph {
 
 class PlaybackMapAssets {
   /// Bump when icon art changes so hot restart refreshes descriptors.
-  static const _cacheEpoch = 'v3';
+  static const _cacheEpoch = 'v4';
   static final Map<String, BitmapDescriptor> _iconCache = {};
 
   static Future<BitmapDescriptor> vehicleIcon({double devicePixelRatio = 2}) {
@@ -96,7 +109,7 @@ class PlaybackMapAssets {
       case PlaybackMarkerKind.fuel:
         return const Color(0xFF0EA5E9);
       case PlaybackMarkerKind.vehicle:
-        return AppColors.primary;
+        return const Color(0xFF1D4ED8);
       case PlaybackMarkerKind.eventFallback:
         return const Color(0xFF64748B);
     }
@@ -351,7 +364,7 @@ class PlaybackMapAssets {
               fontWeight: FontWeight.w900,
             ),
           ),
-          textDirection: TextDirection.ltr,
+          textDirection: ui.TextDirection.ltr,
         )..layout();
         tp.paint(canvas, Offset(center.dx - tp.width / 2, center.dy - tp.height / 2));
       case PlaybackPinGlyph.speed:
@@ -435,7 +448,7 @@ class PlaybackMapAssets {
               height: 1,
             ),
           ),
-          textDirection: TextDirection.ltr,
+          textDirection: ui.TextDirection.ltr,
         )..layout();
         tp.paint(canvas, Offset(center.dx - tp.width / 2, center.dy - tp.height / 2));
       case PlaybackPinGlyph.pin:
@@ -449,11 +462,11 @@ Color segmentColor(PlaybackSegmentKind kind) {
     case PlaybackSegmentKind.overspeed:
       return const Color(0xFFDC2626);
     case PlaybackSegmentKind.ignitionOff:
-      return AppColors.primary.withValues(alpha: 0.55);
+      return const Color(0xFF64748B);
     case PlaybackSegmentKind.stop:
       return const Color(0xFFF59E0B);
     case PlaybackSegmentKind.normal:
-      return const Color(0xFF2563EB);
+      return const Color(0xFF1D4ED8);
   }
 }
 
@@ -490,6 +503,7 @@ Set<Polyline> buildPlaybackPolylines({
   required List<HistoryReplayPoint> trail,
   required int trailIndex,
   required List<TripStop> stops,
+  bool speedColors = false,
 }) {
   if (trail.length < 2) return {};
 
@@ -497,46 +511,63 @@ Set<Polyline> buildPlaybackPolylines({
   final displayIdx = displayIndexForTrailIndex(trail, display, trailIndex)
       .clamp(1, display.length);
 
-  final completed = display.sublist(0, displayIdx);
-  final remaining = display.sublist((displayIdx - 1).clamp(0, display.length - 1));
-
   final polylines = <Polyline>{};
 
-  // Future path — lighter primary
-  if (remaining.length >= 2) {
-    polylines.add(
-      Polyline(
-        polylineId: const PolylineId('remaining'),
-        color: AppColors.primary.withValues(alpha: 0.35),
-        width: 4,
-        patterns: [PatternItem.dash(16), PatternItem.gap(10)],
-        points: [
-          for (final p in remaining) LatLng(p.latitude, p.longitude),
-        ],
-      ),
-    );
+  // Full trip always solid dark blue for enterprise visibility.
+  polylines.add(
+    Polyline(
+      polylineId: const PolylineId('full_route'),
+      color: const Color(0xFF1D4ED8),
+      width: 7,
+      geodesic: true,
+      zIndex: 1,
+      points: [
+        for (final p in display) LatLng(p.latitude, p.longitude),
+      ],
+    ),
+  );
+
+  if (speedColors) {
+    final completed = display.sublist(0, displayIdx);
+    final segments = buildSpeedSegments(completed, stops: stops);
+    for (var i = 0; i < segments.length; i++) {
+      final s = segments[i];
+      if (s.points.length < 2) continue;
+      if (s.kind == PlaybackSegmentKind.normal) continue;
+      polylines.add(
+        Polyline(
+          polylineId: PolylineId('seg_$i'),
+          color: segmentColor(s.kind),
+          width: 7,
+          geodesic: true,
+          zIndex: 2,
+          points: [
+            for (final p in s.points) LatLng(p.latitude, p.longitude),
+          ],
+        ),
+      );
+    }
   }
 
-  // Travelled — brand blue with overspeed/stop overrides
-  final segments = buildSpeedSegments(completed, stops: stops);
-  for (var i = 0; i < segments.length; i++) {
-    final s = segments[i];
-    if (s.points.length < 2) continue;
-    final isNormal = s.kind == PlaybackSegmentKind.normal ||
-        s.kind == PlaybackSegmentKind.ignitionOff;
-    polylines.add(
-      Polyline(
-        polylineId: PolylineId('done_$i'),
-        color: isNormal && s.kind == PlaybackSegmentKind.normal
-            ? const Color(0xFF2563EB)
-            : segmentColor(s.kind),
-        width: isNormal ? 6 : 5,
-        geodesic: true,
-        points: [
-          for (final p in s.points) LatLng(p.latitude, p.longitude),
-        ],
-      ),
-    );
+  // Played focus highlight near current index.
+  if (display.length >= 3) {
+    final currentStart = (displayIdx - 2).clamp(0, display.length - 1);
+    final currentEnd = displayIdx.clamp(0, display.length - 1);
+    if (currentEnd > currentStart) {
+      polylines.add(
+        Polyline(
+          polylineId: const PolylineId('current_focus'),
+          color: const Color(0xFF22C55E),
+          width: 8,
+          geodesic: true,
+          zIndex: 3,
+          points: [
+            for (var i = currentStart; i <= currentEnd; i++)
+              LatLng(display[i].latitude, display[i].longitude),
+          ],
+        ),
+      );
+    }
   }
 
   return polylines;
@@ -595,44 +626,51 @@ Future<Set<Marker>> buildPlaybackStaticMarkers({
       onMarkerTap == null ? null : () => onMarkerTap(tap);
 
   final startPos = LatLng(trail.first.latitude, trail.first.longitude);
-  if (!nearVehicle(startPos.latitude, startPos.longitude)) {
-    final startIdx = playback.isEmpty
-        ? 0
-        : indexForTimestamp(playback, trail.first.timestamp);
-    markers.add(
-      Marker(
-        markerId: const MarkerId('start'),
-        position: startPos,
-        icon: startIcon,
-        infoWindow: const InfoWindow(title: 'Start'),
-        zIndexInt: 1,
-        onTap: tapHandler(PlaybackMarkerTap(
-          playbackIndex: startIdx,
-          eventType: 'Start',
-        )),
+  final markerTimeFmt = DateFormat('dd MMM, HH:mm');
+  // Always show start/end (even when vehicle sits on them). Vehicle marker
+  // uses a higher zIndex so it remains visible on top when coincident.
+  final startIdx = playback.isEmpty
+      ? 0
+      : indexForTimestamp(playback, trail.first.timestamp);
+  final startPoint = trail.first;
+  markers.add(
+    Marker(
+      markerId: const MarkerId('start'),
+      position: startPos,
+      icon: startIcon,
+      infoWindow: InfoWindow(
+        title: 'Start · ${markerTimeFmt.format(startPoint.timestamp.toLocal())}',
+        snippet: playbackAddressLine(startPoint),
       ),
-    );
-  }
+      zIndexInt: 1,
+      onTap: tapHandler(PlaybackMarkerTap(
+        playbackIndex: startIdx,
+        eventType: 'Start',
+      )),
+    ),
+  );
 
   final endPos = LatLng(trail.last.latitude, trail.last.longitude);
-  if (!nearVehicle(endPos.latitude, endPos.longitude)) {
-    final endIdx = playback.isEmpty
-        ? 0
-        : indexForTimestamp(playback, trail.last.timestamp);
-    markers.add(
-      Marker(
-        markerId: const MarkerId('end'),
-        position: endPos,
-        icon: finishIcon,
-        infoWindow: const InfoWindow(title: 'Finish'),
-        zIndexInt: 1,
-        onTap: tapHandler(PlaybackMarkerTap(
-          playbackIndex: endIdx,
-          eventType: 'Finish',
-        )),
+  final endIdx = playback.isEmpty
+      ? 0
+      : indexForTimestamp(playback, trail.last.timestamp);
+  final endPoint = trail.last;
+  markers.add(
+    Marker(
+      markerId: const MarkerId('end'),
+      position: endPos,
+      icon: finishIcon,
+      infoWindow: InfoWindow(
+        title: 'End · ${markerTimeFmt.format(endPoint.timestamp.toLocal())}',
+        snippet: playbackAddressLine(endPoint),
       ),
-    );
-  }
+      zIndexInt: 1,
+      onTap: tapHandler(PlaybackMarkerTap(
+        playbackIndex: endIdx,
+        eventType: 'End',
+      )),
+    ),
+  );
 
   for (var i = 0; i < stops.length; i++) {
     final s = stops[i];
@@ -646,7 +684,7 @@ Future<Set<Marker>> buildPlaybackStaticMarkers({
         position: LatLng(s.latitude, s.longitude),
         icon: stopIcon,
         infoWindow: InfoWindow(
-          title: 'Stop ${s.durationMinutes} min',
+          title: 'Stop · ${formatDurationMinutes(s.durationMinutes)}',
           snippet: s.address ?? formatPlaybackCoords(s.latitude, s.longitude),
         ),
         zIndexInt: 2,

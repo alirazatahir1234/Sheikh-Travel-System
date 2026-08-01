@@ -235,7 +235,7 @@ export class GpsTrackingService {
     return this.http.post<boolean>(`${this.base}/positions`, payload);
   }
 
-  reverseGeocode(lat: number, lng: number): Observable<{
+  reverseGeocode(lat: number, lng: number, forceRefresh = false): Observable<{
     formattedAddress: string;
     road?: string;
     city?: string;
@@ -243,20 +243,79 @@ export class GpsTrackingService {
     country?: string;
     postalCode?: string;
     fromCache?: boolean;
+    placeName?: string;
+    placeType?: string;
   } | null> {
+    const params: Record<string, string> = {
+      lat: String(lat),
+      lng: String(lng)
+    };
+    if (forceRefresh) params['forceRefresh'] = 'true';
     return this.http
       .get<{
-        formattedAddress: string;
+        success?: boolean;
+        data?: {
+          formattedAddress: string;
+          road?: string;
+          city?: string;
+          state?: string;
+          country?: string;
+          postalCode?: string;
+          fromCache?: boolean;
+          placeName?: string;
+          placeType?: string;
+        };
+        formattedAddress?: string;
         road?: string;
         city?: string;
         state?: string;
         country?: string;
         postalCode?: string;
         fromCache?: boolean;
-      }>(`${this.base}/location/reverse`, {
-        params: { lat: String(lat), lng: String(lng) }
-      })
-      .pipe(catchError(() => of(null)));
+        placeName?: string;
+        placeType?: string;
+      }>(`${this.base}/location/reverse`, { params })
+      .pipe(
+        map(res => {
+          const raw = (res as { data?: unknown }).data ?? res;
+          if (!raw || typeof raw !== 'object') return null;
+          const r = raw as {
+            formattedAddress?: string;
+            FormattedAddress?: string;
+            road?: string;
+            Road?: string;
+            city?: string;
+            City?: string;
+            state?: string;
+            State?: string;
+            country?: string;
+            Country?: string;
+            postalCode?: string;
+            PostalCode?: string;
+            fromCache?: boolean;
+            FromCache?: boolean;
+            placeName?: string;
+            PlaceName?: string;
+            placeType?: string;
+            PlaceType?: string;
+          };
+          const formattedAddress =
+            r.formattedAddress?.trim() || r.FormattedAddress?.trim() || '';
+          if (!formattedAddress) return null;
+          return {
+            formattedAddress,
+            road: r.road ?? r.Road,
+            city: r.city ?? r.City,
+            state: r.state ?? r.State,
+            country: r.country ?? r.Country,
+            postalCode: r.postalCode ?? r.PostalCode,
+            fromCache: r.fromCache ?? r.FromCache,
+            placeName: r.placeName ?? r.PlaceName,
+            placeType: r.placeType ?? r.PlaceType
+          };
+        }),
+        catchError(() => of(null))
+      );
   }
 
   getHistory(vehicleId: number, from?: Date, to?: Date): Observable<PositionDto[]> {
@@ -277,7 +336,7 @@ export class GpsTrackingService {
     vehicleId: number,
     from: Date,
     to: Date,
-    format: 'csv' | 'gpx' | 'geojson'
+    format: 'csv' | 'gpx' | 'geojson' | 'kml'
   ): Observable<Blob> {
     const params: Record<string, string> = {
       from: from.toISOString(),
