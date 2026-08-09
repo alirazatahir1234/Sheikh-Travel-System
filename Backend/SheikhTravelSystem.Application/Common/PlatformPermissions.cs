@@ -10,6 +10,7 @@ public static class PlatformPermissions
     public const string RolesManage = "Platform.Roles.Manage";
     public const string TenantsView = "Platform.Tenants.View";
     public const string TenantsManage = "Platform.Tenants.Manage";
+    public const string BranchesView = "Platform.Branches.View";
     public const string BranchesManage = "Platform.Branches.Manage";
     public const string DepartmentsManage = "Platform.Departments.Manage";
     public const string AuditLogsView = "Platform.AuditLogs.View";
@@ -44,7 +45,7 @@ public static class PlatformPermissions
     [
         DashboardView, UsersView, UsersCreate, UsersEdit,
         RolesView, RolesManage, TenantsView, TenantsManage,
-        BranchesManage, DepartmentsManage, AuditLogsView, AuditView, AuditManage, MenusManage, WorkspacesManage,
+        BranchesView, BranchesManage, DepartmentsManage, AuditLogsView, AuditView, AuditManage, MenusManage, WorkspacesManage,
         DashboardsView, DashboardsManage, SecurityView, SecurityManage,
         SettingsView, SettingsManage, MigrationsView, MigrationsManage, SystemReset,
         GpsControlView, GpsManufacturersManage, GpsModelsManage, GpsCommandsManage, GpsTemplatesManage,

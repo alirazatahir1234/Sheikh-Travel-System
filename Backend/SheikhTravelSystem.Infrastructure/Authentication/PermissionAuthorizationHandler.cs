@@ -56,7 +56,9 @@ public class PermissionAuthorizationHandler : AuthorizationHandler<PermissionReq
     }
 
     private static bool HasRole(AuthorizationHandlerContext context, string roleCode) =>
-        context.User.HasClaim("role", roleCode) || context.User.IsInRole(roleCode);
+        context.User.IsInRole(roleCode)
+        || context.User.HasClaim("role", roleCode)
+        || context.User.HasClaim(System.Security.Claims.ClaimTypes.Role, roleCode);
 }
 
 public static class PermissionPolicyRegistration

@@ -23,6 +23,7 @@ public class DatabaseSeeder(
 
         await SeedUsersAsync(connection, cancellationToken);
         await SeedDriverManagerUserAsync(connection, cancellationToken);
+        await SeedBranchesAsync(connection, cancellationToken);
         await SeedCustomersAsync(connection, cancellationToken);
         await SeedVehiclesAsync(connection, cancellationToken);
         await SeedDriversAsync(connection, cancellationToken);
@@ -254,6 +255,29 @@ public class DatabaseSeeder(
     // ---------------------------------------------------------------------
     // Customers
     // ---------------------------------------------------------------------
+    // ---------------------------------------------------------------------
+    // Branches
+    // ---------------------------------------------------------------------
+    private async Task SeedBranchesAsync(System.Data.IDbConnection connection, CancellationToken ct)
+    {
+        var hasTable = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
+            "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'Branches'",
+            cancellationToken: ct)) > 0;
+        if (!hasTable) return;
+
+        var count = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
+            "SELECT COUNT(*) FROM Branches WHERE TenantId = 1",
+            cancellationToken: ct));
+        if (count > 0) return;
+
+        await connection.ExecuteAsync(new CommandDefinition("""
+            INSERT INTO Branches (TenantId, BranchCode, Name, Address, City, Country, TimeZone, CurrencyCode, Status, IsGpsEnabled, IsActive, CreatedAt)
+            VALUES (1, N'HQ-001', N'Head Office', N'Main branch', N'Karachi', N'Pakistan', N'Asia/Karachi', N'PKR', 1, 1, 1, GETUTCDATE());
+            """, cancellationToken: ct));
+
+        logger.LogInformation("Seeded default Head Office branch for tenant 1");
+    }
+
     private async Task SeedCustomersAsync(System.Data.IDbConnection connection, CancellationToken ct)
     {
         if (await TableHasRowsAsync(connection, "Customers", ct)) return;
@@ -725,12 +749,18 @@ public class DatabaseSeeder(
     {
         if (await TableHasRowsAsync(connection, "AuditLogs", ct)) return;
 
+        // AuditLogs.UserId is INT (FK to Users) — never insert the literal "seeder".
+        var adminId = await connection.ExecuteScalarAsync<int?>(new CommandDefinition(
+            "SELECT TOP 1 Id FROM Users WHERE Email = @Email AND IsDeleted = 0",
+            new { Email = "admin@sheikhtravel.com" },
+            cancellationToken: ct));
+
         var rows = new[]
         {
-            new { Action = "Create", EntityName = "Customer", EntityId = (int?)1, OldValues = (string?)null, NewValues = "{\"FullName\":\"Ahmed Khan\"}",  UserId = "seeder", IpAddress = "127.0.0.1" },
-            new { Action = "Create", EntityName = "Vehicle",  EntityId = (int?)1, OldValues = (string?)null, NewValues = "{\"Name\":\"Toyota Hiace\"}",    UserId = "seeder", IpAddress = "127.0.0.1" },
-            new { Action = "Create", EntityName = "Booking",  EntityId = (int?)1, OldValues = (string?)null, NewValues = "{\"Status\":2}",                 UserId = "seeder", IpAddress = "127.0.0.1" },
-            new { Action = "Update", EntityName = "Booking",  EntityId = (int?)3, OldValues = (string?)"{\"Status\":2}", NewValues = "{\"Status\":4}",      UserId = "seeder", IpAddress = "127.0.0.1" }
+            new { Action = "Create", EntityName = "Customer", EntityId = (int?)1, OldValues = (string?)null, NewValues = "{\"FullName\":\"Ahmed Khan\"}",  UserId = adminId, IpAddress = "127.0.0.1" },
+            new { Action = "Create", EntityName = "Vehicle",  EntityId = (int?)1, OldValues = (string?)null, NewValues = "{\"Name\":\"Toyota Hiace\"}",    UserId = adminId, IpAddress = "127.0.0.1" },
+            new { Action = "Create", EntityName = "Booking",  EntityId = (int?)1, OldValues = (string?)null, NewValues = "{\"Status\":2}",                 UserId = adminId, IpAddress = "127.0.0.1" },
+            new { Action = "Update", EntityName = "Booking",  EntityId = (int?)3, OldValues = (string?)"{\"Status\":2}", NewValues = "{\"Status\":4}",      UserId = adminId, IpAddress = "127.0.0.1" }
         };
 
         await connection.ExecuteAsync(new CommandDefinition(

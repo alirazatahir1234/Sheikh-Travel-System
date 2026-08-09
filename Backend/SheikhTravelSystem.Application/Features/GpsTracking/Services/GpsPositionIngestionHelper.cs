@@ -6,7 +6,7 @@ namespace SheikhTravelSystem.Application.Features.GpsTracking.Services;
 
 public static class GpsPositionIngestionHelper
 {
-    private const decimal MovingSpeedKmh = 5m;
+    private const decimal MovingSpeedKmh = 10m;
 
     public static async Task<int?> ResolveActiveBookingIdAsync(
         System.Data.IDbConnection connection,

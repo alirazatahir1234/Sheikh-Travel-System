@@ -94,6 +94,7 @@ public static class DatabaseMigrationRegistry
             M("GpsControlCenterFoundationMigration", GpsControlCenterFoundationMigration.ApplyAsync),
             M("PlatformNavigationCleanupMigration", PlatformNavigationCleanupMigration.ApplyAsync),
             M("GpsOperatorRoleTemplateMigration", GpsOperatorRoleTemplateMigration.ApplyAsync),
+            M("BranchesViewPermissionMigration", BranchesViewPermissionMigration.ApplyAsync),
         ];
     }
 }

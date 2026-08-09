@@ -28,7 +28,21 @@ describe('resolveFleetStatus timezone handling', () => {
     expect(status).toBe('offline');
   });
 
-  it('treats speed > 5 km/h as moving even when ignition is OFF', () => {
+  it('treats ignition OFF as parked even when speed shows GPS drift', () => {
+    const nowMs = Date.parse('2026-07-13T08:00:30.000Z');
+    const status = resolveFleetStatus(
+      {
+        hasGps: true,
+        lastUpdated: '2026-07-13T08:00:00',
+        speed: 5,
+        ignition: false
+      },
+      nowMs
+    );
+    expect(status).toBe('parked');
+  });
+
+  it('does not treat ignition OFF + high drift as moving', () => {
     const nowMs = Date.parse('2026-07-13T08:00:30.000Z');
     const status = resolveFleetStatus(
       {
@@ -39,7 +53,7 @@ describe('resolveFleetStatus timezone handling', () => {
       },
       nowMs
     );
-    expect(status).toBe('moving');
+    expect(status).toBe('parked');
   });
 
   it('treats ignition OFF and near-zero speed as parked', () => {
@@ -54,5 +68,47 @@ describe('resolveFleetStatus timezone handling', () => {
       nowMs
     );
     expect(status).toBe('parked');
+  });
+
+  it('treats speed >= 10 with ignition ON as moving', () => {
+    const nowMs = Date.parse('2026-07-13T08:00:30.000Z');
+    const status = resolveFleetStatus(
+      {
+        hasGps: true,
+        lastUpdated: '2026-07-13T08:00:00',
+        speed: 10,
+        ignition: true
+      },
+      nowMs
+    );
+    expect(status).toBe('moving');
+  });
+
+  it('treats speed >= 10 with unknown ignition as moving (unwired ACC)', () => {
+    const nowMs = Date.parse('2026-07-13T08:00:30.000Z');
+    const status = resolveFleetStatus(
+      {
+        hasGps: true,
+        lastUpdated: '2026-07-13T08:00:00',
+        speed: 40,
+        ignition: null
+      },
+      nowMs
+    );
+    expect(status).toBe('moving');
+  });
+
+  it('treats ignition ON and low speed as idle', () => {
+    const nowMs = Date.parse('2026-07-13T08:00:30.000Z');
+    const status = resolveFleetStatus(
+      {
+        hasGps: true,
+        lastUpdated: '2026-07-13T08:00:00',
+        speed: 3,
+        ignition: true
+      },
+      nowMs
+    );
+    expect(status).toBe('idle');
   });
 });

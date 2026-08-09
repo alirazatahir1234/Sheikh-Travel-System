@@ -1293,7 +1293,7 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private emitTelemetryEvents(gpsLocs: VehicleLocation[], prevMoving: Set<number>): void {
     gpsLocs
-      .filter(l => l.status === 'moving' && l.speed > 5)
+      .filter(l => l.status === 'moving' && l.speed >= 10)
       .slice(0, 2)
       .forEach(l => {
         if (!prevMoving.has(l.vehicleId)) {

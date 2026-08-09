@@ -13,18 +13,19 @@ namespace SheikhTravelSystem.Application.Features.GpsTracking.Services;
 public static class GpsFleetStatusCalculator
 {
     private const int OfflineStaleMinutes = 30;
-    private const decimal MovingThresholdKmh = 5m;
+    /// <summary>Aligned with TraccarOptions.MovingSpeedKmh and frontend MOVING_THRESHOLD_KMH.</summary>
+    private const decimal MovingThresholdKmh = 10m;
 
-    // Speed wins over Ignition OFF (matches frontend resolveFleetStatus) — trackers often
-    // report motion without a wired ignition sense, which previously forced false "parked".
+    // Ignition OFF → Parked (GPS drift must not count as Moving). Speed >= threshold with
+    // ignition ON/unknown → Moving. Otherwise Idle.
     private const string StatusBucketSql = """
         CASE
           WHEN vcl.AlarmType IS NOT NULL AND LOWER(vcl.AlarmType) IN ('sos', 'panic') THEN 'sos'
           WHEN vcl.VehicleId IS NULL THEN
             CASE WHEN v.GpsDeviceId IS NOT NULL THEN 'never_seen' ELSE 'offline' END
           WHEN DATEDIFF(MINUTE, vcl.LastUpdate, GETUTCDATE()) > @OfflineStaleMinutes THEN 'offline'
-          WHEN ISNULL(vcl.Speed, 0) > @MovingThresholdKmh THEN 'moving'
           WHEN vcl.Ignition = 0 THEN 'parked'
+          WHEN ISNULL(vcl.Speed, 0) >= @MovingThresholdKmh THEN 'moving'
           ELSE 'idle'
         END
         """;

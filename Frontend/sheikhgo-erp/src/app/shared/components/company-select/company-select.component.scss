@@ -1,0 +1,15 @@
+.company-select {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.company-select__filter {
+  margin-bottom: 0;
+}
+
+.company-select .hint {
+  margin: 0;
+  font-size: 12px;
+  color: var(--stb-text-muted, #6b7280);
+}

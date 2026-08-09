@@ -197,9 +197,12 @@
           <mat-step [editable]="false">
             <ng-template matStepLabel>Organization</ng-template>
             <div class="tab-panel form-grid">
-              <div class="stb-field span-2" *ngIf="companyName">
-                <label>Company</label>
-                <input class="stb-input stb-input--readonly" type="text" [value]="companyName" readonly tabindex="-1" />
+              <div class="stb-field span-2">
+                <app-company-select
+                  formControlName="companyId"
+                  [readonlyMode]="!canAssignSuperAdmin"
+                  [lockedLabel]="companyLockedLabel"
+                ></app-company-select>
               </div>
               <div class="stb-field">
                 <label for="user-branch">Branch</label>
@@ -413,6 +416,7 @@
               <dl class="review-list">
                 <div><dt>Name</dt><dd>{{ form.value.fullName || '—' }}</dd></div>
                 <div><dt>Email</dt><dd>{{ form.value.email || '—' }}</dd></div>
+                <div><dt>Company</dt><dd>{{ summaryCompanyLabel }}</dd></div>
                 <div><dt>Primary role</dt><dd>{{ primaryRoleDef?.label || '—' }}</dd></div>
                 <div><dt>Roles assigned</dt><dd>{{ selectedRoleIds.size }}</dd></div>
               </dl>
@@ -448,6 +452,7 @@
         <dl>
           <div><dt>Name</dt><dd>{{ form.value.fullName || '—' }}</dd></div>
           <div><dt>Email</dt><dd>{{ form.value.email || '—' }}</dd></div>
+          <div><dt>Company</dt><dd>{{ summaryCompanyLabel }}</dd></div>
           <div><dt>Primary role</dt><dd>{{ primaryRoleDef?.label || '—' }}</dd></div>
           <div><dt>Permissions</dt><dd>{{ primaryPermissionCount }}</dd></div>
           <div><dt>Modules</dt><dd>{{ primaryRoleDef?.modules?.length ?? 0 }}</dd></div>

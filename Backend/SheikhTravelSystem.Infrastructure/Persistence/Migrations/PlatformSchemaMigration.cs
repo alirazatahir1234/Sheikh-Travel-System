@@ -256,6 +256,7 @@ public static class PlatformSchemaMigration
             ("Platform", "Platform.Roles.Manage", "Manage roles and permissions"),
             ("Platform", "Platform.Tenants.View", "View tenants"),
             ("Platform", "Platform.Tenants.Manage", "Manage tenants"),
+            ("Platform", "Platform.Branches.View", "View branches (lookup)"),
             ("Platform", "Platform.Branches.Manage", "Manage branches"),
             ("Platform", "Platform.Departments.Manage", "Manage departments"),
             ("Platform", "Platform.AuditLogs.View", "View audit logs"),

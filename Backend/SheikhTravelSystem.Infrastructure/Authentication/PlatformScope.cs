@@ -35,6 +35,7 @@ public class PlatformScope(IHttpContextAccessor httpContextAccessor, ITenantCont
     }
 
     private bool HasRole(string roleCode) =>
+        User?.IsInRole(roleCode) == true ||
         User?.HasClaim("role", roleCode) == true ||
-        User?.IsInRole(roleCode) == true;
+        User?.HasClaim(ClaimTypes.Role, roleCode) == true;
 }

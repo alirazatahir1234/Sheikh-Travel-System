@@ -1,4 +1,5 @@
 import { GpsDevice } from '../../../core/models/gps-tracking.model';
+import { MOVING_THRESHOLD_KMH, resolveFleetStatus } from '../../../core/utils/gps-status.util';
 
 export type TrackerFleetStatus =
   | 'never_seen'
@@ -17,15 +18,16 @@ export interface TrackerStatusView {
   rowClass: string;
 }
 
-/** Speed above this (km/h) counts as moving — matches live map. */
-const MOVING_THRESHOLD_KMH = 5;
-const IGNITION_INFER_THRESHOLD_KMH = 5;
+/** Re-export so device screens stay aligned with live-map threshold. */
+export { MOVING_THRESHOLD_KMH };
 
 /** Telemetry must be this fresh to classify as currently moving. */
 export const TELEMETRY_MOVING_MAX_AGE_MS = 2 * 60 * 1000;
 
 /** When Last Seen exceeds this, status/ignition are shown as last-known, not live. */
 export const TELEMETRY_STALE_MS = 15 * 60 * 1000;
+
+const IGNITION_INFER_THRESHOLD_KMH = MOVING_THRESHOLD_KMH;
 
 export function isTraccarReachable(connected: boolean | undefined | null): boolean {
   return connected === true;
@@ -82,9 +84,12 @@ export function isFreshForMovement(device: GpsDevice, nowMs: number): boolean {
 }
 
 export function isSpeedMoving(speed: number): boolean {
-  return speed > MOVING_THRESHOLD_KMH;
+  return speed >= MOVING_THRESHOLD_KMH;
 }
 
+/**
+ * Device-grid status — Moving/Idle/Parked aligned with {@link resolveFleetStatus}.
+ */
 export function resolveTrackerStatus(device: GpsDevice, nowMs?: number): TrackerStatusView {
   if (device.disabled || !device.isActive) {
     return status('disabled', 'Device Disabled', 'badge-gray', 'row-disabled');
@@ -98,37 +103,34 @@ export function resolveTrackerStatus(device: GpsDevice, nowMs?: number): Tracker
     return status('offline', 'Offline', 'badge-red', 'row-offline');
   }
 
-  const speed = device.lastSpeed ?? 0;
-  const ignition = device.lastIgnition;
-  const fresh = nowMs == null || isFreshForMovement(device, nowMs);
-  const moving = fresh && isSpeedMoving(speed);
+  const clock = nowMs ?? Date.now();
+  const fresh = nowMs == null || isFreshForMovement(device, clock);
+  const fleetKey = resolveFleetStatus({
+    speed: device.lastSpeed ?? 0,
+    ignition: device.lastIgnition,
+    lastUpdated: device.lastSeenAt,
+    hasGps: true
+  }, clock);
 
-  if (ignition == null) {
-    if (moving) {
+  // Stale high-speed samples: don't claim live Moving.
+  if (fleetKey === 'moving' && !fresh) {
+    return device.lastIgnition === false
+      ? status('parked', 'Parked', 'badge-green', 'row-parked')
+      : status('idle', 'Online', 'badge-teal', 'row-online');
+  }
+
+  switch (fleetKey) {
+    case 'moving':
       return status('moving', 'Moving', 'badge-blue', 'row-moving');
-    }
-    if (speed > MOVING_THRESHOLD_KMH && !fresh) {
-      return status('idle', 'Online', 'badge-teal', 'row-online');
-    }
-    return status('waiting_telemetry', 'Online', 'badge-teal', 'row-online');
+    case 'parked':
+      return status('parked', 'Parked', 'badge-green', 'row-parked');
+    case 'idle':
+      return status('idle', 'Idle', 'badge-amber', 'row-idle');
+    case 'sos':
+      return status('moving', 'SOS', 'badge-red', 'row-moving');
+    default:
+      return status('waiting_telemetry', 'Online', 'badge-teal', 'row-online');
   }
-
-  if (ignition) {
-    if (moving) {
-      return status('moving', 'Moving', 'badge-blue', 'row-moving');
-    }
-    return status('idle', 'Idle', 'badge-amber', 'row-idle');
-  }
-
-  if (speed <= MOVING_THRESHOLD_KMH) {
-    return status('parked', 'Parked', 'badge-green', 'row-parked');
-  }
-
-  if (!fresh) {
-    return status('parked', 'Parked', 'badge-green', 'row-parked');
-  }
-
-  return status('stopped', 'Stopped', 'badge-gray', 'row-stopped');
 }
 
 export function isTrackerMoving(device: GpsDevice, nowMs: number = Date.now()): boolean {
@@ -205,7 +207,6 @@ export function traccarLinkHint(device: GpsDevice): string | null {
 export function trackerBrandLabel(device: GpsDevice): string {
   const raw = device.trackerBrandName || device.vendor || '';
   if (!raw) return '—';
-  // Normalize all-caps strings to title case
   if (raw === raw.toUpperCase() && raw.length > 2) {
     return raw.replace(/\w+/g, w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
   }
@@ -226,9 +227,8 @@ export function ignitionDisplay(device: GpsDevice): { icon: string; label: strin
   if (device.lastIgnition === false) {
     return { icon: 'circle', label: 'OFF', className: 'ignition--off' };
   }
-  // Infer ignition state from speed when protocol doesn't report it
   const speed = device.lastSpeed ?? 0;
-  if (speed > IGNITION_INFER_THRESHOLD_KMH) {
+  if (speed >= IGNITION_INFER_THRESHOLD_KMH) {
     return { icon: 'trip_origin', label: 'ON (est.)', className: 'ignition--inferred' };
   }
   return { icon: 'help_outline', label: '—', className: 'ignition--unknown' };
@@ -262,7 +262,6 @@ export function gsmSignalLabel(device: GpsDevice): string {
   }
   if (!device.lastSeenAt) return '—';
   if (!device.isOnline) return 'No signal';
-  // Device is transmitting — it must have GSM connectivity, just no RSSI reported
   return 'Active';
 }
 
@@ -304,7 +303,6 @@ export function batteryDisplayLabel(device: GpsDevice): string {
     return `${Math.round(device.lastBatteryLevel)}%`;
   }
   if (!device.lastSeenAt) return '—';
-  // Online with no battery data → likely a hardwired vehicle tracker
   if (device.isOnline) return 'Ext. Power';
   return '—';
 }

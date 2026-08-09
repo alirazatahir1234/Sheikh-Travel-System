@@ -37,11 +37,35 @@ void main() {
       );
     });
 
-    test('moving when speed above threshold', () {
+    test('parked when ignition off even if speed reports drift', () {
+      expect(
+        resolveFleetStatus(
+          speed: 5,
+          ignition: false,
+          lastUpdated: now,
+          now: now,
+        ),
+        FleetTrackStatus.parked,
+      );
+    });
+
+    test('parked when ignition off even at higher drift speed', () {
       expect(
         resolveFleetStatus(
           speed: 14,
           ignition: false,
+          lastUpdated: now,
+          now: now,
+        ),
+        FleetTrackStatus.parked,
+      );
+    });
+
+    test('moving when speed >= 10 and ignition on', () {
+      expect(
+        resolveFleetStatus(
+          speed: 14,
+          ignition: true,
           lastUpdated: now,
           now: now,
         ),
@@ -103,6 +127,7 @@ void main() {
       expect(merged, hasLength(1));
       expect(merged.first.latitude, 24.86);
       expect(merged.first.status, FleetTrackStatus.moving);
+      // ignition true + speed 20 → moving under unified rule
     });
 
     test('applyLiveUpdate ignores stale payloads', () {

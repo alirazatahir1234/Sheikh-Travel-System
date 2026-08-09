@@ -45,30 +45,34 @@ public class UpdateUserCommandHandler(
         using var connection = dbFactory.CreateConnection();
         var dto = request.User;
 
-        var tenantId = await connection.ExecuteScalarAsync<int?>(
+        var currentTenantId = await connection.ExecuteScalarAsync<int?>(
             new CommandDefinition(
                 "SELECT TenantId FROM Users WHERE Id = @Id AND IsDeleted = 0",
                 new { request.Id },
                 cancellationToken: cancellationToken));
 
-        if (!tenantId.HasValue)
+        if (!currentTenantId.HasValue)
             throw new NotFoundException("User", request.Id);
 
-        platformScope.EnsureTenantAccess(tenantId.Value);
+        platformScope.EnsureTenantAccess(currentTenantId.Value);
+
+        var tenantId = ResolveTargetTenantId(currentTenantId.Value, dto.CompanyId);
+        if (tenantId != currentTenantId.Value)
+            platformScope.EnsureTenantAccess(tenantId);
 
         var emailConflict = await connection.ExecuteScalarAsync<bool>(
             new CommandDefinition(
                 @"SELECT CASE WHEN EXISTS(
                     SELECT 1 FROM Users WHERE Email = @Email AND Id != @Id AND TenantId = @TenantId AND IsDeleted = 0
                 ) THEN 1 ELSE 0 END",
-                new { dto.Email, request.Id, TenantId = tenantId.Value },
+                new { dto.Email, request.Id, TenantId = tenantId },
                 cancellationToken: cancellationToken));
 
         if (emailConflict)
             throw new ConflictException($"Email '{dto.Email}' is already in use.");
 
         await UserQueries.EnsureOrgBelongsToTenantAsync(
-            connection, tenantId.Value, dto.BranchId, dto.DepartmentId, cancellationToken);
+            connection, tenantId, dto.BranchId, dto.DepartmentId, cancellationToken);
 
         var status = UserLifecycle.Normalize(dto.Status, dto.IsActive);
         var isActive = UserLifecycle.IsActiveStatus(status);
@@ -79,6 +83,7 @@ public class UpdateUserCommandHandler(
             await connection.ExecuteAsync(
                 new CommandDefinition(
                     @"UPDATE Users SET
+                        TenantId = @TenantId,
                         FullName = @FullName, Email = @Email, Phone = @Phone,
                         Role = @Role, IsActive = @IsActive, UpdatedAt = @UpdatedAt,
                         BranchId = @BranchId, DepartmentId = @DepartmentId,
@@ -91,6 +96,7 @@ public class UpdateUserCommandHandler(
                       WHERE Id = @Id",
                     new
                     {
+                        TenantId = tenantId,
                         dto.FullName,
                         dto.Email,
                         dto.Phone,
@@ -118,12 +124,13 @@ public class UpdateUserCommandHandler(
         {
             await connection.ExecuteAsync(
                 new CommandDefinition(
-                    @"UPDATE Users SET FullName = @FullName, Email = @Email, Phone = @Phone,
+                    @"UPDATE Users SET TenantId = @TenantId, FullName = @FullName, Email = @Email, Phone = @Phone,
                       Role = @Role, IsActive = @IsActive, UpdatedAt = @UpdatedAt,
                       BranchId = @BranchId, DepartmentId = @DepartmentId
                       WHERE Id = @Id",
                     new
                     {
+                        TenantId = tenantId,
                         dto.FullName,
                         dto.Email,
                         dto.Phone,
@@ -140,7 +147,7 @@ public class UpdateUserCommandHandler(
         await UserRoleAssignment.SyncLegacyRoleAsync(
             connection,
             request.Id,
-            tenantId.Value,
+            tenantId,
             dto.Role,
             dto.BranchId,
             dto.DepartmentId,
@@ -148,5 +155,20 @@ public class UpdateUserCommandHandler(
             cancellationToken);
 
         return ApiResponse<bool>.SuccessResponse(true, "User updated successfully.");
+    }
+
+    private int ResolveTargetTenantId(int currentTenantId, int? companyId)
+    {
+        if (!platformScope.IsSuperAdmin)
+        {
+            if (companyId is int requested && requested > 0 && requested != currentTenantId)
+                throw new ForbiddenException("You cannot move users to another company.");
+            return currentTenantId;
+        }
+
+        if (companyId is int cid && cid > 0)
+            return cid;
+
+        return currentTenantId;
     }
 }

@@ -3,8 +3,8 @@ import '../domain/fleet_models.dart';
 /// Matches backend IsOnline window (LastSeenAt > now - 30min).
 const offlineStaleMs = 30 * 60 * 1000;
 
-/// Matches GpsPositionIngestionHelper.MovingSpeedKmh.
-const movingThresholdKmh = 5.0;
+/// Matches TraccarOptions.MovingSpeedKmh / ERP MOVING_THRESHOLD_KMH.
+const movingThresholdKmh = 10.0;
 
 const defaultSosAlarmValues = ['sos', 'panic'];
 
@@ -15,7 +15,7 @@ bool isSosAlarm(String? alarmType, [List<String> sosValues = defaultSosAlarmValu
 }
 
 /// Single source of truth for deriving a live-map vehicle status from telemetry.
-/// Priority when online: SOS → Moving (>5) → Parked (ignition off) → Idle.
+/// Priority when online: SOS → Parked (ignition off) → Moving (>=10) → Idle.
 FleetTrackStatus resolveFleetStatus({
   double? speed,
   bool? ignition,
@@ -32,8 +32,12 @@ FleetTrackStatus resolveFleetStatus({
   if (ageMs.isNaN || ageMs > offlineStaleMs) return FleetTrackStatus.offline;
 
   final spd = speed ?? 0;
-  if (spd > movingThresholdKmh) return FleetTrackStatus.moving;
+
+  // Explicit ACC OFF: always Parked — GPS drift at 1–9 km/h must not become Moving.
   if (ignition == false) return FleetTrackStatus.parked;
+
+  if (spd >= movingThresholdKmh) return FleetTrackStatus.moving;
+
   return FleetTrackStatus.idle;
 }
 

@@ -3,7 +3,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { AbstractControl, FormBuilder, FormGroup, ValidationErrors, Validators } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Router } from '@angular/router';
-import { firstValueFrom } from 'rxjs';
+import { catchError, firstValueFrom, of } from 'rxjs';
 import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
 import { DriverService } from '../../../../core/services/driver.service';
 import { PlatformService } from '../../../../core/services/platform.service';
@@ -414,8 +414,21 @@ export class DriverWizardFacade {
   }
 
   init(id?: number): void {
-    this.platformService.getBranches().subscribe(branches => {
-      this.branchOptions.set(branches.map(b => ({ value: String(b.id), label: b.name })));
+    this.platformService.getBranches().pipe(
+      catchError(err => {
+        this.toast.error(apiErrorMessage(err, 'Failed to load branches'));
+        return of(null);
+      })
+    ).subscribe(branches => {
+      if (branches == null) {
+        this.branchOptions.set([]);
+        return;
+      }
+      const active = branches.filter(b => b.isActive !== false);
+      this.branchOptions.set(active.map(b => ({ value: String(b.id), label: b.name })));
+      if (active.length === 0) {
+        this.toast.info('No branches configured — create one under Platform → Branches.');
+      }
     });
     this.platformService.getDepartments().subscribe(depts => {
       this.departmentOptions.set(depts.map(d => ({ value: String(d.id), label: d.name })));

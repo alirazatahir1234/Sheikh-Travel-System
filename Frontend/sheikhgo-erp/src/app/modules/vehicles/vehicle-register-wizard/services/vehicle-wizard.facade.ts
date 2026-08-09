@@ -657,8 +657,21 @@ export class VehicleWizardFacade {
   }
 
   private loadBranches(): void {
-    this.platformService.getBranches().pipe(catchError(() => of([]))).subscribe(branches => {
-      this.branchOptions.set(branches.map(b => ({ value: String(b.id), label: b.name })));
+    this.platformService.getBranches().pipe(
+      catchError(err => {
+        this.toast.error(apiErrorMessage(err, 'Failed to load branches'));
+        return of(null);
+      })
+    ).subscribe(branches => {
+      if (branches == null) {
+        this.branchOptions.set([]);
+        return;
+      }
+      const active = branches.filter(b => b.isActive !== false);
+      this.branchOptions.set(active.map(b => ({ value: String(b.id), label: b.name })));
+      if (active.length === 0) {
+        this.toast.info('No branches configured — create one under Platform → Branches.');
+      }
     });
   }
 
