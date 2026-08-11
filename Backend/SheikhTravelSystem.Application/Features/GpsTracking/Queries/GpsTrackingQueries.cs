@@ -11,13 +11,18 @@ namespace SheikhTravelSystem.Application.Features.GpsTracking.Queries;
 
 public record GetLivePositionsQuery(int Page = 1, int PageSize = 500) : IRequest<ApiResponse<PagedResult<PositionDto>>>;
 
-public class GetLivePositionsQueryHandler(IDbConnectionFactory dbFactory, ITenantContext tenantContext)
+public class GetLivePositionsQueryHandler(
+    IDbConnectionFactory dbFactory,
+    ITenantContext tenantContext,
+    IReverseGeocodingService geocoder,
+    IGpsAddressBackfillQueue addressBackfillQueue)
     : IRequestHandler<GetLivePositionsQuery, ApiResponse<PagedResult<PositionDto>>>
 {
     // Higher ceiling than the generic AppConstants.MaxPageSize (100): this endpoint feeds a live
     // fleet map meant to return "everything currently visible" in as few round-trips as possible,
     // not a paged list UI, so callers can request a single generously-sized page.
     private const int MaxPageSize = 5000;
+    private const int MaxInlineEnrich = 40;
 
     public async Task<ApiResponse<PagedResult<PositionDto>>> Handle(GetLivePositionsQuery request, CancellationToken cancellationToken)
     {
@@ -83,6 +88,8 @@ public class GetLivePositionsQueryHandler(IDbConnectionFactory dbFactory, ITenan
             .Select(r => r with { Timestamp = GpsUtcDateTime.AsUtc(r.Timestamp) })
             .ToList();
 
+        items = await EnrichLiveAddressesAsync(connection, items, cancellationToken);
+
         return ApiResponse<PagedResult<PositionDto>>.SuccessResponse(new PagedResult<PositionDto>
         {
             Items = items,
@@ -90,6 +97,61 @@ public class GetLivePositionsQueryHandler(IDbConnectionFactory dbFactory, ITenan
             Page = page,
             PageSize = pageSize
         });
+    }
+
+    private async Task<List<PositionDto>> EnrichLiveAddressesAsync(
+        System.Data.IDbConnection connection,
+        List<PositionDto> items,
+        CancellationToken cancellationToken)
+    {
+        var needEnrich = items
+            .Select((p, i) => (p, i))
+            .Where(x => TripReplayAddressEnricher.IsCoarseAddress(x.p.Address))
+            .ToList();
+        if (needEnrich.Count == 0) return items;
+
+        var inline = needEnrich.Take(MaxInlineEnrich).ToList();
+        foreach (var (leftover, _) in needEnrich.Skip(MaxInlineEnrich))
+            addressBackfillQueue.Enqueue(leftover.VehicleId, leftover.Latitude, leftover.Longitude);
+
+        for (var n = 0; n < inline.Count; n++)
+        {
+            var (pos, idx) = inline[n];
+            try
+            {
+                var coarse = !string.IsNullOrWhiteSpace(pos.Address);
+                var result = await geocoder.GetAddressAsync(
+                    pos.Latitude,
+                    pos.Longitude,
+                    forceRefresh: coarse,
+                    cancellationToken);
+                var formatted = TripReplayAddressEnricher.FormatResolvedAddress(result);
+                if (string.IsNullOrWhiteSpace(formatted))
+                {
+                    addressBackfillQueue.Enqueue(pos.VehicleId, pos.Latitude, pos.Longitude);
+                    continue;
+                }
+
+                items[idx] = pos with { Address = formatted };
+
+                if (!string.Equals(pos.Address, formatted, StringComparison.Ordinal))
+                {
+                    await connection.ExecuteAsync(new CommandDefinition("""
+                        UPDATE VehicleCurrentLocation
+                        SET Address = @Address
+                        WHERE VehicleId = @VehicleId
+                        """,
+                        new { VehicleId = pos.VehicleId, Address = formatted },
+                        cancellationToken: cancellationToken));
+                }
+            }
+            catch
+            {
+                addressBackfillQueue.Enqueue(pos.VehicleId, pos.Latitude, pos.Longitude);
+            }
+        }
+
+        return items;
     }
 }
 
@@ -932,13 +994,14 @@ file static class GpsAlertQueryProjection
     public static IEnumerable<GpsAlertEventDto> Decorate(IEnumerable<GpsAlertEventDto> rows, ICurrentUserService currentUser) =>
         rows.Select(row => Decorate(row, currentUser));
 
-    public static GpsAlertEventDto Decorate(GpsAlertEventDto row, ICurrentUserService currentUser) => row with
+    public static GpsAlertEventDto Decorate(GpsAlertEventDto row, ICurrentUserService currentUser)
     {
-        CanAcknowledge = row.Status != "archived" && row.Status != "resolved" && GpsAlertAccess.CanAcknowledge(currentUser),
-        CanResolve = row.Status != "resolved" && row.Status != "archived" && GpsAlertAccess.CanResolve(currentUser),
-        CanArchive = row.Status is "acknowledged" or "resolved" && GpsAlertAccess.CanArchive(currentUser),
-        CanDelete = GpsAlertAccess.CanDelete(currentUser)
-    };
+        row.CanAcknowledge = row.Status != "archived" && row.Status != "resolved" && GpsAlertAccess.CanAcknowledge(currentUser);
+        row.CanResolve = row.Status != "resolved" && row.Status != "archived" && GpsAlertAccess.CanResolve(currentUser);
+        row.CanArchive = row.Status is "acknowledged" or "resolved" && GpsAlertAccess.CanArchive(currentUser);
+        row.CanDelete = GpsAlertAccess.CanDelete(currentUser);
+        return row;
+    }
 }
 
 public record GetAlertSettingsQuery : IRequest<ApiResponse<List<AlertSettingDto>>>;

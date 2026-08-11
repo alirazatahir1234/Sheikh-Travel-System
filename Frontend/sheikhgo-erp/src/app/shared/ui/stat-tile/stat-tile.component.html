@@ -1,4 +1,28 @@
-<div class="stb-stat" [class.is-danger]="variant === 'danger'" [class.is-success]="variant === 'success'" [class.is-warning]="variant === 'warning'">
+<button
+  *ngIf="clickable; else staticTile"
+  type="button"
+  class="stb-stat stb-stat--clickable"
+  [class.is-danger]="variant === 'danger'"
+  [class.is-success]="variant === 'success'"
+  [class.is-warning]="variant === 'warning'"
+  [class.is-selected]="selected"
+  [attr.aria-pressed]="selected"
+  [attr.aria-label]="label"
+  (click)="onTileActivate()">
+  <ng-container *ngTemplateOutlet="tileBody"></ng-container>
+</button>
+
+<ng-template #staticTile>
+  <div
+    class="stb-stat"
+    [class.is-danger]="variant === 'danger'"
+    [class.is-success]="variant === 'success'"
+    [class.is-warning]="variant === 'warning'">
+    <ng-container *ngTemplateOutlet="tileBody"></ng-container>
+  </div>
+</ng-template>
+
+<ng-template #tileBody>
   <div class="st-head">
     <div class="st-icon" [ngClass]="'stb-accent-' + color">
       <mat-icon>{{ icon }}</mat-icon>
@@ -25,4 +49,4 @@
     </div>
     <div class="st-hint" *ngIf="hint && !loading">{{ hint }}</div>
   </div>
-</div>
+</ng-template>

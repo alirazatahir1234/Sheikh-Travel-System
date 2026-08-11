@@ -45,7 +45,7 @@ public class CreateUserCommandHandler(
     {
         using var connection = dbFactory.CreateConnection();
         var dto = request.User;
-        var tenantId = platformScope.TenantId;
+        var tenantId = ResolveTargetTenantId(dto.CompanyId);
 
         var exists = await connection.ExecuteScalarAsync<bool>(
             new CommandDefinition(
@@ -162,5 +162,24 @@ public class CreateUserCommandHandler(
 
             return ApiResponse<int>.SuccessResponse(id, "User created successfully.");
         }
+    }
+
+    private int ResolveTargetTenantId(int? companyId)
+    {
+        if (platformScope.IsSuperAdmin)
+        {
+            if (companyId is int cid && cid > 0)
+            {
+                platformScope.EnsureTenantAccess(cid);
+                return cid;
+            }
+
+            return platformScope.TenantId;
+        }
+
+        if (companyId is int requested && requested > 0 && requested != platformScope.TenantId)
+            throw new ForbiddenException("You cannot create users for another company.");
+
+        return platformScope.TenantId;
     }
 }

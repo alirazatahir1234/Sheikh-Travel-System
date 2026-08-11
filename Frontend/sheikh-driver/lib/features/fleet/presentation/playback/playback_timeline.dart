@@ -11,6 +11,10 @@ class PlaybackTimeline extends StatelessWidget {
     required this.events,
     required this.index,
     required this.onIndexChanged,
+    this.virtualTime,
+    this.onVirtualTimeChanged,
+    this.onScrubStart,
+    this.onScrubEnd,
     this.filteredEvents = const [],
   });
 
@@ -19,7 +23,14 @@ class PlaybackTimeline extends StatelessWidget {
   final List<TripEvent> events;
   final List<TripEvent> filteredEvents;
   final int index;
+
+  /// Wall-clock playback cursor. When set, elapsed / slider use this instead of
+  /// the discrete [index] timestamp (so progress moves during long segments).
+  final DateTime? virtualTime;
   final ValueChanged<int> onIndexChanged;
+  final ValueChanged<DateTime>? onVirtualTimeChanged;
+  final VoidCallback? onScrubStart;
+  final VoidCallback? onScrubEnd;
 
   @override
   Widget build(BuildContext context) {
@@ -32,6 +43,19 @@ class PlaybackTimeline extends StatelessWidget {
       stops: stops,
       events: displayEvents,
     );
+    final clampedIndex = index.clamp(0, max);
+    final firstTs = playback.first.timestamp;
+    final lastTs = playback.last.timestamp;
+    final clock = virtualTime ?? playback[clampedIndex].timestamp;
+    final elapsed = clock.difference(firstTs);
+    final total = lastTs.difference(firstTs);
+    final totalMs = total.inMilliseconds;
+    final elapsedMs = elapsed.inMilliseconds.clamp(0, totalMs < 0 ? 0 : totalMs);
+    final progress =
+        totalMs <= 0 ? 0 : ((elapsedMs / totalMs) * 100).round();
+    final sliderValue = max <= 0 || totalMs <= 0
+        ? 0.0
+        : (elapsedMs / totalMs) * max;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -39,12 +63,39 @@ class PlaybackTimeline extends StatelessWidget {
         Row(
           children: [
             Text(
-              _shortTime(playback.first.timestamp),
+              '${_formatElapsed(elapsed)} / ${_formatElapsed(total)}',
+              style: const TextStyle(
+                fontSize: 11,
+                color: AppColors.textSecondary,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const Spacer(),
+            Text(
+              '$progress%',
+              style: const TextStyle(
+                fontSize: 10,
+                color: AppColors.textMuted,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 2),
+        Row(
+          children: [
+            Text(
+              _shortTime(firstTs),
               style: const TextStyle(fontSize: 10, color: AppColors.textMuted),
             ),
             const Spacer(),
             Text(
-              _shortTime(playback.last.timestamp),
+              _shortTime(clock),
+              style: const TextStyle(fontSize: 10, color: AppColors.textSecondary),
+            ),
+            const Spacer(),
+            Text(
+              _shortTime(lastTs),
               style: const TextStyle(fontSize: 10, color: AppColors.textMuted),
             ),
           ],
@@ -56,10 +107,22 @@ class PlaybackTimeline extends StatelessWidget {
             overlayShape: const RoundSliderOverlayShape(overlayRadius: 18),
           ),
           child: Slider(
-            value: index.toDouble().clamp(0, max.toDouble()),
+            value: sliderValue.clamp(0, max.toDouble()),
             min: 0,
             max: max.toDouble(),
-            onChanged: (v) => onIndexChanged(v.round()),
+            onChangeStart: (_) => onScrubStart?.call(),
+            onChanged: (v) {
+              if (onVirtualTimeChanged != null && totalMs > 0) {
+                final fraction = max <= 0 ? 0.0 : (v / max).clamp(0.0, 1.0);
+                final seek = firstTs.add(
+                  Duration(milliseconds: (totalMs * fraction).round()),
+                );
+                onVirtualTimeChanged!(seek);
+              } else {
+                onIndexChanged(v.round());
+              }
+            },
+            onChangeEnd: (_) => onScrubEnd?.call(),
           ),
         ),
         if (markerIndices.isNotEmpty)
@@ -114,5 +177,19 @@ class PlaybackTimeline extends StatelessWidget {
   String _shortTime(DateTime dt) {
     final l = dt.toLocal();
     return '${l.hour.toString().padLeft(2, '0')}:${l.minute.toString().padLeft(2, '0')}';
+  }
+
+  String _formatElapsed(Duration d) {
+    if (d.isNegative) return '00:00';
+    final totalSec = d.inSeconds;
+    final h = totalSec ~/ 3600;
+    final m = (totalSec % 3600) ~/ 60;
+    final s = totalSec % 60;
+    if (h > 0) {
+      return '${h.toString().padLeft(2, '0')}:'
+          '${m.toString().padLeft(2, '0')}:'
+          '${s.toString().padLeft(2, '0')}';
+    }
+    return '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
   }
 }

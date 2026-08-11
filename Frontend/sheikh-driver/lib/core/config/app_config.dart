@@ -22,6 +22,14 @@ class AppConfig {
     defaultValue: '',
   );
 
+  /// Mac / host LAN IP for physical phones (Samsung A05, etc.).
+  /// Example: `--dart-define=DEV_LAN_HOST=192.168.100.61`
+  /// Builds `http://{host}:5082/api` when [API_BASE_URL] is not set.
+  static const String _devLanHostDefine = String.fromEnvironment(
+    'DEV_LAN_HOST',
+    defaultValue: '',
+  );
+
   /// Optional SignalR origin override (`https://host` or `https://host/hubs`).
   /// Empty → derive from [apiOrigin] + `/hubs/tracking`.
   static const String _hubUrlDefine = String.fromEnvironment(
@@ -31,21 +39,39 @@ class AppConfig {
 
   static const String _defaultIosHostApi = 'http://localhost:5082/api';
   static const String _defaultAndroidEmulatorApi = 'http://10.0.2.2:5082/api';
+  static const int _devApiPort = 5082;
 
   /// Whether an explicit `API_BASE_URL` dart-define was provided.
   static bool get hasExplicitApiBaseUrl => _apiBaseUrlDefine.trim().isNotEmpty;
 
+  /// Whether a LAN host was provided for physical-device local testing.
+  static bool get hasDevLanHost => _devLanHostDefine.trim().isNotEmpty;
+
   /// API root used by Dio / uploads / background GPS.
   ///
   /// Resolution order:
-  /// 1. Explicit `--dart-define=API_BASE_URL=...` (LAN IP for local device testing).
+  /// 1. Explicit `--dart-define=API_BASE_URL=...` (full URL wins).
   /// 2. When `ENV=prod` or `ENV=uat`: [defaultProductionApiBaseUrl] (HTTPS).
-  /// 3. Android emulator: `http://10.0.2.2:5082/api`.
-  /// 4. iOS simulator / desktop: `http://localhost:5082/api`.
+  /// 3. `--dart-define=DEV_LAN_HOST=...` → `http://{host}:5082/api`
+  ///    (physical Android / iOS on the same Wi‑Fi as the Mac).
+  /// 4. Android (no LAN host): emulator loopback `http://10.0.2.2:5082/api`.
+  /// 5. iOS simulator / desktop: `http://localhost:5082/api`.
   static String get resolvedBaseUrl {
     final defined = _apiBaseUrlDefine.trim();
     if (defined.isNotEmpty) return defined;
     if (isProd || isUat) return defaultProductionApiBaseUrl;
+
+    final lanHost = _devLanHostDefine.trim();
+    if (lanHost.isNotEmpty) {
+      final host = lanHost
+          .replaceFirst(RegExp(r'^https?://'), '')
+          .split('/')
+          .first
+          .split(':')
+          .first;
+      return 'http://$host:$_devApiPort/api';
+    }
+
     if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
       return _defaultAndroidEmulatorApi;
     }

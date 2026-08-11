@@ -8,7 +8,7 @@ public static class TenantRolePermissionTemplates
     public static readonly string[] TenantAdmin =
     [
         "Platform.Dashboard.View", "Platform.Users.View", "Platform.Users.Create", "Platform.Users.Edit",
-        "Platform.Roles.View", "Platform.Roles.Manage", "Platform.Branches.Manage", "Platform.Departments.Manage",
+        "Platform.Roles.View", "Platform.Roles.Manage", "Platform.Branches.View", "Platform.Branches.Manage", "Platform.Departments.Manage",
         "Platform.AuditLogs.View", "Platform.Audit.View", "Platform.Audit.Manage",
         "Platform.Menus.Manage", "Platform.Workspaces.Manage",
         "Platform.Dashboards.View", "Platform.Dashboards.Manage",
@@ -31,7 +31,7 @@ public static class TenantRolePermissionTemplates
 
     public static readonly string[] FleetManager =
     [
-        "Platform.Dashboard.View", "Trip.View", "Trip.Create", "Trip.Update", "Trip.Delete", "Trip.Assign",
+        "Platform.Dashboard.View", "Platform.Branches.View", "Trip.View", "Trip.Create", "Trip.Update", "Trip.Delete", "Trip.Assign",
         "Vehicle.View", "Vehicle.Create", "Vehicle.Update", "Vehicle.Delete",
         "Driver.View", "Driver.Create", "Driver.Update", "Driver.Delete", "Driver.Assign", "Driver.Manage", "Driver.ManageStatus", "Driver.ViewPerformance", "GPS.View", "Fuel.View", "Fuel.Create", "Fuel.Update",
         "Gps.AlertView", "Gps.AlertAcknowledge", "Gps.AlertResolve", "Gps.AlertArchive",
@@ -44,7 +44,7 @@ public static class TenantRolePermissionTemplates
 
     public static readonly string[] DriverManager =
     [
-        "Platform.Dashboard.View",
+        "Platform.Dashboard.View", "Platform.Branches.View",
         "Driver.View", "Driver.Create", "Driver.Update", "Driver.Assign", "Driver.Manage", "Driver.ManageStatus", "Driver.ViewPerformance",
         "Vehicle.View",
         "GPS.View",

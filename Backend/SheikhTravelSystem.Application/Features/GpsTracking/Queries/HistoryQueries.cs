@@ -61,8 +61,8 @@ public class GetHistoryReplayQueryHandler(
                 toDate,
                 cancellationToken,
                 geofenceNames,
-                routeMaxPoints: 2500,
-                playbackMaxPoints: 800);
+                routeMaxPoints: 5000,
+                playbackMaxPoints: 2500);
         }
         else
         {
@@ -241,8 +241,8 @@ public class GetHistoryExportQueryHandler(
             return ApiResponse<HistoryExportFileDto>.FailResponse("Date range cannot exceed 366 days.");
 
         var format = (request.Format ?? "csv").Trim().ToLowerInvariant();
-        if (format is not ("csv" or "gpx" or "geojson"))
-            return ApiResponse<HistoryExportFileDto>.FailResponse("Format must be csv, gpx, or geojson.");
+        if (format is not ("csv" or "gpx" or "geojson" or "kml"))
+            return ApiResponse<HistoryExportFileDto>.FailResponse("Format must be csv, gpx, geojson, or kml.");
 
         var positions = await LoadFullPositionsAsync(
             dbFactory, traccarClient, traccarOptions.Value, request.VehicleId, fromDate, toDate, cancellationToken);
@@ -264,6 +264,11 @@ public class GetHistoryExportQueryHandler(
                     Encoding.UTF8.GetBytes(HistoryExportFormatter.ToGpx(positions, request.VehicleId)),
                     "application/gpx+xml",
                     $"{baseName}.gpx")),
+            "kml" => ApiResponse<HistoryExportFileDto>.SuccessResponse(
+                new HistoryExportFileDto(
+                    Encoding.UTF8.GetBytes(HistoryExportFormatter.ToKml(positions, request.VehicleId)),
+                    "application/vnd.google-earth.kml+xml",
+                    $"{baseName}.kml")),
             "geojson" => ApiResponse<HistoryExportFileDto>.SuccessResponse(
                 new HistoryExportFileDto(
                     Encoding.UTF8.GetBytes(HistoryExportFormatter.ToGeoJson(positions)),
@@ -395,6 +400,36 @@ internal static class HistoryExportFormatter
             sb.AppendLine("</trkpt>");
         }
         sb.AppendLine("  </trkseg></trk></gpx>");
+        return sb.ToString();
+    }
+
+    public static string ToKml(IReadOnlyList<PositionDto> positions, int vehicleId)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
+        sb.AppendLine("<kml xmlns=\"http://www.opengis.net/kml/2.2\">");
+        sb.AppendLine("  <Document>");
+        sb.Append("    <name>Vehicle ");
+        sb.Append(vehicleId);
+        sb.AppendLine("</name>");
+        sb.AppendLine("    <Placemark>");
+        sb.Append("      <name>Route ");
+        sb.Append(vehicleId);
+        sb.AppendLine("</name>");
+        sb.AppendLine("      <Style><LineStyle><color>ffed4d1d</color><width>4</width></LineStyle></Style>");
+        sb.AppendLine("      <LineString><tessellate>1</tessellate><coordinates>");
+        foreach (var p in positions)
+        {
+            sb.Append("        ");
+            sb.Append(p.Longitude.ToString(CultureInfo.InvariantCulture));
+            sb.Append(',');
+            sb.Append(p.Latitude.ToString(CultureInfo.InvariantCulture));
+            sb.AppendLine(",0");
+        }
+        sb.AppendLine("      </coordinates></LineString>");
+        sb.AppendLine("    </Placemark>");
+        sb.AppendLine("  </Document>");
+        sb.AppendLine("</kml>");
         return sb.ToString();
     }
 

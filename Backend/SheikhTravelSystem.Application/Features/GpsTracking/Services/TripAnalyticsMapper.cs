@@ -82,9 +82,7 @@ public static class TripAnalyticsMapper
 
     public static TripStopDto ToStopDto(TraccarStop stop)
     {
-        var durationMinutes = stop.Duration >= 100_000
-            ? stop.Duration / 60_000
-            : Math.Max(1, stop.Duration / 60);
+        var durationMinutes = StopDurationMinutes(stop.StartTime, stop.EndTime, stop.Duration);
 
         return new TripStopDto(
             stop.StartTime,
@@ -93,6 +91,52 @@ public static class TripAnalyticsMapper
             stop.Lon,
             stop.Address,
             durationMinutes);
+    }
+
+    /// <summary>
+    /// Prefer wall-clock end−start. Fallback: Traccar Duration as ms when ≥1000, else seconds.
+    /// </summary>
+    public static int StopDurationMinutes(DateTime startTime, DateTime endTime, long durationRaw)
+    {
+        if (endTime > startTime)
+            return Math.Max(0, (int)Math.Round((endTime - startTime).TotalMinutes));
+
+        return DurationRawToMinutes(durationRaw);
+    }
+
+    /// <summary>
+    /// Converts a Traccar duration field to whole minutes.
+    /// Values ≥ 1000 are milliseconds (Traccar norm); smaller values are seconds.
+    /// </summary>
+    public static int DurationRawToMinutes(long durationRaw)
+    {
+        if (durationRaw <= 0) return 0;
+        if (durationRaw >= 1000)
+            return Math.Max(0, (int)Math.Round(durationRaw / 60_000.0));
+        return Math.Max(0, (int)Math.Round(durationRaw / 60.0));
+    }
+
+    /// <summary>
+    /// Sum of stop overlaps with [fromDate, toDate], capped to the window length.
+    /// </summary>
+    public static int ClippedIdleMinutes(
+        IReadOnlyList<TripStopDto> stops,
+        DateTime fromDate,
+        DateTime toDate,
+        int rangeMinutes)
+    {
+        if (rangeMinutes <= 0 || stops.Count == 0) return 0;
+
+        var sum = 0.0;
+        foreach (var stop in stops)
+        {
+            var overlapStart = stop.StartTime > fromDate ? stop.StartTime : fromDate;
+            var overlapEnd = stop.EndTime < toDate ? stop.EndTime : toDate;
+            if (overlapEnd <= overlapStart) continue;
+            sum += (overlapEnd - overlapStart).TotalMinutes;
+        }
+
+        return Math.Min(rangeMinutes, Math.Max(0, (int)Math.Round(sum)));
     }
 
     public static TripAnalyticsSummaryDto BuildSummary(
@@ -117,10 +161,7 @@ public static class TripAnalyticsMapper
                 : 0;
 
         var idleMinutes = stops.Sum(s =>
-        {
-            var d = s.Duration >= 100_000 ? s.Duration / 60_000 : s.Duration / 60;
-            return Math.Max(0, d);
-        });
+            StopDurationMinutes(s.StartTime, s.EndTime, s.Duration));
 
         var avgSpeed = hasSummary
             ? summaries.Average(s => s.AverageSpeed * KnotsToKmh)
@@ -176,8 +217,9 @@ public static class TripAnalyticsMapper
     }
 
     /// <summary>
-    /// History-range statistics: prefer odometer distance, stop-based idle, and clamp driving
-    /// time to the selected window (Traccar engineHours can report lifetime totals).
+    /// History-range statistics: prefer odometer distance and motion-based moving time.
+    /// IdleMinutes is the complementary non-moving residual of the selected window
+    /// (Moving + Non-moving = window), so stop-duration sums cannot exceed the day.
     /// </summary>
     public static TripAnalyticsSummaryDto BuildHistoryStatistics(
         TripAnalyticsSummaryDto? baseSummary,
@@ -188,43 +230,65 @@ public static class TripAnalyticsMapper
         double? mileageKm)
     {
         var rangeMinutes = Math.Max(1, (int)Math.Ceiling((toDate - fromDate).TotalMinutes));
-        var stopIdle = Math.Min(rangeMinutes, stops.Sum(s => Math.Max(0, s.DurationMinutes)));
+        var motionDriving = ComputeMotionDrivingMinutes(route, rangeMinutes);
 
         int drivingMinutes;
-        if (baseSummary is not null && baseSummary.DrivingMinutes > 0 && baseSummary.DrivingMinutes <= rangeMinutes)
+        if (motionDriving > 0)
+        {
+            drivingMinutes = motionDriving;
+        }
+        else if (baseSummary is not null && baseSummary.DrivingMinutes > 0 && baseSummary.DrivingMinutes <= rangeMinutes)
         {
             drivingMinutes = baseSummary.DrivingMinutes;
         }
         else
         {
-            drivingMinutes = Math.Max(0, rangeMinutes - stopIdle);
+            // Fallback when motion cannot be detected: residual after clipped stop time.
+            var stopIdleFallback = ClippedIdleMinutes(stops, fromDate, toDate, rangeMinutes);
+            drivingMinutes = Math.Max(0, rangeMinutes - stopIdleFallback);
             if (route.Count >= 2)
             {
                 var first = route[0].Timestamp;
                 var last = route[^1].Timestamp;
                 var span = Math.Max(1, (int)Math.Ceiling((last - first).TotalMinutes));
-                drivingMinutes = Math.Min(drivingMinutes, Math.Max(0, Math.Min(span, rangeMinutes) - Math.Min(stopIdle, span)));
+                drivingMinutes = Math.Min(drivingMinutes, Math.Max(0, Math.Min(span, rangeMinutes)));
             }
         }
 
+        drivingMinutes = Math.Clamp(drivingMinutes, 0, rangeMinutes);
+        // Non-moving (IdleMinutes) is the complementary residual of the selected window.
+        // This prevents Moving + Non-moving from exceeding 24h for a one-day range.
+        var idleMinutes = Math.Max(0, rangeMinutes - drivingMinutes);
+
+        var replaySummary = BuildReplaySummary(Array.Empty<TraccarSummary>(), route);
         var distanceKm = mileageKm
             ?? baseSummary?.DistanceKm
-            ?? (BuildReplaySummary([], route)?.DistanceKm ?? 0);
+            ?? replaySummary?.DistanceKm
+            ?? 0;
 
         decimal avgSpeed = baseSummary?.AvgSpeedKmh ?? 0;
         decimal maxSpeed = baseSummary?.MaxSpeedKmh ?? 0;
         if ((avgSpeed <= 0 || maxSpeed <= 0) && route.Count > 0)
         {
-            var speeds = route.Select(p => (double)p.SpeedKmh).ToList();
-            if (avgSpeed <= 0) avgSpeed = Math.Round((decimal)speeds.Average(), 1);
-            if (maxSpeed <= 0) maxSpeed = Math.Round((decimal)speeds.Max(), 1);
+            if (avgSpeed <= 0)
+            {
+                var movingSpeeds = route
+                    .Where(p => p.SpeedKmh >= 3m)
+                    .Select(p => (double)p.SpeedKmh)
+                    .ToList();
+                avgSpeed = movingSpeeds.Count > 0
+                    ? Math.Round((decimal)movingSpeeds.Average(), 1)
+                    : 0;
+            }
+            if (maxSpeed <= 0)
+                maxSpeed = Math.Round((decimal)route.Max(p => (double)p.SpeedKmh), 1);
         }
 
         return new TripAnalyticsSummaryDto(
             baseSummary?.TripCount ?? 0,
             Math.Round(distanceKm, 2),
             drivingMinutes,
-            stopIdle,
+            idleMinutes,
             baseSummary?.FuelLiters,
             avgSpeed,
             maxSpeed,
@@ -233,6 +297,42 @@ public static class TripAnalyticsMapper
             baseSummary?.HarshBrakeCount ?? 0,
             baseSummary?.HarshAccelCount ?? 0,
             Math.Round(drivingMinutes / 60m, 1));
+    }
+
+    private static int ComputeMotionDrivingMinutes(
+        IReadOnlyList<TripReplayPositionDto> route,
+        int rangeMinutes)
+    {
+        if (route.Count < 2) return 0;
+        var movingMinutes = 0.0;
+
+        for (var i = 1; i < route.Count; i++)
+        {
+            var prev = route[i - 1];
+            var next = route[i];
+            var deltaMinutes = (next.Timestamp - prev.Timestamp).TotalMinutes;
+            if (deltaMinutes <= 0) continue;
+            // Ignore very large gaps so sparse histories don't inflate driving time.
+            if (deltaMinutes > 20) continue;
+
+            var segmentDistanceKm = HaversineKm(
+                prev.Latitude, prev.Longitude,
+                next.Latitude, next.Longitude);
+
+            var movingBySpeed =
+                prev.SpeedKmh >= 3m || next.SpeedKmh >= 3m;
+            var movingByIgnition =
+                (prev.Ignition == true || next.Ignition == true) &&
+                (prev.SpeedKmh > 0m || next.SpeedKmh > 0m);
+            var movingByDistance = segmentDistanceKm >= 0.03; // ~30m
+
+            if (movingBySpeed || movingByIgnition || movingByDistance)
+            {
+                movingMinutes += deltaMinutes;
+            }
+        }
+
+        return Math.Clamp((int)Math.Round(movingMinutes), 0, rangeMinutes);
     }
 
     private static int CountEvents(IReadOnlyList<TraccarEvent> events, params string[] types)

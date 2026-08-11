@@ -4,8 +4,8 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:intl/intl.dart';
 
-import '../../../../core/constants/app_theme.dart';
 import '../../domain/fleet_models.dart';
 import 'playback_helpers.dart';
 
@@ -29,10 +29,87 @@ typedef PlaybackMarkerTapCallback = void Function(PlaybackMarkerTap tap);
 String formatPlaybackCoords(double latitude, double longitude) =>
     '${latitude.toStringAsFixed(5)}, ${longitude.toStringAsFixed(5)}';
 
+/// True when address is city/province only (e.g. "Pasrur, Punjab, Pakistan").
+bool isCoarsePlaybackAddress(String? address) {
+  final a = address?.trim();
+  if (a == null || a.isEmpty) return true;
+  final lower = a.toLowerCase();
+  if (lower.contains('tehsil') ||
+      lower.contains('district') ||
+      lower.contains('division')) {
+    return true;
+  }
+  final parts =
+      a.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+  if (parts.any((p) => RegExp(r'\d').hasMatch(p))) return false;
+  return parts.length <= 3;
+}
+
+/// Primary street/POI line + optional locality for address-first UI.
+({String? primary, String? secondary}) splitPlaybackAddress(String? address) {
+  final raw = address?.trim();
+  if (raw == null || raw.isEmpty) {
+    return (primary: null, secondary: null);
+  }
+  final parts =
+      raw.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+  if (parts.length <= 2) {
+    return (primary: raw, secondary: null);
+  }
+  var take = 1;
+  if (parts.first.toLowerCase().startsWith('near ') && parts.length > 2) {
+    take = 2;
+  } else if (parts.length >= 4) {
+    take = 2;
+  }
+  return (
+    primary: parts.take(take).join(', '),
+    secondary: parts.skip(take).join(', '),
+  );
+}
+
 String playbackAddressLine(HistoryReplayPoint point) {
   final addr = point.address?.trim();
+  if (addr != null && addr.isNotEmpty && !isCoarsePlaybackAddress(addr)) {
+    return addr;
+  }
   if (addr != null && addr.isNotEmpty) return addr;
   return formatPlaybackCoords(point.latitude, point.longitude);
+}
+
+String playbackAddressPrimary(String? address, {double? lat, double? lng}) {
+  final split = splitPlaybackAddress(address);
+  if (split.primary != null && split.primary!.isNotEmpty) return split.primary!;
+  if (lat != null && lng != null) return formatPlaybackCoords(lat, lng);
+  return 'Address unavailable';
+}
+
+String? playbackAddressSecondary(String? address) =>
+    splitPlaybackAddress(address).secondary;
+
+String stopPlaybackHeadline(TripStop stop) {
+  final kind = stop.durationMinutes >= 120 ? 'Parking' : 'Stop';
+  final primary = playbackAddressPrimary(
+    stop.address,
+    lat: stop.latitude,
+    lng: stop.longitude,
+  );
+  return '$kind — $primary';
+}
+
+String stopPlaybackHeadlineFor({
+  required int durationMinutes,
+  String? address,
+  required double latitude,
+  required double longitude,
+}) {
+  final kind = durationMinutes >= 120 ? 'Parking' : 'Stop';
+  final primary = playbackAddressPrimary(
+    address,
+    lat: latitude,
+    lng: longitude,
+  );
+  return '$kind — $primary';
 }
 
 enum PlaybackMarkerKind {
@@ -64,7 +141,7 @@ enum PlaybackPinGlyph {
 
 class PlaybackMapAssets {
   /// Bump when icon art changes so hot restart refreshes descriptors.
-  static const _cacheEpoch = 'v3';
+  static const _cacheEpoch = 'v4';
   static final Map<String, BitmapDescriptor> _iconCache = {};
 
   static Future<BitmapDescriptor> vehicleIcon({double devicePixelRatio = 2}) {
@@ -96,7 +173,7 @@ class PlaybackMapAssets {
       case PlaybackMarkerKind.fuel:
         return const Color(0xFF0EA5E9);
       case PlaybackMarkerKind.vehicle:
-        return AppColors.primary;
+        return const Color(0xFF1D4ED8);
       case PlaybackMarkerKind.eventFallback:
         return const Color(0xFF64748B);
     }
@@ -197,14 +274,17 @@ class PlaybackMapAssets {
         return BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed);
       case PlaybackMarkerKind.stop:
       case PlaybackMarkerKind.fuel:
-        return BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange);
+        return BitmapDescriptor.defaultMarkerWithHue(
+            BitmapDescriptor.hueOrange);
       case PlaybackMarkerKind.ignitionOn:
         return BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen);
       case PlaybackMarkerKind.ignitionOff:
       case PlaybackMarkerKind.eventFallback:
-        return BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueViolet);
+        return BitmapDescriptor.defaultMarkerWithHue(
+            BitmapDescriptor.hueViolet);
       case PlaybackMarkerKind.geofence:
-        return BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueMagenta);
+        return BitmapDescriptor.defaultMarkerWithHue(
+            BitmapDescriptor.hueMagenta);
       case PlaybackMarkerKind.vehicle:
         return BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure);
     }
@@ -256,7 +336,8 @@ class PlaybackMapAssets {
     );
     canvas.drawPath(arrow, Paint()..color = color);
 
-    final image = await recorder.endRecording().toImage(size.toInt(), size.toInt());
+    final image =
+        await recorder.endRecording().toImage(size.toInt(), size.toInt());
     final data = await image.toByteData(format: ui.ImageByteFormat.png);
     return data!.buffer.asUint8List();
   }
@@ -276,13 +357,15 @@ class PlaybackMapAssets {
 
     final path = Path()
       ..moveTo(logicalW / 2, logicalH)
-      ..quadraticBezierTo(logicalW / 2 - 4, logicalH - 10, logicalW / 2 - 12, logicalH - 18)
+      ..quadraticBezierTo(
+          logicalW / 2 - 4, logicalH - 10, logicalW / 2 - 12, logicalH - 18)
       ..arcToPoint(
         Offset(logicalW / 2 + 12, logicalH - 18),
         radius: const Radius.circular(13),
         clockwise: false,
       )
-      ..quadraticBezierTo(logicalW / 2 + 4, logicalH - 10, logicalW / 2, logicalH)
+      ..quadraticBezierTo(
+          logicalW / 2 + 4, logicalH - 10, logicalW / 2, logicalH)
       ..close();
 
     canvas.drawPath(
@@ -308,7 +391,8 @@ class PlaybackMapAssets {
     return data!.buffer.asUint8List();
   }
 
-  static void _paintGlyph(Canvas canvas, PlaybackPinGlyph glyph, Offset center) {
+  static void _paintGlyph(
+      Canvas canvas, PlaybackPinGlyph glyph, Offset center) {
     final paint = Paint()
       ..color = Colors.white
       ..style = PaintingStyle.fill
@@ -341,7 +425,8 @@ class PlaybackMapAssets {
           Rect.fromCenter(center: center, width: 14, height: 14),
           const Radius.circular(3),
         );
-        canvas.drawRRect(r, Paint()..color = Colors.white.withValues(alpha: 0.25));
+        canvas.drawRRect(
+            r, Paint()..color = Colors.white.withValues(alpha: 0.25));
         final tp = TextPainter(
           text: const TextSpan(
             text: 'P',
@@ -351,9 +436,10 @@ class PlaybackMapAssets {
               fontWeight: FontWeight.w900,
             ),
           ),
-          textDirection: TextDirection.ltr,
+          textDirection: ui.TextDirection.ltr,
         )..layout();
-        tp.paint(canvas, Offset(center.dx - tp.width / 2, center.dy - tp.height / 2));
+        tp.paint(canvas,
+            Offset(center.dx - tp.width / 2, center.dy - tp.height / 2));
       case PlaybackPinGlyph.speed:
         // Speedometer arc + needle
         paint
@@ -374,7 +460,8 @@ class PlaybackMapAssets {
       case PlaybackPinGlyph.power:
         paint.style = PaintingStyle.stroke;
         canvas.drawArc(
-          Rect.fromCenter(center: center.translate(0, 1), width: 12, height: 12),
+          Rect.fromCenter(
+              center: center.translate(0, 1), width: 12, height: 12),
           -math.pi * 0.25,
           math.pi * 1.5,
           false,
@@ -435,9 +522,10 @@ class PlaybackMapAssets {
               height: 1,
             ),
           ),
-          textDirection: TextDirection.ltr,
+          textDirection: ui.TextDirection.ltr,
         )..layout();
-        tp.paint(canvas, Offset(center.dx - tp.width / 2, center.dy - tp.height / 2));
+        tp.paint(canvas,
+            Offset(center.dx - tp.width / 2, center.dy - tp.height / 2));
       case PlaybackPinGlyph.pin:
         canvas.drawCircle(center, 3.5, paint);
     }
@@ -449,11 +537,11 @@ Color segmentColor(PlaybackSegmentKind kind) {
     case PlaybackSegmentKind.overspeed:
       return const Color(0xFFDC2626);
     case PlaybackSegmentKind.ignitionOff:
-      return AppColors.primary.withValues(alpha: 0.55);
+      return const Color(0xFF64748B);
     case PlaybackSegmentKind.stop:
       return const Color(0xFFF59E0B);
     case PlaybackSegmentKind.normal:
-      return const Color(0xFF2563EB);
+      return const Color(0xFF1D4ED8);
   }
 }
 
@@ -479,7 +567,8 @@ int displayIndexForTrailIndex(
   int trailIndex,
 ) {
   if (displayTrail.isEmpty || fullTrail.isEmpty) return 0;
-  if (identical(fullTrail, displayTrail) || fullTrail.length == displayTrail.length) {
+  if (identical(fullTrail, displayTrail) ||
+      fullTrail.length == displayTrail.length) {
     return trailIndex.clamp(0, displayTrail.length - 1);
   }
   final t = fullTrail[trailIndex.clamp(0, fullTrail.length - 1)].timestamp;
@@ -490,6 +579,7 @@ Set<Polyline> buildPlaybackPolylines({
   required List<HistoryReplayPoint> trail,
   required int trailIndex,
   required List<TripStop> stops,
+  bool speedColors = false,
 }) {
   if (trail.length < 2) return {};
 
@@ -497,46 +587,63 @@ Set<Polyline> buildPlaybackPolylines({
   final displayIdx = displayIndexForTrailIndex(trail, display, trailIndex)
       .clamp(1, display.length);
 
-  final completed = display.sublist(0, displayIdx);
-  final remaining = display.sublist((displayIdx - 1).clamp(0, display.length - 1));
-
   final polylines = <Polyline>{};
 
-  // Future path — lighter primary
-  if (remaining.length >= 2) {
-    polylines.add(
-      Polyline(
-        polylineId: const PolylineId('remaining'),
-        color: AppColors.primary.withValues(alpha: 0.35),
-        width: 4,
-        patterns: [PatternItem.dash(16), PatternItem.gap(10)],
-        points: [
-          for (final p in remaining) LatLng(p.latitude, p.longitude),
-        ],
-      ),
-    );
+  // Full trip always solid dark blue for enterprise visibility.
+  polylines.add(
+    Polyline(
+      polylineId: const PolylineId('full_route'),
+      color: const Color(0xFF1D4ED8),
+      width: 7,
+      geodesic: true,
+      zIndex: 1,
+      points: [
+        for (final p in display) LatLng(p.latitude, p.longitude),
+      ],
+    ),
+  );
+
+  if (speedColors) {
+    final completed = display.sublist(0, displayIdx);
+    final segments = buildSpeedSegments(completed, stops: stops);
+    for (var i = 0; i < segments.length; i++) {
+      final s = segments[i];
+      if (s.points.length < 2) continue;
+      if (s.kind == PlaybackSegmentKind.normal) continue;
+      polylines.add(
+        Polyline(
+          polylineId: PolylineId('seg_$i'),
+          color: segmentColor(s.kind),
+          width: 7,
+          geodesic: true,
+          zIndex: 2,
+          points: [
+            for (final p in s.points) LatLng(p.latitude, p.longitude),
+          ],
+        ),
+      );
+    }
   }
 
-  // Travelled — brand blue with overspeed/stop overrides
-  final segments = buildSpeedSegments(completed, stops: stops);
-  for (var i = 0; i < segments.length; i++) {
-    final s = segments[i];
-    if (s.points.length < 2) continue;
-    final isNormal = s.kind == PlaybackSegmentKind.normal ||
-        s.kind == PlaybackSegmentKind.ignitionOff;
-    polylines.add(
-      Polyline(
-        polylineId: PolylineId('done_$i'),
-        color: isNormal && s.kind == PlaybackSegmentKind.normal
-            ? const Color(0xFF2563EB)
-            : segmentColor(s.kind),
-        width: isNormal ? 6 : 5,
-        geodesic: true,
-        points: [
-          for (final p in s.points) LatLng(p.latitude, p.longitude),
-        ],
-      ),
-    );
+  // Played focus highlight near current index.
+  if (display.length >= 3) {
+    final currentStart = (displayIdx - 2).clamp(0, display.length - 1);
+    final currentEnd = displayIdx.clamp(0, display.length - 1);
+    if (currentEnd > currentStart) {
+      polylines.add(
+        Polyline(
+          polylineId: const PolylineId('current_focus'),
+          color: const Color(0xFF22C55E),
+          width: 8,
+          geodesic: true,
+          zIndex: 3,
+          points: [
+            for (var i = currentStart; i <= currentEnd; i++)
+              LatLng(display[i].latitude, display[i].longitude),
+          ],
+        ),
+      );
+    }
   }
 
   return polylines;
@@ -595,59 +702,68 @@ Future<Set<Marker>> buildPlaybackStaticMarkers({
       onMarkerTap == null ? null : () => onMarkerTap(tap);
 
   final startPos = LatLng(trail.first.latitude, trail.first.longitude);
-  if (!nearVehicle(startPos.latitude, startPos.longitude)) {
-    final startIdx = playback.isEmpty
-        ? 0
-        : indexForTimestamp(playback, trail.first.timestamp);
-    markers.add(
-      Marker(
-        markerId: const MarkerId('start'),
-        position: startPos,
-        icon: startIcon,
-        infoWindow: const InfoWindow(title: 'Start'),
-        zIndexInt: 1,
-        onTap: tapHandler(PlaybackMarkerTap(
-          playbackIndex: startIdx,
-          eventType: 'Start',
-        )),
+  final markerTimeFmt = DateFormat('dd MMM, HH:mm');
+  // Always show start/end (even when vehicle sits on them). Vehicle marker
+  // uses a higher zIndex so it remains visible on top when coincident.
+  final startIdx =
+      playback.isEmpty ? 0 : indexForTimestamp(playback, trail.first.timestamp);
+  final startPoint = trail.first;
+  markers.add(
+    Marker(
+      markerId: const MarkerId('start'),
+      position: startPos,
+      icon: startIcon,
+      infoWindow: InfoWindow(
+        title:
+            'Start · ${markerTimeFmt.format(startPoint.timestamp.toLocal())}',
+        snippet: playbackAddressLine(startPoint),
       ),
-    );
-  }
+      zIndexInt: 1,
+      onTap: tapHandler(PlaybackMarkerTap(
+        playbackIndex: startIdx,
+        eventType: 'Start',
+      )),
+    ),
+  );
 
   final endPos = LatLng(trail.last.latitude, trail.last.longitude);
-  if (!nearVehicle(endPos.latitude, endPos.longitude)) {
-    final endIdx = playback.isEmpty
-        ? 0
-        : indexForTimestamp(playback, trail.last.timestamp);
-    markers.add(
-      Marker(
-        markerId: const MarkerId('end'),
-        position: endPos,
-        icon: finishIcon,
-        infoWindow: const InfoWindow(title: 'Finish'),
-        zIndexInt: 1,
-        onTap: tapHandler(PlaybackMarkerTap(
-          playbackIndex: endIdx,
-          eventType: 'Finish',
-        )),
+  final endIdx =
+      playback.isEmpty ? 0 : indexForTimestamp(playback, trail.last.timestamp);
+  final endPoint = trail.last;
+  markers.add(
+    Marker(
+      markerId: const MarkerId('end'),
+      position: endPos,
+      icon: finishIcon,
+      infoWindow: InfoWindow(
+        title: 'End · ${markerTimeFmt.format(endPoint.timestamp.toLocal())}',
+        snippet: playbackAddressLine(endPoint),
       ),
-    );
-  }
+      zIndexInt: 1,
+      onTap: tapHandler(PlaybackMarkerTap(
+        playbackIndex: endIdx,
+        eventType: 'End',
+      )),
+    ),
+  );
 
   for (var i = 0; i < stops.length; i++) {
     final s = stops[i];
     if (nearVehicle(s.latitude, s.longitude)) continue;
-    final stopIdx = playback.isEmpty
-        ? 0
-        : indexForTimestamp(playback, s.startTime);
+    final stopIdx =
+        playback.isEmpty ? 0 : indexForTimestamp(playback, s.startTime);
     markers.add(
       Marker(
         markerId: MarkerId('stop_$i'),
         position: LatLng(s.latitude, s.longitude),
         icon: stopIcon,
         infoWindow: InfoWindow(
-          title: 'Stop ${s.durationMinutes} min',
-          snippet: s.address ?? formatPlaybackCoords(s.latitude, s.longitude),
+          title: stopPlaybackHeadline(s),
+          snippet: [
+            if (playbackAddressSecondary(s.address) case final locality?)
+              locality,
+            '${formatDurationMinutes(s.durationMinutes)} · ${markerTimeFmt.format(s.startTime.toLocal())}',
+          ].join('\n'),
         ),
         zIndexInt: 2,
         onTap: tapHandler(PlaybackMarkerTap(
@@ -663,9 +779,7 @@ Future<Set<Marker>> buildPlaybackStaticMarkers({
     final e = events[i];
     if (e.latitude == null || e.longitude == null) continue;
     if (nearVehicle(e.latitude!, e.longitude!)) continue;
-    final evtIdx = playback.isEmpty
-        ? 0
-        : indexForTimestamp(playback, e.time);
+    final evtIdx = playback.isEmpty ? 0 : indexForTimestamp(playback, e.time);
     markers.add(
       Marker(
         markerId: MarkerId('evt_$i'),
@@ -713,7 +827,8 @@ Future<Set<Marker>> buildPlaybackMarkers({
     onMarkerTap: onMarkerTap,
   );
   if (vehiclePoint != null) {
-    markers.add(buildVehicleMarker(point: vehiclePoint, vehicleIcon: vehicleIcon));
+    markers
+        .add(buildVehicleMarker(point: vehiclePoint, vehicleIcon: vehicleIcon));
   }
   return markers;
 }

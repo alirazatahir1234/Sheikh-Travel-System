@@ -40,6 +40,7 @@ public static class DatabaseMigrationRegistry
             M("GpsCommandsPhase9Migration", GpsCommandsPhase9Migration.ApplyAsync),
             M("GpsAnalyticsPhase10Migration", GpsAnalyticsPhase10Migration.ApplyAsync),
             M("GpsAddressCacheMigration", GpsAddressCacheMigration.ApplyAsync),
+            M("GpsAddressCachePlaceColumnsMigration", GpsAddressCachePlaceColumnsMigration.ApplyAsync),
             M("NotificationCenterMigration", NotificationCenterMigration.ApplyAsync),
             M("NotificationCenterV2Migration", NotificationCenterV2Migration.ApplyAsync),
             // Runs before NotificationTenantIsolation so a missing UserPresence is fixed even when later migrations fail.
@@ -94,6 +95,7 @@ public static class DatabaseMigrationRegistry
             M("GpsControlCenterFoundationMigration", GpsControlCenterFoundationMigration.ApplyAsync),
             M("PlatformNavigationCleanupMigration", PlatformNavigationCleanupMigration.ApplyAsync),
             M("GpsOperatorRoleTemplateMigration", GpsOperatorRoleTemplateMigration.ApplyAsync),
+            M("BranchesViewPermissionMigration", BranchesViewPermissionMigration.ApplyAsync),
         ];
     }
 }

@@ -12,6 +12,10 @@
   flex-direction: column;
   gap: 14px;
   height: 100%;
+  width: 100%;
+  text-align: left;
+  color: inherit;
+  font: inherit;
   transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s ease, border-color 0.2s ease;
 
   @media (hover: hover) {
@@ -20,6 +24,22 @@
       box-shadow: var(--stb-shadow-hover);
       border-color: rgba(15, 118, 110, 0.28);
     }
+  }
+
+  &--clickable {
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+
+    &:focus-visible {
+      outline: 2px solid var(--stb-primary, #0F766E);
+      outline-offset: 2px;
+    }
+  }
+
+  &.is-selected {
+    border-color: var(--stb-primary, #0F766E);
+    box-shadow: 0 0 0 2px rgba(15, 118, 110, 0.22), var(--stb-shadow);
   }
 }
 

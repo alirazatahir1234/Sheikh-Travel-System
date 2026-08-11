@@ -162,7 +162,7 @@ public class GetVehicleGpsQueryHandler(
                 @"SELECT v.GpsDeviceId,
                          gd.Name AS DeviceName, gd.UniqueId, gd.IsActive, gd.LastSeenAt, gd.LastIgnition,
                          vcl.Latitude, vcl.Longitude, vcl.Speed, vcl.LastUpdate,
-                         gd.SimNumber, COALESCE(tm.Name, gd.Model) AS ModelName, tb.Name AS BrandName,
+                         gd.SimNumber, COALESCE(tm.Name, gd.Model, gd.Name) AS ModelName, tb.Name AS BrandName,
                          gd.InstallationDate,
                          vcl.TotalDistanceKm, vcl.BatteryLevel, vcl.GsmSignal, vcl.Address,
                          CASE

@@ -4,7 +4,7 @@ namespace SheikhTravelSystem.Application.Features.GpsTracking.Services;
 
 public static class GpsTripDetector
 {
-    private const decimal MovingSpeedKmh = 5m;
+    private const decimal MovingSpeedKmh = 10m;
     private const int StopMinutesThreshold = 5;
 
     public static List<GpsTripDto> DetectTrips(
@@ -60,8 +60,8 @@ public static class GpsTripDetector
                     prev.Latitude, prev.Longitude, point.Latitude, point.Longitude);
             }
 
-            var moving = point.Ignition == true || point.Speed > MovingSpeedKmh;
-            var stopped = point.Ignition == false || point.Speed <= MovingSpeedKmh;
+            var moving = point.Ignition != false && point.Speed >= MovingSpeedKmh;
+            var stopped = point.Ignition == false || point.Speed < MovingSpeedKmh;
 
             if (tripStart is null && moving)
             {

@@ -42,7 +42,10 @@
             <app-wizard-step-gps
               [gpsForm]="facade.gpsForm"
               [unassignedDevices]="facade.unassignedDevices()"
-              [gpsAssigned]="facade.gpsAssigned()" />
+              [assignedTracker]="facade.assignedTracker()"
+              [changingTracker]="facade.changingTracker()"
+              (changeTracker)="facade.startChangingTracker()"
+              (cancelChange)="facade.cancelChangingTracker()" />
           }
           @case ('documents') {
             <app-wizard-step-documents

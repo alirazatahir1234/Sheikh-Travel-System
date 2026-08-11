@@ -1,5 +1,5 @@
 import {
-  Component, Input, OnChanges, OnDestroy, AfterViewInit, ElementRef, ViewChild, SimpleChanges, Output, EventEmitter
+  Component, Input, OnChanges, OnDestroy, AfterViewInit, ElementRef, ViewChild, SimpleChanges, Output, EventEmitter, ChangeDetectorRef
 } from '@angular/core';
 import { TripEvent, TripReplayPosition, TripStop } from '../../../../core/models/gps-tracking.model';
 import {
@@ -13,11 +13,11 @@ import { createMarkerClusterGroup, L } from '../../../../core/leaflet/leaflet-cl
 import { GoogleTrafficBasemap } from '../../../../core/leaflet/google-traffic-basemap';
 import { GoogleMapsLoaderService } from '../../../../core/services/google-maps-loader.service';
 import {
-  createFleetVehicleDivIcon,
   buildFleetVehiclePopup,
   resolveReplayStatus
 } from '../../../../core/leaflet/fleet-vehicle-marker';
 import type * as LeafletTypes from 'leaflet';
+import { splitDisplayAddress } from '../../utils/gps-address.util';
 @Component({
   standalone: false,
   selector: 'app-trip-replay-map',
@@ -47,7 +47,7 @@ export class TripReplayMapComponent implements AfterViewInit, OnChanges, OnDestr
   @Input() showStopsLayer = true;
   @Input() showParkingLayer = true;
   @Input() showGeofencesLayer = true;
-  @Input() showHeatmap = true;
+  @Input() showHeatmap = false;
   @Input() showRouteLayer = true;
   @Output() positionSelected = new EventEmitter<TripReplayPosition>();
   @Output() retryRequested = new EventEmitter<void>();
@@ -59,8 +59,8 @@ export class TripReplayMapComponent implements AfterViewInit, OnChanges, OnDestr
   mapTheme: MapTheme = readStoredMapTheme();
   mapThemeMenuOpen = false;
   readonly mapThemeOptions = MAP_THEME_OPTIONS;
-  readonly speedOptions = [0.5, 1, 2, 4, 5, 8, 10, 16];
-  readonly historySpeedOptions = [1, 2, 5, 10];
+  readonly speedOptions = [0.5, 1, 2, 4, 8, 16];
+  readonly historySpeedOptions = [0.5, 1, 2, 4, 8, 16];
   replayIndex = 0;
 
   private map: LeafletTypes.Map | null = null;
@@ -74,7 +74,10 @@ export class TripReplayMapComponent implements AfterViewInit, OnChanges, OnDestr
   private readonly trafficBasemap = new GoogleTrafficBasemap();
   private scrubDebounce?: ReturnType<typeof setTimeout>;
 
-  constructor(private googleMapsLoader: GoogleMapsLoaderService) {}
+  constructor(
+    private googleMapsLoader: GoogleMapsLoaderService,
+    private cdr: ChangeDetectorRef
+  ) {}
 
   get replayProgress(): number {
     if (!this.positions.length) return 0;
@@ -83,6 +86,14 @@ export class TripReplayMapComponent implements AfterViewInit, OnChanges, OnDestr
 
   get currentPosition(): TripReplayPosition | null {
     return this.positions[this.replayIndex] ?? null;
+  }
+
+  addressPrimary(address?: string | null): string {
+    return splitDisplayAddress(address).primary || address?.trim() || 'Address unavailable';
+  }
+
+  addressSecondary(address?: string | null): string | null {
+    return splitDisplayAddress(address).secondary;
   }
 
   get startTimeLabel(): string {
@@ -239,6 +250,33 @@ export class TripReplayMapComponent implements AfterViewInit, OnChanges, OnDestr
     if (!this.positions.length) return;
     this.replayIndex = this.positions.length - 1;
     this.updateReplayMarker();
+  }
+
+  /** Seek playback to the nearest point for a stop and center the map. */
+  focusStop(lat: number, lng: number, at?: string | Date): void {
+    if (!this.positions.length) return;
+    this.stopReplayTimer();
+    if (at) {
+      this.jumpToTimestamp(new Date(at).getTime());
+    } else {
+      let best = 0;
+      let bestDist = Number.MAX_SAFE_INTEGER;
+      for (let i = 0; i < this.positions.length; i++) {
+        const p = this.positions[i];
+        const dLat = p.latitude - lat;
+        const dLng = p.longitude - lng;
+        const dist = dLat * dLat + dLng * dLng;
+        if (dist < bestDist) {
+          bestDist = dist;
+          best = i;
+        }
+      }
+      this.replayIndex = best;
+      this.updateReplayMarker();
+    }
+    if (this.map) {
+      this.map.setView([lat, lng], Math.max(this.map.getZoom(), 15), { animate: true });
+    }
   }
 
   stepBack(): void {
@@ -414,14 +452,14 @@ export class TripReplayMapComponent implements AfterViewInit, OnChanges, OnDestr
       } else {
         L.polyline(
           drawPoints.map(p => [p.latitude, p.longitude] as [number, number]),
-          { color: '#2563eb', weight: 5, opacity: 0.9 }
+          { color: '#1d4ed8', weight: 7, opacity: 1 }
         ).addTo(layer);
       }
 
       const start = pathPoints[0];
       const end = pathPoints[pathPoints.length - 1];
-      this.addEndpointMarker(layer, start, 'START', '#059669');
-      this.addEndpointMarker(layer, end, 'END', '#dc2626');
+      this.addEndpointMarker(layer, start, 'Start', '#059669', 'flag-start');
+      this.addEndpointMarker(layer, end, 'End', '#dc2626', 'flag-end');
     }
 
     if (this.showGeofencesLayer) {
@@ -449,7 +487,17 @@ export class TripReplayMapComponent implements AfterViewInit, OnChanges, OnDestr
         fillColor: isParking ? '#93c5fd' : '#fde047',
         fillOpacity: 0.95
       }).bindPopup(
-        `<strong>${isParking ? 'Parking' : 'Stop'}</strong><br>${stop.durationMinutes} min<br>${stop.address ?? ''}`
+        (() => {
+          const kind = isParking ? 'Parking' : 'Stop';
+          const lines = splitDisplayAddress(stop.address);
+          const primary = lines.primary || stop.address?.trim() || 'Address unavailable';
+          const secondary = lines.secondary ? `<br><span style="color:#64748b">${lines.secondary}</span>` : '';
+          const when = new Date(stop.startTime).toLocaleTimeString(undefined, {
+            hour: 'numeric',
+            minute: '2-digit'
+          });
+          return `<strong>${kind} — ${primary}</strong>${secondary}<br>${when} · ${stop.durationMinutes} min`;
+        })()
       ).addTo(layer);
     });
 
@@ -496,16 +544,40 @@ export class TripReplayMapComponent implements AfterViewInit, OnChanges, OnDestr
     layer: LeafletTypes.LayerGroup,
     p: TripReplayPosition,
     label: string,
-    color: string
+    color: string,
+    kind: 'flag-start' | 'flag-end' = 'flag-start'
   ): void {
+    const time = new Date(p.timestamp).toLocaleString(undefined, {
+      day: '2-digit',
+      month: 'short',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+    const address = (p.address?.trim() || `${p.latitude.toFixed(5)}, ${p.longitude.toFixed(5)}`);
+    const lines = splitDisplayAddress(p.address);
+    const primary = lines.primary || address;
+    const secondary = lines.secondary
+      ? `<br><span style="color:#64748b">${lines.secondary}</span>`
+      : '';
+    const glyph = kind === 'flag-start' ? '▶' : '🏁';
     const icon = L.divIcon({
       className: 'replay-endpoint-wrap',
-      html: `<div class="replay-endpoint" style="background:${color}">${label}</div>`,
-      iconSize: [48, 24],
-      iconAnchor: [24, 12]
+      html: `<div class="replay-flag" style="--flag:${color}">
+        <span class="replay-flag__pin">${glyph}</span>
+        <span class="replay-flag__meta">
+          <strong>${label}</strong>
+          <small>${time}</small>
+        </span>
+      </div>`,
+      iconSize: [120, 40],
+      iconAnchor: [16, 36]
     });
     L.marker([p.latitude, p.longitude], { icon, zIndexOffset: 1200 })
-      .bindPopup(this.popupHtml(p, label))
+      .bindPopup(
+        `<strong>${label}</strong><br>${time}<br><strong>${primary}</strong>${secondary}<br>` +
+          `<span style="color:#94a3b8;font-size:11px">${p.latitude.toFixed(5)}, ${p.longitude.toFixed(5)}</span><br>` +
+          `${Number(p.speedKmh ?? 0).toFixed(0)} km/h`
+      )
       .addTo(layer);
   }
 
@@ -536,19 +608,7 @@ export class TripReplayMapComponent implements AfterViewInit, OnChanges, OnDestr
   }
 
   private createVehicleMarker(p: TripReplayPosition): LeafletTypes.Marker {
-    const status = resolveReplayStatus(p.speedKmh, p.ignition);
-    const badge =
-      status === 'sos' ? 'sos' :
-      p.ignition === true && status !== 'moving' ? 'ignition' :
-      status === 'parked' ? 'parked' :
-      null;
-    const icon = createFleetVehicleDivIcon({
-      status,
-      heading: p.heading,
-      vehicleType: this.vehicleType,
-      badge,
-      size: 32
-    });
+    const icon = this.buildNavArrowIcon(p.heading ?? 0);
     const marker = L.marker([p.latitude, p.longitude], { icon, zIndexOffset: 1000 });
     marker.bindPopup(this.vehiclePopupHtml(p));
     marker.on('click', () => {
@@ -560,6 +620,25 @@ export class TripReplayMapComponent implements AfterViewInit, OnChanges, OnDestr
       this.positionSelected.emit(p);
     });
     return marker;
+  }
+
+  private buildNavArrowIcon(heading: number): LeafletTypes.DivIcon {
+    return L.divIcon({
+      className: 'replay-nav-wrap',
+      html: `<div class="replay-nav-arrow" style="transform:rotate(${heading}deg)">
+        <svg viewBox="0 0 32 32" width="32" height="32" aria-hidden="true">
+          <defs>
+            <filter id="navShadow" x="-40%" y="-40%" width="180%" height="180%">
+              <feDropShadow dx="0" dy="1.5" stdDeviation="1.2" flood-opacity="0.35"/>
+            </filter>
+          </defs>
+          <path filter="url(#navShadow)" d="M16 3 L27 27 L16 21 L5 27 Z"
+            fill="#1d4ed8" stroke="#ffffff" stroke-width="2" stroke-linejoin="round"/>
+        </svg>
+      </div>`,
+      iconSize: [32, 32],
+      iconAnchor: [16, 16]
+    });
   }
 
   private vehiclePopupHtml(p: TripReplayPosition): string {
@@ -609,31 +688,29 @@ export class TripReplayMapComponent implements AfterViewInit, OnChanges, OnDestr
   private advanceReplay(): void {
     if (this.replayIndex >= this.positions.length - 1) {
       this.stopReplayTimer();
+      this.cdr.markForCheck();
       return;
     }
     this.replayIndex++;
     this.updateReplayMarker();
     const pos = this.currentPosition;
     if (pos) this.positionSelected.emit(pos);
+    this.cdr.markForCheck();
   }
 
   private updateReplayMarker(): void {
     const row = this.currentPosition;
-    if (!row || !this.replayMarker) return;
-    this.replayMarker.setLatLng([row.latitude, row.longitude]);
-    const status = resolveReplayStatus(row.speedKmh, row.ignition);
-    const badge =
-      row.ignition === true && status !== 'moving' ? 'ignition' :
-      status === 'parked' ? 'parked' :
-      null;
-    this.replayMarker.setIcon(createFleetVehicleDivIcon({
-      status,
-      heading: row.heading,
-      vehicleType: this.vehicleType,
-      badge,
-      size: 32
-    }));
-    this.replayMarker.bindPopup(this.vehiclePopupHtml(row));
+    if (!row) return;
+    if (!this.replayMarker) {
+      // Marker can be missing briefly after a layer rebuild — recreate so Play still moves.
+      if (!this.map || !this.routeLayer) return;
+      this.replayMarker = this.createVehicleMarker(row);
+      this.replayMarker.addTo(this.routeLayer);
+    } else {
+      this.replayMarker.setLatLng([row.latitude, row.longitude]);
+      this.replayMarker.setIcon(this.buildNavArrowIcon(row.heading ?? 0));
+      this.replayMarker.bindPopup(this.vehiclePopupHtml(row));
+    }
     if (this.followVehicle && this.map) {
       this.map.panTo([row.latitude, row.longitude], { animate: true, duration: 0.25 });
     }
@@ -650,9 +727,16 @@ export class TripReplayMapComponent implements AfterViewInit, OnChanges, OnDestr
 
   private formatMs(ms: number): string {
     const totalSec = Math.max(0, Math.floor(ms / 1000));
-    const m = Math.floor(totalSec / 60);
+    const h = Math.floor(totalSec / 3600);
+    const m = Math.floor((totalSec % 3600) / 60);
     const s = totalSec % 60;
-    return `${m}:${String(s).padStart(2, '0')}`;
+    if (h > 0) {
+      return m > 0 ? `${h} hr ${m} min` : `${h} hr`;
+    }
+    if (m > 0) {
+      return s > 0 ? `${m} min ${s} sec` : `${m} min`;
+    }
+    return `${s} sec`;
   }
 
   private haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {

@@ -7,28 +7,33 @@ using SheikhTravelSystem.Application.Features.Platform;
 
 namespace SheikhTravelSystem.API.Controllers;
 
-[RequirePermission(PlatformPermissions.BranchesManage)]
+[Authorize]
 [ApiController]
 [Route("api/platform/branches")]
 public class BranchesController : BaseApiController
 {
     [HttpGet]
+    [RequirePermission(PlatformPermissions.BranchesView)]
     public async Task<IActionResult> GetAll()
         => Ok(await Mediator.Send(new GetBranchesQuery()));
 
     [HttpGet("{id:int}")]
+    [RequirePermission(PlatformPermissions.BranchesView)]
     public async Task<IActionResult> GetById(int id)
         => Ok(await Mediator.Send(new GetBranchByIdQuery(id)));
 
     [HttpPost]
+    [RequirePermission(PlatformPermissions.BranchesManage)]
     public async Task<IActionResult> Create([FromBody] BranchUpsertPayload payload)
         => Ok(await Mediator.Send(new CreateBranchCommand(payload)));
 
     [HttpPut("{id:int}")]
+    [RequirePermission(PlatformPermissions.BranchesManage)]
     public async Task<IActionResult> Update(int id, [FromBody] BranchUpsertPayload payload)
         => Ok(await Mediator.Send(new UpdateBranchCommand(id, payload)));
 
     [HttpDelete("{id:int}")]
+    [RequirePermission(PlatformPermissions.BranchesManage)]
     public async Task<IActionResult> Delete(int id)
         => Ok(await Mediator.Send(new DeleteBranchCommand(id)));
 }
@@ -351,48 +356,57 @@ public class PlatformDashboardsController : BaseApiController
         => Ok(await Mediator.Send(new UpdateDashboardLayoutCommand(key, payload)));
 }
 
-[RequirePermission(PlatformPermissions.TenantsManage)]
 [ApiController]
 [Route("api/platform/tenants/{tenantId:int}")]
 public class TenantOrganizationController : BaseApiController
 {
     [HttpGet("organization")]
+    [RequirePermission(PlatformPermissions.TenantsView)]
     public async Task<IActionResult> GetOrganizationTree(int tenantId)
         => Ok(await Mediator.Send(new GetOrganizationTreeQuery(tenantId)));
 
     [HttpGet("branches")]
+    [RequirePermission(PlatformPermissions.TenantsView)]
     public async Task<IActionResult> GetBranches(int tenantId)
         => Ok(await Mediator.Send(new GetBranchesForTenantQuery(tenantId)));
 
     [HttpPost("branches")]
+    [RequirePermission(PlatformPermissions.TenantsManage)]
     public async Task<IActionResult> CreateBranch(int tenantId, [FromBody] BranchUpsertPayload payload)
         => Ok(await Mediator.Send(new CreateBranchForTenantCommand(tenantId, payload)));
 
     [HttpPut("branches/{branchId:int}")]
+    [RequirePermission(PlatformPermissions.TenantsManage)]
     public async Task<IActionResult> UpdateBranch(int tenantId, int branchId, [FromBody] BranchUpsertPayload payload)
         => Ok(await Mediator.Send(new UpdateBranchForTenantCommand(tenantId, branchId, payload)));
 
     [HttpDelete("branches/{branchId:int}")]
+    [RequirePermission(PlatformPermissions.TenantsManage)]
     public async Task<IActionResult> DeleteBranch(int tenantId, int branchId)
         => Ok(await Mediator.Send(new DeleteBranchForTenantCommand(tenantId, branchId)));
 
     [HttpGet("departments")]
+    [RequirePermission(PlatformPermissions.TenantsView)]
     public async Task<IActionResult> GetDepartments(int tenantId)
         => Ok(await Mediator.Send(new GetDepartmentsForTenantQuery(tenantId)));
 
     [HttpPost("departments")]
+    [RequirePermission(PlatformPermissions.TenantsManage)]
     public async Task<IActionResult> CreateDepartment(int tenantId, [FromBody] DepartmentUpsertWithBranchPayload payload)
         => Ok(await Mediator.Send(new CreateDepartmentForTenantCommand(tenantId, payload)));
 
     [HttpPut("departments/{departmentId:int}")]
+    [RequirePermission(PlatformPermissions.TenantsManage)]
     public async Task<IActionResult> UpdateDepartment(int tenantId, int departmentId, [FromBody] UpdateDepartmentWithBranchRequest request)
         => Ok(await Mediator.Send(new UpdateDepartmentForTenantCommand(tenantId, departmentId, request.Payload, request.IsActive)));
 
     [HttpDelete("departments/{departmentId:int}")]
+    [RequirePermission(PlatformPermissions.TenantsManage)]
     public async Task<IActionResult> DeleteDepartment(int tenantId, int departmentId)
         => Ok(await Mediator.Send(new DeleteDepartmentForTenantCommand(tenantId, departmentId)));
 
     [HttpPost("departments/{departmentId:int}/move")]
+    [RequirePermission(PlatformPermissions.TenantsManage)]
     public async Task<IActionResult> MoveDepartment(int tenantId, int departmentId, [FromBody] MoveDepartmentRequest request)
         => Ok(await Mediator.Send(new MoveDepartmentCommand(tenantId, departmentId, request.NewBranchId)));
 }

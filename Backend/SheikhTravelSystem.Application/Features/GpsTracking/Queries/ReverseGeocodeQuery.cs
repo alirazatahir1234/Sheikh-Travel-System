@@ -4,7 +4,7 @@ using SheikhTravelSystem.Application.Features.GpsTracking;
 
 namespace SheikhTravelSystem.Application.Features.GpsTracking.Queries;
 
-public record ReverseGeocodeQuery(double Latitude, double Longitude)
+public record ReverseGeocodeQuery(double Latitude, double Longitude, bool ForceRefresh = false)
     : IRequest<ApiResponse<ReverseGeocodeResult>>;
 
 public class ReverseGeocodeQueryHandler(IReverseGeocodingService geocoder)
@@ -17,7 +17,7 @@ public class ReverseGeocodeQueryHandler(IReverseGeocodingService geocoder)
             return ApiResponse<ReverseGeocodeResult>.FailResponse("Invalid coordinates.");
 
         var result = await geocoder.GetAddressAsync(
-            request.Latitude, request.Longitude, forceRefresh: false, cancellationToken);
+            request.Latitude, request.Longitude, request.ForceRefresh, cancellationToken);
 
         if (result is null)
             return ApiResponse<ReverseGeocodeResult>.FailResponse(

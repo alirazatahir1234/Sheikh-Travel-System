@@ -865,6 +865,42 @@ class TripAnalyticsSummary {
   }
 }
 
+class TripAnalyticsBundle {
+  const TripAnalyticsBundle({
+    required this.summary,
+    this.events = const [],
+    this.stops = const [],
+  });
+
+  final TripAnalyticsSummary summary;
+  final List<TripEvent> events;
+  final List<TripStop> stops;
+
+  factory TripAnalyticsBundle.fromJson(Map<String, dynamic> json) {
+    final summaryRaw = json['summary'] ?? json['Summary'];
+    final summaryMap = summaryRaw is Map
+        ? Map<String, dynamic>.from(summaryRaw)
+        : <String, dynamic>{};
+    final eventsRaw = json['events'] ?? json['Events'];
+    final stopsRaw = json['stops'] ?? json['Stops'];
+    return TripAnalyticsBundle(
+      summary: TripAnalyticsSummary.fromJson(summaryMap),
+      events: eventsRaw is List
+          ? eventsRaw
+              .whereType<Map>()
+              .map((e) => TripEvent.fromJson(Map<String, dynamic>.from(e)))
+              .toList()
+          : const [],
+      stops: stopsRaw is List
+          ? stopsRaw
+              .whereType<Map>()
+              .map((e) => TripStop.fromJson(Map<String, dynamic>.from(e)))
+              .toList()
+          : const [],
+    );
+  }
+}
+
 class TripStop {
   const TripStop({
     required this.startTime,
@@ -1086,6 +1122,167 @@ class HistoryReplayBundle {
           (json['mileageKm'] as num? ?? json['MileageKm'] as num?)?.toDouble(),
       vehicle: vehicleCtx,
       gpsDeviceId: deviceId,
+    );
+  }
+}
+
+/// Motion trip from `GET /gps/trips` (Traccar / GpsTrips / detector).
+class GpsTrip {
+  const GpsTrip({
+    required this.vehicleId,
+    required this.startTime,
+    required this.endTime,
+    required this.distanceKm,
+    required this.avgSpeedKmh,
+    required this.maxSpeedKmh,
+    required this.durationMinutes,
+    this.vehicleName,
+    this.gpsDeviceId,
+    this.deviceName,
+    this.startAddress,
+    this.endAddress,
+    this.driverName,
+    this.fuelLiters,
+    this.plateNumber,
+    this.tripKey,
+    this.status,
+  });
+
+  final int vehicleId;
+  final String? vehicleName;
+  final int? gpsDeviceId;
+  final DateTime startTime;
+  final DateTime endTime;
+  final double distanceKm;
+  final double avgSpeedKmh;
+  final double maxSpeedKmh;
+  final int durationMinutes;
+  final String? deviceName;
+  final String? startAddress;
+  final String? endAddress;
+  final String? driverName;
+  final double? fuelLiters;
+  final String? plateNumber;
+  final String? tripKey;
+  final String? status;
+
+  factory GpsTrip.fromJson(Map<String, dynamic> json) {
+    return GpsTrip(
+      vehicleId: json['vehicleId'] as int? ?? json['VehicleId'] as int? ?? 0,
+      vehicleName:
+          json['vehicleName'] as String? ?? json['VehicleName'] as String?,
+      gpsDeviceId:
+          json['gpsDeviceId'] as int? ?? json['GpsDeviceId'] as int?,
+      startTime: _parseDate(json['startTime'] ?? json['StartTime']) ??
+          DateTime.fromMillisecondsSinceEpoch(0),
+      endTime: _parseDate(json['endTime'] ?? json['EndTime']) ??
+          DateTime.fromMillisecondsSinceEpoch(0),
+      distanceKm:
+          (json['distanceKm'] as num? ?? json['DistanceKm'] as num? ?? 0)
+              .toDouble(),
+      avgSpeedKmh:
+          (json['avgSpeedKmh'] as num? ?? json['AvgSpeedKmh'] as num? ?? 0)
+              .toDouble(),
+      maxSpeedKmh:
+          (json['maxSpeedKmh'] as num? ?? json['MaxSpeedKmh'] as num? ?? 0)
+              .toDouble(),
+      durationMinutes: json['durationMinutes'] as int? ??
+          json['DurationMinutes'] as int? ??
+          0,
+      deviceName: json['deviceName'] as String? ?? json['DeviceName'] as String?,
+      startAddress:
+          json['startAddress'] as String? ?? json['StartAddress'] as String?,
+      endAddress:
+          json['endAddress'] as String? ?? json['EndAddress'] as String?,
+      driverName:
+          json['driverName'] as String? ?? json['DriverName'] as String?,
+      fuelLiters: (json['fuelLiters'] as num? ?? json['FuelLiters'] as num?)
+          ?.toDouble(),
+      plateNumber:
+          json['plateNumber'] as String? ?? json['PlateNumber'] as String?,
+      tripKey: json['tripKey'] as String? ?? json['TripKey'] as String?,
+      status: json['status'] as String? ?? json['Status'] as String?,
+    );
+  }
+}
+
+/// Per-trip replay payload from `GET /gps/trips/{tripKey}`.
+class TripDetailBundle {
+  const TripDetailBundle({
+    required this.trip,
+    required this.route,
+    required this.playback,
+    this.stops = const [],
+    this.events = const [],
+    this.summary,
+  });
+
+  final GpsTrip trip;
+  final List<HistoryReplayPoint> route;
+  final List<HistoryReplayPoint> playback;
+  final List<TripStop> stops;
+  final List<TripEvent> events;
+  final TripReplaySummary? summary;
+
+  HistoryReplayBundle toHistoryReplayBundle({bool includeStops = true}) {
+    return HistoryReplayBundle(
+      route: route,
+      playback: playback,
+      stops: includeStops ? stops : const [],
+      events: events,
+      summary: summary,
+      mileageKm: trip.distanceKm,
+      vehicle: TripDeviceContext(
+        vehicleId: trip.vehicleId,
+        vehicleName: trip.vehicleName,
+        plateNumber: trip.plateNumber,
+        gpsDeviceId: trip.gpsDeviceId,
+        deviceName: trip.deviceName,
+      ),
+      gpsDeviceId: trip.gpsDeviceId,
+    );
+  }
+
+  factory TripDetailBundle.fromJson(Map<String, dynamic> json) {
+    List<HistoryReplayPoint> parsePoints(Object? raw) {
+      if (raw is! List) return const [];
+      return raw
+          .whereType<Map>()
+          .map((e) => HistoryReplayPoint.fromJson(Map<String, dynamic>.from(e)))
+          .toList();
+    }
+
+    List<TripStop> parseStops(Object? raw) {
+      if (raw is! List) return const [];
+      return raw
+          .whereType<Map>()
+          .map((e) => TripStop.fromJson(Map<String, dynamic>.from(e)))
+          .toList();
+    }
+
+    List<TripEvent> parseEvents(Object? raw) {
+      if (raw is! List) return const [];
+      return raw
+          .whereType<Map>()
+          .map((e) => TripEvent.fromJson(Map<String, dynamic>.from(e)))
+          .toList();
+    }
+
+    final tripRaw = json['trip'] ?? json['Trip'];
+    final tripMap = tripRaw is Map
+        ? Map<String, dynamic>.from(tripRaw)
+        : <String, dynamic>{};
+    final summaryRaw = json['summary'] ?? json['Summary'];
+
+    return TripDetailBundle(
+      trip: GpsTrip.fromJson(tripMap),
+      route: parsePoints(json['route'] ?? json['Route']),
+      playback: parsePoints(json['playback'] ?? json['Playback']),
+      stops: parseStops(json['stops'] ?? json['Stops']),
+      events: parseEvents(json['events'] ?? json['Events']),
+      summary: summaryRaw is Map
+          ? TripReplaySummary.fromJson(Map<String, dynamic>.from(summaryRaw))
+          : null,
     );
   }
 }

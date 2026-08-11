@@ -530,13 +530,50 @@
   gap: 8px;
 
   li {
-    display: grid;
-    grid-template-columns: auto 1fr;
-    gap: 2px 8px;
-    padding: 8px;
     border-radius: 6px;
     background: #f9fafb;
     font-size: 11px;
+  }
+
+  .stops-list__item {
+    cursor: pointer;
+    transition: background 0.15s ease, box-shadow 0.15s ease;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 10px 8px;
+
+    &:hover,
+    &:focus-visible {
+      background: #eff6ff;
+      box-shadow: inset 0 0 0 1px #bfdbfe;
+      outline: none;
+    }
+
+    &--active {
+      background: #dbeafe;
+      box-shadow: inset 0 0 0 1px #3b82f6;
+    }
+  }
+
+  .stop-headline {
+    font-weight: 700;
+    font-size: 0.78rem;
+    color: #0f172a;
+    line-height: 1.35;
+  }
+
+  .stop-locality {
+    color: #64748b;
+    font-size: 0.72rem;
+    line-height: 1.3;
+  }
+
+  .stop-meta {
+    color: #94a3b8;
+    font-size: 0.7rem;
+    font-weight: 600;
+    margin-top: 2px;
   }
 
   .stop-type {
@@ -562,6 +599,28 @@
   .stop-addr {
     grid-column: 1 / -1;
     color: #6b7280;
+  }
+}
+
+.address-block {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+
+  .address-primary {
+    font-weight: 700;
+    color: #0f172a;
+  }
+
+  .address-secondary {
+    font-size: 0.78rem;
+    color: #64748b;
+  }
+
+  .address-coords {
+    font-size: 0.72rem;
+    color: #94a3b8;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   }
 }
 

@@ -16,6 +16,7 @@ import 'fleet_hub_notifier.dart';
 import 'vehicle_commands_sheet.dart';
 import 'widgets/fleet_kpi_strip.dart';
 import 'widgets/vehicle_comms_buttons.dart';
+import 'widgets/vehicle_pulse_icons.dart';
 
 final vehicleFuelProvider =
     FutureProvider.family<VehicleFuelSummary, int>((ref, id) {
@@ -336,22 +337,44 @@ class _GpsTab extends ConsumerWidget {
                 borderRadius: BorderRadius.circular(AppRadii.md),
                 child: SizedBox(
                   height: 200,
-                  child: GoogleMap(
-                    initialCameraPosition: CameraPosition(
-                      target: LatLng(lat!, lng!),
-                      zoom: 15,
+                  child: FutureBuilder<BitmapDescriptor>(
+                    future: VehiclePulseIcons.iconFor(
+                      live?.status ??
+                          resolveFleetStatus(
+                            speed: live?.speed ?? gps.speed,
+                            ignition: live?.ignition ?? gps.lastIgnition,
+                            lastUpdated:
+                                live?.lastUpdated ?? gps.lastUpdate,
+                            hasGps: true,
+                          ),
+                      devicePixelRatio:
+                          MediaQuery.devicePixelRatioOf(context),
                     ),
-                    markers: {
-                      Marker(
-                        markerId: MarkerId('v$vehicleId'),
-                        position: LatLng(lat!, lng!),
-                        rotation: live?.heading ?? 0,
-                      ),
+                    builder: (context, snap) {
+                      return GoogleMap(
+                        initialCameraPosition: CameraPosition(
+                          target: LatLng(lat, lng),
+                          zoom: 15,
+                        ),
+                        markers: {
+                          Marker(
+                            markerId: MarkerId('v$vehicleId'),
+                            position: LatLng(lat, lng),
+                            rotation: live?.heading ?? gps.heading ?? 0,
+                            flat: true,
+                            anchor: const Offset(0.5, 0.5),
+                            icon: snap.data ??
+                                BitmapDescriptor.defaultMarkerWithHue(
+                                  BitmapDescriptor.hueAzure,
+                                ),
+                          ),
+                        },
+                        liteModeEnabled: true,
+                        zoomControlsEnabled: false,
+                        myLocationButtonEnabled: false,
+                        mapToolbarEnabled: false,
+                      );
                     },
-                    liteModeEnabled: true,
-                    zoomControlsEnabled: false,
-                    myLocationButtonEnabled: false,
-                    mapToolbarEnabled: false,
                   ),
                 ),
               ),

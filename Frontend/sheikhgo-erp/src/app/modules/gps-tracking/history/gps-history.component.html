@@ -58,6 +58,7 @@
         <button mat-menu-item (click)="exportClient('excel')"><mat-icon>table_chart</mat-icon> Excel</button>
         <button mat-menu-item (click)="exportClient('csv')"><mat-icon>description</mat-icon> CSV</button>
         <button mat-menu-item (click)="exportServer('gpx')"><mat-icon>route</mat-icon> GPX</button>
+        <button mat-menu-item (click)="exportServer('kml')"><mat-icon>public</mat-icon> KML</button>
         <button mat-menu-item (click)="exportServer('geojson')"><mat-icon>map</mat-icon> GeoJSON</button>
         <button mat-menu-item (click)="printRoute()"><mat-icon>print</mat-icon> Print snapshot</button>
       </mat-menu>
@@ -104,7 +105,7 @@
     </div>
     <div class="qs-item">
       <span class="qs-val">{{ quickStats.idle }}</span>
-      <span class="qs-lbl">Idle / stops</span>
+      <span class="qs-lbl">Non-moving</span>
     </div>
     <div class="qs-item">
       <span class="qs-val">{{ quickStats.stops }}</span>
@@ -205,8 +206,22 @@
                 {{ selectedPosition.ignition == null ? '—' : (selectedPosition.ignition ? 'ON' : 'OFF') }}
               </span>
             </dd>
+            <dt>Motion</dt>
+            <dd>{{ motionLabel(selectedPosition) }}</dd>
             <dt>Address</dt>
-            <dd>{{ addressLabel(selectedPosition) }}</dd>
+            <dd class="address-block">
+              <ng-container *ngIf="addressPrimaryLine(addressLabel(selectedPosition)) as primary; else addrPlain">
+                <strong class="address-primary">{{ primary }}</strong>
+                <span class="address-secondary" *ngIf="addressSecondaryLine(addressLabel(selectedPosition)) as secondary">
+                  {{ secondary }}
+                </span>
+              </ng-container>
+              <ng-template #addrPlain>{{ addressLabel(selectedPosition) }}</ng-template>
+              <span class="address-coords">
+                {{ selectedPosition.latitude | number:'1.5-5' }},
+                {{ selectedPosition.longitude | number:'1.5-5' }}
+              </span>
+            </dd>
             <dt>Battery</dt>
             <dd>{{ selectedPosition.batteryLevel != null ? selectedPosition.batteryLevel + '%' : '—' }}</dd>
             <dt>Altitude</dt>
@@ -237,7 +252,7 @@
             <dd>{{ mileageKm != null ? (mileageKm | number:'1.1-1') + ' km' : '—' }}</dd>
             <dt>Moving time</dt>
             <dd>{{ formatDuration(movingMinutes) }}</dd>
-            <dt>Idle / stopped</dt>
+            <dt>Non-moving time</dt>
             <dd>{{ formatDuration(statistics?.idleMinutes ?? 0) }}</dd>
             <dt>Max speed</dt>
             <dd>{{ statistics?.maxSpeedKmh ?? bundle.summary?.maxSpeedKmh ?? '—' }} km/h</dd>
@@ -268,11 +283,21 @@
       <section class="detail-card" *ngIf="bundle?.stops?.length">
         <h2 class="panel-title"><mat-icon>pause_circle</mat-icon> Stops &amp; parking</h2>
         <ul class="stops-list">
-          <li *ngFor="let s of bundle!.stops | slice:0:15">
-            <span class="stop-type" [class.stop-type--parking]="s.durationMinutes >= 120">{{ stopLabel(s) }}</span>
-            <span class="stop-dur">{{ formatDuration(s.durationMinutes) }}</span>
-            <span class="stop-time">{{ s.startTime | date:'short' }}</span>
-            <span class="stop-addr">{{ s.address ?? '' }}</span>
+          <li
+            *ngFor="let s of bundle!.stops | slice:0:15; let i = index"
+            class="stops-list__item"
+            [class.stops-list__item--active]="selectedStopIndex === i"
+            (click)="focusStop(s, i)"
+            role="button"
+            tabindex="0"
+            (keydown.enter)="focusStop(s, i)">
+            <span class="stop-headline">{{ stopHeadline(s) }}</span>
+            <span class="stop-locality" *ngIf="addressSecondaryLine(stopAddressLabel(s)) as locality">
+              {{ locality }}
+            </span>
+            <span class="stop-meta">
+              {{ s.startTime | date:'shortTime' }} · {{ formatDuration(s.durationMinutes) }}
+            </span>
           </li>
         </ul>
       </section>

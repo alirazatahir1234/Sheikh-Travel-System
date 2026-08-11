@@ -1,6 +1,6 @@
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { Subscription, timer } from 'rxjs';
+import { Subscription, timer, Subject, mergeMap, catchError, of, tap } from 'rxjs';
 import { GpsTrackingService } from '../../../core/services/gps-tracking.service';
 import { VehicleService } from '../../../core/services/vehicle.service';
 import { ExportService, ExportColumn } from '../../../core/services/export.service';
@@ -20,6 +20,13 @@ import {
   formatPeriodLabel,
   toDatetimeLocalInput
 } from '../utils/trip-date-preset.util';
+import { TripReplayMapComponent } from '../shared/trip-replay-map/trip-replay-map.component';
+import { resolveReplayStatus } from '../../../core/leaflet/fleet-vehicle-marker';
+import {
+  formatResolvedAddress,
+  isCoarseAddress,
+  splitDisplayAddress
+} from '../utils/gps-address.util';
 
 const RECENT_VEHICLES_KEY = 'gps_history_recent';
 const MAX_RECENT = 5;
@@ -40,6 +47,7 @@ export type HistoryRouteFilter =
   styleUrls: ['./gps-history.component.scss']
 })
 export class GpsHistoryComponent implements OnInit, OnDestroy {
+  @ViewChild(TripReplayMapComponent) replayMap?: TripReplayMapComponent;
   vehicles: VehicleListItem[] = [];
   devices: GpsDevice[] = [];
   vehicleId: number | null = null;
@@ -68,12 +76,22 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
     { id: 'geofences', label: 'Geofences', icon: 'fence' }
   ];
   activeRouteFilters = new Set<HistoryRouteFilter>([
-    'route', 'heatmap', 'stops', 'parking', 'geofences'
+    'route', 'stops', 'parking', 'geofences'
   ]);
 
   private loadSub?: Subscription;
   private progressTimer?: ReturnType<typeof setInterval>;
   private timeoutTimer?: ReturnType<typeof setTimeout>;
+  private geocodeSub?: Subscription;
+  private readonly geocodeRequests$ = new Subject<{
+    lat: number;
+    lng: number;
+    forceRefresh: boolean;
+    apply: (address: string) => void;
+  }>();
+  private readonly addressCache = new Map<string, string | null>();
+  private resolvingAddressKey: string | null = null;
+  selectedStopIndex: number | null = null;
 
   constructor(
     private gps: GpsTrackingService,
@@ -87,6 +105,35 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.loadRecentVehicles();
     this.applyPreset(this.preset, true);
+
+    this.geocodeSub = this.geocodeRequests$.pipe(
+      // Queue all visible stop/position geocodes (concurrency 2) instead of
+      // debounce+switchMap which cancelled all but the last request.
+      mergeMap(req => {
+        const key = this.addressCacheKey(req.lat, req.lng);
+        if (!req.forceRefresh && this.addressCache.has(key)) {
+          const cached = this.addressCache.get(key);
+          if (cached) req.apply(cached);
+          if (this.resolvingAddressKey === key) this.resolvingAddressKey = null;
+          return of(null);
+        }
+        this.resolvingAddressKey = key;
+        return this.gps.reverseGeocode(req.lat, req.lng, req.forceRefresh).pipe(
+          tap(info => {
+            const address =
+              formatResolvedAddress(info?.formattedAddress, info?.placeName) || null;
+            this.addressCache.set(key, address);
+            if (address) req.apply(address);
+            if (this.resolvingAddressKey === key) this.resolvingAddressKey = null;
+          }),
+          catchError(() => {
+            if (!this.addressCache.has(key)) this.addressCache.set(key, null);
+            if (this.resolvingAddressKey === key) this.resolvingAddressKey = null;
+            return of(null);
+          })
+        );
+      }, 2)
+    ).subscribe();
 
     this.vehicleService.getAll(1, 500).subscribe({
       next: r => {
@@ -104,6 +151,8 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.clearLoadTimers();
     this.loadSub?.unsubscribe();
+    this.geocodeSub?.unsubscribe();
+    this.geocodeRequests$.complete();
   }
 
   get filteredVehicles(): VehicleListItem[] {
@@ -346,6 +395,9 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
         this.bundle = bundle;
         const playback = this.playbackPositions;
         this.selectedPosition = playback[0] ?? bundle.route[0] ?? null;
+        this.selectedStopIndex = null;
+        if (this.selectedPosition) this.ensureAddress(this.selectedPosition);
+        this.enrichStopAddresses(bundle.stops);
         this.loadRawPositions(fromDate, toDate);
       },
       error: err => {
@@ -366,6 +418,123 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
 
   onPositionSelected(pos: TripReplayPosition): void {
     this.selectedPosition = pos;
+    this.ensureAddress(pos);
+  }
+
+  motionLabel(pos: TripReplayPosition | null): string {
+    if (!pos) return '—';
+    const status = resolveReplayStatus(Number(pos.speedKmh) || 0, pos.ignition);
+    switch (status) {
+      case 'moving': return 'Moving';
+      case 'idle': return 'Idle';
+      case 'parked': return 'Parked';
+      default: return status;
+    }
+  }
+
+  addressLabel(pos: TripReplayPosition | null): string {
+    if (!pos) return '—';
+    if (pos.address?.trim() && !isCoarseAddress(pos.address)) return pos.address;
+    const key = this.addressCacheKey(pos.latitude, pos.longitude);
+    if (this.addressCache.has(key)) {
+      const cached = this.addressCache.get(key);
+      return cached?.trim() || pos.address?.trim() || 'Address unavailable';
+    }
+    if (this.resolvingAddressKey === key) return 'Resolving…';
+    return pos.address?.trim() || 'Address unavailable';
+  }
+
+  addressPrimaryLine(address: string | null | undefined): string | null {
+    return splitDisplayAddress(address).primary;
+  }
+
+  addressSecondaryLine(address: string | null | undefined): string | null {
+    return splitDisplayAddress(address).secondary;
+  }
+
+  stopAddressLabel(stop: TripStop): string {
+    if (stop.address?.trim() && !isCoarseAddress(stop.address)) return stop.address;
+    const key = this.addressCacheKey(stop.latitude, stop.longitude);
+    if (this.addressCache.has(key)) {
+      const cached = this.addressCache.get(key);
+      return cached?.trim() || stop.address?.trim() || 'Address unavailable';
+    }
+    if (this.resolvingAddressKey === key) return 'Resolving…';
+    return stop.address?.trim() || 'Address unavailable';
+  }
+
+  /** "Parking — Circular Road, Sialkot" */
+  stopHeadline(stop: TripStop): string {
+    const label = this.stopLabel(stop);
+    const full = this.stopAddressLabel(stop);
+    if (full === 'Resolving…' || full === 'Address unavailable') {
+      return `${label} — ${full}`;
+    }
+    const primary = this.addressPrimaryLine(full) || full;
+    return `${label} — ${primary}`;
+  }
+
+  private ensureAddress(pos: TripReplayPosition): void {
+    const coarse = isCoarseAddress(pos.address);
+    if (pos.address?.trim() && !coarse) return;
+    const key = this.addressCacheKey(pos.latitude, pos.longitude);
+    if (!coarse && this.addressCache.has(key)) {
+      const cached = this.addressCache.get(key);
+      if (cached) this.patchPositionAddress(pos, cached);
+      return;
+    }
+    this.resolvingAddressKey = key;
+    this.geocodeRequests$.next({
+      lat: pos.latitude,
+      lng: pos.longitude,
+      forceRefresh: coarse && !!pos.address?.trim(),
+      apply: addr => this.patchPositionAddress(pos, addr)
+    });
+  }
+
+  private enrichStopAddresses(stops: TripStop[]): void {
+    for (const stop of stops.slice(0, 15)) {
+      this.ensureStopAddress(stop);
+    }
+  }
+
+  private ensureStopAddress(stop: TripStop): void {
+    const coarse = isCoarseAddress(stop.address);
+    if (stop.address?.trim() && !coarse) return;
+    const key = this.addressCacheKey(stop.latitude, stop.longitude);
+    if (!coarse && this.addressCache.has(key)) {
+      const cached = this.addressCache.get(key);
+      if (cached) stop.address = cached;
+      return;
+    }
+    this.resolvingAddressKey = key;
+    this.geocodeRequests$.next({
+      lat: stop.latitude,
+      lng: stop.longitude,
+      forceRefresh: coarse && !!stop.address?.trim(),
+      apply: addr => {
+        stop.address = addr;
+        if (this.bundle) {
+          this.bundle = { ...this.bundle, stops: [...this.bundle.stops] };
+        }
+      }
+    });
+  }
+
+  private patchPositionAddress(pos: TripReplayPosition, address: string): void {
+    pos.address = address;
+    if (
+      this.selectedPosition &&
+      this.selectedPosition.latitude === pos.latitude &&
+      this.selectedPosition.longitude === pos.longitude &&
+      this.selectedPosition.timestamp === pos.timestamp
+    ) {
+      this.selectedPosition = { ...this.selectedPosition, address };
+    }
+  }
+
+  private addressCacheKey(lat: number, lng: number): string {
+    return `${lat.toFixed(5)},${lng.toFixed(5)}`;
   }
 
   headingLabel(heading?: number | null): string {
@@ -376,12 +545,12 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
   }
 
   formatDuration(minutes: number): string {
-    if (!minutes || minutes < 1) return '0m';
+    if (!minutes || minutes < 1) return '0 min';
     const h = Math.floor(minutes / 60);
     const m = minutes % 60;
-    if (h === 0) return `${m}m`;
-    if (m === 0) return `${h}h`;
-    return `${h}h ${m}m`;
+    if (h === 0) return `${m} min`;
+    if (m === 0) return `${h} hr`;
+    return `${h} hr ${m} min`;
   }
 
   vehicleStatusLabel(v: VehicleListItem): string {
@@ -394,12 +563,6 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
     if (v.gpsOnline) return 'online';
     if (v.hasGpsDevice || v.gpsImei || this.deviceFor(v.id)) return 'offline';
     return 'none';
-  }
-
-  addressLabel(pos: TripReplayPosition | null): string {
-    if (!pos) return '—';
-    if (pos.address?.trim()) return pos.address;
-    return 'Address not provided by device';
   }
 
   gsmLabel(pos: TripReplayPosition | null): string {
@@ -453,7 +616,7 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
     else this.exportService.exportPdf(rows, columns, meta);
   }
 
-  exportServer(format: 'gpx' | 'geojson'): void {
+  exportServer(format: 'gpx' | 'geojson' | 'kml'): void {
     if (!this.vehicleId) return;
     const fromDate = new Date(this.from);
     const toDate = new Date(this.to);
@@ -468,6 +631,12 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
       },
       error: () => this.toast.error('Export failed.')
     });
+  }
+
+  focusStop(stop: TripStop, index?: number): void {
+    this.selectedStopIndex = index ?? null;
+    this.ensureStopAddress(stop);
+    this.replayMap?.focusStop(stop.latitude, stop.longitude, stop.startTime);
   }
 
   printRoute(): void {

@@ -47,6 +47,7 @@ import {
 import { ConfirmDialogComponent } from './components/confirm-dialog/confirm-dialog.component';
 import { HelpDialogComponent } from './components/help-dialog/help-dialog.component';
 import { TenantPickerComponent } from './components/tenant-picker/tenant-picker.component';
+import { CompanySelectComponent } from './components/company-select/company-select.component';
 import { AppBrandLoaderComponent } from './components/app-brand-loader/app-brand-loader.component';
 import { SgProgressLoaderComponent } from './components/sg-progress-loader/sg-progress-loader.component';
 import { PhoneDigitsOnlyDirective } from './directives/phone-digits-only.directive';
@@ -76,7 +77,13 @@ const UI = [
 ];
 
 @NgModule({
-  declarations: [...UI, ConfirmDialogComponent, HelpDialogComponent, TenantPickerComponent],
+  declarations: [
+    ...UI,
+    ConfirmDialogComponent,
+    HelpDialogComponent,
+    TenantPickerComponent,
+    CompanySelectComponent
+  ],
   imports: [CommonModule, ReactiveFormsModule, FormsModule, RouterModule, AppBrandLoaderComponent, SgProgressLoaderComponent, PhoneDigitsOnlyDirective, PositiveIntegerOnlyDirective, ...MATERIAL],
   exports: [
     CommonModule, ReactiveFormsModule, FormsModule, RouterModule,
@@ -85,6 +92,7 @@ const UI = [
     ConfirmDialogComponent,
     HelpDialogComponent,
     TenantPickerComponent,
+    CompanySelectComponent,
     AppBrandLoaderComponent,
     SgProgressLoaderComponent,
     PhoneDigitsOnlyDirective,

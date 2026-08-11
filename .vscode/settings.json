@@ -4,5 +4,8 @@
     "**/bin": true,
     "**/obj": true
   },
-  "Codegeex.SidebarUI.LanguagePreference": "English"
+  "Codegeex.SidebarUI.LanguagePreference": "English",
+  "csharp-dev-tools.solutionViewer.selectedWorkspaceSolutions": [
+    "Backend/SheikhTravelSystem.slnx"
+  ]
 }

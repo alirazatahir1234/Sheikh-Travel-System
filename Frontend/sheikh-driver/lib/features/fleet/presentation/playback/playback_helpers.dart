@@ -33,16 +33,43 @@ class PlaybackPolylineSegment {
 
 int indexForTimestamp(List<HistoryReplayPoint> playback, DateTime time) {
   if (playback.isEmpty) return 0;
-  var best = 0;
-  var bestDiff = const Duration(days: 9999);
-  for (var i = 0; i < playback.length; i++) {
-    final diff = playback[i].timestamp.difference(time).abs();
-    if (diff < bestDiff) {
-      bestDiff = diff;
-      best = i;
+  if (playback.length == 1) return 0;
+
+  var low = 0;
+  var high = playback.length - 1;
+  while (low <= high) {
+    final mid = (low + high) >> 1;
+    final ts = playback[mid].timestamp;
+    if (ts.isAtSameMomentAs(time)) {
+      return mid;
+    }
+    if (ts.isBefore(time)) {
+      low = mid + 1;
+    } else {
+      high = mid - 1;
     }
   }
-  return best;
+
+  final right = low.clamp(0, playback.length - 1);
+  final left = (low - 1).clamp(0, playback.length - 1);
+  final leftDiff = playback[left].timestamp.difference(time).abs();
+  final rightDiff = playback[right].timestamp.difference(time).abs();
+  return leftDiff <= rightDiff ? left : right;
+}
+
+int lowerBoundPlaybackIndex(List<HistoryReplayPoint> playback, DateTime time) {
+  if (playback.isEmpty) return 0;
+  var low = 0;
+  var high = playback.length;
+  while (low < high) {
+    final mid = (low + high) >> 1;
+    if (playback[mid].timestamp.isBefore(time)) {
+      low = mid + 1;
+    } else {
+      high = mid;
+    }
+  }
+  return low.clamp(0, playback.length - 1);
 }
 
 String headingToCardinal(double? degrees) {
@@ -233,6 +260,39 @@ double _haversineKm(double lat1, double lon1, double lat2, double lon2) {
 
 double _deg2rad(double deg) => deg * (math.pi / 180);
 
+/// Human-readable duration from whole minutes (e.g. `14 min`, `2 hr 14 min`).
+String formatDurationMinutes(int minutes) {
+  if (minutes <= 0) return '0 min';
+  if (minutes < 60) return '$minutes min';
+  final h = minutes ~/ 60;
+  final m = minutes % 60;
+  if (m == 0) return '$h hr';
+  return '$h hr $m min';
+}
+
+/// Human-readable duration from seconds (e.g. `14 min 20 sec`, `2 hr 14 min`).
+String formatDurationSeconds(int totalSeconds) {
+  if (totalSeconds <= 0) return '0 sec';
+  final h = totalSeconds ~/ 3600;
+  final m = (totalSeconds % 3600) ~/ 60;
+  final s = totalSeconds % 60;
+  if (h > 0) {
+    if (m == 0) return '$h hr';
+    return '$h hr $m min';
+  }
+  if (m > 0) {
+    if (s == 0) return '$m min';
+    return '$m min $s sec';
+  }
+  return '$s sec';
+}
+
+String formatDistanceKm(double km) {
+  if (km <= 0) return '0 km';
+  if (km < 10) return '${km.toStringAsFixed(2)} km';
+  return '${km.toStringAsFixed(1)} km';
+}
+
 String buildGpx(List<HistoryReplayPoint> route, {String? name}) {
   final title = name ?? 'SheikhGo replay';
   final lines = <String>[
@@ -275,16 +335,38 @@ String buildCsv(List<HistoryReplayPoint> route) {
   return lines.join('\n');
 }
 
+String buildKml(List<HistoryReplayPoint> route, {String? name}) {
+  final title = (name ?? 'SheikhGo replay')
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;');
+  final coords = route
+      .map((p) => '${p.longitude},${p.latitude},0')
+      .join(' ');
+  return '''<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <name>$title</name>
+    <Placemark>
+      <name>$title</name>
+      <Style>
+        <LineStyle><color>ffed4d1d</color><width>4</width></LineStyle>
+      </Style>
+      <LineString>
+        <tessellate>1</tessellate>
+        <coordinates>$coords</coordinates>
+      </LineString>
+    </Placemark>
+  </Document>
+</kml>''';
+}
+
 String buildTripNarrative(HistoryReplayBundle bundle) {
-  final stats = bundle.statistics;
-  final summary = bundle.summary;
-  final dist = bundle.mileageKm ??
-      stats?.distanceKm ??
-      summary?.distanceKm ??
-      0;
-  final driveMin = stats?.drivingMinutes ?? summary?.drivingMinutes ?? 0;
-  final idle = stats?.idleMinutes ?? 0;
-  final overs = stats?.overspeedCount ?? 0;
+  final stats = PlaybackStats.fromBundle(bundle);
+  final dist = stats.distanceKm;
+  final driveMin = stats.drivingMinutes;
+  final idle = stats.idleMinutes;
+  final overs = stats.overspeedCount;
   final stops = bundle.stops.length;
   final geofence = bundle.events
       .where((e) => e.type.toLowerCase().contains('geofence'))
@@ -295,4 +377,138 @@ String buildTripNarrative(HistoryReplayBundle bundle) {
       'idled $idle min, '
       '$stops stop(s)'
       '${geofence > 0 ? ", $geofence geofence event(s)" : ""}.';
+}
+
+/// Points used for ticker animation. Prefers dense [HistoryReplayBundle.route]
+/// when playback is empty/sparse so the marker follows the drawn polyline.
+List<HistoryReplayPoint> effectivePlaybackPoints(HistoryReplayBundle bundle) {
+  final route = bundle.route;
+  final playback = bundle.playback;
+  if (route.length >= 2 &&
+      (playback.length < 2 || route.length >= playback.length * 2)) {
+    return route;
+  }
+  return bundle.points;
+}
+
+/// Prefers API mileage when present; otherwise integrates the trail polyline.
+double effectiveDistanceKm(HistoryReplayBundle bundle) {
+  final fromApi = bundle.mileageKm ??
+      bundle.statistics?.distanceKm ??
+      bundle.summary?.distanceKm;
+  if (fromApi != null && fromApi > 0) return fromApi;
+  final trail =
+      bundle.trailPoints.isNotEmpty ? bundle.trailPoints : bundle.points;
+  if (trail.isEmpty) return 0;
+  return distanceAlongTrailKm(trail, trail.length - 1);
+}
+
+/// Uses backend driving minutes when plausible, otherwise derives a motion-based
+/// driving duration from replay points to avoid inflated 24h-style values.
+int effectiveDrivingMinutes(HistoryReplayBundle bundle) {
+  final stats = bundle.statistics;
+  final summary = bundle.summary;
+  final serverMinutes = stats?.drivingMinutes ?? summary?.drivingMinutes ?? 0;
+  final points = bundle.trailPoints.isNotEmpty ? bundle.trailPoints : bundle.points;
+  final derivedMinutes = _deriveDrivingMinutesFromPoints(points);
+  if (derivedMinutes <= 0) return serverMinutes;
+  if (serverMinutes <= 0) return derivedMinutes;
+
+  final distanceKm = bundle.mileageKm ??
+      stats?.distanceKm ??
+      summary?.distanceKm ??
+      0;
+
+  // Guardrail: short-distance trips should not report near-day driving windows.
+  if (distanceKm <= 10 && serverMinutes > (derivedMinutes * 3)) {
+    return derivedMinutes;
+  }
+  // General sanity: if backend value is dramatically larger than point-derived
+  // movement time, prefer point-derived.
+  if (serverMinutes > (derivedMinutes * 4)) {
+    return derivedMinutes;
+  }
+  return serverMinutes;
+}
+
+int _deriveDrivingMinutesFromPoints(List<HistoryReplayPoint> points) {
+  if (points.length < 2) return 0;
+  var movingMinutes = 0.0;
+
+  for (var i = 1; i < points.length; i++) {
+    final a = points[i - 1];
+    final b = points[i];
+    final delta = b.timestamp.difference(a.timestamp).inSeconds;
+    if (delta <= 0) continue;
+    if (delta > 20 * 60) continue;
+
+    final segKm = segmentDistanceKm(a, b);
+    final movingBySpeed = a.speedKmh >= 3 || b.speedKmh >= 3;
+    final movingByIgnition =
+        (a.ignition == true || b.ignition == true) &&
+        (a.speedKmh > 0 || b.speedKmh > 0);
+    final movingByDistance = segKm >= 0.03;
+
+    if (movingBySpeed || movingByIgnition || movingByDistance) {
+      movingMinutes += delta / 60.0;
+    }
+  }
+
+  return movingMinutes.round();
+}
+
+class PlaybackStats {
+  const PlaybackStats({
+    required this.distanceKm,
+    required this.drivingMinutes,
+    required this.idleMinutes,
+    required this.stopCount,
+    required this.avgSpeedKmh,
+    required this.maxSpeedKmh,
+    required this.overspeedCount,
+    required this.sosCount,
+    required this.fuelEvents,
+    required this.ignitionEvents,
+  });
+
+  final double distanceKm;
+  final int drivingMinutes;
+  final int idleMinutes;
+  final int stopCount;
+  final double avgSpeedKmh;
+  final double maxSpeedKmh;
+  final int overspeedCount;
+  final int sosCount;
+  final int fuelEvents;
+  final int ignitionEvents;
+
+  factory PlaybackStats.fromBundle(HistoryReplayBundle bundle) {
+    final summary = bundle.summary;
+    final stats = bundle.statistics;
+    final events = bundle.events;
+    final stopCount = stats?.stopCount ?? bundle.stops.length;
+    final overspeed = stats?.overspeedCount ??
+        events.where((e) => e.type.toLowerCase().contains('speed')).length;
+    final sos = events
+        .where((e) => e.type.toLowerCase().contains('sos'))
+        .length;
+    final fuel = events
+        .where((e) => e.type.toLowerCase().contains('fuel'))
+        .length;
+    final ignition = events
+        .where((e) => e.type.toLowerCase().contains('ignition'))
+        .length;
+    return PlaybackStats(
+      distanceKm: bundle.mileageKm ?? stats?.distanceKm ?? summary?.distanceKm ?? 0,
+      drivingMinutes: effectiveDrivingMinutes(bundle),
+      idleMinutes: stats?.idleMinutes ?? 0,
+      stopCount: stopCount,
+      avgSpeedKmh: stats?.avgSpeedKmh ?? summary?.avgSpeedKmh ?? 0,
+      maxSpeedKmh: stats?.maxSpeedKmh ?? summary?.maxSpeedKmh ?? 0,
+      overspeedCount: overspeed,
+      sosCount: sos,
+      fuelEvents: fuel,
+      ignitionEvents: ignition,
+    );
+  }
 }

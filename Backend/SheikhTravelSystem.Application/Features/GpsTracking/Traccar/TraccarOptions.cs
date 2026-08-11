@@ -26,10 +26,17 @@ public class TraccarOptions
     /// <summary>Any vehicle ≥ this speed (km/h) → moving interval.</summary>
     public decimal MovingSpeedKmh { get; set; } = 10m;
 
+    /// <summary>
+    /// When ignition is null, speeds above this (km/h) are treated as Moving so missing
+    /// ignition never forces the Parked (multi-minute) sync cadence.
+    /// </summary>
+    public decimal UnknownIgnitionMovingSpeedKmh { get; set; } = 2m;
+
     public int MovingIntervalSeconds { get; set; } = 5;
     public int SlowTrafficIntervalSeconds { get; set; } = 15;
     public int IdleIntervalSeconds { get; set; } = 30;
-    public int ParkedIntervalSeconds { get; set; } = 300;
+    /// <summary>Only used when ignition is explicitly OFF for the whole fleet sample.</summary>
+    public int ParkedIntervalSeconds { get; set; } = 30;
 
     public int ResolvedPositionIntervalSeconds =>
         PositionSyncIntervalSeconds > 0

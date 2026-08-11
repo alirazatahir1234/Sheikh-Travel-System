@@ -55,6 +55,18 @@ describe('tracker-status.util', () => {
     });
 
     expect(isTrackerMoving(d, now)).toBe(false);
-    expect(resolveTrackerStatus(d, now).label).toBe('Online');
+    expect(resolveTrackerStatus(d, now).label).toBe('Idle');
+  });
+
+  it('marks ignition OFF with drift speed as parked', () => {
+    const d = device({
+      isOnline: true,
+      lastSeenAt: new Date(now - 30_000).toISOString(),
+      lastSpeed: 5,
+      lastIgnition: false,
+    });
+
+    expect(isTrackerMoving(d, now)).toBe(false);
+    expect(resolveTrackerStatus(d, now).key).toBe('parked');
   });
 });

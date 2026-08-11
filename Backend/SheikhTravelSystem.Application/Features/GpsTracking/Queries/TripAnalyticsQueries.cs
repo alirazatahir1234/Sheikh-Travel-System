@@ -291,7 +291,8 @@ public class GetGpsFleetStatusQueryHandler(
     IOptions<TraccarOptions> traccarOptions)
     : IRequestHandler<GetGpsFleetStatusQuery, ApiResponse<GpsFleetStatusDto>>
 {
-    private const double MovingSpeedKnots = 2.0;
+    /// <summary>~10 km/h in knots (Traccar position speed unit).</summary>
+    private const double MovingSpeedKnots = 5.4;
 
     public async Task<ApiResponse<GpsFleetStatusDto>> Handle(GetGpsFleetStatusQuery request, CancellationToken cancellationToken)
     {
@@ -339,11 +340,11 @@ public class GetGpsFleetStatusQueryHandler(
             speedSum += speedKnots * 1.852;
             speedCount++;
 
-            // Speed wins over Ignition OFF (align with resolveFleetStatus / local calculator).
-            if (speedKnots > MovingSpeedKnots)
-                moving++;
-            else if (pos.Attributes?.Ignition == false)
+            // Ignition OFF → Parked (ignore GPS drift). Else speed >= threshold → Moving.
+            if (pos.Attributes?.Ignition == false)
                 parked++;
+            else if (speedKnots > MovingSpeedKnots)
+                moving++;
             else
                 idle++;
         }
@@ -480,7 +481,7 @@ public class GetGpsOperatorDashboardQueryHandler(
             """
             SELECT COUNT(*) FROM GpsTrips t
             INNER JOIN Vehicles v ON v.Id = t.VehicleId AND v.TenantId = @TenantId
-            WHERE t.IsDeleted = 0 AND t.StartTime >= @TodayStart
+            WHERE t.StartTime >= @TodayStart
             """,
             new { TenantId = tenantId, TodayStart = todayStart },
             cancellationToken: cancellationToken));
@@ -490,7 +491,7 @@ public class GetGpsOperatorDashboardQueryHandler(
             SELECT SUM(ISNULL(t.DistanceKm, 0))
             FROM GpsTrips t
             INNER JOIN Vehicles v ON v.Id = t.VehicleId AND v.TenantId = @TenantId
-            WHERE t.IsDeleted = 0 AND t.StartTime >= @TodayStart
+            WHERE t.StartTime >= @TodayStart
             """,
             new { TenantId = tenantId, TodayStart = todayStart },
             cancellationToken: cancellationToken));

@@ -109,6 +109,7 @@ export interface CreateUserDto {
   phone: string;
   role: UserRole;
   platformRoleCode?: string | null;
+  companyId?: number | null;
   branchId?: number | null;
   departmentId?: number | null;
   jobTitle?: string | null;
@@ -130,6 +131,7 @@ export interface UpdateUserDto {
   phone: string;
   role: UserRole;
   isActive: boolean;
+  companyId?: number | null;
   branchId?: number | null;
   departmentId?: number | null;
   jobTitle?: string | null;

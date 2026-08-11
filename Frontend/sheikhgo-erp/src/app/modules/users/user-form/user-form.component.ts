@@ -3,7 +3,7 @@ import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { forkJoin, of, Subject, switchMap, takeUntil } from 'rxjs';
-import { catchError, debounceTime, distinctUntilChanged, filter } from 'rxjs/operators';
+import { catchError, debounceTime, distinctUntilChanged, filter, map } from 'rxjs/operators';
 import { StepperSelectionEvent } from '@angular/cdk/stepper';
 import { MatStepper } from '@angular/material/stepper';
 import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
@@ -20,6 +20,7 @@ import {
   EMPLOYEE_TYPES,
   AssignedRole
 } from '../../../core/models/user.model';
+import { TenantConfigService } from '../../../core/services/tenant-config.service';
 import {
   Branch,
   Department,
@@ -69,9 +70,11 @@ export class UserFormComponent implements OnInit, OnDestroy {
   userId: number | null = null;
   hidePassword = true;
   companyName = '';
+  companyLockedLabel = '';
   loadedUser: User | null = null;
   branches: Branch[] = [];
   departments: Department[] = [];
+  private orgLoadSeq = 0;
   assignableRoles: RoleSummary[] = [];
   workspaces: WorkspaceDefinition[] = [];
   dashboards: DashboardDefinition[] = [];
@@ -115,6 +118,7 @@ export class UserFormComponent implements OnInit, OnDestroy {
     private userService: UserService,
     private platform: PlatformService,
     private auth: AuthService,
+    private tenantConfig: TenantConfigService,
     private route: ActivatedRoute,
     private router: Router,
     private toast: UiToastService
@@ -130,6 +134,7 @@ export class UserFormComponent implements OnInit, OnDestroy {
       role: [UserRole.Dispatcher, Validators.required],
       isActive: [true],
       status: ['Active'],
+      companyId: [null as number | null, Validators.required],
       branchId: [null as number | null],
       departmentId: [null as number | null],
       jobTitle: [''],
@@ -174,16 +179,23 @@ export class UserFormComponent implements OnInit, OnDestroy {
       filter(() => !this.isEdit || this.form.value.email !== this.originalEmail)
     ).subscribe(() => this.checkEmailAvailability());
 
+    this.form.get('companyId')?.valueChanges.pipe(
+      takeUntil(this.destroy$),
+      distinctUntilChanged()
+    ).subscribe((companyId: number | string | null) => {
+      const id = companyId == null || companyId === '' ? null : Number(companyId);
+      if (id == null || Number.isNaN(id) || id <= 0) return;
+      this.onCompanyChanged(id);
+    });
+
     this.route.paramMap.subscribe(params => {
       const id = params.get('id');
       this.loading = true;
 
       forkJoin({
-        branches: this.platform.getBranches().pipe(catchError(() => of([] as Branch[]))),
-        departments: this.platform.getDepartments().pipe(catchError(() => of([] as Department[]))),
-        roles: this.platform.getCompanyRoles().pipe(catchError(() => of([] as RoleSummary[]))),
         workspaces: this.platform.getWorkspaceCatalog().pipe(catchError(() => of([] as WorkspaceDefinition[]))),
         dashboards: this.platform.getDashboardCatalog(true).pipe(catchError(() => of([] as DashboardDefinition[]))),
+        branding: this.tenantConfig.loadBranding().pipe(catchError(() => of(null))),
         user: id ? this.userService.getById(+id) : of(null as User | null),
         assigned: id
           ? this.userService.getUserRoles(+id).pipe(catchError(() => of([] as AssignedRole[])))
@@ -198,10 +210,7 @@ export class UserFormComponent implements OnInit, OnDestroy {
           ? this.platform.getRecentAuditEvents(null, +id, 12).pipe(catchError(() => of([] as AuditEventListItem[])))
           : of([] as AuditEventListItem[])
       }).subscribe({
-        next: ({ branches, departments, roles, workspaces, dashboards, user, assigned, effective, dataScope, recentActivity }) => {
-          this.branches = branches;
-          this.departments = departments;
-          this.assignableRoles = roles;
+        next: ({ workspaces, dashboards, branding, user, assigned, effective, dataScope, recentActivity }) => {
           this.workspaces = (workspaces ?? []).filter(w => w.isActive && w.visible);
           this.dashboards = (dashboards ?? []).filter(d => d.isActive && d.visible);
           this.selectedRoleIds = new Set(assigned.map(r => r.roleId));
@@ -209,11 +218,15 @@ export class UserFormComponent implements OnInit, OnDestroy {
           this.dataScope = dataScope;
           this.recentActivity = recentActivity ?? [];
 
+          const authTenantId = this.auth.getCurrentUser()?.tenantId ?? null;
+          let companyId: number | null = null;
+
           if (user) {
             this.isEdit = true;
             this.userId = user.id;
             this.loadedUser = user;
-            this.companyName = user.companyName || '';
+            this.companyName = user.companyName || branding?.name || '';
+            this.companyLockedLabel = this.companyName;
             this.originalEmail = user.email;
             this.form.get('password')?.clearValidators();
             this.form.get('password')?.updateValueAndValidity();
@@ -222,6 +235,7 @@ export class UserFormComponent implements OnInit, OnDestroy {
             }
             const { country, national } = this.splitPhone(user.phone);
             const primaryId = inferPrimaryRoleId(parseUserRole(user.role), assigned);
+            companyId = user.companyId ?? authTenantId ?? branding?.id ?? null;
             this.form.patchValue({
               fullName: user.fullName,
               email: user.email,
@@ -232,6 +246,7 @@ export class UserFormComponent implements OnInit, OnDestroy {
               role: parseUserRole(user.role),
               isActive: user.isActive,
               status: user.status || (user.isActive ? 'Active' : 'Inactive'),
+              companyId,
               branchId: user.branchId ?? null,
               departmentId: user.departmentId ?? null,
               jobTitle: user.jobTitle || '',
@@ -249,8 +264,27 @@ export class UserFormComponent implements OnInit, OnDestroy {
             }, { emitEvent: false });
             this.syncPrimaryPlatformRole(false);
           } else {
+            companyId = authTenantId ?? branding?.id ?? null;
+            this.companyName = branding?.name || '';
+            this.companyLockedLabel = this.companyName;
+            this.form.patchValue({ companyId }, { emitEvent: false });
             this.tryRestoreDraft();
+            companyId = (this.form.getRawValue().companyId as number | null) ?? companyId;
             this.onPrimaryRoleChanged(this.form.value.primaryRoleId, true);
+          }
+
+          if (!this.canAssignSuperAdmin) {
+            this.form.get('companyId')?.disable({ emitEvent: false });
+          } else {
+            this.form.get('companyId')?.enable({ emitEvent: false });
+          }
+
+          if (companyId != null && companyId > 0) {
+            this.reloadOrgForCompany(companyId, { clearSelection: false, preserveRoles: this.isEdit });
+          } else {
+            this.branches = [];
+            this.departments = [];
+            this.assignableRoles = [];
           }
 
           this.loading = false;
@@ -280,6 +314,90 @@ export class UserFormComponent implements OnInit, OnDestroy {
   get canAssignSuperAdmin(): boolean {
     const user = this.auth.getCurrentUser();
     return user?.roles?.some(r => r.toUpperCase() === 'SUPER_ADMIN') ?? false;
+  }
+
+  get summaryCompanyLabel(): string {
+    if (this.companyLockedLabel && !this.canAssignSuperAdmin) return this.companyLockedLabel;
+    if (this.companyName) return this.companyName;
+    const id = this.form.getRawValue().companyId as number | null;
+    return id != null ? `Company #${id}` : '—';
+  }
+
+  private onCompanyChanged(companyId: number): void {
+    this.form.patchValue({ branchId: null, departmentId: null }, { emitEvent: false });
+    this.platform.getTenantById(companyId).pipe(
+      catchError(() => of(null)),
+      takeUntil(this.destroy$)
+    ).subscribe(t => {
+      if (t?.name) {
+        this.companyName = t.name;
+        this.companyLockedLabel = t.name;
+      }
+    });
+    this.reloadOrgForCompany(companyId, { clearSelection: true, preserveRoles: false });
+  }
+
+  private reloadOrgForCompany(
+    companyId: number,
+    opts: { clearSelection: boolean; preserveRoles: boolean }
+  ): void {
+    const seq = ++this.orgLoadSeq;
+    const authTenantId = this.auth.getCurrentUser()?.tenantId ?? null;
+    const sameTenant = authTenantId != null && companyId === authTenantId;
+
+    // Same-tenant (and Company Admin): use BranchesView / DepartmentsView endpoints.
+    // Cross-tenant Super Admin: use tenant-scoped org APIs (TenantsView), with fallback toast.
+    const branches$ = (!sameTenant && this.canAssignSuperAdmin)
+      ? this.platform.getBranchesForTenant(companyId).pipe(
+          map(rows => Array.isArray(rows) ? rows : []),
+          catchError(() => {
+            this.toast.error('Could not load branches for the selected company.');
+            return of([] as Branch[]);
+          })
+        )
+      : this.platform.getBranches().pipe(
+          map(rows => Array.isArray(rows) ? rows : []),
+          catchError(() => of([] as Branch[]))
+        );
+
+    const departments$ = (!sameTenant && this.canAssignSuperAdmin)
+      ? this.platform.getDepartmentsForTenant(companyId).pipe(
+          map(rows => Array.isArray(rows) ? rows : []),
+          catchError(() => {
+            this.toast.error('Could not load departments for the selected company.');
+            return of([] as Department[]);
+          })
+        )
+      : this.platform.getDepartments().pipe(
+          map(rows => Array.isArray(rows) ? rows : []),
+          catchError(() => of([] as Department[]))
+        );
+
+    const roles$ = this.platform
+      .getCompanyRoles((!sameTenant && this.canAssignSuperAdmin) ? companyId : null)
+      .pipe(
+        map(rows => Array.isArray(rows) ? rows : []),
+        catchError(() => of([] as RoleSummary[]))
+      );
+
+    forkJoin({
+      branches: branches$,
+      departments: departments$,
+      roles: roles$
+    }).pipe(takeUntil(this.destroy$)).subscribe(({ branches, departments, roles }) => {
+      if (seq !== this.orgLoadSeq) return;
+      this.branches = branches;
+      this.departments = departments;
+      this.assignableRoles = roles;
+
+      if (opts.clearSelection) {
+        const validRoleIds = new Set(roles.map(r => r.id));
+        this.selectedRoleIds = new Set([...this.selectedRoleIds].filter(id => validRoleIds.has(id)));
+        this.syncPrimaryPlatformRole(true);
+      } else {
+        this.syncPrimaryPlatformRole(false);
+      }
+    });
   }
 
   get visibleAssignableRoles(): RoleSummary[] {
@@ -450,6 +568,11 @@ export class UserFormComponent implements OnInit, OnDestroy {
   }
 
   validateStep(step: number): boolean {
+    if (step === 1) {
+      this.form.get('companyId')?.markAsTouched();
+      const companyId = this.form.getRawValue().companyId as number | null;
+      return companyId != null && companyId > 0;
+    }
     if (step !== 0) return true;
     this.syncPhoneField();
     const keys = [...STEP_FIELD_KEYS[0]];
@@ -542,7 +665,7 @@ export class UserFormComponent implements OnInit, OnDestroy {
     switch (key) {
       case 'name': return !!this.form.value.fullName?.trim();
       case 'email': return !!this.form.value.email?.trim() && this.emailCheckStatus !== 'taken';
-      case 'org': return !!(this.form.value.branchId || this.form.value.departmentId || this.form.value.jobTitle);
+      case 'org': return !!(this.form.getRawValue().companyId || this.form.value.branchId || this.form.value.departmentId || this.form.value.jobTitle);
       case 'role': return !!this.primaryRoleDef;
       case 'permissions': return this.selectedRoleIds.size > 0;
       case 'notifications': return true;
@@ -610,13 +733,14 @@ export class UserFormComponent implements OnInit, OnDestroy {
     this.syncPhoneField();
     this.ensurePrimaryInSelection();
     this.submitting = true;
-    const f = this.form.value;
+    const f = this.form.getRawValue();
 
     if (f.sendWelcomeEmail && !this.isEdit) {
       this.toast.success('Welcome email will be sent when the notification service is connected.');
     }
 
     const orgFields = {
+      companyId: f.companyId as number | null,
       branchId: f.branchId,
       departmentId: f.departmentId,
       jobTitle: f.jobTitle?.trim() || null,

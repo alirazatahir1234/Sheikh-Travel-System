@@ -180,37 +180,39 @@ public record CreateGpsAlertRuleDto(
     bool AlertOnEnter,
     bool AlertOnExit);
 
-public record GpsAlertEventDto(
-    int Id,
-    int? RuleId,
-    int VehicleId,
-    string? VehicleName,
-    string EventType,
-    double Latitude,
-    double Longitude,
-    decimal Speed,
-    string Message,
-    DateTime Timestamp,
-    bool IsAcknowledged,
-    string Severity,
-    string Status,
-    int? GeofenceId = null,
-    string? GeofenceName = null,
-    int? DriverId = null,
-    string? DriverName = null,
-    DateTime? ReadAt = null,
-    string? ReadBy = null,
-    DateTime? AcknowledgedAt = null,
-    string? AcknowledgedBy = null,
-    DateTime? ResolvedAt = null,
-    string? ResolvedBy = null,
-    string? ResolutionNotes = null,
-    DateTime? ArchivedAt = null,
-    string? ArchivedBy = null,
-    bool CanAcknowledge = false,
-    bool CanResolve = false,
-    bool CanArchive = false,
-    bool CanDelete = false);
+public class GpsAlertEventDto
+{
+    public int Id { get; set; }
+    public int? RuleId { get; set; }
+    public int VehicleId { get; set; }
+    public string? VehicleName { get; set; }
+    public string EventType { get; set; } = string.Empty;
+    public double Latitude { get; set; }
+    public double Longitude { get; set; }
+    public decimal Speed { get; set; }
+    public string Message { get; set; } = string.Empty;
+    public DateTime Timestamp { get; set; }
+    public bool IsAcknowledged { get; set; }
+    public string Severity { get; set; } = "medium";
+    public string Status { get; set; } = "active";
+    public int? GeofenceId { get; set; }
+    public string? GeofenceName { get; set; }
+    public int? DriverId { get; set; }
+    public string? DriverName { get; set; }
+    public DateTime? ReadAt { get; set; }
+    public string? ReadBy { get; set; }
+    public DateTime? AcknowledgedAt { get; set; }
+    public string? AcknowledgedBy { get; set; }
+    public DateTime? ResolvedAt { get; set; }
+    public string? ResolvedBy { get; set; }
+    public string? ResolutionNotes { get; set; }
+    public DateTime? ArchivedAt { get; set; }
+    public string? ArchivedBy { get; set; }
+    public bool CanAcknowledge { get; set; }
+    public bool CanResolve { get; set; }
+    public bool CanArchive { get; set; }
+    public bool CanDelete { get; set; }
+}
 
 public record GpsAlertStatsDto(
     int Total,

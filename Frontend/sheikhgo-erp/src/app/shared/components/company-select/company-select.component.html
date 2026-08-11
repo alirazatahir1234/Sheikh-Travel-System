@@ -1,0 +1,44 @@
+<div class="company-select stb-field">
+  <label *ngIf="label" [attr.for]="readonlyMode ? null : 'company-select-input'">{{ label }}</label>
+
+  <ng-container *ngIf="readonlyMode; else editable">
+    <input
+      class="stb-input stb-input--readonly"
+      type="text"
+      [value]="displayName"
+      readonly
+      tabindex="-1"
+      aria-readonly="true"
+    />
+  </ng-container>
+
+  <ng-template #editable>
+    <input
+      id="company-select-filter"
+      class="stb-input company-select__filter"
+      type="search"
+      placeholder="Search companies…"
+      [(ngModel)]="filterText"
+      [disabled]="disabled || loading"
+      autocomplete="off"
+    />
+    <select
+      id="company-select-input"
+      class="stb-select"
+      [ngModel]="value"
+      (ngModelChange)="onSelect($event)"
+      (blur)="markTouched()"
+      [disabled]="disabled || loading"
+    >
+      <option [ngValue]="null" disabled>— Select company —</option>
+      <option *ngFor="let t of filteredTenants" [ngValue]="t.id">
+        {{ t.name }}
+      </option>
+    </select>
+    <p class="hint" *ngIf="loading">Loading companies…</p>
+    <p class="hint" *ngIf="!loading && tenants.length === 0">No active companies found.</p>
+    <p class="hint" *ngIf="!loading && tenants.length && filteredTenants.length === 0">
+      No companies match “{{ filterText }}”.
+    </p>
+  </ng-template>
+</div>

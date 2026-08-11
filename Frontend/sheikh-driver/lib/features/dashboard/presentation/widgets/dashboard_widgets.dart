@@ -7,6 +7,8 @@ import '../../../../core/constants/app_theme.dart';
 import '../../../../shared/widgets/sg_ui.dart';
 import '../../../alerts/domain/gps_alert_models.dart';
 import '../../../fleet/domain/fleet_models.dart';
+import '../../../fleet/domain/fleet_status.dart';
+import '../../../fleet/presentation/widgets/vehicle_pulse_icons.dart';
 import '../../../ops_trips/domain/ops_trip_models.dart';
 import '../../domain/dashboard_layout.dart';
 import '../../domain/dashboard_models.dart';
@@ -481,11 +483,41 @@ class LiveMapPreviewCard extends StatefulWidget {
 class _LiveMapPreviewCardState extends State<LiveMapPreviewCard> {
   GoogleMapController? _map;
   bool _fitted = false;
+  final Map<FleetTrackStatus, BitmapDescriptor> _icons = {};
+  bool _iconsReady = false;
 
   static const _defaultCamera = CameraPosition(
     target: LatLng(25.3463, 55.4209), // Sharjah-ish default
     zoom: 11,
   );
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final dpr = MediaQuery.devicePixelRatioOf(context);
+      _loadIcons(dpr);
+    });
+  }
+
+  Future<void> _loadIcons(double dpr) async {
+    final next = <FleetTrackStatus, BitmapDescriptor>{};
+    for (final s in FleetTrackStatus.values) {
+      next[s] = await VehiclePulseIcons.iconFor(
+        s,
+        devicePixelRatio: dpr,
+        mini: true,
+      );
+    }
+    if (!mounted) return;
+    setState(() {
+      _icons
+        ..clear()
+        ..addAll(next);
+      _iconsReady = true;
+    });
+  }
 
   @override
   void dispose() {
@@ -494,25 +526,34 @@ class _LiveMapPreviewCardState extends State<LiveMapPreviewCard> {
   }
 
   Set<Marker> _markers() {
+    if (!_iconsReady) return {};
     return widget.positions
         .where((p) => p.latitude != 0 || p.longitude != 0)
         .map(
-          (p) => Marker(
-            markerId: MarkerId('v${p.vehicleId}'),
-            position: LatLng(p.latitude, p.longitude),
-            rotation: p.heading ?? 0,
-            icon: BitmapDescriptor.defaultMarkerWithHue(
-              p.speed > 5
-                  ? BitmapDescriptor.hueGreen
-                  : (p.alarmType != null && p.alarmType!.isNotEmpty)
-                      ? BitmapDescriptor.hueRed
-                      : BitmapDescriptor.hueAzure,
-            ),
-            infoWindow: InfoWindow(
-              title: 'Vehicle ${p.vehicleId}',
-              snippet: '${p.speed.toStringAsFixed(0)} km/h',
-            ),
-          ),
+          (p) {
+            final status = resolveFleetStatus(
+              speed: p.speed,
+              ignition: p.ignition,
+              lastUpdated: p.timestamp,
+              hasGps: true,
+              alarmType: p.alarmType,
+            );
+            return Marker(
+              markerId: MarkerId('v${p.vehicleId}'),
+              position: LatLng(p.latitude, p.longitude),
+              rotation: p.heading ?? 0,
+              flat: true,
+              anchor: const Offset(0.5, 0.5),
+              icon: _icons[status] ??
+                  BitmapDescriptor.defaultMarkerWithHue(
+                    BitmapDescriptor.hueAzure,
+                  ),
+              infoWindow: InfoWindow(
+                title: 'Vehicle ${p.vehicleId}',
+                snippet: '${p.speed.toStringAsFixed(0)} km/h',
+              ),
+            );
+          },
         )
         .toSet();
   }

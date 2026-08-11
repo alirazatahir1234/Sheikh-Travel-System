@@ -6,6 +6,8 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../../../core/config/app_config.dart';
 import '../../../core/constants/app_theme.dart';
 import '../../../core/offline/trips_cache.dart';
+import '../../fleet/domain/fleet_models.dart' as fleet;
+import '../../fleet/presentation/widgets/vehicle_pulse_icons.dart';
 import '../../trips/domain/trip_model.dart';
 import '../../trips/presentation/trips_notifier.dart';
 import '../data/navigation_api.dart';
@@ -32,12 +34,40 @@ class _TripNavigationScreenState extends ConsumerState<TripNavigationScreen> {
   bool _navigating = false;
   GpsEta? _eta;
   String? _error;
+  final Map<fleet.FleetTrackStatus, BitmapDescriptor> _pulseIcons = {};
+  bool _iconsReady = false;
 
   static const _trailCap = 14; // ERP live-map trail length
+
+  Future<void> _loadPulseIcons(double dpr) async {
+    final next = <fleet.FleetTrackStatus, BitmapDescriptor>{};
+    for (final s in fleet.FleetTrackStatus.values) {
+      next[s] = await VehiclePulseIcons.iconFor(s, devicePixelRatio: dpr);
+    }
+    if (!mounted) return;
+    setState(() {
+      _pulseIcons
+        ..clear()
+        ..addAll(next);
+      _iconsReady = true;
+    });
+  }
+
+  fleet.FleetTrackStatus _toFleetStatus(FleetTrackStatus status) => switch (status) {
+        FleetTrackStatus.moving => fleet.FleetTrackStatus.moving,
+        FleetTrackStatus.idle => fleet.FleetTrackStatus.idle,
+        FleetTrackStatus.parked => fleet.FleetTrackStatus.parked,
+        FleetTrackStatus.offline => fleet.FleetTrackStatus.offline,
+        FleetTrackStatus.sos => fleet.FleetTrackStatus.sos,
+      };
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      unawaited(_loadPulseIcons(MediaQuery.devicePixelRatioOf(context)));
+    });
     _bootstrap();
   }
 
@@ -176,17 +206,19 @@ class _TripNavigationScreenState extends ConsumerState<TripNavigationScreen> {
       final status = resolveFleetStatus(
         speedKmh: (_position!.speed * 3.6).clamp(0, 200).toDouble(),
       );
+      final fleetStatus = _toFleetStatus(status);
       markers.add(Marker(
         markerId: const MarkerId('driver'),
         position: LatLng(_position!.latitude, _position!.longitude),
         rotation: _position!.heading.isFinite ? _position!.heading : 0,
         flat: true,
         anchor: const Offset(0.5, 0.5),
-        icon: BitmapDescriptor.defaultMarkerWithHue(
-          status == FleetTrackStatus.moving
-              ? BitmapDescriptor.hueAzure
-              : BitmapDescriptor.hueOrange,
-        ),
+        icon: (_iconsReady ? _pulseIcons[fleetStatus] : null) ??
+            BitmapDescriptor.defaultMarkerWithHue(
+              status == FleetTrackStatus.moving
+                  ? BitmapDescriptor.hueAzure
+                  : BitmapDescriptor.hueOrange,
+            ),
         infoWindow: const InfoWindow(title: 'You'),
       ));
     }
