@@ -51,7 +51,10 @@
       [hint]="(fleetStatusLocal?.totalVehicles ?? fleetCounts.total) + ' total fleet'"
       [trend]="kpiTiles['online']?.trend"
       [trendUp]="kpiTiles['online']?.trendUp"
-      [sparkline]="kpiTiles['online']?.sparkline">
+      [sparkline]="kpiTiles['online']?.sparkline"
+      [clickable]="true"
+      [selected]="isKpiStatusSelected('online')"
+      (tileClick)="onKpiStatusClick('online')">
     </stb-stat-tile>
     <stb-stat-tile
       label="Moving"
@@ -60,7 +63,10 @@
       color="green"
       [trend]="kpiTiles['moving']?.trend"
       [trendUp]="kpiTiles['moving']?.trendUp"
-      [sparkline]="kpiTiles['moving']?.sparkline">
+      [sparkline]="kpiTiles['moving']?.sparkline"
+      [clickable]="true"
+      [selected]="isKpiStatusSelected('moving')"
+      (tileClick)="onKpiStatusClick('moving')">
     </stb-stat-tile>
     <stb-stat-tile
       label="Parked"
@@ -69,7 +75,10 @@
       color="blue"
       [trend]="kpiTiles['parked']?.trend"
       [trendUp]="kpiTiles['parked']?.trendUp"
-      [sparkline]="kpiTiles['parked']?.sparkline">
+      [sparkline]="kpiTiles['parked']?.sparkline"
+      [clickable]="true"
+      [selected]="isKpiStatusSelected('parked')"
+      (tileClick)="onKpiStatusClick('parked')">
     </stb-stat-tile>
     <stb-stat-tile
       label="Idle"
@@ -78,7 +87,10 @@
       color="amber"
       [trend]="kpiTiles['idle']?.trend"
       [trendUp]="kpiTiles['idle']?.trendUp"
-      [sparkline]="kpiTiles['idle']?.sparkline">
+      [sparkline]="kpiTiles['idle']?.sparkline"
+      [clickable]="true"
+      [selected]="isKpiStatusSelected('idle')"
+      (tileClick)="onKpiStatusClick('idle')">
     </stb-stat-tile>
     <stb-stat-tile
       label="Offline"
@@ -87,7 +99,10 @@
       color="rose"
       [trend]="kpiTiles['offline']?.trend"
       [trendUp]="kpiTiles['offline']?.trendUp"
-      [sparkline]="kpiTiles['offline']?.sparkline">
+      [sparkline]="kpiTiles['offline']?.sparkline"
+      [clickable]="true"
+      [selected]="isKpiStatusSelected('offline')"
+      (tileClick)="onKpiStatusClick('offline')">
     </stb-stat-tile>
     <stb-stat-tile
       label="Never Seen"
@@ -96,14 +111,20 @@
       color="purple"
       [trend]="kpiTiles['neverSeen']?.trend"
       [trendUp]="kpiTiles['neverSeen']?.trendUp"
-      [sparkline]="kpiTiles['neverSeen']?.sparkline">
+      [sparkline]="kpiTiles['neverSeen']?.sparkline"
+      [clickable]="true"
+      [selected]="isKpiStatusSelected('never_seen')"
+      (tileClick)="onKpiStatusClick('never_seen')">
     </stb-stat-tile>
     <stb-stat-tile
       label="Total Fleet"
       [value]="fleetStatusLocal?.totalVehicles ?? fleetCounts.total"
       icon="directions_car"
       color="teal"
-      hint="All vehicles">
+      hint="All vehicles"
+      [clickable]="true"
+      [selected]="isKpiStatusSelected('all')"
+      (tileClick)="onTotalFleetKpiClick()">
     </stb-stat-tile>
     <stb-stat-tile
       label="Alerts Today"
@@ -113,14 +134,93 @@
       hint="Total alerts"
       [trend]="kpiTiles['alertsToday']?.trend"
       [trendUp]="kpiTiles['alertsToday']?.trendUp"
-      [sparkline]="kpiTiles['alertsToday']?.sparkline">
+      [sparkline]="kpiTiles['alertsToday']?.sparkline"
+      [clickable]="true"
+      (tileClick)="goToAlerts()">
     </stb-stat-tile>
-    <div class="stat-chip stat-chip--sos" *ngIf="fleetCounts.sos > 0">
+    <button
+      type="button"
+      class="stat-chip stat-chip--sos stb-touch"
+      *ngIf="fleetCounts.sos > 0"
+      [class.stat-chip--active]="isKpiStatusSelected('sos')"
+      (click)="onKpiStatusClick('sos')"
+      aria-label="Filter SOS vehicles">
       <mat-icon>sos</mat-icon>
       <div>
         <span class="stat-val">{{ fleetCounts.sos }}</span>
         <span class="stat-lbl">SOS</span>
       </div>
+    </button>
+  </section>
+
+  <section class="fleet-filter-bar stb-elevated" aria-label="Fleet filters">
+    <div class="fleet-filter-bar__search">
+      <mat-icon>search</mat-icon>
+      <input
+        #vehicleSearchInput
+        type="search"
+        placeholder="Search by vehicle, plate, driver, IMEI…"
+        [(ngModel)]="searchQuery"
+        (ngModelChange)="onSearchQueryChanged($event)"
+        (keydown.enter)="onSearchEnter()"
+        aria-label="Search vehicles" />
+      <mat-spinner *ngIf="filterApplying" diameter="18"></mat-spinner>
+      <button
+        *ngIf="searchQuery"
+        type="button"
+        mat-icon-button
+        class="search-clear stb-touch"
+        aria-label="Clear search"
+        (click)="searchQuery = ''; onSearchQueryChanged('')">
+        <mat-icon>close</mat-icon>
+      </button>
+    </div>
+
+    <div class="fleet-filter-bar__selects">
+      <label class="fleet-filter-select" aria-label="Status filter">
+        <mat-icon>filter_list</mat-icon>
+        <select
+          [ngModel]="primaryStatusSelect"
+          (ngModelChange)="onPrimaryStatusSelect($event)">
+          <option *ngFor="let o of primaryStatusOptions" [ngValue]="o.id">{{ o.label }}</option>
+        </select>
+      </label>
+
+      <label class="fleet-filter-select" aria-label="Ignition filter">
+        <mat-icon>power_settings_new</mat-icon>
+        <select
+          [ngModel]="ignitionFilter"
+          (ngModelChange)="setIgnitionFilter($event)">
+          <option *ngFor="let o of ignitionOptions" [ngValue]="o.id">{{ o.label }}</option>
+        </select>
+      </label>
+
+      <label class="fleet-filter-select" aria-label="Battery filter">
+        <mat-icon>battery_alert</mat-icon>
+        <select
+          [ngModel]="batterySelect"
+          (ngModelChange)="setBatteryFilter($event)">
+          <option *ngFor="let o of batteryOptions" [ngValue]="o.id">{{ o.label }}</option>
+        </select>
+      </label>
+
+      <label class="fleet-filter-select" aria-label="More status filters">
+        <mat-icon>more_horiz</mat-icon>
+        <select
+          [ngModel]="moreStatusSelect"
+          (ngModelChange)="onMoreStatusSelect($event)">
+          <option *ngFor="let o of moreStatusOptions" [ngValue]="o.id">{{ o.label }}</option>
+        </select>
+      </label>
+    </div>
+
+    <div class="fleet-filter-bar__applied" *ngIf="hasActiveFilters">
+      <span class="applied-label">Active filters</span>
+      <span class="filter-tag" *ngIf="searchQuery.trim()">“{{ searchQuery.trim() }}”</span>
+      <span class="filter-tag" *ngIf="statusFilter !== 'all'">Status: {{ statusLabelForFilter(statusFilter) }}</span>
+      <span class="filter-tag" *ngIf="ignitionFilter !== 'all'">Ignition: {{ ignitionFilter }}</span>
+      <span class="filter-tag" *ngIf="batteryLowOnly">Battery low</span>
+      <button type="button" class="clear-filters stb-touch" (click)="clearFilters()">Clear all</button>
     </div>
   </section>
 
@@ -169,90 +269,6 @@
             (click)="togglePanelCollapsed()">
             <mat-icon>chevron_left</mat-icon>
           </button>
-        </div>
-
-        <div class="panel-search">
-          <mat-icon>search</mat-icon>
-          <input
-            #vehicleSearchInput
-            type="search"
-            placeholder="Search by vehicle, plate, driver, IMEI…"
-            [(ngModel)]="searchQuery"
-            (ngModelChange)="onSearchQueryChanged($event)"
-            (keydown.enter)="onSearchEnter()"
-            aria-label="Search vehicles" />
-          <mat-spinner *ngIf="filterApplying" diameter="18"></mat-spinner>
-          <button
-            *ngIf="searchQuery"
-            type="button"
-            mat-icon-button
-            class="search-clear stb-touch"
-            aria-label="Clear search"
-            (click)="searchQuery = ''; onSearchQueryChanged('')">
-            <mat-icon>close</mat-icon>
-          </button>
-        </div>
-
-        <div class="panel-filters">
-          <div class="filter-chips">
-            <button
-              type="button"
-              class="filter-chip stb-touch"
-              *ngFor="let f of statusFilters"
-              [class.filter-chip--active]="statusFilter === f.id"
-              (click)="setStatusFilter(f.id)">
-              {{ f.label }}
-            </button>
-          </div>
-          <div class="filter-chips filter-chips--ghost">
-            <button
-              type="button"
-              class="filter-chip filter-chip--ghost stb-touch"
-              [class.filter-chip--active]="ignitionFilter === 'on'"
-              (click)="setIgnitionFilter('on')">
-              Ignition ON
-            </button>
-            <button
-              type="button"
-              class="filter-chip filter-chip--ghost stb-touch"
-              [class.filter-chip--active]="ignitionFilter === 'off'"
-              (click)="setIgnitionFilter('off')">
-              Ignition OFF
-            </button>
-            <button
-              type="button"
-              class="filter-chip filter-chip--ghost stb-touch"
-              [class.filter-chip--active]="batteryLowOnly"
-              (click)="toggleBatteryLowOnly()">
-              Battery Low
-            </button>
-          </div>
-          <div class="applied-filters" *ngIf="hasActiveFilters">
-            <span class="applied-label">Active filters</span>
-            <span class="filter-tag" *ngIf="searchQuery.trim()">“{{ searchQuery.trim() }}”</span>
-            <span class="filter-tag" *ngIf="statusFilter !== 'all'">Status: {{ statusFilter }}</span>
-            <span class="filter-tag" *ngIf="ignitionFilter !== 'all'">Ignition: {{ ignitionFilter }}</span>
-            <span class="filter-tag" *ngIf="batteryLowOnly">Battery low</span>
-            <button type="button" class="clear-filters stb-touch" (click)="clearFilters()">Clear all</button>
-          </div>
-        </div>
-
-        <div class="panel-status">
-          <span class="status-pill status-pill--moving">
-            <span class="dot dot--pulse"></span> Moving {{ statusCounts.moving }}
-          </span>
-          <span class="status-pill status-pill--idle">
-            <span class="dot dot--pulse-slow"></span> Idle {{ statusCounts.idle }}
-          </span>
-          <span class="status-pill status-pill--parked">
-            <span class="dot"></span> Parked {{ statusCounts.parked }}
-          </span>
-          <span class="status-pill status-pill--offline">
-            <span class="dot"></span> Offline {{ statusCounts.offline }}
-          </span>
-          <span class="status-pill status-pill--sos" *ngIf="statusCounts.sos > 0">
-            <span class="dot dot--pulse"></span> SOS {{ statusCounts.sos }}
-          </span>
         </div>
 
         <mat-spinner *ngIf="loading && locations.length === 0" diameter="28" class="panel-spinner"></mat-spinner>
@@ -365,46 +381,6 @@
     </aside>
 
     <div class="track-map-col">
-      <div class="map-toolbar">
-        <div class="map-toolbar__row">
-          <div class="filter-chips">
-            <button
-              type="button"
-              class="filter-chip stb-touch"
-              *ngFor="let f of statusFilters"
-              [class.filter-chip--active]="statusFilter === f.id"
-              (click)="setStatusFilter(f.id)">
-              {{ f.label }}
-            </button>
-          </div>
-        </div>
-        <div class="map-toolbar__row">
-          <div class="filter-chips filter-chips--ghost">
-            <button
-              type="button"
-              class="filter-chip filter-chip--ghost stb-touch"
-              [class.filter-chip--active]="ignitionFilter === 'on'"
-              (click)="setIgnitionFilter('on')">
-              Ignition ON
-            </button>
-            <button
-              type="button"
-              class="filter-chip filter-chip--ghost stb-touch"
-              [class.filter-chip--active]="ignitionFilter === 'off'"
-              (click)="setIgnitionFilter('off')">
-              Ignition OFF
-            </button>
-            <button
-              type="button"
-              class="filter-chip filter-chip--ghost stb-touch"
-              [class.filter-chip--active]="batteryLowOnly"
-              (click)="toggleBatteryLowOnly()">
-              Battery Low
-            </button>
-          </div>
-        </div>
-      </div>
-
       <div class="map-shell" #mapHost [class.map-shell--fs]="isMapFullscreen">
         <div #mapContainer class="map-container"></div>
         <div class="map-loading-overlay" *ngIf="loading && locations.length === 0 && !mapError" aria-live="polite">
@@ -612,14 +588,17 @@
               <mat-icon>place</mat-icon>
               <div>
                 <span class="detail-metric-lbl">Current location</span>
-                <span class="detail-metric-val detail-metric-val--place"
-                      *ngIf="loc.placeName">{{ loc.placeName }}</span>
-                <span class="detail-place-type" *ngIf="loc.placeType">
-                  {{ loc.placeType | titlecase }}
-                </span>
-                <span class="detail-metric-val" *ngIf="loc.address; else coordsOnly">{{ loc.address }}</span>
-                <ng-template #coordsOnly>
-                  <span class="detail-metric-val detail-metric-val--mono">
+                <ng-container *ngIf="locationPrimaryLine(loc) as primary; else addressFallback">
+                  <span class="detail-metric-val detail-metric-val--place">{{ primary }}</span>
+                  <span class="detail-metric-locality" *ngIf="locationSecondaryLine(loc) as locality">
+                    {{ locality }}
+                  </span>
+                </ng-container>
+                <ng-template #addressFallback>
+                  <span class="detail-metric-val detail-metric-val--muted" *ngIf="isAddressResolving(loc)">
+                    Resolving address…
+                  </span>
+                  <span class="detail-metric-val detail-metric-val--mono" *ngIf="!isAddressResolving(loc)">
                     {{ loc.latitude | number:'1.5-5' }}, {{ loc.longitude | number:'1.5-5' }}
                   </span>
                 </ng-template>

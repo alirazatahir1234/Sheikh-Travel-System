@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, ViewChild, AfterViewInit, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, ViewChild, AfterViewInit, ChangeDetectorRef, NgZone } from '@angular/core';
 import { Router, ActivatedRoute } from '@angular/router';
 import { MatPaginator } from '@angular/material/paginator';
 import { MatTableDataSource } from '@angular/material/table';
@@ -102,13 +102,17 @@ export class GpsDevicesComponent implements OnInit, AfterViewInit, OnDestroy {
     private toast: UiToastService,
     private cdr: ChangeDetectorRef,
     private router: Router,
-    private route: ActivatedRoute
+    private route: ActivatedRoute,
+    private ngZone: NgZone
   ) {}
 
   ngOnInit(): void {
     this.loadInitial();
-    void this.realtime.connect().catch(() => {});
-    this.realtimeSub = this.realtime.locationUpdates$.subscribe(update => this.applyRealtimeUpdate(update));
+    void this.realtime.connect({ asDispatcher: true }).catch(() => {});
+    this.realtimeSub = this.realtime.locationUpdates$.subscribe(update => {
+      // Events emit outside Angular Zone — re-enter only when mutating UI state.
+      this.ngZone.run(() => this.applyRealtimeUpdate(update));
+    });
     this.connectionSub = this.realtime.connectionState$.subscribe(state => {
       this.realtimeConnected = state === 'connected';
       this.applyDevicePollInterval();
@@ -126,6 +130,7 @@ export class GpsDevicesComponent implements OnInit, AfterViewInit, OnDestroy {
     if (this.clockTimer)      clearInterval(this.clockTimer);
     this.realtimeSub?.unsubscribe();
     this.connectionSub?.unsubscribe();
+    void this.realtime.releaseDispatcher();
   }
 
   ngAfterViewInit(): void {

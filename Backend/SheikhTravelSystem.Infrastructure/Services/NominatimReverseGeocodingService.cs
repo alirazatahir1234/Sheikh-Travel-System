@@ -20,6 +20,8 @@ public sealed class NominatimReverseGeocodingService(
     ILogger<NominatimReverseGeocodingService> logger) : IReverseGeocodingService
 {
     private const int CoordinateDecimals = 4;
+    /// <summary>Only keep Nearby POIs this close to the GPS fix (meters).</summary>
+    private const double MaxPlaceDistanceMeters = 40;
     private static readonly TimeSpan ThrottleInterval = TimeSpan.FromSeconds(1);
     private static readonly TimeSpan CacheTtl = TimeSpan.FromDays(30);
 
@@ -55,29 +57,40 @@ public sealed class NominatimReverseGeocodingService(
 
         if (!forceRefresh)
         {
-            var cached = await connection.QuerySingleOrDefaultAsync<CachedRow>(new CommandDefinition("""
-                SELECT TOP 1 Address, City, State, Country, PostalCode, Road, PlaceName, PlaceType, ResolvedAt
-                FROM GpsAddressCache
-                WHERE LatitudeKey = @LatKey AND LongitudeKey = @LngKey
-                """,
-                new { LatKey = latKey, LngKey = lngKey },
-                cancellationToken: cancellationToken));
-
-            if (cached is not null
-                && !string.IsNullOrWhiteSpace(cached.Address)
-                && DateTime.UtcNow - cached.ResolvedAt < CacheTtl
-                && !IsCoarseAddress(cached.Address, cached.Road, cached.PlaceName))
+            try
             {
-                return new ReverseGeocodeResult(
-                    cached.Address,
-                    cached.Road,
-                    cached.City,
-                    cached.State,
-                    cached.Country,
-                    cached.PostalCode,
-                    FromCache: true,
-                    cached.PlaceName,
-                    cached.PlaceType);
+                var cached = await connection.QuerySingleOrDefaultAsync<CachedRow>(new CommandDefinition("""
+                    SELECT TOP 1 Address, City, State, Country, PostalCode, Road, PlaceName, PlaceType, ResolvedAt
+                    FROM GpsAddressCache
+                    WHERE LatitudeKey = @LatKey AND LongitudeKey = @LngKey
+                    """,
+                    new { LatKey = latKey, LngKey = lngKey },
+                    cancellationToken: cancellationToken));
+
+                if (cached is not null
+                    && !string.IsNullOrWhiteSpace(cached.Address)
+                    && DateTime.UtcNow - cached.ResolvedAt < CacheTtl
+                    && !IsCoarseAddress(cached.Address, cached.Road, cached.PlaceName))
+                {
+                    return new ReverseGeocodeResult(
+                        cached.Address,
+                        cached.Road,
+                        cached.City,
+                        cached.State,
+                        cached.Country,
+                        cached.PostalCode,
+                        FromCache: true,
+                        cached.PlaceName,
+                        cached.PlaceType);
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(
+                    ex,
+                    "Failed to read GpsAddressCache for {Lat},{Lng}; continuing with providers",
+                    latitude,
+                    longitude);
             }
         }
 
@@ -99,58 +112,123 @@ public sealed class NominatimReverseGeocodingService(
         if (resolved is null || string.IsNullOrWhiteSpace(resolved.FormattedAddress))
             return null;
 
-        await connection.ExecuteAsync(new CommandDefinition("""
-            MERGE GpsAddressCache AS target
-            USING (SELECT @LatKey AS LatitudeKey, @LngKey AS LongitudeKey) AS source
-            ON target.LatitudeKey = source.LatitudeKey AND target.LongitudeKey = source.LongitudeKey
-            WHEN MATCHED THEN UPDATE SET
-                Address = @Address, Road = @Road, City = @City, State = @State,
-                Country = @Country, PostalCode = @PostalCode,
-                PlaceName = @PlaceName, PlaceType = @PlaceType, ResolvedAt = @ResolvedAt
-            WHEN NOT MATCHED THEN INSERT
-                (LatitudeKey, LongitudeKey, Address, Road, City, State, Country, PostalCode, PlaceName, PlaceType, ResolvedAt)
-                VALUES (@LatKey, @LngKey, @Address, @Road, @City, @State, @Country, @PostalCode, @PlaceName, @PlaceType, @ResolvedAt);
-            """,
-            new
-            {
-                LatKey = latKey,
-                LngKey = lngKey,
-                Address = resolved.FormattedAddress,
-                resolved.Road,
-                resolved.City,
-                resolved.State,
-                resolved.Country,
-                resolved.PostalCode,
-                resolved.PlaceName,
-                resolved.PlaceType,
-                ResolvedAt = DateTime.UtcNow
-            },
-            cancellationToken: cancellationToken));
+        // Persist street-first lines only (no legacy Near-prefix / plus-code fragments).
+        var cleanedAddress = StripPlusCodeSegments(resolved.FormattedAddress);
+        if (cleanedAddress.StartsWith("Near ", StringComparison.OrdinalIgnoreCase))
+        {
+            var comma = cleanedAddress.IndexOf(',');
+            cleanedAddress = comma > 0 ? cleanedAddress[(comma + 1)..].Trim() : cleanedAddress;
+        }
+        cleanedAddress = CompactLocalityAddress(
+            cleanedAddress,
+            resolved.Road,
+            resolved.City,
+            resolved.State,
+            resolved.Country);
+        if (string.IsNullOrWhiteSpace(cleanedAddress))
+            cleanedAddress = resolved.FormattedAddress;
+
+        resolved = resolved with
+        {
+            FormattedAddress = cleanedAddress,
+            // Fleet operators want road/city — Nearby Places names are often wrong or garbled.
+            PlaceName = null,
+            PlaceType = null
+        };
+
+        try
+        {
+            await connection.ExecuteAsync(new CommandDefinition("""
+                MERGE GpsAddressCache AS target
+                USING (SELECT @LatKey AS LatitudeKey, @LngKey AS LongitudeKey) AS source
+                ON target.LatitudeKey = source.LatitudeKey AND target.LongitudeKey = source.LongitudeKey
+                WHEN MATCHED THEN UPDATE SET
+                    Address = @Address, Road = @Road, City = @City, State = @State,
+                    Country = @Country, PostalCode = @PostalCode,
+                    PlaceName = @PlaceName, PlaceType = @PlaceType, ResolvedAt = @ResolvedAt
+                WHEN NOT MATCHED THEN INSERT
+                    (LatitudeKey, LongitudeKey, Address, Road, City, State, Country, PostalCode, PlaceName, PlaceType, ResolvedAt)
+                    VALUES (@LatKey, @LngKey, @Address, @Road, @City, @State, @Country, @PostalCode, @PlaceName, @PlaceType, @ResolvedAt);
+                """,
+                new
+                {
+                    LatKey = latKey,
+                    LngKey = lngKey,
+                    Address = resolved.FormattedAddress,
+                    resolved.Road,
+                    resolved.City,
+                    resolved.State,
+                    resolved.Country,
+                    resolved.PostalCode,
+                    resolved.PlaceName,
+                    PlaceType = resolved.PlaceName is null ? null : resolved.PlaceType,
+                    ResolvedAt = DateTime.UtcNow
+                },
+                cancellationToken: cancellationToken));
+        }
+        catch (Exception ex)
+        {
+            // Never fail the client response because cache write failed (schema drift, etc.).
+            logger.LogWarning(
+                ex,
+                "Failed to cache reverse-geocode result for {Lat},{Lng}; returning resolved address anyway",
+                latitude,
+                longitude);
+        }
 
         return resolved with { FromCache = false };
     }
 
     /// <summary>
-    /// City/admin-only lines (no road, neighbourhood, or place) — not useful for fleet ops.
+    /// Missing street, plus-code-only, or legacy "Near {POI}" lines. PlaceName does not make an address fine.
     /// </summary>
     internal static bool IsCoarseAddress(string? address, string? road, string? placeName = null)
     {
-        if (!string.IsNullOrWhiteSpace(placeName)) return false;
-        if (!string.IsNullOrWhiteSpace(road) && !LooksLikeAdminToken(road)) return false;
+        _ = placeName; // ignored for coarseness (street-first policy)
+        if (!string.IsNullOrWhiteSpace(road)
+            && !LooksLikeAdminToken(road)
+            && !LooksLikePlusCode(road))
+            return false;
+
         if (string.IsNullOrWhiteSpace(address)) return true;
 
-        var parts = address.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+        var trimmed = address.Trim();
+
+        // Legacy "Near {POI}, …" — always refresh regardless of digits / plus-codes in the rest.
+        if (trimmed.StartsWith("Near ", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (ContainsPlusCode(trimmed))
+            return true;
+
+        var parts = trimmed.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
         if (parts.Length == 0) return true;
 
-        var hasDigit = parts.Any(p => p.Any(char.IsDigit));
+        // Digits usually mean house number / road code — but not when the only "digit token" was a plus code
+        // (already handled above).
+        var hasDigit = parts.Any(p => p.Any(char.IsDigit) && !LooksLikePlusCode(p));
         if (hasDigit) return false;
 
-        // "Pasrur, Pasrur Tehsil, Sialkot District, …" — admin hierarchy only.
-        var adminHeavy = parts.Count(LooksLikeAdminToken);
-        if (adminHeavy >= Math.Max(2, parts.Length - 1)) return true;
+        // Explicit admin hierarchy tokens mean we still want a street if providers can supply one.
+        var lowerAll = trimmed.ToLowerInvariant();
+        if (lowerAll.Contains("tehsil") || lowerAll.Contains("district") || lowerAll.Contains("division"))
+            return true;
 
-        return parts.Length <= 3;
+        // "City, Province, Country" with no road is acceptable for rural pins — do not keep thrashing providers.
+        return false;
     }
+
+    internal static bool ContainsPlusCode(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return false;
+        // Google Open Location Code fragments: "7M78+84W" or full "7M78+84W Pasrur"
+        return System.Text.RegularExpressions.Regex.IsMatch(
+            text,
+            @"\b[23456789CFGHJMPQRVWX]{4,8}\+[23456789CFGHJMPQRVWX]{2,3}\b",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+    }
+
+    private static bool LooksLikePlusCode(string part) => ContainsPlusCode(part);
 
     private static bool LooksLikeAdminToken(string part)
     {
@@ -163,24 +241,36 @@ public sealed class NominatimReverseGeocodingService(
     {
         if (preferred is null) return fallback;
 
-        var place = FirstNonEmpty(preferred.PlaceName, fallback.PlaceName);
-        var placeType = !string.IsNullOrWhiteSpace(preferred.PlaceName)
-            ? preferred.PlaceType
-            : FirstNonEmpty(preferred.PlaceType, fallback.PlaceType);
+        var preferredFine = !IsCoarseAddress(preferred.FormattedAddress, preferred.Road);
+
+        // Prefer Nominatim street when Google only gave plus-code / coarse locality.
+        var address = preferred.FormattedAddress;
         var road = FirstNonEmpty(preferred.Road, fallback.Road);
-        var city = FirstNonEmpty(preferred.City, fallback.City);
+        if (IsCoarseAddress(address, preferred.Road)
+            && !IsCoarseAddress(fallback.FormattedAddress, fallback.Road))
+        {
+            address = fallback.FormattedAddress;
+            road = FirstNonEmpty(fallback.Road, road);
+            preferredFine = false;
+        }
+
+        // Never promote Nearby POI into fleet address; keep PlaceName only when street is already fine
+        // and the POI survived sanitisation.
+        var place = preferredFine ? FirstNonEmpty(preferred.PlaceName) : null;
+        var placeType = place is null ? null : preferred.PlaceType;
+        var city = FirstNonEmpty(
+            preferredFine ? preferred.City : null,
+            fallback.City,
+            preferred.City);
         var state = FirstNonEmpty(preferred.State, fallback.State);
         var country = FirstNonEmpty(preferred.Country, fallback.Country);
         var postal = FirstNonEmpty(preferred.PostalCode, fallback.PostalCode);
 
-        var address = preferred.FormattedAddress;
-        if (IsCoarseAddress(address, preferred.Road, preferred.PlaceName)
-            && !IsCoarseAddress(fallback.FormattedAddress, fallback.Road, fallback.PlaceName))
-        {
+        address = StripPlusCodeSegments(address ?? string.Empty);
+        if (string.IsNullOrWhiteSpace(address))
             address = fallback.FormattedAddress;
-        }
 
-        return new ReverseGeocodeResult(address, road, city, state, country, postal, false, place, placeType);
+        return new ReverseGeocodeResult(address!, road, city, state, country, postal, false, place, placeType);
     }
 
     private async Task<ReverseGeocodeResult?> ResolveFromGoogleAsync(
@@ -195,6 +285,7 @@ public sealed class NominatimReverseGeocodingService(
             var lat = latitude.ToString(CultureInfo.InvariantCulture);
             var lng = longitude.ToString(CultureInfo.InvariantCulture);
 
+            // radius=100 + geometry; we filter by Haversine ≤40m (prominence ranking alone is unsafe).
             var nearbyTask = client.GetFromJsonAsync<GoogleNearbyResponse>(
                 $"/maps/api/place/nearbysearch/json?location={lat},{lng}&radius=100&language=en&key={key}",
                 cancellationToken);
@@ -208,17 +299,18 @@ public sealed class NominatimReverseGeocodingService(
 
             string? placeName = null;
             string? placeType = null;
+            // Nearby POIs are often wrong/garbled for fleet ops — keep distance-qualified name as
+            // optional metadata only; never fold into FormattedAddress.
             if (nearby?.Status == "OK" && nearby.Results is { Count: > 0 })
             {
-                foreach (var place in nearby.Results)
+                var bestPlace = PickClosestNearbyPlace(nearby.Results, latitude, longitude);
+                if (bestPlace is not null)
                 {
-                    if (string.IsNullOrWhiteSpace(place.Name)) continue;
-                    var types = place.Types ?? [];
-                    if (types.Any(t => IgnoredPlaceTypes.Contains(t))) continue;
-                    if (types.Contains("locality", StringComparer.OrdinalIgnoreCase)) continue;
-                    placeName = place.Name.Trim();
-                    placeType = types.FirstOrDefault(t => !IgnoredPlaceTypes.Contains(t)) ?? types.FirstOrDefault();
-                    break;
+                    placeName = SanitizePlaceName(bestPlace.Name!.Trim());
+                    var types = bestPlace.Types ?? [];
+                    placeType = placeName is null
+                        ? null
+                        : types.FirstOrDefault(t => !IgnoredPlaceTypes.Contains(t)) ?? types.FirstOrDefault();
                 }
             }
 
@@ -251,30 +343,26 @@ public sealed class NominatimReverseGeocodingService(
                             country ??= c.LongName;
                         if (types.Contains("postal_code"))
                             postal ??= c.LongName;
-                        if (types.Contains("sublocality") || types.Contains("neighborhood"))
-                        {
-                            // Prefer neighbourhood in formatted line via Geocode formatted_address.
-                        }
                     }
                 }
             }
 
+            // Prefer a rebuilt street line over plus-codes or empty route results.
+            var rebuilt = string.Join(", ", new[] { road, city, state, country }
+                .Where(s => !string.IsNullOrWhiteSpace(s)));
+            if (string.IsNullOrWhiteSpace(formatted))
+                formatted = rebuilt;
+            else if (ContainsPlusCode(formatted) && !string.IsNullOrWhiteSpace(rebuilt))
+                formatted = rebuilt;
+            else
+                formatted = StripPlusCodeSegments(formatted);
+
             if (string.IsNullOrWhiteSpace(formatted) && string.IsNullOrWhiteSpace(placeName))
                 return null;
 
-            formatted ??= string.Join(", ", new[] { road, city, state, country }
-                .Where(s => !string.IsNullOrWhiteSpace(s)));
-
-            // Prefer readable street over plus-code-only lines when we have components.
-            if (!string.IsNullOrWhiteSpace(formatted)
-                && formatted.Contains('+', StringComparison.Ordinal)
-                && !string.IsNullOrWhiteSpace(road))
-            {
-                var rebuilt = string.Join(", ", new[] { road, city, state, country }
-                    .Where(s => !string.IsNullOrWhiteSpace(s)));
-                if (!string.IsNullOrWhiteSpace(rebuilt))
-                    formatted = rebuilt;
-            }
+            formatted = string.IsNullOrWhiteSpace(formatted) ? rebuilt : formatted;
+            if (string.IsNullOrWhiteSpace(formatted))
+                return null;
 
             return new ReverseGeocodeResult(
                 formatted!,
@@ -294,6 +382,50 @@ public sealed class NominatimReverseGeocodingService(
         }
     }
 
+    /// <summary>
+    /// Closest non-admin Nearby result within <see cref="MaxPlaceDistanceMeters"/>; otherwise null.
+    /// </summary>
+    private static GoogleNearbyResult? PickClosestNearbyPlace(
+        IReadOnlyList<GoogleNearbyResult> results,
+        double originLat,
+        double originLng)
+    {
+        GoogleNearbyResult? best = null;
+        var bestMeters = double.MaxValue;
+
+        foreach (var place in results)
+        {
+            if (string.IsNullOrWhiteSpace(place.Name)) continue;
+            var types = place.Types ?? [];
+            if (types.Any(t => IgnoredPlaceTypes.Contains(t))) continue;
+            if (types.Contains("locality", StringComparer.OrdinalIgnoreCase)) continue;
+
+            var loc = place.Geometry?.Location;
+            if (loc is null) continue;
+
+            var meters = HaversineMeters(originLat, originLng, loc.Lat, loc.Lng);
+            if (meters > MaxPlaceDistanceMeters) continue;
+            if (meters < bestMeters)
+            {
+                bestMeters = meters;
+                best = place;
+            }
+        }
+
+        return best;
+    }
+
+    private static double HaversineMeters(double lat1, double lon1, double lat2, double lon2)
+    {
+        const double R = 6371000;
+        var dLat = (lat2 - lat1) * Math.PI / 180;
+        var dLon = (lon2 - lon1) * Math.PI / 180;
+        var a = Math.Sin(dLat / 2) * Math.Sin(dLat / 2)
+            + Math.Cos(lat1 * Math.PI / 180) * Math.Cos(lat2 * Math.PI / 180)
+            * Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
+        return R * 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
+    }
+
     private static GoogleGeocodeResult? PickBestGeocodeResult(IReadOnlyList<GoogleGeocodeResult> results)
     {
         static int Score(GoogleGeocodeResult r)
@@ -302,12 +434,80 @@ public sealed class NominatimReverseGeocodingService(
             if (types.Contains("street_address")) return 100;
             if (types.Contains("premise")) return 90;
             if (types.Contains("route")) return 80;
-            if (types.Contains("establishment") || types.Contains("point_of_interest")) return 70;
-            if (types.Contains("plus_code")) return 20;
-            return 40;
+            if (types.Contains("neighborhood") || types.Contains("sublocality")) return 60;
+            if (types.Contains("establishment") || types.Contains("point_of_interest")) return 40;
+            if (types.Contains("plus_code")) return 5;
+            return 30;
         }
 
         return results.OrderByDescending(Score).FirstOrDefault();
+    }
+
+    /// <summary>Drop obvious OCR/garbage place labels (e.g. "evcuu trsut").</summary>
+    private static string? SanitizePlaceName(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return null;
+        var trimmed = name.Trim();
+        if (trimmed.Length < 3) return null;
+        // Very short token noise / repeated nonsense letters common in bad Places listings.
+        var tokens = trimmed.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (tokens.Count(t => t.Length >= 4 && !t.Any(char.IsDigit)
+                && t.Distinct().Count() <= 2) >= 1)
+            return null;
+        if (tokens.Any(t => LooksLikeTypoBlob(t)))
+            return null;
+        return trimmed;
+    }
+
+    private static bool LooksLikeTypoBlob(string token)
+    {
+        if (token.Length < 4) return false;
+        // "evcuu", "trsut" style: unusual vowel clusters without dictionary letters pattern —
+        // flag tokens with 3+ consecutive identical letters or no vowels.
+        if (System.Text.RegularExpressions.Regex.IsMatch(token, @"(.)\1{2,}")) return true;
+        var vowels = token.Count(c => "aeiouAEIOU".Contains(c));
+        return vowels == 0 && token.All(char.IsLetter);
+    }
+
+    private static string StripPlusCodeSegments(string address)
+    {
+        var parts = address.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
+            .Where(p => !LooksLikePlusCode(p))
+            .ToList();
+        return parts.Count == 0 ? address.Trim() : string.Join(", ", parts);
+    }
+
+    /// <summary>
+    /// When there is no usable road, prefer "City, State, Country" over long tehsil/district chains.
+    /// </summary>
+    private static string CompactLocalityAddress(
+        string address,
+        string? road,
+        string? city,
+        string? state,
+        string? country)
+    {
+        if (!string.IsNullOrWhiteSpace(road) && !LooksLikeAdminToken(road) && !LooksLikePlusCode(road))
+            return address;
+
+        var compact = string.Join(", ", new[] { city, state, country }
+            .Where(s => !string.IsNullOrWhiteSpace(s)));
+        if (!string.IsNullOrWhiteSpace(compact))
+            return compact;
+
+        var parts = address.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
+            .Where(p => !LooksLikeAdminToken(p) || AdminOnlyTokens.Contains(p.Trim().ToLowerInvariant()))
+            .Where(p =>
+            {
+                var lower = p.ToLowerInvariant();
+                return !lower.Contains("tehsil")
+                    && !lower.Contains("district")
+                    && !lower.Contains("division");
+            })
+            .Where(p => !LooksLikePlusCode(p) && !p.All(char.IsDigit))
+            .ToList();
+
+        return parts.Count > 0 ? string.Join(", ", parts) : address;
     }
 
     private async Task<ReverseGeocodeResult?> ResolveFromNominatimAsync(
@@ -457,7 +657,15 @@ public sealed class NominatimReverseGeocodingService(
     private sealed record GoogleNearbyResult(
         [property: JsonPropertyName("name")] string? Name,
         [property: JsonPropertyName("types")] List<string>? Types,
-        [property: JsonPropertyName("vicinity")] string? Vicinity);
+        [property: JsonPropertyName("vicinity")] string? Vicinity,
+        [property: JsonPropertyName("geometry")] GoogleGeometry? Geometry);
+
+    private sealed record GoogleGeometry(
+        [property: JsonPropertyName("location")] GoogleLatLng? Location);
+
+    private sealed record GoogleLatLng(
+        [property: JsonPropertyName("lat")] double Lat,
+        [property: JsonPropertyName("lng")] double Lng);
 
     private sealed record GoogleGeocodeResponse(
         [property: JsonPropertyName("status")] string? Status,

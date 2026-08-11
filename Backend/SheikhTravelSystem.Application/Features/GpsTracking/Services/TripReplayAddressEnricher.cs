@@ -4,7 +4,7 @@ using SheikhTravelSystem.Application.Features.GpsTracking.DTOs;
 namespace SheikhTravelSystem.Application.Features.GpsTracking.Services;
 
 /// <summary>
-/// Fills missing human-readable addresses on replay bundles (first/last playback points and stops).
+/// Fills missing / coarse human-readable addresses on replay bundles (first/last playback points and stops).
 /// </summary>
 public static class TripReplayAddressEnricher
 {
@@ -20,25 +20,8 @@ public static class TripReplayAddressEnricher
 
         await EnrichPositionListAsync(route, geocoder, cancellationToken);
         await EnrichPositionListAsync(playback, geocoder, cancellationToken);
-
-        for (var i = 0; i < stops.Count; i++)
-        {
-            var s = stops[i];
-            if (!string.IsNullOrWhiteSpace(s.Address)) continue;
-            var addr = await ResolveAsync(geocoder, s.Latitude, s.Longitude, cancellationToken);
-            if (addr is not null)
-                stops[i] = s with { Address = addr };
-        }
-
-        for (var i = 0; i < events.Count; i++)
-        {
-            var e = events[i];
-            if (!string.IsNullOrWhiteSpace(e.Address) || e.Latitude is null || e.Longitude is null)
-                continue;
-            var addr = await ResolveAsync(geocoder, e.Latitude.Value, e.Longitude.Value, cancellationToken);
-            if (addr is not null)
-                events[i] = e with { Address = addr };
-        }
+        await EnrichStopsAsync(stops, geocoder, cancellationToken);
+        await EnrichEventsAsync(events, geocoder, cancellationToken);
 
         return new TripReplayBundleDto(
             route,
@@ -60,25 +43,8 @@ public static class TripReplayAddressEnricher
 
         await EnrichPositionListAsync(route, geocoder, cancellationToken);
         await EnrichPositionListAsync(playback, geocoder, cancellationToken);
-
-        for (var i = 0; i < stops.Count; i++)
-        {
-            var s = stops[i];
-            if (!string.IsNullOrWhiteSpace(s.Address)) continue;
-            var addr = await ResolveAsync(geocoder, s.Latitude, s.Longitude, cancellationToken);
-            if (addr is not null)
-                stops[i] = s with { Address = addr };
-        }
-
-        for (var i = 0; i < events.Count; i++)
-        {
-            var e = events[i];
-            if (!string.IsNullOrWhiteSpace(e.Address) || e.Latitude is null || e.Longitude is null)
-                continue;
-            var addr = await ResolveAsync(geocoder, e.Latitude.Value, e.Longitude.Value, cancellationToken);
-            if (addr is not null)
-                events[i] = e with { Address = addr };
-        }
+        await EnrichStopsAsync(stops, geocoder, cancellationToken);
+        await EnrichEventsAsync(events, geocoder, cancellationToken);
 
         return new HistoryReplayBundleDto(
             route,
@@ -89,6 +55,104 @@ public static class TripReplayAddressEnricher
             bundle.Statistics,
             bundle.MileageKm,
             bundle.Vehicle);
+    }
+
+    /// <summary>
+    /// Street/locality first. PlaceName is metadata only when distance-qualified by the geocoder —
+    /// do not promote unchecked Nearby POIs into the stored address line.
+    /// </summary>
+    public static string? FormatResolvedAddress(ReverseGeocodeResult? result)
+    {
+        if (result is null) return null;
+        var formatted = SanitizeFleetAddress(result.FormattedAddress);
+        if (!string.IsNullOrWhiteSpace(formatted))
+            return formatted;
+
+        // Do not fall back to unchecked PlaceName for fleet operators.
+        return null;
+    }
+
+    /// <summary>
+    /// City/region-only, plus-code, or legacy "Near {POI}" lines that need a street-level refresh.
+    /// </summary>
+    public static bool IsCoarseAddress(string? address)
+    {
+        if (string.IsNullOrWhiteSpace(address)) return true;
+        var raw = address.Trim();
+        var lower = raw.ToLowerInvariant();
+        if (lower.Contains("tehsil") || lower.Contains("district") || lower.Contains("division"))
+            return true;
+
+        if (raw.StartsWith("Near ", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (System.Text.RegularExpressions.Regex.IsMatch(
+                raw,
+                @"\b[23456789CFGHJMPQRVWX]{4,8}\+[23456789CFGHJMPQRVWX]{2,3}\b",
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase))
+            return true;
+
+        return false;
+    }
+
+    /// <summary>Strip legacy Near-prefix and plus-code segments from a stored address line.</summary>
+    public static string? SanitizeFleetAddress(string? address)
+    {
+        if (string.IsNullOrWhiteSpace(address)) return null;
+        var raw = address.Trim();
+        if (raw.StartsWith("Near ", StringComparison.OrdinalIgnoreCase))
+        {
+            var comma = raw.IndexOf(',');
+            raw = comma > 0 ? raw[(comma + 1)..].Trim() : string.Empty;
+        }
+
+        var parts = raw.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(p => !System.Text.RegularExpressions.Regex.IsMatch(
+                p,
+                @"\b[23456789CFGHJMPQRVWX]{4,8}\+[23456789CFGHJMPQRVWX]{2,3}\b",
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase))
+            .ToList();
+        if (parts.Count == 0) return null;
+        return string.Join(", ", parts);
+    }
+
+    private static async Task EnrichStopsAsync(
+        List<TripStopDto> stops,
+        IReverseGeocodingService geocoder,
+        CancellationToken cancellationToken)
+    {
+        for (var i = 0; i < stops.Count; i++)
+        {
+            var s = stops[i];
+            var coarse = IsCoarseAddress(s.Address);
+            if (!coarse) continue;
+
+            var addr = await ResolveAsync(geocoder, s.Latitude, s.Longitude, forceRefresh: coarse && !string.IsNullOrWhiteSpace(s.Address), cancellationToken);
+            if (addr is not null)
+                stops[i] = s with { Address = addr };
+        }
+    }
+
+    private static async Task EnrichEventsAsync(
+        List<TripEventDto> events,
+        IReverseGeocodingService geocoder,
+        CancellationToken cancellationToken)
+    {
+        for (var i = 0; i < events.Count; i++)
+        {
+            var e = events[i];
+            if (e.Latitude is null || e.Longitude is null) continue;
+            if (!IsCoarseAddress(e.Address)) continue;
+
+            var addr = await ResolveAsync(
+                geocoder,
+                e.Latitude.Value,
+                e.Longitude.Value,
+                forceRefresh: !string.IsNullOrWhiteSpace(e.Address),
+                cancellationToken);
+            if (addr is not null)
+                events[i] = e with { Address = addr };
+        }
     }
 
     private static async Task EnrichPositionListAsync(
@@ -103,8 +167,13 @@ public static class TripReplayAddressEnricher
         {
             if (idx < 0 || idx >= positions.Count) continue;
             var p = positions[idx];
-            if (!string.IsNullOrWhiteSpace(p.Address)) continue;
-            var addr = await ResolveAsync(geocoder, p.Latitude, p.Longitude, cancellationToken);
+            if (!IsCoarseAddress(p.Address)) continue;
+            var addr = await ResolveAsync(
+                geocoder,
+                p.Latitude,
+                p.Longitude,
+                forceRefresh: !string.IsNullOrWhiteSpace(p.Address),
+                cancellationToken);
             if (addr is not null)
                 positions[idx] = p with { Address = addr };
         }
@@ -114,12 +183,13 @@ public static class TripReplayAddressEnricher
         IReverseGeocodingService geocoder,
         double latitude,
         double longitude,
+        bool forceRefresh,
         CancellationToken cancellationToken)
     {
         try
         {
-            var result = await geocoder.GetAddressAsync(latitude, longitude, forceRefresh: false, cancellationToken);
-            return string.IsNullOrWhiteSpace(result?.FormattedAddress) ? null : result.FormattedAddress.Trim();
+            var result = await geocoder.GetAddressAsync(latitude, longitude, forceRefresh, cancellationToken);
+            return FormatResolvedAddress(result);
         }
         catch
         {

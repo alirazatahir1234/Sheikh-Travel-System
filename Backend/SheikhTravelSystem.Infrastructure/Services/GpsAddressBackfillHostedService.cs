@@ -74,12 +74,14 @@ public class GpsAddressBackfillHostedService(
                 new { VehicleId = vehicleId },
                 cancellationToken: cancellationToken));
 
-        // Cache-first resolve (~11 m grid). Nominatim only on miss.
-        var result = await geocoder.GetAddressAsync(latitude, longitude, forceRefresh: false, cancellationToken);
-        if (result is null || string.IsNullOrWhiteSpace(result.FormattedAddress))
+        // Force-refresh when VCL still has a coarse / legacy "Near …" label so bad cache rows are overwritten.
+        var forceRefresh = TripReplayAddressEnricher.IsCoarseAddress(current?.Address);
+        var result = await geocoder.GetAddressAsync(latitude, longitude, forceRefresh, cancellationToken);
+        var formatted = TripReplayAddressEnricher.FormatResolvedAddress(result);
+        if (string.IsNullOrWhiteSpace(formatted))
             return;
 
-        if (string.Equals(current?.Address, result.FormattedAddress, StringComparison.Ordinal))
+        if (string.Equals(current?.Address, formatted, StringComparison.Ordinal))
             return;
 
         await connection.ExecuteAsync(new CommandDefinition("""
@@ -87,15 +89,16 @@ public class GpsAddressBackfillHostedService(
             SET Address = @Address
             WHERE VehicleId = @VehicleId
             """,
-            new { VehicleId = vehicleId, Address = result.FormattedAddress },
+            new { VehicleId = vehicleId, Address = formatted },
             cancellationToken: cancellationToken));
 
         await connection.ExecuteAsync(new CommandDefinition("""
             UPDATE TOP (1) GpsPositions
             SET Address = @Address
-            WHERE VehicleId = @VehicleId AND (Address IS NULL OR Address = '')
+            WHERE VehicleId = @VehicleId
+              AND (Address IS NULL OR Address = '' OR Address = @PreviousAddress)
             """,
-            new { VehicleId = vehicleId, Address = result.FormattedAddress },
+            new { VehicleId = vehicleId, Address = formatted, PreviousAddress = current?.Address },
             cancellationToken: cancellationToken));
 
         await broadcaster.BroadcastLocationUpdateAsync(
@@ -106,7 +109,7 @@ public class GpsAddressBackfillHostedService(
             current?.Speed ?? 0m,
             current?.Ignition,
             DateTime.UtcNow,
-            address: result.FormattedAddress,
+            address: formatted,
             cancellationToken: cancellationToken);
     }
 }

@@ -14,19 +14,18 @@ class PlaybackSummaryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final stats = bundle.statistics;
     final summary = bundle.summary;
-    final dist = bundle.mileageKm ??
-        stats?.distanceKm ??
-        summary?.distanceKm ??
-        0;
+    final dist =
+        bundle.mileageKm ?? stats?.distanceKm ?? summary?.distanceKm ?? 0;
     final driveMin = effectiveDrivingMinutes(bundle);
     final idle = stats?.idleMinutes ?? 0;
-    final parking = bundle.stops.fold<int>(0, (sum, s) => sum + s.durationMinutes);
+    final parkingCount =
+        bundle.stops.where((s) => s.durationMinutes >= 120).length;
     final avg = stats?.avgSpeedKmh ?? summary?.avgSpeedKmh ?? 0;
     final max = stats?.maxSpeedKmh ?? summary?.maxSpeedKmh ?? 0;
-    final stops = bundle.stops.isNotEmpty
-        ? bundle.stops.length
-        : stats?.stopCount ?? 0;
-    final points = bundle.points.isNotEmpty ? bundle.points : bundle.trailPoints;
+    final stops =
+        bundle.stops.isNotEmpty ? bundle.stops.length : stats?.stopCount ?? 0;
+    final points =
+        bundle.points.isNotEmpty ? bundle.points : bundle.trailPoints;
     final tf = DateFormat('dd MMM, HH:mm');
     final tripDurationMin = points.length >= 2
         ? points.last.timestamp.difference(points.first.timestamp).inMinutes
@@ -51,7 +50,8 @@ class PlaybackSummaryCard extends StatelessWidget {
                 child: _primaryCell('Driving', formatDurationMinutes(driveMin)),
               ),
               Expanded(
-                child: _primaryCell('Trip', formatDurationMinutes(tripDurationMin)),
+                child: _primaryCell(
+                    'Trip', formatDurationMinutes(tripDurationMin)),
               ),
             ],
           ),
@@ -59,10 +59,10 @@ class PlaybackSummaryCard extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: _secondaryCell('Idle', formatDurationMinutes(idle)),
+                child: _secondaryCell('Non-moving', formatDurationMinutes(idle)),
               ),
               Expanded(
-                child: _secondaryCell('Parking', formatDurationMinutes(parking)),
+                child: _secondaryCell('Parking', '$parkingCount'),
               ),
               Expanded(
                 child: _secondaryCell('Stops', '$stops'),

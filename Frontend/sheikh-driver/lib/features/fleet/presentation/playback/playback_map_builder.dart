@@ -33,10 +33,39 @@ String formatPlaybackCoords(double latitude, double longitude) =>
 bool isCoarsePlaybackAddress(String? address) {
   final a = address?.trim();
   if (a == null || a.isEmpty) return true;
+  final lower = a.toLowerCase();
+  if (lower.contains('tehsil') ||
+      lower.contains('district') ||
+      lower.contains('division')) {
+    return true;
+  }
   final parts =
       a.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
   if (parts.any((p) => RegExp(r'\d').hasMatch(p))) return false;
   return parts.length <= 3;
+}
+
+/// Primary street/POI line + optional locality for address-first UI.
+({String? primary, String? secondary}) splitPlaybackAddress(String? address) {
+  final raw = address?.trim();
+  if (raw == null || raw.isEmpty) {
+    return (primary: null, secondary: null);
+  }
+  final parts =
+      raw.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+  if (parts.length <= 2) {
+    return (primary: raw, secondary: null);
+  }
+  var take = 1;
+  if (parts.first.toLowerCase().startsWith('near ') && parts.length > 2) {
+    take = 2;
+  } else if (parts.length >= 4) {
+    take = 2;
+  }
+  return (
+    primary: parts.take(take).join(', '),
+    secondary: parts.skip(take).join(', '),
+  );
 }
 
 String playbackAddressLine(HistoryReplayPoint point) {
@@ -46,6 +75,41 @@ String playbackAddressLine(HistoryReplayPoint point) {
   }
   if (addr != null && addr.isNotEmpty) return addr;
   return formatPlaybackCoords(point.latitude, point.longitude);
+}
+
+String playbackAddressPrimary(String? address, {double? lat, double? lng}) {
+  final split = splitPlaybackAddress(address);
+  if (split.primary != null && split.primary!.isNotEmpty) return split.primary!;
+  if (lat != null && lng != null) return formatPlaybackCoords(lat, lng);
+  return 'Address unavailable';
+}
+
+String? playbackAddressSecondary(String? address) =>
+    splitPlaybackAddress(address).secondary;
+
+String stopPlaybackHeadline(TripStop stop) {
+  final kind = stop.durationMinutes >= 120 ? 'Parking' : 'Stop';
+  final primary = playbackAddressPrimary(
+    stop.address,
+    lat: stop.latitude,
+    lng: stop.longitude,
+  );
+  return '$kind — $primary';
+}
+
+String stopPlaybackHeadlineFor({
+  required int durationMinutes,
+  String? address,
+  required double latitude,
+  required double longitude,
+}) {
+  final kind = durationMinutes >= 120 ? 'Parking' : 'Stop';
+  final primary = playbackAddressPrimary(
+    address,
+    lat: latitude,
+    lng: longitude,
+  );
+  return '$kind — $primary';
 }
 
 enum PlaybackMarkerKind {
@@ -210,14 +274,17 @@ class PlaybackMapAssets {
         return BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed);
       case PlaybackMarkerKind.stop:
       case PlaybackMarkerKind.fuel:
-        return BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange);
+        return BitmapDescriptor.defaultMarkerWithHue(
+            BitmapDescriptor.hueOrange);
       case PlaybackMarkerKind.ignitionOn:
         return BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen);
       case PlaybackMarkerKind.ignitionOff:
       case PlaybackMarkerKind.eventFallback:
-        return BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueViolet);
+        return BitmapDescriptor.defaultMarkerWithHue(
+            BitmapDescriptor.hueViolet);
       case PlaybackMarkerKind.geofence:
-        return BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueMagenta);
+        return BitmapDescriptor.defaultMarkerWithHue(
+            BitmapDescriptor.hueMagenta);
       case PlaybackMarkerKind.vehicle:
         return BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure);
     }
@@ -269,7 +336,8 @@ class PlaybackMapAssets {
     );
     canvas.drawPath(arrow, Paint()..color = color);
 
-    final image = await recorder.endRecording().toImage(size.toInt(), size.toInt());
+    final image =
+        await recorder.endRecording().toImage(size.toInt(), size.toInt());
     final data = await image.toByteData(format: ui.ImageByteFormat.png);
     return data!.buffer.asUint8List();
   }
@@ -289,13 +357,15 @@ class PlaybackMapAssets {
 
     final path = Path()
       ..moveTo(logicalW / 2, logicalH)
-      ..quadraticBezierTo(logicalW / 2 - 4, logicalH - 10, logicalW / 2 - 12, logicalH - 18)
+      ..quadraticBezierTo(
+          logicalW / 2 - 4, logicalH - 10, logicalW / 2 - 12, logicalH - 18)
       ..arcToPoint(
         Offset(logicalW / 2 + 12, logicalH - 18),
         radius: const Radius.circular(13),
         clockwise: false,
       )
-      ..quadraticBezierTo(logicalW / 2 + 4, logicalH - 10, logicalW / 2, logicalH)
+      ..quadraticBezierTo(
+          logicalW / 2 + 4, logicalH - 10, logicalW / 2, logicalH)
       ..close();
 
     canvas.drawPath(
@@ -321,7 +391,8 @@ class PlaybackMapAssets {
     return data!.buffer.asUint8List();
   }
 
-  static void _paintGlyph(Canvas canvas, PlaybackPinGlyph glyph, Offset center) {
+  static void _paintGlyph(
+      Canvas canvas, PlaybackPinGlyph glyph, Offset center) {
     final paint = Paint()
       ..color = Colors.white
       ..style = PaintingStyle.fill
@@ -354,7 +425,8 @@ class PlaybackMapAssets {
           Rect.fromCenter(center: center, width: 14, height: 14),
           const Radius.circular(3),
         );
-        canvas.drawRRect(r, Paint()..color = Colors.white.withValues(alpha: 0.25));
+        canvas.drawRRect(
+            r, Paint()..color = Colors.white.withValues(alpha: 0.25));
         final tp = TextPainter(
           text: const TextSpan(
             text: 'P',
@@ -366,7 +438,8 @@ class PlaybackMapAssets {
           ),
           textDirection: ui.TextDirection.ltr,
         )..layout();
-        tp.paint(canvas, Offset(center.dx - tp.width / 2, center.dy - tp.height / 2));
+        tp.paint(canvas,
+            Offset(center.dx - tp.width / 2, center.dy - tp.height / 2));
       case PlaybackPinGlyph.speed:
         // Speedometer arc + needle
         paint
@@ -387,7 +460,8 @@ class PlaybackMapAssets {
       case PlaybackPinGlyph.power:
         paint.style = PaintingStyle.stroke;
         canvas.drawArc(
-          Rect.fromCenter(center: center.translate(0, 1), width: 12, height: 12),
+          Rect.fromCenter(
+              center: center.translate(0, 1), width: 12, height: 12),
           -math.pi * 0.25,
           math.pi * 1.5,
           false,
@@ -450,7 +524,8 @@ class PlaybackMapAssets {
           ),
           textDirection: ui.TextDirection.ltr,
         )..layout();
-        tp.paint(canvas, Offset(center.dx - tp.width / 2, center.dy - tp.height / 2));
+        tp.paint(canvas,
+            Offset(center.dx - tp.width / 2, center.dy - tp.height / 2));
       case PlaybackPinGlyph.pin:
         canvas.drawCircle(center, 3.5, paint);
     }
@@ -492,7 +567,8 @@ int displayIndexForTrailIndex(
   int trailIndex,
 ) {
   if (displayTrail.isEmpty || fullTrail.isEmpty) return 0;
-  if (identical(fullTrail, displayTrail) || fullTrail.length == displayTrail.length) {
+  if (identical(fullTrail, displayTrail) ||
+      fullTrail.length == displayTrail.length) {
     return trailIndex.clamp(0, displayTrail.length - 1);
   }
   final t = fullTrail[trailIndex.clamp(0, fullTrail.length - 1)].timestamp;
@@ -629,9 +705,8 @@ Future<Set<Marker>> buildPlaybackStaticMarkers({
   final markerTimeFmt = DateFormat('dd MMM, HH:mm');
   // Always show start/end (even when vehicle sits on them). Vehicle marker
   // uses a higher zIndex so it remains visible on top when coincident.
-  final startIdx = playback.isEmpty
-      ? 0
-      : indexForTimestamp(playback, trail.first.timestamp);
+  final startIdx =
+      playback.isEmpty ? 0 : indexForTimestamp(playback, trail.first.timestamp);
   final startPoint = trail.first;
   markers.add(
     Marker(
@@ -639,7 +714,8 @@ Future<Set<Marker>> buildPlaybackStaticMarkers({
       position: startPos,
       icon: startIcon,
       infoWindow: InfoWindow(
-        title: 'Start · ${markerTimeFmt.format(startPoint.timestamp.toLocal())}',
+        title:
+            'Start · ${markerTimeFmt.format(startPoint.timestamp.toLocal())}',
         snippet: playbackAddressLine(startPoint),
       ),
       zIndexInt: 1,
@@ -651,9 +727,8 @@ Future<Set<Marker>> buildPlaybackStaticMarkers({
   );
 
   final endPos = LatLng(trail.last.latitude, trail.last.longitude);
-  final endIdx = playback.isEmpty
-      ? 0
-      : indexForTimestamp(playback, trail.last.timestamp);
+  final endIdx =
+      playback.isEmpty ? 0 : indexForTimestamp(playback, trail.last.timestamp);
   final endPoint = trail.last;
   markers.add(
     Marker(
@@ -675,17 +750,20 @@ Future<Set<Marker>> buildPlaybackStaticMarkers({
   for (var i = 0; i < stops.length; i++) {
     final s = stops[i];
     if (nearVehicle(s.latitude, s.longitude)) continue;
-    final stopIdx = playback.isEmpty
-        ? 0
-        : indexForTimestamp(playback, s.startTime);
+    final stopIdx =
+        playback.isEmpty ? 0 : indexForTimestamp(playback, s.startTime);
     markers.add(
       Marker(
         markerId: MarkerId('stop_$i'),
         position: LatLng(s.latitude, s.longitude),
         icon: stopIcon,
         infoWindow: InfoWindow(
-          title: 'Stop · ${formatDurationMinutes(s.durationMinutes)}',
-          snippet: s.address ?? formatPlaybackCoords(s.latitude, s.longitude),
+          title: stopPlaybackHeadline(s),
+          snippet: [
+            if (playbackAddressSecondary(s.address) case final locality?)
+              locality,
+            '${formatDurationMinutes(s.durationMinutes)} · ${markerTimeFmt.format(s.startTime.toLocal())}',
+          ].join('\n'),
         ),
         zIndexInt: 2,
         onTap: tapHandler(PlaybackMarkerTap(
@@ -701,9 +779,7 @@ Future<Set<Marker>> buildPlaybackStaticMarkers({
     final e = events[i];
     if (e.latitude == null || e.longitude == null) continue;
     if (nearVehicle(e.latitude!, e.longitude!)) continue;
-    final evtIdx = playback.isEmpty
-        ? 0
-        : indexForTimestamp(playback, e.time);
+    final evtIdx = playback.isEmpty ? 0 : indexForTimestamp(playback, e.time);
     markers.add(
       Marker(
         markerId: MarkerId('evt_$i'),
@@ -751,7 +827,8 @@ Future<Set<Marker>> buildPlaybackMarkers({
     onMarkerTap: onMarkerTap,
   );
   if (vehiclePoint != null) {
-    markers.add(buildVehicleMarker(point: vehiclePoint, vehicleIcon: vehicleIcon));
+    markers
+        .add(buildVehicleMarker(point: vehiclePoint, vehicleIcon: vehicleIcon));
   }
   return markers;
 }

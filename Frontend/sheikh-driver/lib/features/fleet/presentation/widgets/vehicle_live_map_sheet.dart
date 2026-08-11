@@ -4,13 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/constants/app_theme.dart';
 import '../../data/fleet_api.dart';
 import '../../domain/fleet_models.dart';
+import '../../domain/gps_freshness.dart';
 import '../vehicle_detail_screen.dart';
 import 'fleet_kpi_strip.dart';
 import 'vehicle_comms_buttons.dart';
@@ -61,7 +61,6 @@ class VehicleLiveMapSheet extends ConsumerWidget {
     final gpsAsync = ref.watch(vehicleGpsInfoProvider(vehicle.vehicleId));
     final todayAsync =
         ref.watch(vehicleTodayAnalyticsProvider(vehicle.vehicleId));
-    final tf = DateFormat('dd MMM, HH:mm:ss');
 
     return DraggableScrollableSheet(
       initialChildSize: 0.28,
@@ -148,7 +147,13 @@ class VehicleLiveMapSheet extends ConsumerWidget {
                   runSpacing: 6,
                   children: [
                     _Chip(label: vehicle.status.label, color: color),
-                    _Chip(label: '${vehicle.speed.toStringAsFixed(0)} km/h'),
+                    _Chip(
+                      label: formatDisplaySpeedLabel(
+                        speed: vehicle.speed,
+                        ignition: vehicle.ignition,
+                        status: vehicle.status,
+                      ),
+                    ),
                     _Chip(
                       label: vehicle.ignition == true
                           ? 'Ignition ON'
@@ -156,9 +161,13 @@ class VehicleLiveMapSheet extends ConsumerWidget {
                               ? 'Ignition OFF'
                               : 'Ignition —',
                     ),
-                    _Chip(label: vehicle.hasGps ? 'GPS OK' : 'No GPS'),
-                    if (vehicle.lastUpdated != null)
-                      _Chip(label: tf.format(vehicle.lastUpdated!.toLocal())),
+                    _Chip(
+                      label: formatGpsFreshness(
+                        latitude: vehicle.latitude,
+                        longitude: vehicle.longitude,
+                        lastUpdated: vehicle.lastUpdated,
+                      ),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 14),
@@ -218,48 +227,42 @@ class VehicleLiveMapSheet extends ConsumerWidget {
                   FutureBuilder<ReverseGeocodeInfo?>(
                     future: _resolveExactLocation(ref, vehicle),
                     builder: (context, snap) {
-                      final info = snap.data;
-                      final place = info?.placeName?.trim();
-                      final address = info?.formattedAddress.trim().isNotEmpty == true
-                          ? info!.formattedAddress.trim()
-                          : (vehicle.address?.trim().isNotEmpty == true
-                              ? vehicle.address!.trim()
-                              : (snap.connectionState == ConnectionState.waiting
-                                  ? 'Resolving exact location…'
-                                  : 'Address unavailable'));
+                      final waiting =
+                          snap.connectionState == ConnectionState.waiting &&
+                              !snap.hasData;
+                      final display = _locationDisplayLines(
+                        vehicle: vehicle,
+                        info: snap.data,
+                        waiting: waiting,
+                      );
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          if (place != null && place.isNotEmpty) ...[
+                          if (display.primary != null) ...[
                             Text(
-                              place,
+                              display.primary!,
                               style: const TextStyle(
                                 fontSize: 15,
                                 fontWeight: FontWeight.w800,
                                 height: 1.3,
                               ),
                             ),
-                            if ((info?.placeType ?? '').isNotEmpty)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 2),
-                                child: Text(
-                                  info!.placeType!.replaceAll('_', ' '),
-                                  style: const TextStyle(
-                                    fontSize: 11,
-                                    color: AppColors.textMuted,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ),
                             const SizedBox(height: 4),
                           ],
-                          Text(
-                            address,
-                            style: const TextStyle(fontSize: 13, height: 1.35),
-                          ),
+                          if (display.secondary != null)
+                            Text(
+                              display.secondary!,
+                              style: TextStyle(
+                                fontSize: 13,
+                                height: 1.35,
+                                color: display.isUnavailable
+                                    ? AppColors.textMuted
+                                    : AppColors.textPrimary,
+                              ),
+                            ),
                           const SizedBox(height: 6),
                           SelectableText(
-                            '${vehicle.latitude!.toStringAsFixed(5)}, ${vehicle.longitude!.toStringAsFixed(5)}',
+                            display.coords,
                             style: const TextStyle(
                               fontSize: 12,
                               color: AppColors.textSecondary,
@@ -295,31 +298,33 @@ class VehicleLiveMapSheet extends ConsumerWidget {
                   ),
                   error: (_, __) => _DeviceFallback(vehicle: vehicle),
                   data: (gps) {
-                    final model = [
-                      if ((gps.brandName ?? '').isNotEmpty) gps.brandName!,
-                      if ((gps.modelName ?? '').isNotEmpty) gps.modelName!,
-                    ].join(' ');
-                    return _StatsGrid(
-                      items: [
-                        _Stat(
-                          'Battery',
-                          (gps.batteryLevel ?? vehicle.batteryLevel) != null
-                              ? '${(gps.batteryLevel ?? vehicle.batteryLevel)!.toStringAsFixed(0)}%'
-                              : '—',
+                    final tracker = _trackerLabel(gps);
+                    final imei = (gps.uniqueId ?? '').trim();
+                    final items = <_Stat>[
+                      _Stat(
+                        'Battery',
+                        (gps.batteryLevel ?? vehicle.batteryLevel) != null
+                            ? '${(gps.batteryLevel ?? vehicle.batteryLevel)!.toStringAsFixed(0)}%'
+                            : '—',
+                      ),
+                      _Stat(
+                        'GSM',
+                        (gps.gsmSignal ?? vehicle.gsmSignal) != null
+                            ? '${gps.gsmSignal ?? vehicle.gsmSignal}'
+                            : '—',
+                      ),
+                      _Stat(
+                        'GPS',
+                        formatGpsFreshness(
+                          latitude: vehicle.latitude,
+                          longitude: vehicle.longitude,
+                          lastUpdated: vehicle.lastUpdated,
                         ),
-                        _Stat(
-                          'GSM',
-                          (gps.gsmSignal ?? vehicle.gsmSignal) != null
-                              ? '${gps.gsmSignal ?? vehicle.gsmSignal}'
-                              : '—',
-                        ),
-                        _Stat(
-                          'GPS',
-                          gps.gpsOnline || vehicle.hasGps ? 'Online' : 'Offline',
-                        ),
-                        _Stat('Model', model.isEmpty ? '—' : model),
-                      ],
-                    );
+                      ),
+                      _Stat('GPS Tracker', tracker),
+                      if (imei.isNotEmpty) _Stat('IMEI', imei),
+                    ];
+                    return _StatsGrid(items: items);
                   },
                 ),
                 if ((vehicle.driverPhone ?? '').isNotEmpty) ...[
@@ -393,23 +398,115 @@ class VehicleLiveMapSheet extends ConsumerWidget {
     FleetVehicleLocation v,
   ) async {
     if (!v.hasMapCoords) return null;
+    final coordsLabel =
+        '${v.latitude!.toStringAsFixed(5)}, ${v.longitude!.toStringAsFixed(5)}';
     final inline = v.address?.trim();
-    final coarse = inline == null || inline.isEmpty || _isCoarse(inline);
+    if (inline != null &&
+        inline.isNotEmpty &&
+        !_isCoarse(inline) &&
+        !_isCoordsOnly(inline, coordsLabel)) {
+      return ReverseGeocodeInfo(formattedAddress: inline);
+    }
+
+    final coarse = inline == null ||
+        inline.isEmpty ||
+        _isCoarse(inline) ||
+        _isCoordsOnly(inline, coordsLabel);
     try {
-      return await ref.read(fleetApiProvider).reverseGeocodeInfo(
+      final info = await ref.read(fleetApiProvider).reverseGeocodeInfo(
             v.latitude!,
             v.longitude!,
             forceRefresh: coarse,
           );
-    } catch (_) {
-      if (inline != null && inline.isNotEmpty) {
-        return ReverseGeocodeInfo(formattedAddress: inline);
+      if (info == null) return null;
+      final formatted = info.formattedAddress.trim();
+      if (formatted.isEmpty || _isCoordsOnly(formatted, coordsLabel)) {
+        return null;
       }
-      return ReverseGeocodeInfo(
-        formattedAddress:
-            '${v.latitude!.toStringAsFixed(5)}, ${v.longitude!.toStringAsFixed(5)}',
+      return info;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static _LocationDisplay _locationDisplayLines({
+    required FleetVehicleLocation vehicle,
+    required ReverseGeocodeInfo? info,
+    required bool waiting,
+  }) {
+    final coords =
+        '${vehicle.latitude!.toStringAsFixed(5)}, ${vehicle.longitude!.toStringAsFixed(5)}';
+    final place = info?.placeName?.trim();
+    var address = info?.formattedAddress.trim();
+    if (address != null && _isCoordsOnly(address, coords)) address = null;
+
+    final inline = vehicle.address?.trim();
+    final inlineOk = inline != null &&
+        inline.isNotEmpty &&
+        !_isCoarse(inline) &&
+        !_isCoordsOnly(inline, coords);
+
+    if ((address == null || address.isEmpty) && inlineOk) {
+      address = inline;
+    }
+
+    if (waiting && (address == null || address.isEmpty)) {
+      return _LocationDisplay(
+        primary: null,
+        secondary: 'Resolving exact location…',
+        coords: coords,
+        isUnavailable: false,
       );
     }
+
+    if (address == null || address.isEmpty) {
+      return _LocationDisplay(
+        primary: place != null && place.isNotEmpty ? place : null,
+        secondary: 'Address unavailable',
+        coords: coords,
+        isUnavailable: true,
+      );
+    }
+
+    // Street / locality is primary; optional Nearby place is secondary only.
+    String? secondary;
+    if (place != null &&
+        place.isNotEmpty &&
+        !address.toLowerCase().contains(place.toLowerCase())) {
+      secondary = place;
+    }
+
+    return _LocationDisplay(
+      primary: address,
+      secondary: secondary,
+      coords: coords,
+      isUnavailable: false,
+    );
+  }
+
+  static String _trackerLabel(VehicleGpsInfo gps) {
+    final brand = gps.brandName?.trim() ?? '';
+    final model = gps.modelName?.trim() ?? '';
+    final device = gps.deviceName?.trim() ?? '';
+    if (brand.isNotEmpty && model.isNotEmpty) {
+      if (model.toLowerCase().startsWith(brand.toLowerCase())) return model;
+      return '$brand $model';
+    }
+    if (model.isNotEmpty) return model;
+    if (brand.isNotEmpty) return brand;
+    if (device.isNotEmpty) return device;
+    return '—';
+  }
+
+  static bool _isCoordsOnly(String address, String coordsLabel) {
+    final a = address.trim().replaceAll(' ', '');
+    final c = coordsLabel.trim().replaceAll(' ', '');
+    if (a == c) return true;
+    // Also match slightly different precision.
+    final m = RegExp(
+      r'^-?\d+\.\d+\s*,\s*-?\d+\.\d+$',
+    ).hasMatch(address.trim());
+    return m && !address.contains(RegExp(r'[A-Za-z]'));
   }
 
   static bool _isCoarse(String address) {
@@ -417,6 +514,11 @@ class VehicleLiveMapSheet extends ConsumerWidget {
     if (lower.contains('tehsil') ||
         lower.contains('district') ||
         lower.contains('division')) {
+      return true;
+    }
+    final trimmed = address.trim();
+    if (trimmed.toLowerCase().startsWith('near ') &&
+        !RegExp(r'\d').hasMatch(trimmed)) {
       return true;
     }
     final parts =
@@ -483,11 +585,32 @@ class _DeviceFallback extends StatelessWidget {
           'GSM',
           vehicle.gsmSignal != null ? '${vehicle.gsmSignal}' : '—',
         ),
-        _Stat('GPS', vehicle.hasGps ? 'Online' : 'Offline'),
-        const _Stat('Model', '—'),
+        _Stat(
+          'GPS',
+          formatGpsFreshness(
+            latitude: vehicle.latitude,
+            longitude: vehicle.longitude,
+            lastUpdated: vehicle.lastUpdated,
+          ),
+        ),
+        const _Stat('GPS Tracker', '—'),
       ],
     );
   }
+}
+
+class _LocationDisplay {
+  const _LocationDisplay({
+    required this.primary,
+    required this.secondary,
+    required this.coords,
+    required this.isUnavailable,
+  });
+
+  final String? primary;
+  final String? secondary;
+  final String coords;
+  final bool isUnavailable;
 }
 
 class _SectionTitle extends StatelessWidget {

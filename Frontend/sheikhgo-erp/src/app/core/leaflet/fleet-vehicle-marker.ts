@@ -215,11 +215,14 @@ export function buildFleetVehiclePopup(fields: {
   mapsUrl?: string | null;
   lastPing?: string | null;
   statusLabel?: string | null;
+  /** Explicit GPS freshness line (preferred over lastPing alone). */
+  gpsStatus?: string | null;
 }): string {
   const esc = (s: string) =>
     s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   const ignition =
     fields.ignition === true ? 'ON' : fields.ignition === false ? 'OFF' : '—';
+  const gpsLine = fields.gpsStatus?.trim() || fields.lastPing?.trim() || null;
   const lines: string[] = [
     `<div class="fv-popup">`,
     `<strong class="fv-popup__title">${esc(fields.name)}</strong>`
@@ -233,7 +236,14 @@ export function buildFleetVehiclePopup(fields: {
     const h = fields.headingLabel ? ` · ${esc(fields.headingLabel)}` : '';
     lines.push(`<span>${Math.round(fields.speedKmh)} km/h${h}</span>`);
   }
-  if (fields.lastPing) lines.push(`<small>${esc(fields.lastPing)}</small>`);
+  if (gpsLine) {
+    const tone = gpsLine.startsWith('Live GPS')
+      ? 'fv-popup__gps--live'
+      : gpsLine.startsWith('GPS position')
+        ? 'fv-popup__gps--stale'
+        : 'fv-popup__gps--none';
+    lines.push(`<small class="fv-popup__gps ${tone}">${esc(gpsLine)}</small>`);
+  }
   if (fields.address) {
     lines.push(`<span class="fv-popup__addr">📍 ${esc(fields.address)}</span>`);
     if (fields.mapsUrl) {

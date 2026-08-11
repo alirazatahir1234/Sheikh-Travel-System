@@ -40,8 +40,13 @@
   <!-- Hero: photo + info + live status -->
   <section class="hero-grid">
     <mat-card class="hero-card photo-card">
-      <div class="hero-photo" [class.has-image]="primaryImageUrl">
-        <img *ngIf="primaryImageUrl as img" [src]="img" [alt]="vehicle.name" (click)="openPhotoPreview(img, vehicle.name)" />
+      <div class="hero-photo" [class.has-image]="!!primaryImageUrl && !heroImageBroken">
+        <img
+          *ngIf="primaryImageUrl as img"
+          [src]="img"
+          [alt]="vehicle.name"
+          (error)="onHeroImageError()"
+          (click)="openPhotoPreview(img, vehicle.name)" />
         <div *ngIf="!primaryImageUrl" class="photo-placeholder">
           <mat-icon>directions_bus</mat-icon>
           <span>No display photo</span>
@@ -57,12 +62,12 @@
         <button
           type="button"
           class="photo-slot"
-          *ngFor="let slot of photoSlots"
+          *ngFor="let slot of photoSlots; trackBy: trackPhotoSlot"
           [class.filled]="!!slot.document"
           [class.primary]="slot.isPrimary"
-          (click)="photoUrl(slot.document) && openPhotoPreview(photoUrl(slot.document)!, slot.label)">
-          <img *ngIf="photoUrl(slot.document) as url" [src]="url" [alt]="slot.label" />
-          <mat-icon *ngIf="!photoUrl(slot.document)">photo_camera</mat-icon>
+          (click)="slot.url && openPhotoPreview(slot.url, slot.label)">
+          <img *ngIf="slot.url as url" [src]="url" [alt]="slot.label" (error)="onSlotImageError($event)" />
+          <mat-icon *ngIf="!slot.url">photo_camera</mat-icon>
           <span>{{ slot.label }}</span>
         </button>
       </div>

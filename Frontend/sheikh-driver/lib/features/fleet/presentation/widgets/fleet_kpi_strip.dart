@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../core/constants/app_theme.dart';
 import '../../domain/fleet_models.dart';
+import '../fleet_vehicle_filters.dart';
 
 Color fleetStatusColor(FleetTrackStatus status) => switch (status) {
       FleetTrackStatus.moving => const Color(0xFF2563EB),
@@ -20,24 +21,49 @@ class FleetKpiStrip extends StatelessWidget {
   });
 
   final GpsFleetStatusKpis kpis;
-  final FleetTrackStatus? selected;
-  final ValueChanged<FleetTrackStatus?> onSelect;
+  final FleetStatusFilterOption selected;
+  final ValueChanged<FleetStatusFilterOption> onSelect;
 
   @override
   Widget build(BuildContext context) {
     final chips = <_KpiChipData>[
-      _KpiChipData('Online', kpis.online, null, const Color(0xFF16A34A)),
       _KpiChipData(
-          'Moving', kpis.moving, FleetTrackStatus.moving, fleetStatusColor(FleetTrackStatus.moving)),
+        'Online',
+        kpis.online,
+        FleetStatusFilterOption.online,
+        const Color(0xFF16A34A),
+      ),
       _KpiChipData(
-          'Idle', kpis.idle, FleetTrackStatus.idle, fleetStatusColor(FleetTrackStatus.idle)),
+        'Moving',
+        kpis.moving,
+        FleetStatusFilterOption.moving,
+        fleetStatusColor(FleetTrackStatus.moving),
+      ),
       _KpiChipData(
-          'Parked', kpis.parked, FleetTrackStatus.parked, fleetStatusColor(FleetTrackStatus.parked)),
+        'Idle',
+        kpis.idle,
+        FleetStatusFilterOption.idle,
+        fleetStatusColor(FleetTrackStatus.idle),
+      ),
       _KpiChipData(
-          'Offline', kpis.offline, FleetTrackStatus.offline, fleetStatusColor(FleetTrackStatus.offline)),
+        'Parked',
+        kpis.parked,
+        FleetStatusFilterOption.parked,
+        fleetStatusColor(FleetTrackStatus.parked),
+      ),
+      _KpiChipData(
+        'Offline',
+        kpis.offline,
+        FleetStatusFilterOption.offline,
+        fleetStatusColor(FleetTrackStatus.offline),
+      ),
       if (kpis.sos > 0)
         _KpiChipData(
-            'SOS', kpis.sos, FleetTrackStatus.sos, fleetStatusColor(FleetTrackStatus.sos)),
+          'SOS',
+          kpis.sos,
+          FleetStatusFilterOption.online,
+          fleetStatusColor(FleetTrackStatus.sos),
+        ),
     ];
 
     return SizedBox(
@@ -49,18 +75,9 @@ class FleetKpiStrip extends StatelessWidget {
         separatorBuilder: (_, __) => const SizedBox(width: 8),
         itemBuilder: (context, i) {
           final chip = chips[i];
-          final active = chip.filter == selected ||
-              (chip.filter == null && selected == null && chip.label == 'Online');
-          // Online is summary-only; tapping clears filter
-          final isOnlineSummary = chip.filter == null;
+          final active = chip.filter == selected;
           return InkWell(
-            onTap: () {
-              if (isOnlineSummary) {
-                onSelect(null);
-              } else {
-                onSelect(chip.filter);
-              }
-            },
+            onTap: () => onSelect(chip.filter),
             borderRadius: BorderRadius.circular(AppRadii.md),
             child: Container(
               width: 82,
@@ -113,7 +130,7 @@ class _KpiChipData {
   const _KpiChipData(this.label, this.value, this.filter, this.color);
   final String label;
   final int value;
-  final FleetTrackStatus? filter;
+  final FleetStatusFilterOption filter;
   final Color color;
 }
 

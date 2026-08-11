@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/constants/app_theme.dart';
 import '../../../../shared/widgets/sg_ui.dart';
 import '../../domain/fleet_models.dart';
+import '../../domain/gps_freshness.dart';
 import 'fleet_kpi_strip.dart';
 
 class FleetVehicleTile extends StatelessWidget {
@@ -14,14 +15,28 @@ class FleetVehicleTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = fleetStatusColor(vehicle.status);
     final facts = <_FactItem>[
-      _FactItem('Speed', '${vehicle.speed.toStringAsFixed(0)} km/h'),
+      _FactItem(
+        'Speed',
+        formatDisplaySpeedLabel(
+          speed: vehicle.speed,
+          ignition: vehicle.ignition,
+          status: vehicle.status,
+        ),
+      ),
       _FactItem(
         'Battery',
         vehicle.batteryLevel != null
             ? '${vehicle.batteryLevel!.toStringAsFixed(0)}%'
             : '—',
       ),
-      _FactItem('GPS', vehicle.hasGps ? 'Online' : 'Offline'),
+      _FactItem(
+        'GPS',
+        formatGpsFreshness(
+          latitude: vehicle.latitude,
+          longitude: vehicle.longitude,
+          lastUpdated: vehicle.lastUpdated,
+        ),
+      ),
       _FactItem(
         'Ignition',
         vehicle.ignition == true
@@ -31,10 +46,6 @@ class FleetVehicleTile extends StatelessWidget {
                 : '—',
       ),
       _FactItem('Signal', _signalLabel(vehicle.gsmSignal)),
-      _FactItem(
-        'Updated',
-        vehicle.lastUpdated != null ? _relTime(vehicle.lastUpdated!) : '—',
-      ),
     ];
 
     return SgCard(
@@ -157,14 +168,6 @@ class FleetVehicleTile extends StatelessWidget {
     if (signal >= 2) return 'Medium';
     if (signal >= 1) return 'Weak';
     return 'Offline';
-  }
-
-  String _relTime(DateTime t) {
-    final d = DateTime.now().difference(t);
-    if (d.inMinutes < 1) return 'now';
-    if (d.inMinutes < 60) return '${d.inMinutes}m';
-    if (d.inHours < 24) return '${d.inHours}h';
-    return '${d.inDays}d';
   }
 }
 

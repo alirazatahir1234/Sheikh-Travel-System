@@ -2,8 +2,10 @@ import {
   AfterViewInit,
   Component,
   ElementRef,
+  EventEmitter,
   Input,
   OnChanges,
+  Output,
   QueryList,
   SimpleChanges,
   ViewChildren
@@ -30,6 +32,9 @@ export class StatTileComponent implements AfterViewInit, OnChanges {
   @Input() trendDetail?: string;
   @Input() sparkline?: number[];
   @Input() variant: StatVariant = 'default';
+  @Input() clickable = false;
+  @Input() selected = false;
+  @Output() tileClick = new EventEmitter<void>();
 
   @ViewChildren('spark') sparkCanvases!: QueryList<ElementRef<HTMLCanvasElement>>;
 
@@ -39,6 +44,11 @@ export class StatTileComponent implements AfterViewInit, OnChanges {
 
   ngOnChanges(_changes: SimpleChanges): void {
     queueMicrotask(() => this.drawSparklines());
+  }
+
+  onTileActivate(): void {
+    if (!this.clickable) return;
+    this.tileClick.emit();
   }
 
   private drawSparklines(): void {

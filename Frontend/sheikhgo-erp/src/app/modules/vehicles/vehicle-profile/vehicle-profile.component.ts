@@ -1,8 +1,8 @@
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, NgZone, OnDestroy, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ChartData } from 'chart.js';
 import { forkJoin, of, Subscription } from 'rxjs';
-import { catchError } from 'rxjs/operators';
+import { catchError, finalize, timeout } from 'rxjs/operators';
 import { VehicleService } from '../../../core/services/vehicle.service';
 import { BookingService } from '../../../core/services/booking.service';
 import { DriverService } from '../../../core/services/driver.service';
@@ -42,6 +42,11 @@ import {
 
 /** Matches Live Map / backend IsOnline window (30 minutes). */
 const GPS_ONLINE_MS = 30 * 60 * 1000;
+/** Profile must not wait forever on Traccar-backed trip reports. */
+const PROFILE_TRIPS_TIMEOUT_MS = 20_000;
+const PROFILE_ANALYTICS_TIMEOUT_MS = 25_000;
+const PROFILE_ERP_TIMEOUT_MS = 15_000;
+const REALTIME_UI_THROTTLE_MS = 1000;
 
 interface ComplianceItem {
   key: string;
@@ -56,6 +61,7 @@ interface PhotoSlot {
   angle: VehicleImageAngle;
   label: string;
   document?: VehicleDocument;
+  url: string | null;
   isPrimary: boolean;
 }
 
@@ -88,19 +94,22 @@ const DOC_LABELS: Record<string, string> = {
   standalone: false,
   selector: 'app-vehicle-profile',
   templateUrl: './vehicle-profile.component.html',
-  styleUrls: ['./vehicle-profile.component.scss']
+  styleUrls: ['./vehicle-profile.component.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class VehicleProfileComponent implements OnInit, OnDestroy {
   vehicle: Vehicle | null = null;
   gps: VehicleGps | null = null;
   driver: Driver | null = null;
   tracker: TrackerDetail | null = null;
-  /** True once trip analytics request finished (success or fail). */
+  /** True once trip list request finished (success, fail, or timeout). */
   tripStatsLoaded = false;
   loading = true;
   /** Secondary panels (fuel/trips/etc.) fill in after first paint. */
   secondaryLoading = false;
   error: string | null = null;
+  /** Broken hero URL → fall back to placeholder instead of black panel. */
+  heroImageBroken = false;
 
   documents: VehicleDocument[] = [];
   recentBookings: Booking[] = [];
@@ -108,6 +117,8 @@ export class VehicleProfileComponent implements OnInit, OnDestroy {
   recentMaintenance: VehicleMaintenance[] = [];
   recentTrips: GpsTrip[] = [];
   tripSummary: TripAnalyticsSummary | null = null;
+  /** Cached activity timeline (invalidated when source panels change). */
+  timelineEvents: TimelineEvent[] = [];
 
   photoPreviewUrl: string | null = null;
   photoPreviewLabel = '';
@@ -118,9 +129,17 @@ export class VehicleProfileComponent implements OnInit, OnDestroy {
   private realtimeSub?: Subscription;
   private connectionStateSub?: Subscription;
   private gpsPollTimer?: ReturnType<typeof setInterval>;
+  private telemetryStartTimer?: ReturnType<typeof setTimeout>;
   private liveTelemetryVehicleId: number | null = null;
   private vehicleId = 0;
   private pendingSecondary = 0;
+  private lastRealtimeApplyMs = 0;
+  private photoSlotsCache: PhotoSlot[] | null = null;
+  private photoSlotsCacheKey = '';
+  private complianceCache: ComplianceItem[] | null = null;
+  private complianceCacheKey = '';
+  /** True once a realtime connect attempt has been made (avoids poll on initial disconnected). */
+  private realtimeConnectAttempted = false;
 
   readonly bookingColumns = ['bookingNumber', 'customerName', 'pickupTime', 'status'];
   readonly fuelColumns = ['fuelDate', 'fuelType', 'liters', 'totalCost'];
@@ -147,7 +166,9 @@ export class VehicleProfileComponent implements OnInit, OnDestroy {
     private bookingService: BookingService,
     private driverService: DriverService,
     private gpsService: GpsTrackingService,
-    private realtime: GpsRealtimeService
+    private realtime: GpsRealtimeService,
+    private ngZone: NgZone,
+    private cdr: ChangeDetectorRef
   ) {}
 
   ngOnInit(): void {
@@ -164,6 +185,7 @@ export class VehicleProfileComponent implements OnInit, OnDestroy {
     this.realtimeSub?.unsubscribe();
     this.connectionStateSub?.unsubscribe();
     if (this.gpsPollTimer) clearInterval(this.gpsPollTimer);
+    if (this.telemetryStartTimer) clearTimeout(this.telemetryStartTimer);
     this.liveTelemetryVehicleId = null;
     void this.realtime.subscribeVehicle(null);
   }
@@ -176,6 +198,14 @@ export class VehicleProfileComponent implements OnInit, OnDestroy {
     this.loading = true;
     this.secondaryLoading = true;
     this.error = null;
+    this.heroImageBroken = false;
+    this.photoSlotsCache = null;
+    this.complianceCache = null;
+    this.timelineEvents = [];
+    this.tripStatsLoaded = false;
+    this.recentTrips = [];
+    this.tripSummary = null;
+    this.cdr.markForCheck();
 
     this.sub?.unsubscribe();
     this.sub = forkJoin({
@@ -185,16 +215,24 @@ export class VehicleProfileComponent implements OnInit, OnDestroy {
       next: ({ vehicle, documents }) => {
         this.vehicle = vehicle;
         this.documents = documents;
+        this.photoSlotsCache = null;
+        this.complianceCache = null;
         // Seed GPS card from enriched getById fields so UI is useful before /gps returns.
         this.seedGpsFromVehicle(vehicle);
+        this.rebuildTimeline();
         this.loading = false;
-        this.startLiveTelemetry(id);
+        this.cdr.markForCheck();
+        // Defer hub setup until after first paint so hero is not competing with SignalR.
+        if (this.telemetryStartTimer) clearTimeout(this.telemetryStartTimer);
+        this.telemetryStartTimer = setTimeout(() => this.startLiveTelemetry(id), 0);
         this.loadSecondary(id);
       },
       error: () => {
         this.loading = false;
         this.secondaryLoading = false;
+        this.tripStatsLoaded = true;
         this.error = 'Failed to load vehicle profile.';
+        this.cdr.markForCheck();
       }
     });
   }
@@ -227,8 +265,10 @@ export class VehicleProfileComponent implements OnInit, OnDestroy {
   }
 
   private loadSecondary(id: number): void {
-    const from = new Date();
-    from.setDate(from.getDate() - 30);
+    const tripsFrom = new Date();
+    tripsFrom.setDate(tripsFrom.getDate() - 7);
+    const analyticsFrom = new Date();
+    analyticsFrom.setDate(analyticsFrom.getDate() - 30);
     const to = new Date();
     const driverId = this.vehicle?.driverId ?? null;
     const gpsDeviceId = this.vehicle?.gpsDeviceId ?? this.gps?.gpsDeviceId ?? null;
@@ -241,7 +281,10 @@ export class VehicleProfileComponent implements OnInit, OnDestroy {
 
     // GPS alone — must not wait on trip reports.
     this.secondarySubs.push(
-      this.vehicleService.getGps(id).pipe(catchError(() => of(null))).subscribe(gps => {
+      this.vehicleService.getGps(id).pipe(
+        timeout(PROFILE_ERP_TIMEOUT_MS),
+        catchError(() => of(null))
+      ).subscribe(gps => {
         if (
           gps
           && (
@@ -251,12 +294,14 @@ export class VehicleProfileComponent implements OnInit, OnDestroy {
           )
         ) {
           this.gps = gps;
+          this.rebuildTimeline();
         }
         const deviceId = gps?.gpsDeviceId ?? gpsDeviceId;
         if (deviceId && !this.tracker) {
           this.secondarySubs.push(
             this.gpsService.getTracker(deviceId).pipe(catchError(() => of(null))).subscribe(t => {
               this.tracker = t;
+              this.cdr.markForCheck();
             })
           );
         }
@@ -267,7 +312,10 @@ export class VehicleProfileComponent implements OnInit, OnDestroy {
     // Driver detail (photo, branch, rating, etc.).
     this.secondarySubs.push(
       (driverId
-        ? this.driverService.getById(driverId).pipe(catchError(() => of(null)))
+        ? this.driverService.getById(driverId).pipe(
+            timeout(PROFILE_ERP_TIMEOUT_MS),
+            catchError(() => of(null))
+          )
         : of(null)
       ).subscribe(d => {
         this.driver = d;
@@ -278,33 +326,54 @@ export class VehicleProfileComponent implements OnInit, OnDestroy {
     // Local ERP panels (fast SQL).
     this.secondarySubs.push(
       forkJoin({
-        fuel: this.vehicleService.getFuel(id, 1, 20).pipe(catchError(() => of(null))),
+        fuel: this.vehicleService.getFuel(id, 1, 20).pipe(
+          timeout(PROFILE_ERP_TIMEOUT_MS),
+          catchError(() => of(null))
+        ),
         maintenance: this.vehicleService.getMaintenance(id, 1, 10).pipe(
+          timeout(PROFILE_ERP_TIMEOUT_MS),
           catchError(() => of({ items: [] as VehicleMaintenance[] }))
         ),
-        bookings: this.bookingService.getAll(1, 50).pipe(catchError(() => of({ items: [] as Booking[] })))
+        bookings: this.bookingService.getAll(1, 50).pipe(
+          timeout(PROFILE_ERP_TIMEOUT_MS),
+          catchError(() => of({ items: [] as Booking[] }))
+        )
       }).subscribe(({ fuel, maintenance, bookings }) => {
         this.fuelSummary = fuel;
         this.recentMaintenance = maintenance.items ?? [];
         this.recentBookings = (bookings.items ?? []).filter(b => b.vehicleId === id).slice(0, 8);
         this.buildCharts();
+        this.rebuildTimeline();
         this.markSecondaryDone();
       })
     );
 
-    // Traccar trip reports — often the slowest; fill KPIs when ready.
+    // Recent trips only (drives Last Trip). Cap wait so Traccar hangs never freeze the UI.
     this.secondarySubs.push(
-      forkJoin({
-        trips: this.gpsService.getTrips(id, from, to, undefined, { page: 1, pageSize: 10 }).pipe(
-          catchError(() => of({ items: [] as GpsTrip[] }))
-        ),
-        tripAnalytics: this.gpsService.getTripAnalytics(id, from, to).pipe(catchError(() => of(null)))
-      }).subscribe(({ trips, tripAnalytics }) => {
+      this.gpsService.getTrips(id, tripsFrom, to, undefined, { page: 1, pageSize: 10 }).pipe(
+        timeout(PROFILE_TRIPS_TIMEOUT_MS),
+        catchError(() => of({ items: [] as GpsTrip[] })),
+        finalize(() => {
+          this.tripStatsLoaded = true;
+          this.markSecondaryDone();
+        })
+      ).subscribe(trips => {
         this.recentTrips = trips.items ?? [];
-        this.tripSummary = tripAnalytics?.summary ?? null;
-        this.tripStatsLoaded = true;
         this.buildCharts();
-        this.markSecondaryDone();
+        this.rebuildTimeline();
+        this.cdr.markForCheck();
+      })
+    );
+
+    // Analytics KPIs — independent; must not block Last Trip / first paint.
+    this.secondarySubs.push(
+      this.gpsService.getTripAnalytics(id, analyticsFrom, to).pipe(
+        timeout(PROFILE_ANALYTICS_TIMEOUT_MS),
+        catchError(() => of(null))
+      ).subscribe(tripAnalytics => {
+        this.tripSummary = tripAnalytics?.summary ?? null;
+        this.buildCharts();
+        this.cdr.markForCheck();
       })
     );
   }
@@ -312,20 +381,22 @@ export class VehicleProfileComponent implements OnInit, OnDestroy {
   private markSecondaryDone(): void {
     this.pendingSecondary = Math.max(0, this.pendingSecondary - 1);
     if (this.pendingSecondary === 0) this.secondaryLoading = false;
+    this.cdr.markForCheck();
   }
 
-  /** SignalR primary; HTTP poll only while hub is disconnected (5–10s). */
+  /** SignalR primary (vehicle group only); HTTP poll only after a failed/closed connect. */
   private startLiveTelemetry(vehicleId: number): void {
     this.gpsPollSub?.unsubscribe();
     this.realtimeSub?.unsubscribe();
     this.connectionStateSub?.unsubscribe();
     if (this.gpsPollTimer) clearInterval(this.gpsPollTimer);
     this.liveTelemetryVehicleId = vehicleId;
+    this.realtimeConnectAttempted = false;
 
-    void this.realtime.connect().then(() => this.realtime.subscribeVehicle(vehicleId));
+    // Hub events emit outside NgZone — re-enter only for this vehicle's UI apply.
     this.realtimeSub = this.realtime.locationUpdates$.subscribe(update => {
       if (update.vehicleId !== vehicleId) return;
-      this.applyRealtimePosition(update);
+      this.ngZone.run(() => this.applyRealtimePosition(update));
     });
 
     this.connectionStateSub = this.realtime.connectionState$.subscribe(state => {
@@ -333,11 +404,27 @@ export class VehicleProfileComponent implements OnInit, OnDestroy {
         clearInterval(this.gpsPollTimer);
         this.gpsPollTimer = undefined;
       }
+      // Skip the BehaviorSubject's initial 'disconnected' before we attempt connect.
+      if (!this.realtimeConnectAttempted) return;
       if (state !== 'connected' && this.liveTelemetryVehicleId === vehicleId) {
         this.refreshGps(vehicleId);
         this.gpsPollTimer = setInterval(() => this.refreshGps(vehicleId), 10_000);
       }
+      this.cdr.markForCheck();
     });
+
+    this.realtimeConnectAttempted = true;
+    void this.realtime
+      .connect({ asDispatcher: false })
+      .then(() => this.realtime.subscribeVehicle(vehicleId))
+      .catch(() => {
+        // Poll fallback kicks in via connectionState$ (still disconnected).
+        if (this.liveTelemetryVehicleId === vehicleId) {
+          this.refreshGps(vehicleId);
+          this.gpsPollTimer = setInterval(() => this.refreshGps(vehicleId), 10_000);
+        }
+        this.cdr.markForCheck();
+      });
   }
 
   private refreshGps(vehicleId: number): void {
@@ -353,10 +440,15 @@ export class VehicleProfileComponent implements OnInit, OnDestroy {
         return;
       }
       this.gps = gps;
+      this.rebuildTimeline();
+      this.cdr.markForCheck();
     });
   }
 
   private applyRealtimePosition(update: PositionDto): void {
+    const now = Date.now();
+    if (now - this.lastRealtimeApplyMs < REALTIME_UI_THROTTLE_MS) return;
+    this.lastRealtimeApplyMs = now;
     const prev = this.gps;
     this.gps = {
       gpsDeviceId: prev?.gpsDeviceId ?? update.gpsDeviceId ?? this.vehicle?.gpsDeviceId ?? null,
@@ -381,11 +473,13 @@ export class VehicleProfileComponent implements OnInit, OnDestroy {
       heading: update.heading ?? prev?.heading ?? null,
       fuelLevel: update.fuelLevel ?? prev?.fuelLevel ?? null
     };
+    this.cdr.markForCheck();
   }
 
   // ─── Derived display helpers ───────────────────────────────────────────
 
   get primaryImageUrl(): string | null {
+    if (this.heroImageBroken) return null;
     const fromApi = resolveVehicleImageUrl(this.vehicle?.imageUrl);
     if (fromApi) return fromApi;
     const images = this.imageDocuments;
@@ -395,21 +489,41 @@ export class VehicleProfileComponent implements OnInit, OnDestroy {
     return resolveUploadUrl(fallback.fileUrl);
   }
 
+  onHeroImageError(): void {
+    this.heroImageBroken = true;
+    this.cdr.markForCheck();
+  }
+
+  onSlotImageError(event: Event): void {
+    const img = event.target as HTMLImageElement | null;
+    if (img) img.style.display = 'none';
+  }
+
   get imageDocuments(): VehicleDocument[] {
     return this.documents.filter(d => d.documentType === 'VehicleImage' && !!d.fileUrl?.trim());
   }
 
   get photoSlots(): PhotoSlot[] {
+    const key = this.documents.map(d => `${d.id}:${d.fileUrl ?? ''}:${d.notes ?? ''}`).join('|');
+    if (this.photoSlotsCache && this.photoSlotsCacheKey === key) return this.photoSlotsCache;
     const imageDocs = this.imageDocuments;
     const used = new Set<number>();
-    return VEHICLE_IMAGE_ANGLES.map(({ angle, label }) => {
+    this.photoSlotsCache = VEHICLE_IMAGE_ANGLES.map(({ angle, label }) => {
       let doc = imageDocs.find(d => !used.has(d.id) && parseVehicleImageAngle(d.notes) === angle);
       if (!doc && angle === 'Front') {
         doc = imageDocs.find(d => !used.has(d.id) && !parseVehicleImageAngle(d.notes));
       }
       if (doc) used.add(doc.id);
-      return { angle, label, document: doc, isPrimary: doc ? isPrimaryVehicleImage(doc.notes) : false };
+      return {
+        angle,
+        label,
+        document: doc,
+        url: this.photoUrl(doc),
+        isPrimary: doc ? isPrimaryVehicleImage(doc.notes) : false
+      };
     });
+    this.photoSlotsCacheKey = key;
+    return this.photoSlotsCache;
   }
 
   get complianceDocuments(): VehicleDocument[] {
@@ -417,7 +531,13 @@ export class VehicleProfileComponent implements OnInit, OnDestroy {
   }
 
   get complianceItems(): ComplianceItem[] {
-    return COMPLIANCE_TYPES.map(item => {
+    const key = [
+      this.vehicle?.id ?? 0,
+      this.vehicle?.insuranceExpiryDate ?? '',
+      this.documents.map(d => `${d.id}:${d.documentType}:${d.expiryDate ?? ''}`).join('|')
+    ].join('::');
+    if (this.complianceCache && this.complianceCacheKey === key) return this.complianceCache;
+    this.complianceCache = COMPLIANCE_TYPES.map(item => {
       const doc = this.documents.find(d =>
         !!d.fileUrl?.trim()
         && item.aliases.some(a => d.documentType.toLowerCase() === a.toLowerCase())
@@ -433,6 +553,8 @@ export class VehicleProfileComponent implements OnInit, OnDestroy {
         document: doc
       };
     });
+    this.complianceCacheKey = key;
+    return this.complianceCache;
   }
 
   get complianceValid(): number {
@@ -713,10 +835,13 @@ export class VehicleProfileComponent implements OnInit, OnDestroy {
     return this.recentMaintenance.reduce((s, m) => s + (m.cost || 0), 0);
   }
 
-  get timelineEvents(): TimelineEvent[] {
+  private rebuildTimeline(): void {
     const events: TimelineEvent[] = [];
     const v = this.vehicle;
-    if (!v) return [];
+    if (!v) {
+      this.timelineEvents = [];
+      return;
+    }
 
     if (v.createdAt) {
       events.push({
@@ -787,7 +912,7 @@ export class VehicleProfileComponent implements OnInit, OnDestroy {
       });
     }
 
-    return events
+    this.timelineEvents = events
       .sort((a, b) => {
         const ta = a.timestamp ? new Date(a.timestamp).getTime() : 0;
         const tb = b.timestamp ? new Date(b.timestamp).getTime() : 0;
@@ -868,6 +993,10 @@ export class VehicleProfileComponent implements OnInit, OnDestroy {
     return resolveUploadUrl(doc.fileUrl);
   }
 
+  trackPhotoSlot(_index: number, slot: PhotoSlot): string {
+    return `${slot.angle}:${slot.document?.id ?? 'empty'}`;
+  }
+
   isPdf(doc: VehicleDocument): boolean {
     return isPdfUploadUrl(doc.fileUrl);
   }
@@ -902,11 +1031,13 @@ export class VehicleProfileComponent implements OnInit, OnDestroy {
   openPhotoPreview(url: string, label: string): void {
     this.photoPreviewUrl = url;
     this.photoPreviewLabel = label;
+    this.cdr.markForCheck();
   }
 
   closePhotoPreview(): void {
     this.photoPreviewUrl = null;
     this.photoPreviewLabel = '';
+    this.cdr.markForCheck();
   }
 
   // ─── Navigation actions ────────────────────────────────────────────────

@@ -18,6 +18,16 @@ export const WIZARD_STEPS: WizardStep[] = [
 
 export type GpsWizardMode = 'new' | 'existing' | 'skip';
 
+/** Snapshot of the tracker already linked to the vehicle being edited. */
+export interface AssignedTrackerInfo {
+  gpsDeviceId: number;
+  deviceName?: string | null;
+  brandName?: string | null;
+  modelName?: string | null;
+  uniqueId?: string | null;
+  gpsOnline?: boolean;
+}
+
 export type VehicleImageAngle = 'Front' | 'Side' | 'Back';
 
 export interface VehicleImageSlotState {
@@ -89,8 +99,28 @@ export function documentContinueMessage(slot: DocumentSlotState): string | null 
   }
 }
 
-export const TRACKER_MODELS = ['Teltonika FMB920', 'Queclink GV500', 'Concox GT06N', 'Other'];
-export const TRACKER_VENDORS = ['Teltonika', 'Queclink', 'Concox', 'Traccar', 'Other'];
+export const TRACKER_CATALOG_OPTIONS: { key: string; label: string; vendor: string }[] = [
+  { key: 'teltonika_fmb920', label: 'Teltonika FMB920', vendor: 'Teltonika' },
+  { key: 'teltonika_fmb140', label: 'Teltonika FMB140', vendor: 'Teltonika' },
+  { key: 'teltonika_fmb001', label: 'Teltonika FMB001', vendor: 'Teltonika' },
+  { key: 'teltonika_fmc001', label: 'Teltonika FMC001', vendor: 'Teltonika' },
+  { key: 'concox_gt06n', label: 'Concox GT06N', vendor: 'Concox' },
+  { key: 'queclink_gv75', label: 'Queclink GV75', vendor: 'Queclink' }
+];
+
+/** @deprecated Use TRACKER_CATALOG_OPTIONS — kept for any residual string maps. */
+export const TRACKER_MODELS = TRACKER_CATALOG_OPTIONS.map(m => m.label);
+export const TRACKER_VENDORS = [...new Set(TRACKER_CATALOG_OPTIONS.map(m => m.vendor))];
+
+export function resolveWizardTrackerModel(keyOrLabel: string | null | undefined) {
+  const raw = keyOrLabel?.trim() ?? '';
+  if (!raw) return TRACKER_CATALOG_OPTIONS[0];
+  return (
+    TRACKER_CATALOG_OPTIONS.find(m => m.key === raw)
+    ?? TRACKER_CATALOG_OPTIONS.find(m => m.label.toLowerCase() === raw.toLowerCase())
+    ?? TRACKER_CATALOG_OPTIONS[0]
+  );
+}
 
 export type VinValidationState = 'empty' | 'incomplete' | 'valid' | 'invalid';
 

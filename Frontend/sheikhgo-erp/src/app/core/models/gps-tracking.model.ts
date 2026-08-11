@@ -60,6 +60,8 @@ export interface VehicleLocation {
   /** Nearest shop / landmark from reverse geocode (client-enriched). */
   placeName?: string;
   placeType?: string;
+  /** Locality line e.g. "Sialkot, Punjab, Pakistan" (client-enriched). */
+  addressLocality?: string;
   alarmType?: string;
   vehicleType?: string | null;
   trackerName?: string;

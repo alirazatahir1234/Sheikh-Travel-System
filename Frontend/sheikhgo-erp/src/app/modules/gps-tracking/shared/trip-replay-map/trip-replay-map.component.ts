@@ -1,5 +1,5 @@
 import {
-  Component, Input, OnChanges, OnDestroy, AfterViewInit, ElementRef, ViewChild, SimpleChanges, Output, EventEmitter
+  Component, Input, OnChanges, OnDestroy, AfterViewInit, ElementRef, ViewChild, SimpleChanges, Output, EventEmitter, ChangeDetectorRef
 } from '@angular/core';
 import { TripEvent, TripReplayPosition, TripStop } from '../../../../core/models/gps-tracking.model';
 import {
@@ -17,6 +17,7 @@ import {
   resolveReplayStatus
 } from '../../../../core/leaflet/fleet-vehicle-marker';
 import type * as LeafletTypes from 'leaflet';
+import { splitDisplayAddress } from '../../utils/gps-address.util';
 @Component({
   standalone: false,
   selector: 'app-trip-replay-map',
@@ -73,7 +74,10 @@ export class TripReplayMapComponent implements AfterViewInit, OnChanges, OnDestr
   private readonly trafficBasemap = new GoogleTrafficBasemap();
   private scrubDebounce?: ReturnType<typeof setTimeout>;
 
-  constructor(private googleMapsLoader: GoogleMapsLoaderService) {}
+  constructor(
+    private googleMapsLoader: GoogleMapsLoaderService,
+    private cdr: ChangeDetectorRef
+  ) {}
 
   get replayProgress(): number {
     if (!this.positions.length) return 0;
@@ -82,6 +86,14 @@ export class TripReplayMapComponent implements AfterViewInit, OnChanges, OnDestr
 
   get currentPosition(): TripReplayPosition | null {
     return this.positions[this.replayIndex] ?? null;
+  }
+
+  addressPrimary(address?: string | null): string {
+    return splitDisplayAddress(address).primary || address?.trim() || 'Address unavailable';
+  }
+
+  addressSecondary(address?: string | null): string | null {
+    return splitDisplayAddress(address).secondary;
   }
 
   get startTimeLabel(): string {
@@ -475,7 +487,17 @@ export class TripReplayMapComponent implements AfterViewInit, OnChanges, OnDestr
         fillColor: isParking ? '#93c5fd' : '#fde047',
         fillOpacity: 0.95
       }).bindPopup(
-        `<strong>${isParking ? 'Parking' : 'Stop'}</strong><br>${stop.durationMinutes} min<br>${stop.address ?? ''}`
+        (() => {
+          const kind = isParking ? 'Parking' : 'Stop';
+          const lines = splitDisplayAddress(stop.address);
+          const primary = lines.primary || stop.address?.trim() || 'Address unavailable';
+          const secondary = lines.secondary ? `<br><span style="color:#64748b">${lines.secondary}</span>` : '';
+          const when = new Date(stop.startTime).toLocaleTimeString(undefined, {
+            hour: 'numeric',
+            minute: '2-digit'
+          });
+          return `<strong>${kind} — ${primary}</strong>${secondary}<br>${when} · ${stop.durationMinutes} min`;
+        })()
       ).addTo(layer);
     });
 
@@ -532,6 +554,11 @@ export class TripReplayMapComponent implements AfterViewInit, OnChanges, OnDestr
       minute: '2-digit'
     });
     const address = (p.address?.trim() || `${p.latitude.toFixed(5)}, ${p.longitude.toFixed(5)}`);
+    const lines = splitDisplayAddress(p.address);
+    const primary = lines.primary || address;
+    const secondary = lines.secondary
+      ? `<br><span style="color:#64748b">${lines.secondary}</span>`
+      : '';
     const glyph = kind === 'flag-start' ? '▶' : '🏁';
     const icon = L.divIcon({
       className: 'replay-endpoint-wrap',
@@ -547,7 +574,8 @@ export class TripReplayMapComponent implements AfterViewInit, OnChanges, OnDestr
     });
     L.marker([p.latitude, p.longitude], { icon, zIndexOffset: 1200 })
       .bindPopup(
-        `<strong>${label}</strong><br>${time}<br>${address}<br>` +
+        `<strong>${label}</strong><br>${time}<br><strong>${primary}</strong>${secondary}<br>` +
+          `<span style="color:#94a3b8;font-size:11px">${p.latitude.toFixed(5)}, ${p.longitude.toFixed(5)}</span><br>` +
           `${Number(p.speedKmh ?? 0).toFixed(0)} km/h`
       )
       .addTo(layer);
@@ -660,20 +688,29 @@ export class TripReplayMapComponent implements AfterViewInit, OnChanges, OnDestr
   private advanceReplay(): void {
     if (this.replayIndex >= this.positions.length - 1) {
       this.stopReplayTimer();
+      this.cdr.markForCheck();
       return;
     }
     this.replayIndex++;
     this.updateReplayMarker();
     const pos = this.currentPosition;
     if (pos) this.positionSelected.emit(pos);
+    this.cdr.markForCheck();
   }
 
   private updateReplayMarker(): void {
     const row = this.currentPosition;
-    if (!row || !this.replayMarker) return;
-    this.replayMarker.setLatLng([row.latitude, row.longitude]);
-    this.replayMarker.setIcon(this.buildNavArrowIcon(row.heading ?? 0));
-    this.replayMarker.bindPopup(this.vehiclePopupHtml(row));
+    if (!row) return;
+    if (!this.replayMarker) {
+      // Marker can be missing briefly after a layer rebuild — recreate so Play still moves.
+      if (!this.map || !this.routeLayer) return;
+      this.replayMarker = this.createVehicleMarker(row);
+      this.replayMarker.addTo(this.routeLayer);
+    } else {
+      this.replayMarker.setLatLng([row.latitude, row.longitude]);
+      this.replayMarker.setIcon(this.buildNavArrowIcon(row.heading ?? 0));
+      this.replayMarker.bindPopup(this.vehiclePopupHtml(row));
+    }
     if (this.followVehicle && this.map) {
       this.map.panTo([row.latitude, row.longitude], { animate: true, duration: 0.25 });
     }

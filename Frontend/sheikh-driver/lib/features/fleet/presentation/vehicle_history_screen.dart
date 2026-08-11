@@ -392,9 +392,7 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen>
         headingOverride: _displayHeading,
       );
     });
-    if (_follow &&
-        _playbackController.playing &&
-        _displayPosition != null) {
+    if (_follow && _playbackController.playing && _displayPosition != null) {
       unawaited(_animateMap(CameraUpdate.newLatLng(_displayPosition!)));
     }
   }
@@ -793,11 +791,9 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen>
     });
     _refreshSpinController.repeat();
     try {
-      final detail =
-          await ref.read(fleetApiProvider).getTripDetail(tripKey);
+      final detail = await ref.read(fleetApiProvider).getTripDetail(tripKey);
       if (!mounted) return;
-      final bundle =
-          detail.toHistoryReplayBundle(includeStops: true);
+      final bundle = detail.toHistoryReplayBundle(includeStops: true);
       _applyReplayBundle(
         bundle,
         trip: detail.trip.tripKey != null ? detail.trip : fallbackTrip,
@@ -1056,49 +1052,123 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen>
       isScrollControlled: true,
       builder: (ctx) => DraggableScrollableSheet(
         expand: false,
-        initialChildSize: 0.45,
-        maxChildSize: 0.85,
-        builder: (_, scroll) => ListView(
-          controller: scroll,
-          padding: const EdgeInsets.all(16),
-          children: [
-            Text(
-              'Total Stops: ${b.stops.length}',
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
-            ),
-            const SizedBox(height: 12),
-            for (var i = 0; i < b.stops.length; i++)
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: CircleAvatar(
-                  backgroundColor: const Color(0xFFF59E0B).withValues(alpha: 0.2),
-                  child: Text(
-                    '${i + 1}',
-                    style: const TextStyle(
-                      color: Color(0xFFB45309),
-                      fontWeight: FontWeight.w800,
+        initialChildSize: 0.5,
+        maxChildSize: 0.9,
+        builder: (_, scroll) => FutureBuilder<List<String>>(
+          future: _resolveStopAddresses(b),
+          builder: (context, snap) {
+            final addresses = snap.data;
+            return ListView(
+              controller: scroll,
+              padding: const EdgeInsets.all(16),
+              children: [
+                Text(
+                  'Stops & parking (${b.stops.length})',
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: 12),
+                for (var i = 0; i < b.stops.length; i++)
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: CircleAvatar(
+                      backgroundColor: b.stops[i].durationMinutes >= 120
+                          ? const Color(0xFF3B82F6).withValues(alpha: 0.2)
+                          : const Color(0xFFF59E0B).withValues(alpha: 0.2),
+                      child: Text(
+                        '${i + 1}',
+                        style: TextStyle(
+                          color: b.stops[i].durationMinutes >= 120
+                              ? const Color(0xFF1D4ED8)
+                              : const Color(0xFFB45309),
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
                     ),
+                    title: Text(
+                      stopPlaybackHeadlineFor(
+                        durationMinutes: b.stops[i].durationMinutes,
+                        address: addresses != null && i < addresses.length
+                            ? addresses[i]
+                            : b.stops[i].address,
+                        latitude: b.stops[i].latitude,
+                        longitude: b.stops[i].longitude,
+                      ),
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                    subtitle: Text(
+                      [
+                        if (playbackAddressSecondary(
+                              addresses != null && i < addresses.length
+                                  ? addresses[i]
+                                  : b.stops[i].address,
+                            )
+                            case final locality?)
+                          locality,
+                        '${DateFormat('h:mm a').format(b.stops[i].startTime.toLocal())}'
+                        ' · ${formatDurationMinutes(b.stops[i].durationMinutes)}',
+                      ].join('\n'),
+                    ),
+                    isThreeLine: true,
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      final idx = indexForTimestamp(
+                        _playbackPoints.isNotEmpty ? _playbackPoints : b.points,
+                        b.stops[i].startTime,
+                      );
+                      _setIndex(idx);
+                      _map?.animateCamera(
+                        CameraUpdate.newLatLngZoom(
+                          LatLng(b.stops[i].latitude, b.stops[i].longitude),
+                          16,
+                        ),
+                      );
+                    },
                   ),
-                ),
-                title: Text('Stop ${i + 1}'),
-                subtitle: Text(
-                  'Idle: ${formatDurationMinutes(b.stops[i].durationMinutes)}\n'
-                  'Address: ${b.stops[i].address ?? formatPlaybackCoords(b.stops[i].latitude, b.stops[i].longitude)}',
-                ),
-                isThreeLine: true,
-                onTap: () {
-                  Navigator.pop(ctx);
-                  final idx = indexForTimestamp(
-                    _playbackPoints.isNotEmpty ? _playbackPoints : b.points,
-                    b.stops[i].startTime,
-                  );
-                  _setIndex(idx);
-                },
-              ),
-          ],
+              ],
+            );
+          },
         ),
       ),
     );
+  }
+
+  Future<List<String>> _resolveStopAddresses(HistoryReplayBundle b) async {
+    final out = <String>[];
+    for (final s in b.stops) {
+      final inline = s.address?.trim();
+      if (inline != null &&
+          inline.isNotEmpty &&
+          !isCoarsePlaybackAddress(inline)) {
+        out.add(inline);
+        continue;
+      }
+      final key =
+          '${s.latitude.toStringAsFixed(5)},${s.longitude.toStringAsFixed(5)}';
+      final cached = _addressCache[key];
+      if (cached != null && !isCoarsePlaybackAddress(cached)) {
+        out.add(cached);
+        continue;
+      }
+      try {
+        final resolved = await ref.read(fleetApiProvider).reverseGeocode(
+              s.latitude,
+              s.longitude,
+              forceRefresh: isCoarsePlaybackAddress(inline),
+            );
+        if (resolved != null && resolved.trim().isNotEmpty) {
+          final line = resolved.trim();
+          _addressCache[key] = line;
+          out.add(line);
+          continue;
+        }
+      } catch (_) {}
+      out.add(
+        inline != null && inline.isNotEmpty
+            ? inline
+            : formatPlaybackCoords(s.latitude, s.longitude),
+      );
+    }
+    return out;
   }
 
   void _showAnalyticsSheet() {
@@ -1126,8 +1196,15 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen>
               const SgSectionTitle('Stops'),
               for (final s in b.stops)
                 ListTile(
-                  title: Text('${s.durationMinutes} min'),
-                  subtitle: Text(s.address ?? '${s.latitude}, ${s.longitude}'),
+                  title: Text(stopPlaybackHeadline(s)),
+                  subtitle: Text(
+                    [
+                      if (playbackAddressSecondary(s.address) case final locality?)
+                        locality,
+                      '${formatDurationMinutes(s.durationMinutes)}'
+                      ' · ${DateFormat('h:mm a').format(s.startTime.toLocal())}',
+                    ].join('\n'),
+                  ),
                 ),
             ],
             const SizedBox(height: 8),
@@ -1269,7 +1346,8 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen>
               children: [
                 Text(
                   v?.vehicleName ?? 'Vehicle #${widget.vehicleId}',
-                  style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w800, fontSize: 16),
                 ),
                 if (v?.plateNumber != null)
                   Text(v!.plateNumber!,
@@ -1281,17 +1359,30 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen>
                     _infoRow('Stop duration', '$stopDurationMinutes min'),
                 ],
                 const SizedBox(height: 12),
-                _infoRow('Latitude', p.latitude.toStringAsFixed(5)),
-                _infoRow('Longitude', p.longitude.toStringAsFixed(5)),
+                _infoRow(
+                  'Location',
+                  playbackAddressPrimary(
+                    addressLine,
+                    lat: p.latitude,
+                    lng: p.longitude,
+                  ),
+                  multiline: true,
+                ),
+                if (playbackAddressSecondary(addressLine) case final locality?)
+                  _infoRow('Area', locality, multiline: true),
+                _infoRow(
+                  'Coordinates',
+                  formatPlaybackCoords(p.latitude, p.longitude),
+                ),
                 _infoRow('GPS Time', _tf.format(p.timestamp.toLocal())),
                 _infoRow('Speed', '${p.speedKmh.toStringAsFixed(0)} km/h'),
                 _infoRow('Heading', headingToCardinal(p.heading)),
-                _infoRow('Status', status[0].toUpperCase() + status.substring(1)),
+                _infoRow(
+                    'Status', status[0].toUpperCase() + status.substring(1)),
                 _infoRow(
                   'Ignition',
                   p.ignition == null ? '—' : (p.ignition! ? 'ON' : 'OFF'),
                 ),
-                _infoRow('Address', addressLine, multiline: true),
                 if (snap.connectionState == ConnectionState.waiting &&
                     isCoarsePlaybackAddress(addressLine))
                   const Padding(
@@ -1340,7 +1431,8 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen>
         children: [
           SizedBox(
             width: 90,
-            child: Text(label, style: const TextStyle(color: AppColors.textMuted)),
+            child:
+                Text(label, style: const TextStyle(color: AppColors.textMuted)),
           ),
           Expanded(
             child: Text(
@@ -1436,7 +1528,13 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen>
                         formatDurationMinutes(
                           effectiveDrivingMinutes(b),
                         ),
-                        'Driving',
+                        'Moving',
+                      ),
+                    ),
+                    Expanded(
+                      child: _kpiTile(
+                        formatDurationMinutes(b.statistics?.idleMinutes ?? 0),
+                        'Non-moving',
                       ),
                     ),
                     Expanded(
@@ -1498,7 +1596,8 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen>
                   visualDensity: VisualDensity.compact,
                   label: Text(
                     '${current?.speedKmh.toStringAsFixed(0) ?? '0'} km/h · ${distSoFar.toStringAsFixed(1)} km',
-                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                    style: const TextStyle(
+                        fontSize: 12, fontWeight: FontWeight.w600),
                   ),
                   backgroundColor: Colors.white.withValues(alpha: 0.95),
                   side: const BorderSide(color: AppColors.border),
@@ -1546,8 +1645,7 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen>
           color: Colors.white,
           elevation: 10,
           shadowColor: const Color(0x33000000),
-          borderRadius:
-              const BorderRadius.vertical(top: Radius.circular(20)),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
           clipBehavior: Clip.antiAlias,
           child: SafeArea(
             top: false,
@@ -1585,190 +1683,178 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen>
             Container(
               width: 38,
               height: 4,
-                            decoration: BoxDecoration(
-                              color: AppColors.border,
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              () {
-                                final tripLabel = _tripWindowLabel();
-                                if (tripLabel.isNotEmpty) return tripLabel;
-                                return _playing
-                                    ? 'Playing'
-                                    : (_index >= points.length - 1
-                                        ? 'Finished'
-                                        : 'Paused');
-                              }(),
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w700,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ),
-                          Text(
-                            current == null
-                                ? '--'
-                                : _tf.format(current.timestamp.toLocal()),
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w700,
-                              fontSize: 12,
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                          Icon(
-                            _sheetExtent > 0.28
-                                ? Icons.expand_more
-                                : Icons.expand_less,
-                            size: 18,
-                            color: AppColors.textSecondary,
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    PlaybackControls(
-                      playing: _playing,
-                      speed: _speed,
-                      atEnd: !_playing && points.isNotEmpty && _index >= points.length - 1,
-                      onPlayPause: _togglePlay,
-                      onStop: () {
-                        _stopPlay();
-                        _setIndex(0);
-                      },
-                      onFirst: () => _setIndex(0),
-                      onPrevPoint: () => _setIndex(_index - 1),
-                      onNextPoint: () => _setIndex(_index + 1),
-                      onPrevEvent: () => _jumpEvent(-1),
-                      onNextEvent: () => _jumpEvent(1),
-                      onEnd: () => _setIndex(points.length - 1),
-                      onSpeed: (s) {
-                        _bumpChromeInteraction();
-                        _playbackController.setSpeed(s);
-                      },
-                    ),
-                    if (bundle != null) ...[
-                      const SizedBox(height: 8),
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 8,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppColors.surface,
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: AppColors.border),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(
-                              Icons.directions_car_filled_outlined,
-                              size: 16,
-                              color: AppColors.textSecondary,
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                bundle.vehicle?.vehicleName ??
-                                    'Vehicle #${widget.vehicleId}',
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ),
-                            if ((bundle.vehicle?.plateNumber ?? '').isNotEmpty)
-                              Text(
-                                bundle.vehicle!.plateNumber!,
-                                style: const TextStyle(
-                                  color: AppColors.textSecondary,
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 11,
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
-                    ],
-                    const SizedBox(height: 8),
-                    PlaybackTimeline(
-                      playback: points,
-                      stops: bundle?.stops ?? const [],
-                      events: bundle?.events ?? const [],
-                      filteredEvents: _filteredEvents,
-                      index: _index,
-                      virtualTime: _virtualTime,
-                      onIndexChanged: (i) {
-                        _bumpChromeInteraction();
-                        _setIndex(i);
-                      },
-                      onVirtualTimeChanged: _seekVirtualTime,
-                      onScrubStart: _stopPlay,
-                      onScrubEnd: _bumpChromeInteraction,
-                    ),
-                    const SizedBox(height: 6),
-                    PlaybackScrubFooter(
-                      time: _virtualTime ??
-                          current?.timestamp ??
-                          DateTime.now(),
-                      speedKmh: current?.speedKmh ?? 0,
-                      distanceKm: distSoFar,
-                    ),
-                    const SizedBox(height: 6),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            _follow ? 'Follow vehicle' : 'Free pan',
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                        Switch(
-                          value: _follow,
-                          onChanged: (v) {
-                            _bumpChromeInteraction();
-                            setState(() => _follow = v);
-                          },
-                        ),
-                        IconButton(
-                          tooltip:
-                              _infoExpanded ? 'Hide details' : 'Show details',
-                          onPressed: () {
-                            _bumpChromeInteraction();
-                            setState(() => _infoExpanded = !_infoExpanded);
-                          },
-                          icon: Icon(
-                            _infoExpanded
-                                ? Icons.info_outline
-                                : Icons.info_outline_rounded,
-                          ),
-                        ),
-                      ],
-                    ),
-                    if (_infoExpanded && current != null)
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: Column(
-                          children: [
-                            _infoRow(
-                              'Heading',
-                              headingToCardinal(current.heading),
-                            ),
-                            _infoRow('Address', playbackAddressLine(current)),
-                            _infoRow(
-                              'Avg / Max',
-                              '${bundle?.summary?.avgSpeedKmh.toStringAsFixed(0) ?? '0'} / ${bundle?.summary?.maxSpeedKmh.toStringAsFixed(0) ?? '0'} km/h',
-                            ),
-                          ],
-                        ),
-                      ),
+              decoration: BoxDecoration(
+                color: AppColors.border,
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                () {
+                  final tripLabel = _tripWindowLabel();
+                  if (tripLabel.isNotEmpty) return tripLabel;
+                  return _playing
+                      ? 'Playing'
+                      : (_index >= points.length - 1 ? 'Finished' : 'Paused');
+                }(),
+                style: const TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 12,
+                ),
+              ),
+            ),
+            Text(
+              current == null ? '--' : _tf.format(current.timestamp.toLocal()),
+              style: const TextStyle(
+                fontWeight: FontWeight.w700,
+                fontSize: 12,
+                color: AppColors.textSecondary,
+              ),
+            ),
+            Icon(
+              _sheetExtent > 0.28 ? Icons.expand_more : Icons.expand_less,
+              size: 18,
+              color: AppColors.textSecondary,
+            ),
+          ],
+        ),
+      ),
+      const SizedBox(height: 4),
+      PlaybackControls(
+        playing: _playing,
+        speed: _speed,
+        atEnd: !_playing && points.isNotEmpty && _index >= points.length - 1,
+        onPlayPause: _togglePlay,
+        onStop: () {
+          _stopPlay();
+          _setIndex(0);
+        },
+        onFirst: () => _setIndex(0),
+        onPrevPoint: () => _setIndex(_index - 1),
+        onNextPoint: () => _setIndex(_index + 1),
+        onPrevEvent: () => _jumpEvent(-1),
+        onNextEvent: () => _jumpEvent(1),
+        onEnd: () => _setIndex(points.length - 1),
+        onSpeed: (s) {
+          _bumpChromeInteraction();
+          _playbackController.setSpeed(s);
+        },
+      ),
+      if (bundle != null) ...[
+        const SizedBox(height: 8),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(
+            horizontal: 10,
+            vertical: 8,
+          ),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Row(
+            children: [
+              const Icon(
+                Icons.directions_car_filled_outlined,
+                size: 16,
+                color: AppColors.textSecondary,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  bundle.vehicle?.vehicleName ?? 'Vehicle #${widget.vehicleId}',
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+              if ((bundle.vehicle?.plateNumber ?? '').isNotEmpty)
+                Text(
+                  bundle.vehicle!.plateNumber!,
+                  style: const TextStyle(
+                    color: AppColors.textSecondary,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 11,
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ],
+      const SizedBox(height: 8),
+      PlaybackTimeline(
+        playback: points,
+        stops: bundle?.stops ?? const [],
+        events: bundle?.events ?? const [],
+        filteredEvents: _filteredEvents,
+        index: _index,
+        virtualTime: _virtualTime,
+        onIndexChanged: (i) {
+          _bumpChromeInteraction();
+          _setIndex(i);
+        },
+        onVirtualTimeChanged: _seekVirtualTime,
+        onScrubStart: _stopPlay,
+        onScrubEnd: _bumpChromeInteraction,
+      ),
+      const SizedBox(height: 6),
+      PlaybackScrubFooter(
+        time: _virtualTime ?? current?.timestamp ?? DateTime.now(),
+        speedKmh: current?.speedKmh ?? 0,
+        distanceKm: distSoFar,
+      ),
+      const SizedBox(height: 6),
+      Row(
+        children: [
+          Expanded(
+            child: Text(
+              _follow ? 'Follow vehicle' : 'Free pan',
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          Switch(
+            value: _follow,
+            onChanged: (v) {
+              _bumpChromeInteraction();
+              setState(() => _follow = v);
+            },
+          ),
+          IconButton(
+            tooltip: _infoExpanded ? 'Hide details' : 'Show details',
+            onPressed: () {
+              _bumpChromeInteraction();
+              setState(() => _infoExpanded = !_infoExpanded);
+            },
+            icon: Icon(
+              _infoExpanded ? Icons.info_outline : Icons.info_outline_rounded,
+            ),
+          ),
+        ],
+      ),
+      if (_infoExpanded && current != null)
+        Align(
+          alignment: Alignment.centerLeft,
+          child: Column(
+            children: [
+              _infoRow(
+                'Heading',
+                headingToCardinal(current.heading),
+              ),
+              _infoRow('Address', playbackAddressLine(current)),
+              _infoRow(
+                'Avg / Max',
+                '${bundle?.summary?.avgSpeedKmh.toStringAsFixed(0) ?? '0'} / ${bundle?.summary?.maxSpeedKmh.toStringAsFixed(0) ?? '0'} km/h',
+              ),
+            ],
+          ),
+        ),
     ];
   }
 
@@ -1934,9 +2020,8 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen>
   Widget build(BuildContext context) {
     final b = _bundle;
     final points = _playbackPoints;
-    final current = points.isEmpty
-        ? null
-        : points[_index.clamp(0, points.length - 1)];
+    final current =
+        points.isEmpty ? null : points[_index.clamp(0, points.length - 1)];
     final distSoFar = _distSoFar;
 
     final showContent = !_loading && _error == null && points.isNotEmpty;
@@ -1982,7 +2067,8 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen>
               },
               itemBuilder: (_) => const [
                 PopupMenuItem(value: 'text', child: Text('Share summary')),
-                PopupMenuItem(value: 'report', child: Text('Share trip report')),
+                PopupMenuItem(
+                    value: 'report', child: Text('Share trip report')),
                 PopupMenuItem(value: 'gpx', child: Text('Export GPX')),
                 PopupMenuItem(value: 'kml', child: Text('Export KML')),
                 PopupMenuItem(value: 'csv', child: Text('Export Excel/CSV')),
@@ -2031,7 +2117,9 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen>
                 PopupMenuItem(
                   value: 'stops',
                   child: Text(
-                    _includeStops ? 'Hide stop markers' : 'Include stop markers',
+                    _includeStops
+                        ? 'Hide stop markers'
+                        : 'Include stop markers',
                   ),
                 ),
                 const PopupMenuItem(
@@ -2053,9 +2141,11 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen>
             ),
             onPressed: _loading
                 ? null
-                : () => unawaited(inList ? _load() : (_selectedTrip != null
-                    ? _selectTrip(_selectedTrip!)
-                    : _loadFullRange())),
+                : () => unawaited(inList
+                    ? _load()
+                    : (_selectedTrip != null
+                        ? _selectTrip(_selectedTrip!)
+                        : _loadFullRange())),
           ),
         ],
       ),
@@ -2071,7 +2161,8 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen>
                     FilledButton.icon(
                       onPressed: _loading
                           ? null
-                          : () => unawaited(inList ? _load() : _backToTripList()),
+                          : () =>
+                              unawaited(inList ? _load() : _backToTripList()),
                       icon: const Icon(Icons.refresh_rounded),
                       label: const Text('Retry'),
                     ),
@@ -2190,8 +2281,7 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen>
                                   mapType: _mapType,
                                   onZoomIn: () => unawaited(_zoomBy(1)),
                                   onZoomOut: () => unawaited(_zoomBy(-1)),
-                                  onCenter: () =>
-                                      unawaited(_centerOnVehicle()),
+                                  onCenter: () => unawaited(_centerOnVehicle()),
                                   onMapType: (t) {
                                     _bumpChromeInteraction();
                                     setState(() => _mapType = t);
@@ -2306,7 +2396,8 @@ class _DateBar extends StatelessWidget {
             PopupMenuButton<_HistoryPreset>(
               onSelected: onPreset,
               itemBuilder: (_) => const [
-                PopupMenuItem(value: _HistoryPreset.today, child: Text('Today')),
+                PopupMenuItem(
+                    value: _HistoryPreset.today, child: Text('Today')),
                 PopupMenuItem(
                   value: _HistoryPreset.yesterday,
                   child: Text('Yesterday'),

@@ -5,7 +5,8 @@ import '../../../core/api/api_response.dart';
 import '../../../core/api/dio_client.dart';
 import '../domain/fleet_models.dart';
 
-final fleetApiProvider = Provider<FleetApi>((ref) => FleetApi(ref.read(dioProvider)));
+final fleetApiProvider =
+    Provider<FleetApi>((ref) => FleetApi(ref.read(dioProvider)));
 
 class FleetApi {
   FleetApi(this._dio);
@@ -64,7 +65,9 @@ class FleetApi {
         if (to != null) 'to': to.toUtc().toIso8601String(),
       },
     );
-    return ApiResponseParser.dataList(res.data).map(GpsPosition.fromJson).toList();
+    return ApiResponseParser.dataList(res.data)
+        .map(GpsPosition.fromJson)
+        .toList();
   }
 
   Future<HistoryReplayBundle> getHistoryReplay(
@@ -190,15 +193,17 @@ class FleetApi {
     final placeType =
         (data['placeType'] as String? ?? data['PlaceType'] as String?)?.trim();
     final city = (data['city'] as String? ?? data['City'] as String?)?.trim();
-    final state = (data['state'] as String? ?? data['State'] as String?)?.trim();
+    final state =
+        (data['state'] as String? ?? data['State'] as String?)?.trim();
 
     var address = formatted;
     if (road != null &&
         road.isNotEmpty &&
         !_looksStreetLevel(formatted) &&
         !formatted.toLowerCase().contains(road.toLowerCase())) {
-      address =
-          [road, city, state].where((s) => s != null && s.isNotEmpty).join(', ');
+      address = [road, city, state]
+          .where((s) => s != null && s.isNotEmpty)
+          .join(', ');
     }
     return ReverseGeocodeInfo(
       formattedAddress: address,
@@ -234,7 +239,8 @@ class FleetApi {
     return parts.length > 3;
   }
 
-  Future<({String title, String summary, List<String> bullets})> getReplayInsights(
+  Future<({String title, String summary, List<String> bullets})>
+      getReplayInsights(
     int vehicleId, {
     DateTime? from,
     DateTime? to,
@@ -367,14 +373,12 @@ class ReverseGeocodeInfo {
   final String? city;
   final String? state;
 
-  /// Place (shop) on its own line preference; otherwise street address.
+  /// Street / locality first; placeName is optional secondary metadata only.
   String get displayLine {
-    final place = placeName?.trim();
     final addr = formattedAddress.trim();
-    if (place != null && place.isNotEmpty) {
-      if (addr.toLowerCase().startsWith(place.toLowerCase())) return addr;
-      return '$place · $addr';
-    }
+    if (addr.isNotEmpty) return addr;
+    final place = placeName?.trim();
+    if (place != null && place.isNotEmpty) return place;
     return addr;
   }
 }

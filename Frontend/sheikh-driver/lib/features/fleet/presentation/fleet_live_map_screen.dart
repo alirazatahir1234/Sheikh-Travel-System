@@ -459,11 +459,11 @@ class _FleetLiveMapScreenState extends ConsumerState<FleetLiveMapScreen> {
         const SizedBox(height: 8),
         FleetKpiStrip(
           kpis: hub.kpis,
-          selected: hub.filter,
+          selected: hub.statusFilter,
           onSelect: (s) {
             _initialFitDone = false;
             _userMovedCamera = false;
-            ref.read(fleetHubProvider.notifier).setFilter(s);
+            ref.read(fleetHubProvider.notifier).setStatusFilter(s);
             WidgetsBinding.instance.addPostFrameCallback((_) {
               if (!mounted) return;
               final next = ref.read(fleetHubProvider).valueOrNull;

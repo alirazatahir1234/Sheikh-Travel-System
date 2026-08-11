@@ -76,8 +76,13 @@ public class IngestPositionCommandHandler(
 
         await GpsPositionIngestionHelper.IngestAsync(connection, dto, recordedAt, cancellationToken);
 
-        var needsGeocode = string.IsNullOrWhiteSpace(dto.Address)
-            && (string.IsNullOrWhiteSpace(previous.Address)
+        // Traccar often supplies city-only strings (e.g. "Pasrur, Punjab, PK") — upgrade via queue.
+        var addressNeedsUpgrade = string.IsNullOrWhiteSpace(dto.Address)
+            || TripReplayAddressEnricher.IsCoarseAddress(dto.Address);
+        var previousNeedsUpgrade = string.IsNullOrWhiteSpace(previous.Address)
+            || TripReplayAddressEnricher.IsCoarseAddress(previous.Address);
+        var needsGeocode = addressNeedsUpgrade
+            && (previousNeedsUpgrade
                 || previous.Latitude is null
                 || previous.Longitude is null
                 || DistanceMeters(previous.Latitude.Value, previous.Longitude.Value, dto.Latitude, dto.Longitude) >= 150);

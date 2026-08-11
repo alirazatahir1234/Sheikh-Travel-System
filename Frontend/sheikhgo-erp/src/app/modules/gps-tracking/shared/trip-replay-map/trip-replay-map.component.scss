@@ -320,6 +320,17 @@
   color: #374151;
 }
 
+.track-time-caption {
+  display: inline;
+  margin-left: 4px;
+  font-style: normal;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: #6b7280;
+}
+
 .hud-vehicle {
   display: inline-flex;
   align-items: baseline;
@@ -337,6 +348,27 @@
     font-style: normal;
     font-weight: 600;
     opacity: 0.85;
+  }
+}
+
+.hud-address {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 140px;
+  max-width: 280px;
+
+  strong {
+    font-weight: 700;
+    color: #0f172a;
+    line-height: 1.25;
+  }
+
+  em {
+    font-style: normal;
+    font-size: 11px;
+    color: #64748b;
+    line-height: 1.25;
   }
 }
 

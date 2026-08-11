@@ -158,10 +158,19 @@ List<FleetVehicleLocation> applyLiveUpdate(
     heading: update.heading,
     batteryLevel: update.batteryLevel,
     gsmSignal: update.gsmSignal,
-    address: update.address,
+    address: _preferAddress(existing.address, update.address),
     alarmType: update.alarmType,
   );
   return next;
+}
+
+/// Keep a good resolved address when a live poll/SignalR payload omits or clears it.
+String? _preferAddress(String? previous, String? incoming) {
+  final next = incoming?.trim();
+  if (next != null && next.isNotEmpty) return next;
+  final prev = previous?.trim();
+  if (prev != null && prev.isNotEmpty) return prev;
+  return null;
 }
 
 bool _validCoords(double? lat, double? lng) =>

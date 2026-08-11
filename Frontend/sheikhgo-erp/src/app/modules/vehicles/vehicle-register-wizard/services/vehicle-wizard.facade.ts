@@ -12,6 +12,7 @@ import {
   UpdateVehicleDto,
   Vehicle,
   VehicleDocument,
+  VehicleGps,
   VehicleStatus,
   UploadVehicleDocumentResult,
   sanitizeCreateVehicleDto,
@@ -25,11 +26,13 @@ import { vehicleUploadSizeError } from '../../../../core/utils/upload-url.util';
 import { UiSelectOption } from '../../../../shared/components/ui/types/ui.types';
 import { UiToastService } from '../../../../shared/components/ui/toast/ui-toast.service';
 import {
+  AssignedTrackerInfo,
   DocumentSlotState,
   GpsWizardMode,
   getVinValidationState,
   generateVehicleCode,
   fuelTypeLabel,
+  resolveWizardTrackerModel,
   validateVin,
   WIZARD_DOCUMENT_SLOTS,
   WizardStepId,
@@ -77,6 +80,8 @@ export class VehicleWizardFacade {
   readonly lastSavedAt = signal<Date | null>(null);
   readonly gpsAssigned = signal(false);
   readonly gpsDeviceId = signal<number | null>(null);
+  readonly assignedTracker = signal<AssignedTrackerInfo | null>(null);
+  readonly changingTracker = signal(false);
   readonly unassignedDevices = signal<GpsDevice[]>([]);
   readonly branchOptions = signal<UiSelectOption[]>([]);
   readonly currencyOptions = signal<UiSelectOption[]>([]);
@@ -122,7 +127,7 @@ export class VehicleWizardFacade {
 
   readonly gpsForm: FormGroup = this.fb.group({
     mode: ['new' as GpsWizardMode],
-    model: ['Teltonika FMB920'],
+    model: ['teltonika_fmb920'],
     uniqueId: [''],
     simNumber: ['', [Validators.pattern(/^[0-9]*$/)]],
     vendor: ['Teltonika'],
@@ -241,9 +246,10 @@ export class VehicleWizardFacade {
           this.uploadedDocuments.set(documents);
           this.syncDocumentSlots(documents);
           if (gps?.gpsDeviceId) {
-            this.gpsAssigned.set(true);
-            this.gpsDeviceId.set(gps.gpsDeviceId);
-            this.gpsForm.patchValue({ mode: 'existing', existingDeviceId: String(gps.gpsDeviceId) });
+            this.applyAssignedGps(gps);
+            // Keep current assignment — do not put the assigned id into Unassigned Device select.
+            this.gpsForm.patchValue({ mode: 'skip', existingDeviceId: '' });
+            this.changingTracker.set(false);
           }
           this.currentStep.set(this.resolveInitialStep());
           this.syncFormValuesFromForm();
@@ -332,6 +338,8 @@ export class VehicleWizardFacade {
       ]);
     }
     if (step === 'gps') {
+      // Assigned + not changing: Current Tracker card only — always valid.
+      if (this.assignedTracker() && !this.changingTracker()) return true;
       const mode = this.gpsForm.get('mode')?.value as GpsWizardMode;
       if (mode === 'skip') return true;
       if (mode === 'existing') return !!this.gpsForm.get('existingDeviceId')?.valid;
@@ -389,7 +397,11 @@ export class VehicleWizardFacade {
 
   async handleGpsStep(): Promise<boolean> {
     const mode = this.gpsForm.get('mode')?.value as GpsWizardMode;
-    if (mode === 'skip' || this.gpsAssigned()) return true;
+    // Keep current assignment (initial view or "Keep current tracker" after Change Tracker).
+    if (mode === 'skip') {
+      this.changingTracker.set(false);
+      return true;
+    }
 
     const vehicleId = this.vehicleId();
     if (!vehicleId) return false;
@@ -397,33 +409,98 @@ export class VehicleWizardFacade {
     try {
       if (mode === 'existing') {
         const deviceId = Number(this.gpsForm.get('existingDeviceId')?.value);
+        if (!Number.isFinite(deviceId) || deviceId <= 0) return false;
         await firstValueFrom(this.vehicleService.assignGps(vehicleId, { gpsDeviceId: deviceId }));
-        this.gpsAssigned.set(true);
-        this.gpsDeviceId.set(deviceId);
+        await this.refreshAssignedGps(vehicleId);
+        this.changingTracker.set(false);
+        this.gpsForm.patchValue({ mode: 'skip', existingDeviceId: '' });
+        this.loadUnassignedDevices();
         return true;
       }
 
       const g = this.gpsForm.value;
-      const name = g.deviceName?.trim() || `Tracker ${g.uniqueId}`;
-      const deviceId = await firstValueFrom(this.gpsService.createDevice({
-        uniqueId: g.uniqueId.trim(),
+      const catalog = resolveWizardTrackerModel(String(g.model ?? ''));
+      const uniqueId = String(g.uniqueId ?? '').trim();
+      const name = g.deviceName?.trim() || catalog.label;
+      const registered = await firstValueFrom(this.gpsService.registerTracker({
         name,
-        model: g.model,
-        simNumber: g.simNumber?.trim() || undefined,
-        vendor: g.vendor,
+        uniqueId,
+        category: 'car',
+        trackerModelId: 0,
+        trackerModelKey: catalog.key,
+        phone: g.simNumber?.trim() || undefined,
+        vendor: g.vendor?.trim() || catalog.vendor,
         supportsEngineCutoff: false,
-        isActive: true
+        vehicleId
       }));
 
-      if (deviceId) {
-        await firstValueFrom(this.vehicleService.assignGps(vehicleId, { gpsDeviceId: deviceId }));
-        this.gpsAssigned.set(true);
-        this.gpsDeviceId.set(deviceId);
+      const deviceId = typeof registered === 'number'
+        ? registered
+        : Number((registered as { id?: number })?.id);
+      if (!Number.isFinite(deviceId) || deviceId <= 0) {
+        this.toast.error('Tracker registered but no device id was returned.');
+        return false;
       }
+
+      // Register may already link vehicleId; assign-gps is idempotent insurance when not linked.
+      if (!this.gpsAssigned() || this.gpsDeviceId() !== deviceId) {
+        await firstValueFrom(this.vehicleService.assignGps(vehicleId, { gpsDeviceId: deviceId }));
+      }
+      await this.refreshAssignedGps(vehicleId);
+      this.changingTracker.set(false);
+      this.gpsForm.patchValue({ mode: 'skip', existingDeviceId: '' });
+      this.loadUnassignedDevices();
       return true;
-    } catch {
-      this.toast.error('Failed to assign GPS tracker');
+    } catch (err) {
+      this.toast.error(apiErrorMessage(err, 'Failed to assign GPS tracker'));
       return false;
+    }
+  }
+
+  startChangingTracker(): void {
+    this.changingTracker.set(true);
+    this.gpsForm.patchValue({ mode: 'existing', existingDeviceId: '' });
+    this.applyGpsModeValidators();
+  }
+
+  cancelChangingTracker(): void {
+    this.changingTracker.set(false);
+    this.gpsForm.patchValue({ mode: 'skip', existingDeviceId: '' });
+    this.applyGpsModeValidators();
+  }
+
+  private applyAssignedGps(gps: VehicleGps): void {
+    const id = gps.gpsDeviceId;
+    if (!id) {
+      this.gpsAssigned.set(false);
+      this.gpsDeviceId.set(null);
+      this.assignedTracker.set(null);
+      return;
+    }
+    this.gpsAssigned.set(true);
+    this.gpsDeviceId.set(id);
+    this.assignedTracker.set({
+      gpsDeviceId: id,
+      deviceName: gps.deviceName,
+      brandName: gps.brandName,
+      modelName: gps.modelName,
+      uniqueId: gps.uniqueId,
+      gpsOnline: gps.gpsOnline
+    });
+  }
+
+  private async refreshAssignedGps(vehicleId: number): Promise<void> {
+    try {
+      const gps = await firstValueFrom(
+        this.vehicleService.getGps(vehicleId).pipe(catchError(() => of(null)))
+      );
+      if (gps?.gpsDeviceId) {
+        this.applyAssignedGps(gps);
+      } else {
+        this.gpsAssigned.set(!!this.gpsDeviceId());
+      }
+    } catch {
+      this.gpsAssigned.set(!!this.gpsDeviceId());
     }
   }
 
@@ -1013,7 +1090,10 @@ export class VehicleWizardFacade {
     vendor?.clearValidators();
 
     if (mode === 'new') {
-      uniqueId?.setValidators([Validators.required, Validators.minLength(5), Validators.maxLength(100)]);
+      uniqueId?.setValidators([
+        Validators.required,
+        Validators.pattern(/^\d{15}$/)
+      ]);
       model?.setValidators([Validators.required]);
       vendor?.setValidators([Validators.required]);
     } else if (mode === 'existing') {

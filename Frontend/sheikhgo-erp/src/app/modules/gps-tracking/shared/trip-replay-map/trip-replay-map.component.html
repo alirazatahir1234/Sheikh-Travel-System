@@ -82,10 +82,18 @@
       </span>
       <span>{{ currentPosition.timestamp | date:'medium' }}</span>
       <span>{{ currentPosition.speedKmh | number:'1.0-0' }} km/h</span>
-      <span *ngIf="currentPosition.address">{{ currentPosition.address }}</span>
-      <span *ngIf="!currentPosition.address" class="muted">Address unavailable</span>
+      <span *ngIf="currentPosition.address as addr; else hudNoAddr" class="hud-address">
+        <strong>{{ addressPrimary(addr) }}</strong>
+        <em *ngIf="addressSecondary(addr) as secondary">{{ secondary }}</em>
+      </span>
+      <ng-template #hudNoAddr>
+        <span class="muted">Address unavailable</span>
+      </ng-template>
       <span>{{ distanceTravelledKm | number:'1.1-1' }} / {{ totalDistanceKm | number:'1.1-1' }} km</span>
-      <span>{{ elapsedLabel }} / {{ totalDurationLabel }}</span>
+      <span matTooltip="Track time (first to last position)" matTooltipPosition="above">
+        {{ elapsedLabel }} / {{ totalDurationLabel }}
+        <em class="track-time-caption">Track time</em>
+      </span>
     </div>
 
     <div class="replay-controls">

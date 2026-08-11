@@ -53,9 +53,11 @@ public record TraccarPositionAttributes(
     [property: JsonPropertyName("alarm")] string? Alarm = null,
     [property: JsonPropertyName("temperature")] decimal? Temperature = null,
     [property: JsonPropertyName("temp")] decimal? Temp = null,
-    [property: JsonPropertyName("deviceTemp")] decimal? DeviceTemp = null)
+    [property: JsonPropertyName("deviceTemp")] decimal? DeviceTemp = null,
+    [property: JsonPropertyName("temp1")] decimal? Temp1 = null,
+    [property: JsonPropertyName("temp2")] decimal? Temp2 = null)
 {
-    public decimal? ResolvedTemperature => Temperature ?? Temp ?? DeviceTemp;
+    public decimal? ResolvedTemperature => Temperature ?? Temp ?? DeviceTemp ?? Temp1 ?? Temp2;
 }
 
 public record TraccarGeofence(

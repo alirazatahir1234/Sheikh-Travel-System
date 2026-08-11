@@ -158,6 +158,23 @@
   font-size: 11px;
 }
 
+.fv-popup__gps {
+  font-weight: 600;
+  font-size: 11px;
+}
+
+.fv-popup__gps--live {
+  color: #15803d;
+}
+
+.fv-popup__gps--stale {
+  color: #c2410c;
+}
+
+.fv-popup__gps--none {
+  color: #b91c1c;
+}
+
 .fv-popup + .map-popup-link,
 .leaflet-popup-content .map-popup-link {
   display: inline-block;

@@ -5,13 +5,14 @@ import '../data/fleet_api.dart';
 import '../domain/fleet_models.dart';
 import '../domain/fleet_status.dart';
 import '../services/fleet_realtime_service.dart';
+import 'fleet_vehicle_filters.dart';
 
 class FleetHubState {
   const FleetHubState({
     this.kpis = GpsFleetStatusKpis.empty,
     this.ops = FleetOpsDashboard.empty,
     this.locations = const [],
-    this.filter,
+    this.filters = FleetVehicleFilters.empty,
     this.search = '',
     this.isRefreshing = false,
     this.realtimeStatus = 'disconnected',
@@ -21,7 +22,7 @@ class FleetHubState {
   final GpsFleetStatusKpis kpis;
   final FleetOpsDashboard ops;
   final List<FleetVehicleLocation> locations;
-  final FleetTrackStatus? filter;
+  final FleetVehicleFilters filters;
   final String search;
   final bool isRefreshing;
   /// SignalR status: connected | reconnecting | disconnected | no_token
@@ -29,11 +30,11 @@ class FleetHubState {
   /// Last SignalR location event or successful HTTP poll.
   final DateTime? lastLiveAt;
 
+  /// Back-compat for KPI strip / live map highlighting.
+  FleetStatusFilterOption get statusFilter => filters.status;
+
   List<FleetVehicleLocation> get visible {
-    var list = locations;
-    if (filter != null) {
-      list = list.where((v) => v.status == filter).toList();
-    }
+    var list = locations.where(filters.matches).toList();
     final q = search.trim().toLowerCase();
     if (q.isNotEmpty) {
       list = list
@@ -52,8 +53,7 @@ class FleetHubState {
     GpsFleetStatusKpis? kpis,
     FleetOpsDashboard? ops,
     List<FleetVehicleLocation>? locations,
-    FleetTrackStatus? filter,
-    bool clearFilter = false,
+    FleetVehicleFilters? filters,
     String? search,
     bool? isRefreshing,
     String? realtimeStatus,
@@ -63,7 +63,7 @@ class FleetHubState {
       kpis: kpis ?? this.kpis,
       ops: ops ?? this.ops,
       locations: locations ?? this.locations,
-      filter: clearFilter ? null : (filter ?? this.filter),
+      filters: filters ?? this.filters,
       search: search ?? this.search,
       isRefreshing: isRefreshing ?? this.isRefreshing,
       realtimeStatus: realtimeStatus ?? this.realtimeStatus,
@@ -189,7 +189,7 @@ class FleetHubNotifier extends AsyncNotifier<FleetHubState> {
       final current = state.valueOrNull;
       state = AsyncData(
         hub.copyWith(
-          filter: current?.filter,
+          filters: current?.filters,
           search: current?.search,
           isRefreshing: false,
           realtimeStatus: FleetRealtimeService.instance.currentStatus,
@@ -212,7 +212,7 @@ class FleetHubNotifier extends AsyncNotifier<FleetHubState> {
       final current = state.valueOrNull;
       state = AsyncData(
         hub.copyWith(
-          filter: current?.filter,
+          filters: current?.filters,
           search: current?.search,
           isRefreshing: false,
           realtimeStatus: FleetRealtimeService.instance.currentStatus,
@@ -222,14 +222,28 @@ class FleetHubNotifier extends AsyncNotifier<FleetHubState> {
     } catch (_) {}
   }
 
-  void setFilter(FleetTrackStatus? status) {
+  /// KPI strip shortcut — tap again on the same status clears status filter.
+  void setStatusFilter(FleetStatusFilterOption option) {
     final current = state.valueOrNull;
     if (current == null) return;
-    if (status == null || current.filter == status) {
-      state = AsyncData(current.copyWith(clearFilter: true));
-    } else {
-      state = AsyncData(current.copyWith(filter: status));
-    }
+    final next = current.filters.status == option
+        ? FleetStatusFilterOption.all
+        : option;
+    state = AsyncData(
+      current.copyWith(filters: current.filters.copyWith(status: next)),
+    );
+  }
+
+  void setFilters(FleetVehicleFilters filters) {
+    final current = state.valueOrNull;
+    if (current == null) return;
+    state = AsyncData(current.copyWith(filters: filters));
+  }
+
+  void clearFilters() {
+    final current = state.valueOrNull;
+    if (current == null) return;
+    state = AsyncData(current.copyWith(filters: FleetVehicleFilters.empty));
   }
 
   void setSearch(String q) {
