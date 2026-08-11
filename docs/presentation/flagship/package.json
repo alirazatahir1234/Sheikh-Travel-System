@@ -11,7 +11,7 @@
     "pdf:browser": "node export_pdf.mjs"
   },
   "dependencies": {
-    "js-yaml": "^4.3.0",
+    "js-yaml": "^4.3.1",
     "pdfkit": "^0.19.1",
     "pptxgenjs": "^3.12.0"
   },
