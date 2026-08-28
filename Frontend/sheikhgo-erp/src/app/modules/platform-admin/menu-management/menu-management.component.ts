@@ -114,13 +114,48 @@ export class MenuManagementComponent implements OnInit, OnDestroy {
     this.loadCatalog();
   }
 
-  toggleExpand(id: number): void {
+  toggleExpand(id: number, event?: Event): void {
+    const target = (event?.currentTarget as HTMLElement | null) ?? null;
+    const scroller = target ? this.findScrollParent(target) : null;
+    const beforeTop = target?.getBoundingClientRect().top ?? null;
+
     if (this.expanded.has(id)) this.expanded.delete(id);
     else this.expanded.add(id);
+    // New Set so change detection always sees the update.
+    this.expanded = new Set(this.expanded);
+
+    // Collapsing a tall module shortens .stb-content and the browser jumps scroll.
+    // Keep the clicked header at the same viewport position after the DOM updates.
+    if (target && scroller && beforeTop != null) {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          const afterTop = target.getBoundingClientRect().top;
+          const delta = afterTop - beforeTop;
+          if (Math.abs(delta) > 0.5) {
+            scroller.scrollTop += delta;
+          }
+        });
+      });
+    }
   }
 
   isExpanded(id: number): boolean {
     return this.expanded.has(id);
+  }
+
+  private findScrollParent(el: HTMLElement): HTMLElement {
+    let node: HTMLElement | null = el.parentElement;
+    while (node) {
+      const { overflowY } = getComputedStyle(node);
+      if (
+        (overflowY === 'auto' || overflowY === 'scroll' || overflowY === 'overlay') &&
+        node.scrollHeight > node.clientHeight
+      ) {
+        return node;
+      }
+      node = node.parentElement;
+    }
+    return (document.scrollingElement as HTMLElement) || document.documentElement;
   }
 
   openEditModule(module: MenuCatalogModule): void {

@@ -73,7 +73,7 @@
 
     <section class="module-block" *ngFor="let module of filteredModules">
       <header class="module-head">
-        <button type="button" class="expand-btn" (click)="toggleExpand(module.id)" [attr.aria-expanded]="isExpanded(module.id)">
+        <button type="button" class="expand-btn" (click)="toggleExpand(module.id, $event)" [attr.aria-expanded]="isExpanded(module.id)">
           <mat-icon>{{ isExpanded(module.id) ? 'expand_more' : 'chevron_right' }}</mat-icon>
           <mat-icon class="mod-icon">{{ module.icon || 'folder' }}</mat-icon>
           <div>

@@ -94,6 +94,8 @@
   margin-bottom: 12px;
   background: #fff;
   overflow: hidden;
+  /* Prefer anchoring on the module header, not the collapsing item list. */
+  overflow-anchor: none;
 }
 
 .module-head {
@@ -104,6 +106,7 @@
   padding: 12px 16px;
   flex-wrap: wrap;
   background: #f8fafc;
+  overflow-anchor: auto;
 }
 
 .expand-btn {
