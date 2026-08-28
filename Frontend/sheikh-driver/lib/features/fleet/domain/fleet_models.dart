@@ -52,8 +52,7 @@ class GpsFleetStatusKpis {
   final int alertsToday;
 
   factory GpsFleetStatusKpis.fromJson(Map<String, dynamic> json) {
-    int n(String a, [String? b]) =>
-        json[a] as int? ?? (b != null ? json[b] as int? : null) ?? 0;
+    int n(String a, [String? b]) => _readInt(json, a, b);
     return GpsFleetStatusKpis(
       totalVehicles: n('totalVehicles', 'TotalVehicles'),
       online: n('online', 'Online'),
@@ -65,6 +64,14 @@ class GpsFleetStatusKpis {
       sos: n('sos', 'Sos'),
       alertsToday: n('alertsToday', 'AlertsToday'),
     );
+  }
+
+  static int _readInt(Map<String, dynamic> json, String a, [String? b]) {
+    final raw = json[a] ?? (b != null ? json[b] : null);
+    if (raw == null) return 0;
+    if (raw is int) return raw;
+    if (raw is num) return raw.round();
+    return int.tryParse(raw.toString()) ?? 0;
   }
 
   static const empty = GpsFleetStatusKpis(
@@ -98,8 +105,14 @@ class FleetOpsDashboard {
   final int complianceAlerts;
 
   factory FleetOpsDashboard.fromJson(Map<String, dynamic> json) {
-    int n(String a, [String? b]) =>
-        json[a] as int? ?? (b != null ? json[b] as int? : null) ?? 0;
+    int n(String a, [String? b]) {
+      final raw = json[a] ?? (b != null ? json[b] : null);
+      if (raw == null) return 0;
+      if (raw is int) return raw;
+      if (raw is num) return raw.round();
+      return int.tryParse(raw.toString()) ?? 0;
+    }
+
     num cost = json['monthlyFuelCost'] as num? ??
         json['MonthlyFuelCost'] as num? ??
         0;
@@ -1146,6 +1159,10 @@ class GpsTrip {
     this.plateNumber,
     this.tripKey,
     this.status,
+    this.startLatitude,
+    this.startLongitude,
+    this.endLatitude,
+    this.endLongitude,
   });
 
   final int vehicleId;
@@ -1165,6 +1182,22 @@ class GpsTrip {
   final String? plateNumber;
   final String? tripKey;
   final String? status;
+  final double? startLatitude;
+  final double? startLongitude;
+  final double? endLatitude;
+  final double? endLongitude;
+
+  bool get hasStartCoords =>
+      startLatitude != null &&
+      startLongitude != null &&
+      startLatitude != 0 &&
+      startLongitude != 0;
+
+  bool get hasEndCoords =>
+      endLatitude != null &&
+      endLongitude != null &&
+      endLatitude != 0 &&
+      endLongitude != 0;
 
   factory GpsTrip.fromJson(Map<String, dynamic> json) {
     return GpsTrip(
@@ -1202,6 +1235,18 @@ class GpsTrip {
           json['plateNumber'] as String? ?? json['PlateNumber'] as String?,
       tripKey: json['tripKey'] as String? ?? json['TripKey'] as String?,
       status: json['status'] as String? ?? json['Status'] as String?,
+      startLatitude: (json['startLatitude'] as num? ??
+              json['StartLatitude'] as num?)
+          ?.toDouble(),
+      startLongitude: (json['startLongitude'] as num? ??
+              json['StartLongitude'] as num?)
+          ?.toDouble(),
+      endLatitude:
+          (json['endLatitude'] as num? ?? json['EndLatitude'] as num?)
+              ?.toDouble(),
+      endLongitude:
+          (json['endLongitude'] as num? ?? json['EndLongitude'] as num?)
+              ?.toDouble(),
     );
   }
 }

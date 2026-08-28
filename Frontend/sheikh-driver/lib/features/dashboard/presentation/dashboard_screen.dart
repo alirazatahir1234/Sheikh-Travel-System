@@ -12,9 +12,28 @@ import '../domain/dashboard_role.dart';
 import 'dashboard_notifier.dart';
 import 'widgets/command_dashboard_widgets.dart';
 import 'widgets/dashboard_widgets.dart';
-import '../../gps_operator/presentation/operator_dashboard_widgets.dart';
-import '../../gps_operator/domain/operator_dashboard_models.dart';
-import '../../alerts/data/gps_alerts_api.dart';
+
+// Enforced order for command/fleet roles.
+const _commandOrder = [
+  DashboardWidgetId.opsHeader,
+  DashboardWidgetId.universalSearchBar,
+  DashboardWidgetId.primaryKpis,
+  DashboardWidgetId.fleetStatusStrip,
+  DashboardWidgetId.criticalAlertsList,
+  DashboardWidgetId.attentionVehicles,
+  DashboardWidgetId.quickActions,
+  DashboardWidgetId.aiAttention,
+];
+
+// Enforced order for driver role.
+const _driverOrder = [
+  DashboardWidgetId.opsHeader,
+  DashboardWidgetId.myVehicle,
+  DashboardWidgetId.driverTripKpis,
+  DashboardWidgetId.earnings,
+  DashboardWidgetId.quickActions,
+  DashboardWidgetId.aiAttention,
+];
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
@@ -31,24 +50,27 @@ class DashboardScreen extends ConsumerWidget {
           icon: const Icon(Icons.menu_rounded),
           onPressed: () => context.push('/settings'),
         ),
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              session?.companyName?.isNotEmpty == true
-                  ? session!.companyName!
-                  : 'Fleet',
-            ),
-            if (session != null && !session.isDriverOnly)
-              Text(
-                DashboardRoleX.fromNavRole(session.primaryNavRole).subtitle,
-                style: const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w400,
-                  color: AppColors.textSecondary,
-                ),
+        title: Text(
+          session?.companyName?.isNotEmpty == true
+              ? session!.companyName!
+              : 'Sheikh Travel',
+          style: const TextStyle(fontWeight: FontWeight.w700),
+        ),
+        centerTitle: true,
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(18),
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 6),
+            child: Text(
+              session != null && !session.isDriverOnly
+                  ? '${DashboardRoleX.fromNavRole(session.primaryNavRole).subtitle} ˅'
+                  : 'Driver view',
+              style: const TextStyle(
+                fontSize: 12,
+                color: AppColors.textSecondary,
               ),
-          ],
+            ),
+          ),
         ),
         actions: [
           if (session?.isDriverOnly ?? true)
@@ -60,13 +82,27 @@ class DashboardScreen extends ConsumerWidget {
                 PopupMenuItem(value: 'Online', child: Text('Online')),
                 PopupMenuItem(value: 'Busy', child: Text('Busy (On Trip)')),
                 PopupMenuItem(value: 'Break', child: Text('Break')),
-                PopupMenuItem(value: 'Unavailable', child: Text('Unavailable')),
+                PopupMenuItem(
+                    value: 'Unavailable', child: Text('Unavailable')),
               ],
               icon: const Icon(Icons.toggle_on_outlined),
             ),
-          IconButton(
-            icon: const Icon(Icons.notifications_none_rounded),
-            onPressed: () => context.go('/notifications'),
+          Stack(
+            alignment: Alignment.center,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.notifications_none_rounded),
+                onPressed: () => context.go('/notifications'),
+              ),
+              const Positioned(
+                right: 10,
+                top: 10,
+                child: CircleAvatar(
+                  radius: 4,
+                  backgroundColor: AppColors.success,
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -74,11 +110,15 @@ class DashboardScreen extends ConsumerWidget {
         loading: () => ListView(
           padding: const EdgeInsets.all(16),
           children: const [
-            SgSkeleton(height: 108),
+            SgSkeleton(height: 72),
             SizedBox(height: 12),
-            SgSkeleton(height: 120),
+            SgSkeleton(height: 44),
             SizedBox(height: 12),
-            SgSkeleton(height: 200),
+            SgSkeleton(height: 110),
+            SizedBox(height: 12),
+            SgSkeleton(height: 80),
+            SizedBox(height: 12),
+            SgSkeleton(height: 140),
           ],
         ),
         error: (e, _) => _ErrorView(
@@ -92,80 +132,68 @@ class DashboardScreen extends ConsumerWidget {
             await ref.read(offlineSyncProvider).syncNow();
             ref.invalidate(tripsProvider);
           },
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final wide = constraints.maxWidth >= 700;
-              final widgets = data.widgets
-                  .where((id) => data.shouldShow(id, session))
-                  .toList();
-
-              return ListView(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-                children: [
-                  ..._buildOrdered(
-                    context,
-                    data,
-                    widgets,
-                    session?.canSeeAiTab ?? false,
-                    wide,
+          child: ListView(
+            padding: EdgeInsets.fromLTRB(
+              16,
+              8,
+              16,
+              100 + MediaQuery.of(context).padding.bottom,
+            ),
+            children: [
+              ..._buildOrdered(
+                context,
+                data,
+                session?.canSeeAiTab ?? false,
+              ),
+              if (data.sectionErrors.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: SectionErrorHint(
+                    message: _sectionErrorMessage(data),
                   ),
-                  if (data.sectionErrors.isNotEmpty)
-                    SectionErrorHint(
-                      message:
-                          'Some sections could not load: ${data.sectionErrors.keys.join(', ')}. Pull to refresh.',
-                    ),
-                ],
-              );
-            },
+                ),
+              if (_fleetDataMissing(data))
+                const Padding(
+                  padding: EdgeInsets.only(top: 8),
+                  child: SectionErrorHint(
+                    message:
+                        'Fleet data could not be loaded. Check that the API is reachable '
+                        '(use DEV_LAN_HOST for a physical phone, not localhost). Pull to refresh.',
+                  ),
+                ),
+            ],
           ),
         ),
       ),
     );
   }
 
-  /// Renders widgets in order; on wide layouts pairs AI + Critical Alerts.
   List<Widget> _buildOrdered(
     BuildContext context,
     RoleDashboardData data,
-    List<DashboardWidgetId> widgets,
     bool canOpenAi,
-    bool wide,
   ) {
-    final out = <Widget>[];
-    var i = 0;
-    while (i < widgets.length) {
-      final id = widgets[i];
-      if (wide &&
-          id == DashboardWidgetId.aiAttention &&
-          i + 1 < widgets.length &&
-          widgets[i + 1] == DashboardWidgetId.criticalAlertsList) {
-        out.add(
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: _buildWidget(context, data, id, canOpenAi),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _buildWidget(
-                  context,
-                  data,
-                  DashboardWidgetId.criticalAlertsList,
-                  canOpenAi,
-                ),
-              ),
-            ],
-          ),
-        );
-        out.add(const SizedBox(height: 14));
-        i += 2;
-        continue;
-      }
+    final isDriver = data.isDriver;
+    final order = isDriver ? _driverOrder : _commandOrder;
 
-      out.add(_buildWidget(context, data, id, canOpenAi));
+    // Only include items that have data (skip if driver info missing for driver items).
+    final active = order.where((id) {
+      if (id == DashboardWidgetId.myVehicle ||
+          id == DashboardWidgetId.driverTripKpis ||
+          id == DashboardWidgetId.earnings) {
+        return data.driver != null;
+      }
+      if (id == DashboardWidgetId.aiAttention && !canOpenAi) {
+        return data.aiItems.isNotEmpty;
+      }
+      return true;
+    }).toList();
+
+    final out = <Widget>[];
+    for (final id in active) {
+      final w = _buildWidget(context, data, id, canOpenAi);
+      out.add(w);
       out.add(const SizedBox(height: 14));
-      i++;
     }
     return out;
   }
@@ -177,16 +205,52 @@ class DashboardScreen extends ConsumerWidget {
     bool canOpenAi,
   ) {
     switch (id) {
-      case DashboardWidgetId.greeting:
       case DashboardWidgetId.opsHeader:
+      case DashboardWidgetId.greeting:
         return OpsHeaderCard(
           name: data.displayName,
           role: data.role,
           tenantId: data.tenantId,
           lastSyncedAt: data.lastSyncedAt,
         );
-      case DashboardWidgetId.platformBanner:
-        return const PlatformBannerCard();
+      case DashboardWidgetId.universalSearchBar:
+        return const UniversalSearchBarCard();
+      case DashboardWidgetId.primaryKpis:
+        return PrimaryKpiStrip(cells: data.primaryKpis);
+      case DashboardWidgetId.fleetStatusStrip:
+        return KpiStrip(
+          title: 'Fleet Status Overview',
+          viewAllLabel: 'View full report',
+          viewAllRoute: '/fleet/map',
+          items: [
+            // Mutually exclusive buckets (online KPI elsewhere = moving + idle).
+            ('Moving', '${data.gps?.moving ?? 0}', AppColors.success),
+            ('Idle', '${data.gps?.idle ?? 0}', AppColors.warning),
+            ('Offline', '${data.gps?.offline ?? 0}', AppColors.error),
+            (
+              'Never Seen',
+              '${data.gps?.neverSeen ?? 0}',
+              AppColors.textMuted
+            ),
+          ],
+        );
+      case DashboardWidgetId.criticalAlertsList:
+      case DashboardWidgetId.recentAlerts:
+        return CriticalAlertsCard(
+          events: data.alertEvents,
+          criticalCount: data.alerts?.critical ?? 0,
+        );
+      case DashboardWidgetId.attentionVehicles:
+        return AttentionVehiclesCard(data: data);
+      case DashboardWidgetId.quickActions:
+        return QuickActionsGrid(actions: data.quickActions);
+      case DashboardWidgetId.aiAttention:
+        return AiCopilotSummaryCard(
+          items: data.aiItems,
+          canOpenAi: canOpenAi,
+        );
+
+      // Driver-specific widgets
       case DashboardWidgetId.myVehicle:
         return MyVehicleCard(driver: data.driver!);
       case DashboardWidgetId.driverTripKpis:
@@ -201,165 +265,29 @@ class DashboardScreen extends ConsumerWidget {
         ]);
       case DashboardWidgetId.earnings:
         return EarningsCard(driver: data.driver!);
-      case DashboardWidgetId.fleetHealthHeader:
-        return FleetHealthCard(data: data);
-      case DashboardWidgetId.fleetStatsStrip:
-        return FleetStatsStrip(data: data);
-      case DashboardWidgetId.opsKpiGrid:
-        return OpsKpiGridCard(data: data);
-      case DashboardWidgetId.primaryKpis:
-        return data.primaryKpis.isEmpty
-            ? const SizedBox.shrink()
-            : KpiStrip(
-                items: [
-                  for (final c in data.primaryKpis)
-                    (
-                      c.label,
-                      c.value,
-                      switch (c.colorKey) {
-                        'success' => AppColors.success,
-                        'warning' => AppColors.warning,
-                        'error' => AppColors.error,
-                        'info' => AppColors.info,
-                        _ => AppColors.primary,
-                      },
-                    ),
-                ],
-              );
-      case DashboardWidgetId.fleetKpis:
-        return KpiStrip(items: [
-          ('Vehicles', '${data.fleet?.totalVehicles ?? 0}', AppColors.primary),
-          ('Active', '${data.fleet?.activeVehicles ?? 0}', AppColors.success),
-          ('Drivers', '${data.fleet?.driversOnDuty ?? 0}', AppColors.info),
-          (
-            'Maint.',
-            '${data.fleet?.maintenanceDue ?? data.maintenance?.dueForService ?? 0}',
-            AppColors.warning
-          ),
-        ]);
-      case DashboardWidgetId.fleetStatusStrip:
-        return KpiStrip(items: [
-          ('Moving', '${data.gps?.moving ?? 0}', AppColors.success),
-          ('Idle', '${data.gps?.idle ?? 0}', AppColors.info),
-          ('Offline', '${data.gps?.offline ?? 0}', AppColors.error),
-          ('Parked', '${data.gps?.parked ?? 0}', AppColors.warning),
-        ]);
-      case DashboardWidgetId.liveFleetCard:
-      case DashboardWidgetId.liveMapPreview:
-        return LiveMapPreviewCard(positions: data.livePositions);
-      case DashboardWidgetId.mapSummaryCard:
-        return MapSummaryCard(data: data);
-      case DashboardWidgetId.universalSearchBar:
-        return const UniversalSearchBarCard();
-      case DashboardWidgetId.attentionVehicles:
-        return AttentionVehiclesCard(data: data);
-      case DashboardWidgetId.aiAttention:
-        return AiCopilotSummaryCard(
-          items: data.aiItems,
-          canOpenAi: canOpenAi,
-        );
-      case DashboardWidgetId.criticalAlertsList:
-      case DashboardWidgetId.recentAlerts:
-        return CriticalAlertsCard(
-          events: data.alertEvents,
-          criticalCount: data.alerts?.critical ?? 0,
-        );
-      case DashboardWidgetId.todayOpsKpis:
-        return TodayOpsKpiRow(data: data);
-      case DashboardWidgetId.recentActivities:
-        return RecentActivitiesCard(items: data.activities);
-      case DashboardWidgetId.maintenanceKpis:
-        return MaintenanceKpisCard(data: data);
-      case DashboardWidgetId.fuelSummary:
-      case DashboardWidgetId.fuelCost:
-        return FuelAnalyticsCard(data: data);
-      case DashboardWidgetId.tripKpis:
-        final t = data.trips;
-        return KpiStrip(items: [
-          ('Today', '${t?.total ?? 0}', AppColors.primary),
-          ('In progress', '${t?.inProgress ?? 0}', AppColors.info),
-          ('Upcoming', '${t?.scheduled ?? 0}', AppColors.warning),
-          ('Done', '${t?.completed ?? 0}', AppColors.success),
-        ]);
-      case DashboardWidgetId.liveTripsPreview:
-        return LiveTripsPreviewCard(trips: data.liveTrips);
-      case DashboardWidgetId.pendingAssignments:
-        return PendingAssignmentsCard(trips: data.pendingTrips);
-      case DashboardWidgetId.driverKpis:
-        final s = data.driverStats;
-        return KpiStrip(items: [
-          ('Drivers', '${s?.totalDrivers ?? 0}', AppColors.primary),
-          ('Active', '${s?.active ?? 0}', AppColors.success),
-          ('On trip', '${s?.onTrip ?? 0}', AppColors.info),
-          ('Off duty', '${s?.offDuty ?? 0}', AppColors.warning),
-        ]);
-      case DashboardWidgetId.driverPerformance:
-        final s = data.driverStats;
-        return KpiStrip(items: [
-          ('Available', '${s?.available ?? 0}', AppColors.success),
-          ('GPS online', '${s?.gpsOnline ?? 0}', AppColors.info),
-          ('Lic. soon', '${s?.licensesExpiringSoon ?? 0}', AppColors.warning),
-          ('Lic. expired', '${s?.licensesExpired ?? 0}', AppColors.error),
-        ]);
-      case DashboardWidgetId.complianceDocs:
-        return ComplianceDocsCard(data: data);
-      case DashboardWidgetId.financeKpis:
-        return KpiStrip(items: [
-          (
-            'Fuel',
-            _shortMoney(
-              data.fuelAnalytics?.totalCost ?? data.fleet?.monthlyFuelCost ?? 0,
-            ),
-            AppColors.warning
-          ),
-          (
-            'Maint.',
-            _shortMoney(data.maintenance?.monthlyMaintenanceCost ?? 0),
-            AppColors.error
-          ),
-          (
-            'Today fuel',
-            _shortMoney(data.fuelAnalytics?.todayCost ?? 0),
-            AppColors.info
-          ),
-          ('Alerts', '${data.unreadNotifications}', AppColors.primary),
-        ]);
-      case DashboardWidgetId.maintenanceCost:
-        return MoneySummaryCard(
-          title: 'Monthly maintenance cost',
-          amount: data.maintenance?.monthlyMaintenanceCost ?? 0,
-          subtitle:
-              '${data.maintenance?.activeWorkOrders ?? 0} active work orders',
-          icon: Icons.build_rounded,
-          route: '/more/maintenance',
-        );
-      case DashboardWidgetId.quickActions:
-        return QuickActionsGrid(actions: data.quickActions);
-      case DashboardWidgetId.gpsExceptionKpiGrid:
-        return GpsExceptionKpiGrid(
-          summary: data.operatorSummary ?? GpsOperatorSummary.empty,
-        );
-      case DashboardWidgetId.trackerHealthCard:
-        return TrackerHealthCard(
-          summary: data.operatorSummary ?? GpsOperatorSummary.empty,
-        );
-      case DashboardWidgetId.recentGpsAlertsFeed:
-        return Consumer(
-          builder: (context, ref, _) => RecentGpsAlertsFeed(
-            alerts: data.alertEvents,
-            onAcknowledge: (id) async {
-              await ref.read(gpsAlertsApiProvider).acknowledge(id);
-              await ref.read(dashboardProvider.notifier).silentRefresh();
-            },
-          ),
-        );
+
+      // Everything else is suppressed — return nothing.
+      default:
+        return const SizedBox.shrink();
     }
   }
 
-  String _shortMoney(double v) {
-    if (v >= 1000000) return '${(v / 1000000).toStringAsFixed(1)}M';
-    if (v >= 1000) return '${(v / 1000).toStringAsFixed(0)}k';
-    return v.toStringAsFixed(0);
+  static String _sectionErrorMessage(RoleDashboardData data) {
+    final keys = data.sectionErrors.keys.toList()..sort();
+    final critical = keys.where((k) => k == 'fleet' || k == 'gps').toList();
+    if (critical.isNotEmpty) {
+      return 'Could not load ${critical.join(' & ')}: '
+          '${keys.join(', ')}. Pull to refresh.';
+    }
+    return 'Some sections could not load: ${keys.join(', ')}. Pull to refresh.';
+  }
+
+  static bool _fleetDataMissing(RoleDashboardData data) {
+    if (data.isDriver) return false;
+    final total = data.gps?.totalVehicles ?? data.fleet?.totalVehicles ?? 0;
+    if (total > 0) return false;
+    return data.sectionErrors.containsKey('fleet') ||
+        data.sectionErrors.containsKey('gps');
   }
 }
 

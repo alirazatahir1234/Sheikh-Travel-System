@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
-import { DatePipe, DecimalPipe } from '@angular/common';
+import { DecimalPipe } from '@angular/common';
 import { MatIconModule } from '@angular/material/icon';
 import { VehicleListItem } from '../../../../core/models/vehicle.model';
 import { UiStatusBadgeComponent } from '../../../../shared/components/ui/status-badge/ui-status-badge.component';
@@ -12,7 +12,7 @@ import { resolveVehicleImageUrl } from '../../../../core/utils/upload-url.util';
 @Component({
   selector: 'vehicle-mobile-cards',
   standalone: true,
-  imports: [DatePipe, DecimalPipe, MatIconModule, UiStatusBadgeComponent, UiEmptyStateComponent],
+  imports: [DecimalPipe, MatIconModule, UiStatusBadgeComponent, UiEmptyStateComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './vehicle-mobile-cards.component.html',
   styleUrls: ['./vehicle-mobile-cards.component.scss']

@@ -268,8 +268,8 @@
             <dd>{{ quickStats.points }}</dd>
           </dl>
           <div class="mileage-row" *ngIf="mileageKm != null">
-            <span class="mileage-chip">Odometer Δ {{ mileageKm | number:'1.1-1' }} km</span>
-            <span class="mileage-chip mileage-chip--today" *ngIf="showTodayMileageChip">Includes today</span>
+            <span class="mileage-chip">Distance travelled: {{ mileageKm | number:'1.1-1' }} km</span>
+            <span class="mileage-chip mileage-chip--today">{{ periodRangeLabel }}</span>
           </div>
         </ng-container>
         <ng-template #noStats>
@@ -291,12 +291,22 @@
             role="button"
             tabindex="0"
             (keydown.enter)="focusStop(s, i)">
-            <span class="stop-headline">{{ stopHeadline(s) }}</span>
-            <span class="stop-locality" *ngIf="addressSecondaryLine(stopAddressLabel(s)) as locality">
+            <span class="stop-kind-row">
+              <span class="stop-kind" [class.stop-kind--parking]="isParkingStop(s)">
+                <mat-icon>{{ isParkingStop(s) ? 'local_parking' : 'pause_circle' }}</mat-icon>
+                {{ stopHeadline(s) }}
+              </span>
+            </span>
+            <span class="stop-headline">{{ stopPrimaryLine(s) }}</span>
+            <span class="stop-nearby" *ngIf="stopNearbyLine(s) as near">{{ near }}</span>
+            <span class="stop-locality" *ngIf="stopLocalityLine(s) as locality">
               {{ locality }}
             </span>
             <span class="stop-meta">
-              {{ s.startTime | date:'shortTime' }} · {{ formatDuration(s.durationMinutes) }}
+              {{ stopTimeWindowLabel(s) }}
+            </span>
+            <span class="stop-duration">
+              Duration: <strong>{{ formatCompactDuration(s.durationMinutes) }}</strong>
             </span>
           </li>
         </ul>

@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'package:intl/intl.dart';
 
 import '../../domain/fleet_models.dart';
 
@@ -268,6 +269,36 @@ String formatDurationMinutes(int minutes) {
   final m = minutes % 60;
   if (m == 0) return '$h hr';
   return '$h hr $m min';
+}
+
+String formatDurationMinutesCompact(int minutes) {
+  if (minutes <= 0) return '0m';
+  if (minutes < 60) return '${minutes}m';
+  final h = minutes ~/ 60;
+  final m = minutes % 60;
+  if (m == 0) return '${h}h';
+  return '${h}h ${m}m';
+}
+
+String formatStopWindow({
+  required DateTime startTime,
+  required DateTime endTime,
+}) {
+  final start = startTime.toLocal();
+  final end = endTime.toLocal();
+  final dayFmt = DateFormat('MMM d');
+  final timeFmt = DateFormat('h:mm a');
+  final startDay = dayFmt.format(start);
+  final startClock = timeFmt.format(start);
+  if (!end.isAfter(start)) return '$startDay · $startClock';
+  final endClock = timeFmt.format(end);
+  if (start.year == end.year &&
+      start.month == end.month &&
+      start.day == end.day) {
+    return '$startDay · $startClock – $endClock';
+  }
+  final endDay = dayFmt.format(end);
+  return '$startDay $startClock – $endDay $endClock';
 }
 
 /// Human-readable duration from seconds (e.g. `14 min 20 sec`, `2 hr 14 min`).

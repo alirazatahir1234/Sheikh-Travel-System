@@ -15,6 +15,79 @@ import '../vehicle_detail_screen.dart';
 import 'fleet_kpi_strip.dart';
 import 'vehicle_comms_buttons.dart';
 
+/// Rounds a coordinate to ~10 m resolution so the geocode cache isn't
+/// invalidated by tiny GPS drift between consecutive position updates.
+String _coordKey(double? lat, double? lng) {
+  if (lat == null || lng == null) return '';
+  // 4 decimal places ≈ ~11 m precision — stable across normal drift
+  return '${lat.toStringAsFixed(4)},${lng.toStringAsFixed(4)}';
+}
+
+/// Cached reverse-geocode lookup; keyed by rounded coordinate string so that
+/// small position drift does not trigger a new API call on every update.
+final _reverseGeocodeCache = <String, ReverseGeocodeInfo?>{};
+
+final vehicleLocationProvider = FutureProvider.autoDispose
+    .family<ReverseGeocodeInfo?, ({int vehicleId, String coordKey, String? inlineAddress})>(
+  (ref, args) async {
+    // 1. Serve from memory cache first (survives rebuild / position drift)
+    final cached = _reverseGeocodeCache[args.coordKey];
+    if (cached != null) return cached;
+
+    // 2. If inline address is already street-level, use it directly
+    final inline = args.inlineAddress?.trim();
+    if (inline != null &&
+        inline.isNotEmpty &&
+        !_isCoarseAddress(inline) &&
+        !_isCoordsOnlyString(inline)) {
+      final result = ReverseGeocodeInfo(formattedAddress: inline);
+      _reverseGeocodeCache[args.coordKey] = result;
+      return result;
+    }
+
+    // 3. Fall back to API reverse geocode
+    final parts = args.coordKey.split(',');
+    if (parts.length != 2) return null;
+    final lat = double.tryParse(parts[0]);
+    final lng = double.tryParse(parts[1]);
+    if (lat == null || lng == null) return null;
+    try {
+      final info = await ref.read(fleetApiProvider).reverseGeocodeInfo(
+            lat,
+            lng,
+            forceRefresh: inline == null || inline.isEmpty || _isCoarseAddress(inline),
+          );
+      _reverseGeocodeCache[args.coordKey] = info;
+      return info;
+    } catch (_) {
+      return null;
+    }
+  },
+);
+
+bool _isCoarseAddress(String address) {
+  final lower = address.toLowerCase();
+  if (lower.contains('tehsil') ||
+      lower.contains('district') ||
+      lower.contains('division')) {
+    return true;
+  }
+  final trimmed = address.trim();
+  if (trimmed.toLowerCase().startsWith('near ') &&
+      !RegExp(r'\d').hasMatch(trimmed)) {
+    return true;
+  }
+  final parts =
+      address.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+  if (parts.any((p) => RegExp(r'\d').hasMatch(p))) return false;
+  return parts.length <= 3;
+}
+
+bool _isCoordsOnlyString(String address) {
+  final m = RegExp(r'^-?\d+\.\d+\s*,\s*-?\d+\.\d+$').hasMatch(address.trim());
+  return m && !address.contains(RegExp(r'[A-Za-z]'));
+}
+
 /// Cached today's trip analytics for a vehicle (keyed by vehicle + calendar day).
 final vehicleTodayAnalyticsProvider = FutureProvider.autoDispose
     .family<TripAnalyticsSummary?, int>((ref, vehicleId) async {
@@ -61,6 +134,16 @@ class VehicleLiveMapSheet extends ConsumerWidget {
     final gpsAsync = ref.watch(vehicleGpsInfoProvider(vehicle.vehicleId));
     final todayAsync =
         ref.watch(vehicleTodayAnalyticsProvider(vehicle.vehicleId));
+    final coordKey = _coordKey(vehicle.latitude, vehicle.longitude);
+    final locationAsync = vehicle.hasMapCoords
+        ? ref.watch(
+            vehicleLocationProvider((
+              vehicleId: vehicle.vehicleId,
+              coordKey: coordKey,
+              inlineAddress: vehicle.address,
+            )),
+          )
+        : null;
 
     return DraggableScrollableSheet(
       initialChildSize: 0.28,
@@ -152,6 +235,8 @@ class VehicleLiveMapSheet extends ConsumerWidget {
                         speed: vehicle.speed,
                         ignition: vehicle.ignition,
                         status: vehicle.status,
+                        latitude: vehicle.latitude,
+                        longitude: vehicle.longitude,
                       ),
                     ),
                     _Chip(
@@ -223,68 +308,64 @@ class VehicleLiveMapSheet extends ConsumerWidget {
                 ),
                 const SizedBox(height: 14),
                 const _SectionTitle('Location'),
-                if (vehicle.hasMapCoords)
-                  FutureBuilder<ReverseGeocodeInfo?>(
-                    future: _resolveExactLocation(ref, vehicle),
-                    builder: (context, snap) {
-                      final waiting =
-                          snap.connectionState == ConnectionState.waiting &&
-                              !snap.hasData;
-                      final display = _locationDisplayLines(
-                        vehicle: vehicle,
-                        info: snap.data,
-                        waiting: waiting,
-                      );
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          if (display.primary != null) ...[
-                            Text(
-                              display.primary!,
-                              style: const TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w800,
-                                height: 1.3,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                          ],
-                          if (display.secondary != null)
-                            Text(
-                              display.secondary!,
-                              style: TextStyle(
-                                fontSize: 13,
-                                height: 1.35,
-                                color: display.isUnavailable
-                                    ? AppColors.textMuted
-                                    : AppColors.textPrimary,
-                              ),
-                            ),
-                          const SizedBox(height: 6),
-                          SelectableText(
-                            display.coords,
+                if (vehicle.hasMapCoords) ...[
+                  Builder(builder: (context) {
+                    final waiting = locationAsync?.isLoading == true &&
+                        !locationAsync!.hasValue;
+                    final display = _locationDisplayLines(
+                      vehicle: vehicle,
+                      info: locationAsync?.valueOrNull,
+                      waiting: waiting,
+                    );
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (display.primary != null) ...[
+                          Text(
+                            display.primary!,
                             style: const TextStyle(
-                              fontSize: 12,
-                              color: AppColors.textSecondary,
-                              fontFamily: 'monospace',
+                              fontSize: 15,
+                              fontWeight: FontWeight.w800,
+                              height: 1.3,
                             ),
                           ),
-                          const SizedBox(height: 6),
-                          TextButton.icon(
-                            onPressed: () => _openGoogleMaps(vehicle),
-                            icon: const Icon(Icons.map_outlined, size: 18),
-                            label: const Text('View on Google Maps'),
-                            style: TextButton.styleFrom(
-                              padding: EdgeInsets.zero,
-                              visualDensity: VisualDensity.compact,
-                              foregroundColor: AppColors.primary,
-                            ),
-                          ),
+                          const SizedBox(height: 4),
                         ],
-                      );
-                    },
-                  )
-                else
+                        if (display.secondary != null)
+                          Text(
+                            display.secondary!,
+                            style: TextStyle(
+                              fontSize: 13,
+                              height: 1.35,
+                              color: display.isUnavailable
+                                  ? AppColors.textMuted
+                                  : AppColors.textPrimary,
+                            ),
+                          ),
+                        const SizedBox(height: 6),
+                        SelectableText(
+                          display.coords,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textSecondary,
+                            fontFamily: 'monospace',
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        TextButton.icon(
+                          onPressed: () => _openGoogleMaps(vehicle),
+                          icon: const Icon(Icons.map_outlined, size: 18),
+                          label: const Text('View on Google Maps'),
+                          style: TextButton.styleFrom(
+                            padding: EdgeInsets.zero,
+                            visualDensity: VisualDensity.compact,
+                            foregroundColor: AppColors.primary,
+                          ),
+                        ),
+                      ],
+                    );
+                  }),
+                ] else
                   const Text(
                     'Address unavailable',
                     style: TextStyle(fontSize: 13, height: 1.35),
@@ -393,42 +474,6 @@ class VehicleLiveMapSheet extends ConsumerWidget {
     );
   }
 
-  static Future<ReverseGeocodeInfo?> _resolveExactLocation(
-    WidgetRef ref,
-    FleetVehicleLocation v,
-  ) async {
-    if (!v.hasMapCoords) return null;
-    final coordsLabel =
-        '${v.latitude!.toStringAsFixed(5)}, ${v.longitude!.toStringAsFixed(5)}';
-    final inline = v.address?.trim();
-    if (inline != null &&
-        inline.isNotEmpty &&
-        !_isCoarse(inline) &&
-        !_isCoordsOnly(inline, coordsLabel)) {
-      return ReverseGeocodeInfo(formattedAddress: inline);
-    }
-
-    final coarse = inline == null ||
-        inline.isEmpty ||
-        _isCoarse(inline) ||
-        _isCoordsOnly(inline, coordsLabel);
-    try {
-      final info = await ref.read(fleetApiProvider).reverseGeocodeInfo(
-            v.latitude!,
-            v.longitude!,
-            forceRefresh: coarse,
-          );
-      if (info == null) return null;
-      final formatted = info.formattedAddress.trim();
-      if (formatted.isEmpty || _isCoordsOnly(formatted, coordsLabel)) {
-        return null;
-      }
-      return info;
-    } catch (_) {
-      return null;
-    }
-  }
-
   static _LocationDisplay _locationDisplayLines({
     required FleetVehicleLocation vehicle,
     required ReverseGeocodeInfo? info,
@@ -436,15 +481,20 @@ class VehicleLiveMapSheet extends ConsumerWidget {
   }) {
     final coords =
         '${vehicle.latitude!.toStringAsFixed(5)}, ${vehicle.longitude!.toStringAsFixed(5)}';
-    final place = info?.placeName?.trim();
-    var address = info?.formattedAddress.trim();
-    if (address != null && _isCoordsOnly(address, coords)) address = null;
+    final place = info?.nearbyPlaceName?.trim() ?? info?.placeName?.trim();
+    var address = info?.primaryAddress?.trim();
+    final locality = info?.localityLine?.trim();
+    if ((address == null || address.isEmpty) &&
+        info?.formattedAddress.trim().isNotEmpty == true) {
+      address = info!.formattedAddress.trim();
+    }
+    if (address != null && _isCoordsOnlyString(address)) address = null;
 
     final inline = vehicle.address?.trim();
     final inlineOk = inline != null &&
         inline.isNotEmpty &&
-        !_isCoarse(inline) &&
-        !_isCoordsOnly(inline, coords);
+        !_isCoarseAddress(inline) &&
+        !_isCoordsOnlyString(inline);
 
     if ((address == null || address.isEmpty) && inlineOk) {
       address = inline;
@@ -476,8 +526,14 @@ class VehicleLiveMapSheet extends ConsumerWidget {
       secondary = place;
     }
 
+    final merged = locality != null && locality.isNotEmpty
+        ? (!address.toLowerCase().contains(locality.toLowerCase())
+            ? '$address, $locality'
+            : address)
+        : address;
+
     return _LocationDisplay(
-      primary: address,
+      primary: merged,
       secondary: secondary,
       coords: coords,
       isUnavailable: false,
@@ -496,35 +552,6 @@ class VehicleLiveMapSheet extends ConsumerWidget {
     if (brand.isNotEmpty) return brand;
     if (device.isNotEmpty) return device;
     return '—';
-  }
-
-  static bool _isCoordsOnly(String address, String coordsLabel) {
-    final a = address.trim().replaceAll(' ', '');
-    final c = coordsLabel.trim().replaceAll(' ', '');
-    if (a == c) return true;
-    // Also match slightly different precision.
-    final m = RegExp(
-      r'^-?\d+\.\d+\s*,\s*-?\d+\.\d+$',
-    ).hasMatch(address.trim());
-    return m && !address.contains(RegExp(r'[A-Za-z]'));
-  }
-
-  static bool _isCoarse(String address) {
-    final lower = address.toLowerCase();
-    if (lower.contains('tehsil') ||
-        lower.contains('district') ||
-        lower.contains('division')) {
-      return true;
-    }
-    final trimmed = address.trim();
-    if (trimmed.toLowerCase().startsWith('near ') &&
-        !RegExp(r'\d').hasMatch(trimmed)) {
-      return true;
-    }
-    final parts =
-        address.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
-    if (parts.any((p) => RegExp(r'\d').hasMatch(p))) return false;
-    return parts.length <= 3;
   }
 
   static Future<void> _openGoogleMaps(FleetVehicleLocation v) async {

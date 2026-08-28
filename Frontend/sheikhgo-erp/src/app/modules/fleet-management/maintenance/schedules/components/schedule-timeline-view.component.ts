@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, input, output, signal } from '@angular/core';
-import { DatePipe, DecimalPipe } from '@angular/common';
+import { DatePipe } from '@angular/common';
 import { MaintenanceScheduleCalendarItem } from '../../../../../core/models/maintenance.model';
 
 interface TimelineRow {
@@ -11,7 +11,7 @@ interface TimelineRow {
 @Component({
   selector: 'schedule-timeline-view',
   standalone: true,
-  imports: [DatePipe, DecimalPipe],
+  imports: [DatePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="tl">

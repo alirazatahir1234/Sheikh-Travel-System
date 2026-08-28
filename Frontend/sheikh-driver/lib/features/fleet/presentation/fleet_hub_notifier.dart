@@ -16,7 +16,10 @@ class FleetHubState {
     this.search = '',
     this.isRefreshing = false,
     this.realtimeStatus = 'disconnected',
-    this.lastLiveAt,
+    this.lastFleetRefreshAt,
+    this.lastGpsAt,
+    this.loadError,
+    this.liveFeedWarning,
   });
 
   final GpsFleetStatusKpis kpis;
@@ -27,11 +30,27 @@ class FleetHubState {
   final bool isRefreshing;
   /// SignalR status: connected | reconnecting | disconnected | no_token
   final String realtimeStatus;
-  /// Last SignalR location event or successful HTTP poll.
-  final DateTime? lastLiveAt;
+  /// When vehicles/KPI HTTP load last succeeded (not GPS freshness).
+  final DateTime? lastFleetRefreshAt;
+  /// Freshest GPS timestamp across fleet (SignalR or live poll).
+  final DateTime? lastGpsAt;
+  /// Set when vehicles (or all fleet APIs) fail to load.
+  final String? loadError;
+  /// Soft warning when live positions failed but vehicle list still loaded.
+  final String? liveFeedWarning;
 
   /// Back-compat for KPI strip / live map highlighting.
   FleetStatusFilterOption get statusFilter => filters.status;
+
+  int get liveVehicleCount => locations
+      .where(
+        (v) =>
+            v.status == FleetTrackStatus.moving ||
+            v.status == FleetTrackStatus.idle ||
+            v.status == FleetTrackStatus.parked ||
+            v.status == FleetTrackStatus.sos,
+      )
+      .length;
 
   List<FleetVehicleLocation> get visible {
     var list = locations.where(filters.matches).toList();
@@ -57,7 +76,12 @@ class FleetHubState {
     String? search,
     bool? isRefreshing,
     String? realtimeStatus,
-    DateTime? lastLiveAt,
+    DateTime? lastFleetRefreshAt,
+    DateTime? lastGpsAt,
+    String? loadError,
+    String? liveFeedWarning,
+    bool clearLoadError = false,
+    bool clearLiveFeedWarning = false,
   }) {
     return FleetHubState(
       kpis: kpis ?? this.kpis,
@@ -67,7 +91,12 @@ class FleetHubState {
       search: search ?? this.search,
       isRefreshing: isRefreshing ?? this.isRefreshing,
       realtimeStatus: realtimeStatus ?? this.realtimeStatus,
-      lastLiveAt: lastLiveAt ?? this.lastLiveAt,
+      lastFleetRefreshAt: lastFleetRefreshAt ?? this.lastFleetRefreshAt,
+      lastGpsAt: lastGpsAt ?? this.lastGpsAt,
+      loadError: clearLoadError ? null : (loadError ?? this.loadError),
+      liveFeedWarning: clearLiveFeedWarning
+          ? null
+          : (liveFeedWarning ?? this.liveFeedWarning),
     );
   }
 }
@@ -96,24 +125,35 @@ class FleetHubNotifier extends AsyncNotifier<FleetHubState> {
     _syncPollWithRealtime(FleetRealtimeService.instance.currentStatus);
     return hub.copyWith(
       realtimeStatus: FleetRealtimeService.instance.currentStatus,
-      lastLiveAt: DateTime.now(),
     );
+  }
+
+  DateTime? _freshestGps(List<FleetVehicleLocation> locations) {
+    DateTime? best;
+    for (final v in locations) {
+      final t = v.lastUpdated;
+      if (t == null) continue;
+      if (best == null || t.isAfter(best)) best = t;
+    }
+    return best;
   }
 
   Future<FleetHubState> _load() async {
     if (!ref.read(authRepositoryProvider).isLoggedIn) {
-      return const FleetHubState();
+      return const FleetHubState(loadError: 'Not signed in');
     }
     final api = ref.read(fleetApiProvider);
-    GpsFleetStatusKpis kpis = GpsFleetStatusKpis.empty;
+    GpsFleetStatusKpis apiKpis = GpsFleetStatusKpis.empty;
     FleetOpsDashboard ops = FleetOpsDashboard.empty;
     List<VehicleListItem> vehicles = const [];
     List<GpsPosition> live = const [];
+    String? vehiclesError;
+    String? liveFeedWarning;
 
     await Future.wait([
       () async {
         try {
-          kpis = await api.getFleetStatusLocal();
+          apiKpis = await api.getFleetStatusLocal();
         } catch (_) {}
       }(),
       () async {
@@ -124,17 +164,39 @@ class FleetHubNotifier extends AsyncNotifier<FleetHubState> {
       () async {
         try {
           vehicles = await api.getVehicles();
-        } catch (_) {}
+        } catch (e) {
+          vehiclesError = e.toString();
+        }
       }(),
       () async {
         try {
           live = await api.getLivePositions();
-        } catch (_) {}
+        } catch (e) {
+          liveFeedWarning =
+              'Live GPS feed unavailable. Showing last known vehicle data. ($e)';
+        }
       }(),
     ]);
 
     final locations = mergeVehiclesWithLive(vehicles: vehicles, live: live);
-    return FleetHubState(kpis: kpis, ops: ops, locations: locations);
+    // Always derive strip counts from the same rows the list renders.
+    final kpis = deriveFleetKpisFromLocations(
+      locations,
+      alertsToday: apiKpis.alertsToday,
+    );
+    final loadError = vehiclesError == null
+        ? null
+        : 'Vehicles API failed. Pull to refresh. ($vehiclesError)';
+    final now = DateTime.now();
+    return FleetHubState(
+      kpis: kpis,
+      ops: ops,
+      locations: locations,
+      loadError: loadError,
+      liveFeedWarning: liveFeedWarning,
+      lastFleetRefreshAt: now,
+      lastGpsAt: _freshestGps(locations),
+    );
   }
 
   void _startRealtime() {
@@ -144,11 +206,17 @@ class FleetHubNotifier extends AsyncNotifier<FleetHubState> {
     _liveSub = FleetRealtimeService.instance.locationUpdates.listen((pos) {
       final current = state.valueOrNull;
       if (current == null) return;
+      final locations = applyLiveUpdate(current.locations, pos);
       state = AsyncData(
         current.copyWith(
-          locations: applyLiveUpdate(current.locations, pos),
-          lastLiveAt: DateTime.now(),
+          locations: locations,
+          kpis: deriveFleetKpisFromLocations(
+            locations,
+            alertsToday: current.kpis.alertsToday,
+          ),
+          lastGpsAt: pos.timestamp,
           realtimeStatus: 'connected',
+          clearLiveFeedWarning: true,
         ),
       );
     });
@@ -193,7 +261,10 @@ class FleetHubNotifier extends AsyncNotifier<FleetHubState> {
           search: current?.search,
           isRefreshing: false,
           realtimeStatus: FleetRealtimeService.instance.currentStatus,
-          lastLiveAt: DateTime.now(),
+          clearLoadError: hub.loadError == null,
+          loadError: hub.loadError,
+          clearLiveFeedWarning: hub.liveFeedWarning == null,
+          liveFeedWarning: hub.liveFeedWarning,
         ),
       );
       _startRealtime();
@@ -216,7 +287,10 @@ class FleetHubNotifier extends AsyncNotifier<FleetHubState> {
           search: current?.search,
           isRefreshing: false,
           realtimeStatus: FleetRealtimeService.instance.currentStatus,
-          lastLiveAt: DateTime.now(),
+          clearLoadError: hub.loadError == null,
+          loadError: hub.loadError,
+          clearLiveFeedWarning: hub.liveFeedWarning == null,
+          liveFeedWarning: hub.liveFeedWarning,
         ),
       );
     } catch (_) {}

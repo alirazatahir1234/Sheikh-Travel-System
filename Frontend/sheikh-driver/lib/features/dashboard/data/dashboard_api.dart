@@ -168,6 +168,32 @@ class DashboardApi {
     final vehicles = results[11] as List<VehicleListItem>;
 
     final filteredAlerts = _filterAlertsForRole(role, alertEvents);
+    final snapshotGps = _normalizeGpsSnapshot(gps, fleet);
+    final normalizedFleet = FleetOpsDashboard(
+      totalVehicles: snapshotGps.totalVehicles,
+      activeVehicles: snapshotGps.moving,
+      driversOnDuty: fleet.driversOnDuty,
+      maintenanceDue: fleet.maintenanceDue,
+      monthlyFuelCost: fleet.monthlyFuelCost,
+      complianceAlerts: fleet.complianceAlerts,
+    );
+    final criticalFromEvents = filteredAlerts
+        .where(
+          (e) =>
+              e.isOpen &&
+              (e.severity.toLowerCase() == 'critical' ||
+                  e.severity.toLowerCase() == 'high'),
+        )
+        .length;
+    final normalizedAlerts = GpsAlertStats(
+      total: alerts.total,
+      today: alerts.today,
+      unread: alerts.unread,
+      active: alerts.active,
+      resolved: alerts.resolved,
+      critical: criticalFromEvents,
+      archived: alerts.archived,
+    );
     final attention = _attentionVehicles(role, vehicles, live);
     final healthBlurb = _healthSummaryText(
       RoleDashboardData(
@@ -175,10 +201,10 @@ class DashboardApi {
         displayName: displayName,
         widgets: widgets,
         quickActions: quickActions,
-        fleet: fleet,
-        gps: gps,
+        fleet: normalizedFleet,
+        gps: snapshotGps,
         maintenance: maintenance,
-        alerts: alerts,
+        alerts: normalizedAlerts,
       ),
     );
 
@@ -190,12 +216,14 @@ class DashboardApi {
       widgets: List.from(widgets),
       quickActions: List.from(quickActions),
       primaryKpis: role == DashboardRole.fleetManager
-          ? _fleetManagerPrimaryKpis(fleet, gps, maintenance, alerts)
-          : _tenantAdminPrimaryKpis(fleet, gps, trips, fuel, maintenance, alerts),
-      fleet: fleet,
-      gps: gps,
+          ? _fleetManagerPrimaryKpis(
+              normalizedFleet, snapshotGps, normalizedAlerts)
+          : _tenantAdminPrimaryKpis(
+              normalizedFleet, snapshotGps, normalizedAlerts),
+      fleet: normalizedFleet,
+      gps: snapshotGps,
       maintenance: maintenance,
-      alerts: alerts,
+      alerts: normalizedAlerts,
       alertEvents: filteredAlerts,
       livePositions: live,
       trips: trips,
@@ -529,6 +557,36 @@ class DashboardApi {
     return ApiResponseParser.pagedItems(res.data)
         .map(VehicleListItem.fromJson)
         .toList();
+  }
+
+  GpsFleetStatusKpis _normalizeGpsSnapshot(
+    GpsFleetStatusKpis gps,
+    FleetOpsDashboard fleet,
+  ) {
+    final total = gps.totalVehicles > 0 ? gps.totalVehicles : fleet.totalVehicles;
+    final moving = gps.moving < 0 ? 0 : gps.moving;
+    final idle = (gps.idle + gps.parked + gps.sos).clamp(0, 1 << 30);
+    final neverSeen = gps.neverSeen < 0 ? 0 : gps.neverSeen;
+    // Prefer API "online" (fresh GPS = moving+idle). Fall back to moving+idle if API omitted it.
+    final onlineFromApi = gps.online;
+    final online = onlineFromApi > 0
+        ? onlineFromApi
+        : (moving + idle);
+    var offline = total - online - neverSeen;
+    if (offline < 0) {
+      offline = gps.offline < 0 ? 0 : gps.offline;
+    }
+    return GpsFleetStatusKpis(
+      totalVehicles: total < 0 ? 0 : total,
+      online: online,
+      offline: offline,
+      moving: moving,
+      idle: idle,
+      parked: 0,
+      neverSeen: neverSeen,
+      sos: 0,
+      alertsToday: gps.alertsToday < 0 ? 0 : gps.alertsToday,
+    );
   }
 
   List<GpsAlertEvent> _filterAlertsForRole(
@@ -992,48 +1050,38 @@ class DashboardApi {
   List<KpiCell> _fleetManagerPrimaryKpis(
     FleetOpsDashboard fleet,
     GpsFleetStatusKpis gps,
-    MaintenanceKpis maint,
     GpsAlertStats alerts,
   ) {
-    final health = gps.totalVehicles <= 0
-        ? 0
-        : (100.0 * gps.online / gps.totalVehicles).round();
+    final total = gps.totalVehicles <= 0 ? fleet.totalVehicles : gps.totalVehicles;
+    final onlinePct = total <= 0 ? 0 : (100.0 * gps.online / total).round();
     return [
       KpiCell(
-        label: 'Fleet Health',
-        value: '$health%',
-        colorKey: health >= 80 ? 'success' : (health >= 50 ? 'warning' : 'error'),
-        route: '/fleet',
-      ),
-      KpiCell(
         label: 'Vehicles',
-        value: '${fleet.totalVehicles}',
+        value: '${total < 0 ? 0 : total}',
         colorKey: 'primary',
         route: '/fleet',
+        subtitle: '${gps.online} Online',
       ),
       KpiCell(
         label: 'Drivers',
         value: '${fleet.driversOnDuty}',
-        colorKey: 'info',
+        colorKey: 'success',
         route: '/more/drivers',
+        subtitle: '${fleet.driversOnDuty} On Duty',
       ),
       KpiCell(
-        label: 'Offline',
-        value: '${gps.offline}',
-        colorKey: 'error',
+        label: 'Online',
+        value: '${gps.online}',
+        colorKey: 'info',
         route: '/fleet/map',
+        subtitle: '$onlinePct% vs total',
       ),
       KpiCell(
-        label: 'Maint.',
-        value: '${fleet.maintenanceDue > 0 ? fleet.maintenanceDue : maint.dueForService}',
-        colorKey: 'warning',
-        route: '/more/maintenance',
-      ),
-      KpiCell(
-        label: 'Alerts',
+        label: 'Active Alerts',
         value: '${alerts.critical > 0 ? alerts.critical : alerts.active}',
         colorKey: 'error',
         route: '/alerts',
+        subtitle: 'Requires attention',
       ),
     ];
   }
@@ -1041,49 +1089,38 @@ class DashboardApi {
   List<KpiCell> _tenantAdminPrimaryKpis(
     FleetOpsDashboard fleet,
     GpsFleetStatusKpis gps,
-    OpsTripsDashboard trips,
-    FuelAnalyticsSummary fuel,
-    MaintenanceKpis maint,
     GpsAlertStats alerts,
   ) {
+    final total = gps.totalVehicles <= 0 ? fleet.totalVehicles : gps.totalVehicles;
+    final onlinePct = total <= 0 ? 0 : (100.0 * gps.online / total).round();
     return [
       KpiCell(
         label: 'Vehicles',
-        value: '${fleet.totalVehicles}',
+        value: '${total < 0 ? 0 : total}',
         colorKey: 'primary',
         route: '/fleet',
+        subtitle: '${gps.online} Online',
       ),
       KpiCell(
         label: 'Drivers',
         value: '${fleet.driversOnDuty}',
         colorKey: 'success',
         route: '/more/drivers',
+        subtitle: '${fleet.driversOnDuty} On Duty',
       ),
       KpiCell(
-        label: 'Trips',
-        value: '${trips.total}',
+        label: 'Online',
+        value: '${gps.online}',
         colorKey: 'info',
-        route: '/trips',
+        route: '/fleet/map',
+        subtitle: '$onlinePct% vs total',
       ),
       KpiCell(
-        label: 'Fuel',
-        value: fuel.todayCost > 0
-            ? _shortMoney(fuel.todayCost)
-            : _shortMoney(fleet.monthlyFuelCost),
-        colorKey: 'warning',
-        route: '/more/reports',
-      ),
-      KpiCell(
-        label: 'Maint.',
-        value: '${maint.dueForService}',
-        colorKey: 'warning',
-        route: '/more/maintenance',
-      ),
-      KpiCell(
-        label: 'Alerts',
-        value: '${alerts.active}',
+        label: 'Active Alerts',
+        value: '${alerts.critical > 0 ? alerts.critical : alerts.active}',
         colorKey: 'error',
         route: '/alerts',
+        subtitle: 'Requires attention',
       ),
     ];
   }

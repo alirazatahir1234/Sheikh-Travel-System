@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../core/constants/app_theme.dart';
+import '../domain/alert_display.dart';
 import '../domain/gps_alert_models.dart';
 import '../../../shared/widgets/sg_ui.dart';
 import 'alerts_notifier.dart';
@@ -381,9 +383,7 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen> {
                                         children: [
                                           Expanded(
                                             child: Text(
-                                              AlertsScreen.titleCase(
-                                                a.eventType.replaceAll('_', ' '),
-                                              ),
+                                              alertTitle(a),
                                               style: TextStyle(
                                                 fontWeight: a.isUnread
                                                     ? FontWeight.w800
@@ -406,7 +406,7 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen> {
                                       ),
                                       const SizedBox(height: 2),
                                       Text(
-                                        a.message,
+                                        alertDescription(a),
                                         maxLines: 2,
                                         overflow: TextOverflow.ellipsis,
                                         style: const TextStyle(fontSize: 13),
@@ -458,7 +458,7 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen> {
                                           ),
                                         );
                                       },
-                                      child: const Text('ACK'),
+                                      child: const Text('Acknowledge'),
                                     ),
                                   ),
                               ],
@@ -582,6 +582,7 @@ class AlertDetailScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(alertDetailProvider(alertId));
     final df = DateFormat('dd MMM yyyy, HH:mm');
+    final tf = DateFormat('HH:mm:ss');
 
     return Scaffold(
       backgroundColor: AppColors.surface,
@@ -589,140 +590,199 @@ class AlertDetailScreen extends ConsumerWidget {
       body: async.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('$e')),
-        data: (a) => ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            SgCard(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    a.eventType.replaceAll('_', ' ').toUpperCase(),
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w800,
-                      fontSize: 16,
+        data: (a) {
+          final meta = alertTypeMeta(a.eventType);
+          final sev = alertDisplaySeverity(a, recovered: a.isResolved);
+          final duration = a.resolvedAt != null
+              ? formatAlertDuration(a.resolvedAt!.difference(a.timestamp))
+              : '';
+          final hasCoords = a.latitude != 0 || a.longitude != 0;
+
+          return ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              SgCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      meta.title,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 18,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(a.message),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      StatusBadge(a.severity),
-                      StatusBadge(AlertsScreen.statusLabel(a),
-                          color: AlertsScreen.statusColor(a)),
-                    ],
-                  ),
-                ],
+                    const SizedBox(height: 8),
+                    Text(
+                      meta.description.isNotEmpty
+                          ? meta.description
+                          : a.message,
+                      style: const TextStyle(
+                        color: AppColors.textSecondary,
+                        height: 1.35,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        StatusBadge(
+                          alertSeverityLabel(sev),
+                          color: switch (sev) {
+                            AlertDisplaySeverity.critical =>
+                              const Color(0xFFDC2626),
+                            AlertDisplaySeverity.warning =>
+                              const Color(0xFFD97706),
+                            AlertDisplaySeverity.info =>
+                              const Color(0xFF2563EB),
+                            AlertDisplaySeverity.resolved => AppColors.success,
+                          },
+                        ),
+                        StatusBadge(AlertsScreen.statusLabel(a),
+                            color: AlertsScreen.statusColor(a)),
+                      ],
+                    ),
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(height: 12),
-            SgCard(
-              child: Column(
-                children: [
-                  _Row('Vehicle', a.vehicleName ?? '#${a.vehicleId}'),
-                  _Row('Driver', a.driverName ?? '—'),
-                  _Row('Type', AlertsScreen.titleCase(a.eventType.replaceAll('_', ' '))),
-                  _Row('Status', a.status),
-                  _Row('Time', df.format(a.timestamp.toLocal())),
-                  _Row(
-                    'Coords',
-                    '${a.latitude.toStringAsFixed(5)}, ${a.longitude.toStringAsFixed(5)}',
-                  ),
-                  _Row('Speed', '${a.speed.toStringAsFixed(0)} km/h'),
-                  _Row('Priority', AlertsScreen.titleCase(a.severity)),
-                  _Row('Read At', a.readAt != null ? df.format(a.readAt!.toLocal()) : 'Unread'),
-                  if (a.acknowledgedAt != null)
-                    _Row('Acknowledged', df.format(a.acknowledgedAt!.toLocal())),
-                  if (a.resolvedAt != null)
-                    _Row('Resolved', df.format(a.resolvedAt!.toLocal())),
-                  if (a.archivedAt != null)
-                    _Row('Archived', df.format(a.archivedAt!.toLocal())),
-                  if (a.geofenceName != null) _Row('Geofence', a.geofenceName!),
-                  if ((a.resolutionNotes ?? '').isNotEmpty)
-                    _Row('Notes', a.resolutionNotes!),
-                ],
+              const SizedBox(height: 12),
+              SgCard(
+                child: Column(
+                  children: [
+                    _Row('Vehicle', a.vehicleName ?? '#${a.vehicleId}'),
+                    _Row('Driver', a.driverName ?? '—'),
+                    _Row('Started', df.format(a.timestamp.toLocal())),
+                    if (a.resolvedAt != null)
+                      _Row('Recovered', df.format(a.resolvedAt!.toLocal())),
+                    if (duration.isNotEmpty && isOfflineAlertType(a.eventType))
+                      _Row('Duration', duration),
+                    _Row(
+                      'Last GPS update',
+                      tf.format(a.timestamp.toLocal()),
+                    ),
+                    _Row('Last speed', '${a.speed.toStringAsFixed(0)} km/h'),
+                    if (hasCoords)
+                      _Row(
+                        'Last GPS position',
+                        '${a.latitude.toStringAsFixed(5)}, ${a.longitude.toStringAsFixed(5)}',
+                      ),
+                    if (a.geofenceName != null) _Row('Geofence', a.geofenceName!),
+                    _Row(
+                      'Status',
+                      a.isAcknowledged
+                          ? 'Acknowledged'
+                          : AlertsScreen.titleCase(a.status),
+                    ),
+                    if (a.acknowledgedAt != null)
+                      _Row(
+                        'Acknowledged',
+                        df.format(a.acknowledgedAt!.toLocal()),
+                      ),
+                    if (a.archivedAt != null)
+                      _Row('Archived', df.format(a.archivedAt!.toLocal())),
+                    if ((a.resolutionNotes ?? '').isNotEmpty)
+                      _Row('Notes', a.resolutionNotes!),
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(height: 16),
-            if (a.canMarkRead)
-              SgPrimaryButton(
-                label: 'Mark Read',
-                onPressed: () async {
-                  await ref.read(alertsProvider.notifier).markRead(a.id);
-                  ref.invalidate(alertDetailProvider(alertId));
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Alert marked as read')),
-                    );
-                  }
-                },
-                icon: Icons.mark_email_read_rounded,
-              ),
-            if (a.canMarkRead) const SizedBox(height: 8),
-            if (a.canAcknowledge)
-              SgPrimaryButton(
-                label: 'Acknowledge',
-                onPressed: () async {
-                  await ref.read(alertsProvider.notifier).acknowledge(a.id);
-                  ref.invalidate(alertDetailProvider(alertId));
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Alert acknowledged')),
-                    );
-                  }
-                },
-              ),
-            if (a.canResolve) ...[
-              const SizedBox(height: 8),
-              OutlinedButton(
-                onPressed: () async {
-                  await ref.read(alertsProvider.notifier).resolve(a.id);
-                  ref.invalidate(alertDetailProvider(alertId));
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Alert resolved')),
-                    );
-                  }
-                },
-                child: const Text('Resolve'),
-              ),
+              const SizedBox(height: 16),
+              if (a.canMarkRead)
+                SgPrimaryButton(
+                  label: 'Mark Read',
+                  onPressed: () async {
+                    await ref.read(alertsProvider.notifier).markRead(a.id);
+                    ref.invalidate(alertDetailProvider(alertId));
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Alert marked as read')),
+                      );
+                    }
+                  },
+                  icon: Icons.mark_email_read_rounded,
+                ),
+              if (a.canMarkRead) const SizedBox(height: 8),
+              if (a.canAcknowledge)
+                SgPrimaryButton(
+                  label: 'Acknowledge',
+                  onPressed: () async {
+                    await ref.read(alertsProvider.notifier).acknowledge(a.id);
+                    ref.invalidate(alertDetailProvider(alertId));
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Alert acknowledged')),
+                      );
+                    }
+                  },
+                ),
+              if (a.canResolve) ...[
+                const SizedBox(height: 8),
+                OutlinedButton(
+                  onPressed: () async {
+                    await ref.read(alertsProvider.notifier).resolve(a.id);
+                    ref.invalidate(alertDetailProvider(alertId));
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Alert resolved')),
+                      );
+                    }
+                  },
+                  child: const Text('Resolve'),
+                ),
+              ],
+              if (a.canArchive) ...[
+                const SizedBox(height: 8),
+                OutlinedButton(
+                  onPressed: () async {
+                    await ref.read(alertsProvider.notifier).archive(a.id);
+                    ref.invalidate(alertDetailProvider(alertId));
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Alert archived')),
+                      );
+                    }
+                  },
+                  child: const Text('Archive'),
+                ),
+              ],
+              if (a.vehicleId > 0) ...[
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () =>
+                            context.push('/fleet/vehicles/${a.vehicleId}'),
+                        icon: const Icon(Icons.directions_car_outlined),
+                        label: const Text('View Vehicle'),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: hasCoords
+                            ? () async {
+                                final uri = Uri.parse(
+                                  'https://www.google.com/maps/search/?api=1&query=${a.latitude},${a.longitude}',
+                                );
+                                if (await canLaunchUrl(uri)) {
+                                  await launchUrl(
+                                    uri,
+                                    mode: LaunchMode.externalApplication,
+                                  );
+                                }
+                              }
+                            : () => context.push('/fleet/map'),
+                        icon: const Icon(Icons.place_outlined),
+                        label: const Text('View Location'),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ],
-            if (a.canArchive) ...[
-              const SizedBox(height: 8),
-              OutlinedButton(
-                onPressed: () async {
-                  await ref.read(alertsProvider.notifier).archive(a.id);
-                  ref.invalidate(alertDetailProvider(alertId));
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Alert archived')),
-                    );
-                  }
-                },
-                child: const Text('Archive'),
-              ),
-            ],
-            if (a.vehicleId > 0) ...[
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 12,
-                children: [
-                  TextButton(
-                    onPressed: () => context.push('/fleet/vehicles/${a.vehicleId}'),
-                    child: const Text('Open vehicle'),
-                  ),
-                  TextButton(
-                    onPressed: () => context.push('/fleet/map'),
-                    child: const Text('View on map'),
-                  ),
-                ],
-              )
-            ],
-          ],
-        ),
+          );
+        },
       ),
     );
   }

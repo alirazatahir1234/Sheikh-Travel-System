@@ -66,6 +66,9 @@ public class GpsOfflineDetectionHostedService(
         using var connection = dbFactory.CreateConnection();
 
         var staleMinutes = gpsSettings.Value.OfflineStaleMinutes;
+        var cooldownMinutes = gpsSettings.Value.OfflineAlertCooldownMinutes <= 0
+            ? 120
+            : gpsSettings.Value.OfflineAlertCooldownMinutes;
 
         var staleVehicles = (await connection.QueryAsync<(int VehicleId, double Latitude, double Longitude, decimal? Speed)>(
             new CommandDefinition(
@@ -73,14 +76,16 @@ public class GpsOfflineDetectionHostedService(
                 SELECT vcl.VehicleId, vcl.Latitude, vcl.Longitude, vcl.Speed
                 FROM VehicleCurrentLocation vcl
                 INNER JOIN Vehicles v ON v.Id = vcl.VehicleId AND v.IsDeleted = 0
+                AND v.Status <> 5
                 WHERE vcl.LastUpdate < DATEADD(MINUTE, -@StaleMinutes, GETUTCDATE())
                   AND NOT EXISTS (
                     SELECT 1 FROM GpsAlertEvents e
                     WHERE e.VehicleId = vcl.VehicleId AND e.EventType = 'vehicle_offline'
-                      AND e.IsAcknowledged = 0 AND e.IsDeleted = 0
+                      AND e.IsDeleted = 0
+                      AND e.Timestamp > DATEADD(MINUTE, -@CooldownMinutes, GETUTCDATE())
                   )
                 """,
-                new { StaleMinutes = staleMinutes },
+                new { StaleMinutes = staleMinutes, CooldownMinutes = cooldownMinutes },
                 cancellationToken: cancellationToken))).ToList();
 
         foreach (var v in staleVehicles)
@@ -92,9 +97,11 @@ public class GpsOfflineDetectionHostedService(
                 v.Longitude,
                 v.Speed ?? 0,
                 "vehicle_offline",
-                "Vehicle went offline",
+                "No GPS data received. Vehicle has stopped reporting.",
                 DateTime.UtcNow,
                 cancellationToken: cancellationToken);
+            if (alertId <= 0)
+                continue;
 
             await decisionEngine.DispatchIfAllowedAsync(new NotificationDecisionRequest(
                 "vehicle_offline",

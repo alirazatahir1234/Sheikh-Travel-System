@@ -21,7 +21,11 @@ class TripsApi {
   Future<List<Trip>> getTrips() async {
     try {
       final res = await _dio.get<Map<String, dynamic>>(ApiEndpoints.trips);
-      final maps = ApiResponseParser.dataList(res.data);
+      ApiResponseParser.ensureSuccess(res.data);
+      var maps = ApiResponseParser.pagedItems(res.data);
+      if (maps.isEmpty) {
+        maps = ApiResponseParser.dataList(res.data);
+      }
       await TripsCache.save(maps);
       return maps.map(Trip.fromJson).toList();
     } catch (e) {

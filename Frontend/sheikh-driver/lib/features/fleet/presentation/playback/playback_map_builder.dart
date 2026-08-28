@@ -29,9 +29,33 @@ typedef PlaybackMarkerTapCallback = void Function(PlaybackMarkerTap tap);
 String formatPlaybackCoords(double latitude, double longitude) =>
     '${latitude.toStringAsFixed(5)}, ${longitude.toStringAsFixed(5)}';
 
+String? sanitizePlaybackAddress(String? address) {
+  final raw = address?.trim();
+  if (raw == null || raw.isEmpty) return null;
+  var cleaned = raw;
+  if (cleaned.toLowerCase().startsWith('near ')) {
+    final comma = cleaned.indexOf(',');
+    cleaned = comma > 0 ? cleaned.substring(comma + 1).trim() : '';
+  }
+  if (cleaned.isEmpty) return null;
+  final parts = cleaned
+      .split(',')
+      .map((e) => e.trim())
+      .where((e) => e.isNotEmpty)
+      .where(
+        (e) => !RegExp(
+          r'\b[23456789CFGHJMPQRVWX]{4,8}\+[23456789CFGHJMPQRVWX]{2,3}\b',
+          caseSensitive: false,
+        ).hasMatch(e),
+      )
+      .toList();
+  if (parts.isEmpty) return null;
+  return parts.join(', ');
+}
+
 /// True when address is city/province only (e.g. "Pasrur, Punjab, Pakistan").
 bool isCoarsePlaybackAddress(String? address) {
-  final a = address?.trim();
+  final a = sanitizePlaybackAddress(address) ?? address?.trim();
   if (a == null || a.isEmpty) return true;
   final lower = a.toLowerCase();
   if (lower.contains('tehsil') ||
@@ -47,7 +71,7 @@ bool isCoarsePlaybackAddress(String? address) {
 
 /// Primary street/POI line + optional locality for address-first UI.
 ({String? primary, String? secondary}) splitPlaybackAddress(String? address) {
-  final raw = address?.trim();
+  final raw = sanitizePlaybackAddress(address) ?? address?.trim();
   if (raw == null || raw.isEmpty) {
     return (primary: null, secondary: null);
   }
@@ -56,12 +80,7 @@ bool isCoarsePlaybackAddress(String? address) {
   if (parts.length <= 2) {
     return (primary: raw, secondary: null);
   }
-  var take = 1;
-  if (parts.first.toLowerCase().startsWith('near ') && parts.length > 2) {
-    take = 2;
-  } else if (parts.length >= 4) {
-    take = 2;
-  }
+  final take = parts.length >= 4 ? 2 : 1;
   return (
     primary: parts.take(take).join(', '),
     secondary: parts.skip(take).join(', '),
@@ -86,6 +105,16 @@ String playbackAddressPrimary(String? address, {double? lat, double? lng}) {
 
 String? playbackAddressSecondary(String? address) =>
     splitPlaybackAddress(address).secondary;
+
+String? playbackNearbyLine(String? address) {
+  final raw = address?.trim();
+  if (raw == null || raw.isEmpty) return null;
+  if (!raw.toLowerCase().startsWith('near ')) return null;
+  final comma = raw.indexOf(',');
+  final near = (comma > 0 ? raw.substring(5, comma) : raw.substring(5)).trim();
+  if (near.isEmpty) return null;
+  return 'Near: $near';
+}
 
 String stopPlaybackHeadline(TripStop stop) {
   final kind = stop.durationMinutes >= 120 ? 'Parking' : 'Stop';
@@ -758,11 +787,18 @@ Future<Set<Marker>> buildPlaybackStaticMarkers({
         position: LatLng(s.latitude, s.longitude),
         icon: stopIcon,
         infoWindow: InfoWindow(
-          title: stopPlaybackHeadline(s),
+          title: s.durationMinutes >= 120 ? 'Parking' : 'Stop',
           snippet: [
+            playbackAddressPrimary(
+              s.address,
+              lat: s.latitude,
+              lng: s.longitude,
+            ),
+            if (playbackNearbyLine(s.address) case final nearby?) nearby,
             if (playbackAddressSecondary(s.address) case final locality?)
               locality,
-            '${formatDurationMinutes(s.durationMinutes)} · ${markerTimeFmt.format(s.startTime.toLocal())}',
+            formatStopWindow(startTime: s.startTime, endTime: s.endTime),
+            'Duration: ${formatDurationMinutesCompact(s.durationMinutes)}',
           ].join('\n'),
         ),
         zIndexInt: 2,

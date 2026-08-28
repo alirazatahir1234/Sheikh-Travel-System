@@ -475,8 +475,8 @@
               <div class="role-name-chips" *ngIf="!myDataScope.isCompanyWide">
                 <span class="role-chip" *ngFor="let label of myDataScope.branchLabels">{{ label }}</span>
                 <span class="role-chip" *ngFor="let label of myDataScope.departmentLabels">{{ label }}</span>
-                <span class="muted" *ngIf="!myDataScope.branchLabels?.length && !myDataScope.departmentLabels?.length">
-                  Scoped ({{ myDataScope.branchIds?.length || 0 }} branches / {{ myDataScope.departmentIds?.length || 0 }} departments)
+                <span class="muted" *ngIf="!myDataScope.branchLabels.length && !myDataScope.departmentLabels.length">
+                  Scoped ({{ myDataScope.branchIds.length }} branches / {{ myDataScope.departmentIds.length }} departments)
                 </span>
               </div>
               <p class="tab-desc" style="margin-top: 12px;">

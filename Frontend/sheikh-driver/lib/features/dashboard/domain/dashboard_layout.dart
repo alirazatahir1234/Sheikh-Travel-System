@@ -61,10 +61,12 @@ class KpiCell {
     required this.value,
     this.colorKey = 'primary',
     this.route,
+    this.subtitle,
   });
 
   final String label;
   final String value;
   final String colorKey;
   final String? route;
+  final String? subtitle;
 }

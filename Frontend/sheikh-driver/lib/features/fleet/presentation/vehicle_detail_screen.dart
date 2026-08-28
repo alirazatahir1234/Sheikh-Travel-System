@@ -1,22 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:intl/intl.dart';
 import '../../../core/constants/app_theme.dart';
 import '../../../features/auth/data/auth_repository.dart';
 import '../../../features/auth/domain/auth_models.dart';
 import '../../../shared/widgets/sg_ui.dart';
-import '../../alerts/data/gps_alerts_api.dart';
-import '../../alerts/domain/gps_alert_models.dart';
 import '../data/fleet_api.dart';
 import '../domain/fleet_models.dart';
 import '../domain/fleet_status.dart';
 import 'fleet_hub_notifier.dart';
 import 'vehicle_commands_sheet.dart';
 import 'widgets/fleet_kpi_strip.dart';
+import 'widgets/vehicle_alerts_tab.dart';
 import 'widgets/vehicle_comms_buttons.dart';
-import 'widgets/vehicle_pulse_icons.dart';
+import 'widgets/vehicle_live_map_tab.dart';
+import 'widgets/vehicle_playback_tab.dart';
 
 final vehicleFuelProvider =
     FutureProvider.family<VehicleFuelSummary, int>((ref, id) {
@@ -26,14 +25,6 @@ final vehicleFuelProvider =
 final vehicleGpsInfoProvider =
     FutureProvider.family<VehicleGpsInfo, int>((ref, id) {
   return ref.watch(fleetApiProvider).getVehicleGps(id);
-});
-
-final vehicleGpsAlertsProvider =
-    FutureProvider.family<List<GpsAlertEvent>, int>((ref, vehicleId) {
-  return ref.read(gpsAlertsApiProvider).listEvents(
-        vehicleId: vehicleId,
-        datePreset: 'last7',
-      );
 });
 
 class VehicleDetailScreen extends ConsumerWidget {
@@ -59,7 +50,35 @@ class VehicleDetailScreen extends ConsumerWidget {
       child: Scaffold(
         backgroundColor: AppColors.surface,
         appBar: AppBar(
-          title: const Text('Vehicle'),
+          title: async.when(
+            data: (v) => Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  v.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 16,
+                  ),
+                ),
+                Text(
+                  v.registrationNumber,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+            loading: () => const Text('Vehicle'),
+            error: (_, __) => const Text('Vehicle'),
+          ),
           actions: [
             IconButton(
               tooltip: 'History playback',
@@ -112,11 +131,23 @@ class VehicleDetailScreen extends ConsumerWidget {
             ),
           ),
           data: (v) => TabBarView(
+            physics: const NeverScrollableScrollPhysics(),
             children: [
               _OverviewTab(vehicle: v, live: hubLoc),
-              _GpsTab(vehicleId: vehicleId, vehicle: v, live: hubLoc),
-              _PlaybackTab(vehicleId: vehicleId),
-              _AlertsShortcutTab(vehicleId: vehicleId),
+              VehicleLiveMapTab(
+                vehicleId: vehicleId,
+                vehicle: v,
+                live: hubLoc,
+                gpsAsync: ref.watch(vehicleGpsInfoProvider(vehicleId)),
+                onRetryGps: () =>
+                    ref.invalidate(vehicleGpsInfoProvider(vehicleId)),
+              ),
+              VehiclePlaybackTab(vehicleId: vehicleId),
+              VehicleAlertsTab(
+                vehicleId: vehicleId,
+                vehicleName: v.name,
+                plate: v.registrationNumber,
+              ),
               _FuelTab(vehicleId: vehicleId),
               _DeviceTab(vehicleId: vehicleId),
             ],
@@ -303,167 +334,7 @@ class _OverviewTab extends StatelessWidget {
   }
 }
 
-class _GpsTab extends ConsumerWidget {
-  const _GpsTab({
-    required this.vehicleId,
-    required this.vehicle,
-    this.live,
-  });
 
-  final int vehicleId;
-  final VehicleDetail vehicle;
-  final FleetVehicleLocation? live;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final async = ref.watch(vehicleGpsInfoProvider(vehicleId));
-    final df = DateFormat('dd MMM yyyy, HH:mm');
-
-    return async.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => _ErrorRetry(
-        error: e,
-        onRetry: () => ref.invalidate(vehicleGpsInfoProvider(vehicleId)),
-      ),
-      data: (gps) {
-        final lat = live?.latitude ?? gps.latitude;
-        final lng = live?.longitude ?? gps.longitude;
-        final hasCoords = lat != null && lng != null;
-        return ListView(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-          children: [
-            if (hasCoords)
-              ClipRRect(
-                borderRadius: BorderRadius.circular(AppRadii.md),
-                child: SizedBox(
-                  height: 200,
-                  child: FutureBuilder<BitmapDescriptor>(
-                    future: VehiclePulseIcons.iconFor(
-                      live?.status ??
-                          resolveFleetStatus(
-                            speed: live?.speed ?? gps.speed,
-                            ignition: live?.ignition ?? gps.lastIgnition,
-                            lastUpdated:
-                                live?.lastUpdated ?? gps.lastUpdate,
-                            hasGps: true,
-                          ),
-                      devicePixelRatio:
-                          MediaQuery.devicePixelRatioOf(context),
-                    ),
-                    builder: (context, snap) {
-                      return GoogleMap(
-                        initialCameraPosition: CameraPosition(
-                          target: LatLng(lat, lng),
-                          zoom: 15,
-                        ),
-                        markers: {
-                          Marker(
-                            markerId: MarkerId('v$vehicleId'),
-                            position: LatLng(lat, lng),
-                            rotation: live?.heading ?? gps.heading ?? 0,
-                            flat: true,
-                            anchor: const Offset(0.5, 0.5),
-                            icon: snap.data ??
-                                BitmapDescriptor.defaultMarkerWithHue(
-                                  BitmapDescriptor.hueAzure,
-                                ),
-                          ),
-                        },
-                        liteModeEnabled: true,
-                        zoomControlsEnabled: false,
-                        myLocationButtonEnabled: false,
-                        mapToolbarEnabled: false,
-                      );
-                    },
-                  ),
-                ),
-              ),
-            if (hasCoords) const SizedBox(height: 12),
-            SgCard(
-              child: Column(
-                children: [
-                  _Row('Device', gps.deviceName ?? '—'),
-                  _Row('IMEI / Unique ID', gps.uniqueId ?? vehicle.gpsImei ?? '—'),
-                  _Row(
-                    'Online',
-                    gps.gpsOnline || vehicle.gpsOnline ? 'Yes' : 'No',
-                  ),
-                  _Row(
-                    'Model',
-                    [gps.brandName, gps.modelName]
-                        .whereType<String>()
-                        .where((s) => s.isNotEmpty)
-                        .join(' · ')
-                        .ifEmpty('—'),
-                  ),
-                  _Row('SIM', gps.simNumber ?? '—'),
-                  _Row(
-                    'Speed',
-                    live != null
-                        ? '${live!.speed.toStringAsFixed(0)} km/h'
-                        : gps.speed != null
-                            ? '${gps.speed!.toStringAsFixed(0)} km/h'
-                            : '—',
-                  ),
-                  _Row(
-                    'Ignition',
-                    (live?.ignition ?? gps.lastIgnition) == null
-                        ? '—'
-                        : (live?.ignition ?? gps.lastIgnition)!
-                            ? 'On'
-                            : 'Off',
-                  ),
-                  _Row(
-                    'Last update',
-                    (live?.lastUpdated ?? gps.lastUpdate) != null
-                        ? df.format(
-                            (live?.lastUpdated ?? gps.lastUpdate)!.toLocal())
-                        : '—',
-                  ),
-                  _Row(
-                    'Coords',
-                    (live?.latitude ?? gps.latitude) != null
-                        ? '${(live?.latitude ?? gps.latitude)!.toStringAsFixed(5)}, '
-                            '${(live?.longitude ?? gps.longitude)!.toStringAsFixed(5)}'
-                        : '—',
-                  ),
-                  _Row('Address', live?.address ?? gps.address ?? '—'),
-                  _Row(
-                    'Battery',
-                    (live?.batteryLevel ?? gps.batteryLevel) != null
-                        ? '${(live?.batteryLevel ?? gps.batteryLevel)!.toStringAsFixed(0)}%'
-                        : '—',
-                  ),
-                  _Row(
-                    'Odometer',
-                    gps.totalDistanceKm != null
-                        ? '${gps.totalDistanceKm!.toStringAsFixed(0)} km'
-                        : '—',
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 12),
-            FilledButton.icon(
-              onPressed: () =>
-                  context.push('/fleet/vehicles/$vehicleId/history'),
-              icon: const Icon(Icons.play_circle_outline),
-              label: const Text('Open history playback'),
-            ),
-            if (gps.gpsDeviceId != null) ...[
-              const SizedBox(height: 8),
-              OutlinedButton.icon(
-                onPressed: () => showVehicleCommandsSheet(context, vehicleId),
-                icon: const Icon(Icons.power_settings_new),
-                label: const Text('Engine / GPS commands'),
-              ),
-            ],
-          ],
-        );
-      },
-    );
-  }
-}
 
 class _FuelTab extends ConsumerWidget {
   const _FuelTab({required this.vehicleId});
@@ -643,121 +514,6 @@ class _Row extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-extension on String {
-  String ifEmpty(String fallback) => isEmpty ? fallback : this;
-}
-
-class _PlaybackTab extends StatelessWidget {
-  const _PlaybackTab({required this.vehicleId});
-  final int vehicleId;
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        const Text(
-          'Pick a range and open the full playback player with map trail and stats.',
-          style: TextStyle(color: AppColors.textSecondary, height: 1.4),
-        ),
-        const SizedBox(height: 12),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            for (final label in ['Last 6h', 'Today', 'Yesterday', 'Last 3 days'])
-              ActionChip(
-                label: Text(label),
-                onPressed: () =>
-                    context.push('/fleet/vehicles/$vehicleId/history'),
-              ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        FilledButton.icon(
-          onPressed: () =>
-              context.push('/fleet/vehicles/$vehicleId/history'),
-          icon: const Icon(Icons.play_circle_outline),
-          label: const Text('Open history playback'),
-        ),
-      ],
-    );
-  }
-}
-
-class _AlertsShortcutTab extends ConsumerWidget {
-  const _AlertsShortcutTab({required this.vehicleId});
-  final int vehicleId;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final async = ref.watch(vehicleGpsAlertsProvider(vehicleId));
-    final df = DateFormat('dd MMM, HH:mm');
-
-    return async.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => _ErrorRetry(
-        error: e,
-        onRetry: () => ref.invalidate(vehicleGpsAlertsProvider(vehicleId)),
-      ),
-      data: (alerts) {
-        if (alerts.isEmpty) {
-          return const Center(child: Text('No GPS alerts in the last 7 days.'));
-        }
-        return ListView.builder(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-          itemCount: alerts.length,
-          itemBuilder: (_, i) {
-            final a = alerts[i];
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: SgCard(
-                onTap: () => context.push('/alerts/${a.id}'),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            a.eventType.replaceAll('_', ' '),
-                            style: const TextStyle(fontWeight: FontWeight.w700),
-                          ),
-                          Text(
-                            a.message,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          Text(
-                            df.format(a.timestamp.toLocal()),
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: AppColors.textMuted,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    if (a.canAcknowledge)
-                      TextButton(
-                        onPressed: () async {
-                          await ref.read(gpsAlertsApiProvider).acknowledge(a.id);
-                          ref.invalidate(vehicleGpsAlertsProvider(vehicleId));
-                        },
-                        child: const Text('ACK'),
-                      ),
-                  ],
-                ),
-              ),
-            );
-          },
-        );
-      },
     );
   }
 }

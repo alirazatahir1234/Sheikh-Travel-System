@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, effect, inject, signal } from '@angular/core';
-import { CommonModule, CurrencyPipe } from '@angular/common';
+import { CommonModule } from '@angular/common';
 import { UiToastService } from '../../../../shared/components/ui/toast/ui-toast.service';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MaintenanceService } from '../../../../core/services/maintenance.service';
@@ -27,7 +27,6 @@ import { maintenanceDashboardGranularity } from '../utils/maintenance-period.uti
   standalone: true,
   imports: [
     CommonModule,
-    CurrencyPipe,
     AppBrandLoaderComponent,
     MaintenanceKpiGridComponent,
     MaintenanceCostTrendComponent,

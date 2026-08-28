@@ -11,168 +11,354 @@ class FleetVehicleTile extends StatelessWidget {
 
   final FleetVehicleLocation vehicle;
 
+  bool get _isOffline =>
+      vehicle.status == FleetTrackStatus.offline ||
+      vehicle.status == FleetTrackStatus.neverSeen ||
+      !hasValidFleetCoords(vehicle.latitude, vehicle.longitude);
+
   @override
   Widget build(BuildContext context) {
-    final color = fleetStatusColor(vehicle.status);
-    final facts = <_FactItem>[
-      _FactItem(
+    final badgeLabel = _badgeLabel(vehicle);
+    final badgeColor = _isOffline
+        ? (vehicle.status == FleetTrackStatus.neverSeen
+            ? fleetStatusColor(FleetTrackStatus.neverSeen)
+            : fleetStatusColor(FleetTrackStatus.offline))
+        : fleetStatusColor(vehicle.status);
+
+    return SgCard(
+      margin: const EdgeInsets.only(bottom: 10),
+      onTap: () => context.push('/fleet/vehicles/${vehicle.vehicleId}'),
+      child: _isOffline
+          ? _CompactOfflineCard(
+              vehicle: vehicle,
+              badgeLabel: badgeLabel,
+              badgeColor: badgeColor,
+            )
+          : _OnlineCard(
+              vehicle: vehicle,
+              badgeLabel: badgeLabel,
+              badgeColor: badgeColor,
+            ),
+    );
+  }
+
+  static String _badgeLabel(FleetVehicleLocation v) {
+    if (v.status == FleetTrackStatus.neverSeen) return 'Unknown';
+    if (v.status == FleetTrackStatus.offline ||
+        !hasValidFleetCoords(v.latitude, v.longitude)) {
+      return 'Offline';
+    }
+    return v.status.label;
+  }
+}
+
+class _CompactOfflineCard extends StatelessWidget {
+  const _CompactOfflineCard({
+    required this.vehicle,
+    required this.badgeLabel,
+    required this.badgeColor,
+  });
+
+  final FleetVehicleLocation vehicle;
+  final String badgeLabel;
+  final Color badgeColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final lastSeen = formatRelativeAge(vehicle.lastUpdated);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(Icons.navigation_rounded, color: badgeColor, size: 20),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    vehicle.vehicleName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 15,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  Text(
+                    vehicle.registrationNumber,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            StatusBadge(badgeLabel, color: badgeColor),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Driver: ${(vehicle.driverName ?? '').trim().isEmpty ? 'Not assigned' : vehicle.driverName!}',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            fontSize: 12,
+            color: AppColors.textSecondary,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          'Last seen: $lastSeen',
+          style: const TextStyle(
+            fontSize: 12,
+            color: AppColors.textSecondary,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                '⚠ Not reporting recently',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: badgeColor.withValues(alpha: 0.95),
+                ),
+              ),
+            ),
+            const Text(
+              'View →',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: AppColors.primary,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _OnlineCard extends StatelessWidget {
+  const _OnlineCard({
+    required this.vehicle,
+    required this.badgeLabel,
+    required this.badgeColor,
+  });
+
+  final FleetVehicleLocation vehicle;
+  final String badgeLabel;
+  final Color badgeColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final metrics = <_MetricItem>[
+      _MetricItem(
         'Speed',
         formatDisplaySpeedLabel(
           speed: vehicle.speed,
           ignition: vehicle.ignition,
           status: vehicle.status,
-        ),
-      ),
-      _FactItem(
-        'Battery',
-        vehicle.batteryLevel != null
-            ? '${vehicle.batteryLevel!.toStringAsFixed(0)}%'
-            : '—',
-      ),
-      _FactItem(
-        'GPS',
-        formatGpsFreshness(
           latitude: vehicle.latitude,
           longitude: vehicle.longitude,
-          lastUpdated: vehicle.lastUpdated,
         ),
       ),
-      _FactItem(
+      _MetricItem('GPS', _gpsStatusLabel(vehicle)),
+      _MetricItem('Last GPS update', formatRelativeAge(vehicle.lastUpdated)),
+      _MetricItem(
         'Ignition',
         vehicle.ignition == true
             ? 'ON'
             : vehicle.ignition == false
                 ? 'OFF'
-                : '—',
+                : 'Not available',
       ),
-      _FactItem('Signal', _signalLabel(vehicle.gsmSignal)),
     ];
 
-    return SgCard(
-      margin: const EdgeInsets.only(bottom: 10),
-      onTap: () => context.push('/fleet/vehicles/${vehicle.vehicleId}'),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 38,
-                height: 38,
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(AppRadii.sm),
-                ),
-                child: Icon(Icons.navigation_rounded, color: color, size: 20),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      vehicle.vehicleName,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 15,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      vehicle.registrationNumber,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    const Text(
-                      'Driver',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: AppColors.textMuted,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    Text(
-                      (vehicle.driverName ?? '').trim().isEmpty
-                          ? 'Unassigned'
-                          : vehicle.driverName!,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        color: AppColors.textPrimary,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              StatusBadge(vehicle.status.label, color: color),
-            ],
-          ),
-          const SizedBox(height: 10),
-          const Divider(height: 1),
-          const SizedBox(height: 10),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final tileWidth = (constraints.maxWidth - 12) / 2;
-              return Wrap(
-                spacing: 12,
-                runSpacing: 8,
-                children: [
-                  for (final fact in facts)
-                    SizedBox(
-                      width: tileWidth,
-                      child: _factRow(fact.label, fact.value),
-                    ),
-                ],
-              );
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _factRow(String label, String value) {
-    return Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(
-          child: Text(
-            label,
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: badgeColor.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(AppRadii.sm),
+              ),
+              child: Icon(Icons.navigation_rounded, color: badgeColor, size: 20),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    vehicle.vehicleName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 15,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    vehicle.registrationNumber,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Driver: ${(vehicle.driverName ?? '').trim().isEmpty ? 'Not assigned' : vehicle.driverName!}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            StatusBadge(badgeLabel, color: badgeColor),
+          ],
+        ),
+        const SizedBox(height: 10),
+        const Divider(height: 1),
+        const SizedBox(height: 10),
+        _MetricGrid(items: metrics),
+        if ((vehicle.address ?? '').trim().isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Text(
+            vehicle.address!,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
             style: const TextStyle(
-              fontSize: 11,
-              color: AppColors.textMuted,
+              fontSize: 12,
+              color: AppColors.textSecondary,
               fontWeight: FontWeight.w600,
             ),
           ),
-        ),
-        Text(
-          value,
-          style: const TextStyle(
-            fontSize: 12,
-            color: AppColors.textPrimary,
-            fontWeight: FontWeight.w700,
+        ],
+        const SizedBox(height: 8),
+        const Align(
+          alignment: Alignment.centerRight,
+          child: Text(
+            'View →',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: AppColors.primary,
+            ),
           ),
         ),
       ],
     );
   }
 
-  String _signalLabel(int? signal) {
-    if (signal == null) return 'Unknown';
-    if (signal >= 4) return 'Strong';
-    if (signal >= 2) return 'Medium';
-    if (signal >= 1) return 'Weak';
-    return 'Offline';
+  static String _gpsStatusLabel(FleetVehicleLocation v) {
+    if (!hasValidFleetCoords(v.latitude, v.longitude)) return 'No GPS data';
+    if (v.lastUpdated == null) return 'Position available';
+    final sec = DateTime.now().difference(v.lastUpdated!).inSeconds;
+    if (sec <= 120) return 'Live';
+    return 'Position available';
   }
 }
 
-class _FactItem {
-  const _FactItem(this.label, this.value);
+class _MetricGrid extends StatelessWidget {
+  const _MetricGrid({required this.items});
+
+  final List<_MetricItem> items;
+
+  @override
+  Widget build(BuildContext context) {
+    final rows = <Widget>[];
+    for (var i = 0; i < items.length; i += 2) {
+      final left = items[i];
+      final right = i + 1 < items.length ? items[i + 1] : null;
+      rows.add(
+        Padding(
+          padding: EdgeInsets.only(bottom: i + 2 < items.length ? 10 : 0),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: _VehicleMetric(label: left.label, value: left.value)),
+              const SizedBox(width: 16),
+              Expanded(
+                child: right == null
+                    ? const SizedBox.shrink()
+                    : _VehicleMetric(label: right.label, value: right.value),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    return Column(children: rows);
+  }
+}
+
+class _VehicleMetric extends StatelessWidget {
+  const _VehicleMetric({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            fontSize: 11,
+            color: AppColors.textMuted,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 3),
+        Text(
+          value,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            fontSize: 13,
+            color: AppColors.textPrimary,
+            fontWeight: FontWeight.w700,
+            height: 1.2,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _MetricItem {
+  const _MetricItem(this.label, this.value);
 
   final String label;
   final String value;

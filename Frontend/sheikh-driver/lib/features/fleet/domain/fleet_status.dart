@@ -1,7 +1,7 @@
 import '../domain/fleet_models.dart';
 
-/// Matches backend IsOnline window (LastSeenAt > now - 30min).
-const offlineStaleMs = 30 * 60 * 1000;
+/// Matches backend GpsSettings.OfflineStaleMinutes (default 10).
+const offlineStaleMs = 10 * 60 * 1000;
 
 /// Matches TraccarOptions.MovingSpeedKmh / ERP MOVING_THRESHOLD_KMH.
 const movingThresholdKmh = 10.0;
@@ -175,3 +175,47 @@ String? _preferAddress(String? previous, String? incoming) {
 
 bool _validCoords(double? lat, double? lng) =>
     lat != null && lng != null && lat != 0 && lng != 0;
+
+/// Build KPI strip counts from the same vehicle rows the list shows — always
+/// reconciles: Total = Online + Offline + NeverSeen.
+GpsFleetStatusKpis deriveFleetKpisFromLocations(
+  List<FleetVehicleLocation> locations, {
+  int alertsToday = 0,
+}) {
+  var moving = 0;
+  var idle = 0;
+  var parked = 0;
+  var offline = 0;
+  var neverSeen = 0;
+  var sos = 0;
+
+  for (final v in locations) {
+    switch (v.status) {
+      case FleetTrackStatus.moving:
+        moving++;
+      case FleetTrackStatus.idle:
+        idle++;
+      case FleetTrackStatus.parked:
+        parked++;
+      case FleetTrackStatus.offline:
+        offline++;
+      case FleetTrackStatus.neverSeen:
+        neverSeen++;
+      case FleetTrackStatus.sos:
+        sos++;
+    }
+  }
+
+  final online = moving + idle + parked + sos;
+  return GpsFleetStatusKpis(
+    totalVehicles: locations.length,
+    online: online,
+    offline: offline,
+    moving: moving,
+    idle: idle,
+    parked: parked,
+    neverSeen: neverSeen,
+    sos: sos,
+    alertsToday: alertsToday,
+  );
+}

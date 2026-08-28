@@ -7,6 +7,9 @@ namespace SheikhTravelSystem.Application.Features.GpsTracking.Services;
 public static class TripReplayLoader
 {
     private const int SparseRouteThreshold = 5;
+    private const int DefaultRouteMaxPoints = 2000;
+    private const int DefaultPlaybackMaxPoints = 800;
+    private const int AbsoluteMaxPoints = 10000;
 
     private static bool IsOverlayEventType(string type) =>
         type.Contains("geofenceEnter", StringComparison.OrdinalIgnoreCase)
@@ -23,8 +26,9 @@ public static class TripReplayLoader
         DateTime toDate,
         CancellationToken cancellationToken,
         IReadOnlyDictionary<int, string>? geofenceNames = null,
-        int routeMaxPoints = 2000,
-        int playbackMaxPoints = 800)
+        int? routeMaxPoints = null,
+        int? playbackMaxPoints = null,
+        bool includeRaw = false)
     {
         var routeTask = traccarClient.GetRouteAsync(traccarDeviceId, fromDate, toDate, cancellationToken);
         var stopsTask = traccarClient.GetStopsAsync(traccarDeviceId, fromDate, toDate, cancellationToken);
@@ -51,8 +55,12 @@ public static class TripReplayLoader
             }
         }
 
-        var route = TripAnalyticsMapper.DownsampleReplay(routeFull, maxPoints: routeMaxPoints);
-        var playback = TripAnalyticsMapper.DownsampleReplay(routeFull, maxPoints: playbackMaxPoints);
+        var resolvedRouteMax = ResolveMaxPoints(routeMaxPoints, DefaultRouteMaxPoints);
+        var resolvedPlaybackMax = ResolveMaxPoints(playbackMaxPoints, DefaultPlaybackMaxPoints);
+        var route = includeRaw
+            ? routeFull
+            : TripAnalyticsMapper.DownsampleReplay(routeFull, maxPoints: resolvedRouteMax);
+        var playback = TripAnalyticsMapper.DownsampleReplay(routeFull, maxPoints: resolvedPlaybackMax);
 
         var stops = (await stopsTask)
             .Where(s => TripAnalyticsMapper.OverlapsWindow(s.StartTime, s.EndTime, fromDate, toDate))
@@ -84,7 +92,10 @@ public static class TripReplayLoader
         int vehicleId,
         DateTime fromDate,
         DateTime toDate,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        int? routeMaxPoints = null,
+        int? playbackMaxPoints = null,
+        bool includeRaw = false)
     {
         var history = await mediator.Send(new Queries.GetPositionHistoryQuery(vehicleId, fromDate, toDate), cancellationToken);
         if (!history.Success || history.Data is null)
@@ -96,8 +107,12 @@ public static class TripReplayLoader
             .Select(TripAnalyticsMapper.ToReplayPosition)
             .OrderBy(p => p.Timestamp)
             .ToList();
-        var route = TripAnalyticsMapper.DownsampleReplay(routeFull, maxPoints: 2000);
-        var playback = TripAnalyticsMapper.DownsampleReplay(routeFull, maxPoints: 800);
+        var resolvedRouteMax = ResolveMaxPoints(routeMaxPoints, DefaultRouteMaxPoints);
+        var resolvedPlaybackMax = ResolveMaxPoints(playbackMaxPoints, DefaultPlaybackMaxPoints);
+        var route = includeRaw
+            ? routeFull
+            : TripAnalyticsMapper.DownsampleReplay(routeFull, maxPoints: resolvedRouteMax);
+        var playback = TripAnalyticsMapper.DownsampleReplay(routeFull, maxPoints: resolvedPlaybackMax);
 
         return new TripReplayBundleDto(
             route,
@@ -105,5 +120,11 @@ public static class TripReplayLoader
             [],
             [],
             TripAnalyticsMapper.BuildReplaySummary([], route));
+    }
+
+    private static int ResolveMaxPoints(int? requested, int fallback)
+    {
+        if (!requested.HasValue || requested.Value <= 0) return fallback;
+        return Math.Min(requested.Value, AbsoluteMaxPoints);
     }
 }

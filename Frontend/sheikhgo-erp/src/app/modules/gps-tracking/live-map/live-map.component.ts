@@ -242,6 +242,9 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
   private _bootstrapTimer?: ReturnType<typeof setTimeout>;
   private _switchingTiles = false;
 
+  /** Coord key for which a reverse-geocode was last requested; avoids re-fetching on small drift. */
+  private lastEnrichedCoordKey = new Map<number, string>();
+
   private pendingFocusVehicleId: number | null = null;
   private isRefreshingLocations = false;
   /** When true, run another manual load after the in-flight request finishes. */
@@ -754,14 +757,24 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
     return null;
   }
 
-  /** Locality under the primary address (city/province/country). Do not show Nearby POI. */
+  /** Locality under the primary address plus nearest place/shop when available. */
   locationSecondaryLine(loc: VehicleLocation): string | null {
+    const place = loc.placeName?.trim();
     const locality = loc.addressLocality?.trim();
+    const primary = this.locationPrimaryLine(loc)?.toLowerCase() ?? '';
+    const near =
+      place && !primary.includes(place.toLowerCase()) ? `Near: ${place}` : null;
+
     if (locality) {
-      const primary = this.locationPrimaryLine(loc)?.toLowerCase() ?? '';
-      if (!primary.includes(locality.toLowerCase())) return locality;
+      if (!primary.includes(locality.toLowerCase())) {
+        return near ? `${near} · ${locality}` : locality;
+      }
     }
-    return splitDisplayAddress(loc.address).secondary;
+    const secondary = splitDisplayAddress(loc.address).secondary;
+    if (near && secondary && !near.toLowerCase().includes(secondary.toLowerCase())) {
+      return `${near} · ${secondary}`;
+    }
+    return near || secondary;
   }
 
   isAddressResolving(loc: VehicleLocation): boolean {
@@ -1246,6 +1259,8 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
 
   selectVehicle(loc: VehicleLocation): void {
     this.selectedVehicleId = loc.vehicleId;
+    // Clear the coord-dedup key so selecting a vehicle always fetches a fresh address.
+    this.lastEnrichedCoordKey.delete(loc.vehicleId);
     this.markUserActive();
     void this.realtime.subscribeVehicle(loc.vehicleId);
     this.updateMarkers(this.mappableLocations(this.filteredLocations));
@@ -1268,7 +1283,13 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
   /** Resolve street + nearby shop/POI for the selected vehicle detail panel. */
   private enrichSelectedAddress(loc: VehicleLocation): void {
     const coarse = isCoarseAddress(loc.address);
-    if (!coarse && loc.address?.trim()) return;
+    const hasPlace = !!loc.placeName?.trim();
+    if (!coarse && loc.address?.trim() && hasPlace) return;
+
+    // Deduplicate: don't re-request if we already fetched for these coordinates.
+    const coordKey = `${loc.latitude.toFixed(4)},${loc.longitude.toFixed(4)}`;
+    if (this.lastEnrichedCoordKey.get(loc.vehicleId) === coordKey) return;
+    this.lastEnrichedCoordKey.set(loc.vehicleId, coordKey);
 
     this.addressResolvingVehicleId = loc.vehicleId;
     this.gpsService.reverseGeocode(loc.latitude, loc.longitude, true).subscribe({
@@ -1291,9 +1312,8 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
             ? [info.road, info.city, info.state, info.country].filter(Boolean).join(', ')
             : null) ||
           info.formattedAddress.trim();
-        // Keep street address only — Nearby POI names are often wrong for fleet ops.
-        const nextPlace = undefined;
-        const nextType = undefined;
+        const nextPlace = info.placeName?.trim() || undefined;
+        const nextType = info.placeType?.trim() || undefined;
         const nextLocality =
           buildLocalityLine({
             city: info.city,

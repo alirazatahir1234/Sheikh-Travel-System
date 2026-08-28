@@ -119,12 +119,14 @@ public static class DataScopeSql
         {
             if (branchId.HasValue)
             {
-                clauses.Add($"{vehicleAlias}.BranchId = @DsBranchId");
+                // Explicit branch filter: still allow unassigned vehicles (NULL BranchId),
+                // matching department-mode soft clamp — legacy fleet rows often have no branch.
+                clauses.Add($"({vehicleAlias}.BranchId IS NULL OR {vehicleAlias}.BranchId = @DsBranchId)");
                 p.Add("DsBranchId", branchId.Value);
             }
             else
             {
-                clauses.Add($"{vehicleAlias}.BranchId IN @DsBranchIds");
+                clauses.Add($"({vehicleAlias}.BranchId IS NULL OR {vehicleAlias}.BranchId IN @DsBranchIds)");
                 p.Add("DsBranchIds", scope.BranchIds.ToArray());
             }
 

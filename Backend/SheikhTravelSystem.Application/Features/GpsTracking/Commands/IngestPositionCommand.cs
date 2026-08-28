@@ -120,7 +120,13 @@ public class IngestPositionCommandHandler(
         // fire a one-time "online" event (rows affected > 0 means it actually was flagged offline).
         var clearedOffline = await connection.ExecuteAsync(new CommandDefinition(
             @"UPDATE GpsAlertEvents
-              SET IsAcknowledged = 1, Status = 'acknowledged', AcknowledgedAt = GETUTCDATE(), AcknowledgedBy = 'system'
+              SET IsAcknowledged = 1,
+                  Status = 'resolved',
+                  AcknowledgedAt = GETUTCDATE(),
+                  AcknowledgedBy = 'system',
+                  ResolvedAt = GETUTCDATE(),
+                  ResolvedBy = 'system',
+                  ResolutionNotes = N'Vehicle back online'
               WHERE VehicleId = @VehicleId AND EventType = 'vehicle_offline' AND IsAcknowledged = 0 AND IsDeleted = 0",
             new { dto.VehicleId },
             cancellationToken: cancellationToken));
@@ -128,7 +134,7 @@ public class IngestPositionCommandHandler(
         if (clearedOffline > 0)
         {
             await InsertAlertAsync(connection, null, ingestDto, null, "online",
-                "Vehicle back online", recordedAt, cancellationToken);
+                "Vehicle has reconnected to the tracking server.", recordedAt, cancellationToken);
         }
 
         if (GpsPositionIngestionHelper.ShouldAttemptTripPersistence(dto.Speed, dto.Ignition, previousSpeed))

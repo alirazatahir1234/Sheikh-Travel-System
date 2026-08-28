@@ -319,11 +319,28 @@ class RoleDashboardData {
       case DashboardWidgetId.fleetStatsStrip:
       case DashboardWidgetId.opsKpiGrid:
       case DashboardWidgetId.fleetKpis:
+        return DashboardVisibility.hasOpsDataPerms(session) ||
+            fleet != null ||
+            gps != null ||
+            livePositions.isNotEmpty ||
+            attentionVehicles.isNotEmpty ||
+            trips != null;
       case DashboardWidgetId.fleetStatusStrip:
       case DashboardWidgetId.liveFleetCard:
       case DashboardWidgetId.liveMapPreview:
       case DashboardWidgetId.mapSummaryCard:
       case DashboardWidgetId.attentionVehicles:
+        // Do not show GPS/live-map sections when no vehicles exist in the fleet.
+        // Use > 0 checks — `gps?.totalVehicles ?? fleet` treats 0 as a real value and
+        // hides the strip when GPS failed but fleet still has vehicles.
+        final gpsTotal = gps?.totalVehicles ?? 0;
+        final fleetTotal = fleet?.totalVehicles ?? 0;
+        final totalVehicles = gpsTotal > 0 ? gpsTotal : fleetTotal;
+        if (totalVehicles == 0 &&
+            livePositions.isEmpty &&
+            attentionVehicles.isEmpty) {
+          return false;
+        }
         return DashboardVisibility.hasOpsDataPerms(session) ||
             fleet != null ||
             gps != null ||
