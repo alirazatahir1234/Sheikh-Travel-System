@@ -49,6 +49,16 @@ public static class DataScopeResolver
             return CompanyWide(userId, tenantId, homeBranchId, homeDepartmentId, "gps_operator");
         }
 
+        // Operational fleet roles: company-wide list (matches Fleet dashboard totals). Branch
+        // managers keep Branch scope via BRANCH_MANAGER only.
+        if (codes.Any(c =>
+                string.Equals(c, "FLEET_MANAGER", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(c, "DISPATCHER", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(c, "DRIVER_MANAGER", StringComparison.OrdinalIgnoreCase)))
+        {
+            return CompanyWide(userId, tenantId, homeBranchId, homeDepartmentId, "fleet_ops");
+        }
+
         // Any Company-level role → company-wide (ignore accidental UserRoles.BranchId clamps).
         foreach (var a in assignments)
         {
@@ -140,13 +150,13 @@ public static class DataScopeResolver
     {
         if (string.Equals(roleCode, PlatformRoles.SuperAdmin, StringComparison.OrdinalIgnoreCase) ||
             string.Equals(roleCode, PlatformRoles.TenantAdmin, StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(roleCode, "GPS_OPERATOR", StringComparison.OrdinalIgnoreCase))
+            string.Equals(roleCode, "GPS_OPERATOR", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(roleCode, "FLEET_MANAGER", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(roleCode, "DISPATCHER", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(roleCode, "DRIVER_MANAGER", StringComparison.OrdinalIgnoreCase))
             return ScopeCompany;
 
-        if (string.Equals(roleCode, "BRANCH_MANAGER", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(roleCode, "FLEET_MANAGER", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(roleCode, "DRIVER_MANAGER", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(roleCode, "DISPATCHER", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(roleCode, "BRANCH_MANAGER", StringComparison.OrdinalIgnoreCase))
             return ScopeBranch;
 
         return ScopeAssigned;

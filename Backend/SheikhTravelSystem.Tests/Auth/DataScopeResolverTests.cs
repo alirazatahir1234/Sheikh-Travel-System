@@ -30,19 +30,7 @@ public class DataScopeResolverTests
     }
 
     [Fact]
-    public void BranchScoped_Role_Uses_Assignment_Or_Home()
-    {
-        var result = DataScopeResolver.Resolve(
-            1, 10, homeBranchId: 9, homeDepartmentId: null,
-            [new DataScopeResolver.RoleAssignmentInput("FLEET_MANAGER", "Branch", 3, null)]);
-
-        result.IsCompanyWide.Should().BeFalse();
-        result.Mode.Should().Be(DataScopeMode.Branch);
-        result.BranchIds.Should().Equal(3);
-    }
-
-    [Fact]
-    public void MultiRole_Unions_Branches()
+    public void MultiRole_FleetOps_Is_CompanyWide()
     {
         var result = DataScopeResolver.Resolve(
             1, 10, 1, null,
@@ -51,8 +39,20 @@ public class DataScopeResolverTests
                 new DataScopeResolver.RoleAssignmentInput("DISPATCHER", "Branch", 7, null)
             ]);
 
+        result.IsCompanyWide.Should().BeTrue();
+        result.Source.Should().Be("fleet_ops");
+    }
+
+    [Fact]
+    public void BranchScoped_Role_Uses_Assignment_Or_Home()
+    {
+        var result = DataScopeResolver.Resolve(
+            1, 10, homeBranchId: 9, homeDepartmentId: null,
+            [new DataScopeResolver.RoleAssignmentInput("BRANCH_MANAGER", "Branch", 3, null)]);
+
+        result.IsCompanyWide.Should().BeFalse();
         result.Mode.Should().Be(DataScopeMode.Branch);
-        result.BranchIds.Should().BeEquivalentTo([3, 7]);
+        result.BranchIds.Should().Equal(3);
     }
 
     [Fact]
@@ -81,13 +81,52 @@ public class DataScopeResolverTests
     {
         var scope = DataScopeResolver.Resolve(
             1, 10, 3, null,
-            [new DataScopeResolver.RoleAssignmentInput("FLEET_MANAGER", "Branch", 3, null)]);
+            [new DataScopeResolver.RoleAssignmentInput("BRANCH_MANAGER", "Branch", 3, null)]);
 
         var ok = DataScopeSql.TryIntersectOptional(scope, requestedBranchId: 99, null,
             out _, out _, out var error);
 
         ok.Should().BeFalse();
         error.Should().Contain("Branch");
+    }
+
+    [Fact]
+    public void ApplyVehicleScope_BranchMode_Includes_Unassigned_Branch()
+    {
+        var scope = DataScopeResolver.Resolve(
+            1, 10, 3, null,
+            [new DataScopeResolver.RoleAssignmentInput("BRANCH_MANAGER", "Branch", 3, null)]);
+
+        var parameters = new Dapper.DynamicParameters();
+        var clauses = new List<string>();
+        DataScopeSql.ApplyVehicleScope(parameters, scope, "v", clauses);
+
+        clauses.Should().ContainSingle(c => c.Contains("BranchId IS NULL") && c.Contains("IN @DsBranchIds"));
+        parameters.Get<int[]>("DsBranchIds").Should().Equal(3);
+    }
+
+    [Fact]
+    public void FleetManager_Is_CompanyWide()
+    {
+        var result = DataScopeResolver.Resolve(
+            1, 10, homeBranchId: 9, homeDepartmentId: null,
+            [new DataScopeResolver.RoleAssignmentInput("FLEET_MANAGER", "Branch", 3, null)]);
+
+        result.IsCompanyWide.Should().BeTrue();
+        result.Mode.Should().Be(DataScopeMode.Company);
+        result.Source.Should().Be("fleet_ops");
+    }
+
+    [Fact]
+    public void BranchManager_Stays_BranchScoped()
+    {
+        var result = DataScopeResolver.Resolve(
+            1, 10, homeBranchId: 9, homeDepartmentId: null,
+            [new DataScopeResolver.RoleAssignmentInput("BRANCH_MANAGER", "Branch", 3, null)]);
+
+        result.IsCompanyWide.Should().BeFalse();
+        result.Mode.Should().Be(DataScopeMode.Branch);
+        result.BranchIds.Should().Equal(3);
     }
 
     [Fact]
