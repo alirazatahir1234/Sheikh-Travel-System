@@ -197,7 +197,12 @@ export class VehicleInventoryPageComponent implements OnInit {
     this.error.set(null);
 
     forkJoin({
-      vehicles: this.vehicleService.getAll(1, 500, true).pipe(catchError(() => of({ items: [], totalCount: 0, page: 1, pageSize: 500 }))),
+      vehicles: this.vehicleService.getAll(1, 500, true).pipe(
+        catchError(err => {
+          this.error.set(apiErrorMessage(err, 'Failed to load vehicles.'));
+          return of({ items: [] as VehicleListItem[], totalCount: 0, page: 1, pageSize: 500 });
+        })
+      ),
       dashboard: this.fleetService.getDashboard().pipe(catchError(() => of(null)))
     }).subscribe({
       next: ({ vehicles, dashboard }) => {
@@ -206,10 +211,21 @@ export class VehicleInventoryPageComponent implements OnInit {
         this.pagination.update(pg => ({
           ...pg,
           total: vehicles.totalCount,
-          page: Math.min(pg.page, Math.max(1, Math.ceil(vehicles.totalCount / pg.pageSize)))
+          page: Math.min(
+            pg.page,
+            Math.max(1, Math.ceil(Math.max(vehicles.totalCount, 1) / pg.pageSize) || 1)
+          )
         }));
         this.lastSyncedAt.set(new Date());
         this.loading.set(false);
+        // Dashboard is tenant-wide; list is data-scoped — surface a mismatch instead of a blank grid.
+        const dashTotal = dashboard?.totalVehicles ?? 0;
+        if (!this.error() && vehicles.items.length === 0 && dashTotal > 0) {
+          this.error.set(
+            `Fleet reports ${dashTotal} vehicle(s), but none are visible for your branch/data scope. ` +
+              `Ask an admin to apply FleetListCompanyScopeMigration (or set FLEET_MANAGER scope to Company).`
+          );
+        }
       },
       error: () => {
         this.loading.set(false);

@@ -26,11 +26,11 @@ public static class DataScopeFoundationMigration
 
         await connection.ExecuteAsync(new CommandDefinition("""
             UPDATE Roles SET ScopeLevel = N'Company'
-            WHERE Code IN (N'SUPER_ADMIN', N'TENANT_ADMIN')
+            WHERE Code IN (N'SUPER_ADMIN', N'TENANT_ADMIN', N'GPS_OPERATOR', N'FLEET_MANAGER', N'DISPATCHER', N'DRIVER_MANAGER')
               AND (ScopeLevel IS NULL OR LTRIM(RTRIM(ScopeLevel)) = '');
 
             UPDATE Roles SET ScopeLevel = N'Branch'
-            WHERE Code IN (N'BRANCH_MANAGER', N'FLEET_MANAGER', N'DRIVER_MANAGER', N'DISPATCHER')
+            WHERE Code IN (N'BRANCH_MANAGER')
               AND (ScopeLevel IS NULL OR LTRIM(RTRIM(ScopeLevel)) = '');
 
             UPDATE Roles SET ScopeLevel = N'Assigned'
