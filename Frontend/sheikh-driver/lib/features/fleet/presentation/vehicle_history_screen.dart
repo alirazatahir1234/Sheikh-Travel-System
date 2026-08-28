@@ -15,6 +15,8 @@ import '../../../shared/widgets/sg_ui.dart';
 import '../data/fleet_api.dart';
 import '../domain/fleet_models.dart';
 import '../domain/fleet_status.dart';
+import '../domain/trip_display.dart';
+import 'fleet_hub_notifier.dart';
 import 'playback/playback_controls.dart';
 import 'playback/playback_controller.dart';
 import 'playback/playback_helpers.dart';
@@ -41,11 +43,27 @@ class VehicleHistoryScreen extends ConsumerStatefulWidget {
     super.key,
     required this.vehicleId,
     this.tripKey,
+    this.initialPreset,
+    this.initialFrom,
+    this.initialTo,
+    this.autoPlayFull = false,
   });
   final int vehicleId;
 
   /// When set, skip the trip list and open this trip's playback.
   final String? tripKey;
+
+  /// Optional preset from Playback tab: hours6, today, yesterday, days3, days7, hours24.
+  final String? initialPreset;
+
+  /// Custom range start (UTC or local ISO). Used when [initialPreset] is custom.
+  final DateTime? initialFrom;
+
+  /// Custom range end (UTC or local ISO). Used when [initialPreset] is custom.
+  final DateTime? initialTo;
+
+  /// When true (and no [tripKey]), open full-range map playback for the range.
+  final bool autoPlayFull;
 
   @override
   ConsumerState<VehicleHistoryScreen> createState() =>
@@ -98,7 +116,8 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen>
   GpsTrip? _selectedTrip;
   TripDetailBundle? _tripDetail;
   List<TripStop> _allStops = const [];
-  bool _includeStops = false;
+  TripListFilter _tripFilter = TripListFilter.moving;
+  bool _showStopMarkers = false;
   bool _playingFullRange = false;
   bool _loadingTripDetail = false;
 
@@ -147,7 +166,7 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen>
       vsync: this,
       duration: const Duration(milliseconds: 900),
     );
-    _applyPreset(_HistoryPreset.hours24, reload: false);
+    _bootstrapInitialRange();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _devicePixelRatio = MediaQuery.devicePixelRatioOf(context);
@@ -156,8 +175,46 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen>
     final deepLink = widget.tripKey?.trim();
     if (deepLink != null && deepLink.isNotEmpty) {
       unawaited(_openTripByKey(deepLink));
+    } else if (widget.autoPlayFull) {
+      unawaited(_loadFullRange());
     } else {
       unawaited(_load());
+    }
+  }
+
+  void _bootstrapInitialRange() {
+    final from = widget.initialFrom;
+    final to = widget.initialTo;
+    if (from != null && to != null && to.isAfter(from)) {
+      _from = from;
+      _to = to;
+      _preset = _HistoryPreset.custom;
+      return;
+    }
+    final mapped = _mapPresetQuery(widget.initialPreset);
+    _applyPreset(mapped ?? _HistoryPreset.hours24, reload: false);
+  }
+
+  _HistoryPreset? _mapPresetQuery(String? key) {
+    switch ((key ?? '').trim().toLowerCase()) {
+      case 'hours6':
+      case '6h':
+        return _HistoryPreset.hours6;
+      case 'hours24':
+      case '24h':
+        return _HistoryPreset.hours24;
+      case 'today':
+        return _HistoryPreset.today;
+      case 'yesterday':
+        return _HistoryPreset.yesterday;
+      case 'days3':
+      case '3d':
+        return _HistoryPreset.days3;
+      case 'days7':
+      case '7d':
+        return _HistoryPreset.days7;
+      default:
+        return null;
     }
   }
 
@@ -449,20 +506,72 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen>
 
   Future<void> _zoomBy(double delta) async {
     _bumpChromeInteraction();
-    await _animateMap(CameraUpdate.zoomBy(delta));
+    final map = _map;
+    if (map == null || !mounted) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Map is still loading. Try again in a moment.'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+      return;
+    }
+    try {
+      // Prefer absolute zoom — more reliable than zoomBy on some Android builds.
+      final current = await map.getZoomLevel();
+      final next = (current + delta).clamp(3.0, 20.0);
+      await map.animateCamera(CameraUpdate.zoomTo(next));
+    } catch (_) {
+      await _animateMap(
+        delta > 0 ? CameraUpdate.zoomIn() : CameraUpdate.zoomOut(),
+      );
+    }
   }
 
   Future<void> _centerOnVehicle() async {
     _bumpChromeInteraction();
-    final pos = _displayPosition ??
-        (_playbackPoints.isNotEmpty
-            ? LatLng(
-                _playbackPoints[_index].latitude,
-                _playbackPoints[_index].longitude,
-              )
-            : null);
-    if (pos == null) return;
-    await _animateMap(CameraUpdate.newLatLng(pos));
+    final map = _map;
+    LatLng? pos = _displayPosition;
+    if (pos == null && _playbackPoints.isNotEmpty) {
+      final i = _index.clamp(0, _playbackPoints.length - 1);
+      pos = LatLng(
+        _playbackPoints[i].latitude,
+        _playbackPoints[i].longitude,
+      );
+    }
+    if (map == null || pos == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No GPS position available to center on.'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+      return;
+    }
+    try {
+      final zoom = await map.getZoomLevel();
+      await map.animateCamera(
+        CameraUpdate.newCameraPosition(
+          CameraPosition(
+            target: pos,
+            zoom: zoom < 14 ? 16 : zoom,
+            bearing: _displayHeading ??
+                (_playbackPoints.isNotEmpty
+                    ? (_playbackPoints[_index.clamp(0, _playbackPoints.length - 1)]
+                            .heading ??
+                        0)
+                    : 0),
+          ),
+        ),
+      );
+      if (mounted) setState(() => _follow = true);
+    } catch (_) {
+      await _animateMap(CameraUpdate.newLatLngZoom(pos, 16));
+    }
   }
 
   void _setIndex(int idx) {
@@ -654,7 +763,7 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen>
     final filtered = HistoryReplayBundle(
       route: bundle.route,
       playback: bundle.playback,
-      stops: _includeStops ? _allStops : const [],
+      stops: _showStopMarkers ? _allStops : const [],
       events: bundle.events,
       summary: bundle.summary,
       statistics: bundle.statistics,
@@ -834,6 +943,21 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen>
             to: _to.toUtc(),
           );
       if (!mounted) return;
+      final points = effectivePlaybackPoints(bundle);
+      if (points.isEmpty) {
+        setState(() {
+          _loading = false;
+          _loadingTripDetail = false;
+          _playingFullRange = false;
+          _bundle = null;
+          _playbackPoints = const [];
+          _error =
+              'No GPS positions were recorded for this vehicle during the selected period.';
+        });
+        _refreshSpinController.stop();
+        _refreshSpinController.value = 0;
+        return;
+      }
       _applyReplayBundle(bundle, trip: null, detail: null, fullRange: true);
     } catch (e) {
       if (!mounted) return;
@@ -858,7 +982,7 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen>
   }
 
   void _toggleIncludeStops(bool value) {
-    setState(() => _includeStops = value);
+    setState(() => _showStopMarkers = value);
     final b = _bundle;
     if (b == null) return;
     setState(() {
@@ -879,10 +1003,14 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen>
 
   String _tripWindowLabel() {
     final trip = _selectedTrip ?? _tripDetail?.trip;
+    final b = _bundle;
+    final dist = b != null
+        ? effectiveDistanceKm(b)
+        : (trip?.distanceKm ?? 0);
     if (trip != null) {
       return '${_tripTf.format(trip.startTime.toLocal())} → '
           '${_tripTf.format(trip.endTime.toLocal())} · '
-          '${trip.distanceKm.toStringAsFixed(1)} km';
+          '${dist.toStringAsFixed(1)} km';
     }
     if (_playingFullRange) {
       return '${_tf.format(_from.toLocal())} → ${_tf.format(_to.toLocal())}';
@@ -1072,31 +1200,38 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen>
                     contentPadding: EdgeInsets.zero,
                     leading: CircleAvatar(
                       backgroundColor: b.stops[i].durationMinutes >= 120
-                          ? const Color(0xFF3B82F6).withValues(alpha: 0.2)
-                          : const Color(0xFFF59E0B).withValues(alpha: 0.2),
-                      child: Text(
-                        '${i + 1}',
-                        style: TextStyle(
-                          color: b.stops[i].durationMinutes >= 120
-                              ? const Color(0xFF1D4ED8)
-                              : const Color(0xFFB45309),
-                          fontWeight: FontWeight.w800,
-                        ),
+                          ? const Color(0xFFDBEAFE)
+                          : const Color(0xFFE0F2FE),
+                      child: Icon(
+                        b.stops[i].durationMinutes >= 120
+                            ? Icons.local_parking
+                            : Icons.pause_circle,
+                        color: b.stops[i].durationMinutes >= 120
+                            ? const Color(0xFF1D4ED8)
+                            : const Color(0xFF0C4A6E),
+                        size: 18,
                       ),
                     ),
                     title: Text(
-                      stopPlaybackHeadlineFor(
-                        durationMinutes: b.stops[i].durationMinutes,
-                        address: addresses != null && i < addresses.length
-                            ? addresses[i]
-                            : b.stops[i].address,
-                        latitude: b.stops[i].latitude,
-                        longitude: b.stops[i].longitude,
-                      ),
+                      b.stops[i].durationMinutes >= 120 ? 'Parking' : 'Stop',
                       style: const TextStyle(fontWeight: FontWeight.w700),
                     ),
                     subtitle: Text(
                       [
+                        playbackAddressPrimary(
+                          addresses != null && i < addresses.length
+                              ? addresses[i]
+                              : b.stops[i].address,
+                          lat: b.stops[i].latitude,
+                          lng: b.stops[i].longitude,
+                        ),
+                        if (playbackNearbyLine(
+                              addresses != null && i < addresses.length
+                                  ? addresses[i]
+                                  : b.stops[i].address,
+                            )
+                            case final nearby?)
+                          nearby,
                         if (playbackAddressSecondary(
                               addresses != null && i < addresses.length
                                   ? addresses[i]
@@ -1104,11 +1239,14 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen>
                             )
                             case final locality?)
                           locality,
-                        '${DateFormat('h:mm a').format(b.stops[i].startTime.toLocal())}'
-                        ' · ${formatDurationMinutes(b.stops[i].durationMinutes)}',
+                        formatStopWindow(
+                          startTime: b.stops[i].startTime,
+                          endTime: b.stops[i].endTime,
+                        ),
+                        'Duration: ${formatDurationMinutesCompact(b.stops[i].durationMinutes)}',
                       ].join('\n'),
                     ),
-                    isThreeLine: true,
+                    isThreeLine: false,
                     onTap: () {
                       Navigator.pop(ctx);
                       final idx = indexForTimestamp(
@@ -1196,13 +1334,23 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen>
               const SgSectionTitle('Stops'),
               for (final s in b.stops)
                 ListTile(
-                  title: Text(stopPlaybackHeadline(s)),
+                  title: Text(s.durationMinutes >= 120 ? 'Parking' : 'Stop'),
                   subtitle: Text(
                     [
+                      playbackAddressPrimary(
+                        s.address,
+                        lat: s.latitude,
+                        lng: s.longitude,
+                      ),
+                      if (playbackNearbyLine(s.address) case final nearby?)
+                        nearby,
                       if (playbackAddressSecondary(s.address) case final locality?)
                         locality,
-                      '${formatDurationMinutes(s.durationMinutes)}'
-                      ' · ${DateFormat('h:mm a').format(s.startTime.toLocal())}',
+                      formatStopWindow(
+                        startTime: s.startTime,
+                        endTime: s.endTime,
+                      ),
+                      'Duration: ${formatDurationMinutesCompact(s.durationMinutes)}',
                     ].join('\n'),
                   ),
                 ),
@@ -1487,25 +1635,84 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen>
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            _DateBar(
-              from: _from,
-              to: _to,
-              df: _df,
-              preset: _preset,
-              presetLabel: _presetLabel(_preset),
-              onPreset: (p) {
-                _bumpChromeInteraction();
-                if (p == _HistoryPreset.custom) {
-                  _pickCustomRange();
-                } else {
-                  _applyPreset(p);
-                }
-              },
-              onFitRoute: () {
-                _bumpChromeInteraction();
-                unawaited(_fitRoute());
-              },
-            ),
+            if ((_selectedTrip ?? _tripDetail?.trip) != null ||
+                _playingFullRange)
+              Material(
+                color: Colors.white.withValues(alpha: 0.96),
+                borderRadius: BorderRadius.circular(AppRadii.md),
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.route_rounded,
+                          size: 18, color: AppColors.primary),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _playingFullRange
+                                  ? 'Full range playback'
+                                  : 'Selected trip',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.textMuted,
+                              ),
+                            ),
+                            Text(
+                              () {
+                                final trip =
+                                    _selectedTrip ?? _tripDetail?.trip;
+                                final rangeFmt =
+                                    DateFormat('dd MMM, HH:mm');
+                                if (trip != null) {
+                                  return '${rangeFmt.format(trip.startTime.toLocal())} → ${rangeFmt.format(trip.endTime.toLocal())}';
+                                }
+                                return '${rangeFmt.format(_from.toLocal())} → ${rangeFmt.format(_to.toLocal())}';
+                              }(),
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: 'Fit route',
+                        icon: const Icon(Icons.fit_screen, size: 20),
+                        onPressed: () {
+                          _bumpChromeInteraction();
+                          unawaited(_fitRoute());
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            else
+              _DateBar(
+                from: _from,
+                to: _to,
+                df: _df,
+                preset: _preset,
+                presetLabel: _presetLabel(_preset),
+                onPreset: (p) {
+                  _bumpChromeInteraction();
+                  if (p == _HistoryPreset.custom) {
+                    _pickCustomRange();
+                  } else {
+                    _applyPreset(p);
+                  }
+                },
+                onFitRoute: () {
+                  _bumpChromeInteraction();
+                  unawaited(_fitRoute());
+                },
+              ),
             if (!compact) ...[
               const SizedBox(height: 6),
               Container(
@@ -1859,7 +2066,15 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen>
   }
 
   Widget _buildTripListBody() {
-    final df = DateFormat('dd MMM HH:mm');
+    final vehicleAsync = ref.watch(vehicleDetailProvider(widget.vehicleId));
+    final vehicleName = vehicleAsync.valueOrNull?.name ??
+        _trips.firstOrNull?.vehicleName ??
+        'Vehicle #${widget.vehicleId}';
+    final plate = vehicleAsync.valueOrNull?.registrationNumber ??
+        _trips.firstOrNull?.plateNumber ??
+        '';
+    final visibleTrips = filterTrips(_trips, _tripFilter);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -1882,22 +2097,63 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen>
         ),
         Padding(
           padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
-          child: Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              FilterChip(
-                label: const Text('Moving trips'),
-                selected: !_includeStops,
-                onSelected: (_) => setState(() => _includeStops = false),
+              Wrap(
+                spacing: 8,
+                children: [
+                  FilterChip(
+                    label: const Text('Motion'),
+                    selected: _tripFilter == TripListFilter.moving,
+                    onSelected: (_) =>
+                        setState(() => _tripFilter = TripListFilter.moving),
+                  ),
+                  FilterChip(
+                    label: const Text('Stops'),
+                    selected: _tripFilter == TripListFilter.stops,
+                    onSelected: (_) =>
+                        setState(() => _tripFilter = TripListFilter.stops),
+                  ),
+                  FilterChip(
+                    label: const Text('All'),
+                    selected: _tripFilter == TripListFilter.all,
+                    onSelected: (_) =>
+                        setState(() => _tripFilter = TripListFilter.all),
+                  ),
+                ],
               ),
-              const SizedBox(width: 8),
-              FilterChip(
-                label: const Text('Include stops'),
-                selected: _includeStops,
-                onSelected: (v) => setState(() => _includeStops = v),
+              const SizedBox(height: 4),
+              Text(
+                _tripFilter == TripListFilter.moving
+                    ? 'Motion = trips with distance ≥ 0.2 km (status may be Completed)'
+                    : _tripFilter == TripListFilter.stops
+                        ? 'Stops = idle / near-zero distance segments'
+                        : 'All motion trips and stops in this range',
+                style: const TextStyle(
+                  fontSize: 11,
+                  color: AppColors.textMuted,
+                ),
               ),
             ],
           ),
         ),
+        if (!_loading && _trips.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+            child: Text(
+              tripFilterCountLabel(
+                visible: visibleTrips.length,
+                total: _trips.length,
+                filter: _tripFilter,
+              ),
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ),
         Expanded(
           child: _loading
               ? const Center(
@@ -1914,36 +2170,48 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen>
                     ],
                   ),
                 )
-              : _trips.isEmpty
+              : visibleTrips.isEmpty
                   ? Center(
                       child: Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 24),
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Text(
-                              'No trips in this range.',
+                            Text(
+                              _trips.isEmpty
+                                  ? 'No trips found'
+                                  : 'No ${_tripFilter.name} trips in this range',
                               textAlign: TextAlign.center,
-                              style: TextStyle(
+                              style: const TextStyle(
                                 fontWeight: FontWeight.w700,
                                 fontSize: 16,
                               ),
                             ),
                             const SizedBox(height: 8),
-                            const Text(
-                              'Try a wider date range, or use Play full range for raw GPS history.',
+                            Text(
+                              _trips.isEmpty
+                                  ? 'There are no trips for the selected period.'
+                                  : 'Try All, or choose a wider date range.',
                               textAlign: TextAlign.center,
-                              style: TextStyle(
+                              style: const TextStyle(
                                 color: AppColors.textSecondary,
                                 fontSize: 13,
                               ),
                             ),
                             const SizedBox(height: 16),
-                            OutlinedButton.icon(
-                              onPressed: _loading ? null : _loadFullRange,
-                              icon: const Icon(Icons.timeline_rounded),
-                              label: const Text('Play full range'),
-                            ),
+                            if (_trips.isEmpty)
+                              OutlinedButton.icon(
+                                onPressed: _loading ? null : _loadFullRange,
+                                icon: const Icon(Icons.timeline_rounded),
+                                label: const Text('Play full range'),
+                              )
+                            else
+                              OutlinedButton(
+                                onPressed: () => setState(
+                                  () => _tripFilter = TripListFilter.all,
+                                ),
+                                child: const Text('Show all trips'),
+                              ),
                           ],
                         ),
                       ),
@@ -1952,61 +2220,15 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen>
                       onRefresh: _load,
                       child: ListView.separated(
                         padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-                        itemCount: _trips.length,
+                        itemCount: visibleTrips.length,
                         separatorBuilder: (_, __) => const SizedBox(height: 8),
                         itemBuilder: (context, i) {
-                          final t = _trips[i];
-                          return SgCard(
+                          final t = visibleTrips[i];
+                          return _TripListCard(
+                            trip: t,
+                            vehicleName: t.vehicleName ?? vehicleName,
+                            plate: t.plateNumber ?? plate,
                             onTap: () => unawaited(_selectTrip(t)),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  '${df.format(t.startTime.toLocal())} → ${df.format(t.endTime.toLocal())}',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 14,
-                                  ),
-                                ),
-                                if ((t.startAddress ?? '').isNotEmpty ||
-                                    (t.endAddress ?? '').isNotEmpty) ...[
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    [
-                                      if ((t.startAddress ?? '').isNotEmpty)
-                                        t.startAddress!,
-                                      if ((t.endAddress ?? '').isNotEmpty)
-                                        '→ ${t.endAddress!}',
-                                    ].join(' '),
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                      color: AppColors.textSecondary,
-                                    ),
-                                  ),
-                                ],
-                                const SizedBox(height: 8),
-                                Wrap(
-                                  spacing: 12,
-                                  runSpacing: 4,
-                                  children: [
-                                    Text(
-                                      '${t.distanceKm.toStringAsFixed(1)} km',
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                    Text('${t.durationMinutes} min'),
-                                    Text(
-                                      'avg ${t.avgSpeedKmh.toStringAsFixed(0)} · max ${t.maxSpeedKmh.toStringAsFixed(0)} km/h',
-                                    ),
-                                    if ((t.status ?? '').isNotEmpty)
-                                      Text(t.status!),
-                                  ],
-                                ),
-                              ],
-                            ),
                           );
                         },
                       ),
@@ -2096,7 +2318,7 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen>
                   unawaited(_backToTripList());
                   break;
                 case 'stops':
-                  _toggleIncludeStops(!_includeStops);
+                  _toggleIncludeStops(!_showStopMarkers);
                   break;
               }
             },
@@ -2117,7 +2339,7 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen>
                 PopupMenuItem(
                   value: 'stops',
                   child: Text(
-                    _includeStops
+                    _showStopMarkers
                         ? 'Hide stop markers'
                         : 'Include stop markers',
                   ),
@@ -2231,9 +2453,15 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen>
                                     markers: _markers,
                                     myLocationButtonEnabled: false,
                                     zoomControlsEnabled: false,
+                                    zoomGesturesEnabled: true,
+                                    scrollGesturesEnabled: true,
+                                    rotateGesturesEnabled: true,
+                                    tiltGesturesEnabled: true,
+                                    mapToolbarEnabled: false,
                                     onMapCreated: (c) {
                                       _map = c;
                                       _pulseScreenPos = null;
+                                      _didInitialCameraFocus = false;
                                       _maybeFocusPlaybackStart();
                                       _schedulePulseSync();
                                     },
@@ -2275,22 +2503,6 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen>
                                     ),
                                   ),
                                 ),
-                                PlaybackMapFabs(
-                                  bottom: fabBottom,
-                                  visible: _chromeVisible,
-                                  mapType: _mapType,
-                                  onZoomIn: () => unawaited(_zoomBy(1)),
-                                  onZoomOut: () => unawaited(_zoomBy(-1)),
-                                  onCenter: () => unawaited(_centerOnVehicle()),
-                                  onMapType: (t) {
-                                    _bumpChromeInteraction();
-                                    setState(() => _mapType = t);
-                                  },
-                                  onFitRoute: () {
-                                    _bumpChromeInteraction();
-                                    unawaited(_fitRoute());
-                                  },
-                                ),
                                 if (showContent)
                                   DraggableScrollableSheet(
                                     controller: _sheetController,
@@ -2309,6 +2521,23 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen>
                                       );
                                     },
                                   ),
+                                // FABs must sit ABOVE the sheet so +/−/center receive taps.
+                                PlaybackMapFabs(
+                                  bottom: fabBottom,
+                                  visible: true,
+                                  mapType: _mapType,
+                                  onZoomIn: () => unawaited(_zoomBy(1)),
+                                  onZoomOut: () => unawaited(_zoomBy(-1)),
+                                  onCenter: () => unawaited(_centerOnVehicle()),
+                                  onMapType: (t) {
+                                    _bumpChromeInteraction();
+                                    setState(() => _mapType = t);
+                                  },
+                                  onFitRoute: () {
+                                    _bumpChromeInteraction();
+                                    unawaited(_fitRoute());
+                                  },
+                                ),
                                 if (_loading)
                                   Center(
                                     child: Container(
@@ -2451,10 +2680,10 @@ class _DateBar extends StatelessWidget {
             const SizedBox(width: 10),
             Expanded(
               child: Text(
-                preset == _HistoryPreset.custom
-                    ? '${df.format(from.toLocal())} → ${df.format(to.toLocal())}'
-                    : '',
+                '${DateFormat('dd MMM, HH:mm').format(from.toLocal())} → ${DateFormat('dd MMM, HH:mm').format(to.toLocal())}',
                 textAlign: TextAlign.end,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   color: AppColors.textSecondary,
                   fontSize: 12,
@@ -2472,6 +2701,198 @@ class _DateBar extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _TripListCard extends StatelessWidget {
+  const _TripListCard({
+    required this.trip,
+    required this.vehicleName,
+    required this.plate,
+    required this.onTap,
+  });
+
+  final GpsTrip trip;
+  final String vehicleName;
+  final String plate;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final start = trip.startTime.toLocal();
+    final end = trip.endTime.toLocal();
+    final sameDay = start.year == end.year &&
+        start.month == end.month &&
+        start.day == end.day;
+    final dayFmt = DateFormat('dd MMM');
+    final timeFmt = DateFormat('HH:mm');
+    final timeLabel = sameDay
+        ? '${dayFmt.format(start)} · ${timeFmt.format(start)} → ${timeFmt.format(end)}'
+        : '${dayFmt.format(start)} ${timeFmt.format(start)} → ${dayFmt.format(end)} ${timeFmt.format(end)}';
+
+    final route = formatTripRoute(trip);
+    final stop = isStopTrip(trip);
+    final status = tripStatusLabel(trip);
+    final statusColor = stop
+        ? const Color(0xFFF59E0B)
+        : const Color(0xFF16A34A);
+    final idLabel = tripIdLabel(trip);
+
+    return SgCard(
+      onTap: onTap,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(Icons.directions_car_filled_rounded,
+                  size: 22, color: AppColors.primary),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      vehicleName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 15,
+                      ),
+                    ),
+                    if (plate.trim().isNotEmpty)
+                      Text(
+                        plate,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  StatusBadge(status, color: statusColor),
+                  if (idLabel.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      idLabel,
+                      style: const TextStyle(
+                        fontSize: 10,
+                        color: AppColors.textMuted,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            timeLabel,
+            style: const TextStyle(
+              fontWeight: FontWeight.w700,
+              fontSize: 13,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            route.primary,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 13,
+              color: AppColors.textSecondary,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          if ((route.secondary ?? '').isNotEmpty) ...[
+            const SizedBox(height: 2),
+            Text(
+              route.secondary!,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: route.addressMissing
+                    ? const Color(0xFFB45309)
+                    : AppColors.textMuted,
+              ),
+            ),
+          ],
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _TripStat(
+                  label: 'Distance',
+                  value: '${trip.distanceKm.toStringAsFixed(1)} km',
+                ),
+              ),
+              Expanded(
+                child: _TripStat(
+                  label: 'Duration',
+                  value: '${trip.durationMinutes} min',
+                ),
+              ),
+              Expanded(
+                child: _TripStat(
+                  label: 'Avg',
+                  value: formatTripAvgSpeed(trip),
+                ),
+              ),
+              Expanded(
+                child: _TripStat(
+                  label: 'Max',
+                  value: formatTripMaxSpeed(trip),
+                ),
+              ),
+              const Icon(Icons.chevron_right, color: AppColors.textMuted),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TripStat extends StatelessWidget {
+  const _TripStat({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          value,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            fontWeight: FontWeight.w800,
+            fontSize: 13,
+          ),
+        ),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 10,
+            color: AppColors.textMuted,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
     );
   }
 }

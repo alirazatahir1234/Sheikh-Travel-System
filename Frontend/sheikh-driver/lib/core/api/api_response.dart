@@ -13,7 +13,8 @@ class ApiResponseParser {
 
   static List<Map<String, dynamic>> dataList(Map<String, dynamic>? body) {
     ensureSuccess(body);
-    final list = (body?['data'] as List?) ?? (body as List?) ?? [];
+    final data = body?['data'];
+    final list = data is List ? data : const [];
     return list
         .whereType<Map>()
         .map((e) => Map<String, dynamic>.from(e))

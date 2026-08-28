@@ -89,4 +89,19 @@ public class DataScopeResolverTests
         ok.Should().BeFalse();
         error.Should().Contain("Branch");
     }
+
+    [Fact]
+    public void ApplyVehicleScope_BranchMode_Includes_Unassigned_Branch()
+    {
+        var scope = DataScopeResolver.Resolve(
+            1, 10, 3, null,
+            [new DataScopeResolver.RoleAssignmentInput("FLEET_MANAGER", "Branch", 3, null)]);
+
+        var parameters = new Dapper.DynamicParameters();
+        var clauses = new List<string>();
+        DataScopeSql.ApplyVehicleScope(parameters, scope, "v", clauses);
+
+        clauses.Should().ContainSingle(c => c.Contains("BranchId IS NULL") && c.Contains("IN @DsBranchIds"));
+        parameters.Get<int[]>("DsBranchIds").Should().Equal(3);
+    }
 }

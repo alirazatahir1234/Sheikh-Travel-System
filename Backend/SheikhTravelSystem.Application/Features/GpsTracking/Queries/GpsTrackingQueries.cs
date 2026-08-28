@@ -3,6 +3,7 @@ using MediatR;
 using Microsoft.Extensions.Options;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Interfaces;
+using SheikhTravelSystem.Application.Features.GpsTracking;
 using SheikhTravelSystem.Application.Features.GpsTracking.DTOs;
 using SheikhTravelSystem.Application.Features.GpsTracking.Services;
 using SheikhTravelSystem.Application.Features.GpsTracking.Traccar;
@@ -10,6 +11,100 @@ using SheikhTravelSystem.Application.Features.GpsTracking.Traccar;
 namespace SheikhTravelSystem.Application.Features.GpsTracking.Queries;
 
 public record GetLivePositionsQuery(int Page = 1, int PageSize = 500) : IRequest<ApiResponse<PagedResult<PositionDto>>>;
+
+/// <summary>
+/// Full live-map fleet roster (GPS.View). Prefer this over composing /vehicles + /gps/live —
+/// branch-scoped fleet managers and roles without Vehicle.View still get a consistent list.
+/// </summary>
+public record GetGpsLiveFleetQuery : IRequest<ApiResponse<List<GpsLiveFleetVehicleDto>>>;
+
+public class GetGpsLiveFleetQueryHandler(
+    IDbConnectionFactory dbFactory,
+    ITenantContext tenantContext,
+    ICurrentUserService currentUser,
+    IDataScopeEngine dataScopeEngine)
+    : IRequestHandler<GetGpsLiveFleetQuery, ApiResponse<List<GpsLiveFleetVehicleDto>>>
+{
+    private const int MaxFleetSize = 5000;
+
+    public async Task<ApiResponse<List<GpsLiveFleetVehicleDto>>> Handle(
+        GetGpsLiveFleetQuery request,
+        CancellationToken cancellationToken)
+    {
+        using var connection = dbFactory.CreateConnection();
+        var tenantId = tenantContext.GetRequiredTenantId();
+
+        var clauses = new List<string>
+        {
+            "v.TenantId = @TenantId",
+            "v.IsDeleted = 0",
+            "v.Status <> 5"
+        };
+        var parameters = new DynamicParameters(new { TenantId = tenantId, MaxRows = MaxFleetSize });
+
+        if (currentUser.UserId is int userId)
+        {
+            var scope = await dataScopeEngine.ResolveAsync(userId, tenantId, cancellationToken);
+            DataScopeSql.ApplyVehicleScope(parameters, scope, "v", clauses);
+        }
+
+        var whereClause = string.Join(" AND ", clauses);
+
+        var rows = (await connection.QueryAsync<GpsLiveFleetVehicleDto>(new CommandDefinition(
+            $"""
+            SELECT TOP (@MaxRows)
+              v.Id AS VehicleId,
+              ISNULL(NULLIF(LTRIM(RTRIM(v.Name)), ''), CONCAT(N'Vehicle #', v.Id)) AS VehicleName,
+              ISNULL(v.RegistrationNumber, N'') AS RegistrationNumber,
+              v.VehicleType,
+              CAST(v.Status AS INT) AS VehicleStatus,
+              COALESCE(assignDrv.DriverId, vcl.DriverId) AS DriverId,
+              dr.FullName AS DriverName,
+              dr.Phone AS DriverPhone,
+              CASE WHEN v.GpsDeviceId IS NOT NULL THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END AS HasGpsDevice,
+              vcl.Latitude,
+              vcl.Longitude,
+              vcl.LastUpdate AS LastUpdated,
+              ISNULL(vcl.Speed, 0) AS Speed,
+              COALESCE(vcl.Ignition, gd.LastIgnition) AS Ignition,
+              vcl.Heading,
+              vcl.FuelLevel,
+              vcl.BatteryLevel,
+              vcl.GsmSignal,
+              vcl.TotalDistanceKm,
+              vcl.Address,
+              vcl.AlarmType,
+              vcl.Temperature,
+              vcl.BookingId,
+              gd.UniqueId AS Imei,
+              gd.Name AS TrackerName,
+              gd.RelayOutput
+            FROM Vehicles v
+            LEFT JOIN GpsDevices gd ON gd.Id = v.GpsDeviceId AND gd.IsDeleted = 0
+            LEFT JOIN VehicleCurrentLocation vcl ON vcl.VehicleId = v.Id
+            OUTER APPLY (
+                SELECT TOP 1 a.DriverId
+                FROM AssignmentHistory a
+                WHERE a.VehicleId = v.Id AND a.IsDeleted = 0
+                  AND a.Status IN (N'Active', N'Scheduled') AND a.DriverId IS NOT NULL
+                ORDER BY CASE WHEN a.Status = N'Active' THEN 0 ELSE 1 END, a.StartAt DESC
+            ) assignDrv
+            LEFT JOIN Drivers dr ON dr.Id = COALESCE(assignDrv.DriverId, vcl.DriverId) AND dr.IsDeleted = 0
+            WHERE {whereClause}
+            ORDER BY v.Name, v.Id
+            """,
+            parameters,
+            cancellationToken: cancellationToken))).ToList();
+
+        for (var i = 0; i < rows.Count; i++)
+        {
+            if (rows[i].LastUpdated is DateTime ts)
+                rows[i] = rows[i] with { LastUpdated = GpsUtcDateTime.AsUtc(ts) };
+        }
+
+        return ApiResponse<List<GpsLiveFleetVehicleDto>>.SuccessResponse(rows);
+    }
+}
 
 public class GetLivePositionsQueryHandler(
     IDbConnectionFactory dbFactory,
@@ -188,13 +283,16 @@ public class GetPositionHistoryQueryHandler(
         }
 
         using var connection = dbFactory.CreateConnection();
+        var toExclusive = toDate.AddTicks(1);
         var localRows = await connection.QueryAsync<GpsPositionHistoryRow>(new CommandDefinition(
             @"SELECT Id, VehicleId, DriverId, BookingId, GpsDeviceId, Latitude, Longitude, Speed,
                      Heading, Altitude, Ignition, RecordedAt AS Timestamp, Address
               FROM GpsPositions
-              WHERE VehicleId = @VehicleId AND RecordedAt BETWEEN @FromDate AND @ToDate
+              WHERE VehicleId = @VehicleId
+                AND RecordedAt >= @FromDate
+                AND RecordedAt < @ToExclusive
               ORDER BY RecordedAt ASC",
-            new { request.VehicleId, FromDate = fromDate, ToDate = toDate },
+            new { request.VehicleId, FromDate = fromDate, ToExclusive = toExclusive },
             cancellationToken: cancellationToken));
 
         var local = localRows.Select(GpsPositionHistoryMapper.ToPositionDto).ToList();
@@ -270,7 +368,8 @@ public class GetGpsTripsQueryHandler(
     IOptions<TraccarOptions> traccarOptions,
     ITenantContext tenantContext,
     ICurrentUserService currentUser,
-    IDataScopeEngine dataScopeEngine)
+    IDataScopeEngine dataScopeEngine,
+    IReverseGeocodingService geocoder)
     : IRequestHandler<GetGpsTripsQuery, ApiResponse<PagedResult<GpsTripDto>>>
 {
     private static readonly TimeSpan MaxRange = TimeSpan.FromDays(30);
@@ -369,7 +468,86 @@ public class GetGpsTripsQueryHandler(
 
         allTrips = ApplyFilters(allTrips, request);
         allTrips = ApplySort(allTrips, request.SortBy, request.SortDir);
+        allTrips = await EnrichTripAddressesAsync(allTrips, cancellationToken);
         return ApiResponse<PagedResult<GpsTripDto>>.SuccessResponse(ToPage(allTrips, request));
+    }
+
+    /// <summary>
+    /// Fill missing/coarse start/end addresses from GPS coordinates (street/locality — not Nearby POIs).
+    /// Caps geocode calls so list endpoints stay responsive; GpsAddressCache absorbs repeats.
+    /// </summary>
+    private async Task<List<GpsTripDto>> EnrichTripAddressesAsync(
+        List<GpsTripDto> trips,
+        CancellationToken cancellationToken)
+    {
+        const int maxLookups = 24;
+        var lookups = 0;
+        var result = new List<GpsTripDto>(trips.Count);
+
+        foreach (var trip in trips)
+        {
+            if (lookups >= maxLookups)
+            {
+                result.Add(trip);
+                continue;
+            }
+
+            var start = trip.StartAddress;
+            var end = trip.EndAddress;
+            var startNeeds = TripReplayAddressEnricher.IsCoarseAddress(start)
+                             && trip.StartLatitude is not null
+                             && trip.StartLongitude is not null;
+            var endNeeds = TripReplayAddressEnricher.IsCoarseAddress(end)
+                           && trip.EndLatitude is not null
+                           && trip.EndLongitude is not null;
+
+            if (startNeeds)
+            {
+                var resolved = await geocoder.GetAddressAsync(
+                    trip.StartLatitude!.Value,
+                    trip.StartLongitude!.Value,
+                    forceRefresh: false,
+                    cancellationToken);
+                var formatted = TripReplayAddressEnricher.FormatResolvedAddress(resolved);
+                if (!string.IsNullOrWhiteSpace(formatted))
+                {
+                    start = formatted;
+                }
+
+                lookups++;
+            }
+
+            if (endNeeds && lookups < maxLookups)
+            {
+                // Same point → reuse start (avoids a second provider call).
+                if (startNeeds
+                    && trip.StartLatitude == trip.EndLatitude
+                    && trip.StartLongitude == trip.EndLongitude
+                    && !string.IsNullOrWhiteSpace(start))
+                {
+                    end = start;
+                }
+                else
+                {
+                    var resolved = await geocoder.GetAddressAsync(
+                        trip.EndLatitude!.Value,
+                        trip.EndLongitude!.Value,
+                        forceRefresh: false,
+                        cancellationToken);
+                    var formatted = TripReplayAddressEnricher.FormatResolvedAddress(resolved);
+                    if (!string.IsNullOrWhiteSpace(formatted))
+                    {
+                        end = formatted;
+                    }
+
+                    lookups++;
+                }
+            }
+
+            result.Add(trip with { StartAddress = start, EndAddress = end });
+        }
+
+        return result;
     }
 
     private static List<GpsTripDto> ApplyFilters(List<GpsTripDto> trips, GetGpsTripsQuery request)
@@ -690,10 +868,12 @@ public class GetGpsTripsQueryHandler(
                 SELECT Id, VehicleId, DriverId, BookingId, GpsDeviceId, Latitude, Longitude, Speed,
                        Heading, Altitude, Ignition, RecordedAt AS Timestamp, Address
                 FROM GpsPositions
-                WHERE VehicleId IN @VehicleIds AND RecordedAt BETWEEN @FromDate AND @ToDate
+                WHERE VehicleId IN @VehicleIds
+                  AND RecordedAt >= @FromDate
+                  AND RecordedAt < @ToExclusive
                 ORDER BY VehicleId, RecordedAt ASC
                 """,
-                new { VehicleIds = detectorVehicleIds, FromDate = fromDate, ToDate = toDate },
+                new { VehicleIds = detectorVehicleIds, FromDate = fromDate, ToExclusive = toDate.AddTicks(1) },
                 cancellationToken: cancellationToken)))
                 .Select(GpsPositionHistoryMapper.ToPositionDto)
                 .ToList();

@@ -448,6 +448,15 @@ abstract final class FleetNavConfig {
 
   /// Picks the best bottom-nav index for [loc] (longest path match wins).
   static int indexForLocation(List<FleetNavTab> tabs, String loc) {
+    // GPS trip history/playback lives under /fleet/vehicles/:id/history but is a
+    // Trips experience — prefer the Trips tab when it exists in the shell.
+    final isVehicleHistory =
+        RegExp(r'^/fleet/vehicles/\d+/history').hasMatch(loc);
+    if (isVehicleHistory || loc == '/gps/trips' || loc.startsWith('/gps/trips/')) {
+      final tripsIdx = tabs.indexWhere((t) => t.id == 'trips');
+      if (tripsIdx >= 0) return tripsIdx;
+    }
+
     var bestIndex = -1;
     var bestLength = -1;
     for (var i = 0; i < tabs.length; i++) {

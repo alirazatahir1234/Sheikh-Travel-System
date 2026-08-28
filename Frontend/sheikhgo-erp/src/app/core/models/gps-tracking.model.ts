@@ -36,6 +36,36 @@ export interface PositionDto {
   temperature?: number;
 }
 
+/** Roster row from GET /gps/live/fleet — powers live map grid under GPS.View only. */
+export interface GpsLiveFleetVehicleDto {
+  vehicleId: number;
+  vehicleName: string;
+  registrationNumber: string;
+  vehicleType?: string | null;
+  vehicleStatus: number;
+  driverId?: number | null;
+  driverName?: string | null;
+  driverPhone?: string | null;
+  hasGpsDevice: boolean;
+  latitude?: number | null;
+  longitude?: number | null;
+  lastUpdated?: string | null;
+  speed: number;
+  ignition?: boolean | null;
+  heading?: number | null;
+  fuelLevel?: number | null;
+  batteryLevel?: number | null;
+  gsmSignal?: number | null;
+  totalDistanceKm?: number | null;
+  address?: string | null;
+  alarmType?: string | null;
+  temperature?: number | null;
+  bookingId?: number | null;
+  imei?: string | null;
+  trackerName?: string | null;
+  relayOutput?: string | null;
+}
+
 export interface VehicleLocation {
   vehicleId: number;
   vehicleName: string;

@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Net.Http.Json;
+using System.Text;
 using System.Text.Json.Serialization;
 using Dapper;
 using Microsoft.Extensions.Logging;
@@ -40,6 +41,8 @@ public sealed class NominatimReverseGeocodingService(
 
     private readonly object _throttleLock = new();
     private DateTime _nextAllowedCallUtc = DateTime.MinValue;
+    private static bool ContainsNonAsciiLetters(string text) =>
+        text.Any(c => char.IsLetter(c) && c > 127);
 
     public async Task<ReverseGeocodeResult?> GetAddressAsync(
         double latitude,
@@ -72,7 +75,7 @@ public sealed class NominatimReverseGeocodingService(
                     && DateTime.UtcNow - cached.ResolvedAt < CacheTtl
                     && !IsCoarseAddress(cached.Address, cached.Road, cached.PlaceName))
                 {
-                    return new ReverseGeocodeResult(
+                    return WithDisplayFields(new ReverseGeocodeResult(
                         cached.Address,
                         cached.Road,
                         cached.City,
@@ -81,7 +84,7 @@ public sealed class NominatimReverseGeocodingService(
                         cached.PostalCode,
                         FromCache: true,
                         cached.PlaceName,
-                        cached.PlaceType);
+                        cached.PlaceType));
                 }
             }
             catch (Exception ex)
@@ -125,16 +128,22 @@ public sealed class NominatimReverseGeocodingService(
             resolved.City,
             resolved.State,
             resolved.Country);
+        cleanedAddress = RemoveDiacritics(cleanedAddress);
         if (string.IsNullOrWhiteSpace(cleanedAddress))
             cleanedAddress = resolved.FormattedAddress;
+
+        var cleanedPlaceName = SanitizePlaceName(resolved.PlaceName);
+        cleanedPlaceName = string.IsNullOrWhiteSpace(cleanedPlaceName)
+            ? null
+            : RemoveDiacritics(cleanedPlaceName);
 
         resolved = resolved with
         {
             FormattedAddress = cleanedAddress,
-            // Fleet operators want road/city — Nearby Places names are often wrong or garbled.
-            PlaceName = null,
-            PlaceType = null
+            PlaceName = cleanedPlaceName,
+            PlaceType = cleanedPlaceName is null ? null : resolved.PlaceType
         };
+        resolved = WithDisplayFields(resolved);
 
         try
         {
@@ -193,6 +202,8 @@ public sealed class NominatimReverseGeocodingService(
         if (string.IsNullOrWhiteSpace(address)) return true;
 
         var trimmed = address.Trim();
+        if (ContainsNonAsciiLetters(trimmed))
+            return true;
 
         // Legacy "Near {POI}, …" — always refresh regardless of digits / plus-codes in the rest.
         if (trimmed.StartsWith("Near ", StringComparison.OrdinalIgnoreCase))
@@ -271,6 +282,82 @@ public sealed class NominatimReverseGeocodingService(
             address = fallback.FormattedAddress;
 
         return new ReverseGeocodeResult(address!, road, city, state, country, postal, false, place, placeType);
+    }
+
+    private static ReverseGeocodeResult WithDisplayFields(ReverseGeocodeResult value)
+    {
+        var primary = BuildPrimaryAddress(value);
+        var locality = BuildLocalityLine(value, primary);
+        var nearby = BuildNearbyPlace(value, primary);
+        var quality = ResolveAddressQuality(value, primary, nearby);
+        return value with
+        {
+            PrimaryAddress = primary,
+            NearbyPlaceName = nearby,
+            LocalityLine = locality,
+            AddressQuality = quality
+        };
+    }
+
+    private static string ResolveAddressQuality(ReverseGeocodeResult value, string? primary, string? nearby)
+    {
+        if (!string.IsNullOrWhiteSpace(primary))
+        {
+            var hasRoadSignal = !string.IsNullOrWhiteSpace(value.Road)
+                || primary.Any(char.IsDigit);
+            if (hasRoadSignal) return "exact";
+        }
+
+        if (!string.IsNullOrWhiteSpace(nearby))
+            return "nearby";
+
+        return "coarse";
+    }
+
+    private static string? BuildNearbyPlace(ReverseGeocodeResult value, string? primary)
+    {
+        var place = SanitizePlaceName(value.PlaceName);
+        if (string.IsNullOrWhiteSpace(place)) return null;
+        if (!string.IsNullOrWhiteSpace(primary)
+            && primary.Contains(place, StringComparison.OrdinalIgnoreCase))
+            return null;
+        return place;
+    }
+
+    private static string? BuildPrimaryAddress(ReverseGeocodeResult value)
+    {
+        if (!string.IsNullOrWhiteSpace(value.Road) && !LooksLikeAdminToken(value.Road))
+            return value.Road.Trim();
+
+        var cleaned = StripPlusCodeSegments(value.FormattedAddress).Trim();
+        if (string.IsNullOrWhiteSpace(cleaned)) return null;
+        var parts = cleaned
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .ToList();
+        if (parts.Count == 0) return null;
+        var take = parts.Count >= 4 ? 2 : 1;
+        return string.Join(", ", parts.Take(take));
+    }
+
+    private static string? BuildLocalityLine(ReverseGeocodeResult value, string? primary)
+    {
+        var tokens = new[] { value.City, value.State, value.Country }
+            .Where(s => !string.IsNullOrWhiteSpace(s))
+            .Select(s => s!.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        if (tokens.Count > 0)
+            return string.Join(", ", tokens);
+
+        var cleaned = StripPlusCodeSegments(value.FormattedAddress).Trim();
+        var parts = cleaned
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .ToList();
+        if (parts.Count <= 1) return null;
+        var take = !string.IsNullOrWhiteSpace(primary) && parts.Count >= 4 ? 2 : 1;
+        var rest = parts.Skip(take).ToList();
+        if (rest.Count == 0) return null;
+        return string.Join(", ", rest);
     }
 
     private async Task<ReverseGeocodeResult?> ResolveFromGoogleAsync(
@@ -475,6 +562,15 @@ public sealed class NominatimReverseGeocodingService(
             .Where(p => !LooksLikePlusCode(p))
             .ToList();
         return parts.Count == 0 ? address.Trim() : string.Join(", ", parts);
+    }
+
+    private static string RemoveDiacritics(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return text;
+        var normalized = text.Normalize(NormalizationForm.FormD);
+        var chars = normalized.Where(c =>
+            CharUnicodeInfo.GetUnicodeCategory(c) != UnicodeCategory.NonSpacingMark);
+        return new string(chars.ToArray()).Normalize(NormalizationForm.FormC);
     }
 
     /// <summary>

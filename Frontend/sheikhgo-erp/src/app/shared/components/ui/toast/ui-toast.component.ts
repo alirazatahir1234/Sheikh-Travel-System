@@ -7,14 +7,13 @@ import {
   OnInit
 } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
-import { NgClass } from '@angular/common';
 
 export type UiToastVariant = 'success' | 'error' | 'warning' | 'info';
 
 @Component({
   selector: 'ui-toast',
   standalone: true,
-  imports: [MatIconModule, NgClass],
+  imports: [MatIconModule],
   templateUrl: './ui-toast.component.html',
   styleUrls: ['./ui-toast.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush

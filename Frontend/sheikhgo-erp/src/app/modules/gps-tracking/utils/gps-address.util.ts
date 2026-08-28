@@ -3,17 +3,45 @@
  */
 
 const PLUS_CODE_RE = /\b[23456789CFGHJMPQRVWX]{4,8}\+[23456789CFGHJMPQRVWX]{2,3}\b/i;
+const LOCALITY_ONLY_TOKEN_RE =
+  /\b(tehsil|district|division|province|region|state|city|town|village|pakistan|india|punjab|sindh|khyber|balochistan|pk)\b/i;
 
-/** City/admin hierarchy, plus-code, or legacy "Near {POI}" lines that need a refresh. */
+function removeDiacritics(input: string): string {
+  return input.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
+/**
+ * Returns true when the address is an admin-area placeholder or
+ * machine-generated token that needs a proper geocode lookup.
+ *
+ * NOTE: Non-ASCII script (Urdu/Arabic) is valid — some reverse geocoders
+ * return transliterated names and it must NOT be treated as coarse.
+ */
 export function isCoarseAddress(address?: string | null): boolean {
   const raw = address?.trim();
   if (!raw) return true;
   const lower = raw.toLowerCase();
+  // Admin keywords that indicate a district/tehsil level placeholder
   if (lower.includes('tehsil') || lower.includes('district') || lower.includes('division')) {
     return true;
   }
   if (/^near\s+/i.test(raw)) return true;
   if (PLUS_CODE_RE.test(raw)) return true;
+  // Pure coordinates stored as address string
+  if (/^-?\d+\.\d+\s*,\s*-?\d+\.\d+$/.test(raw)) return true;
+  // Locality-only address ("Pasrur, Punjab, Pakistan") is not exact enough for fleet UI.
+  const parts = raw.split(',').map(p => p.trim()).filter(Boolean);
+  if (parts.length > 0 && parts.length <= 3) {
+    const allLocalityLike = parts.every(part => {
+      const p = part.toLowerCase();
+      if (LOCALITY_ONLY_TOKEN_RE.test(p)) return true;
+      if (/^[a-z]{2,3}$/i.test(p)) return true; // country codes like PK
+      // One-word locality token without a road signal (number, slash, dash) is likely coarse.
+      if (!/[0-9\/-]/.test(p) && p.split(/\s+/).length <= 2) return true;
+      return false;
+    });
+    if (allLocalityLike) return true;
+  }
   return false;
 }
 
@@ -30,7 +58,7 @@ export function sanitizeFleetAddress(address?: string | null): string | null {
     .map(p => p.trim())
     .filter(p => p && !PLUS_CODE_RE.test(p));
   if (parts.length === 0) return null;
-  return parts.join(', ');
+  return removeDiacritics(parts.join(', '));
 }
 
 /**
@@ -98,4 +126,21 @@ export function buildLocalityLine(parts: {
     }
   }
   return unique.join(', ');
+}
+
+export interface ReverseGeocodeDisplay {
+  formattedAddress?: string | null;
+  placeName?: string | null;
+  primaryAddress?: string | null;
+  nearbyPlaceName?: string | null;
+  localityLine?: string | null;
+}
+
+/** Canonical fleet display string from structured reverse-geocode payload. */
+export function formatFleetDisplayAddress(info?: ReverseGeocodeDisplay | null): string | null {
+  if (!info) return null;
+  const primary = info.primaryAddress?.trim();
+  const locality = info.localityLine?.trim();
+  if (primary) return locality ? `${primary}, ${locality}` : primary;
+  return formatResolvedAddress(info.formattedAddress, info.placeName);
 }

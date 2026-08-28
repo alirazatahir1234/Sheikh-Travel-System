@@ -7,6 +7,12 @@ public static class TraccarTripMapper
 {
     private const double KnotsToKmh = 1.852;
 
+    /// <summary>
+    /// Trips below this distance are treated as stops / idle segments — not moving trips.
+    /// GPS noise can still report a high instantaneous max speed with ~0 km travelled.
+    /// </summary>
+    public const double MinMovingDistanceKm = 0.2;
+
     public static GpsTripDto ToGpsTripDto(
         TraccarTrip trip,
         int vehicleId,
@@ -16,16 +22,24 @@ public static class TraccarTripMapper
         string? plateNumber = null)
     {
         var start = trip.StartTime;
+        var durationMinutes = ToDurationMinutes(trip.Duration);
+        var distanceKm = Math.Round(trip.Distance / 1000.0, 2);
+        var (avg, max, status) = NormalizeSpeeds(
+            distanceKm,
+            durationMinutes,
+            trip.AverageSpeed * KnotsToKmh,
+            trip.MaxSpeed * KnotsToKmh);
+
         return new GpsTripDto(
             vehicleId,
             vehicleName,
             gpsDeviceId,
             start,
             trip.EndTime,
-            Math.Round(trip.Distance / 1000.0, 2),
-            Math.Round((decimal)(trip.AverageSpeed * KnotsToKmh), 1),
-            Math.Round((decimal)(trip.MaxSpeed * KnotsToKmh), 1),
-            ToDurationMinutes(trip.Duration),
+            distanceKm,
+            avg,
+            max,
+            durationMinutes,
             deviceName ?? trip.DeviceName,
             trip.StartAddress,
             trip.EndAddress,
@@ -33,7 +47,39 @@ public static class TraccarTripMapper
             trip.SpentFuel,
             plateNumber,
             TripKeyHelper.Build(vehicleId, start),
-            "Completed");
+            status,
+            trip.StartLat,
+            trip.StartLon,
+            trip.EndLat,
+            trip.EndLon);
+    }
+
+    /// <summary>
+    /// Reconcile distance/time average with reported max speed, and classify stop vs completed move.
+    /// </summary>
+    public static (decimal AvgSpeedKmh, decimal MaxSpeedKmh, string Status) NormalizeSpeeds(
+        double distanceKm,
+        int durationMinutes,
+        double reportedAvgKmh,
+        double reportedMaxKmh)
+    {
+        if (distanceKm < MinMovingDistanceKm)
+        {
+            // Stationary / idle segment — don't surface GPS noise as max speed.
+            return (0m, 0m, "Stop");
+        }
+
+        var hours = Math.Max(durationMinutes, 1) / 60.0;
+        var computedAvg = distanceKm / hours;
+        // Prefer distance/time average; Traccar avg can disagree with max when units/noise differ.
+        var avg = Math.Round((decimal)computedAvg, 1);
+        var max = Math.Round((decimal)Math.Max(reportedMaxKmh, reportedAvgKmh), 1);
+        if (max < avg)
+        {
+            max = avg;
+        }
+
+        return (avg, max, "Completed");
     }
 
     /// <summary>
@@ -59,8 +105,27 @@ public static class TraccarTripMapper
         var key = string.IsNullOrWhiteSpace(trip.TripKey)
             ? TripKeyHelper.Build(trip.VehicleId, trip.StartTime)
             : trip.TripKey;
-        var status = string.IsNullOrWhiteSpace(trip.Status) ? "Completed" : trip.Status;
-        return trip with { TripKey = key, Status = status };
+        var (avg, max, status) = NormalizeSpeeds(
+            trip.DistanceKm,
+            trip.DurationMinutes,
+            (double)trip.AvgSpeedKmh,
+            (double)trip.MaxSpeedKmh);
+        var resolvedStatus = string.IsNullOrWhiteSpace(trip.Status) || trip.Status == "Completed"
+            ? status
+            : trip.Status;
+        // Re-apply stop classification even when Status was already "Completed".
+        if (trip.DistanceKm < MinMovingDistanceKm)
+        {
+            resolvedStatus = "Stop";
+        }
+
+        return trip with
+        {
+            TripKey = key,
+            Status = resolvedStatus,
+            AvgSpeedKmh = avg,
+            MaxSpeedKmh = max,
+        };
     }
 
     public static List<GpsTripDto> EnrichAll(IEnumerable<GpsTripDto> trips)

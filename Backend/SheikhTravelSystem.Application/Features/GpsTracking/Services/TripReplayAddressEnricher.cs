@@ -8,6 +8,9 @@ namespace SheikhTravelSystem.Application.Features.GpsTracking.Services;
 /// </summary>
 public static class TripReplayAddressEnricher
 {
+    private static bool ContainsNonAsciiLetters(string text) =>
+        text.Any(c => char.IsLetter(c) && c > 127);
+
     public static async Task<TripReplayBundleDto> EnrichAsync(
         TripReplayBundleDto bundle,
         IReverseGeocodingService geocoder,
@@ -79,6 +82,8 @@ public static class TripReplayAddressEnricher
     {
         if (string.IsNullOrWhiteSpace(address)) return true;
         var raw = address.Trim();
+        if (ContainsNonAsciiLetters(raw))
+            return true;
         var lower = raw.ToLowerInvariant();
         if (lower.Contains("tehsil") || lower.Contains("district") || lower.Contains("division"))
             return true;
@@ -113,7 +118,17 @@ public static class TripReplayAddressEnricher
                 System.Text.RegularExpressions.RegexOptions.IgnoreCase))
             .ToList();
         if (parts.Count == 0) return null;
-        return string.Join(", ", parts);
+        var cleaned = string.Join(", ", parts);
+        return RemoveDiacritics(cleaned);
+    }
+
+    private static string RemoveDiacritics(string text)
+    {
+        var normalized = text.Normalize(System.Text.NormalizationForm.FormD);
+        var chars = normalized.Where(c =>
+            System.Globalization.CharUnicodeInfo.GetUnicodeCategory(c)
+            != System.Globalization.UnicodeCategory.NonSpacingMark);
+        return new string(chars.ToArray()).Normalize(System.Text.NormalizationForm.FormC);
     }
 
     private static async Task EnrichStopsAsync(

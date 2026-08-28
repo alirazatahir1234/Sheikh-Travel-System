@@ -307,8 +307,20 @@ public static class FleetSchemaMigration
     {
         await connection.ExecuteAsync(new CommandDefinition("""
             IF EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'GpsPositions')
-            AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_GpsPositions_Vehicle_Recorded_Desc')
-                CREATE INDEX IX_GpsPositions_Vehicle_Recorded_Desc ON GpsPositions (VehicleId, RecordedAt DESC);
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1
+                    FROM sys.indexes
+                    WHERE object_id = OBJECT_ID('GpsPositions')
+                      AND name IN ('IX_GpsPositions_VehicleId_RecordedAt', 'IX_GpsPositions_Vehicle_Recorded_Desc')
+                )
+                    CREATE INDEX IX_GpsPositions_VehicleId_RecordedAt ON GpsPositions (VehicleId, RecordedAt DESC);
+
+                -- Keep a single seek index for VehicleId+RecordedAt range scans.
+                IF EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID('GpsPositions') AND name = 'IX_GpsPositions_VehicleId_RecordedAt')
+                   AND EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID('GpsPositions') AND name = 'IX_GpsPositions_Vehicle_Recorded_Desc')
+                    DROP INDEX IX_GpsPositions_Vehicle_Recorded_Desc ON GpsPositions;
+            END
             """, cancellationToken: ct));
     }
 }

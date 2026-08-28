@@ -40,7 +40,7 @@
     <a class="capability-chip" routerLink="/users">
       <mat-icon>groups</mat-icon>
       <span>Users</span>
-      <strong>{{ tenant.activeUserCount ?? '—' }}</strong>
+      <strong>{{ tenant.activeUserCount }}</strong>
     </a>
     <a class="capability-chip" routerLink="/drivers">
       <mat-icon>badge</mat-icon>
@@ -50,12 +50,12 @@
     <a class="capability-chip" routerLink="/vehicles">
       <mat-icon>local_shipping</mat-icon>
       <span>Vehicles</span>
-      <strong>{{ tenant.activeVehicleCount ?? '—' }}</strong>
+      <strong>{{ tenant.activeVehicleCount }}</strong>
     </a>
     <a class="capability-chip" routerLink="/platform/module-management" [queryParams]="{ tenantId: tenantId }">
       <mat-icon>extension</mat-icon>
       <span>Modules</span>
-      <strong>{{ tenant.moduleCodes?.length || 0 }}</strong>
+      <strong>{{ tenant.moduleCodes.length }}</strong>
     </a>
     <a class="capability-chip" routerLink="/platform/feature-management" [queryParams]="{ tenantId: tenantId }">
       <mat-icon>tune</mat-icon>

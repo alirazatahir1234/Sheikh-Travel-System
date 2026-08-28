@@ -37,15 +37,6 @@ class AppShell extends ConsumerWidget {
           Expanded(child: child),
         ],
       ),
-      floatingActionButton: session != null && session.canSeeAiTab
-          ? FloatingActionButton.extended(
-              onPressed: () => context.push('/ai'),
-              icon: const Icon(Icons.auto_awesome_rounded),
-              label: const Text('AI'),
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
-            )
-          : null,
       bottomNavigationBar: tabs.isEmpty
           ? null
           : _ShellBottomBar(tabs: tabs, currentIndex: idx),

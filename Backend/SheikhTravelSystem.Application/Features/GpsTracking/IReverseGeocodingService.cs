@@ -11,7 +11,23 @@ public record ReverseGeocodeResult(
     /// <summary>Nearest shop / landmark / POI name when available.</summary>
     string? PlaceName = null,
     /// <summary>Google/OSM place type (e.g. store, mosque, premise).</summary>
-    string? PlaceType = null);
+    string? PlaceType = null,
+    /// <summary>
+    /// Best operator-facing first line (street/locality) for list cards.
+    /// </summary>
+    string? PrimaryAddress = null,
+    /// <summary>
+    /// Nearby POI/landmark label when confidence is adequate.
+    /// </summary>
+    string? NearbyPlaceName = null,
+    /// <summary>
+    /// City/state/country summary line.
+    /// </summary>
+    string? LocalityLine = null,
+    /// <summary>
+    /// Address confidence tier: exact | nearby | coarse
+    /// </summary>
+    string AddressQuality = "coarse");
 
 public interface IReverseGeocodingService
 {

@@ -263,7 +263,11 @@ public record GpsTripDto(
     decimal? FuelLiters = null,
     string? PlateNumber = null,
     string? TripKey = null,
-    string? Status = null);
+    string? Status = null,
+    double? StartLatitude = null,
+    double? StartLongitude = null,
+    double? EndLatitude = null,
+    double? EndLongitude = null);
 
 public record GpsDeviceCommandDto(
     int Id,
@@ -320,3 +324,35 @@ public record GpsEtaDto(
     double DriverLongitude,
     double PickupLatitude,
     double PickupLongitude);
+
+/// <summary>
+/// Live-map fleet roster under GPS.View — avoids depending on Vehicle.View / VehiclesController.
+/// Includes never-seen and offline vehicles so the grid matches fleet-status KPI totals.
+/// </summary>
+public record GpsLiveFleetVehicleDto(
+    int VehicleId,
+    string VehicleName,
+    string RegistrationNumber,
+    string? VehicleType,
+    int VehicleStatus,
+    int? DriverId,
+    string? DriverName,
+    string? DriverPhone,
+    bool HasGpsDevice,
+    double? Latitude,
+    double? Longitude,
+    DateTime? LastUpdated,
+    decimal Speed,
+    bool? Ignition,
+    double? Heading,
+    decimal? FuelLevel,
+    decimal? BatteryLevel,
+    int? GsmSignal,
+    decimal? TotalDistanceKm,
+    string? Address,
+    string? AlarmType,
+    decimal? Temperature,
+    int? BookingId,
+    string? Imei,
+    string? TrackerName,
+    string? RelayOutput);

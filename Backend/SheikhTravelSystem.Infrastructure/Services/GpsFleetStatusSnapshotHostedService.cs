@@ -6,6 +6,7 @@ using Dapper;
 using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Application.Features.GpsTracking;
 using SheikhTravelSystem.Application.Features.GpsTracking.Services;
+using SheikhTravelSystem.Application.Features.GpsTracking.Traccar;
 
 namespace SheikhTravelSystem.Infrastructure.Services;
 
@@ -21,6 +22,7 @@ namespace SheikhTravelSystem.Infrastructure.Services;
 public class GpsFleetStatusSnapshotHostedService(
     IServiceProvider serviceProvider,
     IOptions<GpsSettings> gpsSettings,
+    IOptions<TraccarOptions> traccarOptions,
     ILogger<GpsFleetStatusSnapshotHostedService> logger) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -83,7 +85,12 @@ public class GpsFleetStatusSnapshotHostedService(
 
         foreach (var tenantId in tenants)
         {
-            var status = await GpsFleetStatusCalculator.ComputeAsync(connection, tenantId, cancellationToken);
+            var status = await GpsFleetStatusCalculator.ComputeAsync(
+                connection,
+                tenantId,
+                gpsSettings,
+                traccarOptions,
+                cancellationToken);
 
             await connection.ExecuteAsync(new CommandDefinition(
                 """

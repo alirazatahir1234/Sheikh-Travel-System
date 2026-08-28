@@ -6,12 +6,15 @@ import {
 } from './gps-address.util';
 
 describe('gps-address.util', () => {
-  it('detects coarse Near/plus-code/tehsil strings but accepts city locality', () => {
-    expect(isCoarseAddress('Pasrur, Punjab, Pakistan')).toBe(false);
+  it('detects coarse Near/plus-code/tehsil strings and locality-only placeholders', () => {
+    expect(isCoarseAddress('Pasrur, Punjab, Pakistan')).toBe(true);
     expect(isCoarseAddress('Near Mandar, 7M78+84W, Pasrur')).toBe(true);
     expect(isCoarseAddress('7M78+84W, Walled City, Pasrur, Pakistan')).toBe(true);
     expect(isCoarseAddress('Pasrur, Pasrur Tehsil, Sialkot District')).toBe(true);
     expect(isCoarseAddress('Circular Road, Sialkot, Punjab, Pakistan')).toBe(false);
+    // Non-ASCII script (Urdu) and diacritics are valid addresses — not coarse.
+    expect(isCoarseAddress('سیالکوٹ روڈ، پسرور')).toBe(false);
+    expect(isCoarseAddress('Sīālkot Road, Pasrūr')).toBe(false);
     expect(isCoarseAddress(null)).toBe(true);
   });
 
@@ -30,6 +33,12 @@ describe('gps-address.util', () => {
   it('sanitizes legacy Near and plus-code lines', () => {
     expect(sanitizeFleetAddress('Near Mandar hari ram, 7M78+84W, Walled City, Pasrur')).toBe(
       'Walled City, Pasrur'
+    );
+  });
+
+  it('strips diacritics for plain English fleet display', () => {
+    expect(sanitizeFleetAddress('Sīālkot Road, Pasrūr, Punjāb')).toBe(
+      'Sialkot Road, Pasrur, Punjab'
     );
   });
 

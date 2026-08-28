@@ -21,33 +21,44 @@ public static class GpsTripDetector
         var ordered = points.OrderBy(p => p.Timestamp).ToList();
         var trips = new List<GpsTripDto>();
         DateTime? tripStart = null;
+        PositionDto? startPoint = null;
         double segmentDistance = 0;
         var segmentSpeeds = new List<decimal>();
         PositionDto? prev = null;
 
         void CloseTrip(PositionDto endPoint)
         {
-            if (tripStart is null || prev is null)
+            if (tripStart is null || prev is null || startPoint is null)
             {
                 return;
             }
 
             var duration = (int)Math.Max(1, (endPoint.Timestamp - tripStart.Value).TotalMinutes);
             var start = tripStart.Value;
+            var distanceKm = Math.Round(segmentDistance, 2);
+            var reportedAvg = segmentSpeeds.Count > 0 ? (double)segmentSpeeds.Average() : 0;
+            var reportedMax = segmentSpeeds.Count > 0 ? (double)segmentSpeeds.Max() : 0;
+            var (avg, max, status) = TraccarTripMapper.NormalizeSpeeds(
+                distanceKm, duration, reportedAvg, reportedMax);
             trips.Add(new GpsTripDto(
                 vehicleId,
                 vehicleName,
                 gpsDeviceId,
                 start,
                 endPoint.Timestamp,
-                Math.Round(segmentDistance, 2),
-                segmentSpeeds.Count > 0 ? Math.Round(segmentSpeeds.Average(), 1) : 0,
-                segmentSpeeds.Count > 0 ? segmentSpeeds.Max() : 0,
+                distanceKm,
+                avg,
+                max,
                 duration,
                 TripKey: TripKeyHelper.Build(vehicleId, start),
-                Status: "Completed"));
+                Status: status,
+                StartLatitude: startPoint.Latitude,
+                StartLongitude: startPoint.Longitude,
+                EndLatitude: endPoint.Latitude,
+                EndLongitude: endPoint.Longitude));
 
             tripStart = null;
+            startPoint = null;
             segmentDistance = 0;
             segmentSpeeds.Clear();
         }
@@ -66,6 +77,7 @@ public static class GpsTripDetector
             if (tripStart is null && moving)
             {
                 tripStart = point.Timestamp;
+                startPoint = point;
                 segmentDistance = 0;
                 segmentSpeeds.Clear();
             }

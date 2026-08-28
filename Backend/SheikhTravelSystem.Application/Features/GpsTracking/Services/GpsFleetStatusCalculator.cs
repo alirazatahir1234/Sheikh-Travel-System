@@ -1,5 +1,9 @@
 using Dapper;
+using SheikhTravelSystem.Application.Common;
+using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Application.Features.GpsTracking.DTOs;
+using SheikhTravelSystem.Application.Features.GpsTracking.Traccar;
+using Microsoft.Extensions.Options;
 
 namespace SheikhTravelSystem.Application.Features.GpsTracking.Services;
 
@@ -12,19 +16,14 @@ namespace SheikhTravelSystem.Application.Features.GpsTracking.Services;
 /// </summary>
 public static class GpsFleetStatusCalculator
 {
-    private const int OfflineStaleMinutes = 30;
-    /// <summary>Aligned with TraccarOptions.MovingSpeedKmh and frontend MOVING_THRESHOLD_KMH.</summary>
-    private const decimal MovingThresholdKmh = 10m;
-
-    // Ignition OFF → Parked (GPS drift must not count as Moving). Speed >= threshold with
-    // ignition ON/unknown → Moving. Otherwise Idle.
+    // Mutually-exclusive dashboard buckets:
+    // NeverSeen: no current location row (with tracker), Offline: stale row,
+    // Moving: fresh row + speed >= threshold, Idle: fresh row + speed below threshold.
     private const string StatusBucketSql = """
         CASE
-          WHEN vcl.AlarmType IS NOT NULL AND LOWER(vcl.AlarmType) IN ('sos', 'panic') THEN 'sos'
           WHEN vcl.VehicleId IS NULL THEN
             CASE WHEN v.GpsDeviceId IS NOT NULL THEN 'never_seen' ELSE 'offline' END
           WHEN DATEDIFF(MINUTE, vcl.LastUpdate, GETUTCDATE()) > @OfflineStaleMinutes THEN 'offline'
-          WHEN vcl.Ignition = 0 THEN 'parked'
           WHEN ISNULL(vcl.Speed, 0) >= @MovingThresholdKmh THEN 'moving'
           ELSE 'idle'
         END
@@ -33,41 +32,81 @@ public static class GpsFleetStatusCalculator
     public static async Task<GpsFleetStatusLocalDto> ComputeAsync(
         System.Data.IDbConnection connection,
         int tenantId,
-        CancellationToken cancellationToken = default)
+        IOptions<GpsSettings> gpsSettings,
+        IOptions<TraccarOptions> traccarOptions,
+        CancellationToken cancellationToken = default,
+        DataScopeResult? scope = null)
     {
-        var counts = await connection.QuerySingleAsync<(int Total, int Moving, int Idle, int Parked, int NeverSeen, int Offline, int Sos)>(
+        var staleMinutes = gpsSettings.Value.OfflineStaleMinutes <= 0
+            ? 10
+            : gpsSettings.Value.OfflineStaleMinutes;
+        var movingThresholdKmh = traccarOptions.Value.MovingSpeedKmh > 0
+            ? traccarOptions.Value.MovingSpeedKmh
+            : gpsSettings.Value.FleetMovingSpeedKmh;
+
+        var vehicleClauses = new List<string>
+        {
+            "v.TenantId = @TenantId",
+            "v.IsDeleted = 0",
+            "v.Status <> 5"
+        };
+        var parameters = new DynamicParameters(new
+        {
+            TenantId = tenantId,
+            OfflineStaleMinutes = staleMinutes,
+            MovingThresholdKmh = movingThresholdKmh
+        });
+        if (scope is not null)
+            DataScopeSql.ApplyVehicleScope(parameters, scope, "v", vehicleClauses);
+
+        var vehicleWhere = string.Join(" AND ", vehicleClauses);
+
+        var counts = await connection.QuerySingleAsync<(int Total, int Moving, int Idle, int NeverSeen, int Offline)>(
             new CommandDefinition(
                 $"""
                 SELECT
                   COUNT(*) AS Total,
                   ISNULL(SUM(CASE WHEN Bucket = 'moving' THEN 1 ELSE 0 END), 0) AS Moving,
                   ISNULL(SUM(CASE WHEN Bucket = 'idle' THEN 1 ELSE 0 END), 0) AS Idle,
-                  ISNULL(SUM(CASE WHEN Bucket = 'parked' THEN 1 ELSE 0 END), 0) AS Parked,
                   ISNULL(SUM(CASE WHEN Bucket = 'never_seen' THEN 1 ELSE 0 END), 0) AS NeverSeen,
-                  ISNULL(SUM(CASE WHEN Bucket = 'offline' THEN 1 ELSE 0 END), 0) AS Offline,
-                  ISNULL(SUM(CASE WHEN Bucket = 'sos' THEN 1 ELSE 0 END), 0) AS Sos
+                  ISNULL(SUM(CASE WHEN Bucket = 'offline' THEN 1 ELSE 0 END), 0) AS Offline
                 FROM (
                   SELECT {StatusBucketSql} AS Bucket
                   FROM Vehicles v
                   LEFT JOIN VehicleCurrentLocation vcl ON vcl.VehicleId = v.Id
-                  WHERE v.TenantId = @TenantId AND v.IsDeleted = 0
+                  WHERE {vehicleWhere}
                 ) x
                 """,
-                new { TenantId = tenantId, OfflineStaleMinutes, MovingThresholdKmh },
+                parameters,
                 cancellationToken: cancellationToken));
 
         var todayStart = DateTime.UtcNow.Date;
+        var alertClauses = new List<string>
+        {
+            "v.TenantId = @TenantId",
+            "e.IsDeleted = 0",
+            "e.Timestamp >= @TodayStart"
+        };
+        var alertParams = new DynamicParameters(new { TenantId = tenantId, TodayStart = todayStart });
+        if (scope is not null)
+            DataScopeSql.ApplyVehicleScope(alertParams, scope, "v", alertClauses);
+        var alertWhere = string.Join(" AND ", alertClauses);
+
         var alertsToday = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
-            """
+            $"""
             SELECT COUNT(*)
             FROM GpsAlertEvents e
             INNER JOIN Vehicles v ON v.Id = e.VehicleId
-            WHERE v.TenantId = @TenantId AND e.IsDeleted = 0 AND e.Timestamp >= @TodayStart
+            WHERE {alertWhere}
             """,
-            new { TenantId = tenantId, TodayStart = todayStart },
+            alertParams,
             cancellationToken: cancellationToken));
 
-        var online = counts.Moving + counts.Idle + counts.Parked + counts.Sos;
+        // "Online" = vehicles with a fresh GPS fix (moving + idle). Matches Angular live-map
+        // fleetCounts.online and operator expectation: ignition-off but pinging still counts online.
+        // Mutually exclusive rollup: Total = Online + Offline + NeverSeen
+        // where Online = Moving + Idle (+ Parked when that bucket is populated).
+        var online = counts.Moving + counts.Idle;
 
         return new GpsFleetStatusLocalDto(
             counts.Total,
@@ -75,9 +114,9 @@ public static class GpsFleetStatusCalculator
             counts.Offline,
             counts.Moving,
             counts.Idle,
-            counts.Parked,
+            0,
             counts.NeverSeen,
-            counts.Sos,
+            0,
             alertsToday);
     }
 }

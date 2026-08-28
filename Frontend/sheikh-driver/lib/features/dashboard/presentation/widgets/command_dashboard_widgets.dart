@@ -105,13 +105,10 @@ class OpsKpiGridCard extends StatelessWidget {
       children: [
         const SgSectionTitle('Today at a glance'),
         const SizedBox(height: 8),
-        GridView.count(
+        ChunkedGrid(
           crossAxisCount: 2,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
           mainAxisSpacing: 10,
           crossAxisSpacing: 10,
-          childAspectRatio: 1.55,
           children: cards,
         ),
       ],
@@ -309,25 +306,46 @@ class UniversalSearchBarCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: Colors.white,
-      borderRadius: BorderRadius.circular(AppRadii.md),
+      borderRadius: BorderRadius.circular(AppRadii.xl),
+      elevation: 0,
       child: InkWell(
-        borderRadius: BorderRadius.circular(AppRadii.md),
+        borderRadius: BorderRadius.circular(AppRadii.xl),
         onTap: () => showUniversalSearchSheet(context),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          padding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(AppRadii.md),
+            borderRadius: BorderRadius.circular(AppRadii.xl),
             border: Border.all(color: AppColors.border),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
-          child: const Row(
+          child: Row(
             children: [
-              Icon(Icons.search_rounded, color: AppColors.textMuted),
-              SizedBox(width: 10),
-              Expanded(
+              const Icon(Icons.search_rounded,
+                  color: AppColors.textMuted, size: 20),
+              const SizedBox(width: 10),
+              const Expanded(
                 child: Text(
-                  'Search vehicle, driver, trip, booking…',
-                  style: TextStyle(color: AppColors.textMuted, fontSize: 14),
+                  'Search vehicle, driver, trip, booking, or location...',
+                  style:
+                      TextStyle(color: AppColors.textMuted, fontSize: 14),
                 ),
+              ),
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: const Icon(Icons.tune_rounded,
+                    size: 16, color: AppColors.textSecondary),
               ),
             ],
           ),
@@ -468,57 +486,89 @@ class AttentionVehiclesCard extends StatelessWidget {
       children: [
         Row(
           children: [
-            const Expanded(child: SgSectionTitle('Vehicles needing attention')),
+            const Expanded(
+                child: SgSectionTitle('Vehicles Needing Attention')),
             TextButton(
               onPressed: () => context.push('/fleet'),
-              child: const Text('View fleet'),
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.primary,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('View fleet',
+                      style: TextStyle(
+                          fontSize: 12, fontWeight: FontWeight.w600)),
+                  SizedBox(width: 2),
+                  Icon(Icons.chevron_right_rounded, size: 16),
+                ],
+              ),
             ),
           ],
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 8),
         if (items.isEmpty)
-          const SgCard(child: Text('No vehicles flagged right now'))
+          SgCard(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            child: const Text(
+              'No vehicles flagged right now',
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
+          )
         else
-          ...items.map((v) {
-            final gps = data.livePositions
-                .where((p) => p.vehicleId == v.id)
-                .firstOrNull;
-            return SgCard(
-              margin: const EdgeInsets.only(bottom: 8),
-              onTap: () => context.push('/fleet/vehicles/${v.id}'),
-              child: Row(
-                children: [
-                  Expanded(
+          ChunkedGrid(
+            crossAxisCount: 2,
+            mainAxisSpacing: 8,
+            crossAxisSpacing: 8,
+            children: items
+                .map(
+                  (v) => SgCard(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 10),
+                    onTap: () =>
+                        context.push('/fleet/vehicles/${v.id}'),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          v.name,
-                          style: const TextStyle(fontWeight: FontWeight.w700),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                v.name,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                            ),
+                            const Icon(Icons.chevron_right_rounded,
+                                size: 14, color: AppColors.textMuted),
+                          ],
                         ),
-                        const SizedBox(height: 2),
+                        const SizedBox(height: 3),
                         Text(
-                          [
-                            v.registrationNumber,
-                            if (v.driverName != null) v.driverName!,
-                            if (gps != null)
-                              '${gps.speed.toStringAsFixed(0)} km/h',
-                            if (gps?.fuelLevel != null)
-                              'Fuel ${gps!.fuelLevel!.toStringAsFixed(0)}%',
-                          ].join(' · '),
+                          v.registrationNumber,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
-                            fontSize: 12,
+                            fontSize: 11,
                             color: AppColors.textSecondary,
                           ),
                         ),
+                        const SizedBox(height: 6),
+                        StatusBadge(v.status),
                       ],
                     ),
                   ),
-                  StatusBadge(v.status),
-                ],
-              ),
-            );
-          }),
+                )
+                .toList(),
+          ),
       ],
     );
   }

@@ -1,7 +1,7 @@
 import {
   ChangeDetectionStrategy, Component, effect, inject, input, output, signal
 } from '@angular/core';
-import { CommonModule, CurrencyPipe, DatePipe } from '@angular/common';
+import { CommonModule, CurrencyPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
 import { finalize } from 'rxjs/operators';
@@ -21,7 +21,7 @@ import { apiErrorMessage } from '../../../../core/utils/api-error.util';
 @Component({
   selector: 'work-order-detail-drawer',
   standalone: true,
-  imports: [CommonModule, FormsModule, CurrencyPipe, DatePipe, MatIconModule, UiDrawerComponent, WoCreateFormComponent],
+  imports: [CommonModule, FormsModule, CurrencyPipe, MatIconModule, UiDrawerComponent, WoCreateFormComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './work-order-detail-drawer.component.html',
   styleUrls: ['./work-order-detail-drawer.component.scss']

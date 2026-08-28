@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable, forkJoin, of } from 'rxjs';
+import { Observable, forkJoin, of, throwError } from 'rxjs';
 import { map, catchError } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 import {
@@ -66,7 +66,8 @@ import {
   ComparativeAnalytics,
   AnalyticsReportSchedule,
   CreateAnalyticsReportSchedule,
-  UpdateAnalyticsReportSchedule
+  UpdateAnalyticsReportSchedule,
+  GpsLiveFleetVehicleDto
 } from '../models/gps-tracking.model';
 import { PagedResult, normalizePagedResult } from '../models/common.model';
 import { VehicleService } from './vehicle.service';
@@ -92,7 +93,100 @@ export class GpsTrackingService {
     private driverService: DriverService
   ) {}
 
+  /**
+   * Live-map roster. Prefer GET /gps/live/fleet (GPS.View only) so FLEET_MANAGER / GPS operators
+   * are not blocked by Vehicle.View 403s or empty scoped /vehicles responses. Falls back to the
+   * legacy vehicles+live+devices join only if the dedicated roster endpoint is unavailable.
+   */
   getAllVehicleLocations(): Observable<VehicleLocation[]> {
+    return this.http.get<GpsLiveFleetVehicleDto[]>(`${this.base}/live/fleet`).pipe(
+      map(rows => (rows ?? []).map(row => this.mapLiveFleetRow(row))),
+      catchError(err => {
+        // Older APIs without /live/fleet — keep previous join path. Other failures must surface
+        // so the live map does not silently show "0 of 0".
+        if (err?.status === 404) {
+          return this.getAllVehicleLocationsLegacy();
+        }
+        return throwError(() => err);
+      })
+    );
+  }
+
+  private mapLiveFleetRow(row: GpsLiveFleetVehicleDto): VehicleLocation {
+    const lat = this.toCoord(row.latitude);
+    const lng = this.toCoord(row.longitude);
+    const hasCoords = this.hasValidCoords(lat, lng);
+    const lastUpdated = row.lastUpdated ?? '';
+    const speed = Number(row.speed) || 0;
+    const trackerFields = {
+      imei: row.imei ?? undefined,
+      trackerName: row.trackerName ?? undefined,
+      relayOutput: row.relayOutput ?? undefined
+    };
+
+    if (hasCoords) {
+      const status = lastUpdated
+        ? resolveFleetStatus({
+            speed,
+            ignition: row.ignition ?? undefined,
+            lastUpdated,
+            hasGps: true,
+            alarmType: row.alarmType ?? undefined
+          })
+        : 'offline';
+      return {
+        vehicleId: row.vehicleId,
+        vehicleName: row.vehicleName || `Vehicle #${row.vehicleId}`,
+        registrationNumber: row.registrationNumber ?? '',
+        latitude: lat!,
+        longitude: lng!,
+        lastUpdated,
+        speed,
+        status,
+        driverName: row.driverName ?? undefined,
+        hasGps: true,
+        isLive: this.isRecentTelemetry(lastUpdated),
+        routeHint: status === 'offline' ? 'Last known position' : this.routeHint(status, speed),
+        ignition: row.ignition ?? undefined,
+        heading: row.heading ?? undefined,
+        fuelLevel: row.fuelLevel ?? undefined,
+        batteryLevel: row.batteryLevel ?? undefined,
+        gsmSignal: row.gsmSignal ?? undefined,
+        totalDistanceKm: row.totalDistanceKm ?? undefined,
+        address: row.address ?? undefined,
+        alarmType: row.alarmType ?? undefined,
+        temperature: row.temperature ?? undefined,
+        vehicleType: row.vehicleType ?? undefined,
+        driverPhone: row.driverPhone ?? undefined,
+        bookingId: row.bookingId ?? undefined,
+        ...trackerFields
+      };
+    }
+
+    const status: FleetTrackStatus = row.hasGpsDevice
+      ? 'never_seen'
+      : ((row.vehicleStatus === VehicleStatus.OnTrip ? 'scheduled' : 'offline') as FleetTrackStatus);
+
+    return {
+      vehicleId: row.vehicleId,
+      vehicleName: row.vehicleName || `Vehicle #${row.vehicleId}`,
+      registrationNumber: row.registrationNumber ?? '',
+      latitude: 0,
+      longitude: 0,
+      lastUpdated: '',
+      speed: 0,
+      status,
+      driverName: row.driverName ?? undefined,
+      // No fix yet — grid shows Never Seen / Offline; map markers require coords + hasGps.
+      hasGps: false,
+      routeHint: row.hasGpsDevice ? 'Awaiting GPS signal' : 'No GPS signal',
+      vehicleType: row.vehicleType ?? undefined,
+      ...trackerFields
+    };
+  }
+
+  /** Legacy join used only when /gps/live/fleet is missing (older API) or fails transiently. */
+  private getAllVehicleLocationsLegacy(): Observable<VehicleLocation[]> {
     return forkJoin({
       tracking: this.http
         .get<PagedResult<PositionDto>>(`${this.base}/live`, { params: { pageSize: LIVE_FLEET_PAGE_SIZE } })
@@ -102,7 +196,6 @@ export class GpsTrackingService {
       devices: this.getDevices().pipe(catchError(() => of([])))
     }).pipe(
       map(({ tracking, vehicles, drivers, devices }) => {
-        const vehicleMap = new Map(vehicles.items.map(v => [v.id, v]));
         const driverMap = new Map(drivers.items.map(d => [d.id, d.fullName]));
         const liveByVehicle = new Map(tracking.map(t => [t.vehicleId, t]));
         const deviceByVehicle = new Map(
@@ -245,6 +338,10 @@ export class GpsTrackingService {
     fromCache?: boolean;
     placeName?: string;
     placeType?: string;
+    primaryAddress?: string;
+    nearbyPlaceName?: string;
+    localityLine?: string;
+    addressQuality?: 'exact' | 'nearby' | 'coarse' | string;
   } | null> {
     const params: Record<string, string> = {
       lat: String(lat),
@@ -264,6 +361,10 @@ export class GpsTrackingService {
           fromCache?: boolean;
           placeName?: string;
           placeType?: string;
+          primaryAddress?: string;
+          nearbyPlaceName?: string;
+          localityLine?: string;
+          addressQuality?: 'exact' | 'nearby' | 'coarse' | string;
         };
         formattedAddress?: string;
         road?: string;
@@ -274,6 +375,10 @@ export class GpsTrackingService {
         fromCache?: boolean;
         placeName?: string;
         placeType?: string;
+        primaryAddress?: string;
+        nearbyPlaceName?: string;
+        localityLine?: string;
+        addressQuality?: 'exact' | 'nearby' | 'coarse' | string;
       }>(`${this.base}/location/reverse`, { params })
       .pipe(
         map(res => {
@@ -298,6 +403,14 @@ export class GpsTrackingService {
             PlaceName?: string;
             placeType?: string;
             PlaceType?: string;
+            primaryAddress?: string;
+            PrimaryAddress?: string;
+            nearbyPlaceName?: string;
+            NearbyPlaceName?: string;
+            localityLine?: string;
+            LocalityLine?: string;
+            addressQuality?: 'exact' | 'nearby' | 'coarse' | string;
+            AddressQuality?: 'exact' | 'nearby' | 'coarse' | string;
           };
           const formattedAddress =
             r.formattedAddress?.trim() || r.FormattedAddress?.trim() || '';
@@ -311,7 +424,11 @@ export class GpsTrackingService {
             postalCode: r.postalCode ?? r.PostalCode,
             fromCache: r.fromCache ?? r.FromCache,
             placeName: r.placeName ?? r.PlaceName,
-            placeType: r.placeType ?? r.PlaceType
+            placeType: r.placeType ?? r.PlaceType,
+            primaryAddress: r.primaryAddress ?? r.PrimaryAddress,
+            nearbyPlaceName: r.nearbyPlaceName ?? r.NearbyPlaceName,
+            localityLine: r.localityLine ?? r.LocalityLine,
+            addressQuality: r.addressQuality ?? r.AddressQuality
           };
         }),
         catchError(() => of(null))
@@ -325,10 +442,18 @@ export class GpsTrackingService {
     return this.http.get<PositionDto[]>(`${this.base}/history/${vehicleId}`, { params });
   }
 
-  getHistoryReplay(vehicleId: number, from?: Date, to?: Date): Observable<HistoryReplayBundle> {
+  getHistoryReplay(
+    vehicleId: number,
+    from?: Date,
+    to?: Date,
+    options?: { routeMaxPoints?: number; playbackMaxPoints?: number; includeRaw?: boolean }
+  ): Observable<HistoryReplayBundle> {
     const params: Record<string, string> = { vehicleId: String(vehicleId) };
     if (from) params['from'] = from.toISOString();
     if (to) params['to'] = to.toISOString();
+    if (options?.routeMaxPoints != null) params['routeMaxPoints'] = String(options.routeMaxPoints);
+    if (options?.playbackMaxPoints != null) params['playbackMaxPoints'] = String(options.playbackMaxPoints);
+    if (options?.includeRaw != null) params['includeRaw'] = String(options.includeRaw);
     return this.http.get<HistoryReplayBundle>(`${this.base}/history/replay`, { params });
   }
 
@@ -356,10 +481,18 @@ export class GpsTrackingService {
     return this.http.get<TripAnalyticsBundle>(`${this.base}/trips/analytics`, { params });
   }
 
-  getTripReplay(vehicleId: number, from?: Date, to?: Date): Observable<TripReplayBundle> {
+  getTripReplay(
+    vehicleId: number,
+    from?: Date,
+    to?: Date,
+    options?: { routeMaxPoints?: number; playbackMaxPoints?: number; includeRaw?: boolean }
+  ): Observable<TripReplayBundle> {
     const params: Record<string, string> = { vehicleId: String(vehicleId) };
     if (from) params['from'] = from.toISOString();
     if (to) params['to'] = to.toISOString();
+    if (options?.routeMaxPoints != null) params['routeMaxPoints'] = String(options.routeMaxPoints);
+    if (options?.playbackMaxPoints != null) params['playbackMaxPoints'] = String(options.playbackMaxPoints);
+    if (options?.includeRaw != null) params['includeRaw'] = String(options.includeRaw);
     return this.http.get<TripReplayBundle>(`${this.base}/trips/replay`, { params });
   }
 

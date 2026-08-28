@@ -13,7 +13,13 @@ using System.Text.Json;
 
 namespace SheikhTravelSystem.Application.Features.GpsTracking.Queries;
 
-public record GetHistoryReplayQuery(int? VehicleId, DateTime? FromDate, DateTime? ToDate)
+public record GetHistoryReplayQuery(
+    int? VehicleId,
+    DateTime? FromDate,
+    DateTime? ToDate,
+    int? RouteMaxPoints = null,
+    int? PlaybackMaxPoints = null,
+    bool IncludeRaw = false)
     : IRequest<ApiResponse<HistoryReplayBundleDto>>;
 
 public class GetHistoryReplayQueryHandler(
@@ -22,9 +28,12 @@ public class GetHistoryReplayQueryHandler(
     ITraccarClient traccarClient,
     IOptions<TraccarOptions> traccarOptions,
     ITenantContext tenantContext,
-    IReverseGeocodingService reverseGeocodingService)
+    IReverseGeocodingService reverseGeocodingService,
+    IAppCache cache)
     : IRequestHandler<GetHistoryReplayQuery, ApiResponse<HistoryReplayBundleDto>>
 {
+    private static readonly TimeSpan ReplayCacheTtl = TimeSpan.FromMinutes(3);
+
     public async Task<ApiResponse<HistoryReplayBundleDto>> Handle(
         GetHistoryReplayQuery request,
         CancellationToken cancellationToken)
@@ -46,7 +55,42 @@ public class GetHistoryReplayQueryHandler(
 
         var vehicleContext = await TripVehicleQueryHelper.BuildContextAsync(
             dbFactory, tenantContext, vehicleId, cancellationToken);
+        if (vehicleContext is null)
+            return ApiResponse<HistoryReplayBundleDto>.FailResponse("Vehicle context unavailable.");
+        var tenantId = tenantContext.GetRequiredTenantId();
+        var routeMaxPoints = request.RouteMaxPoints;
+        var playbackMaxPoints = request.PlaybackMaxPoints;
+        var includeRaw = request.IncludeRaw;
 
+        var cacheKey = $"gps:history-replay:{tenantId}:{vehicleId}:{fromDate:O}:{toDate:O}:{routeMaxPoints?.ToString() ?? "default"}:{playbackMaxPoints?.ToString() ?? "default"}:{includeRaw}";
+
+        return await cache.GetOrCreateAsync(
+            cacheKey,
+            ReplayCacheTtl,
+            async ct => await BuildReplayResponseAsync(
+                source,
+                vehicleContext!,
+                vehicleId,
+                fromDate,
+                toDate,
+                routeMaxPoints,
+                playbackMaxPoints,
+                includeRaw,
+                ct),
+            cancellationToken);
+    }
+
+    private async Task<ApiResponse<HistoryReplayBundleDto>> BuildReplayResponseAsync(
+        TripVehicleQueryHelper.VehicleTripSource source,
+        TripDeviceContextDto vehicleContext,
+        int vehicleId,
+        DateTime fromDate,
+        DateTime toDate,
+        int? routeMaxPoints,
+        int? playbackMaxPoints,
+        bool includeRaw,
+        CancellationToken cancellationToken)
+    {
         IReadOnlyDictionary<int, string>? geofenceNames = null;
         var opts = traccarOptions.Value;
         TripReplayBundleDto bundle;
@@ -61,13 +105,15 @@ public class GetHistoryReplayQueryHandler(
                 toDate,
                 cancellationToken,
                 geofenceNames,
-                routeMaxPoints: 5000,
-                playbackMaxPoints: 2500);
+                routeMaxPoints,
+                playbackMaxPoints,
+                includeRaw);
         }
         else
         {
             bundle = await TripReplayLoader.LoadFromLocalHistoryAsync(
-                mediator, vehicleId, fromDate, toDate, cancellationToken);
+                mediator, vehicleId, fromDate, toDate, cancellationToken,
+                routeMaxPoints, playbackMaxPoints, includeRaw);
         }
 
         if (bundle.Route.Count == 0 && bundle.Playback.Count == 0)
@@ -292,6 +338,7 @@ public class GetHistoryExportQueryHandler(
         CancellationToken cancellationToken)
     {
         using var connection = dbFactory.CreateConnection();
+        var toExclusive = toDate.AddTicks(1);
 
         if (opts.Enabled)
         {
@@ -331,9 +378,11 @@ public class GetHistoryExportQueryHandler(
             @"SELECT Id, VehicleId, DriverId, BookingId, GpsDeviceId, Latitude, Longitude, Speed,
                      Heading, Altitude, Ignition, RecordedAt AS Timestamp, Address
               FROM GpsPositions
-              WHERE VehicleId = @VehicleId AND RecordedAt BETWEEN @FromDate AND @ToDate
+              WHERE VehicleId = @VehicleId
+                AND RecordedAt >= @FromDate
+                AND RecordedAt < @ToExclusive
               ORDER BY RecordedAt ASC",
-            new { VehicleId = vehicleId, FromDate = fromDate, ToDate = toDate },
+            new { VehicleId = vehicleId, FromDate = fromDate, ToExclusive = toExclusive },
             cancellationToken: cancellationToken));
 
         return localRows.Select(GpsPositionHistoryMapper.ToPositionDto).ToList();

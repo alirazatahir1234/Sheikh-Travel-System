@@ -1,9 +1,9 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal, ViewChild, OnInit, DestroyRef } from '@angular/core';
+import { DatePipe, DecimalPipe } from '@angular/common';
 import { Router, RouterModule, NavigationEnd } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatButtonModule } from '@angular/material/button';
-import { DatePipe, DecimalPipe } from '@angular/common';
 import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
 import { catchError, forkJoin, of, filter } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -56,8 +56,6 @@ import {
     MatIconModule,
     MatMenuModule,
     MatButtonModule,
-    DatePipe,
-    DecimalPipe,
     UiButtonComponent,
     UiPageHeaderComponent,
     FleetSummaryCardComponent,

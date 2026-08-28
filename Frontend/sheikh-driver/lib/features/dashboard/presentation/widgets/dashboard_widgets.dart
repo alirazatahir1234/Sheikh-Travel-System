@@ -96,52 +96,68 @@ class OpsHeaderCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dateLabel = DateFormat('d MMMM yyyy').format(DateTime.now());
-    final syncLabel = lastSyncedAt == null
-        ? '—'
-        : DateFormat('h:mm a').format(lastSyncedAt!.toLocal());
-    final isCommand = role == DashboardRole.fleetManager ||
-        role == DashboardRole.gpsOperator ||
-        role == DashboardRole.tenantAdmin ||
-        role == DashboardRole.superAdmin ||
-        role == DashboardRole.dispatcher;
+    final dateLabel = DateFormat('MMM d, yyyy').format(DateTime.now());
 
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                isCommand ? 'Fleet' : '${dashboardGreeting()}, $name',
-                style: const TextStyle(
+              const Text(
+                'Dashboard',
+                style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.w800,
                   color: AppColors.textPrimary,
+                  height: 1.1,
                 ),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 3),
+              RichText(
+                text: TextSpan(
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: AppColors.textSecondary,
+                  ),
+                  children: [
+                    const TextSpan(text: 'Welcome back, '),
+                    TextSpan(
+                      text: name,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                    const TextSpan(text: ' 👋'),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(AppRadii.md),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.calendar_today_outlined,
+                  size: 12, color: AppColors.textSecondary),
+              const SizedBox(width: 4),
               Text(
-                isCommand
-                    ? role.subtitle
-                    : '${role.commandLabel} · $dateLabel',
+                dateLabel,
                 style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
                   color: AppColors.textSecondary,
                 ),
               ),
-              if (!isCommand) ...[
-                const SizedBox(height: 4),
-                Text(
-                  'Synced $syncLabel',
-                  style: const TextStyle(
-                    fontSize: 11,
-                    color: AppColors.textMuted,
-                  ),
-                ),
-              ],
             ],
           ),
         ),
@@ -201,33 +217,11 @@ class PrimaryKpiStrip extends StatelessWidget {
       children: [
         const SgSectionTitle('Overview'),
         const SizedBox(height: 8),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final wide = constraints.maxWidth >= 520;
-            final children = [
-              for (final c in cells)
-                _PrimaryKpiTile(cell: c),
-            ];
-            if (wide && cells.length <= 4) {
-              return Row(
-                children: [
-                  for (var i = 0; i < children.length; i++) ...[
-                    if (i > 0) const SizedBox(width: 8),
-                    Expanded(child: children[i]),
-                  ],
-                ],
-              );
-            }
-            return GridView.count(
-              crossAxisCount: wide ? 4 : 2,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              mainAxisSpacing: 8,
-              crossAxisSpacing: 8,
-              childAspectRatio: 1.55,
-              children: children,
-            );
-          },
+        ChunkedGrid(
+          crossAxisCount: 2,
+          mainAxisSpacing: 8,
+          crossAxisSpacing: 8,
+          children: [for (final c in cells) _PrimaryKpiTile(cell: c)],
         ),
       ],
     );
@@ -238,36 +232,68 @@ class _PrimaryKpiTile extends StatelessWidget {
   const _PrimaryKpiTile({required this.cell});
   final KpiCell cell;
 
+  IconData _icon(String label) {
+    final l = label.toLowerCase();
+    if (l.contains('vehicle')) return Icons.local_shipping_rounded;
+    if (l.contains('driver')) return Icons.person_rounded;
+    if (l.contains('trip')) return Icons.route_rounded;
+    if (l.contains('alert')) return Icons.shield_outlined;
+    if (l.contains('online')) return Icons.wifi_rounded;
+    return Icons.bar_chart_rounded;
+  }
+
   @override
   Widget build(BuildContext context) {
     final color = _colorKey(cell.colorKey);
     return SgCard(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       onTap: cell.route == null ? null : () => context.push(cell.route!),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center,
         children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(_icon(cell.label), color: color, size: 18),
+          ),
+          const SizedBox(height: 8),
           Text(
             cell.label,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               fontSize: 11,
-              fontWeight: FontWeight.w600,
+              fontWeight: FontWeight.w500,
               color: AppColors.textSecondary,
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 1),
           Text(
             cell.value,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: 18,
+            style: const TextStyle(
+              fontSize: 24,
               fontWeight: FontWeight.w800,
-              color: color,
+              color: AppColors.textPrimary,
+              height: 1.1,
             ),
           ),
+          if (cell.subtitle != null && cell.subtitle!.isNotEmpty)
+            Text(
+              cell.subtitle!,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                color: color,
+              ),
+            ),
         ],
       ),
     );
@@ -299,130 +325,188 @@ class FleetHealthCard extends StatelessWidget {
         const SgSectionTitle('Fleet Health'),
         const SizedBox(height: 8),
         SgCard(
-          child: Column(
-            children: [
-              Row(
-                children: [
-                  SizedBox(
-                    width: 96,
-                    height: 96,
-                    child: Stack(
-                      alignment: Alignment.center,
+          child: total == 0
+              ? _NoVehiclesPlaceholder(updated: updated)
+              : Column(
+                  children: [
+                    Row(
                       children: [
                         SizedBox(
                           width: 96,
                           height: 96,
-                          child: CircularProgressIndicator(
-                            value: (pct / 100).clamp(0.0, 1.0),
-                            strokeWidth: 8,
-                            backgroundColor: AppColors.border,
-                            color: pct >= 80
-                                ? AppColors.success
-                                : pct >= 50
-                                    ? AppColors.warning
-                                    : AppColors.error,
+                          child: Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              SizedBox(
+                                width: 96,
+                                height: 96,
+                                child: CircularProgressIndicator(
+                                  value: (pct / 100).clamp(0.0, 1.0),
+                                  strokeWidth: 8,
+                                  backgroundColor: AppColors.border,
+                                  color: pct >= 80
+                                      ? AppColors.success
+                                      : pct >= 50
+                                          ? AppColors.warning
+                                          : AppColors.error,
+                                ),
+                              ),
+                              Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    '${pct.round()}%',
+                                    style: const TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.w800,
+                                      color: AppColors.textPrimary,
+                                    ),
+                                  ),
+                                  Text(
+                                    data.healthLabel,
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                      color: pct >= 80
+                                          ? AppColors.success
+                                          : pct >= 50
+                                              ? AppColors.warning
+                                              : AppColors.error,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
                           ),
                         ),
-                        Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              '${pct.round()}%',
-                              style: const TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.w800,
-                                color: AppColors.textPrimary,
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            children: [
+                              _HealthStatRow(
+                                icon: Icons.local_shipping_outlined,
+                                color: AppColors.primary,
+                                label: 'Total Vehicles',
+                                value: '$total',
                               ),
-                            ),
-                            Text(
-                              data.healthLabel,
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                color: pct >= 80
-                                    ? AppColors.success
-                                    : pct >= 50
-                                        ? AppColors.warning
-                                        : AppColors.error,
+                              _HealthStatRow(
+                                icon: Icons.person_outline,
+                                color: AppColors.success,
+                                label: 'Active',
+                                value: '$active',
                               ),
-                            ),
-                          ],
+                              _HealthStatRow(
+                                icon: Icons.signal_wifi_off_outlined,
+                                color: AppColors.error,
+                                label: 'Offline',
+                                value: '$offline',
+                              ),
+                              _HealthStatRow(
+                                icon: Icons.build_outlined,
+                                color: AppColors.warning,
+                                label: 'Maintenance',
+                                value: '$maintenance',
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
+                    if (data.healthSummary != null &&
+                        data.healthSummary!.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.06),
+                          borderRadius: BorderRadius.circular(AppRadii.md),
+                        ),
+                        child: Text(
+                          data.healthSummary!,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            height: 1.35,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 10),
+                    Row(
                       children: [
-                        _HealthStatRow(
-                          icon: Icons.local_shipping_outlined,
-                          color: AppColors.primary,
-                          label: 'Total Vehicles',
-                          value: '$total',
-                        ),
-                        _HealthStatRow(
-                          icon: Icons.person_outline,
-                          color: AppColors.success,
-                          label: 'Active',
-                          value: '$active',
-                        ),
-                        _HealthStatRow(
-                          icon: Icons.signal_wifi_off_outlined,
-                          color: AppColors.error,
-                          label: 'Offline',
-                          value: '$offline',
-                        ),
-                        _HealthStatRow(
-                          icon: Icons.build_outlined,
-                          color: AppColors.warning,
-                          label: 'Maintenance',
-                          value: '$maintenance',
+                        const Icon(Icons.refresh_rounded,
+                            size: 14, color: AppColors.textSecondary),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Updated $updated',
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: AppColors.textSecondary,
+                          ),
                         ),
                       ],
                     ),
-                  ),
-                ],
-              ),
-              if (data.healthSummary != null &&
-                  data.healthSummary!.isNotEmpty) ...[
-                const SizedBox(height: 12),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.06),
-                    borderRadius: BorderRadius.circular(AppRadii.md),
-                  ),
-                  child: Text(
-                    data.healthSummary!,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      height: 1.35,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
+                  ],
                 ),
-              ],
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  const Icon(Icons.refresh_rounded,
-                      size: 14, color: AppColors.textSecondary),
-                  const SizedBox(width: 4),
-                  Text(
-                    'Updated $updated',
-                    style: const TextStyle(
-                      fontSize: 11,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ],
+        ),
+      ],
+    );
+  }
+}
+
+class _NoVehiclesPlaceholder extends StatelessWidget {
+  const _NoVehiclesPlaceholder({required this.updated});
+  final String updated;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Column(
+        children: [
+          const Icon(
+            Icons.local_shipping_outlined,
+            size: 40,
+            color: AppColors.textMuted,
+          ),
+          const SizedBox(height: 10),
+          const Text(
+            'No vehicles in fleet',
+            style: TextStyle(
+              fontWeight: FontWeight.w700,
+              fontSize: 15,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Add vehicles to see live GPS health and tracking data.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 12,
+              height: 1.4,
+              color: AppColors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.refresh_rounded,
+                  size: 13, color: AppColors.textMuted),
+              const SizedBox(width: 4),
+              Text(
+                'Updated $updated',
+                style: const TextStyle(
+                  fontSize: 11,
+                  color: AppColors.textMuted,
+                ),
               ),
             ],
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -683,6 +767,9 @@ class AiCopilotSummaryCard extends StatelessWidget {
     super.key,
     required this.items,
     required this.canOpenAi,
+    // fleetHealthPercent is no longer shown in the dashboard strip.
+    // ignore: avoid_unused_constructor_parameters
+    double? fleetHealthPercent,
   });
 
   final List<AiAttentionItem> items;
@@ -690,91 +777,76 @@ class AiCopilotSummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (items.isEmpty) return const SizedBox.shrink();
-    final prompts = items
+    final firstPrompt = items
         .map((e) => e.suggestedPrompt)
         .whereType<String>()
         .where((s) => s.isNotEmpty)
-        .toList();
+        .firstOrNull;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            const Icon(Icons.auto_awesome_rounded,
-                size: 18, color: AppColors.primary),
-            const SizedBox(width: 6),
-            const Expanded(child: SgSectionTitle('AI Copilot Summary')),
-            if (canOpenAi)
-              TextButton(
-                onPressed: () => context.push('/ai'),
-                child: const Text('Ask AI'),
-              ),
-          ],
-        ),
-        const SizedBox(height: 4),
-        SgCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const Text(
-                "Today's Summary",
-                style: TextStyle(
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              const SizedBox(height: 10),
-              ...items.map(
-                (item) => Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        width: 8,
-                        height: 8,
-                        margin: const EdgeInsets.only(top: 5),
-                        decoration: BoxDecoration(
-                          color: _severityColor(item.severity),
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          item.text,
-                          style: const TextStyle(
-                            fontSize: 13,
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                      ),
-                    ],
+    return SgCard(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      child: Row(
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(Icons.auto_awesome_rounded,
+                size: 20, color: AppColors.primary),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'AI Copilot',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
                   ),
                 ),
-              ),
-              if (canOpenAi) ...[
-                const SizedBox(height: 6),
-                SgPrimaryButton(
-                  label: 'Open AI Copilot',
-                  icon: Icons.auto_awesome_rounded,
-                  onPressed: () {
-                    if (prompts.isNotEmpty) {
-                      context.push(
-                        '/ai?q=${Uri.encodeComponent(prompts.first)}',
-                      );
-                    } else {
-                      context.push('/ai');
-                    }
-                  },
+                const Text(
+                  'Ask anything about your fleet...',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: AppColors.textSecondary,
+                  ),
                 ),
               ],
-            ],
+            ),
           ),
-        ),
-      ],
+          if (canOpenAi)
+            TextButton(
+              onPressed: () {
+                if (firstPrompt != null) {
+                  context.push('/ai?q=${Uri.encodeComponent(firstPrompt)}');
+                } else {
+                  context.push('/ai');
+                }
+              },
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.primary,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('Ask AI',
+                      style: TextStyle(
+                          fontSize: 13, fontWeight: FontWeight.w700)),
+                  SizedBox(width: 2),
+                  Icon(Icons.chevron_right_rounded, size: 16),
+                ],
+              ),
+            ),
+        ],
+      ),
     );
   }
 }
@@ -791,7 +863,9 @@ class CriticalAlertsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final grouped = _groupAlerts(events);
     final badge = criticalCount > 0 ? criticalCount : events.length;
+    final visible = grouped.take(3).toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -816,27 +890,64 @@ class CriticalAlertsCard extends StatelessWidget {
                   ),
                 ),
               ),
+            const SizedBox(width: 8),
+            GestureDetector(
+              onTap: () => context.push('/alerts'),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'View all alerts',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                  SizedBox(width: 2),
+                  Icon(Icons.chevron_right_rounded,
+                      size: 16, color: AppColors.primary),
+                ],
+              ),
+            ),
           ],
         ),
         const SizedBox(height: 8),
         SgCard(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
           child: events.isEmpty
-              ? const Text(
-                  'No open critical alerts',
-                  style: TextStyle(color: AppColors.textSecondary),
+              ? const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 6),
+                  child: Text(
+                    'No open critical alerts',
+                    style: TextStyle(color: AppColors.textSecondary),
+                  ),
                 )
               : Column(
                   children: [
-                    for (var i = 0; i < events.length; i++) ...[
-                      if (i > 0) const Divider(height: 16),
-                      _AlertRow(event: events[i]),
+                    for (var i = 0; i < visible.length; i++) ...[
+                      if (i > 0)
+                        const Divider(height: 1, color: AppColors.divider),
+                      _AlertRow(alert: visible[i]),
                     ],
-                    const SizedBox(height: 8),
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: TextButton(
-                        onPressed: () => context.push('/alerts'),
-                        child: const Text('View all alerts'),
+                    const Divider(height: 1, color: AppColors.divider),
+                    InkWell(
+                      onTap: () => context.push('/alerts'),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              'View all $badge alerts →',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ],
@@ -845,84 +956,119 @@ class CriticalAlertsCard extends StatelessWidget {
       ],
     );
   }
+
+  List<_GroupedAlert> _groupAlerts(List<GpsAlertEvent> source) {
+    final map = <String, _GroupedAlert>{};
+    for (final event in source) {
+      final key = '${event.vehicleId}:${event.eventType.toLowerCase()}';
+      final existing = map[key];
+      if (existing == null) {
+        map[key] = _GroupedAlert(event: event, count: 1);
+        continue;
+      }
+      if (event.timestamp.isAfter(existing.event.timestamp)) {
+        map[key] = _GroupedAlert(event: event, count: existing.count + 1);
+      } else {
+        map[key] = _GroupedAlert(event: existing.event, count: existing.count + 1);
+      }
+    }
+    final grouped = map.values.toList();
+    grouped.sort((a, b) => b.event.timestamp.compareTo(a.event.timestamp));
+    return grouped;
+  }
 }
 
 class _AlertRow extends StatelessWidget {
-  const _AlertRow({required this.event});
-  final GpsAlertEvent event;
+  const _AlertRow({required this.alert});
+  final _GroupedAlert alert;
+
+  static String _humanize(String eventType) {
+    if (eventType.isEmpty) return 'Alert';
+    return eventType
+        .replaceAll('_', ' ')
+        .split(' ')
+        .map((w) => w.isEmpty ? '' : '${w[0].toUpperCase()}${w.substring(1).toLowerCase()}')
+        .join(' ');
+  }
 
   @override
   Widget build(BuildContext context) {
+    final event = alert.event;
     final color = _severityColor(event.severity);
-    final detail = [
-      if (event.vehicleName != null && event.vehicleName!.isNotEmpty)
-        event.vehicleName!
-      else
-        'VH-${event.vehicleId}',
-      if (event.speed > 0) '${event.speed.toStringAsFixed(0)} km/h',
-      if (event.geofenceName != null) event.geofenceName!,
-      if (event.batteryHint != null) event.batteryHint!,
-    ].join(' · ');
+    final vehicleName =
+        (event.vehicleName?.isNotEmpty == true) ? event.vehicleName! : 'VH-${event.vehicleId}';
 
     return InkWell(
       onTap: () => context.push('/alerts'),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 4,
-            height: 40,
-            decoration: BoxDecoration(
-              color: color,
-              borderRadius: BorderRadius.circular(2),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Container(
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(
+                color: color,
+                shape: BoxShape.circle,
+              ),
             ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  event.eventType.isEmpty ? 'Alert' : event.eventType,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary,
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _humanize(event.eventType),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  detail,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: AppColors.textSecondary,
+                  const SizedBox(height: 1),
+                  Text(
+                    alert.count > 1 ? '$vehicleName · x${alert.count}' : vehicleName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: AppColors.textSecondary,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          Text(
-            _relativeTime(event.timestamp),
-            style: const TextStyle(
-              fontSize: 11,
-              color: AppColors.textSecondary,
+            const SizedBox(width: 8),
+            Text(
+              _relativeTime(event.timestamp),
+              style: const TextStyle(
+                fontSize: 11,
+                color: AppColors.textSecondary,
+              ),
             ),
-          ),
-        ],
+            const SizedBox(width: 4),
+            const Icon(Icons.chevron_right_rounded,
+                size: 16, color: AppColors.textMuted),
+          ],
+        ),
       ),
     );
   }
 }
 
-extension on GpsAlertEvent {
-  String? get batteryHint {
-    final m = message.toLowerCase();
-    if (m.contains('battery')) {
-      final match = RegExp(r'(\d+)\s*%').firstMatch(message);
-      if (match != null) return '${match.group(1)}%';
-    }
-    return null;
-  }
+class _GroupedAlert {
+  const _GroupedAlert({
+    required this.event,
+    required this.count,
+  });
+
+  final GpsAlertEvent event;
+  final int count;
 }
+
 
 class TodayOpsKpiRow extends StatelessWidget {
   const TodayOpsKpiRow({super.key, required this.data});
@@ -989,13 +1135,10 @@ class TodayOpsKpiRow extends StatelessWidget {
                 ],
               );
             }
-            return GridView.count(
+            return ChunkedGrid(
               crossAxisCount: 2,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
               mainAxisSpacing: 10,
               crossAxisSpacing: 10,
-              childAspectRatio: 1.35,
               children: cards,
             );
           },
@@ -1007,6 +1150,50 @@ class TodayOpsKpiRow extends StatelessWidget {
 
 extension on String {
   String ifEmpty(String fallback) => isEmpty ? fallback : this;
+}
+
+/// Replaces shrinkWrap GridView.count (which triggers semantics assertion
+/// floods when nested in a ListView) with a plain Column + Row layout.
+class ChunkedGrid extends StatelessWidget {
+  const ChunkedGrid({
+    super.key,
+    required this.children,
+    required this.crossAxisCount,
+    this.mainAxisSpacing = 8,
+    this.crossAxisSpacing = 8,
+  });
+
+  final List<Widget> children;
+  final int crossAxisCount;
+  final double mainAxisSpacing;
+  final double crossAxisSpacing;
+
+  @override
+  Widget build(BuildContext context) {
+    final rows = <Widget>[];
+    for (var i = 0; i < children.length; i += crossAxisCount) {
+      final rowItems = children.sublist(
+        i,
+        (i + crossAxisCount).clamp(0, children.length),
+      );
+      // Pad with Spacer/Expanded placeholders if last row is short
+      final cells = <Widget>[];
+      for (var j = 0; j < rowItems.length; j++) {
+        if (j > 0) cells.add(SizedBox(width: crossAxisSpacing));
+        cells.add(Expanded(child: rowItems[j]));
+      }
+      // Fill remainder
+      for (var j = rowItems.length; j < crossAxisCount; j++) {
+        cells.add(SizedBox(width: crossAxisSpacing));
+        cells.add(const Expanded(child: SizedBox.shrink()));
+      }
+      rows.add(IntrinsicHeight(child: Row(children: cells)));
+      if (i + crossAxisCount < children.length) {
+        rows.add(SizedBox(height: mainAxisSpacing));
+      }
+    }
+    return Column(mainAxisSize: MainAxisSize.min, children: rows);
+  }
 }
 
 class _MiniKpi extends StatelessWidget {
@@ -1191,42 +1378,162 @@ class LiveFleetCard extends StatelessWidget {
 }
 
 class KpiStrip extends StatelessWidget {
-  const KpiStrip({super.key, required this.items});
+  const KpiStrip({
+    super.key,
+    required this.items,
+    this.title,
+    this.viewAllLabel,
+    this.viewAllRoute,
+  });
   final List<(String, String, Color)> items;
+  final String? title;
+  final String? viewAllLabel;
+  final String? viewAllRoute;
 
   @override
   Widget build(BuildContext context) {
-    return SgCard(
-      child: Row(
-        children: [
-          for (var i = 0; i < items.length; i++) ...[
-            if (i > 0) const SizedBox(width: 8),
-            Expanded(
-              child: Column(
+    // Parse total for % bar
+    int total = 0;
+    for (final it in items) {
+      total += int.tryParse(it.$2) ?? 0;
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (title != null) ...[
+          Row(
+            children: [
+              Expanded(child: SgSectionTitle(title!)),
+              if (viewAllLabel != null && viewAllRoute != null)
+                GestureDetector(
+                  onTap: () => context.push(viewAllRoute!),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        viewAllLabel!,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                      const SizedBox(width: 2),
+                      const Icon(Icons.chevron_right_rounded,
+                          size: 16, color: AppColors.primary),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 8),
+        ],
+        SgCard(
+          child: Column(
+            children: [
+              Row(
                 children: [
-                  Text(
-                    items[i].$2,
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
-                      color: items[i].$3,
+                  for (var i = 0; i < items.length; i++) ...[
+                    if (i > 0)
+                      Container(
+                          height: 36,
+                          width: 1,
+                          color: AppColors.divider),
+                    Expanded(
+                      child: Column(
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              Container(
+                                width: 10,
+                                height: 10,
+                                decoration: BoxDecoration(
+                                  color:
+                                      items[i].$3.withValues(alpha: 0.8),
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                              const SizedBox(width: 5),
+                              Text(
+                                items[i].$2,
+                                style: TextStyle(
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.w800,
+                                  color: items[i].$3,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            items[i].$1,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    items[i].$1,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontSize: 11,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
+                  ],
                 ],
               ),
-            ),
-          ],
-        ],
-      ),
+              if (total > 0) ...[
+                const SizedBox(height: 10),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: Row(
+                    children: [
+                      for (final it in items)
+                        Builder(builder: (ctx) {
+                          final n = int.tryParse(it.$2) ?? 0;
+                          final frac = total > 0 ? n / total : 0.0;
+                          if (frac <= 0) return const SizedBox.shrink();
+                          return Flexible(
+                            flex: n,
+                            child: Container(
+                              height: 4,
+                              color: it.$3.withValues(alpha: 0.7),
+                            ),
+                          );
+                        }),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    for (var i = 0; i < items.length; i++) ...[
+                      Expanded(
+                        child: Builder(builder: (_) {
+                          final n = int.tryParse(items[i].$2) ?? 0;
+                          final pct = total > 0
+                              ? '${(n * 100 ~/ total)}%'
+                              : '0%';
+                          return Text(
+                            pct,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                              color:
+                                  items[i].$3.withValues(alpha: 0.8),
+                            ),
+                          );
+                        }),
+                      ),
+                    ],
+                  ],
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
@@ -1640,37 +1947,73 @@ class QuickActionsGrid extends StatelessWidget {
   const QuickActionsGrid({super.key, required this.actions});
   final List<DashboardQuickAction> actions;
 
+  String _subtitle(String iconName) => switch (iconName) {
+        'fleet' => 'Manage vehicles',
+        'map' => 'Track in real-time',
+        'alert' => 'View all alerts',
+        'route' => 'All trips',
+        'reports' => 'Analytics & insights',
+        'drivers' => 'All drivers',
+        'fuel' => 'Fuel logs',
+        'build' => 'Work orders',
+        _ => '',
+      };
+
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SgSectionTitle('Quick Actions'),
+        Row(
+          children: [
+            const Expanded(child: SgSectionTitle('Quick Actions')),
+            TextButton(
+              onPressed: () => context.push('/more'),
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.primary,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('View all',
+                      style: TextStyle(
+                          fontSize: 13, fontWeight: FontWeight.w600)),
+                  SizedBox(width: 2),
+                  Icon(Icons.chevron_right_rounded, size: 16),
+                ],
+              ),
+            ),
+          ],
+        ),
         const SizedBox(height: 8),
         SizedBox(
-          height: 88,
+          height: 96,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             itemCount: actions.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 10),
+            separatorBuilder: (_, __) => const SizedBox(width: 12),
             itemBuilder: (context, i) {
               final a = actions[i];
               final color = _colorKey(a.colorKey);
+              final sub = _subtitle(a.iconName);
               return InkWell(
                 onTap: () => context.push(a.route),
                 borderRadius: BorderRadius.circular(14),
                 child: SizedBox(
-                  width: 72,
+                  width: 76,
                   child: Column(
                     children: [
                       Container(
-                        width: 48,
-                        height: 48,
+                        width: 52,
+                        height: 52,
                         decoration: BoxDecoration(
-                          color: color.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(14),
+                          color: color.withValues(alpha: 0.11),
+                          borderRadius: BorderRadius.circular(16),
                         ),
-                        child: Icon(_iconName(a.iconName), color: color),
+                        child: Icon(_iconName(a.iconName),
+                            color: color, size: 26),
                       ),
                       const SizedBox(height: 6),
                       Text(
@@ -1679,11 +2022,22 @@ class QuickActionsGrid extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
                           color: AppColors.textPrimary,
                         ),
                       ),
+                      if (sub.isNotEmpty)
+                        Text(
+                          sub,
+                          textAlign: TextAlign.center,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 9,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
                     ],
                   ),
                 ),

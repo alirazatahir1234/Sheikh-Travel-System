@@ -1,13 +1,13 @@
+@use 'app/shared/styles/stb-form-fields';
+@use 'app/shared/styles/responsive';
+@use 'app/shared/styles/notification-popup';
+@use 'app/features/organization-hierarchy/organization-hierarchy-overrides';
+
 @import '@angular/material/prebuilt-themes/indigo-pink.css';
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-@import 'app/shared/styles/stb-form-fields';
-@import 'app/shared/styles/responsive';
-@import 'app/shared/styles/notification-popup';
-@import 'app/features/organization-hierarchy/organization-hierarchy-overrides';
 @import 'leaflet/dist/leaflet.css';
 @import 'leaflet.markercluster/dist/MarkerCluster.css';
 @import 'leaflet.markercluster/dist/MarkerCluster.Default.css';

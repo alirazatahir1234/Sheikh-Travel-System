@@ -7,6 +7,16 @@ public class GpsSettings
     public int PositionRetentionDays { get; set; } = 90;
 
     public int OfflineStaleMinutes { get; set; } = 10;
+    
+    /// <summary>
+    /// Minimum cooldown before raising another vehicle_offline event for the same vehicle.
+    /// </summary>
+    public int OfflineAlertCooldownMinutes { get; set; } = 120;
+
+    /// <summary>
+    /// Fleet-status moving threshold in km/h (for dashboard classification).
+    /// </summary>
+    public decimal FleetMovingSpeedKmh { get; set; } = 10m;
 
     public decimal LowBatteryThresholdPercent { get; set; } = 20m;
 

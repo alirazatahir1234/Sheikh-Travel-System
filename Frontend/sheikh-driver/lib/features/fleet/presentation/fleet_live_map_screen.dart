@@ -192,11 +192,11 @@ class _FleetLiveMapScreenState extends ConsumerState<FleetLiveMapScreen> {
     return AppColors.error;
   }
 
-  /// Prefer SignalR last event, then last quiet/manual poll from hub state.
+  /// Prefer SignalR last event, then freshest GPS / fleet refresh from hub.
   DateTime? get _lastSyncAt {
     final hub = ref.read(fleetHubProvider).valueOrNull;
     final signalrAt = FleetRealtimeService.instance.lastLocationAt;
-    final pollAt = hub?.lastLiveAt;
+    final pollAt = hub?.lastGpsAt ?? hub?.lastFleetRefreshAt;
     if (signalrAt == null) return pollAt;
     if (pollAt == null) return signalrAt;
     return signalrAt.isAfter(pollAt) ? signalrAt : pollAt;

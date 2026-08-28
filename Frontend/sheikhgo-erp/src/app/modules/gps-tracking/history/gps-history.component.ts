@@ -9,6 +9,7 @@ import { VehicleListItem, VehicleStatus } from '../../../core/models/vehicle.mod
 import {
   GpsDevice,
   HistoryReplayBundle,
+  PositionDto,
   TripAnalyticsSummary,
   TripReplayPosition,
   TripStop
@@ -23,7 +24,7 @@ import {
 import { TripReplayMapComponent } from '../shared/trip-replay-map/trip-replay-map.component';
 import { resolveReplayStatus } from '../../../core/leaflet/fleet-vehicle-marker';
 import {
-  formatResolvedAddress,
+  formatFleetDisplayAddress,
   isCoarseAddress,
   splitDisplayAddress
 } from '../utils/gps-address.util';
@@ -31,6 +32,8 @@ import {
 const RECENT_VEHICLES_KEY = 'gps_history_recent';
 const MAX_RECENT = 5;
 const LOAD_TIMEOUT_MS = 20_000;
+const LAST7_ROUTE_MAX_POINTS = 3000;
+const LAST7_PLAYBACK_MAX_POINTS = 1000;
 
 export type HistoryRouteFilter =
   | 'route'
@@ -90,7 +93,18 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
     apply: (address: string) => void;
   }>();
   private readonly addressCache = new Map<string, string | null>();
+  private readonly addressMetaCache = new Map<string, {
+    primaryAddress?: string;
+    nearbyPlaceName?: string;
+    localityLine?: string;
+    addressQuality?: 'exact' | 'nearby' | 'coarse' | string;
+    formattedAddress?: string;
+    placeName?: string;
+  } | null>();
   private resolvingAddressKey: string | null = null;
+  private readonly rawHistoryCache = new Map<string, TripReplayPosition[]>();
+  private rawLoadSub?: Subscription;
+  private rawCacheKey: string | null = null;
   selectedStopIndex: number | null = null;
 
   constructor(
@@ -121,8 +135,9 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
         return this.gps.reverseGeocode(req.lat, req.lng, req.forceRefresh).pipe(
           tap(info => {
             const address =
-              formatResolvedAddress(info?.formattedAddress, info?.placeName) || null;
+              this.resolveAddressFromGeocode(info) || null;
             this.addressCache.set(key, address);
+            this.addressMetaCache.set(key, info ?? null);
             if (address) req.apply(address);
             if (this.resolvingAddressKey === key) this.resolvingAddressKey = null;
           }),
@@ -151,6 +166,7 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.clearLoadTimers();
     this.loadSub?.unsubscribe();
+    this.rawLoadSub?.unsubscribe();
     this.geocodeSub?.unsubscribe();
     this.geocodeRequests$.complete();
   }
@@ -278,6 +294,16 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
     return rangeFrom <= to.getTime() && rangeTo >= from.getTime();
   }
 
+  get periodRangeLabel(): string {
+    const short = (raw: string) =>
+      new Date(raw).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    if (this.preset === 'custom') {
+      return `${short(this.from)} – ${short(this.to)}`;
+    }
+    const base = this.presets.find(p => p.id === this.preset)?.label || 'Custom range';
+    return this.showTodayMileageChip ? `${base} · Includes today` : base;
+  }
+
   get stoppedMinutes(): number {
     const stats = this.statistics;
     if (!stats) return 0;
@@ -340,6 +366,9 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
       this.activeRouteFilters.add(id);
     }
     this.activeRouteFilters = new Set(this.activeRouteFilters);
+    if (id === 'gpsPoints' && this.activeRouteFilters.has('gpsPoints')) {
+      void this.ensureRawPositionsLoaded();
+    }
   }
 
   isRouteFilterActive(id: HistoryRouteFilter): boolean {
@@ -361,6 +390,7 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
 
     this.clearLoadTimers();
     this.loadSub?.unsubscribe();
+    this.rawLoadSub?.unsubscribe();
     this.loading = true;
     this.loadingProgress = 0;
     this.loadingTimedOut = false;
@@ -369,6 +399,7 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
     this.bundle = null;
     this.selectedPosition = null;
     this.rawPositions = [];
+    this.rawCacheKey = null;
     this.loadAttempt++;
 
     this.progressTimer = setInterval(() => {
@@ -383,7 +414,12 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
       }
     }, LOAD_TIMEOUT_MS);
 
-    this.loadSub = this.gps.getHistoryReplay(this.vehicleId, fromDate, toDate).subscribe({
+    this.loadSub = this.gps.getHistoryReplay(
+      this.vehicleId,
+      fromDate,
+      toDate,
+      this.replayOptionsForWindow(fromDate, toDate)
+    ).subscribe({
       next: bundle => {
         this.finishLoading();
         const hasRoute = (bundle.route?.length ?? 0) > 0 || (bundle.playback?.length ?? 0) > 0;
@@ -398,7 +434,9 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
         this.selectedStopIndex = null;
         if (this.selectedPosition) this.ensureAddress(this.selectedPosition);
         this.enrichStopAddresses(bundle.stops);
-        this.loadRawPositions(fromDate, toDate);
+        if (this.showGpsPoints) {
+          void this.ensureRawPositionsLoaded(fromDate, toDate);
+        }
       },
       error: err => {
         this.finishLoading();
@@ -465,13 +503,63 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
 
   /** "Parking — Circular Road, Sialkot" */
   stopHeadline(stop: TripStop): string {
-    const label = this.stopLabel(stop);
+    return this.stopLabel(stop);
+  }
+
+  isParkingStop(stop: TripStop): boolean {
+    return stop.durationMinutes >= 120;
+  }
+
+  stopPrimaryLine(stop: TripStop): string {
+    const key = this.addressCacheKey(stop.latitude, stop.longitude);
+    const meta = this.addressMetaCache.get(key);
+    if (meta?.primaryAddress?.trim()) return meta.primaryAddress.trim();
     const full = this.stopAddressLabel(stop);
-    if (full === 'Resolving…' || full === 'Address unavailable') {
-      return `${label} — ${full}`;
+    if (full === 'Resolving…' || full === 'Address unavailable') return full;
+    return this.addressPrimaryLine(full) || full;
+  }
+
+  stopNearbyLine(stop: TripStop): string | null {
+    const key = this.addressCacheKey(stop.latitude, stop.longitude);
+    const meta = this.addressMetaCache.get(key);
+    const quality = (meta?.addressQuality || '').toLowerCase();
+    if (quality === 'coarse') return null;
+    const near = meta?.nearbyPlaceName?.trim();
+    if (!near) return null;
+    const primary = this.stopPrimaryLine(stop).toLowerCase();
+    if (primary.includes(near.toLowerCase())) return null;
+    return `Near: ${near}`;
+  }
+
+  stopLocalityLine(stop: TripStop): string | null {
+    const key = this.addressCacheKey(stop.latitude, stop.longitude);
+    const meta = this.addressMetaCache.get(key);
+    if (meta?.localityLine?.trim()) return meta.localityLine.trim();
+    return this.addressSecondaryLine(this.stopAddressLabel(stop));
+  }
+
+  formatCompactDuration(minutes: number): string {
+    if (!minutes || minutes < 1) return '0m';
+    const h = Math.floor(minutes / 60);
+    const m = minutes % 60;
+    if (h === 0) return `${m}m`;
+    if (m === 0) return `${h}h`;
+    return `${h}h ${m}m`;
+  }
+
+  stopTimeWindowLabel(stop: TripStop): string {
+    const start = new Date(stop.startTime);
+    const end = new Date(stop.endTime);
+    const day = start.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    const startTime = start.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+    if (!(end instanceof Date) || Number.isNaN(end.getTime()) || end <= start) {
+      return `${day} · ${startTime}`;
     }
-    const primary = this.addressPrimaryLine(full) || full;
-    return `${label} — ${primary}`;
+    const endTime = end.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+    const sameDay = start.toDateString() === end.toDateString();
+    if (sameDay) return `${day} · ${startTime} – ${endTime}`;
+    const endDay = end.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    return `${day} ${startTime} – ${endDay} ${endTime}`;
   }
 
   private ensureAddress(pos: TripReplayPosition): void {
@@ -537,6 +625,15 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
     return `${lat.toFixed(5)},${lng.toFixed(5)}`;
   }
 
+  private resolveAddressFromGeocode(info: {
+    formattedAddress?: string;
+    placeName?: string;
+    primaryAddress?: string;
+    localityLine?: string;
+  } | null): string | null {
+    return formatFleetDisplayAddress(info) || null;
+  }
+
   headingLabel(heading?: number | null): string {
     if (heading == null || !Number.isFinite(heading)) return '—';
     const dirs = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
@@ -588,32 +685,38 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
   }
 
   exportClient(format: 'csv' | 'excel' | 'pdf'): void {
-    const rows = this.rawPositions.length ? this.rawPositions : this.bundle?.route ?? [];
-    if (!rows.length || !this.vehicleId) {
+    if (!this.vehicleId || !this.bundle) {
       this.toast.error('Load a route before exporting.');
       return;
     }
-    const vehicle = this.selectedVehicle;
-    const label = vehicle ? `${vehicle.name}-${vehicle.registrationNumber}` : `vehicle-${this.vehicleId}`;
-    const columns: ExportColumn<TripReplayPosition>[] = [
-      { header: 'Timestamp', accessor: r => new Date(r.timestamp).toLocaleString(), excelWidth: 22 },
-      { header: 'Latitude', accessor: r => r.latitude, excelWidth: 14 },
-      { header: 'Longitude', accessor: r => r.longitude, excelWidth: 14 },
-      { header: 'Speed (km/h)', accessor: r => r.speedKmh, excelWidth: 12 },
-      { header: 'Heading', accessor: r => r.heading ?? '', excelWidth: 10 },
-      { header: 'Ignition', accessor: r => r.ignition == null ? '' : r.ignition ? 'ON' : 'OFF', excelWidth: 10 },
-      { header: 'Address', accessor: r => r.address ?? '', excelWidth: 36 },
-      { header: 'Odometer (km)', accessor: r => r.totalDistanceKm ?? '', excelWidth: 14 }
-    ];
-    const meta = {
-      filename: `gps-history-${label}`,
-      title: `GPS History — ${label}`,
-      subtitle: this.periodLabelDetailed,
-      sheetName: 'Positions'
-    };
-    if (format === 'csv') this.exportService.exportCsv(rows, columns, meta);
-    else if (format === 'excel') this.exportService.exportExcel(rows, columns, meta);
-    else this.exportService.exportPdf(rows, columns, meta);
+    void this.ensureRawPositionsLoaded().then(() => {
+      const rows = this.rawPositions.length ? this.rawPositions : this.bundle?.route ?? [];
+      if (!rows.length) {
+        this.toast.error('No route points available to export.');
+        return;
+      }
+      const vehicle = this.selectedVehicle;
+      const label = vehicle ? `${vehicle.name}-${vehicle.registrationNumber}` : `vehicle-${this.vehicleId}`;
+      const columns: ExportColumn<TripReplayPosition>[] = [
+        { header: 'Timestamp', accessor: r => new Date(r.timestamp).toLocaleString(), excelWidth: 22 },
+        { header: 'Latitude', accessor: r => r.latitude, excelWidth: 14 },
+        { header: 'Longitude', accessor: r => r.longitude, excelWidth: 14 },
+        { header: 'Speed (km/h)', accessor: r => r.speedKmh, excelWidth: 12 },
+        { header: 'Heading', accessor: r => r.heading ?? '', excelWidth: 10 },
+        { header: 'Ignition', accessor: r => r.ignition == null ? '' : r.ignition ? 'ON' : 'OFF', excelWidth: 10 },
+        { header: 'Address', accessor: r => r.address ?? '', excelWidth: 36 },
+        { header: 'Odometer (km)', accessor: r => r.totalDistanceKm ?? '', excelWidth: 14 }
+      ];
+      const meta = {
+        filename: `gps-history-${label}`,
+        title: `GPS History — ${label}`,
+        subtitle: this.periodLabelDetailed,
+        sheetName: 'Positions'
+      };
+      if (format === 'csv') this.exportService.exportCsv(rows, columns, meta);
+      else if (format === 'excel') this.exportService.exportExcel(rows, columns, meta);
+      else this.exportService.exportPdf(rows, columns, meta);
+    });
   }
 
   exportServer(format: 'gpx' | 'geojson' | 'kml'): void {
@@ -714,26 +817,63 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
     }
   }
 
-  private loadRawPositions(from: Date, to: Date): void {
-    if (!this.vehicleId) return;
-    this.gps.getHistory(this.vehicleId, from, to).subscribe({
-      next: rows => {
-        this.rawPositions = rows.map(r => ({
-          timestamp: r.timestamp,
-          latitude: r.latitude,
-          longitude: r.longitude,
-          speedKmh: Number(r.speed) || 0,
-          heading: r.heading,
-          ignition: r.ignition,
-          altitude: r.altitude,
-          address: r.address,
-          batteryLevel: r.batteryLevel,
-          satellites: r.gsmSignal,
-          totalDistanceKm: r.totalDistanceKm
-        }));
-      },
-      error: () => {}
+  private ensureRawPositionsLoaded(fromArg?: Date, toArg?: Date): Promise<void> {
+    if (!this.vehicleId) return Promise.resolve();
+    const from = fromArg ?? new Date(this.from);
+    const to = toArg ?? new Date(this.to);
+    const key = this.rawHistoryKey(this.vehicleId, from, to);
+
+    if (this.rawCacheKey === key && this.rawPositions.length) {
+      return Promise.resolve();
+    }
+    const cached = this.rawHistoryCache.get(key);
+    if (cached) {
+      this.rawPositions = cached;
+      this.rawCacheKey = key;
+      return Promise.resolve();
+    }
+
+    this.rawLoadSub?.unsubscribe();
+    return new Promise(resolve => {
+      this.rawLoadSub = this.gps.getHistory(this.vehicleId!, from, to).subscribe({
+        next: rows => {
+          const mapped = this.mapRawPositions(rows);
+          this.rawHistoryCache.set(key, mapped);
+          this.rawPositions = mapped;
+          this.rawCacheKey = key;
+          resolve();
+        },
+        error: () => resolve()
+      });
     });
+  }
+
+  private replayOptionsForWindow(from: Date, to: Date): { routeMaxPoints: number; playbackMaxPoints: number; includeRaw: boolean } {
+    const ms = to.getTime() - from.getTime();
+    if (ms >= 6.5 * 24 * 60 * 60 * 1000) {
+      return { routeMaxPoints: LAST7_ROUTE_MAX_POINTS, playbackMaxPoints: LAST7_PLAYBACK_MAX_POINTS, includeRaw: false };
+    }
+    return { routeMaxPoints: 5000, playbackMaxPoints: 2500, includeRaw: false };
+  }
+
+  private rawHistoryKey(vehicleId: number, from: Date, to: Date): string {
+    return `${vehicleId}:${from.toISOString()}:${to.toISOString()}`;
+  }
+
+  private mapRawPositions(rows: PositionDto[]): TripReplayPosition[] {
+    return rows.map(r => ({
+      timestamp: r.timestamp,
+      latitude: r.latitude,
+      longitude: r.longitude,
+      speedKmh: Number(r.speed) || 0,
+      heading: r.heading,
+      ignition: r.ignition,
+      altitude: r.altitude,
+      address: r.address,
+      batteryLevel: r.batteryLevel,
+      satellites: r.gsmSignal,
+      totalDistanceKm: r.totalDistanceKm
+    }));
   }
 
   private applyPreset(preset: TripDatePreset, updateFields: boolean): void {

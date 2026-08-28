@@ -38,6 +38,14 @@ public partial class GpsTrackingController : BaseApiController
     public async Task<IActionResult> GetLive([FromQuery] int page = 1, [FromQuery] int pageSize = 500)
         => Ok(await Mediator.Send(new GetLivePositionsQuery(page, pageSize)));
 
+    /// <summary>
+    /// Live-map vehicle roster (names, plates, last fix, tracker). Requires GPS.View only —
+    /// does not depend on Vehicle.View so fleet managers / GPS operators can populate the grid.
+    /// </summary>
+    [HttpGet("live/fleet")]
+    public async Task<IActionResult> GetLiveFleet()
+        => Ok(await Mediator.Send(new GetGpsLiveFleetQuery()));
+
     /// <summary>On-demand reverse geocode (cache-first via Nominatim).</summary>
     [HttpGet("location/reverse")]
     public async Task<IActionResult> ReverseGeocode(
@@ -51,8 +59,14 @@ public partial class GpsTrackingController : BaseApiController
         => Ok(await Mediator.Send(new GetPositionHistoryQuery(vehicleId, from, to)));
 
     [HttpGet("history/replay")]
-    public async Task<IActionResult> GetHistoryReplay([FromQuery] int? vehicleId, [FromQuery] DateTime? from, [FromQuery] DateTime? to)
-        => Ok(await Mediator.Send(new GetHistoryReplayQuery(vehicleId, from, to)));
+    public async Task<IActionResult> GetHistoryReplay(
+        [FromQuery] int? vehicleId,
+        [FromQuery] DateTime? from,
+        [FromQuery] DateTime? to,
+        [FromQuery] int? routeMaxPoints,
+        [FromQuery] int? playbackMaxPoints,
+        [FromQuery] bool includeRaw = false)
+        => Ok(await Mediator.Send(new GetHistoryReplayQuery(vehicleId, from, to, routeMaxPoints, playbackMaxPoints, includeRaw)));
 
     [HttpPost("history/replay/insights")]
     [RequirePermission("GPS.View")]
@@ -80,8 +94,14 @@ public partial class GpsTrackingController : BaseApiController
         => Ok(await Mediator.Send(new GetTripAnalyticsQuery(vehicleId, from, to)));
 
     [HttpGet("trips/replay")]
-    public async Task<IActionResult> GetTripReplay([FromQuery] int? vehicleId, [FromQuery] DateTime? from, [FromQuery] DateTime? to)
-        => Ok(await Mediator.Send(new GetTripReplayQuery(vehicleId, from, to)));
+    public async Task<IActionResult> GetTripReplay(
+        [FromQuery] int? vehicleId,
+        [FromQuery] DateTime? from,
+        [FromQuery] DateTime? to,
+        [FromQuery] int? routeMaxPoints,
+        [FromQuery] int? playbackMaxPoints,
+        [FromQuery] bool includeRaw = false)
+        => Ok(await Mediator.Send(new GetTripReplayQuery(vehicleId, from, to, routeMaxPoints, playbackMaxPoints, includeRaw)));
 
     [HttpGet("dashboard/fleet-status")]
     public async Task<IActionResult> GetFleetStatus()

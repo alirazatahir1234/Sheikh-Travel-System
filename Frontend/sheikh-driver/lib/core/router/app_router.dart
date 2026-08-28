@@ -194,10 +194,17 @@ final routerProvider = Provider<GoRouter>((ref) {
                 routes: [
                   GoRoute(
                     path: 'history',
-                    builder: (_, state) => VehicleHistoryScreen(
-                      vehicleId: int.parse(state.pathParameters['id']!),
-                      tripKey: state.uri.queryParameters['tripKey'],
-                    ),
+                    builder: (_, state) {
+                      final q = state.uri.queryParameters;
+                      return VehicleHistoryScreen(
+                        vehicleId: int.parse(state.pathParameters['id']!),
+                        tripKey: q['tripKey'],
+                        initialPreset: q['preset'],
+                        initialFrom: DateTime.tryParse(q['from'] ?? ''),
+                        initialTo: DateTime.tryParse(q['to'] ?? ''),
+                        autoPlayFull: (q['play'] ?? '').toLowerCase() == 'full',
+                      );
+                    },
                   ),
                   GoRoute(
                     path: 'device',

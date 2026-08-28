@@ -70,7 +70,13 @@ public class GetTripAnalyticsQueryHandler(
     }
 }
 
-public record GetTripReplayQuery(int? VehicleId, DateTime? FromDate, DateTime? ToDate)
+public record GetTripReplayQuery(
+    int? VehicleId,
+    DateTime? FromDate,
+    DateTime? ToDate,
+    int? RouteMaxPoints = null,
+    int? PlaybackMaxPoints = null,
+    bool IncludeRaw = false)
     : IRequest<ApiResponse<TripReplayBundleDto>>;
 
 public class GetTripReplayQueryHandler(
@@ -101,7 +107,10 @@ public class GetTripReplayQueryHandler(
                 source.TraccarDeviceId.Value,
                 fromDate,
                 toDate,
-                cancellationToken);
+                cancellationToken,
+                routeMaxPoints: request.RouteMaxPoints,
+                playbackMaxPoints: request.PlaybackMaxPoints,
+                includeRaw: request.IncludeRaw);
             bundle = await TripReplayAddressEnricher.EnrichAsync(
                 bundle,
                 reverseGeocodingService,
@@ -110,7 +119,10 @@ public class GetTripReplayQueryHandler(
         }
 
         var localBundle = await TripReplayLoader.LoadFromLocalHistoryAsync(
-            mediator, vehicleId, fromDate, toDate, cancellationToken);
+            mediator, vehicleId, fromDate, toDate, cancellationToken,
+            routeMaxPoints: request.RouteMaxPoints,
+            playbackMaxPoints: request.PlaybackMaxPoints,
+            includeRaw: request.IncludeRaw);
         if (localBundle.Route.Count == 0 && localBundle.Playback.Count == 0)
         {
             return ApiResponse<TripReplayBundleDto>.FailResponse("Failed to load replay positions.");
@@ -380,14 +392,28 @@ public record GetGpsFleetStatusLocalQuery : IRequest<ApiResponse<GpsFleetStatusL
 
 public class GetGpsFleetStatusLocalQueryHandler(
     IDbConnectionFactory dbFactory,
-    ITenantContext tenantContext)
+    ITenantContext tenantContext,
+    ICurrentUserService currentUser,
+    IDataScopeEngine dataScopeEngine,
+    IOptions<GpsSettings> gpsSettings,
+    IOptions<TraccarOptions> traccarOptions)
     : IRequestHandler<GetGpsFleetStatusLocalQuery, ApiResponse<GpsFleetStatusLocalDto>>
 {
     public async Task<ApiResponse<GpsFleetStatusLocalDto>> Handle(GetGpsFleetStatusLocalQuery request, CancellationToken cancellationToken)
     {
         using var connection = dbFactory.CreateConnection();
         var tenantId = tenantContext.GetRequiredTenantId();
-        var result = await GpsFleetStatusCalculator.ComputeAsync(connection, tenantId, cancellationToken);
+        DataScopeResult? scope = null;
+        if (currentUser.UserId is int userId)
+            scope = await dataScopeEngine.ResolveAsync(userId, tenantId, cancellationToken);
+
+        var result = await GpsFleetStatusCalculator.ComputeAsync(
+            connection,
+            tenantId,
+            gpsSettings,
+            traccarOptions,
+            cancellationToken,
+            scope);
         return ApiResponse<GpsFleetStatusLocalDto>.SuccessResponse(result);
     }
 }
@@ -396,13 +422,13 @@ public record GetGpsOperatorDashboardQuery : IRequest<ApiResponse<GpsOperatorDas
 
 public class GetGpsOperatorDashboardQueryHandler(
     IDbConnectionFactory dbFactory,
-    ITenantContext tenantContext)
+    ITenantContext tenantContext,
+    IOptions<GpsSettings> gpsSettings,
+    IOptions<TraccarOptions> traccarOptions)
     : IRequestHandler<GetGpsOperatorDashboardQuery, ApiResponse<GpsOperatorDashboardDto>>
 {
-    private const int OfflineStaleMinutes = 30;
     private const int WeakGsmThreshold = 12;
     private const decimal LowBatteryThreshold = 25m;
-    private const decimal MovingThresholdKmh = 5m;
 
     public async Task<ApiResponse<GpsOperatorDashboardDto>> Handle(
         GetGpsOperatorDashboardQuery request,
@@ -410,7 +436,18 @@ public class GetGpsOperatorDashboardQueryHandler(
     {
         using var connection = dbFactory.CreateConnection();
         var tenantId = tenantContext.GetRequiredTenantId();
-        var fleet = await GpsFleetStatusCalculator.ComputeAsync(connection, tenantId, cancellationToken);
+        var offlineStaleMinutes = gpsSettings.Value.OfflineStaleMinutes <= 0
+            ? 10
+            : gpsSettings.Value.OfflineStaleMinutes;
+        var movingThresholdKmh = traccarOptions.Value.MovingSpeedKmh > 0
+            ? traccarOptions.Value.MovingSpeedKmh
+            : gpsSettings.Value.FleetMovingSpeedKmh;
+        var fleet = await GpsFleetStatusCalculator.ComputeAsync(
+            connection,
+            tenantId,
+            gpsSettings,
+            traccarOptions,
+            cancellationToken);
         var todayStart = DateTime.UtcNow.Date;
 
         var health = await connection.QuerySingleAsync<(int Healthy, int Offline, int WeakGsm, int LowBattery, int NoGps, int IgnitionOn)>(
@@ -455,7 +492,8 @@ public class GetGpsOperatorDashboardQueryHandler(
                 new
                 {
                     TenantId = tenantId,
-                    OfflineStaleMinutes,
+                    OfflineStaleMinutes = offlineStaleMinutes,
+                    MovingThresholdKmh = movingThresholdKmh,
                     WeakGsmThreshold,
                     LowBatteryThreshold,
                 },
