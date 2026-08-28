@@ -26,6 +26,7 @@ import { resolveReplayStatus } from '../../../core/leaflet/fleet-vehicle-marker'
 import {
   formatFleetDisplayAddress,
   isCoarseAddress,
+  looksLikeRoadSegment,
   splitDisplayAddress
 } from '../utils/gps-address.util';
 
@@ -472,14 +473,24 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
 
   addressLabel(pos: TripReplayPosition | null): string {
     if (!pos) return '—';
-    if (pos.address?.trim() && !isCoarseAddress(pos.address)) return pos.address;
     const key = this.addressCacheKey(pos.latitude, pos.longitude);
+    const meta = this.addressMetaCache.get(key);
+    const fromMeta = this.resolveAddressFromGeocode(meta ?? null);
+    if (fromMeta && !isCoarseAddress(fromMeta)) return fromMeta;
+
+    if (pos.address?.trim() && !isCoarseAddress(pos.address)) return pos.address;
     if (this.addressCache.has(key)) {
       const cached = this.addressCache.get(key);
-      return cached?.trim() || pos.address?.trim() || 'Address unavailable';
+      if (cached?.trim() && !isCoarseAddress(cached)) return cached.trim();
     }
     if (this.resolvingAddressKey === key) return 'Resolving…';
-    return pos.address?.trim() || 'Address unavailable';
+
+    const near =
+      meta?.nearbyPlaceName?.trim() ||
+      meta?.placeName?.trim() ||
+      null;
+    if (near) return `Near ${near}`;
+    return 'Address unavailable';
   }
 
   addressPrimaryLine(address: string | null | undefined): string | null {
@@ -513,29 +524,85 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
   stopPrimaryLine(stop: TripStop): string {
     const key = this.addressCacheKey(stop.latitude, stop.longitude);
     const meta = this.addressMetaCache.get(key);
-    if (meta?.primaryAddress?.trim()) return meta.primaryAddress.trim();
+    const near =
+      meta?.nearbyPlaceName?.trim() ||
+      meta?.placeName?.trim() ||
+      null;
+
+    if (meta?.primaryAddress?.trim()) {
+      const primary = meta.primaryAddress.trim();
+      // Never show the POI/business name as the street line.
+      if (near && primary.toLowerCase() === near.toLowerCase()) {
+        return (
+          meta.localityLine?.trim() ||
+          this.addressPrimaryLine(meta.formattedAddress) ||
+          'Approximate location'
+        );
+      }
+      return primary;
+    }
+
+    if (meta?.localityLine?.trim()) return meta.localityLine.trim();
+
     const full = this.stopAddressLabel(stop);
-    if (full === 'Resolving…' || full === 'Address unavailable') return full;
-    return this.addressPrimaryLine(full) || full;
+    if (full === 'Resolving…') return full;
+    if (full === 'Address unavailable') {
+      return near ? 'Approximate location' : full;
+    }
+    const split = splitDisplayAddress(full);
+    if (split.primary) return split.primary;
+    // POI-only / business-name-only → do not promote as the street line.
+    return near || split.secondary ? 'Approximate location' : full;
   }
 
   stopNearbyLine(stop: TripStop): string | null {
     const key = this.addressCacheKey(stop.latitude, stop.longitude);
     const meta = this.addressMetaCache.get(key);
-    const quality = (meta?.addressQuality || '').toLowerCase();
-    if (quality === 'coarse') return null;
-    const near = meta?.nearbyPlaceName?.trim();
+    let near =
+      meta?.nearbyPlaceName?.trim() ||
+      meta?.placeName?.trim() ||
+      null;
+
+    // Cached stop.address may be a lone POI until reverse-geocode refresh completes.
+    if (!near) {
+      const raw = stop.address?.trim() || this.addressCache.get(key)?.trim() || '';
+      if (raw && isCoarseAddress(raw)) {
+        const split = splitDisplayAddress(raw);
+        if (split.secondary && !looksLikeRoadSegment(split.secondary)) {
+          near = split.secondary;
+        } else {
+          const parts = raw.split(',').map(p => p.trim()).filter(Boolean);
+          if (parts.length === 1 && !looksLikeRoadSegment(parts[0])) {
+            near = parts[0];
+          }
+        }
+      }
+    }
+
     if (!near) return null;
     const primary = this.stopPrimaryLine(stop).toLowerCase();
     if (primary.includes(near.toLowerCase())) return null;
-    return `Near: ${near}`;
+    return `Near ${near}`;
   }
 
   stopLocalityLine(stop: TripStop): string | null {
     const key = this.addressCacheKey(stop.latitude, stop.longitude);
     const meta = this.addressMetaCache.get(key);
-    if (meta?.localityLine?.trim()) return meta.localityLine.trim();
-    return this.addressSecondaryLine(this.stopAddressLabel(stop));
+    if (meta?.localityLine?.trim()) {
+      const loc = meta.localityLine.trim();
+      const primary = this.stopPrimaryLine(stop).toLowerCase();
+      if (primary.includes(loc.toLowerCase())) return null;
+      return loc;
+    }
+    const secondary = this.addressSecondaryLine(this.stopAddressLabel(stop));
+    if (!secondary) return null;
+    // Do not treat a POI/business name as the locality line.
+    if (!looksLikeRoadSegment(secondary) && secondary.split(/\s+/).length >= 3) {
+      return null;
+    }
+    const primary = this.stopPrimaryLine(stop).toLowerCase();
+    if (primary.includes(secondary.toLowerCase())) return null;
+    return secondary;
   }
 
   formatCompactDuration(minutes: number): string {
