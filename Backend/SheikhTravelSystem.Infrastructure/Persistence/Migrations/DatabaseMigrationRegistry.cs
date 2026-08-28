@@ -96,6 +96,7 @@ public static class DatabaseMigrationRegistry
             M("PlatformNavigationCleanupMigration", PlatformNavigationCleanupMigration.ApplyAsync),
             M("GpsOperatorRoleTemplateMigration", GpsOperatorRoleTemplateMigration.ApplyAsync),
             M("BranchesViewPermissionMigration", BranchesViewPermissionMigration.ApplyAsync),
+            M("FleetAlertMaintenancePermissionsMigration", FleetAlertMaintenancePermissionsMigration.ApplyAsync),
         ];
     }
 }
