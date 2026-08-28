@@ -41,12 +41,19 @@ public static class DataScopeResolver
             return CompanyWide(userId, tenantId, homeBranchId, homeDepartmentId, "company_admin");
         }
 
-        // Any Company-level role without tighter assignment scopes → company-wide.
+        // GPS operators (and any Company-scoped role) need fleet-wide visibility even when the
+        // same user also has FLEET_MANAGER/DISPATCHER with Branch scope — otherwise Live Map
+        // (company roster) and Vehicles (branch clamp) disagree, and "View details" looks broken.
+        if (codes.Any(c => string.Equals(c, "GPS_OPERATOR", StringComparison.OrdinalIgnoreCase)))
+        {
+            return CompanyWide(userId, tenantId, homeBranchId, homeDepartmentId, "gps_operator");
+        }
+
+        // Any Company-level role → company-wide (ignore accidental UserRoles.BranchId clamps).
         foreach (var a in assignments)
         {
             if (!IsCompanyLevel(a.ScopeLevel)) continue;
-            if (!a.BranchId.HasValue && !a.DepartmentId.HasValue)
-                return CompanyWide(userId, tenantId, homeBranchId, homeDepartmentId, "roles");
+            return CompanyWide(userId, tenantId, homeBranchId, homeDepartmentId, "roles");
         }
 
         var branchIds = new HashSet<int>();

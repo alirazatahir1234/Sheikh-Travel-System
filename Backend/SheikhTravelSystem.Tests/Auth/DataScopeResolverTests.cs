@@ -91,17 +91,29 @@ public class DataScopeResolverTests
     }
 
     [Fact]
-    public void ApplyVehicleScope_BranchMode_Includes_Unassigned_Branch()
+    public void GpsOperator_With_FleetManager_Is_CompanyWide()
     {
-        var scope = DataScopeResolver.Resolve(
-            1, 10, 3, null,
-            [new DataScopeResolver.RoleAssignmentInput("FLEET_MANAGER", "Branch", 3, null)]);
+        var result = DataScopeResolver.Resolve(
+            1, 10, homeBranchId: 9, homeDepartmentId: null,
+            [
+                new DataScopeResolver.RoleAssignmentInput("FLEET_MANAGER", "Branch", 3, null),
+                new DataScopeResolver.RoleAssignmentInput("GPS_OPERATOR", "Company", null, null),
+                new DataScopeResolver.RoleAssignmentInput("DISPATCHER", "Branch", 7, null)
+            ]);
 
-        var parameters = new Dapper.DynamicParameters();
-        var clauses = new List<string>();
-        DataScopeSql.ApplyVehicleScope(parameters, scope, "v", clauses);
+        result.IsCompanyWide.Should().BeTrue();
+        result.Mode.Should().Be(DataScopeMode.Company);
+        result.Source.Should().Be("gps_operator");
+    }
 
-        clauses.Should().ContainSingle(c => c.Contains("BranchId IS NULL") && c.Contains("IN @DsBranchIds"));
-        parameters.Get<int[]>("DsBranchIds").Should().Equal(3);
+    [Fact]
+    public void CompanyScoped_Role_Ignores_Accidental_BranchClamp()
+    {
+        var result = DataScopeResolver.Resolve(
+            1, 10, 9, null,
+            [new DataScopeResolver.RoleAssignmentInput("GPS_OPERATOR", "Company", 3, null)]);
+
+        result.IsCompanyWide.Should().BeTrue();
+        result.Source.Should().Be("gps_operator");
     }
 }
