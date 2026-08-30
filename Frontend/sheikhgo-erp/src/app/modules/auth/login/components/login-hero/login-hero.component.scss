@@ -141,18 +141,6 @@
   max-width: 100%;
 }
 
-.brand-logo {
-  width: 96px;
-  height: 96px;
-  flex-shrink: 0;
-
-  img {
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-  }
-}
-
 .brand-title-wrap {
   display: flex;
   flex-direction: column;
@@ -505,11 +493,6 @@
     padding: 22px 20px 18px;
   }
 
-  .brand-logo {
-    width: 72px;
-    height: 72px;
-  }
-
   .brand-name {
     font-size: 1.35rem;
   }
@@ -586,11 +569,6 @@
 
   .brand-head {
     gap: 10px;
-  }
-
-  .brand-logo {
-    width: 56px;
-    height: 56px;
   }
 
   .brand-name {

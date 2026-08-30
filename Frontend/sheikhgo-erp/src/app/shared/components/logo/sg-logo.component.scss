@@ -1,0 +1,92 @@
+/* Transparent mark — no white box / border / card */
+.sg-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px; /* login .brand-head gap */
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  padding: 0;
+  line-height: 1;
+  vertical-align: middle;
+}
+
+.sg-logo__img {
+  display: block;
+  object-fit: contain; /* login uses contain — never cover */
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  flex-shrink: 0;
+}
+
+.sg-logo__wordmark {
+  /* login .brand-name */
+  font-family: inherit;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  font-size: 1.72rem;
+  color: #fff;
+  white-space: nowrap;
+}
+
+/*
+ * Exact sizes from login-hero .brand-logo
+ * Desktop: 96×96 | ≤768: 72×72 | ≤480: 56×56
+ */
+.sg-logo--login-hero .sg-logo__img,
+.sg-logo--header .sg-logo__img,
+.sg-logo--footer .sg-logo__img {
+  width: 96px;
+  height: 96px;
+}
+
+/*
+ * Exact sizes from login-form-card .card-logo img
+ * Desktop: 116×116 | ≤768: 88×88 | ≤480: 72×72
+ */
+.sg-logo--login-card .sg-logo__img {
+  width: 116px;
+  height: 116px;
+}
+
+@media (max-width: 768px) {
+  .sg-logo--login-hero .sg-logo__img,
+  .sg-logo--header .sg-logo__img,
+  .sg-logo--footer .sg-logo__img {
+    width: 72px;
+    height: 72px;
+  }
+
+  .sg-logo--login-card .sg-logo__img {
+    width: 88px;
+    height: 88px;
+  }
+
+  .sg-logo--with-wordmark .sg-logo__wordmark {
+    font-size: 1.35rem; /* login .brand-name @ 768 */
+  }
+}
+
+@media (max-width: 480px) {
+  .sg-logo {
+    gap: 10px; /* login .brand-head @ 480 */
+  }
+
+  .sg-logo--login-hero .sg-logo__img,
+  .sg-logo--header .sg-logo__img,
+  .sg-logo--footer .sg-logo__img {
+    width: 56px;
+    height: 56px;
+  }
+
+  .sg-logo--login-card .sg-logo__img {
+    width: 72px;
+    height: 72px;
+  }
+
+  .sg-logo--with-wordmark .sg-logo__wordmark {
+    font-size: 1.15rem; /* login .brand-name @ 480 */
+  }
+}

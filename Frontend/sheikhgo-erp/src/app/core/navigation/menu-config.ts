@@ -194,6 +194,24 @@ const administrationGroup: NavGroup = {
   ]
 };
 
+const websiteGroup: NavGroup = {
+  id: 'website',
+  label: 'Website',
+  icon: 'language',
+  collapsible: true,
+  items: [
+    { id: 'website-dashboard', label: 'Dashboard', icon: 'dashboard', route: '/website', moduleKey: 'website' },
+    { id: 'website-home', label: 'Home Page', icon: 'home', route: '/website/home', moduleKey: 'website' },
+    { id: 'website-features', label: 'Features', icon: 'auto_awesome', route: '/website/features', moduleKey: 'website' },
+    { id: 'website-pages', label: 'Pages', icon: 'article', route: '/website/pages', moduleKey: 'website' },
+    { id: 'website-contact-requests', label: 'Contact Requests', icon: 'mail', route: '/website/contact-requests', moduleKey: 'website' },
+    { id: 'website-demo-requests', label: 'Demo Requests', icon: 'event', route: '/website/demo-requests', moduleKey: 'website' },
+    { id: 'website-media', label: 'Media', icon: 'photo_library', route: '/website/media', moduleKey: 'website' },
+    { id: 'website-legal', label: 'Legal', icon: 'gavel', route: '/website/legal', moduleKey: 'website' },
+    { id: 'website-settings', label: 'Settings', icon: 'tune', route: '/website/settings', moduleKey: 'website' }
+  ]
+};
+
 const allGroups: NavGroup[] = [
   dashboardGroup,
   operationsGroup,
@@ -204,6 +222,7 @@ const allGroups: NavGroup[] = [
   customersGroup,
   financeGroup,
   analyticsGroup,
+  websiteGroup,
   organizationGroup,
   identityGroup,
   platformGroup,
@@ -221,9 +240,9 @@ const driverItems: NavItem[] = [
 ];
 
 const tenantGroupIds: Record<TenantType, string[]> = {
-  [TenantType.TravelAgency]: ['dashboard', 'operations', 'customers', 'finance', 'analytics', 'organization', 'identity', 'platform', 'access_control'],
-  [TenantType.FleetOperator]: ['dashboard', 'fleet', 'fleet-operations', 'fleet-resources', 'fleet-admin', 'analytics', 'organization', 'identity', 'platform', 'access_control'],
-  [TenantType.CorporateCustomer]: ['dashboard', 'operations', 'customers', 'finance', 'analytics', 'organization', 'identity', 'platform', 'access_control'],
+  [TenantType.TravelAgency]: ['dashboard', 'operations', 'customers', 'finance', 'analytics', 'website', 'organization', 'identity', 'platform', 'access_control'],
+  [TenantType.FleetOperator]: ['dashboard', 'fleet', 'fleet-operations', 'fleet-resources', 'fleet-admin', 'analytics', 'website', 'organization', 'identity', 'platform', 'access_control'],
+  [TenantType.CorporateCustomer]: ['dashboard', 'operations', 'customers', 'finance', 'analytics', 'website', 'organization', 'identity', 'platform', 'access_control'],
   [TenantType.Driver]: []
 };
 
@@ -236,7 +255,16 @@ const tenantItemIds: Partial<Record<TenantType, Set<string>>> = {
     'passengers',
     'invoices',
     'reports',
-    'tenant-settings'
+    'tenant-settings',
+    'website-dashboard',
+    'website-home',
+    'website-features',
+    'website-pages',
+    'website-contact-requests',
+    'website-demo-requests',
+    'website-media',
+    'website-legal',
+    'website-settings'
   ]),
   [TenantType.FleetOperator]: new Set([
     'dashboard',
@@ -261,7 +289,16 @@ const tenantItemIds: Partial<Record<TenantType, Set<string>>> = {
     'fleet-analytics',
     'driver-performance',
     'reports',
-    'tenant-settings'
+    'tenant-settings',
+    'website-dashboard',
+    'website-home',
+    'website-features',
+    'website-pages',
+    'website-contact-requests',
+    'website-demo-requests',
+    'website-media',
+    'website-legal',
+    'website-settings'
   ])
 };
 

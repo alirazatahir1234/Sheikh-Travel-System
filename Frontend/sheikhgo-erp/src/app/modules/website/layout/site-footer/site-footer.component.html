@@ -1,0 +1,62 @@
+<footer class="site-footer">
+  <div class="container grid">
+    <div class="brand-col">
+      <div class="brand-lockup">
+        <app-sg-logo variant="footer" [showWordmark]="true" [wordmark]="siteName" [alt]="siteName" />
+      </div>
+      <p class="tagline">{{ brand.tagline }}</p>
+      <p class="blurb">Intelligent fleet and travel management for modern transportation businesses.</p>
+      <div class="socials" aria-label="Contact">
+        <a [href]="'mailto:' + contactEmail">{{ contactEmail }}</a>
+      </div>
+    </div>
+
+    <div>
+      <h3>Platform</h3>
+      <a routerLink="/fleet-management">Fleet Management</a>
+      <a routerLink="/gps-tracking">GPS Tracking</a>
+      <a routerLink="/features">Trip Management</a>
+      <a routerLink="/features">Maintenance</a>
+      <a routerLink="/features">Fuel Management</a>
+      <a routerLink="/features">Reports &amp; Analytics</a>
+      <a routerLink="/features">AI Assistant</a>
+    </div>
+
+    <div>
+      <h3>Solutions</h3>
+      <a href="/#solutions">Fleet Operators</a>
+      <a href="/#solutions">Travel Agencies</a>
+      <a href="/#solutions">Vehicle Rental</a>
+      <a href="/#solutions">Corporate Fleets</a>
+      <a href="/#solutions">Enterprise</a>
+    </div>
+
+    <div>
+      <h3>Resources</h3>
+      <a routerLink="/contact">Help Center</a>
+      <a [href]="'mailto:' + supportEmail">Documentation</a>
+      <a href="/#security">Security</a>
+      <a routerLink="/contact">Support</a>
+    </div>
+
+    <div>
+      <h3>Company</h3>
+      <a routerLink="/about">About Us</a>
+      <a routerLink="/contact">Contact Us</a>
+      <a routerLink="/request-demo">Request Demo</a>
+      <a routerLink="/auth/login">Login</a>
+    </div>
+
+    <div>
+      <h3>Legal</h3>
+      <a routerLink="/privacy-policy">Privacy Policy</a>
+      <a routerLink="/terms-and-conditions">Terms &amp; Conditions</a>
+      <a routerLink="/cookie-policy">Cookie Policy</a>
+    </div>
+  </div>
+
+  <div class="container bottom">
+    <p>© {{ brand.year }} {{ siteName }}. All rights reserved.</p>
+    <p class="note">Legal pages are drafts for product accuracy — have counsel review before production publish.</p>
+  </div>
+</footer>

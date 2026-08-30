@@ -1,0 +1,68 @@
+<div class="wa-page stb-page">
+  <div class="wa-header">
+    <div>
+      <h1>Website Features</h1>
+      <p class="wa-sub">Manage feature cards shown on the marketing site.</p>
+    </div>
+    <div class="wa-actions">
+      <a mat-stroked-button routerLink="/website"><mat-icon>arrow_back</mat-icon> Dashboard</a>
+      <button mat-raised-button color="primary" type="button" (click)="startAdd()">
+        <mat-icon>add</mat-icon> Add feature
+      </button>
+    </div>
+  </div>
+
+  <div class="stb-card wa-form" *ngIf="editing as f">
+    <h2>{{ f.id ? 'Edit feature' : 'New feature' }}</h2>
+    <div class="wa-fields">
+      <div class="stb-field"><label>Title</label><input class="stb-input" [(ngModel)]="f.title" /></div>
+      <div class="stb-field"><label>Icon key</label><input class="stb-input" [(ngModel)]="f.iconKey" /></div>
+      <div class="stb-field wa-full"><label>Description</label><textarea class="stb-input" rows="3" [(ngModel)]="f.description"></textarea></div>
+      <div class="stb-field"><label>Image URL</label><input class="stb-input" [(ngModel)]="f.imageUrl" /></div>
+      <div class="stb-field"><label>Link URL</label><input class="stb-input" [(ngModel)]="f.linkUrl" /></div>
+      <div class="stb-field"><label>Order</label><input class="stb-input" type="number" [(ngModel)]="f.displayOrder" /></div>
+      <div class="stb-field">
+        <label>Status</label>
+        <select class="stb-select" [(ngModel)]="f.status">
+          <option *ngFor="let st of statuses" [value]="st">{{ st }}</option>
+        </select>
+      </div>
+      <div class="stb-field"><label><input type="checkbox" [(ngModel)]="f.isActive" /> Active</label></div>
+    </div>
+    <div class="wa-actions">
+      <button mat-raised-button color="primary" type="button" [disabled]="saving" (click)="save()">Save</button>
+      <button mat-stroked-button type="button" (click)="cancelEdit()">Cancel</button>
+    </div>
+  </div>
+
+  <div *ngIf="loading" class="wa-muted">Loading…</div>
+
+  <table mat-table [dataSource]="dataSource" class="wa-table" *ngIf="!loading">
+    <ng-container matColumnDef="title">
+      <th mat-header-cell *matHeaderCellDef>Title</th>
+      <td mat-cell *matCellDef="let row">{{ row.title }}</td>
+    </ng-container>
+    <ng-container matColumnDef="status">
+      <th mat-header-cell *matHeaderCellDef>Status</th>
+      <td mat-cell *matCellDef="let row">{{ row.status }}</td>
+    </ng-container>
+    <ng-container matColumnDef="order">
+      <th mat-header-cell *matHeaderCellDef>Order</th>
+      <td mat-cell *matCellDef="let row">{{ row.displayOrder }}</td>
+    </ng-container>
+    <ng-container matColumnDef="active">
+      <th mat-header-cell *matHeaderCellDef>Active</th>
+      <td mat-cell *matCellDef="let row">{{ row.isActive ? 'Yes' : 'No' }}</td>
+    </ng-container>
+    <ng-container matColumnDef="actions">
+      <th mat-header-cell *matHeaderCellDef>Actions</th>
+      <td mat-cell *matCellDef="let row">
+        <button mat-button type="button" (click)="startEdit(row)">Edit</button>
+        <button mat-button type="button" (click)="publish(row)">Publish</button>
+        <button mat-button color="warn" type="button" (click)="remove(row)">Delete</button>
+      </td>
+    </ng-container>
+    <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+    <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
+  </table>
+</div>

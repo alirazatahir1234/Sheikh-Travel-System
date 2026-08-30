@@ -2,6 +2,7 @@
 @use 'app/shared/styles/responsive';
 @use 'app/shared/styles/notification-popup';
 @use 'app/features/organization-hierarchy/organization-hierarchy-overrides';
+@use 'app/modules/website/website-public';
 
 @import '@angular/material/prebuilt-themes/indigo-pink.css';
 

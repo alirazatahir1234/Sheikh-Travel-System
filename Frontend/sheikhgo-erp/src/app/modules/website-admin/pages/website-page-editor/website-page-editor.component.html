@@ -1,0 +1,78 @@
+<div class="wa-page stb-page">
+  <div class="wa-header">
+    <div>
+      <h1>{{ page?.title || 'Page editor' }}</h1>
+      <p class="wa-sub" *ngIf="page">Slug: {{ page.slug }} · {{ page.status }}</p>
+    </div>
+    <div class="wa-actions">
+      <a mat-stroked-button routerLink="/website/pages"><mat-icon>arrow_back</mat-icon> Pages</a>
+      <button mat-stroked-button type="button" (click)="publishPage()" [disabled]="!page">Publish page</button>
+    </div>
+  </div>
+
+  <div *ngIf="loading" class="wa-muted">Loading…</div>
+
+  <ng-container *ngIf="!loading && page">
+    <div class="stb-card wa-form">
+      <h2>SEO &amp; page fields</h2>
+      <div class="wa-fields">
+        <div class="stb-field"><label>Title</label><input class="stb-input" [(ngModel)]="pageForm.title" /></div>
+        <div class="stb-field">
+          <label>Status</label>
+          <select class="stb-select" [(ngModel)]="pageForm.status">
+            <option *ngFor="let st of statuses" [value]="st">{{ st }}</option>
+          </select>
+        </div>
+        <div class="stb-field wa-full"><label>Description</label><textarea class="stb-input" rows="2" [(ngModel)]="pageForm.description"></textarea></div>
+        <div class="stb-field"><label>Meta title</label><input class="stb-input" [(ngModel)]="pageForm.metaTitle" /></div>
+        <div class="stb-field"><label>OG image</label><input class="stb-input" [(ngModel)]="pageForm.ogImage" /></div>
+        <div class="stb-field wa-full"><label>Meta description</label><textarea class="stb-input" rows="2" [(ngModel)]="pageForm.metaDescription"></textarea></div>
+      </div>
+      <button mat-raised-button color="primary" type="button" [disabled]="savingPage" (click)="savePage()">
+        {{ savingPage ? 'Saving…' : 'Save page' }}
+      </button>
+    </div>
+
+    <div class="wa-split">
+      <div class="wa-list">
+        <div class="wa-actions">
+          <h2>Sections</h2>
+          <button mat-stroked-button type="button" (click)="newSection()"><mat-icon>add</mat-icon> Add</button>
+        </div>
+        <div
+          class="stb-card wa-section-card"
+          *ngFor="let s of sections"
+          [class.active]="selected?.id === s.id"
+          (click)="selectSection(s)">
+          <strong>{{ s.title || s.sectionType }}</strong>
+          <span>{{ s.sectionType }} · {{ s.status }}</span>
+        </div>
+        <p *ngIf="!sections.length" class="wa-muted">No sections.</p>
+      </div>
+
+      <div class="stb-card wa-form" *ngIf="sectionForm.pageId">
+        <h2>{{ sectionForm.id ? 'Edit section' : 'New section' }}</h2>
+        <div class="wa-fields">
+          <div class="stb-field"><label>Type</label><input class="stb-input" [(ngModel)]="sectionForm.sectionType" /></div>
+          <div class="stb-field"><label>Title</label><input class="stb-input" [(ngModel)]="sectionForm.title" /></div>
+          <div class="stb-field"><label>Subtitle</label><input class="stb-input" [(ngModel)]="sectionForm.subtitle" /></div>
+          <div class="stb-field"><label>Order</label><input class="stb-input" type="number" [(ngModel)]="sectionForm.displayOrder" /></div>
+          <div class="stb-field wa-full"><label>Content</label><textarea class="stb-input" rows="4" [(ngModel)]="sectionForm.content"></textarea></div>
+          <div class="stb-field"><label>Button text</label><input class="stb-input" [(ngModel)]="sectionForm.buttonText" /></div>
+          <div class="stb-field"><label>Button URL</label><input class="stb-input" [(ngModel)]="sectionForm.buttonUrl" /></div>
+          <div class="stb-field">
+            <label>Status</label>
+            <select class="stb-select" [(ngModel)]="sectionForm.status">
+              <option *ngFor="let st of statuses" [value]="st">{{ st }}</option>
+            </select>
+          </div>
+          <div class="stb-field"><label><input type="checkbox" [(ngModel)]="sectionForm.isActive" /> Active</label></div>
+        </div>
+        <div class="wa-actions">
+          <button mat-raised-button color="primary" type="button" [disabled]="savingSection" (click)="saveSection()">Save</button>
+          <button mat-stroked-button type="button" [disabled]="!sectionForm.id" (click)="publishSection()">Publish</button>
+        </div>
+      </div>
+    </div>
+  </ng-container>
+</div>

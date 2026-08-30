@@ -46,4 +46,16 @@ public class AuthController : BaseApiController
     [Authorize]
     public async Task<IActionResult> GetCurrentUser()
         => Ok(await Mediator.Send(new GetCurrentUserQuery()));
+
+    /// <summary>Starts a password reset email flow (always returns a generic success message).</summary>
+    [HttpPost("forgot-password")]
+    [AllowAnonymous]
+    public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordCommand command)
+        => Ok(await Mediator.Send(command));
+
+    /// <summary>Completes password reset using a one-time token from email.</summary>
+    [HttpPost("reset-password")]
+    [AllowAnonymous]
+    public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordWithTokenCommand command)
+        => Ok(await Mediator.Send(command));
 }

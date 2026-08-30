@@ -50,6 +50,20 @@ export class AuthService {
       );
   }
 
+  forgotPassword(email: string): Observable<{ success?: boolean; message?: string }> {
+    return this.http.post<{ success?: boolean; message?: string }>(
+      `${environment.apiUrl}/auth/forgot-password`,
+      { email }
+    );
+  }
+
+  resetPassword(token: string, newPassword: string): Observable<{ success?: boolean; message?: string }> {
+    return this.http.post<{ success?: boolean; message?: string }>(
+      `${environment.apiUrl}/auth/reset-password`,
+      { token, newPassword }
+    );
+  }
+
   /** Apply Stage 13 session soft-enforcement from security/me summary. */
   applySecuritySessionPolicy(summary: SecurityCompanySummary | null | undefined): void {
     const idle = summary?.idleTimeoutMinutes ?? 0;

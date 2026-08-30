@@ -1,0 +1,37 @@
+<div class="wa-page stb-page">
+  <div class="wa-header">
+    <div>
+      <h1>Media Library</h1>
+      <p class="wa-sub">Upload and manage website assets.</p>
+    </div>
+    <a mat-stroked-button routerLink="/website"><mat-icon>arrow_back</mat-icon> Dashboard</a>
+  </div>
+
+  <div class="stb-card wa-upload">
+    <div class="stb-field">
+      <label>Alt text (optional)</label>
+      <input class="stb-input" [(ngModel)]="altText" />
+    </div>
+    <label class="wa-file-btn">
+      <input type="file" (change)="onFileSelected($event)" [disabled]="uploading" hidden />
+      <span mat-stroked-button>{{ uploading ? 'Uploading…' : 'Choose file' }}</span>
+    </label>
+  </div>
+
+  <div *ngIf="loading" class="wa-muted">Loading…</div>
+
+  <div class="wa-grid" *ngIf="!loading">
+    <div class="stb-card wa-media" *ngFor="let item of items">
+      <img *ngIf="isImage(item)" [src]="resolveUrl(item.fileUrl)" [alt]="item.altText || item.fileName" />
+      <div class="wa-media-meta">
+        <strong>{{ item.fileName }}</strong>
+        <span>{{ item.fileType || 'file' }}</span>
+      </div>
+      <div class="wa-actions">
+        <button mat-button type="button" (click)="copyUrl(item)">Copy URL</button>
+        <button mat-button color="warn" type="button" (click)="remove(item)">Delete</button>
+      </div>
+    </div>
+    <p *ngIf="!items.length" class="wa-muted">No media uploaded yet.</p>
+  </div>
+</div>

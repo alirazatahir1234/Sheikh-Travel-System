@@ -1,0 +1,441 @@
+<section class="hero">
+  <div class="hero-bg" aria-hidden="true"></div>
+  <div class="container hero-grid">
+    <div class="hero-copy reveal">
+      <p class="positioning">Intelligent Fleet &amp; Travel Operations Platform</p>
+      <h1>
+        <span class="h1-line">Move Smarter.</span>
+        <span class="h1-line">Travel Further.</span>
+      </h1>
+      <p class="subhead">
+        Intelligent fleet management and GPS tracking for modern transportation businesses.
+      </p>
+      <p class="subtitle">
+        Manage vehicles, drivers, trips, GPS tracking, maintenance, fuel and fleet operations from one
+        platform.
+      </p>
+      <div class="hero-actions">
+        <a routerLink="/request-demo" class="btn btn-primary">Request a Demo</a>
+        <a routerLink="/fleet-management" class="btn btn-ghost">Explore Fleet</a>
+      </div>
+      <a class="login-link" routerLink="/auth/login">Login to SheikhGo →</a>
+    </div>
+
+    <div class="hero-visual reveal delay">
+      <div class="hero-glow" aria-hidden="true"></div>
+      <div class="product-frame video-shell">
+        <div class="product-chrome">
+          <div class="chrome-left">
+            <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+            <strong>SheikhGo Fleet Tracking</strong>
+          </div>
+          <span class="live-badge"><i></i> Live</span>
+        </div>
+
+        <div class="fleet-body">
+          <aside class="fleet-side" aria-hidden="true">
+            <div class="side-head">Vehicles</div>
+            <div class="veh active"><strong>Toyota Corolla</strong><span>SG-DEMO-01 · Online</span></div>
+            <div class="veh"><strong>Hiace</strong><span>SG-DEMO-02 · Moving</span></div>
+            <div class="veh"><strong>Ford Transit</strong><span>SG-DEMO-03 · Idle</span></div>
+          </aside>
+          <div class="fleet-map">
+            <div class="route-line" aria-hidden="true"></div>
+            <span class="map-pin p1" aria-hidden="true"></span>
+            <span class="map-pin p2" aria-hidden="true"></span>
+            <span class="map-pin p3" aria-hidden="true"></span>
+            <div class="vehicle-detail" aria-hidden="true">
+              <header>
+                <div>
+                  <strong>Toyota Corolla</strong>
+                  <span class="plate">SG-DEMO-01</span>
+                </div>
+                <em class="online">Online</em>
+              </header>
+              <p class="addr">Sialkot, Pakistan</p>
+              <p class="driver">Demo Driver</p>
+              <div class="stats">
+                <div><em>Speed</em><b>22 km/h</b></div>
+                <div><em>Ignition</em><b>ON</b></div>
+                <div><em>GPS</em><b>Active</b></div>
+                <div><em>Updated</em><b>10 sec ago</b></div>
+              </div>
+            </div>
+            <button type="button" class="watch-chip overlay" (click)="openDemoModal()">▶ Watch Demo</button>
+          </div>
+        </div>
+
+        <div class="video-bar" aria-hidden="true">
+          <span class="vb-play">▶</span>
+          <span class="vb-track"><i></i></span>
+          <span>0:12 / 0:32</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="trust">
+  <div class="container trust-grid">
+    @for (t of trustItems; track t.label) {
+      <div class="trust-item">
+        <span class="trust-icon" aria-hidden="true">{{ t.icon }}</span>
+        <div>
+          <strong>{{ t.value }}</strong>
+          <span>{{ t.label }}</span>
+        </div>
+      </div>
+    }
+  </div>
+</section>
+
+<section class="section modules">
+  <div class="container">
+    <div class="section-intro">
+      <span class="section-kicker">{{ featuresSection?.subtitle || 'Powerful modules' }}</span>
+      <h2 class="section-title">{{ featuresSection?.title || 'Everything your fleet needs' }}</h2>
+      <p class="section-lead">
+        {{
+          featuresSection?.content ||
+            'One platform to manage your vehicles, drivers, journeys and daily fleet operations.'
+        }}
+      </p>
+    </div>
+    <div class="modules-layout">
+      <div class="pillar-grid">
+        @for (p of pillars; track p.title) {
+          <a class="pillar" [routerLink]="p.link">
+            <span class="pillar-icon" aria-hidden="true">{{ p.icon }}</span>
+            <h3>{{ p.title }}</h3>
+            <p>{{ p.text }}</p>
+          </a>
+        }
+      </div>
+      <aside class="ai-promo">
+        <span class="section-kicker">{{ aiSection?.subtitle || 'SheikhGo AI' }}</span>
+        <h3>{{ aiSection?.title || 'Ask questions, get insights' }}</h3>
+        <p>
+          {{
+            aiSection?.content ||
+              'Turn fleet data into actionable intelligence — maintenance, offline vehicles and performance in one assistant.'
+          }}
+        </p>
+        <a [routerLink]="aiSection?.buttonUrl || '/features'" class="btn btn-outline">
+          {{ aiSection?.buttonText || 'Try AI Assistant →' }}
+        </a>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="section tracking">
+  <div class="container split">
+    <div>
+      <span class="section-kicker">{{ trackingSection?.subtitle || 'Monitor your fleet' }}</span>
+      <h2 class="section-title">
+        {{ trackingSection?.title || 'Monitor your entire fleet in real time' }}
+      </h2>
+      <p class="section-lead">
+        {{
+          trackingSection?.content ||
+            'Know where your vehicles are, what they are doing and what needs your attention.'
+        }}
+      </p>
+      <ul class="check-list">
+        @for (item of trackingPoints; track item) {
+          <li>{{ item }}</li>
+        }
+      </ul>
+      <a [routerLink]="trackingSection?.buttonUrl || '/gps-tracking'" class="btn btn-outline">
+        {{ trackingSection?.buttonText || 'Explore Live Tracking →' }}
+      </a>
+    </div>
+    <div>
+      @if (shots.fleetTracking) {
+        <figure class="shot-frame">
+          <img [src]="shots.fleetTracking" alt="SheikhGo live tracking" width="960" height="720" />
+        </figure>
+      } @else {
+        <div class="product-frame tracking-ui" aria-hidden="true">
+          <div class="product-chrome dark">
+            <strong>Live Tracking</strong>
+            <span class="live-badge"><i></i> GPS Active</span>
+          </div>
+          <div class="tracking-split">
+            <div class="tracking-map">
+              <div class="route-line wide"></div>
+              <span class="map-pin p1"></span>
+              <span class="map-pin p2"></span>
+              <span class="map-pin p3"></span>
+            </div>
+            <aside class="track-list">
+              <div class="veh active"><strong>Toyota Corolla</strong><span>Online · 22 km/h</span></div>
+              <div class="veh"><strong>Hiace</strong><span>Moving · 48 km/h</span></div>
+              <div class="veh"><strong>Ford Transit</strong><span>Idle · 0 km/h</span></div>
+              <div class="veh"><strong>Suzuki</strong><span>Parked</span></div>
+            </aside>
+          </div>
+        </div>
+      }
+    </div>
+  </div>
+</section>
+
+<section class="section dashboard">
+  <div class="container">
+    <div class="section-intro centered">
+      <span class="section-kicker">{{ dashboardSection?.subtitle || 'One dashboard' }}</span>
+      <h2 class="section-title wide">
+        {{ dashboardSection?.title || 'One dashboard. Complete fleet visibility.' }}
+      </h2>
+      <p class="section-lead">
+        {{
+          dashboardSection?.content ||
+            'See vehicles, drivers, trips, alerts, maintenance and fuel at a glance.'
+        }}
+      </p>
+    </div>
+
+    @if (shots.dashboard) {
+      <figure class="shot-frame full">
+        <img [src]="shots.dashboard" alt="SheikhGo dashboard" width="1280" height="720" />
+      </figure>
+    } @else {
+      <div class="product-frame dash-ui" aria-hidden="true">
+        <div class="dash-tabs">
+          @for (tab of dashTabs; track tab) {
+            <button
+              type="button"
+              class="dash-tab"
+              [class.active]="dashTab() === tab"
+              (click)="setDashTab(tab)"
+            >
+              {{ tab }}
+            </button>
+          }
+        </div>
+        <div class="dash-kpis">
+          @for (k of dashKpis; track k.label) {
+            <div>
+              <em>{{ k.label }}</em>
+              <strong>{{ k.value }}</strong>
+            </div>
+          }
+        </div>
+        <div class="dash-panels">
+          <div class="panel util">
+            <span class="ring">82%</span>
+            <strong>Fleet Utilization</strong>
+            <em>Sample period view</em>
+          </div>
+          <div class="panel summary">
+            <strong>Today’s Summary</strong>
+            <ul>
+              <li><span>Distance</span><b>542.9 km</b></li>
+              <li><span>Moving</span><b>30h 04m</b></li>
+              <li><span>Avg Speed</span><b>11.7 km/h</b></li>
+              <li><span>Stops</span><b>49</b></li>
+            </ul>
+          </div>
+          <div class="panel alerts-mini">
+            <strong>Alerts</strong>
+            <div class="row crit">Vehicle Offline · SG-DEMO-02</div>
+            <div class="row warn">Overspeed · Toyota Corolla</div>
+            <div class="row info">Geofence · Demo Depot</div>
+          </div>
+        </div>
+      </div>
+    }
+    <div class="section-cta">
+      <a [routerLink]="dashboardSection?.buttonUrl || '/fleet-management'" class="btn btn-outline">
+        {{ dashboardSection?.buttonText || 'Explore Dashboard →' }}
+      </a>
+    </div>
+  </div>
+</section>
+
+<section class="section playback">
+  <div class="container split">
+    <div>
+      <span class="section-kicker">{{ playbackSection?.subtitle || 'Understand every journey' }}</span>
+      <h2 class="section-title">{{ playbackSection?.title || 'Understand every journey' }}</h2>
+      <p class="section-lead">
+        {{
+          playbackSection?.content ||
+            'Replay routes, analyze stops and parking, and connect every trip from assignment to completion.'
+        }}
+      </p>
+      <div class="trip-caps">
+        @for (c of tripCaps; track c.title) {
+          <div>
+            <span aria-hidden="true">{{ c.icon }}</span>
+            <strong>{{ c.title }}</strong>
+          </div>
+        }
+      </div>
+      <a [routerLink]="playbackSection?.buttonUrl || '/gps-tracking'" class="btn btn-outline">
+        {{ playbackSection?.buttonText || 'Explore Trip History →' }}
+      </a>
+    </div>
+    <div>
+      @if (shots.tripPlayback) {
+        <figure class="shot-frame">
+          <img [src]="shots.tripPlayback" alt="SheikhGo trip playback" width="960" height="640" />
+        </figure>
+      } @else {
+        <div class="product-frame play-ui" aria-hidden="true">
+          <div class="product-chrome dark">
+            <strong>Trip Playback</strong>
+            <span>SG-DEMO-01</span>
+          </div>
+          <div class="play-layout">
+            <div class="play-map">
+              <div class="route-line"></div>
+              <span class="stop s1"></span>
+              <span class="stop s2"></span>
+              <span class="stop s3"></span>
+            </div>
+            <aside class="trip-details">
+              <strong>Trip Details</strong>
+              <p>Toyota Corolla · Demo Driver</p>
+              <ul>
+                <li><span>Start</span><b>08:12</b></li>
+                <li><span>End</span><b>11:40</b></li>
+                <li><span>Distance</span><b>81.2 km</b></li>
+                <li><span>Duration</span><b>3h 28m</b></li>
+              </ul>
+            </aside>
+          </div>
+        </div>
+      }
+    </div>
+  </div>
+</section>
+
+<section class="section triple">
+  <div class="container triple-grid">
+    <article class="card-block">
+      <span class="section-kicker">{{ alertsSection?.subtitle || 'Alerts' }}</span>
+      <h3>{{ alertsSection?.title || 'Stay ahead of fleet problems' }}</h3>
+      <p>
+        {{
+          alertsSection?.content ||
+            'SheikhGo monitors fleet activity so your team can respond to important events.'
+        }}
+      </p>
+      <div class="alert-pills">
+        @for (a of alertPills; track a.label) {
+          <span [attr.data-tone]="a.tone">{{ a.label }}</span>
+        }
+      </div>
+    </article>
+
+    <article class="card-block">
+      <span class="section-kicker">{{ reportsSection?.subtitle || 'Performance' }}</span>
+      <h3>{{ reportsSection?.title || 'Fleet performance you can rely on' }}</h3>
+      <p>
+        {{
+          reportsSection?.content ||
+            'Identify inefficiencies and understand utilization from sample journey metrics.'
+        }}
+      </p>
+      <div class="perf-grid">
+        @for (m of perfMetrics; track m.label) {
+          <div>
+            <em>{{ m.label }}</em>
+            <strong>{{ m.value }}</strong>
+          </div>
+        }
+      </div>
+      <p class="sample-note">Illustrative sample metrics — not published company statistics.</p>
+    </article>
+
+    <article class="card-block ai-card">
+      <span class="section-kicker">AI Insights</span>
+      <h3>Turn fleet data into actionable insights</h3>
+      <div class="mini-chat">
+        <div class="msg you">Which vehicles need attention?</div>
+        <div class="msg bot">
+          3 vehicles require action:
+          <ul>
+            <li>2 maintenance due</li>
+            <li>1 vehicle offline</li>
+          </ul>
+        </div>
+      </div>
+    </article>
+  </div>
+</section>
+
+<section class="section paired">
+  <div class="container paired-grid">
+    <article class="card-block">
+      <span class="section-kicker">{{ integrationsSection?.subtitle || 'Integrations' }}</span>
+      <h3>{{ integrationsSection?.title || 'Built for connected fleets' }}</h3>
+      <p>
+        {{
+          integrationsSection?.content ||
+            'Connect GPS hardware, maps, notifications and APIs through one platform.'
+        }}
+      </p>
+      <div class="logo-grid">
+        @for (item of integrations; track item) {
+          <span>{{ item }}</span>
+        }
+      </div>
+    </article>
+    <article class="card-block" id="security">
+      <span class="section-kicker">{{ securitySection?.subtitle || 'Security' }}</span>
+      <h3>{{ securitySection?.title || 'Enterprise-ready controls' }}</h3>
+      <p>
+        {{
+          securitySection?.content ||
+            'Controls that match what SheikhGo implements today — without overselling certifications.'
+        }}
+      </p>
+      <div class="logo-grid">
+        @for (item of securityItems; track item) {
+          <span>{{ item }}</span>
+        }
+      </div>
+    </article>
+  </div>
+</section>
+
+<app-cta-band
+  [title]="ctaSection?.title || 'Ready to manage your fleet smarter?'"
+  [lead]="
+    ctaSection?.content ||
+    'Bring vehicles, drivers, trips, GPS tracking, maintenance and analytics together in SheikhGo.'
+  "
+  [primaryText]="ctaSection?.buttonText || 'Request a Demo'"
+  [primaryUrl]="ctaSection?.buttonUrl || '/request-demo'"
+  [secondaryText]="ctaSection?.secondaryButtonText || 'Contact Sales →'"
+  [secondaryUrl]="ctaSection?.secondaryButtonUrl || '/contact'"
+/>
+
+@if (demoModalOpen()) {
+  <div class="demo-modal" role="dialog" aria-modal="true" aria-labelledby="demo-modal-title">
+    <button type="button" class="demo-modal-backdrop" (click)="closeDemoModal()" aria-label="Close demo"></button>
+    <div class="demo-modal-panel">
+      <header>
+        <div>
+          <h2 id="demo-modal-title">SheikhGo product demo</h2>
+          <p>Dashboard → Live GPS → History → Trips → Alerts → Analytics → AI</p>
+        </div>
+        <button type="button" class="demo-close" (click)="closeDemoModal()" aria-label="Close">×</button>
+      </header>
+      @if (modalVideoSrc) {
+        <video [src]="modalVideoSrc" controls autoplay playsinline></video>
+      } @else {
+        <div class="demo-modal-empty">
+          <p>
+            Add <code>public/website/hero-demo.mp4</code> (30s) and optionally
+            <code>product-demo.mp4</code> (60–90s) to enable playback.
+          </p>
+          <a routerLink="/request-demo" class="btn btn-primary" (click)="closeDemoModal()">Request a Demo</a>
+        </div>
+      }
+    </div>
+  </div>
+}

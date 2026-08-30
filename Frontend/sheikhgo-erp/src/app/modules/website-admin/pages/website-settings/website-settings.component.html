@@ -1,0 +1,34 @@
+<div class="wa-page stb-page">
+  <div class="wa-header">
+    <div>
+      <h1>Website Settings</h1>
+      <p class="wa-sub">Brand, contact, and default SEO settings.</p>
+    </div>
+    <a mat-stroked-button routerLink="/website"><mat-icon>arrow_back</mat-icon> Dashboard</a>
+  </div>
+
+  <div *ngIf="loading" class="wa-muted">Loading…</div>
+
+  <div class="stb-card wa-form" *ngIf="!loading">
+    <div class="wa-fields">
+      <div class="stb-field"><label>Site name</label><input class="stb-input" [(ngModel)]="form.siteName" /></div>
+      <div class="stb-field"><label>Phone</label><input class="stb-input" [(ngModel)]="form.phone" /></div>
+      <div class="stb-field"><label>Support email</label><input class="stb-input" type="email" [(ngModel)]="form.supportEmail" /></div>
+      <div class="stb-field"><label>Sales email</label><input class="stb-input" type="email" [(ngModel)]="form.salesEmail" /></div>
+      <div class="stb-field"><label>Privacy email</label><input class="stb-input" type="email" [(ngModel)]="form.privacyEmail" /></div>
+      <div class="stb-field"><label>Analytics ID</label><input class="stb-input" [(ngModel)]="form.analyticsId" /></div>
+      <div class="stb-field wa-full"><label>Address</label><textarea class="stb-input" rows="2" [(ngModel)]="form.address"></textarea></div>
+      <div class="stb-field"><label>Logo URL</label><input class="stb-input" [(ngModel)]="form.logoUrl" /></div>
+      <div class="stb-field"><label>Favicon URL</label><input class="stb-input" [(ngModel)]="form.faviconUrl" /></div>
+      <div class="stb-field"><label>LinkedIn</label><input class="stb-input" [(ngModel)]="form.linkedInUrl" /></div>
+      <div class="stb-field"><label>Facebook</label><input class="stb-input" [(ngModel)]="form.facebookUrl" /></div>
+      <div class="stb-field"><label>X (Twitter)</label><input class="stb-input" [(ngModel)]="form.xUrl" /></div>
+      <div class="stb-field"><label>YouTube</label><input class="stb-input" [(ngModel)]="form.youTubeUrl" /></div>
+      <div class="stb-field"><label>Default meta title</label><input class="stb-input" [(ngModel)]="form.defaultMetaTitle" /></div>
+      <div class="stb-field wa-full"><label>Default meta description</label><textarea class="stb-input" rows="2" [(ngModel)]="form.defaultMetaDescription"></textarea></div>
+    </div>
+    <button mat-raised-button color="primary" type="button" [disabled]="saving" (click)="save()">
+      {{ saving ? 'Saving…' : 'Save settings' }}
+    </button>
+  </div>
+</div>

@@ -1,0 +1,43 @@
+<div class="wa-page stb-page">
+  <div class="wa-header">
+    <div>
+      <h1>Legal Documents</h1>
+      <p class="wa-sub">Privacy, terms, and cookie policy content.</p>
+    </div>
+    <a mat-stroked-button routerLink="/website"><mat-icon>arrow_back</mat-icon> Dashboard</a>
+  </div>
+
+  <div class="wa-tabs">
+    <button
+      type="button"
+      mat-stroked-button
+      *ngFor="let tab of tabs"
+      [color]="activeDoc === tab.key ? 'primary' : undefined"
+      (click)="selectTab(tab.key)">
+      {{ tab.label }}
+    </button>
+  </div>
+
+  <div *ngIf="loading" class="wa-muted">Loading…</div>
+
+  <div class="stb-card wa-form" *ngIf="!loading">
+    <p class="wa-meta" *ngIf="docs[activeDoc] as doc">
+      Status: {{ doc.status }}
+      <span *ngIf="doc.publishedAt"> · Published {{ doc.publishedAt | date:'medium' }}</span>
+    </p>
+    <div class="wa-fields">
+      <div class="stb-field"><label>Title</label><input class="stb-input" [(ngModel)]="form.title" /></div>
+      <div class="stb-field"><label>Version</label><input class="stb-input" [(ngModel)]="form.version" /></div>
+      <div class="stb-field wa-full">
+        <label>Content</label>
+        <textarea class="stb-input" rows="16" [(ngModel)]="form.content"></textarea>
+      </div>
+    </div>
+    <div class="wa-actions">
+      <button mat-raised-button color="primary" type="button" [disabled]="saving" (click)="save()">
+        {{ saving ? 'Saving…' : 'Save' }}
+      </button>
+      <button mat-stroked-button type="button" (click)="publish()">Publish</button>
+    </div>
+  </div>
+</div>

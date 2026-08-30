@@ -1,0 +1,47 @@
+.layout {
+  display: grid;
+  grid-template-columns: 1.4fr 0.8fr;
+  gap: 2rem;
+  align-items: start;
+}
+
+.panel {
+  background: #fff;
+  border: 1px solid var(--sg-line);
+  border-radius: 16px;
+  padding: 1.5rem;
+  display: grid;
+  gap: 1rem;
+}
+
+.aside {
+  background: var(--sg-ink);
+  color: rgba(255, 255, 255, 0.85);
+  border-radius: 16px;
+  padding: 1.5rem;
+}
+
+.aside h2 {
+  color: #fff;
+  margin-bottom: 1rem;
+}
+
+.aside a {
+  color: #99f6e4;
+}
+
+.aside p + p {
+  margin-top: 1rem;
+}
+
+.note {
+  margin-top: 1.5rem;
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+@media (max-width: 860px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+}
