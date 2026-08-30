@@ -1,0 +1,47 @@
+<header class="site-header" [ngClass]="{ scrolled: scrolled, open: menuOpen() }">
+  <div class="container bar">
+    <a routerLink="/" class="brand" (click)="closeMenu()">
+      <app-sg-logo variant="header" [showWordmark]="true" [wordmark]="siteName" [alt]="siteName" />
+    </a>
+
+    <nav class="nav" [class.show]="menuOpen()">
+      <div class="dropdown" [class.open]="platformOpen()">
+        <button type="button" class="nav-link drop-btn" (click)="togglePlatform()">
+          Platform
+          <span class="chev" aria-hidden="true"></span>
+        </button>
+        <div class="dropdown-panel">
+          <a routerLink="/fleet-management" routerLinkActive="active" (click)="closeMenu()">Fleet Management</a>
+          <a routerLink="/gps-tracking" routerLinkActive="active" (click)="closeMenu()">GPS Tracking</a>
+          <a routerLink="/features" routerLinkActive="active" (click)="closeMenu()">All Features</a>
+        </div>
+      </div>
+      <a routerLink="/features" routerLinkActive="active" class="nav-link" (click)="closeMenu()">Features</a>
+      <div class="dropdown" [class.open]="solutionsOpen()">
+        <button type="button" class="nav-link drop-btn" (click)="toggleSolutions()">
+          Solutions
+          <span class="chev" aria-hidden="true"></span>
+        </button>
+        <div class="dropdown-panel">
+          <a href="/#solutions" (click)="closeMenu()">Fleet Operators</a>
+          <a href="/#solutions" (click)="closeMenu()">Travel Companies</a>
+          <a href="/#solutions" (click)="closeMenu()">Vehicle Rental</a>
+          <a href="/#solutions" (click)="closeMenu()">Corporate Fleets</a>
+          <a href="/#solutions" (click)="closeMenu()">Enterprise</a>
+        </div>
+      </div>
+      <a routerLink="/about" routerLinkActive="active" class="nav-link" (click)="closeMenu()">About</a>
+      <a routerLink="/contact" routerLinkActive="active" class="nav-link" (click)="closeMenu()">Contact</a>
+      <a class="nav-link mobile-only" routerLink="/auth/login" (click)="closeMenu()">Login</a>
+      <a routerLink="/request-demo" class="btn btn-primary mobile-only" (click)="closeMenu()">Request Demo</a>
+    </nav>
+
+    <div class="actions">
+      <a class="login" routerLink="/auth/login">Login</a>
+      <a routerLink="/request-demo" class="btn btn-primary">Request Demo</a>
+      <button type="button" class="burger" (click)="toggleMenu()" [attr.aria-expanded]="menuOpen()" aria-label="Menu">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </div>
+</header>

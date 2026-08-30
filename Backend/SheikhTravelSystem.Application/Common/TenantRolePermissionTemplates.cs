@@ -26,7 +26,9 @@ public static class TenantRolePermissionTemplates
         "Gps.CommandView", "Gps.CommandSend", "Gps.CommandEngineCutoff", "Gps.CommandPositionRequest",
         "Gps.CommandRestart", "Gps.CommandRelay", "Gps.CommandBuzzer", "Gps.CommandCustomSms", "Gps.CommandRetry", "Gps.CommandCancel",
         "Ai.View", "Ai.Manage", "Ai.ExecuteWrite",
-        "Notification.View", "Notification.Manage"
+        "Notification.View", "Notification.Manage",
+        "Website.View", "Website.Edit", "Website.Publish", "Website.Media",
+        "Website.ContactRequests", "Website.DemoRequests", "Website.Legal", "Website.Settings"
     ];
 
     public static readonly string[] FleetManager =

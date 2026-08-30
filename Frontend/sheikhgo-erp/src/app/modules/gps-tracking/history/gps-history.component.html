@@ -296,8 +296,19 @@
                 <mat-icon>{{ isParkingStop(s) ? 'local_parking' : 'pause_circle' }}</mat-icon>
                 {{ stopHeadline(s) }}
               </span>
+              <button
+                type="button"
+                class="stop-map-btn"
+                (click)="focusStop(s, i); $event.stopPropagation()"
+                title="View on map">
+                <mat-icon>my_location</mat-icon>
+                View on map
+              </button>
             </span>
-            <span class="stop-headline">{{ stopPrimaryLine(s) }}</span>
+            <span class="stop-headline">
+              <mat-icon class="stop-pin" aria-hidden="true">place</mat-icon>
+              {{ stopPrimaryLine(s) }}
+            </span>
             <span class="stop-nearby" *ngIf="stopNearbyLine(s) as near">{{ near }}</span>
             <span class="stop-locality" *ngIf="stopLocalityLine(s) as locality">
               {{ locality }}

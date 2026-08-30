@@ -67,16 +67,46 @@ public static class TripReplayAddressEnricher
     public static string? FormatResolvedAddress(ReverseGeocodeResult? result)
     {
         if (result is null) return null;
+
+        // Prefer structured street + locality over POI-leading FormattedAddress.
+        if (!string.IsNullOrWhiteSpace(result.PrimaryAddress))
+        {
+            var locality = result.LocalityLine?.Trim();
+            return string.IsNullOrWhiteSpace(locality)
+                ? result.PrimaryAddress.Trim()
+                : $"{result.PrimaryAddress.Trim()}, {locality}";
+        }
+
+        if (!string.IsNullOrWhiteSpace(result.Road))
+        {
+            var bits = new[] { result.Road, result.City, result.State, result.Country }
+                .Where(s => !string.IsNullOrWhiteSpace(s))
+                .Select(s => s!.Trim());
+            var rebuilt = string.Join(", ", bits);
+            if (!string.IsNullOrWhiteSpace(rebuilt))
+                return SanitizeFleetAddress(rebuilt);
+        }
+
         var formatted = SanitizeFleetAddress(result.FormattedAddress);
         if (!string.IsNullOrWhiteSpace(formatted))
-            return formatted;
+        {
+            var place = result.PlaceName?.Trim();
+            if (!string.IsNullOrWhiteSpace(place)
+                && formatted.StartsWith(place, StringComparison.OrdinalIgnoreCase))
+            {
+                var comma = formatted.IndexOf(',');
+                if (comma > 0)
+                    formatted = SanitizeFleetAddress(formatted[(comma + 1)..]);
+                else
+                    formatted = null;
+            }
+        }
 
-        // Do not fall back to unchecked PlaceName for fleet operators.
-        return null;
+        return formatted;
     }
 
     /// <summary>
-    /// City/region-only, plus-code, or legacy "Near {POI}" lines that need a street-level refresh.
+    /// City/region-only, plus-code, legacy "Near {POI}", or POI-only lines that need a street-level refresh.
     /// </summary>
     public static bool IsCoarseAddress(string? address)
     {
@@ -95,6 +125,24 @@ public static class TripReplayAddressEnricher
                 raw,
                 @"\b[23456789CFGHJMPQRVWX]{4,8}\+[23456789CFGHJMPQRVWX]{2,3}\b",
                 System.Text.RegularExpressions.RegexOptions.IgnoreCase))
+            return true;
+
+        var parts = raw.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (parts.Length == 0) return true;
+
+        static bool LooksLikeRoad(string part)
+        {
+            var p = part.ToLowerInvariant();
+            if (part.Any(char.IsDigit)) return true;
+            return p.Contains("road") || p.Contains("street") || p.Contains("avenue")
+                || p.Contains("lane") || p.Contains("highway") || p.Contains("bypass")
+                || p.Contains("chowk") || p.Contains("boulevard");
+        }
+
+        if (parts.Length == 1 && !LooksLikeRoad(parts[0]))
+            return true;
+
+        if (!parts.Any(LooksLikeRoad) && !parts.Any(p => p.Any(char.IsDigit)))
             return true;
 
         return false;
@@ -116,6 +164,7 @@ public static class TripReplayAddressEnricher
                 p,
                 @"\b[23456789CFGHJMPQRVWX]{4,8}\+[23456789CFGHJMPQRVWX]{2,3}\b",
                 System.Text.RegularExpressions.RegexOptions.IgnoreCase))
+            .Where(p => !p.StartsWith("Near ", StringComparison.OrdinalIgnoreCase))
             .ToList();
         if (parts.Count == 0) return null;
         var cleaned = string.Join(", ", parts);

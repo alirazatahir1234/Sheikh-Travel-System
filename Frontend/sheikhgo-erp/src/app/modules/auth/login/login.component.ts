@@ -89,7 +89,7 @@ export class LoginComponent implements OnInit {
   }
 
   forgotPassword(): void {
-    this.toast.warning('Please contact your administrator to reset password.');
+    this.router.navigate(['/auth/forgot-password']);
   }
 
   socialLogin(provider: 'google' | 'microsoft'): void {

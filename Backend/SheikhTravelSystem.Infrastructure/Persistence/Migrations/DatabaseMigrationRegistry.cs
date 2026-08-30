@@ -99,6 +99,8 @@ public static class DatabaseMigrationRegistry
             M("FleetAlertMaintenancePermissionsMigration", FleetAlertMaintenancePermissionsMigration.ApplyAsync),
             M("SystemRolePermissionSyncMigration", SystemRolePermissionSyncMigration.ApplyAsync),
             M("FleetListCompanyScopeMigration", FleetListCompanyScopeMigration.ApplyAsync),
+            M("PasswordResetTokenMigration", PasswordResetTokenMigration.ApplyAsync),
+            M("WebsiteCmsMigration", WebsiteCmsMigration.ApplyAsync),
         ];
     }
 }

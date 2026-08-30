@@ -1,0 +1,50 @@
+<div class="wa-page stb-page">
+  <div class="wa-header">
+    <div>
+      <h1>Demo Requests</h1>
+      <p class="wa-sub">Inbound leads from the request-demo form.</p>
+    </div>
+    <div class="wa-actions">
+      <a mat-stroked-button routerLink="/website"><mat-icon>arrow_back</mat-icon> Dashboard</a>
+      <select class="stb-select" [(ngModel)]="statusFilter" (ngModelChange)="reload()">
+        <option value="">All statuses</option>
+        <option *ngFor="let st of statuses" [value]="st">{{ st }}</option>
+      </select>
+    </div>
+  </div>
+
+  <div *ngIf="loading" class="wa-muted">Loading…</div>
+
+  <table mat-table [dataSource]="dataSource" class="wa-table" *ngIf="!loading">
+    <ng-container matColumnDef="name">
+      <th mat-header-cell *matHeaderCellDef>Name</th>
+      <td mat-cell *matCellDef="let row">{{ row.name }}</td>
+    </ng-container>
+    <ng-container matColumnDef="company">
+      <th mat-header-cell *matHeaderCellDef>Company</th>
+      <td mat-cell *matCellDef="let row">{{ row.company }}</td>
+    </ng-container>
+    <ng-container matColumnDef="email">
+      <th mat-header-cell *matHeaderCellDef>Email</th>
+      <td mat-cell *matCellDef="let row">{{ row.email }}</td>
+    </ng-container>
+    <ng-container matColumnDef="product">
+      <th mat-header-cell *matHeaderCellDef>Product</th>
+      <td mat-cell *matCellDef="let row">{{ row.interestedProduct || '—' }}</td>
+    </ng-container>
+    <ng-container matColumnDef="status">
+      <th mat-header-cell *matHeaderCellDef>Status</th>
+      <td mat-cell *matCellDef="let row">
+        <select class="stb-select" [ngModel]="row.status" (ngModelChange)="updateStatus(row, $event)">
+          <option *ngFor="let st of statuses" [value]="st">{{ st }}</option>
+        </select>
+      </td>
+    </ng-container>
+    <ng-container matColumnDef="createdAt">
+      <th mat-header-cell *matHeaderCellDef>Created</th>
+      <td mat-cell *matCellDef="let row">{{ row.createdAt | date:'medium' }}</td>
+    </ng-container>
+    <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+    <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
+  </table>
+</div>

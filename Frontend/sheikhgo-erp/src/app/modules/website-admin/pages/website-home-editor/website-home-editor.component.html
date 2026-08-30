@@ -1,0 +1,89 @@
+<div class="wa-page stb-page">
+  <div class="wa-header">
+    <div>
+      <h1>Home Page Editor</h1>
+      <p class="wa-sub">Edit homepage sections and publish changes.</p>
+    </div>
+    <div class="wa-actions">
+      <a mat-stroked-button routerLink="/website"><mat-icon>arrow_back</mat-icon> Dashboard</a>
+      <button mat-stroked-button type="button" (click)="newSection()" [disabled]="!homePageId">
+        <mat-icon>add</mat-icon> Add section
+      </button>
+    </div>
+  </div>
+
+  <div *ngIf="loading" class="wa-muted">Loading…</div>
+
+  <div class="wa-split" *ngIf="!loading">
+    <div class="wa-list">
+      <div
+        class="stb-card wa-section-card"
+        *ngFor="let s of sections"
+        [class.active]="selected?.id === s.id"
+        (click)="select(s)">
+        <strong>{{ s.title || s.sectionType }}</strong>
+        <span>{{ s.sectionType }} · {{ s.status }} · #{{ s.displayOrder }}</span>
+      </div>
+      <p *ngIf="!sections.length" class="wa-muted">No home sections yet.</p>
+    </div>
+
+    <div class="stb-card wa-form" *ngIf="form.pageId || selected || homePageId">
+      <h2>{{ form.id ? 'Edit section' : 'New section' }}</h2>
+      <div class="wa-fields">
+        <div class="stb-field">
+          <label>Type</label>
+          <input class="stb-input" [(ngModel)]="form.sectionType" />
+        </div>
+        <div class="stb-field">
+          <label>Title</label>
+          <input class="stb-input" [(ngModel)]="form.title" />
+        </div>
+        <div class="stb-field">
+          <label>Subtitle</label>
+          <input class="stb-input" [(ngModel)]="form.subtitle" />
+        </div>
+        <div class="stb-field wa-full">
+          <label>Content</label>
+          <textarea class="stb-input" rows="5" [(ngModel)]="form.content"></textarea>
+        </div>
+        <div class="stb-field">
+          <label>Button text</label>
+          <input class="stb-input" [(ngModel)]="form.buttonText" />
+        </div>
+        <div class="stb-field">
+          <label>Button URL</label>
+          <input class="stb-input" [(ngModel)]="form.buttonUrl" />
+        </div>
+        <div class="stb-field">
+          <label>Secondary button</label>
+          <input class="stb-input" [(ngModel)]="form.secondaryButtonText" />
+        </div>
+        <div class="stb-field">
+          <label>Secondary URL</label>
+          <input class="stb-input" [(ngModel)]="form.secondaryButtonUrl" />
+        </div>
+        <div class="stb-field">
+          <label>Order</label>
+          <input class="stb-input" type="number" [(ngModel)]="form.displayOrder" />
+        </div>
+        <div class="stb-field">
+          <label>Status</label>
+          <select class="stb-select" [(ngModel)]="form.status">
+            <option *ngFor="let st of statuses" [value]="st">{{ st }}</option>
+          </select>
+        </div>
+        <div class="stb-field">
+          <label>
+            <input type="checkbox" [(ngModel)]="form.isActive" /> Active
+          </label>
+        </div>
+      </div>
+      <div class="wa-actions">
+        <button mat-raised-button color="primary" type="button" [disabled]="saving" (click)="save()">
+          {{ saving ? 'Saving…' : 'Save' }}
+        </button>
+        <button mat-stroked-button type="button" [disabled]="!form.id" (click)="publish()">Publish</button>
+      </div>
+    </div>
+  </div>
+</div>

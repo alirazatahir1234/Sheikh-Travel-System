@@ -4,15 +4,94 @@ import { ShellComponent } from './layout/shell/shell.component';
 import { authGuard } from './core/guards/auth.guard';
 import { driverWorkspaceGuard } from './core/guards/driver-workspace.guard';
 import { permissionGuard } from './core/guards/permission.guard';
+import { guestCanMatch } from './core/guards/guest.guard';
+import { WebsiteShellComponent } from './modules/website/website-shell.component';
 
 const routes: Routes = [
   { path: 'auth', loadChildren: () => import('./modules/auth/auth.module').then(m => m.AuthModule) },
+  { path: 'login', redirectTo: 'auth/login', pathMatch: 'full' },
+
+  // Always-public legal pages (Play Store / compliance — available while signed in too)
+  {
+    path: 'privacy-policy',
+    component: WebsiteShellComponent,
+    children: [
+      {
+        path: '',
+        loadComponent: () => import('./modules/website/pages/legal/privacy.page').then(m => m.PrivacyPage),
+      },
+    ],
+  },
+  {
+    path: 'terms-and-conditions',
+    component: WebsiteShellComponent,
+    children: [
+      {
+        path: '',
+        loadComponent: () => import('./modules/website/pages/legal/terms.page').then(m => m.TermsPage),
+      },
+    ],
+  },
+  {
+    path: 'cookie-policy',
+    component: WebsiteShellComponent,
+    children: [
+      {
+        path: '',
+        loadComponent: () => import('./modules/website/pages/legal/cookie.page').then(m => m.CookiePage),
+      },
+    ],
+  },
+
+  // Public marketing site (guests only — avoids clashing with ERP paths like gps-tracking)
+  {
+    path: '',
+    component: WebsiteShellComponent,
+    canMatch: [guestCanMatch],
+    children: [
+      {
+        path: '',
+        loadComponent: () => import('./modules/website/pages/home/home.page').then(m => m.HomePage),
+      },
+      {
+        path: 'fleet-management',
+        loadComponent: () => import('./modules/website/pages/fleet/fleet.page').then(m => m.FleetPage),
+      },
+      {
+        path: 'gps-tracking',
+        loadComponent: () => import('./modules/website/pages/gps/gps.page').then(m => m.GpsPage),
+      },
+      {
+        path: 'features',
+        loadComponent: () => import('./modules/website/pages/features/features.page').then(m => m.FeaturesPage),
+      },
+      // Guest-only marketing aliases (ERP `/platform` remains auth-protected)
+      { path: 'platform', redirectTo: 'features', pathMatch: 'full' },
+      { path: 'solutions', redirectTo: 'about', pathMatch: 'full' },
+      {
+        path: 'about',
+        loadComponent: () => import('./modules/website/pages/about/about.page').then(m => m.AboutPage),
+      },
+      {
+        path: 'contact',
+        loadComponent: () => import('./modules/website/pages/contact/contact.page').then(m => m.ContactPage),
+      },
+      {
+        path: 'request-demo',
+        loadComponent: () =>
+          import('./modules/website/pages/request-demo/request-demo.page').then(m => m.RequestDemoPage),
+      },
+    ],
+  },
+
+  // Authenticated ERP shell
   {
     path: '',
     component: ShellComponent,
     canActivate: [authGuard],
     canActivateChild: [driverWorkspaceGuard],
     children: [
+      // Signed-in `/` → dashboard (marketing shell is skipped via guestCanMatch)
       { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
       { path: 'my-trips', loadChildren: () => import('./modules/driver-workspace/driver-workspace.module').then(m => m.DriverWorkspaceModule) },
       {
@@ -148,14 +227,20 @@ const routes: Routes = [
         data: { permissions: ['Ai.View'] },
         loadChildren: () => import('./modules/ai/ai.module').then(m => m.AiModule)
       },
+      {
+        path: 'website',
+        canActivate: [permissionGuard],
+        data: { permissions: ['Website.View'] },
+        loadChildren: () => import('./modules/website-admin/website-admin.module').then(m => m.WebsiteAdminModule)
+      },
       { path: 'profile', loadChildren: () => import('./modules/profile/profile.module').then(m => m.ProfileModule) }
     ]
   },
-  { path: '**', redirectTo: 'dashboard' }
+  { path: '**', redirectTo: '' }
 ];
 
 @NgModule({
-  imports: [RouterModule.forRoot(routes)],
+  imports: [RouterModule.forRoot(routes), WebsiteShellComponent],
   exports: [RouterModule]
 })
 export class AppRoutingModule { }

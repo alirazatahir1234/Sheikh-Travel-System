@@ -11,6 +11,8 @@ describe('gps-address.util', () => {
     expect(isCoarseAddress('Near Mandar, 7M78+84W, Pasrur')).toBe(true);
     expect(isCoarseAddress('7M78+84W, Walled City, Pasrur, Pakistan')).toBe(true);
     expect(isCoarseAddress('Pasrur, Pasrur Tehsil, Sialkot District')).toBe(true);
+    expect(isCoarseAddress('Peak Performance Partners')).toBe(true);
+    expect(isCoarseAddress('Peak Performance Partners, Sialkot, Punjab')).toBe(true);
     expect(isCoarseAddress('Circular Road, Sialkot, Punjab, Pakistan')).toBe(false);
     // Non-ASCII script (Urdu) and diacritics are valid addresses — not coarse.
     expect(isCoarseAddress('سیالکوٹ روڈ، پسرور')).toBe(false);
@@ -50,6 +52,14 @@ describe('gps-address.util', () => {
     expect(splitDisplayAddress('Near Shop, Circular Road, Sialkot, Punjab')).toEqual({
       primary: 'Circular Road',
       secondary: 'Sialkot, Punjab'
+    });
+    expect(splitDisplayAddress('Peak Performance Partners')).toEqual({
+      primary: null,
+      secondary: 'Peak Performance Partners'
+    });
+    expect(splitDisplayAddress('Peak Performance Partners, Sialkot, Punjab')).toEqual({
+      primary: 'Sialkot, Punjab',
+      secondary: 'Peak Performance Partners'
     });
   });
 });

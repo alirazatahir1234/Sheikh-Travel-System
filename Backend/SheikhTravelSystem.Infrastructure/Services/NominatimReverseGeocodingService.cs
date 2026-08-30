@@ -115,13 +115,38 @@ public sealed class NominatimReverseGeocodingService(
         if (resolved is null || string.IsNullOrWhiteSpace(resolved.FormattedAddress))
             return null;
 
-        // Persist street-first lines only (no legacy Near-prefix / plus-code fragments).
+        // Persist street-first lines only (no legacy Near-prefix / plus-code / POI-leading fragments).
         var cleanedAddress = StripPlusCodeSegments(resolved.FormattedAddress);
         if (cleanedAddress.StartsWith("Near ", StringComparison.OrdinalIgnoreCase))
         {
             var comma = cleanedAddress.IndexOf(',');
             cleanedAddress = comma > 0 ? cleanedAddress[(comma + 1)..].Trim() : cleanedAddress;
         }
+
+        var cleanedPlaceName = SanitizePlaceName(resolved.PlaceName);
+        cleanedPlaceName = string.IsNullOrWhiteSpace(cleanedPlaceName)
+            ? null
+            : RemoveDiacritics(cleanedPlaceName);
+
+        // Prefer rebuilt road + locality when FormattedAddress is POI-first.
+        var rebuiltFromParts = string.Join(", ", new[] { resolved.Road, resolved.City, resolved.State, resolved.Country }
+            .Where(s => !string.IsNullOrWhiteSpace(s)));
+        if (!string.IsNullOrWhiteSpace(rebuiltFromParts)
+            && LooksLikeRoadSegment(resolved.Road)
+            && (string.IsNullOrWhiteSpace(cleanedAddress)
+                || (!string.IsNullOrWhiteSpace(cleanedPlaceName)
+                    && cleanedAddress.StartsWith(cleanedPlaceName, StringComparison.OrdinalIgnoreCase))))
+        {
+            cleanedAddress = rebuiltFromParts;
+        }
+        else if (!string.IsNullOrWhiteSpace(cleanedPlaceName)
+                 && cleanedAddress.StartsWith(cleanedPlaceName, StringComparison.OrdinalIgnoreCase))
+        {
+            var comma = cleanedAddress.IndexOf(',');
+            if (comma > 0)
+                cleanedAddress = cleanedAddress[(comma + 1)..].Trim();
+        }
+
         cleanedAddress = CompactLocalityAddress(
             cleanedAddress,
             resolved.Road,
@@ -131,11 +156,6 @@ public sealed class NominatimReverseGeocodingService(
         cleanedAddress = RemoveDiacritics(cleanedAddress);
         if (string.IsNullOrWhiteSpace(cleanedAddress))
             cleanedAddress = resolved.FormattedAddress;
-
-        var cleanedPlaceName = SanitizePlaceName(resolved.PlaceName);
-        cleanedPlaceName = string.IsNullOrWhiteSpace(cleanedPlaceName)
-            ? null
-            : RemoveDiacritics(cleanedPlaceName);
 
         resolved = resolved with
         {
@@ -189,14 +209,14 @@ public sealed class NominatimReverseGeocodingService(
     }
 
     /// <summary>
-    /// Missing street, plus-code-only, or legacy "Near {POI}" lines. PlaceName does not make an address fine.
+    /// Missing street, plus-code-only, legacy "Near {POI}", or POI-first lines with no road.
     /// </summary>
     internal static bool IsCoarseAddress(string? address, string? road, string? placeName = null)
     {
-        _ = placeName; // ignored for coarseness (street-first policy)
         if (!string.IsNullOrWhiteSpace(road)
             && !LooksLikeAdminToken(road)
-            && !LooksLikePlusCode(road))
+            && !LooksLikePlusCode(road)
+            && LooksLikeRoadSegment(road))
             return false;
 
         if (string.IsNullOrWhiteSpace(address)) return true;
@@ -218,15 +238,44 @@ public sealed class NominatimReverseGeocodingService(
         // Digits usually mean house number / road code — but not when the only "digit token" was a plus code
         // (already handled above).
         var hasDigit = parts.Any(p => p.Any(char.IsDigit) && !LooksLikePlusCode(p));
-        if (hasDigit) return false;
+        if (hasDigit && parts.Any(LooksLikeRoadSegment)) return false;
 
         // Explicit admin hierarchy tokens mean we still want a street if providers can supply one.
         var lowerAll = trimmed.ToLowerInvariant();
         if (lowerAll.Contains("tehsil") || lowerAll.Contains("district") || lowerAll.Contains("division"))
             return true;
 
+        // POI/business name as the only (or leading) label without a road → coarse.
+        var place = SanitizePlaceName(placeName);
+        if (!string.IsNullOrWhiteSpace(place)
+            && parts[0].Equals(place, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (parts.Length == 1 && !LooksLikeRoadSegment(parts[0]))
+            return true;
+
+        if (!parts.Any(LooksLikeRoadSegment) && !hasDigit)
+            return true;
+
         // "City, Province, Country" with no road is acceptable for rural pins — do not keep thrashing providers.
         return false;
+    }
+
+    /// <summary>True when a segment looks like a street / highway rather than a shop or admin area.</summary>
+    internal static bool LooksLikeRoadSegment(string? part)
+    {
+        if (string.IsNullOrWhiteSpace(part)) return false;
+        if (LooksLikeAdminToken(part) || LooksLikePlusCode(part)) return false;
+        var lower = part.Trim().ToLowerInvariant();
+        if (part.Any(char.IsDigit)) return true;
+        string[] keywords =
+        [
+            "road", "rd", "street", "st.", " st ", "avenue", "ave", "boulevard", "blvd",
+            "lane", "ln", "drive", "dr", "highway", "hwy", "motorway", "bypass", "gt road",
+            "g.t", "chowk", "nagar", "ring road", "service road", "link road", "pasrur road",
+            "sialkot road", "circular road"
+        ];
+        return keywords.Any(k => lower.Contains(k, StringComparison.Ordinal));
     }
 
     internal static bool ContainsPlusCode(string? text)
@@ -326,7 +375,9 @@ public sealed class NominatimReverseGeocodingService(
 
     private static string? BuildPrimaryAddress(ReverseGeocodeResult value)
     {
-        if (!string.IsNullOrWhiteSpace(value.Road) && !LooksLikeAdminToken(value.Road))
+        if (!string.IsNullOrWhiteSpace(value.Road)
+            && !LooksLikeAdminToken(value.Road)
+            && LooksLikeRoadSegment(value.Road))
             return value.Road.Trim();
 
         var cleaned = StripPlusCodeSegments(value.FormattedAddress).Trim();
@@ -335,6 +386,28 @@ public sealed class NominatimReverseGeocodingService(
             .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .ToList();
         if (parts.Count == 0) return null;
+
+        // Drop leading POI / amenity so street comes first.
+        var place = SanitizePlaceName(value.PlaceName);
+        if (!string.IsNullOrWhiteSpace(place)
+            && parts.Count > 1
+            && parts[0].Equals(place, StringComparison.OrdinalIgnoreCase))
+        {
+            parts = parts.Skip(1).ToList();
+        }
+
+        var roadLike = parts.FirstOrDefault(LooksLikeRoadSegment);
+        if (roadLike is not null)
+            return roadLike;
+
+        // Never promote a lone business/POI name as the primary street line.
+        if (parts.Count == 1 && !LooksLikeRoadSegment(parts[0]))
+            return null;
+
+        if (!string.IsNullOrWhiteSpace(place)
+            && parts[0].Equals(place, StringComparison.OrdinalIgnoreCase))
+            return null;
+
         var take = parts.Count >= 4 ? 2 : 1;
         return string.Join(", ", parts.Take(take));
     }
@@ -676,7 +749,10 @@ public sealed class NominatimReverseGeocodingService(
 
             return new ReverseGeocodeResult(
                 formatted,
-                FirstNonEmpty(street, road, area),
+                // Road column must stay street-like — never amenity/neighbourhood as "Road".
+                FirstNonEmpty(
+                    !string.IsNullOrWhiteSpace(street) && LooksLikeRoadSegment(street) ? street : null,
+                    !string.IsNullOrWhiteSpace(road) && LooksLikeRoadSegment(road) ? road : null),
                 city,
                 state,
                 country,

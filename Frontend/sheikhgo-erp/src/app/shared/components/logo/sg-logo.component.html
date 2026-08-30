@@ -1,0 +1,17 @@
+<span
+  class="sg-logo"
+  [ngClass]="'sg-logo--' + variant"
+  [class.sg-logo--with-wordmark]="showWordmark"
+>
+  <img
+    class="sg-logo__img"
+    [src]="src"
+    [alt]="alt"
+    width="993"
+    height="1024"
+    decoding="async"
+  />
+  @if (showWordmark) {
+    <span class="sg-logo__wordmark">{{ wordmark }}</span>
+  }
+</span>

@@ -1,0 +1,21 @@
+.wa-header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+.wa-sub { margin: 0.25rem 0 0; opacity: 0.7; }
+.wa-muted { opacity: 0.65; }
+.wa-form { padding: 1rem; }
+.wa-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+.wa-full { grid-column: 1 / -1; }
+
+@media (max-width: 700px) {
+  .wa-fields { grid-template-columns: 1fr; }
+}

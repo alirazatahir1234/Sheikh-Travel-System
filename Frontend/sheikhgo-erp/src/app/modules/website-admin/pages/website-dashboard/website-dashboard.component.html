@@ -1,0 +1,49 @@
+<div class="wa-page stb-page">
+  <div class="wa-header">
+    <div>
+      <h1>Website Management</h1>
+      <p class="wa-sub">Manage SheikhGo marketing content, leads, and media.</p>
+    </div>
+    <div class="wa-actions">
+      <button mat-stroked-button type="button" (click)="viewWebsite()">
+        <mat-icon>open_in_new</mat-icon> View website
+      </button>
+      <a mat-stroked-button routerLink="/website/home"><mat-icon>home</mat-icon> Home</a>
+      <a mat-stroked-button routerLink="/website/media"><mat-icon>photo_library</mat-icon> Media</a>
+      <a mat-stroked-button routerLink="/website/contact-requests"><mat-icon>mail</mat-icon> Contacts</a>
+      <a mat-raised-button color="primary" routerLink="/website/settings"><mat-icon>tune</mat-icon> Settings</a>
+    </div>
+  </div>
+
+  <div *ngIf="loading" class="wa-muted">Loading…</div>
+
+  <div class="wa-kpi-grid" *ngIf="!loading && dashboard as d">
+    <div class="stb-card wa-kpi">
+      <span class="wa-kpi-label">Pages</span>
+      <strong>{{ d.pageCount }}</strong>
+      <span class="wa-kpi-meta">{{ d.publishedPages }} published · {{ d.draftPages }} draft</span>
+    </div>
+    <div class="stb-card wa-kpi">
+      <span class="wa-kpi-label">Features</span>
+      <strong>{{ d.featureCount }}</strong>
+    </div>
+    <div class="stb-card wa-kpi">
+      <span class="wa-kpi-label">Contact requests</span>
+      <strong>{{ d.contactRequests }}</strong>
+      <span class="wa-kpi-meta">{{ d.newContactRequests }} new</span>
+    </div>
+    <div class="stb-card wa-kpi">
+      <span class="wa-kpi-label">Demo requests</span>
+      <strong>{{ d.demoRequests }}</strong>
+      <span class="wa-kpi-meta">{{ d.newDemoRequests }} new</span>
+    </div>
+    <div class="stb-card wa-kpi">
+      <span class="wa-kpi-label">Media</span>
+      <strong>{{ d.mediaCount }}</strong>
+    </div>
+    <div class="stb-card wa-kpi">
+      <span class="wa-kpi-label">Last published</span>
+      <strong class="wa-kpi-date">{{ d.lastPublishedAt ? (d.lastPublishedAt | date:'medium') : '—' }}</strong>
+    </div>
+  </div>
+</div>

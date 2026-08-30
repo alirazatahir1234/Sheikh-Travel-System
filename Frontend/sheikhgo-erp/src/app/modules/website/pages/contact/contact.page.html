@@ -1,0 +1,79 @@
+<section class="page-hero">
+  <div class="container">
+    <h1>Contact</h1>
+    <p>Talk to SheikhGo about fleet management, GPS tracking and enterprise rollout.</p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container layout">
+    <form class="panel" [formGroup]="form" (ngSubmit)="submit()">
+      <div class="form-grid two">
+        <div class="field">
+          <label for="firstName">First name *</label>
+          <input id="firstName" formControlName="firstName" autocomplete="given-name" />
+        </div>
+        <div class="field">
+          <label for="lastName">Last name *</label>
+          <input id="lastName" formControlName="lastName" autocomplete="family-name" />
+        </div>
+      </div>
+      <div class="form-grid two">
+        <div class="field">
+          <label for="company">Company *</label>
+          <input id="company" formControlName="company" autocomplete="organization" />
+        </div>
+        <div class="field">
+          <label for="email">Business email *</label>
+          <input id="email" type="email" formControlName="email" autocomplete="email" />
+        </div>
+      </div>
+      <div class="form-grid two">
+        <div class="field">
+          <label for="phone">Phone</label>
+          <input id="phone" formControlName="phone" autocomplete="tel" />
+        </div>
+        <div class="field">
+          <label for="country">Country</label>
+          <input id="country" formControlName="country" autocomplete="country-name" />
+        </div>
+      </div>
+      <div class="form-grid two">
+        <div class="field">
+          <label for="fleetSize">Fleet size</label>
+          <input id="fleetSize" formControlName="fleetSize" placeholder="e.g. 25 vehicles" />
+        </div>
+        <div class="field">
+          <label for="interestedIn">Interested in</label>
+          <select id="interestedIn" formControlName="interestedIn">
+            @for (i of interests; track i) {
+              <option [value]="i">{{ i }}</option>
+            }
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label for="message">Message *</label>
+        <textarea id="message" formControlName="message"></textarea>
+      </div>
+      <div class="hp" aria-hidden="true">
+        <label>Website<input formControlName="website" tabindex="-1" autocomplete="off" /></label>
+      </div>
+      <button class="btn btn-primary" type="submit" [disabled]="submitting()">
+        {{ submitting() ? 'Sending…' : 'Send Message' }}
+      </button>
+      @if (status(); as s) {
+        <div class="form-status" [class.ok]="s.type === 'ok'" [class.err]="s.type === 'err'">{{ s.text }}</div>
+      }
+    </form>
+
+    <aside class="aside">
+      <h2>{{ brand.companyName }}</h2>
+      <p>
+        <strong>Contact</strong><br />
+        <a [href]="'mailto:' + brand.salesEmail">{{ brand.salesEmail }}</a>
+      </p>
+      <p class="note">Phone and office addresses will be published here once confirmed.</p>
+    </aside>
+  </div>
+</section>
