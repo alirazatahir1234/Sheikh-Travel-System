@@ -48,15 +48,15 @@ import { RouterLink } from '@angular/router';
       max-width: 36rem;
     }
     h2 {
-      font-size: clamp(2rem, 3.5vw, 2.75rem);
+      font-size: var(--type-section-title, clamp(2.25rem, 3.6vw, 2.75rem));
       margin-bottom: 0.85rem;
       max-width: 16ch;
       line-height: 1.12;
     }
     p {
       color: rgba(255, 255, 255, 0.78);
-      font-size: 1.15rem;
-      line-height: 1.6;
+      font-size: var(--type-section-lead, 1.125rem);
+      line-height: 1.65;
       max-width: 46ch;
     }
     .actions {
@@ -65,8 +65,8 @@ import { RouterLink } from '@angular/router';
       flex-wrap: wrap;
     }
     .actions .btn {
-      font-size: 1rem;
-      padding: 1rem 1.6rem;
+      font-size: var(--type-btn, 0.9375rem);
+      padding: 0.95rem 1.55rem;
     }
     @media (max-width: 720px) {
       .inner {

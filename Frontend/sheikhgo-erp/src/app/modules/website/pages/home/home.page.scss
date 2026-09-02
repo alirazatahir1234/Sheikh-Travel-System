@@ -65,7 +65,7 @@
 }
 
 .positioning {
-  font-size: 0.8125rem;
+  font-size: 0.75rem; /* 12px eyebrow */
   font-weight: 700;
   letter-spacing: 0.16em;
   text-transform: uppercase;
@@ -74,7 +74,7 @@
 }
 
 .hero-copy h1 {
-  font-size: clamp(2.65rem, 5vw, 3.5rem);
+  font-size: var(--type-hero, clamp(3.25rem, 5.5vw, 4rem));
   max-width: none;
   margin-bottom: 1rem;
   line-height: 1.05;
@@ -86,20 +86,20 @@
 }
 
 .subhead {
-  font-size: clamp(1.05rem, 1.6vw, 1.2rem);
+  font-size: var(--type-hero-lead, clamp(1.125rem, 1.8vw, 1.25rem));
   font-weight: 500;
   color: rgba(255, 255, 255, 0.92);
-  max-width: 38ch;
+  max-width: 40ch;
   margin-bottom: 0.75rem;
-  line-height: 1.5;
+  line-height: 1.55;
 }
 
 .subtitle {
-  color: rgba(255, 255, 255, 0.68);
-  font-size: 1rem;
-  max-width: 42ch;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 1.0625rem; /* 17px */
+  max-width: 44ch;
   margin-bottom: 1.75rem;
-  line-height: 1.6;
+  line-height: 1.65;
 }
 
 .hero-actions {
@@ -110,8 +110,8 @@
 }
 
 .hero-actions .btn {
-  padding: 0.9rem 1.5rem;
-  font-size: 0.95rem;
+  padding: 0.95rem 1.55rem;
+  font-size: var(--type-btn, 0.9375rem);
 }
 
 .hero-actions .btn-primary {
@@ -126,7 +126,7 @@
 
 .login-link {
   font-weight: 600;
-  font-size: 0.95rem;
+  font-size: 1rem;
   color: rgba(255, 255, 255, 0.88);
   text-decoration: underline;
   text-underline-offset: 5px;
@@ -536,14 +536,14 @@
 .trust-item strong {
   display: block;
   font-family: var(--font-display);
-  font-size: 1.2rem;
+  font-size: 1.25rem;
   color: var(--sg-teal);
   margin-bottom: 0.15rem;
 }
 
 .trust-item span {
   color: var(--sg-muted);
-  font-size: 0.98rem;
+  font-size: 1rem;
 }
 
 .section-intro {
@@ -605,24 +605,25 @@
 }
 
 .pillar-icon {
-  width: 46px;
-  height: 46px;
+  width: 48px;
+  height: 48px;
   border-radius: 12px;
   display: grid;
   place-items: center;
   background: var(--sg-mist);
   color: var(--sg-fleet);
   font-weight: 800;
-  font-size: 0.82rem;
+  font-size: 0.875rem;
 }
 
 .pillar h3 {
-  font-size: 1.15rem;
+  font-size: var(--type-feature-title, 1.125rem);
 }
 
 .pillar p {
   color: var(--sg-muted);
-  font-size: 1rem;
+  font-size: var(--type-feature-body, 1rem);
+  line-height: 1.55;
 }
 
 .ai-promo {
@@ -636,14 +637,15 @@
 }
 
 .ai-promo h3 {
-  font-size: 1.65rem;
+  font-size: 1.75rem;
   max-width: 14ch;
 }
 
 .ai-promo p {
   color: var(--sg-muted);
-  font-size: 1.05rem;
+  font-size: 1.0625rem;
   flex: 1;
+  line-height: 1.6;
 }
 
 .split {
@@ -663,7 +665,8 @@
   position: relative;
   padding-left: 1.55rem;
   color: var(--sg-muted);
-  font-size: 1.05rem;
+  font-size: 1.0625rem;
+  line-height: 1.55;
 }
 
 .check-list li + li {
@@ -975,13 +978,14 @@
 }
 
 .card-block h3 {
-  font-size: 1.35rem;
+  font-size: 1.4rem;
   max-width: 16ch;
 }
 
 .card-block > p {
   color: var(--sg-muted);
-  font-size: 1.02rem;
+  font-size: 1.0625rem;
+  line-height: 1.55;
 }
 
 .alert-pills {
@@ -994,7 +998,7 @@
 .alert-pills span {
   padding: 0.5rem 0.85rem;
   border-radius: 999px;
-  font-size: 0.88rem;
+  font-size: 0.875rem;
   font-weight: 700;
   background: var(--sg-sand);
   border: 1px solid var(--sg-line);
@@ -1042,18 +1046,18 @@
 .perf-grid em {
   display: block;
   font-style: normal;
-  font-size: 0.82rem;
+  font-size: 0.875rem;
   color: var(--sg-muted);
   margin-bottom: 0.2rem;
 }
 
 .perf-grid strong {
-  font-size: 1.1rem;
+  font-size: 1.125rem;
   color: var(--sg-fleet);
 }
 
 .sample-note {
-  font-size: 0.85rem;
+  font-size: 0.875rem;
   font-style: italic;
   color: var(--sg-muted);
   margin-top: auto;
@@ -1068,8 +1072,8 @@
 .msg {
   padding: 0.85rem 1rem;
   border-radius: 12px;
-  font-size: 0.95rem;
-  line-height: 1.45;
+  font-size: 1rem;
+  line-height: 1.5;
 }
 
 .msg.you {
@@ -1105,7 +1109,7 @@
   padding: 0.9rem 0.65rem;
   text-align: center;
   font-weight: 700;
-  font-size: 0.88rem;
+  font-size: 0.9375rem;
 }
 
 /* Modal */
@@ -1240,7 +1244,7 @@
   }
 
   .hero-copy h1 {
-    font-size: clamp(2.4rem, 11vw, 2.9rem);
+    font-size: clamp(2.75rem, 10vw, 3.25rem);
     max-width: none;
   }
 

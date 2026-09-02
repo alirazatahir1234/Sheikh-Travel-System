@@ -43,7 +43,7 @@
   .nav-link {
     color: rgba(255, 255, 255, 0.9);
     font-weight: 600;
-    font-size: 0.9375rem;
+    font-size: var(--type-nav, 0.9375rem);
     padding: 0.7rem 0.95rem;
     border-radius: 999px;
     background: transparent;
@@ -116,12 +116,12 @@
   .login {
     color: rgba(255, 255, 255, 0.95);
     font-weight: 700;
-    font-size: 0.98rem;
+    font-size: var(--type-nav, 0.9375rem);
   }
 
   .actions .btn {
-    font-size: 0.95rem;
-    padding: 0.8rem 1.35rem;
+    font-size: var(--type-btn, 0.9375rem);
+    padding: 0.85rem 1.35rem;
   }
 
   .mobile-only {
