@@ -61,12 +61,14 @@ public partial class GpsTrackingController : BaseApiController
     [HttpGet("history/replay")]
     public async Task<IActionResult> GetHistoryReplay(
         [FromQuery] int? vehicleId,
+        [FromQuery] int? deviceId,
         [FromQuery] DateTime? from,
         [FromQuery] DateTime? to,
         [FromQuery] int? routeMaxPoints,
         [FromQuery] int? playbackMaxPoints,
         [FromQuery] bool includeRaw = false)
-        => Ok(await Mediator.Send(new GetHistoryReplayQuery(vehicleId, from, to, routeMaxPoints, playbackMaxPoints, includeRaw)));
+        => Ok(await Mediator.Send(new GetHistoryReplayQuery(
+            vehicleId, deviceId, from, to, routeMaxPoints, playbackMaxPoints, includeRaw)));
 
     [HttpPost("history/replay/insights")]
     [RequirePermission("GPS.View")]

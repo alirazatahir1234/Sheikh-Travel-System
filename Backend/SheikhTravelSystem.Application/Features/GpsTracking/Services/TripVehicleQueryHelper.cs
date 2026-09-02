@@ -41,7 +41,11 @@ internal static class TripVehicleQueryHelper
         return null;
     }
 
-    internal static ApiResponse<T>? ValidateHistoryRequest<T>(int? vehicleId, DateTime fromDate, DateTime toDate)
+    internal static ApiResponse<T>? ValidateHistoryRequest<T>(
+        int? vehicleId,
+        DateTime fromDate,
+        DateTime toDate,
+        int? deviceId = null)
     {
         if (fromDate > toDate)
         {
@@ -53,12 +57,35 @@ internal static class TripVehicleQueryHelper
             return ApiResponse<T>.FailResponse("Date range cannot exceed 366 days.");
         }
 
-        if (!vehicleId.HasValue)
+        if (!vehicleId.HasValue && !deviceId.HasValue)
         {
-            return ApiResponse<T>.FailResponse("Select a vehicle to view history.");
+            return ApiResponse<T>.FailResponse("Select a vehicle or device to view history.");
         }
 
         return null;
+    }
+
+    internal static async Task<VehicleTripSource?> ResolveVehicleByTraccarDeviceIdAsync(
+        IDbConnectionFactory dbFactory,
+        ITenantContext tenantContext,
+        int traccarDeviceId,
+        CancellationToken cancellationToken)
+    {
+        using var connection = dbFactory.CreateConnection();
+        var tenantId = tenantContext.GetRequiredTenantId();
+
+        return await connection.QueryFirstOrDefaultAsync<VehicleTripSource>(new CommandDefinition(
+            """
+            SELECT v.Id AS VehicleId, v.Name AS VehicleName, v.RegistrationNumber AS PlateNumber,
+                   d.Id AS GpsDeviceId, d.Name AS DeviceName, d.UniqueId, d.TraccarDeviceId, d.LastSeenAt
+            FROM GpsDevices d
+            INNER JOIN Vehicles v ON v.Id = d.VehicleId AND v.IsDeleted = 0
+            WHERE d.TraccarDeviceId = @TraccarDeviceId
+              AND v.TenantId = @TenantId
+              AND d.IsDeleted = 0
+            """,
+            new { TraccarDeviceId = traccarDeviceId, TenantId = tenantId },
+            cancellationToken: cancellationToken));
     }
 
     internal static async Task<VehicleTripSource?> ResolveVehicleAsync(

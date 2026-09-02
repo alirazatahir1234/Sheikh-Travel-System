@@ -57,7 +57,14 @@ public static class TripReplayAddressEnricher
             bundle.Summary,
             bundle.Statistics,
             bundle.MileageKm,
-            bundle.Vehicle);
+            bundle.Vehicle,
+            bundle.DeviceId,
+            bundle.DeviceName,
+            bundle.From,
+            bundle.To,
+            bundle.DisplaySummary,
+            bundle.Positions is null ? null : bundle.Positions.ToList(),
+            bundle.Parking is null ? null : bundle.Parking.ToList());
     }
 
     /// <summary>

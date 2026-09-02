@@ -134,6 +134,25 @@ public record TripEventDto(
     string? GeofenceName = null,
     string? Label = null);
 
+/// <summary>Human-readable history summary for route playback UI (formatted durations).</summary>
+public record HistoryDisplaySummaryDto(
+    string MovingTime,
+    string NonMovingTime,
+    int Stops,
+    int Parking,
+    decimal MaxSpeed,
+    double Distance);
+
+/// <summary>GPS point for history route line with motion status.</summary>
+public record HistoryPositionDto(
+    double Latitude,
+    double Longitude,
+    decimal Speed,
+    double? Course,
+    DateTime Timestamp,
+    bool? Ignition,
+    string Status);
+
 public record HistoryReplayBundleDto(
     IReadOnlyList<TripReplayPositionDto> Route,
     IReadOnlyList<TripReplayPositionDto> Playback,
@@ -142,7 +161,14 @@ public record HistoryReplayBundleDto(
     TripReplaySummaryDto? Summary,
     TripAnalyticsSummaryDto? Statistics,
     double? MileageKm,
-    TripDeviceContextDto? Vehicle);
+    TripDeviceContextDto? Vehicle,
+    int? DeviceId = null,
+    string? DeviceName = null,
+    DateTime? From = null,
+    DateTime? To = null,
+    HistoryDisplaySummaryDto? DisplaySummary = null,
+    IReadOnlyList<HistoryPositionDto>? Positions = null,
+    IReadOnlyList<TripStopDto>? Parking = null);
 
 public record TripStopDto(
     DateTime StartTime,

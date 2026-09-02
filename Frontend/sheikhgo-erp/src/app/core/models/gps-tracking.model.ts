@@ -478,6 +478,25 @@ export interface TripReplayBundle {
 }
 
 /** Unified history replay bundle (route, stats, vehicle context). */
+export interface HistoryDisplaySummary {
+  movingTime: string;
+  nonMovingTime: string;
+  stops: number;
+  parking: number;
+  maxSpeed: number;
+  distance: number;
+}
+
+export interface HistoryPosition {
+  latitude: number;
+  longitude: number;
+  speed: number;
+  course?: number | null;
+  timestamp: string;
+  ignition?: boolean | null;
+  status: string;
+}
+
 export interface HistoryReplayBundle {
   route: TripReplayPosition[];
   playback: TripReplayPosition[];
@@ -487,6 +506,13 @@ export interface HistoryReplayBundle {
   statistics?: TripAnalyticsSummary | null;
   mileageKm?: number | null;
   vehicle?: TripDeviceContext | null;
+  deviceId?: number | null;
+  deviceName?: string | null;
+  from?: string | null;
+  to?: string | null;
+  displaySummary?: HistoryDisplaySummary | null;
+  positions?: HistoryPosition[] | null;
+  parking?: TripStop[] | null;
 }
 
 export interface GpsFleetStatus {

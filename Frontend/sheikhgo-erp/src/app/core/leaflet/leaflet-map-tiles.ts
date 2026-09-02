@@ -23,6 +23,12 @@ export const MAP_THEME_STORAGE_KEY = 'stb_live_map_theme';
 export const MAP_TILE_STACKS: Record<Exclude<MapTheme, 'traffic'>, LeafletTileConfig[]> = {
   street: [
     {
+      url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+      attribution: '&copy; OpenStreetMap contributors',
+      subdomains: 'abc',
+      maxZoom: 19
+    },
+    {
       url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
       attribution: '&copy; OpenStreetMap &copy; CARTO',
       subdomains: 'abcd',
@@ -33,12 +39,6 @@ export const MAP_TILE_STACKS: Record<Exclude<MapTheme, 'traffic'>, LeafletTileCo
       attribution: '&copy; OpenStreetMap &copy; CARTO',
       subdomains: 'abcd',
       maxZoom: 20
-    },
-    {
-      url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-      attribution: '&copy; OpenStreetMap contributors',
-      subdomains: 'abc',
-      maxZoom: 19
     }
   ],
   dark: [
