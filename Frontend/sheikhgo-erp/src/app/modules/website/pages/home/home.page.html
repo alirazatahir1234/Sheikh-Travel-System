@@ -23,54 +23,19 @@
 
     <div class="hero-visual reveal delay">
       <div class="hero-glow" aria-hidden="true"></div>
-      <div class="product-frame video-shell">
-        <div class="product-chrome">
-          <div class="chrome-left">
-            <span class="dot"></span><span class="dot"></span><span class="dot"></span>
-            <strong>SheikhGo Fleet Tracking</strong>
-          </div>
-          <span class="live-badge"><i></i> Live</span>
-        </div>
-
-        <div class="fleet-body">
-          <aside class="fleet-side" aria-hidden="true">
-            <div class="side-head">Vehicles</div>
-            <div class="veh active"><strong>Toyota Corolla</strong><span>SG-DEMO-01 · Online</span></div>
-            <div class="veh"><strong>Hiace</strong><span>SG-DEMO-02 · Moving</span></div>
-            <div class="veh"><strong>Ford Transit</strong><span>SG-DEMO-03 · Idle</span></div>
-          </aside>
-          <div class="fleet-map">
-            <div class="route-line" aria-hidden="true"></div>
-            <span class="map-pin p1" aria-hidden="true"></span>
-            <span class="map-pin p2" aria-hidden="true"></span>
-            <span class="map-pin p3" aria-hidden="true"></span>
-            <div class="vehicle-detail" aria-hidden="true">
-              <header>
-                <div>
-                  <strong>Toyota Corolla</strong>
-                  <span class="plate">SG-DEMO-01</span>
-                </div>
-                <em class="online">Online</em>
-              </header>
-              <p class="addr">Sialkot, Pakistan</p>
-              <p class="driver">Demo Driver</p>
-              <div class="stats">
-                <div><em>Speed</em><b>22 km/h</b></div>
-                <div><em>Ignition</em><b>ON</b></div>
-                <div><em>GPS</em><b>Active</b></div>
-                <div><em>Updated</em><b>10 sec ago</b></div>
-              </div>
-            </div>
-            <button type="button" class="watch-chip overlay" (click)="openDemoModal()">▶ Watch Demo</button>
-          </div>
-        </div>
-
-        <div class="video-bar" aria-hidden="true">
-          <span class="vb-play">▶</span>
-          <span class="vb-track"><i></i></span>
-          <span>0:12 / 0:32</span>
-        </div>
-      </div>
+      <figure class="hero-fleet-shot hero-video-shell">
+        <video
+          [src]="heroVideoSrc"
+          [poster]="heroFleetImage"
+          autoplay
+          muted
+          loop
+          playsinline
+          preload="metadata"
+          aria-label="SheikhGo ERP product demonstration"
+        ></video>
+        <button type="button" class="watch-chip hero-watch" (click)="openDemoModal()">▶ Watch Demo</button>
+      </figure>
     </div>
   </div>
 </section>
@@ -430,8 +395,7 @@
       } @else {
         <div class="demo-modal-empty">
           <p>
-            Add <code>public/website/hero-demo.mp4</code> (30s) and optionally
-            <code>product-demo.mp4</code> (60–90s) to enable playback.
+            Add <code>public/website/hero-demo.mp4</code> to enable the product walkthrough.
           </p>
           <a routerLink="/request-demo" class="btn btn-primary" (click)="closeDemoModal()">Request a Demo</a>
         </div>

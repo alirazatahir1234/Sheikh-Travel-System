@@ -39,9 +39,15 @@ export class HomePage implements OnInit, OnDestroy {
     tripPlayback: null,
   };
 
+  /** Poster while the hero video loads — `public/website/sheikhgo-fleet-hero.png` */
+  readonly heroFleetImage = '/website/sheikhgo-fleet-hero.png';
+
+  /** Hero loop — `public/website/hero-demo.mp4` */
+  readonly heroVideoSrc = '/website/hero-demo.mp4';
+
   videos: { hero: string | null; product: string | null } = {
-    hero: null,
-    product: null,
+    hero: '/website/hero-demo.mp4',
+    product: '/website/hero-demo.mp4',
   };
 
   readonly demoModalOpen = signal(false);
@@ -145,8 +151,6 @@ export class HomePage implements OnInit, OnDestroy {
     this.probeShot('fleet-tracking', 'fleetTracking');
     this.probeShot('dashboard', 'dashboard');
     this.probeShot('trip-playback', 'tripPlayback');
-    this.probeVideo('hero-demo.mp4', 'hero');
-    this.probeVideo('product-demo.mp4', 'product');
 
     this.content.getHome().subscribe(home => {
       if (!home) return;
@@ -219,15 +223,5 @@ export class HomePage implements OnInit, OnDestroy {
       this.shots = { ...this.shots, [key]: url };
     };
     img.src = url;
-  }
-
-  private probeVideo(fileName: string, key: 'hero' | 'product'): void {
-    const url = `/website/${fileName}`;
-    const video = document.createElement('video');
-    video.preload = 'metadata';
-    video.onloadedmetadata = () => {
-      this.videos = { ...this.videos, [key]: url };
-    };
-    video.src = url;
   }
 }

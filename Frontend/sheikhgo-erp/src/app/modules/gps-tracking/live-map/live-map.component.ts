@@ -17,6 +17,12 @@ import {
   loadMarkerClusterPlugin
 } from '../../../core/leaflet/leaflet-cluster';
 import { MAP_TILE_STACKS, MAP_THEME_OPTIONS, MapTheme, readStoredMapTheme, storeMapTheme } from '../../../core/leaflet/leaflet-map-tiles';
+import {
+  bindTileLayerFallbackHandlers,
+  createStackTileLayer,
+  createTileStackState,
+  resetTileStackState
+} from '../../../core/leaflet/leaflet-tile-stack';
 import { GoogleTrafficBasemap } from '../../../core/leaflet/google-traffic-basemap';
 import { GoogleMapsLoaderService } from '../../../core/services/google-maps-loader.service';
 import {
@@ -236,11 +242,9 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
   private mapReady = false;
   private pendingMarkerLocations: VehicleLocation[] | null = null;
   private lastSyncSummaryKey = '';
-  private tileFallbackIndex = 0;
-  private tileErrorCount = 0;
+  private readonly tileStackState = createTileStackState();
   private _bootstrapping = false;
   private _bootstrapTimer?: ReturnType<typeof setTimeout>;
-  private _switchingTiles = false;
 
   /** Coord key for which a reverse-geocode was last requested; avoids re-fetching on small drift. */
   private lastEnrichedCoordKey = new Map<number, string>();
@@ -1145,8 +1149,7 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
     this.mapTheme = theme;
     storeMapTheme(theme);
     if (!this.map) return;
-    this.tileFallbackIndex = 0;
-    this.tileErrorCount = 0;
+    resetTileStackState(this.tileStackState);
     this.mapError = null;
     await this.applyTileLayer(theme);
   }
@@ -1176,31 +1179,29 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
     }
 
     const stack = MAP_TILE_STACKS[theme];
-    const cfg = stack[this.tileFallbackIndex] ?? stack[0];
+    const index = this.tileStackState.fallbackIndex;
+    const cfg = stack[index] ?? stack[0];
     if (!cfg) return;
 
-    this.tileLayer = L.tileLayer(cfg.url, {
-      maxZoom: cfg.maxZoom ?? 19,
-      attribution: cfg.attribution,
-      ...(cfg.subdomains ? { subdomains: cfg.subdomains } : {})
-    }).addTo(this.map);
+    this.tileLayer = createStackTileLayer(L, cfg).addTo(this.map);
 
-    this.tileLayer.on('tileerror', () => {
-      if (this._switchingTiles) return;
-      this.tileErrorCount += 1;
-      if (this.tileErrorCount < 4) return;
-
-      if (this.tileFallbackIndex < stack.length - 1) {
-        this._switchingTiles = true;
-        this.tileFallbackIndex += 1;
-        this.tileErrorCount = 0;
-        void this.applyTileLayer(theme);
-        this._switchingTiles = false;
-        return;
+    bindTileLayerFallbackHandlers(
+      this.tileLayer,
+      cfg,
+      stack,
+      this.tileStackState,
+      () => this.applyTileLayer(theme),
+      {
+        onExhausted: (message) => {
+          this.mapError = message;
+        },
+        onEsriPlaceholderFallback: () => {
+          if (theme === 'satellite') {
+            this.pushEvent('Satellite imagery unavailable — showing Street map', 'warning', 'satellite_alt');
+          }
+        }
       }
-
-      this.mapError = 'Map tiles could not be loaded. Check your network or try another map style.';
-    });
+    );
 
     this.scheduleMapResize();
   }

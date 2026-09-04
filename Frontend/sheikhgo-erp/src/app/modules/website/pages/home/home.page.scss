@@ -45,6 +45,41 @@
   z-index: 0;
 }
 
+.hero-fleet-shot {
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  border-radius: 18px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow:
+    0 28px 72px rgba(0, 0, 0, 0.48),
+    0 0 0 1px rgba(0, 223, 130, 0.08);
+  animation: heroVideoIn 0.9s ease both;
+  background: #042f2e;
+}
+
+.hero-fleet-shot img,
+.hero-fleet-shot video {
+  display: block;
+  width: 100%;
+  height: auto;
+  vertical-align: middle;
+}
+
+.hero-video-shell video {
+  max-height: min(520px, 56vh);
+  object-fit: cover;
+  background: #042f2e;
+}
+
+.hero-fleet-shot .hero-watch {
+  position: absolute;
+  right: 1rem;
+  top: 1rem;
+  z-index: 2;
+}
+
 .reveal {
   animation: fadeUp 0.85s ease both;
 }
