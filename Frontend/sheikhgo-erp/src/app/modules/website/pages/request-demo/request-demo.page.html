@@ -1,7 +1,9 @@
 <section class="page-hero">
   <div class="container">
-    <h1>Request a SheikhGo Demo</h1>
-    <p>See fleet management, GPS tracking and operations in one walkthrough tailored to your business.</p>
+    <h1>Request a Quote</h1>
+    <p>
+      Tell us about your software, AI, cloud, or SheikhGo Fleet needs — we'll follow up with a tailored proposal.
+    </p>
   </div>
 </section>
 
@@ -72,7 +74,7 @@
         <label>Website<input formControlName="website" tabindex="-1" autocomplete="off" /></label>
       </div>
       <button class="btn btn-primary" type="submit" [disabled]="submitting()">
-        {{ submitting() ? 'Submitting…' : 'Request Demo' }}
+        {{ submitting() ? 'Submitting…' : 'Request a Quote' }}
       </button>
       @if (status(); as s) {
         <div class="form-status" [class.ok]="s.type === 'ok'" [class.err]="s.type === 'err'">{{ s.text }}</div>

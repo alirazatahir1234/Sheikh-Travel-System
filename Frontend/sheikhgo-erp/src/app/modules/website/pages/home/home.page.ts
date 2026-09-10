@@ -1,227 +1,188 @@
-import { Component, HostListener, OnDestroy, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
+import { NgClass } from '@angular/common';
 import { RouterLink } from '@angular/router';
-import { CtaBandComponent } from '../../shared/cta-band.component';
 import { WebsiteSeoService } from '../../core/seo.service';
 import { WEBSITE_BRAND } from '../../core/brand';
-import {
-  PublicWebsiteFeature,
-  PublicWebsiteSection,
-  WebsitePublicContentService,
-} from '../../core/website-public-content.service';
+import { WebsitePublicContentService } from '../../core/website-public-content.service';
 
 @Component({
   selector: 'app-home-page',
   standalone: true,
-  imports: [RouterLink, CtaBandComponent],
+  imports: [RouterLink, NgClass],
   templateUrl: './home.page.html',
   styleUrl: './home.page.scss',
 })
-export class HomePage implements OnInit, OnDestroy {
+export class HomePage implements OnInit {
   readonly brand = WEBSITE_BRAND;
   private readonly seo = inject(WebsiteSeoService);
   private readonly content = inject(WebsitePublicContentService);
 
-  hero: PublicWebsiteSection | null = null;
-  featuresSection: PublicWebsiteSection | null = null;
-  trackingSection: PublicWebsiteSection | null = null;
-  dashboardSection: PublicWebsiteSection | null = null;
-  playbackSection: PublicWebsiteSection | null = null;
-  alertsSection: PublicWebsiteSection | null = null;
-  reportsSection: PublicWebsiteSection | null = null;
-  aiSection: PublicWebsiteSection | null = null;
-  integrationsSection: PublicWebsiteSection | null = null;
-  securitySection: PublicWebsiteSection | null = null;
-  ctaSection: PublicWebsiteSection | null = null;
+  readonly softStats = [
+    { label: 'End-to-End Delivery' },
+    { label: 'Modern Technology' },
+    { label: 'AI-Ready Solutions' },
+    { label: 'Business-Focused' },
+  ] as const;
 
-  shots: { fleetTracking: string | null; dashboard: string | null; tripPlayback: string | null } = {
-    fleetTracking: null,
-    dashboard: null,
-    tripPlayback: null,
-  };
+  readonly capabilityChips = [
+    'Web Development',
+    'Mobile Apps',
+    'Cloud Solutions',
+    'AI Solutions',
+    'UI/UX Design',
+    'IT Consulting',
+  ] as const;
 
-  /** Poster while the hero video loads — `public/website/sheikhgo-fleet-hero.png` */
-  readonly heroFleetImage = '/website/sheikhgo-fleet-hero.png';
+  readonly trustedTech = [
+    'Microsoft',
+    'AWS',
+    'Google Cloud',
+    'Flutter',
+    'Shopify',
+    'Figma',
+  ] as const;
 
-  /** Hero loop — `public/website/hero-demo.mp4` */
-  readonly heroVideoSrc = '/website/hero-demo.mp4';
+  readonly services = [
+    {
+      title: 'Web Development',
+      text: 'Modern, scalable and high-performing web applications.',
+      icon: 'WEB',
+    },
+    {
+      title: 'Mobile App Development',
+      text: 'Cross-platform and native mobile applications for modern businesses.',
+      icon: 'APP',
+    },
+    {
+      title: 'UI/UX Design',
+      text: 'User-centered interfaces that create meaningful experiences.',
+      icon: 'UX',
+    },
+    {
+      title: 'Cloud Solutions',
+      text: 'Scalable cloud infrastructure, migration and deployment solutions.',
+      icon: 'CLD',
+    },
+    {
+      title: 'IT Consulting',
+      text: 'Strategic technology guidance to help achieve your business goals.',
+      icon: 'IT',
+    },
+    {
+      title: 'Custom Software Solutions',
+      text: 'Tailored software built around your unique business needs.',
+      icon: 'SW',
+    },
+  ] as const;
 
-  videos: { hero: string | null; product: string | null } = {
-    hero: '/website/hero-demo.mp4',
-    product: '/website/hero-demo.mp4',
-  };
+  readonly aiFeatures = [
+    'AI Automation',
+    'Intelligent Analytics',
+    'AI Chatbots & Assistants',
+    'Predictive Insights',
+    'Computer Vision',
+    'Generative AI',
+    'LLM Integration',
+    'AI Agents',
+  ] as const;
 
-  readonly demoModalOpen = signal(false);
-  readonly dashTab = signal('Overview');
+  readonly industries = [
+    { title: 'Logistics & Fleet', link: WEBSITE_BRAND.loginPath, icon: 'LG' },
+    { title: 'Retail & E-Commerce', link: '/contact', icon: 'RT' },
+    { title: 'Healthcare', link: '/contact', icon: 'HC' },
+    { title: 'Education', link: '/contact', icon: 'ED' },
+    { title: 'Finance', link: '/contact', icon: 'FN' },
+    { title: 'Real Estate', link: '/contact', icon: 'RE' },
+    { title: 'Travel & Tourism', link: '/contact', icon: 'TR' },
+    { title: 'Manufacturing', link: '/contact', icon: 'MF' },
+    { title: 'More Industries', link: '/contact', icon: '+' },
+  ] as const;
 
-  readonly trustItems = [
-    { value: 'Real-Time', label: 'Live tracking & updates', icon: '◎' },
-    { value: '24/7', label: 'Fleet monitoring', icon: '◉' },
-    { value: 'One', label: 'Unified platform', icon: '⬡' },
-    { value: 'Multi-Module', label: 'All operations in one', icon: '▦' },
-  ];
+  readonly whyItems = [
+    {
+      title: 'Client-Centric Approach',
+      text: 'We start with your goals and design solutions around real business outcomes.',
+      icon: '01',
+    },
+    {
+      title: 'Modern Technologies',
+      text: 'We build with current platforms and practices that stay maintainable over time.',
+      icon: '02',
+    },
+    {
+      title: 'AI-Driven Innovation',
+      text: 'We apply AI where it creates leverage — automation, insight, and better decisions.',
+      icon: '03',
+    },
+    {
+      title: 'Scalable Solutions',
+      text: 'Architecture designed to grow with your users, data, and product roadmap.',
+      icon: '04',
+    },
+    {
+      title: 'On-Time Delivery',
+      text: 'Clear milestones, transparent progress, and disciplined delivery practices.',
+      icon: '05',
+    },
+    {
+      title: 'Long-Term Partnership',
+      text: 'Support and iteration after launch so your technology stays sharp.',
+      icon: '06',
+    },
+  ] as const;
 
-  pillars: { title: string; text: string; link: string; icon: string }[] = [
-    { title: 'Fleet Management', text: 'Manage vehicles, assignments and operational status.', link: '/fleet-management', icon: 'FL' },
-    { title: 'GPS Tracking', text: 'Monitor vehicles in real time and review historical routes.', link: '/gps-tracking', icon: 'GPS' },
-    { title: 'Driver Management', text: 'Manage drivers, assignments, availability and performance.', link: '/features', icon: 'DR' },
-    { title: 'Trip Management', text: 'Create, monitor and complete trips with full journey visibility.', link: '/features', icon: 'TR' },
-    { title: 'Maintenance', text: 'Track service schedules, maintenance history and vehicle health.', link: '/features', icon: 'MT' },
-    { title: 'Fuel Management', text: 'Monitor fuel usage, cost and vehicle efficiency.', link: '/features', icon: 'FU' },
-  ];
+  readonly processSteps = [
+    { step: '01', title: 'Discover', text: 'Understand your needs and goals.' },
+    { step: '02', title: 'Plan', text: 'Create a clear strategy and roadmap.' },
+    { step: '03', title: 'Design', text: 'Design user-centered solutions.' },
+    { step: '04', title: 'Develop', text: 'Build, test and iterate with best practices.' },
+    { step: '05', title: 'Deploy', text: 'Launch and provide ongoing support.' },
+  ] as const;
 
-  readonly trackingPoints = [
-    'Live vehicle locations',
-    'Speed & ignition status',
-    'Exact address resolution',
-    'Geofencing & zone events',
-    'GPS history & playback',
-    'Stops, parking & alerts',
-  ];
+  readonly fleetCapabilities = [
+    'Live GPS Tracking',
+    'Vehicle Management',
+    'Driver Management',
+    'Trip Management',
+    'Fleet Analytics',
+    'GPS Route History',
+    'AI-ready architecture',
+  ] as const;
 
-  readonly dashTabs = [
-    'Overview',
-    'Vehicles',
-    'Drivers',
-    'Trips',
-    'Maintenance',
-    'Fuel',
-    'Alerts',
-    'Reports',
-  ];
-
-  readonly dashKpis = [
-    { label: 'Total Vehicles', value: '42' },
-    { label: 'Online', value: '36' },
-    { label: 'Total Drivers', value: '56' },
-    { label: 'Active Trips', value: '18' },
-    { label: 'Open Alerts', value: '8' },
-    { label: 'Maintenance Due', value: '5' },
-  ];
-
-  readonly tripCaps = [
-    { title: 'Route Playback', icon: '▶' },
-    { title: 'Stops', icon: '●' },
-    { title: 'Parking', icon: 'P' },
-    { title: 'Speed', icon: '⚡' },
-    { title: 'Distance', icon: '↔' },
-    { title: 'Duration', icon: '◷' },
-  ];
-
-  readonly alertPills = [
-    { label: 'Vehicle Offline', tone: 'crit' },
-    { label: 'Overspeed', tone: 'warn' },
-    { label: 'Long Stop', tone: 'info' },
-    { label: 'Maintenance Due', tone: 'maint' },
-    { label: 'Geofence Entry', tone: 'ok' },
-    { label: 'GPS Signal Lost', tone: 'crit' },
-  ];
-
-  readonly perfMetrics = [
-    { label: 'Total Distance', value: '542.9 km' },
-    { label: 'Avg Speed', value: '11.7 km/h' },
-    { label: 'Max Speed', value: '93 km/h' },
-    { label: 'Utilization', value: '82%' },
-  ];
-
-  readonly integrations = [
-    'GPS Devices',
-    'Traccar',
-    'Google Maps',
-    'SMS / Email',
-    'AI Analytics',
-    'REST API',
-  ];
-
-  readonly securityItems = [
-    'Role-Based Access',
-    'Audit Logs',
-    'API Security',
-    'Tenant Isolation',
-    'User Management',
-    'Backup & Recovery',
-  ];
+  readonly testimonials = [
+    {
+      quote:
+        'Sample client testimonial — replace with an approved customer quote before production.',
+      name: 'Client Name',
+      role: 'Role',
+      company: 'Company',
+    },
+    {
+      quote:
+        'Sample client testimonial — replace with an approved customer quote before production.',
+      name: 'Client Name',
+      role: 'Role',
+      company: 'Company',
+    },
+  ] as const;
 
   ngOnInit(): void {
     this.seo.set(
-      'Intelligent Fleet & Travel Operations Platform',
-      'Manage your fleet, track every journey, and run transportation operations from one intelligent platform.',
+      'SheikhGo Technologies | IT, Software & AI Solutions',
+      'SheikhGo Technologies delivers software development, AI solutions, mobile applications, cloud services and custom technology solutions for modern businesses.',
       '/',
     );
 
-    this.probeShot('fleet-tracking', 'fleetTracking');
-    this.probeShot('dashboard', 'dashboard');
-    this.probeShot('trip-playback', 'tripPlayback');
-
     this.content.getHome().subscribe(home => {
-      if (!home) return;
-      const s = home.sections ?? [];
-      this.hero = this.content.sectionByType(s, 'Hero');
-      this.featuresSection = this.content.sectionByType(s, 'Features');
-      this.trackingSection = this.content.sectionByType(s, 'FleetTracking');
-      this.dashboardSection = this.content.sectionByType(s, 'Dashboard');
-      this.playbackSection = this.content.sectionByType(s, 'TripPlayback');
-      this.alertsSection = this.content.sectionByType(s, 'Alerts');
-      this.reportsSection = this.content.sectionByType(s, 'Reports');
-      this.aiSection = this.content.sectionByType(s, 'AI');
-      this.integrationsSection = this.content.sectionByType(s, 'Integrations');
-      this.securitySection = this.content.sectionByType(s, 'Security');
-      this.ctaSection = this.content.sectionByType(s, 'CTA');
-
-      if (home.features?.length) {
-        this.pillars = home.features.slice(0, 6).map((f: PublicWebsiteFeature, i: number) => ({
-          title: f.title,
-          text: f.description || '',
-          link: f.linkUrl || '/features',
-          icon: this.pillars[i]?.icon || f.iconKey?.slice(0, 2).toUpperCase() || 'SG',
-        }));
-      }
-
-      if (home.settings?.defaultMetaTitle || home.settings?.defaultMetaDescription) {
+      if (!home?.settings) return;
+      if (home.settings.defaultMetaTitle || home.settings.defaultMetaDescription) {
         this.seo.set(
-          home.settings.defaultMetaTitle || 'Intelligent Fleet & Travel Operations Platform',
+          home.settings.defaultMetaTitle ||
+            'SheikhGo Technologies | IT, Software & AI Solutions',
           home.settings.defaultMetaDescription ||
-            'Manage your fleet, track every journey, and run transportation operations from one intelligent platform.',
+            'SheikhGo Technologies delivers software development, AI solutions, mobile applications, cloud services and custom technology solutions for modern businesses.',
         );
       }
     });
-  }
-
-  ngOnDestroy(): void {
-    document.body.classList.remove('sg-modal-open');
-  }
-
-  @HostListener('document:keydown.escape')
-  onEscape(): void {
-    if (this.demoModalOpen()) this.closeDemoModal();
-  }
-
-  get modalVideoSrc(): string | null {
-    return this.videos.product || this.videos.hero;
-  }
-
-  setDashTab(tab: string): void {
-    this.dashTab.set(tab);
-  }
-
-  openDemoModal(): void {
-    this.demoModalOpen.set(true);
-    document.body.classList.add('sg-modal-open');
-  }
-
-  closeDemoModal(): void {
-    this.demoModalOpen.set(false);
-    document.body.classList.remove('sg-modal-open');
-  }
-
-  private probeShot(
-    fileBase: string,
-    key: 'fleetTracking' | 'dashboard' | 'tripPlayback',
-  ): void {
-    const url = `/website/${fileBase}.png`;
-    const img = new Image();
-    img.onload = () => {
-      this.shots = { ...this.shots, [key]: url };
-    };
-    img.src = url;
   }
 }

@@ -80,11 +80,11 @@ import { RouterLink } from '@angular/router';
   `,
 })
 export class CtaBandComponent {
-  @Input() title = 'Ready to manage your fleet smarter?';
+  @Input() title = "Ready to build what's next?";
   @Input() lead =
-    'Bring vehicles, drivers, trips, GPS tracking, maintenance and analytics together in SheikhGo.';
-  @Input() primaryText = 'Request a Demo';
+    'Partner with SheikhGo Technologies for software, AI, and digital products that move your business forward.';
+  @Input() primaryText = 'Request a Quote';
   @Input() primaryUrl = '/request-demo';
-  @Input() secondaryText = 'Contact Sales →';
+  @Input() secondaryText = 'Contact Us →';
   @Input() secondaryUrl = '/contact';
 }

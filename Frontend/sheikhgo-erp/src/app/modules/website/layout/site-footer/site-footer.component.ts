@@ -2,6 +2,7 @@ import { Component, OnInit, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { WEBSITE_BRAND } from '../../core/brand';
 import { PublicWebsiteSettings, WebsitePublicContentService } from '../../core/website-public-content.service';
+import { CookieConsentService } from '../../core/cookie-consent.service';
 import { SgLogoComponent } from '../../../../shared/components/logo/sg-logo.component';
 
 @Component({
@@ -14,6 +15,7 @@ import { SgLogoComponent } from '../../../../shared/components/logo/sg-logo.comp
 export class SiteFooterComponent implements OnInit {
   readonly brand = WEBSITE_BRAND;
   private readonly content = inject(WebsitePublicContentService);
+  private readonly cookies = inject(CookieConsentService);
 
   salesEmail: string = WEBSITE_BRAND.salesEmail;
   supportEmail: string = WEBSITE_BRAND.supportEmail;
@@ -31,5 +33,9 @@ export class SiteFooterComponent implements OnInit {
       this.supportEmail = s.supportEmail || this.supportEmail;
       this.siteName = s.siteName || this.siteName;
     });
+  }
+
+  openCookieSettings(): void {
+    this.cookies.openCookieSettings();
   }
 }

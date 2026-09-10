@@ -92,6 +92,7 @@ const routes: Routes = [
         loadComponent: () =>
           import('./modules/website/pages/request-demo/request-demo.page').then(m => m.RequestDemoPage),
       },
+      { path: 'request-a-quote', redirectTo: 'request-demo', pathMatch: 'full' },
     ],
   },
 
@@ -251,7 +252,14 @@ const routes: Routes = [
 ];
 
 @NgModule({
-  imports: [RouterModule.forRoot(routes), WebsiteShellComponent],
+  imports: [
+    RouterModule.forRoot(routes, {
+      anchorScrolling: 'enabled',
+      scrollPositionRestoration: 'enabled',
+      scrollOffset: [0, 80],
+    }),
+    WebsiteShellComponent,
+  ],
   exports: [RouterModule]
 })
 export class AppRoutingModule { }

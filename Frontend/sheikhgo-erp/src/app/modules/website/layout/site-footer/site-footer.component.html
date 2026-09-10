@@ -2,62 +2,67 @@
   <div class="container grid">
     <div class="brand-col">
       <div class="brand-lockup">
-        <app-sg-logo variant="footer" [showWordmark]="true" [wordmark]="siteName" [alt]="siteName" />
+        <app-sg-logo variant="footer" [showWordmark]="true" [wordmark]="siteName" [alt]="brand.companyName" />
       </div>
       <p class="tagline">{{ brand.tagline }}</p>
-      <p class="blurb">Intelligent fleet and travel management for modern transportation businesses.</p>
+      <p class="blurb">{{ brand.footerBlurb }}</p>
       <div class="socials" aria-label="Contact">
         <a [href]="'mailto:' + contactEmail">{{ contactEmail }}</a>
       </div>
     </div>
 
     <div>
-      <h3>Platform</h3>
-      <a routerLink="/fleet-management">Fleet Management</a>
-      <a routerLink="/gps-tracking">GPS Tracking</a>
-      <a routerLink="/features">Trip Management</a>
-      <a routerLink="/features">Maintenance</a>
-      <a routerLink="/features">Fuel Management</a>
-      <a routerLink="/features">Reports &amp; Analytics</a>
-      <a routerLink="/features">AI Assistant</a>
+      <h3>Services</h3>
+      <a routerLink="/" fragment="services">Web Development</a>
+      <a routerLink="/" fragment="services">Mobile App Development</a>
+      <a routerLink="/" fragment="services">UI/UX Design</a>
+      <a routerLink="/" fragment="services">Cloud Solutions</a>
+      <a routerLink="/" fragment="services">IT Consulting</a>
+      <a routerLink="/" fragment="services">Custom Software</a>
     </div>
 
     <div>
-      <h3>Solutions</h3>
-      <a href="/#solutions">Fleet Operators</a>
-      <a href="/#solutions">Travel Agencies</a>
-      <a href="/#solutions">Vehicle Rental</a>
-      <a href="/#solutions">Corporate Fleets</a>
-      <a href="/#solutions">Enterprise</a>
-    </div>
-
-    <div>
-      <h3>Resources</h3>
-      <a routerLink="/contact">Help Center</a>
-      <a [href]="'mailto:' + supportEmail">Documentation</a>
-      <a href="/#security">Security</a>
-      <a routerLink="/contact">Support</a>
+      <h3>Industries</h3>
+      <a routerLink="/auth/login">Logistics &amp; Fleet</a>
+      <a routerLink="/" fragment="industries">Retail &amp; E-Commerce</a>
+      <a routerLink="/" fragment="industries">Healthcare</a>
+      <a routerLink="/" fragment="industries">Education</a>
+      <a routerLink="/" fragment="industries">Finance</a>
+      <a routerLink="/" fragment="industries">Travel &amp; Tourism</a>
+      <a routerLink="/" fragment="industries">Manufacturing</a>
+      <a routerLink="/contact">More Industries</a>
     </div>
 
     <div>
       <h3>Company</h3>
       <a routerLink="/about">About Us</a>
-      <a routerLink="/contact">Contact Us</a>
-      <a routerLink="/request-demo">Request Demo</a>
-      <a routerLink="/auth/login">Login</a>
+      <a routerLink="/" fragment="work">Our Work</a>
+      <a routerLink="/contact">Careers</a>
+      <a routerLink="/contact">Blog</a>
+      <a routerLink="/contact">Contact</a>
+    </div>
+
+    <div>
+      <h3>Resources</h3>
+      <a routerLink="/contact">Help Center</a>
+      <a routerLink="/contact">Documentation</a>
+      <a routerLink="/contact">Case Studies</a>
+      <a routerLink="/contact">Client Reviews</a>
+      <a routerLink="/contact">Security</a>
     </div>
 
     <div>
       <h3>Legal</h3>
       <a routerLink="/privacy-policy">Privacy Policy</a>
-      <a routerLink="/delete-account">Delete Account</a>
-      <a routerLink="/terms-and-conditions">Terms &amp; Conditions</a>
       <a routerLink="/cookie-policy">Cookie Policy</a>
+      <a routerLink="/terms-and-conditions">Terms &amp; Conditions</a>
+      <a routerLink="/delete-account">Delete Account</a>
+      <button type="button" class="footer-text-btn" (click)="openCookieSettings()">Cookie Settings</button>
     </div>
   </div>
 
   <div class="container bottom">
-    <p>© {{ brand.year }} {{ siteName }}. All rights reserved.</p>
-    <p class="note">Legal pages are drafts for product accuracy — have counsel review before production publish.</p>
+    <p>© {{ brand.year }} {{ brand.companyName }}. All rights reserved.</p>
+    <p class="note">{{ brand.positioning }}</p>
   </div>
 </footer>
