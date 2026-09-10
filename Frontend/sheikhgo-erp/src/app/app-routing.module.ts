@@ -42,6 +42,17 @@ const routes: Routes = [
       },
     ],
   },
+  {
+    path: 'delete-account',
+    component: WebsiteShellComponent,
+    children: [
+      {
+        path: '',
+        loadComponent: () =>
+          import('./modules/website/pages/legal/delete-account.page').then(m => m.DeleteAccountPage),
+      },
+    ],
+  },
 
   // Public marketing site (guests only — avoids clashing with ERP paths like gps-tracking)
   {

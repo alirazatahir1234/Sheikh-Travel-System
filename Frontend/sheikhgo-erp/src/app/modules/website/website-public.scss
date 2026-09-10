@@ -15,11 +15,11 @@
   --sg-white: #ffffff;
   --sg-gold: #c4a574;
   --sg-radius: 14px;
-  --sg-max: 1280px;
+  --sg-max: 1200px;
   --font-display: 'Syne', system-ui, sans-serif;
   --font-body: 'DM Sans', system-ui, sans-serif;
   --section-pad: clamp(4rem, 7vw, 5.5rem);
-  --header-h: 112px;
+  --header-h: 72px;
 
   /* STEP 2 — readable enterprise SaaS type scale (px at 16 root) */
   --type-eyebrow: 0.75rem; /* 12px */
@@ -79,14 +79,21 @@
     margin: 0;
   }
 
+  /* Override Tailwind `.container` responsive max-widths (they compress the marketing site). */
   .container {
-    width: min(100% - 4rem, var(--sg-max));
-    margin-inline: auto;
+    width: 100% !important;
+    max-width: var(--sg-max) !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+    padding-left: 32px;
+    padding-right: 32px;
+    box-sizing: border-box;
   }
 
   @media (max-width: 640px) {
     .container {
-      width: min(100% - 2rem, var(--sg-max));
+      padding-left: 20px;
+      padding-right: 20px;
     }
   }
 
@@ -195,12 +202,13 @@
   }
 
   .legal-doc article {
-    max-width: 760px;
+    max-width: none;
+    width: 100%;
     margin: 0 auto;
     background: var(--sg-white);
     border: 1px solid var(--sg-line);
     border-radius: var(--sg-radius);
-    padding: 2.5rem;
+    padding: 2.5rem 3rem;
   }
 
   .legal-doc h1 {

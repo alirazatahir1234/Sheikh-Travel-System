@@ -1,0 +1,82 @@
+.delete-section {
+  padding-top: 2.5rem;
+}
+
+.delete-layout {
+  display: grid;
+  grid-template-columns: 1.35fr 0.9fr;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.panel {
+  background: #fff;
+  border: 1px solid var(--sg-line);
+  border-radius: 18px;
+  padding: 1.75rem 1.5rem;
+  box-shadow: 0 16px 40px rgba(4, 31, 36, 0.06);
+}
+
+.panel h2 {
+  font-size: 1.4rem;
+  margin-bottom: 0.5rem;
+  color: var(--sg-ink);
+}
+
+.panel h3 {
+  font-size: 1.05rem;
+  margin: 1.35rem 0 0.5rem;
+  color: var(--sg-ink);
+}
+
+.lead,
+.aside p,
+.aside li {
+  color: var(--sg-muted);
+  font-size: 1.02rem;
+  line-height: 1.6;
+}
+
+.lead {
+  margin-bottom: 1.35rem;
+}
+
+.aside ol {
+  margin: 0.75rem 0 0;
+  padding-left: 1.2rem;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.field.check label {
+  display: flex;
+  gap: 0.65rem;
+  align-items: flex-start;
+  font-weight: 500;
+  color: var(--sg-muted);
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.field.check input {
+  margin-top: 0.25rem;
+  width: auto;
+}
+
+.note {
+  margin-top: 1.25rem;
+  font-size: 0.95rem;
+}
+
+.hp {
+  position: absolute;
+  left: -9999px;
+  height: 0;
+  overflow: hidden;
+}
+
+@media (max-width: 900px) {
+  .delete-layout {
+    grid-template-columns: 1fr;
+  }
+}

@@ -3,6 +3,7 @@
 ## Hero media
 - sheikhgo-fleet-hero.png — poster / fallback still
 - hero-demo.mp4 — homepage hero loop + modal demo (SheikhGo ERP walkthrough)
+- privacy-policy-banner.jpg — Privacy Policy page hero banner
 
 ## Screenshots (PNG)
 - fleet-tracking.png

@@ -1,0 +1,180 @@
+<section class="legal-page">
+  <div class="legal-shell">
+    <article class="legal-card">
+      <header class="legal-card-head">
+        <h1>Terms &amp; Conditions</h1>
+        <p class="legal-version">Version {{ version }}</p>
+        <p>
+          These Terms &amp; Conditions govern your access to and use of SheikhGo, including the
+          SheikhGo Fleet application, website, and related services operated by
+          {{ brand.companyName }} / SheikhGo.
+        </p>
+        <p>
+          By accessing or using SheikhGo, you agree to these Terms. If you do not agree, do not use
+          the services.
+        </p>
+      </header>
+
+      <ol class="legal-sections">
+        <li class="legal-section">
+          <div class="legal-section-title">
+            <span class="legal-num" aria-hidden="true">1</span>
+            <h2>Use of Services</h2>
+          </div>
+          <div class="legal-section-body">
+            <p>
+              You may use SheikhGo only for lawful business and fleet-management purposes and in
+              accordance with these Terms, applicable law, and any organization policies that apply
+              to your account.
+            </p>
+          </div>
+        </li>
+
+        <li class="legal-section">
+          <div class="legal-section-title">
+            <span class="legal-num" aria-hidden="true">2</span>
+            <h2>Accounts &amp; Access</h2>
+          </div>
+          <div class="legal-section-body">
+            <p>
+              You are responsible for safeguarding login credentials and for activity under your
+              account. Notify us promptly of unauthorized access. Organization administrators may
+              control user roles and access within their fleet.
+            </p>
+          </div>
+        </li>
+
+        <li class="legal-section">
+          <div class="legal-section-title">
+            <span class="legal-num" aria-hidden="true">3</span>
+            <h2>Fleet, Driver &amp; GPS Data</h2>
+          </div>
+          <div class="legal-section-body">
+            <p>
+              SheikhGo may process vehicle, driver, trip, and GPS location data to provide tracking
+              and fleet operations features. GPS accuracy depends on device, network, and
+              environmental conditions and is provided on an as-available basis.
+            </p>
+          </div>
+        </li>
+
+        <li class="legal-section">
+          <div class="legal-section-title">
+            <span class="legal-num" aria-hidden="true">4</span>
+            <h2>Acceptable Use</h2>
+          </div>
+          <div class="legal-section-body">
+            <p>
+              You must not misuse the services, attempt unauthorized access, interfere with
+              platform integrity, reverse engineer protected components except where permitted by
+              law, or use SheikhGo to violate the rights or privacy of others.
+            </p>
+          </div>
+        </li>
+
+        <li class="legal-section">
+          <div class="legal-section-title">
+            <span class="legal-num" aria-hidden="true">5</span>
+            <h2>Intellectual Property</h2>
+          </div>
+          <div class="legal-section-body">
+            <p>
+              SheikhGo software, branding, and related materials remain the property of
+              {{ brand.companyName }} / SheikhGo or its licensors. You receive a limited,
+              non-exclusive right to use the services as provided.
+            </p>
+          </div>
+        </li>
+
+        <li class="legal-section">
+          <div class="legal-section-title">
+            <span class="legal-num" aria-hidden="true">6</span>
+            <h2>Third-Party Services</h2>
+          </div>
+          <div class="legal-section-body">
+            <p>
+              SheikhGo may integrate mapping, hosting, notifications, and other third-party
+              services. Those services are subject to their own terms and availability.
+            </p>
+          </div>
+        </li>
+
+        <li class="legal-section">
+          <div class="legal-section-title">
+            <span class="legal-num" aria-hidden="true">7</span>
+            <h2>Disclaimer of Warranties</h2>
+          </div>
+          <div class="legal-section-body">
+            <p>
+              Services are provided “as is” and “as available.” To the fullest extent permitted by
+              law, we disclaim warranties of merchantability, fitness for a particular purpose, and
+              uninterrupted or error-free operation.
+            </p>
+          </div>
+        </li>
+
+        <li class="legal-section">
+          <div class="legal-section-title">
+            <span class="legal-num" aria-hidden="true">8</span>
+            <h2>Limitation of Liability</h2>
+          </div>
+          <div class="legal-section-body">
+            <p>
+              To the fullest extent permitted by law, SheikhGo is not liable for indirect,
+              incidental, special, consequential, or punitive damages, or for losses arising from
+              GPS inaccuracy, downtime, or unauthorized account use, except where liability cannot
+              be excluded.
+            </p>
+          </div>
+        </li>
+
+        <li class="legal-section">
+          <div class="legal-section-title">
+            <span class="legal-num" aria-hidden="true">9</span>
+            <h2>Changes &amp; Termination</h2>
+          </div>
+          <div class="legal-section-body">
+            <p>
+              We may update these Terms or modify the services from time to time. Continued use
+              after changes become effective constitutes acceptance. We may suspend or terminate
+              access for breach of these Terms or to protect the platform and users.
+            </p>
+          </div>
+        </li>
+
+        <li class="legal-section">
+          <div class="legal-section-title">
+            <span class="legal-num" aria-hidden="true">10</span>
+            <h2>Contact</h2>
+          </div>
+          <div class="legal-section-body">
+            <p>Questions about these Terms can be sent to:</p>
+            <div class="legal-contact-row">
+              <a class="legal-contact-item" [href]="'mailto:' + brand.supportEmail">
+                <span class="legal-contact-ico" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="14" rx="2" stroke="currentColor" stroke-width="1.7"/><path d="M4 7l8 6 8-6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </span>
+                {{ brand.supportEmail }}
+              </a>
+              <a class="legal-contact-item" [href]="websiteUrl" target="_blank" rel="noopener">
+                <span class="legal-contact-ico" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.7"/><path d="M3 12h18M12 3c2.5 2.8 3.8 5.8 3.8 9S14.5 18.2 12 21c-2.5-2.8-3.8-5.8-3.8-9S9.5 5.8 12 3z" stroke="currentColor" stroke-width="1.7"/></svg>
+                </span>
+                www.sheikhgo.com
+              </a>
+            </div>
+          </div>
+        </li>
+      </ol>
+
+      <footer class="legal-card-foot">
+        <p>
+          <span class="legal-info-ico" aria-hidden="true">i</span>
+          These Terms &amp; Conditions are a product draft for SheikhGo accuracy — have counsel
+          review before production publish.
+        </p>
+        <p class="legal-updated">Last updated: {{ lastUpdated }}</p>
+      </footer>
+    </article>
+  </div>
+</section>

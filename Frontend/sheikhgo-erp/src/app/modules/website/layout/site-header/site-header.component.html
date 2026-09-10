@@ -1,4 +1,4 @@
-<header class="site-header" [ngClass]="{ scrolled: scrolled, open: menuOpen() }">
+<header class="site-header" [ngClass]="{ scrolled: scrolled, open: menuOpen(), light: light }">
   <div class="container bar">
     <a routerLink="/" class="brand" (click)="closeMenu()">
       <app-sg-logo variant="header" [showWordmark]="true" [wordmark]="siteName" [alt]="siteName" />

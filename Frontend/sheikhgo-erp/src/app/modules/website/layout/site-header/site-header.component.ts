@@ -1,6 +1,7 @@
 import { Component, HostListener, OnInit, inject, signal } from '@angular/core';
-import { RouterLink, RouterLinkActive } from '@angular/router';
+import { NavigationEnd, Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { NgClass } from '@angular/common';
+import { filter } from 'rxjs/operators';
 import { WEBSITE_BRAND } from '../../core/brand';
 import { WebsitePublicContentService } from '../../core/website-public-content.service';
 import { SgLogoComponent } from '../../../../shared/components/logo/sg-logo.component';
@@ -15,6 +16,7 @@ import { SgLogoComponent } from '../../../../shared/components/logo/sg-logo.comp
 export class SiteHeaderComponent implements OnInit {
   readonly brand = WEBSITE_BRAND;
   private readonly content = inject(WebsitePublicContentService);
+  private readonly router = inject(Router);
 
   siteName: string = WEBSITE_BRAND.productName;
 
@@ -22,13 +24,25 @@ export class SiteHeaderComponent implements OnInit {
   readonly platformOpen = signal(false);
   readonly solutionsOpen = signal(false);
   scrolled = false;
+  /** Light pages (privacy, contact, etc.) need dark nav text on a solid header. */
+  light = false;
 
   ngOnInit(): void {
+    this.updateLightMode(this.router.url);
+    this.router.events
+      .pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd))
+      .subscribe(e => this.updateLightMode(e.urlAfterRedirects));
+
     this.content.getSettings().subscribe(s => {
       if (!s) return;
       if (s.siteName) this.siteName = s.siteName;
       // Logo asset is locked to APP_LOGO_PATH via app-sg-logo — ignore CMS logoUrl.
     });
+  }
+
+  private updateLightMode(url: string): void {
+    const path = url.split('?')[0].split('#')[0];
+    this.light = path !== '/' && path !== '';
   }
 
   @HostListener('window:scroll')

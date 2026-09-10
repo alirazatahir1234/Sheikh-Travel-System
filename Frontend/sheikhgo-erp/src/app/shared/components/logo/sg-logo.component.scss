@@ -32,14 +32,22 @@
 }
 
 /*
- * Exact sizes from login-hero .brand-logo
- * Desktop: 96×96 | ≤768: 72×72 | ≤480: 56×56
+ * Login / footer keep large mark.
+ * Website header uses a compact chrome size so nav stays readable.
  */
 .sg-logo--login-hero .sg-logo__img,
-.sg-logo--header .sg-logo__img,
 .sg-logo--footer .sg-logo__img {
   width: 96px;
   height: 96px;
+}
+
+.sg-logo--header .sg-logo__img {
+  width: 52px;
+  height: 52px;
+}
+
+.sg-logo--header .sg-logo__wordmark {
+  font-size: 1.25rem;
 }
 
 /*
@@ -53,10 +61,14 @@
 
 @media (max-width: 768px) {
   .sg-logo--login-hero .sg-logo__img,
-  .sg-logo--header .sg-logo__img,
   .sg-logo--footer .sg-logo__img {
     width: 72px;
     height: 72px;
+  }
+
+  .sg-logo--header .sg-logo__img {
+    width: 44px;
+    height: 44px;
   }
 
   .sg-logo--login-card .sg-logo__img {
@@ -67,6 +79,10 @@
   .sg-logo--with-wordmark .sg-logo__wordmark {
     font-size: 1.35rem; /* login .brand-name @ 768 */
   }
+
+  .sg-logo--header .sg-logo__wordmark {
+    font-size: 1.1rem;
+  }
 }
 
 @media (max-width: 480px) {
@@ -75,10 +91,14 @@
   }
 
   .sg-logo--login-hero .sg-logo__img,
-  .sg-logo--header .sg-logo__img,
   .sg-logo--footer .sg-logo__img {
     width: 56px;
     height: 56px;
+  }
+
+  .sg-logo--header .sg-logo__img {
+    width: 40px;
+    height: 40px;
   }
 
   .sg-logo--login-card .sg-logo__img {
@@ -88,5 +108,9 @@
 
   .sg-logo--with-wordmark .sg-logo__wordmark {
     font-size: 1.15rem; /* login .brand-name @ 480 */
+  }
+
+  .sg-logo--header .sg-logo__wordmark {
+    font-size: 1rem;
   }
 }

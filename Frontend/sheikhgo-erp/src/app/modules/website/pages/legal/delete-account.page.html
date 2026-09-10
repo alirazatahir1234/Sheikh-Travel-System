@@ -1,0 +1,102 @@
+<section class="page-hero">
+  <div class="container">
+    <p class="section-kicker">SheikhGo Fleet</p>
+    <h1>Request Account Deletion</h1>
+    <p>
+      Use this page to request deletion of your SheikhGo Fleet account and associated personal
+      information. This supports Google Play account-deletion requirements.
+    </p>
+  </div>
+</section>
+
+<section class="section delete-section">
+  <div class="container delete-layout">
+    <form class="panel" [formGroup]="form" (ngSubmit)="submit()">
+      <h2>Deletion request form</h2>
+      <p class="lead">
+        Submit the details below. We will verify your identity and process valid requests within a
+        reasonable period.
+      </p>
+
+      <div class="form-grid two">
+        <div class="field">
+          <label for="fullName">Full name *</label>
+          <input id="fullName" formControlName="fullName" autocomplete="name" />
+        </div>
+        <div class="field">
+          <label for="email">Account email *</label>
+          <input id="email" type="email" formControlName="email" autocomplete="email" />
+        </div>
+      </div>
+
+      <div class="form-grid two">
+        <div class="field">
+          <label for="phone">Phone (optional)</label>
+          <input id="phone" formControlName="phone" autocomplete="tel" />
+        </div>
+        <div class="field">
+          <label for="organization">Organization / fleet (optional)</label>
+          <input id="organization" formControlName="organization" />
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="reason">Additional details (optional)</label>
+        <textarea
+          id="reason"
+          formControlName="reason"
+          placeholder="Anything that helps us identify your account"
+        ></textarea>
+      </div>
+
+      <div class="field check">
+        <label>
+          <input type="checkbox" formControlName="confirm" />
+          I understand that deleting my account may remove access to SheikhGo Fleet and associated
+          personal data, except where retention is required by law.
+        </label>
+      </div>
+
+      <div class="hp" aria-hidden="true">
+        <label>Website<input formControlName="website" tabindex="-1" autocomplete="off" /></label>
+      </div>
+
+      <button class="btn btn-primary" type="submit" [disabled]="submitting() || form.invalid">
+        {{ submitting() ? 'Sending…' : 'Submit Deletion Request' }}
+      </button>
+
+      @if (status(); as s) {
+        <div class="form-status" [class.ok]="s.type === 'ok'" [class.err]="s.type === 'err'">
+          {{ s.text }}
+        </div>
+      }
+    </form>
+
+    <aside class="aside panel">
+      <h2>What happens next</h2>
+      <ol>
+        <li>We receive and review your request.</li>
+        <li>We may contact you to verify account ownership.</li>
+        <li>We delete or anonymize personal information where permitted.</li>
+        <li>
+          Some records may be retained for legal, security, fraud-prevention, or accounting
+          purposes.
+        </li>
+      </ol>
+
+      <h3>Prefer email?</h3>
+      <p>
+        Send a message to
+        <a [href]="mailtoHref">{{ brand.privacyEmail }}</a>
+        with subject:
+      </p>
+      <p><strong>SheikhGo Fleet – Account Deletion Request</strong></p>
+
+      <p class="note">
+        Also see our
+        <a routerLink="/privacy-policy">Privacy Policy</a>
+        for how we collect, use, and retain information.
+      </p>
+    </aside>
+  </div>
+</section>

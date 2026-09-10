@@ -40,6 +40,11 @@ export const WEBSITE_ROUTES: Routes = [
         loadComponent: () => import('./pages/legal/privacy.page').then(m => m.PrivacyPage),
       },
       {
+        path: 'delete-account',
+        loadComponent: () =>
+          import('./pages/legal/delete-account.page').then(m => m.DeleteAccountPage),
+      },
+      {
         path: 'terms-and-conditions',
         loadComponent: () => import('./pages/legal/terms.page').then(m => m.TermsPage),
       },
