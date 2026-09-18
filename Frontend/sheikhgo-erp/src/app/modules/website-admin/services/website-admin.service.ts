@@ -13,6 +13,7 @@ import {
   WebsiteLegalUpdate,
   WebsiteMedia,
   WebsitePage,
+  WebsitePageCreate,
   WebsitePageUpdate,
   WebsiteSection,
   WebsiteSectionUpsert,
@@ -40,6 +41,10 @@ export class WebsiteAdminService {
 
   getPages(): Observable<WebsitePage[]> {
     return this.http.get<WebsitePage[]>(`${this.base}/pages`);
+  }
+
+  createPage(body: WebsitePageCreate): Observable<WebsitePage> {
+    return this.http.post<WebsitePage>(`${this.base}/pages`, body);
   }
 
   updatePage(id: number, body: WebsitePageUpdate): Observable<WebsitePage> {

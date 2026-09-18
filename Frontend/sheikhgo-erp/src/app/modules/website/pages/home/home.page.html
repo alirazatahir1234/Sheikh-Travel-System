@@ -2,15 +2,20 @@
   <div class="hero-bg" aria-hidden="true"></div>
   <div class="container hero-grid">
     <div class="hero-copy reveal">
-      <p class="sg-eyebrow">{{ brand.companyName }}</p>
+      <p class="sg-eyebrow">{{ heroEyebrow }}</p>
       <h1>
-        <span class="h1-line">Build Smarter with</span>
-        <span class="h1-line accent">AI-Powered Solutions</span>
+        <span class="h1-line">{{ heroTitlePrimary }}</span>
+        @if (heroTitleAccent) {
+          <span class="h1-line accent">{{ heroTitleAccent }}</span>
+        }
       </h1>
-      <p class="lead">{{ brand.mission }}</p>
+      <p class="lead">{{ heroLead }}</p>
       <div class="hero-actions">
-        <a routerLink="/contact" class="btn btn-primary">Get a Free Consultation →</a>
-        <a routerLink="/" fragment="services" class="btn btn-ghost">Our Services</a>
+        <a [routerLink]="heroPrimaryCta.link" class="btn btn-primary">{{ heroPrimaryCta.label }}</a>
+        <a
+          [routerLink]="heroSecondaryCta.link"
+          [fragment]="heroSecondaryCta.fragment || undefined"
+          class="btn btn-ghost">{{ heroSecondaryCta.label }}</a>
       </div>
     </div>
 
@@ -36,6 +41,27 @@
     }
   </div>
 </section>
+
+@if (cmsFeatures.length) {
+  <section class="sg-section" id="cms-features" aria-labelledby="cms-features-heading">
+    <div class="container">
+      <div class="section-head">
+        <span class="section-kicker">Platform</span>
+        <h2 id="cms-features-heading" class="sg-section-title">Featured capabilities</h2>
+        <p class="sg-section-lead">Published feature cards from SheikhGo Website CMS.</p>
+      </div>
+      <div class="card-grid services-grid">
+        @for (f of cmsFeatures; track f.title) {
+          <a class="sg-card service-card" [routerLink]="f.link">
+            <h3>{{ f.title }}</h3>
+            <p>{{ f.text }}</p>
+            <span class="card-action" aria-hidden="true">→</span>
+          </a>
+        }
+      </div>
+    </div>
+  </section>
+}
 
 <section class="trusted" id="trusted" aria-labelledby="trusted-heading">
   <div class="container">

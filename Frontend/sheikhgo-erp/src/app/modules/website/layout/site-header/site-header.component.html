@@ -8,28 +8,42 @@
       <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" class="nav-link" (click)="closeMenu()">Home</a>
 
       <div class="dropdown" [class.open]="servicesOpen()">
-        <button type="button" class="nav-link drop-btn" (click)="toggleServices()">
+        <button
+          type="button"
+          class="nav-link drop-btn"
+          (click)="toggleServices()"
+          [attr.aria-expanded]="servicesOpen()"
+          aria-haspopup="true"
+          aria-controls="services-menu"
+        >
           Services
           <span class="chev" aria-hidden="true"></span>
         </button>
-        <div class="dropdown-panel">
+        <div class="dropdown-panel" id="services-menu" role="menu">
           @for (link of serviceLinks; track link.label) {
-            <a routerLink="/" fragment="services" (click)="closeMenu()">{{ link.label }}</a>
+            <a routerLink="/" fragment="services" role="menuitem" (click)="closeMenu()">{{ link.label }}</a>
           }
         </div>
       </div>
 
       <div class="dropdown" [class.open]="industriesOpen()">
-        <button type="button" class="nav-link drop-btn" (click)="toggleIndustries()">
+        <button
+          type="button"
+          class="nav-link drop-btn"
+          (click)="toggleIndustries()"
+          [attr.aria-expanded]="industriesOpen()"
+          aria-haspopup="true"
+          aria-controls="industries-menu"
+        >
           Industries
           <span class="chev" aria-hidden="true"></span>
         </button>
-        <div class="dropdown-panel">
+        <div class="dropdown-panel" id="industries-menu" role="menu">
           @for (link of industryLinks; track link.label) {
             @if (link.fragment) {
-              <a routerLink="/" [fragment]="link.fragment" (click)="closeMenu()">{{ link.label }}</a>
+              <a routerLink="/" [fragment]="link.fragment" role="menuitem" (click)="closeMenu()">{{ link.label }}</a>
             } @else {
-              <a [routerLink]="link.href" (click)="closeMenu()">{{ link.label }}</a>
+              <a [routerLink]="link.href" role="menuitem" (click)="closeMenu()">{{ link.label }}</a>
             }
           }
         </div>

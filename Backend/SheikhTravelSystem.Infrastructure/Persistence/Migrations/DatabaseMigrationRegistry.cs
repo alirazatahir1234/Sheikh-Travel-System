@@ -101,6 +101,7 @@ public static class DatabaseMigrationRegistry
             M("FleetListCompanyScopeMigration", FleetListCompanyScopeMigration.ApplyAsync),
             M("PasswordResetTokenMigration", PasswordResetTokenMigration.ApplyAsync),
             M("WebsiteCmsMigration", WebsiteCmsMigration.ApplyAsync),
+            M("WebsiteCmsEnsureMigration", WebsiteCmsEnsureMigration.ApplyAsync),
         ];
     }
 }

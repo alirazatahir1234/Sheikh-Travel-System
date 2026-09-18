@@ -43,3 +43,15 @@
 }
 
 .wa-full { grid-column: 1 / -1; }
+
+.wa-error-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1rem;
+}
+.wa-error-banner p { margin: 0.35rem 0 0; opacity: 0.8; }
+

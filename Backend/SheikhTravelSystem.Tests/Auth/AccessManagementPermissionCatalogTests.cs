@@ -24,6 +24,7 @@ public class AccessManagementPermissionCatalogTests
             .Concat(AnalyticsPermissions.All)
             .Concat(AiPermissions.All)
             .Concat(NotificationPermissions.All)
+            .Concat(WebsitePermissions.All)
             .Distinct(StringComparer.Ordinal)
             .ToHashSet(StringComparer.Ordinal);
 
@@ -48,6 +49,9 @@ public class AccessManagementPermissionCatalogTests
         catalog.Should().Contain(NotificationPermissions.View);
         catalog.Should().Contain(NotificationPermissions.Manage);
         catalog.Should().Contain(DriverPermissions.DriverManage);
+        catalog.Should().Contain(WebsitePermissions.View);
+        catalog.Should().Contain(WebsitePermissions.Edit);
+        catalog.Should().Contain(WebsitePermissions.Publish);
         catalog.Count.Should().BeGreaterThanOrEqualTo(60);
     }
 
@@ -66,7 +70,8 @@ public class AccessManagementPermissionCatalogTests
                      .Concat(FinancePermissions.All)
                      .Concat(AnalyticsPermissions.All)
                      .Concat(AiPermissions.All)
-                     .Concat(NotificationPermissions.All))
+                     .Concat(NotificationPermissions.All)
+                     .Concat(WebsitePermissions.All))
         {
             options.GetPolicy(code).Should().NotBeNull($"policy missing for {code}");
         }

@@ -88,7 +88,8 @@
   }
 
   /* Override Tailwind `.container` responsive max-widths (they compress the marketing site). */
-  .container {
+  .container,
+  .sg-container {
     width: 100% !important;
     max-width: var(--sg-max) !important;
     margin-left: auto !important;
@@ -99,7 +100,8 @@
   }
 
   @media (max-width: 640px) {
-    .container {
+    .container,
+    .sg-container {
       padding-left: 20px;
       padding-right: 20px;
     }

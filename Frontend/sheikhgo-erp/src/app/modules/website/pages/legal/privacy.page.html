@@ -12,7 +12,21 @@
   </div>
 </section>
 
-<section class="privacy-body">
+<section class="privacy-body" *ngIf="cmsHtml as html">
+  <div class="privacy-shell">
+    <article class="legal-card">
+      <header class="legal-card-head">
+        <h1>{{ cmsTitle }}</h1>
+        <p class="legal-version" *ngIf="cmsVersion">Version {{ cmsVersion }}</p>
+      </header>
+      <div class="legal-cms-body" [innerHTML]="html"></div>
+    </article>
+  </div>
+</section>
+
+
+
+<section class="privacy-body" *ngIf="!cmsHtml">
   <div class="privacy-shell">
     <article class="legal-card">
       <header class="legal-card-head">

@@ -17,6 +17,14 @@ export class HomePage implements OnInit {
   private readonly seo = inject(WebsiteSeoService);
   private readonly content = inject(WebsitePublicContentService);
 
+  heroEyebrow: string = WEBSITE_BRAND.companyName;
+  heroTitlePrimary = 'Build Smarter with';
+  heroTitleAccent = 'AI-Powered Solutions';
+  heroLead: string = WEBSITE_BRAND.mission;
+  heroPrimaryCta = { label: 'Get a Free Consultation →', link: '/contact' };
+  heroSecondaryCta = { label: 'Our Services', link: '/', fragment: 'services' as string | undefined };
+  cmsFeatures: { title: string; text: string; link: string }[] = [];
+
   readonly softStats = [
     { label: 'End-to-End Delivery' },
     { label: 'Modern Technology' },
@@ -174,14 +182,54 @@ export class HomePage implements OnInit {
     );
 
     this.content.getHome().subscribe(home => {
-      if (!home?.settings) return;
-      if (home.settings.defaultMetaTitle || home.settings.defaultMetaDescription) {
+      if (!home) return;
+
+      if (home.settings?.defaultMetaTitle || home.settings?.defaultMetaDescription) {
         this.seo.set(
           home.settings.defaultMetaTitle ||
             'SheikhGo Technologies | IT, Software & AI Solutions',
           home.settings.defaultMetaDescription ||
             'SheikhGo Technologies delivers software development, AI solutions, mobile applications, cloud services and custom technology solutions for modern businesses.',
         );
+      }
+
+      const hero = this.content.sectionByType(home.sections, 'Hero');
+      if (hero) {
+        if (hero.subtitle?.trim()) this.heroEyebrow = hero.subtitle.trim();
+        if (hero.title?.trim()) {
+          const parts = hero.title.trim().split(/\s+/);
+          if (parts.length > 2) {
+            this.heroTitlePrimary = parts.slice(0, Math.ceil(parts.length / 2)).join(' ');
+            this.heroTitleAccent = parts.slice(Math.ceil(parts.length / 2)).join(' ');
+          } else {
+            this.heroTitlePrimary = hero.title.trim();
+            this.heroTitleAccent = '';
+          }
+        }
+        if (hero.content?.trim()) this.heroLead = hero.content.trim();
+        if (hero.buttonText?.trim() && hero.buttonUrl?.trim()) {
+          this.heroPrimaryCta = {
+            label: hero.buttonText.trim(),
+            link: hero.buttonUrl.trim(),
+          };
+        }
+        if (hero.secondaryButtonText?.trim() && hero.secondaryButtonUrl?.trim()) {
+          const url = hero.secondaryButtonUrl.trim();
+          const hash = url.includes('#') ? url.split('#')[1] : undefined;
+          this.heroSecondaryCta = {
+            label: hero.secondaryButtonText.trim(),
+            link: url.startsWith('#') ? '/' : url.split('#')[0] || '/',
+            fragment: hash,
+          };
+        }
+      }
+
+      if (home.features?.length) {
+        this.cmsFeatures = home.features.map(f => ({
+          title: f.title,
+          text: f.description || '',
+          link: f.linkUrl || '/features',
+        }));
       }
     });
   }

@@ -1,4 +1,16 @@
-<section class="legal-page">
+<section class="legal-page" *ngIf="cmsHtml as html">
+  <div class="legal-shell">
+    <article class="legal-card">
+      <header class="legal-card-head">
+        <h1>{{ cmsTitle }}</h1>
+        <p class="legal-version" *ngIf="cmsVersion">Version {{ cmsVersion }}</p>
+      </header>
+      <div class="legal-cms-body" [innerHTML]="html"></div>
+    </article>
+  </div>
+</section>
+
+<section class="legal-page" *ngIf="!cmsHtml">
   <div class="legal-shell">
     <article class="legal-card">
       <header class="legal-card-head">

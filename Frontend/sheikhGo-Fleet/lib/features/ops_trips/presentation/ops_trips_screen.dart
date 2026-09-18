@@ -6,11 +6,24 @@ import '../../../core/constants/app_theme.dart';
 import '../../../shared/widgets/sg_ui.dart';
 import 'ops_trips_notifier.dart';
 
-class OpsTripsScreen extends ConsumerWidget {
+class OpsTripsScreen extends ConsumerStatefulWidget {
   const OpsTripsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<OpsTripsScreen> createState() => _OpsTripsScreenState();
+}
+
+class _OpsTripsScreenState extends ConsumerState<OpsTripsScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(opsTripsProvider.notifier).refresh();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final async = ref.watch(opsTripsProvider);
     final df = DateFormat('dd MMM · HH:mm');
 
@@ -69,6 +82,16 @@ class OpsTripsScreen extends ConsumerWidget {
                         Padding(
                           padding: const EdgeInsets.only(right: 8),
                           child: FilterChip(
+                            label: const Text('All'),
+                            selected: !state.liveOnly && state.statusFilter == null,
+                            onSelected: (_) => ref
+                                .read(opsTripsProvider.notifier)
+                                .clearFilters(),
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: FilterChip(
                             label: const Text('Live board'),
                             selected: state.liveOnly,
                             onSelected: (v) => ref
@@ -88,7 +111,7 @@ class OpsTripsScreen extends ConsumerWidget {
                             padding: const EdgeInsets.only(right: 8),
                             child: FilterChip(
                               label: Text(s),
-                              selected: state.statusFilter == s,
+                              selected: !state.liveOnly && state.statusFilter == s,
                               onSelected: (_) => ref
                                   .read(opsTripsProvider.notifier)
                                   .setStatusFilter(s),
@@ -118,9 +141,37 @@ class OpsTripsScreen extends ConsumerWidget {
                   ),
                 ),
                 if (visible.isEmpty)
-                  const SliverFillRemaining(
+                  SliverFillRemaining(
                     hasScrollBody: false,
-                    child: Center(child: Text('No trips found')),
+                    child: Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              state.liveOnly || state.statusFilter != null
+                                  ? 'No trips match this filter'
+                                  : 'No trips found',
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            if (state.liveOnly || state.statusFilter != null) ...[
+                              const SizedBox(height: 12),
+                              FilledButton(
+                                onPressed: () => ref
+                                    .read(opsTripsProvider.notifier)
+                                    .clearFilters(),
+                                child: const Text('Show all trips'),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ),
                   )
                 else
                   SliverPadding(

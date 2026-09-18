@@ -16,7 +16,16 @@
         </nav>
       </aside>
 
-      <article class="cookie-main">
+      
+        <article class="cookie-main" *ngIf="cmsHtml as html">
+          <header class="cookie-head">
+            <h1>{{ cmsTitle }}</h1>
+            <p class="cookie-updated" *ngIf="cmsVersion">Version {{ cmsVersion }}</p>
+          </header>
+          <div class="legal-cms-body" [innerHTML]="html"></div>
+        </article>
+
+        <article class="cookie-main" *ngIf="!cmsHtml">
         <header class="cookie-head">
           <h1>Cookie Policy</h1>
           <p class="cookie-updated">Last updated: {{ lastUpdated }}</p>

@@ -19,11 +19,18 @@
     background: transparent;
   }
 
-  .tagline {
+  .company-name {
     font-family: var(--font-display);
     font-weight: 700;
     font-size: 1.125rem;
     color: #fff;
+    margin-bottom: 0.35rem;
+  }
+
+  .tagline {
+    font-weight: 600;
+    font-size: 0.9375rem;
+    color: rgba(255, 255, 255, 0.85);
     margin-bottom: 0.65rem;
   }
 
@@ -66,6 +73,14 @@
 
   a:hover {
     color: #fff;
+  }
+
+  a:focus-visible,
+  .footer-text-btn:focus-visible,
+  .socials a:focus-visible {
+    outline: 2px solid var(--sg-primary, #18c987);
+    outline-offset: 2px;
+    border-radius: 4px;
   }
 
   .footer-text-btn {

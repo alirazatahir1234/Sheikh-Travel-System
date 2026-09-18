@@ -15,7 +15,17 @@
 
   <div *ngIf="loading" class="wa-muted">Loading…</div>
 
-  <table mat-table [dataSource]="dataSource" class="wa-table" *ngIf="!loading">
+  <div *ngIf="loadError && !loading" class="stb-card wa-error-banner" role="alert">
+    <div>
+      <strong>Could not load demo requests</strong>
+      <p>{{ loadError }}</p>
+    </div>
+    <button mat-stroked-button type="button" color="primary" (click)="reload()">
+      <mat-icon>refresh</mat-icon> Retry
+    </button>
+  </div>
+
+  <table mat-table [dataSource]="dataSource" class="wa-table" *ngIf="!loading && !loadError">
     <ng-container matColumnDef="name">
       <th mat-header-cell *matHeaderCellDef>Name</th>
       <td mat-cell *matCellDef="let row">{{ row.name }}</td>

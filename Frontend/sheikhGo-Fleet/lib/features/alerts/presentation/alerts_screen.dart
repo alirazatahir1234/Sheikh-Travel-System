@@ -121,7 +121,13 @@ class AlertsScreen extends ConsumerWidget {
                                           : s,
                                     ),
                               ),
-                            for (final preset in const ['today', 'yesterday', 'last7', 'last30'])
+                            for (final preset in const [
+                              'today',
+                              'yesterday',
+                              'last7',
+                              'last30',
+                              'all',
+                            ])
                               FilterChip(
                                 label: Text(_datePresetLabel(preset)),
                                 selected: state.datePreset == preset,
@@ -139,7 +145,12 @@ class AlertsScreen extends ConsumerWidget {
                 if (visible.isEmpty)
                   const SliverFillRemaining(
                     hasScrollBody: false,
-                    child: Center(child: Text('No alerts')),
+                    child: Center(
+                      child: Text(
+                        'No GPS alerts for this range',
+                        style: TextStyle(color: AppColors.textSecondary),
+                      ),
+                    ),
                   )
                 else
                   SliverPadding(
@@ -319,6 +330,8 @@ class AlertsScreen extends ConsumerWidget {
         return 'Last 7';
       case 'last30':
         return 'Last 30';
+      case 'all':
+        return 'All time';
       default:
         return preset;
     }

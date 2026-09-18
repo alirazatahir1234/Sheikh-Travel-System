@@ -37,7 +37,24 @@
 
   <div *ngIf="loading" class="wa-muted">Loading…</div>
 
-  <table mat-table [dataSource]="dataSource" class="wa-table" *ngIf="!loading">
+  <div *ngIf="loadError && !loading" class="stb-card wa-error-banner" role="alert">
+    <div>
+      <strong>Could not load features</strong>
+      <p>{{ loadError }}</p>
+    </div>
+    <button mat-stroked-button type="button" color="primary" (click)="reload()">
+      <mat-icon>refresh</mat-icon> Retry
+    </button>
+  </div>
+
+  <div *ngIf="showEmpty" class="stb-card wa-empty-banner">
+    <p>No features yet. Add a feature card to show on the public Features page.</p>
+    <button mat-raised-button color="primary" type="button" (click)="startAdd()">
+      <mat-icon>add</mat-icon> Add feature
+    </button>
+  </div>
+
+  <table mat-table [dataSource]="dataSource" class="wa-table" *ngIf="!loading && !loadError && dataSource.data.length">
     <ng-container matColumnDef="title">
       <th mat-header-cell *matHeaderCellDef>Title</th>
       <td mat-cell *matCellDef="let row">{{ row.title }}</td>

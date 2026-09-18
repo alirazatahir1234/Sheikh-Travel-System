@@ -57,7 +57,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
     return Scaffold(
       backgroundColor: AppColors.surface,
       appBar: AppBar(
-        title: const Text('Alerts'),
+        title: const Text('Notifications'),
         actions: [
           if (filter.mailbox == NotificationMailbox.inbox)
             TextButton(
@@ -131,7 +131,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
                 if (filtered.isEmpty) {
                   return const Center(
                     child: Text(
-                      'No alerts',
+                      'No notifications',
                       style: TextStyle(color: AppColors.textSecondary),
                     ),
                   );

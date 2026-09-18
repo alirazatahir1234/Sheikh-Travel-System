@@ -71,27 +71,17 @@ class OpsTripsNotifier extends AsyncNotifier<OpsTripsState> {
     final useStatus =
         clearStatus ? null : (status ?? prev?.statusFilter);
 
-    OpsTripsDashboard dash = OpsTripsDashboard.empty;
-    List<OpsTripListItem> trips = const [];
-
-    await Future.wait([
-      () async {
-        try {
-          dash = await api.dashboard();
-        } catch (_) {}
-      }(),
-      () async {
-        try {
-          trips = useLive
-              ? await api.live()
-              : await api.list(status: useStatus, todayOnly: false);
-        } catch (_) {}
-      }(),
+    // Do not swallow failures — empty catch hid 401/403/parse errors as "No trips found".
+    final results = await Future.wait([
+      api.dashboard(),
+      useLive
+          ? api.live(todayOnly: false)
+          : api.list(status: useStatus, todayOnly: false, pageSize: 200),
     ]);
 
     return OpsTripsState(
-      dashboard: dash,
-      trips: trips,
+      dashboard: results[0] as OpsTripsDashboard,
+      trips: results[1] as List<OpsTripListItem>,
       liveOnly: useLive,
       statusFilter: useStatus,
       search: prev?.search ?? '',
@@ -111,7 +101,16 @@ class OpsTripsNotifier extends AsyncNotifier<OpsTripsState> {
 
   Future<void> setLiveOnly(bool live) async {
     state = const AsyncLoading();
-    state = await AsyncValue.guard(() => _load(liveOnly: live));
+    state = await AsyncValue.guard(
+      () => _load(liveOnly: live, clearStatus: live),
+    );
+  }
+
+  Future<void> clearFilters() async {
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(
+      () => _load(liveOnly: false, clearStatus: true),
+    );
   }
 
   Future<void> setStatusFilter(String? status) async {

@@ -9,7 +9,8 @@ class AlertsState {
     this.statusFilter,
     this.readStateFilter,
     this.severityFilter,
-    this.datePreset = 'today',
+    this.datePreset = 'last7',
+    this.loadError,
   });
 
   final GpsAlertStats stats;
@@ -17,7 +18,10 @@ class AlertsState {
   final String? statusFilter;
   final String? readStateFilter;
   final String? severityFilter;
+
+  /// `all` = no date filter; otherwise API datePreset (`today`, `last7`, …).
   final String datePreset;
+  final String? loadError;
 
   List<GpsAlertEvent> get visible => events;
 
@@ -28,9 +32,11 @@ class AlertsState {
     String? readStateFilter,
     String? severityFilter,
     String? datePreset,
+    String? loadError,
     bool clearStatus = false,
     bool clearReadState = false,
     bool clearSeverity = false,
+    bool clearLoadError = false,
   }) {
     return AlertsState(
       stats: stats ?? this.stats,
@@ -41,6 +47,7 @@ class AlertsState {
       severityFilter:
           clearSeverity ? null : (severityFilter ?? this.severityFilter),
       datePreset: datePreset ?? this.datePreset,
+      loadError: clearLoadError ? null : (loadError ?? this.loadError),
     );
   }
 }
@@ -57,33 +64,36 @@ class AlertsNotifier extends AsyncNotifier<AlertsState> {
     String? readStateFilter,
     String? severityFilter,
     String? datePreset,
+    bool clearStatus = false,
+    bool clearReadState = false,
+    bool clearSeverity = false,
   }) async {
     final api = ref.read(gpsAlertsApiProvider);
     final prev = state.valueOrNull;
-    final selectedStatus = statusFilter ?? prev?.statusFilter;
-    final selectedReadState = readStateFilter ?? prev?.readStateFilter;
-    final selectedSeverity = severityFilter ?? prev?.severityFilter;
-    final selectedDatePreset = datePreset ?? prev?.datePreset ?? 'today';
+    final selectedStatus =
+        clearStatus ? null : (statusFilter ?? prev?.statusFilter);
+    final selectedReadState =
+        clearReadState ? null : (readStateFilter ?? prev?.readStateFilter);
+    final selectedSeverity =
+        clearSeverity ? null : (severityFilter ?? prev?.severityFilter);
+    final selectedDatePreset = datePreset ?? prev?.datePreset ?? 'last7';
+    final apiDatePreset =
+        selectedDatePreset == 'all' ? null : selectedDatePreset;
 
-    GpsAlertStats stats = GpsAlertStats.empty;
-    List<GpsAlertEvent> events = const [];
-    await Future.wait([
-      () async {
-        try {
-          stats = await api.stats();
-        } catch (_) {}
-      }(),
-      () async {
-        try {
-          events = await api.listEvents(
-            status: selectedStatus,
-            readState: selectedReadState,
-            severity: selectedSeverity,
-            datePreset: selectedDatePreset,
-          );
-        } catch (_) {}
-      }(),
-    ]);
+    GpsAlertStats stats = prev?.stats ?? GpsAlertStats.empty;
+    String? softError;
+    try {
+      stats = await api.stats();
+    } catch (e) {
+      softError = e.toString();
+    }
+
+    final events = await api.listEvents(
+      status: selectedStatus,
+      readState: selectedReadState,
+      severity: selectedSeverity,
+      datePreset: apiDatePreset,
+    );
 
     return AlertsState(
       stats: stats,
@@ -92,16 +102,21 @@ class AlertsNotifier extends AsyncNotifier<AlertsState> {
       readStateFilter: selectedReadState,
       severityFilter: selectedSeverity,
       datePreset: selectedDatePreset,
+      loadError: softError,
     );
   }
 
-  Future<void> refresh() async {
-    state = const AsyncLoading();
-    state = await AsyncValue.guard(_load);
+  Future<void> _run(Future<AlertsState> Function() loader) async {
+    final previous = state.valueOrNull;
+    state = previous != null
+        ? AsyncLoading<AlertsState>().copyWithPrevious(AsyncData(previous))
+        : const AsyncLoading();
+    state = await AsyncValue.guard(loader);
   }
 
-  Future<void> setLifecycle(String? lifecycle) async {
-    state = const AsyncLoading();
+  Future<void> refresh() => _run(_load);
+
+  Future<void> setLifecycle(String? lifecycle) {
     final readState = switch (lifecycle) {
       'unread' => 'unread',
       'read' => 'read',
@@ -113,25 +128,28 @@ class AlertsNotifier extends AsyncNotifier<AlertsState> {
       'archived' => 'archived',
       _ => null,
     };
-    state = await AsyncValue.guard(
+    final clearing = lifecycle == null;
+    return _run(
       () => _load(
         statusFilter: status,
         readStateFilter: readState,
+        clearStatus: clearing,
+        clearReadState: clearing,
       ),
     );
   }
 
-  Future<void> setSeverity(String? severity) async {
-    state = const AsyncLoading();
-    state = await AsyncValue.guard(
-      () => _load(severityFilter: severity),
+  Future<void> setSeverity(String? severity) {
+    return _run(
+      () => _load(
+        severityFilter: severity,
+        clearSeverity: severity == null,
+      ),
     );
   }
 
-  Future<void> setDatePreset(String datePreset) async {
-    state = const AsyncLoading();
-    state = await AsyncValue.guard(() => _load(datePreset: datePreset));
-  }
+  Future<void> setDatePreset(String datePreset) =>
+      _run(() => _load(datePreset: datePreset));
 
   Future<void> acknowledge(int id) async {
     await ref.read(gpsAlertsApiProvider).acknowledge(id);

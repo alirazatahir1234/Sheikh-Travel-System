@@ -245,6 +245,28 @@ using (var scope = app.Services.CreateScope())
             logger.LogError(ex, "Database migration failed at startup.");
         }
 
+        // Development: surface missing Website CMS tables early (admin Features/Pages 500s).
+        if (app.Environment.IsDevelopment())
+        {
+            try
+            {
+                var dbFactory = scope.ServiceProvider.GetRequiredService<IDbConnectionFactory>();
+                using var connection = dbFactory.CreateConnection();
+                var featuresTable = await Dapper.SqlMapper.ExecuteScalarAsync<int>(
+                    connection,
+                    "SELECT CASE WHEN OBJECT_ID(N'dbo.WebsiteFeatures', N'U') IS NULL THEN 0 ELSE 1 END");
+                if (featuresTable == 0)
+                {
+                    logger.LogError(
+                        "Website CMS tables are missing (WebsiteFeatures). Apply WebsiteCmsMigration / WebsiteCmsEnsureMigration.");
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Could not verify Website CMS tables at startup.");
+            }
+        }
+
         // GPS position retention is data maintenance, not schema — run with startup migrations only.
         try
         {
