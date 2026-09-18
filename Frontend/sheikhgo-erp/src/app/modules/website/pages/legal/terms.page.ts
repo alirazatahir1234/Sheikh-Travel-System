@@ -9,25 +9,8 @@ import { WebsitePublicContentService } from '../../core/website-public-content.s
   selector: 'app-terms-page',
   standalone: true,
   imports: [NgIf],
-  template: `
-    <section class="legal-doc">
-      <div class="container">
-        <article>
-          <ng-container *ngIf="htmlContent; else fallback">
-            <h1>{{ title }}</h1>
-            <p class="meta" *ngIf="version">Version {{ version }}</p>
-            <div [innerHTML]="htmlContent"></div>
-          </ng-container>
-          <ng-template #fallback>
-            <h1>Terms &amp; Conditions</h1>
-            <p class="meta">Effective date: 29 August 2026 · {{ brand.companyName }}</p>
-            <p>By accessing or using SheikhGo you agree to these Terms. GPS accuracy depends on device and network conditions.</p>
-            <p><a [href]="'mailto:' + brand.supportEmail">{{ brand.supportEmail }}</a></p>
-          </ng-template>
-        </article>
-      </div>
-    </section>
-  `,
+  templateUrl: './terms.page.html',
+  styleUrl: './terms.page.scss',
 })
 export class TermsPage implements OnInit {
   readonly brand = WEBSITE_BRAND;
@@ -35,17 +18,27 @@ export class TermsPage implements OnInit {
   private readonly content = inject(WebsitePublicContentService);
   private readonly sanitizer = inject(DomSanitizer);
 
-  title = 'Terms & Conditions';
-  version: string | null = null;
-  htmlContent: SafeHtml | null = null;
+  readonly version = '1.0';
+  readonly lastUpdated = '10 September 2026';
+  readonly websiteUrl = 'https://www.sheikhgo.com';
+
+  cmsTitle: string | null = null;
+  cmsHtml: SafeHtml | null = null;
+  cmsVersion: string | null = null;
 
   ngOnInit(): void {
-    this.seo.set('Terms & Conditions', 'Terms of use for SheikhGo.', '/terms-and-conditions');
+    this.seo.set(
+      'Terms & Conditions',
+      'Terms of use for SheikhGo Fleet and related services.',
+      '/terms-and-conditions',
+    );
+
     this.content.getLegal('Terms').subscribe(doc => {
-      if (!doc?.content) return;
-      this.title = doc.title;
-      this.version = doc.version ?? null;
-      this.htmlContent = this.sanitizer.bypassSecurityTrustHtml(doc.content);
+      if (!doc?.content?.trim()) return;
+      this.cmsTitle = doc.title || 'Terms & Conditions';
+      this.cmsVersion = doc.version || null;
+      this.cmsHtml = this.sanitizer.bypassSecurityTrustHtml(doc.content);
+      this.seo.set(this.cmsTitle, 'Terms of use for SheikhGo Fleet and related services.', '/terms-and-conditions');
     });
   }
 }

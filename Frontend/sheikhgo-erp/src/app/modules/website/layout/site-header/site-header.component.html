@@ -1,44 +1,66 @@
-<header class="site-header" [ngClass]="{ scrolled: scrolled, open: menuOpen() }">
+<header class="site-header" [ngClass]="{ scrolled: scrolled, open: menuOpen(), light: light }">
   <div class="container bar">
     <a routerLink="/" class="brand" (click)="closeMenu()">
-      <app-sg-logo variant="header" [showWordmark]="true" [wordmark]="siteName" [alt]="siteName" />
+      <app-sg-logo variant="header" [showWordmark]="true" [wordmark]="siteName" [alt]="brand.companyName" />
     </a>
 
     <nav class="nav" [class.show]="menuOpen()">
-      <div class="dropdown" [class.open]="platformOpen()">
-        <button type="button" class="nav-link drop-btn" (click)="togglePlatform()">
-          Platform
+      <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" class="nav-link" (click)="closeMenu()">Home</a>
+
+      <div class="dropdown" [class.open]="servicesOpen()">
+        <button
+          type="button"
+          class="nav-link drop-btn"
+          (click)="toggleServices()"
+          [attr.aria-expanded]="servicesOpen()"
+          aria-haspopup="true"
+          aria-controls="services-menu"
+        >
+          Services
           <span class="chev" aria-hidden="true"></span>
         </button>
-        <div class="dropdown-panel">
-          <a routerLink="/fleet-management" routerLinkActive="active" (click)="closeMenu()">Fleet Management</a>
-          <a routerLink="/gps-tracking" routerLinkActive="active" (click)="closeMenu()">GPS Tracking</a>
-          <a routerLink="/features" routerLinkActive="active" (click)="closeMenu()">All Features</a>
+        <div class="dropdown-panel" id="services-menu" role="menu">
+          @for (link of serviceLinks; track link.label) {
+            <a routerLink="/" fragment="services" role="menuitem" (click)="closeMenu()">{{ link.label }}</a>
+          }
         </div>
       </div>
-      <a routerLink="/features" routerLinkActive="active" class="nav-link" (click)="closeMenu()">Features</a>
-      <div class="dropdown" [class.open]="solutionsOpen()">
-        <button type="button" class="nav-link drop-btn" (click)="toggleSolutions()">
-          Solutions
+
+      <div class="dropdown" [class.open]="industriesOpen()">
+        <button
+          type="button"
+          class="nav-link drop-btn"
+          (click)="toggleIndustries()"
+          [attr.aria-expanded]="industriesOpen()"
+          aria-haspopup="true"
+          aria-controls="industries-menu"
+        >
+          Industries
           <span class="chev" aria-hidden="true"></span>
         </button>
-        <div class="dropdown-panel">
-          <a href="/#solutions" (click)="closeMenu()">Fleet Operators</a>
-          <a href="/#solutions" (click)="closeMenu()">Travel Companies</a>
-          <a href="/#solutions" (click)="closeMenu()">Vehicle Rental</a>
-          <a href="/#solutions" (click)="closeMenu()">Corporate Fleets</a>
-          <a href="/#solutions" (click)="closeMenu()">Enterprise</a>
+        <div class="dropdown-panel" id="industries-menu" role="menu">
+          @for (link of industryLinks; track link.label) {
+            @if (link.fragment) {
+              <a routerLink="/" [fragment]="link.fragment" role="menuitem" (click)="closeMenu()">{{ link.label }}</a>
+            } @else {
+              <a [routerLink]="link.href" role="menuitem" (click)="closeMenu()">{{ link.label }}</a>
+            }
+          }
         </div>
       </div>
+
+      <a routerLink="/" fragment="ai-solutions" class="nav-link" (click)="closeMenu()">AI Solutions</a>
+      <a routerLink="/" fragment="work" class="nav-link" (click)="closeMenu()">Our Work</a>
       <a routerLink="/about" routerLinkActive="active" class="nav-link" (click)="closeMenu()">About</a>
       <a routerLink="/contact" routerLinkActive="active" class="nav-link" (click)="closeMenu()">Contact</a>
-      <a class="nav-link mobile-only" routerLink="/auth/login" (click)="closeMenu()">Login</a>
-      <a routerLink="/request-demo" class="btn btn-primary mobile-only" (click)="closeMenu()">Request Demo</a>
+
+      <a class="nav-link mobile-only" routerLink="/contact" (click)="closeMenu()">Let's Talk</a>
+      <a routerLink="/request-demo" class="btn btn-primary mobile-only" (click)="closeMenu()">Request a Quote →</a>
     </nav>
 
     <div class="actions">
-      <a class="login" routerLink="/auth/login">Login</a>
-      <a routerLink="/request-demo" class="btn btn-primary">Request Demo</a>
+      <a class="login" routerLink="/contact">Let's Talk</a>
+      <a routerLink="/request-demo" class="btn btn-primary">Request a Quote →</a>
       <button type="button" class="burger" (click)="toggleMenu()" [attr.aria-expanded]="menuOpen()" aria-label="Menu">
         <span></span><span></span><span></span>
       </button>

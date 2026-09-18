@@ -74,7 +74,8 @@ public static class PermissionPolicyRegistration
             .Concat(FinancePermissions.All)
             .Concat(AnalyticsPermissions.All)
             .Concat(AiPermissions.All)
-            .Concat(NotificationPermissions.All))
+            .Concat(NotificationPermissions.All)
+            .Concat(WebsitePermissions.All))
         {
             options.AddPolicy(permission, policy =>
                 policy.Requirements.Add(new PermissionRequirement(permission)));

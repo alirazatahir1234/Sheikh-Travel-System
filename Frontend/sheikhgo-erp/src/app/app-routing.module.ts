@@ -42,6 +42,17 @@ const routes: Routes = [
       },
     ],
   },
+  {
+    path: 'delete-account',
+    component: WebsiteShellComponent,
+    children: [
+      {
+        path: '',
+        loadComponent: () =>
+          import('./modules/website/pages/legal/delete-account.page').then(m => m.DeleteAccountPage),
+      },
+    ],
+  },
 
   // Public marketing site (guests only — avoids clashing with ERP paths like gps-tracking)
   {
@@ -81,6 +92,7 @@ const routes: Routes = [
         loadComponent: () =>
           import('./modules/website/pages/request-demo/request-demo.page').then(m => m.RequestDemoPage),
       },
+      { path: 'request-a-quote', redirectTo: 'request-demo', pathMatch: 'full' },
     ],
   },
 
@@ -240,7 +252,14 @@ const routes: Routes = [
 ];
 
 @NgModule({
-  imports: [RouterModule.forRoot(routes), WebsiteShellComponent],
+  imports: [
+    RouterModule.forRoot(routes, {
+      anchorScrolling: 'enabled',
+      scrollPositionRestoration: 'enabled',
+      scrollOffset: [0, 80],
+    }),
+    WebsiteShellComponent,
+  ],
   exports: [RouterModule]
 })
 export class AppRoutingModule { }

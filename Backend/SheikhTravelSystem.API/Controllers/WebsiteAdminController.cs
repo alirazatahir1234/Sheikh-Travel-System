@@ -31,6 +31,12 @@ public class WebsiteAdminController : BaseApiController
         => Ok(await Mediator.Send(new GetWebsitePagesQuery()));
 
     [RequirePermission(WebsitePermissions.Edit)]
+    [HttpPost("pages")]
+    public async Task<IActionResult> CreatePage([FromBody] CreateWebsitePageBody body)
+        => Ok(await Mediator.Send(new CreateWebsitePageCommand(
+            body.Slug, body.Title, body.Description, body.MetaTitle, body.MetaDescription, body.OgImage, body.Status)));
+
+    [RequirePermission(WebsitePermissions.Edit)]
     [HttpPut("pages/{id:int}")]
     public async Task<IActionResult> UpdatePage(int id, [FromBody] UpdateWebsitePageBody body)
         => Ok(await Mediator.Send(new UpdateWebsitePageCommand(
@@ -172,6 +178,15 @@ public class WebsiteAdminController : BaseApiController
 }
 
 public record UpdateWebsitePageBody(
+    string Title,
+    string? Description = null,
+    string? MetaTitle = null,
+    string? MetaDescription = null,
+    string? OgImage = null,
+    string? Status = null);
+
+public record CreateWebsitePageBody(
+    string Slug,
     string Title,
     string? Description = null,
     string? MetaTitle = null,

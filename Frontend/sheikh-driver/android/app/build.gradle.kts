@@ -66,7 +66,11 @@ android {
             signingConfig = if (hasReleaseKeystore) {
                 signingConfigs.getByName("release")
             } else {
-                // Local/CI without keystore — still produces a release APK for smoke builds.
+                logger.warn(
+                    "WARNING: android/key.properties not found — release is signed with the DEBUG key. " +
+                        "Play Console will reject this AAB. Copy key.properties.example → key.properties and point storeFile at your upload .jks.",
+                )
+                // Local/CI without keystore — still produces a release AAB for smoke builds only.
                 signingConfigs.getByName("debug")
             }
             isMinifyEnabled = true

@@ -1,13 +1,13 @@
 .site-footer {
   background: var(--sg-ink);
   color: rgba(255, 255, 255, 0.88);
-  padding: 4.5rem 0 2.25rem;
+  padding: 60px 0 25px;
   margin-top: auto;
 
   .grid {
     display: grid;
-    grid-template-columns: 1.5fr repeat(5, 1fr);
-    gap: 2.25rem 1.5rem;
+    grid-template-columns: 1.4fr repeat(5, 1fr);
+    gap: 40px;
     padding-bottom: 2.75rem;
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   }
@@ -19,18 +19,25 @@
     background: transparent;
   }
 
-  .tagline {
+  .company-name {
     font-family: var(--font-display);
     font-weight: 700;
-    font-size: 1.15rem;
+    font-size: 1.125rem;
     color: #fff;
+    margin-bottom: 0.35rem;
+  }
+
+  .tagline {
+    font-weight: 600;
+    font-size: 0.9375rem;
+    color: rgba(255, 255, 255, 0.85);
     margin-bottom: 0.65rem;
   }
 
   .blurb {
     color: rgba(255, 255, 255, 0.7);
-    max-width: 32ch;
-    font-size: 1rem;
+    max-width: 36ch;
+    font-size: 0.9375rem;
     line-height: 1.55;
   }
 
@@ -44,12 +51,12 @@
   .socials a {
     display: inline;
     padding: 0;
-    font-size: 0.95rem;
+    font-size: 0.9375rem;
     color: rgba(255, 255, 255, 0.75);
   }
 
   h3 {
-    font-size: 0.88rem;
+    font-size: 0.8125rem;
     letter-spacing: 0.12em;
     text-transform: uppercase;
     color: rgba(255, 255, 255, 0.55);
@@ -58,13 +65,39 @@
 
   a {
     display: block;
-    padding: 0.4rem 0;
+    padding: 0.45rem 0;
     font-weight: 500;
-    font-size: 0.98rem;
+    font-size: 0.9375rem;
     color: rgba(255, 255, 255, 0.86);
   }
 
   a:hover {
+    color: #fff;
+  }
+
+  a:focus-visible,
+  .footer-text-btn:focus-visible,
+  .socials a:focus-visible {
+    outline: 2px solid var(--sg-primary, #18c987);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  .footer-text-btn {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 0.45rem 0;
+    font-weight: 500;
+    font-size: 0.9375rem;
+    color: rgba(255, 255, 255, 0.86);
+    background: transparent;
+    border: 0;
+    cursor: pointer;
+    font-family: inherit;
+  }
+
+  .footer-text-btn:hover {
     color: #fff;
   }
 
@@ -74,18 +107,19 @@
     gap: 1rem;
     flex-wrap: wrap;
     padding-top: 1.5rem;
-    font-size: 0.95rem;
+    font-size: 0.8125rem;
     color: rgba(255, 255, 255, 0.55);
   }
 
   .note {
-    max-width: 42ch;
-    font-size: 0.85rem;
+    max-width: 48ch;
+    font-size: 0.8125rem;
   }
 
   @media (max-width: 1100px) {
     .grid {
       grid-template-columns: 1fr 1fr 1fr;
+      gap: 2rem;
     }
 
     .brand-col {

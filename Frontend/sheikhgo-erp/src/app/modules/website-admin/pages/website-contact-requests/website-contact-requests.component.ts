@@ -13,6 +13,7 @@ import { UiToastService } from '../../../../shared/components/ui/toast/ui-toast.
 })
 export class WebsiteContactRequestsComponent implements OnInit {
   loading = true;
+  loadError: string | null = null;
   statusFilter = '';
   dataSource = new MatTableDataSource<WebsiteContactRequest>([]);
   displayedColumns = ['name', 'company', 'email', 'message', 'status', 'createdAt'];
@@ -29,6 +30,7 @@ export class WebsiteContactRequestsComponent implements OnInit {
 
   reload(): void {
     this.loading = true;
+    this.loadError = null;
     this.api.getContactRequests(this.statusFilter || undefined).subscribe({
       next: page => {
         this.dataSource.data = page.items ?? [];
@@ -36,7 +38,9 @@ export class WebsiteContactRequestsComponent implements OnInit {
       },
       error: err => {
         this.loading = false;
-        this.toast.error(apiErrorMessage(err, 'Failed to load contact requests.'));
+        this.dataSource.data = [];
+        this.loadError = apiErrorMessage(err, 'Failed to load contact requests.');
+        this.toast.error(this.loadError);
       }
     });
   }

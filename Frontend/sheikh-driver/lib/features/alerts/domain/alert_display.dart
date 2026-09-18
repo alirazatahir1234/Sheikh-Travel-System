@@ -1,3 +1,5 @@
+import 'package:flutter/material.dart';
+
 import 'gps_alert_models.dart';
 
 /// Canonical event keys after synonym collapse.
@@ -305,4 +307,235 @@ String _titleCase(String input) {
           ? w
           : '${w[0].toUpperCase()}${w.length > 1 ? w.substring(1) : ''}')
       .join(' ');
+}
+
+/// Telematics feed category buckets (filter pills).
+enum AlertCategory {
+  all,
+  critical,
+  speeding,
+  geofence,
+  engineDtc,
+  harsh,
+  safetySos,
+  maintenance,
+  other,
+}
+
+extension AlertCategoryX on AlertCategory {
+  String get id => switch (this) {
+        AlertCategory.all => 'all',
+        AlertCategory.critical => 'critical',
+        AlertCategory.speeding => 'speeding',
+        AlertCategory.geofence => 'geofence',
+        AlertCategory.engineDtc => 'engine_dtc',
+        AlertCategory.harsh => 'harsh',
+        AlertCategory.safetySos => 'safety_sos',
+        AlertCategory.maintenance => 'maintenance',
+        AlertCategory.other => 'other',
+      };
+
+  String get label => switch (this) {
+        AlertCategory.all => 'All Alerts',
+        AlertCategory.critical => 'Critical',
+        AlertCategory.speeding => 'Speeding',
+        AlertCategory.geofence => 'Geofence',
+        AlertCategory.engineDtc => 'Engine & DTC',
+        AlertCategory.harsh => 'Harsh Driving',
+        AlertCategory.safetySos => 'Safety/SOS',
+        AlertCategory.maintenance => 'Maintenance',
+        AlertCategory.other => 'Other',
+      };
+
+  static const pillOrder = [
+    AlertCategory.all,
+    AlertCategory.critical,
+    AlertCategory.speeding,
+    AlertCategory.geofence,
+    AlertCategory.engineDtc,
+    AlertCategory.harsh,
+    AlertCategory.safetySos,
+    AlertCategory.maintenance,
+  ];
+}
+
+AlertCategory alertCategoryFor(GpsAlertEvent event) {
+  final key = normalizeAlertEventType(event.eventType);
+  return switch (key) {
+    'speed_exceeded' => AlertCategory.speeding,
+    'geofence_enter' || 'geofence_exit' => AlertCategory.geofence,
+    'harsh_braking' || 'harsh_acceleration' => AlertCategory.harsh,
+    'sos' || 'alarm' || 'power_cut' || 'seatbelt' => AlertCategory.safetySos,
+    'maintenance_due' || 'engine_fault' || 'low_fuel' || 'low_battery' =>
+      AlertCategory.maintenance,
+    'fuel_theft' ||
+    'tow' ||
+    'gps_lost' ||
+    'vehicle_offline' ||
+    'online' ||
+    'idle_vehicle' ||
+    'ignition_on' ||
+    'ignition_off' =>
+      AlertCategory.other,
+    _ => event.message.toLowerCase().contains('dtc') ||
+            event.message.toLowerCase().contains('engine overheat') ||
+            event.message.toLowerCase().contains('overheating')
+        ? AlertCategory.engineDtc
+        : AlertCategory.other,
+  };
+}
+
+bool matchesAlertCategory(GpsAlertEvent event, AlertCategory? filter) {
+  if (filter == null || filter == AlertCategory.all) return true;
+  if (filter == AlertCategory.critical) {
+    return alertDisplaySeverity(event) == AlertDisplaySeverity.critical ||
+        event.severity.toLowerCase() == 'critical';
+  }
+  if (filter == AlertCategory.engineDtc) {
+    final cat = alertCategoryFor(event);
+    final msg = event.message.toLowerCase();
+    return cat == AlertCategory.engineDtc ||
+        (cat == AlertCategory.maintenance &&
+            (msg.contains('dtc') || msg.contains('overheat')));
+  }
+  return alertCategoryFor(event) == filter;
+}
+
+bool alertMatchesSearch(GpsAlertEvent event, String query) {
+  final q = query.trim().toLowerCase();
+  if (q.isEmpty) return true;
+  final hay = [
+    event.vehicleName ?? '',
+    'vehicle #${event.vehicleId}',
+    event.driverName ?? '',
+    event.message,
+    event.geofenceName ?? '',
+    event.eventType,
+    alertTitle(event),
+    '${event.latitude},${event.longitude}',
+  ].join(' ').toLowerCase();
+  return hay.contains(q);
+}
+
+class AlertsFeedSummary {
+  const AlertsFeedSummary({
+    required this.total,
+    required this.critical,
+    required this.warning,
+    required this.closed,
+  });
+
+  final int total;
+  final int critical;
+  final int warning;
+  final int closed;
+
+  static AlertsFeedSummary fromEvents(List<GpsAlertEvent> events) {
+    var critical = 0;
+    var warning = 0;
+    var closed = 0;
+    for (final e in events) {
+      if (e.isResolved || e.isArchived) {
+        closed++;
+        continue;
+      }
+      final d = alertDisplaySeverity(e);
+      if (d == AlertDisplaySeverity.critical ||
+          e.severity.toLowerCase() == 'critical') {
+        critical++;
+      } else if (d == AlertDisplaySeverity.warning ||
+          e.severity.toLowerCase() == 'high' ||
+          e.severity.toLowerCase() == 'medium') {
+        warning++;
+      }
+    }
+    return AlertsFeedSummary(
+      total: events.length,
+      critical: critical,
+      warning: warning,
+      closed: closed,
+    );
+  }
+}
+
+IconData alertCategoryIcon(GpsAlertEvent event) {
+  final key = normalizeAlertEventType(event.eventType);
+  return switch (key) {
+    'speed_exceeded' => Icons.speed_rounded,
+    'geofence_enter' || 'geofence_exit' => Icons.gps_fixed_rounded,
+    'harsh_braking' || 'harsh_acceleration' => Icons.warning_amber_rounded,
+    'sos' || 'alarm' => Icons.sos_outlined,
+    'vehicle_offline' || 'gps_lost' => Icons.signal_wifi_off_rounded,
+    'online' => Icons.wifi_rounded,
+    'maintenance_due' || 'engine_fault' => Icons.build_outlined,
+    'low_battery' || 'power_cut' => Icons.battery_alert_rounded,
+    'low_fuel' || 'fuel_theft' => Icons.local_gas_station_outlined,
+    _ => Icons.notifications_active_outlined,
+  };
+}
+
+/// Best-effort speed limit from free-text message (e.g. "limit 80").
+double? parseSpeedLimitFromMessage(String message) {
+  final m = RegExp(
+    r'(?:limit|max(?:imum)?|posted)\s*[:=]?\s*(\d{2,3})\s*(?:km/?h|kph)?',
+    caseSensitive: false,
+  ).firstMatch(message);
+  if (m != null) return double.tryParse(m.group(1)!);
+  final m2 = RegExp(r'(\d{2,3})\s*km/?h', caseSensitive: false).allMatches(message);
+  if (m2.length >= 2) {
+    // Often "114 km/h ... 80 km/h" — take the smaller as limit.
+    final vals = m2.map((x) => double.tryParse(x.group(1)!)).whereType<double>().toList();
+    if (vals.length >= 2) {
+      vals.sort();
+      return vals.first;
+    }
+  }
+  return null;
+}
+
+String formatAlertRelativeTime(DateTime utcOrLocal) {
+  final local = utcOrLocal.toLocal();
+  final d = DateTime.now().difference(local);
+  if (d.inSeconds < 60) return 'Just now';
+  if (d.inMinutes < 60) return '${d.inMinutes}m ago';
+  if (d.inHours < 24) return '${d.inHours}h ago';
+  if (d.inDays < 7) return '${d.inDays}d ago';
+  return '${local.day}/${local.month}';
+}
+
+List<({String label, DateTime at, AlertDisplaySeverity severity})>
+    alertTimelineNodes(GpsAlertEvent e) {
+  final nodes = <({String label, DateTime at, AlertDisplaySeverity severity})>[
+    (label: 'Detected', at: e.timestamp, severity: alertDisplaySeverity(e)),
+  ];
+  if (e.readAt != null) {
+    nodes.add((
+      label: 'Read',
+      at: e.readAt!,
+      severity: AlertDisplaySeverity.info,
+    ));
+  }
+  if (e.acknowledgedAt != null) {
+    nodes.add((
+      label: 'Acknowledged',
+      at: e.acknowledgedAt!,
+      severity: AlertDisplaySeverity.warning,
+    ));
+  }
+  if (e.resolvedAt != null) {
+    nodes.add((
+      label: 'Resolved',
+      at: e.resolvedAt!,
+      severity: AlertDisplaySeverity.resolved,
+    ));
+  }
+  if (e.archivedAt != null) {
+    nodes.add((
+      label: 'Archived',
+      at: e.archivedAt!,
+      severity: AlertDisplaySeverity.info,
+    ));
+  }
+  nodes.sort((a, b) => a.at.compareTo(b.at));
+  return nodes;
 }

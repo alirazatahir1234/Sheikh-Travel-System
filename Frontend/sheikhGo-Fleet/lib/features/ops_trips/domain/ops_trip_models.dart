@@ -41,7 +41,7 @@ class OpsTripListItem {
 
   factory OpsTripListItem.fromJson(Map<String, dynamic> json) {
     return OpsTripListItem(
-      id: json['id'] as int? ?? json['Id'] as int? ?? 0,
+      id: _asInt(json['id'] ?? json['Id']),
       tripNumber:
           json['tripNumber'] as String? ?? json['TripNumber'] as String? ?? '',
       tripDate: _date(json['tripDate'] ?? json['TripDate']) ?? DateTime.now(),
@@ -55,9 +55,9 @@ class OpsTripListItem {
           json['bookingNumber'] as String? ?? json['BookingNumber'] as String?,
       customerName:
           json['customerName'] as String? ?? json['CustomerName'] as String?,
-      driverId: json['driverId'] as int? ?? json['DriverId'] as int?,
+      driverId: _asIntOrNull(json['driverId'] ?? json['DriverId']),
       driverName: json['driverName'] as String? ?? json['DriverName'] as String?,
-      vehicleId: json['vehicleId'] as int? ?? json['VehicleId'] as int?,
+      vehicleId: _asIntOrNull(json['vehicleId'] ?? json['VehicleId']),
       vehicleName:
           json['vehicleName'] as String? ?? json['VehicleName'] as String?,
       routeName: json['routeName'] as String? ?? json['RouteName'] as String?,
@@ -222,31 +222,48 @@ class OpsTripsDashboard {
   final int delayed;
 
   factory OpsTripsDashboard.fromJson(Map<String, dynamic> json) {
-    int n(String a, [String? b]) =>
-        json[a] as int? ?? (b != null ? json[b] as int? : null) ?? 0;
-    // Backend may use varying keys — be flexible.
+    int n(String a, [String? b]) {
+      final v = json[a] ?? (b != null ? json[b] : null);
+      if (v is int) return v;
+      if (v is num) return v.toInt();
+      if (v is String) return int.tryParse(v) ?? 0;
+      return 0;
+    }
+
     return OpsTripsDashboard(
-      total: n('total', 'Total') != 0
-          ? n('total', 'Total')
-          : n('totalTrips', 'TotalTrips'),
-      scheduled: n('scheduled', 'Scheduled') != 0
-          ? n('scheduled', 'Scheduled')
-          : n('scheduledTrips', 'ScheduledTrips'),
-      inProgress: n('inProgress', 'InProgress') != 0
-          ? n('inProgress', 'InProgress')
-          : n('ongoingTrips', 'OngoingTrips') != 0
-              ? n('ongoingTrips', 'OngoingTrips')
-              : n('started', 'Started') + n('enroute', 'Enroute'),
-      completed: n('completed', 'Completed') != 0
-          ? n('completed', 'Completed')
-          : n('completedTrips', 'CompletedTrips'),
-      cancelled: n('cancelled', 'Cancelled') != 0
-          ? n('cancelled', 'Cancelled')
-          : n('cancelledTrips', 'CancelledTrips'),
-      delayed: n('delayed', 'Delayed') != 0
-          ? n('delayed', 'Delayed')
-          : n('delayedTrips', 'DelayedTrips'),
+      total: _firstNonZero([
+        n('totalTrips', 'TotalTrips'),
+        n('total', 'Total'),
+      ]),
+      scheduled: _firstNonZero([
+        n('scheduledTrips', 'ScheduledTrips'),
+        n('scheduled', 'Scheduled'),
+      ]),
+      inProgress: _firstNonZero([
+        n('ongoingTrips', 'OngoingTrips'),
+        n('inProgress', 'InProgress'),
+        n('started', 'Started') + n('enroute', 'Enroute'),
+      ]),
+      completed: _firstNonZero([
+        n('completedTrips', 'CompletedTrips'),
+        n('completed', 'Completed'),
+      ]),
+      cancelled: _firstNonZero([
+        n('cancelledTrips', 'CancelledTrips'),
+        n('cancelled', 'Cancelled'),
+      ]),
+      delayed: _firstNonZero([
+        n('delayedTrips', 'DelayedTrips'),
+        n('delayed', 'Delayed'),
+      ]),
     );
+  }
+
+  static int _firstNonZero(List<int> values) {
+    for (final v in values) {
+      if (v != 0) return v;
+    }
+    return values.isEmpty ? 0 : values.first;
   }
 
   static const empty = OpsTripsDashboard();
@@ -256,4 +273,13 @@ DateTime? _date(Object? raw) {
   if (raw == null) return null;
   if (raw is DateTime) return raw;
   return DateTime.tryParse(raw.toString());
+}
+
+int _asInt(Object? raw) => _asIntOrNull(raw) ?? 0;
+
+int? _asIntOrNull(Object? raw) {
+  if (raw == null) return null;
+  if (raw is int) return raw;
+  if (raw is num) return raw.toInt();
+  return int.tryParse(raw.toString());
 }

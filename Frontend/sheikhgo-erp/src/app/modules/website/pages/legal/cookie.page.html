@@ -1,0 +1,143 @@
+<section class="cookie-page">
+  <div class="cookie-shell">
+    <div class="cookie-layout">
+      <aside class="cookie-nav" aria-label="Legal">
+        <p class="cookie-nav-label">Legal</p>
+        <nav>
+          @for (link of legalLinks; track link.path) {
+            <a
+              [routerLink]="link.path"
+              routerLinkActive="active"
+              [routerLinkActiveOptions]="{ exact: true }"
+            >
+              {{ link.label }}
+            </a>
+          }
+        </nav>
+      </aside>
+
+      
+        <article class="cookie-main" *ngIf="cmsHtml as html">
+          <header class="cookie-head">
+            <h1>{{ cmsTitle }}</h1>
+            <p class="cookie-updated" *ngIf="cmsVersion">Version {{ cmsVersion }}</p>
+          </header>
+          <div class="legal-cms-body" [innerHTML]="html"></div>
+        </article>
+
+        <article class="cookie-main" *ngIf="!cmsHtml">
+        <header class="cookie-head">
+          <h1>Cookie Policy</h1>
+          <p class="cookie-updated">Last updated: {{ lastUpdated }}</p>
+        </header>
+
+        <section class="cookie-section">
+          <h2>1. What Are Cookies?</h2>
+          <p>
+            Cookies are small text files stored on your device when you visit a website. They help
+            websites remember your actions and preferences, keep sessions secure, and understand how
+            the site is used.
+          </p>
+        </section>
+
+        <section class="cookie-section">
+          <h2>2. How We Use Cookies</h2>
+          <p>
+            SheikhGo uses cookies to provide essential website functionality, improve reliability and
+            security, remember preferences where allowed, and — only with your consent — understand
+            usage and support marketing activities.
+          </p>
+        </section>
+
+        <section class="cookie-section">
+          <h2>3. Types of Cookies We Use</h2>
+
+          <h3>3.1 Necessary Cookies</h3>
+          <p>
+            Required for the website to function properly. These support login/session continuity,
+            security, load balancing, and basic navigation. Necessary cookies are always active and
+            cannot be switched off in our preference center.
+          </p>
+
+          <h3>3.2 Analytics Cookies</h3>
+          <p>
+            Help us understand how visitors use SheikhGo (for example, which pages are visited and
+            how often). These load only if you accept analytics cookies.
+          </p>
+
+          <h3>3.3 Functional Cookies</h3>
+          <p>
+            Remember choices such as language or UI preferences to improve your experience. These
+            load only if you enable functional cookies.
+          </p>
+
+          <h3>3.4 Marketing Cookies</h3>
+          <p>
+            May be used to deliver relevant campaigns and measure advertising performance. These
+            load only if you enable marketing cookies.
+          </p>
+        </section>
+
+        <section class="cookie-section">
+          <h2>4. Third-Party Cookies &amp; Services</h2>
+          <p>
+            Some cookies may be set by trusted third parties that help us operate maps, hosting,
+            analytics, or communications. Those providers process information under their own
+            privacy policies. Non-essential third-party tags are not loaded until you give consent.
+          </p>
+        </section>
+
+        <section class="cookie-section">
+          <h2>5. Managing Your Consent</h2>
+          <p>
+            When you first visit SheikhGo, you can Accept All, Reject Non-Essential, or Manage
+            Preferences. You can change your decision at any time using Cookie Settings.
+          </p>
+          <button type="button" class="cookie-settings-btn" (click)="openCookieSettings()">
+            Open Cookie Settings
+          </button>
+        </section>
+
+        <section class="cookie-section">
+          <h2>6. Browser Controls</h2>
+          <p>
+            Most browsers let you block or delete cookies through their settings. If you block
+            necessary cookies, parts of SheikhGo may not work correctly.
+          </p>
+        </section>
+
+        <section class="cookie-section">
+          <h2>7. Retention</h2>
+          <p>
+            Cookie lifetimes vary by purpose. Session cookies expire when you close your browser.
+            Persistent cookies remain for a defined period or until deleted. Your consent choice is
+            stored locally so we remember your preferences on return visits.
+          </p>
+        </section>
+
+        <section class="cookie-section">
+          <h2>8. Contact Us</h2>
+          <p>
+            Questions about this Cookie Policy can be sent to
+            <a [href]="'mailto:' + brand.privacyEmail">{{ brand.privacyEmail }}</a>.
+          </p>
+        </section>
+      </article>
+
+      <aside class="cookie-help">
+        <div class="cookie-help-card">
+          <span class="cookie-help-ico" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M5 18l2-1.2A7 7 0 1112 19H6l-1 1v-2z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
+          </span>
+          <strong>Need Help?</strong>
+          <p>If you have any questions about our Cookie Policy, feel free to contact us.</p>
+          <a class="cookie-help-mail" [href]="'mailto:' + brand.privacyEmail">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M4 7l8 6 8-6" stroke="currentColor" stroke-width="1.6"/></svg>
+            {{ brand.privacyEmail }}
+          </a>
+          <a routerLink="/contact" class="btn btn-outline cookie-help-cta">Contact Us →</a>
+        </div>
+      </aside>
+    </div>
+  </div>
+</section>

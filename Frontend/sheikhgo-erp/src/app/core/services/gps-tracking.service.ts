@@ -443,12 +443,19 @@ export class GpsTrackingService {
   }
 
   getHistoryReplay(
-    vehicleId: number,
+    vehicleId?: number,
     from?: Date,
     to?: Date,
-    options?: { routeMaxPoints?: number; playbackMaxPoints?: number; includeRaw?: boolean }
+    options?: {
+      deviceId?: number;
+      routeMaxPoints?: number;
+      playbackMaxPoints?: number;
+      includeRaw?: boolean;
+    }
   ): Observable<HistoryReplayBundle> {
-    const params: Record<string, string> = { vehicleId: String(vehicleId) };
+    const params: Record<string, string> = {};
+    if (vehicleId != null) params['vehicleId'] = String(vehicleId);
+    if (options?.deviceId != null) params['deviceId'] = String(options.deviceId);
     if (from) params['from'] = from.toISOString();
     if (to) params['to'] = to.toISOString();
     if (options?.routeMaxPoints != null) params['routeMaxPoints'] = String(options.routeMaxPoints);

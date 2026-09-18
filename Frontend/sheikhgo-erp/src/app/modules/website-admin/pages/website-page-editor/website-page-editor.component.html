@@ -71,6 +71,7 @@
         <div class="wa-actions">
           <button mat-raised-button color="primary" type="button" [disabled]="savingSection" (click)="saveSection()">Save</button>
           <button mat-stroked-button type="button" [disabled]="!sectionForm.id" (click)="publishSection()">Publish</button>
+          <button mat-stroked-button color="warn" type="button" [disabled]="!sectionForm.id" (click)="removeSection()">Delete</button>
         </div>
       </div>
     </div>

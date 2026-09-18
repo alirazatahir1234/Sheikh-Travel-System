@@ -1,0 +1,139 @@
+@if (consent.bannerVisible()) {
+  <div class="cc-banner" role="dialog" aria-label="Cookie consent" aria-live="polite">
+    <div class="cc-banner-inner">
+      <div class="cc-banner-copy">
+        <div class="cc-banner-title">
+          <span class="cc-cookie-ico" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none">
+              <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.7" />
+              <circle cx="9" cy="10" r="1.2" fill="currentColor" />
+              <circle cx="14" cy="9" r="1" fill="currentColor" />
+              <circle cx="11" cy="14" r="1.1" fill="currentColor" />
+              <circle cx="15.5" cy="13.5" r="1" fill="currentColor" />
+            </svg>
+          </span>
+          <strong>We value your privacy</strong>
+        </div>
+        <p>
+          SheikhGo uses cookies to provide essential website functionality, understand how visitors
+          use our website, and improve your experience.
+          <a routerLink="/cookie-policy">Cookie Policy</a>
+        </p>
+      </div>
+      <div class="cc-banner-actions">
+        <button type="button" class="cc-btn cc-btn-ghost" (click)="openPreferences()">
+          Manage Preferences
+        </button>
+        <button type="button" class="cc-btn cc-btn-outline" (click)="rejectNonEssential()">
+          Reject Non-Essential
+        </button>
+        <button type="button" class="cc-btn cc-btn-primary" (click)="acceptAll()">Accept All</button>
+      </div>
+    </div>
+  </div>
+}
+
+@if (consent.preferencesOpen()) {
+  <div class="cc-modal-root" role="presentation">
+    <button type="button" class="cc-modal-backdrop" (click)="consent.closePreferences()" aria-label="Close"></button>
+    <div class="cc-modal" role="dialog" aria-modal="true" aria-labelledby="cc-pref-title">
+      <header class="cc-modal-head">
+        <h2 id="cc-pref-title">Cookie Preferences</h2>
+        <button type="button" class="cc-close" (click)="consent.closePreferences()" aria-label="Close">
+          ×
+        </button>
+      </header>
+
+      <p class="cc-modal-lead">
+        Choose which cookies SheikhGo may use. Necessary cookies are always active because they are
+        required for the website to work.
+      </p>
+
+      <div class="cc-cats">
+        <div class="cc-cat">
+          <div class="cc-cat-top">
+            <span class="cc-cat-ico" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none"><path d="M12 3l7 3v5c0 4.5-2.8 8.4-7 9.5C7.8 19.4 5 15.5 5 11V6l7-3z" stroke="currentColor" stroke-width="1.6"/></svg>
+            </span>
+            <div>
+              <strong>Necessary Cookies</strong>
+              <p>Required for login, security, sessions, and basic website functionality.</p>
+            </div>
+            <span class="cc-always">Always active</span>
+          </div>
+        </div>
+
+        <div class="cc-cat">
+          <div class="cc-cat-top">
+            <span class="cc-cat-ico" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none"><path d="M4 19V9M10 19V5M16 19v-7M22 19H2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+            </span>
+            <div>
+              <strong>Analytics Cookies</strong>
+              <p>Help us understand how visitors use our website so we can improve it.</p>
+            </div>
+            <button
+              type="button"
+              class="cc-switch"
+              [class.on]="draft().analytics"
+              [attr.aria-pressed]="draft().analytics"
+              (click)="toggle('analytics')"
+            >
+              <span></span>
+            </button>
+          </div>
+        </div>
+
+        <div class="cc-cat">
+          <div class="cc-cat-top">
+            <span class="cc-cat-ico" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.6"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M5.6 18.4L7 17M17 7l1.4-1.4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+            </span>
+            <div>
+              <strong>Functional Cookies</strong>
+              <p>Remember preferences and settings to personalize your experience.</p>
+            </div>
+            <button
+              type="button"
+              class="cc-switch"
+              [class.on]="draft().functional"
+              [attr.aria-pressed]="draft().functional"
+              (click)="toggle('functional')"
+            >
+              <span></span>
+            </button>
+          </div>
+        </div>
+
+        <div class="cc-cat">
+          <div class="cc-cat-top">
+            <span class="cc-cat-ico" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none"><path d="M4 10v8l7-3.5L21 18V6L11 9.5 4 6v4z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
+            </span>
+            <div>
+              <strong>Marketing Cookies</strong>
+              <p>Used to deliver relevant campaigns and measure advertising performance.</p>
+            </div>
+            <button
+              type="button"
+              class="cc-switch"
+              [class.on]="draft().marketing"
+              [attr.aria-pressed]="draft().marketing"
+              (click)="toggle('marketing')"
+            >
+              <span></span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <footer class="cc-modal-foot">
+        <a routerLink="/cookie-policy" (click)="consent.closePreferences()">Cookie Policy</a>
+        <div class="cc-modal-actions">
+          <button type="button" class="cc-btn cc-btn-outline" (click)="save()">Save Preferences</button>
+          <button type="button" class="cc-btn cc-btn-primary" (click)="acceptAll()">Accept All</button>
+        </div>
+      </footer>
+    </div>
+  </div>
+}

@@ -15,6 +15,7 @@ namespace SheikhTravelSystem.Application.Features.GpsTracking.Queries;
 
 public record GetHistoryReplayQuery(
     int? VehicleId,
+    int? DeviceId,
     DateTime? FromDate,
     DateTime? ToDate,
     int? RouteMaxPoints = null,
@@ -44,14 +45,26 @@ public class GetHistoryReplayQueryHandler(
         toDate = GpsUtcDateTime.AsUtc(toDate);
 
         var validation = TripVehicleQueryHelper.ValidateHistoryRequest<HistoryReplayBundleDto>(
-            request.VehicleId, fromDate, toDate);
+            request.VehicleId, fromDate, toDate, request.DeviceId);
         if (validation is not null) return validation;
 
-        var vehicleId = request.VehicleId!.Value;
-        var source = await TripVehicleQueryHelper.ResolveVehicleAsync(
-            dbFactory, tenantContext, vehicleId, cancellationToken);
+        TripVehicleQueryHelper.VehicleTripSource? source;
+        if (request.VehicleId.HasValue)
+        {
+            source = await TripVehicleQueryHelper.ResolveVehicleAsync(
+                dbFactory, tenantContext, request.VehicleId.Value, cancellationToken);
+        }
+        else
+        {
+            source = await TripVehicleQueryHelper.ResolveVehicleByTraccarDeviceIdAsync(
+                dbFactory, tenantContext, request.DeviceId!.Value, cancellationToken);
+        }
+
         if (source is null)
-            return ApiResponse<HistoryReplayBundleDto>.FailResponse("Vehicle not found.");
+            return ApiResponse<HistoryReplayBundleDto>.FailResponse(
+                request.DeviceId.HasValue ? "GPS device not found." : "Vehicle not found.");
+
+        var vehicleId = source.VehicleId;
 
         var vehicleContext = await TripVehicleQueryHelper.BuildContextAsync(
             dbFactory, tenantContext, vehicleId, cancellationToken);
@@ -173,15 +186,20 @@ public class GetHistoryReplayQueryHandler(
             };
 
         return ApiResponse<HistoryReplayBundleDto>.SuccessResponse(
-            new HistoryReplayBundleDto(
-                bundle.Route,
-                bundle.Playback,
-                bundle.Stops,
-                bundle.Events,
-                summary,
-                statistics,
-                mileageKm,
-                vehicleContext));
+            HistoryReplayMapper.WithDisplayFields(
+                new HistoryReplayBundleDto(
+                    bundle.Route,
+                    bundle.Playback,
+                    bundle.Stops,
+                    bundle.Events,
+                    summary,
+                    statistics,
+                    mileageKm,
+                    vehicleContext),
+                source.TraccarDeviceId,
+                source.DeviceName ?? source.VehicleName,
+                fromDate,
+                toDate));
     }
 
     private static async Task<IReadOnlyDictionary<int, string>> LoadGeofenceNamesAsync(
@@ -214,7 +232,7 @@ public class PostHistoryReplayInsightsHandler(IMediator mediator)
         CancellationToken cancellationToken)
     {
         var replay = await mediator.Send(
-            new GetHistoryReplayQuery(request.VehicleId, request.FromDate, request.ToDate),
+            new GetHistoryReplayQuery(request.VehicleId, null, request.FromDate, request.ToDate),
             cancellationToken);
         if (!replay.Success || replay.Data is null)
         {

@@ -16,7 +16,7 @@ public record GetPublicLegalQuery(string DocType) : IRequest<ApiResponse<Website
 
 public record GetPublicSettingsQuery : IRequest<ApiResponse<WebsiteSettingsDto>>;
 
-internal static class WebsitePublicSql
+public static class WebsitePublicSql
 {
     public const string Settings = """
         SELECT Id, SiteName, LogoUrl, FaviconUrl, SupportEmail, SalesEmail, PrivacyEmail,

@@ -14,7 +14,17 @@
 
   <div *ngIf="loading" class="wa-muted">Loading…</div>
 
-  <div class="wa-split" *ngIf="!loading">
+  <div *ngIf="loadError && !loading" class="stb-card wa-error-banner" role="alert">
+    <div>
+      <strong>Could not load home sections</strong>
+      <p>{{ loadError }}</p>
+    </div>
+    <button mat-stroked-button type="button" color="primary" (click)="reload()">
+      <mat-icon>refresh</mat-icon> Retry
+    </button>
+  </div>
+
+  <div class="wa-split" *ngIf="!loading && !loadError">
     <div class="wa-list">
       <div
         class="stb-card wa-section-card"
@@ -83,6 +93,7 @@
           {{ saving ? 'Saving…' : 'Save' }}
         </button>
         <button mat-stroked-button type="button" [disabled]="!form.id" (click)="publish()">Publish</button>
+        <button mat-stroked-button color="warn" type="button" [disabled]="!form.id" (click)="remove()">Delete</button>
       </div>
     </div>
   </div>

@@ -40,3 +40,6 @@ testem.log
 # System files
 .DS_Store
 Thumbs.db
+
+# Local hero demo (exceeds GitHub 100MB limit)
+public/website/hero-demo.mp4

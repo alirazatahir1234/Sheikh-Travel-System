@@ -163,6 +163,21 @@ export class WebsitePageEditorComponent implements OnInit {
     });
   }
 
+  removeSection(): void {
+    if (!this.sectionForm.id) return;
+    const label = this.sectionForm.title || this.sectionForm.sectionType || 'section';
+    if (!confirm(`Delete section "${label}"?`)) return;
+    this.api.deleteSection(this.sectionForm.id).subscribe({
+      next: () => {
+        this.toast.success('Section deleted.');
+        this.selected = null;
+        this.sectionForm = this.emptySection(this.pageId);
+        this.reload();
+      },
+      error: err => this.toast.error(apiErrorMessage(err, 'Failed to delete section.'))
+    });
+  }
+
   private emptySection(pageId = this.pageId): WebsiteSectionUpsert {
     return {
       id: null,

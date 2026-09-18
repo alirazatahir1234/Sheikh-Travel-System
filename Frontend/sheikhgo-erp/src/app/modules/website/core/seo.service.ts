@@ -8,13 +8,16 @@ export class WebsiteSeoService {
   private readonly meta = inject(Meta);
 
   set(pageTitle: string, description: string, _path?: string): void {
-    const full = `${pageTitle} | ${WEBSITE_BRAND.productName}`;
+    // If caller already supplies a full "Brand | Topic" title, use it as-is.
+    const full = pageTitle.includes('|')
+      ? pageTitle
+      : `${pageTitle} | ${WEBSITE_BRAND.companyName}`;
     this.title.setTitle(full);
     this.meta.updateTag({ name: 'description', content: description });
     this.meta.updateTag({ property: 'og:title', content: full });
     this.meta.updateTag({ property: 'og:description', content: description });
     this.meta.updateTag({ property: 'og:type', content: 'website' });
-    this.meta.updateTag({ property: 'og:site_name', content: WEBSITE_BRAND.productName });
+    this.meta.updateTag({ property: 'og:site_name', content: WEBSITE_BRAND.companyName });
     this.meta.updateTag({ name: 'robots', content: 'index,follow' });
   }
 }

@@ -134,6 +134,73 @@ public record UpdateWebsitePageCommand(
     string? OgImage = null,
     string? Status = null) : IRequest<ApiResponse<WebsitePageDto>>;
 
+public record CreateWebsitePageCommand(
+    string Slug,
+    string Title,
+    string? Description = null,
+    string? MetaTitle = null,
+    string? MetaDescription = null,
+    string? OgImage = null,
+    string? Status = null) : IRequest<ApiResponse<WebsitePageDto>>;
+
+public class CreateWebsitePageCommandValidator : AbstractValidator<CreateWebsitePageCommand>
+{
+    public CreateWebsitePageCommandValidator()
+    {
+        RuleFor(x => x.Slug).NotEmpty().MaximumLength(120)
+            .Matches(@"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+            .WithMessage("Slug must be lowercase letters, numbers, and hyphens.");
+        RuleFor(x => x.Title).NotEmpty().MaximumLength(200);
+        RuleFor(x => x.Status).Must(s => s is null || WebsiteStatuses.Content.Contains(s))
+            .WithMessage("Status must be Draft or Published.");
+    }
+}
+
+public class CreateWebsitePageCommandHandler(IDbConnectionFactory dbFactory, ITenantContext tenantContext)
+    : IRequestHandler<CreateWebsitePageCommand, ApiResponse<WebsitePageDto>>
+{
+    public async Task<ApiResponse<WebsitePageDto>> Handle(
+        CreateWebsitePageCommand request, CancellationToken cancellationToken)
+    {
+        var tenantId = WebsiteTenant.Resolve(tenantContext);
+        var slug = request.Slug.Trim().ToLowerInvariant();
+        using var connection = dbFactory.CreateConnection();
+
+        var clash = await connection.ExecuteScalarAsync<bool>(new CommandDefinition(
+            "SELECT CASE WHEN EXISTS(SELECT 1 FROM WebsitePages WHERE TenantId = @TenantId AND Slug = @Slug) THEN 1 ELSE 0 END",
+            new { TenantId = tenantId, Slug = slug }, cancellationToken: cancellationToken));
+        if (clash)
+            return ApiResponse<WebsitePageDto>.FailResponse("A page with this slug already exists.");
+
+        var status = string.IsNullOrWhiteSpace(request.Status) ? "Draft" : request.Status.Trim();
+        var id = await connection.ExecuteScalarAsync<int>(new CommandDefinition("""
+            INSERT INTO WebsitePages (TenantId, Slug, Title, Description, MetaTitle, MetaDescription, OgImage, Status, PublishedAt)
+            OUTPUT INSERTED.Id
+            VALUES (@TenantId, @Slug, @Title, @Description, @MetaTitle, @MetaDescription, @OgImage, @Status,
+                    CASE WHEN @Status = N'Published' THEN SYSUTCDATETIME() ELSE NULL END)
+            """, new
+        {
+            TenantId = tenantId,
+            Slug = slug,
+            request.Title,
+            request.Description,
+            request.MetaTitle,
+            request.MetaDescription,
+            request.OgImage,
+            Status = status
+        }, cancellationToken: cancellationToken));
+
+        var page = await connection.QuerySingleAsync<WebsitePageDto>(
+            new CommandDefinition("""
+                SELECT Id, Slug, Title, Description, MetaTitle, MetaDescription, OgImage,
+                       Status, PublishedAt, UpdatedAt
+                FROM WebsitePages WHERE Id = @Id AND TenantId = @TenantId
+                """, new { Id = id, TenantId = tenantId }, cancellationToken: cancellationToken));
+
+        return ApiResponse<WebsitePageDto>.SuccessResponse(page, "Page created.");
+    }
+}
+
 public class UpdateWebsitePageCommandValidator : AbstractValidator<UpdateWebsitePageCommand>
 {
     public UpdateWebsitePageCommandValidator()
@@ -693,6 +760,23 @@ public class DeleteWebsiteMediaCommandHandler(
 
         if (row.FileUrl is null && row.StorageKey is null)
             return ApiResponse<bool>.FailResponse("Media not found.");
+
+        if (!string.IsNullOrWhiteSpace(row.FileUrl))
+        {
+            var usage = await connection.QuerySingleAsync<(int Features, int Sections, int Pages)>(new CommandDefinition("""
+                SELECT
+                  (SELECT COUNT(1) FROM WebsiteFeatures WHERE TenantId = @TenantId AND ImageUrl = @Url) AS Features,
+                  (SELECT COUNT(1) FROM WebsiteSections WHERE TenantId = @TenantId AND ImageUrl = @Url) AS Sections,
+                  (SELECT COUNT(1) FROM WebsitePages WHERE TenantId = @TenantId AND OgImage = @Url) AS Pages
+                """, new { TenantId = tenantId, Url = row.FileUrl }, cancellationToken: cancellationToken));
+
+            var total = usage.Features + usage.Sections + usage.Pages;
+            if (total > 0)
+            {
+                return ApiResponse<bool>.FailResponse(
+                    $"Media is in use by {usage.Features} feature(s), {usage.Sections} section(s), and {usage.Pages} page(s). Remove those references first.");
+            }
+        }
 
         var deleted = await connection.ExecuteAsync(new CommandDefinition(
             "DELETE FROM WebsiteMedia WHERE Id = @Id AND TenantId = @TenantId",

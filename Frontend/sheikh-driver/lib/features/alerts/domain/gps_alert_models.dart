@@ -72,10 +72,12 @@ class GpsAlertEvent {
   bool get canMarkRead => isUnread && !isArchived;
 
   factory GpsAlertEvent.fromJson(Map<String, dynamic> json) {
+    int i(dynamic v) => (v as num?)?.toInt() ?? 0;
+    int? iOrNull(dynamic v) => (v as num?)?.toInt();
     return GpsAlertEvent(
-      id: json['id'] as int? ?? json['Id'] as int? ?? 0,
-      ruleId: json['ruleId'] as int? ?? json['RuleId'] as int?,
-      vehicleId: json['vehicleId'] as int? ?? json['VehicleId'] as int? ?? 0,
+      id: i(json['id'] ?? json['Id']),
+      ruleId: iOrNull(json['ruleId'] ?? json['RuleId']),
+      vehicleId: i(json['vehicleId'] ?? json['VehicleId']),
       vehicleName:
           json['vehicleName'] as String? ?? json['VehicleName'] as String?,
       eventType:
@@ -95,10 +97,10 @@ class GpsAlertEvent {
           false,
       severity: json['severity'] as String? ?? json['Severity'] as String? ?? '',
       status: json['status'] as String? ?? json['Status'] as String? ?? '',
-      geofenceId: json['geofenceId'] as int? ?? json['GeofenceId'] as int?,
+      geofenceId: iOrNull(json['geofenceId'] ?? json['GeofenceId']),
       geofenceName:
           json['geofenceName'] as String? ?? json['GeofenceName'] as String?,
-      driverId: json['driverId'] as int? ?? json['DriverId'] as int?,
+      driverId: iOrNull(json['driverId'] ?? json['DriverId']),
       driverName: json['driverName'] as String? ?? json['DriverName'] as String?,
       readAt: DateTime.tryParse((json['readAt'] ?? json['ReadAt'] ?? '').toString()),
       readBy: json['readBy'] as String? ?? json['ReadBy'] as String?,
@@ -150,8 +152,11 @@ class GpsAlertStats {
   final int archived;
 
   factory GpsAlertStats.fromJson(Map<String, dynamic> json) {
-    int n(String a, [String? b]) =>
-        json[a] as int? ?? (b != null ? json[b] as int? : null) ?? 0;
+    int n(String a, [String? b]) {
+      num? v = json[a] as num?;
+      v ??= b != null ? json[b] as num? : null;
+      return v?.toInt() ?? 0;
+    }
     return GpsAlertStats(
       total: n('total', 'Total'),
       today: n('today', 'Today'),

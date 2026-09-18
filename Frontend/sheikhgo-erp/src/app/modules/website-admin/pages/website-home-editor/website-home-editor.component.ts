@@ -17,6 +17,7 @@ import { UiToastService } from '../../../../shared/components/ui/toast/ui-toast.
 })
 export class WebsiteHomeEditorComponent implements OnInit {
   loading = true;
+  loadError: string | null = null;
   saving = false;
   homePageId = 0;
   sections: WebsiteSection[] = [];
@@ -35,6 +36,7 @@ export class WebsiteHomeEditorComponent implements OnInit {
 
   reload(): void {
     this.loading = true;
+    this.loadError = null;
     forkJoin({
       pages: this.api.getPages(),
       sections: this.api.getHomeSections()
@@ -48,13 +50,19 @@ export class WebsiteHomeEditorComponent implements OnInit {
         if (this.selected) {
           const match = sections.find(s => s.id === this.selected!.id);
           if (match) this.select(match);
+          else {
+            this.selected = null;
+            this.form = this.emptyForm(this.homePageId);
+          }
         } else if (!this.form.pageId && this.homePageId) {
           this.form.pageId = this.homePageId;
         }
       },
       error: err => {
         this.loading = false;
-        this.toast.error(apiErrorMessage(err, 'Failed to load home sections.'));
+        this.sections = [];
+        this.loadError = apiErrorMessage(err, 'Failed to load home sections.');
+        this.toast.error(this.loadError);
       }
     });
   }
@@ -118,6 +126,21 @@ export class WebsiteHomeEditorComponent implements OnInit {
         this.reload();
       },
       error: err => this.toast.error(apiErrorMessage(err, 'Failed to publish section.'))
+    });
+  }
+
+  remove(): void {
+    if (!this.form.id) return;
+    const label = this.form.title || this.form.sectionType || 'section';
+    if (!confirm(`Delete section "${label}"?`)) return;
+    this.api.deleteSection(this.form.id).subscribe({
+      next: () => {
+        this.toast.success('Section deleted.');
+        this.selected = null;
+        this.form = this.emptyForm(this.homePageId);
+        this.reload();
+      },
+      error: err => this.toast.error(apiErrorMessage(err, 'Failed to delete section.'))
     });
   }
 

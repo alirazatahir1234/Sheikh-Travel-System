@@ -17,6 +17,7 @@ import { UiToastService } from '../../../../shared/components/ui/toast/ui-toast.
 })
 export class WebsiteFeaturesComponent implements OnInit {
   loading = true;
+  loadError: string | null = null;
   saving = false;
   dataSource = new MatTableDataSource<WebsiteFeature>([]);
   displayedColumns = ['title', 'status', 'order', 'active', 'actions'];
@@ -32,8 +33,13 @@ export class WebsiteFeaturesComponent implements OnInit {
     this.reload();
   }
 
+  get showEmpty(): boolean {
+    return !this.loading && !this.loadError && this.dataSource.data.length === 0;
+  }
+
   reload(): void {
     this.loading = true;
+    this.loadError = null;
     this.api.getFeatures().subscribe({
       next: rows => {
         this.dataSource.data = rows;
@@ -41,7 +47,9 @@ export class WebsiteFeaturesComponent implements OnInit {
       },
       error: err => {
         this.loading = false;
-        this.toast.error(apiErrorMessage(err, 'Failed to load features.'));
+        this.dataSource.data = [];
+        this.loadError = apiErrorMessage(err, 'Failed to load features.');
+        this.toast.error(this.loadError);
       }
     });
   }

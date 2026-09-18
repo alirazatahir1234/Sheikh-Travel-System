@@ -167,6 +167,16 @@ export interface WebsitePageUpdate {
   status?: string | null;
 }
 
+export interface WebsitePageCreate {
+  slug: string;
+  title: string;
+  description?: string | null;
+  metaTitle?: string | null;
+  metaDescription?: string | null;
+  ogImage?: string | null;
+  status?: string | null;
+}
+
 export interface WebsiteSettingsUpdate {
   siteName: string;
   logoUrl?: string | null;

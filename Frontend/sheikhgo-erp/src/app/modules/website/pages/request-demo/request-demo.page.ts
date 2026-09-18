@@ -21,21 +21,22 @@ export class RequestDemoPage implements OnInit {
   readonly fleetSizes = ['1–10', '11–50', '51–200', '200+'];
 
   readonly interestOptions = [
+    'Web Development',
+    'Mobile Apps',
+    'AI Solutions',
+    'Cloud',
+    'Custom Software',
     'GPS Tracking',
     'Fleet Management',
-    'Trip Management',
-    'Vehicle Rental',
-    'Travel Management',
-    'AI',
     'Enterprise',
   ];
 
   readonly steps = [
     'Submit your request',
     'Our team contacts you',
-    'Product demonstration',
-    'Fleet requirements analysis',
-    'SheikhGo setup',
+    'Discovery consultation',
+    'Proposal & scope',
+    'Kickoff with SheikhGo',
   ];
 
   readonly form = this.fb.nonNullable.group({
@@ -52,7 +53,11 @@ export class RequestDemoPage implements OnInit {
   });
 
   ngOnInit(): void {
-    this.seo.set('Request a Demo', 'Request a SheikhGo product demonstration for your fleet.', '/request-demo');
+    this.seo.set(
+      'Request a Quote',
+      'Request a quote from SheikhGo Technologies for software, AI, cloud, or SheikhGo Fleet.',
+      '/request-demo',
+    );
   }
 
   toggleInterest(value: string, checked: boolean): void {

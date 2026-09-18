@@ -9,6 +9,12 @@ import {
   readStoredMapTheme,
   storeMapTheme
 } from '../../../../core/leaflet/leaflet-map-tiles';
+import {
+  bindTileLayerFallbackHandlers,
+  createStackTileLayer,
+  createTileStackState,
+  resetTileStackState
+} from '../../../../core/leaflet/leaflet-tile-stack';
 import { createMarkerClusterGroup, L } from '../../../../core/leaflet/leaflet-cluster';
 import { GoogleTrafficBasemap } from '../../../../core/leaflet/google-traffic-basemap';
 import { GoogleMapsLoaderService } from '../../../../core/services/google-maps-loader.service';
@@ -70,7 +76,7 @@ export class TripReplayMapComponent implements AfterViewInit, OnChanges, OnDestr
   private replayTimer?: ReturnType<typeof setInterval>;
   private segmentDistances: number[] = [];
   private tileLayer?: LeafletTypes.TileLayer;
-  private tileFallbackIndex = 0;
+  private readonly tileStackState = createTileStackState();
   private readonly trafficBasemap = new GoogleTrafficBasemap();
   private scrubDebounce?: ReturnType<typeof setTimeout>;
 
@@ -368,7 +374,7 @@ export class TripReplayMapComponent implements AfterViewInit, OnChanges, OnDestr
     this.mapTheme = theme;
     storeMapTheme(theme);
     if (!this.map) return;
-    this.tileFallbackIndex = 0;
+    resetTileStackState(this.tileStackState);
     await this.applyTileLayer(theme);
   }
 
@@ -410,12 +416,14 @@ export class TripReplayMapComponent implements AfterViewInit, OnChanges, OnDestr
     }
 
     const stack = MAP_TILE_STACKS[theme];
-    const cfg = stack[this.tileFallbackIndex] ?? stack[0];
-    this.tileLayer = L.tileLayer(cfg.url, {
-      attribution: cfg.attribution,
-      subdomains: (cfg.subdomains ?? 'abc') as string,
-      maxZoom: cfg.maxZoom ?? 19
-    }).addTo(this.map);
+    const cfg = stack[this.tileStackState.fallbackIndex] ?? stack[0];
+    if (!cfg) return;
+
+    this.tileLayer = createStackTileLayer(L, cfg).addTo(this.map);
+
+    bindTileLayerFallbackHandlers(this.tileLayer, cfg, stack, this.tileStackState, () =>
+      this.applyTileLayer(theme)
+    );
   }
 
   private rebuildSegmentDistances(): void {

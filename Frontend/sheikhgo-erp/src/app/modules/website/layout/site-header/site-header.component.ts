@@ -1,6 +1,7 @@
 import { Component, HostListener, OnInit, inject, signal } from '@angular/core';
-import { RouterLink, RouterLinkActive } from '@angular/router';
+import { NavigationEnd, Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { NgClass } from '@angular/common';
+import { filter } from 'rxjs/operators';
 import { WEBSITE_BRAND } from '../../core/brand';
 import { WebsitePublicContentService } from '../../core/website-public-content.service';
 import { SgLogoComponent } from '../../../../shared/components/logo/sg-logo.component';
@@ -15,19 +16,46 @@ import { SgLogoComponent } from '../../../../shared/components/logo/sg-logo.comp
 export class SiteHeaderComponent implements OnInit {
   readonly brand = WEBSITE_BRAND;
   private readonly content = inject(WebsitePublicContentService);
+  private readonly router = inject(Router);
 
+  /** Chrome wordmark — SheikhGo Technologies */
   siteName: string = WEBSITE_BRAND.productName;
 
   readonly menuOpen = signal(false);
-  readonly platformOpen = signal(false);
-  readonly solutionsOpen = signal(false);
+  readonly servicesOpen = signal(false);
+  readonly industriesOpen = signal(false);
   scrolled = false;
+  /** Always light/white sticky header on marketing pages. */
+  readonly light = true;
+
+  readonly serviceLinks = [
+    { label: 'Web Development', fragment: 'services' },
+    { label: 'Mobile App Development', fragment: 'services' },
+    { label: 'UI/UX Design', fragment: 'services' },
+    { label: 'Cloud Solutions', fragment: 'services' },
+    { label: 'IT Consulting', fragment: 'services' },
+    { label: 'Custom Software', fragment: 'services' },
+  ] as const;
+
+  readonly industryLinks: ReadonlyArray<{ label: string; href: string; fragment: string | null }> = [
+    { label: 'Logistics & Fleet', href: WEBSITE_BRAND.loginPath, fragment: null },
+    { label: 'Travel & Tourism', href: '/', fragment: 'industries' },
+    { label: 'Healthcare', href: '/', fragment: 'industries' },
+    { label: 'Retail & E-Commerce', href: '/', fragment: 'industries' },
+    { label: 'Finance', href: '/', fragment: 'industries' },
+    { label: 'Education', href: '/', fragment: 'industries' },
+    { label: 'Real Estate', href: '/', fragment: 'industries' },
+    { label: 'Manufacturing', href: '/', fragment: 'industries' },
+  ];
 
   ngOnInit(): void {
+    this.router.events
+      .pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd))
+      .subscribe(() => this.closeMenu());
+
     this.content.getSettings().subscribe(s => {
       if (!s) return;
       if (s.siteName) this.siteName = s.siteName;
-      // Logo asset is locked to APP_LOGO_PATH via app-sg-logo — ignore CMS logoUrl.
     });
   }
 
@@ -42,17 +70,17 @@ export class SiteHeaderComponent implements OnInit {
 
   closeMenu(): void {
     this.menuOpen.set(false);
-    this.platformOpen.set(false);
-    this.solutionsOpen.set(false);
+    this.servicesOpen.set(false);
+    this.industriesOpen.set(false);
   }
 
-  togglePlatform(): void {
-    this.platformOpen.update(v => !v);
-    this.solutionsOpen.set(false);
+  toggleServices(): void {
+    this.servicesOpen.update(v => !v);
+    this.industriesOpen.set(false);
   }
 
-  toggleSolutions(): void {
-    this.solutionsOpen.update(v => !v);
-    this.platformOpen.set(false);
+  toggleIndustries(): void {
+    this.industriesOpen.update(v => !v);
+    this.servicesOpen.set(false);
   }
 }

@@ -269,12 +269,27 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
   }
 
   get parkingCount(): number {
+    if (this.bundle?.parking?.length) return this.bundle.parking.length;
     return (this.bundle?.stops ?? []).filter(s => s.durationMinutes >= 120).length;
   }
 
   get quickStats() {
+    const display = this.bundle?.displaySummary;
     const stats = this.statistics;
     const summary = this.bundle?.summary;
+    if (display) {
+      return {
+        distanceKm: display.distance ?? this.mileageKm,
+        moving: display.movingTime,
+        idle: display.nonMovingTime,
+        stops: display.stops,
+        parking: display.parking,
+        maxSpeed: display.maxSpeed,
+        avgSpeed: stats?.avgSpeedKmh ?? summary?.avgSpeedKmh ?? null,
+        engineHours: stats?.engineHours ?? summary?.engineHours ?? null,
+        points: this.rawPositions.length || this.bundle?.route.length || 0
+      };
+    }
     return {
       distanceKm: this.mileageKm,
       moving: this.formatDuration(this.movingMinutes),

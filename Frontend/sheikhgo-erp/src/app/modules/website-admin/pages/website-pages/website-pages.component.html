@@ -4,12 +4,55 @@
       <h1>Website Pages</h1>
       <p class="wa-sub">Edit page SEO and sections.</p>
     </div>
-    <a mat-stroked-button routerLink="/website"><mat-icon>arrow_back</mat-icon> Dashboard</a>
+    <div class="wa-actions">
+      <a mat-stroked-button routerLink="/website"><mat-icon>arrow_back</mat-icon> Dashboard</a>
+      <button mat-raised-button color="primary" type="button" (click)="openCreate()">
+        <mat-icon>add</mat-icon> Create page
+      </button>
+    </div>
+  </div>
+
+  <div class="stb-card wa-form" *ngIf="showCreate">
+    <h2>New page</h2>
+    <div class="wa-fields">
+      <div class="stb-field"><label>Slug</label><input class="stb-input" [(ngModel)]="createForm.slug" placeholder="about-us" /></div>
+      <div class="stb-field"><label>Title</label><input class="stb-input" [(ngModel)]="createForm.title" /></div>
+      <div class="stb-field wa-full"><label>Description</label><textarea class="stb-input" rows="2" [(ngModel)]="createForm.description"></textarea></div>
+      <div class="stb-field">
+        <label>Status</label>
+        <select class="stb-select" [(ngModel)]="createForm.status">
+          <option *ngFor="let st of statuses" [value]="st">{{ st }}</option>
+        </select>
+      </div>
+    </div>
+    <div class="wa-actions">
+      <button mat-raised-button color="primary" type="button" [disabled]="creating" (click)="create()">
+        {{ creating ? 'Creating…' : 'Create' }}
+      </button>
+      <button mat-stroked-button type="button" (click)="cancelCreate()">Cancel</button>
+    </div>
   </div>
 
   <div *ngIf="loading" class="wa-muted">Loading…</div>
 
-  <table mat-table [dataSource]="dataSource" class="wa-table" *ngIf="!loading">
+  <div *ngIf="loadError && !loading" class="stb-card wa-error-banner" role="alert">
+    <div>
+      <strong>Could not load pages</strong>
+      <p>{{ loadError }}</p>
+    </div>
+    <button mat-stroked-button type="button" color="primary" (click)="reload()">
+      <mat-icon>refresh</mat-icon> Retry
+    </button>
+  </div>
+
+  <div *ngIf="showEmpty" class="stb-card wa-empty-banner">
+    <p>No pages yet. Create a page to manage SEO and sections.</p>
+    <button mat-raised-button color="primary" type="button" (click)="openCreate()">
+      <mat-icon>add</mat-icon> Create page
+    </button>
+  </div>
+
+  <table mat-table [dataSource]="dataSource" class="wa-table" *ngIf="!loading && !loadError && dataSource.data.length">
     <ng-container matColumnDef="title">
       <th mat-header-cell *matHeaderCellDef>Title</th>
       <td mat-cell *matCellDef="let row">{{ row.title }}</td>
