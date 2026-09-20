@@ -3,6 +3,7 @@ import { RouterLink } from '@angular/router';
 import { WEBSITE_BRAND } from '../../core/brand';
 import { PublicWebsiteSettings, WebsitePublicContentService } from '../../core/website-public-content.service';
 import { CookieConsentService } from '../../core/cookie-consent.service';
+import { SERVICE_ITEMS } from '../../core/site-catalog';
 import { SgLogoComponent } from '../../../../shared/components/logo/sg-logo.component';
 
 @Component({
@@ -14,6 +15,7 @@ import { SgLogoComponent } from '../../../../shared/components/logo/sg-logo.comp
 })
 export class SiteFooterComponent implements OnInit {
   readonly brand = WEBSITE_BRAND;
+  readonly serviceLinks = SERVICE_ITEMS;
   private readonly content = inject(WebsitePublicContentService);
   private readonly cookies = inject(CookieConsentService);
 

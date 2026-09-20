@@ -5,6 +5,8 @@ export const COMPANY_NAME = 'Sheikh Travel Group';
 export const COMPANY_ADDRESS = '';
 export const APP_LOGO_PATH = '/brand/sheikhgo-logo.png';
 export const APP_SIDEBAR_LOGO_PATH = '/brand/sheikhgo-logo-white.png';
+/** Login page only (`/auth/login`) — do not reuse elsewhere. */
+export const APP_LOGIN_LOGO_PATH = '/brand/sheikhgo-logo-login.png';
 
 /** PDF/export document titles: "SheikhGo ERP – Users" */
 export function exportDocumentTitle(section: string): string {

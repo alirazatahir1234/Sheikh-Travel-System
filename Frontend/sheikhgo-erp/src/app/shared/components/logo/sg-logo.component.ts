@@ -1,10 +1,11 @@
 import { Component, Input } from '@angular/core';
 import { NgClass } from '@angular/common';
-import { APP_LOGO_PATH } from '../../../core/constants/app-brand';
+import { APP_LOGIN_LOGO_PATH, APP_LOGO_PATH } from '../../../core/constants/app-brand';
 
 /**
- * Shared SheikhGo mark — identical asset + sizing as /auth/login.
- * Asset: APP_LOGO_PATH (`/brand/sheikhgo-logo.png`), transparent RGBA.
+ * Shared SheikhGo mark.
+ * - Login (`login-hero` / `login-card`): APP_LOGIN_LOGO_PATH only
+ * - Elsewhere: APP_LOGO_PATH (`/brand/sheikhgo-logo.png`)
  *
  * Sizing rules copied from login SCSS (do not invent widths):
  * - login-hero / header / footer → `.brand-logo` (96 / 72 / 56)
@@ -18,12 +19,10 @@ import { APP_LOGO_PATH } from '../../../core/constants/app-brand';
   styleUrl: './sg-logo.component.scss',
 })
 export class SgLogoComponent {
-  readonly src = APP_LOGO_PATH;
-
   /**
    * `login-hero` — left brand on /auth/login (96px)
    * `login-card` — form card on /auth/login (116px)
-   * `header` / `footer` — same mark size as login-hero
+   * `header` / `footer` — site chrome
    */
   @Input() variant: 'login-hero' | 'login-card' | 'header' | 'footer' = 'header';
 
@@ -33,4 +32,10 @@ export class SgLogoComponent {
   @Input() wordmark = 'SheikhGo';
 
   @Input() alt = 'SheikhGo';
+
+  get src(): string {
+    return this.variant === 'login-hero' || this.variant === 'login-card'
+      ? APP_LOGIN_LOGO_PATH
+      : APP_LOGO_PATH;
+  }
 }

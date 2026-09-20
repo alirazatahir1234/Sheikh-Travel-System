@@ -25,8 +25,11 @@
         <div class="orbit-ring"></div>
         <div class="orbit-ring ring-2"></div>
         <div class="orbit-core"><span>AI</span></div>
-        @for (chip of capabilityChips; track chip; let i = $index) {
-          <span class="orbit-chip" [ngClass]="'chip-' + i">{{ chip }}</span>
+        @for (chip of capabilityChips; track chip.label; let i = $index) {
+          <span class="orbit-chip" [ngClass]="'chip-' + i">
+            <mat-icon aria-hidden="true">{{ chip.icon }}</mat-icon>
+            <span>{{ chip.label }}</span>
+          </span>
         }
       </div>
     </div>
@@ -48,11 +51,11 @@
       <div class="section-head">
         <span class="section-kicker">Platform</span>
         <h2 id="cms-features-heading" class="sg-section-title">Featured capabilities</h2>
-        <p class="sg-section-lead">Published feature cards from SheikhGo Website CMS.</p>
       </div>
       <div class="card-grid services-grid">
-        @for (f of cmsFeatures; track f.title) {
+        @for (f of cmsFeatures; track f.title; let i = $index) {
           <a class="sg-card service-card" [routerLink]="f.link">
+            <span class="card-icon" aria-hidden="true"><mat-icon>{{ cmsFeatureIcon(i) }}</mat-icon></span>
             <h3>{{ f.title }}</h3>
             <p>{{ f.text }}</p>
             <span class="card-action" aria-hidden="true">→</span>
@@ -68,7 +71,7 @@
     <h2 id="trusted-heading" class="trusted-heading">Trusted Technologies &amp; Platforms</h2>
     <ul class="trusted-row">
       @for (t of trustedTech; track t) {
-        <li>{{ t }}</li>
+        <li><mat-icon aria-hidden="true">verified</mat-icon><span>{{ t }}</span></li>
       }
     </ul>
   </div>
@@ -85,8 +88,8 @@
     </div>
     <div class="card-grid services-grid">
       @for (s of services; track s.title) {
-        <a class="sg-card service-card" routerLink="/contact">
-          <span class="card-icon" aria-hidden="true">{{ s.icon }}</span>
+        <a class="sg-card service-card" routerLink="/services" [fragment]="s.slug">
+          <span class="card-icon" aria-hidden="true"><mat-icon>{{ s.icon }}</mat-icon></span>
           <h3>{{ s.title }}</h3>
           <p>{{ s.text }}</p>
           <span class="card-action" aria-hidden="true">→</span>
@@ -108,18 +111,19 @@
       </p>
       <ul class="ai-list">
         @for (f of aiFeatures; track f) {
-          <li>{{ f }}</li>
+          <li><mat-icon aria-hidden="true">check_circle</mat-icon><span>{{ f }}</span></li>
         }
       </ul>
       <a routerLink="/contact" class="btn btn-primary">Explore AI Solutions →</a>
     </div>
     <div class="ai-panel" aria-hidden="true">
       <div class="ai-panel-card">
-        <span class="pulse"></span>
+        <mat-icon class="panel-icon" aria-hidden="true">hub</mat-icon>
         <strong>Neural core</strong>
         <p>Models, data pipelines, and secure orchestration.</p>
       </div>
       <div class="ai-panel-card secondary">
+        <mat-icon class="panel-icon" aria-hidden="true">insights</mat-icon>
         <strong>Connected insight</strong>
         <p>Automation and analytics that support real decisions.</p>
       </div>
@@ -140,7 +144,7 @@
     <div class="industry-grid">
       @for (i of industries; track i.title) {
         <a class="sg-card industry-card" [routerLink]="i.link">
-          <span class="card-icon" aria-hidden="true">{{ i.icon }}</span>
+          <span class="card-icon" aria-hidden="true"><mat-icon>{{ i.icon }}</mat-icon></span>
           <h3>{{ i.title }}</h3>
         </a>
       }
@@ -160,7 +164,7 @@
     <div class="card-grid why-grid">
       @for (w of whyItems; track w.title) {
         <article class="sg-card why-card">
-          <span class="card-icon" aria-hidden="true">{{ w.icon }}</span>
+          <span class="card-icon" aria-hidden="true"><mat-icon>{{ w.icon }}</mat-icon></span>
           <h3>{{ w.title }}</h3>
           <p>{{ w.text }}</p>
         </article>
@@ -179,7 +183,10 @@
     <ol class="process-timeline">
       @for (p of processSteps; track p.step; let last = $last) {
         <li>
-          <span class="step-num">{{ p.step }}</span>
+          <span class="step-icon-wrap">
+            <mat-icon class="step-icon" aria-hidden="true">{{ p.icon }}</mat-icon>
+            <span class="step-num">{{ p.step }}</span>
+          </span>
           <h3>{{ p.title }}</h3>
           <p>{{ p.text }}</p>
           @if (!last) {
@@ -221,36 +228,12 @@
       </div>
       <div class="fleet-visual" aria-hidden="true">
         <div class="fleet-panel">
-          <span class="fleet-dot"></span>
+          <mat-icon class="fleet-icon" aria-hidden="true">gps_fixed</mat-icon>
           <strong>Live operations</strong>
           <p>Tracking · Drivers · Trips · Analytics</p>
         </div>
       </div>
     </article>
-  </div>
-</section>
-
-<section class="sg-section testimonials" id="testimonials">
-  <div class="container">
-    <div class="section-head">
-      <span class="section-kicker">Testimonials</span>
-      <h2 class="sg-section-title">What Our Clients Say</h2>
-      <p class="sg-section-lead placeholder-note">
-        Placeholder quotes for layout only — replace with approved customer feedback before production.
-      </p>
-    </div>
-    <div class="testimonial-grid">
-      @for (t of testimonials; track $index) {
-        <blockquote class="sg-card testimonial-card">
-          <p class="placeholder-badge">Sample / placeholder</p>
-          <p>“{{ t.quote }}”</p>
-          <footer>
-            <strong>{{ t.name }}</strong>
-            <span>{{ t.role }} · {{ t.company }}</span>
-          </footer>
-        </blockquote>
-      }
-    </div>
   </div>
 </section>
 

@@ -1,15 +1,17 @@
-import { Component, HostListener, OnInit, inject, signal } from '@angular/core';
+import { ElementRef, Component, HostListener, OnInit, inject, signal } from '@angular/core';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { NgClass } from '@angular/common';
+import { MatIconModule } from '@angular/material/icon';
 import { filter } from 'rxjs/operators';
 import { WEBSITE_BRAND } from '../../core/brand';
+import { INDUSTRY_ITEMS, SERVICE_ITEMS } from '../../core/site-catalog';
 import { WebsitePublicContentService } from '../../core/website-public-content.service';
 import { SgLogoComponent } from '../../../../shared/components/logo/sg-logo.component';
 
 @Component({
   selector: 'app-site-header',
   standalone: true,
-  imports: [RouterLink, RouterLinkActive, NgClass, SgLogoComponent],
+  imports: [RouterLink, RouterLinkActive, NgClass, MatIconModule, SgLogoComponent],
   templateUrl: './site-header.component.html',
   styleUrl: './site-header.component.scss',
 })
@@ -17,6 +19,7 @@ export class SiteHeaderComponent implements OnInit {
   readonly brand = WEBSITE_BRAND;
   private readonly content = inject(WebsitePublicContentService);
   private readonly router = inject(Router);
+  private readonly host = inject(ElementRef<HTMLElement>);
 
   /** Chrome wordmark — SheikhGo Technologies */
   siteName: string = WEBSITE_BRAND.productName;
@@ -28,25 +31,8 @@ export class SiteHeaderComponent implements OnInit {
   /** Always light/white sticky header on marketing pages. */
   readonly light = true;
 
-  readonly serviceLinks = [
-    { label: 'Web Development', fragment: 'services' },
-    { label: 'Mobile App Development', fragment: 'services' },
-    { label: 'UI/UX Design', fragment: 'services' },
-    { label: 'Cloud Solutions', fragment: 'services' },
-    { label: 'IT Consulting', fragment: 'services' },
-    { label: 'Custom Software', fragment: 'services' },
-  ] as const;
-
-  readonly industryLinks: ReadonlyArray<{ label: string; href: string; fragment: string | null }> = [
-    { label: 'Logistics & Fleet', href: WEBSITE_BRAND.loginPath, fragment: null },
-    { label: 'Travel & Tourism', href: '/', fragment: 'industries' },
-    { label: 'Healthcare', href: '/', fragment: 'industries' },
-    { label: 'Retail & E-Commerce', href: '/', fragment: 'industries' },
-    { label: 'Finance', href: '/', fragment: 'industries' },
-    { label: 'Education', href: '/', fragment: 'industries' },
-    { label: 'Real Estate', href: '/', fragment: 'industries' },
-    { label: 'Manufacturing', href: '/', fragment: 'industries' },
-  ];
+  readonly serviceLinks = SERVICE_ITEMS;
+  readonly industryLinks = INDUSTRY_ITEMS;
 
   ngOnInit(): void {
     this.router.events
@@ -62,6 +48,19 @@ export class SiteHeaderComponent implements OnInit {
   @HostListener('window:scroll')
   onScroll(): void {
     this.scrolled = window.scrollY > 12;
+  }
+
+  @HostListener('document:keydown.escape')
+  onEscape(): void {
+    this.closeMenu();
+  }
+
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: MouseEvent): void {
+    if (!this.servicesOpen() && !this.industriesOpen()) return;
+    if (this.host.nativeElement.contains(event.target as Node)) return;
+    this.servicesOpen.set(false);
+    this.industriesOpen.set(false);
   }
 
   toggleMenu(): void {
