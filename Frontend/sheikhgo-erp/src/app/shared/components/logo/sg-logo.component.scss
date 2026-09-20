@@ -32,9 +32,18 @@
 }
 
 /*
- * Login / footer keep large mark.
- * Website header uses a compact chrome size so nav stays readable.
+ * Login marks sit on a light plate so the dark-navy "G" / globe stay visible
+ * on the dark auth UI (same idea as the ERP sidebar logo-mark).
  */
+.sg-logo--login-hero .sg-logo__img,
+.sg-logo--login-card .sg-logo__img {
+  background: #fff;
+  border-radius: 18px;
+  padding: 8px;
+  box-sizing: border-box;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+}
+
 .sg-logo--login-hero .sg-logo__img,
 .sg-logo--footer .sg-logo__img {
   width: 96px;
@@ -57,6 +66,8 @@
 .sg-logo--login-card .sg-logo__img {
   width: 116px;
   height: 116px;
+  border-radius: 22px;
+  padding: 10px;
 }
 
 @media (max-width: 768px) {
