@@ -114,6 +114,9 @@
 
 .orbit-chip {
   position: absolute;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
   padding: 0.4rem 0.75rem;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.08);
@@ -123,6 +126,14 @@
   backdrop-filter: blur(8px);
   white-space: nowrap;
   animation: floatY 4.8s ease-in-out infinite;
+
+  mat-icon {
+    font-size: 1rem;
+    width: 1rem;
+    height: 1rem;
+    color: var(--sg-primary-strong, #00d97e);
+    flex-shrink: 0;
+  }
 }
 
 .chip-0 { top: 6%; left: 10%; }
@@ -184,11 +195,21 @@
 }
 
 .trusted-row li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
   font-family: var(--font-display);
   font-weight: 700;
   font-size: 1rem;
   color: var(--sg-ink);
   opacity: 0.7;
+}
+
+.trusted-row li mat-icon {
+  font-size: 1.05rem;
+  width: 1.05rem;
+  height: 1.05rem;
+  color: var(--sg-teal, #0f766e);
 }
 
 .section-head {
@@ -205,16 +226,19 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 2.75rem;
+  width: 2.75rem;
   height: 2.75rem;
-  padding: 0 0.65rem;
+  padding: 0;
   border-radius: 12px;
   background: var(--sg-mint, #e9faf4);
   color: var(--sg-teal, #0f766e);
-  font-size: 0.75rem;
-  font-weight: 800;
-  letter-spacing: 0.04em;
   margin-bottom: 1rem;
+}
+
+.card-icon mat-icon {
+  font-size: 1.4rem;
+  width: 1.4rem;
+  height: 1.4rem;
 }
 
 .service-card {
@@ -301,22 +325,20 @@
 }
 
 .ai-list li {
-  position: relative;
-  padding-left: 1.35rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   color: rgba(255, 255, 255, 0.92);
   font-weight: 600;
   font-size: 0.95rem;
 }
 
-.ai-list li::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 0.45rem;
-  width: 0.55rem;
-  height: 0.55rem;
-  border-radius: 50%;
-  background: var(--sg-primary-strong, #00d97e);
+.ai-list li mat-icon {
+  font-size: 1.1rem;
+  width: 1.1rem;
+  height: 1.1rem;
+  flex-shrink: 0;
+  color: var(--sg-primary-strong, #00d97e);
 }
 
 .ai-panel {
@@ -356,6 +378,15 @@
   margin-bottom: 0.75rem;
   box-shadow: 0 0 0 0 rgba(24, 201, 135, 0.55);
   animation: pulse 2.2s ease infinite;
+}
+
+.ai-panel-card .panel-icon {
+  display: block;
+  font-size: 1.6rem;
+  width: 1.6rem;
+  height: 1.6rem;
+  margin-bottom: 0.75rem;
+  color: var(--sg-primary-strong, #00d97e);
 }
 
 .industries {
@@ -404,6 +435,20 @@
   border-radius: var(--sg-radius);
 }
 
+.step-icon-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.65rem;
+}
+
+.step-icon {
+  font-size: 1.25rem;
+  width: 1.25rem;
+  height: 1.25rem;
+  color: var(--sg-teal, #0f766e);
+}
+
 .step-num {
   display: block;
   font-family: var(--font-display);
@@ -411,7 +456,6 @@
   font-size: 0.875rem;
   color: var(--sg-primary);
   letter-spacing: 0.08em;
-  margin-bottom: 0.65rem;
 }
 
 .process-timeline h3 {
@@ -533,6 +577,15 @@
   box-shadow: 0 0 0 4px rgba(24, 201, 135, 0.25);
 }
 
+.fleet-icon {
+  display: block;
+  font-size: 1.5rem;
+  width: 1.5rem;
+  height: 1.5rem;
+  margin-bottom: 0.85rem;
+  color: var(--sg-primary-strong, #00d97e);
+}
+
 .fleet-panel strong {
   display: block;
   margin-bottom: 0.35rem;
@@ -542,55 +595,6 @@
   margin: 0;
   color: rgba(255, 255, 255, 0.7);
   font-size: 0.9rem;
-}
-
-.testimonials {
-  background: var(--sg-page, #f5fbf9);
-}
-
-.placeholder-note {
-  font-style: italic;
-}
-
-.testimonial-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1.25rem;
-}
-
-.placeholder-badge {
-  display: inline-block;
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--sg-muted);
-  background: var(--sg-mint);
-  border-radius: 999px;
-  padding: 0.25rem 0.65rem;
-  margin-bottom: 0.85rem !important;
-}
-
-.testimonial-card > p:not(.placeholder-badge) {
-  font-size: 1.05rem;
-  line-height: 1.6;
-  color: var(--sg-text);
-  margin: 0 0 1.25rem;
-}
-
-.testimonial-card footer {
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
-}
-
-.testimonial-card strong {
-  color: var(--sg-ink);
-}
-
-.testimonial-card span {
-  font-size: 0.875rem;
-  color: var(--sg-muted);
 }
 
 .final-cta {
@@ -777,8 +781,7 @@
 
   .card-grid,
   .why-grid,
-  .industry-grid,
-  .testimonial-grid {
+  .industry-grid {
     grid-template-columns: 1fr;
   }
 

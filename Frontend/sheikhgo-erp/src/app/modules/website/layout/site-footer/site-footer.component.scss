@@ -6,7 +6,7 @@
 
   .grid {
     display: grid;
-    grid-template-columns: 1.4fr repeat(5, 1fr);
+    grid-template-columns: 1.4fr repeat(4, 1fr);
     gap: 40px;
     padding-bottom: 2.75rem;
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);

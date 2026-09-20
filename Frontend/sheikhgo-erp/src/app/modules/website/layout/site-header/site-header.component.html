@@ -13,16 +13,27 @@
           class="nav-link drop-btn"
           (click)="toggleServices()"
           [attr.aria-expanded]="servicesOpen()"
-          aria-haspopup="true"
           aria-controls="services-menu"
         >
           Services
           <span class="chev" aria-hidden="true"></span>
         </button>
-        <div class="dropdown-panel" id="services-menu" role="menu">
-          @for (link of serviceLinks; track link.label) {
-            <a routerLink="/" fragment="services" role="menuitem" (click)="closeMenu()">{{ link.label }}</a>
-          }
+        <div class="dropdown-panel mega" id="services-menu">
+          <div class="mega-grid">
+            @for (s of serviceLinks; track s.slug) {
+              <a class="mega-item" routerLink="/services" [fragment]="s.slug" (click)="closeMenu()">
+                <span class="mega-icon" aria-hidden="true"><mat-icon>{{ s.icon }}</mat-icon></span>
+                <span class="mega-copy">
+                  <span class="mega-title">{{ s.title }}</span>
+                  <span class="mega-text">{{ s.text }}</span>
+                </span>
+              </a>
+            }
+          </div>
+          <div class="mega-foot">
+            <a class="mega-all" routerLink="/services" (click)="closeMenu()">View all services →</a>
+            <a class="btn btn-primary mega-cta" routerLink="/request-demo" (click)="closeMenu()">Request a Quote</a>
+          </div>
         </div>
       </div>
 
@@ -32,20 +43,32 @@
           class="nav-link drop-btn"
           (click)="toggleIndustries()"
           [attr.aria-expanded]="industriesOpen()"
-          aria-haspopup="true"
           aria-controls="industries-menu"
         >
           Industries
           <span class="chev" aria-hidden="true"></span>
         </button>
-        <div class="dropdown-panel" id="industries-menu" role="menu">
-          @for (link of industryLinks; track link.label) {
-            @if (link.fragment) {
-              <a routerLink="/" [fragment]="link.fragment" role="menuitem" (click)="closeMenu()">{{ link.label }}</a>
-            } @else {
-              <a [routerLink]="link.href" role="menuitem" (click)="closeMenu()">{{ link.label }}</a>
+        <div class="dropdown-panel mega" id="industries-menu">
+          <div class="mega-grid">
+            @for (i of industryLinks; track i.title) {
+              <a
+                class="mega-item"
+                [routerLink]="i.link"
+                [fragment]="i.fragment ?? undefined"
+                (click)="closeMenu()"
+              >
+                <span class="mega-icon" aria-hidden="true"><mat-icon>{{ i.icon }}</mat-icon></span>
+                <span class="mega-copy">
+                  <span class="mega-title">{{ i.title }}</span>
+                  <span class="mega-text">{{ i.text }}</span>
+                </span>
+              </a>
             }
-          }
+          </div>
+          <div class="mega-foot">
+            <a class="mega-all" routerLink="/" fragment="industries" (click)="closeMenu()">All industries →</a>
+            <a class="btn btn-primary mega-cta" [routerLink]="brand.loginPath" (click)="closeMenu()">Sign in</a>
+          </div>
         </div>
       </div>
 

@@ -23,6 +23,10 @@ export const WEBSITE_ROUTES: Routes = [
         loadComponent: () => import('./pages/features/features.page').then(m => m.FeaturesPage),
       },
       {
+        path: 'services',
+        loadComponent: () => import('./pages/services/services.page').then(m => m.ServicesPage),
+      },
+      {
         path: 'about',
         loadComponent: () => import('./pages/about/about.page').then(m => m.AboutPage),
       },

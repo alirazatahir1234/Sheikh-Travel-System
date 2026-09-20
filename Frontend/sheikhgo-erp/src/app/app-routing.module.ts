@@ -76,6 +76,10 @@ const routes: Routes = [
         path: 'features',
         loadComponent: () => import('./modules/website/pages/features/features.page').then(m => m.FeaturesPage),
       },
+      {
+        path: 'services',
+        loadComponent: () => import('./modules/website/pages/services/services.page').then(m => m.ServicesPage),
+      },
       // Guest-only marketing aliases (ERP `/platform` remains auth-protected)
       { path: 'platform', redirectTo: 'features', pathMatch: 'full' },
       { path: 'solutions', redirectTo: 'about', pathMatch: 'full' },

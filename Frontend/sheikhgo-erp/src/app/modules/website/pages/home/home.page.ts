@@ -1,14 +1,16 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { NgClass } from '@angular/common';
 import { RouterLink } from '@angular/router';
+import { MatIconModule } from '@angular/material/icon';
 import { WebsiteSeoService } from '../../core/seo.service';
 import { WEBSITE_BRAND } from '../../core/brand';
 import { WebsitePublicContentService } from '../../core/website-public-content.service';
+import { INDUSTRY_ITEMS, SERVICE_ITEMS } from '../../core/site-catalog';
 
 @Component({
   selector: 'app-home-page',
   standalone: true,
-  imports: [RouterLink, NgClass],
+  imports: [RouterLink, NgClass, MatIconModule],
   templateUrl: './home.page.html',
   styleUrl: './home.page.scss',
 })
@@ -33,12 +35,12 @@ export class HomePage implements OnInit {
   ] as const;
 
   readonly capabilityChips = [
-    'Web Development',
-    'Mobile Apps',
-    'Cloud Solutions',
-    'AI Solutions',
-    'UI/UX Design',
-    'IT Consulting',
+    { label: 'Web Development', icon: 'language' },
+    { label: 'Mobile Apps', icon: 'smartphone' },
+    { label: 'Cloud Solutions', icon: 'cloud' },
+    { label: 'AI Solutions', icon: 'auto_awesome' },
+    { label: 'UI/UX Design', icon: 'palette' },
+    { label: 'IT Consulting', icon: 'support_agent' },
   ] as const;
 
   readonly trustedTech = [
@@ -50,38 +52,7 @@ export class HomePage implements OnInit {
     'Figma',
   ] as const;
 
-  readonly services = [
-    {
-      title: 'Web Development',
-      text: 'Modern, scalable and high-performing web applications.',
-      icon: 'WEB',
-    },
-    {
-      title: 'Mobile App Development',
-      text: 'Cross-platform and native mobile applications for modern businesses.',
-      icon: 'APP',
-    },
-    {
-      title: 'UI/UX Design',
-      text: 'User-centered interfaces that create meaningful experiences.',
-      icon: 'UX',
-    },
-    {
-      title: 'Cloud Solutions',
-      text: 'Scalable cloud infrastructure, migration and deployment solutions.',
-      icon: 'CLD',
-    },
-    {
-      title: 'IT Consulting',
-      text: 'Strategic technology guidance to help achieve your business goals.',
-      icon: 'IT',
-    },
-    {
-      title: 'Custom Software Solutions',
-      text: 'Tailored software built around your unique business needs.',
-      icon: 'SW',
-    },
-  ] as const;
+  readonly services = SERVICE_ITEMS;
 
   readonly aiFeatures = [
     'AI Automation',
@@ -95,57 +66,57 @@ export class HomePage implements OnInit {
   ] as const;
 
   readonly industries = [
-    { title: 'Logistics & Fleet', link: WEBSITE_BRAND.loginPath, icon: 'LG' },
-    { title: 'Retail & E-Commerce', link: '/contact', icon: 'RT' },
-    { title: 'Healthcare', link: '/contact', icon: 'HC' },
-    { title: 'Education', link: '/contact', icon: 'ED' },
-    { title: 'Finance', link: '/contact', icon: 'FN' },
-    { title: 'Real Estate', link: '/contact', icon: 'RE' },
-    { title: 'Travel & Tourism', link: '/contact', icon: 'TR' },
-    { title: 'Manufacturing', link: '/contact', icon: 'MF' },
-    { title: 'More Industries', link: '/contact', icon: '+' },
-  ] as const;
+    ...INDUSTRY_ITEMS.map(i => ({ title: i.title, link: i.fragment ? '/contact' : i.link, icon: i.icon })),
+    { title: 'More Industries', link: '/contact', icon: 'add_circle' },
+  ];
 
   readonly whyItems = [
     {
       title: 'Client-Centric Approach',
       text: 'We start with your goals and design solutions around real business outcomes.',
-      icon: '01',
+      icon: 'handshake',
     },
     {
       title: 'Modern Technologies',
       text: 'We build with current platforms and practices that stay maintainable over time.',
-      icon: '02',
+      icon: 'memory',
     },
     {
       title: 'AI-Driven Innovation',
       text: 'We apply AI where it creates leverage — automation, insight, and better decisions.',
-      icon: '03',
+      icon: 'auto_awesome',
     },
     {
       title: 'Scalable Solutions',
       text: 'Architecture designed to grow with your users, data, and product roadmap.',
-      icon: '04',
+      icon: 'trending_up',
     },
     {
       title: 'On-Time Delivery',
       text: 'Clear milestones, transparent progress, and disciplined delivery practices.',
-      icon: '05',
+      icon: 'schedule',
     },
     {
       title: 'Long-Term Partnership',
       text: 'Support and iteration after launch so your technology stays sharp.',
-      icon: '06',
+      icon: 'groups',
     },
   ] as const;
 
   readonly processSteps = [
-    { step: '01', title: 'Discover', text: 'Understand your needs and goals.' },
-    { step: '02', title: 'Plan', text: 'Create a clear strategy and roadmap.' },
-    { step: '03', title: 'Design', text: 'Design user-centered solutions.' },
-    { step: '04', title: 'Develop', text: 'Build, test and iterate with best practices.' },
-    { step: '05', title: 'Deploy', text: 'Launch and provide ongoing support.' },
+    { step: '01', title: 'Discover', text: 'Understand your needs and goals.', icon: 'search' },
+    { step: '02', title: 'Plan', text: 'Create a clear strategy and roadmap.', icon: 'assignment' },
+    { step: '03', title: 'Design', text: 'Design user-centered solutions.', icon: 'brush' },
+    { step: '04', title: 'Develop', text: 'Build, test and iterate with best practices.', icon: 'code' },
+    { step: '05', title: 'Deploy', text: 'Launch and provide ongoing support.', icon: 'cloud_upload' },
   ] as const;
+
+  /** Fallback icons for CMS-managed "Featured capabilities" cards (no icon field on that model). */
+  private readonly cmsFeatureIcons = ['bolt', 'hub', 'insights', 'auto_awesome'] as const;
+
+  cmsFeatureIcon(index: number): string {
+    return this.cmsFeatureIcons[index % this.cmsFeatureIcons.length];
+  }
 
   readonly fleetCapabilities = [
     'Live GPS Tracking',
@@ -155,23 +126,6 @@ export class HomePage implements OnInit {
     'Fleet Analytics',
     'GPS Route History',
     'AI-ready architecture',
-  ] as const;
-
-  readonly testimonials = [
-    {
-      quote:
-        'Sample client testimonial — replace with an approved customer quote before production.',
-      name: 'Client Name',
-      role: 'Role',
-      company: 'Company',
-    },
-    {
-      quote:
-        'Sample client testimonial — replace with an approved customer quote before production.',
-      name: 'Client Name',
-      role: 'Role',
-      company: 'Company',
-    },
   ] as const;
 
   ngOnInit(): void {
