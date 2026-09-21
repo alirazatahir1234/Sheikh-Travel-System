@@ -3,16 +3,20 @@ using Microsoft.AspNetCore.Mvc;
 using SheikhTravelSystem.API.Authorization;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Interfaces;
+using SheikhTravelSystem.Application.Features.AI.Commands;
+using SheikhTravelSystem.Application.Features.AI.Queries;
 
 namespace SheikhTravelSystem.API.Controllers;
 
+/// <summary>
+/// Thin AI Operations API. Orchestration lives in Features/AI (CQRS);
+/// providers remain in Infrastructure/Services/Ai.
+/// </summary>
 [Authorize]
-[RequirePermission(AiPermissions.View)]
 [Route("api/ai")]
 public class AiController(
     IFleetHealthService fleetHealth,
     IAiDigestService digests,
-    IAiRecommendationService recommendations,
     IAiPredictionService predictions,
     IAiCopilotService copilot,
     IAiChatGateway chatGateway,
@@ -28,36 +32,46 @@ public class AiController(
     private int TenantId => tenantContext.TenantId ?? 1;
     private int UserId => currentUser.UserId ?? throw new UnauthorizedAccessException();
 
+    [RequirePermission(AiPermissions.View)]
     [HttpGet("health")]
     public async Task<IActionResult> GetFleetHealth(CancellationToken ct)
         => Ok(await fleetHealth.ComputeAsync(TenantId, ct));
 
+    [RequirePermission(AiPermissions.ViewRecommendations)]
     [HttpGet("recommendations")]
     public async Task<IActionResult> GetRecommendations(CancellationToken ct)
     {
-        await recommendations.RefreshAsync(TenantId, ct);
-        return Ok(await recommendations.GetActiveAsync(TenantId, ct));
+        var result = await Mediator.Send(new GetAiRecommendationsQuery(TenantId), ct);
+        return FromAiResponse(result);
     }
 
+    [RequirePermission(AiPermissions.RefreshRecommendations)]
     [HttpPost("recommendations/refresh")]
     public async Task<IActionResult> RefreshRecommendations(CancellationToken ct)
     {
-        await recommendations.RefreshAsync(TenantId, ct);
+        var result = await Mediator.Send(new RefreshAiRecommendationsCommand(TenantId), ct);
+        if (!result.Success)
+            return BadRequest(new { message = result.Message });
         return Ok(new { refreshed = true });
     }
 
+    [RequirePermission(AiPermissions.ViewPredictions)]
     [HttpGet("predictions")]
     public async Task<IActionResult> GetPredictions([FromQuery] string? entityType, CancellationToken ct)
-        => Ok(await predictions.GetPredictionsAsync(TenantId, entityType, ct));
+    {
+        var result = await Mediator.Send(new GetAiPredictionsQuery(TenantId, entityType), ct);
+        return FromAiResponse(result);
+    }
 
+    [RequirePermission(AiPermissions.RunPredictions)]
     [HttpPost("predictions/run")]
     public async Task<IActionResult> RunPredictions(CancellationToken ct)
     {
-        await predictions.CaptureFeaturesAsync(TenantId, ct);
-        await predictions.RunHeuristicPredictionsAsync(TenantId, ct);
-        return Ok(await predictions.GetPredictionsAsync(TenantId, null, ct));
+        var result = await Mediator.Send(new RunAiPredictionsCommand(TenantId), ct);
+        return FromAiResponse(result);
     }
 
+    [RequirePermission(AiPermissions.Manage)]
     [HttpPost("digest/morning")]
     public async Task<IActionResult> GenerateDigest(CancellationToken ct)
     {
@@ -65,6 +79,7 @@ public class AiController(
         return Ok(new { generated = true });
     }
 
+    [RequirePermission(AiPermissions.Chat)]
     [HttpPost("copilot/ask")]
     public async Task<IActionResult> Ask([FromBody] AiAskRequest request, CancellationToken ct)
     {
@@ -73,57 +88,62 @@ public class AiController(
         return Ok(await copilot.AskAsync(TenantId, UserId, request.Question, ct));
     }
 
-    /// <summary>Phase 1 AI Gateway chat (Ollama/Mistral with session memory; rules fallback).</summary>
+    /// <summary>AI Gateway chat. CQRS: SendAiChatCommand → IAiChatGateway.</summary>
+    [RequirePermission(AiPermissions.Chat)]
     [HttpPost("chat")]
     public async Task<IActionResult> Chat([FromBody] AiChatRequest request, CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(request.Message) && !request.ConfirmWrite)
-            return BadRequest(new { message = "Message is required." });
-        if (request.ConfirmWrite && request.SessionId is null)
-            return BadRequest(new { message = "SessionId is required to confirm a pending action." });
-
-        var result = await chatGateway.ChatAsync(
-            TenantId,
-            UserId,
-            new AiChatTurnRequest(
+        var result = await Mediator.Send(
+            new SendAiChatCommand(
+                TenantId,
+                UserId,
                 request.Message ?? string.Empty,
                 request.SessionId,
                 request.Title,
                 request.ConfirmWrite),
             ct);
-        return Ok(result);
+        return FromAiResponse(result);
     }
 
+    [RequirePermission(AiPermissions.Chat)]
     [HttpGet("chat/sessions/{sessionId:guid}/pending")]
     public async Task<IActionResult> GetPendingAction(Guid sessionId, CancellationToken ct)
         => Ok(await chatGateway.GetPendingActionAsync(TenantId, UserId, sessionId, ct));
 
+    [RequirePermission(AiPermissions.Chat)]
     [HttpGet("chat/sessions")]
     public async Task<IActionResult> ListChatSessions(CancellationToken ct)
         => Ok(await chatGateway.ListSessionsAsync(TenantId, UserId, ct));
 
+    [RequirePermission(AiPermissions.Chat)]
     [HttpGet("chat/sessions/{sessionId:guid}/messages")]
     public async Task<IActionResult> GetChatMessages(Guid sessionId, CancellationToken ct)
         => Ok(await chatGateway.GetMessagesAsync(TenantId, UserId, sessionId, ct));
 
+    [RequirePermission(AiPermissions.ViewProviderHealth)]
     [HttpGet("chat/provider-health")]
     public async Task<IActionResult> GetChatProviderHealth(CancellationToken ct)
-        => Ok(await chatGateway.GetProviderHealthAsync(TenantId, ct));
+    {
+        var result = await Mediator.Send(new GetAiProviderHealthQuery(TenantId), ct);
+        return FromAiResponse(result);
+    }
 
+    [RequirePermission(AiPermissions.Chat)]
     [HttpGet("chat/tools")]
     public IActionResult ListTools()
         => Ok(toolEngine.ListTools(includeWriteTools: true));
 
-    [RequirePermission(AiPermissions.Manage)]
+    [RequirePermission(AiPermissions.ManageProviders)]
     [HttpGet("management/config")]
     public async Task<IActionResult> GetConfig(CancellationToken ct)
         => Ok(await management.GetConfigAsync(TenantId, ct));
 
-    [RequirePermission(AiPermissions.Manage)]
+    [RequirePermission(AiPermissions.ManageProviders)]
     [HttpPut("management/config")]
     public async Task<IActionResult> UpsertConfig([FromBody] AiProviderConfigDto config, CancellationToken ct)
         => Ok(await management.UpsertConfigAsync(TenantId, config, ct));
 
+    [RequirePermission(AiPermissions.Chat)]
     [HttpPost("learning")]
     public async Task<IActionResult> RecordLearning([FromBody] AiLearningRequest request, CancellationToken ct)
     {
@@ -151,6 +171,7 @@ public class AiController(
         return Ok(new { ok = true });
     }
 
+    [RequirePermission(AiPermissions.Manage)]
     [HttpPost("decision/evaluate")]
     public async Task<IActionResult> Evaluate([FromBody] NotificationDecisionRequest request, CancellationToken ct)
         => Ok(await decisionEngine.EvaluateAsync(request, ct));
@@ -165,10 +186,12 @@ public class AiController(
     public async Task<IActionResult> UpsertEscalationRule([FromBody] EscalationRuleDto rule, CancellationToken ct)
         => Ok(await escalation.UpsertRuleAsync(rule with { TenantId = rule.TenantId ?? TenantId }, ct));
 
+    [RequirePermission(AiPermissions.View)]
     [HttpGet("escalation/pending")]
     public async Task<IActionResult> GetPendingEscalations(CancellationToken ct)
         => Ok(await escalation.GetPendingAsync(ct));
 
+    [RequirePermission(AiPermissions.View)]
     [HttpPost("escalation/{id:int}/ack")]
     public async Task<IActionResult> AckEscalation(int id, CancellationToken ct)
     {
@@ -181,8 +204,15 @@ public class AiController(
     public async Task<IActionResult> GetDatasets(CancellationToken ct)
     {
         await predictions.CaptureFeaturesAsync(TenantId, ct);
-        // Freshness / counts for AI feature store admin surface
         return Ok(await predictions.GetDatasetStatusAsync(TenantId, ct));
+    }
+
+    /// <summary>Preserve pre-CQRS AI response shape (raw payload, not ApiResponse envelope).</summary>
+    private IActionResult FromAiResponse<T>(ApiResponse<T> response)
+    {
+        if (!response.Success)
+            return BadRequest(new { message = response.Message, errors = response.Errors });
+        return Ok(response.Data);
     }
 }
 

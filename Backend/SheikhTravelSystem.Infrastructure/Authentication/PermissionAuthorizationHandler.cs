@@ -28,6 +28,21 @@ public class PermissionAuthorizationHandler : AuthorizationHandler<PermissionReq
             return Task.CompletedTask;
         }
 
+        // Legacy Ai.View / Ai.Manage satisfy finer AI Operations codes (backward compatible).
+        if (AiPermissions.ImpliedByView.Contains(requirement.Permission) &&
+            context.User.HasClaim("permission", AiPermissions.View))
+        {
+            context.Succeed(requirement);
+            return Task.CompletedTask;
+        }
+
+        if (AiPermissions.ImpliedByManage.Contains(requirement.Permission) &&
+            context.User.HasClaim("permission", AiPermissions.Manage))
+        {
+            context.Succeed(requirement);
+            return Task.CompletedTask;
+        }
+
         if (HasRole(context, PlatformRoles.SuperAdmin))
         {
             context.Succeed(requirement);

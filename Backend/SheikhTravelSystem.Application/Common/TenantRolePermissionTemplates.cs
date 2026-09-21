@@ -26,6 +26,8 @@ public static class TenantRolePermissionTemplates
         "Gps.CommandView", "Gps.CommandSend", "Gps.CommandEngineCutoff", "Gps.CommandPositionRequest",
         "Gps.CommandRestart", "Gps.CommandRelay", "Gps.CommandBuzzer", "Gps.CommandCustomSms", "Gps.CommandRetry", "Gps.CommandCancel",
         "Ai.View", "Ai.Manage", "Ai.ExecuteWrite",
+        "Ai.Chat", "Ai.ViewPredictions", "Ai.RunPredictions",
+        "Ai.ViewRecommendations", "Ai.RefreshRecommendations", "Ai.ViewProviderHealth",
         "Notification.View", "Notification.Manage",
         "Website.View", "Website.Edit", "Website.Publish", "Website.Media",
         "Website.ContactRequests", "Website.DemoRequests", "Website.Legal", "Website.Settings"
@@ -41,6 +43,8 @@ public static class TenantRolePermissionTemplates
         "Gps.CommandView", "Gps.CommandSend", "Gps.CommandEngineCutoff", "Gps.CommandPositionRequest",
         "Gps.CommandRestart", "Gps.CommandRelay", "Gps.CommandBuzzer", "Gps.CommandCustomSms", "Gps.CommandRetry", "Gps.CommandCancel",
         "Ai.View", "Ai.Manage", "Ai.ExecuteWrite",
+        "Ai.Chat", "Ai.ViewPredictions", "Ai.RunPredictions",
+        "Ai.ViewRecommendations", "Ai.RefreshRecommendations", "Ai.ViewProviderHealth",
         "Notification.View", "Notification.Manage"
     ];
 
@@ -65,6 +69,7 @@ public static class TenantRolePermissionTemplates
         "Gps.AlertView", "Gps.AlertAcknowledge",
         "Gps.CommandView", "Gps.CommandSend", "Gps.CommandPositionRequest",
         "Ai.View",
+        "Ai.Chat", "Ai.ViewPredictions", "Ai.ViewRecommendations",
         "Notification.View"
     ];
 

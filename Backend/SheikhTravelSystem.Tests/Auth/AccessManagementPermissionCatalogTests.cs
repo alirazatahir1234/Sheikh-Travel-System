@@ -46,6 +46,12 @@ public class AccessManagementPermissionCatalogTests
         catalog.Should().Contain(AiPermissions.View);
         catalog.Should().Contain(AiPermissions.Manage);
         catalog.Should().Contain(AiPermissions.ExecuteWrite);
+        catalog.Should().Contain(AiPermissions.Chat);
+        catalog.Should().Contain(AiPermissions.ViewPredictions);
+        catalog.Should().Contain(AiPermissions.RunPredictions);
+        catalog.Should().Contain(AiPermissions.ViewRecommendations);
+        catalog.Should().Contain(AiPermissions.RefreshRecommendations);
+        catalog.Should().Contain(AiPermissions.ViewProviderHealth);
         catalog.Should().Contain(NotificationPermissions.View);
         catalog.Should().Contain(NotificationPermissions.Manage);
         catalog.Should().Contain(DriverPermissions.DriverManage);
@@ -84,7 +90,10 @@ public class AccessManagementPermissionCatalogTests
         TenantRolePermissionTemplates.Dispatcher.Should().Contain(OperationsPermissions.BookingUpdate);
         TenantRolePermissionTemplates.Dispatcher.Should().Contain(OperationsPermissions.TripCreate);
         TenantRolePermissionTemplates.Dispatcher.Should().Contain(AiPermissions.View);
+        TenantRolePermissionTemplates.Dispatcher.Should().Contain(AiPermissions.Chat);
+        TenantRolePermissionTemplates.Dispatcher.Should().Contain(AiPermissions.ViewRecommendations);
         TenantRolePermissionTemplates.Dispatcher.Should().NotContain(AiPermissions.ExecuteWrite);
+        TenantRolePermissionTemplates.Dispatcher.Should().NotContain(AiPermissions.RunPredictions);
         TenantRolePermissionTemplates.Dispatcher.Should().NotContain(FinancePermissions.PaymentView);
 
         TenantRolePermissionTemplates.Accountant.Should().Contain(FinancePermissions.PaymentView);
@@ -166,6 +175,34 @@ public class PermissionAuthorizationHandlerTests
 
         var tenants = await EvaluateAsync(user, PlatformPermissions.TenantsManage);
         tenants.HasSucceeded.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Ai_View_satisfies_fine_grained_read_operations()
+    {
+        var user = new ClaimsPrincipal(new ClaimsIdentity(
+        [
+            new Claim("permission", AiPermissions.View)
+        ], "test"));
+
+        (await EvaluateAsync(user, AiPermissions.Chat)).HasSucceeded.Should().BeTrue();
+        (await EvaluateAsync(user, AiPermissions.ViewRecommendations)).HasSucceeded.Should().BeTrue();
+        (await EvaluateAsync(user, AiPermissions.ViewPredictions)).HasSucceeded.Should().BeTrue();
+        (await EvaluateAsync(user, AiPermissions.RunPredictions)).HasSucceeded.Should().BeFalse();
+        (await EvaluateAsync(user, AiPermissions.ViewProviderHealth)).HasSucceeded.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Ai_Manage_satisfies_fine_grained_admin_operations()
+    {
+        var user = new ClaimsPrincipal(new ClaimsIdentity(
+        [
+            new Claim("permission", AiPermissions.Manage)
+        ], "test"));
+
+        (await EvaluateAsync(user, AiPermissions.RunPredictions)).HasSucceeded.Should().BeTrue();
+        (await EvaluateAsync(user, AiPermissions.RefreshRecommendations)).HasSucceeded.Should().BeTrue();
+        (await EvaluateAsync(user, AiPermissions.ViewProviderHealth)).HasSucceeded.Should().BeTrue();
     }
 }
 
