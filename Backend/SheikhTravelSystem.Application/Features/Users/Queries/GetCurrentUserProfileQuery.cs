@@ -1,8 +1,8 @@
-using Dapper;
 using MediatR;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Exceptions;
 using SheikhTravelSystem.Application.Common.Interfaces;
+using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 using SheikhTravelSystem.Application.Features.Users.DTOs;
 
 namespace SheikhTravelSystem.Application.Features.Users.Queries;
@@ -10,7 +10,7 @@ namespace SheikhTravelSystem.Application.Features.Users.Queries;
 public record GetCurrentUserProfileQuery : IRequest<ApiResponse<UserProfileDto>>;
 
 public class GetCurrentUserProfileQueryHandler(
-    IDbConnectionFactory dbFactory,
+    IUserRepository userRepository,
     ICurrentUserService currentUser,
     IPermissionEngine permissionEngine)
     : IRequestHandler<GetCurrentUserProfileQuery, ApiResponse<UserProfileDto>>
@@ -22,21 +22,14 @@ public class GetCurrentUserProfileQueryHandler(
         if (currentUser.UserId is not int userId)
             return ApiResponse<UserProfileDto>.FailResponse("Not authenticated.");
 
-        using var connection = dbFactory.CreateConnection();
-        var row = await connection.QuerySingleOrDefaultAsync<UserQueries.UserRow>(
-            new CommandDefinition(
-                UserQueries.SelectSql + " WHERE u.Id = @Id AND u.IsDeleted = 0",
-                new { Id = userId },
-                cancellationToken: cancellationToken));
-
-        if (row is null)
+        var profile = await userRepository.GetProfileAsync(userId, cancellationToken);
+        if (profile is null)
             throw new NotFoundException("User", userId);
 
-        var roles = await UserRoleAssignment.LoadAssignedAsync(connection, userId, cancellationToken);
         IReadOnlyList<EffectivePermissionDto>? effective = null;
         try
         {
-            var tenantId = row.CompanyId ?? 0;
+            var tenantId = profile.CompanyId ?? 0;
             if (tenantId > 0)
             {
                 var eval = await permissionEngine.EvaluateAsync(userId, tenantId, cancellationToken);
@@ -49,7 +42,7 @@ public class GetCurrentUserProfileQueryHandler(
         }
 
         return ApiResponse<UserProfileDto>.SuccessResponse(
-            UserQueries.ToProfileDto(row, roles.Select(UserRoleAssignment.ToDto).ToList(), effective));
+            profile with { EffectivePermissions = effective });
     }
 }
 
@@ -57,7 +50,7 @@ public record GetCompanyUserSummaryQuery(int? TenantId = null)
     : IRequest<ApiResponse<CompanyUserSummaryDto>>;
 
 public class GetCompanyUserSummaryQueryHandler(
-    IDbConnectionFactory dbFactory,
+    IUserRepository userRepository,
     IPlatformScope platformScope)
     : IRequestHandler<GetCompanyUserSummaryQuery, ApiResponse<CompanyUserSummaryDto>>
 {
@@ -68,25 +61,7 @@ public class GetCompanyUserSummaryQueryHandler(
         var tenantId = request.TenantId ?? platformScope.TenantId;
         platformScope.EnsureTenantAccess(tenantId);
 
-        using var connection = dbFactory.CreateConnection();
-        try
-        {
-            var summary = await UserQueries.LoadCompanyUserSummaryAsync(
-                connection, tenantId, cancellationToken);
-            return ApiResponse<CompanyUserSummaryDto>.SuccessResponse(summary);
-        }
-        catch
-        {
-            var total = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
-                "SELECT COUNT(*) FROM Users WHERE TenantId = @TenantId AND IsDeleted = 0",
-                new { TenantId = tenantId },
-                cancellationToken: cancellationToken));
-            var depts = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
-                "SELECT COUNT(*) FROM Departments WHERE TenantId = @TenantId",
-                new { TenantId = tenantId },
-                cancellationToken: cancellationToken));
-            return ApiResponse<CompanyUserSummaryDto>.SuccessResponse(
-                new CompanyUserSummaryDto(tenantId, total, 0, 0, 0, 0, depts));
-        }
+        var summary = await userRepository.GetCompanyUserSummaryAsync(tenantId, cancellationToken);
+        return ApiResponse<CompanyUserSummaryDto>.SuccessResponse(summary);
     }
 }

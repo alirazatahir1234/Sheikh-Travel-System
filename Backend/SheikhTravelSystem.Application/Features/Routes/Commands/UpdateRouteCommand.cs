@@ -1,9 +1,8 @@
-using Dapper;
 using FluentValidation;
 using MediatR;
 using SheikhTravelSystem.Application.Common;
-using SheikhTravelSystem.Application.Common.Exceptions;
 using SheikhTravelSystem.Application.Common.Interfaces;
+using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 using SheikhTravelSystem.Application.Features.Routes.DTOs;
 
 namespace SheikhTravelSystem.Application.Features.Routes.Commands;
@@ -35,39 +34,12 @@ public class UpdateRouteCommandValidator : AbstractValidator<UpdateRouteCommand>
     }
 }
 
-public class UpdateRouteCommandHandler(IDbConnectionFactory dbFactory)
+public class UpdateRouteCommandHandler(IRouteRepository routeRepository)
     : IRequestHandler<UpdateRouteCommand, ApiResponse<bool>>
 {
     public async Task<ApiResponse<bool>> Handle(UpdateRouteCommand request, CancellationToken cancellationToken)
     {
-        using var connection = dbFactory.CreateConnection();
-        var dto = request.Route;
-
-        var exists = await connection.ExecuteScalarAsync<bool>(
-            new CommandDefinition(
-                "SELECT CASE WHEN EXISTS(SELECT 1 FROM Routes WHERE Id = @Id AND IsDeleted = 0) THEN 1 ELSE 0 END",
-                new { request.Id },
-                cancellationToken: cancellationToken));
-
-        if (!exists)
-            throw new NotFoundException("Route", request.Id);
-
-        await connection.ExecuteAsync(
-            new CommandDefinition(
-                @"UPDATE Routes SET Name = @Name, Source = @Source, Destination = @Destination,
-                  Distance = @Distance, EstimatedMinutes = @EstimatedMinutes, BasePrice = @BasePrice,
-                  IsActive = @IsActive, UpdatedAt = @UpdatedAt,
-                  WaypointsJson = @WaypointsJson, OptimizeMode = @OptimizeMode
-                  WHERE Id = @Id",
-                new
-                {
-                    dto.Name, dto.Source, dto.Destination, dto.Distance,
-                    dto.EstimatedMinutes, dto.BasePrice, dto.IsActive,
-                    dto.WaypointsJson, dto.OptimizeMode,
-                    UpdatedAt = DateTime.UtcNow, request.Id
-                },
-                cancellationToken: cancellationToken));
-
+        await routeRepository.UpdateAsync(request.Id, request.Route, cancellationToken);
         return ApiResponse<bool>.SuccessResponse(true, "Route updated successfully.");
     }
 }

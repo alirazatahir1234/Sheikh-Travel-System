@@ -1,12 +1,12 @@
-using Dapper;
 using MediatR;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Interfaces;
+using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 
 namespace SheikhTravelSystem.Application.Features.Tenants;
 
 public class ProvisionTenantCommandHandler(
-    IDbConnectionFactory dbFactory,
+    ITenantRepository tenantRepository,
     IPlatformScope platformScope,
     ICurrentUserService currentUser,
     ITenantProvisioningService provisioningService)
@@ -17,13 +17,8 @@ public class ProvisionTenantCommandHandler(
         if (!platformScope.IsSuperAdmin)
             return ApiResponse<int>.FailResponse("Only platform super administrators can provision tenants.");
 
-        using var connection = dbFactory.CreateConnection();
         var slug = request.Slug.Trim().ToLowerInvariant();
-        var exists = await connection.ExecuteScalarAsync<bool>(new CommandDefinition(
-            "SELECT CASE WHEN EXISTS(SELECT 1 FROM Tenants WHERE Slug = @Slug) THEN 1 ELSE 0 END",
-            new { Slug = slug }, cancellationToken: cancellationToken));
-
-        if (exists)
+        if (await tenantRepository.SlugExistsAsync(slug, cancellationToken))
             return ApiResponse<int>.FailResponse("Tenant slug already exists.");
 
         var tenantId = await provisioningService.ProvisionAsync(

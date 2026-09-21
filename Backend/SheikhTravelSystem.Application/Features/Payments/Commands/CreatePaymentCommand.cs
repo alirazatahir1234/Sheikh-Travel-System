@@ -1,9 +1,9 @@
-using Dapper;
 using FluentValidation;
 using MediatR;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Exceptions;
 using SheikhTravelSystem.Application.Common.Interfaces;
+using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 using SheikhTravelSystem.Application.Features.Payments.DTOs;
 using SheikhTravelSystem.Application.Features.Notifications;
 using SheikhTravelSystem.Domain.Enums;
@@ -27,42 +27,18 @@ public class CreatePaymentCommandValidator : AbstractValidator<CreatePaymentComm
     }
 }
 
-public class CreatePaymentCommandHandler(IDbConnectionFactory dbFactory, INotificationDecisionEngine decisionEngine)
+public class CreatePaymentCommandHandler(IPaymentRepository paymentRepository, INotificationDecisionEngine decisionEngine)
     : IRequestHandler<CreatePaymentCommand, ApiResponse<int>>
 {
-    /// <summary>
-    /// Dapper maps to a POCO reliably. Do not use nullable ValueTuple here — it can deserialize as null
-    /// even when a row exists, causing false NotFoundException on valid booking ids.
-    /// </summary>
-    private sealed class BookingRowForPayment
-    {
-        public decimal TotalAmount { get; set; }
-        public int Status { get; set; }
-        public string? BookingNumber { get; set; }
-    }
-
     public async Task<ApiResponse<int>> Handle(CreatePaymentCommand request, CancellationToken cancellationToken)
     {
-        using var connection = dbFactory.CreateConnection();
         var dto = request.Payment;
 
-        var booking = await connection.QuerySingleOrDefaultAsync<BookingRowForPayment>(
-            new CommandDefinition(
-                "SELECT TotalAmount, Status, BookingNumber FROM Bookings WHERE Id = @Id AND IsDeleted = 0",
-                new { Id = dto.BookingId },
-                cancellationToken: cancellationToken));
-
+        var booking = await paymentRepository.GetBookingForPaymentAsync(dto.BookingId, cancellationToken);
         if (booking is null)
             throw new NotFoundException("Booking", dto.BookingId);
 
-        // Calculate total already paid
-        var totalPaid = await connection.ExecuteScalarAsync<decimal>(
-            new CommandDefinition(
-                @"SELECT ISNULL(SUM(Amount), 0) FROM Payments
-                  WHERE BookingId = @BookingId AND Status IN (@Paid, @Partial) AND IsDeleted = 0",
-                new { dto.BookingId, Paid = (int)PaymentStatus.Paid, Partial = (int)PaymentStatus.PartiallyPaid },
-                cancellationToken: cancellationToken));
-
+        var totalPaid = await paymentRepository.GetTotalPaidForBookingAsync(dto.BookingId, cancellationToken);
         var remaining = booking.TotalAmount - totalPaid;
 
         if (dto.Amount > remaining)
@@ -72,22 +48,8 @@ public class CreatePaymentCommandHandler(IDbConnectionFactory dbFactory, INotifi
             ? PaymentStatus.Paid
             : PaymentStatus.PartiallyPaid;
 
-        var id = await connection.ExecuteScalarAsync<int>(
-            new CommandDefinition(
-                @"INSERT INTO Payments (BookingId, Amount, PaymentMethod, Status, PaymentDate, TransactionReference, Notes, ReceiptImageData, CreatedAt, IsDeleted)
-                  VALUES (@BookingId, @Amount, @PaymentMethod, @Status, @PaymentDate, @TransactionReference, @Notes, @ReceiptImageData, @CreatedAt, 0);
-                  SELECT SCOPE_IDENTITY();",
-                new
-                {
-                    dto.BookingId, dto.Amount, dto.PaymentMethod,
-                    Status = (int)paymentStatus, PaymentDate = DateTime.UtcNow,
-                    dto.TransactionReference, dto.Notes,
-                    dto.ReceiptImageData,
-                    CreatedAt = DateTime.UtcNow
-                },
-                cancellationToken: cancellationToken));
+        var id = await paymentRepository.CreateAsync(dto, paymentStatus, cancellationToken);
 
-        // Create notification for payment received (decision-gated)
         var bookingNumber = booking.BookingNumber ?? $"#{dto.BookingId}";
         await decisionEngine.DispatchIfAllowedAsync(new NotificationDecisionRequest(
             "payment_received",

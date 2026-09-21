@@ -1,8 +1,7 @@
-using Dapper;
 using FluentValidation;
 using MediatR;
 using SheikhTravelSystem.Application.Common;
-using SheikhTravelSystem.Application.Common.Interfaces;
+using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 using SheikhTravelSystem.Application.Features.Tracking.DTOs;
 
 namespace SheikhTravelSystem.Application.Features.Tracking.Commands;
@@ -19,25 +18,20 @@ public class UpdateLocationCommandValidator : AbstractValidator<UpdateLocationCo
     }
 }
 
-public class UpdateLocationCommandHandler(IDbConnectionFactory dbFactory)
+public class UpdateLocationCommandHandler(ITrackingRepository trackingRepository)
     : IRequestHandler<UpdateLocationCommand, ApiResponse<bool>>
 {
     public async Task<ApiResponse<bool>> Handle(UpdateLocationCommand request, CancellationToken cancellationToken)
     {
-        using var connection = dbFactory.CreateConnection();
         var dto = request.Location;
-
-        await connection.ExecuteAsync(
-            new CommandDefinition(
-                @"INSERT INTO VehicleTracking (VehicleId, DriverId, BookingId, Latitude, Longitude, Speed, Timestamp, CreatedAt, IsDeleted)
-                  VALUES (@VehicleId, @DriverId, @BookingId, @Latitude, @Longitude, @Speed, @Timestamp, @CreatedAt, 0)",
-                new
-                {
-                    dto.VehicleId, dto.DriverId, dto.BookingId,
-                    dto.Latitude, dto.Longitude, dto.Speed,
-                    Timestamp = DateTime.UtcNow, CreatedAt = DateTime.UtcNow
-                },
-                cancellationToken: cancellationToken));
+        await trackingRepository.InsertLocationAsync(
+            dto.VehicleId,
+            dto.DriverId,
+            dto.BookingId,
+            dto.Latitude,
+            dto.Longitude,
+            dto.Speed,
+            cancellationToken);
 
         return ApiResponse<bool>.SuccessResponse(true, "Location updated.");
     }

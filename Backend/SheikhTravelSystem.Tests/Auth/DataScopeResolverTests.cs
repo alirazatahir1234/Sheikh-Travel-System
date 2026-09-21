@@ -1,5 +1,6 @@
 using FluentAssertions;
 using SheikhTravelSystem.Application.Common;
+using SheikhTravelSystem.Infrastructure.Persistence;
 using SheikhTravelSystem.Application.Common.Interfaces;
 
 namespace SheikhTravelSystem.Tests.Auth;
@@ -99,7 +100,7 @@ public class DataScopeResolverTests
 
         var parameters = new Dapper.DynamicParameters();
         var clauses = new List<string>();
-        DataScopeSql.ApplyVehicleScope(parameters, scope, "v", clauses);
+        DataScopeSqlBuilder.ApplyVehicleScope(parameters, scope, "v", clauses);
 
         clauses.Should().ContainSingle(c => c.Contains("BranchId IS NULL") && c.Contains("IN @DsBranchIds"));
         parameters.Get<int[]>("DsBranchIds").Should().Equal(3);

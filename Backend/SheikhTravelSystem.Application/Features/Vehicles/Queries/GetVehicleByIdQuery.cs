@@ -1,8 +1,8 @@
-using Dapper;
 using MediatR;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Exceptions;
 using SheikhTravelSystem.Application.Common.Interfaces;
+using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 using SheikhTravelSystem.Application.Features.GpsTracking.Services;
 using SheikhTravelSystem.Application.Features.Vehicles.DTOs;
 
@@ -11,23 +11,15 @@ namespace SheikhTravelSystem.Application.Features.Vehicles.Queries;
 public record GetVehicleByIdQuery(int Id) : IRequest<ApiResponse<VehicleDto>>;
 
 public class GetVehicleByIdQueryHandler(
-    IDbConnectionFactory dbFactory,
+    IVehicleRepository vehicleRepository,
     ITenantContext tenantContext,
     IFileStorageService fileStorage)
     : IRequestHandler<GetVehicleByIdQuery, ApiResponse<VehicleDto>>
 {
     public async Task<ApiResponse<VehicleDto>> Handle(GetVehicleByIdQuery request, CancellationToken cancellationToken)
     {
-        using var connection = dbFactory.CreateConnection();
-        var tenantId = tenantContext.GetRequiredTenantId();
-
-        var vehicle = await connection.QuerySingleOrDefaultAsync<VehicleDto>(
-            new CommandDefinition(
-                $@"SELECT {VehicleSql.DetailColumns}
-                  {VehicleSql.DetailFrom}
-                  WHERE v.Id = @Id AND v.TenantId = @TenantId AND v.IsDeleted = 0",
-                new { request.Id, TenantId = tenantId },
-                cancellationToken: cancellationToken));
+        var vehicle = await vehicleRepository.GetByIdAsync(
+            request.Id, tenantContext.GetRequiredTenantId(), cancellationToken);
 
         if (vehicle is null)
             throw new NotFoundException("Vehicle", request.Id);
@@ -35,8 +27,6 @@ public class GetVehicleByIdQueryHandler(
         if (!string.IsNullOrWhiteSpace(vehicle.ImageUrl))
             vehicle = vehicle with { ImageUrl = fileStorage.ResolveReadUrl(vehicle.ImageUrl) };
 
-        // Mark GPS timestamps UTC so JSON emits Z — avoids UTC+5 browsers treating
-        // fresh telemetry as ~5 hours stale (false offline on Vehicle Profile).
         var lastSeen = GpsUtcDateTime.AsUtc(vehicle.GpsLastSeenAt);
         var lastUpdate = GpsUtcDateTime.AsUtc(vehicle.LocationLastUpdate);
         vehicle = vehicle with

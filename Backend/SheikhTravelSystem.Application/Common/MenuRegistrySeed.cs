@@ -66,6 +66,8 @@ public static class MenuRegistrySeed
         M("/platform/migrations", "Migration Manager", "Migrations", "Schema migrations", "Platform", null, null, false),
         M("/platform/maintenance", "Database Reset", "Database Reset", "Dev/staging reset", "Platform", null, null, false),
         M("/platform/menu-management", "Menus", "Menus", "Navigation catalog", "Platform", null, null, false),
+        M("/ai", "AI Management", "AI Management", "AI copilots and assistants", "Platform", "AI", "AI", false),
+        M("/mcp", "MCP Console", "MCP Console", "SheikhGo MCP control plane", "Platform", "AI", "AI", false),
     ];
 
     private static MenuEntry M(

@@ -1,8 +1,8 @@
-using Dapper;
 using FluentValidation;
 using MediatR;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Interfaces;
+using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 using SheikhTravelSystem.Application.Features.DriverApp.DTOs;
 
 namespace SheikhTravelSystem.Application.Features.DriverApp.Commands;
@@ -19,7 +19,7 @@ public class SetDriverStatusCommandValidator : AbstractValidator<SetDriverStatus
 }
 
 public class GetDriverStatusQueryHandler(
-    IDbConnectionFactory dbFactory,
+    IDriverAppRepository driverAppRepository,
     ICurrentUserService currentUser,
     ITenantContext tenantContext)
     : IRequestHandler<GetDriverStatusQuery, ApiResponse<DriverStatusDto>>
@@ -29,11 +29,8 @@ public class GetDriverStatusQueryHandler(
         var driverId = currentUser.DriverId;
         if (!driverId.HasValue) return ApiResponse<DriverStatusDto>.FailResponse("Driver identity required.");
 
-        using var connection = dbFactory.CreateConnection();
-        var tenantId = tenantContext.GetRequiredTenantId();
-        var status = await connection.ExecuteScalarAsync<int?>(new CommandDefinition(
-            "SELECT Status FROM Drivers WHERE Id=@DriverId AND TenantId=@TenantId AND IsDeleted=0",
-            new { DriverId = driverId.Value, TenantId = tenantId }, cancellationToken: cancellationToken));
+        var status = await driverAppRepository.GetDriverStatusAsync(
+            driverId.Value, tenantContext.GetRequiredTenantId(), cancellationToken);
         if (!status.HasValue) return ApiResponse<DriverStatusDto>.FailResponse("Driver not found.");
         return ApiResponse<DriverStatusDto>.SuccessResponse(new DriverStatusDto(status.Value, Name(status.Value)));
     }
@@ -50,7 +47,7 @@ public class GetDriverStatusQueryHandler(
 }
 
 public class SetDriverStatusCommandHandler(
-    IDbConnectionFactory dbFactory,
+    IDriverAppRepository driverAppRepository,
     ICurrentUserService currentUser,
     ITenantContext tenantContext)
     : IRequestHandler<SetDriverStatusCommand, ApiResponse<DriverStatusDto>>
@@ -70,14 +67,8 @@ public class SetDriverStatusCommandHandler(
         };
         if (target < 0) return ApiResponse<DriverStatusDto>.FailResponse("Unsupported status.");
 
-        using var connection = dbFactory.CreateConnection();
-        var tenantId = tenantContext.GetRequiredTenantId();
-        var rows = await connection.ExecuteAsync(new CommandDefinition(
-            @"UPDATE Drivers
-              SET Status = @Status, UpdatedAt = GETUTCDATE()
-              WHERE Id = @DriverId AND TenantId = @TenantId AND IsDeleted = 0",
-            new { Status = target, DriverId = driverId.Value, TenantId = tenantId },
-            cancellationToken: cancellationToken));
+        var rows = await driverAppRepository.SetDriverStatusAsync(
+            driverId.Value, tenantContext.GetRequiredTenantId(), target, cancellationToken);
         if (rows <= 0) return ApiResponse<DriverStatusDto>.FailResponse("Driver not found.");
 
         return ApiResponse<DriverStatusDto>.SuccessResponse(new DriverStatusDto(target, GetDriverStatusQueryHandler.Name(target)));

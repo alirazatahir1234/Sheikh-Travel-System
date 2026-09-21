@@ -1,8 +1,7 @@
-using Dapper;
 using MediatR;
 using SheikhTravelSystem.Application.Common;
-using SheikhTravelSystem.Application.Common.Exceptions;
 using SheikhTravelSystem.Application.Common.Interfaces;
+using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 
 namespace SheikhTravelSystem.Application.Features.Customers.Commands;
 
@@ -16,28 +15,12 @@ public record DeleteCustomerCommand(int Id) : IRequest<ApiResponse<bool>>, IAudi
     public int? AuditEntityId => Id;
 }
 
-public class DeleteCustomerCommandHandler(IDbConnectionFactory dbFactory)
+public class DeleteCustomerCommandHandler(ICustomerRepository customerRepository)
     : IRequestHandler<DeleteCustomerCommand, ApiResponse<bool>>
 {
     public async Task<ApiResponse<bool>> Handle(DeleteCustomerCommand request, CancellationToken cancellationToken)
     {
-        using var connection = dbFactory.CreateConnection();
-
-        var exists = await connection.ExecuteScalarAsync<bool>(
-            new CommandDefinition(
-                "SELECT CASE WHEN EXISTS(SELECT 1 FROM Customers WHERE Id = @Id AND IsDeleted = 0) THEN 1 ELSE 0 END",
-                new { request.Id },
-                cancellationToken: cancellationToken));
-
-        if (!exists)
-            throw new NotFoundException("Customer", request.Id);
-
-        await connection.ExecuteAsync(
-            new CommandDefinition(
-                "UPDATE Customers SET IsDeleted = 1, UpdatedAt = @UpdatedAt WHERE Id = @Id",
-                new { request.Id, UpdatedAt = DateTime.UtcNow },
-                cancellationToken: cancellationToken));
-
+        await customerRepository.SoftDeleteAsync(request.Id, cancellationToken);
         return ApiResponse<bool>.SuccessResponse(true, "Customer deleted successfully.");
     }
 }

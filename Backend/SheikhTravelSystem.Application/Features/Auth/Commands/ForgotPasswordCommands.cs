@@ -1,10 +1,10 @@
-using Dapper;
 using FluentValidation;
 using MediatR;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Interfaces;
+using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 using SheikhTravelSystem.Application.Features.Notifications;
 using System.Net;
 using System.Security.Cryptography;
@@ -23,7 +23,7 @@ public class ForgotPasswordCommandValidator : AbstractValidator<ForgotPasswordCo
 }
 
 public class ForgotPasswordCommandHandler(
-    IDbConnectionFactory dbFactory,
+    IAuthRepository authRepository,
     IEnumerable<INotificationChannelSender> channelSenders,
     IConfiguration configuration,
     ILogger<ForgotPasswordCommandHandler> logger)
@@ -34,30 +34,16 @@ public class ForgotPasswordCommandHandler(
         // Always return the same message to avoid account enumeration.
         const string okMessage = "If an account exists for that email, a reset link has been sent.";
 
-        using var connection = dbFactory.CreateConnection();
-        var user = await connection.QuerySingleOrDefaultAsync<(int Id, int TenantId, string Email, string FullName)>(
-            new CommandDefinition(
-                @"SELECT TOP 1 Id, TenantId, Email, FullName
-                  FROM Users
-                  WHERE Email = @Email AND IsDeleted = 0 AND IsActive = 1",
-                new { request.Email },
-                cancellationToken: cancellationToken));
+        var user = await authRepository.FindActiveUserByEmailAsync(request.Email, cancellationToken);
 
-        if (user == default)
+        if (user is null)
             return ApiResponse<object>.SuccessResponse(new { }, okMessage);
 
         var token = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
         var tokenHash = Sha256(token);
         var expiry = DateTime.UtcNow.AddHours(2);
 
-        await connection.ExecuteAsync(new CommandDefinition(
-            @"UPDATE Users
-              SET PasswordResetTokenHash = @TokenHash,
-                  PasswordResetTokenExpiryUtc = @Expiry,
-                  UpdatedAt = @UpdatedAt
-              WHERE Id = @Id",
-            new { TokenHash = tokenHash, Expiry = expiry, UpdatedAt = DateTime.UtcNow, user.Id },
-            cancellationToken: cancellationToken));
+        await authRepository.SetPasswordResetTokenAsync(user.Id, tokenHash, expiry, cancellationToken);
 
         var portal = configuration["Notifications:Email:PortalUrl"]?.TrimEnd('/')
             ?? "https://app.sheikhgo.com";
@@ -117,7 +103,7 @@ public class ResetPasswordWithTokenCommandValidator : AbstractValidator<ResetPas
 }
 
 public class ResetPasswordWithTokenCommandHandler(
-    IDbConnectionFactory dbFactory,
+    IAuthRepository authRepository,
     IPasswordHasher passwordHasher,
     ISecurityEngine securityEngine,
     ILogger<ResetPasswordWithTokenCommandHandler> logger)
@@ -126,21 +112,9 @@ public class ResetPasswordWithTokenCommandHandler(
     public async Task<ApiResponse<object>> Handle(ResetPasswordWithTokenCommand request, CancellationToken cancellationToken)
     {
         var tokenHash = ForgotPasswordCommandHandler.Sha256(request.Token);
-        using var connection = dbFactory.CreateConnection();
+        var user = await authRepository.FindUserByValidPasswordResetTokenAsync(tokenHash, cancellationToken);
 
-        var user = await connection.QuerySingleOrDefaultAsync<(int Id, int TenantId)>(
-            new CommandDefinition(
-                @"SELECT TOP 1 Id, TenantId
-                  FROM Users
-                  WHERE PasswordResetTokenHash = @TokenHash
-                    AND PasswordResetTokenExpiryUtc IS NOT NULL
-                    AND PasswordResetTokenExpiryUtc > @Now
-                    AND IsDeleted = 0
-                    AND IsActive = 1",
-                new { TokenHash = tokenHash, Now = DateTime.UtcNow },
-                cancellationToken: cancellationToken));
-
-        if (user == default)
+        if (user is null)
             return ApiResponse<object>.FailResponse("This reset link is invalid or has expired.");
 
         try
@@ -166,18 +140,7 @@ public class ResetPasswordWithTokenCommandHandler(
         }
 
         var hash = passwordHasher.Hash(request.NewPassword);
-        await connection.ExecuteAsync(new CommandDefinition(
-            @"UPDATE Users
-              SET PasswordHash = @Hash,
-                  PasswordResetTokenHash = NULL,
-                  PasswordResetTokenExpiryUtc = NULL,
-                  PasswordChangedAt = @Now,
-                  FailedLoginAttempts = 0,
-                  LockoutEndUtc = NULL,
-                  UpdatedAt = @Now
-              WHERE Id = @Id",
-            new { Hash = hash, Now = DateTime.UtcNow, user.Id },
-            cancellationToken: cancellationToken));
+        await authRepository.ResetPasswordAsync(user.Id, hash, cancellationToken);
 
         return ApiResponse<object>.SuccessResponse(new { }, "Password updated. You can sign in with your new password.");
     }

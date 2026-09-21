@@ -1,15 +1,14 @@
-using Dapper;
 using MediatR;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Interfaces;
-using System.Data;
+using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 
 namespace SheikhTravelSystem.Application.Features.Platform;
 
 /// <summary>Stage 9 Menu Builder: catalog load + runtime nav filtering helpers.</summary>
-internal static class MenuBuilderQueries
+public static class MenuBuilderQueries
 {
-    internal sealed record ModuleRow(
+    public sealed record ModuleRow(
         int Id,
         string Name,
         string ModuleKey,
@@ -20,7 +19,7 @@ internal static class MenuBuilderQueries
         string? Description,
         bool Visible);
 
-    internal sealed record MenuRow(
+    public sealed record MenuRow(
         int Id,
         int ModuleId,
         int? ParentId,
@@ -37,79 +36,6 @@ internal static class MenuBuilderQueries
         string? FeatureKey,
         string? ModuleKey,
         bool IsMobileSupported);
-
-    public static async Task<(IReadOnlyList<ModuleRow> Modules, IReadOnlyList<MenuRow> Menus)> LoadNavTablesAsync(
-        IDbConnection connection,
-        CancellationToken cancellationToken,
-        bool activeMenusOnly = false)
-    {
-        try
-        {
-            var modules = (await connection.QueryAsync<ModuleRow>(new CommandDefinition("""
-                SELECT Id, Name, ModuleKey, Icon, SortOrder, IsCollapsible,
-                       COALESCE(DisplayName, Name) AS DisplayName,
-                       Description,
-                       COALESCE(Visible, 1) AS Visible
-                FROM PlatformModules
-                ORDER BY SortOrder, Id
-                """, cancellationToken: cancellationToken))).ToList();
-
-            var menuSql = activeMenusOnly
-                ? """
-                  SELECT Id, ModuleId, ParentId, Name, Route, Icon, PermissionCode, SortOrder, IsActive,
-                         COALESCE(DisplayName, Name) AS DisplayName, Description, Category,
-                         COALESCE(Visible, 1) AS Visible, FeatureKey, ModuleKey,
-                         COALESCE(IsMobileSupported, 0) AS IsMobileSupported
-                  FROM PlatformMenus
-                  WHERE IsActive = 1 AND COALESCE(Visible, 1) = 1
-                  ORDER BY SortOrder, Id
-                  """
-                : """
-                  SELECT Id, ModuleId, ParentId, Name, Route, Icon, PermissionCode, SortOrder, IsActive,
-                         COALESCE(DisplayName, Name) AS DisplayName, Description, Category,
-                         COALESCE(Visible, 1) AS Visible, FeatureKey, ModuleKey,
-                         COALESCE(IsMobileSupported, 0) AS IsMobileSupported
-                  FROM PlatformMenus
-                  ORDER BY SortOrder, Id
-                  """;
-
-            var menus = (await connection.QueryAsync<MenuRow>(
-                new CommandDefinition(menuSql, cancellationToken: cancellationToken))).ToList();
-
-            return (modules, menus);
-        }
-        catch
-        {
-            // Pre-migration fallback (no metadata columns).
-            var modules = (await connection.QueryAsync<ModuleRow>(new CommandDefinition("""
-                SELECT Id, Name, ModuleKey, Icon, SortOrder, IsCollapsible,
-                       Name AS DisplayName, CAST(NULL AS NVARCHAR(500)) AS Description, CAST(1 AS BIT) AS Visible
-                FROM PlatformModules
-                ORDER BY SortOrder, Id
-                """, cancellationToken: cancellationToken))).ToList();
-
-            var menus = (await connection.QueryAsync<MenuRow>(new CommandDefinition("""
-                SELECT Id, ModuleId, ParentId, Name, Route, Icon, PermissionCode, SortOrder, IsActive,
-                       Name AS DisplayName, CAST(NULL AS NVARCHAR(500)) AS Description,
-                       CAST(NULL AS NVARCHAR(100)) AS Category, CAST(1 AS BIT) AS Visible,
-                       CAST(NULL AS NVARCHAR(100)) AS FeatureKey, CAST(NULL AS NVARCHAR(100)) AS ModuleKey,
-                       CAST(0 AS BIT) AS IsMobileSupported
-                FROM PlatformMenus
-                WHERE (@ActiveOnly = 0 OR IsActive = 1)
-                ORDER BY SortOrder, Id
-                """,
-                new { ActiveOnly = activeMenusOnly ? 1 : 0 },
-                cancellationToken: cancellationToken))).ToList();
-
-            return (modules, menus);
-        }
-    }
-
-    public static async Task<Dictionary<string, bool>> LoadTenantFeatureFlagsAsync(
-        IDbConnection connection,
-        int tenantId,
-        CancellationToken cancellationToken)
-        => await FeatureRegistryQueries.LoadTenantFeatureFlagsAsync(connection, tenantId, cancellationToken);
 
     public static bool PassesFeatureGate(string? featureKey, IReadOnlyDictionary<string, bool> featureFlags)
     {
@@ -136,7 +62,7 @@ internal static class MenuBuilderQueries
             "customers" => enabled.Contains("customers", StringComparer.OrdinalIgnoreCase),
             "finance" => enabled.Contains("payments", StringComparer.OrdinalIgnoreCase),
             "analytics" => enabled.Any(k => k is "reports" or "audit-logs"),
-            "administration" => enabled.Any(k => k is "users" or "driver-allowance-rules"),
+            "administration" => enabled.Any(k => k is "users" or "driver-allowance-rules" or "dashboard"),
             "organization" => enabled.Any(k => k is "users" or "driver-allowance-rules" or "organization" or "platform"),
             "access_control" => enabled.Any(k => k is "users" or "driver-allowance-rules" or "access_control"),
             "platform" => true,
@@ -290,164 +216,60 @@ internal static class MenuBuilderQueries
     }
 }
 
-public class GetMenuCatalogQueryHandler(IDbConnectionFactory dbFactory)
+public class GetMenuCatalogQueryHandler(IPlatformRepository platformRepository)
     : IRequestHandler<GetMenuCatalogQuery, ApiResponse<MenuCatalogDto>>
 {
     public async Task<ApiResponse<MenuCatalogDto>> Handle(GetMenuCatalogQuery request, CancellationToken cancellationToken)
     {
-        using var connection = dbFactory.CreateConnection();
-        var (modules, menus) = await MenuBuilderQueries.LoadNavTablesAsync(connection, cancellationToken);
+        var (modules, menus) = await platformRepository.LoadNavTablesAsync(cancellationToken: cancellationToken);
         return ApiResponse<MenuCatalogDto>.SuccessResponse(MenuBuilderQueries.ToCatalog(modules, menus));
     }
 }
 
-public class UpdateMenuModuleCommandHandler(IDbConnectionFactory dbFactory)
+public class UpdateMenuModuleCommandHandler(IPlatformRepository platformRepository)
     : IRequestHandler<UpdateMenuModuleCommand, ApiResponse<bool>>
 {
     public async Task<ApiResponse<bool>> Handle(UpdateMenuModuleCommand request, CancellationToken cancellationToken)
     {
-        using var connection = dbFactory.CreateConnection();
-        var p = request.Payload;
-        var rows = await connection.ExecuteAsync(new CommandDefinition("""
-            UPDATE PlatformModules SET
-                DisplayName = COALESCE(@DisplayName, DisplayName, Name),
-                Icon = @Icon,
-                SortOrder = @SortOrder,
-                Visible = @Visible,
-                IsCollapsible = @IsCollapsible
-            WHERE Id = @Id;
-            """,
-            new
-            {
-                request.Id,
-                p.DisplayName,
-                p.Icon,
-                p.SortOrder,
-                p.Visible,
-                p.IsCollapsible
-            },
-            cancellationToken: cancellationToken));
-
+        var rows = await platformRepository.UpdateMenuModuleAsync(request.Id, request.Payload, cancellationToken);
         return rows == 0
             ? ApiResponse<bool>.FailResponse("Menu module not found.")
             : ApiResponse<bool>.SuccessResponse(true, "Menu module updated.");
     }
 }
 
-public class UpdateMenuItemCommandHandler(IDbConnectionFactory dbFactory)
+public class UpdateMenuItemCommandHandler(IPlatformRepository platformRepository)
     : IRequestHandler<UpdateMenuItemCommand, ApiResponse<bool>>
 {
     public async Task<ApiResponse<bool>> Handle(UpdateMenuItemCommand request, CancellationToken cancellationToken)
     {
-        using var connection = dbFactory.CreateConnection();
-        var p = request.Payload;
-        var rows = await connection.ExecuteAsync(new CommandDefinition("""
-            UPDATE PlatformMenus SET
-                DisplayName = COALESCE(@DisplayName, DisplayName, Name),
-                Description = @Description,
-                Category = @Category,
-                Route = @Route,
-                Icon = @Icon,
-                PermissionCode = @PermissionCode,
-                SortOrder = @SortOrder,
-                IsActive = @IsActive,
-                Visible = @Visible,
-                FeatureKey = @FeatureKey,
-                ModuleKey = @ModuleKey,
-                IsMobileSupported = @IsMobileSupported,
-                UpdatedAt = SYSUTCDATETIME()
-            WHERE Id = @Id;
-            """,
-            new
-            {
-                request.Id,
-                p.DisplayName,
-                p.Description,
-                p.Category,
-                p.Route,
-                p.Icon,
-                p.PermissionCode,
-                p.SortOrder,
-                p.IsActive,
-                p.Visible,
-                p.FeatureKey,
-                p.ModuleKey,
-                p.IsMobileSupported
-            },
-            cancellationToken: cancellationToken));
-
+        var rows = await platformRepository.UpdateMenuItemAsync(request.Id, request.Payload, cancellationToken);
         return rows == 0
             ? ApiResponse<bool>.FailResponse("Menu item not found.")
             : ApiResponse<bool>.SuccessResponse(true, "Menu item updated.");
     }
 }
 
-public class CreateMenuItemCommandHandler(IDbConnectionFactory dbFactory)
+public class CreateMenuItemCommandHandler(IPlatformRepository platformRepository)
     : IRequestHandler<CreateMenuItemCommand, ApiResponse<int>>
 {
     public async Task<ApiResponse<int>> Handle(CreateMenuItemCommand request, CancellationToken cancellationToken)
     {
-        using var connection = dbFactory.CreateConnection();
         var p = request.Payload;
-
-        var moduleExists = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
-            "SELECT COUNT(1) FROM PlatformModules WHERE Id = @ModuleId",
-            new { p.ModuleId },
-            cancellationToken: cancellationToken));
-        if (moduleExists == 0)
+        if (!await platformRepository.PlatformModuleExistsAsync(p.ModuleId, cancellationToken))
             return ApiResponse<int>.FailResponse("Module not found.");
 
-        var name = string.IsNullOrWhiteSpace(p.Name) ? "New Menu" : p.Name.Trim();
-        var displayName = string.IsNullOrWhiteSpace(p.DisplayName) ? name : p.DisplayName!.Trim();
-
-        var id = await connection.ExecuteScalarAsync<int>(new CommandDefinition("""
-            INSERT INTO PlatformMenus (
-                ModuleId, ParentId, Name, Route, Icon, PermissionCode, SortOrder, IsActive,
-                DisplayName, Description, Category, Visible, FeatureKey, ModuleKey, IsMobileSupported, UpdatedAt)
-            OUTPUT INSERTED.Id
-            VALUES (
-                @ModuleId, NULL, @Name, @Route, @Icon, @PermissionCode, @SortOrder, 1,
-                @DisplayName, @Description, @Category, @Visible, @FeatureKey, @ModuleKey, @IsMobileSupported, SYSUTCDATETIME());
-            """,
-            new
-            {
-                p.ModuleId,
-                Name = name,
-                DisplayName = displayName,
-                p.Description,
-                p.Category,
-                p.Route,
-                p.Icon,
-                p.PermissionCode,
-                p.SortOrder,
-                p.Visible,
-                p.FeatureKey,
-                p.ModuleKey,
-                p.IsMobileSupported
-            },
-            cancellationToken: cancellationToken));
-
+        var id = await platformRepository.CreateMenuItemAsync(p, cancellationToken);
         return ApiResponse<int>.SuccessResponse(id, "Menu item created.");
     }
 }
 
-public class DeleteMenuItemCommandHandler(IDbConnectionFactory dbFactory)
+public class DeleteMenuItemCommandHandler(IPlatformRepository platformRepository)
     : IRequestHandler<DeleteMenuItemCommand, ApiResponse<bool>>
 {
     public async Task<ApiResponse<bool>> Handle(DeleteMenuItemCommand request, CancellationToken cancellationToken)
     {
-        using var connection = dbFactory.CreateConnection();
-        // Soft-deactivate preferred over hard delete for seeded items.
-        var rows = await connection.ExecuteAsync(new CommandDefinition("""
-            UPDATE PlatformMenus SET
-                IsActive = 0,
-                Visible = 0,
-                UpdatedAt = SYSUTCDATETIME()
-            WHERE Id = @Id;
-            """,
-            new { request.Id },
-            cancellationToken: cancellationToken));
-
+        var rows = await platformRepository.DeleteMenuItemAsync(request.Id, cancellationToken);
         return rows == 0
             ? ApiResponse<bool>.FailResponse("Menu item not found.")
             : ApiResponse<bool>.SuccessResponse(true, "Menu item deactivated.");

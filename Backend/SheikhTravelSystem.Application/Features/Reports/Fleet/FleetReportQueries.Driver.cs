@@ -1,4 +1,3 @@
-using Dapper;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Features.GpsTracking.Queries;
 
@@ -7,7 +6,7 @@ namespace SheikhTravelSystem.Application.Features.Reports.Fleet;
 public partial class GetFleetReportQueryHandler
 {
     private async Task<ReportResponseDto> BuildDriverReportAsync(
-        System.Data.IDbConnection connection, int tenantId, DateTime from, DateTime to,
+        int tenantId, DateTime from, DateTime to,
         int? branchId, int? departmentId, CancellationToken ct)
     {
         var columns = new[]
@@ -24,18 +23,8 @@ public partial class GetFleetReportQueryHandler
             new ReportColumnDto("licenseExpiry", "License Expiry", "date")
         };
 
-        var clauses = new List<string> { "TenantId = @TenantId", "IsDeleted = 0" };
-        var p = new DynamicParameters();
-        p.Add("TenantId", tenantId);
-        if (branchId.HasValue) { clauses.Add("BranchId = @BranchId"); p.Add("BranchId", branchId.Value); }
-        if (departmentId.HasValue) { clauses.Add("DepartmentId = @DepartmentId"); p.Add("DepartmentId", departmentId.Value); }
-        var where = FleetReportSql.BuildWhere(clauses);
-
-        var profiles = (await connection.QueryAsync<(int Id, string FullName, string LicenseNumber, string Phone, DateTime LicenseExpiryDate)>(
-            new CommandDefinition($"""
-                SELECT Id, FullName, LicenseNumber, Phone, LicenseExpiryDate
-                FROM Drivers {where}
-                """, p, cancellationToken: ct))).ToDictionary(d => d.Id, d => d);
+        var profiles = (await reportRepository.GetDriverProfilesAsync(
+            tenantId, branchId, departmentId, ct)).ToDictionary(d => d.Id, d => d);
 
         if (profiles.Count == 0)
         {
@@ -52,17 +41,11 @@ public partial class GetFleetReportQueryHandler
         // duration) — resolved separately here via the same trip+AssignmentHistory attribution the
         // scoring engine itself uses (GetDriverScoreRankingQueryHandler), copied rather than shared,
         // per this phase's mirroring convention.
-        var drivingMinutesByDriver = await ResolveDrivingMinutesByDriverAsync(connection, tenantId, from, to, branchId, departmentId, ct);
+        var drivingMinutesByDriver = await ResolveDrivingMinutesByDriverAsync(tenantId, from, to, branchId, departmentId, ct);
 
         // Current vehicle assignment per driver (latest Active AssignmentHistory row).
-        var currentVehicles = (await connection.QueryAsync<(int DriverId, string VehicleName)>(new CommandDefinition("""
-            SELECT ah.DriverId, v.Name AS VehicleName
-            FROM AssignmentHistory ah
-            INNER JOIN Vehicles v ON v.Id = ah.VehicleId
-            WHERE ah.TenantId = @TenantId AND ah.IsDeleted = 0 AND ah.Status = N'Active'
-              AND ah.DriverId IN @DriverIds
-            """, new { TenantId = tenantId, DriverIds = profiles.Keys.ToList() }, cancellationToken: ct)))
-            .GroupBy(x => x.DriverId).ToDictionary(g => g.Key, g => g.First().VehicleName);
+        var currentVehicles = await reportRepository.GetActiveAssignmentVehicleNamesAsync(
+            tenantId, profiles.Keys.ToList(), ct);
 
         var rows = profiles.Values.Select(d =>
         {
@@ -93,7 +76,7 @@ public partial class GetFleetReportQueryHandler
     }
 
     private async Task<Dictionary<int, int>> ResolveDrivingMinutesByDriverAsync(
-        System.Data.IDbConnection connection, int tenantId, DateTime from, DateTime to,
+        int tenantId, DateTime from, DateTime to,
         int? branchId, int? departmentId, CancellationToken ct)
     {
         var tripsResponse = await mediator.Send(
@@ -102,14 +85,8 @@ public partial class GetFleetReportQueryHandler
         if (trips.Count == 0) return [];
 
         var vehicleIds = trips.Select(t => t.VehicleId).Distinct().ToList();
-        var assignments = (await connection.QueryAsync<(int VehicleId, int? DriverId, DateTime StartAt, DateTime? EndAt)>(
-            new CommandDefinition("""
-                SELECT VehicleId, DriverId, StartAt, EndAt
-                FROM AssignmentHistory
-                WHERE TenantId = @TenantId AND IsDeleted = 0 AND DriverId IS NOT NULL
-                  AND VehicleId IN @VehicleIds
-                  AND StartAt <= @To AND (EndAt IS NULL OR EndAt >= @From)
-                """, new { TenantId = tenantId, VehicleIds = vehicleIds, From = from, To = to }, cancellationToken: ct))).ToList();
+        var assignments = await reportRepository.GetAssignmentWindowsAsync(
+            tenantId, vehicleIds, from, to, ct);
 
         int? ResolveDriver(int vehicleId, DateTime at) =>
             assignments.FirstOrDefault(a => a.VehicleId == vehicleId && a.StartAt <= at && (a.EndAt == null || a.EndAt >= at)).DriverId;

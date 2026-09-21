@@ -1,9 +1,9 @@
-using Dapper;
 using FluentValidation;
 using MediatR;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Exceptions;
 using SheikhTravelSystem.Application.Common.Interfaces;
+using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 using SheikhTravelSystem.Application.Features.Users.DTOs;
 
 namespace SheikhTravelSystem.Application.Features.Users.Commands;
@@ -36,21 +36,15 @@ public class UpdateUserCommandValidator : AbstractValidator<UpdateUserCommand>
 }
 
 public class UpdateUserCommandHandler(
-    IDbConnectionFactory dbFactory,
+    IUserRepository userRepository,
     IPlatformScope platformScope,
     ICurrentUserService currentUser) : IRequestHandler<UpdateUserCommand, ApiResponse<bool>>
 {
     public async Task<ApiResponse<bool>> Handle(UpdateUserCommand request, CancellationToken cancellationToken)
     {
-        using var connection = dbFactory.CreateConnection();
         var dto = request.User;
 
-        var currentTenantId = await connection.ExecuteScalarAsync<int?>(
-            new CommandDefinition(
-                "SELECT TenantId FROM Users WHERE Id = @Id AND IsDeleted = 0",
-                new { request.Id },
-                cancellationToken: cancellationToken));
-
+        var currentTenantId = await userRepository.GetTenantIdAsync(request.Id, cancellationToken);
         if (!currentTenantId.HasValue)
             throw new NotFoundException("User", request.Id);
 
@@ -60,92 +54,44 @@ public class UpdateUserCommandHandler(
         if (tenantId != currentTenantId.Value)
             platformScope.EnsureTenantAccess(tenantId);
 
-        var emailConflict = await connection.ExecuteScalarAsync<bool>(
-            new CommandDefinition(
-                @"SELECT CASE WHEN EXISTS(
-                    SELECT 1 FROM Users WHERE Email = @Email AND Id != @Id AND TenantId = @TenantId AND IsDeleted = 0
-                ) THEN 1 ELSE 0 END",
-                new { dto.Email, request.Id, TenantId = tenantId },
-                cancellationToken: cancellationToken));
-
+        var emailConflict = await userRepository.EmailExistsForOtherAsync(
+            dto.Email, request.Id, tenantId, cancellationToken);
         if (emailConflict)
             throw new ConflictException($"Email '{dto.Email}' is already in use.");
 
-        await UserQueries.EnsureOrgBelongsToTenantAsync(
-            connection, tenantId, dto.BranchId, dto.DepartmentId, cancellationToken);
+        await userRepository.EnsureOrgBelongsToTenantAsync(
+            tenantId, dto.BranchId, dto.DepartmentId, cancellationToken);
 
         var status = UserLifecycle.Normalize(dto.Status, dto.IsActive);
         var isActive = UserLifecycle.IsActiveStatus(status);
         var employeeType = EmployeeTypes.Normalize(dto.EmployeeType);
 
-        try
-        {
-            await connection.ExecuteAsync(
-                new CommandDefinition(
-                    @"UPDATE Users SET
-                        TenantId = @TenantId,
-                        FullName = @FullName, Email = @Email, Phone = @Phone,
-                        Role = @Role, IsActive = @IsActive, UpdatedAt = @UpdatedAt,
-                        BranchId = @BranchId, DepartmentId = @DepartmentId,
-                        JobTitle = @JobTitle, EmployeeCode = @EmployeeCode, EmployeeType = @EmployeeType,
-                        Status = @Status,
-                        DefaultWorkspaceKey = @DefaultWorkspaceKey,
-                        DefaultDashboardKey = @DefaultDashboardKey,
-                        HomeRoute = @HomeRoute, TimeZone = @TimeZone,
-                        Language = @Language, Theme = @Theme, AvatarUrl = @AvatarUrl
-                      WHERE Id = @Id",
-                    new
-                    {
-                        TenantId = tenantId,
-                        dto.FullName,
-                        dto.Email,
-                        dto.Phone,
-                        Role = (int)dto.Role,
-                        IsActive = isActive,
-                        UpdatedAt = DateTime.UtcNow,
-                        request.Id,
-                        dto.BranchId,
-                        dto.DepartmentId,
-                        dto.JobTitle,
-                        dto.EmployeeCode,
-                        EmployeeType = employeeType,
-                        Status = status,
-                        dto.DefaultWorkspaceKey,
-                        dto.DefaultDashboardKey,
-                        dto.HomeRoute,
-                        dto.TimeZone,
-                        dto.Language,
-                        dto.Theme,
-                        dto.AvatarUrl
-                    },
-                    cancellationToken: cancellationToken));
-        }
-        catch
-        {
-            await connection.ExecuteAsync(
-                new CommandDefinition(
-                    @"UPDATE Users SET TenantId = @TenantId, FullName = @FullName, Email = @Email, Phone = @Phone,
-                      Role = @Role, IsActive = @IsActive, UpdatedAt = @UpdatedAt,
-                      BranchId = @BranchId, DepartmentId = @DepartmentId
-                      WHERE Id = @Id",
-                    new
-                    {
-                        TenantId = tenantId,
-                        dto.FullName,
-                        dto.Email,
-                        dto.Phone,
-                        Role = (int)dto.Role,
-                        IsActive = isActive,
-                        UpdatedAt = DateTime.UtcNow,
-                        request.Id,
-                        dto.BranchId,
-                        dto.DepartmentId
-                    },
-                    cancellationToken: cancellationToken));
-        }
+        await userRepository.UpdateAsync(
+            request.Id,
+            new UserUpdateModel(
+                tenantId,
+                dto.FullName,
+                dto.Email,
+                dto.Phone,
+                dto.Role,
+                isActive,
+                DateTime.UtcNow,
+                dto.BranchId,
+                dto.DepartmentId,
+                dto.JobTitle,
+                dto.EmployeeCode,
+                employeeType,
+                status,
+                dto.DefaultWorkspaceKey,
+                dto.DefaultDashboardKey,
+                dto.HomeRoute,
+                dto.TimeZone,
+                dto.Language,
+                dto.Theme,
+                dto.AvatarUrl),
+            cancellationToken);
 
-        await UserRoleAssignment.SyncLegacyRoleAsync(
-            connection,
+        await userRepository.SyncLegacyRoleAsync(
             request.Id,
             tenantId,
             dto.Role,

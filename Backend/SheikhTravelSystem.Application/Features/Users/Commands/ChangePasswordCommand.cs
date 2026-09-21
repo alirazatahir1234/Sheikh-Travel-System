@@ -1,9 +1,9 @@
-using Dapper;
 using FluentValidation;
 using MediatR;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Exceptions;
 using SheikhTravelSystem.Application.Common.Interfaces;
+using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 
 namespace SheikhTravelSystem.Application.Features.Users.Commands;
 
@@ -28,23 +28,15 @@ public class ChangePasswordCommandValidator : AbstractValidator<ChangePasswordCo
 }
 
 public class ChangePasswordCommandHandler(
-    IDbConnectionFactory dbFactory,
+    IUserRepository userRepository,
     IPasswordHasher hasher,
-    ISecurityEngine securityEngine,
-    ITenantContext tenantContext)
+    ISecurityEngine securityEngine)
     : IRequestHandler<ChangePasswordCommand, ApiResponse<bool>>
 {
     public async Task<ApiResponse<bool>> Handle(ChangePasswordCommand request, CancellationToken cancellationToken)
     {
-        using var connection = dbFactory.CreateConnection();
-
-        var user = await connection.QuerySingleOrDefaultAsync<(int Id, int TenantId, string PasswordHash)>(
-            new CommandDefinition(
-                "SELECT Id, TenantId, PasswordHash FROM Users WHERE Id = @UserId AND IsDeleted = 0",
-                new { request.UserId },
-                cancellationToken: cancellationToken));
-
-        if (user == default)
+        var user = await userRepository.GetPasswordInfoAsync(request.UserId, cancellationToken);
+        if (user is null)
             throw new NotFoundException("User", request.UserId);
 
         if (!hasher.Verify(request.CurrentPassword, user.PasswordHash))
@@ -53,20 +45,7 @@ public class ChangePasswordCommandHandler(
         await EnsurePasswordPolicyAsync(user.TenantId, request.NewPassword, cancellationToken);
 
         var newHash = hasher.Hash(request.NewPassword);
-
-        await connection.ExecuteAsync(
-            new CommandDefinition(
-                @"UPDATE Users SET PasswordHash = @Hash, UpdatedAt = @UpdatedAt,
-                  PasswordChangedAt = @PasswordChangedAt, FailedLoginAttempts = 0, LockoutEndUtc = NULL
-                  WHERE Id = @Id",
-                new
-                {
-                    Hash = newHash,
-                    UpdatedAt = DateTime.UtcNow,
-                    PasswordChangedAt = DateTime.UtcNow,
-                    Id = request.UserId
-                },
-                cancellationToken: cancellationToken));
+        await userRepository.ChangePasswordAsync(request.UserId, newHash, cancellationToken);
 
         return ApiResponse<bool>.SuccessResponse(true, "Password changed successfully.");
     }

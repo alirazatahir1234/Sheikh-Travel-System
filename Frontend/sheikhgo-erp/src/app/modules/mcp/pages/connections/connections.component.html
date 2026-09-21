@@ -1,0 +1,44 @@
+<div class="page" *ngIf="catalog as c">
+  <header>
+    <h2>Connections</h2>
+    <p>
+      SheikhGo-MCP speaks MCP over <strong>stdio</strong>. Point Cursor or Claude at the local server;
+      this ERP page only documents how to connect.
+    </p>
+  </header>
+
+  <div class="cards">
+    @for (conn of c.connections; track conn.id) {
+      <article class="card">
+        <div class="card-head">
+          <mat-icon>{{ conn.id === 'cursor' ? 'terminal' : 'smart_toy' }}</mat-icon>
+          <div>
+            <h3>{{ conn.name }}</h3>
+            <p>{{ conn.hint }}</p>
+          </div>
+        </div>
+        <pre><code>{{ conn.id === 'cursor' ? cursorSnippet : claudeSnippet }}</code></pre>
+        <button
+          mat-stroked-button
+          type="button"
+          color="primary"
+          (click)="copy(conn.id === 'cursor' ? cursorSnippet : claudeSnippet, conn.name)"
+        >
+          <mat-icon>content_copy</mat-icon>
+          Copy sample config
+        </button>
+      </article>
+    }
+  </div>
+
+  <section class="tips">
+    <h3>Checklist</h3>
+    <ol>
+      <li>Clone / pull SheikhGo-MCP and run <code>npm install</code>.</li>
+      <li>Set <code>SHEIKHGO_REPOSITORY</code> to your Sheikh-Travel-System root.</li>
+      <li>Add the sample config (or use <code>config/cursor.mcp.json</code> / <code>config/claude-code.mcp.json</code>).</li>
+      <li>Reload MCP servers in Cursor, or restart Claude.</li>
+      <li>Use Chat in this console to copy prompts with the right tool-group context.</li>
+    </ol>
+  </section>
+</div>

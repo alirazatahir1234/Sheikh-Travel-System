@@ -50,7 +50,7 @@ public static class GpsAlertsPhase8Migration
 
             // Self-healing severity backfill: covers historic rows and any row inserted by a path
             // that hasn't been migrated onto GpsAlertWriter yet. Kept in sync with
-            // GpsAlertWriter.SeverityFor — same buckets, keyed by the literal EventType values
+            // GpsAlertSeverity.SeverityFor — same buckets, keyed by the literal EventType values
             // actually written by the detectors (speed_exceeded, vehicle_offline, etc.).
             await connection.ExecuteAsync(new CommandDefinition("""
                 UPDATE GpsAlertEvents

@@ -1,9 +1,9 @@
-using Dapper;
 using FluentValidation;
 using MediatR;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Exceptions;
 using SheikhTravelSystem.Application.Common.Interfaces;
+using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 using SheikhTravelSystem.Application.Features.Users.DTOs;
 
 namespace SheikhTravelSystem.Application.Features.Users.Commands;
@@ -36,28 +36,22 @@ public class CreateUserCommandValidator : AbstractValidator<CreateUserCommand>
 }
 
 public class CreateUserCommandHandler(
-    IDbConnectionFactory dbFactory,
+    IUserRepository userRepository,
     IPasswordHasher passwordHasher,
     IPlatformScope platformScope,
     ICurrentUserService currentUser) : IRequestHandler<CreateUserCommand, ApiResponse<int>>
 {
     public async Task<ApiResponse<int>> Handle(CreateUserCommand request, CancellationToken cancellationToken)
     {
-        using var connection = dbFactory.CreateConnection();
         var dto = request.User;
         var tenantId = ResolveTargetTenantId(dto.CompanyId);
 
-        var exists = await connection.ExecuteScalarAsync<bool>(
-            new CommandDefinition(
-                "SELECT CASE WHEN EXISTS(SELECT 1 FROM Users WHERE Email = @Email AND TenantId = @TenantId AND IsDeleted = 0) THEN 1 ELSE 0 END",
-                new { dto.Email, TenantId = tenantId },
-                cancellationToken: cancellationToken));
-
+        var exists = await userRepository.EmailExistsInTenantAsync(dto.Email, tenantId, cancellationToken);
         if (exists)
             throw new ConflictException($"User with email '{dto.Email}' already exists.");
 
-        await UserQueries.EnsureOrgBelongsToTenantAsync(
-            connection, tenantId, dto.BranchId, dto.DepartmentId, cancellationToken);
+        await userRepository.EnsureOrgBelongsToTenantAsync(
+            tenantId, dto.BranchId, dto.DepartmentId, cancellationToken);
 
         UserRoleAssignment.EnsureCanAssignPlatformRole(dto.PlatformRoleCode, currentUser);
 
@@ -67,101 +61,46 @@ public class CreateUserCommandHandler(
         var passwordHash = passwordHasher.Hash(dto.Password);
         var now = DateTime.UtcNow;
 
-        try
+        var id = await userRepository.InsertAsync(
+            new UserInsertModel(
+                tenantId,
+                dto.FullName,
+                dto.Email,
+                passwordHash,
+                dto.Phone,
+                dto.Role,
+                isActive,
+                now,
+                now,
+                dto.BranchId,
+                dto.DepartmentId,
+                dto.JobTitle,
+                dto.EmployeeCode,
+                employeeType,
+                status,
+                dto.DefaultWorkspaceKey,
+                dto.DefaultDashboardKey,
+                dto.HomeRoute,
+                dto.TimeZone,
+                dto.Language,
+                dto.Theme,
+                dto.AvatarUrl),
+            cancellationToken);
+
+        if (!string.IsNullOrWhiteSpace(dto.PlatformRoleCode))
         {
-            var id = await connection.ExecuteScalarAsync<int>(
-                new CommandDefinition(
-                    @"INSERT INTO Users (
-                        TenantId, FullName, Email, PasswordHash, Phone, Role, IsActive, CreatedAt, IsDeleted,
-                        BranchId, DepartmentId, JobTitle, EmployeeCode, EmployeeType, Status,
-                        DefaultWorkspaceKey, DefaultDashboardKey, HomeRoute, TimeZone, Language, Theme, AvatarUrl,
-                        PasswordChangedAt)
-                      VALUES (
-                        @TenantId, @FullName, @Email, @PasswordHash, @Phone, @Role, @IsActive, @CreatedAt, 0,
-                        @BranchId, @DepartmentId, @JobTitle, @EmployeeCode, @EmployeeType, @Status,
-                        @DefaultWorkspaceKey, @DefaultDashboardKey, @HomeRoute, @TimeZone, @Language, @Theme, @AvatarUrl,
-                        @PasswordChangedAt);
-                      SELECT SCOPE_IDENTITY();",
-                    new
-                    {
-                        TenantId = tenantId,
-                        dto.FullName,
-                        dto.Email,
-                        PasswordHash = passwordHash,
-                        dto.Phone,
-                        Role = (int)dto.Role,
-                        IsActive = isActive,
-                        CreatedAt = now,
-                        PasswordChangedAt = now,
-                        dto.BranchId,
-                        dto.DepartmentId,
-                        dto.JobTitle,
-                        dto.EmployeeCode,
-                        EmployeeType = employeeType,
-                        Status = status,
-                        dto.DefaultWorkspaceKey,
-                        dto.DefaultDashboardKey,
-                        dto.HomeRoute,
-                        dto.TimeZone,
-                        dto.Language,
-                        dto.Theme,
-                        dto.AvatarUrl
-                    },
-                    cancellationToken: cancellationToken));
-
-            if (!string.IsNullOrWhiteSpace(dto.PlatformRoleCode))
-            {
-                await UserRoleAssignment.AssignPlatformRoleAsync(
-                    connection, id, tenantId, dto.PlatformRoleCode, dto.BranchId, dto.DepartmentId,
-                    currentUser.UserId, cancellationToken);
-            }
-            else
-            {
-                await UserRoleAssignment.SyncLegacyRoleAsync(
-                    connection, id, tenantId, dto.Role, dto.BranchId, dto.DepartmentId,
-                    currentUser.UserId, cancellationToken);
-            }
-
-            return ApiResponse<int>.SuccessResponse(id, "User created successfully.");
+            await userRepository.AssignPlatformRoleAsync(
+                id, tenantId, dto.PlatformRoleCode, dto.BranchId, dto.DepartmentId,
+                currentUser.UserId, cancellationToken);
         }
-        catch (Exception ex) when (ex.Message.Contains("Invalid column", StringComparison.OrdinalIgnoreCase)
-                                   || ex.Message.Contains("Invalid column name", StringComparison.OrdinalIgnoreCase))
+        else
         {
-            var id = await connection.ExecuteScalarAsync<int>(
-                new CommandDefinition(
-                    @"INSERT INTO Users (TenantId, FullName, Email, PasswordHash, Phone, Role, IsActive, CreatedAt, IsDeleted, BranchId, DepartmentId)
-                      VALUES (@TenantId, @FullName, @Email, @PasswordHash, @Phone, @Role, @IsActive, @CreatedAt, 0, @BranchId, @DepartmentId);
-                      SELECT SCOPE_IDENTITY();",
-                    new
-                    {
-                        TenantId = tenantId,
-                        dto.FullName,
-                        dto.Email,
-                        PasswordHash = passwordHash,
-                        dto.Phone,
-                        Role = (int)dto.Role,
-                        IsActive = isActive,
-                        CreatedAt = DateTime.UtcNow,
-                        dto.BranchId,
-                        dto.DepartmentId
-                    },
-                    cancellationToken: cancellationToken));
-
-            if (!string.IsNullOrWhiteSpace(dto.PlatformRoleCode))
-            {
-                await UserRoleAssignment.AssignPlatformRoleAsync(
-                    connection, id, tenantId, dto.PlatformRoleCode, dto.BranchId, dto.DepartmentId,
-                    currentUser.UserId, cancellationToken);
-            }
-            else
-            {
-                await UserRoleAssignment.SyncLegacyRoleAsync(
-                    connection, id, tenantId, dto.Role, dto.BranchId, dto.DepartmentId,
-                    currentUser.UserId, cancellationToken);
-            }
-
-            return ApiResponse<int>.SuccessResponse(id, "User created successfully.");
+            await userRepository.SyncLegacyRoleAsync(
+                id, tenantId, dto.Role, dto.BranchId, dto.DepartmentId,
+                currentUser.UserId, cancellationToken);
         }
+
+        return ApiResponse<int>.SuccessResponse(id, "User created successfully.");
     }
 
     private int ResolveTargetTenantId(int? companyId)

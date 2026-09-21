@@ -1,8 +1,8 @@
-using Dapper;
 using FluentValidation;
 using MediatR;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Interfaces;
+using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 using SheikhTravelSystem.Application.Features.Bookings.Commands;
 using SheikhTravelSystem.Domain.Enums;
 using SheikhTravelSystem.Application.Features.Bookings.DTOs;
@@ -47,35 +47,29 @@ public class CreatePortalBookingCommandValidator : AbstractValidator<CreatePorta
     }
 }
 
-public class CreatePortalBookingCommandHandler(IDbConnectionFactory dbFactory, ISender mediator)
+public class CreatePortalBookingCommandHandler(
+    ICustomerPortalRepository portalRepository,
+    IPortalPricingService pricingService,
+    ISender mediator)
     : IRequestHandler<CreatePortalBookingCommand, ApiResponse<PortalBookingCreatedDto>>
 {
     public async Task<ApiResponse<PortalBookingCreatedDto>> Handle(CreatePortalBookingCommand request, CancellationToken cancellationToken)
     {
         var r = request.Request;
 
-        using (var connection = dbFactory.CreateConnection())
-        {
-            var seating = await connection.ExecuteScalarAsync<int?>(
-                new CommandDefinition(
-                    "SELECT SeatingCapacity FROM Vehicles WHERE Id = @Id AND IsDeleted = 0",
-                    new { Id = r.VehicleId },
-                    cancellationToken: cancellationToken));
+        var seating = await portalRepository.GetVehicleSeatingCapacityAsync(r.VehicleId, cancellationToken);
+        if (seating is null or <= 0)
+            return ApiResponse<PortalBookingCreatedDto>.FailResponse("Selected vehicle was not found.");
 
-            if (seating is null or <= 0)
-                return ApiResponse<PortalBookingCreatedDto>.FailResponse("Selected vehicle was not found.");
-
-            if (r.PassengerCount > seating.Value)
-                return ApiResponse<PortalBookingCreatedDto>.FailResponse(
-                    $"Passenger count cannot exceed vehicle capacity ({seating.Value}).");
-        }
+        if (r.PassengerCount > seating.Value)
+            return ApiResponse<PortalBookingCreatedDto>.FailResponse(
+                $"Passenger count cannot exceed vehicle capacity ({seating.Value}).");
 
         ApiResponse<PriceBreakdown> quote;
         if (r.PickupLat.HasValue && r.PickupLng.HasValue && r.DropLat.HasValue && r.DropLng.HasValue)
         {
-            quote = await PortalDynamicPricingHelper.CalculatePointToPointQuoteAsync(
+            quote = await pricingService.CalculatePointToPointQuoteAsync(
                 mediator,
-                dbFactory,
                 r.VehicleId,
                 r.PickupLat.Value,
                 r.PickupLng.Value,
@@ -87,8 +81,8 @@ public class CreatePortalBookingCommandHandler(IDbConnectionFactory dbFactory, I
         }
         else if (r.RouteId is > 0)
         {
-            quote = await PortalPricingHelper.CalculateQuoteAsync(
-                mediator, dbFactory, r.RouteId.Value, r.VehicleId, r.IsRoundTrip, cancellationToken);
+            quote = await pricingService.CalculateQuoteAsync(
+                mediator, r.RouteId.Value, r.VehicleId, r.IsRoundTrip, cancellationToken);
         }
         else
         {
@@ -109,12 +103,7 @@ public class CreatePortalBookingCommandHandler(IDbConnectionFactory dbFactory, I
             if (promoResult.Success && promoResult.Data is { Valid: true } p)
             {
                 discount = p.DiscountAmount;
-                using var promoConn = dbFactory.CreateConnection();
-                promoId = await promoConn.ExecuteScalarAsync<int?>(
-                    new CommandDefinition(
-                        "SELECT Id FROM PromoCodes WHERE Code = @Code AND IsDeleted = 0",
-                        new { Code = r.PromoCode.Trim().ToUpperInvariant() },
-                        cancellationToken: cancellationToken));
+                promoId = await portalRepository.GetPromoCodeIdAsync(r.PromoCode.Trim().ToUpperInvariant(), cancellationToken);
             }
         }
 
@@ -124,19 +113,13 @@ public class CreatePortalBookingCommandHandler(IDbConnectionFactory dbFactory, I
 
         var effectiveRouteId = r.RouteId;
         if (effectiveRouteId is null or <= 0)
-        {
-            using var routeConn = dbFactory.CreateConnection();
-            effectiveRouteId = await routeConn.ExecuteScalarAsync<int>(
-                new CommandDefinition(
-                    "SELECT TOP 1 Id FROM Routes WHERE IsDeleted = 0 AND IsActive = 1 ORDER BY Id",
-                    cancellationToken: cancellationToken));
-        }
+            effectiveRouteId = await portalRepository.GetFirstActiveRouteIdAsync(cancellationToken);
 
-        var (customerOk, customerId, customerError) = await TryResolveCustomerIdAsync(dbFactory, mediator, r, cancellationToken);
+        var (customerOk, customerId, customerError) = await TryResolveCustomerIdAsync(mediator, r, cancellationToken);
         if (!customerOk)
             return ApiResponse<PortalBookingCreatedDto>.FailResponse(customerError ?? "Could not save your contact details.");
 
-        var vehicleLabel = await GetVehicleLabelAsync(dbFactory, r.VehicleId, cancellationToken);
+        var vehicleLabel = await portalRepository.GetVehicleLabelAsync(r.VehicleId, cancellationToken);
         var combinedNotes = BuildNotes(r.Notes, r.VehicleId, vehicleLabel);
 
         var bookingResult = await mediator.Send(
@@ -154,48 +137,47 @@ public class CreatePortalBookingCommandHandler(IDbConnectionFactory dbFactory, I
             return ApiResponse<PortalBookingCreatedDto>.FailResponse(bookingResult.Message ?? "Booking could not be created.");
 
         var bookingId = bookingResult.Data;
-        var bookingNumber = await GetBookingNumberAsync(dbFactory, bookingId, cancellationToken);
+        var bookingNumber = await portalRepository.GetBookingNumberAsync(bookingId, cancellationToken);
 
         await mediator.Send(new AssignVehicleCommand(bookingId, r.VehicleId), cancellationToken);
-        await ApplyPortalBookingExtrasAsync(dbFactory, bookingId, r, discount, promoId, cancellationToken);
+        await portalRepository.ApplyPortalBookingExtrasAsync(
+            new PortalBookingExtrasUpdate
+            {
+                BookingId = bookingId,
+                PreferredPaymentMethod = r.PreferredPaymentMethod,
+                PickupAddress = r.PickupAddress,
+                DropoffAddress = r.DropoffAddress,
+                PickupLat = r.PickupLat,
+                PickupLng = r.PickupLng,
+                DropLat = r.DropLat,
+                DropLng = r.DropLng,
+                QuotedDistanceKm = r.QuotedDistanceKm,
+                QuotedDurationMinutes = r.QuotedDurationMinutes,
+                AdultCount = r.AdultCount ?? r.PassengerCount,
+                ChildCount = r.ChildCount,
+                LuggageCount = r.LuggageCount,
+                PromoCodeId = promoId,
+                DiscountAmount = discount
+            },
+            cancellationToken);
 
         if (r.SeatLabels?.Count > 0)
         {
-            using var seatConn = dbFactory.CreateConnection();
             var windowStart = r.PickupTime.AddHours(-3);
             var windowEnd = r.PickupTime.AddHours(3);
             foreach (var seat in r.SeatLabels.Distinct(StringComparer.OrdinalIgnoreCase))
             {
-                var taken = await seatConn.ExecuteScalarAsync<bool>(new CommandDefinition(
-                    @"SELECT CASE WHEN EXISTS(
-                        SELECT 1 FROM BookingSeats bs
-                        INNER JOIN Bookings b ON b.Id = bs.BookingId
-                        WHERE b.VehicleId = @VehicleId AND bs.SeatLabel = @SeatLabel
-                          AND b.IsDeleted = 0 AND b.Status <> @Cancelled
-                          AND b.PickupTime BETWEEN @Start AND @End) THEN 1 ELSE 0 END",
-                    new
-                    {
-                        r.VehicleId,
-                        SeatLabel = seat,
-                        Cancelled = (int)BookingStatus.Cancelled,
-                        Start = windowStart,
-                        End = windowEnd
-                    },
-                    cancellationToken: cancellationToken));
+                var taken = await portalRepository.IsSeatTakenAsync(
+                    r.VehicleId, seat, windowStart, windowEnd, cancellationToken);
 
                 if (taken)
                     return ApiResponse<PortalBookingCreatedDto>.FailResponse($"Seat {seat} is already booked for this vehicle and time.");
 
-                await seatConn.ExecuteAsync(
-                    new CommandDefinition(
-                        "INSERT INTO BookingSeats (BookingId, SeatLabel) VALUES (@BookingId, @SeatLabel)",
-                        new { BookingId = bookingId, SeatLabel = seat },
-                        cancellationToken: cancellationToken));
+                await portalRepository.InsertBookingSeatAsync(bookingId, seat, cancellationToken);
             }
         }
 
-        await PortalCustomerWriter.WriteCustomerNotificationAsync(
-            dbFactory,
+        await portalRepository.WriteCustomerNotificationAsync(
             customerId,
             "Booking confirmed",
             $"Your booking {bookingNumber} has been received.",
@@ -203,7 +185,7 @@ public class CreatePortalBookingCommandHandler(IDbConnectionFactory dbFactory, I
             bookingId,
             cancellationToken);
 
-        await PortalCustomerWriter.AddLoyaltyPointsAsync(dbFactory, customerId, (int)Math.Floor(finalTotal / 100), cancellationToken);
+        await portalRepository.AddLoyaltyPointsAsync(customerId, (int)Math.Floor(finalTotal / 100), cancellationToken);
 
         var payState = await ApplyInitialPortalPaymentAsync(
             mediator,
@@ -228,53 +210,24 @@ public class CreatePortalBookingCommandHandler(IDbConnectionFactory dbFactory, I
         return ApiResponse<PortalBookingCreatedDto>.SuccessResponse(payload, "Your booking request has been received.");
     }
 
-    private static async Task ApplyPortalBookingExtrasAsync(
-        IDbConnectionFactory dbFactory,
-        int bookingId,
+    private async Task<(bool Ok, int CustomerId, string? Error)> TryResolveCustomerIdAsync(
+        ISender mediator,
         CreatePortalBookingRequest r,
-        decimal discount,
-        int? promoId,
         CancellationToken cancellationToken)
     {
-        using var connection = dbFactory.CreateConnection();
-        await connection.ExecuteAsync(
-            new CommandDefinition(
-                @"UPDATE Bookings SET
-                    PreferredPaymentMethod = @PreferredPaymentMethod,
-                    PickupAddress = @PickupAddress,
-                    DropoffAddress = @DropoffAddress,
-                    PickupLat = @PickupLat,
-                    PickupLng = @PickupLng,
-                    DropLat = @DropLat,
-                    DropLng = @DropLng,
-                    QuotedDistanceKm = @QuotedDistanceKm,
-                    QuotedDurationMinutes = @QuotedDurationMinutes,
-                    AdultCount = @AdultCount,
-                    ChildCount = @ChildCount,
-                    LuggageCount = @LuggageCount,
-                    PromoCodeId = @PromoCodeId,
-                    DiscountAmount = @DiscountAmount,
-                    UpdatedAt = SYSUTCDATETIME()
-                  WHERE Id = @Id",
-                new
-                {
-                    Id = bookingId,
-                    r.PreferredPaymentMethod,
-                    r.PickupAddress,
-                    r.DropoffAddress,
-                    r.PickupLat,
-                    r.PickupLng,
-                    r.DropLat,
-                    r.DropLng,
-                    r.QuotedDistanceKm,
-                    r.QuotedDurationMinutes,
-                    AdultCount = r.AdultCount ?? r.PassengerCount,
-                    r.ChildCount,
-                    r.LuggageCount,
-                    PromoCodeId = promoId,
-                    DiscountAmount = discount
-                },
-                cancellationToken: cancellationToken));
+        var phone = PortalPhoneHelper.Normalize(r.Phone);
+        var existingIds = await portalRepository.ResolvePortalCustomerIdsAsync(r.Phone, null, cancellationToken);
+        if (existingIds.Count > 0)
+            return (true, existingIds[0], null);
+
+        var created = await mediator.Send(
+            new CreateCustomerCommand(new CreateCustomerDto(r.FullName.Trim(), phone, r.Email?.Trim(), null, null)),
+            cancellationToken);
+
+        if (!created.Success)
+            return (false, 0, created.Message);
+
+        return (true, created.Data, null);
     }
 
     private static async Task<PortalPayState?> ApplyInitialPortalPaymentAsync(
@@ -325,38 +278,6 @@ public class CreatePortalBookingCommandHandler(IDbConnectionFactory dbFactory, I
         }
     }
 
-    private static async Task<(bool Ok, int CustomerId, string? Error)> TryResolveCustomerIdAsync(
-        IDbConnectionFactory dbFactory,
-        ISender mediator,
-        CreatePortalBookingRequest r,
-        CancellationToken cancellationToken)
-    {
-        var phone = PortalPhoneHelper.Normalize(r.Phone);
-        var existingIds = await PortalBookingAccess.ResolvePortalCustomerIdsAsync(
-            dbFactory, r.Phone, null, cancellationToken);
-        if (existingIds.Count > 0)
-            return (true, existingIds[0], null);
-
-        var created = await mediator.Send(
-            new CreateCustomerCommand(new CreateCustomerDto(r.FullName.Trim(), phone, r.Email?.Trim(), null, null)),
-            cancellationToken);
-
-        if (!created.Success)
-            return (false, 0, created.Message);
-
-        return (true, created.Data, null);
-    }
-
-    private static async Task<string?> GetVehicleLabelAsync(IDbConnectionFactory dbFactory, int vehicleId, CancellationToken cancellationToken)
-    {
-        using var connection = dbFactory.CreateConnection();
-        return await connection.ExecuteScalarAsync<string?>(
-            new CommandDefinition(
-                "SELECT Name + N' (' + RegistrationNumber + N')' FROM Vehicles WHERE Id = @Id AND IsDeleted = 0",
-                new { Id = vehicleId },
-                cancellationToken: cancellationToken));
-    }
-
     private static string? BuildNotes(string? userNotes, int vehicleId, string? vehicleLabel)
     {
         var portalLine = $"[Customer portal] Preferred vehicle #{vehicleId}" +
@@ -364,15 +285,5 @@ public class CreatePortalBookingCommandHandler(IDbConnectionFactory dbFactory, I
         if (string.IsNullOrWhiteSpace(userNotes))
             return portalLine;
         return portalLine + Environment.NewLine + userNotes.Trim();
-    }
-
-    private static async Task<string?> GetBookingNumberAsync(IDbConnectionFactory dbFactory, int bookingId, CancellationToken cancellationToken)
-    {
-        using var connection = dbFactory.CreateConnection();
-        return await connection.ExecuteScalarAsync<string?>(
-            new CommandDefinition(
-                "SELECT BookingNumber FROM Bookings WHERE Id = @Id AND IsDeleted = 0",
-                new { Id = bookingId },
-                cancellationToken: cancellationToken));
     }
 }

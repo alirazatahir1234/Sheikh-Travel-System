@@ -1,8 +1,8 @@
-using Dapper;
 using FluentValidation;
 using MediatR;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Interfaces;
+using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 using SheikhTravelSystem.Application.Features.FuelLogs.DTOs;
 
 namespace SheikhTravelSystem.Application.Features.FuelLogs.Commands;
@@ -25,30 +25,12 @@ public class CreateFuelLogCommandValidator : AbstractValidator<CreateFuelLogComm
     }
 }
 
-public class CreateFuelLogCommandHandler(IDbConnectionFactory dbFactory)
+public class CreateFuelLogCommandHandler(IFuelLogRepository fuelLogRepository)
     : IRequestHandler<CreateFuelLogCommand, ApiResponse<int>>
 {
     public async Task<ApiResponse<int>> Handle(CreateFuelLogCommand request, CancellationToken cancellationToken)
     {
-        using var connection = dbFactory.CreateConnection();
-        var dto = request.FuelLog;
-        var totalCost = dto.Liters * dto.PricePerLiter;
-
-        var id = await connection.ExecuteScalarAsync<int>(
-            new CommandDefinition(
-                @"INSERT INTO FuelLogs (VehicleId, DriverId, Liters, PricePerLiter, TotalCost,
-                  OdometerReading, FuelType, FuelDate, Station, ReceiptUrl, CreatedAt, IsDeleted)
-                  VALUES (@VehicleId, @DriverId, @Liters, @PricePerLiter, @TotalCost,
-                  @OdometerReading, @FuelType, @FuelDate, @Station, @ReceiptUrl, @CreatedAt, 0);
-                  SELECT SCOPE_IDENTITY();",
-                new
-                {
-                    dto.VehicleId, dto.DriverId, dto.Liters, dto.PricePerLiter, TotalCost = totalCost,
-                    dto.OdometerReading, FuelType = (int)dto.FuelType, dto.FuelDate,
-                    dto.Station, dto.ReceiptUrl, CreatedAt = DateTime.UtcNow
-                },
-                cancellationToken: cancellationToken));
-
+        var id = await fuelLogRepository.CreateAsync(request.FuelLog, cancellationToken);
         return ApiResponse<int>.SuccessResponse(id, "Fuel log created successfully.");
     }
 }

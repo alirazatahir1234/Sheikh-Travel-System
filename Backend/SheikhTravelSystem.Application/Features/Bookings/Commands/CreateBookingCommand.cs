@@ -1,10 +1,9 @@
-using Dapper;
 using FluentValidation;
 using MediatR;
 using Microsoft.Extensions.Logging;
 using SheikhTravelSystem.Application.Common;
-using SheikhTravelSystem.Application.Common.Exceptions;
 using SheikhTravelSystem.Application.Common.Interfaces;
+using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 using SheikhTravelSystem.Application.Features.Bookings.DTOs;
 using SheikhTravelSystem.Application.Features.Notifications;
 using SheikhTravelSystem.Domain.Enums;
@@ -41,7 +40,7 @@ public class CreateBookingCommandValidator : AbstractValidator<CreateBookingComm
 /// Handles booking creation and prerequisite checks.
 /// </summary>
 public class CreateBookingCommandHandler(
-    IDbConnectionFactory dbFactory,
+    IBookingRepository bookingRepository,
     INotificationDecisionEngine decisionEngine,
     ILogger<CreateBookingCommandHandler> logger)
     : IRequestHandler<CreateBookingCommand, ApiResponse<int>>
@@ -51,64 +50,24 @@ public class CreateBookingCommandHandler(
     /// </summary>
     public async Task<ApiResponse<int>> Handle(CreateBookingCommand request, CancellationToken cancellationToken)
     {
-        using var connection = dbFactory.CreateConnection();
         var dto = request.Booking;
+        var created = await bookingRepository.CreateAsync(dto, cancellationToken);
 
-        // Verify customer exists
-        var customerExists = await connection.ExecuteScalarAsync<bool>(
-            new CommandDefinition(
-                "SELECT CASE WHEN EXISTS(SELECT 1 FROM Customers WHERE Id = @Id AND IsDeleted = 0) THEN 1 ELSE 0 END",
-                new { Id = dto.CustomerId },
-                cancellationToken: cancellationToken));
-
-        if (!customerExists)
-            throw new NotFoundException("Customer", dto.CustomerId);
-
-        // Verify route exists and get name
-        var routeName = await connection.QuerySingleOrDefaultAsync<string>(
-            new CommandDefinition(
-                "SELECT Source + ' → ' + Destination FROM Routes WHERE Id = @Id AND IsDeleted = 0",
-                new { Id = dto.RouteId },
-                cancellationToken: cancellationToken));
-
-        if (routeName == null)
-            throw new NotFoundException("Route", dto.RouteId);
-
-        var id = await connection.ExecuteScalarAsync<int>(
-            new CommandDefinition(
-                @"INSERT INTO Bookings (CustomerId, RouteId, PickupTime, PassengerCount, TotalAmount, Status, Notes, CreatedAt, IsDeleted)
-                  VALUES (@CustomerId, @RouteId, @PickupTime, @PassengerCount, @TotalAmount, @Status, @Notes, @CreatedAt, 0);
-                  SELECT SCOPE_IDENTITY();",
-                new
-                {
-                    dto.CustomerId, dto.RouteId, dto.PickupTime, dto.PassengerCount,
-                    dto.TotalAmount, Status = (int)BookingStatus.Pending, dto.Notes,
-                    CreatedAt = DateTime.UtcNow
-                },
-                cancellationToken: cancellationToken));
-
-        // Generate and store the booking number (e.g. BK-2025-0001)
-        var bookingNumber = $"BK-{DateTime.UtcNow.Year}-{id:D4}";
-        await connection.ExecuteAsync(
-            new CommandDefinition(
-                "UPDATE Bookings SET BookingNumber = @BookingNumber WHERE Id = @Id",
-                new { BookingNumber = bookingNumber, Id = id },
-                cancellationToken: cancellationToken));
-
-        // Create notification for all admin/dispatcher users (decision-gated)
         await decisionEngine.DispatchIfAllowedAsync(new NotificationDecisionRequest(
             "booking_created",
-            $"New Booking: {bookingNumber}",
-            $"A new booking has been created for {routeName}. Pickup: {dto.PickupTime:g}",
+            $"New Booking: {created.BookingNumber}",
+            $"A new booking has been created for {created.RouteName}. Pickup: {dto.PickupTime:g}",
             NotificationType.BookingCreated,
-            ReferenceId: id,
+            ReferenceId: created.Id,
             SuggestedPriority: 2,
             RequestedChannels:
             [
                 NotificationChannels.InApp, NotificationChannels.Browser, NotificationChannels.Email
             ]), cancellationToken);
 
-        logger.LogInformation("Booking {BookingId} ({BookingNumber}) created for customer {CustomerId} on route {RouteId}", id, bookingNumber, dto.CustomerId, dto.RouteId);
-        return ApiResponse<int>.SuccessResponse(id, "Booking created successfully.");
+        logger.LogInformation(
+            "Booking {BookingId} ({BookingNumber}) created for customer {CustomerId} on route {RouteId}",
+            created.Id, created.BookingNumber, dto.CustomerId, dto.RouteId);
+        return ApiResponse<int>.SuccessResponse(created.Id, "Booking created successfully.");
     }
 }

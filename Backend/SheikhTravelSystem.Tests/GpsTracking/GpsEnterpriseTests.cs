@@ -34,14 +34,14 @@ public class GpsEnterpriseTests
     [Fact]
     public void ShouldAttemptTripPersistence_WhenSlowingFromMoving_ReturnsTrue()
     {
-        GpsPositionIngestionHelper.ShouldAttemptTripPersistence(0, false, 60m).Should().BeTrue();
-        GpsPositionIngestionHelper.ShouldAttemptTripPersistence(3, null, 50m).Should().BeTrue();
+        GpsPositionIngestionRules.ShouldAttemptTripPersistence(0, false, 60m).Should().BeTrue();
+        GpsPositionIngestionRules.ShouldAttemptTripPersistence(3, null, 50m).Should().BeTrue();
     }
 
     [Fact]
     public void ShouldAttemptTripPersistence_WhenStillMoving_ReturnsFalse()
     {
-        GpsPositionIngestionHelper.ShouldAttemptTripPersistence(40, true, 45m).Should().BeFalse();
+        GpsPositionIngestionRules.ShouldAttemptTripPersistence(40, true, 45m).Should().BeFalse();
     }
 
     [Fact]

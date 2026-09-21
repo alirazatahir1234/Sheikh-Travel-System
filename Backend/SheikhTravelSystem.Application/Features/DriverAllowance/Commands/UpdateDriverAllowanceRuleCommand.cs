@@ -1,9 +1,9 @@
-using Dapper;
 using FluentValidation;
 using MediatR;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Exceptions;
 using SheikhTravelSystem.Application.Common.Interfaces;
+using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 using SheikhTravelSystem.Application.Features.DriverAllowance.DTOs;
 using SheikhTravelSystem.Domain.Enums;
 
@@ -39,50 +39,16 @@ public class UpdateDriverAllowanceRuleCommandValidator
     }
 }
 
-public class UpdateDriverAllowanceRuleCommandHandler(IDbConnectionFactory dbFactory)
+public class UpdateDriverAllowanceRuleCommandHandler(IDriverAllowanceRepository repository)
     : IRequestHandler<UpdateDriverAllowanceRuleCommand, ApiResponse<bool>>
 {
     public async Task<ApiResponse<bool>> Handle(
         UpdateDriverAllowanceRuleCommand request, CancellationToken cancellationToken)
     {
-        using var connection = dbFactory.CreateConnection();
-        var dto = request.Rule;
-
-        var exists = await connection.ExecuteScalarAsync<bool>(
-            new CommandDefinition(
-                "SELECT CASE WHEN EXISTS(SELECT 1 FROM DriverAllowanceRules WHERE Id = @Id AND IsDeleted = 0) THEN 1 ELSE 0 END",
-                new { request.Id },
-                cancellationToken: cancellationToken));
-
-        if (!exists)
+        if (!await repository.ExistsAsync(request.Id, cancellationToken))
             throw new NotFoundException("DriverAllowanceRule", request.Id);
 
-        await connection.ExecuteAsync(
-            new CommandDefinition(
-                @"UPDATE DriverAllowanceRules
-                    SET Name = @Name, CalculationType = @CalculationType, Value = @Value,
-                        Priority = @Priority, MinDistanceKm = @MinDistanceKm,
-                        MaxDistanceKm = @MaxDistanceKm, VehicleFuelType = @VehicleFuelType,
-                        RouteFilter = @RouteFilter, IsActive = @IsActive, Notes = @Notes,
-                        UpdatedAt = @UpdatedAt, UpdatedBy = @UpdatedBy
-                  WHERE Id = @Id",
-                new
-                {
-                    dto.Name,
-                    CalculationType = (int)dto.CalculationType,
-                    dto.Value,
-                    dto.Priority,
-                    dto.MinDistanceKm,
-                    dto.MaxDistanceKm,
-                    VehicleFuelType = dto.VehicleFuelType.HasValue ? (int?)dto.VehicleFuelType : null,
-                    dto.RouteFilter,
-                    dto.IsActive,
-                    dto.Notes,
-                    UpdatedAt = DateTime.UtcNow,
-                    UpdatedBy = "api",
-                    request.Id
-                },
-                cancellationToken: cancellationToken));
+        await repository.UpdateAsync(request.Id, request.Rule, cancellationToken);
 
         return ApiResponse<bool>.SuccessResponse(true, "Driver allowance rule updated successfully.");
     }

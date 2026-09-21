@@ -19,13 +19,12 @@ public class PortalPriceEstimateCommandValidator : AbstractValidator<PortalPrice
     }
 }
 
-public class PortalPriceEstimateCommandHandler(IDbConnectionFactory dbFactory, ISender mediator)
+public class PortalPriceEstimateCommandHandler(IPortalPricingService pricingService, ISender mediator)
     : IRequestHandler<PortalPriceEstimateCommand, ApiResponse<PriceBreakdown>>
 {
     public Task<ApiResponse<PriceBreakdown>> Handle(PortalPriceEstimateCommand request, CancellationToken cancellationToken) =>
-        PortalPricingHelper.CalculateQuoteAsync(
+        pricingService.CalculateQuoteAsync(
             mediator,
-            dbFactory,
             request.Request.RouteId,
             request.Request.VehicleId,
             request.Request.IsRoundTrip,

@@ -1,8 +1,8 @@
-using Dapper;
 using MediatR;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Exceptions;
 using SheikhTravelSystem.Application.Common.Interfaces;
+using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 using SheikhTravelSystem.Application.Features.Users.DTOs;
 
 namespace SheikhTravelSystem.Application.Features.Users.Commands;
@@ -10,23 +10,19 @@ namespace SheikhTravelSystem.Application.Features.Users.Commands;
 public record GetUserRolesQuery(int UserId) : IRequest<ApiResponse<IReadOnlyList<AssignedRoleDto>>>;
 
 public class GetUserRolesQueryHandler(
-    IDbConnectionFactory dbFactory,
+    IUserRepository userRepository,
     IPlatformScope platformScope) : IRequestHandler<GetUserRolesQuery, ApiResponse<IReadOnlyList<AssignedRoleDto>>>
 {
     public async Task<ApiResponse<IReadOnlyList<AssignedRoleDto>>> Handle(
         GetUserRolesQuery request, CancellationToken cancellationToken)
     {
-        using var connection = dbFactory.CreateConnection();
-        var tenantId = await connection.ExecuteScalarAsync<int?>(new CommandDefinition(
-            "SELECT TenantId FROM Users WHERE Id = @Id AND IsDeleted = 0",
-            new { Id = request.UserId }, cancellationToken: cancellationToken));
+        var tenantId = await userRepository.GetTenantIdAsync(request.UserId, cancellationToken);
         if (!tenantId.HasValue)
             throw new NotFoundException("User", request.UserId);
 
         platformScope.EnsureTenantAccess(tenantId.Value);
-        var rows = await UserRoleAssignment.LoadAssignedAsync(connection, request.UserId, cancellationToken);
-        return ApiResponse<IReadOnlyList<AssignedRoleDto>>.SuccessResponse(
-            rows.Select(UserRoleAssignment.ToDto).ToList());
+        var roles = await userRepository.GetAssignedRolesAsync(request.UserId, cancellationToken);
+        return ApiResponse<IReadOnlyList<AssignedRoleDto>>.SuccessResponse(roles);
     }
 }
 
@@ -39,32 +35,23 @@ public record SetUserRolesCommand(int UserId, SetUserRolesRequest Payload)
 }
 
 public class SetUserRolesCommandHandler(
-    IDbConnectionFactory dbFactory,
+    IUserRepository userRepository,
     IPlatformScope platformScope,
     ICurrentUserService currentUser) : IRequestHandler<SetUserRolesCommand, ApiResponse<bool>>
 {
     public async Task<ApiResponse<bool>> Handle(SetUserRolesCommand request, CancellationToken cancellationToken)
     {
-        using var connection = dbFactory.CreateConnection();
-        var user = await connection.QuerySingleOrDefaultAsync<(int? TenantId, int? BranchId, int? DepartmentId)>(
-            new CommandDefinition(
-                "SELECT TenantId, BranchId, DepartmentId FROM Users WHERE Id = @Id AND IsDeleted = 0",
-                new { Id = request.UserId }, cancellationToken: cancellationToken));
-        if (user.TenantId is not int tenantId)
+        var user = await userRepository.GetOrgInfoAsync(request.UserId, cancellationToken);
+        if (user is null)
             throw new NotFoundException("User", request.UserId);
 
-        platformScope.EnsureTenantAccess(tenantId);
+        platformScope.EnsureTenantAccess(user.TenantId);
 
         var roleIds = request.Payload.RoleIds ?? Array.Empty<int>();
         if (roleIds.Count > 0)
         {
-            var assignedCodes = (await connection.QueryAsync<string>(new CommandDefinition(
-                """
-                SELECT Code FROM Roles
-                WHERE TenantId = @TenantId AND Id IN @RoleIds AND IsActive = 1
-                """,
-                new { TenantId = tenantId, RoleIds = roleIds.Distinct().ToList() },
-                cancellationToken: cancellationToken))).ToList();
+            var assignedCodes = await userRepository.GetActiveRoleCodesAsync(
+                user.TenantId, roleIds.Distinct().ToList(), cancellationToken);
 
             foreach (var code in assignedCodes)
                 UserRoleAssignment.EnsureCanAssignPlatformRole(code, currentUser);
@@ -83,14 +70,13 @@ public class SetUserRolesCommandHandler(
 
         foreach (var scope in scopes.Values)
         {
-            await UserQueries.EnsureOrgBelongsToTenantAsync(
-                connection, tenantId, scope.BranchId, scope.DepartmentId, cancellationToken);
+            await userRepository.EnsureOrgBelongsToTenantAsync(
+                user.TenantId, scope.BranchId, scope.DepartmentId, cancellationToken);
         }
 
-        await UserRoleAssignment.ReplaceAssignmentsAsync(
-            connection,
+        await userRepository.ReplaceRoleAssignmentsAsync(
             request.UserId,
-            tenantId,
+            user.TenantId,
             roleIds,
             scopes,
             currentUser.UserId,

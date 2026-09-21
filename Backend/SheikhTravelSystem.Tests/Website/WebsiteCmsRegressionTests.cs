@@ -1,8 +1,8 @@
 using FluentAssertions;
 using Microsoft.AspNetCore.Authorization;
 using SheikhTravelSystem.Application.Common;
-using SheikhTravelSystem.Application.Features.Website.Queries;
 using SheikhTravelSystem.Infrastructure.Authentication;
+using SheikhTravelSystem.Infrastructure.Persistence.Repositories.Sql;
 
 namespace SheikhTravelSystem.Tests.Website;
 

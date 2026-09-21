@@ -1,12 +1,8 @@
-using Dapper;
 using FluentValidation;
 using MediatR;
-using Microsoft.Extensions.Options;
 using SheikhTravelSystem.Application.Common;
-using SheikhTravelSystem.Application.Common.Interfaces;
+using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 using SheikhTravelSystem.Application.Features.GpsTracking.DTOs;
-using SheikhTravelSystem.Application.Features.GpsTracking.Traccar;
-using SheikhTravelSystem.Domain.Enums;
 
 namespace SheikhTravelSystem.Application.Features.GpsTracking.Commands;
 
@@ -43,208 +39,27 @@ public class UpdateGpsDeviceCommandValidator : AbstractValidator<UpdateGpsDevice
     }
 }
 
-public class CreateGpsDeviceCommandHandler(
-    IDbConnectionFactory dbFactory,
-    ICurrentUserService currentUser,
-    ITraccarClient traccar,
-    IOptions<TraccarOptions> traccarOptions)
+public class CreateGpsDeviceCommandHandler(IGpsDeviceRepository gpsDeviceRepository)
     : IRequestHandler<CreateGpsDeviceCommand, ApiResponse<int>>
 {
-    public async Task<ApiResponse<int>> Handle(CreateGpsDeviceCommand request, CancellationToken cancellationToken)
-    {
-        using var connection = dbFactory.CreateConnection();
-        var dto = request.Device;
-
-        var duplicate = await connection.ExecuteScalarAsync<bool>(new CommandDefinition(
-            "SELECT CASE WHEN EXISTS(SELECT 1 FROM GpsDevices WHERE UniqueId = @UniqueId AND IsDeleted = 0) THEN 1 ELSE 0 END",
-            new { dto.UniqueId },
-            cancellationToken: cancellationToken));
-
-        if (duplicate)
-            return ApiResponse<int>.FailResponse("IMEI already registered.");
-
-        if (dto.VehicleId.HasValue)
-        {
-            var vehicleError = await GpsDeviceVehicleGuard.ValidateAsync(connection, dto.VehicleId.Value, cancellationToken);
-            if (vehicleError is not null)
-                return ApiResponse<int>.FailResponse(vehicleError);
-        }
-
-        int? traccarDeviceId = null;
-        if (traccarOptions.Value.IsConfigured && traccarOptions.Value.Enabled)
-        {
-            var created = await traccar.CreateDeviceAsync(dto.Name, dto.UniqueId, ct: cancellationToken);
-            if (created is null)
-                return ApiResponse<int>.FailResponse(
-                    "Failed to create device in Traccar. Check server connectivity and credentials.");
-
-            traccarDeviceId = created.Id;
-        }
-
-        var id = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
-            @"INSERT INTO GpsDevices (VehicleId, UniqueId, Name, Protocol, Model, SimNumber, Vendor,
-              SupportsEngineCutoff, RelayOutput, SerialNumber, InstallationDate, InstalledBy, InstallationNotes,
-              TraccarDeviceId, IsActive, CreatedAt, CreatedBy, IsDeleted)
-              OUTPUT INSERTED.Id
-              VALUES (@VehicleId, @UniqueId, @Name, @Protocol, @Model, @SimNumber, @Vendor,
-              @SupportsEngineCutoff, @RelayOutput, @SerialNumber, @InstallationDate, @InstalledBy, @InstallationNotes,
-              @TraccarDeviceId, 1, GETUTCDATE(), @CreatedBy, 0)",
-            new
-            {
-                dto.VehicleId,
-                dto.UniqueId,
-                dto.Name,
-                dto.Protocol,
-                dto.Model,
-                dto.SimNumber,
-                dto.Vendor,
-                dto.SupportsEngineCutoff,
-                RelayOutput = dto.SupportsEngineCutoff ? dto.RelayOutput : null,
-                dto.SerialNumber,
-                dto.InstallationDate,
-                dto.InstalledBy,
-                dto.InstallationNotes,
-                TraccarDeviceId = traccarDeviceId,
-                CreatedBy = currentUser.UserId?.ToString()
-            },
-            cancellationToken: cancellationToken));
-
-        return ApiResponse<int>.SuccessResponse(id, "GPS device created.");
-    }
+    public Task<ApiResponse<int>> Handle(CreateGpsDeviceCommand request, CancellationToken cancellationToken)
+        => gpsDeviceRepository.CreateGpsDeviceAsync(request, cancellationToken);
 }
 
 public record UpdateGpsDeviceCommand(int Id, UpdateGpsDeviceDto Device) : IRequest<ApiResponse<bool>>;
 
-public class UpdateGpsDeviceCommandHandler(
-    IDbConnectionFactory dbFactory,
-    ICurrentUserService currentUser,
-    ITraccarClient traccar,
-    IOptions<TraccarOptions> traccarOptions)
+public class UpdateGpsDeviceCommandHandler(IGpsDeviceRepository gpsDeviceRepository)
     : IRequestHandler<UpdateGpsDeviceCommand, ApiResponse<bool>>
 {
-    public async Task<ApiResponse<bool>> Handle(UpdateGpsDeviceCommand request, CancellationToken cancellationToken)
-    {
-        using var connection = dbFactory.CreateConnection();
-        var dto = request.Device;
-
-        var existing = await connection.QueryFirstOrDefaultAsync<(int Id, int? TraccarDeviceId, string UniqueId)>(
-            new CommandDefinition(
-                "SELECT Id, TraccarDeviceId, UniqueId FROM GpsDevices WHERE Id = @Id AND IsDeleted = 0",
-                new { request.Id },
-                cancellationToken: cancellationToken));
-
-        if (existing.Id == 0)
-            return ApiResponse<bool>.FailResponse("Device not found.");
-
-        if (dto.VehicleId.HasValue)
-        {
-            var vehicleError = await GpsDeviceVehicleGuard.ValidateAsync(connection, dto.VehicleId.Value, cancellationToken);
-            if (vehicleError is not null)
-                return ApiResponse<bool>.FailResponse(vehicleError);
-        }
-
-        var rows = await connection.ExecuteAsync(new CommandDefinition(
-            @"UPDATE GpsDevices SET VehicleId = @VehicleId, Name = @Name, Protocol = @Protocol,
-              SupportsEngineCutoff = @SupportsEngineCutoff, RelayOutput = @RelayOutput,
-              SimNumber = @SimNumber, SerialNumber = @SerialNumber,
-              InstallationDate = @InstallationDate, InstalledBy = @InstalledBy,
-              InstallationNotes = @InstallationNotes, IsActive = @IsActive,
-              UpdatedAt = GETUTCDATE(), UpdatedBy = @UpdatedBy
-              WHERE Id = @Id AND IsDeleted = 0",
-            new
-            {
-                request.Id,
-                dto.VehicleId,
-                dto.Name,
-                dto.Protocol,
-                dto.SupportsEngineCutoff,
-                RelayOutput = dto.SupportsEngineCutoff ? dto.RelayOutput : null,
-                dto.SimNumber,
-                dto.SerialNumber,
-                dto.InstallationDate,
-                dto.InstalledBy,
-                dto.InstallationNotes,
-                dto.IsActive,
-                UpdatedBy = currentUser.UserId?.ToString()
-            },
-            cancellationToken: cancellationToken));
-
-        if (rows == 0)
-            return ApiResponse<bool>.FailResponse("Device not found.");
-
-        if (traccarOptions.Value.IsConfigured && traccarOptions.Value.Enabled && existing.TraccarDeviceId.HasValue)
-        {
-            var synced = await traccar.UpdateDeviceAsync(
-                existing.TraccarDeviceId.Value,
-                dto.Name,
-                existing.UniqueId,
-                disabled: !dto.IsActive,
-                ct: cancellationToken);
-
-            if (!synced)
-                return ApiResponse<bool>.FailResponse("Device updated locally but Traccar sync failed.");
-        }
-
-        return ApiResponse<bool>.SuccessResponse(true, "GPS device updated.");
-    }
+    public Task<ApiResponse<bool>> Handle(UpdateGpsDeviceCommand request, CancellationToken cancellationToken)
+        => gpsDeviceRepository.UpdateGpsDeviceAsync(request, cancellationToken);
 }
 
 public record DeleteGpsDeviceCommand(int Id) : IRequest<ApiResponse<bool>>;
 
-public class DeleteGpsDeviceCommandHandler(
-    IDbConnectionFactory dbFactory,
-    ITraccarClient traccar,
-    IOptions<TraccarOptions> traccarOptions)
+public class DeleteGpsDeviceCommandHandler(IGpsDeviceRepository gpsDeviceRepository)
     : IRequestHandler<DeleteGpsDeviceCommand, ApiResponse<bool>>
 {
-    public async Task<ApiResponse<bool>> Handle(DeleteGpsDeviceCommand request, CancellationToken cancellationToken)
-    {
-        using var connection = dbFactory.CreateConnection();
-
-        var existing = await connection.QueryFirstOrDefaultAsync<(int Id, int? TraccarDeviceId)>(
-            new CommandDefinition(
-                "SELECT Id, TraccarDeviceId FROM GpsDevices WHERE Id = @Id AND IsDeleted = 0",
-                new { request.Id },
-                cancellationToken: cancellationToken));
-
-        if (existing.Id == 0)
-            return ApiResponse<bool>.FailResponse("Device not found.");
-
-        var traccarDeviceId = existing.TraccarDeviceId;
-
-        var rows = await connection.ExecuteAsync(new CommandDefinition(
-            "UPDATE GpsDevices SET IsDeleted = 1, UpdatedAt = GETUTCDATE() WHERE Id = @Id",
-            new { request.Id },
-            cancellationToken: cancellationToken));
-
-        if (rows == 0)
-            return ApiResponse<bool>.FailResponse("Device not found.");
-
-        if (traccarOptions.Value.IsConfigured && traccarOptions.Value.Enabled && traccarDeviceId.HasValue)
-            await traccar.DeleteDeviceAsync(traccarDeviceId.Value, cancellationToken);
-
-        return ApiResponse<bool>.SuccessResponse(true, "GPS device deleted.");
-    }
-}
-
-internal static class GpsDeviceVehicleGuard
-{
-    public static async Task<string?> ValidateAsync(
-        System.Data.IDbConnection connection,
-        int vehicleId,
-        CancellationToken cancellationToken)
-    {
-        var status = await connection.ExecuteScalarAsync<int?>(new CommandDefinition(
-            "SELECT Status FROM Vehicles WHERE Id = @Id AND IsDeleted = 0",
-            new { Id = vehicleId },
-            cancellationToken: cancellationToken));
-
-        if (status is null)
-            return "Vehicle not found.";
-
-        if (status == (int)VehicleStatus.Draft)
-            return "Cannot link a GPS device to a draft vehicle. Complete the vehicle first.";
-
-        return null;
-    }
+    public Task<ApiResponse<bool>> Handle(DeleteGpsDeviceCommand request, CancellationToken cancellationToken)
+        => gpsDeviceRepository.DeleteGpsDeviceAsync(request, cancellationToken);
 }

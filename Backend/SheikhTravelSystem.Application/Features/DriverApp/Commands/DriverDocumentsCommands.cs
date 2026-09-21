@@ -1,8 +1,8 @@
-using Dapper;
 using FluentValidation;
 using MediatR;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Interfaces;
+using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 using SheikhTravelSystem.Application.Features.DriverApp.DTOs;
 using SheikhTravelSystem.Application.Features.Drivers.Commands;
 using SheikhTravelSystem.Application.Features.Vehicles;
@@ -47,7 +47,7 @@ public class UploadDriverAppDocumentCommandValidator : AbstractValidator<UploadD
 }
 
 public class UploadDriverAppDocumentCommandHandler(
-    IDbConnectionFactory dbFactory,
+    IDriverAppRepository repository,
     ICurrentUserService currentUser,
     ITenantContext tenantContext,
     IMediator mediator,
@@ -69,13 +69,8 @@ public class UploadDriverAppDocumentCommandHandler(
         if (DriverTypes.Contains(request.DocumentType))
         {
             var result = await mediator.Send(new UploadDriverDocumentCommand(
-                driverId.Value,
-                request.FileStream,
-                request.FileName,
-                request.ContentType,
-                request.DocumentType,
-                request.ExpiryDate,
-                request.FileLength), cancellationToken);
+                driverId.Value, request.FileStream, request.FileName, request.ContentType,
+                request.DocumentType, request.ExpiryDate, request.FileLength), cancellationToken);
 
             if (!result.Success || result.Data is null)
                 return ApiResponse<DriverAppDocumentDto>.FailResponse(result.Message ?? "Upload failed.");
@@ -86,32 +81,17 @@ public class UploadDriverAppDocumentCommandHandler(
                 "Document uploaded.");
         }
 
-        // Vehicle document — must be assigned to this driver
         var vehicleId = request.VehicleId!.Value;
-        using var connection = dbFactory.CreateConnection();
         var tenantId = tenantContext.GetRequiredTenantId();
-        var assigned = await connection.ExecuteScalarAsync<bool>(new CommandDefinition(
-            DriverAppSql.DriverOwnsVehicleExists,
-            new { DriverId = driverId.Value, VehicleId = vehicleId, TenantId = tenantId },
-            cancellationToken: cancellationToken));
-
+        var assigned = await repository.DriverOwnsVehicleAsync(driverId.Value, vehicleId, tenantId, cancellationToken);
         if (!assigned)
             return ApiResponse<DriverAppDocumentDto>.FailResponse("Vehicle is not assigned to you.");
 
-        var vehicleName = await connection.ExecuteScalarAsync<string?>(new CommandDefinition(
-            "SELECT Name FROM Vehicles WHERE Id = @Id",
-            new { Id = vehicleId },
-            cancellationToken: cancellationToken));
+        var vehicleName = await repository.GetVehicleNameAsync(vehicleId, cancellationToken);
 
         var upload = await mediator.Send(new UploadVehicleDocumentCommand(
-            vehicleId,
-            request.FileStream,
-            request.FileName,
-            request.ContentType,
-            request.DocumentType,
-            request.ExpiryDate,
-            null,
-            request.FileLength), cancellationToken);
+            vehicleId, request.FileStream, request.FileName, request.ContentType,
+            request.DocumentType, request.ExpiryDate, null, request.FileLength), cancellationToken);
 
         if (!upload.Success || upload.Data is null)
             return ApiResponse<DriverAppDocumentDto>.FailResponse(upload.Message ?? "Upload failed.");

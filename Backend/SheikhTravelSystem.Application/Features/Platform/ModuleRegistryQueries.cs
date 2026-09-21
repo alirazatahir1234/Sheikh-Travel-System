@@ -1,28 +1,11 @@
-using System.Data;
 using System.Text.Json;
-using Dapper;
 using SheikhTravelSystem.Application.Common;
 
 namespace SheikhTravelSystem.Application.Features.Platform;
 
-/// <summary>Shared SQL/mapping for Stage 3 Module Registry reads.</summary>
+/// <summary>Shared mapping helpers for Stage 3 Module Registry (SQL lives in IPlatformRepository).</summary>
 internal static class ModuleRegistryQueries
 {
-    public const string SelectSql = """
-        SELECT Id, ModuleCode AS Code, ModuleName AS Name,
-               COALESCE(DisplayName, ModuleName) AS DisplayName,
-               Description, Category,
-               COALESCE(Version, N'1.0.0') AS Version,
-               Icon, Route, COALESCE(SortOrder, 0) AS SortOrder,
-               DependenciesJson, COALESCE(Visible, 1) AS Visible,
-               COALESCE(IsMobileSupported, 0) AS IsMobileSupported,
-               COALESCE(IsAISupported, 0) AS IsAISupported,
-               COALESCE(IsGPSSupported, 0) AS IsGPSSupported,
-               COALESCE(Status, N'Active') AS Status,
-               DocumentationUrl, LegacyKeysJson
-        FROM Modules
-        """;
-
     public sealed class ModuleRow
     {
         public int Id { get; init; }
@@ -158,63 +141,4 @@ internal static class ModuleRegistryQueries
             IsInstalled: enabled,
             IsLicensed: licensed,
             CanToggle: m.IsEnableable);
-
-    public static async Task<IReadOnlyList<ModuleRegistryDto>> LoadCatalogAsync(
-        IDbConnection connection,
-        CancellationToken cancellationToken)
-    {
-        try
-        {
-            var rows = (await connection.QueryAsync<ModuleRow>(new CommandDefinition(
-                SelectSql + " WHERE COALESCE(Visible, 1) = 1 ORDER BY COALESCE(SortOrder, 0), ModuleCode",
-                cancellationToken: cancellationToken))).ToList();
-
-            if (rows.Count > 0)
-                return rows.Select(r => ToRegistryDto(r)).ToList();
-        }
-        catch
-        {
-            // Metadata columns / table may not exist yet.
-        }
-
-        return ModuleRegistrySeed.All
-            .Where(e => e.Visible)
-            .OrderBy(e => e.SortOrder)
-            .Select(e => FromSeed(e))
-            .ToList();
-    }
-
-    public static async Task<ModuleRegistryDto?> LoadByKeyAsync(
-        IDbConnection connection,
-        string codeOrId,
-        CancellationToken cancellationToken)
-    {
-        try
-        {
-            ModuleRow? row = null;
-            if (int.TryParse(codeOrId, out var id))
-            {
-                row = await connection.QuerySingleOrDefaultAsync<ModuleRow>(new CommandDefinition(
-                    SelectSql + " WHERE Id = @Id",
-                    new { Id = id },
-                    cancellationToken: cancellationToken));
-            }
-
-            row ??= await connection.QuerySingleOrDefaultAsync<ModuleRow>(new CommandDefinition(
-                SelectSql + " WHERE ModuleCode = @Code",
-                new { Code = codeOrId },
-                cancellationToken: cancellationToken));
-
-            if (row is not null)
-                return ToRegistryDto(row);
-        }
-        catch
-        {
-            // fall through to seed
-        }
-
-        var seed = ModuleRegistrySeed.All.FirstOrDefault(e =>
-            string.Equals(e.Code, codeOrId, StringComparison.OrdinalIgnoreCase));
-        return seed is null ? null : FromSeed(seed);
-    }
 }

@@ -1,10 +1,10 @@
 using System.Security.Cryptography;
-using Dapper;
 using FluentValidation;
 using MediatR;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Exceptions;
 using SheikhTravelSystem.Application.Common.Interfaces;
+using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 using SheikhTravelSystem.Application.Features.Users.DTOs;
 using ValidationException = FluentValidation.ValidationException;
 
@@ -73,7 +73,7 @@ public class BulkCreateUsersCommandValidator : AbstractValidator<BulkCreateUsers
 
 public class BulkCreateUsersCommandHandler(
     IMediator mediator,
-    IDbConnectionFactory dbFactory,
+    IUserRepository userRepository,
     IPlatformScope platformScope,
     ICurrentUserService currentUser)
     : IRequestHandler<BulkCreateUsersCommand, ApiResponse<BulkCreateUsersResult>>
@@ -95,8 +95,6 @@ public class BulkCreateUsersCommandHandler(
         var seenEmails = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var tenantId = platformScope.TenantId;
 
-        using var connection = dbFactory.CreateConnection();
-
         for (var i = 0; i < request.Users.Count; i++)
         {
             var row = i + 1;
@@ -117,12 +115,7 @@ public class BulkCreateUsersCommandHandler(
 
             if (options.SkipDuplicates && tenantId > 0)
             {
-                var exists = await connection.ExecuteScalarAsync<bool>(
-                    new CommandDefinition(
-                        "SELECT CASE WHEN EXISTS(SELECT 1 FROM Users WHERE Email = @Email AND TenantId = @TenantId AND IsDeleted = 0) THEN 1 ELSE 0 END",
-                        new { Email = email, TenantId = tenantId },
-                        cancellationToken: cancellationToken));
-
+                var exists = await userRepository.EmailExistsInTenantAsync(email, tenantId, cancellationToken);
                 if (exists)
                 {
                     skipped.Add(new BulkCreateUserSkipped(row, email, "Email already exists in this company."));
@@ -143,11 +136,8 @@ public class BulkCreateUsersCommandHandler(
                     continue;
                 }
 
-                var roleExists = await connection.ExecuteScalarAsync<bool>(
-                    new CommandDefinition(
-                        "SELECT CASE WHEN EXISTS(SELECT 1 FROM Roles WHERE TenantId = @TenantId AND Code = @Code AND IsActive = 1) THEN 1 ELSE 0 END",
-                        new { TenantId = tenantId, Code = code },
-                        cancellationToken: cancellationToken));
+                var roleExists = await userRepository.ActivePlatformRoleExistsAsync(
+                    tenantId, code, cancellationToken);
 
                 if (!roleExists)
                 {
@@ -158,8 +148,8 @@ public class BulkCreateUsersCommandHandler(
 
             try
             {
-                await UserQueries.EnsureOrgBelongsToTenantAsync(
-                    connection, tenantId, dto.BranchId, dto.DepartmentId, cancellationToken);
+                await userRepository.EnsureOrgBelongsToTenantAsync(
+                    tenantId, dto.BranchId, dto.DepartmentId, cancellationToken);
             }
             catch (ConflictException ex)
             {

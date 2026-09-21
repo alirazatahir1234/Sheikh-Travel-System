@@ -1,6 +1,5 @@
 using System.Security.Cryptography;
 using System.Text;
-using Dapper;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.Extensions.Configuration;
@@ -22,12 +21,12 @@ public sealed class GpsDeviceApiKeyAttribute : Attribute, IAsyncAuthorizationFil
     {
         var logger = context.HttpContext.RequestServices.GetService(typeof(ILogger<GpsDeviceApiKeyAttribute>))
             as ILogger<GpsDeviceApiKeyAttribute>;
-        var dbFactory = context.HttpContext.RequestServices.GetService(typeof(IDbConnectionFactory))
-            as IDbConnectionFactory;
+        var authService = context.HttpContext.RequestServices.GetService(typeof(IGpsDeviceAuthService))
+            as IGpsDeviceAuthService;
         var configuration = context.HttpContext.RequestServices.GetService(typeof(IConfiguration))
             as IConfiguration;
 
-        if (dbFactory is null)
+        if (authService is null)
         {
             context.Result = new StatusCodeResult(StatusCodes.Status500InternalServerError);
             return;
@@ -50,14 +49,8 @@ public sealed class GpsDeviceApiKeyAttribute : Attribute, IAsyncAuthorizationFil
             return;
         }
 
-        using var connection = dbFactory.CreateConnection();
-        var tenantId = await connection.ExecuteScalarAsync<int?>(new CommandDefinition(
-            """
-            SELECT TOP 1 TenantId FROM GpsDevices
-            WHERE UniqueId = @UniqueId AND IsDeleted = 0
-            """,
-            new { UniqueId = uniqueId.Trim() },
-            cancellationToken: context.HttpContext.RequestAborted));
+        var ct = context.HttpContext.RequestAborted;
+        var tenantId = await authService.GetTenantIdByUniqueIdAsync(uniqueId, ct);
 
         if (tenantId is null or <= 0)
         {
@@ -68,20 +61,11 @@ public sealed class GpsDeviceApiKeyAttribute : Attribute, IAsyncAuthorizationFil
 
         var expectedKeys = new List<string>();
 
-        var tenantGpsKey = await connection.ExecuteScalarAsync<string?>(new CommandDefinition(
-            "SELECT ApiKey FROM TenantGpsSettings WHERE TenantId = @TenantId",
-            new { TenantId = tenantId.Value },
-            cancellationToken: context.HttpContext.RequestAborted));
+        var tenantGpsKey = await authService.GetTenantGpsApiKeyAsync(tenantId.Value, ct);
         if (!string.IsNullOrWhiteSpace(tenantGpsKey))
             expectedKeys.Add(tenantGpsKey.Trim());
 
-        var platformKey = await connection.ExecuteScalarAsync<string?>(new CommandDefinition(
-            """
-            SELECT TOP 1 Value FROM PlatformSettings
-            WHERE TenantId = @TenantId AND Category = N'Integrations' AND [Key] = N'GpsDeviceApiKey'
-            """,
-            new { TenantId = tenantId.Value },
-            cancellationToken: context.HttpContext.RequestAborted));
+        var platformKey = await authService.GetPlatformGpsDeviceApiKeyAsync(tenantId.Value, ct);
         if (!string.IsNullOrWhiteSpace(platformKey))
             expectedKeys.Add(platformKey.Trim());
 

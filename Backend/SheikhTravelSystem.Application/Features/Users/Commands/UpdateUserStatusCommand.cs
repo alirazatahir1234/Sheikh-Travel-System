@@ -1,9 +1,9 @@
-using Dapper;
 using FluentValidation;
 using MediatR;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Exceptions;
 using SheikhTravelSystem.Application.Common.Interfaces;
+using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 using SheikhTravelSystem.Application.Features.Users.DTOs;
 
 namespace SheikhTravelSystem.Application.Features.Users.Commands;
@@ -28,19 +28,12 @@ public class UpdateUserStatusCommandValidator : AbstractValidator<UpdateUserStat
 }
 
 public class UpdateUserStatusCommandHandler(
-    IDbConnectionFactory dbFactory,
+    IUserRepository userRepository,
     IPlatformScope platformScope) : IRequestHandler<UpdateUserStatusCommand, ApiResponse<bool>>
 {
     public async Task<ApiResponse<bool>> Handle(UpdateUserStatusCommand request, CancellationToken cancellationToken)
     {
-        using var connection = dbFactory.CreateConnection();
-
-        var tenantId = await connection.ExecuteScalarAsync<int?>(
-            new CommandDefinition(
-                "SELECT TenantId FROM Users WHERE Id = @Id AND IsDeleted = 0",
-                new { request.Id },
-                cancellationToken: cancellationToken));
-
+        var tenantId = await userRepository.GetTenantIdAsync(request.Id, cancellationToken);
         if (!tenantId.HasValue)
             throw new NotFoundException("User", request.Id);
 
@@ -49,22 +42,7 @@ public class UpdateUserStatusCommandHandler(
         var status = UserLifecycle.Normalize(request.Status, request.IsActive);
         var isActive = UserLifecycle.IsActiveStatus(status);
 
-        try
-        {
-            await connection.ExecuteAsync(
-                new CommandDefinition(
-                    "UPDATE Users SET IsActive = @IsActive, Status = @Status, UpdatedAt = @UpdatedAt WHERE Id = @Id",
-                    new { IsActive = isActive, Status = status, UpdatedAt = DateTime.UtcNow, request.Id },
-                    cancellationToken: cancellationToken));
-        }
-        catch
-        {
-            await connection.ExecuteAsync(
-                new CommandDefinition(
-                    "UPDATE Users SET IsActive = @IsActive, UpdatedAt = @UpdatedAt WHERE Id = @Id",
-                    new { IsActive = isActive, UpdatedAt = DateTime.UtcNow, request.Id },
-                    cancellationToken: cancellationToken));
-        }
+        await userRepository.UpdateStatusAsync(request.Id, isActive, status, cancellationToken);
 
         return ApiResponse<bool>.SuccessResponse(true, $"User status set to {status}.");
     }

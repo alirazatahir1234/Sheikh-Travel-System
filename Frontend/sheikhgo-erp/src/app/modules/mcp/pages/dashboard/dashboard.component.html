@@ -1,0 +1,50 @@
+<div class="dash" *ngIf="catalog as c">
+  <section class="hero">
+    <div>
+      <p class="eyebrow">Welcome back</p>
+      <h2>SheikhGo architecture intelligence</h2>
+      <p class="lead">
+        Explore tool groups exported from SheikhGo-MCP. Architecture and Code are live today;
+        other groups are planned placeholders — connect via Cursor or Claude to run tools.
+      </p>
+      <div class="quick">
+        @for (a of c.quickActions; track a.id) {
+          <button type="button" class="qa" (click)="onQuickAction(a)">
+            <mat-icon>{{ a.icon }}</mat-icon>
+            {{ a.label }}
+          </button>
+        }
+      </div>
+    </div>
+    <div class="hero-stats">
+      <div>
+        <strong>{{ c.summary.toolCount }}</strong>
+        <span>Registered tools</span>
+      </div>
+      <div>
+        <strong>{{ c.summary.runningGroups }}</strong>
+        <span>Running groups</span>
+      </div>
+      <div>
+        <strong>{{ c.summary.plannedGroups }}</strong>
+        <span>Planned groups</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="block">
+    <div class="block-head">
+      <h3>MCP servers</h3>
+      <a routerLink="/mcp/servers">View all</a>
+    </div>
+    <div class="grid">
+      @for (g of c.groups; track g.id) {
+        <app-mcp-server-card [group]="g" (open)="openGroup($event)"></app-mcp-server-card>
+      }
+    </div>
+  </section>
+
+  <section class="block">
+    <app-mcp-chat-dock [catalog]="c"></app-mcp-chat-dock>
+  </section>
+</div>

@@ -5,7 +5,7 @@ public class AssignmentSqlRegressionTests
     [Fact]
     public void AssignmentSql_ListSelect_UsesMaintenanceDate_NotScheduledDate()
     {
-        var source = ReadApplicationSource("Assignments", "AssignmentSql.cs");
+        var source = ReadInfrastructureSql("AssignmentSql.cs");
         Assert.Contains("MaintenanceDate", source);
         Assert.DoesNotContain("ScheduledDate", source);
     }
@@ -13,7 +13,7 @@ public class AssignmentSqlRegressionTests
     [Fact]
     public void AssignmentSql_ListFrom_UsesGpsRecordedAt_NotTimestampColumn()
     {
-        var source = ReadApplicationSource("Assignments", "AssignmentSql.cs");
+        var source = ReadInfrastructureSql("AssignmentSql.cs");
         Assert.Contains("RecordedAt AS Timestamp", source);
         Assert.DoesNotContain("ORDER BY p.Timestamp", source);
     }
@@ -21,7 +21,7 @@ public class AssignmentSqlRegressionTests
     [Fact]
     public void AssignmentValidation_UsesMaintenanceDate_NotScheduledDate()
     {
-        var source = ReadApplicationSource("Assignments", "AssignmentValidation.cs");
+        var source = ReadInfrastructureRepository("AssignmentRepository.cs");
         Assert.Contains("MaintenanceDate", source);
         Assert.DoesNotContain("ScheduledDate", source);
     }
@@ -46,6 +46,20 @@ public class AssignmentSqlRegressionTests
     {
         var dir = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..",
             "SheikhTravelSystem.Application", "Features", featureFolder, fileName);
+        return File.ReadAllText(Path.GetFullPath(dir));
+    }
+
+    private static string ReadInfrastructureSql(string fileName)
+    {
+        var dir = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..",
+            "SheikhTravelSystem.Infrastructure", "Persistence", "Repositories", "Sql", fileName);
+        return File.ReadAllText(Path.GetFullPath(dir));
+    }
+
+    private static string ReadInfrastructureRepository(string fileName)
+    {
+        var dir = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..",
+            "SheikhTravelSystem.Infrastructure", "Persistence", "Repositories", fileName);
         return File.ReadAllText(Path.GetFullPath(dir));
     }
 }

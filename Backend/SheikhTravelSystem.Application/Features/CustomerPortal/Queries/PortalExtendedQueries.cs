@@ -1,9 +1,8 @@
 using System.Text;
-using Dapper;
 using FluentValidation;
 using MediatR;
 using SheikhTravelSystem.Application.Common;
-using SheikhTravelSystem.Application.Common.Interfaces;
+using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 using SheikhTravelSystem.Application.Features.CustomerPortal.DTOs;
 using SheikhTravelSystem.Application.Features.GpsTracking.Queries;
 using SheikhTravelSystem.Domain.Enums;
@@ -22,40 +21,32 @@ public class GetPortalBookingTrackingQueryValidator : AbstractValidator<GetPorta
     }
 }
 
-public class GetPortalBookingTrackingQueryHandler(IDbConnectionFactory dbFactory, ISender mediator)
+public class GetPortalBookingTrackingQueryHandler(ICustomerPortalRepository portalRepository, ISender mediator)
     : IRequestHandler<GetPortalBookingTrackingQuery, ApiResponse<PortalBookingTrackingDto>>
 {
     public async Task<ApiResponse<PortalBookingTrackingDto>> Handle(
         GetPortalBookingTrackingQuery request,
         CancellationToken cancellationToken)
     {
-        if (!await PortalBookingAccess.CustomerOwnsBookingAsync(
-                dbFactory, request.BookingId, request.Phone, request.CustomerId, cancellationToken))
+        if (!await portalRepository.CustomerOwnsBookingAsync(
+                request.BookingId, request.Phone, request.CustomerId, cancellationToken))
         {
             return ApiResponse<PortalBookingTrackingDto>.FailResponse("Booking not found for this phone number.");
         }
 
-        using var connection = dbFactory.CreateConnection();
-        var head = await connection.QuerySingleOrDefaultAsync<(int Status, int? VehicleId)>(
-            new CommandDefinition(
-                "SELECT Status, VehicleId FROM Bookings WHERE Id = @Id AND IsDeleted = 0",
-                new { Id = request.BookingId },
-                cancellationToken: cancellationToken));
-
-        if (head.Status == 0)
-        {
+        var head = await portalRepository.GetBookingStatusVehicleAsync(request.BookingId, cancellationToken);
+        if (head is null)
             return ApiResponse<PortalBookingTrackingDto>.FailResponse("Booking not found.");
-        }
 
-        var status = (BookingStatus)head.Status;
-        var trackable = status is BookingStatus.Confirmed or BookingStatus.Started && head.VehicleId.HasValue;
+        var status = (BookingStatus)head.Value.Status;
+        var trackable = status is BookingStatus.Confirmed or BookingStatus.Started && head.Value.VehicleId.HasValue;
 
         if (!trackable)
         {
             return ApiResponse<PortalBookingTrackingDto>.SuccessResponse(
                 new PortalBookingTrackingDto(
                     request.BookingId,
-                    head.VehicleId,
+                    head.Value.VehicleId,
                     null,
                     status,
                     false,
@@ -74,7 +65,7 @@ public class GetPortalBookingTrackingQueryHandler(IDbConnectionFactory dbFactory
             return ApiResponse<PortalBookingTrackingDto>.SuccessResponse(
                 new PortalBookingTrackingDto(
                     request.BookingId,
-                    head.VehicleId,
+                    head.Value.VehicleId,
                     null,
                     status,
                     false,
@@ -88,19 +79,8 @@ public class GetPortalBookingTrackingQueryHandler(IDbConnectionFactory dbFactory
         }
 
         var d = eta.Data;
-        var live = await connection.QueryFirstOrDefaultAsync<(decimal? Speed, DateTime? UpdatedAt)>(
-            new CommandDefinition(
-                @"SELECT Speed, Timestamp FROM VehicleCurrentLocation WHERE VehicleId = @VehicleId",
-                new { d.VehicleId },
-                cancellationToken: cancellationToken));
-
-        var driverPhone = await connection.ExecuteScalarAsync<string?>(
-            new CommandDefinition(
-                @"SELECT d.Phone FROM Bookings b
-                  INNER JOIN Drivers d ON d.Id = b.DriverId
-                  WHERE b.Id = @Id AND b.Status = @Started",
-                new { Id = request.BookingId, Started = (int)BookingStatus.Started },
-                cancellationToken: cancellationToken));
+        var live = await portalRepository.GetVehicleLiveLocationAsync(d.VehicleId, cancellationToken);
+        var driverPhone = await portalRepository.GetStartedBookingDriverPhoneAsync(request.BookingId, cancellationToken);
 
         string? masked = null;
         if (!string.IsNullOrWhiteSpace(driverPhone) && driverPhone.Length >= 4)
@@ -119,8 +99,8 @@ public class GetPortalBookingTrackingQueryHandler(IDbConnectionFactory dbFactory
                 d.PickupLongitude,
                 d.DistanceKm,
                 d.EtaMinutes,
-                live.Speed,
-                live.UpdatedAt,
+                live?.Speed,
+                live?.UpdatedAt,
                 masked),
             "Tracking loaded.");
     }
@@ -138,56 +118,20 @@ public class GetPortalBookingInvoiceQueryValidator : AbstractValidator<GetPortal
     }
 }
 
-public class GetPortalBookingInvoiceQueryHandler(IDbConnectionFactory dbFactory)
+public class GetPortalBookingInvoiceQueryHandler(ICustomerPortalRepository portalRepository)
     : IRequestHandler<GetPortalBookingInvoiceQuery, ApiResponse<byte[]>>
 {
     public async Task<ApiResponse<byte[]>> Handle(GetPortalBookingInvoiceQuery request, CancellationToken cancellationToken)
     {
-        if (!await PortalBookingAccess.CustomerOwnsBookingAsync(
-                dbFactory, request.BookingId, request.Phone, request.CustomerId, cancellationToken))
+        if (!await portalRepository.CustomerOwnsBookingAsync(
+                request.BookingId, request.Phone, request.CustomerId, cancellationToken))
         {
             return ApiResponse<byte[]>.FailResponse("Booking not found for this phone number.");
         }
 
-        using var connection = dbFactory.CreateConnection();
-        var row = await connection.QuerySingleOrDefaultAsync<(
-            string BookingNumber,
-            string RouteLabel,
-            DateTime PickupTime,
-            decimal TotalAmount,
-            decimal PaidAmount,
-            string CustomerName,
-            string CustomerPhone)>(
-            new CommandDefinition(
-                @"SELECT b.BookingNumber,
-                         ISNULL(r.Source + N' → ' + r.Destination, N'') AS RouteLabel,
-                         b.PickupTime,
-                         b.TotalAmount,
-                         ISNULL((
-                           SELECT SUM(p.Amount)
-                           FROM Payments p
-                           WHERE p.BookingId = b.Id
-                             AND p.Status IN (@Paid, @Partial)
-                             AND p.IsDeleted = 0
-                         ), 0) AS PaidAmount,
-                         c.FullName AS CustomerName,
-                         c.Phone AS CustomerPhone
-                  FROM Bookings b
-                  INNER JOIN Customers c ON c.Id = b.CustomerId
-                  LEFT JOIN Routes r ON r.Id = b.RouteId
-                  WHERE b.Id = @Id AND b.IsDeleted = 0",
-                new
-                {
-                    Id = request.BookingId,
-                    Paid = (int)PaymentStatus.Paid,
-                    Partial = (int)PaymentStatus.PartiallyPaid
-                },
-                cancellationToken: cancellationToken));
-
-        if (string.IsNullOrEmpty(row.BookingNumber))
-        {
+        var row = await portalRepository.GetInvoiceRowAsync(request.BookingId, cancellationToken);
+        if (row is null || string.IsNullOrEmpty(row.BookingNumber))
             return ApiResponse<byte[]>.FailResponse("Booking not found.");
-        }
 
         var remaining = Math.Max(0, row.TotalAmount - row.PaidAmount);
         var html = new StringBuilder();
@@ -219,46 +163,29 @@ public class CancelPortalBookingCommandValidator : AbstractValidator<CancelPorta
     }
 }
 
-public class CancelPortalBookingCommandHandler(IDbConnectionFactory dbFactory)
+public class CancelPortalBookingCommandHandler(ICustomerPortalRepository portalRepository)
     : IRequestHandler<CancelPortalBookingCommand, ApiResponse<bool>>
 {
     public async Task<ApiResponse<bool>> Handle(CancelPortalBookingCommand request, CancellationToken cancellationToken)
     {
-        if (!await PortalBookingAccess.CustomerOwnsBookingAsync(
-                dbFactory, request.BookingId, request.Phone, request.CustomerId, cancellationToken))
+        if (!await portalRepository.CustomerOwnsBookingAsync(
+                request.BookingId, request.Phone, request.CustomerId, cancellationToken))
         {
             return ApiResponse<bool>.FailResponse("Booking not found for this phone number.");
         }
 
-        using var connection = dbFactory.CreateConnection();
-        var row = await connection.QuerySingleOrDefaultAsync<(int Status, DateTime PickupTime)>(
-            new CommandDefinition(
-                "SELECT Status, PickupTime FROM Bookings WHERE Id = @Id AND IsDeleted = 0",
-                new { Id = request.BookingId },
-                cancellationToken: cancellationToken));
-
-        if (row.Status == 0)
-        {
+        var row = await portalRepository.GetBookingStatusPickupAsync(request.BookingId, cancellationToken);
+        if (row is null)
             return ApiResponse<bool>.FailResponse("Booking not found.");
-        }
 
-        var status = (BookingStatus)row.Status;
+        var status = (BookingStatus)row.Value.Status;
         if (status is BookingStatus.Started or BookingStatus.Completed or BookingStatus.Cancelled)
-        {
             return ApiResponse<bool>.FailResponse("This booking can no longer be cancelled online.");
-        }
 
-        if (row.PickupTime <= DateTime.UtcNow.AddHours(-1))
-        {
+        if (row.Value.PickupTime <= DateTime.UtcNow.AddHours(-1))
             return ApiResponse<bool>.FailResponse("Pickup time has passed; contact support to cancel.");
-        }
 
-        await connection.ExecuteAsync(
-            new CommandDefinition(
-                "UPDATE Bookings SET Status = @Status, UpdatedAt = SYSUTCDATETIME() WHERE Id = @Id",
-                new { Id = request.BookingId, Status = (int)BookingStatus.Cancelled },
-                cancellationToken: cancellationToken));
-
+        await portalRepository.CancelBookingAsync(request.BookingId, cancellationToken);
         return ApiResponse<bool>.SuccessResponse(true, "Booking cancelled.");
     }
 }

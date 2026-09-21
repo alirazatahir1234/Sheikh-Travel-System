@@ -1,9 +1,8 @@
-using Dapper;
 using FluentValidation;
 using MediatR;
 using SheikhTravelSystem.Application.Common;
-using SheikhTravelSystem.Application.Common.Exceptions;
 using SheikhTravelSystem.Application.Common.Interfaces;
+using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 using SheikhTravelSystem.Domain.Enums;
 
 namespace SheikhTravelSystem.Application.Features.Maintenance.Commands;
@@ -24,28 +23,12 @@ public class UpdateMaintenanceStatusCommandValidator : AbstractValidator<UpdateM
     }
 }
 
-public class UpdateMaintenanceStatusCommandHandler(IDbConnectionFactory dbFactory)
+public class UpdateMaintenanceStatusCommandHandler(IMaintenanceRepository maintenanceRepository)
     : IRequestHandler<UpdateMaintenanceStatusCommand, ApiResponse<bool>>
 {
     public async Task<ApiResponse<bool>> Handle(UpdateMaintenanceStatusCommand request, CancellationToken cancellationToken)
     {
-        using var connection = dbFactory.CreateConnection();
-
-        var exists = await connection.ExecuteScalarAsync<bool>(
-            new CommandDefinition(
-                "SELECT CASE WHEN EXISTS(SELECT 1 FROM Maintenance WHERE Id = @Id AND IsDeleted = 0) THEN 1 ELSE 0 END",
-                new { request.Id },
-                cancellationToken: cancellationToken));
-
-        if (!exists)
-            throw new NotFoundException("Maintenance", request.Id);
-
-        await connection.ExecuteAsync(
-            new CommandDefinition(
-                "UPDATE Maintenance SET Status = @Status, UpdatedAt = @UpdatedAt WHERE Id = @Id",
-                new { Status = (int)request.Status, UpdatedAt = DateTime.UtcNow, request.Id },
-                cancellationToken: cancellationToken));
-
+        await maintenanceRepository.UpdateStatusAsync(request.Id, request.Status, cancellationToken);
         return ApiResponse<bool>.SuccessResponse(true, "Maintenance status updated successfully.");
     }
 }

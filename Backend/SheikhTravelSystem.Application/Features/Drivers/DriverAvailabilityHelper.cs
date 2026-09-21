@@ -32,18 +32,4 @@ public static class DriverAvailabilityHelper
 
         return DriverAvailabilityBucket.Unavailable;
     }
-
-    public static string BucketSqlExpression => """
-        CASE
-            WHEN d.IsActive = 0 OR d.Status IN (@Suspended, @OnLeave) OR d.LicenseExpiryDate < CAST(GETUTCDATE() AS DATE)
-                THEN N'Unavailable'
-            WHEN d.Status = @OnTrip THEN N'OnTrip'
-            WHEN EXISTS (
-                SELECT 1 FROM AssignmentHistory ah
-                WHERE ah.DriverId = d.Id AND ah.IsDeleted = 0 AND ah.Status = N'Active'
-            ) THEN N'Busy'
-            WHEN d.Status IN (@Available, @OffDuty) THEN N'Available'
-            ELSE N'Unavailable'
-        END
-        """;
 }

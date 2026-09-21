@@ -1,9 +1,8 @@
-using Dapper;
 using FluentValidation;
 using MediatR;
 using SheikhTravelSystem.Application.Common;
-using SheikhTravelSystem.Application.Common.Exceptions;
 using SheikhTravelSystem.Application.Common.Interfaces;
+using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 
 namespace SheikhTravelSystem.Application.Features.Bookings.Commands;
 
@@ -22,22 +21,12 @@ public class DeleteBookingCommandValidator : AbstractValidator<DeleteBookingComm
     }
 }
 
-public class DeleteBookingCommandHandler(IDbConnectionFactory dbFactory)
+public class DeleteBookingCommandHandler(IBookingRepository bookingRepository)
     : IRequestHandler<DeleteBookingCommand, ApiResponse<bool>>
 {
     public async Task<ApiResponse<bool>> Handle(DeleteBookingCommand request, CancellationToken cancellationToken)
     {
-        using var connection = dbFactory.CreateConnection();
-
-        var rowsAffected = await connection.ExecuteAsync(
-            new CommandDefinition(
-                "UPDATE Bookings SET IsDeleted = 1, UpdatedAt = @UpdatedAt WHERE Id = @Id AND IsDeleted = 0",
-                new { request.Id, UpdatedAt = DateTime.UtcNow },
-                cancellationToken: cancellationToken));
-
-        if (rowsAffected == 0)
-            throw new NotFoundException("Booking", request.Id);
-
+        await bookingRepository.SoftDeleteAsync(request.Id, cancellationToken);
         return ApiResponse<bool>.SuccessResponse(true, "Booking deleted successfully.");
     }
 }

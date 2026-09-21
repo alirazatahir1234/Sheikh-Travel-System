@@ -1,7 +1,7 @@
-using Dapper;
 using MediatR;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Interfaces;
+using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 using SheikhTravelSystem.Application.Features.DriverApp.DTOs;
 using SheikhTravelSystem.Domain.Enums;
 
@@ -11,7 +11,7 @@ public record GetDriverFuelReceiptsQuery(int Page = 1, int PageSize = 30)
     : IRequest<ApiResponse<List<DriverFuelReceiptDto>>>;
 
 public class GetDriverFuelReceiptsQueryHandler(
-    IDbConnectionFactory dbFactory,
+    IDriverAppRepository driverAppRepository,
     ICurrentUserService currentUser,
     IFileStorageService fileStorage)
     : IRequestHandler<GetDriverFuelReceiptsQuery, ApiResponse<List<DriverFuelReceiptDto>>>
@@ -27,38 +27,24 @@ public class GetDriverFuelReceiptsQueryHandler(
         var pageSize = request.PageSize is < 1 or > 100 ? 30 : request.PageSize;
         var offset = (page - 1) * pageSize;
 
-        using var connection = dbFactory.CreateConnection();
-        var rows = await connection.QueryAsync(new CommandDefinition(
-            """
-            SELECT f.Id, f.VehicleId, v.Name AS VehicleName, v.RegistrationNumber AS VehiclePlate,
-                   f.Liters, f.PricePerLiter, f.TotalCost, f.OdometerReading, f.FuelType,
-                   f.FuelDate, f.Station, f.ReceiptUrl
-            FROM FuelLogs f
-            LEFT JOIN Vehicles v ON v.Id = f.VehicleId
-            WHERE f.DriverId = @DriverId AND f.IsDeleted = 0
-            ORDER BY f.FuelDate DESC
-            OFFSET @Offset ROWS FETCH NEXT @Size ROWS ONLY
-            """,
-            new { DriverId = driverId.Value, Offset = offset, Size = pageSize },
-            cancellationToken: cancellationToken));
+        var rows = await driverAppRepository.GetFuelReceiptsAsync(driverId.Value, offset, pageSize, cancellationToken);
 
         var list = rows.Select(r =>
         {
-            var fuelType = (FuelType)(int)r.FuelType;
-            var receipt = (string?)r.ReceiptUrl;
+            var fuelType = (FuelType)r.FuelType;
             return new DriverFuelReceiptDto(
-                (int)r.Id,
-                (int)r.VehicleId,
-                (string?)r.VehicleName,
-                (string?)r.VehiclePlate,
-                (decimal)r.Liters,
-                (decimal)r.PricePerLiter,
-                (decimal)r.TotalCost,
-                (decimal?)r.OdometerReading,
+                r.Id,
+                r.VehicleId,
+                r.VehicleName,
+                r.VehiclePlate,
+                r.Liters,
+                r.PricePerLiter,
+                r.TotalCost,
+                r.OdometerReading,
                 fuelType.ToString(),
-                (DateTime)r.FuelDate,
-                (string?)r.Station,
-                string.IsNullOrWhiteSpace(receipt) ? null : fileStorage.ResolveReadUrl(receipt));
+                r.FuelDate,
+                r.Station,
+                string.IsNullOrWhiteSpace(r.ReceiptUrl) ? null : fileStorage.ResolveReadUrl(r.ReceiptUrl));
         }).ToList();
 
         return ApiResponse<List<DriverFuelReceiptDto>>.SuccessResponse(list);

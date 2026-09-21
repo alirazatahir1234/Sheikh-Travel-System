@@ -1,8 +1,8 @@
-using Dapper;
 using MediatR;
 using Microsoft.Extensions.Caching.Distributed;
 using SheikhTravelSystem.Application.Common;
-using SheikhTravelSystem.Application.Common.Interfaces;
+using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
+using SheikhTravelSystem.Application.Features.Notifications;
 using SheikhTravelSystem.Application.Features.Notifications.DTOs;
 
 namespace SheikhTravelSystem.Application.Features.Notifications.Queries;
@@ -25,117 +25,32 @@ public record GetNotificationsQuery(
     bool Trash = false)
     : IRequest<ApiResponse<PagedResult<NotificationDto>>>;
 
-public class GetNotificationsQueryHandler(IDbConnectionFactory dbFactory)
+public class GetNotificationsQueryHandler(INotificationRepository notificationRepository)
     : IRequestHandler<GetNotificationsQuery, ApiResponse<PagedResult<NotificationDto>>>
 {
     public async Task<ApiResponse<PagedResult<NotificationDto>>> Handle(
         GetNotificationsQuery request, CancellationToken cancellationToken)
     {
-        using var connection = dbFactory.CreateConnection();
-        var offset = (request.Page - 1) * request.PageSize;
         var (fromDate, toDate) = ResolveDateRange(request.DatePreset, request.FromDate, request.ToDate);
 
-        // Recipient-scoped mailbox with legacy fallback (owned row, no recipient yet).
-        var mailbox = request.Trash
-            ? """
-              AND (
-                    (r.Id IS NOT NULL AND r.IsDeleted = 1)
-                 OR (r.Id IS NULL AND n.UserId = @UserId AND n.IsDeleted = 1)
-              )
-              """
-            : request.Archived
-                ? """
-                  AND (
-                        (r.Id IS NOT NULL AND r.IsArchived = 1 AND r.IsDeleted = 0)
-                     OR (r.Id IS NULL AND n.UserId = @UserId AND ISNULL(n.IsArchived,0) = 1 AND n.IsDeleted = 0)
-                  )
-                  """
-                : """
-                  AND (
-                        (r.Id IS NOT NULL AND r.IsDeleted = 0 AND r.IsArchived = 0)
-                     OR (r.Id IS NULL AND (n.UserId = @UserId OR n.UserId IS NULL)
-                         AND n.IsDeleted = 0 AND ISNULL(n.IsArchived,0) = 0)
-                  )
-                  """;
-
-        var where = $"""
-            WHERE (
-                    EXISTS (SELECT 1 FROM NotificationRecipients rx
-                            WHERE rx.NotificationId = n.Id AND rx.UserId = @UserId)
-                 OR n.UserId = @UserId
-                 OR (n.UserId IS NULL AND n.RecipientType = 'SystemAnnouncement' AND NOT EXISTS (
-                        SELECT 1 FROM NotificationRecipients rx WHERE rx.NotificationId = n.Id))
-                  )
-              AND n.TenantId = @TenantId
-            {mailbox}
-            """;
-
-        if (request.UnreadOnly == true)
-            where += " AND ISNULL(r.IsRead, n.IsRead) = 0";
-        if (request.IsSent == true) where += " AND n.IsSent = 1";
-        if (request.IsSent == false) where += " AND n.IsSent = 0";
-        if (!string.IsNullOrWhiteSpace(request.Channel)) where += " AND n.Channel = @Channel";
-        if (request.Priority is not null) where += " AND n.Priority = @Priority";
-        if (fromDate is not null) where += " AND n.CreatedAt >= @FromDate";
-        if (toDate is not null) where += " AND n.CreatedAt <= @ToDate";
-        if (!string.IsNullOrWhiteSpace(request.Module)) where += " AND ISNULL(n.Module,'System') = @Module";
-        if (!string.IsNullOrWhiteSpace(request.Search))
-            where += " AND (n.Title LIKE @Search OR n.Message LIKE @Search)";
-
-        var sql = $"""
-            SELECT n.Id, n.UserId, n.Title, n.Message, n.Type,
-                   ISNULL(r.IsRead, n.IsRead) AS IsRead,
-                   n.ReferenceId, n.CreatedAt,
-                   ISNULL(n.Priority, 2) AS Priority,
-                   ISNULL(n.Channel, 'InApp') AS Channel,
-                   n.RecipientType, ISNULL(n.IsSent, 0) AS IsSent, n.SentDate, n.TemplateKey,
-                   ISNULL(n.Module, 'System') AS Module,
-                   ISNULL(r.ReadAt, n.ReadDate) AS ReadDate,
-                   ISNULL(r.DeliveryStatus, ISNULL(n.DeliveryStatus, CASE WHEN n.IsSent = 1 THEN 'Sent' ELSE 'Pending' END)) AS DeliveryStatus,
-                   ISNULL(r.IsArchived, ISNULL(n.IsArchived, 0)) AS IsArchived,
-                   ISNULL(r.IsDeleted, n.IsDeleted) AS IsDeleted,
-                   ISNULL(n.RetentionCategory, 'Standard') AS RetentionCategory,
-                   ISNULL(n.NeverAutoDelete, 0) AS NeverAutoDelete
-            FROM Notifications n
-            LEFT JOIN NotificationRecipients r ON r.NotificationId = n.Id AND r.UserId = @UserId
-            {where}
-            ORDER BY n.CreatedAt DESC
-            OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY
-            """;
-
-        var countSql = $"""
-            SELECT COUNT(*)
-            FROM Notifications n
-            LEFT JOIN NotificationRecipients r ON r.NotificationId = n.Id AND r.UserId = @UserId
-            {where}
-            """;
-
-        var param = new
-        {
-            request.UserId,
+        var result = await notificationRepository.GetPagedAsync(
             request.TenantId,
-            Offset = offset,
+            request.UserId,
+            request.Page,
             request.PageSize,
+            request.UnreadOnly,
+            request.IsSent,
             request.Channel,
             request.Priority,
-            FromDate = fromDate,
-            ToDate = toDate,
+            request.Search,
+            fromDate,
+            toDate,
             request.Module,
-            Search = string.IsNullOrWhiteSpace(request.Search) ? null : $"%{request.Search}%"
-        };
+            request.Archived,
+            request.Trash,
+            cancellationToken);
 
-        var items = (await connection.QueryAsync<NotificationDto>(
-            new CommandDefinition(sql, param, cancellationToken: cancellationToken))).ToList();
-        var total = await connection.ExecuteScalarAsync<int>(
-            new CommandDefinition(countSql, param, cancellationToken: cancellationToken));
-
-        return ApiResponse<PagedResult<NotificationDto>>.SuccessResponse(new PagedResult<NotificationDto>
-        {
-            Items = items,
-            TotalCount = total,
-            Page = request.Page,
-            PageSize = request.PageSize
-        });
+        return ApiResponse<PagedResult<NotificationDto>>.SuccessResponse(result);
     }
 
     private static (DateTime? From, DateTime? To) ResolveDateRange(string? preset, DateTime? from, DateTime? to)
@@ -157,44 +72,14 @@ public class GetNotificationsQueryHandler(IDbConnectionFactory dbFactory)
 
 public record GetNotificationStatsQuery(int TenantId, int UserId) : IRequest<ApiResponse<NotificationStatsDto>>;
 
-public class GetNotificationStatsQueryHandler(IDbConnectionFactory dbFactory)
+public class GetNotificationStatsQueryHandler(INotificationRepository notificationRepository)
     : IRequestHandler<GetNotificationStatsQuery, ApiResponse<NotificationStatsDto>>
 {
     public async Task<ApiResponse<NotificationStatsDto>> Handle(
         GetNotificationStatsQuery request, CancellationToken cancellationToken)
     {
-        using var connection = dbFactory.CreateConnection();
-        var row = await connection.QuerySingleAsync<NotificationStatsDto>(new CommandDefinition("""
-            SELECT
-                ISNULL(SUM(CASE WHEN ISNULL(r.IsRead, n.IsRead) = 0 THEN 1 ELSE 0 END), 0) AS Unread,
-                COUNT(*) AS Total,
-                ISNULL(SUM(CASE WHEN n.Channel = 'Email' THEN 1 ELSE 0 END), 0) AS Email,
-                ISNULL(SUM(CASE WHEN n.Channel = 'Sms' THEN 1 ELSE 0 END), 0) AS Sms,
-                ISNULL(SUM(CASE WHEN n.Channel = 'Push' THEN 1 ELSE 0 END), 0) AS Push,
-                ISNULL(SUM(CASE WHEN n.Channel = 'Browser' THEN 1 ELSE 0 END), 0) AS Browser,
-                ISNULL(SUM(CASE WHEN n.Channel = 'WhatsApp' THEN 1 ELSE 0 END), 0) AS WhatsApp,
-                ISNULL((SELECT COUNT(*) FROM NotificationDeliveryLogs l
-                 INNER JOIN Notifications xn ON xn.Id = l.NotificationId
-                 LEFT JOIN NotificationRecipients xr ON xr.NotificationId = xn.Id AND xr.UserId = @UserId
-                 WHERE xn.TenantId = @TenantId
-                   AND (xr.UserId = @UserId OR xn.UserId = @UserId
-                        OR (xn.UserId IS NULL AND xn.RecipientType = 'SystemAnnouncement'))
-                   AND ISNULL(xr.IsDeleted, xn.IsDeleted) = 0
-                   AND ISNULL(xr.IsArchived, ISNULL(xn.IsArchived,0)) = 0
-                   AND l.Status = 'Failed'), 0) AS Failed
-            FROM Notifications n
-            LEFT JOIN NotificationRecipients r ON r.NotificationId = n.Id AND r.UserId = @UserId
-            WHERE (
-                    r.Id IS NOT NULL
-                 OR n.UserId = @UserId
-                 OR (n.UserId IS NULL AND n.RecipientType = 'SystemAnnouncement' AND NOT EXISTS (
-                        SELECT 1 FROM NotificationRecipients rx WHERE rx.NotificationId = n.Id))
-                  )
-              AND n.TenantId = @TenantId
-              AND ISNULL(r.IsDeleted, n.IsDeleted) = 0
-              AND ISNULL(r.IsArchived, ISNULL(n.IsArchived, 0)) = 0
-            """, new { request.UserId, request.TenantId }, cancellationToken: cancellationToken));
-
+        var row = await notificationRepository.GetStatsAsync(
+            request.TenantId, request.UserId, cancellationToken);
         return ApiResponse<NotificationStatsDto>.SuccessResponse(row);
     }
 }
@@ -204,7 +89,9 @@ public record GetUnreadNotificationCountQuery(
     int UserId,
     string? Channel = null) : IRequest<ApiResponse<int>>;
 
-public class GetUnreadNotificationCountQueryHandler(IDbConnectionFactory dbFactory, IDistributedCache cache)
+public class GetUnreadNotificationCountQueryHandler(
+    INotificationRepository notificationRepository,
+    IDistributedCache cache)
     : IRequestHandler<GetUnreadNotificationCountQuery, ApiResponse<int>>
 {
     private static string CacheKey(int userId, string? channel) =>
@@ -224,27 +111,8 @@ public class GetUnreadNotificationCountQueryHandler(IDbConnectionFactory dbFacto
             // Redis optional — continue with DB
         }
 
-        using var connection = dbFactory.CreateConnection();
-        var channelFilter = string.IsNullOrWhiteSpace(request.Channel)
-            ? "AND ISNULL(n.Channel, 'InApp') IN ('InApp', 'Browser', 'Push')"
-            : "AND ISNULL(n.Channel, 'InApp') = @Channel";
-
-        var count = await connection.ExecuteScalarAsync<int>(new CommandDefinition($"""
-            SELECT COUNT(*)
-            FROM Notifications n
-            LEFT JOIN NotificationRecipients r ON r.NotificationId = n.Id AND r.UserId = @UserId
-            WHERE (
-                    r.Id IS NOT NULL
-                 OR n.UserId = @UserId
-                 OR (n.UserId IS NULL AND n.RecipientType = 'SystemAnnouncement' AND NOT EXISTS (
-                        SELECT 1 FROM NotificationRecipients rx WHERE rx.NotificationId = n.Id))
-                  )
-              AND n.TenantId = @TenantId
-              AND ISNULL(r.IsDeleted, n.IsDeleted) = 0
-              AND ISNULL(r.IsArchived, ISNULL(n.IsArchived, 0)) = 0
-              AND ISNULL(r.IsRead, n.IsRead) = 0
-              {channelFilter}
-            """, new { request.UserId, request.TenantId, request.Channel }, cancellationToken: cancellationToken));
+        var count = await notificationRepository.GetUnreadCountAsync(
+            request.TenantId, request.UserId, request.Channel, cancellationToken);
 
         try
         {
@@ -265,18 +133,13 @@ public class GetUnreadNotificationCountQueryHandler(IDbConnectionFactory dbFacto
 
 public record GetNotificationPreferencesQuery(int UserId) : IRequest<ApiResponse<NotificationPreferencesDto>>;
 
-public class GetNotificationPreferencesQueryHandler(IDbConnectionFactory dbFactory)
+public class GetNotificationPreferencesQueryHandler(INotificationRepository notificationRepository)
     : IRequestHandler<GetNotificationPreferencesQuery, ApiResponse<NotificationPreferencesDto>>
 {
     public async Task<ApiResponse<NotificationPreferencesDto>> Handle(
         GetNotificationPreferencesQuery request, CancellationToken cancellationToken)
     {
-        using var connection = dbFactory.CreateConnection();
-        var row = await connection.QuerySingleOrDefaultAsync<NotificationPreferencesDto>(new CommandDefinition("""
-            SELECT EmailEnabled, SmsEnabled, PushEnabled, BrowserEnabled, WhatsAppEnabled
-            FROM NotificationPreferences WHERE UserId = @UserId
-            """, new { request.UserId }, cancellationToken: cancellationToken));
-
+        var row = await notificationRepository.GetPreferencesAsync(request.UserId, cancellationToken);
         return ApiResponse<NotificationPreferencesDto>.SuccessResponse(
             row ?? new NotificationPreferencesDto());
     }
@@ -285,25 +148,13 @@ public class GetNotificationPreferencesQueryHandler(IDbConnectionFactory dbFacto
 public record GetNotificationTemplatesQuery(string? Channel = null)
     : IRequest<ApiResponse<List<NotificationTemplateDto>>>;
 
-public class GetNotificationTemplatesQueryHandler(IDbConnectionFactory dbFactory)
+public class GetNotificationTemplatesQueryHandler(INotificationRepository notificationRepository)
     : IRequestHandler<GetNotificationTemplatesQuery, ApiResponse<List<NotificationTemplateDto>>>
 {
     public async Task<ApiResponse<List<NotificationTemplateDto>>> Handle(
         GetNotificationTemplatesQuery request, CancellationToken cancellationToken)
     {
-        using var connection = dbFactory.CreateConnection();
-        var sql = """
-            SELECT Id, TemplateKey, TemplateName, Subject, Body, Channel, IsActive,
-                   ISNULL(Language, 'en') AS Language, Variables
-            FROM NotificationTemplates
-            WHERE IsDeleted = 0
-            """;
-        if (!string.IsNullOrWhiteSpace(request.Channel))
-            sql += " AND Channel = @Channel";
-        sql += " ORDER BY TemplateName, Channel";
-
-        var rows = (await connection.QueryAsync<NotificationTemplateDto>(
-            new CommandDefinition(sql, new { request.Channel }, cancellationToken: cancellationToken))).ToList();
+        var rows = await notificationRepository.GetTemplatesAsync(request.Channel, cancellationToken);
         return ApiResponse<List<NotificationTemplateDto>>.SuccessResponse(rows);
     }
 }
@@ -311,53 +162,34 @@ public class GetNotificationTemplatesQueryHandler(IDbConnectionFactory dbFactory
 public record GetNotificationHistoryQuery(int TenantId, int NotificationId, int UserId)
     : IRequest<ApiResponse<List<NotificationDeliveryLogDto>>>;
 
-public class GetNotificationHistoryQueryHandler(IDbConnectionFactory dbFactory)
+public class GetNotificationHistoryQueryHandler(INotificationRepository notificationRepository)
     : IRequestHandler<GetNotificationHistoryQuery, ApiResponse<List<NotificationDeliveryLogDto>>>
 {
     public async Task<ApiResponse<List<NotificationDeliveryLogDto>>> Handle(
         GetNotificationHistoryQuery request, CancellationToken cancellationToken)
     {
-        using var connection = dbFactory.CreateConnection();
-        var owned = await connection.ExecuteScalarAsync<int>(new CommandDefinition("""
-            SELECT COUNT(*) FROM Notifications n
-            LEFT JOIN NotificationRecipients r ON r.NotificationId = n.Id AND r.UserId = @UserId
-            WHERE n.Id = @NotificationId
-              AND n.TenantId = @TenantId
-              AND (r.Id IS NOT NULL OR n.UserId = @UserId OR (n.UserId IS NULL AND n.RecipientType = 'SystemAnnouncement'))
-            """, new { request.NotificationId, request.UserId, request.TenantId }, cancellationToken: cancellationToken));
+        var canAccess = await notificationRepository.UserCanAccessNotificationAsync(
+            request.TenantId, request.NotificationId, request.UserId, cancellationToken);
 
-        if (owned == 0)
+        if (!canAccess)
             return ApiResponse<List<NotificationDeliveryLogDto>>.FailResponse("Notification not found.");
 
-        var logs = (await connection.QueryAsync<NotificationDeliveryLogDto>(new CommandDefinition("""
-            SELECT Id, NotificationId, Channel, Status, Response, CreatedAt,
-                   Provider, ISNULL(RetryCount, 0) AS RetryCount, NextRetryAt
-            FROM NotificationDeliveryLogs
-            WHERE NotificationId = @NotificationId
-            ORDER BY CreatedAt DESC
-            """, new { request.NotificationId }, cancellationToken: cancellationToken))).ToList();
-
+        var logs = await notificationRepository.GetDeliveryLogsAsync(
+            request.NotificationId, cancellationToken);
         return ApiResponse<List<NotificationDeliveryLogDto>>.SuccessResponse(logs);
     }
 }
 
 public record GetNotificationRetentionQuery(int TenantId) : IRequest<ApiResponse<NotificationRetentionDto>>;
 
-public class GetNotificationRetentionQueryHandler(IDbConnectionFactory dbFactory)
+public class GetNotificationRetentionQueryHandler(INotificationRepository notificationRepository)
     : IRequestHandler<GetNotificationRetentionQuery, ApiResponse<NotificationRetentionDto>>
 {
     public async Task<ApiResponse<NotificationRetentionDto>> Handle(
         GetNotificationRetentionQuery request, CancellationToken cancellationToken)
     {
-        using var connection = dbFactory.CreateConnection();
-        var rows = (await connection.QueryAsync<(string Key, string? Value)>(new CommandDefinition("""
-            SELECT [Key], Value FROM PlatformSettings
-            WHERE TenantId = @TenantId AND Category = @Category AND IsActive = 1
-            """,
-            new { request.TenantId, Category = NotificationRetention.SettingsCategory },
-            cancellationToken: cancellationToken))).ToList();
-
-        var dict = rows.ToDictionary(x => x.Key, x => x.Value, StringComparer.OrdinalIgnoreCase);
+        var dict = await notificationRepository.GetRetentionSettingsAsync(
+            request.TenantId, cancellationToken);
         var policy = NotificationRetentionPolicy.FromDictionary(dict);
         return ApiResponse<NotificationRetentionDto>.SuccessResponse(new NotificationRetentionDto(
             policy.ReadArchiveDays,
@@ -375,51 +207,23 @@ public class GetNotificationRetentionQueryHandler(IDbConnectionFactory dbFactory
 public record GetNotificationRetentionEstimateQuery(int TenantId)
     : IRequest<ApiResponse<NotificationRetentionEstimateDto>>;
 
-public class GetNotificationRetentionEstimateQueryHandler(IDbConnectionFactory dbFactory)
+public class GetNotificationRetentionEstimateQueryHandler(INotificationRepository notificationRepository)
     : IRequestHandler<GetNotificationRetentionEstimateQuery, ApiResponse<NotificationRetentionEstimateDto>>
 {
     public async Task<ApiResponse<NotificationRetentionEstimateDto>> Handle(
         GetNotificationRetentionEstimateQuery request, CancellationToken cancellationToken)
     {
-        using var connection = dbFactory.CreateConnection();
-        var rows = (await connection.QueryAsync<(string Key, string? Value)>(new CommandDefinition("""
-            SELECT [Key], Value FROM PlatformSettings
-            WHERE TenantId = @TenantId AND Category = @Category AND IsActive = 1
-            """,
-            new { request.TenantId, Category = NotificationRetention.SettingsCategory },
-            cancellationToken: cancellationToken))).ToList();
-
-        var policy = NotificationRetentionPolicy.FromDictionary(
-            rows.ToDictionary(x => x.Key, x => x.Value, StringComparer.OrdinalIgnoreCase));
-
+        var settings = await notificationRepository.GetRetentionSettingsAsync(
+            request.TenantId, cancellationToken);
+        var policy = NotificationRetentionPolicy.FromDictionary(settings);
         var archiveCutoff = DateTime.UtcNow.AddDays(-policy.ReadArchiveDays);
-        var eligibleArchive = await connection.ExecuteScalarAsync<int>(new CommandDefinition("""
-            SELECT COUNT(*) FROM NotificationRecipients r
-            INNER JOIN Notifications n ON n.Id = r.NotificationId
-            WHERE r.IsDeleted = 0 AND r.IsArchived = 0 AND r.IsRead = 1
-              AND ISNULL(n.NeverAutoDelete, 0) = 0
-              AND ISNULL(r.ReadAt, n.ReadDate) IS NOT NULL
-              AND ISNULL(r.ReadAt, n.ReadDate) < @Cutoff
-            """, new { Cutoff = archiveCutoff }, cancellationToken: cancellationToken));
 
-        var eligibleDelete = await connection.ExecuteScalarAsync<int>(new CommandDefinition("""
-            SELECT COUNT(*) FROM NotificationRecipients r
-            INNER JOIN Notifications n ON n.Id = r.NotificationId
-            WHERE ISNULL(n.NeverAutoDelete, 0) = 0
-              AND (
-                    (r.IsDeleted = 1 AND r.DeletedAt IS NOT NULL AND r.DeletedAt < DATEADD(DAY, -@ArchivedDays, GETUTCDATE()))
-                 OR (r.IsArchived = 1 AND r.ArchivedAt IS NOT NULL AND r.ArchivedAt < DATEADD(DAY, -@ArchivedDays, GETUTCDATE()))
-                 OR (ISNULL(n.DeliveryStatus,'') = 'Failed' AND n.CreatedAt < DATEADD(DAY, -@FailedDays, GETUTCDATE()))
-              )
-            """,
-            new { ArchivedDays = policy.ArchivedDeleteDays, FailedDays = policy.FailedDeleteDays },
-            cancellationToken: cancellationToken));
+        var estimate = await notificationRepository.GetRetentionEstimateAsync(
+            archiveCutoff,
+            policy.ArchivedDeleteDays,
+            policy.FailedDeleteDays,
+            cancellationToken);
 
-        var protectedCritical = await connection.ExecuteScalarAsync<int>(new CommandDefinition("""
-            SELECT COUNT(*) FROM Notifications WHERE ISNULL(NeverAutoDelete, 0) = 1 OR RetentionCategory = 'Critical'
-            """, cancellationToken: cancellationToken));
-
-        return ApiResponse<NotificationRetentionEstimateDto>.SuccessResponse(
-            new NotificationRetentionEstimateDto(eligibleArchive, eligibleDelete, protectedCritical));
+        return ApiResponse<NotificationRetentionEstimateDto>.SuccessResponse(estimate);
     }
 }

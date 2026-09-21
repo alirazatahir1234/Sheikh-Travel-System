@@ -1,9 +1,9 @@
-using Dapper;
 using FluentValidation;
 using MediatR;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Exceptions;
 using SheikhTravelSystem.Application.Common.Interfaces;
+using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 
 namespace SheikhTravelSystem.Application.Features.Users.Commands;
 
@@ -37,64 +37,25 @@ public class UpdateProfileCommandValidator : AbstractValidator<UpdateProfileComm
     }
 }
 
-public class UpdateProfileCommandHandler(IDbConnectionFactory dbFactory)
+public class UpdateProfileCommandHandler(IUserRepository userRepository)
     : IRequestHandler<UpdateProfileCommand, ApiResponse<bool>>
 {
     public async Task<ApiResponse<bool>> Handle(UpdateProfileCommand request, CancellationToken cancellationToken)
     {
-        using var connection = dbFactory.CreateConnection();
-
-        var exists = await connection.ExecuteScalarAsync<bool>(
-            new CommandDefinition(
-                "SELECT CASE WHEN EXISTS(SELECT 1 FROM Users WHERE Id = @UserId AND IsDeleted = 0) THEN 1 ELSE 0 END",
-                new { request.UserId },
-                cancellationToken: cancellationToken));
-
+        var exists = await userRepository.ExistsAsync(request.UserId, cancellationToken);
         if (!exists)
             throw new NotFoundException("User", request.UserId);
 
-        try
-        {
-            await connection.ExecuteAsync(
-                new CommandDefinition(
-                    @"UPDATE Users SET
-                        FullName = @FullName,
-                        Phone = @Phone,
-                        TimeZone = COALESCE(@TimeZone, TimeZone),
-                        Language = COALESCE(@Language, Language),
-                        Theme = COALESCE(@Theme, Theme),
-                        AvatarUrl = COALESCE(@AvatarUrl, AvatarUrl),
-                        JobTitle = COALESCE(@JobTitle, JobTitle),
-                        UpdatedAt = @UpdatedAt
-                      WHERE Id = @UserId",
-                    new
-                    {
-                        request.FullName,
-                        Phone = request.PhoneNumber,
-                        request.TimeZone,
-                        request.Language,
-                        request.Theme,
-                        request.AvatarUrl,
-                        request.JobTitle,
-                        UpdatedAt = DateTime.UtcNow,
-                        request.UserId
-                    },
-                    cancellationToken: cancellationToken));
-        }
-        catch
-        {
-            await connection.ExecuteAsync(
-                new CommandDefinition(
-                    "UPDATE Users SET FullName = @FullName, Phone = @Phone, UpdatedAt = @UpdatedAt WHERE Id = @UserId",
-                    new
-                    {
-                        request.FullName,
-                        Phone = request.PhoneNumber,
-                        UpdatedAt = DateTime.UtcNow,
-                        request.UserId
-                    },
-                    cancellationToken: cancellationToken));
-        }
+        await userRepository.UpdateProfileAsync(
+            request.UserId,
+            request.FullName,
+            request.PhoneNumber,
+            request.TimeZone,
+            request.Language,
+            request.Theme,
+            request.AvatarUrl,
+            request.JobTitle,
+            cancellationToken);
 
         return ApiResponse<bool>.SuccessResponse(true, "Profile updated successfully.");
     }

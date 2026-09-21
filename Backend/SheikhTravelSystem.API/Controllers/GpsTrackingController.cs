@@ -1,11 +1,11 @@
-using Dapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
+using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Features.GpsTracking.Trackers;
 using SheikhTravelSystem.API.Authorization;
-using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Interfaces;
+using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 using SheikhTravelSystem.Application.Features.GpsTracking.Commands;
 using SheikhTravelSystem.Application.Features.GpsTracking.DTOs;
 using SheikhTravelSystem.Application.Features.GpsTracking.Queries;
@@ -496,7 +496,7 @@ public partial class GpsTrackingController : BaseApiController
     [RequirePermission(AnalyticsPermissions.GpsView)]
     public async Task<IActionResult> GetTraccarStatus(
         [FromServices] ITraccarClient traccar,
-        [FromServices] IDbConnectionFactory dbFactory,
+        [FromServices] IGpsDeviceRepository gpsDevices,
         [FromServices] ITenantContext tenantContext,
         [FromServices] IOptions<TraccarOptions> traccarOptions)
     {
@@ -506,18 +506,7 @@ public partial class GpsTrackingController : BaseApiController
         var connected = server is not null || devices.Count > 0;
 
         var tenantId = tenantContext.GetRequiredTenantId();
-        using var connection = dbFactory.CreateConnection();
-        var linkedCount = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
-            $"""
-            SELECT COUNT(*)
-            FROM GpsDevices d
-            LEFT JOIN Vehicles v ON v.Id = d.VehicleId AND v.IsDeleted = 0
-            WHERE d.IsDeleted = 0
-              AND d.TraccarDeviceId IS NOT NULL
-              {TrackerTenantSql.DeviceScopeFilter}
-            """,
-            new { TenantId = tenantId },
-            cancellationToken: HttpContext.RequestAborted));
+        var linkedCount = await gpsDevices.CountTraccarLinkedAsync(tenantId, HttpContext.RequestAborted);
 
         if (!syncEnabled)
         {

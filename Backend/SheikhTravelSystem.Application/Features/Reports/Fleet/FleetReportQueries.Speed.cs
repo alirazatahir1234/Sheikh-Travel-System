@@ -1,4 +1,3 @@
-using Dapper;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Features.GpsTracking.Queries;
 using SheikhTravelSystem.Application.Features.GpsTracking.Services;
@@ -15,7 +14,7 @@ public partial class GetFleetReportQueryHandler
     /// out of scope here. Never fabricated as a fake/zero value.
     /// </summary>
     private async Task<ReportResponseDto> BuildSpeedReportAsync(
-        System.Data.IDbConnection connection, int tenantId, DateTime from, DateTime to,
+        int tenantId, DateTime from, DateTime to,
         int? vehicleId, int? driverId, CancellationToken ct)
     {
         var columns = new[]
@@ -38,12 +37,7 @@ public partial class GetFleetReportQueryHandler
             .Where(e => GpsEventTypeNormalizer.Normalize(e.EventType) == "overspeed")
             .ToList();
 
-        var speedLimits = (await connection.QueryAsync<(int? VehicleId, decimal SpeedLimitKmh)>(new CommandDefinition("""
-            SELECT VehicleId, SpeedLimitKmh FROM GpsAlertRules
-            WHERE TenantId = @TenantId AND IsDeleted = 0 AND IsActive = 1 AND SpeedLimitKmh IS NOT NULL
-            """, new { TenantId = tenantId }, cancellationToken: ct)))
-            .Where(r => r.VehicleId.HasValue)
-            .ToDictionary(r => r.VehicleId!.Value, r => r.SpeedLimitKmh);
+        var speedLimits = await reportRepository.GetActiveSpeedLimitsByVehicleAsync(tenantId, ct);
 
         var rows = events.Select(e => FleetReportHelper.Row(
             e.Id.ToString(), e.VehicleName ?? $"Vehicle #{e.VehicleId}", 1, e.Speed,

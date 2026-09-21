@@ -1,4 +1,3 @@
-using Dapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SheikhTravelSystem.API.Authorization;
@@ -20,31 +19,9 @@ public class NotificationsController : BaseApiController
 
     [HttpGet("recipients")]
     public async Task<IActionResult> GetRecipients(
-        [FromServices] IDbConnectionFactory dbFactory,
         [FromServices] IPlatformScope platformScope,
-        [FromQuery] string? search = null,
-        CancellationToken ct = default)
-    {
-        var tenantId = platformScope.TenantId;
-        using var connection = dbFactory.CreateConnection();
-        var rows = (await connection.QueryAsync<NotificationRecipientDto>(
-            new CommandDefinition("""
-                SELECT TOP 300 Id, FullName, Email
-                FROM Users
-                WHERE IsDeleted = 0 AND TenantId = @TenantId
-                  AND (@Search IS NULL OR FullName LIKE @Like OR Email LIKE @Like)
-                ORDER BY FullName
-                """,
-                new
-                {
-                    TenantId = tenantId,
-                    Search = string.IsNullOrWhiteSpace(search) ? null : search.Trim(),
-                    Like = string.IsNullOrWhiteSpace(search) ? null : $"%{search.Trim()}%"
-                },
-                cancellationToken: ct))).ToList();
-
-        return Ok(ApiResponse<List<NotificationRecipientDto>>.SuccessResponse(rows));
-    }
+        [FromQuery] string? search = null)
+        => Ok(await Mediator.Send(new GetNotificationRecipientsQuery(platformScope.TenantId, search)));
 
     [HttpGet]
     public async Task<IActionResult> GetAll(

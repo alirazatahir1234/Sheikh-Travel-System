@@ -1,9 +1,8 @@
-using Dapper;
 using MediatR;
 using Microsoft.Extensions.Logging;
 using SheikhTravelSystem.Application.Common;
-using SheikhTravelSystem.Application.Common.Exceptions;
 using SheikhTravelSystem.Application.Common.Interfaces;
+using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 
 namespace SheikhTravelSystem.Application.Features.Drivers.Commands;
 
@@ -15,7 +14,7 @@ public record DeleteDriverCommand(int Id) : IRequest<ApiResponse<bool>>, IAudita
 }
 
 public class DeleteDriverCommandHandler(
-    IDbConnectionFactory dbFactory,
+    IDriverRepository driverRepository,
     ITenantContext tenantContext,
     IFileStorageService fileStorage,
     ILogger<DeleteDriverCommandHandler> logger)
@@ -23,29 +22,8 @@ public class DeleteDriverCommandHandler(
 {
     public async Task<ApiResponse<bool>> Handle(DeleteDriverCommand request, CancellationToken cancellationToken)
     {
-        using var connection = dbFactory.CreateConnection();
         var tenantId = tenantContext.GetRequiredTenantId();
-
-        var exists = await connection.ExecuteScalarAsync<bool>(
-            new CommandDefinition(
-                "SELECT CASE WHEN EXISTS(SELECT 1 FROM Drivers WHERE Id = @Id AND TenantId = @TenantId AND IsDeleted = 0) THEN 1 ELSE 0 END",
-                new { request.Id, TenantId = tenantId },
-                cancellationToken: cancellationToken));
-
-        if (!exists)
-            throw new NotFoundException("Driver", request.Id);
-
-        var photoUrl = await connection.ExecuteScalarAsync<string?>(
-            new CommandDefinition(
-                "SELECT PhotoUrl FROM Drivers WHERE Id = @Id AND TenantId = @TenantId",
-                new { request.Id, TenantId = tenantId },
-                cancellationToken: cancellationToken));
-
-        await connection.ExecuteAsync(
-            new CommandDefinition(
-                "UPDATE Drivers SET IsDeleted = 1, UpdatedAt = @UpdatedAt WHERE Id = @Id AND TenantId = @TenantId",
-                new { UpdatedAt = DateTime.UtcNow, request.Id, TenantId = tenantId },
-                cancellationToken: cancellationToken));
+        var photoUrl = await driverRepository.SoftDeleteAsync(tenantId, request.Id, cancellationToken);
 
         if (!string.IsNullOrWhiteSpace(photoUrl))
         {

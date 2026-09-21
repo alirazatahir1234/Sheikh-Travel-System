@@ -1,7 +1,6 @@
-using Dapper;
 using MediatR;
 using SheikhTravelSystem.Application.Common;
-using SheikhTravelSystem.Application.Common.Interfaces;
+using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 using SheikhTravelSystem.Application.Features.Routes.DTOs;
 
 namespace SheikhTravelSystem.Application.Features.Routes.Queries;
@@ -15,43 +14,24 @@ public record GetRoutesQuery(
     string? PriceBand = null
 ) : IRequest<ApiResponse<PagedResult<RouteDto>>>;
 
-public class GetRoutesQueryHandler(IDbConnectionFactory dbFactory)
+public class GetRoutesQueryHandler(IRouteRepository routeRepository)
     : IRequestHandler<GetRoutesQuery, ApiResponse<PagedResult<RouteDto>>>
 {
     public async Task<ApiResponse<PagedResult<RouteDto>>> Handle(GetRoutesQuery request, CancellationToken cancellationToken)
     {
-        using var connection = dbFactory.CreateConnection();
-        var offset = (request.Page - 1) * request.PageSize;
-        var (whereClause, parameters) = RouteQueryFilters.Build(
+        var paged = await routeRepository.GetPagedAsync(
+            request.Page,
+            request.PageSize,
             request.Search,
             request.IsActive,
             request.DistanceBand,
-            request.PriceBand);
-
-        parameters.Add("Offset", offset);
-        parameters.Add("PageSize", request.PageSize);
-
-        var routes = await connection.QueryAsync<RouteDto>(
-            new CommandDefinition(
-                $@"SELECT Id, Name, Source, Destination, Distance, EstimatedMinutes, BasePrice, IsActive, CreatedAt,
-                         WaypointsJson, OptimizeMode
-                  FROM Routes
-                  {whereClause}
-                  ORDER BY CreatedAt DESC
-                  OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY",
-                parameters,
-                cancellationToken: cancellationToken));
-
-        var totalCount = await connection.ExecuteScalarAsync<int>(
-            new CommandDefinition(
-                $"SELECT COUNT(*) FROM Routes {whereClause}",
-                parameters,
-                cancellationToken: cancellationToken));
+            request.PriceBand,
+            cancellationToken);
 
         var result = new PagedResult<RouteDto>
         {
-            Items = routes.ToList(),
-            TotalCount = totalCount,
+            Items = paged.Items.ToList(),
+            TotalCount = paged.TotalCount,
             Page = request.Page,
             PageSize = request.PageSize
         };

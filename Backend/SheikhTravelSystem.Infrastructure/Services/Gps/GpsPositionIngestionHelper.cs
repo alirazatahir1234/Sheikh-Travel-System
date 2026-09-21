@@ -1,0 +1,144 @@
+using System.Data;
+using Dapper;
+using SheikhTravelSystem.Application.Features.GpsTracking.DTOs;
+using SheikhTravelSystem.Application.Features.GpsTracking.Services;
+using SheikhTravelSystem.Domain.Enums;
+
+namespace SheikhTravelSystem.Infrastructure.Services.Gps;
+
+public sealed class GpsPositionIngestionHelper : IGpsPositionIngestionHelper
+{
+    public async Task<int?> ResolveActiveBookingIdAsync(
+        IDbConnection connection,
+        int vehicleId,
+        int? explicitBookingId,
+        CancellationToken cancellationToken)
+    {
+        if (explicitBookingId.HasValue)
+        {
+            return explicitBookingId;
+        }
+
+        var confirmed = (int)BookingStatus.Confirmed;
+        var started = (int)BookingStatus.Started;
+
+        return await connection.ExecuteScalarAsync<int?>(new CommandDefinition(
+            @"SELECT TOP 1 Id FROM Bookings
+              WHERE VehicleId = @VehicleId AND IsDeleted = 0
+              AND Status IN (@Confirmed, @Started)
+              AND PickupTime <= DATEADD(HOUR, 2, GETUTCDATE())
+              AND (DropoffTime IS NULL OR DropoffTime >= DATEADD(HOUR, -1, GETUTCDATE()))
+              ORDER BY PickupTime DESC",
+            new { VehicleId = vehicleId, Confirmed = confirmed, Started = started },
+            cancellationToken: cancellationToken));
+    }
+
+    public async Task IngestAsync(
+        IDbConnection connection,
+        IngestPositionDto dto,
+        DateTime recordedAt,
+        CancellationToken cancellationToken)
+    {
+        var bookingId = await ResolveActiveBookingIdAsync(connection, dto.VehicleId, dto.BookingId, cancellationToken);
+        var driverId = dto.DriverId;
+
+        if (driverId is null && bookingId.HasValue)
+        {
+            driverId = await connection.ExecuteScalarAsync<int?>(new CommandDefinition(
+                "SELECT DriverId FROM Bookings WHERE Id = @Id",
+                new { Id = bookingId.Value },
+                cancellationToken: cancellationToken));
+        }
+
+        await connection.ExecuteAsync(new CommandDefinition(
+            @"INSERT INTO GpsPositions
+              (VehicleId, GpsDeviceId, DriverId, BookingId, Latitude, Longitude, Speed, Heading, Altitude, Ignition, RecordedAt, CreatedAt,
+               FuelLevel, BatteryLevel, GsmSignal, TotalDistanceKm, Address, AlarmType, Temperature)
+              VALUES (@VehicleId, @GpsDeviceId, @DriverId, @BookingId, @Latitude, @Longitude, @Speed, @Heading, @Altitude, @Ignition, @RecordedAt, @RecordedAt,
+               @FuelLevel, @BatteryLevel, @GsmSignal, @TotalDistanceKm, @Address, @AlarmType, @Temperature)",
+            new
+            {
+                dto.VehicleId,
+                dto.GpsDeviceId,
+                DriverId = driverId,
+                BookingId = bookingId,
+                dto.Latitude,
+                dto.Longitude,
+                dto.Speed,
+                dto.Heading,
+                dto.Altitude,
+                dto.Ignition,
+                RecordedAt = recordedAt,
+                dto.FuelLevel,
+                dto.BatteryLevel,
+                dto.GsmSignal,
+                dto.TotalDistanceKm,
+                dto.Address,
+                dto.AlarmType,
+                dto.Temperature
+            },
+            cancellationToken: cancellationToken));
+
+        await connection.ExecuteAsync(new CommandDefinition(
+            """
+            MERGE VehicleCurrentLocation AS target
+            USING (SELECT @VehicleId AS VehicleId) AS source
+            ON target.VehicleId = source.VehicleId
+            WHEN MATCHED THEN
+              UPDATE SET GpsDeviceId = @GpsDeviceId, DriverId = @DriverId, BookingId = @BookingId,
+                Latitude = @Latitude, Longitude = @Longitude, Speed = @Speed, Heading = @Heading,
+                Ignition = @Ignition, LastUpdate = @LastUpdate,
+                FuelLevel = @FuelLevel, BatteryLevel = @BatteryLevel, GsmSignal = @GsmSignal,
+                TotalDistanceKm = @TotalDistanceKm,
+                Address = COALESCE(@Address, Address),
+                AlarmType = @AlarmType,
+                Temperature = @Temperature
+            WHEN NOT MATCHED THEN
+              INSERT (VehicleId, GpsDeviceId, DriverId, BookingId, Latitude, Longitude, Speed, Heading, Ignition, LastUpdate,
+                FuelLevel, BatteryLevel, GsmSignal, TotalDistanceKm, Address, AlarmType, Temperature)
+              VALUES (@VehicleId, @GpsDeviceId, @DriverId, @BookingId, @Latitude, @Longitude, @Speed, @Heading, @Ignition, @LastUpdate,
+                @FuelLevel, @BatteryLevel, @GsmSignal, @TotalDistanceKm, @Address, @AlarmType, @Temperature);
+            """,
+            new
+            {
+                dto.VehicleId,
+                dto.GpsDeviceId,
+                DriverId = driverId,
+                BookingId = bookingId,
+                dto.Latitude,
+                dto.Longitude,
+                dto.Speed,
+                dto.Heading,
+                dto.Ignition,
+                LastUpdate = recordedAt,
+                dto.FuelLevel,
+                dto.BatteryLevel,
+                dto.GsmSignal,
+                dto.TotalDistanceKm,
+                dto.Address,
+                dto.AlarmType,
+                dto.Temperature
+            },
+            cancellationToken: cancellationToken));
+
+        await connection.ExecuteAsync(new CommandDefinition(
+            @"INSERT INTO VehicleTracking
+              (VehicleId, DriverId, BookingId, GpsDeviceId, Latitude, Longitude, Speed, Heading, Altitude, Ignition, Timestamp, CreatedAt, IsDeleted)
+              VALUES (@VehicleId, @DriverId, @BookingId, @GpsDeviceId, @Latitude, @Longitude, @Speed, @Heading, @Altitude, @Ignition, @Timestamp, @Timestamp, 0)",
+            new
+            {
+                dto.VehicleId,
+                DriverId = driverId,
+                BookingId = bookingId,
+                dto.GpsDeviceId,
+                dto.Latitude,
+                dto.Longitude,
+                dto.Speed,
+                dto.Heading,
+                dto.Altitude,
+                dto.Ignition,
+                Timestamp = recordedAt
+            },
+            cancellationToken: cancellationToken));
+    }
+}

@@ -1,7 +1,7 @@
-using Dapper;
 using MediatR;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Interfaces;
+using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 
 namespace SheikhTravelSystem.Application.Features.Auth.Commands;
 
@@ -14,7 +14,7 @@ public record LogoutCommand : IRequest<ApiResponse<bool>>;
 /// Handles logout token cleanup for the current user.
 /// </summary>
 public class LogoutCommandHandler(
-    IDbConnectionFactory dbFactory,
+    IAuthRepository authRepository,
     ICurrentUserService currentUser,
     ITenantContext tenantContext,
     IAuditEngine auditEngine)
@@ -25,13 +25,7 @@ public class LogoutCommandHandler(
         var userId = currentUser.UserId
             ?? throw new UnauthorizedAccessException("User is not authenticated.");
 
-        using var connection = dbFactory.CreateConnection();
-
-        await connection.ExecuteAsync(
-            new CommandDefinition(
-                "UPDATE Users SET RefreshToken = NULL, RefreshTokenExpiryTime = NULL WHERE Id = @UserId",
-                new { UserId = userId },
-                cancellationToken: cancellationToken));
+        await authRepository.ClearRefreshTokenAsync(userId, cancellationToken);
 
         try
         {

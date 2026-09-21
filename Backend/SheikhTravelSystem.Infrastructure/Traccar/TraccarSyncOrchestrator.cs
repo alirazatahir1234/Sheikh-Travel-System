@@ -55,6 +55,7 @@ public sealed class TraccarSyncOrchestrator(
 
         using var scope = scopeFactory.CreateScope();
         var dbFactory = scope.ServiceProvider.GetRequiredService<IDbConnectionFactory>();
+        var telemetryUpdater = scope.ServiceProvider.GetRequiredService<IGpsDeviceTelemetryUpdater>();
         using var connection = dbFactory.CreateConnection();
 
         var device = await connection.QueryFirstOrDefaultAsync<(int Id, int? TraccarDeviceId, int? VehicleId)>(
@@ -137,7 +138,7 @@ public sealed class TraccarSyncOrchestrator(
             {
                 try
                 {
-                    await GpsDeviceTelemetryUpdater.UpdateAsync(
+                    await telemetryUpdater.UpdateAsync(
                         connection, gpsDeviceId, recordedAt, ignition, speedKmh, battery, rssi, ct);
                     telemetryUpdated = 1;
                 }
@@ -254,6 +255,7 @@ public sealed class TraccarSyncOrchestrator(
             using var scope = scopeFactory.CreateScope();
             var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
             var dbFactory = scope.ServiceProvider.GetRequiredService<IDbConnectionFactory>();
+            var telemetryUpdater = scope.ServiceProvider.GetRequiredService<IGpsDeviceTelemetryUpdater>();
             using var connection = dbFactory.CreateConnection();
 
             var allDevices = (await connection.QueryAsync<(int TraccarDeviceId, int GpsDeviceId, int? VehicleId)>(
@@ -334,7 +336,7 @@ public sealed class TraccarSyncOrchestrator(
                 {
                     try
                     {
-                        await GpsDeviceTelemetryUpdater.UpdateAsync(
+                        await telemetryUpdater.UpdateAsync(
                             connection, device.GpsDeviceId, recordedAt, ignition,
                             speedKmh, battery, rssi, ct);
                         _lastIngested[pos.DeviceId] = pos.FixTime;
@@ -415,6 +417,7 @@ public sealed class TraccarSyncOrchestrator(
         {
             using var scope = scopeFactory.CreateScope();
             var dbFactory = scope.ServiceProvider.GetRequiredService<IDbConnectionFactory>();
+            var alertWriter = scope.ServiceProvider.GetRequiredService<IGpsAlertWriter>();
             using var connection = dbFactory.CreateConnection();
 
             var linked = (await connection.QueryAsync<(int TraccarDeviceId, int VehicleId)>(
@@ -472,7 +475,7 @@ public sealed class TraccarSyncOrchestrator(
                     var message = FormatEventMessage(eventType);
                     var timestamp = ev.EventTime.ToUniversalTime();
 
-                    await GpsAlertWriter.InsertAsync(
+                    await alertWriter.InsertAsync(
                         connection,
                         device.VehicleId,
                         ev.Latitude ?? 0,

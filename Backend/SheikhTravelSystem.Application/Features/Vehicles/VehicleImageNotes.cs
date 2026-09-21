@@ -1,18 +1,18 @@
 namespace SheikhTravelSystem.Application.Features.Vehicles;
 
-internal static class VehicleImageNotes
+public static class VehicleImageNotes
 {
-    internal const string PrimarySuffix = "|primary";
-    internal const string LegacyPrimary = "primary";
-    internal static readonly string[] Angles = ["Front", "Side", "Back"];
+    public const string PrimarySuffix = "|primary";
+    public const string LegacyPrimary = "primary";
+    public static readonly string[] Angles = ["Front", "Side", "Back"];
 
-    internal static string NormalizeAngle(string? notes)
+    public static string NormalizeAngle(string? notes)
     {
         var angle = ParseAngle(notes);
         return Angles.Contains(angle, StringComparer.OrdinalIgnoreCase) ? angle : "Side";
     }
 
-    internal static string ParseAngle(string? notes)
+    public static string ParseAngle(string? notes)
     {
         if (string.IsNullOrWhiteSpace(notes)) return string.Empty;
         var value = notes.Trim();
@@ -21,7 +21,7 @@ internal static class VehicleImageNotes
         return pipe >= 0 ? value[..pipe].Trim() : value;
     }
 
-    internal static bool IsPrimary(string? notes)
+    public static bool IsPrimary(string? notes)
     {
         if (string.IsNullOrWhiteSpace(notes)) return false;
         var value = notes.Trim();
@@ -29,20 +29,20 @@ internal static class VehicleImageNotes
                || value.Contains(PrimarySuffix, StringComparison.OrdinalIgnoreCase);
     }
 
-    internal static string WithAngle(string angle, bool isPrimary = false)
+    public static string WithAngle(string angle, bool isPrimary = false)
     {
         var normalized = NormalizeAngle(angle);
         return isPrimary ? normalized + PrimarySuffix : normalized;
     }
 
-    internal static string SetPrimary(string? notes)
+    public static string SetPrimary(string? notes)
     {
         var cleared = ClearPrimary(notes);
         if (string.IsNullOrWhiteSpace(cleared)) return LegacyPrimary;
         return cleared + PrimarySuffix;
     }
 
-    internal static string ClearPrimary(string? notes)
+    public static string ClearPrimary(string? notes)
     {
         if (string.IsNullOrWhiteSpace(notes)) return string.Empty;
         var value = notes.Trim();

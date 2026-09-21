@@ -1,7 +1,7 @@
-using Dapper;
 using MediatR;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Interfaces;
+using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 using SheikhTravelSystem.Application.Features.Drivers.DTOs;
 using SheikhTravelSystem.Domain.Enums;
 
@@ -18,7 +18,7 @@ public record GetDriversQuery(
     string? Availability = null) : IRequest<ApiResponse<PagedResult<DriverListItemDto>>>;
 
 public class GetDriversQueryHandler(
-    IDbConnectionFactory dbFactory,
+    IDriverRepository driverRepository,
     ITenantContext tenantContext,
     ICurrentUserService currentUser,
     IDataScopeEngine dataScopeEngine)
@@ -26,97 +26,22 @@ public class GetDriversQueryHandler(
 {
     public async Task<ApiResponse<PagedResult<DriverListItemDto>>> Handle(GetDriversQuery request, CancellationToken cancellationToken)
     {
-        using var connection = dbFactory.CreateConnection();
-        var offset = (request.Page - 1) * request.PageSize;
         var tenantId = tenantContext.GetRequiredTenantId();
-
-        var where = new List<string> { "d.IsDeleted = 0", "d.TenantId = @TenantId" };
-        var parameters = new DynamicParameters(new
-        {
-            TenantId = tenantId,
-            Offset = offset,
-            request.PageSize,
-            OnTrip = (int)DriverStatus.OnTrip,
-            OffDuty = (int)DriverStatus.OffDuty,
-            Available = (int)DriverStatus.Available,
-            OnLeave = (int)DriverStatus.OnLeave,
-            Suspended = (int)DriverStatus.Suspended
-        });
-
-        if (!string.IsNullOrWhiteSpace(request.Q))
-        {
-            where.Add(@"(d.FullName LIKE @Search OR d.FirstName LIKE @Search OR d.LastName LIKE @Search OR d.DriverCode LIKE @Search OR d.LicenseNumber LIKE @Search OR d.Phone LIKE @Search)");
-            parameters.Add("Search", $"%{request.Q.Trim()}%");
-        }
-
-        if (request.Status.HasValue)
-        {
-            where.Add("d.Status = @Status");
-            parameters.Add("Status", (int)request.Status.Value);
-        }
-
+        DataScopeResult? scope = null;
         if (currentUser.UserId is int userId)
-        {
-            var scope = await dataScopeEngine.ResolveAsync(userId, tenantId, cancellationToken);
-            if (!DataScopeSql.TryIntersectOptional(scope, request.BranchId, null, out _, out _, out var scopeError))
-                return ApiResponse<PagedResult<DriverListItemDto>>.FailResponse(scopeError ?? "Outside data scope.");
+            scope = await dataScopeEngine.ResolveAsync(userId, tenantId, cancellationToken);
 
-            DataScopeSql.ApplyDriverScope(parameters, scope, "d", where, request.BranchId);
-        }
-        else if (request.BranchId.HasValue)
-        {
-            where.Add("d.BranchId = @BranchId");
-            parameters.Add("BranchId", request.BranchId.Value);
-        }
+        var result = await driverRepository.GetPagedAsync(
+            tenantId, request.Page, request.PageSize, request.Q, request.Status, request.BranchId,
+            request.LicenseExpiry, request.VerificationStatus, request.Availability, scope, cancellationToken);
 
-        if (!string.IsNullOrWhiteSpace(request.VerificationStatus))
-        {
-            where.Add("d.VerificationStatus = @VerificationStatus");
-            parameters.Add("VerificationStatus", request.VerificationStatus.Trim());
-        }
-
-        switch (request.LicenseExpiry?.Trim().ToUpperInvariant())
-        {
-            case "EXPIRED":
-                where.Add("d.LicenseExpiryDate < CAST(GETUTCDATE() AS DATE)");
-                break;
-            case "EXPIRING":
-                where.Add("d.LicenseExpiryDate >= CAST(GETUTCDATE() AS DATE)");
-                where.Add("d.LicenseExpiryDate <= DATEADD(day, 30, CAST(GETUTCDATE() AS DATE))");
-                break;
-            case "VALID":
-                where.Add("d.LicenseExpiryDate > DATEADD(day, 30, CAST(GETUTCDATE() AS DATE))");
-                break;
-        }
-
-        if (!string.IsNullOrWhiteSpace(request.Availability))
-        {
-            where.Add($"({DriverAvailabilityHelper.BucketSqlExpression}) = @AvailabilityBucket");
-            parameters.Add("AvailabilityBucket", request.Availability.Trim());
-        }
-
-        var whereClause = string.Join(" AND ", where);
-
-        var drivers = (await connection.QueryAsync<DriverListItemDto>(
-            new CommandDefinition(
-                $@"SELECT {DriverSql.ListSelect}
-                  {DriverSql.ListFrom}
-                  WHERE {whereClause}
-                  ORDER BY d.CreatedAt DESC
-                  OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY",
-                parameters,
-                cancellationToken: cancellationToken))).ToList();
-
-        var totalCount = await connection.ExecuteScalarAsync<int>(
-            new CommandDefinition(
-                $@"SELECT COUNT(*) {DriverSql.ListFrom} WHERE {whereClause}",
-                parameters,
-                cancellationToken: cancellationToken));
+        if (result.IsScopeFailure)
+            return ApiResponse<PagedResult<DriverListItemDto>>.FailResponse(result.ScopeError ?? "Outside data scope.");
 
         return ApiResponse<PagedResult<DriverListItemDto>>.SuccessResponse(new PagedResult<DriverListItemDto>
         {
-            Items = drivers,
-            TotalCount = totalCount,
+            Items = result.Items.ToList(),
+            TotalCount = result.TotalCount,
             Page = request.Page,
             PageSize = request.PageSize
         });
@@ -125,67 +50,12 @@ public class GetDriversQueryHandler(
 
 public record GetDriverStatsQuery : IRequest<ApiResponse<DriverStatsDto>>;
 
-public class GetDriverStatsQueryHandler(IDbConnectionFactory dbFactory, ITenantContext tenantContext)
+public class GetDriverStatsQueryHandler(IDriverRepository driverRepository, ITenantContext tenantContext)
     : IRequestHandler<GetDriverStatsQuery, ApiResponse<DriverStatsDto>>
 {
     public async Task<ApiResponse<DriverStatsDto>> Handle(GetDriverStatsQuery request, CancellationToken cancellationToken)
     {
-        using var connection = dbFactory.CreateConnection();
-        var tenantId = tenantContext.GetRequiredTenantId();
-        var bucketSql = DriverAvailabilityHelper.BucketSqlExpression;
-
-        var stats = await connection.QuerySingleAsync<DriverStatsDto>(
-            new CommandDefinition(
-                $@"SELECT
-                    COUNT(*) AS TotalDrivers,
-                    SUM(CASE WHEN IsActive = 1 THEN 1 ELSE 0 END) AS Active,
-                    SUM(CASE WHEN IsActive = 0 THEN 1 ELSE 0 END) AS Inactive,
-                    SUM(CASE WHEN Status = @OnTrip THEN 1 ELSE 0 END) AS OnTrip,
-                    SUM(CASE WHEN Status = @OffDuty THEN 1 ELSE 0 END) AS OffDuty,
-                    SUM(CASE WHEN Status = @Available THEN 1 ELSE 0 END) AS Available,
-                    SUM(CASE WHEN bucket = N'Busy' THEN 1 ELSE 0 END) AS Busy,
-                    SUM(CASE WHEN Status = @OnLeave THEN 1 ELSE 0 END) AS OnLeave,
-                    SUM(CASE WHEN Status = @Suspended THEN 1 ELSE 0 END) AS Suspended,
-                    SUM(CASE WHEN gpsOnline = 1 THEN 1 ELSE 0 END) AS GpsOnline,
-                    SUM(CASE WHEN LicenseExpiryDate >= CAST(GETUTCDATE() AS DATE)
-                              AND LicenseExpiryDate <= DATEADD(day, 30, CAST(GETUTCDATE() AS DATE))
-                         THEN 1 ELSE 0 END) AS LicensesExpiringSoon,
-                    SUM(CASE WHEN LicenseExpiryDate >= CAST(GETUTCDATE() AS DATE)
-                              AND LicenseExpiryDate <= DATEADD(day, 7, CAST(GETUTCDATE() AS DATE))
-                         THEN 1 ELSE 0 END) AS LicensesExpiringIn7Days,
-                    SUM(CASE WHEN LicenseExpiryDate < CAST(GETUTCDATE() AS DATE)
-                         THEN 1 ELSE 0 END) AS LicensesExpired,
-                    SUM(CASE WHEN VerificationStatus = N'Verified' THEN 1 ELSE 0 END) AS VerifiedDrivers,
-                    SUM(CASE WHEN VerificationStatus = N'Pending'  THEN 1 ELSE 0 END) AS PendingVerification,
-                    SUM(CASE WHEN isAssigned = 1 THEN 1 ELSE 0 END) AS AssignedDrivers
-                  FROM (
-                    SELECT d.*,
-                           CASE WHEN av.GpsDeviceId IS NOT NULL AND gd.LastSeenAt >= DATEADD(minute, -15, GETUTCDATE())
-                                THEN 1 ELSE 0 END AS gpsOnline,
-                           CASE WHEN av.HasAssignment = 1 THEN 1 ELSE 0 END AS isAssigned,
-                           {bucketSql} AS bucket
-                    FROM Drivers d
-                    OUTER APPLY (
-                        SELECT TOP 1 v.GpsDeviceId, 1 AS HasAssignment
-                        FROM AssignmentHistory ah
-                        INNER JOIN Vehicles v ON v.Id = ah.VehicleId AND v.IsDeleted = 0
-                        WHERE ah.DriverId = d.Id AND ah.IsDeleted = 0 AND ah.Status = N'Active'
-                        ORDER BY ah.StartAt DESC
-                    ) av
-                    LEFT JOIN GpsDevices gd ON gd.Id = av.GpsDeviceId AND gd.IsDeleted = 0
-                    WHERE d.IsDeleted = 0 AND d.TenantId = @TenantId
-                  ) d",
-                new
-                {
-                    TenantId = tenantId,
-                    OnTrip = (int)DriverStatus.OnTrip,
-                    OffDuty = (int)DriverStatus.OffDuty,
-                    Available = (int)DriverStatus.Available,
-                    OnLeave = (int)DriverStatus.OnLeave,
-                    Suspended = (int)DriverStatus.Suspended
-                },
-                cancellationToken: cancellationToken));
-
+        var stats = await driverRepository.GetStatsAsync(tenantContext.GetRequiredTenantId(), cancellationToken);
         return ApiResponse<DriverStatsDto>.SuccessResponse(stats);
     }
 }

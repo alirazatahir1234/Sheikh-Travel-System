@@ -5,6 +5,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Interfaces;
+using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 using SheikhTravelSystem.Application.Features.CustomerPortal.DTOs;
 
 namespace SheikhTravelSystem.Application.Features.CustomerPortal.Commands;
@@ -71,7 +72,7 @@ public class VerifyPortalOtpCommandHandler(
     IPortalOtpService otpService,
     IJwtTokenService jwtTokenService,
     ITenantContext tenantContext,
-    IDbConnectionFactory dbFactory)
+    ICustomerPortalRepository portalRepository)
     : IRequestHandler<VerifyPortalOtpCommand, ApiResponse<PortalAuthResultDto>>
 {
     public async Task<ApiResponse<PortalAuthResultDto>> Handle(VerifyPortalOtpCommand request, CancellationToken cancellationToken)
@@ -83,8 +84,8 @@ public class VerifyPortalOtpCommandHandler(
         }
 
         var tenantId = tenantContext.GetRequiredTenantId();
-        var customerId = await PortalCustomerWriter.EnsureCustomerAsync(
-            dbFactory, phone, request.FullName.Trim(), tenantId, cancellationToken);
+        var customerId = await portalRepository.EnsureCustomerAsync(
+            phone, request.FullName.Trim(), tenantId, cancellationToken);
         var token = jwtTokenService.GeneratePortalAccessToken(
             phone, request.FullName.Trim(), tenantId, customerId);
         var dto = new PortalAuthResultDto(phone, request.FullName.Trim(), token);

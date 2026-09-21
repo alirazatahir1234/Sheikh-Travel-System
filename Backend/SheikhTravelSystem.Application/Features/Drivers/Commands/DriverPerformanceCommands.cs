@@ -1,9 +1,8 @@
-using Dapper;
 using FluentValidation;
 using MediatR;
 using SheikhTravelSystem.Application.Common;
-using SheikhTravelSystem.Application.Common.Exceptions;
 using SheikhTravelSystem.Application.Common.Interfaces;
+using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 using SheikhTravelSystem.Application.Features.Drivers.DTOs;
 
 namespace SheikhTravelSystem.Application.Features.Drivers.Commands;
@@ -24,23 +23,13 @@ public class UpdateDriverRatingCommandValidator : AbstractValidator<UpdateDriver
     }
 }
 
-public class UpdateDriverRatingCommandHandler(IDbConnectionFactory dbFactory, ITenantContext tenantContext)
+public class UpdateDriverRatingCommandHandler(IDriverRepository driverRepository, ITenantContext tenantContext)
     : IRequestHandler<UpdateDriverRatingCommand, ApiResponse<bool>>
 {
     public async Task<ApiResponse<bool>> Handle(UpdateDriverRatingCommand request, CancellationToken cancellationToken)
     {
-        using var connection = dbFactory.CreateConnection();
-        var tenantId = tenantContext.GetRequiredTenantId();
-
-        var rows = await connection.ExecuteAsync(
-            new CommandDefinition(
-                "UPDATE Drivers SET Rating = @Rating, UpdatedAt = GETUTCDATE() WHERE Id = @Id AND TenantId = @TenantId AND IsDeleted = 0",
-                new { Rating = request.Rating, Id = request.DriverId, TenantId = tenantId },
-                cancellationToken: cancellationToken));
-
-        if (rows == 0)
-            throw new NotFoundException("Driver", request.DriverId);
-
+        await driverRepository.UpdateRatingAsync(
+            tenantContext.GetRequiredTenantId(), request.DriverId, request.Rating, cancellationToken);
         return ApiResponse<bool>.SuccessResponse(true, "Driver rating updated.");
     }
 }
@@ -65,36 +54,16 @@ public class CreateDriverViolationCommandValidator : AbstractValidator<CreateDri
 }
 
 public class CreateDriverViolationCommandHandler(
-    IDbConnectionFactory dbFactory,
+    IDriverRepository driverRepository,
     ITenantContext tenantContext,
     ICurrentUserService currentUser)
     : IRequestHandler<CreateDriverViolationCommand, ApiResponse<int>>
 {
     public async Task<ApiResponse<int>> Handle(CreateDriverViolationCommand request, CancellationToken cancellationToken)
     {
-        using var connection = dbFactory.CreateConnection();
-        var tenantId = tenantContext.GetRequiredTenantId();
-        var body = request.Body;
-
-        var id = await connection.ExecuteScalarAsync<int>(
-            new CommandDefinition(
-                @"INSERT INTO DriverViolations (TenantId, DriverId, ViolationType, Severity, OccurredAt, Description, BookingId, GpsAlertId, Status, CreatedBy, CreatedAt)
-                  VALUES (@TenantId, @DriverId, @ViolationType, @Severity, @OccurredAt, @Description, @BookingId, @GpsAlertId, N'Open', @CreatedBy, GETUTCDATE());
-                  SELECT CAST(SCOPE_IDENTITY() AS INT);",
-                new
-                {
-                    TenantId = tenantId,
-                    request.DriverId,
-                    ViolationType = body.ViolationType.Trim(),
-                    Severity = body.Severity.Trim(),
-                    body.OccurredAt,
-                    body.Description,
-                    body.BookingId,
-                    body.GpsAlertId,
-                    CreatedBy = currentUser.UserId?.ToString() ?? "api"
-                },
-                cancellationToken: cancellationToken));
-
+        var id = await driverRepository.CreateViolationAsync(
+            tenantContext.GetRequiredTenantId(), request.DriverId, request.Body,
+            currentUser.UserId?.ToString() ?? "api", cancellationToken);
         return ApiResponse<int>.SuccessResponse(id, "Violation logged.");
     }
 }
@@ -117,32 +86,13 @@ public class CreateDriverAttendanceCommandValidator : AbstractValidator<CreateDr
     }
 }
 
-public class CreateDriverAttendanceCommandHandler(IDbConnectionFactory dbFactory, ITenantContext tenantContext)
+public class CreateDriverAttendanceCommandHandler(IDriverRepository driverRepository, ITenantContext tenantContext)
     : IRequestHandler<CreateDriverAttendanceCommand, ApiResponse<int>>
 {
     public async Task<ApiResponse<int>> Handle(CreateDriverAttendanceCommand request, CancellationToken cancellationToken)
     {
-        using var connection = dbFactory.CreateConnection();
-        var tenantId = tenantContext.GetRequiredTenantId();
-        var body = request.Body;
-
-        var id = await connection.ExecuteScalarAsync<int>(
-            new CommandDefinition(
-                @"INSERT INTO DriverAttendance (TenantId, DriverId, AttendanceDate, Status, CheckInAt, CheckOutAt, Notes, CreatedAt)
-                  VALUES (@TenantId, @DriverId, @AttendanceDate, @Status, @CheckInAt, @CheckOutAt, @Notes, GETUTCDATE());
-                  SELECT CAST(SCOPE_IDENTITY() AS INT);",
-                new
-                {
-                    TenantId = tenantId,
-                    request.DriverId,
-                    AttendanceDate = body.AttendanceDate.Date,
-                    Status = body.Status.Trim(),
-                    body.CheckInAt,
-                    body.CheckOutAt,
-                    body.Notes
-                },
-                cancellationToken: cancellationToken));
-
+        var id = await driverRepository.CreateAttendanceAsync(
+            tenantContext.GetRequiredTenantId(), request.DriverId, request.Body, cancellationToken);
         return ApiResponse<int>.SuccessResponse(id, "Attendance recorded.");
     }
 }

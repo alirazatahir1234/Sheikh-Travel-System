@@ -76,6 +76,7 @@ const fleetAdminGroup: NavGroup = {
     { id: 'geofencing', label: 'Geofencing', icon: 'fence', route: '/gps-tracking/geofences', moduleKey: 'gps-tracking' },
     { id: 'notifications', label: 'Notification Center', icon: 'notifications', route: '/notifications', moduleKey: 'dashboard' },
     { id: 'ai-center', label: 'AI Management', icon: 'smart_toy', route: '/ai', moduleKey: 'dashboard' },
+    { id: 'mcp-console', label: 'MCP Console', icon: 'hub', route: '/mcp', moduleKey: 'dashboard' },
     { id: 'fleet-settings', label: 'Settings', icon: 'tune', route: '/settings', moduleKey: 'platform' }
   ]
 };
@@ -118,6 +119,7 @@ const analyticsGroup: NavGroup = {
     { id: 'audit-logs', label: 'Audit Center', icon: 'history', route: '/platform/audit-center', adminOnly: true, moduleKey: 'audit-logs' },
     { id: 'notifications', label: 'Notification Center', icon: 'notifications', route: '/notifications', moduleKey: 'dashboard' },
     { id: 'ai-center', label: 'AI Management', icon: 'smart_toy', route: '/ai', moduleKey: 'dashboard' },
+    { id: 'mcp-console', label: 'MCP Console', icon: 'hub', route: '/mcp', moduleKey: 'dashboard' },
     { id: 'performance-analytics', label: 'Performance Analytics', icon: 'speed', route: '/reports', moduleKey: 'reports' }
   ]
 };
@@ -189,8 +191,10 @@ const administrationGroup: NavGroup = {
   icon: 'admin_panel_settings',
   collapsible: true,
   items: [
-    // Platform owns Settings + Database Reset. Keep only operational tools here.
-    { id: 'notifications', label: 'Notification Center', icon: 'notifications', route: '/notifications', moduleKey: 'dashboard' }
+    // Platform owns Settings + Database Reset. Keep operational / AI tools here.
+    { id: 'notifications', label: 'Notification Center', icon: 'notifications', route: '/notifications', moduleKey: 'dashboard' },
+    { id: 'ai-center', label: 'AI Management', icon: 'smart_toy', route: '/ai', moduleKey: 'dashboard' },
+    { id: 'mcp-console', label: 'MCP Console', icon: 'hub', route: '/mcp', moduleKey: 'dashboard' }
   ]
 };
 
@@ -240,8 +244,8 @@ const driverItems: NavItem[] = [
 ];
 
 const tenantGroupIds: Record<TenantType, string[]> = {
-  [TenantType.TravelAgency]: ['dashboard', 'operations', 'customers', 'finance', 'analytics', 'website', 'organization', 'identity', 'platform', 'access_control'],
-  [TenantType.FleetOperator]: ['dashboard', 'fleet', 'fleet-operations', 'fleet-resources', 'fleet-admin', 'analytics', 'website', 'organization', 'identity', 'platform', 'access_control'],
+  [TenantType.TravelAgency]: ['dashboard', 'operations', 'customers', 'finance', 'analytics', 'website', 'organization', 'identity', 'platform', 'access_control', 'administration'],
+  [TenantType.FleetOperator]: ['dashboard', 'fleet', 'fleet-operations', 'fleet-resources', 'fleet-admin', 'analytics', 'website', 'organization', 'identity', 'platform', 'access_control', 'administration'],
   [TenantType.CorporateCustomer]: ['dashboard', 'operations', 'customers', 'finance', 'analytics', 'website', 'organization', 'identity', 'platform', 'access_control'],
   [TenantType.Driver]: []
 };
@@ -285,6 +289,8 @@ const tenantItemIds: Partial<Record<TenantType, Set<string>>> = {
     'tracker-config',
     'geofencing',
     'notifications',
+    'ai-center',
+    'mcp-console',
     'fleet-settings',
     'fleet-analytics',
     'driver-performance',

@@ -1,12 +1,12 @@
 using System.Net;
 using System.Text;
-using Dapper;
 using FluentValidation;
 using MediatR;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Interfaces;
+using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 using SheikhTravelSystem.Application.Features.Notifications;
 
 namespace SheikhTravelSystem.Application.Features.PublicLeads.Commands;
@@ -40,7 +40,7 @@ public class SubmitContactLeadCommandValidator : AbstractValidator<SubmitContact
 }
 
 public class SubmitContactLeadCommandHandler(
-    IDbConnectionFactory dbFactory,
+    IPublicLeadRepository publicLeadRepository,
     IEnumerable<INotificationChannelSender> channelSenders,
     IConfiguration configuration,
     ILogger<SubmitContactLeadCommandHandler> logger)
@@ -51,28 +51,17 @@ public class SubmitContactLeadCommandHandler(
         if (!string.IsNullOrWhiteSpace(request.Website))
             return ApiResponse<object>.SuccessResponse(new { }, "Message received.");
 
-        using (var connection = dbFactory.CreateConnection())
-        {
-            await connection.ExecuteAsync(new CommandDefinition("""
-                INSERT INTO WebsiteContactRequests
-                    (TenantId, FirstName, LastName, Company, Email, Phone, Country, FleetSize, InterestedIn, Message, Status)
-                VALUES
-                    (1, @FirstName, @LastName, @Company, @Email, @Phone, @Country, @FleetSize, @InterestedIn, @Message, N'New')
-                """,
-                new
-                {
-                    request.FirstName,
-                    request.LastName,
-                    request.Company,
-                    request.Email,
-                    request.Phone,
-                    request.Country,
-                    request.FleetSize,
-                    request.InterestedIn,
-                    request.Message
-                },
-                cancellationToken: cancellationToken));
-        }
+        await publicLeadRepository.InsertContactRequestAsync(
+            request.FirstName,
+            request.LastName,
+            request.Company,
+            request.Email,
+            request.Phone,
+            request.Country,
+            request.FleetSize,
+            request.InterestedIn,
+            request.Message,
+            cancellationToken);
 
         await MarketingLeadEmail.SendAsync(
             channelSenders,
@@ -126,7 +115,7 @@ public class SubmitDemoLeadCommandValidator : AbstractValidator<SubmitDemoLeadCo
 }
 
 public class SubmitDemoLeadCommandHandler(
-    IDbConnectionFactory dbFactory,
+    IPublicLeadRepository publicLeadRepository,
     IEnumerable<INotificationChannelSender> channelSenders,
     IConfiguration configuration,
     ILogger<SubmitDemoLeadCommandHandler> logger)
@@ -137,28 +126,17 @@ public class SubmitDemoLeadCommandHandler(
         if (!string.IsNullOrWhiteSpace(request.Website))
             return ApiResponse<object>.SuccessResponse(new { }, "Demo request received.");
 
-        using (var connection = dbFactory.CreateConnection())
-        {
-            await connection.ExecuteAsync(new CommandDefinition("""
-                INSERT INTO WebsiteDemoRequests
-                    (TenantId, Name, Company, Email, Phone, Country, VehicleCount, CurrentGpsProvider, InterestedProduct, Message, Status)
-                VALUES
-                    (1, @Name, @Company, @Email, @Phone, @Country, @VehicleCount, @CurrentGpsProvider, @InterestedProduct, @Message, N'New')
-                """,
-                new
-                {
-                    request.Name,
-                    request.Company,
-                    request.Email,
-                    request.Phone,
-                    request.Country,
-                    request.VehicleCount,
-                    request.CurrentGpsProvider,
-                    request.InterestedProduct,
-                    request.Message
-                },
-                cancellationToken: cancellationToken));
-        }
+        await publicLeadRepository.InsertDemoRequestAsync(
+            request.Name,
+            request.Company,
+            request.Email,
+            request.Phone,
+            request.Country,
+            request.VehicleCount,
+            request.CurrentGpsProvider,
+            request.InterestedProduct,
+            request.Message,
+            cancellationToken);
 
         await MarketingLeadEmail.SendAsync(
             channelSenders,

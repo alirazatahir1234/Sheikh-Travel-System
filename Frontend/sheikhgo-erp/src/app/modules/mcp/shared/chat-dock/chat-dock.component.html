@@ -1,0 +1,40 @@
+<div class="dock" [class.compact]="compact">
+  <div class="dock-head">
+    <div>
+      <h3>Ask SheikhGo MCP</h3>
+      <p>Copy a prompt for Cursor or Claude — this console does not run an in-browser LLM.</p>
+    </div>
+    <mat-form-field appearance="outline" class="group-select" subscriptSizing="dynamic">
+      <mat-label>Tool group</mat-label>
+      <mat-select [(ngModel)]="groupId">
+        @for (g of groups; track g.id) {
+          <mat-option [value]="g.id">{{ g.name }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+  </div>
+
+  @if (catalog?.suggestions?.length) {
+    <div class="chips">
+      @for (s of catalog!.suggestions; track s) {
+        <button type="button" class="chip" (click)="useSuggestion(s)">{{ s }}</button>
+      }
+    </div>
+  }
+
+  <mat-form-field appearance="outline" class="prompt-field" subscriptSizing="dynamic">
+    <mat-label>Prompt</mat-label>
+    <textarea matInput rows="3" [(ngModel)]="prompt" placeholder="e.g. Analyze the Trip module for Clean Architecture violations"></textarea>
+  </mat-form-field>
+
+  <div class="actions">
+    <button mat-stroked-button type="button" color="primary" (click)="copyForClient('cursor')">
+      <mat-icon>content_copy</mat-icon>
+      Copy for Cursor
+    </button>
+    <button mat-flat-button type="button" color="primary" (click)="copyForClient('claude')">
+      <mat-icon>content_copy</mat-icon>
+      Copy for Claude
+    </button>
+  </div>
+</div>

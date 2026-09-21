@@ -1,5 +1,4 @@
 using System.Security.Claims;
-using Dapper;
 using SheikhTravelSystem.Application.Common.Interfaces;
 
 namespace SheikhTravelSystem.API.Middleware;
@@ -9,7 +8,10 @@ public class TenantResolutionMiddleware(RequestDelegate next)
     public const string TenantIdHeader = "X-Tenant-Id";
     public const string TenantSlugHeader = "X-Tenant-Slug";
 
-    public async Task InvokeAsync(HttpContext context, ITenantContext tenantContext, IDbConnectionFactory dbFactory)
+    public async Task InvokeAsync(
+        HttpContext context,
+        ITenantContext tenantContext,
+        ITenantLookupService tenantLookup)
     {
         int? tenantId = null;
         string? slug = null;
@@ -41,10 +43,7 @@ public class TenantResolutionMiddleware(RequestDelegate next)
         {
             try
             {
-                using var connection = dbFactory.CreateConnection();
-                tenantId = await connection.ExecuteScalarAsync<int?>(
-                    "SELECT Id FROM Tenants WHERE Slug = @Slug AND IsActive = 1",
-                    new { Slug = slug });
+                tenantId = await tenantLookup.GetTenantIdBySlugAsync(slug, context.RequestAborted);
             }
             catch (Microsoft.Data.SqlClient.SqlException) when (
                 string.Equals(slug, "default", StringComparison.OrdinalIgnoreCase))
@@ -62,10 +61,7 @@ public class TenantResolutionMiddleware(RequestDelegate next)
             {
                 try
                 {
-                    using var connection = dbFactory.CreateConnection();
-                    tenantId = await connection.ExecuteScalarAsync<int?>(
-                        "SELECT TenantId FROM Users WHERE Id = @UserId AND IsDeleted = 0",
-                        new { UserId = userId });
+                    tenantId = await tenantLookup.GetTenantIdByUserIdAsync(userId, context.RequestAborted);
                 }
                 catch (Microsoft.Data.SqlClient.SqlException)
                 {

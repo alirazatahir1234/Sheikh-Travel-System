@@ -11,6 +11,7 @@ using Serilog;
 using SheikhTravelSystem.API.Middleware;
 using SheikhTravelSystem.Application;
 using SheikhTravelSystem.Application.Common.Interfaces;
+using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 using SheikhTravelSystem.Application.Features.CustomerPortal.Commands;
 using SheikhTravelSystem.Application.Features.GpsTracking;
 using SheikhTravelSystem.Infrastructure;
@@ -293,8 +294,8 @@ using (var scope = app.Services.CreateScope())
         var seeder = scope.ServiceProvider.GetRequiredService<IDatabaseSeeder>();
         await seeder.SeedAsync();
 
-        var dbFactory = scope.ServiceProvider.GetRequiredService<IDbConnectionFactory>();
-        await PortalCustomerWriter.NormalizeCustomerPhonesAsync(dbFactory);
+        var portalRepository = scope.ServiceProvider.GetRequiredService<ICustomerPortalRepository>();
+        await PortalCustomerWriter.NormalizeCustomerPhonesAsync(portalRepository);
     }
     catch (Exception ex)
     {

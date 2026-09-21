@@ -1,4 +1,3 @@
-using Dapper;
 using MediatR;
 using Microsoft.Extensions.Options;
 using SheikhTravelSystem.Application.Common;
@@ -6,6 +5,7 @@ using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Application.Features.GpsTracking.DTOs;
 using SheikhTravelSystem.Application.Features.GpsTracking.Services;
 using SheikhTravelSystem.Application.Features.GpsTracking.Traccar;
+using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 
 namespace SheikhTravelSystem.Application.Features.GpsTracking.Queries;
 
@@ -128,72 +128,11 @@ public record GetIdleAnalyticsQuery(
 /// above avoid). No local idle detector exists, so vehicles with no Traccar link are simply absent
 /// from the numbers — IsPartial flags that rather than letting it look complete.
 /// </summary>
-public class GetIdleAnalyticsQueryHandler(
-    IDbConnectionFactory dbFactory,
-    IMediator mediator,
-    ITraccarClient traccarClient,
-    IOptions<TraccarOptions> traccarOptions,
-    ITenantContext tenantContext)
+public class GetIdleAnalyticsQueryHandler(IGpsTrackingRepository gpsTrackingRepository)
     : IRequestHandler<GetIdleAnalyticsQuery, ApiResponse<IdleAnalyticsDto>>
 {
-    public async Task<ApiResponse<IdleAnalyticsDto>> Handle(GetIdleAnalyticsQuery request, CancellationToken cancellationToken)
-    {
-        var fromDate = request.FromDate ?? DateTime.UtcNow.AddDays(-7);
-        var toDate = request.ToDate ?? DateTime.UtcNow;
-
-        var tripsResponse = await mediator.Send(
-            new GetGpsTripsQuery(null, fromDate, toDate, request.BranchId, request.DepartmentId, request.DriverId, Unpaged: true),
-            cancellationToken);
-
-        if (!tripsResponse.Success || tripsResponse.Data is null)
-            return ApiResponse<IdleAnalyticsDto>.FailResponse(tripsResponse.Message ?? "Failed to load trips.");
-
-        var trips = tripsResponse.Data.Items;
-        var vehicleNames = trips.GroupBy(t => t.VehicleId).ToDictionary(g => g.Key, g => g.First().VehicleName);
-
-        var opts = traccarOptions.Value;
-        if (!opts.IsConfigured || !opts.Enabled || trips.Count == 0)
-        {
-            return ApiResponse<IdleAnalyticsDto>.SuccessResponse(new IdleAnalyticsDto(0, 0, [], trips.Count > 0));
-        }
-
-        using var connection = dbFactory.CreateConnection();
-        var tenantId = tenantContext.GetRequiredTenantId();
-        var vehicleIds = trips.Select(t => t.VehicleId).Distinct().ToList();
-
-        var deviceMap = await GpsTraccarFleetFetcher.ResolveVehicleToDeviceMapAsync(connection, tenantId, vehicleIds, cancellationToken);
-        var isPartial = await GpsTraccarFleetFetcher.HasNonTraccarVehicleAsync(connection, tenantId, vehicleIds, cancellationToken);
-
-        if (deviceMap.Count == 0)
-        {
-            return ApiResponse<IdleAnalyticsDto>.SuccessResponse(new IdleAnalyticsDto(0, 0, [], true));
-        }
-
-        var deviceToVehicle = deviceMap.ToDictionary(kv => kv.Value, kv => kv.Key);
-        var stopsTasks = deviceMap.Values.Select(id => traccarClient.GetStopsAsync(id, fromDate, toDate, cancellationToken));
-        var allStops = (await Task.WhenAll(stopsTasks)).SelectMany(s => s).ToList();
-
-        var perVehicleMinutes = new Dictionary<int, int>();
-        var longest = 0;
-        foreach (var stop in allStops)
-        {
-            var minutes = stop.Duration >= 100_000 ? stop.Duration / 60_000 : Math.Max(1, stop.Duration / 60);
-            longest = Math.Max(longest, minutes);
-            if (deviceToVehicle.TryGetValue(stop.DeviceId, out var vehicleId))
-            {
-                perVehicleMinutes[vehicleId] = perVehicleMinutes.GetValueOrDefault(vehicleId) + minutes;
-            }
-        }
-
-        var topIdle = perVehicleMinutes
-            .OrderByDescending(kv => kv.Value)
-            .Take(10)
-            .Select(kv => new VehicleIdleDto(kv.Key, vehicleNames.GetValueOrDefault(kv.Key), kv.Value))
-            .ToList();
-
-        var dto = new IdleAnalyticsDto(perVehicleMinutes.Values.Sum(), longest, topIdle, isPartial);
-        return ApiResponse<IdleAnalyticsDto>.SuccessResponse(dto);
-    }
+    public Task<ApiResponse<IdleAnalyticsDto>> Handle(GetIdleAnalyticsQuery request, CancellationToken cancellationToken)
+        => gpsTrackingRepository.GetIdleAnalyticsAsync(request, cancellationToken);
 }
 
 public record GetStopAnalyticsQuery(
@@ -204,65 +143,11 @@ public record GetStopAnalyticsQuery(
     int? DriverId = null)
     : IRequest<ApiResponse<StopAnalyticsDto>>;
 
-public class GetStopAnalyticsQueryHandler(
-    IDbConnectionFactory dbFactory,
-    IMediator mediator,
-    ITraccarClient traccarClient,
-    IOptions<TraccarOptions> traccarOptions,
-    ITenantContext tenantContext)
+public class GetStopAnalyticsQueryHandler(IGpsTrackingRepository gpsTrackingRepository)
     : IRequestHandler<GetStopAnalyticsQuery, ApiResponse<StopAnalyticsDto>>
 {
-    public async Task<ApiResponse<StopAnalyticsDto>> Handle(GetStopAnalyticsQuery request, CancellationToken cancellationToken)
-    {
-        var fromDate = request.FromDate ?? DateTime.UtcNow.AddDays(-7);
-        var toDate = request.ToDate ?? DateTime.UtcNow;
-
-        var tripsResponse = await mediator.Send(
-            new GetGpsTripsQuery(null, fromDate, toDate, request.BranchId, request.DepartmentId, request.DriverId, Unpaged: true),
-            cancellationToken);
-
-        if (!tripsResponse.Success || tripsResponse.Data is null)
-            return ApiResponse<StopAnalyticsDto>.FailResponse(tripsResponse.Message ?? "Failed to load trips.");
-
-        var trips = tripsResponse.Data.Items;
-        var opts = traccarOptions.Value;
-        if (!opts.IsConfigured || !opts.Enabled || trips.Count == 0)
-        {
-            return ApiResponse<StopAnalyticsDto>.SuccessResponse(new StopAnalyticsDto(0, 0, 0, trips.Count > 0));
-        }
-
-        using var connection = dbFactory.CreateConnection();
-        var tenantId = tenantContext.GetRequiredTenantId();
-        var vehicleIds = trips.Select(t => t.VehicleId).Distinct().ToList();
-
-        var deviceMap = await GpsTraccarFleetFetcher.ResolveVehicleToDeviceMapAsync(connection, tenantId, vehicleIds, cancellationToken);
-        var isPartial = await GpsTraccarFleetFetcher.HasNonTraccarVehicleAsync(connection, tenantId, vehicleIds, cancellationToken);
-
-        if (deviceMap.Count == 0)
-        {
-            return ApiResponse<StopAnalyticsDto>.SuccessResponse(new StopAnalyticsDto(0, 0, 0, true));
-        }
-
-        var stopsTasks = deviceMap.Values.Select(id => traccarClient.GetStopsAsync(id, fromDate, toDate, cancellationToken));
-        var allStops = (await Task.WhenAll(stopsTasks)).SelectMany(s => s).ToList();
-
-        if (allStops.Count == 0)
-        {
-            return ApiResponse<StopAnalyticsDto>.SuccessResponse(new StopAnalyticsDto(0, 0, 0, isPartial));
-        }
-
-        var durations = allStops
-            .Select(s => s.Duration >= 100_000 ? s.Duration / 60_000 : Math.Max(1, s.Duration / 60))
-            .ToList();
-
-        var dto = new StopAnalyticsDto(
-            allStops.Count,
-            Math.Round((decimal)durations.Average(), 1),
-            durations.Max(),
-            isPartial);
-
-        return ApiResponse<StopAnalyticsDto>.SuccessResponse(dto);
-    }
+    public Task<ApiResponse<StopAnalyticsDto>> Handle(GetStopAnalyticsQuery request, CancellationToken cancellationToken)
+        => gpsTrackingRepository.GetStopAnalyticsAsync(request, cancellationToken);
 }
 
 public record GetFleetUtilizationQuery(DateTime? FromDate, DateTime? ToDate) : IRequest<ApiResponse<FleetUtilizationDto>>;
@@ -273,115 +158,22 @@ public record GetFleetUtilizationQuery(DateTime? FromDate, DateTime? ToDate) : I
 /// GetGpsFleetStatusHistoryQuery's 90-day cap, which exists for Live Map's own UX and shouldn't
 /// change on Analytics' behalf.
 /// </summary>
-public class GetFleetUtilizationQueryHandler(IDbConnectionFactory dbFactory, ITenantContext tenantContext)
+public class GetFleetUtilizationQueryHandler(IGpsTrackingRepository gpsTrackingRepository)
     : IRequestHandler<GetFleetUtilizationQuery, ApiResponse<FleetUtilizationDto>>
 {
-    private static readonly TimeSpan MaxRange = TimeSpan.FromDays(400);
-
-    public async Task<ApiResponse<FleetUtilizationDto>> Handle(GetFleetUtilizationQuery request, CancellationToken cancellationToken)
-    {
-        var fromDate = request.FromDate ?? DateTime.UtcNow.AddDays(-7);
-        var toDate = request.ToDate ?? DateTime.UtcNow;
-
-        if (fromDate > toDate)
-            return ApiResponse<FleetUtilizationDto>.FailResponse("'from' must be before 'to'.");
-
-        if (toDate - fromDate > MaxRange)
-            return ApiResponse<FleetUtilizationDto>.FailResponse("Date range cannot exceed 400 days.");
-
-        using var connection = dbFactory.CreateConnection();
-        var tenantId = tenantContext.GetRequiredTenantId();
-
-        var snapshots = (await connection.QueryAsync<(DateTime SnapshotAt, int TotalVehicles, int Moving, int Idle, int Parked, int Offline)>(
-            new CommandDefinition(
-                """
-                SELECT SnapshotAt, TotalVehicles, Moving, Idle, Parked, Offline
-                FROM GpsFleetStatusSnapshots
-                WHERE TenantId = @TenantId AND SnapshotAt BETWEEN @FromDate AND @ToDate
-                ORDER BY SnapshotAt ASC
-                """,
-                new { TenantId = tenantId, FromDate = fromDate, ToDate = toDate },
-                cancellationToken: cancellationToken))).ToList();
-
-        if (snapshots.Count == 0)
-            return ApiResponse<FleetUtilizationDto>.SuccessResponse(new FleetUtilizationDto(0, 0, 0, 0, 0, "No data", []));
-
-        var runningHours = snapshots.Sum(s => s.Moving);
-        var idleHours = snapshots.Sum(s => s.Idle);
-        var parkingHours = snapshots.Sum(s => s.Parked);
-        var offlineHours = snapshots.Sum(s => s.Offline);
-        var totalAvailableHours = snapshots.Sum(s => s.TotalVehicles);
-
-        var utilizationPercent = totalAvailableHours > 0
-            ? Math.Round(runningHours * 100m / totalAvailableHours, 1)
-            : 0;
-
-        var daily = snapshots
-            .GroupBy(s => s.SnapshotAt.Date)
-            .OrderBy(g => g.Key)
-            .Select(g =>
-            {
-                var totalForDay = g.Sum(s => s.TotalVehicles);
-                var pct = totalForDay > 0 ? Math.Round(g.Sum(s => s.Moving) * 100m / totalForDay, 1) : 0;
-                return new DailyUtilizationDto(g.Key, pct);
-            })
-            .ToList();
-
-        var dto = new FleetUtilizationDto(
-            runningHours, idleHours, parkingHours, offlineHours, utilizationPercent, LabelFor(utilizationPercent), daily);
-
-        return ApiResponse<FleetUtilizationDto>.SuccessResponse(dto);
-    }
-
-    private static string LabelFor(decimal percent) => percent switch
-    {
-        >= 80 => "Excellent",
-        >= 60 => "Good",
-        >= 40 => "Fair",
-        _ => "Poor"
-    };
+    public Task<ApiResponse<FleetUtilizationDto>> Handle(GetFleetUtilizationQuery request, CancellationToken cancellationToken)
+        => gpsTrackingRepository.GetFleetUtilizationAsync(request, cancellationToken);
 }
 
 public record GetAnalyticsTrendsQuery(DateTime? FromDate, DateTime? ToDate, string Granularity = "daily")
     : IRequest<ApiResponse<TrendsDto>>;
 
 /// <summary>Rollup-backed (GpsVehicleDailyStats) so long ranges don't scan 90-day-purged GpsPositions or recompute fleet sums from GpsTrips on every request.</summary>
-public class GetAnalyticsTrendsQueryHandler(IDbConnectionFactory dbFactory, ITenantContext tenantContext)
+public class GetAnalyticsTrendsQueryHandler(IGpsTrackingRepository gpsTrackingRepository)
     : IRequestHandler<GetAnalyticsTrendsQuery, ApiResponse<TrendsDto>>
 {
-    public async Task<ApiResponse<TrendsDto>> Handle(GetAnalyticsTrendsQuery request, CancellationToken cancellationToken)
-    {
-        var fromDate = (request.FromDate ?? DateTime.UtcNow.AddMonths(-3)).Date;
-        var toDate = (request.ToDate ?? DateTime.UtcNow).Date;
-
-        using var connection = dbFactory.CreateConnection();
-        var tenantId = tenantContext.GetRequiredTenantId();
-
-        var rows = (await connection.QueryAsync<(DateTime StatDate, decimal DistanceKm, int TripCount, int? OverspeedCount)>(
-            new CommandDefinition(
-                """
-                SELECT StatDate, DistanceKm, TripCount, OverspeedCount
-                FROM GpsVehicleDailyStats
-                WHERE TenantId = @TenantId AND StatDate BETWEEN @FromDate AND @ToDate
-                """,
-                new { TenantId = tenantId, FromDate = fromDate, ToDate = toDate },
-                cancellationToken: cancellationToken))).ToList();
-
-        DateTime Bucket(DateTime d) => request.Granularity.ToLowerInvariant() switch
-        {
-            "monthly" => new DateTime(d.Year, d.Month, 1),
-            "weekly" => d.AddDays(-(int)d.DayOfWeek),
-            _ => d.Date
-        };
-
-        var points = rows
-            .GroupBy(r => Bucket(r.StatDate))
-            .OrderBy(g => g.Key)
-            .Select(g => new TrendPointDto(g.Key, g.Sum(r => r.DistanceKm), g.Sum(r => r.TripCount), g.Sum(r => r.OverspeedCount ?? 0)))
-            .ToList();
-
-        return ApiResponse<TrendsDto>.SuccessResponse(new TrendsDto(points));
-    }
+    public Task<ApiResponse<TrendsDto>> Handle(GetAnalyticsTrendsQuery request, CancellationToken cancellationToken)
+        => gpsTrackingRepository.GetAnalyticsTrendsAsync(request, cancellationToken);
 }
 
 public record GetComparativeAnalyticsQuery(

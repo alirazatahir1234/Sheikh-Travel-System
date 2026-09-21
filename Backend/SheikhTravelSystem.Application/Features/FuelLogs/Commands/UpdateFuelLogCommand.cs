@@ -1,9 +1,9 @@
-using Dapper;
 using FluentValidation;
 using MediatR;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Exceptions;
 using SheikhTravelSystem.Application.Common.Interfaces;
+using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 using SheikhTravelSystem.Application.Features.FuelLogs.DTOs;
 
 namespace SheikhTravelSystem.Application.Features.FuelLogs.Commands;
@@ -27,31 +27,12 @@ public class UpdateFuelLogCommandValidator : AbstractValidator<UpdateFuelLogComm
     }
 }
 
-public class UpdateFuelLogCommandHandler(IDbConnectionFactory dbFactory)
+public class UpdateFuelLogCommandHandler(IFuelLogRepository fuelLogRepository)
     : IRequestHandler<UpdateFuelLogCommand, ApiResponse<bool>>
 {
     public async Task<ApiResponse<bool>> Handle(UpdateFuelLogCommand request, CancellationToken cancellationToken)
     {
-        using var connection = dbFactory.CreateConnection();
-        var dto = request.FuelLog;
-        var totalCost = dto.Liters * dto.PricePerLiter;
-
-        var rowsAffected = await connection.ExecuteAsync(
-            new CommandDefinition(
-                @"UPDATE FuelLogs 
-                  SET VehicleId = @VehicleId, DriverId = @DriverId, Liters = @Liters,
-                      PricePerLiter = @PricePerLiter, TotalCost = @TotalCost,
-                      OdometerReading = @OdometerReading, FuelType = @FuelType,
-                      FuelDate = @FuelDate, Station = @Station, UpdatedAt = @UpdatedAt
-                  WHERE Id = @Id AND IsDeleted = 0",
-                new
-                {
-                    request.Id,
-                    dto.VehicleId, dto.DriverId, dto.Liters, dto.PricePerLiter, TotalCost = totalCost,
-                    dto.OdometerReading, FuelType = (int)dto.FuelType, dto.FuelDate,
-                    dto.Station, UpdatedAt = DateTime.UtcNow
-                },
-                cancellationToken: cancellationToken));
+        var rowsAffected = await fuelLogRepository.UpdateAsync(request.Id, request.FuelLog, cancellationToken);
 
         if (rowsAffected == 0)
             throw new NotFoundException("FuelLog", request.Id);

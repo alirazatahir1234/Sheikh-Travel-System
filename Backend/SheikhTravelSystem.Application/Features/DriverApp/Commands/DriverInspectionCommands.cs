@@ -1,8 +1,8 @@
-using Dapper;
 using FluentValidation;
 using MediatR;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Interfaces;
+using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 using SheikhTravelSystem.Application.Features.DriverApp.DTOs;
 
 namespace SheikhTravelSystem.Application.Features.DriverApp.Commands;
@@ -39,7 +39,7 @@ public class SubmitDriverInspectionCommandValidator : AbstractValidator<SubmitDr
 }
 
 public class SubmitDriverInspectionCommandHandler(
-    IDbConnectionFactory dbFactory,
+    IDriverAppRepository driverAppRepository,
     ICurrentUserService currentUser,
     ITenantContext tenantContext,
     IFileStorageService fileStorage)
@@ -53,30 +53,15 @@ public class SubmitDriverInspectionCommandHandler(
             return ApiResponse<int>.FailResponse("Driver identity required.");
 
         var tenantId = tenantContext.GetRequiredTenantId();
-        using var connection = dbFactory.CreateConnection();
 
-        var vehicleOk = await connection.ExecuteScalarAsync<bool>(new CommandDefinition(
-            @"SELECT CASE WHEN EXISTS(
-                SELECT 1 FROM Vehicles WHERE Id = @Id AND TenantId = @TenantId AND IsDeleted = 0
-              ) THEN 1 ELSE 0 END",
-            new { Id = request.VehicleId, TenantId = tenantId },
-            cancellationToken: cancellationToken));
-
-        if (!vehicleOk)
+        if (!await driverAppRepository.VehicleExistsForTenantAsync(request.VehicleId, tenantId, cancellationToken))
             return ApiResponse<int>.FailResponse("Vehicle not found.");
 
         var templateId = request.TemplateId;
         string? checklistJson = null;
         if (templateId is null or <= 0)
         {
-            var tmpl = await connection.QuerySingleOrDefaultAsync<(int Id, string ChecklistJson)?>(new CommandDefinition(
-                @"SELECT TOP 1 Id, ChecklistJson FROM InspectionTemplates
-                  WHERE IsDeleted = 0 AND IsActive = 1
-                    AND (TenantId IS NULL OR TenantId = @TenantId)
-                  ORDER BY CASE WHEN Name LIKE N'%Standard%' THEN 0 ELSE 1 END, Id",
-                new { TenantId = tenantId },
-                cancellationToken: cancellationToken));
-
+            var tmpl = await driverAppRepository.GetDefaultInspectionTemplateAsync(tenantId, cancellationToken);
             if (tmpl is null)
                 return ApiResponse<int>.FailResponse("No inspection template configured.");
             templateId = tmpl.Value.Id;
@@ -84,11 +69,7 @@ public class SubmitDriverInspectionCommandHandler(
         }
         else
         {
-            checklistJson = await connection.ExecuteScalarAsync<string?>(new CommandDefinition(
-                @"SELECT ChecklistJson FROM InspectionTemplates
-                  WHERE Id = @Id AND IsDeleted = 0 AND IsActive = 1",
-                new { Id = templateId.Value },
-                cancellationToken: cancellationToken));
+            checklistJson = await driverAppRepository.GetInspectionChecklistJsonAsync(templateId.Value, cancellationToken);
             if (checklistJson is null)
                 return ApiResponse<int>.FailResponse("Inspection template not found.");
         }
@@ -111,34 +92,21 @@ public class SubmitDriverInspectionCommandHandler(
             .Select(r => r with { Status = NormalizeStatus(r.Status) })
             .ToList();
 
-        var driverName = await connection.ExecuteScalarAsync<string?>(new CommandDefinition(
-            "SELECT FullName FROM Drivers WHERE Id = @Id",
-            new { Id = driverId.Value },
-            cancellationToken: cancellationToken));
+        var driverName = await driverAppRepository.GetDriverFullNameAsync(driverId.Value, cancellationToken);
 
-        var id = await connection.ExecuteScalarAsync<int>(new CommandDefinition("""
-            INSERT INTO Inspections
-                (TenantId, VehicleId, TemplateId, DriverId, InspectedBy, InspectionDate,
-                 OdometerReading, Result, ResultsJson, PhotosJson, Comments, CreatedAt, CreatedBy, IsDeleted)
-            VALUES
-                (@TenantId, @VehicleId, @TemplateId, @DriverId, @InspectedBy, GETUTCDATE(),
-                 @Odometer, @Result, @ResultsJson, N'[]', @Comments, GETUTCDATE(), @CreatedBy, 0);
-            SELECT CAST(SCOPE_IDENTITY() AS INT);
-            """,
-            new
-            {
-                TenantId = tenantId,
-                request.VehicleId,
-                TemplateId = templateId,
-                DriverId = driverId.Value,
-                InspectedBy = driverName ?? currentUser.UserId?.ToString(),
-                Odometer = request.OdometerReading,
-                Result = overall,
-                ResultsJson = InspectionResultCalculator.SerializeResults(normalized),
-                Comments = request.Comments,
-                CreatedBy = currentUser.UserId?.ToString()
-            },
-            cancellationToken: cancellationToken));
+        var id = await driverAppRepository.InsertInspectionAsync(new DriverInspectionInsert
+        {
+            TenantId = tenantId,
+            VehicleId = request.VehicleId,
+            TemplateId = templateId,
+            DriverId = driverId.Value,
+            InspectedBy = driverName ?? currentUser.UserId?.ToString(),
+            Odometer = request.OdometerReading,
+            Result = overall,
+            ResultsJson = InspectionResultCalculator.SerializeResults(normalized),
+            Comments = request.Comments,
+            CreatedBy = currentUser.UserId?.ToString()
+        }, cancellationToken);
 
         var photoUrls = new List<string>();
         if (request.Photos is { Count: > 0 })
@@ -168,15 +136,11 @@ public class SubmitDriverInspectionCommandHandler(
             signatureUrl = stored.ReadUrl;
         }
 
-        await connection.ExecuteAsync(new CommandDefinition(
-            @"UPDATE Inspections SET PhotosJson = @Photos, SignatureUrl = @Signature WHERE Id = @Id",
-            new
-            {
-                Id = id,
-                Photos = InspectionResultCalculator.SerializePhotos(photoUrls),
-                Signature = signatureUrl
-            },
-            cancellationToken: cancellationToken));
+        await driverAppRepository.UpdateInspectionMediaAsync(
+            id,
+            InspectionResultCalculator.SerializePhotos(photoUrls),
+            signatureUrl,
+            cancellationToken);
 
         return ApiResponse<int>.SuccessResponse(id, "Inspection submitted.");
     }

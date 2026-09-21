@@ -1,6 +1,6 @@
 using FluentAssertions;
 using Moq;
-using SheikhTravelSystem.Application.Common.Interfaces;
+using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 using SheikhTravelSystem.Application.Features.Platform;
 
 namespace SheikhTravelSystem.Tests.Tenants;
@@ -8,12 +8,13 @@ namespace SheikhTravelSystem.Tests.Tenants;
 public class GetTenantModulesQueryHandlerTests
 {
     [Fact]
-    public async Task Handle_ReturnsCatalogModules_WhenConnectionFails()
+    public async Task Handle_ReturnsCatalogModules_WhenRepositoryFails()
     {
-        var factory = new Mock<IDbConnectionFactory>();
-        factory.Setup(f => f.CreateConnection()).Throws(new InvalidOperationException("unavailable"));
+        var repo = new Mock<IPlatformRepository>();
+        repo.Setup(r => r.LoadModuleCatalogAsync(It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("unavailable"));
 
-        var handler = new GetTenantModulesQueryHandler(factory.Object);
+        var handler = new GetTenantModulesQueryHandler(repo.Object);
         var result = await handler.Handle(new GetTenantModulesQuery(), CancellationToken.None);
 
         result.Success.Should().BeTrue();

@@ -1,10 +1,8 @@
-using Dapper;
 using FluentValidation;
 using MediatR;
-using Microsoft.Data.SqlClient;
 using SheikhTravelSystem.Application.Common;
-using SheikhTravelSystem.Application.Common.Exceptions;
 using SheikhTravelSystem.Application.Common.Interfaces;
+using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 using SheikhTravelSystem.Application.Features.Vehicles.DTOs;
 using static SheikhTravelSystem.Application.Features.Vehicles.VehicleDescriptiveTextRules;
 
@@ -50,84 +48,14 @@ public class CreateVehicleCommandValidator : AbstractValidator<CreateVehicleComm
     }
 }
 
-public class CreateVehicleCommandHandler(IDbConnectionFactory dbFactory, ITenantContext tenantContext)
+public class CreateVehicleCommandHandler(IVehicleRepository vehicleRepository, ITenantContext tenantContext)
     : IRequestHandler<CreateVehicleCommand, ApiResponse<int>>
 {
     public async Task<ApiResponse<int>> Handle(CreateVehicleCommand request, CancellationToken cancellationToken)
     {
-        using var connection = dbFactory.CreateConnection();
-        var dto = request.Vehicle;
-        var tenantId = tenantContext.GetRequiredTenantId();
-
-        var registration = string.IsNullOrWhiteSpace(dto.RegistrationNumber)
-            ? $"DRAFT-{tenantId}-{DateTime.UtcNow.Ticks}"
-            : dto.RegistrationNumber.Trim();
-
-        if (!request.SaveAsDraft || !registration.StartsWith("DRAFT-", StringComparison.Ordinal))
-        {
-            var exists = await connection.ExecuteScalarAsync<bool>(
-                new CommandDefinition(
-                    "SELECT CASE WHEN EXISTS(SELECT 1 FROM Vehicles WHERE RegistrationNumber = @Reg AND IsDeleted = 0 AND TenantId = @TenantId) THEN 1 ELSE 0 END",
-                    new { Reg = registration, TenantId = tenantId },
-                    cancellationToken: cancellationToken));
-
-            if (exists)
-                throw new ConflictException($"Vehicle with registration '{registration}' already exists.");
-        }
-
-        var status = request.SaveAsDraft
-            ? Domain.Enums.VehicleStatus.Draft
-            : Domain.Enums.VehicleStatus.Available;
-
-        var name = string.IsNullOrWhiteSpace(dto.Name) ? "Draft Vehicle" : dto.Name.Trim();
-        var seating = dto.SeatingCapacity > 0 ? dto.SeatingCapacity : 1;
-        var fuelAverage = dto.FuelAverage > 0 ? dto.FuelAverage : 1m;
-
-        int id;
-        try
-        {
-            id = await connection.ExecuteScalarAsync<int>(
-                new CommandDefinition(
-                    @"INSERT INTO Vehicles (TenantId, Name, RegistrationNumber, VehicleCode, VIN, Make, Model, Year,
-                      Color, VehicleType, SeatingCapacity, FuelAverage, FuelType, EngineNo, ChassisNo,
-                      CurrentMileage, InsuranceExpiryDate, PurchaseDate, PurchasePrice, PurchaseCurrencyCode, BranchId, DepartmentId,
-                      Status, CreatedAt, IsDeleted)
-                      VALUES (@TenantId, @Name, @RegistrationNumber, @VehicleCode, @VIN, @Make, @Model, @Year,
-                      @Color, @VehicleType, @SeatingCapacity, @FuelAverage, @FuelType, @EngineNo, @ChassisNo,
-                      @CurrentMileage, @InsuranceExpiryDate, @PurchaseDate, @PurchasePrice, @PurchaseCurrencyCode, @BranchId, @DepartmentId,
-                      @Status, @CreatedAt, 0);
-                      SELECT SCOPE_IDENTITY();",
-                    new
-                    {
-                        TenantId = tenantId,
-                        Name = name,
-                        RegistrationNumber = registration,
-                        dto.VehicleCode, dto.VIN, dto.Make, dto.Model, dto.Year,
-                        dto.Color, dto.VehicleType,
-                        SeatingCapacity = seating,
-                        FuelAverage = fuelAverage,
-                        FuelType = (int)dto.FuelType, dto.EngineNo, dto.ChassisNo,
-                        dto.CurrentMileage, dto.InsuranceExpiryDate, dto.PurchaseDate, dto.PurchasePrice,
-                        PurchaseCurrencyCode = NormalizeCurrencyCode(dto.PurchaseCurrencyCode),
-                        dto.BranchId, dto.DepartmentId,
-                        Status = (int)status,
-                        CreatedAt = DateTime.UtcNow
-                    },
-                    cancellationToken: cancellationToken));
-        }
-        catch (SqlException ex) when (ex.Number is 2627 or 2601
-            && ex.Message.Contains("UQ_Vehicles_Registration", StringComparison.OrdinalIgnoreCase))
-        {
-            // The pre-check above only looks at active, same-tenant rows, but the DB constraint
-            // doesn't share that scoping (e.g. a soft-deleted or cross-tenant vehicle can still
-            // hold the registration number) — surface a proper conflict instead of a 500.
-            throw new ConflictException($"Vehicle with registration '{registration}' already exists.");
-        }
-
+        var id = await vehicleRepository.CreateAsync(
+            tenantContext.GetRequiredTenantId(), request.Vehicle, request.SaveAsDraft, cancellationToken);
         var message = request.SaveAsDraft ? "Vehicle draft saved." : "Vehicle created successfully.";
         return ApiResponse<int>.SuccessResponse(id, message);
     }
-
-    private static string? NormalizeCurrencyCode(string? code) =>
-        string.IsNullOrWhiteSpace(code) ? null : code.Trim().ToUpperInvariant();
 }

@@ -48,6 +48,28 @@ public static class GpsGeoHelper
         return IsInsidePolygon(lng, lat, ring);
     }
 
+    public static string NormalizeAreaType(string? areaType)
+    {
+        var t = (areaType ?? "circle").Trim().ToLowerInvariant();
+        return t is "polygon" or "rectangle" ? t : "circle";
+    }
+
+    public static (double Lat, double Lng, double Radius) NormalizeGeometry(
+        string areaType, double centerLat, double centerLng, double radiusMeters, string? geoJson)
+    {
+        if (areaType == "circle")
+            return (centerLat, centerLng, radiusMeters);
+
+        var ring = TryParsePolygonRing(geoJson);
+        if (ring != null && ring.Count > 0)
+        {
+            var c = CentroidOfRing(ring);
+            return (c.Lat, c.Lng, 0);
+        }
+
+        return (centerLat, centerLng, 0);
+    }
+
     public static bool TryValidateGeofenceGeometry(string areaType, double radiusMeters, string? geoJson, out string? error)
     {
         error = null;

@@ -1,9 +1,8 @@
-using System.Data;
 using System.Text.Json;
-using Dapper;
 using MediatR;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Interfaces;
+using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 
 namespace SheikhTravelSystem.Application.Features.Platform;
 
@@ -133,49 +132,6 @@ public static class WorkspaceBuilderQueries
         return cleaned.Count == 0 ? null : JsonSerializer.Serialize(cleaned);
     }
 
-    public static async Task<IReadOnlyList<WorkspaceRow>> LoadCatalogAsync(
-        IDbConnection connection,
-        CancellationToken cancellationToken,
-        bool activeOnly = false)
-    {
-        try
-        {
-            var rows = await connection.QueryAsync<WorkspaceRow>(new CommandDefinition("""
-                SELECT WorkspaceKey, DisplayName, Description, Category, Icon, HomeRoute, SortOrder,
-                       Visible, IsActive, IsMobileSupported, ModuleKeysJson, FeatureKey, DefaultDashboardKey
-                FROM WorkspaceDefinitions
-                WHERE (@ActiveOnly = 0 OR (IsActive = 1 AND Visible = 1))
-                ORDER BY SortOrder, DisplayName
-                """,
-                new { ActiveOnly = activeOnly ? 1 : 0 },
-                cancellationToken: cancellationToken));
-            return rows.ToList();
-        }
-        catch
-        {
-            return Array.Empty<WorkspaceRow>();
-        }
-    }
-
-    public static async Task<Dictionary<string, bool>> LoadTenantFlagsAsync(
-        IDbConnection connection,
-        int tenantId,
-        CancellationToken cancellationToken)
-    {
-        try
-        {
-            var rows = await connection.QueryAsync<(string WorkspaceKey, bool IsEnabled)>(
-                new CommandDefinition("""
-                    SELECT WorkspaceKey, IsEnabled FROM TenantWorkspaces WHERE TenantId = @TenantId
-                    """, new { TenantId = tenantId }, cancellationToken: cancellationToken));
-            return rows.ToDictionary(r => r.WorkspaceKey, r => r.IsEnabled, StringComparer.OrdinalIgnoreCase);
-        }
-        catch
-        {
-            return new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
-        }
-    }
-
     public static bool IsCompanyEnabled(
         string workspaceKey,
         IReadOnlyDictionary<string, bool> flags)
@@ -296,22 +252,21 @@ public static class WorkspaceBuilderQueries
             CanToggle: row.IsActive && row.Visible);
 }
 
-public class GetWorkspaceCatalogQueryHandler(IDbConnectionFactory dbFactory)
+public class GetWorkspaceCatalogQueryHandler(IPlatformRepository platformRepository)
     : IRequestHandler<GetWorkspaceCatalogQuery, ApiResponse<IReadOnlyList<WorkspaceDefinitionDto>>>
 {
     public async Task<ApiResponse<IReadOnlyList<WorkspaceDefinitionDto>>> Handle(
         GetWorkspaceCatalogQuery request,
         CancellationToken cancellationToken)
     {
-        using var connection = dbFactory.CreateConnection();
-        var rows = await WorkspaceBuilderQueries.LoadCatalogAsync(connection, cancellationToken);
+        var rows = await platformRepository.LoadWorkspaceCatalogAsync(cancellationToken: cancellationToken);
         var dtos = rows.Select(r => WorkspaceBuilderQueries.ToDefinitionDto(r)).ToList();
         return ApiResponse<IReadOnlyList<WorkspaceDefinitionDto>>.SuccessResponse(dtos);
     }
 }
 
 public class GetCompanyWorkspacesQueryHandler(
-    IDbConnectionFactory dbFactory,
+    IPlatformRepository platformRepository,
     ITenantContext tenantContext,
     IPlatformScope platformScope)
     : IRequestHandler<GetCompanyWorkspacesQuery, ApiResponse<IReadOnlyList<CompanyWorkspaceDto>>>
@@ -323,9 +278,8 @@ public class GetCompanyWorkspacesQueryHandler(
         var tenantId = request.TenantId ?? tenantContext.GetRequiredTenantId();
         platformScope.EnsureTenantAccess(tenantId);
 
-        using var connection = dbFactory.CreateConnection();
-        var catalog = await WorkspaceBuilderQueries.LoadCatalogAsync(connection, cancellationToken, activeOnly: true);
-        var flags = await WorkspaceBuilderQueries.LoadTenantFlagsAsync(connection, tenantId, cancellationToken);
+        var catalog = await platformRepository.LoadWorkspaceCatalogAsync(activeOnly: true, cancellationToken);
+        var flags = await platformRepository.LoadTenantWorkspaceFlagsAsync(tenantId, cancellationToken);
         var dtos = catalog
             .Select(r => WorkspaceBuilderQueries.ToCompanyDto(
                 r, WorkspaceBuilderQueries.IsCompanyEnabled(r.WorkspaceKey, flags)))
@@ -335,7 +289,7 @@ public class GetCompanyWorkspacesQueryHandler(
 }
 
 public class GetMyWorkspaceQueryHandler(
-    IDbConnectionFactory dbFactory,
+    IPlatformRepository platformRepository,
     ITenantContext tenantContext,
     ICurrentUserService currentUser)
     : IRequestHandler<GetMyWorkspaceQuery, ApiResponse<ResolvedWorkspaceDto>>
@@ -348,35 +302,22 @@ public class GetMyWorkspaceQueryHandler(
             ?? throw new UnauthorizedAccessException("User is not authenticated.");
         var tenantId = tenantContext.GetRequiredTenantId();
 
-        using var connection = dbFactory.CreateConnection();
-        var profile = await connection.QuerySingleOrDefaultAsync<(
-            string? DefaultWorkspaceKey, string? HomeRoute, string? RoleCode)>(
-            new CommandDefinition("""
-                SELECT u.DefaultWorkspaceKey, u.HomeRoute,
-                       (SELECT TOP 1 r.Code
-                        FROM UserRoles ur INNER JOIN Roles r ON r.Id = ur.RoleId
-                        WHERE ur.UserId = u.Id ORDER BY r.Id) AS RoleCode
-                FROM Users u
-                WHERE u.Id = @UserId AND u.TenantId = @TenantId AND u.IsDeleted = 0
-                """,
-                new { UserId = userId, TenantId = tenantId },
-                cancellationToken: cancellationToken));
-
-        var catalog = await WorkspaceBuilderQueries.LoadCatalogAsync(connection, cancellationToken, activeOnly: true);
-        var flags = await WorkspaceBuilderQueries.LoadTenantFlagsAsync(connection, tenantId, cancellationToken);
+        var profile = await platformRepository.GetUserWorkspaceProfileAsync(userId, tenantId, cancellationToken);
+        var catalog = await platformRepository.LoadWorkspaceCatalogAsync(activeOnly: true, cancellationToken);
+        var flags = await platformRepository.LoadTenantWorkspaceFlagsAsync(tenantId, cancellationToken);
         var resolved = WorkspaceBuilderQueries.Resolve(
             catalog,
             flags,
-            profile.DefaultWorkspaceKey,
-            profile.HomeRoute,
-            profile.RoleCode ?? currentUser.Role);
+            profile?.DefaultWorkspaceKey,
+            profile?.HomeRoute,
+            profile?.RoleCode ?? currentUser.Role);
 
         return ApiResponse<ResolvedWorkspaceDto>.SuccessResponse(resolved);
     }
 }
 
 public class SetCompanyWorkspacesCommandHandler(
-    IDbConnectionFactory dbFactory,
+    IPlatformRepository platformRepository,
     IPlatformScope platformScope,
     ICurrentUserService currentUser)
     : IRequestHandler<SetCompanyWorkspacesCommand, ApiResponse<bool>>
@@ -393,8 +334,7 @@ public class SetCompanyWorkspacesCommandHandler(
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-        using var connection = dbFactory.CreateConnection();
-        var catalog = await WorkspaceBuilderQueries.LoadCatalogAsync(connection, cancellationToken, activeOnly: true);
+        var catalog = await platformRepository.LoadWorkspaceCatalogAsync(activeOnly: true, cancellationToken);
         var toggleable = catalog.Select(c => c.WorkspaceKey).ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         var invalid = enabledKeys.Where(k => !toggleable.Contains(k)).ToList();
@@ -402,90 +342,29 @@ public class SetCompanyWorkspacesCommandHandler(
             return ApiResponse<bool>.FailResponse(
                 $"Unknown or inactive workspaces: {string.Join(", ", invalid)}");
 
-        var userId = currentUser.UserId;
-        var now = DateTime.UtcNow;
-
-        foreach (var key in toggleable)
-        {
-            var enabled = enabledKeys.Contains(key);
-            await connection.ExecuteAsync(new CommandDefinition("""
-                IF EXISTS (SELECT 1 FROM TenantWorkspaces WHERE TenantId = @TenantId AND WorkspaceKey = @WorkspaceKey)
-                    UPDATE TenantWorkspaces
-                    SET IsEnabled = @IsEnabled,
-                        EnabledBy = CASE WHEN @IsEnabled = 1 THEN @EnabledBy ELSE EnabledBy END,
-                        EnabledDate = CASE WHEN @IsEnabled = 1 THEN COALESCE(EnabledDate, @Now) ELSE EnabledDate END,
-                        LastModified = @Now
-                    WHERE TenantId = @TenantId AND WorkspaceKey = @WorkspaceKey;
-                ELSE
-                    INSERT INTO TenantWorkspaces (TenantId, WorkspaceKey, IsEnabled, EnabledBy, EnabledDate, LastModified)
-                    VALUES (@TenantId, @WorkspaceKey, @IsEnabled, @EnabledBy, @Now, @Now);
-                """,
-                new
-                {
-                    TenantId = request.TenantId,
-                    WorkspaceKey = key,
-                    IsEnabled = enabled,
-                    EnabledBy = userId,
-                    Now = now
-                },
-                cancellationToken: cancellationToken));
-        }
+        await platformRepository.SetCompanyWorkspacesAsync(
+            request.TenantId, toggleable, enabledKeys, currentUser.UserId, cancellationToken);
 
         return ApiResponse<bool>.SuccessResponse(true, "Company workspaces updated.");
     }
 }
 
-public class UpdateWorkspaceDefinitionCommandHandler(IDbConnectionFactory dbFactory)
+public class UpdateWorkspaceDefinitionCommandHandler(IPlatformRepository platformRepository)
     : IRequestHandler<UpdateWorkspaceDefinitionCommand, ApiResponse<bool>>
 {
     public async Task<ApiResponse<bool>> Handle(
         UpdateWorkspaceDefinitionCommand request,
         CancellationToken cancellationToken)
     {
-        using var connection = dbFactory.CreateConnection();
-        var p = request.Payload;
-        var rows = await connection.ExecuteAsync(new CommandDefinition("""
-            UPDATE WorkspaceDefinitions SET
-                DisplayName = @DisplayName,
-                Description = @Description,
-                Category = @Category,
-                Icon = @Icon,
-                HomeRoute = @HomeRoute,
-                SortOrder = @SortOrder,
-                Visible = @Visible,
-                IsActive = @IsActive,
-                IsMobileSupported = @IsMobileSupported,
-                ModuleKeysJson = @ModuleKeysJson,
-                FeatureKey = @FeatureKey,
-                DefaultDashboardKey = @DefaultDashboardKey,
-                UpdatedAt = SYSUTCDATETIME()
-            WHERE WorkspaceKey = @WorkspaceKey;
-            """,
-            new
-            {
-                WorkspaceKey = request.Key,
-                p.DisplayName,
-                p.Description,
-                p.Category,
-                p.Icon,
-                HomeRoute = string.IsNullOrWhiteSpace(p.HomeRoute) ? "/dashboard" : p.HomeRoute.Trim(),
-                p.SortOrder,
-                p.Visible,
-                p.IsActive,
-                p.IsMobileSupported,
-                ModuleKeysJson = WorkspaceBuilderQueries.SerializeModuleKeys(p.ModuleKeys),
-                p.FeatureKey,
-                p.DefaultDashboardKey
-            },
-            cancellationToken: cancellationToken));
-
+        var rows = await platformRepository.UpdateWorkspaceDefinitionAsync(
+            request.Key, request.Payload, cancellationToken);
         return rows == 0
             ? ApiResponse<bool>.FailResponse("Workspace not found.")
             : ApiResponse<bool>.SuccessResponse(true, "Workspace updated.");
     }
 }
 
-public class CreateWorkspaceDefinitionCommandHandler(IDbConnectionFactory dbFactory)
+public class CreateWorkspaceDefinitionCommandHandler(IPlatformRepository platformRepository)
     : IRequestHandler<CreateWorkspaceDefinitionCommand, ApiResponse<string>>
 {
     public async Task<ApiResponse<string>> Handle(
@@ -499,63 +378,22 @@ public class CreateWorkspaceDefinitionCommandHandler(IDbConnectionFactory dbFact
         if (string.IsNullOrWhiteSpace(p.DisplayName))
             return ApiResponse<string>.FailResponse("DisplayName is required.");
 
-        using var connection = dbFactory.CreateConnection();
-        var exists = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
-            "SELECT CASE WHEN EXISTS (SELECT 1 FROM WorkspaceDefinitions WHERE WorkspaceKey = @Key) THEN 1 ELSE 0 END",
-            new { Key = key }, cancellationToken: cancellationToken));
-        if (exists == 1)
+        if (await platformRepository.WorkspaceKeyExistsAsync(key, cancellationToken))
             return ApiResponse<string>.FailResponse("Workspace key already exists.");
 
-        await connection.ExecuteAsync(new CommandDefinition("""
-            INSERT INTO WorkspaceDefinitions (
-                WorkspaceKey, DisplayName, Description, Category, Icon, HomeRoute, SortOrder,
-                Visible, IsActive, IsMobileSupported, ModuleKeysJson, FeatureKey, DefaultDashboardKey)
-            VALUES (
-                @WorkspaceKey, @DisplayName, @Description, @Category, @Icon, @HomeRoute, @SortOrder,
-                @Visible, 1, @IsMobileSupported, @ModuleKeysJson, @FeatureKey, @DefaultDashboardKey);
-
-            INSERT INTO TenantWorkspaces (TenantId, WorkspaceKey, IsEnabled, EnabledDate, LastModified)
-            SELECT t.Id, @WorkspaceKey, 1, SYSUTCDATETIME(), SYSUTCDATETIME()
-            FROM Tenants t
-            WHERE NOT EXISTS (
-                SELECT 1 FROM TenantWorkspaces tw
-                WHERE tw.TenantId = t.Id AND tw.WorkspaceKey = @WorkspaceKey);
-            """,
-            new
-            {
-                WorkspaceKey = key,
-                p.DisplayName,
-                p.Description,
-                p.Category,
-                p.Icon,
-                HomeRoute = string.IsNullOrWhiteSpace(p.HomeRoute) ? "/dashboard" : p.HomeRoute.Trim(),
-                p.SortOrder,
-                Visible = p.Visible,
-                IsMobileSupported = p.IsMobileSupported,
-                ModuleKeysJson = WorkspaceBuilderQueries.SerializeModuleKeys(p.ModuleKeys),
-                p.FeatureKey,
-                p.DefaultDashboardKey
-            },
-            cancellationToken: cancellationToken));
-
+        await platformRepository.CreateWorkspaceDefinitionAsync(key, p, cancellationToken);
         return ApiResponse<string>.SuccessResponse(key, "Workspace created.");
     }
 }
 
-public class DeactivateWorkspaceDefinitionCommandHandler(IDbConnectionFactory dbFactory)
+public class DeactivateWorkspaceDefinitionCommandHandler(IPlatformRepository platformRepository)
     : IRequestHandler<DeactivateWorkspaceDefinitionCommand, ApiResponse<bool>>
 {
     public async Task<ApiResponse<bool>> Handle(
         DeactivateWorkspaceDefinitionCommand request,
         CancellationToken cancellationToken)
     {
-        using var connection = dbFactory.CreateConnection();
-        var rows = await connection.ExecuteAsync(new CommandDefinition("""
-            UPDATE WorkspaceDefinitions SET
-                IsActive = 0, Visible = 0, UpdatedAt = SYSUTCDATETIME()
-            WHERE WorkspaceKey = @Key;
-            """, new { Key = request.Key }, cancellationToken: cancellationToken));
-
+        var rows = await platformRepository.DeactivateWorkspaceDefinitionAsync(request.Key, cancellationToken);
         return rows == 0
             ? ApiResponse<bool>.FailResponse("Workspace not found.")
             : ApiResponse<bool>.SuccessResponse(true, "Workspace deactivated.");

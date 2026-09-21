@@ -1,7 +1,7 @@
-using Dapper;
 using MediatR;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Interfaces;
+using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 using SheikhTravelSystem.Application.Features.GpsTracking.Commands;
 using SheikhTravelSystem.Application.Features.GpsTracking.DTOs;
 
@@ -264,37 +264,20 @@ public class SimulateGpsCommandCommandHandler(
 }
 
 public class ApproveGpsDeviceCommandCommandHandler(
-    IDbConnectionFactory dbFactory,
+    IPlatformRepository platformRepository,
     ICurrentUserService currentUser)
     : IRequestHandler<ApproveGpsDeviceCommandCommand, ApiResponse<bool>>
 {
     public async Task<ApiResponse<bool>> Handle(
         ApproveGpsDeviceCommandCommand request, CancellationToken cancellationToken)
     {
-        using var connection = dbFactory.CreateConnection();
-        var status = request.Approve ? "pending" : "cancelled";
         var approval = request.Approve ? "Approved" : "Rejected";
-        var rows = await connection.ExecuteAsync(new Dapper.CommandDefinition(
-            """
-            UPDATE GpsDeviceCommands
-            SET Status = @Status,
-                ApprovalStatus = @Approval,
-                ApprovedBy = @By,
-                ApprovedAt = SYSUTCDATETIME(),
-                UpdatedAt = SYSUTCDATETIME(),
-                ErrorMessage = CASE WHEN @Approve = 0 THEN COALESCE(@Note, N'Rejected') ELSE ErrorMessage END
-            WHERE Id = @Id AND IsDeleted = 0 AND Status = N'PendingApproval'
-            """,
-            new
-            {
-                Id = request.CommandId,
-                Status = status,
-                Approval = approval,
-                By = currentUser.UserId?.ToString(),
-                Approve = request.Approve,
-                request.Note
-            },
-            cancellationToken: cancellationToken));
+        var rows = await platformRepository.ApproveGpsDeviceCommandAsync(
+            request.CommandId,
+            request.Approve,
+            request.Note,
+            currentUser.UserId?.ToString(),
+            cancellationToken);
 
         return rows > 0
             ? ApiResponse<bool>.SuccessResponse(true, approval)

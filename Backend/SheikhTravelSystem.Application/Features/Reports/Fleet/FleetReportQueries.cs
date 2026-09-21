@@ -1,8 +1,8 @@
-using Dapper;
 using MediatR;
 using Microsoft.Extensions.Options;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Interfaces;
+using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 using SheikhTravelSystem.Application.Features.GpsTracking.DTOs;
 using SheikhTravelSystem.Application.Features.GpsTracking.Queries;
 using SheikhTravelSystem.Application.Features.GpsTracking.Traccar;
@@ -31,7 +31,7 @@ public record GetFleetReportQuery(
 /// Common/ReportDtos.cs — so the frontend renders/exports any report generically.
 /// </summary>
 public partial class GetFleetReportQueryHandler(
-    IDbConnectionFactory dbFactory,
+    IReportRepository reportRepository,
     IMediator mediator,
     ITenantContext tenantContext,
     ITraccarClient traccarClient,
@@ -45,7 +45,6 @@ public partial class GetFleetReportQueryHandler(
         var tenantId = tenantContext.GetRequiredTenantId();
         var reportType = FleetReportHelper.NormalizeReportType(request.ReportType);
         var (from, to) = FleetReportHelper.ResolveDateRange(request.From, request.To);
-        using var connection = dbFactory.CreateConnection();
 
         DataScopeResult? scope = null;
         if (currentUser.UserId is int userId)
@@ -60,17 +59,17 @@ public partial class GetFleetReportQueryHandler(
         // fall back to Trip, same default-case convention as GetMaintenanceReportQueryHandler.
         var report = reportType switch
         {
-            "event" => await BuildEventReportAsync(connection, tenantId, from, to, request.VehicleId,
+            "event" => await BuildEventReportAsync(tenantId, from, to, request.VehicleId,
                 request.DriverId, request.BranchId, request.DepartmentId, cancellationToken),
-            "alert" => await BuildAlertReportAsync(connection, tenantId, from, to, request.VehicleId,
+            "alert" => await BuildAlertReportAsync(tenantId, from, to, request.VehicleId,
                 request.DriverId, request.BranchId, request.DepartmentId, request.Status, cancellationToken),
-            "vehicle" => await BuildVehicleReportAsync(connection, tenantId, request.BranchId,
+            "vehicle" => await BuildVehicleReportAsync(tenantId, request.BranchId,
                 request.DepartmentId, request.Status, cancellationToken, scope),
-            "driver" => await BuildDriverReportAsync(connection, tenantId, from, to, request.BranchId,
+            "driver" => await BuildDriverReportAsync(tenantId, from, to, request.BranchId,
                 request.DepartmentId, cancellationToken),
-            "fuel" => await BuildFuelReportAsync(connection, tenantId, from, to, request.VehicleId,
+            "fuel" => await BuildFuelReportAsync(tenantId, from, to, request.VehicleId,
                 request.BranchId, cancellationToken, scope),
-            "speed" => await BuildSpeedReportAsync(connection, tenantId, from, to, request.VehicleId,
+            "speed" => await BuildSpeedReportAsync(tenantId, from, to, request.VehicleId,
                 request.DriverId, cancellationToken),
             "idle" => await BuildIdleReportAsync(tenantId, from, to, request.VehicleId, cancellationToken),
             "stop" => await BuildStopReportAsync(tenantId, from, to, request.VehicleId, cancellationToken),
@@ -153,7 +152,7 @@ public partial class GetFleetReportQueryHandler(
     }
 
     private async Task<ReportResponseDto> BuildEventReportAsync(
-        System.Data.IDbConnection connection, int tenantId, DateTime from, DateTime to,
+        int tenantId, DateTime from, DateTime to,
         int? vehicleId, int? driverId, int? branchId, int? departmentId, CancellationToken ct)
     {
         var columns = new[]
@@ -170,7 +169,7 @@ public partial class GetFleetReportQueryHandler(
             new GetGpsAlertEventsQuery(vehicleId, null, from, to, driverId, null, null, null), ct);
         var events = eventsResponse.Data ?? [];
 
-        events = await FilterByBranchDepartmentAsync(connection, tenantId, events, branchId, departmentId, ct);
+        events = await FilterByBranchDepartmentAsync(tenantId, events, branchId, departmentId, ct);
 
         var rows = events.Select(e => FleetReportHelper.Row(
             e.Id.ToString(), e.EventType, 1, 0m,
@@ -187,7 +186,7 @@ public partial class GetFleetReportQueryHandler(
     }
 
     private async Task<ReportResponseDto> BuildAlertReportAsync(
-        System.Data.IDbConnection connection, int tenantId, DateTime from, DateTime to,
+        int tenantId, DateTime from, DateTime to,
         int? vehicleId, int? driverId, int? branchId, int? departmentId, string? status, CancellationToken ct)
     {
         var columns = new[]
@@ -205,7 +204,7 @@ public partial class GetFleetReportQueryHandler(
             new GetGpsAlertEventsQuery(vehicleId, null, from, to, driverId, null, null, status), ct);
         var events = eventsResponse.Data ?? [];
 
-        events = await FilterByBranchDepartmentAsync(connection, tenantId, events, branchId, departmentId, ct);
+        events = await FilterByBranchDepartmentAsync(tenantId, events, branchId, departmentId, ct);
 
         var rows = events.Select(e => FleetReportHelper.Row(
             e.Id.ToString(), e.EventType, 1, 0m,
@@ -230,20 +229,14 @@ public partial class GetFleetReportQueryHandler(
     }
 
     /// <summary>GetGpsAlertEventsQuery has no Branch/Department filter — pre-resolve the matching VehicleId set and post-filter in C# when either is supplied.</summary>
-    private static async Task<List<GpsAlertEventDto>> FilterByBranchDepartmentAsync(
-        System.Data.IDbConnection connection, int tenantId, List<GpsAlertEventDto> events,
+    private async Task<List<GpsAlertEventDto>> FilterByBranchDepartmentAsync(
+        int tenantId, List<GpsAlertEventDto> events,
         int? branchId, int? departmentId, CancellationToken ct)
     {
         if (branchId is null && departmentId is null) return events;
 
-        var clauses = new List<string> { "TenantId = @TenantId", "IsDeleted = 0" };
-        var p = new DynamicParameters();
-        p.Add("TenantId", tenantId);
-        if (branchId.HasValue) { clauses.Add("BranchId = @BranchId"); p.Add("BranchId", branchId.Value); }
-        if (departmentId.HasValue) { clauses.Add("DepartmentId = @DepartmentId"); p.Add("DepartmentId", departmentId.Value); }
-
-        var matchingIds = (await connection.QueryAsync<int>(new CommandDefinition(
-            $"SELECT Id FROM Vehicles WHERE {string.Join(" AND ", clauses)}", p, cancellationToken: ct))).ToHashSet();
+        var matchingIds = await reportRepository.GetVehicleIdsByBranchDepartmentAsync(
+            tenantId, branchId, departmentId, ct);
 
         return events.Where(e => matchingIds.Contains(e.VehicleId)).ToList();
     }

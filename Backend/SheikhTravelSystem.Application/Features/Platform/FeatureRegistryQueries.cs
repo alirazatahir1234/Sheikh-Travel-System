@@ -1,14 +1,13 @@
-using System.Data;
-using Dapper;
 using MediatR;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Interfaces;
+using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 using SheikhTravelSystem.Application.Features.Company;
 
 namespace SheikhTravelSystem.Application.Features.Platform;
 
-/// <summary>Shared SQL/mapping for Stage 5 Feature Registry reads.</summary>
-internal static class FeatureRegistryQueries
+/// <summary>Shared mapping for Stage 5 Feature Registry reads. SQL lives in IPlatformRepository.</summary>
+public static class FeatureRegistryQueries
 {
     public const string SelectSql = """
         SELECT fd.FeatureKey, fd.ModuleKey,
@@ -99,102 +98,6 @@ internal static class FeatureRegistryQueries
             CanToggle: toggleable && moduleInstalled);
     }
 
-    public static async Task<IReadOnlyList<FeatureRow>> LoadVisibleAsync(
-        IDbConnection connection,
-        CancellationToken cancellationToken,
-        bool activeOnly = false)
-    {
-        try
-        {
-            var sql = SelectSql + """
-                WHERE COALESCE(fd.Visible, 1) = 1
-                """ + (activeOnly ? " AND COALESCE(fd.IsActive, 1) = 1" : "") + """
-                ORDER BY fd.SortOrder, fd.FeatureKey
-                """;
-            return (await connection.QueryAsync<FeatureRow>(
-                new CommandDefinition(sql, cancellationToken: cancellationToken))).ToList();
-        }
-        catch
-        {
-            return FeatureRegistrySeed.All
-                .Where(e => e.Visible && (!activeOnly || FeatureRegistrySeed.IsToggleable(e.Status)))
-                .OrderBy(e => e.SortOrder)
-                .ThenBy(e => e.FeatureKey)
-                .Select(e => new FeatureRow
-                {
-                    FeatureKey = e.FeatureKey,
-                    ModuleKey = e.ModuleKey,
-                    Name = e.Name,
-                    DisplayName = e.DisplayName,
-                    Description = e.Description,
-                    Category = e.Category,
-                    Icon = e.Icon,
-                    Route = e.Route,
-                    SortOrder = e.SortOrder,
-                    Visible = e.Visible,
-                    Status = e.Status,
-                    IsMobileSupported = e.IsMobileSupported,
-                    IsAISupported = e.IsAISupported,
-                    IsGPSSupported = e.IsGPSSupported,
-                    DocumentationUrl = e.DocumentationUrl,
-                    IsActive = FeatureRegistrySeed.IsToggleable(e.Status)
-                })
-                .ToList();
-        }
-    }
-
-    public static async Task<HashSet<string>> LoadInstalledModuleCodesAsync(
-        IDbConnection connection,
-        int tenantId,
-        CancellationToken cancellationToken)
-    {
-        var codes = await connection.QueryAsync<string>(new CommandDefinition("""
-            SELECT m.ModuleCode
-            FROM TenantModules tm
-            INNER JOIN Modules m ON m.Id = tm.ModuleId
-            WHERE tm.TenantId = @TenantId
-            """, new { TenantId = tenantId }, cancellationToken: cancellationToken));
-        return codes.ToHashSet(StringComparer.OrdinalIgnoreCase);
-    }
-
-    public static async Task<Dictionary<string, bool>> LoadTenantFeatureFlagsAsync(
-        IDbConnection connection,
-        int tenantId,
-        CancellationToken cancellationToken)
-    {
-        try
-        {
-            var rows = await connection.QueryAsync<(string FeatureKey, bool IsEnabled)>(
-                new CommandDefinition("""
-                    SELECT FeatureKey, IsEnabled FROM TenantFeatures WHERE TenantId = @TenantId
-                    """, new { TenantId = tenantId }, cancellationToken: cancellationToken));
-            return rows.ToDictionary(r => r.FeatureKey, r => r.IsEnabled, StringComparer.OrdinalIgnoreCase);
-        }
-        catch
-        {
-            return new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
-        }
-    }
-
-    public static async Task<IReadOnlyList<FeatureRegistryDto>> LoadCompanyFeaturesAsync(
-        IDbConnection connection,
-        int tenantId,
-        CancellationToken cancellationToken)
-    {
-        var rows = await LoadVisibleAsync(connection, cancellationToken);
-        var installed = await LoadInstalledModuleCodesAsync(connection, tenantId, cancellationToken);
-        var flags = await LoadTenantFeatureFlagsAsync(connection, tenantId, cancellationToken);
-
-        return rows.Select(row =>
-        {
-            var moduleInstalled = installed.Contains(row.ModuleKey);
-            var isEnabled = flags.TryGetValue(row.FeatureKey, out var en)
-                ? en
-                : moduleInstalled; // default on when module installed and no row yet
-            return ToRegistryDto(row, isEnabled, moduleInstalled);
-        }).ToList();
-    }
-
     public static CompanyFeatureDto ToCompanyFeatureDto(FeatureRegistryDto dto)
         => new(
             dto.FeatureKey,
@@ -247,48 +150,28 @@ public record GetCompanyFeatureRegistryQuery(int? TenantId = null)
 public record SetCompanyFeaturesCommand(int TenantId, IReadOnlyList<string> EnabledFeatureKeys)
     : IRequest<ApiResponse<bool>>;
 
-public class GetFeatureRegistryCatalogQueryHandler(IDbConnectionFactory dbFactory)
+public class GetFeatureRegistryCatalogQueryHandler(IPlatformRepository platformRepository)
     : IRequestHandler<GetFeatureRegistryCatalogQuery, ApiResponse<IReadOnlyList<FeatureRegistryDto>>>
 {
     public async Task<ApiResponse<IReadOnlyList<FeatureRegistryDto>>> Handle(
         GetFeatureRegistryCatalogQuery request,
         CancellationToken cancellationToken)
     {
-        using var connection = dbFactory.CreateConnection();
-        var rows = await FeatureRegistryQueries.LoadVisibleAsync(connection, cancellationToken);
+        var rows = await platformRepository.LoadVisibleFeaturesAsync(cancellationToken: cancellationToken);
         var dtos = rows.Select(r => FeatureRegistryQueries.ToRegistryDto(r)).ToList();
         return ApiResponse<IReadOnlyList<FeatureRegistryDto>>.SuccessResponse(dtos);
     }
 }
 
-public class GetFeatureByKeyQueryHandler(IDbConnectionFactory dbFactory)
+public class GetFeatureByKeyQueryHandler(IPlatformRepository platformRepository)
     : IRequestHandler<GetFeatureByKeyQuery, ApiResponse<FeatureRegistryDto>>
 {
     public async Task<ApiResponse<FeatureRegistryDto>> Handle(
         GetFeatureByKeyQuery request,
         CancellationToken cancellationToken)
     {
-        using var connection = dbFactory.CreateConnection();
-        try
-        {
-            var row = await connection.QuerySingleOrDefaultAsync<FeatureRegistryQueries.FeatureRow>(
-                new CommandDefinition(
-                    FeatureRegistryQueries.SelectSql + " WHERE fd.FeatureKey = @Key",
-                    new { Key = request.Key },
-                    cancellationToken: cancellationToken));
-            if (row is null)
-            {
-                var seed = FeatureRegistrySeed.Find(request.Key);
-                if (seed is null)
-                    return ApiResponse<FeatureRegistryDto>.FailResponse("Feature not found.");
-                return ApiResponse<FeatureRegistryDto>.SuccessResponse(
-                    FeatureRegistryQueries.FromSeed(seed));
-            }
-
-            return ApiResponse<FeatureRegistryDto>.SuccessResponse(
-                FeatureRegistryQueries.ToRegistryDto(row));
-        }
-        catch
+        var row = await platformRepository.LoadFeatureByKeyAsync(request.Key, cancellationToken);
+        if (row is null)
         {
             var seed = FeatureRegistrySeed.Find(request.Key);
             if (seed is null)
@@ -296,11 +179,14 @@ public class GetFeatureByKeyQueryHandler(IDbConnectionFactory dbFactory)
             return ApiResponse<FeatureRegistryDto>.SuccessResponse(
                 FeatureRegistryQueries.FromSeed(seed));
         }
+
+        return ApiResponse<FeatureRegistryDto>.SuccessResponse(
+            FeatureRegistryQueries.ToRegistryDto(row));
     }
 }
 
 public class GetCompanyFeatureRegistryQueryHandler(
-    IDbConnectionFactory dbFactory,
+    IPlatformRepository platformRepository,
     ITenantContext tenantContext,
     IPlatformScope platformScope)
     : IRequestHandler<GetCompanyFeatureRegistryQuery, ApiResponse<IReadOnlyList<FeatureRegistryDto>>>
@@ -312,15 +198,13 @@ public class GetCompanyFeatureRegistryQueryHandler(
         var tenantId = request.TenantId ?? tenantContext.GetRequiredTenantId();
         platformScope.EnsureTenantAccess(tenantId);
 
-        using var connection = dbFactory.CreateConnection();
-        var rows = await FeatureRegistryQueries.LoadCompanyFeaturesAsync(
-            connection, tenantId, cancellationToken);
+        var rows = await platformRepository.LoadCompanyFeaturesAsync(tenantId, cancellationToken);
         return ApiResponse<IReadOnlyList<FeatureRegistryDto>>.SuccessResponse(rows);
     }
 }
 
 public class SetCompanyFeaturesCommandHandler(
-    IDbConnectionFactory dbFactory,
+    IPlatformRepository platformRepository,
     IPlatformScope platformScope,
     ICurrentUserService currentUser)
     : IRequestHandler<SetCompanyFeaturesCommand, ApiResponse<bool>>
@@ -337,10 +221,9 @@ public class SetCompanyFeaturesCommandHandler(
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-        using var connection = dbFactory.CreateConnection();
-        var installed = await FeatureRegistryQueries.LoadInstalledModuleCodesAsync(
-            connection, request.TenantId, cancellationToken);
-        var catalog = await FeatureRegistryQueries.LoadVisibleAsync(connection, cancellationToken);
+        var installed = (await platformRepository.GetInstalledModuleCodesAsync(request.TenantId, cancellationToken))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var catalog = await platformRepository.LoadVisibleFeaturesAsync(cancellationToken: cancellationToken);
 
         var toggleableKeys = catalog
             .Where(f => FeatureRegistrySeed.IsToggleable(f.Status)
@@ -354,35 +237,8 @@ public class SetCompanyFeaturesCommandHandler(
             return ApiResponse<bool>.FailResponse(
                 $"Cannot enable features (not Active/Beta under an installed module): {string.Join(", ", invalid)}");
 
-        var userId = currentUser.UserId;
-        var now = DateTime.UtcNow;
-
-        // Upsert all toggleable features for this company; disable those not in the enabled set.
-        foreach (var key in toggleableKeys)
-        {
-            var enabled = enabledKeys.Contains(key);
-            await connection.ExecuteAsync(new CommandDefinition("""
-                IF EXISTS (SELECT 1 FROM TenantFeatures WHERE TenantId = @TenantId AND FeatureKey = @FeatureKey)
-                    UPDATE TenantFeatures
-                    SET IsEnabled = @IsEnabled,
-                        EnabledBy = CASE WHEN @IsEnabled = 1 THEN @EnabledBy ELSE EnabledBy END,
-                        EnabledDate = CASE WHEN @IsEnabled = 1 THEN COALESCE(EnabledDate, @Now) ELSE EnabledDate END,
-                        LastModified = @Now
-                    WHERE TenantId = @TenantId AND FeatureKey = @FeatureKey;
-                ELSE
-                    INSERT INTO TenantFeatures (TenantId, FeatureKey, IsEnabled, EnabledBy, EnabledDate, LastModified)
-                    VALUES (@TenantId, @FeatureKey, @IsEnabled, @EnabledBy, CASE WHEN @IsEnabled = 1 THEN @Now ELSE NULL END, @Now);
-                """,
-                new
-                {
-                    TenantId = request.TenantId,
-                    FeatureKey = key,
-                    IsEnabled = enabled,
-                    EnabledBy = userId,
-                    Now = now
-                },
-                cancellationToken: cancellationToken));
-        }
+        await platformRepository.SetCompanyFeaturesAsync(
+            request.TenantId, enabledKeys, toggleableKeys, currentUser.UserId, cancellationToken);
 
         return ApiResponse<bool>.SuccessResponse(true);
     }

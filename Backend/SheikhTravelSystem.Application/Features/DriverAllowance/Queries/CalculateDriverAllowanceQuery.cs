@@ -1,8 +1,7 @@
 using System.Globalization;
-using Dapper;
 using MediatR;
 using SheikhTravelSystem.Application.Common;
-using SheikhTravelSystem.Application.Common.Interfaces;
+using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 using SheikhTravelSystem.Application.Features.DriverAllowance.DTOs;
 using SheikhTravelSystem.Domain.Enums;
 
@@ -25,7 +24,7 @@ namespace SheikhTravelSystem.Application.Features.DriverAllowance.Queries;
 public record CalculateDriverAllowanceQuery(CalculateDriverAllowanceRequest Request)
     : IRequest<ApiResponse<CalculateDriverAllowanceResponse>>;
 
-public class CalculateDriverAllowanceQueryHandler(IDbConnectionFactory dbFactory)
+public class CalculateDriverAllowanceQueryHandler(IDriverAllowanceRepository repository)
     : IRequestHandler<CalculateDriverAllowanceQuery, ApiResponse<CalculateDriverAllowanceResponse>>
 {
     public async Task<ApiResponse<CalculateDriverAllowanceResponse>> Handle(
@@ -37,13 +36,7 @@ public class CalculateDriverAllowanceQueryHandler(IDbConnectionFactory dbFactory
         if (req.VehicleId <= 0)
             return ApiResponse<CalculateDriverAllowanceResponse>.FailResponse("Vehicle is required for allowance calculation.");
 
-        using var connection = dbFactory.CreateConnection();
-
-        var route = await connection.QuerySingleOrDefaultAsync<RouteContext>(
-            new CommandDefinition(
-                "SELECT Distance, Name, Source, Destination FROM Routes WHERE Id = @Id AND IsDeleted = 0",
-                new { Id = req.RouteId },
-                cancellationToken: cancellationToken));
+        var route = await repository.GetRouteContextAsync(req.RouteId, cancellationToken);
 
         if (route is null)
         {
@@ -59,11 +52,7 @@ public class CalculateDriverAllowanceQueryHandler(IDbConnectionFactory dbFactory
                 "Route not found for allowance calculation.");
         }
 
-        var vehicleFuelType = await connection.ExecuteScalarAsync<int?>(
-            new CommandDefinition(
-                "SELECT FuelType FROM Vehicles WHERE Id = @Id AND IsDeleted = 0",
-                new { Id = req.VehicleId },
-                cancellationToken: cancellationToken));
+        var vehicleFuelType = await repository.GetVehicleFuelTypeAsync(req.VehicleId, cancellationToken);
 
         if (vehicleFuelType is null)
         {
@@ -79,15 +68,7 @@ public class CalculateDriverAllowanceQueryHandler(IDbConnectionFactory dbFactory
                 "Vehicle not found for allowance calculation.");
         }
 
-        var rules = (await connection.QueryAsync<DriverAllowanceRuleDto>(
-            new CommandDefinition(
-                @"SELECT Id, Name, CalculationType, Value, Priority,
-                         MinDistanceKm, MaxDistanceKm, VehicleFuelType, RouteFilter,
-                         IsActive, Notes, CreatedAt
-                  FROM DriverAllowanceRules
-                  WHERE IsDeleted = 0 AND IsActive = 1
-                  ORDER BY Priority ASC, Id ASC",
-                cancellationToken: cancellationToken))).ToList();
+        var rules = await repository.GetActiveRulesAsync(cancellationToken);
 
         var distance = route.Distance;
         var routeHaystack = string.Join(' ', new[] { route.Name, route.Source, route.Destination }
@@ -137,14 +118,6 @@ public class CalculateDriverAllowanceQueryHandler(IDbConnectionFactory dbFactory
         }
 
         return true;
-    }
-
-    private sealed class RouteContext
-    {
-        public decimal Distance { get; set; }
-        public string? Name { get; set; }
-        public string Source { get; set; } = string.Empty;
-        public string Destination { get; set; } = string.Empty;
     }
 
     private static (decimal amount, string explanation) Apply(

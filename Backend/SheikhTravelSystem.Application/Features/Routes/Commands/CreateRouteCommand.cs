@@ -1,8 +1,8 @@
-using Dapper;
 using FluentValidation;
 using MediatR;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Interfaces;
+using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 using SheikhTravelSystem.Application.Features.Routes.DTOs;
 
 namespace SheikhTravelSystem.Application.Features.Routes.Commands;
@@ -33,28 +33,12 @@ public class CreateRouteCommandValidator : AbstractValidator<CreateRouteCommand>
     }
 }
 
-public class CreateRouteCommandHandler(IDbConnectionFactory dbFactory)
+public class CreateRouteCommandHandler(IRouteRepository routeRepository)
     : IRequestHandler<CreateRouteCommand, ApiResponse<int>>
 {
     public async Task<ApiResponse<int>> Handle(CreateRouteCommand request, CancellationToken cancellationToken)
     {
-        using var connection = dbFactory.CreateConnection();
-        var dto = request.Route;
-
-        var id = await connection.ExecuteScalarAsync<int>(
-            new CommandDefinition(
-                @"INSERT INTO Routes (Name, Source, Destination, Distance, EstimatedMinutes, BasePrice, IsActive, CreatedAt, IsDeleted, WaypointsJson, OptimizeMode)
-                  VALUES (@Name, @Source, @Destination, @Distance, @EstimatedMinutes, @BasePrice, 1, @CreatedAt, 0, @WaypointsJson, @OptimizeMode);
-                  SELECT SCOPE_IDENTITY();",
-                new
-                {
-                    dto.Name, dto.Source, dto.Destination, dto.Distance,
-                    dto.EstimatedMinutes, dto.BasePrice,
-                    dto.WaypointsJson, dto.OptimizeMode,
-                    CreatedAt = DateTime.UtcNow
-                },
-                cancellationToken: cancellationToken));
-
+        var id = await routeRepository.CreateAsync(request.Route, cancellationToken);
         return ApiResponse<int>.SuccessResponse(id, "Route created successfully.");
     }
 }

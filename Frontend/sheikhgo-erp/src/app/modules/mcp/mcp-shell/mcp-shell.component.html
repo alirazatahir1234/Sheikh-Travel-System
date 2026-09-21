@@ -1,0 +1,123 @@
+<div class="mcp-shell">
+  <header class="mcp-top">
+    <div class="brand">
+      <div class="brand-mark">
+        <mat-icon>hub</mat-icon>
+      </div>
+      <div>
+        <h1>SheikhGo MCP Console</h1>
+        <p>Control plane for architecture intelligence · stdio MCP</p>
+      </div>
+    </div>
+    <div class="top-meta">
+      <app-mcp-status-pill status="running" label="Running (Local)"></app-mcp-status-pill>
+      @if (catalog) {
+        <span class="meta-chip">v{{ catalog.version }}</span>
+        <span class="meta-chip">{{ catalog.summary.toolCount }} tools</span>
+      }
+    </div>
+  </header>
+
+  <nav class="mcp-subnav" aria-label="MCP console">
+    @for (item of nav; track item.route) {
+      <a
+        [routerLink]="item.route"
+        routerLinkActive="active"
+        [routerLinkActiveOptions]="{ exact: !!item.exact }"
+      >
+        <mat-icon>{{ item.icon }}</mat-icon>
+        {{ item.label }}
+      </a>
+    }
+  </nav>
+
+  <div class="mcp-body">
+    <main class="mcp-main">
+      <router-outlet></router-outlet>
+    </main>
+
+    <aside class="mcp-rail" aria-label="MCP status">
+      <section>
+        <h2>Status</h2>
+        <ul class="stat-list">
+          <li>
+            <span>Tools registered</span>
+            <strong>{{ registeredTools() }}</strong>
+          </li>
+          <li>
+            <span>Protocol</span>
+            <strong>{{ catalog?.protocol || 'MCP (stdio)' }}</strong>
+          </li>
+          <li>
+            <span>Running groups</span>
+            <strong>{{ catalog?.summary?.runningGroups || 0 }}</strong>
+          </li>
+          <li>
+            <span>Planned groups</span>
+            <strong>{{ catalog?.summary?.plannedGroups || 0 }}</strong>
+          </li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Connect</h2>
+        <p class="hint">
+          This ERP console does not speak stdio. Wire SheikhGo-MCP in Cursor or Claude, then copy prompts from Chat.
+        </p>
+        @for (c of catalog?.connections || []; track c.id) {
+          <div class="conn">
+            <mat-icon>{{ c.id === 'cursor' ? 'terminal' : 'smart_toy' }}</mat-icon>
+            <div>
+              <strong>{{ c.name }}</strong>
+              <span>{{ c.hint }}</span>
+            </div>
+          </div>
+        }
+        <a routerLink="/mcp/connections" class="rail-link">Connection guide →</a>
+      </section>
+
+      <section>
+        <div class="sec-head">
+          <h2>Recent activity</h2>
+          @if (mcp.activity().length) {
+            <button mat-button type="button" (click)="clearActivity()">Clear</button>
+          }
+        </div>
+        @if (!mcp.activity().length) {
+          <p class="hint">Copied prompts and quick actions appear here (local only).</p>
+        } @else {
+          <ul class="activity">
+            @for (a of mcp.activity(); track a.id) {
+              <li>
+                <strong>{{ a.label }}</strong>
+                @if (a.detail) {
+                  <span>{{ a.detail }}</span>
+                }
+                <time>{{ a.at | date: 'short' }}</time>
+              </li>
+            }
+          </ul>
+        }
+      </section>
+
+      <section>
+        <h2>Quick links</h2>
+        <div class="links">
+          @for (l of catalog?.quickLinks || []; track l.label) {
+            @if (l.internal) {
+              <a [routerLink]="l.url">
+                <mat-icon>{{ l.icon }}</mat-icon>
+                {{ l.label }}
+              </a>
+            } @else {
+              <a [href]="l.url" target="_blank" rel="noopener">
+                <mat-icon>{{ l.icon }}</mat-icon>
+                {{ l.label }}
+              </a>
+            }
+          }
+        </div>
+      </section>
+    </aside>
+  </div>
+</div>

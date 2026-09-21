@@ -1,8 +1,8 @@
-using Dapper;
 using FluentValidation;
 using MediatR;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Interfaces;
+using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 using SheikhTravelSystem.Application.Features.Customers.DTOs;
 
 namespace SheikhTravelSystem.Application.Features.Customers.Commands;
@@ -26,45 +26,15 @@ public class CreateCustomerCommandValidator : AbstractValidator<CreateCustomerCo
     }
 }
 
-public class CreateCustomerCommandHandler(IDbConnectionFactory dbFactory)
+public class CreateCustomerCommandHandler(ICustomerRepository customerRepository)
     : IRequestHandler<CreateCustomerCommand, ApiResponse<int>>
 {
     public async Task<ApiResponse<int>> Handle(CreateCustomerCommand request, CancellationToken cancellationToken)
     {
-        using var connection = dbFactory.CreateConnection();
-        var dto = request.Customer;
+        var result = await customerRepository.CreateAsync(request.Customer, cancellationToken);
+        if (!result.Success)
+            return ApiResponse<int>.FailResponse(result.ErrorMessage!);
 
-        if (!string.IsNullOrWhiteSpace(dto.CNIC))
-        {
-            var dup = await connection.ExecuteScalarAsync<int?>(
-                new CommandDefinition(
-                    "SELECT TOP 1 Id FROM Customers WHERE CNIC = @CNIC AND IsDeleted = 0",
-                    new { dto.CNIC },
-                    cancellationToken: cancellationToken));
-            if (dup.HasValue)
-                return ApiResponse<int>.FailResponse("A customer with this CNIC already exists.");
-        }
-
-        var id = await connection.ExecuteScalarAsync<int>(
-            new CommandDefinition(
-                @"INSERT INTO Customers (FullName, Phone, Email, Address, CNIC, FatherOrHusbandName, Gender, DateOfBirth, Nationality, IsActive, CreatedAt, IsDeleted)
-                  VALUES (@FullName, @Phone, @Email, @Address, @CNIC, @FatherOrHusbandName, @Gender, @DateOfBirth, @Nationality, 1, @CreatedAt, 0);
-                  SELECT SCOPE_IDENTITY();",
-                new
-                {
-                    dto.FullName,
-                    dto.Phone,
-                    dto.Email,
-                    dto.Address,
-                    dto.CNIC,
-                    dto.FatherOrHusbandName,
-                    dto.Gender,
-                    dto.DateOfBirth,
-                    dto.Nationality,
-                    CreatedAt = DateTime.UtcNow
-                },
-                cancellationToken: cancellationToken));
-
-        return ApiResponse<int>.SuccessResponse(id, "Customer created successfully.");
+        return ApiResponse<int>.SuccessResponse(result.Data, "Customer created successfully.");
     }
 }

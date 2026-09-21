@@ -1,8 +1,8 @@
-using Dapper;
 using FluentValidation;
 using MediatR;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Interfaces;
+using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 using SheikhTravelSystem.Application.Features.CustomerPortal.DTOs;
 
 namespace SheikhTravelSystem.Application.Features.CustomerPortal.Commands;
@@ -18,7 +18,10 @@ public class PortalPointToPointQuoteCommandValidator : AbstractValidator<PortalP
     }
 }
 
-public class PortalPointToPointQuoteCommandHandler(IDbConnectionFactory dbFactory, ISender mediator)
+public class PortalPointToPointQuoteCommandHandler(
+    IPortalPricingService pricingService,
+    ICustomerPortalRepository portalRepository,
+    ISender mediator)
     : IRequestHandler<PortalPointToPointQuoteCommand, ApiResponse<PortalQuoteResultDto>>
 {
     public async Task<ApiResponse<PortalQuoteResultDto>> Handle(
@@ -26,9 +29,8 @@ public class PortalPointToPointQuoteCommandHandler(IDbConnectionFactory dbFactor
         CancellationToken cancellationToken)
     {
         var r = request.Request;
-        var quote = await PortalDynamicPricingHelper.CalculatePointToPointQuoteAsync(
+        var quote = await pricingService.CalculatePointToPointQuoteAsync(
             mediator,
-            dbFactory,
             r.VehicleId,
             r.PickupLat,
             r.PickupLng,
@@ -47,14 +49,7 @@ public class PortalPointToPointQuoteCommandHandler(IDbConnectionFactory dbFactor
 
         string? routeLabel = null;
         if (r.RouteId is > 0)
-        {
-            using var connection = dbFactory.CreateConnection();
-            routeLabel = await connection.ExecuteScalarAsync<string?>(
-                new CommandDefinition(
-                    "SELECT Source + N' → ' + Destination FROM Routes WHERE Id = @Id",
-                    new { Id = r.RouteId },
-                    cancellationToken: cancellationToken));
-        }
+            routeLabel = await portalRepository.GetRouteLabelAsync(r.RouteId.Value, cancellationToken);
 
         return ApiResponse<PortalQuoteResultDto>.SuccessResponse(
             new PortalQuoteResultDto(quote.Data, distanceKm, duration, routeLabel),
@@ -65,7 +60,7 @@ public class PortalPointToPointQuoteCommandHandler(IDbConnectionFactory dbFactor
 public record ValidatePortalPromoCommand(string Phone, PortalValidatePromoRequest Request)
     : IRequest<ApiResponse<PortalPromoResultDto>>;
 
-public class ValidatePortalPromoCommandHandler(IDbConnectionFactory dbFactory)
+public class ValidatePortalPromoCommandHandler(ICustomerPortalRepository portalRepository)
     : IRequestHandler<ValidatePortalPromoCommand, ApiResponse<PortalPromoResultDto>>
 {
     public async Task<ApiResponse<PortalPromoResultDto>> Handle(
@@ -73,23 +68,15 @@ public class ValidatePortalPromoCommandHandler(IDbConnectionFactory dbFactory)
         CancellationToken cancellationToken)
     {
         var code = request.Request.Code.Trim().ToUpperInvariant();
-        using var connection = dbFactory.CreateConnection();
-        var promo = await connection.QuerySingleOrDefaultAsync<(int Id, decimal? Pct, decimal? Fixed)>(
-            new CommandDefinition(
-                @"SELECT Id, DiscountPercent, DiscountFixed FROM PromoCodes
-                  WHERE Code = @Code AND IsActive = 1 AND IsDeleted = 0
-                    AND (ValidFrom IS NULL OR ValidFrom <= SYSUTCDATETIME())
-                    AND (ValidTo IS NULL OR ValidTo >= SYSUTCDATETIME())",
-                new { Code = code },
-                cancellationToken: cancellationToken));
+        var promo = await portalRepository.GetActivePromoAsync(code, cancellationToken);
 
-        if (promo.Id == 0)
+        if (promo is null)
             return ApiResponse<PortalPromoResultDto>.SuccessResponse(
                 new PortalPromoResultDto(false, code, 0, "Invalid or expired promo code."));
 
-        var discount = promo.Pct is > 0
-            ? Math.Round(request.Request.QuoteTotal * promo.Pct.Value / 100m, 2)
-            : promo.Fixed ?? 0;
+        var discount = promo.Value.Pct is > 0
+            ? Math.Round(request.Request.QuoteTotal * promo.Value.Pct.Value / 100m, 2)
+            : promo.Value.Fixed ?? 0;
 
         if (discount <= 0)
             return ApiResponse<PortalPromoResultDto>.SuccessResponse(
@@ -104,90 +91,13 @@ public class ValidatePortalPromoCommandHandler(IDbConnectionFactory dbFactory)
     }
 }
 
+/// <summary>
+/// Thin facade kept for Program.cs startup phone normalization.
+/// </summary>
 public static class PortalCustomerWriter
 {
-    public static async Task<int?> ResolveCustomerIdByPhoneAsync(
-        IDbConnectionFactory dbFactory,
-        string phone,
-        CancellationToken cancellationToken)
-    {
-        var ids = await PortalBookingAccess.ResolvePortalCustomerIdsAsync(dbFactory, phone, null, cancellationToken);
-        return ids.Count > 0 ? ids[0] : null;
-    }
-
     public static Task NormalizeCustomerPhonesAsync(
-        IDbConnectionFactory dbFactory,
+        ICustomerPortalRepository portalRepository,
         CancellationToken cancellationToken = default)
-        => PortalBookingAccess.NormalizeCustomerPhonesAsync(dbFactory, cancellationToken);
-
-    public static async Task<int> EnsureCustomerAsync(
-        IDbConnectionFactory dbFactory,
-        string phone,
-        string fullName,
-        int tenantId,
-        CancellationToken cancellationToken)
-    {
-        var normalized = PortalPhoneHelper.Normalize(phone);
-        var existing = await ResolveCustomerIdByPhoneAsync(dbFactory, phone, cancellationToken);
-        if (existing.HasValue)
-        {
-            using (var connection = dbFactory.CreateConnection())
-            {
-                await connection.ExecuteAsync(new CommandDefinition(
-                    "UPDATE Customers SET Phone = @Phone, FullName = @FullName WHERE Id = @Id AND IsDeleted = 0",
-                    new { Phone = normalized, FullName = fullName.Trim(), Id = existing.Value },
-                    cancellationToken: cancellationToken));
-            }
-
-            return existing.Value;
-        }
-
-        using var insert = dbFactory.CreateConnection();
-        return await insert.ExecuteScalarAsync<int>(new CommandDefinition(
-            @"INSERT INTO Customers (FullName, Phone, IsActive, TenantId, CreatedAt, CreatedBy, IsDeleted)
-              VALUES (@FullName, @Phone, 1, @TenantId, SYSUTCDATETIME(), 'portal', 0);
-              SELECT CAST(SCOPE_IDENTITY() AS INT);",
-            new { FullName = fullName.Trim(), Phone = normalized, TenantId = tenantId },
-            cancellationToken: cancellationToken));
-    }
-
-    public static async Task WriteCustomerNotificationAsync(
-        IDbConnectionFactory dbFactory,
-        int customerId,
-        string title,
-        string message,
-        string type,
-        int? bookingId,
-        CancellationToken cancellationToken)
-    {
-        using var connection = dbFactory.CreateConnection();
-        await connection.ExecuteAsync(
-            new CommandDefinition(
-                @"INSERT INTO CustomerNotifications (CustomerId, Title, Message, NotificationType, BookingId, IsRead, CreatedAt, IsDeleted)
-                  VALUES (@CustomerId, @Title, @Message, @Type, @BookingId, 0, SYSUTCDATETIME(), 0)",
-                new { CustomerId = customerId, Title = title, Message = message, Type = type, BookingId = bookingId },
-                cancellationToken: cancellationToken));
-    }
-
-    public static async Task EnsureLoyaltyRowAsync(IDbConnectionFactory dbFactory, int customerId, CancellationToken ct)
-    {
-        using var connection = dbFactory.CreateConnection();
-        await connection.ExecuteAsync(
-            new CommandDefinition(
-                @"IF NOT EXISTS (SELECT 1 FROM CustomerLoyalty WHERE CustomerId = @Id)
-                  INSERT INTO CustomerLoyalty (CustomerId, Points, Tier) VALUES (@Id, 0, 'Bronze')",
-                new { Id = customerId },
-                cancellationToken: ct));
-    }
-
-    public static async Task AddLoyaltyPointsAsync(IDbConnectionFactory dbFactory, int customerId, int points, CancellationToken ct)
-    {
-        await EnsureLoyaltyRowAsync(dbFactory, customerId, ct);
-        using var connection = dbFactory.CreateConnection();
-        await connection.ExecuteAsync(
-            new CommandDefinition(
-                "UPDATE CustomerLoyalty SET Points = Points + @Pts, UpdatedAt = SYSUTCDATETIME() WHERE CustomerId = @Id",
-                new { Pts = points, Id = customerId },
-                cancellationToken: ct));
-    }
+        => portalRepository.NormalizeCustomerPhonesAsync(cancellationToken);
 }

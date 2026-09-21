@@ -1,8 +1,7 @@
-using Dapper;
 using FluentValidation;
 using MediatR;
 using SheikhTravelSystem.Application.Common;
-using SheikhTravelSystem.Application.Common.Interfaces;
+using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 using SheikhTravelSystem.Application.Features.CustomerPortal.DTOs;
 using SheikhTravelSystem.Domain.Enums;
 
@@ -19,51 +18,17 @@ public class GetPortalBookingsByPhoneQueryValidator : AbstractValidator<GetPorta
     }
 }
 
-public class GetPortalBookingsByPhoneQueryHandler(IDbConnectionFactory dbFactory)
+public class GetPortalBookingsByPhoneQueryHandler(ICustomerPortalRepository portalRepository)
     : IRequestHandler<GetPortalBookingsByPhoneQuery, ApiResponse<IReadOnlyList<PortalBookingCardDto>>>
 {
     public async Task<ApiResponse<IReadOnlyList<PortalBookingCardDto>>> Handle(GetPortalBookingsByPhoneQuery request, CancellationToken cancellationToken)
     {
-        var customerIds = await PortalBookingAccess.ResolvePortalCustomerIdsAsync(
-            dbFactory, request.Phone, request.CustomerId, cancellationToken);
+        var customerIds = await portalRepository.ResolvePortalCustomerIdsAsync(
+            request.Phone, request.CustomerId, cancellationToken);
         if (customerIds.Count == 0)
             return ApiResponse<IReadOnlyList<PortalBookingCardDto>>.SuccessResponse([], "Bookings loaded.");
 
-        using var connection = dbFactory.CreateConnection();
-
-        var rows = await connection.QueryAsync<(
-            int Id,
-            string BookingNumber,
-            string RouteLabel,
-            DateTime PickupTime,
-            int Status,
-            decimal TotalAmount,
-            decimal PaidAmount)>(
-            new CommandDefinition(
-                @"SELECT b.Id,
-                         b.BookingNumber,
-                         ISNULL(r.Source + N' → ' + r.Destination, N'') AS RouteLabel,
-                         b.PickupTime,
-                         b.Status AS Status,
-                         b.TotalAmount,
-                         ISNULL((
-                           SELECT SUM(p.Amount)
-                           FROM Payments p
-                           WHERE p.BookingId = b.Id
-                             AND p.Status IN (@Paid, @Partial)
-                             AND p.IsDeleted = 0
-                         ), 0) AS PaidAmount
-                  FROM Bookings b
-                  LEFT JOIN Routes r ON r.Id = b.RouteId AND r.IsDeleted = 0
-                  WHERE b.IsDeleted = 0 AND b.CustomerId IN @CustomerIds
-                  ORDER BY b.PickupTime DESC",
-                new
-                {
-                    CustomerIds = customerIds,
-                    Paid = (int)PaymentStatus.Paid,
-                    Partial = (int)PaymentStatus.PartiallyPaid
-                },
-                cancellationToken: cancellationToken));
+        var rows = await portalRepository.GetBookingCardsAsync(customerIds, cancellationToken);
 
         var list = rows.Select(r =>
         {

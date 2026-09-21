@@ -1,7 +1,7 @@
-using Dapper;
 using MediatR;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Interfaces;
+using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 
 namespace SheikhTravelSystem.Application.Features.Platform;
 
@@ -74,7 +74,7 @@ public class UpdateSecurityCompanyPoliciesCommandHandler(
 public class GetMySecuritySummaryQueryHandler(
     ISecurityEngine securityEngine,
     ITenantContext tenantContext,
-    IDbConnectionFactory dbFactory,
+    IPlatformRepository platformRepository,
     ICurrentUserService currentUser)
     : IRequestHandler<GetMySecuritySummaryQuery, ApiResponse<SecurityCompanySummaryDto>>
 {
@@ -84,13 +84,7 @@ public class GetMySecuritySummaryQueryHandler(
         var tenantId = tenantContext.GetRequiredTenantId();
         DateTime? passwordChangedAt = null;
         if (currentUser.UserId is int userId)
-        {
-            using var connection = dbFactory.CreateConnection();
-            passwordChangedAt = await connection.ExecuteScalarAsync<DateTime?>(new CommandDefinition(
-                "SELECT PasswordChangedAt FROM Users WHERE Id = @Id",
-                new { Id = userId },
-                cancellationToken: cancellationToken));
-        }
+            passwordChangedAt = await platformRepository.GetUserPasswordChangedAtAsync(userId, cancellationToken);
 
         var summary = await securityEngine.GetSafeSummaryAsync(tenantId, passwordChangedAt, cancellationToken);
         return ApiResponse<SecurityCompanySummaryDto>.SuccessResponse(summary);

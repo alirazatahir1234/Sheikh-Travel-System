@@ -1,44 +1,18 @@
-using Dapper;
 using MediatR;
 using SheikhTravelSystem.Application.Common;
-using SheikhTravelSystem.Application.Common.Interfaces;
+using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 using SheikhTravelSystem.Application.Features.FuelLogs.DTOs;
 
 namespace SheikhTravelSystem.Application.Features.FuelLogs.Queries;
 
 public record GetFuelLogsQuery(int Page = 1, int PageSize = 20) : IRequest<ApiResponse<PagedResult<FuelLogDto>>>;
 
-public class GetFuelLogsQueryHandler(IDbConnectionFactory dbFactory)
+public class GetFuelLogsQueryHandler(IFuelLogRepository fuelLogRepository)
     : IRequestHandler<GetFuelLogsQuery, ApiResponse<PagedResult<FuelLogDto>>>
 {
     public async Task<ApiResponse<PagedResult<FuelLogDto>>> Handle(GetFuelLogsQuery request, CancellationToken cancellationToken)
     {
-        using var connection = dbFactory.CreateConnection();
-        var offset = (request.Page - 1) * request.PageSize;
-
-        var logs = await connection.QueryAsync<FuelLogDto>(
-            new CommandDefinition(
-                @"SELECT Id, VehicleId, DriverId, Liters, PricePerLiter, TotalCost,
-                  OdometerReading, FuelType, FuelDate, Station, CreatedAt, ReceiptUrl
-                  FROM FuelLogs WHERE IsDeleted = 0
-                  ORDER BY FuelDate DESC
-                  OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY",
-                new { Offset = offset, request.PageSize },
-                cancellationToken: cancellationToken));
-
-        var totalCount = await connection.ExecuteScalarAsync<int>(
-            new CommandDefinition(
-                "SELECT COUNT(*) FROM FuelLogs WHERE IsDeleted = 0",
-                cancellationToken: cancellationToken));
-
-        var result = new PagedResult<FuelLogDto>
-        {
-            Items = logs.ToList(),
-            TotalCount = totalCount,
-            Page = request.Page,
-            PageSize = request.PageSize
-        };
-
+        var result = await fuelLogRepository.GetPagedAsync(request.Page, request.PageSize, cancellationToken);
         return ApiResponse<PagedResult<FuelLogDto>>.SuccessResponse(result);
     }
 }

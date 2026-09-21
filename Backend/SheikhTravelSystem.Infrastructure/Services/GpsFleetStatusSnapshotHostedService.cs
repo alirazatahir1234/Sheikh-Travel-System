@@ -61,6 +61,7 @@ public class GpsFleetStatusSnapshotHostedService(
     {
         using var scope = serviceProvider.CreateScope();
         var dbFactory = scope.ServiceProvider.GetRequiredService<IDbConnectionFactory>();
+        var fleetStatusCalculator = scope.ServiceProvider.GetRequiredService<IGpsFleetStatusCalculator>();
         using var connection = dbFactory.CreateConnection();
 
         var tenants = (await connection.QueryAsync<int>(new CommandDefinition(
@@ -85,7 +86,7 @@ public class GpsFleetStatusSnapshotHostedService(
 
         foreach (var tenantId in tenants)
         {
-            var status = await GpsFleetStatusCalculator.ComputeAsync(
+            var status = await fleetStatusCalculator.ComputeAsync(
                 connection,
                 tenantId,
                 gpsSettings,

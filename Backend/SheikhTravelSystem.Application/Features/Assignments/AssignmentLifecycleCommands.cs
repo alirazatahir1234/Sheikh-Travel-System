@@ -1,9 +1,8 @@
-using Dapper;
 using FluentValidation;
 using MediatR;
 using SheikhTravelSystem.Application.Common;
-using SheikhTravelSystem.Application.Common.Exceptions;
 using SheikhTravelSystem.Application.Common.Interfaces;
+using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 
 namespace SheikhTravelSystem.Application.Features.Assignments;
 
@@ -21,40 +20,16 @@ public class ApproveAssignmentCommandValidator : AbstractValidator<ApproveAssign
 }
 
 public class ApproveAssignmentCommandHandler(
-    IDbConnectionFactory dbFactory,
+    IAssignmentRepository assignmentRepository,
     ITenantContext tenantContext,
     ICurrentUserService currentUser)
     : IRequestHandler<ApproveAssignmentCommand, ApiResponse<bool>>
 {
     public async Task<ApiResponse<bool>> Handle(ApproveAssignmentCommand request, CancellationToken cancellationToken)
     {
-        using var connection = dbFactory.CreateConnection();
-        var tenantId = tenantContext.GetRequiredTenantId();
         var by = currentUser.UserId?.ToString() ?? "system";
-
-        var row = await connection.QuerySingleOrDefaultAsync<(int Id, int VehicleId, int? DriverId, string Status)>(
-            new CommandDefinition(
-                @"SELECT a.Id, a.VehicleId, a.DriverId, a.Status
-                  FROM AssignmentHistory a INNER JOIN Vehicles v ON a.VehicleId = v.Id
-                  WHERE a.Id = @Id AND v.TenantId = @TenantId AND a.IsDeleted = 0",
-                new { Id = request.AssignmentId, TenantId = tenantId }, cancellationToken: cancellationToken));
-
-        if (row.Id == 0) throw new NotFoundException("Assignment", request.AssignmentId);
-        if (row.Status != "PendingApproval")
-            throw new ConflictException("Only pending assignments can be approved.");
-
-        var newStatus = "Scheduled";
-        await connection.ExecuteAsync(new CommandDefinition(
-            @"UPDATE AssignmentHistory SET Status = @Status, ApprovedBy = @ApprovedBy,
-              ModifiedAt = GETUTCDATE(), ModifiedBy = @ModifiedBy
-              WHERE Id = @Id",
-            new { Id = request.AssignmentId, Status = newStatus, ApprovedBy = by, ModifiedBy = by },
-            cancellationToken: cancellationToken));
-
-        await AssignmentChangelogWriter.WriteAsync(connection, tenantId, request.AssignmentId,
-            row.VehicleId, row.VehicleId, row.DriverId, row.DriverId,
-            "Approved", request.Body.Notes, by, cancellationToken);
-
+        await assignmentRepository.ApproveAsync(
+            tenantContext.GetRequiredTenantId(), request.AssignmentId, request.Body.Notes, by, cancellationToken);
         return ApiResponse<bool>.SuccessResponse(true, "Assignment approved.");
     }
 }
@@ -77,38 +52,16 @@ public class RejectAssignmentCommandValidator : AbstractValidator<RejectAssignme
 }
 
 public class RejectAssignmentCommandHandler(
-    IDbConnectionFactory dbFactory,
+    IAssignmentRepository assignmentRepository,
     ITenantContext tenantContext,
     ICurrentUserService currentUser)
     : IRequestHandler<RejectAssignmentCommand, ApiResponse<bool>>
 {
     public async Task<ApiResponse<bool>> Handle(RejectAssignmentCommand request, CancellationToken cancellationToken)
     {
-        using var connection = dbFactory.CreateConnection();
-        var tenantId = tenantContext.GetRequiredTenantId();
         var by = currentUser.UserId?.ToString() ?? "system";
-
-        var row = await connection.QuerySingleOrDefaultAsync<(int Id, int VehicleId, string Status)>(
-            new CommandDefinition(
-                @"SELECT a.Id, a.VehicleId, a.Status
-                  FROM AssignmentHistory a INNER JOIN Vehicles v ON a.VehicleId = v.Id
-                  WHERE a.Id = @Id AND v.TenantId = @TenantId AND a.IsDeleted = 0",
-                new { Id = request.AssignmentId, TenantId = tenantId }, cancellationToken: cancellationToken));
-
-        if (row.Id == 0) throw new NotFoundException("Assignment", request.AssignmentId);
-        if (row.Status != "PendingApproval")
-            throw new ConflictException("Only pending assignments can be rejected.");
-
-        await connection.ExecuteAsync(new CommandDefinition(
-            @"UPDATE AssignmentHistory SET Status = N'Cancelled', EndAt = GETUTCDATE(),
-              Reason = @Reason, ModifiedAt = GETUTCDATE(), ModifiedBy = @ModifiedBy
-              WHERE Id = @Id",
-            new { Id = request.AssignmentId, request.Body.Reason, ModifiedBy = by },
-            cancellationToken: cancellationToken));
-
-        await AssignmentChangelogWriter.WriteAsync(connection, tenantId, request.AssignmentId,
-            row.VehicleId, null, null, null, "Rejected", request.Body.Reason, by, cancellationToken);
-
+        await assignmentRepository.RejectAsync(
+            tenantContext.GetRequiredTenantId(), request.AssignmentId, request.Body.Reason, by, cancellationToken);
         return ApiResponse<bool>.SuccessResponse(true, "Assignment rejected.");
     }
 }
@@ -133,10 +86,7 @@ public class BulkCompleteAssignmentsCommandHandler(IMediator mediator)
                 if (result.Success) succeeded++;
                 else errors.Add($"#{id}: {result.Message}");
             }
-            catch (Exception ex)
-            {
-                errors.Add($"#{id}: {ex.Message}");
-            }
+            catch (Exception ex) { errors.Add($"#{id}: {ex.Message}"); }
         }
         return ApiResponse<BulkAssignmentResultDto>.SuccessResponse(
             new BulkAssignmentResultDto(succeeded, ids.Count - succeeded, errors));
@@ -159,10 +109,7 @@ public class BulkCancelAssignmentsCommandHandler(IMediator mediator)
                 if (result.Success) succeeded++;
                 else errors.Add($"#{id}: {result.Message}");
             }
-            catch (Exception ex)
-            {
-                errors.Add($"#{id}: {ex.Message}");
-            }
+            catch (Exception ex) { errors.Add($"#{id}: {ex.Message}"); }
         }
         return ApiResponse<BulkAssignmentResultDto>.SuccessResponse(
             new BulkAssignmentResultDto(succeeded, ids.Count - succeeded, errors));

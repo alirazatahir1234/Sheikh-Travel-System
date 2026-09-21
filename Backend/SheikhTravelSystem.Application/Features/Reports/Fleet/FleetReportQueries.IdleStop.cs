@@ -1,7 +1,5 @@
-using Dapper;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Features.GpsTracking.Queries;
-using SheikhTravelSystem.Application.Features.GpsTracking.Services;
 
 namespace SheikhTravelSystem.Application.Features.Reports.Fleet;
 
@@ -27,24 +25,16 @@ public partial class GetFleetReportQueryHandler
         if (!opts.IsConfigured || !opts.Enabled || trips.Count == 0)
             return ([], trips.Count > 0);
 
-        using var connection = dbFactory.CreateConnection();
         var vehicleIds = trips.Select(t => t.VehicleId).Distinct().ToList();
 
-        var deviceMap = await GpsTraccarFleetFetcher.ResolveVehicleToDeviceMapAsync(connection, tenantId, vehicleIds, ct);
-        var isPartial = await GpsTraccarFleetFetcher.HasNonTraccarVehicleAsync(connection, tenantId, vehicleIds, ct);
+        var deviceMap = await reportRepository.ResolveVehicleToDeviceMapAsync(tenantId, vehicleIds, ct);
+        var isPartial = await reportRepository.HasNonTraccarVehicleAsync(tenantId, vehicleIds, ct);
         if (deviceMap.Count == 0) return ([], true);
 
         // Driver attribution via the same AssignmentHistory time-window join used elsewhere this
         // phase (Driver Report) and in Phase 10's driver scoring — copied, not shared.
-        var assignments = (await connection.QueryAsync<(int VehicleId, int? DriverId, DateTime StartAt, DateTime? EndAt)>(
-            new CommandDefinition("""
-                SELECT VehicleId, DriverId, StartAt, EndAt FROM AssignmentHistory
-                WHERE TenantId = @TenantId AND IsDeleted = 0 AND DriverId IS NOT NULL
-                  AND VehicleId IN @VehicleIds AND StartAt <= @To AND (EndAt IS NULL OR EndAt >= @From)
-                """, new { TenantId = tenantId, VehicleIds = vehicleIds, From = from, To = to }, cancellationToken: ct))).ToList();
-        var driverNames = (await connection.QueryAsync<(int Id, string FullName)>(new CommandDefinition(
-            "SELECT Id, FullName FROM Drivers WHERE TenantId = @TenantId AND IsDeleted = 0",
-            new { TenantId = tenantId }, cancellationToken: ct))).ToDictionary(d => d.Id, d => d.FullName);
+        var assignments = await reportRepository.GetAssignmentWindowsAsync(tenantId, vehicleIds, from, to, ct);
+        var driverNames = await reportRepository.GetDriverNamesAsync(tenantId, ct);
 
         int? ResolveDriver(int vId, DateTime at) =>
             assignments.FirstOrDefault(a => a.VehicleId == vId && a.StartAt <= at && (a.EndAt == null || a.EndAt >= at)).DriverId;

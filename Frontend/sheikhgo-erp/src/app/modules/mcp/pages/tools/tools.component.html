@@ -1,0 +1,44 @@
+<div class="page" *ngIf="catalog as c">
+  <header>
+    <div>
+      <h2>Tools</h2>
+      <p>Browse tools by group from <code>mcp-catalog.json</code>. Live tools are registered in SheikhGo-MCP.</p>
+    </div>
+    <mat-form-field appearance="outline" subscriptSizing="dynamic">
+      <mat-label>Group</mat-label>
+      <mat-select [(ngModel)]="groupId">
+        @for (g of c.groups; track g.id) {
+          <mat-option [value]="g.id">{{ g.name }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+  </header>
+
+  @if (selected(); as g) {
+    <div class="group-banner">
+      <div class="left">
+        <mat-icon>{{ g.icon }}</mat-icon>
+        <div>
+          <h3>{{ g.name }}</h3>
+          <p>{{ g.description }}</p>
+        </div>
+      </div>
+      <app-mcp-status-pill [status]="g.status"></app-mcp-status-pill>
+    </div>
+
+    @if (g.note) {
+      <p class="note">{{ g.note }}</p>
+    }
+
+    <ul class="tools">
+      @for (t of toolsFor(g); track t) {
+        <li>
+          <code>{{ t }}</code>
+          <span>{{ g.tools?.includes(t) ? 'Registered' : 'Planned' }}</span>
+        </li>
+      } @empty {
+        <li class="empty">No tools listed for this group yet.</li>
+      }
+    </ul>
+  }
+</div>

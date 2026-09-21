@@ -1,3 +1,4 @@
+using SheikhTravelSystem.Application.Common.Interfaces;
 namespace SheikhTravelSystem.Application.Common;
 
 /// <summary>

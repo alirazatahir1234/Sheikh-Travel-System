@@ -1,8 +1,8 @@
-using Dapper;
 using FluentValidation;
 using MediatR;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Interfaces;
+using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 
 namespace SheikhTravelSystem.Application.Features.Bookings.Commands;
 
@@ -23,7 +23,7 @@ public class BulkDeleteBookingsCommandValidator : AbstractValidator<BulkDeleteBo
     }
 }
 
-public class BulkDeleteBookingsCommandHandler(IDbConnectionFactory dbFactory)
+public class BulkDeleteBookingsCommandHandler(IBookingRepository bookingRepository)
     : IRequestHandler<BulkDeleteBookingsCommand, ApiResponse<int>>
 {
     public async Task<ApiResponse<int>> Handle(BulkDeleteBookingsCommand request, CancellationToken cancellationToken)
@@ -32,14 +32,7 @@ public class BulkDeleteBookingsCommandHandler(IDbConnectionFactory dbFactory)
         if (ids.Length == 0)
             return ApiResponse<int>.FailResponse("No valid booking ids were provided.");
 
-        using var connection = dbFactory.CreateConnection();
-
-        var affected = await connection.ExecuteAsync(
-            new CommandDefinition(
-                @"UPDATE Bookings SET IsDeleted = 1, UpdatedAt = @UpdatedAt
-                  WHERE IsDeleted = 0 AND Id IN @Ids",
-                new { Ids = ids, UpdatedAt = DateTime.UtcNow },
-                cancellationToken: cancellationToken));
+        var affected = await bookingRepository.SoftDeleteManyAsync(ids, cancellationToken);
 
         return ApiResponse<int>.SuccessResponse(
             affected,

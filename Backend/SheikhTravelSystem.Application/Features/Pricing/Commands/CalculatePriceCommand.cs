@@ -1,8 +1,7 @@
-using Dapper;
 using FluentValidation;
 using MediatR;
 using SheikhTravelSystem.Application.Common;
-using SheikhTravelSystem.Application.Common.Interfaces;
+using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 using SheikhTravelSystem.Application.Features.Pricing.DTOs;
 
 namespace SheikhTravelSystem.Application.Features.Pricing.Commands;
@@ -32,7 +31,7 @@ public class CalculatePriceCommandValidator : AbstractValidator<CalculatePriceCo
 /// <summary>
 /// Computes booking price components from route and vehicle data.
 /// </summary>
-public class CalculatePriceCommandHandler(IDbConnectionFactory dbFactory)
+public class CalculatePriceCommandHandler(IPricingRepository pricingRepository)
     : IRequestHandler<CalculatePriceCommand, ApiResponse<PriceBreakdown>>
 {
     /// <summary>
@@ -40,24 +39,13 @@ public class CalculatePriceCommandHandler(IDbConnectionFactory dbFactory)
     /// </summary>
     public async Task<ApiResponse<PriceBreakdown>> Handle(CalculatePriceCommand request, CancellationToken cancellationToken)
     {
-        using var connection = dbFactory.CreateConnection();
         var req = request.Request;
 
-        var route = await connection.QuerySingleOrDefaultAsync<RoutePricingRow>(
-            new CommandDefinition(
-                "SELECT Distance, BasePrice FROM Routes WHERE Id = @Id AND IsDeleted = 0 AND IsActive = 1",
-                new { Id = req.RouteId },
-                cancellationToken: cancellationToken));
-
+        var route = await pricingRepository.GetRoutePricingAsync(req.RouteId, cancellationToken);
         if (route is null)
             return ApiResponse<PriceBreakdown>.FailResponse("Selected route was not found. Please reselect the route.");
 
-        var fuelAverage = await connection.ExecuteScalarAsync<decimal?>(
-            new CommandDefinition(
-                "SELECT FuelAverage FROM Vehicles WHERE Id = @Id",
-                new { Id = req.VehicleId },
-                cancellationToken: cancellationToken));
-
+        var fuelAverage = await pricingRepository.GetVehicleFuelAverageAsync(req.VehicleId, cancellationToken);
         if (fuelAverage is null || fuelAverage <= 0)
             return ApiResponse<PriceBreakdown>.FailResponse("Selected vehicle was not found or has invalid fuel average.");
 
@@ -79,11 +67,5 @@ public class CalculatePriceCommandHandler(IDbConnectionFactory dbFactory)
             IsRoundTrip: req.IsRoundTrip);
 
         return ApiResponse<PriceBreakdown>.SuccessResponse(breakdown, "Price calculated successfully.");
-    }
-
-    private sealed class RoutePricingRow
-    {
-        public decimal Distance { get; init; }
-        public decimal BasePrice { get; init; }
     }
 }

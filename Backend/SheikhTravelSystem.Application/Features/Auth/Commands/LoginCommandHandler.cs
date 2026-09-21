@@ -1,9 +1,9 @@
-using Dapper;
 using MediatR;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Interfaces;
+using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 using SheikhTravelSystem.Domain.Enums;
 
 namespace SheikhTravelSystem.Application.Features.Auth.Commands;
@@ -13,7 +13,7 @@ namespace SheikhTravelSystem.Application.Features.Auth.Commands;
 /// Soft-enforces Stage 13 security policies (lockout, password age, IP allowlist).
 /// </summary>
 public class LoginCommandHandler(
-    IDbConnectionFactory dbFactory,
+    IAuthRepository authRepository,
     IPasswordHasher passwordHasher,
     IJwtTokenService jwtTokenService,
     IUserAccessService userAccessService,
@@ -25,16 +25,7 @@ public class LoginCommandHandler(
 {
     public async Task<ApiResponse<LoginResponse>> Handle(LoginCommand request, CancellationToken cancellationToken)
     {
-        using var connection = dbFactory.CreateConnection();
-
-        var user = await connection.QuerySingleOrDefaultAsync<LoginUserRow>(
-            new CommandDefinition(
-                @"SELECT Id, TenantId, FullName, Email, PasswordHash, Phone, Role, IsActive,
-                  RefreshToken, RefreshTokenExpiryTime, CreatedAt, UpdatedAt, IsDeleted,
-                  FailedLoginAttempts, LockoutEndUtc, PasswordChangedAt
-                  FROM Users WHERE (Email = @Email OR Phone = @Email) AND IsDeleted = 0 AND IsActive = 1",
-                new { request.Email },
-                cancellationToken: cancellationToken));
+        var user = await authRepository.FindActiveUserByEmailOrPhoneAsync(request.Email, cancellationToken);
 
         if (user is null)
         {
@@ -96,7 +87,7 @@ public class LoginCommandHandler(
         if (!passwordHasher.Verify(request.Password, user.PasswordHash))
         {
             logger.LogWarning("Failed login attempt for email {Email}", request.Email);
-            await RecordFailedAttemptAsync(connection, user, policies, securityEngine, cancellationToken);
+            await RecordFailedAttemptAsync(user, policies, securityEngine, cancellationToken);
             try
             {
                 var maxAttempts = securityEngine.GetInt(policies, SecurityPolicyKeys.LockoutMaxAttempts, 0);
@@ -125,17 +116,12 @@ public class LoginCommandHandler(
                 "Password expired. Please reset your password or contact an administrator.");
         }
 
-        await connection.ExecuteAsync(new CommandDefinition("""
-            UPDATE Users SET FailedLoginAttempts = 0, LockoutEndUtc = NULL WHERE Id = @Id
-            """, new { user.Id }, cancellationToken: cancellationToken));
+        await authRepository.ClearFailedLoginAttemptsAsync(user.Id, cancellationToken);
 
         int? driverId = null;
         if (user.Role == UserRole.Driver)
         {
-            driverId = await connection.ExecuteScalarAsync<int?>(new CommandDefinition(
-                "SELECT Id FROM Drivers WHERE UserId = @UserId AND IsDeleted = 0",
-                new { UserId = user.Id },
-                cancellationToken: cancellationToken));
+            driverId = await authRepository.GetDriverIdByUserIdAsync(user.Id, cancellationToken);
         }
 
         var access = await userAccessService.ResolveAsync(user.Id, user.TenantId, cancellationToken);
@@ -160,11 +146,11 @@ public class LoginCommandHandler(
         var refreshToken = jwtTokenService.GenerateRefreshToken();
         var expiryDays = int.TryParse(configuration["JwtSettings:RefreshTokenExpiryDays"], out var days) ? days : 7;
 
-        await connection.ExecuteAsync(
-            new CommandDefinition(
-                "UPDATE Users SET RefreshToken = @RefreshToken, RefreshTokenExpiryTime = @Expiry WHERE Id = @Id",
-                new { RefreshToken = refreshToken, Expiry = DateTime.UtcNow.AddDays(expiryDays), user.Id },
-                cancellationToken: cancellationToken));
+        await authRepository.UpdateRefreshTokenAsync(
+            user.Id,
+            refreshToken,
+            DateTime.UtcNow.AddDays(expiryDays),
+            cancellationToken);
 
         logger.LogInformation("User {Email} logged in successfully", request.Email);
         try
@@ -209,9 +195,8 @@ public class LoginCommandHandler(
         return ApiResponse<LoginResponse>.SuccessResponse(response, "Login successful.");
     }
 
-    private static async Task RecordFailedAttemptAsync(
-        System.Data.IDbConnection connection,
-        LoginUserRow user,
+    private async Task RecordFailedAttemptAsync(
+        AuthLoginUser user,
         IReadOnlyDictionary<string, string> policies,
         ISecurityEngine securityEngine,
         CancellationToken cancellationToken)
@@ -228,30 +213,6 @@ public class LoginCommandHandler(
             attempts = 0;
         }
 
-        await connection.ExecuteAsync(new CommandDefinition("""
-            UPDATE Users SET FailedLoginAttempts = @Attempts, LockoutEndUtc = @LockoutEndUtc WHERE Id = @Id
-            """,
-            new { Attempts = attempts, LockoutEndUtc = lockoutEnd, user.Id },
-            cancellationToken: cancellationToken));
-    }
-
-    private sealed class LoginUserRow
-    {
-        public int Id { get; init; }
-        public int TenantId { get; init; }
-        public string FullName { get; init; } = "";
-        public string Email { get; init; } = "";
-        public string PasswordHash { get; init; } = "";
-        public string Phone { get; init; } = "";
-        public UserRole Role { get; init; }
-        public bool IsActive { get; init; }
-        public string? RefreshToken { get; init; }
-        public DateTime? RefreshTokenExpiryTime { get; init; }
-        public DateTime CreatedAt { get; init; }
-        public DateTime? UpdatedAt { get; init; }
-        public bool IsDeleted { get; init; }
-        public int FailedLoginAttempts { get; init; }
-        public DateTime? LockoutEndUtc { get; init; }
-        public DateTime? PasswordChangedAt { get; init; }
+        await authRepository.RecordFailedLoginAttemptAsync(user.Id, attempts, lockoutEnd, cancellationToken);
     }
 }

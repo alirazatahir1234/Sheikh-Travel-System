@@ -1,10 +1,9 @@
-using Dapper;
 using MediatR;
 using Microsoft.Extensions.Configuration;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Interfaces;
+using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 using SheikhTravelSystem.Application.Features.CustomerPortal.DTOs;
-using SheikhTravelSystem.Domain.Enums;
 
 namespace SheikhTravelSystem.Application.Features.CustomerPortal.Commands;
 
@@ -16,7 +15,7 @@ public record PortalPaymentCheckoutDto(string CheckoutUrl, string SessionId, str
 public class CreatePortalPaymentCheckoutCommandHandler(
     IPaymentGatewayService gateway,
     IConfiguration configuration,
-    IDbConnectionFactory dbFactory)
+    ICustomerPortalRepository portalRepository)
     : IRequestHandler<CreatePortalPaymentCheckoutCommand, ApiResponse<PortalPaymentCheckoutDto>>
 {
     public async Task<ApiResponse<PortalPaymentCheckoutDto>> Handle(
@@ -30,28 +29,11 @@ public class CreatePortalPaymentCheckoutCommandHandler(
         if (string.IsNullOrWhiteSpace(request.Phone))
             return ApiResponse<PortalPaymentCheckoutDto>.FailResponse("Portal customer token is missing a phone number.");
 
-        if (!await PortalBookingAccess.CustomerOwnsBookingAsync(
-                dbFactory, request.BookingId, request.Phone, request.CustomerId, cancellationToken))
+        if (!await portalRepository.CustomerOwnsBookingAsync(
+                request.BookingId, request.Phone, request.CustomerId, cancellationToken))
             return ApiResponse<PortalPaymentCheckoutDto>.FailResponse("Booking not found for this phone number.");
 
-        using var connection = dbFactory.CreateConnection();
-        var booking = await connection.QuerySingleOrDefaultAsync<PortalCheckoutBooking>(
-            new CommandDefinition(
-                @"SELECT b.TotalAmount,
-                         c.Email,
-                         ISNULL(SUM(CASE WHEN p.Status IN (@Partial, @Paid) THEN p.Amount ELSE 0 END), 0) AS PaidAmount
-                  FROM Bookings b
-                  INNER JOIN Customers c ON c.Id = b.CustomerId AND c.IsDeleted = 0
-                  LEFT JOIN Payments p ON p.BookingId = b.Id AND p.IsDeleted = 0
-                  WHERE b.Id = @BookingId AND b.IsDeleted = 0
-                  GROUP BY b.TotalAmount, c.Email",
-                new
-                {
-                    request.BookingId,
-                    Partial = (int)PaymentStatus.PartiallyPaid,
-                    Paid = (int)PaymentStatus.Paid
-                },
-                cancellationToken: cancellationToken));
+        var booking = await portalRepository.GetCheckoutBookingAsync(request.BookingId, cancellationToken);
 
         if (booking is null)
             return ApiResponse<PortalPaymentCheckoutDto>.FailResponse("Booking not found.");
@@ -75,12 +57,5 @@ public class CreatePortalPaymentCheckoutCommandHandler(
 
         return ApiResponse<PortalPaymentCheckoutDto>.SuccessResponse(
             new PortalPaymentCheckoutDto(result.CheckoutUrl, result.SessionId!, gateway.ProviderName));
-    }
-
-    private sealed class PortalCheckoutBooking
-    {
-        public decimal TotalAmount { get; init; }
-        public decimal PaidAmount { get; init; }
-        public string? Email { get; init; }
     }
 }

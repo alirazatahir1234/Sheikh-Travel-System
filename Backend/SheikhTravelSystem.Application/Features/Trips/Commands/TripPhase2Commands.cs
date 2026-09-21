@@ -1,9 +1,8 @@
-using Dapper;
 using FluentValidation;
 using MediatR;
 using SheikhTravelSystem.Application.Common;
-using SheikhTravelSystem.Application.Common.Exceptions;
 using SheikhTravelSystem.Application.Common.Interfaces;
+using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 using SheikhTravelSystem.Application.Common.IO;
 using SheikhTravelSystem.Application.Features.Trips.DTOs;
 
@@ -30,44 +29,13 @@ public class AddTripExpenseCommandValidator : AbstractValidator<AddTripExpenseCo
     }
 }
 
-public class AddTripExpenseCommandHandler(
-    IDbConnectionFactory dbFactory,
-    ITenantContext tenantContext,
-    ICurrentUserService currentUser)
+public class AddTripExpenseCommandHandler(ITripRepository tripRepository)
     : IRequestHandler<AddTripExpenseCommand, ApiResponse<int>>
 {
     public async Task<ApiResponse<int>> Handle(AddTripExpenseCommand request, CancellationToken cancellationToken)
     {
-        using var connection = dbFactory.CreateConnection();
-        var tenantId = tenantContext.GetRequiredTenantId();
-        await EnsureTripAsync(connection, request.TripId, tenantId, cancellationToken);
-
-        var id = await connection.ExecuteScalarAsync<int>(new CommandDefinition("""
-            INSERT INTO TripExpenses (TripId, ExpenseType, Amount, Description, ExpenseDate, CreatedAt, CreatedBy, IsDeleted)
-            VALUES (@TripId, @ExpenseType, @Amount, @Description, @ExpenseDate, GETUTCDATE(), @CreatedBy, 0);
-            SELECT CAST(SCOPE_IDENTITY() AS INT);
-            """,
-            new
-            {
-                request.TripId,
-                request.Expense.ExpenseType,
-                request.Expense.Amount,
-                request.Expense.Description,
-                ExpenseDate = request.Expense.ExpenseDate ?? DateTime.UtcNow,
-                CreatedBy = currentUser.UserId?.ToString()
-            },
-            cancellationToken: cancellationToken));
-
+        var id = await tripRepository.AddExpenseAsync(request.TripId, request.Expense, cancellationToken);
         return ApiResponse<int>.SuccessResponse(id, "Expense added.");
-    }
-
-    internal static async Task EnsureTripAsync(System.Data.IDbConnection connection, int tripId, int tenantId, CancellationToken ct)
-    {
-        var ok = await connection.ExecuteScalarAsync<bool>(new CommandDefinition(
-            "SELECT CASE WHEN EXISTS(SELECT 1 FROM Trips WHERE Id = @Id AND TenantId = @TenantId AND IsDeleted = 0) THEN 1 ELSE 0 END",
-            new { Id = tripId, TenantId = tenantId },
-            cancellationToken: ct));
-        if (!ok) throw new NotFoundException("Trip", tripId);
     }
 }
 
@@ -78,18 +46,13 @@ public record DeleteTripExpenseCommand(int TripId, int ExpenseId) : IRequest<Api
     public int? AuditEntityId => ExpenseId;
 }
 
-public class DeleteTripExpenseCommandHandler(IDbConnectionFactory dbFactory, ITenantContext tenantContext)
+public class DeleteTripExpenseCommandHandler(ITripRepository tripRepository)
     : IRequestHandler<DeleteTripExpenseCommand, ApiResponse<bool>>
 {
     public async Task<ApiResponse<bool>> Handle(DeleteTripExpenseCommand request, CancellationToken cancellationToken)
     {
-        using var connection = dbFactory.CreateConnection();
-        await AddTripExpenseCommandHandler.EnsureTripAsync(connection, request.TripId, tenantContext.GetRequiredTenantId(), cancellationToken);
-        var rows = await connection.ExecuteAsync(new CommandDefinition(
-            "UPDATE TripExpenses SET IsDeleted = 1 WHERE Id = @ExpenseId AND TripId = @TripId AND IsDeleted = 0",
-            new { request.ExpenseId, request.TripId },
-            cancellationToken: cancellationToken));
-        return ApiResponse<bool>.SuccessResponse(rows > 0, "Expense deleted.");
+        await tripRepository.SoftDeleteExpenseAsync(request.TripId, request.ExpenseId, cancellationToken);
+        return ApiResponse<bool>.SuccessResponse(true, "Expense deleted.");
     }
 }
 
@@ -109,36 +72,12 @@ public class AddTripPassengerCommandValidator : AbstractValidator<AddTripPasseng
     }
 }
 
-public class AddTripPassengerCommandHandler(IDbConnectionFactory dbFactory, ITenantContext tenantContext)
+public class AddTripPassengerCommandHandler(ITripRepository tripRepository)
     : IRequestHandler<AddTripPassengerCommand, ApiResponse<int>>
 {
     public async Task<ApiResponse<int>> Handle(AddTripPassengerCommand request, CancellationToken cancellationToken)
     {
-        using var connection = dbFactory.CreateConnection();
-        var tenantId = tenantContext.GetRequiredTenantId();
-        await AddTripExpenseCommandHandler.EnsureTripAsync(connection, request.TripId, tenantId, cancellationToken);
-
-        var id = await connection.ExecuteScalarAsync<int>(new CommandDefinition("""
-            INSERT INTO TripPassengers (TripId, FullName, Phone, BoardingStatus, DropStatus, Notes, CreatedAt, IsDeleted)
-            VALUES (@TripId, @FullName, @Phone, N'Pending', N'Pending', @Notes, GETUTCDATE(), 0);
-            SELECT CAST(SCOPE_IDENTITY() AS INT);
-            """,
-            new
-            {
-                request.TripId,
-                request.Passenger.FullName,
-                request.Passenger.Phone,
-                request.Passenger.Notes
-            },
-            cancellationToken: cancellationToken));
-
-        await connection.ExecuteAsync(new CommandDefinition("""
-            UPDATE Trips SET PassengerCount = (
-                SELECT COUNT(*) FROM TripPassengers WHERE TripId = @TripId AND IsDeleted = 0
-            ), UpdatedAt = GETUTCDATE()
-            WHERE Id = @TripId
-            """, new { request.TripId }, cancellationToken: cancellationToken));
-
+        var id = await tripRepository.AddPassengerAsync(request.TripId, request.Passenger, cancellationToken);
         return ApiResponse<int>.SuccessResponse(id, "Passenger added.");
     }
 }
@@ -150,34 +89,13 @@ public record UpdateTripPassengerCommand(int TripId, int PassengerId, UpdateTrip
     public int? AuditEntityId => PassengerId;
 }
 
-public class UpdateTripPassengerCommandHandler(IDbConnectionFactory dbFactory, ITenantContext tenantContext)
+public class UpdateTripPassengerCommandHandler(ITripRepository tripRepository)
     : IRequestHandler<UpdateTripPassengerCommand, ApiResponse<bool>>
 {
     public async Task<ApiResponse<bool>> Handle(UpdateTripPassengerCommand request, CancellationToken cancellationToken)
     {
-        using var connection = dbFactory.CreateConnection();
-        await AddTripExpenseCommandHandler.EnsureTripAsync(connection, request.TripId, tenantContext.GetRequiredTenantId(), cancellationToken);
-
-        var rows = await connection.ExecuteAsync(new CommandDefinition("""
-            UPDATE TripPassengers SET
-                FullName = @FullName, Phone = @Phone,
-                BoardingStatus = @BoardingStatus, DropStatus = @DropStatus,
-                Notes = @Notes, UpdatedAt = GETUTCDATE()
-            WHERE Id = @PassengerId AND TripId = @TripId AND IsDeleted = 0
-            """,
-            new
-            {
-                request.PassengerId,
-                request.TripId,
-                request.Passenger.FullName,
-                request.Passenger.Phone,
-                request.Passenger.BoardingStatus,
-                request.Passenger.DropStatus,
-                request.Passenger.Notes
-            },
-            cancellationToken: cancellationToken));
-
-        return ApiResponse<bool>.SuccessResponse(rows > 0, "Passenger updated.");
+        await tripRepository.UpdatePassengerAsync(request.TripId, request.PassengerId, request.Passenger, cancellationToken);
+        return ApiResponse<bool>.SuccessResponse(true, "Passenger updated.");
     }
 }
 
@@ -188,26 +106,13 @@ public record DeleteTripPassengerCommand(int TripId, int PassengerId) : IRequest
     public int? AuditEntityId => PassengerId;
 }
 
-public class DeleteTripPassengerCommandHandler(IDbConnectionFactory dbFactory, ITenantContext tenantContext)
+public class DeleteTripPassengerCommandHandler(ITripRepository tripRepository)
     : IRequestHandler<DeleteTripPassengerCommand, ApiResponse<bool>>
 {
     public async Task<ApiResponse<bool>> Handle(DeleteTripPassengerCommand request, CancellationToken cancellationToken)
     {
-        using var connection = dbFactory.CreateConnection();
-        await AddTripExpenseCommandHandler.EnsureTripAsync(connection, request.TripId, tenantContext.GetRequiredTenantId(), cancellationToken);
-        var rows = await connection.ExecuteAsync(new CommandDefinition(
-            "UPDATE TripPassengers SET IsDeleted = 1, UpdatedAt = GETUTCDATE() WHERE Id = @PassengerId AND TripId = @TripId AND IsDeleted = 0",
-            new { request.PassengerId, request.TripId },
-            cancellationToken: cancellationToken));
-
-        await connection.ExecuteAsync(new CommandDefinition("""
-            UPDATE Trips SET PassengerCount = (
-                SELECT COUNT(*) FROM TripPassengers WHERE TripId = @TripId AND IsDeleted = 0
-            ), UpdatedAt = GETUTCDATE()
-            WHERE Id = @TripId
-            """, new { request.TripId }, cancellationToken: cancellationToken));
-
-        return ApiResponse<bool>.SuccessResponse(rows > 0, "Passenger removed.");
+        await tripRepository.SoftDeletePassengerAsync(request.TripId, request.PassengerId, cancellationToken);
+        return ApiResponse<bool>.SuccessResponse(true, "Passenger removed.");
     }
 }
 
@@ -239,7 +144,7 @@ public class UploadTripDocumentCommandValidator : AbstractValidator<UploadTripDo
 }
 
 public class UploadTripDocumentCommandHandler(
-    IDbConnectionFactory dbFactory,
+    ITripRepository tripRepository,
     ITenantContext tenantContext,
     ICurrentUserService currentUser,
     IFileStorageService fileStorage)
@@ -247,9 +152,8 @@ public class UploadTripDocumentCommandHandler(
 {
     public async Task<ApiResponse<TripDocumentDto>> Handle(UploadTripDocumentCommand request, CancellationToken cancellationToken)
     {
-        using var connection = dbFactory.CreateConnection();
         var tenantId = tenantContext.GetRequiredTenantId();
-        await AddTripExpenseCommandHandler.EnsureTripAsync(connection, request.TripId, tenantId, cancellationToken);
+        await tripRepository.EnsureTripExistsAsync(request.TripId, cancellationToken);
 
         await using var bounded = new MaxLengthReadStream(request.FileStream, 10 * 1024 * 1024);
         var stored = await fileStorage.SaveAsync(
@@ -260,20 +164,13 @@ public class UploadTripDocumentCommandHandler(
             cancellationToken);
 
         var uploadedBy = currentUser.UserId?.ToString();
-        var id = await connection.ExecuteScalarAsync<int>(new CommandDefinition("""
-            INSERT INTO TripDocuments (TripId, DocumentType, FileName, StorageKey, UploadedBy, CreatedAt, IsDeleted)
-            VALUES (@TripId, @DocumentType, @FileName, @StorageKey, @UploadedBy, GETUTCDATE(), 0);
-            SELECT CAST(SCOPE_IDENTITY() AS INT);
-            """,
-            new
-            {
-                request.TripId,
-                request.DocumentType,
-                request.FileName,
-                StorageKey = stored.StorageKey,
-                UploadedBy = uploadedBy
-            },
-            cancellationToken: cancellationToken));
+        var id = await tripRepository.AddDocumentAsync(
+            request.TripId,
+            request.DocumentType,
+            request.FileName,
+            stored.StorageKey,
+            uploadedBy,
+            cancellationToken);
 
         return ApiResponse<TripDocumentDto>.SuccessResponse(new TripDocumentDto(
             id, request.DocumentType, request.FileName, stored.ReadUrl, uploadedBy, DateTime.UtcNow),
@@ -288,17 +185,12 @@ public record DeleteTripDocumentCommand(int TripId, int DocumentId) : IRequest<A
     public int? AuditEntityId => DocumentId;
 }
 
-public class DeleteTripDocumentCommandHandler(IDbConnectionFactory dbFactory, ITenantContext tenantContext)
+public class DeleteTripDocumentCommandHandler(ITripRepository tripRepository)
     : IRequestHandler<DeleteTripDocumentCommand, ApiResponse<bool>>
 {
     public async Task<ApiResponse<bool>> Handle(DeleteTripDocumentCommand request, CancellationToken cancellationToken)
     {
-        using var connection = dbFactory.CreateConnection();
-        await AddTripExpenseCommandHandler.EnsureTripAsync(connection, request.TripId, tenantContext.GetRequiredTenantId(), cancellationToken);
-        var rows = await connection.ExecuteAsync(new CommandDefinition(
-            "UPDATE TripDocuments SET IsDeleted = 1 WHERE Id = @DocumentId AND TripId = @TripId AND IsDeleted = 0",
-            new { request.DocumentId, request.TripId },
-            cancellationToken: cancellationToken));
-        return ApiResponse<bool>.SuccessResponse(rows > 0, "Document deleted.");
+        await tripRepository.SoftDeleteDocumentAsync(request.TripId, request.DocumentId, cancellationToken);
+        return ApiResponse<bool>.SuccessResponse(true, "Document deleted.");
     }
 }

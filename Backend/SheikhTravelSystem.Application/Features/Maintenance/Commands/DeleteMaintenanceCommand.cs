@@ -1,9 +1,8 @@
-using Dapper;
 using FluentValidation;
 using MediatR;
 using SheikhTravelSystem.Application.Common;
-using SheikhTravelSystem.Application.Common.Exceptions;
 using SheikhTravelSystem.Application.Common.Interfaces;
+using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 
 namespace SheikhTravelSystem.Application.Features.Maintenance.Commands;
 
@@ -22,22 +21,12 @@ public class DeleteMaintenanceCommandValidator : AbstractValidator<DeleteMainten
     }
 }
 
-public class DeleteMaintenanceCommandHandler(IDbConnectionFactory dbFactory)
+public class DeleteMaintenanceCommandHandler(IMaintenanceRepository maintenanceRepository)
     : IRequestHandler<DeleteMaintenanceCommand, ApiResponse<bool>>
 {
     public async Task<ApiResponse<bool>> Handle(DeleteMaintenanceCommand request, CancellationToken cancellationToken)
     {
-        using var connection = dbFactory.CreateConnection();
-
-        var rowsAffected = await connection.ExecuteAsync(
-            new CommandDefinition(
-                "UPDATE Maintenance SET IsDeleted = 1, UpdatedAt = @UpdatedAt WHERE Id = @Id AND IsDeleted = 0",
-                new { request.Id, UpdatedAt = DateTime.UtcNow },
-                cancellationToken: cancellationToken));
-
-        if (rowsAffected == 0)
-            throw new NotFoundException("Maintenance", request.Id);
-
+        await maintenanceRepository.DeleteAsync(request.Id, cancellationToken);
         return ApiResponse<bool>.SuccessResponse(true, "Maintenance record deleted successfully.");
     }
 }

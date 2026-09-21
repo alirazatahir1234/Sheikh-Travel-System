@@ -68,8 +68,9 @@ src/
 │       └── VehicleType.cs
 │
 ├── SheikhTravel.Infrastructure/
-│   ├── Database/
-│   │   └── DapperConnectionFactory.cs
+│   ├── Persistence/
+│   │   ├── SqlConnectionFactory.cs
+│   │   └── Repositories/          # Dapper SQL implementations
 │   └── Services/
 │       └── (external integrations)
 │
@@ -84,37 +85,33 @@ src/
 
 ### Backend rules with examples
 
-**1. Keep CQRS handlers thin — one responsibility per handler**
+**1. Keep CQRS handlers thin — orchestration only; SQL lives in Infrastructure repositories**
+
+Handlers must **not** inject `IDbConnectionFactory`, reference Dapper, or contain SQL strings.
+Inject `I*Repository` / Application interfaces; Infrastructure owns parameterized Dapper SQL.
 
 ```csharp
-// GOOD — handler does one thing
-public class CreateBookingHandler : IRequestHandler<CreateBookingCommand, BookingCreatedResponse>
+// GOOD — handler orchestrates; repository owns SQL
+public class CreateBookingCommandHandler(
+    IBookingRepository bookingRepository,
+    INotificationDecisionEngine decisionEngine)
+    : IRequestHandler<CreateBookingCommand, ApiResponse<int>>
 {
-    private readonly IDbConnection _connection;
-
-    public async Task<BookingCreatedResponse> Handle(CreateBookingCommand command, CancellationToken ct)
+    public async Task<ApiResponse<int>> Handle(CreateBookingCommand request, CancellationToken ct)
     {
-        const string sql = """
-            INSERT INTO Bookings (PassengerName, RouteId, VehicleId, PassengerCount, Status, CreatedAt)
-            VALUES (@PassengerName, @RouteId, @VehicleId, @PassengerCount, 'Pending', GETUTCDATE());
-            SELECT CAST(SCOPE_IDENTITY() AS INT);
-            """;
-
-        var id = await _connection.ExecuteScalarAsync<int>(sql, command);
-        return new BookingCreatedResponse { Id = id };
+        var created = await bookingRepository.CreateAsync(request.Booking, ct);
+        await decisionEngine.DispatchIfAllowedAsync(...);
+        return ApiResponse<int>.SuccessResponse(created.Id, "Booking created successfully.");
     }
 }
 
-// BAD — handler does too many things (create + price calc + notification)
-public class CreateBookingHandler : IRequestHandler<CreateBookingCommand, BookingCreatedResponse>
+// BAD — SQL / Dapper inside Application handler
+public class CreateBookingCommandHandler(IDbConnectionFactory dbFactory)
 {
-    public async Task<BookingCreatedResponse> Handle(CreateBookingCommand command, CancellationToken ct)
+    public async Task<...> Handle(...)
     {
-        // calculate price
-        // insert booking
-        // send email notification
-        // update vehicle availability
-        // ... 200 lines of mixed concerns
+        using var connection = dbFactory.CreateConnection();
+        await connection.ExecuteAsync("INSERT INTO Bookings ...", ...); // ❌
     }
 }
 ```
@@ -139,20 +136,29 @@ public async Task<IActionResult> Create([FromBody] CreateBookingRequest request)
 }
 ```
 
-**3. Use Dapper with parameterized SQL only**
+**3. Use Dapper with parameterized SQL only (Infrastructure repositories)**
 
 ```csharp
-// GOOD
-const string sql = """
-    SELECT Id, Name, Capacity, RatePerKm, FuelAverage
-    FROM Vehicles
-    WHERE Type = @VehicleType AND IsActive = 1
-    ORDER BY Name
-    """;
-var vehicles = await _connection.QueryAsync<VehicleDto>(sql, new { VehicleType = type });
+// GOOD — inside Infrastructure Persistence/Repositories
+public sealed class VehicleRepository(IDbConnectionFactory dbFactory) : IVehicleRepository
+{
+    public async Task<IReadOnlyList<VehicleDto>> ListByTypeAsync(string type, CancellationToken ct)
+    {
+        using var connection = dbFactory.CreateConnection();
+        const string sql = """
+            SELECT Id, Name, Capacity, RatePerKm, FuelAverage
+            FROM Vehicles
+            WHERE Type = @VehicleType AND IsActive = 1
+            ORDER BY Name
+            """;
+        var rows = await connection.QueryAsync<VehicleDto>(
+            new CommandDefinition(sql, new { VehicleType = type }, cancellationToken: ct));
+        return rows.AsList();
+    }
+}
 
-// BAD
-var sql = $"SELECT * FROM Vehicles WHERE Type = '{type}'"; // ❌ SQL injection
+// BAD — string interpolation / SQL in Application
+var sql = $"SELECT * FROM Vehicles WHERE Type = '{type}'"; // ❌
 ```
 
 **4. Validate booking, vehicle, route, and pricing data**

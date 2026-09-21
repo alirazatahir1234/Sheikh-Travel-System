@@ -1,8 +1,7 @@
-using Dapper;
 using FluentValidation;
 using MediatR;
 using SheikhTravelSystem.Application.Common;
-using SheikhTravelSystem.Application.Common.Interfaces;
+using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 using SheikhTravelSystem.Application.Features.CustomerPortal.DTOs;
 using SheikhTravelSystem.Application.Features.Payments.Commands;
 using SheikhTravelSystem.Application.Features.Payments.DTOs;
@@ -29,13 +28,13 @@ public class CreatePortalPaymentCommandValidator : AbstractValidator<CreatePorta
     }
 }
 
-public class CreatePortalPaymentCommandHandler(IDbConnectionFactory dbFactory, ISender mediator)
+public class CreatePortalPaymentCommandHandler(ICustomerPortalRepository portalRepository, ISender mediator)
     : IRequestHandler<CreatePortalPaymentCommand, ApiResponse<int>>
 {
     public async Task<ApiResponse<int>> Handle(CreatePortalPaymentCommand request, CancellationToken cancellationToken)
     {
-        if (!await PortalBookingAccess.CustomerOwnsBookingAsync(
-                dbFactory, request.BookingId, request.Phone, request.CustomerId, cancellationToken))
+        if (!await portalRepository.CustomerOwnsBookingAsync(
+                request.BookingId, request.Phone, request.CustomerId, cancellationToken))
             return ApiResponse<int>.FailResponse("Booking not found for this phone number.");
 
         return await mediator.Send(

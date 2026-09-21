@@ -1,10 +1,10 @@
 using System.Security.Cryptography;
-using Dapper;
 using FluentValidation;
 using MediatR;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Exceptions;
 using SheikhTravelSystem.Application.Common.Interfaces;
+using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 
 namespace SheikhTravelSystem.Application.Features.Users.Commands;
 
@@ -38,20 +38,13 @@ public class ResetUserPasswordCommandValidator : AbstractValidator<ResetUserPass
 /// Handles password reset operations for users.
 /// </summary>
 public class ResetUserPasswordCommandHandler(
-    IDbConnectionFactory dbFactory,
+    IUserRepository userRepository,
     IPasswordHasher passwordHasher,
     IPlatformScope platformScope) : IRequestHandler<ResetUserPasswordCommand, ApiResponse<ResetUserPasswordResponse>>
 {
     public async Task<ApiResponse<ResetUserPasswordResponse>> Handle(ResetUserPasswordCommand request, CancellationToken cancellationToken)
     {
-        using var connection = dbFactory.CreateConnection();
-
-        var tenantId = await connection.ExecuteScalarAsync<int?>(
-            new CommandDefinition(
-                "SELECT TenantId FROM Users WHERE Id = @Id AND IsDeleted = 0",
-                new { request.Id },
-                cancellationToken: cancellationToken));
-
+        var tenantId = await userRepository.GetTenantIdAsync(request.Id, cancellationToken);
         if (!tenantId.HasValue)
             throw new NotFoundException("User", request.Id);
 
@@ -60,25 +53,7 @@ public class ResetUserPasswordCommandHandler(
         var temporaryPassword = GenerateTemporaryPassword();
         var passwordHash = passwordHasher.Hash(temporaryPassword);
 
-        await connection.ExecuteAsync(
-            new CommandDefinition(
-                @"UPDATE Users
-                  SET PasswordHash = @PasswordHash,
-                      RefreshToken = NULL,
-                      RefreshTokenExpiryTime = NULL,
-                      PasswordChangedAt = @PasswordChangedAt,
-                      FailedLoginAttempts = 0,
-                      LockoutEndUtc = NULL,
-                      UpdatedAt = @UpdatedAt
-                  WHERE Id = @Id",
-                new
-                {
-                    PasswordHash = passwordHash,
-                    PasswordChangedAt = DateTime.UtcNow,
-                    UpdatedAt = DateTime.UtcNow,
-                    request.Id
-                },
-                cancellationToken: cancellationToken));
+        await userRepository.AdminResetPasswordAsync(request.Id, passwordHash, cancellationToken);
 
         var response = new ResetUserPasswordResponse(temporaryPassword);
         return ApiResponse<ResetUserPasswordResponse>.SuccessResponse(response, "Password reset successfully.");

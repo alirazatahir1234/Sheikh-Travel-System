@@ -63,6 +63,7 @@ public class GpsOfflineDetectionHostedService(
         var dbFactory = scope.ServiceProvider.GetRequiredService<IDbConnectionFactory>();
         var decisionEngine = scope.ServiceProvider.GetRequiredService<INotificationDecisionEngine>();
         var escalation = scope.ServiceProvider.GetRequiredService<IEscalationService>();
+        var alertWriter = scope.ServiceProvider.GetRequiredService<IGpsAlertWriter>();
         using var connection = dbFactory.CreateConnection();
 
         var staleMinutes = gpsSettings.Value.OfflineStaleMinutes;
@@ -90,7 +91,7 @@ public class GpsOfflineDetectionHostedService(
 
         foreach (var v in staleVehicles)
         {
-            var alertId = await GpsAlertWriter.InsertAsync(
+            var alertId = await alertWriter.InsertAsync(
                 connection,
                 v.VehicleId,
                 v.Latitude,

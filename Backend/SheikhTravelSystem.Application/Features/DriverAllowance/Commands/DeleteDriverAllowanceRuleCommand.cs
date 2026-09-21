@@ -1,8 +1,8 @@
-using Dapper;
 using MediatR;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Exceptions;
 using SheikhTravelSystem.Application.Common.Interfaces;
+using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 
 namespace SheikhTravelSystem.Application.Features.DriverAllowance.Commands;
 
@@ -13,28 +13,16 @@ public record DeleteDriverAllowanceRuleCommand(int Id) : IRequest<ApiResponse<bo
     public int? AuditEntityId => Id;
 }
 
-public class DeleteDriverAllowanceRuleCommandHandler(IDbConnectionFactory dbFactory)
+public class DeleteDriverAllowanceRuleCommandHandler(IDriverAllowanceRepository repository)
     : IRequestHandler<DeleteDriverAllowanceRuleCommand, ApiResponse<bool>>
 {
     public async Task<ApiResponse<bool>> Handle(
         DeleteDriverAllowanceRuleCommand request, CancellationToken cancellationToken)
     {
-        using var connection = dbFactory.CreateConnection();
-
-        var exists = await connection.ExecuteScalarAsync<bool>(
-            new CommandDefinition(
-                "SELECT CASE WHEN EXISTS(SELECT 1 FROM DriverAllowanceRules WHERE Id = @Id AND IsDeleted = 0) THEN 1 ELSE 0 END",
-                new { request.Id },
-                cancellationToken: cancellationToken));
-
-        if (!exists)
+        if (!await repository.ExistsAsync(request.Id, cancellationToken))
             throw new NotFoundException("DriverAllowanceRule", request.Id);
 
-        await connection.ExecuteAsync(
-            new CommandDefinition(
-                "UPDATE DriverAllowanceRules SET IsDeleted = 1, UpdatedAt = @UpdatedAt WHERE Id = @Id",
-                new { UpdatedAt = DateTime.UtcNow, request.Id },
-                cancellationToken: cancellationToken));
+        await repository.SoftDeleteAsync(request.Id, cancellationToken);
 
         return ApiResponse<bool>.SuccessResponse(true, "Driver allowance rule deleted successfully.");
     }

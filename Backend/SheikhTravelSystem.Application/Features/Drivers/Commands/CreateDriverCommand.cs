@@ -1,8 +1,8 @@
-using Dapper;
 using FluentValidation;
 using MediatR;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Interfaces;
+using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 using SheikhTravelSystem.Application.Features.Drivers.DTOs;
 
 namespace SheikhTravelSystem.Application.Features.Drivers.Commands;
@@ -42,54 +42,16 @@ public class CreateDriverCommandValidator : AbstractValidator<CreateDriverComman
     }
 }
 
-public class CreateDriverCommandHandler(IDbConnectionFactory dbFactory, ITenantContext tenantContext)
+public class CreateDriverCommandHandler(IDriverRepository driverRepository, ITenantContext tenantContext)
     : IRequestHandler<CreateDriverCommand, ApiResponse<int>>
 {
     public async Task<ApiResponse<int>> Handle(CreateDriverCommand request, CancellationToken cancellationToken)
     {
-        using var connection = dbFactory.CreateConnection();
         var dto = request.Driver;
         var tenantId = tenantContext.GetRequiredTenantId();
         var fullName = DriverFieldHelper.BuildFullName(dto.FirstName, dto.LastName);
-
-        await DriverUniquenessHelper.EnsureUniqueAsync(
-            connection, tenantId, dto.Phone, dto.Email, dto.LicenseNumber, excludeId: null, cancellationToken);
-
-        var id = await connection.ExecuteScalarAsync<int>(
-            new CommandDefinition(
-                @"INSERT INTO Drivers (TenantId, FullName, FirstName, LastName, Phone, LicenseNumber, LicenseExpiryDate,
-                  CNIC, Address, DriverCode, Nationality, Email, DateOfBirth, Gender, EmergencyContactName, EmergencyContact,
-                  HireDate, BranchId, DepartmentId, VerificationStatus, Status, IsActive, CreatedAt, IsDeleted)
-                  VALUES (@TenantId, @FullName, @FirstName, @LastName, @Phone, @LicenseNumber, @LicenseExpiryDate,
-                  @CNIC, @Address, @DriverCode, @Nationality, @Email, @DateOfBirth, @Gender, @EmergencyContactName, @EmergencyContact,
-                  @HireDate, @BranchId, @DepartmentId, N'Pending', @Status, 1, @CreatedAt, 0);
-                  SELECT CAST(SCOPE_IDENTITY() AS INT);",
-                new
-                {
-                    TenantId = tenantId,
-                    FullName = fullName,
-                    FirstName = dto.FirstName.Trim(),
-                    LastName = dto.LastName.Trim(),
-                    dto.Phone,
-                    dto.LicenseNumber,
-                    dto.LicenseExpiryDate,
-                    dto.CNIC,
-                    dto.Address,
-                    DriverCode = DriverFieldHelper.GenerateDriverCode(),
-                    dto.Nationality,
-                    dto.Email,
-                    dto.DateOfBirth,
-                    dto.Gender,
-                    dto.EmergencyContactName,
-                    dto.EmergencyContact,
-                    dto.HireDate,
-                    dto.BranchId,
-                    dto.DepartmentId,
-                    Status = (int)Domain.Enums.DriverStatus.Available,
-                    CreatedAt = DateTime.UtcNow
-                },
-                cancellationToken: cancellationToken));
-
+        var id = await driverRepository.CreateAsync(
+            tenantId, dto, fullName, DriverFieldHelper.GenerateDriverCode(), cancellationToken);
         return ApiResponse<int>.SuccessResponse(id, "Driver created successfully.");
     }
 }

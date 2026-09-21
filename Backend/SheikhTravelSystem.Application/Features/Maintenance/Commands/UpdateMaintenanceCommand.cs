@@ -1,9 +1,8 @@
-using Dapper;
 using FluentValidation;
 using MediatR;
 using SheikhTravelSystem.Application.Common;
-using SheikhTravelSystem.Application.Common.Exceptions;
 using SheikhTravelSystem.Application.Common.Interfaces;
+using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 using SheikhTravelSystem.Application.Features.Maintenance.DTOs;
 
 namespace SheikhTravelSystem.Application.Features.Maintenance.Commands;
@@ -26,32 +25,12 @@ public class UpdateMaintenanceCommandValidator : AbstractValidator<UpdateMainten
     }
 }
 
-public class UpdateMaintenanceCommandHandler(IDbConnectionFactory dbFactory)
+public class UpdateMaintenanceCommandHandler(IMaintenanceRepository maintenanceRepository)
     : IRequestHandler<UpdateMaintenanceCommand, ApiResponse<bool>>
 {
     public async Task<ApiResponse<bool>> Handle(UpdateMaintenanceCommand request, CancellationToken cancellationToken)
     {
-        using var connection = dbFactory.CreateConnection();
-        var dto = request.Maintenance;
-
-        var rowsAffected = await connection.ExecuteAsync(
-            new CommandDefinition(
-                @"UPDATE Maintenance 
-                  SET VehicleId = @VehicleId, Description = @Description, Cost = @Cost,
-                      MaintenanceDate = @MaintenanceDate, NextDueDate = @NextDueDate,
-                      ServiceProvider = @ServiceProvider, UpdatedAt = @UpdatedAt
-                  WHERE Id = @Id AND IsDeleted = 0",
-                new
-                {
-                    request.Id,
-                    dto.VehicleId, dto.Description, dto.Cost, dto.MaintenanceDate,
-                    dto.NextDueDate, dto.ServiceProvider, UpdatedAt = DateTime.UtcNow
-                },
-                cancellationToken: cancellationToken));
-
-        if (rowsAffected == 0)
-            throw new NotFoundException("Maintenance", request.Id);
-
+        await maintenanceRepository.UpdateAsync(request.Id, request.Maintenance, cancellationToken);
         return ApiResponse<bool>.SuccessResponse(true, "Maintenance record updated successfully.");
     }
 }

@@ -1,10 +1,9 @@
-using Dapper;
 using FluentValidation;
 using MediatR;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Interfaces;
+using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 using SheikhTravelSystem.Application.Features.Maintenance.DTOs;
-using SheikhTravelSystem.Domain.Enums;
 
 namespace SheikhTravelSystem.Application.Features.Maintenance.Commands;
 
@@ -25,29 +24,12 @@ public class CreateMaintenanceCommandValidator : AbstractValidator<CreateMainten
     }
 }
 
-public class CreateMaintenanceCommandHandler(IDbConnectionFactory dbFactory)
+public class CreateMaintenanceCommandHandler(IMaintenanceRepository maintenanceRepository)
     : IRequestHandler<CreateMaintenanceCommand, ApiResponse<int>>
 {
     public async Task<ApiResponse<int>> Handle(CreateMaintenanceCommand request, CancellationToken cancellationToken)
     {
-        using var connection = dbFactory.CreateConnection();
-        var dto = request.Maintenance;
-
-        var id = await connection.ExecuteScalarAsync<int>(
-            new CommandDefinition(
-                @"INSERT INTO Maintenance (VehicleId, Description, Cost, MaintenanceDate, NextDueDate,
-                  Status, ServiceProvider, CreatedAt, IsDeleted)
-                  VALUES (@VehicleId, @Description, @Cost, @MaintenanceDate, @NextDueDate,
-                  @Status, @ServiceProvider, @CreatedAt, 0);
-                  SELECT SCOPE_IDENTITY();",
-                new
-                {
-                    dto.VehicleId, dto.Description, dto.Cost, dto.MaintenanceDate,
-                    dto.NextDueDate, Status = (int)MaintenanceStatus.Scheduled,
-                    dto.ServiceProvider, CreatedAt = DateTime.UtcNow
-                },
-                cancellationToken: cancellationToken));
-
+        var id = await maintenanceRepository.CreateAsync(request.Maintenance, cancellationToken);
         return ApiResponse<int>.SuccessResponse(id, "Maintenance record created successfully.");
     }
 }
