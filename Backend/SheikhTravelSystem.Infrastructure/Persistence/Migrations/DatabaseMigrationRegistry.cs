@@ -103,7 +103,6 @@ public static class DatabaseMigrationRegistry
             M("PasswordResetTokenMigration", PasswordResetTokenMigration.ApplyAsync),
             M("WebsiteCmsMigration", WebsiteCmsMigration.ApplyAsync),
             M("WebsiteCmsEnsureMigration", WebsiteCmsEnsureMigration.ApplyAsync),
-            M("McpConsoleMenuMigration", McpConsoleMenuMigration.ApplyAsync),
             M("AiOperationsPermissionsMigration", AiOperationsPermissionsMigration.ApplyAsync),
         ];
     }
