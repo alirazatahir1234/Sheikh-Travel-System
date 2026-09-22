@@ -108,16 +108,30 @@
       }
     },
     {
-      "label": "API: free port 5082 (stops any process on 5082, macOS/Linux)",
+      "label": "API: free port 5082",
       "type": "shell",
-      "command": "kill -9 $(lsof -ti :5082) 2>/dev/null && echo 'Stopped process listening on 5082.' || echo 'Port 5082 was already free.'",
+      "windows": {
+        "options": {
+          "shell": {
+            "executable": "powershell.exe",
+            "args": ["-NoProfile", "-Command"]
+          }
+        },
+        "command": "$conns = Get-NetTCPConnection -LocalPort 5082 -ErrorAction SilentlyContinue; if ($conns) { $conns | Select-Object -ExpandProperty OwningProcess -Unique | ForEach-Object { Stop-Process -Id $_ -Force -ErrorAction SilentlyContinue }; Write-Output 'Stopped process listening on 5082.' } else { Write-Output 'Port 5082 was already free.' }"
+      },
+      "osx": {
+        "command": "kill -9 $(lsof -ti :5082) 2>/dev/null && echo 'Stopped process listening on 5082.' || echo 'Port 5082 was already free.'"
+      },
+      "linux": {
+        "command": "kill -9 $(lsof -ti :5082) 2>/dev/null && echo 'Stopped process listening on 5082.' || echo 'Port 5082 was already free.'"
+      },
       "group": "none"
     },
     {
       "label": "free-and-build-api",
       "dependsOrder": "sequence",
       "dependsOn": [
-        "API: free port 5082 (stops any process on 5082, macOS/Linux)",
+        "API: free port 5082",
         "build-api"
       ],
       "group": "none"

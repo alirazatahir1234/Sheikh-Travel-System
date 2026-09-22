@@ -52,7 +52,7 @@ public static class GpsDeviceAssignmentMigration
                     TenantId, GpsDeviceId, VehicleId, DriverId, InstalledDate, InstalledBy,
                     InstallationNotes, RelayOutput, IsActive, CreatedAt)
                 SELECT
-                    COALESCE(d.TenantId, v.TenantId),
+                    COALESCE(d.TenantId, v.TenantId, 1),
                     d.Id,
                     d.VehicleId,
                     d.DriverId,

@@ -1,0 +1,11 @@
+{
+  "ConnectionStrings": {
+    "DefaultConnection": "Server=TAQIRAZA\\SQLEXPRESS;Database=SheikhTravelSystemDB;Trusted_Connection=True;TrustServerCertificate=True;Connection Timeout=15;"
+  },
+  "Cache": {
+    "RedisConnectionString": ""
+  },
+  "GpsSettings": {
+    "DeviceApiKey": "dev-gps-device-key-change-me"
+  }
+}
