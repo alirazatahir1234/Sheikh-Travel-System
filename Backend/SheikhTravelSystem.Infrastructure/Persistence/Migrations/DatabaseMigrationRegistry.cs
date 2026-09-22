@@ -5,7 +5,7 @@ namespace SheikhTravelSystem.Infrastructure.Persistence.Migrations;
 
 /// <summary>
 /// Ordered registry of all custom schema migrations.
-/// Order matches the historical Program.cs startup sequence (BookingNumber first, then GPS block, portal, tenant/fleet).
+/// Tenant schema must run before any GPS/fleet migration that reads Vehicles.TenantId (or similar).
 /// </summary>
 public static class DatabaseMigrationRegistry
 {
@@ -19,6 +19,8 @@ public static class DatabaseMigrationRegistry
         return
         [
             M("BookingNumberMigration", BookingNumberMigration.ApplyAsync),
+            // Tenants + TenantId on core tables before GPS migrations that backfill from Vehicles.TenantId.
+            M("TenantSchemaMigration", TenantSchemaMigration.ApplyAsync),
             M("GpsSchemaMigration", GpsSchemaMigration.ApplyAsync),
             M("GpsTraccarMigration", GpsTraccarMigration.ApplyAsync),
             M("GpsDeviceUniqueIdMigration", GpsDeviceUniqueIdMigration.ApplyAsync),
@@ -49,7 +51,6 @@ public static class DatabaseMigrationRegistry
             M("AiPlatformMigration", AiPlatformMigration.ApplyAsync),
             M("PerformanceIndexesMigration", PerformanceIndexesMigration.ApplyAsync),
             M("PortalSchemaMigration", PortalSchemaMigration.ApplyAsync),
-            M("TenantSchemaMigration", TenantSchemaMigration.ApplyAsync),
             M("PlatformSchemaMigration", PlatformSchemaMigration.ApplyAsync),
             M("TenantNormalizationMigration", TenantNormalizationMigration.ApplyAsync),
             M("PlatformSettingsMigration", PlatformSettingsMigration.ApplyAsync),
