@@ -7,6 +7,8 @@ import { BookingService } from '../../../core/services/booking.service';
 import { PaymentService } from '../../../core/services/payment.service';
 import { VehicleService } from '../../../core/services/vehicle.service';
 import { DriverService } from '../../../core/services/driver.service';
+import { TripService } from '../../../core/services/trip.service';
+import { AuthService } from '../../../core/services/auth.service';
 import { Booking, BookingStatus } from '../../../core/models/booking.model';
 import { Payment } from '../../../core/models/payment.model';
 import { Vehicle } from '../../../core/models/vehicle.model';
@@ -32,6 +34,7 @@ export class BookingDetailComponent implements OnInit {
   selectedVehicleId: number | null = null;
   selectedDriverId: number | null = null;
   reassigning = false;
+  creatingTrip = false;
 
   statusTransitions: Partial<Record<BookingStatus, BookingStatus[]>> = {
     Pending: ['Confirmed', 'Cancelled'],
@@ -50,6 +53,8 @@ export class BookingDetailComponent implements OnInit {
     private paymentService: PaymentService,
     private vehicleService: VehicleService,
     private driverService: DriverService,
+    private tripService: TripService,
+    private auth: AuthService,
     private toast: UiToastService,
     private router: Router
   ) {}
@@ -149,6 +154,29 @@ export class BookingDetailComponent implements OnInit {
   canRecordPayment(): boolean {
     if (!this.booking) return false;
     return this.booking.status !== 'Cancelled' && this.booking.status !== 'Completed';
+  }
+
+  /** Create / open operational trip from this booking (dispatch path). */
+  canCreateTrip(): boolean {
+    if (!this.booking) return false;
+    if (this.booking.status === 'Cancelled') return false;
+    return this.auth.hasPermission('Trip.Create');
+  }
+
+  createTripFromBooking(): void {
+    if (!this.booking || this.creatingTrip) return;
+    this.creatingTrip = true;
+    this.tripService.createFromBooking(this.booking.id).subscribe({
+      next: tripId => {
+        this.creatingTrip = false;
+        this.toast.success('Trip ready — opening trip detail');
+        void this.router.navigate(['/trips', tripId]);
+      },
+      error: () => {
+        this.creatingTrip = false;
+        this.toast.error('Failed to create trip from booking');
+      }
+    });
   }
 
   openReassignPanel(): void {

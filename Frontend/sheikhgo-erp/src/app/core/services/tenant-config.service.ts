@@ -1,8 +1,9 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, of } from 'rxjs';
-import { catchError, map, shareReplay, tap } from 'rxjs/operators';
+import { catchError, shareReplay, tap } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
+import { persistTenantSlug, resolveTenantSlug } from '../utils/tenant-slug';
 
 export interface TenantBranding {
   id: number;
@@ -39,9 +40,15 @@ export class TenantConfigService {
     if (!this.branding$) {
       this.branding$ = this.http
         .get<TenantBranding>(`${environment.apiUrl}/tenants/branding`, {
-          headers: { 'X-Tenant-Slug': environment.tenantSlug ?? 'default' }
+          headers: { 'X-Tenant-Slug': resolveTenantSlug(environment.tenantSlug) }
         })
-        .pipe(catchError(() => of(null)), shareReplay(1));
+        .pipe(
+          tap(b => {
+            if (b?.slug) persistTenantSlug(b.slug);
+          }),
+          catchError(() => of(null)),
+          shareReplay(1)
+        );
     }
     return this.branding$;
   }

@@ -6,6 +6,7 @@ import { Observable, throwError, BehaviorSubject } from 'rxjs';
 import { catchError, switchMap, filter, take } from 'rxjs/operators';
 import { AuthService } from '../services/auth.service';
 import { environment } from '../../../environments/environment';
+import { resolveTenantSlug } from '../utils/tenant-slug';
 
 @Injectable()
 export class AuthInterceptor implements HttpInterceptor {
@@ -19,7 +20,8 @@ export class AuthInterceptor implements HttpInterceptor {
     const headers: Record<string, string> = {};
     if (token) headers['Authorization'] = `Bearer ${token}`;
     if (req.url.includes('/api')) {
-      headers['X-Tenant-Slug'] = environment.tenantSlug ?? 'default';
+      // Backend prefers JWT tenant_id; slug is for branding / unauthenticated fallback.
+      headers['X-Tenant-Slug'] = resolveTenantSlug(environment.tenantSlug);
     }
     const authReq = Object.keys(headers).length
       ? req.clone({ setHeaders: headers })

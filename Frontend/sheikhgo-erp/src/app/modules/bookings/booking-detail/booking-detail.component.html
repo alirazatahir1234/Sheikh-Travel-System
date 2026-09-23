@@ -10,6 +10,16 @@
             [routerLink]="['/bookings', booking.id, 'edit']">
       <mat-icon>edit</mat-icon> Edit Booking
     </button>
+    <button
+      mat-raised-button
+      color="accent"
+      *ngIf="booking && canCreateTrip()"
+      [disabled]="creatingTrip"
+      (click)="createTripFromBooking()"
+    >
+      <mat-icon>local_shipping</mat-icon>
+      {{ creatingTrip ? 'Creating trip…' : 'Create Trip' }}
+    </button>
   </div>
 </div>
 

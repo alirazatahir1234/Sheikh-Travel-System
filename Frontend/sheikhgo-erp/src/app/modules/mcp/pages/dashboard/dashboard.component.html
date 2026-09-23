@@ -1,45 +1,122 @@
 <div class="dash" *ngIf="catalog as c">
-  <section class="hero">
-    <div>
-      <p class="eyebrow">Welcome back</p>
-      <h2>SheikhGo architecture intelligence</h2>
-      <p class="lead">
-        Explore tool groups exported from SheikhGo-MCP. Architecture and Code are live today;
-        other groups are planned placeholders — connect via Cursor or Claude to run tools.
+  <section class="hero" aria-labelledby="mcp-hero-title">
+    <div class="hero-copy">
+      <div class="hero-brand">
+        <img class="hero-logo" [src]="logoPath" [alt]="productName" width="40" height="40" />
+        <span class="hero-eyebrow">{{ productName }} · MCP Platform</span>
+      </div>
+      <h1 id="mcp-hero-title">SheikhGo MCP Console</h1>
+      <p class="hero-sub">Architecture intelligence &amp; developer automation</p>
+      <p class="hero-lead">
+        Manage MCP servers, explore tools, analyze code, and connect with Cursor or Claude for
+        intelligent development across SheikhGo ERP.
       </p>
-      <div class="quick">
-        @for (a of c.quickActions; track a.id) {
-          <button type="button" class="qa" (click)="onQuickAction(a)">
-            <mat-icon>{{ a.icon }}</mat-icon>
-            {{ a.label }}
-          </button>
-        }
+      <div class="hero-cta">
+        <button type="button" class="btn-primary" (click)="askMcp()">
+          Ask SheikhGo MCP
+          <mat-icon>arrow_forward</mat-icon>
+        </button>
+        <a routerLink="/mcp/connections" class="btn-secondary">View Documentation</a>
       </div>
     </div>
-    <div class="hero-stats">
-      <div>
-        <strong>{{ c.summary.toolCount }}</strong>
-        <span>Registered tools</span>
+    <div class="hero-aside" aria-hidden="true">
+      <div class="hero-graphic">
+        <span class="cube c1"></span>
+        <span class="cube c2"></span>
+        <span class="cube c3"></span>
+        <img class="graphic-logo" [src]="logoPath" [alt]="" width="48" height="48" />
       </div>
-      <div>
-        <strong>{{ c.summary.runningGroups }}</strong>
-        <span>Running groups</span>
-      </div>
-      <div>
-        <strong>{{ c.summary.plannedGroups }}</strong>
-        <span>Planned groups</span>
-      </div>
+      <span class="hero-version">v{{ c.version }}</span>
     </div>
   </section>
 
-  <section class="block">
+  <section class="metrics" aria-label="MCP metrics">
+    <article class="metric">
+      <div class="metric-icon tools" aria-hidden="true">
+        <mat-icon>construction</mat-icon>
+      </div>
+      <div>
+        <strong>{{ c.summary.toolCount }}</strong>
+        <span>Registered Tools</span>
+      </div>
+    </article>
+    <article class="metric">
+      <div class="metric-icon running" aria-hidden="true">
+        <mat-icon>play_circle</mat-icon>
+      </div>
+      <div>
+        <strong>{{ c.summary.runningGroups }}</strong>
+        <span>Running Servers</span>
+      </div>
+    </article>
+    <article class="metric">
+      <div class="metric-icon planned" aria-hidden="true">
+        <mat-icon>schedule</mat-icon>
+      </div>
+      <div>
+        <strong>{{ c.summary.plannedGroups }}</strong>
+        <span>Planned Servers</span>
+      </div>
+    </article>
+    <article class="metric">
+      <div class="metric-icon stopped" aria-hidden="true">
+        <mat-icon>stop_circle</mat-icon>
+      </div>
+      <div>
+        <strong>{{ c.summary.stoppedGroups }}</strong>
+        <span>Stopped Servers</span>
+      </div>
+    </article>
+  </section>
+
+  <section class="block servers-block">
     <div class="block-head">
-      <h3>MCP servers</h3>
-      <a routerLink="/mcp/servers">View all</a>
+      <div>
+        <h2>MCP Servers</h2>
+        <p class="block-sub">{{ serverSummary() }}</p>
+      </div>
+      <a routerLink="/mcp/servers" class="view-all">View all</a>
     </div>
+
+    <div class="controls">
+      <label class="search-field">
+        <span class="sr-only">Search servers</span>
+        <mat-icon aria-hidden="true">search</mat-icon>
+        <input
+          type="search"
+          [(ngModel)]="search"
+          placeholder="Search servers..."
+          autocomplete="off"
+        />
+      </label>
+      <label class="select-field">
+        <span class="sr-only">Status</span>
+        <select [(ngModel)]="statusFilter" aria-label="Filter by status">
+          <option value="all">All Status</option>
+          <option value="running">Running</option>
+          <option value="planned">Planned</option>
+          <option value="stopped">Stopped</option>
+        </select>
+      </label>
+      <label class="select-field">
+        <span class="sr-only">Sort by</span>
+        <select [(ngModel)]="sortBy" aria-label="Sort servers">
+          <option value="name">Sort by name</option>
+          <option value="status">Sort by status</option>
+          <option value="tools">Sort by tools</option>
+        </select>
+      </label>
+      <a routerLink="/mcp/connections" class="btn-add">
+        <mat-icon>hub</mat-icon>
+        Connect Client
+      </a>
+    </div>
+
     <div class="grid">
-      @for (g of c.groups; track g.id) {
+      @for (g of visibleGroups(); track g.id) {
         <app-mcp-server-card [group]="g" (open)="openGroup($event)"></app-mcp-server-card>
+      } @empty {
+        <p class="empty">No servers match your filters.</p>
       }
     </div>
   </section>

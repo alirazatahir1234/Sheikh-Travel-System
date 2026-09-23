@@ -1,12 +1,25 @@
-<div class="dock" [class.compact]="compact">
+<div class="dock" [class.compact]="compact" [class.is-prepared]="phase === 'prepared'">
   <div class="dock-head">
-    <div>
-      <h3>Ask SheikhGo MCP</h3>
-      <p>Copy a prompt for Cursor or Claude — this console does not run an in-browser LLM.</p>
+    <div class="dock-title">
+      <div class="title-row">
+        <span class="title-icon" aria-hidden="true">
+          <mat-icon>hub</mat-icon>
+        </span>
+        <div>
+          <h3>Ask SheikhGo MCP</h3>
+          <p class="lede">Prepare MCP requests for Cursor or Claude. This console does not run an in-browser LLM.</p>
+        </div>
+      </div>
     </div>
+  </div>
+
+  <p class="field-label" id="investigate-label">What would you like to investigate?</p>
+
+  <div class="builder-row">
     <mat-form-field appearance="outline" class="group-select" subscriptSizing="dynamic">
-      <mat-label>Tool group</mat-label>
-      <mat-select [(ngModel)]="groupId">
+      <mat-label>Tool Group</mat-label>
+      <mat-select [(ngModel)]="groupId" (ngModelChange)="onPromptChange()" aria-label="Tool group">
+        <mat-option value="auto">Auto Detect</mat-option>
         @for (g of groups; track g.id) {
           <mat-option [value]="g.id">{{ g.name }}</mat-option>
         }
@@ -15,26 +28,95 @@
   </div>
 
   @if (catalog?.suggestions?.length) {
-    <div class="chips">
-      @for (s of catalog!.suggestions; track s) {
-        <button type="button" class="chip" (click)="useSuggestion(s)">{{ s }}</button>
-      }
+    <div class="chips-block">
+      <span class="chips-label">Suggested</span>
+      <div class="chips" role="list" aria-label="Suggested prompts">
+        @for (s of catalog!.suggestions; track s) {
+          <button type="button" class="chip" role="listitem" (click)="useSuggestion(s)">{{ s }}</button>
+        }
+      </div>
     </div>
   }
 
   <mat-form-field appearance="outline" class="prompt-field" subscriptSizing="dynamic">
-    <mat-label>Prompt</mat-label>
-    <textarea matInput rows="3" [(ngModel)]="prompt" placeholder="e.g. Analyze the Trip module for Clean Architecture violations"></textarea>
+    <mat-label>Natural-language request</mat-label>
+    <textarea
+      matInput
+      rows="5"
+      [(ngModel)]="prompt"
+      (ngModelChange)="onPromptChange()"
+      aria-labelledby="investigate-label"
+      placeholder="Analyze the Trip module and identify architectural dependencies, related services, and potential issues..."
+    ></textarea>
   </mat-form-field>
 
-  <div class="actions">
-    <button mat-stroked-button type="button" color="primary" (click)="copyForClient('cursor')">
-      <mat-icon>content_copy</mat-icon>
-      Copy for Cursor
-    </button>
-    <button mat-flat-button type="button" color="primary" (click)="copyForClient('claude')">
-      <mat-icon>content_copy</mat-icon>
-      Copy for Claude
+  <div class="actions draft-actions">
+    <button mat-flat-button type="button" class="btn-prepare" (click)="prepareRequest()">
+      Prepare MCP Request
+      <mat-icon iconPositionEnd>arrow_forward</mat-icon>
     </button>
   </div>
+
+  @if (phase === 'prepared' && prepared; as req) {
+    <section class="plan" aria-live="polite" aria-label="MCP request ready">
+      <div class="plan-head">
+        <div>
+          <p class="plan-eyebrow">MCP Request Ready</p>
+          <h4>{{ req.intent }}</h4>
+        </div>
+        <button mat-button type="button" class="edit-btn" (click)="editRequest()">Edit</button>
+      </div>
+
+      <dl class="plan-meta">
+        <div>
+          <dt>MCP Server</dt>
+          <dd>
+            {{ req.group.name }}
+            @if (req.autoDetected) {
+              <span class="auto-tag">Auto detected</span>
+            }
+          </dd>
+        </div>
+        <div>
+          <dt>Tools required</dt>
+          <dd>{{ req.tools.length || '—' }}</dd>
+        </div>
+        <div>
+          <dt>Execution</dt>
+          <dd>Cursor / Claude (external)</dd>
+        </div>
+      </dl>
+
+      <div class="plan-ops">
+        <p class="ops-label">Planned operations</p>
+        <ul>
+          @for (op of req.operations; track op) {
+            <li>
+              <mat-icon aria-hidden="true">check_circle</mat-icon>
+              <span>{{ op }}</span>
+            </li>
+          }
+        </ul>
+        @if (req.tools.length) {
+          <p class="ops-label tools-label">Tools</p>
+          <ul class="tool-list">
+            @for (t of req.tools; track t) {
+              <li><code>{{ t }}</code></li>
+            }
+          </ul>
+        }
+      </div>
+
+      <div class="copy-actions">
+        <button mat-flat-button type="button" class="btn-prepare" (click)="copyForClient('cursor')">
+          <mat-icon>content_copy</mat-icon>
+          Copy for Cursor
+        </button>
+        <button mat-stroked-button type="button" (click)="copyForClient('claude')">
+          <mat-icon>content_copy</mat-icon>
+          Copy for Claude
+        </button>
+      </div>
+    </section>
+  }
 </div>

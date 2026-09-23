@@ -43,3 +43,6 @@ Thumbs.db
 
 # Local hero demo (exceeds GitHub 100MB limit)
 public/website/hero-demo.mp4
+
+# Optional local Maps key override — never commit real keys
+src/environments/environment.secrets.local.ts

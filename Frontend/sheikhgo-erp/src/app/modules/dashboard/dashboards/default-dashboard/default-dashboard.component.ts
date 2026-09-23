@@ -71,6 +71,7 @@ export class DefaultDashboardComponent implements OnInit, OnDestroy {
   fleetUtilizationPct = 0;
   transportKpis: { icon: string; label: string; value: string | number }[] = [];
 
+  private loadGeneration = 0;
   constructor(
     private dashboard: DashboardService,
     private bookings: BookingService,
@@ -84,12 +85,12 @@ export class DefaultDashboardComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.userName = this.auth.getCurrentUser()?.fullName?.split(' ')[0] ?? 'there';
 
-    this.loadDashboardData();
+    this.loadDashboardData(true);
     this.notificationService.getStats().subscribe(s => this.notifStats = s);
 
     // Auto-refresh every 60 seconds
     interval(60000).pipe(takeUntil(this.destroy$)).subscribe(() => {
-      this.loadDashboardData();
+      this.loadDashboardData(false);
       this.notificationService.getStats().subscribe(s => this.notifStats = s);
     });
   }
@@ -99,10 +100,11 @@ export class DefaultDashboardComponent implements OnInit, OnDestroy {
     this.destroy$.complete();
   }
 
-  private loadDashboardData(): void {
+  private loadDashboardData(isInitial = false): void {
     const to = new Date();
     const from = new Date();
     from.setDate(from.getDate() - 30);
+    const gen = ++this.loadGeneration;
 
     forkJoin({
       summary: this.dashboard.getSummary().pipe(catchError(() => of(this.fallbackSummary()))),
@@ -120,6 +122,7 @@ export class DefaultDashboardComponent implements OnInit, OnDestroy {
       ).pipe(catchError(() => of<BookingReport[]>([]))),
     }).subscribe({
       next: ({ summary, recent, chartBookings, bookingReport }) => {
+        if (gen !== this.loadGeneration) return;
         this.summary = summary;
         this.stats = this.buildStats(summary, chartBookings);
         this.recentBookings = recent;
@@ -131,6 +134,7 @@ export class DefaultDashboardComponent implements OnInit, OnDestroy {
         this.loading = false;
       },
       error: () => {
+        if (gen !== this.loadGeneration) return;
         this.error = 'Unable to load dashboard data. Showing sample values.';
         this.summary = this.fallbackSummary();
         this.stats = this.buildStats(this.summary, []);

@@ -10,10 +10,11 @@ import { McpChatDockComponent } from '../../shared/chat-dock/chat-dock.component
   template: `
     <div class="page" *ngIf="catalog as c">
       <header>
-        <h2>Chat dock</h2>
+        <h2>MCP Request Builder</h2>
         <p>
-          Prepare prompts for Cursor or Claude Desktop. SheikhGo-MCP runs over stdio outside the browser —
-          there is no fake in-app LLM here.
+          Write a natural-language investigation, prepare an MCP request plan, then copy it into
+          Cursor or Claude. SheikhGo-MCP runs over stdio outside the browser — there is no in-app LLM
+          here.
         </p>
       </header>
       <app-mcp-chat-dock [catalog]="c"></app-mcp-chat-dock>
@@ -23,14 +24,16 @@ import { McpChatDockComponent } from '../../shared/chat-dock/chat-dock.component
     `
       header h2 {
         margin: 0;
-        font-size: 1.15rem;
-        color: #0f172a;
+        font-size: 18px;
+        font-weight: 700;
+        color: var(--stb-text, #0f172a);
       }
       header p {
-        margin: 0.35rem 0 0.9rem;
-        color: #64748b;
-        font-size: 0.85rem;
-        max-width: 40rem;
+        margin: 4px 0 16px;
+        color: var(--stb-text-muted, #64748b);
+        font-size: 13px;
+        max-width: 44rem;
+        line-height: 1.5;
       }
     `
   ]

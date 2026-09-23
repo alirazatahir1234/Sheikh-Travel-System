@@ -53,25 +53,28 @@ import { UiToastService } from '../../../../shared/components/ui/toast/ui-toast.
     `
       header h2 {
         margin: 0;
-        font-size: 1.15rem;
-        color: #0f172a;
+        font-size: 18px;
+        font-weight: 700;
+        color: var(--stb-text, #0f172a);
       }
       header p {
-        margin: 0.35rem 0 1rem;
-        color: #64748b;
-        font-size: 0.85rem;
+        margin: 4px 0 16px;
+        color: var(--stb-text-muted, #64748b);
+        font-size: 13px;
       }
       .panel {
-        border: 1px solid #d6e0ef;
-        border-radius: 0.85rem;
-        background: #fff;
-        padding: 1rem;
-        margin-bottom: 0.75rem;
+        border: 1px solid var(--stb-border, #e2e8f0);
+        border-radius: 12px;
+        background: var(--stb-surface, #fff);
+        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+        padding: 16px;
+        margin-bottom: 12px;
       }
       .panel h3 {
-        margin: 0 0 0.65rem;
-        font-size: 0.9rem;
-        color: #0f172a;
+        margin: 0 0 12px;
+        font-size: 15px;
+        font-weight: 700;
+        color: var(--stb-text, #0f172a);
       }
       ul {
         list-style: none;
@@ -79,30 +82,30 @@ import { UiToastService } from '../../../../shared/components/ui/toast/ui-toast.
         padding: 0;
         display: flex;
         flex-direction: column;
-        gap: 0.45rem;
+        gap: 8px;
       }
       li {
         display: flex;
         justify-content: space-between;
-        gap: 1rem;
-        font-size: 0.8rem;
-        color: #64748b;
+        gap: 16px;
+        font-size: 13px;
+        color: var(--stb-text-muted, #64748b);
       }
       li strong {
-        color: #0f172a;
+        color: var(--stb-text, #0f172a);
         text-align: right;
       }
       .hint {
-        margin: 0.75rem 0 0;
-        font-size: 0.78rem;
-        color: #64748b;
+        margin: 12px 0 0;
+        font-size: 13px;
+        color: var(--stb-text-muted, #64748b);
         line-height: 1.45;
       }
       code {
-        font-size: 0.72rem;
+        font-size: 12px;
         background: #f1f5f9;
-        padding: 0.05rem 0.3rem;
-        border-radius: 0.25rem;
+        padding: 1px 6px;
+        border-radius: 4px;
       }
     `
   ]
