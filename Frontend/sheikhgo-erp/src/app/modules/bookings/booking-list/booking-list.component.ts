@@ -4,10 +4,11 @@ import { MatDialog } from '@angular/material/dialog';
 import { MatCheckboxChange } from '@angular/material/checkbox';
 import { Router } from '@angular/router';
 import { PageEvent } from '@angular/material/paginator';
-import { Subject, Subscription, debounceTime, distinctUntilChanged } from 'rxjs';
+import { Subject, Subscription, debounceTime, distinctUntilChanged, forkJoin } from 'rxjs';
 import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
 import { BookingService } from '../../../core/services/booking.service';
 import { Booking, BookingFilter, BookingStatus } from '../../../core/models/booking.model';
+import { DEFAULT_CURRENCY } from '../../../core/models/platform.model';
 import { ConfirmDialogComponent, ConfirmDialogData } from '../../../shared/components/confirm-dialog/confirm-dialog.component';
 
 @Component({
@@ -17,8 +18,12 @@ import { ConfirmDialogComponent, ConfirmDialogData } from '../../../shared/compo
   styleUrls: ['./booking-list.component.scss']
 })
 export class BookingListComponent implements OnInit, OnDestroy {
-  displayedColumns = ['select', 'bookingNumber', 'customerName', 'routeName', 'pickupTime', 'passengerCount', 'totalAmount', 'status', 'actions'];
+  displayedColumns = [
+    'select', 'index', 'bookingNumber', 'customerName', 'routeName',
+    'pickupTime', 'passengerCount', 'totalAmount', 'status', 'createdAt', 'actions'
+  ];
   dataSource = new MatTableDataSource<Booking>();
+  activeBooking: Booking | null = null;
   readonly selectedIds = new Set<number>();
   bulkDeleting = false;
   loading = true;
@@ -27,28 +32,26 @@ export class BookingListComponent implements OnInit, OnDestroy {
   pageIndex = 0;
   pageSize = 25;
   selectedStatus = '';
+  selectedRoute = '';
   searchTerm = '';
   dateFrom: Date | null = null;
   dateTo: Date | null = null;
   amountMin: number | null = null;
   amountMax: number | null = null;
+  routeOptions: Array<{ value: string; label: string }> = [];
+  summary = { total: 0, pending: 0, confirmed: 0, completed: 0, cancelled: 0 };
 
   private readonly searchSubject = new Subject<string>();
   private searchSub?: Subscription;
 
   statusOptions: Array<{ value: string; label: string }> = [
-    { value: '', label: 'All' },
+    { value: '', label: 'All Status' },
     { value: 'Pending', label: 'Pending' },
     { value: 'Confirmed', label: 'Confirmed' },
     { value: 'Started', label: 'Started' },
     { value: 'Completed', label: 'Completed' },
     { value: 'Cancelled', label: 'Cancelled' }
   ];
-
-  statusColors: Record<string, string> = {
-    Pending: '#f57f17', Confirmed: '#1565c0', Started: '#00695c',
-    Completed: '#2e7d32', Cancelled: '#c62828'
-  };
 
   constructor(
     private bookingService: BookingService,
@@ -65,6 +68,8 @@ export class BookingListComponent implements OnInit, OnDestroy {
       this.searchTerm = term;
       this.load(true);
     });
+    this.initDefaultDateRange();
+    this.loadSummary();
     this.load();
   }
 
@@ -80,6 +85,7 @@ export class BookingListComponent implements OnInit, OnDestroy {
       next: r => {
         this.dataSource.data = r.items;
         this.totalCount = r.totalCount;
+        this.mergeRouteOptions(r.items);
         this.loading = false;
       },
       error: () => {
@@ -87,6 +93,31 @@ export class BookingListComponent implements OnInit, OnDestroy {
         this.error = 'Failed to load bookings.';
       }
     });
+  }
+
+  loadSummary(): void {
+    forkJoin({
+      total: this.bookingService.getAll(1, 1, {}),
+      pending: this.bookingService.getAll(1, 1, { status: 'Pending' }),
+      confirmed: this.bookingService.getAll(1, 1, { status: 'Confirmed' }),
+      completed: this.bookingService.getAll(1, 1, { status: 'Completed' }),
+      cancelled: this.bookingService.getAll(1, 1, { status: 'Cancelled' })
+    }).subscribe({
+      next: r => {
+        this.summary = {
+          total: r.total.totalCount,
+          pending: r.pending.totalCount,
+          confirmed: r.confirmed.totalCount,
+          completed: r.completed.totalCount,
+          cancelled: r.cancelled.totalCount
+        };
+      }
+    });
+  }
+
+  filterByStat(status: string): void {
+    this.selectedStatus = status;
+    this.load(true);
   }
 
   onSearchChange(term: string): void {
@@ -105,27 +136,11 @@ export class BookingListComponent implements OnInit, OnDestroy {
 
   clearFilters(): void {
     this.searchTerm = '';
-    this.dateFrom = null;
-    this.dateTo = null;
     this.amountMin = null;
     this.amountMax = null;
     this.selectedStatus = '';
-    this.load(true);
-  }
-
-  applySmartFilter(key: 'today' | 'pending' | 'highValue'): void {
-    const now = new Date();
-    if (key === 'today') {
-      this.dateFrom = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      this.dateTo = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      this.selectedStatus = '';
-      this.amountMin = null;
-    } else if (key === 'pending') {
-      this.selectedStatus = 'Pending';
-    } else if (key === 'highValue') {
-      this.amountMin = 10000;
-      this.amountMax = null;
-    }
+    this.selectedRoute = '';
+    this.initDefaultDateRange();
     this.load(true);
   }
 
@@ -134,7 +149,7 @@ export class BookingListComponent implements OnInit, OnDestroy {
       next: r => {
         const rows = r.items;
         const csvRows = [
-          ['BookingNumber', 'Customer', 'Route', 'PickupTime', 'Passengers', 'Amount', 'Status'],
+          ['BookingNumber', 'Customer', 'Route', 'PickupTime', 'Passengers', 'Amount', 'Status', 'CreatedAt'],
           ...rows.map(b => [
             b.bookingNumber,
             b.customerName,
@@ -142,7 +157,8 @@ export class BookingListComponent implements OnInit, OnDestroy {
             new Date(b.pickupTime).toISOString(),
             String(b.passengerCount),
             String(b.totalAmount),
-            b.status
+            b.status,
+            b.createdAt ? new Date(b.createdAt).toISOString() : ''
           ])
         ];
         const csv = csvRows.map(row => row.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
@@ -170,6 +186,7 @@ export class BookingListComponent implements OnInit, OnDestroy {
         next: () => {
           this.selectedIds.delete(id);
           this.toast.success('Booking deleted');
+          this.loadSummary();
           this.load();
         },
         error: () => {
@@ -234,6 +251,7 @@ export class BookingListComponent implements OnInit, OnDestroy {
             this.selectedIds.clear();
             this.toast.warning(
               count > 0 ? `${count} booking(s) deleted.` : 'No bookings were deleted (they may have already been removed).');
+            this.loadSummary();
             this.load();
           },
           error: () => {
@@ -244,8 +262,25 @@ export class BookingListComponent implements OnInit, OnDestroy {
       });
   }
 
-  getStatusColor(status: BookingStatus): string {
-    return this.statusColors[status] ?? '#666';
+  statusClass(status: BookingStatus): string {
+    const key = String(status || '').toLowerCase().replace(/\s+/g, '');
+    return `ops-status--${key}`;
+  }
+
+  formatRoute(routeName: string | null | undefined): string {
+    if (!routeName) return '—';
+    if (routeName.includes('→') || routeName.includes('->')) {
+      return routeName.replace(/->/g, '→');
+    }
+    if (routeName.includes(' - ')) {
+      return routeName.replace(' - ', ' → ');
+    }
+    return routeName;
+  }
+
+  formatAmount(amount: number): string {
+    const value = Number(amount) || 0;
+    return `${DEFAULT_CURRENCY} ${value.toLocaleString('en-PK')}`;
   }
 
   trackByValue(_index: number, item: { value: string }): string {
@@ -274,10 +309,31 @@ export class BookingListComponent implements OnInit, OnDestroy {
     this.load(true);
   }
 
+  private initDefaultDateRange(): void {
+    this.dateFrom = null;
+    this.dateTo = null;
+  }
+
+  private mergeRouteOptions(items: Booking[]): void {
+    const map = new Map(this.routeOptions.map(r => [r.value, r.label]));
+    for (const b of items) {
+      const name = (b.routeName || '').trim();
+      if (name && !map.has(name)) map.set(name, name);
+    }
+    this.routeOptions = [...map.entries()]
+      .map(([value, label]) => ({ value, label }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+  }
+
   private buildFilter(): BookingFilter {
+    const searchParts = [
+      this.searchTerm.trim(),
+      this.selectedRoute.trim()
+    ].filter(Boolean);
+
     return {
       status: this.selectedStatus || undefined,
-      search: this.searchTerm.trim() || undefined,
+      search: searchParts.length ? searchParts.join(' ') : undefined,
       dateFrom: this.dateFrom ? this.toDateInput(this.dateFrom) : undefined,
       dateTo: this.dateTo ? this.toDateInput(this.dateTo) : undefined,
       amountMin: this.amountMin ?? undefined,

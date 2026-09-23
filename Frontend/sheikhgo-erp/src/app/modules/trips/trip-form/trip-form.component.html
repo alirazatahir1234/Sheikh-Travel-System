@@ -5,22 +5,25 @@
     <mat-card>
       <mat-card-header><mat-card-title>Basic Information</mat-card-title></mat-card-header>
       <mat-card-content class="grid">
-        <mat-form-field appearance="outline">
+        <mat-form-field appearance="outline" class="full">
           <mat-label>Trip Name</mat-label>
-          <input matInput formControlName="tripName" />
+          <input matInput formControlName="tripName" placeholder="e.g. Morning airport transfer" />
         </mat-form-field>
+
         <mat-form-field appearance="outline">
           <mat-label>Trip Type</mat-label>
           <mat-select formControlName="tripType">
             <mat-option *ngFor="let t of tripTypes" [value]="t">{{ t }}</mat-option>
           </mat-select>
         </mat-form-field>
+
         <mat-form-field appearance="outline">
           <mat-label>Customer</mat-label>
           <mat-select formControlName="customerId">
             <mat-option *ngFor="let c of customers" [value]="c.id">{{ c.fullName }}</mat-option>
           </mat-select>
         </mat-form-field>
+
         <mat-form-field appearance="outline">
           <mat-label>Route</mat-label>
           <mat-select formControlName="routeId">
@@ -28,10 +31,12 @@
             <mat-option *ngFor="let r of routes" [value]="r.id">{{ r.name || (r.source + ' → ' + r.destination) }}</mat-option>
           </mat-select>
         </mat-form-field>
-        <mat-form-field appearance="outline">
+
+        <mat-form-field appearance="outline" class="passengers-field">
           <mat-label>Passengers</mat-label>
-          <input matInput type="number" formControlName="passengerCount" />
+          <input matInput type="number" min="1" formControlName="passengerCount" />
         </mat-form-field>
+
         <mat-form-field appearance="outline">
           <mat-label>Priority</mat-label>
           <mat-select formControlName="priority">
@@ -42,32 +47,61 @@
     </mat-card>
 
     <mat-card>
-      <mat-card-header><mat-card-title>Pickup &amp; Destination</mat-card-title></mat-card-header>
+      <mat-card-header>
+        <mat-card-title>Pickup &amp; Destination</mat-card-title>
+      </mat-card-header>
       <mat-card-content class="grid">
-        <mat-form-field appearance="outline" class="full">
+        <div class="route-hint full" *ngIf="routePrefillActive">
+          <mat-icon>route</mat-icon>
+          <span>Route selected — addresses pre-filled. Edit an address to clear the route link.</span>
+        </div>
+
+        <mat-form-field appearance="outline" class="full address-field">
           <mat-label>Pickup Address</mat-label>
-          <input matInput formControlName="pickupAddress" />
+          <mat-icon matPrefix>place</mat-icon>
+          <input
+            #pickupInput
+            matInput
+            formControlName="pickupAddress"
+            placeholder="Search address..."
+            autocomplete="off" />
+          <mat-hint *ngIf="mapsConfigured">Start typing to search with Google Places</mat-hint>
         </mat-form-field>
-        <mat-form-field appearance="outline">
-          <mat-label>Pickup Lat</mat-label>
-          <input matInput type="number" formControlName="pickupLatitude" />
+
+        <mat-form-field appearance="outline" class="coord-field">
+          <mat-label>Pickup Latitude</mat-label>
+          <input matInput type="number" formControlName="pickupLatitude" readonly tabindex="-1" />
         </mat-form-field>
-        <mat-form-field appearance="outline">
-          <mat-label>Pickup Lng</mat-label>
-          <input matInput type="number" formControlName="pickupLongitude" />
+        <mat-form-field appearance="outline" class="coord-field">
+          <mat-label>Pickup Longitude</mat-label>
+          <input matInput type="number" formControlName="pickupLongitude" readonly tabindex="-1" />
         </mat-form-field>
-        <mat-form-field appearance="outline" class="full">
+
+        <mat-form-field appearance="outline" class="full address-field">
           <mat-label>Destination Address</mat-label>
-          <input matInput formControlName="destinationAddress" />
+          <mat-icon matPrefix>flag</mat-icon>
+          <input
+            #destinationInput
+            matInput
+            formControlName="destinationAddress"
+            placeholder="Search address..."
+            autocomplete="off" />
+          <mat-hint *ngIf="mapsConfigured">Start typing to search with Google Places</mat-hint>
         </mat-form-field>
-        <mat-form-field appearance="outline">
-          <mat-label>Dest Lat</mat-label>
-          <input matInput type="number" formControlName="destinationLatitude" />
+
+        <mat-form-field appearance="outline" class="coord-field">
+          <mat-label>Destination Latitude</mat-label>
+          <input matInput type="number" formControlName="destinationLatitude" readonly tabindex="-1" />
         </mat-form-field>
-        <mat-form-field appearance="outline">
-          <mat-label>Dest Lng</mat-label>
-          <input matInput type="number" formControlName="destinationLongitude" />
+        <mat-form-field appearance="outline" class="coord-field">
+          <mat-label>Destination Longitude</mat-label>
+          <input matInput type="number" formControlName="destinationLongitude" readonly tabindex="-1" />
         </mat-form-field>
+
+        <div class="routing-status full" *ngIf="routingBusy">
+          <mat-spinner diameter="18"></mat-spinner>
+          <span>Calculating distance &amp; duration…</span>
+        </div>
       </mat-card-content>
     </mat-card>
 
@@ -82,8 +116,11 @@
             <mat-label>Location</mat-label>
             <input matInput formControlName="location" />
           </mat-form-field>
-          <button mat-icon-button type="button" (click)="removeStop(i)"><mat-icon>delete</mat-icon></button>
+          <button mat-icon-button type="button" (click)="removeStop(i)" aria-label="Remove stop">
+            <mat-icon>delete</mat-icon>
+          </button>
         </div>
+        <p class="empty-stops" *ngIf="!stops.length">No intermediate stops. Optional.</p>
       </mat-card-content>
     </mat-card>
 
@@ -94,21 +131,42 @@
           <mat-label>Trip Date</mat-label>
           <input matInput type="date" formControlName="tripDate" />
         </mat-form-field>
+
         <mat-form-field appearance="outline">
           <mat-label>Pickup Time</mat-label>
-          <input matInput type="datetime-local" formControlName="plannedStart" />
+          <input matInput type="time" formControlName="pickupTime" />
+          <mat-hint>Uses Trip Date above</mat-hint>
         </mat-form-field>
+
         <mat-form-field appearance="outline">
           <mat-label>Expected Arrival</mat-label>
-          <input matInput type="datetime-local" formControlName="plannedEnd" />
+          <input
+            matInput
+            type="time"
+            formControlName="arrivalTime"
+            (input)="onArrivalManualEdit()" />
+          <mat-hint>Auto-filled from pickup + duration</mat-hint>
         </mat-form-field>
+
         <mat-form-field appearance="outline">
           <mat-label>Duration (min)</mat-label>
-          <input matInput type="number" formControlName="estimatedDurationMinutes" />
+          <input
+            matInput
+            type="number"
+            min="1"
+            formControlName="estimatedDurationMinutes"
+            (input)="onMetricsManualEdit()" />
         </mat-form-field>
+
         <mat-form-field appearance="outline">
           <mat-label>Planned Distance (km)</mat-label>
-          <input matInput type="number" formControlName="plannedDistanceKm" />
+          <input
+            matInput
+            type="number"
+            min="0"
+            step="0.1"
+            formControlName="plannedDistanceKm"
+            (input)="onMetricsManualEdit()" />
         </mat-form-field>
       </mat-card-content>
     </mat-card>
@@ -137,9 +195,9 @@
             <mat-option *ngFor="let v of vehicles" [value]="v.id">{{ v.name }}</mat-option>
           </mat-select>
         </mat-form-field>
-        <mat-form-field appearance="outline" class="full">
+        <mat-form-field appearance="outline" class="full notes-field">
           <mat-label>Driver Notes</mat-label>
-          <textarea matInput rows="2" formControlName="driverNotes"></textarea>
+          <textarea matInput rows="3" formControlName="driverNotes" placeholder="Optional notes for the driver"></textarea>
         </mat-form-field>
       </mat-card-content>
     </mat-card>

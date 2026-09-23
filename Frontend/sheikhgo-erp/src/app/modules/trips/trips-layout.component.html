@@ -1,19 +1,71 @@
-<div class="trips-module">
-  <header class="trips-module-header">
-    <div>
+<div class="ops-page trips-module">
+  <header class="ops-page-header">
+    <div class="ops-page-heading">
       <h1>Trips</h1>
-      <p>Operational hub for dispatch — from schedule to live execution</p>
+      <p>Manage and track fleet operations, vehicle assignments and live trips</p>
+    </div>
+    <div class="ops-page-actions">
+      <a class="ops-btn ops-btn--ghost" routerLink="/gps-tracking/live">
+        <mat-icon>map</mat-icon>
+        Live Map
+      </a>
+      <a class="ops-btn ops-btn--ghost" routerLink="/trips/calendar">
+        <mat-icon>calendar_month</mat-icon>
+        Trip Calendar
+      </a>
+      <a class="ops-btn ops-btn--primary" routerLink="/trips/new">
+        <mat-icon>add</mat-icon>
+        New Trip
+      </a>
     </div>
   </header>
 
-  <nav class="trips-subnav" aria-label="Trips module navigation">
-    <a *ngFor="let item of navItems"
-       [routerLink]="['/trips', item.route]"
-       routerLinkActive="active"
-       [routerLinkActiveOptions]="{ exact: item.route === 'dashboard' }"
-       class="trips-subnav-link">
-      <mat-icon>{{ item.icon }}</mat-icon>
-      <span>{{ item.label }}</span>
+  <div class="ops-stats" role="group" aria-label="Trip summary">
+    <button type="button" class="ops-stat ops-stat--clickable" (click)="openList()">
+      <span class="ops-stat-icon ops-stat-icon--blue"><mat-icon>hub</mat-icon></span>
+      <span class="ops-stat-body">
+        <span class="ops-stat-value">{{ stats?.totalTrips ?? '—' }}</span>
+        <span class="ops-stat-label">Total Trips</span>
+      </span>
+    </button>
+    <button type="button" class="ops-stat ops-stat--clickable" (click)="openList('Scheduled')">
+      <span class="ops-stat-icon ops-stat-icon--amber"><mat-icon>schedule</mat-icon></span>
+      <span class="ops-stat-body">
+        <span class="ops-stat-value">{{ stats?.scheduledTrips ?? '—' }}</span>
+        <span class="ops-stat-label">Scheduled</span>
+      </span>
+    </button>
+    <button type="button" class="ops-stat ops-stat--clickable" (click)="openList('Started')">
+      <span class="ops-stat-icon ops-stat-icon--sky"><mat-icon>play_circle</mat-icon></span>
+      <span class="ops-stat-body">
+        <span class="ops-stat-value">{{ stats?.ongoingTrips ?? '—' }}</span>
+        <span class="ops-stat-label">In Progress</span>
+      </span>
+    </button>
+    <button type="button" class="ops-stat ops-stat--clickable" (click)="openList('Completed')">
+      <span class="ops-stat-icon ops-stat-icon--green"><mat-icon>check_circle</mat-icon></span>
+      <span class="ops-stat-body">
+        <span class="ops-stat-value">{{ stats?.completedTrips ?? '—' }}</span>
+        <span class="ops-stat-label">Completed</span>
+      </span>
+    </button>
+    <button type="button" class="ops-stat ops-stat--clickable" (click)="openList('Delayed')">
+      <span class="ops-stat-icon ops-stat-icon--red"><mat-icon>warning</mat-icon></span>
+      <span class="ops-stat-body">
+        <span class="ops-stat-value">{{ stats?.delayedTrips ?? '—' }}</span>
+        <span class="ops-stat-label">Delayed</span>
+      </span>
+    </button>
+  </div>
+
+  <nav class="ops-subnav" aria-label="Trips module navigation">
+    <a
+      *ngFor="let item of navItems"
+      [routerLink]="['/trips', item.route]"
+      routerLinkActive="active"
+      [routerLinkActiveOptions]="{ exact: item.exact }"
+      class="ops-subnav-link">
+      {{ item.label }}
     </a>
   </nav>
 

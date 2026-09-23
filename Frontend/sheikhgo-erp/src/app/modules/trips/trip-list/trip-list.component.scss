@@ -1,54 +1,159 @@
+@use '../../../shared/styles/ops-content-area';
+
+:host {
+  display: block;
+  min-width: 0;
+}
+
 .trip-list {
-  .toolbar {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 12px;
-    h2 { margin: 0; }
+  padding: 0;
+}
+
+.trip-list-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px 16px;
+  margin-bottom: 16px;
+
+  h2 {
+    margin: 0 0 2px;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--stb-text, #0f172a);
   }
 
-  .filters {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 12px;
-    align-items: center;
-    margin-bottom: 12px;
+  p {
+    margin: 0;
+    font-size: 0.875rem;
+    color: var(--stb-text-muted, #64748b);
+  }
+}
 
-    mat-form-field {
-      width: 200px;
-    }
+.clickable-row {
+  cursor: pointer;
+}
+
+.booking-direct {
+  color: #888;
+  font-style: italic;
+}
+
+.trip-table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  width: 100%;
+}
+
+.trip-table {
+  min-width: 1100px;
+  width: 100%;
+
+  .col-sticky,
+  .col-sticky-end {
+    background: #fff;
+    z-index: 2;
   }
 
-  .loading {
-    display: flex;
-    justify-content: center;
-    padding: 40px;
+  th.col-sticky,
+  th.col-sticky-end {
+    background: var(--stb-surface-alt, #f8fafc);
+    z-index: 3;
   }
 
-  .table-wrap {
-    overflow: auto;
-    border: 1px solid var(--stb-border, #e5e7eb);
-    border-radius: 12px;
+  .col-index {
+    left: 0;
+    min-width: 48px;
+    width: 48px;
+  }
+
+  .col-trip {
+    left: 48px;
+    min-width: 120px;
+  }
+
+  .col-status {
+    min-width: 130px;
+  }
+
+  .col-live {
+    min-width: 140px;
+  }
+
+  .col-actions {
+    min-width: 72px;
+    right: 0;
+  }
+
+  // Material sticky cells already set position; reinforce backgrounds for scroll
+  .mat-mdc-header-cell.mat-table-sticky,
+  .mat-mdc-cell.mat-table-sticky,
+  .mat-mdc-header-cell.mat-table-sticky-end,
+  .mat-mdc-cell.mat-table-sticky-end {
+    background: inherit;
+  }
+
+  .mat-mdc-header-row .mat-mdc-header-cell.mat-table-sticky,
+  .mat-mdc-header-row .mat-mdc-header-cell.mat-table-sticky-end {
+    background: var(--stb-surface-alt, #f8fafc);
+  }
+
+  .mat-mdc-row .mat-mdc-cell.mat-table-sticky,
+  .mat-mdc-row .mat-mdc-cell.mat-table-sticky-end {
     background: #fff;
   }
 
-  table {
-    width: 100%;
+  .mat-mdc-row:hover .mat-mdc-cell.mat-table-sticky,
+  .mat-mdc-row:hover .mat-mdc-cell.mat-table-sticky-end {
+    background: #fafbfc;
+  }
+}
+
+.trip-pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  padding: 8px 12px;
+  border-top: 1px solid var(--stb-border, #eef2f7);
+
+  .trip-pagination-meta {
+    font-size: 0.8125rem;
+    color: var(--stb-text-muted, #64748b);
+    padding-left: 4px;
   }
 
-  .status {
-    font-size: 12px;
-    font-weight: 600;
+  mat-paginator {
+    flex: 1 1 auto;
+    background: transparent;
   }
 
-  .gps {
-    font-size: 12px;
-    color: #9a3412;
-    &.live { color: #166534; }
+  ::ng-deep .mat-mdc-paginator-container {
+    justify-content: flex-end;
+    min-height: 48px;
+    padding: 0;
+  }
+}
+
+@media (max-width: 640px) {
+  .trip-list-header {
+    flex-direction: column;
+    align-items: stretch;
+
+    .ops-btn {
+      width: 100%;
+      justify-content: center;
+    }
   }
 
-  .clickable-row {
-    cursor: pointer;
-    &:hover { background: #f8fafc; }
+  .trip-pagination {
+    flex-direction: column;
+    align-items: stretch;
+
+    ::ng-deep .mat-mdc-paginator-container {
+      justify-content: center;
+    }
   }
 }

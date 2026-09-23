@@ -909,7 +909,7 @@ public sealed class TripRepository(
         var where = "WHERE " + string.Join(" AND ", clauses);
 
         var items = await connection.QueryAsync<TripListItemDto>(new CommandDefinition(
-            $"{TripSql.ListSelect} {where} ORDER BY t.PlannedStart DESC OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY",
+            $"{TripSql.ListSelect} {where} ORDER BY t.PlannedStart DESC, t.Id DESC OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY",
             parameters,
             cancellationToken: cancellationToken));
 

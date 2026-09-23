@@ -1,5 +1,9 @@
 .trip-form {
-  h2 { margin: 0 0 16px; }
+  h2 {
+    margin: 0 0 16px;
+    font-size: 1.5rem;
+    font-weight: 700;
+  }
 
   mat-card {
     margin-bottom: 12px;
@@ -14,19 +18,102 @@
 
   .grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-    gap: 8px 12px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 4px 16px;
+    align-items: start;
   }
 
   .full {
     grid-column: 1 / -1;
   }
 
+  .passengers-field,
+  .coord-field,
+  .address-field,
+  .notes-field {
+    width: 100%;
+  }
+
+  .passengers-field {
+    min-width: 0;
+
+    input {
+      width: 100%;
+      min-width: 0;
+    }
+  }
+
+  .coord-field {
+    opacity: 0.72;
+
+    ::ng-deep .mat-mdc-form-field-infix {
+      min-height: 48px;
+    }
+
+    input {
+      color: var(--stb-text-muted, #64748b);
+      font-size: 0.875rem;
+    }
+  }
+
+  .notes-field {
+    textarea {
+      resize: vertical;
+      min-height: 72px;
+      line-height: 1.45;
+    }
+
+    ::ng-deep .mat-mdc-form-field-infix {
+      padding-top: 16px;
+      padding-bottom: 12px;
+    }
+  }
+
+  .route-hint {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin: 4px 0 8px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: var(--fleet-primary-soft, rgba(0, 95, 73, 0.1));
+    color: var(--fleet-primary-dark, #00513e);
+    font-size: 0.875rem;
+    line-height: 1.4;
+
+    mat-icon {
+      font-size: 18px;
+      width: 18px;
+      height: 18px;
+      margin-top: 1px;
+      flex-shrink: 0;
+    }
+  }
+
+  .routing-status {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 4px 0 8px;
+    font-size: 0.85rem;
+    color: var(--stb-text-muted, #64748b);
+  }
+
+  .empty-stops {
+    margin: 4px 0 0;
+    color: var(--stb-text-muted, #64748b);
+    font-size: 0.875rem;
+  }
+
   .stop-row {
     display: flex;
     gap: 8px;
     align-items: center;
-    .grow { flex: 1; }
+
+    .grow {
+      flex: 1;
+      min-width: 0;
+    }
   }
 
   .actions {
@@ -35,10 +122,20 @@
     gap: 8px;
     margin-top: 8px;
   }
+
+  ::ng-deep .mat-mdc-form-field {
+    width: 100%;
+  }
 }
 
 .loading {
   display: flex;
   justify-content: center;
   padding: 48px;
+}
+
+@media (max-width: 720px) {
+  .trip-form .grid {
+    grid-template-columns: 1fr;
+  }
 }

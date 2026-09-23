@@ -1,52 +1,12 @@
-.trips-module {
-  padding: 16px 20px 32px;
+@use '../../shared/styles/ops-content-area';
+
+:host {
+  display: block;
   min-width: 0;
 }
 
-.trips-module-header {
-  margin-bottom: 12px;
-
-  h1 {
-    margin: 0 0 4px;
-    font-size: 1.6rem;
-  }
-
-  p {
-    margin: 0;
-    color: var(--stb-text-muted, #6b7280);
-  }
-}
-
-.trips-subnav {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 16px;
-  border-bottom: 1px solid var(--stb-border, #e5e7eb);
-  padding-bottom: 8px;
-}
-
-.trips-subnav-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 12px;
-  border-radius: 8px;
-  text-decoration: none;
-  color: var(--stb-text-muted, #6b7280);
-  font-size: 0.9rem;
-
-  mat-icon {
-    font-size: 18px;
-    width: 18px;
-    height: 18px;
-  }
-
-  &.active,
-  &:hover {
-    background: var(--stb-surface-muted, #f3f4f6);
-    color: var(--stb-primary, #0f766e);
-  }
+.trips-module {
+  padding: 0;
 }
 
 .trips-module-content {

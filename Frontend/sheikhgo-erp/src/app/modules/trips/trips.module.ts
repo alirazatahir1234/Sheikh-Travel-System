@@ -1,5 +1,6 @@
 import { NgModule } from '@angular/core';
 import { RouterModule, Routes } from '@angular/router';
+import { GoogleMapsModule } from '@angular/google-maps';
 import { SharedModule } from '../../shared/shared.module';
 import { UiButtonComponent } from '../../shared/components/ui/button/ui-button.component';
 import { TripsLayoutComponent } from './trips-layout.component';
@@ -16,7 +17,7 @@ const routes: Routes = [
     path: '',
     component: TripsLayoutComponent,
     children: [
-      { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
+      { path: '', redirectTo: 'list', pathMatch: 'full' },
       { path: 'dashboard', component: TripDashboardComponent },
       { path: 'list', component: TripListComponent },
       { path: 'calendar', component: TripCalendarComponent },
@@ -45,6 +46,6 @@ function tripIdCanMatch(route: import('@angular/router').Route, segments: import
     TripLiveBoardComponent,
     TripReportsComponent
   ],
-  imports: [SharedModule, RouterModule.forChild(routes), UiButtonComponent]
+  imports: [SharedModule, GoogleMapsModule, RouterModule.forChild(routes), UiButtonComponent]
 })
 export class TripsModule {}
