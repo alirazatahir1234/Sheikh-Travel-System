@@ -22,6 +22,7 @@ export interface MenuModuleDto {
 export interface MenuItemDto {
   id: string;
   label: string;
+  name?: string | null;
   icon: string;
   route: string;
   permissionCode?: string | null;
@@ -143,11 +144,25 @@ export class MenuService {
         queryParams![key] = value;
       });
     }
+
+    // Defend against legacy DB seed that pointed Trips → /bookings
+    const label = (item.displayName || item.label || '').trim();
+    const name = (item.name || '').trim();
+    let routePath = path;
+    if (
+      routePath === '/bookings' &&
+      (label.toLowerCase() === 'trips' ||
+        name.toLowerCase() === 'trips' ||
+        item.permissionCode === 'Trip.View')
+    ) {
+      routePath = '/trips';
+    }
+
     return {
       id: item.id,
       label: item.displayName || item.label,
       icon: item.icon,
-      route: path,
+      route: routePath,
       queryParams: queryParams && Object.keys(queryParams).length ? queryParams : undefined,
       moduleKey: item.moduleKey || item.permissionCode?.split('.')[0]?.toLowerCase()
     };

@@ -104,6 +104,7 @@ public static class DatabaseMigrationRegistry
             M("WebsiteCmsMigration", WebsiteCmsMigration.ApplyAsync),
             M("WebsiteCmsEnsureMigration", WebsiteCmsEnsureMigration.ApplyAsync),
             M("AiOperationsPermissionsMigration", AiOperationsPermissionsMigration.ApplyAsync),
+            M("TripsMenuRouteFixMigration", TripsMenuRouteFixMigration.ApplyAsync),
         ];
     }
 }

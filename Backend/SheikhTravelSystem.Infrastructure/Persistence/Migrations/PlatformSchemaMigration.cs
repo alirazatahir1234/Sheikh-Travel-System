@@ -601,7 +601,7 @@ public static class PlatformSchemaMigration
 
         await SeedMenuItemAsync(connection, "dashboard", null, "Dashboard", "/dashboard", "dashboard", "Platform.Dashboard.View", 1, ct);
         await SeedMenuItemAsync(connection, "operations", null, "Bookings", "/bookings", "confirmation_number", "Booking.View", 1, ct);
-        await SeedMenuItemAsync(connection, "operations", null, "Trips", "/bookings", "route", "Trip.View", 2, ct);
+        await SeedMenuItemAsync(connection, "operations", null, "Trips", "/trips", "route", "Trip.View", 2, ct);
         await SeedMenuItemAsync(connection, "operations", null, "Routes", "/routes", "alt_route", "Route.View", 3, ct);
         await SeedMenuItemAsync(connection, "fleet", null, "Vehicles", "/vehicles", "directions_bus", "Vehicle.View", 1, ct);
         await SeedMenuItemAsync(connection, "fleet", null, "Drivers", "/drivers", "badge", "Driver.View", 2, ct);
