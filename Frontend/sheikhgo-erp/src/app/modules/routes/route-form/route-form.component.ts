@@ -20,6 +20,10 @@ import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.ser
 import { RouteService } from '../../../core/services/route.service';
 import { GoogleMapsLoaderService } from '../../../core/services/google-maps-loader.service';
 import {
+  SHEIKHGO_DIRECTIONS_REGION,
+  sheikhGoPlacesAutocompleteOptions
+} from '../../../core/utils/google-places-options';
+import {
   CreateRouteDto,
   CreateRouteRequest,
   parseRouteWaypoints,
@@ -370,22 +374,19 @@ export class RouteFormComponent implements OnInit, AfterViewInit, OnDestroy {
   async ngAfterViewInit(): Promise<void> {
     if (!this.mapsConfigured) return;
 
-    const loaded = await this.mapsLoader.load();
-    if (!loaded) {
-      this.mapsError = 'Could not load Google Maps. Check your API key configuration.';
-      this.cdr.markForCheck();
-      return;
-    }
-
-    this.zone.run(() => {
-      this.mapsReady = true;
-      this.cdr.markForCheck();
-    });
-
     try {
+      const loaded = await this.mapsLoader.load();
+      if (!loaded) {
+        this.mapsError = this.mapsLoader.failureMessage
+          || 'Could not load Google Maps. Check your API key configuration.';
+        this.cdr.markForCheck();
+        return;
+      }
+
       await this.mapsLoader.importLibrary('places');
       await this.mapsLoader.importLibrary('routes');
       this.zone.run(() => {
+        this.mapsReady = true;
         this.attachAutocomplete();
         this.attachStopAutocompletes();
         this.stopInputsSub = this.stopInputs?.changes.subscribe(() => {
@@ -396,9 +397,11 @@ export class RouteFormComponent implements OnInit, AfterViewInit, OnDestroy {
         if (source && destination) {
           this.scheduleRecompute();
         }
+        this.cdr.markForCheck();
       });
     } catch {
-      this.mapsError = 'Could not load Google Maps libraries.';
+      this.mapsReady = false;
+      this.mapsError = this.mapsLoader.failureMessage || 'Could not load Google Maps libraries.';
       this.cdr.markForCheck();
     }
   }
@@ -515,11 +518,7 @@ export class RouteFormComponent implements OnInit, AfterViewInit, OnDestroy {
     if (!this.originInput || !this.destinationInput) return;
     if (typeof google === 'undefined' || !google.maps?.places?.Autocomplete) return;
 
-    const options: google.maps.places.AutocompleteOptions = {
-      fields: ['formatted_address', 'name', 'geometry'],
-      types: ['geocode'],
-      componentRestrictions: { country: 'pk' }
-    };
+    const options = sheikhGoPlacesAutocompleteOptions();
 
     this.originAutocomplete = new google.maps.places.Autocomplete(
       this.originInput.nativeElement,
@@ -550,11 +549,7 @@ export class RouteFormComponent implements OnInit, AfterViewInit, OnDestroy {
     this.stopListeners = [];
     this.stopAutocompletes = [];
 
-    const options: google.maps.places.AutocompleteOptions = {
-      fields: ['formatted_address', 'name', 'geometry'],
-      types: ['geocode'],
-      componentRestrictions: { country: 'pk' }
-    };
+    const options = sheikhGoPlacesAutocompleteOptions();
 
     this.stopInputs.forEach((ref, index) => {
       const ac = new google.maps.places.Autocomplete(ref.nativeElement, options);
@@ -663,7 +658,7 @@ export class RouteFormComponent implements OnInit, AfterViewInit, OnDestroy {
       waypoints: waypoints.length ? waypoints : undefined,
       optimizeWaypoints: waypoints.length > 1,
       travelMode: google.maps.TravelMode.DRIVING,
-      region: 'PK',
+      region: SHEIKHGO_DIRECTIONS_REGION,
       provideRouteAlternatives: this.optimizeMode === 'fastest' || this.optimizeMode === 'efficient',
       drivingOptions: {
         departureTime: new Date(),

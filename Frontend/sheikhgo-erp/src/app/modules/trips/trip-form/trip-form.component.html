@@ -1,212 +1,553 @@
 <div class="trip-form" *ngIf="!loading">
-  <h2>{{ isEdit ? 'Edit Trip' : 'Create Trip' }}</h2>
+  <div class="form-heading">
+    <div class="form-heading-copy">
+      <h2>
+        <mat-icon class="form-heading-icon" aria-hidden="true">place</mat-icon>
+        {{ currentStepMeta.title }}
+      </h2>
+      <p class="form-subtitle">{{ currentStepMeta.subtitle }}</p>
+    </div>
+  </div>
 
-  <form [formGroup]="form" (ngSubmit)="save()">
-    <mat-card>
-      <mat-card-header><mat-card-title>Basic Information</mat-card-title></mat-card-header>
-      <mat-card-content class="grid">
-        <mat-form-field appearance="outline" class="full">
+  <!-- Teal underline stepper (mock style) -->
+  <nav class="trip-stepper" aria-label="Create trip steps">
+    <ol class="trip-stepper-track">
+      <li
+        *ngFor="let step of tripSteps; let last = last"
+        class="trip-step"
+        [class.trip-step--complete]="isStepComplete(step.id)"
+        [class.trip-step--active]="isStepActive(step.id)"
+        [class.trip-step--upcoming]="!isStepComplete(step.id) && !isStepActive(step.id)">
+        <button type="button" class="trip-step-btn" (click)="goToStep(step.id)">
+          <span class="trip-step-node" aria-hidden="true">
+            <mat-icon *ngIf="isStepComplete(step.id)">check</mat-icon>
+            <span *ngIf="!isStepComplete(step.id)">{{ step.number }}</span>
+          </span>
+          <span class="trip-step-label">{{ step.label }}</span>
+        </button>
+        <span class="trip-step-connector" *ngIf="!last" aria-hidden="true"></span>
+      </li>
+    </ol>
+  </nav>
+
+  <div class="maps-banner maps-banner--error" *ngIf="mapsUnavailable">
+    <mat-icon>warning</mat-icon>
+    <div class="maps-banner-copy">
+      <strong>Address search and routing are temporarily unavailable.</strong>
+      <span>{{ mapsError || 'Google Maps could not be initialized. Check the Maps configuration or try again.' }}</span>
+    </div>
+    <button mat-stroked-button type="button" (click)="retryMaps()">Retry</button>
+  </div>
+
+  <form [formGroup]="form" (ngSubmit)="isLastStep ? save() : nextStep()" class="trip-form-body">
+    <!-- STEP 1: Trip Details -->
+    <section class="form-section" *ngIf="currentStepId === 'basic'">
+      <header class="section-head">
+        <div class="section-head-copy">
+          <h3>Trip Details</h3>
+          <p>Name, customer, route, and passengers.</p>
+        </div>
+        <p class="required-legend"><span aria-hidden="true">*</span> Required</p>
+      </header>
+      <div class="section-body grid">
+        <mat-form-field appearance="outline" class="full" subscriptSizing="dynamic">
           <mat-label>Trip Name</mat-label>
-          <input matInput formControlName="tripName" placeholder="e.g. Morning airport transfer" />
+          <mat-icon matPrefix>description</mat-icon>
+          <input
+            matInput
+            formControlName="tripName"
+            placeholder="Enter trip name (e.g. Dubai City Transfer)" />
+          <mat-error *ngIf="form.get('tripName')?.hasError('required')">Trip name is required</mat-error>
         </mat-form-field>
 
-        <mat-form-field appearance="outline">
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
           <mat-label>Trip Type</mat-label>
+          <mat-icon matPrefix>swap_horiz</mat-icon>
           <mat-select formControlName="tripType">
             <mat-option *ngFor="let t of tripTypes" [value]="t">{{ t }}</mat-option>
           </mat-select>
         </mat-form-field>
 
-        <mat-form-field appearance="outline">
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
           <mat-label>Customer</mat-label>
-          <mat-select formControlName="customerId">
+          <mat-icon matPrefix>groups</mat-icon>
+          <mat-select formControlName="customerId" placeholder="Select customer">
             <mat-option *ngFor="let c of customers" [value]="c.id">{{ c.fullName }}</mat-option>
           </mat-select>
+          <mat-error *ngIf="form.get('customerId')?.hasError('required')">Customer is required</mat-error>
         </mat-form-field>
 
-        <mat-form-field appearance="outline">
+        <mat-form-field appearance="outline" class="full" subscriptSizing="dynamic">
           <mat-label>Route</mat-label>
-          <mat-select formControlName="routeId">
-            <mat-option [value]="null">None</mat-option>
+          <mat-icon matPrefix>alt_route</mat-icon>
+          <mat-select formControlName="routeId" placeholder="Select route">
+            <mat-option [value]="null">Select route (optional)</mat-option>
             <mat-option *ngFor="let r of routes" [value]="r.id">{{ r.name || (r.source + ' → ' + r.destination) }}</mat-option>
           </mat-select>
         </mat-form-field>
 
-        <mat-form-field appearance="outline" class="passengers-field">
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
           <mat-label>Passengers</mat-label>
+          <mat-icon matPrefix>person</mat-icon>
           <input matInput type="number" min="1" formControlName="passengerCount" />
         </mat-form-field>
 
-        <mat-form-field appearance="outline">
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
           <mat-label>Priority</mat-label>
+          <mat-icon matPrefix>flag</mat-icon>
           <mat-select formControlName="priority">
             <mat-option *ngFor="let p of priorities" [value]="p">{{ p }}</mat-option>
           </mat-select>
         </mat-form-field>
-      </mat-card-content>
-    </mat-card>
+      </div>
+    </section>
 
-    <mat-card>
-      <mat-card-header>
-        <mat-card-title>Pickup &amp; Destination</mat-card-title>
-      </mat-card-header>
-      <mat-card-content class="grid">
-        <div class="route-hint full" *ngIf="routePrefillActive">
-          <mat-icon>route</mat-icon>
-          <span>Route selected — addresses pre-filled. Edit an address to clear the route link.</span>
+    <!-- STEP 2: Pickup Location (+ Destination) + Route preview -->
+    <div class="step-layout" *ngIf="currentStepId === 'location'">
+      <div class="step-main">
+        <div class="location-split">
+          <div class="location-card location-card--pickup">
+            <div class="location-card-head">
+              <span class="location-card-icon" aria-hidden="true"><mat-icon>place</mat-icon></span>
+              <div>
+                <h4>Pickup Location</h4>
+                <p>Search and select a place</p>
+              </div>
+              <button mat-stroked-button type="button" class="swap-btn" (click)="swapLocations()" matTooltip="Swap pickup and destination">
+                <mat-icon>swap_horiz</mat-icon>
+                Swap
+              </button>
+            </div>
+
+            <mat-form-field appearance="outline" class="full address-field" subscriptSizing="dynamic">
+              <mat-label>Pickup Address</mat-label>
+              <mat-icon matPrefix>search</mat-icon>
+              <input
+                #pickupInput
+                matInput
+                formControlName="pickupAddress"
+                placeholder="Enter pickup address"
+                autocomplete="off"
+                (input)="onAddressTyped('pickup')" />
+            </mat-form-field>
+            <p class="field-warning" *ngIf="pickupMissingCoords">Select a Google Places suggestion.</p>
+
+            <div class="coord-row">
+              <mat-form-field appearance="outline" class="coord-field computed-field" subscriptSizing="dynamic">
+                <mat-label>Pickup Latitude</mat-label>
+                <mat-icon matPrefix>my_location</mat-icon>
+                <input matInput type="number" formControlName="pickupLatitude" placeholder="e.g. 25.2048" readonly tabindex="-1" />
+              </mat-form-field>
+              <mat-form-field appearance="outline" class="coord-field computed-field" subscriptSizing="dynamic">
+                <mat-label>Pickup Longitude</mat-label>
+                <mat-icon matPrefix>my_location</mat-icon>
+                <input matInput type="number" formControlName="pickupLongitude" placeholder="e.g. 55.2708" readonly tabindex="-1" />
+              </mat-form-field>
+            </div>
+          </div>
+
+          <div class="location-card location-card--destination">
+            <div class="location-card-head">
+              <span class="location-card-icon location-card-icon--dest" aria-hidden="true"><mat-icon>flag</mat-icon></span>
+              <div>
+                <h4>Destination Location</h4>
+                <p>Search and select a place</p>
+              </div>
+            </div>
+
+            <mat-form-field appearance="outline" class="full address-field" subscriptSizing="dynamic">
+              <mat-label>Destination Address</mat-label>
+              <mat-icon matPrefix>search</mat-icon>
+              <input
+                #destinationInput
+                matInput
+                formControlName="destinationAddress"
+                placeholder="Enter destination address"
+                autocomplete="off"
+                (input)="onAddressTyped('destination')" />
+            </mat-form-field>
+            <p class="field-warning" *ngIf="destinationMissingCoords">Select a Google Places suggestion.</p>
+
+            <div class="coord-row">
+              <mat-form-field appearance="outline" class="coord-field computed-field" subscriptSizing="dynamic">
+                <mat-label>Destination Latitude</mat-label>
+                <mat-icon matPrefix>my_location</mat-icon>
+                <input matInput type="number" formControlName="destinationLatitude" placeholder="e.g. 25.2048" readonly tabindex="-1" />
+              </mat-form-field>
+              <mat-form-field appearance="outline" class="coord-field computed-field" subscriptSizing="dynamic">
+                <mat-label>Destination Longitude</mat-label>
+                <mat-icon matPrefix>my_location</mat-icon>
+                <input matInput type="number" formControlName="destinationLongitude" placeholder="e.g. 55.2708" readonly tabindex="-1" />
+              </mat-form-field>
+            </div>
+          </div>
         </div>
 
-        <mat-form-field appearance="outline" class="full address-field">
-          <mat-label>Pickup Address</mat-label>
-          <mat-icon matPrefix>place</mat-icon>
-          <input
-            #pickupInput
-            matInput
-            formControlName="pickupAddress"
-            placeholder="Search address..."
-            autocomplete="off" />
-          <mat-hint *ngIf="mapsConfigured">Start typing to search with Google Places</mat-hint>
-        </mat-form-field>
-
-        <mat-form-field appearance="outline" class="coord-field">
-          <mat-label>Pickup Latitude</mat-label>
-          <input matInput type="number" formControlName="pickupLatitude" readonly tabindex="-1" />
-        </mat-form-field>
-        <mat-form-field appearance="outline" class="coord-field">
-          <mat-label>Pickup Longitude</mat-label>
-          <input matInput type="number" formControlName="pickupLongitude" readonly tabindex="-1" />
-        </mat-form-field>
-
-        <mat-form-field appearance="outline" class="full address-field">
-          <mat-label>Destination Address</mat-label>
-          <mat-icon matPrefix>flag</mat-icon>
-          <input
-            #destinationInput
-            matInput
-            formControlName="destinationAddress"
-            placeholder="Search address..."
-            autocomplete="off" />
-          <mat-hint *ngIf="mapsConfigured">Start typing to search with Google Places</mat-hint>
-        </mat-form-field>
-
-        <mat-form-field appearance="outline" class="coord-field">
-          <mat-label>Destination Latitude</mat-label>
-          <input matInput type="number" formControlName="destinationLatitude" readonly tabindex="-1" />
-        </mat-form-field>
-        <mat-form-field appearance="outline" class="coord-field">
-          <mat-label>Destination Longitude</mat-label>
-          <input matInput type="number" formControlName="destinationLongitude" readonly tabindex="-1" />
-        </mat-form-field>
-
-        <div class="routing-status full" *ngIf="routingBusy">
-          <mat-spinner diameter="18"></mat-spinner>
-          <span>Calculating distance &amp; duration…</span>
+        <div class="route-hint" *ngIf="routePrefillActive && !routeClearedNotice">
+          <mat-icon>check_circle</mat-icon>
+          <div>
+            <strong>Route loaded</strong>
+            <span>{{ form.get('pickupAddress')?.value }} → {{ form.get('destinationAddress')?.value }}</span>
+          </div>
         </div>
-      </mat-card-content>
-    </mat-card>
 
-    <mat-card>
-      <mat-card-header>
-        <mat-card-title>Waypoints</mat-card-title>
-        <button mat-stroked-button type="button" (click)="addStop()">Add Stop</button>
-      </mat-card-header>
-      <mat-card-content formArrayName="stops">
-        <div class="stop-row" *ngFor="let s of stops.controls; let i = index" [formGroupName]="i">
-          <mat-form-field appearance="outline" class="grow">
-            <mat-label>Location</mat-label>
-            <input matInput formControlName="location" />
-          </mat-form-field>
-          <button mat-icon-button type="button" (click)="removeStop(i)" aria-label="Remove stop">
-            <mat-icon>delete</mat-icon>
-          </button>
+        <div class="routing-error" *ngIf="routeClearedNotice || (routingError && !routingBusy)">
+          <mat-icon>warning</mat-icon>
+          <span>{{ routeClearedNotice || routingError }}</span>
+          <button mat-stroked-button type="button" *ngIf="routingError" (click)="retryRouting()">Retry</button>
         </div>
-        <p class="empty-stops" *ngIf="!stops.length">No intermediate stops. Optional.</p>
-      </mat-card-content>
-    </mat-card>
+      </div>
 
-    <mat-card>
-      <mat-card-header><mat-card-title>Schedule</mat-card-title></mat-card-header>
-      <mat-card-content class="grid">
-        <mat-form-field appearance="outline">
+      <aside class="route-preview">
+        <div class="route-preview-card">
+          <header class="route-preview-head">
+            <h3>Route Preview</h3>
+            <span class="route-preview-badge" *ngIf="routingBusy">Calculating…</span>
+          </header>
+          <div class="route-preview-map" *ngIf="mapsConfigured && !mapsUnavailable; else mapUnavailable">
+            <google-map
+              height="100%"
+              width="100%"
+              [center]="mapCenter"
+              [zoom]="mapZoom"
+              [options]="mapOptions">
+              <map-directions-renderer
+                *ngIf="directionsResult"
+                [directions]="directionsResult"
+                [options]="directionsRendererOptions">
+              </map-directions-renderer>
+              <map-marker
+                *ngFor="let m of mapMarkers"
+                [position]="m.position"
+                [title]="m.title"
+                [options]="markerOptions(m.label)">
+              </map-marker>
+            </google-map>
+          </div>
+          <ng-template #mapUnavailable>
+            <div class="route-preview-empty">
+              <mat-icon>map</mat-icon>
+              <p>Map preview unavailable</p>
+            </div>
+          </ng-template>
+
+          <div class="route-metrics">
+            <div class="route-metric">
+              <mat-icon>straighten</mat-icon>
+              <div>
+                <span class="route-metric-label">Distance</span>
+                <strong>{{ loadedRouteDistance != null ? loadedRouteDistance + ' km' : '—' }}</strong>
+              </div>
+            </div>
+            <div class="route-metric">
+              <mat-icon>schedule</mat-icon>
+              <div>
+                <span class="route-metric-label">Estimated Time</span>
+                <strong>{{ loadedRouteDuration != null ? loadedRouteDuration + ' mins' : '—' }}</strong>
+              </div>
+            </div>
+            <div class="route-metric" [attr.data-tone]="trafficTone">
+              <mat-icon>traffic</mat-icon>
+              <div>
+                <span class="route-metric-label">Traffic</span>
+                <strong>{{ trafficLabel }}</strong>
+              </div>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </div>
+
+    <!-- STEP 3: Waypoints -->
+    <section class="form-section" *ngIf="currentStepId === 'waypoints'">
+      <header class="section-head">
+        <div class="section-head-copy">
+          <h3>Waypoints <span class="optional-tag">(optional)</span></h3>
+          <p>Add intermediate stops along the route.</p>
+        </div>
+        <button mat-flat-button color="primary" type="button" class="add-stop-btn" (click)="addStop()">
+          <mat-icon>add</mat-icon>
+          Add Stop
+        </button>
+      </header>
+      <div class="section-body" formArrayName="stops">
+        <div class="waypoints-empty" *ngIf="!stops.length">
+          <div class="waypoints-empty-icon" aria-hidden="true"><mat-icon>alt_route</mat-icon></div>
+          <p class="waypoints-empty-title">No waypoints added yet</p>
+          <p class="waypoints-empty-copy">You can add intermediate stops to this trip.</p>
+        </div>
+        <div class="stop-card" *ngFor="let s of stops.controls; let i = index" [formGroupName]="i">
+          <div class="stop-card-head">
+            <span class="stop-number">Stop {{ i + 1 }}</span>
+            <button mat-icon-button type="button" (click)="removeStop(i)" aria-label="Remove stop">
+              <mat-icon>delete</mat-icon>
+            </button>
+          </div>
+          <div class="stop-card-grid">
+            <mat-form-field appearance="outline" class="full" subscriptSizing="dynamic">
+              <mat-label>Address</mat-label>
+              <input matInput formControlName="location" placeholder="Enter stop address" />
+            </mat-form-field>
+            <mat-form-field appearance="outline" subscriptSizing="dynamic">
+              <mat-label>Latitude</mat-label>
+              <input matInput type="number" formControlName="latitude" placeholder="e.g. 25.2048" />
+            </mat-form-field>
+            <mat-form-field appearance="outline" subscriptSizing="dynamic">
+              <mat-label>Longitude</mat-label>
+              <input matInput type="number" formControlName="longitude" placeholder="e.g. 55.2708" />
+            </mat-form-field>
+            <mat-form-field appearance="outline" class="full" subscriptSizing="dynamic">
+              <mat-label>Arrival time (optional)</mat-label>
+              <mat-icon matPrefix>schedule</mat-icon>
+              <input matInput type="datetime-local" formControlName="eta" />
+            </mat-form-field>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- STEP 4: Schedule -->
+    <section class="form-section" *ngIf="currentStepId === 'schedule'">
+      <header class="section-head">
+        <div class="section-head-copy">
+          <h3>Schedule</h3>
+          <p>Set the timing and duration for this trip.</p>
+        </div>
+      </header>
+      <div class="section-body grid">
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
           <mat-label>Trip Date</mat-label>
-          <input matInput type="date" formControlName="tripDate" />
+          <mat-icon matPrefix>calendar_today</mat-icon>
+          <input matInput type="date" formControlName="tripDate" placeholder="dd/mm/yyyy" />
+          <mat-error *ngIf="form.get('tripDate')?.hasError('required')">Trip date is required</mat-error>
         </mat-form-field>
 
-        <mat-form-field appearance="outline">
+        <mat-form-field appearance="outline" class="time-field" subscriptSizing="dynamic">
           <mat-label>Pickup Time</mat-label>
+          <mat-icon matPrefix>schedule</mat-icon>
           <input matInput type="time" formControlName="pickupTime" />
-          <mat-hint>Uses Trip Date above</mat-hint>
+          <mat-error *ngIf="form.get('pickupTime')?.hasError('required')">Pickup time is required</mat-error>
         </mat-form-field>
 
-        <mat-form-field appearance="outline">
-          <mat-label>Expected Arrival</mat-label>
-          <input
-            matInput
-            type="time"
-            formControlName="arrivalTime"
-            (input)="onArrivalManualEdit()" />
-          <mat-hint>Auto-filled from pickup + duration</mat-hint>
-        </mat-form-field>
+        <div class="field-stack">
+          <mat-form-field appearance="outline" class="time-field computed-field" subscriptSizing="dynamic">
+            <mat-label>Expected Arrival</mat-label>
+            <mat-icon matPrefix>schedule</mat-icon>
+            <input
+              matInput
+              type="time"
+              formControlName="arrivalTime"
+              [readonly]="!allowMetricsOverride"
+              [attr.tabindex]="allowMetricsOverride ? null : -1"
+              (input)="onArrivalManualEdit()" />
+          </mat-form-field>
+          <p class="field-help">Automatically calculated from pickup time + duration</p>
+        </div>
 
-        <mat-form-field appearance="outline">
-          <mat-label>Duration (min)</mat-label>
-          <input
-            matInput
-            type="number"
-            min="1"
-            formControlName="estimatedDurationMinutes"
-            (input)="onMetricsManualEdit()" />
-        </mat-form-field>
+        <div class="field-stack">
+          <mat-form-field appearance="outline" class="computed-field" subscriptSizing="dynamic">
+            <mat-label>Duration (min)</mat-label>
+            <mat-icon matPrefix>timelapse</mat-icon>
+            <input
+              matInput
+              type="number"
+              min="1"
+              formControlName="estimatedDurationMinutes"
+              placeholder="e.g. 120"
+              [readonly]="!allowMetricsOverride"
+              (input)="onMetricsManualEdit()" />
+          </mat-form-field>
+          <p class="field-help">Calculated from pickup and destination</p>
+        </div>
 
-        <mat-form-field appearance="outline">
-          <mat-label>Planned Distance (km)</mat-label>
-          <input
-            matInput
-            type="number"
-            min="0"
-            step="0.1"
-            formControlName="plannedDistanceKm"
-            (input)="onMetricsManualEdit()" />
-        </mat-form-field>
-      </mat-card-content>
-    </mat-card>
+        <div class="full field-stack">
+          <mat-form-field appearance="outline" class="computed-field" subscriptSizing="dynamic">
+            <mat-label>Planned Distance (km)</mat-label>
+            <mat-icon matPrefix>straighten</mat-icon>
+            <input
+              matInput
+              type="number"
+              min="0"
+              step="0.1"
+              formControlName="plannedDistanceKm"
+              placeholder="e.g. 45.5"
+              [readonly]="!allowMetricsOverride"
+              (input)="onMetricsManualEdit()" />
+          </mat-form-field>
+          <p class="field-help">Automatically calculated from pickup and destination</p>
+        </div>
+      </div>
+    </section>
 
-    <mat-card *ngIf="!isEdit">
-      <mat-card-header><mat-card-title>Assignment (optional)</mat-card-title></mat-card-header>
-      <mat-card-content class="grid">
-        <mat-form-field appearance="outline">
+    <!-- STEP 3: Assignment -->
+    <section class="form-section" *ngIf="currentStepId === 'assignment'">
+      <header class="section-head">
+        <div class="section-head-copy">
+          <h3>Assignment <span class="optional-tag">(optional)</span></h3>
+          <p>Assign driver and vehicle for this trip.</p>
+        </div>
+      </header>
+      <div class="section-body grid">
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
           <mat-label>Driver</mat-label>
-          <mat-select formControlName="driverId">
-            <mat-option [value]="null">Unassigned</mat-option>
+          <mat-icon matPrefix>badge</mat-icon>
+          <mat-select formControlName="driverId" placeholder="Select driver">
+            <mat-option [value]="null">Select driver</mat-option>
             <mat-option *ngFor="let d of drivers" [value]="d.id">{{ d.fullName }}</mat-option>
           </mat-select>
         </mat-form-field>
-        <mat-form-field appearance="outline">
+
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
           <mat-label>Assistant Driver</mat-label>
-          <mat-select formControlName="assistantDriverId">
-            <mat-option [value]="null">None</mat-option>
+          <mat-icon matPrefix>person_outline</mat-icon>
+          <mat-select formControlName="assistantDriverId" placeholder="Select assistant driver">
+            <mat-option [value]="null">Select assistant driver</mat-option>
             <mat-option *ngFor="let d of drivers" [value]="d.id">{{ d.fullName }}</mat-option>
           </mat-select>
         </mat-form-field>
-        <mat-form-field appearance="outline">
+
+        <mat-form-field appearance="outline" class="full" subscriptSizing="dynamic">
           <mat-label>Vehicle</mat-label>
-          <mat-select formControlName="vehicleId">
-            <mat-option [value]="null">Unassigned</mat-option>
+          <mat-icon matPrefix>directions_car</mat-icon>
+          <mat-select formControlName="vehicleId" placeholder="Select vehicle">
+            <mat-option [value]="null">Select vehicle</mat-option>
             <mat-option *ngFor="let v of vehicles" [value]="v.id">{{ v.name }}</mat-option>
           </mat-select>
         </mat-form-field>
-        <mat-form-field appearance="outline" class="full notes-field">
+
+        <mat-form-field appearance="outline" class="full notes-field" subscriptSizing="dynamic">
           <mat-label>Driver Notes</mat-label>
-          <textarea matInput rows="3" formControlName="driverNotes" placeholder="Optional notes for the driver"></textarea>
+          <mat-icon matPrefix>notes</mat-icon>
+          <textarea
+            matInput
+            rows="4"
+            maxlength="500"
+            formControlName="driverNotes"
+            placeholder="Add any additional notes for the driver..."></textarea>
+          <mat-hint align="end">{{ notesLength }} / 500</mat-hint>
         </mat-form-field>
-      </mat-card-content>
-    </mat-card>
+      </div>
+    </section>
+
+    <!-- STEP 4: Review -->
+    <section class="form-section" *ngIf="currentStepId === 'review'">
+      <header class="section-head">
+        <div class="section-head-copy">
+          <h3>Review &amp; Confirm</h3>
+          <p>Confirm trip details before {{ isEdit ? 'saving' : 'creating' }}.</p>
+        </div>
+      </header>
+      <div class="section-body">
+        <div class="review-overview">
+          <div class="review-overview-head">
+            <span class="review-overview-icon" aria-hidden="true"><mat-icon>description</mat-icon></span>
+            <div>
+              <h4>Trip Overview</h4>
+              <p>Summary of the details you entered</p>
+            </div>
+          </div>
+          <div class="review-overview-grid">
+            <div class="review-metric">
+              <span class="review-metric-label">Trip Name</span>
+              <strong>{{ form.get('tripName')?.value || '—' }}</strong>
+            </div>
+            <div class="review-metric">
+              <span class="review-metric-label">Date</span>
+              <strong>{{ form.get('tripDate')?.value || '—' }}</strong>
+            </div>
+            <div class="review-metric">
+              <span class="review-metric-label">Pickup Time</span>
+              <strong>{{ form.get('pickupTime')?.value || '—' }}</strong>
+            </div>
+            <div class="review-metric">
+              <span class="review-metric-label">Expected Arrival</span>
+              <strong>{{ form.get('arrivalTime')?.value || '—' }}</strong>
+            </div>
+            <div class="review-metric">
+              <span class="review-metric-label">Distance</span>
+              <strong>{{ form.get('plannedDistanceKm')?.value != null ? form.get('plannedDistanceKm')?.value + ' km' : '—' }}</strong>
+            </div>
+            <div class="review-metric">
+              <span class="review-metric-label">Passengers</span>
+              <strong>{{ form.get('passengerCount')?.value || '—' }}</strong>
+            </div>
+            <div class="review-metric">
+              <span class="review-metric-label">Priority</span>
+              <span class="priority-pill">{{ form.get('priority')?.value || '—' }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="review-grid">
+          <div class="review-card">
+            <h4>Trip Details</h4>
+            <dl>
+              <div><dt>Name</dt><dd>{{ form.get('tripName')?.value || '—' }}</dd></div>
+              <div><dt>Type</dt><dd>{{ form.get('tripType')?.value || '—' }}</dd></div>
+              <div><dt>Customer</dt><dd>{{ customerLabel }}</dd></div>
+            </dl>
+            <button mat-button type="button" color="primary" (click)="goToStep('basic')">Edit</button>
+          </div>
+          <div class="review-card">
+            <h4>Pickup Location</h4>
+            <dl>
+              <div><dt>Pickup</dt><dd>{{ form.get('pickupAddress')?.value || '—' }}</dd></div>
+              <div><dt>Destination</dt><dd>{{ form.get('destinationAddress')?.value || '—' }}</dd></div>
+              <div><dt>Waypoints</dt><dd>{{ stops.length }} stop{{ stops.length === 1 ? '' : 's' }}</dd></div>
+            </dl>
+            <button mat-button type="button" color="primary" (click)="goToStep('location')">Edit</button>
+            <button mat-button type="button" color="primary" (click)="goToStep('waypoints')">Edit waypoints</button>
+          </div>
+          <div class="review-card">
+            <h4>Schedule</h4>
+            <dl>
+              <div><dt>Date</dt><dd>{{ form.get('tripDate')?.value || '—' }}</dd></div>
+              <div><dt>Pickup</dt><dd>{{ form.get('pickupTime')?.value || '—' }}</dd></div>
+              <div><dt>Duration</dt><dd>{{ form.get('estimatedDurationMinutes')?.value != null ? form.get('estimatedDurationMinutes')?.value + ' min' : '—' }}</dd></div>
+            </dl>
+            <button mat-button type="button" color="primary" (click)="goToStep('schedule')">Edit</button>
+          </div>
+          <div class="review-card">
+            <h4>Assignment</h4>
+            <dl>
+              <div><dt>Driver</dt><dd>{{ driverLabel }}</dd></div>
+              <div><dt>Assistant</dt><dd>{{ assistantDriverLabel }}</dd></div>
+              <div><dt>Vehicle</dt><dd>{{ vehicleLabel }}</dd></div>
+            </dl>
+            <button mat-button type="button" color="primary" (click)="goToStep('assignment')">Edit</button>
+          </div>
+        </div>
+      </div>
+    </section>
 
     <div class="actions">
-      <button mat-button type="button" routerLink="/trips/list">Cancel</button>
-      <button mat-flat-button color="primary" type="submit" [disabled]="saving">
-        {{ saving ? 'Saving…' : (isEdit ? 'Save Changes' : 'Create Trip') }}
-      </button>
+      <button mat-stroked-button type="button" class="btn-cancel" routerLink="/trips/list">Cancel</button>
+      <div class="actions-right">
+        <button mat-stroked-button type="button" *ngIf="!isFirstStep" (click)="prevStep()">
+          <mat-icon>arrow_back</mat-icon>
+          Previous
+        </button>
+        <button
+          *ngIf="!isLastStep"
+          mat-flat-button
+          color="primary"
+          type="button"
+          class="btn-submit"
+          (click)="nextStep()">
+          {{ nextStepButtonLabel }}
+          <mat-icon iconPositionEnd>arrow_forward</mat-icon>
+        </button>
+        <button
+          *ngIf="isLastStep"
+          mat-flat-button
+          color="primary"
+          type="submit"
+          class="btn-submit"
+          [disabled]="saving || form.invalid">
+          <mat-icon>check</mat-icon>
+          {{ saving ? 'Saving…' : (isEdit ? 'Save Changes' : 'Save & Create Trip') }}
+        </button>
+      </div>
     </div>
   </form>
 </div>
