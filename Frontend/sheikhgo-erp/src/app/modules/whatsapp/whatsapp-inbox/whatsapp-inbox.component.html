@@ -1,0 +1,238 @@
+<div class="wa-inbox-page stb-page">
+  <ui-page-header
+    title="WhatsApp Inbox"
+    subtitle="Conversations across SheikhGo UAE (Sales/GCC) and Pakistan (Support)"
+    [breadcrumbs]="breadcrumbs">
+    <div class="header-actions">
+      <button mat-stroked-button type="button" (click)="refreshConversations()" [disabled]="loadingList">
+        <mat-icon>refresh</mat-icon>
+        Refresh
+      </button>
+    </div>
+  </ui-page-header>
+
+  <div class="wa-account-tabs" role="tablist" aria-label="WhatsApp accounts">
+    <button type="button" class="wa-tab" [class.active]="selectedAccountId === null" (click)="selectAccount(null)">
+      All
+    </button>
+    <button
+      type="button"
+      class="wa-tab"
+      *ngFor="let a of accounts"
+      [class.active]="selectedAccountId === a.id"
+      (click)="selectAccount(a.id)"
+      [attr.title]="a.e164Phone + ' · ' + a.purpose">
+      <strong>{{ a.code }}</strong>
+      <span>{{ a.displayName }}</span>
+      <small *ngIf="!a.hasAccessToken" class="wa-warn">No token</small>
+    </button>
+  </div>
+
+  <div class="wa-filters" role="group" aria-label="Conversation filters">
+    <button
+      type="button"
+      class="wa-filter"
+      *ngFor="let f of filters"
+      [class.active]="activeFilter === f.id"
+      (click)="setFilter(f.id)">
+      {{ f.label }}
+    </button>
+  </div>
+
+  <div class="wa-shell" [class.mobile-thread]="mobileShowThread">
+    <aside class="wa-list" [class.hidden-mobile]="mobileShowThread">
+      <div class="wa-search">
+        <mat-icon>search</mat-icon>
+        <input
+          type="search"
+          [ngModel]="search"
+          (ngModelChange)="onSearchInput($event)"
+          placeholder="Search name, phone, company, lead"
+          aria-label="Search conversations" />
+      </div>
+
+      <div class="wa-list__body" *ngIf="!loadingList; else listLoading">
+        <button
+          type="button"
+          class="wa-conv"
+          *ngFor="let c of conversations"
+          [class.active]="selected?.id === c.id"
+          [class.unread]="c.unreadCount > 0"
+          (click)="openConversation(c)">
+          <div class="wa-conv__top">
+            <strong>{{ c.contactName || c.contactPhone }}</strong>
+            <span class="wa-time">{{ relativeTime(c.lastMessageAt) }}</span>
+          </div>
+          <div class="wa-conv__phone">{{ c.contactPhone }}</div>
+          <div class="wa-conv__preview">{{ c.lastMessagePreview || '—' }}</div>
+          <div class="wa-conv__chips">
+            <span class="chip account" [attr.data-code]="c.accountCode">{{ c.accountCode }}</span>
+            <span class="chip unread" *ngIf="c.unreadCount > 0">{{ c.unreadCount }}</span>
+            <span class="chip assignee">{{ c.assignedUserName || 'Unassigned' }}</span>
+            <span class="chip bot" *ngIf="c.isBotEnabled">Bot</span>
+            <span class="chip human" *ngIf="!c.isBotEnabled">Human</span>
+            <span class="chip status">{{ c.status }}</span>
+          </div>
+        </button>
+        <div class="wa-empty" *ngIf="!conversations.length">
+          <mat-icon>chat_bubble_outline</mat-icon>
+          <p>No conversations match this filter.</p>
+        </div>
+      </div>
+      <ng-template #listLoading>
+        <div class="wa-loading"><mat-spinner diameter="28"></mat-spinner></div>
+      </ng-template>
+    </aside>
+
+    <section class="wa-thread" [class.hidden-mobile]="!mobileShowThread" *ngIf="selected as conv; else pickHint">
+      <header class="wa-thread__head">
+        <button type="button" mat-icon-button class="wa-back" (click)="backToList()" aria-label="Back to list">
+          <mat-icon>arrow_back</mat-icon>
+        </button>
+        <div class="wa-thread__identity">
+          <h2>{{ conv.contactName || conv.contactPhone }}</h2>
+          <p>
+            {{ conv.contactPhone }}
+            · {{ countryLabel(conv) }}
+            · {{ conv.accountCode }}
+            <ng-container *ngIf="conv.leadStatus"> · Lead: {{ conv.leadStatus }}</ng-container>
+            <ng-container *ngIf="conv.customerCompany"> · {{ conv.customerCompany }}</ng-container>
+          </p>
+          <div class="wa-thread__badges">
+            <span class="wa-badge" [class.bot]="!!conv.isBotEnabled" [class.agent]="!conv.isBotEnabled">
+              {{ conv.isBotEnabled ? 'BOT ACTIVE' : 'AGENT HANDLING' }}
+            </span>
+            <span
+              class="wa-badge window"
+              [class.open]="conv.isWithinMessagingWindow"
+              [class.closed]="!conv.isWithinMessagingWindow">
+              {{
+                conv.isWithinMessagingWindow
+                  ? 'Window open'
+                  : 'Window closed — template required'
+              }}
+            </span>
+          </div>
+        </div>
+        <div class="wa-thread__actions" *ngIf="canReply">
+          <mat-form-field appearance="outline" class="wa-assign" subscriptSizing="dynamic">
+            <mat-label>Assigned agent</mat-label>
+            <mat-select
+              [value]="conv.assignedUserId ?? null"
+              (selectionChange)="assignTo($event.value)">
+              <mat-option [value]="null">Unassigned</mat-option>
+              <mat-option *ngFor="let u of agents" [value]="u.id">{{ u.fullName }}</mat-option>
+            </mat-select>
+          </mat-form-field>
+          <mat-form-field appearance="outline" class="wa-status" subscriptSizing="dynamic">
+            <mat-label>Status</mat-label>
+            <mat-select [value]="conv.status" (selectionChange)="changeStatus($event.value)">
+              <mat-option value="Open">Open</mat-option>
+              <mat-option value="Pending">Pending</mat-option>
+              <mat-option value="Resolved">Resolved</mat-option>
+            </mat-select>
+          </mat-form-field>
+          <button mat-stroked-button type="button" (click)="toggleBot()">
+            <mat-icon>{{ conv.isBotEnabled ? 'smart_toy' : 'support_agent' }}</mat-icon>
+            {{ conv.isBotEnabled ? 'Bot' : 'Human' }}
+          </button>
+          <button mat-stroked-button type="button" (click)="markReadExplicit()" [disabled]="!conv.unreadCount">
+            <mat-icon>done_all</mat-icon>
+            Mark read
+          </button>
+        </div>
+        <div class="wa-thread__crm" *ngIf="canManage">
+          <button mat-stroked-button type="button" (click)="autoLink()" *ngIf="!(contact?.customerId || conv.customerId)">
+            Auto-link customer
+          </button>
+          <button mat-stroked-button type="button" (click)="openCustomer()" *ngIf="contact?.customerId || conv.customerId">
+            Open customer
+          </button>
+        </div>
+      </header>
+
+      <div class="wa-messages" *ngIf="!loadingThread; else threadLoading">
+        <button
+          type="button"
+          class="wa-load-older"
+          *ngIf="hasOlderMessages"
+          (click)="loadOlder()"
+          [disabled]="loadingOlder">
+          {{ loadingOlder ? 'Loading…' : 'Load older messages' }}
+        </button>
+        <div
+          class="wa-bubble"
+          *ngFor="let m of messages"
+          [class.out]="m.direction === 'Outbound'"
+          [class.in]="m.direction !== 'Outbound'">
+          <div class="wa-bubble__body">{{ m.body || ('[' + m.type + ']') }}</div>
+          <div class="wa-bubble__meta">
+            <span>{{ m.createdAtUtc | date: 'short' }}</span>
+            <mat-icon *ngIf="m.direction === 'Outbound'" class="tick" [class.read]="(m.status || '').toLowerCase() === 'read'"
+                      [class.failed]="(m.status || '').toLowerCase() === 'failed'">
+              {{ statusTick(m.status) }}
+            </mat-icon>
+          </div>
+        </div>
+        <div class="wa-empty soft" *ngIf="!messages.length">
+          <p>No messages in this conversation yet.</p>
+        </div>
+      </div>
+      <ng-template #threadLoading>
+        <div class="wa-loading"><mat-spinner diameter="28"></mat-spinner></div>
+      </ng-template>
+
+      <footer class="wa-composer" *ngIf="canReply">
+        <div class="wa-composer__main">
+          <textarea
+            [(ngModel)]="draft"
+            rows="2"
+            maxlength="4096"
+            [placeholder]="conv.isWithinMessagingWindow ? 'Type message…' : 'Window closed — use an approved template'"
+            [disabled]="!conv.isWithinMessagingWindow"
+            aria-label="Message"
+            (keydown)="onComposerKeydown($event)"></textarea>
+          <button
+            mat-flat-button
+            color="primary"
+            type="button"
+            (click)="send()"
+            [disabled]="sending || !draft.trim() || !conv.isWithinMessagingWindow">
+            <mat-icon>send</mat-icon>
+            Send
+          </button>
+        </div>
+        <div class="wa-composer__template" *ngIf="canReply">
+          <mat-form-field appearance="outline" class="wa-template-pick" subscriptSizing="dynamic">
+            <mat-label>Approved template</mat-label>
+            <mat-select [(ngModel)]="selectedTemplateKey" [disabled]="sending || !approvedTemplates.length">
+              <mat-option value="">{{ approvedTemplates.length ? 'Select template…' : 'No approved templates' }}</mat-option>
+              <mat-option *ngFor="let t of approvedTemplates" [value]="templateKey(t)">
+                {{ t.name }} ({{ t.language }})
+              </mat-option>
+            </mat-select>
+          </mat-form-field>
+          <button
+            mat-stroked-button
+            type="button"
+            (click)="sendTemplate()"
+            [disabled]="sending || !selectedTemplateKey">
+            <mat-icon>description</mat-icon>
+            Send template
+          </button>
+        </div>
+      </footer>
+      <footer class="wa-composer muted" *ngIf="!canReply">
+        <p>WhatsApp.Reply permission is required to send messages.</p>
+      </footer>
+    </section>
+
+    <ng-template #pickHint>
+      <section class="wa-thread wa-pick">
+        <mat-icon>forum</mat-icon>
+        <h3>Select a conversation</h3>
+        <p>Choose a chat from the list to view history and reply.</p>
+      </section>
+    </ng-template>
+  </div>
+</div>

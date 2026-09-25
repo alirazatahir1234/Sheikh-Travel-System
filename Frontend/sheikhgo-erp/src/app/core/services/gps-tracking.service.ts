@@ -121,6 +121,12 @@ interface NearbyPlaceApiRow {
   OpeningStatus?: string | null;
   googleMapsUri?: string | null;
   GoogleMapsUri?: string | null;
+  photoResourceName?: string | null;
+  PhotoResourceName?: string | null;
+  photoUrl?: string | null;
+  PhotoUrl?: string | null;
+  photoAttributions?: string[] | null;
+  PhotoAttributions?: string[] | null;
 }
 
 function extractNearbyPlacesError(err: unknown): string {
@@ -158,7 +164,10 @@ function mapNearbyPlace(row: NearbyPlaceApiRow): NearbyPlace | null {
     category: row.category ?? row.Category ?? 'fuel',
     openNow: row.openNow ?? row.OpenNow ?? null,
     openingStatus: row.openingStatus ?? row.OpeningStatus ?? null,
-    googleMapsUri: row.googleMapsUri ?? row.GoogleMapsUri ?? null
+    googleMapsUri: row.googleMapsUri ?? row.GoogleMapsUri ?? null,
+    photoResourceName: row.photoResourceName ?? row.PhotoResourceName ?? null,
+    photoUrl: row.photoUrl ?? row.PhotoUrl ?? null,
+    photoAttributions: row.photoAttributions ?? row.PhotoAttributions ?? null
   };
 }
 
@@ -610,6 +619,31 @@ export class GpsTrackingService {
           const message = extractNearbyPlacesError(err);
           return throwError(() => new Error(message));
         })
+      );
+  }
+
+  /** Resolves Places photo resource → browser image URL (backend Place Photos media). */
+  getNearbyPlacePhoto(
+    photoResourceName: string,
+    maxWidthPx = 800
+  ): Observable<{ photoUrl: string | null; attributions: string[] }> {
+    const params: Record<string, string> = {
+      name: photoResourceName,
+      maxWidthPx: String(maxWidthPx)
+    };
+    return this.http
+      .get<{
+        photoUrl?: string | null;
+        PhotoUrl?: string | null;
+        attributions?: string[] | null;
+        Attributions?: string[] | null;
+      }>(`${this.base}/maps/place-photo`, { params })
+      .pipe(
+        map(res => ({
+          photoUrl: res?.photoUrl ?? res?.PhotoUrl ?? null,
+          attributions: res?.attributions ?? res?.Attributions ?? []
+        })),
+        catchError(() => of({ photoUrl: null, attributions: [] as string[] }))
       );
   }
 

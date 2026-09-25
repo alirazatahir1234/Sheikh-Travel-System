@@ -93,6 +93,12 @@ export interface WebsiteContactRequest {
   message: string;
   status: string;
   createdAt: string;
+  source?: string | null;
+  fleetType?: string | null;
+  mainChallenge?: string | null;
+  currentSystem?: string | null;
+  whatsAppConversationId?: number | null;
+  whatsAppAccountId?: number | null;
 }
 
 export interface WebsiteDemoRequest {

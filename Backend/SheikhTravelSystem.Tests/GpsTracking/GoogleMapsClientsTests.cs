@@ -119,7 +119,15 @@ public class GoogleMapsClientsTests
                   "currentOpeningHours": {
                     "openNow": true,
                     "weekdayDescriptions": ["Monday: 8:00 AM – 11:00 PM"]
-                  }
+                  },
+                  "photos": [
+                    {
+                      "name": "places/abc/photos/photo-1",
+                      "authorAttributions": [
+                        { "displayName": "Test Photographer", "uri": "https://maps.google.com" }
+                      ]
+                    }
+                  ]
                 }
               ]
             }
@@ -136,11 +144,7 @@ public class GoogleMapsClientsTests
         });
 
         var factory = CreateFactory(("GooglePlaces", handler));
-        var service = new GooglePlacesNearbyService(
-            factory,
-            MapsOptions(string.Concat("test", "-", "key")),
-            new MemoryCache(new MemoryCacheOptions()),
-            NullLogger<GooglePlacesNearbyService>.Instance);
+        var service = CreateNearbyService(factory);
 
         var result = await service.SearchNearbyAsync(32.215, 74.228, "fuel", 1500, 8);
 
@@ -151,11 +155,17 @@ public class GoogleMapsClientsTests
         result.Places[0].DistanceMeters.Should().NotBeNull();
         result.Places[0].OpenNow.Should().BeTrue();
         result.Places[0].OpeningStatus.Should().Contain("Open");
+        result.Places[0].PhotoResourceName.Should().Be("places/abc/photos/photo-1");
+        result.Places[0].PhotoAttributions.Should().ContainSingle("Test Photographer");
+        // Null photo stub — URL enrich skipped; resource name still present for FE fallback.
+        result.Places[0].PhotoUrl.Should().BeNull();
         captured!.Method.Should().Be(HttpMethod.Post);
         captured.RequestUri!.ToString().Should().Contain("places:searchNearby");
         captured.Headers.Contains("X-Goog-FieldMask").Should().BeTrue();
         var mask = captured.Headers.GetValues("X-Goog-FieldMask").Single();
         mask.Should().Contain("currentOpeningHours");
+        mask.Should().Contain("places.photos");
+        SerializePlaces(result.Places).Should().NotContain(string.Concat("test", "-", "key"));
     }
 
     [Fact]
@@ -172,11 +182,7 @@ public class GoogleMapsClientsTests
         });
 
         var factory = CreateFactory(("GooglePlaces", handler));
-        var service = new GooglePlacesNearbyService(
-            factory,
-            MapsOptions(string.Concat("test", "-", "key")),
-            new MemoryCache(new MemoryCacheOptions()),
-            NullLogger<GooglePlacesNearbyService>.Instance);
+        var service = CreateNearbyService(factory);
 
         var result = await service.SearchNearbyAsync(32.215, 74.228, "more", 1500, 5);
         result.Places.Should().NotBeNull();
@@ -200,11 +206,7 @@ public class GoogleMapsClientsTests
             });
 
         var factory = CreateFactory(("GooglePlaces", handler));
-        var service = new GooglePlacesNearbyService(
-            factory,
-            MapsOptions(string.Concat("test", "-", "key")),
-            new MemoryCache(new MemoryCacheOptions()),
-            NullLogger<GooglePlacesNearbyService>.Instance);
+        var service = CreateNearbyService(factory);
 
         var result = await service.SearchNearbyAsync(32.215, 74.228, "fuel", 1500, 8);
         result.Places.Should().BeNull();
@@ -229,11 +231,7 @@ public class GoogleMapsClientsTests
         });
 
         var factory = CreateFactory(("GooglePlaces", handler));
-        var service = new GooglePlacesNearbyService(
-            factory,
-            MapsOptions(string.Concat("test", "-", "key")),
-            new MemoryCache(new MemoryCacheOptions()),
-            NullLogger<GooglePlacesNearbyService>.Instance);
+        var service = CreateNearbyService(factory);
 
         var result = await service.SearchNearbyAsync(32.21527, 74.22597, "hospital", 5000, 20);
 
@@ -248,6 +246,7 @@ public class GoogleMapsClientsTests
         var mask = captured.Headers.GetValues("X-Goog-FieldMask").Single();
         mask.Should().Contain("places.googleMapsUri");
         mask.Should().Contain("places.displayName");
+        mask.Should().Contain("places.photos");
 
         requestBody.Should().NotBeNullOrEmpty();
         requestBody.Should().Contain("\"includedTypes\"");
@@ -272,11 +271,9 @@ public class GoogleMapsClientsTests
         });
 
         var factory = CreateFactory(("GooglePlaces", handler));
-        var service = new GooglePlacesNearbyService(
+        var service = CreateNearbyService(
             factory,
-            MapsOptions(string.Concat("test", "-", "key"), serverHttpReferer: "http://127.0.0.1:5082/"),
-            new MemoryCache(new MemoryCacheOptions()),
-            NullLogger<GooglePlacesNearbyService>.Instance);
+            MapsOptions(string.Concat("test", "-", "key"), serverHttpReferer: "http://127.0.0.1:5082/"));
 
         await service.SearchNearbyAsync(32.21527, 74.22597, "hospital", 1500, 5);
 
@@ -290,17 +287,250 @@ public class GoogleMapsClientsTests
         var factory = CreateFactory(("GooglePlaces", new StubHttpMessageHandler(_ =>
             new HttpResponseMessage(HttpStatusCode.OK))));
 
-        var service = new GooglePlacesNearbyService(
-            factory,
-            MapsOptions(string.Empty),
-            new MemoryCache(new MemoryCacheOptions()),
-            NullLogger<GooglePlacesNearbyService>.Instance);
+        var service = CreateNearbyService(factory, MapsOptions(string.Empty));
 
         var result = await service.SearchNearbyAsync(32.21527, 74.22597, "hospital", 5000, 10);
         result.Places.Should().BeNull();
         result.ErrorCode.Should().Be(NearbyPlacesErrorCodes.Configuration);
         result.ErrorMessage.Should().Contain("GoogleMaps");
         result.ErrorMessage.Should().Contain("user secrets");
+    }
+
+    [Fact]
+    public async Task GooglePlacesNearbyService_MissingPhotos_LeavesPhotoFieldsNull()
+    {
+        const string json = """
+            {
+              "places": [
+                {
+                  "id": "places/no-photo",
+                  "displayName": { "text": "No Photo Place" },
+                  "location": { "latitude": 32.216, "longitude": 74.229 },
+                  "types": ["hospital"]
+                }
+              ]
+            }
+            """;
+
+        var handler = new StubHttpMessageHandler(_ =>
+            new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(json, System.Text.Encoding.UTF8, "application/json")
+            });
+
+        var service = CreateNearbyService(CreateFactory(("GooglePlaces", handler)));
+
+        var result = await service.SearchNearbyAsync(32.215, 74.228, "hospital", 1500, 5);
+        result.Places.Should().ContainSingle();
+        result.Places![0].PhotoResourceName.Should().BeNull();
+        result.Places[0].PhotoUrl.Should().BeNull();
+        result.Places[0].Name.Should().Be("No Photo Place");
+        result.ErrorCode.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task GooglePlacesNearbyService_ResolvesPhotoUrlDuringSearch()
+    {
+        const string nearbyJson = """
+            {
+              "places": [
+                {
+                  "id": "places/abc",
+                  "displayName": { "text": "Shell Station" },
+                  "formattedAddress": "GT Road",
+                  "location": { "latitude": 32.216, "longitude": 74.229 },
+                  "types": ["gas_station"],
+                  "googleMapsUri": "https://maps.google.com/?cid=1",
+                  "photos": [{ "name": "places/abc/photos/photo-1" }]
+                }
+              ]
+            }
+            """;
+
+        var handler = new StubHttpMessageHandler(req =>
+        {
+            var path = req.RequestUri?.AbsolutePath ?? "";
+            if (path.Contains("searchNearby", StringComparison.Ordinal))
+            {
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent(nearbyJson, System.Text.Encoding.UTF8, "application/json")
+                };
+            }
+
+            if (path.Contains("/media", StringComparison.Ordinal))
+            {
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent(
+                        """{"name":"places/abc/photos/photo-1/media","photoUri":"https://lh3.googleusercontent.com/places/abc"}""",
+                        System.Text.Encoding.UTF8,
+                        "application/json")
+                };
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        });
+
+        var factory = CreateFactory(("GooglePlaces", handler));
+        var cache = new MemoryCache(new MemoryCacheOptions());
+        var opts = MapsOptions(string.Concat("test", "-", "key"));
+        var photo = new GooglePlacesPhotoService(
+            factory, opts, cache, NullLogger<GooglePlacesPhotoService>.Instance);
+        var service = new GooglePlacesNearbyService(
+            factory, opts, cache, photo, NullLogger<GooglePlacesNearbyService>.Instance);
+
+        var result = await service.SearchNearbyAsync(32.215, 74.228, "fuel", 1500, 8);
+
+        result.ErrorCode.Should().BeNull();
+        result.Places.Should().ContainSingle();
+        result.Places![0].PhotoResourceName.Should().Be("places/abc/photos/photo-1");
+        result.Places[0].PhotoUrl.Should().Be("https://lh3.googleusercontent.com/places/abc");
+        result.Places[0].GoogleMapsUri.Should().Be("https://maps.google.com/?cid=1");
+        SerializePlaces(result.Places).Should().NotContain(string.Concat("test", "-", "key"));
+        // Avoid literal Google key prefix in source (ADR-009 / secret scanners).
+        var googleKeyPrefix = string.Concat("AI", "za");
+        SerializePlaces(result.Places).Should().NotContain(googleKeyPrefix);
+    }
+
+    [Fact]
+    public async Task GooglePlacesNearbyService_MediaFailure_LeavesPhotoUrlNull_PlaceStillOk()
+    {
+        const string nearbyJson = """
+            {
+              "places": [
+                {
+                  "id": "places/abc",
+                  "displayName": { "text": "Shell Station" },
+                  "location": { "latitude": 32.216, "longitude": 74.229 },
+                  "types": ["gas_station"],
+                  "photos": [{ "name": "places/abc/photos/photo-1" }]
+                }
+              ]
+            }
+            """;
+
+        var handler = new StubHttpMessageHandler(req =>
+        {
+            var path = req.RequestUri?.AbsolutePath ?? "";
+            if (path.Contains("searchNearby", StringComparison.Ordinal))
+            {
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent(nearbyJson, System.Text.Encoding.UTF8, "application/json")
+                };
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.Forbidden)
+            {
+                Content = new StringContent("""{"error":{"message":"denied"}}""", System.Text.Encoding.UTF8, "application/json")
+            };
+        });
+
+        var factory = CreateFactory(("GooglePlaces", handler));
+        var cache = new MemoryCache(new MemoryCacheOptions());
+        var opts = MapsOptions(string.Concat("test", "-", "key"));
+        var photo = new GooglePlacesPhotoService(
+            factory, opts, cache, NullLogger<GooglePlacesPhotoService>.Instance);
+        var service = new GooglePlacesNearbyService(
+            factory, opts, cache, photo, NullLogger<GooglePlacesNearbyService>.Instance);
+
+        var result = await service.SearchNearbyAsync(32.215, 74.228, "fuel", 1500, 8);
+
+        result.ErrorCode.Should().BeNull();
+        result.Places.Should().ContainSingle();
+        result.Places![0].Name.Should().Be("Shell Station");
+        result.Places[0].PhotoResourceName.Should().Be("places/abc/photos/photo-1");
+        result.Places[0].PhotoUrl.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task GooglePlacesPhotoService_ResolvesMediaUri()
+    {
+        HttpRequestMessage? captured = null;
+        var handler = new StubHttpMessageHandler(req =>
+        {
+            captured = req;
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(
+                    """{"name":"places/test/photos/test-photo/media","photoUri":"https://lh3.googleusercontent.com/places/test"}""",
+                    System.Text.Encoding.UTF8,
+                    "application/json")
+            };
+        });
+
+        var service = CreatePhotoService(CreateFactory(("GooglePlaces", handler)));
+
+        var result = await service.ResolveMediaAsync("places/test/photos/test-photo", 800);
+
+        result.Should().NotBeNull();
+        result!.PhotoUrl.Should().Be("https://lh3.googleusercontent.com/places/test");
+        captured!.Method.Should().Be(HttpMethod.Get);
+        captured.RequestUri!.ToString().Should().Contain("v1/places/test/photos/test-photo/media");
+        captured.RequestUri.ToString().Should().Contain("maxWidthPx=800");
+        captured.RequestUri.ToString().Should().Contain("skipHttpRedirect=true");
+        captured.Headers.Contains("X-Goog-Api-Key").Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task GooglePlacesPhotoService_RejectsInvalidResourceName()
+    {
+        var service = CreatePhotoService(CreateFactory(("GooglePlaces", new StubHttpMessageHandler(_ =>
+            new HttpResponseMessage(HttpStatusCode.OK)))));
+
+        (await service.ResolveMediaAsync("https://evil.example/photo")).Should().BeNull();
+        (await service.ResolveMediaAsync("../escape")).Should().BeNull();
+        (await service.ResolveMediaAsync("places/only")).Should().BeNull();
+    }
+
+    [Fact]
+    public async Task GooglePlacesPhotoService_MissingKey_ReturnsNull()
+    {
+        var service = CreatePhotoService(
+            CreateFactory(("GooglePlaces", new StubHttpMessageHandler(_ =>
+                new HttpResponseMessage(HttpStatusCode.OK)))),
+            MapsOptions(string.Empty));
+
+        var result = await service.ResolveMediaAsync("places/test/photos/test-photo");
+        result.Should().BeNull();
+    }
+
+    private static GooglePlacesNearbyService CreateNearbyService(
+        IHttpClientFactory factory,
+        IOptions<GoogleMapsOptions>? options = null,
+        IGooglePlacesPhotoService? photoService = null)
+    {
+        var opts = options ?? MapsOptions(string.Concat("test", "-", "key"));
+        return new GooglePlacesNearbyService(
+            factory,
+            opts,
+            new MemoryCache(new MemoryCacheOptions()),
+            photoService ?? new NullPlacesPhotoService(),
+            NullLogger<GooglePlacesNearbyService>.Instance);
+    }
+
+    private static GooglePlacesPhotoService CreatePhotoService(
+        IHttpClientFactory factory,
+        IOptions<GoogleMapsOptions>? options = null)
+    {
+        return new GooglePlacesPhotoService(
+            factory,
+            options ?? MapsOptions(string.Concat("test", "-", "key")),
+            new MemoryCache(new MemoryCacheOptions()),
+            NullLogger<GooglePlacesPhotoService>.Instance);
+    }
+
+    private static string SerializePlaces(IReadOnlyList<NearbyPlaceDto> places)
+        => System.Text.Json.JsonSerializer.Serialize(places);
+
+    private sealed class NullPlacesPhotoService : IGooglePlacesPhotoService
+    {
+        public Task<NearbyPlacePhotoDto?> ResolveMediaAsync(
+            string photoResourceName,
+            int maxWidthPx = 800,
+            CancellationToken cancellationToken = default)
+            => Task.FromResult<NearbyPlacePhotoDto?>(null);
     }
 
     private static IHttpClientFactory CreateFactory(params (string Name, HttpMessageHandler Handler)[] clients)

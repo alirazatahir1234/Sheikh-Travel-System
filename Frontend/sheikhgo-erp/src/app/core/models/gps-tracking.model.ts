@@ -686,6 +686,12 @@ export interface NearbyPlace {
   openingStatus?: string | null;
   /** Official Google Maps URI when Places returns googleMapsUri. */
   googleMapsUri?: string | null;
+  /** Places photo resource name (places/.../photos/...) — not a browser image URL. */
+  photoResourceName?: string | null;
+  /** Resolved Place Photos media URL for the detail card. */
+  photoUrl?: string | null;
+  /** Author attribution display names for the photo. */
+  photoAttributions?: string[] | null;
 }
 
 export interface IngestPositionPayload {

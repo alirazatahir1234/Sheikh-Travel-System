@@ -3,7 +3,9 @@ import {
   Component,
   EventEmitter,
   Input,
-  Output
+  OnChanges,
+  Output,
+  SimpleChanges
 } from '@angular/core';
 import { NearbyPlace } from '../../../../core/models/gps-tracking.model';
 
@@ -27,8 +29,9 @@ export const NEARBY_MORE_EXTRAS: { id: string; label: string; icon: string }[] =
   styleUrls: ['./nearby-places-panel.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class NearbyPlacesPanelComponent {
+export class NearbyPlacesPanelComponent implements OnChanges {
   readonly moreExtras = NEARBY_MORE_EXTRAS;
+  private readonly brokenPhotoIds = new Set<string>();
 
   @Input() vehicleLabel = 'Map center';
   @Input() categories: NearbyCategoryOption[] = [];
@@ -53,6 +56,13 @@ export class NearbyPlacesPanelComponent {
   @Output() radiusChange = new EventEmitter<number>();
   @Output() placeSelect = new EventEmitter<NearbyPlace>();
   @Output() retry = new EventEmitter<void>();
+  @Output() photoError = new EventEmitter<NearbyPlace>();
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['places']) {
+      this.brokenPhotoIds.clear();
+    }
+  }
 
   /** Categories shown as primary chips (everything except `more`). */
   get primaryCategories(): NearbyCategoryOption[] {
@@ -107,5 +117,14 @@ export class NearbyPlacesPanelComponent {
 
   onSelectPlace(place: NearbyPlace): void {
     this.placeSelect.emit(place);
+  }
+
+  isPhotoBroken(placeId: string): boolean {
+    return this.brokenPhotoIds.has(placeId);
+  }
+
+  onPhotoError(place: NearbyPlace): void {
+    this.brokenPhotoIds.add(place.placeId);
+    this.photoError.emit(place);
   }
 }

@@ -1,0 +1,8 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# Cursor agent / debug session logs (never commit)
+.cursor/*.log
+.cursor/debug-*.log
+.cursor/debug-*.ndjson

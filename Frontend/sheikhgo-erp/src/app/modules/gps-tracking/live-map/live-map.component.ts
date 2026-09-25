@@ -327,6 +327,9 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
   private nearbyMarkers: google.maps.marker.AdvancedMarkerElement[] = [];
   private nearbyMarkerListeners: google.maps.MapsEventListener[] = [];
   private nearbyMarkerByPlaceId = new Map<string, google.maps.marker.AdvancedMarkerElement>();
+  /** Cached resolved photo URLs keyed by placeId. */
+  private nearbyPhotoCache = new Map<string, { photoUrl: string; attributions: string[] }>();
+  private nearbyPhotoFetchSub?: { unsubscribe(): void };
 
   fleetStatusLocal: GpsFleetStatusLocal | null = null;
   fleetStatusHistory: GpsFleetStatusSnapshot[] = [];
@@ -2529,6 +2532,9 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
           this.nearbyLoading = false;
           this.nearbyPlaces = places;
           this.nearbyApiError = null;
+          // #region agent log
+          fetch('http://127.0.0.1:7524/ingest/2f999389-8451-4302-a21a-76d2f67d63e2',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'db1a59'},body:JSON.stringify({sessionId:'db1a59',runId:'photo-diag-1',hypothesisId:'H-D',location:'live-map.component.ts:runNearbySearch',message:'Nearby places received',data:{count:places.length,withPhotoUrl:places.filter(p=>!!p.photoUrl?.trim()).length,withResource:places.filter(p=>!!p.photoResourceName?.trim()).length,sample:places.slice(0,5).map(p=>({name:p.name,placeId:p.placeId,hasPhotoUrl:!!p.photoUrl?.trim(),photoUrlHost:(()=>{try{return p.photoUrl?new URL(p.photoUrl).host:null;}catch{return 'invalid';}})(),hasResource:!!p.photoResourceName?.trim(),resourcePrefix:p.photoResourceName?.slice(0,40)??null}))},timestamp:Date.now()})}).catch(()=>{});
+          // #endregion
           if (!places.length) {
             const cat =
               this.nearbyCategories.find(c => c.id === this.nearbyCategory)?.label
@@ -2566,9 +2572,87 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
     this.selectedNearbyPlace = place;
     this.applyNearbyMarkerHighlight(place.placeId);
     this.cdr.markForCheck();
+    // #region agent log
+    fetch('http://127.0.0.1:7524/ingest/2f999389-8451-4302-a21a-76d2f67d63e2',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'db1a59'},body:JSON.stringify({sessionId:'db1a59',runId:'photo-diag-1',hypothesisId:'H-D',location:'live-map.component.ts:focusNearbyPlace',message:'Place selected',data:{name:place.name,placeId:place.placeId,hasPhotoUrl:!!place.photoUrl?.trim(),photoUrlHost:(()=>{try{return place.photoUrl?new URL(place.photoUrl).host:null;}catch{return 'invalid';}})(),hasResource:!!place.photoResourceName?.trim()},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
     if (!this.map) return;
     this.map.panTo({ lat: place.latitude, lng: place.longitude });
     if ((this.map.getZoom() ?? 0) < 15) this.map.setZoom(15);
+    this.ensureNearbyPlacePhoto(place);
+  }
+
+  /** Clears a broken detail image and keeps the category icon fallback. */
+  onNearbyPlacePhotoError(place: NearbyPlace): void {
+    // #region agent log
+    fetch('http://127.0.0.1:7524/ingest/2f999389-8451-4302-a21a-76d2f67d63e2',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'db1a59'},body:JSON.stringify({sessionId:'db1a59',runId:'photo-diag-1',hypothesisId:'H-E',location:'live-map.component.ts:onNearbyPlacePhotoError',message:'img error event',data:{name:place.name,placeId:place.placeId,photoUrlHost:(()=>{try{return place.photoUrl?new URL(place.photoUrl).host:null;}catch{return 'invalid';}})()},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
+    const cleared = { ...place, photoUrl: null };
+    this.patchNearbyPlacePhoto(cleared);
+    this.nearbyPhotoCache.delete(place.placeId);
+    this.cdr.markForCheck();
+  }
+
+  private ensureNearbyPlacePhoto(place: NearbyPlace): void {
+    if (place.photoUrl?.trim()) {
+      // #region agent log
+      fetch('http://127.0.0.1:7524/ingest/2f999389-8451-4302-a21a-76d2f67d63e2',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'db1a59'},body:JSON.stringify({sessionId:'db1a59',runId:'photo-diag-1',hypothesisId:'H-E',location:'live-map.component.ts:ensureNearbyPlacePhoto',message:'Skip lazy fetch — photoUrl present',data:{name:place.name,photoUrlHost:(()=>{try{return place.photoUrl?new URL(place.photoUrl).host:null;}catch{return 'invalid';}})()},timestamp:Date.now()})}).catch(()=>{});
+      // #endregion
+      return;
+    }
+    const resource = place.photoResourceName?.trim();
+    if (!resource) {
+      // #region agent log
+      fetch('http://127.0.0.1:7524/ingest/2f999389-8451-4302-a21a-76d2f67d63e2',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'db1a59'},body:JSON.stringify({sessionId:'db1a59',runId:'photo-diag-1',hypothesisId:'H-A',location:'live-map.component.ts:ensureNearbyPlacePhoto',message:'No photoUrl and no resource — icon only',data:{name:place.name,placeId:place.placeId},timestamp:Date.now()})}).catch(()=>{});
+      // #endregion
+      return;
+    }
+
+    const cached = this.nearbyPhotoCache.get(place.placeId);
+    if (cached) {
+      this.patchNearbyPlacePhoto({
+        ...place,
+        photoUrl: cached.photoUrl,
+        photoAttributions: cached.attributions.length
+          ? cached.attributions
+          : place.photoAttributions
+      });
+      return;
+    }
+
+    this.nearbyPhotoFetchSub?.unsubscribe();
+    this.nearbyPhotoFetchSub = this.gpsService.getNearbyPlacePhoto(resource, 800).subscribe({
+      next: result => {
+        if (this.selectedNearbyPlace?.placeId !== place.placeId) return;
+        if (!result.photoUrl?.trim()) return;
+        const attributions =
+          result.attributions.length > 0
+            ? result.attributions
+            : (place.photoAttributions ?? []);
+        this.nearbyPhotoCache.set(place.placeId, {
+          photoUrl: result.photoUrl.trim(),
+          attributions
+        });
+        this.patchNearbyPlacePhoto({
+          ...place,
+          photoUrl: result.photoUrl.trim(),
+          photoAttributions: attributions
+        });
+        this.cdr.markForCheck();
+      },
+      error: () => {
+        /* Soft-fail: keep category icon. */
+      }
+    });
+  }
+
+  private patchNearbyPlacePhoto(updated: NearbyPlace): void {
+    this.selectedNearbyPlace = updated;
+    const idx = this.nearbyPlaces.findIndex(p => p.placeId === updated.placeId);
+    if (idx >= 0) {
+      const next = this.nearbyPlaces.slice();
+      next[idx] = { ...next[idx], ...updated };
+      this.nearbyPlaces = next;
+    }
   }
 
   nearbyMapsUrl(place: NearbyPlace): string {
@@ -2611,6 +2695,9 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private clearNearbyPlaces(): void {
+    this.nearbyPhotoFetchSub?.unsubscribe();
+    this.nearbyPhotoFetchSub = undefined;
+    this.nearbyPhotoCache.clear();
     this.nearbyPlaces = [];
     this.nearbyEmptyMessage = null;
     this.nearbyApiError = null;

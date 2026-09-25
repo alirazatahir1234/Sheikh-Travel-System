@@ -16,7 +16,7 @@ export class WebsiteContactRequestsComponent implements OnInit {
   loadError: string | null = null;
   statusFilter = '';
   dataSource = new MatTableDataSource<WebsiteContactRequest>([]);
-  displayedColumns = ['name', 'company', 'email', 'message', 'status', 'createdAt'];
+  displayedColumns = ['name', 'company', 'source', 'email', 'message', 'status', 'createdAt'];
   readonly statuses = WEBSITE_LEAD_STATUSES;
 
   constructor(

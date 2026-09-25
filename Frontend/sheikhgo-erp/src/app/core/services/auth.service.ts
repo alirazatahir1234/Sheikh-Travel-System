@@ -84,7 +84,12 @@ export class AuthService {
       localStorage.removeItem(this.homeRouteKey);
       return;
     }
-    localStorage.setItem(this.homeRouteKey, cleaned.startsWith('/') ? cleaned : `/${cleaned}`);
+    let normalized = cleaned.startsWith('/') ? cleaned : `/${cleaned}`;
+    // Administrators land on the operational dashboard, not the platform hub.
+    if (normalized === '/platform' || normalized === '/platform/') {
+      normalized = '/dashboard';
+    }
+    localStorage.setItem(this.homeRouteKey, normalized);
   }
 
   logout(): void {
@@ -140,9 +145,12 @@ export class AuthService {
 
   getHomeRoute(): string {
     const stored = localStorage.getItem(this.homeRouteKey);
-    if (stored?.startsWith('/')) return stored;
+    if (stored?.startsWith('/')) {
+      // Platform hub is not the default landing for administrators.
+      if (stored === '/platform' || stored === '/platform/') return '/dashboard';
+      return stored;
+    }
     if (this.hasRole('Driver')) return '/my-trips';
-    if (this.hasRole('SUPER_ADMIN') || this.hasRole('SuperAdmin')) return '/platform';
     return '/dashboard';
   }
 

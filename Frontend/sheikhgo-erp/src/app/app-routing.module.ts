@@ -238,6 +238,12 @@ const routes: Routes = [
         loadChildren: () => import('./modules/notifications/notifications.module').then(m => m.NotificationsModule)
       },
       {
+        path: 'whatsapp',
+        canActivate: [permissionGuard],
+        data: { permissions: ['WhatsApp.View'] },
+        loadChildren: () => import('./modules/whatsapp/whatsapp.module').then(m => m.WhatsAppModule)
+      },
+      {
         path: 'ai',
         canActivate: [permissionGuard],
         data: { permissions: ['Ai.View'] },

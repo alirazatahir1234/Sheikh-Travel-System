@@ -3,9 +3,14 @@ using MailKit.Net.Smtp;
 using MailKit.Security;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using MimeKit;
 using SheikhTravelSystem.Application.Common.Interfaces;
+using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 using SheikhTravelSystem.Application.Features.Notifications;
+using SheikhTravelSystem.Application.Features.WhatsApp;
+using SheikhTravelSystem.Application.Features.WhatsApp.DTOs;
+using SheikhTravelSystem.Infrastructure.Persistence;
 
 namespace SheikhTravelSystem.Infrastructure.Services.Notifications;
 
@@ -204,21 +209,92 @@ public sealed class BrowserNotificationSender(
 
 public sealed class WhatsAppNotificationSender(
     IConfiguration configuration,
+    IOptions<WhatsAppOptions> whatsAppOptions,
+    IWhatsAppCloudApiService cloudApi,
+    IWhatsAppInboxRepository inboxRepository,
+    IWhatsAppTemplateRepository templateRepository,
+    IWhatsAppAccountConfig accountConfig,
+    IWhatsAppRoutingService routing,
+    IWhatsAppAccountResolver accountResolver,
     ILogger<WhatsAppNotificationSender> logger) : INotificationChannelSender
 {
     public string Channel => NotificationChannels.WhatsApp;
 
-    public Task<ChannelSendResult> SendAsync(ChannelSendRequest request, CancellationToken cancellationToken = default)
+    public async Task<ChannelSendResult> SendAsync(ChannelSendRequest request, CancellationToken cancellationToken = default)
     {
-        var enabled = configuration.GetValue("Notifications:WhatsApp:Enabled", false);
+        var enabled = configuration.GetValue("WhatsApp:Enabled", false)
+            || configuration.GetValue("Notifications:WhatsApp:Enabled", false);
         if (!enabled)
         {
             logger.LogInformation(
                 "WhatsApp (disabled) notification {Id}: {Title} → {Phone}",
                 request.NotificationId, request.Title, request.Phone ?? "(user)");
-            return Task.FromResult(new ChannelSendResult(true, "Sent", "Logged (WhatsApp not configured)"));
+            return new ChannelSendResult(true, "Sent", "Logged (WhatsApp not configured)");
         }
 
-        return Task.FromResult(new ChannelSendResult(true, "Sent", "WhatsApp stub accepted"));
+        var phone = WhatsAppPhone.ToApiDigits(request.Phone);
+        if (string.IsNullOrWhiteSpace(phone))
+            return new ChannelSendResult(false, "Failed", "Recipient phone missing");
+
+        // Prefer tenant from request when available; notifications often use tenant 1 accounts list.
+        var accounts = await inboxRepository.ListActiveAccountRowsAsync(cancellationToken);
+        var code = routing.ResolveAccountCode(request.Phone);
+        var account = accounts.FirstOrDefault(a =>
+            string.Equals(a.Code, code, StringComparison.OrdinalIgnoreCase))
+            ?? await accountResolver.ResolveAsync(
+                accounts.FirstOrDefault()?.TenantId ?? 1, null, request.Phone, cancellationToken);
+        if (account is null)
+            return new ChannelSendResult(false, "Failed", "No WhatsApp account configured");
+
+        if (accountConfig.ResolveCredentials(account) is null)
+            return new ChannelSendResult(false, "Failed", "WhatsApp credentials missing for account " + account.Code);
+
+        var body = string.IsNullOrWhiteSpace(request.Message)
+            ? request.Title
+            : $"{request.Title}\n{request.Message}";
+
+        var lastIncoming = await inboxRepository.GetLastIncomingMessageAtAsync(
+            account.TenantId, account.Id, request.Phone!, cancellationToken);
+
+        if (WhatsAppMessagingWindow.IsOpen(lastIncoming))
+        {
+            var result = await cloudApi.SendTextAsync(account, phone, body ?? "", cancellationToken);
+            return result.Success
+                ? new ChannelSendResult(true, "Sent", result.MetaMessageId)
+                : new ChannelSendResult(false, "Failed", result.ErrorMessage);
+        }
+
+        var opts = whatsAppOptions.Value;
+        var templateName = string.IsNullOrWhiteSpace(opts.NotificationTemplateName)
+            ? null
+            : opts.NotificationTemplateName.Trim();
+        if (templateName is null)
+        {
+            logger.LogWarning(
+                "WhatsApp notification {Id} skipped: messaging window closed and no NotificationTemplateName configured",
+                request.NotificationId);
+            return new ChannelSendResult(false, "Failed", "Template required: messaging window closed");
+        }
+
+        var language = string.IsNullOrWhiteSpace(opts.NotificationTemplateLanguage)
+            ? "en"
+            : opts.NotificationTemplateLanguage.Trim();
+        var template = await templateRepository.GetByNameAsync(
+            account.TenantId, account.Id, templateName, language, cancellationToken);
+        if (template is null ||
+            !string.Equals(template.Status, WhatsAppTemplateStatuses.Approved, StringComparison.OrdinalIgnoreCase))
+        {
+            logger.LogWarning(
+                "WhatsApp notification {Id} failed: window closed and template '{Template}' is missing or not Approved",
+                request.NotificationId, templateName);
+            return new ChannelSendResult(false, "Failed",
+                $"Template required: messaging window closed (catalog '{templateName}' not Approved)");
+        }
+
+        var templateResult = await cloudApi.SendTemplateAsync(
+            account, phone, template.Name, language, null, cancellationToken);
+        return templateResult.Success
+            ? new ChannelSendResult(true, "Sent", templateResult.MetaMessageId)
+            : new ChannelSendResult(false, "Failed", templateResult.ErrorMessage);
     }
 }

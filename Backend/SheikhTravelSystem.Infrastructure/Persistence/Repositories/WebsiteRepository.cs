@@ -536,7 +536,9 @@ public sealed class WebsiteRepository(
             """, new { TenantId, Status = status }, cancellationToken: cancellationToken));
         var items = (await connection.QueryAsync<WebsiteContactRequestDto>(new CommandDefinition("""
             SELECT Id, FirstName, LastName, Company, Email, Phone, Country, FleetSize,
-                   InterestedIn, Message, Status, CreatedAt
+                   InterestedIn, Message, Status, CreatedAt,
+                   Source, FleetType, MainChallenge, CurrentSystem,
+                   WhatsAppConversationId, WhatsAppAccountId
             FROM WebsiteContactRequests
             WHERE TenantId = @TenantId AND (@Status IS NULL OR Status = @Status)
             ORDER BY CreatedAt DESC, Id DESC
@@ -553,7 +555,9 @@ public sealed class WebsiteRepository(
         using var connection = dbFactory.CreateConnection();
         var row = await connection.QuerySingleOrDefaultAsync<WebsiteContactRequestDto>(new CommandDefinition("""
             SELECT Id, FirstName, LastName, Company, Email, Phone, Country, FleetSize,
-                   InterestedIn, Message, Status, CreatedAt
+                   InterestedIn, Message, Status, CreatedAt,
+                   Source, FleetType, MainChallenge, CurrentSystem,
+                   WhatsAppConversationId, WhatsAppAccountId
             FROM WebsiteContactRequests WHERE Id = @Id AND TenantId = @TenantId
             """, new { request.Id, TenantId }, cancellationToken: cancellationToken));
         return row is null

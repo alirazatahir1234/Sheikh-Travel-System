@@ -335,6 +335,7 @@ app.UseAuthorization();
 app.MapControllers();
 app.MapHub<TrackingHub>("/hubs/tracking");
 app.MapHub<NotificationHub>("/hubs/notifications");
+app.MapHub<WhatsAppHub>("/hubs/whatsapp");
 app.MapHealthChecks("/health");
 app.MapHealthChecks("/health/ready");
 

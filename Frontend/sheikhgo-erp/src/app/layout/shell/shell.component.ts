@@ -287,8 +287,12 @@ export class ShellComponent implements OnInit, OnDestroy {
       && window.matchMedia('(min-width: 768px) and (max-width: 1199px)').matches;
   }
 
-  toggleSidebarPin(): void {
+  toggleSidebarPin(event?: Event): void {
+    event?.preventDefault();
+    event?.stopPropagation();
     this.isSidebarPinned = !this.isSidebarPinned;
+    // Collapse immediately on unpin (do not wait for mouseleave / hover).
+    this.isSidebarHovering = this.isSidebarPinned;
     localStorage.setItem(this.sidebarPinnedStorageKey, String(this.isSidebarPinned));
   }
 

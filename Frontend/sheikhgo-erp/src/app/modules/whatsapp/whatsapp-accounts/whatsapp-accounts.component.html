@@ -1,0 +1,108 @@
+<div class="wa-accounts-page stb-page">
+  <ui-page-header
+    title="WhatsApp Accounts"
+    subtitle="Configured business numbers for Sales/GCC and Support — credentials stay on the server"
+    [breadcrumbs]="breadcrumbs">
+    <div class="header-actions">
+      <button mat-stroked-button type="button" (click)="load()" [disabled]="loading">
+        <mat-icon>refresh</mat-icon>
+        Refresh
+      </button>
+    </div>
+  </ui-page-header>
+
+  <app-brand-loader *ngIf="loading" />
+
+  <div class="wa-empty" *ngIf="!loading && error">
+    <mat-icon>error_outline</mat-icon>
+    <h3>Could not load accounts</h3>
+    <p>{{ error }}</p>
+    <button mat-stroked-button type="button" (click)="load()">Retry</button>
+  </div>
+
+  <div class="wa-empty" *ngIf="!loading && !error && accounts.length === 0">
+    <mat-icon>phonelink_setup</mat-icon>
+    <h3>No WhatsApp accounts</h3>
+    <p>Accounts are provisioned on the server. Contact an administrator if this looks wrong.</p>
+  </div>
+
+  <div class="wa-account-grid" *ngIf="!loading && accounts.length > 0">
+    <mat-card class="wa-account-card" *ngFor="let account of accounts" [class.is-inactive]="!account.isActive">
+      <div class="wa-card-top">
+        <div class="wa-identity">
+          <div class="wa-avatar" [attr.data-code]="account.code">
+            <mat-icon>chat</mat-icon>
+          </div>
+          <div>
+            <h3>{{ account.displayName }}</h3>
+            <p class="wa-phone">{{ formatPhone(account.e164Phone) }}</p>
+          </div>
+        </div>
+        <div class="wa-badges">
+          <span class="wa-chip" [class.on]="account.isActive" [class.off]="!account.isActive">
+            {{ account.isActive ? 'Active' : 'Inactive' }}
+          </span>
+          <span class="wa-chip default" *ngIf="account.isDefault">Default</span>
+          <span class="wa-chip muted" *ngIf="!account.hasAccessToken">No token</span>
+        </div>
+      </div>
+
+      <dl class="wa-meta">
+        <div>
+          <dt>Country</dt>
+          <dd>{{ countryLabel(account) }}</dd>
+        </div>
+        <div>
+          <dt>Purpose</dt>
+          <dd>{{ purposeLabel(account) }}</dd>
+        </div>
+        <div>
+          <dt>Status</dt>
+          <dd>{{ account.status || (account.isActive ? 'Active' : 'Inactive') }}</dd>
+        </div>
+        <div>
+          <dt>Last health check</dt>
+          <dd [class.health-ok]="account.lastHealthStatus === 'Healthy'"
+              [class.health-bad]="account.lastHealthStatus === 'Unhealthy' || account.lastHealthStatus === 'Misconfigured'">
+            {{ healthLabel(account) }}
+          </dd>
+        </div>
+      </dl>
+
+      <div class="wa-actions">
+        <button mat-stroked-button type="button" (click)="openView(account)">
+          <mat-icon>visibility</mat-icon>
+          View
+        </button>
+        <button mat-stroked-button type="button" color="primary"
+                *ngIf="canReply"
+                (click)="openTest(account)"
+                [disabled]="!account.isActive || !account.hasAccessToken">
+          <mat-icon>send</mat-icon>
+          Test
+        </button>
+        <button mat-stroked-button type="button"
+                *ngIf="canManage && !account.isActive"
+                (click)="confirmToggleActive(account)"
+                [disabled]="actionBusyId === account.id">
+          <mat-icon>toggle_on</mat-icon>
+          Enable
+        </button>
+        <button mat-stroked-button type="button" color="warn"
+                *ngIf="canManage && account.isActive"
+                (click)="confirmToggleActive(account)"
+                [disabled]="actionBusyId === account.id">
+          <mat-icon>toggle_off</mat-icon>
+          Disable
+        </button>
+        <button mat-stroked-button type="button"
+                *ngIf="canManage"
+                (click)="runHealthCheck(account)"
+                [disabled]="actionBusyId === account.id">
+          <mat-icon>monitor_heart</mat-icon>
+          Health Check
+        </button>
+      </div>
+    </mat-card>
+  </div>
+</div>

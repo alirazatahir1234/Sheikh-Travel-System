@@ -79,4 +79,15 @@ public record NearbyPlaceDto(
     string Category,
     bool? OpenNow = null,
     string? OpeningStatus = null,
-    string? GoogleMapsUri = null);
+    string? GoogleMapsUri = null,
+    /// <summary>First photo resource name from Nearby Search (e.g. places/.../photos/...). Not a browser image URL.</summary>
+    string? PhotoResourceName = null,
+    /// <summary>Author attribution display names for the first photo when Google returns them.</summary>
+    IReadOnlyList<string>? PhotoAttributions = null,
+    /// <summary>Resolved browser image URL from Place Photos media (null until resolved).</summary>
+    string? PhotoUrl = null);
+
+/// <summary>Resolved Place Photos (New) media for a selected nearby place.</summary>
+public record NearbyPlacePhotoDto(
+    string? PhotoUrl,
+    IReadOnlyList<string> Attributions);

@@ -26,3 +26,16 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.wa-source {
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  padding: 0.15rem 0.45rem;
+  border-radius: 0.25rem;
+  background: rgba(0, 0, 0, 0.06);
+}
+.wa-source--wa {
+  background: #dcf8c6;
+  color: #075e54;
+}

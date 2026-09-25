@@ -27,6 +27,9 @@ using SheikhTravelSystem.Infrastructure.Services.Ai.Tools;
 using SheikhTravelSystem.Infrastructure.Services.GpsControl;
 using SheikhTravelSystem.Infrastructure.Services.Storage;
 using SheikhTravelSystem.Infrastructure.Services.Google;
+using SheikhTravelSystem.Infrastructure.Services.WhatsApp;
+using SheikhTravelSystem.Application.Features.WhatsApp;
+using SheikhTravelSystem.Application.Features.WhatsApp.Bot;
 using SheikhTravelSystem.Infrastructure.Caching;
 using SheikhTravelSystem.Infrastructure.SignalR;
 
@@ -135,6 +138,26 @@ public static class DependencyInjection
         services.AddScoped<INotificationChannelSender, PushNotificationSender>();
         services.AddScoped<INotificationChannelSender, BrowserNotificationSender>();
         services.AddScoped<INotificationChannelSender, WhatsAppNotificationSender>();
+        services.AddScoped<IWhatsAppInboxRepository, WhatsAppInboxRepository>();
+        services.AddScoped<IWhatsAppTemplateRepository, WhatsAppTemplateRepository>();
+        services.AddScoped<IWhatsAppCloudApiService, WhatsAppCloudApiService>();
+        services.AddSingleton<IWhatsAppAccountConfig, WhatsAppAccountConfig>();
+        services.AddSingleton<IWhatsAppRoutingService, WhatsAppRoutingService>();
+        services.AddScoped<IWhatsAppAccountResolver, WhatsAppAccountResolver>();
+        services.AddScoped<IWhatsAppRealtimePublisher, WhatsAppRealtimePublisher>();
+        services.AddScoped<IWhatsAppCrmLeadService, WhatsAppCrmLeadService>();
+        services.AddSingleton<IWhatsAppDemoQualificationBot, WhatsAppDemoQualificationBot>();
+        services.AddScoped<IWhatsAppBotOrchestrator, WhatsAppBotOrchestrator>();
+        services.Configure<WhatsAppOptions>(configuration.GetSection(WhatsAppOptions.SectionName));
+        services.Configure<WhatsAppRoutingOptions>(configuration.GetSection(WhatsAppRoutingOptions.SectionName));
+        services.AddHttpClient(WhatsAppCloudApiService.HttpClientName, (sp, client) =>
+        {
+            var opts = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<WhatsAppOptions>>().Value;
+            var version = string.IsNullOrWhiteSpace(opts.GraphApiVersion) ? "v21.0" : opts.GraphApiVersion.Trim();
+            client.BaseAddress = new Uri($"https://graph.facebook.com/{version}/");
+            client.Timeout = TimeSpan.FromSeconds(30);
+        });
+        services.AddHostedService<WhatsAppRetentionHostedService>();
         services.AddSingleton<FcmHttpV1Client>();
         services.AddHttpClient("FcmHttpV1");
         services.AddHostedService<NotificationDispatchHostedService>();
@@ -293,6 +316,7 @@ public static class DependencyInjection
         services.AddScoped<IGoogleStreetViewService, GoogleStreetViewService>();
         services.AddScoped<IGoogleRouteOptimizationService, GoogleRouteOptimizationService>();
         services.AddScoped<IGooglePlacesNearbyService, GooglePlacesNearbyService>();
+        services.AddScoped<IGooglePlacesPhotoService, GooglePlacesPhotoService>();
         services.AddSingleton<GpsAddressBackfillHostedService>();
         services.AddSingleton<IGpsAddressBackfillQueue>(sp => sp.GetRequiredService<GpsAddressBackfillHostedService>());
         services.AddHostedService(sp => sp.GetRequiredService<GpsAddressBackfillHostedService>());

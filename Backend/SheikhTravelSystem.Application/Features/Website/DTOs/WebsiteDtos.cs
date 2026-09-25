@@ -88,7 +88,13 @@ public record WebsiteContactRequestDto(
     string? InterestedIn,
     string Message,
     string Status,
-    DateTime CreatedAt);
+    DateTime CreatedAt,
+    string? Source = null,
+    string? FleetType = null,
+    string? MainChallenge = null,
+    string? CurrentSystem = null,
+    int? WhatsAppConversationId = null,
+    int? WhatsAppAccountId = null);
 
 public record WebsiteDemoRequestDto(
     int Id,

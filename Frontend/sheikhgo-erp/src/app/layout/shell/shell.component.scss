@@ -493,7 +493,14 @@
   }
 
   .stb-brand-row {
+    flex-direction: column;
     justify-content: center;
+    align-items: center;
+    gap: 2px;
+  }
+
+  .stb-pin-btn--rail {
+    margin: 0;
   }
 
   .stb-brand-sep {

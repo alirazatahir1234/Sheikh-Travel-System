@@ -28,13 +28,17 @@
         </div>
       </div>
 
-      <button *ngIf="sidebarExpanded && !mobileNavOpen"
+      <button *ngIf="!mobileNavOpen"
               mat-icon-button
               type="button"
               class="stb-pin-btn"
-              [attr.aria-label]="isSidebarPinned ? 'Collapse sidebar' : 'Pin sidebar open'"
-              (click)="toggleSidebarPin()">
-        <mat-icon>{{ isSidebarPinned ? 'chevron_left' : 'push_pin' }}</mat-icon>
+              [class.stb-pin-btn--rail]="!sidebarExpanded"
+              [attr.aria-label]="isSidebarPinned ? 'Collapse sidebar' : 'Expand sidebar'"
+              [attr.aria-expanded]="sidebarExpanded"
+              [matTooltip]="isSidebarPinned ? 'Collapse sidebar' : 'Expand sidebar'"
+              matTooltipPosition="right"
+              (click)="toggleSidebarPin($event)">
+        <mat-icon aria-hidden="true">{{ isSidebarPinned ? 'chevron_left' : 'chevron_right' }}</mat-icon>
       </button>
 
       <button *ngIf="mobileNavOpen"

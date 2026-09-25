@@ -197,3 +197,31 @@ public class GetNearbyPlacesQueryHandler(IGooglePlacesNearbyService placesNearby
         return ApiResponse<IReadOnlyList<NearbyPlaceDto>>.SuccessResponse(outcome.Places);
     }
 }
+
+public record GetNearbyPlacePhotoQuery(string PhotoResourceName, int MaxWidthPx = 800)
+    : IRequest<ApiResponse<NearbyPlacePhotoDto>>;
+
+public class GetNearbyPlacePhotoQueryHandler(IGooglePlacesPhotoService photoService)
+    : IRequestHandler<GetNearbyPlacePhotoQuery, ApiResponse<NearbyPlacePhotoDto>>
+{
+    public async Task<ApiResponse<NearbyPlacePhotoDto>> Handle(
+        GetNearbyPlacePhotoQuery request, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(request.PhotoResourceName))
+            return ApiResponse<NearbyPlacePhotoDto>.FailResponse("Photo resource name is required.");
+
+        var result = await photoService.ResolveMediaAsync(
+            request.PhotoResourceName,
+            request.MaxWidthPx,
+            cancellationToken);
+
+        if (result is null || string.IsNullOrWhiteSpace(result.PhotoUrl))
+        {
+            // Soft success with empty URL — FE keeps category icon; not a Nearby Search failure.
+            return ApiResponse<NearbyPlacePhotoDto>.SuccessResponse(
+                new NearbyPlacePhotoDto(null, Array.Empty<string>()));
+        }
+
+        return ApiResponse<NearbyPlacePhotoDto>.SuccessResponse(result);
+    }
+}

@@ -92,6 +92,15 @@ public sealed class GoogleMapsController : BaseApiController
         [FromQuery] int maxResults = 8)
         => Ok(await Mediator.Send(new GetNearbyPlacesQuery(lat, lng, category, radiusMeters, maxResults)));
 
+    /// <summary>
+    /// Resolves a Places photo resource name to a browser image URL (Place Photos media).
+    /// </summary>
+    [HttpGet("place-photo")]
+    public async Task<IActionResult> GetPlacePhoto(
+        [FromQuery] string name,
+        [FromQuery] int maxWidthPx = 800)
+        => Ok(await Mediator.Send(new GetNearbyPlacePhotoQuery(name, maxWidthPx)));
+
     private static LatLngPoint? ParseLatLng(string token)
     {
         var parts = token.Split(',', StringSplitOptions.TrimEntries);

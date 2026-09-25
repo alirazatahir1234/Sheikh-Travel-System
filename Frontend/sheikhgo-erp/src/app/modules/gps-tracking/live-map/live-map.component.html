@@ -277,7 +277,9 @@
     </aside>
 
     <div class="track-map-col">
-      <div class="map-shell" #mapHost [class.map-shell--fs]="isMapFullscreen">
+      <div class="map-shell" #mapHost
+           [class.map-shell--fs]="isMapFullscreen"
+           [class.map-shell--nearby]="nearbyExpanded && !isMapFullscreen">
         <div #mapContainer class="map-container"></div>
         <div class="map-loading-overlay" *ngIf="loading && locations.length === 0 && !mapError" aria-live="polite">
           <mat-spinner diameter="36"></mat-spinner>
@@ -421,7 +423,8 @@
         (categoryChange)="selectNearbyCategory($event)"
         (radiusChange)="setNearbyRadius($event)"
         (placeSelect)="focusNearbyPlace($event)"
-        (retry)="runNearbySearch()">
+        (retry)="runNearbySearch()"
+        (photoError)="onNearbyPlacePhotoError($event)">
       </app-nearby-places-panel>
     </div>
 

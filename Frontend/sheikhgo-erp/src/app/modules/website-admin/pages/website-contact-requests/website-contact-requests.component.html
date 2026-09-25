@@ -34,6 +34,12 @@
       <th mat-header-cell *matHeaderCellDef>Company</th>
       <td mat-cell *matCellDef="let row">{{ row.company }}</td>
     </ng-container>
+    <ng-container matColumnDef="source">
+      <th mat-header-cell *matHeaderCellDef>Source</th>
+      <td mat-cell *matCellDef="let row">
+        <span class="wa-source" [class.wa-source--wa]="row.source === 'WhatsApp'">{{ row.source || 'Website' }}</span>
+      </td>
+    </ng-container>
     <ng-container matColumnDef="email">
       <th mat-header-cell *matHeaderCellDef>Email</th>
       <td mat-cell *matCellDef="let row">{{ row.email }}</td>

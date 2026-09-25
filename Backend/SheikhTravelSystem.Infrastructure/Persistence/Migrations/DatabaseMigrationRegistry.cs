@@ -105,6 +105,11 @@ public static class DatabaseMigrationRegistry
             M("WebsiteCmsEnsureMigration", WebsiteCmsEnsureMigration.ApplyAsync),
             M("AiOperationsPermissionsMigration", AiOperationsPermissionsMigration.ApplyAsync),
             M("TripsMenuRouteFixMigration", TripsMenuRouteFixMigration.ApplyAsync),
+            M("WhatsAppInboxMigration", WhatsAppInboxMigration.ApplyAsync),
+            M("WhatsAppDomainFoundationMigration", WhatsAppDomainFoundationMigration.ApplyAsync),
+            M("WhatsAppAccountAdminMigration", WhatsAppAccountAdminMigration.ApplyAsync),
+            M("WhatsAppCrmLeadMigration", WhatsAppCrmLeadMigration.ApplyAsync),
+            M("WhatsAppTemplatesMigration", WhatsAppTemplatesMigration.ApplyAsync),
         ];
     }
 }

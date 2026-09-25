@@ -1,0 +1,69 @@
+<div class="wa-templates-page stb-page">
+  <ui-page-header
+    title="WhatsApp Templates"
+    subtitle="Local catalog — set Approved only after Meta approval"
+    [breadcrumbs]="breadcrumbs">
+    <div class="header-actions">
+      <button mat-stroked-button type="button" (click)="load()" [disabled]="loading">
+        <mat-icon>refresh</mat-icon>
+        Refresh
+      </button>
+    </div>
+  </ui-page-header>
+
+  <div class="wa-account-tabs" role="tablist">
+    <button type="button" class="wa-tab" [class.active]="selectedAccountId === null" (click)="selectAccount(null)">
+      All accounts
+    </button>
+    <button
+      type="button"
+      class="wa-tab"
+      *ngFor="let a of accounts"
+      [class.active]="selectedAccountId === a.id"
+      (click)="selectAccount(a.id)">
+      {{ a.code }}
+    </button>
+  </div>
+
+  <div class="wa-templates-table" *ngIf="!loading; else loadingTpl">
+    <table>
+      <thead>
+        <tr>
+          <th>Account</th>
+          <th>Name</th>
+          <th>Language</th>
+          <th>Category</th>
+          <th>Status</th>
+          <th>Preview</th>
+          <th *ngIf="canManageTemplates">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let t of templates">
+          <td>{{ t.accountCode }}</td>
+          <td>{{ t.name }}</td>
+          <td>{{ t.language }}</td>
+          <td>{{ t.category }}</td>
+          <td>
+            <span class="status" [attr.data-status]="t.status">{{ t.status }}</span>
+          </td>
+          <td class="preview">{{ t.bodyPreview || '—' }}</td>
+          <td *ngIf="canManageTemplates">
+            <mat-form-field appearance="outline" subscriptSizing="dynamic" class="status-select">
+              <mat-select
+                [value]="t.status"
+                [disabled]="busyId === t.id"
+                (selectionChange)="setStatus(t, $event.value)">
+                <mat-option *ngFor="let s of statuses" [value]="s">{{ s }}</mat-option>
+              </mat-select>
+            </mat-form-field>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="empty" *ngIf="!templates.length">No templates in catalog for this filter.</p>
+  </div>
+  <ng-template #loadingTpl>
+    <div class="loading"><mat-spinner diameter="28"></mat-spinner></div>
+  </ng-template>
+</div>

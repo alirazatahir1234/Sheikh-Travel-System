@@ -2,6 +2,7 @@
   <header class="nearby-places-panel__head">
     <div class="nearby-places-panel__title">
       <h2>Nearby Places <span>({{ vehicleLabel }})</span></h2>
+      <p class="nearby-places-panel__subtitle">Find hospitals, restaurants, fuel, and more near the vehicle.</p>
     </div>
     <div class="nearby-places-panel__head-actions">
       <label class="nearby-places-panel__radius" for="npp-radius">
@@ -101,8 +102,18 @@
         [attr.aria-selected]="selectedPlace?.placeId === place.placeId"
         [class.nearby-places-panel__row--selected]="selectedPlace?.placeId === place.placeId">
         <button type="button" class="nearby-places-panel__item stb-touch" (click)="onSelectPlace(place)">
-          <span class="nearby-places-panel__item-icon" aria-hidden="true">
-            <mat-icon>{{ categoryIcon(place.category || selectedCategory) }}</mat-icon>
+          <span class="nearby-places-panel__item-thumb" aria-hidden="true">
+            <img
+              *ngIf="place.photoUrl && !isPhotoBroken(place.placeId); else listIconFallback"
+              class="nearby-places-panel__item-img"
+              [src]="place.photoUrl"
+              [alt]="place.name"
+              (error)="onPhotoError(place)" />
+            <ng-template #listIconFallback>
+              <span class="nearby-places-panel__item-icon">
+                <mat-icon>{{ categoryIcon(place.category || selectedCategory) }}</mat-icon>
+              </span>
+            </ng-template>
           </span>
           <span class="nearby-places-panel__item-body">
             <strong>{{ place.name }}</strong>
@@ -127,9 +138,20 @@
     </ul>
 
     <aside class="nearby-places-panel__detail" *ngIf="selectedPlace as sel" aria-label="Selected place details">
-      <div class="nearby-places-panel__photo" aria-hidden="true">
-        <mat-icon>{{ categoryIcon(sel.category || selectedCategory) }}</mat-icon>
+      <div class="nearby-places-panel__photo" [attr.aria-hidden]="sel.photoUrl && !isPhotoBroken(sel.placeId) ? null : 'true'">
+        <img
+          *ngIf="sel.photoUrl && !isPhotoBroken(sel.placeId); else nearbyPhotoFallback"
+          class="nearby-places-panel__photo-img"
+          [src]="sel.photoUrl"
+          [alt]="sel.name"
+          (error)="onPhotoError(sel)" />
+        <ng-template #nearbyPhotoFallback>
+          <mat-icon>{{ categoryIcon(sel.category || selectedCategory) }}</mat-icon>
+        </ng-template>
       </div>
+      <p class="nearby-places-panel__photo-attr" *ngIf="sel.photoUrl && !isPhotoBroken(sel.placeId) && sel.photoAttributions?.length">
+        Photo: {{ sel.photoAttributions!.join(', ') }}
+      </p>
       <h3>{{ sel.name }}</h3>
       <p class="nearby-places-panel__detail-dist" *ngIf="formatDistance(sel.distanceMeters) as dist">
         {{ dist }} away

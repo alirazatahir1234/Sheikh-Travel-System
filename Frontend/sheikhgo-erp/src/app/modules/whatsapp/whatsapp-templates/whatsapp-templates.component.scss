@@ -1,0 +1,99 @@
+.wa-templates-page {
+  padding-bottom: 2rem;
+}
+
+.wa-account-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0 0 1rem;
+}
+
+.wa-tab {
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  border-radius: 8px;
+  padding: 0.4rem 0.75rem;
+  cursor: pointer;
+  font: inherit;
+  color: #475569;
+
+  &.active {
+    border-color: #0f766e;
+    color: #0f766e;
+    background: #f0fdfa;
+    font-weight: 600;
+  }
+}
+
+.wa-templates-table {
+  overflow: auto;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.88rem;
+  }
+
+  th,
+  td {
+    text-align: left;
+    padding: 0.7rem 0.85rem;
+    border-bottom: 1px solid #f1f5f9;
+  }
+
+  th {
+    background: #f8fafc;
+    color: #64748b;
+    font-weight: 600;
+  }
+
+  .preview {
+    max-width: 240px;
+    color: #64748b;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+.status {
+  display: inline-block;
+  padding: 0.15rem 0.45rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: #e2e8f0;
+  color: #334155;
+
+  &[data-status='Approved'] {
+    background: #dcfce7;
+    color: #15803d;
+  }
+
+  &[data-status='Draft'],
+  &[data-status='Pending'] {
+    background: #fef3c7;
+    color: #b45309;
+  }
+
+  &[data-status='Rejected'],
+  &[data-status='Disabled'] {
+    background: #fee2e2;
+    color: #b91c1c;
+  }
+}
+
+.status-select {
+  width: 140px;
+}
+
+.empty,
+.loading {
+  padding: 2rem;
+  text-align: center;
+  color: #64748b;
+}

@@ -17,11 +17,13 @@ public sealed class GooglePlacesNearbyService(
     IHttpClientFactory httpClientFactory,
     IOptions<GoogleMapsOptions> options,
     IMemoryCache memoryCache,
+    IGooglePlacesPhotoService photoService,
     ILogger<GooglePlacesNearbyService> logger) : IGooglePlacesNearbyService
 {
     private const string FieldMask =
         "places.id,places.displayName,places.formattedAddress,places.location,"
-        + "places.types,places.rating,places.userRatingCount,places.currentOpeningHours,places.googleMapsUri";
+        + "places.types,places.rating,places.userRatingCount,places.currentOpeningHours,places.googleMapsUri,"
+        + "places.photos";
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -142,6 +144,8 @@ public sealed class GooglePlacesNearbyService(
                 .OrderBy(p => p.DistanceMeters ?? double.MaxValue)
                 .ToList();
 
+            results = await EnrichWithPhotoUrlsAsync(results, cancellationToken);
+
             var ttl = TimeSpan.FromMinutes(Math.Max(1, options.Value.CacheMinutes));
             memoryCache.Set(cacheKey, (IReadOnlyList<NearbyPlaceDto>)results, ttl);
             return NearbyPlacesSearchResult.Ok(results);
@@ -159,6 +163,50 @@ public sealed class GooglePlacesNearbyService(
                 "Nearby Search is temporarily unavailable. Places API (New) request failed on the backend.",
                 NearbyPlacesErrorCodes.GoogleApi);
         }
+    }
+
+    /// <summary>
+    /// Resolves Place Photos media URLs for places that have a photo resource.
+    /// Soft-fails per place — never fails the Nearby Search batch.
+    /// </summary>
+    private async Task<List<NearbyPlaceDto>> EnrichWithPhotoUrlsAsync(
+        List<NearbyPlaceDto> places,
+        CancellationToken cancellationToken)
+    {
+        if (places.Count == 0) return places;
+
+        const int maxConcurrency = 3;
+        using var gate = new SemaphoreSlim(maxConcurrency);
+        var tasks = places.Select(async place =>
+        {
+            if (string.IsNullOrWhiteSpace(place.PhotoResourceName))
+                return place;
+
+            await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                var media = await photoService.ResolveMediaAsync(
+                    place.PhotoResourceName,
+                    maxWidthPx: 800,
+                    cancellationToken).ConfigureAwait(false);
+
+                return media?.PhotoUrl is not null
+                    ? place with { PhotoUrl = media.PhotoUrl }
+                    : place;
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                logger.LogWarning(ex, "Photo enrich soft-fail for {Resource}", place.PhotoResourceName);
+                return place;
+            }
+            finally
+            {
+                gate.Release();
+            }
+        });
+
+        var enriched = await Task.WhenAll(tasks).ConfigureAwait(false);
+        return enriched.ToList();
     }
 
     private static (string Message, string ErrorCode, string ReasonTag) MapGoogleError(
@@ -225,6 +273,7 @@ public sealed class GooglePlacesNearbyService(
         var id = place.Id?.Trim() ?? $"{lat},{lng}";
         var distance = HaversineMeters(originLat, originLng, lat.Value, lng.Value);
         var (openNow, openingStatus) = MapOpeningHours(place.CurrentOpeningHours);
+        var (photoResourceName, photoAttributions) = MapFirstPhoto(place.Photos);
 
         return new NearbyPlaceDto(
             id,
@@ -239,7 +288,33 @@ public sealed class GooglePlacesNearbyService(
             category,
             openNow,
             openingStatus,
-            string.IsNullOrWhiteSpace(place.GoogleMapsUri) ? null : place.GoogleMapsUri.Trim());
+            string.IsNullOrWhiteSpace(place.GoogleMapsUri) ? null : place.GoogleMapsUri.Trim(),
+            photoResourceName,
+            photoAttributions,
+            PhotoUrl: null);
+    }
+
+    private static (string? ResourceName, IReadOnlyList<string>? Attributions) MapFirstPhoto(
+        List<PlacePhotoJson>? photos)
+    {
+        var first = photos?.FirstOrDefault(p => !string.IsNullOrWhiteSpace(p.Name));
+        if (first is null) return (null, null);
+
+        var name = first.Name!.Trim();
+        var attributions = first.AuthorAttributions?
+            .Select(a =>
+            {
+                var display = a.DisplayName?.Trim();
+                if (!string.IsNullOrWhiteSpace(display)) return display;
+                var uri = a.Uri?.Trim();
+                return string.IsNullOrWhiteSpace(uri) ? null : uri;
+            })
+            .Where(s => !string.IsNullOrWhiteSpace(s))
+            .Cast<string>()
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        return (name, attributions is { Count: > 0 } ? attributions : null);
     }
 
     private static (bool? OpenNow, string? Status) MapOpeningHours(OpeningHoursJson? hours)
@@ -315,6 +390,20 @@ public sealed class GooglePlacesNearbyService(
         public int? UserRatingCount { get; set; }
         public OpeningHoursJson? CurrentOpeningHours { get; set; }
         public string? GoogleMapsUri { get; set; }
+        public List<PlacePhotoJson>? Photos { get; set; }
+    }
+
+    private sealed class PlacePhotoJson
+    {
+        public string? Name { get; set; }
+        public List<AuthorAttributionJson>? AuthorAttributions { get; set; }
+    }
+
+    private sealed class AuthorAttributionJson
+    {
+        public string? DisplayName { get; set; }
+        public string? Uri { get; set; }
+        public string? PhotoUri { get; set; }
     }
 
     private sealed class OpeningHoursJson

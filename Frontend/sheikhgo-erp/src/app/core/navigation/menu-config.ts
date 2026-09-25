@@ -75,6 +75,9 @@ const fleetAdminGroup: NavGroup = {
     { id: 'tracker-config', label: 'Tracker Configuration', icon: 'settings_input_antenna', route: '/gps-tracking/devices', moduleKey: 'gps-tracking' },
     { id: 'geofencing', label: 'Geofencing', icon: 'fence', route: '/gps-tracking/geofences', moduleKey: 'gps-tracking' },
     { id: 'notifications', label: 'Notification Center', icon: 'notifications', route: '/notifications', moduleKey: 'dashboard' },
+    { id: 'whatsapp-inbox', label: 'WhatsApp Inbox', icon: 'chat', route: '/whatsapp', moduleKey: 'whatsapp' },
+    { id: 'whatsapp-accounts', label: 'WhatsApp Accounts', icon: 'phonelink_setup', route: '/whatsapp/accounts', moduleKey: 'whatsapp' },
+    { id: 'whatsapp-templates', label: 'WhatsApp Templates', icon: 'description', route: '/whatsapp/templates', moduleKey: 'whatsapp' },
     { id: 'ai-center', label: 'AI Management', icon: 'smart_toy', route: '/ai', moduleKey: 'dashboard' },
     { id: 'mcp-console', label: 'MCP Console', icon: 'hub', route: '/mcp', moduleKey: 'dashboard' },
     { id: 'fleet-settings', label: 'Settings', icon: 'tune', route: '/settings', moduleKey: 'platform' }
