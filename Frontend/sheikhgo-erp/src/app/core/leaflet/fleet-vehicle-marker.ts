@@ -30,8 +30,9 @@ export interface FleetVehicleMarkerOptions {
 const STATUS_COLORS: Record<FleetTrackStatus, { fill: string; stroke: string }> = {
   moving: { fill: '#2563EB', stroke: '#1D4ED8' },
   idle: { fill: '#F59E0B', stroke: '#B45309' },
-  parked: { fill: '#8B5CF6', stroke: '#6D28D9' },
-  offline: { fill: '#94A3B8', stroke: '#64748B' },
+  parked: { fill: '#0D9488', stroke: '#0F766E' },
+  unknown: { fill: '#F59E0B', stroke: '#B45309' },
+  offline: { fill: '#EF4444', stroke: '#B91C1C' },
   never_seen: { fill: '#94A3B8', stroke: '#64748B' },
   sos: { fill: '#DC2626', stroke: '#7F1D1D' },
   scheduled: { fill: '#3B82F6', stroke: '#1D4ED8' },
@@ -55,76 +56,119 @@ export function resolveVehicleKind(vehicleType?: string | null): FleetVehicleKin
 }
 
 /**
- * Top-down SVG silhouettes pointing "up" (north). Caller rotates the wrapper by heading.
- * Strong nose chevron makes heading obvious at 28–34px.
+ * Status-flexible glyphs:
+ * - moving / delayed / scheduled → heading chevron (rotates)
+ * - idle → amber pause disc
+ * - parked → teal "P" disc (reference fleet UI)
+ * - offline / never_seen → muted disc
+ * - sos → red alert disc
  */
-function vehicleSvgPath(kind: FleetVehicleKind): string {
-  const nose = `<path d="M16 1 L20 6 L12 6 Z" fill="#ffffff" stroke="none"/>`;
-  switch (kind) {
-    case 'truck':
-      return `
-        ${nose}
-        <rect x="9" y="5" width="14" height="8" rx="1.5"/>
-        <rect x="7" y="13" width="18" height="14" rx="1.5"/>
-        <rect x="10" y="7" width="12" height="4" rx="1" fill="rgba(255,255,255,0.35)"/>
-        <circle cx="11" cy="25" r="2" fill="rgba(0,0,0,0.35)"/>
-        <circle cx="21" cy="25" r="2" fill="rgba(0,0,0,0.35)"/>`;
-    case 'bus':
-      return `
-        ${nose}
-        <rect x="8" y="5" width="16" height="22" rx="3"/>
-        <rect x="10" y="8" width="12" height="3" rx="1" fill="rgba(255,255,255,0.35)"/>
-        <rect x="10" y="13" width="12" height="2.5" rx="0.5" fill="rgba(255,255,255,0.25)"/>
-        <rect x="10" y="17" width="12" height="2.5" rx="0.5" fill="rgba(255,255,255,0.25)"/>
-        <circle cx="11" cy="25" r="1.8" fill="rgba(0,0,0,0.35)"/>
-        <circle cx="21" cy="25" r="1.8" fill="rgba(0,0,0,0.35)"/>`;
-    case 'van':
-      return `
-        ${nose}
-        <path d="M8 11 L10 5 H22 L24 11 V24 H8 Z"/>
-        <rect x="10" y="7" width="12" height="4" rx="1" fill="rgba(255,255,255,0.35)"/>
-        <circle cx="11" cy="23" r="2" fill="rgba(0,0,0,0.35)"/>
-        <circle cx="21" cy="23" r="2" fill="rgba(0,0,0,0.35)"/>`;
-    case 'pickup':
-      return `
-        ${nose}
-        <path d="M9 9 L11 4 H21 L23 9 V14 H25 V24 H7 V14 H9 Z"/>
-        <rect x="11" y="5" width="10" height="3.5" rx="1" fill="rgba(255,255,255,0.35)"/>
-        <rect x="9" y="14" width="14" height="5" rx="0.5" fill="rgba(0,0,0,0.12)"/>
-        <circle cx="11" cy="23" r="2" fill="rgba(0,0,0,0.35)"/>
-        <circle cx="21" cy="23" r="2" fill="rgba(0,0,0,0.35)"/>`;
-    case 'suv':
-      return `
-        ${nose}
-        <path d="M8 12 L10 6 H22 L24 12 V23 H8 Z"/>
-        <rect x="10" y="7" width="12" height="4" rx="1" fill="rgba(255,255,255,0.35)"/>
-        <circle cx="11" cy="22" r="2.2" fill="rgba(0,0,0,0.35)"/>
-        <circle cx="21" cy="22" r="2.2" fill="rgba(0,0,0,0.35)"/>`;
-    case 'motorcycle':
-      return `
-        ${nose}
-        <circle cx="16" cy="9" r="2.5"/>
-        <rect x="14.5" y="11" width="3" height="9" rx="1"/>
-        <path d="M10 22 L16 14 L22 22" fill="none" stroke="#ffffff" stroke-width="1.5"/>
-        <circle cx="11" cy="24" r="2.2" fill="rgba(0,0,0,0.35)"/>
-        <circle cx="21" cy="24" r="2.2" fill="rgba(0,0,0,0.35)"/>`;
-    case 'tractor':
-      return `
-        ${nose}
-        <rect x="10" y="5" width="12" height="7" rx="1.5"/>
-        <rect x="8" y="12" width="16" height="9" rx="1"/>
-        <circle cx="12" cy="23" r="3" fill="rgba(0,0,0,0.4)"/>
-        <circle cx="22" cy="21" r="2.2" fill="rgba(0,0,0,0.35)"/>`;
-    case 'car':
+function statusGlyphSvg(status: FleetTrackStatus): { paths: string; rotates: boolean } {
+  switch (status) {
+    case 'parked':
+      return {
+        rotates: false,
+        paths: `
+          <circle cx="16" cy="16" r="13"/>
+          <text x="16" y="16.5" text-anchor="middle" dominant-baseline="central"
+                fill="#ffffff" stroke="none" font-size="14" font-weight="800"
+                font-family="system-ui,Segoe UI,sans-serif">P</text>`
+      };
+    case 'idle':
+    case 'unknown':
+      return {
+        rotates: false,
+        paths: `
+          <circle cx="16" cy="16" r="13"/>
+          <rect x="11" y="10" width="3.2" height="12" rx="1" fill="#ffffff" stroke="none"/>
+          <rect x="17.8" y="10" width="3.2" height="12" rx="1" fill="#ffffff" stroke="none"/>`
+      };
+    case 'sos':
+      return {
+        rotates: false,
+        paths: `
+          <circle cx="16" cy="16" r="13"/>
+          <text x="16" y="17" text-anchor="middle" dominant-baseline="central"
+                fill="#ffffff" stroke="none" font-size="16" font-weight="900"
+                font-family="system-ui,Segoe UI,sans-serif">!</text>`
+      };
+    case 'offline':
+    case 'never_seen':
+      return {
+        rotates: false,
+        paths: `
+          <circle cx="16" cy="16" r="12"/>
+          <circle cx="16" cy="16" r="4.5" fill="rgba(255,255,255,0.45)" stroke="none"/>`
+      };
+    case 'moving':
+    case 'scheduled':
+    case 'delayed':
     default:
-      return `
-        ${nose}
-        <path d="M9 12 L11 5 H21 L23 12 V22 H9 Z"/>
-        <rect x="11" y="7" width="10" height="4" rx="1" fill="rgba(255,255,255,0.4)"/>
-        <path d="M11 12 H21" stroke="rgba(0,0,0,0.15)" stroke-width="1"/>
-        <circle cx="11.5" cy="21.5" r="2.1" fill="rgba(0,0,0,0.35)"/>
-        <circle cx="20.5" cy="21.5" r="2.1" fill="rgba(0,0,0,0.35)"/>`;
+      return {
+        rotates: true,
+        paths: `
+          <path d="M16 1.5 L27.5 27.5 L16 21.5 L4.5 27.5 Z"/>
+          <circle cx="16" cy="18.5" r="3.2" fill="rgba(255,255,255,0.4)" stroke="none"/>`
+      };
   }
+}
+
+/** Shared inner HTML for Leaflet DivIcon and Google AdvancedMarker content. */
+export function buildFleetVehicleMarkerInnerHtml(options: FleetVehicleMarkerOptions): {
+  html: string;
+  host: number;
+  size: number;
+} {
+  const size = options.size ?? 32;
+  const heading = options.heading != null && Number.isFinite(options.heading) ? options.heading : 0;
+  const colors = STATUS_COLORS[options.status] ?? STATUS_COLORS.offline;
+  const glyph = statusGlyphSvg(options.status);
+  const rotateDeg = glyph.rotates ? heading : 0;
+  const selected = !!options.selected;
+  const pulse = !!options.pulse;
+  const pad = pulse ? 12 : selected ? 8 : 4;
+  const host = size + pad;
+
+  // Letter/shape already encodes status — skip redundant parked/sos/offline corner badges.
+  const badge =
+    options.badge === 'parked' || options.badge === 'sos' || options.badge === 'offline'
+      ? null
+      : options.badge;
+
+  const classes = [
+    'fv-marker',
+    `fv-marker--${options.status}`,
+    glyph.rotates ? 'fv-marker--directional' : 'fv-marker--status-disc',
+    selected ? 'fv-marker--selected' : '',
+    pulse ? 'fv-marker--pulse' : ''
+  ]
+    .filter(Boolean)
+    .join(' ');
+
+  const pulseHtml = pulse
+    ? `<span class="fv-pulse" style="--fv-pulse:${colors.fill}" aria-hidden="true">
+         <span class="fv-pulse__ring"></span>
+         <span class="fv-pulse__ring fv-pulse__ring--delay"></span>
+       </span>`
+    : '';
+
+  const html = `
+    <div class="${classes}" style="width:${host}px;height:${host}px;--fv-status:${colors.fill}">
+      ${pulseHtml}
+      <div class="fv-body" style="width:${size}px;height:${size}px">
+        <div class="fv-rotator" style="transform:rotate(${rotateDeg}deg)">
+          <svg class="fv-svg" viewBox="0 0 32 32" width="${size}" height="${size}" aria-hidden="true">
+            <g fill="${colors.fill}" stroke="#ffffff" stroke-width="1.75" stroke-linejoin="round"
+               paint-order="stroke fill">
+              ${glyph.paths}
+            </g>
+          </svg>
+        </div>
+        ${badgeHtml(badge)}
+      </div>
+    </div>`;
+
+  return { html, host, size };
 }
 
 function badgeHtml(badge: FleetVehicleMarkerOptions['badge']): string {
@@ -146,54 +190,15 @@ export function resolveReplayStatus(speedKmh: number, ignition?: boolean | null)
   if (ignition === true) return 'idle';
   if (ignition === false) return 'parked';
   if (speed < 2) return 'parked';
-  return 'idle';
+  return 'unknown';
 }
 
 /**
- * Compact rotating SVG vehicle DivIcon for Live Map.
+ * Compact status-flexible DivIcon for Live Map / geofence overlays.
  * Pulse rings sit outside the rotator so they stay screen-aligned.
  */
 export function createFleetVehicleDivIcon(options: FleetVehicleMarkerOptions): LeafletTypes.DivIcon {
-  const size = options.size ?? 30;
-  const heading = options.heading != null && Number.isFinite(options.heading) ? options.heading : 0;
-  const kind = resolveVehicleKind(options.vehicleType);
-  const colors = STATUS_COLORS[options.status] ?? STATUS_COLORS.offline;
-  const path = vehicleSvgPath(kind);
-  const selected = !!options.selected;
-  const pulse = !!options.pulse;
-  const pad = pulse ? 12 : selected ? 8 : 4;
-  const host = size + pad;
-
-  const classes = [
-    'fv-marker',
-    `fv-marker--${options.status}`,
-    selected ? 'fv-marker--selected' : '',
-    pulse ? 'fv-marker--pulse' : ''
-  ].filter(Boolean).join(' ');
-
-  const pulseHtml = pulse
-    ? `<span class="fv-pulse" style="--fv-pulse:${colors.fill}" aria-hidden="true">
-         <span class="fv-pulse__ring"></span>
-         <span class="fv-pulse__ring fv-pulse__ring--delay"></span>
-       </span>`
-    : '';
-
-  const html = `
-    <div class="${classes}" style="width:${host}px;height:${host}px;--fv-status:${colors.fill}">
-      ${pulseHtml}
-      <div class="fv-body" style="width:${size}px;height:${size}px">
-        <div class="fv-rotator" style="transform:rotate(${heading}deg)">
-          <svg class="fv-svg" viewBox="0 0 32 32" width="${size}" height="${size}" aria-hidden="true">
-            <g fill="${colors.fill}" stroke="#ffffff" stroke-width="1.5" stroke-linejoin="round"
-               paint-order="stroke fill">
-              ${path}
-            </g>
-          </svg>
-        </div>
-        ${badgeHtml(options.badge)}
-      </div>
-    </div>`;
-
+  const { html, host, size } = buildFleetVehicleMarkerInnerHtml(options);
   return L.divIcon({
     className: 'fv-marker-host',
     html,

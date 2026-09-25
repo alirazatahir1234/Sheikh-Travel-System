@@ -1,5 +1,7 @@
 export const APP_PRODUCT_NAME = 'SheikhGo ERP';
 export const APP_PRODUCT_SHORT_NAME = 'SheikhGo ERP';
+/** Sidebar brand subtitle under the product name. */
+export const APP_PRODUCT_TAGLINE = 'Smarter Fleet. Stronger Business.';
 export const COMPANY_NAME = 'Sheikh Travel Group';
 /** Placeholder until a real company address is supplied — never fabricated, shown as-is on report letterheads. */
 export const COMPANY_ADDRESS = '';

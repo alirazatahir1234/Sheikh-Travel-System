@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { HttpClient, HttpParams } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http';
 import { Observable, forkJoin, of, throwError } from 'rxjs';
 import { map, catchError } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
@@ -40,6 +40,7 @@ import {
   GpsCommandLibraryParam,
   SupportedCommand,
   GpsEta,
+  NearbyPlace,
   IngestPositionPayload,
   TraccarStatusDto,
   TraccarDeviceDto,
@@ -60,6 +61,7 @@ import {
   GpsAlertStats,
   HeatmapPoint,
   GpsVehicleHealth,
+  FleetHealthSummary,
   VehicleRanking,
   CostAnalytics,
   Trends,
@@ -82,6 +84,83 @@ const RECENT_MS = STALE_MS;
 // tick, and the vehicle list/marker layer already virtual-scrolls/clusters past this point.
 // Raise if the fleet genuinely exceeds this — the backend endpoints are unbounded past here.
 const LIVE_FLEET_PAGE_SIZE = 2000;
+
+interface NearbyPlacesEnvelope {
+  success?: boolean;
+  Success?: boolean;
+  data?: NearbyPlaceApiRow[];
+  Data?: NearbyPlaceApiRow[];
+  message?: string;
+  Message?: string;
+}
+
+interface NearbyPlaceApiRow {
+  placeId?: string;
+  PlaceId?: string;
+  name?: string;
+  Name?: string;
+  address?: string | null;
+  Address?: string | null;
+  latitude?: number;
+  Latitude?: number;
+  longitude?: number;
+  Longitude?: number;
+  distanceMeters?: number | null;
+  DistanceMeters?: number | null;
+  rating?: number | null;
+  Rating?: number | null;
+  userRatingCount?: number | null;
+  UserRatingCount?: number | null;
+  types?: string[];
+  Types?: string[];
+  category?: string;
+  Category?: string;
+  openNow?: boolean | null;
+  OpenNow?: boolean | null;
+  openingStatus?: string | null;
+  OpeningStatus?: string | null;
+  googleMapsUri?: string | null;
+  GoogleMapsUri?: string | null;
+}
+
+function extractNearbyPlacesError(err: unknown): string {
+  const fallback =
+    'Nearby places unavailable. Check Places API (New) on the backend key.';
+  if (err instanceof HttpErrorResponse) {
+    const body = err.error as NearbyPlacesEnvelope | string | null | undefined;
+    if (typeof body === 'string' && body.trim()) return body.trim();
+    if (body && typeof body === 'object') {
+      const msg = (body.message ?? body.Message)?.trim();
+      if (msg) return msg;
+    }
+    if (err.message?.trim()) return err.message.trim();
+    return fallback;
+  }
+  if (err instanceof Error && err.message.trim()) return err.message.trim();
+  return fallback;
+}
+
+function mapNearbyPlace(row: NearbyPlaceApiRow): NearbyPlace | null {
+  const name = row.name ?? row.Name;
+  const lat = row.latitude ?? row.Latitude;
+  const lng = row.longitude ?? row.Longitude;
+  if (!name || lat == null || lng == null) return null;
+  return {
+    placeId: row.placeId ?? row.PlaceId ?? `${lat},${lng}`,
+    name,
+    address: row.address ?? row.Address ?? null,
+    latitude: lat,
+    longitude: lng,
+    distanceMeters: row.distanceMeters ?? row.DistanceMeters ?? null,
+    rating: row.rating ?? row.Rating ?? null,
+    userRatingCount: row.userRatingCount ?? row.UserRatingCount ?? null,
+    types: row.types ?? row.Types ?? [],
+    category: row.category ?? row.Category ?? 'fuel',
+    openNow: row.openNow ?? row.OpenNow ?? null,
+    openingStatus: row.openingStatus ?? row.OpeningStatus ?? null,
+    googleMapsUri: row.googleMapsUri ?? row.GoogleMapsUri ?? null
+  };
+}
 
 @Injectable({ providedIn: 'root' })
 export class GpsTrackingService {
@@ -435,6 +514,105 @@ export class GpsTrackingService {
       );
   }
 
+  /** Roads snapToRoads — display enrichment only; never overwrite stored GPS. */
+  snapGpsPath(points: { lat: number; lng: number }[]): Observable<{ lat: number; lng: number }[]> {
+    if (points.length < 2) return of([]);
+    const body = points.map(p => ({ latitude: p.lat, longitude: p.lng }));
+    return this.http
+      .post<{
+        success?: boolean;
+        data?: { latitude: number; longitude: number }[];
+      } | { latitude: number; longitude: number }[]>(`${this.base}/maps/snap-path`, body)
+      .pipe(
+        map(res => {
+          const raw = Array.isArray(res) ? res : (res as { data?: { latitude: number; longitude: number }[] }).data;
+          if (!raw?.length) return [];
+          return raw.map(p => ({
+            lat: (p as { latitude?: number; Latitude?: number }).latitude
+              ?? (p as { Latitude?: number }).Latitude
+              ?? 0,
+            lng: (p as { longitude?: number; Longitude?: number }).longitude
+              ?? (p as { Longitude?: number }).Longitude
+              ?? 0
+          })).filter(p => Number.isFinite(p.lat) && Number.isFinite(p.lng));
+        }),
+        catchError(() => of([]))
+      );
+  }
+
+  getLocationTimeZone(lat: number, lng: number, timestampUtc?: Date): Observable<{
+    timeZoneId: string;
+    rawOffsetSeconds: number;
+    dstOffsetSeconds: number;
+  } | null> {
+    const params: Record<string, string> = { lat: String(lat), lng: String(lng) };
+    if (timestampUtc) params['timestampUtc'] = timestampUtc.toISOString();
+    return this.http
+      .get<{
+        success?: boolean;
+        data?: {
+          timeZoneId?: string;
+          TimeZoneId?: string;
+          rawOffsetSeconds?: number;
+          RawOffsetSeconds?: number;
+          dstOffsetSeconds?: number;
+          DstOffsetSeconds?: number;
+        };
+      }>(`${this.base}/maps/timezone`, { params })
+      .pipe(
+        map(res => {
+          const d = res?.data;
+          if (!d) return null;
+          const timeZoneId = d.timeZoneId ?? d.TimeZoneId;
+          if (!timeZoneId) return null;
+          return {
+            timeZoneId,
+            rawOffsetSeconds: d.rawOffsetSeconds ?? d.RawOffsetSeconds ?? 0,
+            dstOffsetSeconds: d.dstOffsetSeconds ?? d.DstOffsetSeconds ?? 0
+          };
+        }),
+        catchError(() => of(null))
+      );
+  }
+
+  /** Places API (New) Nearby Search around a vehicle GPS fix. */
+  getNearbyPlaces(
+    lat: number,
+    lng: number,
+    category: string,
+    radiusMeters = 1500,
+    maxResults = 8
+  ): Observable<NearbyPlace[]> {
+    const params: Record<string, string> = {
+      lat: String(lat),
+      lng: String(lng),
+      category,
+      radiusMeters: String(radiusMeters),
+      maxResults: String(maxResults)
+    };
+    // ApiEnvelopeInterceptor unwraps `{ success, data }` → `data` (the place array).
+    return this.http
+      .get<NearbyPlaceApiRow[] | NearbyPlacesEnvelope>(`${this.base}/maps/nearby-places`, { params })
+      .pipe(
+        map(res => {
+          const rows = Array.isArray(res)
+            ? res
+            : (res?.data ?? res?.Data);
+          if (!Array.isArray(rows)) {
+            const message =
+              (!Array.isArray(res) ? (res?.message ?? res?.Message) : undefined)?.trim() ||
+              'Nearby places unavailable. Check Places API (New) on the backend key.';
+            throw new Error(message);
+          }
+          return rows.map(mapNearbyPlace).filter((p): p is NearbyPlace => !!p);
+        }),
+        catchError((err: unknown) => {
+          const message = extractNearbyPlacesError(err);
+          return throwError(() => new Error(message));
+        })
+      );
+  }
+
   getHistory(vehicleId: number, from?: Date, to?: Date): Observable<PositionDto[]> {
     const params: Record<string, string> = {};
     if (from) params['from'] = from.toISOString();
@@ -509,6 +687,11 @@ export class GpsTrackingService {
 
   getFleetStatusLocal(): Observable<GpsFleetStatusLocal> {
     return this.http.get<GpsFleetStatusLocal>(`${this.base}/dashboard/fleet-status-local`);
+  }
+
+  /** Explainable fleet health (Optimal/Healthy/Attention/Critical/Unknown) — real factors only. */
+  getFleetHealth(): Observable<FleetHealthSummary> {
+    return this.http.get<FleetHealthSummary>(`${this.base}/fleet-health`);
   }
 
   getFleetStatusHistory(from?: Date, to?: Date): Observable<GpsFleetStatusSnapshot[]> {
@@ -952,6 +1135,7 @@ export class GpsTrackingService {
     if (status === 'moving') return `${Math.round(speed)} km/h`;
     if (status === 'idle') return 'Idle • awaiting movement';
     if (status === 'parked') return 'Parked • ignition off';
+    if (status === 'unknown') return 'Unknown telemetry';
     if (status === 'sos') return 'SOS / panic alarm';
     if (status === 'never_seen') return 'Never seen • no fix yet';
     if (status === 'delayed') return 'Delayed • check route';

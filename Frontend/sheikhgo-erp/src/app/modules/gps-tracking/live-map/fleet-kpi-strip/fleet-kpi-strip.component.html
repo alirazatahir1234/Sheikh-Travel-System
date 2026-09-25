@@ -1,0 +1,49 @@
+<section class="fleet-kpi" aria-label="Live fleet statistics">
+  <button
+    type="button"
+    class="fleet-kpi__card stb-touch"
+    *ngFor="let t of tiles; trackBy: trackByKey"
+    [class.fleet-kpi__card--selected]="t.selected"
+    [attr.data-color]="t.color"
+    (click)="onTile(t.key)"
+    [attr.aria-pressed]="t.selected"
+    [attr.aria-label]="t.label + ': ' + t.value">
+    <span class="fleet-kpi__icon" aria-hidden="true">
+      <mat-icon>{{ t.icon }}</mat-icon>
+    </span>
+    <span class="fleet-kpi__body">
+      <span class="fleet-kpi__value">{{ t.value }}</span>
+      <span class="fleet-kpi__label">{{ t.label }}</span>
+      <span class="fleet-kpi__hint" *ngIf="t.hint">{{ t.hint }}</span>
+      <span class="fleet-kpi__trend" *ngIf="t.trend" [class.fleet-kpi__trend--up]="t.trendUp">
+        {{ t.trend }}
+      </span>
+    </span>
+    <svg
+      *ngIf="t.sparkline?.length"
+      class="fleet-kpi__spark"
+      viewBox="0 0 48 16"
+      preserveAspectRatio="none"
+      aria-hidden="true">
+      <polyline
+        [attr.points]="sparkPoints(t.sparkline!)"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.5" />
+    </svg>
+  </button>
+
+  <button
+    type="button"
+    class="fleet-kpi__card fleet-kpi__card--sos stb-touch"
+    *ngIf="sosCount > 0"
+    [class.fleet-kpi__card--selected]="sosSelected"
+    (click)="sosClick.emit()"
+    aria-label="Filter SOS vehicles">
+    <span class="fleet-kpi__icon" aria-hidden="true"><mat-icon>sos</mat-icon></span>
+    <span class="fleet-kpi__body">
+      <span class="fleet-kpi__value">{{ sosCount }}</span>
+      <span class="fleet-kpi__label">SOS</span>
+    </span>
+  </button>
+</section>

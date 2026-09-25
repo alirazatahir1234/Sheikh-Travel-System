@@ -62,8 +62,7 @@
             ],
             "scripts": [],
             "allowedCommonJsDependencies": [
-              "leaflet",
-              "leaflet.markercluster"
+              "leaflet"
             ]
           },
           "configurations": {

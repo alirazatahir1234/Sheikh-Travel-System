@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { AfterViewInit, Component, ElementRef, NgZone, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
@@ -9,6 +9,11 @@ import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.ser
 import { CustomerService } from '../../../core/services/customer.service';
 import { OcrService } from '../../../core/services/ocr.service';
 import { OcrSettingsService } from '../../../core/services/ocr-settings.service';
+import { GoogleMapsLoaderService } from '../../../core/services/google-maps-loader.service';
+import {
+  attachSheikhGoPlacesAutocomplete,
+  SheikhGoPlacesAutocompleteHandle
+} from '../../../core/google-maps/place-autocomplete.new';
 import { OcrExtractResult } from '../../../core/models/ocr.model';
 import {
   compressCnicImageToJpeg,
@@ -45,7 +50,9 @@ type CnicSideUiStatus = 'empty' | 'uploading' | 'ocr' | 'done' | 'error';
   templateUrl: './customer-form.component.html',
   styleUrls: ['./customer-form.component.scss']
 })
-export class CustomerFormComponent implements OnInit, OnDestroy {
+export class CustomerFormComponent implements OnInit, AfterViewInit, OnDestroy {
+  @ViewChild('addressPlacesInput') addressPlacesInput?: ElementRef<HTMLInputElement>;
+
   form: FormGroup;
   /** True while saving (Create / Update). */
   loading = false;
@@ -108,6 +115,7 @@ export class CustomerFormComponent implements OnInit, OnDestroy {
   private cnicBackendMetaBack: CnicBackendOcrMeta | null = null;
 
   private readonly destroy$ = new Subject<void>();
+  private addressPlacesHandle: SheikhGoPlacesAutocompleteHandle | null = null;
 
   constructor(
     private fb: FormBuilder,
@@ -116,7 +124,9 @@ export class CustomerFormComponent implements OnInit, OnDestroy {
     private ocrSettingsService: OcrSettingsService,
     private router: Router,
     private route: ActivatedRoute,
-    private toast: UiToastService
+    private toast: UiToastService,
+    private mapsLoader: GoogleMapsLoaderService,
+    private zone: NgZone
   ) {
     this.form = this.fb.group({
       fullName: ['', [Validators.required, Validators.maxLength(100)]],
@@ -154,12 +164,42 @@ export class CustomerFormComponent implements OnInit, OnDestroy {
     });
   }
 
+  ngAfterViewInit(): void {
+    setTimeout(() => void this.initAddressPlacesAutocomplete(), 0);
+  }
+
   ngOnDestroy(): void {
+    this.addressPlacesHandle?.destroy();
+    this.addressPlacesHandle = null;
     this.stopSyntheticProgress();
     this.clearCnicTimers();
     this.revokeAllInstantPreviews();
     this.destroy$.next();
     this.destroy$.complete();
+  }
+
+  /** Places autocomplete fills formatted address only (customer model has no lat/lng). */
+  private async initAddressPlacesAutocomplete(): Promise<void> {
+    const input = this.addressPlacesInput?.nativeElement;
+    if (!input || !this.mapsLoader.isConfigured) return;
+    try {
+      await this.mapsLoader.importLibrary('places');
+      if (this.mapsLoader.authFailed) return;
+      this.addressPlacesHandle?.destroy();
+      this.addressPlacesHandle = await attachSheikhGoPlacesAutocomplete({
+        input,
+        ngZone: this.zone,
+        mapsLoader: this.mapsLoader,
+        onSelect: place => {
+          const address = (place.address || place.name || '').trim();
+          if (!address) return;
+          this.form.patchValue({ address });
+          input.value = address;
+        }
+      });
+    } catch (err) {
+      console.warn('Customer address Places autocomplete init failed:', err);
+    }
   }
 
   private resetFormForCreate(): void {

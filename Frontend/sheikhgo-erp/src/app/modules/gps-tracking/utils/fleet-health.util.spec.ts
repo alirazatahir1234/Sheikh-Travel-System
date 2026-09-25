@@ -1,64 +1,95 @@
-import { computeFleetHealth } from './fleet-health.util';
-import { VehicleLocation } from '../../../core/models/gps-tracking.model';
+import {
+  aggregateHealthReasons,
+  breakdownFromSummary,
+  fleetHealthChartData,
+  vehicleHealthById
+} from './fleet-health.util';
+import { FleetHealthSummary, FleetVehicleHealth } from '../../../core/models/gps-tracking.model';
 
-function createLocation(overrides: Partial<VehicleLocation> = {}): VehicleLocation {
-  return {
-    vehicleId: 1,
-    vehicleName: 'Vehicle 1',
-    registrationNumber: 'ABC-123',
-    latitude: 31.5,
-    longitude: 74.3,
-    lastUpdated: new Date().toISOString(),
-    speed: 0,
-    status: 'idle',
-    hasGps: true,
+describe('fleet-health.util (API-backed)', () => {
+  const summary = (overrides: Partial<FleetHealthSummary> = {}): FleetHealthSummary => ({
+    assessedPercent: 88,
+    optimal: 2,
+    healthy: 1,
+    attention: 1,
+    critical: 0,
+    unknown: 1,
+    total: 5,
+    assessed: 4,
+    vehicles: [],
     ...overrides
-  };
-}
-
-describe('computeFleetHealth', () => {
-  it('returns all-zero buckets for an empty fleet', () => {
-    expect(computeFleetHealth([])).toEqual({ optimal: 0, attention: 0, critical: 0, unknown: 0, total: 0 });
   });
 
-  it('buckets never_seen and no-GPS vehicles as unknown', () => {
-    const result = computeFleetHealth([
-      createLocation({ status: 'never_seen' }),
-      createLocation({ hasGps: false })
+  it('maps API summary without inventing assessed percent', () => {
+    expect(breakdownFromSummary(null)).toEqual({
+      optimal: 0,
+      healthy: 0,
+      attention: 0,
+      critical: 0,
+      unknown: 0,
+      total: 0,
+      assessed: 0,
+      assessedPercent: null
+    });
+    expect(breakdownFromSummary(summary({ assessedPercent: null })).assessedPercent).toBeNull();
+    expect(breakdownFromSummary(summary()).assessedPercent).toBe(88);
+    expect(breakdownFromSummary(summary()).healthy).toBe(1);
+  });
+
+  it('builds a five-band chart including Healthy', () => {
+    const chart = fleetHealthChartData(breakdownFromSummary(summary()));
+    expect(chart.labels).toEqual(['Optimal', 'Healthy', 'Attention', 'Critical', 'Unknown']);
+    expect(chart.datasets![0].data).toEqual([2, 1, 1, 0, 1]);
+  });
+
+  it('aggregates reasons only from Attention and Critical vehicles', () => {
+    const vehicles: FleetVehicleHealth[] = [
+      {
+        vehicleId: 1,
+        vehicleName: 'A',
+        registrationNumber: '',
+        band: 'Attention',
+        score: 60,
+        reasons: ['GPS stale', 'Maintenance due soon'],
+        factors: []
+      },
+      {
+        vehicleId: 2,
+        vehicleName: 'B',
+        registrationNumber: '',
+        band: 'Critical',
+        score: 20,
+        reasons: ['Maintenance overdue', 'GPS stale'],
+        factors: []
+      },
+      {
+        vehicleId: 3,
+        vehicleName: 'C',
+        registrationNumber: '',
+        band: 'Optimal',
+        score: 100,
+        reasons: ['should ignore'],
+        factors: []
+      }
+    ];
+    const reasons = aggregateHealthReasons(vehicles);
+    expect(reasons.find(r => r.reason === 'GPS stale')?.count).toBe(2);
+    expect(reasons.find(r => r.reason === 'Maintenance overdue')?.count).toBe(1);
+    expect(reasons.find(r => r.reason === 'should ignore')).toBeUndefined();
+  });
+
+  it('indexes vehicles by id for detail panel lookup', () => {
+    const map = vehicleHealthById([
+      {
+        vehicleId: 7,
+        vehicleName: 'X',
+        registrationNumber: '',
+        band: 'Healthy',
+        score: 80,
+        reasons: [],
+        factors: []
+      }
     ]);
-
-    expect(result.unknown).toBe(2);
-    expect(result.total).toBe(2);
-  });
-
-  it('buckets sos and offline vehicles as critical', () => {
-    const result = computeFleetHealth([
-      createLocation({ status: 'sos' }),
-      createLocation({ status: 'offline' })
-    ]);
-
-    expect(result.critical).toBe(2);
-  });
-
-  it('buckets critically low battery as critical even when otherwise moving fine', () => {
-    const result = computeFleetHealth([createLocation({ status: 'moving', batteryLevel: 5 })]);
-    expect(result.critical).toBe(1);
-  });
-
-  it('buckets weak GSM signal or low-but-not-critical battery as attention', () => {
-    const result = computeFleetHealth([
-      createLocation({ status: 'idle', gsmSignal: 5 }),
-      createLocation({ status: 'idle', batteryLevel: 20 })
-    ]);
-
-    expect(result.attention).toBe(2);
-  });
-
-  it('buckets a healthy, well-connected vehicle as optimal', () => {
-    const result = computeFleetHealth([
-      createLocation({ status: 'moving', batteryLevel: 90, gsmSignal: 28 })
-    ]);
-
-    expect(result.optimal).toBe(1);
+    expect(map.get(7)?.score).toBe(80);
   });
 });

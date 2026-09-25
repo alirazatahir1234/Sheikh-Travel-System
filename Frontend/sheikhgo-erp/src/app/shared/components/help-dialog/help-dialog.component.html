@@ -1,0 +1,194 @@
+<div class="help-center" role="document">
+  <!-- Left rail (desktop / tablet) -->
+  <aside class="help-rail" aria-label="Help topics">
+    <header class="help-rail-header">
+      <div class="help-rail-title-row">
+        <span class="help-rail-icon" aria-hidden="true">
+          <mat-icon>menu_book</mat-icon>
+        </span>
+        <div>
+          <h2 class="help-rail-title" id="help-dialog-title">Help &amp; Support</h2>
+          <p class="help-rail-sub">Guides, articles and support information for {{ appProductName }}.</p>
+        </div>
+      </div>
+
+      <label class="help-search">
+        <span class="visually-hidden">Search help topics</span>
+        <mat-icon aria-hidden="true">search</mat-icon>
+        <input
+          type="search"
+          placeholder="Search help topics..."
+          [ngModel]="searchQuery"
+          (ngModelChange)="onSearchInput($event)"
+          autocomplete="off"
+          aria-label="Search help topics" />
+      </label>
+    </header>
+
+    <nav class="help-nav" aria-label="Help categories">
+      <button
+        type="button"
+        class="help-nav-item"
+        *ngFor="let cat of categories; trackBy: trackByCategoryId"
+        [class.is-active]="activeCategoryId === cat.id && !searchQuery.trim()"
+        (click)="selectCategory(cat.id)">
+        <mat-icon aria-hidden="true">{{ cat.icon }}</mat-icon>
+        <span>{{ cat.label }}</span>
+      </button>
+    </nav>
+
+    <div class="help-support-card">
+      <div class="help-support-head">
+        <mat-icon aria-hidden="true">headset_mic</mat-icon>
+        <strong>Need More Help?</strong>
+      </div>
+      <p>Our support team is here to help you with {{ appProductName }}.</p>
+      <button type="button" class="help-support-cta" (click)="contactSupport()">
+        <mat-icon aria-hidden="true">mail</mat-icon>
+        Contact Support
+      </button>
+      <ul class="help-support-meta">
+        <li>
+          <mat-icon aria-hidden="true">email</mat-icon>
+          <a [href]="'mailto:' + supportEmail">{{ supportEmail }}</a>
+        </li>
+        <li>
+          <mat-icon aria-hidden="true">phone</mat-icon>
+          <a [href]="'tel:' + supportPhone">{{ supportPhone }}</a>
+        </li>
+        <li>
+          <mat-icon aria-hidden="true">schedule</mat-icon>
+          <span>{{ supportHours }}</span>
+        </li>
+      </ul>
+    </div>
+  </aside>
+
+  <!-- Main content -->
+  <section class="help-main" aria-labelledby="help-main-heading">
+    <header class="help-main-header">
+      <div class="help-main-heading-block">
+        <h3 class="help-main-heading" id="help-main-heading">
+          {{ searchQuery.trim() ? 'Search results' : activeCategory.heading }}
+        </h3>
+        <p class="help-main-sub">
+          {{ searchQuery.trim()
+            ? ('Showing topics matching “' + searchQuery.trim() + '”')
+            : activeCategory.subtitle }}
+        </p>
+      </div>
+      <button type="button" class="help-close" (click)="close()" aria-label="Close help dialog">
+        <mat-icon aria-hidden="true">close</mat-icon>
+      </button>
+    </header>
+
+    <!-- Mobile controls -->
+    <div class="help-mobile-controls">
+      <label class="help-search help-search--mobile">
+        <span class="visually-hidden">Search help topics</span>
+        <mat-icon aria-hidden="true">search</mat-icon>
+        <input
+          type="search"
+          placeholder="Search help topics..."
+          [ngModel]="searchQuery"
+          (ngModelChange)="onSearchInput($event)"
+          autocomplete="off"
+          aria-label="Search help topics" />
+      </label>
+      <label class="help-mobile-select">
+        <span class="visually-hidden">Help category</span>
+        <select
+          [ngModel]="activeCategoryId"
+          (ngModelChange)="selectCategory($event)"
+          aria-label="Help category">
+          <option *ngFor="let cat of categories; trackBy: trackByCategoryId" [value]="cat.id">
+            {{ cat.label }}
+          </option>
+        </select>
+        <mat-icon aria-hidden="true">expand_more</mat-icon>
+      </label>
+    </div>
+
+    <div class="help-main-scroll">
+      <div class="help-welcome" *ngIf="showWelcomeBanner">
+        <div class="help-welcome-copy">
+          <span class="help-welcome-badge" aria-hidden="true">
+            <mat-icon>waving_hand</mat-icon>
+          </span>
+          <div>
+            <h4>Welcome to {{ appProductName }}!</h4>
+            <p>Find quick guides and helpful information to get the most out of your fleet and trip management system.</p>
+          </div>
+        </div>
+        <div class="help-welcome-art" aria-hidden="true">
+          <mat-icon>menu_book</mat-icon>
+          <mat-icon class="help-welcome-play">play_circle</mat-icon>
+        </div>
+      </div>
+
+      <div class="help-card-grid" *ngIf="filteredCards.length; else noResults">
+        <article
+          class="help-card"
+          *ngFor="let card of filteredCards; trackBy: trackByCardId"
+          [attr.data-accent]="card.accent"
+          tabindex="0"
+          role="button"
+          [attr.aria-label]="card.title"
+          (click)="onCardClick(card)"
+          (keydown.enter)="onCardClick(card)"
+          (keydown.space)="$event.preventDefault(); onCardClick(card)">
+          <div class="help-card-top">
+            <span class="help-card-icon" aria-hidden="true">
+              <mat-icon>{{ card.icon }}</mat-icon>
+            </span>
+            <div class="help-card-titles">
+              <h4>{{ card.title }}</h4>
+              <p>{{ card.description }}</p>
+            </div>
+            <mat-icon class="help-card-arrow" aria-hidden="true">chevron_right</mat-icon>
+          </div>
+          <ul class="help-card-list">
+            <li *ngFor="let step of card.checklist">
+              <mat-icon aria-hidden="true">check_circle</mat-icon>
+              <span>{{ step }}</span>
+            </li>
+          </ul>
+        </article>
+      </div>
+
+      <ng-template #noResults>
+        <div class="help-empty">
+          <mat-icon aria-hidden="true">search_off</mat-icon>
+          <p>No help topics match your search.</p>
+        </div>
+      </ng-template>
+
+      <!-- Mobile support (rail hidden) -->
+      <div class="help-support-card help-support-card--mobile">
+        <div class="help-support-head">
+          <mat-icon aria-hidden="true">headset_mic</mat-icon>
+          <strong>Need More Help?</strong>
+        </div>
+        <p>Our support team is here to help you with {{ appProductName }}.</p>
+        <button type="button" class="help-support-cta" (click)="contactSupport()">
+          <mat-icon aria-hidden="true">mail</mat-icon>
+          Contact Support
+        </button>
+        <ul class="help-support-meta">
+          <li>
+            <mat-icon aria-hidden="true">email</mat-icon>
+            <a [href]="'mailto:' + supportEmail">{{ supportEmail }}</a>
+          </li>
+          <li>
+            <mat-icon aria-hidden="true">phone</mat-icon>
+            <a [href]="'tel:' + supportPhone">{{ supportPhone }}</a>
+          </li>
+          <li>
+            <mat-icon aria-hidden="true">schedule</mat-icon>
+            <span>{{ supportHours }}</span>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </section>
+</div>

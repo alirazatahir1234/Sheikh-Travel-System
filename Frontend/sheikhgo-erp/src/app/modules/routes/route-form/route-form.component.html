@@ -295,11 +295,11 @@
             [center]="mapCenter"
             [zoom]="mapZoom"
             [options]="mapOptions">
-            <map-directions-renderer
-              *ngIf="directionsResult"
-              [directions]="directionsResult"
-              [options]="rendererOptions">
-            </map-directions-renderer>
+            <map-polyline
+              *ngIf="routePath.length"
+              [path]="routePath"
+              [options]="routePolylineOptions">
+            </map-polyline>
             <map-marker
               *ngFor="let m of mapMarkers"
               [position]="m.position"

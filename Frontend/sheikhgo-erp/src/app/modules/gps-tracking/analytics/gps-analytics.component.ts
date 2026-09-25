@@ -1,7 +1,9 @@
-import { AfterViewInit, Component, ElementRef, OnInit, ViewChild } from '@angular/core';
+import { AfterViewInit, Component, ElementRef, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { Router } from '@angular/router';
 import { ChartData } from 'chart.js';
-import * as L from 'leaflet';
+import { environment } from '../../../../environments/environment';
+import { applyGmapTheme, type GmapThemeHandle } from '../../../core/google-maps/gmap-theme';
+import { GoogleMapsLoaderService } from '../../../core/services/google-maps-loader.service';
 import { GpsTrackingService } from '../../../core/services/gps-tracking.service';
 import { ExportService, ExportColumn, ExportMeta } from '../../../core/services/export.service';
 import { AnalyticsOverview, GpsAlertEvent, IdleAnalytics, StopAnalytics, DriverScore, FleetUtilization, FuelAnalytics, GeofenceAnalytics, AlertEventStats, HeatmapPoint, GpsVehicleHealth, GpsDevice, VehicleRanking, CostAnalytics, ComparativeAnalytics, VehicleFuel } from '../../../core/models/gps-tracking.model';
@@ -31,7 +33,7 @@ interface KpiTile {
   templateUrl: './gps-analytics.component.html',
   styleUrls: ['./gps-analytics.component.scss']
 })
-export class GpsAnalyticsComponent implements OnInit, AfterViewInit {
+export class GpsAnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild('heatmapMap') heatmapMapEl?: ElementRef<HTMLDivElement>;
   readonly datePresets = TRIP_DATE_PRESETS;
   datePreset: TripDatePreset = 'last7Days';
@@ -102,8 +104,11 @@ export class GpsAnalyticsComponent implements OnInit, AfterViewInit {
   readonly heatmapMaxVehicles = 15;
   heatmapPoints: HeatmapPoint[] = [];
   heatmapLoading = false;
-  private heatmapMap: L.Map | null = null;
-  private heatmapLayer: L.LayerGroup | null = null;
+  private heatmapMap: google.maps.Map | null = null;
+  private heatmapCircles: google.maps.Circle[] = [];
+  private heatmapThemeHandle: GmapThemeHandle | null = null;
+  private heatmapMapReady = false;
+  private pendingHeatmapRender = false;
 
   vehicleHealth: GpsVehicleHealth[] = [];
   vehicleHealthLoading = false;
@@ -136,7 +141,8 @@ export class GpsAnalyticsComponent implements OnInit, AfterViewInit {
     private gps: GpsTrackingService,
     private fleet: FleetService,
     private exportService: ExportService,
-    private router: Router
+    private router: Router,
+    private googleMapsLoader: GoogleMapsLoaderService
   ) {}
 
   ngOnInit(): void {
@@ -150,13 +156,62 @@ export class GpsAnalyticsComponent implements OnInit, AfterViewInit {
   }
 
   ngAfterViewInit(): void {
-    if (!this.heatmapMapEl) return;
-    this.heatmapMap = L.map(this.heatmapMapEl.nativeElement, { zoomControl: true }).setView([31.52, 74.35], 6);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '© OpenStreetMap contributors',
-      maxZoom: 19
-    }).addTo(this.heatmapMap);
-    this.heatmapLayer = L.layerGroup().addTo(this.heatmapMap);
+    void this.initHeatmapMap();
+  }
+
+  ngOnDestroy(): void {
+    this.teardownHeatmapMap();
+  }
+
+  private async initHeatmapMap(): Promise<void> {
+    const host = this.heatmapMapEl?.nativeElement;
+    if (!host || this.heatmapMap) return;
+
+    try {
+      const bootstrapped = await this.googleMapsLoader.load();
+      if (!bootstrapped) return;
+
+      await this.googleMapsLoader.importLibrary('maps');
+      if (this.googleMapsLoader.authFailed) return;
+
+      const mapOptions: google.maps.MapOptions = {
+        center: { lat: 31.52, lng: 74.35 },
+        zoom: 6,
+        maxZoom: 19,
+        mapTypeControl: false,
+        streetViewControl: false,
+        fullscreenControl: false,
+        zoomControl: true
+      };
+      const mapId = (environment as { googleMapsMapId?: string }).googleMapsMapId?.trim();
+      if (mapId) {
+        mapOptions.mapId = mapId;
+      }
+
+      this.heatmapMap = new google.maps.Map(host, mapOptions);
+      this.heatmapThemeHandle = applyGmapTheme(this.heatmapMap, 'street', this.heatmapThemeHandle);
+      this.heatmapMapReady = true;
+      if (this.pendingHeatmapRender || this.heatmapPoints.length) {
+        this.pendingHeatmapRender = false;
+        this.renderHeatmap();
+      }
+    } catch {
+      this.heatmapMap = null;
+      this.heatmapMapReady = false;
+    }
+  }
+
+  private teardownHeatmapMap(): void {
+    this.clearHeatmapCircles();
+    this.heatmapThemeHandle?.trafficLayer?.setMap(null);
+    this.heatmapThemeHandle = null;
+    this.heatmapMap = null;
+    this.heatmapMapReady = false;
+  }
+
+  private clearHeatmapCircles(): void {
+    this.heatmapCircles.forEach(c => c.setMap(null));
+    this.heatmapCircles = [];
   }
 
   private loadDevices(): void {
@@ -196,23 +251,35 @@ export class GpsAnalyticsComponent implements OnInit, AfterViewInit {
   }
 
   private renderHeatmap(): void {
-    if (!this.heatmapMap || !this.heatmapLayer) return;
-    this.heatmapLayer.clearLayers();
+    if (!this.heatmapMapReady || !this.heatmapMap) {
+      this.pendingHeatmapRender = true;
+      return;
+    }
+    this.clearHeatmapCircles();
     if (this.heatmapPoints.length === 0) return;
 
-    const maxCount = Math.max(...this.heatmapPoints.map(p => p.count));
+    const maxCount = Math.max(...this.heatmapPoints.map(p => p.count), 1);
+    const bounds = new google.maps.LatLngBounds();
+
     for (const point of this.heatmapPoints) {
       const intensity = point.count / maxCount;
-      L.circleMarker([point.latitude, point.longitude], {
-        radius: 4 + intensity * 12,
-        fillColor: intensity > 0.66 ? '#ef4444' : intensity > 0.33 ? '#f59e0b' : '#0f766e',
+      // Geographic radius so dots remain visible at regional zoom (Leaflet used px markers).
+      const radiusMeters = 250 + intensity * 900;
+      const fillColor = intensity > 0.66 ? '#ef4444' : intensity > 0.33 ? '#f59e0b' : '#0f766e';
+      const circle = new google.maps.Circle({
+        map: this.heatmapMap,
+        center: { lat: point.latitude, lng: point.longitude },
+        radius: radiusMeters,
+        fillColor,
         fillOpacity: 0.5,
-        stroke: false
-      }).addTo(this.heatmapLayer);
+        strokeWeight: 0,
+        clickable: false
+      });
+      this.heatmapCircles.push(circle);
+      bounds.extend({ lat: point.latitude, lng: point.longitude });
     }
 
-    const bounds = L.latLngBounds(this.heatmapPoints.map(p => [p.latitude, p.longitude] as [number, number]));
-    this.heatmapMap.fitBounds(bounds, { padding: [24, 24] });
+    this.heatmapMap.fitBounds(bounds, { top: 24, right: 24, bottom: 24, left: 24 });
   }
 
   private loadVehicleHealth(): void {

@@ -1,0 +1,131 @@
+.fleet-kpi {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding: 2px 2px 6px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+.fleet-kpi__card {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  flex: 0 0 auto;
+  min-width: 132px;
+  padding: 12px 14px;
+  border: 1px solid var(--stb-border, #e2e8f0);
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+  cursor: pointer;
+  text-align: left;
+  color: var(--stb-text, #0f172a);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+
+  &:hover {
+    border-color: rgba(15, 118, 110, 0.35);
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+  }
+
+  &--selected {
+    border-color: var(--stb-primary, #0f766e);
+    box-shadow: 0 0 0 2px rgba(15, 118, 110, 0.18);
+  }
+
+  &--sos {
+    border-color: rgba(220, 38, 38, 0.35);
+    .fleet-kpi__icon {
+      background: rgba(220, 38, 38, 0.12);
+      color: #dc2626;
+    }
+  }
+}
+
+.fleet-kpi__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  flex-shrink: 0;
+
+  mat-icon {
+    font-size: 20px;
+    width: 20px;
+    height: 20px;
+  }
+}
+
+.fleet-kpi__body {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.fleet-kpi__value {
+  font-size: 1.25rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+.fleet-kpi__label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--stb-text-muted, #64748b);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.fleet-kpi__hint,
+.fleet-kpi__trend {
+  font-size: 0.65rem;
+  color: var(--stb-text-soft, #94a3b8);
+}
+
+.fleet-kpi__trend--up {
+  color: #059669;
+}
+
+.fleet-kpi__spark {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  width: 40px;
+  height: 14px;
+  opacity: 0.45;
+  color: var(--stb-primary, #0f766e);
+  pointer-events: none;
+}
+
+.fleet-kpi__card[data-color='teal'] .fleet-kpi__icon {
+  background: rgba(15, 118, 110, 0.12);
+  color: #0f766e;
+}
+.fleet-kpi__card[data-color='green'] .fleet-kpi__icon {
+  background: rgba(13, 148, 136, 0.14);
+  color: #0d9488;
+}
+.fleet-kpi__card[data-color='amber'] .fleet-kpi__icon {
+  background: rgba(245, 158, 11, 0.14);
+  color: #d97706;
+}
+.fleet-kpi__card[data-color='rose'] .fleet-kpi__icon,
+.fleet-kpi__card[data-color='orange'] .fleet-kpi__icon {
+  background: rgba(239, 68, 68, 0.12);
+  color: #ef4444;
+}
+.fleet-kpi__card[data-color='purple'] .fleet-kpi__icon {
+  background: rgba(148, 163, 184, 0.2);
+  color: #64748b;
+}
+
+.fleet-kpi__card[data-color='sky'] .fleet-kpi__icon,
+.fleet-kpi__card[data-color='blue'] .fleet-kpi__icon {
+  background: rgba(37, 99, 235, 0.12);
+  color: #2563eb;
+}

@@ -79,6 +79,39 @@ Outbound driver location remains HTTP → ingest. Do not invent broker queues fo
 - Automated Jimi SMS / device provisioning
 - Rewriting trip / geofence / overspeed engines
 
+## Explainable Fleet Health (`GET /api/gps/fleet-health`)
+
+Live Map **Fleet Health** is separate from operational status (Moving/Idle/Parked) and connectivity (Online/Offline).
+
+### Factors (real data only)
+
+| Factor | Critical | Attention | Optimal | Unknown |
+|--------|----------|-----------|---------|---------|
+| GPS freshness | — | Stale fix (&gt; `OfflineStaleMinutes`) | Fresh | No device / never reported |
+| Tracker battery | &lt; CriticalBattery% | &lt; AttentionBattery% | ≥ Attention | Null |
+| GSM / RSSI | — | &lt; AttentionGsmSignal | ≥ threshold | Null |
+| Critical alerts | Open unacked critical | — | None | No GPS device |
+| Maintenance schedule | Overdue | Due soon | Upcoming | No schedule |
+| Insurance | Expired | Expiring ≤ 30 days | Valid | No date |
+
+**Not factors:** Parked / Idle / Moving, invented OBD/DTC, AI `driverScore` defaults.
+
+### Scoring (`GpsSettings:FleetHealth`)
+
+- Drop Unknown factors from the weighted average (null ≠ healthy).
+- Zero known factors → band **Unknown**, `score = null`.
+- Else `score = round(Σ w×factorScore / Σ w)`; bands from `OptimalMin` / `HealthyMin` / `AttentionMin`.
+- Any Critical factor forces band Critical; any Attention factor prevents Optimal/Healthy.
+- Fleet `assessedPercent` = average of assessed vehicle scores (Unknown excluded).
+
+Weights, bands, and thresholds default in `GpsSettings.FleetHealth` (code). Override via env / user secrets (`GpsSettings__FleetHealth__…`) — do not commit API keys or local secrets in `appsettings.json` for Maps PRs (ADR-009).
+
+### Related code
+
+- Assessor: `GpsFleetHealthAssessor`
+- Calculator: `GpsFleetHealthCalculator`
+- ERP: Live Map Fleet Health card + `getFleetHealth()`
+
 ## Phase 2 (when needed)
 
 1. Traccar position forward / webhook **or** a Traccar WebSocket client so SheikhGo is push-fed instead of pull-adaptive.
@@ -98,3 +131,26 @@ Outbound driver location remains HTTP → ingest. Do not invent broker queues fo
 - Ingest / push: `IngestPositionCommand`, `LocationBroadcastService`, `TrackingHub`
 - ERP: `gps-realtime.service.ts`, live-map + vehicle profile GPS panels
 - Flutter: `signalr_service.dart`, `live_map_screen.dart`, `fleet_realtime_service.dart`
+
+## Google Maps (ERP browser key)
+
+Live fleet map, Places, Routes, and trail rendering use the **Maps JavaScript API** in the ERP SPA.
+
+- Browser key (**SheikhGo-Frontend**): `Frontend/sheikhgo-erp/src/environments/environment*.ts` → `environment.googleMapsApiKey` (optional `googleMapsMapId` for Advanced Markers).
+- Flutter Driver/Fleet: `android/maps.properties` + `ios/Flutter/Maps.xcconfig` (optional gitignored `Maps.local.xcconfig` override).
+- Customer hub: `environment*.ts` → `googleMapsApiKey`.
+- Restrict the browser/mobile key by **HTTP referrer** and Android/iOS app restrictions. Scrub committed keys in a follow-up PR after rotation (removing committed key values fails ADR-009 scanners even when the intent is cleanup).
+- Backend (**SheikhGo-Backend**): env `Geocoding__GoogleMapsApiKey` and/or `GoogleMaps__ApiKey` (**IP-restricted or unrestricted for local — never HTTP referrer**). Used for reverse geocode, Places Nearby (`places:searchNearby`), Routes, Roads, Time Zone, Static URL helpers, Route Optimization. Do not reuse the browser key.
+- Live Map **Nearby Places** fails with `API_KEY_HTTP_REFERRER_BLOCKED` when **SheikhGo-Backend** Application restrictions = **Websites** (Places API can be enabled and still fail). Preferred fix: Cloud Console → Credentials → SheikhGo-Backend → Application restrictions → **None** (local) or **IP addresses** — not Websites. Workaround: set `GoogleMaps__ServerHttpReferer` to one allow-listed URL (e.g. `http://127.0.0.1:5082/`).
+- Nearby Search uses `POST https://places.googleapis.com/v1/places:searchNearby` with `includedTypes` (e.g. `hospital`), `locationRestriction.circle.radius` in **meters**, and `X-Goog-FieldMask`. Auth/config failures return Fail messages (not empty lists); empty Google results stay Success with zero places. Backend logs include category, lat/lng, radius, HTTP status, and a reason tag — never the API key.
+- Do not stage `appsettings.json` for Maps work; set backend Maps secrets via env / user secrets.
+
+### Map Tiles API (configured, not consumed)
+
+Map Tiles remains enabled in Google Cloud for future custom/low-level rendering. The live fleet map, history replay, and analytics use **Maps JavaScript API** only. Do not introduce a second Map Tiles-based renderer for standard tracking.
+
+### Planned route vs actual GPS track
+
+- Planned route: Google Routes API (forms + `/api/gps/maps/planned-route`).
+- Actual track: Traccar → SheikhGo → SignalR / history APIs (never overwritten by Roads snap).
+- Roads snapToRoads is an optional **display** overlay only.

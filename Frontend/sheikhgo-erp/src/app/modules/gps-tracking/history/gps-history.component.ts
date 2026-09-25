@@ -22,7 +22,7 @@ import {
   toDatetimeLocalInput
 } from '../utils/trip-date-preset.util';
 import { TripReplayMapComponent } from '../shared/trip-replay-map/trip-replay-map.component';
-import { resolveReplayStatus } from '../../../core/leaflet/fleet-vehicle-marker';
+import { resolveReplayStatus } from '../../../core/google-maps/fleet-vehicle-marker.gmap';
 import {
   formatFleetDisplayAddress,
   isCoarseAddress,

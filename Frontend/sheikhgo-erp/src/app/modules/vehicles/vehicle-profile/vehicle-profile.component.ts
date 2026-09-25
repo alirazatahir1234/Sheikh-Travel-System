@@ -627,7 +627,9 @@ export class VehicleProfileComponent implements OnInit, OnDestroy {
   get motionLabel(): string | null {
     if (!this.isGpsOnline) return null;
     const s = this.liveStatus;
-    if (s === 'moving' || s === 'idle' || s === 'parked' || s === 'sos') return this.liveStatusLabel;
+    if (s === 'moving' || s === 'idle' || s === 'parked' || s === 'sos' || s === 'unknown') {
+      return this.liveStatusLabel;
+    }
     return null;
   }
 
@@ -636,7 +638,7 @@ export class VehicleProfileComponent implements OnInit, OnDestroy {
     if (!this.isGpsOnline) return 'live-off';
     const s = this.liveStatus;
     if (s === 'moving') return 'live-moving';
-    if (s === 'idle') return 'live-idle';
+    if (s === 'idle' || s === 'unknown') return 'live-idle';
     if (s === 'parked') return 'live-parked';
     if (s === 'sos') return 'live-sos';
     if (s === 'Maintenance') return 'live-maint';

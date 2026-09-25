@@ -341,6 +341,18 @@
           <mat-error *ngIf="form.get('nationality')?.hasError('maxlength')">Too long</mat-error>
         </mat-form-field>
 
+        <mat-form-field appearance="outline" class="span-2">
+          <mat-label>Search address (Google Places)</mat-label>
+          <input
+            matInput
+            #addressPlacesInput
+            type="text"
+            placeholder="Start typing to search…"
+            autocomplete="off"
+            aria-label="Search address with Google Places" />
+          <mat-hint>Fills the address field below with a formatted place address. Coordinates are not stored for customers.</mat-hint>
+        </mat-form-field>
+
         <mat-form-field appearance="outline" class="span-2" [class.ocr-field-shimmer]="cnicOcrBusy" [class.ocr-field-glow]="ocrJustFilled('address')">
           <mat-label>Address (optional, English)</mat-label>
           <textarea matInput formControlName="address" rows="2"></textarea>

@@ -1,17 +1,23 @@
 .gps-module {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
   min-width: 0;
   max-width: 100%;
   overflow-x: hidden;
+  background: #f8f9fb;
+  margin: -4px -4px 0;
+  padding: 4px 4px 0;
+  border-radius: 12px;
 }
 
 .gps-module-header {
   h1 {
     margin: 0;
-    font-size: clamp(1.1rem, 4vw, 1.35rem);
-    font-weight: 700;
+    font-size: clamp(1.25rem, 3.5vw, 1.5rem);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: var(--stb-text, #0f172a);
   }
 
   p {
@@ -23,13 +29,16 @@
 
 .gps-subnav {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  padding-bottom: 4px;
-  border-bottom: 1px solid var(--stb-border, #d8e0ea);
+  flex-wrap: nowrap;
+  gap: 6px;
+  padding: 4px;
+  background: #fff;
+  border: 1px solid var(--stb-border, #e2e8f0);
+  border-radius: 12px;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
 
   &::-webkit-scrollbar {
     display: none;
@@ -41,14 +50,14 @@
   align-items: center;
   gap: 6px;
   padding: 8px 14px;
-  min-height: 44px;
+  min-height: 40px;
   border-radius: 999px;
   text-decoration: none;
   color: var(--stb-text-muted, #64748b);
-  font-size: 0.875rem;
-  font-weight: 500;
+  font-size: 0.8125rem;
+  font-weight: 600;
   border: 1px solid transparent;
-  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  transition: background 0.15s ease, color 0.15s ease;
   flex-shrink: 0;
 
   mat-icon {
@@ -63,10 +72,9 @@
   }
 
   &.active {
-    background: var(--stb-primary-50, #ecfdf5);
-    color: var(--stb-primary, #0f766e);
-    border-color: rgba(15, 118, 110, 0.25);
-    font-weight: 600;
+    background: var(--stb-primary, #0f766e);
+    color: #fff;
+    font-weight: 700;
   }
 }
 
@@ -78,7 +86,9 @@
 
 @media (max-width: 767px) {
   .gps-module {
-    gap: 12px;
+    gap: 10px;
+    margin: 0;
+    padding: 0;
   }
 
   .gps-module-header p {
@@ -93,11 +103,5 @@
 
   .gps-subnav-link {
     padding: 8px 10px;
-  }
-}
-
-@media (max-width: 575px) {
-  .gps-module-header {
-    display: none;
   }
 }

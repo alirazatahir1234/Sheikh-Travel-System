@@ -1,5 +1,5 @@
 /**
- * 'moving'/'idle'/'parked'/'offline'/'never_seen'/'sos' are derived from live Traccar telemetry
+ * 'moving'/'idle'/'parked'/'unknown'/'offline'/'never_seen'/'sos' are derived from live Traccar telemetry
  * (see core/utils/gps-status.util.ts for the single source of truth on how). 'scheduled'/'delayed'
  * are a separate, booking-derived concern and are not produced by that function.
  */
@@ -7,6 +7,7 @@ export type FleetTrackStatus =
   | 'moving'
   | 'idle'
   | 'parked'
+  | 'unknown'
   | 'offline'
   | 'never_seen'
   | 'sos'
@@ -667,6 +668,26 @@ export interface GpsEta {
   pickupLongitude: number;
 }
 
+/** Places API (New) nearby amenity around a vehicle. */
+export interface NearbyPlace {
+  placeId: string;
+  name: string;
+  address?: string | null;
+  latitude: number;
+  longitude: number;
+  distanceMeters?: number | null;
+  rating?: number | null;
+  userRatingCount?: number | null;
+  types: string[];
+  category: string;
+  /** From Places currentOpeningHours.openNow when available. */
+  openNow?: boolean | null;
+  /** Human status e.g. "Open · Closes 11:00 PM" or "Closed". */
+  openingStatus?: string | null;
+  /** Official Google Maps URI when Places returns googleMapsUri. */
+  googleMapsUri?: string | null;
+}
+
 export interface IngestPositionPayload {
   vehicleId: number;
   driverId?: number;
@@ -920,6 +941,37 @@ export interface GpsVehicleHealth {
   insuranceStatus: string;
   trackerWarrantyEnd?: string;
   trackerWarrantyStatus: string;
+}
+
+/** Explainable Live Map fleet health — from GET /gps/fleet-health (real factors only). */
+export type FleetHealthBand = 'Optimal' | 'Healthy' | 'Attention' | 'Critical' | 'Unknown';
+
+export interface FleetHealthFactor {
+  key: string;
+  state: string;
+  detail: string;
+}
+
+export interface FleetVehicleHealth {
+  vehicleId: number;
+  vehicleName: string;
+  registrationNumber: string;
+  band: FleetHealthBand | string;
+  score: number | null;
+  reasons: string[];
+  factors: FleetHealthFactor[];
+}
+
+export interface FleetHealthSummary {
+  assessedPercent: number | null;
+  optimal: number;
+  healthy: number;
+  attention: number;
+  critical: number;
+  unknown: number;
+  total: number;
+  assessed: number;
+  vehicles: FleetVehicleHealth[];
 }
 
 export interface VehicleRanking {

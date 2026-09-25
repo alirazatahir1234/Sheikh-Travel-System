@@ -17,6 +17,7 @@ import {
 } from '../../../core/models/trip.model';
 import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
 import { apiErrorMessage } from '../../../core/utils/api-error.util';
+import { buildStaticMapUrl, buildStreetViewStaticUrl } from '../../../core/google-maps/gmap-static-urls';
 
 @Component({
   standalone: false,
@@ -56,6 +57,49 @@ export class TripDetailComponent implements OnInit, OnDestroy {
 
   get totalExpenses(): number {
     return (this.trip?.expenses || []).reduce((sum, e) => sum + (e.amount || 0), 0);
+  }
+
+  get pickupStreetViewUrl(): string | null {
+    const t = this.trip;
+    if (t?.pickupLatitude == null || t.pickupLongitude == null) return null;
+    return buildStreetViewStaticUrl({
+      lat: t.pickupLatitude,
+      lng: t.pickupLongitude,
+      width: 240,
+      height: 120
+    });
+  }
+
+  get destinationStreetViewUrl(): string | null {
+    const t = this.trip;
+    if (t?.destinationLatitude == null || t.destinationLongitude == null) return null;
+    return buildStreetViewStaticUrl({
+      lat: t.destinationLatitude,
+      lng: t.destinationLongitude,
+      width: 240,
+      height: 120
+    });
+  }
+
+  get tripStaticMapUrl(): string | null {
+    const t = this.trip;
+    if (!t) return null;
+    const markers: { lat: number; lng: number; label?: string; color?: string }[] = [];
+    if (t.pickupLatitude != null && t.pickupLongitude != null) {
+      markers.push({ lat: t.pickupLatitude, lng: t.pickupLongitude, label: 'P', color: '0x0f766e' });
+    }
+    if (t.destinationLatitude != null && t.destinationLongitude != null) {
+      markers.push({ lat: t.destinationLatitude, lng: t.destinationLongitude, label: 'D', color: '0xdc2626' });
+    }
+    if (!markers.length) return null;
+    const path =
+      markers.length === 2
+        ? [
+            { lat: markers[0].lat, lng: markers[0].lng },
+            { lat: markers[1].lat, lng: markers[1].lng }
+          ]
+        : undefined;
+    return buildStaticMapUrl({ width: 480, height: 200, markers, path, zoom: markers.length === 1 ? 14 : undefined });
   }
 
   constructor(

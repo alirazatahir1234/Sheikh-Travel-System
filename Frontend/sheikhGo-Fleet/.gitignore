@@ -43,3 +43,6 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Google Maps local secrets — never commit real keys
+ios/Flutter/Maps.local.xcconfig

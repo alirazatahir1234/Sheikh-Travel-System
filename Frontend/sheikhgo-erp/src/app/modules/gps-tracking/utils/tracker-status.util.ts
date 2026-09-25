@@ -126,6 +126,8 @@ export function resolveTrackerStatus(device: GpsDevice, nowMs?: number): Tracker
       return status('parked', 'Parked', 'badge-green', 'row-parked');
     case 'idle':
       return status('idle', 'Idle', 'badge-amber', 'row-idle');
+    case 'unknown':
+      return status('waiting_telemetry', 'Unknown', 'badge-amber', 'row-idle');
     case 'sos':
       return status('moving', 'SOS', 'badge-red', 'row-moving');
     default:

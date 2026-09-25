@@ -206,11 +206,39 @@ public class GetPendingDeviceCommandsQueryHandler(IGpsDeviceRepository gpsDevice
 
 public record GetGpsEtaQuery(int BookingId) : IRequest<ApiResponse<GpsEtaDto>>;
 
-public class GetGpsEtaQueryHandler(IGpsTrackingRepository gpsTrackingRepository)
+public class GetGpsEtaQueryHandler(
+    IGpsTrackingRepository gpsTrackingRepository,
+    IGoogleRoutesService routesService)
     : IRequestHandler<GetGpsEtaQuery, ApiResponse<GpsEtaDto>>
 {
-    public Task<ApiResponse<GpsEtaDto>> Handle(GetGpsEtaQuery request, CancellationToken cancellationToken)
-        => gpsTrackingRepository.GetGpsEtaAsync(request, cancellationToken);
+    public async Task<ApiResponse<GpsEtaDto>> Handle(
+        GetGpsEtaQuery request, CancellationToken cancellationToken)
+    {
+        var result = await gpsTrackingRepository.GetGpsEtaAsync(request, cancellationToken);
+        if (!result.Success || result.Data is null)
+            return result;
+
+        var route = await routesService.ComputeRouteAsync(
+            result.Data.DriverLatitude,
+            result.Data.DriverLongitude,
+            result.Data.PickupLatitude,
+            result.Data.PickupLongitude,
+            null,
+            cancellationToken);
+
+        if (route is null || route.DistanceMeters <= 0)
+            return result;
+
+        var enhanced = result.Data with
+        {
+            DistanceKm = Math.Round(route.DistanceMeters / 1000.0, 2),
+            EtaMinutes = route.DurationSeconds > 0
+                ? (int)Math.Ceiling(route.DurationSeconds / 60.0)
+                : result.Data.EtaMinutes
+        };
+
+        return ApiResponse<GpsEtaDto>.SuccessResponse(enhanced);
+    }
 }
 
 public record GetGeofenceBreachCountQuery : IRequest<ApiResponse<int>>;

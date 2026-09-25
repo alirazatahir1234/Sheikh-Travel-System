@@ -1,0 +1,266 @@
+<aside class="vdp stb-elevated" aria-label="Selected vehicle details">
+  <ng-container *ngIf="loc as v; else empty">
+    <div class="vdp__head">
+      <div class="vdp__avatar" [attr.data-status]="v.status">
+        <mat-icon>{{ statusIconName }}</mat-icon>
+      </div>
+      <div class="vdp__titles">
+        <h2 class="vdp__name">{{ v.vehicleName }}</h2>
+        <span class="vdp__plate">{{ v.registrationNumber }}</span>
+      </div>
+      <span class="vdp__badge" [attr.data-status]="v.status">{{ statusBadge }}</span>
+    </div>
+
+    <div class="vdp__tabs" role="tablist">
+      <button
+        type="button"
+        class="vdp__tab stb-touch"
+        *ngFor="let t of tabs"
+        role="tab"
+        [attr.aria-selected]="activeTab === t.id"
+        [class.vdp__tab--active]="activeTab === t.id"
+        (click)="setTab(t.id)">
+        {{ t.label }}
+      </button>
+    </div>
+
+    <div class="vdp__body" role="tabpanel">
+      <!-- Overview -->
+      <ng-container *ngIf="activeTab === 'overview'">
+        <div class="vdp__grid">
+          <div class="vdp__metric" *ngIf="v.trackerName || v.imei">
+            <mat-icon>router</mat-icon>
+            <div>
+              <span class="vdp__lbl">Tracker</span>
+              <span class="vdp__val">
+                {{ v.trackerName || 'Device' }}
+                <span *ngIf="v.imei" class="vdp__mono"> · IMEI {{ v.imei }}</span>
+              </span>
+            </div>
+          </div>
+          <div class="vdp__metric">
+            <mat-icon>speed</mat-icon>
+            <div>
+              <span class="vdp__lbl">Speed</span>
+              <span class="vdp__val">{{ speedText }}</span>
+            </div>
+          </div>
+          <div class="vdp__metric">
+            <mat-icon>power_settings_new</mat-icon>
+            <div>
+              <span class="vdp__lbl">Ignition</span>
+              <span class="vdp__val">{{ v.ignition === true ? 'On' : v.ignition === false ? 'Off' : '—' }}</span>
+            </div>
+          </div>
+          <div class="vdp__metric">
+            <mat-icon>network_check</mat-icon>
+            <div>
+              <span class="vdp__lbl">GPS Signal</span>
+              <span class="vdp__val">{{ gpsSignalText }}</span>
+            </div>
+          </div>
+          <div class="vdp__metric" *ngIf="headingText">
+            <mat-icon>explore</mat-icon>
+            <div>
+              <span class="vdp__lbl">Heading</span>
+              <span class="vdp__val">{{ headingText }}</span>
+            </div>
+          </div>
+          <div class="vdp__metric vdp__metric--block">
+            <mat-icon>place</mat-icon>
+            <div>
+              <span class="vdp__lbl">Current location</span>
+              <ng-container *ngIf="locationPrimary; else addrFallback">
+                <span class="vdp__val vdp__val--place">{{ locationPrimary }}</span>
+                <span class="vdp__sub" *ngIf="locationSecondary">{{ locationSecondary }}</span>
+              </ng-container>
+              <ng-template #addrFallback>
+                <span class="vdp__val vdp__muted" *ngIf="addressResolving">Resolving address…</span>
+                <span class="vdp__val vdp__mono" *ngIf="!addressResolving">
+                  {{ v.latitude | number:'1.5-5' }}, {{ v.longitude | number:'1.5-5' }}
+                </span>
+              </ng-template>
+              <span class="vdp__sub vdp__mono" *ngIf="locationPrimary">
+                {{ v.latitude | number:'1.5-5' }}, {{ v.longitude | number:'1.5-5' }}
+              </span>
+              <a class="vdp__link" [href]="mapsUrl" target="_blank" rel="noopener noreferrer">View on Google Maps</a>
+              <img
+                *ngIf="streetViewSrc as sv"
+                class="vdp__street"
+                [src]="sv"
+                width="280"
+                height="140"
+                alt="Street View near vehicle"
+                loading="lazy"
+                referrerpolicy="no-referrer-when-downgrade"
+                (error)="streetViewError.emit(v.vehicleId)" />
+            </div>
+          </div>
+          <div class="vdp__metric">
+            <mat-icon>schedule</mat-icon>
+            <div>
+              <span class="vdp__lbl">Last update</span>
+              <span class="vdp__val">{{ lastPingText }}</span>
+            </div>
+          </div>
+          <div class="vdp__metric">
+            <mat-icon>person</mat-icon>
+            <div>
+              <span class="vdp__lbl">Driver</span>
+              <span class="vdp__val" *ngIf="v.driverName">{{ v.driverName }}</span>
+              <span class="vdp__val vdp__muted" *ngIf="!v.driverName">Not assigned</span>
+            </div>
+          </div>
+          <div class="vdp__metric">
+            <mat-icon>route</mat-icon>
+            <div>
+              <span class="vdp__lbl">Route / Status</span>
+              <span class="vdp__val">{{ operationalLine || dualStatus }}</span>
+            </div>
+          </div>
+          <div class="vdp__metric" *ngIf="v.totalDistanceKm != null">
+            <mat-icon>timeline</mat-icon>
+            <div>
+              <span class="vdp__lbl">Odometer</span>
+              <span class="vdp__val">{{ v.totalDistanceKm | number:'1.0-0' }} km</span>
+            </div>
+          </div>
+        </div>
+      </ng-container>
+
+      <!-- Telemetry -->
+      <ng-container *ngIf="activeTab === 'telemetry'">
+        <div class="vdp__grid">
+          <div class="vdp__metric">
+            <mat-icon>speed</mat-icon>
+            <div>
+              <span class="vdp__lbl">Speed</span>
+              <span class="vdp__val">{{ speedText }}</span>
+            </div>
+          </div>
+          <div class="vdp__metric">
+            <mat-icon>power_settings_new</mat-icon>
+            <div>
+              <span class="vdp__lbl">Ignition</span>
+              <span class="vdp__val">{{ v.ignition === true ? 'On' : v.ignition === false ? 'Off' : '—' }}</span>
+            </div>
+          </div>
+          <div class="vdp__metric">
+            <mat-icon>network_check</mat-icon>
+            <div>
+              <span class="vdp__lbl">GPS Signal</span>
+              <span class="vdp__val">{{ gpsSignalText }}</span>
+            </div>
+          </div>
+          <div class="vdp__metric" *ngIf="headingText">
+            <mat-icon>explore</mat-icon>
+            <div>
+              <span class="vdp__lbl">Heading</span>
+              <span class="vdp__val">{{ headingText }}</span>
+            </div>
+          </div>
+          <div class="vdp__metric" *ngIf="v.fuelLevel != null">
+            <mat-icon>local_gas_station</mat-icon>
+            <div>
+              <span class="vdp__lbl">Fuel</span>
+              <span class="vdp__val">{{ v.fuelLevel | number:'1.0-0' }}%</span>
+            </div>
+          </div>
+          <div class="vdp__metric" *ngIf="v.batteryLevel != null">
+            <mat-icon>battery_std</mat-icon>
+            <div>
+              <span class="vdp__lbl">Battery</span>
+              <span class="vdp__val">{{ v.batteryLevel | number:'1.0-0' }}%</span>
+            </div>
+          </div>
+          <div class="vdp__metric" *ngIf="v.gsmSignal != null">
+            <mat-icon>signal_cellular_alt</mat-icon>
+            <div>
+              <span class="vdp__lbl">GSM</span>
+              <span class="vdp__val">{{ v.gsmSignal }} dBm</span>
+            </div>
+          </div>
+          <div class="vdp__metric" *ngIf="temperatureText">
+            <mat-icon>thermostat</mat-icon>
+            <div>
+              <span class="vdp__lbl">Temperature</span>
+              <span class="vdp__val">{{ temperatureText }}</span>
+            </div>
+          </div>
+          <div class="vdp__metric" *ngIf="v.relayOutput">
+            <mat-icon>electrical_services</mat-icon>
+            <div>
+              <span class="vdp__lbl">Relay</span>
+              <span class="vdp__val">{{ v.relayOutput }}</span>
+            </div>
+          </div>
+        </div>
+      </ng-container>
+
+      <!-- Trip -->
+      <ng-container *ngIf="activeTab === 'trip'">
+        <div class="vdp__grid" *ngIf="v.bookingId != null && eta; else noTrip">
+          <div class="vdp__metric">
+            <mat-icon>route</mat-icon>
+            <div>
+              <span class="vdp__lbl">Distance</span>
+              <span class="vdp__val">{{ eta.distanceKm | number:'1.1-1' }} km</span>
+            </div>
+          </div>
+          <div class="vdp__metric" *ngIf="eta.etaMinutes != null">
+            <mat-icon>schedule</mat-icon>
+            <div>
+              <span class="vdp__lbl">ETA</span>
+              <span class="vdp__val">{{ eta.etaMinutes }} min</span>
+            </div>
+          </div>
+        </div>
+        <ng-template #noTrip>
+          <p class="vdp__empty-tab">No active trip for this vehicle.</p>
+        </ng-template>
+      </ng-container>
+
+      <!-- More -->
+      <ng-container *ngIf="activeTab === 'more'">
+        <div class="vdp__more">
+          <button type="button" class="vdp__more-btn stb-touch" (click)="history.emit()">
+            <mat-icon>history</mat-icon> Open history
+          </button>
+          <button type="button" class="vdp__more-btn stb-touch" (click)="command.emit()">
+            <mat-icon>settings_remote</mat-icon> Device commands
+          </button>
+          <button type="button" class="vdp__more-btn stb-touch" (click)="profile.emit(v.vehicleId)">
+            <mat-icon>open_in_new</mat-icon> Vehicle profile
+          </button>
+        </div>
+      </ng-container>
+    </div>
+
+    <div class="vdp__actions">
+      <button type="button" class="vdp__primary stb-touch" (click)="track.emit()">
+        <mat-icon>my_location</mat-icon> Track
+      </button>
+      <button
+        type="button"
+        class="vdp__secondary stb-touch"
+        [class.vdp__secondary--on]="followSelected"
+        (click)="follow.emit()">
+        <mat-icon>{{ followSelected ? 'location_disabled' : 'directions_run' }}</mat-icon>
+        Follow
+      </button>
+      <button type="button" class="vdp__secondary stb-touch" (click)="command.emit()">
+        <mat-icon>settings_remote</mat-icon> Command
+      </button>
+      <button type="button" class="vdp__ghost stb-touch" (click)="profile.emit(v.vehicleId)" aria-label="More">
+        <mat-icon>more_horiz</mat-icon>
+      </button>
+    </div>
+  </ng-container>
+
+  <ng-template #empty>
+    <div class="vdp__empty">
+      <mat-icon>touch_app</mat-icon>
+      <p>Select a vehicle on the map or list to view live details.</p>
+    </div>
+  </ng-template>
+</aside>

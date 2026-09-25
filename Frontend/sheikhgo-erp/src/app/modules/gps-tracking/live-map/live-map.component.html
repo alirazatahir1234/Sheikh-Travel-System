@@ -1,157 +1,50 @@
-<div class="track-page stb-page" [class.track-page--fs]="isMapFullscreen">
+<div class="track-page stb-page" [class.track-page--fs]="isMapFullscreen" [class.track-page--mobile-vehicles]="mobileNav === 'vehicles'">
 
   <header class="track-header stb-elevated">
     <div class="track-header-left">
-      <nav class="track-breadcrumb desktop-only" aria-label="Breadcrumb">
-        <span>GPS Fleet</span>
-        <mat-icon>chevron_right</mat-icon>
-        <span class="bc-current">Live map</span>
-      </nav>
-      <h1 class="track-title stb-heading-page">Fleet map</h1>
-      <p class="track-subtitle stb-body desktop-only">Monitor vehicles, routes, and telemetry in real time</p>
+      <h1 class="track-title stb-heading-page">Fleet Tracking</h1>
+      <p class="track-subtitle stb-body desktop-only">Real-time vehicle tracking, routes, geofences and live telemetry</p>
     </div>
     <div class="track-header-right stb-actions">
       <div class="sync-pill"
            [class.sync-pill--active]="trackingActive"
-           [class.sync-pill--offline]="!isTraccarOnline || traccarStatus?.syncEnabled === false">
+           [class.sync-pill--offline]="!isTraccarOnline || traccarStatus?.syncEnabled === false"
+           [matTooltip]="trackingStatusLabel">
         <span class="sync-dot sync-dot--live"></span>
-        <span class="sync-live-label" *ngIf="trackingActive">Live</span>
-        <span>{{ trackingStatusLabel }}</span>
-        <span class="sync-meta">ERP poll {{ formatSyncAgo() }}</span>
+        <span>{{ trackingActive ? 'Live Connected' : trackingStatusLabel }}</span>
       </div>
       <div class="gps-pill"
            [class.gps-pill--ok]="gpsHealthy"
-           [class.gps-pill--warn]="!isTraccarOnline || traccarStatus?.syncEnabled === false">
+           [class.gps-pill--warn]="!isTraccarOnline || traccarStatus?.syncEnabled === false"
+           [matTooltip]="gpsStatusPillLabel">
         <mat-icon>{{ gpsHealthy ? 'gps_fixed' : (traccarStatus?.syncEnabled === false ? 'sync_disabled' : (!isTraccarOnline ? 'cloud_off' : 'gps_off')) }}</mat-icon>
-        {{ gpsStatusPillLabel }}
+        <span class="desktop-only">{{ gpsStatusPillLabel }}</span>
       </div>
-      <label class="refresh-rate-select" aria-label="Auto-refresh interval">
-        <mat-icon>update</mat-icon>
-        <select [ngModel]="refreshRateMs" (ngModelChange)="setRefreshRate($event)">
-          <option *ngFor="let r of refreshRateOptions" [ngValue]="r.id">{{ r.label }}</option>
-        </select>
-      </label>
-      <button mat-stroked-button type="button" class="stb-touch" (click)="refreshNow()" [disabled]="loading || refreshing">
+      <button mat-stroked-button type="button" class="stb-touch" (click)="refreshNow()" [disabled]="loading || refreshing"
+              matTooltip="Refresh fleet" aria-label="Refresh">
         <mat-icon [class.spinning]="refreshing">refresh</mat-icon>
-        Refresh
+        <span class="desktop-only">Refresh</span>
       </button>
-      <button mat-stroked-button type="button" class="stb-touch" (click)="toggleLiveTracking()">
-        <mat-icon>{{ liveTracking ? 'pause' : 'play_arrow' }}</mat-icon>
-        {{ liveTracking ? 'Live on' : 'Live off' }}
+      <button mat-stroked-button type="button" class="stb-touch" (click)="toggleFullscreen()"
+              matTooltip="Fullscreen map" aria-label="Fullscreen">
+        <mat-icon>{{ isMapFullscreen ? 'fullscreen_exit' : 'fullscreen' }}</mat-icon>
+      </button>
+      <button mat-flat-button color="primary" type="button" class="stb-touch live-mode-btn"
+              (click)="toggleLiveTracking()"
+              [attr.aria-pressed]="liveTracking">
+        <mat-icon>{{ liveTracking ? 'sensors' : 'sensors_off' }}</mat-icon>
+        {{ liveTracking ? 'Live Mode On' : 'Live Mode Off' }}
       </button>
     </div>
   </header>
 
-  <section class="track-kpi-strip" aria-label="Live fleet statistics">
-    <stb-stat-tile
-      label="Online Vehicles"
-      [value]="fleetStatusLocal?.online ?? fleetCounts.online"
-      icon="wifi_tethering"
-      color="sky"
-      [hint]="(fleetStatusLocal?.totalVehicles ?? fleetCounts.total) + ' total fleet'"
-      [trend]="kpiTiles['online']?.trend"
-      [trendUp]="kpiTiles['online']?.trendUp"
-      [sparkline]="kpiTiles['online']?.sparkline"
-      [clickable]="true"
-      [selected]="isKpiStatusSelected('online')"
-      (tileClick)="onKpiStatusClick('online')">
-    </stb-stat-tile>
-    <stb-stat-tile
-      label="Moving"
-      [value]="fleetStatusLocal?.moving ?? fleetCounts.moving"
-      icon="directions_bus"
-      color="green"
-      [trend]="kpiTiles['moving']?.trend"
-      [trendUp]="kpiTiles['moving']?.trendUp"
-      [sparkline]="kpiTiles['moving']?.sparkline"
-      [clickable]="true"
-      [selected]="isKpiStatusSelected('moving')"
-      (tileClick)="onKpiStatusClick('moving')">
-    </stb-stat-tile>
-    <stb-stat-tile
-      label="Parked"
-      [value]="fleetStatusLocal?.parked ?? fleetCounts.parked"
-      icon="local_parking"
-      color="blue"
-      [trend]="kpiTiles['parked']?.trend"
-      [trendUp]="kpiTiles['parked']?.trendUp"
-      [sparkline]="kpiTiles['parked']?.sparkline"
-      [clickable]="true"
-      [selected]="isKpiStatusSelected('parked')"
-      (tileClick)="onKpiStatusClick('parked')">
-    </stb-stat-tile>
-    <stb-stat-tile
-      label="Idle"
-      [value]="fleetStatusLocal?.idle ?? fleetCounts.idle"
-      icon="local_shipping"
-      color="amber"
-      [trend]="kpiTiles['idle']?.trend"
-      [trendUp]="kpiTiles['idle']?.trendUp"
-      [sparkline]="kpiTiles['idle']?.sparkline"
-      [clickable]="true"
-      [selected]="isKpiStatusSelected('idle')"
-      (tileClick)="onKpiStatusClick('idle')">
-    </stb-stat-tile>
-    <stb-stat-tile
-      label="Offline"
-      [value]="fleetStatusLocal?.offline ?? fleetCounts.offline"
-      icon="signal_wifi_off"
-      color="rose"
-      [trend]="kpiTiles['offline']?.trend"
-      [trendUp]="kpiTiles['offline']?.trendUp"
-      [sparkline]="kpiTiles['offline']?.sparkline"
-      [clickable]="true"
-      [selected]="isKpiStatusSelected('offline')"
-      (tileClick)="onKpiStatusClick('offline')">
-    </stb-stat-tile>
-    <stb-stat-tile
-      label="Never Seen"
-      [value]="fleetStatusLocal?.neverSeen ?? fleetCounts.neverSeen"
-      icon="help_outline"
-      color="purple"
-      [trend]="kpiTiles['neverSeen']?.trend"
-      [trendUp]="kpiTiles['neverSeen']?.trendUp"
-      [sparkline]="kpiTiles['neverSeen']?.sparkline"
-      [clickable]="true"
-      [selected]="isKpiStatusSelected('never_seen')"
-      (tileClick)="onKpiStatusClick('never_seen')">
-    </stb-stat-tile>
-    <stb-stat-tile
-      label="Total Fleet"
-      [value]="fleetStatusLocal?.totalVehicles ?? fleetCounts.total"
-      icon="directions_car"
-      color="teal"
-      hint="All vehicles"
-      [clickable]="true"
-      [selected]="isKpiStatusSelected('all')"
-      (tileClick)="onTotalFleetKpiClick()">
-    </stb-stat-tile>
-    <stb-stat-tile
-      label="Alerts Today"
-      [value]="fleetStatusLocal?.alertsToday ?? 0"
-      icon="notifications_active"
-      color="orange"
-      hint="Total alerts"
-      [trend]="kpiTiles['alertsToday']?.trend"
-      [trendUp]="kpiTiles['alertsToday']?.trendUp"
-      [sparkline]="kpiTiles['alertsToday']?.sparkline"
-      [clickable]="true"
-      (tileClick)="goToAlerts()">
-    </stb-stat-tile>
-    <button
-      type="button"
-      class="stat-chip stat-chip--sos stb-touch"
-      *ngIf="fleetCounts.sos > 0"
-      [class.stat-chip--active]="isKpiStatusSelected('sos')"
-      (click)="onKpiStatusClick('sos')"
-      aria-label="Filter SOS vehicles">
-      <mat-icon>sos</mat-icon>
-      <div>
-        <span class="stat-val">{{ fleetCounts.sos }}</span>
-        <span class="stat-lbl">SOS</span>
-      </div>
-    </button>
-  </section>
+  <app-fleet-kpi-strip
+    [tiles]="liveKpiTilesCache"
+    [sosCount]="fleetCountsCache.sos"
+    [sosSelected]="isKpiStatusSelected('sos')"
+    (tileClick)="onKpiStripClick($event)"
+    (sosClick)="onKpiStatusClick('sos')">
+  </app-fleet-kpi-strip>
 
   <section class="fleet-filter-bar stb-elevated" aria-label="Fleet filters">
     <div class="fleet-filter-bar__search">
@@ -159,7 +52,7 @@
       <input
         #vehicleSearchInput
         type="search"
-        placeholder="Search by vehicle, plate, driver, IMEI…"
+        placeholder="Search vehicle, plate, driver, IMEI…"
         [(ngModel)]="searchQuery"
         (ngModelChange)="onSearchQueryChanged($event)"
         (keydown.enter)="onSearchEnter()"
@@ -176,16 +69,19 @@
       </button>
     </div>
 
-    <div class="fleet-filter-bar__selects">
-      <label class="fleet-filter-select" aria-label="Status filter">
-        <mat-icon>filter_list</mat-icon>
-        <select
-          [ngModel]="primaryStatusSelect"
-          (ngModelChange)="onPrimaryStatusSelect($event)">
-          <option *ngFor="let o of primaryStatusOptions" [ngValue]="o.id">{{ o.label }}</option>
-        </select>
-      </label>
+    <div class="fleet-filter-bar__chips" role="group" aria-label="Status chips">
+      <button
+        type="button"
+        class="status-chip stb-touch"
+        *ngFor="let chip of listStatusChips"
+        [class.status-chip--active]="statusFilter === chip.id"
+        (click)="selectListChip(chip.id)">
+        {{ chip.label }}
+        <span class="status-chip__n">({{ chipCount(chip.id) }})</span>
+      </button>
+    </div>
 
+    <div class="fleet-filter-bar__selects desktop-only">
       <label class="fleet-filter-select" aria-label="Ignition filter">
         <mat-icon>power_settings_new</mat-icon>
         <select
@@ -234,7 +130,7 @@
       aria-label="Expand vehicle panel"
       (click)="togglePanelCollapsed()">
       <mat-icon>directions_bus</mat-icon>
-      <span>{{ filteredLocations.length }}</span>
+      <span>{{ filteredLocationsCache.length }}</span>
     </button>
 
     <aside
@@ -247,16 +143,16 @@
         (click)="listSheetOpen = !listSheetOpen"
         [attr.aria-expanded]="listSheetOpen">
         <mat-icon>directions_bus</mat-icon>
-        <span>Vehicles ({{ filteredLocations.length }})</span>
+        <span>Vehicles ({{ filteredLocationsCache.length }})</span>
         <mat-icon class="track-panel__chevron">expand_less</mat-icon>
       </button>
 
       <div class="track-panel__body">
         <div class="panel-toolbar desktop-only">
           <div>
-            <h2 class="panel-heading">Vehicles</h2>
+            <h2 class="panel-heading">Vehicles ({{ filteredLocationsCache.length }})</h2>
             <p class="panel-subheading">
-              {{ filteredLocations.length }} of {{ locations.length }} shown
+              {{ filteredLocationsCache.length }} of {{ locations.length }} shown
               <span *ngIf="lastSyncAt"> · Updated {{ formatSyncAgo() }}</span>
             </p>
           </div>
@@ -307,18 +203,19 @@
         </div>
 
         <cdk-virtual-scroll-viewport
-          *ngIf="filteredLocations.length > 0"
+          *ngIf="filteredLocationsCache.length > 0"
           class="panel-list"
           itemSize="112"
           role="list">
           <button
             type="button"
             class="vehicle-card"
-            *cdkVirtualFor="let loc of filteredLocations"
+            *cdkVirtualFor="let loc of filteredLocationsCache; trackBy: trackByVehicleId"
             [class.vehicle-card--selected]="selectedVehicleId === loc.vehicleId"
             [class.vehicle-card--moving]="loc.status === 'moving'"
             [class.vehicle-card--idle]="loc.status === 'idle'"
             [class.vehicle-card--parked]="loc.status === 'parked'"
+            [class.vehicle-card--unknown]="loc.status === 'unknown'"
             [class.vehicle-card--offline]="loc.status === 'offline'"
             [class.vehicle-card--never-seen]="loc.status === 'never_seen'"
             [class.vehicle-card--sos]="loc.status === 'sos'"
@@ -328,22 +225,22 @@
             (mouseenter)="onVehicleCardEnter(loc)"
             (mouseleave)="onVehicleCardLeave(loc)"
             role="listitem">
-            <div class="vehicle-card-avatar">
+            <div class="vehicle-card-avatar" [attr.data-status]="loc.status">
               <mat-icon>{{ statusIcon(loc.status) }}</mat-icon>
             </div>
             <div class="vehicle-card-body">
               <div class="vehicle-card-top">
                 <strong>{{ loc.vehicleName }}</strong>
-                <span class="vehicle-badge">{{ statusLabel(loc.status) }}</span>
+                <span class="vehicle-badge" [attr.data-status]="loc.status">{{ statusLabel(loc.status) }}</span>
               </div>
               <span class="vehicle-reg">{{ loc.registrationNumber }}</span>
-              <span class="vehicle-route desktop-only" *ngIf="loc.imei || loc.trackerName">
-                {{ loc.trackerName || 'Tracker' }}<ng-container *ngIf="loc.imei"> · {{ loc.imei }}</ng-container>
-              </span>
               <div class="vehicle-meta">
                 <span class="vehicle-speed">
                   <mat-icon>speed</mat-icon>
                   {{ speedLabel(loc) }}
+                </span>
+                <span class="vehicle-ignition" *ngIf="loc.ignition != null">
+                  Ignition {{ loc.ignition ? 'On' : 'Off' }}
                 </span>
                 <span class="signal-bars"
                       [attr.aria-label]="'Freshness ' + signalFreshnessLabel(loc)"
@@ -355,7 +252,6 @@
               <span class="vehicle-route vehicle-route--addr" *ngIf="shortAddress(loc) as addr" [title]="loc.address || ''">
                 <mat-icon>place</mat-icon> {{ addr }}
               </span>
-              <span class="vehicle-route vehicle-route--hint">{{ loc.routeHint }}</span>
               <span class="vehicle-time">{{ formatLastPing(loc) }}</span>
             </div>
             <button
@@ -398,6 +294,28 @@
         </div>
         <div class="map-vignette" aria-hidden="true"></div>
 
+        <div class="map-top-bar" aria-label="Map layers and nearby">
+          <div class="map-layer-tabs" role="group" aria-label="Map style">
+            <button
+              type="button"
+              class="map-layer-tab stb-touch"
+              *ngFor="let opt of mapThemeOptions"
+              [class.map-layer-tab--active]="mapTheme === opt.id"
+              (click)="selectMapTheme(opt.id)">
+              {{ opt.label }}
+            </button>
+          </div>
+          <button
+            type="button"
+            class="map-nearby-search stb-touch"
+            [class.map-nearby-search--active]="nearbyExpanded"
+            (click)="toggleNearbyPlaces()"
+            aria-label="Nearby Search">
+            <mat-icon>near_me</mat-icon>
+            <span>Nearby Search</span>
+          </button>
+        </div>
+
         <div class="map-glass-toolbar" role="toolbar" aria-label="Map controls">
           <span class="toolbar-label desktop-only">Map</span>
           <button type="button" class="glass-btn stb-touch" matTooltip="Center fleet" aria-label="Center fleet" (click)="centerMap()">
@@ -422,6 +340,15 @@
           <button type="button" class="glass-btn stb-touch" matTooltip="Refresh" aria-label="Refresh map"
             (click)="refreshNow()" [disabled]="loading || refreshing">
             <mat-icon [class.spinning]="refreshing">refresh</mat-icon>
+          </button>
+          <button
+            type="button"
+            class="glass-btn stb-touch"
+            [class.glass-btn--accent]="nearbyExpanded"
+            matTooltip="Nearby places"
+            aria-label="Nearby places"
+            (click)="toggleNearbyPlaces()">
+            <mat-icon>near_me</mat-icon>
           </button>
           <button
             type="button"
@@ -471,214 +398,131 @@
           <span><i class="leg idle"></i> Idle</span>
           <span><i class="leg parked"></i> Parked</span>
           <span><i class="leg offline"></i> Offline</span>
-          <span><i class="leg never_seen"></i> Never Seen</span>
-          <span><i class="leg sos"></i> SOS</span>
-          <span><i class="leg scheduled"></i> Scheduled</span>
-          <span><i class="leg delayed"></i> Delayed</span>
+          <span><i class="leg geofence"></i> Geofence</span>
+          <span><i class="leg route"></i> Route</span>
         </div>
+
+        <aside class="map-nearby-panel" *ngIf="nearbyExpanded" aria-label="Nearby places search">
+          <div class="map-nearby-panel__head">
+            <div>
+              <strong>Nearby Places</strong>
+              <small>{{ nearbySearchCenterLabel }}</small>
+            </div>
+            <button type="button" class="map-nearby-panel__close stb-touch" aria-label="Close nearby" (click)="toggleNearbyPlaces()">
+              <mat-icon>close</mat-icon>
+            </button>
+          </div>
+          <div class="map-nearby-panel__cats" role="tablist">
+            <button
+              type="button"
+              class="detail-nearby__cat stb-touch"
+              *ngFor="let cat of nearbyCategories"
+              role="tab"
+              [attr.aria-selected]="nearbyCategory === cat.id"
+              [class.detail-nearby__cat--active]="nearbyCategory === cat.id"
+              (click)="selectNearbyCategory(cat.id)">
+              <mat-icon>{{ cat.icon }}</mat-icon>
+              {{ cat.label }}
+            </button>
+          </div>
+          <div class="map-nearby-panel__radius">
+            <label for="nearby-radius">Radius</label>
+            <select id="nearby-radius" [ngModel]="nearbyRadiusMeters" (ngModelChange)="setNearbyRadius($event)">
+              <option [ngValue]="500">500 m</option>
+              <option [ngValue]="1500">1.5 km</option>
+              <option [ngValue]="3000">3 km</option>
+              <option [ngValue]="5000">5 km</option>
+            </select>
+          </div>
+          <div class="detail-nearby__status" *ngIf="nearbyLoading">Searching nearby…</div>
+          <div class="detail-nearby__status detail-nearby__status--err" *ngIf="!nearbyLoading && nearbyError">
+            {{ nearbyError }}
+          </div>
+          <ul class="detail-nearby__list" *ngIf="!nearbyLoading && nearbyPlaces.length">
+            <li
+              *ngFor="let place of nearbyPlaces; trackBy: trackByNearbyPlace"
+              [class.detail-nearby__row--selected]="selectedNearbyPlace?.placeId === place.placeId">
+              <button type="button" class="detail-nearby__item stb-touch" (click)="focusNearbyPlace(place)">
+                <strong>{{ place.name }}</strong>
+                <span class="detail-nearby__meta" *ngIf="formatNearbyDistance(place.distanceMeters) as dist">
+                  {{ dist }}
+                  <ng-container *ngIf="place.rating != null"> · ★ {{ place.rating | number:'1.1-1' }}</ng-container>
+                </span>
+                <span class="detail-nearby__open" *ngIf="nearbyOpeningLabel(place) as openLbl"
+                      [class.detail-nearby__open--closed]="place.openNow === false">
+                  {{ openLbl }}
+                </span>
+                <span class="detail-nearby__addr" *ngIf="place.address">{{ place.address }}</span>
+              </button>
+            </li>
+          </ul>
+
+          <div class="map-nearby-detail" *ngIf="selectedNearbyPlace as sel">
+            <strong>{{ sel.name }}</strong>
+            <span class="map-nearby-detail__dist" *ngIf="formatNearbyDistance(sel.distanceMeters) as dist">
+              {{ dist }} away
+            </span>
+            <span class="map-nearby-detail__addr" *ngIf="sel.address">{{ sel.address }}</span>
+            <span class="map-nearby-detail__open" *ngIf="nearbyOpeningLabel(sel) as openLbl"
+                  [class.map-nearby-detail__open--closed]="sel.openNow === false">
+              {{ openLbl }}
+            </span>
+            <span class="map-nearby-detail__coords">
+              {{ sel.latitude | number:'1.5-5' }}, {{ sel.longitude | number:'1.5-5' }}
+            </span>
+            <div class="map-nearby-detail__actions">
+              <a class="map-nearby-detail__dir stb-touch"
+                 [href]="nearbyDirectionsUrl(sel)"
+                 target="_blank"
+                 rel="noopener noreferrer">
+                Directions
+              </a>
+              <a class="map-nearby-detail__maps stb-touch"
+                 [href]="nearbyMapsUrl(sel)"
+                 target="_blank"
+                 rel="noopener noreferrer">
+                View on Google Maps
+              </a>
+            </div>
+          </div>
+        </aside>
       </div>
     </div>
 
-    <aside class="track-detail-panel stb-elevated" aria-label="Selected vehicle details">
-      <ng-container *ngFor="let loc of filteredLocations">
-        <div class="detail-content" *ngIf="selectedVehicleId === loc.vehicleId">
-          <div class="detail-head">
-            <mat-icon>{{ statusIcon(loc.status) }}</mat-icon>
-            <div class="detail-head-text">
-              <h2 class="detail-title">{{ loc.vehicleName }}</h2>
-              <span class="detail-reg">{{ loc.registrationNumber }}</span>
-            </div>
-            <span class="vehicle-badge detail-badge">{{ statusLabel(loc.status) }}</span>
-          </div>
-
-          <div class="detail-metrics">
-            <div class="detail-metric" *ngIf="loc.driverName">
-              <mat-icon>person</mat-icon>
-              <div>
-                <span class="detail-metric-lbl">Driver</span>
-                <span class="detail-metric-val">
-                  {{ loc.driverName }}
-                  <a *ngIf="loc.driverPhone" [href]="'tel:' + loc.driverPhone" class="detail-call-link" title="Call driver">
-                    <mat-icon>call</mat-icon>
-                  </a>
-                </span>
-              </div>
-            </div>
-            <div class="detail-metric" *ngIf="loc.trackerName || loc.imei">
-              <mat-icon>router</mat-icon>
-              <div>
-                <span class="detail-metric-lbl">Tracker</span>
-                <span class="detail-metric-val">
-                  {{ loc.trackerName || 'Device' }}
-                  <span *ngIf="loc.imei" class="detail-metric-val--mono"> · IMEI {{ loc.imei }}</span>
-                </span>
-              </div>
-            </div>
-            <div class="detail-metric">
-              <mat-icon>speed</mat-icon>
-              <div>
-                <span class="detail-metric-lbl">Speed</span>
-                <span class="detail-metric-val">{{ speedLabel(loc) }}</span>
-              </div>
-            </div>
-            <div class="detail-metric" *ngIf="headingLabel(loc) as heading">
-              <mat-icon>explore</mat-icon>
-              <div>
-                <span class="detail-metric-lbl">Heading</span>
-                <span class="detail-metric-val">{{ heading }}</span>
-              </div>
-            </div>
-            <div class="detail-metric" *ngIf="loc.ignition !== undefined">
-              <mat-icon>power_settings_new</mat-icon>
-              <div>
-                <span class="detail-metric-lbl">Ignition</span>
-                <span class="detail-metric-val">{{ loc.ignition ? 'On' : 'Off' }}</span>
-              </div>
-            </div>
-            <div class="detail-metric" *ngIf="loc.fuelLevel != null">
-              <mat-icon>local_gas_station</mat-icon>
-              <div>
-                <span class="detail-metric-lbl">Fuel</span>
-                <span class="detail-metric-val">{{ loc.fuelLevel | number:'1.0-0' }}%</span>
-              </div>
-            </div>
-            <div class="detail-metric" *ngIf="loc.batteryLevel != null">
-              <mat-icon>battery_std</mat-icon>
-              <div>
-                <span class="detail-metric-lbl">Battery</span>
-                <span class="detail-metric-val">{{ loc.batteryLevel | number:'1.0-0' }}%</span>
-              </div>
-            </div>
-            <div class="detail-metric" *ngIf="loc.gsmSignal != null">
-              <mat-icon>signal_cellular_alt</mat-icon>
-              <div>
-                <span class="detail-metric-lbl">GSM Signal</span>
-                <span class="detail-metric-val">{{ loc.gsmSignal }} dBm</span>
-              </div>
-            </div>
-            <div class="detail-metric">
-              <mat-icon>network_check</mat-icon>
-              <div>
-                <span class="detail-metric-lbl">Signal freshness</span>
-                <span class="detail-metric-val">{{ signalFreshnessLabel(loc) }}</span>
-              </div>
-            </div>
-            <div class="detail-metric" *ngIf="loc.totalDistanceKm != null">
-              <mat-icon>timeline</mat-icon>
-              <div>
-                <span class="detail-metric-lbl">Odometer</span>
-                <span class="detail-metric-val">{{ loc.totalDistanceKm | number:'1.0-0' }} km</span>
-              </div>
-            </div>
-            <div class="detail-metric" [title]="temperatureLabel(loc) ? '' : 'Not tracked by installed hardware'">
-              <mat-icon>thermostat</mat-icon>
-              <div>
-                <span class="detail-metric-lbl">Temperature</span>
-                <span class="detail-metric-val">{{ temperatureLabel(loc) || 'Not tracked' }}</span>
-              </div>
-            </div>
-            <div class="detail-metric" *ngIf="loc.relayOutput">
-              <mat-icon>electrical_services</mat-icon>
-              <div>
-                <span class="detail-metric-lbl">Relay Status</span>
-                <span class="detail-metric-val">{{ loc.relayOutput }}</span>
-              </div>
-            </div>
-            <div class="detail-metric detail-metric--address">
-              <mat-icon>place</mat-icon>
-              <div>
-                <span class="detail-metric-lbl">Current location</span>
-                <ng-container *ngIf="locationPrimaryLine(loc) as primary; else addressFallback">
-                  <span class="detail-metric-val detail-metric-val--place">{{ primary }}</span>
-                  <span class="detail-metric-locality" *ngIf="locationSecondaryLine(loc) as locality">
-                    {{ locality }}
-                  </span>
-                </ng-container>
-                <ng-template #addressFallback>
-                  <span class="detail-metric-val detail-metric-val--muted" *ngIf="isAddressResolving(loc)">
-                    Resolving address…
-                  </span>
-                  <span class="detail-metric-val detail-metric-val--mono" *ngIf="!isAddressResolving(loc)">
-                    {{ loc.latitude | number:'1.5-5' }}, {{ loc.longitude | number:'1.5-5' }}
-                  </span>
-                </ng-template>
-                <span class="detail-metric-sub detail-metric-val--mono">
-                  {{ loc.latitude | number:'1.5-5' }}, {{ loc.longitude | number:'1.5-5' }}
-                </span>
-                <a class="detail-maps-link"
-                   [href]="googleMapsUrl(loc)"
-                   target="_blank"
-                   rel="noopener noreferrer">
-                  View on Google Maps
-                </a>
-              </div>
-            </div>
-            <div class="detail-metric" *ngIf="loc.routeHint">
-              <mat-icon>route</mat-icon>
-              <div>
-                <span class="detail-metric-lbl">Route</span>
-                <span class="detail-metric-val">{{ loc.routeHint }}</span>
-              </div>
-            </div>
-            <div class="detail-metric">
-              <mat-icon>schedule</mat-icon>
-              <div>
-                <span class="detail-metric-lbl">Last update</span>
-                <span class="detail-metric-val">{{ formatLastPing(loc) }}</span>
-              </div>
-            </div>
-          </div>
-
-          <div class="detail-trip-eta" *ngIf="loc.bookingId != null && selectedEta as eta">
-            <div class="detail-metric">
-              <mat-icon>route</mat-icon>
-              <div>
-                <span class="detail-metric-lbl">Trip</span>
-                <span class="detail-metric-val">{{ eta.distanceKm | number:'1.1-1' }} km</span>
-              </div>
-            </div>
-            <div class="detail-metric" *ngIf="eta.etaMinutes != null">
-              <mat-icon>schedule</mat-icon>
-              <div>
-                <span class="detail-metric-lbl">ETA</span>
-                <span class="detail-metric-val">{{ eta.etaMinutes }} min</span>
-              </div>
-            </div>
-          </div>
-
-          <div class="detail-action-row">
-            <button type="button" class="detail-action-btn stb-touch" (click)="focusVehicle(loc)">
-              <mat-icon>my_location</mat-icon> Track
-            </button>
-            <button type="button" class="detail-action-btn stb-touch" (click)="openHistoryForSelected()">
-              <mat-icon>history</mat-icon> History
-            </button>
-            <button type="button" class="detail-action-btn stb-touch" (click)="goToCommands()">
-              <mat-icon>settings_remote</mat-icon> Command
-            </button>
-            <button
-              mat-stroked-button
-              type="button"
-              class="detail-profile-btn stb-touch"
-              (click)="goToVehicleProfile(loc.vehicleId)">
-              <mat-icon>open_in_new</mat-icon>
-              More
-            </button>
-          </div>
-        </div>
-      </ng-container>
-
-      <div class="detail-empty" *ngIf="!selectedVehicleId">
-        <mat-icon>touch_app</mat-icon>
-        <p>Select a vehicle on the map or list to view live details.</p>
-      </div>
-    </aside>
+    <app-vehicle-detail-panel
+      class="track-detail-panel"
+      [loc]="selectedLocation"
+      [dualStatus]="selectedLocation ? statusLabel(selectedLocation.status) : ''"
+      [statusBadge]="selectedLocation ? statusBadgeLabel(selectedLocation.status) : ''"
+      [statusIconName]="selectedLocation ? statusIcon(selectedLocation.status) : 'directions_car'"
+      [speedText]="selectedLocation ? speedLabel(selectedLocation) : '—'"
+      [headingText]="selectedLocation ? headingLabel(selectedLocation) : null"
+      [gpsSignalText]="selectedLocation ? signalFreshnessLabel(selectedLocation) : '—'"
+      [lastPingText]="selectedLocation ? formatLastPing(selectedLocation) : '—'"
+      [locationPrimary]="selectedLocation ? locationPrimaryLine(selectedLocation) : null"
+      [locationSecondary]="selectedLocation ? locationSecondaryLine(selectedLocation) : null"
+      [addressResolving]="!!selectedLocation && isAddressResolving(selectedLocation)"
+      [mapsUrl]="selectedLocation ? googleMapsUrl(selectedLocation) : ''"
+      [streetViewSrc]="selectedLocation ? streetViewUrl(selectedLocation) : null"
+      [operationalLine]="selectedLocation ? operationalStatusLine(selectedLocation) : ''"
+      [temperatureText]="selectedLocation ? temperatureLabel(selectedLocation) : null"
+      [eta]="selectedEta"
+      [followSelected]="followSelected"
+      [activeTab]="detailTab"
+      (tabChange)="setDetailTab($event)"
+      (track)="selectedLocation && focusVehicle(selectedLocation)"
+      (follow)="toggleFollowSelected()"
+      (command)="goToCommands()"
+      (history)="openHistoryForSelected()"
+      (profile)="goToVehicleProfile($event)"
+      (streetViewError)="onStreetViewError($event)">
+    </app-vehicle-detail-panel>
   </div>
 
   <section class="fleet-analytics-row">
     <div class="fleet-analytics-card stb-elevated">
       <div class="fleet-analytics-head">
-        <h2 class="stb-heading-section">Fleet Overview</h2>
+        <h2 class="stb-heading-section">Fleet Status Over Time</h2>
         <div class="range-toggle">
           <button type="button"
             *ngFor="let r of fleetOverviewRangeOptions"
@@ -686,66 +530,103 @@
             (click)="setFleetOverviewRange(r.days)">{{ r.label }}</button>
         </div>
       </div>
-      <ui-chart type="line" [data]="fleetOverviewChartData" height="220px"></ui-chart>
+      <p class="fleet-analytics-desc">Daily counts of Moving, Idle, Parked and Offline vehicles from fleet snapshots.</p>
+      <ng-container *ngIf="fleetStatusHistory.length; else chartEmpty">
+        <ui-chart
+          type="line"
+          [data]="fleetOverviewChartData"
+          [options]="fleetOverviewChartOptions"
+          height="220px"></ui-chart>
+      </ng-container>
+      <ng-template #chartEmpty>
+        <div class="fleet-chart-empty">
+          <mat-icon>show_chart</mat-icon>
+          <p>No historical status data for this range yet.</p>
+        </div>
+      </ng-template>
     </div>
 
     <div class="fleet-analytics-card stb-elevated">
       <div class="fleet-analytics-head">
         <h2 class="stb-heading-section">Fleet Health</h2>
       </div>
+      <p class="fleet-analytics-desc">
+        Device, maintenance, insurance, and critical alerts — not Parked/Idle/Moving.
+        Unknown when data is insufficient.
+      </p>
       <div class="fleet-health-body">
-        <ui-chart type="doughnut" [data]="fleetHealthChartData" height="180px"></ui-chart>
+        <div class="fleet-health-score" *ngIf="fleetHealth.assessedPercent != null; else healthNoAssessed">
+          <span class="fleet-health-score__pct">{{ fleetHealth.assessedPercent }}%</span>
+          <span class="fleet-health-score__lbl">Fleet Health</span>
+          <span class="fleet-health-score__meta">
+            {{ fleetHealth.assessed }} assessed · {{ fleetHealth.unknown }} unknown
+          </span>
+        </div>
+        <ng-template #healthNoAssessed>
+          <div class="fleet-health-score fleet-health-score--empty">
+            <span class="fleet-health-score__pct">—</span>
+            <span class="fleet-health-score__lbl">Unknown</span>
+            <span class="fleet-health-score__meta" *ngIf="fleetHealth.unknown">
+              {{ fleetHealth.unknown }} vehicles lack enough data to assess
+            </span>
+            <span class="fleet-health-score__meta" *ngIf="!fleetHealth.total">No vehicles loaded</span>
+          </div>
+        </ng-template>
+        <ui-chart type="doughnut" [data]="fleetHealthChartData" height="160px"></ui-chart>
         <div class="fleet-health-legend">
           <div class="fleet-health-total">{{ fleetHealth.total }}<span>Total</span></div>
           <div class="fleet-health-row"><span class="dot dot--optimal"></span>Optimal <strong>{{ fleetHealth.optimal }}</strong></div>
+          <div class="fleet-health-row"><span class="dot dot--healthy"></span>Healthy <strong>{{ fleetHealth.healthy }}</strong></div>
           <div class="fleet-health-row"><span class="dot dot--attention"></span>Attention <strong>{{ fleetHealth.attention }}</strong></div>
           <div class="fleet-health-row"><span class="dot dot--critical"></span>Critical <strong>{{ fleetHealth.critical }}</strong></div>
-          <div class="fleet-health-row"><span class="dot dot--unknown"></span>Unknown <strong>{{ fleetHealth.unknown }}</strong></div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <section class="track-bottom">
-    <div class="history-block stb-elevated history-cta">
-      <div class="history-head">
-        <div class="history-title">
-          <mat-icon>history</mat-icon>
-          <h2 class="stb-heading-section">Vehicle history &amp; playback</h2>
-        </div>
-        <p class="history-cta__text">
-          Open the dedicated History module for full route replay, speed heatmap, stops, geofence events, export, and timeline playback.
-        </p>
-        <button
-          mat-flat-button
-          color="primary"
-          type="button"
-          class="stb-touch history-cta__btn"
-          (click)="openFullHistory()">
-          <mat-icon>open_in_new</mat-icon>
-          Open full history
-        </button>
-      </div>
-    </div>
-
-    <aside class="events-block stb-elevated">
-      <div class="events-head">
-        <mat-icon>notifications_active</mat-icon>
-        <h2 class="stb-heading-section">Live events</h2>
-        <span class="events-count">{{ events.length }}</span>
-      </div>
-      <ul class="events-list" *ngIf="events.length; else noEvents">
-        <li *ngFor="let ev of events" [class]="'ev ev--' + ev.type">
-          <mat-icon class="ev-icon">{{ ev.icon }}</mat-icon>
-          <div class="ev-body">
-            <span class="ev-time">{{ ev.time | date:'shortTime' }}</span>
-            <span class="ev-msg">{{ ev.message }}</span>
+          <div class="fleet-health-row"
+               title="Insufficient factor data — excluded from assessed %">
+            <span class="dot dot--unknown"></span>Unknown <strong>{{ fleetHealth.unknown }}</strong>
           </div>
-        </li>
-      </ul>
-      <ng-template #noEvents>
-        <p class="events-empty">Telemetry events appear as vehicles move, sync, or trigger alerts.</p>
-      </ng-template>
-    </aside>
+        </div>
+        <ul class="fleet-health-reasons" *ngIf="fleetHealthReasons.length > 0" aria-label="Top health reasons">
+          <li *ngFor="let r of fleetHealthReasons">
+            <span>{{ r.reason }}</span>
+            <strong>{{ r.count }}</strong>
+          </li>
+        </ul>
+        <div class="fleet-health-selected" *ngIf="selectedVehicleHealth as vh">
+          <div class="fleet-health-selected__head">
+            <span>Vehicle Health</span>
+            <strong *ngIf="vh.score != null">{{ vh.score }}% · {{ vh.band }}</strong>
+            <strong *ngIf="vh.score == null">{{ vh.band }}</strong>
+          </div>
+          <ul *ngIf="vh.reasons?.length">
+            <li *ngFor="let reason of vh.reasons">{{ reason }}</li>
+          </ul>
+          <p *ngIf="!vh.reasons?.length && vh.band === 'Unknown'" class="fleet-health-selected__hint">
+            Insufficient data to score this vehicle.
+          </p>
+        </div>
+      </div>
+    </div>
   </section>
+
+  <nav class="live-mobile-nav mobile-only" aria-label="Live map navigation">
+    <button type="button" class="live-mobile-nav__btn stb-touch"
+            [class.live-mobile-nav__btn--active]="mobileNav === 'map'"
+            (click)="setMobileNav('map')">
+      <mat-icon>map</mat-icon><span>Map</span>
+    </button>
+    <button type="button" class="live-mobile-nav__btn stb-touch"
+            [class.live-mobile-nav__btn--active]="mobileNav === 'vehicles'"
+            (click)="setMobileNav('vehicles')">
+      <mat-icon>directions_car</mat-icon><span>Vehicles</span>
+    </button>
+    <button type="button" class="live-mobile-nav__btn stb-touch"
+            [class.live-mobile-nav__btn--active]="mobileNav === 'nearby'"
+            (click)="setMobileNav('nearby')">
+      <mat-icon>near_me</mat-icon><span>Nearby</span>
+    </button>
+    <button type="button" class="live-mobile-nav__btn stb-touch"
+            [class.live-mobile-nav__btn--active]="mobileNav === 'commands'"
+            (click)="setMobileNav('commands')">
+      <mat-icon>settings_remote</mat-icon><span>Commands</span>
+    </button>
+  </nav>
 </div>

@@ -26,6 +26,7 @@ using SheikhTravelSystem.Infrastructure.Services.Notifications;
 using SheikhTravelSystem.Infrastructure.Services.Ai.Tools;
 using SheikhTravelSystem.Infrastructure.Services.GpsControl;
 using SheikhTravelSystem.Infrastructure.Services.Storage;
+using SheikhTravelSystem.Infrastructure.Services.Google;
 using SheikhTravelSystem.Infrastructure.Caching;
 using SheikhTravelSystem.Infrastructure.SignalR;
 
@@ -78,6 +79,7 @@ public static class DependencyInjection
         services.AddScoped<IGpsDeviceTelemetryUpdater, SheikhTravelSystem.Infrastructure.Services.Gps.GpsDeviceTelemetryUpdater>();
         services.AddScoped<IGpsCommandSafetyChecker, SheikhTravelSystem.Infrastructure.Services.Gps.GpsCommandSafetyChecker>();
         services.AddScoped<IGpsFleetStatusCalculator, SheikhTravelSystem.Infrastructure.Services.Gps.GpsFleetStatusCalculator>();
+        services.AddScoped<IGpsFleetHealthCalculator, SheikhTravelSystem.Infrastructure.Services.Gps.GpsFleetHealthCalculator>();
         services.AddScoped<IGpsTraccarFleetFetcher, SheikhTravelSystem.Infrastructure.Services.Gps.GpsTraccarFleetFetcher>();
         services.AddScoped<IGpsTripPersistenceService, SheikhTravelSystem.Infrastructure.Services.Gps.GpsTripPersistenceService>();
         services.AddScoped<ITripVehicleQueryHelper, SheikhTravelSystem.Infrastructure.Services.Gps.TripVehicleQueryHelper>();
@@ -252,6 +254,10 @@ public static class DependencyInjection
 
         // Reverse-geocoding backfill for positions Traccar's own geocoder didn't resolve.
         services.Configure<GeocodingOptions>(configuration.GetSection(GeocodingOptions.SectionName));
+        services.AddOptions<GoogleMapsOptions>()
+            .Bind(configuration.GetSection(GoogleMapsOptions.SectionName))
+            .PostConfigure<IOptions<GeocodingOptions>>((opts, geocoding) =>
+                GoogleMapsApiHelper.ApplyGeocodingFallback(opts, geocoding.Value));
         services.AddHttpClient("Nominatim", (sp, client) =>
         {
             var opts = sp.GetRequiredService<IOptions<GeocodingOptions>>().Value;
@@ -265,6 +271,28 @@ public static class DependencyInjection
             client.BaseAddress = new Uri("https://maps.googleapis.com/");
             client.Timeout = TimeSpan.FromSeconds(12);
         });
+        services.AddHttpClient("GoogleRoutes", client =>
+        {
+            client.BaseAddress = new Uri("https://routes.googleapis.com/");
+            client.Timeout = TimeSpan.FromSeconds(15);
+        });
+        services.AddHttpClient("GoogleRouteOptimization", client =>
+        {
+            client.BaseAddress = new Uri("https://routeoptimization.googleapis.com/");
+            client.Timeout = TimeSpan.FromSeconds(30);
+        });
+        services.AddHttpClient("GooglePlaces", client =>
+        {
+            client.BaseAddress = new Uri("https://places.googleapis.com/");
+            client.Timeout = TimeSpan.FromSeconds(15);
+        });
+        services.AddScoped<IGoogleRoutesService, GoogleRoutesService>();
+        services.AddScoped<IGoogleRoadsService, GoogleRoadsService>();
+        services.AddScoped<IGoogleTimeZoneService, GoogleTimeZoneService>();
+        services.AddScoped<IGoogleStaticMapsService, GoogleStaticMapsService>();
+        services.AddScoped<IGoogleStreetViewService, GoogleStreetViewService>();
+        services.AddScoped<IGoogleRouteOptimizationService, GoogleRouteOptimizationService>();
+        services.AddScoped<IGooglePlacesNearbyService, GooglePlacesNearbyService>();
         services.AddSingleton<GpsAddressBackfillHostedService>();
         services.AddSingleton<IGpsAddressBackfillQueue>(sp => sp.GetRequiredService<GpsAddressBackfillHostedService>());
         services.AddHostedService(sp => sp.GetRequiredService<GpsAddressBackfillHostedService>());

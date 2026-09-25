@@ -61,5 +61,13 @@ describe('gps-address.util', () => {
       primary: 'Sialkot, Punjab',
       secondary: 'Peak Performance Partners'
     });
+    expect(splitDisplayAddress('Gujranwala City Tehsil, Punjab')).toEqual({
+      primary: 'Gujranwala City Tehsil, Punjab',
+      secondary: null
+    });
+    expect(splitDisplayAddress('Gujranwala City Tehsil, Gujranwala, Punjab, Pakistan')).toEqual({
+      primary: 'Gujranwala City Tehsil, Gujranwala',
+      secondary: 'Punjab, Pakistan'
+    });
   });
 });

@@ -10,24 +10,44 @@
          [class.is-pinned]="isSidebarPinned"
          [class.is-mobile-open]="mobileNavOpen"
          (mouseenter)="onSidebarEnter()"
-         (mouseleave)="onSidebarLeave()">
+         (mouseleave)="onSidebarLeave()"
+         aria-label="Main navigation">
     <div class="stb-brand-row">
-      <div class="stb-brand" [routerLink]="homeRoute" [matTooltip]="appProductName" [matTooltipDisabled]="sidebarExpanded" matTooltipPosition="right">
+      <div class="stb-brand"
+           [routerLink]="homeRoute"
+           (click)="onNavLinkClick()"
+           [matTooltip]="appProductName"
+           [matTooltipDisabled]="sidebarExpanded"
+           matTooltipPosition="right">
         <div class="logo-mark">
-          <img [src]="appLogoPath" [alt]="appProductName" />
+          <img [src]="appLogoPath" [alt]="appProductName" width="40" height="40" />
         </div>
-        <span class="brand-label">{{ appProductName }}</span>
+        <div class="brand-copy" *ngIf="sidebarExpanded">
+          <span class="brand-label">{{ appProductName }}</span>
+          <span class="brand-tagline">{{ appProductTagline }}</span>
+        </div>
       </div>
 
-      <button *ngIf="sidebarExpanded"
+      <button *ngIf="sidebarExpanded && !mobileNavOpen"
               mat-icon-button
               type="button"
               class="stb-pin-btn"
-              [attr.aria-label]="isSidebarPinned ? 'Unpin sidebar' : 'Pin sidebar'"
+              [attr.aria-label]="isSidebarPinned ? 'Collapse sidebar' : 'Pin sidebar open'"
               (click)="toggleSidebarPin()">
-        <mat-icon>{{ isSidebarPinned ? 'push_pin' : 'chevron_left' }}</mat-icon>
+        <mat-icon>{{ isSidebarPinned ? 'chevron_left' : 'push_pin' }}</mat-icon>
+      </button>
+
+      <button *ngIf="mobileNavOpen"
+              mat-icon-button
+              type="button"
+              class="stb-pin-btn stb-drawer-close"
+              aria-label="Close navigation"
+              (click)="closeMobileNav()">
+        <mat-icon>close</mat-icon>
       </button>
     </div>
+
+    <div class="stb-brand-sep" aria-hidden="true"></div>
 
     <div class="stb-nav-skeleton" *ngIf="menuLoading" aria-busy="true" aria-label="Loading navigation">
       <div class="stb-nav-skeleton-row" *ngFor="let row of skeletonNavRows">
@@ -38,81 +58,114 @@
 
     <ng-container *ngIf="!menuLoading && menu as menu">
     <nav class="stb-rail-nav">
-      <!-- Driver flat nav -->
-      <ng-container *ngIf="menu.isDriverLayout; else moduleNav">
-        <a *ngFor="let item of menu.standaloneItems; trackBy: trackById"
+      <!-- Collapsed desktop/tablet: flat leaf icons -->
+      <ng-container *ngIf="!sidebarExpanded; else expandedNav">
+        <a *ngFor="let item of collapsedLeafItems(menu); trackBy: trackById"
            [routerLink]="item.route"
            [queryParams]="item.queryParams"
-           routerLinkActive="active"
-           [routerLinkActiveOptions]="{ exact: item.route === '/my-trips' }"
+           class="stb-rail-link stb-rail-link--icon"
+           [class.active]="isItemActive(item)"
            [matTooltip]="item.label"
-           [matTooltipDisabled]="sidebarExpanded"
-           matTooltipShowDelay="600"
+           matTooltipShowDelay="400"
            matTooltipPosition="right"
-           class="stb-rail-link">
-          <mat-icon>{{ item.icon }}</mat-icon>
-          <span class="stb-link-label" *ngIf="sidebarExpanded">{{ item.label }}</span>
+           [attr.aria-label]="item.label"
+           (click)="onNavLinkClick()">
+          <mat-icon aria-hidden="true">{{ item.icon }}</mat-icon>
         </a>
       </ng-container>
 
-      <!-- Enterprise module groups -->
-      <ng-template #moduleNav>
-        <ng-container *ngFor="let group of menu.groups; trackBy: trackByGroupId">
-          <!-- Standalone dashboard (non-collapsible) -->
-          <ng-container *ngIf="!group.collapsible">
-            <a *ngFor="let item of group.items; trackBy: trackById"
-               [routerLink]="item.route"
-               [queryParams]="item.queryParams"
-               routerLinkActive="active"
-               [matTooltip]="item.label"
-               [matTooltipDisabled]="sidebarExpanded"
-               matTooltipShowDelay="600"
-               matTooltipPosition="right"
-               class="stb-rail-link stb-rail-link--top">
-              <mat-icon>{{ item.icon }}</mat-icon>
-              <span class="stb-link-label" *ngIf="sidebarExpanded">{{ item.label }}</span>
-            </a>
-          </ng-container>
+      <ng-template #expandedNav>
+        <!-- Driver flat nav -->
+        <ng-container *ngIf="menu.isDriverLayout; else moduleNav">
+          <a *ngFor="let item of menu.standaloneItems; trackBy: trackById"
+             [routerLink]="item.route"
+             [queryParams]="item.queryParams"
+             routerLinkActive="active"
+             [routerLinkActiveOptions]="{ exact: item.route === '/my-trips' }"
+             [matTooltip]="item.label"
+             [matTooltipDisabled]="true"
+             matTooltipPosition="right"
+             class="stb-rail-link"
+             [attr.aria-label]="item.label"
+             (click)="onNavLinkClick()">
+            <mat-icon aria-hidden="true">{{ item.icon }}</mat-icon>
+            <span class="stb-link-label">{{ item.label }}</span>
+          </a>
+        </ng-container>
 
-          <!-- Collapsible business module -->
-          <div *ngIf="group.collapsible"
-               class="stb-nav-group"
-               [class.is-expanded]="isGroupExpanded(group.id)"
-               [class.is-active]="isGroupActive(group)"
-               [class.is-collapsed-rail]="!sidebarExpanded">
-            <button type="button"
-                    class="stb-group-header"
-                    [attr.aria-expanded]="isGroupExpanded(group.id)"
-                    [matTooltip]="group.label"
-                    [matTooltipDisabled]="sidebarExpanded"
-                    matTooltipShowDelay="600"
-                    matTooltipPosition="right"
-                    (click)="toggleGroup(group, $event)">
-              <mat-icon class="stb-group-icon">{{ group.icon }}</mat-icon>
-              <span class="stb-group-label" *ngIf="sidebarExpanded" [attr.title]="group.label">{{ group.label }}</span>
-              <mat-icon class="stb-group-chevron" *ngIf="sidebarExpanded">expand_more</mat-icon>
-            </button>
-
-            <div class="stb-group-items" *ngIf="sidebarExpanded && isGroupExpanded(group.id)">
+        <!-- Enterprise module groups -->
+        <ng-template #moduleNav>
+          <ng-container *ngFor="let group of menu.groups; trackBy: trackByGroupId">
+            <!-- Standalone dashboard (non-collapsible) -->
+            <ng-container *ngIf="!group.collapsible">
               <a *ngFor="let item of group.items; trackBy: trackById"
                  [routerLink]="item.route"
                  [queryParams]="item.queryParams"
-                 class="stb-rail-link stb-rail-link--child"
+                 class="stb-rail-link stb-rail-link--top"
                  [class.active]="isItemActive(item)"
-                 [matTooltip]="item.label"
-                 matTooltipShowDelay="600"
-                 matTooltipPosition="right">
-                <mat-icon>{{ item.icon }}</mat-icon>
+                 [attr.aria-label]="item.label"
+                 (click)="onNavLinkClick()">
+                <mat-icon aria-hidden="true">{{ item.icon }}</mat-icon>
                 <span class="stb-link-label">{{ item.label }}</span>
               </a>
+            </ng-container>
+
+            <!-- Collapsible business module -->
+            <div *ngIf="group.collapsible"
+                 class="stb-nav-group"
+                 [class.is-expanded]="isGroupExpanded(group.id)"
+                 [class.is-active]="isGroupActive(group)">
+              <button type="button"
+                      class="stb-group-header"
+                      [attr.aria-expanded]="isGroupExpanded(group.id)"
+                      [attr.aria-label]="group.label"
+                      (click)="toggleGroup(group, $event)">
+                <mat-icon class="stb-group-icon" aria-hidden="true">{{ group.icon }}</mat-icon>
+                <span class="stb-group-label" [attr.title]="group.label">{{ group.label }}</span>
+                <mat-icon class="stb-group-chevron" aria-hidden="true">expand_more</mat-icon>
+              </button>
+
+              <div class="stb-group-items" *ngIf="isGroupExpanded(group.id)">
+                <a *ngFor="let item of group.items; trackBy: trackById"
+                   [routerLink]="item.route"
+                   [queryParams]="item.queryParams"
+                   class="stb-rail-link stb-rail-link--child"
+                   [class.active]="isItemActive(item)"
+                   [attr.aria-label]="item.label"
+                   (click)="onNavLinkClick()">
+                  <mat-icon aria-hidden="true">{{ item.icon }}</mat-icon>
+                  <span class="stb-link-label">{{ item.label }}</span>
+                </a>
+              </div>
             </div>
-          </div>
-        </ng-container>
+          </ng-container>
+        </ng-template>
       </ng-template>
     </nav>
     </ng-container>
 
-    <div class="stb-rail-foot"></div>
+    <div class="stb-rail-foot">
+      <ng-container *ngIf="sidebarExpanded; else collapsedHelp">
+        <div class="stb-help-card">
+          <div class="stb-help-title">Need Help?</div>
+          <p class="stb-help-copy">View documentation or contact support</p>
+          <button type="button" class="stb-help-cta" (click)="openHelp()">
+            Contact Support
+          </button>
+        </div>
+      </ng-container>
+      <ng-template #collapsedHelp>
+        <button type="button"
+                class="stb-help-icon-btn"
+                matTooltip="Contact Support"
+                matTooltipPosition="right"
+                matTooltipShowDelay="400"
+                aria-label="Contact Support"
+                (click)="openHelp()">
+          <mat-icon aria-hidden="true">help_outline</mat-icon>
+        </button>
+      </ng-template>
+    </div>
   </aside>
 
   <!-- Main area -->
@@ -121,7 +174,8 @@
       <button mat-icon-button
               type="button"
               class="stb-mobile-menu-btn"
-              aria-label="Open navigation menu"
+              [attr.aria-label]="mobileNavOpen ? 'Close navigation menu' : 'Open navigation menu'"
+              [attr.aria-expanded]="mobileNavOpen"
               (click)="toggleMobileNav()">
         <mat-icon>{{ mobileNavOpen ? 'close' : 'menu' }}</mat-icon>
       </button>

@@ -1,4 +1,4 @@
-import { FleetTrackStatus } from '../models/gps-tracking.model';
+import { FleetTrackStatus, VehicleLocation } from '../models/gps-tracking.model';
 import { parseGpsTimestamp } from './gps-timestamp.util';
 
 export interface GpsStatusInput {
@@ -15,13 +15,27 @@ export interface GpsStatusInput {
 export const DEFAULT_SOS_ALARM_VALUES = ['sos', 'panic'];
 
 /** Matches the backend's IsOnline window (GetGpsDevicesQuery: LastSeenAt > now - 30min). */
-const OFFLINE_STALE_MS = 30 * 60 * 1000;
+export const OFFLINE_STALE_MS = 30 * 60 * 1000;
 
 /**
  * Moving threshold (km/h). Aligned with TraccarOptions.MovingSpeedKmh.
- * Values at or below this with ignition OFF are treated as GPS drift → Parked.
+ * Values below this with ignition OFF are treated as GPS drift → Parked.
  */
 export const MOVING_THRESHOLD_KMH = 10;
+
+export interface FleetStatusCounts {
+  total: number;
+  online: number;
+  offline: number;
+  moving: number;
+  idle: number;
+  parked: number;
+  unknown: number;
+  neverSeen: number;
+  sos: number;
+  delayed: number;
+  scheduled: number;
+}
 
 export function isSosAlarm(alarmType?: string | null, sosValues: string[] = DEFAULT_SOS_ALARM_VALUES): boolean {
   if (!alarmType) return false;
@@ -31,18 +45,18 @@ export function isSosAlarm(alarmType?: string | null, sosValues: string[] = DEFA
 /**
  * Single source of truth for deriving a live-map vehicle's status from telemetry.
  *
- * Priority (when online):
- * 1. SOS alarm
- * 2. Ignition explicitly OFF → Parked (GPS drift 1–9 km/h must not become Moving)
- * 3. Speed >= 10 km/h → Moving (ignition ON or unknown / unwired ACC)
- * 4. Ignition ON → Idle
- * 5. Otherwise → Idle (unknown ignition, low speed)
+ * Connectivity first, then operational (when online):
+ * 1. never_seen — no GPS / no last update
+ * 2. offline — last fix older than offline threshold
+ * 3. sos — SOS/panic while otherwise online
+ * 4. parked — ignition OFF + speed &lt; moving threshold (covers speed 0 + low GPS drift)
+ * 5. unknown — ignition OFF + speed ≥ threshold (contradictory), or ignition null + low speed
+ * 6. moving — speed ≥ moving threshold
+ * 7. idle — ignition ON + speed &lt; threshold
+ *
+ * Do not derive status from reverse-geocoded address text.
  */
 export function resolveFleetStatus(input: GpsStatusInput, nowMs: number = Date.now()): FleetTrackStatus {
-  if (isSosAlarm(input.alarmType)) {
-    return 'sos';
-  }
-
   if (!input.hasGps || !input.lastUpdated) {
     return 'never_seen';
   }
@@ -52,11 +66,20 @@ export function resolveFleetStatus(input: GpsStatusInput, nowMs: number = Date.n
     return 'offline';
   }
 
+  if (isSosAlarm(input.alarmType)) {
+    return 'sos';
+  }
+
   const speed = Number(input.speed) || 0;
 
-  // Explicit ACC OFF: always Parked — Jimi VG03 / Traccar often report 1–5 km/h drift at rest.
-  if (input.ignition === false) {
+  // Explicit ACC OFF + below moving threshold → Parked (incl. low GPS drift at rest).
+  if (input.ignition === false && speed < MOVING_THRESHOLD_KMH) {
     return 'parked';
+  }
+
+  // Ignition OFF but reporting highway-like speed → contradictory telemetry.
+  if (input.ignition === false && speed >= MOVING_THRESHOLD_KMH) {
+    return 'unknown';
   }
 
   if (speed >= MOVING_THRESHOLD_KMH) {
@@ -67,5 +90,69 @@ export function resolveFleetStatus(input: GpsStatusInput, nowMs: number = Date.n
     return 'idle';
   }
 
-  return 'idle';
+  // Ignition unwired / null with low speed — insufficient telemetry.
+  return 'unknown';
+}
+
+/**
+ * KPI / roster tallies from the same `status` field used by cards, markers, and the detail panel.
+ * Counts every row — no `hasGps` gate (parked implies online telemetry already).
+ */
+export function tallyFleetStatusCounts(
+  locations: ReadonlyArray<Pick<VehicleLocation, 'status'>>
+): FleetStatusCounts {
+  const counts: FleetStatusCounts = {
+    total: locations.length,
+    online: 0,
+    offline: 0,
+    moving: 0,
+    idle: 0,
+    parked: 0,
+    unknown: 0,
+    neverSeen: 0,
+    sos: 0,
+    delayed: 0,
+    scheduled: 0
+  };
+
+  for (const loc of locations) {
+    switch (loc.status) {
+      case 'moving':
+        counts.moving++;
+        counts.online++;
+        break;
+      case 'idle':
+        counts.idle++;
+        counts.online++;
+        break;
+      case 'parked':
+        counts.parked++;
+        counts.online++;
+        break;
+      case 'unknown':
+        counts.unknown++;
+        counts.online++;
+        break;
+      case 'sos':
+        counts.sos++;
+        counts.online++;
+        break;
+      case 'offline':
+        counts.offline++;
+        break;
+      case 'never_seen':
+        counts.neverSeen++;
+        break;
+      case 'delayed':
+        counts.delayed++;
+        break;
+      case 'scheduled':
+        counts.scheduled++;
+        break;
+      default:
+        break;
+    }
+  }
+
+  return counts;
 }

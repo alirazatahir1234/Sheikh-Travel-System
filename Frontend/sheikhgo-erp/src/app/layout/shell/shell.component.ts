@@ -24,7 +24,7 @@ import {
 } from '../../core/navigation/menu-config';
 import { isNavItemActive } from '../../core/navigation/nav-route-active.util';
 import { resolveTenantType } from '../../core/navigation/tenant-type';
-import { APP_PRODUCT_NAME, APP_SIDEBAR_LOGO_PATH } from '../../core/constants/app-brand';
+import { APP_PRODUCT_NAME, APP_PRODUCT_TAGLINE, APP_SIDEBAR_LOGO_PATH } from '../../core/constants/app-brand';
 
 interface NotifMetaRow {
   icon: string;
@@ -40,6 +40,7 @@ interface NotifMetaRow {
 })
 export class ShellComponent implements OnInit, OnDestroy {
   readonly appProductName = APP_PRODUCT_NAME;
+  readonly appProductTagline = APP_PRODUCT_TAGLINE;
   readonly appLogoPath = APP_SIDEBAR_LOGO_PATH;
   private readonly sidebarPinnedStorageKey = 'stb_sidebar_pinned';
   private readonly enabledModules$ = new BehaviorSubject<string[]>([]);
@@ -277,7 +278,13 @@ export class ShellComponent implements OnInit, OnDestroy {
   }
 
   private isMobileViewport(): boolean {
-    return typeof window !== 'undefined' && window.matchMedia('(max-width: 768px)').matches;
+    return typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches;
+  }
+
+  /** Tablet / compact: default collapsed so maps/content keep horizontal room. */
+  private isCompactViewport(): boolean {
+    return typeof window !== 'undefined'
+      && window.matchMedia('(min-width: 768px) and (max-width: 1199px)').matches;
   }
 
   toggleSidebarPin(): void {
@@ -287,11 +294,32 @@ export class ShellComponent implements OnInit, OnDestroy {
 
   private readSidebarPinnedPreference(): boolean {
     const stored = localStorage.getItem(this.sidebarPinnedStorageKey);
-    // Default to expanded/pinned sidebar on first load.
     if (stored === null) {
-      return true;
+      // Desktop (>=1200): pinned/expanded. Tablet: compact by default.
+      return !this.isCompactViewport() && !this.isMobileViewport();
     }
     return stored === 'true';
+  }
+
+  /** Flatten visible leaf items for icon-only collapsed rail. */
+  collapsedLeafItems(menu: ResolvedMenu): NavItem[] {
+    if (menu.isDriverLayout) {
+      return menu.standaloneItems;
+    }
+    const seen = new Set<string>();
+    const leaves: NavItem[] = [];
+    for (const group of menu.groups) {
+      for (const item of group.items) {
+        if (seen.has(item.id)) continue;
+        seen.add(item.id);
+        leaves.push(item);
+      }
+    }
+    return leaves;
+  }
+
+  onNavLinkClick(): void {
+    this.closeMobileNav();
   }
 
   isGroupExpanded(groupId: string): boolean {
@@ -551,9 +579,13 @@ export class ShellComponent implements OnInit, OnDestroy {
   }
 
   openHelp(): void {
+    this.closeMobileNav();
     this.dialog.open(HelpDialogComponent, {
-      width: '600px',
-      maxHeight: '80vh'
+      width: '96vw',
+      maxWidth: '1240px',
+      maxHeight: '90vh',
+      panelClass: 'stb-help-dialog-panel',
+      autoFocus: 'dialog'
     });
   }
 

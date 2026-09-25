@@ -1,29 +1,40 @@
 import {
-  Component, Input, OnChanges, OnDestroy, AfterViewInit, ElementRef, ViewChild, SimpleChanges, Output, EventEmitter, ChangeDetectorRef
+  Component,
+  Input,
+  OnChanges,
+  OnDestroy,
+  AfterViewInit,
+  ElementRef,
+  ViewChild,
+  SimpleChanges,
+  Output,
+  EventEmitter,
+  ChangeDetectorRef
 } from '@angular/core';
+import { environment } from '../../../../../environments/environment';
 import { TripEvent, TripReplayPosition, TripStop } from '../../../../core/models/gps-tracking.model';
 import {
-  MAP_TILE_STACKS,
   MAP_THEME_OPTIONS,
   MapTheme,
   readStoredMapTheme,
-  storeMapTheme
-} from '../../../../core/leaflet/leaflet-map-tiles';
+  storeMapTheme,
+  applyGmapTheme,
+  triggerGmapResize,
+  type GmapThemeHandle
+} from '../../../../core/google-maps/gmap-theme';
 import {
-  bindTileLayerFallbackHandlers,
-  createStackTileLayer,
-  createTileStackState,
-  resetTileStackState
-} from '../../../../core/leaflet/leaflet-tile-stack';
-import { createMarkerClusterGroup, L } from '../../../../core/leaflet/leaflet-cluster';
-import { GoogleTrafficBasemap } from '../../../../core/leaflet/google-traffic-basemap';
-import { GoogleMapsLoaderService } from '../../../../core/services/google-maps-loader.service';
+  createFleetMarkerClusterer,
+  type FleetMarkerClusterer
+} from '../../../../core/google-maps/gmap-cluster';
 import {
   buildFleetVehiclePopup,
+  createFleetVehicleMarkerElement,
   resolveReplayStatus
-} from '../../../../core/leaflet/fleet-vehicle-marker';
-import type * as LeafletTypes from 'leaflet';
+} from '../../../../core/google-maps/fleet-vehicle-marker.gmap';
+import { GoogleMapsLoaderService } from '../../../../core/services/google-maps-loader.service';
+import { GpsTrackingService } from '../../../../core/services/gps-tracking.service';
 import { splitDisplayAddress } from '../../utils/gps-address.util';
+
 @Component({
   standalone: false,
   selector: 'app-trip-replay-map',
@@ -55,6 +66,8 @@ export class TripReplayMapComponent implements AfterViewInit, OnChanges, OnDestr
   @Input() showGeofencesLayer = true;
   @Input() showHeatmap = false;
   @Input() showRouteLayer = true;
+  /** Optional Roads API snap overlay (display only — never replaces Traccar coords). */
+  @Input() showSnappedLayer = false;
   @Output() positionSelected = new EventEmitter<TripReplayPosition>();
   @Output() retryRequested = new EventEmitter<void>();
 
@@ -69,19 +82,29 @@ export class TripReplayMapComponent implements AfterViewInit, OnChanges, OnDestr
   readonly historySpeedOptions = [0.5, 1, 2, 4, 8, 16];
   replayIndex = 0;
 
-  private map: LeafletTypes.Map | null = null;
-  private routeLayer: LeafletTypes.LayerGroup | null = null;
-  private pointsCluster: ReturnType<typeof createMarkerClusterGroup> | null = null;
-  private replayMarker: LeafletTypes.Marker | null = null;
+  private map: google.maps.Map | null = null;
+  private themeHandle: GmapThemeHandle | null = null;
+  private infoWindow: google.maps.InfoWindow | null = null;
+  private plannedPolyline: google.maps.Polyline | null = null;
+  private actualPolyline: google.maps.Polyline | null = null;
+  private snappedPolyline: google.maps.Polyline | null = null;
+  private heatmapPolylines: google.maps.Polyline[] = [];
+  private overlayMarkers: google.maps.marker.AdvancedMarkerElement[] = [];
+  private overlayListeners: google.maps.MapsEventListener[] = [];
+  private pointsCluster: FleetMarkerClusterer | null = null;
+  private gpsPointMarkers: google.maps.marker.AdvancedMarkerElement[] = [];
+  private gpsPointListeners: google.maps.MapsEventListener[] = [];
+  private replayMarker: google.maps.marker.AdvancedMarkerElement | null = null;
+  private replayClickListener: google.maps.MapsEventListener | null = null;
   private replayTimer?: ReturnType<typeof setInterval>;
   private segmentDistances: number[] = [];
-  private tileLayer?: LeafletTypes.TileLayer;
-  private readonly tileStackState = createTileStackState();
-  private readonly trafficBasemap = new GoogleTrafficBasemap();
   private scrubDebounce?: ReturnType<typeof setTimeout>;
+  private mapReady = false;
+  private pendingRender = false;
 
   constructor(
     private googleMapsLoader: GoogleMapsLoaderService,
+    private gpsTracking: GpsTrackingService,
     private cdr: ChangeDetectorRef
   ) {}
 
@@ -103,12 +126,16 @@ export class TripReplayMapComponent implements AfterViewInit, OnChanges, OnDestr
   }
 
   get startTimeLabel(): string {
-    return this.positions[0] ? new Date(this.positions[0].timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—';
+    return this.positions[0]
+      ? new Date(this.positions[0].timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      : '—';
   }
 
   get endTimeLabel(): string {
     const last = this.positions[this.positions.length - 1];
-    return last ? new Date(last.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—';
+    return last
+      ? new Date(last.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      : '—';
   }
 
   get midTimeLabel(): string {
@@ -201,18 +228,28 @@ export class TripReplayMapComponent implements AfterViewInit, OnChanges, OnDestr
   }
 
   ngAfterViewInit(): void {
-    setTimeout(() => this.initMap(), 50);
+    setTimeout(() => void this.initMap(), 50);
   }
 
   ngOnChanges(changes: SimpleChanges): void {
     const dataChange =
-      changes['positions'] || changes['routePoints'] || changes['stops'] || changes['events'] ||
-      changes['rawPoints'] || changes['showGpsPointsLayer'] || changes['showStopsLayer'] ||
-      changes['showParkingLayer'] || changes['showGeofencesLayer'] || changes['showHeatmap'] ||
-      changes['showRouteLayer'];
-    if (dataChange && this.map) {
+      changes['positions'] ||
+      changes['routePoints'] ||
+      changes['stops'] ||
+      changes['events'] ||
+      changes['rawPoints'] ||
+      changes['showGpsPointsLayer'] ||
+      changes['showStopsLayer'] ||
+      changes['showParkingLayer'] ||
+      changes['showGeofencesLayer'] ||
+      changes['showHeatmap'] ||
+      changes['showRouteLayer'] ||
+      changes['showSnappedLayer'];
+    if (dataChange && this.mapReady) {
       this.stopAndReset();
       requestAnimationFrame(() => this.renderRoute());
+    } else if (dataChange && this.map) {
+      this.pendingRender = true;
     }
   }
 
@@ -222,9 +259,8 @@ export class TripReplayMapComponent implements AfterViewInit, OnChanges, OnDestr
 
   ngOnDestroy(): void {
     this.stopReplayTimer();
-    this.trafficBasemap.detach();
-    this.map?.remove();
-    this.map = null;
+    if (this.scrubDebounce) clearTimeout(this.scrubDebounce);
+    this.teardownMap();
   }
 
   toggleReplay(): void {
@@ -281,7 +317,9 @@ export class TripReplayMapComponent implements AfterViewInit, OnChanges, OnDestr
       this.updateReplayMarker();
     }
     if (this.map) {
-      this.map.setView([lat, lng], Math.max(this.map.getZoom(), 15), { animate: true });
+      this.map.panTo({ lat, lng });
+      const z = this.map.getZoom() ?? 11;
+      if (z < 15) this.map.setZoom(15);
     }
   }
 
@@ -374,56 +412,101 @@ export class TripReplayMapComponent implements AfterViewInit, OnChanges, OnDestr
     this.mapTheme = theme;
     storeMapTheme(theme);
     if (!this.map) return;
-    resetTileStackState(this.tileStackState);
-    await this.applyTileLayer(theme);
+    this.themeHandle = applyGmapTheme(this.map, theme, this.themeHandle);
+    triggerGmapResize(this.map);
   }
 
   private async initMap(): Promise<void> {
     if (!this.mapEl?.nativeElement || this.map) return;
-    this.map = L.map(this.mapEl.nativeElement, { zoomControl: true }).setView([31.52, 74.35], 11);
-    this.routeLayer = L.layerGroup().addTo(this.map);
-    this.pointsCluster = createMarkerClusterGroup({
-      maxClusterRadius: 48,
-      showCoverageOnHover: false,
-      spiderfyOnMaxZoom: true,
-      disableClusteringAtZoom: 17,
-      animate: true
-    });
-    await this.applyTileLayer(this.mapTheme);
-    this.rebuildSegmentDistances();
-    this.renderRoute();
+
+    try {
+      const bootstrapped = await this.googleMapsLoader.load();
+      if (!bootstrapped) return;
+
+      await this.googleMapsLoader.importLibrary('maps');
+      await this.googleMapsLoader.importLibrary('marker');
+
+      if (this.googleMapsLoader.authFailed) return;
+
+      const mapOptions: google.maps.MapOptions = {
+        center: { lat: 31.52, lng: 74.35 },
+        zoom: 11,
+        maxZoom: 20,
+        mapTypeControl: false,
+        streetViewControl: false,
+        fullscreenControl: false,
+        zoomControl: true,
+        mapId: (environment as { googleMapsMapId?: string }).googleMapsMapId?.trim() || 'DEMO_MAP_ID'
+      };
+
+      this.map = new google.maps.Map(this.mapEl.nativeElement, mapOptions);
+      this.infoWindow = new google.maps.InfoWindow();
+      this.pointsCluster = createFleetMarkerClusterer(this.map, []);
+      this.themeHandle = applyGmapTheme(this.map, this.mapTheme, this.themeHandle);
+      this.mapReady = true;
+      this.rebuildSegmentDistances();
+      this.renderRoute();
+      if (this.pendingRender) {
+        this.pendingRender = false;
+        this.renderRoute();
+      }
+      requestAnimationFrame(() => triggerGmapResize(this.map));
+    } catch {
+      this.map = null;
+      this.mapReady = false;
+    }
   }
 
-  private async applyTileLayer(theme: MapTheme): Promise<void> {
-    if (!this.map) return;
+  private teardownMap(): void {
+    this.clearRouteOverlays();
+    this.clearGpsPoints();
+    this.clearReplayMarker();
+    this.infoWindow?.close();
+    this.infoWindow = null;
+    this.themeHandle?.trafficLayer?.setMap(null);
+    this.themeHandle = null;
+    this.pointsCluster?.clearMarkers();
+    this.pointsCluster = null;
+    this.map = null;
+    this.mapReady = false;
+  }
 
-    this.trafficBasemap.detach();
+  private clearRouteOverlays(): void {
+    this.plannedPolyline?.setMap(null);
+    this.plannedPolyline = null;
+    this.actualPolyline?.setMap(null);
+    this.actualPolyline = null;
+    this.snappedPolyline?.setMap(null);
+    this.snappedPolyline = null;
+    this.heatmapPolylines.forEach(p => p.setMap(null));
+    this.heatmapPolylines = [];
+    this.overlayListeners.forEach(l => l.remove());
+    this.overlayListeners = [];
+    this.overlayMarkers.forEach(m => {
+      m.map = null;
+    });
+    this.overlayMarkers = [];
+  }
 
-    if (this.tileLayer) {
-      this.tileLayer.off();
-      this.map.removeLayer(this.tileLayer);
-      this.tileLayer = undefined;
+  private clearGpsPoints(): void {
+    this.gpsPointListeners.forEach(l => l.remove());
+    this.gpsPointListeners = [];
+    if (this.pointsCluster && this.gpsPointMarkers.length) {
+      this.pointsCluster.removeMarkers(this.gpsPointMarkers);
     }
+    this.gpsPointMarkers.forEach(m => {
+      m.map = null;
+    });
+    this.gpsPointMarkers = [];
+  }
 
-    if (theme === 'traffic') {
-      const ok = await this.trafficBasemap.attach(this.map, this.googleMapsLoader);
-      if (!ok) {
-        this.mapTheme = 'street';
-        storeMapTheme('street');
-        await this.applyTileLayer('street');
-      }
-      return;
+  private clearReplayMarker(): void {
+    this.replayClickListener?.remove();
+    this.replayClickListener = null;
+    if (this.replayMarker) {
+      this.replayMarker.map = null;
+      this.replayMarker = null;
     }
-
-    const stack = MAP_TILE_STACKS[theme];
-    const cfg = stack[this.tileStackState.fallbackIndex] ?? stack[0];
-    if (!cfg) return;
-
-    this.tileLayer = createStackTileLayer(L, cfg).addTo(this.map);
-
-    bindTileLayerFallbackHandlers(this.tileLayer, cfg, stack, this.tileStackState, () =>
-      this.applyTileLayer(theme)
-    );
   }
 
   private rebuildSegmentDistances(): void {
@@ -435,53 +518,129 @@ export class TripReplayMapComponent implements AfterViewInit, OnChanges, OnDestr
     }
   }
 
+  private toLatLng(p: TripReplayPosition): google.maps.LatLngLiteral {
+    return { lat: p.latitude, lng: p.longitude };
+  }
+
+  /** Roads snap overlay — display only; raw Traccar positions stay the source of truth. */
+  private loadSnappedOverlay(points: TripReplayPosition[]): void {
+    if (!this.map || points.length < 5) return;
+    const sample = this.downsampleForDraw(points, 100);
+    this.gpsTracking
+      .snapGpsPath(sample.map(p => ({ lat: p.latitude, lng: p.longitude })))
+      .subscribe({
+        next: snapped => {
+          if (!this.map || !this.showSnappedLayer || !snapped.length) return;
+          this.snappedPolyline?.setMap(null);
+          this.snappedPolyline = new google.maps.Polyline({
+            map: this.map,
+            path: snapped.map(p => ({ lat: p.lat, lng: p.lng })),
+            strokeColor: '#f59e0b',
+            strokeOpacity: 0.85,
+            strokeWeight: 4,
+            geodesic: true,
+            zIndex: 4
+          });
+        },
+        error: () => {
+          /* Roads optional — ignore failures */
+        }
+      });
+  }
+
   private renderRoute(): void {
-    if (!this.routeLayer || !this.map) return;
-    const layer = this.routeLayer;
-    layer.clearLayers();
-    this.replayMarker = null;
+    if (!this.map || !this.mapReady) return;
+
+    this.clearRouteOverlays();
+    this.clearReplayMarker();
+    this.clearGpsPoints();
     this.rebuildSegmentDistances();
 
-    // Clear GPS clusters before redraw so they never outlive a toggle-off.
-    if (this.pointsCluster && this.map.hasLayer(this.pointsCluster)) {
-      this.map.removeLayer(this.pointsCluster);
-    }
-    this.pointsCluster?.clearLayers();
+    const planned = this.routePoints;
+    const actual = this.positions;
+    const hasPlanned = planned.length > 0;
+    const hasActual = actual.length > 0;
+    if (!hasPlanned && !hasActual) return;
 
-    const pathPoints = this.routePoints.length ? this.routePoints : this.positions;
-    if (!pathPoints.length) return;
-
-    // Keep draw layer lean so the polyline stays visible and responsive.
-    const drawPoints = this.downsampleForDraw(pathPoints, 800);
+    const drawPlanned = this.downsampleForDraw(planned, 800);
+    const drawActual = this.downsampleForDraw(actual.length ? actual : planned, 800);
 
     if (this.showRouteLayer) {
-      if (this.showHeatmap) {
-        this.drawSpeedHeatmap(layer, drawPoints);
-      } else {
-        L.polyline(
-          drawPoints.map(p => [p.latitude, p.longitude] as [number, number]),
-          { color: '#1d4ed8', weight: 7, opacity: 1 }
-        ).addTo(layer);
+      // Planned route — dashed slate, visually distinct from the live GPS trail.
+      if (hasPlanned && hasActual) {
+        // Dashed via icons; solid stroke hidden so planned stays distinct from GPS trail.
+        this.plannedPolyline = new google.maps.Polyline({
+          map: this.map,
+          path: drawPlanned.map(p => this.toLatLng(p)),
+          strokeColor: '#64748b',
+          strokeOpacity: 0,
+          strokeWeight: 4,
+          geodesic: true,
+          zIndex: 1,
+          icons: [
+            {
+              icon: {
+                path: 'M 0,-1 0,1',
+                strokeOpacity: 1,
+                strokeColor: '#64748b',
+                scale: 3
+              },
+              offset: '0',
+              repeat: '12px'
+            }
+          ]
+        });
+      } else if (hasPlanned && !hasActual) {
+        this.plannedPolyline = new google.maps.Polyline({
+          map: this.map,
+          path: drawPlanned.map(p => this.toLatLng(p)),
+          strokeColor: '#1d4ed8',
+          strokeOpacity: 1,
+          strokeWeight: 7,
+          geodesic: true,
+          zIndex: 2
+        });
       }
 
-      const start = pathPoints[0];
-      const end = pathPoints[pathPoints.length - 1];
-      this.addEndpointMarker(layer, start, 'Start', '#059669', 'flag-start');
-      this.addEndpointMarker(layer, end, 'End', '#dc2626', 'flag-end');
+      // Actual GPS track (or sole path when no separate planned route).
+      if (hasActual) {
+        if (this.showHeatmap) {
+          this.drawSpeedHeatmap(drawActual);
+        } else {
+          this.actualPolyline = new google.maps.Polyline({
+            map: this.map,
+            path: drawActual.map(p => this.toLatLng(p)),
+            strokeColor: '#1d4ed8',
+            strokeOpacity: 1,
+            strokeWeight: 7,
+            geodesic: true,
+            zIndex: 3
+          });
+        }
+        if (this.showSnappedLayer) {
+          this.loadSnappedOverlay(drawActual);
+        }
+      }
+
+      const endpointSource = hasActual ? actual : planned;
+      const start = endpointSource[0];
+      const end = endpointSource[endpointSource.length - 1];
+      this.addEndpointMarker(start, 'Start', '#059669', 'flag-start');
+      this.addEndpointMarker(end, 'End', '#dc2626', 'flag-end');
     }
 
     if (this.showGeofencesLayer) {
       this.events.slice(0, 40).forEach(evt => {
         if (evt.latitude == null || evt.longitude == null) return;
         const isGeofence = evt.type.toLowerCase().includes('geofence');
-        L.circleMarker([evt.latitude, evt.longitude], {
-          radius: isGeofence ? 7 : 6,
-          color: isGeofence ? '#7c3aed' : '#f59e0b',
-          fillColor: isGeofence ? '#a78bfa' : '#fbbf24',
-          fillOpacity: 0.9
-        }).bindPopup(
+        this.addDotMarker(
+          evt.latitude,
+          evt.longitude,
+          isGeofence ? 7 : 6,
+          isGeofence ? '#7c3aed' : '#f59e0b',
+          isGeofence ? '#a78bfa' : '#fbbf24',
           `<strong>${evt.label ?? evt.type}</strong><br>${new Date(evt.time).toLocaleString()}`
-        ).addTo(layer);
+        );
       });
     }
 
@@ -489,54 +648,65 @@ export class TripReplayMapComponent implements AfterViewInit, OnChanges, OnDestr
       const isParking = stop.durationMinutes >= 120;
       if (isParking && !this.showParkingLayer) return;
       if (!isParking && !this.showStopsLayer) return;
-      L.circleMarker([stop.latitude, stop.longitude], {
-        radius: isParking ? 8 : 7,
-        color: isParking ? '#1d4ed8' : '#ca8a04',
-        fillColor: isParking ? '#93c5fd' : '#fde047',
-        fillOpacity: 0.95
-      }).bindPopup(
-        (() => {
-          const kind = isParking ? 'Parking' : 'Stop';
-          const lines = splitDisplayAddress(stop.address);
-          const primary = lines.primary || stop.address?.trim() || 'Address unavailable';
-          const secondary = lines.secondary ? `<br><span style="color:#64748b">${lines.secondary}</span>` : '';
-          const when = new Date(stop.startTime).toLocaleTimeString(undefined, {
-            hour: 'numeric',
-            minute: '2-digit'
-          });
-          return `<strong>${kind} — ${primary}</strong>${secondary}<br>${when} · ${stop.durationMinutes} min`;
-        })()
-      ).addTo(layer);
+      const kind = isParking ? 'Parking' : 'Stop';
+      const lines = splitDisplayAddress(stop.address);
+      const primary = lines.primary || stop.address?.trim() || 'Address unavailable';
+      const secondary = lines.secondary
+        ? `<br><span style="color:#64748b">${lines.secondary}</span>`
+        : '';
+      const when = new Date(stop.startTime).toLocaleTimeString(undefined, {
+        hour: 'numeric',
+        minute: '2-digit'
+      });
+      this.addDotMarker(
+        stop.latitude,
+        stop.longitude,
+        isParking ? 8 : 7,
+        isParking ? '#1d4ed8' : '#ca8a04',
+        isParking ? '#93c5fd' : '#fde047',
+        `<strong>${kind} — ${primary}</strong>${secondary}<br>${when} · ${stop.durationMinutes} min`
+      );
     });
 
-    const playback = this.positions.length ? this.positions : pathPoints;
+    const playback = this.positions.length ? this.positions : planned;
     if (playback.length) {
       this.replayMarker = this.createVehicleMarker(playback[0]);
-      this.replayMarker.addTo(layer);
     }
 
     this.renderGpsPointsLayer();
 
-    if (drawPoints.length) {
-      const bounds = L.latLngBounds(drawPoints.map(p => [p.latitude, p.longitude] as [number, number]));
-      this.map.fitBounds(bounds, { padding: [48, 48], maxZoom: 15 });
+    const fitPts = drawActual.length ? drawActual : drawPlanned;
+    if (fitPts.length) {
+      const bounds = new google.maps.LatLngBounds();
+      fitPts.forEach(p => bounds.extend(this.toLatLng(p)));
+      this.map.fitBounds(bounds, { top: 48, right: 48, bottom: 48, left: 48 });
+      const z = this.map.getZoom();
+      if (z != null && z > 15) this.map.setZoom(15);
     }
   }
 
-  private drawSpeedHeatmap(layer: LeafletTypes.LayerGroup, points: TripReplayPosition[]): void {
-    if (points.length < 2) return;
-    let batch: [number, number][] = [[points[0].latitude, points[0].longitude]];
+  private drawSpeedHeatmap(points: TripReplayPosition[]): void {
+    if (!this.map || points.length < 2) return;
+    let batch: google.maps.LatLngLiteral[] = [this.toLatLng(points[0])];
     let color = this.speedColor(Number(points[1].speedKmh) || 0);
 
     for (let i = 1; i < points.length; i++) {
       const nextColor = this.speedColor(Number(points[i].speedKmh) || 0);
-      batch.push([points[i].latitude, points[i].longitude]);
+      batch.push(this.toLatLng(points[i]));
       if (nextColor !== color || i === points.length - 1) {
         if (batch.length >= 2) {
-          L.polyline(batch, { color, weight: 5, opacity: 0.9 }).addTo(layer);
+          const line = new google.maps.Polyline({
+            map: this.map,
+            path: batch,
+            strokeColor: color,
+            strokeOpacity: 0.9,
+            strokeWeight: 5,
+            geodesic: true,
+            zIndex: 3
+          });
+          this.heatmapPolylines.push(line);
         }
-        // Start next batch from current point so segments stay continuous.
-        batch = [[points[i].latitude, points[i].longitude]];
+        batch = [this.toLatLng(points[i])];
         color = nextColor;
       }
     }
@@ -549,103 +719,148 @@ export class TripReplayMapComponent implements AfterViewInit, OnChanges, OnDestr
   }
 
   private addEndpointMarker(
-    layer: LeafletTypes.LayerGroup,
     p: TripReplayPosition,
     label: string,
     color: string,
     kind: 'flag-start' | 'flag-end' = 'flag-start'
   ): void {
+    if (!this.map) return;
     const time = new Date(p.timestamp).toLocaleString(undefined, {
       day: '2-digit',
       month: 'short',
       hour: '2-digit',
       minute: '2-digit'
     });
-    const address = (p.address?.trim() || `${p.latitude.toFixed(5)}, ${p.longitude.toFixed(5)}`);
+    const address = p.address?.trim() || `${p.latitude.toFixed(5)}, ${p.longitude.toFixed(5)}`;
     const lines = splitDisplayAddress(p.address);
     const primary = lines.primary || address;
     const secondary = lines.secondary
       ? `<br><span style="color:#64748b">${lines.secondary}</span>`
       : '';
     const glyph = kind === 'flag-start' ? '▶' : '🏁';
-    const icon = L.divIcon({
-      className: 'replay-endpoint-wrap',
-      html: `<div class="replay-flag" style="--flag:${color}">
+    const el = document.createElement('div');
+    el.className = 'replay-endpoint-wrap';
+    el.innerHTML = `<div class="replay-flag" style="--flag:${color}">
         <span class="replay-flag__pin">${glyph}</span>
         <span class="replay-flag__meta">
           <strong>${label}</strong>
           <small>${time}</small>
         </span>
-      </div>`,
-      iconSize: [120, 40],
-      iconAnchor: [16, 36]
+      </div>`;
+
+    const marker = new google.maps.marker.AdvancedMarkerElement({
+      map: this.map,
+      position: this.toLatLng(p),
+      content: el,
+      zIndex: 1200,
+      gmpClickable: true,
+      title: label
     });
-    L.marker([p.latitude, p.longitude], { icon, zIndexOffset: 1200 })
-      .bindPopup(
-        `<strong>${label}</strong><br>${time}<br><strong>${primary}</strong>${secondary}<br>` +
-          `<span style="color:#94a3b8;font-size:11px">${p.latitude.toFixed(5)}, ${p.longitude.toFixed(5)}</span><br>` +
-          `${Number(p.speedKmh ?? 0).toFixed(0)} km/h`
-      )
-      .addTo(layer);
+    const popup =
+      `<strong>${label}</strong><br>${time}<br><strong>${primary}</strong>${secondary}<br>` +
+      `<span style="color:#94a3b8;font-size:11px">${p.latitude.toFixed(5)}, ${p.longitude.toFixed(5)}</span><br>` +
+      `${Number(p.speedKmh ?? 0).toFixed(0)} km/h`;
+    const listener = marker.addListener('click', () => this.openInfo(popup, marker));
+    this.overlayListeners.push(listener);
+    this.overlayMarkers.push(marker);
+  }
+
+  private addDotMarker(
+    lat: number,
+    lng: number,
+    radius: number,
+    stroke: string,
+    fill: string,
+    popupHtml: string
+  ): void {
+    if (!this.map) return;
+    const size = radius * 2;
+    const el = document.createElement('div');
+    el.style.cssText =
+      `width:${size}px;height:${size}px;border-radius:50%;` +
+      `background:${fill};border:2px solid ${stroke};box-sizing:border-box;`;
+    const marker = new google.maps.marker.AdvancedMarkerElement({
+      map: this.map,
+      position: { lat, lng },
+      content: el,
+      gmpClickable: true,
+      zIndex: 500
+    });
+    const listener = marker.addListener('click', () => this.openInfo(popupHtml, marker));
+    this.overlayListeners.push(listener);
+    this.overlayMarkers.push(marker);
+  }
+
+  private openInfo(html: string, anchor: google.maps.marker.AdvancedMarkerElement): void {
+    if (!this.infoWindow || !this.map) return;
+    this.infoWindow.setContent(html);
+    this.infoWindow.open({ map: this.map, anchor });
   }
 
   private renderGpsPointsLayer(): void {
     if (!this.map || !this.pointsCluster) return;
-    if (this.map.hasLayer(this.pointsCluster)) {
-      this.map.removeLayer(this.pointsCluster);
-    }
-    this.pointsCluster.clearLayers();
+    this.clearGpsPoints();
+
     const showPts = this.historyMode ? this.showGpsPointsLayer : this.showGpsPoints;
     if (!showPts) return;
 
-    const pts = this.rawPoints.length ? this.rawPoints : this.routePoints.length ? this.routePoints : this.positions;
+    const pts = this.rawPoints.length
+      ? this.rawPoints
+      : this.routePoints.length
+        ? this.routePoints
+        : this.positions;
     const sample = pts.length > 500 ? this.downsampleForDraw(pts, 1200) : pts;
+
     sample.forEach(p => {
-      const marker = L.circleMarker([p.latitude, p.longitude], {
-        radius: 3,
-        color: '#0f766e',
-        fillColor: '#14b8a6',
-        fillOpacity: 0.7,
-        weight: 1
+      const el = document.createElement('div');
+      el.style.cssText =
+        'width:6px;height:6px;border-radius:50%;background:#14b8a6;border:1px solid #0f766e;opacity:0.85;';
+      const marker = new google.maps.marker.AdvancedMarkerElement({
+        position: this.toLatLng(p),
+        content: el,
+        gmpClickable: true,
+        title: 'GPS point'
       });
-      marker.bindPopup(this.popupHtml(p, 'GPS point'));
-      marker.on('click', () => this.positionSelected.emit(p));
-      this.pointsCluster!.addLayer(marker);
+      const listener = marker.addListener('click', () => {
+        this.openInfo(this.popupHtml(p, 'GPS point'), marker);
+        this.positionSelected.emit(p);
+      });
+      this.gpsPointListeners.push(listener);
+      this.gpsPointMarkers.push(marker);
     });
-    this.map.addLayer(this.pointsCluster);
+
+    if (this.gpsPointMarkers.length) {
+      this.pointsCluster.addMarkers(this.gpsPointMarkers);
+    }
   }
 
-  private createVehicleMarker(p: TripReplayPosition): LeafletTypes.Marker {
-    const icon = this.buildNavArrowIcon(p.heading ?? 0);
-    const marker = L.marker([p.latitude, p.longitude], { icon, zIndexOffset: 1000 });
-    marker.bindPopup(this.vehiclePopupHtml(p));
-    marker.on('click', () => {
-      const idx = this.positions.findIndex(x => x.timestamp === p.timestamp);
-      if (idx >= 0) {
-        this.replayIndex = idx;
-        this.updateReplayMarker();
-      }
-      this.positionSelected.emit(p);
+  private createVehicleMarker(p: TripReplayPosition): google.maps.marker.AdvancedMarkerElement {
+    const content = this.buildVehicleContent(p);
+    const marker = new google.maps.marker.AdvancedMarkerElement({
+      map: this.map,
+      position: this.toLatLng(p),
+      content,
+      zIndex: 1000,
+      gmpClickable: true,
+      title: this.vehicleName || this.driverName || 'Vehicle'
+    });
+    this.replayClickListener = marker.addListener('click', () => {
+      const row = this.currentPosition ?? p;
+      this.openInfo(this.vehiclePopupHtml(row), marker);
+      this.positionSelected.emit(row);
     });
     return marker;
   }
 
-  private buildNavArrowIcon(heading: number): LeafletTypes.DivIcon {
-    return L.divIcon({
-      className: 'replay-nav-wrap',
-      html: `<div class="replay-nav-arrow" style="transform:rotate(${heading}deg)">
-        <svg viewBox="0 0 32 32" width="32" height="32" aria-hidden="true">
-          <defs>
-            <filter id="navShadow" x="-40%" y="-40%" width="180%" height="180%">
-              <feDropShadow dx="0" dy="1.5" stdDeviation="1.2" flood-opacity="0.35"/>
-            </filter>
-          </defs>
-          <path filter="url(#navShadow)" d="M16 3 L27 27 L16 21 L5 27 Z"
-            fill="#1d4ed8" stroke="#ffffff" stroke-width="2" stroke-linejoin="round"/>
-        </svg>
-      </div>`,
-      iconSize: [32, 32],
-      iconAnchor: [16, 16]
+  private buildVehicleContent(p: TripReplayPosition): HTMLElement {
+    const status = resolveReplayStatus(p.speedKmh, p.ignition);
+    return createFleetVehicleMarkerElement({
+      status,
+      heading: p.heading ?? 0,
+      vehicleType: this.vehicleType,
+      size: 32,
+      selected: true,
+      pulse: false
     });
   }
 
@@ -708,19 +923,15 @@ export class TripReplayMapComponent implements AfterViewInit, OnChanges, OnDestr
 
   private updateReplayMarker(): void {
     const row = this.currentPosition;
-    if (!row) return;
+    if (!row || !this.map) return;
     if (!this.replayMarker) {
-      // Marker can be missing briefly after a layer rebuild — recreate so Play still moves.
-      if (!this.map || !this.routeLayer) return;
       this.replayMarker = this.createVehicleMarker(row);
-      this.replayMarker.addTo(this.routeLayer);
     } else {
-      this.replayMarker.setLatLng([row.latitude, row.longitude]);
-      this.replayMarker.setIcon(this.buildNavArrowIcon(row.heading ?? 0));
-      this.replayMarker.bindPopup(this.vehiclePopupHtml(row));
+      this.replayMarker.position = this.toLatLng(row);
+      this.replayMarker.content = this.buildVehicleContent(row);
     }
-    if (this.followVehicle && this.map) {
-      this.map.panTo([row.latitude, row.longitude], { animate: true, duration: 0.25 });
+    if (this.followVehicle) {
+      this.map.panTo(this.toLatLng(row));
     }
     this.positionSelected.emit(row);
   }

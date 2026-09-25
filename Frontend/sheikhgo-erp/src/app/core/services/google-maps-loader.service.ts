@@ -13,7 +13,7 @@ export function mapsAuthMessageFromDocsUrl(url: string | null): string {
   if (!url) {
     return (
       `${lead} Google Maps could not be initialized. ` +
-      'Enable Cloud billing and the Maps JavaScript API, Places API, and Directions API for this key, then retry.'
+      'Enable Cloud billing and the Maps JavaScript API, Places API, and Routes API for this key, then retry.'
     );
   }
 
@@ -32,7 +32,7 @@ export function mapsAuthMessageFromDocsUrl(url: string | null): string {
     normalized.includes('api-target-blocked') ||
     normalized.includes('not-activated')
   ) {
-    return `${lead} Maps JavaScript API, Places API, or Directions API is not enabled for this key.`;
+    return `${lead} Maps JavaScript API, Places API, or Routes API is not enabled for this key.`;
   }
   return `${lead} Google Maps could not be initialized. Check the Maps configuration and retry.`;
 }
@@ -93,7 +93,7 @@ export class GoogleMapsLoaderService {
   /**
    * Loads one Maps library through the shared bootstrap.
    * Rejects when Google reports an authentication/configuration failure
-   * so callers do not construct extra Places or Directions widgets.
+   * so callers do not construct extra Places or Routes widgets.
    */
   async importLibrary<T = unknown>(name: string): Promise<T> {
     const loaded = await this.load();
@@ -161,7 +161,7 @@ export class GoogleMapsLoaderService {
   }
 
   get isConfigured(): boolean {
-    return !!environment.googleMapsApiKey;
+    return !!environment.googleMapsApiKey?.trim();
   }
 
   private waitForAuthDecision(): Promise<void> {

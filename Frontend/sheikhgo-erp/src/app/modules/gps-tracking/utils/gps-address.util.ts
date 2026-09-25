@@ -121,24 +121,33 @@ export function splitDisplayAddress(address?: string | null): AddressDisplayLine
   if (roadIdx > 0) {
     parts = parts.slice(roadIdx);
   } else if (roadIdx < 0) {
-    // No street signal — never promote a business/POI name as the street line.
+    // No street signal — prefer locality/admin lines over a lone business/POI name.
     if (parts.length === 1) {
-      return { primary: null, secondary: parts[0] };
+      const only = parts[0];
+      // Admin/locality tokens (tehsil, city, …) are usable place names; bare POI stays secondary.
+      return LOCALITY_ONLY_TOKEN_RE.test(only)
+        ? { primary: only, secondary: null }
+        : { primary: null, secondary: only };
     }
-    // "Peak Performance Partners, Sialkot, Punjab" → locality primary, POI secondary.
     const localityLike = parts.filter(part => {
       const p = part.toLowerCase();
       if (LOCALITY_ONLY_TOKEN_RE.test(p)) return true;
       if (/^[a-z]{2,3}$/i.test(p)) return true;
-      return !/[0-9\/-]/.test(p) && p.split(/\s+/).length <= 2;
+      return !/[0-9\/-]/.test(p) && p.split(/\s+/).length <= 3;
     });
+    // Mixed POI + locality → show locality as primary.
     if (localityLike.length > 0 && localityLike.length < parts.length) {
       return {
         primary: localityLike.join(', '),
         secondary: parts.find(p => !localityLike.includes(p)) || null
       };
     }
-    return { primary: null, secondary: parts[0] };
+    // All locality/admin segments (e.g. "Gujranwala City Tehsil, Punjab, Pakistan").
+    const take = parts.length >= 3 ? 2 : parts.length;
+    return {
+      primary: parts.slice(0, take).join(', '),
+      secondary: parts.length > take ? parts.slice(take).join(', ') : null
+    };
   }
 
   if (parts.length <= 2) {

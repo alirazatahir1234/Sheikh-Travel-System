@@ -1,12 +1,9 @@
 import type * as Leaflet from 'leaflet';
 
 declare global {
-  // Optional: set when leaflet.markercluster registers on globalThis
-  // eslint-disable-next-line @typescript-eslint/no-namespace
-  var L: typeof Leaflet & {
-    MarkerClusterGroup: new (options?: object) => Leaflet.LayerGroup;
-    markerClusterGroup: (options?: object) => Leaflet.LayerGroup;
-  };
+  // Geoman / Leaflet drawing attaches to window.L
+  // eslint-disable-next-line no-var, @typescript-eslint/no-explicit-any
+  var L: typeof Leaflet & Record<string, any>;
 }
 
 export {};

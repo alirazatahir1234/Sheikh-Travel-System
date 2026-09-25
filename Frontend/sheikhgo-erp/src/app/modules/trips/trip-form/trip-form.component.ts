@@ -5,11 +5,13 @@ import {
   NgZone,
   OnDestroy,
   OnInit,
-  ViewChild
+  QueryList,
+  ViewChild,
+  ViewChildren
 } from '@angular/core';
 import { FormArray, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { MapDirectionsService, MapGeocoder } from '@angular/google-maps';
+import { MapGeocoder } from '@angular/google-maps';
 import { forkJoin, merge, Subscription } from 'rxjs';
 import { debounceTime } from 'rxjs/operators';
 import { TripService } from '../../../core/services/trip.service';
@@ -29,10 +31,17 @@ import {
 } from '../../../core/models/trip.model';
 import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
 import { apiErrorMessage } from '../../../core/utils/api-error.util';
+import { SHEIKHGO_DIRECTIONS_REGION } from '../../../core/utils/google-places-options';
 import {
-  SHEIKHGO_DIRECTIONS_REGION,
-  sheikhGoPlacesAutocompleteOptions
-} from '../../../core/utils/google-places-options';
+  attachSheikhGoPlacesAutocomplete,
+  SheikhGoPlaceSelection,
+  SheikhGoPlacesAutocompleteHandle
+} from '../../../core/google-maps/place-autocomplete.new';
+import {
+  computeDrivingRoute,
+  ComputedDrivingRoute,
+  pathCenter
+} from '../../../core/google-maps/gmap-routes';
 import {
   canCalculateRoute,
   locationSelectionError,
@@ -59,6 +68,7 @@ type TripFormStepId = 'basic' | 'location' | 'waypoints' | 'schedule' | 'assignm
 export class TripFormComponent implements OnInit, OnDestroy {
   @ViewChild('pickupInput') pickupInput?: ElementRef<HTMLInputElement>;
   @ViewChild('destinationInput') destinationInput?: ElementRef<HTMLInputElement>;
+  @ViewChildren('stopLocationInput') stopLocationInputs?: QueryList<ElementRef<HTMLInputElement>>;
 
   form!: FormGroup;
   loading = false;
@@ -145,8 +155,10 @@ export class TripFormComponent implements OnInit, OnDestroy {
 
   currentStepId: TripFormStepId = 'basic';
 
-  /** Live Directions result for the route preview map. */
-  directionsResult: google.maps.DirectionsResult | null = null;
+  /** Planned route path for the preview map (Routes API). */
+  routePath: google.maps.LatLngLiteral[] = [];
+  routeDurationBaseSeconds = 0;
+  routeDurationTrafficSeconds: number | null = null;
   mapCenter: google.maps.LatLngLiteral = { lat: 24.8607, lng: 67.0011 };
   mapZoom = 11;
   readonly mapOptions: google.maps.MapOptions = {
@@ -156,9 +168,10 @@ export class TripFormComponent implements OnInit, OnDestroy {
     streetViewControl: false,
     fullscreenControl: true
   };
-  readonly directionsRendererOptions: google.maps.DirectionsRendererOptions = {
-    suppressMarkers: true,
-    polylineOptions: { strokeColor: '#0d9488', strokeWeight: 5, strokeOpacity: 0.9 }
+  readonly routePolylineOptions: google.maps.PolylineOptions = {
+    strokeColor: '#0d9488',
+    strokeWeight: 5,
+    strokeOpacity: 0.9
   };
 
   private arrivalManuallyEdited = false;
@@ -166,14 +179,14 @@ export class TripFormComponent implements OnInit, OnDestroy {
   private applyingRoute = false;
   private patchingComputed = false;
   private subs = new Subscription();
-  private directionsSub?: Subscription;
-  private pickupAutocomplete: google.maps.places.Autocomplete | null = null;
-  private destinationAutocomplete: google.maps.places.Autocomplete | null = null;
-  private placesListeners: google.maps.MapsEventListener[] = [];
+  private placesHandles: SheikhGoPlacesAutocompleteHandle[] = [];
+  private stopPlacesHandles: SheikhGoPlacesAutocompleteHandle[] = [];
   private placesInitAttempts = 0;
+  private stopPlacesInitAttempts = 0;
   private ignoreAddressEdits = 0;
   private committedPickup = '';
   private committedDestination = '';
+  private committedStops: string[] = [];
 
   constructor(
     private fb: FormBuilder,
@@ -185,7 +198,6 @@ export class TripFormComponent implements OnInit, OnDestroy {
     private vehiclesApi: VehicleService,
     private routesApi: RouteService,
     private mapsLoader: GoogleMapsLoaderService,
-    private directionsService: MapDirectionsService,
     private geocoder: MapGeocoder,
     private toast: UiToastService,
     private zone: NgZone,
@@ -283,6 +295,18 @@ export class TripFormComponent implements OnInit, OnDestroy {
     if (pLat != null && pLng != null) {
       markers.push({ position: { lat: pLat, lng: pLng }, label: 'P', title: raw.pickupAddress || 'Pickup' });
     }
+    (raw.stops || []).forEach(
+      (s: { location?: string; latitude?: number | null; longitude?: number | null }, i: number) => {
+        const lat = readCoordinate(s.latitude);
+        const lng = readCoordinate(s.longitude);
+        if (lat == null || lng == null) return;
+        markers.push({
+          position: { lat, lng },
+          label: String(i + 1),
+          title: s.location || `Stop ${i + 1}`
+        });
+      }
+    );
     if (dLat != null && dLng != null) {
       markers.push({ position: { lat: dLat, lng: dLng }, label: 'D', title: raw.destinationAddress || 'Destination' });
     }
@@ -290,11 +314,9 @@ export class TripFormComponent implements OnInit, OnDestroy {
   }
 
   get trafficLabel(): string {
-    if (!this.directionsResult?.routes?.length) return '—';
-    const leg = this.directionsResult.routes[0].legs?.[0];
-    if (!leg) return '—';
-    const base = leg.duration?.value ?? 0;
-    const traffic = leg.duration_in_traffic?.value;
+    if (!this.routePath.length) return '—';
+    const base = this.routeDurationBaseSeconds;
+    const traffic = this.routeDurationTrafficSeconds;
     if (traffic == null || base <= 0) return 'Unknown';
     const ratio = traffic / base;
     if (ratio < 1.1) return 'Light';
@@ -433,6 +455,10 @@ export class TripFormComponent implements OnInit, OnDestroy {
     if (this.currentStepId === 'location') {
       this.placesInitAttempts = 0;
       setTimeout(() => void this.initPlacesAutocomplete(), 0);
+    }
+    if (this.currentStepId === 'waypoints') {
+      this.stopPlacesInitAttempts = 0;
+      setTimeout(() => void this.initStopPlacesAutocomplete(), 0);
     }
   }
 
@@ -575,7 +601,6 @@ export class TripFormComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.subs.unsubscribe();
-    this.directionsSub?.unsubscribe();
     this.destroyAutocompletes();
   }
 
@@ -749,14 +774,16 @@ export class TripFormComponent implements OnInit, OnDestroy {
           );
         }
         this.stops.clear();
+        this.committedStops = [];
         for (const s of trip.stops || []) {
           this.stops.push(this.fb.group({
             sequence: [s.sequence],
             location: [s.location, Validators.required],
-            latitude: [s.latitude],
-            longitude: [s.longitude],
+            latitude: [{ value: s.latitude, disabled: true }],
+            longitude: [{ value: s.longitude, disabled: true }],
             eta: [s.eta ? this.toLocalInput(s.eta) : '']
           }));
+          this.committedStops.push(s.location || '');
         }
         this.patchingComputed = false;
         this.cdr.detectChanges();
@@ -770,15 +797,41 @@ export class TripFormComponent implements OnInit, OnDestroy {
     this.stops.push(this.fb.group({
       sequence: [this.stops.length + 1],
       location: ['', Validators.required],
-      latitude: [null],
-      longitude: [null],
+      latitude: [{ value: null, disabled: true }],
+      longitude: [{ value: null, disabled: true }],
       eta: ['']
     }));
+    this.committedStops.push('');
+    this.cdr.detectChanges();
+    if (this.currentStepId === 'waypoints') {
+      this.stopPlacesInitAttempts = 0;
+      setTimeout(() => void this.initStopPlacesAutocomplete(), 0);
+    }
   }
 
   removeStop(index: number): void {
+    this.destroyStopPlacesAutocomplete();
     this.stops.removeAt(index);
+    this.committedStops.splice(index, 1);
     this.stops.controls.forEach((c, i) => c.patchValue({ sequence: i + 1 }));
+    this.cdr.detectChanges();
+    if (this.currentStepId === 'waypoints') {
+      this.stopPlacesInitAttempts = 0;
+      setTimeout(() => void this.initStopPlacesAutocomplete(), 0);
+    }
+    this.recomputeRouteFromForm();
+  }
+
+  onStopAddressTyped(index: number): void {
+    if (this.ignoreAddressEdits > 0) return;
+    const group = this.stops.at(index);
+    if (!group) return;
+    const location = String(group.get('location')?.value || '');
+    const committed = this.committedStops[index] || '';
+    if (location === committed) return;
+    group.patchValue({ latitude: null, longitude: null }, { emitEvent: false });
+    this.committedStops[index] = '';
+    this.recomputeRouteFromForm();
   }
 
   onArrivalManualEdit(): void {
@@ -853,13 +906,15 @@ export class TripFormComponent implements OnInit, OnDestroy {
       driverId: v.driverId ? +v.driverId : null,
       assistantDriverId: v.assistantDriverId ? +v.assistantDriverId : null,
       vehicleId: v.vehicleId ? +v.vehicleId : null,
-      stops: (v.stops || []).map((s: { sequence: number; location: string; latitude?: number; longitude?: number; eta?: string }) => ({
-        sequence: s.sequence,
-        location: s.location,
-        latitude: s.latitude,
-        longitude: s.longitude,
-        eta: s.eta ? new Date(s.eta).toISOString() : null
-      }))
+      stops: (v.stops || []).map(
+        (s: { sequence: number; location: string; latitude?: number | null; longitude?: number | null; eta?: string }) => ({
+          sequence: s.sequence,
+          location: s.location,
+          latitude: readCoordinate(s.latitude),
+          longitude: readCoordinate(s.longitude),
+          eta: s.eta ? new Date(s.eta).toISOString() : null
+        })
+      )
     };
 
     this.saving = true;
@@ -992,6 +1047,26 @@ export class TripFormComponent implements OnInit, OnDestroy {
     };
   }
 
+  private stopWaypoints(): google.maps.LatLngLiteral[] {
+    const raw = this.form.getRawValue();
+    const waypoints: google.maps.LatLngLiteral[] = [];
+    for (const s of raw.stops || []) {
+      const lat = readCoordinate(s.latitude);
+      const lng = readCoordinate(s.longitude);
+      if (lat != null && lng != null) waypoints.push({ lat, lng });
+    }
+    return waypoints;
+  }
+
+  private recomputeRouteFromForm(): void {
+    const coords = this.currentCoords();
+    if (!coords) {
+      this.clearDerivedMetrics();
+      return;
+    }
+    this.computeDrivingRoute(coords);
+  }
+
   private computeDrivingRoute(coords: {
     pickup: google.maps.LatLngLiteral;
     dest: google.maps.LatLngLiteral;
@@ -1058,106 +1133,79 @@ export class TripFormComponent implements OnInit, OnDestroy {
       return;
     }
 
+    this.routingBusy = true;
+    this.routingError = null;
+
     try {
-      await this.mapsLoader.importLibrary('routes');
-    } catch {
-      this.mapsUnavailable = true;
-      this.mapsError = this.mapsLoader.failureMessage
-        || 'Address search and routing are temporarily unavailable. Google Maps could not be initialized.';
+      const routes = await computeDrivingRoute(
+        {
+          origin,
+          destination,
+          waypoints: this.stopWaypoints(),
+          travelMode: 'DRIVING',
+          routingPreference: 'TRAFFIC_AWARE'
+        },
+        this.mapsLoader
+      );
+      this.routingBusy = false;
+      const route = routes[0];
+      if (!route) {
+        this.clearDerivedMetrics();
+        this.routingError = 'No driving route found between pickup and destination.';
+        this.cdr.markForCheck();
+        return;
+      }
+
+      this.applyComputedRoute(route);
+    } catch (err) {
+      this.routingBusy = false;
       this.clearDerivedMetrics();
-      this.routingError = null;
+      const message = err instanceof Error ? err.message : '';
+      if (/403|denied|not enabled|api key/i.test(message)) {
+        this.markMapsDenied();
+        this.routingError = null;
+      } else {
+        this.routingError = 'Route calculation failed. Check Places and Routes API access for this key.';
+      }
+      this.cdr.markForCheck();
+    }
+  }
+
+  private applyComputedRoute(route: ComputedDrivingRoute): void {
+    this.routePath = route.path;
+    this.routeDurationBaseSeconds = route.durationSeconds;
+    this.routeDurationTrafficSeconds = route.durationInTrafficSeconds ?? null;
+
+    const center = pathCenter(route.path);
+    if (center) {
+      this.mapCenter = center;
+      this.mapZoom = 11;
+    }
+
+    const hasTraffic = route.durationInTrafficSeconds != null;
+    const km = Math.round(route.distanceMeters / 100) / 10;
+    const seconds = hasTraffic ? route.durationInTrafficSeconds! : route.durationSeconds;
+    const minutes = Math.max(1, Math.round(seconds / 60));
+
+    if (!this.currentCoords()) {
+      this.clearDerivedMetrics();
       this.cdr.markForCheck();
       return;
     }
 
-    this.routingBusy = true;
+    this.patchingComputed = true;
+    this.applyingRoute = true;
+    const patch: Record<string, unknown> = {};
+    if (!this.metricsManuallyEdited) {
+      patch['plannedDistanceKm'] = km;
+      patch['estimatedDurationMinutes'] = minutes;
+    }
+    this.form.patchValue(patch, { emitEvent: false });
+    this.applyingRoute = false;
+    this.patchingComputed = false;
     this.routingError = null;
-    this.directionsSub?.unsubscribe();
-
-    const request: google.maps.DirectionsRequest = {
-      origin,
-      destination,
-      travelMode: google.maps.TravelMode.DRIVING,
-      region: SHEIKHGO_DIRECTIONS_REGION,
-      drivingOptions: {
-        departureTime: new Date(),
-        trafficModel: google.maps.TrafficModel.BEST_GUESS
-      }
-    };
-
-    this.directionsSub = this.directionsService.route(request).subscribe({
-      next: ({ status, result }) => {
-        this.routingBusy = false;
-        if (status !== 'OK' || !result?.routes?.length) {
-          this.clearDerivedMetrics();
-          this.directionsResult = null;
-          if (status === 'REQUEST_DENIED') {
-            this.markMapsDenied();
-            this.routingError = null;
-          } else {
-            this.routingError =
-              status === 'ZERO_RESULTS'
-                ? 'No driving route found between pickup and destination.'
-                : `Could not calculate distance and duration (${status}).`;
-          }
-          this.cdr.markForCheck();
-          return;
-        }
-
-        this.directionsResult = result;
-        const route = result.routes[0];
-        if (route.bounds) {
-          const c = route.bounds.getCenter();
-          this.mapCenter = { lat: c.lat(), lng: c.lng() };
-          this.mapZoom = 11;
-        }
-        const legs = route.legs || [];
-        let totalMeters = 0;
-        let totalSeconds = 0;
-        let trafficSeconds = 0;
-        let hasTraffic = false;
-
-        legs.forEach(leg => {
-          totalMeters += leg.distance?.value ?? 0;
-          totalSeconds += leg.duration?.value ?? 0;
-          if (leg.duration_in_traffic?.value != null) {
-            hasTraffic = true;
-            trafficSeconds += leg.duration_in_traffic.value;
-          } else {
-            trafficSeconds += leg.duration?.value ?? 0;
-          }
-        });
-
-        const km = Math.round(totalMeters / 100) / 10;
-        const minutes = Math.max(1, Math.round((hasTraffic ? trafficSeconds : totalSeconds) / 60));
-
-        if (!this.currentCoords()) {
-          this.clearDerivedMetrics();
-          this.cdr.markForCheck();
-          return;
-        }
-
-        this.patchingComputed = true;
-        this.applyingRoute = true;
-        const patch: Record<string, unknown> = {};
-        if (!this.metricsManuallyEdited) {
-          patch['plannedDistanceKm'] = km;
-          patch['estimatedDurationMinutes'] = minutes;
-        }
-        this.form.patchValue(patch, { emitEvent: false });
-        this.applyingRoute = false;
-        this.patchingComputed = false;
-        this.routingError = null;
-        this.recomputeArrivalTime();
-        this.cdr.markForCheck();
-      },
-      error: () => {
-        this.routingBusy = false;
-        this.clearDerivedMetrics();
-        this.routingError = 'Route calculation failed. Check Places and Directions API access for this key.';
-        this.cdr.markForCheck();
-      }
-    });
+    this.recomputeArrivalTime();
+    this.cdr.markForCheck();
   }
 
   private async initPlacesAutocomplete(): Promise<void> {
@@ -1175,8 +1223,8 @@ export class TripFormComponent implements OnInit, OnDestroy {
     this.placesInitAttempts = 0;
 
     try {
-      const placesLib = await this.mapsLoader.importLibrary<typeof google.maps.places>('places');
-      if (!placesLib?.Autocomplete || this.mapsLoader.authFailed) {
+      await this.mapsLoader.importLibrary('places');
+      if (this.mapsLoader.authFailed) {
         this.mapsUnavailable = true;
         this.mapsError = this.mapsLoader.failureMessage
           || 'Address search and routing are temporarily unavailable. Google Maps could not be initialized.';
@@ -1189,23 +1237,19 @@ export class TripFormComponent implements OnInit, OnDestroy {
       this.mapsUnavailable = false;
       this.mapsError = null;
 
-      const options = sheikhGoPlacesAutocompleteOptions();
-      this.pickupAutocomplete = new placesLib.Autocomplete(this.pickupInput.nativeElement, options);
-      this.destinationAutocomplete = new placesLib.Autocomplete(
-        this.destinationInput.nativeElement,
-        options
-      );
-
-      this.placesListeners.push(
-        this.pickupAutocomplete.addListener('place_changed', () =>
-          this.onPlaceSelected('pickup', this.pickupAutocomplete!)
-        )
-      );
-      this.placesListeners.push(
-        this.destinationAutocomplete.addListener('place_changed', () =>
-          this.onPlaceSelected('destination', this.destinationAutocomplete!)
-        )
-      );
+      const pickupHandle = await attachSheikhGoPlacesAutocomplete({
+        input: this.pickupInput.nativeElement,
+        ngZone: this.zone,
+        mapsLoader: this.mapsLoader,
+        onSelect: place => this.onPlaceSelected('pickup', place)
+      });
+      const destinationHandle = await attachSheikhGoPlacesAutocomplete({
+        input: this.destinationInput.nativeElement,
+        ngZone: this.zone,
+        mapsLoader: this.mapsLoader,
+        onSelect: place => this.onPlaceSelected('destination', place)
+      });
+      this.placesHandles = [pickupHandle, destinationHandle];
     } catch (err) {
       console.warn('Trip form Places autocomplete init failed:', err);
       this.mapsUnavailable = true;
@@ -1216,66 +1260,102 @@ export class TripFormComponent implements OnInit, OnDestroy {
     }
   }
 
-  private onPlaceSelected(
-    field: 'pickup' | 'destination',
-    ac: google.maps.places.Autocomplete
-  ): void {
-    const place = ac.getPlace();
-    const label = place?.formatted_address || place?.name || '';
-    const loc = place?.geometry?.location;
+  private async initStopPlacesAutocomplete(): Promise<void> {
+    if (!this.mapsConfigured || this.mapsLoader.authFailed) return;
+    const inputs = this.stopLocationInputs?.toArray() ?? [];
+    if (inputs.length !== this.stops.length) {
+      if (this.stopPlacesInitAttempts++ < 20) {
+        setTimeout(() => void this.initStopPlacesAutocomplete(), 50);
+      }
+      return;
+    }
+    this.stopPlacesInitAttempts = 0;
+    this.destroyStopPlacesAutocomplete();
+
+    try {
+      await this.mapsLoader.importLibrary('places');
+      const handles: SheikhGoPlacesAutocompleteHandle[] = [];
+      for (let i = 0; i < inputs.length; i++) {
+        const index = i;
+        const handle = await attachSheikhGoPlacesAutocomplete({
+          input: inputs[i].nativeElement,
+          ngZone: this.zone,
+          mapsLoader: this.mapsLoader,
+          onSelect: place => this.onStopPlaceSelected(index, place)
+        });
+        handles.push(handle);
+      }
+      this.stopPlacesHandles = handles;
+    } catch (err) {
+      console.warn('Trip stop Places autocomplete init failed:', err);
+    }
+  }
+
+  private onStopPlaceSelected(index: number, place: SheikhGoPlaceSelection): void {
+    const group = this.stops.at(index);
+    if (!group) return;
+    const label = place.address || place.name || '';
+    this.ignoreAddressEdits++;
+    this.committedStops[index] = label;
+    this.metricsManuallyEdited = false;
+    group.patchValue(
+      {
+        location: label,
+        latitude: roundCoord(place.lat),
+        longitude: roundCoord(place.lng)
+      },
+      { emitEvent: false }
+    );
+    this.ignoreAddressEdits = Math.max(0, this.ignoreAddressEdits - 1);
+    this.recomputeRouteFromForm();
+    this.cdr.markForCheck();
+  }
+
+  private onPlaceSelected(field: 'pickup' | 'destination', place: SheikhGoPlaceSelection): void {
+    const label = place.address || place.name || '';
     const hadRoute = this.routePrefillActive || this.form.get('routeId')?.value != null;
 
-    this.zone.run(() => {
-      this.ignoreAddressEdits++;
-      this.applyingRoute = true;
-      this.routingError = null;
-      this.routePrefillActive = false;
-      this.locationMode = 'manual';
-      this.metricsManuallyEdited = false;
-      this.routeClearedNotice = hadRoute
-        ? 'Route cleared because the address was changed.'
-        : null;
+    this.ignoreAddressEdits++;
+    this.applyingRoute = true;
+    this.routingError = null;
+    this.routePrefillActive = false;
+    this.locationMode = 'manual';
+    this.metricsManuallyEdited = false;
+    this.routeClearedNotice = hadRoute
+      ? 'Route cleared because the address was changed.'
+      : null;
 
-      if (field === 'pickup') {
-        this.committedPickup = label;
-        this.form.patchValue({
-          pickupAddress: label,
-          pickupLatitude: loc ? roundCoord(loc.lat()) : null,
-          pickupLongitude: loc ? roundCoord(loc.lng()) : null,
-          routeId: null
-        }, { emitEvent: false });
-      } else {
-        this.committedDestination = label;
-        this.form.patchValue({
-          destinationAddress: label,
-          destinationLatitude: loc ? roundCoord(loc.lat()) : null,
-          destinationLongitude: loc ? roundCoord(loc.lng()) : null,
-          routeId: null
-        }, { emitEvent: false });
-      }
+    if (field === 'pickup') {
+      this.committedPickup = label;
+      this.form.patchValue({
+        pickupAddress: label,
+        pickupLatitude: roundCoord(place.lat),
+        pickupLongitude: roundCoord(place.lng),
+        routeId: null
+      }, { emitEvent: false });
+    } else {
+      this.committedDestination = label;
+      this.form.patchValue({
+        destinationAddress: label,
+        destinationLatitude: roundCoord(place.lat),
+        destinationLongitude: roundCoord(place.lng),
+        routeId: null
+      }, { emitEvent: false });
+    }
 
-      this.applyingRoute = false;
-      this.ignoreAddressEdits = Math.max(0, this.ignoreAddressEdits - 1);
+    this.applyingRoute = false;
+    this.ignoreAddressEdits = Math.max(0, this.ignoreAddressEdits - 1);
+    this.showCoordinates = true;
 
-      if (!loc) {
-        this.clearDerivedMetrics();
-        this.routingError = PLACE_SELECTION_WARNING;
-        this.cdr.markForCheck();
-        return;
-      }
-
-      this.showCoordinates = true;
-
-      const coords = this.currentCoords();
-      if (!coords) {
-        this.clearDerivedMetrics();
-        this.cdr.markForCheck();
-        return;
-      }
-
-      this.computeDrivingRoute(coords);
+    const coords = this.currentCoords();
+    if (!coords) {
+      this.clearDerivedMetrics();
       this.cdr.markForCheck();
-    });
+      return;
+    }
+
+    this.computeDrivingRoute(coords);
+    this.cdr.markForCheck();
   }
 
   private async ensureMapsReady(): Promise<boolean> {
@@ -1343,13 +1423,15 @@ export class TripFormComponent implements OnInit, OnDestroy {
   private markMapsDenied(): void {
     this.mapsUnavailable = true;
     this.mapsError = this.mapsLoader.failureMessage
-      || 'Address search and routing are temporarily unavailable. Google denied the Maps request. Enable Cloud billing and the Maps JavaScript, Places, Geocoding, and Directions APIs, then retry.';
+      || 'Address search and routing are temporarily unavailable. Google denied the Maps request. Enable Cloud billing and the Maps JavaScript, Places, Geocoding, and Routes APIs, then retry.';
     this.destroyAutocompletes();
     this.cdr.markForCheck();
   }
 
   private clearDerivedMetrics(): void {
-    this.directionsResult = null;
+    this.routePath = [];
+    this.routeDurationBaseSeconds = 0;
+    this.routeDurationTrafficSeconds = null;
     const patch: Record<string, unknown> = {
       plannedDistanceKm: null,
       estimatedDurationMinutes: null
@@ -1383,10 +1465,14 @@ export class TripFormComponent implements OnInit, OnDestroy {
   }
 
   private destroyAutocompletes(): void {
-    this.placesListeners.forEach(listener => listener.remove());
-    this.placesListeners = [];
-    this.pickupAutocomplete = null;
-    this.destinationAutocomplete = null;
+    this.placesHandles.forEach(handle => handle.destroy());
+    this.placesHandles = [];
+    this.destroyStopPlacesAutocomplete();
+  }
+
+  private destroyStopPlacesAutocomplete(): void {
+    this.stopPlacesHandles.forEach(handle => handle.destroy());
+    this.stopPlacesHandles = [];
   }
 
   private toLocalInput(iso: string): string {

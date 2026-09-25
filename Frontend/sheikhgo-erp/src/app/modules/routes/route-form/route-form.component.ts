@@ -13,16 +13,23 @@ import {
 } from '@angular/core';
 import { AbstractControl, FormBuilder, FormGroup, ValidationErrors, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { GoogleMap, MapDirectionsService } from '@angular/google-maps';
+import { GoogleMap } from '@angular/google-maps';
 import { Observable, Subscription } from 'rxjs';
 
 import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
 import { RouteService } from '../../../core/services/route.service';
 import { GoogleMapsLoaderService } from '../../../core/services/google-maps-loader.service';
 import {
-  SHEIKHGO_DIRECTIONS_REGION,
-  sheikhGoPlacesAutocompleteOptions
-} from '../../../core/utils/google-places-options';
+  attachSheikhGoPlacesAutocomplete,
+  SheikhGoPlaceSelection,
+  SheikhGoPlacesAutocompleteHandle
+} from '../../../core/google-maps/place-autocomplete.new';
+import {
+  computeDrivingRoute,
+  ComputedDrivingRoute,
+  fitMapBoundsToPath,
+  pathCenter
+} from '../../../core/google-maps/gmap-routes';
 import {
   CreateRouteDto,
   CreateRouteRequest,
@@ -123,43 +130,15 @@ export class RouteFormComponent implements OnInit, AfterViewInit, OnDestroy {
     styles: LIGHT_MAP_STYLES,
     backgroundColor: '#f1f5f9'
   };
-  directionsResult: google.maps.DirectionsResult | null = null;
+  routePath: google.maps.LatLngLiteral[] = [];
+  readonly routePolylineOptions: google.maps.PolylineOptions = {
+    strokeColor: '#0f766e',
+    strokeWeight: 6,
+    strokeOpacity: 0.9
+  };
 
-  get rendererOptions(): google.maps.DirectionsRendererOptions {
-    const arrow =
-      typeof google !== 'undefined' ? google.maps.SymbolPath.FORWARD_CLOSED_ARROW : 0;
-    return {
-      suppressMarkers: true,
-      preserveViewport: true,
-      polylineOptions: {
-        strokeColor: '#0f766e',
-        strokeWeight: 6,
-        strokeOpacity: 0.9,
-        icons: [
-          {
-            icon: {
-              path: arrow,
-              scale: 3,
-              fillColor: '#14b8a6',
-              fillOpacity: 1,
-              strokeColor: '#0f766e',
-              strokeWeight: 1
-            },
-            offset: '0',
-            repeat: '100px'
-          }
-        ]
-      }
-    };
-  }
-
-  private originAutocomplete: google.maps.places.Autocomplete | null = null;
-  private destinationAutocomplete: google.maps.places.Autocomplete | null = null;
-  private stopAutocompletes: google.maps.places.Autocomplete[] = [];
-  private placesListeners: google.maps.MapsEventListener[] = [];
-  private stopListeners: google.maps.MapsEventListener[] = [];
+  private placesHandles: SheikhGoPlacesAutocompleteHandle[] = [];
   private recomputeTimer: ReturnType<typeof setTimeout> | null = null;
-  private directionsSub: Subscription | null = null;
   private routeParamSub: Subscription | null = null;
   private formSub: Subscription | null = null;
   private stopInputsSub: Subscription | null = null;
@@ -172,7 +151,6 @@ export class RouteFormComponent implements OnInit, AfterViewInit, OnDestroy {
     private route: ActivatedRoute,
     private toast: UiToastService,
     private mapsLoader: GoogleMapsLoaderService,
-    private directionsService: MapDirectionsService,
     private zone: NgZone,
     private cdr: ChangeDetectorRef
   ) {
@@ -192,7 +170,7 @@ export class RouteFormComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   get hasRoutePreview(): boolean {
-    return !!this.directionsResult && !!this.computedDistanceText;
+    return this.routePath.length > 0 && !!this.computedDistanceText;
   }
 
   get showMapEmpty(): boolean {
@@ -295,7 +273,7 @@ export class RouteFormComponent implements OnInit, AfterViewInit, OnDestroy {
     });
     this.stops = [];
     this.optimizeMode = 'balanced';
-    this.directionsResult = null;
+    this.routePath = [];
     this.mapMarkers = [];
     this.routePathLabels = [];
     this.routeLineActive = false;
@@ -384,13 +362,12 @@ export class RouteFormComponent implements OnInit, AfterViewInit, OnDestroy {
       }
 
       await this.mapsLoader.importLibrary('places');
-      await this.mapsLoader.importLibrary('routes');
       this.zone.run(() => {
         this.mapsReady = true;
-        this.attachAutocomplete();
-        this.attachStopAutocompletes();
+        void this.attachAutocomplete();
+        void this.attachStopAutocompletes();
         this.stopInputsSub = this.stopInputs?.changes.subscribe(() => {
-          this.attachStopAutocompletes();
+          void this.attachStopAutocompletes();
         }) ?? null;
         const source = this.form.get('source')?.value;
         const destination = this.form.get('destination')?.value;
@@ -408,11 +385,7 @@ export class RouteFormComponent implements OnInit, AfterViewInit, OnDestroy {
 
   ngOnDestroy(): void {
     if (this.recomputeTimer) clearTimeout(this.recomputeTimer);
-    this.placesListeners.forEach(l => l.remove());
-    this.stopListeners.forEach(l => l.remove());
-    this.placesListeners = [];
-    this.stopListeners = [];
-    this.directionsSub?.unsubscribe();
+    this.destroyPlacesHandles();
     this.routeParamSub?.unsubscribe();
     this.formSub?.unsubscribe();
     this.stopInputsSub?.unsubscribe();
@@ -485,8 +458,8 @@ export class RouteFormComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   resetMapView(): void {
-    if (this.directionsResult) {
-      this.fitMapToRoute(this.directionsResult);
+    if (this.routePath.length) {
+      this.fitMapToRoutePath();
     } else {
       this.mapZoom = 6;
       this.mapCenter = { lat: 30.3753, lng: 69.3451 };
@@ -514,75 +487,77 @@ export class RouteFormComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
-  private attachAutocomplete(): void {
+  private async attachAutocomplete(): Promise<void> {
     if (!this.originInput || !this.destinationInput) return;
-    if (typeof google === 'undefined' || !google.maps?.places?.Autocomplete) return;
 
-    const options = sheikhGoPlacesAutocompleteOptions();
+    this.destroyEndpointPlacesHandles();
 
-    this.originAutocomplete = new google.maps.places.Autocomplete(
-      this.originInput.nativeElement,
-      options
-    );
-    this.destinationAutocomplete = new google.maps.places.Autocomplete(
-      this.destinationInput.nativeElement,
-      options
-    );
-
-    this.placesListeners.push(
-      this.originAutocomplete.addListener('place_changed', () =>
-        this.onPlaceSelected('source', this.originAutocomplete!)
-      )
-    );
-    this.placesListeners.push(
-      this.destinationAutocomplete.addListener('place_changed', () =>
-        this.onPlaceSelected('destination', this.destinationAutocomplete!)
-      )
-    );
+    try {
+      const originHandle = await attachSheikhGoPlacesAutocomplete({
+        input: this.originInput.nativeElement,
+        ngZone: this.zone,
+        mapsLoader: this.mapsLoader,
+        onSelect: place => this.onPlaceSelected('source', place)
+      });
+      const destinationHandle = await attachSheikhGoPlacesAutocomplete({
+        input: this.destinationInput.nativeElement,
+        ngZone: this.zone,
+        mapsLoader: this.mapsLoader,
+        onSelect: place => this.onPlaceSelected('destination', place)
+      });
+      this.placesHandles = [originHandle, destinationHandle, ...this.stopPlacesHandles()];
+    } catch (err) {
+      console.warn('Route form Places autocomplete init failed:', err);
+    }
   }
 
-  private attachStopAutocompletes(): void {
+  private stopPlacesHandles(): SheikhGoPlacesAutocompleteHandle[] {
+    return this.placesHandles.slice(2);
+  }
+
+  private destroyEndpointPlacesHandles(): void {
+    this.placesHandles.slice(0, 2).forEach(handle => handle.destroy());
+    this.placesHandles = this.stopPlacesHandles();
+  }
+
+  private destroyPlacesHandles(): void {
+    this.placesHandles.forEach(handle => handle.destroy());
+    this.placesHandles = [];
+  }
+
+  private async attachStopAutocompletes(): Promise<void> {
     if (!this.stopInputs?.length) return;
-    if (typeof google === 'undefined' || !google.maps?.places?.Autocomplete) return;
 
-    this.stopListeners.forEach(l => l.remove());
-    this.stopListeners = [];
-    this.stopAutocompletes = [];
+    this.stopPlacesHandles().forEach(handle => handle.destroy());
+    this.placesHandles = this.placesHandles.slice(0, 2);
 
-    const options = sheikhGoPlacesAutocompleteOptions();
-
-    this.stopInputs.forEach((ref, index) => {
-      const ac = new google.maps.places.Autocomplete(ref.nativeElement, options);
-      this.stopAutocompletes.push(ac);
-      this.stopListeners.push(
-        ac.addListener('place_changed', () => {
-          const place = ac.getPlace();
-          const label = place?.formatted_address || place?.name || '';
-          this.zone.run(() => {
-            this.stops[index] = label;
+    const stopHandles: SheikhGoPlacesAutocompleteHandle[] = [];
+    for (const [index, ref] of this.stopInputs.toArray().entries()) {
+      try {
+        const handle = await attachSheikhGoPlacesAutocomplete({
+          input: ref.nativeElement,
+          ngZone: this.zone,
+          mapsLoader: this.mapsLoader,
+          onSelect: place => {
+            this.stops[index] = place.address || place.name;
             this.formDirty = true;
             this.scheduleRecompute();
             this.cdr.markForCheck();
-          });
-        })
-      );
-    });
+          }
+        });
+        stopHandles.push(handle);
+      } catch (err) {
+        console.warn('Route form stop autocomplete init failed:', err);
+      }
+    }
+    this.placesHandles = [...this.placesHandles.slice(0, 2), ...stopHandles];
   }
 
-  private onPlaceSelected(field: 'source' | 'destination', ac: google.maps.places.Autocomplete): void {
-    const place = ac.getPlace();
-    const label = place?.formatted_address || place?.name || '';
-    const loc = place?.geometry?.location;
-    this.zone.run(() => {
-      this.form.get(field)!.setValue(label);
-      if (loc) {
-        this.upsertInterimMarker(field, {
-          lat: loc.lat(),
-          lng: loc.lng()
-        });
-      }
-      this.scheduleRecompute();
-    });
+  private onPlaceSelected(field: 'source' | 'destination', place: SheikhGoPlaceSelection): void {
+    const label = place.address || place.name || '';
+    this.form.get(field)!.setValue(label);
+    this.upsertInterimMarker(field, { lat: place.lat, lng: place.lng });
+    this.scheduleRecompute();
   }
 
   private upsertInterimMarker(field: 'source' | 'destination', position: google.maps.LatLngLiteral): void {
@@ -628,14 +603,14 @@ export class RouteFormComponent implements OnInit, AfterViewInit, OnDestroy {
     const source = (this.form.get('source')?.value || '').trim();
     const destination = (this.form.get('destination')?.value || '').trim();
     if (!source || !destination) {
-      this.directionsResult = null;
+      this.routePath = [];
       this.routeLineActive = false;
       this.cdr.markForCheck();
       return;
     }
     if (source.toLowerCase() === destination.toLowerCase()) {
       this.mapsError = 'Origin and destination must be different.';
-      this.directionsResult = null;
+      this.routePath = [];
       this.routeLineActive = false;
       this.cdr.markForCheck();
       return;
@@ -645,75 +620,48 @@ export class RouteFormComponent implements OnInit, AfterViewInit, OnDestroy {
     this.mapsError = null;
     this.cdr.markForCheck();
 
-    this.directionsSub?.unsubscribe();
+    const waypoints = this.stops.map(s => s.trim()).filter(Boolean);
 
-    const waypoints = this.stops
-      .map(s => s.trim())
-      .filter(Boolean)
-      .map(location => ({ location, stopover: true }));
-
-    const request: google.maps.DirectionsRequest = {
-      origin: source,
-      destination,
-      waypoints: waypoints.length ? waypoints : undefined,
-      optimizeWaypoints: waypoints.length > 1,
-      travelMode: google.maps.TravelMode.DRIVING,
-      region: SHEIKHGO_DIRECTIONS_REGION,
-      provideRouteAlternatives: this.optimizeMode === 'fastest' || this.optimizeMode === 'efficient',
-      drivingOptions: {
-        departureTime: new Date(),
-        trafficModel: google.maps.TrafficModel.BEST_GUESS
-      }
-    };
-
-    if (this.optimizeMode === 'no_tolls') {
-      request.avoidTolls = true;
-    }
-
-    this.directionsSub = this.directionsService.route(request).subscribe({
-      next: ({ status, result }) => {
+    void computeDrivingRoute(
+      {
+        origin: source,
+        destination,
+        waypoints: waypoints.length ? waypoints : undefined,
+        travelMode: 'DRIVING',
+        computeAlternativeRoutes:
+          this.optimizeMode === 'fastest' || this.optimizeMode === 'efficient',
+        optimizeWaypointOrder: waypoints.length > 1,
+        avoidTolls: this.optimizeMode === 'no_tolls',
+        routingPreference: 'TRAFFIC_AWARE'
+      },
+      this.mapsLoader
+    )
+      .then(routes => {
         this.calculating = false;
-
-        if (status !== 'OK' || !result?.routes?.length) {
-          this.mapsError = `Could not find a driving route (${status}). Check locations.`;
-          this.directionsResult = null;
+        if (!routes.length) {
+          this.mapsError = 'Could not find a driving route. Check locations.';
+          this.routePath = [];
           this.routeLineActive = false;
           this.cdr.markForCheck();
           return;
         }
 
-        const selected = this.pickRoute(result);
-        const selectedResult: google.maps.DirectionsResult = {
-          ...result,
-          routes: [selected]
-        };
-
-        this.directionsResult = selectedResult;
-        this.updateMarkersFromDirections(selectedResult);
+        const selected = this.pickRoute(routes);
+        this.routePath = selected.path;
+        this.updateMarkersFromRoutePath(selected.path, source, destination, waypoints);
         this.buildRoutePathLabels(source, destination, waypoints.length);
-        this.fitMapToRoute(selectedResult);
+        this.fitMapToRoutePath();
         this.routeLineActive = true;
 
-        let totalMeters = 0;
-        let totalSeconds = 0;
-        let trafficSeconds = 0;
-        let hasTraffic = false;
-        selected.legs.forEach(leg => {
-          totalMeters += leg.distance?.value ?? 0;
-          totalSeconds += leg.duration?.value ?? 0;
-          if (leg.duration_in_traffic?.value != null) {
-            hasTraffic = true;
-            trafficSeconds += leg.duration_in_traffic.value;
-          } else {
-            trafficSeconds += leg.duration?.value ?? 0;
-          }
-        });
-
-        const km = Math.round(totalMeters / 100) / 10;
-        const minutes = Math.max(1, Math.round((hasTraffic ? trafficSeconds : totalSeconds) / 60));
+        const hasTraffic = selected.durationInTrafficSeconds != null;
+        const km = Math.round(selected.distanceMeters / 100) / 10;
+        const seconds = hasTraffic
+          ? selected.durationInTrafficSeconds!
+          : selected.durationSeconds;
+        const minutes = Math.max(1, Math.round(seconds / 60));
         const basePrice = this.calculateBasePrice(km);
         this.trafficLevel = hasTraffic
-          ? this.deriveTrafficLevel(totalSeconds, trafficSeconds)
+          ? this.deriveTrafficLevel(selected.durationSeconds, selected.durationInTrafficSeconds!)
           : 'unknown';
 
         this.computedDistanceText = `${km} km`;
@@ -730,61 +678,75 @@ export class RouteFormComponent implements OnInit, AfterViewInit, OnDestroy {
         );
         this.flashMetricsUpdated();
         this.cdr.markForCheck();
-      },
-      error: () => {
+      })
+      .catch(() => {
         this.calculating = false;
         this.mapsError = 'Could not compute the route.';
+        this.routePath = [];
+        this.routeLineActive = false;
         this.cdr.markForCheck();
-      }
-    });
+      });
   }
 
-  private pickRoute(result: google.maps.DirectionsResult): google.maps.DirectionsRoute {
-    const routes = result.routes;
+  private pickRoute(routes: ComputedDrivingRoute[]): ComputedDrivingRoute {
     if (routes.length === 1) return routes[0];
 
-    const score = (route: google.maps.DirectionsRoute) => {
-      let meters = 0;
-      let seconds = 0;
-      route.legs.forEach(leg => {
-        meters += leg.distance?.value ?? 0;
-        seconds += leg.duration_in_traffic?.value ?? leg.duration?.value ?? 0;
-      });
-      return { meters, seconds };
-    };
-
     if (this.optimizeMode === 'fastest') {
-      return [...routes].sort((a, b) => score(a).seconds - score(b).seconds)[0];
+      return [...routes].sort(
+        (a, b) =>
+          (a.durationInTrafficSeconds ?? a.durationSeconds) -
+          (b.durationInTrafficSeconds ?? b.durationSeconds)
+      )[0];
     }
     if (this.optimizeMode === 'efficient') {
-      return [...routes].sort((a, b) => score(a).meters - score(b).meters)[0];
+      return [...routes].sort((a, b) => a.distanceMeters - b.distanceMeters)[0];
     }
     return routes[0];
   }
 
-  private updateMarkersFromDirections(result: google.maps.DirectionsResult): void {
-    const markers: MapMarkerPoint[] = [];
-    const legs = result.routes[0]?.legs ?? [];
-    legs.forEach((leg, index) => {
-      if (index === 0) {
-        markers.push({
-          position: leg.start_location.toJSON(),
-          title: this.form.get('source')?.value || 'Origin',
-          label: 'A',
-          role: 'origin'
-        });
+  private updateMarkersFromRoutePath(
+    path: google.maps.LatLngLiteral[],
+    source: string,
+    destination: string,
+    waypoints: string[]
+  ): void {
+    if (!path.length) return;
+
+    const markers: MapMarkerPoint[] = [
+      {
+        position: path[0],
+        title: source || 'Origin',
+        label: 'A',
+        role: 'origin'
       }
-      const isLast = index === legs.length - 1;
-      markers.push({
-        position: leg.end_location.toJSON(),
-        title: isLast
-          ? (this.form.get('destination')?.value || 'Destination')
-          : `Stop ${index + 1}`,
-        label: isLast ? 'B' : String(index + 1),
-        role: isLast ? 'destination' : 'stop'
+    ];
+
+    if (waypoints.length) {
+      const step = Math.max(1, Math.floor(path.length / (waypoints.length + 1)));
+      waypoints.forEach((stop, index) => {
+        const point = path[Math.min(path.length - 1, step * (index + 1))];
+        markers.push({
+          position: point,
+          title: stop || `Stop ${index + 1}`,
+          label: String(index + 1),
+          role: 'stop'
+        });
       });
+    }
+
+    markers.push({
+      position: path[path.length - 1],
+      title: destination || 'Destination',
+      label: 'B',
+      role: 'destination'
     });
     this.mapMarkers = markers;
+
+    const center = pathCenter(path);
+    if (center) {
+      this.mapCenter = center;
+      this.mapZoom = 10;
+    }
   }
 
   private buildRoutePathLabels(source: string, destination: string, stopCount: number): void {
@@ -817,16 +779,11 @@ export class RouteFormComponent implements OnInit, AfterViewInit, OnDestroy {
     }, 1200);
   }
 
-  private fitMapToRoute(result: google.maps.DirectionsResult): void {
+  private fitMapToRoutePath(): void {
     setTimeout(() => {
       const map = this.googleMap?.googleMap;
-      if (!map || !result.routes?.[0]) return;
-      const bounds = new google.maps.LatLngBounds();
-      result.routes[0].legs.forEach(leg => {
-        bounds.extend(leg.start_location);
-        bounds.extend(leg.end_location);
-      });
-      map.fitBounds(bounds, { top: 72, right: 56, bottom: 56, left: 56 });
+      if (!map || !this.routePath.length) return;
+      fitMapBoundsToPath(map, this.routePath, { top: 72, right: 56, bottom: 56, left: 56 });
     }, 200);
   }
 

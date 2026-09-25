@@ -63,7 +63,7 @@ public record GpsFleetStatusDto(
 /// reachability — this is what the Live Map screen's KPI strip actually uses, matching the same
 /// status-derivation rule as the frontend's resolveFleetStatus()/GetLivePositionsQuery. Computed
 /// by the shared GpsFleetStatusCalculator so this and the background snapshot job never drift.
-/// Online = Moving + Idle + Parked + Sos (i.e. everything that isn't Offline or NeverSeen).
+/// Online = Moving + Idle + Parked + Sos + Unknown (i.e. everything that isn't Offline or NeverSeen).
 /// </summary>
 public record GpsFleetStatusLocalDto(
     int TotalVehicles,

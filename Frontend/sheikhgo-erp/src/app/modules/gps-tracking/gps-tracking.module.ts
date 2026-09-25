@@ -13,6 +13,8 @@ import { RecentActivitiesCardComponent } from '../fleet-management/fleet-dashboa
 import { ActiveAssignmentsTableComponent } from '../fleet-management/fleet-dashboard/widgets/active-assignments-table.component';
 import { GpsTrackingLayoutComponent } from './gps-tracking-layout.component';
 import { LiveMapComponent } from './live-map/live-map.component';
+import { FleetKpiStripComponent } from './live-map/fleet-kpi-strip/fleet-kpi-strip.component';
+import { VehicleDetailPanelComponent } from './live-map/vehicle-detail-panel/vehicle-detail-panel.component';
 import { GpsHistoryComponent } from './history/gps-history.component';
 import { GpsTripsComponent } from './trips/gps-trips.component';
 import { TripDetailPageComponent } from './trip-detail/trip-detail-page.component';
@@ -56,6 +58,8 @@ const routes: Routes = [
   declarations: [
     GpsTrackingLayoutComponent,
     LiveMapComponent,
+    FleetKpiStripComponent,
+    VehicleDetailPanelComponent,
     GpsHistoryComponent,
     GpsTripsComponent,
     TripDetailPageComponent,

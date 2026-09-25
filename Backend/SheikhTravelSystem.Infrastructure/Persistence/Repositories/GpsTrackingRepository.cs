@@ -1459,7 +1459,7 @@ public sealed partial class GpsTrackingRepository(
         using var connection = dbFactory.CreateConnection();
         var tenantId = tenantContext.GetRequiredTenantId();
         var offlineStaleMinutes = gpsSettings.Value.OfflineStaleMinutes <= 0
-            ? 10
+            ? GpsFleetStatusBuckets.DefaultOfflineStaleMinutes
             : gpsSettings.Value.OfflineStaleMinutes;
         var movingThresholdKmh = traccarOptions.Value.MovingSpeedKmh > 0
             ? traccarOptions.Value.MovingSpeedKmh

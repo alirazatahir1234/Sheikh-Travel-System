@@ -66,6 +66,11 @@
         <div><span>Route</span><strong>{{ t.routeName || '—' }}</strong></div>
         <div><span>Pickup</span><strong>{{ t.pickupAddress || '—' }}</strong></div>
         <div><span>Drop-off</span><strong>{{ t.destinationAddress || '—' }}</strong></div>
+        <div class="location-previews" *ngIf="pickupStreetViewUrl || destinationStreetViewUrl || tripStaticMapUrl">
+          <img *ngIf="pickupStreetViewUrl as pu" [src]="pu" width="240" height="120" alt="Pickup Street View" loading="lazy" />
+          <img *ngIf="destinationStreetViewUrl as du" [src]="du" width="240" height="120" alt="Drop-off Street View" loading="lazy" />
+          <img *ngIf="tripStaticMapUrl as sm" [src]="sm" width="480" height="200" alt="Trip route map" loading="lazy" />
+        </div>
         <div><span>Start</span><strong>{{ t.plannedStart | date:'dd-MMM-yyyy HH:mm' }}</strong></div>
         <div><span>End</span><strong>{{ t.plannedEnd ? (t.plannedEnd | date:'dd-MMM-yyyy HH:mm') : '—' }}</strong></div>
         <div><span>GPS</span><strong [class.live]="t.gpsOnline">{{ t.gpsOnline ? 'Live' : 'Offline' }}</strong></div>

@@ -40,3 +40,6 @@ testem.log
 # System files
 .DS_Store
 Thumbs.db
+
+# Optional local Maps key override — never commit real keys
+src/environments/environment.secrets.local.ts

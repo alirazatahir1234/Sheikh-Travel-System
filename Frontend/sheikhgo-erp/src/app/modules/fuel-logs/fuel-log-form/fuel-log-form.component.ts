@@ -8,6 +8,10 @@ import { FuelLogService } from '../../../core/services/fuel-log.service';
 import { VehicleService } from '../../../core/services/vehicle.service';
 import { DriverService } from '../../../core/services/driver.service';
 import { GoogleMapsLoaderService } from '../../../core/services/google-maps-loader.service';
+import {
+  attachSheikhGoPlacesAutocomplete,
+  SheikhGoPlacesAutocompleteHandle
+} from '../../../core/google-maps/place-autocomplete.new';
 import { FuelType, FuelTypeLabels, CreateFuelLogDto, FuelLog } from '../../../core/models/fuel-log.model';
 import { Vehicle } from '../../../core/models/vehicle.model';
 import { Driver } from '../../../core/models/driver.model';
@@ -65,8 +69,7 @@ export class FuelLogFormComponent implements OnInit, AfterViewInit, OnDestroy {
   readonly fuelTypes = [FuelType.Petrol, FuelType.Diesel, FuelType.CNG];
 
   @ViewChild('stationInput') stationInput!: ElementRef<HTMLInputElement>;
-  private autocomplete: google.maps.places.Autocomplete | null = null;
-  private placeChangedListener: google.maps.MapsEventListener | null = null;
+  private placesHandle: SheikhGoPlacesAutocompleteHandle | null = null;
   mapsConfigured = false;
 
   constructor(
@@ -152,32 +155,35 @@ export class FuelLogFormComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
-    if (this.placeChangedListener) {
-      google.maps.event.removeListener(this.placeChangedListener);
-    }
+    this.placesHandle?.destroy();
+    this.placesHandle = null;
   }
 
   private async initPlacesAutocomplete(): Promise<void> {
     try {
-      const placesLib = await this.mapsLoader.importLibrary<typeof google.maps.places>('places');
-      if (!placesLib || !this.stationInput?.nativeElement) return;
+      if (!this.stationInput?.nativeElement) return;
 
-      this.autocomplete = new placesLib.Autocomplete(this.stationInput.nativeElement, {
-        types: ['establishment'],
-        fields: ['name', 'formatted_address'],
-        componentRestrictions: { country: 'pk' }
-      });
-
-      this.placeChangedListener = this.autocomplete.addListener('place_changed', () => {
-        this.ngZone.run(() => {
-          const place = this.autocomplete?.getPlace();
-          if (place?.name) {
-            const stationName = place.formatted_address
-              ? `${place.name}, ${place.formatted_address}`
-              : place.name;
+      this.placesHandle?.destroy();
+      this.placesHandle = await attachSheikhGoPlacesAutocomplete({
+        input: this.stationInput.nativeElement,
+        ngZone: this.ngZone,
+        mapsLoader: this.mapsLoader,
+        requestOverrides: { includedPrimaryTypes: ['establishment'] },
+        legacyAutocompleteOptions: {
+          types: ['establishment'],
+          fields: ['name', 'formatted_address'],
+          componentRestrictions: { country: ['ae', 'pk'] }
+        },
+        onSelect: place => {
+          const stationName = place.address
+            ? place.name && !place.address.startsWith(place.name)
+              ? `${place.name}, ${place.address}`
+              : place.address
+            : place.name;
+          if (stationName) {
             this.form.patchValue({ station: stationName });
           }
-        });
+        }
       });
     } catch (err) {
       console.warn('Places autocomplete init failed:', err);

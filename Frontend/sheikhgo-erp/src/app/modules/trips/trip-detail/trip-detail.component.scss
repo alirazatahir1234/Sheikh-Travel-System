@@ -72,6 +72,19 @@
     }
 
     .live { color: #166534; }
+
+    .location-previews {
+      grid-column: 1 / -1;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+
+      img {
+        border-radius: 8px;
+        object-fit: cover;
+        max-width: 100%;
+      }
+    }
   }
 
   .assign-row {
