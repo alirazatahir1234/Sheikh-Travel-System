@@ -402,91 +402,27 @@
           <span><i class="leg route"></i> Route</span>
         </div>
 
-        <aside class="map-nearby-panel" *ngIf="nearbyExpanded" aria-label="Nearby places search">
-          <div class="map-nearby-panel__head">
-            <div>
-              <strong>Nearby Places</strong>
-              <small>{{ nearbySearchCenterLabel }}</small>
-            </div>
-            <button type="button" class="map-nearby-panel__close stb-touch" aria-label="Close nearby" (click)="toggleNearbyPlaces()">
-              <mat-icon>close</mat-icon>
-            </button>
-          </div>
-          <div class="map-nearby-panel__cats" role="tablist">
-            <button
-              type="button"
-              class="detail-nearby__cat stb-touch"
-              *ngFor="let cat of nearbyCategories"
-              role="tab"
-              [attr.aria-selected]="nearbyCategory === cat.id"
-              [class.detail-nearby__cat--active]="nearbyCategory === cat.id"
-              (click)="selectNearbyCategory(cat.id)">
-              <mat-icon>{{ cat.icon }}</mat-icon>
-              {{ cat.label }}
-            </button>
-          </div>
-          <div class="map-nearby-panel__radius">
-            <label for="nearby-radius">Radius</label>
-            <select id="nearby-radius" [ngModel]="nearbyRadiusMeters" (ngModelChange)="setNearbyRadius($event)">
-              <option [ngValue]="500">500 m</option>
-              <option [ngValue]="1500">1.5 km</option>
-              <option [ngValue]="3000">3 km</option>
-              <option [ngValue]="5000">5 km</option>
-            </select>
-          </div>
-          <div class="detail-nearby__status" *ngIf="nearbyLoading">Searching nearby…</div>
-          <div class="detail-nearby__status detail-nearby__status--err" *ngIf="!nearbyLoading && nearbyError">
-            {{ nearbyError }}
-          </div>
-          <ul class="detail-nearby__list" *ngIf="!nearbyLoading && nearbyPlaces.length">
-            <li
-              *ngFor="let place of nearbyPlaces; trackBy: trackByNearbyPlace"
-              [class.detail-nearby__row--selected]="selectedNearbyPlace?.placeId === place.placeId">
-              <button type="button" class="detail-nearby__item stb-touch" (click)="focusNearbyPlace(place)">
-                <strong>{{ place.name }}</strong>
-                <span class="detail-nearby__meta" *ngIf="formatNearbyDistance(place.distanceMeters) as dist">
-                  {{ dist }}
-                  <ng-container *ngIf="place.rating != null"> · ★ {{ place.rating | number:'1.1-1' }}</ng-container>
-                </span>
-                <span class="detail-nearby__open" *ngIf="nearbyOpeningLabel(place) as openLbl"
-                      [class.detail-nearby__open--closed]="place.openNow === false">
-                  {{ openLbl }}
-                </span>
-                <span class="detail-nearby__addr" *ngIf="place.address">{{ place.address }}</span>
-              </button>
-            </li>
-          </ul>
-
-          <div class="map-nearby-detail" *ngIf="selectedNearbyPlace as sel">
-            <strong>{{ sel.name }}</strong>
-            <span class="map-nearby-detail__dist" *ngIf="formatNearbyDistance(sel.distanceMeters) as dist">
-              {{ dist }} away
-            </span>
-            <span class="map-nearby-detail__addr" *ngIf="sel.address">{{ sel.address }}</span>
-            <span class="map-nearby-detail__open" *ngIf="nearbyOpeningLabel(sel) as openLbl"
-                  [class.map-nearby-detail__open--closed]="sel.openNow === false">
-              {{ openLbl }}
-            </span>
-            <span class="map-nearby-detail__coords">
-              {{ sel.latitude | number:'1.5-5' }}, {{ sel.longitude | number:'1.5-5' }}
-            </span>
-            <div class="map-nearby-detail__actions">
-              <a class="map-nearby-detail__dir stb-touch"
-                 [href]="nearbyDirectionsUrl(sel)"
-                 target="_blank"
-                 rel="noopener noreferrer">
-                Directions
-              </a>
-              <a class="map-nearby-detail__maps stb-touch"
-                 [href]="nearbyMapsUrl(sel)"
-                 target="_blank"
-                 rel="noopener noreferrer">
-                View on Google Maps
-              </a>
-            </div>
-          </div>
-        </aside>
       </div>
+
+      <app-nearby-places-panel
+        *ngIf="nearbyExpanded"
+        [vehicleLabel]="nearbySearchCenterLabel"
+        [categories]="nearbyCategories"
+        [selectedCategory]="nearbyCategory"
+        [radiusMeters]="nearbyRadiusMeters"
+        [places]="nearbyPlaces"
+        [selectedPlace]="selectedNearbyPlace"
+        [loading]="nearbyLoading"
+        [emptyMessage]="nearbyEmptyMessage"
+        [apiError]="nearbyApiError"
+        [directionsUrl]="selectedNearbyPlace ? nearbyDirectionsUrl(selectedNearbyPlace) : ''"
+        [mapsUrl]="selectedNearbyPlace ? nearbyMapsUrl(selectedNearbyPlace) : ''"
+        (closePanel)="toggleNearbyPlaces()"
+        (categoryChange)="selectNearbyCategory($event)"
+        (radiusChange)="setNearbyRadius($event)"
+        (placeSelect)="focusNearbyPlace($event)"
+        (retry)="runNearbySearch()">
+      </app-nearby-places-panel>
     </div>
 
     <app-vehicle-detail-panel

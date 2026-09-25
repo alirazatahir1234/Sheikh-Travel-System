@@ -14,6 +14,7 @@ import { ActiveAssignmentsTableComponent } from '../fleet-management/fleet-dashb
 import { GpsTrackingLayoutComponent } from './gps-tracking-layout.component';
 import { LiveMapComponent } from './live-map/live-map.component';
 import { FleetKpiStripComponent } from './live-map/fleet-kpi-strip/fleet-kpi-strip.component';
+import { NearbyPlacesPanelComponent } from './live-map/nearby-places-panel/nearby-places-panel.component';
 import { VehicleDetailPanelComponent } from './live-map/vehicle-detail-panel/vehicle-detail-panel.component';
 import { GpsHistoryComponent } from './history/gps-history.component';
 import { GpsTripsComponent } from './trips/gps-trips.component';
@@ -59,6 +60,7 @@ const routes: Routes = [
     GpsTrackingLayoutComponent,
     LiveMapComponent,
     FleetKpiStripComponent,
+    NearbyPlacesPanelComponent,
     VehicleDetailPanelComponent,
     GpsHistoryComponent,
     GpsTripsComponent,

@@ -1,0 +1,179 @@
+<section class="nearby-places-panel" aria-label="Nearby places">
+  <header class="nearby-places-panel__head">
+    <div class="nearby-places-panel__title">
+      <h2>Nearby Places <span>({{ vehicleLabel }})</span></h2>
+    </div>
+    <div class="nearby-places-panel__head-actions">
+      <label class="nearby-places-panel__radius" for="npp-radius">
+        <span>Radius</span>
+        <select
+          id="npp-radius"
+          [ngModel]="radiusMeters"
+          (ngModelChange)="onRadiusChange($event)"
+          aria-label="Search radius">
+          <option *ngFor="let opt of radiusOptions" [ngValue]="opt.value">{{ opt.label }}</option>
+        </select>
+      </label>
+      <button
+        type="button"
+        class="nearby-places-panel__close stb-touch"
+        aria-label="Close nearby places"
+        (click)="closePanel.emit()">
+        <mat-icon>close</mat-icon>
+      </button>
+    </div>
+  </header>
+
+  <div class="nearby-places-panel__cats" role="tablist" aria-label="Place categories">
+    <button
+      type="button"
+      class="nearby-places-panel__cat stb-touch"
+      *ngFor="let cat of primaryCategories"
+      role="tab"
+      [attr.aria-selected]="selectedCategory === cat.id"
+      [attr.aria-label]="cat.label"
+      [class.nearby-places-panel__cat--active]="selectedCategory === cat.id"
+      (click)="onSelectCategory(cat.id)">
+      <mat-icon>{{ cat.icon }}</mat-icon>
+      <span>{{ cat.label }}</span>
+    </button>
+
+    <button
+      *ngIf="moreCategory as more"
+      type="button"
+      class="nearby-places-panel__cat stb-touch"
+      role="tab"
+      [attr.aria-selected]="isMoreActive"
+      [attr.aria-label]="more.label"
+      [class.nearby-places-panel__cat--active]="isMoreActive"
+      [matMenuTriggerFor]="moreMenu"
+      aria-haspopup="menu">
+      <mat-icon>{{ more.icon }}</mat-icon>
+      <span>{{ more.label }}</span>
+    </button>
+    <mat-menu #moreMenu="matMenu" class="nearby-places-more-menu">
+      <button type="button" mat-menu-item disabled class="nearby-places-panel__more-hint">
+        Searches nearby amenities
+      </button>
+      <button
+        type="button"
+        mat-menu-item
+        *ngFor="let extra of moreExtras"
+        (click)="onSelectMore()"
+        [attr.aria-label]="extra.label">
+        <mat-icon>{{ extra.icon }}</mat-icon>
+        <span>{{ extra.label }}</span>
+      </button>
+    </mat-menu>
+  </div>
+
+  <div class="nearby-places-panel__body" *ngIf="loading">
+    <div class="nearby-places-panel__loading" aria-live="polite">
+      <mat-spinner diameter="28"></mat-spinner>
+      <span>Loading nearby places…</span>
+    </div>
+    <div class="nearby-places-panel__skeletons" aria-hidden="true">
+      <div class="nearby-places-panel__skel" *ngFor="let _ of [1, 2, 3]"></div>
+    </div>
+  </div>
+
+  <div class="nearby-places-panel__body nearby-places-panel__body--error" *ngIf="!loading && apiError" role="alert">
+    <mat-icon>error_outline</mat-icon>
+    <div>
+      <strong>Unable to load nearby places.</strong>
+      <p>{{ apiError }}</p>
+    </div>
+    <button type="button" class="nearby-places-panel__retry stb-touch" (click)="retry.emit()" aria-label="Retry nearby places">
+      Retry
+    </button>
+  </div>
+
+  <div class="nearby-places-panel__body nearby-places-panel__body--empty" *ngIf="!loading && !apiError && emptyMessage" aria-live="polite">
+    <mat-icon>place</mat-icon>
+    <p>{{ emptyMessage }}</p>
+  </div>
+
+  <div class="nearby-places-panel__results" *ngIf="!loading && !apiError && places.length">
+    <ul class="nearby-places-panel__list" role="listbox" aria-label="Nearby places list">
+      <li
+        *ngFor="let place of places; trackBy: trackByPlace"
+        role="option"
+        [attr.aria-selected]="selectedPlace?.placeId === place.placeId"
+        [class.nearby-places-panel__row--selected]="selectedPlace?.placeId === place.placeId">
+        <button type="button" class="nearby-places-panel__item stb-touch" (click)="onSelectPlace(place)">
+          <span class="nearby-places-panel__item-icon" aria-hidden="true">
+            <mat-icon>{{ categoryIcon(place.category || selectedCategory) }}</mat-icon>
+          </span>
+          <span class="nearby-places-panel__item-body">
+            <strong>{{ place.name }}</strong>
+            <span class="nearby-places-panel__item-meta">
+              <ng-container *ngIf="formatDistance(place.distanceMeters) as dist">{{ dist }}</ng-container>
+              <ng-container *ngIf="shortAddress(place.address) as addr">
+                <ng-container *ngIf="formatDistance(place.distanceMeters)"> · </ng-container>{{ addr }}
+              </ng-container>
+            </span>
+            <span class="nearby-places-panel__item-extra">
+              <span *ngIf="place.rating != null">★ {{ place.rating | number:'1.1-1' }}</span>
+              <span
+                class="nearby-places-panel__open"
+                *ngIf="openingLabel(place) as openLbl"
+                [class.nearby-places-panel__open--closed]="place.openNow === false">
+                {{ openLbl }}
+              </span>
+            </span>
+          </span>
+        </button>
+      </li>
+    </ul>
+
+    <aside class="nearby-places-panel__detail" *ngIf="selectedPlace as sel" aria-label="Selected place details">
+      <div class="nearby-places-panel__photo" aria-hidden="true">
+        <mat-icon>{{ categoryIcon(sel.category || selectedCategory) }}</mat-icon>
+      </div>
+      <h3>{{ sel.name }}</h3>
+      <p class="nearby-places-panel__detail-dist" *ngIf="formatDistance(sel.distanceMeters) as dist">
+        {{ dist }} away
+      </p>
+      <p class="nearby-places-panel__detail-addr" *ngIf="sel.address">
+        <mat-icon>place</mat-icon>
+        <span>{{ sel.address }}</span>
+      </p>
+      <p
+        class="nearby-places-panel__detail-open"
+        *ngIf="openingLabel(sel) as openLbl"
+        [class.nearby-places-panel__detail-open--closed]="sel.openNow === false">
+        <mat-icon>{{ sel.openNow === false ? 'schedule' : 'check_circle' }}</mat-icon>
+        <span>{{ openLbl }}</span>
+      </p>
+      <p class="nearby-places-panel__detail-rating" *ngIf="sel.rating != null">
+        ★ {{ sel.rating | number:'1.1-1' }}
+        <ng-container *ngIf="sel.userRatingCount != null"> ({{ sel.userRatingCount }})</ng-container>
+      </p>
+      <div class="nearby-places-panel__actions">
+        <a
+          class="nearby-places-panel__btn nearby-places-panel__btn--primary stb-touch"
+          [href]="directionsUrl"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Directions to selected place">
+          <mat-icon>directions</mat-icon>
+          Directions
+        </a>
+        <a
+          class="nearby-places-panel__btn nearby-places-panel__btn--secondary stb-touch"
+          [href]="mapsUrl"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="View on Google Maps">
+          <mat-icon>map</mat-icon>
+          View on Google Maps
+        </a>
+      </div>
+    </aside>
+
+    <aside class="nearby-places-panel__detail nearby-places-panel__detail--hint" *ngIf="!selectedPlace">
+      <mat-icon>touch_app</mat-icon>
+      <p>Select a place to see details, directions, and Google Maps.</p>
+    </aside>
+  </div>
+</section>

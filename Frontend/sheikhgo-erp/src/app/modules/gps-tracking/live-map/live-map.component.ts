@@ -301,23 +301,26 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
   showGeofences = false;
   selectedEta: GpsEta | null = null;
 
-  /** Places API (New) nearby amenities — map toolbar panel. */
+  /** Places API (New) nearby amenities — below-map panel. */
   readonly nearbyCategories: { id: string; label: string; icon: string }[] = [
-    { id: 'fuel', label: 'Petrol', icon: 'local_gas_station' },
-    { id: 'restaurant', label: 'Food', icon: 'restaurant' },
-    { id: 'hospital', label: 'Hospital', icon: 'local_hospital' },
+    { id: 'fuel', label: 'Petrol Stations', icon: 'local_gas_station' },
+    { id: 'restaurant', label: 'Restaurants', icon: 'restaurant' },
+    { id: 'hospital', label: 'Hospitals', icon: 'local_hospital' },
     { id: 'parking', label: 'Parking', icon: 'local_parking' },
-    { id: 'workshop', label: 'Workshop', icon: 'car_repair' },
-    { id: 'hotel', label: 'Hotel', icon: 'hotel' },
-    { id: 'atm', label: 'ATM', icon: 'local_atm' },
-    { id: 'airport', label: 'Airport', icon: 'flight' },
+    { id: 'workshop', label: 'Workshops', icon: 'car_repair' },
+    { id: 'hotel', label: 'Hotels', icon: 'hotel' },
+    { id: 'atm', label: 'ATMs', icon: 'local_atm' },
+    { id: 'airport', label: 'Airports', icon: 'flight' },
     { id: 'more', label: 'More', icon: 'more_horiz' }
   ];
   nearbyCategory = 'fuel';
   nearbyRadiusMeters = 1500;
   nearbyPlaces: NearbyPlace[] = [];
   nearbyLoading = false;
-  nearbyError: string | null = null;
+  /** Empty success (no places) — not an API failure. */
+  nearbyEmptyMessage: string | null = null;
+  /** Backend / HTTP / config failure message. */
+  nearbyApiError: string | null = null;
   nearbyExpanded = false;
   nearbySearchCenterLabel = 'Map center';
   selectedNearbyPlace: NearbyPlace | null = null;
@@ -2464,6 +2467,7 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
     this.nearbyExpanded = !this.nearbyExpanded;
     if (!this.nearbyExpanded) {
       this.clearNearbyPlaces();
+      this.cdr.markForCheck();
       return;
     }
     this.runNearbySearch();
@@ -2473,11 +2477,13 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
     if (this.nearbyCategory === category && this.nearbyPlaces.length) return;
     this.nearbyCategory = category;
     if (this.nearbyExpanded) this.runNearbySearch();
+    else this.cdr.markForCheck();
   }
 
   setNearbyRadius(meters: number): void {
     this.nearbyRadiusMeters = meters;
     if (this.nearbyExpanded) this.runNearbySearch();
+    else this.cdr.markForCheck();
   }
 
   /** Resolve search center: selected vehicle GPS, else current map center. */
@@ -2504,39 +2510,49 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
   runNearbySearch(): void {
     const center = this.resolveNearbyCenter();
     if (!center) {
-      this.nearbyError = 'Select a vehicle or wait for the map to load.';
+      this.nearbyApiError = 'Select a vehicle or wait for the map to load.';
+      this.nearbyEmptyMessage = null;
       this.nearbyPlaces = [];
+      this.cdr.markForCheck();
       return;
     }
     this.nearbySearchCenterLabel = center.label;
     this.nearbyLoading = true;
-    this.nearbyError = null;
+    this.nearbyApiError = null;
+    this.nearbyEmptyMessage = null;
     this.selectedNearbyPlace = null;
+    this.cdr.markForCheck();
     this.gpsService
       .getNearbyPlaces(center.lat, center.lng, this.nearbyCategory, this.nearbyRadiusMeters, 10)
       .subscribe({
         next: places => {
           this.nearbyLoading = false;
           this.nearbyPlaces = places;
+          this.nearbyApiError = null;
           if (!places.length) {
             const cat =
               this.nearbyCategories.find(c => c.id === this.nearbyCategory)?.label
               ?? this.nearbyCategory;
             const radiusLabel = this.formatNearbyDistance(this.nearbyRadiusMeters) || 'the selected radius';
-            this.nearbyError = `No ${cat.toLowerCase()} found within ${radiusLabel}.`;
+            this.nearbyEmptyMessage = `No ${cat.toLowerCase()} found within ${radiusLabel}.`;
+          } else {
+            this.nearbyEmptyMessage = null;
           }
           void this.renderNearbyMarkers(places);
+          this.cdr.markForCheck();
         },
         error: (err: unknown) => {
           this.nearbyLoading = false;
           this.nearbyPlaces = [];
           this.selectedNearbyPlace = null;
+          this.nearbyEmptyMessage = null;
           // gpsService.getNearbyPlaces always maps failures to Error with a clear message.
-          this.nearbyError =
+          this.nearbyApiError =
             err instanceof Error && err.message.trim()
               ? err.message.trim()
               : 'Nearby places unavailable. Check Places API (New) on the backend key.';
           this.clearNearbyMarkers();
+          this.cdr.markForCheck();
         }
       });
   }
@@ -2549,6 +2565,7 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
   focusNearbyPlace(place: NearbyPlace): void {
     this.selectedNearbyPlace = place;
     this.applyNearbyMarkerHighlight(place.placeId);
+    this.cdr.markForCheck();
     if (!this.map) return;
     this.map.panTo({ lat: place.latitude, lng: place.longitude });
     if ((this.map.getZoom() ?? 0) < 15) this.map.setZoom(15);
@@ -2595,10 +2612,17 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private clearNearbyPlaces(): void {
     this.nearbyPlaces = [];
-    this.nearbyError = null;
+    this.nearbyEmptyMessage = null;
+    this.nearbyApiError = null;
     this.nearbyLoading = false;
     this.selectedNearbyPlace = null;
     this.clearNearbyMarkers();
+  }
+
+  /** Icon name for a nearby place category (map markers). */
+  nearbyCategoryIcon(category?: string | null): string {
+    const id = category || this.nearbyCategory;
+    return this.nearbyCategories.find(c => c.id === id)?.icon ?? 'place';
   }
 
   private clearNearbyMarkers(): void {
@@ -2632,7 +2656,12 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
       const el = document.createElement('div');
       el.className = 'nearby-place-marker';
       el.title = place.name;
-      el.innerHTML = `<span class="nearby-place-marker__dot"></span>`;
+      const icon = this.nearbyCategoryIcon(place.category);
+      el.setAttribute('aria-label', place.name);
+      el.innerHTML =
+        `<span class="nearby-place-marker__chip" aria-hidden="true">` +
+        `<span class="material-icons nearby-place-marker__icon">${icon}</span>` +
+        `</span>`;
       const marker = new AdvancedMarkerElement({
         map: this.map,
         position: { lat: place.latitude, lng: place.longitude },
