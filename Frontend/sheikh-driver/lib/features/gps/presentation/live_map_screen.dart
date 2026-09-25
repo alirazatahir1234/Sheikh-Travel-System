@@ -1,9 +1,11 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:intl/intl.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../../../core/api/dio_client.dart';
 import '../../../core/api/api_endpoints.dart';
 import '../../../core/constants/app_theme.dart';
@@ -13,6 +15,7 @@ import '../../../shared/widgets/sg_ui.dart';
 import '../../fleet/domain/fleet_models.dart';
 import '../services/background_gps_tracker.dart';
 import '../services/signalr_service.dart';
+import 'background_location_disclosure.dart';
 
 final backgroundGpsProvider = ChangeNotifierProvider<BackgroundGpsTracker>(
   (ref) {
@@ -37,6 +40,7 @@ class _LiveMapScreenState extends ConsumerState<LiveMapScreen> {
   StreamSubscription<LiveLocationUpdate>? _locationSub;
   Timer? _fallbackPoll;
   int? _trackingVehicleId;
+  bool _batteryHintShown = false;
 
   @override
   void initState() {
@@ -135,6 +139,10 @@ class _LiveMapScreenState extends ConsumerState<LiveMapScreen> {
           vehicleId: active.vehicleId!,
           bookingId: active.bookingId ?? active.id,
           dio: ref.read(dioProvider),
+          onBackgroundLocationDisclosure: () async {
+            if (!mounted) return false;
+            return showBackgroundLocationDisclosure(context);
+          },
         );
 
     if (!SignalRService.instance.isConnected) {
@@ -144,6 +152,24 @@ class _LiveMapScreenState extends ConsumerState<LiveMapScreen> {
     if (err != null && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(err), backgroundColor: AppColors.error),
+      );
+    } else if (err == null &&
+        mounted &&
+        Platform.isAndroid &&
+        !_batteryHintShown) {
+      _batteryHintShown = true;
+      // No REQUEST_IGNORE_BATTERY_OPTIMIZATIONS — optional settings link only.
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text(
+            'For reliable tracking, allow unrestricted battery use in Settings.',
+          ),
+          action: SnackBarAction(
+            label: 'Settings',
+            onPressed: openAppSettings,
+          ),
+          duration: const Duration(seconds: 6),
+        ),
       );
     }
   }

@@ -10,22 +10,52 @@ public static class WhatsAppMessagingWindow
     public static readonly TimeSpan Duration = TimeSpan.FromHours(24);
     public const int WindowSeconds = 86400;
 
-    public static bool IsOpen(DateTime? lastIncomingMessageAtUtc, DateTime? utcNow = null)
+    public static DateTime? ComputeExpiresAt(DateTime? lastIncomingMessageAtUtc)
     {
         if (lastIncomingMessageAtUtc is null)
-            return false;
+            return null;
 
+        var last = NormalizeUtc(lastIncomingMessageAtUtc.Value);
+        return last + Duration;
+    }
+
+    public static bool IsOpen(DateTime? lastIncomingMessageAtUtc, DateTime? utcNow = null)
+    {
         var now = utcNow ?? DateTime.UtcNow;
-        var last = lastIncomingMessageAtUtc.Value.Kind == DateTimeKind.Unspecified
-            ? DateTime.SpecifyKind(lastIncomingMessageAtUtc.Value, DateTimeKind.Utc)
-            : lastIncomingMessageAtUtc.Value.ToUniversalTime();
+        return IsOpenFromExpiry(ComputeExpiresAt(lastIncomingMessageAtUtc), now);
+    }
 
-        return now - last <= Duration;
+    public static bool IsOpenFromStoredWindow(
+        DateTime? lastIncomingMessageAtUtc,
+        DateTime? windowExpiresAtUtc,
+        DateTime? utcNow = null)
+    {
+        var now = utcNow ?? DateTime.UtcNow;
+        var expires = windowExpiresAtUtc ?? ComputeExpiresAt(lastIncomingMessageAtUtc);
+        return IsOpenFromExpiry(expires, now);
     }
 
     public static WhatsAppConversationDto WithWindowFlag(WhatsAppConversationDto conversation, DateTime? utcNow = null)
-        => conversation with
+    {
+        var now = utcNow ?? DateTime.UtcNow;
+        var expires = conversation.WindowExpiresAt
+            ?? ComputeExpiresAt(conversation.LastIncomingMessageAt);
+        return conversation with
         {
-            IsWithinMessagingWindow = IsOpen(conversation.LastIncomingMessageAt, utcNow ?? DateTime.UtcNow)
+            WindowExpiresAt = expires,
+            IsWithinMessagingWindow = IsOpenFromExpiry(expires, now)
         };
+    }
+
+    private static bool IsOpenFromExpiry(DateTime? expiresAtUtc, DateTime nowUtc)
+    {
+        if (expiresAtUtc is null)
+            return false;
+        return nowUtc <= NormalizeUtc(expiresAtUtc.Value);
+    }
+
+    private static DateTime NormalizeUtc(DateTime value)
+        => value.Kind == DateTimeKind.Unspecified
+            ? DateTime.SpecifyKind(value, DateTimeKind.Utc)
+            : value.ToUniversalTime();
 }

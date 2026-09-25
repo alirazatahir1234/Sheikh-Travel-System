@@ -20,6 +20,7 @@ public class WhatsAppMessage : BaseEntity
     public string Status { get; set; } = string.Empty;
     public string? ErrorCode { get; set; }
     public string? ErrorMessage { get; set; }
+    public int AttemptCount { get; set; } = 1;
     public string? RawPayload { get; set; }
     public DateTime? SentAt { get; set; }
     public DateTime? DeliveredAt { get; set; }

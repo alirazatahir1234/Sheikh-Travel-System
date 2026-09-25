@@ -15,20 +15,22 @@ public class WhatsAppTemplateSendTests
         1, 1, "UAE", "SheikhGo UAE", "+971557701219", "Sales", "pn-uae", null, true, true);
 
     private static WhatsAppConversationDto OpenWindowConversation()
-        => new(
-            Id: 55,
-            AccountId: 1,
-            AccountCode: "UAE",
-            ContactId: 55,
-            ContactPhone: "+971501234567",
-            ContactName: "Test",
-            CustomerId: null,
-            Status: "Open",
-            LastMessageAt: DateTime.UtcNow,
-            UnreadCount: 0,
-            LastMessagePreview: "hi",
-            LastIncomingMessageAt: DateTime.UtcNow.AddHours(-1),
-            IsWithinMessagingWindow: true);
+        => new()
+        {
+            Id = 55,
+            AccountId = 1,
+            AccountCode = "UAE",
+            ContactId = 55,
+            ContactPhone = "+971501234567",
+            ContactName = "Test",
+            CustomerId = null,
+            Status = "Open",
+            LastMessageAt = DateTime.UtcNow,
+            UnreadCount = 0,
+            LastMessagePreview = "hi",
+            LastIncomingMessageAt = DateTime.UtcNow.AddHours(-1),
+            IsWithinMessagingWindow = true
+        };
 
     private static WhatsAppConversationDto ClosedWindowConversation()
         => OpenWindowConversation() with
@@ -60,7 +62,8 @@ public class WhatsAppTemplateSendTests
             new SendWhatsAppOutboundCommand(null, 55, null, "text", "Hello"), CancellationToken.None);
 
         result.Success.Should().BeFalse();
-        result.Message.Should().Contain("Template required");
+        result.Code.Should().Be("WINDOW_CLOSED");
+        result.Message.Should().Contain("window closed");
         cloud.VerifyNoOtherCalls();
     }
 
@@ -69,7 +72,7 @@ public class WhatsAppTemplateSendTests
     {
         var repo = new Mock<IWhatsAppInboxRepository>();
         var templates = new Mock<IWhatsAppTemplateRepository>();
-        var cloud = new Mock<IWhatsAppCloudApiService>(MockBehavior.Strict);
+        var cloud = new Mock<IWhatsAppCloudApiExtended>(MockBehavior.Strict);
         var config = new Mock<IWhatsAppAccountConfig>();
         var resolver = new Mock<IWhatsAppAccountResolver>();
         var tenant = new Mock<ITenantContext>();
@@ -99,7 +102,7 @@ public class WhatsAppTemplateSendTests
     {
         var repo = new Mock<IWhatsAppInboxRepository>();
         var templates = new Mock<IWhatsAppTemplateRepository>();
-        var cloud = new Mock<IWhatsAppCloudApiService>();
+        var cloud = new Mock<IWhatsAppCloudApiExtended>();
         var config = new Mock<IWhatsAppAccountConfig>();
         var resolver = new Mock<IWhatsAppAccountResolver>();
         var tenant = new Mock<ITenantContext>();
@@ -117,7 +120,9 @@ public class WhatsAppTemplateSendTests
             .ReturnsAsync(200);
         repo.Setup(r => r.SetOutboundStatusAsync(200, "Sending", null, It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
-        cloud.Setup(c => c.SendTemplateAsync(Uae, "971501234567", "support_update", "en", null, It.IsAny<CancellationToken>()))
+        cloud.Setup(c => c.SendTemplateAsync(
+                Uae, "971501234567", "support_update", "en",
+                null, null, null, It.IsAny<CancellationToken>()))
             .ReturnsAsync(WhatsAppCloudApiResult.Ok("wamid.T"));
         repo.Setup(r => r.SetOutboundMetaIdAsync(200, "wamid.T", "Sent", It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
@@ -132,7 +137,8 @@ public class WhatsAppTemplateSendTests
         result.Success.Should().BeTrue();
         result.Data!.MetaMessageId.Should().Be("wamid.T");
         cloud.Verify(c => c.SendTemplateAsync(
-            Uae, "971501234567", "support_update", "en", null, It.IsAny<CancellationToken>()), Times.Once);
+            Uae, "971501234567", "support_update", "en",
+            null, null, null, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]

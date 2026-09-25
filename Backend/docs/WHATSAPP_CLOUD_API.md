@@ -2,12 +2,12 @@
 
 Production-oriented docs: [docs/whatsapp/](../../docs/whatsapp/) (`ARCHITECTURE`, `SETUP`, `TESTING`, `PRODUCTION`).
 
-Multi-number WhatsApp Business inbox for:
+Multi-number WhatsApp Business inbox. **Current deploy uses Pakistan only:**
 
-| Code | Number | Purpose |
-|------|--------|---------|
-| UAE | +971557701219 | Sales / GCC |
-| PK | +923177368305 | Support / Pakistan |
+| Code | Number | Purpose | Status |
+|------|--------|---------|--------|
+| PK | +923177368305 | Support / Pakistan | Active default |
+| UAE | +971557701219 | Reserved / inactive | Deactivated until a UAE WABA is configured |
 
 ## Architecture
 
@@ -19,7 +19,7 @@ Multi-number WhatsApp Business inbox for:
 
 ## Railway / user-secrets
 
-Do **not** add WhatsApp credentials (or even empty token placeholders) to committed `appsettings.json` — staging that file fails ADR-009 scans. Bind via env / `dotnet user-secrets` only. `WhatsAppOptions` defaults keep the feature off until configured. Country→account routing defaults live in `WhatsAppRoutingOptions` (code); override with `WhatsApp__Routing__*` env if needed — do not put them in `appsettings.json`.
+Do **not** add WhatsApp credentials (or even empty token placeholders) to committed `appsettings.json` — staging that file fails ADR-009 scans. Bind via env / `dotnet user-secrets` only. `WhatsAppOptions` defaults keep the feature off until configured. Country→account routing defaults to **PK** in `WhatsAppRoutingOptions` (code); override with `WhatsApp__Routing__*` env if needed — do not put them in `appsettings.json`.
 
 Set (never commit real values) via Railway or user-secrets. Variable **names** only:
 
@@ -30,24 +30,20 @@ Set (never commit real values) via Railway or user-secrets. Variable **names** o
 | `WhatsApp__AppSecret` | Signature fail-closed if empty |
 | `WhatsApp__GraphApiVersion` | e.g. `v21.0` |
 | `WhatsApp__MessageRetentionDays` | e.g. `180` |
-| `WhatsApp__Uae__PhoneNumberId` | UAE line |
-| `WhatsApp__Uae__BusinessAccountId` | Optional |
-| `WhatsApp__Uae__AccessToken` | UAE Graph token |
 | `WhatsApp__Pakistan__PhoneNumberId` | PK line |
 | `WhatsApp__Pakistan__BusinessAccountId` | Optional |
 | `WhatsApp__Pakistan__AccessToken` | PK Graph token |
 
-Legacy aliases (same meanings): `WhatsApp__Accounts__UAE__*` and `WhatsApp__Accounts__PK__*` for PhoneNumberId / AccessToken / BusinessAccountId.
+Legacy alias: `WhatsApp__Accounts__PK__*` for PhoneNumberId / AccessToken / BusinessAccountId. Do not set `WhatsApp__Uae__*` unless re-enabling UAE.
 
 ```bash
 dotnet user-secrets set "WhatsApp:Enabled" "true" --project SheikhTravelSystem.API
 dotnet user-secrets set "WhatsApp:WebhookVerifyToken" "..." --project SheikhTravelSystem.API
 dotnet user-secrets set "WhatsApp:AppSecret" "..." --project SheikhTravelSystem.API
-dotnet user-secrets set "WhatsApp:Uae:PhoneNumberId" "..." --project SheikhTravelSystem.API
-dotnet user-secrets set "WhatsApp:Uae:AccessToken" "..." --project SheikhTravelSystem.API
-# Pakistan: WhatsApp:Pakistan:PhoneNumberId / AccessToken
+dotnet user-secrets set "WhatsApp:Pakistan:PhoneNumberId" "..." --project SheikhTravelSystem.API
+dotnet user-secrets set "WhatsApp:Pakistan:BusinessAccountId" "..." --project SheikhTravelSystem.API
+dotnet user-secrets set "WhatsApp:Pakistan:AccessToken" "..." --project SheikhTravelSystem.API
 ```
-
 Access tokens never leave the API — Angular only sees `HasAccessToken` (boolean).
 
 Optional legacy gate for notification-channel sends: `Notifications__WhatsApp__Enabled`.

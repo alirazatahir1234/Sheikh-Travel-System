@@ -110,6 +110,11 @@ public static class DatabaseMigrationRegistry
             M("WhatsAppAccountAdminMigration", WhatsAppAccountAdminMigration.ApplyAsync),
             M("WhatsAppCrmLeadMigration", WhatsAppCrmLeadMigration.ApplyAsync),
             M("WhatsAppTemplatesMigration", WhatsAppTemplatesMigration.ApplyAsync),
+            M("WhatsAppPakistanDefaultMigration", WhatsAppPakistanDefaultMigration.ApplyAsync),
+            M("WhatsAppPhase1GapMigration", WhatsAppPhase1GapMigration.ApplyAsync),
+            M("WhatsAppPhase2AutomationsMigration", WhatsAppPhase2AutomationsMigration.ApplyAsync),
+            M("WhatsAppPhase3SelfServiceMigration", WhatsAppPhase3SelfServiceMigration.ApplyAsync),
+            M("WhatsAppPhase4AiAssistMigration", WhatsAppPhase4AiAssistMigration.ApplyAsync),
         ];
     }
 }

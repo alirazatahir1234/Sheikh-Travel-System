@@ -8,6 +8,7 @@ DioException _makeDioException({
   int? statusCode,
   dynamic responseData,
   String? message,
+  Object? error,
 }) {
   final response = statusCode != null
       ? Response(
@@ -21,19 +22,49 @@ DioException _makeDioException({
     type: type,
     response: response,
     message: message,
+    error: error,
   );
 }
 
 void main() {
   group('ErrorHandler.fromDio', () {
-    test('connection error → NetworkException', () {
+    test('connection error → NetworkException (offline default)', () {
       final e = _makeDioException(type: DioExceptionType.connectionError);
-      expect(ErrorHandler.fromDio(e), isA<NetworkException>());
+      final ex = ErrorHandler.fromDio(e);
+      expect(ex, isA<NetworkException>());
+      expect(ex.message, contains('No internet'));
     });
 
-    test('connection timeout → NetworkException', () {
+    test('connection timeout → NetworkException with timeout copy', () {
       final e = _makeDioException(type: DioExceptionType.connectionTimeout);
-      expect(ErrorHandler.fromDio(e), isA<NetworkException>());
+      final ex = ErrorHandler.fromDio(e);
+      expect(ex, isA<NetworkException>());
+      expect(ex.message, contains('taking too long'));
+    });
+
+    test('badCertificate → secure connection failed', () {
+      final e = _makeDioException(type: DioExceptionType.badCertificate);
+      final ex = ErrorHandler.fromDio(e);
+      expect(ex, isA<NetworkException>());
+      expect(ex.message, contains('Secure connection'));
+    });
+
+    test('HandshakeException → secure connection failed', () {
+      final e = _makeDioException(
+        type: DioExceptionType.connectionError,
+        error: Exception('HandshakeException: CERTIFICATE_VERIFY_FAILED'),
+      );
+      final ex = ErrorHandler.fromDio(e);
+      expect(ex.message, contains('Secure connection'));
+    });
+
+    test('Failed host lookup → cannot reach server', () {
+      final e = _makeDioException(
+        type: DioExceptionType.connectionError,
+        message: 'Failed host lookup: sheikh.example.com',
+      );
+      final ex = ErrorHandler.fromDio(e);
+      expect(ex.message, contains('Cannot reach server'));
     });
 
     test('401 response → AuthException', () {
@@ -107,7 +138,7 @@ void main() {
       );
       final ex = ErrorHandler.fromDio(e);
       expect(ex, isA<NetworkException>());
-      expect(ex.message, contains('timed out'));
+      expect(ex.message, contains('taking too long'));
     });
 
     test('connection refused maps to server unavailable message', () {

@@ -4,6 +4,7 @@ using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 using SheikhTravelSystem.Application.Features.Bookings.DTOs;
+using SheikhTravelSystem.Application.Features.WhatsApp.Automation;
 using SheikhTravelSystem.Domain.Enums;
 
 namespace SheikhTravelSystem.Application.Features.Bookings.Commands;
@@ -28,7 +29,10 @@ public class UpdateBookingCommandValidator : AbstractValidator<UpdateBookingComm
     }
 }
 
-public class UpdateBookingCommandHandler(IBookingRepository bookingRepository)
+public class UpdateBookingCommandHandler(
+    IBookingRepository bookingRepository,
+    ITenantContext tenantContext,
+    IWhatsAppAutomationHooks automationHooks)
     : IRequestHandler<UpdateBookingCommand, ApiResponse<bool>>
 {
     public async Task<ApiResponse<bool>> Handle(UpdateBookingCommand request, CancellationToken cancellationToken)
@@ -36,6 +40,17 @@ public class UpdateBookingCommandHandler(IBookingRepository bookingRepository)
         var result = await bookingRepository.UpdateAsync(request.Id, request.Booking, cancellationToken);
         if (!result.Success)
             return ApiResponse<bool>.FailResponse(result.ErrorMessage!);
+
+        try
+        {
+            var tenantId = tenantContext.GetRequiredTenantId();
+            await automationHooks.OnBookingRescheduledAsync(
+                tenantId, request.Id, request.Booking.PickupTime, cancellationToken);
+        }
+        catch
+        {
+            // Non-fatal
+        }
 
         return ApiResponse<bool>.SuccessResponse(true, "Booking updated successfully.");
     }

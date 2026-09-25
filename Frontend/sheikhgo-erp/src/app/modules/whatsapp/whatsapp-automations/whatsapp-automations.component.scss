@@ -1,0 +1,68 @@
+.wa-auto-page {
+  padding: 0 0 2rem;
+}
+
+.wa-rollout-note {
+  margin: 0 1rem 1rem;
+  padding: 0.75rem 1rem;
+  background: #fff8e1;
+  border-left: 3px solid #f9a825;
+  font-size: 0.9rem;
+}
+
+.wa-preview-bar {
+  margin: 0 1rem 1rem;
+}
+
+.preview-id {
+  width: 220px;
+}
+
+.wa-auto-table {
+  margin: 0 1rem;
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+th,
+td {
+  text-align: left;
+  padding: 0.65rem 0.5rem;
+  border-bottom: 1px solid #e2e8f0;
+  vertical-align: middle;
+}
+
+th {
+  color: #64748b;
+  font-weight: 600;
+}
+
+.tpl-input,
+.offset-input {
+  width: 100%;
+  max-width: 180px;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+}
+
+.offset-input {
+  max-width: 88px;
+}
+
+.wa-preview-card {
+  margin: 1.25rem 1rem;
+  padding: 1rem;
+  background: #f8fafc;
+  border-radius: 8px;
+}
+
+.wa-preview-card pre {
+  white-space: pre-wrap;
+  font-size: 0.85rem;
+}

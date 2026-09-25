@@ -13,7 +13,11 @@
 
     <!-- Keep CPU / radio awake while Geolocator FGS is running -->
     <uses-permission android:name="android.permission.WAKE_LOCK"/>
-    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"/>
+    <!-- Do not declare REQUEST_IGNORE_BATTERY_OPTIMIZATIONS (restricted / Play risk).
+         Drivers can exempt the app via system settings if needed. -->
+    <uses-permission
+        android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"
+        tools:node="remove"/>
 
     <!-- Camera for receipt / inspection photos. Gallery uses the system photo
          picker (no READ_MEDIA_IMAGES / READ_EXTERNAL_STORAGE — Play policy). -->
@@ -33,6 +37,17 @@
         tools:node="remove"/>
     <uses-permission
         android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        tools:node="remove"/>
+
+    <!-- Strip Advertising ID / AdServices grants merged from Firebase Analytics. -->
+    <uses-permission
+        android:name="com.google.android.gms.permission.AD_ID"
+        tools:node="remove"/>
+    <uses-permission
+        android:name="android.permission.ACCESS_ADSERVICES_AD_ID"
+        tools:node="remove"/>
+    <uses-permission
+        android:name="android.permission.ACCESS_ADSERVICES_ATTRIBUTION"
         tools:node="remove"/>
 
     <!-- Foreground service (required for Workmanager expedited / foreground tasks) -->
@@ -87,6 +102,11 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2"/>
+
+        <!-- Analytics without Advertising ID (Play Advertising ID declaration = No). -->
+        <meta-data
+            android:name="google_analytics_adid_collection_enabled"
+            android:value="false"/>
 
         <!-- Google Maps — set via android/local.properties: GOOGLE_MAPS_API_KEY=... -->
         <meta-data

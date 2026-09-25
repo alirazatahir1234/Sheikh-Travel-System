@@ -50,10 +50,10 @@ public class WhatsAppPhoneTests
     }
 
     [Theory]
-    [InlineData("+971501234567", "UAE")]
+    [InlineData("+971501234567", "PK")]
     [InlineData("+923001234567", "PK")]
-    [InlineData("+966501234567", "UAE")]
-    public void ResolveAccountCodeForRecipient_UsesCountry(string phone, string code)
+    [InlineData("+966501234567", "PK")]
+    public void ResolveAccountCodeForRecipient_UsesPakistan(string phone, string code)
     {
         Application.Features.WhatsApp.WhatsAppPhone.ResolveAccountCodeForRecipient(phone).Should().Be(code);
     }

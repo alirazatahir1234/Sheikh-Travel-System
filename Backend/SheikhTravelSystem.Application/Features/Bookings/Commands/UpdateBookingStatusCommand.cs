@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
+using SheikhTravelSystem.Application.Features.WhatsApp.Automation;
 using SheikhTravelSystem.Domain.Enums;
 
 namespace SheikhTravelSystem.Application.Features.Bookings.Commands;
@@ -26,6 +27,8 @@ public class UpdateBookingStatusCommandValidator : AbstractValidator<UpdateBooki
 
 public class UpdateBookingStatusCommandHandler(
     IBookingRepository bookingRepository,
+    ITenantContext tenantContext,
+    IWhatsAppAutomationHooks automationHooks,
     ILogger<UpdateBookingStatusCommandHandler> logger)
     : IRequestHandler<UpdateBookingStatusCommand, ApiResponse<bool>>
 {
@@ -43,6 +46,18 @@ public class UpdateBookingStatusCommandHandler(
         logger.LogInformation(
             "Booking {BookingId} status transitioned from {From} to {To}",
             request.Id, result.PreviousStatus, request.Status);
+
+        try
+        {
+            var tenantId = tenantContext.GetRequiredTenantId();
+            await automationHooks.OnBookingStatusChangedAsync(
+                tenantId, request.Id, request.Status, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "WhatsApp automation hook failed for booking {BookingId}", request.Id);
+        }
+
         return ApiResponse<bool>.SuccessResponse(true, result.SuccessMessage!);
     }
 }

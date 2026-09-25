@@ -14,7 +14,7 @@ namespace SheikhTravelSystem.Infrastructure.Services.WhatsApp;
 public sealed class WhatsAppCloudApiService(
     IHttpClientFactory httpClientFactory,
     IWhatsAppAccountConfig accountConfig,
-    ILogger<WhatsAppCloudApiService> logger) : IWhatsAppCloudApiService
+    ILogger<WhatsAppCloudApiService> logger) : IWhatsAppCloudApiService, IWhatsAppCloudApiExtended
 {
     public const string HttpClientName = "WhatsAppCloud";
 
@@ -53,18 +53,61 @@ public sealed class WhatsAppCloudApiService(
         string languageCode,
         IReadOnlyList<string>? bodyParameters = null,
         CancellationToken cancellationToken = default)
+        => SendTemplateAsync(
+            account, toE164Digits, templateName, languageCode, bodyParameters,
+            urlButtonSuffix: null, quickReplyPayloads: null, cancellationToken);
+
+    public Task<WhatsAppCloudApiResult> SendTemplateAsync(
+        WhatsAppAccountRow account,
+        string toE164Digits,
+        string templateName,
+        string languageCode,
+        IReadOnlyList<string>? bodyParameters,
+        string? urlButtonSuffix,
+        IReadOnlyList<string>? quickReplyPayloads,
+        CancellationToken cancellationToken = default)
     {
-        object? components = null;
+        var components = new List<object>();
         if (bodyParameters is { Count: > 0 })
         {
-            components = new[]
+            components.Add(new
             {
-                new
+                type = "body",
+                parameters = bodyParameters.Select(t => new { type = "text", text = t }).ToArray()
+            });
+        }
+
+        if (!string.IsNullOrWhiteSpace(urlButtonSuffix))
+        {
+            components.Add(new
+            {
+                type = "button",
+                sub_type = "url",
+                index = "0",
+                parameters = new[]
                 {
-                    type = "body",
-                    parameters = bodyParameters.Select(t => new { type = "text", text = t }).ToArray()
+                    new { type = "text", text = urlButtonSuffix.Trim() }
                 }
-            };
+            });
+        }
+
+        if (quickReplyPayloads is { Count: > 0 })
+        {
+            for (var i = 0; i < quickReplyPayloads.Count; i++)
+            {
+                var replyPayload = quickReplyPayloads[i];
+                if (string.IsNullOrWhiteSpace(replyPayload)) continue;
+                components.Add(new
+                {
+                    type = "button",
+                    sub_type = "quick_reply",
+                    index = i.ToString(),
+                    parameters = new[]
+                    {
+                        new { type = "payload", payload = replyPayload }
+                    }
+                });
+            }
         }
 
         var payload = new
@@ -76,7 +119,7 @@ public sealed class WhatsAppCloudApiService(
             {
                 name = templateName,
                 language = new { code = languageCode },
-                components
+                components = components.Count > 0 ? components : null
             }
         };
         return PostMessageAsync(account, payload, cancellationToken);
@@ -185,6 +228,112 @@ public sealed class WhatsAppCloudApiService(
         return PostMessageAsync(account, payload, cancellationToken);
     }
 
+    public Task<WhatsAppCloudApiResult> SendInteractiveListRowsAsync(
+        WhatsAppAccountRow account,
+        string toE164Digits,
+        string bodyText,
+        string buttonLabel,
+        string sectionTitle,
+        IReadOnlyList<WhatsAppInteractiveRow> rows,
+        CancellationToken cancellationToken = default)
+    {
+        if (rows is null || rows.Count == 0)
+        {
+            return Task.FromResult(WhatsAppCloudApiResult.Fail(
+                WhatsAppCloudErrorKind.InvalidConfiguration,
+                "Interactive list requires at least one row."));
+        }
+
+        var listRows = rows
+            .Take(10)
+            .Select(r => new
+            {
+                id = TruncateId(r.Id),
+                title = TruncateTitle(r.Title, 24),
+                description = (string?)null
+            })
+            .ToArray();
+
+        var payload = new
+        {
+            messaging_product = "whatsapp",
+            recipient_type = "individual",
+            to = toE164Digits,
+            type = "interactive",
+            interactive = new
+            {
+                type = "list",
+                body = new { text = string.IsNullOrWhiteSpace(bodyText) ? "Please choose:" : bodyText },
+                action = new
+                {
+                    button = TruncateTitle(
+                        string.IsNullOrWhiteSpace(buttonLabel) ? "Options" : buttonLabel, 20),
+                    sections = new[]
+                    {
+                        new
+                        {
+                            title = TruncateTitle(
+                                string.IsNullOrWhiteSpace(sectionTitle) ? "Options" : sectionTitle, 24),
+                            rows = listRows
+                        }
+                    }
+                }
+            }
+        };
+        return PostMessageAsync(account, payload, cancellationToken);
+    }
+
+    public Task<WhatsAppCloudApiResult> SendInteractiveReplyButtonsAsync(
+        WhatsAppAccountRow account,
+        string toE164Digits,
+        string bodyText,
+        IReadOnlyList<WhatsAppInteractiveRow> buttons,
+        CancellationToken cancellationToken = default)
+    {
+        if (buttons is null || buttons.Count == 0)
+        {
+            return Task.FromResult(WhatsAppCloudApiResult.Fail(
+                WhatsAppCloudErrorKind.InvalidConfiguration,
+                "Reply buttons require at least one button."));
+        }
+
+        var btns = buttons
+            .Take(3)
+            .Select(b => new
+            {
+                type = "reply",
+                reply = new { id = TruncateId(b.Id), title = TruncateTitle(b.Title, 20) }
+            })
+            .ToArray();
+
+        var payload = new
+        {
+            messaging_product = "whatsapp",
+            recipient_type = "individual",
+            to = toE164Digits,
+            type = "interactive",
+            interactive = new
+            {
+                type = "button",
+                body = new { text = string.IsNullOrWhiteSpace(bodyText) ? "Please choose:" : bodyText },
+                action = new { buttons = btns }
+            }
+        };
+        return PostMessageAsync(account, payload, cancellationToken);
+    }
+
+    private static string TruncateId(string id)
+    {
+        var t = string.IsNullOrWhiteSpace(id) ? "opt" : id.Trim();
+        return t.Length <= 200 ? t : t[..200];
+    }
+
+    private static string TruncateTitle(string title, int max)
+    {
+        var t = string.IsNullOrWhiteSpace(title) ? "Option" : title.Trim();
+        return t.Length <= max ? t : t[..max];
+    }
+
     public Task<WhatsAppCloudApiResult> MarkMessageReadAsync(
         WhatsAppAccountRow account,
         string incomingMetaMessageId,
@@ -277,6 +426,100 @@ public sealed class WhatsAppCloudApiService(
             logger.LogWarning(ex, "WhatsApp health check unexpected error. Account={Code}", account.Code);
             return WhatsAppCloudApiResult.Fail(WhatsAppCloudErrorKind.UnexpectedResponse, "Unexpected error calling Meta WhatsApp API.");
         }
+    }
+
+    public async Task<IReadOnlyList<WhatsAppMetaTemplateDto>> ListMessageTemplatesAsync(
+        WhatsAppAccountRow account,
+        CancellationToken cancellationToken = default)
+    {
+        var credentials = accountConfig.ResolveCredentials(account);
+        if (credentials is null)
+            return Array.Empty<WhatsAppMetaTemplateDto>();
+
+        var wabaId = credentials.BusinessAccountId?.Trim();
+        if (string.IsNullOrWhiteSpace(wabaId))
+        {
+            logger.LogWarning("WhatsApp template sync skipped: BusinessAccountId missing for {Code}", account.Code);
+            return Array.Empty<WhatsAppMetaTemplateDto>();
+        }
+
+        try
+        {
+            var client = httpClientFactory.CreateClient(HttpClientName);
+            var path =
+                $"{wabaId}/message_templates?fields=name,language,status,category,id,components&limit=100";
+            using var request = new HttpRequestMessage(HttpMethod.Get, path);
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", credentials.AccessToken);
+
+            using var response = await client.SendAsync(request, cancellationToken);
+            var raw = await response.Content.ReadAsStringAsync(cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                logger.LogWarning(
+                    "WhatsApp template list failed. Status={Status} Account={Code}",
+                    (int)response.StatusCode, account.Code);
+                return Array.Empty<WhatsAppMetaTemplateDto>();
+            }
+
+            using var doc = JsonDocument.Parse(raw);
+            if (!doc.RootElement.TryGetProperty("data", out var data) || data.ValueKind != JsonValueKind.Array)
+                return Array.Empty<WhatsAppMetaTemplateDto>();
+
+            var list = new List<WhatsAppMetaTemplateDto>();
+            foreach (var item in data.EnumerateArray())
+            {
+                var name = item.TryGetProperty("name", out var n) ? n.GetString() : null;
+                var language = item.TryGetProperty("language", out var lang) ? lang.GetString() : null;
+                if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(language))
+                    continue;
+
+                var status = item.TryGetProperty("status", out var st) ? st.GetString() ?? "UNKNOWN" : "UNKNOWN";
+                var category = item.TryGetProperty("category", out var cat) ? cat.GetString() ?? "UTILITY" : "UTILITY";
+                var metaId = item.TryGetProperty("id", out var idEl) ? idEl.GetString() : null;
+                var bodyPreview = ExtractBodyPreview(item);
+
+                list.Add(new WhatsAppMetaTemplateDto(
+                    name,
+                    language,
+                    MapMetaTemplateStatus(status),
+                    category,
+                    metaId,
+                    bodyPreview));
+            }
+
+            return list;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogWarning(ex, "WhatsApp template list failed for Account={Code}", account.Code);
+            return Array.Empty<WhatsAppMetaTemplateDto>();
+        }
+    }
+
+    private static string MapMetaTemplateStatus(string status) => status.ToUpperInvariant() switch
+    {
+        "APPROVED" => "Approved",
+        "PENDING" => "Pending",
+        "REJECTED" => "Rejected",
+        "PAUSED" => "Paused",
+        "DISABLED" => "Disabled",
+        _ => status
+    };
+
+    private static string? ExtractBodyPreview(JsonElement item)
+    {
+        if (!item.TryGetProperty("components", out var components) || components.ValueKind != JsonValueKind.Array)
+            return null;
+
+        foreach (var c in components.EnumerateArray())
+        {
+            var type = c.TryGetProperty("type", out var t) ? t.GetString() : null;
+            if (!string.Equals(type, "BODY", StringComparison.OrdinalIgnoreCase))
+                continue;
+            return c.TryGetProperty("text", out var text) ? Truncate(text.GetString(), 500) : null;
+        }
+
+        return null;
     }
 
     public async Task<WhatsAppMediaProxyResult?> DownloadMediaAsync(

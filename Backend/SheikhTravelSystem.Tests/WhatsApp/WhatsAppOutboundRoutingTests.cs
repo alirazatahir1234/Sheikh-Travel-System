@@ -12,7 +12,7 @@ namespace SheikhTravelSystem.Tests.WhatsApp;
 
 public class WhatsAppRoutingServiceTests
 {
-    private static WhatsAppRoutingService CreateService(Dictionary<string, string>? prefixes = null, string fallback = "UAE")
+    private static WhatsAppRoutingService CreateService(Dictionary<string, string>? prefixes = null, string fallback = "PK")
     {
         var opts = Options.Create(new WhatsAppRoutingOptions
         {
@@ -23,9 +23,9 @@ public class WhatsAppRoutingServiceTests
     }
 
     [Theory]
-    [InlineData("+971501234567", "UAE")]
-    [InlineData("971557701219", "UAE")]
-    public void Resolves_Uae(string phone, string code)
+    [InlineData("+971501234567", "PK")]
+    [InlineData("971557701219", "PK")]
+    public void Resolves_Gulf_To_Pakistan(string phone, string code)
         => CreateService().ResolveAccountCode(phone).Should().Be(code);
 
     [Theory]
@@ -35,12 +35,12 @@ public class WhatsAppRoutingServiceTests
         => CreateService().ResolveAccountCode(phone).Should().Be(code);
 
     [Theory]
-    [InlineData("+966501234567", "UAE")]
-    [InlineData("+974501234567", "UAE")]
-    [InlineData("+968501234567", "UAE")]
-    [InlineData("+965501234567", "UAE")]
-    [InlineData("+973501234567", "UAE")]
-    public void Resolves_Gcc_To_Uae(string phone, string code)
+    [InlineData("+966501234567", "PK")]
+    [InlineData("+974501234567", "PK")]
+    [InlineData("+968501234567", "PK")]
+    [InlineData("+965501234567", "PK")]
+    [InlineData("+973501234567", "PK")]
+    public void Resolves_Gcc_To_Pakistan(string phone, string code)
         => CreateService().ResolveAccountCode(phone).Should().Be(code);
 
     [Fact]
@@ -50,14 +50,14 @@ public class WhatsAppRoutingServiceTests
         {
             ["9"] = "PK",
             ["92"] = "PK",
-            ["971"] = "UAE"
+            ["971"] = "PK"
         });
-        service.ResolveAccountCode("+97150").Should().Be("UAE");
+        service.ResolveAccountCode("+97150").Should().Be("PK");
     }
 
     [Fact]
     public void UnknownCountry_UsesDefault()
-        => CreateService(fallback: "UAE").ResolveAccountCode("+15551234567").Should().Be("UAE");
+        => CreateService(fallback: "PK").ResolveAccountCode("+15551234567").Should().Be("PK");
 }
 
 public class WhatsAppAccountResolverTests
@@ -167,9 +167,21 @@ public class SendWhatsAppOutboundCommandHandlerTests
         repo.Setup(r => r.EnsureConversationAsync(1, 2, It.IsAny<string>(), null, It.IsAny<CancellationToken>()))
             .ReturnsAsync(55);
         repo.Setup(r => r.GetConversationAsync(1, 55, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new WhatsAppConversationDto(
-                55, 2, "PK", 55, "+923001112233", null, null, "Open", DateTime.UtcNow, 0, null,
-                LastIncomingMessageAt: DateTime.UtcNow.AddMinutes(-30)));
+            .ReturnsAsync(new WhatsAppConversationDto
+            {
+                Id = 55,
+                AccountId = 2,
+                AccountCode = "PK",
+                ContactId = 55,
+                ContactPhone = "+923001112233",
+                ContactName = null,
+                CustomerId = null,
+                Status = "Open",
+                LastMessageAt = DateTime.UtcNow,
+                UnreadCount = 0,
+                LastMessagePreview = null,
+                LastIncomingMessageAt = DateTime.UtcNow.AddMinutes(-30)
+            });
         repo.Setup(r => r.InsertOutboundMessageAsync(
                 1, 55, null, "text", "Hi", "Queued", It.IsAny<CancellationToken>(), null))
             .ReturnsAsync(100);

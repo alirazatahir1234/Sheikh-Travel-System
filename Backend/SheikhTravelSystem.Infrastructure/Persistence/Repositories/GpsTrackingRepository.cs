@@ -1816,6 +1816,8 @@ public sealed partial class GpsTrackingRepository(
         await EvaluatePowerCutAsync(connection, ingestDto, recordedAt, cancellationToken);
         await EvaluateGpsLostAsync(connection, ingestDto, recordedAt, cancellationToken);
 
+        await EvaluateWhatsAppTripProximityAsync(ingestDto, recordedAt, cancellationToken);
+
         // A position just arrived for this vehicle, so it's no longer offline — clear any
         // outstanding offline alert the background detector raised while it was unreachable, and
         // fire a one-time "online" event (rows affected > 0 means it actually was flagged offline).

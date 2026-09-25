@@ -6,6 +6,7 @@ using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 using SheikhTravelSystem.Application.Features.DriverApp.DTOs;
 using SheikhTravelSystem.Application.Features.Trips;
 using SheikhTravelSystem.Application.Features.Trips.Commands;
+using SheikhTravelSystem.Application.Features.WhatsApp.Automation;
 using SheikhTravelSystem.Domain.Enums;
 
 namespace SheikhTravelSystem.Application.Features.DriverApp.Commands;
@@ -47,6 +48,7 @@ public class DriverAdvanceTripCommandHandler(
     IDriverAppRepository repository,
     ICurrentUserService currentUser,
     ITenantContext tenantContext,
+    IWhatsAppAutomationHooks automationHooks,
     IMediator mediator)
     : IRequestHandler<DriverAdvanceTripCommand, ApiResponse<bool>>
 {
@@ -121,6 +123,18 @@ public class DriverAdvanceTripCommandHandler(
             return result;
 
         await SyncLinkedBookingAsync(trip.BookingId, target.Value, request.Reason, cancellationToken);
+
+        try
+        {
+            var tenantId = tenantContext.GetRequiredTenantId();
+            await automationHooks.OnTripStatusChangedAsync(
+                tenantId, trip.Id, trip.BookingId, target.Value, cancellationToken);
+        }
+        catch
+        {
+            // Non-fatal
+        }
+
         return ApiResponse<bool>.SuccessResponse(true, $"Trip updated to {DriverTripLabels.Name(target.Value)}.");
     }
 

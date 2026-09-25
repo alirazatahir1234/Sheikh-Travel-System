@@ -120,10 +120,3 @@ public sealed class AiProviderResolver(
         };
     }
 }
-
-public interface IAiProviderResolver
-{
-    Task<(IAiProvider? Provider, AiProviderConfigDto Config)> ResolveAsync(
-        int tenantId,
-        CancellationToken cancellationToken = default);
-}

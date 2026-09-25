@@ -1,9 +1,19 @@
 #!/usr/bin/env bash
 # Production / UAT release builds for SheikhGo Fleet.
+#
 # Usage:
-#   ./scripts/build_prod.sh android
-#   ./scripts/build_prod.sh ios
+#   API_BASE_URL=https://sheikh-travel-system-production.up.railway.app/api \
+#     ./scripts/build_prod.sh android
 #   ./scripts/build_prod.sh android uat
+#
+# Notes:
+# - Prefer an explicit API_BASE_URL (HTTPS). When ENV=prod|uat is set, the app
+#   also defaults to the Railway HTTPS API even if API_BASE_URL is omitted from
+#   dart-defines elsewhere — but this script still requires API_BASE_URL so
+#   store builds never silently point at a wrong host.
+# - Plain `flutter build appbundle --release` without ENV=prod still used to
+#   ship emulator loopback (10.0.2.2); always use this script or pass
+#   --dart-define=ENV=prod.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -12,7 +22,7 @@ cd "$ROOT"
 TARGET="${1:-android}"
 ENV_NAME="${2:-prod}"
 
-: "${API_BASE_URL:?Set API_BASE_URL to your API root, e.g. https://api.example.com/api}"
+: "${API_BASE_URL:?Set API_BASE_URL to your API root, e.g. https://sheikh-travel-system-production.up.railway.app/api}"
 
 DEFINES=(
   "--dart-define=ENV=${ENV_NAME}"

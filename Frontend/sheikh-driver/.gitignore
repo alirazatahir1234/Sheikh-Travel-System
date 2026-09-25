@@ -46,3 +46,10 @@ app.*.map.json
 
 # Google Maps local secrets — never commit real keys
 ios/Flutter/Maps.local.xcconfig
+
+# Android signing / Play / Firebase — never commit
+*.jks
+*.keystore
+**/key.properties
+**/google-services.json
+**/service-account*.json

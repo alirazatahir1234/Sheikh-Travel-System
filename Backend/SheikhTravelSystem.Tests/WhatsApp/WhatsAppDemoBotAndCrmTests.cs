@@ -134,9 +134,23 @@ public class WhatsAppDemoQualificationBotTests
 
 public class WhatsAppCrmLeadServiceTests
 {
-    private static WhatsAppConversationDto Conv(int? customerId = null, int? leadId = null) => new(
-        10, 1, "UAE", 10, "+971501234567", "Ali", customerId, "Open", null, 0, null,
-        LeadId: leadId, IsBotEnabled: true, CurrentBotState: "Idle");
+    private static WhatsAppConversationDto Conv(int? customerId = null, int? leadId = null) => new()
+    {
+        Id = 10,
+        AccountId = 1,
+        AccountCode = "UAE",
+        ContactId = 10,
+        ContactPhone = "+971501234567",
+        ContactName = "Ali",
+        CustomerId = customerId,
+        Status = "Open",
+        LastMessageAt = null,
+        UnreadCount = 0,
+        LastMessagePreview = null,
+        LeadId = leadId,
+        IsBotEnabled = true,
+        CurrentBotState = "Idle"
+    };
 
     [Fact]
     public async Task CreatesLead_WhenNoneExists()
@@ -210,10 +224,24 @@ public class WhatsAppCrmLeadServiceTests
 
 public class WhatsAppHandoffTests
 {
-    private static WhatsAppConversationDto Conv(bool bot = true, int? assigned = null) => new(
-        1, 1, "UAE", 1, "+971501234567", "Ali", null, "Open", DateTime.UtcNow, 0, null,
-        AssignedUserId: assigned, IsBotEnabled: bot, CurrentBotState: bot ? "Idle" : null,
-        LastIncomingMessageAt: DateTime.UtcNow.AddMinutes(-10));
+    private static WhatsAppConversationDto Conv(bool bot = true, int? assigned = null) => new()
+    {
+        Id = 1,
+        AccountId = 1,
+        AccountCode = "UAE",
+        ContactId = 1,
+        ContactPhone = "+971501234567",
+        ContactName = "Ali",
+        CustomerId = null,
+        Status = "Open",
+        LastMessageAt = DateTime.UtcNow,
+        UnreadCount = 0,
+        LastMessagePreview = null,
+        AssignedUserId = assigned,
+        IsBotEnabled = bot,
+        CurrentBotState = bot ? "Idle" : null,
+        LastIncomingMessageAt = DateTime.UtcNow.AddMinutes(-10)
+    };
 
     [Fact]
     public async Task Assignment_DisablesBot()

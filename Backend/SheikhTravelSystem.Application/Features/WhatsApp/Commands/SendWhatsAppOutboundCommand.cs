@@ -3,6 +3,7 @@ using MediatR;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
+using SheikhTravelSystem.Application.Features.WhatsApp;
 using SheikhTravelSystem.Application.Features.WhatsApp.Bot;
 using SheikhTravelSystem.Application.Features.WhatsApp.DTOs;
 
@@ -104,9 +105,11 @@ public class SendWhatsAppOutboundCommandHandler(
             conversation = await repository.GetConversationAsync(tenantId, conversationId, cancellationToken);
 
         // Meta CS window: free-form text only within 24h of last inbound customer message.
-        if (!WhatsAppMessagingWindow.IsOpen(conversation?.LastIncomingMessageAt))
+        if (!WhatsAppMessagingWindow.IsOpenFromStoredWindow(
+                conversation?.LastIncomingMessageAt, conversation?.WindowExpiresAt))
             return ApiResponse<SendWhatsAppMessageResultDto>.FailResponse(
-                "Template required: messaging window closed");
+                "Messaging window closed. Send an approved template instead.",
+                code: "WINDOW_CLOSED");
 
         // Human agent take-over: disable bot and assign current user when unset.
         var agentId = currentUser.UserId;

@@ -114,7 +114,8 @@ class AppConfig {
   /// TLS pinning: release builds with pins configured (unless disabled).
   static bool get shouldPinCertificates {
     if (kDebugMode) return false;
-    if (const bool.fromEnvironment('DISABLE_CERT_PINNING', defaultValue: false)) {
+    if (const bool.fromEnvironment('DISABLE_CERT_PINNING',
+        defaultValue: false)) {
       return false;
     }
     if (certFingerprints.isEmpty) return false;

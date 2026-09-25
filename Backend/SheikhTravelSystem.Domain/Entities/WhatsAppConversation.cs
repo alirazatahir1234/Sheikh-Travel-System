@@ -15,6 +15,7 @@ public class WhatsAppConversation : BaseEntity
     public DateTime? LastMessageAt { get; set; }
     public DateTime? LastIncomingMessageAt { get; set; }
     public DateTime? LastOutgoingMessageAt { get; set; }
+    public DateTime? WindowExpiresAt { get; set; }
     public int UnreadCount { get; set; }
     public bool IsBotEnabled { get; set; }
     public string? CurrentBotState { get; set; }

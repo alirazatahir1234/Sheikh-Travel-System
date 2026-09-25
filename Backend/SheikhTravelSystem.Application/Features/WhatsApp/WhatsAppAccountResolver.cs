@@ -69,7 +69,7 @@ public sealed class WhatsAppAccountResolver(
             .ToList();
         if (accounts.Count == 0) return null;
         return accounts.FirstOrDefault(a => a.IsDefault)
-               ?? accounts.FirstOrDefault(a => string.Equals(a.Code, "UAE", StringComparison.OrdinalIgnoreCase))
+               ?? accounts.FirstOrDefault(a => string.Equals(a.Code, "PK", StringComparison.OrdinalIgnoreCase))
                ?? accounts.FirstOrDefault();
     }
 }

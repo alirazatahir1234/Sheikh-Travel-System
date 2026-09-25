@@ -1,4 +1,5 @@
 using FluentAssertions;
+using MediatR;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Moq;
@@ -257,13 +258,20 @@ public class WhatsAppWebhookIngestTests
                 It.IsAny<string?>(),
                 It.IsAny<string?>(),
                 It.IsAny<string?>(),
-                It.IsAny<CancellationToken>()))
+                It.IsAny<CancellationToken>(),
+                It.IsAny<string?>(),
+                It.IsAny<string?>(),
+                It.IsAny<string?>()))
             .Returns(Task.CompletedTask);
+        var automation = new Mock<IWhatsAppAutomationRepository>();
+        var mediator = new Mock<IMediator>();
         return new IngestWhatsAppWebhookCommandHandler(
             repo,
             config,
             realtime,
             bot.Object,
+            automation.Object,
+            mediator.Object,
             options,
             NullLogger<IngestWhatsAppWebhookCommandHandler>.Instance);
     }

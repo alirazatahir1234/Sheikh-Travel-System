@@ -3,6 +3,7 @@ import { RouterLink, RouterOutlet } from '@angular/router';
 import { SiteHeaderComponent } from './layout/site-header/site-header.component';
 import { SiteFooterComponent } from './layout/site-footer/site-footer.component';
 import { CookieConsentComponent } from './shared/cookie-consent/cookie-consent.component';
+import { WebsiteWhatsAppFabComponent } from './shared/website-whatsapp-fab/website-whatsapp-fab.component';
 
 @Component({
   standalone: true,
@@ -13,6 +14,7 @@ import { CookieConsentComponent } from './shared/cookie-consent/cookie-consent.c
     SiteHeaderComponent,
     SiteFooterComponent,
     CookieConsentComponent,
+    WebsiteWhatsAppFabComponent,
   ],
   template: `
     <div class="website-shell">
@@ -22,6 +24,7 @@ import { CookieConsentComponent } from './shared/cookie-consent/cookie-consent.c
       </main>
       <app-site-footer />
       <app-cookie-consent />
+      <app-website-whatsapp-fab />
       <div class="mobile-cta">
         <a routerLink="/request-demo" class="btn btn-primary">Request a Quote</a>
       </div>

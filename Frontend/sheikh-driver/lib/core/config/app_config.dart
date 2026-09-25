@@ -52,14 +52,30 @@ class AppConfig {
   /// Resolution order:
   /// 1. Explicit `--dart-define=API_BASE_URL=...` (full URL wins).
   /// 2. When `ENV=prod` or `ENV=uat`: [defaultProductionApiBaseUrl] (HTTPS).
-  /// 3. `--dart-define=DEV_LAN_HOST=...` → `http://{host}:5082/api`
+  /// 3. Release builds without prod/uat or HTTPS define → force prod HTTPS
+  ///    (never ship `10.0.2.2` / `localhost` / cleartext LAN to Play).
+  /// 4. `--dart-define=DEV_LAN_HOST=...` → `http://{host}:5082/api`
   ///    (physical Android / iOS on the same Wi‑Fi as the Mac).
-  /// 4. Android (no LAN host): emulator loopback `http://10.0.2.2:5082/api`.
-  /// 5. iOS simulator / desktop: `http://localhost:5082/api`.
+  /// 5. Android (no LAN host): emulator loopback `http://10.0.2.2:5082/api`.
+  /// 6. iOS simulator / desktop: `http://localhost:5082/api`.
+  ///
+  /// Play/AAB builds must use `./scripts/build_prod.sh` (or equivalent dart-defines).
   static String get resolvedBaseUrl {
     final defined = _apiBaseUrlDefine.trim();
-    if (defined.isNotEmpty) return defined;
+    if (defined.isNotEmpty) {
+      if (kReleaseMode &&
+          !isProd &&
+          !isUat &&
+          !defined.toLowerCase().startsWith('https://')) {
+        // Accidental release with http://localhost or LAN — refuse cleartext.
+        return defaultProductionApiBaseUrl;
+      }
+      return defined;
+    }
     if (isProd || isUat) return defaultProductionApiBaseUrl;
+
+    // Release without ENV=prod|uat and without API_BASE_URL → prod HTTPS.
+    if (kReleaseMode) return defaultProductionApiBaseUrl;
 
     final lanHost = _devLanHostDefine.trim();
     if (lanHost.isNotEmpty) {

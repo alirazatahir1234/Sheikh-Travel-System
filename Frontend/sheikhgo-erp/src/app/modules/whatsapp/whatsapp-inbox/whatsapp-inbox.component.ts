@@ -8,9 +8,11 @@ import {
   WhatsAppAccount,
   WhatsAppContact,
   WhatsAppConversation,
+  WhatsAppConversationContext,
   WhatsAppInboxFilter,
   WhatsAppMessage,
-  WhatsAppTemplate
+  WhatsAppTemplate,
+  WhatsAppAiAssistResult
 } from '../../../core/models/whatsapp.model';
 import { User } from '../../../core/models/user.model';
 import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
@@ -25,6 +27,7 @@ import { AuthService } from '../../../core/services/auth.service';
 export class WhatsAppInboxComponent implements OnInit, OnDestroy {
   private readonly destroy$ = new Subject<void>();
   private readonly search$ = new Subject<string>();
+  private windowTimer: ReturnType<typeof setInterval> | null = null;
 
   accounts: WhatsAppAccount[] = [];
   selectedAccountId: number | null = null;
@@ -32,9 +35,12 @@ export class WhatsAppInboxComponent implements OnInit, OnDestroy {
   selected: WhatsAppConversation | null = null;
   messages: WhatsAppMessage[] = [];
   contact: WhatsAppContact | null = null;
+  context: WhatsAppConversationContext | null = null;
   agents: User[] = [];
   approvedTemplates: WhatsAppTemplate[] = [];
   selectedTemplateKey = '';
+  templateParamValues: string[] = [];
+  templatePreview = '';
   draft = '';
   search = '';
   activeFilter: WhatsAppInboxFilter = 'all';
@@ -42,9 +48,20 @@ export class WhatsAppInboxComponent implements OnInit, OnDestroy {
   loadingThread = false;
   loadingOlder = false;
   sending = false;
+  retryingId: number | null = null;
   messagePage = 1;
   messageTotal = 0;
   mobileShowThread = false;
+  windowLabel = '';
+  windowTone: 'open' | 'amber' | 'closed' = 'closed';
+  nowMs = Date.now();
+
+  aiAssistOpen = false;
+  aiBusy = false;
+  aiError: string | null = null;
+  aiResult: WhatsAppAiAssistResult | null = null;
+  aiSummary: string | null = null;
+  aiTranslateLang = 'English';
 
   readonly breadcrumbs = [
     { label: 'Administration' },
@@ -77,12 +94,25 @@ export class WhatsAppInboxComponent implements OnInit, OnDestroy {
     return this.auth.hasPermission('WhatsApp.Reply');
   }
 
+  get canAiAssist(): boolean {
+    return this.auth.hasPermission('WhatsApp.AiAssist');
+  }
+
   get canManage(): boolean {
     return this.auth.hasPermission('WhatsApp.Manage');
   }
 
   get hasOlderMessages(): boolean {
     return this.messages.length < this.messageTotal;
+  }
+
+  get selectedTemplate(): WhatsAppTemplate | null {
+    if (!this.selectedTemplateKey) return null;
+    return this.approvedTemplates.find(t => this.templateKey(t) === this.selectedTemplateKey) ?? null;
+  }
+
+  get windowWindowOpen(): boolean {
+    return this.windowTone !== 'closed';
   }
 
   ngOnInit(): void {
@@ -94,11 +124,13 @@ export class WhatsAppInboxComponent implements OnInit, OnDestroy {
     this.loadAgents();
     void this.realtime.start();
     this.realtime.events.pipe(takeUntil(this.destroy$)).subscribe(ev => this.onRealtime(ev));
+    this.windowTimer = setInterval(() => this.refreshWindowBadge(), 1000);
   }
 
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
+    if (this.windowTimer) clearInterval(this.windowTimer);
     void this.realtime.stop();
   }
 
@@ -135,6 +167,8 @@ export class WhatsAppInboxComponent implements OnInit, OnDestroy {
     this.selected = null;
     this.messages = [];
     this.contact = null;
+    this.context = null;
+    this.resetAiAssist();
     this.mobileShowThread = false;
     this.refreshConversations();
   }
@@ -155,7 +189,10 @@ export class WhatsAppInboxComponent implements OnInit, OnDestroy {
           this.loadingList = false;
           if (this.selected) {
             const fresh = this.conversations.find(c => c.id === this.selected!.id);
-            if (fresh) this.selected = { ...fresh };
+            if (fresh) {
+              this.selected = { ...fresh };
+              this.refreshWindowBadge();
+            }
           }
         },
         error: () => {
@@ -171,7 +208,12 @@ export class WhatsAppInboxComponent implements OnInit, OnDestroy {
     this.messagePage = 1;
     this.loadingThread = true;
     this.selectedTemplateKey = '';
+    this.templateParamValues = [];
+    this.templatePreview = '';
+    this.resetAiAssist(false);
+    this.refreshWindowBadge();
     this.loadApprovedTemplates(conv.accountId);
+    this.loadContext(conv.id);
     this.inbox.getMessages(conv.id, 1, 50).subscribe({
       next: page => {
         this.messages = page?.items ?? [];
@@ -192,6 +234,13 @@ export class WhatsAppInboxComponent implements OnInit, OnDestroy {
     }
   }
 
+  loadContext(conversationId: number): void {
+    this.inbox.getConversationContext(conversationId).subscribe({
+      next: ctx => (this.context = ctx),
+      error: () => (this.context = null)
+    });
+  }
+
   loadApprovedTemplates(accountId: number): void {
     this.inbox.getTemplates(accountId, 'Approved').subscribe({
       next: rows => (this.approvedTemplates = rows ?? []),
@@ -201,6 +250,37 @@ export class WhatsAppInboxComponent implements OnInit, OnDestroy {
 
   templateKey(t: WhatsAppTemplate): string {
     return `${t.name}::${t.language}`;
+  }
+
+  onTemplateSelected(): void {
+    const t = this.selectedTemplate;
+    const placeholders = this.extractPlaceholders(t?.bodyPreview);
+    this.templateParamValues = placeholders.map(() => '');
+    this.updateTemplatePreview();
+  }
+
+  updateTemplatePreview(): void {
+    const t = this.selectedTemplate;
+    if (!t?.bodyPreview) {
+      this.templatePreview = '';
+      return;
+    }
+    let preview = t.bodyPreview;
+    this.templateParamValues.forEach((v, i) => {
+      preview = preview.replace(new RegExp(`\\{\\{${i + 1}\\}\\}`, 'g'), v || `{{${i + 1}}}`);
+    });
+    this.templatePreview = preview;
+  }
+
+  extractPlaceholders(body?: string | null): number[] {
+    if (!body) return [];
+    const found = new Set<number>();
+    const re = /\{\{(\d+)\}\}/g;
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(body)) !== null) {
+      found.add(Number(m[1]));
+    }
+    return Array.from(found).sort((a, b) => a - b);
   }
 
   markReadExplicit(showToast = true): void {
@@ -244,8 +324,8 @@ export class WhatsAppInboxComponent implements OnInit, OnDestroy {
 
   send(): void {
     if (!this.selected || !this.draft.trim() || !this.canReply || this.sending) return;
-    if (!this.selected.isWithinMessagingWindow) {
-      this.toast.error('Template required: messaging window closed');
+    if (!this.isWindowOpen) {
+      this.toast.error('Messaging window closed. Send an approved template instead.');
       return;
     }
     const body = this.draft.trim();
@@ -259,6 +339,12 @@ export class WhatsAppInboxComponent implements OnInit, OnDestroy {
       },
       error: err => {
         this.sending = false;
+        const code = err?.error?.code || err?.error?.Code;
+        if (err?.status === 409 || code === 'WINDOW_CLOSED') {
+          this.toast.error('Messaging window closed. Send an approved template instead.');
+          this.refreshWindowBadge();
+          return;
+        }
         this.toast.error(err?.error?.message || 'Send failed.');
       }
     });
@@ -266,20 +352,28 @@ export class WhatsAppInboxComponent implements OnInit, OnDestroy {
 
   sendTemplate(): void {
     if (!this.selected || !this.canReply || this.sending || !this.selectedTemplateKey) return;
-    const [name, language] = this.selectedTemplateKey.split('::');
-    if (!name) return;
+    const t = this.selectedTemplate;
+    if (!t) return;
+    const placeholders = this.extractPlaceholders(t.bodyPreview);
+    if (placeholders.some((_, i) => !this.templateParamValues[i]?.trim())) {
+      this.toast.error('Fill all template variables before sending.');
+      return;
+    }
     this.sending = true;
     this.inbox
       .sendTemplate({
         conversationId: this.selected.id,
         whatsAppAccountId: this.selected.accountId,
-        templateName: name,
-        language: language || 'en'
+        templateName: t.name,
+        language: t.language || 'en',
+        bodyParameters: this.templateParamValues
       })
       .subscribe({
         next: () => {
           this.sending = false;
           this.selectedTemplateKey = '';
+          this.templateParamValues = [];
+          this.templatePreview = '';
           this.toast.success('Template sent.');
           this.openConversation(this.selected!, false);
           this.refreshConversations(false);
@@ -289,6 +383,27 @@ export class WhatsAppInboxComponent implements OnInit, OnDestroy {
           this.toast.error(err?.error?.message || 'Template send failed.');
         }
       });
+  }
+
+  retryMessage(m: WhatsAppMessage): void {
+    if (!this.canReply || this.retryingId != null) return;
+    if ((m.status || '').toLowerCase() !== 'failed') return;
+    if ((m.attemptCount ?? 1) >= 3) {
+      this.toast.error('Retry limit reached (3).');
+      return;
+    }
+    this.retryingId = m.id;
+    this.inbox.retryMessage(m.id).subscribe({
+      next: () => {
+        this.retryingId = null;
+        this.toast.success('Message retried.');
+        if (this.selected) this.openConversation(this.selected, false);
+      },
+      error: err => {
+        this.retryingId = null;
+        this.toast.error(err?.error?.message || 'Retry failed.');
+      }
+    });
   }
 
   onComposerKeydown(event: KeyboardEvent): void {
@@ -339,13 +454,30 @@ export class WhatsAppInboxComponent implements OnInit, OnDestroy {
         this.contact = c;
         this.toast.success('Customer linked by phone.');
         if (this.selected) this.selected.customerId = c.customerId ?? null;
+        if (this.selected) this.loadContext(this.selected.id);
       },
       error: err => this.toast.error(err?.error?.message || 'No matching customer found.')
     });
   }
 
+  createLead(): void {
+    if (!this.selected || !this.canManage) return;
+    this.inbox.createLead(this.selected.id).subscribe({
+      next: ctx => {
+        this.context = ctx;
+        if (this.selected) {
+          this.selected.leadId = ctx.leadId ?? null;
+          this.selected.leadStatus = ctx.leadStatus ?? null;
+          this.selected.customerId = ctx.customerId ?? this.selected.customerId;
+        }
+        this.toast.success('Lead created / linked.');
+      },
+      error: err => this.toast.error(err?.error?.message || 'Create lead failed.')
+    });
+  }
+
   openCustomer(): void {
-    const id = this.contact?.customerId ?? this.selected?.customerId;
+    const id = this.contact?.customerId ?? this.selected?.customerId ?? this.context?.customerId;
     if (!id) return;
     void this.router.navigate(['/customers', id]);
   }
@@ -382,8 +514,172 @@ export class WhatsAppInboxComponent implements OnInit, OnDestroy {
     return 'schedule';
   }
 
+  canRetry(m: WhatsAppMessage): boolean {
+    return (
+      m.direction === 'Outbound' &&
+      (m.status || '').toLowerCase() === 'failed' &&
+      (m.attemptCount ?? 1) < 3
+    );
+  }
+
+  private refreshWindowBadge(): void {
+    this.nowMs = Date.now();
+    const conv = this.selected;
+    if (!conv) {
+      this.windowLabel = '';
+      this.windowTone = 'closed';
+      return;
+    }
+    const expiresMs = this.resolveExpiresMs(conv);
+    if (expiresMs == null) {
+      this.windowLabel = 'Window closed — template required';
+      this.windowTone = 'closed';
+      conv.isWithinMessagingWindow = false;
+      return;
+    }
+    const remaining = expiresMs - this.nowMs;
+    if (remaining <= 0) {
+      this.windowLabel = 'Window closed — template required';
+      this.windowTone = 'closed';
+      conv.isWithinMessagingWindow = false;
+      return;
+    }
+    conv.isWithinMessagingWindow = true;
+    const hours = Math.floor(remaining / 3600000);
+    const mins = Math.floor((remaining % 3600000) / 60000);
+    const secs = Math.floor((remaining % 60000) / 1000);
+    this.windowLabel = `Window ${hours}h ${mins}m ${secs}s`;
+    this.windowTone = remaining < 3600000 ? 'amber' : 'open';
+  }
+
+  private resolveExpiresMs(conv: WhatsAppConversation): number | null {
+    if (conv.windowExpiresAt) {
+      const t = new Date(conv.windowExpiresAt).getTime();
+      return Number.isNaN(t) ? null : t;
+    }
+    if (conv.lastIncomingMessageAt) {
+      const t = new Date(conv.lastIncomingMessageAt).getTime();
+      return Number.isNaN(t) ? null : t + 24 * 3600000;
+    }
+    return null;
+  }
+
+  toggleAiAssist(): void {
+    if (!this.canAiAssist) return;
+    this.aiAssistOpen = !this.aiAssistOpen;
+    if (!this.aiAssistOpen) this.aiError = null;
+  }
+
+  generateAiReply(): void {
+    if (!this.selected || !this.canAiAssist || this.aiBusy) return;
+    this.aiBusy = true;
+    this.aiError = null;
+    this.inbox.aiSuggest(this.selected.id).subscribe({
+      next: result => {
+        this.aiBusy = false;
+        this.applyAiResult(result);
+      },
+      error: err => this.onAiError(err)
+    });
+  }
+
+  regenerateAiReply(): void {
+    if (!this.selected || !this.canAiAssist || this.aiBusy) return;
+    this.aiBusy = true;
+    this.aiError = null;
+    this.inbox
+      .aiTransform(this.selected.id, {
+        action: 'Regenerate',
+        priorSuggestion: this.aiResult?.suggestion ?? this.draft
+      })
+      .subscribe({
+        next: result => {
+          this.aiBusy = false;
+          this.applyAiResult(result);
+        },
+        error: err => this.onAiError(err)
+      });
+  }
+
+  transformAi(action: 'Shorter' | 'Professional' | 'Translate'): void {
+    if (!this.selected || !this.canAiAssist || this.aiBusy) return;
+    const text = (this.aiResult?.suggestion || this.draft || '').trim();
+    if (!text) {
+      this.toast.warning('Generate or type a reply first.');
+      return;
+    }
+    this.aiBusy = true;
+    this.aiError = null;
+    this.inbox
+      .aiTransform(this.selected.id, {
+        action,
+        text,
+        targetLanguage: action === 'Translate' ? this.aiTranslateLang : null,
+        priorSuggestion: this.aiResult?.suggestion ?? null
+      })
+      .subscribe({
+        next: result => {
+          this.aiBusy = false;
+          this.applyAiResult(result);
+        },
+        error: err => this.onAiError(err)
+      });
+  }
+
+  summarizeConversation(): void {
+    if (!this.selected || !this.canAiAssist || this.aiBusy) return;
+    this.aiBusy = true;
+    this.aiError = null;
+    this.inbox.aiSummary(this.selected.id).subscribe({
+      next: result => {
+        this.aiBusy = false;
+        this.aiSummary = result.suggestion;
+        this.aiResult = result;
+      },
+      error: err => this.onAiError(err)
+    });
+  }
+
+  useAiSuggestionInDraft(): void {
+    if (!this.aiResult?.suggestion) return;
+    this.draft = this.aiResult.suggestion;
+  }
+
+  sendAiSuggestion(): void {
+    if (!this.aiResult?.suggestion) return;
+    this.draft = this.aiResult.suggestion;
+    this.send();
+  }
+
+  private applyAiResult(result: WhatsAppAiAssistResult): void {
+    this.aiResult = result;
+    this.draft = result.suggestion;
+    if (result.reviewRecommended) {
+      this.toast.warning(result.confidenceReason || 'Human review recommended');
+    }
+  }
+
+  private onAiError(err: unknown): void {
+    this.aiBusy = false;
+    const msg =
+      (err as { error?: { message?: string }; message?: string })?.error?.message ||
+      (err as { message?: string })?.message ||
+      'AI assist failed.';
+    this.aiError = msg;
+    this.toast.error(msg);
+  }
+
+  private resetAiAssist(close = true): void {
+    if (close) this.aiAssistOpen = false;
+    this.aiBusy = false;
+    this.aiError = null;
+    this.aiResult = null;
+    this.aiSummary = null;
+  }
+
   private applyConversationUpdate(updated: WhatsAppConversation): void {
     this.selected = updated;
+    this.refreshWindowBadge();
     const idx = this.conversations.findIndex(c => c.id === updated.id);
     if (idx >= 0) this.conversations[idx] = updated;
     else this.refreshConversations(false);
@@ -393,7 +689,19 @@ export class WhatsAppInboxComponent implements OnInit, OnDestroy {
     const type = ev.type || '';
     if (type === 'whatsapp.message_status' && ev.conversationId && this.selected?.id === ev.conversationId) {
       const msg = this.messages.find(m => m.id === ev.messageId || m.metaMessageId === ev.metaMessageId);
-      if (msg && ev.status) msg.status = ev.status;
+      if (msg && ev.status) {
+        // Forward-only client-side: ignore regressions if any.
+        const rank = (s: string) => {
+          const k = s.toLowerCase();
+          if (k === 'queued' || k === 'sending') return 1;
+          if (k === 'sent') return 2;
+          if (k === 'delivered') return 3;
+          if (k === 'read') return 4;
+          if (k === 'failed') return 100;
+          return 0;
+        };
+        if (rank(ev.status) >= rank(msg.status || '')) msg.status = ev.status;
+      }
       return;
     }
 
@@ -407,7 +715,10 @@ export class WhatsAppInboxComponent implements OnInit, OnDestroy {
           if (ev.assignedUserName !== undefined) row.assignedUserName = ev.assignedUserName ?? null;
           if (ev.isBotEnabled != null) row.isBotEnabled = ev.isBotEnabled;
           if (ev.currentBotState !== undefined) row.currentBotState = ev.currentBotState ?? null;
-          if (this.selected?.id === ev.conversationId) this.selected = { ...row };
+          if (this.selected?.id === ev.conversationId) {
+            this.selected = { ...row };
+            this.refreshWindowBadge();
+          }
         } else {
           this.refreshConversations(false);
         }

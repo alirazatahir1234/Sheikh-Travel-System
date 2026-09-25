@@ -40,9 +40,21 @@ public class WhatsAppMessagingWindowTests
     public void WithWindowFlag_SetsDto()
     {
         var now = DateTime.UtcNow;
-        var dto = new WhatsAppConversationDto(
-            1, 1, "UAE", 1, "+97150", "Ali", null, "Open", now, 0, "hi",
-            LastIncomingMessageAt: now.AddHours(-1));
+        var dto = new WhatsAppConversationDto
+        {
+            Id = 1,
+            AccountId = 1,
+            AccountCode = "UAE",
+            ContactId = 1,
+            ContactPhone = "+97150",
+            ContactName = "Ali",
+            CustomerId = null,
+            Status = "Open",
+            LastMessageAt = now,
+            UnreadCount = 0,
+            LastMessagePreview = "hi",
+            LastIncomingMessageAt = now.AddHours(-1)
+        };
         WhatsAppMessagingWindow.WithWindowFlag(dto, now).IsWithinMessagingWindow.Should().BeTrue();
     }
 }
@@ -54,6 +66,7 @@ public class WhatsAppPermissionsAndTemplateStatusTests
     {
         WhatsAppPermissions.All.Should().Contain(WhatsAppPermissions.ManageAccounts);
         WhatsAppPermissions.All.Should().Contain(WhatsAppPermissions.ManageTemplates);
+        WhatsAppPermissions.All.Should().Contain(WhatsAppPermissions.AiAssist);
         WhatsAppPermissions.All.Should().NotContain("WhatsApp.Send");
     }
 

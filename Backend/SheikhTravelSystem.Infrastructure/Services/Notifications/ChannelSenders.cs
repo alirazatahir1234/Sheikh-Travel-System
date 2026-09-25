@@ -292,7 +292,8 @@ public sealed class WhatsAppNotificationSender(
         }
 
         var templateResult = await cloudApi.SendTemplateAsync(
-            account, phone, template.Name, language, null, cancellationToken);
+            account, phone, template.Name, language,
+            bodyParameters: null, cancellationToken: cancellationToken);
         return templateResult.Success
             ? new ChannelSendResult(true, "Sent", templateResult.MetaMessageId)
             : new ChannelSendResult(false, "Failed", templateResult.ErrorMessage);

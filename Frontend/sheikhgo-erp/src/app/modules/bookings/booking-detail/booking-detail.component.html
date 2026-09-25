@@ -173,5 +173,48 @@
       </button>
     </mat-card-actions>
   </mat-card>
+
+  <mat-card class="wa-timeline-card">
+    <mat-card-header>
+      <mat-card-title>WhatsApp</mat-card-title>
+      <mat-card-subtitle>Automation timeline</mat-card-subtitle>
+    </mat-card-header>
+    <mat-card-content>
+      <app-brand-loader *ngIf="waTimelineLoading" />
+      <div *ngIf="!waTimelineLoading && waTimeline.length === 0" class="no-payments">
+        <mat-icon>chat</mat-icon>
+        <span>No automation events yet</span>
+      </div>
+      <table *ngIf="!waTimelineLoading && waTimeline.length" class="payment-table">
+        <thead>
+          <tr>
+            <th>Event</th>
+            <th>Status</th>
+            <th>Due</th>
+            <th>Recipient</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let e of waTimeline">
+            <td>{{ e.eventType }}</td>
+            <td>{{ waStatusLabel(e.status) }}{{ e.skipReason ? ' · ' + e.skipReason : '' }}</td>
+            <td>{{ e.dueAt | date:'short' }}</td>
+            <td>{{ e.recipientPhone || '—' }}</td>
+            <td>
+              <button
+                mat-stroked-button
+                type="button"
+                *ngIf="canResendWa"
+                [disabled]="resendingEventId === e.id"
+                (click)="resendWaEvent(e)">
+                Resend
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </mat-card-content>
+  </mat-card>
   </div>
 </div>

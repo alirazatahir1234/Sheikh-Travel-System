@@ -7,6 +7,8 @@ DioException _makeDioException({
   DioExceptionType type = DioExceptionType.unknown,
   int? statusCode,
   dynamic responseData,
+  Object? error,
+  String? message,
 }) {
   final response = statusCode != null
       ? Response(
@@ -19,19 +21,61 @@ DioException _makeDioException({
     requestOptions: RequestOptions(path: '/test'),
     type: type,
     response: response,
+    error: error,
+    message: message,
   );
 }
 
 void main() {
   group('ErrorHandler.fromDio', () {
-    test('connection error → NetworkException', () {
+    test('connection error (generic) → No internet message', () {
       final e = _makeDioException(type: DioExceptionType.connectionError);
-      expect(ErrorHandler.fromDio(e), isA<NetworkException>());
+      final ex = ErrorHandler.fromDio(e);
+      expect(ex, isA<NetworkException>());
+      expect(ex.message, contains('No internet connection'));
     });
 
-    test('connection timeout → NetworkException', () {
+    test('connection refused → server unavailable message', () {
+      final e = _makeDioException(
+        type: DioExceptionType.connectionError,
+        message: 'Connection refused',
+        error: Exception('Connection refused'),
+      );
+      final ex = ErrorHandler.fromDio(e);
+      expect(ex, isA<NetworkException>());
+      expect(ex.message, contains('Server unavailable'));
+    });
+
+    test('failed host lookup → cannot reach server', () {
+      final e = _makeDioException(
+        type: DioExceptionType.connectionError,
+        error: Exception('Failed host lookup: example.com'),
+      );
+      final ex = ErrorHandler.fromDio(e);
+      expect(ex.message, 'Cannot reach server.');
+    });
+
+    test('HandshakeException → secure connection failed', () {
+      final e = _makeDioException(
+        type: DioExceptionType.connectionError,
+        error: Exception('HandshakeException: CERTIFICATE_VERIFY_FAILED'),
+      );
+      final ex = ErrorHandler.fromDio(e);
+      expect(ex.message, 'Secure connection failed.');
+    });
+
+    test('badCertificate → secure connection failed', () {
+      final e = _makeDioException(type: DioExceptionType.badCertificate);
+      final ex = ErrorHandler.fromDio(e);
+      expect(ex, isA<NetworkException>());
+      expect(ex.message, 'Secure connection failed.');
+    });
+
+    test('connection timeout → timeout message', () {
       final e = _makeDioException(type: DioExceptionType.connectionTimeout);
-      expect(ErrorHandler.fromDio(e), isA<NetworkException>());
+      final ex = ErrorHandler.fromDio(e);
+      expect(ex, isA<NetworkException>());
+      expect(ex.message, contains('taking too long'));
     });
 
     test('401 response → AuthException', () {
@@ -74,7 +118,9 @@ void main() {
         type: DioExceptionType.badResponse,
         statusCode: 422,
         responseData: {
-          'errors': {'Phone': ['Phone is invalid']}
+          'errors': {
+            'Phone': ['Phone is invalid']
+          }
         },
       );
       final ex = ErrorHandler.fromDio(e);
@@ -108,8 +154,7 @@ void main() {
     test('converts DioException message', () {
       final e = _makeDioException(type: DioExceptionType.connectionTimeout);
       final msg = ErrorHandler.message(e);
-      expect(msg, isA<String>());
-      expect(msg, isNotEmpty);
+      expect(msg, contains('taking too long'));
     });
 
     test('falls back to toString for unknown errors', () {

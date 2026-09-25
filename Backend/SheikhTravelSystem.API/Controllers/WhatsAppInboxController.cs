@@ -2,7 +2,9 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SheikhTravelSystem.API.Authorization;
 using SheikhTravelSystem.Application.Common;
+using SheikhTravelSystem.Application.Features.WhatsApp.AiAssist;
 using SheikhTravelSystem.Application.Features.WhatsApp.Commands;
+using SheikhTravelSystem.Application.Features.WhatsApp.DTOs;
 using SheikhTravelSystem.Application.Features.WhatsApp.Queries;
 
 namespace SheikhTravelSystem.API.Controllers;
@@ -25,6 +27,11 @@ public class WhatsAppInboxController : BaseApiController
     [RequirePermission(WhatsAppPermissions.ManageAccounts)]
     public async Task<IActionResult> CheckAccountHealth(int id)
         => Ok(await Mediator.Send(new CheckWhatsAppAccountHealthCommand(id)));
+
+    [HttpPost("accounts/{id:int}/templates/sync")]
+    [RequirePermission(WhatsAppPermissions.ManageTemplates)]
+    public async Task<IActionResult> SyncTemplates(int id)
+        => Ok(await Mediator.Send(new SyncWhatsAppTemplatesCommand(id)));
 
     [HttpGet("templates")]
     [RequirePermission(WhatsAppPermissions.View)]
@@ -69,6 +76,16 @@ public class WhatsAppInboxController : BaseApiController
         [FromQuery] int pageSize = 30)
         => Ok(await Mediator.Send(new GetWhatsAppConversationsQuery(accountId, search, filter, page, pageSize)));
 
+    [HttpGet("conversations/{id:int}/context")]
+    [RequirePermission(WhatsAppPermissions.View)]
+    public async Task<IActionResult> GetConversationContext(int id)
+        => Ok(await Mediator.Send(new GetWhatsAppConversationContextQuery(id)));
+
+    [HttpPost("conversations/{id:int}/create-lead")]
+    [RequirePermission(WhatsAppPermissions.Manage)]
+    public async Task<IActionResult> CreateLead(int id)
+        => Ok(await Mediator.Send(new CreateWhatsAppConversationLeadCommand(id)));
+
     [HttpPatch("conversations/{id:int}/assignment")]
     [RequirePermission(WhatsAppPermissions.Reply)]
     public async Task<IActionResult> SetAssignment(int id, [FromBody] SetWhatsAppAssignmentRequest body)
@@ -92,18 +109,57 @@ public class WhatsAppInboxController : BaseApiController
     [HttpPost("conversations/{id:int}/messages")]
     [RequirePermission(WhatsAppPermissions.Reply)]
     public async Task<IActionResult> SendMessage(int id, [FromBody] SendWhatsAppMessageRequest body)
-        => Ok(await Mediator.Send(new SendWhatsAppMessageCommand(id, body.Body ?? "")));
+        => ToSendResult(await Mediator.Send(new SendWhatsAppMessageCommand(id, body.Body ?? "")));
+
+    [HttpPost("conversations/{id:int}/ai/suggest")]
+    [RequirePermission(WhatsAppPermissions.AiAssist)]
+    public async Task<IActionResult> AiSuggest(int id, [FromBody] WhatsAppAiSuggestRequest? body)
+        => Ok(await Mediator.Send(new SuggestWhatsAppAiReplyCommand(
+            id, body?.PriorSuggestion, body?.Instruction)));
+
+    [HttpPost("conversations/{id:int}/ai/transform")]
+    [RequirePermission(WhatsAppPermissions.AiAssist)]
+    public async Task<IActionResult> AiTransform(int id, [FromBody] WhatsAppAiTransformRequest body)
+        => Ok(await Mediator.Send(new TransformWhatsAppAiReplyCommand(
+            id,
+            body.Action ?? "",
+            body.Text,
+            body.TargetLanguage,
+            body.PriorSuggestion)));
+
+    [HttpPost("conversations/{id:int}/ai/summary")]
+    [RequirePermission(WhatsAppPermissions.AiAssist)]
+    public async Task<IActionResult> AiSummary(int id)
+        => Ok(await Mediator.Send(new SummarizeWhatsAppConversationCommand(id)));
 
     /// <summary>Multi-number outbound send. Frontend must not send PhoneNumberId or access tokens.</summary>
     [HttpPost("send")]
     [RequirePermission(WhatsAppPermissions.Reply)]
     public async Task<IActionResult> SendOutbound([FromBody] SendWhatsAppOutboundRequest body)
-        => Ok(await Mediator.Send(new SendWhatsAppOutboundCommand(
+        => ToSendResult(await Mediator.Send(new SendWhatsAppOutboundCommand(
             body.WhatsAppAccountId,
             body.ConversationId,
             body.RecipientPhoneNumber,
             body.MessageType ?? "text",
             body.Text)));
+
+    [HttpPost("messages/{id:int}/retry")]
+    [RequirePermission(WhatsAppPermissions.Reply)]
+    public async Task<IActionResult> RetryMessage(int id)
+        => ToSendResult(await Mediator.Send(new RetryWhatsAppMessageCommand(id)));
+
+    [HttpGet("webhook-logs")]
+    [RequirePermission(WhatsAppPermissions.Manage)]
+    public async Task<IActionResult> GetWebhookLogs(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 30,
+        [FromQuery] string? status = null)
+        => Ok(await Mediator.Send(new GetWhatsAppWebhookLogsQuery(page, pageSize, status)));
+
+    [HttpPost("webhook-logs/{id:long}/requeue")]
+    [RequirePermission(WhatsAppPermissions.Manage)]
+    public async Task<IActionResult> RequeueWebhookLog(long id)
+        => Ok(await Mediator.Send(new RequeueWhatsAppWebhookLogCommand(id)));
 
     [HttpPost("conversations/{id:int}/read")]
     [RequirePermission(WhatsAppPermissions.View)]
@@ -133,6 +189,13 @@ public class WhatsAppInboxController : BaseApiController
         if (!result.Success || result.Data is null)
             return NotFound(result);
         return File(result.Data.Bytes, result.Data.ContentType);
+    }
+
+    private IActionResult ToSendResult(ApiResponse<SendWhatsAppMessageResultDto> result)
+    {
+        if (!result.Success && string.Equals(result.Code, "WINDOW_CLOSED", StringComparison.Ordinal))
+            return Conflict(result);
+        return Ok(result);
     }
 }
 
@@ -164,3 +227,9 @@ public record SetWhatsAppAssignmentRequest(int? AssignedUserId);
 public record SetWhatsAppStatusRequest(string? Status);
 public record SetWhatsAppBotRequest(bool IsBotEnabled, string? CurrentBotState = null);
 public record LinkWhatsAppCustomerRequest(int? CustomerId);
+public record WhatsAppAiSuggestRequest(string? PriorSuggestion = null, string? Instruction = null);
+public record WhatsAppAiTransformRequest(
+    string? Action,
+    string? Text = null,
+    string? TargetLanguage = null,
+    string? PriorSuggestion = null);

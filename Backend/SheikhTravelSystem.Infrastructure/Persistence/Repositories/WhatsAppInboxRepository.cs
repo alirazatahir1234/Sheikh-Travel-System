@@ -1,12 +1,14 @@
 using Dapper;
 using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
+using SheikhTravelSystem.Application.Features.WhatsApp;
 using SheikhTravelSystem.Application.Features.WhatsApp.DTOs;
 using SheikhTravelSystem.Infrastructure.Persistence;
 
 namespace SheikhTravelSystem.Infrastructure.Persistence.Repositories;
 
-public sealed class WhatsAppInboxRepository(IDbConnectionFactory dbFactory) : IWhatsAppInboxRepository
+public sealed class WhatsAppInboxRepository(IDbConnectionFactory dbFactory)
+    : IWhatsAppInboxRepository, IWhatsAppInboxExtended
 {
     private const string AccountSelect = """
         SELECT Id, TenantId, Code, Name, DisplayPhoneNumber, Purpose, PhoneNumberId, BusinessAccountId, IsActive,
@@ -131,7 +133,8 @@ public sealed class WhatsAppInboxRepository(IDbConnectionFactory dbFactory) : IW
                    WHEN c.CustomerPhoneNumber LIKE N'92%' OR c.CustomerPhoneNumber LIKE N'+92%' THEN N'PK'
                    ELSE NULL END) AS Country,
                c.LastIncomingMessageAt,
-               c.LastOutgoingMessageAt
+               c.LastOutgoingMessageAt,
+               c.WindowExpiresAt
         FROM WhatsAppConversations c
         INNER JOIN WhatsAppAccounts a ON a.Id = c.AccountId
         LEFT JOIN Users u ON u.Id = c.AssignedUserId
@@ -247,7 +250,12 @@ public sealed class WhatsAppInboxRepository(IDbConnectionFactory dbFactory) : IW
                    MessageId AS MetaMessageId,
                    MessageType AS Type,
                    Text AS Body,
-                   MediaId, Status, CreatedAt AS CreatedAtUtc
+                   MediaId, Status, CreatedAt AS CreatedAtUtc,
+                   ISNULL(AttemptCount, 1) AS AttemptCount,
+                   ErrorMessage,
+                   ErrorCode,
+                   AutomationEventId,
+                   (SELECT TOP 1 e.BookingId FROM WhatsAppAutomationEvents e WHERE e.Id = WhatsAppMessages.AutomationEventId) AS BookingId
             FROM WhatsAppMessages
             WHERE ConversationId = @ConversationId AND TenantId = @TenantId
             ORDER BY CreatedAt DESC, Id DESC
@@ -331,29 +339,28 @@ public sealed class WhatsAppInboxRepository(IDbConnectionFactory dbFactory) : IW
     public async Task<WhatsAppMessageStatusUpdate?> UpdateMessageStatusAsync(
         string messageId, string status, string? errorMessage = null, CancellationToken ct = default)
     {
-        var key = status.Trim().ToLowerInvariant();
-        var persisted = key switch
-        {
-            "sent" => "Sent",
-            "delivered" => "Delivered",
-            "read" => "Read",
-            "failed" => "Failed",
-            "queued" => "Queued",
-            "sending" => "Sending",
-            _ => null
-        };
-        if (persisted is null)
+        var key = WhatsAppMessageStatusPrecedence.Normalize(status);
+        if (key is null || key is "received")
+            return null;
+        if (key is not ("sent" or "delivered" or "read" or "failed" or "queued" or "sending"))
             return null;
 
+        var persisted = WhatsAppMessageStatusPrecedence.ToPersisted(key);
+
         using var connection = dbFactory.CreateConnection();
-        var row = await connection.QueryFirstOrDefaultAsync<(int Id, int TenantId, int ConversationId)>(new CommandDefinition("""
-            SELECT TOP 1 Id, TenantId, ConversationId
+        var row = await connection.QueryFirstOrDefaultAsync<(int Id, int TenantId, int ConversationId, string Status)>(
+            new CommandDefinition("""
+            SELECT TOP 1 Id, TenantId, ConversationId, Status
             FROM WhatsAppMessages
             WHERE MessageId = @MessageId
             """, new { MessageId = messageId }, cancellationToken: ct));
 
         if (row.Id == 0)
             return null;
+
+        if (!WhatsAppMessageStatusPrecedence.ShouldApply(row.Status, key))
+            return new WhatsAppMessageStatusUpdate(
+                row.TenantId, row.ConversationId, row.Id, messageId, row.Status);
 
         await connection.ExecuteAsync(new CommandDefinition("""
             UPDATE WhatsAppMessages
@@ -409,10 +416,10 @@ public sealed class WhatsAppInboxRepository(IDbConnectionFactory dbFactory) : IW
                 conversationId = await connection.ExecuteScalarAsync<int>(new CommandDefinition("""
                     INSERT INTO WhatsAppConversations
                         (TenantId, AccountId, CustomerPhoneNumber, CustomerName, CustomerId, LeadId, Status,
-                         LastMessageAt, LastIncomingMessageAt, UnreadCount, IsBotEnabled, CurrentBotState)
+                         LastMessageAt, LastIncomingMessageAt, WindowExpiresAt, UnreadCount, IsBotEnabled, CurrentBotState)
                     OUTPUT INSERTED.Id
                     VALUES (@TenantId, @AccountId, @Phone, @Name, @CustomerId, @LeadId, N'Open',
-                            SYSUTCDATETIME(), SYSUTCDATETIME(), 1, 1, N'Idle')
+                            SYSUTCDATETIME(), SYSUTCDATETIME(), DATEADD(HOUR, 24, SYSUTCDATETIME()), 1, 1, N'Idle')
                     """, new
                     {
                         request.TenantId,
@@ -429,6 +436,7 @@ public sealed class WhatsAppInboxRepository(IDbConnectionFactory dbFactory) : IW
                     UPDATE WhatsAppConversations
                     SET LastMessageAt = SYSUTCDATETIME(),
                         LastIncomingMessageAt = SYSUTCDATETIME(),
+                        WindowExpiresAt = DATEADD(HOUR, 24, SYSUTCDATETIME()),
                         UnreadCount = UnreadCount + 1,
                         Status = N'Open',
                         CustomerName = COALESCE(@Name, CustomerName),
@@ -684,6 +692,137 @@ public sealed class WhatsAppInboxRepository(IDbConnectionFactory dbFactory) : IW
             """, new { Reason = Truncate(reason, 400), PayloadPreview = Truncate(payloadPreview, 2000) }, cancellationToken: ct));
     }
 
+    public async Task<long> InsertWebhookLogAsync(
+        bool signatureValid,
+        string payload,
+        string processingStatus,
+        string? phoneNumberId = null,
+        int? tenantId = null,
+        string? error = null,
+        CancellationToken ct = default)
+    {
+        using var connection = dbFactory.CreateConnection();
+        return await connection.ExecuteScalarAsync<long>(new CommandDefinition("""
+            INSERT INTO WhatsAppWebhookLogs
+                (SignatureValid, Payload, ProcessingStatus, PhoneNumberId, TenantId, Error, Attempts)
+            OUTPUT INSERTED.Id
+            VALUES (@SignatureValid, @Payload, @ProcessingStatus, @PhoneNumberId, @TenantId, @Error, 0)
+            """, new
+            {
+                SignatureValid = signatureValid,
+                Payload = payload,
+                ProcessingStatus = Truncate(processingStatus, 32) ?? "Received",
+                PhoneNumberId = Truncate(phoneNumberId, 64),
+                TenantId = tenantId,
+                Error = Truncate(error, 2000)
+            }, cancellationToken: ct));
+    }
+
+    public async Task MarkWebhookLogProcessingAsync(long id, CancellationToken ct = default)
+    {
+        using var connection = dbFactory.CreateConnection();
+        await connection.ExecuteAsync(new CommandDefinition("""
+            UPDATE WhatsAppWebhookLogs
+            SET ProcessingStatus = N'Processing', Attempts = Attempts + 1
+            WHERE Id = @Id
+            """, new { Id = id }, cancellationToken: ct));
+    }
+
+    public async Task MarkWebhookLogSucceededAsync(long id, CancellationToken ct = default)
+    {
+        using var connection = dbFactory.CreateConnection();
+        await connection.ExecuteAsync(new CommandDefinition("""
+            UPDATE WhatsAppWebhookLogs
+            SET ProcessingStatus = N'Succeeded',
+                ProcessedAtUtc = SYSUTCDATETIME(),
+                Error = NULL
+            WHERE Id = @Id
+            """, new { Id = id }, cancellationToken: ct));
+    }
+
+    public async Task MarkWebhookLogFailedAsync(long id, string error, CancellationToken ct = default)
+    {
+        using var connection = dbFactory.CreateConnection();
+        await connection.ExecuteAsync(new CommandDefinition("""
+            UPDATE WhatsAppWebhookLogs
+            SET ProcessingStatus = N'Failed',
+                ProcessedAtUtc = SYSUTCDATETIME(),
+                Error = @Error
+            WHERE Id = @Id
+            """, new { Id = id, Error = Truncate(error, 2000) }, cancellationToken: ct));
+    }
+
+    public async Task<int> IncrementWebhookLogAttemptAsync(long id, string error, CancellationToken ct = default)
+    {
+        using var connection = dbFactory.CreateConnection();
+        return await connection.ExecuteScalarAsync<int>(new CommandDefinition("""
+            UPDATE WhatsAppWebhookLogs
+            SET Error = @Error,
+                ProcessingStatus = N'Received'
+            OUTPUT INSERTED.Attempts
+            WHERE Id = @Id
+            """, new { Id = id, Error = Truncate(error, 2000) }, cancellationToken: ct));
+    }
+
+    public async Task<(IReadOnlyList<WhatsAppWebhookLogDto> Items, int Total)> GetWebhookLogsAsync(
+        int page, int pageSize, string? status = null, CancellationToken ct = default)
+    {
+        page = Math.Max(1, page);
+        pageSize = Math.Clamp(pageSize, 1, 100);
+        using var connection = dbFactory.CreateConnection();
+        var total = await connection.ExecuteScalarAsync<int>(new CommandDefinition("""
+            SELECT COUNT(1) FROM WhatsAppWebhookLogs
+            WHERE (@Status IS NULL OR ProcessingStatus = @Status)
+            """, new { Status = string.IsNullOrWhiteSpace(status) ? null : status }, cancellationToken: ct));
+
+        var items = (await connection.QueryAsync<WhatsAppWebhookLogDto>(new CommandDefinition("""
+            SELECT Id, ReceivedAtUtc, SignatureValid, ProcessingStatus, Error, Attempts, ProcessedAtUtc,
+                   PhoneNumberId, TenantId,
+                   LEFT(Payload, 500) AS PayloadPreview
+            FROM WhatsAppWebhookLogs
+            WHERE (@Status IS NULL OR ProcessingStatus = @Status)
+            ORDER BY ReceivedAtUtc DESC, Id DESC
+            OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY
+            """, new
+            {
+                Status = string.IsNullOrWhiteSpace(status) ? null : status,
+                Offset = (page - 1) * pageSize,
+                PageSize = pageSize
+            }, cancellationToken: ct))).ToList();
+
+        return (items, total);
+    }
+
+    public async Task<WhatsAppWebhookLogDto?> GetWebhookLogAsync(long id, CancellationToken ct = default)
+    {
+        using var connection = dbFactory.CreateConnection();
+        return await connection.QuerySingleOrDefaultAsync<WhatsAppWebhookLogDto>(new CommandDefinition("""
+            SELECT Id, ReceivedAtUtc, SignatureValid, ProcessingStatus, Error, Attempts, ProcessedAtUtc,
+                   PhoneNumberId, TenantId,
+                   LEFT(Payload, 4000) AS PayloadPreview
+            FROM WhatsAppWebhookLogs
+            WHERE Id = @Id
+            """, new { Id = id }, cancellationToken: ct));
+    }
+
+    public async Task<string?> GetWebhookLogPayloadAsync(long id, CancellationToken ct = default)
+    {
+        using var connection = dbFactory.CreateConnection();
+        return await connection.ExecuteScalarAsync<string?>(new CommandDefinition("""
+            SELECT Payload FROM WhatsAppWebhookLogs WHERE Id = @Id
+            """, new { Id = id }, cancellationToken: ct));
+    }
+
+    public async Task DeleteOldWebhookLogsAsync(int retentionDays, CancellationToken ct = default)
+    {
+        retentionDays = Math.Clamp(retentionDays, 7, 365);
+        using var connection = dbFactory.CreateConnection();
+        await connection.ExecuteAsync(new CommandDefinition("""
+            DELETE FROM WhatsAppWebhookLogs
+            WHERE ReceivedAtUtc < DATEADD(DAY, -@Days, SYSUTCDATETIME())
+            """, new { Days = retentionDays }, cancellationToken: ct));
+    }
+
     public async Task DeleteOldMessagesAsync(int retentionDays, CancellationToken ct = default)
     {
         retentionDays = Math.Clamp(retentionDays, 30, 3650);
@@ -692,6 +831,155 @@ public sealed class WhatsAppInboxRepository(IDbConnectionFactory dbFactory) : IW
             DELETE FROM WhatsAppMessages
             WHERE CreatedAt < DATEADD(DAY, -@Days, SYSUTCDATETIME())
             """, new { Days = retentionDays }, cancellationToken: ct));
+    }
+
+    public async Task SetConversationWindowExpiresAtAsync(
+        int conversationId, DateTime? windowExpiresAtUtc, CancellationToken ct = default)
+    {
+        using var connection = dbFactory.CreateConnection();
+        await connection.ExecuteAsync(new CommandDefinition("""
+            UPDATE WhatsAppConversations
+            SET WindowExpiresAt = @WindowExpiresAt, UpdatedAt = SYSUTCDATETIME()
+            WHERE Id = @Id
+            """, new { Id = conversationId, WindowExpiresAt = windowExpiresAtUtc }, cancellationToken: ct));
+    }
+
+    public async Task<WhatsAppOutboundMessageRow?> GetOutboundMessageForRetryAsync(
+        int tenantId, int messageId, CancellationToken ct = default)
+    {
+        using var connection = dbFactory.CreateConnection();
+        return await connection.QuerySingleOrDefaultAsync<WhatsAppOutboundMessageRow>(new CommandDefinition("""
+            SELECT Id, ConversationId, AccountId, MessageId, MessageType, Text, TemplateName, Status,
+                   ISNULL(AttemptCount, 1) AS AttemptCount, ErrorMessage
+            FROM WhatsAppMessages
+            WHERE TenantId = @TenantId AND Id = @Id AND Direction = N'Outbound'
+            """, new { TenantId = tenantId, Id = messageId }, cancellationToken: ct));
+    }
+
+    public async Task IncrementMessageAttemptAsync(
+        int tenantId, int messageId, string? newMetaMessageId, string status, CancellationToken ct = default)
+    {
+        using var connection = dbFactory.CreateConnection();
+        await connection.ExecuteAsync(new CommandDefinition("""
+            UPDATE WhatsAppMessages
+            SET AttemptCount = ISNULL(AttemptCount, 1) + 1,
+                MessageId = COALESCE(@MessageId, MessageId),
+                Status = @Status,
+                SentAt = CASE WHEN @Status IN (N'Sent', N'Queued') THEN COALESCE(SentAt, SYSUTCDATETIME()) ELSE SentAt END,
+                ErrorMessage = CASE WHEN @Status = N'Failed' THEN ErrorMessage ELSE NULL END
+            WHERE TenantId = @TenantId AND Id = @Id
+            """, new
+            {
+                TenantId = tenantId,
+                Id = messageId,
+                MessageId = newMetaMessageId,
+                Status = status
+            }, cancellationToken: ct));
+    }
+
+    public async Task<WhatsAppConversationContextDto?> GetConversationContextAsync(
+        int tenantId, int conversationId, CancellationToken ct = default)
+    {
+        using var connection = dbFactory.CreateConnection();
+        var header = await connection.QuerySingleOrDefaultAsync<(
+            int ConversationId,
+            string ContactPhone,
+            string? ContactName,
+            int? CustomerId,
+            string? CustomerName,
+            string? CustomerCompany,
+            int? LeadId,
+            string? LeadStatus)>(new CommandDefinition("""
+            SELECT c.Id AS ConversationId,
+                   c.CustomerPhoneNumber AS ContactPhone,
+                   c.CustomerName AS ContactName,
+                   c.CustomerId,
+                   cust.FullName AS CustomerName,
+                   COALESCE(NULLIF(LTRIM(RTRIM(lead.Company)), N''), NULL) AS CustomerCompany,
+                   c.LeadId,
+                   lead.Status AS LeadStatus
+            FROM WhatsAppConversations c
+            LEFT JOIN Customers cust ON cust.Id = c.CustomerId
+            LEFT JOIN WebsiteContactRequests lead ON lead.Id = c.LeadId
+            WHERE c.TenantId = @TenantId AND c.Id = @Id
+            """, new { TenantId = tenantId, Id = conversationId }, cancellationToken: ct));
+
+        if (header.ConversationId == 0)
+            return null;
+
+        var bookings = new List<WhatsAppContextBookingDto>();
+        WhatsAppContextTripDto? lastTrip = null;
+        decimal unpaid = 0m;
+
+        if (header.CustomerId is > 0)
+        {
+            try
+            {
+                bookings = (await connection.QueryAsync<WhatsAppContextBookingDto>(new CommandDefinition("""
+                    SELECT TOP 5 Id, BookingNumber, Status, PickupTime AS TravelDate
+                    FROM Bookings
+                    WHERE TenantId = @TenantId AND CustomerId = @CustomerId AND IsDeleted = 0
+                      AND Status NOT IN (N'Completed', N'Cancelled', N'Canceled')
+                    ORDER BY PickupTime DESC, Id DESC
+                    """, new { TenantId = tenantId, CustomerId = header.CustomerId }, cancellationToken: ct))).ToList();
+            }
+            catch
+            {
+                bookings = [];
+            }
+
+            try
+            {
+                lastTrip = await connection.QuerySingleOrDefaultAsync<WhatsAppContextTripDto>(new CommandDefinition("""
+                    SELECT TOP 1 t.Id, t.TripNumber, CAST(t.Status AS NVARCHAR(40)) AS Status, t.ActualEnd AS CompletedAt
+                    FROM Trips t
+                    INNER JOIN Bookings b ON b.Id = t.BookingId
+                    WHERE t.TenantId = @TenantId AND b.CustomerId = @CustomerId AND t.IsDeleted = 0
+                      AND t.Status = 9
+                    ORDER BY t.ActualEnd DESC, t.Id DESC
+                    """, new { TenantId = tenantId, CustomerId = header.CustomerId }, cancellationToken: ct));
+            }
+            catch
+            {
+                lastTrip = null;
+            }
+
+            try
+            {
+                unpaid = await connection.ExecuteScalarAsync<decimal>(new CommandDefinition("""
+                    SELECT ISNULL(SUM(
+                        CASE
+                            WHEN b.TotalAmount > ISNULL(paid.PaidAmount, 0)
+                            THEN b.TotalAmount - ISNULL(paid.PaidAmount, 0)
+                            ELSE 0
+                        END), 0)
+                    FROM Bookings b
+                    OUTER APPLY (
+                        SELECT ISNULL(SUM(CASE WHEN p.Status IN (N'Partial', N'Paid', N'Completed') THEN p.Amount ELSE 0 END), 0) AS PaidAmount
+                        FROM Payments p
+                        WHERE p.BookingId = b.Id
+                    ) paid
+                    WHERE b.TenantId = @TenantId AND b.CustomerId = @CustomerId AND b.IsDeleted = 0
+                    """, new { TenantId = tenantId, CustomerId = header.CustomerId }, cancellationToken: ct));
+            }
+            catch
+            {
+                unpaid = 0m;
+            }
+        }
+
+        return new WhatsAppConversationContextDto(
+            header.ConversationId,
+            header.ContactPhone,
+            header.ContactName,
+            header.CustomerId,
+            header.CustomerName,
+            header.CustomerCompany,
+            header.LeadId,
+            header.LeadStatus,
+            bookings,
+            lastTrip,
+            unpaid);
     }
 
     private static async Task<int?> FindCustomerIdByPhoneInTxAsync(

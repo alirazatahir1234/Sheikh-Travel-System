@@ -1,7 +1,7 @@
 name: sheikh_go_driver
 description: SheikhGo Fleet — Mobile fleet operations app for the SheikhGo platform
 publish_to: 'none'
-version: 1.0.0+8
+version: 1.0.0+10
 
 environment:
   sdk: '>=3.2.0 <4.0.0'

@@ -12,6 +12,8 @@ public sealed class WhatsAppRetentionHostedService(
     IOptions<WhatsAppOptions> options,
     ILogger<WhatsAppRetentionHostedService> logger) : BackgroundService
 {
+    private const int WebhookLogRetentionDays = 30;
+
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         while (!stoppingToken.IsCancellationRequested)
@@ -22,8 +24,12 @@ public sealed class WhatsAppRetentionHostedService(
                 var days = Math.Max(30, options.Value.MessageRetentionDays);
                 using var scope = scopeFactory.CreateScope();
                 var repo = scope.ServiceProvider.GetRequiredService<IWhatsAppInboxRepository>();
+                var inboxExtended = scope.ServiceProvider.GetRequiredService<IWhatsAppInboxExtended>();
                 await repo.DeleteOldMessagesAsync(days, stoppingToken);
-                logger.LogInformation("WhatsApp retention completed. RetentionDays={Days}", days);
+                await inboxExtended.DeleteOldWebhookLogsAsync(WebhookLogRetentionDays, stoppingToken);
+                logger.LogInformation(
+                    "WhatsApp retention completed. MessageDays={Days} WebhookLogDays={WebhookDays}",
+                    days, WebhookLogRetentionDays);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {

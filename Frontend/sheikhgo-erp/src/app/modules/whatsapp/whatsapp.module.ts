@@ -9,6 +9,9 @@ import { WhatsAppAccountViewDialogComponent } from './whatsapp-accounts/whatsapp
 import { WhatsAppAccountTestDialogComponent } from './whatsapp-accounts/whatsapp-account-test-dialog.component';
 import { WhatsAppTemplatesComponent } from './whatsapp-templates/whatsapp-templates.component';
 
+import { WhatsAppWebhookLogsComponent } from './whatsapp-webhook-logs/whatsapp-webhook-logs.component';
+import { WhatsAppAutomationsComponent } from './whatsapp-automations/whatsapp-automations.component';
+
 const routes: Routes = [
   { path: '', component: WhatsAppInboxComponent },
   {
@@ -22,6 +25,18 @@ const routes: Routes = [
     canActivate: [permissionGuard],
     data: { permissions: ['WhatsApp.ManageTemplates', 'WhatsApp.View'] },
     component: WhatsAppTemplatesComponent
+  },
+  {
+    path: 'automations',
+    canActivate: [permissionGuard],
+    data: { permissions: ['WhatsApp.Manage', 'WhatsApp.View'] },
+    component: WhatsAppAutomationsComponent
+  },
+  {
+    path: 'webhook-logs',
+    canActivate: [permissionGuard],
+    data: { permissions: ['WhatsApp.Manage'] },
+    component: WhatsAppWebhookLogsComponent
   }
 ];
 
@@ -31,7 +46,9 @@ const routes: Routes = [
     WhatsAppAccountsComponent,
     WhatsAppAccountViewDialogComponent,
     WhatsAppAccountTestDialogComponent,
-    WhatsAppTemplatesComponent
+    WhatsAppTemplatesComponent,
+    WhatsAppAutomationsComponent,
+    WhatsAppWebhookLogsComponent
   ],
   imports: [SharedModule, RouterModule.forChild(routes), UiPageHeaderComponent]
 })

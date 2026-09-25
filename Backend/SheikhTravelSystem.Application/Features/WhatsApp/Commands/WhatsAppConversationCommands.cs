@@ -149,3 +149,40 @@ public class SetWhatsAppConversationBotCommandHandler(
             WhatsAppMessagingWindow.WithWindowFlag(updated));
     }
 }
+
+public record CreateWhatsAppConversationLeadCommand(int ConversationId)
+    : IRequest<ApiResponse<WhatsAppConversationContextDto>>, IAuditableCommand
+{
+    public string AuditAction => "Create";
+    public string AuditEntityName => "WebsiteContactRequest";
+    public int? AuditEntityId => null;
+}
+
+public class CreateWhatsAppConversationLeadCommandHandler(
+    IWhatsAppInboxRepository repository,
+    IWhatsAppInboxExtended inboxExtended,
+    IWhatsAppCrmLeadService crmLeadService,
+    ITenantContext tenantContext)
+    : IRequestHandler<CreateWhatsAppConversationLeadCommand, ApiResponse<WhatsAppConversationContextDto>>
+{
+    public async Task<ApiResponse<WhatsAppConversationContextDto>> Handle(
+        CreateWhatsAppConversationLeadCommand request, CancellationToken cancellationToken)
+    {
+        var tenantId = tenantContext.GetRequiredTenantId();
+        var conversation = await repository.GetConversationAsync(tenantId, request.ConversationId, cancellationToken);
+        if (conversation is null)
+            return ApiResponse<WhatsAppConversationContextDto>.FailResponse("Conversation not found.");
+
+        await crmLeadService.EnsureLeadLinkedAsync(
+            tenantId,
+            conversation,
+            conversation.ContactPhone,
+            conversation.ContactName,
+            cancellationToken);
+
+        var ctx = await inboxExtended.GetConversationContextAsync(tenantId, request.ConversationId, cancellationToken);
+        return ctx is null
+            ? ApiResponse<WhatsAppConversationContextDto>.FailResponse("Conversation not found after lead create.")
+            : ApiResponse<WhatsAppConversationContextDto>.SuccessResponse(ctx);
+    }
+}

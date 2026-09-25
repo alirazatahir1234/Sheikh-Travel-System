@@ -15,6 +15,7 @@ export class WhatsAppTemplatesComponent implements OnInit {
   templates: WhatsAppTemplate[] = [];
   selectedAccountId: number | null = null;
   loading = false;
+  syncing = false;
   busyId: number | null = null;
 
   readonly breadcrumbs = [
@@ -77,6 +78,27 @@ export class WhatsAppTemplatesComponent implements OnInit {
       error: err => {
         this.busyId = null;
         this.toast.error(err?.error?.message || 'Status update failed.');
+      }
+    });
+  }
+
+  syncFromMeta(): void {
+    if (!this.canManageTemplates || this.syncing) return;
+    const accountId = this.selectedAccountId ?? this.accounts[0]?.id;
+    if (!accountId) {
+      this.toast.error('Select an account to sync.');
+      return;
+    }
+    this.syncing = true;
+    this.api.syncTemplates(accountId).subscribe({
+      next: res => {
+        this.syncing = false;
+        this.toast.success(`Synced ${res?.synced ?? 0} templates from Meta.`);
+        this.load();
+      },
+      error: err => {
+        this.syncing = false;
+        this.toast.error(err?.error?.message || 'Meta sync failed.');
       }
     });
   }

@@ -61,6 +61,14 @@ public static class WhatsAppTemplatesMigration
             END
             """, cancellationToken: cancellationToken));
 
+        // Idempotent: table may already exist from a failed earlier attempt without IsDeleted.
+        await connection.ExecuteAsync(new CommandDefinition("""
+            IF OBJECT_ID(N'WhatsAppTemplates', N'U') IS NOT NULL
+               AND COL_LENGTH(N'WhatsAppTemplates', N'IsDeleted') IS NULL
+                ALTER TABLE WhatsAppTemplates ADD IsDeleted BIT NOT NULL
+                    CONSTRAINT DF_WhatsAppTemplates_IsDeleted DEFAULT 0;
+            """, cancellationToken: cancellationToken));
+
         await SeedPermissionsAsync(connection, cancellationToken);
         await SeedCatalogAsync(connection, cancellationToken);
 
@@ -102,8 +110,9 @@ public static class WhatsAppTemplatesMigration
                 cancellationToken: ct)) != 1)
             return;
 
+        // WhatsAppAccounts has IsActive, not IsDeleted (see WhatsAppDomainFoundationMigration).
         var accounts = (await connection.QueryAsync<(int Id, int TenantId)>(new CommandDefinition("""
-            SELECT Id, TenantId FROM WhatsAppAccounts WHERE IsDeleted = 0
+            SELECT Id, TenantId FROM WhatsAppAccounts WHERE IsActive = 1
             """, cancellationToken: ct))).ToList();
 
         foreach (var account in accounts)

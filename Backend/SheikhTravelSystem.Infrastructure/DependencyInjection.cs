@@ -29,7 +29,9 @@ using SheikhTravelSystem.Infrastructure.Services.Storage;
 using SheikhTravelSystem.Infrastructure.Services.Google;
 using SheikhTravelSystem.Infrastructure.Services.WhatsApp;
 using SheikhTravelSystem.Application.Features.WhatsApp;
+using SheikhTravelSystem.Application.Features.WhatsApp.Automation;
 using SheikhTravelSystem.Application.Features.WhatsApp.Bot;
+using SheikhTravelSystem.Application.Features.WhatsApp.AiAssist;
 using SheikhTravelSystem.Infrastructure.Caching;
 using SheikhTravelSystem.Infrastructure.SignalR;
 
@@ -138,16 +140,29 @@ public static class DependencyInjection
         services.AddScoped<INotificationChannelSender, PushNotificationSender>();
         services.AddScoped<INotificationChannelSender, BrowserNotificationSender>();
         services.AddScoped<INotificationChannelSender, WhatsAppNotificationSender>();
-        services.AddScoped<IWhatsAppInboxRepository, WhatsAppInboxRepository>();
+        services.AddScoped<WhatsAppInboxRepository>();
+        services.AddScoped<IWhatsAppInboxRepository>(sp => sp.GetRequiredService<WhatsAppInboxRepository>());
+        services.AddScoped<IWhatsAppInboxExtended>(sp => sp.GetRequiredService<WhatsAppInboxRepository>());
+        services.AddScoped<IWhatsAppAiAssistAuditRepository, WhatsAppAiAssistAuditRepository>();
+        services.AddScoped<WhatsAppAiAssistRunner>();
+        services.AddScoped<IWhatsAppAutomationRepository, WhatsAppAutomationRepository>();
         services.AddScoped<IWhatsAppTemplateRepository, WhatsAppTemplateRepository>();
-        services.AddScoped<IWhatsAppCloudApiService, WhatsAppCloudApiService>();
+        services.AddScoped<WhatsAppCloudApiService>();
+        services.AddScoped<IWhatsAppCloudApiService>(sp => sp.GetRequiredService<WhatsAppCloudApiService>());
+        services.AddScoped<IWhatsAppCloudApiExtended>(sp => sp.GetRequiredService<WhatsAppCloudApiService>());
         services.AddSingleton<IWhatsAppAccountConfig, WhatsAppAccountConfig>();
         services.AddSingleton<IWhatsAppRoutingService, WhatsAppRoutingService>();
         services.AddScoped<IWhatsAppAccountResolver, WhatsAppAccountResolver>();
         services.AddScoped<IWhatsAppRealtimePublisher, WhatsAppRealtimePublisher>();
         services.AddScoped<IWhatsAppCrmLeadService, WhatsAppCrmLeadService>();
+        services.AddScoped<IWhatsAppAutomationTrigger, WhatsAppAutomationTrigger>();
+        services.AddScoped<IWhatsAppAutomationHooks, WhatsAppAutomationHooks>();
+        services.AddSingleton<ITrackingTokenProtector, TrackingTokenProtector>();
         services.AddSingleton<IWhatsAppDemoQualificationBot, WhatsAppDemoQualificationBot>();
+        services.AddScoped<IWhatsAppSelfServiceBot, WhatsAppSelfServiceBot>();
+        services.AddScoped<IWhatsAppSelfServiceRepository, WhatsAppSelfServiceRepository>();
         services.AddScoped<IWhatsAppBotOrchestrator, WhatsAppBotOrchestrator>();
+        services.AddScoped<IWhatsAppPaymentNotifier, WhatsAppPaymentNotifier>();
         services.Configure<WhatsAppOptions>(configuration.GetSection(WhatsAppOptions.SectionName));
         services.Configure<WhatsAppRoutingOptions>(configuration.GetSection(WhatsAppRoutingOptions.SectionName));
         services.AddHttpClient(WhatsAppCloudApiService.HttpClientName, (sp, client) =>
@@ -158,6 +173,10 @@ public static class DependencyInjection
             client.Timeout = TimeSpan.FromSeconds(30);
         });
         services.AddHostedService<WhatsAppRetentionHostedService>();
+        services.AddSingleton<IWhatsAppWorkQueue, ChannelWhatsAppWorkQueue>();
+        services.AddHostedService<WhatsAppInboundWorkerHostedService>();
+        services.AddHostedService<WhatsAppAutomationWorkerHostedService>();
+        services.AddHostedService<WhatsAppAutomationSchedulerHostedService>();
         services.AddSingleton<FcmHttpV1Client>();
         services.AddHttpClient("FcmHttpV1");
         services.AddHostedService<NotificationDispatchHostedService>();
@@ -188,7 +207,7 @@ public static class DependencyInjection
         services.AddScoped<IAiToolEngine, AiToolEngine>();
 
         services.AddScoped<SheikhTravelSystem.Infrastructure.Services.Ai.Providers.OllamaAiProvider>();
-        services.AddScoped<SheikhTravelSystem.Infrastructure.Services.Ai.Providers.IAiProviderResolver,
+        services.AddScoped<IAiProviderResolver,
             SheikhTravelSystem.Infrastructure.Services.Ai.Providers.AiProviderResolver>();
         services.AddScoped<IAiChatGateway, SheikhTravelSystem.Infrastructure.Services.Ai.AiChatGateway>();
         services.AddHttpClient(SheikhTravelSystem.Infrastructure.Services.Ai.Providers.OllamaAiProvider.HttpClientName, client =>

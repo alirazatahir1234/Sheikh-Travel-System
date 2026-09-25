@@ -26,6 +26,12 @@ public sealed class WhatsAppOptions
 
     public string NotificationTemplateLanguage { get; set; } = "en";
 
+    /// <summary>Optional route used when WhatsApp self-service creates a booking.</summary>
+    public int SelfServiceDefaultRouteId { get; set; }
+
+    /// <summary>Placeholder fare until ops confirms (PKR).</summary>
+    public decimal SelfServiceDefaultAmount { get; set; } = 1000m;
+
     /// <summary>Env: WhatsApp__Uae__*</summary>
     public WhatsAppAccountOptions Uae { get; set; } = new();
 

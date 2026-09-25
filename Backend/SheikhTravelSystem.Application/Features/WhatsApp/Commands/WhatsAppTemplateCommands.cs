@@ -108,7 +108,10 @@ public record SendWhatsAppTemplateCommand(
     string? RecipientPhoneNumber,
     string TemplateName,
     string Language = "en",
-    IReadOnlyList<string>? BodyParameters = null)
+    IReadOnlyList<string>? BodyParameters = null,
+    string? UrlButtonSuffix = null,
+    IReadOnlyList<string>? QuickReplyPayloads = null,
+    long? AutomationEventId = null)
     : IRequest<ApiResponse<SendWhatsAppMessageResultDto>>, IAuditableCommand
 {
     public string AuditAction => "Create";
@@ -131,7 +134,7 @@ public class SendWhatsAppTemplateCommandValidator : AbstractValidator<SendWhatsA
 public class SendWhatsAppTemplateCommandHandler(
     IWhatsAppInboxRepository repository,
     IWhatsAppTemplateRepository templates,
-    IWhatsAppCloudApiService cloudApi,
+    IWhatsAppCloudApiExtended cloudApi,
     IWhatsAppAccountConfig accountConfig,
     IWhatsAppAccountResolver accountResolver,
     ITenantContext tenantContext,
@@ -207,6 +210,8 @@ public class SendWhatsAppTemplateCommandHandler(
             template.Name,
             language,
             request.BodyParameters,
+            request.UrlButtonSuffix,
+            request.QuickReplyPayloads,
             cancellationToken);
 
         if (!send.Success)
@@ -218,6 +223,11 @@ public class SendWhatsAppTemplateCommandHandler(
         }
 
         await repository.SetOutboundMetaIdAsync(pendingId, send.MetaMessageId!, "Sent", cancellationToken);
+        if (request.AutomationEventId is > 0)
+        {
+            // Linked via ProcessAutomationEvent after send; optional best-effort if repo supports it.
+        }
+
         await realtime.PublishAsync(tenantId, new
         {
             type = "whatsapp.message",
@@ -225,7 +235,8 @@ public class SendWhatsAppTemplateCommandHandler(
             conversationId,
             messageId = pendingId,
             direction = "Outbound",
-            unreadCount = 0
+            unreadCount = 0,
+            automationEventId = request.AutomationEventId
         }, cancellationToken);
 
         return ApiResponse<SendWhatsAppMessageResultDto>.SuccessResponse(

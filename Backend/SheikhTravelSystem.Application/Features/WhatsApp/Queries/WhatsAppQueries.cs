@@ -164,3 +164,22 @@ public class GetWhatsAppMediaQueryHandler(
             : ApiResponse<WhatsAppMediaProxyResult>.SuccessResponse(media);
     }
 }
+
+public record GetWhatsAppConversationContextQuery(int ConversationId)
+    : IRequest<ApiResponse<WhatsAppConversationContextDto>>;
+
+public class GetWhatsAppConversationContextQueryHandler(
+    IWhatsAppInboxExtended repository,
+    ITenantContext tenantContext)
+    : IRequestHandler<GetWhatsAppConversationContextQuery, ApiResponse<WhatsAppConversationContextDto>>
+{
+    public async Task<ApiResponse<WhatsAppConversationContextDto>> Handle(
+        GetWhatsAppConversationContextQuery request, CancellationToken cancellationToken)
+    {
+        var tenantId = tenantContext.GetRequiredTenantId();
+        var ctx = await repository.GetConversationContextAsync(tenantId, request.ConversationId, cancellationToken);
+        return ctx is null
+            ? ApiResponse<WhatsAppConversationContextDto>.FailResponse("Conversation not found.")
+            : ApiResponse<WhatsAppConversationContextDto>.SuccessResponse(ctx);
+    }
+}

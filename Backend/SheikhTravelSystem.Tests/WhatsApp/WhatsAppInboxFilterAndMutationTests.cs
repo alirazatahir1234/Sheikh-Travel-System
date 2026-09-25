@@ -16,10 +16,24 @@ public class WhatsAppInboxFilterAndMutationTests
         int? assigned = null,
         bool bot = false,
         string status = "Open")
-        => new(
-            id, 1, "UAE", id, "+971501111111", "Ali", null, status, DateTime.UtcNow, unread, "Hi",
-            AssignedUserId: assigned, AssignedUserName: assigned is null ? null : "Agent",
-            IsBotEnabled: bot, Country: "AE");
+        => new()
+        {
+            Id = id,
+            AccountId = 1,
+            AccountCode = "UAE",
+            ContactId = id,
+            ContactPhone = "+971501111111",
+            ContactName = "Ali",
+            CustomerId = null,
+            Status = status,
+            LastMessageAt = DateTime.UtcNow,
+            UnreadCount = unread,
+            LastMessagePreview = "Hi",
+            AssignedUserId = assigned,
+            AssignedUserName = assigned is null ? null : "Agent",
+            IsBotEnabled = bot,
+            Country = "AE"
+        };
 
     [Fact]
     public async Task GetConversations_PassesFilterAndCurrentUser()

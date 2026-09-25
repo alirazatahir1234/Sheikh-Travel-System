@@ -1,7 +1,7 @@
 <div class="wa-inbox-page stb-page">
   <ui-page-header
     title="WhatsApp Inbox"
-    subtitle="Conversations across SheikhGo UAE (Sales/GCC) and Pakistan (Support)"
+    subtitle="Conversations on SheikhGo Pakistan WhatsApp"
     [breadcrumbs]="breadcrumbs">
     <div class="header-actions">
       <button mat-stroked-button type="button" (click)="refreshConversations()" [disabled]="loadingList">
@@ -39,7 +39,7 @@
     </button>
   </div>
 
-  <div class="wa-shell" [class.mobile-thread]="mobileShowThread">
+  <div class="wa-shell" [class.mobile-thread]="mobileShowThread" [class.has-context]="!!selected">
     <aside class="wa-list" [class.hidden-mobile]="mobileShowThread">
       <div class="wa-search">
         <mat-icon>search</mat-icon>
@@ -104,13 +104,10 @@
             </span>
             <span
               class="wa-badge window"
-              [class.open]="conv.isWithinMessagingWindow"
-              [class.closed]="!conv.isWithinMessagingWindow">
-              {{
-                conv.isWithinMessagingWindow
-                  ? 'Window open'
-                  : 'Window closed — template required'
-              }}
+              [class.open]="windowTone === 'open'"
+              [class.amber]="windowTone === 'amber'"
+              [class.closed]="windowTone === 'closed'">
+              {{ windowLabel }}
             </span>
           </div>
         </div>
@@ -140,16 +137,89 @@
             <mat-icon>done_all</mat-icon>
             Mark read
           </button>
-        </div>
-        <div class="wa-thread__crm" *ngIf="canManage">
-          <button mat-stroked-button type="button" (click)="autoLink()" *ngIf="!(contact?.customerId || conv.customerId)">
-            Auto-link customer
-          </button>
-          <button mat-stroked-button type="button" (click)="openCustomer()" *ngIf="contact?.customerId || conv.customerId">
-            Open customer
+          <button
+            *ngIf="canAiAssist"
+            mat-stroked-button
+            type="button"
+            class="wa-ai-toggle"
+            [class.active]="aiAssistOpen"
+            (click)="toggleAiAssist()">
+            <mat-icon>auto_awesome</mat-icon>
+            AI Assist
           </button>
         </div>
       </header>
+
+      <div class="wa-ai-panel" *ngIf="canAiAssist && aiAssistOpen && selected">
+        <div class="wa-ai-panel__head">
+          <strong>AI Suggested Reply</strong>
+          <span
+            class="wa-ai-confidence"
+            *ngIf="aiResult"
+            [attr.data-level]="aiResult.confidence">
+            {{ aiResult.confidence }}
+          </span>
+        </div>
+        <p class="wa-ai-review" *ngIf="aiResult?.reviewRecommended">Human review recommended</p>
+        <p class="wa-ai-error" *ngIf="aiError">{{ aiError }}</p>
+        <div class="wa-ai-actions">
+          <button mat-stroked-button type="button" (click)="generateAiReply()" [disabled]="aiBusy">
+            Generate Reply
+          </button>
+          <button mat-stroked-button type="button" (click)="regenerateAiReply()" [disabled]="aiBusy || !aiResult">
+            Regenerate
+          </button>
+          <button mat-stroked-button type="button" (click)="transformAi('Shorter')" [disabled]="aiBusy">
+            Make Shorter
+          </button>
+          <button mat-stroked-button type="button" (click)="transformAi('Professional')" [disabled]="aiBusy">
+            More Professional
+          </button>
+          <button mat-stroked-button type="button" (click)="transformAi('Translate')" [disabled]="aiBusy">
+            Translate
+          </button>
+          <button mat-stroked-button type="button" (click)="summarizeConversation()" [disabled]="aiBusy">
+            Summarize
+          </button>
+        </div>
+        <mat-form-field appearance="outline" class="wa-ai-lang" subscriptSizing="dynamic">
+          <mat-label>Translate to</mat-label>
+          <mat-select [(ngModel)]="aiTranslateLang">
+            <mat-option value="English">English</mat-option>
+            <mat-option value="Urdu">Urdu</mat-option>
+            <mat-option value="Roman Urdu">Roman Urdu</mat-option>
+          </mat-select>
+        </mat-form-field>
+        <div class="wa-ai-busy" *ngIf="aiBusy">
+          <mat-spinner diameter="22"></mat-spinner>
+          <span>Generating…</span>
+        </div>
+        <div class="wa-ai-suggestion" *ngIf="aiResult && !aiBusy">
+          <p>{{ aiResult.suggestion }}</p>
+          <div class="wa-ai-suggestion__actions">
+            <button mat-stroked-button type="button" (click)="useAiSuggestionInDraft()">Edit</button>
+            <button
+              mat-flat-button
+              color="primary"
+              type="button"
+              (click)="sendAiSuggestion()"
+              [disabled]="!canReply || sending || !isWindowOpen">
+              Send
+            </button>
+            <button mat-stroked-button type="button" (click)="regenerateAiReply()" [disabled]="aiBusy">
+              Regenerate
+            </button>
+          </div>
+          <p class="wa-ai-meta muted" *ngIf="aiResult.provider">
+            {{ aiResult.provider }}{{ aiResult.model ? ' · ' + aiResult.model : '' }}
+            · {{ aiResult.durationMs }}ms
+          </p>
+        </div>
+        <div class="wa-ai-summary" *ngIf="aiSummary">
+          <strong>Conversation Summary</strong>
+          <pre>{{ aiSummary }}</pre>
+        </div>
+      </div>
 
       <div class="wa-messages" *ngIf="!loadingThread; else threadLoading">
         <button
@@ -165,13 +235,35 @@
           *ngFor="let m of messages"
           [class.out]="m.direction === 'Outbound'"
           [class.in]="m.direction !== 'Outbound'">
-          <div class="wa-bubble__body">{{ m.body || ('[' + m.type + ']') }}</div>
+          <div class="wa-bubble__body">
+            <span class="wa-auto-badge" *ngIf="m.automationEventId">Auto</span>
+            <a
+              class="wa-booking-link"
+              *ngIf="m.bookingId"
+              [routerLink]="['/bookings', m.bookingId]">
+              Booking #{{ m.bookingId }}
+            </a>
+            {{ m.body || ('[' + m.type + ']') }}
+          </div>
           <div class="wa-bubble__meta">
             <span>{{ m.createdAtUtc | date: 'short' }}</span>
-            <mat-icon *ngIf="m.direction === 'Outbound'" class="tick" [class.read]="(m.status || '').toLowerCase() === 'read'"
-                      [class.failed]="(m.status || '').toLowerCase() === 'failed'">
+            <mat-icon
+              *ngIf="m.direction === 'Outbound'"
+              class="tick"
+              [class.read]="(m.status || '').toLowerCase() === 'read'"
+              [class.failed]="(m.status || '').toLowerCase() === 'failed'"
+              [attr.title]="m.errorMessage || m.status">
               {{ statusTick(m.status) }}
             </mat-icon>
+            <button
+              type="button"
+              class="wa-retry"
+              *ngIf="canRetry(m)"
+              (click)="retryMessage(m)"
+              [disabled]="retryingId === m.id"
+              [attr.title]="m.errorMessage || 'Retry send'">
+              Retry
+            </button>
           </div>
         </div>
         <div class="wa-empty soft" *ngIf="!messages.length">
@@ -188,8 +280,8 @@
             [(ngModel)]="draft"
             rows="2"
             maxlength="4096"
-            [placeholder]="conv.isWithinMessagingWindow ? 'Type message…' : 'Window closed — use an approved template'"
-            [disabled]="!conv.isWithinMessagingWindow"
+            [placeholder]="isWindowOpen ? 'Type message…' : 'Window closed — use an approved template'"
+            [disabled]="!isWindowOpen"
             aria-label="Message"
             (keydown)="onComposerKeydown($event)"></textarea>
           <button
@@ -197,7 +289,7 @@
             color="primary"
             type="button"
             (click)="send()"
-            [disabled]="sending || !draft.trim() || !conv.isWithinMessagingWindow">
+            [disabled]="sending || !draft.trim() || !isWindowOpen">
             <mat-icon>send</mat-icon>
             Send
           </button>
@@ -205,13 +297,26 @@
         <div class="wa-composer__template" *ngIf="canReply">
           <mat-form-field appearance="outline" class="wa-template-pick" subscriptSizing="dynamic">
             <mat-label>Approved template</mat-label>
-            <mat-select [(ngModel)]="selectedTemplateKey" [disabled]="sending || !approvedTemplates.length">
+            <mat-select
+              [(ngModel)]="selectedTemplateKey"
+              [disabled]="sending || !approvedTemplates.length"
+              (selectionChange)="onTemplateSelected()">
               <mat-option value="">{{ approvedTemplates.length ? 'Select template…' : 'No approved templates' }}</mat-option>
               <mat-option *ngFor="let t of approvedTemplates" [value]="templateKey(t)">
                 {{ t.name }} ({{ t.language }})
               </mat-option>
             </mat-select>
           </mat-form-field>
+          <div class="wa-template-vars" *ngIf="templateParamValues.length">
+            <mat-form-field
+              appearance="outline"
+              *ngFor="let v of templateParamValues; let i = index"
+              subscriptSizing="dynamic">
+              <mat-label>{{ '{' + '{' + (i + 1) + '}' + '}' }}</mat-label>
+              <input matInput [(ngModel)]="templateParamValues[i]" (ngModelChange)="updateTemplatePreview()" />
+            </mat-form-field>
+          </div>
+          <p class="wa-template-preview" *ngIf="templatePreview">{{ templatePreview }}</p>
           <button
             mat-stroked-button
             type="button"
@@ -226,6 +331,67 @@
         <p>WhatsApp.Reply permission is required to send messages.</p>
       </footer>
     </section>
+
+    <aside class="wa-context" *ngIf="selected">
+      <h3>Customer context</h3>
+      <ng-container *ngIf="context as ctx; else ctxLoading">
+        <dl>
+          <dt>Phone</dt>
+          <dd>{{ ctx.contactPhone }}</dd>
+          <dt>Name</dt>
+          <dd>{{ ctx.customerName || ctx.contactName || '—' }}</dd>
+          <dt>Company</dt>
+          <dd>{{ ctx.customerCompany || '—' }}</dd>
+          <dt>Lead</dt>
+          <dd>{{ ctx.leadStatus || (ctx.leadId ? ('#' + ctx.leadId) : '—') }}</dd>
+          <dt>Unpaid</dt>
+          <dd>{{ ctx.unpaidInvoiceTotal | number: '1.2-2' }}</dd>
+        </dl>
+
+        <div class="wa-context__actions" *ngIf="canManage">
+          <button
+            mat-stroked-button
+            type="button"
+            (click)="autoLink()"
+            *ngIf="!(ctx.customerId || contact?.customerId)">
+            Link customer
+          </button>
+          <button
+            mat-stroked-button
+            type="button"
+            (click)="openCustomer()"
+            *ngIf="ctx.customerId || contact?.customerId">
+            Open customer
+          </button>
+          <button
+            mat-stroked-button
+            type="button"
+            (click)="createLead()"
+            *ngIf="!ctx.leadId">
+            Create lead
+          </button>
+        </div>
+
+        <h4>Active bookings</h4>
+        <ul *ngIf="ctx.activeBookings?.length; else noBookings">
+          <li *ngFor="let b of ctx.activeBookings">
+            {{ b.bookingNumber }} · {{ b.status }}
+            <small *ngIf="b.travelDate">{{ b.travelDate | date: 'mediumDate' }}</small>
+          </li>
+        </ul>
+        <ng-template #noBookings><p class="muted">None</p></ng-template>
+
+        <h4>Last completed trip</h4>
+        <p *ngIf="ctx.lastCompletedTrip as trip; else noTrip">
+          {{ trip.tripNumber || ('#' + trip.id) }} · {{ trip.status }}
+          <small *ngIf="trip.completedAt">{{ trip.completedAt | date: 'mediumDate' }}</small>
+        </p>
+        <ng-template #noTrip><p class="muted">None</p></ng-template>
+      </ng-container>
+      <ng-template #ctxLoading>
+        <p class="muted">Loading context…</p>
+      </ng-template>
+    </aside>
 
     <ng-template #pickHint>
       <section class="wa-thread wa-pick">

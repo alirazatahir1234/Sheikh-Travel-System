@@ -2,6 +2,7 @@ using MediatR;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
+using SheikhTravelSystem.Application.Features.WhatsApp.Automation;
 
 namespace SheikhTravelSystem.Application.Features.Bookings.Commands;
 
@@ -12,7 +13,10 @@ public record AssignDriverCommand(int BookingId, int DriverId) : IRequest<ApiRes
     public int? AuditEntityId => BookingId;
 }
 
-public class AssignDriverCommandHandler(IBookingRepository bookingRepository)
+public class AssignDriverCommandHandler(
+    IBookingRepository bookingRepository,
+    ITenantContext tenantContext,
+    IWhatsAppAutomationHooks automationHooks)
     : IRequestHandler<AssignDriverCommand, ApiResponse<bool>>
 {
     public async Task<ApiResponse<bool>> Handle(AssignDriverCommand request, CancellationToken cancellationToken)
@@ -20,6 +24,17 @@ public class AssignDriverCommandHandler(IBookingRepository bookingRepository)
         var result = await bookingRepository.AssignDriverAsync(request.BookingId, request.DriverId, cancellationToken);
         if (!result.Success)
             return ApiResponse<bool>.FailResponse(result.ErrorMessage!);
+
+        try
+        {
+            var tenantId = tenantContext.GetRequiredTenantId();
+            await automationHooks.OnDriverAssignedAsync(
+                tenantId, request.BookingId, tripId: null, request.DriverId, vehicleId: null, cancellationToken);
+        }
+        catch
+        {
+            // Non-fatal
+        }
 
         return ApiResponse<bool>.SuccessResponse(true, "Driver assigned successfully.");
     }

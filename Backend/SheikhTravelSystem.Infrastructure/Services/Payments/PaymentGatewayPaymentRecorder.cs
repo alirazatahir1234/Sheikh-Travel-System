@@ -1,10 +1,16 @@
 using Dapper;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Domain.Enums;
+using SheikhTravelSystem.Infrastructure.Services.WhatsApp;
 
 namespace SheikhTravelSystem.Infrastructure.Services.Payments;
 
-internal sealed class PaymentGatewayPaymentRecorder(IDbConnectionFactory dbFactory)
+internal sealed class PaymentGatewayPaymentRecorder(
+    IDbConnectionFactory dbFactory,
+    IServiceScopeFactory scopeFactory,
+    ILogger<PaymentGatewayPaymentRecorder> logger)
 {
     public async Task<bool> RecordAsync(
         int bookingId,
@@ -81,6 +87,21 @@ internal sealed class PaymentGatewayPaymentRecorder(IDbConnectionFactory dbFacto
                     CreatedAt = DateTime.UtcNow
                 },
                 cancellationToken: cancellationToken));
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await using var scope = scopeFactory.CreateAsyncScope();
+                var notifier = scope.ServiceProvider.GetRequiredService<IWhatsAppPaymentNotifier>();
+                await notifier.NotifyPaymentReceivedAsync(
+                    bookingId, amount, paymentMethod, cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "WhatsApp payment notify failed for booking {BookingId}", bookingId);
+            }
+        }, CancellationToken.None);
 
         return true;
     }

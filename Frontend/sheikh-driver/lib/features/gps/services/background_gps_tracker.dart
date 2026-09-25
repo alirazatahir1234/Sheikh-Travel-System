@@ -45,7 +45,13 @@ class BackgroundGpsTracker extends ChangeNotifier {
 
   void bindDio(Dio dio) => _dio = dio;
 
-  Future<String?> ensurePermissions() async {
+  /// [onBackgroundLocationDisclosure] must show a prominent in-app explanation
+  /// and return `true` before we request “Always” location (Play policy).
+  /// Pass `null` only when Always is already granted or no UI is available
+  /// (e.g. silent resume) — in that case Always is not requested.
+  Future<String?> ensurePermissions({
+    Future<bool> Function()? onBackgroundLocationDisclosure,
+  }) async {
     var whenInUse = await Permission.locationWhenInUse.request();
     if (!whenInUse.isGranted) {
       return 'Location permission is required for live tracking.';
@@ -55,6 +61,13 @@ class BackgroundGpsTracker extends ChangeNotifier {
     if (Platform.isAndroid || Platform.isIOS) {
       var always = await Permission.locationAlways.status;
       if (!always.isGranted) {
+        if (onBackgroundLocationDisclosure == null) {
+          return 'Allow “Always” location so tracking continues in the background.';
+        }
+        final accepted = await onBackgroundLocationDisclosure();
+        if (!accepted) {
+          return 'Background location is required for live trip tracking.';
+        }
         always = await Permission.locationAlways.request();
         if (!always.isGranted) {
           return 'Allow “Always” location so tracking continues in the background.';
@@ -67,11 +80,8 @@ class BackgroundGpsTracker extends ChangeNotifier {
       if (!notif.isGranted) {
         debugPrint('[GPS] Notification permission denied — FGS may be limited');
       }
-      // Battery optimization exemption (best-effort).
-      final batt = await Permission.ignoreBatteryOptimizations.status;
-      if (!batt.isGranted) {
-        await Permission.ignoreBatteryOptimizations.request();
-      }
+      // Do not request REQUEST_IGNORE_BATTERY_OPTIMIZATIONS (Play-restricted).
+      // Drivers can exempt the app via system battery settings if OS kills tracking.
     }
 
     final service = await Geolocator.isLocationServiceEnabled();
@@ -84,9 +94,12 @@ class BackgroundGpsTracker extends ChangeNotifier {
     required int vehicleId,
     int? bookingId,
     Dio? dio,
+    Future<bool> Function()? onBackgroundLocationDisclosure,
   }) async {
     if (dio != null) _dio = dio;
-    final err = await ensurePermissions();
+    final err = await ensurePermissions(
+      onBackgroundLocationDisclosure: onBackgroundLocationDisclosure,
+    );
     if (err != null) return err;
 
     await stop(clearSession: false);

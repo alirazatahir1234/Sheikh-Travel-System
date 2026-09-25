@@ -25,12 +25,14 @@ class ErrorHandler {
             final errors = body['errors'];
             if (errors is Map && errors.isNotEmpty) {
               final first = errors.values.first;
-              final detail = first is List ? first.first?.toString() : first?.toString();
+              final detail =
+                  first is List ? first.first?.toString() : first?.toString();
               if (detail != null) return ValidationException(detail);
             }
             if (msg != null) return ValidationException(msg.toString());
           }
-          return const ValidationException('Invalid request. Please check your input.');
+          return const ValidationException(
+              'Invalid request. Please check your input.');
         }
         if (status != null && status >= 500) return const ServerException();
         return UnknownException('Error $status');

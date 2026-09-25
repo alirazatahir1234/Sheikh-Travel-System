@@ -9,10 +9,12 @@ import { VehicleService } from '../../../core/services/vehicle.service';
 import { DriverService } from '../../../core/services/driver.service';
 import { TripService } from '../../../core/services/trip.service';
 import { AuthService } from '../../../core/services/auth.service';
+import { WhatsAppInboxService } from '../../../core/services/whatsapp-inbox.service';
 import { Booking, BookingStatus } from '../../../core/models/booking.model';
 import { Payment } from '../../../core/models/payment.model';
 import { Vehicle } from '../../../core/models/vehicle.model';
 import { Driver } from '../../../core/models/driver.model';
+import { WhatsAppAutomationTimelineItem } from '../../../core/models/whatsapp.model';
 
 @Component({
   standalone: false,
@@ -36,6 +38,10 @@ export class BookingDetailComponent implements OnInit {
   reassigning = false;
   creatingTrip = false;
 
+  waTimeline: WhatsAppAutomationTimelineItem[] = [];
+  waTimelineLoading = false;
+  resendingEventId: number | null = null;
+
   statusTransitions: Partial<Record<BookingStatus, BookingStatus[]>> = {
     Pending: ['Confirmed', 'Cancelled'],
     Confirmed: ['Started', 'Cancelled'],
@@ -55,9 +61,14 @@ export class BookingDetailComponent implements OnInit {
     private driverService: DriverService,
     private tripService: TripService,
     private auth: AuthService,
+    private waApi: WhatsAppInboxService,
     private toast: UiToastService,
     private router: Router
   ) {}
+
+  get canResendWa(): boolean {
+    return this.auth.hasPermission('WhatsApp.Reply');
+  }
 
   ngOnInit(): void {
     const id = +this.route.snapshot.paramMap.get('id')!;
@@ -71,10 +82,53 @@ export class BookingDetailComponent implements OnInit {
         this.payments = payments;
         this.calculatePaymentSummary();
         this.loading = false;
+        this.loadWaTimeline(id);
       },
       error: () => {
         this.loading = false;
         this.error = 'Failed to load booking details.';
+      }
+    });
+  }
+
+  loadWaTimeline(bookingId: number): void {
+    this.waTimelineLoading = true;
+    this.waApi.getBookingWhatsAppTimeline(bookingId).subscribe({
+      next: rows => {
+        this.waTimeline = rows ?? [];
+        this.waTimelineLoading = false;
+      },
+      error: () => {
+        this.waTimeline = [];
+        this.waTimelineLoading = false;
+      }
+    });
+  }
+
+  waStatusLabel(status: number): string {
+    switch (status) {
+      case 0: return 'Pending';
+      case 1: return 'Processing';
+      case 2: return 'Sent';
+      case 3: return 'Skipped';
+      case 4: return 'Failed';
+      case 5: return 'Cancelled';
+      default: return String(status);
+    }
+  }
+
+  resendWaEvent(e: WhatsAppAutomationTimelineItem): void {
+    if (!this.canResendWa || this.resendingEventId != null) return;
+    this.resendingEventId = e.id;
+    this.waApi.resendAutomationEvent(e.id).subscribe({
+      next: () => {
+        this.resendingEventId = null;
+        this.toast.success('Resend queued');
+        if (this.booking) this.loadWaTimeline(this.booking.id);
+      },
+      error: err => {
+        this.resendingEventId = null;
+        this.toast.error(err?.error?.message || 'Resend failed');
       }
     });
   }

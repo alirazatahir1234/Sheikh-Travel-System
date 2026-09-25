@@ -6,3 +6,9 @@ Thumbs.db
 .cursor/*.log
 .cursor/debug-*.log
 .cursor/debug-*.ndjson
+
+# Android / Play signing material (never commit)
+*.jks
+*.keystore
+**/key.properties
+**/service-account*.json

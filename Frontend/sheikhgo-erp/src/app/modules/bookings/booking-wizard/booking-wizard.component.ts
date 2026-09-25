@@ -16,6 +16,7 @@ import { CustomerService } from '../../../core/services/customer.service';
 import { DriverAllowanceRuleService } from '../../../core/services/driver-allowance-rule.service';
 import { OcrService } from '../../../core/services/ocr.service';
 import { OcrSettingsService } from '../../../core/services/ocr-settings.service';
+import { WhatsAppInboxService } from '../../../core/services/whatsapp-inbox.service';
 
 import { Route } from '../../../core/models/route.model';
 import { Vehicle, VehicleStatusLabels } from '../../../core/models/vehicle.model';
@@ -127,6 +128,7 @@ export class BookingWizardComponent implements OnInit, OnDestroy {
     private allowanceRuleService: DriverAllowanceRuleService,
     private ocrService: OcrService,
     private ocrSettingsService: OcrSettingsService,
+    private whatsAppApi: WhatsAppInboxService,
     private router: Router,
     private toast: UiToastService
   ) {
@@ -147,6 +149,7 @@ export class BookingWizardComponent implements OnInit, OnDestroy {
       otherCharges:      [0],
       isRoundTrip:       [false],
       notes:             [''],
+      whatsAppOptIn:     [false],
 
       newFullName: [''],
       newPhone:    [''],
@@ -543,6 +546,7 @@ export class BookingWizardComponent implements OnInit, OnDestroy {
       next: fullBooking => {
         this.createdBooking = fullBooking;
         this.loading = false;
+        this.maybeRecordWhatsAppConsent();
       },
       error: (err: HttpErrorResponse) => {
         this.loading = false;
@@ -550,6 +554,25 @@ export class BookingWizardComponent implements OnInit, OnDestroy {
         this.toast.error(this.extractError(err) || 'Failed to create booking');
       }
     });
+  }
+
+  private maybeRecordWhatsAppConsent(): void {
+    if (!this.step1Form.value.whatsAppOptIn) return;
+    const phone = this.resolveCustomerPhoneForConsent();
+    if (!phone) return;
+    this.whatsAppApi.recordConsent(phone, 'BookingForm').subscribe({
+      next: () => undefined,
+      error: () => this.toast.warning('Booking created, but WhatsApp opt-in could not be saved.')
+    });
+  }
+
+  private resolveCustomerPhoneForConsent(): string | null {
+    if (this.customerMode === 'NEW') {
+      return (this.step1Form.value.newPhone as string | null)?.trim() || null;
+    }
+    const id = this.step1Form.value.customerId as number | null;
+    const customer = this.customers.find(c => c.id === id);
+    return customer?.phone?.trim() || null;
   }
 
   /**

@@ -6,6 +6,7 @@ using Microsoft.Extensions.Options;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
+using SheikhTravelSystem.Application.Features.WhatsApp.Automation;
 using SheikhTravelSystem.Application.Features.WhatsApp.DTOs;
 
 namespace SheikhTravelSystem.Application.Features.WhatsApp.Commands;
@@ -17,6 +18,8 @@ public class IngestWhatsAppWebhookCommandHandler(
     IWhatsAppAccountConfig accountConfig,
     IWhatsAppRealtimePublisher realtime,
     IWhatsAppBotOrchestrator botOrchestrator,
+    IWhatsAppAutomationRepository automationRepo,
+    IMediator mediator,
     IOptions<WhatsAppOptions> options,
     ILogger<IngestWhatsAppWebhookCommandHandler> logger)
     : IRequestHandler<IngestWhatsAppWebhookCommand, ApiResponse<object>>
@@ -133,6 +136,9 @@ public class IngestWhatsAppWebhookCommandHandler(
                             var type = msg.TryGetProperty("type", out var typeEl) ? typeEl.GetString() ?? "unknown" : "unknown";
                             string? body = null;
                             string? mediaId = null;
+                            string? buttonPayload = null;
+                            string? flowIdempotencyKey = null;
+                            string? flowPayloadJson = null;
                             if (string.Equals(type, "text", StringComparison.OrdinalIgnoreCase)
                                 && msg.TryGetProperty("text", out var text)
                                 && text.TryGetProperty("body", out var bodyEl))
@@ -142,7 +148,29 @@ public class IngestWhatsAppWebhookCommandHandler(
                             else if (string.Equals(type, "interactive", StringComparison.OrdinalIgnoreCase)
                                      && msg.TryGetProperty("interactive", out var interactive))
                             {
-                                body = ExtractInteractiveReply(interactive) ?? "[interactive]";
+                                if (interactive.TryGetProperty("type", out var iType)
+                                    && string.Equals(iType.GetString(), "nfm_reply", StringComparison.OrdinalIgnoreCase)
+                                    && interactive.TryGetProperty("nfm_reply", out var nfm))
+                                {
+                                    body = nfm.TryGetProperty("body", out var nfmBody)
+                                        ? nfmBody.GetString() ?? "[flow]"
+                                        : "[flow]";
+                                    flowPayloadJson = nfm.TryGetProperty("response_json", out var rj)
+                                        ? rj.GetString()
+                                        : null;
+                                    flowIdempotencyKey = metaId;
+                                }
+                                else
+                                {
+                                    buttonPayload = ExtractInteractivePayload(interactive);
+                                    body = ExtractInteractiveReply(interactive) ?? buttonPayload ?? "[interactive]";
+                                }
+                            }
+                            else if (string.Equals(type, "button", StringComparison.OrdinalIgnoreCase)
+                                     && msg.TryGetProperty("button", out var buttonEl))
+                            {
+                                buttonPayload = buttonEl.TryGetProperty("payload", out var p) ? p.GetString() : null;
+                                body = buttonEl.TryGetProperty("text", out var t) ? t.GetString() : buttonPayload;
                             }
                             else if (msg.TryGetProperty(type, out var mediaObj)
                                      && mediaObj.ValueKind == JsonValueKind.Object)
@@ -173,6 +201,15 @@ public class IngestWhatsAppWebhookCommandHandler(
 
                             if (messageId <= 0)
                                 continue;
+
+                            await TryHandleAutomationInboundAsync(
+                                account.TenantId,
+                                from,
+                                phoneE164,
+                                body,
+                                buttonPayload,
+                                messageId,
+                                cancellationToken);
 
                             var (items, _) = await repository.GetConversationsAsync(
                                 account.TenantId, account.Id, phoneE164, null, null, 1, 1, cancellationToken);
@@ -205,7 +242,10 @@ public class IngestWhatsAppWebhookCommandHandler(
                                         contactName,
                                         body,
                                         type,
-                                        cancellationToken);
+                                        cancellationToken,
+                                        buttonPayload,
+                                        flowIdempotencyKey,
+                                        flowPayloadJson);
                                 }
                                 catch (Exception botEx) when (botEx is not OperationCanceledException)
                                 {
@@ -233,6 +273,55 @@ public class IngestWhatsAppWebhookCommandHandler(
             // Still report success to the controller so Meta receives HTTP 200.
             return ApiResponse<object>.SuccessResponse(new { ok = true, deadLetter = true });
         }
+    }
+
+    private async Task TryHandleAutomationInboundAsync(
+        int tenantId,
+        string from,
+        string phoneE164,
+        string? body,
+        string? buttonPayload,
+        int messageId,
+        CancellationToken cancellationToken)
+    {
+        var payload = buttonPayload ?? body;
+        if (string.IsNullOrWhiteSpace(payload))
+            return;
+
+        var trimmed = payload.Trim();
+        if (string.Equals(trimmed, "STOP", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(body?.Trim(), "STOP", StringComparison.OrdinalIgnoreCase))
+        {
+            await automationRepo.OptOutAsync(tenantId, WhatsAppPhone.ToApiDigits(from), cancellationToken);
+            return;
+        }
+
+        if (!trimmed.StartsWith("RATE:", StringComparison.OrdinalIgnoreCase))
+            return;
+
+        var parts = trimmed.Split(':', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (parts.Length < 3
+            || !int.TryParse(parts[1], out var tripId)
+            || !int.TryParse(parts[2], out var score))
+            return;
+
+        await mediator.Send(new RecordTripRatingCommand(
+            tenantId, tripId, score, from, messageId), cancellationToken);
+    }
+
+    private static string? ExtractInteractivePayload(JsonElement interactive)
+    {
+        if (interactive.TryGetProperty("button_reply", out var buttonReply)
+            && buttonReply.TryGetProperty("id", out var id)
+            && !string.IsNullOrWhiteSpace(id.GetString()))
+            return id.GetString();
+
+        if (interactive.TryGetProperty("list_reply", out var listReply)
+            && listReply.TryGetProperty("id", out var listId)
+            && !string.IsNullOrWhiteSpace(listId.GetString()))
+            return listId.GetString();
+
+        return null;
     }
 
     private static string? ExtractInteractiveReply(JsonElement interactive)

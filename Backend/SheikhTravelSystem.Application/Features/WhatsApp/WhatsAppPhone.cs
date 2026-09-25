@@ -22,20 +22,12 @@ public static partial class WhatsAppPhone
 
     /// <summary>
     /// Legacy helper — prefer <see cref="IWhatsAppRoutingService"/>.
-    /// Matches default GCC → UAE / Pakistan → PK routing.
+    /// SheikhGo ships a single Pakistan line; all dial prefixes resolve to PK.
     /// </summary>
     public static string ResolveAccountCodeForRecipient(string? phoneE164)
     {
-        var digits = ToApiDigits(phoneE164);
-        if (digits.StartsWith("92", StringComparison.Ordinal)) return "PK";
-        if (digits.StartsWith("971", StringComparison.Ordinal)
-            || digits.StartsWith("966", StringComparison.Ordinal)
-            || digits.StartsWith("974", StringComparison.Ordinal)
-            || digits.StartsWith("968", StringComparison.Ordinal)
-            || digits.StartsWith("965", StringComparison.Ordinal)
-            || digits.StartsWith("973", StringComparison.Ordinal))
-            return "UAE";
-        return "UAE";
+        _ = phoneE164;
+        return "PK";
     }
 
     [GeneratedRegex(@"\D")]

@@ -54,11 +54,15 @@
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: minmax(300px, 360px) 1fr;
+  grid-template-columns: minmax(280px, 340px) 1fr;
   border: 1px solid #e2e8f0;
   border-radius: 12px;
   overflow: hidden;
   background: #fff;
+
+  &.has-context {
+    grid-template-columns: minmax(260px, 320px) 1fr minmax(220px, 280px);
+  }
 }
 
 .wa-list {
@@ -267,9 +271,14 @@
     color: #047857;
   }
 
+  &.window.amber {
+    background: #fffbeb;
+    color: #b45309;
+  }
+
   &.window.closed {
-    background: #fff7ed;
-    color: #c2410c;
+    background: #f1f5f9;
+    color: #64748b;
   }
 }
 
@@ -340,6 +349,27 @@
   word-break: break-word;
 }
 
+.wa-auto-badge {
+  display: inline-block;
+  margin-right: 0.35rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  background: #0f766e;
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  vertical-align: middle;
+}
+
+.wa-booking-link {
+  display: inline-block;
+  margin-right: 0.35rem;
+  font-size: 0.75rem;
+  color: #0369a1;
+  text-decoration: underline;
+}
+
 .wa-bubble__meta {
   display: flex;
   justify-content: flex-end;
@@ -408,6 +438,98 @@
   }
 }
 
+.wa-retry {
+  border: none;
+  background: transparent;
+  color: #b45309;
+  font-size: 0.68rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0;
+}
+
+.wa-template-vars {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  width: 100%;
+
+  mat-form-field {
+    width: 140px;
+  }
+}
+
+.wa-template-preview {
+  width: 100%;
+  margin: 0;
+  padding: 0.5rem 0.65rem;
+  background: #f8fafc;
+  border: 1px dashed #cbd5e1;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  color: #334155;
+  white-space: pre-wrap;
+}
+
+.wa-context {
+  border-left: 1px solid #e2e8f0;
+  background: #f8fafc;
+  padding: 0.85rem 1rem;
+  overflow: auto;
+  min-height: 0;
+
+  h3,
+  h4 {
+    margin: 0 0 0.5rem;
+    font-size: 0.85rem;
+    color: #0f172a;
+  }
+
+  h4 {
+    margin-top: 1rem;
+    color: #475569;
+    font-weight: 600;
+  }
+
+  dl {
+    margin: 0;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.25rem 0.65rem;
+    font-size: 0.8rem;
+  }
+
+  dt {
+    color: #64748b;
+  }
+
+  dd {
+    margin: 0;
+    color: #0f172a;
+  }
+
+  ul {
+    margin: 0;
+    padding-left: 1rem;
+    font-size: 0.8rem;
+    color: #334155;
+  }
+
+  .muted {
+    margin: 0;
+    font-size: 0.8rem;
+    color: #94a3b8;
+  }
+
+  &__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-top: 0.75rem;
+  }
+}
+
 .wa-template-pick {
   min-width: 220px;
   flex: 1;
@@ -463,6 +585,126 @@
   display: flex;
   justify-content: center;
   padding: 2rem;
+}
+
+.wa-ai-toggle.active {
+  border-color: #0f766e;
+  color: #0f766e;
+}
+
+.wa-ai-panel {
+  border-bottom: 1px solid #e2e8f0;
+  background: #f8fafc;
+  padding: 0.75rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.wa-ai-panel__head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.wa-ai-confidence {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.15rem 0.45rem;
+  border-radius: 999px;
+  background: #e2e8f0;
+  color: #334155;
+
+  &[data-level='High'] {
+    background: #dcfce7;
+    color: #166534;
+  }
+
+  &[data-level='Medium'] {
+    background: #fef3c7;
+    color: #92400e;
+  }
+
+  &[data-level='Low'] {
+    background: #fee2e2;
+    color: #991b1b;
+  }
+}
+
+.wa-ai-review {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #b45309;
+}
+
+.wa-ai-error {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #b91c1c;
+}
+
+.wa-ai-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.wa-ai-lang {
+  max-width: 200px;
+}
+
+.wa-ai-busy {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  color: #64748b;
+}
+
+.wa-ai-suggestion {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 0.65rem 0.75rem;
+
+  p {
+    margin: 0 0 0.55rem;
+    white-space: pre-wrap;
+    font-size: 0.9rem;
+    line-height: 1.4;
+  }
+}
+
+.wa-ai-suggestion__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.wa-ai-meta {
+  margin: 0.45rem 0 0;
+  font-size: 0.72rem;
+}
+
+.wa-ai-summary {
+  background: #fff;
+  border: 1px dashed #cbd5e1;
+  border-radius: 8px;
+  padding: 0.65rem 0.75rem;
+
+  strong {
+    display: block;
+    margin-bottom: 0.35rem;
+    font-size: 0.8rem;
+  }
+
+  pre {
+    margin: 0;
+    white-space: pre-wrap;
+    font-family: inherit;
+    font-size: 0.85rem;
+    line-height: 1.4;
+  }
 }
 
 @media (max-width: 900px) {
