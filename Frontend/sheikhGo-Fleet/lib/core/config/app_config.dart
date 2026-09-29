@@ -11,8 +11,13 @@ class AppConfig {
         _ => AppEnvironment.dev,
       };
 
+  /// Same host as ERP `environment.prod.ts` — used when release builds omit
+  /// an explicit `API_BASE_URL` (never ship emulator loopback to Play).
+  static const String defaultProductionApiBaseUrl =
+      'https://sheikh-travel-system-production.up.railway.app/api';
+
   /// Compile-time override from `--dart-define=API_BASE_URL=...`.
-  /// Empty means “use [resolvedBaseUrl] platform default”.
+  /// Empty means “use [resolvedBaseUrl] env/platform default”.
   static const String _apiBaseUrlDefine = String.fromEnvironment(
     'API_BASE_URL',
     defaultValue: '',
@@ -26,13 +31,33 @@ class AppConfig {
 
   /// API root used by Dio / SignalR.
   ///
-  /// - Explicit `--dart-define=API_BASE_URL=...` always wins (required for
-  ///   physical devices — use your Mac LAN IP, e.g. `http://10.x.x.x:5082/api`).
-  /// - Android emulator default: `http://10.0.2.2:5082/api` (host loopback).
-  /// - iOS simulator / desktop default: `http://localhost:5082/api`.
+  /// Resolution order:
+  /// 1. Explicit `--dart-define=API_BASE_URL=...` (full URL wins).
+  /// 2. When `ENV=prod` or `ENV=uat`: [defaultProductionApiBaseUrl] (HTTPS).
+  /// 3. Release builds without prod/uat or HTTPS define → force prod HTTPS
+  ///    (never ship `10.0.2.2` / `localhost` to Play Store).
+  /// 4. Android debug (no define): emulator loopback `http://10.0.2.2:5082/api`.
+  /// 5. iOS simulator / desktop debug: `http://localhost:5082/api`.
+  ///
+  /// Play/AAB builds should still use `./scripts/build_prod.sh` with an
+  /// explicit `API_BASE_URL`.
   static String get resolvedBaseUrl {
     final defined = _apiBaseUrlDefine.trim();
-    if (defined.isNotEmpty) return defined;
+    if (defined.isNotEmpty) {
+      if (kReleaseMode &&
+          !isProd &&
+          !isUat &&
+          !defined.toLowerCase().startsWith('https://')) {
+        // Accidental release with http://localhost or LAN — refuse cleartext.
+        return defaultProductionApiBaseUrl;
+      }
+      return defined;
+    }
+    if (isProd || isUat) return defaultProductionApiBaseUrl;
+
+    // Release without ENV=prod|uat and without API_BASE_URL → prod HTTPS.
+    if (kReleaseMode) return defaultProductionApiBaseUrl;
+
     if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
       return _defaultAndroidEmulatorApi;
     }

@@ -42,6 +42,7 @@ export class VehicleDetailPanelComponent {
   @Output() command = new EventEmitter<void>();
   @Output() history = new EventEmitter<void>();
   @Output() profile = new EventEmitter<number>();
+  @Output() closePanel = new EventEmitter<void>();
   @Output() streetViewError = new EventEmitter<number>();
 
   readonly tabs: { id: DetailTab; label: string }[] = [

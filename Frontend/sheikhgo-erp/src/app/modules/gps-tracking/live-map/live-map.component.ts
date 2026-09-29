@@ -1874,6 +1874,18 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
     this.cdr.markForCheck();
   }
 
+  clearVehicleSelection(): void {
+    const previousId = this.selectedVehicleId;
+    this.selectedVehicleId = null;
+    this.selectedEta = null;
+    this.followSelected = false;
+    this.clearNearbyPlaces();
+    this.syncSelectedLocation();
+    this.refreshKpiSelectionFlags();
+    this.refreshMarkerSelection(previousId, null);
+    this.cdr.markForCheck();
+  }
+
   /** Resolve street + nearby shop/POI for the selected vehicle detail panel. */
   private enrichSelectedAddress(loc: VehicleLocation): void {
     const coarse = isCoarseAddress(loc.address);

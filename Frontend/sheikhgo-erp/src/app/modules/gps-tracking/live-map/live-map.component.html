@@ -13,28 +13,46 @@
         <span class="sync-dot sync-dot--live"></span>
         <span>{{ trackingActive ? 'Live Connected' : trackingStatusLabel }}</span>
       </div>
-      <div class="gps-pill"
+      <div class="gps-pill desktop-only"
            [class.gps-pill--ok]="gpsHealthy"
            [class.gps-pill--warn]="!isTraccarOnline || traccarStatus?.syncEnabled === false"
            [matTooltip]="gpsStatusPillLabel">
         <mat-icon>{{ gpsHealthy ? 'gps_fixed' : (traccarStatus?.syncEnabled === false ? 'sync_disabled' : (!isTraccarOnline ? 'cloud_off' : 'gps_off')) }}</mat-icon>
-        <span class="desktop-only">{{ gpsStatusPillLabel }}</span>
+        <span>{{ gpsStatusPillLabel }}</span>
       </div>
-      <button mat-stroked-button type="button" class="stb-touch" (click)="refreshNow()" [disabled]="loading || refreshing"
+      <button mat-stroked-button type="button" class="stb-touch track-header__icon-btn" (click)="refreshNow()" [disabled]="loading || refreshing"
               matTooltip="Refresh fleet" aria-label="Refresh">
         <mat-icon [class.spinning]="refreshing">refresh</mat-icon>
         <span class="desktop-only">Refresh</span>
       </button>
-      <button mat-stroked-button type="button" class="stb-touch" (click)="toggleFullscreen()"
+      <button mat-stroked-button type="button" class="stb-touch desktop-only" (click)="toggleFullscreen()"
               matTooltip="Fullscreen map" aria-label="Fullscreen">
         <mat-icon>{{ isMapFullscreen ? 'fullscreen_exit' : 'fullscreen' }}</mat-icon>
       </button>
-      <button mat-flat-button color="primary" type="button" class="stb-touch live-mode-btn"
+      <button mat-flat-button color="primary" type="button" class="stb-touch live-mode-btn desktop-only"
               (click)="toggleLiveTracking()"
               [attr.aria-pressed]="liveTracking">
         <mat-icon>{{ liveTracking ? 'sensors' : 'sensors_off' }}</mat-icon>
         {{ liveTracking ? 'Live Mode On' : 'Live Mode Off' }}
       </button>
+      <button
+        type="button"
+        mat-icon-button
+        class="stb-touch mobile-only track-header__more"
+        [matMenuTriggerFor]="trackOverflowMenu"
+        aria-label="More tracking actions">
+        <mat-icon>more_vert</mat-icon>
+      </button>
+      <mat-menu #trackOverflowMenu="matMenu">
+        <button mat-menu-item type="button" (click)="toggleFullscreen()">
+          <mat-icon>{{ isMapFullscreen ? 'fullscreen_exit' : 'fullscreen' }}</mat-icon>
+          <span>{{ isMapFullscreen ? 'Exit fullscreen' : 'Fullscreen map' }}</span>
+        </button>
+        <button mat-menu-item type="button" (click)="toggleLiveTracking()">
+          <mat-icon>{{ liveTracking ? 'sensors' : 'sensors_off' }}</mat-icon>
+          <span>{{ liveTracking ? 'Turn Live Mode off' : 'Turn Live Mode on' }}</span>
+        </button>
+      </mat-menu>
     </div>
   </header>
 
@@ -120,7 +138,10 @@
     </div>
   </section>
 
-  <div class="track-main" [class.track-main--panel-collapsed]="panelCollapsed">
+  <div
+    class="track-main"
+    [class.track-main--panel-collapsed]="panelCollapsed"
+    [class.track-main--detail-open]="!!selectedLocation">
 
     <button
       *ngIf="panelCollapsed"
@@ -314,7 +335,7 @@
             (click)="toggleNearbyPlaces()"
             aria-label="Nearby Search">
             <mat-icon>near_me</mat-icon>
-            <span>Nearby Search</span>
+            <span class="desktop-only">Nearby Search</span>
           </button>
         </div>
 
@@ -429,33 +450,43 @@
     </div>
 
     <app-vehicle-detail-panel
+      *ngIf="selectedLocation"
       class="track-detail-panel"
       [loc]="selectedLocation"
-      [dualStatus]="selectedLocation ? statusLabel(selectedLocation.status) : ''"
-      [statusBadge]="selectedLocation ? statusBadgeLabel(selectedLocation.status) : ''"
-      [statusIconName]="selectedLocation ? statusIcon(selectedLocation.status) : 'directions_car'"
-      [speedText]="selectedLocation ? speedLabel(selectedLocation) : '—'"
-      [headingText]="selectedLocation ? headingLabel(selectedLocation) : null"
-      [gpsSignalText]="selectedLocation ? signalFreshnessLabel(selectedLocation) : '—'"
-      [lastPingText]="selectedLocation ? formatLastPing(selectedLocation) : '—'"
-      [locationPrimary]="selectedLocation ? locationPrimaryLine(selectedLocation) : null"
-      [locationSecondary]="selectedLocation ? locationSecondaryLine(selectedLocation) : null"
-      [addressResolving]="!!selectedLocation && isAddressResolving(selectedLocation)"
-      [mapsUrl]="selectedLocation ? googleMapsUrl(selectedLocation) : ''"
-      [streetViewSrc]="selectedLocation ? streetViewUrl(selectedLocation) : null"
-      [operationalLine]="selectedLocation ? operationalStatusLine(selectedLocation) : ''"
-      [temperatureText]="selectedLocation ? temperatureLabel(selectedLocation) : null"
+      [dualStatus]="statusLabel(selectedLocation.status)"
+      [statusBadge]="statusBadgeLabel(selectedLocation.status)"
+      [statusIconName]="statusIcon(selectedLocation.status)"
+      [speedText]="speedLabel(selectedLocation)"
+      [headingText]="headingLabel(selectedLocation)"
+      [gpsSignalText]="signalFreshnessLabel(selectedLocation)"
+      [lastPingText]="formatLastPing(selectedLocation)"
+      [locationPrimary]="locationPrimaryLine(selectedLocation)"
+      [locationSecondary]="locationSecondaryLine(selectedLocation)"
+      [addressResolving]="isAddressResolving(selectedLocation)"
+      [mapsUrl]="googleMapsUrl(selectedLocation)"
+      [streetViewSrc]="streetViewUrl(selectedLocation)"
+      [operationalLine]="operationalStatusLine(selectedLocation)"
+      [temperatureText]="temperatureLabel(selectedLocation)"
       [eta]="selectedEta"
       [followSelected]="followSelected"
       [activeTab]="detailTab"
       (tabChange)="setDetailTab($event)"
-      (track)="selectedLocation && focusVehicle(selectedLocation)"
+      (track)="focusVehicle(selectedLocation)"
       (follow)="toggleFollowSelected()"
       (command)="goToCommands()"
       (history)="openHistoryForSelected()"
       (profile)="goToVehicleProfile($event)"
+      (closePanel)="clearVehicleSelection()"
       (streetViewError)="onStreetViewError($event)">
     </app-vehicle-detail-panel>
+
+    <button
+      *ngIf="selectedLocation"
+      type="button"
+      class="detail-backdrop mobile-only"
+      aria-label="Close vehicle details"
+      (click)="clearVehicleSelection()">
+    </button>
   </div>
 
   <section class="fleet-analytics-row">
@@ -473,6 +504,7 @@
       <ng-container *ngIf="fleetStatusHistory.length; else chartEmpty">
         <ui-chart
           type="line"
+          class="fleet-status-chart"
           [data]="fleetOverviewChartData"
           [options]="fleetOverviewChartOptions"
           height="220px"></ui-chart>

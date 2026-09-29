@@ -62,12 +62,14 @@ android {
 
     buildTypes {
         release {
-            signingConfig = if (hasReleaseKeystore) {
-                signingConfigs.getByName("release")
-            } else {
-                // Local/CI without keystore — still produces a release APK for smoke builds.
-                signingConfigs.getByName("debug")
+            if (!hasReleaseKeystore) {
+                throw GradleException(
+                    "Missing android/key.properties — release AABs must use the Play upload keystore. " +
+                        "Copy from key.properties.example and point storeFile at the upload .jks " +
+                        "(SHA1 07:F0:F9:ED:…). Do not ship a debug-signed bundle.",
+                )
             }
+            signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(

@@ -35,6 +35,21 @@
         android:name="android.permission.WRITE_EXTERNAL_STORAGE"
         tools:node="remove"/>
 
+    <!-- Strip Advertising ID / AdServices grants merged from Firebase Analytics.
+         Play Console Advertising ID declaration = No. -->
+    <uses-permission
+        android:name="com.google.android.gms.permission.AD_ID"
+        tools:node="remove"/>
+    <uses-permission
+        android:name="android.permission.ACCESS_ADSERVICES_AD_ID"
+        tools:node="remove"/>
+    <uses-permission
+        android:name="android.permission.ACCESS_ADSERVICES_ATTRIBUTION"
+        tools:node="remove"/>
+    <uses-permission
+        android:name="android.permission.ACCESS_ADSERVICES_TOPICS"
+        tools:node="remove"/>
+
     <!-- Foreground service (required for Workmanager expedited / foreground tasks) -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION"/>
@@ -87,6 +102,17 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2"/>
+
+        <!-- Analytics without Advertising ID (Play Advertising ID declaration = No). -->
+        <meta-data
+            android:name="google_analytics_adid_collection_enabled"
+            android:value="false"/>
+
+        <!-- Drop optional AdServices library pulled by Measurement / Analytics. -->
+        <uses-library
+            android:name="android.ext.adservices"
+            android:required="false"
+            tools:node="remove"/>
 
         <!-- Google Maps — set via android/local.properties: GOOGLE_MAPS_API_KEY=... -->
         <meta-data

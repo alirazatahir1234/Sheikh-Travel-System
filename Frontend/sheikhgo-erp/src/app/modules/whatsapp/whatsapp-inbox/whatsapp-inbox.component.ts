@@ -111,7 +111,7 @@ export class WhatsAppInboxComponent implements OnInit, OnDestroy {
     return this.approvedTemplates.find(t => this.templateKey(t) === this.selectedTemplateKey) ?? null;
   }
 
-  get windowWindowOpen(): boolean {
+  get isWindowOpen(): boolean {
     return this.windowTone !== 'closed';
   }
 

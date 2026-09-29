@@ -61,6 +61,7 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
   preset: TripDatePreset = 'last7Days';
   bundle: HistoryReplayBundle | null = null;
   selectedPosition: TripReplayPosition | null = null;
+  detailPanelOpen = false;
   rawPositions: TripReplayPosition[] = [];
   loading = false;
   loadingProgress = 0;
@@ -414,6 +415,7 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
     this.noData = false;
     this.bundle = null;
     this.selectedPosition = null;
+    this.detailPanelOpen = false;
     this.rawPositions = [];
     this.rawCacheKey = null;
     this.loadAttempt++;
@@ -448,6 +450,7 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
         const playback = this.playbackPositions;
         this.selectedPosition = playback[0] ?? bundle.route[0] ?? null;
         this.selectedStopIndex = null;
+        this.detailPanelOpen = true;
         if (this.selectedPosition) this.ensureAddress(this.selectedPosition);
         this.enrichStopAddresses(bundle.stops);
         if (this.showGpsPoints) {
@@ -472,7 +475,12 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
 
   onPositionSelected(pos: TripReplayPosition): void {
     this.selectedPosition = pos;
+    this.detailPanelOpen = true;
     this.ensureAddress(pos);
+  }
+
+  closeHistoryDetail(): void {
+    this.detailPanelOpen = false;
   }
 
   motionLabel(pos: TripReplayPosition | null): string {

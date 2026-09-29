@@ -125,7 +125,9 @@
     </div>
   </div>
 
-  <div class="history-grid">
+  <div
+    class="history-grid"
+    [class.history-grid--detail-open]="detailPanelOpen">
     <aside class="history-panel history-panel--left">
       <div class="recent-block" *ngIf="recentVehicles.length && !vehicleSearch">
         <h3 class="panel-subtitle">Recent</h3>
@@ -168,7 +170,7 @@
         [vehicleName]="selectedVehicle?.name ?? ''"
         [plateNumber]="selectedVehicle?.registrationNumber ?? ''"
         [vehicleType]="selectedVehicle?.vehicleType ?? ''"
-        [mapHeight]="'min(70vh, 620px)'"
+        [mapHeight]="'min(78vh, 780px)'"
         [showLayerControls]="true"
         [showLegend]="true"
         [showGpsPointsLayer]="showGpsPoints"
@@ -183,7 +185,21 @@
       </app-trip-replay-map>
     </main>
 
-    <aside class="history-panel history-panel--right">
+    <aside
+      class="history-panel history-panel--right"
+      *ngIf="detailPanelOpen && vehicleId && (bundle || selectedPosition)"
+      aria-label="Route and position details">
+      <div class="history-panel__head">
+        <h2 class="history-panel__title">Details</h2>
+        <button
+          type="button"
+          class="history-panel__close"
+          aria-label="Close details"
+          (click)="closeHistoryDetail()">
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+
       <section class="detail-card">
         <h2 class="panel-title">
           <mat-icon>my_location</mat-icon> Position details

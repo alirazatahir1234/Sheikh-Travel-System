@@ -7,13 +7,11 @@
 #   ./scripts/build_prod.sh android uat
 #
 # Notes:
-# - Prefer an explicit API_BASE_URL (HTTPS). When ENV=prod|uat is set, the app
-#   also defaults to the Railway HTTPS API even if API_BASE_URL is omitted from
-#   dart-defines elsewhere — but this script still requires API_BASE_URL so
+# - Prefer an explicit API_BASE_URL (HTTPS Railway/production). Required here so
 #   store builds never silently point at a wrong host.
-# - Plain `flutter build appbundle --release` without ENV=prod still used to
-#   ship emulator loopback (10.0.2.2); always use this script or pass
-#   --dart-define=ENV=prod.
+# - AppConfig also falls back to Railway HTTPS for any release build that omits
+#   API_BASE_URL (so a bare `flutter build appbundle --release` no longer ships
+#   emulator loopback 10.0.2.2). Still prefer this script for store uploads.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"

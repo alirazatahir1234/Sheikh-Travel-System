@@ -23,6 +23,32 @@
   border-bottom: 1px solid var(--stb-border, #e2e8f0);
 }
 
+.vdp__close {
+  flex-shrink: 0;
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--stb-text-muted, #64748b);
+  cursor: pointer;
+
+  mat-icon {
+    font-size: 20px;
+    width: 20px;
+    height: 20px;
+  }
+
+  &:hover {
+    background: rgba(15, 23, 42, 0.06);
+    color: var(--stb-text, #0f172a);
+  }
+}
+
 .vdp__avatar {
   width: 44px;
   height: 44px;
@@ -44,6 +70,7 @@
 }
 
 .vdp__titles { flex: 1; min-width: 0; }
+
 .vdp__name {
   margin: 0;
   font-size: 1rem;
@@ -58,6 +85,7 @@
 }
 
 .vdp__badge {
+  flex-shrink: 0;
   font-size: 0.65rem;
   font-weight: 700;
   text-transform: uppercase;

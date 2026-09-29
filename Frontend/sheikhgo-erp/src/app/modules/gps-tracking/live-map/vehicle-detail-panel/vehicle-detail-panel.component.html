@@ -9,6 +9,13 @@
         <span class="vdp__plate">{{ v.registrationNumber }}</span>
       </div>
       <span class="vdp__badge" [attr.data-status]="v.status">{{ statusBadge }}</span>
+      <button
+        type="button"
+        class="vdp__close"
+        aria-label="Close details"
+        (click)="closePanel.emit()">
+        <mat-icon>close</mat-icon>
+      </button>
     </div>
 
     <div class="vdp__tabs" role="tablist">

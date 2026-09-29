@@ -43,6 +43,46 @@
   }
 }
 
+@media (max-width: 991px) {
+  .fleet-kpi {
+    gap: 8px;
+    padding-bottom: 2px;
+  }
+
+  .fleet-kpi__card {
+    min-width: 108px;
+    padding: 8px 10px;
+    gap: 8px;
+    border-radius: 10px;
+  }
+
+  .fleet-kpi__icon {
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+
+    mat-icon {
+      font-size: 17px;
+      width: 17px;
+      height: 17px;
+    }
+  }
+
+  .fleet-kpi__value {
+    font-size: 1.05rem;
+  }
+
+  .fleet-kpi__label {
+    font-size: 0.62rem;
+  }
+
+  .fleet-kpi__hint,
+  .fleet-kpi__trend,
+  .fleet-kpi__spark {
+    display: none;
+  }
+}
+
 .fleet-kpi__icon {
   display: inline-flex;
   align-items: center;
