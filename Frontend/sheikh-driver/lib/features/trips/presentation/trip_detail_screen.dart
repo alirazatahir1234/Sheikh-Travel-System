@@ -232,55 +232,53 @@ class _TripDetailContentState extends ConsumerState<_TripDetailContent> {
           if (_busy)
             const Center(child: CircularProgressIndicator())
           else ...[
-            if (latest.canAccept) ...[
+            // One primary lifecycle CTA at a time (Accept → Arrived → Onboard → Complete).
+            // Backend may return multiple nextActions; stacking them confuses drivers.
+            if (latest.isCompleted) ...[
+              Text(
+                'This trip is already completed.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                    color: AppColors.textSecondary.withValues(alpha: 0.95)),
+              ),
+            ] else if (latest.canAccept) ...[
               SgPrimaryButton(
                 label: 'Accept Trip',
                 onPressed: () => _run('Accept'),
               ),
-              const SizedBox(height: 10),
-            ],
-            if (latest.canReject) ...[
-              SgDangerOutlineButton(
-                label: 'Reject Trip',
-                onPressed: () => _confirmReject(latest),
-              ),
-              const SizedBox(height: 10),
-            ],
-            if (latest.canNavigate)
-              OutlinedButton.icon(
-                onPressed: () => context.push('/trips/${latest.id}/navigate'),
-                icon: const Icon(Icons.near_me_rounded),
-                label: const Text('NAVIGATE'),
-              ),
-            if (latest.canArrive) ...[
-              const SizedBox(height: 10),
+            ] else if (latest.canArrive) ...[
               SgPrimaryButton(
                 label: 'Arrived at Pickup',
                 icon: Icons.place_outlined,
                 onPressed: () => _run('Arrived'),
               ),
-            ],
-            if (latest.canOnboard) ...[
-              const SizedBox(height: 10),
+            ] else if (latest.canOnboard) ...[
               SgPrimaryButton(
                 label: 'Passenger Onboard',
                 icon: Icons.airline_seat_recline_normal,
                 onPressed: () => _run('Onboard'),
               ),
-            ],
-            if (latest.isCompleted) ...[
-              const SizedBox(height: 10),
-              Text(
-                'This trip is already completed.',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: AppColors.textSecondary.withValues(alpha: 0.95)),
-              ),
             ] else if (latest.canComplete) ...[
-              const SizedBox(height: 10),
               SgPrimaryButton(
                 label: 'Complete Trip',
                 icon: Icons.check_circle_outline,
                 onPressed: () => _run('Complete'),
+              ),
+            ],
+            if (!latest.isCompleted && latest.canNavigate) ...[
+              const SizedBox(height: 10),
+              OutlinedButton.icon(
+                onPressed: () =>
+                    context.push('/trips/${latest.id}/navigate'),
+                icon: const Icon(Icons.near_me_rounded),
+                label: const Text('NAVIGATE'),
+              ),
+            ],
+            if (!latest.isCompleted && latest.canReject) ...[
+              const SizedBox(height: 10),
+              SgDangerOutlineButton(
+                label: 'Reject Trip',
+                onPressed: () => _confirmReject(latest),
               ),
             ],
           ],

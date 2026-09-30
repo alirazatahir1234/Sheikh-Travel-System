@@ -9,6 +9,8 @@ import '../../../core/providers/theme_provider.dart';
 import '../../../shared/widgets/sg_ui.dart';
 import '../data/auth_repository.dart';
 import '../domain/auth_models.dart';
+import '../../dashboard/presentation/dashboard_notifier.dart';
+import '../../trips/presentation/trips_notifier.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -64,6 +66,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               rememberMe: _rememberMe,
             ),
           );
+      // Drop any prior role's dashboard/trips so driver never sees fleet KPIs.
+      ref.invalidate(dashboardProvider);
+      ref.invalidate(tripsProvider);
       if (mounted) context.go('/dashboard');
     } catch (e) {
       setState(() => _error = formatDioError(e));

@@ -1,0 +1,67 @@
+### Phase B — Production security smoke (REST Client)
+### Base: Railway production. Fill @email / @password locally — do not commit secrets.
+
+@baseUrl = https://sheikh-travel-system-production.up.railway.app
+@email = REPLACE_WITH_ERP_EMAIL
+@password = REPLACE_WITH_ERP_PASSWORD
+@portalPhone = +923001234567
+@token = (paste accessToken from B1 after login)
+@foreignTenantId = 2
+@matchTenantId = 1
+
+### B1 — Login
+# @name login
+POST {{baseUrl}}/api/Auth/login
+Content-Type: application/json
+Accept: application/json
+
+{
+  "email": "{{email}}",
+  "password": "{{password}}"
+}
+
+### B2 — /api/Auth/me without token → 401
+GET {{baseUrl}}/api/Auth/me
+Accept: application/json
+
+### B3 — /api/Auth/me invalid token → 401
+GET {{baseUrl}}/api/Auth/me
+Authorization: Bearer invalid.token.value
+Accept: application/json
+
+### B4 — Dashboard without X-Tenant-Id → 200 (JWT tenant)
+GET {{baseUrl}}/api/Dashboard/summary
+Authorization: Bearer {{token}}
+Accept: application/json
+
+### B5 — Dashboard foreign X-Tenant-Id → 403
+GET {{baseUrl}}/api/Dashboard/summary
+Authorization: Bearer {{token}}
+X-Tenant-Id: {{foreignTenantId}}
+Accept: application/json
+
+### B6 — Dashboard matching X-Tenant-Id → 200
+GET {{baseUrl}}/api/Dashboard/summary
+Authorization: Bearer {{token}}
+X-Tenant-Id: {{matchTenantId}}
+Accept: application/json
+
+### B7 — Dev seed anonymous → 401 or 404
+POST {{baseUrl}}/api/dev/seed
+Content-Type: application/json
+Accept: application/json
+
+{}
+
+### B8 — Public lookup → 200
+GET {{baseUrl}}/api/lookup/timezones
+Accept: application/json
+
+### B9 — Portal send-otp → 200; body data.devMode must be false
+POST {{baseUrl}}/api/customer-portal/auth/send-otp
+Content-Type: application/json
+Accept: application/json
+
+{
+  "phone": "{{portalPhone}}"
+}

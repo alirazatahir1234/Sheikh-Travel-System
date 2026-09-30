@@ -4,11 +4,13 @@ import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_theme.dart';
 import '../../../core/offline/offline_sync_service.dart';
 import '../../../features/auth/data/auth_repository.dart';
+import '../../../features/auth/domain/auth_models.dart';
 import '../../../shared/widgets/sg_ui.dart';
 import '../../trips/presentation/trips_notifier.dart';
 import '../domain/dashboard_layout.dart';
 import '../domain/dashboard_models.dart';
 import '../domain/dashboard_role.dart';
+import 'dashboard_layout_registry.dart';
 import 'dashboard_notifier.dart';
 import 'widgets/command_dashboard_widgets.dart';
 import 'widgets/dashboard_widgets.dart';
@@ -42,6 +44,8 @@ class DashboardScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final session = ref.watch(authRepositoryProvider).session;
     final dashAsync = ref.watch(dashboardProvider);
+    final forceDriver = session != null &&
+        (session.isDriverOnly || session.authMode == AuthMode.driver);
 
     return Scaffold(
       backgroundColor: AppColors.surface,
@@ -62,9 +66,11 @@ class DashboardScreen extends ConsumerWidget {
           child: Padding(
             padding: const EdgeInsets.only(bottom: 6),
             child: Text(
-              session != null && !session.isDriverOnly
-                  ? '${DashboardRoleX.fromNavRole(session.primaryNavRole).subtitle} ˅'
-                  : 'Driver view',
+              forceDriver
+                  ? 'Driver view'
+                  : session != null
+                      ? '${DashboardRoleX.fromNavRole(session.primaryNavRole).subtitle} ˅'
+                      : 'Driver view',
               style: const TextStyle(
                 fontSize: 12,
                 color: AppColors.textSecondary,
@@ -73,7 +79,7 @@ class DashboardScreen extends ConsumerWidget {
           ),
         ),
         actions: [
-          if (session?.isDriverOnly ?? true)
+          if (forceDriver)
             PopupMenuButton<String>(
               tooltip: 'Set availability',
               onSelected: (v) =>
@@ -125,45 +131,64 @@ class DashboardScreen extends ConsumerWidget {
           message: e.toString(),
           onRetry: () => ref.read(dashboardProvider.notifier).refresh(),
         ),
-        data: (data) => RefreshIndicator(
-          color: AppColors.primary,
-          onRefresh: () async {
-            await ref.read(dashboardProvider.notifier).refresh();
-            await ref.read(offlineSyncProvider).syncNow();
-            ref.invalidate(tripsProvider);
-          },
-          child: ListView(
-            padding: EdgeInsets.fromLTRB(
-              16,
-              8,
-              16,
-              100 + MediaQuery.of(context).padding.bottom,
-            ),
-            children: [
-              ..._buildOrdered(
-                context,
-                data,
-                session?.canSeeAiTab ?? false,
+        data: (data) {
+          // Stale fleet payload while session is driver-only — refetch once.
+          if (forceDriver && !data.isDriver) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              ref.read(dashboardProvider.notifier).refresh();
+            });
+            return ListView(
+              padding: const EdgeInsets.all(16),
+              children: const [
+                SgSkeleton(height: 72),
+                SizedBox(height: 12),
+                SgSkeleton(height: 110),
+                SizedBox(height: 12),
+                SgSkeleton(height: 80),
+              ],
+            );
+          }
+          return RefreshIndicator(
+            color: AppColors.primary,
+            onRefresh: () async {
+              await ref.read(dashboardProvider.notifier).refresh();
+              await ref.read(offlineSyncProvider).syncNow();
+              ref.invalidate(tripsProvider);
+            },
+            child: ListView(
+              padding: EdgeInsets.fromLTRB(
+                16,
+                8,
+                16,
+                100 + MediaQuery.of(context).padding.bottom,
               ),
-              if (data.sectionErrors.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(top: 4),
-                  child: SectionErrorHint(
-                    message: _sectionErrorMessage(data),
-                  ),
+              children: [
+                ..._buildOrdered(
+                  context,
+                  data,
+                  session?.canSeeAiTab ?? false,
+                  forceDriver: forceDriver,
                 ),
-              if (_fleetDataMissing(data))
-                const Padding(
-                  padding: EdgeInsets.only(top: 8),
-                  child: SectionErrorHint(
-                    message:
-                        'Fleet data could not be loaded. Check that the API is reachable '
-                        '(use DEV_LAN_HOST for a physical phone, not localhost). Pull to refresh.',
+                if (data.sectionErrors.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: SectionErrorHint(
+                      message: _sectionErrorMessage(data),
+                    ),
                   ),
-                ),
-            ],
-          ),
-        ),
+                if (_fleetDataMissing(data, forceDriver: forceDriver))
+                  const Padding(
+                    padding: EdgeInsets.only(top: 8),
+                    child: SectionErrorHint(
+                      message:
+                          'Fleet data could not be loaded. Check that the API is reachable '
+                          '(use DEV_LAN_HOST for a physical phone, not localhost). Pull to refresh.',
+                    ),
+                  ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
@@ -171,10 +196,11 @@ class DashboardScreen extends ConsumerWidget {
   List<Widget> _buildOrdered(
     BuildContext context,
     RoleDashboardData data,
-    bool canOpenAi,
-  ) {
-    final isDriver = data.isDriver;
-    final order = isDriver ? _driverOrder : _commandOrder;
+    bool canOpenAi, {
+    required bool forceDriver,
+  }) {
+    final isDriverLayout = forceDriver || data.isDriver;
+    final order = isDriverLayout ? _driverOrder : _commandOrder;
 
     // Only include items that have data (skip if driver info missing for driver items).
     final active = order.where((id) {
@@ -191,7 +217,13 @@ class DashboardScreen extends ConsumerWidget {
 
     final out = <Widget>[];
     for (final id in active) {
-      final w = _buildWidget(context, data, id, canOpenAi);
+      final w = _buildWidget(
+        context,
+        data,
+        id,
+        canOpenAi,
+        forceDriver: forceDriver,
+      );
       out.add(w);
       out.add(const SizedBox(height: 14));
     }
@@ -202,14 +234,17 @@ class DashboardScreen extends ConsumerWidget {
     BuildContext context,
     RoleDashboardData data,
     DashboardWidgetId id,
-    bool canOpenAi,
-  ) {
+    bool canOpenAi, {
+    required bool forceDriver,
+  }) {
+    final displayRole =
+        forceDriver || data.isDriver ? DashboardRole.driver : data.role;
     switch (id) {
       case DashboardWidgetId.opsHeader:
       case DashboardWidgetId.greeting:
         return OpsHeaderCard(
           name: data.displayName,
-          role: data.role,
+          role: displayRole,
           tenantId: data.tenantId,
           lastSyncedAt: data.lastSyncedAt,
         );
@@ -243,7 +278,10 @@ class DashboardScreen extends ConsumerWidget {
       case DashboardWidgetId.attentionVehicles:
         return AttentionVehiclesCard(data: data);
       case DashboardWidgetId.quickActions:
-        return QuickActionsGrid(actions: data.quickActions);
+        final actions = forceDriver && !data.isDriver
+            ? DashboardLayoutRegistry.quickActionsFor(DashboardRole.driver)
+            : data.quickActions;
+        return QuickActionsGrid(actions: actions);
       case DashboardWidgetId.aiAttention:
         return AiCopilotSummaryCard(
           items: data.aiItems,
@@ -282,8 +320,11 @@ class DashboardScreen extends ConsumerWidget {
     return 'Some sections could not load: ${keys.join(', ')}. Pull to refresh.';
   }
 
-  static bool _fleetDataMissing(RoleDashboardData data) {
-    if (data.isDriver) return false;
+  static bool _fleetDataMissing(
+    RoleDashboardData data, {
+    required bool forceDriver,
+  }) {
+    if (forceDriver || data.isDriver) return false;
     final total = data.gps?.totalVehicles ?? data.fleet?.totalVehicles ?? 0;
     if (total > 0) return false;
     return data.sectionErrors.containsKey('fleet') ||

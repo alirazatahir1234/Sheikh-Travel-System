@@ -1,8 +1,10 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../data/dashboard_api.dart';
-import '../../auth/data/auth_repository.dart';
-import '../domain/dashboard_models.dart';
 import 'dart:async';
+
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../auth/data/auth_repository.dart';
+import '../data/dashboard_api.dart';
+import '../domain/dashboard_models.dart';
+import '../domain/dashboard_role.dart';
 
 final dashboardProvider =
     AsyncNotifierProvider<DashboardNotifier, RoleDashboardData>(
@@ -11,8 +13,19 @@ final dashboardProvider =
 class DashboardNotifier extends AsyncNotifier<RoleDashboardData> {
   @override
   Future<RoleDashboardData> build() {
-    final session = ref.read(fleetSessionProvider);
-    if (session?.isGpsOperator == true) {
+    // Re-fetch whenever auth session changes (staff ↔ driver, login/logout).
+    final session = ref.watch(fleetSessionProvider);
+    if (session == null) {
+      return Future.value(
+        const RoleDashboardData(
+          role: DashboardRole.driver,
+          displayName: '',
+          widgets: [],
+          quickActions: [],
+        ),
+      );
+    }
+    if (session.isGpsOperator) {
       final timer = Timer.periodic(const Duration(seconds: 25), (_) {
         silentRefresh();
       });

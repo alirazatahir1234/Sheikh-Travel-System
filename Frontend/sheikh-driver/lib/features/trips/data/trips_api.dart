@@ -26,13 +26,19 @@ class TripsApi {
       if (maps.isEmpty) {
         maps = ApiResponseParser.dataList(res.data);
       }
+      // Always replace cache on successful online fetch (including empty),
+      // so completed trips do not linger as "Driving to pickup".
       await TripsCache.save(maps);
       return maps.map(Trip.fromJson).toList();
     } catch (e) {
       if (!isOfflineDioError(e)) rethrow;
       final cached = TripsCache.load();
       if (cached.isEmpty) rethrow;
-      return cached.map(Trip.fromJson).toList();
+      // Offline: hide terminal trips so drivers don't act on completed work.
+      return cached
+          .map(Trip.fromJson)
+          .where((t) => !t.isCompleted && !t.isCancelled)
+          .toList();
     }
   }
 

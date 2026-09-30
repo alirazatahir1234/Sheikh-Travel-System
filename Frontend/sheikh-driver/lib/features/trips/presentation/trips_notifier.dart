@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/offline/offline_models.dart';
+import '../../auth/data/auth_repository.dart';
 import '../data/trips_api.dart';
 import '../domain/trip_model.dart';
 
@@ -9,7 +10,11 @@ final tripsProvider = AsyncNotifierProvider.autoDispose<TripsNotifier, List<Trip
 
 class TripsNotifier extends AutoDisposeAsyncNotifier<List<Trip>> {
   @override
-  Future<List<Trip>> build() => _fetch();
+  Future<List<Trip>> build() {
+    // Clear stale trips when auth session changes (login / logout / role switch).
+    ref.watch(fleetSessionProvider);
+    return _fetch();
+  }
 
   Future<List<Trip>> _fetch() => ref.read(tripsApiProvider).getTrips();
 
