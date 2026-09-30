@@ -13,6 +13,7 @@ public record GetDriverFuelReceiptsQuery(int Page = 1, int PageSize = 30)
 public class GetDriverFuelReceiptsQueryHandler(
     IDriverAppRepository driverAppRepository,
     ICurrentUserService currentUser,
+    ITenantContext tenantContext,
     IFileStorageService fileStorage)
     : IRequestHandler<GetDriverFuelReceiptsQuery, ApiResponse<List<DriverFuelReceiptDto>>>
 {
@@ -27,7 +28,8 @@ public class GetDriverFuelReceiptsQueryHandler(
         var pageSize = request.PageSize is < 1 or > 100 ? 30 : request.PageSize;
         var offset = (page - 1) * pageSize;
 
-        var rows = await driverAppRepository.GetFuelReceiptsAsync(driverId.Value, offset, pageSize, cancellationToken);
+        var rows = await driverAppRepository.GetFuelReceiptsAsync(
+            driverId.Value, tenantContext.GetRequiredTenantId(), offset, pageSize, cancellationToken);
 
         var list = rows.Select(r =>
         {

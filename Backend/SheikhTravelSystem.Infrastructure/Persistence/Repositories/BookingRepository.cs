@@ -22,11 +22,12 @@ public sealed class BookingRepository(
         CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
+        var tenantId = tenantContext.GetRequiredTenantId();
 
         var customerExists = await connection.ExecuteScalarAsync<bool>(
             new CommandDefinition(
-                "SELECT CASE WHEN EXISTS(SELECT 1 FROM Customers WHERE Id = @Id AND IsDeleted = 0) THEN 1 ELSE 0 END",
-                new { Id = dto.CustomerId },
+                "SELECT CASE WHEN EXISTS(SELECT 1 FROM Customers WHERE Id = @Id AND TenantId = @TenantId AND IsDeleted = 0) THEN 1 ELSE 0 END",
+                new { Id = dto.CustomerId, TenantId = tenantId },
                 cancellationToken: cancellationToken));
 
         if (!customerExists)
@@ -34,8 +35,8 @@ public sealed class BookingRepository(
 
         var routeName = await connection.QuerySingleOrDefaultAsync<string>(
             new CommandDefinition(
-                "SELECT Source + ' → ' + Destination FROM Routes WHERE Id = @Id AND IsDeleted = 0",
-                new { Id = dto.RouteId },
+                "SELECT Source + ' → ' + Destination FROM Routes WHERE Id = @Id AND TenantId = @TenantId AND IsDeleted = 0",
+                new { Id = dto.RouteId, TenantId = tenantId },
                 cancellationToken: cancellationToken));
 
         if (routeName == null)
@@ -43,11 +44,12 @@ public sealed class BookingRepository(
 
         var id = await connection.ExecuteScalarAsync<int>(
             new CommandDefinition(
-                @"INSERT INTO Bookings (CustomerId, RouteId, PickupTime, PassengerCount, TotalAmount, Status, Notes, CreatedAt, IsDeleted)
-                  VALUES (@CustomerId, @RouteId, @PickupTime, @PassengerCount, @TotalAmount, @Status, @Notes, @CreatedAt, 0);
+                @"INSERT INTO Bookings (TenantId, CustomerId, RouteId, PickupTime, PassengerCount, TotalAmount, Status, Notes, CreatedAt, IsDeleted)
+                  VALUES (@TenantId, @CustomerId, @RouteId, @PickupTime, @PassengerCount, @TotalAmount, @Status, @Notes, @CreatedAt, 0);
                   SELECT SCOPE_IDENTITY();",
                 new
                 {
+                    TenantId = tenantId,
                     dto.CustomerId,
                     dto.RouteId,
                     dto.PickupTime,
@@ -62,8 +64,8 @@ public sealed class BookingRepository(
         var bookingNumber = $"BK-{DateTime.UtcNow.Year}-{id:D4}";
         await connection.ExecuteAsync(
             new CommandDefinition(
-                "UPDATE Bookings SET BookingNumber = @BookingNumber WHERE Id = @Id",
-                new { BookingNumber = bookingNumber, Id = id },
+                "UPDATE Bookings SET BookingNumber = @BookingNumber WHERE Id = @Id AND TenantId = @TenantId",
+                new { BookingNumber = bookingNumber, Id = id, TenantId = tenantId },
                 cancellationToken: cancellationToken));
 
         return new CreateBookingResult(id, bookingNumber, routeName);
@@ -75,11 +77,12 @@ public sealed class BookingRepository(
         CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
+        var tenantId = tenantContext.GetRequiredTenantId();
 
         var currentStatus = await connection.ExecuteScalarAsync<int?>(
             new CommandDefinition(
-                "SELECT Status FROM Bookings WHERE Id = @Id",
-                new { Id = id },
+                "SELECT Status FROM Bookings WHERE Id = @Id AND TenantId = @TenantId AND IsDeleted = 0",
+                new { Id = id, TenantId = tenantId },
                 cancellationToken: cancellationToken));
 
         if (currentStatus is null)
@@ -91,8 +94,8 @@ public sealed class BookingRepository(
 
         var customerExists = await connection.ExecuteScalarAsync<bool>(
             new CommandDefinition(
-                "SELECT CASE WHEN EXISTS(SELECT 1 FROM Customers WHERE Id = @Id AND IsDeleted = 0) THEN 1 ELSE 0 END",
-                new { Id = dto.CustomerId },
+                "SELECT CASE WHEN EXISTS(SELECT 1 FROM Customers WHERE Id = @Id AND TenantId = @TenantId AND IsDeleted = 0) THEN 1 ELSE 0 END",
+                new { Id = dto.CustomerId, TenantId = tenantId },
                 cancellationToken: cancellationToken));
 
         if (!customerExists)
@@ -100,8 +103,8 @@ public sealed class BookingRepository(
 
         var routeExists = await connection.ExecuteScalarAsync<bool>(
             new CommandDefinition(
-                "SELECT CASE WHEN EXISTS(SELECT 1 FROM Routes WHERE Id = @Id AND IsDeleted = 0) THEN 1 ELSE 0 END",
-                new { Id = dto.RouteId },
+                "SELECT CASE WHEN EXISTS(SELECT 1 FROM Routes WHERE Id = @Id AND TenantId = @TenantId AND IsDeleted = 0) THEN 1 ELSE 0 END",
+                new { Id = dto.RouteId, TenantId = tenantId },
                 cancellationToken: cancellationToken));
 
         if (!routeExists)
@@ -112,8 +115,8 @@ public sealed class BookingRepository(
         {
             var vehicleExists = await connection.ExecuteScalarAsync<bool>(
                 new CommandDefinition(
-                    "SELECT CASE WHEN EXISTS(SELECT 1 FROM Vehicles WHERE Id = @Id AND IsDeleted = 0) THEN 1 ELSE 0 END",
-                    new { Id = dto.VehicleId },
+                    "SELECT CASE WHEN EXISTS(SELECT 1 FROM Vehicles WHERE Id = @Id AND TenantId = @TenantId AND IsDeleted = 0) THEN 1 ELSE 0 END",
+                    new { Id = dto.VehicleId, TenantId = tenantId },
                     cancellationToken: cancellationToken));
 
             // Keep edit flow resilient when a previously assigned vehicle was archived.
@@ -126,8 +129,8 @@ public sealed class BookingRepository(
         {
             var driverExists = await connection.ExecuteScalarAsync<bool>(
                 new CommandDefinition(
-                    "SELECT CASE WHEN EXISTS(SELECT 1 FROM Drivers WHERE Id = @Id AND IsDeleted = 0) THEN 1 ELSE 0 END",
-                    new { Id = dto.DriverId },
+                    "SELECT CASE WHEN EXISTS(SELECT 1 FROM Drivers WHERE Id = @Id AND TenantId = @TenantId AND IsDeleted = 0) THEN 1 ELSE 0 END",
+                    new { Id = dto.DriverId, TenantId = tenantId },
                     cancellationToken: cancellationToken));
 
             // Keep edit flow resilient when a previously assigned driver was archived.
@@ -148,10 +151,11 @@ public sealed class BookingRepository(
                     Notes = @Notes,
                     IsDeleted = 0,
                     UpdatedAt = @UpdatedAt
-                  WHERE Id = @Id",
+                  WHERE Id = @Id AND TenantId = @TenantId",
                 new
                 {
                     Id = id,
+                    TenantId = tenantId,
                     dto.CustomerId,
                     dto.RouteId,
                     dto.PickupTime,
@@ -170,11 +174,12 @@ public sealed class BookingRepository(
     public async Task SoftDeleteAsync(int id, CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
+        var tenantId = tenantContext.GetRequiredTenantId();
 
         var rowsAffected = await connection.ExecuteAsync(
             new CommandDefinition(
-                "UPDATE Bookings SET IsDeleted = 1, UpdatedAt = @UpdatedAt WHERE Id = @Id AND IsDeleted = 0",
-                new { Id = id, UpdatedAt = DateTime.UtcNow },
+                "UPDATE Bookings SET IsDeleted = 1, UpdatedAt = @UpdatedAt WHERE Id = @Id AND TenantId = @TenantId AND IsDeleted = 0",
+                new { Id = id, TenantId = tenantId, UpdatedAt = DateTime.UtcNow },
                 cancellationToken: cancellationToken));
 
         if (rowsAffected == 0)
@@ -184,12 +189,13 @@ public sealed class BookingRepository(
     public async Task<int> SoftDeleteManyAsync(IReadOnlyList<int> ids, CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
+        var tenantId = tenantContext.GetRequiredTenantId();
 
         return await connection.ExecuteAsync(
             new CommandDefinition(
                 @"UPDATE Bookings SET IsDeleted = 1, UpdatedAt = @UpdatedAt
-                  WHERE IsDeleted = 0 AND Id IN @Ids",
-                new { Ids = ids, UpdatedAt = DateTime.UtcNow },
+                  WHERE IsDeleted = 0 AND TenantId = @TenantId AND Id IN @Ids",
+                new { Ids = ids, TenantId = tenantId, UpdatedAt = DateTime.UtcNow },
                 cancellationToken: cancellationToken));
     }
 
@@ -199,12 +205,13 @@ public sealed class BookingRepository(
         CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
+        var tenantId = tenantContext.GetRequiredTenantId();
 
         // Verify booking exists and is in valid state
         var bookingStatus = await connection.ExecuteScalarAsync<int?>(
             new CommandDefinition(
-                "SELECT Status FROM Bookings WHERE Id = @Id AND IsDeleted = 0",
-                new { Id = bookingId },
+                "SELECT Status FROM Bookings WHERE Id = @Id AND TenantId = @TenantId AND IsDeleted = 0",
+                new { Id = bookingId, TenantId = tenantId },
                 cancellationToken: cancellationToken));
 
         if (bookingStatus is null)
@@ -216,8 +223,8 @@ public sealed class BookingRepository(
         // Verify driver exists and is available
         var driverStatus = await connection.ExecuteScalarAsync<int?>(
             new CommandDefinition(
-                "SELECT Status FROM Drivers WHERE Id = @Id AND IsDeleted = 0 AND IsActive = 1",
-                new { Id = driverId },
+                "SELECT Status FROM Drivers WHERE Id = @Id AND TenantId = @TenantId AND IsDeleted = 0 AND IsActive = 1",
+                new { Id = driverId, TenantId = tenantId },
                 cancellationToken: cancellationToken));
 
         if (driverStatus is null)
@@ -229,15 +236,15 @@ public sealed class BookingRepository(
         // Check for double booking - driver already assigned to active trip at same time
         var booking = await connection.QuerySingleAsync<(DateTime PickupTime, DateTime? DropoffTime)>(
             new CommandDefinition(
-                "SELECT PickupTime, DropoffTime FROM Bookings WHERE Id = @Id",
-                new { Id = bookingId },
+                "SELECT PickupTime, DropoffTime FROM Bookings WHERE Id = @Id AND TenantId = @TenantId",
+                new { Id = bookingId, TenantId = tenantId },
                 cancellationToken: cancellationToken));
 
         var driverConflict = await connection.ExecuteScalarAsync<bool>(
             new CommandDefinition(
                 @"SELECT CASE WHEN EXISTS(
                     SELECT 1 FROM Bookings
-                    WHERE DriverId = @DriverId AND IsDeleted = 0
+                    WHERE DriverId = @DriverId AND TenantId = @TenantId AND IsDeleted = 0
                     AND Status IN (@Confirmed, @Started)
                     AND Id != @BookingId
                     AND PickupTime < DATEADD(HOUR, 4, @PickupTime)
@@ -246,6 +253,7 @@ public sealed class BookingRepository(
                 new
                 {
                     DriverId = driverId,
+                    TenantId = tenantId,
                     BookingId = bookingId,
                     Confirmed = (int)BookingStatus.Confirmed,
                     Started = (int)BookingStatus.Started,
@@ -258,8 +266,8 @@ public sealed class BookingRepository(
 
         await connection.ExecuteAsync(
             new CommandDefinition(
-                "UPDATE Bookings SET DriverId = @DriverId, UpdatedAt = @Now WHERE Id = @Id",
-                new { DriverId = driverId, Now = DateTime.UtcNow, Id = bookingId },
+                "UPDATE Bookings SET DriverId = @DriverId, UpdatedAt = @Now WHERE Id = @Id AND TenantId = @TenantId",
+                new { DriverId = driverId, Now = DateTime.UtcNow, Id = bookingId, TenantId = tenantId },
                 cancellationToken: cancellationToken));
 
         return BookingMutationResult.Ok();
@@ -271,11 +279,12 @@ public sealed class BookingRepository(
         CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
+        var tenantId = tenantContext.GetRequiredTenantId();
 
         var bookingStatus = await connection.ExecuteScalarAsync<int?>(
             new CommandDefinition(
-                "SELECT Status FROM Bookings WHERE Id = @Id AND IsDeleted = 0",
-                new { Id = bookingId },
+                "SELECT Status FROM Bookings WHERE Id = @Id AND TenantId = @TenantId AND IsDeleted = 0",
+                new { Id = bookingId, TenantId = tenantId },
                 cancellationToken: cancellationToken));
 
         if (bookingStatus is null)
@@ -286,8 +295,8 @@ public sealed class BookingRepository(
 
         var vehicleStatus = await connection.ExecuteScalarAsync<int?>(
             new CommandDefinition(
-                "SELECT Status FROM Vehicles WHERE Id = @Id AND IsDeleted = 0",
-                new { Id = vehicleId },
+                "SELECT Status FROM Vehicles WHERE Id = @Id AND TenantId = @TenantId AND IsDeleted = 0",
+                new { Id = vehicleId, TenantId = tenantId },
                 cancellationToken: cancellationToken));
 
         if (vehicleStatus is null)
@@ -299,15 +308,15 @@ public sealed class BookingRepository(
         // Check for double booking
         var booking = await connection.QuerySingleAsync<(DateTime PickupTime, DateTime? DropoffTime)>(
             new CommandDefinition(
-                "SELECT PickupTime, DropoffTime FROM Bookings WHERE Id = @Id",
-                new { Id = bookingId },
+                "SELECT PickupTime, DropoffTime FROM Bookings WHERE Id = @Id AND TenantId = @TenantId",
+                new { Id = bookingId, TenantId = tenantId },
                 cancellationToken: cancellationToken));
 
         var vehicleConflict = await connection.ExecuteScalarAsync<bool>(
             new CommandDefinition(
                 @"SELECT CASE WHEN EXISTS(
                     SELECT 1 FROM Bookings
-                    WHERE VehicleId = @VehicleId AND IsDeleted = 0
+                    WHERE VehicleId = @VehicleId AND TenantId = @TenantId AND IsDeleted = 0
                     AND Status IN (@Confirmed, @Started)
                     AND Id != @BookingId
                     AND PickupTime < DATEADD(HOUR, 4, @PickupTime)
@@ -316,6 +325,7 @@ public sealed class BookingRepository(
                 new
                 {
                     VehicleId = vehicleId,
+                    TenantId = tenantId,
                     BookingId = bookingId,
                     Confirmed = (int)BookingStatus.Confirmed,
                     Started = (int)BookingStatus.Started,
@@ -328,8 +338,8 @@ public sealed class BookingRepository(
 
         await connection.ExecuteAsync(
             new CommandDefinition(
-                "UPDATE Bookings SET VehicleId = @VehicleId, UpdatedAt = @Now WHERE Id = @Id",
-                new { VehicleId = vehicleId, Now = DateTime.UtcNow, Id = bookingId },
+                "UPDATE Bookings SET VehicleId = @VehicleId, UpdatedAt = @Now WHERE Id = @Id AND TenantId = @TenantId",
+                new { VehicleId = vehicleId, Now = DateTime.UtcNow, Id = bookingId, TenantId = tenantId },
                 cancellationToken: cancellationToken));
 
         return BookingMutationResult.Ok();

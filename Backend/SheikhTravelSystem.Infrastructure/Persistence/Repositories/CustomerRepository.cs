@@ -18,13 +18,14 @@ public sealed class CustomerRepository(
         CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
+        var tenantId = tenantContext.GetRequiredTenantId();
 
         if (!string.IsNullOrWhiteSpace(dto.CNIC))
         {
             var dup = await connection.ExecuteScalarAsync<int?>(
                 new CommandDefinition(
-                    "SELECT TOP 1 Id FROM Customers WHERE CNIC = @CNIC AND IsDeleted = 0",
-                    new { dto.CNIC },
+                    "SELECT TOP 1 Id FROM Customers WHERE CNIC = @CNIC AND TenantId = @TenantId AND IsDeleted = 0",
+                    new { dto.CNIC, TenantId = tenantId },
                     cancellationToken: cancellationToken));
             if (dup.HasValue)
                 return CustomerMutationResult<int>.Fail("A customer with this CNIC already exists.");
@@ -32,11 +33,12 @@ public sealed class CustomerRepository(
 
         var id = await connection.ExecuteScalarAsync<int>(
             new CommandDefinition(
-                @"INSERT INTO Customers (FullName, Phone, Email, Address, CNIC, FatherOrHusbandName, Gender, DateOfBirth, Nationality, IsActive, CreatedAt, IsDeleted)
-                  VALUES (@FullName, @Phone, @Email, @Address, @CNIC, @FatherOrHusbandName, @Gender, @DateOfBirth, @Nationality, 1, @CreatedAt, 0);
+                @"INSERT INTO Customers (TenantId, FullName, Phone, Email, Address, CNIC, FatherOrHusbandName, Gender, DateOfBirth, Nationality, IsActive, CreatedAt, IsDeleted)
+                  VALUES (@TenantId, @FullName, @Phone, @Email, @Address, @CNIC, @FatherOrHusbandName, @Gender, @DateOfBirth, @Nationality, 1, @CreatedAt, 0);
                   SELECT SCOPE_IDENTITY();",
                 new
                 {
+                    TenantId = tenantId,
                     dto.FullName,
                     dto.Phone,
                     dto.Email,
@@ -59,11 +61,12 @@ public sealed class CustomerRepository(
         CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
+        var tenantId = tenantContext.GetRequiredTenantId();
 
         var exists = await connection.ExecuteScalarAsync<bool>(
             new CommandDefinition(
-                "SELECT CASE WHEN EXISTS(SELECT 1 FROM Customers WHERE Id = @Id AND IsDeleted = 0) THEN 1 ELSE 0 END",
-                new { Id = id },
+                "SELECT CASE WHEN EXISTS(SELECT 1 FROM Customers WHERE Id = @Id AND TenantId = @TenantId AND IsDeleted = 0) THEN 1 ELSE 0 END",
+                new { Id = id, TenantId = tenantId },
                 cancellationToken: cancellationToken));
 
         if (!exists)
@@ -73,8 +76,8 @@ public sealed class CustomerRepository(
         {
             var conflict = await connection.ExecuteScalarAsync<int?>(
                 new CommandDefinition(
-                    @"SELECT TOP 1 Id FROM Customers WHERE CNIC = @CNIC AND IsDeleted = 0 AND Id <> @Id",
-                    new { dto.CNIC, Id = id },
+                    @"SELECT TOP 1 Id FROM Customers WHERE CNIC = @CNIC AND TenantId = @TenantId AND IsDeleted = 0 AND Id <> @Id",
+                    new { dto.CNIC, TenantId = tenantId, Id = id },
                     cancellationToken: cancellationToken));
             if (conflict.HasValue)
                 return CustomerMutationResult<bool>.Fail("Another customer already uses this CNIC.");
@@ -85,7 +88,7 @@ public sealed class CustomerRepository(
                 @"UPDATE Customers SET FullName = @FullName, Phone = @Phone, Email = @Email,
                   Address = @Address, CNIC = @CNIC,
                   FatherOrHusbandName = @FatherOrHusbandName, Gender = @Gender, DateOfBirth = @DateOfBirth, Nationality = @Nationality,
-                  UpdatedAt = @UpdatedAt WHERE Id = @Id",
+                  UpdatedAt = @UpdatedAt WHERE Id = @Id AND TenantId = @TenantId AND IsDeleted = 0",
                 new
                 {
                     dto.FullName,
@@ -98,7 +101,8 @@ public sealed class CustomerRepository(
                     dto.DateOfBirth,
                     dto.Nationality,
                     UpdatedAt = DateTime.UtcNow,
-                    Id = id
+                    Id = id,
+                    TenantId = tenantId
                 },
                 cancellationToken: cancellationToken));
 
@@ -108,11 +112,12 @@ public sealed class CustomerRepository(
     public async Task SoftDeleteAsync(int id, CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
+        var tenantId = tenantContext.GetRequiredTenantId();
 
         var exists = await connection.ExecuteScalarAsync<bool>(
             new CommandDefinition(
-                "SELECT CASE WHEN EXISTS(SELECT 1 FROM Customers WHERE Id = @Id AND IsDeleted = 0) THEN 1 ELSE 0 END",
-                new { Id = id },
+                "SELECT CASE WHEN EXISTS(SELECT 1 FROM Customers WHERE Id = @Id AND TenantId = @TenantId AND IsDeleted = 0) THEN 1 ELSE 0 END",
+                new { Id = id, TenantId = tenantId },
                 cancellationToken: cancellationToken));
 
         if (!exists)
@@ -120,8 +125,8 @@ public sealed class CustomerRepository(
 
         await connection.ExecuteAsync(
             new CommandDefinition(
-                "UPDATE Customers SET IsDeleted = 1, UpdatedAt = @UpdatedAt WHERE Id = @Id",
-                new { Id = id, UpdatedAt = DateTime.UtcNow },
+                "UPDATE Customers SET IsDeleted = 1, UpdatedAt = @UpdatedAt WHERE Id = @Id AND TenantId = @TenantId AND IsDeleted = 0",
+                new { Id = id, TenantId = tenantId, UpdatedAt = DateTime.UtcNow },
                 cancellationToken: cancellationToken));
     }
 
@@ -178,13 +183,14 @@ public sealed class CustomerRepository(
     public async Task<CustomerDto> GetByIdAsync(int id, CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
+        var tenantId = tenantContext.GetRequiredTenantId();
 
         var customer = await connection.QuerySingleOrDefaultAsync<CustomerDto>(
             new CommandDefinition(
                 @"SELECT Id, FullName, Phone, Email, Address, CNIC, IsActive, CreatedAt,
                   FatherOrHusbandName, Gender, DateOfBirth, Nationality
-                  FROM Customers WHERE Id = @Id AND IsDeleted = 0",
-                new { Id = id },
+                  FROM Customers WHERE Id = @Id AND TenantId = @TenantId AND IsDeleted = 0",
+                new { Id = id, TenantId = tenantId },
                 cancellationToken: cancellationToken));
 
         if (customer is null)

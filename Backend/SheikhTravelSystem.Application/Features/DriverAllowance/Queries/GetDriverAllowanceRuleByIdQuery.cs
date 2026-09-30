@@ -1,6 +1,7 @@
 using MediatR;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Exceptions;
+using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 using SheikhTravelSystem.Application.Features.DriverAllowance.DTOs;
 
@@ -8,13 +9,13 @@ namespace SheikhTravelSystem.Application.Features.DriverAllowance.Queries;
 
 public record GetDriverAllowanceRuleByIdQuery(int Id) : IRequest<ApiResponse<DriverAllowanceRuleDto>>;
 
-public class GetDriverAllowanceRuleByIdQueryHandler(IDriverAllowanceRepository repository)
+public class GetDriverAllowanceRuleByIdQueryHandler(IDriverAllowanceRepository repository, ITenantContext tenantContext)
     : IRequestHandler<GetDriverAllowanceRuleByIdQuery, ApiResponse<DriverAllowanceRuleDto>>
 {
     public async Task<ApiResponse<DriverAllowanceRuleDto>> Handle(
         GetDriverAllowanceRuleByIdQuery request, CancellationToken cancellationToken)
     {
-        var rule = await repository.GetByIdAsync(request.Id, cancellationToken);
+        var rule = await repository.GetByIdAsync(request.Id, tenantContext.GetRequiredTenantId(), cancellationToken);
 
         if (rule is null)
             throw new NotFoundException("DriverAllowanceRule", request.Id);

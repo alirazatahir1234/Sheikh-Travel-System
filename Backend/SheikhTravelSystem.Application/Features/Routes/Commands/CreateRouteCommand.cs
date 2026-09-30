@@ -33,12 +33,12 @@ public class CreateRouteCommandValidator : AbstractValidator<CreateRouteCommand>
     }
 }
 
-public class CreateRouteCommandHandler(IRouteRepository routeRepository)
+public class CreateRouteCommandHandler(IRouteRepository routeRepository, ITenantContext tenantContext)
     : IRequestHandler<CreateRouteCommand, ApiResponse<int>>
 {
     public async Task<ApiResponse<int>> Handle(CreateRouteCommand request, CancellationToken cancellationToken)
     {
-        var id = await routeRepository.CreateAsync(request.Route, cancellationToken);
+        var id = await routeRepository.CreateAsync(tenantContext.GetRequiredTenantId(), request.Route, cancellationToken);
         return ApiResponse<int>.SuccessResponse(id, "Route created successfully.");
     }
 }

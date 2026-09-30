@@ -1,0 +1,9 @@
+{
+  "PortalAuth": {
+    "DevMode": true,
+    "DevOtpCode": "__SET_IN_USER_SECRETS_OR_ENV__"
+  },
+  "MultiTenancy": {
+    "AllowAnonymousDefaultTenant": true
+  }
+}

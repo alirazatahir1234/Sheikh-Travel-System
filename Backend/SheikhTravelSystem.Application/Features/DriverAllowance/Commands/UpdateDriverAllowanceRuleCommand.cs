@@ -39,16 +39,16 @@ public class UpdateDriverAllowanceRuleCommandValidator
     }
 }
 
-public class UpdateDriverAllowanceRuleCommandHandler(IDriverAllowanceRepository repository)
+public class UpdateDriverAllowanceRuleCommandHandler(IDriverAllowanceRepository repository, ITenantContext tenantContext)
     : IRequestHandler<UpdateDriverAllowanceRuleCommand, ApiResponse<bool>>
 {
     public async Task<ApiResponse<bool>> Handle(
         UpdateDriverAllowanceRuleCommand request, CancellationToken cancellationToken)
     {
-        if (!await repository.ExistsAsync(request.Id, cancellationToken))
+        if (!await repository.ExistsAsync(request.Id, tenantContext.GetRequiredTenantId(), cancellationToken))
             throw new NotFoundException("DriverAllowanceRule", request.Id);
 
-        await repository.UpdateAsync(request.Id, request.Rule, cancellationToken);
+        await repository.UpdateAsync(request.Id, tenantContext.GetRequiredTenantId(), request.Rule, cancellationToken);
 
         return ApiResponse<bool>.SuccessResponse(true, "Driver allowance rule updated successfully.");
     }

@@ -9,26 +9,27 @@ namespace SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 public interface IDriverAllowanceRepository
 {
     Task<PagedResult<DriverAllowanceRuleDto>> GetPagedAsync(
+        int tenantId,
         int page,
         int pageSize,
         bool activeOnly,
         CancellationToken cancellationToken = default);
 
-    Task<DriverAllowanceRuleDto?> GetByIdAsync(int id, CancellationToken cancellationToken = default);
+    Task<DriverAllowanceRuleDto?> GetByIdAsync(int id, int tenantId, CancellationToken cancellationToken = default);
 
-    Task<int> CreateAsync(CreateDriverAllowanceRuleDto dto, CancellationToken cancellationToken = default);
+    Task<int> CreateAsync(int tenantId, CreateDriverAllowanceRuleDto dto, CancellationToken cancellationToken = default);
 
-    Task<bool> ExistsAsync(int id, CancellationToken cancellationToken = default);
+    Task<bool> ExistsAsync(int id, int tenantId, CancellationToken cancellationToken = default);
 
-    Task UpdateAsync(int id, UpdateDriverAllowanceRuleDto dto, CancellationToken cancellationToken = default);
+    Task UpdateAsync(int id, int tenantId, UpdateDriverAllowanceRuleDto dto, CancellationToken cancellationToken = default);
 
-    Task SoftDeleteAsync(int id, CancellationToken cancellationToken = default);
+    Task SoftDeleteAsync(int id, int tenantId, CancellationToken cancellationToken = default);
 
-    Task<DriverAllowanceRouteContext?> GetRouteContextAsync(int routeId, CancellationToken cancellationToken = default);
+    Task<DriverAllowanceRouteContext?> GetRouteContextAsync(int routeId, int tenantId, CancellationToken cancellationToken = default);
 
-    Task<int?> GetVehicleFuelTypeAsync(int vehicleId, CancellationToken cancellationToken = default);
+    Task<int?> GetVehicleFuelTypeAsync(int vehicleId, int tenantId, CancellationToken cancellationToken = default);
 
-    Task<IReadOnlyList<DriverAllowanceRuleDto>> GetActiveRulesAsync(CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<DriverAllowanceRuleDto>> GetActiveRulesAsync(int tenantId, CancellationToken cancellationToken = default);
 }
 
 /// <summary>

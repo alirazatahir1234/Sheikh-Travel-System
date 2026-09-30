@@ -8,17 +8,18 @@ namespace SheikhTravelSystem.Infrastructure.Persistence.Repositories;
 
 public sealed class RouteRepository(IDbConnectionFactory dbFactory) : IRouteRepository
 {
-    public async Task<int> CreateAsync(CreateRouteDto dto, CancellationToken cancellationToken = default)
+    public async Task<int> CreateAsync(int tenantId, CreateRouteDto dto, CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
 
         return await connection.ExecuteScalarAsync<int>(
             new CommandDefinition(
-                @"INSERT INTO Routes (Name, Source, Destination, Distance, EstimatedMinutes, BasePrice, IsActive, CreatedAt, IsDeleted, WaypointsJson, OptimizeMode)
-                  VALUES (@Name, @Source, @Destination, @Distance, @EstimatedMinutes, @BasePrice, 1, @CreatedAt, 0, @WaypointsJson, @OptimizeMode);
+                @"INSERT INTO Routes (TenantId, Name, Source, Destination, Distance, EstimatedMinutes, BasePrice, IsActive, CreatedAt, IsDeleted, WaypointsJson, OptimizeMode)
+                  VALUES (@TenantId, @Name, @Source, @Destination, @Distance, @EstimatedMinutes, @BasePrice, 1, @CreatedAt, 0, @WaypointsJson, @OptimizeMode);
                   SELECT SCOPE_IDENTITY();",
                 new
                 {
+                    TenantId = tenantId,
                     dto.Name, dto.Source, dto.Destination, dto.Distance,
                     dto.EstimatedMinutes, dto.BasePrice,
                     dto.WaypointsJson, dto.OptimizeMode,
@@ -27,14 +28,14 @@ public sealed class RouteRepository(IDbConnectionFactory dbFactory) : IRouteRepo
                 cancellationToken: cancellationToken));
     }
 
-    public async Task UpdateAsync(int id, UpdateRouteDto dto, CancellationToken cancellationToken = default)
+    public async Task UpdateAsync(int id, int tenantId, UpdateRouteDto dto, CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
 
         var exists = await connection.ExecuteScalarAsync<bool>(
             new CommandDefinition(
-                "SELECT CASE WHEN EXISTS(SELECT 1 FROM Routes WHERE Id = @Id AND IsDeleted = 0) THEN 1 ELSE 0 END",
-                new { Id = id },
+                "SELECT CASE WHEN EXISTS(SELECT 1 FROM Routes WHERE Id = @Id AND TenantId = @TenantId AND IsDeleted = 0) THEN 1 ELSE 0 END",
+                new { Id = id, TenantId = tenantId },
                 cancellationToken: cancellationToken));
 
         if (!exists)
@@ -46,25 +47,25 @@ public sealed class RouteRepository(IDbConnectionFactory dbFactory) : IRouteRepo
                   Distance = @Distance, EstimatedMinutes = @EstimatedMinutes, BasePrice = @BasePrice,
                   IsActive = @IsActive, UpdatedAt = @UpdatedAt,
                   WaypointsJson = @WaypointsJson, OptimizeMode = @OptimizeMode
-                  WHERE Id = @Id",
+                  WHERE Id = @Id AND TenantId = @TenantId",
                 new
                 {
                     dto.Name, dto.Source, dto.Destination, dto.Distance,
                     dto.EstimatedMinutes, dto.BasePrice, dto.IsActive,
                     dto.WaypointsJson, dto.OptimizeMode,
-                    UpdatedAt = DateTime.UtcNow, Id = id
+                    UpdatedAt = DateTime.UtcNow, Id = id, TenantId = tenantId
                 },
                 cancellationToken: cancellationToken));
     }
 
-    public async Task DeleteAsync(int id, CancellationToken cancellationToken = default)
+    public async Task DeleteAsync(int id, int tenantId, CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
 
         var exists = await connection.ExecuteScalarAsync<bool>(
             new CommandDefinition(
-                "SELECT CASE WHEN EXISTS(SELECT 1 FROM Routes WHERE Id = @Id AND IsDeleted = 0) THEN 1 ELSE 0 END",
-                new { Id = id },
+                "SELECT CASE WHEN EXISTS(SELECT 1 FROM Routes WHERE Id = @Id AND TenantId = @TenantId AND IsDeleted = 0) THEN 1 ELSE 0 END",
+                new { Id = id, TenantId = tenantId },
                 cancellationToken: cancellationToken));
 
         if (!exists)
@@ -72,12 +73,12 @@ public sealed class RouteRepository(IDbConnectionFactory dbFactory) : IRouteRepo
 
         await connection.ExecuteAsync(
             new CommandDefinition(
-                "UPDATE Routes SET IsDeleted = 1, UpdatedAt = @UpdatedAt WHERE Id = @Id",
-                new { UpdatedAt = DateTime.UtcNow, Id = id },
+                "UPDATE Routes SET IsDeleted = 1, UpdatedAt = @UpdatedAt WHERE Id = @Id AND TenantId = @TenantId",
+                new { UpdatedAt = DateTime.UtcNow, Id = id, TenantId = tenantId },
                 cancellationToken: cancellationToken));
     }
 
-    public async Task<RouteDto> GetByIdAsync(int id, CancellationToken cancellationToken = default)
+    public async Task<RouteDto> GetByIdAsync(int id, int tenantId, CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
 
@@ -85,8 +86,8 @@ public sealed class RouteRepository(IDbConnectionFactory dbFactory) : IRouteRepo
             new CommandDefinition(
                 @"SELECT Id, Name, Source, Destination, Distance, EstimatedMinutes, BasePrice, IsActive, CreatedAt,
                          WaypointsJson, OptimizeMode
-                  FROM Routes WHERE Id = @Id AND IsDeleted = 0",
-                new { Id = id },
+                  FROM Routes WHERE Id = @Id AND TenantId = @TenantId AND IsDeleted = 0",
+                new { Id = id, TenantId = tenantId },
                 cancellationToken: cancellationToken));
 
         if (route is null)
@@ -96,6 +97,7 @@ public sealed class RouteRepository(IDbConnectionFactory dbFactory) : IRouteRepo
     }
 
     public async Task<RoutePagedResult> GetPagedAsync(
+        int tenantId,
         int page,
         int pageSize,
         string? search,
@@ -107,6 +109,7 @@ public sealed class RouteRepository(IDbConnectionFactory dbFactory) : IRouteRepo
         using var connection = dbFactory.CreateConnection();
         var offset = (page - 1) * pageSize;
         var (whereClause, parameters) = RouteQueryFilters.Build(
+            tenantId,
             search,
             isActive,
             distanceBand,
@@ -136,6 +139,7 @@ public sealed class RouteRepository(IDbConnectionFactory dbFactory) : IRouteRepo
     }
 
     public async Task<RouteListStatsDto> GetListStatsAsync(
+        int tenantId,
         string? search,
         bool? isActive,
         string? priceBand,
@@ -143,6 +147,7 @@ public sealed class RouteRepository(IDbConnectionFactory dbFactory) : IRouteRepo
     {
         using var connection = dbFactory.CreateConnection();
         var (whereClause, parameters) = RouteQueryFilters.Build(
+            tenantId,
             search,
             isActive,
             distanceBand: null,
@@ -174,14 +179,16 @@ internal static class RouteQueryFilters
     public const decimal MidPrice = 15000m;
 
     public static (string WhereClause, DynamicParameters Parameters) Build(
+        int tenantId,
         string? search,
         bool? isActive,
         string? distanceBand,
         string? priceBand,
         bool applyDistanceBand = true)
     {
-        var where = "WHERE IsDeleted = 0";
+        var where = "WHERE IsDeleted = 0 AND TenantId = @TenantId";
         var parameters = new DynamicParameters();
+        parameters.Add("TenantId", tenantId);
 
         if (isActive.HasValue)
         {

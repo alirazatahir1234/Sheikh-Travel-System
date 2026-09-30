@@ -138,6 +138,7 @@ public class SubmitDriverInspectionCommandHandler(
 
         await driverAppRepository.UpdateInspectionMediaAsync(
             id,
+            tenantId,
             InspectionResultCalculator.SerializePhotos(photoUrls),
             signatureUrl,
             cancellationToken);

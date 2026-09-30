@@ -27,12 +27,12 @@ public class UpdateFuelLogCommandValidator : AbstractValidator<UpdateFuelLogComm
     }
 }
 
-public class UpdateFuelLogCommandHandler(IFuelLogRepository fuelLogRepository)
+public class UpdateFuelLogCommandHandler(IFuelLogRepository fuelLogRepository, ITenantContext tenantContext)
     : IRequestHandler<UpdateFuelLogCommand, ApiResponse<bool>>
 {
     public async Task<ApiResponse<bool>> Handle(UpdateFuelLogCommand request, CancellationToken cancellationToken)
     {
-        var rowsAffected = await fuelLogRepository.UpdateAsync(request.Id, request.FuelLog, cancellationToken);
+        var rowsAffected = await fuelLogRepository.UpdateAsync(request.Id, tenantContext.GetRequiredTenantId(), request.FuelLog, cancellationToken);
 
         if (rowsAffected == 0)
             throw new NotFoundException("FuelLog", request.Id);

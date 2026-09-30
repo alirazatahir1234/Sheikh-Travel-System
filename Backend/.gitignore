@@ -51,11 +51,11 @@ logs/
 tmp/
 temp/
 
-# Environment and secrets
+# Environment and secrets (never commit local overrides)
 .env
 .env.*
-appsettings.Development.json
-appsettings.Local.json
+**/appsettings.Development.json
+**/appsettings.Local.json
 secrets.json
 
 # Database and local data artifacts

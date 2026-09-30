@@ -1,5 +1,6 @@
 using MediatR;
 using SheikhTravelSystem.Application.Common;
+using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 using SheikhTravelSystem.Application.Features.Routes.DTOs;
 
@@ -11,12 +12,13 @@ public record GetRouteListStatsQuery(
     string? PriceBand = null
 ) : IRequest<ApiResponse<RouteListStatsDto>>;
 
-public class GetRouteListStatsQueryHandler(IRouteRepository routeRepository)
+public class GetRouteListStatsQueryHandler(IRouteRepository routeRepository, ITenantContext tenantContext)
     : IRequestHandler<GetRouteListStatsQuery, ApiResponse<RouteListStatsDto>>
 {
     public async Task<ApiResponse<RouteListStatsDto>> Handle(GetRouteListStatsQuery request, CancellationToken cancellationToken)
     {
         var stats = await routeRepository.GetListStatsAsync(
+            tenantContext.GetRequiredTenantId(),
             request.Search,
             request.IsActive,
             request.PriceBand,

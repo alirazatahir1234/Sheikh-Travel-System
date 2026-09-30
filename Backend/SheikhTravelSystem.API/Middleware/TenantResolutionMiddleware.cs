@@ -1,9 +1,11 @@
 using System.Security.Claims;
+using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Interfaces;
+using SheikhTravelSystem.Application.Common.Multitenancy;
 
 namespace SheikhTravelSystem.API.Middleware;
 
-public class TenantResolutionMiddleware(RequestDelegate next)
+public class TenantResolutionMiddleware(RequestDelegate next, ILogger<TenantResolutionMiddleware> logger)
 {
     public const string TenantIdHeader = "X-Tenant-Id";
     public const string TenantSlugHeader = "X-Tenant-Slug";
@@ -11,21 +13,21 @@ public class TenantResolutionMiddleware(RequestDelegate next)
     public async Task InvokeAsync(
         HttpContext context,
         ITenantContext tenantContext,
-        ITenantLookupService tenantLookup)
+        ITenantLookupService tenantLookup,
+        IConfiguration configuration)
     {
-        int? tenantId = null;
+        int? jwtTenantId = null;
+        int? headerTenantId = null;
         string? slug = null;
 
         var tenantClaim = context.User.FindFirst("tenant_id")?.Value;
         if (int.TryParse(tenantClaim, out var fromJwt))
-        {
-            tenantId = fromJwt;
-        }
+            jwtTenantId = fromJwt;
 
         if (context.Request.Headers.TryGetValue(TenantIdHeader, out var tidHeader)
             && int.TryParse(tidHeader.FirstOrDefault(), out var fromHeader))
         {
-            tenantId = fromHeader;
+            headerTenantId = fromHeader;
         }
 
         if (context.Request.Headers.TryGetValue(TenantSlugHeader, out var slugHeader)
@@ -39,21 +41,28 @@ public class TenantResolutionMiddleware(RequestDelegate next)
             slug = tenantQuery.FirstOrDefault()?.Trim().ToLowerInvariant();
         }
 
-        if (!tenantId.HasValue && !string.IsNullOrEmpty(slug))
+        var isAuthenticated = context.User.Identity?.IsAuthenticated == true;
+        var allowAnonymousDefault = configuration.GetValue("MultiTenancy:AllowAnonymousDefaultTenant", true);
+
+        int? slugResolvedTenantId = null;
+        if (!string.IsNullOrEmpty(slug))
         {
             try
             {
-                tenantId = await tenantLookup.GetTenantIdBySlugAsync(slug, context.RequestAborted);
+                slugResolvedTenantId = await tenantLookup.GetTenantIdBySlugAsync(slug, context.RequestAborted);
             }
             catch (Microsoft.Data.SqlClient.SqlException) when (
-                string.Equals(slug, "default", StringComparison.OrdinalIgnoreCase))
+                allowAnonymousDefault
+                && !isAuthenticated
+                && string.Equals(slug, "default", StringComparison.OrdinalIgnoreCase))
             {
-                // Unauthenticated slug lookup should not 500 the whole pipeline when SQL is down.
-                tenantId = 1;
+                // Unauthenticated slug lookup should not 500 when SQL is down and default is allowed.
+                slugResolvedTenantId = TenantResolutionPolicy.AnonymousDefaultTenantId;
             }
         }
 
-        if (!tenantId.HasValue && context.User.Identity?.IsAuthenticated == true)
+        // Preserve existing authenticated fallback when JWT lacks tenant_id.
+        if (isAuthenticated && !jwtTenantId.HasValue)
         {
             var userIdClaim = context.User.FindFirst("userId")?.Value
                 ?? context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
@@ -61,7 +70,7 @@ public class TenantResolutionMiddleware(RequestDelegate next)
             {
                 try
                 {
-                    tenantId = await tenantLookup.GetTenantIdByUserIdAsync(userId, context.RequestAborted);
+                    jwtTenantId = await tenantLookup.GetTenantIdByUserIdAsync(userId, context.RequestAborted);
                 }
                 catch (Microsoft.Data.SqlClient.SqlException)
                 {
@@ -70,17 +79,49 @@ public class TenantResolutionMiddleware(RequestDelegate next)
             }
         }
 
-        if (!tenantId.HasValue && context.User.Identity?.IsAuthenticated != true)
+        var isPlatformOperator = PlatformRoleClaims.IsPlatformOperator(context.User);
+        var decision = TenantResolutionPolicy.Decide(
+            jwtTenantId,
+            headerTenantId,
+            slugResolvedTenantId,
+            slug,
+            isAuthenticated,
+            isPlatformOperator,
+            allowAnonymousDefault);
+
+        if (decision.Reject)
         {
-            tenantId = 1;
-            slug ??= "default";
+            logger.LogWarning(
+                "Tenant resolution rejected. Path={Path} UserId={UserId} JwtTenantId={JwtTenantId} HeaderTenantId={HeaderTenantId} Reason={Reason}",
+                context.Request.Path.Value,
+                GetUserId(context.User),
+                jwtTenantId,
+                headerTenantId,
+                decision.RejectReason);
+            context.Response.StatusCode = StatusCodes.Status403Forbidden;
+            await context.Response.WriteAsJsonAsync(new { message = "Forbidden" });
+            return;
         }
 
-        if (tenantId.HasValue)
+        if (decision.TenantId.HasValue)
+            tenantContext.SetTenant(decision.TenantId.Value, decision.Slug);
+
+        if (!string.IsNullOrEmpty(decision.WarnReason))
         {
-            tenantContext.SetTenant(tenantId.Value, slug);
+            logger.LogWarning(
+                "Tenant resolution warning. Path={Path} UserId={UserId} JwtTenantId={JwtTenantId} HeaderTenantId={HeaderTenantId} ResolvedTenantId={ResolvedTenantId} Warn={Warn}",
+                context.Request.Path.Value,
+                GetUserId(context.User),
+                jwtTenantId,
+                headerTenantId,
+                decision.TenantId,
+                decision.WarnReason);
         }
 
         await next(context);
     }
+
+    private static string? GetUserId(ClaimsPrincipal user) =>
+        user.FindFirst("userId")?.Value
+        ?? user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 }

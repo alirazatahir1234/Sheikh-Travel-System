@@ -64,7 +64,8 @@ public class GetDriverDashboardQueryHandler(
 
 public class GetDriverAttendanceHistoryQueryHandler(
     IDriverAppRepository repository,
-    ICurrentUserService currentUser)
+    ICurrentUserService currentUser,
+    ITenantContext tenantContext)
     : IRequestHandler<GetDriverAttendanceHistoryQuery, ApiResponse<List<DriverAttendanceRecordDto>>>
 {
     public async Task<ApiResponse<List<DriverAttendanceRecordDto>>> Handle(GetDriverAttendanceHistoryQuery request, CancellationToken cancellationToken)
@@ -77,7 +78,7 @@ public class GetDriverAttendanceHistoryQueryHandler(
         var offset = (request.Page - 1) * request.PageSize;
 
         var rows = await repository.GetAttendanceHistoryAsync(
-            driverId.Value, from, to, offset, request.PageSize, cancellationToken);
+            driverId.Value, tenantContext.GetRequiredTenantId(), from, to, offset, request.PageSize, cancellationToken);
         return ApiResponse<List<DriverAttendanceRecordDto>>.SuccessResponse(rows.ToList());
     }
 }
@@ -151,7 +152,7 @@ public class GetDriverTripsQueryHandler(
         var bookingIds = results.Select(t => t.BookingId ?? 0).Where(id => id > 0).Distinct().ToArray();
         if (bookingIds.Length > 0)
         {
-            var paidRows = await repository.GetPaidAmountsForBookingsAsync(bookingIds, cancellationToken);
+            var paidRows = await repository.GetPaidAmountsForBookingsAsync(bookingIds, tenantId, cancellationToken);
             var paidMap = paidRows.ToDictionary(x => x.BookingId, x => x.PaidAmount);
             for (var i = 0; i < results.Count; i++)
             {
@@ -215,7 +216,8 @@ public class GetDriverTimelineQueryHandler(
 
 public class GetDriverEarningsQueryHandler(
     IDriverAppRepository repository,
-    ICurrentUserService currentUser)
+    ICurrentUserService currentUser,
+    ITenantContext tenantContext)
     : IRequestHandler<GetDriverEarningsQuery, ApiResponse<DriverEarningsDto>>
 {
     public async Task<ApiResponse<DriverEarningsDto>> Handle(GetDriverEarningsQuery request, CancellationToken cancellationToken)
@@ -231,22 +233,23 @@ public class GetDriverEarningsQueryHandler(
         var from = request.FromDate ?? weekStart.AddDays(-21);
         var to = request.ToDate ?? now;
         var d = driverId.Value;
+        var tenantId = tenantContext.GetRequiredTenantId();
         var paidStatus = (int)PaymentStatus.Paid;
 
-        var todayAmt = await repository.SumPaymentsAsync(d, today, now, null, cancellationToken);
-        var weekAmt = await repository.SumPaymentsAsync(d, weekStart, now, null, cancellationToken);
-        var monthAmt = await repository.SumPaymentsAsync(d, monthStart, now, null, cancellationToken);
-        var rangeAmt = await repository.SumPaymentsAsync(d, from, to, null, cancellationToken);
-        var paidAmt = await repository.SumPaymentsAsync(d, from, to, paidStatus, cancellationToken);
-        var pendingAmt = await repository.SumPendingPartialPaymentsAsync(d, from, to, cancellationToken);
-        var completed = await repository.CountCompletedBookingsAsync(d, from, to, cancellationToken);
-        var fuelCost = await repository.SumFuelCostAsync(d, from, to, cancellationToken);
-        var distanceKm = await repository.SumBookingDistanceAsync(d, from, to, cancellationToken);
-        var tripDistance = await repository.SumTripDistanceAsync(d, from, to, cancellationToken);
+        var todayAmt = await repository.SumPaymentsAsync(d, tenantId, today, now, null, cancellationToken);
+        var weekAmt = await repository.SumPaymentsAsync(d, tenantId, weekStart, now, null, cancellationToken);
+        var monthAmt = await repository.SumPaymentsAsync(d, tenantId, monthStart, now, null, cancellationToken);
+        var rangeAmt = await repository.SumPaymentsAsync(d, tenantId, from, to, null, cancellationToken);
+        var paidAmt = await repository.SumPaymentsAsync(d, tenantId, from, to, paidStatus, cancellationToken);
+        var pendingAmt = await repository.SumPendingPartialPaymentsAsync(d, tenantId, from, to, cancellationToken);
+        var completed = await repository.CountCompletedBookingsAsync(d, tenantId, from, to, cancellationToken);
+        var fuelCost = await repository.SumFuelCostAsync(d, tenantId, from, to, cancellationToken);
+        var distanceKm = await repository.SumBookingDistanceAsync(d, tenantId, from, to, cancellationToken);
+        var tripDistance = await repository.SumTripDistanceAsync(d, tenantId, from, to, cancellationToken);
         if (tripDistance is > 0)
             distanceKm = tripDistance.Value;
-        var hours = await repository.SumBookingHoursAsync(d, from, to, cancellationToken);
-        var dailyRows = await repository.GetDailyEarningsAsync(d, today.AddDays(-6), today.AddDays(1), cancellationToken);
+        var hours = await repository.SumBookingHoursAsync(d, tenantId, from, to, cancellationToken);
+        var dailyRows = await repository.GetDailyEarningsAsync(d, tenantId, today.AddDays(-6), today.AddDays(1), cancellationToken);
 
         var byDay = dailyRows.ToDictionary(r => r.Day.Date, r => r);
         var daily = new List<DriverEarningsDayDto>();

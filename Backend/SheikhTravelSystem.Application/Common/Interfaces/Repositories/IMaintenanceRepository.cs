@@ -9,15 +9,15 @@ namespace SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 /// </summary>
 public interface IMaintenanceRepository
 {
-    Task<int> CreateAsync(CreateMaintenanceDto dto, CancellationToken cancellationToken = default);
+    Task<int> CreateAsync(int tenantId, CreateMaintenanceDto dto, CancellationToken cancellationToken = default);
 
-    Task UpdateAsync(int id, CreateMaintenanceDto dto, CancellationToken cancellationToken = default);
+    Task UpdateAsync(int id, int tenantId, CreateMaintenanceDto dto, CancellationToken cancellationToken = default);
 
-    Task DeleteAsync(int id, CancellationToken cancellationToken = default);
+    Task DeleteAsync(int id, int tenantId, CancellationToken cancellationToken = default);
 
-    Task UpdateStatusAsync(int id, MaintenanceStatus status, CancellationToken cancellationToken = default);
+    Task UpdateStatusAsync(int id, int tenantId, MaintenanceStatus status, CancellationToken cancellationToken = default);
 
-    Task<PagedResult<MaintenanceDto>> GetPagedAsync(int page, int pageSize, CancellationToken cancellationToken = default);
+    Task<PagedResult<MaintenanceDto>> GetPagedAsync(int tenantId, int page, int pageSize, CancellationToken cancellationToken = default);
 
-    Task<MaintenanceDto> GetByIdAsync(int id, CancellationToken cancellationToken = default);
+    Task<MaintenanceDto> GetByIdAsync(int id, int tenantId, CancellationToken cancellationToken = default);
 }

@@ -1,13 +1,19 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using SheikhTravelSystem.API.Authorization;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Interfaces;
 
 namespace SheikhTravelSystem.API.Controllers;
 
 /// <summary>
-/// Development-only utilities. Every action returns 404 outside the Development
-/// environment so these endpoints cannot be hit in staging or production.
+/// Development-only utilities. Class-level [Authorize] +
+/// [RequirePermission(SecurityManage)] block anonymous and unauthorized callers.
+/// Every action also returns 404 outside Development as defense in depth so these
+/// endpoints cannot execute destructive work in staging or production.
 /// </summary>
+[Authorize]
+[RequirePermission(PlatformPermissions.SecurityManage)]
 [ApiController]
 [Route("api/dev")]
 public class DevController(

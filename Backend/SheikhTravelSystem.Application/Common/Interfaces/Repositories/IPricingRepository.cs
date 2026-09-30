@@ -5,9 +5,9 @@ namespace SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 /// </summary>
 public interface IPricingRepository
 {
-    Task<RoutePricingInfo?> GetRoutePricingAsync(int routeId, CancellationToken cancellationToken = default);
+    Task<RoutePricingInfo?> GetRoutePricingAsync(int tenantId, int routeId, CancellationToken cancellationToken = default);
 
-    Task<decimal?> GetVehicleFuelAverageAsync(int vehicleId, CancellationToken cancellationToken = default);
+    Task<decimal?> GetVehicleFuelAverageAsync(int tenantId, int vehicleId, CancellationToken cancellationToken = default);
 }
 
 public sealed record RoutePricingInfo(decimal Distance, decimal BasePrice);

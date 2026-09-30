@@ -76,7 +76,7 @@ public sealed class PaymentRepository(IDbConnectionFactory dbFactory) : IPayment
         };
     }
 
-    public async Task<PaymentDetailDto?> GetByIdAsync(int id, CancellationToken cancellationToken = default)
+    public async Task<PaymentDetailDto?> GetByIdAsync(int id, int tenantId, CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
 
@@ -88,16 +88,17 @@ public sealed class PaymentRepository(IDbConnectionFactory dbFactory) : IPayment
                   p.TransactionReference, p.Notes, p.CreatedAt, b.TotalAmount AS TotalBookingAmount,
                   p.ReceiptImageData
                   FROM Payments p
-                  INNER JOIN Bookings b ON p.BookingId = b.Id
+                  INNER JOIN Bookings b ON p.BookingId = b.Id AND b.TenantId = @TenantId
                   LEFT JOIN Customers c ON b.CustomerId = c.Id
                   LEFT JOIN Routes r ON b.RouteId = r.Id
-                  WHERE p.Id = @Id AND p.IsDeleted = 0",
-                new { Id = id },
+                  WHERE p.Id = @Id AND p.TenantId = @TenantId AND p.IsDeleted = 0",
+                new { Id = id, TenantId = tenantId },
                 cancellationToken: cancellationToken));
     }
 
     public async Task<List<PaymentDto>> GetByBookingIdAsync(
         int bookingId,
+        int tenantId,
         CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
@@ -107,15 +108,16 @@ public sealed class PaymentRepository(IDbConnectionFactory dbFactory) : IPayment
                 @"SELECT Id, BookingId, Amount, PaymentMethod, Status, PaymentDate,
                   TransactionReference, Notes, CreatedAt
                   FROM Payments 
-                  WHERE BookingId = @BookingId AND IsDeleted = 0
+                  WHERE BookingId = @BookingId AND TenantId = @TenantId AND IsDeleted = 0
                   ORDER BY PaymentDate DESC",
-                new { BookingId = bookingId },
+                new { BookingId = bookingId, TenantId = tenantId },
                 cancellationToken: cancellationToken));
 
         return payments.ToList();
     }
 
     public async Task<PaymentReportDto> GetReportAsync(
+        int tenantId,
         DateTime fromDate,
         DateTime toDate,
         CancellationToken cancellationToken = default)
@@ -125,30 +127,34 @@ public sealed class PaymentRepository(IDbConnectionFactory dbFactory) : IPayment
         var totalReceived = await connection.ExecuteScalarAsync<decimal>(
             new CommandDefinition(
                 @"SELECT ISNULL(SUM(Amount), 0) FROM Payments
-                  WHERE Status = @PaidStatus AND PaymentDate BETWEEN @FromDate AND @ToDate AND IsDeleted = 0",
-                new { PaidStatus = (int)PaymentStatus.Paid, FromDate = fromDate, ToDate = toDate },
+                  WHERE TenantId = @TenantId AND Status = @PaidStatus
+                    AND PaymentDate BETWEEN @FromDate AND @ToDate AND IsDeleted = 0",
+                new { TenantId = tenantId, PaidStatus = (int)PaymentStatus.Paid, FromDate = fromDate, ToDate = toDate },
                 cancellationToken: cancellationToken));
 
         var totalPending = await connection.ExecuteScalarAsync<decimal>(
             new CommandDefinition(
                 @"SELECT ISNULL(SUM(Amount), 0) FROM Payments
-                  WHERE Status IN (@Pending, @Partial) AND PaymentDate BETWEEN @FromDate AND @ToDate AND IsDeleted = 0",
-                new { Pending = (int)PaymentStatus.Pending, Partial = (int)PaymentStatus.PartiallyPaid, FromDate = fromDate, ToDate = toDate },
+                  WHERE TenantId = @TenantId AND Status IN (@Pending, @Partial)
+                    AND PaymentDate BETWEEN @FromDate AND @ToDate AND IsDeleted = 0",
+                new { TenantId = tenantId, Pending = (int)PaymentStatus.Pending, Partial = (int)PaymentStatus.PartiallyPaid, FromDate = fromDate, ToDate = toDate },
                 cancellationToken: cancellationToken));
 
         var totalTransactions = await connection.ExecuteScalarAsync<int>(
             new CommandDefinition(
-                "SELECT COUNT(*) FROM Payments WHERE PaymentDate BETWEEN @FromDate AND @ToDate AND IsDeleted = 0",
-                new { FromDate = fromDate, ToDate = toDate },
+                @"SELECT COUNT(*) FROM Payments
+                  WHERE TenantId = @TenantId AND PaymentDate BETWEEN @FromDate AND @ToDate AND IsDeleted = 0",
+                new { TenantId = tenantId, FromDate = fromDate, ToDate = toDate },
                 cancellationToken: cancellationToken));
 
         var recentPayments = await connection.QueryAsync<PaymentDto>(
             new CommandDefinition(
                 @"SELECT TOP 10 Id, BookingId, Amount, PaymentMethod, Status, PaymentDate,
                   TransactionReference, Notes, CreatedAt
-                  FROM Payments WHERE PaymentDate BETWEEN @FromDate AND @ToDate AND IsDeleted = 0
+                  FROM Payments
+                  WHERE TenantId = @TenantId AND PaymentDate BETWEEN @FromDate AND @ToDate AND IsDeleted = 0
                   ORDER BY CreatedAt DESC",
-                new { FromDate = fromDate, ToDate = toDate },
+                new { TenantId = tenantId, FromDate = fromDate, ToDate = toDate },
                 cancellationToken: cancellationToken));
 
         return new PaymentReportDto(totalReceived, totalPending, totalTransactions, recentPayments.ToList());
@@ -156,6 +162,7 @@ public sealed class PaymentRepository(IDbConnectionFactory dbFactory) : IPayment
 
     public async Task<PaymentBookingInfo?> GetBookingForPaymentAsync(
         int bookingId,
+        int tenantId,
         CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
@@ -164,8 +171,8 @@ public sealed class PaymentRepository(IDbConnectionFactory dbFactory) : IPayment
         // even when a row exists, causing false NotFoundException on valid booking ids.
         var booking = await connection.QuerySingleOrDefaultAsync<BookingRowForPayment>(
             new CommandDefinition(
-                "SELECT TotalAmount, Status, BookingNumber FROM Bookings WHERE Id = @Id AND IsDeleted = 0",
-                new { Id = bookingId },
+                "SELECT TotalAmount, Status, BookingNumber FROM Bookings WHERE Id = @Id AND TenantId = @TenantId AND IsDeleted = 0",
+                new { Id = bookingId, TenantId = tenantId },
                 cancellationToken: cancellationToken));
 
         return booking is null
@@ -175,6 +182,7 @@ public sealed class PaymentRepository(IDbConnectionFactory dbFactory) : IPayment
 
     public async Task<decimal> GetTotalPaidForBookingAsync(
         int bookingId,
+        int tenantId,
         CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
@@ -182,12 +190,14 @@ public sealed class PaymentRepository(IDbConnectionFactory dbFactory) : IPayment
         return await connection.ExecuteScalarAsync<decimal>(
             new CommandDefinition(
                 @"SELECT ISNULL(SUM(Amount), 0) FROM Payments
-                  WHERE BookingId = @BookingId AND Status IN (@Paid, @Partial) AND IsDeleted = 0",
-                new { BookingId = bookingId, Paid = (int)PaymentStatus.Paid, Partial = (int)PaymentStatus.PartiallyPaid },
+                  WHERE BookingId = @BookingId AND TenantId = @TenantId
+                    AND Status IN (@Paid, @Partial) AND IsDeleted = 0",
+                new { BookingId = bookingId, TenantId = tenantId, Paid = (int)PaymentStatus.Paid, Partial = (int)PaymentStatus.PartiallyPaid },
                 cancellationToken: cancellationToken));
     }
 
     public async Task<int> CreateAsync(
+        int tenantId,
         CreatePaymentDto dto,
         PaymentStatus status,
         CancellationToken cancellationToken = default)
@@ -196,11 +206,12 @@ public sealed class PaymentRepository(IDbConnectionFactory dbFactory) : IPayment
 
         return await connection.ExecuteScalarAsync<int>(
             new CommandDefinition(
-                @"INSERT INTO Payments (BookingId, Amount, PaymentMethod, Status, PaymentDate, TransactionReference, Notes, ReceiptImageData, CreatedAt, IsDeleted)
-                  VALUES (@BookingId, @Amount, @PaymentMethod, @Status, @PaymentDate, @TransactionReference, @Notes, @ReceiptImageData, @CreatedAt, 0);
+                @"INSERT INTO Payments (TenantId, BookingId, Amount, PaymentMethod, Status, PaymentDate, TransactionReference, Notes, ReceiptImageData, CreatedAt, IsDeleted)
+                  VALUES (@TenantId, @BookingId, @Amount, @PaymentMethod, @Status, @PaymentDate, @TransactionReference, @Notes, @ReceiptImageData, @CreatedAt, 0);
                   SELECT SCOPE_IDENTITY();",
                 new
                 {
+                    TenantId = tenantId,
                     dto.BookingId, dto.Amount, dto.PaymentMethod,
                     Status = (int)status, PaymentDate = DateTime.UtcNow,
                     dto.TransactionReference, dto.Notes,
@@ -212,6 +223,7 @@ public sealed class PaymentRepository(IDbConnectionFactory dbFactory) : IPayment
 
     public async Task UpdateStatusAsync(
         int id,
+        int tenantId,
         PaymentStatus status,
         CancellationToken cancellationToken = default)
     {
@@ -219,19 +231,19 @@ public sealed class PaymentRepository(IDbConnectionFactory dbFactory) : IPayment
 
         await connection.ExecuteAsync(
             new CommandDefinition(
-                "UPDATE Payments SET Status = @Status, UpdatedAt = @UpdatedAt WHERE Id = @Id",
-                new { Status = (int)status, UpdatedAt = DateTime.UtcNow, Id = id },
+                "UPDATE Payments SET Status = @Status, UpdatedAt = @UpdatedAt WHERE Id = @Id AND TenantId = @TenantId",
+                new { Status = (int)status, UpdatedAt = DateTime.UtcNow, Id = id, TenantId = tenantId },
                 cancellationToken: cancellationToken));
     }
 
-    public async Task<bool> ExistsAsync(int id, CancellationToken cancellationToken = default)
+    public async Task<bool> ExistsAsync(int id, int tenantId, CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
 
         return await connection.ExecuteScalarAsync<bool>(
             new CommandDefinition(
-                "SELECT CASE WHEN EXISTS(SELECT 1 FROM Payments WHERE Id = @Id AND IsDeleted = 0) THEN 1 ELSE 0 END",
-                new { Id = id },
+                "SELECT CASE WHEN EXISTS(SELECT 1 FROM Payments WHERE Id = @Id AND TenantId = @TenantId AND IsDeleted = 0) THEN 1 ELSE 0 END",
+                new { Id = id, TenantId = tenantId },
                 cancellationToken: cancellationToken));
     }
 

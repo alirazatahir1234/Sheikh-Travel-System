@@ -27,18 +27,22 @@ public class CreatePaymentCommandValidator : AbstractValidator<CreatePaymentComm
     }
 }
 
-public class CreatePaymentCommandHandler(IPaymentRepository paymentRepository, INotificationDecisionEngine decisionEngine)
+public class CreatePaymentCommandHandler(
+    IPaymentRepository paymentRepository,
+    ITenantContext tenantContext,
+    INotificationDecisionEngine decisionEngine)
     : IRequestHandler<CreatePaymentCommand, ApiResponse<int>>
 {
     public async Task<ApiResponse<int>> Handle(CreatePaymentCommand request, CancellationToken cancellationToken)
     {
         var dto = request.Payment;
+        var tenantId = tenantContext.GetRequiredTenantId();
 
-        var booking = await paymentRepository.GetBookingForPaymentAsync(dto.BookingId, cancellationToken);
+        var booking = await paymentRepository.GetBookingForPaymentAsync(dto.BookingId, tenantId, cancellationToken);
         if (booking is null)
             throw new NotFoundException("Booking", dto.BookingId);
 
-        var totalPaid = await paymentRepository.GetTotalPaidForBookingAsync(dto.BookingId, cancellationToken);
+        var totalPaid = await paymentRepository.GetTotalPaidForBookingAsync(dto.BookingId, tenantId, cancellationToken);
         var remaining = booking.TotalAmount - totalPaid;
 
         if (dto.Amount > remaining)
@@ -48,7 +52,7 @@ public class CreatePaymentCommandHandler(IPaymentRepository paymentRepository, I
             ? PaymentStatus.Paid
             : PaymentStatus.PartiallyPaid;
 
-        var id = await paymentRepository.CreateAsync(dto, paymentStatus, cancellationToken);
+        var id = await paymentRepository.CreateAsync(tenantId, dto, paymentStatus, cancellationToken);
 
         var bookingNumber = booking.BookingNumber ?? $"#{dto.BookingId}";
         await decisionEngine.DispatchIfAllowedAsync(new NotificationDecisionRequest(

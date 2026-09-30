@@ -13,16 +13,16 @@ public record DeleteDriverAllowanceRuleCommand(int Id) : IRequest<ApiResponse<bo
     public int? AuditEntityId => Id;
 }
 
-public class DeleteDriverAllowanceRuleCommandHandler(IDriverAllowanceRepository repository)
+public class DeleteDriverAllowanceRuleCommandHandler(IDriverAllowanceRepository repository, ITenantContext tenantContext)
     : IRequestHandler<DeleteDriverAllowanceRuleCommand, ApiResponse<bool>>
 {
     public async Task<ApiResponse<bool>> Handle(
         DeleteDriverAllowanceRuleCommand request, CancellationToken cancellationToken)
     {
-        if (!await repository.ExistsAsync(request.Id, cancellationToken))
+        if (!await repository.ExistsAsync(request.Id, tenantContext.GetRequiredTenantId(), cancellationToken))
             throw new NotFoundException("DriverAllowanceRule", request.Id);
 
-        await repository.SoftDeleteAsync(request.Id, cancellationToken);
+        await repository.SoftDeleteAsync(request.Id, tenantContext.GetRequiredTenantId(), cancellationToken);
 
         return ApiResponse<bool>.SuccessResponse(true, "Driver allowance rule deleted successfully.");
     }

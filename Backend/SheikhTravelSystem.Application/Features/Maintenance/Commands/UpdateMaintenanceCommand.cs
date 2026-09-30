@@ -25,12 +25,12 @@ public class UpdateMaintenanceCommandValidator : AbstractValidator<UpdateMainten
     }
 }
 
-public class UpdateMaintenanceCommandHandler(IMaintenanceRepository maintenanceRepository)
+public class UpdateMaintenanceCommandHandler(IMaintenanceRepository maintenanceRepository, ITenantContext tenantContext)
     : IRequestHandler<UpdateMaintenanceCommand, ApiResponse<bool>>
 {
     public async Task<ApiResponse<bool>> Handle(UpdateMaintenanceCommand request, CancellationToken cancellationToken)
     {
-        await maintenanceRepository.UpdateAsync(request.Id, request.Maintenance, cancellationToken);
+        await maintenanceRepository.UpdateAsync(request.Id, tenantContext.GetRequiredTenantId(), request.Maintenance, cancellationToken);
         return ApiResponse<bool>.SuccessResponse(true, "Maintenance record updated successfully.");
     }
 }

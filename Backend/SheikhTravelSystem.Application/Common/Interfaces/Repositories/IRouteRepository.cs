@@ -7,24 +7,25 @@ namespace SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 /// </summary>
 public interface IRouteRepository
 {
-    Task<int> CreateAsync(CreateRouteDto dto, CancellationToken cancellationToken = default);
+    Task<int> CreateAsync(int tenantId, CreateRouteDto dto, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Throws <see cref="Exceptions.NotFoundException"/> when the route is missing.
     /// </summary>
-    Task UpdateAsync(int id, UpdateRouteDto dto, CancellationToken cancellationToken = default);
+    Task UpdateAsync(int id, int tenantId, UpdateRouteDto dto, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Soft-deletes the route. Throws <see cref="Exceptions.NotFoundException"/> when missing.
     /// </summary>
-    Task DeleteAsync(int id, CancellationToken cancellationToken = default);
+    Task DeleteAsync(int id, int tenantId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Throws <see cref="Exceptions.NotFoundException"/> when the route is missing.
     /// </summary>
-    Task<RouteDto> GetByIdAsync(int id, CancellationToken cancellationToken = default);
+    Task<RouteDto> GetByIdAsync(int id, int tenantId, CancellationToken cancellationToken = default);
 
     Task<RoutePagedResult> GetPagedAsync(
+        int tenantId,
         int page,
         int pageSize,
         string? search,
@@ -34,6 +35,7 @@ public interface IRouteRepository
         CancellationToken cancellationToken = default);
 
     Task<RouteListStatsDto> GetListStatsAsync(
+        int tenantId,
         string? search,
         bool? isActive,
         string? priceBand,

@@ -43,7 +43,7 @@ public class PermissionAuthorizationHandler : AuthorizationHandler<PermissionReq
             return Task.CompletedTask;
         }
 
-        if (HasRole(context, PlatformRoles.SuperAdmin))
+        if (PlatformRoleClaims.HasRole(context.User, PlatformRoles.SuperAdmin))
         {
             context.Succeed(requirement);
             return Task.CompletedTask;
@@ -59,7 +59,7 @@ public class PermissionAuthorizationHandler : AuthorizationHandler<PermissionReq
         }
 
         // TENANT_ADMIN role claim also satisfies Platform tenant-admin surface when permissions lag seed.
-        if (HasRole(context, PlatformRoles.TenantAdmin) &&
+        if (PlatformRoleClaims.HasRole(context.User, PlatformRoles.TenantAdmin) &&
             requirement.Permission.StartsWith("Platform.", StringComparison.Ordinal) &&
             !requirement.Permission.StartsWith("Platform.Tenants.", StringComparison.Ordinal))
         {
@@ -69,11 +69,6 @@ public class PermissionAuthorizationHandler : AuthorizationHandler<PermissionReq
 
         return Task.CompletedTask;
     }
-
-    private static bool HasRole(AuthorizationHandlerContext context, string roleCode) =>
-        context.User.IsInRole(roleCode)
-        || context.User.HasClaim("role", roleCode)
-        || context.User.HasClaim(System.Security.Claims.ClaimTypes.Role, roleCode);
 }
 
 public static class PermissionPolicyRegistration

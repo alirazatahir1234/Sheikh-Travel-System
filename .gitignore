@@ -12,3 +12,9 @@ Thumbs.db
 *.keystore
 **/key.properties
 **/service-account*.json
+
+# Backend local secrets / environment overlays (never commit)
+**/appsettings.Development.json
+**/appsettings.Local.json
+.env
+.env.*

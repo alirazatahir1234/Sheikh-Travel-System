@@ -1,5 +1,6 @@
 using MediatR;
 using SheikhTravelSystem.Application.Common;
+using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 using SheikhTravelSystem.Application.Features.Tracking.DTOs;
 
@@ -7,14 +8,16 @@ namespace SheikhTravelSystem.Application.Features.Tracking.Queries;
 
 public record GetLiveTrackingQuery : IRequest<ApiResponse<List<TrackingDto>>>;
 
-public class GetLiveTrackingQueryHandler(ITrackingRepository trackingRepository)
+public class GetLiveTrackingQueryHandler(ITrackingRepository trackingRepository, ITenantContext tenantContext)
     : IRequestHandler<GetLiveTrackingQuery, ApiResponse<List<TrackingDto>>>
 {
     public async Task<ApiResponse<List<TrackingDto>>> Handle(
         GetLiveTrackingQuery request,
         CancellationToken cancellationToken)
     {
-        var tracking = await trackingRepository.GetLiveAsync(cancellationToken);
+        var tracking = await trackingRepository.GetLiveAsync(
+            tenantContext.GetRequiredTenantId(),
+            cancellationToken);
         return ApiResponse<List<TrackingDto>>.SuccessResponse(tracking.ToList());
     }
 }
@@ -22,7 +25,7 @@ public class GetLiveTrackingQueryHandler(ITrackingRepository trackingRepository)
 public record GetTrackingHistoryQuery(int VehicleId, DateTime? FromDate, DateTime? ToDate)
     : IRequest<ApiResponse<List<TrackingDto>>>;
 
-public class GetTrackingHistoryQueryHandler(ITrackingRepository trackingRepository)
+public class GetTrackingHistoryQueryHandler(ITrackingRepository trackingRepository, ITenantContext tenantContext)
     : IRequestHandler<GetTrackingHistoryQuery, ApiResponse<List<TrackingDto>>>
 {
     private static readonly TimeSpan MaxRange = TimeSpan.FromDays(30);
@@ -41,7 +44,11 @@ public class GetTrackingHistoryQueryHandler(ITrackingRepository trackingReposito
             return ApiResponse<List<TrackingDto>>.FailResponse("Date range cannot exceed 30 days.");
 
         var history = await trackingRepository.GetHistoryAsync(
-            request.VehicleId, fromDate, toDate, cancellationToken);
+            tenantContext.GetRequiredTenantId(),
+            request.VehicleId,
+            fromDate,
+            toDate,
+            cancellationToken);
 
         return ApiResponse<List<TrackingDto>>.SuccessResponse(history.ToList());
     }

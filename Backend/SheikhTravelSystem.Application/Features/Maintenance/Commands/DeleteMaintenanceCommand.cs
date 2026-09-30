@@ -21,12 +21,12 @@ public class DeleteMaintenanceCommandValidator : AbstractValidator<DeleteMainten
     }
 }
 
-public class DeleteMaintenanceCommandHandler(IMaintenanceRepository maintenanceRepository)
+public class DeleteMaintenanceCommandHandler(IMaintenanceRepository maintenanceRepository, ITenantContext tenantContext)
     : IRequestHandler<DeleteMaintenanceCommand, ApiResponse<bool>>
 {
     public async Task<ApiResponse<bool>> Handle(DeleteMaintenanceCommand request, CancellationToken cancellationToken)
     {
-        await maintenanceRepository.DeleteAsync(request.Id, cancellationToken);
+        await maintenanceRepository.DeleteAsync(request.Id, tenantContext.GetRequiredTenantId(), cancellationToken);
         return ApiResponse<bool>.SuccessResponse(true, "Maintenance record deleted successfully.");
     }
 }

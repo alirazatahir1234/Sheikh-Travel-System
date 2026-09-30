@@ -24,12 +24,12 @@ public class CreateMaintenanceCommandValidator : AbstractValidator<CreateMainten
     }
 }
 
-public class CreateMaintenanceCommandHandler(IMaintenanceRepository maintenanceRepository)
+public class CreateMaintenanceCommandHandler(IMaintenanceRepository maintenanceRepository, ITenantContext tenantContext)
     : IRequestHandler<CreateMaintenanceCommand, ApiResponse<int>>
 {
     public async Task<ApiResponse<int>> Handle(CreateMaintenanceCommand request, CancellationToken cancellationToken)
     {
-        var id = await maintenanceRepository.CreateAsync(request.Maintenance, cancellationToken);
+        var id = await maintenanceRepository.CreateAsync(tenantContext.GetRequiredTenantId(), request.Maintenance, cancellationToken);
         return ApiResponse<int>.SuccessResponse(id, "Maintenance record created successfully.");
     }
 }

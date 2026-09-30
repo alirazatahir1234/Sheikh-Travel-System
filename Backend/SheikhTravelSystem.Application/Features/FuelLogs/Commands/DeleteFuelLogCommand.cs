@@ -22,12 +22,12 @@ public class DeleteFuelLogCommandValidator : AbstractValidator<DeleteFuelLogComm
     }
 }
 
-public class DeleteFuelLogCommandHandler(IFuelLogRepository fuelLogRepository)
+public class DeleteFuelLogCommandHandler(IFuelLogRepository fuelLogRepository, ITenantContext tenantContext)
     : IRequestHandler<DeleteFuelLogCommand, ApiResponse<bool>>
 {
     public async Task<ApiResponse<bool>> Handle(DeleteFuelLogCommand request, CancellationToken cancellationToken)
     {
-        var rowsAffected = await fuelLogRepository.DeleteAsync(request.Id, cancellationToken);
+        var rowsAffected = await fuelLogRepository.DeleteAsync(request.Id, tenantContext.GetRequiredTenantId(), cancellationToken);
 
         if (rowsAffected == 0)
             throw new NotFoundException("FuelLog", request.Id);

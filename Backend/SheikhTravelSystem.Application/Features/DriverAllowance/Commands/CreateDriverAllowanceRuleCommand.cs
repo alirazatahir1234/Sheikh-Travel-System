@@ -37,13 +37,13 @@ public class CreateDriverAllowanceRuleCommandValidator
     }
 }
 
-public class CreateDriverAllowanceRuleCommandHandler(IDriverAllowanceRepository repository)
+public class CreateDriverAllowanceRuleCommandHandler(IDriverAllowanceRepository repository, ITenantContext tenantContext)
     : IRequestHandler<CreateDriverAllowanceRuleCommand, ApiResponse<int>>
 {
     public async Task<ApiResponse<int>> Handle(
         CreateDriverAllowanceRuleCommand request, CancellationToken cancellationToken)
     {
-        var id = await repository.CreateAsync(request.Rule, cancellationToken);
+        var id = await repository.CreateAsync(tenantContext.GetRequiredTenantId(), request.Rule, cancellationToken);
         return ApiResponse<int>.SuccessResponse(id, "Driver allowance rule created successfully.");
     }
 }

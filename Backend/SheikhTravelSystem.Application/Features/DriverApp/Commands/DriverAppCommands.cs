@@ -60,6 +60,7 @@ public record DriverRejectTripCommand(int BookingId, string Reason) : IRequest<A
 public class DriverStartTripCommandHandler(
     IDriverAppRepository repository,
     ICurrentUserService currentUser,
+    ITenantContext tenantContext,
     IMediator mediator)
     : IRequestHandler<DriverStartTripCommand, ApiResponse<bool>>
 {
@@ -74,13 +75,15 @@ public class DriverStartTripCommandHandler(
     {
         var driverId = currentUser.DriverId;
         if (!driverId.HasValue) return false;
-        return await repository.OwnsBookingAsync(bookingId, driverId.Value, cancellationToken);
+        return await repository.OwnsBookingAsync(
+            bookingId, driverId.Value, tenantContext.GetRequiredTenantId(), cancellationToken);
     }
 }
 
 public class DriverCompleteTripCommandHandler(
     IDriverAppRepository repository,
     ICurrentUserService currentUser,
+    ITenantContext tenantContext,
     IMediator mediator)
     : IRequestHandler<DriverCompleteTripCommand, ApiResponse<bool>>
 {
@@ -95,13 +98,15 @@ public class DriverCompleteTripCommandHandler(
     {
         var driverId = currentUser.DriverId;
         if (!driverId.HasValue) return false;
-        return await repository.OwnsBookingAsync(bookingId, driverId.Value, cancellationToken);
+        return await repository.OwnsBookingAsync(
+            bookingId, driverId.Value, tenantContext.GetRequiredTenantId(), cancellationToken);
     }
 }
 
 public class DriverRejectTripCommandHandler(
     IDriverAppRepository repository,
     ICurrentUserService currentUser,
+    ITenantContext tenantContext,
     IMediator mediator)
     : IRequestHandler<DriverRejectTripCommand, ApiResponse<bool>>
 {
@@ -120,7 +125,8 @@ public class DriverRejectTripCommandHandler(
     {
         var driverId = currentUser.DriverId;
         if (!driverId.HasValue) return false;
-        return await repository.OwnsBookingAsync(bookingId, driverId.Value, cancellationToken);
+        return await repository.OwnsBookingAsync(
+            bookingId, driverId.Value, tenantContext.GetRequiredTenantId(), cancellationToken);
     }
 }
 
@@ -129,6 +135,7 @@ public record DriverPostLocationCommand(DriverLocationDto Location) : IRequest<A
 public class DriverPostLocationCommandHandler(
     IDriverAppRepository repository,
     ICurrentUserService currentUser,
+    ITenantContext tenantContext,
     IMediator mediator)
     : IRequestHandler<DriverPostLocationCommand, ApiResponse<bool>>
 {
@@ -138,8 +145,9 @@ public class DriverPostLocationCommandHandler(
         if (!driverId.HasValue)
             return ApiResponse<bool>.FailResponse("Driver identity required.");
 
-        var active = await repository.GetActiveTripVehicleAsync(driverId.Value, cancellationToken)
-                     ?? await repository.GetActiveBookingVehicleAsync(driverId.Value, cancellationToken);
+        var tenantId = tenantContext.GetRequiredTenantId();
+        var active = await repository.GetActiveTripVehicleAsync(driverId.Value, tenantId, cancellationToken)
+                     ?? await repository.GetActiveBookingVehicleAsync(driverId.Value, tenantId, cancellationToken);
 
         if (active is null)
             return ApiResponse<bool>.FailResponse("No active started trip with a vehicle.");
@@ -256,7 +264,7 @@ public class DriverSosCommandHandler(
         if (driver is null || driver.Value.FullName is null)
             return ApiResponse<DriverSosResultDto>.FailResponse("Driver not found.");
 
-        var active = await repository.GetStartedBookingForSosAsync(driverId.Value, cancellationToken);
+        var active = await repository.GetStartedBookingForSosAsync(driverId.Value, tenantId, cancellationToken);
         var vehicleId = active.VehicleId;
         var bookingId = active.BookingId;
         var createdAt = DateTime.UtcNow;

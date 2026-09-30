@@ -1,11 +1,17 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace SheikhTravelSystem.API.Controllers;
 
+/// <summary>
+/// PublicByDesign — intentionally anonymous static lookup data (timezones, currencies,
+/// countries). No tenant-sensitive database access. Rate-limited via the shared "public" policy.
+/// </summary>
 [ApiController]
 [Route("api/lookup")]
 [AllowAnonymous]
+[EnableRateLimiting("public")]
 public class LookupController : ControllerBase
 {
     [HttpGet("timezones")]

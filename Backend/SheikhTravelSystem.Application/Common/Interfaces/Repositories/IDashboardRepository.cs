@@ -4,5 +4,5 @@ namespace SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 
 public interface IDashboardRepository
 {
-    Task<DashboardSummaryDto> GetSummaryAsync(CancellationToken cancellationToken = default);
+    Task<DashboardSummaryDto> GetSummaryAsync(int tenantId, CancellationToken cancellationToken = default);
 }

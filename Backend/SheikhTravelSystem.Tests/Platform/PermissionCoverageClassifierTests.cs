@@ -22,6 +22,30 @@ public class PermissionCoverageClassifierTests
     }
 
     [Fact]
+    public void DevController_with_SecurityManage_remains_Internal()
+    {
+        PermissionCoverageClassifier.Classify(
+            "DevController", "POST", allowAnonymous: false, hasAuthorize: true,
+            permissionPolicies: ["Platform.Security.Manage"], roles: [])
+            .Should().Be(PermissionCoverageStatuses.Internal);
+    }
+
+    [Fact]
+    public void LookupController_anonymous_is_Public()
+    {
+        PermissionCoverageClassifier.Classify(
+            "LookupController", "GET", allowAnonymous: true, hasAuthorize: false,
+            permissionPolicies: [], roles: []).Should().Be(PermissionCoverageStatuses.Public);
+    }
+
+    [Fact]
+    public void LookupController_is_PublicByDesign()
+    {
+        PermissionCoverageClassifier.IsPublicByDesign("LookupController").Should().BeTrue();
+        PermissionCoverageClassifier.IsBusinessController("LookupController").Should().BeFalse();
+    }
+
+    [Fact]
     public void RequirePermission_is_Protected()
     {
         PermissionCoverageClassifier.Classify(

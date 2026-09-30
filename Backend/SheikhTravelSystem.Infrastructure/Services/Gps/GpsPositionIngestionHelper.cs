@@ -50,14 +50,20 @@ public sealed class GpsPositionIngestionHelper : IGpsPositionIngestionHelper
                 cancellationToken: cancellationToken));
         }
 
+        var tenantId = await connection.ExecuteScalarAsync<int?>(new CommandDefinition(
+            "SELECT TenantId FROM Vehicles WHERE Id = @Id AND IsDeleted = 0",
+            new { Id = dto.VehicleId },
+            cancellationToken: cancellationToken));
+
         await connection.ExecuteAsync(new CommandDefinition(
             @"INSERT INTO GpsPositions
-              (VehicleId, GpsDeviceId, DriverId, BookingId, Latitude, Longitude, Speed, Heading, Altitude, Ignition, RecordedAt, CreatedAt,
+              (TenantId, VehicleId, GpsDeviceId, DriverId, BookingId, Latitude, Longitude, Speed, Heading, Altitude, Ignition, RecordedAt, CreatedAt,
                FuelLevel, BatteryLevel, GsmSignal, TotalDistanceKm, Address, AlarmType, Temperature)
-              VALUES (@VehicleId, @GpsDeviceId, @DriverId, @BookingId, @Latitude, @Longitude, @Speed, @Heading, @Altitude, @Ignition, @RecordedAt, @RecordedAt,
+              VALUES (@TenantId, @VehicleId, @GpsDeviceId, @DriverId, @BookingId, @Latitude, @Longitude, @Speed, @Heading, @Altitude, @Ignition, @RecordedAt, @RecordedAt,
                @FuelLevel, @BatteryLevel, @GsmSignal, @TotalDistanceKm, @Address, @AlarmType, @Temperature)",
             new
             {
+                TenantId = tenantId,
                 dto.VehicleId,
                 dto.GpsDeviceId,
                 DriverId = driverId,

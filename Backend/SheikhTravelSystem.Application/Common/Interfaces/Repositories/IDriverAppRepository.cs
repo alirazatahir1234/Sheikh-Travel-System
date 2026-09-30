@@ -18,46 +18,46 @@ public interface IDriverAppRepository
     Task<int> SetDriverStatusAsync(int driverId, int tenantId, int status, CancellationToken ct = default);
 
     // Ownership / bookings
-    Task<bool> OwnsBookingAsync(int bookingId, int driverId, CancellationToken ct = default);
+    Task<bool> OwnsBookingAsync(int bookingId, int driverId, int tenantId, CancellationToken ct = default);
     Task<bool> DriverOwnsVehicleAsync(int driverId, int vehicleId, int tenantId, CancellationToken ct = default);
     Task<string?> GetVehicleNameAsync(int vehicleId, CancellationToken ct = default);
     Task<DriverBookingRef?> ResolveDriverBookingAsync(int id, int driverId, int tenantId, CancellationToken ct = default);
-    Task<decimal> GetBookingPaidAmountAsync(int bookingId, CancellationToken ct = default);
+    Task<decimal> GetBookingPaidAmountAsync(int bookingId, int tenantId, CancellationToken ct = default);
 
     // Location
-    Task<(int VehicleId, int? BookingId)?> GetActiveTripVehicleAsync(int driverId, CancellationToken ct = default);
-    Task<(int VehicleId, int? BookingId)?> GetActiveBookingVehicleAsync(int driverId, CancellationToken ct = default);
+    Task<(int VehicleId, int? BookingId)?> GetActiveTripVehicleAsync(int driverId, int tenantId, CancellationToken ct = default);
+    Task<(int VehicleId, int? BookingId)?> GetActiveBookingVehicleAsync(int driverId, int tenantId, CancellationToken ct = default);
 
     // Attendance
     Task<int> UpdateCheckInAsync(int driverId, int tenantId, DateTime attendanceDate, DateTime now, double? lat, double? lng, CancellationToken ct = default);
     Task InsertCheckInAsync(int driverId, int tenantId, DateTime attendanceDate, DateTime now, double? lat, double? lng, CancellationToken ct = default);
     Task<int> UpdateCheckOutAsync(int driverId, int tenantId, DateTime attendanceDate, DateTime now, double? lat, double? lng, CancellationToken ct = default);
     Task InsertCheckOutAsync(int driverId, int tenantId, DateTime attendanceDate, DateTime now, double? lat, double? lng, CancellationToken ct = default);
-    Task<IReadOnlyList<DriverAttendanceRecordDto>> GetAttendanceHistoryAsync(int driverId, DateTime from, DateTime to, int offset, int size, CancellationToken ct = default);
+    Task<IReadOnlyList<DriverAttendanceRecordDto>> GetAttendanceHistoryAsync(int driverId, int tenantId, DateTime from, DateTime to, int offset, int size, CancellationToken ct = default);
 
     // SOS
     Task<(string FullName, string Phone)?> GetDriverNamePhoneAsync(int driverId, int tenantId, CancellationToken ct = default);
-    Task<(int? VehicleId, int? BookingId)> GetStartedBookingForSosAsync(int driverId, CancellationToken ct = default);
+    Task<(int? VehicleId, int? BookingId)> GetStartedBookingForSosAsync(int driverId, int tenantId, CancellationToken ct = default);
     Task<int> InsertSosAlertAsync(int tenantId, int driverId, int? vehicleId, int? bookingId, double? lat, double? lng, string? message, DateTime createdAt, CancellationToken ct = default);
 
     // Trips list
     Task<IReadOnlyList<DriverOpTripRow>> GetOperationalTripsAsync(int driverId, int tenantId, CancellationToken ct = default);
     Task<IReadOnlyList<DriverLegacyTripRow>> GetLegacyBookingTripsAsync(int driverId, int tenantId, CancellationToken ct = default);
-    Task<IReadOnlyList<(int BookingId, decimal PaidAmount)>> GetPaidAmountsForBookingsAsync(IReadOnlyList<int> bookingIds, CancellationToken ct = default);
+    Task<IReadOnlyList<(int BookingId, decimal PaidAmount)>> GetPaidAmountsForBookingsAsync(IReadOnlyList<int> bookingIds, int tenantId, CancellationToken ct = default);
 
     // Timeline / earnings
     Task<IReadOnlyList<DriverTimelineEventDto>> GetTimelineAsync(int driverId, int tenantId, int? userId, int offset, int size, CancellationToken ct = default);
-    Task<decimal> SumPaymentsAsync(int driverId, DateTime from, DateTime to, int? statusFilter, CancellationToken ct = default);
-    Task<decimal> SumPendingPartialPaymentsAsync(int driverId, DateTime from, DateTime to, CancellationToken ct = default);
-    Task<int> CountCompletedBookingsAsync(int driverId, DateTime from, DateTime to, CancellationToken ct = default);
-    Task<decimal> SumFuelCostAsync(int driverId, DateTime from, DateTime to, CancellationToken ct = default);
-    Task<decimal> SumBookingDistanceAsync(int driverId, DateTime from, DateTime to, CancellationToken ct = default);
-    Task<decimal?> SumTripDistanceAsync(int driverId, DateTime from, DateTime to, CancellationToken ct = default);
-    Task<decimal> SumBookingHoursAsync(int driverId, DateTime from, DateTime to, CancellationToken ct = default);
-    Task<IReadOnlyList<(DateTime Day, decimal Amount, int TripCount)>> GetDailyEarningsAsync(int driverId, DateTime from, DateTime toExclusive, CancellationToken ct = default);
+    Task<decimal> SumPaymentsAsync(int driverId, int tenantId, DateTime from, DateTime to, int? statusFilter, CancellationToken ct = default);
+    Task<decimal> SumPendingPartialPaymentsAsync(int driverId, int tenantId, DateTime from, DateTime to, CancellationToken ct = default);
+    Task<int> CountCompletedBookingsAsync(int driverId, int tenantId, DateTime from, DateTime to, CancellationToken ct = default);
+    Task<decimal> SumFuelCostAsync(int driverId, int tenantId, DateTime from, DateTime to, CancellationToken ct = default);
+    Task<decimal> SumBookingDistanceAsync(int driverId, int tenantId, DateTime from, DateTime to, CancellationToken ct = default);
+    Task<decimal?> SumTripDistanceAsync(int driverId, int tenantId, DateTime from, DateTime to, CancellationToken ct = default);
+    Task<decimal> SumBookingHoursAsync(int driverId, int tenantId, DateTime from, DateTime to, CancellationToken ct = default);
+    Task<IReadOnlyList<(DateTime Day, decimal Amount, int TripCount)>> GetDailyEarningsAsync(int driverId, int tenantId, DateTime from, DateTime toExclusive, CancellationToken ct = default);
 
     // Fuel
-    Task<IReadOnlyList<DriverFuelReceiptRow>> GetFuelReceiptsAsync(int driverId, int offset, int size, CancellationToken ct = default);
+    Task<IReadOnlyList<DriverFuelReceiptRow>> GetFuelReceiptsAsync(int driverId, int tenantId, int offset, int size, CancellationToken ct = default);
 
     // Inspection
     Task<(int Id, string Name, string? Description, string ChecklistJson)?> GetInspectionTemplateAsync(int tenantId, CancellationToken ct = default);
@@ -66,7 +66,7 @@ public interface IDriverAppRepository
     Task<bool> VehicleExistsForTenantAsync(int vehicleId, int tenantId, CancellationToken ct = default);
     Task<string?> GetDriverFullNameAsync(int driverId, CancellationToken ct = default);
     Task<int> InsertInspectionAsync(DriverInspectionInsert insert, CancellationToken ct = default);
-    Task UpdateInspectionMediaAsync(int id, string photosJson, string? signatureUrl, CancellationToken ct = default);
+    Task UpdateInspectionMediaAsync(int id, int tenantId, string photosJson, string? signatureUrl, CancellationToken ct = default);
     Task<IReadOnlyList<DriverInspectionHistoryRow>> GetInspectionHistoryAsync(int driverId, int tenantId, int offset, int size, CancellationToken ct = default);
     Task<IReadOnlyList<DriverInspectionVehicleDto>> GetVehiclesForInspectionAsync(int driverId, int tenantId, CancellationToken ct = default);
     Task<IReadOnlyList<DriverInspectionVehicleDto>> GetFallbackVehiclesForInspectionAsync(int tenantId, CancellationToken ct = default);
@@ -86,8 +86,7 @@ public interface IDriverAppRepository
     Task<DriverTripRef?> FindTripByBookingAsync(int bookingId, int driverId, int tenantId, CancellationToken ct = default);
     Task<DriverTripRef?> GetTripRefAsync(int tripId, int driverId, int tenantId, CancellationToken ct = default);
     Task EnsureTripVehicleAsync(int tripId, int? bookingId, int driverId, int tenantId, CancellationToken ct = default);
-    Task<int?> GetBookingStatusAsync(int bookingId, CancellationToken ct = default);
-    Task SyncLinkedBookingStatusAsync(int bookingId, int status, int cancelledStatus, string? reason, CancellationToken ct = default);
+    Task<int?> GetBookingStatusAsync(int bookingId, int tenantId, CancellationToken ct = default);
 }
 
 public sealed class DriverLoginRow

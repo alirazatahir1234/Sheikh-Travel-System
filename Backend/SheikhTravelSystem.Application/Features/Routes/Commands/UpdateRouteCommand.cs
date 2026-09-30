@@ -34,12 +34,12 @@ public class UpdateRouteCommandValidator : AbstractValidator<UpdateRouteCommand>
     }
 }
 
-public class UpdateRouteCommandHandler(IRouteRepository routeRepository)
+public class UpdateRouteCommandHandler(IRouteRepository routeRepository, ITenantContext tenantContext)
     : IRequestHandler<UpdateRouteCommand, ApiResponse<bool>>
 {
     public async Task<ApiResponse<bool>> Handle(UpdateRouteCommand request, CancellationToken cancellationToken)
     {
-        await routeRepository.UpdateAsync(request.Id, request.Route, cancellationToken);
+        await routeRepository.UpdateAsync(request.Id, tenantContext.GetRequiredTenantId(), request.Route, cancellationToken);
         return ApiResponse<bool>.SuccessResponse(true, "Route updated successfully.");
     }
 }

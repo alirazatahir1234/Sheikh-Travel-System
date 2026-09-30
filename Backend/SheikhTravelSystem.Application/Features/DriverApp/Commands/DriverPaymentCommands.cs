@@ -59,7 +59,7 @@ public class GetDriverTripPaymentSummaryQueryHandler(
         if (row is null)
             return ApiResponse<DriverTripPaymentSummaryDto>.FailResponse("Trip not found or not assigned to you.");
 
-        var paidAmount = await driverAppRepository.GetBookingPaidAmountAsync(row.BookingId, cancellationToken);
+        var paidAmount = await driverAppRepository.GetBookingPaidAmountAsync(row.BookingId, tenantId, cancellationToken);
         var balance = Math.Max(0, row.TotalAmount - paidAmount);
         var status = balance <= 0
             ? "Paid"
@@ -96,7 +96,7 @@ public class DriverCollectPaymentCommandHandler(
         if (row is null)
             return ApiResponse<int>.FailResponse("Trip not found or not assigned to you.");
 
-        var paidAmount = await driverAppRepository.GetBookingPaidAmountAsync(row.BookingId, cancellationToken);
+        var paidAmount = await driverAppRepository.GetBookingPaidAmountAsync(row.BookingId, tenantId, cancellationToken);
         var balance = Math.Max(0, row.TotalAmount - paidAmount);
         if (balance <= 0)
             return ApiResponse<int>.FailResponse("Payment already settled for this trip.");

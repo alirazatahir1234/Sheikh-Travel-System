@@ -33,10 +33,22 @@ public static class PermissionCoverageClassifier
         "DevController",
     };
 
+    /// <summary>
+    /// Controllers intentionally left anonymous (static / non-tenant data).
+    /// Coverage inventory tags these with Notes = PublicByDesign.
+    /// </summary>
+    private static readonly HashSet<string> PublicByDesignControllers = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "LookupController",
+    };
+
     private static readonly HashSet<string> WriteHttpMethods = new(StringComparer.OrdinalIgnoreCase)
     {
         "POST", "PUT", "PATCH", "DELETE",
     };
+
+    public static bool IsPublicByDesign(string controllerName)
+        => PublicByDesignControllers.Contains(controllerName);
 
     public static string Classify(
         string controllerName,
@@ -127,7 +139,7 @@ public static class PermissionCoverageClassifier
         if (RoleGatedControllers.Contains(controllerName)) return false;
         if (AuthOnlyAllowlist.Contains(controllerName)) return false;
         if (controllerName.Equals("AuthController", StringComparison.OrdinalIgnoreCase)) return false;
-        if (controllerName.Equals("LookupController", StringComparison.OrdinalIgnoreCase)) return false;
+        if (IsPublicByDesign(controllerName)) return false;
         return true;
     }
 

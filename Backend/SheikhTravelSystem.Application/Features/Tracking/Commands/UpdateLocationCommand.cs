@@ -1,6 +1,7 @@
 using FluentValidation;
 using MediatR;
 using SheikhTravelSystem.Application.Common;
+using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 using SheikhTravelSystem.Application.Features.Tracking.DTOs;
 
@@ -18,13 +19,14 @@ public class UpdateLocationCommandValidator : AbstractValidator<UpdateLocationCo
     }
 }
 
-public class UpdateLocationCommandHandler(ITrackingRepository trackingRepository)
+public class UpdateLocationCommandHandler(ITrackingRepository trackingRepository, ITenantContext tenantContext)
     : IRequestHandler<UpdateLocationCommand, ApiResponse<bool>>
 {
     public async Task<ApiResponse<bool>> Handle(UpdateLocationCommand request, CancellationToken cancellationToken)
     {
         var dto = request.Location;
-        await trackingRepository.InsertLocationAsync(
+        var inserted = await trackingRepository.InsertLocationAsync(
+            tenantContext.GetRequiredTenantId(),
             dto.VehicleId,
             dto.DriverId,
             dto.BookingId,
@@ -32,6 +34,9 @@ public class UpdateLocationCommandHandler(ITrackingRepository trackingRepository
             dto.Longitude,
             dto.Speed,
             cancellationToken);
+
+        if (!inserted)
+            return ApiResponse<bool>.FailResponse("Vehicle not found.");
 
         return ApiResponse<bool>.SuccessResponse(true, "Location updated.");
     }

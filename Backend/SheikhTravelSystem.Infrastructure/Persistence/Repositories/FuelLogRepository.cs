@@ -9,6 +9,7 @@ namespace SheikhTravelSystem.Infrastructure.Persistence.Repositories;
 public sealed class FuelLogRepository(IDbConnectionFactory dbFactory) : IFuelLogRepository
 {
     public async Task<PagedResult<FuelLogDto>> GetPagedAsync(
+        int tenantId,
         int page,
         int pageSize,
         CancellationToken cancellationToken = default)
@@ -20,15 +21,16 @@ public sealed class FuelLogRepository(IDbConnectionFactory dbFactory) : IFuelLog
             new CommandDefinition(
                 @"SELECT Id, VehicleId, DriverId, Liters, PricePerLiter, TotalCost,
                   OdometerReading, FuelType, FuelDate, Station, CreatedAt, ReceiptUrl
-                  FROM FuelLogs WHERE IsDeleted = 0
+                  FROM FuelLogs WHERE IsDeleted = 0 AND TenantId = @TenantId
                   ORDER BY FuelDate DESC
                   OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY",
-                new { Offset = offset, PageSize = pageSize },
+                new { Offset = offset, PageSize = pageSize, TenantId = tenantId },
                 cancellationToken: cancellationToken));
 
         var totalCount = await connection.ExecuteScalarAsync<int>(
             new CommandDefinition(
-                "SELECT COUNT(*) FROM FuelLogs WHERE IsDeleted = 0",
+                "SELECT COUNT(*) FROM FuelLogs WHERE IsDeleted = 0 AND TenantId = @TenantId",
+                new { TenantId = tenantId },
                 cancellationToken: cancellationToken));
 
         return new PagedResult<FuelLogDto>
@@ -40,7 +42,7 @@ public sealed class FuelLogRepository(IDbConnectionFactory dbFactory) : IFuelLog
         };
     }
 
-    public async Task<FuelLogDto?> GetByIdAsync(int id, CancellationToken cancellationToken = default)
+    public async Task<FuelLogDto?> GetByIdAsync(int id, int tenantId, CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
 
@@ -48,25 +50,26 @@ public sealed class FuelLogRepository(IDbConnectionFactory dbFactory) : IFuelLog
             new CommandDefinition(
                 @"SELECT Id, VehicleId, DriverId, Liters, PricePerLiter, TotalCost,
                   OdometerReading, FuelType, FuelDate, Station, CreatedAt
-                  FROM FuelLogs WHERE Id = @Id AND IsDeleted = 0",
-                new { Id = id },
+                  FROM FuelLogs WHERE Id = @Id AND TenantId = @TenantId AND IsDeleted = 0",
+                new { Id = id, TenantId = tenantId },
                 cancellationToken: cancellationToken));
     }
 
-    public async Task<int> CreateAsync(CreateFuelLogDto dto, CancellationToken cancellationToken = default)
+    public async Task<int> CreateAsync(int tenantId, CreateFuelLogDto dto, CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
         var totalCost = dto.Liters * dto.PricePerLiter;
 
         return await connection.ExecuteScalarAsync<int>(
             new CommandDefinition(
-                @"INSERT INTO FuelLogs (VehicleId, DriverId, Liters, PricePerLiter, TotalCost,
+                @"INSERT INTO FuelLogs (TenantId, VehicleId, DriverId, Liters, PricePerLiter, TotalCost,
                   OdometerReading, FuelType, FuelDate, Station, ReceiptUrl, CreatedAt, IsDeleted)
-                  VALUES (@VehicleId, @DriverId, @Liters, @PricePerLiter, @TotalCost,
+                  VALUES (@TenantId, @VehicleId, @DriverId, @Liters, @PricePerLiter, @TotalCost,
                   @OdometerReading, @FuelType, @FuelDate, @Station, @ReceiptUrl, @CreatedAt, 0);
                   SELECT SCOPE_IDENTITY();",
                 new
                 {
+                    TenantId = tenantId,
                     dto.VehicleId, dto.DriverId, dto.Liters, dto.PricePerLiter, TotalCost = totalCost,
                     dto.OdometerReading, FuelType = (int)dto.FuelType, dto.FuelDate,
                     dto.Station, dto.ReceiptUrl, CreatedAt = DateTime.UtcNow
@@ -74,7 +77,7 @@ public sealed class FuelLogRepository(IDbConnectionFactory dbFactory) : IFuelLog
                 cancellationToken: cancellationToken));
     }
 
-    public async Task<int> UpdateAsync(int id, CreateFuelLogDto dto, CancellationToken cancellationToken = default)
+    public async Task<int> UpdateAsync(int id, int tenantId, CreateFuelLogDto dto, CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
         var totalCost = dto.Liters * dto.PricePerLiter;
@@ -86,10 +89,11 @@ public sealed class FuelLogRepository(IDbConnectionFactory dbFactory) : IFuelLog
                       PricePerLiter = @PricePerLiter, TotalCost = @TotalCost,
                       OdometerReading = @OdometerReading, FuelType = @FuelType,
                       FuelDate = @FuelDate, Station = @Station, UpdatedAt = @UpdatedAt
-                  WHERE Id = @Id AND IsDeleted = 0",
+                  WHERE Id = @Id AND TenantId = @TenantId AND IsDeleted = 0",
                 new
                 {
                     Id = id,
+                    TenantId = tenantId,
                     dto.VehicleId, dto.DriverId, dto.Liters, dto.PricePerLiter, TotalCost = totalCost,
                     dto.OdometerReading, FuelType = (int)dto.FuelType, dto.FuelDate,
                     dto.Station, UpdatedAt = DateTime.UtcNow
@@ -97,14 +101,14 @@ public sealed class FuelLogRepository(IDbConnectionFactory dbFactory) : IFuelLog
                 cancellationToken: cancellationToken));
     }
 
-    public async Task<int> DeleteAsync(int id, CancellationToken cancellationToken = default)
+    public async Task<int> DeleteAsync(int id, int tenantId, CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
 
         return await connection.ExecuteAsync(
             new CommandDefinition(
-                "UPDATE FuelLogs SET IsDeleted = 1, UpdatedAt = @UpdatedAt WHERE Id = @Id AND IsDeleted = 0",
-                new { Id = id, UpdatedAt = DateTime.UtcNow },
+                "UPDATE FuelLogs SET IsDeleted = 1, UpdatedAt = @UpdatedAt WHERE Id = @Id AND TenantId = @TenantId AND IsDeleted = 0",
+                new { Id = id, TenantId = tenantId, UpdatedAt = DateTime.UtcNow },
                 cancellationToken: cancellationToken));
     }
 }

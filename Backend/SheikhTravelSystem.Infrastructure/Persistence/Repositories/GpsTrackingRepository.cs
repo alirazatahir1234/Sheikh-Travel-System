@@ -154,10 +154,11 @@ public sealed partial class GpsTrackingRepository(
         using var connection = dbFactory.CreateConnection();
         var dto = request.Geofence;
         var areaType = GpsGeoHelper.NormalizeAreaType(dto.AreaType);
+        var tenantId = tenantContext.GetRequiredTenantId();
 
         var duplicate = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
-            @"SELECT COUNT(1) FROM Geofences WHERE IsDeleted = 0 AND LOWER(Name) = LOWER(@Name)",
-            new { dto.Name },
+            @"SELECT COUNT(1) FROM Geofences WHERE IsDeleted = 0 AND TenantId = @TenantId AND LOWER(Name) = LOWER(@Name)",
+            new { dto.Name, TenantId = tenantId },
             cancellationToken: cancellationToken));
         if (duplicate > 0)
             return ApiResponse<int>.FailResponse("A geofence with this name already exists.");
@@ -165,11 +166,12 @@ public sealed partial class GpsTrackingRepository(
         var (centerLat, centerLng, radius) = GpsGeoHelper.NormalizeGeometry(areaType, dto.CenterLat, dto.CenterLng, dto.RadiusMeters, dto.GeoJson);
 
         var id = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
-            @"INSERT INTO Geofences (Name, AreaType, CenterLat, CenterLng, RadiusMeters, GeoJson, Color, Category, Description, IsActive, CreatedAt, CreatedBy, IsDeleted)
+            @"INSERT INTO Geofences (TenantId, Name, AreaType, CenterLat, CenterLng, RadiusMeters, GeoJson, Color, Category, Description, IsActive, CreatedAt, CreatedBy, IsDeleted)
               OUTPUT INSERTED.Id
-              VALUES (@Name, @AreaType, @CenterLat, @CenterLng, @RadiusMeters, @GeoJson, @Color, @Category, @Description, @IsActive, GETUTCDATE(), @CreatedBy, 0)",
+              VALUES (@TenantId, @Name, @AreaType, @CenterLat, @CenterLng, @RadiusMeters, @GeoJson, @Color, @Category, @Description, @IsActive, GETUTCDATE(), @CreatedBy, 0)",
             new
             {
+                TenantId = tenantId,
                 dto.Name,
                 AreaType = areaType,
                 CenterLat = centerLat,
@@ -193,9 +195,11 @@ public sealed partial class GpsTrackingRepository(
         var dto = request.Geofence;
         var areaType = GpsGeoHelper.NormalizeAreaType(dto.AreaType);
 
+        var tenantId = tenantContext.GetRequiredTenantId();
+
         var duplicate = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
-            @"SELECT COUNT(1) FROM Geofences WHERE IsDeleted = 0 AND LOWER(Name) = LOWER(@Name) AND Id <> @Id",
-            new { dto.Name, request.Id },
+            @"SELECT COUNT(1) FROM Geofences WHERE IsDeleted = 0 AND TenantId = @TenantId AND LOWER(Name) = LOWER(@Name) AND Id <> @Id",
+            new { dto.Name, request.Id, TenantId = tenantId },
             cancellationToken: cancellationToken));
         if (duplicate > 0)
             return ApiResponse<bool>.FailResponse("A geofence with this name already exists.");
@@ -207,10 +211,11 @@ public sealed partial class GpsTrackingRepository(
             @"UPDATE Geofences SET Name = @Name, AreaType = @AreaType, CenterLat = @CenterLat, CenterLng = @CenterLng,
               RadiusMeters = @RadiusMeters, GeoJson = @GeoJson, Color = @Color, Category = @Category,
               Description = @Description, IsActive = @IsActive, UpdatedAt = GETUTCDATE(), UpdatedBy = @UpdatedBy
-              WHERE Id = @Id AND IsDeleted = 0",
+              WHERE Id = @Id AND TenantId = @TenantId AND IsDeleted = 0",
             new
             {
                 request.Id,
+                TenantId = tenantId,
                 dto.Name,
                 AreaType = areaType,
                 CenterLat = centerLat,
@@ -233,9 +238,10 @@ public sealed partial class GpsTrackingRepository(
     public async Task<ApiResponse<bool>> DeleteGeofenceAsync(DeleteGeofenceCommand request, CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
+        var tenantId = tenantContext.GetRequiredTenantId();
         var rows = await connection.ExecuteAsync(new CommandDefinition(
-            "UPDATE Geofences SET IsDeleted = 1, UpdatedAt = GETUTCDATE() WHERE Id = @Id",
-            new { request.Id },
+            "UPDATE Geofences SET IsDeleted = 1, UpdatedAt = GETUTCDATE() WHERE Id = @Id AND TenantId = @TenantId AND IsDeleted = 0",
+            new { request.Id, TenantId = tenantId },
             cancellationToken: cancellationToken));
 
         if (rows > 0)
@@ -254,10 +260,11 @@ public sealed partial class GpsTrackingRepository(
     public async Task<ApiResponse<int>> DuplicateGeofenceAsync(DuplicateGeofenceCommand request, CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
+        var tenantId = tenantContext.GetRequiredTenantId();
         var src = await connection.QueryFirstOrDefaultAsync(new CommandDefinition(
             @"SELECT Name, AreaType, CenterLat, CenterLng, RadiusMeters, GeoJson, Color, Category, Description
-              FROM Geofences WHERE Id = @Id AND IsDeleted = 0",
-            new { request.Id },
+              FROM Geofences WHERE Id = @Id AND TenantId = @TenantId AND IsDeleted = 0",
+            new { request.Id, TenantId = tenantId },
             cancellationToken: cancellationToken));
 
         if (src is null)
@@ -267,19 +274,20 @@ public sealed partial class GpsTrackingRepository(
         var newName = $"{baseName} (Copy)";
         var n = 2;
         while (await connection.ExecuteScalarAsync<int>(new CommandDefinition(
-                   @"SELECT COUNT(1) FROM Geofences WHERE IsDeleted = 0 AND LOWER(Name) = LOWER(@Name)",
-                   new { Name = newName },
+                   @"SELECT COUNT(1) FROM Geofences WHERE IsDeleted = 0 AND TenantId = @TenantId AND LOWER(Name) = LOWER(@Name)",
+                   new { Name = newName, TenantId = tenantId },
                    cancellationToken: cancellationToken)) > 0)
         {
             newName = $"{baseName} (Copy {n++})";
         }
 
         var id = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
-            @"INSERT INTO Geofences (Name, AreaType, CenterLat, CenterLng, RadiusMeters, GeoJson, Color, Category, Description, IsActive, CreatedAt, CreatedBy, IsDeleted)
+            @"INSERT INTO Geofences (TenantId, Name, AreaType, CenterLat, CenterLng, RadiusMeters, GeoJson, Color, Category, Description, IsActive, CreatedAt, CreatedBy, IsDeleted)
               OUTPUT INSERTED.Id
-              VALUES (@Name, @AreaType, @CenterLat, @CenterLng, @RadiusMeters, @GeoJson, @Color, @Category, @Description, 1, GETUTCDATE(), @CreatedBy, 0)",
+              VALUES (@TenantId, @Name, @AreaType, @CenterLat, @CenterLng, @RadiusMeters, @GeoJson, @Color, @Category, @Description, 1, GETUTCDATE(), @CreatedBy, 0)",
             new
             {
+                TenantId = tenantId,
                 Name = newName,
                 AreaType = (string)src.AreaType,
                 CenterLat = (double)src.CenterLat,
@@ -299,9 +307,10 @@ public sealed partial class GpsTrackingRepository(
     public async Task<ApiResponse<bool>> UpsertGeofenceAssignmentsAsync(UpsertGeofenceAssignmentsCommand request, CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
+        var tenantId = tenantContext.GetRequiredTenantId();
         var exists = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
-            "SELECT COUNT(1) FROM Geofences WHERE Id = @Id AND IsDeleted = 0",
-            new { Id = request.GeofenceId },
+            "SELECT COUNT(1) FROM Geofences WHERE Id = @Id AND TenantId = @TenantId AND IsDeleted = 0",
+            new { Id = request.GeofenceId, TenantId = tenantId },
             cancellationToken: cancellationToken));
         if (exists == 0)
             return ApiResponse<bool>.FailResponse("Geofence not found.");
@@ -322,6 +331,12 @@ public sealed partial class GpsTrackingRepository(
         {
             foreach (var vehicleId in dto.VehicleIds.Distinct())
             {
+                var vehicleOwned = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
+                    "SELECT COUNT(1) FROM Vehicles WHERE Id = @VehicleId AND TenantId = @TenantId AND IsDeleted = 0",
+                    new { VehicleId = vehicleId, TenantId = tenantId },
+                    cancellationToken: cancellationToken));
+                if (vehicleOwned == 0) continue;
+
                 var already = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
                     @"SELECT COUNT(1) FROM GeofenceAssignments
                       WHERE GeofenceId = @GeofenceId AND VehicleId = @VehicleId AND IsDeleted = 0",
@@ -377,10 +392,13 @@ public sealed partial class GpsTrackingRepository(
     public async Task<ApiResponse<bool>> DeleteGeofenceAssignmentAsync(DeleteGeofenceAssignmentCommand request, CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
+        var tenantId = tenantContext.GetRequiredTenantId();
         var rows = await connection.ExecuteAsync(new CommandDefinition(
-            @"UPDATE GeofenceAssignments SET IsDeleted = 1, UpdatedAt = GETUTCDATE()
-              WHERE Id = @AssignmentId AND GeofenceId = @GeofenceId AND IsDeleted = 0",
-            new { request.AssignmentId, request.GeofenceId },
+            @"UPDATE a SET IsDeleted = 1, UpdatedAt = GETUTCDATE()
+              FROM GeofenceAssignments a
+              INNER JOIN Geofences g ON g.Id = a.GeofenceId AND g.TenantId = @TenantId AND g.IsDeleted = 0
+              WHERE a.Id = @AssignmentId AND a.GeofenceId = @GeofenceId AND a.IsDeleted = 0",
+            new { request.AssignmentId, request.GeofenceId, TenantId = tenantId },
             cancellationToken: cancellationToken));
 
         return rows > 0
@@ -392,12 +410,35 @@ public sealed partial class GpsTrackingRepository(
     {
         using var connection = dbFactory.CreateConnection();
         var dto = request.Rule;
+        var tenantId = tenantContext.GetRequiredTenantId();
+
+        if (dto.VehicleId.HasValue)
+        {
+            var owned = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
+                "SELECT COUNT(1) FROM Vehicles WHERE Id = @Id AND TenantId = @TenantId AND IsDeleted = 0",
+                new { Id = dto.VehicleId.Value, TenantId = tenantId },
+                cancellationToken: cancellationToken));
+            if (owned == 0)
+                return ApiResponse<int>.FailResponse("Vehicle not found.");
+        }
+
+        if (dto.GeofenceId.HasValue)
+        {
+            var owned = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
+                "SELECT COUNT(1) FROM Geofences WHERE Id = @Id AND TenantId = @TenantId AND IsDeleted = 0",
+                new { Id = dto.GeofenceId.Value, TenantId = tenantId },
+                cancellationToken: cancellationToken));
+            if (owned == 0)
+                return ApiResponse<int>.FailResponse("Geofence not found.");
+        }
+
         var id = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
-            @"INSERT INTO GpsAlertRules (VehicleId, SpeedLimitKmh, GeofenceId, AlertOnEnter, AlertOnExit, IsActive, CreatedAt, CreatedBy, IsDeleted)
+            @"INSERT INTO GpsAlertRules (TenantId, VehicleId, SpeedLimitKmh, GeofenceId, AlertOnEnter, AlertOnExit, IsActive, CreatedAt, CreatedBy, IsDeleted)
               OUTPUT INSERTED.Id
-              VALUES (@VehicleId, @SpeedLimitKmh, @GeofenceId, @AlertOnEnter, @AlertOnExit, 1, GETUTCDATE(), @CreatedBy, 0)",
+              VALUES (@TenantId, @VehicleId, @SpeedLimitKmh, @GeofenceId, @AlertOnEnter, @AlertOnExit, 1, GETUTCDATE(), @CreatedBy, 0)",
             new
             {
+                TenantId = tenantId,
                 dto.VehicleId,
                 dto.SpeedLimitKmh,
                 dto.GeofenceId,
@@ -942,7 +983,7 @@ public sealed partial class GpsTrackingRepository(
                    (SELECT COUNT(1) FROM GeofenceAssignments a
                     WHERE a.GeofenceId = g.Id AND a.IsDeleted = 0 AND a.VehicleId IS NOT NULL) AS AssignedVehicleCount
             FROM Geofences g
-            WHERE g.IsDeleted = 0
+            WHERE g.IsDeleted = 0 AND g.TenantId = @TenantId
             """;
 
         if (!string.IsNullOrWhiteSpace(request.Search))
@@ -956,6 +997,7 @@ public sealed partial class GpsTrackingRepository(
             sql += """
                  AND EXISTS (
                    SELECT 1 FROM GeofenceAssignments a
+                   INNER JOIN Vehicles v ON v.Id = a.VehicleId AND v.TenantId = @TenantId AND v.IsDeleted = 0
                    WHERE a.GeofenceId = g.Id AND a.IsDeleted = 0 AND a.VehicleId = @VehicleId
                  )
                 """;
@@ -963,6 +1005,7 @@ public sealed partial class GpsTrackingRepository(
 
         sql += " ORDER BY g.Name";
 
+        var tenantId = tenantContext.GetRequiredTenantId();
         var rows = await connection.QueryAsync<GeofenceDto>(new CommandDefinition(
             sql,
             new
@@ -970,7 +1013,8 @@ public sealed partial class GpsTrackingRepository(
                 Search = $"%{request.Search?.Trim()}%",
                 request.AreaType,
                 request.IsActive,
-                request.VehicleId
+                request.VehicleId,
+                TenantId = tenantId
             },
             cancellationToken: cancellationToken));
 
@@ -988,10 +1032,11 @@ public sealed partial class GpsTrackingRepository(
             LEFT JOIN Vehicles v ON v.Id = a.VehicleId
             LEFT JOIN Branches b ON b.Id = a.BranchId
             LEFT JOIN Departments d ON d.Id = a.DepartmentId
+            INNER JOIN Geofences g ON g.Id = a.GeofenceId AND g.TenantId = @TenantId AND g.IsDeleted = 0
             WHERE a.GeofenceId = @GeofenceId AND a.IsDeleted = 0
             ORDER BY v.Name, b.Name, d.Name
             """,
-            new { request.GeofenceId },
+            new { request.GeofenceId, TenantId = tenantContext.GetRequiredTenantId() },
             cancellationToken: cancellationToken));
 
         return ApiResponse<List<GeofenceAssignmentDto>>.SuccessResponse(rows.ToList());
@@ -1002,15 +1047,14 @@ public sealed partial class GpsTrackingRepository(
         using var connection = dbFactory.CreateConnection();
         var tenantId = tenantContext.GetRequiredTenantId();
 
-        // Geofences itself has no TenantId column (geofences were never made tenant-scoped at the
-        // schema level) — Total/Active are intentionally left as-is here, a separate pre-existing
-        // gap this fix doesn't attempt to close. The counts below are tenant-scoped via the
-        // GpsAlertEvents -> Vehicles join, since alert events and vehicles are tenant-owned.
+        // Geofences.TenantId is added by TenantSchemaMigration — Total/Active are tenant-scoped.
         var total = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
-            "SELECT COUNT(1) FROM Geofences WHERE IsDeleted = 0",
+            "SELECT COUNT(1) FROM Geofences WHERE IsDeleted = 0 AND TenantId = @TenantId",
+            new { TenantId = tenantId },
             cancellationToken: cancellationToken));
         var active = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
-            "SELECT COUNT(1) FROM Geofences WHERE IsDeleted = 0 AND IsActive = 1",
+            "SELECT COUNT(1) FROM Geofences WHERE IsDeleted = 0 AND IsActive = 1 AND TenantId = @TenantId",
+            new { TenantId = tenantId },
             cancellationToken: cancellationToken));
         var todayEntries = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
             @"SELECT COUNT(1) FROM GpsAlertEvents e
@@ -1152,7 +1196,8 @@ public sealed partial class GpsTrackingRepository(
               FROM GpsAlertRules r
               LEFT JOIN Vehicles v ON v.Id = r.VehicleId
               LEFT JOIN Geofences g ON g.Id = r.GeofenceId
-              WHERE r.IsDeleted = 0 ORDER BY r.Id DESC",
+              WHERE r.IsDeleted = 0 AND r.TenantId = @TenantId ORDER BY r.Id DESC",
+            new { TenantId = tenantContext.GetRequiredTenantId() },
             cancellationToken: cancellationToken));
 
         return ApiResponse<List<GpsAlertRuleDto>>.SuccessResponse(rows.ToList());
@@ -2454,16 +2499,28 @@ public sealed partial class GpsTrackingRepository(
         }
 
         using var connection = dbFactory.CreateConnection();
+        var tenantId = tenantContext.GetRequiredTenantId();
+
+        var vehicleOwned = await connection.ExecuteScalarAsync<bool>(new CommandDefinition(
+            @"SELECT CASE WHEN EXISTS(
+                  SELECT 1 FROM Vehicles WHERE Id = @VehicleId AND TenantId = @TenantId AND IsDeleted = 0
+              ) THEN 1 ELSE 0 END",
+            new { request.VehicleId, TenantId = tenantId },
+            cancellationToken: cancellationToken));
+        if (!vehicleOwned)
+            return ApiResponse<List<PositionDto>>.FailResponse("Vehicle not found.");
+
         var toExclusive = toDate.AddTicks(1);
         var localRows = await connection.QueryAsync<GpsPositionHistoryRow>(new CommandDefinition(
-            @"SELECT Id, VehicleId, DriverId, BookingId, GpsDeviceId, Latitude, Longitude, Speed,
-                     Heading, Altitude, Ignition, RecordedAt AS Timestamp, Address
-              FROM GpsPositions
-              WHERE VehicleId = @VehicleId
-                AND RecordedAt >= @FromDate
-                AND RecordedAt < @ToExclusive
-              ORDER BY RecordedAt ASC",
-            new { request.VehicleId, FromDate = fromDate, ToExclusive = toExclusive },
+            @"SELECT p.Id, p.VehicleId, p.DriverId, p.BookingId, p.GpsDeviceId, p.Latitude, p.Longitude, p.Speed,
+                     p.Heading, p.Altitude, p.Ignition, p.RecordedAt AS Timestamp, p.Address
+              FROM GpsPositions p
+              INNER JOIN Vehicles v ON v.Id = p.VehicleId AND v.TenantId = @TenantId AND v.IsDeleted = 0
+              WHERE p.VehicleId = @VehicleId
+                AND p.RecordedAt >= @FromDate
+                AND p.RecordedAt < @ToExclusive
+              ORDER BY p.RecordedAt ASC",
+            new { request.VehicleId, FromDate = fromDate, ToExclusive = toExclusive, TenantId = tenantId },
             cancellationToken: cancellationToken));
 
         var local = localRows.Select(GpsPositionHistoryMapper.ToPositionDto).ToList();
@@ -2474,13 +2531,15 @@ public sealed partial class GpsTrackingRepository(
         {
             var link = await connection.QuerySingleOrDefaultAsync<(int? GpsDeviceId, int? TraccarDeviceId)>(
                 new CommandDefinition(
-                    """
+                    $"""
                     SELECT TOP 1 d.Id AS GpsDeviceId, d.TraccarDeviceId
                     FROM GpsDevices d
+                    LEFT JOIN Vehicles v ON v.Id = d.VehicleId AND v.IsDeleted = 0
                     WHERE d.VehicleId = @VehicleId AND d.IsDeleted = 0 AND d.TraccarDeviceId IS NOT NULL
+                      {TrackerTenantSql.DeviceScopeFilter}
                     ORDER BY d.Id DESC
                     """,
-                    new { request.VehicleId },
+                    new { request.VehicleId, TenantId = tenantId },
                     cancellationToken: cancellationToken));
 
             if (link.TraccarDeviceId is int traccarDeviceId)

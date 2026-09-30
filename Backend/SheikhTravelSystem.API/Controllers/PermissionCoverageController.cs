@@ -77,7 +77,10 @@ public class PermissionCoverageController(IActionDescriptorCollectionProvider ac
                                     ?? (roles.Count > 0 ? $"Roles:{string.Join('|', roles)}" : null);
 
             string? notes = null;
-            if (status == PermissionCoverageStatuses.Protected && permissionPolicies.Count == 0 && roles.Count == 0)
+            if (status == PermissionCoverageStatuses.Public
+                && PermissionCoverageClassifier.IsPublicByDesign(controllerName))
+                notes = "PublicByDesign";
+            else if (status == PermissionCoverageStatuses.Protected && permissionPolicies.Count == 0 && roles.Count == 0)
                 notes = "Protected-by-auth";
             else if (status == PermissionCoverageStatuses.Protected && roles.Count > 0)
                 notes = "Protected-via-role";

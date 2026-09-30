@@ -14,6 +14,8 @@
     <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
     <PackageReference Include="Moq" Version="4.20.70" />
     <PackageReference Include="FluentAssertions" Version="6.12.0" />
+    <PackageReference Include="Microsoft.Extensions.Configuration" Version="10.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="10.0.0" />
   </ItemGroup>
 
   <ItemGroup>
@@ -21,6 +23,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\SheikhTravelSystem.API\SheikhTravelSystem.API.csproj" />
     <ProjectReference Include="..\SheikhTravelSystem.Application\SheikhTravelSystem.Application.csproj" />
     <ProjectReference Include="..\SheikhTravelSystem.Infrastructure\SheikhTravelSystem.Infrastructure.csproj" />
     <ProjectReference Include="..\SheikhTravelSystem.Domain\SheikhTravelSystem.Domain.csproj" />

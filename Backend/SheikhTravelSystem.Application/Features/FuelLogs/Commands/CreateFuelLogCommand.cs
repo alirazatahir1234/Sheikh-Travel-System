@@ -25,12 +25,12 @@ public class CreateFuelLogCommandValidator : AbstractValidator<CreateFuelLogComm
     }
 }
 
-public class CreateFuelLogCommandHandler(IFuelLogRepository fuelLogRepository)
+public class CreateFuelLogCommandHandler(IFuelLogRepository fuelLogRepository, ITenantContext tenantContext)
     : IRequestHandler<CreateFuelLogCommand, ApiResponse<int>>
 {
     public async Task<ApiResponse<int>> Handle(CreateFuelLogCommand request, CancellationToken cancellationToken)
     {
-        var id = await fuelLogRepository.CreateAsync(request.FuelLog, cancellationToken);
+        var id = await fuelLogRepository.CreateAsync(tenantContext.GetRequiredTenantId(), request.FuelLog, cancellationToken);
         return ApiResponse<int>.SuccessResponse(id, "Fuel log created successfully.");
     }
 }

@@ -10,19 +10,20 @@ namespace SheikhTravelSystem.Infrastructure.Persistence.Repositories;
 
 public sealed class MaintenanceRepository(IDbConnectionFactory dbFactory) : IMaintenanceRepository
 {
-    public async Task<int> CreateAsync(CreateMaintenanceDto dto, CancellationToken cancellationToken = default)
+    public async Task<int> CreateAsync(int tenantId, CreateMaintenanceDto dto, CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
 
         return await connection.ExecuteScalarAsync<int>(
             new CommandDefinition(
-                @"INSERT INTO Maintenance (VehicleId, Description, Cost, MaintenanceDate, NextDueDate,
+                @"INSERT INTO Maintenance (TenantId, VehicleId, Description, Cost, MaintenanceDate, NextDueDate,
                   Status, ServiceProvider, CreatedAt, IsDeleted)
-                  VALUES (@VehicleId, @Description, @Cost, @MaintenanceDate, @NextDueDate,
+                  VALUES (@TenantId, @VehicleId, @Description, @Cost, @MaintenanceDate, @NextDueDate,
                   @Status, @ServiceProvider, @CreatedAt, 0);
                   SELECT SCOPE_IDENTITY();",
                 new
                 {
+                    TenantId = tenantId,
                     dto.VehicleId, dto.Description, dto.Cost, dto.MaintenanceDate,
                     dto.NextDueDate, Status = (int)MaintenanceStatus.Scheduled,
                     dto.ServiceProvider, CreatedAt = DateTime.UtcNow
@@ -30,7 +31,7 @@ public sealed class MaintenanceRepository(IDbConnectionFactory dbFactory) : IMai
                 cancellationToken: cancellationToken));
     }
 
-    public async Task UpdateAsync(int id, CreateMaintenanceDto dto, CancellationToken cancellationToken = default)
+    public async Task UpdateAsync(int id, int tenantId, CreateMaintenanceDto dto, CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
 
@@ -40,10 +41,11 @@ public sealed class MaintenanceRepository(IDbConnectionFactory dbFactory) : IMai
                   SET VehicleId = @VehicleId, Description = @Description, Cost = @Cost,
                       MaintenanceDate = @MaintenanceDate, NextDueDate = @NextDueDate,
                       ServiceProvider = @ServiceProvider, UpdatedAt = @UpdatedAt
-                  WHERE Id = @Id AND IsDeleted = 0",
+                  WHERE Id = @Id AND TenantId = @TenantId AND IsDeleted = 0",
                 new
                 {
                     Id = id,
+                    TenantId = tenantId,
                     dto.VehicleId, dto.Description, dto.Cost, dto.MaintenanceDate,
                     dto.NextDueDate, dto.ServiceProvider, UpdatedAt = DateTime.UtcNow
                 },
@@ -53,28 +55,28 @@ public sealed class MaintenanceRepository(IDbConnectionFactory dbFactory) : IMai
             throw new NotFoundException("Maintenance", id);
     }
 
-    public async Task DeleteAsync(int id, CancellationToken cancellationToken = default)
+    public async Task DeleteAsync(int id, int tenantId, CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
 
         var rowsAffected = await connection.ExecuteAsync(
             new CommandDefinition(
-                "UPDATE Maintenance SET IsDeleted = 1, UpdatedAt = @UpdatedAt WHERE Id = @Id AND IsDeleted = 0",
-                new { Id = id, UpdatedAt = DateTime.UtcNow },
+                "UPDATE Maintenance SET IsDeleted = 1, UpdatedAt = @UpdatedAt WHERE Id = @Id AND TenantId = @TenantId AND IsDeleted = 0",
+                new { Id = id, TenantId = tenantId, UpdatedAt = DateTime.UtcNow },
                 cancellationToken: cancellationToken));
 
         if (rowsAffected == 0)
             throw new NotFoundException("Maintenance", id);
     }
 
-    public async Task UpdateStatusAsync(int id, MaintenanceStatus status, CancellationToken cancellationToken = default)
+    public async Task UpdateStatusAsync(int id, int tenantId, MaintenanceStatus status, CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
 
         var exists = await connection.ExecuteScalarAsync<bool>(
             new CommandDefinition(
-                "SELECT CASE WHEN EXISTS(SELECT 1 FROM Maintenance WHERE Id = @Id AND IsDeleted = 0) THEN 1 ELSE 0 END",
-                new { Id = id },
+                "SELECT CASE WHEN EXISTS(SELECT 1 FROM Maintenance WHERE Id = @Id AND TenantId = @TenantId AND IsDeleted = 0) THEN 1 ELSE 0 END",
+                new { Id = id, TenantId = tenantId },
                 cancellationToken: cancellationToken));
 
         if (!exists)
@@ -82,12 +84,12 @@ public sealed class MaintenanceRepository(IDbConnectionFactory dbFactory) : IMai
 
         await connection.ExecuteAsync(
             new CommandDefinition(
-                "UPDATE Maintenance SET Status = @Status, UpdatedAt = @UpdatedAt WHERE Id = @Id",
-                new { Status = (int)status, UpdatedAt = DateTime.UtcNow, Id = id },
+                "UPDATE Maintenance SET Status = @Status, UpdatedAt = @UpdatedAt WHERE Id = @Id AND TenantId = @TenantId AND IsDeleted = 0",
+                new { Status = (int)status, UpdatedAt = DateTime.UtcNow, Id = id, TenantId = tenantId },
                 cancellationToken: cancellationToken));
     }
 
-    public async Task<PagedResult<MaintenanceDto>> GetPagedAsync(int page, int pageSize, CancellationToken cancellationToken = default)
+    public async Task<PagedResult<MaintenanceDto>> GetPagedAsync(int tenantId, int page, int pageSize, CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
         var offset = (page - 1) * pageSize;
@@ -96,15 +98,16 @@ public sealed class MaintenanceRepository(IDbConnectionFactory dbFactory) : IMai
             new CommandDefinition(
                 @"SELECT Id, VehicleId, Description, Cost, MaintenanceDate, NextDueDate,
                   Status, ServiceProvider, CreatedAt
-                  FROM Maintenance WHERE IsDeleted = 0
+                  FROM Maintenance WHERE IsDeleted = 0 AND TenantId = @TenantId
                   ORDER BY MaintenanceDate DESC
                   OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY",
-                new { Offset = offset, PageSize = pageSize },
+                new { Offset = offset, PageSize = pageSize, TenantId = tenantId },
                 cancellationToken: cancellationToken));
 
         var totalCount = await connection.ExecuteScalarAsync<int>(
             new CommandDefinition(
-                "SELECT COUNT(*) FROM Maintenance WHERE IsDeleted = 0",
+                "SELECT COUNT(*) FROM Maintenance WHERE IsDeleted = 0 AND TenantId = @TenantId",
+                new { TenantId = tenantId },
                 cancellationToken: cancellationToken));
 
         return new PagedResult<MaintenanceDto>
@@ -116,7 +119,7 @@ public sealed class MaintenanceRepository(IDbConnectionFactory dbFactory) : IMai
         };
     }
 
-    public async Task<MaintenanceDto> GetByIdAsync(int id, CancellationToken cancellationToken = default)
+    public async Task<MaintenanceDto> GetByIdAsync(int id, int tenantId, CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
 
@@ -124,8 +127,8 @@ public sealed class MaintenanceRepository(IDbConnectionFactory dbFactory) : IMai
             new CommandDefinition(
                 @"SELECT Id, VehicleId, Description, Cost, MaintenanceDate, NextDueDate,
                   Status, ServiceProvider, CreatedAt
-                  FROM Maintenance WHERE Id = @Id AND IsDeleted = 0",
-                new { Id = id },
+                  FROM Maintenance WHERE Id = @Id AND TenantId = @TenantId AND IsDeleted = 0",
+                new { Id = id, TenantId = tenantId },
                 cancellationToken: cancellationToken));
 
         if (maintenance == null)

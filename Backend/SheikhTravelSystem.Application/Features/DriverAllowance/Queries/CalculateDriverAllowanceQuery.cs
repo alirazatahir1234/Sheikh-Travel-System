@@ -1,6 +1,7 @@
 using System.Globalization;
 using MediatR;
 using SheikhTravelSystem.Application.Common;
+using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 using SheikhTravelSystem.Application.Features.DriverAllowance.DTOs;
 using SheikhTravelSystem.Domain.Enums;
@@ -24,19 +25,20 @@ namespace SheikhTravelSystem.Application.Features.DriverAllowance.Queries;
 public record CalculateDriverAllowanceQuery(CalculateDriverAllowanceRequest Request)
     : IRequest<ApiResponse<CalculateDriverAllowanceResponse>>;
 
-public class CalculateDriverAllowanceQueryHandler(IDriverAllowanceRepository repository)
+public class CalculateDriverAllowanceQueryHandler(IDriverAllowanceRepository repository, ITenantContext tenantContext)
     : IRequestHandler<CalculateDriverAllowanceQuery, ApiResponse<CalculateDriverAllowanceResponse>>
 {
     public async Task<ApiResponse<CalculateDriverAllowanceResponse>> Handle(
         CalculateDriverAllowanceQuery request, CancellationToken cancellationToken)
     {
         var req = request.Request;
+        var tenantId = tenantContext.GetRequiredTenantId();
         if (req.RouteId <= 0)
             return ApiResponse<CalculateDriverAllowanceResponse>.FailResponse("Route is required for allowance calculation.");
         if (req.VehicleId <= 0)
             return ApiResponse<CalculateDriverAllowanceResponse>.FailResponse("Vehicle is required for allowance calculation.");
 
-        var route = await repository.GetRouteContextAsync(req.RouteId, cancellationToken);
+        var route = await repository.GetRouteContextAsync(req.RouteId, tenantId, cancellationToken);
 
         if (route is null)
         {
@@ -52,7 +54,7 @@ public class CalculateDriverAllowanceQueryHandler(IDriverAllowanceRepository rep
                 "Route not found for allowance calculation.");
         }
 
-        var vehicleFuelType = await repository.GetVehicleFuelTypeAsync(req.VehicleId, cancellationToken);
+        var vehicleFuelType = await repository.GetVehicleFuelTypeAsync(req.VehicleId, tenantId, cancellationToken);
 
         if (vehicleFuelType is null)
         {
@@ -68,7 +70,7 @@ public class CalculateDriverAllowanceQueryHandler(IDriverAllowanceRepository rep
                 "Vehicle not found for allowance calculation.");
         }
 
-        var rules = await repository.GetActiveRulesAsync(cancellationToken);
+        var rules = await repository.GetActiveRulesAsync(tenantId, cancellationToken);
 
         var distance = route.Distance;
         var routeHaystack = string.Join(' ', new[] { route.Name, route.Source, route.Destination }

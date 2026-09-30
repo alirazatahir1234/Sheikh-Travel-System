@@ -12,12 +12,12 @@ public record DeleteRouteCommand(int Id) : IRequest<ApiResponse<bool>>, IAuditab
     public int? AuditEntityId => Id;
 }
 
-public class DeleteRouteCommandHandler(IRouteRepository routeRepository)
+public class DeleteRouteCommandHandler(IRouteRepository routeRepository, ITenantContext tenantContext)
     : IRequestHandler<DeleteRouteCommand, ApiResponse<bool>>
 {
     public async Task<ApiResponse<bool>> Handle(DeleteRouteCommand request, CancellationToken cancellationToken)
     {
-        await routeRepository.DeleteAsync(request.Id, cancellationToken);
+        await routeRepository.DeleteAsync(request.Id, tenantContext.GetRequiredTenantId(), cancellationToken);
         return ApiResponse<bool>.SuccessResponse(true, "Route deleted successfully.");
     }
 }

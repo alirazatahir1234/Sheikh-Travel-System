@@ -1,5 +1,6 @@
 using MediatR;
 using SheikhTravelSystem.Application.Common;
+using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 using SheikhTravelSystem.Application.Features.Payments.DTOs;
 
@@ -7,15 +8,18 @@ namespace SheikhTravelSystem.Application.Features.Payments.Queries;
 
 public record GetPaymentReportQuery(DateTime? FromDate, DateTime? ToDate) : IRequest<ApiResponse<PaymentReportDto>>;
 
-public class GetPaymentReportQueryHandler(IPaymentRepository paymentRepository)
+public class GetPaymentReportQueryHandler(
+    IPaymentRepository paymentRepository,
+    ITenantContext tenantContext)
     : IRequestHandler<GetPaymentReportQuery, ApiResponse<PaymentReportDto>>
 {
     public async Task<ApiResponse<PaymentReportDto>> Handle(GetPaymentReportQuery request, CancellationToken cancellationToken)
     {
         var fromDate = request.FromDate ?? DateTime.UtcNow.AddMonths(-1);
         var toDate = request.ToDate ?? DateTime.UtcNow;
+        var tenantId = tenantContext.GetRequiredTenantId();
 
-        var report = await paymentRepository.GetReportAsync(fromDate, toDate, cancellationToken);
+        var report = await paymentRepository.GetReportAsync(tenantId, fromDate, toDate, cancellationToken);
         return ApiResponse<PaymentReportDto>.SuccessResponse(report);
     }
 }

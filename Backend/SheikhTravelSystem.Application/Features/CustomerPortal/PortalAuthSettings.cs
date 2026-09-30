@@ -9,8 +9,12 @@ public class PortalAuthSettings
 
     public int PortalTokenExpiryMinutes { get; set; } = 10_080;
 
-    /// <summary>When true, OTP is fixed to <see cref="DevOtpCode"/> (no SMS).</summary>
-    public bool DevMode { get; set; } = true;
+    /// <summary>
+    /// When true <em>and</em> the host is Development, OTP is fixed to <see cref="DevOtpCode"/> (no SMS).
+    /// Ignored in Staging/Production even if set in configuration.
+    /// </summary>
+    public bool DevMode { get; set; }
 
-    public string DevOtpCode { get; set; } = "123456";
+    /// <summary>Fixed OTP used only when Development + <see cref="DevMode"/>.</summary>
+    public string DevOtpCode { get; set; } = string.Empty;
 }

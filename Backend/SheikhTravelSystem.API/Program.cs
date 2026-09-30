@@ -10,6 +10,7 @@ using Microsoft.OpenApi.Models;
 using Serilog;
 using SheikhTravelSystem.API.Middleware;
 using SheikhTravelSystem.Application;
+using SheikhTravelSystem.Application.Common.Configuration;
 using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 using SheikhTravelSystem.Application.Features.CustomerPortal.Commands;
@@ -21,6 +22,9 @@ using SheikhTravelSystem.Infrastructure.Persistence.Migrations;
 using SheikhTravelSystem.Infrastructure.SignalR;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Fail closed in non-Development when required secrets are missing/placeholders.
+ProductionSecretsValidator.EnsureValidOrThrow(builder.Configuration, builder.Environment);
 
 if (builder.Environment.IsDevelopment())
 {

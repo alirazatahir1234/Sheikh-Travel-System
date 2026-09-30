@@ -54,13 +54,18 @@ public sealed partial class GpsDeviceRepository(
     public async Task<ApiResponse<bool>> CancelDeviceCommandAsync(CancelDeviceCommandCommand request, CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
+        var tenantId = tenantContext.GetRequiredTenantId();
         var rows = await connection.ExecuteAsync(new CommandDefinition(
             """
-            UPDATE GpsDeviceCommands
+            UPDATE c
             SET Status = 'cancelled', CancelledAt = GETUTCDATE(), CancelledBy = @CancelledBy, UpdatedAt = GETUTCDATE()
-            WHERE Id = @Id AND Status = 'pending' AND IsDeleted = 0
+            FROM GpsDeviceCommands c
+            INNER JOIN GpsDevices d ON d.Id = c.GpsDeviceId
+            LEFT JOIN Vehicles v ON v.Id = d.VehicleId AND v.IsDeleted = 0
+            WHERE c.Id = @Id AND c.Status = 'pending' AND c.IsDeleted = 0
+              AND (d.TenantId = @TenantId OR (d.TenantId IS NULL AND v.TenantId = @TenantId))
             """,
-            new { request.Id, CancelledBy = currentUser.UserId?.ToString() },
+            new { request.Id, CancelledBy = currentUser.UserId?.ToString(), TenantId = tenantId },
             cancellationToken: cancellationToken));
 
         return rows > 0
@@ -102,8 +107,9 @@ public sealed partial class GpsDeviceRepository(
     public async Task<ApiResponse<List<GpsDeviceDto>>> GetGpsDevicesAsync(GetGpsDevicesQuery request, CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
+        var tenantId = tenantContext.GetRequiredTenantId();
         var rows = await connection.QueryAsync<GpsDeviceDto>(new CommandDefinition(
-            @"SELECT d.Id, d.VehicleId,
+            $@"SELECT d.Id, d.VehicleId,
                      CASE WHEN v.Status = 5 THEN NULL ELSE v.Name END AS VehicleName,
                      CASE WHEN v.Status = 5 OR v.RegistrationNumber LIKE 'DRAFT-%' THEN NULL
                           ELSE v.RegistrationNumber END AS PlateNumber,
@@ -133,7 +139,9 @@ public sealed partial class GpsDeviceRepository(
                   ORDER BY CASE WHEN a.Status = N'Active' THEN 0 ELSE 1 END, a.StartAt DESC
               ) assignDrv
               WHERE d.IsDeleted = 0
+                {TrackerTenantSql.DeviceScopeFilter}
               ORDER BY CASE WHEN v.Name IS NULL THEN 1 ELSE 0 END, v.Name, d.Name",
+            new { TenantId = tenantId },
             cancellationToken: cancellationToken));
 
         var items = rows
@@ -150,13 +158,16 @@ public sealed partial class GpsDeviceRepository(
     public async Task<ApiResponse<List<GpsDeviceCommandDto>>> GetDeviceCommandsAsync(GetDeviceCommandsQuery request, CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
-        var sql = """
+        var tenantId = tenantContext.GetRequiredTenantId();
+        var sql = $"""
             SELECT c.Id, c.GpsDeviceId, d.Name AS DeviceName, c.CommandType, c.Status,
                    c.RequestedBy, c.RequestedAt, c.CompletedAt,
                    c.RetryCount, c.MaxRetries, c.ErrorMessage, c.NextRetryAt, c.Reason
             FROM GpsDeviceCommands c
             INNER JOIN GpsDevices d ON d.Id = c.GpsDeviceId
+            LEFT JOIN Vehicles v ON v.Id = d.VehicleId AND v.IsDeleted = 0
             WHERE c.GpsDeviceId = @GpsDeviceId AND c.IsDeleted = 0
+              {TrackerTenantSql.DeviceScopeFilter}
             """;
 
         if (!string.IsNullOrWhiteSpace(request.Status)) sql += " AND c.Status = @Status";
@@ -176,7 +187,8 @@ public sealed partial class GpsDeviceRepository(
                 request.From,
                 request.To,
                 Offset = (Math.Max(request.Page, 1) - 1) * request.PageSize,
-                request.PageSize
+                request.PageSize,
+                TenantId = tenantId
             },
             cancellationToken: cancellationToken));
 
@@ -186,22 +198,25 @@ public sealed partial class GpsDeviceRepository(
     public async Task<ApiResponse<GpsDeviceCommandDetailDto>> GetDeviceCommandByIdAsync(GetDeviceCommandByIdQuery request, CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
+        var tenantId = tenantContext.GetRequiredTenantId();
         var raw = await connection.QueryFirstOrDefaultAsync<(
             int Id, int GpsDeviceId, string? DeviceName, string CommandType, string Status,
             string? RequestedBy, DateTime RequestedAt, DateTime? CompletedAt,
             int RetryCount, int MaxRetries, string? ErrorMessage, DateTime? NextRetryAt, string? Reason,
             string? Attributes)>(
             new CommandDefinition(
-                """
+                $"""
                 SELECT c.Id, c.GpsDeviceId, d.Name AS DeviceName, c.CommandType, c.Status,
                        c.RequestedBy, c.RequestedAt, c.CompletedAt,
                        c.RetryCount, c.MaxRetries, c.ErrorMessage, c.NextRetryAt, c.Reason,
                        c.Attributes
                 FROM GpsDeviceCommands c
                 INNER JOIN GpsDevices d ON d.Id = c.GpsDeviceId
+                LEFT JOIN Vehicles v ON v.Id = d.VehicleId AND v.IsDeleted = 0
                 WHERE c.Id = @Id AND c.IsDeleted = 0
+                  {TrackerTenantSql.DeviceScopeFilter}
                 """,
-                new { request.Id },
+                new { request.Id, TenantId = tenantId },
                 cancellationToken: cancellationToken));
 
         if (raw.Id == 0)
@@ -228,17 +243,19 @@ public sealed partial class GpsDeviceRepository(
     public async Task<ApiResponse<List<GpsDeviceCommandDto>>> GetVehicleCommandsAsync(GetVehicleCommandsQuery request, CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
+        var tenantId = tenantContext.GetRequiredTenantId();
         var rows = await connection.QueryAsync<GpsDeviceCommandDto>(new CommandDefinition(
-            """
+            $"""
             SELECT c.Id, c.GpsDeviceId, d.Name AS DeviceName, c.CommandType, c.Status,
                    c.RequestedBy, c.RequestedAt, c.CompletedAt,
                    c.RetryCount, c.MaxRetries, c.ErrorMessage, c.NextRetryAt, c.Reason
             FROM GpsDeviceCommands c
             INNER JOIN GpsDevices d ON d.Id = c.GpsDeviceId
+            INNER JOIN Vehicles v ON v.Id = d.VehicleId AND v.IsDeleted = 0 AND v.TenantId = @TenantId
             WHERE d.VehicleId = @VehicleId AND c.IsDeleted = 0
             ORDER BY c.RequestedAt DESC OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY
             """,
-            new { request.VehicleId, Offset = (Math.Max(request.Page, 1) - 1) * request.PageSize, request.PageSize },
+            new { request.VehicleId, Offset = (Math.Max(request.Page, 1) - 1) * request.PageSize, request.PageSize, TenantId = tenantId },
             cancellationToken: cancellationToken));
 
         return ApiResponse<List<GpsDeviceCommandDto>>.SuccessResponse(rows.ToList());
@@ -321,15 +338,18 @@ public sealed partial class GpsDeviceRepository(
     public async Task<ApiResponse<bool>> RetryDeviceCommandAsync(RetryDeviceCommandCommand request, CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
+        var tenantId = tenantContext.GetRequiredTenantId();
         var row = await connection.QueryFirstOrDefaultAsync<(int Id, string CommandType, string Status, int GpsDeviceId, string? Attributes, int? TraccarDeviceId, int? VehicleId, string? RelayPurpose)>(
             new CommandDefinition(
-                """
+                $"""
                 SELECT c.Id, c.CommandType, c.Status, c.GpsDeviceId, c.Attributes, d.TraccarDeviceId, d.VehicleId, d.RelayPurpose
                 FROM GpsDeviceCommands c
                 INNER JOIN GpsDevices d ON d.Id = c.GpsDeviceId
+                LEFT JOIN Vehicles v ON v.Id = d.VehicleId AND v.IsDeleted = 0
                 WHERE c.Id = @Id AND c.IsDeleted = 0
+                  {TrackerTenantSql.DeviceScopeFilter}
                 """,
-                new { request.Id },
+                new { request.Id, TenantId = tenantId },
                 cancellationToken: cancellationToken));
 
         if (row.Id == 0)
@@ -399,10 +419,17 @@ public sealed partial class GpsDeviceRepository(
     public async Task<ApiResponse<List<SupportedCommandDto>>> GetDeviceSupportedCommandsAsync(GetDeviceSupportedCommandsQuery request, CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
+        var tenantId = tenantContext.GetRequiredTenantId();
         var device = await connection.QueryFirstOrDefaultAsync<(int Id, bool SupportsEngineCutoff, bool SupportsRelay, int? TraccarDeviceId)>(
             new CommandDefinition(
-                "SELECT Id, SupportsEngineCutoff, SupportsRelay, TraccarDeviceId FROM GpsDevices WHERE Id = @Id AND IsDeleted = 0",
-                new { Id = request.GpsDeviceId },
+                $"""
+                SELECT d.Id, d.SupportsEngineCutoff, d.SupportsRelay, d.TraccarDeviceId
+                FROM GpsDevices d
+                LEFT JOIN Vehicles v ON v.Id = d.VehicleId AND v.IsDeleted = 0
+                WHERE d.Id = @Id AND d.IsDeleted = 0
+                  {TrackerTenantSql.DeviceScopeFilter}
+                """,
+                new { Id = request.GpsDeviceId, TenantId = tenantId },
                 cancellationToken: cancellationToken));
 
         if (device.Id == 0)
@@ -464,10 +491,11 @@ public sealed partial class GpsDeviceRepository(
     {
         using var connection = dbFactory.CreateConnection();
         var dto = request.Device;
+        var tenantId = tenantContext.GetRequiredTenantId();
 
         var duplicate = await connection.ExecuteScalarAsync<bool>(new CommandDefinition(
-            "SELECT CASE WHEN EXISTS(SELECT 1 FROM GpsDevices WHERE UniqueId = @UniqueId AND IsDeleted = 0) THEN 1 ELSE 0 END",
-            new { dto.UniqueId },
+            "SELECT CASE WHEN EXISTS(SELECT 1 FROM GpsDevices WHERE UniqueId = @UniqueId AND TenantId = @TenantId AND IsDeleted = 0) THEN 1 ELSE 0 END",
+            new { dto.UniqueId, TenantId = tenantId },
             cancellationToken: cancellationToken));
 
         if (duplicate)
@@ -475,7 +503,7 @@ public sealed partial class GpsDeviceRepository(
 
         if (dto.VehicleId.HasValue)
         {
-            var vehicleError = await ValidateVehicleForDeviceAsync(connection, dto.VehicleId.Value, cancellationToken);
+            var vehicleError = await ValidateVehicleForDeviceAsync(connection, dto.VehicleId.Value, tenantId, cancellationToken);
             if (vehicleError is not null)
                 return ApiResponse<int>.FailResponse(vehicleError);
         }
@@ -492,15 +520,16 @@ public sealed partial class GpsDeviceRepository(
         }
 
         var id = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
-            @"INSERT INTO GpsDevices (VehicleId, UniqueId, Name, Protocol, Model, SimNumber, Vendor,
+            @"INSERT INTO GpsDevices (TenantId, VehicleId, UniqueId, Name, Protocol, Model, SimNumber, Vendor,
               SupportsEngineCutoff, RelayOutput, SerialNumber, InstallationDate, InstalledBy, InstallationNotes,
               TraccarDeviceId, IsActive, CreatedAt, CreatedBy, IsDeleted)
               OUTPUT INSERTED.Id
-              VALUES (@VehicleId, @UniqueId, @Name, @Protocol, @Model, @SimNumber, @Vendor,
+              VALUES (@TenantId, @VehicleId, @UniqueId, @Name, @Protocol, @Model, @SimNumber, @Vendor,
               @SupportsEngineCutoff, @RelayOutput, @SerialNumber, @InstallationDate, @InstalledBy, @InstallationNotes,
               @TraccarDeviceId, 1, GETUTCDATE(), @CreatedBy, 0)",
             new
             {
+                TenantId = tenantId,
                 dto.VehicleId,
                 dto.UniqueId,
                 dto.Name,
@@ -526,11 +555,18 @@ public sealed partial class GpsDeviceRepository(
     {
         using var connection = dbFactory.CreateConnection();
         var dto = request.Device;
+        var tenantId = tenantContext.GetRequiredTenantId();
 
         var existing = await connection.QueryFirstOrDefaultAsync<(int Id, int? TraccarDeviceId, string UniqueId)>(
             new CommandDefinition(
-                "SELECT Id, TraccarDeviceId, UniqueId FROM GpsDevices WHERE Id = @Id AND IsDeleted = 0",
-                new { request.Id },
+                $"""
+                SELECT d.Id, d.TraccarDeviceId, d.UniqueId
+                FROM GpsDevices d
+                LEFT JOIN Vehicles v ON v.Id = d.VehicleId AND v.IsDeleted = 0
+                WHERE d.Id = @Id AND d.IsDeleted = 0
+                  {TrackerTenantSql.DeviceScopeFilter}
+                """,
+                new { request.Id, TenantId = tenantId },
                 cancellationToken: cancellationToken));
 
         if (existing.Id == 0)
@@ -538,19 +574,22 @@ public sealed partial class GpsDeviceRepository(
 
         if (dto.VehicleId.HasValue)
         {
-            var vehicleError = await ValidateVehicleForDeviceAsync(connection, dto.VehicleId.Value, cancellationToken);
+            var vehicleError = await ValidateVehicleForDeviceAsync(connection, dto.VehicleId.Value, tenantId, cancellationToken);
             if (vehicleError is not null)
                 return ApiResponse<bool>.FailResponse(vehicleError);
         }
 
         var rows = await connection.ExecuteAsync(new CommandDefinition(
-            @"UPDATE GpsDevices SET VehicleId = @VehicleId, Name = @Name, Protocol = @Protocol,
+            $@"UPDATE d SET VehicleId = @VehicleId, Name = @Name, Protocol = @Protocol,
               SupportsEngineCutoff = @SupportsEngineCutoff, RelayOutput = @RelayOutput,
               SimNumber = @SimNumber, SerialNumber = @SerialNumber,
               InstallationDate = @InstallationDate, InstalledBy = @InstalledBy,
               InstallationNotes = @InstallationNotes, IsActive = @IsActive,
               UpdatedAt = GETUTCDATE(), UpdatedBy = @UpdatedBy
-              WHERE Id = @Id AND IsDeleted = 0",
+              FROM GpsDevices d
+              LEFT JOIN Vehicles v ON v.Id = d.VehicleId AND v.IsDeleted = 0
+              WHERE d.Id = @Id AND d.IsDeleted = 0
+                {TrackerTenantSql.DeviceScopeFilter}",
             new
             {
                 request.Id,
@@ -565,7 +604,8 @@ public sealed partial class GpsDeviceRepository(
                 dto.InstalledBy,
                 dto.InstallationNotes,
                 dto.IsActive,
-                UpdatedBy = currentUser.UserId?.ToString()
+                UpdatedBy = currentUser.UserId?.ToString(),
+                TenantId = tenantId
             },
             cancellationToken: cancellationToken));
 
@@ -591,11 +631,18 @@ public sealed partial class GpsDeviceRepository(
     public async Task<ApiResponse<bool>> DeleteGpsDeviceAsync(DeleteGpsDeviceCommand request, CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
+        var tenantId = tenantContext.GetRequiredTenantId();
 
         var existing = await connection.QueryFirstOrDefaultAsync<(int Id, int? TraccarDeviceId)>(
             new CommandDefinition(
-                "SELECT Id, TraccarDeviceId FROM GpsDevices WHERE Id = @Id AND IsDeleted = 0",
-                new { request.Id },
+                $"""
+                SELECT d.Id, d.TraccarDeviceId
+                FROM GpsDevices d
+                LEFT JOIN Vehicles v ON v.Id = d.VehicleId AND v.IsDeleted = 0
+                WHERE d.Id = @Id AND d.IsDeleted = 0
+                  {TrackerTenantSql.DeviceScopeFilter}
+                """,
+                new { request.Id, TenantId = tenantId },
                 cancellationToken: cancellationToken));
 
         if (existing.Id == 0)
@@ -604,8 +651,14 @@ public sealed partial class GpsDeviceRepository(
         var traccarDeviceId = existing.TraccarDeviceId;
 
         var rows = await connection.ExecuteAsync(new CommandDefinition(
-            "UPDATE GpsDevices SET IsDeleted = 1, UpdatedAt = GETUTCDATE() WHERE Id = @Id",
-            new { request.Id },
+            $"""
+            UPDATE d SET IsDeleted = 1, UpdatedAt = GETUTCDATE()
+            FROM GpsDevices d
+            LEFT JOIN Vehicles v ON v.Id = d.VehicleId AND v.IsDeleted = 0
+            WHERE d.Id = @Id AND d.IsDeleted = 0
+              {TrackerTenantSql.DeviceScopeFilter}
+            """,
+            new { request.Id, TenantId = tenantId },
             cancellationToken: cancellationToken));
 
         if (rows == 0)
@@ -627,13 +680,17 @@ public sealed partial class GpsDeviceRepository(
             return ApiResponse<int>.FailResponse("Insufficient permission for this command type.");
 
         using var connection = dbFactory.CreateConnection();
+        var tenantId = tenantContext.GetRequiredTenantId();
         var device = await connection.QueryFirstOrDefaultAsync<(int Id, bool SupportsEngineCutoff, bool SupportsRelay, string Name, int? TraccarDeviceId, int? VehicleId, string? RelayPurpose, int? TrackerModelId)>(
             new CommandDefinition(
-                """
-                SELECT Id, SupportsEngineCutoff, SupportsRelay, Name, TraccarDeviceId, VehicleId, RelayPurpose, TrackerModelId
-                FROM GpsDevices WHERE Id = @Id AND IsDeleted = 0
+                $"""
+                SELECT d.Id, d.SupportsEngineCutoff, d.SupportsRelay, d.Name, d.TraccarDeviceId, d.VehicleId, d.RelayPurpose, d.TrackerModelId
+                FROM GpsDevices d
+                LEFT JOIN Vehicles v ON v.Id = d.VehicleId AND v.IsDeleted = 0
+                WHERE d.Id = @Id AND d.IsDeleted = 0
+                  {TrackerTenantSql.DeviceScopeFilter}
                 """,
-                new { Id = request.Command.GpsDeviceId },
+                new { Id = request.Command.GpsDeviceId, TenantId = tenantId },
                 cancellationToken: cancellationToken));
 
         if (device.Id == 0)
@@ -991,11 +1048,12 @@ public sealed partial class GpsDeviceRepository(
     private static async Task<string?> ValidateVehicleForDeviceAsync(
         System.Data.IDbConnection connection,
         int vehicleId,
+        int tenantId,
         CancellationToken cancellationToken)
     {
         var status = await connection.ExecuteScalarAsync<int?>(new CommandDefinition(
-            "SELECT Status FROM Vehicles WHERE Id = @Id AND IsDeleted = 0",
-            new { Id = vehicleId },
+            "SELECT Status FROM Vehicles WHERE Id = @Id AND TenantId = @TenantId AND IsDeleted = 0",
+            new { Id = vehicleId, TenantId = tenantId },
             cancellationToken: cancellationToken));
 
         if (status is null)

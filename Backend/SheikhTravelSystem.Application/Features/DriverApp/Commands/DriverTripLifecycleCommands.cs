@@ -1,6 +1,8 @@
 using FluentValidation;
 using MediatR;
+using Microsoft.Extensions.Logging;
 using SheikhTravelSystem.Application.Common;
+using SheikhTravelSystem.Application.Common.Exceptions;
 using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 using SheikhTravelSystem.Application.Features.DriverApp.DTOs;
@@ -46,10 +48,12 @@ public class DriverAdvanceTripCommandValidator : AbstractValidator<DriverAdvance
 
 public class DriverAdvanceTripCommandHandler(
     IDriverAppRepository repository,
+    IBookingRepository bookingRepository,
     ICurrentUserService currentUser,
     ITenantContext tenantContext,
     IWhatsAppAutomationHooks automationHooks,
-    IMediator mediator)
+    IMediator mediator,
+    ILogger<DriverAdvanceTripCommandHandler> logger)
     : IRequestHandler<DriverAdvanceTripCommand, ApiResponse<bool>>
 {
     public async Task<ApiResponse<bool>> Handle(DriverAdvanceTripCommand request, CancellationToken cancellationToken)
@@ -155,7 +159,8 @@ public class DriverAdvanceTripCommandHandler(
     private async Task BootstrapTripIfBookingAlreadyStartedAsync(DriverTripRef trip, CancellationToken cancellationToken)
     {
         if (!trip.BookingId.HasValue) return;
-        var bookingStatus = await repository.GetBookingStatusAsync(trip.BookingId.Value, cancellationToken);
+        var tenantId = tenantContext.GetRequiredTenantId();
+        var bookingStatus = await repository.GetBookingStatusAsync(trip.BookingId.Value, tenantId, cancellationToken);
         if (bookingStatus != (int)BookingStatus.Started) return;
         var current = (TripStatus)trip.Status;
         if (current >= TripStatus.Started) return;
@@ -174,8 +179,21 @@ public class DriverAdvanceTripCommandHandler(
             _ => (BookingStatus?)null
         };
         if (bookingStatus is null) return;
-        await repository.SyncLinkedBookingStatusAsync(
-            bookingId.Value, (int)bookingStatus.Value, (int)BookingStatus.Cancelled, reason, cancellationToken);
+
+        try
+        {
+            // Tenant filter + booking state machine + driver/vehicle sync live in BookingRepository.
+            var sync = await bookingRepository.UpdateStatusAsync(
+                bookingId.Value, bookingStatus.Value, reason, cancellationToken);
+            if (!sync.Success)
+                logger.LogWarning(
+                    "Driver trip sync skipped booking {BookingId}: {Error}",
+                    bookingId.Value, sync.ErrorMessage);
+        }
+        catch (NotFoundException ex)
+        {
+            logger.LogWarning(ex, "Driver trip sync: booking {BookingId} not found for current tenant", bookingId.Value);
+        }
     }
 
     private static TripStatus? MapAction(TripStatus current, DriverTripAction action) => action switch

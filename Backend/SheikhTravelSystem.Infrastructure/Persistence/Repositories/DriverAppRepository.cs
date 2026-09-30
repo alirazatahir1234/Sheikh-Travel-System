@@ -121,12 +121,12 @@ public sealed class DriverAppRepository(IDbConnectionFactory dbFactory) : IDrive
             cancellationToken: ct));
     }
 
-    public async Task<bool> OwnsBookingAsync(int bookingId, int driverId, CancellationToken ct = default)
+    public async Task<bool> OwnsBookingAsync(int bookingId, int driverId, int tenantId, CancellationToken ct = default)
     {
         using var connection = dbFactory.CreateConnection();
         return await connection.ExecuteScalarAsync<bool>(new CommandDefinition(
-            "SELECT CASE WHEN EXISTS(SELECT 1 FROM Bookings WHERE Id = @Id AND DriverId = @DriverId AND IsDeleted = 0) THEN 1 ELSE 0 END",
-            new { Id = bookingId, DriverId = driverId },
+            "SELECT CASE WHEN EXISTS(SELECT 1 FROM Bookings WHERE Id = @Id AND DriverId = @DriverId AND TenantId = @TenantId AND IsDeleted = 0) THEN 1 ELSE 0 END",
+            new { Id = bookingId, DriverId = driverId, TenantId = tenantId },
             cancellationToken: ct));
     }
 
@@ -170,29 +170,30 @@ public sealed class DriverAppRepository(IDbConnectionFactory dbFactory) : IDrive
             cancellationToken: ct));
     }
 
-    public async Task<decimal> GetBookingPaidAmountAsync(int bookingId, CancellationToken ct = default)
+    public async Task<decimal> GetBookingPaidAmountAsync(int bookingId, int tenantId, CancellationToken ct = default)
     {
         using var connection = dbFactory.CreateConnection();
         return await connection.ExecuteScalarAsync<decimal>(new CommandDefinition(
             @"SELECT ISNULL(SUM(Amount), 0)
               FROM Payments
-              WHERE BookingId = @BookingId AND IsDeleted = 0 AND Status IN (@Paid, @Partial)",
-            new { BookingId = bookingId, Paid = (int)PaymentStatus.Paid, Partial = (int)PaymentStatus.PartiallyPaid },
+              WHERE BookingId = @BookingId AND TenantId = @TenantId AND IsDeleted = 0 AND Status IN (@Paid, @Partial)",
+            new { BookingId = bookingId, TenantId = tenantId, Paid = (int)PaymentStatus.Paid, Partial = (int)PaymentStatus.PartiallyPaid },
             cancellationToken: ct));
     }
 
-    public async Task<(int VehicleId, int? BookingId)?> GetActiveTripVehicleAsync(int driverId, CancellationToken ct = default)
+    public async Task<(int VehicleId, int? BookingId)?> GetActiveTripVehicleAsync(int driverId, int tenantId, CancellationToken ct = default)
     {
         using var connection = dbFactory.CreateConnection();
         return await connection.QuerySingleOrDefaultAsync<(int VehicleId, int? BookingId)?>(new CommandDefinition(
             @"SELECT TOP 1 VehicleId, BookingId FROM Trips
-              WHERE DriverId = @DriverId AND IsDeleted = 0
+              WHERE DriverId = @DriverId AND TenantId = @TenantId AND IsDeleted = 0
                 AND Status IN (@Started, @AtPickup, @Enroute, @Delayed)
                 AND VehicleId IS NOT NULL
               ORDER BY PlannedStart DESC",
             new
             {
                 DriverId = driverId,
+                TenantId = tenantId,
                 Started = (int)TripStatus.Started,
                 AtPickup = (int)TripStatus.AtPickup,
                 Enroute = (int)TripStatus.Enroute,
@@ -201,14 +202,14 @@ public sealed class DriverAppRepository(IDbConnectionFactory dbFactory) : IDrive
             cancellationToken: ct));
     }
 
-    public async Task<(int VehicleId, int? BookingId)?> GetActiveBookingVehicleAsync(int driverId, CancellationToken ct = default)
+    public async Task<(int VehicleId, int? BookingId)?> GetActiveBookingVehicleAsync(int driverId, int tenantId, CancellationToken ct = default)
     {
         using var connection = dbFactory.CreateConnection();
         return await connection.QuerySingleOrDefaultAsync<(int VehicleId, int? BookingId)?>(new CommandDefinition(
             @"SELECT TOP 1 VehicleId, Id FROM Bookings
-              WHERE DriverId = @DriverId AND Status = @Started AND VehicleId IS NOT NULL AND IsDeleted = 0
+              WHERE DriverId = @DriverId AND TenantId = @TenantId AND Status = @Started AND VehicleId IS NOT NULL AND IsDeleted = 0
               ORDER BY PickupTime DESC",
-            new { DriverId = driverId, Started = (int)BookingStatus.Started },
+            new { DriverId = driverId, TenantId = tenantId, Started = (int)BookingStatus.Started },
             cancellationToken: ct));
     }
 
@@ -281,7 +282,7 @@ public sealed class DriverAppRepository(IDbConnectionFactory dbFactory) : IDrive
     }
 
     public async Task<IReadOnlyList<DriverAttendanceRecordDto>> GetAttendanceHistoryAsync(
-        int driverId, DateTime from, DateTime to, int offset, int size, CancellationToken ct = default)
+        int driverId, int tenantId, DateTime from, DateTime to, int offset, int size, CancellationToken ct = default)
     {
         using var connection = dbFactory.CreateConnection();
         var rows = await connection.QueryAsync<DriverAttendanceRecordDto>(new CommandDefinition(
@@ -292,11 +293,11 @@ public sealed class DriverAppRepository(IDbConnectionFactory dbFactory) : IDrive
                      COALESCE(RecordedAt, CheckOutAt, CheckInAt, CreatedAt) AS RecordedAt,
                      Latitude, Longitude, Notes
               FROM DriverAttendance
-              WHERE DriverId=@D AND IsDeleted=0
+              WHERE DriverId=@D AND TenantId=@TenantId AND IsDeleted=0
                 AND COALESCE(RecordedAt, CheckOutAt, CheckInAt, CreatedAt) BETWEEN @From AND @To
               ORDER BY COALESCE(RecordedAt, CheckOutAt, CheckInAt, CreatedAt) DESC
               OFFSET @Offset ROWS FETCH NEXT @Size ROWS ONLY",
-            new { D = driverId, From = from, To = to, Offset = offset, Size = size },
+            new { D = driverId, TenantId = tenantId, From = from, To = to, Offset = offset, Size = size },
             cancellationToken: ct));
         return rows.ToList();
     }
@@ -311,14 +312,14 @@ public sealed class DriverAppRepository(IDbConnectionFactory dbFactory) : IDrive
         return driver;
     }
 
-    public async Task<(int? VehicleId, int? BookingId)> GetStartedBookingForSosAsync(int driverId, CancellationToken ct = default)
+    public async Task<(int? VehicleId, int? BookingId)> GetStartedBookingForSosAsync(int driverId, int tenantId, CancellationToken ct = default)
     {
         using var connection = dbFactory.CreateConnection();
         var active = await connection.QuerySingleOrDefaultAsync<(int? VehicleId, int? BookingId)>(new CommandDefinition(
             @"SELECT TOP 1 VehicleId, Id FROM Bookings
-              WHERE DriverId = @DriverId AND Status = @Started AND IsDeleted = 0
+              WHERE DriverId = @DriverId AND TenantId = @TenantId AND Status = @Started AND IsDeleted = 0
               ORDER BY PickupTime DESC",
-            new { DriverId = driverId, Started = (int)BookingStatus.Started },
+            new { DriverId = driverId, TenantId = tenantId, Started = (int)BookingStatus.Started },
             cancellationToken: ct));
         return active;
     }
@@ -420,7 +421,7 @@ public sealed class DriverAppRepository(IDbConnectionFactory dbFactory) : IDrive
     }
 
     public async Task<IReadOnlyList<(int BookingId, decimal PaidAmount)>> GetPaidAmountsForBookingsAsync(
-        IReadOnlyList<int> bookingIds, CancellationToken ct = default)
+        IReadOnlyList<int> bookingIds, int tenantId, CancellationToken ct = default)
     {
         if (bookingIds.Count == 0) return [];
         using var connection = dbFactory.CreateConnection();
@@ -428,12 +429,14 @@ public sealed class DriverAppRepository(IDbConnectionFactory dbFactory) : IDrive
             @"SELECT BookingId, ISNULL(SUM(Amount), 0) AS PaidAmount
               FROM Payments
               WHERE BookingId IN @BookingIds
+                AND TenantId = @TenantId
                 AND IsDeleted = 0
                 AND Status IN (@Paid, @Partial)
               GROUP BY BookingId",
             new
             {
                 BookingIds = bookingIds,
+                TenantId = tenantId,
                 Paid = (int)PaymentStatus.Paid,
                 Partial = (int)PaymentStatus.PartiallyPaid
             },
@@ -477,7 +480,7 @@ public sealed class DriverAppRepository(IDbConnectionFactory dbFactory) : IDrive
                        N'Submitted',
                        f.Id
                 FROM FuelLogs f
-                WHERE f.DriverId = @DriverId AND f.IsDeleted = 0
+                WHERE f.DriverId = @DriverId AND f.TenantId = @TenantId AND f.IsDeleted = 0
 
                 UNION ALL
 
@@ -549,94 +552,97 @@ public sealed class DriverAppRepository(IDbConnectionFactory dbFactory) : IDrive
         return rows.ToList();
     }
 
-    public async Task<decimal> SumPaymentsAsync(int driverId, DateTime from, DateTime to, int? statusFilter, CancellationToken ct = default)
+    public async Task<decimal> SumPaymentsAsync(int driverId, int tenantId, DateTime from, DateTime to, int? statusFilter, CancellationToken ct = default)
     {
         using var connection = dbFactory.CreateConnection();
         return await connection.ExecuteScalarAsync<decimal>(new CommandDefinition(
             statusFilter is null
                 ? @"SELECT ISNULL(SUM(p.Amount), 0) FROM Payments p
                    INNER JOIN Bookings b ON b.Id = p.BookingId
-                   WHERE b.DriverId = @DriverId AND b.IsDeleted = 0 AND p.IsDeleted = 0
+                   WHERE b.DriverId = @DriverId AND b.TenantId = @TenantId AND p.TenantId = @TenantId
+                     AND b.IsDeleted = 0 AND p.IsDeleted = 0
                      AND b.PickupTime BETWEEN @From AND @To"
                 : @"SELECT ISNULL(SUM(p.Amount), 0) FROM Payments p
                    INNER JOIN Bookings b ON b.Id = p.BookingId
-                   WHERE b.DriverId = @DriverId AND b.IsDeleted = 0 AND p.IsDeleted = 0
+                   WHERE b.DriverId = @DriverId AND b.TenantId = @TenantId AND p.TenantId = @TenantId
+                     AND b.IsDeleted = 0 AND p.IsDeleted = 0
                      AND p.Status = @Status AND b.PickupTime BETWEEN @From AND @To",
-            new { DriverId = driverId, From = from, To = to, Status = statusFilter },
+            new { DriverId = driverId, TenantId = tenantId, From = from, To = to, Status = statusFilter },
             cancellationToken: ct));
     }
 
-    public async Task<decimal> SumPendingPartialPaymentsAsync(int driverId, DateTime from, DateTime to, CancellationToken ct = default)
+    public async Task<decimal> SumPendingPartialPaymentsAsync(int driverId, int tenantId, DateTime from, DateTime to, CancellationToken ct = default)
     {
         using var connection = dbFactory.CreateConnection();
         return await connection.ExecuteScalarAsync<decimal>(new CommandDefinition(
             @"SELECT ISNULL(SUM(p.Amount), 0) FROM Payments p
               INNER JOIN Bookings b ON b.Id = p.BookingId
-              WHERE b.DriverId = @DriverId AND b.IsDeleted = 0 AND p.IsDeleted = 0
+              WHERE b.DriverId = @DriverId AND b.TenantId = @TenantId AND p.TenantId = @TenantId
+                AND b.IsDeleted = 0 AND p.IsDeleted = 0
                 AND p.Status IN (@Pending, @Partial) AND b.PickupTime BETWEEN @From AND @To",
-            new { DriverId = driverId, From = from, To = to, Pending = (int)PaymentStatus.Pending, Partial = (int)PaymentStatus.PartiallyPaid },
+            new { DriverId = driverId, TenantId = tenantId, From = from, To = to, Pending = (int)PaymentStatus.Pending, Partial = (int)PaymentStatus.PartiallyPaid },
             cancellationToken: ct));
     }
 
-    public async Task<int> CountCompletedBookingsAsync(int driverId, DateTime from, DateTime to, CancellationToken ct = default)
+    public async Task<int> CountCompletedBookingsAsync(int driverId, int tenantId, DateTime from, DateTime to, CancellationToken ct = default)
     {
         using var connection = dbFactory.CreateConnection();
         return await connection.ExecuteScalarAsync<int>(new CommandDefinition(
             @"SELECT COUNT(*) FROM Bookings
-              WHERE DriverId = @DriverId AND Status = @Completed AND IsDeleted = 0
+              WHERE DriverId = @DriverId AND TenantId = @TenantId AND Status = @Completed AND IsDeleted = 0
                 AND PickupTime BETWEEN @From AND @To",
-            new { DriverId = driverId, Completed = (int)BookingStatus.Completed, From = from, To = to },
+            new { DriverId = driverId, TenantId = tenantId, Completed = (int)BookingStatus.Completed, From = from, To = to },
             cancellationToken: ct));
     }
 
-    public async Task<decimal> SumFuelCostAsync(int driverId, DateTime from, DateTime to, CancellationToken ct = default)
+    public async Task<decimal> SumFuelCostAsync(int driverId, int tenantId, DateTime from, DateTime to, CancellationToken ct = default)
     {
         using var connection = dbFactory.CreateConnection();
         return await connection.ExecuteScalarAsync<decimal>(new CommandDefinition(
             @"SELECT ISNULL(SUM(TotalCost), 0) FROM FuelLogs
-              WHERE DriverId = @DriverId AND IsDeleted = 0
+              WHERE DriverId = @DriverId AND TenantId = @TenantId AND IsDeleted = 0
                 AND COALESCE(FuelDate, CreatedAt) BETWEEN @From AND @To",
-            new { DriverId = driverId, From = from, To = to },
+            new { DriverId = driverId, TenantId = tenantId, From = from, To = to },
             cancellationToken: ct));
     }
 
-    public async Task<decimal> SumBookingDistanceAsync(int driverId, DateTime from, DateTime to, CancellationToken ct = default)
+    public async Task<decimal> SumBookingDistanceAsync(int driverId, int tenantId, DateTime from, DateTime to, CancellationToken ct = default)
     {
         using var connection = dbFactory.CreateConnection();
         return await connection.ExecuteScalarAsync<decimal>(new CommandDefinition(
             @"SELECT ISNULL(SUM(COALESCE(QuotedDistanceKm, 0)), 0) FROM Bookings
-              WHERE DriverId = @DriverId AND Status = @Completed AND IsDeleted = 0
+              WHERE DriverId = @DriverId AND TenantId = @TenantId AND Status = @Completed AND IsDeleted = 0
                 AND PickupTime BETWEEN @From AND @To",
-            new { DriverId = driverId, Completed = (int)BookingStatus.Completed, From = from, To = to },
+            new { DriverId = driverId, TenantId = tenantId, Completed = (int)BookingStatus.Completed, From = from, To = to },
             cancellationToken: ct));
     }
 
-    public async Task<decimal?> SumTripDistanceAsync(int driverId, DateTime from, DateTime to, CancellationToken ct = default)
+    public async Task<decimal?> SumTripDistanceAsync(int driverId, int tenantId, DateTime from, DateTime to, CancellationToken ct = default)
     {
         using var connection = dbFactory.CreateConnection();
         return await connection.ExecuteScalarAsync<decimal?>(new CommandDefinition(
             @"SELECT SUM(COALESCE(ActualDistanceKm, PlannedDistanceKm, 0))
               FROM Trips
-              WHERE DriverId = @DriverId AND IsDeleted = 0 AND Status = @Completed
+              WHERE DriverId = @DriverId AND TenantId = @TenantId AND IsDeleted = 0 AND Status = @Completed
                 AND PlannedStart BETWEEN @From AND @To",
-            new { DriverId = driverId, Completed = (int)TripStatus.Completed, From = from, To = to },
+            new { DriverId = driverId, TenantId = tenantId, Completed = (int)TripStatus.Completed, From = from, To = to },
             cancellationToken: ct));
     }
 
-    public async Task<decimal> SumBookingHoursAsync(int driverId, DateTime from, DateTime to, CancellationToken ct = default)
+    public async Task<decimal> SumBookingHoursAsync(int driverId, int tenantId, DateTime from, DateTime to, CancellationToken ct = default)
     {
         using var connection = dbFactory.CreateConnection();
         return await connection.ExecuteScalarAsync<decimal>(new CommandDefinition(
             @"SELECT ISNULL(SUM(DATEDIFF(MINUTE, PickupTime, COALESCE(DropoffTime, PickupTime))) / 60.0, 0)
               FROM Bookings
-              WHERE DriverId = @DriverId AND Status = @Completed AND IsDeleted = 0
+              WHERE DriverId = @DriverId AND TenantId = @TenantId AND Status = @Completed AND IsDeleted = 0
                 AND PickupTime BETWEEN @From AND @To",
-            new { DriverId = driverId, Completed = (int)BookingStatus.Completed, From = from, To = to },
+            new { DriverId = driverId, TenantId = tenantId, Completed = (int)BookingStatus.Completed, From = from, To = to },
             cancellationToken: ct));
     }
 
     public async Task<IReadOnlyList<(DateTime Day, decimal Amount, int TripCount)>> GetDailyEarningsAsync(
-        int driverId, DateTime from, DateTime toExclusive, CancellationToken ct = default)
+        int driverId, int tenantId, DateTime from, DateTime toExclusive, CancellationToken ct = default)
     {
         using var connection = dbFactory.CreateConnection();
         var dailyRows = await connection.QueryAsync<(DateTime Day, decimal Amount, int TripCount)>(new CommandDefinition(
@@ -644,14 +650,15 @@ public sealed class DriverAppRepository(IDbConnectionFactory dbFactory) : IDrive
                      ISNULL(SUM(p.Amount), 0) AS Amount,
                      COUNT(DISTINCT CASE WHEN b.Status = @Completed THEN b.Id END) AS TripCount
               FROM Bookings b
-              LEFT JOIN Payments p ON p.BookingId = b.Id AND p.IsDeleted = 0
-              WHERE b.DriverId = @DriverId AND b.IsDeleted = 0
+              LEFT JOIN Payments p ON p.BookingId = b.Id AND p.TenantId = @TenantId AND p.IsDeleted = 0
+              WHERE b.DriverId = @DriverId AND b.TenantId = @TenantId AND b.IsDeleted = 0
                 AND b.PickupTime >= @From AND b.PickupTime < @ToExclusive
               GROUP BY CAST(b.PickupTime AS DATE)
               ORDER BY Day",
             new
             {
                 DriverId = driverId,
+                TenantId = tenantId,
                 Completed = (int)BookingStatus.Completed,
                 From = from,
                 ToExclusive = toExclusive
@@ -660,7 +667,7 @@ public sealed class DriverAppRepository(IDbConnectionFactory dbFactory) : IDrive
         return dailyRows.ToList();
     }
 
-    public async Task<IReadOnlyList<DriverFuelReceiptRow>> GetFuelReceiptsAsync(int driverId, int offset, int size, CancellationToken ct = default)
+    public async Task<IReadOnlyList<DriverFuelReceiptRow>> GetFuelReceiptsAsync(int driverId, int tenantId, int offset, int size, CancellationToken ct = default)
     {
         using var connection = dbFactory.CreateConnection();
         var rows = await connection.QueryAsync<DriverFuelReceiptRow>(new CommandDefinition(
@@ -670,11 +677,11 @@ public sealed class DriverAppRepository(IDbConnectionFactory dbFactory) : IDrive
                    f.FuelDate, f.Station, f.ReceiptUrl
             FROM FuelLogs f
             LEFT JOIN Vehicles v ON v.Id = f.VehicleId
-            WHERE f.DriverId = @DriverId AND f.IsDeleted = 0
+            WHERE f.DriverId = @DriverId AND f.TenantId = @TenantId AND f.IsDeleted = 0
             ORDER BY f.FuelDate DESC
             OFFSET @Offset ROWS FETCH NEXT @Size ROWS ONLY
             """,
-            new { DriverId = driverId, Offset = offset, Size = size },
+            new { DriverId = driverId, TenantId = tenantId, Offset = offset, Size = size },
             cancellationToken: ct));
         return rows.ToList();
     }
@@ -764,12 +771,12 @@ public sealed class DriverAppRepository(IDbConnectionFactory dbFactory) : IDrive
             cancellationToken: ct));
     }
 
-    public async Task UpdateInspectionMediaAsync(int id, string photosJson, string? signatureUrl, CancellationToken ct = default)
+    public async Task UpdateInspectionMediaAsync(int id, int tenantId, string photosJson, string? signatureUrl, CancellationToken ct = default)
     {
         using var connection = dbFactory.CreateConnection();
         await connection.ExecuteAsync(new CommandDefinition(
-            @"UPDATE Inspections SET PhotosJson = @Photos, SignatureUrl = @Signature WHERE Id = @Id",
-            new { Id = id, Photos = photosJson, Signature = signatureUrl },
+            @"UPDATE Inspections SET PhotosJson = @Photos, SignatureUrl = @Signature WHERE Id = @Id AND TenantId = @TenantId",
+            new { Id = id, TenantId = tenantId, Photos = photosJson, Signature = signatureUrl },
             cancellationToken: ct));
     }
 
@@ -999,23 +1006,13 @@ public sealed class DriverAppRepository(IDbConnectionFactory dbFactory) : IDrive
             cancellationToken: ct));
     }
 
-    public async Task<int?> GetBookingStatusAsync(int bookingId, CancellationToken ct = default)
+    public async Task<int?> GetBookingStatusAsync(int bookingId, int tenantId, CancellationToken ct = default)
     {
         using var connection = dbFactory.CreateConnection();
         return await connection.ExecuteScalarAsync<int?>(new CommandDefinition(
-            "SELECT Status FROM Bookings WHERE Id = @Id AND IsDeleted = 0",
-            new { Id = bookingId },
+            "SELECT Status FROM Bookings WHERE Id = @Id AND TenantId = @TenantId AND IsDeleted = 0",
+            new { Id = bookingId, TenantId = tenantId },
             cancellationToken: ct));
     }
 
-    public async Task SyncLinkedBookingStatusAsync(int bookingId, int status, int cancelledStatus, string? reason, CancellationToken ct = default)
-    {
-        using var connection = dbFactory.CreateConnection();
-        await connection.ExecuteAsync(new CommandDefinition(
-            @"UPDATE Bookings SET Status = @Status, UpdatedAt = GETUTCDATE(),
-                CancellationReason = CASE WHEN @Status = @Cancelled THEN @Reason ELSE CancellationReason END
-              WHERE Id = @Id AND IsDeleted = 0",
-            new { Id = bookingId, Status = status, Cancelled = cancelledStatus, Reason = reason },
-            cancellationToken: ct));
-    }
 }

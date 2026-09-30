@@ -7,6 +7,7 @@ namespace SheikhTravelSystem.Infrastructure.Persistence.Repositories;
 public sealed class PricingRepository(IDbConnectionFactory dbFactory) : IPricingRepository
 {
     public async Task<RoutePricingInfo?> GetRoutePricingAsync(
+        int tenantId,
         int routeId,
         CancellationToken cancellationToken = default)
     {
@@ -14,8 +15,8 @@ public sealed class PricingRepository(IDbConnectionFactory dbFactory) : IPricing
 
         var route = await connection.QuerySingleOrDefaultAsync<RoutePricingRow>(
             new CommandDefinition(
-                "SELECT Distance, BasePrice FROM Routes WHERE Id = @Id AND IsDeleted = 0 AND IsActive = 1",
-                new { Id = routeId },
+                "SELECT Distance, BasePrice FROM Routes WHERE Id = @Id AND TenantId = @TenantId AND IsDeleted = 0 AND IsActive = 1",
+                new { Id = routeId, TenantId = tenantId },
                 cancellationToken: cancellationToken));
 
         return route is null
@@ -24,6 +25,7 @@ public sealed class PricingRepository(IDbConnectionFactory dbFactory) : IPricing
     }
 
     public async Task<decimal?> GetVehicleFuelAverageAsync(
+        int tenantId,
         int vehicleId,
         CancellationToken cancellationToken = default)
     {
@@ -31,8 +33,8 @@ public sealed class PricingRepository(IDbConnectionFactory dbFactory) : IPricing
 
         return await connection.ExecuteScalarAsync<decimal?>(
             new CommandDefinition(
-                "SELECT FuelAverage FROM Vehicles WHERE Id = @Id",
-                new { Id = vehicleId },
+                "SELECT FuelAverage FROM Vehicles WHERE Id = @Id AND TenantId = @TenantId AND IsDeleted = 0",
+                new { Id = vehicleId, TenantId = tenantId },
                 cancellationToken: cancellationToken));
     }
 

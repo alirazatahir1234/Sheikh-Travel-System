@@ -1,6 +1,7 @@
 using FluentValidation;
 using MediatR;
 using SheikhTravelSystem.Application.Common;
+using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 using SheikhTravelSystem.Application.Features.Pricing.DTOs;
 
@@ -31,7 +32,7 @@ public class CalculatePriceCommandValidator : AbstractValidator<CalculatePriceCo
 /// <summary>
 /// Computes booking price components from route and vehicle data.
 /// </summary>
-public class CalculatePriceCommandHandler(IPricingRepository pricingRepository)
+public class CalculatePriceCommandHandler(IPricingRepository pricingRepository, ITenantContext tenantContext)
     : IRequestHandler<CalculatePriceCommand, ApiResponse<PriceBreakdown>>
 {
     /// <summary>
@@ -40,12 +41,13 @@ public class CalculatePriceCommandHandler(IPricingRepository pricingRepository)
     public async Task<ApiResponse<PriceBreakdown>> Handle(CalculatePriceCommand request, CancellationToken cancellationToken)
     {
         var req = request.Request;
+        var tenantId = tenantContext.GetRequiredTenantId();
 
-        var route = await pricingRepository.GetRoutePricingAsync(req.RouteId, cancellationToken);
+        var route = await pricingRepository.GetRoutePricingAsync(tenantId, req.RouteId, cancellationToken);
         if (route is null)
             return ApiResponse<PriceBreakdown>.FailResponse("Selected route was not found. Please reselect the route.");
 
-        var fuelAverage = await pricingRepository.GetVehicleFuelAverageAsync(req.VehicleId, cancellationToken);
+        var fuelAverage = await pricingRepository.GetVehicleFuelAverageAsync(tenantId, req.VehicleId, cancellationToken);
         if (fuelAverage is null || fuelAverage <= 0)
             return ApiResponse<PriceBreakdown>.FailResponse("Selected vehicle was not found or has invalid fuel average.");
 

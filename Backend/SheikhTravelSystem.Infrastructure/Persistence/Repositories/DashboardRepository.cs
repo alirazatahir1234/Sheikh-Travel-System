@@ -8,7 +8,7 @@ namespace SheikhTravelSystem.Infrastructure.Persistence.Repositories;
 
 public sealed class DashboardRepository(IDbConnectionFactory dbFactory) : IDashboardRepository
 {
-    public async Task<DashboardSummaryDto> GetSummaryAsync(CancellationToken cancellationToken = default)
+    public async Task<DashboardSummaryDto> GetSummaryAsync(int tenantId, CancellationToken cancellationToken = default)
     {
         async Task<T> Scalar<T>(string sql, object? param = null)
         {
@@ -17,18 +17,26 @@ public sealed class DashboardRepository(IDbConnectionFactory dbFactory) : IDashb
                 new CommandDefinition(sql, param, cancellationToken: cancellationToken));
         }
 
-        var totalVehiclesTask = Scalar<int>("SELECT COUNT(*) FROM Vehicles WHERE IsDeleted = 0");
+        var tenantParam = new { TenantId = tenantId };
+
+        var totalVehiclesTask = Scalar<int>(
+            "SELECT COUNT(*) FROM Vehicles WHERE IsDeleted = 0 AND TenantId = @TenantId",
+            tenantParam);
         var activeTripsTask = Scalar<int>(
-            "SELECT COUNT(*) FROM Bookings WHERE Status = @Status AND IsDeleted = 0",
-            new { Status = (int)BookingStatus.Started });
+            "SELECT COUNT(*) FROM Bookings WHERE Status = @Status AND IsDeleted = 0 AND TenantId = @TenantId",
+            new { Status = (int)BookingStatus.Started, TenantId = tenantId });
         var totalRevenueTask = Scalar<decimal>(
-            "SELECT ISNULL(SUM(Amount), 0) FROM Payments WHERE Status = @Status AND IsDeleted = 0",
-            new { Status = (int)PaymentStatus.Paid });
+            "SELECT ISNULL(SUM(Amount), 0) FROM Payments WHERE Status = @Status AND IsDeleted = 0 AND TenantId = @TenantId",
+            new { Status = (int)PaymentStatus.Paid, TenantId = tenantId });
         var pendingBookingsTask = Scalar<int>(
-            "SELECT COUNT(*) FROM Bookings WHERE Status = @Status AND IsDeleted = 0",
-            new { Status = (int)BookingStatus.Pending });
-        var fuelExpenseTask = Scalar<decimal>("SELECT ISNULL(SUM(TotalCost), 0) FROM FuelLogs WHERE IsDeleted = 0");
-        var maintenanceExpenseTask = Scalar<decimal>("SELECT ISNULL(SUM(Cost), 0) FROM Maintenance WHERE IsDeleted = 0");
+            "SELECT COUNT(*) FROM Bookings WHERE Status = @Status AND IsDeleted = 0 AND TenantId = @TenantId",
+            new { Status = (int)BookingStatus.Pending, TenantId = tenantId });
+        var fuelExpenseTask = Scalar<decimal>(
+            "SELECT ISNULL(SUM(TotalCost), 0) FROM FuelLogs WHERE IsDeleted = 0 AND TenantId = @TenantId",
+            tenantParam);
+        var maintenanceExpenseTask = Scalar<decimal>(
+            "SELECT ISNULL(SUM(Cost), 0) FROM Maintenance WHERE IsDeleted = 0 AND TenantId = @TenantId",
+            tenantParam);
 
         await Task.WhenAll(
             totalVehiclesTask, activeTripsTask, totalRevenueTask,
