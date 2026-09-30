@@ -17,7 +17,11 @@ public class ReverseGeocodeQueryHandler(IReverseGeocodingService geocoder)
             return ApiResponse<ReverseGeocodeResult>.FailResponse("Invalid coordinates.");
 
         var result = await geocoder.GetAddressAsync(
-            request.Latitude, request.Longitude, request.ForceRefresh, cancellationToken);
+            request.Latitude,
+            request.Longitude,
+            request.ForceRefresh,
+            cancellationToken,
+            allowGoogle: true);
 
         if (result is null)
             return ApiResponse<ReverseGeocodeResult>.FailResponse(

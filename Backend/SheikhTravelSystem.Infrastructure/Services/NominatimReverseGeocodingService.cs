@@ -11,8 +11,8 @@ using SheikhTravelSystem.Application.Features.GpsTracking;
 namespace SheikhTravelSystem.Infrastructure.Services;
 
 /// <summary>
-/// Reverse geocoder: GpsAddressCache → Google Places/Geocoding (when keyed) → Nominatim.
-/// Returns street-level address plus nearest shop/POI name when available.
+/// Reverse geocoder: GpsAddressCache → Nominatim and/or Google Geocoding (when keyed).
+/// Places Nearby is opt-in via <see cref="GeocodingOptions.IncludeNearbyPlace"/> (default off).
 /// </summary>
 public sealed class NominatimReverseGeocodingService(
     IDbConnectionFactory dbFactory,
@@ -41,14 +41,13 @@ public sealed class NominatimReverseGeocodingService(
 
     private readonly object _throttleLock = new();
     private DateTime _nextAllowedCallUtc = DateTime.MinValue;
-    private static bool ContainsNonAsciiLetters(string text) =>
-        text.Any(c => char.IsLetter(c) && c > 127);
 
     public async Task<ReverseGeocodeResult?> GetAddressAsync(
         double latitude,
         double longitude,
         bool forceRefresh = false,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        bool allowGoogle = false)
     {
         if (!options.Value.Enabled)
             return null;
@@ -97,18 +96,34 @@ public sealed class NominatimReverseGeocodingService(
             }
         }
 
-        ReverseGeocodeResult? resolved = null;
-        if (!string.IsNullOrWhiteSpace(options.Value.GoogleMapsApiKey))
-        {
-            resolved = await ResolveFromGoogleAsync(latitude, longitude, cancellationToken);
-        }
+        var keyOk = !string.IsNullOrWhiteSpace(options.Value.GoogleMapsApiKey);
+        var useGoogle = keyOk && (allowGoogle || options.Value.PreferGoogle);
 
-        if (resolved is null || IsCoarseAddress(resolved.FormattedAddress, resolved.Road, resolved.PlaceName))
+        ReverseGeocodeResult? resolved = null;
+
+        if (allowGoogle && useGoogle)
         {
-            var nominatim = await ResolveFromNominatimAsync(latitude, longitude, cancellationToken);
-            if (nominatim is not null)
+            // Explicit UI lookup: Google Geocoding first, Nominatim fallback.
+            resolved = await ResolveFromGoogleAsync(latitude, longitude, cancellationToken);
+            if (resolved is null
+                || IsCoarseAddress(resolved.FormattedAddress, resolved.Road, resolved.PlaceName))
             {
-                resolved = MergeResults(resolved, nominatim);
+                var nominatim = await ResolveFromNominatimAsync(latitude, longitude, cancellationToken);
+                if (nominatim is not null)
+                    resolved = MergeResults(resolved, nominatim);
+            }
+        }
+        else
+        {
+            // Background / default: Nominatim first (free). Google only when PreferGoogle.
+            resolved = await ResolveFromNominatimAsync(latitude, longitude, cancellationToken);
+            if (useGoogle
+                && (resolved is null
+                    || IsCoarseAddress(resolved.FormattedAddress, resolved.Road, resolved.PlaceName)))
+            {
+                var google = await ResolveFromGoogleAsync(latitude, longitude, cancellationToken);
+                if (google is not null)
+                    resolved = MergeResults(google, resolved);
             }
         }
 
@@ -222,14 +237,18 @@ public sealed class NominatimReverseGeocodingService(
         if (string.IsNullOrWhiteSpace(address)) return true;
 
         var trimmed = address.Trim();
-        if (ContainsNonAsciiLetters(trimmed))
-            return true;
+        var hasPlus = ContainsPlusCode(trimmed);
+
+        // Non-ASCII (Urdu/Arabic) street lines are valid — do not treat as coarse
+        // (that caused forceRefresh loops and Google spend).
+        if (trimmed.Any(c => c > 0x7F) && !hasPlus)
+            return false;
 
         // Legacy "Near {POI}, …" — always refresh regardless of digits / plus-codes in the rest.
         if (trimmed.StartsWith("Near ", StringComparison.OrdinalIgnoreCase))
             return true;
 
-        if (ContainsPlusCode(trimmed))
+        if (hasPlus)
             return true;
 
         var parts = trimmed.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
@@ -268,6 +287,8 @@ public sealed class NominatimReverseGeocodingService(
         if (LooksLikeAdminToken(part) || LooksLikePlusCode(part)) return false;
         var lower = part.Trim().ToLowerInvariant();
         if (part.Any(char.IsDigit)) return true;
+        // Urdu/Arabic road names (e.g. مین روڈ) are valid street signals.
+        if (part.Any(c => c > 0x7F)) return true;
         string[] keywords =
         [
             "road", "rd", "street", "st.", " st ", "avenue", "ave", "boulevard", "blvd",
@@ -445,32 +466,31 @@ public sealed class NominatimReverseGeocodingService(
             var lat = latitude.ToString(CultureInfo.InvariantCulture);
             var lng = longitude.ToString(CultureInfo.InvariantCulture);
 
-            // radius=100 + geometry; we filter by Haversine ≤40m (prominence ranking alone is unsafe).
-            var nearbyTask = client.GetFromJsonAsync<GoogleNearbyResponse>(
-                $"/maps/api/place/nearbysearch/json?location={lat},{lng}&radius=100&language=en&key={key}",
-                cancellationToken);
-            var geoTask = client.GetFromJsonAsync<GoogleGeocodeResponse>(
+            var geo = await client.GetFromJsonAsync<GoogleGeocodeResponse>(
                 $"/maps/api/geocode/json?latlng={lat},{lng}&language=en&key={key}",
                 cancellationToken);
 
-            await Task.WhenAll(nearbyTask, geoTask);
-            var nearby = await nearbyTask;
-            var geo = await geoTask;
-
             string? placeName = null;
             string? placeType = null;
-            // Nearby POIs are often wrong/garbled for fleet ops — keep distance-qualified name as
-            // optional metadata only; never fold into FormattedAddress.
-            if (nearby?.Status == "OK" && nearby.Results is { Count: > 0 })
+
+            // Places Nearby is billable — only when explicitly enabled (default off).
+            if (options.Value.IncludeNearbyPlace)
             {
-                var bestPlace = PickClosestNearbyPlace(nearby.Results, latitude, longitude);
-                if (bestPlace is not null)
+                var nearby = await client.GetFromJsonAsync<GoogleNearbyResponse>(
+                    $"/maps/api/place/nearbysearch/json?location={lat},{lng}&radius=100&language=en&key={key}",
+                    cancellationToken);
+                if (nearby?.Status == "OK" && nearby.Results is { Count: > 0 })
                 {
-                    placeName = SanitizePlaceName(bestPlace.Name!.Trim());
-                    var types = bestPlace.Types ?? [];
-                    placeType = placeName is null
-                        ? null
-                        : types.FirstOrDefault(t => !IgnoredPlaceTypes.Contains(t)) ?? types.FirstOrDefault();
+                    var bestPlace = PickClosestNearbyPlace(nearby.Results, latitude, longitude);
+                    if (bestPlace is not null)
+                    {
+                        placeName = SanitizePlaceName(bestPlace.Name!.Trim());
+                        var types = bestPlace.Types ?? [];
+                        placeType = placeName is null
+                            ? null
+                            : types.FirstOrDefault(t => !IgnoredPlaceTypes.Contains(t))
+                              ?? types.FirstOrDefault();
+                    }
                 }
             }
 

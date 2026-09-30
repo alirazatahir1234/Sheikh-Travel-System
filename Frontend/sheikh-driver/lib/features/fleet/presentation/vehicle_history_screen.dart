@@ -1291,7 +1291,7 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen>
         final resolved = await ref.read(fleetApiProvider).reverseGeocode(
               s.latitude,
               s.longitude,
-              forceRefresh: isCoarsePlaybackAddress(inline),
+              forceRefresh: false,
             );
         if (resolved != null && resolved.trim().isNotEmpty) {
           final line = resolved.trim();
@@ -1445,9 +1445,7 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen>
     final cached = _addressCache[key];
     if (cached != null && !isCoarsePlaybackAddress(cached)) return cached;
 
-    // City-only lines (or missing) → ask server, force refresh when coarse/cached.
-    final needsForce = isCoarsePlaybackAddress(inline) ||
-        (cached != null && isCoarsePlaybackAddress(cached));
+    // Prefer cache / Nominatim — avoid forceRefresh storms on history open.
     final fallback = (inline != null && inline.isNotEmpty)
         ? inline
         : formatPlaybackCoords(p.latitude, p.longitude);
@@ -1455,7 +1453,7 @@ class _VehicleHistoryScreenState extends ConsumerState<VehicleHistoryScreen>
       final resolved = await ref.read(fleetApiProvider).reverseGeocode(
             p.latitude,
             p.longitude,
-            forceRefresh: needsForce,
+            forceRefresh: false,
           );
       if (resolved != null && resolved.trim().isNotEmpty) {
         final line = resolved.trim();

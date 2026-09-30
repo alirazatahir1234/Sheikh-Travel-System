@@ -18,7 +18,6 @@ public sealed partial class GpsTrackingRepository
     private const int NightStartHour = 22;
     private const int NightEndHour = 5;
     private const int MaxPageSize = 5000;
-    private const int MaxInlineEnrich = 40;
     private const int SparseRemoteThreshold = 5;
     private const int MaxFleetTraccarCalls = 25;
     private const int MaxFleetDetectorCalls = 10;
@@ -50,53 +49,15 @@ public sealed partial class GpsTrackingRepository
         List<PositionDto> items,
         CancellationToken cancellationToken)
     {
-        var needEnrich = items
-            .Select((p, i) => (p, i))
-            .Where(x => TripReplayAddressEnricher.IsCoarseAddress(x.p.Address))
-            .ToList();
-        if (needEnrich.Count == 0) return items;
-
-        var inline = needEnrich.Take(MaxInlineEnrich).ToList();
-        foreach (var (leftover, _) in needEnrich.Skip(MaxInlineEnrich))
-            addressBackfill.Enqueue(leftover.VehicleId, leftover.Latitude, leftover.Longitude);
-
-        for (var n = 0; n < inline.Count; n++)
+        // Hot path: never call Google/Nominatim synchronously on live roster polls.
+        // Queue at most one background backfill per coarse/missing address (cooldown in queue).
+        foreach (var pos in items)
         {
-            var (pos, idx) = inline[n];
-            try
-            {
-                var coarse = !string.IsNullOrWhiteSpace(pos.Address);
-                var result = await geocoder.GetAddressAsync(
-                    pos.Latitude,
-                    pos.Longitude,
-                    forceRefresh: coarse,
-                    cancellationToken);
-                var formatted = TripReplayAddressEnricher.FormatResolvedAddress(result);
-                if (string.IsNullOrWhiteSpace(formatted))
-                {
-                    addressBackfill.Enqueue(pos.VehicleId, pos.Latitude, pos.Longitude);
-                    continue;
-                }
-
-                items[idx] = pos with { Address = formatted };
-
-                if (!string.Equals(pos.Address, formatted, StringComparison.Ordinal))
-                {
-                    await connection.ExecuteAsync(new CommandDefinition("""
-                        UPDATE VehicleCurrentLocation
-                        SET Address = @Address
-                        WHERE VehicleId = @VehicleId
-                        """,
-                        new { VehicleId = pos.VehicleId, Address = formatted },
-                        cancellationToken: cancellationToken));
-                }
-            }
-            catch
-            {
+            if (TripReplayAddressEnricher.IsCoarseAddress(pos.Address))
                 addressBackfill.Enqueue(pos.VehicleId, pos.Latitude, pos.Longitude);
-            }
         }
 
+        await Task.CompletedTask;
         return items;
     }
 
@@ -174,7 +135,8 @@ public sealed partial class GpsTrackingRepository
                     trip.StartLatitude!.Value,
                     trip.StartLongitude!.Value,
                     forceRefresh: false,
-                    cancellationToken);
+                    cancellationToken,
+                    allowGoogle: false);
                 var formatted = TripReplayAddressEnricher.FormatResolvedAddress(resolved);
                 if (!string.IsNullOrWhiteSpace(formatted))
                 {
@@ -200,7 +162,8 @@ public sealed partial class GpsTrackingRepository
                         trip.EndLatitude!.Value,
                         trip.EndLongitude!.Value,
                         forceRefresh: false,
-                        cancellationToken);
+                        cancellationToken,
+                        allowGoogle: false);
                     var formatted = TripReplayAddressEnricher.FormatResolvedAddress(resolved);
                     if (!string.IsNullOrWhiteSpace(formatted))
                     {

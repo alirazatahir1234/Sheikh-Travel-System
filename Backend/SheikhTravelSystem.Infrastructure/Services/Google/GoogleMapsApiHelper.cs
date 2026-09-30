@@ -37,7 +37,12 @@ internal static class GoogleMapsApiHelper
         => maps.ServerKey = string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
     internal static string FormatCoord(double value)
-        => value.ToString(CultureInfo.InvariantCulture);
+        => value.ToString("0.0000", CultureInfo.InvariantCulture);
+
+    /// <summary>Round GPS coords to ~11 m so Nearby Places cache survives drift.</summary>
+    internal static string FormatCoordRounded(double value, int decimals = 4)
+        => Math.Round(value, decimals, MidpointRounding.AwayFromZero)
+            .ToString($"0.{new string('0', decimals)}", CultureInfo.InvariantCulture);
 
     internal static string BuildCacheKey(string prefix, params string[] parts)
     {

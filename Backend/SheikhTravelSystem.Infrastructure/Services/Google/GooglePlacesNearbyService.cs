@@ -72,8 +72,8 @@ public sealed class GooglePlacesNearbyService(
 
         var cacheKey = GoogleMapsApiHelper.BuildCacheKey(
             "places-nearby",
-            GoogleMapsApiHelper.FormatCoord(latitude),
-            GoogleMapsApiHelper.FormatCoord(longitude),
+            GoogleMapsApiHelper.FormatCoordRounded(latitude),
+            GoogleMapsApiHelper.FormatCoordRounded(longitude),
             categoryKey,
             radiusMeters.ToString(CultureInfo.InvariantCulture),
             maxResults.ToString(CultureInfo.InvariantCulture));

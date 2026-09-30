@@ -665,7 +665,7 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
     this.geocodeRequests$.next({
       lat: pos.latitude,
       lng: pos.longitude,
-      forceRefresh: coarse && !!pos.address?.trim(),
+      forceRefresh: false,
       apply: addr => this.patchPositionAddress(pos, addr)
     });
   }
@@ -689,7 +689,7 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
     this.geocodeRequests$.next({
       lat: stop.latitude,
       lng: stop.longitude,
-      forceRefresh: coarse && !!stop.address?.trim(),
+      forceRefresh: false,
       apply: addr => {
         stop.address = addr;
         if (this.bundle) {

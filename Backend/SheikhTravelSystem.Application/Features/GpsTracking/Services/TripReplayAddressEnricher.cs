@@ -8,9 +8,6 @@ namespace SheikhTravelSystem.Application.Features.GpsTracking.Services;
 /// </summary>
 public static class TripReplayAddressEnricher
 {
-    private static bool ContainsNonAsciiLetters(string text) =>
-        text.Any(c => char.IsLetter(c) && c > 127);
-
     public static async Task<TripReplayBundleDto> EnrichAsync(
         TripReplayBundleDto bundle,
         IReverseGeocodingService geocoder,
@@ -119,8 +116,16 @@ public static class TripReplayAddressEnricher
     {
         if (string.IsNullOrWhiteSpace(address)) return true;
         var raw = address.Trim();
-        if (ContainsNonAsciiLetters(raw))
-            return true;
+
+        var hasPlusCode = System.Text.RegularExpressions.Regex.IsMatch(
+            raw,
+            @"\b[23456789CFGHJMPQRVWX]{4,8}\+[23456789CFGHJMPQRVWX]{2,3}\b",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+        // Non-ASCII (Urdu/Arabic) is valid geocoder output — do not force refresh loops.
+        if (raw.Any(c => c > 0x7F) && !hasPlusCode)
+            return false;
+
         var lower = raw.ToLowerInvariant();
         if (lower.Contains("tehsil") || lower.Contains("district") || lower.Contains("division"))
             return true;
@@ -128,10 +133,7 @@ public static class TripReplayAddressEnricher
         if (raw.StartsWith("Near ", StringComparison.OrdinalIgnoreCase))
             return true;
 
-        if (System.Text.RegularExpressions.Regex.IsMatch(
-                raw,
-                @"\b[23456789CFGHJMPQRVWX]{4,8}\+[23456789CFGHJMPQRVWX]{2,3}\b",
-                System.Text.RegularExpressions.RegexOptions.IgnoreCase))
+        if (hasPlusCode)
             return true;
 
         var parts = raw.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
@@ -195,10 +197,9 @@ public static class TripReplayAddressEnricher
         for (var i = 0; i < stops.Count; i++)
         {
             var s = stops[i];
-            var coarse = IsCoarseAddress(s.Address);
-            if (!coarse) continue;
+            if (!IsCoarseAddress(s.Address)) continue;
 
-            var addr = await ResolveAsync(geocoder, s.Latitude, s.Longitude, forceRefresh: coarse && !string.IsNullOrWhiteSpace(s.Address), cancellationToken);
+            var addr = await ResolveAsync(geocoder, s.Latitude, s.Longitude, cancellationToken);
             if (addr is not null)
                 stops[i] = s with { Address = addr };
         }
@@ -219,7 +220,6 @@ public static class TripReplayAddressEnricher
                 geocoder,
                 e.Latitude.Value,
                 e.Longitude.Value,
-                forceRefresh: !string.IsNullOrWhiteSpace(e.Address),
                 cancellationToken);
             if (addr is not null)
                 events[i] = e with { Address = addr };
@@ -243,7 +243,6 @@ public static class TripReplayAddressEnricher
                 geocoder,
                 p.Latitude,
                 p.Longitude,
-                forceRefresh: !string.IsNullOrWhiteSpace(p.Address),
                 cancellationToken);
             if (addr is not null)
                 positions[idx] = p with { Address = addr };
@@ -254,12 +253,17 @@ public static class TripReplayAddressEnricher
         IReverseGeocodingService geocoder,
         double latitude,
         double longitude,
-        bool forceRefresh,
         CancellationToken cancellationToken)
     {
         try
         {
-            var result = await geocoder.GetAddressAsync(latitude, longitude, forceRefresh, cancellationToken);
+            // Background enrich: never bypass cache / never PreferGoogle unless configured.
+            var result = await geocoder.GetAddressAsync(
+                latitude,
+                longitude,
+                forceRefresh: false,
+                cancellationToken,
+                allowGoogle: false);
             return FormatResolvedAddress(result);
         }
         catch

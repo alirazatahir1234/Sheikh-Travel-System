@@ -27,4 +27,8 @@
     <ProjectReference Include="..\SheikhTravelSystem.Application\SheikhTravelSystem.Application.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="SheikhTravelSystem.Tests" />
+  </ItemGroup>
+
 </Project>

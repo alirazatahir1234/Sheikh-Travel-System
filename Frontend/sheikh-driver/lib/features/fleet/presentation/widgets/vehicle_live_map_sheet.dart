@@ -55,7 +55,8 @@ final vehicleLocationProvider = FutureProvider.autoDispose
       final info = await ref.read(fleetApiProvider).reverseGeocodeInfo(
             lat,
             lng,
-            forceRefresh: inline == null || inline.isEmpty || _isCoarseAddress(inline),
+            // Prefer GpsAddressCache / Nominatim — never bypass cache on live sheet.
+            forceRefresh: false,
           );
       _reverseGeocodeCache[args.coordKey] = info;
       return info;

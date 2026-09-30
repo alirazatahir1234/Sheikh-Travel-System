@@ -1886,7 +1886,7 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
     this.cdr.markForCheck();
   }
 
-  /** Resolve street + nearby shop/POI for the selected vehicle detail panel. */
+  /** Resolve street address for the selected vehicle detail panel (cache-friendly). */
   private enrichSelectedAddress(loc: VehicleLocation): void {
     const coarse = isCoarseAddress(loc.address);
     const hasPlace = !!loc.placeName?.trim();
@@ -1899,7 +1899,8 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
 
     this.addressResolvingVehicleId = loc.vehicleId;
     this.cdr.markForCheck();
-    this.gpsService.reverseGeocode(loc.latitude, loc.longitude, true).subscribe({
+    // Never forceRefresh on live map — GpsAddressCache / Nominatim backfill handle upgrades.
+    this.gpsService.reverseGeocode(loc.latitude, loc.longitude, false).subscribe({
       next: info => {
         if (this.selectedVehicleId !== loc.vehicleId) {
           if (this.addressResolvingVehicleId === loc.vehicleId) {
@@ -2889,12 +2890,7 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
     if (this.followSelected && this.selectedVehicleId === update.vehicleId) {
       this.map?.panTo({ lat: update.latitude, lng: update.longitude });
     }
-    if (
-      this.selectedVehicleId === update.vehicleId &&
-      isCoarseAddress(patched.address)
-    ) {
-      this.enrichSelectedAddress(patched);
-    }
+    // Do not reverse-geocode on every SignalR tick — address comes from VCL / backfill.
 
     this.lastSyncAt = new Date();
     this.secondsSinceSync = 0;

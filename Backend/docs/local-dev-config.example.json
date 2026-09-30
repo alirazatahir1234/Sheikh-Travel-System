@@ -5,5 +5,12 @@
   },
   "MultiTenancy": {
     "AllowAnonymousDefaultTenant": true
+  },
+  "Geocoding": {
+    "Enabled": true,
+    "PreferGoogle": false,
+    "IncludeNearbyPlace": false,
+    "BackfillCooldownoldownSeconds": 300,
+    "GoogleMapsApiKey": "__SET_IN_USER_SECRETS_OR_ENV__"
   }
 }

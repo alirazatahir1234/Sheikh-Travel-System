@@ -36,9 +36,14 @@ public interface IReverseGeocodingService
     /// Uses GpsAddressCache first; only calls the external provider on miss
     /// (or when the caller opts into forceRefresh).
     /// </summary>
+    /// <param name="allowGoogle">
+    /// When true (explicit UI lookup), Google Geocoding may be used even if
+    /// <c>Geocoding:PreferGoogle</c> is false. Background callers should leave this false.
+    /// </param>
     Task<ReverseGeocodeResult?> GetAddressAsync(
         double latitude,
         double longitude,
         bool forceRefresh = false,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default,
+        bool allowGoogle = false);
 }
