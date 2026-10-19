@@ -14,7 +14,10 @@ Thumbs.db
 **/service-account*.json
 
 # Backend local secrets / environment overlays (never commit)
+# Tracked template: Backend/SheikhTravelSystem.API/appsettings.Example.json
+# Tracked placeholders only: appsettings.json (no live secrets). Local overlays stay private.
 **/appsettings.Development.json
 **/appsettings.Local.json
 .env
 .env.*
+

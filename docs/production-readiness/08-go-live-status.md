@@ -38,15 +38,14 @@ None for the critical fleet path. Remaining items are hygiene / deferred (below)
 - Optional: emulator deep-link smoke for Continue Trip → Google Maps.
 - Offline action replay (field use) — deferred if not day-one.
 - Store new SQL + Traccar passwords in the team password manager (not in git / chat).
-- Tracked `appsettings.json` still contains **old** placeholders — ADR-009 scrub later; Railway env overrides win.
+- Tracked `appsettings.json` scrub is on the current branch (placeholders only). Merge with ADR-009 override: [`13-adr-009-override-appsettings-scrub.md`](13-adr-009-override-appsettings-scrub.md). Railway env still wins at runtime.
 
 ## Post-Launch / Explicitly deferred
 
 - Phase 4 workflow gaps
 - Remove SQL `DEFAULT 1` on TenantId
 - Soft-delete orphan cleanup
-- ADR-009 tracked `appsettings.json` placeholder scrub
-- Flip `AllowAnonymousDefaultTenant=false`
+- Flip `AllowAnonymousDefaultTenant=false` (middleware default already `false`; confirm prod env)
 - MCP / AI expansion
 - Driver Sprint 2 payments / iOS matrix / store tracks
 

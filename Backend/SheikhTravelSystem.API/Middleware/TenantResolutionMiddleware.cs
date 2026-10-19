@@ -42,7 +42,8 @@ public class TenantResolutionMiddleware(RequestDelegate next, ILogger<TenantReso
         }
 
         var isAuthenticated = context.User.Identity?.IsAuthenticated == true;
-        var allowAnonymousDefault = configuration.GetValue("MultiTenancy:AllowAnonymousDefaultTenant", true);
+        // Fail closed: anonymous requests must resolve a tenant via slug unless ops explicitly enables default.
+        var allowAnonymousDefault = configuration.GetValue("MultiTenancy:AllowAnonymousDefaultTenant", false);
 
         int? slugResolvedTenantId = null;
         if (!string.IsNullOrEmpty(slug))

@@ -6,6 +6,7 @@
   "MultiTenancy": {
     "AllowAnonymousDefaultTenant": true
   },
+  "_comment_MultiTenancy": "Production tracked appsettings sets AllowAnonymousDefaultTenant=false. Keep true only for local anonymous smoke without a tenant slug.",
   "Geocoding": {
     "Enabled": true,
     "PreferGoogle": false,
