@@ -14,11 +14,12 @@ export const WEBSITE_BRAND = {
   legalEntity: COMPANY_NAME,
   erpProductName: APP_PRODUCT_NAME,
   tagline: 'Technology Today. A Smarter Tomorrow.',
-  positioning: 'Your Technology Partner for a Smarter Future',
+  positioning: 'Fleet software and custom technology for operators who run vehicles.',
   mission:
-    'SheikhGo Technologies delivers innovative IT, AI and software solutions that help businesses grow, streamline operations and succeed in the digital world.',
+    'SheikhGo Technologies builds SheikhGo Fleet — live GPS, vehicles, drivers and trips in one platform — plus custom software and AI when your operation needs more.',
   footerBlurb:
-    'SheikhGo Technologies delivers innovative IT, software and AI solutions for modern businesses.',
+    'SheikhGo Technologies builds fleet management software and custom IT solutions for transport, logistics and travel operators.',
+  whatsappDigits: '923177368305',
   /** Same asset as login hero / form card */
   logo: APP_LOGO_PATH,
   logoWhite: APP_LOGO_PATH,

@@ -21,15 +21,21 @@ import { WebsitePublicContentService } from '../../core/website-public-content.s
         @if (bodyHtml) {
           <div [innerHTML]="bodyHtml"></div>
         } @else {
-          <h2>About SheikhGo</h2>
+          <h2>Who we are</h2>
           <p>
-            SheikhGo is an intelligent fleet and travel management platform from {{ brand.companyName }}.
-            It brings vehicles, drivers, trips, GPS tracking, maintenance, fuel and operations together
-            so teams can move smarter and travel further.
+            {{ brand.companyName }} builds technology for businesses that run vehicles and operations.
+            Our flagship product is SheikhGo Fleet — and we also deliver custom software, mobile apps, and AI
+            integrations when a ready-made product is not enough.
+          </p>
+          <h2>SheikhGo Fleet</h2>
+          <p>
+            An intelligent fleet and travel management platform that brings vehicles, drivers, trips, GPS tracking,
+            maintenance, fuel and operations together so teams can move with clearer control.
           </p>
           <h2>Mission</h2>
           <p>
-            To simplify transportation and fleet operations through intelligent technology, real-time data and automation.
+            To simplify transportation and fleet operations through practical software, real-time data and
+            automation — without locking operators into rigid, one-size workflows.
           </p>
           <h2>Vision</h2>
           <p>
@@ -39,18 +45,45 @@ import { WebsitePublicContentService } from '../../core/website-public-content.s
           <h2>Technology</h2>
           <p>
             SheikhGo connects GPS devices through Traccar into a dedicated GPS engine, then surfaces live tracking,
-            history, alerts and operational workflows in the web ERP and mobile apps — with role-based access and tenant isolation.
+            history, alerts and operational workflows in the web ERP and mobile apps — with role-based access and
+            tenant isolation.
           </p>
         }
-        <a routerLink="/contact" class="btn btn-primary" style="margin-top:1.5rem">Contact us</a>
+        <div class="about-actions">
+          <a routerLink="/fleet-management" class="btn btn-primary">Explore SheikhGo Fleet</a>
+          <a routerLink="/contact" class="btn btn-outline">Contact us</a>
+        </div>
       </div>
     </section>
-    <app-cta-band />
+    <app-cta-band
+      title="Ready to see the platform?"
+      lead="Book a short fleet demo, or tell us about a custom software need."
+      primaryText="Book a Fleet Demo"
+      primaryUrl="/request-demo"
+      secondaryText="Contact Us →"
+      secondaryUrl="/contact"
+    />
   `,
   styles: `
-    .prose { max-width: 720px; }
-    h2 { font-size: 1.25rem; margin: 1.75rem 0 .6rem; }
-    p { color: var(--sg-muted); }
+    .prose {
+      max-width: 720px;
+      width: 100%;
+      overflow-wrap: break-word;
+    }
+    h2 {
+      font-size: 1.25rem;
+      margin: 1.75rem 0 0.6rem;
+    }
+    p {
+      color: var(--sg-muted);
+      overflow-wrap: break-word;
+    }
+    .about-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      margin-top: 1.75rem;
+    }
   `,
 })
 export class AboutPage implements OnInit {
@@ -59,18 +92,27 @@ export class AboutPage implements OnInit {
   private readonly content = inject(WebsitePublicContentService);
 
   pageTitle = `About ${WEBSITE_BRAND.companyName}`;
-  pageLead = 'Building intelligent technology for transportation and fleet operations.';
+  pageLead =
+    'Fleet software for operators — and custom technology when your business needs a tailored build.';
   bodyHtml: string | null = null;
 
   ngOnInit(): void {
-    this.seo.set('About', `About ${WEBSITE_BRAND.companyName} and the SheikhGo fleet & travel management platform.`, '/about');
+    this.seo.set(
+      'About',
+      `About ${WEBSITE_BRAND.companyName}: SheikhGo Fleet and custom software for transport and logistics.`,
+      '/about',
+    );
 
     this.content.getPage('about').subscribe(page => {
       if (!page?.page) return;
       this.pageTitle = page.page.title || this.pageTitle;
       this.pageLead = page.page.description || this.pageLead;
       if (page.page.metaTitle || page.page.metaDescription) {
-        this.seo.set(page.page.metaTitle || this.pageTitle, page.page.metaDescription || this.pageLead);
+        this.seo.set(
+          page.page.metaTitle || this.pageTitle,
+          page.page.metaDescription || this.pageLead,
+          '/about',
+        );
       }
       const hero = this.content.sectionByType(page.sections, 'Hero');
       if (hero?.content) this.bodyHtml = hero.content;

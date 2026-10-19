@@ -1,7 +1,7 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { WEBSITE_BRAND } from '../../core/brand';
+import { CookieConsentService } from '../../core/cookie-consent.service';
 
-/** Public marketing FAB — PK WhatsApp Business digits + DEMO prefill (no env secrets). */
-const WHATSAPP_DIGITS = '923177368305';
 const WHATSAPP_PREFILL = 'DEMO';
 
 @Component({
@@ -11,6 +11,7 @@ const WHATSAPP_PREFILL = 'DEMO';
   template: `
     <a
       class="wa-fab"
+      [class.wa-fab--raised]="bannerUp()"
       [href]="href"
       target="_blank"
       rel="noopener noreferrer"
@@ -32,7 +33,7 @@ const WHATSAPP_PREFILL = 'DEMO';
         position: fixed;
         right: 1.25rem;
         bottom: 1.25rem;
-        z-index: 9999;
+        z-index: 9990;
         display: block;
         pointer-events: none;
       }
@@ -51,7 +52,11 @@ const WHATSAPP_PREFILL = 'DEMO';
         letter-spacing: 0.01em;
         text-decoration: none !important;
         box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
-        transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+        transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease, margin-bottom 0.18s ease;
+      }
+
+      .wa-fab--raised {
+        margin-bottom: 7.5rem;
       }
 
       .wa-fab:hover {
@@ -78,7 +83,11 @@ const WHATSAPP_PREFILL = 'DEMO';
       @media (max-width: 760px) {
         :host {
           right: 1rem;
-          bottom: calc(5rem + env(safe-area-inset-bottom, 0px));
+          bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+        }
+
+        .wa-fab--raised {
+          margin-bottom: 11rem;
         }
 
         .wa-fab__label {
@@ -94,5 +103,8 @@ const WHATSAPP_PREFILL = 'DEMO';
   ],
 })
 export class WebsiteWhatsAppFabComponent {
-  readonly href = `https://wa.me/${WHATSAPP_DIGITS}?text=${encodeURIComponent(WHATSAPP_PREFILL)}`;
+  private readonly cookies = inject(CookieConsentService);
+
+  readonly href = `https://wa.me/${WEBSITE_BRAND.whatsappDigits}?text=${encodeURIComponent(WHATSAPP_PREFILL)}`;
+  readonly bannerUp = computed(() => this.cookies.bannerVisible());
 }

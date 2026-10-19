@@ -111,7 +111,7 @@ export class FleetPage implements OnInit {
   pageTitle = 'Fleet Management';
   pageLead =
     'Operate vehicles, drivers, assignments, maintenance, fuel and live tracking from one control center.';
-  primaryText = 'Request a Fleet Demo';
+  primaryText = 'Book a Fleet Demo';
   primaryUrl = '/request-demo';
   secondaryText = 'GPS Tracking';
   secondaryUrl = '/gps-tracking';

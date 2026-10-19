@@ -1,5 +1,6 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { WebsiteSeoService } from '../../core/seo.service';
 import { WebsiteLeadsService } from '../../core/leads.service';
 import { WEBSITE_BRAND } from '../../core/brand';
@@ -7,12 +8,13 @@ import { WEBSITE_BRAND } from '../../core/brand';
 @Component({
   selector: 'app-contact-page',
   standalone: true,
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, RouterLink],
   templateUrl: './contact.page.html',
   styleUrl: './contact.page.scss',
 })
 export class ContactPage implements OnInit {
   readonly brand = WEBSITE_BRAND;
+  readonly whatsappHref = `https://wa.me/${WEBSITE_BRAND.whatsappDigits}?text=${encodeURIComponent('Hello SheikhGo — I would like to talk.')}`;
   private readonly seo = inject(WebsiteSeoService);
   private readonly leads = inject(WebsiteLeadsService);
   private readonly fb = inject(FormBuilder);
@@ -23,12 +25,13 @@ export class ContactPage implements OnInit {
   readonly interests = [
     'Fleet Management',
     'GPS Tracking',
+    'Custom Software',
+    'Web Development',
+    'Mobile Apps',
+    'AI Solutions',
     'Vehicle Rental',
     'Travel Management',
-    'Trip Management',
-    'Reports',
     'Enterprise',
-    'AI',
     'Other',
   ];
 
@@ -46,7 +49,11 @@ export class ContactPage implements OnInit {
   });
 
   ngOnInit(): void {
-    this.seo.set('Contact', 'Contact SheikhGo sales and support for fleet and travel management.', '/contact');
+    this.seo.set(
+      'Contact',
+      'Contact SheikhGo Technologies about SheikhGo Fleet, GPS tracking, or custom software projects.',
+      '/contact',
+    );
   }
 
   submit(): void {

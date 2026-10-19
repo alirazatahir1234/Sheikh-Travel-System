@@ -21,20 +21,20 @@ export class RequestDemoPage implements OnInit {
   readonly fleetSizes = ['1–10', '11–50', '51–200', '200+'];
 
   readonly interestOptions = [
+    'Fleet Management',
+    'GPS Tracking',
+    'Custom Software',
     'Web Development',
     'Mobile Apps',
     'AI Solutions',
     'Cloud',
-    'Custom Software',
-    'GPS Tracking',
-    'Fleet Management',
     'Enterprise',
   ];
 
   readonly steps = [
     'Submit your request',
     'Our team contacts you',
-    'Discovery consultation',
+    'Discovery or product demo',
     'Proposal & scope',
     'Kickoff with SheikhGo',
   ];
@@ -54,8 +54,8 @@ export class RequestDemoPage implements OnInit {
 
   ngOnInit(): void {
     this.seo.set(
-      'Request a Quote',
-      'Request a quote from SheikhGo Technologies for software, AI, cloud, or SheikhGo Fleet.',
+      'Book a Demo',
+      'Book a SheikhGo Fleet demo or request a quote for custom software, GPS, and AI projects.',
       '/request-demo',
     );
   }

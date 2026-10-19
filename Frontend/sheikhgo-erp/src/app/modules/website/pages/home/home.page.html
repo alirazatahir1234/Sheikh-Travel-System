@@ -24,7 +24,7 @@
       <div class="tech-orbit">
         <div class="orbit-ring"></div>
         <div class="orbit-ring ring-2"></div>
-        <div class="orbit-core"><span>AI</span></div>
+        <div class="orbit-core"><span>{{ orbitCoreLabel }}</span></div>
         @for (chip of capabilityChips; track chip.label; let i = $index) {
           <span class="orbit-chip" [ngClass]="'chip-' + i">
             <mat-icon aria-hidden="true">{{ chip.icon }}</mat-icon>
@@ -66,9 +66,30 @@
   </section>
 }
 
+<section class="sg-section outcomes" id="outcomes" aria-labelledby="outcomes-heading">
+  <div class="container">
+    <div class="section-head">
+      <span class="section-kicker">What operators get</span>
+      <h2 id="outcomes-heading" class="sg-section-title">Built for the problems dispatch lives with</h2>
+      <p class="sg-section-lead">
+        Practical outcomes from SheikhGo Fleet — not invented customer logos or case studies.
+      </p>
+    </div>
+    <div class="card-grid outcomes-grid">
+      @for (o of outcomes; track o.title) {
+        <article class="sg-card outcome-card">
+          <span class="card-icon" aria-hidden="true"><mat-icon>{{ o.icon }}</mat-icon></span>
+          <h3>{{ o.title }}</h3>
+          <p>{{ o.text }}</p>
+        </article>
+      }
+    </div>
+  </div>
+</section>
+
 <section class="trusted" id="trusted" aria-labelledby="trusted-heading">
   <div class="container">
-    <h2 id="trusted-heading" class="trusted-heading">Trusted Technologies &amp; Platforms</h2>
+    <h2 id="trusted-heading" class="trusted-heading">Built with modern platforms</h2>
     <ul class="trusted-row">
       @for (t of trustedTech; track t) {
         <li><mat-icon aria-hidden="true">verified</mat-icon><span>{{ t }}</span></li>
@@ -81,9 +102,9 @@
   <div class="container">
     <div class="section-head">
       <span class="section-kicker">Services</span>
-      <h2 class="sg-section-title">Complete IT Solutions for Modern Businesses</h2>
+      <h2 class="sg-section-title">Custom software when the product needs a companion</h2>
       <p class="sg-section-lead">
-        From idea to implementation, we provide end-to-end technology solutions tailored to your business goals.
+        Web, mobile, cloud and integrations alongside SheikhGo Fleet — or as a standalone build for your business.
       </p>
     </div>
     <div class="card-grid services-grid">
@@ -103,29 +124,29 @@
   <div class="ai-bg" aria-hidden="true"></div>
   <div class="container ai-grid">
     <div class="ai-copy">
-      <span class="section-kicker light">AI Solutions</span>
-      <h2>Unlock the Power of Artificial Intelligence</h2>
+      <span class="section-kicker light">Practical AI</span>
+      <h2>AI where it reduces noise — not a buzzword layer</h2>
       <p>
-        We integrate AI into your business to automate processes, generate insights and create new opportunities for
-        growth.
+        We use AI on top of real fleet and ops data: smarter notifications, clearer insights, and automation that
+        operators can trust.
       </p>
       <ul class="ai-list">
         @for (f of aiFeatures; track f) {
           <li><mat-icon aria-hidden="true">check_circle</mat-icon><span>{{ f }}</span></li>
         }
       </ul>
-      <a routerLink="/contact" class="btn btn-primary">Explore AI Solutions →</a>
+      <a routerLink="/contact" class="btn btn-primary">Talk about AI for your fleet →</a>
     </div>
     <div class="ai-panel" aria-hidden="true">
       <div class="ai-panel-card">
-        <mat-icon class="panel-icon" aria-hidden="true">hub</mat-icon>
-        <strong>Neural core</strong>
-        <p>Models, data pipelines, and secure orchestration.</p>
+        <mat-icon class="panel-icon" aria-hidden="true">notifications_active</mat-icon>
+        <strong>Smarter alerts</strong>
+        <p>Fewer noisy pings — more signals that need action.</p>
       </div>
       <div class="ai-panel-card secondary">
         <mat-icon class="panel-icon" aria-hidden="true">insights</mat-icon>
-        <strong>Connected insight</strong>
-        <p>Automation and analytics that support real decisions.</p>
+        <strong>Ops insight</strong>
+        <p>Patterns across trips, fuel and utilisation that managers can use.</p>
       </div>
     </div>
   </div>
@@ -135,15 +156,19 @@
   <div class="container">
     <div class="section-head">
       <span class="section-kicker">Industries</span>
-      <h2 class="sg-section-title">Technology Solutions Across Industries</h2>
+      <h2 class="sg-section-title">Built for operators who move people and goods</h2>
       <p class="sg-section-lead">
-        We understand that every industry has unique challenges. Our solutions are built to meet real-world business
-        needs.
+        Strongest fit for logistics, fleet, travel and transport — with software delivery for other industries when you
+        need a custom build.
       </p>
     </div>
     <div class="industry-grid">
       @for (i of industries; track i.title) {
-        <a class="sg-card industry-card" [routerLink]="i.link">
+        <a
+          class="sg-card industry-card"
+          [routerLink]="i.link"
+          [fragment]="i.fragment || undefined"
+        >
           <span class="card-icon" aria-hidden="true"><mat-icon>{{ i.icon }}</mat-icon></span>
           <h3>{{ i.title }}</h3>
         </a>
@@ -156,9 +181,9 @@
   <div class="container">
     <div class="section-head">
       <span class="section-kicker">Why SheikhGo</span>
-      <h2 class="sg-section-title">More Than Just Development</h2>
+      <h2 class="sg-section-title">Product depth first — services when you need them</h2>
       <p class="sg-section-lead">
-        We combine technology, strategy, creativity and AI to deliver solutions that create real business value.
+        A real fleet platform you can demo today, plus custom engineering when your operation needs something specific.
       </p>
     </div>
     <div class="card-grid why-grid">
@@ -177,8 +202,8 @@
   <div class="container">
     <div class="section-head">
       <span class="section-kicker">Process</span>
-      <h2 class="sg-section-title">From Idea to Impact</h2>
-      <p class="sg-section-lead">A clear path from discovery to launch — and ongoing support.</p>
+      <h2 class="sg-section-title">From demo to pilot to rollout</h2>
+      <p class="sg-section-lead">A clear path for fleet operators — discovery, demo, pilot, then expand.</p>
     </div>
     <ol class="process-timeline">
       @for (p of processSteps; track p.step; let last = $last) {
@@ -201,10 +226,11 @@
 <section class="sg-section work" id="work">
   <div class="container">
     <div class="section-head">
-      <span class="section-kicker">Our Work</span>
-      <h2 class="sg-section-title">Turning Ideas Into Digital Products</h2>
+      <span class="section-kicker">Flagship Product</span>
+      <h2 class="sg-section-title">SheikhGo Fleet — operations in one place</h2>
       <p class="sg-section-lead">
-        Flagship industry software and custom digital builds — SheikhGo Fleet is our product bridge into operations.
+        Our product for fleet and transport operators. Custom software and AI services sit alongside it when you need a
+        tailored build.
       </p>
     </div>
 
@@ -213,8 +239,8 @@
         <p class="fleet-kicker">Flagship product</p>
         <h3>SheikhGo Fleet</h3>
         <p>
-          AI-ready fleet management and GPS tracking technology designed to help businesses monitor vehicles, manage
-          drivers, understand trips and improve fleet operations.
+          Fleet management and GPS tracking to monitor vehicles, manage drivers, run trips and keep operations visible
+          — with real product screens below.
         </p>
         <ul class="fleet-caps">
           @for (c of fleetCapabilities; track c) {
@@ -234,6 +260,15 @@
         </div>
       </div>
     </article>
+
+    <div class="shot-row" aria-label="Product screenshots from SheikhGo Fleet">
+      @for (shot of productShots; track shot.src) {
+        <figure class="shot-card">
+          <img [src]="shot.src" [alt]="shot.alt" loading="lazy" width="640" height="400" />
+          <figcaption>{{ shot.title }}</figcaption>
+        </figure>
+      }
+    </div>
   </div>
 </section>
 
@@ -241,12 +276,12 @@
   <div class="cta-bg" aria-hidden="true"></div>
   <div class="container final-cta-inner">
     <div class="copy">
-      <h2>Let's Build Something Great Together</h2>
-      <p>Ready to discuss your project? Get in touch with our experts and turn your ideas into reality.</p>
+      <h2>See SheikhGo Fleet in action</h2>
+      <p>Book a short demo for fleet and GPS — or tell us about a custom software project.</p>
     </div>
     <div class="actions">
-      <a routerLink="/request-demo" class="btn btn-primary">Request a Quote →</a>
-      <a routerLink="/contact" class="btn btn-ghost">Schedule a Call</a>
+      <a routerLink="/request-demo" class="btn btn-primary">Book a Fleet Demo →</a>
+      <a routerLink="/contact" class="btn btn-ghost">Talk to us</a>
     </div>
   </div>
 </section>
