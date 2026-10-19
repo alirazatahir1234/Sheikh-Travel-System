@@ -1,8 +1,9 @@
 <section class="page-hero">
   <div class="container">
-    <h1>Request a Quote</h1>
+    <h1>Book a Demo</h1>
     <p>
-      Tell us about your software, AI, cloud, or SheikhGo Fleet needs — we'll follow up with a tailored proposal.
+      Tell us about your fleet, GPS, or custom software needs — we’ll follow up with a short demo or a tailored
+      proposal.
     </p>
   </div>
 </section>
@@ -74,7 +75,7 @@
         <label>Website<input formControlName="website" tabindex="-1" autocomplete="off" /></label>
       </div>
       <button class="btn btn-primary" type="submit" [disabled]="submitting()">
-        {{ submitting() ? 'Submitting…' : 'Request a Quote' }}
+        {{ submitting() ? 'Submitting…' : 'Book a Demo' }}
       </button>
       @if (status(); as s) {
         <div class="form-status" [class.ok]="s.type === 'ok'" [class.err]="s.type === 'err'">{{ s.text }}</div>
@@ -88,6 +89,9 @@
           <li><span>{{ i + 1 }}</span>{{ step }}</li>
         }
       </ol>
+      <p class="aside-note">
+        Prefer WhatsApp? Message us anytime — we typically reply within one business day.
+      </p>
     </aside>
   </div>
 </section>

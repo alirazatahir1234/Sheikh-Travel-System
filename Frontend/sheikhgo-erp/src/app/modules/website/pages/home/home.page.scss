@@ -107,9 +107,59 @@
   color: var(--sg-ink, #022f32);
   font-family: var(--font-display);
   font-weight: 800;
-  font-size: 1.35rem;
+  font-size: 1.15rem;
+  letter-spacing: 0.02em;
   box-shadow: 0 16px 40px rgba(24, 201, 135, 0.35);
   z-index: 1;
+}
+
+.outcomes-grid {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+.outcome-card h3 {
+  font-size: 1.05rem;
+  margin: 0 0 0.5rem;
+}
+
+.outcome-card p {
+  margin: 0;
+  color: var(--sg-muted);
+  font-size: 0.95rem;
+  line-height: 1.55;
+}
+
+.shot-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.shot-card {
+  margin: 0;
+  border-radius: var(--sg-radius);
+  overflow: hidden;
+  border: 1px solid var(--sg-border);
+  background: #fff;
+  box-shadow: 0 10px 28px rgba(4, 31, 36, 0.08);
+}
+
+.shot-card img {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+  object-position: top left;
+  background: #e8f3f1;
+}
+
+.shot-card figcaption {
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--sg-ink, #022f32);
 }
 
 .orbit-chip {
@@ -717,8 +767,13 @@
 
 @media (max-width: 1100px) {
   .card-grid,
-  .why-grid {
+  .why-grid,
+  .outcomes-grid {
     grid-template-columns: repeat(2, 1fr);
+  }
+
+  .shot-row {
+    grid-template-columns: 1fr;
   }
 
   .industry-grid {
@@ -781,6 +836,7 @@
 
   .card-grid,
   .why-grid,
+  .outcomes-grid,
   .industry-grid {
     grid-template-columns: 1fr;
   }

@@ -1,7 +1,9 @@
 <section class="page-hero">
   <div class="container">
     <h1>Contact</h1>
-    <p>Talk to SheikhGo about fleet management, GPS tracking and enterprise rollout.</p>
+    <p>
+      Talk to us about SheikhGo Fleet, GPS tracking, or a custom software project for your operation.
+    </p>
   </div>
 </section>
 
@@ -70,10 +72,18 @@
     <aside class="aside">
       <h2>{{ brand.companyName }}</h2>
       <p>
-        <strong>Contact</strong><br />
+        <strong>Email</strong><br />
         <a [href]="'mailto:' + brand.salesEmail">{{ brand.salesEmail }}</a>
       </p>
-      <p class="note">Phone and office addresses will be published here once confirmed.</p>
+      <p>
+        <strong>WhatsApp</strong><br />
+        <a [href]="whatsappHref" target="_blank" rel="noopener noreferrer">Chat with SheikhGo</a>
+      </p>
+      <p class="note">
+        Prefer a live walkthrough? Book a fleet demo from
+        <a routerLink="/request-demo">Request a Quote</a>
+        — we typically reply within one business day.
+      </p>
     </aside>
   </div>
 </section>

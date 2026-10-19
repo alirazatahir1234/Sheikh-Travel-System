@@ -1,6 +1,8 @@
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
-import { APP_PRODUCT_NAME } from '../../../core/constants/app-brand';
 import { SgProgressLoaderComponent } from '../sg-progress-loader/sg-progress-loader.component';
+
+/** Public + app boot label — company mark, not ERP product name. */
+const SPLASH_BRAND = 'SheikhGo';
 
 @Component({
   selector: 'app-splash',
@@ -50,7 +52,7 @@ import { SgProgressLoaderComponent } from '../sg-progress-loader/sg-progress-loa
       margin: 0;
       font-family: Inter, system-ui, sans-serif;
       font-size: 0.95rem;
-      font-weight: 600;
+      font-weight: 700;
       letter-spacing: 0.04em;
       color: #0E3D3A;
     }
@@ -69,5 +71,5 @@ import { SgProgressLoaderComponent } from '../sg-progress-loader/sg-progress-loa
 })
 export class AppSplashComponent {
   readonly hiding = input(false);
-  readonly productName = APP_PRODUCT_NAME;
+  readonly productName = SPLASH_BRAND;
 }

@@ -3,7 +3,8 @@
   left: 16px;
   right: 16px;
   bottom: 16px;
-  z-index: 80;
+  /* Above WhatsApp FAB so Accept All is never blocked */
+  z-index: 10050;
   pointer-events: none;
 }
 
@@ -118,7 +119,7 @@
 .cc-modal-root {
   position: fixed;
   inset: 0;
-  z-index: 90;
+  z-index: 10060;
   display: grid;
   place-items: center;
   padding: 1.25rem;
