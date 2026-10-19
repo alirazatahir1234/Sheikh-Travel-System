@@ -6,6 +6,7 @@ enum DashboardRole {
   fleetManager,
   driverManager,
   accountant,
+  owner,
   tenantAdmin,
   superAdmin,
 }
@@ -18,6 +19,7 @@ extension DashboardRoleX on DashboardRole {
         DashboardRole.fleetManager => 'Fleet Manager',
         DashboardRole.driverManager => 'Driver Manager',
         DashboardRole.accountant => 'Accountant',
+        DashboardRole.owner => 'Owner',
         DashboardRole.tenantAdmin => 'Tenant Admin',
         DashboardRole.superAdmin => 'Super Admin',
       };
@@ -29,6 +31,7 @@ extension DashboardRoleX on DashboardRole {
         DashboardRole.fleetManager => 'Overview of your fleet in real-time',
         DashboardRole.driverManager => 'Drivers, docs, and performance',
         DashboardRole.accountant => 'Costs, fuel, and reports',
+        DashboardRole.owner => 'Live fleet movement, drivers, and fuel',
         DashboardRole.tenantAdmin => 'Business overview — Owner view',
         DashboardRole.superAdmin => 'Platform admin — tenant scope',
       };
@@ -41,6 +44,7 @@ extension DashboardRoleX on DashboardRole {
         DashboardRole.fleetManager => 'Fleet Manager',
         DashboardRole.driverManager => 'Supervisor',
         DashboardRole.accountant => 'Accountant',
+        DashboardRole.owner => 'Owner',
         DashboardRole.tenantAdmin => 'Owner',
         DashboardRole.superAdmin => 'Owner',
       };
@@ -49,6 +53,8 @@ extension DashboardRoleX on DashboardRole {
     switch (code.toUpperCase()) {
       case 'SUPER_ADMIN':
         return DashboardRole.superAdmin;
+      case 'OWNER':
+        return DashboardRole.owner;
       case 'TENANT_ADMIN':
         return DashboardRole.tenantAdmin;
       case 'FLEET_MANAGER':

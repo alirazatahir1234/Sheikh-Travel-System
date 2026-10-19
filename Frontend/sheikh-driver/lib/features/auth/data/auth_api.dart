@@ -43,6 +43,36 @@ class AuthApi {
     }
   }
 
+  /// Returns optional debugToken when PortalAuth:DevMode is enabled on the API.
+  Future<String?> forgotPassword(String phone) async {
+    final res = await _dio.post<Map<String, dynamic>>(
+      ApiEndpoints.driverForgotPassword,
+      data: {'phone': phone.trim()},
+    );
+    final body = res.data;
+    if (body == null) throw Exception('Empty response');
+    if (body['success'] == false) {
+      throw Exception(body['message']?.toString() ?? 'Request failed');
+    }
+    final data = body['data'];
+    if (data is Map<String, dynamic>) {
+      return data['debugToken']?.toString();
+    }
+    return null;
+  }
+
+  Future<void> resetPassword({required String token, required String newPassword}) async {
+    final res = await _dio.post<Map<String, dynamic>>(
+      ApiEndpoints.driverResetPassword,
+      data: {'token': token.trim(), 'newPassword': newPassword},
+    );
+    final body = res.data;
+    if (body == null) throw Exception('Empty response');
+    if (body['success'] == false) {
+      throw Exception(body['message']?.toString() ?? 'Reset failed');
+    }
+  }
+
   Future<CompanyContext?> fetchCompanyContext() async {
     try {
       final res = await _dio.get<Map<String, dynamic>>(ApiEndpoints.companyContext);

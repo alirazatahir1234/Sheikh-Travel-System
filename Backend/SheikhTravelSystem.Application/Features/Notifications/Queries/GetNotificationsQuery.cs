@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.Extensions.Caching.Distributed;
 using SheikhTravelSystem.Application.Common;
+using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 using SheikhTravelSystem.Application.Features.Notifications;
 using SheikhTravelSystem.Application.Features.Notifications.DTOs;
@@ -148,13 +149,16 @@ public class GetNotificationPreferencesQueryHandler(INotificationRepository noti
 public record GetNotificationTemplatesQuery(string? Channel = null)
     : IRequest<ApiResponse<List<NotificationTemplateDto>>>;
 
-public class GetNotificationTemplatesQueryHandler(INotificationRepository notificationRepository)
+public class GetNotificationTemplatesQueryHandler(
+    INotificationRepository notificationRepository,
+    ITenantContext tenantContext)
     : IRequestHandler<GetNotificationTemplatesQuery, ApiResponse<List<NotificationTemplateDto>>>
 {
     public async Task<ApiResponse<List<NotificationTemplateDto>>> Handle(
         GetNotificationTemplatesQuery request, CancellationToken cancellationToken)
     {
-        var rows = await notificationRepository.GetTemplatesAsync(request.Channel, cancellationToken);
+        var tenantId = tenantContext.GetRequiredTenantId();
+        var rows = await notificationRepository.GetTemplatesAsync(tenantId, request.Channel, cancellationToken);
         return ApiResponse<List<NotificationTemplateDto>>.SuccessResponse(rows);
     }
 }

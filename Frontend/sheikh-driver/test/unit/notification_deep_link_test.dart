@@ -15,8 +15,15 @@ void main() {
       );
     });
 
-    test('maps sos to alerts', () {
+    test('maps sos to alerts for staff', () {
       expect(NotificationDeepLink.resolve(type: 'Sos'), '/alerts');
+    });
+
+    test('maps sos to notifications for drivers', () {
+      expect(
+        NotificationDeepLink.resolve(type: 'Sos', forDriver: true),
+        '/notifications',
+      );
     });
 
     test('maps payment to earnings', () {
@@ -26,10 +33,17 @@ void main() {
       );
     });
 
-    test('maps gps / fleet to fleet map', () {
+    test('maps gps / fleet to fleet map for staff', () {
       expect(
         NotificationDeepLink.resolve(type: 'VehicleOffline'),
         '/fleet/map',
+      );
+    });
+
+    test('maps gps / fleet to live for drivers', () {
+      expect(
+        NotificationDeepLink.resolve(type: 'VehicleOffline', forDriver: true),
+        '/live',
       );
     });
 
@@ -46,6 +60,16 @@ void main() {
       );
     });
 
+    test('adapts staff alert route for drivers', () {
+      expect(
+        NotificationDeepLink.fromData(
+          {'route': '/alerts/7'},
+          forDriver: true,
+        ),
+        '/notifications',
+      );
+    });
+
     test('uses tripId', () {
       expect(
         NotificationDeepLink.fromData({'tripId': '15'}),
@@ -57,6 +81,13 @@ void main() {
       expect(
         NotificationDeepLink.fromData({'alertId': '7'}),
         '/alerts/7',
+      );
+    });
+
+    test('maps alertId to notifications for drivers', () {
+      expect(
+        NotificationDeepLink.fromData({'alertId': '7'}, forDriver: true),
+        '/notifications',
       );
     });
   });

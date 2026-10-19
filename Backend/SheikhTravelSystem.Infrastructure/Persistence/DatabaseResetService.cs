@@ -235,6 +235,7 @@ public sealed class DatabaseResetService(
         {
             ("Super Admin", "SUPER_ADMIN"),
             ("Tenant Admin", "TENANT_ADMIN"),
+            ("Owner", "OWNER"),
             ("Fleet Manager", "FLEET_MANAGER"),
             ("Dispatcher", "DISPATCHER"),
             ("GPS Operator", "GPS_OPERATOR"),

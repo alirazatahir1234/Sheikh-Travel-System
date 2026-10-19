@@ -3,11 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import '../../../core/config/app_config.dart';
+import '../../../core/api/dio_client.dart';
 import '../../../core/constants/app_theme.dart';
 import '../../../core/offline/trips_cache.dart';
 import '../../fleet/domain/fleet_models.dart' as fleet;
 import '../../fleet/presentation/widgets/vehicle_pulse_icons.dart';
+import '../../trips/data/trip_route_loader.dart';
+import '../../trips/domain/trip_driving_route.dart';
 import '../../trips/domain/trip_model.dart';
 import '../../trips/presentation/trips_notifier.dart';
 import '../data/navigation_api.dart';
@@ -34,6 +36,9 @@ class _TripNavigationScreenState extends ConsumerState<TripNavigationScreen> {
   bool _navigating = false;
   GpsEta? _eta;
   String? _error;
+  TripDrivingRoute? _route;
+  String? _routeKey;
+  bool _routeStarted = false;
   final Map<fleet.FleetTrackStatus, BitmapDescriptor> _pulseIcons = {};
   bool _iconsReady = false;
 
@@ -79,6 +84,11 @@ class _TripNavigationScreenState extends ConsumerState<TripNavigationScreen> {
   }
 
   Future<void> _bootstrap() async {
+    final trip = _trip;
+    if (trip != null) {
+      unawaited(_loadDrivingRoute(trip));
+    }
+
     final perm = await Geolocator.requestPermission();
     if (perm == LocationPermission.denied ||
         perm == LocationPermission.deniedForever) {
@@ -104,9 +114,43 @@ class _TripNavigationScreenState extends ConsumerState<TripNavigationScreen> {
     ).listen(_onPosition);
   }
 
+  Future<void> _loadDrivingRoute(Trip trip) async {
+    if (!trip.hasPickupCoords || !trip.hasDropCoords || _routeStarted) return;
+    final key = tripRouteCacheKey(
+      trip.pickupLatitude!,
+      trip.pickupLongitude!,
+      trip.dropLatitude!,
+      trip.dropLongitude!,
+    );
+    if (_routeKey == key && _route != null) return;
+    _routeKey = key;
+    final cached = TripRouteLoader.memoryHit(key);
+    if (cached != null) {
+      if (!mounted) return;
+      setState(() {
+        _route = cached;
+        _routeStarted = true;
+      });
+      unawaited(_fitRoute(trip));
+      return;
+    }
+    _routeStarted = true;
+    final dio = ref.read(dioProvider);
+    final route = await TripRouteLoader(dio).load(
+      originLat: trip.pickupLatitude!,
+      originLng: trip.pickupLongitude!,
+      destLat: trip.dropLatitude!,
+      destLng: trip.dropLongitude!,
+    );
+    if (!mounted || route == null || _routeKey != key) return;
+    setState(() => _route = route);
+    unawaited(_fitRoute(trip));
+  }
+
   Future<void> _refreshEta() async {
-    final eta =
-        await ref.read(navigationApiProvider).getEta(widget.tripId);
+    final trip = _findTrip(ref.read(tripsProvider).valueOrNull ?? []);
+    final bookingId = trip?.etaBookingId ?? widget.tripId;
+    final eta = await ref.read(navigationApiProvider).getEta(bookingId);
     if (mounted) setState(() => _eta = eta);
   }
 
@@ -140,19 +184,15 @@ class _TripNavigationScreenState extends ConsumerState<TripNavigationScreen> {
     }
   }
 
-  bool get _mapsAvailable => AppConfig.googleMapsApiKey.isNotEmpty;
-
   Trip? _findTrip(List<Trip> trips) {
-    return trips
-        .where((t) => t.id == widget.tripId || t.bookingId == widget.tripId)
-        .firstOrNull;
+    return trips.where((t) => t.matchesRouteId(widget.tripId)).firstOrNull;
   }
 
   Trip? _tripFromCache() {
     try {
       return TripsCache.load()
           .map(Trip.fromJson)
-          .where((t) => t.id == widget.tripId || t.bookingId == widget.tripId)
+          .where((t) => t.matchesRouteId(widget.tripId))
           .firstOrNull;
     } catch (_) {
       return null;
@@ -241,9 +281,17 @@ class _TripNavigationScreenState extends ConsumerState<TripNavigationScreen> {
       ));
     }
 
-    // Straight route preview pickup → drop (ERP trip detail uses external directions;
-    // in-app we show a guide line until Directions API is configured).
-    if (trip.hasPickupCoords && trip.hasDropCoords) {
+    final road = _route?.points;
+    if (road != null && road.length >= 2) {
+      lines.add(Polyline(
+        polylineId: const PolylineId('route'),
+        points: [
+          for (final p in road) LatLng(p.latitude, p.longitude),
+        ],
+        color: const Color(GpsStatusColors.route),
+        width: 5,
+      ));
+    } else if (trip.hasPickupCoords && trip.hasDropCoords) {
       lines.add(Polyline(
         polylineId: const PolylineId('route'),
         points: [
@@ -272,14 +320,19 @@ class _TripNavigationScreenState extends ConsumerState<TripNavigationScreen> {
   Future<void> _fitRoute(Trip trip) async {
     if (_map == null) return;
     final pts = <LatLng>[];
-    if (_position != null) {
-      pts.add(LatLng(_position!.latitude, _position!.longitude));
-    }
-    if (trip.hasPickupCoords) {
-      pts.add(LatLng(trip.pickupLatitude!, trip.pickupLongitude!));
-    }
-    if (trip.hasDropCoords) {
-      pts.add(LatLng(trip.dropLatitude!, trip.dropLongitude!));
+    final road = _route?.points;
+    if (road != null && road.length >= 2) {
+      pts.addAll(road.map((p) => LatLng(p.latitude, p.longitude)));
+    } else {
+      if (_position != null) {
+        pts.add(LatLng(_position!.latitude, _position!.longitude));
+      }
+      if (trip.hasPickupCoords) {
+        pts.add(LatLng(trip.pickupLatitude!, trip.pickupLongitude!));
+      }
+      if (trip.hasDropCoords) {
+        pts.add(LatLng(trip.dropLatitude!, trip.dropLongitude!));
+      }
     }
     if (pts.isEmpty) return;
     if (pts.length == 1) {
@@ -313,10 +366,8 @@ class _TripNavigationScreenState extends ConsumerState<TripNavigationScreen> {
   }
 
   LatLng? _navTarget(Trip trip) {
-    // Enroute / at drop-off phase → navigate to destination
-    final toDrop = trip.lifecycleStatus == 7 || // Enroute
-        trip.lifecycleStatus == 6 || // AtPickup — after onboard, head to drop
-        trip.canComplete;
+    // Before onboard → pickup; after Enroute / Complete available → drop-off.
+    final toDrop = trip.shouldNavigateToDropoff;
     if (toDrop && trip.hasDropCoords) {
       return LatLng(trip.dropLatitude!, trip.dropLongitude!);
     }
@@ -421,15 +472,11 @@ class _TripNavigationScreenState extends ConsumerState<TripNavigationScreen> {
   }
 
   Widget _buildScaffold(Trip trip) {
-    if (!_mapsAvailable) {
-      return _NavigationFallback(
-        trip: trip,
-        onGoogle: () => _startExternal(trip, 'google'),
-        onApple: () => _startExternal(trip, 'apple'),
-        onWaze: () => _startExternal(trip, 'waze'),
-      );
+    // Maps tiles use the native SDK key (AndroidManifest / Info.plist).
+    // Road geometry comes from GET /gps/maps/planned-route (+ optional client key).
+    if (!_routeStarted && trip.hasPickupCoords && trip.hasDropCoords) {
+      unawaited(_loadDrivingRoute(trip));
     }
-
     return _buildMapScaffold(trip);
   }
 
@@ -510,6 +557,7 @@ class _TripNavigationScreenState extends ConsumerState<TripNavigationScreen> {
               eta: _eta,
               localDistanceKm: localEta.$1,
               localEtaMinutes: localEta.$2,
+              routeSummary: _route?.summary,
               navigating: _navigating,
               follow: _follow,
               onRecenter: _recenter,
@@ -536,6 +584,14 @@ class _TripNavigationScreenState extends ConsumerState<TripNavigationScreen> {
   }
 
   (double?, int?) _computeLocalEta(Trip trip) {
+    final route = _route;
+    if (route != null && route.distanceMeters > 0) {
+      final km = route.distanceMeters / 1000.0;
+      final minutes = route.durationSeconds > 0
+          ? (route.durationSeconds / 60).ceil()
+          : etaMinutesFromKm(km);
+      return (km, minutes);
+    }
     if (_position == null) return (null, null);
     final target = _navTarget(trip);
     if (target == null) return (null, null);
@@ -545,121 +601,7 @@ class _TripNavigationScreenState extends ConsumerState<TripNavigationScreen> {
       target.latitude,
       target.longitude,
     );
-    return (km, etaMinutesFromKm(km)    );
-  }
-}
-
-/// In-app map requires a Google Maps API key. Without it, offer external navigation.
-class _NavigationFallback extends StatelessWidget {
-  const _NavigationFallback({
-    required this.trip,
-    required this.onGoogle,
-    required this.onApple,
-    required this.onWaze,
-  });
-
-  final Trip trip;
-  final VoidCallback onGoogle;
-  final VoidCallback onApple;
-  final VoidCallback onWaze;
-
-  @override
-  Widget build(BuildContext context) {
-    final pickup = trip.pickupAddress ?? trip.routeName;
-    final drop = trip.dropoffAddress ?? 'Drop-off';
-
-    return Scaffold(
-      appBar: AppBar(title: const Text('Navigate')),
-      body: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Icon(Icons.map_outlined,
-                size: 56, color: AppColors.primary.withValues(alpha: 0.85)),
-            const SizedBox(height: 12),
-            const Text(
-              'Turn-by-turn navigation',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w800,
-                color: AppColors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'In-app map is unavailable (Google Maps key not configured). '
-              'Open your preferred maps app for directions.',
-              style: TextStyle(color: AppColors.textSecondary.withValues(alpha: 0.95)),
-            ),
-            const SizedBox(height: 20),
-            _RouteLine(label: 'Pickup', value: pickup, color: AppColors.success),
-            const SizedBox(height: 10),
-            _RouteLine(label: 'Drop-off', value: drop, color: AppColors.error),
-            const Spacer(),
-            FilledButton.icon(
-              onPressed: onGoogle,
-              icon: const Icon(Icons.navigation_rounded),
-              label: const Text('OPEN GOOGLE MAPS'),
-              style: FilledButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                minimumSize: const Size.fromHeight(48),
-              ),
-            ),
-            const SizedBox(height: 10),
-            OutlinedButton.icon(
-              onPressed: onApple,
-              icon: const Icon(Icons.map),
-              label: const Text('OPEN APPLE MAPS'),
-              style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
-            ),
-            const SizedBox(height: 10),
-            OutlinedButton.icon(
-              onPressed: onWaze,
-              icon: const Icon(Icons.directions_car),
-              label: const Text('OPEN WAZE'),
-              style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _RouteLine extends StatelessWidget {
-  const _RouteLine({
-    required this.label,
-    required this.value,
-    required this.color,
-  });
-
-  final String label;
-  final String value;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(Icons.circle, size: 10, color: color),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(label,
-                  style: const TextStyle(
-                      fontSize: 12, color: AppColors.textSecondary)),
-              Text(value,
-                  style: const TextStyle(
-                      fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
-            ],
-          ),
-        ),
-      ],
-    );
+    return (km, etaMinutesFromKm(km));
   }
 }
 
@@ -671,6 +613,7 @@ class _BottomPanel extends StatelessWidget {
     required this.eta,
     required this.localDistanceKm,
     required this.localEtaMinutes,
+    this.routeSummary,
     required this.navigating,
     required this.follow,
     required this.onRecenter,
@@ -686,6 +629,7 @@ class _BottomPanel extends StatelessWidget {
   final GpsEta? eta;
   final double? localDistanceKm;
   final int? localEtaMinutes;
+  final String? routeSummary;
   final bool navigating;
   final bool follow;
   final VoidCallback onRecenter;
@@ -764,6 +708,17 @@ class _BottomPanel extends StatelessWidget {
                 color: AppColors.textSecondary,
               ),
             ),
+            if (routeSummary != null && routeSummary!.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Text(
+                routeSummary!,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.primary,
+                ),
+              ),
+            ],
             const SizedBox(height: 10),
             Row(
               children: [

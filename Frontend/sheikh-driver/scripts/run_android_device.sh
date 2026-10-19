@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Run SheikhGo Fleet on a physical / wireless Android device (e.g. Samsung A05).
+# Run SheikhGo Tracking on a physical / wireless Android device (e.g. Samsung A05).
 # Auto-detects Mac LAN IP and points the app at http://{LAN}:5082/api.
 #
 # Usage:
@@ -48,7 +48,18 @@ echo "Device:  $DEVICE_ID"
 echo "API:     $API_BASE_URL"
 echo "Ensure ASP.NET API is listening on 0.0.0.0:5082 (launchSettings http/https)."
 
-flutter run -d "$DEVICE_ID" \
-  --dart-define=ENV=dev \
-  --dart-define=API_BASE_URL="$API_BASE_URL" \
+GOOGLE_MAPS_KEY="${GOOGLE_MAPS_KEY:-}"
+if [[ -z "$GOOGLE_MAPS_KEY" && -f android/maps.properties ]]; then
+  GOOGLE_MAPS_KEY="$(grep -E '^GOOGLE_MAPS_API_KEY=' android/maps.properties | cut -d= -f2- | tr -d '\r')"
+fi
+
+DEFINES=(
+  --dart-define=ENV=dev
+  --dart-define=API_BASE_URL="$API_BASE_URL"
   --dart-define=DEV_LAN_HOST="$LAN_HOST"
+)
+if [[ -n "$GOOGLE_MAPS_KEY" ]]; then
+  DEFINES+=(--dart-define=GOOGLE_MAPS_KEY="$GOOGLE_MAPS_KEY")
+fi
+
+flutter run -d "$DEVICE_ID" "${DEFINES[@]}"

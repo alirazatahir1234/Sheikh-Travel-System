@@ -19,7 +19,7 @@ void main() {
     await tester.pump(const Duration(seconds: 1));
     await tester.pumpAndSettle(const Duration(seconds: 2));
 
-    expect(find.text('SheikhGo Fleet'), findsAny);
+    expect(find.text('SheikhGo Tracking'), findsAny);
     expect(find.text('LOGIN'), findsWidgets);
     expect(find.text('Email or phone'), findsOneWidget);
   });

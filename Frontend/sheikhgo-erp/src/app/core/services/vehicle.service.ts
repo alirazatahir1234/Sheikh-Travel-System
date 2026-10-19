@@ -60,6 +60,27 @@ export class VehicleService {
     });
   }
 
+  bulkCreate(request: {
+    vehicles: CreateVehicleDto[];
+    options?: { dryRun?: boolean; skipDuplicates?: boolean };
+  }): Observable<{
+    succeeded: number;
+    failed: number;
+    skipped: number;
+    dryRun: boolean;
+    created: { row: number; registrationNumber?: string; vehicleId?: number; dryRun?: boolean }[];
+    errors: { row: number; registrationNumber?: string; error: string }[];
+    skippedRows: { row: number; registrationNumber?: string; reason: string }[];
+  }> {
+    return this.http.post<any>(`${this.base}/bulk`, {
+      vehicles: request.vehicles.map(sanitizeCreateVehicleDto),
+      options: {
+        dryRun: request.options?.dryRun ?? false,
+        skipDuplicates: request.options?.skipDuplicates ?? true
+      }
+    });
+  }
+
   createDraft(vehicle: CreateVehicleDto): Observable<number> {
     return this.http.post<number>(this.base, {
       vehicle: sanitizeCreateVehicleDto(vehicle),

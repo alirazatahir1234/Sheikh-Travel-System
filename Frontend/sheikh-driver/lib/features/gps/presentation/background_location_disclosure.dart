@@ -12,7 +12,7 @@ Future<bool> showBackgroundLocationDisclosure(BuildContext context) async {
       title: const Text('Background location'),
       content: const SingleChildScrollView(
         child: Text(
-          'SheikhGo Fleet collects your precise location while a trip is active, '
+          'SheikhGo Tracking collects your precise location while a trip is active, '
           'including when the app is in the background or the screen is off.\n\n'
           'This is used only for live trip and fleet GPS tracking so dispatch can '
           'see your vehicle location. Location sharing stops when you end tracking.\n\n'

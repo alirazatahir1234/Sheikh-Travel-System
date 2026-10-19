@@ -9,7 +9,7 @@ import '../data/auth_repository.dart';
 
 const kSplashMinDisplay = Duration(seconds: 2);
 const kSplashMaxAuthWait = Duration(seconds: 3);
-const kSplashTagline = 'Smart GPS Operations';
+const kSplashTagline = 'SheikhGo Tracking — owners & drivers';
 
 /// Resolves post-splash route (testable).
 String resolveSplashRoute({
@@ -191,7 +191,18 @@ class SplashBrandPanel extends StatelessWidget {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 16),
+                    Text(
+                      'SheikhGo Tracking',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.3,
+                        color: isDark ? Colors.white : AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
                     Text(
                       kSplashTagline,
                       textAlign: TextAlign.center,

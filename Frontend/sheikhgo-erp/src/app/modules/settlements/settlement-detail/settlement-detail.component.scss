@@ -1,0 +1,33 @@
+.page-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  h2 { margin: 0; }
+}
+
+.detail { display: flex; flex-direction: column; gap: 16px; }
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 16px;
+  label { display: block; font-size: 0.75rem; color: #888; margin-bottom: 4px; }
+  .payable { font-weight: 700; font-size: 1.2rem; }
+}
+
+.actions-card .inline {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-left: 8px;
+}
+
+.lines {
+  width: 100%;
+  border-collapse: collapse;
+  th, td { text-align: left; padding: 8px; border-bottom: 1px solid #eee; }
+}
+
+.error-message { color: #c62828; padding: 12px; }

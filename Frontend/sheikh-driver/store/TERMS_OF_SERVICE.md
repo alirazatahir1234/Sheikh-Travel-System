@@ -1,11 +1,11 @@
-# SheikhGo Driver — Terms of Service
+# SheikhGo Tracking — Terms of Service
 
 **Effective date:** 19 July 2026  
-**App:** SheikhGo Fleet (`com.sheikhgo.fleet`)
+**App:** SheikhGo Tracking (`com.sheikhgo.fleet`)
 
 ## 1. Agreement
 
-By installing or using SheikhGo Driver, you agree to these Terms and the Privacy Policy. If you do not agree, do not use the app.
+By installing or using SheikhGo Tracking, you agree to these Terms and the Privacy Policy. If you do not agree, do not use the app.
 
 ## 2. Eligibility
 

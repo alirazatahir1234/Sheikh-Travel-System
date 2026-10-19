@@ -367,21 +367,43 @@ public class SendManualMessageCommandHandler(
 public record UpsertNotificationTemplateCommand(UpsertNotificationTemplateRequest Request, int? Id = null)
     : IRequest<ApiResponse<int>>;
 
-public class UpsertNotificationTemplateCommandHandler(INotificationRepository notificationRepository)
+public class UpsertNotificationTemplateCommandHandler(
+    INotificationRepository notificationRepository,
+    ITenantContext tenantContext)
     : IRequestHandler<UpsertNotificationTemplateCommand, ApiResponse<int>>
 {
     public async Task<ApiResponse<int>> Handle(UpsertNotificationTemplateCommand request, CancellationToken cancellationToken)
     {
+        var tenantId = tenantContext.GetRequiredTenantId();
         var r = request.Request;
 
         if (request.Id is int id)
         {
-            await notificationRepository.UpdateTemplateAsync(id, r, cancellationToken);
-            return ApiResponse<int>.SuccessResponse(id, "Template updated.");
+            var updated = await notificationRepository.UpdateTemplateAsync(tenantId, id, r, cancellationToken);
+            return updated
+                ? ApiResponse<int>.SuccessResponse(id, "Template updated.")
+                : ApiResponse<int>.FailResponse("Template not found.");
         }
 
-        var newId = await notificationRepository.InsertTemplateAsync(r, cancellationToken);
+        var newId = await notificationRepository.InsertTemplateAsync(tenantId, r, cancellationToken);
         return ApiResponse<int>.SuccessResponse(newId, "Template created.");
+    }
+}
+
+public record DeleteNotificationTemplateCommand(int Id) : IRequest<ApiResponse<bool>>;
+
+public class DeleteNotificationTemplateCommandHandler(
+    INotificationRepository notificationRepository,
+    ITenantContext tenantContext)
+    : IRequestHandler<DeleteNotificationTemplateCommand, ApiResponse<bool>>
+{
+    public async Task<ApiResponse<bool>> Handle(DeleteNotificationTemplateCommand request, CancellationToken cancellationToken)
+    {
+        var tenantId = tenantContext.GetRequiredTenantId();
+        var deleted = await notificationRepository.SoftDeleteTemplateAsync(tenantId, request.Id, cancellationToken);
+        return deleted
+            ? ApiResponse<bool>.SuccessResponse(true, "Template deleted.")
+            : ApiResponse<bool>.FailResponse("Template not found.");
     }
 }
 

@@ -1,0 +1,59 @@
+<div class="page-header">
+  <button mat-button (click)="back()"><mat-icon>arrow_back</mat-icon> Back</button>
+  <h2 *ngIf="settlement">Settlement #{{ settlement.id }}</h2>
+</div>
+
+<app-brand-loader *ngIf="loading" />
+<div *ngIf="error" class="error-message">{{ error }}</div>
+
+<div *ngIf="settlement && !loading" class="detail">
+  <mat-card>
+    <mat-card-content>
+      <div class="grid">
+        <div><label>Driver</label><div>{{ settlement.driverName || settlement.driverId }}</div></div>
+        <div><label>Period</label><div>{{ settlement.periodStart | date:'mediumDate' }} – {{ settlement.periodEnd | date:'mediumDate' }}</div></div>
+        <div><label>Status</label><div>{{ settlement.status }}</div></div>
+        <div><label>Gross collected</label><div>{{ settlement.grossCollected | number:'1.2-2' }}</div></div>
+        <div><label>Fuel deducted</label><div>{{ settlement.fuelDeducted | number:'1.2-2' }}</div></div>
+        <div><label>Allowance</label><div>{{ settlement.allowanceAmount | number:'1.2-2' }}</div></div>
+        <div><label>Adjustments</label><div>{{ settlement.adjustments | number:'1.2-2' }}</div></div>
+        <div><label>Payable</label><div class="payable">{{ settlement.payable | number:'1.2-2' }}</div></div>
+        <div *ngIf="settlement.reference"><label>Reference</label><div>{{ settlement.reference }}</div></div>
+        <div *ngIf="settlement.paidAt"><label>Paid at</label><div>{{ settlement.paidAt | date:'medium' }}</div></div>
+      </div>
+    </mat-card-content>
+  </mat-card>
+
+  <mat-card class="actions-card" *ngIf="canManage">
+    <mat-card-content>
+      <button mat-raised-button color="primary" *ngIf="settlement.status === 'Draft'" [disabled]="acting" (click)="approve()">
+        Approve
+      </button>
+      <form [formGroup]="paidForm" class="inline" *ngIf="settlement.status === 'Approved' || settlement.status === 'Draft'">
+        <input class="stb-input" formControlName="reference" placeholder="Payment reference" />
+        <button mat-raised-button color="accent" type="button" [disabled]="acting" (click)="markPaid()">Mark Paid</button>
+      </form>
+      <form [formGroup]="adjustForm" class="inline" *ngIf="settlement.status === 'Draft'">
+        <input class="stb-input" type="number" formControlName="adjustments" step="0.01" placeholder="Adjustments" />
+        <input class="stb-input" formControlName="notes" placeholder="Notes" />
+        <button mat-stroked-button type="button" [disabled]="acting" (click)="adjust()">Save adjust</button>
+      </form>
+    </mat-card-content>
+  </mat-card>
+
+  <mat-card *ngIf="settlement.lines?.length">
+    <mat-card-header><mat-card-title>Lines</mat-card-title></mat-card-header>
+    <mat-card-content>
+      <table class="lines">
+        <thead><tr><th>Type</th><th>Description</th><th>Amount</th></tr></thead>
+        <tbody>
+          <tr *ngFor="let line of settlement.lines">
+            <td>{{ line.lineType }}</td>
+            <td>{{ line.description }}</td>
+            <td>{{ line.amount | number:'1.2-2' }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </mat-card-content>
+  </mat-card>
+</div>

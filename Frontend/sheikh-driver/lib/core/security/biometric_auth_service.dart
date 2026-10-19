@@ -23,7 +23,7 @@ class BiometricAuthService {
   }
 
   Future<bool> authenticate({
-    String reason = 'Authenticate to unlock SheikhGo Fleet',
+    String reason = 'Authenticate to unlock SheikhGo Tracking',
   }) async {
     try {
       return await _auth.authenticate(

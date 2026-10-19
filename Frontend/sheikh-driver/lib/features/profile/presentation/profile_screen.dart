@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 import '../../../core/constants/app_theme.dart';
 import '../../../features/auth/data/auth_repository.dart';
 import '../../../features/auth/domain/auth_models.dart';
@@ -42,7 +41,7 @@ class ProfileScreen extends ConsumerWidget {
     final session = ref.watch(fleetSessionProvider);
 
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor: context.sg.surface,
       appBar: AppBar(
         title: const Text('Profile'),
         actions: [
@@ -59,8 +58,8 @@ class ProfileScreen extends ConsumerWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.person_off_outlined,
-                  size: 48, color: AppColors.textSecondary),
+              Icon(Icons.person_off_outlined,
+                  size: 48, color: context.sg.textSecondary),
               const SizedBox(height: 12),
               Text(e.toString(), textAlign: TextAlign.center),
               const SizedBox(height: 16),
@@ -205,461 +204,56 @@ class _CompanyContextCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.sg;
     final parts = <String>[
       if (contextData.branchName != null) contextData.branchName!,
-      if (contextData.departmentName != null) contextData.departmentName!,
       if (contextData.jobTitle != null && contextData.jobTitle!.isNotEmpty)
         contextData.jobTitle!,
     ];
-    final moduleLabels = contextData.moduleDisplayLabels;
+    final role = contextData.roleDisplayLabels.isNotEmpty
+        ? contextData.roleDisplayLabels.first
+        : null;
     return SgCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Row(
-            children: [
-              CircleAvatar(
-                radius: 22,
-                backgroundColor: AppColors.primary.withValues(alpha: 0.12),
-                backgroundImage: contextData.logoUrl != null
-                    ? NetworkImage(contextData.logoUrl!)
-                    : null,
-                child: contextData.logoUrl == null
-                    ? const Icon(Icons.business_outlined,
-                        color: AppColors.primary)
-                    : null,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      contextData.companyName,
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                    if (parts.isNotEmpty) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        parts.join(' · '),
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                    ],
-                    if (contextData.theme != null) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        'Theme ${contextData.theme}',
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: AppColors.textMuted,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ],
+          CircleAvatar(
+            radius: 26,
+            backgroundColor: AppColors.primary.withValues(alpha: 0.12),
+            backgroundImage: contextData.logoUrl != null
+                ? NetworkImage(contextData.logoUrl!)
+                : null,
+            child: contextData.logoUrl == null
+                ? const Icon(Icons.business_outlined, color: AppColors.primary)
+                : null,
           ),
-          if (contextData.effectiveWorkspace != null) ...[
-            const SizedBox(height: 10),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    'Workspace · ${contextData.effectiveWorkspace}',
-                    style: const TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-          if (contextData.roleDisplayLabels.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: [
-                for (final label in contextData.roleDisplayLabels.take(6))
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(AppRadii.sm),
-                    ),
-                    child: Text(
-                      label,
-                      style: const TextStyle(
-                        fontSize: 11,
+                Text(
+                  contextData.companyName,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: p.textPrimary,
                         fontWeight: FontWeight.w700,
-                        color: AppColors.primary,
                       ),
-                    ),
-                  ),
-              ],
-            ),
-          ],
-          if (contextData.permissionCategoryLabels.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: [
-                for (final label
-                    in contextData.permissionCategoryLabels.take(6))
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: AppColors.chipBg,
-                      borderRadius: BorderRadius.circular(AppRadii.sm),
-                    ),
-                    child: Text(
-                      label,
-                      style: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ],
-          if (contextData.navDisplayLabels.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: [
-                for (final label in contextData.navDisplayLabels.take(6))
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.06),
-                      borderRadius: BorderRadius.circular(AppRadii.sm),
-                      border: Border.all(
-                        color: AppColors.primary.withValues(alpha: 0.18),
-                      ),
-                    ),
-                    child: Text(
-                      label,
-                      style: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.primary,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ],
-          if (contextData.dashboardDisplayLabel != null) ...[
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: [
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.06),
-                    borderRadius: BorderRadius.circular(AppRadii.sm),
-                    border: Border.all(
-                      color: AppColors.primary.withValues(alpha: 0.18),
-                    ),
-                  ),
-                  child: Text(
-                    'Dashboard: ${contextData.dashboardDisplayLabel}',
-                    style: const TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.primary,
-                    ),
-                  ),
                 ),
-              ],
-            ),
-          ],
-          if (contextData.dataScopeDisplayLabels.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: [
-                for (final label
-                    in contextData.dataScopeDisplayLabels.take(6))
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: AppColors.chipBg,
-                      borderRadius: BorderRadius.circular(AppRadii.sm),
-                    ),
-                    child: Text(
-                      label,
-                      style: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
+                if (parts.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    parts.join(' · '),
+                    style: TextStyle(fontSize: 13, color: p.textSecondary),
                   ),
+                ],
+                if (role != null) ...[
+                  const SizedBox(height: 8),
+                  StatusBadge(role, color: AppColors.primary),
+                ],
               ],
             ),
-          ],
-          if (contextData.securityDisplayLabels.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: [
-                for (final label in contextData.securityDisplayLabels.take(6))
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.06),
-                      borderRadius: BorderRadius.circular(AppRadii.sm),
-                      border: Border.all(
-                        color: AppColors.primary.withValues(alpha: 0.18),
-                      ),
-                    ),
-                    child: Text(
-                      label,
-                      style: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.primary,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ],
-          if (contextData.auditDisplayLabels.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: [
-                for (final label in contextData.auditDisplayLabels.take(4))
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: AppColors.chipBg,
-                      borderRadius: BorderRadius.circular(AppRadii.sm),
-                    ),
-                    child: Text(
-                      label,
-                      style: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ],
-          if (moduleLabels.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: [
-                for (final label in moduleLabels.take(8))
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.08),
-                      borderRadius: BorderRadius.circular(AppRadii.sm),
-                    ),
-                    child: Text(
-                      label,
-                      style: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.primary,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ],
-          if (contextData.featureDisplayLabels.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            const Text(
-              'Enabled Features',
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: AppColors.textSecondary,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: [
-                for (final label in contextData.featureDisplayLabels.take(8))
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: AppColors.chipBg,
-                      borderRadius: BorderRadius.circular(AppRadii.sm),
-                      border: Border.all(color: AppColors.border),
-                    ),
-                    child: Text(
-                      label,
-                      style: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ],
-          if (contextData.subscription != null) ...[
-            const SizedBox(height: 14),
-            const Divider(height: 1),
-            const SizedBox(height: 12),
-            _SubscriptionSummary(subscription: contextData.subscription!),
-          ],
+          ),
         ],
       ),
-    );
-  }
-}
-
-class _SubscriptionSummary extends StatelessWidget {
-  const _SubscriptionSummary({required this.subscription});
-  final CompanySubscription subscription;
-
-  @override
-  Widget build(BuildContext context) {
-    final df = DateFormat('dd MMM yyyy');
-    final expiry = subscription.endDate != null
-        ? df.format(subscription.endDate!.toLocal())
-        : '—';
-    final limitBits = <String>[
-      if (subscription.maxUsers != null)
-        'Users ${subscription.usedUsers}/${subscription.maxUsers}',
-      if (subscription.maxDrivers != null)
-        'Drivers ${subscription.usedDrivers}/${subscription.maxDrivers}',
-      if (subscription.maxVehicles != null)
-        'Vehicles ${subscription.usedVehicles}/${subscription.maxVehicles}',
-      if (subscription.storageQuotaGb != null)
-        'Storage ${subscription.storageQuotaGb} GB',
-      if (subscription.aiCredits != null)
-        'AI ${subscription.aiCredits} credits',
-    ];
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                subscription.displayPlanName,
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-            ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-              decoration: BoxDecoration(
-                color: AppColors.success.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(AppRadii.sm),
-              ),
-              child: Text(
-                subscription.status,
-                style: const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.success,
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 4),
-        Text(
-          'Expires $expiry',
-          style: const TextStyle(
-            fontSize: 12,
-            color: AppColors.textSecondary,
-          ),
-        ),
-        if (limitBits.isNotEmpty) ...[
-          const SizedBox(height: 4),
-          Text(
-            limitBits.join(' · '),
-            style: const TextStyle(
-              fontSize: 11,
-              color: AppColors.textSecondary,
-            ),
-          ),
-        ],
-        if (subscription.licensedModuleCodes.isNotEmpty) ...[
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            children: [
-              for (final code in subscription.licensedModuleCodes.take(8))
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: AppColors.chipBg,
-                    borderRadius: BorderRadius.circular(AppRadii.sm),
-                    border: Border.all(color: AppColors.border),
-                  ),
-                  child: Text(
-                    code,
-                    style: const TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textSecondary,
-                      fontFamily: 'monospace',
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        ],
-      ],
     );
   }
 }
@@ -698,10 +292,10 @@ class _ProfileHeader extends StatelessWidget {
               children: [
                 Text(
                   profile.fullName,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w800,
-                    color: AppColors.textPrimary,
+                    color: context.sg.textPrimary,
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -709,8 +303,8 @@ class _ProfileHeader extends StatelessWidget {
                   profile.isStaffProfile
                       ? (profile.roleLabel ?? 'Staff')
                       : 'Driver ID: ${profile.driverCode}',
-                  style: const TextStyle(
-                    color: AppColors.textSecondary,
+                  style: TextStyle(
+                    color: context.sg.textSecondary,
                     fontSize: 13,
                   ),
                 ),
@@ -771,9 +365,9 @@ class _MenuTile extends StatelessWidget {
       ),
       title: Text(
         label,
-        style: const TextStyle(
+        style: TextStyle(
           fontWeight: FontWeight.w600,
-          color: AppColors.textPrimary,
+          color: context.sg.textPrimary,
         ),
       ),
       trailing: const Icon(
@@ -799,7 +393,7 @@ class _InfoLine extends StatelessWidget {
             width: 90,
             child: Text(
               label,
-              style: const TextStyle(color: AppColors.textSecondary),
+              style: TextStyle(color: context.sg.textSecondary),
             ),
           ),
           Expanded(

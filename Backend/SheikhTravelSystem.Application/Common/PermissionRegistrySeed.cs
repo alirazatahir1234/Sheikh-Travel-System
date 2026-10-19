@@ -117,7 +117,8 @@ public static class PermissionRegistrySeed
         if (code.StartsWith("Fuel.", StringComparison.OrdinalIgnoreCase))
             return ("Finance", "FLEET", "fuel-logs");
         if (code.StartsWith("Payment.", StringComparison.OrdinalIgnoreCase)
-            || code.StartsWith("Invoice.", StringComparison.OrdinalIgnoreCase))
+            || code.StartsWith("Invoice.", StringComparison.OrdinalIgnoreCase)
+            || code.StartsWith("Settlement.", StringComparison.OrdinalIgnoreCase))
             return ("Finance", "FINANCE", null);
         if (code.StartsWith("Customer.", StringComparison.OrdinalIgnoreCase))
             return ("CRM", "CRM", null);

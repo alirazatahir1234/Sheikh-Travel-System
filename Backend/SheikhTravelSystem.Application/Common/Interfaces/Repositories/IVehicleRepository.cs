@@ -22,6 +22,11 @@ public interface IVehicleRepository
 
     Task EnsureExistsAsync(int id, int tenantId, CancellationToken cancellationToken = default);
 
+    Task<bool> RegistrationExistsAsync(
+        int tenantId,
+        string registrationNumber,
+        CancellationToken cancellationToken = default);
+
     Task<int> CreateAsync(
         int tenantId,
         CreateVehicleDto dto,

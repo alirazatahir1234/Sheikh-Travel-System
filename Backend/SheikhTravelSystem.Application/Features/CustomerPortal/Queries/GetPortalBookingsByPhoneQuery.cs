@@ -1,6 +1,7 @@
 using FluentValidation;
 using MediatR;
 using SheikhTravelSystem.Application.Common;
+using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 using SheikhTravelSystem.Application.Features.CustomerPortal.DTOs;
 using SheikhTravelSystem.Domain.Enums;
@@ -18,13 +19,14 @@ public class GetPortalBookingsByPhoneQueryValidator : AbstractValidator<GetPorta
     }
 }
 
-public class GetPortalBookingsByPhoneQueryHandler(ICustomerPortalRepository portalRepository)
+public class GetPortalBookingsByPhoneQueryHandler(ICustomerPortalRepository portalRepository, ITenantContext tenantContext)
     : IRequestHandler<GetPortalBookingsByPhoneQuery, ApiResponse<IReadOnlyList<PortalBookingCardDto>>>
 {
     public async Task<ApiResponse<IReadOnlyList<PortalBookingCardDto>>> Handle(GetPortalBookingsByPhoneQuery request, CancellationToken cancellationToken)
     {
+        var tenantId = tenantContext.GetRequiredTenantId();
         var customerIds = await portalRepository.ResolvePortalCustomerIdsAsync(
-            request.Phone, request.CustomerId, cancellationToken);
+            tenantId, request.Phone, request.CustomerId, cancellationToken);
         if (customerIds.Count == 0)
             return ApiResponse<IReadOnlyList<PortalBookingCardDto>>.SuccessResponse([], "Bookings loaded.");
 

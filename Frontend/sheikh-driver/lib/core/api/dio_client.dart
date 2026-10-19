@@ -63,7 +63,7 @@ final dioProvider = Provider<Dio>((ref) {
     headers: {
       'X-Tenant-Slug': AppConfig.tenantSlug,
       'Content-Type': 'application/json',
-      'User-Agent': 'SheikhGoFleet/${AppConfig.appVersion} Flutter',
+      'User-Agent': 'SheikhGoTracking/${AppConfig.appVersion} Flutter',
     },
   ));
 

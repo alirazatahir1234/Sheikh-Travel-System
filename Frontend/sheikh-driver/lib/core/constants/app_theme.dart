@@ -1,36 +1,36 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
-/// SheikhGo Fleet — ERP-aligned design tokens
+/// Brand + semantic colors (mode-independent).
+/// Prefer [SgPalette.of] / [BuildContext.sg] for surfaces and text in UI.
 abstract class AppColors {
-  /// Primary teal from Figma (~#1D836C / Material teal)
   static const primary = Color(0xFF1D836C);
   static const primaryLight = Color(0xFF2A9B82);
   static const primaryDark = Color(0xFF146652);
   static const accent = Color(0xFF0D9488);
 
-  static const surface = Color(0xFFF5F7FA);
+  /// Legacy light-mode aliases — prefer Theme / [SgPalette] in new code.
+  static const surface = Color(0xFFF3F6F8);
   static const cardBg = Color(0xFFFFFFFF);
-  static const textPrimary = Color(0xFF1A2B3C);
-  static const textSecondary = Color(0xFF6B7280);
-  static const textMuted = Color(0xFF9CA3AF);
+  static const textPrimary = Color(0xFF0F1C27);
+  static const textSecondary = Color(0xFF5B6B7C);
+  static const textMuted = Color(0xFF8B97A5);
 
-  static const success = Color(0xFF10B981);
-  static const warning = Color(0xFFF59E0B);
-  static const error = Color(0xFFEF4444);
-  static const info = Color(0xFF3B82F6);
-  static const cyan = Color(0xFF06B6D4);
+  static const success = Color(0xFF0E9F6E);
+  static const warning = Color(0xFFE3A008);
+  static const error = Color(0xFFE11D48);
+  static const info = Color(0xFF2563EB);
+  static const cyan = Color(0xFF0891B2);
 
-  static const divider = Color(0xFFE5E7EB);
-  static const border = Color(0xFFD1D5DB);
-  static const chipBg = Color(0xFFF3F4F6);
+  static const divider = Color(0xFFE6EBF0);
+  static const border = Color(0xFFD5DEE7);
+  static const chipBg = Color(0xFFEEF3F6);
 
-  /// Splash / launch branding
   static const splashNavyTop = Color(0xFF0A1628);
   static const splashNavyBottom = Color(0xFF0F2137);
   static const splashLightTop = Color(0xFFF4F8FB);
   static const splashLightBottom = Color(0xFFFFFFFF);
 
-  /// Trip status badge colors
   static Color statusColor(String status) {
     final s = status.toLowerCase().replaceAll(' ', '');
     return switch (s) {
@@ -45,183 +45,330 @@ abstract class AppColors {
   }
 }
 
+/// Theme-aware surfaces / text — modern apps resolve these from the active mode.
+@immutable
+class SgPalette extends ThemeExtension<SgPalette> {
+  const SgPalette({
+    required this.surface,
+    required this.card,
+    required this.textPrimary,
+    required this.textSecondary,
+    required this.textMuted,
+    required this.border,
+    required this.divider,
+    required this.chipBg,
+    required this.navBar,
+    required this.heroWash,
+  });
+
+  final Color surface;
+  final Color card;
+  final Color textPrimary;
+  final Color textSecondary;
+  final Color textMuted;
+  final Color border;
+  final Color divider;
+  final Color chipBg;
+  final Color navBar;
+  final Color heroWash;
+
+  static const light = SgPalette(
+    surface: Color(0xFFF3F6F8),
+    card: Color(0xFFFFFFFF),
+    textPrimary: Color(0xFF0F1C27),
+    textSecondary: Color(0xFF5B6B7C),
+    textMuted: Color(0xFF8B97A5),
+    border: Color(0xFFD5DEE7),
+    divider: Color(0xFFE6EBF0),
+    chipBg: Color(0xFFEEF3F6),
+    navBar: Color(0xFFFFFFFF),
+    heroWash: Color(0xFF1D836C),
+  );
+
+  static const dark = SgPalette(
+    surface: Color(0xFF0E141B),
+    card: Color(0xFF171E27),
+    textPrimary: Color(0xFFF2F5F8),
+    textSecondary: Color(0xFFA8B3C0),
+    textMuted: Color(0xFF7A8796),
+    border: Color(0xFF2A3441),
+    divider: Color(0xFF243040),
+    chipBg: Color(0xFF1F2833),
+    navBar: Color(0xFF121820),
+    heroWash: Color(0xFF2A9B82),
+  );
+
+  static SgPalette of(BuildContext context) =>
+      Theme.of(context).extension<SgPalette>() ?? light;
+
+  @override
+  SgPalette copyWith({
+    Color? surface,
+    Color? card,
+    Color? textPrimary,
+    Color? textSecondary,
+    Color? textMuted,
+    Color? border,
+    Color? divider,
+    Color? chipBg,
+    Color? navBar,
+    Color? heroWash,
+  }) {
+    return SgPalette(
+      surface: surface ?? this.surface,
+      card: card ?? this.card,
+      textPrimary: textPrimary ?? this.textPrimary,
+      textSecondary: textSecondary ?? this.textSecondary,
+      textMuted: textMuted ?? this.textMuted,
+      border: border ?? this.border,
+      divider: divider ?? this.divider,
+      chipBg: chipBg ?? this.chipBg,
+      navBar: navBar ?? this.navBar,
+      heroWash: heroWash ?? this.heroWash,
+    );
+  }
+
+  @override
+  SgPalette lerp(ThemeExtension<SgPalette>? other, double t) {
+    if (other is! SgPalette) return this;
+    return SgPalette(
+      surface: Color.lerp(surface, other.surface, t)!,
+      card: Color.lerp(card, other.card, t)!,
+      textPrimary: Color.lerp(textPrimary, other.textPrimary, t)!,
+      textSecondary: Color.lerp(textSecondary, other.textSecondary, t)!,
+      textMuted: Color.lerp(textMuted, other.textMuted, t)!,
+      border: Color.lerp(border, other.border, t)!,
+      divider: Color.lerp(divider, other.divider, t)!,
+      chipBg: Color.lerp(chipBg, other.chipBg, t)!,
+      navBar: Color.lerp(navBar, other.navBar, t)!,
+      heroWash: Color.lerp(heroWash, other.heroWash, t)!,
+    );
+  }
+}
+
+extension SgPaletteX on BuildContext {
+  SgPalette get sg => SgPalette.of(this);
+}
+
+abstract class AppSpacing {
+  static const xs = 4.0;
+  static const sm = 8.0;
+  static const md = 12.0;
+  static const lg = 16.0;
+  static const xl = 20.0;
+  static const xxl = 24.0;
+  static const huge = 32.0;
+  static const screen = EdgeInsets.fromLTRB(20, 12, 20, 24);
+}
+
 abstract class AppShadows {
   static List<BoxShadow> get card => [
         BoxShadow(
-          color: const Color(0xFF1A2B3C).withValues(alpha: 0.06),
-          blurRadius: 12,
-          offset: const Offset(0, 4),
+          color: const Color(0xFF0F1C27).withValues(alpha: 0.06),
+          blurRadius: 20,
+          offset: const Offset(0, 8),
+        ),
+      ];
+
+  static List<BoxShadow> get nav => [
+        BoxShadow(
+          color: Colors.black.withValues(alpha: 0.08),
+          blurRadius: 24,
+          offset: const Offset(0, -6),
         ),
       ];
 }
 
 abstract class AppRadii {
-  static const sm = 8.0;
-  static const md = 12.0;
-  static const lg = 16.0;
-  static const xl = 20.0;
+  static const sm = 10.0;
+  static const md = 14.0;
+  static const lg = 18.0;
+  static const xl = 24.0;
   static const pill = 999.0;
 }
 
 abstract class AppTheme {
-  static ThemeData get dark => ThemeData(
-        useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: AppColors.primary,
-          primary: AppColors.primaryLight,
-          secondary: AppColors.accent,
-          surface: const Color(0xFF1E2530),
-          brightness: Brightness.dark,
-        ),
-        scaffoldBackgroundColor: const Color(0xFF141820),
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Color(0xFF1A2130),
-          foregroundColor: Colors.white,
-          elevation: 0,
-          centerTitle: true,
-          titleTextStyle: TextStyle(
-            color: Colors.white,
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        cardTheme: CardThemeData(
-          color: const Color(0xFF1E2530),
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppRadii.md),
-            side: const BorderSide(color: Color(0xFF2D3548)),
-          ),
-        ),
-        filledButtonTheme: _filledButton(AppColors.primaryLight),
-        outlinedButtonTheme: _outlinedButton(AppColors.primaryLight),
-        inputDecorationTheme: _inputs(
-          fill: const Color(0xFF252C3B),
-          border: const Color(0xFF2D3548),
-          focus: AppColors.primaryLight,
-        ),
-        bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-          selectedItemColor: AppColors.primaryLight,
-          unselectedItemColor: Color(0xFF6B7280),
-          backgroundColor: Color(0xFF1A2130),
-          type: BottomNavigationBarType.fixed,
-          elevation: 8,
-          selectedLabelStyle: TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
-          unselectedLabelStyle: TextStyle(fontSize: 11),
-        ),
+  static TextTheme _textTheme(Brightness brightness) {
+    final base = GoogleFonts.plusJakartaSansTextTheme();
+    final onSurface =
+        brightness == Brightness.dark ? SgPalette.dark.textPrimary : SgPalette.light.textPrimary;
+    final muted =
+        brightness == Brightness.dark ? SgPalette.dark.textSecondary : SgPalette.light.textSecondary;
+    return base.copyWith(
+      displaySmall: base.displaySmall?.copyWith(
+        fontWeight: FontWeight.w800,
+        letterSpacing: -0.6,
+        color: onSurface,
+      ),
+      headlineMedium: base.headlineMedium?.copyWith(
+        fontWeight: FontWeight.w800,
+        letterSpacing: -0.4,
+        color: onSurface,
+      ),
+      headlineSmall: base.headlineSmall?.copyWith(
+        fontWeight: FontWeight.w700,
+        letterSpacing: -0.3,
+        color: onSurface,
+      ),
+      titleLarge: base.titleLarge?.copyWith(
+        fontWeight: FontWeight.w700,
+        color: onSurface,
+      ),
+      titleMedium: base.titleMedium?.copyWith(
+        fontWeight: FontWeight.w600,
+        color: onSurface,
+      ),
+      bodyLarge: base.bodyLarge?.copyWith(color: onSurface, height: 1.4),
+      bodyMedium: base.bodyMedium?.copyWith(color: muted, height: 1.4),
+      labelLarge: base.labelLarge?.copyWith(
+        fontWeight: FontWeight.w700,
+        letterSpacing: 0.1,
+      ),
+    );
+  }
+
+  static ThemeData get dark => _build(
+        brightness: Brightness.dark,
+        palette: SgPalette.dark,
+        primary: AppColors.primaryLight,
+        scaffold: SgPalette.dark.surface,
+        appBarBg: SgPalette.dark.card,
+        appBarFg: SgPalette.dark.textPrimary,
+        inputFill: const Color(0xFF1C2430),
       );
 
-  static ThemeData get light => ThemeData(
-        useMaterial3: true,
-        fontFamily: null,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: AppColors.primary,
-          primary: AppColors.primary,
-          secondary: AppColors.accent,
-          surface: AppColors.cardBg,
-        ),
-        scaffoldBackgroundColor: AppColors.surface,
-        appBarTheme: const AppBarTheme(
-          backgroundColor: AppColors.cardBg,
-          foregroundColor: AppColors.textPrimary,
-          elevation: 0,
-          scrolledUnderElevation: 0.5,
-          centerTitle: true,
-          iconTheme: IconThemeData(color: AppColors.textPrimary),
-          titleTextStyle: TextStyle(
-            color: AppColors.textPrimary,
-            fontSize: 18,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        cardTheme: CardThemeData(
-          color: AppColors.cardBg,
-          elevation: 0,
-          margin: EdgeInsets.zero,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppRadii.md),
-          ),
-        ),
-        filledButtonTheme: _filledButton(AppColors.primary),
-        outlinedButtonTheme: _outlinedButton(AppColors.primary),
-        inputDecorationTheme: _inputs(
-          fill: AppColors.cardBg,
-          border: AppColors.border,
-          focus: AppColors.primary,
-        ),
-        bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-          selectedItemColor: AppColors.primary,
-          unselectedItemColor: AppColors.textMuted,
-          backgroundColor: Colors.white,
-          type: BottomNavigationBarType.fixed,
-          elevation: 12,
-          selectedLabelStyle: TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
-          unselectedLabelStyle: TextStyle(fontSize: 11),
-        ),
-        checkboxTheme: CheckboxThemeData(
-          fillColor: WidgetStateProperty.resolveWith(
-            (s) => s.contains(WidgetState.selected) ? AppColors.primary : null,
-          ),
-        ),
+  static ThemeData get light => _build(
+        brightness: Brightness.light,
+        palette: SgPalette.light,
+        primary: AppColors.primary,
+        scaffold: SgPalette.light.surface,
+        appBarBg: SgPalette.light.card,
+        appBarFg: SgPalette.light.textPrimary,
+        inputFill: SgPalette.light.card,
       );
 
-  static FilledButtonThemeData _filledButton(Color bg) => FilledButtonThemeData(
+  static ThemeData _build({
+    required Brightness brightness,
+    required SgPalette palette,
+    required Color primary,
+    required Color scaffold,
+    required Color appBarBg,
+    required Color appBarFg,
+    required Color inputFill,
+  }) {
+    final text = _textTheme(brightness);
+    return ThemeData(
+      useMaterial3: true,
+      brightness: brightness,
+      textTheme: text,
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: AppColors.primary,
+        primary: primary,
+        secondary: AppColors.accent,
+        surface: palette.card,
+        brightness: brightness,
+        error: AppColors.error,
+      ),
+      scaffoldBackgroundColor: scaffold,
+      extensions: [palette],
+      appBarTheme: AppBarTheme(
+        backgroundColor: appBarBg,
+        foregroundColor: appBarFg,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        centerTitle: false,
+        titleTextStyle: text.titleLarge?.copyWith(fontSize: 18),
+        iconTheme: IconThemeData(color: appBarFg),
+      ),
+      cardTheme: CardThemeData(
+        color: palette.card,
+        elevation: 0,
+        margin: EdgeInsets.zero,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadii.lg),
+        ),
+      ),
+      filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          backgroundColor: bg,
+          backgroundColor: primary,
           foregroundColor: Colors.white,
           elevation: 0,
-          minimumSize: const Size.fromHeight(48),
+          minimumSize: const Size.fromHeight(52),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppRadii.md),
+            borderRadius: BorderRadius.circular(AppRadii.lg),
           ),
-          textStyle: const TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 0.4,
-          ),
-          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 24),
+          textStyle: text.labelLarge?.copyWith(fontSize: 16),
+          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 22),
         ),
-      );
-
-  static OutlinedButtonThemeData _outlinedButton(Color color) =>
-      OutlinedButtonThemeData(
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          foregroundColor: color,
-          minimumSize: const Size.fromHeight(48),
-          side: BorderSide(color: color, width: 1.5),
+          foregroundColor: primary,
+          minimumSize: const Size.fromHeight(52),
+          side: BorderSide(color: primary.withValues(alpha: 0.45), width: 1.4),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppRadii.md),
+            borderRadius: BorderRadius.circular(AppRadii.lg),
           ),
-          textStyle: const TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 0.4,
-          ),
+          textStyle: text.labelLarge?.copyWith(fontSize: 15),
         ),
-      );
-
-  static InputDecorationTheme _inputs({
-    required Color fill,
-    required Color border,
-    required Color focus,
-  }) =>
-      InputDecorationTheme(
+      ),
+      inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: fill,
+        fillColor: inputFill,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppRadii.md),
-          borderSide: BorderSide(color: border),
+          borderSide: BorderSide(color: palette.border),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppRadii.md),
-          borderSide: BorderSide(color: border),
+          borderSide: BorderSide(color: palette.border),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppRadii.md),
-          borderSide: BorderSide(color: focus, width: 1.5),
+          borderSide: BorderSide(color: primary, width: 1.6),
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        labelStyle: const TextStyle(color: AppColors.textSecondary),
-        hintStyle: const TextStyle(color: AppColors.textMuted),
-      );
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        labelStyle: TextStyle(color: palette.textSecondary),
+        hintStyle: TextStyle(color: palette.textMuted),
+      ),
+      navigationBarTheme: NavigationBarThemeData(
+        backgroundColor: palette.navBar,
+        indicatorColor: primary.withValues(alpha: 0.14),
+        labelTextStyle: WidgetStateProperty.resolveWith((states) {
+          final selected = states.contains(WidgetState.selected);
+          return text.labelLarge?.copyWith(
+                fontSize: 11,
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                color: selected ? primary : palette.textMuted,
+              );
+        }),
+        iconTheme: WidgetStateProperty.resolveWith((states) {
+          final selected = states.contains(WidgetState.selected);
+          return IconThemeData(
+            size: 24,
+            color: selected ? primary : palette.textMuted,
+          );
+        }),
+      ),
+      bottomNavigationBarTheme: BottomNavigationBarThemeData(
+        selectedItemColor: primary,
+        unselectedItemColor: palette.textMuted,
+        backgroundColor: palette.navBar,
+        type: BottomNavigationBarType.fixed,
+        elevation: 0,
+        selectedLabelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
+        unselectedLabelStyle: const TextStyle(fontSize: 11),
+      ),
+      checkboxTheme: CheckboxThemeData(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+        fillColor: WidgetStateProperty.resolveWith(
+          (s) => s.contains(WidgetState.selected) ? primary : null,
+        ),
+      ),
+      snackBarTheme: SnackBarThemeData(
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadii.md)),
+      ),
+    );
+  }
 }

@@ -1,6 +1,6 @@
 {
   "@@locale": "ar",
-  "appTitle": "شيخ جو فليت",
+  "appTitle": "شيخ جو للتتبع",
   "settings": "الإعدادات",
   "account": "الحساب",
   "appearance": "المظهر",
@@ -17,7 +17,7 @@
   "biometricLockSubtitle": "يتطلب Face ID / بصمة الإصبع لفتح التطبيق",
   "biometricUnavailable": "القياسات الحيوية غير متاحة على هذا الجهاز",
   "biometricEnableFailed": "تعذر تفعيل القفل البيومتري",
-  "unlockTitle": "فتح شيخ جو فليت",
+  "unlockTitle": "فتح شيخ جو للتتبع",
   "unlockSubtitle": "قم بالمصادقة للمتابعة",
   "unlockAction": "فتح",
   "unlockSignOut": "تسجيل الخروج",

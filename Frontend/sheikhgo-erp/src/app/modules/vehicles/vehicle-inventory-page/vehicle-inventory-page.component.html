@@ -10,7 +10,7 @@
         </button>
       </div>
 
-      <ui-button variant="outline" icon="upload" [disabled]="true" title="Coming soon">Import</ui-button>
+      <ui-button variant="outline" icon="upload" (clicked)="importVehicles()">Import</ui-button>
 
       <button mat-stroked-button [matMenuTriggerFor]="exportMenu" [disabled]="!filteredRows().length" class="export-btn">
         <mat-icon>download</mat-icon>
@@ -87,7 +87,7 @@
     (retry)="load()">
   </vehicle-table>
 
-  <vehicle-registry-fab></vehicle-registry-fab>
+  <vehicle-registry-fab (importRequested)="importVehicles()"></vehicle-registry-fab>
 
   <vehicle-advanced-filters
     [open]="advancedFiltersOpen()"

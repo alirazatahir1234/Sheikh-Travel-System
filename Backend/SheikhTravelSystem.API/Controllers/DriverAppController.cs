@@ -6,6 +6,7 @@ using SheikhTravelSystem.Application.Features.DriverApp.Commands;
 using SheikhTravelSystem.Application.Features.DriverApp.DTOs;
 using SheikhTravelSystem.Application.Features.DriverApp.Queries;
 using SheikhTravelSystem.Application.Features.FuelLogs.DTOs;
+using SheikhTravelSystem.Application.Features.Settlements.Queries;
 
 namespace SheikhTravelSystem.API.Controllers;
 
@@ -20,6 +21,18 @@ public class DriverAppController : BaseApiController
     [HttpPost("auth/login")]
     public async Task<IActionResult> Login([FromBody] DriverLoginRequest request)
         => Ok(await Mediator.Send(new DriverLoginCommand(request.Phone, request.Password)));
+
+    [AllowAnonymous]
+    [EnableRateLimiting("auth")]
+    [HttpPost("auth/forgot-password")]
+    public async Task<IActionResult> ForgotPassword([FromBody] DriverForgotPasswordRequest request)
+        => Ok(await Mediator.Send(new DriverForgotPasswordCommand(request.Phone)));
+
+    [AllowAnonymous]
+    [EnableRateLimiting("auth")]
+    [HttpPost("auth/reset-password")]
+    public async Task<IActionResult> ResetPassword([FromBody] DriverResetPasswordRequest request)
+        => Ok(await Mediator.Send(new DriverResetPasswordCommand(request.Token, request.NewPassword)));
 
     // ── Profile & Dashboard ──────────────────────────────────────────────────
 
@@ -191,6 +204,11 @@ public class DriverAppController : BaseApiController
     }
 
     // ── Earnings ──────────────────────────────────────────────────────────────
+
+    [Authorize(Roles = "Driver")]
+    [HttpGet("settlements")]
+    public async Task<IActionResult> GetMySettlements([FromQuery] int page = 1, [FromQuery] int pageSize = 50)
+        => Ok(await Mediator.Send(new GetMyDriverSettlementsQuery(page, pageSize)));
 
     [Authorize(Roles = "Driver")]
     [HttpGet("earnings")]

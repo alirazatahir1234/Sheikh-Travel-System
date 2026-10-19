@@ -85,10 +85,10 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Dashboard'), findsWidgets);
-    expect(find.text('Fleet'), findsWidgets);
+    expect(find.text('Vehicles'), findsWidgets);
     expect(find.text('Trips'), findsWidgets);
-    expect(find.text('AI'), findsWidgets);
     expect(find.text('More'), findsWidgets);
+    expect(find.text('AI'), findsNothing);
     expect(find.text('Live'), findsNothing);
   });
 
@@ -113,8 +113,11 @@ void main() {
 
     expect(find.text('Dashboard'), findsWidgets);
     expect(find.text('Trips'), findsWidgets);
-    expect(find.text('More'), findsWidgets);
-    expect(find.text('Fleet'), findsNothing);
+    expect(find.text('GPS'), findsWidgets);
+    expect(find.text('Inbox'), findsWidgets);
+    expect(find.text('Profile'), findsWidgets);
+    expect(find.text('Vehicles'), findsNothing);
+    expect(find.text('More'), findsNothing);
     expect(find.text('AI'), findsNothing);
   });
 

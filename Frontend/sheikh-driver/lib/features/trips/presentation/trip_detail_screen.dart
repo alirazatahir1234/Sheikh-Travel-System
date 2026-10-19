@@ -7,6 +7,7 @@ import '../../../core/errors/error_handler.dart';
 import '../../../shared/widgets/sg_ui.dart';
 import '../domain/trip_model.dart';
 import 'trips_notifier.dart';
+import 'widgets/trip_map_preview.dart';
 
 class TripDetailScreen extends ConsumerWidget {
   const TripDetailScreen({super.key, required this.tripId});
@@ -20,9 +21,7 @@ class TripDetailScreen extends ConsumerWidget {
           const Scaffold(body: Center(child: CircularProgressIndicator())),
       error: (e, _) => Scaffold(body: Center(child: Text(e.toString()))),
       data: (trips) {
-        final trip = trips
-            .where((t) => t.id == tripId || t.bookingId == tripId)
-            .firstOrNull;
+        final trip = trips.where((t) => t.matchesRouteId(tripId)).firstOrNull;
         if (trip == null) {
           return const Scaffold(body: Center(child: Text('Trip not found')));
         }
@@ -46,6 +45,7 @@ class _TripDetailContentState extends ConsumerState<_TripDetailContent> {
   Trip get trip => widget.trip;
 
   Future<void> _run(String action, {String? reason}) async {
+    if (_busy) return;
     setState(() => _busy = true);
     try {
       final offlineMsg = await ref.read(tripsProvider.notifier).advance(
@@ -64,10 +64,11 @@ class _TripDetailContentState extends ConsumerState<_TripDetailContent> {
         );
         if (action == 'Complete' && offlineMsg == null) {
           final updated = ref.read(tripsProvider).valueOrNull
-              ?.where((t) => t.id == trip.id || t.bookingId == trip.id)
+              ?.where((t) => t.matchesRouteId(trip.routeId))
               .firstOrNull;
           final paymentRequired = updated?.paymentRequired ?? false;
-          final targetId = updated?.actionId ?? trip.actionId;
+          // Payment API resolves trip or booking id; keep routeId for consistency.
+          final targetId = updated?.routeId ?? trip.routeId;
           if (paymentRequired) {
             context.push('/trips/$targetId/collect-payment');
           }
@@ -88,7 +89,7 @@ class _TripDetailContentState extends ConsumerState<_TripDetailContent> {
   }
 
   String _successMessage(String action) => switch (action) {
-        'Accept' => 'Trip accepted. Navigate to pickup.',
+        'Accept' || 'Start' => 'Trip accepted. Navigate to pickup.',
         'Arrived' => 'Arrived at pickup. Notify passenger to board.',
         'Onboard' => 'Passenger onboard. Navigate to drop-off.',
         'Complete' => 'Trip completed successfully.',
@@ -97,6 +98,7 @@ class _TripDetailContentState extends ConsumerState<_TripDetailContent> {
       };
 
   Future<void> _confirmReject(Trip latest) async {
+    if (_busy || !latest.canReject) return;
     final ctrl = TextEditingController();
     final reason = await showDialog<String>(
       context: context,
@@ -126,14 +128,19 @@ class _TripDetailContentState extends ConsumerState<_TripDetailContent> {
     }
   }
 
+  /// Opens in-app Google Maps navigation (Routes polyline + turn-by-turn CTA).
+  Future<void> _openNavigate(Trip latest) async {
+    if (_busy) return;
+    context.push('/trips/${latest.routeId}/navigate');
+  }
+
   @override
   Widget build(BuildContext context) {
     final latest = ref.watch(tripsProvider).valueOrNull
-            ?.where((t) => t.id == trip.id || t.bookingId == trip.id)
+            ?.where((t) => t.matchesRouteId(trip.routeId))
             .firstOrNull ??
         trip;
 
-    final timeFmt = DateFormat('hh:mm a');
     final status = latest.lifecycleStatusName.isNotEmpty
         ? latest.lifecycleStatusName
         : latest.statusName;
@@ -144,21 +151,57 @@ class _TripDetailContentState extends ConsumerState<_TripDetailContent> {
         ? latest.dropoffAddress!
         : 'Drop-off';
 
+    Widget? primaryCta;
+    if (!latest.isCompleted && !latest.isCancelled) {
+      if (latest.canAccept) {
+        primaryCta = SgPrimaryButton(
+          label: 'Accept trip',
+          loading: _busy,
+          onPressed: _busy ? null : () => _run('Accept'),
+        );
+      } else if (latest.canArrive) {
+        primaryCta = SgPrimaryButton(
+          label: 'Arrived at pickup',
+          icon: Icons.place_outlined,
+          loading: _busy,
+          onPressed: _busy ? null : () => _run('Arrived'),
+        );
+      } else if (latest.canOnboard) {
+        primaryCta = SgPrimaryButton(
+          label: 'Start trip',
+          icon: Icons.play_arrow_rounded,
+          loading: _busy,
+          onPressed: _busy ? null : () => _run('Onboard'),
+        );
+      } else if (latest.canComplete) {
+        primaryCta = SgPrimaryButton(
+          label: 'Complete trip',
+          icon: Icons.check_circle_outline,
+          loading: _busy,
+          onPressed: _busy ? null : () => _run('Complete'),
+        );
+      }
+    }
+
+    final showNavigate = !latest.isCompleted &&
+        !latest.isCancelled &&
+        latest.canNavigate;
+    final showReject = !latest.isCompleted &&
+        !latest.isCancelled &&
+        latest.canReject;
+    final showSticky = _busy ||
+        primaryCta != null ||
+        showNavigate ||
+        showReject;
+
     return Scaffold(
-      backgroundColor: AppColors.surface,
-      appBar: AppBar(
-        title: const Text('Trip Details'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.more_vert_rounded),
-            onPressed: () {},
-          ),
-        ],
-      ),
+      backgroundColor: context.sg.surface,
+      appBar: AppBar(title: const Text('Trip details')),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
         children: [
           SgCard(
+            padding: const EdgeInsets.all(AppSpacing.md),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -167,52 +210,62 @@ class _TripDetailContentState extends ConsumerState<_TripDetailContent> {
                     Expanded(
                       child: Text(
                         latest.bookingNumber,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.textPrimary,
-                        ),
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                              color: context.sg.textPrimary,
+                              fontWeight: FontWeight.w800,
+                            ),
                       ),
                     ),
                     StatusBadge(status),
                   ],
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 4),
+                Text(
+                  latest.scheduledDateLabel,
+                  style: TextStyle(
+                    color: context.sg.textPrimary,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 2),
                 Text(
                   latest.source.isNotEmpty ? latest.source : 'Transfer',
-                  style: const TextStyle(
-                    color: AppColors.textSecondary,
+                  style: TextStyle(
+                    color: context.sg.textSecondary,
                     fontWeight: FontWeight.w500,
+                    fontSize: 13,
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 10),
           SgCard(
+            padding: const EdgeInsets.all(AppSpacing.md),
             child: Column(
               children: [
                 _TimelineStop(
                   title: 'Pickup',
                   subtitle: pickup,
-                  time: timeFmt.format(latest.pickupTime.toLocal()),
+                  time: latest.pickupDateTimeLabel,
+                  timeEmphasis: latest.isPickupOverdue,
                   color: AppColors.success,
                   isFirst: true,
                 ),
                 _TimelineStop(
                   title: 'Drop-off',
                   subtitle: drop,
-                  time: latest.dropoffTime != null
-                      ? timeFmt.format(latest.dropoffTime!.toLocal())
-                      : '—',
+                  time: latest.dropoffDateTimeLabel,
                   color: AppColors.error,
                   isLast: true,
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 10),
           SgCard(
+            padding: const EdgeInsets.all(AppSpacing.md),
             child: Column(
               children: [
                 _InfoGridRow('Customer', latest.customerName),
@@ -224,66 +277,64 @@ class _TripDetailContentState extends ConsumerState<_TripDetailContent> {
                   'Fare',
                   'PKR ${NumberFormat('#,##0.00').format(latest.totalAmount)}',
                 ),
-                _InfoGridRow('Source', latest.source),
+                _InfoGridRow('Source', latest.source, isLast: true),
               ],
             ),
           ),
-          const SizedBox(height: 24),
-          if (_busy)
-            const Center(child: CircularProgressIndicator())
-          else ...[
-            // One primary lifecycle CTA at a time (Accept → Arrived → Onboard → Complete).
-            // Backend may return multiple nextActions; stacking them confuses drivers.
-            if (latest.isCompleted) ...[
-              Text(
-                'This trip is already completed.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                    color: AppColors.textSecondary.withValues(alpha: 0.95)),
-              ),
-            ] else if (latest.canAccept) ...[
-              SgPrimaryButton(
-                label: 'Accept Trip',
-                onPressed: () => _run('Accept'),
-              ),
-            ] else if (latest.canArrive) ...[
-              SgPrimaryButton(
-                label: 'Arrived at Pickup',
-                icon: Icons.place_outlined,
-                onPressed: () => _run('Arrived'),
-              ),
-            ] else if (latest.canOnboard) ...[
-              SgPrimaryButton(
-                label: 'Passenger Onboard',
-                icon: Icons.airline_seat_recline_normal,
-                onPressed: () => _run('Onboard'),
-              ),
-            ] else if (latest.canComplete) ...[
-              SgPrimaryButton(
-                label: 'Complete Trip',
-                icon: Icons.check_circle_outline,
-                onPressed: () => _run('Complete'),
-              ),
-            ],
-            if (!latest.isCompleted && latest.canNavigate) ...[
-              const SizedBox(height: 10),
-              OutlinedButton.icon(
-                onPressed: () =>
-                    context.push('/trips/${latest.id}/navigate'),
-                icon: const Icon(Icons.near_me_rounded),
-                label: const Text('NAVIGATE'),
-              ),
-            ],
-            if (!latest.isCompleted && latest.canReject) ...[
-              const SizedBox(height: 10),
-              SgDangerOutlineButton(
-                label: 'Reject Trip',
-                onPressed: () => _confirmReject(latest),
-              ),
-            ],
+          const SizedBox(height: 10),
+          TripMapPreviewCard(
+            trip: latest,
+            onTap: showNavigate && !_busy
+                ? () => _openNavigate(latest)
+                : null,
+          ),
+          if (latest.isCompleted) ...[
+            const SizedBox(height: 16),
+            Text(
+              'This trip is already completed.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: context.sg.textSecondary),
+            ),
           ],
         ],
       ),
+      bottomNavigationBar: showSticky
+          ? SgStickyActionBar(
+              child: _busy && primaryCta == null
+                  ? const Center(
+                      child: SizedBox(
+                        height: 28,
+                        width: 28,
+                        child: CircularProgressIndicator(strokeWidth: 2.5),
+                      ),
+                    )
+                  : Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        if (primaryCta != null) primaryCta,
+                        if (showNavigate) ...[
+                          if (primaryCta != null) const SizedBox(height: 8),
+                          OutlinedButton.icon(
+                            onPressed:
+                                _busy ? null : () => _openNavigate(latest),
+                            icon: const Icon(Icons.near_me_rounded),
+                            label: const Text('Navigate'),
+                          ),
+                        ],
+                        if (showReject) ...[
+                          if (primaryCta != null || showNavigate)
+                            const SizedBox(height: 8),
+                          SgDangerOutlineButton(
+                            label: 'Reject trip',
+                            onPressed:
+                                _busy ? null : () => _confirmReject(latest),
+                          ),
+                        ],
+                      ],
+                    ),
+            )
+          : null,
     );
   }
 }
@@ -294,6 +345,7 @@ class _TimelineStop extends StatelessWidget {
     required this.subtitle,
     required this.time,
     required this.color,
+    this.timeEmphasis = false,
     this.isFirst = false,
     this.isLast = false,
   });
@@ -302,6 +354,7 @@ class _TimelineStop extends StatelessWidget {
   final String subtitle;
   final String time;
   final Color color;
+  final bool timeEmphasis;
   final bool isFirst;
   final bool isLast;
 
@@ -349,41 +402,38 @@ class _TimelineStop extends StatelessWidget {
           Expanded(
             child: Padding(
               padding: EdgeInsets.only(
-                top: isFirst ? 0 : 12,
-                bottom: isLast ? 0 : 12,
+                top: isFirst ? 0 : 8,
+                bottom: isLast ? 0 : 8,
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          title,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                      ),
-                      Text(
-                        time,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                    ],
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: context.sg.textSecondary,
+                    ),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     subtitle,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary,
+                      color: context.sg.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    time,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: timeEmphasis
+                          ? AppColors.warning
+                          : context.sg.textSecondary,
                     ),
                   ),
                 ],
@@ -397,22 +447,24 @@ class _TimelineStop extends StatelessWidget {
 }
 
 class _InfoGridRow extends StatelessWidget {
-  const _InfoGridRow(this.label, this.value);
+  const _InfoGridRow(this.label, this.value, {this.isLast = false});
   final String label;
   final String value;
+  final bool isLast;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: EdgeInsets.only(top: 6, bottom: isLast ? 0 : 6),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            width: 100,
+            width: 88,
             child: Text(
               label,
-              style: const TextStyle(
-                color: AppColors.textSecondary,
+              style: TextStyle(
+                color: context.sg.textSecondary,
                 fontSize: 13,
               ),
             ),
@@ -421,8 +473,8 @@ class _InfoGridRow extends StatelessWidget {
             child: Text(
               value,
               textAlign: TextAlign.right,
-              style: const TextStyle(
-                color: AppColors.textPrimary,
+              style: TextStyle(
+                color: context.sg.textPrimary,
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
               ),

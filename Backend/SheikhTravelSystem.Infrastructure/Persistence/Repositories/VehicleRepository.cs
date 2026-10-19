@@ -78,6 +78,24 @@ public sealed class VehicleRepository(IDbConnectionFactory dbFactory) : IVehicle
             throw new NotFoundException("Vehicle", id);
     }
 
+    public async Task<bool> RegistrationExistsAsync(
+        int tenantId, string registrationNumber, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(registrationNumber))
+            return false;
+
+        using var connection = dbFactory.CreateConnection();
+        return await connection.ExecuteScalarAsync<bool>(new CommandDefinition(
+            """
+            SELECT CASE WHEN EXISTS(
+                SELECT 1 FROM Vehicles
+                WHERE RegistrationNumber = @Reg AND IsDeleted = 0 AND TenantId = @TenantId
+            ) THEN 1 ELSE 0 END
+            """,
+            new { Reg = registrationNumber.Trim(), TenantId = tenantId },
+            cancellationToken: cancellationToken));
+    }
+
     public async Task<int> CreateAsync(
         int tenantId, CreateVehicleDto dto, bool saveAsDraft, CancellationToken cancellationToken = default)
     {
@@ -89,13 +107,7 @@ public sealed class VehicleRepository(IDbConnectionFactory dbFactory) : IVehicle
 
         if (!saveAsDraft || !registration.StartsWith("DRAFT-", StringComparison.Ordinal))
         {
-            var exists = await connection.ExecuteScalarAsync<bool>(
-                new CommandDefinition(
-                    "SELECT CASE WHEN EXISTS(SELECT 1 FROM Vehicles WHERE RegistrationNumber = @Reg AND IsDeleted = 0 AND TenantId = @TenantId) THEN 1 ELSE 0 END",
-                    new { Reg = registration, TenantId = tenantId },
-                    cancellationToken: cancellationToken));
-
-            if (exists)
+            if (await RegistrationExistsAsync(tenantId, registration, cancellationToken))
                 throw new ConflictException($"Vehicle with registration '{registration}' already exists.");
         }
 

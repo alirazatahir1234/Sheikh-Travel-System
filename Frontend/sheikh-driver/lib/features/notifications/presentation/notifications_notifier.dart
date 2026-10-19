@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../dashboard/presentation/dashboard_notifier.dart';
 import '../data/notifications_api.dart';
 import '../domain/notification_models.dart';
 
@@ -64,7 +65,7 @@ List<AppNotification> _dedupeByReferenceAndType(List<AppNotification> items) {
 
 final unreadNotificationsCountProvider =
     FutureProvider.autoDispose<int>((ref) async {
-  ref.watch(notificationsListProvider);
+  // Keep badge alive with the shell; refresh via invalidate() after mark-read / FCM.
   return ref.read(notificationsApiProvider).unreadCount();
 });
 
@@ -105,6 +106,8 @@ class NotificationsActions {
   void _refresh() {
     _ref.invalidate(notificationsListProvider);
     _ref.invalidate(unreadNotificationsCountProvider);
+    // Dashboard "Alerts" KPI is a separate snapshot; refresh it too.
+    _ref.invalidate(dashboardProvider);
   }
 
   Future<void> markRead(int id) async {
@@ -113,7 +116,8 @@ class NotificationsActions {
   }
 
   Future<void> markAllRead() async {
-    await _api.markRead(null);
+    // Empty list = mark all on the API (null body can fail model binding).
+    await _api.markRead(const []);
     _refresh();
   }
 

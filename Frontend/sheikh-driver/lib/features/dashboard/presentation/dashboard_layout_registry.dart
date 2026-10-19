@@ -69,16 +69,17 @@ abstract final class DashboardLayoutRegistry {
           DashboardWidgetId.liveMapPreview,
           DashboardWidgetId.quickActions,
         ];
+      case DashboardRole.owner:
       case DashboardRole.tenantAdmin:
       case DashboardRole.superAdmin:
         return const [
           DashboardWidgetId.opsHeader,
-          DashboardWidgetId.platformBanner,
           DashboardWidgetId.universalSearchBar,
           DashboardWidgetId.fleetHealthHeader,
           DashboardWidgetId.fleetStatsStrip,
           DashboardWidgetId.opsKpiGrid,
-          DashboardWidgetId.mapSummaryCard,
+          DashboardWidgetId.liveMapPreview,
+          DashboardWidgetId.fuelSummary,
           DashboardWidgetId.aiAttention,
           DashboardWidgetId.criticalAlertsList,
           DashboardWidgetId.attentionVehicles,
@@ -145,29 +146,52 @@ abstract final class DashboardLayoutRegistry {
             route: '/attendance',
           ),
         ];
-      case DashboardRole.fleetManager:
-      case DashboardRole.tenantAdmin:
-      case DashboardRole.superAdmin:
+      case DashboardRole.owner:
         return const [
           DashboardQuickAction(
-            label: 'Fleet',
-            iconName: 'local_shipping',
-            route: '/fleet',
-          ),
-          DashboardQuickAction(
-            label: 'Map',
+            label: 'Live Map',
             iconName: 'map',
             route: '/fleet/map',
+          ),
+          DashboardQuickAction(
+            label: 'Drivers',
+            iconName: 'groups',
+            route: '/more/drivers',
+          ),
+          DashboardQuickAction(
+            label: 'Fuel',
+            iconName: 'local_gas_station',
+            route: '/fuel',
           ),
           DashboardQuickAction(
             label: 'Alerts',
             iconName: 'warning',
             route: '/alerts',
           ),
+        ];
+      case DashboardRole.fleetManager:
+      case DashboardRole.tenantAdmin:
+      case DashboardRole.superAdmin:
+        return const [
           DashboardQuickAction(
-            label: 'Trips',
-            iconName: 'route',
-            route: '/trips',
+            label: 'Live Map',
+            iconName: 'map',
+            route: '/fleet/map',
+          ),
+          DashboardQuickAction(
+            label: 'Drivers',
+            iconName: 'groups',
+            route: '/more/drivers',
+          ),
+          DashboardQuickAction(
+            label: 'Fuel',
+            iconName: 'local_gas_station',
+            route: '/fuel',
+          ),
+          DashboardQuickAction(
+            label: 'Alerts',
+            iconName: 'warning',
+            route: '/alerts',
           ),
         ];
       case DashboardRole.gpsOperator:

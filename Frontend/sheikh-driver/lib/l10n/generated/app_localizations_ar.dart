@@ -9,7 +9,7 @@ class AppLocalizationsAr extends AppLocalizations {
   AppLocalizationsAr([String locale = 'ar']) : super(locale);
 
   @override
-  String get appTitle => 'شيخ جو فليت';
+  String get appTitle => 'شيخ جو للتتبع';
 
   @override
   String get settings => 'الإعدادات';
@@ -62,7 +62,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get biometricEnableFailed => 'تعذر تفعيل القفل البيومتري';
 
   @override
-  String get unlockTitle => 'فتح شيخ جو فليت';
+  String get unlockTitle => 'فتح شيخ جو للتتبع';
 
   @override
   String get unlockSubtitle => 'قم بالمصادقة للمتابعة';

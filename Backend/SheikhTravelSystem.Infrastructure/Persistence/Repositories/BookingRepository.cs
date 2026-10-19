@@ -270,7 +270,17 @@ public sealed class BookingRepository(
                 new { DriverId = driverId, Now = DateTime.UtcNow, Id = bookingId, TenantId = tenantId },
                 cancellationToken: cancellationToken));
 
-        return BookingMutationResult.Ok();
+        var meta = await connection.QuerySingleOrDefaultAsync<(string? BookingNumber, int? DriverUserId)>(
+            new CommandDefinition("""
+                SELECT b.BookingNumber, d.UserId AS DriverUserId
+                FROM Bookings b
+                LEFT JOIN Drivers d ON d.Id = @DriverId
+                WHERE b.Id = @BookingId AND b.TenantId = @TenantId
+                """,
+                new { BookingId = bookingId, DriverId = driverId, TenantId = tenantId },
+                cancellationToken: cancellationToken));
+
+        return BookingMutationResult.Ok(meta.BookingNumber, meta.DriverUserId);
     }
 
     public async Task<BookingMutationResult> AssignVehicleAsync(

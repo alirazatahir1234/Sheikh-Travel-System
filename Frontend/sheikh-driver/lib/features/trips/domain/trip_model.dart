@@ -1,3 +1,5 @@
+import 'package:intl/intl.dart';
+
 class Trip {
   const Trip({
     required this.id,
@@ -30,6 +32,10 @@ class Trip {
     this.paymentRequired = false,
     this.paymentStatus = 'Pending',
   });
+
+  /// Sentinel used when [pickupTime] is missing from the API payload.
+  static final DateTime missingPickupTime =
+      DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);
 
   final int id;
   final String bookingNumber;
@@ -79,7 +85,11 @@ class Trip {
   bool get canArrive => nextActions.contains('Arrived');
   bool get canOnboard => nextActions.contains('Onboard');
   bool get canComplete => nextActions.contains('Complete');
-  bool get canReject => nextActions.contains('Reject');
+
+  /// Reject is only valid before acceptance (Accept + Reject).
+  /// Backend may still list Reject after Started; never show it once accepted.
+  bool get canReject =>
+      nextActions.contains('Reject') && nextActions.contains('Accept');
 
   bool get hasPickupCoords =>
       pickupLatitude != null &&
@@ -91,13 +101,65 @@ class Trip {
       dropLongitude != null &&
       !(dropLatitude == 0 && dropLongitude == 0);
 
+  /// True when the trip DTO already has at least one usable lat/lng pair.
+  /// Map previews must not invent or geocode coordinates client-side.
+  bool get hasMapPreviewCoords => hasPickupCoords || hasDropCoords;
+
   bool get canNavigate =>
       hasPickupCoords ||
       hasDropCoords ||
       (googleDirectionsUrl != null && googleDirectionsUrl!.isNotEmpty);
 
+  /// After onboard / enroute, external Navigate should target drop-off.
+  bool get shouldNavigateToDropoff =>
+      lifecycleStatus == 7 || // Enroute
+      canComplete;
+
+  /// True when [pickupTime] came from the API (not the missing-date sentinel).
+  bool get hasScheduledPickup =>
+      pickupTime.millisecondsSinceEpoch != missingPickupTime.millisecondsSinceEpoch;
+
+  /// Pickup instant in the device local timezone (safe for UTC or local ISO).
+  DateTime get pickupTimeLocal => pickupTime.toLocal();
+
+  /// Drop-off instant in the device local timezone, if provided by the API.
+  DateTime? get dropoffTimeLocal => dropoffTime?.toLocal();
+
+  /// e.g. `Wednesday, 15 October 2026`
+  String get scheduledDateLabel => hasScheduledPickup
+      ? DateFormat('EEEE, d MMMM yyyy').format(pickupTimeLocal)
+      : 'Date unavailable';
+
+  /// Time-only under pickup (full date lives under booking ID).
+  /// e.g. `12:36 PM` or `12:36 PM · Overdue`
+  String get pickupDateTimeLabel {
+    if (!hasScheduledPickup) return 'Time unavailable';
+    final time = DateFormat('h:mm a').format(pickupTimeLocal);
+    return isPickupOverdue ? '$time · Overdue' : time;
+  }
+
+  /// True when scheduled pickup is in the past and the trip is still active.
+  bool get isPickupOverdue =>
+      hasScheduledPickup &&
+      !isCompleted &&
+      !isCancelled &&
+      pickupTimeLocal.isBefore(DateTime.now());
+
+  /// Scheduled/estimated drop-off time only, or `ETA pending` (never invent).
+  String get dropoffDateTimeLabel => dropoffTimeLocal != null
+      ? DateFormat('h:mm a').format(dropoffTimeLocal!)
+      : 'ETA pending';
   /// Id to use for lifecycle API calls (operational trip id preferred).
   int get actionId => tripId ?? id;
+
+  /// Booking id for ETA / GPS endpoints that require `bookingId`.
+  int get etaBookingId => bookingId ?? id;
+
+  /// Stable route id for in-app navigation (list/detail/navigate/payment).
+  int get routeId => id;
+
+  bool matchesRouteId(int routeId) =>
+      id == routeId || bookingId == routeId || tripId == routeId;
 
   factory Trip.fromJson(Map<String, dynamic> json) {
     final actionsRaw = json['nextActions'];
@@ -112,11 +174,10 @@ class Trip {
       bookingNumber: json['bookingNumber'] as String? ?? '',
       customerName: json['customerName'] as String? ?? '',
       routeName: json['routeName'] as String? ?? '',
-      pickupTime: DateTime.tryParse(json['pickupTime']?.toString() ?? '') ??
-          DateTime.now(),
-      dropoffTime: json['dropoffTime'] != null
-          ? DateTime.tryParse(json['dropoffTime'].toString())
-          : null,
+      pickupTime: _parseDateTime(json['pickupTime'] ?? json['PickupTime']) ??
+          missingPickupTime,
+      dropoffTime:
+          _parseDateTime(json['dropoffTime'] ?? json['DropoffTime']),
       status: json['status'] as int? ?? 0,
       statusName: json['statusName'] as String? ?? '',
       vehicleId: json['vehicleId'] as int?,
@@ -142,5 +203,15 @@ class Trip {
       paymentRequired: json['paymentRequired'] as bool? ?? false,
       paymentStatus: json['paymentStatus'] as String? ?? 'Pending',
     );
+  }
+
+  /// Parses API date strings. Keeps UTC when the payload includes a zone (`Z` /
+  /// offset) so [toLocal] converts once; zone-less values stay as local wall time.
+  static DateTime? _parseDateTime(Object? raw) {
+    if (raw == null) return null;
+    if (raw is DateTime) return raw;
+    final text = raw.toString().trim();
+    if (text.isEmpty) return null;
+    return DateTime.tryParse(text);
   }
 }

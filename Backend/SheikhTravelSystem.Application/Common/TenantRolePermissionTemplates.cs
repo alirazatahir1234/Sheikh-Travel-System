@@ -22,7 +22,8 @@ public static class TenantRolePermissionTemplates
         "Gps.AlertView", "Gps.AlertAcknowledge", "Gps.AlertResolve", "Gps.AlertArchive", "Gps.AlertDelete",
         "Maintenance.WorkOrder.Manage", "Maintenance.Workshop.Manage", "Maintenance.Vendor.Manage", "Maintenance.Report.View",
         "Customer.View", "Customer.Create", "Customer.Update", "Customer.Delete",
-        "Payment.View", "Payment.Create", "Payment.Update", "Invoice.View", "Report.View",
+        "Payment.View", "Payment.Create", "Payment.Update",
+        "Invoice.View", "Invoice.Manage", "Settlement.View", "Settlement.Manage", "Report.View",
         "Gps.CommandView", "Gps.CommandSend", "Gps.CommandEngineCutoff", "Gps.CommandPositionRequest",
         "Gps.CommandRestart", "Gps.CommandRelay", "Gps.CommandBuzzer", "Gps.CommandCustomSms", "Gps.CommandRetry", "Gps.CommandCancel",
         "Ai.View", "Ai.Manage", "Ai.ExecuteWrite",
@@ -31,6 +32,24 @@ public static class TenantRolePermissionTemplates
         "Notification.View", "Notification.Manage",
         "Website.View", "Website.Edit", "Website.Publish", "Website.Media",
         "Website.ContactRequests", "Website.DemoRequests", "Website.Legal", "Website.Settings"
+    ];
+
+    /// <summary>
+    /// Company owner (mobile SheikhGo Tracking) — live fleet map, drivers, fuel, trips overview.
+    /// Narrower than TENANT_ADMIN (no platform user/role admin).
+    /// </summary>
+    public static readonly string[] Owner =
+    [
+        "Platform.Dashboard.View", "Platform.Branches.View",
+        "Vehicle.View", "Driver.View", "Driver.ViewPerformance",
+        "Trip.View", "GPS.View", "Report.View",
+        "Fuel.View", "Fuel.Create", "Fuel.Update",
+        "Gps.AlertView", "Gps.AlertAcknowledge", "Gps.AlertResolve", "Gps.AlertArchive",
+        "Gps.CommandView", "Gps.CommandSend", "Gps.CommandPositionRequest",
+        "Maintenance.View", "Maintenance.Report.View",
+        "Settlement.View", "Payment.View", "Invoice.View",
+        "Ai.View", "Ai.Chat", "Ai.ViewPredictions", "Ai.ViewRecommendations",
+        "Notification.View"
     ];
 
     public static readonly string[] FleetManager =
@@ -90,7 +109,8 @@ public static class TenantRolePermissionTemplates
 
     public static readonly string[] Accountant =
     [
-        "Platform.Dashboard.View", "Payment.View", "Payment.Create", "Payment.Update", "Invoice.View", "Report.View",
+        "Platform.Dashboard.View", "Payment.View", "Payment.Create", "Payment.Update",
+        "Invoice.View", "Invoice.Manage", "Settlement.View", "Settlement.Manage", "Report.View",
         "Fuel.View", "Fuel.Create", "Fuel.Update",
         "Maintenance.Report.View", "Maintenance.View",
         "Notification.View"
@@ -107,6 +127,7 @@ public static class TenantRolePermissionTemplates
     public static IReadOnlyList<(string RoleCode, string[] Permissions)> StandardRoles { get; } =
     [
         ("TENANT_ADMIN", TenantAdmin),
+        ("OWNER", Owner),
         ("FLEET_MANAGER", FleetManager),
         ("DRIVER_MANAGER", DriverManager),
         ("DISPATCHER", Dispatcher),

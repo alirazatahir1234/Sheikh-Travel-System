@@ -15,7 +15,8 @@ public record PortalPaymentCheckoutDto(string CheckoutUrl, string SessionId, str
 public class CreatePortalPaymentCheckoutCommandHandler(
     IPaymentGatewayService gateway,
     IConfiguration configuration,
-    ICustomerPortalRepository portalRepository)
+    ICustomerPortalRepository portalRepository,
+    ITenantContext tenantContext)
     : IRequestHandler<CreatePortalPaymentCheckoutCommand, ApiResponse<PortalPaymentCheckoutDto>>
 {
     public async Task<ApiResponse<PortalPaymentCheckoutDto>> Handle(
@@ -30,7 +31,7 @@ public class CreatePortalPaymentCheckoutCommandHandler(
             return ApiResponse<PortalPaymentCheckoutDto>.FailResponse("Portal customer token is missing a phone number.");
 
         if (!await portalRepository.CustomerOwnsBookingAsync(
-                request.BookingId, request.Phone, request.CustomerId, cancellationToken))
+                tenantContext.GetRequiredTenantId(), request.BookingId, request.Phone, request.CustomerId, cancellationToken))
             return ApiResponse<PortalPaymentCheckoutDto>.FailResponse("Booking not found for this phone number.");
 
         var booking = await portalRepository.GetCheckoutBookingAsync(request.BookingId, cancellationToken);

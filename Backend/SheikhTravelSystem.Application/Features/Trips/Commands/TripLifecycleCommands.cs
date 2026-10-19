@@ -215,7 +215,9 @@ public record CreateTripFromBookingCommand(int BookingId) : IRequest<ApiResponse
     public int? AuditEntityId => null;
 }
 
-public class CreateTripFromBookingCommandHandler(ITripRepository tripRepository)
+public class CreateTripFromBookingCommandHandler(
+    ITripRepository tripRepository,
+    INotificationDecisionEngine decisionEngine)
     : IRequestHandler<CreateTripFromBookingCommand, ApiResponse<int>>
 {
     public async Task<ApiResponse<int>> Handle(CreateTripFromBookingCommand request, CancellationToken cancellationToken)
@@ -225,7 +227,13 @@ public class CreateTripFromBookingCommandHandler(ITripRepository tripRepository)
         if (seed.ExistingTripId is int existingId)
             return ApiResponse<int>.SuccessResponse(existingId, "Trip already exists for this booking.");
 
-        var id = await tripRepository.CreateAsync(seed.Seed!, cancellationToken);
+        var dto = seed.Seed!;
+        var id = await tripRepository.CreateAsync(dto, cancellationToken);
+        var tripNumber = $"TR-{DateTime.UtcNow.Year}-{id:D4}";
+
+        await TripCreationNotifications.DispatchAsync(
+            decisionEngine, id, tripNumber, dto.DriverId, cancellationToken);
+
         return ApiResponse<int>.SuccessResponse(id, "Trip created successfully.");
     }
 }

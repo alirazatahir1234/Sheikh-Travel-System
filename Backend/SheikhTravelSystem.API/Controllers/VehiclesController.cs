@@ -41,6 +41,11 @@ public class VehiclesController : BaseApiController
         return CreatedAtAction(nameof(GetById), new { id = result.Data }, result);
     }
 
+    [RequirePermission(FleetPermissions.VehicleCreate)]
+    [HttpPost("bulk")]
+    public async Task<IActionResult> BulkCreate([FromBody] BulkCreateVehiclesCommand command)
+        => Ok(await Mediator.Send(command));
+
     /// <summary>
     /// Updates an existing vehicle by identifier.
     /// </summary>

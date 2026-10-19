@@ -2,6 +2,8 @@ abstract class ApiEndpoints {
   // Auth
   static const staffLogin = '/auth/login';
   static const driverLogin = '/driver-app/auth/login';
+  static const driverForgotPassword = '/driver-app/auth/forgot-password';
+  static const driverResetPassword = '/driver-app/auth/reset-password';
   static const refreshToken = '/auth/refresh-token';
   static const logout = '/auth/logout';
   static const authMe = '/auth/me';
@@ -68,6 +70,7 @@ abstract class ApiEndpoints {
 
   // Earnings
   static const earnings = '/driver-app/earnings';
+  static const settlements = '/driver-app/settlements';
 
   // Device registration / security
   static const deviceRegister = '/driver-app/devices/register';
@@ -78,6 +81,10 @@ abstract class ApiEndpoints {
 
   /// ERP GPS Tracking module — same endpoint used by live map ETA.
   static const gpsEta = '/gps/eta';
+
+  /// Server-side Routes proxy. Returns an encoded road polyline.
+  /// One call per Trip Details view; the phone does not call Places or Geocoding.
+  static const gpsPlannedRoute = '/gps/maps/planned-route';
   static const gpsLive = '/gps/live';
   static const gpsFleetStatusLocal = '/gps/dashboard/fleet-status-local';
   static const gpsOperatorSummary = '/gps/dashboard/operator-summary';

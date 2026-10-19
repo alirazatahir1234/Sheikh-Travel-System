@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
@@ -32,9 +31,13 @@ class _FuelScreenState extends ConsumerState<FuelScreen> {
   final _picker = ImagePicker();
   final _money = NumberFormat('#,##0.00');
 
-  double get _total =>
-      (double.tryParse(_litersCtrl.text) ?? 0) *
-      (double.tryParse(_priceCtrl.text) ?? 0);
+  double get _total {
+    final liters =
+        double.tryParse(_litersCtrl.text.trim().replaceAll(',', '.')) ?? 0;
+    final price =
+        double.tryParse(_priceCtrl.text.trim().replaceAll(',', '.')) ?? 0;
+    return liters * price;
+  }
 
   @override
   void dispose() {
@@ -176,9 +179,10 @@ class _FuelScreenState extends ConsumerState<FuelScreen> {
 
     await ref.read(fuelNotifierProvider.notifier).submit(
           vehicleId: _vehicleId!,
-          liters: double.parse(_litersCtrl.text),
-          pricePerLiter: double.parse(_priceCtrl.text),
-          odometerReading: double.parse(_odoCtrl.text),
+          liters: double.parse(_litersCtrl.text.trim().replaceAll(',', '.')),
+          pricePerLiter:
+              double.parse(_priceCtrl.text.trim().replaceAll(',', '.')),
+          odometerReading: double.parse(_odoCtrl.text.trim()),
           station: _stationCtrl.text.trim(),
           fuelType: _fuelType,
           receipt: _receiptImage,
@@ -212,7 +216,7 @@ class _FuelScreenState extends ConsumerState<FuelScreen> {
     });
 
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor: context.sg.surface,
       appBar: AppBar(
         title: const Text('Fuel Receipt'),
         actions: [
@@ -271,9 +275,9 @@ class _FuelScreenState extends ConsumerState<FuelScreen> {
                         style: const TextStyle(color: AppColors.error)),
                     data: (vehicles) {
                       if (vehicles.isEmpty) {
-                        return const Text(
+                        return Text(
                           'No vehicles available. Assign a vehicle to a trip first.',
-                          style: TextStyle(color: AppColors.textSecondary),
+                          style: TextStyle(color: context.sg.textSecondary),
                         );
                       }
                       _vehicleId ??= vehicles.first.id;
@@ -313,83 +317,87 @@ class _FuelScreenState extends ConsumerState<FuelScreen> {
                     }).toList(),
                   ),
                   const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _Field(
-                          controller: _litersCtrl,
-                          label: 'Liters',
-                          suffix: 'L',
-                          keyboardType: const TextInputType.numberWithOptions(
-                              decimal: true),
-                          onChanged: (_) => setState(() {}),
-                          validator: (v) {
-                            if (v == null || v.isEmpty) return 'Required';
-                            if (double.tryParse(v) == null) return 'Invalid';
-                            return null;
-                          },
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _Field(
-                          controller: _priceCtrl,
-                          label: 'Price / Liter',
-                          prefix: 'PKR ',
-                          keyboardType: const TextInputType.numberWithOptions(
-                              decimal: true),
-                          onChanged: (_) => setState(() {}),
-                          validator: (v) {
-                            if (v == null || v.isEmpty) return 'Required';
-                            if (double.tryParse(v) == null) return 'Invalid';
-                            return null;
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.06),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                          color: AppColors.primary.withValues(alpha: 0.2)),
-                    ),
-                    child: Row(
-                      children: [
-                        const Text('Total Cost',
-                            style: TextStyle(
-                                color: AppColors.textSecondary, fontSize: 13)),
-                        const Spacer(),
-                        Text(
-                          'PKR ${_money.format(_total)}',
-                          style: const TextStyle(
-                              fontWeight: FontWeight.w700,
-                              fontSize: 18,
-                              color: AppColors.primary),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  _Field(
-                    controller: _odoCtrl,
-                    label: 'Odometer Reading',
-                    suffix: 'km',
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  // Tap-to-enter amount sheet avoids the floating keyboard side
+                  // toolbar (mic / emoji strip) that covers the left of these fields.
+                  _AmountField(
+                    controller: _litersCtrl,
+                    label: 'Liters',
+                    unit: 'L',
+                    helperExample: 'e.g. 35',
                     validator: (v) {
-                      if (v == null || v.isEmpty) return 'Required';
+                      if (v == null || v.trim().isEmpty) return 'Required';
+                      final n = double.tryParse(v.trim().replaceAll(',', '.'));
+                      if (n == null || n <= 0) return 'Enter liters';
                       return null;
                     },
                   ),
                   const SizedBox(height: 12),
-                  _Field(
+                  _AmountField(
+                    controller: _priceCtrl,
+                    label: 'Price / Liter',
+                    unit: 'PKR',
+                    helperExample: 'e.g. 280',
+                    validator: (v) {
+                      if (v == null || v.trim().isEmpty) return 'Required';
+                      final n = double.tryParse(v.trim().replaceAll(',', '.'));
+                      if (n == null || n < 0) return 'Invalid price';
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  ListenableBuilder(
+                    listenable: Listenable.merge([_litersCtrl, _priceCtrl]),
+                    builder: (context, _) {
+                      return Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.06),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                              color: AppColors.primary.withValues(alpha: 0.2)),
+                        ),
+                        child: Row(
+                          children: [
+                            Text(
+                              'Total Cost',
+                              style: TextStyle(
+                                color: context.sg.textSecondary,
+                                fontSize: 13,
+                              ),
+                            ),
+                            const Spacer(),
+                            Text(
+                              'PKR ${_money.format(_total)}',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 18,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  _AmountField(
+                    controller: _odoCtrl,
+                    label: 'Odometer Reading',
+                    unit: 'km',
+                    helperExample: 'e.g. 45210',
+                    allowDecimal: false,
+                    validator: (v) {
+                      if (v == null || v.trim().isEmpty) return 'Required';
+                      if (int.tryParse(v.trim()) == null) return 'Invalid';
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  _TextSheetField(
                     controller: _stationCtrl,
                     label: 'Station Name',
+                    helperExample: 'e.g. PSO Shell Main',
                     validator: (v) =>
                         (v == null || v.trim().isEmpty) ? 'Required' : null,
                   ),
@@ -428,11 +436,11 @@ class _FuelScreenState extends ConsumerState<FuelScreen> {
               error: (e, _) => Text('$e'),
               data: (logs) {
                 if (logs.isEmpty) {
-                  return const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 16),
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
                     child: Text(
                       'No fuel receipts yet.',
-                      style: TextStyle(color: AppColors.textSecondary),
+                      style: TextStyle(color: context.sg.textSecondary),
                     ),
                   );
                 }
@@ -590,15 +598,15 @@ class _ReceiptPhotoWidget extends StatelessWidget {
             Icon(Icons.camera_alt_outlined,
                 size: 36, color: AppColors.primary.withValues(alpha: 0.6)),
             const SizedBox(height: 8),
-            const Text(
+            Text(
               'Add receipt photo (required)',
-              style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+              style: TextStyle(color: context.sg.textSecondary, fontSize: 13),
             ),
             const SizedBox(height: 4),
             Text(
               'Camera or gallery · auto-compressed',
               style: TextStyle(
-                color: AppColors.textSecondary.withValues(alpha: 0.8),
+                color: context.sg.textSecondary.withValues(alpha: 0.8),
                 fontSize: 11,
               ),
             ),
@@ -674,39 +682,443 @@ class _NetworkPreviewPage extends StatelessWidget {
   }
 }
 
-class _Field extends StatelessWidget {
-  const _Field({
+/// Tap field → bottom-sheet number pad (avoids floating keyboard side toolbar).
+class _AmountField extends StatelessWidget {
+  const _AmountField({
     required this.controller,
     required this.label,
-    this.suffix,
-    this.prefix,
-    this.keyboardType,
-    this.inputFormatters,
-    this.validator,
-    this.onChanged,
+    required this.unit,
+    required this.validator,
+    this.helperExample,
+    this.allowDecimal = true,
   });
 
   final TextEditingController controller;
   final String label;
-  final String? suffix;
-  final String? prefix;
-  final TextInputType? keyboardType;
-  final List<TextInputFormatter>? inputFormatters;
+  final String unit;
+  final String? helperExample;
+  final bool allowDecimal;
   final String? Function(String?)? validator;
-  final void Function(String)? onChanged;
+
+  Future<void> _openPad(BuildContext context) async {
+    final result = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (ctx) => _AmountPadSheet(
+        title: label,
+        unit: unit,
+        initialValue: controller.text,
+        allowDecimal: allowDecimal,
+      ),
+    );
+    if (result != null) {
+      controller.text = result;
+      controller.selection =
+          TextSelection.collapsed(offset: controller.text.length);
+    }
+  }
 
   @override
-  Widget build(BuildContext context) => TextFormField(
-        controller: controller,
-        keyboardType: keyboardType,
-        inputFormatters: inputFormatters,
-        onChanged: onChanged,
-        validator: validator,
-        decoration: InputDecoration(
-          labelText: label,
-          suffixText: suffix,
-          prefixText: prefix,
-          border: const OutlineInputBorder(),
-        ),
-      );
+  Widget build(BuildContext context) {
+    return FormField<String>(
+      validator: (_) => validator?.call(controller.text),
+      builder: (state) {
+        return ListenableBuilder(
+          listenable: controller,
+          builder: (context, _) {
+            final value = controller.text.trim();
+            return InkWell(
+              onTap: () async {
+                await _openPad(context);
+                state.didChange(controller.text);
+                state.validate();
+              },
+              borderRadius: BorderRadius.circular(8),
+              child: InputDecorator(
+                isEmpty: value.isEmpty,
+                decoration: InputDecoration(
+                  labelText: label,
+                  hintText: helperExample,
+                  errorText: state.errorText,
+                  suffixIcon: Padding(
+                    padding: const EdgeInsets.only(right: 12),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          unit,
+                          style: TextStyle(
+                            color: context.sg.textSecondary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Icon(
+                          Icons.dialpad_rounded,
+                          size: 20,
+                          color: context.sg.textSecondary,
+                        ),
+                      ],
+                    ),
+                  ),
+                  border: const OutlineInputBorder(),
+                  isDense: true,
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                ),
+                child: Text(
+                  value.isEmpty ? ' ' : value,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: value.isEmpty
+                        ? Colors.transparent
+                        : context.sg.textPrimary,
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+/// Tap field → bottom-sheet text entry (avoids floating keyboard side toolbar).
+class _TextSheetField extends StatelessWidget {
+  const _TextSheetField({
+    required this.controller,
+    required this.label,
+    required this.validator,
+    this.helperExample,
+  });
+
+  final TextEditingController controller;
+  final String label;
+  final String? helperExample;
+  final String? Function(String?)? validator;
+
+  Future<void> _openEditor(BuildContext context) async {
+    final result = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (ctx) => _TextEntrySheet(
+        title: label,
+        initialValue: controller.text,
+        hint: helperExample,
+      ),
+    );
+    if (result != null) {
+      controller.text = result;
+      controller.selection =
+          TextSelection.collapsed(offset: controller.text.length);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FormField<String>(
+      validator: (_) => validator?.call(controller.text),
+      builder: (state) {
+        return ListenableBuilder(
+          listenable: controller,
+          builder: (context, _) {
+            final value = controller.text.trim();
+            return InkWell(
+              onTap: () async {
+                await _openEditor(context);
+                state.didChange(controller.text);
+                state.validate();
+              },
+              borderRadius: BorderRadius.circular(8),
+              child: InputDecorator(
+                isEmpty: value.isEmpty,
+                decoration: InputDecoration(
+                  labelText: label,
+                  hintText: helperExample,
+                  errorText: state.errorText,
+                  suffixIcon: Icon(
+                    Icons.edit_outlined,
+                    size: 20,
+                    color: context.sg.textSecondary,
+                  ),
+                  border: const OutlineInputBorder(),
+                  isDense: true,
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                ),
+                child: Text(
+                  value.isEmpty ? ' ' : value,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: value.isEmpty
+                        ? Colors.transparent
+                        : context.sg.textPrimary,
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+class _TextEntrySheet extends StatefulWidget {
+  const _TextEntrySheet({
+    required this.title,
+    required this.initialValue,
+    this.hint,
+  });
+
+  final String title;
+  final String initialValue;
+  final String? hint;
+
+  @override
+  State<_TextEntrySheet> createState() => _TextEntrySheetState();
+}
+
+class _TextEntrySheetState extends State<_TextEntrySheet> {
+  late final TextEditingController _ctrl;
+  final _focus = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = TextEditingController(text: widget.initialValue);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _focus.requestFocus();
+    });
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    _focus.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottom = MediaQuery.viewInsetsOf(context).bottom;
+    return Padding(
+      padding: EdgeInsets.only(
+        left: 20,
+        right: 20,
+        top: 16,
+        bottom: bottom + MediaQuery.paddingOf(context).bottom + 16,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Center(
+            child: Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.black26,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            widget.title,
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _ctrl,
+            focusNode: _focus,
+            textInputAction: TextInputAction.done,
+            textCapitalization: TextCapitalization.words,
+            decoration: InputDecoration(
+              hintText: widget.hint,
+              border: const OutlineInputBorder(),
+            ),
+            onSubmitted: (v) => Navigator.pop(context, v.trim()),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 48,
+            child: FilledButton(
+              onPressed: () => Navigator.pop(context, _ctrl.text.trim()),
+              child: const Text('Done'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AmountPadSheet extends StatefulWidget {
+  const _AmountPadSheet({
+    required this.title,
+    required this.unit,
+    required this.initialValue,
+    this.allowDecimal = true,
+  });
+
+  final String title;
+  final String unit;
+  final String initialValue;
+  final bool allowDecimal;
+
+  @override
+  State<_AmountPadSheet> createState() => _AmountPadSheetState();
+}
+
+class _AmountPadSheetState extends State<_AmountPadSheet> {
+  late String _value;
+
+  @override
+  void initState() {
+    super.initState();
+    _value = widget.initialValue.trim().replaceAll(',', '.');
+    if (!widget.allowDecimal) {
+      _value = _value.split('.').first;
+    }
+  }
+
+  void _append(String ch) {
+    setState(() {
+      if (ch == '.') {
+        if (!widget.allowDecimal || _value.contains('.')) return;
+      }
+      if (_value == '0' && ch != '.') {
+        _value = ch;
+        return;
+      }
+      final next = '$_value$ch';
+      final normalized = next.replaceAll(',', '.');
+      final ok = widget.allowDecimal
+          ? RegExp(r'^\d*\.?\d{0,3}$').hasMatch(normalized)
+          : RegExp(r'^\d{0,9}$').hasMatch(normalized);
+      if (ok) _value = normalized;
+    });
+  }
+
+  void _backspace() {
+    if (_value.isEmpty) return;
+    setState(() => _value = _value.substring(0, _value.length - 1));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final keys = widget.allowDecimal
+        ? const ['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', '⌫']
+        : const ['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', '⌫'];
+    return Padding(
+      padding: EdgeInsets.only(
+        left: 20,
+        right: 20,
+        top: 16,
+        bottom: MediaQuery.paddingOf(context).bottom + 16,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: Colors.black26,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            widget.title,
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.06),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    _value.isEmpty ? '0' : _value,
+                    style: TextStyle(
+                      fontSize: 32,
+                      fontWeight: FontWeight.w800,
+                      color: _value.isEmpty
+                          ? context.sg.textSecondary
+                          : context.sg.textPrimary,
+                    ),
+                  ),
+                ),
+                Text(
+                  widget.unit,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: context.sg.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          GridView.count(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            crossAxisCount: 3,
+            childAspectRatio: 1.6,
+            mainAxisSpacing: 8,
+            crossAxisSpacing: 8,
+            children: [
+              for (final key in keys)
+                if (key.isEmpty)
+                  const SizedBox.shrink()
+                else
+                  FilledButton.tonal(
+                    onPressed: () {
+                      if (key == '⌫') {
+                        _backspace();
+                      } else {
+                        _append(key);
+                      }
+                    },
+                    style: FilledButton.styleFrom(
+                      textStyle: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    child: Text(key),
+                  ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            height: 48,
+            child: FilledButton(
+              onPressed: _value.isEmpty || _value == '.'
+                  ? null
+                  : () => Navigator.pop(context, _value),
+              child: const Text('Done'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

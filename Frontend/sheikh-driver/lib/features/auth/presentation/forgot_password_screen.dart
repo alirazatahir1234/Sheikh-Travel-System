@@ -1,94 +1,99 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_theme.dart';
-import '../../../shared/widgets/sg_ui.dart';
+import '../data/auth_api.dart';
 
-/// Forgot-password UX (admin-assisted until public reset API ships).
-class ForgotPasswordScreen extends StatefulWidget {
+/// Driver-facing forgot-password: request a phone reset code.
+class ForgotPasswordScreen extends ConsumerStatefulWidget {
   const ForgotPasswordScreen({super.key});
 
   @override
-  State<ForgotPasswordScreen> createState() => _ForgotPasswordScreenState();
+  ConsumerState<ForgotPasswordScreen> createState() => _ForgotPasswordScreenState();
 }
 
-class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
-  final _emailCtrl = TextEditingController();
+class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
+  final _phone = TextEditingController();
   final _formKey = GlobalKey<FormState>();
-  bool _submitted = false;
+  bool _busy = false;
+  String? _info;
 
   @override
   void dispose() {
-    _emailCtrl.dispose();
+    _phone.dispose();
     super.dispose();
   }
 
-  void _submit() {
-    if (!(_formKey.currentState?.validate() ?? false)) return;
-    setState(() => _submitted = true);
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() {
+      _busy = true;
+      _info = null;
+    });
+    try {
+      final debugToken = await ref.read(authApiProvider).forgotPassword(_phone.text);
+      if (!mounted) return;
+      final uri = Uri(
+        path: '/reset-password',
+        queryParameters: {
+          if (debugToken != null && debugToken.isNotEmpty) 'token': debugToken,
+          'phone': _phone.text.trim(),
+        },
+      );
+      context.push(uri.toString());
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _info = e.toString().replaceFirst('Exception: ', ''));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final p = context.sg;
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor: p.surface,
       appBar: AppBar(title: const Text('Forgot password')),
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          const Text(
-            'Enter the email for your SheikhGo account. Your company admin can reset the password from Users in ERP, or contact support.',
-            style: TextStyle(color: AppColors.textSecondary, height: 1.4),
+          Text(
+            'Enter the phone number on your driver account. If it matches, we send a reset code.',
+            style: TextStyle(fontSize: 14, color: p.textMuted, height: 1.4),
           ),
           const SizedBox(height: 20),
-          if (_submitted) ...[
-            Card(
-              color: AppColors.primary.withValues(alpha: 0.08),
-              child: const Padding(
-                padding: EdgeInsets.all(16),
-                child: Text(
-                  'Request noted. Ask your Tenant Admin to use Users → Reset password, then sign in again.',
-                  style: TextStyle(fontWeight: FontWeight.w600),
-                ),
+          Form(
+            key: _formKey,
+            child: TextFormField(
+              controller: _phone,
+              keyboardType: TextInputType.phone,
+              decoration: const InputDecoration(
+                labelText: 'Phone',
+                hintText: '+92…',
               ),
+              validator: (v) =>
+                  (v == null || v.trim().isEmpty) ? 'Phone is required' : null,
             ),
-            const SizedBox(height: 16),
-            FilledButton(
-              onPressed: () => context.go('/login'),
-              child: const Text('Back to login'),
-            ),
-          ] else ...[
-            Form(
-              key: _formKey,
-              child: TextFormField(
-                controller: _emailCtrl,
-                keyboardType: TextInputType.emailAddress,
-                decoration: const InputDecoration(
-                  labelText: 'Work email',
-                  border: OutlineInputBorder(),
-                ),
-                validator: (v) {
-                  final t = v?.trim() ?? '';
-                  if (t.isEmpty || !t.contains('@')) {
-                    return 'Enter a valid email';
-                  }
-                  return null;
-                },
-              ),
-            ),
-            const SizedBox(height: 16),
-            FilledButton(onPressed: _submit, child: const Text('Continue')),
-            const SizedBox(height: 8),
-            TextButton(
-              onPressed: () => context.go('/login'),
-              child: const Text('Back to login'),
-            ),
+          ),
+          if (_info != null) ...[
+            const SizedBox(height: 12),
+            Text(_info!, style: TextStyle(color: AppColors.error, fontSize: 13)),
           ],
           const SizedBox(height: 24),
-          const SgSectionTitle('Already have a reset token?'),
-          const SizedBox(height: 8),
-          OutlinedButton(
-            onPressed: () => context.push('/reset-password'),
-            child: const Text('Enter reset password'),
+          FilledButton(
+            onPressed: _busy ? null : _submit,
+            child: _busy
+                ? const SizedBox(
+                    height: 20,
+                    width: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Text('Send reset code'),
+          ),
+          TextButton(
+            onPressed: () => context.go('/login'),
+            child: const Text('Back to login'),
           ),
         ],
       ),

@@ -32,13 +32,19 @@ public class CreateTripCommandValidator : AbstractValidator<CreateTripCommand>
 
 public class CreateTripCommandHandler(
     ITripRepository tripRepository,
+    INotificationDecisionEngine decisionEngine,
     ILogger<CreateTripCommandHandler> logger)
     : IRequestHandler<CreateTripCommand, ApiResponse<int>>
 {
     public async Task<ApiResponse<int>> Handle(CreateTripCommand request, CancellationToken cancellationToken)
     {
         var id = await tripRepository.CreateAsync(request.Trip, cancellationToken);
-        logger.LogInformation("Trip {TripId} created", id);
+        var tripNumber = $"TR-{DateTime.UtcNow.Year}-{id:D4}";
+        logger.LogInformation("Trip {TripId} ({TripNumber}) created", id, tripNumber);
+
+        await TripCreationNotifications.DispatchAsync(
+            decisionEngine, id, tripNumber, request.Trip.DriverId, cancellationToken);
+
         return ApiResponse<int>.SuccessResponse(id, "Trip created successfully.");
     }
 }
@@ -104,5 +110,46 @@ public class DeleteTripCommandHandler(ITripRepository tripRepository)
         return result.Success
             ? ApiResponse<bool>.SuccessResponse(true, "Trip deleted.")
             : ApiResponse<bool>.FailResponse(result.ErrorMessage!);
+    }
+}
+
+/// <summary>Shared ERP trip-create → inbox/push orchestration.</summary>
+internal static class TripCreationNotifications
+{
+    public static async Task DispatchAsync(
+        INotificationDecisionEngine decisionEngine,
+        int tripId,
+        string tripNumber,
+        int? driverId,
+        CancellationToken cancellationToken)
+    {
+        await decisionEngine.DispatchIfAllowedAsync(new NotificationDecisionRequest(
+            "trip_created",
+            $"New Trip: {tripNumber}",
+            $"Trip {tripNumber} has been created.",
+            NotificationType.TripCreated,
+            ReferenceId: tripId,
+            SuggestedPriority: 2,
+            RequestedChannels:
+            [
+                NotificationChannels.InApp, NotificationChannels.Browser, NotificationChannels.Email
+            ]), cancellationToken);
+
+        // CreateTrip can set DriverId without calling AssignTripDriverCommand — still notify.
+        if (driverId is > 0)
+        {
+            await decisionEngine.DispatchIfAllowedAsync(new NotificationDecisionRequest(
+                "trip_driver_assigned",
+                $"Driver Assigned: {tripNumber}",
+                $"You have been assigned to trip {tripNumber}.",
+                NotificationType.TripDriverAssigned,
+                ReferenceId: tripId,
+                SuggestedPriority: 2,
+                RequestedChannels:
+                [
+                    NotificationChannels.InApp, NotificationChannels.Browser, NotificationChannels.Email,
+                    NotificationChannels.Push
+                ]), cancellationToken);
+        }
     }
 }

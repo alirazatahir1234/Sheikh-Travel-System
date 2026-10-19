@@ -6,12 +6,17 @@ import 'package:sheikh_go_driver/features/dashboard/presentation/dashboard_layou
 
 void main() {
   group('DashboardVisibility', () {
-    test('owner-like roles see health and map summary, not interactive map', () {
+    test('owner-like roles see health and interactive live map', () {
+      expect(DashboardVisibility.showFleetHealth(DashboardRole.owner), isTrue);
       expect(DashboardVisibility.showFleetHealth(DashboardRole.tenantAdmin), isTrue);
-      expect(DashboardVisibility.showMapSummary(DashboardRole.superAdmin), isTrue);
+      expect(DashboardVisibility.showMapSummary(DashboardRole.superAdmin), isFalse);
+      expect(
+        DashboardVisibility.showInteractiveMap(DashboardRole.owner),
+        isTrue,
+      );
       expect(
         DashboardVisibility.showInteractiveMap(DashboardRole.tenantAdmin),
-        isFalse,
+        isTrue,
       );
     });
 
@@ -51,10 +56,13 @@ void main() {
       expect(ids, isNot(contains(DashboardWidgetId.mapSummaryCard)));
     });
 
-    test('owner layout uses map summary not interactive preview', () {
-      final ids = DashboardLayoutRegistry.widgetsFor(DashboardRole.tenantAdmin);
-      expect(ids, contains(DashboardWidgetId.mapSummaryCard));
-      expect(ids, isNot(contains(DashboardWidgetId.liveMapPreview)));
+    test('owner layout uses interactive live map and fuel summary', () {
+      final ids = DashboardLayoutRegistry.widgetsFor(DashboardRole.owner);
+      expect(ids, contains(DashboardWidgetId.liveMapPreview));
+      expect(ids, contains(DashboardWidgetId.fuelSummary));
+      expect(ids, isNot(contains(DashboardWidgetId.mapSummaryCard)));
+      final adminIds = DashboardLayoutRegistry.widgetsFor(DashboardRole.tenantAdmin);
+      expect(adminIds, contains(DashboardWidgetId.liveMapPreview));
     });
 
     test('dispatcher has no health card', () {
@@ -65,6 +73,7 @@ void main() {
     });
 
     test('commandLabel maps PRD names', () {
+      expect(DashboardRole.owner.commandLabel, 'Owner');
       expect(DashboardRole.tenantAdmin.commandLabel, 'Owner');
       expect(DashboardRole.fleetManager.commandLabel, 'Fleet Manager');
       expect(DashboardRole.driverManager.commandLabel, 'Supervisor');

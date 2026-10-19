@@ -25,6 +25,8 @@ const MODULE_ROUTE_MAP: Record<string, string> = {
   maintenance: '/maintenance',
   'gps-tracking': '/gps-tracking',
   payments: '/payments',
+  invoices: '/invoices',
+  settlements: '/settlements',
   reports: '/reports',
   'driver-allowance-rules': '/driver-allowance-rules',
   users: '/users',

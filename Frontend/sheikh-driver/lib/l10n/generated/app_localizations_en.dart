@@ -9,7 +9,7 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
-  String get appTitle => 'SheikhGo Fleet';
+  String get appTitle => 'SheikhGo Tracking';
 
   @override
   String get settings => 'Settings';
@@ -62,7 +62,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get biometricEnableFailed => 'Could not enable biometric lock';
 
   @override
-  String get unlockTitle => 'Unlock SheikhGo Fleet';
+  String get unlockTitle => 'Unlock SheikhGo Tracking';
 
   @override
   String get unlockSubtitle => 'Authenticate to continue';

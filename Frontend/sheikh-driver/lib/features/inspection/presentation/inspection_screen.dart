@@ -47,13 +47,13 @@ class _InspectionScreenState extends ConsumerState<InspectionScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor: context.sg.surface,
       appBar: AppBar(
         title: const Text('Vehicle Inspection'),
         bottom: TabBar(
           controller: _tabs,
           labelColor: AppColors.primary,
-          unselectedLabelColor: AppColors.textSecondary,
+          unselectedLabelColor: context.sg.textSecondary,
           indicatorColor: AppColors.primary,
           tabs: const [
             Tab(text: 'New check'),
@@ -217,8 +217,8 @@ class _NewInspectionTabState extends ConsumerState<_NewInspectionTab> {
             if (template.description != null) ...[
               const SizedBox(height: 4),
               Text(template.description!,
-                  style: const TextStyle(
-                      color: AppColors.textSecondary, fontSize: 13)),
+                  style: TextStyle(
+                      color: context.sg.textSecondary, fontSize: 13)),
             ],
             const SizedBox(height: 16),
             vehiclesAsync.when(

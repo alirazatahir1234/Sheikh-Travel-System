@@ -7,8 +7,11 @@ public static class NotificationRecipientPolicy
     public static IReadOnlyList<UserRole> RolesFor(string eventType) => eventType.ToLowerInvariant() switch
     {
         "booking_created" => [UserRole.Admin, UserRole.Dispatcher],
-        "trip_driver_assigned" => [UserRole.Admin, UserRole.Dispatcher, UserRole.Driver],
-        "trip_started" or "trip_completed" or "trip_delayed" or "trip_cancelled" or "trip_updated" or "trip_driver_arriving"
+        // Assigned driver is resolved contextually from Trips.DriverId → Drivers.UserId
+        // (do not fan-out to every Driver role — that empties ops value and spams the fleet).
+        "trip_driver_assigned" => [UserRole.Admin, UserRole.Dispatcher],
+        "trip_created" or "trip_started" or "trip_completed" or "trip_delayed" or "trip_cancelled"
+            or "trip_updated" or "trip_driver_arriving"
             => [UserRole.Admin, UserRole.Dispatcher],
         "payment_received" => [UserRole.Admin],
         "fuel_added" or "inspection_submitted" => [UserRole.Admin, UserRole.Dispatcher, UserRole.Driver],

@@ -60,6 +60,7 @@ class DashboardApi {
             displayName, tenantId, widgets, quickActions);
       case DashboardRole.accountant:
         return _buildAccountant(displayName, tenantId, widgets, quickActions);
+      case DashboardRole.owner:
       case DashboardRole.fleetManager:
       case DashboardRole.tenantAdmin:
       case DashboardRole.superAdmin:
@@ -598,11 +599,15 @@ class DashboardApi {
       final sev = e.severity.toLowerCase();
       final type = e.eventType.toLowerCase();
       switch (role) {
+        case DashboardRole.owner:
         case DashboardRole.tenantAdmin:
         case DashboardRole.superAdmin:
           return sev.contains('critical') ||
               sev.contains('high') ||
-              type.contains('business');
+              type.contains('business') ||
+              type.contains('overspeed') ||
+              type.contains('offline') ||
+              type.contains('sos');
         case DashboardRole.fleetManager:
         case DashboardRole.gpsOperator:
           return type.contains('overspeed') ||

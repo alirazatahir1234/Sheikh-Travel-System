@@ -20,6 +20,7 @@ public static class RoleRegistrySeed
     [
         E("SUPER_ADMIN", "Super Admin", "Super Admin", "Platform-wide administration", "Platform", 5, "System"),
         E("TENANT_ADMIN", "Tenant Admin", "Company Admin", "Full company administration", "Platform", 10, "System"),
+        E("OWNER", "Owner", "Owner", "Company owner — live tracking, drivers, and fuel overview", "Fleet", 15, "System"),
         E("FLEET_MANAGER", "Fleet Manager", "Fleet Manager", "Fleet, vehicles, drivers, GPS", "Fleet", 20, "System"),
         E("DRIVER_MANAGER", "Driver Manager", "Driver Manager", "Driver directory and assignments", "Fleet", 25, "System"),
         E("DISPATCHER", "Dispatcher", "Dispatcher", "Bookings, trips, and dispatch", "Operations", 30, "System"),

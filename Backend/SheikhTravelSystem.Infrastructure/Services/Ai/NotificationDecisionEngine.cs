@@ -169,7 +169,12 @@ public sealed class NotificationDecisionEngine(
 
         var recipientIds = await recipientResolver.ResolveUserIdsAsync(request, tid, cancellationToken);
         if (recipientIds.Count == 0)
+        {
+            logger.LogWarning(
+                "Notification {EventType} ref {ReferenceId} produced zero recipients for tenant {TenantId}",
+                request.EventType, request.ReferenceId, tid);
             return 0;
+        }
 
         var count = 0;
         foreach (var userId in recipientIds)
@@ -278,8 +283,8 @@ public sealed class NotificationDecisionEngine(
         "speed_exceeded" => 15,
         "low_fuel" or "low_battery" => 60,
         "compliance_reminder" => 1440,
-        "trip_started" or "trip_completed" or "trip_driver_arriving"
-            or "trip_delayed" or "trip_cancelled" or "trip_updated" => 1,
+        "trip_created" or "trip_started" or "trip_completed" or "trip_driver_arriving"
+            or "trip_delayed" or "trip_cancelled" or "trip_updated" or "trip_driver_assigned" => 1,
         _ => 5
     };
 
@@ -293,7 +298,7 @@ public sealed class NotificationDecisionEngine(
     private static string ModuleFor(string eventType) => eventType.ToLowerInvariant() switch
     {
         "booking_created" => "Booking",
-        "trip_driver_assigned" or "trip_started" or "trip_completed"
+        "trip_created" or "trip_driver_assigned" or "trip_started" or "trip_completed"
             or "trip_delayed" or "trip_cancelled" or "trip_updated" or "trip_driver_arriving" => "Trip",
         "payment_received" => "Finance",
         "compliance_reminder" => "Compliance",
@@ -306,6 +311,7 @@ public sealed class NotificationDecisionEngine(
         "speed_exceeded" => "speed_alert",
         "vehicle_offline" => "vehicle_offline",
         "booking_created" => "booking_created",
+        "trip_created" => "trip_created",
         "trip_driver_assigned" => "trip_driver_assigned",
         "trip_started" => "trip_started",
         "trip_completed" => "trip_completed",

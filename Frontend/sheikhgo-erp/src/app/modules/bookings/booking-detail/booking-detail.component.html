@@ -6,6 +6,11 @@
             [routerLink]="['/bookings', booking.id, 'invoice']">
       <mat-icon>description</mat-icon> Print Invoice
     </button>
+    <button mat-raised-button color="primary" *ngIf="booking && canGenerateInvoice()"
+            [disabled]="generatingInvoice" (click)="generateInvoice()">
+      <mat-icon>receipt_long</mat-icon>
+      {{ generatingInvoice ? 'Generating…' : 'Generate invoice' }}
+    </button>
     <button mat-raised-button color="primary" *ngIf="booking && canEdit()"
             [routerLink]="['/bookings', booking.id, 'edit']">
       <mat-icon>edit</mat-icon> Edit Booking

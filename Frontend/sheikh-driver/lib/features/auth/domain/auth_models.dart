@@ -6,6 +6,8 @@ enum AuthMode { staff, driver }
 abstract final class FleetRole {
   static const superAdmin = 'SUPER_ADMIN';
   static const tenantAdmin = 'TENANT_ADMIN';
+  /// Company owner — dedicated SheikhGo Tracking mobile shell (live map / drivers / fuel).
+  static const owner = 'OWNER';
   static const fleetManager = 'FLEET_MANAGER';
   static const driverManager = 'DRIVER_MANAGER';
   static const gpsOperator = 'GPS_OPERATOR';
@@ -16,6 +18,7 @@ abstract final class FleetRole {
   /// Priority for bottom-nav shell (first match wins).
   static const navRolePriority = [
     superAdmin,
+    owner,
     tenantAdmin,
     fleetManager,
     driverManager,
@@ -28,11 +31,19 @@ abstract final class FleetRole {
   static const managementRoles = {
     superAdmin,
     tenantAdmin,
+    owner,
     fleetManager,
     driverManager,
     gpsOperator,
     dispatcher,
     accountant,
+  };
+
+  /// Roles that use the Owner Tracking mobile experience.
+  static const ownerTrackingRoles = {
+    owner,
+    tenantAdmin,
+    superAdmin,
   };
 }
 
@@ -190,11 +201,18 @@ class FleetSession {
   bool get isGpsOperator =>
       !isDriverOnly && hasRole(FleetRole.gpsOperator) && primaryNavRole == FleetRole.gpsOperator;
 
+  /// Owner Tracking shell: dedicated OWNER role, or company admin acting as owner.
+  bool get isOwnerTracking =>
+      !isDriverOnly &&
+      (primaryNavRole == FleetRole.owner ||
+          hasAnyRole(FleetRole.ownerTrackingRoles));
+
   bool get canSeeFleetTab =>
       !isDriverOnly &&
       (hasAnyRole(const [
             FleetRole.superAdmin,
             FleetRole.tenantAdmin,
+            FleetRole.owner,
             FleetRole.fleetManager,
             FleetRole.gpsOperator,
             FleetRole.dispatcher,
@@ -211,6 +229,7 @@ class FleetSession {
       hasAnyRole(const [
         FleetRole.superAdmin,
         FleetRole.tenantAdmin,
+        FleetRole.owner,
         FleetRole.fleetManager,
       ]);
 
@@ -223,6 +242,7 @@ class FleetSession {
         FleetPermissions.paymentView,
         FleetPermissions.invoiceView,
         FleetPermissions.reportView,
+        'Settlement.View',
       ]);
 
   bool get canSeeUsersTab =>

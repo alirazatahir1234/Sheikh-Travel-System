@@ -1,6 +1,6 @@
-# SheikhGo Fleet (Flutter)
+# SheikhGo Tracking App (Flutter)
 
-Mobile fleet operations for drivers and staff: trips, live GPS, attendance, fuel, and role-based fleet navigation for the SheikhGo platform.
+Mobile tracking & fleet operations for **Owners** (live map, drivers, fuel) and **Drivers** (trips, GPS, attendance). Folder remains `Frontend/sheikh-driver`.
 
 **Package:** `com.sheikhgo.fleet`  
 **Folder:** `Frontend/sheikh-driver`

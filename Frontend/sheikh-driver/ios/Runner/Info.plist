@@ -7,7 +7,7 @@
 		<key>CFBundleDevelopmentRegion</key>
 		<string>$(DEVELOPMENT_LANGUAGE)</string>
 		<key>CFBundleDisplayName</key>
-		<string>SheikhGo Fleet</string>
+		<string>SheikhGo Tracking</string>
 		<key>CFBundleExecutable</key>
 		<string>$(EXECUTABLE_NAME)</string>
 		<key>CFBundleIdentifier</key>
@@ -15,7 +15,7 @@
 		<key>CFBundleInfoDictionaryVersion</key>
 		<string>6.0</string>
 		<key>CFBundleName</key>
-		<string>SheikhGo Fleet</string>
+		<string>SheikhGo Tracking</string>
 		<key>CFBundlePackageType</key>
 		<string>APPL</string>
 		<key>CFBundleShortVersionString</key>
@@ -67,26 +67,26 @@
 			<string>UIInterfaceOrientationLandscapeRight</string>
 		</array>
 		<key>NSLocationWhenInUseUsageDescription</key>
-		<string>SheikhGo Fleet needs your location to navigate trips and share live GPS with dispatch.</string>
+		<string>SheikhGo Tracking needs your location to navigate trips and share live GPS with dispatch.</string>
 		<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-		<string>SheikhGo Fleet needs background location to keep trip tracking active while the app is minimized or the screen is locked.</string>
+		<string>SheikhGo Tracking needs background location to keep trip tracking active while the app is minimized or the screen is locked.</string>
 		<key>NSLocationAlwaysUsageDescription</key>
-		<string>SheikhGo Fleet needs background location to keep trip tracking active while the app is minimized or the screen is locked.</string>
+		<string>SheikhGo Tracking needs background location to keep trip tracking active while the app is minimized or the screen is locked.</string>
 		<key>NSLocalNetworkUsageDescription</key>
-		<string>SheikhGo Fleet needs local network access to reach your development API server while debugging.</string>
+		<string>SheikhGo Tracking uses the local network to communicate with company servers and printers when needed.</string>
 		<key>NSAppTransportSecurity</key>
 		<dict>
 			<key>NSAllowsLocalNetworking</key>
 			<true/>
 		</dict>
 		<key>NSCameraUsageDescription</key>
-		<string>SheikhGo Fleet needs the camera to capture fuel receipts, inspection photos, and compliance documents.</string>
+		<string>SheikhGo Tracking needs the camera to capture fuel receipts, inspection photos, and compliance documents.</string>
 		<key>NSPhotoLibraryUsageDescription</key>
-		<string>SheikhGo Fleet needs photo library access to attach fuel receipts, inspection photos, and documents.</string>
+		<string>SheikhGo Tracking needs photo library access to attach fuel receipts, inspection photos, and documents.</string>
 		<key>NSPhotoLibraryAddUsageDescription</key>
-		<string>SheikhGo Fleet may save captured receipts or inspection photos to your library when you choose to.</string>
+		<string>SheikhGo Tracking may save captured receipts or inspection photos to your library when you choose to.</string>
 		<key>NSFaceIDUsageDescription</key>
-		<string>SheikhGo Fleet uses Face ID to unlock the app when biometric lock is enabled.</string>
+		<string>SheikhGo Tracking uses Face ID to unlock the app when biometric lock is enabled.</string>
 		<key>UIBackgroundModes</key>
 		<array>
 			<string>location</string>

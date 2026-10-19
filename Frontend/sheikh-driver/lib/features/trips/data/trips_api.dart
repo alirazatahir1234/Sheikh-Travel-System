@@ -45,8 +45,11 @@ class TripsApi {
   Future<void> advance(int id, String action, {String? reason}) async {
     await _ref.read(offlineSyncProvider).runOrQueue(
           online: () async {
+            // Backend `/start` is a legacy Accept alias; keep Start distinct so
+            // callers never silently rewrite to Accept in app code.
             final path = switch (action) {
               'Accept' => ApiEndpoints.acceptTrip(id),
+              'Start' => ApiEndpoints.startTrip(id),
               'Arrived' => ApiEndpoints.arrivedTrip(id),
               'Onboard' => ApiEndpoints.onboardTrip(id),
               'Complete' => ApiEndpoints.completeTrip(id),
@@ -72,7 +75,7 @@ class TripsApi {
         );
   }
 
-  Future<void> startTrip(int id) => advance(id, 'Accept');
+  Future<void> startTrip(int id) => advance(id, 'Start');
   Future<void> completeTrip(int id) => advance(id, 'Complete');
   Future<void> rejectTrip(int id, String reason) =>
       advance(id, 'Reject', reason: reason);

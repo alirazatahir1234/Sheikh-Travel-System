@@ -93,6 +93,7 @@ class AppNotification {
         10 => 'TripCancelled',
         11 => 'TripUpdated',
         12 => 'TripDriverArriving',
+        13 => 'TripCreated',
         _ => 'System',
       };
 }

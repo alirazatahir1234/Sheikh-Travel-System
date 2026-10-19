@@ -18,9 +18,13 @@ import 'features/gps/services/location_queue.dart';
 import 'features/gps/services/gps_background_service.dart';
 import 'features/gps/services/gps_session_store.dart';
 import 'features/gps/services/background_gps_tracker.dart';
+import 'features/dashboard/presentation/dashboard_notifier.dart';
+import 'features/auth/domain/auth_models.dart';
 import 'features/notifications/presentation/foreground_banner.dart';
 import 'features/notifications/presentation/notifications_notifier.dart';
 import 'features/notifications/services/fcm_service.dart';
+import 'features/notifications/services/notification_deep_link.dart';
+import 'features/notifications/services/push_registration_service.dart';
 import 'core/offline/offline_outbox.dart';
 import 'core/offline/trips_cache.dart';
 import 'core/api/dio_client.dart';
@@ -91,16 +95,28 @@ class _SheikhGoFleetAppState extends ConsumerState<SheikhGoFleetApp> {
     _refreshSub = FcmService.instance.inboxRefresh.listen((_) {
       ref.invalidate(notificationsListProvider);
       ref.invalidate(unreadNotificationsCountProvider);
+      ref.invalidate(dashboardProvider);
     });
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      PushRegistrationService.instance
+          .bindContainer(ProviderScope.containerOf(context));
+
       final router = ref.read(routerProvider);
       FcmService.handleMessageTaps(onTap: (route) {
         if (route == null || route.isEmpty) {
           router.go('/notifications');
           return;
         }
-        router.push(route);
+        final session = ref.read(authRepositoryProvider).session;
+        final forDriver = session != null &&
+            (session.isDriverOnly || session.authMode == AuthMode.driver);
+        final safe = NotificationDeepLink.adaptForSession(
+              route,
+              forDriver: forDriver,
+            ) ??
+            '/notifications';
+        router.push(safe);
       });
 
       final dio = ref.read(dioProvider);
@@ -194,7 +210,7 @@ class _SheikhGoFleetAppState extends ConsumerState<SheikhGoFleetApp> {
 
     return AppLockLifecycle(
       child: MaterialApp.router(
-        title: 'SheikhGo Fleet',
+        title: 'SheikhGo Tracking',
         locale: locale,
         supportedLocales: AppLocalizations.supportedLocales,
         localizationsDelegates: const [
@@ -212,10 +228,50 @@ class _SheikhGoFleetAppState extends ConsumerState<SheikhGoFleetApp> {
           children: [
             child ?? const SizedBox.shrink(),
             const ForegroundNotificationBanner(),
+            const _PushRegistrationHintHost(),
             if (locked) const AppLockScreen(),
           ],
         ),
       ),
     );
+  }
+}
+
+/// Shows a one-time SnackBar when FCM/token registration fails after login.
+class _PushRegistrationHintHost extends ConsumerStatefulWidget {
+  const _PushRegistrationHintHost();
+
+  @override
+  ConsumerState<_PushRegistrationHintHost> createState() =>
+      _PushRegistrationHintHostState();
+}
+
+class _PushRegistrationHintHostState
+    extends ConsumerState<_PushRegistrationHintHost> {
+  String? _shownFor;
+
+  @override
+  Widget build(BuildContext context) {
+    ref.listen<String?>(pushRegistrationIssueProvider, (prev, next) {
+      if (next == null || next == _shownFor || !mounted) return;
+      _shownFor = next;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        final messenger = ScaffoldMessenger.maybeOf(context);
+        messenger?.showSnackBar(
+          SnackBar(
+            content: Text(next),
+            duration: const Duration(seconds: 5),
+            action: SnackBarAction(
+              label: 'Settings',
+              onPressed: () {
+                ref.read(routerProvider).push('/settings');
+              },
+            ),
+          ),
+        );
+      });
+    });
+    return const SizedBox.shrink();
   }
 }

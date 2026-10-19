@@ -1,14 +1,14 @@
-# SheikhGo Driver — Privacy Policy
+# SheikhGo Tracking — Privacy Policy
 
 **Effective date:** 19 July 2026  
-**App:** SheikhGo Fleet (`com.sheikhgo.fleet`)  
+**App:** SheikhGo Tracking (`com.sheikhgo.fleet`)  
 **Operator:** SheikhGo / fleet tenant administrators using the SheikhGo platform
 
-This policy describes how the SheikhGo Driver mobile application collects, uses, and shares information when drivers use the app for fleet operations.
+This policy describes how the SheikhGo Tracking mobile application collects, uses, and shares information when drivers use the app for fleet operations.
 
 ## 1. Who this applies to
 
-SheikhGo Driver is a **workforce / fleet operations** app for authorized drivers of organizations that use SheikhGo. It is not a consumer rideshare marketplace app for the general public.
+SheikhGo Tracking is a **workforce / fleet operations** app for authorized drivers of organizations that use SheikhGo. It is not a consumer rideshare marketplace app for the general public.
 
 ## 2. Data we collect
 

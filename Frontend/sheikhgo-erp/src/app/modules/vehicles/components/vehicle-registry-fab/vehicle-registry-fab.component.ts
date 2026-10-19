@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, output, signal } from '@angular/core';
 import { RouterModule } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 
@@ -6,6 +6,7 @@ interface FabAction {
   label: string;
   icon: string;
   route?: string;
+  action?: 'import';
   disabled?: boolean;
   title?: string;
 }
@@ -26,7 +27,8 @@ interface FabAction {
                 <span>{{ action.label }}</span>
               </a>
             } @else {
-              <button type="button" class="fab-item" [disabled]="action.disabled" [title]="action.title ?? action.label">
+              <button type="button" class="fab-item" [disabled]="action.disabled" [title]="action.title ?? action.label"
+                (click)="onAction(action)">
                 <mat-icon>{{ action.icon }}</mat-icon>
                 <span>{{ action.label }}</span>
               </button>
@@ -70,15 +72,24 @@ interface FabAction {
 })
 export class VehicleRegistryFabComponent {
   readonly expanded = signal(false);
+  readonly importRequested = output<void>();
 
   readonly actions: FabAction[] = [
     { label: 'Add Vehicle', icon: 'directions_bus', route: '/vehicles/new' },
-    { label: 'Import', icon: 'upload', disabled: true, title: 'Coming soon' },
+    { label: 'Import', icon: 'upload', action: 'import' },
     { label: 'Assign Tracker', icon: 'gps_fixed', route: '/gps-tracking/devices' },
     { label: 'Add Driver', icon: 'person_add', route: '/drivers/new' }
   ];
 
   toggle(): void {
     this.expanded.update(v => !v);
+  }
+
+  onAction(action: FabAction): void {
+    if (action.disabled) return;
+    if (action.action === 'import') {
+      this.importRequested.emit();
+      this.expanded.set(false);
+    }
   }
 }

@@ -2,17 +2,26 @@ import '../domain/notification_models.dart';
 
 /// Maps notification / FCM payload fields to an in-app go_router path.
 class NotificationDeepLink {
-  static String? fromNotification(AppNotification n) {
+  static String? fromNotification(
+    AppNotification n, {
+    bool forDriver = false,
+  }) {
     return resolve(
       type: n.type,
       module: n.module,
       referenceId: n.referenceId,
+      forDriver: forDriver,
     );
   }
 
-  static String? fromData(Map<String, dynamic> data) {
+  static String? fromData(
+    Map<String, dynamic> data, {
+    bool forDriver = false,
+  }) {
     final route = data['route']?.toString();
-    if (route != null && route.startsWith('/')) return route;
+    if (route != null && route.startsWith('/')) {
+      return forDriver ? _driverSafeRoute(route) : route;
+    }
 
     final tripId = int.tryParse(
         data['tripId']?.toString() ?? data['TripId']?.toString() ?? '');
@@ -24,15 +33,21 @@ class NotificationDeepLink {
 
     final driverId = int.tryParse(
         data['driverId']?.toString() ?? data['DriverId']?.toString() ?? '');
-    if (driverId != null && driverId > 0) return '/more/drivers/$driverId';
+    if (driverId != null && driverId > 0) {
+      return forDriver ? '/profile' : '/more/drivers/$driverId';
+    }
 
     final vehicleId = int.tryParse(
         data['vehicleId']?.toString() ?? data['VehicleId']?.toString() ?? '');
-    if (vehicleId != null && vehicleId > 0) return '/fleet/vehicles/$vehicleId';
+    if (vehicleId != null && vehicleId > 0) {
+      return forDriver ? '/live' : '/fleet/vehicles/$vehicleId';
+    }
 
     final alertId = int.tryParse(
         data['alertId']?.toString() ?? data['AlertId']?.toString() ?? '');
-    if (alertId != null && alertId > 0) return '/alerts/$alertId';
+    if (alertId != null && alertId > 0) {
+      return forDriver ? '/notifications' : '/alerts/$alertId';
+    }
 
     final referenceId = int.tryParse(
         data['referenceId']?.toString() ?? data['ReferenceId']?.toString() ?? '');
@@ -41,6 +56,7 @@ class NotificationDeepLink {
       type: data['type']?.toString() ?? data['Type']?.toString(),
       module: data['module']?.toString() ?? data['Module']?.toString(),
       referenceId: referenceId,
+      forDriver: forDriver,
     );
   }
 
@@ -48,11 +64,13 @@ class NotificationDeepLink {
     String? type,
     String? module,
     int? referenceId,
+    bool forDriver = false,
   }) {
     final t = (type ?? '').toLowerCase();
     final m = (module ?? '').toLowerCase();
 
     if (t.contains('sos') || m.contains('sos') || m.contains('alert')) {
+      if (forDriver) return '/notifications';
       if (referenceId != null && referenceId > 0) return '/alerts/$referenceId';
       return '/alerts';
     }
@@ -64,6 +82,7 @@ class NotificationDeepLink {
     }
     if (m.contains('attendance')) return '/attendance';
     if (m.contains('driver')) {
+      if (forDriver) return '/profile';
       if (referenceId != null && referenceId > 0) {
         return '/more/drivers/$referenceId';
       }
@@ -73,6 +92,7 @@ class NotificationDeepLink {
         t.contains('vehicleoffline') ||
         m.contains('fleet') ||
         m.contains('vehicle')) {
+      if (forDriver) return '/live';
       if (referenceId != null && referenceId > 0) {
         return '/fleet/vehicles/$referenceId';
       }
@@ -89,5 +109,24 @@ class NotificationDeepLink {
     if (isTrip) return '/trips';
 
     return '/notifications';
+  }
+
+  /// Remap a resolved route for driver-only sessions (staff paths that only redirect).
+  static String? adaptForSession(String? route, {required bool forDriver}) {
+    if (route == null || route.isEmpty || !forDriver) return route;
+    return _driverSafeRoute(route);
+  }
+
+  /// Remap staff-only paths when a driver opens an explicit payload route.
+  static String _driverSafeRoute(String route) {
+    if (route.startsWith('/alerts')) return '/notifications';
+    if (route.startsWith('/fleet')) return '/live';
+    if (route.startsWith('/more/drivers')) return '/profile';
+    if (route.startsWith('/more/maintenance') ||
+        route.startsWith('/more/reports') ||
+        route.startsWith('/gps/')) {
+      return '/notifications';
+    }
+    return route;
   }
 }

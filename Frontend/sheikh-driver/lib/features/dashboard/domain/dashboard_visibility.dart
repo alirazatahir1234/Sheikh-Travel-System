@@ -4,24 +4,28 @@ import 'dashboard_role.dart';
 
 /// Widget-level visibility for Fleet Command Dashboard (PRD role mapping).
 ///
-/// PRD → JWT: Owner=`TENANT_ADMIN`/`SUPER_ADMIN`, Ops=`FLEET_MANAGER`,
+/// PRD → JWT: Owner=`OWNER`/`TENANT_ADMIN`/`SUPER_ADMIN`, Ops=`FLEET_MANAGER`,
 /// Supervisor=`DRIVER_MANAGER`, Maintenance Manager=`FLEET_MANAGER`+`Maintenance.View`.
 abstract final class DashboardVisibility {
   static bool isOwnerLike(DashboardRole role) =>
-      role == DashboardRole.tenantAdmin || role == DashboardRole.superAdmin;
+      role == DashboardRole.owner ||
+      role == DashboardRole.tenantAdmin ||
+      role == DashboardRole.superAdmin;
 
   static bool isFleetOps(DashboardRole role) =>
       role == DashboardRole.fleetManager ||
       role == DashboardRole.gpsOperator ||
       isOwnerLike(role);
 
-  /// Interactive map preview (FM / GPS Operator / Dispatcher). Owner gets [mapSummaryCard] instead.
+  /// Interactive live map preview for Owner Tracking + fleet ops roles.
   static bool showInteractiveMap(DashboardRole role) =>
+      isOwnerLike(role) ||
       role == DashboardRole.fleetManager ||
       role == DashboardRole.gpsOperator ||
       role == DashboardRole.dispatcher;
 
-  static bool showMapSummary(DashboardRole role) => isOwnerLike(role);
+  /// Legacy summary card — unused for Owner Tracking (interactive map preferred).
+  static bool showMapSummary(DashboardRole role) => false;
 
   static bool showFleetHealth(DashboardRole role) => isFleetOps(role);
 

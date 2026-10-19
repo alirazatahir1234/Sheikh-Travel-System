@@ -80,7 +80,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
     final historyAsync = ref.watch(attendanceHistoryProvider);
 
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor: context.sg.surface,
       appBar: AppBar(
         title: const Text('Attendance'),
         actions: [
@@ -108,9 +108,9 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
               const Divider(height: 1),
               Expanded(
                 child: records.isEmpty
-                    ? const Center(
+                    ? Center(
                         child: Text('No attendance records',
-                            style: TextStyle(color: AppColors.textSecondary)),
+                            style: TextStyle(color: context.sg.textSecondary)),
                       )
                     : _HistoryList(records: records),
               ),
@@ -160,7 +160,7 @@ class _ClockWidget extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(dateFmt.format(now),
-              style: const TextStyle(color: AppColors.textSecondary, fontSize: 14)),
+              style: TextStyle(color: context.sg.textSecondary, fontSize: 14)),
           const SizedBox(height: 24),
           SizedBox(
             width: 200,
@@ -238,10 +238,10 @@ class _HistoryList extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 6),
               child: Text(date,
-                  style: const TextStyle(
+                  style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
-                      color: AppColors.textSecondary)),
+                      color: context.sg.textSecondary)),
             ),
             ...dayRecords.map((r) => _RecordTile(record: r)),
           ],
@@ -273,10 +273,10 @@ class _RecordTile extends StatelessWidget {
         child: Icon(icon, color: color, size: 20),
       ),
       title: Text(label,
-          style: const TextStyle(fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+          style: TextStyle(fontWeight: FontWeight.w600, color: context.sg.textPrimary)),
       subtitle: record.latitude != null
           ? Text('GPS: ${record.latitude!.toStringAsFixed(4)}, ${record.longitude!.toStringAsFixed(4)}',
-              style: const TextStyle(fontSize: 12, color: AppColors.textSecondary))
+              style: TextStyle(fontSize: 12, color: context.sg.textSecondary))
           : null,
       trailing: Text(
         timeFmt.format(record.recordedAt.toLocal()),
@@ -296,7 +296,7 @@ class _ErrorView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.error_outline, size: 48, color: AppColors.textSecondary),
+            Icon(Icons.error_outline, size: 48, color: context.sg.textSecondary),
             const SizedBox(height: 12),
             Text(message, textAlign: TextAlign.center),
             const SizedBox(height: 16),

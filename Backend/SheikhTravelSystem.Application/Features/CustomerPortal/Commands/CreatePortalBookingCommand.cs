@@ -50,6 +50,7 @@ public class CreatePortalBookingCommandValidator : AbstractValidator<CreatePorta
 public class CreatePortalBookingCommandHandler(
     ICustomerPortalRepository portalRepository,
     IPortalPricingService pricingService,
+    ITenantContext tenantContext,
     ISender mediator)
     : IRequestHandler<CreatePortalBookingCommand, ApiResponse<PortalBookingCreatedDto>>
 {
@@ -216,7 +217,8 @@ public class CreatePortalBookingCommandHandler(
         CancellationToken cancellationToken)
     {
         var phone = PortalPhoneHelper.Normalize(r.Phone);
-        var existingIds = await portalRepository.ResolvePortalCustomerIdsAsync(r.Phone, null, cancellationToken);
+        var existingIds = await portalRepository.ResolvePortalCustomerIdsAsync(
+            tenantContext.GetRequiredTenantId(), r.Phone, null, cancellationToken);
         if (existingIds.Count > 0)
             return (true, existingIds[0], null);
 

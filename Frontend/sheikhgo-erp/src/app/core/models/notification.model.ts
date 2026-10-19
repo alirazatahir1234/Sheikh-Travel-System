@@ -4,7 +4,14 @@ export enum NotificationType {
   VehicleOffline = 3,
   PaymentReceived = 4,
   EngineCommandSent = 5,
-  Sos = 6
+  Sos = 6,
+  TripDriverAssigned = 7,
+  TripStarted = 8,
+  TripCompleted = 9,
+  TripCancelled = 10,
+  TripUpdated = 11,
+  TripDriverArriving = 12,
+  TripCreated = 13
 }
 
 export type NotificationChannel = 'InApp' | 'Email' | 'Sms' | 'Push' | 'Browser' | 'WhatsApp';
@@ -15,7 +22,14 @@ export const NotificationTypeLabels: Record<number, string> = {
   [NotificationType.VehicleOffline]: 'Vehicle Offline',
   [NotificationType.PaymentReceived]: 'Payment Received',
   [NotificationType.EngineCommandSent]: 'Engine Command',
-  [NotificationType.Sos]: 'SOS Alert'
+  [NotificationType.Sos]: 'SOS Alert',
+  [NotificationType.TripDriverAssigned]: 'Driver Assigned',
+  [NotificationType.TripStarted]: 'Trip Started',
+  [NotificationType.TripCompleted]: 'Trip Completed',
+  [NotificationType.TripCancelled]: 'Trip Cancelled',
+  [NotificationType.TripUpdated]: 'Trip Updated',
+  [NotificationType.TripDriverArriving]: 'Driver Arriving',
+  [NotificationType.TripCreated]: 'New Trip'
 };
 
 export const NotificationTypeIcons: Record<number, string> = {
@@ -24,7 +38,14 @@ export const NotificationTypeIcons: Record<number, string> = {
   [NotificationType.VehicleOffline]: 'directions_bus',
   [NotificationType.PaymentReceived]: 'payments',
   [NotificationType.EngineCommandSent]: 'power_settings_new',
-  [NotificationType.Sos]: 'sos'
+  [NotificationType.Sos]: 'sos',
+  [NotificationType.TripDriverAssigned]: 'person_pin',
+  [NotificationType.TripStarted]: 'play_circle',
+  [NotificationType.TripCompleted]: 'check_circle',
+  [NotificationType.TripCancelled]: 'cancel',
+  [NotificationType.TripUpdated]: 'edit_road',
+  [NotificationType.TripDriverArriving]: 'near_me',
+  [NotificationType.TripCreated]: 'add_road'
 };
 
 export const NotificationTypeColors: Record<number, string> = {
@@ -33,7 +54,14 @@ export const NotificationTypeColors: Record<number, string> = {
   [NotificationType.VehicleOffline]: '#EF4444',
   [NotificationType.PaymentReceived]: '#10B981',
   [NotificationType.EngineCommandSent]: '#8B5CF6',
-  [NotificationType.Sos]: '#DC2626'
+  [NotificationType.Sos]: '#DC2626',
+  [NotificationType.TripDriverAssigned]: '#0F766E',
+  [NotificationType.TripStarted]: '#2563EB',
+  [NotificationType.TripCompleted]: '#059669',
+  [NotificationType.TripCancelled]: '#DC2626',
+  [NotificationType.TripUpdated]: '#6366F1',
+  [NotificationType.TripDriverArriving]: '#EA580C',
+  [NotificationType.TripCreated]: '#0F766E'
 };
 
 export const NotificationPriorityLabels: Record<number, string> = {

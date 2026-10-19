@@ -1,4 +1,4 @@
-# SheikhGo Driver — Store Listing Copy
+# SheikhGo Tracking — Store Listing Copy
 
 Use these drafts in Google Play Console and App Store Connect. Replace `[Company]` and support URLs before publish.
 
@@ -6,7 +6,7 @@ Use these drafts in Google Play Console and App Store Connect. Replace `[Company
 
 | Field | Value |
 |-------|-------|
-| App name | SheikhGo Driver |
+| App name | SheikhGo Tracking |
 | Package / Bundle ID | `com.sheikhgo.fleet` |
 | Category | Business / Productivity |
 | Content rating | PEGI 3 / Everyone (no user-generated social content) |
@@ -20,7 +20,7 @@ Fleet driver app for trips, GPS, attendance, fuel, and safety.
 
 ## Full description (Play)
 
-SheikhGo Driver is the official mobile app for drivers on the SheikhGo fleet platform.
+SheikhGo Tracking is the official mobile app for drivers on the SheikhGo fleet platform.
 
 **What you can do**
 • Sign in securely with your driver credentials  
@@ -50,7 +50,7 @@ fleet,driver,gps,trips,dispatch,attendance,fuel,inspection,transport
 
 ## What’s new (v1.0.0)
 
-Initial production release of SheikhGo Driver: trip lifecycle, maps & navigation, attendance, fuel, inspections, documents, earnings, offline sync, background GPS, and hardened security.
+Initial production release of SheikhGo Tracking: trip lifecycle, maps & navigation, attendance, fuel, inspections, documents, earnings, offline sync, background GPS, and hardened security.
 
 ## Data safety / App Privacy labels (summary)
 

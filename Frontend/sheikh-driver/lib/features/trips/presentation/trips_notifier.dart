@@ -37,7 +37,7 @@ class TripsNotifier extends AutoDisposeAsyncNotifier<List<Trip>> {
     }
   }
 
-  Future<String?> startTrip(int id) => advance(id, 'Accept');
+  Future<String?> startTrip(int id) => advance(id, 'Start');
   Future<String?> completeTrip(int id) => advance(id, 'Complete');
   Future<String?> rejectTrip(int id, String reason) =>
       advance(id, 'Reject', reason: reason);

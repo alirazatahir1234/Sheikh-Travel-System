@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api/api_endpoints.dart';
 import '../../../core/api/dio_client.dart';
+import '../../../core/offline/offline_file_store.dart';
 import '../../../core/offline/offline_models.dart';
 import '../../../core/offline/offline_sync_service.dart';
 import '../domain/inspection_models.dart';
@@ -46,8 +47,17 @@ class InspectionApi {
     List<File>? photos,
     File? signature,
   }) async {
-    final photoPaths = photos?.map((f) => f.path).toList() ?? <String>[];
-    final sigPath = signature?.path;
+    // Persist photos/signature early so offline queue keeps durable paths.
+    final photoPaths = await OfflineFileStore.persistForOffline(
+      photos?.map((f) => f.path).toList() ?? const [],
+    );
+    final sigPaths = signature != null
+        ? await OfflineFileStore.persistForOffline([signature.path])
+        : const <String>[];
+    final sigPath = sigPaths.isNotEmpty ? sigPaths.first : null;
+
+    final photoFiles = photoPaths.map(File.new).toList();
+    final sigFile = sigPath != null ? File(sigPath) : null;
 
     return _ref.read(offlineSyncProvider).runOrQueue<int>(
           online: () async {
@@ -59,17 +69,18 @@ class InspectionApi {
               'resultsJson': jsonEncode(results.map((e) => e.toJson()).toList()),
             });
 
-            for (final p in (photos ?? []).take(8)) {
+            for (final p in photoFiles.take(8)) {
+              if (!await p.exists()) continue;
               form.files.add(MapEntry(
                 'photos',
                 await MultipartFile.fromFile(p.path, filename: p.uri.pathSegments.last),
               ));
             }
 
-            if (signature != null) {
+            if (sigFile != null && await sigFile.exists()) {
               form.files.add(MapEntry(
                 'signature',
-                await MultipartFile.fromFile(signature.path, filename: 'signature.png'),
+                await MultipartFile.fromFile(sigFile.path, filename: 'signature.png'),
               ));
             }
 

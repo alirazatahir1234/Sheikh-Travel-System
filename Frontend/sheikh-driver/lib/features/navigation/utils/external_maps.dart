@@ -16,28 +16,14 @@ class ExternalMapsLauncher {
     String? destLabel,
     String? fallbackUrl,
   }) async {
-    if (fallbackUrl != null && fallbackUrl.isNotEmpty) {
-      final ok = await _launch(Uri.parse(fallbackUrl));
-      if (ok) return true;
-    }
-
     final dest = '$destLat,$destLng';
     final origin = (originLat != null && originLng != null)
         ? '$originLat,$originLng'
         : null;
 
-    final web = Uri.parse(
-      origin == null
-          ? 'https://www.google.com/maps/dir/?api=1&destination=$dest&travelmode=driving'
-          : 'https://www.google.com/maps/dir/?api=1&origin=$origin&destination=$dest&travelmode=driving',
-    );
-
+    // Prefer native turn-by-turn intents over browser / web URLs.
     if (!kIsWeb && Platform.isAndroid) {
-      final nav = Uri.parse(
-        origin == null
-            ? 'google.navigation:q=$dest&mode=d'
-            : 'google.navigation:q=$dest&mode=d',
-      );
+      final nav = Uri.parse('google.navigation:q=$dest&mode=d');
       if (await _launch(nav)) return true;
     }
 
@@ -48,6 +34,17 @@ class ExternalMapsLauncher {
             : 'comgooglemaps://?saddr=$origin&daddr=$dest&directionsmode=driving',
       );
       if (await _launch(app)) return true;
+    }
+
+    final web = Uri.parse(
+      origin == null
+          ? 'https://www.google.com/maps/dir/?api=1&destination=$dest&travelmode=driving'
+          : 'https://www.google.com/maps/dir/?api=1&origin=$origin&destination=$dest&travelmode=driving',
+    );
+
+    if (fallbackUrl != null && fallbackUrl.isNotEmpty) {
+      final ok = await _launch(Uri.parse(fallbackUrl));
+      if (ok) return true;
     }
 
     return _launch(web);
@@ -81,10 +78,10 @@ class ExternalMapsLauncher {
 
   static Future<bool> _launch(Uri uri) async {
     try {
-      if (await canLaunchUrl(uri)) {
-        return launchUrl(uri, mode: LaunchMode.externalApplication);
-      }
-    } catch (_) {}
-    return false;
+      // canLaunchUrl is unreliable for custom schemes (google.navigation:).
+      return await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (_) {
+      return false;
+    }
   }
 }

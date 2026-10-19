@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../core/constants/app_theme.dart';
 import '../../../shared/widgets/sg_ui.dart';
+import '../../auth/data/auth_repository.dart';
+import '../../auth/domain/auth_models.dart';
 import '../domain/notification_models.dart';
 import '../services/notification_deep_link.dart';
 import 'notifications_notifier.dart';
@@ -55,7 +57,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
         ref.watch(unreadNotificationsCountProvider).valueOrNull ?? 0;
 
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor: context.sg.surface,
       appBar: AppBar(
         title: const Text('Notifications'),
         actions: [
@@ -129,10 +131,10 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
               data: (items) {
                 final filtered = _applyTab(items);
                 if (filtered.isEmpty) {
-                  return const Center(
+                  return Center(
                     child: Text(
                       'No notifications',
-                      style: TextStyle(color: AppColors.textSecondary),
+                      style: TextStyle(color: context.sg.textSecondary),
                     ),
                   );
                 }
@@ -190,7 +192,7 @@ class _TabChip extends StatelessWidget {
           style: TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.w600,
-            color: selected ? Colors.white : AppColors.textSecondary,
+            color: selected ? Colors.white : context.sg.textSecondary,
           ),
         ),
       ),
@@ -219,7 +221,7 @@ class _AlertCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final actions = ref.read(notificationsActionsProvider);
     final color =
-        notification.isRead ? AppColors.textSecondary : AppColors.primary;
+        notification.isRead ? context.sg.textSecondary : AppColors.primary;
     final display = notification.title.isNotEmpty
         ? notification.title
         : notification.message;
@@ -228,7 +230,13 @@ class _AlertCard extends ConsumerWidget {
       if (!notification.isRead && !archived) {
         await actions.markRead(notification.id);
       }
-      final route = NotificationDeepLink.fromNotification(notification);
+      final session = ref.read(authRepositoryProvider).session;
+      final forDriver = session != null &&
+          (session.isDriverOnly || session.authMode == AuthMode.driver);
+      final route = NotificationDeepLink.fromNotification(
+        notification,
+        forDriver: forDriver,
+      );
       if (route != null && context.mounted) {
         context.push(route);
       }
@@ -257,7 +265,7 @@ class _AlertCard extends ConsumerWidget {
                 Text(
                   display,
                   style: TextStyle(
-                    color: AppColors.textPrimary,
+                    color: context.sg.textPrimary,
                     fontWeight: notification.isRead
                         ? FontWeight.w500
                         : FontWeight.w700,
@@ -271,8 +279,8 @@ class _AlertCard extends ConsumerWidget {
                     notification.message,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: AppColors.textSecondary,
+                    style: TextStyle(
+                      color: context.sg.textSecondary,
                       fontSize: 12,
                     ),
                   ),

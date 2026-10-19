@@ -49,6 +49,17 @@ void main() {
       );
       expect(session.primaryNavRole, FleetRole.fleetManager);
     });
+
+    test('owner role wins over fleet manager', () {
+      final session = _session(
+        roles: const [FleetRole.owner, FleetRole.fleetManager],
+        permissions: const [FleetPermissions.gpsView, FleetPermissions.fuelView],
+        authMode: AuthMode.staff,
+        driverId: null,
+      );
+      expect(session.primaryNavRole, FleetRole.owner);
+      expect(session.isOwnerTracking, isTrue);
+    });
   });
 
   group('FleetSession permissions', () {
@@ -177,6 +188,46 @@ void main() {
       expect(
         tabs.map((t) => t.id).toList(),
         ['dashboard', 'finance', 'reports', 'notifications', 'more'],
+      );
+    });
+
+    test('owner tracking shell — live map, drivers, fuel', () {
+      final tabs = FleetNavConfig.visibleTabs(
+        _session(
+          roles: const [FleetRole.owner],
+          permissions: const [
+            FleetPermissions.gpsView,
+            FleetPermissions.driverView,
+            FleetPermissions.fuelView,
+            FleetPermissions.vehicleView,
+            FleetPermissions.tripView,
+          ],
+          authMode: AuthMode.staff,
+          driverId: null,
+        ),
+      );
+      expect(
+        tabs.map((t) => t.id).toList(),
+        ['dashboard', 'map', 'drivers', 'fuel', 'more'],
+      );
+    });
+
+    test('tenant admin uses owner tracking shell', () {
+      final tabs = FleetNavConfig.visibleTabs(
+        _session(
+          roles: const [FleetRole.tenantAdmin],
+          permissions: const [
+            FleetPermissions.gpsView,
+            FleetPermissions.driverView,
+            FleetPermissions.fuelView,
+          ],
+          authMode: AuthMode.staff,
+          driverId: null,
+        ),
+      );
+      expect(
+        tabs.map((t) => t.id).toList(),
+        ['dashboard', 'map', 'drivers', 'fuel', 'more'],
       );
     });
 

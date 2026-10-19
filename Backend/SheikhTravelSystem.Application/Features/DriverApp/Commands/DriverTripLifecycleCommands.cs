@@ -233,11 +233,12 @@ internal static class DriverTripLabels
 
     public static IReadOnlyList<string> NextActions(TripStatus status) => status switch
     {
+        // Reject only before acceptance. After Started, drivers use Arrived → Onboard → Complete.
         TripStatus.Scheduled or TripStatus.DriverAssigned or TripStatus.VehicleAssigned
             => ["Accept", "Reject"],
-        TripStatus.Started => ["Arrived", "Onboard", "Reject"],
-        TripStatus.AtPickup => ["Onboard", "Reject"],
-        TripStatus.Enroute => ["Complete", "Reject"],
+        TripStatus.Started => ["Arrived", "Onboard"],
+        TripStatus.AtPickup => ["Onboard"],
+        TripStatus.Enroute => ["Complete"],
         TripStatus.Delayed => ["Accept", "Arrived", "Onboard", "Complete", "Reject"],
         _ => []
     };
@@ -245,7 +246,8 @@ internal static class DriverTripLabels
     public static IReadOnlyList<string> NextActionsFromBooking(BookingStatus status) => status switch
     {
         BookingStatus.Confirmed => ["Accept", "Reject"],
-        BookingStatus.Started => ["Arrived", "Onboard", "Complete", "Reject"],
+        // Booking already started — no Reject (mirrors post-accept trip lifecycle).
+        BookingStatus.Started => ["Arrived", "Onboard", "Complete"],
         _ => []
     };
 }

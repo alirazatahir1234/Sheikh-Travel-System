@@ -27,12 +27,15 @@ class OfflineQueueScreen extends ConsumerWidget {
             o.status == OfflineOpStatus.failed ||
             o.status == OfflineOpStatus.syncing)
         .toList();
+    final exhausted = pending.where(isOfflineRetryExhausted).toList();
     final conflicts = items
         .where((o) => o.status == OfflineOpStatus.conflict)
         .toList();
     final fmt = DateFormat('dd MMM, HH:mm');
+    final p = context.sg;
 
     return Scaffold(
+      backgroundColor: p.surface,
       appBar: AppBar(
         title: Text(l10n.offlineQueue),
         actions: [
@@ -70,6 +73,59 @@ class OfflineQueueScreen extends ConsumerWidget {
               ),
             ),
           ),
+          if (exhausted.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Card(
+              color: AppColors.error.withValues(alpha: 0.08),
+              child: Padding(
+                padding: const EdgeInsets.all(14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${exhausted.length} item${exhausted.length == 1 ? '' : 's'} stopped after too many retries',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: p.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'These actions will not sync automatically. Retry when you are online, or remove them if they are no longer needed.',
+                      style: TextStyle(
+                        fontSize: 13,
+                        height: 1.35,
+                        color: p.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    FilledButton.icon(
+                      onPressed: online
+                          ? () async {
+                              final n = await ref
+                                  .read(offlineSyncProvider)
+                                  .retryAllFailed();
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      n > 0
+                                          ? l10n.syncedItems(n)
+                                          : 'Retry started — check remaining items',
+                                    ),
+                                  ),
+                                );
+                              }
+                            }
+                          : null,
+                      icon: const Icon(Icons.refresh_rounded, size: 18),
+                      label: const Text('Retry all failed'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
           const SizedBox(height: 16),
           Text(
             l10n.pendingSection(pending.length),
@@ -78,46 +134,55 @@ class OfflineQueueScreen extends ConsumerWidget {
           const SizedBox(height: 8),
           if (pending.isEmpty)
             Text(l10n.nothingPending,
-                style: const TextStyle(color: AppColors.textSecondary))
+                style: TextStyle(color: p.textSecondary))
           else
             ...pending.map(
-              (op) => Card(
-                child: ListTile(
-                  title: Text(op.label),
-                  subtitle: Text(
-                    '${fmt.format(op.createdAt.toLocal())}'
-                    '${op.lastError != null ? '\n${op.lastError}' : ''}'
-                    '\nAttempts: ${op.attempts} · ${op.status.name}',
-                  ),
-                  isThreeLine: true,
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (op.status == OfflineOpStatus.failed ||
-                          op.status == OfflineOpStatus.pending)
+              (op) {
+                final stopped = isOfflineRetryExhausted(op);
+                return Card(
+                  color: stopped
+                      ? AppColors.error.withValues(alpha: 0.05)
+                      : null,
+                  child: ListTile(
+                    title: Text(op.label),
+                    subtitle: Text(
+                      '${fmt.format(op.createdAt.toLocal())}'
+                      '${stopped ? '\nStopped after ${op.attempts} attempts — tap retry to try again' : ''}'
+                      '${op.lastError != null ? '\n${op.lastError}' : ''}'
+                      '\nAttempts: ${op.attempts} · ${op.status.name}',
+                    ),
+                    isThreeLine: true,
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (op.status == OfflineOpStatus.failed ||
+                            op.status == OfflineOpStatus.pending ||
+                            stopped)
+                          IconButton(
+                            tooltip: stopped ? 'Reset & retry' : l10n.retry,
+                            icon: const Icon(Icons.refresh_rounded),
+                            onPressed: online
+                                ? () async {
+                                    await ref
+                                        .read(offlineSyncProvider)
+                                        .retryOne(op.id);
+                                  }
+                                : null,
+                          ),
                         IconButton(
-                          tooltip: l10n.retry,
-                          icon: const Icon(Icons.refresh_rounded),
-                          onPressed: online
-                              ? () async {
-                                  await ref
-                                      .read(offlineSyncProvider)
-                                      .retryOne(op.id);
-                                }
-                              : null,
+                          icon: const Icon(Icons.delete_outline),
+                          onPressed: () async {
+                            await OfflineOutbox.remove(op.id);
+                            ref
+                                .read(offlinePendingCountProvider.notifier)
+                                .state = OfflineOutbox.length;
+                          },
                         ),
-                      IconButton(
-                        icon: const Icon(Icons.delete_outline),
-                        onPressed: () async {
-                          await OfflineOutbox.remove(op.id);
-                          ref.read(offlinePendingCountProvider.notifier).state =
-                              OfflineOutbox.length;
-                        },
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-              ),
+                );
+              },
             ),
           if (conflicts.isNotEmpty) ...[
             const SizedBox(height: 20),
@@ -128,7 +193,7 @@ class OfflineQueueScreen extends ConsumerWidget {
             const SizedBox(height: 4),
             Text(
               l10n.conflictsHint,
-              style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+              style: TextStyle(color: p.textSecondary, fontSize: 12),
             ),
             const SizedBox(height: 8),
             ...conflicts.map(

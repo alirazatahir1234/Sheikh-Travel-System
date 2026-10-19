@@ -2,6 +2,10 @@ namespace SheikhTravelSystem.Application.Features.DriverApp.DTOs;
 
 public record DriverLoginRequest(string Phone, string Password);
 
+public record DriverForgotPasswordRequest(string Phone);
+
+public record DriverResetPasswordRequest(string Token, string NewPassword);
+
 public record DriverAuthResultDto(
     string AccessToken,
     string RefreshToken,

@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_theme.dart';
+import '../../auth/data/auth_repository.dart';
+import '../../auth/domain/auth_models.dart';
 import '../presentation/notifications_notifier.dart';
+import '../services/notification_deep_link.dart';
 
 /// In-app banner for FCM messages received while the app is in the foreground.
 class ForegroundNotificationBanner extends ConsumerWidget {
@@ -26,7 +29,15 @@ class ForegroundNotificationBanner extends ConsumerWidget {
               borderRadius: BorderRadius.circular(12),
               onTap: () {
                 ref.read(foregroundBannerProvider.notifier).dismiss();
-                final route = event.route ?? '/notifications';
+                final session = ref.read(authRepositoryProvider).session;
+                final forDriver = session != null &&
+                    (session.isDriverOnly ||
+                        session.authMode == AuthMode.driver);
+                final route = NotificationDeepLink.adaptForSession(
+                      event.route ?? '/notifications',
+                      forDriver: forDriver,
+                    ) ??
+                    '/notifications';
                 context.push(route);
               },
               child: Padding(

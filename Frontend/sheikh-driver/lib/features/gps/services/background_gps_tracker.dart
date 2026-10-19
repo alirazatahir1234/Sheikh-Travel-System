@@ -193,7 +193,7 @@ class BackgroundGpsTracker extends ChangeNotifier {
         distanceFilter: distance,
         intervalDuration: interval,
         foregroundNotificationConfig: const ForegroundNotificationConfig(
-          notificationTitle: 'SheikhGo Fleet',
+          notificationTitle: 'SheikhGo Tracking',
           notificationText: 'Sharing live trip location with dispatch',
           notificationChannelName: 'Live Tracking',
           notificationIcon: AndroidResource(name: 'ic_launcher', defType: 'mipmap'),

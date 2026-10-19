@@ -319,7 +319,6 @@ export class MockDataService {
     { id: 'departments', label: 'Departments', count: 4 },
     { id: 'users', label: 'Users', count: 120 },
     { id: 'assets', label: 'Assets' },
-    { id: 'audit-logs', label: 'Audit Logs' },
   ]);
 
   readonly activeTab = signal<string>('overview');

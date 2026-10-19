@@ -90,7 +90,8 @@ public enum NotificationType
     TripCompleted = 9,
     TripCancelled = 10,
     TripUpdated = 11,
-    TripDriverArriving = 12
+    TripDriverArriving = 12,
+    TripCreated = 13
 }
 
 public enum MaintenanceStatus
@@ -134,3 +135,19 @@ public enum BranchStatus
     Maintenance = 3,
     Closed = 4
 }
+
+public enum InvoiceStatus
+{
+    Draft = 1,
+    Issued = 2,
+    Paid = 3,
+    Void = 4
+}
+
+public enum SettlementStatus
+{
+    Draft = 1,
+    Approved = 2,
+    Paid = 3
+}
+

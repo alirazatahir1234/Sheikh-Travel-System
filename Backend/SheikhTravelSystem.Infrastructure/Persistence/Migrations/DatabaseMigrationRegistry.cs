@@ -96,6 +96,7 @@ public static class DatabaseMigrationRegistry
             M("GpsControlCenterFoundationMigration", GpsControlCenterFoundationMigration.ApplyAsync),
             M("PlatformNavigationCleanupMigration", PlatformNavigationCleanupMigration.ApplyAsync),
             M("GpsOperatorRoleTemplateMigration", GpsOperatorRoleTemplateMigration.ApplyAsync),
+            M("OwnerRoleTemplateMigration", OwnerRoleTemplateMigration.ApplyAsync),
             M("BranchesViewPermissionMigration", BranchesViewPermissionMigration.ApplyAsync),
             M("FleetAlertMaintenancePermissionsMigration", FleetAlertMaintenancePermissionsMigration.ApplyAsync),
             M("SystemRolePermissionSyncMigration", SystemRolePermissionSyncMigration.ApplyAsync),
@@ -115,6 +116,12 @@ public static class DatabaseMigrationRegistry
             M("WhatsAppPhase2AutomationsMigration", WhatsAppPhase2AutomationsMigration.ApplyAsync),
             M("WhatsAppPhase3SelfServiceMigration", WhatsAppPhase3SelfServiceMigration.ApplyAsync),
             M("WhatsAppPhase4AiAssistMigration", WhatsAppPhase4AiAssistMigration.ApplyAsync),
+            M("NotificationTemplatesTenantEnforceMigration", NotificationTemplatesTenantEnforceMigration.ApplyAsync),
+            M("ModuleRentalHrComingSoonMigration", ModuleRentalHrComingSoonMigration.ApplyAsync),
+            M("CustomerInvoicesMigration", CustomerInvoicesMigration.ApplyAsync),
+            M("DriverSettlementsMigration", DriverSettlementsMigration.ApplyAsync),
+            M("ModuleInvoicesActiveMigration", ModuleInvoicesActiveMigration.ApplyAsync),
+            M("InvoiceSettlementPermissionsMigration", InvoiceSettlementPermissionsMigration.ApplyAsync),
         ];
     }
 }

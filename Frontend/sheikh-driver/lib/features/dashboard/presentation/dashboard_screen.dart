@@ -6,6 +6,7 @@ import '../../../core/offline/offline_sync_service.dart';
 import '../../../features/auth/data/auth_repository.dart';
 import '../../../features/auth/domain/auth_models.dart';
 import '../../../shared/widgets/sg_ui.dart';
+import '../../notifications/presentation/notifications_notifier.dart';
 import '../../trips/presentation/trips_notifier.dart';
 import '../domain/dashboard_layout.dart';
 import '../domain/dashboard_models.dart';
@@ -33,6 +34,7 @@ const _driverOrder = [
   DashboardWidgetId.myVehicle,
   DashboardWidgetId.driverTripKpis,
   DashboardWidgetId.earnings,
+  DashboardWidgetId.recentActivities,
   DashboardWidgetId.quickActions,
   DashboardWidgetId.aiAttention,
 ];
@@ -48,36 +50,20 @@ class DashboardScreen extends ConsumerWidget {
         (session.isDriverOnly || session.authMode == AuthMode.driver);
 
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor: context.sg.surface,
       appBar: AppBar(
         leading: IconButton(
-          icon: const Icon(Icons.menu_rounded),
+          icon: const Icon(Icons.settings_outlined),
+          tooltip: 'Settings',
           onPressed: () => context.push('/settings'),
         ),
         title: Text(
           session?.companyName?.isNotEmpty == true
               ? session!.companyName!
-              : 'Sheikh Travel',
+              : 'SheikhGo Tracking',
           style: const TextStyle(fontWeight: FontWeight.w700),
         ),
-        centerTitle: true,
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(18),
-          child: Padding(
-            padding: const EdgeInsets.only(bottom: 6),
-            child: Text(
-              forceDriver
-                  ? 'Driver view'
-                  : session != null
-                      ? '${DashboardRoleX.fromNavRole(session.primaryNavRole).subtitle} ˅'
-                      : 'Driver view',
-              style: const TextStyle(
-                fontSize: 12,
-                color: AppColors.textSecondary,
-              ),
-            ),
-          ),
-        ),
+        centerTitle: false,
         actions: [
           if (forceDriver)
             PopupMenuButton<String>(
@@ -93,22 +79,8 @@ class DashboardScreen extends ConsumerWidget {
               ],
               icon: const Icon(Icons.toggle_on_outlined),
             ),
-          Stack(
-            alignment: Alignment.center,
-            children: [
-              IconButton(
-                icon: const Icon(Icons.notifications_none_rounded),
-                onPressed: () => context.go('/notifications'),
-              ),
-              const Positioned(
-                right: 10,
-                top: 10,
-                child: CircleAvatar(
-                  radius: 4,
-                  backgroundColor: AppColors.success,
-                ),
-              ),
-            ],
+          _InboxBellButton(
+            onPressed: () => context.go('/notifications'),
           ),
         ],
       ),
@@ -182,7 +154,7 @@ class DashboardScreen extends ConsumerWidget {
                     child: SectionErrorHint(
                       message:
                           'Fleet data could not be loaded. Check that the API is reachable '
-                          '(use DEV_LAN_HOST for a physical phone, not localhost). Pull to refresh.',
+                          'Pull to refresh, or check your connection.',
                     ),
                   ),
               ],
@@ -209,8 +181,9 @@ class DashboardScreen extends ConsumerWidget {
           id == DashboardWidgetId.earnings) {
         return data.driver != null;
       }
-      if (id == DashboardWidgetId.aiAttention && !canOpenAi) {
-        return data.aiItems.isNotEmpty;
+      // Drivers without AI access must not see a dead Copilot teaser.
+      if (id == DashboardWidgetId.aiAttention) {
+        return canOpenAi;
       }
       return true;
     }).toList();
@@ -281,7 +254,12 @@ class DashboardScreen extends ConsumerWidget {
         final actions = forceDriver && !data.isDriver
             ? DashboardLayoutRegistry.quickActionsFor(DashboardRole.driver)
             : data.quickActions;
-        return QuickActionsGrid(actions: actions);
+        final isDriverLayout = forceDriver || data.isDriver;
+        return QuickActionsGrid(
+          actions: actions,
+          // Drivers should not land on staff /more hub from this CTA.
+          viewAllRoute: isDriverLayout ? '/profile' : '/more',
+        );
       case DashboardWidgetId.aiAttention:
         return AiCopilotSummaryCard(
           items: data.aiItems,
@@ -295,14 +273,61 @@ class DashboardScreen extends ConsumerWidget {
         final d = data.driver!;
         final remaining =
             (d.assignedTripsToday - d.completedToday).clamp(0, 999);
-        return KpiStrip(items: [
-          ('Trips Today', '${d.assignedTripsToday}', AppColors.primary),
-          ('Completed', '${d.completedToday}', AppColors.success),
-          ('Remaining', '$remaining', AppColors.warning),
-          ('Alerts', '${d.unreadNotifications}', AppColors.error),
-        ]);
+        return KpiStrip(
+          items: [
+            ('Trips Today', '${d.assignedTripsToday}', AppColors.primary),
+            ('Completed', '${d.completedToday}', AppColors.success),
+            ('Remaining', '$remaining', AppColors.warning),
+            ('Inbox', '${d.unreadNotifications}', AppColors.error),
+          ],
+          itemRoutes: const [null, null, null, '/notifications'],
+        );
       case DashboardWidgetId.earnings:
         return EarningsCard(driver: data.driver!);
+      case DashboardWidgetId.recentActivities:
+        if (data.activities.isNotEmpty) {
+          return RecentActivitiesCard(items: data.activities.take(5).toList());
+        }
+        return SgCard(
+          onTap: () => context.push('/timeline'),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.timeline_outlined,
+                    color: AppColors.primary),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Activity',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: context.sg.textPrimary,
+                      ),
+                    ),
+                    Text(
+                      'View your trip and attendance timeline',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: context.sg.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_right, color: context.sg.textMuted),
+            ],
+          ),
+        );
 
       // Everything else is suppressed — return nothing.
       default:
@@ -332,6 +357,26 @@ class DashboardScreen extends ConsumerWidget {
   }
 }
 
+class _InboxBellButton extends ConsumerWidget {
+  const _InboxBellButton({required this.onPressed});
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final unread =
+        ref.watch(unreadNotificationsCountProvider).valueOrNull ?? 0;
+    return IconButton(
+      tooltip: 'Inbox',
+      onPressed: onPressed,
+      icon: Badge(
+        isLabelVisible: unread > 0,
+        label: Text(unread > 99 ? '99+' : '$unread'),
+        child: const Icon(Icons.notifications_none_rounded),
+      ),
+    );
+  }
+}
+
 class _ErrorView extends StatelessWidget {
   const _ErrorView({required this.message, required this.onRetry});
   final String message;
@@ -345,12 +390,12 @@ class _ErrorView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.cloud_off_outlined,
-                size: 48, color: AppColors.textSecondary),
+            Icon(Icons.cloud_off_outlined,
+                size: 48, color: context.sg.textSecondary),
             const SizedBox(height: 12),
             Text(message,
                 textAlign: TextAlign.center,
-                style: const TextStyle(color: AppColors.textSecondary)),
+                style: TextStyle(color: context.sg.textSecondary)),
             const SizedBox(height: 16),
             SgPrimaryButton(label: 'Retry', onPressed: onRetry),
           ],

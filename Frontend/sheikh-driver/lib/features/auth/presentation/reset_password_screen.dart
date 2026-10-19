@@ -1,102 +1,133 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_theme.dart';
+import '../data/auth_api.dart';
 
-/// Placeholder reset-password form until a public token API is available.
-class ResetPasswordScreen extends StatefulWidget {
-  const ResetPasswordScreen({super.key});
+/// Completes driver password reset with the one-time code from SMS (or DevMode).
+class ResetPasswordScreen extends ConsumerStatefulWidget {
+  const ResetPasswordScreen({super.key, this.initialToken});
+
+  final String? initialToken;
 
   @override
-  State<ResetPasswordScreen> createState() => _ResetPasswordScreenState();
+  ConsumerState<ResetPasswordScreen> createState() => _ResetPasswordScreenState();
 }
 
-class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
-  final _tokenCtrl = TextEditingController();
-  final _passwordCtrl = TextEditingController();
-  final _confirmCtrl = TextEditingController();
+class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
+  late final TextEditingController _token;
+  final _password = TextEditingController();
+  final _confirm = TextEditingController();
   final _formKey = GlobalKey<FormState>();
-  bool _done = false;
+  bool _busy = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _token = TextEditingController(text: widget.initialToken ?? '');
+  }
 
   @override
   void dispose() {
-    _tokenCtrl.dispose();
-    _passwordCtrl.dispose();
-    _confirmCtrl.dispose();
+    _token.dispose();
+    _password.dispose();
+    _confirm.dispose();
     super.dispose();
   }
 
-  void _submit() {
-    if (!(_formKey.currentState?.validate() ?? false)) return;
-    setState(() => _done = true);
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      await ref.read(authApiProvider).resetPassword(
+            token: _token.text,
+            newPassword: _password.text,
+          );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Password updated. Sign in with your new password.')),
+      );
+      context.go('/login');
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _error = e.toString().replaceFirst('Exception: ', ''));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final p = context.sg;
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor: p.surface,
       appBar: AppBar(title: const Text('Reset password')),
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          if (_done) ...[
-            const Text(
-              'Password reset via email token is not enabled on this environment yet. '
-              'Use an admin-issued temporary password from ERP Users.',
-              style: TextStyle(color: AppColors.textSecondary, height: 1.4),
+          Text(
+            'Enter the reset code from SMS and choose a new password.',
+            style: TextStyle(fontSize: 14, color: p.textMuted, height: 1.4),
+          ),
+          const SizedBox(height: 20),
+          Form(
+            key: _formKey,
+            child: Column(
+              children: [
+                TextFormField(
+                  controller: _token,
+                  decoration: const InputDecoration(labelText: 'Reset code'),
+                  validator: (v) =>
+                      (v == null || v.trim().isEmpty) ? 'Code is required' : null,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _password,
+                  obscureText: true,
+                  decoration: const InputDecoration(labelText: 'New password'),
+                  validator: (v) {
+                    if (v == null || v.length < 6) {
+                      return 'At least 6 characters';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _confirm,
+                  obscureText: true,
+                  decoration: const InputDecoration(labelText: 'Confirm password'),
+                  validator: (v) {
+                    if (v != _password.text) return 'Passwords do not match';
+                    return null;
+                  },
+                ),
+              ],
             ),
-            const SizedBox(height: 16),
-            FilledButton(
-              onPressed: () => context.go('/login'),
-              child: const Text('Back to login'),
-            ),
-          ] else ...[
-            const Text(
-              'If your admin shared a reset token, enter it below. Otherwise ask them to reset your account from ERP.',
-              style: TextStyle(color: AppColors.textSecondary, height: 1.4),
-            ),
-            const SizedBox(height: 16),
-            Form(
-              key: _formKey,
-              child: Column(
-                children: [
-                  TextFormField(
-                    controller: _tokenCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Reset token',
-                      border: OutlineInputBorder(),
-                    ),
-                    validator: (v) =>
-                        (v == null || v.trim().isEmpty) ? 'Required' : null,
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _passwordCtrl,
-                    obscureText: true,
-                    decoration: const InputDecoration(
-                      labelText: 'New password',
-                      border: OutlineInputBorder(),
-                    ),
-                    validator: (v) =>
-                        (v == null || v.length < 8) ? 'Min 8 characters' : null,
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _confirmCtrl,
-                    obscureText: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Confirm password',
-                      border: OutlineInputBorder(),
-                    ),
-                    validator: (v) => v != _passwordCtrl.text
-                        ? 'Passwords do not match'
-                        : null,
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-            FilledButton(onPressed: _submit, child: const Text('Reset password')),
+          ),
+          if (_error != null) ...[
+            const SizedBox(height: 12),
+            Text(_error!, style: TextStyle(color: AppColors.error, fontSize: 13)),
           ],
+          const SizedBox(height: 24),
+          FilledButton(
+            onPressed: _busy ? null : _submit,
+            child: _busy
+                ? const SizedBox(
+                    height: 20,
+                    width: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Text('Update password'),
+          ),
+          TextButton(
+            onPressed: () => context.go('/login'),
+            child: const Text('Back to login'),
+          ),
         ],
       ),
     );

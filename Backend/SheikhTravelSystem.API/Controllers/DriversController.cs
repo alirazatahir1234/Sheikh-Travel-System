@@ -46,6 +46,11 @@ public class DriversController : BaseApiController
         return CreatedAtAction(nameof(GetById), new { id = result.Data }, result);
     }
 
+    [RequirePermission(DriverPermissions.DriverCreate)]
+    [HttpPost("bulk")]
+    public async Task<IActionResult> BulkCreate([FromBody] BulkCreateDriversCommand command)
+        => Ok(await Mediator.Send(command));
+
     [RequirePermission(DriverPermissions.DriverUpdate)]
     [HttpPut("{id:int}")]
     public async Task<IActionResult> Update(int id, [FromBody] UpdateDriverCommand command)

@@ -11,27 +11,43 @@ namespace SheikhTravelSystem.Infrastructure.Persistence.Repositories;
 public sealed class CustomerPortalRepository(IDbConnectionFactory dbFactory) : ICustomerPortalRepository
 {
     public async Task<IReadOnlyList<int>> ResolvePortalCustomerIdsAsync(
-        string phone, int? jwtCustomerId, CancellationToken cancellationToken = default)
+        int tenantId, string phone, int? jwtCustomerId, CancellationToken cancellationToken = default)
     {
         var ids = new HashSet<int>();
+        using var connection = dbFactory.CreateConnection();
+
         if (jwtCustomerId is > 0)
-            ids.Add(jwtCustomerId.Value);
+        {
+            var owned = await connection.ExecuteScalarAsync<int?>(new CommandDefinition(
+                """
+                SELECT TOP 1 Id FROM Customers
+                WHERE Id = @Id AND TenantId = @TenantId AND IsDeleted = 0
+                """,
+                new { Id = jwtCustomerId.Value, TenantId = tenantId },
+                cancellationToken: cancellationToken));
+            if (owned is > 0)
+                ids.Add(owned.Value);
+        }
 
         var variants = PortalPhoneHelper.LookupVariants(phone);
         var suffix = PortalPhoneHelper.MobileSuffix(phone);
         if (variants.Count == 0 && string.IsNullOrEmpty(suffix))
             return ids.ToList();
 
-        using var connection = dbFactory.CreateConnection();
         var fromPhone = await connection.QueryAsync<int>(new CommandDefinition(
             """
-            SELECT Id FROM Customers WHERE IsDeleted = 0 AND (
+            SELECT Id FROM Customers WHERE IsDeleted = 0 AND TenantId = @TenantId AND (
               Phone IN @Phones
               OR (@Suffix <> '' AND LEN(@Suffix) = 10 AND
                   RIGHT(REPLACE(REPLACE(REPLACE(REPLACE(Phone, '+', ''), ' ', ''), '-', ''), '(', ''), 10) = @Suffix)
             )
             """,
-            new { Phones = variants.Count > 0 ? variants : new[] { phone.Trim() }, Suffix = suffix },
+            new
+            {
+                TenantId = tenantId,
+                Phones = variants.Count > 0 ? variants : new[] { phone.Trim() },
+                Suffix = suffix
+            },
             cancellationToken: cancellationToken));
 
         foreach (var id in fromPhone)
@@ -41,9 +57,9 @@ public sealed class CustomerPortalRepository(IDbConnectionFactory dbFactory) : I
     }
 
     public async Task<bool> CustomerOwnsBookingAsync(
-        int bookingId, string phone, int? customerId, CancellationToken cancellationToken = default)
+        int tenantId, int bookingId, string phone, int? customerId, CancellationToken cancellationToken = default)
     {
-        var customerIds = await ResolvePortalCustomerIdsAsync(phone, customerId, cancellationToken);
+        var customerIds = await ResolvePortalCustomerIdsAsync(tenantId, phone, customerId, cancellationToken);
         if (customerIds.Count == 0)
             return false;
 
@@ -51,9 +67,10 @@ public sealed class CustomerPortalRepository(IDbConnectionFactory dbFactory) : I
         return await connection.ExecuteScalarAsync<bool>(new CommandDefinition(
             @"SELECT CASE WHEN EXISTS(
                 SELECT 1 FROM Bookings b
-                WHERE b.Id = @BookingId AND b.IsDeleted = 0 AND b.CustomerId IN @CustomerIds
+                WHERE b.Id = @BookingId AND b.IsDeleted = 0
+                  AND b.TenantId = @TenantId AND b.CustomerId IN @CustomerIds
               ) THEN 1 ELSE 0 END",
-            new { BookingId = bookingId, CustomerIds = customerIds },
+            new { BookingId = bookingId, TenantId = tenantId, CustomerIds = customerIds },
             cancellationToken: cancellationToken));
     }
 
@@ -77,9 +94,9 @@ public sealed class CustomerPortalRepository(IDbConnectionFactory dbFactory) : I
         }
     }
 
-    public async Task<int?> ResolveCustomerIdByPhoneAsync(string phone, CancellationToken cancellationToken = default)
+    public async Task<int?> ResolveCustomerIdByPhoneAsync(int tenantId, string phone, CancellationToken cancellationToken = default)
     {
-        var ids = await ResolvePortalCustomerIdsAsync(phone, null, cancellationToken);
+        var ids = await ResolvePortalCustomerIdsAsync(tenantId, phone, null, cancellationToken);
         return ids.Count > 0 ? ids[0] : null;
     }
 
@@ -87,7 +104,7 @@ public sealed class CustomerPortalRepository(IDbConnectionFactory dbFactory) : I
         string phone, string fullName, int tenantId, CancellationToken cancellationToken = default)
     {
         var normalized = PortalPhoneHelper.Normalize(phone);
-        var existing = await ResolveCustomerIdByPhoneAsync(phone, cancellationToken);
+        var existing = await ResolveCustomerIdByPhoneAsync(tenantId, phone, cancellationToken);
         if (existing.HasValue)
         {
             using var connection = dbFactory.CreateConnection();

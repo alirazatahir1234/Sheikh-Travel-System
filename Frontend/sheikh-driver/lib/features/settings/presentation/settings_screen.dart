@@ -11,6 +11,7 @@ import '../../../core/providers/theme_provider.dart';
 import '../../../core/security/biometric_auth_service.dart';
 import '../../../features/auth/data/auth_repository.dart';
 import '../../gps/services/background_gps_tracker.dart';
+import '../../notifications/services/push_registration_service.dart';
 import '../services/app_version_service.dart';
 
 class SettingsScreen extends ConsumerWidget {
@@ -45,11 +46,11 @@ class SettingsScreen extends ConsumerWidget {
               color: AppColors.primary,
             ),
             title: Text(l10n.darkMode,
-                style: const TextStyle(
-                    fontWeight: FontWeight.w500, color: AppColors.textPrimary)),
+                style: TextStyle(
+                    fontWeight: FontWeight.w500, color: context.sg.textPrimary)),
             subtitle: Text(l10n.darkModeSubtitle,
-                style: const TextStyle(
-                    fontSize: 12, color: AppColors.textSecondary)),
+                style: TextStyle(
+                    fontSize: 12, color: context.sg.textSecondary)),
             value: isDark,
             activeThumbColor: AppColors.primary,
             activeTrackColor: AppColors.primaryLight,
@@ -64,11 +65,11 @@ class SettingsScreen extends ConsumerWidget {
               color: AppColors.accent,
             ),
             title: Text(l10n.language,
-                style: const TextStyle(
-                    fontWeight: FontWeight.w500, color: AppColors.textPrimary)),
+                style: TextStyle(
+                    fontWeight: FontWeight.w500, color: context.sg.textPrimary)),
             subtitle: Text(l10n.languageSubtitle,
-                style: const TextStyle(
-                    fontSize: 12, color: AppColors.textSecondary)),
+                style: TextStyle(
+                    fontSize: 12, color: context.sg.textSecondary)),
             trailing: DropdownButton<String>(
               value: localeCode == 'ar' ? 'ar' : 'en',
               underline: const SizedBox.shrink(),
@@ -86,17 +87,45 @@ class SettingsScreen extends ConsumerWidget {
 
           // ── Security ──────────────────────────
           _SectionHeader(l10n.security),
+          Builder(
+            builder: (context) {
+              final pushIssue = ref.watch(pushRegistrationIssueProvider);
+              if (pushIssue == null) return const SizedBox.shrink();
+              return Card(
+                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                color: AppColors.warning.withValues(alpha: 0.12),
+                child: ListTile(
+                  leading: const Icon(Icons.notifications_off_outlined,
+                      color: AppColors.warning),
+                  title: const Text(
+                    'Push notifications',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  subtitle: Text(pushIssue),
+                  trailing: IconButton(
+                    tooltip: 'Dismiss',
+                    icon: const Icon(Icons.close),
+                    onPressed: () {
+                      PushRegistrationService.instance.clearHint();
+                      ref.read(pushRegistrationIssueProvider.notifier).state =
+                          null;
+                    },
+                  ),
+                ),
+              );
+            },
+          ),
           SwitchListTile(
             secondary: const _IconBox(
               icon: Icons.fingerprint_rounded,
               color: AppColors.success,
             ),
             title: Text(l10n.biometricLock,
-                style: const TextStyle(
-                    fontWeight: FontWeight.w500, color: AppColors.textPrimary)),
+                style: TextStyle(
+                    fontWeight: FontWeight.w500, color: context.sg.textPrimary)),
             subtitle: Text(l10n.biometricLockSubtitle,
-                style: const TextStyle(
-                    fontSize: 12, color: AppColors.textSecondary)),
+                style: TextStyle(
+                    fontSize: 12, color: context.sg.textSecondary)),
             value: biometricOn,
             activeThumbColor: AppColors.primary,
             activeTrackColor: AppColors.primaryLight,
@@ -186,20 +215,20 @@ class SettingsScreen extends ConsumerWidget {
           ),
           _SettingTile(
             icon: Icons.gavel_outlined,
-            iconColor: AppColors.textSecondary,
+            iconColor: context.sg.textSecondary,
             title: 'Terms of Service',
             onTap: () => context.push('/legal/terms'),
           ),
           _SettingTile(
             icon: Icons.info_outline,
-            iconColor: AppColors.textSecondary,
+            iconColor: context.sg.textSecondary,
             title: 'Version',
             trailing: FutureBuilder<String>(
               future: AppVersionService.displayVersion(),
               builder: (context, snap) => Text(
                 snap.data ?? AppVersionService.currentVersion,
-                style: const TextStyle(
-                    color: AppColors.textSecondary, fontSize: 13),
+                style: TextStyle(
+                    color: context.sg.textSecondary, fontSize: 13),
               ),
             ),
           ),
@@ -392,11 +421,11 @@ class _ChangePasswordSheetState extends State<_ChangePasswordSheet> {
               ),
             ),
             const SizedBox(height: 16),
-            const Text('Change Password',
+            Text('Change Password',
                 style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary)),
+                    color: context.sg.textPrimary)),
             const SizedBox(height: 20),
             TextFormField(
               controller: _currentCtrl,
@@ -470,10 +499,10 @@ class _SectionHeader extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(16, 20, 16, 6),
         child: Text(
           title.toUpperCase(),
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 11,
             fontWeight: FontWeight.w700,
-            color: AppColors.textSecondary,
+            color: context.sg.textSecondary,
             letterSpacing: 1.2,
           ),
         ),
@@ -509,12 +538,12 @@ class _SettingTile extends StatelessWidget {
           child: Icon(icon, color: iconColor, size: 20),
         ),
         title: Text(title,
-            style: const TextStyle(
-                fontWeight: FontWeight.w500, color: AppColors.textPrimary)),
+            style: TextStyle(
+                fontWeight: FontWeight.w500, color: context.sg.textPrimary)),
         subtitle: subtitle != null
             ? Text(subtitle!,
                 style:
-                    const TextStyle(fontSize: 12, color: AppColors.textSecondary))
+                    TextStyle(fontSize: 12, color: context.sg.textSecondary))
             : null,
         trailing: trailing ?? (onTap != null ? const Icon(Icons.chevron_right) : null),
         onTap: onTap,

@@ -92,6 +92,8 @@ public static class DependencyInjection
         services.AddScoped<ITrackingRepository, TrackingRepository>();
         services.AddScoped<IFuelLogRepository, FuelLogRepository>();
         services.AddScoped<IPaymentRepository, PaymentRepository>();
+        services.AddScoped<ICustomerInvoiceRepository, CustomerInvoiceRepository>();
+        services.AddScoped<IDriverSettlementRepository, DriverSettlementRepository>();
         services.AddScoped<IPricingRepository, PricingRepository>();
         services.AddScoped<IMaintenanceRepository, MaintenanceRepository>();
         services.AddScoped<IMaintenanceModuleRepository, MaintenanceModuleRepository>();

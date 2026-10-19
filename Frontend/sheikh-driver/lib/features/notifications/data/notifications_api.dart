@@ -73,7 +73,8 @@ class NotificationsApi {
   }
 
   Future<void> markRead(List<int>? ids) async {
-    await _dio.put(_readPath, data: ids);
+    // Always send a JSON array. null → [] (mark all); avoids empty-body binding failures.
+    await _dio.put(_readPath, data: ids ?? const <int>[]);
   }
 
   Future<void> archive(List<int> ids) async {

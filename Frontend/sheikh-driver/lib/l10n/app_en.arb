@@ -1,6 +1,6 @@
 {
   "@@locale": "en",
-  "appTitle": "SheikhGo Fleet",
+  "appTitle": "SheikhGo Tracking",
   "settings": "Settings",
   "account": "Account",
   "appearance": "Appearance",
@@ -17,7 +17,7 @@
   "biometricLockSubtitle": "Require Face ID / fingerprint to open the app",
   "biometricUnavailable": "Biometrics are not available on this device",
   "biometricEnableFailed": "Could not enable biometric lock",
-  "unlockTitle": "Unlock SheikhGo Fleet",
+  "unlockTitle": "Unlock SheikhGo Tracking",
   "unlockSubtitle": "Authenticate to continue",
   "unlockAction": "Unlock",
   "unlockSignOut": "Sign out",

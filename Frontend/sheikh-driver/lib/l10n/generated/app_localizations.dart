@@ -101,7 +101,7 @@ abstract class AppLocalizations {
   /// No description provided for @appTitle.
   ///
   /// In en, this message translates to:
-  /// **'SheikhGo Fleet'**
+  /// **'SheikhGo Tracking'**
   String get appTitle;
 
   /// No description provided for @settings.
@@ -203,7 +203,7 @@ abstract class AppLocalizations {
   /// No description provided for @unlockTitle.
   ///
   /// In en, this message translates to:
-  /// **'Unlock SheikhGo Fleet'**
+  /// **'Unlock SheikhGo Tracking'**
   String get unlockTitle;
 
   /// No description provided for @unlockSubtitle.

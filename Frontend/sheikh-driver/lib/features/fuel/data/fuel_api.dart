@@ -3,6 +3,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api/api_endpoints.dart';
 import '../../../core/api/dio_client.dart';
+import '../../../core/offline/offline_file_store.dart';
 import '../../../core/offline/offline_models.dart';
 import '../../../core/offline/offline_sync_service.dart';
 import '../domain/fuel_model.dart';
@@ -33,6 +34,15 @@ class FuelApi {
     required String fuelType,
     File? receipt,
   }) async {
+    // Persist receipt early so offline queue does not depend on cache/temp paths.
+    final durablePaths = receipt != null
+        ? await OfflineFileStore.persistForOffline([receipt.path])
+        : const <String>[];
+    final receiptPath =
+        durablePaths.isNotEmpty ? durablePaths.first : receipt?.path;
+    final receiptFile =
+        receiptPath != null ? File(receiptPath) : null;
+
     await _ref.read(offlineSyncProvider).runOrQueue(
           online: () async {
             final form = FormData.fromMap({
@@ -44,12 +54,12 @@ class FuelApi {
               'fuelType': fuelType,
               'fuelDate': DateTime.now().toUtc().toIso8601String(),
             });
-            if (receipt != null) {
+            if (receiptFile != null && await receiptFile.exists()) {
               form.files.add(MapEntry(
                 'receipt',
                 await MultipartFile.fromFile(
-                  receipt.path,
-                  filename: receipt.uri.pathSegments.last,
+                  receiptFile.path,
+                  filename: receiptFile.uri.pathSegments.last,
                 ),
               ));
             }
@@ -64,8 +74,9 @@ class FuelApi {
             'station': station,
             'fuelType': fuelType,
             'fuelDate': DateTime.now().toUtc().toIso8601String(),
+            if (receiptPath != null) 'receiptPath': receiptPath,
           },
-          filePaths: receipt != null ? [receipt.path] : const [],
+          filePaths: receiptPath != null ? [receiptPath] : const [],
         );
   }
 

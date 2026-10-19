@@ -5,6 +5,7 @@ import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.ser
 import { catchError } from 'rxjs/operators';
 import { BookingService } from '../../../core/services/booking.service';
 import { PaymentService } from '../../../core/services/payment.service';
+import { InvoiceService } from '../../../core/services/invoice.service';
 import { VehicleService } from '../../../core/services/vehicle.service';
 import { DriverService } from '../../../core/services/driver.service';
 import { TripService } from '../../../core/services/trip.service';
@@ -37,6 +38,7 @@ export class BookingDetailComponent implements OnInit {
   selectedDriverId: number | null = null;
   reassigning = false;
   creatingTrip = false;
+  generatingInvoice = false;
 
   waTimeline: WhatsAppAutomationTimelineItem[] = [];
   waTimelineLoading = false;
@@ -57,6 +59,7 @@ export class BookingDetailComponent implements OnInit {
     private route: ActivatedRoute,
     private bookingService: BookingService,
     private paymentService: PaymentService,
+    private invoiceService: InvoiceService,
     private vehicleService: VehicleService,
     private driverService: DriverService,
     private tripService: TripService,
@@ -202,6 +205,28 @@ export class BookingDetailComponent implements OnInit {
   /** Invoice / print — not offered for cancelled bookings. */
   canPrintInvoice(): boolean {
     return !!this.booking && this.booking.status !== 'Cancelled';
+  }
+
+  canGenerateInvoice(): boolean {
+    return !!this.booking
+      && this.booking.status !== 'Cancelled'
+      && this.auth.hasPermission('Invoice.Manage');
+  }
+
+  generateInvoice(): void {
+    if (!this.booking || this.generatingInvoice) return;
+    this.generatingInvoice = true;
+    this.invoiceService.issueFromBooking(this.booking.id).subscribe({
+      next: invoiceId => {
+        this.generatingInvoice = false;
+        this.toast.success('Invoice generated.');
+        void this.router.navigate(['/invoices', invoiceId]);
+      },
+      error: () => {
+        this.generatingInvoice = false;
+        this.toast.error('Could not generate invoice.');
+      }
+    });
   }
 
   /** Recording new payments — not when trip is done or booking cancelled. */

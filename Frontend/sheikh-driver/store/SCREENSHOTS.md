@@ -6,7 +6,7 @@ Capture on a **physical device** (or high-quality emulator) with demo tenant dat
 
 | # | Screen | Notes |
 |---|--------|-------|
-| 1 | Login | Brand “SheikhGo Driver” visible |
+| 1 | Login | Brand “SheikhGo Tracking” visible |
 | 2 | Dashboard | KPIs / today’s trips |
 | 3 | Trip list | Mix of statuses |
 | 4 | Trip detail + lifecycle actions | Accept / Arrived visible |

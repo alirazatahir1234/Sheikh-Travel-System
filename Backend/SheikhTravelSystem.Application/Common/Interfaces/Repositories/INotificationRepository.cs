@@ -47,16 +47,24 @@ public interface INotificationRepository
         CancellationToken cancellationToken = default);
 
     Task<List<NotificationTemplateDto>> GetTemplatesAsync(
+        int tenantId,
         string? channel,
         CancellationToken cancellationToken = default);
 
-    Task UpdateTemplateAsync(
+    Task<bool> UpdateTemplateAsync(
+        int tenantId,
         int id,
         UpsertNotificationTemplateRequest request,
         CancellationToken cancellationToken = default);
 
     Task<int> InsertTemplateAsync(
+        int tenantId,
         UpsertNotificationTemplateRequest request,
+        CancellationToken cancellationToken = default);
+
+    Task<bool> SoftDeleteTemplateAsync(
+        int tenantId,
+        int id,
         CancellationToken cancellationToken = default);
 
     Task<bool> UserCanAccessNotificationAsync(

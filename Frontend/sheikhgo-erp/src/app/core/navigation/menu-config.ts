@@ -106,7 +106,8 @@ const financeGroup: NavGroup = {
   collapsible: true,
   items: [
     { id: 'payments', label: 'Payments', icon: 'payments', route: '/payments', moduleKey: 'payments' },
-    { id: 'invoices', label: 'Invoices', icon: 'receipt_long', route: '/payments', moduleKey: 'payments' },
+    { id: 'invoices', label: 'Invoices', icon: 'receipt_long', route: '/invoices', moduleKey: 'payments' },
+    { id: 'settlements', label: 'Settlements', icon: 'account_balance_wallet', route: '/settlements', moduleKey: 'payments' },
     { id: 'wallets', label: 'Wallets', icon: 'account_balance', route: '/payments', moduleKey: 'payments' },
     { id: 'expenses', label: 'Expenses', icon: 'money_off', route: '/fuel-logs', moduleKey: 'fuel-logs' }
   ]

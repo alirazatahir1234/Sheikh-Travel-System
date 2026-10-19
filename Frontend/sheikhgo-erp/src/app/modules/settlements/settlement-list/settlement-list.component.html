@@ -1,0 +1,100 @@
+<div class="settlements-page">
+  <div class="page-header">
+    <h2>Driver Settlements</h2>
+  </div>
+
+  <mat-card class="filter-card" *ngIf="canManage">
+    <mat-card-header><mat-card-title>Generate draft</mat-card-title></mat-card-header>
+    <mat-card-content>
+      <form [formGroup]="draftForm" class="filter-grid" (ngSubmit)="generate()">
+        <div class="stb-field">
+          <label>Driver</label>
+          <select class="stb-select" formControlName="driverId">
+            <option [ngValue]="null">Select driver</option>
+            <option *ngFor="let d of drivers" [ngValue]="d.id">{{ d.fullName }}</option>
+          </select>
+        </div>
+        <div class="stb-field">
+          <label>Period start</label>
+          <input class="stb-input" type="date" formControlName="periodStart" />
+        </div>
+        <div class="stb-field">
+          <label>Period end</label>
+          <input class="stb-input" type="date" formControlName="periodEnd" />
+        </div>
+        <div class="stb-field">
+          <label>Adjustments</label>
+          <input class="stb-input" type="number" formControlName="adjustments" step="0.01" />
+        </div>
+        <button mat-raised-button color="primary" type="submit" [disabled]="draftForm.invalid || generating">
+          {{ generating ? 'Generating…' : 'Generate' }}
+        </button>
+      </form>
+    </mat-card-content>
+  </mat-card>
+
+  <mat-card class="filter-card">
+    <mat-card-content>
+      <form [formGroup]="filterForm" class="filter-grid" (ngSubmit)="applyFilter()">
+        <div class="stb-field">
+          <label>Driver</label>
+          <select class="stb-select" formControlName="driverId">
+            <option [ngValue]="null">All drivers</option>
+            <option *ngFor="let d of drivers" [ngValue]="d.id">{{ d.fullName }}</option>
+          </select>
+        </div>
+        <div class="stb-field">
+          <label>Status</label>
+          <select class="stb-select" formControlName="status">
+            <option *ngFor="let s of statusOptions" [ngValue]="s.value">{{ s.label }}</option>
+          </select>
+        </div>
+        <button mat-raised-button color="primary" type="submit">Filter</button>
+      </form>
+    </mat-card-content>
+  </mat-card>
+
+  <mat-card>
+    <mat-card-content>
+      <app-brand-loader *ngIf="loading" />
+      <div *ngIf="error" class="error-message">{{ error }}</div>
+      <table mat-table [dataSource]="dataSource" class="full-width" *ngIf="!loading && !error">
+        <ng-container matColumnDef="driverName">
+          <th mat-header-cell *matHeaderCellDef>Driver</th>
+          <td mat-cell *matCellDef="let row">{{ row.driverName || row.driverId }}</td>
+        </ng-container>
+        <ng-container matColumnDef="period">
+          <th mat-header-cell *matHeaderCellDef>Period</th>
+          <td mat-cell *matCellDef="let row">{{ row.periodStart | date:'mediumDate' }} – {{ row.periodEnd | date:'mediumDate' }}</td>
+        </ng-container>
+        <ng-container matColumnDef="grossCollected">
+          <th mat-header-cell *matHeaderCellDef>Gross</th>
+          <td mat-cell *matCellDef="let row">{{ row.grossCollected | number:'1.2-2' }}</td>
+        </ng-container>
+        <ng-container matColumnDef="fuelDeducted">
+          <th mat-header-cell *matHeaderCellDef>Fuel</th>
+          <td mat-cell *matCellDef="let row">{{ row.fuelDeducted | number:'1.2-2' }}</td>
+        </ng-container>
+        <ng-container matColumnDef="payable">
+          <th mat-header-cell *matHeaderCellDef>Payable</th>
+          <td mat-cell *matCellDef="let row">{{ row.payable | number:'1.2-2' }}</td>
+        </ng-container>
+        <ng-container matColumnDef="status">
+          <th mat-header-cell *matHeaderCellDef>Status</th>
+          <td mat-cell *matCellDef="let row">
+            <span class="status-chip" [style.background]="statusColors[row.status] || '#666'">{{ row.status }}</span>
+          </td>
+        </ng-container>
+        <ng-container matColumnDef="actions">
+          <th mat-header-cell *matHeaderCellDef></th>
+          <td mat-cell *matCellDef="let row">
+            <button mat-button color="primary" (click)="open(row.id)">Open</button>
+          </td>
+        </ng-container>
+        <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+        <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
+      </table>
+      <p *ngIf="!loading && !dataSource.data.length" class="empty">No settlements yet.</p>
+    </mat-card-content>
+  </mat-card>
+</div>

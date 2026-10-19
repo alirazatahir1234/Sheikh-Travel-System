@@ -88,7 +88,7 @@ abstract final class FleetNavConfig {
 
   static const tracking = FleetNavTab(
     id: 'tracking',
-    label: 'Tracking',
+    label: 'GPS',
     icon: Icons.my_location_outlined,
     activeIcon: Icons.my_location,
     path: '/live',
@@ -132,7 +132,17 @@ abstract final class FleetNavConfig {
     icon: Icons.map_outlined,
     activeIcon: Icons.map_rounded,
     path: '/fleet/map',
-    matchPaths: ['/fleet/map'],
+    matchPaths: ['/fleet/map', '/live'],
+  );
+
+  /// Owner / staff fuel overview (not driver receipt capture).
+  static const fuelOps = FleetNavTab(
+    id: 'fuel',
+    label: 'Fuel',
+    icon: Icons.local_gas_station_outlined,
+    activeIcon: Icons.local_gas_station_rounded,
+    path: '/fuel',
+    matchPaths: ['/fuel', '/gps/fuel'],
   );
 
   static const alertsTab = FleetNavTab(
@@ -181,10 +191,69 @@ abstract final class FleetNavConfig {
     drivers,
     bookings,
     map,
+    fuelOps,
     alertsTab,
     finance,
     reports,
     users,
+  ];
+
+  /// Owner Tracking More menu — movement, fuel, drivers first.
+  static const ownerMoreEntries = [
+    MoreMenuEntry(
+      label: 'Vehicles',
+      icon: Icons.local_shipping_outlined,
+      route: '/fleet',
+      isVisible: _fleetLiveMap,
+    ),
+    MoreMenuEntry(
+      label: 'Trips',
+      icon: Icons.route_outlined,
+      route: '/trips',
+      isVisible: _tripsMenu,
+    ),
+    MoreMenuEntry(
+      label: 'Alerts',
+      icon: Icons.warning_amber_outlined,
+      route: '/alerts',
+      isVisible: _alertsMenu,
+    ),
+    MoreMenuEntry(
+      label: 'Settlements',
+      icon: Icons.account_balance_wallet_outlined,
+      route: '/finance',
+      isVisible: _financeMenu,
+    ),
+    MoreMenuEntry(
+      label: 'Reports',
+      icon: Icons.bar_chart_outlined,
+      route: '/more/reports',
+      isVisible: _reportsMenu,
+    ),
+    MoreMenuEntry(
+      label: 'Notifications',
+      icon: Icons.notifications_outlined,
+      route: '/notifications',
+      isVisible: _alwaysEntry,
+    ),
+    MoreMenuEntry(
+      label: 'AI Copilot',
+      icon: Icons.auto_awesome_outlined,
+      route: '/ai',
+      isVisible: _aiMenu,
+    ),
+    MoreMenuEntry(
+      label: 'Profile',
+      icon: Icons.person_outline_rounded,
+      route: '/profile',
+      isVisible: _alwaysEntry,
+    ),
+    MoreMenuEntry(
+      label: 'Settings',
+      icon: Icons.settings_outlined,
+      route: '/settings',
+      isVisible: _alwaysEntry,
+    ),
   ];
 
   static const moreEntries = [
@@ -412,6 +481,10 @@ abstract final class FleetNavConfig {
 
   static List<FleetNavTab> visibleTabs(FleetSession? session) {
     if (session == null) return const [];
+    // Owner Tracking: live map + drivers + fuel as first-class tabs.
+    if (session.isOwnerTracking) {
+      return const [dashboard, map, drivers, fuelOps, more];
+    }
     switch (session.primaryNavRole) {
       case FleetRole.driver:
         return const [dashboard, trips, tracking, notifications, profile];
@@ -423,6 +496,8 @@ abstract final class FleetNavConfig {
         return const [dashboard, bookings, trips, map, more];
       case FleetRole.accountant:
         return const [dashboard, finance, reports, notifications, more];
+      case FleetRole.owner:
+        return const [dashboard, map, drivers, fuelOps, more];
       case FleetRole.superAdmin:
       case FleetRole.tenantAdmin:
       case FleetRole.fleetManager:
@@ -434,6 +509,9 @@ abstract final class FleetNavConfig {
   static List<MoreMenuEntry> visibleMoreEntries(FleetSession session) {
     if (session.isGpsOperator) {
       return operatorMoreEntries.where((e) => e.isVisible(session)).toList();
+    }
+    if (session.isOwnerTracking) {
+      return ownerMoreEntries.where((e) => e.isVisible(session)).toList();
     }
     return moreEntries.where((entry) => entry.isVisible(session)).toList();
   }
@@ -508,6 +586,7 @@ abstract final class FleetNavConfig {
 
   static bool _alwaysEntry(FleetSession _) => true;
   static bool _fleetLiveMap(FleetSession s) => s.canSeeFleetTab;
+  static bool _tripsMenu(FleetSession s) => s.canSeeTripsTab;
   static bool _driverTracking(FleetSession s) => s.isDriverSession;
   static bool _driversMenu(FleetSession s) => s.canSeeDriversTab;
   static bool _alertsMenu(FleetSession s) =>

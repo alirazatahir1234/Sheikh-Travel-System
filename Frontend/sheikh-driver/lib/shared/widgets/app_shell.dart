@@ -59,21 +59,18 @@ class _ShellBottomBar extends ConsumerWidget {
     final unread =
         ref.watch(unreadNotificationsCountProvider).valueOrNull ?? 0;
 
+    final p = context.sg;
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.06),
-            blurRadius: 16,
-            offset: const Offset(0, -4),
-          ),
-        ],
+        color: p.navBar,
+        boxShadow: AppShadows.nav,
+        border: Border(top: BorderSide(color: p.border.withValues(alpha: 0.7))),
       ),
       child: SafeArea(
         child: BottomNavigationBar(
           currentIndex: currentIndex,
           type: BottomNavigationBarType.fixed,
+          backgroundColor: p.navBar,
           onTap: (i) => context.go(tabs[i].path),
           items: [
             for (final tab in tabs)

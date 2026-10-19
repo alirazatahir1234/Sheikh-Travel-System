@@ -2,6 +2,7 @@ using System.Text;
 using FluentValidation;
 using MediatR;
 using SheikhTravelSystem.Application.Common;
+using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 using SheikhTravelSystem.Application.Features.CustomerPortal.DTOs;
 using SheikhTravelSystem.Application.Features.GpsTracking.Queries;
@@ -21,7 +22,7 @@ public class GetPortalBookingTrackingQueryValidator : AbstractValidator<GetPorta
     }
 }
 
-public class GetPortalBookingTrackingQueryHandler(ICustomerPortalRepository portalRepository, ISender mediator)
+public class GetPortalBookingTrackingQueryHandler(ICustomerPortalRepository portalRepository, ITenantContext tenantContext, ISender mediator)
     : IRequestHandler<GetPortalBookingTrackingQuery, ApiResponse<PortalBookingTrackingDto>>
 {
     public async Task<ApiResponse<PortalBookingTrackingDto>> Handle(
@@ -29,7 +30,7 @@ public class GetPortalBookingTrackingQueryHandler(ICustomerPortalRepository port
         CancellationToken cancellationToken)
     {
         if (!await portalRepository.CustomerOwnsBookingAsync(
-                request.BookingId, request.Phone, request.CustomerId, cancellationToken))
+                tenantContext.GetRequiredTenantId(), request.BookingId, request.Phone, request.CustomerId, cancellationToken))
         {
             return ApiResponse<PortalBookingTrackingDto>.FailResponse("Booking not found for this phone number.");
         }
@@ -118,13 +119,13 @@ public class GetPortalBookingInvoiceQueryValidator : AbstractValidator<GetPortal
     }
 }
 
-public class GetPortalBookingInvoiceQueryHandler(ICustomerPortalRepository portalRepository)
+public class GetPortalBookingInvoiceQueryHandler(ICustomerPortalRepository portalRepository, ITenantContext tenantContext)
     : IRequestHandler<GetPortalBookingInvoiceQuery, ApiResponse<byte[]>>
 {
     public async Task<ApiResponse<byte[]>> Handle(GetPortalBookingInvoiceQuery request, CancellationToken cancellationToken)
     {
         if (!await portalRepository.CustomerOwnsBookingAsync(
-                request.BookingId, request.Phone, request.CustomerId, cancellationToken))
+                tenantContext.GetRequiredTenantId(), request.BookingId, request.Phone, request.CustomerId, cancellationToken))
         {
             return ApiResponse<byte[]>.FailResponse("Booking not found for this phone number.");
         }
@@ -163,13 +164,13 @@ public class CancelPortalBookingCommandValidator : AbstractValidator<CancelPorta
     }
 }
 
-public class CancelPortalBookingCommandHandler(ICustomerPortalRepository portalRepository)
+public class CancelPortalBookingCommandHandler(ICustomerPortalRepository portalRepository, ITenantContext tenantContext)
     : IRequestHandler<CancelPortalBookingCommand, ApiResponse<bool>>
 {
     public async Task<ApiResponse<bool>> Handle(CancelPortalBookingCommand request, CancellationToken cancellationToken)
     {
         if (!await portalRepository.CustomerOwnsBookingAsync(
-                request.BookingId, request.Phone, request.CustomerId, cancellationToken))
+                tenantContext.GetRequiredTenantId(), request.BookingId, request.Phone, request.CustomerId, cancellationToken))
         {
             return ApiResponse<bool>.FailResponse("Booking not found for this phone number.");
         }

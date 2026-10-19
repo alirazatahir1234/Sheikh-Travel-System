@@ -1,4 +1,4 @@
-# SheikhGo Driver — Release Notes
+# SheikhGo Tracking — Release Notes
 
 ## 1.0.0 (build 1) — 2026-07-19
 

@@ -96,6 +96,27 @@ export class DriverService {
     return this.http.post<number>(this.base, { driver: sanitizeCreateDriverDto(request.driver) });
   }
 
+  bulkCreate(request: {
+    drivers: CreateDriverDto[];
+    options?: { dryRun?: boolean; skipDuplicates?: boolean };
+  }): Observable<{
+    succeeded: number;
+    failed: number;
+    skipped: number;
+    dryRun: boolean;
+    created: { row: number; phone?: string; driverId?: number; dryRun?: boolean }[];
+    errors: { row: number; phone?: string; error: string }[];
+    skippedRows: { row: number; phone?: string; reason: string }[];
+  }> {
+    return this.http.post<any>(`${this.base}/bulk`, {
+      drivers: request.drivers.map(sanitizeCreateDriverDto),
+      options: {
+        dryRun: request.options?.dryRun ?? false,
+        skipDuplicates: request.options?.skipDuplicates ?? true
+      }
+    });
+  }
+
   update(request: UpdateDriverRequest): Observable<boolean> {
     return this.http.put<boolean>(`${this.base}/${request.id}`, {
       id: request.id,

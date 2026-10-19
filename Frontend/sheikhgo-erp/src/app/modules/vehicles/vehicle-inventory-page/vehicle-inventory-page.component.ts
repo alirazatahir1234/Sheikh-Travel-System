@@ -4,7 +4,9 @@ import { Router, RouterModule, NavigationEnd } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatButtonModule } from '@angular/material/button';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
+import { BulkVehicleImportDialogComponent } from '../bulk-vehicle-import-dialog/bulk-vehicle-import-dialog.component';
 import { catchError, forkJoin, of, filter } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { VehicleService } from '../../../core/services/vehicle.service';
@@ -56,6 +58,7 @@ import {
     MatIconModule,
     MatMenuModule,
     MatButtonModule,
+    MatDialogModule,
     UiButtonComponent,
     UiPageHeaderComponent,
     FleetSummaryCardComponent,
@@ -81,6 +84,7 @@ export class VehicleInventoryPageComponent implements OnInit {
   private readonly exportService = inject(ExportService);
   private readonly confirm = inject(UiConfirmService);
   private readonly toast = inject(UiToastService);
+  private readonly dialog = inject(MatDialog);
   private readonly router = inject(Router);
   private readonly datePipe = inject(DatePipe);
   private readonly destroyRef = inject(DestroyRef);
@@ -281,6 +285,14 @@ export class VehicleInventoryPageComponent implements OnInit {
 
   onTrack(row: VehicleListItem): void {
     void this.router.navigate(['/gps-tracking/live'], { queryParams: { vehicleId: row.id } });
+  }
+
+  importVehicles(): void {
+    this.dialog.open(BulkVehicleImportDialogComponent, { width: '800px' })
+      .afterClosed()
+      .subscribe(result => {
+        if (result?.created) this.load();
+      });
   }
 
   onAssign(row: VehicleListItem): void {

@@ -1,6 +1,7 @@
 using FluentValidation;
 using MediatR;
 using SheikhTravelSystem.Application.Common;
+using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 using SheikhTravelSystem.Application.Features.CustomerPortal.DTOs;
 using SheikhTravelSystem.Domain.Enums;
@@ -19,13 +20,14 @@ public class GetPortalBookingDetailQueryValidator : AbstractValidator<GetPortalB
     }
 }
 
-public class GetPortalBookingDetailQueryHandler(ICustomerPortalRepository portalRepository)
+public class GetPortalBookingDetailQueryHandler(ICustomerPortalRepository portalRepository, ITenantContext tenantContext)
     : IRequestHandler<GetPortalBookingDetailQuery, ApiResponse<PortalBookingDetailDto>>
 {
     public async Task<ApiResponse<PortalBookingDetailDto>> Handle(GetPortalBookingDetailQuery request, CancellationToken cancellationToken)
     {
+        var tenantId = tenantContext.GetRequiredTenantId();
         var customerIds = await portalRepository.ResolvePortalCustomerIdsAsync(
-            request.Phone, request.CustomerId, cancellationToken);
+            tenantId, request.Phone, request.CustomerId, cancellationToken);
         if (customerIds.Count == 0)
             return ApiResponse<PortalBookingDetailDto>.FailResponse("Booking not found for this phone number.");
 

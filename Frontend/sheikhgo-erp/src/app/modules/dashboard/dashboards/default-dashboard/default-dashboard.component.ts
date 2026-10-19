@@ -13,6 +13,7 @@ import { NotificationService } from '../../../../core/services/notification.serv
 import { DashboardSummary } from '../../../../core/models/common.model';
 import { Booking } from '../../../../core/models/booking.model';
 import { NotificationStats } from '../../../../core/models/notification.model';
+import { UiToastService } from '../../../../shared/components/ui/toast/ui-toast.service';
 
 import {
   StatTile, TaskItem, DataTableColumn
@@ -77,6 +78,7 @@ export class DefaultDashboardComponent implements OnInit, OnDestroy {
     private bookings: BookingService,
     private auth: AuthService,
     private notificationService: NotificationService,
+    private toast: UiToastService,
     private router: Router
   ) {
     this.unreadCount$ = this.notificationService.unreadCount;
@@ -359,7 +361,9 @@ export class DefaultDashboardComponent implements OnInit, OnDestroy {
     return (name || '').split(' ').map(p => p[0]).slice(0, 2).join('').toUpperCase();
   }
 
-  onTaskToggle(_t: TaskItem): void { /* TODO: call booking status endpoint */ }
+  onTaskToggle(_t: TaskItem): void {
+    this.toast.info('Coming soon');
+  }
   onAssignedFilter(f: string): void { this.assignedFilter = f; }
   onStatClick(key: string): void {
     const routes: Record<string, string> = {

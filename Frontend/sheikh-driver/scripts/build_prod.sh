@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Production / UAT release builds for SheikhGo Fleet.
+# Production / UAT release builds for SheikhGo Tracking.
 # Usage:
 #   ./scripts/build_prod.sh android
 #   ./scripts/build_prod.sh ios
@@ -44,7 +44,7 @@ if [[ -n "${CERT_PIN_2:-}" ]]; then
   DEFINES+=("--dart-define=CERT_PIN_2=${CERT_PIN_2}")
 fi
 
-echo "==> SheikhGo Fleet ${ENV_NAME} build (${TARGET})"
+echo "==> SheikhGo Tracking ${ENV_NAME} build (${TARGET})"
 echo "    API_BASE_URL=${API_BASE_URL}"
 flutter pub get
 

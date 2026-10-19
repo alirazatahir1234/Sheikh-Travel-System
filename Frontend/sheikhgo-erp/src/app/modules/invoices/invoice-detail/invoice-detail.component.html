@@ -1,0 +1,59 @@
+<div class="screen-controls no-print">
+  <button mat-button (click)="back()"><mat-icon>arrow_back</mat-icon> Back</button>
+  <div class="actions" *ngIf="invoice">
+    <button mat-stroked-button *ngIf="canManage && invoice.status === 'Issued'" [disabled]="acting" (click)="markPaid()">
+      Mark Paid
+    </button>
+    <button mat-stroked-button color="warn" *ngIf="canManage && invoice.status !== 'Void' && invoice.status !== 'Paid'"
+            [disabled]="acting" (click)="voidInvoice()">
+      Void
+    </button>
+    <button mat-raised-button color="primary" (click)="print()">
+      <mat-icon>print</mat-icon> Print
+    </button>
+  </div>
+</div>
+
+<app-brand-loader *ngIf="loading" />
+<div *ngIf="error" class="error-msg">{{ error }}</div>
+
+<div class="invoice" *ngIf="invoice && !loading">
+  <div class="invoice-header">
+    <div class="company-block">
+      <div class="company-logo-row">
+        <img class="logo-image" [src]="logoPath" [alt]="companyName + ' logo'" />
+        <h1 class="company-name">{{ companyName }}</h1>
+      </div>
+    </div>
+    <div class="invoice-title-block">
+      <h2 class="invoice-title">INVOICE</h2>
+      <p class="invoice-number">{{ invoice.invoiceNumber }}</p>
+      <p class="invoice-date">{{ invoice.issuedAt || invoice.createdAt | date:'longDate' }}</p>
+      <p class="status">Status: {{ invoice.status }}</p>
+    </div>
+  </div>
+
+  <div class="invoice-divider"></div>
+
+  <div class="info-section">
+    <div class="bill-to">
+      <h3 class="section-label">BILL TO</h3>
+      <p class="customer-name">{{ invoice.customerName || '—' }}</p>
+    </div>
+    <div class="trip-info">
+      <h3 class="section-label">DETAILS</h3>
+      <div class="trip-row"><span>Booking:</span><span>{{ invoice.bookingNumber || invoice.bookingId }}</span></div>
+      <div class="trip-row"><span>Route:</span><span>{{ invoice.routeName || '—' }}</span></div>
+    </div>
+  </div>
+
+  <div class="invoice-divider"></div>
+
+  <div class="totals">
+    <div class="trip-row"><span>Total</span><span>{{ invoice.totalAmount | number:'1.2-2' }}</span></div>
+    <div class="trip-row"><span>Paid</span><span>{{ invoice.paidAmount | number:'1.2-2' }}</span></div>
+    <div class="trip-row balance"><span>Balance</span><span>{{ invoice.balance | number:'1.2-2' }}</span></div>
+  </div>
+
+  <p class="footer-sub" *ngIf="invoice.notes">Notes: {{ invoice.notes }}</p>
+</div>

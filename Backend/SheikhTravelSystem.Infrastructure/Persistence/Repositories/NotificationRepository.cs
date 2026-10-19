@@ -245,6 +245,7 @@ public sealed class NotificationRepository(IDbConnectionFactory dbFactory) : INo
     }
 
     public async Task<List<NotificationTemplateDto>> GetTemplatesAsync(
+        int tenantId,
         string? channel,
         CancellationToken cancellationToken = default)
     {
@@ -253,33 +254,35 @@ public sealed class NotificationRepository(IDbConnectionFactory dbFactory) : INo
             SELECT Id, TemplateKey, TemplateName, Subject, Body, Channel, IsActive,
                    ISNULL(Language, 'en') AS Language, Variables
             FROM NotificationTemplates
-            WHERE IsDeleted = 0
+            WHERE IsDeleted = 0 AND TenantId = @TenantId
             """;
         if (!string.IsNullOrWhiteSpace(channel))
             sql += " AND Channel = @Channel";
         sql += " ORDER BY TemplateName, Channel";
 
         return (await connection.QueryAsync<NotificationTemplateDto>(
-            new CommandDefinition(sql, new { Channel = channel }, cancellationToken: cancellationToken))).ToList();
+            new CommandDefinition(sql, new { TenantId = tenantId, Channel = channel }, cancellationToken: cancellationToken))).ToList();
     }
 
-    public async Task UpdateTemplateAsync(
+    public async Task<bool> UpdateTemplateAsync(
+        int tenantId,
         int id,
         UpsertNotificationTemplateRequest request,
         CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
-        await connection.ExecuteAsync(new CommandDefinition("""
+        var rows = await connection.ExecuteAsync(new CommandDefinition("""
             UPDATE NotificationTemplates SET
                 TemplateKey = @TemplateKey, TemplateName = @TemplateName,
                 Subject = @Subject, Body = @Body, Channel = @Channel,
                 IsActive = @IsActive, Language = @Language, Variables = @Variables,
                 UpdatedAt = GETUTCDATE()
-            WHERE Id = @Id AND IsDeleted = 0
+            WHERE Id = @Id AND TenantId = @TenantId AND IsDeleted = 0
             """,
             new
             {
                 Id = id,
+                TenantId = tenantId,
                 request.TemplateKey,
                 request.TemplateName,
                 request.Subject,
@@ -290,21 +293,24 @@ public sealed class NotificationRepository(IDbConnectionFactory dbFactory) : INo
                 request.Variables
             },
             cancellationToken: cancellationToken));
+        return rows > 0;
     }
 
     public async Task<int> InsertTemplateAsync(
+        int tenantId,
         UpsertNotificationTemplateRequest request,
         CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
         return await connection.ExecuteScalarAsync<int>(new CommandDefinition("""
             INSERT INTO NotificationTemplates
-                (TemplateKey, TemplateName, Subject, Body, Channel, IsActive, Language, Variables, CreatedAt, IsDeleted)
+                (TenantId, TemplateKey, TemplateName, Subject, Body, Channel, IsActive, Language, Variables, CreatedAt, IsDeleted)
             OUTPUT INSERTED.Id
-            VALUES (@TemplateKey, @TemplateName, @Subject, @Body, @Channel, @IsActive, @Language, @Variables, GETUTCDATE(), 0)
+            VALUES (@TenantId, @TemplateKey, @TemplateName, @Subject, @Body, @Channel, @IsActive, @Language, @Variables, GETUTCDATE(), 0)
             """,
             new
             {
+                TenantId = tenantId,
                 request.TemplateKey,
                 request.TemplateName,
                 request.Subject,
@@ -315,6 +321,22 @@ public sealed class NotificationRepository(IDbConnectionFactory dbFactory) : INo
                 request.Variables
             },
             cancellationToken: cancellationToken));
+    }
+
+    public async Task<bool> SoftDeleteTemplateAsync(
+        int tenantId,
+        int id,
+        CancellationToken cancellationToken = default)
+    {
+        using var connection = dbFactory.CreateConnection();
+        var rows = await connection.ExecuteAsync(new CommandDefinition("""
+            UPDATE NotificationTemplates
+            SET IsDeleted = 1, UpdatedAt = GETUTCDATE()
+            WHERE Id = @Id AND TenantId = @TenantId AND IsDeleted = 0
+            """,
+            new { Id = id, TenantId = tenantId },
+            cancellationToken: cancellationToken));
+        return rows > 0;
     }
 
     public async Task<bool> UserCanAccessNotificationAsync(
@@ -513,8 +535,8 @@ public sealed class NotificationRepository(IDbConnectionFactory dbFactory) : INo
 
         await connection.ExecuteAsync(new CommandDefinition("""
             INSERT INTO NotificationRecipients
-                (NotificationId, UserId, DeliveryStatus, IsRead, CreatedAt, IsArchived, IsDeleted)
-            SELECT n.Id, @UserId, ISNULL(n.DeliveryStatus, 'Pending'), n.IsRead, GETUTCDATE(),
+                (NotificationId, TenantId, UserId, DeliveryStatus, IsRead, CreatedAt, IsArchived, IsDeleted)
+            SELECT n.Id, n.TenantId, @UserId, ISNULL(n.DeliveryStatus, 'Pending'), n.IsRead, GETUTCDATE(),
                    ISNULL(n.IsArchived, 0), 0
             FROM Notifications n
             WHERE (n.UserId = @UserId OR (n.UserId IS NULL AND n.RecipientType = 'SystemAnnouncement'))
@@ -707,8 +729,8 @@ public sealed class NotificationRepository(IDbConnectionFactory dbFactory) : INo
             IF NOT EXISTS (
                 SELECT 1 FROM NotificationRecipients WHERE NotificationId = @NotificationId AND UserId = @UserId)
             INSERT INTO NotificationRecipients
-                (NotificationId, UserId, DeliveryStatus, IsRead, CreatedAt, IsArchived, IsDeleted)
-            SELECT n.Id, @UserId, ISNULL(n.DeliveryStatus, 'Pending'), n.IsRead, GETUTCDATE(), 0, 0
+                (NotificationId, TenantId, UserId, DeliveryStatus, IsRead, CreatedAt, IsArchived, IsDeleted)
+            SELECT n.Id, n.TenantId, @UserId, ISNULL(n.DeliveryStatus, 'Pending'), n.IsRead, GETUTCDATE(), 0, 0
             FROM Notifications n
             WHERE n.Id = @NotificationId
               AND (
@@ -729,8 +751,8 @@ public sealed class NotificationRepository(IDbConnectionFactory dbFactory) : INo
         if (ids.Count == 0) return;
         await connection.ExecuteAsync(new CommandDefinition("""
             INSERT INTO NotificationRecipients
-                (NotificationId, UserId, DeliveryStatus, IsRead, CreatedAt, IsArchived, IsDeleted)
-            SELECT n.Id, @UserId, ISNULL(n.DeliveryStatus, 'Pending'), n.IsRead, GETUTCDATE(), 0, 0
+                (NotificationId, TenantId, UserId, DeliveryStatus, IsRead, CreatedAt, IsArchived, IsDeleted)
+            SELECT n.Id, n.TenantId, @UserId, ISNULL(n.DeliveryStatus, 'Pending'), n.IsRead, GETUTCDATE(), 0, 0
             FROM Notifications n
             WHERE n.Id IN @Ids
               AND (

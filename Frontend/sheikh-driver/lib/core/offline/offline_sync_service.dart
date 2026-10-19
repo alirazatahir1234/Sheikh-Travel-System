@@ -8,8 +8,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../api/api_endpoints.dart';
 import '../api/dio_client.dart';
 import 'connectivity_provider.dart';
+import 'offline_file_store.dart';
 import 'offline_models.dart';
 import 'offline_outbox.dart';
+
+/// Ops that hit max automatic retries and need an explicit requeue.
+bool isOfflineRetryExhausted(OfflineOperation op) =>
+    op.status == OfflineOpStatus.failed &&
+    (op.attempts >= 8 ||
+        (op.lastError?.toLowerCase().contains('max retries') ?? false));
 
 final offlinePendingCountProvider = StateProvider<int>((ref) => OfflineOutbox.length);
 
@@ -69,10 +76,19 @@ class OfflineSyncService {
       return await online();
     } catch (e) {
       if (!isOfflineDioError(e)) rethrow;
+      // Copy picker/camera files into documents before enqueue so sync still works
+      // after OS clears cache/temp paths.
+      final durablePaths =
+          await OfflineFileStore.persistForOffline(filePaths);
+      final durablePayload = OfflineFileStore.rewritePayloadPaths(
+        payload,
+        filePaths,
+        durablePaths,
+      );
       final op = await enqueue(
         type: type,
-        payload: payload,
-        filePaths: filePaths,
+        payload: durablePayload,
+        filePaths: durablePaths.isNotEmpty ? durablePaths : filePaths,
       );
       if (queuedValue != null) {
         final v = queuedValue(op);
@@ -150,6 +166,21 @@ class OfflineSyncService {
     return n > 0;
   }
 
+  /// Reset attempt counts for all failed (incl. max-retries) ops and sync.
+  Future<int> retryAllFailed() async {
+    final failed = OfflineOutbox.all().where(
+      (o) =>
+          o.status == OfflineOpStatus.failed ||
+          o.status == OfflineOpStatus.conflict ||
+          isOfflineRetryExhausted(o),
+    );
+    for (final op in failed) {
+      await OfflineOutbox.requeue(op.id);
+    }
+    _notifyCount();
+    return syncNow();
+  }
+
   Future<void> _dispatch(OfflineOperation op) async {
     final headers = {
       'Idempotency-Key': op.id,
@@ -181,6 +212,7 @@ class OfflineSyncService {
         final reason = op.payload['reason'] as String?;
         final path = switch (action) {
           'Accept' => ApiEndpoints.acceptTrip(id),
+          'Start' => ApiEndpoints.startTrip(id),
           'Arrived' => ApiEndpoints.arrivedTrip(id),
           'Onboard' => ApiEndpoints.onboardTrip(id),
           'Complete' => ApiEndpoints.completeTrip(id),

@@ -93,6 +93,11 @@ public class NotificationsController : BaseApiController
     public async Task<IActionResult> UpdateTemplate(int id, [FromBody] UpsertNotificationTemplateRequest request)
         => Ok(await Mediator.Send(new UpsertNotificationTemplateCommand(request, id)));
 
+    [RequirePermission(NotificationPermissions.Manage)]
+    [HttpDelete("templates/{id:int}")]
+    public async Task<IActionResult> DeleteTemplate(int id)
+        => Ok(await Mediator.Send(new DeleteNotificationTemplateCommand(id)));
+
     [HttpGet("{id:int}/history")]
     public async Task<IActionResult> GetHistory(int id, [FromServices] IPlatformScope platformScope)
         => Ok(await Mediator.Send(new GetNotificationHistoryQuery(CurrentTenantId(platformScope), id, CurrentUserId)));

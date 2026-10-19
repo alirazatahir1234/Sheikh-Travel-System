@@ -71,7 +71,7 @@ class AppVersionService {
       builder: (_) => AlertDialog(
         title: const Text('Update Required'),
         content: Text(
-          'Version $newVersion is required to continue using SheikhGo Fleet. Please update the app from your app store.',
+          'Version $newVersion is required to continue using SheikhGo Tracking. Please update the app from your app store.',
         ),
         actions: [
           FilledButton(

@@ -76,6 +76,8 @@ public static class TripsPhase2Migration
         // Seed InApp/Email templates for trip lifecycle events (idempotent).
         var templates = new (string Key, string Name, string Channel)[]
         {
+            ("trip_created", "Trip Created", "InApp"),
+            ("trip_created", "Trip Created", "Email"),
             ("trip_driver_assigned", "Trip Driver Assigned", "InApp"),
             ("trip_driver_assigned", "Trip Driver Assigned", "Email"),
             ("trip_started", "Trip Started", "InApp"),
@@ -99,17 +101,21 @@ public static class TripsPhase2Migration
                 cancellationToken: cancellationToken));
         }
 
+        // Decision engine reads AiCooldownRules (not AiDecisionRules).
         await connection.ExecuteAsync(new CommandDefinition("""
-            IF EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'AiDecisionRules')
+            IF EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'AiCooldownRules')
             BEGIN
-                IF NOT EXISTS (SELECT 1 FROM AiDecisionRules WHERE EventType = N'trip_driver_assigned' AND TenantId IS NULL)
-                    INSERT INTO AiDecisionRules (TenantId, EventType, CooldownMinutes, MinPriority, ChannelsJson, IsActive)
-                    VALUES (NULL, N'trip_driver_assigned', 0, 2, N'["InApp","Browser","Email"]', 1);
-                IF NOT EXISTS (SELECT 1 FROM AiDecisionRules WHERE EventType = N'trip_started' AND TenantId IS NULL)
-                    INSERT INTO AiDecisionRules (TenantId, EventType, CooldownMinutes, MinPriority, ChannelsJson, IsActive)
+                IF NOT EXISTS (SELECT 1 FROM AiCooldownRules WHERE EventType = N'trip_created' AND TenantId IS NULL)
+                    INSERT INTO AiCooldownRules (TenantId, EventType, CooldownMinutes, MinPriority, ChannelsJson, IsActive)
+                    VALUES (NULL, N'trip_created', 0, 2, N'["InApp","Browser","Email"]', 1);
+                IF NOT EXISTS (SELECT 1 FROM AiCooldownRules WHERE EventType = N'trip_driver_assigned' AND TenantId IS NULL)
+                    INSERT INTO AiCooldownRules (TenantId, EventType, CooldownMinutes, MinPriority, ChannelsJson, IsActive)
+                    VALUES (NULL, N'trip_driver_assigned', 0, 2, N'["InApp","Browser","Email","Push"]', 1);
+                IF NOT EXISTS (SELECT 1 FROM AiCooldownRules WHERE EventType = N'trip_started' AND TenantId IS NULL)
+                    INSERT INTO AiCooldownRules (TenantId, EventType, CooldownMinutes, MinPriority, ChannelsJson, IsActive)
                     VALUES (NULL, N'trip_started', 0, 2, N'["InApp","Browser","Email"]', 1);
-                IF NOT EXISTS (SELECT 1 FROM AiDecisionRules WHERE EventType = N'trip_completed' AND TenantId IS NULL)
-                    INSERT INTO AiDecisionRules (TenantId, EventType, CooldownMinutes, MinPriority, ChannelsJson, IsActive)
+                IF NOT EXISTS (SELECT 1 FROM AiCooldownRules WHERE EventType = N'trip_completed' AND TenantId IS NULL)
+                    INSERT INTO AiCooldownRules (TenantId, EventType, CooldownMinutes, MinPriority, ChannelsJson, IsActive)
                     VALUES (NULL, N'trip_completed', 0, 2, N'["InApp","Browser","Email"]', 1);
             END
             """, cancellationToken: cancellationToken));

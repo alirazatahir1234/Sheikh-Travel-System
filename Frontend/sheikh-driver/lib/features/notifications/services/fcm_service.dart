@@ -65,7 +65,7 @@ class FcmService {
       FirebaseMessaging.onMessage.listen((message) {
         final title = message.notification?.title ??
             message.data['title']?.toString() ??
-            'SheikhGo';
+            'SheikhGo Tracking';
         final body = message.notification?.body ??
             message.data['body']?.toString() ??
             message.data['message']?.toString() ??

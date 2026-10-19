@@ -4,7 +4,9 @@ import { Router, RouterModule } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatButtonModule } from '@angular/material/button';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
+import { BulkDriverImportDialogComponent } from '../bulk-driver-import-dialog/bulk-driver-import-dialog.component';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Subject, forkJoin, catchError, of, switchMap, debounceTime, distinctUntilChanged, EMPTY, map, take } from 'rxjs';
 import { ChartData } from 'chart.js';
@@ -39,6 +41,7 @@ import { EMPTY_DRIVER_FILTERS, DriverFilters, DriverPagination, DEFAULT_DRIVER_P
     MatIconModule,
     MatMenuModule,
     MatButtonModule,
+    MatDialogModule,
     UiButtonComponent,
     UiPageHeaderComponent,
     UiChartComponent,
@@ -64,6 +67,7 @@ export class DriverInventoryPageComponent implements OnInit {
   private readonly confirm = inject(UiConfirmService);
   private readonly datePipe = inject(DatePipe);
   private readonly toast = inject(UiToastService);
+  private readonly dialog = inject(MatDialog);
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
   private readonly reload$ = new Subject<void>();
@@ -457,7 +461,11 @@ export class DriverInventoryPageComponent implements OnInit {
                                                                                                                                                                                                                                                                                                                                           }
 
   importDrivers(): void {
-    this.toast.info('Bulk import coming soon');
+    this.dialog.open(BulkDriverImportDialogComponent, { width: '800px' })
+      .afterClosed()
+      .subscribe(result => {
+        if (result?.created) this.load();
+      });
   }
 
   bulkAssign(): void {

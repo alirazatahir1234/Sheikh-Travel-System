@@ -11,14 +11,14 @@ public interface ICustomerPortalRepository
 {
     // ── Booking access / customer identity ──────────────────────────────────
     Task<IReadOnlyList<int>> ResolvePortalCustomerIdsAsync(
-        string phone, int? jwtCustomerId, CancellationToken cancellationToken = default);
+        int tenantId, string phone, int? jwtCustomerId, CancellationToken cancellationToken = default);
 
     Task<bool> CustomerOwnsBookingAsync(
-        int bookingId, string phone, int? customerId, CancellationToken cancellationToken = default);
+        int tenantId, int bookingId, string phone, int? customerId, CancellationToken cancellationToken = default);
 
     Task NormalizeCustomerPhonesAsync(CancellationToken cancellationToken = default);
 
-    Task<int?> ResolveCustomerIdByPhoneAsync(string phone, CancellationToken cancellationToken = default);
+    Task<int?> ResolveCustomerIdByPhoneAsync(int tenantId, string phone, CancellationToken cancellationToken = default);
 
     Task<int> EnsureCustomerAsync(string phone, string fullName, int tenantId, CancellationToken cancellationToken = default);
 

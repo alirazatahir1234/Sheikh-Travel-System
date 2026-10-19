@@ -148,6 +148,7 @@ public static class WorkspaceBuilderQueries
         {
             "SUPER_ADMIN" => "platform",
             "TENANT_ADMIN" => "company",
+            "OWNER" => "fleet",
             "FLEET_MANAGER" => "fleet",
             "DRIVER_MANAGER" => "drivers",
             "DISPATCHER" => "trips",

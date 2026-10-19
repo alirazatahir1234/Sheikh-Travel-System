@@ -1,6 +1,7 @@
 using FluentValidation;
 using MediatR;
 using SheikhTravelSystem.Application.Common;
+using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 using SheikhTravelSystem.Application.Features.CustomerPortal.DTOs;
 
@@ -18,14 +19,14 @@ public class SavePortalAddressCommandValidator : AbstractValidator<SavePortalAdd
     }
 }
 
-public class SavePortalAddressCommandHandler(ICustomerPortalRepository portalRepository)
+public class SavePortalAddressCommandHandler(ICustomerPortalRepository portalRepository, ITenantContext tenantContext)
     : IRequestHandler<SavePortalAddressCommand, ApiResponse<PortalSavedAddressDto>>
 {
     public async Task<ApiResponse<PortalSavedAddressDto>> Handle(
         SavePortalAddressCommand request,
         CancellationToken cancellationToken)
     {
-        var customerId = await portalRepository.ResolveCustomerIdByPhoneAsync(request.Phone, cancellationToken);
+        var customerId = await portalRepository.ResolveCustomerIdByPhoneAsync(tenantContext.GetRequiredTenantId(), request.Phone, cancellationToken);
         if (customerId is null or <= 0)
             return ApiResponse<PortalSavedAddressDto>.FailResponse("Complete a booking or sign in first.");
 

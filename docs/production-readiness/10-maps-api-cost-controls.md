@@ -35,7 +35,10 @@ Background GPS address upgrades use **Nominatim + GpsAddressCache**. Explicit UI
 
 ## Validation checklist
 
-- [ ] Deploy API with new defaults (Railway env may omit new keys — class defaults apply).
-- [ ] Live Map with GPS-online vehicle: address updates without Places Nearby spike.
-- [ ] Manual Nearby panel search still returns fuel/POI results.
-- [ ] Cloud Metrics: Geocoding + legacy Nearby Search down sharply within 24h.
+See full results: [`11-maps-cost-validation-results.md`](11-maps-cost-validation-results.md).
+
+- [x] Deploy API with new defaults (Railway on `e6c0dc0a`; env omits PreferGoogle / IncludeNearbyPlace → class defaults).
+- [x] Live Map API smoke: GPS-online vehicle 50 address from VCL; reverse `fromCache: true`.
+- [x] Manual Nearby (`GET /api/gps/maps/nearby-places`) returns fuel POIs when called explicitly.
+- [ ] Cloud Metrics: Geocoding + legacy Nearby Search down sharply within 24h–7d (fill table in doc 11).
+- [ ] Console: set Geocoding v3 requests/day = 2000; Places Nearby legacy/day = 500; budgets $20 / $50.

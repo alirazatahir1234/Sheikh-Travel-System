@@ -11,8 +11,8 @@ void main() {
       ),
     );
 
-    expect(find.text('SheikhGo Fleet'), findsOneWidget);
-    expect(find.text('LOGIN'), findsOneWidget);
+    expect(find.text('SheikhGo Tracking'), findsOneWidget);
+    expect(find.text('Continue'), findsOneWidget);
     expect(find.text('Email or phone'), findsOneWidget);
     expect(find.text('Password'), findsOneWidget);
   });
@@ -24,7 +24,7 @@ void main() {
       ),
     );
 
-    await tester.tap(find.widgetWithText(FilledButton, 'LOGIN'));
+    await tester.tap(find.widgetWithText(FilledButton, 'Continue'));
     await tester.pump();
 
     expect(find.text('Email or phone is required'), findsOneWidget);

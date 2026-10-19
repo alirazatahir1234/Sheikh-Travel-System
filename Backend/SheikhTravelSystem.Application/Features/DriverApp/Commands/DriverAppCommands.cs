@@ -1,8 +1,11 @@
 using FluentValidation;
 using MediatR;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using SheikhTravelSystem.Application.Common;
 using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
+using SheikhTravelSystem.Application.Features.Auth.Commands;
 using SheikhTravelSystem.Application.Features.Bookings.Commands;
 using SheikhTravelSystem.Application.Features.DriverApp.DTOs;
 using SheikhTravelSystem.Application.Features.FuelLogs.Commands;
@@ -11,6 +14,7 @@ using SheikhTravelSystem.Application.Features.GpsTracking.Commands;
 using SheikhTravelSystem.Application.Features.GpsTracking.DTOs;
 using SheikhTravelSystem.Application.Features.Notifications;
 using SheikhTravelSystem.Domain.Enums;
+using System.Security.Cryptography;
 
 namespace SheikhTravelSystem.Application.Features.DriverApp.Commands;
 
@@ -51,6 +55,83 @@ public class DriverLoginCommandHandler(
             new DriverAuthResultDto(accessToken, refreshToken, row.DriverId, row.FullName, row.Phone),
             "Login successful.");
     }
+}
+
+public record DriverForgotPasswordCommand(string Phone) : IRequest<ApiResponse<object>>;
+
+public class DriverForgotPasswordCommandValidator : AbstractValidator<DriverForgotPasswordCommand>
+{
+    public DriverForgotPasswordCommandValidator()
+    {
+        RuleFor(x => x.Phone).NotEmpty().MaximumLength(30);
+    }
+}
+
+/// <summary>
+/// Phone-based driver password reset. Reuses Users password-reset token columns;
+/// always returns a generic success message (no account enumeration).
+/// </summary>
+public class DriverForgotPasswordCommandHandler(
+    IDriverAppRepository driverRepository,
+    IAuthRepository authRepository,
+    ITenantContext tenantContext,
+    IEnumerable<INotificationChannelSender> channelSenders,
+    IConfiguration configuration,
+    ILogger<DriverForgotPasswordCommandHandler> logger)
+    : IRequestHandler<DriverForgotPasswordCommand, ApiResponse<object>>
+{
+    public async Task<ApiResponse<object>> Handle(DriverForgotPasswordCommand request, CancellationToken cancellationToken)
+    {
+        const string okMessage = "If a driver account exists for that phone, a reset code has been sent.";
+
+        var tenantId = tenantContext.GetRequiredTenantId();
+        var row = await driverRepository.GetDriverLoginByPhoneAsync(request.Phone, tenantId, cancellationToken);
+        if (row is null)
+            return ApiResponse<object>.SuccessResponse(new { }, okMessage);
+
+        var token = Convert.ToHexString(RandomNumberGenerator.GetBytes(4));
+        var tokenHash = ForgotPasswordCommandHandler.Sha256(token);
+        var expiry = DateTime.UtcNow.AddHours(2);
+        await authRepository.SetPasswordResetTokenAsync(row.UserId, tokenHash, expiry, cancellationToken);
+
+        var sms = channelSenders.FirstOrDefault(s =>
+            string.Equals(s.Channel, NotificationChannels.Sms, StringComparison.OrdinalIgnoreCase));
+        if (sms is not null)
+        {
+            var body = $"SheikhGo Fleet reset code: {token}. Expires in 2 hours.";
+            var result = await sms.SendAsync(
+                new ChannelSendRequest(0, row.UserId, row.TenantId, "Password reset", body, NotificationChannels.Sms, Phone: row.Phone),
+                cancellationToken);
+            if (!result.Success)
+                logger.LogWarning("Driver password reset SMS failed for user {UserId}: {Detail}", row.UserId, result.Response);
+        }
+        else
+        {
+            logger.LogWarning("Driver password reset requested but SMS channel is unavailable for user {UserId}", row.UserId);
+        }
+
+        var devMode = configuration.GetValue("PortalAuth:DevMode", false);
+        object payload = devMode ? new { debugToken = token } : new { };
+        return ApiResponse<object>.SuccessResponse(payload, okMessage);
+    }
+}
+
+public record DriverResetPasswordCommand(string Token, string NewPassword) : IRequest<ApiResponse<object>>;
+
+public class DriverResetPasswordCommandValidator : AbstractValidator<DriverResetPasswordCommand>
+{
+    public DriverResetPasswordCommandValidator()
+    {
+        RuleFor(x => x.Token).NotEmpty().MaximumLength(200);
+        RuleFor(x => x.NewPassword).NotEmpty().MinimumLength(6);
+    }
+}
+
+public class DriverResetPasswordCommandHandler(ISender mediator)
+    : IRequestHandler<DriverResetPasswordCommand, ApiResponse<object>>
+{
+    public Task<ApiResponse<object>> Handle(DriverResetPasswordCommand request, CancellationToken cancellationToken)
+        => mediator.Send(new ResetPasswordWithTokenCommand(request.Token, request.NewPassword), cancellationToken);
 }
 
 public record DriverStartTripCommand(int BookingId) : IRequest<ApiResponse<bool>>;

@@ -72,9 +72,17 @@ public interface IBookingRepository
 
 public sealed record CreateBookingResult(int Id, string BookingNumber, string RouteName);
 
-public sealed record BookingMutationResult(bool Success, string? ErrorMessage = null)
+public sealed record BookingMutationResult(
+    bool Success,
+    string? ErrorMessage = null,
+    string? BookingNumber = null,
+    int? AssignedDriverUserId = null)
 {
-    public static BookingMutationResult Ok() => new(true);
+    public static BookingMutationResult Ok(
+        string? bookingNumber = null,
+        int? assignedDriverUserId = null) =>
+        new(true, null, bookingNumber, assignedDriverUserId);
+
     public static BookingMutationResult Fail(string message) => new(false, message);
 }
 

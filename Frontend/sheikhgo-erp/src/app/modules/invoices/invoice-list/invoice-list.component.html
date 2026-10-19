@@ -1,0 +1,76 @@
+<div class="invoices-page">
+  <div class="page-header">
+    <h2>Invoices</h2>
+  </div>
+
+  <mat-card class="filter-card">
+    <mat-card-content>
+      <form [formGroup]="filterForm" class="filter-grid" (ngSubmit)="applyFilter()">
+        <div class="stb-field stb-field--filter">
+          <label for="inv-booking-id">Booking ID</label>
+          <input id="inv-booking-id" class="stb-input" type="number" formControlName="bookingId" min="1" />
+        </div>
+        <div class="stb-field stb-field--filter">
+          <label for="inv-status">Status</label>
+          <select id="inv-status" class="stb-select" formControlName="status">
+            <option *ngFor="let s of statusOptions" [ngValue]="s.value">{{ s.label }}</option>
+          </select>
+        </div>
+        <div class="filter-actions">
+          <button mat-raised-button color="primary" type="submit">Filter</button>
+          <button mat-button type="button" (click)="clearFilter()">Clear</button>
+        </div>
+      </form>
+    </mat-card-content>
+  </mat-card>
+
+  <mat-card>
+    <mat-card-content>
+      <app-brand-loader *ngIf="loading" />
+      <div *ngIf="error" class="error-message">{{ error }}</div>
+      <div class="table-wrap" *ngIf="!loading && !error">
+        <table mat-table [dataSource]="dataSource" class="full-width">
+          <ng-container matColumnDef="invoiceNumber">
+            <th mat-header-cell *matHeaderCellDef>Number</th>
+            <td mat-cell *matCellDef="let row">{{ row.invoiceNumber }}</td>
+          </ng-container>
+          <ng-container matColumnDef="customerName">
+            <th mat-header-cell *matHeaderCellDef>Customer</th>
+            <td mat-cell *matCellDef="let row">{{ row.customerName || '—' }}</td>
+          </ng-container>
+          <ng-container matColumnDef="bookingNumber">
+            <th mat-header-cell *matHeaderCellDef>Booking</th>
+            <td mat-cell *matCellDef="let row">{{ row.bookingNumber || row.bookingId }}</td>
+          </ng-container>
+          <ng-container matColumnDef="totalAmount">
+            <th mat-header-cell *matHeaderCellDef>Total</th>
+            <td mat-cell *matCellDef="let row">{{ row.totalAmount | number:'1.2-2' }}</td>
+          </ng-container>
+          <ng-container matColumnDef="balance">
+            <th mat-header-cell *matHeaderCellDef>Balance</th>
+            <td mat-cell *matCellDef="let row">{{ row.balance | number:'1.2-2' }}</td>
+          </ng-container>
+          <ng-container matColumnDef="status">
+            <th mat-header-cell *matHeaderCellDef>Status</th>
+            <td mat-cell *matCellDef="let row">
+              <span class="status-chip" [style.background]="statusColors[row.status] || '#666'">{{ row.status }}</span>
+            </td>
+          </ng-container>
+          <ng-container matColumnDef="issuedAt">
+            <th mat-header-cell *matHeaderCellDef>Issued</th>
+            <td mat-cell *matCellDef="let row">{{ row.issuedAt | date:'mediumDate' }}</td>
+          </ng-container>
+          <ng-container matColumnDef="actions">
+            <th mat-header-cell *matHeaderCellDef></th>
+            <td mat-cell *matCellDef="let row">
+              <button mat-button color="primary" (click)="open(row.id)">View</button>
+            </td>
+          </ng-container>
+          <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+          <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
+        </table>
+        <p *ngIf="!dataSource.data.length" class="empty">No invoices found.</p>
+      </div>
+    </mat-card-content>
+  </mat-card>
+</div>

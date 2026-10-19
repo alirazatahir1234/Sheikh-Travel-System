@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../core/constants/app_theme.dart';
+import '../../settlements/presentation/settlements_screen.dart';
 import '../data/earnings_api.dart';
 import '../domain/earnings_models.dart';
 
@@ -52,6 +54,8 @@ class EarningsScreen extends ConsumerWidget {
               const SizedBox(height: 16),
               _PaidPendingRow(summary: summary, fmt: fmt),
               const SizedBox(height: 16),
+              _SettlementsTeaser(),
+              const SizedBox(height: 16),
               _ChartCard(summary: summary, fmt: fmt),
               const SizedBox(height: 16),
               _BreakdownCard(summary: summary, fmt: fmt),
@@ -59,6 +63,32 @@ class EarningsScreen extends ConsumerWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _SettlementsTeaser extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(settlementsProvider);
+    final money = NumberFormat('#,##0');
+
+    return Card(
+      child: ListTile(
+        leading: const Icon(Icons.account_balance_wallet_outlined),
+        title: const Text('Settlements'),
+        subtitle: async.when(
+          data: (items) {
+            if (items.isEmpty) return const Text('No settlements yet');
+            final latest = items.first;
+            return Text('${latest.status} · PKR ${money.format(latest.payable)}');
+          },
+          loading: () => const Text('Loading…'),
+          error: (_, __) => const Text('Tap to open'),
+        ),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: () => context.push('/finance'),
       ),
     );
   }

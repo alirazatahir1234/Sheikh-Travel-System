@@ -21,7 +21,7 @@ class DocumentsScreen extends ConsumerWidget {
     final async = ref.watch(documentsProvider);
 
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor: context.sg.surface,
       appBar: AppBar(
         title: const Text('Documents'),
         actions: [
@@ -55,7 +55,7 @@ class DocumentsScreen extends ConsumerWidget {
               if (bundle.cnicNumber != null && bundle.cnicNumber!.isNotEmpty) ...[
                 const SizedBox(height: 12),
                 Text('CNIC on file: ${bundle.cnicNumber}',
-                    style: const TextStyle(color: AppColors.textSecondary)),
+                    style: TextStyle(color: context.sg.textSecondary)),
               ],
               const SizedBox(height: 16),
               const Text('Driver documents',
@@ -154,11 +154,11 @@ class _DocumentCard extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(doc.title,
-                          style: const TextStyle(fontWeight: FontWeight.w700)),
+                          style: TextStyle(fontWeight: FontWeight.w700)),
                       if (doc.vehicleName != null)
                         Text(doc.vehicleName!,
-                            style: const TextStyle(
-                                fontSize: 12, color: AppColors.textSecondary)),
+                            style: TextStyle(
+                                fontSize: 12, color: context.sg.textSecondary)),
                     ],
                   ),
                 ),
@@ -189,7 +189,7 @@ class _DocumentCard extends ConsumerWidget {
                   fontSize: 12,
                   color: doc.needsAttention
                       ? AppColors.error
-                      : AppColors.textSecondary,
+                      : context.sg.textSecondary,
                 ),
               ),
             ],
@@ -214,9 +214,9 @@ class _DocumentCard extends ConsumerWidget {
                     ),
                   ),
                 if (!doc.canUpload && !doc.hasFile)
-                  const Text('Assign a vehicle to upload',
+                  Text('Assign a vehicle to upload',
                       style: TextStyle(
-                          fontSize: 12, color: AppColors.textSecondary)),
+                          fontSize: 12, color: context.sg.textSecondary)),
               ],
             ),
           ],

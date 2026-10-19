@@ -322,7 +322,11 @@ public class NotificationService : INotificationService
         if (userId is not int id) return;
         try
         {
-            await _cache.RemoveAsync(UnreadKey(id), cancellationToken);
+            // GetUnreadNotificationCountQuery keys as notifications:unread:{userId}:{channel ?? "inbox"}.
+            // Older writers used notifications:unread:{userId}. Clear every known variant so
+            // mark-read / archive immediately refresh the mobile badge.
+            foreach (var key in UnreadCacheKeys(id))
+                await _cache.RemoveAsync(key, cancellationToken);
         }
         catch (Exception) when (!cancellationToken.IsCancellationRequested)
         {
@@ -705,6 +709,16 @@ public class NotificationService : INotificationService
     };
 
     private static string UnreadKey(int userId) => $"notifications:unread:{userId}";
+
+    /// <summary>All cache keys GetUnreadNotificationCountQuery (and legacy code) may have written.</summary>
+    private static IEnumerable<string> UnreadCacheKeys(int userId)
+    {
+        yield return UnreadKey(userId);
+        yield return $"{UnreadKey(userId)}:inbox";
+        yield return $"{UnreadKey(userId)}:InApp";
+        yield return $"{UnreadKey(userId)}:Browser";
+        yield return $"{UnreadKey(userId)}:Push";
+    }
 
     private sealed record PendingRow(
         int Id, int? UserId, string Title, string Message, string Channel,

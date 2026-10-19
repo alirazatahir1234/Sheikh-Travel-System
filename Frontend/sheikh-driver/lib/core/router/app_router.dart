@@ -24,6 +24,7 @@ import '../../features/attendance/presentation/attendance_screen.dart';
 import '../../features/timeline/presentation/timeline_screen.dart';
 import '../../features/settings/presentation/settings_screen.dart';
 import '../../features/earnings/presentation/earnings_screen.dart';
+import '../../features/settlements/presentation/settlements_screen.dart';
 import '../../features/inspection/presentation/inspection_screen.dart';
 import '../../features/navigation/presentation/trip_navigation_screen.dart';
 import '../../features/offline/presentation/offline_queue_screen.dart';
@@ -153,7 +154,9 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/reset-password',
-        builder: (_, __) => const ResetPasswordScreen(),
+        builder: (_, state) => ResetPasswordScreen(
+          initialToken: state.uri.queryParameters['token'],
+        ),
       ),
       GoRoute(
         path: '/session-expired',
@@ -276,16 +279,12 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: '/finance',
-            builder: (_, __) => const ComingSoonScreen(
-              title: 'Finance',
-              sprintLabel: 'Phase 6 — Accountant',
-            ),
+            builder: (_, __) => const SettlementsScreen(),
           ),
           GoRoute(
             path: '/users',
             builder: (_, __) => const ComingSoonScreen(
               title: 'Users',
-              sprintLabel: 'Phase 7 — Tenant Admin',
             ),
           ),
           GoRoute(

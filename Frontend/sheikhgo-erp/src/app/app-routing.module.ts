@@ -165,6 +165,18 @@ const routes: Routes = [
         loadChildren: () => import('./modules/payments/payments.module').then(m => m.PaymentsModule)
       },
       {
+        path: 'invoices',
+        canActivate: [permissionGuard],
+        data: { permissions: ['Invoice.View'] },
+        loadChildren: () => import('./modules/invoices/invoices.module').then(m => m.InvoicesModule)
+      },
+      {
+        path: 'settlements',
+        canActivate: [permissionGuard],
+        data: { permissions: ['Settlement.View'] },
+        loadChildren: () => import('./modules/settlements/settlements.module').then(m => m.SettlementsModule)
+      },
+      {
         path: 'reports',
         canActivate: [permissionGuard],
         data: { permissions: ['Report.View'] },

@@ -292,7 +292,6 @@ export class OrganizationHierarchyService {
       { id: 'departments', label: 'Departments', count: branch?.departmentCount ?? 0 },
       { id: 'users', label: 'Users', count: branch?.userCount ?? 0 },
       { id: 'assets', label: 'Assets' },
-      { id: 'audit-logs', label: 'Audit Logs' },
     ];
   });
 

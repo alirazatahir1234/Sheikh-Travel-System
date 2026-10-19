@@ -41,6 +41,7 @@ class FleetStatsStrip extends StatelessWidget {
           ('On trip', '${s?.onTrip ?? 0}', AppColors.info),
           ('Lic. soon', '${s?.licensesExpiringSoon ?? 0}', AppColors.warning),
         ];
+      case DashboardRole.owner:
       case DashboardRole.tenantAdmin:
       case DashboardRole.superAdmin:
         return [

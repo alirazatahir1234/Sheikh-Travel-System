@@ -96,70 +96,30 @@ class OpsHeaderCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dateLabel = DateFormat('MMM d, yyyy').format(DateTime.now());
+    final p = context.sg;
+    final first = name.trim().split(RegExp(r'\s+')).first;
+    final greeting = dashboardGreeting();
 
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Dashboard',
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.textPrimary,
-                  height: 1.1,
-                ),
+        Text(
+          '$greeting, $first',
+          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                color: p.textPrimary,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.4,
+                height: 1.15,
               ),
-              const SizedBox(height: 3),
-              RichText(
-                text: TextSpan(
-                  style: const TextStyle(
-                    fontSize: 13,
-                    color: AppColors.textSecondary,
-                  ),
-                  children: [
-                    const TextSpan(text: 'Welcome back, '),
-                    TextSpan(
-                      text: name,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.primary,
-                      ),
-                    ),
-                    const TextSpan(text: ' 👋'),
-                  ],
-                ),
-              ),
-            ],
-          ),
         ),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(AppRadii.md),
-            border: Border.all(color: AppColors.border),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.calendar_today_outlined,
-                  size: 12, color: AppColors.textSecondary),
-              const SizedBox(width: 4),
-              Text(
-                dateLabel,
-                style: const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textSecondary,
-                ),
+        const SizedBox(height: 4),
+        Text(
+          role == DashboardRole.driver
+              ? 'Here’s what’s on your schedule'
+              : 'Fleet command overview',
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: p.textSecondary,
               ),
-            ],
-          ),
         ),
       ],
     );
@@ -811,7 +771,7 @@ class AiCopilotSummaryCard extends StatelessWidget {
                   ),
                 ),
                 const Text(
-                  'Ask anything about your fleet...',
+                  'Ask about vehicles, trips, or alerts…',
                   style: TextStyle(
                     fontSize: 11,
                     color: AppColors.textSecondary,
@@ -1384,11 +1344,14 @@ class KpiStrip extends StatelessWidget {
     this.title,
     this.viewAllLabel,
     this.viewAllRoute,
+    this.itemRoutes,
   });
   final List<(String, String, Color)> items;
   final String? title;
   final String? viewAllLabel;
   final String? viewAllRoute;
+  /// Optional per-cell routes (same length as [items]).
+  final List<String?>? itemRoutes;
 
   @override
   Widget build(BuildContext context) {
@@ -1441,43 +1404,58 @@ class KpiStrip extends StatelessWidget {
                           width: 1,
                           color: AppColors.divider),
                     Expanded(
-                      child: Column(
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              Container(
-                                width: 10,
-                                height: 10,
-                                decoration: BoxDecoration(
-                                  color:
-                                      items[i].$3.withValues(alpha: 0.8),
-                                  shape: BoxShape.circle,
+                      child: Builder(builder: (context) {
+                        final route = (itemRoutes != null &&
+                                i < itemRoutes!.length)
+                            ? itemRoutes![i]
+                            : null;
+                        final cell = Column(
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                Container(
+                                  width: 10,
+                                  height: 10,
+                                  decoration: BoxDecoration(
+                                    color:
+                                        items[i].$3.withValues(alpha: 0.8),
+                                    shape: BoxShape.circle,
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(width: 5),
-                              Text(
-                                items[i].$2,
-                                style: TextStyle(
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.w800,
-                                  color: items[i].$3,
+                                const SizedBox(width: 5),
+                                Text(
+                                  items[i].$2,
+                                  style: TextStyle(
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.w800,
+                                    color: items[i].$3,
+                                  ),
                                 ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 3),
-                          Text(
-                            items[i].$1,
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              fontSize: 11,
-                              color: AppColors.textSecondary,
+                              ],
                             ),
+                            const SizedBox(height: 3),
+                            Text(
+                              items[i].$1,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                          ],
+                        );
+                        if (route == null) return cell;
+                        return InkWell(
+                          onTap: () => context.push(route),
+                          borderRadius: BorderRadius.circular(8),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 2),
+                            child: cell,
                           ),
-                        ],
-                      ),
+                        );
+                      }),
                     ),
                   ],
                 ],
@@ -1944,8 +1922,14 @@ class ComplianceDocsCard extends StatelessWidget {
 }
 
 class QuickActionsGrid extends StatelessWidget {
-  const QuickActionsGrid({super.key, required this.actions});
+  const QuickActionsGrid({
+    super.key,
+    required this.actions,
+    this.viewAllRoute = '/more',
+  });
   final List<DashboardQuickAction> actions;
+  /// When null, the "View all" control is hidden.
+  final String? viewAllRoute;
 
   String _subtitle(String iconName) => switch (iconName) {
         'fleet' => 'Manage vehicles',
@@ -1967,24 +1951,25 @@ class QuickActionsGrid extends StatelessWidget {
         Row(
           children: [
             const Expanded(child: SgSectionTitle('Quick Actions')),
-            TextButton(
-              onPressed: () => context.push('/more'),
-              style: TextButton.styleFrom(
-                foregroundColor: AppColors.primary,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+            if (viewAllRoute != null)
+              TextButton(
+                onPressed: () => context.push(viewAllRoute!),
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.primary,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text('View all',
+                        style: TextStyle(
+                            fontSize: 13, fontWeight: FontWeight.w600)),
+                    SizedBox(width: 2),
+                    Icon(Icons.chevron_right_rounded, size: 16),
+                  ],
+                ),
               ),
-              child: const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text('View all',
-                      style: TextStyle(
-                          fontSize: 13, fontWeight: FontWeight.w600)),
-                  SizedBox(width: 2),
-                  Icon(Icons.chevron_right_rounded, size: 16),
-                ],
-              ),
-            ),
           ],
         ),
         const SizedBox(height: 8),

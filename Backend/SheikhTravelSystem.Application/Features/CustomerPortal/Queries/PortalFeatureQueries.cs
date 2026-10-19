@@ -1,6 +1,7 @@
 using FluentValidation;
 using MediatR;
 using SheikhTravelSystem.Application.Common;
+using SheikhTravelSystem.Application.Common.Interfaces;
 using SheikhTravelSystem.Application.Common.Interfaces.Repositories;
 using SheikhTravelSystem.Application.Features.CustomerPortal.Commands;
 using SheikhTravelSystem.Application.Features.CustomerPortal.DTOs;
@@ -9,14 +10,14 @@ namespace SheikhTravelSystem.Application.Features.CustomerPortal.Queries;
 
 public record GetPortalSavedAddressesQuery(string Phone) : IRequest<ApiResponse<IReadOnlyList<PortalSavedAddressDto>>>;
 
-public class GetPortalSavedAddressesQueryHandler(ICustomerPortalRepository portalRepository)
+public class GetPortalSavedAddressesQueryHandler(ICustomerPortalRepository portalRepository, ITenantContext tenantContext)
     : IRequestHandler<GetPortalSavedAddressesQuery, ApiResponse<IReadOnlyList<PortalSavedAddressDto>>>
 {
     public async Task<ApiResponse<IReadOnlyList<PortalSavedAddressDto>>> Handle(
         GetPortalSavedAddressesQuery request,
         CancellationToken cancellationToken)
     {
-        var customerId = await portalRepository.ResolveCustomerIdByPhoneAsync(request.Phone, cancellationToken);
+        var customerId = await portalRepository.ResolveCustomerIdByPhoneAsync(tenantContext.GetRequiredTenantId(), request.Phone, cancellationToken);
         if (customerId is null or <= 0)
             return ApiResponse<IReadOnlyList<PortalSavedAddressDto>>.SuccessResponse([], "No saved addresses.");
 
@@ -28,14 +29,14 @@ public class GetPortalSavedAddressesQueryHandler(ICustomerPortalRepository porta
 public record GetPortalCustomerNotificationsQuery(string Phone)
     : IRequest<ApiResponse<IReadOnlyList<PortalCustomerNotificationDto>>>;
 
-public class GetPortalCustomerNotificationsQueryHandler(ICustomerPortalRepository portalRepository)
+public class GetPortalCustomerNotificationsQueryHandler(ICustomerPortalRepository portalRepository, ITenantContext tenantContext)
     : IRequestHandler<GetPortalCustomerNotificationsQuery, ApiResponse<IReadOnlyList<PortalCustomerNotificationDto>>>
 {
     public async Task<ApiResponse<IReadOnlyList<PortalCustomerNotificationDto>>> Handle(
         GetPortalCustomerNotificationsQuery request,
         CancellationToken cancellationToken)
     {
-        var customerId = await portalRepository.ResolveCustomerIdByPhoneAsync(request.Phone, cancellationToken);
+        var customerId = await portalRepository.ResolveCustomerIdByPhoneAsync(tenantContext.GetRequiredTenantId(), request.Phone, cancellationToken);
         if (customerId is null or <= 0)
             return ApiResponse<IReadOnlyList<PortalCustomerNotificationDto>>.SuccessResponse([]);
 
@@ -74,12 +75,12 @@ public class GetPortalVehicleSeatsQueryHandler(ICustomerPortalRepository portalR
 
 public record GetPortalLoyaltyQuery(string Phone) : IRequest<ApiResponse<PortalLoyaltyDto>>;
 
-public class GetPortalLoyaltyQueryHandler(ICustomerPortalRepository portalRepository)
+public class GetPortalLoyaltyQueryHandler(ICustomerPortalRepository portalRepository, ITenantContext tenantContext)
     : IRequestHandler<GetPortalLoyaltyQuery, ApiResponse<PortalLoyaltyDto>>
 {
     public async Task<ApiResponse<PortalLoyaltyDto>> Handle(GetPortalLoyaltyQuery request, CancellationToken cancellationToken)
     {
-        var customerId = await portalRepository.ResolveCustomerIdByPhoneAsync(request.Phone, cancellationToken);
+        var customerId = await portalRepository.ResolveCustomerIdByPhoneAsync(tenantContext.GetRequiredTenantId(), request.Phone, cancellationToken);
         if (customerId is null)
             return ApiResponse<PortalLoyaltyDto>.SuccessResponse(new PortalLoyaltyDto(0, "Bronze"));
 
@@ -91,12 +92,12 @@ public class GetPortalLoyaltyQueryHandler(ICustomerPortalRepository portalReposi
 
 public record GetPortalWalletQuery(string Phone) : IRequest<ApiResponse<PortalWalletDto>>;
 
-public class GetPortalWalletQueryHandler(ICustomerPortalRepository portalRepository)
+public class GetPortalWalletQueryHandler(ICustomerPortalRepository portalRepository, ITenantContext tenantContext)
     : IRequestHandler<GetPortalWalletQuery, ApiResponse<PortalWalletDto>>
 {
     public async Task<ApiResponse<PortalWalletDto>> Handle(GetPortalWalletQuery request, CancellationToken cancellationToken)
     {
-        var customerId = await portalRepository.ResolveCustomerIdByPhoneAsync(request.Phone, cancellationToken);
+        var customerId = await portalRepository.ResolveCustomerIdByPhoneAsync(tenantContext.GetRequiredTenantId(), request.Phone, cancellationToken);
         if (customerId is null)
             return ApiResponse<PortalWalletDto>.SuccessResponse(new PortalWalletDto(0));
 
@@ -110,14 +111,14 @@ public record GetPortalFavoriteRoutesQuery(string Phone) : IRequest<ApiResponse<
 
 public record PortalFavoriteRouteDto(int Id, int RouteId, string RouteName, string? Label);
 
-public class GetPortalFavoriteRoutesQueryHandler(ICustomerPortalRepository portalRepository)
+public class GetPortalFavoriteRoutesQueryHandler(ICustomerPortalRepository portalRepository, ITenantContext tenantContext)
     : IRequestHandler<GetPortalFavoriteRoutesQuery, ApiResponse<IReadOnlyList<PortalFavoriteRouteDto>>>
 {
     public async Task<ApiResponse<IReadOnlyList<PortalFavoriteRouteDto>>> Handle(
         GetPortalFavoriteRoutesQuery request,
         CancellationToken cancellationToken)
     {
-        var customerId = await portalRepository.ResolveCustomerIdByPhoneAsync(request.Phone, cancellationToken);
+        var customerId = await portalRepository.ResolveCustomerIdByPhoneAsync(tenantContext.GetRequiredTenantId(), request.Phone, cancellationToken);
         if (customerId is null or <= 0)
             return ApiResponse<IReadOnlyList<PortalFavoriteRouteDto>>.SuccessResponse([]);
 
@@ -128,12 +129,12 @@ public class GetPortalFavoriteRoutesQueryHandler(ICustomerPortalRepository porta
 
 public record AddPortalFavoriteRouteCommand(string Phone, int RouteId, string? Label) : IRequest<ApiResponse<int>>;
 
-public class AddPortalFavoriteRouteCommandHandler(ICustomerPortalRepository portalRepository)
+public class AddPortalFavoriteRouteCommandHandler(ICustomerPortalRepository portalRepository, ITenantContext tenantContext)
     : IRequestHandler<AddPortalFavoriteRouteCommand, ApiResponse<int>>
 {
     public async Task<ApiResponse<int>> Handle(AddPortalFavoriteRouteCommand request, CancellationToken cancellationToken)
     {
-        var customerId = await portalRepository.ResolveCustomerIdByPhoneAsync(request.Phone, cancellationToken);
+        var customerId = await portalRepository.ResolveCustomerIdByPhoneAsync(tenantContext.GetRequiredTenantId(), request.Phone, cancellationToken);
         if (customerId is null or <= 0)
             return ApiResponse<int>.FailResponse("Sign in and complete a booking first.");
 
