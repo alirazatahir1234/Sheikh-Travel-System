@@ -23,6 +23,9 @@ using SheikhTravelSystem.Infrastructure.SignalR;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Optional local overlay (gitignored). Overrides tracked placeholders without committing secrets.
+builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true);
+
 // Fail closed in non-Development when required secrets are missing/placeholders.
 ProductionSecretsValidator.EnsureValidOrThrow(builder.Configuration, builder.Environment);
 

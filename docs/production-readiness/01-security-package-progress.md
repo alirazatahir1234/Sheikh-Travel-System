@@ -25,7 +25,7 @@
 2. Non-Development hosts abort startup if required secrets are missing/placeholders (`ProductionSecretsValidator`).
 3. Documented required env vars; fixed gitignore patterns so Development overlays stay local.
 4. `appsettings.Development.json` was already untracked; local file left in place (not deleted).
-5. **Tracked `appsettings.json` placeholder scrub deferred** — ADR-009 fails on removal hunks and on any change to that path; host env must override. Follow-up scrub requires an ADR-009 override merge after credential rotation.
+5. **Tracked `appsettings.json` placeholder scrub** — completed on the current branch (placeholders only). Gate will still **fail** ADR-009 on removal hunks vs `origin/main`; merge with documented override: [`13-adr-009-override-appsettings-scrub.md`](13-adr-009-override-appsettings-scrub.md). Host env / `appsettings.Local.json` must supply live values.
 
 ### Tests executed
 
@@ -72,7 +72,7 @@ Local developers: configure user-secrets or a private `appsettings.Development.j
 ### Remaining risks
 
 - Historical commits still contain prior secret material (history rewrite not in scope).
-- Tracked `appsettings.json` scrub deferred to an ADR-009 override merge (path + removal-hunk rules).
+- Tracked `appsettings.json` scrub is on the branch; use [`13-adr-009-override-appsettings-scrub.md`](13-adr-009-override-appsettings-scrub.md) for the ADR-009 override merge (path + removal-hunk rules).
 - Production/Staging should bind secrets via host env; validator only fails closed when values are missing/placeholders.
 - Full test suite still has 9 unrelated failures to triage separately.
 
@@ -91,7 +91,7 @@ Local developers: configure user-secrets or a private `appsettings.Development.j
 - [`Backend/SheikhTravelSystem.Application/Common/Multitenancy/TenantResolutionPolicy.cs`](../../Backend/SheikhTravelSystem.Application/Common/Multitenancy/TenantResolutionPolicy.cs) — pure Decide() policy
 - [`Backend/SheikhTravelSystem.API/Middleware/TenantResolutionMiddleware.cs`](../../Backend/SheikhTravelSystem.API/Middleware/TenantResolutionMiddleware.cs) — JWT-authoritative resolution; 403 on mismatch; warnings
 - [`Backend/SheikhTravelSystem.Infrastructure/Authentication/PermissionAuthorizationHandler.cs`](../../Backend/SheikhTravelSystem.Infrastructure/Authentication/PermissionAuthorizationHandler.cs) — uses `PlatformRoleClaims`
-- [`Backend/docs/local-dev-config.example.json`](../../Backend/docs/local-dev-config.example.json) — documents `MultiTenancy:AllowAnonymousDefaultTenant` for local overlays (code default remains `true`)
+- [`Backend/docs/local-dev-config.example.json`](../../Backend/docs/local-dev-config.example.json) — documents `MultiTenancy:AllowAnonymousDefaultTenant` for local overlays (production / tracked appsettings default is `false`; middleware code default is `false`)
 - [`Backend/SheikhTravelSystem.Tests/Tenants/TenantResolutionPolicyTests.cs`](../../Backend/SheikhTravelSystem.Tests/Tenants/TenantResolutionPolicyTests.cs) — truth-table unit tests
 
 ### Architecture / security behavior
@@ -133,7 +133,7 @@ With API running and a Tenant-1 JWT (`Authorization: Bearer …`):
 ### Remaining risks
 
 - Clients that previously switched tenants via `X-Tenant-Id` without SuperAdmin will now get 403 (intended).
-- Anonymous default to tenant 1 remains until ops sets `MultiTenancy:AllowAnonymousDefaultTenant=false`.
+- Anonymous default is off in tracked config (`AllowAnonymousDefaultTenant=false`); public surfaces must send `X-Tenant-Slug` / `?tenant=`. Local overlays may set `true` for convenience.
 - SuperAdmin override is logged at Warning only (no audit table write in this phase).
 - Repository SQL tenant predicates are **not** yet enforced in this phase (Phase 3).
 
