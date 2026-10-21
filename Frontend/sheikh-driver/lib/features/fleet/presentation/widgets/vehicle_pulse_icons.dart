@@ -6,18 +6,35 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import '../../domain/fleet_models.dart';
-import 'fleet_kpi_strip.dart';
 
-/// Canvas-drawn SheikhGo Vehicle Pulse icons for Google Maps markers.
-/// Car points "up"; use [Marker.rotation] + [Marker.flat] for heading.
+/// Canvas-drawn fleet markers matching ERP live map (`fleet-vehicle-marker`).
+///
+/// Status glyphs:
+/// - moving → heading chevron (use [Marker.rotation] + [Marker.flat])
+/// - idle → pause bars
+/// - parked → "P" disc
+/// - sos → "!" disc
+/// - offline / never_seen → muted disc
 class VehiclePulseIcons {
   VehiclePulseIcons._();
 
-  static const _cacheEpoch = 'pulse-v1';
+  static const _cacheEpoch = 'erp-fv-v2';
   static final Map<String, BitmapDescriptor> _cache = {};
   static BitmapDescriptor? _transparent;
 
-  static Color colorFor(FleetTrackStatus status) => fleetStatusColor(status);
+  /// ERP STATUS_COLORS — keep in sync with sheikhgo-erp fleet-vehicle-marker.
+  static Color colorFor(FleetTrackStatus status) => switch (status) {
+        FleetTrackStatus.moving => const Color(0xFF2563EB),
+        FleetTrackStatus.idle => const Color(0xFFF59E0B),
+        FleetTrackStatus.parked => const Color(0xFF0D9488),
+        FleetTrackStatus.offline => const Color(0xFFEF4444),
+        FleetTrackStatus.neverSeen => const Color(0xFF94A3B8),
+        FleetTrackStatus.sos => const Color(0xFFDC2626),
+      };
+
+  /// Only moving chevrons rotate with GPS heading (ERP `fv-marker--directional`).
+  static bool rotatesWithHeading(FleetTrackStatus status) =>
+      status == FleetTrackStatus.moving;
 
   static void clearCache() {
     _cache.clear();
@@ -27,12 +44,13 @@ class VehiclePulseIcons {
   static Future<void> preload(double devicePixelRatio) async {
     for (final status in FleetTrackStatus.values) {
       await iconFor(status, devicePixelRatio: devicePixelRatio);
+      await iconFor(status, devicePixelRatio: devicePixelRatio, selected: true);
       await iconFor(status, devicePixelRatio: devicePixelRatio, mini: true);
     }
     await transparentIcon();
   }
 
-  /// 1×1 transparent marker used when the Flutter pulse overlay owns the icon.
+  /// 1×1 transparent marker used when a Flutter pulse overlay owns the icon.
   static Future<BitmapDescriptor> transparentIcon() async {
     if (_transparent != null) return _transparent!;
     final recorder = ui.PictureRecorder();
@@ -62,8 +80,7 @@ class VehiclePulseIcons {
     if (cached != null) return cached;
 
     try {
-      final bytes = await _discBytes(
-        color: colorFor(status),
+      final bytes = await _glyphBytes(
         status: status,
         selected: selected,
         mini: mini,
@@ -84,69 +101,47 @@ class VehiclePulseIcons {
     }
   }
 
-  static Future<Uint8List> _discBytes({
-    required Color color,
+  static Future<Uint8List> _glyphBytes({
     required FleetTrackStatus status,
     required bool selected,
     required bool mini,
     required double devicePixelRatio,
   }) async {
-    final logical = mini ? 28.0 : (selected ? 56.0 : 48.0);
+    // ERP default size 32; selected gets a bit more host padding visually.
+    final logical = mini ? 28.0 : (selected ? 44.0 : 36.0);
     final size = (logical * devicePixelRatio).round();
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
     canvas.scale(devicePixelRatio);
 
-    final center = Offset(logical / 2, logical / 2);
-    final radius = mini ? 8.0 : (selected ? 18.0 : 16.0);
+    final color = colorFor(status);
+    final glyphSize = mini ? 22.0 : (selected ? 34.0 : 30.0);
+    final origin = Offset((logical - glyphSize) / 2, (logical - glyphSize) / 2);
 
-    // Soft shadow
+    // Soft shadow under glyph
     canvas.drawCircle(
-      center.translate(0.6, 1.2),
-      radius,
+      Offset(logical / 2, logical / 2).translate(0.5, 1.0),
+      glyphSize * 0.42,
       Paint()
-        ..color = Colors.black.withValues(alpha: 0.28)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2.2),
+        ..color = Colors.black.withValues(alpha: 0.22)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1.8),
     );
 
-    // Status fill
-    canvas.drawCircle(center, radius, Paint()..color = color);
+    canvas.save();
+    canvas.translate(origin.dx, origin.dy);
+    canvas.scale(glyphSize / 32);
+    _paintErpGlyph(canvas, status, color);
+    canvas.restore();
 
-    // White ring
-    canvas.drawCircle(
-      center,
-      radius,
-      Paint()
-        ..color = Colors.white
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = selected ? 3.0 : 2.4,
-    );
-
-    if (!mini) {
-      if (status == FleetTrackStatus.parked) {
-        _paintP(canvas, center, radius * 0.9);
-      } else {
-        _paintCar(canvas, center, radius * 0.85);
-        // Small heading notch at top (north) — Marker.rotation aligns this.
-        if (status == FleetTrackStatus.moving ||
-            status == FleetTrackStatus.idle ||
-            status == FleetTrackStatus.sos) {
-          final tip = Offset(center.dx, center.dy - radius - 1);
-          final arrow = Path()
-            ..moveTo(tip.dx, tip.dy - 5)
-            ..lineTo(tip.dx + 5, tip.dy + 2)
-            ..lineTo(tip.dx - 5, tip.dy + 2)
-            ..close();
-          canvas.drawPath(arrow, Paint()..color = color);
-          canvas.drawPath(
-            arrow,
-            Paint()
-              ..color = Colors.white
-              ..style = PaintingStyle.stroke
-              ..strokeWidth = 1.2,
-          );
-        }
-      }
+    if (selected) {
+      canvas.drawCircle(
+        Offset(logical / 2, logical / 2),
+        glyphSize * 0.52,
+        Paint()
+          ..color = Colors.white
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2.5,
+      );
     }
 
     final image = await recorder.endRecording().toImage(size, size);
@@ -154,60 +149,99 @@ class VehiclePulseIcons {
     return data!.buffer.asUint8List();
   }
 
-  static void _paintCar(Canvas canvas, Offset center, double size) {
-    final paint = Paint()
-      ..color = Colors.white
+  /// Paint ERP SVG glyphs in a 32×32 viewBox.
+  static void _paintErpGlyph(Canvas canvas, FleetTrackStatus status, Color fill) {
+    final fillPaint = Paint()
+      ..color = fill
       ..style = PaintingStyle.fill;
-    final w = size * 0.55;
-    final h = size * 0.85;
-    final body = RRect.fromRectAndRadius(
-      Rect.fromCenter(center: center, width: w, height: h),
-      Radius.circular(w * 0.28),
-    );
-    canvas.drawRRect(body, paint);
+    final strokePaint = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.75
+      ..strokeJoin = StrokeJoin.round;
 
-    // Cabin
-    final cabin = RRect.fromRectAndRadius(
-      Rect.fromCenter(
-        center: center.translate(0, -h * 0.08),
-        width: w * 0.62,
-        height: h * 0.38,
-      ),
-      Radius.circular(w * 0.15),
-    );
-    canvas.drawRRect(
-      cabin,
-      Paint()..color = Colors.white.withValues(alpha: 0.35),
-    );
-
-    // Wheels
-    final wheelPaint = Paint()..color = Colors.white.withValues(alpha: 0.55);
-    final wx = w * 0.42;
-    final wy = h * 0.28;
-    canvas.drawCircle(center.translate(-wx, -wy), w * 0.14, wheelPaint);
-    canvas.drawCircle(center.translate(wx, -wy), w * 0.14, wheelPaint);
-    canvas.drawCircle(center.translate(-wx, wy), w * 0.14, wheelPaint);
-    canvas.drawCircle(center.translate(wx, wy), w * 0.14, wheelPaint);
+    switch (status) {
+      case FleetTrackStatus.parked:
+        canvas.drawCircle(const Offset(16, 16), 13, fillPaint);
+        canvas.drawCircle(const Offset(16, 16), 13, strokePaint);
+        _paintCenteredText(canvas, 'P', 14, FontWeight.w800);
+        break;
+      case FleetTrackStatus.idle:
+        canvas.drawCircle(const Offset(16, 16), 13, fillPaint);
+        canvas.drawCircle(const Offset(16, 16), 13, strokePaint);
+        final bar = Paint()..color = Colors.white;
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(
+            const Rect.fromLTWH(11, 10, 3.2, 12),
+            const Radius.circular(1),
+          ),
+          bar,
+        );
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(
+            const Rect.fromLTWH(17.8, 10, 3.2, 12),
+            const Radius.circular(1),
+          ),
+          bar,
+        );
+        break;
+      case FleetTrackStatus.sos:
+        canvas.drawCircle(const Offset(16, 16), 13, fillPaint);
+        canvas.drawCircle(const Offset(16, 16), 13, strokePaint);
+        _paintCenteredText(canvas, '!', 16, FontWeight.w900);
+        break;
+      case FleetTrackStatus.offline:
+      case FleetTrackStatus.neverSeen:
+        canvas.drawCircle(const Offset(16, 16), 12, fillPaint);
+        canvas.drawCircle(const Offset(16, 16), 12, strokePaint);
+        canvas.drawCircle(
+          const Offset(16, 16),
+          4.5,
+          Paint()..color = Colors.white.withValues(alpha: 0.45),
+        );
+        break;
+      case FleetTrackStatus.moving:
+        // Chevron pointing north — Marker.rotation applies heading.
+        final chevron = Path()
+          ..moveTo(16, 1.5)
+          ..lineTo(27.5, 27.5)
+          ..lineTo(16, 21.5)
+          ..lineTo(4.5, 27.5)
+          ..close();
+        canvas.drawPath(chevron, strokePaint);
+        canvas.drawPath(chevron, fillPaint);
+        canvas.drawCircle(
+          const Offset(16, 18.5),
+          3.2,
+          Paint()..color = Colors.white.withValues(alpha: 0.4),
+        );
+        break;
+    }
   }
 
-  static void _paintP(Canvas canvas, Offset center, double size) {
+  static void _paintCenteredText(
+    Canvas canvas,
+    String text,
+    double fontSize,
+    FontWeight weight,
+  ) {
     final tp = TextPainter(
       text: TextSpan(
-        text: 'P',
+        text: text,
         style: TextStyle(
           color: Colors.white,
-          fontSize: size * 0.95,
-          fontWeight: FontWeight.w900,
+          fontSize: fontSize,
+          fontWeight: weight,
           height: 1,
         ),
       ),
       textDirection: ui.TextDirection.ltr,
     )..layout();
-    tp.paint(canvas, Offset(center.dx - tp.width / 2, center.dy - tp.height / 2));
+    tp.paint(canvas, Offset(16 - tp.width / 2, 16 - tp.height / 2));
   }
 }
 
-/// Paint helpers shared with [PulseVehicleOverlay] for visual parity.
+/// Paint helpers shared with [PulseVehicleOverlay] for visual parity with ERP.
 class VehiclePulsePainter {
   VehiclePulsePainter._();
 
@@ -221,57 +255,17 @@ class VehiclePulsePainter {
   }) {
     canvas.save();
     canvas.translate(center.dx, center.dy);
-    canvas.rotate(headingDegrees * math.pi / 180);
-    canvas.translate(-center.dx, -center.dy);
-
-    canvas.drawCircle(
-      center.translate(0.5, 1.0),
-      radius,
-      Paint()
-        ..color = Colors.black.withValues(alpha: 0.22)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2),
-    );
-    canvas.drawCircle(center, radius, Paint()..color = color);
-    canvas.drawCircle(
-      center,
-      radius,
-      Paint()
-        ..color = Colors.white
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2.5,
-    );
-
-    if (status == FleetTrackStatus.parked) {
-      final tp = TextPainter(
-        text: TextSpan(
-          text: 'P',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: radius * 1.1,
-            fontWeight: FontWeight.w900,
-            height: 1,
-          ),
-        ),
-        textDirection: ui.TextDirection.ltr,
-      )..layout();
-      tp.paint(
-        canvas,
-        Offset(center.dx - tp.width / 2, center.dy - tp.height / 2),
-      );
-    } else {
-      // Simple top-down car (points up / north in local space)
-      final w = radius * 0.7;
-      final h = radius * 1.05;
-      final body = RRect.fromRectAndRadius(
-        Rect.fromCenter(center: center, width: w, height: h),
-        Radius.circular(w * 0.28),
-      );
-      canvas.drawRRect(body, Paint()..color = Colors.white);
+    // Scale 32 viewBox to ~2×radius diameter.
+    final scale = (radius * 2) / 32;
+    if (VehiclePulseIcons.rotatesWithHeading(status)) {
+      canvas.rotate(headingDegrees * math.pi / 180);
     }
-
+    canvas.scale(scale);
+    canvas.translate(-16, -16);
+    VehiclePulseIcons._paintErpGlyph(canvas, status, color);
     canvas.restore();
   }
 }
 
-// Re-export color online green for KPI strip consumers.
+/// Online green for KPI strip consumers (connection, not track status).
 const Color fleetOnlineColor = Color(0xFF16A34A);

@@ -3,8 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../core/constants/app_theme.dart';
 import '../../../core/errors/error_handler.dart';
+import '../../../shared/widgets/sg_ui.dart';
 import '../data/payments_api.dart';
 import '../domain/payment_summary_model.dart';
+import '../../../shared/widgets/sg_keyboard_fields.dart';
 
 final paymentSummaryProvider =
     FutureProvider.autoDispose.family<PaymentSummary, int>(
@@ -81,8 +83,9 @@ class _CollectPaymentScreenState extends ConsumerState<CollectPaymentScreen> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(paymentSummaryProvider(widget.tripId));
+    final p = context.sg;
     return Scaffold(
-      backgroundColor: context.sg.surface,
+      backgroundColor: p.surface,
       appBar: AppBar(title: const Text('Collect Payment')),
       body: state.when(
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -94,21 +97,37 @@ class _CollectPaymentScreenState extends ConsumerState<CollectPaymentScreen> {
           }
           final fmt = NumberFormat('#,##0');
           return ListView(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
             children: [
-              _line(context, 'Booking', s.bookingNumber),
-              _line(context, 'Total', 'PKR ${fmt.format(s.totalAmount)}'),
-              _line(context, 'Paid', 'PKR ${fmt.format(s.paidAmount)}'),
-              _line(context, 'Due', 'PKR ${fmt.format(s.balanceDue)}'),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _amountCtrl,
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
-                decoration:
-                    const InputDecoration(labelText: 'Amount Received'),
+              SgCard(
+                padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+                child: Column(
+                  children: [
+                    _line(context, 'Booking', s.bookingNumber),
+                    const SizedBox(height: 8),
+                    _line(context, 'Total', 'PKR ${fmt.format(s.totalAmount)}'),
+                    const SizedBox(height: 8),
+                    _line(context, 'Paid', 'PKR ${fmt.format(s.paidAmount)}'),
+                    const SizedBox(height: 10),
+                    Divider(height: 1, color: p.divider.withValues(alpha: 0.9)),
+                    const SizedBox(height: 10),
+                    _line(
+                      context,
+                      'Due',
+                      'PKR ${fmt.format(s.balanceDue)}',
+                      emphasize: true,
+                    ),
+                  ],
+                ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 16),
+              SgSheetAmountFormField(
+                controller: _amountCtrl,
+                label: 'Amount Received',
+                unit: 'PKR',
+                helperExample: 'e.g. 5000',
+              ),
+              const SizedBox(height: 12),
               DropdownButtonFormField<String>(
                 initialValue: _method,
                 decoration:
@@ -120,37 +139,50 @@ class _CollectPaymentScreenState extends ConsumerState<CollectPaymentScreen> {
                     ? null
                     : (v) => setState(() => _method = v ?? 'Cash'),
               ),
-              const SizedBox(height: 8),
-              TextField(
+              const SizedBox(height: 12),
+              SgSheetTextFormField(
                 controller: _refCtrl,
-                decoration: InputDecoration(
-                  labelText: _method == 'Cash'
-                      ? 'Reference (optional)'
-                      : 'Reference Number',
+                label: _method == 'Cash'
+                    ? 'Reference (optional)'
+                    : 'Reference Number',
+              ),
+              const SizedBox(height: 12),
+              SgSheetTextFormField(
+                controller: _notesCtrl,
+                label: 'Notes (optional)',
+                maxLines: 2,
+                textCapitalization: TextCapitalization.sentences,
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                height: 48,
+                child: FilledButton(
+                  onPressed: _busy ? null : () => _collect(s),
+                  child: _busy
+                      ? const SizedBox(
+                          height: 22,
+                          width: 22,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text(
+                          'Collect',
+                          style: TextStyle(fontWeight: FontWeight.w700),
+                        ),
                 ),
               ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _notesCtrl,
-                maxLines: 2,
-                decoration:
-                    const InputDecoration(labelText: 'Notes (optional)'),
-              ),
-              const SizedBox(height: 16),
-              FilledButton(
-                onPressed: _busy ? null : () => _collect(s),
-                child: _busy
-                    ? const SizedBox(
-                        height: 22,
-                        width: 22,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Text('Collect'),
-              ),
-              const SizedBox(height: 8),
-              OutlinedButton(
-                onPressed: _busy ? null : () => Navigator.pop(context, false),
-                child: const Text('Skip'),
+              const SizedBox(height: 10),
+              SizedBox(
+                height: 48,
+                child: OutlinedButton(
+                  onPressed: _busy ? null : () => Navigator.pop(context, false),
+                  child: const Text(
+                    'Skip',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ),
               ),
             ],
           );
@@ -159,24 +191,35 @@ class _CollectPaymentScreenState extends ConsumerState<CollectPaymentScreen> {
     );
   }
 
-  Widget _line(BuildContext context, String label, String value) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 2),
-        child: Row(
-          children: [
-            Expanded(
-              child: Text(
-                label,
-                style: TextStyle(color: context.sg.textSecondary),
-              ),
+  Widget _line(
+    BuildContext context,
+    String label,
+    String value, {
+    bool emphasize = false,
+  }) {
+    final p = context.sg;
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            label,
+            style: TextStyle(
+              color: p.textSecondary,
+              fontSize: 13.5,
+              fontWeight: FontWeight.w600,
             ),
-            Text(
-              value,
-              style: TextStyle(
-                fontWeight: FontWeight.w700,
-                color: context.sg.textPrimary,
-              ),
-            ),
-          ],
+          ),
         ),
-      );
+        Text(
+          value,
+          style: TextStyle(
+            fontWeight: FontWeight.w800,
+            fontSize: emphasize ? 16 : 14,
+            letterSpacing: -0.2,
+            color: emphasize ? AppColors.primaryDark : p.textPrimary,
+          ),
+        ),
+      ],
+    );
+  }
 }

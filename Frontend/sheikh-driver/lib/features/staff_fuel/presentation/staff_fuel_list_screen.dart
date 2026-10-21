@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../core/constants/app_theme.dart';
+import '../../../core/errors/error_handler.dart';
+import '../../../shared/widgets/sg_keyboard_fields.dart';
 import '../../../shared/widgets/sg_ui.dart';
 import '../data/staff_fuel_api.dart';
 import '../domain/staff_fuel_models.dart';
@@ -45,8 +47,9 @@ class _StaffFuelListScreenState extends ConsumerState<StaffFuelListScreen> {
     final df = DateFormat('dd MMM yyyy');
     final currency = NumberFormat.compactCurrency(symbol: '');
 
+    final p = context.sg;
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor: p.surface,
       appBar: AppBar(
         title: const Text('Fuel logs'),
         actions: [
@@ -62,7 +65,13 @@ class _StaffFuelListScreenState extends ConsumerState<StaffFuelListScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('$e'),
+              Padding(
+                padding: const EdgeInsets.all(24),
+                child: Text(
+                  ErrorHandler.message(e),
+                  textAlign: TextAlign.center,
+                ),
+              ),
               FilledButton(
                 onPressed: () =>
                     ref.read(staffFuelListProvider.notifier).refresh(),
@@ -77,7 +86,9 @@ class _StaffFuelListScreenState extends ConsumerState<StaffFuelListScreen> {
               ? logs
               : logs
                   .where((l) =>
+                      l.vehicleLabel.toLowerCase().contains(q) ||
                       '${l.vehicleId}'.contains(q) ||
+                      (l.driverName?.toLowerCase().contains(q) ?? false) ||
                       (l.station?.toLowerCase().contains(q) ?? false) ||
                       l.fuelType.toLowerCase().contains(q))
                   .toList();
@@ -94,44 +105,64 @@ class _StaffFuelListScreenState extends ConsumerState<StaffFuelListScreen> {
               slivers: [
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            '${visible.length} fills · ${totalLiters.toStringAsFixed(0)} L · ${currency.format(totalCost)}',
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.textSecondary,
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 12,
+                      ),
+                      decoration: BoxDecoration(
+                        color: p.card,
+                        borderRadius: BorderRadius.circular(AppRadii.md),
+                        border: Border.all(
+                          color: p.border.withValues(alpha: 0.75),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.local_gas_station_rounded,
+                            size: 18,
+                            color: AppColors.primary.withValues(alpha: 0.9),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              '${visible.length} fills · ${totalLiters.toStringAsFixed(0)} L · ${currency.format(totalCost)}',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 13,
+                                letterSpacing: -0.1,
+                                color: p.textPrimary,
+                              ),
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
-                    child: TextField(
+                    child: SgSearchField(
+                      hintText: 'Search vehicle, station…',
                       onChanged: (v) => setState(() => _query = v),
-                      decoration: InputDecoration(
-                        hintText: 'Search vehicle, station…',
-                        prefixIcon: const Icon(Icons.search_rounded),
-                        filled: true,
-                        fillColor: Colors.white,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(AppRadii.md),
-                          borderSide: BorderSide.none,
-                        ),
-                      ),
                     ),
                   ),
                 ),
                 if (visible.isEmpty)
-                  const SliverFillRemaining(
+                  SliverFillRemaining(
                     hasScrollBody: false,
-                    child: Center(child: Text('No fuel logs')),
+                    child: Center(
+                      child: Text(
+                        'No fuel logs',
+                        style: TextStyle(
+                          color: p.textSecondary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
                   )
                 else
                   SliverPadding(
@@ -141,46 +172,88 @@ class _StaffFuelListScreenState extends ConsumerState<StaffFuelListScreen> {
                       itemBuilder: (_, i) {
                         final l = visible[i];
                         return SgCard(
-                          margin: const EdgeInsets.only(bottom: 10),
+                          margin: const EdgeInsets.only(bottom: 8),
+                          padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
                           onTap: () => context.push('/fuel/${l.id}'),
                           child: Row(
                             children: [
+                              Container(
+                                width: 40,
+                                height: 40,
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary.withValues(alpha: 0.10),
+                                  borderRadius:
+                                      BorderRadius.circular(AppRadii.sm),
+                                ),
+                                child: const Icon(
+                                  Icons.local_gas_station_rounded,
+                                  size: 20,
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      'Vehicle #${l.vehicleId}',
-                                      style: const TextStyle(
+                                      l.vehicleLabel,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
                                         fontWeight: FontWeight.w800,
+                                        fontSize: 15,
+                                        letterSpacing: -0.2,
+                                        color: p.textPrimary,
                                       ),
                                     ),
                                     const SizedBox(height: 4),
                                     Text(
                                       '${l.liters.toStringAsFixed(1)} L · ${l.fuelType}',
-                                      style: const TextStyle(
-                                        color: AppColors.textSecondary,
+                                      style: TextStyle(
+                                        color: p.textSecondary,
                                         fontSize: 13,
+                                        fontWeight: FontWeight.w600,
                                       ),
                                     ),
+                                    const SizedBox(height: 2),
                                     Text(
                                       [
                                         df.format(l.fuelDate.toLocal()),
                                         if (l.station != null) l.station!,
                                       ].join(' · '),
-                                      style: const TextStyle(
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
                                         fontSize: 12,
-                                        color: AppColors.textMuted,
+                                        color: p.textMuted,
                                       ),
                                     ),
                                   ],
                                 ),
                               ),
-                              Text(
-                                currency.format(l.totalCost),
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w800,
-                                  color: AppColors.primary,
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary.withValues(alpha: 0.10),
+                                  borderRadius:
+                                      BorderRadius.circular(AppRadii.pill),
+                                  border: Border.all(
+                                    color: AppColors.primary
+                                        .withValues(alpha: 0.22),
+                                  ),
+                                ),
+                                child: Text(
+                                  currency.format(l.totalCost),
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 13,
+                                    color: AppColors.primaryDark,
+                                  ),
                                 ),
                               ),
                             ],
@@ -207,23 +280,25 @@ class StaffFuelDetailScreen extends ConsumerWidget {
     final async = ref.watch(staffFuelDetailProvider(logId));
     final df = DateFormat('dd MMM yyyy, HH:mm');
 
+    final p = context.sg;
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor: p.surface,
       appBar: AppBar(title: const Text('Fuel log')),
       body: async.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('$e')),
+        error: (e, _) => Center(child: Text(ErrorHandler.message(e))),
         data: (l) => ListView(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
           children: [
             SgCard(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
               child: Column(
                 children: [
-                  _Row('Vehicle', '#${l.vehicleId}'),
-                  _Row('Driver', l.driverId != null ? '#${l.driverId}' : '—'),
+                  _Row('Vehicle', l.vehicleLabel),
+                  _Row('Driver', l.driverLabel),
                   _Row('Liters', l.liters.toStringAsFixed(2)),
                   _Row('Price / L', l.pricePerLiter.toStringAsFixed(2)),
-                  _Row('Total', l.totalCost.toStringAsFixed(2)),
+                  _Row('Total', l.totalCost.toStringAsFixed(2), emphasize: true),
                   _Row('Odometer', l.odometerReading.toStringAsFixed(0)),
                   _Row('Fuel type', l.fuelType),
                   _Row('Station', l.station ?? '—'),
@@ -236,7 +311,10 @@ class StaffFuelDetailScreen extends ConsumerWidget {
               TextButton(
                 onPressed: () =>
                     context.push('/fleet/vehicles/${l.vehicleId}'),
-                child: const Text('Open vehicle'),
+                child: const Text(
+                  'Open vehicle',
+                  style: TextStyle(fontWeight: FontWeight.w700),
+                ),
               ),
             ],
           ],
@@ -247,27 +325,39 @@ class StaffFuelDetailScreen extends ConsumerWidget {
 }
 
 class _Row extends StatelessWidget {
-  const _Row(this.label, this.value);
+  const _Row(this.label, this.value, {this.emphasize = false});
   final String label;
   final String value;
+  final bool emphasize;
 
   @override
   Widget build(BuildContext context) {
+    final p = context.sg;
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
+      padding: const EdgeInsets.symmetric(vertical: 7),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
             width: 110,
             child: Text(
               label,
-              style: const TextStyle(color: AppColors.textMuted, fontSize: 13),
+              style: TextStyle(
+                color: p.textMuted,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
           Expanded(
             child: Text(
               value,
-              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+              style: TextStyle(
+                fontWeight: emphasize ? FontWeight.w800 : FontWeight.w700,
+                fontSize: emphasize ? 14 : 13.5,
+                letterSpacing: -0.15,
+                color: emphasize ? AppColors.primaryDark : p.textPrimary,
+              ),
             ),
           ),
         ],

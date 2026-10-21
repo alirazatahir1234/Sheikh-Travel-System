@@ -376,68 +376,8 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
 
   ngOnInit(): void {
     this.restoreFilters();
-
-    const vehicleIdParam = this.route.snapshot.queryParamMap.get('vehicleId');
-    if (vehicleIdParam) {
-      const id = Number(vehicleIdParam);
-      if (Number.isFinite(id)) {
-        this.pendingFocusVehicleId = id;
-        this.selectedVehicleId = id;
-      }
-    }
-
-    // Prefer tripId when present (View Live from trips) — resolves/overrides vehicle focus.
-    const tripIdParam = this.route.snapshot.queryParamMap.get('tripId');
-    if (tripIdParam) {
-      const tripId = Number(tripIdParam);
-      if (Number.isFinite(tripId) && tripId > 0) {
-        this.tripService.getById(tripId).subscribe({
-          next: trip => {
-            if (trip.vehicleId) {
-              this.pendingFocusVehicleId = trip.vehicleId;
-              this.selectedVehicleId = trip.vehicleId;
-              this.pushEvent(
-                `Focusing trip ${trip.tripNumber}${trip.vehicleName ? ' · ' + trip.vehicleName : ''}`,
-                'info',
-                'route'
-              );
-              const already = this.locations.find(l => l.vehicleId === trip.vehicleId);
-              if (already) {
-                this.focusVehicle(already);
-                this.pendingFocusVehicleId = null;
-              }
-              this.cdr.markForCheck();
-            } else {
-              this.pushEvent('Trip has no assigned vehicle — GPS unavailable', 'warning', 'directions_car');
-            }
-          },
-          error: () => {
-            this.pushEvent('Could not load trip for live focus', 'warning', 'error');
-          }
-        });
-      }
-    }
-
-    const driverIdParam = this.route.snapshot.queryParamMap.get('driverId');
-    if (driverIdParam) {
-      const driverId = Number(driverIdParam);
-      if (Number.isFinite(driverId)) {
-        this.driverService.getById(driverId).subscribe({
-          next: driver => {
-            if (driver.assignedVehicleId) {
-              this.pendingFocusVehicleId = driver.assignedVehicleId;
-              this.selectedVehicleId = driver.assignedVehicleId;
-              this.pushEvent(`Tracking ${driver.fullName}`, 'info', 'person_pin_circle');
-            } else {
-              this.pushEvent('Driver has no assigned vehicle — GPS unavailable', 'warning', 'person_off');
-            }
-          },
-          error: () => {
-            this.pushEvent('Could not load driver for tracking', 'warning', 'error');
-          }
-        });
-      }
-    }
+    this.applyDeepLinkParams(this.route.snapshot.queryParamMap);
+    this.route.queryParamMap.subscribe(params => this.applyDeepLinkParams(params));
 
     this.vehicleService.getAll(1, 500).subscribe({
       next: r => { this.vehicles = r.items; },
@@ -497,6 +437,80 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
     }, 5000);
   }
 
+  private applyDeepLinkParams(params: import('@angular/router').ParamMap): void {
+    const vehicleIdParam = params.get('vehicleId');
+    if (vehicleIdParam) {
+      const id = Number(vehicleIdParam);
+      if (Number.isFinite(id) && id > 0) {
+        this.pendingFocusVehicleId = id;
+        this.selectedVehicleId = id;
+        const already = this.locations.find(l => l.vehicleId === id);
+        if (already) {
+          this.focusVehicle(already);
+          this.pendingFocusVehicleId = null;
+        }
+      }
+    }
+
+    // Prefer tripId when present (View Live from trips) — resolves/overrides vehicle focus.
+    const tripIdParam = params.get('tripId');
+    if (tripIdParam) {
+      const tripId = Number(tripIdParam);
+      if (Number.isFinite(tripId) && tripId > 0) {
+        this.tripService.getById(tripId).subscribe({
+          next: trip => {
+            if (trip.vehicleId) {
+              this.pendingFocusVehicleId = trip.vehicleId;
+              this.selectedVehicleId = trip.vehicleId;
+              this.pushEvent(
+                `Focusing trip ${trip.tripNumber}${trip.vehicleName ? ' · ' + trip.vehicleName : ''}`,
+                'info',
+                'route'
+              );
+              const already = this.locations.find(l => l.vehicleId === trip.vehicleId);
+              if (already) {
+                this.focusVehicle(already);
+                this.pendingFocusVehicleId = null;
+              }
+              this.cdr.markForCheck();
+            } else {
+              this.pushEvent('Trip has no assigned vehicle — GPS unavailable', 'warning', 'directions_car');
+            }
+          },
+          error: () => {
+            this.pushEvent('Could not load trip for live focus', 'warning', 'error');
+          }
+        });
+      }
+    }
+
+    const driverIdParam = params.get('driverId');
+    if (driverIdParam) {
+      const driverId = Number(driverIdParam);
+      if (Number.isFinite(driverId)) {
+        this.driverService.getById(driverId).subscribe({
+          next: driver => {
+            if (driver.assignedVehicleId) {
+              this.pendingFocusVehicleId = driver.assignedVehicleId;
+              this.selectedVehicleId = driver.assignedVehicleId;
+              this.pushEvent(`Tracking ${driver.fullName}`, 'info', 'person_pin_circle');
+              const already = this.locations.find(l => l.vehicleId === driver.assignedVehicleId);
+              if (already) {
+                this.focusVehicle(already);
+                this.pendingFocusVehicleId = null;
+              }
+            } else {
+              this.pushEvent('Driver has no assigned vehicle — GPS unavailable', 'warning', 'person_off');
+            }
+          },
+          error: () => {
+            this.pushEvent('Could not load driver for tracking', 'warning', 'error');
+          }
+        });
+      }
+    }
+  }
+
   ngAfterViewInit(): void {
     // Defer until the routed view and map container dimensions are ready.
     this._bootstrapTimer = setTimeout(() => void this.bootstrapMap(), 100);
@@ -519,7 +533,16 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
         return;
       }
       await this.initMap();
-      if (!this.map) return;
+      if (!this.map) {
+        this.mapError =
+          this.googleMapsLoader.failureMessage ||
+          'Map could not be initialized. Roster still loads below — tap Retry map when ready.';
+        // Keep fleet roster usable even when Maps JS fails (missing key, quota, etc.).
+        this.loadLocations();
+        this.startAutoRefresh();
+        this.cdr.markForCheck();
+        return;
+      }
       this.loadLocations();
       this.startAutoRefresh();
     } catch (err) {
@@ -527,6 +550,8 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
       this.mapError =
         this.googleMapsLoader.failureMessage ||
         'Map could not be initialized. Refresh the page or tap Retry map.';
+      this.loadLocations();
+      this.startAutoRefresh();
       this.cdr.markForCheck();
     } finally {
       this._bootstrapping = false;
@@ -542,11 +567,12 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
             resolve();
             return;
           }
-          if (frame >= 100) {
+          // Allow more frames on tight mobile layouts before accepting undersized host.
+          if (frame >= 180) {
             resolve();
             return;
           }
-        } else if (frame >= 100) {
+        } else if (frame >= 180) {
           reject(new Error('Map container element not found'));
           return;
         }

@@ -75,7 +75,11 @@ public interface IDriverRepository
         DataScopeResult? scope,
         CancellationToken cancellationToken = default);
 
-    Task<DriverStatsDto> GetStatsAsync(int tenantId, CancellationToken cancellationToken = default);
+    Task<DriverStatsDto> GetStatsAsync(
+        int tenantId,
+        int? branchId = null,
+        DataScopeResult? scope = null,
+        CancellationToken cancellationToken = default);
 
     // ── Status ──────────────────────────────────────────────────────────────
 
@@ -226,7 +230,8 @@ public interface IDriverRepository
 
     Task<DriversAvailabilitySummaryDto> GetAvailabilitySummaryAsync(
         int tenantId,
-        int? branchId,
+        int? branchId = null,
+        DataScopeResult? scope = null,
         CancellationToken cancellationToken = default);
 
     Task<DriverAvailabilityDetailDto?> GetAvailabilityDetailAsync(

@@ -11,6 +11,9 @@ export type TripDatePreset =
   | 'thisYear'
   | 'custom';
 
+/** Matches backend TripVehicleQueryValidation.MaxRange (30 days inclusive). */
+export const TRIP_DATE_MAX_RANGE_MS = 30 * 24 * 60 * 60 * 1000;
+
 /** Presets for Trip Analytics and Live Map history playback. */
 export const TRIP_DATE_PRESETS: { id: TripDatePreset; label: string }[] = [
   { id: 'today', label: 'Today' },
@@ -69,40 +72,65 @@ function startOfWeek(d: Date): Date {
   return startOfDay(monday);
 }
 
+/** Clamp so (to - from) never exceeds the backend 30-day MaxRange. */
+export function clampTripDateRange(from: Date, to: Date, maxMs = TRIP_DATE_MAX_RANGE_MS): { from: Date; to: Date } {
+  if (to.getTime() < from.getTime()) {
+    return { from: to, to: from };
+  }
+  if (to.getTime() - from.getTime() <= maxMs) {
+    return { from, to };
+  }
+  return { from: new Date(to.getTime() - maxMs), to };
+}
+
 export function applyTripDatePreset(preset: TripDatePreset, now = new Date()): { from: Date; to: Date } {
   const today = startOfDay(now);
+  let range: { from: Date; to: Date };
   switch (preset) {
     case 'today':
-      return { from: today, to: endOfDay(now) };
+      range = { from: today, to: endOfDay(now) };
+      break;
     case 'yesterday': {
       const y = new Date(today);
       y.setDate(y.getDate() - 1);
-      return { from: y, to: endOfDay(y) };
+      range = { from: y, to: endOfDay(y) };
+      break;
     }
     case 'last24Hours':
-      return { from: new Date(now.getTime() - 24 * 60 * 60 * 1000), to: now };
+      range = { from: new Date(now.getTime() - 24 * 60 * 60 * 1000), to: now };
+      break;
     case 'thisWeek':
-      return { from: startOfWeek(now), to: endOfDay(now) };
+      range = { from: startOfWeek(now), to: endOfDay(now) };
+      break;
     case 'last7Days':
-      return { from: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000), to: endOfDay(now) };
+      range = { from: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000), to: endOfDay(now) };
+      break;
     case 'last30Days':
-      return { from: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000), to: endOfDay(now) };
+      // Inclusive 30-day window ending now — avoid now−30d → endOfDay(now) which exceeds MaxRange.
+      range = { from: new Date(now.getTime() - TRIP_DATE_MAX_RANGE_MS), to: now };
+      break;
     case 'lastWeek': {
       const end = new Date(startOfWeek(now));
       end.setDate(end.getDate() - 1);
       const start = startOfWeek(end);
-      return { from: start, to: endOfDay(end) };
+      range = { from: start, to: endOfDay(end) };
+      break;
     }
     case 'thisMonth':
-      return { from: new Date(now.getFullYear(), now.getMonth(), 1), to: endOfDay(now) };
+      range = { from: new Date(now.getFullYear(), now.getMonth(), 1), to: endOfDay(now) };
+      break;
     case 'previousMonth': {
       const start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
       const end = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
-      return { from: start, to: end };
+      range = { from: start, to: end };
+      break;
     }
     case 'thisYear':
-      return { from: new Date(now.getFullYear(), 0, 1), to: endOfDay(now) };
+      range = { from: new Date(now.getFullYear(), 0, 1), to: endOfDay(now) };
+      break;
     default:
-      return { from: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000), to: now };
+      range = { from: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000), to: now };
+      break;
   }
+  return clampTripDateRange(range.from, range.to);
 }

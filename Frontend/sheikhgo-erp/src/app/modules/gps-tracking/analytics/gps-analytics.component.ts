@@ -41,6 +41,7 @@ export class GpsAnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
   to = '';
 
   loading = false;
+  loadError: string | null = null;
   overview: AnalyticsOverview | null = null;
 
   // Precomputed stable fields, set once per load — never a getter/inline template call. Binding a
@@ -151,7 +152,6 @@ export class GpsAnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
     this.loadWidgets();
     this.loadDevices();
     this.loadVehicleHealth();
-    this.loadTrends();
     this.loadComparative();
   }
 
@@ -321,10 +321,12 @@ export class GpsAnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
 
   load(): void {
     this.loading = true;
+    this.loadError = null;
     const filters = {
       from: this.from ? new Date(this.from).toISOString() : undefined,
       to: this.to ? new Date(this.to).toISOString() : undefined
     };
+    this.loadTrends();
 
     this.gps.getAnalyticsOverview(filters).subscribe({
       next: data => {
@@ -332,8 +334,10 @@ export class GpsAnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
         this.recomputeKpiTiles();
         this.loading = false;
       },
-      error: () => {
+      error: err => {
         this.loading = false;
+        this.overview = null;
+        this.loadError = err?.error?.message || err?.message || 'Failed to load analytics overview.';
       }
     });
 
@@ -452,7 +456,11 @@ export class GpsAnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   loadTrends(): void {
-    this.gps.getAnalyticsTrends({ from: new Date(Date.now() - 180 * 86_400_000).toISOString() }, this.trendGranularity).subscribe({
+    const fromIso = this.from
+      ? new Date(this.from).toISOString()
+      : new Date(Date.now() - 30 * 86_400_000).toISOString();
+    const toIso = this.to ? new Date(this.to).toISOString() : undefined;
+    this.gps.getAnalyticsTrends({ from: fromIso, to: toIso }, this.trendGranularity).subscribe({
       next: data => {
         this.trendsChartData = {
           labels: data.points.map(p => new Date(p.period).toLocaleDateString(undefined, { day: '2-digit', month: 'short' })),
@@ -568,9 +576,10 @@ export class GpsAnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
         this.assignments = rows.map(r => ({
           id: r.id,
           vehicleId: r.vehicleName,
-          vehicleModel: r.assignmentType,
+          vehicleModel: '—',
           driver: r.driverName ?? '—',
-          route: r.assignmentType,
+          route: '—',
+          assignmentType: r.assignmentType || '—',
           status: r.status,
           eta: r.endAt ? new Date(r.endAt).toLocaleDateString() : '—'
         } satisfies AssignmentItem));

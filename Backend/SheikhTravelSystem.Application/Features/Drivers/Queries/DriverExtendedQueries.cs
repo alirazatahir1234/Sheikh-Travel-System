@@ -61,14 +61,27 @@ public class GetDriverAssignmentsQueryHandler(IDriverRepository driverRepository
 public record GetDriversAvailabilityQuery(int? BranchId = null)
     : IRequest<ApiResponse<DriversAvailabilitySummaryDto>>;
 
-public class GetDriversAvailabilityQueryHandler(IDriverRepository driverRepository, ITenantContext tenantContext)
+public class GetDriversAvailabilityQueryHandler(
+    IDriverRepository driverRepository,
+    ITenantContext tenantContext,
+    ICurrentUserService currentUser,
+    IDataScopeEngine dataScopeEngine)
     : IRequestHandler<GetDriversAvailabilityQuery, ApiResponse<DriversAvailabilitySummaryDto>>
 {
     public async Task<ApiResponse<DriversAvailabilitySummaryDto>> Handle(
         GetDriversAvailabilityQuery request, CancellationToken cancellationToken)
     {
+        var tenantId = tenantContext.GetRequiredTenantId();
+        DataScopeResult? scope = null;
+        if (currentUser.UserId is int userId)
+            scope = await dataScopeEngine.ResolveAsync(userId, tenantId, cancellationToken);
+
+        if (scope is not null &&
+            !DataScopeSql.TryIntersectOptional(scope, request.BranchId, null, out _, out _, out var scopeError))
+            return ApiResponse<DriversAvailabilitySummaryDto>.FailResponse(scopeError ?? "Outside data scope.");
+
         var row = await driverRepository.GetAvailabilitySummaryAsync(
-            tenantContext.GetRequiredTenantId(), request.BranchId, cancellationToken);
+            tenantId, request.BranchId, scope, cancellationToken);
         return ApiResponse<DriversAvailabilitySummaryDto>.SuccessResponse(row);
     }
 }

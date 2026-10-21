@@ -629,7 +629,8 @@ public sealed class VehicleRepository(IDbConnectionFactory dbFactory) : IVehicle
                                OR (vcl.LastUpdate IS NOT NULL AND vcl.LastUpdate > DATEADD(minute, -30, GETUTCDATE()))
                              THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT)
                          END AS GpsOnline,
-                         vcl.Heading, vcl.FuelLevel,
+                         CAST(vcl.Heading AS DECIMAL(18, 4)) AS Heading,
+                         CAST(vcl.FuelLevel AS DECIMAL(18, 4)) AS FuelLevel,
                          gd.TraccarDeviceId
                   FROM Vehicles v
                   LEFT JOIN GpsDevices gd ON gd.Id = v.GpsDeviceId AND gd.IsDeleted = 0

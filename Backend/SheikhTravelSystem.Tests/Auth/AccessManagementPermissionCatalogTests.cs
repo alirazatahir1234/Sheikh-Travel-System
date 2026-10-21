@@ -108,8 +108,12 @@ public class AccessManagementPermissionCatalogTests
         TenantRolePermissionTemplates.Driver.Should().NotContain(OperationsPermissions.BookingCreate);
 
         TenantRolePermissionTemplates.FleetManager.Should().Contain(AiPermissions.ExecuteWrite);
+        TenantRolePermissionTemplates.FleetManager.Should().Contain(GpsPermissions.CommandApprove);
+        TenantRolePermissionTemplates.Owner.Should().Contain(GpsPermissions.CommandApprove);
+        TenantRolePermissionTemplates.TenantAdmin.Should().Contain(GpsPermissions.CommandApprove);
         TenantRolePermissionTemplates.TenantAdmin.Should().Contain(PlatformPermissions.SettingsView);
         TenantRolePermissionTemplates.TenantAdmin.Should().Contain(AiPermissions.Manage);
+        TenantRolePermissionTemplates.Dispatcher.Should().NotContain(GpsPermissions.CommandApprove);
     }
 }
 

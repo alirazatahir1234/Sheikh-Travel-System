@@ -45,7 +45,7 @@ unset AZP_TOKEN
 | `VERCEL_TOKEN` | Vercel → Settings → Tokens (**secret**) |
 | `VERCEL_ORG_ID` | Project → Settings → General |
 | `VERCEL_ERP_PROJECT_ID` | sheikhgo-erp project settings |
-| `VERCEL_HUB_PROJECT_ID` | customer-hub project settings |
+| `VERCEL_HUB_PROJECT_ID` | customer-hub project settings (optional; `PLACEHOLDER` skips hub so ERP still deploys) |
 | `VERCEL_PROD` | `true` (default) |
 
 Suggested Library variable group name: **`SheikhGo-Deploy`**. Link it to the pipeline.

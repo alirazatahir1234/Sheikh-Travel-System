@@ -145,9 +145,8 @@ class FleetHubNotifier extends AsyncNotifier<FleetHubState> {
     final api = ref.read(fleetApiProvider);
     GpsFleetStatusKpis apiKpis = GpsFleetStatusKpis.empty;
     FleetOpsDashboard ops = FleetOpsDashboard.empty;
-    List<VehicleListItem> vehicles = const [];
-    List<GpsPosition> live = const [];
-    String? vehiclesError;
+    List<FleetVehicleLocation> locations = const [];
+    String? loadError;
     String? liveFeedWarning;
 
     await Future.wait([
@@ -163,30 +162,27 @@ class FleetHubNotifier extends AsyncNotifier<FleetHubState> {
       }(),
       () async {
         try {
-          vehicles = await api.getVehicles();
-        } catch (e) {
-          vehiclesError = e.toString();
-        }
-      }(),
-      () async {
-        try {
-          live = await api.getLivePositions();
-        } catch (e) {
-          liveFeedWarning =
-              'Live GPS feed unavailable. Showing last known vehicle data. ($e)';
+          // Prefer /gps/live/fleet (GPS.View + data-scope) over Vehicles+live merge.
+          locations = await api.getLiveFleet();
+        } catch (fleetErr) {
+          try {
+            final vehicles = await api.getVehicles();
+            final live = await api.getLivePositions(pageSize: 500);
+            locations = mergeVehiclesWithLive(vehicles: vehicles, live: live);
+            liveFeedWarning =
+                'Using legacy fleet join (live/fleet unavailable). ($fleetErr)';
+          } catch (e) {
+            loadError = 'Fleet roster failed. Pull to refresh. ($e)';
+          }
         }
       }(),
     ]);
 
-    final locations = mergeVehiclesWithLive(vehicles: vehicles, live: live);
     // Always derive strip counts from the same rows the list renders.
     final kpis = deriveFleetKpisFromLocations(
       locations,
       alertsToday: apiKpis.alertsToday,
     );
-    final loadError = vehiclesError == null
-        ? null
-        : 'Vehicles API failed. Pull to refresh. ($vehiclesError)';
     final now = DateTime.now();
     return FleetHubState(
       kpis: kpis,

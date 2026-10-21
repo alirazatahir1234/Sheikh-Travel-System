@@ -3,6 +3,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormBuilder, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { finalize } from 'rxjs';
+import { AuthService } from '../../../core/services/auth.service';
 import { GpsTrackingService } from '../../../core/services/gps-tracking.service';
 import { DriverService } from '../../../core/services/driver.service';
 import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
@@ -27,6 +28,7 @@ import { isTrackerInstalled } from '../utils/tracker-status.util';
 export class TrackerInstallPageComponent implements OnInit {
   private readonly fb = inject(FormBuilder);
   private readonly gps = inject(GpsTrackingService);
+  private readonly auth = inject(AuthService);
   private readonly driversSvc = inject(DriverService);
   private readonly toast = inject(UiToastService);
   private readonly router = inject(Router);
@@ -56,6 +58,12 @@ export class TrackerInstallPageComponent implements OnInit {
   });
 
   ngOnInit(): void {
+    if (!this.auth.hasPermission('Gps.DeviceManage')) {
+      this.toast.error('You do not have permission to install or transfer trackers.');
+      void this.router.navigate(['/gps-tracking/devices']);
+      return;
+    }
+
     this.trackerId = Number(this.route.snapshot.paramMap.get('id'));
     this.isReassign = this.route.snapshot.queryParamMap.get('reassign') === '1';
     this.isTransfer = this.route.snapshot.url.some(s => s.path === 'transfer') || this.isReassign;

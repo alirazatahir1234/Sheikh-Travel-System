@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../../core/constants/app_theme.dart';
 import '../../../core/errors/error_handler.dart';
 import '../../../shared/widgets/sg_ui.dart';
+import '../../../shared/widgets/sg_keyboard_fields.dart';
 import '../domain/trip_model.dart';
 import 'trips_notifier.dart';
 import 'widgets/trip_map_preview.dart';
@@ -99,30 +100,13 @@ class _TripDetailContentState extends ConsumerState<_TripDetailContent> {
 
   Future<void> _confirmReject(Trip latest) async {
     if (_busy || !latest.canReject) return;
-    final ctrl = TextEditingController();
-    final reason = await showDialog<String>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Reject Trip'),
-        content: TextField(
-          controller: ctrl,
-          decoration:
-              const InputDecoration(labelText: 'Reason for rejection'),
-          autofocus: true,
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel')),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, ctrl.text),
-            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
-            child: const Text('Reject'),
-          ),
-        ],
-      ),
+    final reason = await showSgTextEntrySheet(
+      context,
+      title: 'Reason for rejection',
+      hint: 'Why are you rejecting this trip?',
+      textCapitalization: TextCapitalization.sentences,
+      maxLines: 3,
     );
-    ctrl.dispose();
     if (reason != null && reason.isNotEmpty && mounted) {
       await _run('Reject', reason: reason);
     }

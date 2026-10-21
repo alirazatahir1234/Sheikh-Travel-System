@@ -48,14 +48,27 @@ public class GetDriversQueryHandler(
     }
 }
 
-public record GetDriverStatsQuery : IRequest<ApiResponse<DriverStatsDto>>;
+public record GetDriverStatsQuery(int? BranchId = null) : IRequest<ApiResponse<DriverStatsDto>>;
 
-public class GetDriverStatsQueryHandler(IDriverRepository driverRepository, ITenantContext tenantContext)
+public class GetDriverStatsQueryHandler(
+    IDriverRepository driverRepository,
+    ITenantContext tenantContext,
+    ICurrentUserService currentUser,
+    IDataScopeEngine dataScopeEngine)
     : IRequestHandler<GetDriverStatsQuery, ApiResponse<DriverStatsDto>>
 {
     public async Task<ApiResponse<DriverStatsDto>> Handle(GetDriverStatsQuery request, CancellationToken cancellationToken)
     {
-        var stats = await driverRepository.GetStatsAsync(tenantContext.GetRequiredTenantId(), cancellationToken);
+        var tenantId = tenantContext.GetRequiredTenantId();
+        DataScopeResult? scope = null;
+        if (currentUser.UserId is int userId)
+            scope = await dataScopeEngine.ResolveAsync(userId, tenantId, cancellationToken);
+
+        if (scope is not null &&
+            !DataScopeSql.TryIntersectOptional(scope, request.BranchId, null, out _, out _, out var scopeError))
+            return ApiResponse<DriverStatsDto>.FailResponse(scopeError ?? "Outside data scope.");
+
+        var stats = await driverRepository.GetStatsAsync(tenantId, request.BranchId, scope, cancellationToken);
         return ApiResponse<DriverStatsDto>.SuccessResponse(stats);
     }
 }

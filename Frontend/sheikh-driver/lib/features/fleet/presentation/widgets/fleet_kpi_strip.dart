@@ -3,13 +3,14 @@ import '../../../../core/constants/app_theme.dart';
 import '../../domain/fleet_models.dart';
 import '../fleet_vehicle_filters.dart';
 
+/// ERP live-map palette — keep in sync with sheikhgo-erp fleet-vehicle-marker.
 Color fleetStatusColor(FleetTrackStatus status) => switch (status) {
       FleetTrackStatus.moving => const Color(0xFF2563EB),
       FleetTrackStatus.idle => const Color(0xFFF59E0B),
-      FleetTrackStatus.parked => const Color(0xFF64748B),
-      FleetTrackStatus.offline => const Color(0xFFDC2626),
+      FleetTrackStatus.parked => const Color(0xFF0D9488),
+      FleetTrackStatus.offline => const Color(0xFFEF4444),
       FleetTrackStatus.neverSeen => const Color(0xFF94A3B8),
-      FleetTrackStatus.sos => AppColors.error,
+      FleetTrackStatus.sos => const Color(0xFFDC2626),
     };
 
 /// Connection (Online/Offline[/Unknown]) + activity — always reconciles with list.

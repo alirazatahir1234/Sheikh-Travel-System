@@ -1,8 +1,12 @@
 import { Type } from '@angular/core';
 
-/** Identifies a selectable dashboard view. Add a value here to register a new dashboard. */
+/**
+ * Identifies a selectable dashboard view on `/dashboard`.
+ * Fleet asset-health lives at `/fleet/dashboard` (single primary entry) — not in this selector.
+ */
 export enum DashboardType {
   DEFAULT = 'DEFAULT',
+  /** @deprecated Kept for localStorage migration only — redirects to DEFAULT. */
   FLEET = 'FLEET'
 }
 
@@ -18,8 +22,7 @@ export interface DashboardRegistryEntry extends DashboardMenuOption {
   component: Type<unknown>;
 }
 
-/** Options surfaced in the selector dropdown. */
+/** Options surfaced in the `/dashboard` selector. Fleet is only under Fleet → Dashboard. */
 export const DASHBOARD_OPTIONS: readonly DashboardMenuOption[] = [
-  { type: DashboardType.DEFAULT, label: 'Default Dashboard', icon: 'dashboard' },
-  { type: DashboardType.FLEET, label: 'Fleet Dashboard', icon: 'local_shipping' }
+  { type: DashboardType.DEFAULT, label: 'Operations Dashboard', icon: 'dashboard' }
 ];

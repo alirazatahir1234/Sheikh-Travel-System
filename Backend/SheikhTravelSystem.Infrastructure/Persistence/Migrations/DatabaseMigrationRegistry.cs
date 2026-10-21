@@ -124,6 +124,10 @@ public static class DatabaseMigrationRegistry
             M("ModuleInvoicesActiveMigration", ModuleInvoicesActiveMigration.ApplyAsync),
             M("InvoiceSettlementPermissionsMigration", InvoiceSettlementPermissionsMigration.ApplyAsync),
             M("OwnerDriverCrudPermissionsMigration", OwnerDriverCrudPermissionsMigration.ApplyAsync),
+            M("GpsCommandApprovePermissionMigration", GpsCommandApprovePermissionMigration.ApplyAsync),
+            M("Gt06Ev26rCommandTemplatesMigration", Gt06Ev26rCommandTemplatesMigration.ApplyAsync),
+            M("Gt06Ev26rDiagnosticCommandsMigration", Gt06Ev26rDiagnosticCommandsMigration.ApplyAsync),
+            M("Gt06ModelSpecificCommandPanelMigration", Gt06ModelSpecificCommandPanelMigration.ApplyAsync),
         ];
     }
 }

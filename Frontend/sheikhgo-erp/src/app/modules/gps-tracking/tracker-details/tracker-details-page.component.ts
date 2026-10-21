@@ -2,6 +2,7 @@ import { Component, DestroyRef, OnInit, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
 import { forkJoin } from 'rxjs';
+import { AuthService } from '../../../core/services/auth.service';
 import { GpsTrackingService } from '../../../core/services/gps-tracking.service';
 import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
 import { TrackerAssignment, TrackerDetail } from '../../../core/models/gps-tracking.model';
@@ -22,6 +23,7 @@ import {
 })
 export class TrackerDetailsPageComponent implements OnInit {
   private readonly gps = inject(GpsTrackingService);
+  private readonly auth = inject(AuthService);
   private readonly toast = inject(UiToastService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
@@ -32,6 +34,7 @@ export class TrackerDetailsPageComponent implements OnInit {
   loading = true;
   removing = false;
   trackerId = 0;
+  readonly canManageDevices = this.auth.hasPermission('Gps.DeviceManage');
 
   ngOnInit(): void {
     this.trackerId = Number(this.route.snapshot.paramMap.get('id'));
@@ -86,14 +89,26 @@ export class TrackerDetailsPageComponent implements OnInit {
   }
 
   goTransfer(): void {
+    if (!this.canManageDevices) {
+      this.toast.error('You do not have permission to transfer trackers.');
+      return;
+    }
     void this.router.navigate(['/gps-tracking/devices', this.trackerId, 'transfer']);
   }
 
   goEditInventory(): void {
+    if (!this.canManageDevices) {
+      this.toast.error('You do not have permission to edit trackers.');
+      return;
+    }
     void this.router.navigate(['/gps-tracking/devices', this.trackerId, 'edit']);
   }
 
   removeInstallation(): void {
+    if (!this.canManageDevices) {
+      this.toast.error('You do not have permission to uninstall trackers.');
+      return;
+    }
     if (!this.tracker || this.removing) return;
     const reason = prompt('Reason for removal (optional):');
     if (reason === null) return;

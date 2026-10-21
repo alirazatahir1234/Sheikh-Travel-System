@@ -97,6 +97,32 @@ class DriversApi {
     ApiResponseParser.ensureSuccess(res.data);
   }
 
+  Future<void> transferVehicle(int id, int newVehicleId, {String? remarks}) async {
+    final res = await _dio.post<Map<String, dynamic>>(
+      ApiEndpoints.driverTransferVehicle(id),
+      data: {
+        'newVehicleId': newVehicleId,
+        'assignmentType': 'Transfer',
+        if (remarks != null && remarks.isNotEmpty) 'remarks': remarks,
+      },
+    );
+    ApiResponseParser.ensureSuccess(res.data);
+  }
+
+  Future<List<DriverAssignment>> assignments(
+    int id, {
+    int page = 1,
+    int pageSize = 20,
+  }) async {
+    final res = await _dio.get<Map<String, dynamic>>(
+      ApiEndpoints.driverAssignments(id),
+      queryParameters: {'page': page, 'pageSize': pageSize},
+    );
+    return ApiResponseParser.pagedItems(res.data)
+        .map(DriverAssignment.fromJson)
+        .toList();
+  }
+
   Future<DriverPerformanceSummary> performance(int id) async {
     final res = await _dio.get<Map<String, dynamic>>(
       ApiEndpoints.driverPerformance(id),

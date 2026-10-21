@@ -221,11 +221,12 @@ class AlertsCategoryPills extends StatelessWidget {
 class AlertsQuickActions extends StatelessWidget {
   const AlertsQuickActions({
     super.key,
-    required this.onSimulate,
+    this.onSimulate,
     required this.onAcknowledgeAll,
   });
 
-  final VoidCallback onSimulate;
+  /// Debug-only: injects fake incidents that look like other fleets.
+  final VoidCallback? onSimulate;
   final VoidCallback onAcknowledgeAll;
 
   @override
@@ -234,18 +235,20 @@ class AlertsQuickActions extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
       child: Row(
         children: [
-          Expanded(
-            child: OutlinedButton.icon(
-              onPressed: onSimulate,
-              icon: const Icon(Icons.bolt_rounded, size: 18),
-              label: const Text('Simulate Incident'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.primary,
-                side: const BorderSide(color: AppColors.primary),
+          if (onSimulate != null) ...[
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: onSimulate,
+                icon: const Icon(Icons.bolt_rounded, size: 18),
+                label: const Text('Simulate Incident'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.primary,
+                  side: const BorderSide(color: AppColors.primary),
+                ),
               ),
             ),
-          ),
-          const SizedBox(width: 10),
+            const SizedBox(width: 10),
+          ],
           Expanded(
             child: TextButton.icon(
               onPressed: onAcknowledgeAll,

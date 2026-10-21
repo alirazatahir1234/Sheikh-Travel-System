@@ -102,6 +102,17 @@ class PushRegistrationService {
 
     await _persistPreference(true);
 
+    if (!FcmService.instance.isFirebaseReady) {
+      await _persistPreference(false);
+      _reportFailure(
+        'Push needs Firebase config: add android/app/google-services.json '
+        'for package com.sheikhgo.fleet, then rebuild the app. '
+        'See android/app/GOOGLE_SERVICES.md.',
+        reason: 'firebase_not_initialized',
+      );
+      return false;
+    }
+
     try {
       final allowed = await FcmService.instance.requestPermission();
       if (!allowed) {
@@ -119,13 +130,14 @@ class PushRegistrationService {
       );
       if (token == null) {
         // OS permission OK but FCM token missing (often missing google-services.json).
+        await _persistPreference(false);
         _reportFailure(
-          'Notifications permission is on, but push delivery needs Firebase '
-          '(add android/app/google-services.json). Alerts may not arrive yet.',
+          'Permission granted, but no FCM token. Confirm google-services.json '
+          'matches package com.sheikhgo.fleet and rebuild. '
+          'See android/app/GOOGLE_SERVICES.md.',
           reason: 'no_token',
         );
-        // Keep toggle ON — user opted in; OS permission is granted.
-        return true;
+        return false;
       }
 
       _container?.read(pushRegistrationIssueProvider.notifier).state = null;
@@ -136,13 +148,8 @@ class PushRegistrationService {
         'Could not enable push: $e',
         reason: 'enable_failed',
       );
-      // Keep preference on if OS permission was granted so retry is possible.
-      final allowed = await FcmService.instance.hasPermission();
-      if (!allowed) {
-        await _persistPreference(false);
-        return false;
-      }
-      return true;
+      await _persistPreference(false);
+      return false;
     }
   }
 

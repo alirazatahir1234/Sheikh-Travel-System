@@ -178,6 +178,10 @@ export class BookingListComponent implements OnInit, OnDestroy {
       const n = Number(value);
       this.amountMin = Number.isFinite(n) ? n : null;
     }
+    if (this.amountMin != null && this.amountMax != null && this.amountMin > this.amountMax) {
+      this.toast.warning('Min amount cannot be greater than max amount.');
+      return;
+    }
     this.load(true);
   }
 
@@ -187,6 +191,10 @@ export class BookingListComponent implements OnInit, OnDestroy {
     } else {
       const n = Number(value);
       this.amountMax = Number.isFinite(n) ? n : null;
+    }
+    if (this.amountMin != null && this.amountMax != null && this.amountMin > this.amountMax) {
+      this.toast.warning('Max amount cannot be less than min amount.');
+      return;
     }
     this.load(true);
   }

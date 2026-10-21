@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../core/constants/app_theme.dart';
+import '../../../shared/widgets/sg_keyboard_fields.dart';
 import '../../../shared/widgets/sg_ui.dart';
 import '../domain/trip_model.dart';
 import 'trips_notifier.dart';
@@ -69,24 +70,10 @@ class _TripsScreenState extends ConsumerState<TripsScreen> {
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-            child: TextField(
+            child: SgSearchField(
               controller: _searchCtrl,
+              hintText: 'Search trips',
               onChanged: (v) => setState(() => _query = v),
-              decoration: InputDecoration(
-                hintText: 'Search trips',
-                prefixIcon: const Icon(Icons.search_rounded),
-                filled: true,
-                fillColor: p.card,
-                contentPadding: const EdgeInsets.symmetric(vertical: 12),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AppRadii.md),
-                  borderSide: BorderSide(color: p.border),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AppRadii.md),
-                  borderSide: BorderSide(color: p.border),
-                ),
-              ),
             ),
           ),
           Expanded(

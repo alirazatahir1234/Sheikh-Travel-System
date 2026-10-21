@@ -13,7 +13,11 @@ class BookingDetailScreen extends ConsumerWidget {
   final int bookingId;
 
   Future<void> _assignDriver(BuildContext context, WidgetRef ref) async {
-    final driverId = await pickDriverId(context, ref);
+    final driverId = await pickDriverId(
+      context,
+      ref,
+      pickerContext: AssignPickerContext.booking,
+    );
     if (driverId == null) return;
     try {
       await ref.read(bookingsApiProvider).assignDriver(bookingId, driverId);
@@ -32,7 +36,11 @@ class BookingDetailScreen extends ConsumerWidget {
   }
 
   Future<void> _assignVehicle(BuildContext context, WidgetRef ref) async {
-    final vehicleId = await pickVehicleId(context, ref);
+    final vehicleId = await pickVehicleId(
+      context,
+      ref,
+      pickerContext: AssignPickerContext.booking,
+    );
     if (vehicleId == null) return;
     try {
       await ref.read(bookingsApiProvider).assignVehicle(bookingId, vehicleId);

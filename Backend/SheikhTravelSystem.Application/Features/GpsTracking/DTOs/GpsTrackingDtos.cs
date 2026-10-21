@@ -308,6 +308,8 @@ public record CompleteDeviceCommandDto(
     string? ResponseText = null,
     string? ErrorMessage = null);
 
+public record ApproveDeviceCommandDto(bool Approve, string? Note = null);
+
 public record SendDeviceCommandDto(
     int GpsDeviceId,
     string CommandType,

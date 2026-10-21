@@ -524,6 +524,112 @@ class DriverRankItem {
   }
 }
 
+class DriverAssignment {
+  const DriverAssignment({
+    required this.id,
+    required this.vehicleId,
+    required this.assignmentType,
+    required this.status,
+    required this.startAt,
+    this.vehicleRegistration,
+    this.vehicleCode,
+    this.vehicleName,
+    this.vehicleMake,
+    this.vehicleModel,
+    this.vehicleColor,
+    this.endAt,
+    this.bookingId,
+    this.assignedBy,
+    this.remarks,
+  });
+
+  final int id;
+  final int vehicleId;
+  final String assignmentType;
+  final String status;
+  final DateTime startAt;
+  final String? vehicleRegistration;
+  final String? vehicleCode;
+  final String? vehicleName;
+  final String? vehicleMake;
+  final String? vehicleModel;
+  final String? vehicleColor;
+  final DateTime? endAt;
+  final int? bookingId;
+  final String? assignedBy;
+  final String? remarks;
+
+  String get vehicleLabel {
+    final name = vehicleName?.trim();
+    if (name != null && name.isNotEmpty) return name;
+    final reg = vehicleRegistration?.trim();
+    if (reg != null && reg.isNotEmpty) return reg;
+    final code = vehicleCode?.trim();
+    if (code != null && code.isNotEmpty) return code;
+    return 'Vehicle #$vehicleId';
+  }
+
+  factory DriverAssignment.fromJson(Map<String, dynamic> json) {
+    return DriverAssignment(
+      id: json['id'] as int? ?? json['Id'] as int? ?? 0,
+      vehicleId: json['vehicleId'] as int? ?? json['VehicleId'] as int? ?? 0,
+      assignmentType: (json['assignmentType'] ?? json['AssignmentType'] ?? '')
+          .toString(),
+      status: (json['status'] ?? json['Status'] ?? '').toString(),
+      startAt: _date(json['startAt'] ?? json['StartAt']) ??
+          DateTime.fromMillisecondsSinceEpoch(0),
+      vehicleRegistration: json['vehicleRegistration'] as String? ??
+          json['VehicleRegistration'] as String?,
+      vehicleCode:
+          json['vehicleCode'] as String? ?? json['VehicleCode'] as String?,
+      vehicleName:
+          json['vehicleName'] as String? ?? json['VehicleName'] as String?,
+      vehicleMake:
+          json['vehicleMake'] as String? ?? json['VehicleMake'] as String?,
+      vehicleModel:
+          json['vehicleModel'] as String? ?? json['VehicleModel'] as String?,
+      vehicleColor:
+          json['vehicleColor'] as String? ?? json['VehicleColor'] as String?,
+      endAt: _date(json['endAt'] ?? json['EndAt']),
+      bookingId: json['bookingId'] as int? ?? json['BookingId'] as int?,
+      assignedBy:
+          json['assignedBy'] as String? ?? json['AssignedBy'] as String?,
+      remarks: json['remarks'] as String? ?? json['Remarks'] as String?,
+    );
+  }
+}
+
+/// Client-side mirror of [DriverAssignmentGuard] for assign/reassign UX.
+String? driverAssignmentBlockReason({
+  required bool isActive,
+  required String status,
+  required bool licenseExpired,
+  String? verificationStatus,
+  bool requireVerified = true,
+}) {
+  if (!isActive) return 'Driver account is inactive.';
+  final s = status.trim().toLowerCase();
+  if (s == 'suspended') return 'Driver is Suspended and cannot be assigned.';
+  if (s == 'onleave' || s == 'on leave') {
+    return 'Driver is OnLeave and cannot be assigned.';
+  }
+  if (s == 'ontrip' || s == 'on trip') {
+    return 'Driver is on an active trip and cannot be reassigned.';
+  }
+  if (licenseExpired) return 'Driver license is expired.';
+  if (requireVerified) {
+    final v = (verificationStatus ?? '').trim().toLowerCase();
+    if (v != 'verified') {
+      return 'Driver must be verified before vehicle assignment.';
+    }
+  } else {
+    final v = (verificationStatus ?? '').trim().toLowerCase();
+    if (v == 'rejected') return 'Driver verification was rejected.';
+    if (v == 'expireddocs') return 'Driver documents have expired.';
+  }
+  return null;
+}
+
 DateTime? _date(Object? raw) {
   if (raw == null) return null;
   if (raw is DateTime) return raw;

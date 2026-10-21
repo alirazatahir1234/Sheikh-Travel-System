@@ -264,25 +264,18 @@ public class SimulateGpsCommandCommandHandler(
 }
 
 public class ApproveGpsDeviceCommandCommandHandler(
-    IPlatformRepository platformRepository,
+    IGpsDeviceRepository gpsDeviceRepository,
     ICurrentUserService currentUser)
     : IRequestHandler<ApproveGpsDeviceCommandCommand, ApiResponse<bool>>
 {
-    public async Task<ApiResponse<bool>> Handle(
+    public Task<ApiResponse<bool>> Handle(
         ApproveGpsDeviceCommandCommand request, CancellationToken cancellationToken)
-    {
-        var approval = request.Approve ? "Approved" : "Rejected";
-        var rows = await platformRepository.ApproveGpsDeviceCommandAsync(
+        => gpsDeviceRepository.PlatformApproveDeviceCommandAsync(
             request.CommandId,
             request.Approve,
             request.Note,
             currentUser.UserId?.ToString(),
             cancellationToken);
-
-        return rows > 0
-            ? ApiResponse<bool>.SuccessResponse(true, approval)
-            : ApiResponse<bool>.FailResponse("Command not found or not awaiting approval.");
-    }
 }
 
 public class BulkExecuteGpsCommandCommandHandler(IMediator mediator)

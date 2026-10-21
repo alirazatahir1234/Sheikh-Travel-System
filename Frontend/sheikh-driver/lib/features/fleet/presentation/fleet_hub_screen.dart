@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_theme.dart';
+import '../../../shared/widgets/sg_keyboard_fields.dart';
 import '../../auth/data/auth_repository.dart';
 import 'fleet_hub_notifier.dart';
 import 'widgets/fleet_kpi_strip.dart';
@@ -24,6 +25,11 @@ class FleetHubScreen extends ConsumerWidget {
               : 'Fleet',
         ),
         actions: [
+          IconButton(
+            tooltip: 'Assignments',
+            icon: const Icon(Icons.event_available_outlined),
+            onPressed: () => context.push('/fleet/assignments'),
+          ),
           IconButton(
             tooltip: 'Live map',
             icon: const Icon(Icons.map_outlined),
@@ -89,6 +95,15 @@ class FleetHubScreen extends ConsumerWidget {
                               ),
                             ),
                             TextButton.icon(
+                              onPressed: () =>
+                                  context.push('/fleet/assignments'),
+                              icon: const Icon(
+                                Icons.event_available_outlined,
+                                size: 18,
+                              ),
+                              label: const Text('Assignments'),
+                            ),
+                            TextButton.icon(
                               onPressed: () => context.push('/fleet/map'),
                               icon: const Icon(Icons.map_rounded, size: 18),
                               label: const Text('View live map'),
@@ -123,29 +138,11 @@ class FleetHubScreen extends ConsumerWidget {
                     child: Row(
                       children: [
                         Expanded(
-                          child: TextField(
+                          child: SgSearchField(
+                            hintText: 'Search plate, name, driver…',
                             onChanged: (v) => ref
                                 .read(fleetHubProvider.notifier)
                                 .setSearch(v),
-                            decoration: InputDecoration(
-                              hintText: 'Search plate, name, driver…',
-                              isDense: true,
-                              contentPadding:
-                                  const EdgeInsets.symmetric(vertical: 12),
-                              prefixIcon:
-                                  const Icon(Icons.search_rounded, size: 20),
-                              prefixIconConstraints: const BoxConstraints(
-                                minWidth: 40,
-                                minHeight: 40,
-                              ),
-                              filled: true,
-                              fillColor: Colors.white,
-                              border: OutlineInputBorder(
-                                borderRadius:
-                                    BorderRadius.circular(AppRadii.md),
-                                borderSide: BorderSide.none,
-                              ),
-                            ),
                           ),
                         ),
                         const SizedBox(width: 8),

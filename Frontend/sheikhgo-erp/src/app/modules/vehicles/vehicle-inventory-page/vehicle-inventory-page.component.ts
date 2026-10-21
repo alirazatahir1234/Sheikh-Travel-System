@@ -382,7 +382,7 @@ export class VehicleInventoryPageComponent implements OnInit {
   }
 
   onAssign(row: VehicleListItem): void {
-    this.assignDialog?.show(row.id);
+    this.assignDialog?.show(row.id, row.driverName ?? null);
   }
 
   async onDelete(row: VehicleListItem): Promise<void> {
@@ -405,7 +405,13 @@ export class VehicleInventoryPageComponent implements OnInit {
   onBulkAssign(): void {
     const ids = [...this.selection()];
     if (!ids.length) return;
-    this.assignDialog?.show(ids);
+    const assignees: Record<number, string> = {};
+    for (const row of this.filteredRows()) {
+      if (!ids.includes(row.id)) continue;
+      const name = (row.driverName ?? '').trim();
+      if (name) assignees[row.id] = name;
+    }
+    this.assignDialog?.show(ids, assignees);
   }
 
   onBulkExport(): void {

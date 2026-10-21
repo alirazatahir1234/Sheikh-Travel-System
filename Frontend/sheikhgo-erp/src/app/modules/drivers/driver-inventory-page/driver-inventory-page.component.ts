@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject, model, signal, OnInit, DestroyRef, ViewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, model, signal, OnInit, DestroyRef, ElementRef, ViewChild } from '@angular/core';
 import { DatePipe, NgClass } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
@@ -8,10 +8,10 @@ import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
 import { BulkDriverImportDialogComponent } from '../bulk-driver-import-dialog/bulk-driver-import-dialog.component';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { Subject, forkJoin, catchError, of, switchMap, debounceTime, distinctUntilChanged, EMPTY, map, take } from 'rxjs';
+import { Subject, forkJoin, catchError, of, switchMap, debounceTime, distinctUntilChanged, EMPTY, map, take, Observable } from 'rxjs';
 import { ChartData } from 'chart.js';
 import { UiChartOptions } from '../../../shared/components/ui';
-import { DriverService } from '../../../core/services/driver.service';
+import { DriverService, DriverListParams } from '../../../core/services/driver.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { ExportService, ExportColumn } from '../../../core/services/export.service';
 import { PlatformService } from '../../../core/services/platform.service';
@@ -30,7 +30,7 @@ import { DriverTableComponent } from '../components/driver-table/driver-table.co
 import { DriverBulkAssignDialogComponent } from '../components/driver-bulk-assign-dialog/driver-bulk-assign-dialog.component';
 import { DriverLogIncidentDialogComponent, LogIncidentResult } from '../components/driver-log-incident-dialog/driver-log-incident-dialog.component';
 import { DriverDetailsDrawerComponent } from '../driver-details-drawer/driver-details-drawer.component';
-import { EMPTY_DRIVER_FILTERS, DriverFilters, DriverPagination, DEFAULT_DRIVER_PAGE_SIZE, buildDriverKpiGroups, buildOperationsSummary, buildAssignmentCoverage, buildComplianceAttention, computeDriverScore, scoreTone } from '../models/driver-inventory.model';
+import { EMPTY_DRIVER_FILTERS, DriverFilters, DriverPagination, DEFAULT_DRIVER_PAGE_SIZE, buildDriverKpiGroups, buildOperationsSummary, buildAssignmentCoverage, buildComplianceAttention, computeDriverScore, exclusiveLicenseWindows, scoreTone } from '../models/driver-inventory.model';
 
 @Component({
   selector: 'app-driver-inventory-page',
@@ -61,6 +61,7 @@ export class DriverInventoryPageComponent implements OnInit {
   @ViewChild(DriverBulkAssignDialogComponent) bulkAssignDialog?: DriverBulkAssignDialogComponent;
   @ViewChild(DriverLogIncidentDialogComponent) logIncidentDialog?: DriverLogIncidentDialogComponent;
   @ViewChild(DriverDetailsDrawerComponent) detailsDrawer?: DriverDetailsDrawerComponent;
+  @ViewChild('tableSection') tableSection?: ElementRef<HTMLElement>;
 
   private readonly driverService = inject(DriverService);
   private readonly auth = inject(AuthService);
@@ -74,14 +75,16 @@ export class DriverInventoryPageComponent implements OnInit {
   private readonly destroyRef = inject(DestroyRef);
   private readonly reload$ = new Subject<void>();
   private readonly searchInput$ = new Subject<string>();
+  private exporting = false;
 
-  /** Performance chart uses fleet stats when available. */
+  /** Chart uses scoped availability buckets (same as Availability panel). */
   readonly chartIsSampleData = false;
 
   readonly rows = signal<DriverListItem[]>([]);
-  /** Larger unfiltered sample used only for Top Drivers ranking (not the table page). */
+  /** Broader sample for Top Drivers (branch-scoped, up to 500). Score is client heuristic. */
   readonly rankPool = signal<DriverListItem[]>([]);
   readonly stats = signal<DriverStats | null>(null);
+  readonly statsError = signal<string | null>(null);
   readonly availabilitySummary = signal<DriversAvailabilitySummary | null>(null);
   readonly complianceDrivers = signal<DriverListItem[]>([]);
   readonly filters = signal<DriverFilters>({ ...EMPTY_DRIVER_FILTERS });
@@ -101,9 +104,18 @@ export class DriverInventoryPageComponent implements OnInit {
     { value: 'Unavailable', label: 'Unavailable' }
   ];
 
+  readonly verificationOptions: UiSelectOption[] = [
+    { value: 'ALL', label: 'All verification' },
+    { value: 'Verified', label: 'Verified' },
+    { value: 'Pending', label: 'Pending' },
+    { value: 'UnderReview', label: 'Under Review' },
+    { value: 'Rejected', label: 'Rejected' }
+  ];
+
   readonly kpiGroups = computed(() => buildDriverKpiGroups(this.stats()));
   readonly operationsSummary = computed(() => buildOperationsSummary(this.stats()));
   readonly assignmentCoverage = computed(() => buildAssignmentCoverage(this.stats()));
+  readonly licenseWindows = computed(() => exclusiveLicenseWindows(this.stats()));
 
   readonly hasActiveFilters = computed(() => {
     const f = this.filters();
@@ -135,23 +147,20 @@ export class DriverInventoryPageComponent implements OnInit {
       .slice(0, 5)
   );
 
-  /** License compliance urgency buckets (not trip incidents). */
+  /** Exclusive license urgency tiles (Expired / ≤7d / 8–30d / 31–60d). */
   readonly complianceSeverity = computed(() => {
-    const s = this.stats();
-    const expired = s?.licensesExpired ?? 0;
-    const urgent7 = s?.licensesExpiringIn7Days ?? 0;
-    const expiring30 = s?.licensesExpiringSoon ?? 0;
-    const suspended = s?.suspended ?? 0;
+    const w = this.licenseWindows();
     return {
-      critical: expired,
-      high: urgent7,
-      medium: Math.max(0, expiring30 - urgent7),
-      low: suspended
+      critical: w.expired,
+      high: w.within7,
+      medium: w.days8to30,
+      watch: w.days31to60
     };
   });
 
   readonly complianceAttention = computed(() => buildComplianceAttention(this.stats()));
 
+  /** Snapshot of current table page — not a live SignalR feed. */
   readonly feedItems = computed(() =>
     this.rows().slice(0, 5).map(d => {
       const licenseAlert = d.licenseExpiringSoon || d.licenseExpired;
@@ -162,28 +171,26 @@ export class DriverInventoryPageComponent implements OnInit {
           eventDetail: `${d.fullName} · ${this.expiryDescription(d.licenseExpiryDate)}`,
           icon: 'warning',
           iconClass: 'feed-icon--warning',
-          isLive: false,
-          time: 'Compliance'
+          time: 'From roster'
         };
       }
-      if (d.assignedVehicleId && d.status === DriverStatus.Available) {
+      if (d.assignedVehicleId && (d.availabilityBucket === 'Busy' || d.availabilityBucket === 'Available')) {
         return {
           id: d.id,
           eventLabel: 'Vehicle Assigned',
           eventDetail: `${d.fullName} · ${d.assignedVehicleRegistration || d.assignedVehicleCode || 'Vehicle linked'}`,
           icon: 'directions_car',
           iconClass: 'feed-icon--trip',
-          isLive: false,
-          time: 'Recently'
+          time: 'From roster'
         };
       }
       const meta = {
-        [DriverStatus.OnTrip]: { eventLabel: 'Trip Started', icon: 'trip_origin', iconClass: 'feed-icon--trip', isLive: true },
-        [DriverStatus.Available]: { eventLabel: 'Driver Available', icon: 'check_circle', iconClass: 'feed-icon--available', isLive: false },
-        [DriverStatus.OffDuty]: { eventLabel: 'Off Duty', icon: 'bedtime', iconClass: 'feed-icon--offduty', isLive: false },
-        [DriverStatus.OnLeave]: { eventLabel: 'On Leave', icon: 'event_busy', iconClass: 'feed-icon--leave', isLive: false },
-        [DriverStatus.Suspended]: { eventLabel: 'Driver Suspended', icon: 'block', iconClass: 'feed-icon--suspended', isLive: false }
-      }[d.status] ?? { eventLabel: 'Status Update', icon: 'person', iconClass: 'feed-icon--default', isLive: false };
+        [DriverStatus.OnTrip]: { eventLabel: 'On Trip', icon: 'trip_origin', iconClass: 'feed-icon--trip' },
+        [DriverStatus.Available]: { eventLabel: 'Duty Available', icon: 'check_circle', iconClass: 'feed-icon--available' },
+        [DriverStatus.OffDuty]: { eventLabel: 'Off Duty', icon: 'bedtime', iconClass: 'feed-icon--offduty' },
+        [DriverStatus.OnLeave]: { eventLabel: 'On Leave', icon: 'event_busy', iconClass: 'feed-icon--leave' },
+        [DriverStatus.Suspended]: { eventLabel: 'Driver Suspended', icon: 'block', iconClass: 'feed-icon--suspended' }
+      }[d.status] ?? { eventLabel: 'Status Update', icon: 'person', iconClass: 'feed-icon--default' };
 
       return {
         id: d.id,
@@ -191,23 +198,21 @@ export class DriverInventoryPageComponent implements OnInit {
         eventDetail: d.fullName,
         icon: meta.icon,
         iconClass: meta.iconClass,
-        isLive: meta.isLive,
-        time: meta.isLive ? 'Live now' : 'Recently'
+        time: 'From roster'
       };
     })
   );
 
+  /** Bars use exclusive dispatch-availability buckets (same as Availability panel). */
   readonly chartData = computed<ChartData>(() => {
+    const a = this.availabilitySummary();
     const s = this.stats();
     const labels = ['Available', 'Busy', 'On Trip', 'Unavailable'];
-    const values = s
-      ? [
-          s.available ?? 0,
-          s.busy ?? 0,
-          s.onTrip ?? 0,
-          Math.max(0, (s.totalDrivers ?? 0) - (s.available ?? 0) - (s.busy ?? 0) - (s.onTrip ?? 0))
-        ]
-      : [0, 0, 0, 0];
+    const values = a
+      ? [a.available, a.busy, a.onTrip, a.unavailable]
+      : s
+        ? [s.available ?? 0, s.busy ?? 0, s.onTrip ?? 0, s.unavailable ?? 0]
+        : [0, 0, 0, 0];
     return {
       labels,
       datasets: [{
@@ -251,6 +256,10 @@ export class DriverInventoryPageComponent implements OnInit {
     return this.auth.hasPermission('Driver.Assign');
   }
 
+  get canManageStatus(): boolean {
+    return this.auth.hasPermission('Driver.ManageStatus');
+  }
+
   get quickActions(): QuickAction[] {
     const actions: QuickAction[] = [];
     if (this.canCreateDriver) {
@@ -262,11 +271,12 @@ export class DriverInventoryPageComponent implements OnInit {
     if (this.canUpdateDriver) {
       actions.push(
         { id: 'verify', label: 'Verify Driver', icon: 'verified_user', tone: 'orange' },
-        { id: 'incident', label: 'Log Incident', icon: 'report_problem', tone: 'red' },
-        { id: 'suspend', label: 'Suspend Driver', icon: 'block', tone: 'red' }
+        { id: 'incident', label: 'Log Incident', icon: 'report_problem', tone: 'red' }
       );
     }
-    actions.push({ id: 'export', label: 'Generate Report', icon: 'file_download', tone: 'neutral' });
+    if (this.canManageStatus) {
+      actions.push({ id: 'suspend', label: 'Suspend Driver', icon: 'block', tone: 'red' });
+    }
     return actions;
   }
 
@@ -295,11 +305,12 @@ export class DriverInventoryPageComponent implements OnInit {
       takeUntilDestroyed(this.destroyRef)
     ).subscribe(result => {
       if (!result) return;
-      const { list, stats, compliance, availability, rankPool, page } = result;
+      const { list, stats, statsFailed, compliance, availability, rankPool, page } = result;
       this.rows.set(list.items);
       this.rankPool.set(rankPool.items);
       this.pagination.set({ ...page, total: list.totalCount });
       this.stats.set(stats);
+      this.statsError.set(statsFailed ? 'Could not load driver stats for this scope.' : null);
       this.availabilitySummary.set(availability);
       this.complianceDrivers.set(compliance.items);
       this.loading.set(false);
@@ -312,28 +323,36 @@ export class DriverInventoryPageComponent implements OnInit {
     this.reload$.next();
   }
 
+  private listParams(overrides: Partial<DriverListParams> = {}): DriverListParams {
+    const f = this.filters();
+    const p = this.pagination();
+    return {
+      page: p.page,
+      pageSize: p.pageSize,
+      q: f.search.trim() || undefined,
+      status: f.status === 'ALL' ? undefined : f.status,
+      branchId: f.branchId === 'ALL' ? undefined : Number(f.branchId),
+      licenseExpiry: f.licenseExpiry === 'ALL' ? undefined : f.licenseExpiry,
+      verificationStatus: f.verificationStatus === 'ALL' ? undefined : f.verificationStatus,
+      availability: f.availability === 'ALL' ? undefined : f.availability,
+      ...overrides
+    };
+  }
+
   private fetchPage() {
     this.loading.set(true);
     this.error.set(null);
-    const f = this.filters();
     const p = this.pagination();
     const emptyPaged: PagedResult<DriverListItem> = { items: [], totalCount: 0, page: 1, pageSize: 5, totalPages: 0 };
-
-    const branchId = f.branchId === 'ALL' ? undefined : Number(f.branchId);
+    const branchId = this.listParams().branchId;
 
     return forkJoin({
-      list: this.driverService.getAll({
-        page: p.page,
-        pageSize: p.pageSize,
-        q: f.search.trim() || undefined,
-        status: f.status === 'ALL' ? undefined : f.status,
-        branchId,
-        licenseExpiry: f.licenseExpiry === 'ALL' ? undefined : f.licenseExpiry,
-        verificationStatus: f.verificationStatus === 'ALL' ? undefined : f.verificationStatus,
-        availability: f.availability === 'ALL' ? undefined : f.availability
-      }),
-      rankPool: this.driverService.getAll({ page: 1, pageSize: 100, branchId }).pipe(catchError(() => of(emptyPaged))),
-      stats: this.driverService.getStats().pipe(catchError(() => of(null))),
+      list: this.driverService.getAll(this.listParams()),
+      rankPool: this.driverService.getAll({ page: 1, pageSize: 500, branchId }).pipe(catchError(() => of(emptyPaged))),
+      statsResult: this.driverService.getStats(branchId).pipe(
+        map(stats => ({ stats, failed: false as const })),
+        catchError(() => of({ stats: null as DriverStats | null, failed: true as const }))
+      ),
       availability: this.driverService.getAvailabilitySummary(branchId).pipe(catchError(() => of(null))),
       compliance: forkJoin({
         expiring: this.driverService.getAll({ licenseExpiry: 'EXPIRING', pageSize: 5, branchId }).pipe(catchError(() => of(emptyPaged))),
@@ -348,12 +367,44 @@ export class DriverInventoryPageComponent implements OnInit {
         catchError(() => of(emptyPaged))
       )
     }).pipe(
-      map(payload => ({ ...payload, page: p })),
+      map(({ list, rankPool, statsResult, availability, compliance }) => ({
+        list,
+        rankPool,
+        stats: statsResult.stats,
+        statsFailed: statsResult.failed,
+        availability,
+        compliance,
+        page: p
+      })),
       catchError(err => {
         this.loading.set(false);
         this.error.set(apiErrorMessage(err, 'Failed to load drivers.'));
         return EMPTY;
       })
+    );
+  }
+
+  /** Fetches the full filtered set (capped) for export / quick actions — not page-bound. */
+  private fetchFilteredDrivers(max = 2000): Observable<DriverListItem[]> {
+    const pageSize = Math.min(500, max);
+    return this.driverService.getAll(this.listParams({ page: 1, pageSize })).pipe(
+      switchMap(first => {
+        const total = Math.min(first.totalCount, max);
+        if (total <= first.items.length) {
+          return of(first.items);
+        }
+        const pages = Math.ceil(total / pageSize);
+        const requests = Array.from({ length: pages - 1 }, (_, i) =>
+          this.driverService.getAll(this.listParams({ page: i + 2, pageSize })).pipe(
+            map(r => r.items),
+            catchError(() => of([] as DriverListItem[]))
+          )
+        );
+        return forkJoin(requests).pipe(
+          map(rest => [...first.items, ...rest.flat()].slice(0, max))
+        );
+      }),
+      catchError(() => of([] as DriverListItem[]))
     );
   }
 
@@ -400,16 +451,19 @@ export class DriverInventoryPageComponent implements OnInit {
     if (!this.filters().search) return;
     this.filters.update(f => ({ ...f, search: '' }));
     this.searchInput$.next('');
-    this.pagination.update(p => ({ ...p, page: 1 }));
-    this.load();
   }
 
   clearFilters(): void {
     if (!this.hasActiveFilters()) return;
+    const hadSearch = !!this.filters().search.trim();
     this.filters.set({ ...EMPTY_DRIVER_FILTERS });
-    this.searchInput$.next('');
     this.pagination.update(p => ({ ...p, page: 1 }));
-    this.load();
+    // Prefer a single fetch: search debounce when search was cleared; otherwise reload now.
+    if (hadSearch) {
+      this.searchInput$.next('');
+    } else {
+      this.load();
+    }
   }
 
   onStatusChange(value: string): void {
@@ -430,10 +484,30 @@ export class DriverInventoryPageComponent implements OnInit {
     this.load();
   }
 
+  onVerificationChange(value: string): void {
+    this.filters.update(f => ({ ...f, verificationStatus: value === 'ALL' ? 'ALL' : value }));
+    this.pagination.update(p => ({ ...p, page: 1 }));
+    this.load();
+  }
+
   onAvailabilityChange(value: string): void {
     this.filters.update(f => ({ ...f, availability: value as DriverFilters['availability'] }));
     this.pagination.update(p => ({ ...p, page: 1 }));
     this.load();
+  }
+
+  viewExpiredLicenses(): void {
+    this.onLicenseFilterChange('EXPIRED');
+    queueMicrotask(() => {
+      this.tableSection?.nativeElement?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  }
+
+  onComplianceKeydown(event: KeyboardEvent, driver: DriverListItem): void {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      this.openDrawer(driver);
+    }
   }
 
   openDrawer(row: DriverListItem, preferredTab: 'performance' | 'vehicle' | null = null): void {
@@ -473,6 +547,12 @@ export class DriverInventoryPageComponent implements OnInit {
         if (this.selectedDriverId() === row.id) {
           this.onDrawerClosed();
         }
+        const p = this.pagination();
+        const nextTotal = Math.max(0, p.total - 1);
+        const maxPage = Math.max(1, Math.ceil(nextTotal / p.pageSize) || 1);
+        if (p.page > maxPage) {
+          this.pagination.update(cur => ({ ...cur, page: maxPage, total: nextTotal }));
+        }
         this.load();
       },
       error: err => this.toast.error(apiErrorMessage(err, 'Delete failed'))
@@ -494,45 +574,57 @@ export class DriverInventoryPageComponent implements OnInit {
   }
 
   exportReport(): void {
-    const rows = this.rows();
-    if (!rows.length) {
-      this.toast.info('No drivers available to export');
-      return;
-    }
+    if (this.exporting) return;
+    this.exporting = true;
+    this.toast.info('Preparing export…');
+    this.fetchFilteredDrivers().pipe(take(1)).subscribe({
+      next: rows => {
+        this.exporting = false;
+        if (!rows.length) {
+          this.toast.info('No drivers available to export');
+          return;
+        }
 
-    const columns: ExportColumn<DriverListItem>[] = [
-      { header: 'Name', accessor: row => row.fullName, excelWidth: 24, pdfWeight: 2.2 },
-      { header: 'Phone', accessor: row => row.phone, excelWidth: 16, pdfWeight: 1.3 },
-      { header: 'License #', accessor: row => row.licenseNumber, excelWidth: 16, pdfWeight: 1.3 },
-      { header: 'License Expiry', accessor: row => row.licenseExpiryDate ? this.datePipe.transform(row.licenseExpiryDate, 'mediumDate') ?? '' : '', excelWidth: 16, pdfWeight: 1.2 },
-      { header: 'Status', accessor: row => DriverStatusLabels[row.status] ?? 'Unknown', excelWidth: 14, pdfWeight: 1 },
-      { header: 'Branch', accessor: row => row.branchName ?? '', excelWidth: 18, pdfWeight: 1.2 },
-      { header: 'Vehicle', accessor: row => row.assignedVehicleRegistration || row.assignedVehicleCode || row.assignedVehicleName || '', excelWidth: 16, pdfWeight: 1.2 },
-      { header: 'Verified', accessor: row => row.verificationStatus, excelWidth: 16, pdfWeight: 1 }
-    ];
+        const columns: ExportColumn<DriverListItem>[] = [
+          { header: 'Name', accessor: row => row.fullName, excelWidth: 24, pdfWeight: 2.2 },
+          { header: 'Phone', accessor: row => row.phone, excelWidth: 16, pdfWeight: 1.3 },
+          { header: 'License #', accessor: row => row.licenseNumber, excelWidth: 16, pdfWeight: 1.3 },
+          { header: 'License Expiry', accessor: row => row.licenseExpiryDate ? this.datePipe.transform(row.licenseExpiryDate, 'mediumDate') ?? '' : '', excelWidth: 16, pdfWeight: 1.2 },
+          { header: 'Status', accessor: row => DriverStatusLabels[row.status] ?? 'Unknown', excelWidth: 14, pdfWeight: 1 },
+          { header: 'Availability', accessor: row => row.availabilityBucket ?? '', excelWidth: 14, pdfWeight: 1 },
+          { header: 'Branch', accessor: row => row.branchName ?? '', excelWidth: 18, pdfWeight: 1.2 },
+          { header: 'Vehicle', accessor: row => row.assignedVehicleRegistration || row.assignedVehicleCode || row.assignedVehicleName || '', excelWidth: 16, pdfWeight: 1.2 },
+          { header: 'Verified', accessor: row => row.verificationStatus, excelWidth: 16, pdfWeight: 1 }
+        ];
 
-    const stamp = this.datePipe.transform(new Date(), 'yyyyMMdd-HHmm') ?? '';
-    const filters = this.filters();
-    const filterSummary = [
-      filters.search?.trim() ? `Search: ${filters.search.trim()}` : null,
-      filters.status === 'ALL' ? null : `Status: ${DriverStatusLabels[filters.status as DriverStatus] ?? filters.status}`,
-      filters.branchId === 'ALL' ? null : `Branch: ${this.branchOptions().find(option => option.value === String(filters.branchId))?.label ?? filters.branchId}`,
-      filters.licenseExpiry === 'ALL' ? null : `License: ${filters.licenseExpiry}`,
-      filters.verificationStatus === 'ALL' ? null : `Verification: ${filters.verificationStatus}`,
-      filters.availability === 'ALL' ? null : `Availability: ${filters.availability}`
-    ].filter(Boolean).join(' · ');
+        const stamp = this.datePipe.transform(new Date(), 'yyyyMMdd-HHmm') ?? '';
+        const filters = this.filters();
+        const filterSummary = [
+          filters.search?.trim() ? `Search: ${filters.search.trim()}` : null,
+          filters.status === 'ALL' ? null : `Status: ${DriverStatusLabels[filters.status as DriverStatus] ?? filters.status}`,
+          filters.branchId === 'ALL' ? null : `Branch: ${this.branchOptions().find(option => option.value === String(filters.branchId))?.label ?? filters.branchId}`,
+          filters.licenseExpiry === 'ALL' ? null : `License: ${filters.licenseExpiry}`,
+          filters.verificationStatus === 'ALL' ? null : `Verification: ${filters.verificationStatus}`,
+          filters.availability === 'ALL' ? null : `Availability: ${filters.availability}`
+        ].filter(Boolean).join(' · ');
 
-    this.exportService.exportExcel(rows, columns, {
-      filename: `drivers-report-${stamp}`,
-      title: 'Drivers Report',
-      subtitle: [
-        `${rows.length} driver(s)`,
-        filterSummary || 'All drivers'
-      ].filter(Boolean).join(' · '),
-      sheetName: 'Drivers'
+        this.exportService.exportExcel(rows, columns, {
+          filename: `drivers-report-${stamp}`,
+          title: 'Drivers Report',
+          subtitle: [
+            `${rows.length} driver(s)`,
+            filterSummary || 'All drivers'
+          ].filter(Boolean).join(' · '),
+          sheetName: 'Drivers'
+        });
+
+        this.toast.success('Drivers report downloaded');
+      },
+      error: () => {
+        this.exporting = false;
+        this.toast.error('Export failed');
+      }
     });
-
-    this.toast.success('Drivers report downloaded');
   }
 
   importDrivers(): void {
@@ -555,37 +647,34 @@ export class DriverInventoryPageComponent implements OnInit {
     queueMicrotask(() => this.detailsDrawer?.load(result.driverId));
   }
 
-  exportExcel(): void {
-    this.exportReport();
-  }
-
   onQuickAction(actionId: string): void {
     switch (actionId) {
       case 'assign': {
-        const first = this.rows().find(d =>
-          !d.assignedVehicleId &&
-          d.isActive !== false &&
-          (d.verificationStatus ?? '').toLowerCase() === 'verified'
-        );
-        if (first) {
-          this.openDrawer(first, 'vehicle');
-          return;
-        }
-        this.bulkAssign();
+        this.fetchFilteredDrivers(500).pipe(take(1)).subscribe(drivers => {
+          const first = drivers.find(d =>
+            !d.assignedVehicleId &&
+            d.isActive !== false &&
+            (d.verificationStatus ?? '').toLowerCase() === 'verified'
+          );
+          if (first) {
+            this.openDrawer(first, 'vehicle');
+            return;
+          }
+          this.bulkAssign();
+        });
         break;
       }
       case 'verify': {
-        const pending = this.rows().find(d => d.verificationStatus !== 'Verified');
-        if (pending) {
-          void this.router.navigate(['/drivers', pending.id, 'verify']);
-          return;
-        }
-        this.toast.info('All drivers in the current view are verified');
+        this.fetchFilteredDrivers(500).pipe(take(1)).subscribe(drivers => {
+          const pending = drivers.find(d => (d.verificationStatus ?? '').toLowerCase() !== 'verified');
+          if (pending) {
+            void this.router.navigate(['/drivers', pending.id, 'verify']);
+            return;
+          }
+          this.toast.info('All matching drivers are verified');
+        });
         break;
       }
-      case 'export':
-        this.exportReport();
-        break;
       case 'suspend':
         void this.confirmAndSuspend();
         break;
@@ -602,30 +691,37 @@ export class DriverInventoryPageComponent implements OnInit {
   }
 
   private async confirmAndSuspend(): Promise<void> {
-    const target = this.selectedDriverId()
-      ? this.rows().find(d => d.id === this.selectedDriverId() && d.status !== DriverStatus.Suspended)
-      : this.rows().find(d => d.status !== DriverStatus.Suspended && d.isActive !== false);
-
-    if (!target) {
-      this.toast.warning('Select a non-suspended driver from the table first');
+    if (!this.canManageStatus) {
+      this.toast.error('You do not have permission to change driver status');
       return;
     }
 
-    const ok = await this.confirm.open({
-      variant: 'delete',
-      title: 'Suspend driver',
-      message: `Suspend "${target.fullName}"? They will be unavailable for dispatch until reactivated.`,
-      confirmText: 'Suspend',
-      cancelText: 'Cancel'
-    });
-    if (!ok) return;
+    this.fetchFilteredDrivers(500).pipe(take(1)).subscribe(async drivers => {
+      const target = this.selectedDriverId()
+        ? drivers.find(d => d.id === this.selectedDriverId() && d.status !== DriverStatus.Suspended)
+        : drivers.find(d => d.status !== DriverStatus.Suspended && d.isActive !== false);
 
-    this.driverService.changeStatus(target.id, DriverStatus.Suspended).pipe(take(1)).subscribe({
-      next: () => {
-        this.toast.warning(`${target.fullName} suspended`);
-        this.load();
-      },
-      error: err => this.toast.error(apiErrorMessage(err, 'Suspend failed'))
+      if (!target) {
+        this.toast.warning('Select a non-suspended driver from the table first');
+        return;
+      }
+
+      const ok = await this.confirm.open({
+        variant: 'delete',
+        title: 'Suspend driver',
+        message: `Suspend "${target.fullName}"? They will be unavailable for dispatch until reactivated.`,
+        confirmText: 'Suspend',
+        cancelText: 'Cancel'
+      });
+      if (!ok) return;
+
+      this.driverService.changeStatus(target.id, DriverStatus.Suspended).pipe(take(1)).subscribe({
+        next: () => {
+          this.toast.warning(`${target.fullName} suspended`);
+          this.load();
+        },
+        error: err => this.toast.error(apiErrorMessage(err, 'Suspend failed'))
+      });
     });
   }
 

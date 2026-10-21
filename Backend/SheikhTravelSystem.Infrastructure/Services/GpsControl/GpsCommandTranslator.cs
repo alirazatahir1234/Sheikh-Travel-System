@@ -94,6 +94,8 @@ public sealed class GpsCommandTranslator(IDbConnectionFactory dbFactory) : IGpsC
 
         var paramsMerged = await MergeParams(connection, request.CommandKey, request.Parameters, cancellationToken);
 
+        // Only enforce required params that the selected template actually references (e.g. APN#
+        // query templates must not require APN set parameters).
         var missing = await connection.QueryAsync<string>(new CommandDefinition(
             """
             SELECT ParamKey FROM GpsCommandParameterDefinitions
@@ -104,6 +106,9 @@ public sealed class GpsCommandTranslator(IDbConnectionFactory dbFactory) : IGpsC
 
         foreach (var key in missing)
         {
+            var placeholder = "{{" + key + "}}";
+            if (!best.PayloadTemplate.Contains(placeholder, StringComparison.OrdinalIgnoreCase))
+                continue;
             if (!paramsMerged.TryGetValue(key, out var v) || string.IsNullOrWhiteSpace(v))
                 return Fail(request.CommandKey, $"Required parameter '{key}' is missing.");
         }

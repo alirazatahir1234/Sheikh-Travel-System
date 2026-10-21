@@ -50,4 +50,29 @@ class ApiResponseParser {
     }
     return const [];
   }
+
+  /// Total count from a paged envelope, or `items.length` when unknown.
+  static int pagedTotalCount(Map<String, dynamic>? body, {int fallback = 0}) {
+    ensureSuccess(body);
+    final data = body?['data'];
+    if (data is Map) {
+      final raw = data['totalCount'] ?? data['TotalCount'];
+      if (raw is int) return raw;
+      if (raw is num) return raw.round();
+      final parsed = int.tryParse('$raw');
+      if (parsed != null) return parsed;
+    }
+    return fallback;
+  }
+
+  /// Parses `{ data: <int> }` (create endpoints that return a new id).
+  static int dataInt(Map<String, dynamic>? body) {
+    ensureSuccess(body);
+    final data = body?['data'];
+    if (data is int) return data;
+    if (data is num) return data.round();
+    final parsed = int.tryParse('$data');
+    if (parsed != null) return parsed;
+    throw Exception(body?['message']?.toString() ?? 'Empty response');
+  }
 }

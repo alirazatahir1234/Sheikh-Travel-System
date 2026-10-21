@@ -837,6 +837,14 @@ export class VehicleDetailsDrawerComponent {
       return;
     }
 
+    const current = (this.vehicle()?.driverName ?? '').trim();
+    if (current) {
+      const proceed = window.confirm(
+        `This vehicle is assigned to ${current}. Continue and transfer?`
+      );
+      if (!proceed) return;
+    }
+
     this.vehicleService.assignDriver(id, {
       driverId: Number(this.selectedDriverId),
       bookingId

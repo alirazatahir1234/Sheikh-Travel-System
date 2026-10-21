@@ -224,6 +224,7 @@ class VehicleListItem {
     this.locationLastUpdate,
     this.serviceAlert,
     this.imageUrl,
+    this.insuranceExpiryDate,
   });
 
   final int id;
@@ -245,11 +246,52 @@ class VehicleListItem {
   final DateTime? locationLastUpdate;
   final String? serviceAlert;
   final String? imageUrl;
+  final DateTime? insuranceExpiryDate;
 
   bool get isRetired {
     final s = status.toLowerCase();
     return s == 'retired' || s == '4';
   }
+
+  /// Matches backend [DriverAssignmentOps.EnsureVehicleAssignableAsync].
+  bool get isAssignableForDriver {
+    final s = status.trim().toLowerCase();
+    if (s == 'draft' ||
+        s == '5' ||
+        s == 'retired' ||
+        s == '4' ||
+        s == 'maintenance' ||
+        s == '3') {
+      return false;
+    }
+    final expiry = insuranceExpiryDate;
+    if (expiry != null) {
+      final today = DateTime.now().toUtc();
+      final day = DateTime.utc(today.year, today.month, today.day);
+      final expDay = DateTime.utc(expiry.year, expiry.month, expiry.day);
+      if (expDay.isBefore(day)) return false;
+    }
+    return true;
+  }
+
+  String? get assignBlockReason {
+    final s = status.trim().toLowerCase();
+    if (s == 'draft' || s == '5') return 'Draft — not assignable';
+    if (s == 'retired' || s == '4') return 'Retired — not assignable';
+    if (s == 'maintenance' || s == '3') return 'Under maintenance';
+    final expiry = insuranceExpiryDate;
+    if (expiry != null) {
+      final today = DateTime.now().toUtc();
+      final day = DateTime.utc(today.year, today.month, today.day);
+      final expDay = DateTime.utc(expiry.year, expiry.month, expiry.day);
+      if (expDay.isBefore(day)) return 'Insurance expired';
+    }
+    return null;
+  }
+
+  bool get hasAssignee =>
+      driverId != null ||
+      (driverName != null && driverName!.trim().isNotEmpty);
 
   factory VehicleListItem.fromJson(Map<String, dynamic> json) {
     final statusRaw = json['status'] ?? json['Status'];
@@ -287,6 +329,9 @@ class VehicleListItem {
       serviceAlert:
           json['serviceAlert'] as String? ?? json['ServiceAlert'] as String?,
       imageUrl: json['imageUrl'] as String? ?? json['ImageUrl'] as String?,
+      insuranceExpiryDate: _parseDate(
+        json['insuranceExpiryDate'] ?? json['InsuranceExpiryDate'],
+      ),
     );
   }
 }
@@ -1356,6 +1401,16 @@ class SupportedGpsCommand {
   }
 }
 
+class SendDeviceCommandResult {
+  const SendDeviceCommandResult({
+    required this.id,
+    required this.message,
+  });
+
+  final int id;
+  final String message;
+}
+
 class GpsDeviceCommandItem {
   const GpsDeviceCommandItem({
     required this.id,
@@ -1372,6 +1427,10 @@ class GpsDeviceCommandItem {
   final DateTime requestedAt;
   final String? reason;
   final String? errorMessage;
+
+  bool get isPendingApproval => status == 'PendingApproval';
+  bool get isCancellable =>
+      status == 'pending' || status == 'PendingApproval';
 
   factory GpsDeviceCommandItem.fromJson(Map<String, dynamic> json) {
     return GpsDeviceCommandItem(
@@ -1412,8 +1471,19 @@ class GpsGeofenceItem {
   final bool isActive;
   final String? color;
 
-  bool get isCircle =>
-      areaType.toLowerCase().contains('circle') || radiusMeters > 0;
+  bool get isCircle {
+    final t = areaType.toLowerCase();
+    if (t.contains('polygon') || t.contains('rectangle')) return false;
+    if (t.contains('circle')) return true;
+    return geoJson == null || geoJson!.trim().isEmpty;
+  }
+
+  bool get isPolygon {
+    final t = areaType.toLowerCase();
+    return t.contains('polygon') ||
+        t.contains('rectangle') ||
+        (geoJson != null && geoJson!.trim().isNotEmpty && !isCircle);
+  }
 
   factory GpsGeofenceItem.fromJson(Map<String, dynamic> json) {
     return GpsGeofenceItem(

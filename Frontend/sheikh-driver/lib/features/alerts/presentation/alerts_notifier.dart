@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../auth/data/auth_repository.dart';
 import '../../notifications/domain/notification_models.dart';
@@ -180,7 +181,8 @@ class AlertsNotifier extends AsyncNotifier<AlertsState> {
     return AlertsState(
       stats: stats,
       events: events,
-      demoEvents: prev?.demoEvents ?? const [],
+      // Keep in-memory demo only while debugging; never mix into refresh from API.
+      demoEvents: kDebugMode ? (prev?.demoEvents ?? const []) : const [],
       statusFilter: selectedStatus,
       readStateFilter: selectedReadState,
       severityFilter: selectedSeverity,

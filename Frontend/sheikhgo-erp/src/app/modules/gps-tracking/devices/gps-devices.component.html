@@ -20,7 +20,7 @@
           <mat-icon>refresh</mat-icon>
         </button>
       </div>
-      <button class="btn btn-primary" type="button" (click)="openCreate()">
+      <button *ngIf="canManageDevices" class="btn btn-primary" type="button" (click)="openCreate()">
         <mat-icon>add</mat-icon>
         Register Tracker
       </button>
@@ -117,18 +117,25 @@
       <mat-spinner diameter="32"></mat-spinner>
     </div>
 
-    <div *ngIf="!loading && devices.length === 0" class="empty-state">
+    <div *ngIf="!loading && loadError" class="empty-state">
+      <mat-icon>error_outline</mat-icon>
+      <p>Could not load trackers</p>
+      <p class="sub">{{ loadError }}</p>
+      <button class="btn btn-primary" type="button" (click)="load()">Retry</button>
+    </div>
+
+    <div *ngIf="!loading && !loadError && devices.length === 0" class="empty-state">
       <mat-icon>sensors_off</mat-icon>
       <p>No fleet trackers registered.</p>
       <p class="sub">Trackers sync automatically from Traccar every few seconds, or register one manually.</p>
     </div>
 
-    <div *ngIf="!loading && devices.length > 0 && filteredCount === 0" class="empty-state">
+    <div *ngIf="!loading && !loadError && devices.length > 0 && filteredCount === 0" class="empty-state">
       <mat-icon>filter_alt_off</mat-icon>
       <p>No trackers match your search or filters.</p>
     </div>
 
-    <div class="table-wrap" *ngIf="!loading && filteredCount > 0">
+    <div class="table-wrap" *ngIf="!loading && !loadError && filteredCount > 0">
       <table mat-table [dataSource]="dataSource" class="data-table desktop-only">
         <ng-container matColumnDef="vehicle">
           <th mat-header-cell *matHeaderCellDef>Vehicle</th>
@@ -238,16 +245,16 @@
           <button mat-menu-item type="button" (click)="openView(d)">
             <mat-icon>visibility</mat-icon> View Tracker
           </button>
-          <button mat-menu-item type="button" (click)="openEdit(d)">
+          <button mat-menu-item type="button" (click)="openEdit(d)" *ngIf="canManageDevices">
             <mat-icon>edit</mat-icon> Edit Inventory
           </button>
-          <button mat-menu-item type="button" (click)="openInstall(d)" *ngIf="canInstall(d)">
+          <button mat-menu-item type="button" (click)="openInstall(d)" *ngIf="canManageDevices && canInstall(d)">
             <mat-icon>build</mat-icon> Install Tracker
           </button>
-          <button mat-menu-item type="button" (click)="openReassign(d)" *ngIf="canReassign(d)">
+          <button mat-menu-item type="button" (click)="openReassign(d)" *ngIf="canManageDevices && canReassign(d)">
             <mat-icon>swap_horiz</mat-icon> Transfer Tracker
           </button>
-          <button mat-menu-item type="button" (click)="uninstallTracker(d)" *ngIf="canUninstall(d)">
+          <button mat-menu-item type="button" (click)="uninstallTracker(d)" *ngIf="canManageDevices && canUninstall(d)">
             <mat-icon>inventory_2</mat-icon> Return to Inventory
           </button>
           <mat-divider></mat-divider>
@@ -277,7 +284,7 @@
             <mat-icon>settings_remote</mat-icon> Send Command
           </button>
           <mat-divider></mat-divider>
-          <button mat-menu-item type="button" (click)="deleteDevice(d)" class="action-delete">
+          <button mat-menu-item type="button" (click)="deleteDevice(d)" class="action-delete" *ngIf="canManageDevices">
             <mat-icon>delete_outline</mat-icon> Delete Tracker
           </button>
         </ng-template>
@@ -304,8 +311,9 @@
             <span [matTooltip]="lastSeenTooltip(d)">Seen: {{ lastSeenLabel(d) }}</span>
           </div>
           <div class="device-card-actions">
-            <button mat-stroked-button type="button" (click)="openEdit(d)">Edit</button>
-            <button mat-stroked-button type="button" color="warn" (click)="deleteDevice(d)">Remove</button>
+            <button mat-stroked-button type="button" (click)="openView(d)">View</button>
+            <button mat-stroked-button type="button" *ngIf="canManageDevices" (click)="openEdit(d)">Edit</button>
+            <button mat-stroked-button type="button" color="warn" *ngIf="canManageDevices" (click)="deleteDevice(d)">Remove</button>
           </div>
         </article>
       </div>

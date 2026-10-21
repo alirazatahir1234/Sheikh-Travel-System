@@ -309,6 +309,13 @@ export class GpsTripsComponent implements OnInit {
   }
 
   onVehicleChange(): void {
+    void this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { vehicleId: this.vehicleId || null },
+      queryParamsHandling: 'merge',
+      replaceUrl: true
+    });
+    this.pageIndex = 0;
     this.load();
   }
 
@@ -522,7 +529,9 @@ export class GpsTripsComponent implements OnInit {
       ? this.trips.filter(t => (t.driverName ?? '').trim() === driverName)
       : this.trips;
     this.filteredTrips = rows;
-    this.paginatedTrips = rows;
+    // Client filter is page-local — do not pretend filtered rows are the full server total.
+    const start = this.pageIndex * this.pageSize;
+    this.paginatedTrips = rows.slice(start, start + this.pageSize);
     this.rebuildTripCaches();
   }
 

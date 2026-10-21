@@ -13,12 +13,14 @@ const STORAGE_KEY = 'stcc.selectedDashboard';
 export class DashboardService {
   readonly selectedDashboard = signal<DashboardType>(this.readInitial());
 
-  readonly isFleet = computed(() => this.selectedDashboard() === DashboardType.FLEET);
+  /** @deprecated Fleet dashboard is only at `/fleet/dashboard`. Always false. */
+  readonly isFleet = computed(() => false);
 
   setDashboard(type: DashboardType): void {
-    this.selectedDashboard.set(type);
+    const resolved = type === DashboardType.FLEET ? DashboardType.DEFAULT : type;
+    this.selectedDashboard.set(resolved);
     try {
-      localStorage.setItem(STORAGE_KEY, type);
+      localStorage.setItem(STORAGE_KEY, resolved);
     } catch {
       // Persistence is best-effort; ignore unavailable storage (e.g. private mode).
     }
@@ -27,6 +29,11 @@ export class DashboardService {
   private readInitial(): DashboardType {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
+      // Migrate legacy "Fleet" selector choice → ops default (Fleet lives at /fleet/dashboard).
+      if (stored === DashboardType.FLEET) {
+        localStorage.setItem(STORAGE_KEY, DashboardType.DEFAULT);
+        return DashboardType.DEFAULT;
+      }
       if (stored && Object.values(DashboardType).includes(stored as DashboardType)) {
         return stored as DashboardType;
       }

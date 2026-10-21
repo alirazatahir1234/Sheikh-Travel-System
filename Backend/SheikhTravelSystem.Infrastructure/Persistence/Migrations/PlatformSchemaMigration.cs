@@ -291,6 +291,7 @@ public static class PlatformSchemaMigration
             ("Fleet", "Gps.CommandView", "View GPS device command history"),
             ("Fleet", "Gps.CommandSend", "Send GPS device commands"),
             ("Fleet", "Gps.CommandEngineCutoff", "Send engine cut-off/resume commands"),
+            ("Fleet", "Gps.CommandApprove", "Approve pending GPS commands (engine cut-off) and dispatch to device"),
             ("Fleet", "Gps.CommandPositionRequest", "Request an on-demand GPS position"),
             ("Fleet", "Gps.CommandRestart", "Restart a GPS device remotely"),
             ("Fleet", "Gps.CommandRelay", "Toggle relay/digital output commands"),

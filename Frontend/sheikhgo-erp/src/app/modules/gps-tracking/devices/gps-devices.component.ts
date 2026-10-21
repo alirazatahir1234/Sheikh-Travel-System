@@ -4,6 +4,7 @@ import { MatPaginator } from '@angular/material/paginator';
 import { MatTableDataSource } from '@angular/material/table';
 import { forkJoin, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
+import { AuthService } from '../../../core/services/auth.service';
 import { GpsTrackingService } from '../../../core/services/gps-tracking.service';
 import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
 import {
@@ -54,7 +55,9 @@ export class GpsDevicesComponent implements OnInit, AfterViewInit, OnDestroy {
 
   devices: GpsDevice[] = [];
   loading = false;
+  loadError: string | null = null;
   syncing = false;
+  canManageDevices = false;
   traccarStatus: TraccarStatusDto | null = null;
   traccarSyncStatus: TraccarSyncStatusDto | null = null;
   clockNow = Date.now();
@@ -100,11 +103,14 @@ export class GpsDevicesComponent implements OnInit, AfterViewInit, OnDestroy {
     private gps: GpsTrackingService,
     private realtime: GpsRealtimeService,
     private toast: UiToastService,
+    private auth: AuthService,
     private cdr: ChangeDetectorRef,
     private router: Router,
     private route: ActivatedRoute,
     private ngZone: NgZone
-  ) {}
+  ) {
+    this.canManageDevices = this.auth.hasPermission('Gps.DeviceManage');
+  }
 
   ngOnInit(): void {
     this.loadInitial();
@@ -117,7 +123,8 @@ export class GpsDevicesComponent implements OnInit, AfterViewInit, OnDestroy {
       this.realtimeConnected = state === 'connected';
       this.applyDevicePollInterval();
     });
-    this.syncPollTimer = setInterval(() => this.loadSyncStatus(), 5_000);
+    // Traccar status/sync endpoints hit GET /api/devices — poll gently (not every 5s).
+    this.syncPollTimer = setInterval(() => this.loadSyncStatus(), 30_000);
     this.clockTimer = setInterval(() => {
       this.clockNow = Date.now();
       this.cdr.markForCheck();
@@ -258,8 +265,14 @@ export class GpsDevicesComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private loadInitial(): void {
     this.loading = true;
+    this.loadError = null;
     forkJoin({
-      devices: this.gps.getDevices().pipe(catchError(() => of([] as GpsDevice[]))),
+      devices: this.gps.getDevices().pipe(
+        catchError(err => {
+          this.loadError = err?.error?.message || err?.message || 'Failed to load trackers.';
+          return of([] as GpsDevice[]);
+        })
+      ),
       traccar: this.gps.getTraccarStatus().pipe(
         catchError(() => of({ connected: false, deviceCount: 0 } as TraccarStatusDto))
       ),
@@ -276,13 +289,18 @@ export class GpsDevicesComponent implements OnInit, AfterViewInit, OnDestroy {
 
   load(silent = false): void {
     if (!silent) this.loading = true;
+    this.loadError = null;
     this.gps.getDevices().subscribe({
       next: d => {
         this.devices = d;
         this.applyFilters();
         this.loading = false;
       },
-      error: () => { this.loading = false; }
+      error: err => {
+        this.loading = false;
+        this.loadError = err?.error?.message || err?.message || 'Failed to load trackers.';
+        if (!silent) this.toast.error(this.loadError ?? 'Failed to load trackers.');
+      }
     });
   }
 
@@ -487,10 +505,18 @@ export class GpsDevicesComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   openEdit(d: GpsDevice): void {
+    if (!this.canManageDevices) {
+      this.toast.error('You do not have permission to edit trackers.');
+      return;
+    }
     void this.router.navigate([d.id, 'edit'], { relativeTo: this.route });
   }
 
   openInstall(d: GpsDevice): void {
+    if (!this.canManageDevices) {
+      this.toast.error('You do not have permission to install trackers.');
+      return;
+    }
     if (isTrackerInstalled(d)) {
       this.toast.warning(
         `This tracker is already installed on ${d.vehicleName ?? 'a vehicle'} (${d.plateNumber ?? ''}). Remove or transfer first.`
@@ -502,10 +528,18 @@ export class GpsDevicesComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   openReassign(d: GpsDevice): void {
+    if (!this.canManageDevices) {
+      this.toast.error('You do not have permission to transfer trackers.');
+      return;
+    }
     void this.router.navigate([d.id, 'transfer'], { relativeTo: this.route });
   }
 
   uninstallTracker(d: GpsDevice): void {
+    if (!this.canManageDevices) {
+      this.toast.error('You do not have permission to uninstall trackers.');
+      return;
+    }
     const label = d.name || d.uniqueId;
     if (!confirm(`Return "${label}" to inventory? This will unlink the vehicle assignment.`)) return;
     this.gps.uninstallTracker(d.id).subscribe({
@@ -556,10 +590,18 @@ export class GpsDevicesComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   openCreate(): void {
+    if (!this.canManageDevices) {
+      this.toast.error('You do not have permission to register trackers.');
+      return;
+    }
     void this.router.navigate(['register'], { relativeTo: this.route });
   }
 
   deleteDevice(d: GpsDevice): void {
+    if (!this.canManageDevices) {
+      this.toast.error('You do not have permission to delete trackers.');
+      return;
+    }
     const label = d.vehicleName || d.name;
     if (!confirm(`Remove tracker for "${label}"?`)) return;
     this.gps.deleteTracker(d.id).subscribe({

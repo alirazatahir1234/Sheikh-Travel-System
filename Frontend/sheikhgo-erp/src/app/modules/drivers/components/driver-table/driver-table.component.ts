@@ -5,7 +5,13 @@ import { DriverListItem, DriverStatusLabels, driverDisplayName } from '../../../
 import { UiStatusBadgeComponent } from '../../../../shared/components/ui/status-badge/ui-status-badge.component';
 import { UiEmptyStateComponent } from '../../../../shared/components/ui/empty-state/ui-empty-state.component';
 import { DriverPagination, DRIVER_PAGE_SIZE_OPTIONS, computeDriverScore, scoreTone } from '../../models/driver-inventory.model';
-import { licenseExpiryLabel, licenseExpiryState, availabilityBucketLabel } from '../../utils/driver-status.util';
+import {
+  licenseExpiryLabel,
+  licenseExpiryState,
+  availabilityBucketLabel,
+  availabilityBadgeVariant,
+  statusBadgeVariant
+} from '../../utils/driver-status.util';
 import { resolveDriverPhotoUrl } from '../../../../core/utils/upload-url.util';
 
 @Component({
@@ -36,6 +42,7 @@ export class DriverTableComponent {
   readonly clearFilters = output<void>();
 
   readonly pageSizeOptions = DRIVER_PAGE_SIZE_OPTIONS;
+  readonly skeletonRows = [1, 2, 3, 4, 5] as const;
 
   displayName(row: DriverListItem): string {
     return driverDisplayName(row);
@@ -56,8 +63,16 @@ export class DriverTableComponent {
     return DriverStatusLabels[row.status] ?? 'Unknown';
   }
 
+  statusVariant(row: DriverListItem): 'success' | 'warning' | 'error' | 'info' | 'inactive' {
+    return statusBadgeVariant(row.status);
+  }
+
   availabilityLabel(row: DriverListItem): string {
     return availabilityBucketLabel(row.availabilityBucket);
+  }
+
+  availabilityVariant(row: DriverListItem): 'success' | 'warning' | 'error' | 'info' | 'inactive' {
+    return availabilityBadgeVariant(row.availabilityBucket);
   }
 
   assignedVehicle(row: DriverListItem): string {

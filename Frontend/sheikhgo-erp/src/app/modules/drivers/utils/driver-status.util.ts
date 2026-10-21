@@ -50,12 +50,23 @@ export function availabilityBucketLabel(bucket?: string | null): string {
   }
 }
 
-export function statusBadgeVariant(status: DriverStatus): 'success' | 'warning' | 'danger' | 'neutral' | 'info' {
+export function statusBadgeVariant(status: DriverStatus): 'success' | 'warning' | 'error' | 'info' | 'inactive' {
   switch (status) {
     case DriverStatus.Available: return 'success';
     case DriverStatus.OnTrip: return 'info';
     case DriverStatus.OnLeave: return 'warning';
-    case DriverStatus.Suspended: return 'danger';
-    default: return 'neutral';
+    case DriverStatus.Suspended: return 'error';
+    case DriverStatus.OffDuty: return 'inactive';
+    default: return 'inactive';
+  }
+}
+
+export function availabilityBadgeVariant(bucket?: string | null): 'success' | 'warning' | 'error' | 'info' | 'inactive' {
+  switch (bucket) {
+    case 'Available': return 'success';
+    case 'Busy': return 'warning';
+    case 'OnTrip': return 'info';
+    case 'Unavailable': return 'inactive';
+    default: return 'inactive';
   }
 }

@@ -69,8 +69,10 @@ export class DriverService {
     );
   }
 
-  getStats(): Observable<DriverStats> {
-    return this.http.get<DriverStats>(`${this.base}/stats`);
+  getStats(branchId?: number): Observable<DriverStats> {
+    let params = new HttpParams();
+    if (branchId != null) params = params.set('branchId', branchId);
+    return this.http.get<DriverStats>(`${this.base}/stats`, { params });
   }
 
   getAvailabilitySummary(branchId?: number): Observable<DriversAvailabilitySummary> {

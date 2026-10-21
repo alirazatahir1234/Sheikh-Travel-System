@@ -6,7 +6,8 @@ $card-pad: 1rem;    // 16px
   display: flex;
   flex-direction: column;
   gap: $dash-gap;
-  padding: 1rem 1.25rem 1.5rem;
+  padding: 0 0 2.5rem;
+  min-width: 0;
 }
 
 .header-actions {
@@ -94,6 +95,44 @@ $card-pad: 1rem;    // 16px
   &--risk {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
+}
+
+.kpi-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem 0.875rem;
+  min-height: 72px;
+}
+
+.kpi-skeleton__line {
+  border-radius: 4px;
+  background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%);
+  background-size: 200% 100%;
+  animation: kpi-shimmer 1.2s ease-in-out infinite;
+
+  &--sm {
+    width: 42%;
+    height: 10px;
+  }
+
+  &--lg {
+    width: 58%;
+    height: 22px;
+  }
+}
+
+.kpi-skeleton__bar {
+  margin-top: auto;
+  height: 4px;
+  width: 100%;
+  border-radius: 99px;
+  background: #e2e8f0;
+}
+
+@keyframes kpi-shimmer {
+  0% { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
 }
 
 .operations-summary {
@@ -637,8 +676,40 @@ $card-pad: 1rem;    // 16px
 .filters-grid {
   display: grid;
   gap: 0.75rem;
-  grid-template-columns: minmax(0, 1.5fr) repeat(4, minmax(0, 1fr)) auto;
+  grid-template-columns: minmax(0, 1.4fr) repeat(5, minmax(0, 1fr)) auto;
   align-items: end;
+}
+
+.stats-error-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  border: 1px solid color-mix(in srgb, #dc2626 35%, var(--fleet-border, #e2e8f0));
+  background: #fef2f2;
+  color: #991b1b;
+
+  mat-icon {
+    flex-shrink: 0;
+  }
+}
+
+.stats-error-title {
+  margin: 0;
+  font-weight: 700;
+  font-size: 0.875rem;
+}
+
+.stats-error-detail {
+  margin: 0.15rem 0 0;
+  font-size: 0.8125rem;
+  opacity: 0.9;
+}
+
+.stats-error-inline {
+  margin: 0.35rem 0 0;
+  font-size: 0.75rem;
+  color: #b45309;
 }
 
 .filter-field {
@@ -1361,7 +1432,7 @@ $card-pad: 1rem;    // 16px
 
 @media (max-width: 640px) {
   .inventory-page {
-    padding: 0.75rem 1rem 1.25rem;
+    padding: 0 0 2rem;
     gap: 1rem;
   }
 

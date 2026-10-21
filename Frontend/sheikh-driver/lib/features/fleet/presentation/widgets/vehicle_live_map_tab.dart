@@ -223,22 +223,36 @@ class _VehicleLiveMapTabState extends ConsumerState<VehicleLiveMapTab> {
 
   @override
   Widget build(BuildContext context) {
-    return widget.gpsAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(
+    // Prefer GPS snapshot, but do not block Live if hub already has coords
+    // (e.g. transient /Vehicles/{id}/gps failure).
+    final gps = widget.gpsAsync.valueOrNull;
+    final gpsError = widget.gpsAsync.hasError ? widget.gpsAsync.error : null;
+
+    if (widget.gpsAsync.isLoading && gps == null && widget.live == null) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (gpsError != null && gps == null && _position == null) {
+      return Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('$e', textAlign: TextAlign.center),
+              Text('$gpsError', textAlign: TextAlign.center),
               const SizedBox(height: 12),
-              FilledButton(onPressed: widget.onRetryGps, child: const Text('Retry')),
+              FilledButton(
+                onPressed: widget.onRetryGps,
+                child: const Text('Retry'),
+              ),
             ],
           ),
         ),
-      ),
-      data: (gps) {
+      );
+    }
+
+    return Builder(
+      builder: (context) {
         final pos = _position;
         if (pos == null) {
           return ListView(
@@ -255,118 +269,125 @@ class _VehicleLiveMapTabState extends ConsumerState<VehicleLiveMapTab> {
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      gps.deviceName ?? 'Tracker may be offline or awaiting first fix.',
+                      gps?.deviceName ??
+                          (gpsError != null
+                              ? 'Tracker details unavailable. Pull to retry.'
+                              : 'Tracker may be offline or awaiting first fix.'),
                       textAlign: TextAlign.center,
                       style: const TextStyle(color: AppColors.textSecondary),
                     ),
+                    if (gpsError != null) ...[
+                      const SizedBox(height: 12),
+                      TextButton(
+                        onPressed: widget.onRetryGps,
+                        child: const Text('Retry tracker details'),
+                      ),
+                    ],
                   ],
                 ),
               ),
-              const SizedBox(height: 12),
-              _TelemetryCard(
-                vehicle: widget.vehicle,
-                gps: gps,
-                live: widget.live,
-              ),
+              if (gps != null) ...[
+                const SizedBox(height: 12),
+                _TelemetryCard(
+                  vehicle: widget.vehicle,
+                  gps: gps,
+                  live: widget.live,
+                ),
+              ],
               const SizedBox(height: 12),
               _LiveActions(
                 vehicleId: widget.vehicleId,
-                hasDevice: gps.gpsDeviceId != null,
+                hasDevice: gps?.gpsDeviceId != null,
               ),
             ],
           );
         }
 
+        final rotates = VehiclePulseIcons.rotatesWithHeading(_status);
         return Column(
           children: [
             Expanded(
-              flex: 3,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(AppRadii.md),
-                  child: Stack(
-                    children: [
-                      GoogleMap(
-                        initialCameraPosition: CameraPosition(
-                          target: pos,
-                          zoom: 15.5,
-                          bearing: _heading,
-                        ),
-                        markers: {
-                          Marker(
-                            markerId: MarkerId('v${widget.vehicleId}'),
-                            position: pos,
-                            rotation: _heading,
-                            flat: true,
-                            anchor: const Offset(0.5, 0.5),
-                            icon: _icon ??
-                                BitmapDescriptor.defaultMarkerWithHue(
-                                  BitmapDescriptor.hueAzure,
-                                ),
-                            infoWindow: InfoWindow(
-                              title: widget.vehicle.name,
-                              snippet:
-                                  '${_speed.toStringAsFixed(0)} km/h · ${_status.label}',
+              flex: 5,
+              child: Stack(
+                children: [
+                  GoogleMap(
+                    initialCameraPosition: CameraPosition(
+                      target: pos,
+                      zoom: 15.5,
+                      bearing: rotates ? _heading : 0,
+                    ),
+                    markers: {
+                      Marker(
+                        markerId: MarkerId('v${widget.vehicleId}'),
+                        position: pos,
+                        rotation: rotates ? _heading : 0,
+                        flat: true,
+                        anchor: const Offset(0.5, 0.5),
+                        icon: _icon ??
+                            BitmapDescriptor.defaultMarkerWithHue(
+                              BitmapDescriptor.hueAzure,
                             ),
-                          ),
-                        },
-                        mapType: _mapType,
-                        liteModeEnabled: false,
-                        zoomControlsEnabled: false,
-                        myLocationButtonEnabled: false,
-                        mapToolbarEnabled: false,
-                        compassEnabled: true,
-                        onMapCreated: (c) async {
-                          _map = c;
-                          _mapReady = true;
-                          await _centerOnVehicle(animate: false);
-                        },
-                        onCameraMoveStarted: () {
-                          if (_ignoreCameraMove) return;
-                          // User gesture → pause follow until they re-enable.
-                          if (_follow) setState(() => _follow = false);
-                        },
-                      ),
-                      Positioned(
-                        left: 10,
-                        right: 10,
-                        top: 10,
-                        child: _LiveStatusOverlay(
-                          status: _status,
-                          speedKmh: _speed,
-                          address: _address,
-                          lastUpdate: _lastUpdate,
+                        infoWindow: InfoWindow(
+                          title: widget.vehicle.name,
+                          snippet:
+                              '${_speed.toStringAsFixed(0)} km/h · ${_status.label}',
                         ),
                       ),
-                      Positioned(
-                        right: 10,
-                        bottom: 10,
-                        child: _MapFabColumn(
-                          follow: _follow,
-                          onZoomIn: () => _zoomBy(1),
-                          onZoomOut: () => _zoomBy(-1),
-                          onCenter: () {
-                            setState(() => _follow = true);
-                            _centerOnVehicle();
-                          },
-                          onToggleFollow: () {
-                            setState(() => _follow = !_follow);
-                            if (_follow) _centerOnVehicle();
-                          },
-                          onToggleMapType: () {
-                            setState(() {
-                              _mapType = _mapType == MapType.normal
-                                  ? MapType.hybrid
-                                  : MapType.normal;
-                            });
-                          },
-                          onFullscreen: _openFullscreen,
-                        ),
-                      ),
-                    ],
+                    },
+                    mapType: _mapType,
+                    liteModeEnabled: false,
+                    zoomControlsEnabled: false,
+                    myLocationButtonEnabled: false,
+                    mapToolbarEnabled: false,
+                    compassEnabled: true,
+                    onMapCreated: (c) async {
+                      _map = c;
+                      _mapReady = true;
+                      await _centerOnVehicle(animate: false);
+                    },
+                    onCameraMoveStarted: () {
+                      if (_ignoreCameraMove) return;
+                      // User gesture → pause follow until they re-enable.
+                      if (_follow) setState(() => _follow = false);
+                    },
                   ),
-                ),
+                  Positioned(
+                    left: 10,
+                    right: 10,
+                    top: 10,
+                    child: _LiveStatusOverlay(
+                      status: _status,
+                      speedKmh: _speed,
+                      address: _address,
+                      lastUpdate: _lastUpdate,
+                    ),
+                  ),
+                  Positioned(
+                    right: 10,
+                    bottom: 10,
+                    child: _MapFabColumn(
+                      follow: _follow,
+                      onZoomIn: () => _zoomBy(1),
+                      onZoomOut: () => _zoomBy(-1),
+                      onCenter: () {
+                        setState(() => _follow = true);
+                        _centerOnVehicle();
+                      },
+                      onToggleFollow: () {
+                        setState(() => _follow = !_follow);
+                        if (_follow) _centerOnVehicle();
+                      },
+                      onToggleMapType: () {
+                        setState(() {
+                          _mapType = _mapType == MapType.normal
+                              ? MapType.hybrid
+                              : MapType.normal;
+                        });
+                      },
+                      onFullscreen: _openFullscreen,
+                    ),
+                  ),
+                ],
               ),
             ),
             Expanded(
@@ -374,15 +395,33 @@ class _VehicleLiveMapTabState extends ConsumerState<VehicleLiveMapTab> {
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
                 children: [
-                  _TelemetryCard(
-                    vehicle: widget.vehicle,
-                    gps: gps,
-                    live: widget.live,
-                  ),
+                  if (gps != null)
+                    _TelemetryCard(
+                      vehicle: widget.vehicle,
+                      gps: gps,
+                      live: widget.live,
+                    )
+                  else if (gpsError != null)
+                    SgCard(
+                      child: Row(
+                        children: [
+                          const Expanded(
+                            child: Text(
+                              'Tracker details failed to load.',
+                              style: TextStyle(color: AppColors.textSecondary),
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: widget.onRetryGps,
+                            child: const Text('Retry'),
+                          ),
+                        ],
+                      ),
+                    ),
                   const SizedBox(height: 12),
                   _LiveActions(
                     vehicleId: widget.vehicleId,
-                    hasDevice: gps.gpsDeviceId != null,
+                    hasDevice: gps?.gpsDeviceId != null,
                   ),
                 ],
               ),
@@ -897,7 +936,9 @@ class _LiveMapFullscreenPageState
                     Marker(
                       markerId: MarkerId('v${widget.vehicleId}'),
                       position: pos,
-                      rotation: heading,
+                      rotation: VehiclePulseIcons.rotatesWithHeading(status)
+                          ? heading
+                          : 0,
                       flat: true,
                       anchor: const Offset(0.5, 0.5),
                       icon: _icon ??

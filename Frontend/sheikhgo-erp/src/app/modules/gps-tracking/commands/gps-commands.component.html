@@ -9,7 +9,7 @@
     <div class="device-selector">
       <label class="selector-label">Device</label>
       <mat-form-field appearance="outline" class="device-field">
-        <mat-select [(value)]="selectedDeviceId" (selectionChange)="loadCommands()">
+        <mat-select [(value)]="selectedDeviceId" (selectionChange)="onDeviceChange()">
           <mat-option *ngFor="let d of devices" [value]="d.id">
             {{ d.name }} <span class="mono-opt">({{ d.uniqueId }})</span>
           </mat-option>
@@ -92,6 +92,24 @@
         <input matInput [(ngModel)]="smsMessage" placeholder="Raw command text">
       </mat-form-field>
     </ng-container>
+    <ng-container *ngIf="pendingCard.type === 'custom'">
+      <mat-form-field appearance="outline" class="reason-field">
+        <mat-label>Command data *</mat-label>
+        <input matInput [(ngModel)]="attrData" placeholder="Raw command payload">
+      </mat-form-field>
+    </ng-container>
+    <ng-container *ngIf="pendingCard.type === 'heartbeat'">
+      <mat-form-field appearance="outline" class="reason-field">
+        <mat-label>Interval (seconds) *</mat-label>
+        <input matInput [(ngModel)]="attrInterval" placeholder="60">
+      </mat-form-field>
+    </ng-container>
+    <ng-container *ngIf="pendingCard.type === 'timezone'">
+      <mat-form-field appearance="outline" class="reason-field">
+        <mat-label>Timezone *</mat-label>
+        <input matInput [(ngModel)]="attrTimezone" placeholder="Asia/Karachi">
+      </mat-form-field>
+    </ng-container>
     <div class="confirm-actions">
       <button mat-stroked-button (click)="cancelSend()" [disabled]="sending">Cancel</button>
       <button mat-raised-button color="warn" (click)="confirmSend()" [disabled]="!canConfirm() || sending">
@@ -155,6 +173,8 @@
             <td class="muted small">{{ c.requestedAt | date:'dd MMM, HH:mm:ss' }}</td>
             <td class="muted small">{{ c.completedAt ? (c.completedAt | date:'dd MMM, HH:mm:ss') : '—' }}</td>
             <td class="row-actions">
+              <button mat-stroked-button class="btn-sm" color="primary" *ngIf="canApprove(c)" (click)="approve(c)">Approve</button>
+              <button mat-stroked-button class="btn-sm" *ngIf="canApprove(c)" (click)="reject(c)">Reject</button>
               <button mat-stroked-button class="btn-sm" *ngIf="canRetry(c)" (click)="retry(c)">Retry</button>
               <button mat-stroked-button class="btn-sm" *ngIf="canCancel(c)" (click)="cancel(c)">Cancel</button>
             </td>

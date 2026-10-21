@@ -58,11 +58,17 @@ public sealed partial class GpsDeviceRepository(
         var rows = await connection.ExecuteAsync(new CommandDefinition(
             """
             UPDATE c
-            SET Status = 'cancelled', CancelledAt = GETUTCDATE(), CancelledBy = @CancelledBy, UpdatedAt = GETUTCDATE()
+            SET Status = 'cancelled',
+                ApprovalStatus = CASE WHEN c.Status = N'PendingApproval' THEN N'Cancelled' ELSE c.ApprovalStatus END,
+                CancelledAt = GETUTCDATE(),
+                CancelledBy = @CancelledBy,
+                UpdatedAt = GETUTCDATE()
             FROM GpsDeviceCommands c
             INNER JOIN GpsDevices d ON d.Id = c.GpsDeviceId
             LEFT JOIN Vehicles v ON v.Id = d.VehicleId AND v.IsDeleted = 0
-            WHERE c.Id = @Id AND c.Status = 'pending' AND c.IsDeleted = 0
+            WHERE c.Id = @Id
+              AND c.Status IN (N'pending', N'PendingApproval')
+              AND c.IsDeleted = 0
               AND (d.TenantId = @TenantId OR (d.TenantId IS NULL AND v.TenantId = @TenantId))
             """,
             new { request.Id, CancelledBy = currentUser.UserId?.ToString(), TenantId = tenantId },
@@ -70,8 +76,255 @@ public sealed partial class GpsDeviceRepository(
 
         return rows > 0
             ? ApiResponse<bool>.SuccessResponse(true, "Command cancelled.")
-            : ApiResponse<bool>.FailResponse("Only pending commands can be cancelled.");
+            : ApiResponse<bool>.FailResponse("Only pending or awaiting-approval commands can be cancelled.");
         }
+
+    public async Task<ApiResponse<bool>> ApproveDeviceCommandAsync(
+        ApproveDeviceCommandCommand request, CancellationToken cancellationToken = default)
+    {
+        if (!currentUser.HasPermission(GpsPermissions.CommandApprove)
+            && !currentUser.HasPermission(PlatformPermissions.GpsApprove))
+            return ApiResponse<bool>.FailResponse("Insufficient permission to approve GPS commands.");
+
+        using var connection = dbFactory.CreateConnection();
+        var tenantId = tenantContext.GetRequiredTenantId();
+
+        var row = await connection.QueryFirstOrDefaultAsync<PendingCommandRow>(new CommandDefinition(
+            $"""
+            SELECT c.Id, c.CommandType, c.CommandKey, c.Transport, c.RenderedPayload, c.Attributes,
+                   c.Status, c.Reason, c.TenantId, d.Name AS DeviceName, d.TraccarDeviceId, d.VehicleId
+            FROM GpsDeviceCommands c
+            INNER JOIN GpsDevices d ON d.Id = c.GpsDeviceId
+            LEFT JOIN Vehicles v ON v.Id = d.VehicleId AND v.IsDeleted = 0
+            WHERE c.Id = @Id AND c.IsDeleted = 0 AND c.Status = N'PendingApproval'
+              {TrackerTenantSql.DeviceScopeFilter}
+            """,
+            new { request.Id, TenantId = tenantId },
+            cancellationToken: cancellationToken));
+
+        if (row is null || row.Id == 0)
+            return ApiResponse<bool>.FailResponse("Command not found or not awaiting approval.");
+
+        return await FinalizeApprovalAndDispatchAsync(
+            connection, row, request.Approve, request.Note, currentUser.UserId?.ToString(), cancellationToken);
+    }
+
+    public async Task<ApiResponse<bool>> PlatformApproveDeviceCommandAsync(
+        int commandId, bool approve, string? note, string? approvedBy, CancellationToken cancellationToken = default)
+    {
+        using var connection = dbFactory.CreateConnection();
+        var row = await connection.QueryFirstOrDefaultAsync<PendingCommandRow>(new CommandDefinition(
+            """
+            SELECT c.Id, c.CommandType, c.CommandKey, c.Transport, c.RenderedPayload, c.Attributes,
+                   c.Status, c.Reason, c.TenantId, d.Name AS DeviceName, d.TraccarDeviceId, d.VehicleId
+            FROM GpsDeviceCommands c
+            INNER JOIN GpsDevices d ON d.Id = c.GpsDeviceId
+            WHERE c.Id = @Id AND c.IsDeleted = 0 AND c.Status = N'PendingApproval'
+            """,
+            new { Id = commandId },
+            cancellationToken: cancellationToken));
+
+        if (row is null || row.Id == 0)
+            return ApiResponse<bool>.FailResponse("Command not found or not awaiting approval.");
+
+        return await FinalizeApprovalAndDispatchAsync(
+            connection, row, approve, note, approvedBy, cancellationToken);
+    }
+
+    private async Task<ApiResponse<bool>> FinalizeApprovalAndDispatchAsync(
+        System.Data.IDbConnection connection,
+        PendingCommandRow row,
+        bool approve,
+        string? note,
+        string? approvedBy,
+        CancellationToken cancellationToken)
+    {
+        if (!approve)
+        {
+            var rejected = await connection.ExecuteAsync(new CommandDefinition(
+                """
+                UPDATE GpsDeviceCommands
+                SET Status = N'cancelled',
+                    ApprovalStatus = N'Rejected',
+                    ApprovedBy = @By,
+                    ApprovedAt = SYSUTCDATETIME(),
+                    ErrorMessage = COALESCE(@Note, N'Rejected'),
+                    UpdatedAt = SYSUTCDATETIME()
+                WHERE Id = @Id AND Status = N'PendingApproval' AND IsDeleted = 0
+                """,
+                new { Id = row.Id, By = approvedBy, Note = note },
+                cancellationToken: cancellationToken));
+
+            return rejected > 0
+                ? ApiResponse<bool>.SuccessResponse(true, "Rejected")
+                : ApiResponse<bool>.FailResponse("Command not found or not awaiting approval.");
+        }
+
+        var marked = await connection.ExecuteAsync(new CommandDefinition(
+            """
+            UPDATE GpsDeviceCommands
+            SET ApprovalStatus = N'Approved',
+                ApprovedBy = @By,
+                ApprovedAt = SYSUTCDATETIME(),
+                Status = N'pending',
+                UpdatedAt = SYSUTCDATETIME()
+            WHERE Id = @Id AND Status = N'PendingApproval' AND IsDeleted = 0
+            """,
+            new { Id = row.Id, By = approvedBy },
+            cancellationToken: cancellationToken));
+
+        if (marked == 0)
+            return ApiResponse<bool>.FailResponse("Command not found or not awaiting approval.");
+
+        // Safety was enforced when the command was queued — do not re-block approve.
+        var (dispatched, message) = await DispatchStoredCommandAsync(connection, row, cancellationToken);
+        logger.LogInformation(
+            "GPS command {CommandId} ({CommandType}) approved; Traccar dispatch {Outcome}: {Message}",
+            row.Id, row.CommandType, dispatched ? "succeeded" : "pending/failed", message);
+
+        return ApiResponse<bool>.SuccessResponse(true, message);
+    }
+
+    private sealed class PendingCommandRow
+    {
+        public int Id { get; init; }
+        public string CommandType { get; init; } = "";
+        public string? CommandKey { get; init; }
+        public string? Transport { get; init; }
+        public string? RenderedPayload { get; init; }
+        public string? Attributes { get; init; }
+        public string Status { get; init; } = "";
+        public string? Reason { get; init; }
+        public int? TenantId { get; init; }
+        public string? DeviceName { get; init; }
+        public int? TraccarDeviceId { get; init; }
+        public int? VehicleId { get; init; }
+    }
+
+    private async Task<(bool Dispatched, string Message)> DispatchStoredCommandAsync(
+        System.Data.IDbConnection connection,
+        PendingCommandRow row,
+        CancellationToken cancellationToken)
+    {
+        var definition = GpsCommandCatalog.Find(row.CommandType);
+        var transport = row.Transport;
+        var traccarType = definition?.TraccarType ?? row.CommandType;
+        Dictionary<string, object>? attrs = null;
+        if (!string.IsNullOrWhiteSpace(row.Attributes))
+        {
+            try
+            {
+                attrs = JsonSerializer.Deserialize<Dictionary<string, object>>(row.Attributes);
+            }
+            catch (JsonException)
+            {
+                attrs = null;
+            }
+        }
+
+        if (string.Equals(transport, "Sms", StringComparison.OrdinalIgnoreCase)
+            || (definition?.TraccarType is null && string.IsNullOrWhiteSpace(transport)))
+        {
+            var smsResult = await transportRouter.SendAsync(new GpsTransportSendRequest(
+                "Sms", null, null, row.RenderedPayload ?? row.CommandType, null, null), cancellationToken);
+
+            await connection.ExecuteAsync(new CommandDefinition(
+                "UPDATE GpsDeviceCommands SET Status = N'not_configured', ErrorMessage = @Err, UpdatedAt = GETUTCDATE() WHERE Id = @Id",
+                new { Id = row.Id, Err = smsResult.Error ?? "No SMS gateway configured." },
+                cancellationToken: cancellationToken));
+
+            return (false, smsResult.Error ?? "Command logged — SMS delivery not configured.");
+        }
+
+        if (row.TraccarDeviceId is > 0)
+        {
+            var payloadAttrs = attrs;
+            if (string.Equals(traccarType, "custom", StringComparison.OrdinalIgnoreCase)
+                && !string.IsNullOrWhiteSpace(row.RenderedPayload))
+            {
+                payloadAttrs ??= new Dictionary<string, object>();
+                if (!payloadAttrs.ContainsKey("data"))
+                    payloadAttrs["data"] = row.RenderedPayload;
+            }
+
+            var useRouter = !string.IsNullOrWhiteSpace(transport)
+                && !string.Equals(transport, "Sms", StringComparison.OrdinalIgnoreCase);
+
+            bool sent;
+            string? err;
+            if (useRouter)
+            {
+                var result = await transportRouter.SendAsync(new GpsTransportSendRequest(
+                    transport!,
+                    row.TraccarDeviceId,
+                    traccarType,
+                    row.RenderedPayload ?? traccarType,
+                    payloadAttrs), cancellationToken);
+                sent = result.Success;
+                err = result.Error;
+            }
+            else
+            {
+                sent = await traccar.SendCommandAsync(
+                    row.TraccarDeviceId.Value, traccarType!, payloadAttrs, cancellationToken);
+                err = sent ? null : "Traccar dispatch failed";
+            }
+
+            if (sent)
+            {
+                await connection.ExecuteAsync(new CommandDefinition(
+                    "UPDATE GpsDeviceCommands SET Status = N'sent', ErrorMessage = NULL, NextRetryAt = NULL, UpdatedAt = GETUTCDATE() WHERE Id = @Id",
+                    new { Id = row.Id },
+                    cancellationToken: cancellationToken));
+
+                if (definition?.NotifyAllUsers == true)
+                {
+                    var verb = row.CommandType == "engineStop" ? "cut off" : "restored";
+                    await decisionEngine.DispatchIfAllowedAsync(new NotificationDecisionRequest(
+                        "vehicle_offline",
+                        $"Engine {verb} — {row.DeviceName}",
+                        $"Reason: {row.Reason ?? "Not specified"}",
+                        NotificationType.EngineCommandSent,
+                        ReferenceId: row.Id,
+                        TenantId: row.TenantId ?? tenantContext.TenantId,
+                        SuggestedPriority: 3,
+                        RequestedChannels: [NotificationChannels.InApp, NotificationChannels.Browser],
+                        Broadcast: false), cancellationToken);
+                }
+
+                return (true, "Sent to device.");
+            }
+
+            await connection.ExecuteAsync(new CommandDefinition(
+                """
+                UPDATE GpsDeviceCommands
+                SET ErrorMessage = @Err,
+                    NextRetryAt = DATEADD(SECOND, @RetrySeconds, GETUTCDATE()),
+                    UpdatedAt = GETUTCDATE()
+                WHERE Id = @Id
+                """,
+                new
+                {
+                    Id = row.Id,
+                    Err = err ?? "Traccar dispatch failed",
+                    RetrySeconds = gpsSettings.Value.CommandRetryIntervalSeconds
+                },
+                cancellationToken: cancellationToken));
+
+            return (false, "Approved — queued for retry (Traccar dispatch failed).");
+        }
+
+        await connection.ExecuteAsync(new CommandDefinition(
+            """
+            UPDATE GpsDeviceCommands
+            SET Status = N'failed', ErrorMessage = N'Device is not linked to Traccar', UpdatedAt = GETUTCDATE()
+            WHERE Id = @Id
+            """,
+            new { Id = row.Id },
+            cancellationToken: cancellationToken));
+
+        return (false, "Approved but device is not linked to Traccar.");
+    }
 
     public async Task<ApiResponse<bool>> CompleteDeviceCommandAsync(CompleteDeviceCommandCommand request, CancellationToken cancellationToken = default)
     {
@@ -420,10 +673,13 @@ public sealed partial class GpsDeviceRepository(
     {
         using var connection = dbFactory.CreateConnection();
         var tenantId = tenantContext.GetRequiredTenantId();
-        var device = await connection.QueryFirstOrDefaultAsync<(int Id, bool SupportsEngineCutoff, bool SupportsRelay, int? TraccarDeviceId)>(
+        var device = await connection.QueryFirstOrDefaultAsync<(
+            int Id, bool SupportsEngineCutoff, bool SupportsRelay, int? TraccarDeviceId,
+            int? TrackerModelId, string? TrackerModelKey, string? Protocol, string? Model, string? Vendor, string? Name)>(
             new CommandDefinition(
                 $"""
-                SELECT d.Id, d.SupportsEngineCutoff, d.SupportsRelay, d.TraccarDeviceId
+                SELECT d.Id, d.SupportsEngineCutoff, d.SupportsRelay, d.TraccarDeviceId,
+                       d.TrackerModelId, d.TrackerModelKey, d.Protocol, d.Model, d.Vendor, d.Name
                 FROM GpsDevices d
                 LEFT JOIN Vehicles v ON v.Id = d.VehicleId AND v.IsDeleted = 0
                 WHERE d.Id = @Id AND d.IsDeleted = 0
@@ -434,6 +690,25 @@ public sealed partial class GpsDeviceRepository(
 
         if (device.Id == 0)
             return ApiResponse<List<SupportedCommandDto>>.FailResponse("Device not found.");
+
+        var isGt06 = GpsGt06CommandMap.LooksLikeGt06Family(
+            device.Protocol, device.Model, device.Vendor, device.TrackerModelKey, device.Name);
+
+        Dictionary<string, (string? TraccarType, string Transport)> templatesByKey = new(StringComparer.OrdinalIgnoreCase);
+        if (device.TrackerModelId is > 0)
+        {
+            var rows = await connection.QueryAsync<(string CommandKey, string? TraccarType, string Transport)>(
+                new CommandDefinition(
+                    """
+                    SELECT CommandKey, TraccarType, Transport
+                    FROM GpsCommandTemplates
+                    WHERE TrackerModelId = @ModelId AND IsActive = 1
+                    """,
+                    new { ModelId = device.TrackerModelId.Value },
+                    cancellationToken: cancellationToken));
+            foreach (var row in rows)
+                templatesByKey[row.CommandKey] = (row.TraccarType, row.Transport);
+        }
 
         IReadOnlyList<string> traccarTypes = [];
         var traccarChecked = false;
@@ -454,6 +729,57 @@ public sealed partial class GpsDeviceRepository(
 
             if (!hasCapability)
                 return new SupportedCommandDto(def.Type, def.Label, false, "Not supported by this device model.");
+
+            // Model templates are authoritative when present — hide commands without a template.
+            if (device.TrackerModelId is > 0)
+            {
+                if (!templatesByKey.TryGetValue(def.Type, out var tmpl))
+                    return new SupportedCommandDto(def.Type, def.Label, false, "No command template for this tracker model.");
+
+                var neededType = tmpl.TraccarType ?? def.TraccarType;
+                if (neededType is null
+                    || string.Equals(tmpl.Transport, "Sms", StringComparison.OrdinalIgnoreCase))
+                    return new SupportedCommandDto(def.Type, def.Label, true, null);
+
+                if (!traccarChecked)
+                    return new SupportedCommandDto(def.Type, def.Label, true, "Traccar unreachable — showing model templates.");
+
+                var ok = traccarTypes.Contains(neededType, StringComparer.OrdinalIgnoreCase)
+                    || (string.Equals(neededType, "custom", StringComparison.OrdinalIgnoreCase)
+                        && traccarTypes.Contains("custom", StringComparer.OrdinalIgnoreCase));
+                return ok
+                    ? new SupportedCommandDto(def.Type, def.Label, true, null)
+                    : new SupportedCommandDto(def.Type, def.Label, false, "Not supported by this device's Traccar profile.");
+            }
+
+            // No model linked: GT06 heuristics so restart/position are not advertised as rebootDevice/positionSingle.
+            if (isGt06)
+            {
+                var catalogKey = device.TrackerModelKey
+                    ?? (GpsGt06CommandMap.LooksLikeVg03(null, device.Model, device.Name)
+                        ? GpsGt06CommandMap.CatalogKeyVg03
+                        : null);
+                var panelKeys = GpsGt06CommandMap.PanelKeysForCatalog(catalogKey);
+                var mapped = GpsGt06CommandMap.TryMap(def.Type, catalogKey);
+                if (mapped is null
+                    && !panelKeys.Contains(def.Type, StringComparer.OrdinalIgnoreCase))
+                    return new SupportedCommandDto(def.Type, def.Label, false, "Not in this model's command panel.");
+
+                if (!panelKeys.Contains(def.Type, StringComparer.OrdinalIgnoreCase))
+                    return new SupportedCommandDto(def.Type, def.Label, false, "Not supported on this tracker model.");
+
+                var needed = mapped?.TraccarType ?? def.TraccarType;
+                if (needed is null)
+                    return new SupportedCommandDto(def.Type, def.Label, true, null);
+
+                if (!traccarChecked)
+                    return new SupportedCommandDto(def.Type, def.Label, true, "Traccar unreachable — showing model defaults.");
+
+                var ok = traccarTypes.Contains(needed, StringComparer.OrdinalIgnoreCase);
+                return ok
+                    ? new SupportedCommandDto(def.Type, def.Label, true, null)
+                    : new SupportedCommandDto(def.Type, def.Label, false, "Not supported by this device's Traccar profile.");
+            }
 
             if (def.TraccarType is null)
                 return new SupportedCommandDto(def.Type, def.Label, true, "Delivery channel not yet configured for this tenant.");
@@ -681,10 +1007,15 @@ public sealed partial class GpsDeviceRepository(
 
         using var connection = dbFactory.CreateConnection();
         var tenantId = tenantContext.GetRequiredTenantId();
-        var device = await connection.QueryFirstOrDefaultAsync<(int Id, bool SupportsEngineCutoff, bool SupportsRelay, string Name, int? TraccarDeviceId, int? VehicleId, string? RelayPurpose, int? TrackerModelId)>(
+        var device = await connection.QueryFirstOrDefaultAsync<(
+            int Id, bool SupportsEngineCutoff, bool SupportsRelay, string Name, int? TraccarDeviceId,
+            int? VehicleId, string? RelayPurpose, int? TrackerModelId, string? TrackerModelKey,
+            string? Protocol, string? Model, string? Vendor)>(
             new CommandDefinition(
                 $"""
-                SELECT d.Id, d.SupportsEngineCutoff, d.SupportsRelay, d.Name, d.TraccarDeviceId, d.VehicleId, d.RelayPurpose, d.TrackerModelId
+                SELECT d.Id, d.SupportsEngineCutoff, d.SupportsRelay, d.Name, d.TraccarDeviceId,
+                       d.VehicleId, d.RelayPurpose, d.TrackerModelId, d.TrackerModelKey,
+                       d.Protocol, d.Model, d.Vendor
                 FROM GpsDevices d
                 LEFT JOIN Vehicles v ON v.Id = d.VehicleId AND v.IsDeleted = 0
                 WHERE d.Id = @Id AND d.IsDeleted = 0
@@ -758,9 +1089,58 @@ public sealed partial class GpsDeviceRepository(
                 return ApiResponse<int>.FailResponse(translated.Error ?? "Command translation failed.");
         }
 
-        var requiresApproval = translated?.RequiresApproval == true
-            && !currentUser.HasPermission(PlatformPermissions.GpsApprove)
-            && !currentUser.HasPermission("Gps.CommandApprove");
+        // GT06/EV26R/VG03: never dispatch rebootDevice or bare positionSingle (Traccar 400).
+        // VG03 position → URL#; EV26R → WHERE# (model-aware).
+        var isGt06 = GpsGt06CommandMap.LooksLikeGt06Family(
+            device.Protocol, device.Model, device.Vendor, device.TrackerModelKey, device.Name);
+        if (isGt06)
+        {
+            var catalogKey = device.TrackerModelKey
+                ?? (GpsGt06CommandMap.LooksLikeVg03(null, device.Model, device.Name)
+                    ? GpsGt06CommandMap.CatalogKeyVg03
+                    : null);
+            var mapped = GpsGt06CommandMap.TryMap(request.Command.CommandType, catalogKey);
+            if (mapped is not null)
+            {
+                var unsafeTraccar = translated?.Success == true
+                    && (
+                        string.Equals(translated.TraccarType, "rebootDevice", StringComparison.OrdinalIgnoreCase)
+                        || (string.Equals(request.Command.CommandType, "positionSingle", StringComparison.OrdinalIgnoreCase)
+                            && (string.Equals(translated.TraccarType, "positionSingle", StringComparison.OrdinalIgnoreCase)
+                                || (!string.Equals(translated.RenderedPayload, mapped.Payload, StringComparison.OrdinalIgnoreCase)
+                                    && string.Equals(request.Command.CommandType, "positionSingle", StringComparison.OrdinalIgnoreCase)))));
+
+                if (translated?.Success != true || unsafeTraccar)
+                {
+                    var gt06Transport = mapped.TraccarType is not null ? "Traccar" : "Sms";
+                    translated = new GpsTranslateResult(
+                        true, null, mapped.CommandKey, gt06Transport, mapped.Payload,
+                        mapped.TraccarType, translated?.TemplateId, null,
+                        RequiresApproval: translated?.RequiresApproval == true,
+                        DangerLevel: translated?.DangerLevel ?? "Low");
+                }
+            }
+        }
+
+        var definitionRequiresApproval = translated?.RequiresApproval == true;
+        if (!definitionRequiresApproval)
+        {
+            definitionRequiresApproval = await connection.ExecuteScalarAsync<bool>(new CommandDefinition(
+                """
+                SELECT CASE WHEN EXISTS (
+                    SELECT 1 FROM GpsCommandDefinitions
+                    WHERE CommandKey = @CommandKey AND RequiresApproval = 1 AND IsActive = 1
+                ) THEN 1 ELSE 0 END
+                """,
+                new { CommandKey = request.Command.CommandType },
+                cancellationToken: cancellationToken));
+        }
+
+        // CommandApprove is for the approve endpoint only — senders with that permission
+        // still queue RequiresApproval commands so a deliberate approve-and-dispatch occurs.
+        // Platform.Gps.Approve may bypass (control-center operators).
+        var requiresApproval = definitionRequiresApproval
+            && !currentUser.HasPermission(PlatformPermissions.GpsApprove);
 
         if (requiresApproval && string.IsNullOrWhiteSpace(request.Command.Reason))
             return ApiResponse<int>.FailResponse("Reason is required for this command.");
@@ -802,7 +1182,7 @@ public sealed partial class GpsDeviceRepository(
             cancellationToken: cancellationToken));
 
         if (requiresApproval)
-            return ApiResponse<int>.SuccessResponse(id, "Command awaiting approval.");
+            return ApiResponse<int>.SuccessResponse(id, "Queued for approval.");
 
         var dispatchSucceeded = false;
 
@@ -910,7 +1290,9 @@ public sealed partial class GpsDeviceRepository(
                 Broadcast: false), cancellationToken);
         }
 
-        return ApiResponse<int>.SuccessResponse(id, "Command queued.");
+        return ApiResponse<int>.SuccessResponse(
+            id,
+            dispatchSucceeded ? "Sent to device." : "Command queued.");
         }
 
     public async Task<ApiResponse<List<TrackerDetailDto>>> GetTrackersAsync(GetTrackersQuery request, CancellationToken cancellationToken = default)

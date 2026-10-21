@@ -207,6 +207,12 @@ abstract final class FleetNavConfig {
       isVisible: _fleetLiveMap,
     ),
     MoreMenuEntry(
+      label: 'Assignments',
+      icon: Icons.event_available_outlined,
+      route: '/fleet/assignments',
+      isVisible: _fleetLiveMap,
+    ),
+    MoreMenuEntry(
       label: 'Trips',
       icon: Icons.route_outlined,
       route: '/trips',
@@ -300,6 +306,12 @@ abstract final class FleetNavConfig {
       isVisible: _fleetLiveMap,
     ),
     MoreMenuEntry(
+      label: 'Assignments',
+      icon: Icons.event_available_outlined,
+      route: '/fleet/assignments',
+      isVisible: _fleetLiveMap,
+    ),
+    MoreMenuEntry(
       label: 'My tracking',
       icon: Icons.my_location_outlined,
       route: '/live',
@@ -321,24 +333,42 @@ abstract final class FleetNavConfig {
       label: 'GPS trips',
       icon: Icons.route_outlined,
       route: '/gps/trips',
-      isVisible: _alertsMenu,
+      isVisible: _gpsOperatorOps,
+    ),
+    MoreMenuEntry(
+      label: 'GPS commands',
+      icon: Icons.power_settings_new_outlined,
+      route: '/gps/commands',
+      isVisible: _gpsOperatorOps,
+    ),
+    MoreMenuEntry(
+      label: 'Geofences',
+      icon: Icons.fence_outlined,
+      route: '/gps/geofences',
+      isVisible: _gpsOperatorOps,
+    ),
+    MoreMenuEntry(
+      label: 'Incident center',
+      icon: Icons.emergency_outlined,
+      route: '/gps/incidents',
+      isVisible: _gpsOperatorOps,
     ),
     MoreMenuEntry(
       label: 'Fuel analytics',
       icon: Icons.local_gas_station_outlined,
       route: '/gps/fuel',
-      isVisible: _alertsMenu,
+      isVisible: _gpsOperatorOps,
     ),
     MoreMenuEntry(
       label: 'Mileage',
       icon: Icons.speed_outlined,
       route: '/gps/mileage',
-      isVisible: _alertsMenu,
+      isVisible: _gpsOperatorOps,
     ),
     MoreMenuEntry(
       label: 'Maintenance',
       icon: Icons.build_outlined,
-      route: '/more/maintenance',
+      route: '/fleet/maintenance',
       isVisible: _maintenanceMenu,
     ),
     MoreMenuEntry(
@@ -498,13 +528,13 @@ abstract final class FleetNavConfig {
     MoreMenuEntry(
       label: 'Support',
       icon: Icons.support_agent_outlined,
-      route: '/legal/support',
+      route: '/settings',
       isVisible: _alwaysEntry,
     ),
     MoreMenuEntry(
       label: 'About',
       icon: Icons.info_outline_rounded,
-      route: '/legal/about',
+      route: '/legal/terms',
       isVisible: _alwaysEntry,
     ),
     MoreMenuEntry(
@@ -538,7 +568,8 @@ abstract final class FleetNavConfig {
       case FleetRole.tenantAdmin:
       case FleetRole.fleetManager:
       default:
-        return const [dashboard, fleet, trips, more];
+        // Live map as a first-class tab for fleet managers (parity with ERP Live Map).
+        return const [dashboard, map, fleet, trips, more];
     }
   }
 
@@ -644,9 +675,7 @@ abstract final class FleetNavConfig {
       s.isGpsOperator || (!s.isDriverOnly && s.hasPermission(FleetPermissions.gpsView));
 
   /// Owner Tracking — GPS tracker surfaces (commands, playback, geofences).
+  /// Require GPS.View so More entries are not dead links (router redirects otherwise).
   static bool _ownerTrackerOps(FleetSession s) =>
-      s.isOwnerTracking &&
-      (s.hasPermission(FleetPermissions.gpsView) ||
-          s.hasPermission(FleetPermissions.gpsCommandView) ||
-          s.hasPermission(FleetPermissions.vehicleView));
+      s.isOwnerTracking && s.hasPermission(FleetPermissions.gpsView);
 }

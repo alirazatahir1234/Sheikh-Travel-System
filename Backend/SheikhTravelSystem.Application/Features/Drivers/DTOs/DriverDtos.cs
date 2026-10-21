@@ -136,7 +136,9 @@ public record DriverStatsDto(
     int RejectedDrivers,
     int UnderReviewDrivers,
     int AssignedDrivers,
-    int OpenViolations);
+    int AssignedVehicles,
+    int OpenViolations,
+    int Unavailable);
 
 public record DriverTimelineEventDto(
     int Id,

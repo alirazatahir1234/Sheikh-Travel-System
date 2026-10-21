@@ -48,7 +48,7 @@
         </div>
       </div>
 
-      <div class="actions" *ngIf="isInstalled">
+      <div class="actions" *ngIf="isInstalled && canManageDevices">
         <button type="button" class="btn btn-primary" (click)="goTransfer()">
           <mat-icon>swap_horiz</mat-icon> Transfer Tracker
         </button>
@@ -62,7 +62,7 @@
 
       <div class="actions" *ngIf="isMaintenance">
         <p class="maint-note">This tracker is in maintenance. Complete service before reinstalling.</p>
-        <button type="button" class="btn btn-secondary" (click)="goEditInventory()">Edit Inventory</button>
+        <button *ngIf="canManageDevices" type="button" class="btn btn-secondary" (click)="goEditInventory()">Edit Inventory</button>
       </div>
     </section>
 

@@ -5,6 +5,7 @@ import '../../../core/constants/app_theme.dart';
 import '../../../features/auth/data/auth_repository.dart';
 import '../../../features/auth/domain/auth_models.dart';
 import '../../../shared/widgets/sg_ui.dart';
+import '../../../shared/widgets/sg_keyboard_fields.dart';
 import '../domain/driver_models.dart';
 import 'drivers_notifier.dart';
 
@@ -22,16 +23,10 @@ class _DriversListScreenState extends ConsumerState<DriversListScreen> {
   void initState() {
     super.initState();
     _searchCtrl = TextEditingController();
-    _searchCtrl.addListener(_onSearchTextChanged);
-  }
-
-  void _onSearchTextChanged() {
-    if (mounted) setState(() {});
   }
 
   @override
   void dispose() {
-    _searchCtrl.removeListener(_onSearchTextChanged);
     _searchCtrl.dispose();
     super.dispose();
   }
@@ -152,13 +147,10 @@ class _DriversListBody extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final p = context.sg;
     final visible = hub.visible;
     final listBottom = 24.0 +
         MediaQuery.of(context).padding.bottom +
         (canCreate ? 72.0 : 0.0);
-    final hasQuery = searchCtrl.text.trim().isNotEmpty;
-
     return RefreshIndicator(
       color: AppColors.primary,
       onRefresh: () => ref.read(driversHubProvider.notifier).refresh(),
@@ -184,18 +176,16 @@ class _DriversListBody extends ConsumerWidget {
           ),
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
-              child: SgSectionTitle(
-                'Roster',
-                subtitle: softLoading
-                    ? 'Updating…'
-                    : '${visible.length} shown',
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+              child: _RosterHeader(
+                count: visible.length,
+                softLoading: softLoading,
               ),
             ),
           ),
           SliverToBoxAdapter(
             child: SizedBox(
-              height: 44,
+              height: 40,
               child: ListView(
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -211,6 +201,7 @@ class _DriversListBody extends ConsumerWidget {
                     Padding(
                       padding: const EdgeInsets.only(right: 8),
                       child: FilterChip(
+                        visualDensity: VisualDensity.compact,
                         label: Text(_statusLabel(s)),
                         selected: hub.statusFilter == s,
                         onSelected: softLoading
@@ -226,49 +217,12 @@ class _DriversListBody extends ConsumerWidget {
           ),
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
-              child: TextField(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+              child: SgSearchField(
                 controller: searchCtrl,
+                hintText: 'Search name, phone, plate…',
                 onChanged: (v) =>
                     ref.read(driversHubProvider.notifier).setSearch(v),
-                decoration: InputDecoration(
-                  hintText: 'Search name, phone, plate…',
-                  prefixIcon: Icon(
-                    Icons.search_rounded,
-                    color: p.textMuted,
-                  ),
-                  suffixIcon: hasQuery
-                      ? IconButton(
-                          tooltip: 'Clear search',
-                          icon: Icon(
-                            Icons.close_rounded,
-                            color: p.textMuted,
-                          ),
-                          onPressed: () {
-                            searchCtrl.clear();
-                            ref
-                                .read(driversHubProvider.notifier)
-                                .setSearch('');
-                          },
-                        )
-                      : null,
-                  filled: true,
-                  fillColor: p.card,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(AppRadii.md),
-                    borderSide: BorderSide(color: p.border),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(AppRadii.md),
-                    borderSide: BorderSide(
-                      color: p.border.withValues(alpha: 0.85),
-                    ),
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 14,
-                  ),
-                ),
               ),
             ),
           ),
@@ -317,10 +271,10 @@ class _StatsRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 78,
+      height: 76,
       child: ListView(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
         children: [
           SgMetricPill(label: 'Total', value: '${stats.totalDrivers}'),
           const SizedBox(width: 8),
@@ -379,7 +333,7 @@ class _LicenseAlerts extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
       child: Row(
         children: [
           if (stats.licensesExpired > 0)
@@ -431,25 +385,27 @@ class _AlertChip extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(AppRadii.md),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(AppRadii.md),
             border: Border.all(
               color: selected
-                  ? color.withValues(alpha: 0.45)
-                  : p.border.withValues(alpha: 0.8),
+                  ? color.withValues(alpha: 0.55)
+                  : p.border.withValues(alpha: 0.75),
+              width: selected ? 1.5 : 1,
             ),
           ),
           child: Row(
             children: [
-              Icon(Icons.badge_outlined, size: 18, color: color),
+              Icon(Icons.badge_outlined, size: 17, color: color),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   label,
                   style: TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 12.5,
+                    letterSpacing: -0.1,
                     color: color,
                   ),
                 ),
@@ -458,6 +414,89 @@ class _AlertChip extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _RosterHeader extends StatelessWidget {
+  const _RosterHeader({
+    required this.count,
+    required this.softLoading,
+  });
+
+  final int count;
+  final bool softLoading;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.sg;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            color: AppColors.primary.withValues(alpha: 0.10),
+            borderRadius: BorderRadius.circular(AppRadii.sm),
+            border: Border.all(
+              color: AppColors.primary.withValues(alpha: 0.20),
+            ),
+          ),
+          child: const Icon(
+            Icons.groups_rounded,
+            size: 22,
+            color: AppColors.primary,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Roster',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: p.textPrimary,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.35,
+                      height: 1.15,
+                    ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                softLoading ? 'Updating…' : 'Tap a driver for profile & docs',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: p.textSecondary,
+                  height: 1.2,
+                ),
+              ),
+            ],
+          ),
+        ),
+        Container(
+          constraints: const BoxConstraints(minWidth: 36),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+          decoration: BoxDecoration(
+            color: AppColors.primary.withValues(alpha: 0.10),
+            borderRadius: BorderRadius.circular(AppRadii.pill),
+            border: Border.all(
+              color: AppColors.primary.withValues(alpha: 0.22),
+            ),
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            softLoading ? '…' : '$count',
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w800,
+              color: AppColors.primary,
+              letterSpacing: -0.2,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -471,103 +510,260 @@ class _RankingStrip extends StatelessWidget {
   final List<DriverRankItem> items;
   final bool unavailable;
 
+  static Color _rankColor(int index) => switch (index) {
+        0 => const Color(0xFFC9A227),
+        1 => const Color(0xFF7A8796),
+        2 => const Color(0xFFB87333),
+        _ => AppColors.primary,
+      };
+
+  static IconData _rankIcon(int index) => switch (index) {
+        0 => Icons.emoji_events_rounded,
+        1 => Icons.military_tech_rounded,
+        2 => Icons.workspace_premium_rounded,
+        _ => Icons.tag_rounded,
+      };
+
   @override
   Widget build(BuildContext context) {
     final p = context.sg;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 14),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SgSectionTitle(
-            'Top drivers',
-            subtitle: 'By rating / compliance score',
+          Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      AppColors.primary.withValues(alpha: 0.20),
+                      AppColors.accent.withValues(alpha: 0.12),
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(AppRadii.sm),
+                  border: Border.all(
+                    color: AppColors.primary.withValues(alpha: 0.22),
+                  ),
+                ),
+                child: const Icon(
+                  Icons.leaderboard_rounded,
+                  size: 22,
+                  color: AppColors.primary,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Top drivers',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            color: p.textPrimary,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.35,
+                            height: 1.15,
+                          ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      'By rating / compliance score',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: p.textSecondary,
+                        height: 1.2,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (!unavailable && items.isNotEmpty)
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(AppRadii.pill),
+                    border: Border.all(
+                      color: AppColors.primary.withValues(alpha: 0.22),
+                    ),
+                  ),
+                  child: Text(
+                    'Top ${items.length}',
+                    style: const TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.1,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ),
+            ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
           SgCard(
-            padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
+            padding: EdgeInsets.zero,
             child: unavailable || items.isEmpty
-                ? const SgInlineEmpty(
-                    message:
-                        'No ranking available yet. Scores use driver rating when set, otherwise a compliance heuristic (same as ERP).',
-                    icon: Icons.leaderboard_outlined,
+                ? const Padding(
+                    padding: EdgeInsets.fromLTRB(16, 18, 16, 18),
+                    child: SgInlineEmpty(
+                      message:
+                          'No ranking available yet. Scores use driver rating when set, otherwise a compliance heuristic (same as ERP).',
+                      icon: Icons.leaderboard_outlined,
+                    ),
                   )
                 : Column(
                     children: [
                       for (var i = 0; i < items.length; i++) ...[
-                        if (i > 0) Divider(height: 1, color: p.divider),
-                        InkWell(
-                          onTap: () => context
-                              .push('/more/drivers/${items[i].driverId}'),
-                          borderRadius: BorderRadius.circular(AppRadii.sm),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 10),
-                            child: Row(
-                              children: [
-                                Container(
-                                  width: 28,
-                                  height: 28,
-                                  alignment: Alignment.center,
-                                  decoration: BoxDecoration(
-                                    color: AppColors.primary
-                                        .withValues(alpha: 0.12),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: Text(
-                                    '${i + 1}',
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w800,
-                                      color: AppColors.primary,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        items[i].driverName,
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.w600,
-                                          color: p.textPrimary,
-                                        ),
-                                      ),
-                                      Text(
-                                        items[i].isPartial
-                                            ? '${items[i].rating} · partial score'
-                                            : items[i].rating,
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: p.textSecondary,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                Text(
-                                  '${items[i].score}',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w800,
-                                    color: AppColors.primary,
-                                  ),
-                                ),
-                                Icon(
-                                  Icons.chevron_right_rounded,
-                                  size: 18,
-                                  color: p.textMuted,
-                                ),
-                              ],
-                            ),
+                        if (i > 0)
+                          Divider(
+                            height: 1,
+                            thickness: 1,
+                            indent: 68,
+                            endIndent: 16,
+                            color: p.divider.withValues(alpha: 0.9),
                           ),
+                        _RankingRow(
+                          rank: i + 1,
+                          item: items[i],
+                          accent: _rankColor(i),
+                          icon: _rankIcon(i),
+                          highlight: i == 0,
                         ),
                       ],
                     ],
                   ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _RankingRow extends StatelessWidget {
+  const _RankingRow({
+    required this.rank,
+    required this.item,
+    required this.accent,
+    required this.icon,
+    this.highlight = false,
+  });
+
+  final int rank;
+  final DriverRankItem item;
+  final Color accent;
+  final IconData icon;
+  final bool highlight;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.sg;
+    final subtitle = item.isPartial
+        ? '${item.rating} · partial score'
+        : item.rating;
+
+    return Material(
+      color: highlight
+          ? accent.withValues(alpha: 0.06)
+          : Colors.transparent,
+      child: InkWell(
+        onTap: () => context.push('/more/drivers/${item.driverId}'),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(12, 11, 8, 11),
+          child: Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: 0.16),
+                  borderRadius: BorderRadius.circular(11),
+                  border: Border.all(
+                    color: accent.withValues(alpha: 0.36),
+                    width: 1.2,
+                  ),
+                ),
+                child: rank <= 3
+                    ? Icon(icon, size: 19, color: accent)
+                    : Text(
+                        '$rank',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                          color: accent,
+                        ),
+                      ),
+              ),
+              const SizedBox(width: 12),
+              SgAvatar(label: item.driverName, size: 42, color: accent),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      item.driverName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 14.5,
+                        letterSpacing: -0.25,
+                        color: p.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      subtitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 12,
+                        height: 1.2,
+                        color: p.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                constraints: const BoxConstraints(minWidth: 40),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(AppRadii.pill),
+                  border: Border.all(
+                    color: AppColors.primary.withValues(alpha: 0.28),
+                  ),
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  '${item.score}',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 13.5,
+                    letterSpacing: -0.25,
+                    color: AppColors.primaryDark,
+                  ),
+                ),
+              ),
+              Icon(
+                Icons.chevron_right_rounded,
+                size: 22,
+                color: p.textMuted.withValues(alpha: 0.9),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -582,103 +778,173 @@ class _DriverTile extends StatelessWidget {
     final p = context.sg;
     final name =
         driver.fullName.trim().isEmpty ? 'Driver' : driver.fullName.trim();
+    final phone = driver.phone.trim();
+    final plate = driver.assignedVehicleRegistration?.trim();
+
     return SgCard(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.fromLTRB(12, 12, 8, 12),
       onTap: () => context.push('/more/drivers/${driver.id}'),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          SgAvatar(label: name, size: 46),
+          SgAvatar(label: name, size: 48),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  name,
-                  style: TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 15,
-                    letterSpacing: -0.2,
-                    color: p.textPrimary,
-                  ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 15.5,
+                          letterSpacing: -0.3,
+                          height: 1.15,
+                          color: p.textPrimary,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    StatusBadge(driver.status),
+                  ],
                 ),
-                const SizedBox(height: 3),
-                Text(
-                  driver.phone,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: p.textSecondary,
-                  ),
-                ),
-                if (driver.assignedVehicleRegistration != null) ...[
-                  const SizedBox(height: 3),
+                if (phone.isNotEmpty) ...[
+                  const SizedBox(height: 6),
                   Row(
                     children: [
                       Icon(
-                        Icons.local_shipping_outlined,
-                        size: 13,
+                        Icons.phone_rounded,
+                        size: 14,
                         color: p.textMuted,
                       ),
-                      const SizedBox(width: 4),
+                      const SizedBox(width: 6),
                       Expanded(
                         child: Text(
-                          driver.assignedVehicleRegistration!,
+                          phone,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: p.textMuted,
+                            fontSize: 13,
+                            height: 1.2,
+                            color: p.textSecondary,
                           ),
                         ),
                       ),
                     ],
                   ),
                 ],
-                if (driver.licenseExpired || driver.licenseExpiringSoon) ...[
+                if (plate != null && plate.isNotEmpty) ...[
                   const SizedBox(height: 6),
-                  StatusBadge(
-                    driver.licenseExpired
-                        ? 'License expired'
-                        : 'License expiring',
-                    color: driver.licenseExpired
-                        ? AppColors.error
-                        : AppColors.warning,
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
+                    decoration: BoxDecoration(
+                      color: p.chipBg,
+                      borderRadius: BorderRadius.circular(AppRadii.sm),
+                      border: Border.all(
+                        color: p.border.withValues(alpha: 0.75),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.directions_car_filled_rounded,
+                          size: 13,
+                          color: p.textSecondary,
+                        ),
+                        const SizedBox(width: 5),
+                        Flexible(
+                          child: Text(
+                            plate,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 0.35,
+                              color: p.textPrimary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+                if (driver.gpsOnline ||
+                    driver.licenseExpired ||
+                    driver.licenseExpiringSoon) ...[
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      if (driver.gpsOnline)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.success.withValues(alpha: 0.12),
+                            borderRadius:
+                                BorderRadius.circular(AppRadii.pill),
+                            border: Border.all(
+                              color: AppColors.success.withValues(alpha: 0.28),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                width: 6,
+                                height: 6,
+                                decoration: const BoxDecoration(
+                                  color: AppColors.success,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                              const SizedBox(width: 5),
+                              Text(
+                                'GPS online',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w800,
+                                  color:
+                                      AppColors.success.withValues(alpha: 0.98),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      if (driver.licenseExpired || driver.licenseExpiringSoon)
+                        StatusBadge(
+                          driver.licenseExpired
+                              ? 'License expired'
+                              : 'License expiring',
+                          color: driver.licenseExpired
+                              ? AppColors.error
+                              : AppColors.warning,
+                        ),
+                    ],
                   ),
                 ],
               ],
             ),
           ),
-          const SizedBox(width: 8),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              StatusBadge(driver.status),
-              if (driver.gpsOnline) ...[
-                const SizedBox(height: 8),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 6,
-                      height: 6,
-                      decoration: const BoxDecoration(
-                        color: AppColors.success,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    const SizedBox(width: 5),
-                    Text(
-                      'GPS',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.success.withValues(alpha: 0.95),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ],
+          const SizedBox(width: 2),
+          Icon(
+            Icons.chevron_right_rounded,
+            size: 22,
+            color: p.textMuted.withValues(alpha: 0.9),
           ),
         ],
       ),

@@ -86,6 +86,8 @@ abstract class ApiEndpoints {
   /// One call per Trip Details view; the phone does not call Places or Geocoding.
   static const gpsPlannedRoute = '/gps/maps/planned-route';
   static const gpsLive = '/gps/live';
+  /// Dedicated live-map roster (GPS.View + vehicle data-scope). Prefer over /Vehicles + /gps/live.
+  static const gpsLiveFleet = '/gps/live/fleet';
   static const gpsFleetStatusLocal = '/gps/dashboard/fleet-status-local';
   static const gpsOperatorSummary = '/gps/dashboard/operator-summary';
   static const gpsOperatorInsights = '/gps/operator/insights';
@@ -104,6 +106,8 @@ abstract class ApiEndpoints {
   static const gpsCommandsSend = '/gps/commands/send';
   static String gpsCommandsByVehicle(int vehicleId) =>
       '/gps/commands/vehicle/$vehicleId';
+  static String gpsCommandApprove(int id) => '/gps/commands/$id/approve';
+  static String gpsCommandCancel(int id) => '/gps/commands/$id/cancel';
 
   // Fleet ops (staff)
   static const fleetDashboard = '/Fleet/dashboard';
@@ -113,6 +117,7 @@ abstract class ApiEndpoints {
   static String vehicleDocuments(int id) => '/Vehicles/$id/documents';
   static String vehicleMaintenance(int id) => '/Vehicles/$id/maintenance';
   static String vehicleFuel(int id) => '/Vehicles/$id/fuel';
+  static String vehicleAssignDriver(int id) => '/Vehicles/$id/assign-driver';
 
   // Drivers (staff)
   static const drivers = '/drivers';
@@ -121,6 +126,8 @@ abstract class ApiEndpoints {
   static String driverPatchStatus(int id) => '/drivers/$id/status';
   static String driverAssignVehicle(int id) => '/drivers/$id/assign-vehicle';
   static String driverUnassignVehicle(int id) => '/drivers/$id/unassign-vehicle';
+  static String driverTransferVehicle(int id) => '/drivers/$id/transfer-vehicle';
+  static String driverAssignments(int id) => '/drivers/$id/assignments';
   static String driverPerformance(int id) => '/drivers/$id/performance/summary';
   static String driverViolations(int id) => '/drivers/$id/violations';
   static String driverAttendance(int id) => '/drivers/$id/attendance';
@@ -167,11 +174,21 @@ abstract class ApiEndpoints {
   static const maintenanceDashboard = '/Maintenance/dashboard';
   static const maintenanceRequests = '/Maintenance/requests';
   static String maintenanceRequestById(int id) => '/Maintenance/requests/$id';
+  static String maintenanceRequestApprove(int id) =>
+      '/Maintenance/requests/$id/approve';
+  static String maintenanceRequestReject(int id) =>
+      '/Maintenance/requests/$id/reject';
+  static String maintenanceRequestConvert(int id) =>
+      '/Maintenance/requests/$id/convert';
   static const maintenanceRequestStats = '/Maintenance/requests/stats';
   static const maintenanceAlerts = '/Maintenance/alerts';
   static const maintenanceComplianceSummary = '/Maintenance/compliance-summary';
+  static const maintenanceSchedules = '/Maintenance/schedules';
+  static String maintenanceScheduleWorkOrder(int id) =>
+      '/Maintenance/schedules/$id/work-order';
   static const workOrders = '/WorkOrders';
   static String workOrderById(int id) => '/WorkOrders/$id';
+  static String workOrderStatus(int id) => '/WorkOrders/$id/status';
   static const workOrderStats = '/WorkOrders/stats';
 
   // Staff fuel

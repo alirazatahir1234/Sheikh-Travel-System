@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -36,9 +37,9 @@ class _FleetLiveMapScreenState extends ConsumerState<FleetLiveMapScreen> {
   MapType _mapType = MapType.normal;
   double _devicePixelRatio = 2;
   final Map<FleetTrackStatus, BitmapDescriptor> _icons = {};
+  final Map<FleetTrackStatus, BitmapDescriptor> _selectedIcons = {};
   bool _iconsReady = false;
   LatLng? _lastFollowPos;
-  BitmapDescriptor? _transparentIcon;
   Offset? _pulseScreenPos;
   final GlobalKey _mapStackKey = GlobalKey();
   bool _pulseSyncScheduled = false;
@@ -62,19 +63,26 @@ class _FleetLiveMapScreenState extends ConsumerState<FleetLiveMapScreen> {
   Future<void> _loadIcons() async {
     VehiclePulseIcons.clearCache();
     final next = <FleetTrackStatus, BitmapDescriptor>{};
+    final selected = <FleetTrackStatus, BitmapDescriptor>{};
     for (final s in FleetTrackStatus.values) {
       next[s] = await VehiclePulseIcons.iconFor(
         s,
         devicePixelRatio: _devicePixelRatio,
       );
+      selected[s] = await VehiclePulseIcons.iconFor(
+        s,
+        devicePixelRatio: _devicePixelRatio,
+        selected: true,
+      );
     }
-    final transparent = await VehiclePulseIcons.transparentIcon();
     if (!mounted) return;
     setState(() {
       _icons
         ..clear()
         ..addAll(next);
-      _transparentIcon = transparent;
+      _selectedIcons
+        ..clear()
+        ..addAll(selected);
       _iconsReady = true;
     });
   }
@@ -103,21 +111,78 @@ class _FleetLiveMapScreenState extends ConsumerState<FleetLiveMapScreen> {
         .toSet();
   }
 
+  Set<Polygon> _geofencePolygons() {
+    final out = <Polygon>{};
+    for (final g in _geofences.where((x) => x.isPolygon)) {
+      final points = _parseGeoJsonRing(g.geoJson);
+      if (points.length < 3) continue;
+      out.add(
+        Polygon(
+          polygonId: PolygonId('gfp${g.id}'),
+          points: points,
+          fillColor: AppColors.primary.withValues(alpha: 0.12),
+          strokeColor: AppColors.primary.withValues(alpha: 0.55),
+          strokeWidth: 2,
+        ),
+      );
+    }
+    return out;
+  }
+
+  /// Best-effort GeoJSON Polygon / MultiPolygon / Feature outer-ring parser.
+  List<LatLng> _parseGeoJsonRing(String? geoJson) {
+    final raw = geoJson?.trim();
+    if (raw == null || raw.isEmpty) return const [];
+    try {
+      final decoded = jsonDecode(raw);
+      List? ring;
+      if (decoded is Map) {
+        final geom = decoded['geometry'] is Map
+            ? Map<String, dynamic>.from(decoded['geometry'] as Map)
+            : decoded;
+        final type = (geom['type'] ?? '').toString().toLowerCase();
+        final coords = geom['coordinates'];
+        if (type == 'polygon' && coords is List && coords.isNotEmpty) {
+          ring = coords.first is List ? coords.first as List : null;
+        } else if (type == 'multipolygon' &&
+            coords is List &&
+            coords.isNotEmpty) {
+          final firstPoly = coords.first;
+          if (firstPoly is List && firstPoly.isNotEmpty) {
+            ring = firstPoly.first is List ? firstPoly.first as List : null;
+          }
+        } else if (coords is List && coords.isNotEmpty && coords.first is List) {
+          // Bare coordinates array fallback.
+          ring = coords.first as List;
+        }
+      } else if (decoded is List && decoded.isNotEmpty) {
+        ring = decoded.first is List ? decoded.first as List : decoded;
+      }
+      if (ring == null) return const [];
+      final points = <LatLng>[];
+      for (final c in ring) {
+        if (c is! List || c.length < 2) continue;
+        final lng = (c[0] as num?)?.toDouble();
+        final lat = (c[1] as num?)?.toDouble();
+        if (lat == null || lng == null) continue;
+        points.add(LatLng(lat, lng));
+      }
+      return points;
+    } catch (_) {
+      return const [];
+    }
+  }
+
   @override
   void dispose() {
     _map?.dispose();
     super.dispose();
   }
 
-  BitmapDescriptor _iconFor(
-    FleetTrackStatus status, {
-    required bool selected,
-    required bool hideForPulseOverlay,
-  }) {
-    if (selected && hideForPulseOverlay && _transparentIcon != null) {
-      return _transparentIcon!;
-    }
-    return _icons[status] ??
+  BitmapDescriptor _iconFor(FleetTrackStatus status, {required bool selected}) {
+    final map = selected ? _selectedIcons : _icons;
+    return map[status] ??
+        _icons[status] ??
         BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure);
   }
 
@@ -127,25 +192,35 @@ class _FleetLiveMapScreenState extends ConsumerState<FleetLiveMapScreen> {
         .map(
           (v) {
             final selected = v.vehicleId == _selectedId;
+            final rotates = VehiclePulseIcons.rotatesWithHeading(v.status);
             return Marker(
               markerId: MarkerId('v${v.vehicleId}'),
               position: LatLng(v.latitude!, v.longitude!),
-              rotation: v.heading ?? 0,
+              rotation: rotates ? (v.heading ?? 0) : 0,
               flat: true,
               anchor: const Offset(0.5, 0.5),
               zIndexInt: selected ? 10 : 1,
-              icon: _iconFor(
-                v.status,
-                selected: selected,
-                // Keep bitmap visible until overlay position is actually synced.
-                hideForPulseOverlay: selected && _pulseScreenPos != null,
-              ),
+              icon: _iconFor(v.status, selected: selected),
               infoWindow: InfoWindow.noText,
               onTap: () => _selectVehicle(v.vehicleId),
             );
           },
         )
         .toSet();
+  }
+
+  Future<void> _zoomBy(double delta) async {
+    final map = _map;
+    if (map == null) return;
+    _programmaticCamera = true;
+    try {
+      await map.animateCamera(CameraUpdate.zoomBy(delta));
+    } catch (_) {
+    } finally {
+      Future<void>.delayed(const Duration(milliseconds: 400), () {
+        _programmaticCamera = false;
+      });
+    }
   }
 
   void _schedulePulseSync(LatLng? target) {
@@ -454,152 +529,182 @@ class _FleetLiveMapScreenState extends ConsumerState<FleetLiveMapScreen> {
         ? null
         : visible.where((v) => v.vehicleId == _selectedId).firstOrNull;
 
-    return Column(
+    // Full-bleed map with overlay KPI + controls (ERP-style large flexible layout).
+    return Stack(
+      key: _mapStackKey,
       children: [
-        const SizedBox(height: 8),
-        FleetKpiStrip(
-          kpis: hub.kpis,
-          selected: hub.statusFilter,
-          onSelect: (s) {
-            _initialFitDone = false;
-            _userMovedCamera = false;
-            ref.read(fleetHubProvider.notifier).setStatusFilter(s);
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (!mounted) return;
-              final next = ref.read(fleetHubProvider).valueOrNull;
-              if (next != null) unawaited(_fitBounds(next.visible));
-            });
-          },
+        Positioned.fill(
+          child: GoogleMap(
+            initialCameraPosition: _initialCamera(visible),
+            markers: markers,
+            circles: _geofenceCircles(),
+            polygons: _geofencePolygons(),
+            mapType: _mapType,
+            myLocationButtonEnabled: false,
+            zoomControlsEnabled: false,
+            mapToolbarEnabled: false,
+            compassEnabled: true,
+            onMapCreated: (c) {
+              _map = c;
+              unawaited(_fitBounds(visible));
+              if (selected?.hasMapCoords == true) {
+                _schedulePulseSync(
+                  LatLng(selected!.latitude!, selected.longitude!),
+                );
+              }
+            },
+            onCameraMove: (_) {
+              if (selected?.hasMapCoords == true) {
+                _schedulePulseSync(
+                  LatLng(selected!.latitude!, selected.longitude!),
+                );
+              }
+            },
+            onCameraMoveStarted: () {
+              if (!_programmaticCamera) {
+                _userMovedCamera = true;
+                if (_follow) {
+                  setState(() => _follow = false);
+                }
+              }
+            },
+            onTap: (_) => setState(() {
+              _selectedId = null;
+              _follow = false;
+              _lastFollowPos = null;
+              _pulseScreenPos = null;
+            }),
+          ),
         ),
-        const SizedBox(height: 8),
-        Expanded(
-          child: Stack(
-            key: _mapStackKey,
-            children: [
-              GoogleMap(
-                initialCameraPosition: _initialCamera(visible),
-                markers: markers,
-                circles: _geofenceCircles(),
-                mapType: _mapType,
-                myLocationButtonEnabled: false,
-                zoomControlsEnabled: false,
-                mapToolbarEnabled: false,
-                onMapCreated: (c) {
-                  _map = c;
-                  unawaited(_fitBounds(visible));
-                  if (selected?.hasMapCoords == true) {
-                    _schedulePulseSync(
-                      LatLng(selected!.latitude!, selected.longitude!),
-                    );
-                  }
-                },
-                onCameraMove: (_) {
-                  if (selected?.hasMapCoords == true) {
-                    _schedulePulseSync(
-                      LatLng(selected!.latitude!, selected.longitude!),
-                    );
-                  }
-                },
-                onCameraMoveStarted: () {
-                  if (!_programmaticCamera) {
-                    _userMovedCamera = true;
-                    if (_follow) {
-                      setState(() => _follow = false);
-                    }
-                  }
-                },
-                onTap: (_) => setState(() {
-                  _selectedId = null;
-                  _follow = false;
-                  _lastFollowPos = null;
-                  _pulseScreenPos = null;
-                }),
-              ),
-              if (selected != null && selected.hasMapCoords)
-                PulseVehicleOverlay(
-                  screenPosition: _pulseScreenPos,
-                  status: selected.status,
-                  headingDegrees: selected.heading ?? 0,
-                  visible: true,
-                ),
-              if (visible.where((v) => v.hasMapCoords).isEmpty)
-                const Positioned.fill(
-                  child: IgnorePointer(
-                    child: Center(
-                      child: Card(
-                        child: Padding(
-                          padding: EdgeInsets.all(16),
-                          child: Text('No vehicles with GPS positions'),
-                        ),
-                      ),
-                    ),
+        if (selected != null && selected.hasMapCoords)
+          PulseVehicleOverlay(
+            screenPosition: _pulseScreenPos,
+            status: selected.status,
+            headingDegrees: selected.heading ?? 0,
+            visible: true,
+            // Rings only — Google marker keeps the ERP glyph (matches ERP pulse HTML).
+            showDisc: false,
+            discRadius: 16,
+          ),
+        if (visible.where((v) => v.hasMapCoords).isEmpty)
+          const Positioned.fill(
+            child: IgnorePointer(
+              child: Center(
+                child: Card(
+                  child: Padding(
+                    padding: EdgeInsets.all(16),
+                    child: Text('No vehicles with GPS positions'),
                   ),
                 ),
-              Positioned(
-                top: 12,
-                right: 12,
-                child: Column(
-                  children: [
-                    _MapFab(
-                      icon: Icons.layers_outlined,
-                      tooltip: 'Map type',
-                      onPressed: () => setState(() {
-                        _mapType = _mapType == MapType.normal
-                            ? MapType.hybrid
-                            : MapType.normal;
-                      }),
-                    ),
-                    const SizedBox(height: 8),
-                    _MapFab(
-                      icon: Icons.search_rounded,
-                      tooltip: 'Search vehicle',
-                      onPressed: () => _searchVehicle(visible),
-                    ),
-                    const SizedBox(height: 8),
-                    _MapFab(
-                      icon: Icons.refresh_rounded,
-                      tooltip: 'Refresh',
-                      onPressed: () => unawaited(_manualRefresh()),
-                    ),
-                  ],
-                ),
               ),
-              if (selected != null)
-                Positioned.fill(
-                  child: VehicleLiveMapSheet(
-                    vehicle: selected,
-                    follow: _follow,
-                    canCommands: canCommands,
-                    onFollowToggle: () => setState(() {
-                      _follow = !_follow;
-                      if (_follow) _userMovedCamera = false;
-                    }),
-                    onCenter: () {
-                      if (selected.hasMapCoords) {
-                        unawaited(
-                          _centerOn(
-                            LatLng(selected.latitude!, selected.longitude!),
-                            zoom: 15,
-                          ),
-                        );
-                      }
-                    },
-                    onNavigate: () => _openExternalNav(selected),
-                    onCommands: canCommands
-                        ? () => showVehicleCommandsSheet(
-                              context,
-                              selected.vehicleId,
-                            )
-                        : null,
-                    onClose: () => setState(() {
-                      _selectedId = null;
-                      _follow = false;
-                      _lastFollowPos = null;
-                      _pulseScreenPos = null;
-                    }),
-                  ),
+            ),
+          ),
+        Positioned(
+          top: 8,
+          left: 0,
+          right: 0,
+          child: Material(
+            color: Colors.white.withValues(alpha: 0.92),
+            elevation: 1,
+            child: Padding(
+              padding: const EdgeInsets.only(top: 6, bottom: 8),
+              child: FleetKpiStrip(
+                kpis: hub.kpis,
+                selected: hub.statusFilter,
+                onSelect: (s) {
+                  _initialFitDone = false;
+                  _userMovedCamera = false;
+                  ref.read(fleetHubProvider.notifier).setStatusFilter(s);
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (!mounted) return;
+                    final next = ref.read(fleetHubProvider).valueOrNull;
+                    if (next != null) unawaited(_fitBounds(next.visible));
+                  });
+                },
+              ),
+            ),
+          ),
+        ),
+        if (selected != null)
+          Positioned.fill(
+            child: VehicleLiveMapSheet(
+              vehicle: selected,
+              follow: _follow,
+              canCommands: canCommands,
+              onFollowToggle: () => setState(() {
+                _follow = !_follow;
+                if (_follow) _userMovedCamera = false;
+              }),
+              onCenter: () {
+                if (selected.hasMapCoords) {
+                  unawaited(
+                    _centerOn(
+                      LatLng(selected.latitude!, selected.longitude!),
+                      zoom: 15,
+                    ),
+                  );
+                }
+              },
+              onNavigate: () => _openExternalNav(selected),
+              onCommands: canCommands
+                  ? () => showVehicleCommandsSheet(
+                        context,
+                        selected.vehicleId,
+                      )
+                  : null,
+              onClose: () => setState(() {
+                _selectedId = null;
+                _follow = false;
+                _lastFollowPos = null;
+                _pulseScreenPos = null;
+              }),
+            ),
+          ),
+        // Above sheet so +/- stay visible and tappable (ERP glass zoom cluster).
+        Positioned(
+          right: 12,
+          top: 0,
+          bottom: selected != null ? 140 : 0,
+          child: Align(
+            alignment: Alignment.centerRight,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _MapFab(
+                  icon: Icons.add,
+                  tooltip: 'Zoom in',
+                  onPressed: () => unawaited(_zoomBy(1)),
                 ),
-            ],
+                const SizedBox(height: 8),
+                _MapFab(
+                  icon: Icons.remove,
+                  tooltip: 'Zoom out',
+                  onPressed: () => unawaited(_zoomBy(-1)),
+                ),
+                const SizedBox(height: 8),
+                _MapFab(
+                  icon: Icons.layers_outlined,
+                  tooltip: 'Map type',
+                  onPressed: () => setState(() {
+                    _mapType = _mapType == MapType.normal
+                        ? MapType.hybrid
+                        : MapType.normal;
+                  }),
+                ),
+                const SizedBox(height: 8),
+                _MapFab(
+                  icon: Icons.search_rounded,
+                  tooltip: 'Search vehicle',
+                  onPressed: () => _searchVehicle(visible),
+                ),
+                const SizedBox(height: 8),
+                _MapFab(
+                  icon: Icons.refresh_rounded,
+                  tooltip: 'Refresh',
+                  onPressed: () => unawaited(_manualRefresh()),
+                ),
+              ],
+            ),
           ),
         ),
       ],
@@ -622,12 +727,20 @@ class _MapFab extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: Colors.white,
-      elevation: 3,
+      elevation: 4,
+      shadowColor: Colors.black54,
       shape: const CircleBorder(),
-      child: IconButton(
-        tooltip: tooltip,
-        icon: Icon(icon, size: 22),
-        onPressed: onPressed,
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: onPressed,
+        child: Tooltip(
+          message: tooltip,
+          child: SizedBox(
+            width: 44,
+            height: 44,
+            child: Icon(icon, size: 22, color: AppColors.textPrimary),
+          ),
+        ),
       ),
     );
   }

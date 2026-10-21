@@ -511,6 +511,19 @@ export class GpsGeofencesComponent implements OnInit, AfterViewInit, OnDestroy {
     this.showForm = true;
     this.drawHint = 'Update details below. Change radius or color to preview on the map.';
     this.loadFenceDetails(g.id);
+    // Load existing Entry/Exit alert rule flags for this fence (do not force true).
+    this.gps.getAlertRules().subscribe({
+      next: rules => {
+        const rule = rules.find(r => r.geofenceId === g.id);
+        if (rule) {
+          this.form.patchValue({
+            notifyOnEntry: !!rule.alertOnEnter,
+            notifyOnExit: !!rule.alertOnExit
+          });
+        }
+      },
+      error: () => { /* keep defaults */ }
+    });
 
     // Mirror existing geometry as draft for live preview edits
     setTimeout(() => {
@@ -639,13 +652,33 @@ export class GpsGeofencesComponent implements OnInit, AfterViewInit, OnDestroy {
 
     this.saving = true;
     if (this.editGeofence) {
-      this.gps.updateGeofence(this.editGeofence.id, payload).subscribe({
+      const geofenceId = this.editGeofence.id;
+      const notifyOnEntry = !!v['notifyOnEntry'];
+      const notifyOnExit = !!v['notifyOnExit'];
+      this.gps.updateGeofence(geofenceId, payload).subscribe({
         next: () => {
-          this.saving = false;
-          this.toast.success('Geofence updated');
-          this.closeForm();
-          this.load();
-          this.loadStats();
+          const finishEdit = (extraMsg?: string): void => {
+            this.saving = false;
+            this.toast.success(extraMsg || 'Geofence updated');
+            this.closeForm();
+            this.load();
+            this.loadStats();
+          };
+          if (notifyOnEntry || notifyOnExit) {
+            this.gps.createAlertRule({
+              geofenceId,
+              alertOnEnter: notifyOnEntry,
+              alertOnExit: notifyOnExit
+            }).subscribe({
+              next: () => finishEdit(),
+              error: (err: { error?: { message?: string } }) => {
+                finishEdit();
+                this.toast.warning(err?.error?.message || 'Geofence saved, but Entry/Exit alert rule failed.');
+              }
+            });
+          } else {
+            finishEdit();
+          }
         },
         error: (err: { error?: { message?: string } }) => {
           this.saving = false;
@@ -696,7 +729,10 @@ export class GpsGeofencesComponent implements OnInit, AfterViewInit, OnDestroy {
           alertOnExit: notifyOnExit
         }).subscribe({
           next: () => finish(),
-          error: () => finish()
+          error: (err: { error?: { message?: string } }) => {
+            finish();
+            this.toast.warning(err?.error?.message || 'Geofence created, but Entry/Exit alert rule failed.');
+          }
         });
       } else {
         finish();
@@ -711,7 +747,10 @@ export class GpsGeofencesComponent implements OnInit, AfterViewInit, OnDestroy {
         replaceVehicles: true
       }).subscribe({
         next: () => createRuleThenFinish(),
-        error: () => createRuleThenFinish()
+        error: (err: { error?: { message?: string } }) => {
+          this.toast.warning(err?.error?.message || 'Geofence created, but vehicle/branch assignment failed.');
+          createRuleThenFinish();
+        }
       });
     } else {
       createRuleThenFinish();

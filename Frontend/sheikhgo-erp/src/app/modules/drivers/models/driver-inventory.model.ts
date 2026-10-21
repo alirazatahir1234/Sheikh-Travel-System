@@ -106,7 +106,7 @@ export function buildDriverKpiGroups(stats: DriverStats | null): DriverKpiGroups
         value: String(available),
         icon: 'check_circle',
         variant: 'operational',
-        subtext: 'Ready for dispatch'
+        subtext: 'Dispatch bucket · free to assign'
       },
       {
         title: 'On Trip',
@@ -114,9 +114,9 @@ export function buildDriverKpiGroups(stats: DriverStats | null): DriverKpiGroups
         icon: 'route',
         variant: 'operational',
         progress: utilization,
-        trend: onTrip > 0 ? 'Live' : undefined,
+        trend: onTrip > 0 ? 'En route' : undefined,
         trendUp: onTrip > 0,
-        subtext: 'Currently en route'
+        subtext: 'Dispatch bucket · on trip'
       },
       {
         title: 'GPS Online',
@@ -177,12 +177,32 @@ export function buildAssignmentCoverage(stats: DriverStats | null): AssignmentCo
   const assignedDrivers = stats?.assignedDrivers ?? 0;
   const unassignedDrivers = Math.max(0, total - assignedDrivers);
   const driverAssignmentPct = total > 0 ? Math.round((assignedDrivers / total) * 100) : 0;
+  const assignedVehicles = stats?.assignedVehicles ?? assignedDrivers;
   return {
     assignedDrivers,
     unassignedDrivers,
-    assignedVehicles: assignedDrivers,
+    assignedVehicles,
     totalDrivers: total,
     driverAssignmentPct
+  };
+}
+
+/** Exclusive license windows derived from cumulative API counters. */
+export function exclusiveLicenseWindows(stats: DriverStats | null): {
+  expired: number;
+  within7: number;
+  days8to30: number;
+  days31to60: number;
+} {
+  const expired = stats?.licensesExpired ?? 0;
+  const within7 = stats?.licensesExpiringIn7Days ?? 0;
+  const within30 = stats?.licensesExpiringSoon ?? 0;
+  const within60 = stats?.licensesExpiringIn60Days ?? 0;
+  return {
+    expired,
+    within7,
+    days8to30: Math.max(0, within30 - within7),
+    days31to60: Math.max(0, within60 - within30)
   };
 }
 

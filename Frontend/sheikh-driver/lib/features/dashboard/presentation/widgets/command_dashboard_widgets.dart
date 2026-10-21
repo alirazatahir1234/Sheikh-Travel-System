@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/constants/app_theme.dart';
 import '../../../../shared/widgets/sg_ui.dart';
+import '../../../../shared/widgets/sg_keyboard_fields.dart';
 import '../../data/dashboard_api.dart';
 import '../../domain/dashboard_models.dart';
 import '../../domain/dashboard_role.dart';
@@ -410,27 +411,21 @@ class _UniversalSearchSheetState extends ConsumerState<_UniversalSearchSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
     return SafeArea(
-      child: SizedBox(
+      child: Padding(
+        padding: EdgeInsets.only(bottom: bottomInset),
+        child: SizedBox(
         height: MediaQuery.sizeOf(context).height * 0.72,
         child: Column(
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-              child: TextField(
+              child: SgSearchField(
                 controller: _ctrl,
                 autofocus: true,
+                hintText: 'Plate, driver, trip, booking…',
                 onChanged: _onChanged,
-                decoration: InputDecoration(
-                  hintText: 'Plate, driver, trip, booking…',
-                  prefixIcon: const Icon(Icons.search_rounded),
-                  filled: true,
-                  fillColor: AppColors.surface,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(AppRadii.md),
-                    borderSide: BorderSide.none,
-                  ),
-                ),
               ),
             ),
             if (_loading) const LinearProgressIndicator(minHeight: 2),
@@ -462,6 +457,7 @@ class _UniversalSearchSheetState extends ConsumerState<_UniversalSearchSheet> {
                     ),
             ),
           ],
+        ),
         ),
       ),
     );

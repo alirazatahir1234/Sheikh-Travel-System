@@ -67,7 +67,7 @@
 
 .table-card {
   background: #fff; border-radius: 12px; border: 1px solid #e5e7eb;
-  overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,.06);
+  overflow-x: auto; box-shadow: 0 1px 3px rgba(0,0,0,.06);
 }
 .data-table {
   width: 100%; border-collapse: collapse;
@@ -105,7 +105,7 @@
 
 .drawer-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.35); z-index: 100; }
 .drawer {
-  position: fixed; top: 0; right: -440px; width: 440px; height: 100vh;
+  position: fixed; top: 0; right: -440px; width: 440px; max-width: 100vw; height: 100vh;
   background: #fff; z-index: 101; display: flex; flex-direction: column;
   box-shadow: -4px 0 24px rgba(0,0,0,.12); transition: right .25s ease;
   &.open { right: 0; }
@@ -131,6 +131,6 @@
 }
 
 @media (max-width: 900px) {
-  .alert-detail-drawer { width: 100%; right: -100%; }
+  .drawer, .alert-detail-drawer { width: 100%; max-width: 100vw; right: -100%; }
   .detail-grid { grid-template-columns: 1fr; }
 }

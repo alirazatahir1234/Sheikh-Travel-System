@@ -171,15 +171,23 @@ export interface DriverStats {
   totalDrivers: number;
   active: number;
   inactive?: number;
+  /** Dispatch-availability bucket: OnTrip (exclusive with Available/Busy/Unavailable). */
   onTrip: number;
   offDuty: number;
+  /** Dispatch-availability bucket: Available (not duty Status alone). */
   available: number;
+  /** Dispatch-availability bucket: Busy (assigned, not on trip). */
   busy?: number;
+  /** Dispatch-availability bucket: Unavailable. */
+  unavailable?: number;
   onLeave: number;
   suspended: number;
   gpsOnline?: number;
+  /** Cumulative: licenses expiring within 30 days (includes ≤7d). */
   licensesExpiringSoon: number;
+  /** Cumulative: licenses expiring within 7 days. */
   licensesExpiringIn7Days: number;
+  /** Cumulative: licenses expiring within 60 days (includes ≤30d). */
   licensesExpiringIn60Days?: number;
   licensesExpired: number;
   verifiedDrivers: number;
@@ -187,6 +195,8 @@ export interface DriverStats {
   rejectedDrivers?: number;
   underReviewDrivers?: number;
   assignedDrivers: number;
+  /** Distinct vehicles with an active driver assignment. */
+  assignedVehicles?: number;
   openViolations?: number;
 }
 

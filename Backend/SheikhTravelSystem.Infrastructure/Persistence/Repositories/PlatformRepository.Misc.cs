@@ -43,32 +43,4 @@ public sealed partial class PlatformRepository
             cancellationToken: cancellationToken));
     }
 
-    public async Task<int> ApproveGpsDeviceCommandAsync(
-        int commandId, bool approve, string? note, string? approvedBy, CancellationToken cancellationToken = default)
-    {
-        using var connection = dbFactory.CreateConnection();
-        var status = approve ? "pending" : "cancelled";
-        var approval = approve ? "Approved" : "Rejected";
-        return await connection.ExecuteAsync(new CommandDefinition(
-            """
-            UPDATE GpsDeviceCommands
-            SET Status = @Status,
-                ApprovalStatus = @Approval,
-                ApprovedBy = @By,
-                ApprovedAt = SYSUTCDATETIME(),
-                UpdatedAt = SYSUTCDATETIME(),
-                ErrorMessage = CASE WHEN @Approve = 0 THEN COALESCE(@Note, N'Rejected') ELSE ErrorMessage END
-            WHERE Id = @Id AND IsDeleted = 0 AND Status = N'PendingApproval'
-            """,
-            new
-            {
-                Id = commandId,
-                Status = status,
-                Approval = approval,
-                By = approvedBy,
-                Approve = approve,
-                Note = note
-            },
-            cancellationToken: cancellationToken));
-    }
 }

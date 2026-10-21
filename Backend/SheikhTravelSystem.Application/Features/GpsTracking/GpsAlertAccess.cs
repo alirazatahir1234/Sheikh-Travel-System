@@ -17,7 +17,7 @@ internal static class GpsAlertAccess
             ["DISPATCHER"] =
             [
                 "trip_started", "trip_completed", "trip_cancelled", "driver_assigned",
-                "driver_late", "route_deviation", "geofence_exit", "speed_exceeded",
+                "driver_late", "route_deviation", "geofence_enter", "geofence_exit", "speed_exceeded",
                 "overspeed", "idle_vehicle", "gps_offline", "vehicle_offline", "booking_cancellation",
                 "eta_delay", "vehicle_arrived", "vehicle_departed"
             ],

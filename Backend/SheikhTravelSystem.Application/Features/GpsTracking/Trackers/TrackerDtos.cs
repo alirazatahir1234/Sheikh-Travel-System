@@ -9,6 +9,9 @@ public static class TrackerCatalog
             ["teltonika_fmb140"] = new("Teltonika FMB140", "Teltonika", "teltonika", true),
             ["teltonika_fmb001"] = new("Teltonika FMB001", "Teltonika", "teltonika", false),
             ["teltonika_fmc001"] = new("Teltonika FMC001", "Teltonika", "teltonika", false),
+            ["jimi_vg03"]        = new("Jimi VG03", "Jimi IoT", "jimi", true),
+            ["jimi_ev26r"]       = new("Jimi EV26R", "Jimi IoT", "gt06", true),
+            ["jimi_gt06"]        = new("Jimi GT06", "Jimi IoT", "gt06", true),
             ["concox_gt06n"]     = new("Concox GT06N", "Concox", "gt06", true),
             ["queclink_gv75"]    = new("Queclink GV75", "Queclink", "gl200", true),
         };

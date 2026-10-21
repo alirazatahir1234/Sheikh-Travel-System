@@ -121,27 +121,33 @@ public interface IVehicleRepository
         CancellationToken cancellationToken = default);
 }
 
-/// <summary>SQL snapshot for vehicle GPS tab (before optional live Traccar overlay).</summary>
-public sealed record VehicleGpsSnapshot(
-    int? GpsDeviceId,
-    string? DeviceName,
-    string? UniqueId,
-    bool? IsActive,
-    DateTime? LastSeenAt,
-    bool? LastIgnition,
-    double? Latitude,
-    double? Longitude,
-    decimal? Speed,
-    DateTime? LastUpdate,
-    string? SimNumber,
-    string? ModelName,
-    string? BrandName,
-    DateTime? InstallationDate,
-    decimal? TotalDistanceKm,
-    decimal? BatteryLevel,
-    int? GsmSignal,
-    string? Address,
-    bool GpsOnline,
-    decimal? Heading,
-    decimal? FuelLevel,
-    int? TraccarDeviceId);
+/// <summary>
+/// SQL snapshot for vehicle GPS tab (before optional live Traccar overlay).
+/// Mutable class (not positional record): Dapper cannot materialize nullable
+/// record constructors when SQL returns non-null column types (e.g. int vs int?).
+/// </summary>
+public sealed class VehicleGpsSnapshot
+{
+    public int? GpsDeviceId { get; set; }
+    public string? DeviceName { get; set; }
+    public string? UniqueId { get; set; }
+    public bool? IsActive { get; set; }
+    public DateTime? LastSeenAt { get; set; }
+    public bool? LastIgnition { get; set; }
+    public double? Latitude { get; set; }
+    public double? Longitude { get; set; }
+    public decimal? Speed { get; set; }
+    public DateTime? LastUpdate { get; set; }
+    public string? SimNumber { get; set; }
+    public string? ModelName { get; set; }
+    public string? BrandName { get; set; }
+    public DateTime? InstallationDate { get; set; }
+    public decimal? TotalDistanceKm { get; set; }
+    public decimal? BatteryLevel { get; set; }
+    public int? GsmSignal { get; set; }
+    public string? Address { get; set; }
+    public bool GpsOnline { get; set; }
+    public decimal? Heading { get; set; }
+    public decimal? FuelLevel { get; set; }
+    public int? TraccarDeviceId { get; set; }
+}

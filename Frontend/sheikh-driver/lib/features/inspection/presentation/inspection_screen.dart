@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import '../../../core/constants/app_theme.dart';
+import '../../../shared/widgets/sg_keyboard_fields.dart';
 import '../data/inspection_api.dart';
 import '../domain/inspection_models.dart';
 
@@ -246,13 +247,12 @@ class _NewInspectionTabState extends ConsumerState<_NewInspectionTab> {
               },
             ),
             const SizedBox(height: 12),
-            TextField(
+            SgSheetAmountFormField(
               controller: _odometerCtrl,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: 'Odometer reading',
-                border: OutlineInputBorder(),
-              ),
+              label: 'Odometer reading',
+              unit: 'km',
+              allowDecimal: false,
+              helperExample: 'e.g. 45210',
             ),
             const SizedBox(height: 16),
             const Text('Checklist',
@@ -349,13 +349,11 @@ class _NewInspectionTabState extends ConsumerState<_NewInspectionTab> {
                 child: const Text('Clear signature'),
               ),
             ),
-            TextField(
+            SgSheetTextFormField(
               controller: _commentsCtrl,
-              maxLines: 2,
-              decoration: const InputDecoration(
-                labelText: 'Comments',
-                border: OutlineInputBorder(),
-              ),
+              label: 'Comments',
+              maxLines: 3,
+              textCapitalization: TextCapitalization.sentences,
             ),
             const SizedBox(height: 20),
             FilledButton.icon(

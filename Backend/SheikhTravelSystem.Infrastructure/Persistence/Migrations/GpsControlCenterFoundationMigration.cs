@@ -302,14 +302,16 @@ public static class GpsControlCenterFoundationMigration
             ("relayOn", "Relay ON", "Operations", "Relay", "High", true, true, 50),
             ("relayOff", "Relay OFF", "Operations", "Relay", "High", true, true, 60),
             ("status", "Device Status", "Diagnostics", null, "Low", false, false, 70),
+            ("check", "Device Check", "Diagnostics", null, "Low", false, false, 75),
             ("version", "Firmware Version", "Diagnostics", null, "Low", false, false, 80),
             ("iccid", "SIM ICCID", "Diagnostics", null, "Low", false, false, 90),
             ("imsi", "SIM IMSI", "Diagnostics", null, "Low", false, false, 100),
             ("param", "Basic Parameters", "Diagnostics", null, "Low", false, false, 110),
             ("battery", "Battery Info", "Diagnostics", "Battery", "Low", false, false, 120),
+            ("gprsset", "GPRSSET", "Diagnostics", null, "Low", false, false, 125),
             ("signal", "Network / Signal", "Diagnostics", null, "Low", false, false, 130),
-            ("apn", "Set APN", "Installation", null, "High", true, true, 140),
-            ("server", "Server Settings", "Installation", null, "Critical", true, true, 150),
+            ("apn", "Query APN", "Diagnostics", null, "Low", false, false, 140),
+            ("server", "Network Settings", "Diagnostics", null, "Low", false, false, 150),
             ("heartbeat", "Heartbeat Interval", "Installation", null, "Medium", false, false, 160),
             ("timezone", "Timezone", "Installation", null, "Medium", false, false, 170),
             ("buzzer", "Buzzer", "Operations", null, "Low", false, false, 180),
@@ -343,23 +345,27 @@ public static class GpsControlCenterFoundationMigration
             "SELECT Id FROM TrackerModels WHERE CatalogKey = N'jimi_ev26r'", cancellationToken: ct));
         if (modelId is null) return;
 
+        // EV26R / GT06: restart & position via custom payloads (rebootDevice/positionSingle → 400).
+        // Engine cut-off prefers Traccar engineStop/engineResume with RELAY SMS payloads.
         var templates = new (string Cmd, string Transport, string Payload, string? Traccar, string? Parser)[]
         {
-            ("engineStop", "Traccar", "engineStop", "engineStop", null),
-            ("engineResume", "Traccar", "engineResume", "engineResume", null),
-            ("positionSingle", "Traccar", "positionSingle", "positionSingle", null),
-            ("restart", "Auto", "RESET#", "rebootDevice", null),
-            ("relayOn", "Auto", "RELAY,1#", "outputControl", null),
-            ("relayOff", "Auto", "RELAY,0#", "outputControl", null),
-            ("status", "Sms", "STATUS#", null, "status"),
-            ("version", "Sms", "VERSION#", null, "version"),
-            ("iccid", "Sms", "ICCID#", null, "iccid"),
-            ("imsi", "Sms", "IMSI#", null, "imsi"),
-            ("param", "Sms", "PARAM#", null, "param"),
-            ("battery", "Sms", "STATUS#", null, "status"),
-            ("signal", "Sms", "GPRSSET#", null, "signal"),
-            ("apn", "Sms", "APN,{{apn}},{{user}},{{password}}#", null, null),
-            ("server", "Sms", "SERVER,0,{{host}},{{port}}#", null, null),
+            ("engineStop", "Auto", "RELAY,1#", "engineStop", null),
+            ("engineResume", "Auto", "RELAY,0#", "engineResume", null),
+            ("positionSingle", "Auto", "WHERE#", "custom", null),
+            ("restart", "Auto", "RESET#", "custom", null),
+            ("relayOn", "Auto", "RELAY,1#", "custom", null),
+            ("relayOff", "Auto", "RELAY,0#", "custom", null),
+            ("status", "Auto", "STATUS#", "custom", "status"),
+            ("check", "Auto", "CHECK#", "custom", "check"),
+            ("version", "Auto", "VERSION#", "custom", "version"),
+            ("iccid", "Auto", "ICCID#", "custom", "iccid"),
+            ("imsi", "Auto", "IMSI#", "custom", "imsi"),
+            ("param", "Auto", "PARAM#", "custom", "param"),
+            ("battery", "Auto", "STATUS#", "custom", "status"),
+            ("gprsset", "Auto", "GPRSSET#", "custom", "signal"),
+            ("signal", "Auto", "GPRSSET#", "custom", "signal"),
+            ("apn", "Auto", "APN#", "custom", null),
+            ("server", "Auto", "GPRSSET#", "custom", null),
             ("heartbeat", "Sms", "HBT,{{intervalSeconds}},{{intervalSeconds}}#", null, null),
             ("timezone", "Sms", "GMT,E,{{offsetHours}},0#", null, null),
             ("buzzer", "Traccar", "custom", "custom", null),
@@ -380,29 +386,32 @@ public static class GpsControlCenterFoundationMigration
                 cancellationToken: ct));
         }
 
-        // Also seed Traccar-first templates for GT06-family models that already exist
+        // GT06-family ops templates (RESET# / WHERE# / RELAY — never rebootDevice on GT06).
         await connection.ExecuteAsync(new CommandDefinition("""
             INSERT INTO GpsCommandTemplates (TrackerModelId, CommandKey, Transport, PayloadTemplate, TraccarType, TemplateVersion)
-            SELECT m.Id, d.CommandKey, N'Traccar',
+            SELECT m.Id, d.CommandKey, N'Auto',
                    CASE d.CommandKey
                        WHEN N'restart' THEN N'RESET#'
+                       WHEN N'positionSingle' THEN N'WHERE#'
+                       WHEN N'engineStop' THEN N'RELAY,1#'
+                       WHEN N'engineResume' THEN N'RELAY,0#'
                        WHEN N'relayOn' THEN N'RELAY,1#'
                        WHEN N'relayOff' THEN N'RELAY,0#'
                        ELSE d.CommandKey END,
                    CASE d.CommandKey
                        WHEN N'engineStop' THEN N'engineStop'
                        WHEN N'engineResume' THEN N'engineResume'
-                       WHEN N'positionSingle' THEN N'positionSingle'
-                       WHEN N'restart' THEN N'rebootDevice'
-                       WHEN N'relayOn' THEN N'outputControl'
-                       WHEN N'relayOff' THEN N'outputControl'
+                       WHEN N'positionSingle' THEN N'custom'
+                       WHEN N'restart' THEN N'custom'
+                       WHEN N'relayOn' THEN N'custom'
+                       WHEN N'relayOff' THEN N'custom'
                        WHEN N'buzzer' THEN N'custom'
                        WHEN N'custom' THEN N'custom'
                        ELSE NULL END,
                    1
             FROM TrackerModels m
             CROSS JOIN GpsCommandDefinitions d
-            WHERE m.CatalogKey IN (N'jimi_gt06', N'concox_gt06n', N'sinotrack_st901', N'jimi_vg03')
+            WHERE m.CatalogKey IN (N'jimi_gt06', N'concox_gt06n', N'sinotrack_st901', N'jimi_vg03', N'concox_at6')
               AND d.CommandKey IN (N'engineStop', N'engineResume', N'positionSingle', N'restart', N'relayOn', N'relayOff', N'buzzer', N'custom')
               AND NOT EXISTS (
                   SELECT 1 FROM GpsCommandTemplates t

@@ -988,6 +988,10 @@ export class GpsTrackingService {
     return this.http.post<number>(`${this.base}/commands/send`, { gpsDeviceId, commandType, reason, attributes });
   }
 
+  approveCommand(id: number, approve = true, note?: string): Observable<boolean> {
+    return this.http.post<boolean>(`${this.base}/commands/${id}/approve`, { approve, note });
+  }
+
   getCommands(
     deviceId: number,
     filters?: { status?: string; commandType?: string; from?: Date; to?: Date; page?: number; pageSize?: number }

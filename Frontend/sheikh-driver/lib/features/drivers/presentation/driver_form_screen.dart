@@ -7,6 +7,7 @@ import '../../../core/errors/error_handler.dart';
 import '../data/drivers_api.dart';
 import '../domain/driver_models.dart';
 import 'drivers_notifier.dart';
+import '../../../shared/widgets/sg_keyboard_fields.dart';
 
 /// Create or edit a driver (OWNER / staff with Driver.Create|Update).
 class DriverFormScreen extends ConsumerStatefulWidget {
@@ -228,34 +229,36 @@ class _DriverFormScreenState extends ConsumerState<DriverFormScreen> {
                   child: ListView(
                     padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
                     children: [
-                      TextFormField(
+                      SgSheetTextFormField(
                         controller: _firstName,
+                        label: 'First name *',
                         textCapitalization: TextCapitalization.words,
-                        decoration: const InputDecoration(labelText: 'First name *'),
                         validator: (v) =>
                             (v == null || v.trim().isEmpty) ? 'Required' : null,
                       ),
                       const SizedBox(height: 12),
-                      TextFormField(
+                      SgSheetTextFormField(
                         controller: _lastName,
+                        label: 'Last name *',
                         textCapitalization: TextCapitalization.words,
-                        decoration: const InputDecoration(labelText: 'Last name *'),
                         validator: (v) =>
                             (v == null || v.trim().isEmpty) ? 'Required' : null,
                       ),
                       const SizedBox(height: 12),
-                      TextFormField(
+                      SgSheetTextFormField(
                         controller: _phone,
+                        label: 'Phone *',
                         keyboardType: TextInputType.phone,
-                        decoration: const InputDecoration(labelText: 'Phone *'),
+                        prefixIcon: Icons.phone_outlined,
                         validator: (v) =>
                             (v == null || v.trim().isEmpty) ? 'Required' : null,
                       ),
                       const SizedBox(height: 12),
-                      TextFormField(
+                      SgSheetTextFormField(
                         controller: _email,
+                        label: 'Email *',
                         keyboardType: TextInputType.emailAddress,
-                        decoration: const InputDecoration(labelText: 'Email *'),
+                        prefixIcon: Icons.email_outlined,
                         validator: (v) {
                           final t = v?.trim() ?? '';
                           if (t.isEmpty) return 'Required';
@@ -264,10 +267,9 @@ class _DriverFormScreenState extends ConsumerState<DriverFormScreen> {
                         },
                       ),
                       const SizedBox(height: 12),
-                      TextFormField(
+                      SgSheetTextFormField(
                         controller: _license,
-                        decoration:
-                            const InputDecoration(labelText: 'License number *'),
+                        label: 'License number *',
                         validator: (v) =>
                             (v == null || v.trim().isEmpty) ? 'Required' : null,
                       ),
@@ -305,30 +307,29 @@ class _DriverFormScreenState extends ConsumerState<DriverFormScreen> {
                         ),
                       ),
                       const SizedBox(height: 8),
-                      TextFormField(
+                      SgSheetTextFormField(
                         controller: _cnic,
-                        decoration: const InputDecoration(labelText: 'CNIC'),
+                        label: 'CNIC',
                       ),
                       const SizedBox(height: 12),
-                      TextFormField(
+                      SgSheetTextFormField(
                         controller: _address,
+                        label: 'Address',
                         maxLines: 2,
-                        decoration: const InputDecoration(labelText: 'Address'),
+                        textCapitalization: TextCapitalization.sentences,
                       ),
                       const SizedBox(height: 12),
-                      TextFormField(
+                      SgSheetTextFormField(
                         controller: _emergencyName,
-                        decoration: const InputDecoration(
-                          labelText: 'Emergency contact name',
-                        ),
+                        label: 'Emergency contact name',
+                        textCapitalization: TextCapitalization.words,
                       ),
                       const SizedBox(height: 12),
-                      TextFormField(
+                      SgSheetTextFormField(
                         controller: _emergencyPhone,
+                        label: 'Emergency contact phone',
                         keyboardType: TextInputType.phone,
-                        decoration: const InputDecoration(
-                          labelText: 'Emergency contact phone',
-                        ),
+                        prefixIcon: Icons.phone_outlined,
                       ),
                       if (widget.isEdit) ...[
                         const SizedBox(height: 8),

@@ -32,6 +32,13 @@ class _VehicleCommandsSheetState extends ConsumerState<_VehicleCommandsSheet> {
     'engineResume',
     'positionSingle',
     'restart',
+    'status',
+    'check',
+    'iccid',
+    'imsi',
+    'apn',
+    'gprsset',
+    'server',
   };
 
   bool _loading = true;
@@ -77,7 +84,7 @@ class _VehicleCommandsSheetState extends ConsumerState<_VehicleCommandsSheet> {
       setState(() {
         _deviceId = deviceId;
         _supported = supported;
-        _recent = recent.take(8).toList();
+        _recent = recent.take(12).toList();
         _loading = false;
       });
     } catch (e) {
@@ -87,6 +94,21 @@ class _VehicleCommandsSheetState extends ConsumerState<_VehicleCommandsSheet> {
         _error = e.toString();
       });
     }
+  }
+
+  String _toastForSend(String label, String apiMessage) {
+    final lower = apiMessage.toLowerCase();
+    if (lower.contains('approval') || lower.contains('awaiting')) {
+      return '$label queued for approval';
+    }
+    if (lower.contains('sent to device')) {
+      return '$label sent to device';
+    }
+    if (lower.contains('not configured')) {
+      return '$label logged — delivery not configured';
+    }
+    if (apiMessage.trim().isNotEmpty) return apiMessage;
+    return '$label submitted';
   }
 
   Future<void> _send(String type, String label) async {
@@ -100,7 +122,7 @@ class _VehicleCommandsSheetState extends ConsumerState<_VehicleCommandsSheet> {
       );
       return;
     }
-    if (type == 'engineStop' &&
+    if ((type == 'engineStop' || type == 'engineResume') &&
         !session.hasPermission(FleetPermissions.gpsCommandEngineCutoff)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -115,7 +137,9 @@ class _VehicleCommandsSheetState extends ConsumerState<_VehicleCommandsSheet> {
       builder: (ctx) => AlertDialog(
         title: Text('Send $label?'),
         content: Text(
-          'This sends a $type command to the vehicle tracker.',
+          type == 'engineStop'
+              ? 'This queues an engine cut-off. It may require approval before the device receives it.'
+              : 'This sends a $type command to the vehicle tracker.',
         ),
         actions: [
           TextButton(
@@ -133,14 +157,76 @@ class _VehicleCommandsSheetState extends ConsumerState<_VehicleCommandsSheet> {
 
     setState(() => _sending = true);
     try {
-      await ref.read(fleetApiProvider).sendDeviceCommand(
+      final result = await ref.read(fleetApiProvider).sendDeviceCommand(
             gpsDeviceId: deviceId,
             commandType: type,
             reason: 'Fleet app · $label',
           );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('$label queued')),
+        SnackBar(content: Text(_toastForSend(label, result.message))),
+      );
+      await _load();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('$e')),
+      );
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
+  }
+
+  Future<void> _approve(GpsDeviceCommandItem cmd) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Approve ${cmd.commandType}?'),
+        content: const Text(
+          'This approves the command and sends it to the device via Traccar.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Approve'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    setState(() => _sending = true);
+    try {
+      await ref.read(fleetApiProvider).approveDeviceCommand(
+            commandId: cmd.id,
+            approve: true,
+          );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Approved — dispatching to device')),
+      );
+      await _load();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('$e')),
+      );
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
+  }
+
+  Future<void> _cancel(GpsDeviceCommandItem cmd) async {
+    setState(() => _sending = true);
+    try {
+      await ref.read(fleetApiProvider).cancelDeviceCommand(cmd.id);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Command cancelled')),
       );
       await _load();
     } catch (e) {
@@ -158,9 +244,14 @@ class _VehicleCommandsSheetState extends ConsumerState<_VehicleCommandsSheet> {
     final session = ref.watch(fleetSessionProvider);
     final canSend =
         session?.hasPermission(FleetPermissions.gpsCommandSend) ?? false;
+    final canApprove =
+        session?.hasPermission(FleetPermissions.gpsCommandApprove) ?? false;
+    final canCancel =
+        session?.hasPermission(FleetPermissions.gpsCommandCancel) ?? false;
 
+    // Prefer API-supported + available commands only (model templates + capabilities).
     final preferred = _supported
-        .where((c) => _preferred.contains(c.type))
+        .where((c) => _preferred.contains(c.type) && c.available)
         .toList();
     final fallback = _preferred
         .map(
@@ -171,13 +262,21 @@ class _VehicleCommandsSheetState extends ConsumerState<_VehicleCommandsSheet> {
               'engineResume' => 'Engine resume',
               'positionSingle' => 'Request position',
               'restart' => 'Restart device',
+              'status' => 'STATUS',
+              'check' => 'CHECK',
+              'iccid' => 'ICCID',
+              'imsi' => 'IMSI',
+              'apn' => 'APN',
+              'gprsset' => 'GPRSSET',
+              'server' => 'Network settings',
               _ => t,
             },
             available: true,
           ),
         )
         .toList();
-    final actions = preferred.isNotEmpty ? preferred : fallback;
+    // If the API returned a list, never invent unsupported cards (e.g. buzzer).
+    final actions = _supported.isNotEmpty ? preferred : fallback;
 
     return SafeArea(
       child: Padding(
@@ -232,7 +331,26 @@ class _VehicleCommandsSheetState extends ConsumerState<_VehicleCommandsSheet> {
                     dense: true,
                     contentPadding: EdgeInsets.zero,
                     title: Text(r.commandType),
-                    subtitle: Text(r.status),
+                    subtitle: Text(
+                      r.errorMessage == null || r.errorMessage!.isEmpty
+                          ? r.status
+                          : '${r.status} · ${r.errorMessage}',
+                    ),
+                    trailing: Wrap(
+                      spacing: 4,
+                      children: [
+                        if (canApprove && r.isPendingApproval)
+                          TextButton(
+                            onPressed: _sending ? null : () => _approve(r),
+                            child: const Text('Approve'),
+                          ),
+                        if (canCancel && r.isCancellable)
+                          TextButton(
+                            onPressed: _sending ? null : () => _cancel(r),
+                            child: const Text('Cancel'),
+                          ),
+                      ],
+                    ),
                   ),
               ],
             ],

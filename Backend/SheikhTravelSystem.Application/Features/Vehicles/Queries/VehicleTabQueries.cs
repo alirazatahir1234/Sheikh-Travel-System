@@ -126,22 +126,21 @@ public class GetVehicleGpsQueryHandler(
                 : row.TotalDistanceKm;
             var address = !string.IsNullOrWhiteSpace(pos.Address) ? pos.Address : row.Address;
 
-            return row with
-            {
-                LastSeenAt = fixTime,
-                LastIgnition = pos.Attributes?.Ignition ?? row.LastIgnition,
-                Latitude = pos.Latitude,
-                Longitude = pos.Longitude,
-                Speed = speedKmh,
-                LastUpdate = fixTime,
-                TotalDistanceKm = totalDistanceKm,
-                BatteryLevel = pos.Attributes?.BatteryLevel ?? row.BatteryLevel,
-                GsmSignal = pos.Attributes?.Rssi ?? row.GsmSignal,
-                Address = address,
-                GpsOnline = true,
-                Heading = (decimal)pos.Course,
-                FuelLevel = pos.Attributes?.Fuel ?? row.FuelLevel
-            };
+            // Mutate in place — VehicleGpsSnapshot is a Dapper-friendly class, not a record.
+            row.LastSeenAt = fixTime;
+            row.LastIgnition = pos.Attributes?.Ignition ?? row.LastIgnition;
+            row.Latitude = pos.Latitude;
+            row.Longitude = pos.Longitude;
+            row.Speed = speedKmh;
+            row.LastUpdate = fixTime;
+            row.TotalDistanceKm = totalDistanceKm;
+            row.BatteryLevel = pos.Attributes?.BatteryLevel ?? row.BatteryLevel;
+            row.GsmSignal = pos.Attributes?.Rssi ?? row.GsmSignal;
+            row.Address = address;
+            row.GpsOnline = true;
+            row.Heading = (decimal)pos.Course;
+            row.FuelLevel = pos.Attributes?.Fuel ?? row.FuelLevel;
+            return row;
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {

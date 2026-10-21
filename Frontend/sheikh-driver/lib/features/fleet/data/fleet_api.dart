@@ -4,6 +4,7 @@ import '../../../core/api/api_endpoints.dart';
 import '../../../core/api/api_response.dart';
 import '../../../core/api/dio_client.dart';
 import '../domain/fleet_models.dart';
+import '../domain/fleet_status.dart';
 
 final fleetApiProvider =
     Provider<FleetApi>((ref) => FleetApi(ref.read(dioProvider)));
@@ -26,7 +27,7 @@ class FleetApi {
     return FleetOpsDashboard.fromJson(ApiResponseParser.dataMap(res.data));
   }
 
-  Future<List<GpsPosition>> getLivePositions({int pageSize = 100}) async {
+  Future<List<GpsPosition>> getLivePositions({int pageSize = 500}) async {
     final res = await _dio.get<Map<String, dynamic>>(
       ApiEndpoints.gpsLive,
       queryParameters: {'page': 1, 'pageSize': pageSize},
@@ -36,14 +37,66 @@ class FleetApi {
         .toList();
   }
 
-  Future<List<VehicleListItem>> getVehicles({int pageSize = 100}) async {
+  /// Prefer this for owner/staff live map — GPS.View only, data-scoped, no Vehicle.View.
+  Future<List<FleetVehicleLocation>> getLiveFleet() async {
+    final res = await _dio.get<Map<String, dynamic>>(ApiEndpoints.gpsLiveFleet);
+    return ApiResponseParser.dataList(res.data).map(mapLiveFleetRow).toList();
+  }
+
+  Future<List<VehicleListItem>> getVehicles({
+    int page = 1,
+    int pageSize = 200,
+  }) async {
     final res = await _dio.get<Map<String, dynamic>>(
       ApiEndpoints.vehicles,
-      queryParameters: {'page': 1, 'pageSize': pageSize},
+      queryParameters: {'page': page, 'pageSize': pageSize},
     );
     return ApiResponseParser.pagedItems(res.data)
         .map(VehicleListItem.fromJson)
         .toList();
+  }
+
+  /// Fetches all vehicle pages (raises the former pageSize-100 picker cap).
+  Future<List<VehicleListItem>> getAllVehicles({int pageSize = 200}) async {
+    final all = <VehicleListItem>[];
+    var page = 1;
+    const maxPages = 25;
+    while (page <= maxPages) {
+      final res = await _dio.get<Map<String, dynamic>>(
+        ApiEndpoints.vehicles,
+        queryParameters: {'page': page, 'pageSize': pageSize},
+      );
+      final batch = ApiResponseParser.pagedItems(res.data)
+          .map(VehicleListItem.fromJson)
+          .toList();
+      all.addAll(batch);
+      final total = ApiResponseParser.pagedTotalCount(
+        res.data,
+        fallback: all.length,
+      );
+      if (batch.isEmpty || all.length >= total || batch.length < pageSize) {
+        break;
+      }
+      page++;
+    }
+    return all;
+  }
+
+  Future<void> assignDriver(
+    int vehicleId,
+    int driverId, {
+    int? bookingId,
+    String? assignmentType,
+  }) async {
+    final res = await _dio.post<Map<String, dynamic>>(
+      ApiEndpoints.vehicleAssignDriver(vehicleId),
+      data: {
+        'driverId': driverId,
+        if (bookingId != null) 'bookingId': bookingId,
+        if (assignmentType != null) 'assignmentType': assignmentType,
+      },
+    );
+    ApiResponseParser.ensureSuccess(res.data);
   }
 
   Future<VehicleDetail> getVehicle(int id) async {
@@ -331,7 +384,7 @@ class FleetApi {
         .toList();
   }
 
-  Future<int> sendDeviceCommand({
+  Future<SendDeviceCommandResult> sendDeviceCommand({
     required int gpsDeviceId,
     required String commandType,
     String? reason,
@@ -344,10 +397,40 @@ class FleetApi {
         if (reason != null) 'reason': reason,
       },
     );
+    ApiResponseParser.ensureSuccess(res.data);
+    final message = res.data?['message']?.toString() ?? 'Command submitted';
     final data = res.data?['data'];
-    if (data is int) return data;
-    if (data is num) return data.toInt();
-    return 0;
+    final id = data is int
+        ? data
+        : data is num
+            ? data.toInt()
+            : 0;
+    return SendDeviceCommandResult(id: id, message: message);
+  }
+
+  Future<void> approveDeviceCommand({
+    required int commandId,
+    bool approve = true,
+    String? note,
+  }) async {
+    final res = await _dio.post<Map<String, dynamic>>(
+      ApiEndpoints.gpsCommandApprove(commandId),
+      data: {
+        'approve': approve,
+        if (note != null) 'note': note,
+      },
+    );
+    ApiResponseParser.ensureSuccess(res.data);
+  }
+
+  Future<void> cancelDeviceCommand(int commandId, {String? reason}) async {
+    final res = await _dio.post<Map<String, dynamic>>(
+      ApiEndpoints.gpsCommandCancel(commandId),
+      queryParameters: {
+        if (reason != null && reason.isNotEmpty) 'reason': reason,
+      },
+    );
+    ApiResponseParser.ensureSuccess(res.data);
   }
 
   Future<List<GpsDeviceCommandItem>> getVehicleCommands(int vehicleId) async {

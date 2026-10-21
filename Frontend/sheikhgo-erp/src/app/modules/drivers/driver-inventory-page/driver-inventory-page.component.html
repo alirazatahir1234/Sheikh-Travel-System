@@ -2,7 +2,7 @@
 
   <ui-page-header
     title="Driver Management"
-    subtitle="Monitor drivers, compliance, performance, and real-time availability.">
+    subtitle="Monitor drivers, compliance, performance, and dispatch availability.">
     <div class="header-actions">
       <button mat-stroked-button [matMenuTriggerFor]="bulkMenu" class="menu-trigger-btn">
         <mat-icon>more_horiz</mat-icon>
@@ -18,16 +18,12 @@
         @if (canAssignDriver) {
           <button mat-menu-item (click)="bulkAssign()">
             <mat-icon>link</mat-icon>
-            <span>Bulk Assign</span>
+            <span>Assign Vehicle</span>
           </button>
         }
-        <button mat-menu-item (click)="exportExcel()">
-          <mat-icon>table_view</mat-icon>
-          <span>Export Excel</span>
-        </button>
       </mat-menu>
 
-      <ui-button variant="outline" icon="download" (clicked)="exportReport()">Generate Report</ui-button>
+      <ui-button variant="outline" icon="download" (clicked)="exportReport()">Export Excel</ui-button>
       @if (canCreateDriver) {
         <ui-button variant="primary" icon="add" routerLink="/drivers/new">Add Driver</ui-button>
       }
@@ -35,22 +31,61 @@
   </ui-page-header>
 
   <div class="kpi-section">
-    <div class="kpi-group">
-      <p class="kpi-group-label kpi-group-label--operational">Operational</p>
-      <div class="kpi-grid kpi-grid--operational">
-        @for (card of kpiGroups().operational; track card.title) {
-          <fleet-summary-card [card]="card" />
-        }
+    @if (loading() && !stats() && !statsError()) {
+      <div class="kpi-group">
+        <p class="kpi-group-label kpi-group-label--operational">Operational</p>
+        <div class="kpi-grid kpi-grid--operational">
+          @for (i of [1,2,3,4]; track i) {
+            <div class="kpi-skeleton card" aria-hidden="true">
+              <div class="kpi-skeleton__line kpi-skeleton__line--sm"></div>
+              <div class="kpi-skeleton__line kpi-skeleton__line--lg"></div>
+              <div class="kpi-skeleton__bar"></div>
+            </div>
+          }
+        </div>
       </div>
-    </div>
-    <div class="kpi-group">
-      <p class="kpi-group-label kpi-group-label--risk">Risk &amp; Attention</p>
-      <div class="kpi-grid kpi-grid--risk">
-        @for (card of kpiGroups().risk; track card.title) {
-          <fleet-summary-card [card]="card" />
-        }
+      <div class="kpi-group">
+        <p class="kpi-group-label kpi-group-label--risk">Risk &amp; Attention</p>
+        <div class="kpi-grid kpi-grid--risk">
+          @for (i of [1,2,3,4]; track i) {
+            <div class="kpi-skeleton card" aria-hidden="true">
+              <div class="kpi-skeleton__line kpi-skeleton__line--sm"></div>
+              <div class="kpi-skeleton__line kpi-skeleton__line--lg"></div>
+              <div class="kpi-skeleton__bar"></div>
+            </div>
+          }
+        </div>
       </div>
-    </div>
+    } @else if (statsError() && !stats()) {
+      <div class="card stats-error-banner" role="alert">
+        <mat-icon>error_outline</mat-icon>
+        <div>
+          <p class="stats-error-title">Stats unavailable</p>
+          <p class="stats-error-detail">{{ statsError() }}</p>
+        </div>
+        <button type="button" class="filter-refresh-btn" (click)="load()">Retry</button>
+      </div>
+    } @else {
+      <div class="kpi-group">
+        <p class="kpi-group-label kpi-group-label--operational">Operational · dispatch availability</p>
+        <div class="kpi-grid kpi-grid--operational">
+          @for (card of kpiGroups().operational; track card.title) {
+            <fleet-summary-card [card]="card" />
+          }
+        </div>
+      </div>
+      <div class="kpi-group">
+        <p class="kpi-group-label kpi-group-label--risk">Risk &amp; Attention</p>
+        <div class="kpi-grid kpi-grid--risk">
+          @for (card of kpiGroups().risk; track card.title) {
+            <fleet-summary-card [card]="card" />
+          }
+        </div>
+      </div>
+      @if (statsError()) {
+        <p class="stats-error-inline" role="status">{{ statsError() }}</p>
+      }
+    }
   </div>
 
   <fleet-quick-actions-card
@@ -60,22 +95,22 @@
 
   <div class="card operations-summary">
     <div class="operations-summary-header">
-      <h3 class="panel-title panel-title--inline">Live Operations Snapshot</h3>
-      <span class="ops-date-badge">Live</span>
+      <h3 class="panel-title panel-title--inline">Operations Snapshot</h3>
+      <span class="ops-date-badge">From stats</span>
     </div>
     <div class="operations-grid">
       <div class="ops-metric">
         <mat-icon class="ops-icon ops-icon--trip">route</mat-icon>
         <div>
           <p class="ops-value">{{ operationsSummary().onTripNow }}</p>
-          <p class="ops-label">On Trip Now</p>
+          <p class="ops-label">On Trip</p>
         </div>
       </div>
       <div class="ops-metric">
         <mat-icon class="ops-icon ops-icon--available">check_circle</mat-icon>
         <div>
           <p class="ops-value">{{ operationsSummary().driversAvailable }}</p>
-          <p class="ops-label">Drivers Available</p>
+          <p class="ops-label">Dispatch Available</p>
         </div>
       </div>
       <div class="ops-metric">
@@ -102,7 +137,7 @@
         <div class="panel-header">
           <div class="panel-header-text">
             <h3 class="panel-title panel-title--inline">Availability Overview</h3>
-            <p class="panel-hint">Live driver availability from fleet data</p>
+            <p class="panel-hint">Exclusive dispatch buckets (Available · Busy · On Trip · Unavailable)</p>
           </div>
         </div>
         <div class="chart-canvas">
@@ -131,29 +166,12 @@
               <span class="severity-card-label">8–30 days</span>
             </div>
             <div class="severity-card severity-card--low">
-              <span class="severity-card-count">{{ complianceSeverity().low }}</span>
-              <span class="severity-card-label">Suspended</span>
+              <span class="severity-card-count">{{ complianceSeverity().watch }}</span>
+              <span class="severity-card-label">31–60 days</span>
             </div>
           </div>
 
-          <p class="incident-section-label">License Alerts</p>
-          @for (d of complianceDrivers().slice(0, 3); track d.id) {
-            <div class="incident-item" (click)="openDrawer(d)" role="button" tabindex="0">
-              <div class="incident-avatar">{{ initials(d.fullName) }}</div>
-              <div class="incident-body">
-                <p class="incident-name">{{ d.fullName }}</p>
-                <p class="incident-desc">{{ expiryDescription(d.licenseExpiryDate) }}</p>
-              </div>
-              <span class="severity-badge" [class.severity--critical]="isExpiryUrgent(d.licenseExpiryDate)">
-                {{ isExpiryUrgent(d.licenseExpiryDate) ? 'Urgent' : 'High' }}
-              </span>
-            </div>
-          }
-          @if (complianceDrivers().length === 0) {
-            <p class="no-alerts">No license alerts</p>
-          }
-
-          <p class="incident-section-label mt-3">Attention Breakdown</p>
+          <p class="incident-section-label">Attention Breakdown</p>
           @for (t of complianceAttention(); track t.label) {
             <div class="incident-type-row">
               <mat-icon class="incident-type-icon" [ngClass]="t.tone">{{ t.icon }}</mat-icon>
@@ -162,16 +180,21 @@
             </div>
           }
 
-          <button type="button" class="view-all-btn" (click)="onLicenseFilterChange('EXPIRED')">VIEW EXPIRED LICENSES</button>
+          <button type="button" class="view-all-btn" (click)="viewExpiredLicenses()">VIEW EXPIRED LICENSES</button>
         </div>
       </aside>
     </div>
 
     <div class="dashboard-mid">
       <div class="card compliance-panel">
-        <h3 class="panel-title">Compliance Alerts</h3>
+        <h3 class="panel-title">License Alerts</h3>
         @for (d of complianceDrivers(); track d.id) {
-          <div class="compliance-item" (click)="openDrawer(d)">
+          <div
+            class="compliance-item"
+            role="button"
+            tabindex="0"
+            (click)="openDrawer(d)"
+            (keydown)="onComplianceKeydown($event, d)">
             <div class="compliance-avatar" [class.urgent]="isExpiryUrgent(d.licenseExpiryDate)">
               {{ initials(d.fullName) }}
             </div>
@@ -191,7 +214,8 @@
       </div>
 
       <div class="card feed-panel">
-        <h3 class="panel-title">Real-time Feed</h3>
+        <h3 class="panel-title">Roster Snapshot</h3>
+        <p class="panel-hint" style="margin-bottom: 0.5rem;">From the current table page — not a live feed</p>
         @for (item of feedItems(); track item.id) {
           <div class="feed-item">
             <div class="feed-icon" [ngClass]="item.iconClass">
@@ -202,18 +226,16 @@
               <p class="feed-event-detail">{{ item.eventDetail }}</p>
               <p class="feed-time">{{ item.time }}</p>
             </div>
-            @if (item.isLive) {
-              <span class="live-badge">LIVE</span>
-            }
           </div>
         }
         @if (feedItems().length === 0) {
-          <p class="no-alerts">No recent activity</p>
+          <p class="no-alerts">No drivers on this page</p>
         }
       </div>
 
       <div class="card assignment-panel">
-        <h3 class="panel-title">Driver Availability</h3>
+        <h3 class="panel-title">Dispatch Availability</h3>
+        <p class="panel-hint" style="margin-bottom: 0.5rem;">Exclusive buckets (sum to roster)</p>
         @if (availabilitySummary(); as avail) {
           <div class="availability-grid">
             <div class="availability-item">
@@ -286,7 +308,9 @@
     <div class="dashboard-stats">
       <div class="card top-drivers-panel">
         <h3 class="panel-title">Top Drivers</h3>
-        <p class="panel-hint" style="margin-bottom: 0.5rem;">Ranked by safety score</p>
+        <p class="panel-hint" style="margin-bottom: 0.5rem;">
+          Heuristic score from up to 500 branch-scoped drivers (rating or license/status rules) — not a fleet-wide safety ranking
+        </p>
         @for (item of topDrivers(); track item.driver.id; let i = $index) {
           <div class="top-driver-item" role="button" tabindex="0" (click)="openDrawer(item.driver, 'performance')" (keyup.enter)="openDrawer(item.driver, 'performance')">
             <span class="top-driver-rank">#{{ i + 1 }}</span>
@@ -322,46 +346,37 @@
           <span>Under Review</span>
           <span class="verification-count">{{ stats()?.underReviewDrivers ?? 0 }}</span>
         </div>
-        <div class="verification-item verification-item--assigned">
-          <mat-icon>directions_car</mat-icon>
-          <span>With Vehicle</span>
-          <span class="verification-count">{{ stats()?.assignedDrivers ?? 0 }}</span>
-        </div>
-        <div class="verification-item verification-item--unassigned">
-          <mat-icon>person_off</mat-icon>
-          <span>Unassigned</span>
-          <span class="verification-count">{{ (stats()?.totalDrivers ?? 0) - (stats()?.assignedDrivers ?? 0) }}</span>
-        </div>
       </div>
 
       <div class="card license-expiry-panel">
         <h3 class="panel-title">License Expiry</h3>
-        <div class="expiry-item expiry-item--critical">
-          <mat-icon>error</mat-icon>
-          <span>Expiring in 7 days</span>
-          <span class="expiry-count">{{ stats()?.licensesExpiringIn7Days ?? 0 }}</span>
-        </div>
-        <div class="expiry-item expiry-item--warning">
-          <mat-icon>warning</mat-icon>
-          <span>Expiring in 30 days</span>
-          <span class="expiry-count">{{ stats()?.licensesExpiringSoon ?? 0 }}</span>
-        </div>
-        <div class="expiry-item expiry-item--info">
-          <mat-icon>schedule</mat-icon>
-          <span>Expiring in 60 days</span>
-          <span class="expiry-count">{{ stats()?.licensesExpiringIn60Days ?? 0 }}</span>
-        </div>
+        <p class="panel-hint" style="margin-bottom: 0.5rem;">Exclusive windows (do not overlap)</p>
         <div class="expiry-item expiry-item--error">
           <mat-icon>cancel</mat-icon>
           <span>Already Expired</span>
-          <span class="expiry-count">{{ stats()?.licensesExpired ?? 0 }}</span>
+          <span class="expiry-count">{{ licenseWindows().expired }}</span>
+        </div>
+        <div class="expiry-item expiry-item--critical">
+          <mat-icon>error</mat-icon>
+          <span>≤ 7 days</span>
+          <span class="expiry-count">{{ licenseWindows().within7 }}</span>
+        </div>
+        <div class="expiry-item expiry-item--warning">
+          <mat-icon>warning</mat-icon>
+          <span>8–30 days</span>
+          <span class="expiry-count">{{ licenseWindows().days8to30 }}</span>
+        </div>
+        <div class="expiry-item expiry-item--info">
+          <mat-icon>schedule</mat-icon>
+          <span>31–60 days</span>
+          <span class="expiry-count">{{ licenseWindows().days31to60 }}</span>
         </div>
       </div>
     </div>
 
   </section>
 
-  <section class="table-section">
+  <section class="table-section" #tableSection>
     <div class="filters-bar card">
       <div class="filters-grid">
         <div class="search-field">
@@ -388,7 +403,7 @@
         </div>
 
         <label class="filter-field">
-          <span class="filter-field__label">Status</span>
+          <span class="filter-field__label">Duty Status</span>
           <select class="filter-input" [value]="filters().status === 'ALL' ? 'ALL' : statusValue(filters().status)" (change)="onStatusChange($any($event.target).value)">
             @for (opt of statusOptions; track opt.value) {
               <option [value]="opt.value">{{ opt.label }}</option>
@@ -412,6 +427,15 @@
             <option value="VALID">Valid</option>
             <option value="EXPIRING">Expiring (30d)</option>
             <option value="EXPIRED">Expired</option>
+          </select>
+        </label>
+
+        <label class="filter-field">
+          <span class="filter-field__label">Verification</span>
+          <select class="filter-input" [value]="filters().verificationStatus" (change)="onVerificationChange($any($event.target).value)">
+            @for (opt of verificationOptions; track opt.value) {
+              <option [value]="opt.value">{{ opt.label }}</option>
+            }
           </select>
         </label>
 

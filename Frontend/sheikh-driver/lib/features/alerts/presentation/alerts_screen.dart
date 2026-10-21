@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_theme.dart';
@@ -139,8 +140,12 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen> {
                 ),
                 SliverToBoxAdapter(
                   child: AlertsQuickActions(
-                    onSimulate: () =>
-                        ref.read(alertsProvider.notifier).simulateIncident(),
+                    // Never show fake cross-fleet demo incidents in owner builds.
+                    onSimulate: kDebugMode
+                        ? () => ref
+                            .read(alertsProvider.notifier)
+                            .simulateIncident()
+                        : null,
                     onAcknowledgeAll: () async {
                       await ref
                           .read(alertsProvider.notifier)

@@ -3,6 +3,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormBuilder, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { filter, finalize, forkJoin, of, switchMap } from 'rxjs';
+import { AuthService } from '../../../core/services/auth.service';
 import { GpsTrackingService } from '../../../core/services/gps-tracking.service';
 import { TrackerCatalogService } from '../../../core/services/tracker-catalog.service';
 import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
@@ -41,6 +42,7 @@ import {
 export class TrackerRegisterPageComponent implements OnInit {
   private readonly fb = inject(FormBuilder);
   private readonly gps = inject(GpsTrackingService);
+  private readonly auth = inject(AuthService);
   private readonly catalog = inject(TrackerCatalogService);
   private readonly toast = inject(UiToastService);
   private readonly router = inject(Router);
@@ -90,6 +92,12 @@ export class TrackerRegisterPageComponent implements OnInit {
   });
 
   ngOnInit(): void {
+    if (!this.auth.hasPermission('Gps.DeviceManage')) {
+      this.toast.error('You do not have permission to register or edit trackers.');
+      void this.router.navigate(['/gps-tracking/devices']);
+      return;
+    }
+
     const phoneCtrl = this.form.get('phoneLocal')!;
     phoneCtrl.setValidators([
       phoneLocalValidator(() => String(this.form.get('countryCode')?.value ?? DEFAULT_TRACKER_COUNTRY))
@@ -434,10 +442,15 @@ export class TrackerRegisterPageComponent implements OnInit {
     }
   }
 
-  /** Teltonika fleet trackers commonly ship with relay wiring — pre-enable for that brand only. */
+  /** Teltonika / Jimi fleet trackers commonly ship with relay wiring — pre-enable cut-off. */
   private shouldAutoEnableCutoff(model: TrackerModel): boolean {
+    if (!model.supportsEngineCutOff) return false;
     const brand = this.brands.find(b => b.id === model.trackerBrandId);
-    return brand?.name?.toLowerCase() === 'teltonika';
+    const name = (brand?.name ?? '').toLowerCase();
+    return name === 'teltonika'
+      || name === 'jimi'
+      || name === 'jimi iot'
+      || name.includes('jimi');
   }
 
   private patchFromTracker(t: TrackerDetail): void {

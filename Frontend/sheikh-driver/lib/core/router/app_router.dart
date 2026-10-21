@@ -32,6 +32,7 @@ import '../../features/security/presentation/security_status_screen.dart';
 import '../../features/legal/presentation/legal_document_screen.dart';
 import '../../features/payments/presentation/collect_payment_screen.dart';
 import '../../features/fleet/presentation/fleet_hub_screen.dart';
+import '../../features/fleet/presentation/fleet_assignments_screen.dart';
 import '../../features/fleet/presentation/fleet_live_map_screen.dart';
 import '../../features/fleet/presentation/vehicle_detail_screen.dart';
 import '../../features/fleet/presentation/vehicle_history_screen.dart';
@@ -46,6 +47,7 @@ import '../../features/bookings/presentation/bookings_queue_screen.dart';
 import '../../features/bookings/presentation/booking_detail_screen.dart';
 import '../../features/alerts/presentation/alerts_screen.dart';
 import '../../features/maintenance/presentation/maintenance_hub_screen.dart';
+import '../../features/maintenance/presentation/maintenance_detail_screens.dart';
 import '../../features/staff_fuel/presentation/fuel_entry_screen.dart';
 import '../../features/staff_fuel/presentation/staff_fuel_list_screen.dart';
 import '../../features/compliance/presentation/documents_entry_screen.dart';
@@ -113,10 +115,15 @@ final routerProvider = Provider<GoRouter>((ref) {
                 !session.hasPermission(FleetPermissions.driverView))) {
           return '/more';
         }
-        if (loc.startsWith('/more/maintenance') &&
+        if ((loc.startsWith('/fleet/maintenance') ||
+                loc.startsWith('/more/maintenance')) &&
             (session.isDriverOnly ||
                 !session.hasPermission(FleetPermissions.maintenanceView))) {
           return '/more';
+        }
+        // Legacy More path → Fleet maintenance hub.
+        if (loc == '/more/maintenance' || loc.startsWith('/more/maintenance/')) {
+          return loc.replaceFirst('/more/maintenance', '/fleet/maintenance');
         }
         if (loc.startsWith('/more/reports') &&
             (session.isDriverOnly ||
@@ -189,6 +196,28 @@ final routerProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: 'map',
                 builder: (_, __) => const FleetLiveMapScreen(),
+              ),
+              GoRoute(
+                path: 'assignments',
+                builder: (_, __) => const FleetAssignmentsScreen(),
+              ),
+              GoRoute(
+                path: 'maintenance',
+                builder: (_, __) => const MaintenanceHubScreen(),
+                routes: [
+                  GoRoute(
+                    path: 'requests/:id',
+                    builder: (_, state) => MaintenanceRequestDetailScreen(
+                      requestId: int.parse(state.pathParameters['id']!),
+                    ),
+                  ),
+                  GoRoute(
+                    path: 'work-orders/:id',
+                    builder: (_, state) => WorkOrderDetailScreen(
+                      workOrderId: int.parse(state.pathParameters['id']!),
+                    ),
+                  ),
+                ],
               ),
               GoRoute(
                 path: 'vehicles/:id',
@@ -329,23 +358,16 @@ final routerProvider = Provider<GoRouter>((ref) {
                   ),
                 ],
               ),
+              // Legacy: redirect handled in top-level redirect above.
               GoRoute(
                 path: 'maintenance',
-                builder: (_, __) => const MaintenanceHubScreen(),
-                routes: [
-                  GoRoute(
-                    path: 'requests/:id',
-                    builder: (_, state) => MaintenanceRequestDetailScreen(
-                      requestId: int.parse(state.pathParameters['id']!),
-                    ),
-                  ),
-                  GoRoute(
-                    path: 'work-orders/:id',
-                    builder: (_, state) => WorkOrderDetailScreen(
-                      workOrderId: int.parse(state.pathParameters['id']!),
-                    ),
-                  ),
-                ],
+                redirect: (_, state) {
+                  final rest = state.uri.path.replaceFirst(
+                    '/more/maintenance',
+                    '',
+                  );
+                  return '/fleet/maintenance$rest';
+                },
               ),
               GoRoute(
                 path: 'reports',

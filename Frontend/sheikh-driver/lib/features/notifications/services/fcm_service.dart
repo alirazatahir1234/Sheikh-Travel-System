@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -20,6 +21,9 @@ class FcmService {
 
   String? _token;
   String? get token => _token;
+
+  /// True when [Firebase.initializeApp] succeeded (needs `google-services.json` on Android).
+  bool get isFirebaseReady => Firebase.apps.isNotEmpty;
 
   bool _listenersBound = false;
   bool _tapHandlersBound = false;
@@ -103,6 +107,12 @@ class FcmService {
   Future<void> initialize({
     required Future<void> Function(String token) onTokenRefresh,
   }) async {
+    if (!isFirebaseReady) {
+      throw StateError(
+        'Firebase is not initialized. Add android/app/google-services.json '
+        '(package com.sheikhgo.fleet) and rebuild the app.',
+      );
+    }
     try {
       await _ensureBackgroundHandler();
       await _bindForegroundListeners();

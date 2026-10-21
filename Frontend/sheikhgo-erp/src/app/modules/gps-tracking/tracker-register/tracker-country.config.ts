@@ -96,6 +96,9 @@ export const TRACKER_MODELS = [
   { key: 'teltonika_fmb140', label: 'Teltonika FMB140', vendor: 'Teltonika', protocol: 'teltonika', supportsEngineCutoff: true },
   { key: 'teltonika_fmb001', label: 'Teltonika FMB001', vendor: 'Teltonika', protocol: 'teltonika', supportsEngineCutoff: false },
   { key: 'teltonika_fmc001', label: 'Teltonika FMC001', vendor: 'Teltonika', protocol: 'teltonika', supportsEngineCutoff: false },
+  { key: 'jimi_vg03', label: 'Jimi VG03', vendor: 'Jimi IoT', protocol: 'jimi', supportsEngineCutoff: true },
+  { key: 'jimi_ev26r', label: 'Jimi EV26R', vendor: 'Jimi IoT', protocol: 'gt06', supportsEngineCutoff: true },
+  { key: 'jimi_gt06', label: 'Jimi GT06', vendor: 'Jimi IoT', protocol: 'gt06', supportsEngineCutoff: true },
   { key: 'concox_gt06n', label: 'Concox GT06N', vendor: 'Concox', protocol: 'gt06', supportsEngineCutoff: true },
   { key: 'queclink_gv75', label: 'Queclink GV75', vendor: 'Queclink', protocol: 'gl200', supportsEngineCutoff: true },
 ] as const;

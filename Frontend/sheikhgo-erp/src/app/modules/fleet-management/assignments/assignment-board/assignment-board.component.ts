@@ -83,6 +83,8 @@ export class AssignmentBoardComponent implements OnInit {
   /** Drivers for create/transfer — unverified/ineligible are disabled with a reason. */
   readonly assignableDriverOptions = signal<UiSelectOption[]>([]);
   readonly driverBlockReasons = signal<Record<string, string>>({});
+  /** vehicleId → current assignee name (for steal warning). */
+  readonly vehicleAssignees = signal<Record<string, string>>({});
   readonly branchOptions = signal<UiSelectOption[]>([]);
 
   readonly wizardForm = signal<AssignmentWizardForm>(this.emptyWizardForm());
@@ -154,10 +156,17 @@ export class AssignmentBoardComponent implements OnInit {
       drivers: this.driverService.getAll(1, 200).pipe(catchError(() => of({ items: [] }))),
       branches: this.platformService.getBranches().pipe(catchError(() => of([])))
     }).subscribe(({ vehicles, drivers, branches }) => {
-      this.vehicleOptions.set(vehicles.items.map(v => ({
-        value: String(v.id),
-        label: `${v.registrationNumber} | ${[v.make, v.model].filter(Boolean).join(' ') || v.name}`
-      })));
+      const assignees: Record<string, string> = {};
+      this.vehicleOptions.set(vehicles.items.map(v => {
+        const base = `${v.registrationNumber} | ${[v.make, v.model].filter(Boolean).join(' ') || v.name}`;
+        const driver = (v.driverName ?? '').trim();
+        if (driver) {
+          assignees[String(v.id)] = driver;
+          return { value: String(v.id), label: `${base} · Assigned to ${driver}` };
+        }
+        return { value: String(v.id), label: base };
+      }));
+      this.vehicleAssignees.set(assignees);
       this.driverOptions.set(drivers.items.map(d => ({
         value: String(d.id),
         label: `${d.fullName}${d.driverCode ? ' · ' + d.driverCode : ''}`
@@ -280,6 +289,14 @@ export class AssignmentBoardComponent implements OnInit {
       return;
     }
 
+    const currentAssignee = this.vehicleAssignees()[String(vehicleId)];
+    if (currentAssignee) {
+      const proceed = window.confirm(
+        `This vehicle is assigned to ${currentAssignee}. Reassigning will transfer the vehicle. Continue?`
+      );
+      if (!proceed) return;
+    }
+
     this.saving.set(true);
     this.assignmentService.create({
       vehicleId,
@@ -298,6 +315,7 @@ export class AssignmentBoardComponent implements OnInit {
         this.toast.success('Assignment created.');
         this.loadAssignments();
         this.loadStats();
+        this.loadPicklists();
       },
       error: err => {
         this.saving.set(false);
@@ -336,6 +354,7 @@ export class AssignmentBoardComponent implements OnInit {
         this.toast.success('Assignment transferred.');
         this.loadAssignments();
         this.loadStats();
+        this.loadPicklists();
       },
       error: err => {
         this.saving.set(false);
@@ -356,6 +375,7 @@ export class AssignmentBoardComponent implements OnInit {
         this.toast.success('Assignment completed.');
         this.loadAssignments();
         this.loadStats();
+        this.loadPicklists();
       },
       error: err => {
         this.saving.set(false);
@@ -373,6 +393,7 @@ export class AssignmentBoardComponent implements OnInit {
         this.toast.success('Assignment cancelled.');
         this.loadAssignments();
         this.loadStats();
+        this.loadPicklists();
       },
       error: err => {
         this.saving.set(false);

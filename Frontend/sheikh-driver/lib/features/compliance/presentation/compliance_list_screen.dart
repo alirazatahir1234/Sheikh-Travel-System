@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/constants/app_theme.dart';
+import '../../../shared/widgets/sg_keyboard_fields.dart';
 import '../../../shared/widgets/sg_ui.dart';
 import '../data/compliance_api.dart';
 import '../domain/compliance_models.dart';
@@ -197,20 +198,11 @@ class ComplianceListScreen extends ConsumerWidget {
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-                    child: TextField(
+                    child: SgSearchField(
+                      hintText: 'Search entity, type, number…',
                       onChanged: (v) => ref
                           .read(complianceHubProvider.notifier)
                           .setSearch(v),
-                      decoration: InputDecoration(
-                        hintText: 'Search entity, type, number…',
-                        prefixIcon: const Icon(Icons.search_rounded),
-                        filled: true,
-                        fillColor: Colors.white,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(AppRadii.md),
-                          borderSide: BorderSide.none,
-                        ),
-                      ),
                     ),
                   ),
                 ),

@@ -3,8 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../core/constants/app_theme.dart';
+import '../../../core/errors/error_handler.dart';
 import '../../../features/auth/data/auth_repository.dart';
 import '../../../features/auth/domain/auth_models.dart';
+import '../../../features/bookings/presentation/dispatch_pickers.dart';
+import '../../../features/drivers/data/drivers_api.dart';
+import '../../../features/drivers/presentation/drivers_notifier.dart';
 import '../../../shared/widgets/sg_ui.dart';
 import '../data/fleet_api.dart';
 import '../domain/fleet_models.dart';
@@ -329,7 +333,201 @@ class _OverviewTab extends StatelessWidget {
             ],
           ),
         ),
+        _VehicleAssignmentActions(vehicle: vehicle),
       ],
+    );
+  }
+}
+
+class _VehicleAssignmentActions extends ConsumerStatefulWidget {
+  const _VehicleAssignmentActions({required this.vehicle});
+  final VehicleDetail vehicle;
+
+  @override
+  ConsumerState<_VehicleAssignmentActions> createState() =>
+      _VehicleAssignmentActionsState();
+}
+
+class _VehicleAssignmentActionsState
+    extends ConsumerState<_VehicleAssignmentActions> {
+  bool _busy = false;
+
+  VehicleDetail get vehicle => widget.vehicle;
+
+  bool _canAssign(FleetSession? session) {
+    if (session == null) return false;
+    return session.hasPermission(FleetPermissions.driverAssign) ||
+        session.hasPermission(FleetPermissions.vehicleUpdate);
+  }
+
+  void _invalidate({int? driverId}) {
+    ref.invalidate(vehicleDetailProvider(vehicle.id));
+    ref.invalidate(fleetHubProvider);
+    if (driverId != null) {
+      ref.invalidate(driverDetailProvider(driverId));
+    }
+  }
+
+  Future<void> _assign() async {
+    if (_busy || !_canAssign(ref.read(fleetSessionProvider))) return;
+
+    final status = vehicle.status.trim().toLowerCase();
+    if (status == 'draft' ||
+        status == '5' ||
+        status == 'retired' ||
+        status == '4' ||
+        status == 'maintenance' ||
+        status == '3') {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Vehicle status “${vehicle.status}” cannot be assigned.',
+            ),
+          ),
+        );
+      }
+      return;
+    }
+
+    if (vehicle.driverId != null) {
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Reassign driver?'),
+          content: Text(
+            'This vehicle is assigned to ${vehicle.driverName ?? 'another driver'}. '
+            'Continue and transfer?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Transfer'),
+            ),
+          ],
+        ),
+      );
+      if (ok != true) return;
+    }
+
+    final driverId = await pickDriverId(
+      context,
+      ref,
+      pickerContext: AssignPickerContext.vehicle,
+      excludeDriverId: vehicle.driverId,
+      requireVerified: true,
+    );
+    if (driverId == null || !mounted) return;
+
+    setState(() => _busy = true);
+    try {
+      await ref.read(fleetApiProvider).assignDriver(vehicle.id, driverId);
+      _invalidate(driverId: driverId);
+      if (vehicle.driverId != null) {
+        _invalidate(driverId: vehicle.driverId);
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Driver assigned')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(ErrorHandler.message(e))),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _unassign() async {
+    final driverId = vehicle.driverId;
+    if (_busy ||
+        driverId == null ||
+        !_canAssign(ref.read(fleetSessionProvider))) {
+      return;
+    }
+
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Unassign driver?'),
+        content: Text(
+          '${vehicle.driverName ?? 'This driver'} will be removed from ${vehicle.name}.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Unassign'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+
+    setState(() => _busy = true);
+    try {
+      await ref.read(driversApiProvider).unassignVehicle(driverId);
+      _invalidate(driverId: driverId);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Driver unassigned')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(ErrorHandler.message(e))),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final session = ref.watch(fleetSessionProvider);
+    if (!_canAssign(session)) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: Row(
+        children: [
+          Expanded(
+            child: FilledButton.icon(
+              onPressed: _busy ? null : _assign,
+              icon: _busy
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.person_add_alt_1_outlined),
+              label: Text(vehicle.driverId != null ? 'Reassign' : 'Assign'),
+            ),
+          ),
+          if (vehicle.driverId != null) ...[
+            const SizedBox(width: 10),
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: _busy ? null : _unassign,
+                icon: const Icon(Icons.link_off_outlined),
+                label: const Text('Unassign'),
+              ),
+            ),
+          ],
+        ],
+      ),
     );
   }
 }

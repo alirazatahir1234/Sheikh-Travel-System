@@ -135,8 +135,6 @@ public interface IPlatformRepository
     Task<IReadOnlyList<string>> GetDepartmentLabelsAsync(int tenantId, IReadOnlyList<int> ids, CancellationToken cancellationToken = default);
     Task<int?> GetUserTenantIdAsync(int userId, CancellationToken cancellationToken = default);
 
-    // ── GPS control ───────────────────────────────────────────────────────
-    Task<int> ApproveGpsDeviceCommandAsync(int commandId, bool approve, string? note, string? approvedBy, CancellationToken cancellationToken = default);
 }
 
 public sealed record OrganizationBranchRow(

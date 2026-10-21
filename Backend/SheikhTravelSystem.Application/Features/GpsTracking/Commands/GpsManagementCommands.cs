@@ -129,6 +129,21 @@ public class CancelDeviceCommandCommandHandler(IGpsDeviceRepository gpsDeviceRep
         => gpsDeviceRepository.CancelDeviceCommandAsync(request, cancellationToken);
 }
 
+public record ApproveDeviceCommandCommand(int Id, bool Approve, string? Note = null)
+    : IRequest<ApiResponse<bool>>, IAuditableCommand
+{
+    public string AuditAction => Approve ? "Approve" : "Reject";
+    public string AuditEntityName => "GpsDeviceCommand";
+    public int? AuditEntityId => Id;
+}
+
+public class ApproveDeviceCommandCommandHandler(IGpsDeviceRepository gpsDeviceRepository)
+    : IRequestHandler<ApproveDeviceCommandCommand, ApiResponse<bool>>
+{
+    public Task<ApiResponse<bool>> Handle(ApproveDeviceCommandCommand request, CancellationToken cancellationToken)
+        => gpsDeviceRepository.ApproveDeviceCommandAsync(request, cancellationToken);
+}
+
 public record CompleteDeviceCommandCommand(int Id, string UniqueId, string Status, string? ResponseText = null, string? ErrorMessage = null)
     : IRequest<ApiResponse<bool>>;
 

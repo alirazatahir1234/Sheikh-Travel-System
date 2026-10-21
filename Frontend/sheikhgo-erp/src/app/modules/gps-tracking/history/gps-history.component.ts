@@ -368,6 +368,7 @@ export class GpsHistoryComponent implements OnInit, OnDestroy {
     this.preset = id;
     this.applyPreset(id, true);
     this.updateUrl();
+    if (this.vehicleId) this.load();
   }
 
   onCustomDatesChange(): void {

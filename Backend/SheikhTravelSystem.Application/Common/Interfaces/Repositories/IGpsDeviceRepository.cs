@@ -35,6 +35,11 @@ public interface IGpsDeviceRepository
     Task<ApiResponse<bool>> UpdateGpsDeviceAsync(UpdateGpsDeviceCommand request, CancellationToken cancellationToken = default);
     Task<ApiResponse<bool>> DeleteGpsDeviceAsync(DeleteGpsDeviceCommand request, CancellationToken cancellationToken = default);
     Task<ApiResponse<int>> SendDeviceCommandAsync(SendDeviceCommandCommand request, CancellationToken cancellationToken = default);
+    Task<ApiResponse<bool>> ApproveDeviceCommandAsync(ApproveDeviceCommandCommand request, CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Platform control-center approve/reject. When approved, dispatches to Traccar (no tenant scope).
+    /// </summary>
+    Task<ApiResponse<bool>> PlatformApproveDeviceCommandAsync(int commandId, bool approve, string? note, string? approvedBy, CancellationToken cancellationToken = default);
     Task<ApiResponse<bool>> RetryDeviceCommandAsync(RetryDeviceCommandCommand request, CancellationToken cancellationToken = default);
     Task<ApiResponse<List<SupportedCommandDto>>> GetDeviceSupportedCommandsAsync(GetDeviceSupportedCommandsQuery request, CancellationToken cancellationToken = default);
     Task<ApiResponse<TraccarSyncRunResult>> SyncTrackerAsync(SyncTrackerCommand request, CancellationToken cancellationToken = default);

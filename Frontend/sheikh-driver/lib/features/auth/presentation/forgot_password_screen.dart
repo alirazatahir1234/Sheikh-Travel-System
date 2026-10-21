@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_theme.dart';
+import '../../../shared/widgets/sg_ui.dart';
 import '../data/auth_api.dart';
+import '../../../shared/widgets/sg_keyboard_fields.dart';
 
 /// Driver-facing forgot-password: request a phone reset code.
 class ForgotPasswordScreen extends ConsumerStatefulWidget {
@@ -56,44 +58,98 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
       backgroundColor: p.surface,
       appBar: AppBar(title: const Text('Forgot password')),
       body: ListView(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
         children: [
-          Text(
-            'Enter the phone number on your driver account. If it matches, we send a reset code.',
-            style: TextStyle(fontSize: 14, color: p.textMuted, height: 1.4),
-          ),
-          const SizedBox(height: 20),
-          Form(
-            key: _formKey,
-            child: TextFormField(
-              controller: _phone,
-              keyboardType: TextInputType.phone,
-              decoration: const InputDecoration(
-                labelText: 'Phone',
-                hintText: '+92…',
-              ),
-              validator: (v) =>
-                  (v == null || v.trim().isEmpty) ? 'Phone is required' : null,
+          SgCard(
+            padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  'Reset via phone',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: p.textPrimary,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.3,
+                      ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Enter the phone number on your driver account. If it matches, we send a reset code.',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: p.textSecondary,
+                    height: 1.4,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Form(
+                  key: _formKey,
+                  child: SgSheetTextFormField(
+                    controller: _phone,
+                    label: 'Phone',
+                    hint: '+92…',
+                    keyboardType: TextInputType.phone,
+                    prefixIcon: Icons.phone_outlined,
+                    validator: (v) =>
+                        (v == null || v.trim().isEmpty) ? 'Phone is required' : null,
+                  ),
+                ),
+                if (_info != null) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColors.error.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(AppRadii.sm),
+                      border: Border.all(
+                        color: AppColors.error.withValues(alpha: 0.22),
+                      ),
+                    ),
+                    child: Text(
+                      _info!,
+                      style: const TextStyle(
+                        color: AppColors.error,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        height: 1.3,
+                      ),
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 20),
+                SizedBox(
+                  height: 48,
+                  child: FilledButton(
+                    onPressed: _busy ? null : _submit,
+                    child: _busy
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Text(
+                            'Send reset code',
+                            style: TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                  ),
+                ),
+              ],
             ),
           ),
-          if (_info != null) ...[
-            const SizedBox(height: 12),
-            Text(_info!, style: TextStyle(color: AppColors.error, fontSize: 13)),
-          ],
-          const SizedBox(height: 24),
-          FilledButton(
-            onPressed: _busy ? null : _submit,
-            child: _busy
-                ? const SizedBox(
-                    height: 20,
-                    width: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Text('Send reset code'),
-          ),
+          const SizedBox(height: 8),
           TextButton(
             onPressed: () => context.go('/login'),
-            child: const Text('Back to login'),
+            child: Text(
+              'Back to login',
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+                color: p.textSecondary,
+              ),
+            ),
           ),
         ],
       ),

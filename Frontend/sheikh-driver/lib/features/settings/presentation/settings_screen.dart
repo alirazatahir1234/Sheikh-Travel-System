@@ -6,6 +6,7 @@ import '../../../core/api/api_endpoints.dart';
 import '../../../core/api/dio_client.dart';
 import '../../../core/config/app_config.dart';
 import '../../../core/constants/app_theme.dart';
+import '../../../shared/widgets/sg_keyboard_fields.dart';
 import '../../../core/providers/locale_provider.dart';
 import '../../../core/providers/theme_provider.dart';
 import '../../../core/security/biometric_auth_service.dart';
@@ -332,12 +333,16 @@ class SettingsScreen extends ConsumerWidget {
         ),
       );
     } else {
+      final issue = ref.read(pushRegistrationIssueProvider);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text(
-            'Could not enable notifications. Allow permission in system Settings.',
+            issue ??
+                'Could not enable notifications. Allow permission in system Settings, '
+                    'or add android/app/google-services.json and rebuild.',
           ),
           backgroundColor: AppColors.error,
+          duration: const Duration(seconds: 6),
         ),
       );
     }
@@ -430,8 +435,6 @@ class _ChangePasswordSheetState extends State<_ChangePasswordSheet> {
   final _newCtrl = TextEditingController();
   final _confirmCtrl = TextEditingController();
   bool _loading = false;
-  bool _showCurrent = false;
-  bool _showNew = false;
 
   @override
   void dispose() {
@@ -501,30 +504,22 @@ class _ChangePasswordSheetState extends State<_ChangePasswordSheet> {
                     fontWeight: FontWeight.w700,
                     color: context.sg.textPrimary)),
             const SizedBox(height: 20),
-            TextFormField(
+            SgSheetTextFormField(
               controller: _currentCtrl,
-              obscureText: !_showCurrent,
-              decoration: InputDecoration(
-                labelText: 'Current Password',
-                suffixIcon: IconButton(
-                  icon: Icon(_showCurrent ? Icons.visibility_off : Icons.visibility),
-                  onPressed: () => setState(() => _showCurrent = !_showCurrent),
-                ),
-              ),
+              label: 'Current Password',
+              obscureText: true,
+              keyboardType: TextInputType.visiblePassword,
+              prefixIcon: Icons.lock_outline_rounded,
               validator: (v) =>
                   (v == null || v.isEmpty) ? 'Enter current password' : null,
             ),
             const SizedBox(height: 12),
-            TextFormField(
+            SgSheetTextFormField(
               controller: _newCtrl,
-              obscureText: !_showNew,
-              decoration: InputDecoration(
-                labelText: 'New Password',
-                suffixIcon: IconButton(
-                  icon: Icon(_showNew ? Icons.visibility_off : Icons.visibility),
-                  onPressed: () => setState(() => _showNew = !_showNew),
-                ),
-              ),
+              label: 'New Password',
+              obscureText: true,
+              keyboardType: TextInputType.visiblePassword,
+              prefixIcon: Icons.lock_outline_rounded,
               validator: (v) {
                 if (v == null || v.isEmpty) return 'Enter new password';
                 if (v.length < 8) return 'Minimum 8 characters';
@@ -532,10 +527,12 @@ class _ChangePasswordSheetState extends State<_ChangePasswordSheet> {
               },
             ),
             const SizedBox(height: 12),
-            TextFormField(
+            SgSheetTextFormField(
               controller: _confirmCtrl,
+              label: 'Confirm New Password',
               obscureText: true,
-              decoration: const InputDecoration(labelText: 'Confirm New Password'),
+              keyboardType: TextInputType.visiblePassword,
+              prefixIcon: Icons.lock_outline_rounded,
               validator: (v) =>
                   v != _newCtrl.text ? 'Passwords do not match' : null,
             ),

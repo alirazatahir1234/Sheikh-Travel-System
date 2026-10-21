@@ -271,8 +271,15 @@ public class TraccarClient(
 
         try
         {
+            logger.LogInformation("Traccar SendCommandAsync → deviceId={DeviceId} type={Type}", deviceId, type);
             var payload = new { deviceId, type, attributes = attributes ?? new Dictionary<string, object>(0) };
             var response = await http.PostAsJsonAsync(uri, payload, ct);
+            if (!response.IsSuccessStatusCode)
+            {
+                logger.LogWarning(
+                    "Traccar SendCommandAsync failed deviceId={DeviceId} type={Type} status={StatusCode}",
+                    deviceId, type, (int)response.StatusCode);
+            }
             return response.IsSuccessStatusCode;
         }
         catch (Exception ex)

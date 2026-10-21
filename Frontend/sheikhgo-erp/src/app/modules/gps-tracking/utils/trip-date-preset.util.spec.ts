@@ -1,6 +1,6 @@
 import {
   HISTORY_DATE_PRESETS,
-  TripDatePreset,
+  TRIP_DATE_MAX_RANGE_MS,
   applyTripDatePreset,
   formatPeriodLabel,
   toDatetimeLocalInput
@@ -23,14 +23,12 @@ describe('applyTripDatePreset', () => {
     expect(to.getDate()).toBe(12);
   });
 
-  it('resolves last 30 days and this year windows', () => {
+  it('clamps last30Days and thisYear to MaxRange (30 days)', () => {
     const month = applyTripDatePreset('last30Days', now);
-    expect(month.to.getTime() - month.from.getTime()).toBeGreaterThanOrEqual(29 * 24 * 60 * 60 * 1000);
+    expect(month.to.getTime() - month.from.getTime()).toBeLessThanOrEqual(TRIP_DATE_MAX_RANGE_MS);
 
     const year = applyTripDatePreset('thisYear', now);
-    expect(year.from.getMonth()).toBe(0);
-    expect(year.from.getDate()).toBe(1);
-    expect(year.from.getFullYear()).toBe(2026);
+    expect(year.to.getTime() - year.from.getTime()).toBeLessThanOrEqual(TRIP_DATE_MAX_RANGE_MS);
   });
 
   it('formats period labels', () => {

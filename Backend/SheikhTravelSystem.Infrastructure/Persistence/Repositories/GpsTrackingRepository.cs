@@ -354,35 +354,49 @@ public sealed partial class GpsTrackingRepository(
 
         if (dto.BranchId is > 0)
         {
-            var already = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
-                @"SELECT COUNT(1) FROM GeofenceAssignments
-                  WHERE GeofenceId = @GeofenceId AND BranchId = @BranchId AND IsDeleted = 0",
-                new { request.GeofenceId, dto.BranchId },
+            var branchOwned = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
+                "SELECT COUNT(1) FROM Branches WHERE Id = @BranchId AND TenantId = @TenantId",
+                new { dto.BranchId, TenantId = tenantId },
                 cancellationToken: cancellationToken));
-            if (already == 0)
+            if (branchOwned > 0)
             {
-                await connection.ExecuteAsync(new CommandDefinition(
-                    @"INSERT INTO GeofenceAssignments (GeofenceId, BranchId, CreatedAt, CreatedBy, IsDeleted)
-                      VALUES (@GeofenceId, @BranchId, GETUTCDATE(), @CreatedBy, 0)",
-                    new { request.GeofenceId, dto.BranchId, CreatedBy = createdBy },
+                var already = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
+                    @"SELECT COUNT(1) FROM GeofenceAssignments
+                      WHERE GeofenceId = @GeofenceId AND BranchId = @BranchId AND IsDeleted = 0",
+                    new { request.GeofenceId, dto.BranchId },
                     cancellationToken: cancellationToken));
+                if (already == 0)
+                {
+                    await connection.ExecuteAsync(new CommandDefinition(
+                        @"INSERT INTO GeofenceAssignments (GeofenceId, BranchId, CreatedAt, CreatedBy, IsDeleted)
+                          VALUES (@GeofenceId, @BranchId, GETUTCDATE(), @CreatedBy, 0)",
+                        new { request.GeofenceId, dto.BranchId, CreatedBy = createdBy },
+                        cancellationToken: cancellationToken));
+                }
             }
         }
 
         if (dto.DepartmentId is > 0)
         {
-            var already = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
-                @"SELECT COUNT(1) FROM GeofenceAssignments
-                  WHERE GeofenceId = @GeofenceId AND DepartmentId = @DepartmentId AND IsDeleted = 0",
-                new { request.GeofenceId, dto.DepartmentId },
+            var deptOwned = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
+                "SELECT COUNT(1) FROM Departments WHERE Id = @DepartmentId AND TenantId = @TenantId",
+                new { dto.DepartmentId, TenantId = tenantId },
                 cancellationToken: cancellationToken));
-            if (already == 0)
+            if (deptOwned > 0)
             {
-                await connection.ExecuteAsync(new CommandDefinition(
-                    @"INSERT INTO GeofenceAssignments (GeofenceId, DepartmentId, CreatedAt, CreatedBy, IsDeleted)
-                      VALUES (@GeofenceId, @DepartmentId, GETUTCDATE(), @CreatedBy, 0)",
-                    new { request.GeofenceId, dto.DepartmentId, CreatedBy = createdBy },
+                var already = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
+                    @"SELECT COUNT(1) FROM GeofenceAssignments
+                      WHERE GeofenceId = @GeofenceId AND DepartmentId = @DepartmentId AND IsDeleted = 0",
+                    new { request.GeofenceId, dto.DepartmentId },
                     cancellationToken: cancellationToken));
+                if (already == 0)
+                {
+                    await connection.ExecuteAsync(new CommandDefinition(
+                        @"INSERT INTO GeofenceAssignments (GeofenceId, DepartmentId, CreatedAt, CreatedBy, IsDeleted)
+                          VALUES (@GeofenceId, @DepartmentId, GETUTCDATE(), @CreatedBy, 0)",
+                        new { request.GeofenceId, dto.DepartmentId, CreatedBy = createdBy },
+                        cancellationToken: cancellationToken));
+                }
             }
         }
 
@@ -1087,6 +1101,7 @@ public sealed partial class GpsTrackingRepository(
     public async Task<ApiResponse<List<GpsAlertEventDto>>> GetGeofenceEventsAsync(GetGeofenceEventsQuery request, CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
+        var tenantId = tenantContext.GetRequiredTenantId();
         var from = request.From ?? DateTime.UtcNow.Date.AddDays(-7);
         var to = request.To ?? DateTime.UtcNow.AddDays(1);
 
@@ -1098,14 +1113,14 @@ public sealed partial class GpsTrackingRepository(
                    COALESCE(e.Status, 'active') AS Status,
                    e.GeofenceId, g.Name AS GeofenceName
             FROM GpsAlertEvents e
-            LEFT JOIN Vehicles v ON v.Id = e.VehicleId
-            LEFT JOIN Geofences g ON g.Id = e.GeofenceId
+            INNER JOIN Vehicles v ON v.Id = e.VehicleId AND v.TenantId = @TenantId AND v.IsDeleted = 0
+            INNER JOIN Geofences g ON g.Id = e.GeofenceId AND g.TenantId = @TenantId AND g.IsDeleted = 0
             WHERE e.IsDeleted = 0 AND e.GeofenceId = @GeofenceId
               AND e.EventType IN ('geofence_enter', 'geofence_exit')
               AND e.Timestamp >= @From AND e.Timestamp < @To
             ORDER BY e.Timestamp DESC
             """,
-            new { request.GeofenceId, From = from, To = to },
+            new { request.GeofenceId, From = from, To = to, TenantId = tenantId },
             cancellationToken: cancellationToken));
 
         return ApiResponse<List<GpsAlertEventDto>>.SuccessResponse(rows.ToList());
@@ -1212,98 +1227,112 @@ public sealed partial class GpsTrackingRepository(
         var tenantId = tenantContext.GetRequiredTenantId();
         var allowedEventTypes = GpsAlertAccess.AllowedEventTypesForRoles(currentUser.Roles);
         var (from, to) = ResolveDateRange(request.DatePreset, request.From, request.To);
-        var sql = $"""
-            SELECT {AlertSelectColumns}
-            FROM GpsAlertEvents e
-            INNER JOIN Vehicles v ON v.Id = e.VehicleId AND v.TenantId = @TenantId
-            LEFT JOIN Geofences g ON g.Id = e.GeofenceId
-            LEFT JOIN Drivers d ON d.Id = e.DriverId
-            WHERE e.IsDeleted = 0
-            """;
+
+        var clauses = new List<string> { "e.IsDeleted = 0", "v.TenantId = @TenantId" };
+        var parameters = new DynamicParameters();
+        parameters.Add("TenantId", tenantId);
+
+        if (currentUser.UserId is int userId)
+        {
+            var scope = await dataScopeEngine.ResolveAsync(userId, tenantId, cancellationToken);
+            DataScopeSqlBuilder.ApplyVehicleScope(parameters, scope, "v", clauses);
+        }
 
         if (request.VehicleId.HasValue)
         {
-            sql += " AND e.VehicleId = @VehicleId";
+            clauses.Add("e.VehicleId = @VehicleId");
+            parameters.Add("VehicleId", request.VehicleId.Value);
         }
 
         if (request.UnacknowledgedOnly == true)
-        {
-            sql += " AND e.IsAcknowledged = 0";
-        }
+            clauses.Add("e.IsAcknowledged = 0");
 
         if (from.HasValue)
         {
-            sql += " AND e.Timestamp >= @From";
+            clauses.Add("e.Timestamp >= @From");
+            parameters.Add("From", from.Value);
         }
 
         if (to.HasValue)
         {
-            sql += " AND e.Timestamp <= @To";
+            clauses.Add("e.Timestamp <= @To");
+            parameters.Add("To", to.Value);
         }
 
         if (request.DriverId.HasValue)
         {
-            sql += " AND e.DriverId = @DriverId";
+            clauses.Add("e.DriverId = @DriverId");
+            parameters.Add("DriverId", request.DriverId.Value);
         }
 
         if (!string.IsNullOrWhiteSpace(request.EventType))
         {
-            sql += " AND e.EventType = @EventType";
+            clauses.Add("e.EventType = @EventType");
+            parameters.Add("EventType", request.EventType);
         }
 
         if (request.GeofenceId.HasValue)
         {
-            sql += " AND e.GeofenceId = @GeofenceId";
+            clauses.Add("e.GeofenceId = @GeofenceId");
+            parameters.Add("GeofenceId", request.GeofenceId.Value);
         }
 
         if (!string.IsNullOrWhiteSpace(request.Severity))
         {
-            sql += " AND e.Severity = @Severity";
+            clauses.Add("e.Severity = @Severity");
+            parameters.Add("Severity", request.Severity);
         }
 
         if (!string.IsNullOrWhiteSpace(request.Status))
         {
             var normalizedStatus = request.Status.Trim().ToLowerInvariant();
-            sql += normalizedStatus switch
+            switch (normalizedStatus)
             {
-                "unread" => " AND e.Status = 'active' AND e.ReadAt IS NULL",
-                "read" => " AND e.Status = 'active' AND e.ReadAt IS NOT NULL",
-                _ => " AND e.Status = @Status"
-            };
+                case "unread":
+                    clauses.Add("e.Status = 'active' AND e.ReadAt IS NULL");
+                    break;
+                case "read":
+                    clauses.Add("e.Status = 'active' AND e.ReadAt IS NOT NULL");
+                    break;
+                default:
+                    clauses.Add("e.Status = @Status");
+                    parameters.Add("Status", normalizedStatus);
+                    break;
+            }
         }
 
         if (!string.IsNullOrWhiteSpace(request.ReadState))
         {
-            sql += request.ReadState.Trim().ToLowerInvariant() switch
+            switch (request.ReadState.Trim().ToLowerInvariant())
             {
-                "unread" => " AND e.ReadAt IS NULL AND e.Status <> 'archived'",
-                "read" => " AND e.ReadAt IS NOT NULL",
-                _ => string.Empty
-            };
+                case "unread":
+                    clauses.Add("e.ReadAt IS NULL AND e.Status <> 'archived'");
+                    break;
+                case "read":
+                    clauses.Add("e.ReadAt IS NOT NULL");
+                    break;
+            }
         }
 
         if (allowedEventTypes is not null)
         {
-            sql += " AND LOWER(e.EventType) IN @AllowedEventTypes";
+            clauses.Add("LOWER(e.EventType) IN @AllowedEventTypes");
+            parameters.Add("AllowedEventTypes", allowedEventTypes);
         }
 
-        sql += " ORDER BY e.Timestamp DESC";
+        var sql = $"""
+            SELECT {AlertSelectColumns}
+            FROM GpsAlertEvents e
+            INNER JOIN Vehicles v ON v.Id = e.VehicleId
+            LEFT JOIN Geofences g ON g.Id = e.GeofenceId
+            LEFT JOIN Drivers d ON d.Id = e.DriverId
+            WHERE {string.Join(" AND ", clauses)}
+            ORDER BY e.Timestamp DESC
+            """;
 
         var rows = await connection.QueryAsync<GpsAlertEventDto>(new CommandDefinition(
             sql,
-            new
-            {
-                TenantId = tenantId,
-                request.VehicleId,
-                From = from,
-                To = to,
-                request.DriverId,
-                request.EventType,
-                request.Severity,
-                Status = request.Status?.Trim().ToLowerInvariant(),
-                request.GeofenceId,
-                AllowedEventTypes = allowedEventTypes
-            },
+            parameters,
             cancellationToken: cancellationToken));
 
         return ApiResponse<List<GpsAlertEventDto>>.SuccessResponse(GpsAlertQueryProjection.Decorate(rows, currentUser).ToList());
@@ -1357,9 +1386,31 @@ public sealed partial class GpsTrackingRepository(
 
         using var connection = dbFactory.CreateConnection();
         var tenantId = tenantContext.GetRequiredTenantId();
-        var allowedEventTypes = GpsAlertAccess.AllowedEventTypes(currentUser.Role);
+        // Match listEvents: merge allowed types across all role claims.
+        var allowedEventTypes = GpsAlertAccess.AllowedEventTypesForRoles(currentUser.Roles);
 
-        var sql = """
+        var clauses = new List<string>
+        {
+            "e.IsDeleted = 0",
+            "v.TenantId = @TenantId",
+            "v.IsDeleted = 0"
+        };
+        var parameters = new DynamicParameters();
+        parameters.Add("TenantId", tenantId);
+
+        if (currentUser.UserId is int userId)
+        {
+            var scope = await dataScopeEngine.ResolveAsync(userId, tenantId, cancellationToken);
+            DataScopeSqlBuilder.ApplyVehicleScope(parameters, scope, "v", clauses);
+        }
+
+        if (allowedEventTypes is not null)
+        {
+            clauses.Add("LOWER(e.EventType) IN @AllowedEventTypes");
+            parameters.Add("AllowedEventTypes", allowedEventTypes);
+        }
+
+        var sql = $"""
             SELECT
                 COUNT(*) AS Total,
                 SUM(CASE WHEN CAST(e.Timestamp AS DATE) = CAST(GETUTCDATE() AS DATE) THEN 1 ELSE 0 END) AS Today,
@@ -1369,17 +1420,13 @@ public sealed partial class GpsTrackingRepository(
                 SUM(CASE WHEN e.Severity = 'critical' AND e.Status IN ('active', 'acknowledged') THEN 1 ELSE 0 END) AS Critical,
                 SUM(CASE WHEN e.Status = 'archived' THEN 1 ELSE 0 END) AS Archived
             FROM GpsAlertEvents e
-            INNER JOIN Vehicles v ON v.Id = e.VehicleId AND v.TenantId = @TenantId AND v.IsDeleted = 0
-            WHERE e.IsDeleted = 0
+            INNER JOIN Vehicles v ON v.Id = e.VehicleId
+            WHERE {string.Join(" AND ", clauses)}
             """;
-        if (allowedEventTypes is not null)
-        {
-            sql += " AND LOWER(e.EventType) IN @AllowedEventTypes";
-        }
 
         var stats = await connection.QueryFirstAsync<GpsAlertStatsDto>(new CommandDefinition(
             sql,
-            new { TenantId = tenantId, AllowedEventTypes = allowedEventTypes },
+            parameters,
             cancellationToken: cancellationToken));
 
         return ApiResponse<GpsAlertStatsDto>.SuccessResponse(stats);

@@ -299,6 +299,7 @@ public partial class GpsTrackingController : BaseApiController
 
     [HttpPost("devices")]
     [Obsolete("Use POST /api/gps/trackers/register")]
+    [RequirePermission(GpsPermissions.DeviceManage)]
     public async Task<IActionResult> CreateDevice([FromBody] CreateGpsDeviceDto device)
     {
         var tracker = MapLegacyCreate(device);
@@ -308,6 +309,7 @@ public partial class GpsTrackingController : BaseApiController
 
     [HttpPut("devices/{id:int}")]
     [Obsolete("Use PUT /api/gps/trackers/{id}")]
+    [RequirePermission(GpsPermissions.DeviceManage)]
     public async Task<IActionResult> UpdateDevice(int id, [FromBody] UpdateGpsDeviceDto device)
     {
         var tracker = MapLegacyUpdate(device);
@@ -316,6 +318,7 @@ public partial class GpsTrackingController : BaseApiController
 
     [HttpDelete("devices/{id:int}")]
     [Obsolete("Use DELETE /api/gps/trackers/{id}")]
+    [RequirePermission(GpsPermissions.DeviceManage)]
     public async Task<IActionResult> DeleteDevice(int id)
         => Ok(await Mediator.Send(new DeleteTrackerCommand(id)));
 
@@ -330,6 +333,7 @@ public partial class GpsTrackingController : BaseApiController
         => Ok(await Mediator.Send(new GetTrackerByIdQuery(id)));
 
     [HttpPost("trackers/register")]
+    [RequirePermission(GpsPermissions.DeviceManage)]
     public async Task<IActionResult> RegisterTracker([FromBody] RegisterTrackerDto tracker)
     {
         var result = await Mediator.Send(new RegisterTrackerCommand(tracker));
@@ -337,14 +341,17 @@ public partial class GpsTrackingController : BaseApiController
     }
 
     [HttpPut("trackers/{id:int}")]
+    [RequirePermission(GpsPermissions.DeviceManage)]
     public async Task<IActionResult> UpdateTracker(int id, [FromBody] UpdateTrackerDto tracker)
         => Ok(await Mediator.Send(new UpdateTrackerCommand(id, tracker)));
 
     [HttpDelete("trackers/{id:int}")]
+    [RequirePermission(GpsPermissions.DeviceManage)]
     public async Task<IActionResult> DeleteTracker(int id)
         => Ok(await Mediator.Send(new DeleteTrackerCommand(id)));
 
     [HttpPost("trackers/{id:int}/install")]
+    [RequirePermission(GpsPermissions.DeviceManage)]
     public async Task<IActionResult> InstallTracker(int id, [FromBody] InstallTrackerDto body)
     {
         var result = await Mediator.Send(new InstallTrackerCommand(id, body));
@@ -352,6 +359,7 @@ public partial class GpsTrackingController : BaseApiController
     }
 
     [HttpPost("trackers/{id:int}/uninstall")]
+    [RequirePermission(GpsPermissions.DeviceManage)]
     public async Task<IActionResult> UninstallTracker(int id, [FromBody] UninstallTrackerDto? body = null)
     {
         var result = await Mediator.Send(new UninstallTrackerCommand(id, body));
@@ -359,6 +367,7 @@ public partial class GpsTrackingController : BaseApiController
     }
 
     [HttpPost("trackers/{id:int}/transfer")]
+    [RequirePermission(GpsPermissions.DeviceManage)]
     public async Task<IActionResult> TransferTracker(int id, [FromBody] TransferTrackerDto body)
     {
         var result = await Mediator.Send(new TransferTrackerCommand(id, body));
@@ -474,6 +483,11 @@ public partial class GpsTrackingController : BaseApiController
     public async Task<IActionResult> CancelCommand(int id, [FromQuery] string? reason)
         => Ok(await Mediator.Send(new CancelDeviceCommandCommand(id, reason)));
 
+    [RequirePermission(GpsPermissions.CommandApprove)]
+    [HttpPost("commands/{id:int}/approve")]
+    public async Task<IActionResult> ApproveCommand(int id, [FromBody] ApproveDeviceCommandDto? body)
+        => Ok(await Mediator.Send(new ApproveDeviceCommandCommand(id, body?.Approve ?? true, body?.Note)));
+
     [HttpGet("commands/pending")]
     [AllowAnonymous]
     [GpsDeviceApiKey]
@@ -530,7 +544,12 @@ public partial class GpsTrackingController : BaseApiController
         return Ok(new TraccarStatusDto(false, null, linkedCount, "Traccar server unreachable.", SyncEnabled: true));
     }
 
+    /// <summary>
+    /// Raw Traccar inventory — restricted to device managers (shared Traccar can otherwise
+    /// enumerate IMEIs across tenants). Prefer GET /gps/trackers for tenant-scoped lists.
+    /// </summary>
     [HttpGet("traccar/devices")]
+    [RequirePermission(GpsPermissions.DeviceManage)]
     public async Task<IActionResult> GetTraccarDevices(
         [FromServices] ITraccarClient traccar)
     {

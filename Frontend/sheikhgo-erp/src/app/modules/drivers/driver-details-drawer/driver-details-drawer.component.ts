@@ -242,17 +242,19 @@ export class DriverDetailsDrawerComponent {
 
   overviewStatusVariant(d: Driver): 'success' | 'warning' | 'error' | 'info' {
     const mapped = statusBadgeVariant(d.status);
-    if (mapped === 'danger') return 'error';
-    if (mapped === 'neutral') return 'info';
+    if (mapped === 'inactive') return 'info';
     return mapped;
   }
 
   driverStatusBadge(d: Driver): { label: string; variant: 'success' | 'warning' | 'error' | 'info' } {
-    if (!d.isActive || d.status === DriverStatus.Suspended) {
+    if (d.status === DriverStatus.Suspended) {
       return { label: 'Suspended', variant: 'error' };
     }
+    if (!d.isActive) {
+      return { label: 'Inactive', variant: 'error' };
+    }
     if (d.status === DriverStatus.OnTrip) {
-      return { label: 'On Duty', variant: 'info' };
+      return { label: 'On Trip', variant: 'info' };
     }
     if (d.assignedVehicleId) {
       return { label: 'Assigned', variant: 'success' };

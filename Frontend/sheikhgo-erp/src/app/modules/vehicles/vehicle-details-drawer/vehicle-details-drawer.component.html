@@ -736,6 +736,11 @@
   </ui-modal>
 
   <ui-modal [(open)]="assignDriverModalOpen" title="Assign Driver" size="sm">
+    @if (vehicle()?.driverName) {
+      <div class="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[13px] text-amber-800">
+        Currently assigned to {{ vehicle()?.driverName }}. Reassigning will transfer this vehicle.
+      </div>
+    }
     <ui-select
       label="Driver"
       placeholder="Select driver"

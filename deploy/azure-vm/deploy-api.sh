@@ -53,12 +53,18 @@ ls -1dt */ 2>/dev/null | tail -n +"$((KEEP_RELEASES + 1))" | xargs -r rm -rf
 
 echo "==> systemctl restart $SERVICE_NAME"
 sudo systemctl restart "$SERVICE_NAME"
-sleep 5
 sudo systemctl is-active "$SERVICE_NAME"
 
-HTTP="$(curl -s -m 20 -o /tmp/sheikhgo-health.txt -w '%{http_code}' http://127.0.0.1:5082/health || true)"
-BODY="$(cat /tmp/sheikhgo-health.txt 2>/dev/null || true)"
-echo "==> /health => HTTP $HTTP body=$BODY"
+HTTP=""; BODY=""
+for i in 1 2 3 4 5 6 7 8 9 10; do
+  sleep 3
+  HTTP="$(curl -s -m 20 -o /tmp/sheikhgo-health.txt -w '%{http_code}' http://127.0.0.1:5082/health || true)"
+  BODY="$(cat /tmp/sheikhgo-health.txt 2>/dev/null || true)"
+  echo "==> /health try=$i => HTTP $HTTP body=$BODY"
+  if [[ "$HTTP" == "200" && "$BODY" == "Healthy" ]]; then
+    break
+  fi
+done
 if [[ "$HTTP" != "200" || "$BODY" != "Healthy" ]]; then
   echo "Health check failed" >&2
   journalctl -u "$SERVICE_NAME" -n 40 --no-pager || true

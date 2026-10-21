@@ -7,55 +7,115 @@ import '../../../core/errors/error_handler.dart';
 import '../../../features/auth/data/auth_repository.dart';
 import '../../../features/auth/domain/auth_models.dart';
 import '../../../features/bookings/presentation/dispatch_pickers.dart';
+import '../../../features/fleet/presentation/fleet_hub_notifier.dart';
 import '../../../shared/widgets/sg_ui.dart';
 import '../data/drivers_api.dart';
 import '../domain/driver_models.dart';
 import 'drivers_notifier.dart';
 
-class DriverDetailScreen extends ConsumerWidget {
+final driverAssignmentsProvider =
+    FutureProvider.autoDispose.family<List<DriverAssignment>, int>((ref, id) {
+  return ref.watch(driversApiProvider).assignments(id);
+});
+
+class DriverDetailScreen extends ConsumerStatefulWidget {
   const DriverDetailScreen({super.key, required this.driverId});
   final int driverId;
+
+  @override
+  ConsumerState<DriverDetailScreen> createState() => _DriverDetailScreenState();
+}
+
+class _DriverDetailScreenState extends ConsumerState<DriverDetailScreen> {
+  bool _assignInFlight = false;
+
+  int get driverId => widget.driverId;
 
   bool _isVerified(DriverDetail d) =>
       (d.verificationStatus ?? '').toLowerCase() == 'verified';
 
-  Future<void> _assignVehicle(
-    BuildContext context,
-    WidgetRef ref,
-    DriverDetail driver,
-  ) async {
-    if (!_isVerified(driver)) {
-      if (context.mounted) {
+  Future<void> _assignVehicle(DriverDetail driver) async {
+    if (_assignInFlight) return;
+
+    final block = driverAssignmentBlockReason(
+      isActive: driver.isActive,
+      status: driver.status,
+      licenseExpired: driver.licenseExpired,
+      verificationStatus: driver.verificationStatus,
+      requireVerified: true,
+    );
+    if (block != null) {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Driver must be verified before vehicle assignment.',
-            ),
-          ),
+          SnackBar(content: Text(block)),
         );
       }
       return;
     }
-    final vehicleId = await pickVehicleId(context, ref);
-    if (vehicleId == null) return;
+
+    final isReassign = driver.assignedVehicleId != null;
+    if (isReassign) {
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Reassign vehicle?'),
+          content: Text(
+            'Replace ${driver.assignedVehicleName ?? driver.assignedVehicleRegistration ?? 'current vehicle'} with another vehicle?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Continue'),
+            ),
+          ],
+        ),
+      );
+      if (ok != true) return;
+    }
+
+    final vehicleId = await pickVehicleId(
+      context,
+      ref,
+      pickerContext: AssignPickerContext.driver,
+      currentDriverId: driverId,
+      filterAssignableOnly: true,
+      warnOnOccupied: true,
+    );
+    if (vehicleId == null || !mounted) return;
+
+    setState(() => _assignInFlight = true);
     try {
-      await ref.read(driversApiProvider).assignVehicle(driverId, vehicleId);
-      _invalidate(ref);
-      if (context.mounted) {
+      final api = ref.read(driversApiProvider);
+      if (isReassign) {
+        await api.transferVehicle(driverId, vehicleId);
+      } else {
+        await api.assignVehicle(driverId, vehicleId);
+      }
+      _invalidate(vehicleId: vehicleId);
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Vehicle assigned')),
+          SnackBar(
+            content: Text(isReassign ? 'Vehicle transferred' : 'Vehicle assigned'),
+          ),
         );
       }
     } catch (e) {
-      if (context.mounted) {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(ErrorHandler.message(e))),
         );
       }
+    } finally {
+      if (mounted) setState(() => _assignInFlight = false);
     }
   }
 
-  Future<void> _unassignVehicle(BuildContext context, WidgetRef ref) async {
+  Future<void> _unassignVehicle() async {
+    if (_assignInFlight) return;
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -74,34 +134,44 @@ class DriverDetailScreen extends ConsumerWidget {
       ),
     );
     if (ok != true) return;
+    setState(() => _assignInFlight = true);
     try {
+      final prevVehicleId =
+          ref.read(driverDetailProvider(driverId)).valueOrNull?.assignedVehicleId;
       await ref.read(driversApiProvider).unassignVehicle(driverId);
-      _invalidate(ref);
-      if (context.mounted) {
+      _invalidate(vehicleId: prevVehicleId);
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Vehicle unassigned')),
         );
       }
     } catch (e) {
-      if (context.mounted) {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(ErrorHandler.message(e))),
         );
       }
+    } finally {
+      if (mounted) setState(() => _assignInFlight = false);
     }
   }
 
-  void _invalidate(WidgetRef ref) {
+  void _invalidate({int? vehicleId}) {
     ref.invalidate(driverDetailProvider(driverId));
     ref.invalidate(driversHubProvider);
     ref.invalidate(driverPerformanceProvider(driverId));
     ref.invalidate(driverViolationsProvider(driverId));
     ref.invalidate(driverAttendanceProvider(driverId));
     ref.invalidate(driverDocumentsProvider(driverId));
+    ref.invalidate(driverAssignmentsProvider(driverId));
+    ref.invalidate(fleetHubProvider);
+    if (vehicleId != null) {
+      ref.invalidate(vehicleDetailProvider(vehicleId));
+    }
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final async = ref.watch(driverDetailProvider(driverId));
     final session = ref.watch(fleetSessionProvider);
     final canManage =
@@ -125,14 +195,14 @@ class DriverDetailScreen extends ConsumerWidget {
                   await ref
                       .read(driversApiProvider)
                       .updateStatus(driverId, status);
-                  _invalidate(ref);
-                  if (context.mounted) {
+                  _invalidate();
+                  if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(content: Text('Status → $status')),
                     );
                   }
                 } catch (e) {
-                  if (context.mounted) {
+                  if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(content: Text(ErrorHandler.message(e))),
                     );
@@ -174,12 +244,26 @@ class DriverDetailScreen extends ConsumerWidget {
           final displayName =
               d.fullName.trim().isEmpty ? 'Driver' : d.fullName.trim();
           final verified = _isVerified(d);
+          final assignBlock = driverAssignmentBlockReason(
+            isActive: d.isActive,
+            status: d.status,
+            licenseExpired: d.licenseExpired,
+            verificationStatus: d.verificationStatus,
+            requireVerified: true,
+          );
           final licenseColor = d.licenseExpired
               ? AppColors.error
               : d.licenseExpiringSoon
                   ? AppColors.warning
                   : null;
-          return ListView(
+          return RefreshIndicator(
+            color: AppColors.primary,
+            onRefresh: () async {
+              _invalidate(vehicleId: d.assignedVehicleId);
+              await ref.read(driverDetailProvider(driverId).future);
+            },
+            child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
             padding: EdgeInsets.fromLTRB(
               16,
               8,
@@ -355,7 +439,7 @@ class DriverDetailScreen extends ConsumerWidget {
               ),
               if (canAssign) ...[
                 const SizedBox(height: 12),
-                if (!verified)
+                if (assignBlock != null)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 10),
                     child: Container(
@@ -371,9 +455,9 @@ class DriverDetailScreen extends ConsumerWidget {
                           color: AppColors.warning.withValues(alpha: 0.28),
                         ),
                       ),
-                      child: const Text(
-                        'Vehicle assignment requires Verified status.',
-                        style: TextStyle(
+                      child: Text(
+                        assignBlock,
+                        style: const TextStyle(
                           fontSize: 12,
                           color: AppColors.warning,
                           fontWeight: FontWeight.w600,
@@ -385,8 +469,18 @@ class DriverDetailScreen extends ConsumerWidget {
                   children: [
                     Expanded(
                       child: FilledButton.icon(
-                        onPressed: () => _assignVehicle(context, ref, d),
-                        icon: const Icon(Icons.local_shipping_outlined),
+                        onPressed: _assignInFlight || assignBlock != null
+                            ? null
+                            : () => _assignVehicle(d),
+                        icon: _assignInFlight
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Icon(Icons.local_shipping_outlined),
                         label: Text(
                           d.assignedVehicleId != null ? 'Reassign' : 'Assign',
                         ),
@@ -396,7 +490,8 @@ class DriverDetailScreen extends ConsumerWidget {
                       const SizedBox(width: 10),
                       Expanded(
                         child: OutlinedButton.icon(
-                          onPressed: () => _unassignVehicle(context, ref),
+                          onPressed:
+                              _assignInFlight ? null : _unassignVehicle,
                           icon: const Icon(Icons.link_off_outlined),
                           label: const Text('Unassign'),
                         ),
@@ -405,6 +500,13 @@ class DriverDetailScreen extends ConsumerWidget {
                   ],
                 ),
               ],
+              const SizedBox(height: 18),
+              const SgSectionTitle(
+                'Assignment history',
+                subtitle: 'Recent vehicle transfers',
+              ),
+              const SizedBox(height: 8),
+              _AssignmentsHistoryCard(driverId: driverId, df: df),
               if (canPerf) ...[
                 const SizedBox(height: 18),
                 const SgSectionTitle('Performance'),
@@ -460,9 +562,94 @@ class DriverDetailScreen extends ConsumerWidget {
                 ),
               ),
             ],
+          ),
           );
         },
       ),
+    );
+  }
+}
+
+class _AssignmentsHistoryCard extends ConsumerWidget {
+  const _AssignmentsHistoryCard({required this.driverId, required this.df});
+  final int driverId;
+  final DateFormat df;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(driverAssignmentsProvider(driverId));
+    final palette = context.sg;
+    return async.when(
+      loading: () => const SgCard(
+        child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+      ),
+      error: (_, __) => const SgCard(
+        child: SgInlineEmpty(message: 'Assignment history unavailable'),
+      ),
+      data: (items) {
+        if (items.isEmpty) {
+          return const SgCard(
+            child: SgInlineEmpty(message: 'No assignment history yet'),
+          );
+        }
+        final visible = items.take(8).toList();
+        return SgCard(
+          padding: const EdgeInsets.fromLTRB(14, 6, 14, 6),
+          child: Column(
+            children: [
+              for (var i = 0; i < visible.length; i++) ...[
+                if (i > 0) Divider(height: 1, color: palette.divider),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SgIconWell(
+                        icon: Icons.swap_horiz_outlined,
+                        color: visible[i].status.toLowerCase() == 'active'
+                            ? AppColors.success
+                            : AppColors.primary,
+                        size: 34,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              visible[i].vehicleLabel,
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                color: palette.textPrimary,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              [
+                                visible[i].assignmentType,
+                                visible[i].status,
+                                df.format(visible[i].startAt.toLocal()),
+                                if (visible[i].endAt != null)
+                                  '→ ${df.format(visible[i].endAt!.toLocal())}',
+                              ].join(' · '),
+                              style: TextStyle(
+                                fontSize: 12,
+                                height: 1.35,
+                                color: palette.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      StatusBadge(visible[i].status),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
+        );
+      },
     );
   }
 }

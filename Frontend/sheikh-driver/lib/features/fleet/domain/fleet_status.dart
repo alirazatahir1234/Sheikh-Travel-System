@@ -41,6 +41,72 @@ FleetTrackStatus resolveFleetStatus({
   return FleetTrackStatus.idle;
 }
 
+/// Maps a `GET /gps/live/fleet` row (ERP GpsLiveFleetVehicleDto).
+FleetVehicleLocation mapLiveFleetRow(Map<String, dynamic> json) {
+  final lat = (json['latitude'] as num? ?? json['Latitude'] as num?)?.toDouble();
+  final lng =
+      (json['longitude'] as num? ?? json['Longitude'] as num?)?.toDouble();
+  final lastUpdated = _parseOptionalDate(json['lastUpdated'] ?? json['LastUpdated']);
+  final speed = (json['speed'] as num? ?? json['Speed'] as num? ?? 0).toDouble();
+  final hasGpsDevice =
+      json['hasGpsDevice'] as bool? ?? json['HasGpsDevice'] as bool? ?? false;
+  final hasCoords = _validCoords(lat, lng);
+  final alarmType =
+      json['alarmType'] as String? ?? json['AlarmType'] as String?;
+  final ignition = json['ignition'] as bool? ?? json['Ignition'] as bool?;
+  final vehicleId =
+      json['vehicleId'] as int? ?? json['VehicleId'] as int? ?? 0;
+  final rawName = (json['vehicleName'] as String? ??
+          json['VehicleName'] as String? ??
+          '')
+      .trim();
+
+  final status = hasCoords
+      ? resolveFleetStatus(
+          speed: speed,
+          ignition: ignition,
+          lastUpdated: lastUpdated,
+          hasGps: true,
+          alarmType: alarmType,
+        )
+      : (hasGpsDevice
+          ? FleetTrackStatus.neverSeen
+          : FleetTrackStatus.offline);
+
+  return FleetVehicleLocation(
+    vehicleId: vehicleId,
+    vehicleName: rawName.isEmpty ? 'Vehicle #$vehicleId' : rawName,
+    registrationNumber: json['registrationNumber'] as String? ??
+        json['RegistrationNumber'] as String? ??
+        '',
+    status: status,
+    latitude: hasCoords ? lat : null,
+    longitude: hasCoords ? lng : null,
+    lastUpdated: lastUpdated,
+    speed: speed,
+    driverName: json['driverName'] as String? ?? json['DriverName'] as String?,
+    driverPhone:
+        json['driverPhone'] as String? ?? json['DriverPhone'] as String?,
+    hasGps: hasCoords || hasGpsDevice,
+    ignition: ignition,
+    heading: (json['heading'] as num? ?? json['Heading'] as num?)?.toDouble(),
+    batteryLevel:
+        (json['batteryLevel'] as num? ?? json['BatteryLevel'] as num?)
+            ?.toDouble(),
+    gsmSignal: json['gsmSignal'] as int? ?? json['GsmSignal'] as int?,
+    address: json['address'] as String? ?? json['Address'] as String?,
+    alarmType: alarmType,
+    vehicleType:
+        json['vehicleType'] as String? ?? json['VehicleType'] as String?,
+  );
+}
+
+DateTime? _parseOptionalDate(Object? raw) {
+  if (raw == null) return null;
+  if (raw is DateTime) return raw;
+  return DateTime.tryParse(raw.toString());
+}
+
 List<FleetVehicleLocation> mergeVehiclesWithLive({
   required List<VehicleListItem> vehicles,
   required List<GpsPosition> live,

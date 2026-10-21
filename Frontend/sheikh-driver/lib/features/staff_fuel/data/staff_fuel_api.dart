@@ -13,18 +13,33 @@ class StaffFuelApi {
   final Dio _dio;
 
   Future<List<StaffFuelLog>> list({int page = 1, int pageSize = 100}) async {
-    final res = await _dio.get<Map<String, dynamic>>(
-      ApiEndpoints.fuelLogs,
-      queryParameters: {'page': page, 'pageSize': pageSize},
-    );
-    return ApiResponseParser.pagedItems(res.data)
-        .map(StaffFuelLog.fromJson)
-        .toList();
+    try {
+      final res = await _dio.get<Map<String, dynamic>>(
+        ApiEndpoints.fuelLogs,
+        queryParameters: {'page': page, 'pageSize': pageSize},
+      );
+      final items = ApiResponseParser.pagedItems(res.data);
+      final logs = <StaffFuelLog>[];
+      for (final item in items) {
+        try {
+          logs.add(StaffFuelLog.fromJson(item));
+        } catch (_) {
+          // Skip malformed rows so one bad item cannot blank the whole list.
+        }
+      }
+      return logs;
+    } catch (e) {
+      throw toAppException(e);
+    }
   }
 
   Future<StaffFuelLog> getById(int id) async {
-    final res =
-        await _dio.get<Map<String, dynamic>>(ApiEndpoints.fuelLogById(id));
-    return StaffFuelLog.fromJson(ApiResponseParser.dataMap(res.data));
+    try {
+      final res =
+          await _dio.get<Map<String, dynamic>>(ApiEndpoints.fuelLogById(id));
+      return StaffFuelLog.fromJson(ApiResponseParser.dataMap(res.data));
+    } catch (e) {
+      throw toAppException(e);
+    }
   }
 }

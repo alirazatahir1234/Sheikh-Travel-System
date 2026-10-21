@@ -4,6 +4,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/constants/app_theme.dart';
 import '../../../../shared/widgets/sg_ui.dart';
+import '../../../../shared/widgets/sg_keyboard_fields.dart';
 import '../../domain/alert_display.dart';
 import '../alerts_notifier.dart';
 import 'in_cab_radio_modal.dart';
@@ -85,9 +86,10 @@ class _IncidentDetailSheetState extends ConsumerState<IncidentDetailSheet> {
         final isDemo =
             ref.watch(alertsProvider).valueOrNull?.isDemo(a.id) ?? a.id < 0;
 
+        final kb = MediaQuery.viewInsetsOf(context).bottom;
         return ListView(
           controller: widget.scrollController,
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+          padding: EdgeInsets.fromLTRB(16, 8, 16, 32 + kb),
           children: [
             Center(
               child: Container(
@@ -316,13 +318,12 @@ class _IncidentDetailSheetState extends ConsumerState<IncidentDetailSheet> {
               style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
             ),
             const SizedBox(height: 8),
-            TextField(
+            SgSheetTextFormField(
               controller: _notes,
+              label: 'Resolution notes',
+              hint: 'Resolution notes…',
               maxLines: 3,
-              decoration: const InputDecoration(
-                hintText: 'Resolution notes…',
-                border: OutlineInputBorder(),
-              ),
+              textCapitalization: TextCapitalization.sentences,
             ),
             const SizedBox(height: 12),
             Wrap(

@@ -24,6 +24,7 @@ export class GpsAlertsComponent implements OnInit, OnDestroy {
     archived: 0
   };
   loading = false;
+  loadError: string | null = null;
   activeTab: 'rules' | 'events' = 'events';
   showRuleForm = false;
   selectedEvent: GpsAlertEvent | null = null;
@@ -67,7 +68,13 @@ export class GpsAlertsComponent implements OnInit, OnDestroy {
 
   loadEvents(): void {
     this.loading = true;
-    this.gps.getAlertStats().subscribe({ next: s => { this.stats = s; } });
+    this.loadError = null;
+    this.gps.getAlertStats().subscribe({
+      next: s => { this.stats = s; },
+      error: err => {
+        this.toast.error(err?.error?.message ?? 'Failed to load alert stats');
+      }
+    });
     this.gps.getAlertEvents(undefined, {
       status: this.statusFilter ?? undefined,
       readState: this.readStateFilter ?? undefined,
@@ -81,7 +88,12 @@ export class GpsAlertsComponent implements OnInit, OnDestroy {
         }
         this.loading = false;
       },
-      error: () => { this.loading = false; }
+      error: err => {
+        this.loading = false;
+        this.events = [];
+        this.loadError = err?.error?.message || err?.message || 'Failed to load alerts.';
+        this.toast.error(this.loadError ?? 'Failed to load alerts.');
+      }
     });
   }
 

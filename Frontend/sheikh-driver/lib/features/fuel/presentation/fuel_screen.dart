@@ -7,6 +7,7 @@ import '../../../core/constants/app_theme.dart';
 import '../../inspection/data/inspection_api.dart';
 import '../../inspection/domain/inspection_models.dart';
 import 'fuel_notifier.dart';
+import '../../../shared/widgets/sg_keyboard_fields.dart';
 
 final _fuelVehiclesProvider = FutureProvider.autoDispose<List<InspectionVehicle>>(
   (ref) => ref.read(inspectionApiProvider).getVehicles(),
@@ -319,7 +320,7 @@ class _FuelScreenState extends ConsumerState<FuelScreen> {
                   const SizedBox(height: 16),
                   // Tap-to-enter amount sheet avoids the floating keyboard side
                   // toolbar (mic / emoji strip) that covers the left of these fields.
-                  _AmountField(
+                  SgSheetAmountFormField(
                     controller: _litersCtrl,
                     label: 'Liters',
                     unit: 'L',
@@ -332,7 +333,7 @@ class _FuelScreenState extends ConsumerState<FuelScreen> {
                     },
                   ),
                   const SizedBox(height: 12),
-                  _AmountField(
+                  SgSheetAmountFormField(
                     controller: _priceCtrl,
                     label: 'Price / Liter',
                     unit: 'PKR',
@@ -350,12 +351,16 @@ class _FuelScreenState extends ConsumerState<FuelScreen> {
                     builder: (context, _) {
                       return Container(
                         width: double.infinity,
-                        padding: const EdgeInsets.all(14),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 14,
+                        ),
                         decoration: BoxDecoration(
-                          color: AppColors.primary.withValues(alpha: 0.06),
-                          borderRadius: BorderRadius.circular(10),
+                          color: AppColors.primary.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(AppRadii.md),
                           border: Border.all(
-                              color: AppColors.primary.withValues(alpha: 0.2)),
+                            color: AppColors.primary.withValues(alpha: 0.28),
+                          ),
                         ),
                         child: Row(
                           children: [
@@ -364,15 +369,17 @@ class _FuelScreenState extends ConsumerState<FuelScreen> {
                               style: TextStyle(
                                 color: context.sg.textSecondary,
                                 fontSize: 13,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
                             const Spacer(),
                             Text(
                               'PKR ${_money.format(_total)}',
                               style: const TextStyle(
-                                fontWeight: FontWeight.w700,
+                                fontWeight: FontWeight.w800,
                                 fontSize: 18,
-                                color: AppColors.primary,
+                                letterSpacing: -0.3,
+                                color: AppColors.primaryDark,
                               ),
                             ),
                           ],
@@ -381,7 +388,7 @@ class _FuelScreenState extends ConsumerState<FuelScreen> {
                     },
                   ),
                   const SizedBox(height: 12),
-                  _AmountField(
+                  SgSheetAmountFormField(
                     controller: _odoCtrl,
                     label: 'Odometer Reading',
                     unit: 'km',
@@ -394,7 +401,7 @@ class _FuelScreenState extends ConsumerState<FuelScreen> {
                     },
                   ),
                   const SizedBox(height: 12),
-                  _TextSheetField(
+                  SgSheetTextFormField(
                     controller: _stationCtrl,
                     label: 'Station Name',
                     helperExample: 'e.g. PSO Shell Main',
@@ -423,11 +430,16 @@ class _FuelScreenState extends ConsumerState<FuelScreen> {
               ),
             ),
             const SizedBox(height: 28),
-            const Text(
+            Text(
               'Recent receipts',
-              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+              style: TextStyle(
+                fontWeight: FontWeight.w800,
+                fontSize: 15.5,
+                letterSpacing: -0.25,
+                color: context.sg.textPrimary,
+              ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
             historyAsync.when(
               loading: () => const Padding(
                 padding: EdgeInsets.all(24),
@@ -440,7 +452,10 @@ class _FuelScreenState extends ConsumerState<FuelScreen> {
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     child: Text(
                       'No fuel receipts yet.',
-                      style: TextStyle(color: context.sg.textSecondary),
+                      style: TextStyle(
+                        color: context.sg.textSecondary,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   );
                 }
@@ -463,29 +478,62 @@ class _HistoryTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.sg;
     final dateFmt = DateFormat('dd MMM yyyy · HH:mm');
     final money = NumberFormat('#,##0.00');
-    return Card(
+    return Container(
       margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: p.card,
+        borderRadius: BorderRadius.circular(AppRadii.lg),
+        border: Border.all(color: p.border.withValues(alpha: 0.72)),
+        boxShadow: AppShadows.card,
+      ),
       child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
         leading: log.receiptUrl != null && (log.receiptUrl as String).isNotEmpty
             ? ClipRRect(
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(AppRadii.sm),
                 child: Image.network(
                   log.receiptUrl as String,
                   width: 48,
                   height: 48,
                   fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => const Icon(
-                    Icons.local_gas_station,
-                    color: AppColors.warning,
+                  errorBuilder: (_, __, ___) => Container(
+                    width: 48,
+                    height: 48,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: AppColors.warning.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(AppRadii.sm),
+                    ),
+                    child: const Icon(
+                      Icons.local_gas_station_rounded,
+                      color: AppColors.warning,
+                    ),
                   ),
                 ),
               )
-            : const Icon(Icons.local_gas_station, color: AppColors.warning),
+            : Container(
+                width: 48,
+                height: 48,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: AppColors.warning.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(AppRadii.sm),
+                ),
+                child: const Icon(
+                  Icons.local_gas_station_rounded,
+                  color: AppColors.warning,
+                ),
+              ),
         title: Text(
           '${log.liters} L · ${log.fuelType ?? 'Fuel'}',
-          style: const TextStyle(fontWeight: FontWeight.w600),
+          style: TextStyle(
+            fontWeight: FontWeight.w800,
+            letterSpacing: -0.15,
+            color: p.textPrimary,
+          ),
         ),
         subtitle: Text(
           [
@@ -493,13 +541,13 @@ class _HistoryTile extends StatelessWidget {
               log.station,
             dateFmt.format(log.fuelDate as DateTime),
           ].join(' · '),
-          style: const TextStyle(fontSize: 12),
+          style: TextStyle(fontSize: 12, color: p.textMuted),
         ),
         trailing: Text(
           'PKR ${money.format(log.totalCost)}',
           style: const TextStyle(
-            fontWeight: FontWeight.w700,
-            color: AppColors.primary,
+            fontWeight: FontWeight.w800,
+            color: AppColors.primaryDark,
           ),
         ),
         onTap: log.receiptUrl != null && (log.receiptUrl as String).isNotEmpty
@@ -677,447 +725,6 @@ class _NetworkPreviewPage extends StatelessWidget {
         child: InteractiveViewer(
           child: Image.network(url),
         ),
-      ),
-    );
-  }
-}
-
-/// Tap field → bottom-sheet number pad (avoids floating keyboard side toolbar).
-class _AmountField extends StatelessWidget {
-  const _AmountField({
-    required this.controller,
-    required this.label,
-    required this.unit,
-    required this.validator,
-    this.helperExample,
-    this.allowDecimal = true,
-  });
-
-  final TextEditingController controller;
-  final String label;
-  final String unit;
-  final String? helperExample;
-  final bool allowDecimal;
-  final String? Function(String?)? validator;
-
-  Future<void> _openPad(BuildContext context) async {
-    final result = await showModalBottomSheet<String>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      builder: (ctx) => _AmountPadSheet(
-        title: label,
-        unit: unit,
-        initialValue: controller.text,
-        allowDecimal: allowDecimal,
-      ),
-    );
-    if (result != null) {
-      controller.text = result;
-      controller.selection =
-          TextSelection.collapsed(offset: controller.text.length);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return FormField<String>(
-      validator: (_) => validator?.call(controller.text),
-      builder: (state) {
-        return ListenableBuilder(
-          listenable: controller,
-          builder: (context, _) {
-            final value = controller.text.trim();
-            return InkWell(
-              onTap: () async {
-                await _openPad(context);
-                state.didChange(controller.text);
-                state.validate();
-              },
-              borderRadius: BorderRadius.circular(8),
-              child: InputDecorator(
-                isEmpty: value.isEmpty,
-                decoration: InputDecoration(
-                  labelText: label,
-                  hintText: helperExample,
-                  errorText: state.errorText,
-                  suffixIcon: Padding(
-                    padding: const EdgeInsets.only(right: 12),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          unit,
-                          style: TextStyle(
-                            color: context.sg.textSecondary,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        Icon(
-                          Icons.dialpad_rounded,
-                          size: 20,
-                          color: context.sg.textSecondary,
-                        ),
-                      ],
-                    ),
-                  ),
-                  border: const OutlineInputBorder(),
-                  isDense: true,
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-                ),
-                child: Text(
-                  value.isEmpty ? ' ' : value,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: value.isEmpty
-                        ? Colors.transparent
-                        : context.sg.textPrimary,
-                  ),
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-}
-
-/// Tap field → bottom-sheet text entry (avoids floating keyboard side toolbar).
-class _TextSheetField extends StatelessWidget {
-  const _TextSheetField({
-    required this.controller,
-    required this.label,
-    required this.validator,
-    this.helperExample,
-  });
-
-  final TextEditingController controller;
-  final String label;
-  final String? helperExample;
-  final String? Function(String?)? validator;
-
-  Future<void> _openEditor(BuildContext context) async {
-    final result = await showModalBottomSheet<String>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      builder: (ctx) => _TextEntrySheet(
-        title: label,
-        initialValue: controller.text,
-        hint: helperExample,
-      ),
-    );
-    if (result != null) {
-      controller.text = result;
-      controller.selection =
-          TextSelection.collapsed(offset: controller.text.length);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return FormField<String>(
-      validator: (_) => validator?.call(controller.text),
-      builder: (state) {
-        return ListenableBuilder(
-          listenable: controller,
-          builder: (context, _) {
-            final value = controller.text.trim();
-            return InkWell(
-              onTap: () async {
-                await _openEditor(context);
-                state.didChange(controller.text);
-                state.validate();
-              },
-              borderRadius: BorderRadius.circular(8),
-              child: InputDecorator(
-                isEmpty: value.isEmpty,
-                decoration: InputDecoration(
-                  labelText: label,
-                  hintText: helperExample,
-                  errorText: state.errorText,
-                  suffixIcon: Icon(
-                    Icons.edit_outlined,
-                    size: 20,
-                    color: context.sg.textSecondary,
-                  ),
-                  border: const OutlineInputBorder(),
-                  isDense: true,
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-                ),
-                child: Text(
-                  value.isEmpty ? ' ' : value,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: value.isEmpty
-                        ? Colors.transparent
-                        : context.sg.textPrimary,
-                  ),
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-}
-
-class _TextEntrySheet extends StatefulWidget {
-  const _TextEntrySheet({
-    required this.title,
-    required this.initialValue,
-    this.hint,
-  });
-
-  final String title;
-  final String initialValue;
-  final String? hint;
-
-  @override
-  State<_TextEntrySheet> createState() => _TextEntrySheetState();
-}
-
-class _TextEntrySheetState extends State<_TextEntrySheet> {
-  late final TextEditingController _ctrl;
-  final _focus = FocusNode();
-
-  @override
-  void initState() {
-    super.initState();
-    _ctrl = TextEditingController(text: widget.initialValue);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _focus.requestFocus();
-    });
-  }
-
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    _focus.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final bottom = MediaQuery.viewInsetsOf(context).bottom;
-    return Padding(
-      padding: EdgeInsets.only(
-        left: 20,
-        right: 20,
-        top: 16,
-        bottom: bottom + MediaQuery.paddingOf(context).bottom + 16,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Center(
-            child: Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.black26,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            widget.title,
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _ctrl,
-            focusNode: _focus,
-            textInputAction: TextInputAction.done,
-            textCapitalization: TextCapitalization.words,
-            decoration: InputDecoration(
-              hintText: widget.hint,
-              border: const OutlineInputBorder(),
-            ),
-            onSubmitted: (v) => Navigator.pop(context, v.trim()),
-          ),
-          const SizedBox(height: 12),
-          SizedBox(
-            height: 48,
-            child: FilledButton(
-              onPressed: () => Navigator.pop(context, _ctrl.text.trim()),
-              child: const Text('Done'),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _AmountPadSheet extends StatefulWidget {
-  const _AmountPadSheet({
-    required this.title,
-    required this.unit,
-    required this.initialValue,
-    this.allowDecimal = true,
-  });
-
-  final String title;
-  final String unit;
-  final String initialValue;
-  final bool allowDecimal;
-
-  @override
-  State<_AmountPadSheet> createState() => _AmountPadSheetState();
-}
-
-class _AmountPadSheetState extends State<_AmountPadSheet> {
-  late String _value;
-
-  @override
-  void initState() {
-    super.initState();
-    _value = widget.initialValue.trim().replaceAll(',', '.');
-    if (!widget.allowDecimal) {
-      _value = _value.split('.').first;
-    }
-  }
-
-  void _append(String ch) {
-    setState(() {
-      if (ch == '.') {
-        if (!widget.allowDecimal || _value.contains('.')) return;
-      }
-      if (_value == '0' && ch != '.') {
-        _value = ch;
-        return;
-      }
-      final next = '$_value$ch';
-      final normalized = next.replaceAll(',', '.');
-      final ok = widget.allowDecimal
-          ? RegExp(r'^\d*\.?\d{0,3}$').hasMatch(normalized)
-          : RegExp(r'^\d{0,9}$').hasMatch(normalized);
-      if (ok) _value = normalized;
-    });
-  }
-
-  void _backspace() {
-    if (_value.isEmpty) return;
-    setState(() => _value = _value.substring(0, _value.length - 1));
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final keys = widget.allowDecimal
-        ? const ['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', '⌫']
-        : const ['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', '⌫'];
-    return Padding(
-      padding: EdgeInsets.only(
-        left: 20,
-        right: 20,
-        top: 16,
-        bottom: MediaQuery.paddingOf(context).bottom + 16,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 40,
-            height: 4,
-            decoration: BoxDecoration(
-              color: Colors.black26,
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            widget.title,
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
-          ),
-          const SizedBox(height: 12),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-            decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.06),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    _value.isEmpty ? '0' : _value,
-                    style: TextStyle(
-                      fontSize: 32,
-                      fontWeight: FontWeight.w800,
-                      color: _value.isEmpty
-                          ? context.sg.textSecondary
-                          : context.sg.textPrimary,
-                    ),
-                  ),
-                ),
-                Text(
-                  widget.unit,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: context.sg.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-          GridView.count(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            crossAxisCount: 3,
-            childAspectRatio: 1.6,
-            mainAxisSpacing: 8,
-            crossAxisSpacing: 8,
-            children: [
-              for (final key in keys)
-                if (key.isEmpty)
-                  const SizedBox.shrink()
-                else
-                  FilledButton.tonal(
-                    onPressed: () {
-                      if (key == '⌫') {
-                        _backspace();
-                      } else {
-                        _append(key);
-                      }
-                    },
-                    style: FilledButton.styleFrom(
-                      textStyle: const TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    child: Text(key),
-                  ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          SizedBox(
-            width: double.infinity,
-            height: 48,
-            child: FilledButton(
-              onPressed: _value.isEmpty || _value == '.'
-                  ? null
-                  : () => Navigator.pop(context, _value),
-              child: const Text('Done'),
-            ),
-          ),
-        ],
       ),
     );
   }

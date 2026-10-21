@@ -351,20 +351,47 @@ public sealed class DriverRepository(IDbConnectionFactory dbFactory) : IDriverRe
         return new DriverListQueryResult(drivers, totalCount);
     }
 
-    public async Task<DriverStatsDto> GetStatsAsync(int tenantId, CancellationToken cancellationToken = default)
+    public async Task<DriverStatsDto> GetStatsAsync(
+        int tenantId,
+        int? branchId = null,
+        DataScopeResult? scope = null,
+        CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
         var bucketSql = DriverSql.BucketSqlExpression;
 
+        var where = new List<string> { "d.IsDeleted = 0", "d.TenantId = @TenantId" };
+        var parameters = new DynamicParameters(new
+        {
+            TenantId = tenantId,
+            OnTrip = (int)DriverStatus.OnTrip,
+            OffDuty = (int)DriverStatus.OffDuty,
+            Available = (int)DriverStatus.Available,
+            OnLeave = (int)DriverStatus.OnLeave,
+            Suspended = (int)DriverStatus.Suspended
+        });
+
+        if (scope is not null)
+            DataScopeSqlBuilder.ApplyDriverScope(parameters, scope, "d", where, branchId);
+        else if (branchId.HasValue)
+        {
+            where.Add("d.BranchId = @BranchId");
+            parameters.Add("BranchId", branchId.Value);
+        }
+
+        var whereClause = string.Join(" AND ", where);
+
+        // Available / Busy / OnTrip / Unavailable are exclusive dispatch-availability buckets
+        // (same rules as GetAvailabilitySummary). OffDuty / OnLeave / Suspended remain duty status.
         return await connection.QuerySingleAsync<DriverStatsDto>(
             new CommandDefinition(
                 $@"SELECT
                     COUNT(*) AS TotalDrivers,
                     SUM(CASE WHEN IsActive = 1 THEN 1 ELSE 0 END) AS Active,
                     SUM(CASE WHEN IsActive = 0 THEN 1 ELSE 0 END) AS Inactive,
-                    SUM(CASE WHEN Status = @OnTrip THEN 1 ELSE 0 END) AS OnTrip,
+                    SUM(CASE WHEN bucket = N'OnTrip' THEN 1 ELSE 0 END) AS OnTrip,
                     SUM(CASE WHEN Status = @OffDuty THEN 1 ELSE 0 END) AS OffDuty,
-                    SUM(CASE WHEN Status = @Available THEN 1 ELSE 0 END) AS Available,
+                    SUM(CASE WHEN bucket = N'Available' THEN 1 ELSE 0 END) AS Available,
                     SUM(CASE WHEN bucket = N'Busy' THEN 1 ELSE 0 END) AS Busy,
                     SUM(CASE WHEN Status = @OnLeave THEN 1 ELSE 0 END) AS OnLeave,
                     SUM(CASE WHEN Status = @Suspended THEN 1 ELSE 0 END) AS Suspended,
@@ -385,6 +412,7 @@ public sealed class DriverRepository(IDbConnectionFactory dbFactory) : IDriverRe
                     SUM(CASE WHEN VerificationStatus = N'Rejected' THEN 1 ELSE 0 END) AS RejectedDrivers,
                     SUM(CASE WHEN VerificationStatus = N'UnderReview' THEN 1 ELSE 0 END) AS UnderReviewDrivers,
                     SUM(CASE WHEN isAssigned = 1 THEN 1 ELSE 0 END) AS AssignedDrivers,
+                    COUNT(DISTINCT assignedVehicleId) AS AssignedVehicles,
                     ISNULL((
                         SELECT COUNT(*)
                         FROM DriverViolations dv
@@ -392,33 +420,28 @@ public sealed class DriverRepository(IDbConnectionFactory dbFactory) : IDriverRe
                         WHERE dv.TenantId = @TenantId
                           AND dv.IsDeleted = 0
                           AND (dv.Status IS NULL OR dv.Status NOT IN (N'Closed', N'Resolved', N'Dismissed'))
-                    ), 0) AS OpenViolations
+                          AND vd.Id IN (SELECT d.Id FROM Drivers d WHERE {whereClause})
+                    ), 0) AS OpenViolations,
+                    SUM(CASE WHEN bucket = N'Unavailable' THEN 1 ELSE 0 END) AS Unavailable
                   FROM (
                     SELECT d.*,
                            CASE WHEN av.GpsDeviceId IS NOT NULL AND gd.LastSeenAt >= DATEADD(minute, -15, GETUTCDATE())
                                 THEN 1 ELSE 0 END AS gpsOnline,
-                           CASE WHEN av.HasAssignment = 1 THEN 1 ELSE 0 END AS isAssigned,
+                           CASE WHEN av.VehicleId IS NOT NULL THEN 1 ELSE 0 END AS isAssigned,
+                           av.VehicleId AS assignedVehicleId,
                            {bucketSql} AS bucket
                     FROM Drivers d
                     OUTER APPLY (
-                        SELECT TOP 1 v.GpsDeviceId, 1 AS HasAssignment
+                        SELECT TOP 1 v.Id AS VehicleId, v.GpsDeviceId
                         FROM AssignmentHistory ah
                         INNER JOIN Vehicles v ON v.Id = ah.VehicleId AND v.IsDeleted = 0
                         WHERE ah.DriverId = d.Id AND ah.IsDeleted = 0 AND ah.Status = N'Active'
                         ORDER BY ah.StartAt DESC
                     ) av
                     LEFT JOIN GpsDevices gd ON gd.Id = av.GpsDeviceId AND gd.IsDeleted = 0
-                    WHERE d.IsDeleted = 0 AND d.TenantId = @TenantId
+                    WHERE {whereClause}
                   ) d",
-                new
-                {
-                    TenantId = tenantId,
-                    OnTrip = (int)DriverStatus.OnTrip,
-                    OffDuty = (int)DriverStatus.OffDuty,
-                    Available = (int)DriverStatus.Available,
-                    OnLeave = (int)DriverStatus.OnLeave,
-                    Suspended = (int)DriverStatus.Suspended
-                },
+                parameters,
                 cancellationToken: cancellationToken));
     }
 
@@ -972,37 +995,48 @@ public sealed class DriverRepository(IDbConnectionFactory dbFactory) : IDriverRe
     }
 
     public async Task<DriversAvailabilitySummaryDto> GetAvailabilitySummaryAsync(
-        int tenantId, int? branchId, CancellationToken cancellationToken = default)
+        int tenantId,
+        int? branchId = null,
+        DataScopeResult? scope = null,
+        CancellationToken cancellationToken = default)
     {
         using var connection = dbFactory.CreateConnection();
         var bucketSql = DriverSql.BucketSqlExpression;
 
-        var where = "d.IsDeleted = 0 AND d.TenantId = @TenantId";
-        if (branchId.HasValue)
-            where += " AND d.BranchId = @BranchId";
+        var where = new List<string> { "d.IsDeleted = 0", "d.TenantId = @TenantId" };
+        var parameters = new DynamicParameters(new
+        {
+            TenantId = tenantId,
+            OnTrip = (int)DriverStatus.OnTrip,
+            OffDuty = (int)DriverStatus.OffDuty,
+            Available = (int)DriverStatus.Available,
+            OnLeave = (int)DriverStatus.OnLeave,
+            Suspended = (int)DriverStatus.Suspended
+        });
+
+        if (scope is not null)
+            DataScopeSqlBuilder.ApplyDriverScope(parameters, scope, "d", where, branchId);
+        else if (branchId.HasValue)
+        {
+            where.Add("d.BranchId = @BranchId");
+            parameters.Add("BranchId", branchId.Value);
+        }
+
+        var whereClause = string.Join(" AND ", where);
 
         return await connection.QuerySingleAsync<DriversAvailabilitySummaryDto>(
             new CommandDefinition(
                 $@"SELECT
-                    SUM(CASE WHEN bucket = N'Available' THEN 1 ELSE 0 END) AS Available,
-                    SUM(CASE WHEN bucket = N'Busy' THEN 1 ELSE 0 END) AS Busy,
-                    SUM(CASE WHEN bucket = N'OnTrip' THEN 1 ELSE 0 END) AS OnTrip,
-                    SUM(CASE WHEN bucket = N'Unavailable' THEN 1 ELSE 0 END) AS Unavailable
+                    ISNULL(SUM(CASE WHEN bucket = N'Available' THEN 1 ELSE 0 END), 0) AS Available,
+                    ISNULL(SUM(CASE WHEN bucket = N'Busy' THEN 1 ELSE 0 END), 0) AS Busy,
+                    ISNULL(SUM(CASE WHEN bucket = N'OnTrip' THEN 1 ELSE 0 END), 0) AS OnTrip,
+                    ISNULL(SUM(CASE WHEN bucket = N'Unavailable' THEN 1 ELSE 0 END), 0) AS Unavailable
                   FROM (
                     SELECT {bucketSql} AS bucket
                     FROM Drivers d
-                    WHERE {where}
+                    WHERE {whereClause}
                   ) x",
-                new
-                {
-                    TenantId = tenantId,
-                    BranchId = branchId,
-                    OnTrip = (int)DriverStatus.OnTrip,
-                    OffDuty = (int)DriverStatus.OffDuty,
-                    Available = (int)DriverStatus.Available,
-                    OnLeave = (int)DriverStatus.OnLeave,
-                    Suspended = (int)DriverStatus.Suspended
-                },
+                parameters,
                 cancellationToken: cancellationToken));
     }
 

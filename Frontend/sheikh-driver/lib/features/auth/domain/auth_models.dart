@@ -52,6 +52,7 @@ abstract final class FleetPermissions {
   static const tripView = 'Trip.View';
   static const gpsView = 'GPS.View';
   static const vehicleView = 'Vehicle.View';
+  static const vehicleUpdate = 'Vehicle.Update';
   static const driverView = 'Driver.View';
   static const driverCreate = 'Driver.Create';
   static const driverUpdate = 'Driver.Update';
@@ -61,6 +62,10 @@ abstract final class FleetPermissions {
   static const driverViewPerformance = 'Driver.ViewPerformance';
   static const fuelView = 'Fuel.View';
   static const maintenanceView = 'Maintenance.View';
+  static const maintenanceManage = 'Maintenance.Manage';
+  static const maintenanceRequestCreate = 'Maintenance.Request.Create';
+  static const maintenanceRequestApprove = 'Maintenance.Request.Approve';
+  static const maintenanceWorkOrderManage = 'Maintenance.WorkOrder.Manage';
   static const reportView = 'Report.View';
   static const dashboardView = 'Platform.Dashboard.View';
   static const bookingView = 'Booking.View';
@@ -70,6 +75,8 @@ abstract final class FleetPermissions {
   static const gpsCommandView = 'Gps.CommandView';
   static const gpsCommandSend = 'Gps.CommandSend';
   static const gpsCommandEngineCutoff = 'Gps.CommandEngineCutoff';
+  static const gpsCommandApprove = 'Gps.CommandApprove';
+  static const gpsCommandCancel = 'Gps.CommandCancel';
   static const aiView = 'Ai.View';
   static const aiManage = 'Ai.Manage';
   static const aiExecuteWrite = 'Ai.ExecuteWrite';

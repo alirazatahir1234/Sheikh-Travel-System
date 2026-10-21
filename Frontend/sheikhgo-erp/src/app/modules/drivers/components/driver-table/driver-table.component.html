@@ -1,9 +1,13 @@
-<div class="driver-table-wrap rounded-xl border border-fleet-border bg-white">
+<div class="driver-table-wrap rounded-xl border border-fleet-border bg-white" [class.is-refreshing]="loading() && rows().length">
   @if (error()) {
     <div class="flex items-center justify-between gap-3 border-b border-fleet-error/30 bg-fleet-error-soft px-5 py-3 text-sm text-fleet-error">
       <span>{{ error() }}</span>
       <button type="button" class="font-semibold underline" (click)="retry.emit()">Retry</button>
     </div>
+  }
+
+  @if (loading() && rows().length) {
+    <div class="table-refresh-bar" aria-hidden="true"></div>
   }
 
   <div class="table-scroll overflow-x-auto">
@@ -25,18 +29,60 @@
         </tr>
       </thead>
       <tbody class="divide-y divide-fleet-border">
-        @if (loading()) {
-          @for (i of [1,2,3,4,5]; track i) {
-            <tr>
-              @for (c of [1,2,3,4,5,6,7,8,9,10,11,12]; track c) {
-                <td class="px-4 py-3"><div class="h-3.5 w-3/4 animate-pulse rounded bg-fleet-surface-muted"></div></td>
+        @if (loading() && !rows().length) {
+          @for (i of skeletonRows; track i) {
+            <tr class="skeleton-row" aria-hidden="true">
+              <td class="px-3 py-3">
+                <div class="skeleton-avatar animate-pulse"></div>
+              </td>
+              <td class="px-4 py-3">
+                <div class="skeleton-line skeleton-line--lg animate-pulse"></div>
+                <div class="skeleton-line skeleton-line--sm animate-pulse mt-1.5"></div>
+              </td>
+              @for (c of [1,2,3,4,5,6,7,8]; track c) {
+                <td class="px-4 py-3"><div class="skeleton-line animate-pulse"></div></td>
               }
+              <td class="col-actions sticky right-0 bg-white px-4 py-3">
+                <div class="skeleton-actions">
+                  <div class="skeleton-chip animate-pulse"></div>
+                  <div class="skeleton-chip animate-pulse"></div>
+                </div>
+              </td>
             </tr>
           }
-        } @else if (!rows().length) {
+        } @else if (!rows().length && !error()) {
           <tr>
             <td colspan="12" class="p-0">
-              <ui-empty-state icon="badge" title="No drivers found" description="Adjust filters or register a new driver."></ui-empty-state>
+              @if (hasActiveFilters()) {
+                <ui-empty-state
+                  icon="search_off"
+                  title="No matching drivers"
+                  description="Try a different search or clear filters to see all drivers.">
+                  <button type="button" class="empty-action-btn" (click)="clearFilters.emit()">
+                    Clear filters
+                  </button>
+                </ui-empty-state>
+              } @else {
+                <ui-empty-state
+                  icon="badge"
+                  title="No drivers yet"
+                  description="Register your first driver to start managing the fleet roster.">
+                  @if (canCreate()) {
+                    <a routerLink="/drivers/new" class="empty-action-btn empty-action-btn--primary">Add Driver</a>
+                  }
+                </ui-empty-state>
+              }
+            </td>
+          </tr>
+        } @else if (!rows().length && error()) {
+          <tr>
+            <td colspan="12" class="p-0">
+              <ui-empty-state
+                icon="error_outline"
+                title="Could not load drivers"
+                description="Something went wrong while loading the driver list.">
+                <button type="button" class="empty-action-btn" (click)="retry.emit()">Try again</button>
+              </ui-empty-state>
             </td>
           </tr>
         } @else {
@@ -77,10 +123,10 @@
               </td>
               <td class="px-4 py-3 text-sm">{{ assignedVehicle(row) }}</td>
               <td class="px-4 py-3">
-                <ui-status-badge [status]="availabilityLabel(row)" variant="info"></ui-status-badge>
+                <ui-status-badge [status]="availabilityLabel(row)" [variant]="availabilityVariant(row)"></ui-status-badge>
               </td>
               <td class="px-4 py-3">
-                <ui-status-badge [status]="statusLabel(row)" variant="info"></ui-status-badge>
+                <ui-status-badge [status]="statusLabel(row)" [variant]="statusVariant(row)"></ui-status-badge>
               </td>
               <td class="col-actions sticky right-0 bg-white px-4 py-3 text-right" (click)="$event.stopPropagation()">
                 <div class="inline-flex items-center gap-0.5">

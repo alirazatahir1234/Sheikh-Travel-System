@@ -20,8 +20,8 @@ public class DriversController : BaseApiController
 
     [RequirePermission(DriverPermissions.DriverView)]
     [HttpGet("stats")]
-    public async Task<IActionResult> GetStats()
-        => Ok(await Mediator.Send(new GetDriverStatsQuery()));
+    public async Task<IActionResult> GetStats([FromQuery] int? branchId)
+        => Ok(await Mediator.Send(new GetDriverStatsQuery(branchId)));
 
     [RequirePermission(DriverPermissions.DriverView)]
     [HttpGet("availability")]

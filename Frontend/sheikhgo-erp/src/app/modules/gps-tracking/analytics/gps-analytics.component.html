@@ -39,7 +39,14 @@
 
   <div *ngIf="loading" class="loading-row"><mat-spinner diameter="28"></mat-spinner></div>
 
-  <ng-container *ngIf="!loading && overview">
+  <div *ngIf="!loading && loadError" class="empty-state">
+    <mat-icon>error_outline</mat-icon>
+    <p>Could not load analytics</p>
+    <p class="page-sub">{{ loadError }}</p>
+    <button type="button" class="btn btn-secondary" (click)="load()">Retry</button>
+  </div>
+
+  <ng-container *ngIf="!loading && !loadError && overview">
     <section class="kpi-strip">
       <div *ngFor="let t of fleetStatusTiles" [class.kpi-clickable]="t.route" (click)="onKpiTileClick(t)">
         <stb-stat-tile [label]="t.label" [value]="t.value" [icon]="t.icon" [color]="t.color" [suffix]="t.suffix ?? ''"></stb-stat-tile>
@@ -59,12 +66,12 @@
     </section>
   </ng-container>
 
-  <div *ngIf="!loading && !overview" class="empty-state">
+  <div *ngIf="!loading && !loadError && !overview" class="empty-state">
     <mat-icon>insights</mat-icon>
     <p>No analytics data available.</p>
   </div>
 
-  <section class="charts-grid" *ngIf="!loading && overview">
+  <section class="charts-grid" *ngIf="!loading && !loadError && overview">
     <div class="chart-card">
       <h3 class="chart-title">Distance Trend</h3>
       <ui-chart type="line" [data]="distanceChartData" height="240px"></ui-chart>
@@ -75,7 +82,7 @@
     </div>
   </section>
 
-  <section class="idle-stop-grid" *ngIf="!loading && overview">
+  <section class="idle-stop-grid" *ngIf="!loading && !loadError && overview">
     <div class="metric-card" *ngIf="idleAnalytics as idle">
       <div class="metric-card-header">
         <h3 class="chart-title">Idle Analytics</h3>
@@ -100,7 +107,7 @@
     </div>
   </section>
 
-  <section class="chart-card" *ngIf="!loading && overview">
+  <section class="chart-card" *ngIf="!loading && !loadError && overview">
     <div class="metric-card-header">
       <h3 class="chart-title">Driver Performance Ranking</h3>
       <div class="header-actions">
@@ -136,7 +143,7 @@
     </ui-data-table>
   </section>
 
-  <section class="idle-stop-grid" *ngIf="!loading && overview">
+  <section class="idle-stop-grid" *ngIf="!loading && !loadError && overview">
     <div class="metric-card" *ngIf="utilization as u">
       <div class="metric-card-header">
         <h3 class="chart-title">Vehicle Utilization</h3>
@@ -158,7 +165,7 @@
     </div>
   </section>
 
-  <section class="chart-card" *ngIf="!loading && overview && fuelAnalytics as fuel">
+  <section class="chart-card" *ngIf="!loading && !loadError && overview && fuelAnalytics as fuel">
     <div class="metric-card-header">
       <h3 class="chart-title">Fuel by Vehicle</h3>
       <button type="button" class="btn btn-secondary" [matMenuTriggerFor]="fuelExportMenu" [disabled]="!fuel.byVehicle.length">
@@ -181,7 +188,7 @@
     </ui-data-table>
   </section>
 
-  <section class="charts-grid" *ngIf="!loading && overview">
+  <section class="charts-grid" *ngIf="!loading && !loadError && overview">
     <div class="chart-card">
       <h3 class="chart-title">Event Categories</h3>
       <ui-chart type="pie" [data]="eventCategoryChartData" height="240px"></ui-chart>
@@ -192,7 +199,7 @@
     </div>
   </section>
 
-  <section class="idle-stop-grid" *ngIf="!loading && overview && geofenceAnalytics as geo">
+  <section class="idle-stop-grid" *ngIf="!loading && !loadError && overview && geofenceAnalytics as geo">
     <div class="metric-card">
       <h3 class="chart-title">Most Visited Geofences</h3>
       <div class="metric-row" *ngFor="let g of geo.mostVisited">
@@ -212,7 +219,7 @@
     </div>
   </section>
 
-  <section class="chart-card" *ngIf="!loading && overview">
+  <section class="chart-card" *ngIf="!loading && !loadError && overview">
     <h3 class="chart-title">Heatmap — Most Driven Routes</h3>
     <p class="muted-note" style="text-align: left; padding: 0 0 12px;">
       Select up to {{ heatmapMaxVehicles }} vehicles ({{ selectedHeatmapVehicleIds.length }}/{{ heatmapMaxVehicles }} selected). Full-fleet heatmaps aren't supported yet — see the vehicle picker below.
@@ -233,7 +240,7 @@
     <div #heatmapMap class="heatmap-map"></div>
   </section>
 
-  <section class="chart-card" *ngIf="!loading && overview">
+  <section class="chart-card" *ngIf="!loading && !loadError && overview">
     <div class="metric-card-header">
       <h3 class="chart-title">Vehicle Health</h3>
       <button type="button" class="btn btn-secondary" [matMenuTriggerFor]="healthExportMenu" [disabled]="!vehicleHealth.length">
@@ -265,7 +272,7 @@
     </ui-data-table>
   </section>
 
-  <section class="chart-card" *ngIf="!loading && overview">
+  <section class="chart-card" *ngIf="!loading && !loadError && overview">
     <div class="metric-card-header">
       <h3 class="chart-title">Vehicle Ranking</h3>
       <button type="button" class="btn btn-secondary" [matMenuTriggerFor]="vehicleRankingExportMenu" [disabled]="!vehicleRanking.length">
@@ -291,7 +298,7 @@
     </ui-data-table>
   </section>
 
-  <section class="idle-stop-grid" *ngIf="!loading && overview">
+  <section class="idle-stop-grid" *ngIf="!loading && !loadError && overview">
     <div class="metric-card" *ngIf="costAnalytics as cost">
       <h3 class="chart-title">Operational Cost</h3>
       <div class="metric-row"><span>Fuel Cost</span><strong>{{ cost.totalFuelCost.toFixed(0) }}</strong></div>
@@ -322,7 +329,7 @@
     </div>
   </section>
 
-  <section class="chart-card" *ngIf="!loading && overview">
+  <section class="chart-card" *ngIf="!loading && !loadError && overview">
     <div class="metric-card-header">
       <h3 class="chart-title">Distance Trend (6 months)</h3>
       <div class="preset-row">
@@ -334,7 +341,7 @@
     <ui-chart type="line" [data]="trendsChartData" height="240px"></ui-chart>
   </section>
 
-  <section class="chart-card" *ngIf="!loading && overview">
+  <section class="chart-card" *ngIf="!loading && !loadError && overview">
     <analytics-report-schedules></analytics-report-schedules>
   </section>
 

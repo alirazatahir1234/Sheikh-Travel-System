@@ -31,10 +31,37 @@ void main() {
       'fuelDate': '2026-07-20T10:00:00Z',
       'createdAt': '2026-07-20T10:05:00Z',
       'station': 'PSO',
+      'vehicleName': 'Hiace A',
+      'vehicleRegistration': 'LES-123',
+      'driverName': 'Ali',
     });
     expect(l.liters, 40.5);
     expect(l.station, 'PSO');
+    expect(l.vehicleLabel, 'Hiace A · LES-123');
+    expect(l.driverLabel, 'Ali');
   });
+
+  test('StaffFuelLog tolerates live payload without names and double ids', () {
+    final l = StaffFuelLog.fromJson({
+      'id': 11.0,
+      'vehicleId': 50.0,
+      'driverId': 1.0,
+      'liters': 10.00,
+      'pricePerLiter': 313.00,
+      'totalCost': 3130.00,
+      'odometerReading': 19926.00,
+      'fuelType': 'Petrol',
+      'fuelDate': '2026-07-20T07:35:17.3033333',
+      'createdAt': '2026-07-20T07:35:24.4666667',
+      'station': 'PSO pSr',
+      'receiptUrl': 'fuel-receipts/1/1/x.png',
+    });
+    expect(l.id, 11);
+    expect(l.vehicleId, 50);
+    expect(l.vehicleLabel, 'Vehicle #50');
+    expect(l.driverLabel, 'Driver #1');
+  });
+
 
   test('ComplianceDocument flags expired status', () {
     final d = ComplianceDocument.fromJson({

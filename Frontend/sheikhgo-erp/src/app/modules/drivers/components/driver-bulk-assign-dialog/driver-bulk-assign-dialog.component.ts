@@ -4,6 +4,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { catchError, forkJoin, of } from 'rxjs';
 import { DriverService } from '../../../../core/services/driver.service';
 import { VehicleService } from '../../../../core/services/vehicle.service';
+import { VehicleStatus } from '../../../../core/models/vehicle.model';
 import { UiModalComponent } from '../../../../shared/components/ui/modal/ui-modal.component';
 import { UiButtonComponent } from '../../../../shared/components/ui/button/ui-button.component';
 import { UiSelectComponent } from '../../../../shared/components/ui/select/ui-select.component';
@@ -17,8 +18,8 @@ import { apiErrorMessage } from '../../../../core/utils/api-error.util';
   imports: [FormsModule, UiModalComponent, UiButtonComponent, UiSelectComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <ui-modal [(open)]="open" title="Bulk assign vehicle" size="md">
-      <p class="hint">Assign the selected vehicle to one unassigned, active, verified driver at a time.</p>
+    <ui-modal [(open)]="open" title="Assign vehicle" size="md">
+      <p class="hint">Assign one available (unassigned) vehicle to one unassigned, active, verified driver.</p>
       <ui-select class="block" label="Vehicle" [options]="vehicleOptions()" [(ngModel)]="selectedVehicleId" [required]="true" />
       <div class="driver-list">
         <p class="list-label">Driver</p>
@@ -73,8 +74,8 @@ export class DriverBulkAssignDialogComponent {
     this.selectedVehicleId = null;
     this.selectedDriverId.set(null);
     forkJoin({
-      drivers: this.driverService.getAll({ page: 1, pageSize: 500 }).pipe(catchError(() => of({ items: [] }))),
-      vehicles: this.vehicleService.getAll(1, 500).pipe(catchError(() => of({ items: [] })))
+      drivers: this.driverService.getAll({ page: 1, pageSize: 500 }).pipe(catchError(() => of({ items: [] as never[] }))),
+      vehicles: this.vehicleService.getAll(1, 500).pipe(catchError(() => of({ items: [] as never[] })))
     }).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(({ drivers, vehicles }) => {
       this.driverOptions.set(
         drivers.items
@@ -86,10 +87,15 @@ export class DriverBulkAssignDialogComponent {
           .map(d => ({ value: String(d.id), label: `${d.fullName} (${d.driverCode || d.phone})` }))
       );
       this.vehicleOptions.set(
-        vehicles.items.map(v => ({
-          value: String(v.id),
-          label: `${v.registrationNumber || v.vehicleCode} — ${v.make || ''} ${v.model || ''}`.trim()
-        }))
+        vehicles.items
+          .filter(v =>
+            !v.driverId &&
+            v.status === VehicleStatus.Available
+          )
+          .map(v => ({
+            value: String(v.id),
+            label: `${v.registrationNumber || v.vehicleCode} — ${v.make || ''} ${v.model || ''}`.trim()
+          }))
       );
     });
     this.open.set(true);

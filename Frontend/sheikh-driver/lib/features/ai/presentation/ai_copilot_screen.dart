@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../core/constants/app_theme.dart';
+import '../../../shared/widgets/sg_keyboard_fields.dart';
 import '../data/ai_chat_api.dart';
 import '../domain/ai_chat_models.dart';
 
@@ -291,8 +292,10 @@ class _AiCopilotScreenState extends ConsumerState<AiCopilotScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.sg;
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor: p.surface,
+      resizeToAvoidBottomInset: true,
       appBar: AppBar(
         title: const Text('SheikhGo AI'),
         actions: [
@@ -357,23 +360,36 @@ class _AiCopilotScreenState extends ConsumerState<AiCopilotScreen> {
   }
 
   Widget _buildMessages() {
+    final p = context.sg;
     if (_messages.isEmpty) {
       return ListView(
         controller: _scrollCtrl,
-        padding: const EdgeInsets.fromLTRB(24, 32, 24, 16),
+        padding: const EdgeInsets.fromLTRB(24, 36, 24, 16),
         children: [
-          Icon(
-            Icons.auto_awesome_rounded,
-            size: 48,
-            color: AppColors.primary.withValues(alpha: 0.85),
+          Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(AppRadii.md),
+              border: Border.all(
+                color: AppColors.primary.withValues(alpha: 0.22),
+              ),
+            ),
+            child: Icon(
+              Icons.auto_awesome_rounded,
+              size: 28,
+              color: AppColors.primary.withValues(alpha: 0.95),
+            ),
           ),
           const SizedBox(height: 16),
-          const Text(
+          Text(
             'Ask about your fleet',
             style: TextStyle(
               fontSize: 20,
-              fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.35,
+              color: p.textPrimary,
             ),
           ),
           const SizedBox(height: 8),
@@ -381,9 +397,9 @@ class _AiCopilotScreenState extends ConsumerState<AiCopilotScreen> {
             _health != null && !_health!.reachable
                 ? 'Ollama is offline — answers use tools and rules until the LLM is reachable.'
                 : 'Natural language queries run through AiChatGateway and the Tool Engine.',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 14,
-              color: AppColors.textSecondary,
+              color: p.textSecondary,
               height: 1.4,
             ),
           ),
@@ -422,8 +438,9 @@ class _AiCopilotScreenState extends ConsumerState<AiCopilotScreen> {
   }
 
   Widget _buildSuggestions() {
+    final p = context.sg;
     return SizedBox(
-      height: 44,
+      height: 42,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         physics: const BouncingScrollPhysics(),
@@ -435,9 +452,13 @@ class _AiCopilotScreenState extends ConsumerState<AiCopilotScreen> {
           return ActionChip(
             label: Text(
               s,
-              maxLines: 2,
+              maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 12),
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: p.textPrimary,
+              ),
             ),
             onPressed: _sending
                 ? null
@@ -445,11 +466,12 @@ class _AiCopilotScreenState extends ConsumerState<AiCopilotScreen> {
                     _draftCtrl.text = s;
                     _send();
                   },
-            backgroundColor: AppColors.chipBg,
-            side: BorderSide.none,
+            backgroundColor: p.chipBg,
+            side: BorderSide(color: p.border.withValues(alpha: 0.8)),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(AppRadii.pill),
             ),
+            visualDensity: VisualDensity.compact,
           );
         },
       ),
@@ -457,54 +479,80 @@ class _AiCopilotScreenState extends ConsumerState<AiCopilotScreen> {
   }
 
   Widget _buildComposer() {
-    return SafeArea(
-      top: false,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
-        child: Row(
-          children: [
-            Expanded(
-              child: TextField(
-                controller: _draftCtrl,
-                focusNode: _focusNode,
-                enabled: !_sending,
-                minLines: 1,
-                maxLines: 4,
-                textInputAction: TextInputAction.send,
-                onSubmitted: (_) => _send(),
-                decoration: InputDecoration(
-                  hintText: 'Message SheikhGo AI…',
-                  filled: true,
-                  fillColor: AppColors.cardBg,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
-                  ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(AppRadii.lg),
-                    borderSide: const BorderSide(color: AppColors.border),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(AppRadii.lg),
-                    borderSide: const BorderSide(color: AppColors.border),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(AppRadii.lg),
-                    borderSide: const BorderSide(color: AppColors.primary),
+    final p = context.sg;
+    return Material(
+      color: p.card,
+      elevation: 0,
+      child: Container(
+        decoration: BoxDecoration(
+          border: Border(
+            top: BorderSide(color: p.border.withValues(alpha: 0.85)),
+          ),
+        ),
+        child: SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Expanded(
+                  child: sgImeSafeTextField(
+                    controller: _draftCtrl,
+                    focusNode: _focusNode,
+                    enabled: !_sending,
+                    minLines: 1,
+                    maxLines: 4,
+                    textInputAction: TextInputAction.send,
+                    textCapitalization: TextCapitalization.sentences,
+                    onSubmitted: (_) => _send(),
+                    decoration: InputDecoration(
+                      hintText: 'Message SheikhGo AI…',
+                      hintStyle: TextStyle(
+                        color: p.textMuted,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      filled: true,
+                      fillColor: p.surface,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(AppRadii.lg),
+                        borderSide: BorderSide(
+                          color: p.border.withValues(alpha: 0.85),
+                        ),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(AppRadii.lg),
+                        borderSide: BorderSide(
+                          color: p.border.withValues(alpha: 0.85),
+                        ),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(AppRadii.lg),
+                        borderSide: const BorderSide(
+                          color: AppColors.primary,
+                          width: 1.4,
+                        ),
+                      ),
+                    ),
                   ),
                 ),
-              ),
+                const SizedBox(width: 10),
+                FilledButton(
+                  onPressed: _sending ? null : () => _send(),
+                  style: FilledButton.styleFrom(
+                    shape: const CircleBorder(),
+                    padding: const EdgeInsets.all(14),
+                    minimumSize: const Size(48, 48),
+                  ),
+                  child: const Icon(Icons.send_rounded, size: 20),
+                ),
+              ],
             ),
-            const SizedBox(width: 8),
-            FilledButton(
-              onPressed: _sending ? null : () => _send(),
-              style: FilledButton.styleFrom(
-                shape: const CircleBorder(),
-                padding: const EdgeInsets.all(14),
-              ),
-              child: const Icon(Icons.send_rounded, size: 20),
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -517,6 +565,7 @@ class _ProviderStrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.sg;
     final ok = health.reachable;
     return Container(
       width: double.infinity,
@@ -529,8 +578,8 @@ class _ProviderStrip extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppRadii.md),
         border: Border.all(
           color: ok
-              ? AppColors.primary.withValues(alpha: 0.25)
-              : AppColors.warning.withValues(alpha: 0.35),
+              ? AppColors.primary.withValues(alpha: 0.28)
+              : AppColors.warning.withValues(alpha: 0.38),
         ),
       ),
       child: Row(
@@ -552,18 +601,19 @@ class _ProviderStrip extends StatelessWidget {
                     if (health.model != null && health.model!.isNotEmpty)
                       health.model!,
                   ].join(' · '),
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w700,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w800,
                     fontSize: 13,
-                    color: AppColors.textPrimary,
+                    letterSpacing: -0.1,
+                    color: p.textPrimary,
                   ),
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: 3),
                 Text(
                   health.statusMessage,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 12,
-                    color: AppColors.textSecondary,
+                    color: p.textSecondary,
                     height: 1.3,
                   ),
                 ),
@@ -638,6 +688,7 @@ class _BubbleTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.sg;
     final isUser = bubble.isUser;
     final maxBubbleWidth = MediaQuery.sizeOf(context).width * 0.86;
 
@@ -651,18 +702,21 @@ class _BubbleTile extends StatelessWidget {
             constraints: BoxConstraints(maxWidth: maxBubbleWidth),
             child: DecoratedBox(
               decoration: BoxDecoration(
-                color: isUser ? AppColors.primary : AppColors.cardBg,
+                color: isUser ? AppColors.primary : p.card,
                 borderRadius: BorderRadius.only(
-                  topLeft: const Radius.circular(16),
-                  topRight: const Radius.circular(16),
-                  bottomLeft: Radius.circular(isUser ? 16 : 4),
-                  bottomRight: Radius.circular(isUser ? 4 : 16),
+                  topLeft: const Radius.circular(AppRadii.md),
+                  topRight: const Radius.circular(AppRadii.md),
+                  bottomLeft: Radius.circular(isUser ? AppRadii.md : 4),
+                  bottomRight: Radius.circular(isUser ? 4 : AppRadii.md),
                 ),
+                border: isUser
+                    ? null
+                    : Border.all(color: p.border.withValues(alpha: 0.7)),
                 boxShadow: isUser ? null : AppShadows.card,
               ),
               child: Padding(
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -671,7 +725,8 @@ class _BubbleTile extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 14,
                         height: 1.4,
-                        color: isUser ? Colors.white : AppColors.textPrimary,
+                        fontWeight: FontWeight.w500,
+                        color: isUser ? Colors.white : p.textPrimary,
                       ),
                     ),
                     if (!isUser && bubble.mode != null) ...[
@@ -683,9 +738,10 @@ class _BubbleTile extends StatelessWidget {
                           if (bubble.tools.isNotEmpty) bubble.tools.join(', '),
                           if (bubble.pendingConfirmation) 'needs confirm',
                         ].join(' · '),
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 11,
-                          color: AppColors.textMuted,
+                          fontWeight: FontWeight.w600,
+                          color: p.textMuted,
                         ),
                       ),
                     ],

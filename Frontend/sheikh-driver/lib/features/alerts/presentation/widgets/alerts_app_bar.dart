@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../../../core/constants/app_theme.dart';
+import '../../../../shared/widgets/sg_keyboard_fields.dart';
 
 class AlertsAppBar extends StatelessWidget implements PreferredSizeWidget {
   const AlertsAppBar({
@@ -60,29 +60,10 @@ class AlertsSearchBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-      child: TextField(
+      child: SgSearchField(
         controller: controller,
+        hintText: 'Search vehicle plate, driver, DTC code…',
         onChanged: onChanged,
-        textInputAction: TextInputAction.search,
-        decoration: InputDecoration(
-          hintText: 'Search vehicle plate, driver, DTC code…',
-          prefixIcon: const Icon(Icons.search_rounded, color: AppColors.textMuted),
-          filled: true,
-          fillColor: Colors.white,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(AppRadii.md),
-            borderSide: const BorderSide(color: AppColors.border),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(AppRadii.md),
-            borderSide: const BorderSide(color: AppColors.border),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(AppRadii.md),
-            borderSide: const BorderSide(color: AppColors.primary, width: 1.4),
-          ),
-        ),
       ),
     );
   }
