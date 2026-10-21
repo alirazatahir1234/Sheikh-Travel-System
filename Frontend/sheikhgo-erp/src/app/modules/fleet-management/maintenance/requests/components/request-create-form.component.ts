@@ -203,6 +203,8 @@ export class RequestCreateFormComponent {
   readonly vehicles = input<VehicleListItem[]>([]);
   readonly saving = input(false);
   readonly resetKey = input(0);
+  /** Prefill vehicle when opened via deep link (?vehicleId=). */
+  readonly initialVehicleId = input<number | null>(null);
   readonly submit = output<CreateMaintenanceRequestPayload>();
   readonly cancel = output<void>();
 
@@ -246,6 +248,15 @@ export class RequestCreateFormComponent {
       this.cdr.markForCheck();
     });
 
+    effect(() => {
+      const id = this.initialVehicleId();
+      if (id && id > 0) {
+        this.form.controls.vehicleId.setValue(id);
+        this.formValid.set(this.isValid());
+        this.cdr.markForCheck();
+      }
+    });
+
     this.formValid.set(this.isValid());
   }
 
@@ -271,7 +282,11 @@ export class RequestCreateFormComponent {
 
   reset(): void {
     const defaults = defaultCreateMaintenanceRequestForm();
-    this.form.reset(defaults);
+    const prefill = this.initialVehicleId();
+    this.form.reset({
+      ...defaults,
+      vehicleId: prefill && prefill > 0 ? prefill : defaults.vehicleId
+    });
     this.submitted.set(false);
     this.errors.set({});
     this.formValid.set(this.isValid());

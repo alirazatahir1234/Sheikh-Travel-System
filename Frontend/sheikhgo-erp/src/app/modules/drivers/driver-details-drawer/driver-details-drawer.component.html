@@ -33,7 +33,7 @@
               <h3 class="text-lg font-semibold">{{ name(d) }}</h3>
               <p class="text-sm text-fleet-text-muted">{{ d.driverCode || '—' }} · {{ d.phone }}</p>
               <div class="badge-row">
-                <ui-status-badge [status]="statusLabels[d.status]" [variant]="d.isActive ? 'success' : 'warning'" />
+                <ui-status-badge [status]="statusLabels[d.status]" [variant]="overviewStatusVariant(d)" />
                 @if (!d.isActive) {
                   <ui-status-badge status="Inactive" variant="warning" />
                 }

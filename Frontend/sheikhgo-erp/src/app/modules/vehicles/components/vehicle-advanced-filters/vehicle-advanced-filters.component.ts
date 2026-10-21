@@ -75,7 +75,7 @@ import { normalizeVehicleFilters } from '../../utils/vehicle-filter.util';
 
             <label class="flex items-center gap-2 text-sm">
               <input type="checkbox" [ngModel]="draft().insuranceExpiring" (ngModelChange)="patch({ insuranceExpiring: $event })" />
-              <span>Insurance expiring within 30 days</span>
+              <span>Insurance expired or expiring within 30 days</span>
             </label>
           </div>
 

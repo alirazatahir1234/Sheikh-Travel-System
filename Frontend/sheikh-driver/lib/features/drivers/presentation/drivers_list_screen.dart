@@ -62,8 +62,12 @@ class DriversListScreen extends ConsumerWidget {
                           .setLicenseAlert(f),
                     ),
                   ),
-                if (hub.ranking.isNotEmpty)
-                  SliverToBoxAdapter(child: _RankingStrip(items: hub.ranking)),
+                SliverToBoxAdapter(
+                  child: _RankingStrip(
+                    items: hub.ranking,
+                    unavailable: hub.rankingUnavailable,
+                  ),
+                ),
                 SliverToBoxAdapter(
                   child: SizedBox(
                     height: 48,
@@ -145,14 +149,19 @@ class _StatsRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-      child: Row(
+    return SizedBox(
+      height: 64,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
         children: [
           _Stat('Total', '${stats.totalDrivers}'),
           _Stat('Available', '${stats.available}'),
           _Stat('On trip', '${stats.onTrip}'),
           _Stat('GPS', '${stats.gpsOnline}'),
+          _Stat('Expired', '${stats.licensesExpired}'),
+          _Stat('Pending Verify', '${stats.pendingVerification}'),
+          _Stat('Open Incidents', '${stats.openViolations}'),
         ],
       ),
     );
@@ -248,8 +257,13 @@ class _AlertChip extends StatelessWidget {
 }
 
 class _RankingStrip extends StatelessWidget {
-  const _RankingStrip({required this.items});
+  const _RankingStrip({
+    required this.items,
+    required this.unavailable,
+  });
+
   final List<DriverRankItem> items;
+  final bool unavailable;
 
   @override
   Widget build(BuildContext context) {
@@ -261,46 +275,58 @@ class _RankingStrip extends StatelessWidget {
           const SgSectionTitle('Top drivers'),
           const SizedBox(height: 8),
           SgCard(
-            child: Column(
-              children: [
-                for (var i = 0; i < items.length; i++)
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    dense: true,
-                    leading: CircleAvatar(
-                      radius: 14,
-                      backgroundColor: AppColors.primary.withValues(alpha: 0.12),
-                      child: Text(
-                        '${i + 1}',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.primary,
+            child: unavailable || items.isEmpty
+                ? const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 8),
+                    child: Text(
+                      'No ranking available yet. Scores use driver rating when set, otherwise a compliance heuristic (same as ERP).',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  )
+                : Column(
+                    children: [
+                      for (var i = 0; i < items.length; i++)
+                        ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          dense: true,
+                          leading: CircleAvatar(
+                            radius: 14,
+                            backgroundColor:
+                                AppColors.primary.withValues(alpha: 0.12),
+                            child: Text(
+                              '${i + 1}',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                          ),
+                          title: Text(
+                            items[i].driverName,
+                            style: const TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                          subtitle: Text(
+                            items[i].isPartial
+                                ? '${items[i].rating} · partial score'
+                                : items[i].rating,
+                            style: const TextStyle(fontSize: 12),
+                          ),
+                          trailing: Text(
+                            '${items[i].score}',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                          onTap: () => context
+                              .push('/more/drivers/${items[i].driverId}'),
                         ),
-                      ),
-                    ),
-                    title: Text(
-                      items[i].driverName,
-                      style: const TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                    subtitle: Text(
-                      items[i].isPartial
-                          ? '${items[i].rating} · partial score'
-                          : items[i].rating,
-                      style: const TextStyle(fontSize: 12),
-                    ),
-                    trailing: Text(
-                      '${items[i].score}',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.primary,
-                      ),
-                    ),
-                    onTap: () =>
-                        context.push('/more/drivers/${items[i].driverId}'),
+                    ],
                   ),
-              ],
-            ),
           ),
         ],
       ),
@@ -315,8 +341,10 @@ class _Stat extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 10),
       child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Text(
             value,
@@ -342,6 +370,8 @@ class _DriverTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final name =
+        driver.fullName.trim().isEmpty ? 'Driver' : driver.fullName.trim();
     return SgCard(
       margin: const EdgeInsets.only(bottom: 10),
       onTap: () => context.push('/more/drivers/${driver.id}'),
@@ -350,9 +380,7 @@ class _DriverTile extends StatelessWidget {
           CircleAvatar(
             backgroundColor: AppColors.primary.withValues(alpha: 0.12),
             child: Text(
-              driver.fullName.isNotEmpty
-                  ? driver.fullName[0].toUpperCase()
-                  : '?',
+              name[0].toUpperCase(),
               style: const TextStyle(
                 color: AppColors.primary,
                 fontWeight: FontWeight.w700,
@@ -365,7 +393,7 @@ class _DriverTile extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  driver.fullName,
+                  name,
                   style: const TextStyle(
                     fontWeight: FontWeight.w700,
                     fontSize: 15,

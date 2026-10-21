@@ -423,7 +423,9 @@ class VehicleLiveMapSheet extends ConsumerWidget {
                   runSpacing: 8,
                   children: [
                     _ActionChip(
-                      icon: follow ? Icons.gps_fixed : Icons.gps_not_fixed,
+                      icon: follow
+                          ? Icons.location_disabled
+                          : Icons.my_location,
                       label: follow ? 'Following' : 'Live track',
                       selected: follow,
                       onTap: () {

@@ -8,7 +8,7 @@ class ErrorHandler {
     debugPrint(
       'API ERROR type=${e.type} msg=${e.message} err=${e.error}',
     );
-    if (kDebugMode && e.stackTrace != null) {
+    if (kDebugMode) {
       debugPrint('$e\n${e.stackTrace}');
     }
 
@@ -38,6 +38,12 @@ class ErrorHandler {
             'Server is taking too long. Please try again.',
           );
         }
+        if (status == 409) {
+          final msg = _bodyMessage(e.response?.data);
+          return ConflictException(
+            msg ?? 'This action conflicts with the current state.',
+          );
+        }
         if (status == 400 || status == 422) {
           final body = e.response?.data;
           if (body is Map) {
@@ -56,6 +62,8 @@ class ErrorHandler {
           );
         }
         if (status != null && status >= 500) return const ServerException();
+        final fallback = _bodyMessage(e.response?.data);
+        if (fallback != null) return UnknownException(fallback);
         return UnknownException('Server error ($status).');
 
       case DioExceptionType.cancel:
@@ -88,6 +96,16 @@ class ErrorHandler {
       );
     }
     return const NetworkException();
+  }
+
+  static String? _bodyMessage(Object? data) {
+    if (data is Map) {
+      final msg = data['message'] ?? data['Message'] ?? data['title'];
+      if (msg != null && msg.toString().trim().isNotEmpty) {
+        return msg.toString().trim();
+      }
+    }
+    return null;
   }
 
   static String _combinedDetail(DioException e) {

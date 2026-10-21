@@ -58,6 +58,7 @@ export class MaintenanceRequestsPageComponent implements OnInit {
   readonly saving = signal(false);
   readonly selectedId = signal<number | null>(null);
   readonly loading = signal(false);
+  readonly prefillVehicleId = signal<number | null>(null);
   readonly activePeriod = this.ctx.period;
 
   private readonly reloadTick = signal(0);
@@ -101,6 +102,11 @@ export class MaintenanceRequestsPageComponent implements OnInit {
     const status = this.route.snapshot.queryParamMap.get('status');
     if (status) this.statusFilter.set(status);
     if (this.route.snapshot.queryParamMap.get('create') === 'true') this.showForm.set(true);
+    const vehicleId = Number(this.route.snapshot.queryParamMap.get('vehicleId'));
+    if (Number.isFinite(vehicleId) && vehicleId > 0) {
+      this.prefillVehicleId.set(vehicleId);
+      this.showForm.set(true);
+    }
 
     this.vehicleService.getAll(1, 500).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: r => this.vehicles.set(r.items),

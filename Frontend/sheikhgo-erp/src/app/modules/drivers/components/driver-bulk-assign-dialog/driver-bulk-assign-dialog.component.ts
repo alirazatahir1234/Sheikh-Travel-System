@@ -9,6 +9,7 @@ import { UiButtonComponent } from '../../../../shared/components/ui/button/ui-bu
 import { UiSelectComponent } from '../../../../shared/components/ui/select/ui-select.component';
 import { UiSelectOption } from '../../../../shared/components/ui/types/ui.types';
 import { UiToastService } from '../../../../shared/components/ui/toast/ui-toast.service';
+import { apiErrorMessage } from '../../../../core/utils/api-error.util';
 
 @Component({
   selector: 'driver-bulk-assign-dialog',
@@ -17,7 +18,7 @@ import { UiToastService } from '../../../../shared/components/ui/toast/ui-toast.
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <ui-modal [(open)]="open" title="Bulk assign vehicle" size="md">
-      <p class="hint">Assign the selected vehicle to one driver at a time. Each driver must be unassigned and verified.</p>
+      <p class="hint">Assign the selected vehicle to one unassigned, active, verified driver at a time.</p>
       <ui-select class="block" label="Vehicle" [options]="vehicleOptions()" [(ngModel)]="selectedVehicleId" [required]="true" />
       <div class="driver-list">
         <p class="list-label">Driver</p>
@@ -77,7 +78,11 @@ export class DriverBulkAssignDialogComponent {
     }).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(({ drivers, vehicles }) => {
       this.driverOptions.set(
         drivers.items
-          .filter(d => !d.assignedVehicleId && d.isActive !== false)
+          .filter(d =>
+            !d.assignedVehicleId &&
+            d.isActive !== false &&
+            (d.verificationStatus ?? '').toLowerCase() === 'verified'
+          )
           .map(d => ({ value: String(d.id), label: `${d.fullName} (${d.driverCode || d.phone})` }))
       );
       this.vehicleOptions.set(
@@ -105,9 +110,9 @@ export class DriverBulkAssignDialogComponent {
         this.assigned.emit();
         this.open.set(false);
       },
-      error: () => {
+      error: err => {
         this.submitting.set(false);
-        this.toast.error('Assignment failed');
+        this.toast.error(apiErrorMessage(err, 'Assignment failed'));
       }
     });
   }

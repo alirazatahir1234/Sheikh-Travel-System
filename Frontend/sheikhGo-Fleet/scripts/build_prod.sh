@@ -2,14 +2,14 @@
 # Production / UAT release builds for SheikhGo Fleet.
 #
 # Usage:
-#   API_BASE_URL=https://sheikh-travel-system-production.up.railway.app/api \
+#   API_BASE_URL=http://20.174.1.230:5082/api \
 #     ./scripts/build_prod.sh android
 #   ./scripts/build_prod.sh android uat
 #
 # Notes:
-# - Prefer an explicit API_BASE_URL (HTTPS Railway/production). Required here so
+# - Prefer an explicit API_BASE_URL (Azure VM API). Required here so
 #   store builds never silently point at a wrong host.
-# - AppConfig also falls back to Railway HTTPS for any release build that omits
+# - AppConfig also falls back to the Azure production URL for any release build that omits
 #   API_BASE_URL (so a bare `flutter build appbundle --release` no longer ships
 #   emulator loopback 10.0.2.2). Still prefer this script for store uploads.
 set -euo pipefail
@@ -20,7 +20,7 @@ cd "$ROOT"
 TARGET="${1:-android}"
 ENV_NAME="${2:-prod}"
 
-: "${API_BASE_URL:?Set API_BASE_URL to your API root, e.g. https://sheikh-travel-system-production.up.railway.app/api}"
+: "${API_BASE_URL:?Set API_BASE_URL to your API root, e.g. http://20.174.1.230:5082/api}"
 
 DEFINES=(
   "--dart-define=ENV=${ENV_NAME}"

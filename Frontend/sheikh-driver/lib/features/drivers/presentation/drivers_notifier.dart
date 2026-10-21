@@ -4,11 +4,18 @@ import '../domain/driver_models.dart';
 
 enum DriverLicenseAlertFilter { none, expiring, expired }
 
+String? licenseExpiryQuery(DriverLicenseAlertFilter filter) => switch (filter) {
+      DriverLicenseAlertFilter.expired => 'EXPIRED',
+      DriverLicenseAlertFilter.expiring => 'EXPIRING',
+      DriverLicenseAlertFilter.none => null,
+    };
+
 class DriversHubState {
   const DriversHubState({
     this.stats = DriverStats.empty,
     this.drivers = const [],
     this.ranking = const [],
+    this.rankingUnavailable = false,
     this.search = '',
     this.statusFilter,
     this.licenseAlert = DriverLicenseAlertFilter.none,
@@ -17,22 +24,15 @@ class DriversHubState {
   final DriverStats stats;
   final List<DriverListItem> drivers;
   final List<DriverRankItem> ranking;
+
+  /// True when the ranking pool could not be loaded (show empty state, not silence).
+  final bool rankingUnavailable;
   final String search;
   final String? statusFilter;
   final DriverLicenseAlertFilter licenseAlert;
 
   List<DriverListItem> get visible {
     var list = drivers;
-    switch (licenseAlert) {
-      case DriverLicenseAlertFilter.expired:
-        list = list.where((d) => d.licenseExpired).toList();
-      case DriverLicenseAlertFilter.expiring:
-        list = list
-            .where((d) => d.licenseExpiringSoon && !d.licenseExpired)
-            .toList();
-      case DriverLicenseAlertFilter.none:
-        break;
-    }
     final q = search.trim().toLowerCase();
     if (q.isNotEmpty) {
       list = list
@@ -53,6 +53,7 @@ class DriversHubState {
     DriverStats? stats,
     List<DriverListItem>? drivers,
     List<DriverRankItem>? ranking,
+    bool? rankingUnavailable,
     String? search,
     String? statusFilter,
     bool clearStatus = false,
@@ -62,6 +63,7 @@ class DriversHubState {
       stats: stats ?? this.stats,
       drivers: drivers ?? this.drivers,
       ranking: ranking ?? this.ranking,
+      rankingUnavailable: rankingUnavailable ?? this.rankingUnavailable,
       search: search ?? this.search,
       statusFilter: clearStatus ? null : (statusFilter ?? this.statusFilter),
       licenseAlert: licenseAlert ?? this.licenseAlert,
@@ -78,11 +80,24 @@ class DriversHubNotifier extends AsyncNotifier<DriversHubState> {
   @override
   Future<DriversHubState> build() => _load();
 
-  Future<DriversHubState> _load({String? status}) async {
+  Future<DriversHubState> _load({
+    String? status,
+    bool clearStatus = false,
+    DriverLicenseAlertFilter? licenseAlert,
+  }) async {
     final api = ref.read(driversApiProvider);
+    final prev = state.valueOrNull;
+    final effectiveStatus =
+        clearStatus ? null : (status ?? prev?.statusFilter);
+    final effectiveLicense =
+        licenseAlert ?? prev?.licenseAlert ?? DriverLicenseAlertFilter.none;
+    final licenseQuery = licenseExpiryQuery(effectiveLicense);
+
     DriverStats stats = DriverStats.empty;
     List<DriverListItem> drivers = const [];
-    List<DriverRankItem> ranking = const [];
+    List<DriverListItem> rankPool = const [];
+    var rankingUnavailable = false;
+
     await Future.wait([
       () async {
         try {
@@ -91,30 +106,46 @@ class DriversHubNotifier extends AsyncNotifier<DriversHubState> {
       }(),
       () async {
         try {
-          drivers = await api.list(status: status);
+          drivers = await api.list(
+            status: effectiveStatus,
+            licenseExpiry: licenseQuery,
+          );
         } catch (_) {}
       }(),
       () async {
+        // Unfiltered pool for Top Drivers (ERP-aligned client score).
         try {
-          ranking = await api.ranking();
-        } catch (_) {}
+          rankPool = await api.list(pageSize: 100);
+        } catch (_) {
+          rankingUnavailable = true;
+        }
       }(),
     ]);
-    final prev = state.valueOrNull;
+
+    final ranking = rankingUnavailable
+        ? const <DriverRankItem>[]
+        : buildTopDriversFromList(rankPool);
+
     return DriversHubState(
       stats: stats,
       drivers: drivers,
       ranking: ranking,
+      rankingUnavailable: rankingUnavailable || ranking.isEmpty,
       search: prev?.search ?? '',
-      statusFilter: status ?? prev?.statusFilter,
-      licenseAlert: prev?.licenseAlert ?? DriverLicenseAlertFilter.none,
+      statusFilter: effectiveStatus,
+      licenseAlert: effectiveLicense,
     );
   }
 
   Future<void> refresh() async {
-    final filter = state.valueOrNull?.statusFilter;
+    final cur = state.valueOrNull;
     state = const AsyncLoading();
-    state = await AsyncValue.guard(() => _load(status: filter));
+    state = await AsyncValue.guard(
+      () => _load(
+        status: cur?.statusFilter,
+        licenseAlert: cur?.licenseAlert,
+      ),
+    );
   }
 
   void setSearch(String q) {
@@ -123,22 +154,30 @@ class DriversHubNotifier extends AsyncNotifier<DriversHubState> {
     state = AsyncData(cur.copyWith(search: q));
   }
 
-  void setLicenseAlert(DriverLicenseAlertFilter filter) {
+  Future<void> setLicenseAlert(DriverLicenseAlertFilter filter) async {
     final cur = state.valueOrNull;
     if (cur == null) return;
     final next = cur.licenseAlert == filter
         ? DriverLicenseAlertFilter.none
         : filter;
-    state = AsyncData(cur.copyWith(licenseAlert: next));
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(
+      () => _load(status: cur.statusFilter, licenseAlert: next),
+    );
   }
 
   Future<void> setStatusFilter(String? status) async {
     final cur = state.valueOrNull;
     if (cur == null) return;
     final next = (status == null || cur.statusFilter == status) ? null : status;
-    state = AsyncData(cur.copyWith(statusFilter: next, clearStatus: next == null));
     state = const AsyncLoading();
-    state = await AsyncValue.guard(() => _load(status: next));
+    state = await AsyncValue.guard(
+      () => _load(
+        status: next,
+        clearStatus: next == null,
+        licenseAlert: cur.licenseAlert,
+      ),
+    );
   }
 }
 

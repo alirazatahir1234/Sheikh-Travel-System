@@ -136,6 +136,13 @@ class _RetryInterceptor extends Interceptor {
     // Don't retry client errors
     final status = e.response?.statusCode;
     if (status != null && status >= 400 && status < 500) return false;
+    // Receive timeouts on heavy analytics are usually slow queries — retrying
+    // stacks hung connections and starves Overview's other parallel calls.
+    final path = e.requestOptions.path.toLowerCase();
+    if (e.type == DioExceptionType.receiveTimeout &&
+        path.contains('/analytics/')) {
+      return false;
+    }
     return e.type == DioExceptionType.connectionError ||
         e.type == DioExceptionType.connectionTimeout ||
         e.type == DioExceptionType.receiveTimeout ||
@@ -150,20 +157,28 @@ class _RetryInterceptor extends Interceptor {
       return handler.next(err);
     }
 
-    final retryCount = err.requestOptions.extra['retryCount'] as int? ?? 0;
+    // Avoid nested interceptor re-entry doubling retries.
+    if (err.requestOptions.extra['isRetry'] == true) {
+      return handler.next(err);
+    }
 
-    if (_shouldRetry(err) && retryCount < _maxRetries) {
-      await Future.delayed(Duration(milliseconds: _delays[retryCount]));
-      err.requestOptions.extra['retryCount'] = retryCount + 1;
+    var attempt = err.requestOptions.extra['retryCount'] as int? ?? 0;
+    var current = err;
+
+    while (_shouldRetry(current) && attempt < _maxRetries) {
+      await Future.delayed(Duration(milliseconds: _delays[attempt]));
+      attempt += 1;
+      current.requestOptions.extra['retryCount'] = attempt;
+      current.requestOptions.extra['isRetry'] = true;
       try {
-        final response = await _dio.fetch(err.requestOptions);
+        final response = await _dio.fetch(current.requestOptions);
         return handler.resolve(response);
       } on DioException catch (retryErr) {
-        return handler.next(retryErr);
+        current = retryErr;
       }
     }
 
-    handler.next(err);
+    handler.next(current);
   }
 }
 

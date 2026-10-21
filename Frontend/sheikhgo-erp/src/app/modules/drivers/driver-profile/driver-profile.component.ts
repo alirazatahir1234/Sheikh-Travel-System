@@ -1,6 +1,5 @@
 import { Component, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
 import { forkJoin, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { DriverService } from '../../../core/services/driver.service';
@@ -31,8 +30,7 @@ export class DriverProfileComponent implements OnInit {
     private route: ActivatedRoute,
     private router: Router,
     private driverService: DriverService,
-    private bookingService: BookingService,
-    private toast: UiToastService
+    private bookingService: BookingService
   ) {}
 
   ngOnInit(): void {
@@ -43,23 +41,26 @@ export class DriverProfileComponent implements OnInit {
   private loadProfile(id: number): void {
     forkJoin({
       driver: this.driverService.getById(id),
-      bookings: this.bookingService.getAll(1, 500).pipe(catchError(() => of({ items: [] })))
+      performance: this.driverService.getPerformanceSummary(id).pipe(catchError(() => of(null))),
+      bookings: this.bookingService.getAll(1, 50).pipe(catchError(() => of({ items: [] as Booking[] })))
     }).subscribe({
-      next: ({ driver, bookings }) => {
+      next: ({ driver, performance, bookings }) => {
         this.driver = driver;
+        this.licenseExpiringSoon = !!driver.licenseExpiringSoon || !!driver.licenseExpired;
 
-        const driverBookings = bookings.items.filter(b => b.driverId === id);
+        if (performance) {
+          this.totalTrips = performance.totalTrips;
+          this.completedTrips = performance.completedTrips;
+          this.totalRevenue = performance.totalRevenue;
+        }
+
+        const driverBookings = (bookings.items ?? []).filter(b => b.driverId === id);
         this.recentBookings = driverBookings.slice(0, 10);
-        
-        this.totalTrips = driverBookings.length;
-        this.completedTrips = driverBookings.filter(b => b.status === 'Completed').length;
-        this.totalRevenue = driverBookings.reduce((sum, b) => sum + (b.totalAmount || 0), 0);
 
-        if (driver.licenseExpiryDate) {
-          const expiry = new Date(driver.licenseExpiryDate);
-          const today = new Date();
-          const daysUntilExpiry = Math.ceil((expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-          this.licenseExpiringSoon = daysUntilExpiry <= 30;
+        if (!performance) {
+          this.totalTrips = driverBookings.length;
+          this.completedTrips = driverBookings.filter(b => b.status === 'Completed').length;
+          this.totalRevenue = driverBookings.reduce((sum, b) => sum + (b.totalAmount || 0), 0);
         }
 
         this.loading = false;

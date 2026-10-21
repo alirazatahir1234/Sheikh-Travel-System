@@ -16,16 +16,20 @@
 
         <div class="vd-header-top">
           <div class="vd-badges">
-            <span class="vd-badge vd-badge-active">
+            <span class="vd-badge" [ngClass]="statusBadgeClass(displayStatus())">
               <span class="vd-badge-dot"></span>
               {{ statusLabel(displayStatus()) }}
             </span>
             @if (displayStatus() === 2) {
               <span class="vd-badge vd-badge-transit">In Transit</span>
             }
-            <span class="vd-badge" [class.vd-badge-gps-on]="gpsOnline()" [class.vd-badge-gps-off]="!gpsOnline()">
+            <span
+              class="vd-badge"
+              [class.vd-badge-gps-on]="hasGpsTracker() && gpsOnline()"
+              [class.vd-badge-gps-off]="hasGpsTracker() && !gpsOnline()"
+              [class.vd-badge-gps-none]="!hasGpsTracker()">
               <span class="vd-badge-dot"></span>
-              {{ gpsOnline() ? 'GPS Online' : 'GPS Offline' }}
+              {{ gpsBadgeLabel() }}
             </span>
           </div>
           <div class="vd-header-actions">
@@ -35,7 +39,7 @@
             <mat-menu #moreMenu="matMenu">
               <button mat-menu-item (click)="openAssignDriverModal()"><mat-icon>person_add</mat-icon> Assign Driver</button>
               <button mat-menu-item (click)="openAssignGpsModal()"><mat-icon>gps_fixed</mat-icon> Assign Tracker</button>
-              <button mat-menu-item routerLink="/maintenance"><mat-icon>build</mat-icon> Schedule Maintenance</button>
+              <button mat-menu-item (click)="scheduleMaintenance()"><mat-icon>build</mat-icon> Schedule Maintenance</button>
               <button mat-menu-item (click)="openStatusModal()"><mat-icon>block</mat-icon> Deactivate Vehicle</button>
             </mat-menu>
             <button class="vd-close" type="button" (click)="closeDrawer()" aria-label="Close">
@@ -97,7 +101,7 @@
               </div>
               <div class="vd-kpi-card vd-kpi-card--blue">
                 <span class="vd-kpi-label">Tracker</span>
-                <span class="vd-kpi-value vd-kpi-value--sm">{{ gpsOnline() ? 'Online' : 'Offline' }}</span>
+                <span class="vd-kpi-value vd-kpi-value--sm">{{ trackerStatusLabel() }}</span>
               </div>
             </div>
 
@@ -279,7 +283,7 @@
                       }
                     </div>
                     <div class="vd-record-right">
-                      <span class="vd-record-cost">{{ m.cost | number }}</span>
+                      <span class="vd-record-cost">{{ formatPkr(m.cost) }}</span>
                       <span class="vd-status-chip" [ngClass]="getMaintenanceStatusClass(m.status)">{{ maintenanceStatusLabel(m.status) }}</span>
                     </div>
                   </div>
@@ -305,7 +309,7 @@
                 </div>
                 <div class="vd-kpi-card vd-kpi-card--orange">
                   <span class="vd-kpi-label">Total Cost</span>
-                  <span class="vd-kpi-value vd-kpi-value--sm">{{ fuelSummary()!.totalCost | number:'1.0-0' }}</span>
+                  <span class="vd-kpi-value vd-kpi-value--sm">{{ formatPkr(fuelSummary()!.totalCost) }}</span>
                 </div>
               </div>
 
@@ -345,7 +349,7 @@
                       <span>{{ log.fuelDate | date:'mediumDate' }}</span>
                       <span>{{ log.station || '—' }}</span>
                       <span class="ta-r">{{ log.liters | number:'1.0-1' }}</span>
-                      <span class="ta-r">{{ log.totalCost | number }}</span>
+                      <span class="ta-r">{{ formatPkr(log.totalCost) }}</span>
                     </div>
                   }
                 </div>
@@ -373,7 +377,7 @@
               </div>
 
               <div class="vd-kpi-row mt-3">
-                <div class="vd-kpi-card"><span class="vd-kpi-label">GPS</span><span class="vd-kpi-value vd-kpi-value--sm" [class.vd-kpi-green]="gpsOnline()">{{ gpsOnline() ? 'Online' : 'Offline' }}</span></div>
+                <div class="vd-kpi-card"><span class="vd-kpi-label">GPS</span><span class="vd-kpi-value vd-kpi-value--sm" [class.vd-kpi-green]="hasGpsTracker() && gpsOnline()">{{ trackerStatusLabel() }}</span></div>
                 <div class="vd-kpi-card"><span class="vd-kpi-label">Ignition</span><span class="vd-kpi-value vd-kpi-value--sm" [class.vd-kpi-green]="displayIgnition()">{{ displayIgnition() == null ? '—' : (displayIgnition() ? 'ON' : 'OFF') }}</span></div>
                 <div class="vd-kpi-card vd-kpi-card--blue"><span class="vd-kpi-label">Speed</span><span class="vd-kpi-value">{{ gps()!.speed ?? '—' }}@if (gps()!.speed != null) { <span class="vd-kpi-unit">km/h</span> }</span></div>
               </div>
@@ -500,20 +504,14 @@
           } @else if (activeTab === 'trips') {
             <div class="vd-kpi-row">
               <div class="vd-kpi-card"><span class="vd-kpi-label">Total Trips</span><span class="vd-kpi-value">{{ trips().length }}</span></div>
-              <div class="vd-kpi-card vd-kpi-card--blue"><span class="vd-kpi-label">Est. Distance</span><span class="vd-kpi-value">{{ totalTripDistance() }}<span class="vd-kpi-unit">km</span></span></div>
               <div class="vd-kpi-card vd-kpi-card--green"><span class="vd-kpi-label">Completed</span><span class="vd-kpi-value">{{ completedTripsCount() }}</span></div>
-            </div>
-            <div class="vd-kpi-row">
-              <div class="vd-kpi-card vd-kpi-card--orange" style="grid-column: span 3">
-                <span class="vd-kpi-label">In Progress</span>
-                <span class="vd-kpi-value">{{ inProgressTripsCount() }}</span>
-              </div>
+              <div class="vd-kpi-card vd-kpi-card--orange"><span class="vd-kpi-label">In Progress</span><span class="vd-kpi-value">{{ inProgressTripsCount() }}</span></div>
             </div>
 
             <div class="vd-tab-actions">
               <span class="vd-section-title">Trip History</span>
               @if (effectiveVehicleId(); as vid) {
-                <a [routerLink]="['/trip-history']" [queryParams]="{ vehicleId: vid }" class="vd-link">View All →</a>
+                <a [routerLink]="['/gps-tracking/trips']" [queryParams]="{ vehicleId: vid }" class="vd-link">View All →</a>
               }
             </div>
 
@@ -525,7 +523,7 @@
             } @else if (trips().length === 0) {
               <ui-empty-state icon="route" title="No trips" description="Trip history for this vehicle will appear here.">
                 @if (effectiveVehicleId(); as vid) {
-                  <a [routerLink]="['/trip-history']" [queryParams]="{ vehicleId: vid }" class="vd-btn-sm-primary vd-btn-link">View All Trips →</a>
+                  <a [routerLink]="['/gps-tracking/trips']" [queryParams]="{ vehicleId: vid }" class="vd-btn-sm-primary vd-btn-link">View All Trips →</a>
                 }
               </ui-empty-state>
             } @else {
@@ -712,10 +710,10 @@
       </div>
 
       <footer class="vd-footer">
-        <button class="vd-cta-btn" type="button" (click)="openAssignDriverModal()">Assign Trip Now →</button>
+        <button class="vd-cta-btn" type="button" (click)="openAssignDriverModal()">Assign Driver →</button>
         <div class="vd-footer-row">
           <button class="vd-btn-outline" type="button" (click)="editVehicle()">Edit Vehicle</button>
-          <button class="vd-btn-outline" type="button" (click)="viewFullProfile()">View Logs</button>
+          <button class="vd-btn-outline" type="button" (click)="viewFullProfile()">Full Profile</button>
         </div>
       </footer>
 

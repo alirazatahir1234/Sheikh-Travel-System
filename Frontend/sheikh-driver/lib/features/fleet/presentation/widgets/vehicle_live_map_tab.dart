@@ -507,7 +507,7 @@ class _MapFabColumn extends StatelessWidget {
         ),
         const SizedBox(height: 6),
         _MapFab(
-          icon: follow ? Icons.gps_fixed : Icons.gps_not_fixed,
+          icon: follow ? Icons.location_disabled : Icons.directions_run,
           tooltip: follow ? 'Follow on' : 'Follow off',
           active: follow,
           onTap: onToggleFollow,
@@ -1094,7 +1094,9 @@ class _LiveMapFullscreenPageState
                         }
                       },
                       icon: Icon(
-                        _follow ? Icons.gps_fixed : Icons.gps_not_fixed,
+                        _follow
+                            ? Icons.location_disabled
+                            : Icons.directions_run,
                         color: _follow ? AppColors.primary : null,
                       ),
                     ),

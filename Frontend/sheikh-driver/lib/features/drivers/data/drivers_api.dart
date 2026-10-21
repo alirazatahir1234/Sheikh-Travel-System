@@ -15,6 +15,7 @@ class DriversApi {
   Future<List<DriverListItem>> list({
     String? q,
     String? status,
+    String? licenseExpiry,
     int page = 1,
     int pageSize = 100,
   }) async {
@@ -25,6 +26,8 @@ class DriversApi {
         'pageSize': pageSize,
         if (q != null && q.isNotEmpty) 'q': q,
         if (status != null && status.isNotEmpty) 'status': status,
+        if (licenseExpiry != null && licenseExpiry.isNotEmpty)
+          'licenseExpiry': licenseExpiry,
       },
     );
     return ApiResponseParser.pagedItems(res.data)

@@ -36,47 +36,129 @@ void main() {
     });
   });
 
-  group('DriversHubState license filter', () {
-    test('filters expired and expiring licenses', () {
-      final drivers = [
+  group('DriverStats', () {
+    test('parses expanded hub KPI fields', () {
+      final s = DriverStats.fromJson({
+        'totalDrivers': 10,
+        'active': 8,
+        'onTrip': 2,
+        'available': 4,
+        'offDuty': 1,
+        'gpsOnline': 3,
+        'licensesExpiringSoon': 2,
+        'licensesExpired': 1,
+        'suspended': 1,
+        'pendingVerification': 3,
+        'rejectedDrivers': 1,
+        'licensesExpiringIn7Days': 1,
+        'licensesExpiringIn60Days': 4,
+        'assignedDrivers': 5,
+        'openViolations': 2,
+      });
+      expect(s.pendingVerification, 3);
+      expect(s.openViolations, 2);
+      expect(s.assignedDrivers, 5);
+      expect(s.licensesExpiringIn7Days, 1);
+      expect(s.suspended, 1);
+    });
+  });
+
+  group('resolveDriverDisplayName', () {
+    test('uses fullName when first/last are null', () {
+      expect(
+        resolveDriverDisplayName({
+          'fullName': 'Demo Driver',
+          'firstName': null,
+          'lastName': null,
+        }),
+        'Demo Driver',
+      );
+    });
+
+    test('falls back to first + last when fullName empty', () {
+      expect(
+        resolveDriverDisplayName({
+          'fullName': '',
+          'firstName': 'Ali',
+          'lastName': 'Khan',
+        }),
+        'Ali Khan',
+      );
+    });
+  });
+
+  group('computeDriverScore', () {
+    test('uses rating when present', () {
+      final d = DriverListItem(
+        id: 1,
+        fullName: 'A',
+        phone: '1',
+        licenseNumber: 'L1',
+        status: 'Available',
+        isActive: true,
+        rating: 4.0,
+      );
+      expect(computeDriverScore(d), 80);
+    });
+
+    test('builds top drivers from list', () {
+      final top = buildTopDriversFromList([
         DriverListItem(
           id: 1,
-          fullName: 'A',
+          fullName: 'Low',
           phone: '1',
           licenseNumber: 'L1',
-          status: 'Available',
+          status: 'Suspended',
           isActive: true,
           licenseExpired: true,
         ),
         DriverListItem(
           id: 2,
-          fullName: 'B',
+          fullName: 'High',
           phone: '2',
           licenseNumber: 'L2',
           status: 'Available',
           isActive: true,
-          licenseExpiringSoon: true,
+          verificationStatus: 'Verified',
+          assignedVehicleId: 9,
+          rating: 5.0,
+        ),
+      ]);
+      expect(top.first.driverId, 2);
+      expect(top.first.score, 100);
+    });
+  });
+
+  group('licenseExpiryQuery', () {
+    test('maps alert filters to API query values', () {
+      expect(licenseExpiryQuery(DriverLicenseAlertFilter.expired), 'EXPIRED');
+      expect(licenseExpiryQuery(DriverLicenseAlertFilter.expiring), 'EXPIRING');
+      expect(licenseExpiryQuery(DriverLicenseAlertFilter.none), isNull);
+    });
+  });
+
+  group('DriversHubState search', () {
+    test('filters by search text', () {
+      final drivers = [
+        DriverListItem(
+          id: 1,
+          fullName: 'Ali',
+          phone: '1',
+          licenseNumber: 'L1',
+          status: 'Available',
+          isActive: true,
         ),
         DriverListItem(
-          id: 3,
-          fullName: 'C',
-          phone: '3',
-          licenseNumber: 'L3',
+          id: 2,
+          fullName: 'Sara',
+          phone: '2',
+          licenseNumber: 'L2',
           status: 'Available',
           isActive: true,
         ),
       ];
-      final expired = DriversHubState(
-        drivers: drivers,
-        licenseAlert: DriverLicenseAlertFilter.expired,
-      );
-      expect(expired.visible.map((d) => d.id), [1]);
-
-      final expiring = DriversHubState(
-        drivers: drivers,
-        licenseAlert: DriverLicenseAlertFilter.expiring,
-      );
-      expect(expiring.visible.map((d) => d.id), [2]);
+      final hub = DriversHubState(drivers: drivers, search: 'sar');
+      expect(hub.visible.map((d) => d.id), [2]);
     });
   });
 

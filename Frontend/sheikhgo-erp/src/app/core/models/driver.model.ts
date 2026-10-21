@@ -180,10 +180,14 @@ export interface DriverStats {
   gpsOnline?: number;
   licensesExpiringSoon: number;
   licensesExpiringIn7Days: number;
+  licensesExpiringIn60Days?: number;
   licensesExpired: number;
   verifiedDrivers: number;
   pendingVerification: number;
+  rejectedDrivers?: number;
+  underReviewDrivers?: number;
   assignedDrivers: number;
+  openViolations?: number;
 }
 
 export interface DriverDocument {

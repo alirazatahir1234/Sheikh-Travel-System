@@ -18,7 +18,7 @@ import { buildDriverAssignOptions, parseOptionalBookingId } from '../../utils/ve
   imports: [FormsModule, UiModalComponent, UiButtonComponent, UiSelectComponent, UiInputComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <ui-modal [(open)]="open" title="Assign Driver" size="sm">
+    <ui-modal [(open)]="open" [title]="dialogTitle()" size="sm">
       <ui-select
         label="Driver"
         placeholder="Select driver"
@@ -56,31 +56,20 @@ export class VehicleAssignDialogComponent {
 
   readonly driverOptions = signal<UiSelectOption[]>([]);
   readonly submitting = signal(false);
+  readonly vehicleIds = signal<number[]>([]);
 
   selectedDriverId: string | null = null;
   bookingId: string | number | null = null;
 
-  constructor() {
-    // Load drivers when dialog opens
-    let prevOpen = false;
-    const check = () => {
-      const isOpen = this.open();
-      if (isOpen && !prevOpen) {
-        this.selectedDriverId = null;
-        this.bookingId = null;
-        this.driverService.getAll(1, 500).pipe(
-          catchError(() => of({ items: [] }))
-        ).subscribe(r => {
-          this.driverOptions.set(buildDriverAssignOptions(r.items));
-        });
-      }
-      prevOpen = isOpen;
-    };
-    // effect alternative: called from parent via open()
+  dialogTitle(): string {
+    const n = this.vehicleIds().length;
+    return n > 1 ? `Assign Driver (${n} vehicles)` : 'Assign Driver';
   }
 
-  show(vehicleId: number): void {
-    this.vehicleId.set(vehicleId);
+  show(vehicleId: number | number[]): void {
+    const ids = (Array.isArray(vehicleId) ? vehicleId : [vehicleId]).filter(id => Number.isFinite(id) && id > 0);
+    this.vehicleIds.set(ids);
+    this.vehicleId.set(ids[0] ?? null);
     this.selectedDriverId = null;
     this.bookingId = null;
     this.driverService.getAll(1, 500).pipe(catchError(() => of({ items: [] }))).subscribe(r => {
@@ -89,9 +78,9 @@ export class VehicleAssignDialogComponent {
     this.open.set(true);
   }
 
-  submit(): void {
-    const id = this.vehicleId();
-    if (!id || !this.selectedDriverId) return;
+  async submit(): Promise<void> {
+    const ids = this.vehicleIds();
+    if (!ids.length || !this.selectedDriverId) return;
 
     const bookingId = parseOptionalBookingId(this.bookingId);
     if (this.bookingId !== null && this.bookingId !== undefined && String(this.bookingId).trim() !== '' && bookingId === null) {
@@ -100,20 +89,29 @@ export class VehicleAssignDialogComponent {
     }
 
     this.submitting.set(true);
-    this.vehicleService.assignDriver(id, {
-      driverId: Number(this.selectedDriverId),
-      bookingId
-    }).subscribe({
-      next: () => {
-        this.submitting.set(false);
-        this.open.set(false);
-        this.toast.success('Driver assigned successfully');
-        this.assigned.emit();
-      },
-      error: (err) => {
-        this.submitting.set(false);
-        this.toast.error(apiErrorMessage(err, 'Driver assignment failed'));
-      }
-    });
+    const driverId = Number(this.selectedDriverId);
+    let failed = 0;
+
+    for (const id of ids) {
+      const ok = await new Promise<boolean>(resolve => {
+        this.vehicleService.assignDriver(id, { driverId, bookingId }).subscribe({
+          next: () => resolve(true),
+          error: () => resolve(false)
+        });
+      });
+      if (!ok) failed++;
+    }
+
+    this.submitting.set(false);
+    this.open.set(false);
+
+    if (failed === 0) {
+      this.toast.success(ids.length > 1 ? `Driver assigned to ${ids.length} vehicles` : 'Driver assigned successfully');
+    } else if (failed === ids.length) {
+      this.toast.error('Driver assignment failed');
+    } else {
+      this.toast.success(`Assigned with ${failed} failure(s)`);
+    }
+    this.assigned.emit();
   }
 }

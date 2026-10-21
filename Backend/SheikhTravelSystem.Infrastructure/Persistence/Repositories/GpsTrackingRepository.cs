@@ -1958,13 +1958,34 @@ public sealed partial class GpsTrackingRepository(
             .Select(g => new DailyFuelDto(g.Key, g.Sum(l => l.Liters), g.Sum(l => l.Cost)))
             .ToList();
 
-        var tripsResponse = await mediator.Send(
-            new GetGpsTripsQuery(null, fromDate, toDate, request.BranchId, request.DepartmentId, request.DriverId, Unpaged: true),
-            cancellationToken);
+        // Lightweight distance aggregate — do NOT call GetGpsTripsQuery(Unpaged)
+        // (that path loads every trip and reverse-geocodes addresses; Overview hangs / Dio times out).
+        var distanceSql = """
+            SELECT t.VehicleId, SUM(ISNULL(t.DistanceKm, 0)) AS DistanceKm
+            FROM GpsTrips t
+            INNER JOIN Vehicles v ON v.Id = t.VehicleId AND v.TenantId = @TenantId AND v.IsDeleted = 0
+            WHERE t.StartTime BETWEEN @FromDate AND @ToDate
+            """;
+        var distanceParams = new DynamicParameters();
+        distanceParams.Add("TenantId", tenantId);
+        distanceParams.Add("FromDate", fromDate);
+        distanceParams.Add("ToDate", toDate);
+        if (request.BranchId.HasValue)
+        {
+            distanceSql += " AND v.BranchId = @BranchId";
+            distanceParams.Add("BranchId", request.BranchId.Value);
+        }
+        if (request.DepartmentId.HasValue)
+        {
+            distanceSql += " AND v.DepartmentId = @DepartmentId";
+            distanceParams.Add("DepartmentId", request.DepartmentId.Value);
+        }
+        // GpsTrips has no DriverId column; driver-scoped distance is omitted (Overview never passes it).
+        distanceSql += " GROUP BY t.VehicleId";
 
-        var distanceByVehicle = tripsResponse is { Success: true, Data: not null }
-            ? tripsResponse.Data.Items.GroupBy(t => t.VehicleId).ToDictionary(g => g.Key, g => (decimal)g.Sum(t => t.DistanceKm))
-            : [];
+        var distanceByVehicle = (await connection.QueryAsync<(int VehicleId, decimal DistanceKm)>(
+                new CommandDefinition(distanceSql, distanceParams, cancellationToken: cancellationToken)))
+            .ToDictionary(r => r.VehicleId, r => r.DistanceKm);
 
         var byVehicle = logs
             .GroupBy(l => l.VehicleId)

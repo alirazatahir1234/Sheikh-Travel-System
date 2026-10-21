@@ -34,10 +34,10 @@ export interface DriverKpiGroups {
 }
 
 export interface OperationsSummary {
-  tripsToday: number;
+  onTripNow: number;
   driversAvailable: number;
   driversAssigned: number;
-  incidentsToday: number;
+  openIncidents: number;
 }
 
 export interface AssignmentCoverageView {
@@ -46,6 +46,13 @@ export interface AssignmentCoverageView {
   assignedVehicles: number;
   totalDrivers: number;
   driverAssignmentPct: number;
+}
+
+export interface ComplianceAttentionItem {
+  label: string;
+  icon: string;
+  tone: string;
+  count: number;
 }
 
 /** Client-side safety score; uses API rating when available. */
@@ -69,27 +76,30 @@ export function scoreTone(score: number): 'success' | 'warning' | 'error' {
   return 'error';
 }
 
+/**
+ * Compact KPI groups aligned with /vehicles density:
+ * Operational = live capacity; Risk = compliance / attention.
+ */
 export function buildDriverKpiGroups(stats: DriverStats | null): DriverKpiGroups {
   const active     = stats?.active               ?? 0;
   const onTrip     = stats?.onTrip               ?? 0;
   const available  = stats?.available            ?? 0;
   const total      = stats?.totalDrivers         ?? 0;
   const expiring   = stats?.licensesExpiringSoon ?? 0;
+  const expired    = stats?.licensesExpired      ?? 0;
   const suspended  = stats?.suspended            ?? 0;
-  const onLeave    = stats?.onLeave              ?? 0;
-  const assigned   = stats?.assignedDrivers      ?? 0;
-  const utilization = total > 0 ? Math.round(((available + onTrip) / total) * 100) : 0;
-  const assignPct  = total > 0 ? Math.round((assigned / total) * 100) : 0;
+  const pending    = stats?.pendingVerification  ?? 0;
+  const gpsOnline  = stats?.gpsOnline            ?? 0;
+  const utilization = total > 0 ? Math.round((onTrip / total) * 100) : 0;
 
   return {
     operational: [
       {
         title: 'Active Drivers',
-        value: String(active || available + onTrip),
+        value: String(active),
         icon: 'verified_user',
         variant: 'operational',
-        progress: utilization,
-        subtext: `${available + onTrip} operational`
+        subtext: `${total} total roster`
       },
       {
         title: 'Available',
@@ -101,15 +111,16 @@ export function buildDriverKpiGroups(stats: DriverStats | null): DriverKpiGroups
       {
         title: 'On Trip',
         value: String(onTrip),
-        icon: 'directions_car',
+        icon: 'route',
         variant: 'operational',
+        progress: utilization,
         trend: onTrip > 0 ? 'Live' : undefined,
         trendUp: onTrip > 0,
-        subtext: 'Live tracking'
+        subtext: 'Currently en route'
       },
       {
         title: 'GPS Online',
-        value: String(stats?.gpsOnline ?? 0),
+        value: String(gpsOnline),
         icon: 'gps_fixed',
         variant: 'operational',
         subtext: 'Devices connected'
@@ -117,7 +128,15 @@ export function buildDriverKpiGroups(stats: DriverStats | null): DriverKpiGroups
     ],
     risk: [
       {
-        title: 'License Expiring',
+        title: 'License Expired',
+        value: String(expired),
+        icon: 'cancel',
+        variant: 'risk',
+        alert: expired > 0,
+        subtext: 'Cannot dispatch'
+      },
+      {
+        title: 'Expiring Soon',
         value: String(expiring),
         icon: 'warning',
         variant: 'risk',
@@ -133,27 +152,12 @@ export function buildDriverKpiGroups(stats: DriverStats | null): DriverKpiGroups
         subtext: 'Under review'
       },
       {
-        title: 'On Leave',
-        value: String(onLeave),
-        icon: 'event_busy',
+        title: 'Pending Verify',
+        value: String(pending),
+        icon: 'pending',
         variant: 'risk',
-        subtext: 'Scheduled absence'
-      },
-      {
-        title: 'Incidents',
-        value: String((stats?.licensesExpiringIn7Days ?? 0) + suspended),
-        icon: 'report',
-        variant: 'risk',
-        alert: ((stats?.licensesExpiringIn7Days ?? 0) + suspended) > 0,
-        subtext: 'Requires attention'
-      },
-      {
-        title: 'Assignment Health',
-        value: `${assignPct}%`,
-        icon: 'assignment_turned_in',
-        variant: 'risk',
-        progress: assignPct,
-        subtext: `${assigned} of ${total} assigned`
+        alert: pending > 0,
+        subtext: 'Awaiting review'
       }
     ]
   };
@@ -161,10 +165,10 @@ export function buildDriverKpiGroups(stats: DriverStats | null): DriverKpiGroups
 
 export function buildOperationsSummary(stats: DriverStats | null): OperationsSummary {
   return {
-    tripsToday: stats?.onTrip ?? 0,
+    onTripNow: stats?.onTrip ?? 0,
     driversAvailable: stats?.available ?? 0,
     driversAssigned: stats?.assignedDrivers ?? 0,
-    incidentsToday: (stats?.licensesExpiringIn7Days ?? 0) + (stats?.suspended ?? 0)
+    openIncidents: stats?.openViolations ?? 0
   };
 }
 
@@ -180,6 +184,15 @@ export function buildAssignmentCoverage(stats: DriverStats | null): AssignmentCo
     totalDrivers: total,
     driverAssignmentPct
   };
+}
+
+export function buildComplianceAttention(stats: DriverStats | null): ComplianceAttentionItem[] {
+  return [
+    { label: 'License Expired', icon: 'cancel', tone: 'accident', count: stats?.licensesExpired ?? 0 },
+    { label: 'Expiring (30d)', icon: 'warning', tone: 'speed', count: stats?.licensesExpiringSoon ?? 0 },
+    { label: 'Suspended', icon: 'block', tone: 'complaint', count: stats?.suspended ?? 0 },
+    { label: 'Open Incidents', icon: 'report', tone: 'geofence', count: stats?.openViolations ?? 0 }
+  ];
 }
 
 /** @deprecated Use buildDriverKpiGroups instead */

@@ -454,20 +454,21 @@ export class DefaultDashboardComponent implements OnInit, OnDestroy {
     const todayKey = this.localDateKey(new Date());
     let filtered = this.allAssignedTasks;
     if (this.assignedFilter === 'Today') {
+      // Today pickups + currently running trips only (not old Confirmed rows).
       filtered = this.allAssignedTasks.filter(
-        t => t.pickupKey === todayKey || this.isActiveStatus(t.status)
+        t => t.pickupKey === todayKey || this.isInProgressStatus(t.status)
       );
     } else if (this.assignedFilter === 'Upcoming') {
       filtered = this.allAssignedTasks.filter(
-        t => !!t.pickupKey && t.pickupKey > todayKey && !t.done
+        t => !!t.pickupKey && t.pickupKey >= todayKey && !t.done && !this.isInProgressStatus(t.status)
       );
     }
     this.assignedTasks = filtered.slice(0, 8);
   }
 
-  private isActiveStatus(status?: string): boolean {
+  private isInProgressStatus(status?: string): boolean {
     const s = (status || '').toLowerCase();
-    return s === 'started' || s === 'confirmed' || s.includes('progress') || s.includes('enroute');
+    return s === 'started' || s.includes('progress') || s.includes('enroute') || s.includes('pickup');
   }
 
   private priorityFromStatus(status?: string): 'high' | 'medium' | 'low' | undefined {

@@ -1,0 +1,42 @@
+# Sheikh Travel API — Azure DevOps → SheikhGo Azure VM
+#
+# Trigger: push to GitHub branch `main` (after Azure DevOps GitHub service connection).
+# Agent: self-hosted pool `SheikhGo-VM` (runs ON 20.174.1.230) so build+deploy happen on the VM.
+#
+# One-time setup: see docs/deploy/azure-vm-api.md
+#
+# Does not touch Traccar / SQL containers. Does not modify Railway.
+
+trigger:
+  branches:
+    include:
+      - main
+  paths:
+    include:
+      - Backend/**
+      - deploy/azure-vm/**
+      - azure-pipelines.yml
+      - Dockerfile.railway
+
+pr: none
+
+pool:
+  name: SheikhGo-VM
+
+variables:
+  DEPLOY_BRANCH: main
+
+steps:
+  - checkout: self
+    clean: false
+    fetchDepth: 1
+
+  - script: |
+      set -euo pipefail
+      chmod +x "$(Build.SourcesDirectory)/deploy/azure-vm/deploy-api.sh"
+      export BUILD_SOURCESDIRECTORY="$(Build.SourcesDirectory)"
+      export DEPLOY_BRANCH="$(DEPLOY_BRANCH)"
+      "$(Build.SourcesDirectory)/deploy/azure-vm/deploy-api.sh"
+    displayName: Build and restart sheikhgo-api on VM
+    env:
+      DEPLOY_BRANCH: $(DEPLOY_BRANCH)

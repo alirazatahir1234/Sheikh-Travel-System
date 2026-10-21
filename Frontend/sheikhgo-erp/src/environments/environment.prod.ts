@@ -1,6 +1,6 @@
 export const environment = {
   production: true,
-  apiUrl: 'https://sheikh-travel-system-production.up.railway.app/api',
+  apiUrl: 'http://20.174.1.230:5082/api',
   /** Same host as SPA; nginx proxies /uploads to the API. Azure blob URLs are absolute and bypass this. */
   filesBaseUrl: '',
   tenantSlug: 'default',

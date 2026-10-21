@@ -15,7 +15,8 @@ public sealed class FleetRepository(IDbConnectionFactory dbFactory) : IFleetRepo
 
         return await connection.QuerySingleAsync<FleetDashboardDto>(new CommandDefinition("""
             SELECT
-                (SELECT COUNT(*) FROM Vehicles WHERE IsDeleted = 0 AND TenantId = @TenantId AND Status <> 5) AS TotalVehicles,
+                -- Match default dashboard: exclude Draft + Retired so fleet KPI agrees with /vehicles inventory
+                (SELECT COUNT(*) FROM Vehicles WHERE IsDeleted = 0 AND TenantId = @TenantId AND Status NOT IN (4, 5)) AS TotalVehicles,
                 (SELECT COUNT(*) FROM Vehicles WHERE IsDeleted = 0 AND TenantId = @TenantId AND Status IN (1, 2)) AS ActiveVehicles,
                 (SELECT COUNT(*) FROM Drivers WHERE IsDeleted = 0 AND TenantId = @TenantId AND Status IN (1, 2)) AS DriversOnDuty,
                 (SELECT COUNT(*) FROM Maintenance m INNER JOIN Vehicles v ON m.VehicleId = v.Id

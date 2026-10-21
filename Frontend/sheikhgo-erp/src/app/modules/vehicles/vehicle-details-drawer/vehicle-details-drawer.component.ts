@@ -375,8 +375,10 @@ export class VehicleDetailsDrawerComponent {
         alerts.push({
           id: 'insurance',
           type: 'Insurance Expiry',
-          title: 'Insurance Expiry',
-          detail: `Policy expires ${new Date(insuranceExpiry).toLocaleDateString()}`,
+          title: days < 0 ? 'Insurance Expired' : 'Insurance Expiring',
+          detail: days < 0
+            ? `Policy expired ${new Date(insuranceExpiry).toLocaleDateString()}`
+            : `Policy expires ${new Date(insuranceExpiry).toLocaleDateString()}`,
           priority: days < 0 ? 'high' : 'medium',
           date: insuranceExpiry
         });
@@ -732,8 +734,39 @@ export class VehicleDetailsDrawerComponent {
     return `https://www.google.com/maps?q=${latitude},${longitude}`;
   }
 
-  totalTripDistance(): number {
-    return this.trips().length * 42;
+  statusBadgeClass(status: VehicleStatus | number): string {
+    const s = normalizeVehicleStatus(status);
+    switch (s) {
+      case VehicleStatus.Available: return 'vd-badge-active';
+      case VehicleStatus.OnTrip: return 'vd-badge-transit';
+      case VehicleStatus.Maintenance: return 'vd-badge-maint';
+      case VehicleStatus.Retired:
+      case VehicleStatus.Draft: return 'vd-badge-inactive';
+      default: return 'vd-badge-active';
+    }
+  }
+
+  gpsBadgeLabel(): string {
+    if (!this.hasGpsTracker()) return 'No tracker';
+    return this.gpsOnline() ? 'GPS Online' : 'GPS Offline';
+  }
+
+  trackerStatusLabel(): string {
+    if (!this.hasGpsTracker()) return 'None';
+    return this.gpsOnline() ? 'Online' : 'Offline';
+  }
+
+  formatPkr(amount: number | null | undefined): string {
+    if (amount == null || !Number.isFinite(amount) || amount === 0) return '—';
+    return `PKR ${Math.round(amount).toLocaleString()}`;
+  }
+
+  scheduleMaintenance(): void {
+    const id = this.effectiveVehicleId();
+    this.closeDrawer();
+    void this.router.navigate(['/fleet/maintenance/requests'], {
+      queryParams: id ? { create: true, vehicleId: id } : { create: true }
+    });
   }
 
   editVehicle(): void {

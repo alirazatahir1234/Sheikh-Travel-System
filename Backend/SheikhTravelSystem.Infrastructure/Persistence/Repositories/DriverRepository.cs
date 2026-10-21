@@ -375,11 +375,24 @@ public sealed class DriverRepository(IDbConnectionFactory dbFactory) : IDriverRe
                     SUM(CASE WHEN LicenseExpiryDate >= CAST(GETUTCDATE() AS DATE)
                               AND LicenseExpiryDate <= DATEADD(day, 7, CAST(GETUTCDATE() AS DATE))
                          THEN 1 ELSE 0 END) AS LicensesExpiringIn7Days,
+                    SUM(CASE WHEN LicenseExpiryDate >= CAST(GETUTCDATE() AS DATE)
+                              AND LicenseExpiryDate <= DATEADD(day, 60, CAST(GETUTCDATE() AS DATE))
+                         THEN 1 ELSE 0 END) AS LicensesExpiringIn60Days,
                     SUM(CASE WHEN LicenseExpiryDate < CAST(GETUTCDATE() AS DATE)
                          THEN 1 ELSE 0 END) AS LicensesExpired,
                     SUM(CASE WHEN VerificationStatus = N'Verified' THEN 1 ELSE 0 END) AS VerifiedDrivers,
                     SUM(CASE WHEN VerificationStatus = N'Pending'  THEN 1 ELSE 0 END) AS PendingVerification,
-                    SUM(CASE WHEN isAssigned = 1 THEN 1 ELSE 0 END) AS AssignedDrivers
+                    SUM(CASE WHEN VerificationStatus = N'Rejected' THEN 1 ELSE 0 END) AS RejectedDrivers,
+                    SUM(CASE WHEN VerificationStatus = N'UnderReview' THEN 1 ELSE 0 END) AS UnderReviewDrivers,
+                    SUM(CASE WHEN isAssigned = 1 THEN 1 ELSE 0 END) AS AssignedDrivers,
+                    ISNULL((
+                        SELECT COUNT(*)
+                        FROM DriverViolations dv
+                        INNER JOIN Drivers vd ON vd.Id = dv.DriverId AND vd.IsDeleted = 0 AND vd.TenantId = @TenantId
+                        WHERE dv.TenantId = @TenantId
+                          AND dv.IsDeleted = 0
+                          AND (dv.Status IS NULL OR dv.Status NOT IN (N'Closed', N'Resolved', N'Dismissed'))
+                    ), 0) AS OpenViolations
                   FROM (
                     SELECT d.*,
                            CASE WHEN av.GpsDeviceId IS NOT NULL AND gd.LastSeenAt >= DATEADD(minute, -15, GETUTCDATE())

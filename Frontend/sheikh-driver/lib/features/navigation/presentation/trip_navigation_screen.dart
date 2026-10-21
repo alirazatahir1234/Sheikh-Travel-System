@@ -735,7 +735,9 @@ class _BottomPanel extends StatelessWidget {
                 ),
                 const SizedBox(width: 8),
                 _StatChip(
-                  icon: follow ? Icons.gps_fixed : Icons.gps_not_fixed,
+                  icon: follow
+                      ? Icons.location_disabled
+                      : Icons.directions_run,
                   label: follow ? 'Follow' : 'Free',
                   onTap: onRecenter,
                 ),

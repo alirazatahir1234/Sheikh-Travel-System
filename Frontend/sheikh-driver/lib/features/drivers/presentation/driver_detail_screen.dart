@@ -3,18 +3,39 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../core/constants/app_theme.dart';
+import '../../../core/errors/error_handler.dart';
 import '../../../features/auth/data/auth_repository.dart';
 import '../../../features/auth/domain/auth_models.dart';
 import '../../../features/bookings/presentation/dispatch_pickers.dart';
 import '../../../shared/widgets/sg_ui.dart';
 import '../data/drivers_api.dart';
+import '../domain/driver_models.dart';
 import 'drivers_notifier.dart';
 
 class DriverDetailScreen extends ConsumerWidget {
   const DriverDetailScreen({super.key, required this.driverId});
   final int driverId;
 
-  Future<void> _assignVehicle(BuildContext context, WidgetRef ref) async {
+  bool _isVerified(DriverDetail d) =>
+      (d.verificationStatus ?? '').toLowerCase() == 'verified';
+
+  Future<void> _assignVehicle(
+    BuildContext context,
+    WidgetRef ref,
+    DriverDetail driver,
+  ) async {
+    if (!_isVerified(driver)) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Driver must be verified before vehicle assignment.',
+            ),
+          ),
+        );
+      }
+      return;
+    }
     final vehicleId = await pickVehicleId(context, ref);
     if (vehicleId == null) return;
     try {
@@ -27,7 +48,9 @@ class DriverDetailScreen extends ConsumerWidget {
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(ErrorHandler.message(e))),
+        );
       }
     }
   }
@@ -61,7 +84,9 @@ class DriverDetailScreen extends ConsumerWidget {
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(ErrorHandler.message(e))),
+        );
       }
     }
   }
@@ -107,7 +132,7 @@ class DriverDetailScreen extends ConsumerWidget {
                 } catch (e) {
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('$e')),
+                      SnackBar(content: Text(ErrorHandler.message(e))),
                     );
                   }
                 }
@@ -140,6 +165,9 @@ class DriverDetailScreen extends ConsumerWidget {
         data: (d) {
           final df = DateFormat('dd MMM yyyy');
           final tf = DateFormat('dd MMM, HH:mm');
+          final displayName =
+              d.fullName.trim().isEmpty ? 'Driver' : d.fullName.trim();
+          final verified = _isVerified(d);
           return ListView(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
             children: [
@@ -151,7 +179,7 @@ class DriverDetailScreen extends ConsumerWidget {
                       children: [
                         Expanded(
                           child: Text(
-                            d.fullName,
+                            displayName,
                             style: const TextStyle(
                               fontSize: 20,
                               fontWeight: FontWeight.w800,
@@ -230,11 +258,23 @@ class DriverDetailScreen extends ConsumerWidget {
               ),
               if (canAssign) ...[
                 const SizedBox(height: 12),
+                if (!verified)
+                  const Padding(
+                    padding: EdgeInsets.only(bottom: 8),
+                    child: Text(
+                      'Vehicle assignment requires Verified status.',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppColors.warning,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
                 Row(
                   children: [
                     Expanded(
                       child: OutlinedButton.icon(
-                        onPressed: () => _assignVehicle(context, ref),
+                        onPressed: () => _assignVehicle(context, ref, d),
                         icon: const Icon(Icons.local_shipping_outlined),
                         label: Text(
                           d.assignedVehicleId != null ? 'Reassign' : 'Assign',

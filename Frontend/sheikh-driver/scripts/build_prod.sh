@@ -16,7 +16,7 @@ TARGET="${1:-android}"
 ENV_NAME="${2:-prod}"
 
 # Same host as ERP environment.prod.ts when unset.
-DEFAULT_PROD_API='https://sheikh-travel-system-production.up.railway.app/api'
+DEFAULT_PROD_API='http://20.174.1.230:5082/api'
 API_BASE_URL="${API_BASE_URL:-$DEFAULT_PROD_API}"
 
 DEFINES=(

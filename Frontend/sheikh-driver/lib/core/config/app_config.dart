@@ -13,7 +13,7 @@ class AppConfig {
 
   /// Same host as ERP `environment.prod.ts` — baked in for release APKs.
   static const String defaultProductionApiBaseUrl =
-      'https://sheikh-travel-system-production.up.railway.app/api';
+      'http://20.174.1.230:5082/api';
 
   /// Compile-time override from `--dart-define=API_BASE_URL=...`.
   /// Empty means “use [resolvedBaseUrl] env/platform default”.

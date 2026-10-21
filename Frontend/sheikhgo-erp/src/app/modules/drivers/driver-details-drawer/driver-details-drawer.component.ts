@@ -32,7 +32,7 @@ import { UiButtonComponent } from '../../../shared/components/ui/button/ui-butto
 import { UiStatusBadgeComponent } from '../../../shared/components/ui/status-badge/ui-status-badge.component';
 import { UiSelectComponent } from '../../../shared/components/ui/select/ui-select.component';
 import { UiSelectOption } from '../../../shared/components/ui/types/ui.types';
-import { licenseExpiryLabel, licenseExpiryState, availabilityBucketLabel } from '../utils/driver-status.util';
+import { licenseExpiryLabel, licenseExpiryState, availabilityBucketLabel, statusBadgeVariant } from '../utils/driver-status.util';
 
 type DrawerTab = 'overview' | 'license' | 'vehicle' | 'verification' | 'performance' | 'tracking' | 'timeline' | 'duty';
 
@@ -83,6 +83,7 @@ export class DriverDetailsDrawerComponent {
   readonly open = model(false);
   readonly driverId = input<number | null>(null);
   /** When set, drawer opens on this tab (e.g. 'performance' after logging an incident). */
+  /** When set, drawer opens on this tab (e.g. 'vehicle' for assign, 'performance' after incident). */
   readonly preferredTab = input<DrawerTab | null>(null);
   readonly changed = output<void>();
 
@@ -223,6 +224,13 @@ export class DriverDetailsDrawerComponent {
 
   availabilityLabel(d: Driver): string {
     return availabilityBucketLabel(d.availabilityBucket);
+  }
+
+  overviewStatusVariant(d: Driver): 'success' | 'warning' | 'error' | 'info' {
+    const mapped = statusBadgeVariant(d.status);
+    if (mapped === 'danger') return 'error';
+    if (mapped === 'neutral') return 'info';
+    return mapped;
   }
 
   driverStatusBadge(d: Driver): { label: string; variant: 'success' | 'warning' | 'error' | 'info' } {

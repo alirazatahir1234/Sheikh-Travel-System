@@ -129,10 +129,14 @@ public record DriverStatsDto(
     int GpsOnline,
     int LicensesExpiringSoon,
     int LicensesExpiringIn7Days,
+    int LicensesExpiringIn60Days,
     int LicensesExpired,
     int VerifiedDrivers,
     int PendingVerification,
-    int AssignedDrivers);
+    int RejectedDrivers,
+    int UnderReviewDrivers,
+    int AssignedDrivers,
+    int OpenViolations);
 
 public record DriverTimelineEventDto(
     int Id,

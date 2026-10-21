@@ -14,7 +14,7 @@ class AppConfig {
   /// Same host as ERP `environment.prod.ts` — used when release builds omit
   /// an explicit `API_BASE_URL` (never ship emulator loopback to Play).
   static const String defaultProductionApiBaseUrl =
-      'https://sheikh-travel-system-production.up.railway.app/api';
+      'http://20.174.1.230:5082/api';
 
   /// Compile-time override from `--dart-define=API_BASE_URL=...`.
   /// Empty means “use [resolvedBaseUrl] env/platform default”.

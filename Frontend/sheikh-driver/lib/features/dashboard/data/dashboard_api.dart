@@ -825,12 +825,17 @@ class DashboardApi {
   Future<FuelAnalyticsSummary> _getFuelAnalytics() async {
     final now = DateTime.now().toUtc();
     final from = DateTime.utc(now.year, now.month, 1);
+    // Overview fans out ~12 calls; keep fuel from blocking the shell if slow.
     final res = await _dio.get<Map<String, dynamic>>(
       ApiEndpoints.gpsFuelAnalytics,
       queryParameters: {
         'from': from.toIso8601String(),
         'to': now.toIso8601String(),
       },
+      options: Options(
+        receiveTimeout: const Duration(seconds: 12),
+        sendTimeout: const Duration(seconds: 12),
+      ),
     );
     return FuelAnalyticsSummary.fromJson(ApiResponseParser.dataMap(res.data));
   }
@@ -1253,7 +1258,7 @@ class DashboardApi {
     try {
       return await fn();
     } catch (e) {
-      errors[key] = e.toString();
+      errors[key] = formatDioError(e);
       return fallback;
     }
   }

@@ -185,6 +185,16 @@
   color: #93c5fd;
   border: 1px solid rgba(59,130,246,.35);
 }
+.vd-badge-maint {
+  background: rgba(245,158,11,.25);
+  color: #fcd34d;
+  border: 1px solid rgba(245,158,11,.35);
+}
+.vd-badge-inactive {
+  background: rgba(148,163,184,.22);
+  color: #cbd5e1;
+  border: 1px solid rgba(148,163,184,.35);
+}
 .vd-badge-gps-on  {
   background: rgba(16,185,129,.20);
   color: #6ee7b7;
@@ -194,6 +204,11 @@
   background: rgba(239,68,68,.22);
   color: #fca5a5;
   border: 1px solid rgba(239,68,68,.32);
+}
+.vd-badge-gps-none {
+  background: rgba(148,163,184,.18);
+  color: #cbd5e1;
+  border: 1px solid rgba(148,163,184,.28);
 }
 
 .vd-header-actions {

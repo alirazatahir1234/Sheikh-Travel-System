@@ -87,15 +87,12 @@ $card-pad: 1rem;    // 16px
 
 .kpi-grid {
   display: grid;
-  gap: 0.75rem;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.625rem;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 
-  &--operational {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
-
+  &--operational,
   &--risk {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
 
@@ -339,9 +336,18 @@ $card-pad: 1rem;    // 16px
   gap: 0.625rem;
   padding: 0.45rem 0;
   border-bottom: 1px solid #fecaca;
+  cursor: pointer;
 
   &:last-of-type {
     border-bottom: none;
+  }
+
+  &:hover {
+    background: rgba(254, 202, 202, 0.35);
+    margin: 0 -0.35rem;
+    padding-left: 0.35rem;
+    padding-right: 0.35rem;
+    border-radius: 4px;
   }
 }
 
@@ -628,7 +634,7 @@ $card-pad: 1rem;    // 16px
 .filters-grid {
   display: grid;
   gap: 0.75rem;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
 }
 
 .filter-input {
@@ -953,6 +959,26 @@ $card-pad: 1rem;    // 16px
   color: var(--fleet-text, #0f172a);
 
   &:last-of-type { border-bottom: none; }
+
+  &--link {
+    cursor: pointer;
+    border-radius: 6px;
+    margin: 0 -0.25rem;
+    padding-left: 0.25rem;
+    padding-right: 0.25rem;
+
+    &:hover {
+      background: var(--fleet-surface, #f8fafc);
+    }
+  }
+}
+
+.assignment-chevron {
+  margin-left: auto;
+  font-size: 18px !important;
+  width: 18px !important;
+  height: 18px !important;
+  color: var(--fleet-text-muted, #94a3b8);
 }
 
 .assignment-icon {
@@ -1048,8 +1074,17 @@ $card-pad: 1rem;    // 16px
   gap: 0.625rem;
   padding: 0.45rem 0;
   border-bottom: 1px solid var(--fleet-border, #e2e8f0);
+  cursor: pointer;
 
   &:last-of-type { border-bottom: none; }
+
+  &:hover {
+    background: var(--fleet-surface, #f8fafc);
+    margin: 0 -0.35rem;
+    padding-left: 0.35rem;
+    padding-right: 0.35rem;
+    border-radius: 4px;
+  }
 }
 
 .top-driver-rank {
@@ -1099,19 +1134,10 @@ $card-pad: 1rem;    // 16px
 .mt-3 { margin-top: 0.75rem; }
 
 /* ── Responsive ── */
-@media (max-width: 1400px) {
-  .kpi-grid--risk {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-}
-
 @media (max-width: 1200px) {
-  .kpi-grid--operational {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
+  .kpi-grid--operational,
   .kpi-grid--risk {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .operations-grid {
@@ -1125,6 +1151,10 @@ $card-pad: 1rem;    // 16px
   .dashboard-aside {
     display: grid;
     grid-template-columns: 1fr;
+  }
+
+  .filters-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   :host ::ng-deep .quick-actions-strip .grid {
@@ -1159,6 +1189,10 @@ $card-pad: 1rem;    // 16px
   .kpi-grid--risk {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .filters-grid {
+    grid-template-columns: 1fr 1fr;
+  }
 }
 
 @media (max-width: 640px) {
@@ -1171,6 +1205,11 @@ $card-pad: 1rem;    // 16px
   .kpi-grid--operational,
   .kpi-grid--risk {
     grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+
+    ::ng-deep .summary-card h3 {
+      font-size: 1.25rem !important;
+    }
   }
 
   .operations-grid {

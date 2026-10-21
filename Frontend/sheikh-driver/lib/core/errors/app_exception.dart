@@ -40,6 +40,10 @@ class ValidationException extends AppException {
   const ValidationException(super.message);
 }
 
+class ConflictException extends AppException {
+  const ConflictException(super.message);
+}
+
 class UnknownException extends AppException {
   const UnknownException([
     super.message = 'An unexpected error occurred.',

@@ -7,8 +7,9 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { UiToastService } from '../../../shared/components/ui/toast/ui-toast.service';
 import { BulkVehicleImportDialogComponent } from '../bulk-vehicle-import-dialog/bulk-vehicle-import-dialog.component';
-import { catchError, forkJoin, of, filter } from 'rxjs';
+import { catchError, forkJoin, of, filter, interval, Observable, switchMap } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { PagedResult } from '../../../core/models/common.model';
 import { VehicleService } from '../../../core/services/vehicle.service';
 import { PlatformService } from '../../../core/services/platform.service';
 import { DriverService } from '../../../core/services/driver.service';
@@ -23,7 +24,6 @@ import {
   VehicleListItem,
   VehicleStatus,
   VehicleStatusLabels,
-  FuelTypeLabels,
   normalizeVehicleStatus
 } from '../../../core/models/vehicle.model';
 import { formatRelativeTime } from '../../../core/utils/relative-time.util';
@@ -43,8 +43,9 @@ import {
 } from '../models/vehicle-inventory.model';
 import { UiSelectOption } from '../../../shared/components/ui/types/ui.types';
 import {
-  isInsuranceExpiringSoon,
+  isInsuranceAttention,
   isGpsOnline,
+  isMaintenanceDue,
   matchesVehicleFilters,
   normalizeVehicleFilters,
   vehicleHasTracker
@@ -153,30 +154,88 @@ export class VehicleInventoryPageComponent implements OnInit {
     return `Showing ${this.displayRows().length} of ${shown} vehicles`;
   });
 
+  /** Active fleet for KPIs — excludes Draft + Retired (matches default dashboard). */
+  readonly fleetRows = computed(() =>
+    this.allRows().filter(r => {
+      const s = normalizeVehicleStatus(r.status);
+      return s !== VehicleStatus.Draft && s !== VehicleStatus.Retired;
+    })
+  );
+
   readonly kpiCards = computed<FleetSummaryCardData[]>(() => {
-    const d = this.dashboard();
-    const rows = this.allRows();
+    const rows = this.fleetRows();
     const onTrip = rows.filter(r => normalizeVehicleStatus(r.status) === VehicleStatus.OnTrip).length;
     const available = rows.filter(r => normalizeVehicleStatus(r.status) === VehicleStatus.Available).length;
-    const total = d?.totalVehicles ?? rows.length;
-    const maintenance = d?.maintenanceDue ?? rows.filter(r => normalizeVehicleStatus(r.status) === VehicleStatus.Maintenance).length;
+    const total = rows.length;
+    const maintenance = rows.filter(r => isMaintenanceDue(r)).length;
     const utilization = total > 0 ? Math.round((onTrip / total) * 100) : 0;
     const gpsConnected = rows.filter(r => isGpsOnline(r)).length;
     const gpsOffline = rows.filter(r => vehicleHasTracker(r) && !isGpsOnline(r)).length;
-    const insuranceExpiring = rows.filter(r => isInsuranceExpiringSoon(r)).length;
-    const fuelAlerts = rows.filter(r =>
-      r.serviceAlert?.toLowerCase().includes('fuel') || r.serviceAlert?.toLowerCase().includes('oil')
-    ).length;
+    const insuranceAlerts = rows.filter(r => isInsuranceAttention(r)).length;
+    const noTracker = rows.filter(r => !vehicleHasTracker(r)).length;
 
     return [
-      { icon: 'local_shipping', title: 'Total Fleet Assets', value: total.toLocaleString(), subtext: 'Registered vehicles' },
-      { icon: 'route', title: 'Active / On Route', value: onTrip.toLocaleString(), progress: utilization, subtext: `${utilization}% utilization` },
-      { icon: 'warning', title: 'Maintenance (Critical)', value: maintenance.toLocaleString(), alert: maintenance > 0 },
-      { icon: 'check_circle', title: 'Available / Ready', value: available.toLocaleString(), subtext: 'Fleet ready' },
-      { icon: 'gps_fixed', title: 'GPS Connected', value: gpsConnected.toLocaleString(), subtext: 'Online trackers' },
-      { icon: 'signal_wifi_off', title: 'Vehicles Offline', value: gpsOffline.toLocaleString(), alert: gpsOffline > 0, subtext: 'Tracker offline' },
-      { icon: 'policy', title: 'Insurance Expiring', value: insuranceExpiring.toLocaleString(), alert: insuranceExpiring > 0, subtext: 'Within 30 days' },
-      { icon: 'local_gas_station', title: 'Fuel Alerts', value: fuelAlerts.toLocaleString(), alert: fuelAlerts > 0, subtext: 'Service reminders' }
+      {
+        icon: 'local_shipping',
+        title: 'Total Fleet Assets',
+        value: total.toLocaleString(),
+        subtext: 'Excludes drafts & retired',
+        variant: 'neutral'
+      },
+      {
+        icon: 'route',
+        title: 'Active / On Route',
+        value: onTrip.toLocaleString(),
+        progress: utilization,
+        subtext: `${onTrip} on route`,
+        variant: 'operational'
+      },
+      {
+        icon: 'warning',
+        title: 'Maintenance Due',
+        value: maintenance.toLocaleString(),
+        alert: maintenance > 0,
+        subtext: 'Status or service overdue',
+        variant: 'risk'
+      },
+      {
+        icon: 'check_circle',
+        title: 'Available / Ready',
+        value: available.toLocaleString(),
+        subtext: 'Fleet ready',
+        variant: 'operational'
+      },
+      {
+        icon: 'gps_fixed',
+        title: 'GPS Connected',
+        value: gpsConnected.toLocaleString(),
+        subtext: 'Online trackers',
+        variant: 'operational'
+      },
+      {
+        icon: 'signal_wifi_off',
+        title: 'Vehicles Offline',
+        value: gpsOffline.toLocaleString(),
+        alert: gpsOffline > 0,
+        subtext: 'Tracker offline',
+        variant: 'risk'
+      },
+      {
+        icon: 'policy',
+        title: 'Insurance Alerts',
+        value: insuranceAlerts.toLocaleString(),
+        alert: insuranceAlerts > 0,
+        subtext: 'Expired or within 30 days',
+        variant: 'risk'
+      },
+      {
+        icon: 'gps_off',
+        title: 'No GPS Tracker',
+        value: noTracker.toLocaleString(),
+        alert: noTracker > 0,
+        subtext: 'Untracked assets',
+        variant: 'risk'
+      }
     ];
   });
 
@@ -187,7 +246,7 @@ export class VehicleInventoryPageComponent implements OnInit {
 
   ngOnInit(): void {
     this.load();
-    setInterval(() => this.syncTick.set(Date.now()), 30_000);
+    interval(30_000).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => this.syncTick.set(Date.now()));
 
     this.router.events.pipe(
       filter((event): event is NavigationEnd => event instanceof NavigationEnd),
@@ -201,10 +260,10 @@ export class VehicleInventoryPageComponent implements OnInit {
     this.error.set(null);
 
     forkJoin({
-      vehicles: this.vehicleService.getAll(1, 500, true).pipe(
+      vehicles: this.loadAllVehicles().pipe(
         catchError(err => {
           this.error.set(apiErrorMessage(err, 'Failed to load vehicles.'));
-          return of({ items: [] as VehicleListItem[], totalCount: 0, page: 1, pageSize: 500 });
+          return of({ items: [] as VehicleListItem[], totalCount: 0, page: 1, pageSize: 0, totalPages: 0 });
         })
       ),
       dashboard: this.fleetService.getDashboard().pipe(catchError(() => of(null)))
@@ -212,14 +271,7 @@ export class VehicleInventoryPageComponent implements OnInit {
       next: ({ vehicles, dashboard }) => {
         this.allRows.set(vehicles.items);
         this.dashboard.set(dashboard);
-        this.pagination.update(pg => ({
-          ...pg,
-          total: vehicles.totalCount,
-          page: Math.min(
-            pg.page,
-            Math.max(1, Math.ceil(Math.max(vehicles.totalCount, 1) / pg.pageSize) || 1)
-          )
-        }));
+        this.clampPageToFiltered();
         this.lastSyncedAt.set(new Date());
         this.loading.set(false);
         // Dashboard is tenant-wide; list is data-scoped — surface a mismatch instead of a blank grid.
@@ -238,9 +290,43 @@ export class VehicleInventoryPageComponent implements OnInit {
     });
   }
 
+  /** Fetch every page so KPIs / filters / export are not silently capped at 500. */
+  private loadAllVehicles(): Observable<PagedResult<VehicleListItem>> {
+    const pageSize = 200;
+    const loadPage = (page: number, acc: VehicleListItem[]): Observable<PagedResult<VehicleListItem>> =>
+      this.vehicleService.getAll(page, pageSize, true).pipe(
+        switchMap(res => {
+          const items = [...acc, ...res.items];
+          const done = res.items.length === 0 || items.length >= res.totalCount;
+          if (done) {
+            const size = items.length || pageSize;
+            return of({
+              items,
+              totalCount: res.totalCount,
+              page: 1,
+              pageSize: size,
+              totalPages: Math.max(1, Math.ceil(Math.max(res.totalCount, 1) / size))
+            });
+          }
+          return loadPage(page + 1, items);
+        })
+      );
+    return loadPage(1, []);
+  }
+
+  private clampPageToFiltered(): void {
+    this.pagination.update(pg => {
+      const total = this.filteredRows().length;
+      const maxPage = Math.max(1, Math.ceil(Math.max(total, 1) / pg.pageSize) || 1);
+      return { ...pg, total, page: Math.min(pg.page, maxPage) };
+    });
+  }
+
   onFiltersChange(f: VehicleFilters): void {
     this.filters.set(normalizeVehicleFilters(f));
     this.pagination.update(p => ({ ...p, page: 1 }));
+    // Defer clamp so filteredRows() sees the new filters.
+    queueMicrotask(() => this.clampPageToFiltered());
   }
 
   onPageChange(page: number): void {
@@ -319,7 +405,7 @@ export class VehicleInventoryPageComponent implements OnInit {
   onBulkAssign(): void {
     const ids = [...this.selection()];
     if (!ids.length) return;
-    this.assignDialog?.show(ids[0]);
+    this.assignDialog?.show(ids);
   }
 
   onBulkExport(): void {
@@ -356,7 +442,9 @@ export class VehicleInventoryPageComponent implements OnInit {
   onBulkScheduleMaintenance(): void {
     const ids = [...this.selection()];
     if (!ids.length) return;
-    void this.router.navigate(['/maintenance/new'], { queryParams: { vehicleIds: ids.join(',') } });
+    void this.router.navigate(['/fleet/maintenance/requests'], {
+      queryParams: { create: true, vehicleId: ids[0] }
+    });
   }
 
   exportExcel(): void {

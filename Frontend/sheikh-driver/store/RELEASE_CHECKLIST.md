@@ -29,7 +29,7 @@ cd Frontend/sheikh-driver
 # Or:
 flutter build appbundle --release \
   --dart-define=ENV=prod \
-  --dart-define=API_BASE_URL=https://sheikh-travel-system-production.up.railway.app/api \
+  --dart-define=API_BASE_URL=http://20.174.1.230:5082/api \
   --dart-define=TENANT_SLUG=default \
   --dart-define=CERT_PIN_1=YOUR_SHA256_HEX \
   --dart-define=PRIVACY_URL=https://example.com/driver/privacy \
@@ -57,7 +57,7 @@ flutter build appbundle --release \
 # Or:
 flutter build ipa --release \
   --dart-define=ENV=prod \
-  --dart-define=API_BASE_URL=https://sheikh-travel-system-production.up.railway.app/api \
+  --dart-define=API_BASE_URL=http://20.174.1.230:5082/api \
   --dart-define=TENANT_SLUG=default \
   --dart-define=CERT_PIN_1=YOUR_SHA256_HEX \
   --dart-define=PRIVACY_URL=https://example.com/driver/privacy \

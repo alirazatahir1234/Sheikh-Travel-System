@@ -22,14 +22,16 @@ function lifecycleStatus(row: VehicleListItem): OperationalStatus {
 /** Derives fleet operational status from vehicle status + GPS telemetry. */
 export function deriveOperationalStatus(row: VehicleListItem): OperationalStatus {
   const status = normalizeVehicleStatus(row.status);
+
+  // Lifecycle states always win — never hide Draft/Retired/Maintenance behind GPS labels.
+  if (status === VehicleStatus.Draft || status === VehicleStatus.Retired) {
+    return lifecycleStatus(row);
+  }
   if (status === VehicleStatus.Maintenance) {
     return { label: 'Maintenance', variant: 'warning' };
   }
   if (status === VehicleStatus.OnTrip) {
     return { label: 'On Route', variant: 'info' };
-  }
-  if (status === VehicleStatus.Retired) {
-    return { label: 'Offline', variant: 'inactive' };
   }
 
   const hasTracker = row.hasGpsDevice || !!row.gpsImei;

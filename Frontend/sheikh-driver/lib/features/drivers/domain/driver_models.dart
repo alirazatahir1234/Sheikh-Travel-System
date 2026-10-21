@@ -44,7 +44,7 @@ class DriverListItem {
   factory DriverListItem.fromJson(Map<String, dynamic> json) {
     return DriverListItem(
       id: json['id'] as int? ?? json['Id'] as int? ?? 0,
-      fullName: json['fullName'] as String? ?? json['FullName'] as String? ?? '',
+      fullName: resolveDriverDisplayName(json),
       phone: json['phone'] as String? ?? json['Phone'] as String? ?? '',
       licenseNumber:
           json['licenseNumber'] as String? ?? json['LicenseNumber'] as String? ?? '',
@@ -135,7 +135,7 @@ class DriverDetail {
   factory DriverDetail.fromJson(Map<String, dynamic> json) {
     return DriverDetail(
       id: json['id'] as int? ?? json['Id'] as int? ?? 0,
-      fullName: json['fullName'] as String? ?? json['FullName'] as String? ?? '',
+      fullName: resolveDriverDisplayName(json),
       phone: json['phone'] as String? ?? json['Phone'] as String? ?? '',
       licenseNumber:
           json['licenseNumber'] as String? ?? json['LicenseNumber'] as String? ?? '',
@@ -186,6 +186,17 @@ class DriverStats {
     required this.gpsOnline,
     required this.licensesExpiringSoon,
     required this.licensesExpired,
+    this.suspended = 0,
+    this.pendingVerification = 0,
+    this.rejectedDrivers = 0,
+    this.licensesExpiringIn7Days = 0,
+    this.licensesExpiringIn60Days = 0,
+    this.assignedDrivers = 0,
+    this.openViolations = 0,
+    this.verifiedDrivers = 0,
+    this.underReviewDrivers = 0,
+    this.onLeave = 0,
+    this.busy = 0,
   });
 
   final int totalDrivers;
@@ -196,6 +207,17 @@ class DriverStats {
   final int gpsOnline;
   final int licensesExpiringSoon;
   final int licensesExpired;
+  final int suspended;
+  final int pendingVerification;
+  final int rejectedDrivers;
+  final int licensesExpiringIn7Days;
+  final int licensesExpiringIn60Days;
+  final int assignedDrivers;
+  final int openViolations;
+  final int verifiedDrivers;
+  final int underReviewDrivers;
+  final int onLeave;
+  final int busy;
 
   factory DriverStats.fromJson(Map<String, dynamic> json) {
     int n(String a, [String? b]) =>
@@ -209,6 +231,19 @@ class DriverStats {
       gpsOnline: n('gpsOnline', 'GpsOnline'),
       licensesExpiringSoon: n('licensesExpiringSoon', 'LicensesExpiringSoon'),
       licensesExpired: n('licensesExpired', 'LicensesExpired'),
+      suspended: n('suspended', 'Suspended'),
+      pendingVerification: n('pendingVerification', 'PendingVerification'),
+      rejectedDrivers: n('rejectedDrivers', 'RejectedDrivers'),
+      licensesExpiringIn7Days:
+          n('licensesExpiringIn7Days', 'LicensesExpiringIn7Days'),
+      licensesExpiringIn60Days:
+          n('licensesExpiringIn60Days', 'LicensesExpiringIn60Days'),
+      assignedDrivers: n('assignedDrivers', 'AssignedDrivers'),
+      openViolations: n('openViolations', 'OpenViolations'),
+      verifiedDrivers: n('verifiedDrivers', 'VerifiedDrivers'),
+      underReviewDrivers: n('underReviewDrivers', 'UnderReviewDrivers'),
+      onLeave: n('onLeave', 'OnLeave'),
+      busy: n('busy', 'Busy'),
     );
   }
 
@@ -222,6 +257,71 @@ class DriverStats {
     licensesExpiringSoon: 0,
     licensesExpired: 0,
   );
+}
+
+/// Client-side safety score aligned with ERP `computeDriverScore`.
+int computeDriverScore(DriverListItem row) {
+  if (row.rating != null) {
+    return (row.rating! * 20).round().clamp(0, 100);
+  }
+  var score = 88;
+  if (row.licenseExpired) {
+    score -= 35;
+  } else if (row.licenseExpiringSoon) {
+    score -= 12;
+  }
+  final status = row.status.toLowerCase();
+  if (status == 'suspended') {
+    score -= 45;
+  } else if (status == 'onleave') {
+    score -= 8;
+  }
+  if ((row.verificationStatus ?? '').toLowerCase() == 'verified') {
+    score += 5;
+  }
+  if (row.assignedVehicleId != null) {
+    score += 3;
+  }
+  return score.clamp(0, 100);
+}
+
+List<DriverRankItem> buildTopDriversFromList(
+  List<DriverListItem> drivers, {
+  int limit = 5,
+}) {
+  final scored = drivers
+      .map((d) {
+        final score = computeDriverScore(d);
+        final label = score >= 80
+            ? 'Good'
+            : score >= 60
+                ? 'Fair'
+                : 'Needs attention';
+        return DriverRankItem(
+          driverId: d.id,
+          driverName:
+              d.fullName.trim().isEmpty ? 'Driver' : d.fullName.trim(),
+          score: score,
+          rating: label,
+        );
+      })
+      .toList()
+    ..sort((a, b) => b.score.compareTo(a.score));
+  if (scored.length <= limit) return scored;
+  return scored.take(limit).toList();
+}
+
+/// Prefer `fullName`; fall back to first/last when demo tenants omit names.
+String resolveDriverDisplayName(Map<String, dynamic> json) {
+  final full = (json['fullName'] ?? json['FullName'])?.toString().trim();
+  if (full != null && full.isNotEmpty) return full;
+  final first = (json['firstName'] ?? json['FirstName'])?.toString().trim() ?? '';
+  final last = (json['lastName'] ?? json['LastName'])?.toString().trim() ?? '';
+  final combined = '$first $last'.trim();
+  if (combined.isNotEmpty) return combined;
+  final code = (json['driverCode'] ?? json['DriverCode'])?.toString().trim();
+  if (code != null && code.isNotEmpty) return code;
+  return 'Driver';
 }
 
 class DriverPerformanceSummary {

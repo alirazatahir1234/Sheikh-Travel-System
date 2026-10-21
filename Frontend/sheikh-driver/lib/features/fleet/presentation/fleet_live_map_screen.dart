@@ -398,7 +398,7 @@ class _FleetLiveMapScreenState extends ConsumerState<FleetLiveMapScreen> {
           IconButton(
             tooltip: _follow ? 'Stop follow' : 'Follow vehicle',
             icon: Icon(
-              _follow ? Icons.gps_fixed : Icons.gps_not_fixed,
+              _follow ? Icons.location_disabled : Icons.directions_run,
               color: _follow ? AppColors.primary : null,
             ),
             onPressed: _selectedId == null

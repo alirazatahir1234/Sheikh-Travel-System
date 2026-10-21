@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/api/dio_client.dart';
 import '../../../core/constants/app_theme.dart';
 import '../../../core/offline/offline_sync_service.dart';
 import '../../../features/auth/data/auth_repository.dart';
@@ -100,7 +101,7 @@ class DashboardScreen extends ConsumerWidget {
           ],
         ),
         error: (e, _) => _ErrorView(
-          message: e.toString(),
+          message: formatDioError(e),
           onRetry: () => ref.read(dashboardProvider.notifier).refresh(),
         ),
         data: (data) {

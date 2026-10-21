@@ -54,15 +54,15 @@
 
   <div class="card operations-summary">
     <div class="operations-summary-header">
-      <h3 class="panel-title panel-title--inline">Today's Operations Summary</h3>
+      <h3 class="panel-title panel-title--inline">Live Operations Snapshot</h3>
       <span class="ops-date-badge">Live</span>
     </div>
     <div class="operations-grid">
       <div class="ops-metric">
         <mat-icon class="ops-icon ops-icon--trip">route</mat-icon>
         <div>
-          <p class="ops-value">{{ operationsSummary().tripsToday }}</p>
-          <p class="ops-label">Trips Today</p>
+          <p class="ops-value">{{ operationsSummary().onTripNow }}</p>
+          <p class="ops-label">On Trip Now</p>
         </div>
       </div>
       <div class="ops-metric">
@@ -82,8 +82,8 @@
       <div class="ops-metric">
         <mat-icon class="ops-icon ops-icon--incident">report</mat-icon>
         <div>
-          <p class="ops-value">{{ operationsSummary().incidentsToday }}</p>
-          <p class="ops-label">Incidents Today</p>
+          <p class="ops-value">{{ operationsSummary().openIncidents }}</p>
+          <p class="ops-label">Open Incidents</p>
         </div>
       </div>
     </div>
@@ -108,31 +108,31 @@
         <div class="card incident-panel">
           <div class="incident-header">
             <mat-icon>warning</mat-icon>
-            <h3>Incident Center</h3>
+            <h3>Compliance Center</h3>
           </div>
 
           <div class="severity-grid">
             <div class="severity-card severity-card--critical">
-              <span class="severity-card-count">{{ incidentSeverity().critical }}</span>
-              <span class="severity-card-label">Critical</span>
+              <span class="severity-card-count">{{ complianceSeverity().critical }}</span>
+              <span class="severity-card-label">Expired</span>
             </div>
             <div class="severity-card severity-card--high">
-              <span class="severity-card-count">{{ incidentSeverity().high }}</span>
-              <span class="severity-card-label">High</span>
+              <span class="severity-card-count">{{ complianceSeverity().high }}</span>
+              <span class="severity-card-label">≤ 7 days</span>
             </div>
             <div class="severity-card severity-card--medium">
-              <span class="severity-card-count">{{ incidentSeverity().medium }}</span>
-              <span class="severity-card-label">Medium</span>
+              <span class="severity-card-count">{{ complianceSeverity().medium }}</span>
+              <span class="severity-card-label">8–30 days</span>
             </div>
             <div class="severity-card severity-card--low">
-              <span class="severity-card-count">{{ incidentSeverity().low }}</span>
-              <span class="severity-card-label">Low</span>
+              <span class="severity-card-count">{{ complianceSeverity().low }}</span>
+              <span class="severity-card-label">Suspended</span>
             </div>
           </div>
 
-          <p class="incident-section-label">License Compliance</p>
+          <p class="incident-section-label">License Alerts</p>
           @for (d of complianceDrivers().slice(0, 3); track d.id) {
-            <div class="incident-item">
+            <div class="incident-item" (click)="openDrawer(d)" role="button" tabindex="0">
               <div class="incident-avatar">{{ initials(d.fullName) }}</div>
               <div class="incident-body">
                 <p class="incident-name">{{ d.fullName }}</p>
@@ -147,8 +147,8 @@
             <p class="no-alerts">No license alerts</p>
           }
 
-          <p class="incident-section-label mt-3">Incident Types</p>
-          @for (t of incidentTypes(); track t.label) {
+          <p class="incident-section-label mt-3">Attention Breakdown</p>
+          @for (t of complianceAttention(); track t.label) {
             <div class="incident-type-row">
               <mat-icon class="incident-type-icon" [ngClass]="t.tone">{{ t.icon }}</mat-icon>
               <span>{{ t.label }}</span>
@@ -156,7 +156,7 @@
             </div>
           }
 
-          <button class="view-all-btn" (click)="onLicenseFilterChange('EXPIRING')">VIEW ALL CRITICAL</button>
+          <button type="button" class="view-all-btn" (click)="onLicenseFilterChange('EXPIRED')">VIEW EXPIRED LICENSES</button>
         </div>
       </aside>
     </div>
@@ -264,15 +264,15 @@
           <span class="assignment-label">Assigned Vehicles</span>
           <span class="assignment-count">{{ assignmentCoverage().assignedVehicles }}</span>
         </div>
-        <div class="assignment-row">
+        <div class="assignment-row assignment-row--link" role="button" tabindex="0" (click)="openUnassignedVehicles()" (keyup.enter)="openUnassignedVehicles()">
           <div class="assignment-icon available"><mat-icon>garage</mat-icon></div>
-          <span class="assignment-label">Available Vehicles</span>
-          <span class="assignment-count assignment-count--muted">—</span>
+          <span class="assignment-label">Manage fleet assignments</span>
+          <mat-icon class="assignment-chevron">chevron_right</mat-icon>
         </div>
 
         <button type="button" class="coverage-map-btn" (click)="viewCoverageMap()">
           <mat-icon>map</mat-icon>
-          View coverage map
+          View live GPS map
         </button>
       </div>
     </div>
@@ -282,7 +282,7 @@
         <h3 class="panel-title">Top Drivers</h3>
         <p class="panel-hint" style="margin-bottom: 0.5rem;">Ranked by safety score</p>
         @for (item of topDrivers(); track item.driver.id; let i = $index) {
-          <div class="top-driver-item">
+          <div class="top-driver-item" role="button" tabindex="0" (click)="openDrawer(item.driver, 'performance')" (keyup.enter)="openDrawer(item.driver, 'performance')">
             <span class="top-driver-rank">#{{ i + 1 }}</span>
             <div class="top-driver-avatar">{{ initials(item.driver.fullName) }}</div>
             <span class="top-driver-name">{{ item.driver.fullName }}</span>
@@ -309,7 +309,12 @@
         <div class="verification-item verification-item--rejected">
           <mat-icon>cancel</mat-icon>
           <span>Rejected</span>
-          <span class="verification-count">0</span>
+          <span class="verification-count">{{ stats()?.rejectedDrivers ?? 0 }}</span>
+        </div>
+        <div class="verification-item verification-item--pending">
+          <mat-icon>manage_search</mat-icon>
+          <span>Under Review</span>
+          <span class="verification-count">{{ stats()?.underReviewDrivers ?? 0 }}</span>
         </div>
         <div class="verification-item verification-item--assigned">
           <mat-icon>directions_car</mat-icon>
@@ -338,7 +343,7 @@
         <div class="expiry-item expiry-item--info">
           <mat-icon>schedule</mat-icon>
           <span>Expiring in 60 days</span>
-          <span class="expiry-count expiry-count--muted">—</span>
+          <span class="expiry-count">{{ stats()?.licensesExpiringIn60Days ?? 0 }}</span>
         </div>
         <div class="expiry-item expiry-item--error">
           <mat-icon>cancel</mat-icon>
@@ -359,25 +364,25 @@
           placeholder="Search name, code, license, mobile…"
           [value]="filters().search"
           (input)="onSearchInput($any($event.target).value)" />
-        <select class="filter-input" (change)="onStatusChange($any($event.target).value)">
+        <select class="filter-input" [value]="filters().status === 'ALL' ? 'ALL' : statusValue(filters().status)" (change)="onStatusChange($any($event.target).value)">
           @for (opt of statusOptions; track opt.value) {
-            <option [value]="opt.value" [selected]="filters().status === opt.value || (filters().status !== 'ALL' && statusValue(filters().status) === opt.value)">{{ opt.label }}</option>
+            <option [value]="opt.value">{{ opt.label }}</option>
           }
         </select>
-        <select class="filter-input" (change)="onBranchChange($any($event.target).value)">
+        <select class="filter-input" [value]="branchFilterValue()" (change)="onBranchChange($any($event.target).value)">
           @for (opt of branchOptions(); track opt.value) {
             <option [value]="opt.value">{{ opt.label }}</option>
           }
         </select>
-        <select class="filter-input" (change)="onLicenseFilterChange($any($event.target).value)">
+        <select class="filter-input" [value]="filters().licenseExpiry" (change)="onLicenseFilterChange($any($event.target).value)">
           <option value="ALL">All license states</option>
           <option value="VALID">Valid</option>
           <option value="EXPIRING">Expiring (30d)</option>
           <option value="EXPIRED">Expired</option>
         </select>
-        <select class="filter-input" (change)="onAvailabilityChange($any($event.target).value)">
+        <select class="filter-input" [value]="filters().availability" (change)="onAvailabilityChange($any($event.target).value)">
           @for (opt of availabilityOptions; track opt.value) {
-            <option [value]="opt.value" [selected]="filters().availability === opt.value">{{ opt.label }}</option>
+            <option [value]="opt.value">{{ opt.label }}</option>
           }
         </select>
       </div>

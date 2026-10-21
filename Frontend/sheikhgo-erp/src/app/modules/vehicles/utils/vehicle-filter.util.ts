@@ -53,13 +53,26 @@ export function isMaintenanceDue(row: VehicleListItem): boolean {
   return false;
 }
 
+export function isInsuranceExpired(row: VehicleListItem): boolean {
+  if (!row.insuranceExpiryDate) return false;
+  const exp = new Date(row.insuranceExpiryDate).getTime();
+  return Number.isFinite(exp) && exp < Date.now();
+}
+
+/** True when policy expires within the next `withinDays` (not yet expired). */
 export function isInsuranceExpiringSoon(row: VehicleListItem, withinDays = 30): boolean {
   if (!row.insuranceExpiryDate) return false;
   const exp = new Date(row.insuranceExpiryDate).getTime();
   if (!Number.isFinite(exp)) return false;
   const now = Date.now();
+  if (exp < now) return false;
   const windowMs = withinDays * 24 * 60 * 60 * 1000;
   return exp <= now + windowMs;
+}
+
+/** Expired or expiring within the window — used by KPI + advanced filter. */
+export function isInsuranceAttention(row: VehicleListItem, withinDays = 30): boolean {
+  return isInsuranceExpired(row) || isInsuranceExpiringSoon(row, withinDays);
 }
 
 export function matchesVehicleFilters(
@@ -99,7 +112,7 @@ export function matchesVehicleFilters(
   }
 
   if (f.maintenanceDue && !isMaintenanceDue(row)) return false;
-  if (f.insuranceExpiring && !isInsuranceExpiringSoon(row)) return false;
+  if (f.insuranceExpiring && !isInsuranceAttention(row)) return false;
 
   const term = f.search.trim().toLowerCase();
   if (term) {
