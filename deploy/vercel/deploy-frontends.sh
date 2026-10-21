@@ -41,8 +41,11 @@ deploy_one() {
 {"orgId":"${VERCEL_ORG_ID}","projectId":"${project_id}"}
 EOF
 
+  # When VERCEL_ORG_ID is in the environment (ADO Library), the CLI also requires
+  # VERCEL_PROJECT_ID — project.json alone is not enough.
   (
     cd "$dir"
+    export VERCEL_PROJECT_ID="$project_id"
     vercel pull --yes --environment=production --token "$VERCEL_TOKEN"
     vercel build "${PROD_FLAG[@]}" --token "$VERCEL_TOKEN"
     vercel deploy --prebuilt "${PROD_FLAG[@]}" --token "$VERCEL_TOKEN"
