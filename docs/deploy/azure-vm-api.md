@@ -1,6 +1,6 @@
 # SheikhGo API on Azure VM + Azure DevOps
 
-> **Note:** Primary repo CI/CD is now **Backend → IBM** and **Frontend → Vercel** — see [ibm-vercel-cicd.md](./ibm-vercel-cicd.md). Keep this VM/`sheikhgo-api` running if already live; it is not the target of the current `azure-pipelines.yml`.
+Primary CI/CD: **Backend → Azure VM** and **Frontend → Vercel** — see [azure-vm-vercel-cicd.md](./azure-vm-vercel-cicd.md). Pipeline file: root `azure-pipelines.yml`.
 
 ## Live endpoints
 
@@ -17,25 +17,21 @@
 | Traccar | local `127.0.0.1:8082` (untouched) |
 | Railway | **left fully intact** (still online; clients re-pointed to Azure) |
 
-## Optional path: Azure DevOps self-hosted agent on the VM
+## Azure DevOps self-hosted agent on the VM
 
-(Not used by the current root `azure-pipelines.yml`, which targets IBM + Vercel.)
+Root `azure-pipelines.yml` Backend job uses pool **`SheikhGo-VM`** (agent on `20.174.1.230`). Frontend job uses Microsoft-hosted `ubuntu-latest` → Vercel.
 
 Flow:
 
-1. Push to a branch that still uses a VM-targeted pipeline YAML
-2. Job runs on pool **`SheikhGo-VM`** (agent installed **on** `20.174.1.230`)
+1. Push to `main`/`master` (paths under `Backend/**`, etc.)
+2. Backend job runs on pool **`SheikhGo-VM`**
 3. `deploy/azure-vm/deploy-api.sh` runs `dotnet publish` + `systemctl restart sheikhgo-api`
 
-### What Ali must click once (Azure DevOps free org)
+### What Ali must click once (agent + secrets)
 
-Azure CLI / existing org were not available from this workstation, so wire the org in the portal:
-
-1. Create free org: https://dev.azure.com → **New organization** (Basic plan, ≤5 users).
-2. Create project e.g. **`SheikhGo`**.
-3. **Project settings → Agent pools → Add pool** named exactly **`SheikhGo-VM`** (self-hosted).
-4. Create a PAT: User settings → Personal access tokens → **Agent Pools (Read & manage)** + **Code (Read)** if needed. Copy once; do not commit.
-5. On the VM (SSH as `azureuser`):
+1. **Project settings → Agent pools → Add pool** named exactly **`SheikhGo-VM`** (self-hosted), if missing.
+2. Create a PAT: User settings → Personal access tokens → **Agent Pools (Read & manage)** + **Code (Read)** if needed. Copy once; do not commit.
+3. On the VM (SSH as `azureuser`):
 
 ```bash
 cd /opt/sheikhgo-api/src/deploy/azure-vm   # after repo is on the VM
@@ -49,34 +45,25 @@ chmod +x install-ado-agent.sh
 unset AZP_TOKEN
 ```
 
-6. **Pipelines → New pipeline → GitHub** → authorize `alirazatahir1234/Sheikh-Travel-System` → **Existing Azure Pipelines YAML** → `/azure-pipelines.yml`.
-7. Run once (manual) or push a no-op under `Backend/` to verify.
+4. **Pipelines → New pipeline → Azure Repos Git → SheikhGo** → **Existing Azure Pipelines YAML** → `/azure-pipelines.yml`.
+5. Add Vercel variables (see [azure-vm-vercel-cicd.md](./azure-vm-vercel-cicd.md)).
+6. Run once (manual) or push under `Backend/` / frontend paths to verify.
 
 ### How to trigger / verify
 
-- **Trigger:** `git push origin main` (with Backend changes), or **Run pipeline** in Azure DevOps.
+- **Trigger:** `git push` to `main`/`master` (with matching path changes), or **Run pipeline** in Azure DevOps.
 - **Verify:** `curl -s http://20.174.1.230:5082/health` → `Healthy`
 - **Logs:** `journalctl -u sheikhgo-api -f`
 - **Agent:** Azure DevOps → Agent pools → SheikhGo-VM → agent online
 
-### Manual deploy (no ADO yet)
+### Manual deploy (no ADO)
 
 ```bash
-ssh -i <SheikhGo-VM_key.pem> azureuser@20.174.1.230
+ssh azureuser@20.174.1.230
 /opt/sheikhgo-api/deploy/deploy-api.sh
 # or from repo checkout:
 DEPLOY_BRANCH=main /opt/sheikhgo-api/src/deploy/azure-vm/deploy-api.sh
 ```
-
-## Fallback (not primary): Microsoft-hosted build + SSH
-
-If the self-hosted agent is unavailable, add a second pipeline that:
-
-1. Uses `vmImage: ubuntu-latest`
-2. `dotnet publish`
-3. Copies artifacts over SSH to `/opt/sheikhgo-api/releases/...` and restarts `sheikhgo-api`
-
-Prefer the self-hosted path so build happens on the VM like Railway’s “push → build → run”.
 
 ## Caveats
 

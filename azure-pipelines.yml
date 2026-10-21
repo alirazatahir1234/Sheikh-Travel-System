@@ -1,18 +1,19 @@
 # SheikhGo — Azure DevOps CI/CD
 #
-# Org: Alirazatahir · Project: SheikhGo
+# Org: Alirazatahir · Project: SheikhGo · Repo: SheikhGo
 # Trigger: push to main (or master)
 #
 # Jobs (path-filtered inside each job):
-#   1) Backend → IBM Cloud (scaffold — fill IBM_* variables; see docs/deploy/ibm-vercel-cicd.md)
+#   1) Backend → Azure VM 20.174.1.230 (systemd sheikhgo-api :5082)
+#      via self-hosted pool SheikhGo-VM (agent runs ON the VM)
 #   2) Frontend → Vercel (ERP + Customer Hub via vercel CLI)
 #
-# Does NOT target Azure VM (20.174.1.230 / sheikhgo-api). Leave that service alone.
-# Does NOT delete or modify Railway.
+# Does NOT touch Railway. Does NOT use IBM.
 #
-# ADO Library variables required (Pipelines → Library → Variable group or pipeline variables):
-#   IBM_*: see docs/deploy/ibm-vercel-cicd.md (MISSING until Ali provides host/method)
+# Setup: docs/deploy/azure-vm-vercel-cicd.md
+# Required variables (pipeline or Library group "SheikhGo-Deploy"):
 #   VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_ERP_PROJECT_ID, VERCEL_HUB_PROJECT_ID
+#   VERCEL_PROD (optional, default true)
 
 trigger:
   branches:
@@ -24,7 +25,7 @@ trigger:
       - Backend/**
       - Frontend/sheikhgo-erp/**
       - Frontend/sheikh-travel-customer-hub/**
-      - deploy/ibm/**
+      - deploy/azure-vm/**
       - deploy/vercel/**
       - azure-pipelines.yml
 
@@ -32,60 +33,46 @@ pr: none
 
 stages:
   - stage: Deploy
-    displayName: Deploy Backend (IBM) and Frontend (Vercel)
+    displayName: Deploy Backend (Azure VM) and Frontend (Vercel)
     jobs:
-      # ── Backend → IBM ──────────────────────────────────────────────
-      - job: Backend_IBM
-        displayName: Backend → IBM
+      # ── Backend → Azure VM (self-hosted on 20.174.1.230) ───────────
+      - job: Backend_AzureVM
+        displayName: Backend → Azure VM (sheikhgo-api)
         pool:
-          vmImage: ubuntu-latest
+          name: SheikhGo-VM
+        variables:
+          DEPLOY_BRANCH: $[coalesce(variables['Build.SourceBranchName'], 'main')]
         steps:
           - checkout: self
+            clean: false
             fetchDepth: 1
 
           - bash: |
               set -euo pipefail
               if git rev-parse HEAD^ >/dev/null 2>&1; then
-                if git diff --name-only HEAD^ HEAD | grep -qE '^Backend/|^deploy/ibm/|^azure-pipelines\.yml'; then
-                  echo "##vso[task.setvariable variable=SKIP_IBM]false"
-                  echo "Backend paths changed — will deploy to IBM."
+                if git diff --name-only HEAD^ HEAD | grep -qE '^Backend/|^deploy/azure-vm/|^azure-pipelines\.yml'; then
+                  echo "##vso[task.setvariable variable=SKIP_VM]false"
+                  echo "Backend paths changed — will deploy to Azure VM."
                 else
-                  echo "##vso[task.setvariable variable=SKIP_IBM]true"
-                  echo "No Backend path changes — skipping IBM deploy."
+                  echo "##vso[task.setvariable variable=SKIP_VM]true"
+                  echo "No Backend path changes — skipping Azure VM deploy."
                 fi
               else
-                echo "##vso[task.setvariable variable=SKIP_IBM]false"
-                echo "No parent commit; running IBM job."
+                echo "##vso[task.setvariable variable=SKIP_VM]false"
+                echo "No parent commit; running Azure VM job."
               fi
             displayName: Detect Backend changes
 
-          - task: UseDotNet@2
-            condition: ne(variables['SKIP_IBM'], 'true')
-            displayName: Install .NET SDK
-            inputs:
-              packageType: sdk
-              version: '10.0.x'
-
           - bash: |
               set -euo pipefail
-              chmod +x "$(Build.SourcesDirectory)/deploy/ibm/deploy-api.sh"
-              "$(Build.SourcesDirectory)/deploy/ibm/deploy-api.sh"
-            condition: ne(variables['SKIP_IBM'], 'true')
-            displayName: Publish and deploy API to IBM
+              chmod +x "$(Build.SourcesDirectory)/deploy/azure-vm/deploy-api.sh"
+              export BUILD_SOURCESDIRECTORY="$(Build.SourcesDirectory)"
+              export DEPLOY_BRANCH="$(DEPLOY_BRANCH)"
+              "$(Build.SourcesDirectory)/deploy/azure-vm/deploy-api.sh"
+            condition: ne(variables['SKIP_VM'], 'true')
+            displayName: Publish and restart sheikhgo-api on VM
             env:
-              IBM_DEPLOY_METHOD: $(IBM_DEPLOY_METHOD)
-              IBM_HOST: $(IBM_HOST)
-              IBM_SSH_USER: $(IBM_SSH_USER)
-              IBM_SSH_KEY: $(IBM_SSH_KEY)
-              IBM_APP_NAME: $(IBM_APP_NAME)
-              IBM_REGION: $(IBM_REGION)
-              IBM_RESOURCE_GROUP: $(IBM_RESOURCE_GROUP)
-              IBM_API_KEY: $(IBM_API_KEY)
-              IBM_CF_ORG: $(IBM_CF_ORG)
-              IBM_CF_SPACE: $(IBM_CF_SPACE)
-              IBM_CE_PROJECT: $(IBM_CE_PROJECT)
-              IBM_REMOTE_PATH: $(IBM_REMOTE_PATH)
-              IBM_SERVICE_NAME: $(IBM_SERVICE_NAME)
+              DEPLOY_BRANCH: $(DEPLOY_BRANCH)
 
       # ── Frontend → Vercel ──────────────────────────────────────────
       - job: Frontend_Vercel
