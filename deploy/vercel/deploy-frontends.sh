@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Deploy SheikhGo Angular frontends to Vercel (production).
 # Requires: VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_ERP_PROJECT_ID
-# Optional: VERCEL_HUB_PROJECT_ID — skipped when unset or PLACEHOLDER so ERP (shego.com) still deploys.
+# Optional: VERCEL_HUB_PROJECT_ID — skipped when unset or PLACEHOLDER so ERP still deploys.
 set -euo pipefail
 
 ROOT="${BUILD_SOURCESDIRECTORY:-$(cd "$(dirname "$0")/../.." && pwd)}"
@@ -16,6 +16,33 @@ is_placeholder_id() {
   [[ "$id" == *[Pp][Ll][Aa][Cc][Ee][Hh][Oo][Ll][Dd][Ee][Rr]* ]] && return 0
   [[ "$id" == "TODO" || "$id" == "todo" || "$id" == "changeme" ]] && return 0
   return 1
+}
+
+# Dashboard Root Directory (e.g. Frontend/sheikhgo-erp) doubles when CLI cwd is already that folder.
+# Clear it after pull so build/deploy use the app directory + local vercel.json.
+clear_root_directory() {
+  local project_json="$1"
+  python3 - "$project_json" <<'PY'
+import json, sys
+path = sys.argv[1]
+try:
+    with open(path, encoding="utf-8") as f:
+        data = json.load(f)
+except FileNotFoundError:
+    sys.exit(0)
+changed = False
+settings = data.get("settings")
+if isinstance(settings, dict):
+    for key in ("rootDirectory", "root_directory"):
+        if key in settings:
+            settings.pop(key, None)
+            changed = True
+if changed:
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2)
+        f.write("\n")
+    print(f"Cleared Vercel rootDirectory in {path}")
+PY
 }
 
 PROD_FLAG=()
@@ -47,6 +74,7 @@ EOF
     cd "$dir"
     export VERCEL_PROJECT_ID="$project_id"
     vercel pull --yes --environment=production --token "$VERCEL_TOKEN"
+    clear_root_directory "${dir}/.vercel/project.json"
     vercel build "${PROD_FLAG[@]}" --token "$VERCEL_TOKEN"
     vercel deploy --prebuilt "${PROD_FLAG[@]}" --token "$VERCEL_TOKEN"
   )
